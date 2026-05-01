@@ -10,8 +10,8 @@ import {
   getBackgroundBaseColor,
   getColor,
   type LogosPlacement,
-  measureLogos,
   type MeasuredLogos,
+  measureLogos,
   Padding,
   RectCoordsDims,
 } from "./deps.ts";
@@ -26,6 +26,7 @@ import {
   pixelsToInches,
   pixelsToPoints,
 } from "./pptx_units.ts";
+import { mapFontForPptx } from "./font_mapping.ts";
 import type {
   CreateCanvasRenderContext,
   PptxGenJSInstance,
@@ -44,7 +45,9 @@ export function renderCoverSlide(
   const s = measured.style;
 
   // Background
-  const bgColor = Color.toHexNoHash(getColor(getBackgroundBaseColor(s.background)));
+  const bgColor = Color.toHexNoHash(
+    getColor(getBackgroundBaseColor(s.background)),
+  );
   slide.addShape("rect", {
     x: 0,
     y: 0,
@@ -102,7 +105,7 @@ export function renderCoverSlide(
       y: pixelsToInches(bounds.centerY() - mText.dims.h() / 2),
       w: pixelsToInches(bounds.w()),
       h: pixelsToInches(mText.dims.h()),
-      fontFace: mText.ti.font.fontFamily,
+      fontFace: mapFontForPptx(mText.ti.font.fontFamily),
       fontSize: pixelsToPoints(mText.ti.fontSize),
       color: watermarkColor.hexNoHash(),
       transparency: alpha < 1 ? (1 - alpha) * 100 : 0,
@@ -137,8 +140,9 @@ function renderFixedLogosCover(
     bounds.h() - padding.totalPy(),
   ]);
 
-  const { alignH: logoAlignH, alignV: logoAlignV } =
-    getFixedPlacementAlignment(placement);
+  const { alignH: logoAlignH, alignV: logoAlignV } = getFixedPlacementAlignment(
+    placement,
+  );
   const mLogos = measureLogos(paddedBounds, {
     images: logos,
     style: s.logosSizing,
@@ -153,17 +157,17 @@ function renderFixedLogosCover(
 
   const contentBounds = isTop
     ? new RectCoordsDims([
-        bounds.x(),
-        bounds.y() + padding.pt() + logoSpace,
-        bounds.w(),
-        bounds.h() - padding.pt() - logoSpace,
-      ])
+      bounds.x(),
+      bounds.y() + padding.pt() + logoSpace,
+      bounds.w(),
+      bounds.h() - padding.pt() - logoSpace,
+    ])
     : new RectCoordsDims([
-        bounds.x(),
-        bounds.y(),
-        bounds.w(),
-        bounds.h() - padding.pb() - logoSpace,
-      ]);
+      bounds.x(),
+      bounds.y(),
+      bounds.w(),
+      bounds.h() - padding.pb() - logoSpace,
+    ]);
 
   const contentPadding = isTop
     ? new Padding([0, padding.pr(), padding.pb(), padding.pl()])
@@ -219,7 +223,11 @@ function renderFlowCover(
   }
 
   addItem("title", measured.mTitle?.dims.h() ?? 0, s.titleBottomPadding);
-  addItem("subtitle", measured.mSubTitle?.dims.h() ?? 0, s.subTitleBottomPadding);
+  addItem(
+    "subtitle",
+    measured.mSubTitle?.dims.h() ?? 0,
+    s.subTitleBottomPadding,
+  );
   addItem("author", measured.mAuthor?.dims.h() ?? 0, s.authorBottomPadding);
   addItem("date", measured.mDate?.dims.h() ?? 0, 0);
 
@@ -248,17 +256,50 @@ function renderFlowCover(
           textMaxWidth,
           item.h,
         ]),
-        { images: logos, style: s.logosSizing, alignH: s.alignH, alignV: "top" },
+        {
+          images: logos,
+          style: s.logosSizing,
+          alignH: s.alignH,
+          alignV: "top",
+        },
       );
       renderLogos(slide, positioned, createCanvasRenderContext);
     } else if (item.type === "title" && measured.mTitle) {
-      addTextToSlide(slide, measured.mTitle, bounds, padding, s.alignH, currentY);
+      addTextToSlide(
+        slide,
+        measured.mTitle,
+        bounds,
+        padding,
+        s.alignH,
+        currentY,
+      );
     } else if (item.type === "subtitle" && measured.mSubTitle) {
-      addTextToSlide(slide, measured.mSubTitle, bounds, padding, s.alignH, currentY);
+      addTextToSlide(
+        slide,
+        measured.mSubTitle,
+        bounds,
+        padding,
+        s.alignH,
+        currentY,
+      );
     } else if (item.type === "author" && measured.mAuthor) {
-      addTextToSlide(slide, measured.mAuthor, bounds, padding, s.alignH, currentY);
+      addTextToSlide(
+        slide,
+        measured.mAuthor,
+        bounds,
+        padding,
+        s.alignH,
+        currentY,
+      );
     } else if (item.type === "date" && measured.mDate) {
-      addTextToSlide(slide, measured.mDate, bounds, padding, s.alignH, currentY);
+      addTextToSlide(
+        slide,
+        measured.mDate,
+        bounds,
+        padding,
+        s.alignH,
+        currentY,
+      );
     }
 
     currentY += item.h;
@@ -351,19 +392,18 @@ function addTextToSlide(
   }
   const lineSpacingMultiple = ti.lineHeight / 1.2;
 
-  const x =
-    alignH === "left"
-      ? bounds.x() + padding.pl()
-      : alignH === "right"
-        ? bounds.x() + bounds.w() - padding.pr() - textMaxWidth
-        : bounds.x() + padding.pl();
+  const x = alignH === "left"
+    ? bounds.x() + padding.pl()
+    : alignH === "right"
+    ? bounds.x() + bounds.w() - padding.pr() - textMaxWidth
+    : bounds.x() + padding.pl();
 
   slide.addText(text, {
     x: pixelsToInches(x),
     y: pixelsToInches(y),
     w: pixelsToInches(textMaxWidth),
     h: pixelsToInches(h),
-    fontFace: ti.font.fontFamily,
+    fontFace: mapFontForPptx(ti.font.fontFamily),
     fontSize: pixelsToPoints(ti.fontSize),
     color: Color.toHexNoHash(ti.color),
     bold: ti.font.weight >= 700,

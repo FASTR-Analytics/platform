@@ -18,6 +18,7 @@ import {
   pixelsToPoints,
   rcdToSlidePosition,
 } from "./pptx_units.ts";
+import { mapFontForPptx } from "./font_mapping.ts";
 
 type TextRun = { text: string; options?: Record<string, unknown> };
 
@@ -36,7 +37,7 @@ export function addMeasuredTextToSlide(
 
   slide.addText(text, {
     ...rcdToSlidePosition(bounds),
-    fontFace: ti.font.fontFamily,
+    fontFace: mapFontForPptx(ti.font.fontFamily),
     fontSize: pixelsToPoints(ti.fontSize),
     color: Color.toHexNoHash(ti.color),
     bold: ti.font.weight >= 700,
@@ -165,7 +166,7 @@ function getListItemRuns(
     runs.push({
       text: markerText + " ",
       options: {
-        fontFace: markerTi.font.fontFamily,
+        fontFace: mapFontForPptx(markerTi.font.fontFamily),
         fontSize: pixelsToPoints(markerTi.fontSize),
         color: Color.toHexNoHash(markerTi.color),
       },
@@ -249,7 +250,7 @@ function addCodeBlockToSlide(
         item.bounds.w() - (item.contentPosition.x() - item.bounds.x()) * 2,
       ),
       h: pixelsToInches(contentHeight),
-      fontFace: ti.font.fontFamily,
+      fontFace: mapFontForPptx(ti.font.fontFamily),
       fontSize: pixelsToPoints(ti.fontSize),
       color: Color.toHexNoHash(ti.color),
       valign: "top",
@@ -307,14 +308,12 @@ function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
       );
       const isBold = runStyle === "bold" || runStyle === "bold-italic";
       const isItalic = runStyle === "italic" || runStyle === "bold-italic";
-      const isCode = mText.ti.font.fontFamily.toLowerCase().includes("mono") ||
-        mText.ti.font.fontFamily.toLowerCase().includes("consolas");
 
       // Use the run's actual color (which may be link color) or base color
       const runColor = run.underline?.color ?? baseColor;
 
       const options: Record<string, unknown> = {
-        fontFace: isCode ? "Consolas" : baseFontFamily,
+        fontFace: mapFontForPptx(mText.ti.font.fontFamily),
         fontSize: baseFontSize,
         color: Color.toHexNoHash(runColor),
         bold: isBold,

@@ -14,6 +14,7 @@ import {
   pixelsToInches,
   pixelsToPoints,
 } from "./pptx_units.ts";
+import { mapFontForPptx } from "./font_mapping.ts";
 import type {
   CreateCanvasRenderContext,
   PptxGenJSInstance,
@@ -32,7 +33,9 @@ export function renderSectionSlide(
   const s = measured.style;
 
   // Background
-  const bgColor = Color.toHexNoHash(getColor(getBackgroundBaseColor(s.background)));
+  const bgColor = Color.toHexNoHash(
+    getColor(getBackgroundBaseColor(s.background)),
+  );
   slide.addShape("rect", {
     x: 0,
     y: 0,
@@ -66,9 +69,7 @@ export function renderSectionSlide(
     : 0;
 
   const totalH = sectionTitleH +
-    (sectionSubTitleH > 0
-      ? s.sectionTitleBottomPadding + sectionSubTitleH
-      : 0);
+    (sectionSubTitleH > 0 ? s.sectionTitleBottomPadding + sectionSubTitleH : 0);
   let currentY = bounds.y() + (bounds.h() - totalH) / 2;
 
   // Render each text element at its measured position
@@ -103,7 +104,7 @@ export function renderSectionSlide(
       y: pixelsToInches(bounds.centerY() - mText.dims.h() / 2),
       w: pixelsToInches(bounds.w()),
       h: pixelsToInches(mText.dims.h()),
-      fontFace: mText.ti.font.fontFamily,
+      fontFace: mapFontForPptx(mText.ti.font.fontFamily),
       fontSize: pixelsToPoints(mText.ti.fontSize),
       color: watermarkColor.hexNoHash(),
       transparency: alpha < 1 ? (1 - alpha) * 100 : 0,
@@ -144,7 +145,7 @@ function addMeasuredTextToSlide(
     y: pixelsToInches(y),
     w: pixelsToInches(boundsW),
     h: pixelsToInches(h),
-    fontFace: ti.font.fontFamily,
+    fontFace: mapFontForPptx(ti.font.fontFamily),
     fontSize: pixelsToPoints(ti.fontSize),
     color: Color.toHexNoHash(ti.color),
     bold: ti.font.weight >= 700,

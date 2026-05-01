@@ -8,7 +8,12 @@ export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { AlignH, AlignV } from "../_001_geometry/mod.ts";
 export type { MeasuredText, RenderContext } from "../_001_render_system/mod.ts";
 export { getBackgroundBaseColor } from "../_002_pattern/mod.ts";
-export type { LogosPlacement, MergedCoverStyle, MergedFreeformStyle, MergedPageNumberStyle } from "../_005_page_style/mod.ts";
+export type {
+  LogosPlacement,
+  MergedCoverStyle,
+  MergedFreeformStyle,
+  MergedPageNumberStyle,
+} from "../_005_page_style/mod.ts";
 export { walkLayout } from "../_008_layouter/mod.ts";
 export type { MeasuredLayoutNode } from "../_008_layouter/mod.ts";
 export { measureLogos } from "../_009_logos/mod.ts";
@@ -18,7 +23,19 @@ export type { FigureInputs } from "../_011_figure_renderer/mod.ts";
 export { ImageRenderer } from "../_012_image_renderer/mod.ts";
 export type { ImageInputs } from "../_012_image_renderer/mod.ts";
 export { MarkdownRenderer } from "../_105_markdown/mod.ts";
-export type { FormattedRunStyle, MeasuredFormattedText, MeasuredMarkdown, MeasuredMarkdownItem } from "../_105_markdown/mod.ts";
+export type {
+  FormattedRunStyle,
+  MeasuredFormattedText,
+  MeasuredMarkdown,
+  MeasuredMarkdownItem,
+} from "../_105_markdown/mod.ts";
 export { PageRenderer } from "../_121_page/mod.ts";
-export type { MeasuredCoverPage, MeasuredFreeformPage, MeasuredPage, MeasuredSectionPage, PageContentItem, PageInputs } from "../_121_page/mod.ts";
+export type {
+  MeasuredCoverPage,
+  MeasuredFreeformPage,
+  MeasuredPage,
+  MeasuredSectionPage,
+  PageContentItem,
+  PageInputs,
+} from "../_121_page/mod.ts";
 export { default as PptxGenJS } from "pptxgenjs";

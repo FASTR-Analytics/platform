@@ -28,15 +28,11 @@ Bug fixes and dead-code cleanup happen in separate commits outside this plan.
 
 ## Resolved decisions
 
-All six open questions from the original V1 plan have been researched and resolved under the "zero functional change" constraint. Each decision is grounded in how the current code actually behaves.
+Five open questions from the original V1 plan have been researched and resolved under the "zero functional change" constraint. Each decision is grounded in how the current code actually behaves.
 
-### 1. `anyModuleLastRun` — **include on `ProjectState`**
+### 1. ~~`anyModuleLastRun`~~ — **DELETED**
 
-Currently defined in `lib/types/project_dirty_states.ts:6`. Used today as a T2 cache version key for slide inputs / reports at `client/src/state/caches/reports.ts:41`, composed with `reportLastUpdated` and `reportItemLastUpdated` via `|`-join. Dropping it would silently break slide-input cache invalidation.
-
-Written on `starting` and on every module transition to "ready" at `provider.tsx:227` (batch) and `provider.tsx:256` (incremental). Server source: `server/task_management/get_project_dirty_states.ts:81-82` reading from `global_last_updated` table.
-
-**Action:** add to `ProjectState` shape. Set in `module_dirty_state` setter. Semantics identical to today.
+Was used as a T2 cache version key for reports at `client/src/state/caches/reports.ts`. Reports feature has been removed, and with it the only consumer of `anyModuleLastRun`. The field has been deleted from `ProjectDirtyStates`, `ProjectState`, and all server/client code.
 
 ### 2. `rLogs` — **demote to T5, component-local inside `project_modules.tsx`**
 
@@ -145,46 +141,41 @@ Deleting it is a change. The refactor preserves everything including dead fields
 
 ### 0.2 Client consumer map
 
-**Done.** Summary by hook:
+**Done.** Summary by hook (updated after reports removal):
 
 | Hook | Count | Files |
 |------|-------|-------|
-| `useProjectDetail` | 14 | project_ai/ (4), project/ (9), project_runner/ (def) |
-| `useProjectDirtyStates` | 12 | project/ (2), report/ (4), slide_deck/ (3), root (3) |
-| `getGlobalPDSSnapshot` | 1 | state/_infra/reactive_cache.ts:127 |
-| `useRefetchProjectDetail` | 2 | project/project_decks.tsx:62, project/project_settings.tsx:80 |
-| `useRLogs` | 1 | project/project_modules.tsx:228 |
-| `useLastUpdatedListener` | 1 | project_ai/index.tsx:29 |
+| `useProjectDetail` | 12 | project_ai/ (4), project/ (7), project_runner/ (def) |
+| `useProjectDirtyStates` | 7 | project/ (2), slide_deck/ (3), root (2) |
+| `getGlobalPDSSnapshot` | 1 | state/_infra/reactive_cache.ts |
+| `useRefetchProjectDetail` | 2 | project/project_decks.tsx, project/project_settings.tsx |
+| `useRLogs` | 1 | project/project_modules.tsx |
+| `useLastUpdatedListener` | 1 | project_ai/index.tsx |
 
 <details>
 <summary>Full list (click to expand)</summary>
 
 **useProjectDetail:**
-- `project_ai/ai_tools/DraftSlidePreview.tsx:42`
-- `project_ai/ai_tools/DraftVisualizationPreview.tsx:47`
-- `project_ai/chat_pane.tsx:33`
-- `project_ai/index.tsx:28`
-- `project/index.tsx:104`
-- `project/project_cache.tsx:8`
-- `project/project_data.tsx:30`
-- `project/project_decks.tsx:61`
-- `project/project_metrics.tsx:40`
-- `project/project_modules.tsx:48`
-- `project/project_reports.tsx:49`
-- `project/project_settings.tsx:79`
-- `project/project_visualizations.tsx:28`
+- `project_ai/ai_tools/DraftSlidePreview.tsx`
+- `project_ai/ai_tools/DraftVisualizationPreview.tsx`
+- `project_ai/chat_pane.tsx`
+- `project_ai/index.tsx`
+- `project/index.tsx`
+- `project/project_cache.tsx`
+- `project/project_data.tsx`
+- `project/project_decks.tsx`
+- `project/project_metrics.tsx`
+- `project/project_modules.tsx`
+- `project/project_settings.tsx`
+- `project/project_visualizations.tsx`
 
 **useProjectDirtyStates:**
-- `PresentationObjectMiniDisplay.tsx:18,72`
-- `ReportItemMiniDisplay.tsx:24`
-- `project/index.tsx:119`
-- `project/project_modules.tsx:227`
-- `report/index.tsx:83`
-- `report/report_item.tsx:59,152`
-- `report/select_presentation_object.tsx:32,151`
-- `slide_deck/index.tsx:37`
-- `slide_deck/slide_card.tsx:26`
-- `slide_deck/slide_deck_thumbnail.tsx:18`
+- `PresentationObjectMiniDisplay.tsx`
+- `project/index.tsx`
+- `project/project_modules.tsx`
+- `slide_deck/index.tsx`
+- `slide_deck/slide_card.tsx`
+- `slide_deck/slide_deck_thumbnail.tsx`
 
 </details>
 
@@ -364,9 +355,8 @@ Each sub-phase: migrate the listed component(s) off the shim'd hooks onto direct
 - **8.3** Datasets tab
 - **8.4** Modules tab — migrates the dirty-states / last-run / module-list reads onto the new store. **`useRLogs` is NOT touched in this sub-phase.** rLogs continues to be served by the old Provider's store, and `project_modules.tsx` keeps importing `useRLogs` from the old `project_runner/` hooks. The reason: `addRScriptListener` only fires from the new v2 SSE connection, which is conditionally mounted under the flag — under flag-off (default in main), migrating rLogs early would break the running-module ticker. The rLogs demotion happens in Phase 10.
 - **8.5** Visualizations tab
-- **8.6** Reports tab
-- **8.7** Slide decks tab
-- **8.8** Cross-cutting:
+- **8.6** Slide decks tab
+- **8.7** Cross-cutting:
   - `client/src/state/_infra/reactive_cache.ts` — swap `getGlobalPDSSnapshot` import source (behind flag via the shim, or directly if all consumers are migrated).
   - T2 cache files that import from `global_module_maps.ts` — swap to `getModuleIdForMetric` etc. from `t1_store.ts`.
   - `project_ai/index.tsx` — swap `addLastUpdatedListener` source.
@@ -380,7 +370,7 @@ Each sub-phase: migrate the listed component(s) off the shim'd hooks onto direct
 **Goal:** production runs on the new system. Old system still present.
 
 - Change `USE_V2_PROJECT_STATE = true`. Single-line diff.
-- Ship to staging. Exercise every project flow: open/switch projects, run modules, edit viz, generate reports, add/remove users, reconnect after network drop, multi-tab sync.
+- Ship to staging. Exercise every project flow: open/switch projects, run modules, edit viz, edit slide decks, add/remove users, reconnect after network drop, multi-tab sync.
 - If any regression → flip back to `false` in one commit. Diagnose, fix, re-flip.
 
 **Verification:** full manual smoke. Once stable in staging → merge and ship.
@@ -448,8 +438,7 @@ Each sub-phase: move or merge, update all import sites, typecheck, commit.
 - **11.4** `long_form_editor.ts` → `state/project/t4_long_form_editor.ts`
 - **11.5** Merge `caches/visualizations.ts` (PO detail / items / metric info) + `po_cache.ts` → `state/project/t2_presentation_objects.ts`
 - **11.6** Merge `caches/visualizations.ts` (replicant options) + `replicant_options_cache.ts` → `state/project/t2_replicant_options.ts`
-- **11.7** Merge `caches/reports.ts` + `ri_cache.ts` → `state/project/t2_reports.ts`
-- **11.8** `caches/slides.ts` → `state/project/t2_slides.ts`
+- **11.7** `caches/slides.ts` → `state/project/t2_slides.ts`
 
 **Merge check after each merge:** the resulting `t2_` file defines its own cache instances AND its access functions. No cache instance is exported across files.
 

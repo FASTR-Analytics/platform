@@ -59,7 +59,6 @@ export async function buildProjectState(
     projectLastUpdated: dirtyStates.projectLastUpdated,
     anyRunning: dirtyStates.anyRunning,
     moduleDirtyStates: dirtyStates.moduleDirtyStates,
-    anyModuleLastRun: dirtyStates.anyModuleLastRun,
     moduleLastRun: dirtyStates.moduleLastRun,
     moduleLastRunGitRef: dirtyStates.moduleLastRunGitRef,
     lastUpdated: dirtyStates.lastUpdated,

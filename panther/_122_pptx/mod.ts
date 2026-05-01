@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { pagesToPptx } from "./pages_to_pptx.ts";
+export { mapFontForPptx } from "./font_mapping.ts";
 export type { CreateCanvasRenderContext } from "./types.ts";
 export {
   pixelsToInches,

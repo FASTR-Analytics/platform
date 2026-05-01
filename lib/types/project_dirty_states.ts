@@ -3,7 +3,6 @@ export type ProjectDirtyStates = {
   projectLastUpdated: string;
   anyRunning: boolean;
   moduleDirtyStates: Record<string, DirtyOrRunStatus>;
-  anyModuleLastRun: string;
   moduleLastRun: Record<string, string>;
   moduleLastRunGitRef: Record<string, string>;
   lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
