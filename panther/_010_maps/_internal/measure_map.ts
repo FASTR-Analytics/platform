@@ -77,7 +77,6 @@ export function measureMap(
   );
 
   const dlMode = mergedStyle.map.dataLabelMode;
-  const useV2 = mergedStyle.map.labelPositioning === "v2";
 
   const mapPrimitives: Primitive[] = [];
   for (const prim of chartMeasured.primitives) {
@@ -89,8 +88,8 @@ export function measureMap(
 
       let padding: number | AsymmetricPadding;
 
-      if (useV2 && dlMode !== "none") {
-        padding = calculateV2Padding(
+      if (dlMode !== "none") {
+        padding = calculatePadding(
           rc,
           cellRcd,
           transformedData.geoFeatures,
@@ -102,8 +101,7 @@ export function measureMap(
           laneIndex,
         );
       } else {
-        const needsCalloutMargin = dlMode === "callout" || dlMode === "auto";
-        padding = needsCalloutMargin ? mergedStyle.map.calloutMargin : 0;
+        padding = 0;
       }
 
       const { regionPrimitives, fitted, shownFeatures, shownFeatureStyles } =
@@ -150,7 +148,7 @@ export function measureMap(
   };
 }
 
-function calculateV2Padding(
+function calculatePadding(
   rc: RenderContext,
   cellRcd: RectCoordsDims,
   geoFeatures: GeoJSONFeature[],

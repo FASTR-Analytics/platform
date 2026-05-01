@@ -436,7 +436,6 @@ export type CustomFigureStyleOptions = {
     boundingBox?: [number, number, number, number];
     dataLabelMode?: "none" | "centroid" | "callout" | "auto";
     calloutMargin?: number;
-    labelPositioning?: "legacy" | "v2";
     labelCollision?: {
       gap?: number;
       maxCentroidDisplacement?: number;

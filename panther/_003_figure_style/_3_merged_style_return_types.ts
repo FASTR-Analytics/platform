@@ -155,8 +155,6 @@ export type MergedChartStyleBase = {
 
 export type MapDataLabelMode = "none" | "centroid" | "callout" | "auto";
 
-export type MapLabelPositioning = "legacy" | "v2";
-
 export type MapLabelCollisionConfig = {
   gap: number;
   maxCentroidDisplacement: number;
@@ -170,7 +168,6 @@ export type MergedMapStyle = MergedChartStyleBase & {
     boundingBox?: [number, number, number, number];
     dataLabelMode: MapDataLabelMode;
     calloutMargin: number;
-    labelPositioning: MapLabelPositioning;
     labelCollision: MapLabelCollisionConfig;
   };
 };

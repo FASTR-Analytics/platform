@@ -3,10 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { deduplicateFonts } from "../_001_font/mod.ts";
-export type { FontInfo } from "../_001_font/mod.ts";
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
+export { deduplicateFonts } from "../_001_font/mod.ts";
+export type { FontInfo } from "../_001_font/mod.ts";
 export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { AlignH, AlignV } from "../_001_geometry/mod.ts";
 export type { LineStyle, Measured, MeasuredText, PathSegment, RenderContext } from "../_001_render_system/mod.ts";

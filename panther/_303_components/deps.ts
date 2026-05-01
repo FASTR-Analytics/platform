@@ -8,15 +8,9 @@ export { capitalizeFirstLetter, clamp, createArray, getSortedAlphabetical, isFre
 export { Color } from "../_001_color/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export { CanvasRenderContext } from "../_002_canvas/mod.ts";
-export { CustomMarkdownStyle } from "../_004_markdown_style/mod.ts";
-export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
-export { CustomPageStyle } from "../_005_page_style/mod.ts";
+export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
 export { CustomStyle } from "../_006_style/mod.ts";
-export { MarkdownRenderer } from "../_105_markdown/mod.ts";
-export { deduplicateFonts } from "../_001_font/mod.ts";
-export type { FontInfo } from "../_001_font/mod.ts";
-export type { LayoutNode } from "../_008_layouter/mod.ts";
 export type { CustomStyleOptions } from "../_006_style/mod.ts";
 export { getMinimumSpan } from "../_008_layouter/mod.ts";
 export type { MeasuredColsLayoutNode, MeasuredLayoutNode } from "../_008_layouter/mod.ts";

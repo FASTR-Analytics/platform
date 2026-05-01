@@ -1,4 +1,5 @@
 import { SlideDeckConfig, t3, TC } from "lib";
+import { validateBrandColor } from "@timroberton/panther";
 import {
   APIResponseWithData,
   Button,
@@ -78,6 +79,12 @@ export function SlideDeckSettings(p: Props) {
   const save = timActionButton(
     async () => {
       const newConfig = unwrap(tempConfig);
+      if (newConfig.colorTheme.type === "custom") {
+        const v = validateBrandColor(newConfig.colorTheme.primary);
+        if (!v.valid) {
+          return { success: false, err: v.reason };
+        }
+      }
       newConfig.logos.availableCustom =
         newConfig.logos.availableCustom.filter(Boolean);
       const res = await p.saveConfig(newConfig);

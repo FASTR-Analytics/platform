@@ -4,7 +4,12 @@ import {
   getFormatterFunc,
   type TickLabelFormatterOption,
 } from "panther";
-import { type DeckStyleContext, getCalendar, PresentationObjectConfig, selectCf } from "lib";
+import {
+  type DeckStyleContext,
+  getCalendar,
+  PresentationObjectConfig,
+  selectCf,
+} from "lib";
 import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
   getMapRegionsContent,
@@ -113,10 +118,10 @@ export function buildStandardStyle(
         ? {
             projection: config.s.mapProjection ?? "equirectangular",
             dataLabelMode: config.s.mapDataLabelMode ?? "centroid",
-            fit: (getAdminAreaLevelFromMapConfig(config) ?? 0) >= 3
-              ? "only-regions-in-data"
-              : undefined,
-            labelPositioning: "v2",
+            fit:
+              (getAdminAreaLevelFromMapConfig(config) ?? 0) >= 3
+                ? "only-regions-in-data"
+                : undefined,
           }
         : undefined,
   };

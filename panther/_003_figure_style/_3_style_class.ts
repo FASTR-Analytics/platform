@@ -497,11 +497,6 @@ export class CustomFigureStyle {
           g.map?.calloutMargin,
           d.map.calloutMargin,
         ),
-        labelPositioning: m(
-          c.map?.labelPositioning,
-          g.map?.labelPositioning,
-          d.map.labelPositioning,
-        ),
         labelCollision: {
           gap: ms(
             sf,

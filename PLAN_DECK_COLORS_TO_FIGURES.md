@@ -2,88 +2,114 @@
 
 ## Problem
 
-Figures in slides use independent color scales. They don't automatically match
-the slide deck's color theme. Users want figures to use the deck's primary color
-without manual configuration.
+Figures in slides use `{ key: "base300" }` etc. for structural colors (grid
+lines, borders, backgrounds, text). These resolve against the GLOBAL
+`_KEY_COLORS` map, not the deck's `colorPreset`. This means figures ignore the
+deck's color theme.
 
 ## Solution
 
-Add a "deck-primary" color scale option. When selected, figures use the deck's
-primary color from `DeckStyleContext.colorPreset.primary`.
+Pass `colorPreset` through and resolve colors inline - same approach as page
+styles in `modules/_006_page_presets/resolve.ts`.
+
+**Reference pattern (page styles):**
+```typescript
+function getSlotColor(slot: PaletteSlot, preset: ColorPreset): string {
+  return preset[slot];
+}
+
+// Usage:
+background: getSlotColor(coverTreatment.background, preset),
+bottomBorderColor: preset.primary,
+```
 
 ---
 
 ## Changes
 
-### Phase 1: Add Color Scale Option
+### Phase 1: Pass colorPreset Through Style Builders
 
-**Files to modify (must stay in sync):**
-- `lib/types/_presentation_object_config.ts`
-- `lib/types/_module_definition_github.ts`
-- `lib/types/_metric_installed.ts`
+**File:** `client/src/generate_visualization/get_style_from_po/_0_common.ts`
 
-Add `"deck-primary"` to the `ColorScale` union:
+Update functions to accept `colorPreset` and resolve inline:
 
 ```typescript
-export type ColorScale =
-  | "single-grey"
-  | "pastel-discrete"
-  | "alt-discrete"
-  | "blue-green"
-  | "red-green"
-  | "deck-primary"  // NEW
-  | "custom";
+// Before (resolves to global palette):
+gridLineColor: { key: "base300" as const }
+backgroundColor: { key: "base100" as const }
+
+// After (resolves to deck's colorPreset, falls back to global):
+gridLineColor: deckStyle?.colorPreset.base300 ?? { key: "base300" as const }
+backgroundColor: deckStyle?.colorPreset.base100 ?? { key: "base100" as const }
+```
+
+**Functions to update (add `deckStyle?: DeckStyleContext` parameter):**
+
+```typescript
+getTableLayoutStyle(config, deckStyle?)
+getTableCellsContent(config, formatAs, deckStyle?)
+getMapRegionsContent(config, formatAs, deckStyle?)
 ```
 
 ---
 
-### Phase 2: Handle in Style Builder
+### Phase 2: Structural Colors Mapping
 
-**File:** `client/src/generate_visualization/get_style_from_po/_0_common.ts`
+| Slot          | Usage                                         |
+|---------------|-----------------------------------------------|
+| `base100`     | Backgrounds, table cell text on dark CF       |
+| `base300`     | Grid lines, borders                           |
+| `baseContent` | Stroke colors, table cell text on light CF    |
 
-Update `getStandardSeriesColorFunc` to handle the new option:
+---
 
+### Phase 3: Update Style Builder Files
+
+| File                 | Has color keys | Change needed                                       |
+|----------------------|----------------|-----------------------------------------------------|
+| _0_common.ts         | Yes (6 usages) | Add deckStyle param to 3 functions, update 6 usages |
+| _1_standard.ts       | No             | Pass deckStyle to the 3 common functions it calls   |
+| _2_coverage.ts       | No             | None - uses hardcoded colors only                   |
+| _3_percent_change.ts | No             | None - uses _CF_* constants only                    |
+| _4_disruptions.ts    | No             | None - uses _CF_* constants and "#000000"           |
+
+Note: Hardcoded colors in `_2`, `_3`, `_4` are semantic (good/bad/neutral,
+survey/projected) not structural - leave them alone.
+
+---
+
+### Phase 4: Series Colors (Future - Not This PR)
+
+Add `"deck-primary"` color scale for series colors:
 ```typescript
-export function getStandardSeriesColorFunc(
-  config: PresentationObjectConfig,
-  deckStyle?: DeckStyleContext,
-): (info: ChartSeriesInfo) => ColorKeyOrString {
-  if (config.s.colorScale === "deck-primary") {
-    const color = deckStyle?.colorPreset.primary ?? "#0e706c";
-    return () => color;
-  }
-  // ... existing logic
+if (config.s.colorScale === "deck-primary") {
+  return () => deckStyle?.colorPreset.primary ?? "#0e706c";
 }
 ```
 
 ---
 
-### Phase 3: Pass deckStyle to All Color Funcs
-
-Already done in PLAN_PAGE_STYLES_PASSTHROUGH - `deckStyle` is passed through
-`getStyleFromPresentationObject` to all style builders.
-
-Verify these files pass `deckStyle` to `getStandardSeriesColorFunc`:
-- `_1_standard.ts`
-- `_2_coverage.ts`
-- `_3_percent_change.ts`
-- `_4_disruptions.ts`
-- `_5_scorecard.ts`
-
----
-
 ## Testing
 
-1. Create a figure with colorScale: "deck-primary"
-2. Add to a slide deck with a custom color theme
-3. Verify figure uses the deck's primary color
+### Critical: No-Deck Behavior Must Stay Identical
+
+The vast majority of visualization renders are **outside of a deck context**
+(standalone visualizations, exports, previews). These must behave exactly as
+before - no visual changes whatsoever.
+
+**Verification steps:**
+
+1. Render visualizations without deckStyle (the common case)
+2. Compare pixel-for-pixel with current behavior
+3. All color keys must resolve identically via global `_KEY_COLORS`
+
+### Deck Context Testing
+
+1. Create slide deck with custom color theme (e.g., dark theme with light text)
+2. Add figure to slide
+3. Verify structural colors match deck:
+   - Grid lines use deck's base300
+   - Backgrounds use deck's base100
+   - Text uses deck's baseContent
 4. Change deck color theme
 5. Verify figure updates to match
-
----
-
-## Future Enhancements
-
-- `deck-primary-gradient` - Gradient from primary to lighter shade
-- `deck-multi` - Generate multi-series palette from primary
-- Per-series deck color options

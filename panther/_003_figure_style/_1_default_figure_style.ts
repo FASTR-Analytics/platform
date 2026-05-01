@@ -400,7 +400,6 @@ const _DS = {
     boundingBox: typed<[number, number, number, number] | undefined>(undefined),
     dataLabelMode: typed<"none" | "centroid" | "callout" | "auto">("centroid"),
     calloutMargin: 30,
-    labelPositioning: typed<"legacy" | "v2">("legacy"),
     labelCollision: {
       gap: 12,
       maxCentroidDisplacement: 20,
