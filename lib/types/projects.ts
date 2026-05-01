@@ -3,7 +3,6 @@ import { ProjectUser } from "./instance.ts";
 import { type MetricWithStatus, type InstalledModuleSummary } from "./modules.ts";
 import type { ProjectUserPermissions } from "./permissions.ts";
 import { PresentationObjectSummary } from "./presentation_objects.ts";
-import { ReportSummary } from "./reports.ts";
 import { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import { VisualizationFolder } from "./visualization_folders.ts";
 
@@ -33,7 +32,6 @@ export type ProjectDetail = {
   commonIndicators: { id: string; label: string }[];
   visualizations: PresentationObjectSummary[];
   visualizationFolders: VisualizationFolder[];
-  reports: ReportSummary[];
   slideDecks: SlideDeckSummary[];
   slideDeckFolders: SlideDeckFolder[];
   projectUsers: ProjectUser[];

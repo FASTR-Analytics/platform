@@ -2,40 +2,106 @@
 
 ## Problem
 
-PPTX exports use custom font names (International Inter, Fira Sans, Merriweather, Poppins) that are unlikely to be installed on viewers' systems. PowerPoint auto-substitutes with unpredictable results.
+PPTX exports reference custom fonts that are unlikely to be installed on viewers' systems. PowerPoint auto-substitutes with unpredictable results.
 
-## Solution
+## Architecture
 
-Add a mapping function in panther's PPTX export to convert font names to widely-available MS equivalents.
+1. **User sets fonts in Styles** — FigureStyles, MarkdownStyles, PageStyles specify fonts like "Roboto Mono", "International Inter", etc.
+2. **Panther has a static mapping table** — comprehensive list of fonts with MS equivalents
+3. **PPTX rendering applies the mapping** — simple lookup at render time, no special cases
+4. **Canvas/PDF unchanged** — they use fonts as specified (embedded or system)
+
+All font choices flow through Styles. The mapping is applied uniformly when converting styles to PPTX output.
 
 ---
 
-## Font Mapping
+## Font Mapping Table
 
-| Source Font | PPTX Font | Rationale |
-|-------------|-----------|-----------|
-| International Inter | Calibri | Modern sans-serif, Office default since 2007 |
-| Fira Sans | Calibri | Humanist sans-serif, similar proportions |
-| Merriweather | Georgia | Serif, excellent screen readability, bundled with Windows/Mac |
-| Poppins | Calibri | Geometric sans-serif, Calibri is reasonable match |
-| Roboto Mono | Consolas | Monospace, already handled in code |
-| (fallback) | (unchanged) | Pass through unknown fonts |
+Comprehensive defaults covering common fonts. Unknown fonts pass through unchanged.
+
+| Category | Source Font | PPTX Font |
+|----------|-------------|-----------|
+| **Sans-Serif** | International Inter | Calibri |
+| | Inter | Calibri |
+| | Fira Sans | Calibri |
+| | Poppins | Calibri |
+| | Roboto | Calibri |
+| | Open Sans | Calibri |
+| | Lato | Calibri |
+| | Montserrat | Calibri |
+| | Source Sans Pro | Calibri |
+| | Nunito | Calibri |
+| | Work Sans | Calibri |
+| | IBM Plex Sans | Calibri |
+| | DM Sans | Calibri |
+| | Outfit | Calibri |
+| | Plus Jakarta Sans | Calibri |
+| **Serif** | Merriweather | Georgia |
+| | Lora | Georgia |
+| | Playfair Display | Georgia |
+| | Source Serif Pro | Georgia |
+| | IBM Plex Serif | Georgia |
+| | Libre Baskerville | Georgia |
+| | Crimson Text | Georgia |
+| | PT Serif | Georgia |
+| **Monospace** | Roboto Mono | Consolas |
+| | Fira Mono | Consolas |
+| | Fira Code | Consolas |
+| | Source Code Pro | Consolas |
+| | IBM Plex Mono | Consolas |
+| | JetBrains Mono | Consolas |
+| | Inconsolata | Consolas |
+| **Display** | Gibson | Calibri |
+| | Tiempos | Georgia |
+| **Fallback** | (unknown) | (unchanged) |
 
 ---
 
 ## Implementation
 
-### Phase 1: Add Mapping Function
+### 1. Add Mapping Function
 
-**File:** `panther/_122_pptx/font_mapping.ts` (new file)
+**File:** `_122_pptx/font_mapping.ts` (new)
 
 ```typescript
 const PPTX_FONT_MAP: Record<string, string> = {
+  // Sans-serif → Calibri
   "International Inter": "Calibri",
+  "Inter": "Calibri",
   "Fira Sans": "Calibri",
-  "Merriweather": "Georgia",
   "Poppins": "Calibri",
+  "Roboto": "Calibri",
+  "Open Sans": "Calibri",
+  "Lato": "Calibri",
+  "Montserrat": "Calibri",
+  "Source Sans Pro": "Calibri",
+  "Nunito": "Calibri",
+  "Work Sans": "Calibri",
+  "IBM Plex Sans": "Calibri",
+  "DM Sans": "Calibri",
+  "Outfit": "Calibri",
+  "Plus Jakarta Sans": "Calibri",
+  "Gibson": "Calibri",
+  
+  // Serif → Georgia
+  "Merriweather": "Georgia",
+  "Lora": "Georgia",
+  "Playfair Display": "Georgia",
+  "Source Serif Pro": "Georgia",
+  "IBM Plex Serif": "Georgia",
+  "Libre Baskerville": "Georgia",
+  "Crimson Text": "Georgia",
+  "PT Serif": "Georgia",
+  "Tiempos": "Georgia",
+  
+  // Monospace → Consolas
   "Roboto Mono": "Consolas",
+  "Fira Mono": "Consolas",
+  "Fira Code": "Consolas",
+  "Source Code Pro": "Consolas",
+  "IBM Plex Mono": "Consolas",
+  "JetBrains Mono": "Consolas",
+  "Inconsolata": "Consolas",
 };
 
 export function mapFontForPptx(fontFamily: string): string {
@@ -43,55 +109,48 @@ export function mapFontForPptx(fontFamily: string): string {
 }
 ```
 
-### Phase 2: Update fontFace Usages
+### 2. Update fontFace Usages
 
-11 locations across 5 files need updating:
+11 locations across 5 files:
 
-**pages_to_pptx.ts** (1 usage)
-- Line 113: `fontFace: mText.ti.font.fontFamily`
+| File | Lines |
+|------|-------|
+| `pages_to_pptx.ts` | 108 |
+| `render_cover_slide.ts` | 100, 361 |
+| `render_freeform_slide.ts` | 77, 462 |
+| `render_section_slide.ts` | 101, 142 |
+| `text_to_pptx.ts` | 34, 163, 247, 312 |
 
-**render_cover_slide.ts** (2 usages)
-- Line 105: `fontFace: mText.ti.font.fontFamily`
-- Line 366: `fontFace: ti.font.fontFamily`
-
-**render_freeform_slide.ts** (2 usages)
-- Line 82: `fontFace: mText.ti.font.fontFamily`
-- Line 467: `fontFace: ti.font.fontFamily`
-
-**render_section_slide.ts** (2 usages)
-- Line 106: `fontFace: mText.ti.font.fontFamily`
-- Line 147: `fontFace: ti.font.fontFamily`
-
-**text_to_pptx.ts** (4 usages)
-- Line 39: `fontFace: ti.font.fontFamily`
-- Line 168: `fontFace: markerTi.font.fontFamily`
-- Line 252: `fontFace: ti.font.fontFamily`
-- Line 317: `fontFace: isCode ? "Consolas" : baseFontFamily`
-
-### Change Pattern
-
+**Change pattern:**
 ```typescript
-// Before:
+// Before
 fontFace: ti.font.fontFamily,
 
-// After:
+// After
 fontFace: mapFontForPptx(ti.font.fontFamily),
 ```
 
-For line 317 in text_to_pptx.ts:
-```typescript
-// Before:
-fontFace: isCode ? "Consolas" : baseFontFamily,
+### 3. Remove isCode Detection (Cleanup)
 
-// After:
-fontFace: isCode ? "Consolas" : mapFontForPptx(baseFontFamily),
+**File:** `text_to_pptx.ts`
+
+Delete lines 305-306:
+```typescript
+// DELETE THIS:
+const isCode = mText.ti.font.fontFamily.toLowerCase().includes("mono") ||
+  mText.ti.font.fontFamily.toLowerCase().includes("consolas");
 ```
 
-### Phase 3: Export from Module
+Line 312 simplifies from:
+```typescript
+fontFace: isCode ? "Consolas" : baseFontFamily,
+```
+to:
+```typescript
+fontFace: mapFontForPptx(mText.ti.font.fontFamily),
+```
 
-**File:** `panther/_122_pptx/mod.ts`
-
-Add export for mapping function (optional, for testing/override).
+The mapping table handles monospace fonts the same as all others.
 
 ---
 
@@ -99,27 +158,28 @@ Add export for mapping function (optional, for testing/override).
 
 | File | Changes |
 |------|---------|
-| `_122_pptx/font_mapping.ts` | New file with mapping function |
+| `_122_pptx/font_mapping.ts` | New file |
 | `_122_pptx/pages_to_pptx.ts` | Import + 1 usage |
 | `_122_pptx/render_cover_slide.ts` | Import + 2 usages |
 | `_122_pptx/render_freeform_slide.ts` | Import + 2 usages |
 | `_122_pptx/render_section_slide.ts` | Import + 2 usages |
-| `_122_pptx/text_to_pptx.ts` | Import + 4 usages |
-| `_122_pptx/mod.ts` | Optional export |
+| `_122_pptx/text_to_pptx.ts` | Import + 4 usages + remove isCode logic |
+| `_122_pptx/mod.ts` | Export mapFontForPptx |
 
 ---
 
 ## Testing
 
-1. Export a slide deck with each font (Inter, Fira Sans, Merriweather, Poppins)
-2. Open PPTX on a system without these fonts installed
-3. Verify text renders with mapped fonts (Calibri, Georgia)
-4. Verify text positioning/wrapping is acceptable
+1. Export slide deck with various fonts (Inter, Fira Sans, Merriweather, Roboto Mono)
+2. Open PPTX on system without these fonts
+3. Verify text renders with mapped fonts
+4. Verify code blocks use Consolas
 
 ---
 
 ## Notes
 
-- Panther is external (`⚠️ DO NOT EDIT`) — changes go to timroberton-panther repo
-- Mapping is one-way (PPTX only) — PDF embeds actual fonts
-- Figures are rasterized images, unaffected by this change
+- Changes go to timroberton-panther repo
+- Mapping is PPTX-only — PDF embeds fonts, Canvas uses system fonts
+- Figures are rasterized images, unaffected
+- Table can be extended as new fonts are added to the system

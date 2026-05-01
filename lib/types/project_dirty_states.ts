@@ -53,8 +53,6 @@ export type LastUpdateTableName =
   | "datasets"
   | "modules"
   | "presentation_objects"
-  | "report_items"
-  | "reports"
   | "slide_decks"
   | "slides";
 
@@ -62,8 +60,6 @@ export const _LAST_UPDATE_TABLE_NAMES = [
   "datasets",
   "modules",
   "presentation_objects",
-  "report_items",
-  "reports",
   "slide_decks",
   "slides",
 ] as const satisfies readonly LastUpdateTableName[];

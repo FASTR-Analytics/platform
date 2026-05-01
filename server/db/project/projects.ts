@@ -39,7 +39,6 @@ import {
   installModule,
 } from "./modules.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
-import { getAllReportsForProject } from "./reports.ts";
 import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
 import { getAllVisualizationFolders } from "./visualization_folders.ts";
@@ -128,9 +127,6 @@ export async function getProjectDetail(
       }
       return 0;
     });
-
-    const resReports = await getAllReportsForProject(projectDb);
-    throwIfErrWithData(resReports);
 
     const resSlideDecks = await getAllSlideDecks(projectDb);
     throwIfErrWithData(resSlideDecks);
@@ -236,7 +232,6 @@ export async function getProjectDetail(
       commonIndicators,
       visualizations: resVisualizations.data,
       visualizationFolders: resFolders.data,
-      reports: resReports.data,
       slideDecks: resSlideDecks.data,
       slideDeckFolders: resSlideDeckFolders.data,
       projectUsers: fullProjectUsers,

@@ -3,7 +3,6 @@ import {
   getAllModulesForProject,
   getMetricsWithStatus,
   getPgConnectionFromCacheOrNew,
-  getReportItemsThatDependOnPresentationObjects,
 } from "../db/mod.ts";
 import { ProjectSseUpdateMessage } from "lib";
 import { EndingTaskData } from "../server_only_types/mod.ts";
@@ -142,25 +141,12 @@ async function setAllModuleDependentsLastUpdatedAndNotify(
     return;
   }
 
-  const reportItemsThatDependOnPresentationObjects =
-    await getReportItemsThatDependOnPresentationObjects(
-      projectDb,
-      presentationObjectsThatDependOnModule,
-    );
-
   await projectDb.begin(async (sql) => {
     for (const presObjId of presentationObjectsThatDependOnModule) {
       await sql`
 UPDATE presentation_objects
 SET last_updated = ${lastUpdated}
 WHERE id = ${presObjId}
-`;
-    }
-    for (const reportItemId of reportItemsThatDependOnPresentationObjects) {
-      await sql`
-UPDATE report_items
-SET last_updated = ${lastUpdated}
-WHERE id = ${reportItemId}
 `;
     }
   });
@@ -171,13 +157,4 @@ WHERE id = ${reportItemId}
     presentationObjectsThatDependOnModule,
     lastUpdated,
   );
-
-  if (reportItemsThatDependOnPresentationObjects.length > 0) {
-    notifyLastUpdated(
-      projectId,
-      "report_items",
-      reportItemsThatDependOnPresentationObjects,
-      lastUpdated,
-    );
-  }
 }

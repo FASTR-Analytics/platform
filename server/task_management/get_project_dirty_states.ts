@@ -28,8 +28,6 @@ export async function getProjectDirtyStates(
         datasets: {},
         modules: {},
         presentation_objects: {},
-        reports: {},
-        report_items: {},
         slide_decks: {},
         slides: {},
       },

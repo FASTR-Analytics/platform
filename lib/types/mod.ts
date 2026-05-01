@@ -30,7 +30,6 @@ export * from "./presentation_objects.ts";
 export * from "./project_dirty_states.ts";
 export * from "./project_sse.ts";
 export * from "./projects.ts";
-export * from "./reports.ts";
 export * from "./slides.ts";
 export * from "./ai_input.ts";
 export * from "./streaming.ts";

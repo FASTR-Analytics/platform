@@ -271,7 +271,6 @@ export async function updatePresentationObjectConfig(
 ): Promise<
   APIResponseWithData<{
     lastUpdated: string;
-    reportItemsThatDependOnPresentationObjects: string[];
   }>
 > {
   return await tryCatchDatabaseAsync(async () => {
@@ -312,44 +311,18 @@ SELECT is_default_visualization, last_updated FROM presentation_objects WHERE id
     }
 
     const lastUpdated = new Date().toISOString();
-    const reportItemsThatDependOnPresentationObjects =
-      await getReportItemsThatDependOnPresentationObjects(projectDb, [
-        presentationObjectId,
-      ]);
-    await projectDb.begin(async (sql: Sql) => {
-      await sql`
+    await projectDb`
 UPDATE presentation_objects
 SET
   config = ${JSON.stringify(presentationObjectConfigSchema.parse(config))},
   last_updated = ${lastUpdated}
 WHERE id = ${presentationObjectId}
 `;
-      for (const reportItemId of reportItemsThatDependOnPresentationObjects) {
-        await sql`
-UPDATE report_items 
-SET last_updated = ${lastUpdated} 
-WHERE id = ${reportItemId}`;
-      }
-    });
     return {
       success: true,
-      data: { lastUpdated, reportItemsThatDependOnPresentationObjects },
+      data: { lastUpdated },
     };
   });
-}
-
-export async function getReportItemsThatDependOnPresentationObjects(
-  projectDb: Sql,
-  presentationObjectIds: string[],
-): Promise<string[]> {
-  if (presentationObjectIds.length === 0) return [];
-  const rows = await projectDb<{ id: string }[]>`
-    SELECT id FROM report_items
-    WHERE ${projectDb.unsafe(
-      presentationObjectIds.map((id) => `config LIKE '%${id}%'`).join(" OR "),
-    )}
-  `;
-  return rows.map((r: any) => r.id);
 }
 
 export async function batchUpdatePresentationObjectsPeriodFilter(
@@ -360,12 +333,10 @@ export async function batchUpdatePresentationObjectsPeriodFilter(
   APIResponseWithData<{
     lastUpdated: string;
     updatedCount: number;
-    reportItemsAffected: string[];
   }>
 > {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    const reportItemsSet = new Set<string>();
 
     await projectDb.begin(async (sql: Sql) => {
       for (const id of presentationObjectIds) {
@@ -388,23 +359,6 @@ export async function batchUpdatePresentationObjectsPeriodFilter(
               last_updated = ${lastUpdated}
           WHERE id = ${id}
         `;
-
-        const reportItems = await getReportItemsThatDependOnPresentationObjects(
-          sql,
-          [id],
-        );
-        reportItems.forEach((itemId) => reportItemsSet.add(itemId));
-      }
-
-      if (reportItemsSet.size > 0) {
-        const reportItemIds = Array.from(reportItemsSet);
-        for (const reportItemId of reportItemIds) {
-          await sql`
-            UPDATE report_items
-            SET last_updated = ${lastUpdated}
-            WHERE id = ${reportItemId}
-          `;
-        }
       }
     });
 
@@ -413,7 +367,6 @@ export async function batchUpdatePresentationObjectsPeriodFilter(
       data: {
         lastUpdated,
         updatedCount: presentationObjectIds.length,
-        reportItemsAffected: Array.from(reportItemsSet),
       },
     };
   });

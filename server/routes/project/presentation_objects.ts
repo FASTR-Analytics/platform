@@ -262,12 +262,6 @@ defineRoute(
       [params.po_id],
       res.data.lastUpdated,
     );
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "report_items",
-      res.data.reportItemsThatDependOnPresentationObjects,
-      res.data.lastUpdated,
-    );
     notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
     // V2 notify
     const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
@@ -299,15 +293,6 @@ defineRoute(
         body.presentationObjectIds,
         res.data.lastUpdated,
       );
-
-      if (res.data.reportItemsAffected.length > 0) {
-        notifyLastUpdated(
-          c.var.ppk.projectId,
-          "report_items",
-          res.data.reportItemsAffected,
-          res.data.lastUpdated,
-        );
-      }
 
       notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
       // V2 notify

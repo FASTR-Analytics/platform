@@ -69,11 +69,6 @@ function AIProjectWrapperInner(props: ParentProps) {
       const _v = d.id + d.label;
     });
 
-    // Reports
-    projectDetail.reports.forEach(r => {
-      const _v = r.id + r.label;
-    });
-
     return buildToolsForContext({
       projectId,
       modules: projectDetail.projectModules,
@@ -119,20 +114,6 @@ function AIProjectWrapperInner(props: ParentProps) {
 
       if (tableName === "slide_decks") {
         notifyAI({ type: "deck_structure_changed" });
-        return;
-      }
-
-      // Reports - always notify
-      if (tableName === "reports") {
-        ids.forEach(id => {
-          const report = projectDetail.reports.find(r => r.id === id);
-          if (report) {
-            notifyAI({
-              type: "custom",
-              message: `Report "${report.label}" updated`
-            });
-          }
-        });
         return;
       }
     });
