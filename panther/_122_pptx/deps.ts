@@ -7,7 +7,10 @@ export { Color, getColor } from "../_001_color/mod.ts";
 export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { AlignH, AlignV } from "../_001_geometry/mod.ts";
 export type { MeasuredText, RenderContext } from "../_001_render_system/mod.ts";
-export { getBackgroundBaseColor } from "../_002_pattern/mod.ts";
+export {
+  getBackgroundBaseColor,
+  isPatternConfig,
+} from "../_002_pattern/mod.ts";
 export type {
   LogosPlacement,
   MergedCoverStyle,

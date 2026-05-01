@@ -10,6 +10,7 @@ import {
   getBackgroundBaseColor,
   getColor,
   ImageRenderer,
+  isPatternConfig,
   MarkdownRenderer,
   type MeasuredFreeformPage,
   type MeasuredLayoutNode,
@@ -56,6 +57,33 @@ export function renderFreeformSlide(
     fill: { color: Color.toHexNoHash(bgColor) },
     line: { color: Color.toHexNoHash(bgColor), width: 0 },
   });
+
+  // Split background
+  if (measured.splitImageBounds && measured.splitBackground) {
+    const splitBg = measured.splitBackground;
+    const splitColor = isPatternConfig(splitBg)
+      ? getColor(splitBg.baseColor)
+      : getColor(splitBg);
+    slide.addShape("rect", {
+      ...rcdToSlidePosition(measured.splitImageBounds),
+      fill: { color: Color.toHexNoHash(splitColor) },
+      line: { width: 0 },
+    });
+  }
+  if (measured.measuredSplitImage) {
+    const splitImg = measured.measuredSplitImage;
+    const imgDataUrl = imageToDataUrl(
+      splitImg.item.image as HTMLImageElement,
+      createCanvasRenderContext,
+    );
+    slide.addImage({
+      data: imgDataUrl,
+      x: pixelsToInches(splitImg.drawX),
+      y: pixelsToInches(splitImg.drawY),
+      w: pixelsToInches(splitImg.drawW),
+      h: pixelsToInches(splitImg.drawH),
+    });
+  }
 
   // Render header
   if (measured.header) {

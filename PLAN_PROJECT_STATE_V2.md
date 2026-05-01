@@ -97,7 +97,7 @@ Deleting it is a change. The refactor preserves everything including dead fields
 
 <!--
 ══════════════════════════════════════════════════════════════════════════════
-   PHASES 0–5 COMPLETE (server-side work done)
+   PHASES 0–5.5 COMPLETE (server-side work done)
    NEXT: Phase 6 (client store + SSE manager)
 ══════════════════════════════════════════════════════════════════════════════
 -->
@@ -288,8 +288,95 @@ Helper function added:
 
 Notes:
 - `set_module_clean.ts` is in `server/task_management/`, not `server/routes/project/` — it's a BroadcastChannel listener for task completion, not a route
-- Phase 0 audit listed `project.ts:251 updateProjectConfig → project_config_updated`, but those routes (`updateProject`, `setProjectLockStatus`) call `notifyInstanceProjectsLastUpdated` (instance-level), not `notifyProjectUpdated` — audit was wrong, no v2 notifier needed there
 - `getMetricsWithStatus` used instead of `getAllMetrics` for modules notifier (correct type)
+
+---
+
+## Phase 5.5 — Patch: Complete Phase 0-5 gaps ✅ COMPLETE
+
+**Goal:** fix all gaps discovered in the Phase 0-5 review before proceeding to client-side work.
+
+### 5.5.1 Update Phase 0.2 consumer map
+
+**New consumer discovered:**
+- `slide_deck/slide_deck_thumbnail.tsx` uses `useProjectDetail` and `useProjectDirtyStates`
+
+**Dead code (noted for future cleanup, not blocking):**
+- `view_files.tsx`, `view_logs.tsx`, `view_script.tsx` have commented-out `useRLogs` imports
+
+### 5.5.2 Missing v2 notify calls for project user routes
+
+These routes mutate project users but only call `notifyInstanceProjectsLastUpdated` (instance-level). They need to also call `notifyProjectUsersUpdated` (project-level) for the v2 SSE to receive updates.
+
+| File | Route | Line | Action |
+|------|-------|------|--------|
+| `project.ts` | `updateProjectUserRole` | ~114 | Add `notifyProjectUsersUpdated` after success |
+| `project.ts` | `updateProjectUserPermissions` | ~137 | Add `notifyProjectUsersUpdated` after success |
+| `project.ts` | `bulkUpdateProjectUserPermissions` | ~174 | Add `notifyProjectUsersUpdated` after success |
+| `project.ts` | `addProjectUserRole` | ~423 | Add `notifyProjectUsersUpdated` after success |
+
+**Implementation pattern:**
+```ts
+if (res.success) {
+  notifyInstanceProjectsLastUpdated(new Date().toISOString());
+  // V2 notify
+  const usersRes = await getProjectUsers(c.var.mainDb, c.var.ppk.projectId);
+  if (usersRes.success) {
+    notifyProjectUsersUpdated(c.var.ppk.projectId, usersRes.data);
+  }
+}
+```
+
+**Requires:** `getProjectUsers` helper function (query `project_user_roles` joined with `users` for the given project, build `ProjectUser[]`).
+
+### 5.5.3 Missing v2 notify calls for project config routes
+
+These routes mutate project config but only call `notifyInstanceProjectsLastUpdated`. They need to also call `notifyProjectConfigUpdated`.
+
+| File | Route | Line | Action |
+|------|-------|------|--------|
+| `project.ts` | `updateProject` | ~196 | Add `notifyProjectConfigUpdated` after success |
+| `project.ts` | `setProjectLockStatus` | ~353 | Add `notifyProjectConfigUpdated` after success |
+
+**Implementation pattern:**
+```ts
+if (res.success) {
+  notifyInstanceProjectsLastUpdated(new Date().toISOString());
+  // V2 notify
+  notifyProjectConfigUpdated(params.project_id, body.label, res.data.isLocked);
+}
+```
+
+**Note:** `updateProject` also updates `aiContext`, but `aiContext` is T3 (not in ProjectState), so we only notify `label` and `isLocked`.
+
+### 5.5.4 Missing v2 notify calls for runtime events (CRITICAL)
+
+The v2 SSE endpoint subscribes to `BroadcastChannel("project_updates_v2")`, but all runtime events (module execution status, r_script logs, dirty state changes) still write directly to `BroadcastChannel("dirty_states")`. This means the v2 SSE would never receive these events.
+
+**Files that need dual-notify:**
+
+| File | Line | Event type | V2 notifier to add |
+|------|------|------------|-------------------|
+| `worker.ts` | 95 | `r_script` | `notifyProjectRScript(projectId, moduleId, text)` |
+| `running_tasks_map.ts` | 19 | `any_running: true` | `notifyProjectAnyRunning(projectId, true)` |
+| `running_tasks_map.ts` | 58 | `any_running: false` | `notifyProjectAnyRunning(projectId, false)` |
+| `trigger_runnable_tasks.ts` | 30 | `module_dirty_state: running` | `notifyProjectModuleDirtyState(projectId, ids, "running")` |
+| `set_module_dirty.ts` | 56 | `module_dirty_state: queued` | `notifyProjectModuleDirtyState(projectId, ids, "queued")` |
+| `set_module_clean.ts` | 56 | `module_dirty_state: error` | `notifyProjectModuleDirtyState(projectId, [moduleId], "error")` |
+| `set_module_clean.ts` | 95 | `module_dirty_state: ready` | `notifyProjectModuleDirtyState(projectId, [moduleId], "ready", lastRun, lastRunGitRef)` |
+
+**Implementation pattern:** After each `broadcastDirtyStates.postMessage(bm)`, add the corresponding v2 notifier call. The v1 broadcast stays for backward compatibility during dual-run.
+
+### 5.5.5 Verification
+
+After completing 5.5.2–5.5.4:
+
+1. `deno task typecheck` passes
+2. Manual test: open project, edit user permissions → v2 SSE (curl) receives `project_users_updated`
+3. Manual test: run a module → v2 SSE receives `any_running`, `r_script`, `module_dirty_state` events
+4. Manual test: update project label → v2 SSE receives `project_config_updated`
+
+**Commit:** single commit "fix(sse): complete Phase 5 dual-notify for user/config/runtime events"
 
 ---
 
@@ -464,6 +551,7 @@ Each sub-phase: move or merge, update all import sites, typecheck, commit.
 | 3 | New notify file, new BroadcastChannel | None (unsubscribed) | Delete file |
 | 4 | New SSE route | None (no client) | Delete route |
 | 5 | Mutation routes | Low — additive call | Revert the dual-notify commit |
+| 5.5 | Patch: more dual-notify calls | Low — additive calls | Revert one commit |
 | 6 | New client files | None (unreferenced) | Delete files |
 | 7 | `project/index.tsx` mount + flag file | Low (flag off) | Revert one commit |
 | 8.x | Per-tab migration behind flag | Low per slice | Revert one sub-phase |

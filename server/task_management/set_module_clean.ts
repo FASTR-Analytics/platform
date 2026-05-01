@@ -13,7 +13,10 @@ import {
   notifyLastUpdated,
   notifyProjectUpdated,
 } from "./notify_last_updated.ts";
-import { notifyProjectModulesUpdated } from "./notify_project_v2.ts";
+import {
+  notifyProjectModuleDirtyState,
+  notifyProjectModulesUpdated,
+} from "./notify_project_v2.ts";
 
 const broadcastTaskEnded = new BroadcastChannel("task_ended");
 const broadcastDirtyStates = new BroadcastChannel("dirty_states");
@@ -54,6 +57,8 @@ WHERE id = ${etd.moduleId}
       lastRunGitRef: undefined,
     };
     broadcastDirtyStates.postMessage(bm1);
+    // V2 notify
+    notifyProjectModuleDirtyState(etd.projectId, [etd.moduleId], "error");
     return;
   }
 
@@ -93,6 +98,8 @@ ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
     lastRunGitRef: computeDefGitRef ?? undefined,
   };
   broadcastDirtyStates.postMessage(bm1);
+  // V2 notify
+  notifyProjectModuleDirtyState(etd.projectId, [etd.moduleId], "ready", lastRun, computeDefGitRef ?? undefined);
 
   // Notify that modules table changed so UI refetches module list
   const bm2: ProjectSseUpdateMessage = {

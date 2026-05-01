@@ -27,7 +27,11 @@ import {
   setModulesDirtyForDataset,
 } from "../../task_management/mod.ts";
 import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
-import { notifyProjectDatasetsUpdated } from "../../task_management/notify_project_v2.ts";
+import {
+  notifyProjectConfigUpdated,
+  notifyProjectDatasetsUpdated,
+  notifyProjectUsersUpdated,
+} from "../../task_management/notify_project_v2.ts";
 import { notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
@@ -113,6 +117,8 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
+      // V2 notify
+      notifyProjectUsersUpdated(c.var.ppk.projectId, res.data.projectUsers);
     }
     return c.json(res);
   },
@@ -135,6 +141,8 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
+      // V2 notify
+      notifyProjectUsersUpdated(c.var.ppk.projectId, res.data.projectUsers);
     }
     return c.json(res);
   },
@@ -172,6 +180,8 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
+      // V2 notify
+      notifyProjectUsersUpdated(c.var.ppk.projectId, res.data.projectUsers);
     }
     return c.json(res);
   },
@@ -194,6 +204,8 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
+      // V2 notify
+      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked);
     }
     return c.json(res);
   },
@@ -350,6 +362,8 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
+      // V2 notify
+      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked);
     }
     return c.json(res);
   },
@@ -421,9 +435,9 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
+      // V2 notify
+      notifyProjectUsersUpdated(c.var.ppk.projectId, res.data.projectUsers);
     }
     return c.json(res);
   },
 );
-
-

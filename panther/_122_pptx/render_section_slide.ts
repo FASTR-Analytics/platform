@@ -3,7 +3,15 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Color, getBackgroundBaseColor, getColor } from "./deps.ts";
+import {
+  type AlignH,
+  type AlignV,
+  Color,
+  getBackgroundBaseColor,
+  getColor,
+  isPatternConfig,
+  Padding,
+} from "./deps.ts";
 import type {
   MeasuredSectionPage,
   MeasuredText,
@@ -13,6 +21,7 @@ import {
   imageToDataUrl,
   pixelsToInches,
   pixelsToPoints,
+  rcdToSlidePosition,
 } from "./pptx_units.ts";
 import { mapFontForPptx } from "./font_mapping.ts";
 import type {
@@ -45,6 +54,33 @@ export function renderSectionSlide(
     line: { color: bgColor, width: 0 },
   });
 
+  // Split background
+  if (measured.splitImageBounds && measured.splitBackground) {
+    const splitBg = measured.splitBackground;
+    const splitColor = isPatternConfig(splitBg)
+      ? getColor(splitBg.baseColor)
+      : getColor(splitBg);
+    slide.addShape("rect", {
+      ...rcdToSlidePosition(measured.splitImageBounds),
+      fill: { color: Color.toHexNoHash(splitColor) },
+      line: { width: 0 },
+    });
+  }
+  if (measured.measuredSplitImage) {
+    const splitImg = measured.measuredSplitImage;
+    const imgDataUrl = imageToDataUrl(
+      splitImg.item.image as HTMLImageElement,
+      createCanvasRenderContext,
+    );
+    slide.addImage({
+      data: imgDataUrl,
+      x: pixelsToInches(splitImg.drawX),
+      y: pixelsToInches(splitImg.drawY),
+      w: pixelsToInches(splitImg.drawW),
+      h: pixelsToInches(splitImg.drawH),
+    });
+  }
+
   // Overlay image
   if (item.overlay) {
     const overlayDataUrl = imageToDataUrl(
@@ -60,7 +96,8 @@ export function renderSectionSlide(
     });
   }
 
-  // Calculate total height and center vertically (matching PDF render)
+  // Calculate total height and position based on alignment
+  const padding = s.padding;
   const sectionTitleH = measured.mSectionTitle
     ? measured.mSectionTitle.dims.h()
     : 0;
@@ -70,15 +107,16 @@ export function renderSectionSlide(
 
   const totalH = sectionTitleH +
     (sectionSubTitleH > 0 ? s.sectionTitleBottomPadding + sectionSubTitleH : 0);
-  let currentY = bounds.y() + (bounds.h() - totalH) / 2;
+  let currentY = getStartY(bounds, padding, s.alignV, totalH);
 
   // Render each text element at its measured position
   if (measured.mSectionTitle && sectionTitleH > 0) {
     addMeasuredTextToSlide(
       slide,
       measured.mSectionTitle,
-      bounds.x(),
-      bounds.w(),
+      bounds,
+      padding,
+      s.alignH,
       currentY,
     );
     currentY += sectionTitleH + s.sectionTitleBottomPadding;
@@ -88,8 +126,9 @@ export function renderSectionSlide(
     addMeasuredTextToSlide(
       slide,
       measured.mSectionSubTitle,
-      bounds.x(),
-      bounds.w(),
+      bounds,
+      padding,
+      s.alignH,
       currentY,
     );
   }
@@ -120,8 +159,9 @@ export function renderSectionSlide(
 function addMeasuredTextToSlide(
   slide: PptxSlide,
   mText: MeasuredText,
-  boundsX: number,
-  boundsW: number,
+  bounds: import("./deps.ts").RectCoordsDims,
+  padding: Padding,
+  alignH: AlignH,
   y: number,
 ): void {
   const text = mText.lines.map((line) => line.text).join("\n");
@@ -129,6 +169,7 @@ function addMeasuredTextToSlide(
 
   const ti = mText.ti;
   const h = mText.dims.h();
+  const textMaxWidth = bounds.w() - padding.totalPx();
 
   let charSpacing: number | undefined;
   if (ti.letterSpacing.includes("em")) {
@@ -139,21 +180,42 @@ function addMeasuredTextToSlide(
   }
   const lineSpacingMultiple = ti.lineHeight / 1.2;
 
-  // Use full bounds width with center alignment to avoid font metric differences
+  const x = alignH === "left"
+    ? bounds.x() + padding.pl()
+    : alignH === "right"
+    ? bounds.x() + bounds.w() - padding.pr() - textMaxWidth
+    : bounds.x() + padding.pl();
+
   slide.addText(text, {
-    x: pixelsToInches(boundsX),
+    x: pixelsToInches(x),
     y: pixelsToInches(y),
-    w: pixelsToInches(boundsW),
+    w: pixelsToInches(textMaxWidth),
     h: pixelsToInches(h),
     fontFace: mapFontForPptx(ti.font.fontFamily),
     fontSize: pixelsToPoints(ti.fontSize),
     color: Color.toHexNoHash(ti.color),
     bold: ti.font.weight >= 700,
     italic: ti.font.italic ?? false,
-    align: "center",
+    align: alignH,
     valign: "top",
     margin: 0,
     lineSpacingMultiple,
     ...(charSpacing !== undefined ? { charSpacing } : {}),
   });
+}
+
+function getStartY(
+  bounds: import("./deps.ts").RectCoordsDims,
+  padding: Padding,
+  alignV: AlignV,
+  totalH: number,
+): number {
+  switch (alignV) {
+    case "top":
+      return bounds.y() + padding.pt();
+    case "bottom":
+      return bounds.y() + bounds.h() - padding.pb() - totalH;
+    case "middle":
+      return bounds.y() + (bounds.h() - totalH) / 2;
+  }
 }
