@@ -3,35 +3,42 @@ import { clearGeoJsonMemoryCache } from "./instance/t2_geojson";
 
 const AI_PREFIXES = ["ai-conv", "ai-documents"];
 
-export type ClientCacheBucket = {
-  name: string;
-  count: number;
+export type ClientVizCacheStatus = {
+  id: string;
+  poDetailCached: boolean;
+  metricInfoCached: boolean;
+  poItemsCount: number;
+  replicantOptionsCount: number;
 };
 
-export async function getClientCacheBuckets(): Promise<{
-  total: number;
-  buckets: ClientCacheBucket[];
-}> {
-  const allKeys = await keys();
-  const counts = new Map<string, number>();
-  for (const k of allKeys) {
-    if (typeof k !== "string") continue;
-    const slashIdx = k.indexOf("/");
-    const colonIdx = k.indexOf(":");
-    let bucket: string;
-    if (slashIdx > 0 && (colonIdx === -1 || slashIdx < colonIdx)) {
-      bucket = k.slice(0, slashIdx);
-    } else if (colonIdx > 0) {
-      bucket = k.slice(0, colonIdx);
-    } else {
-      bucket = k;
-    }
-    counts.set(bucket, (counts.get(bucket) ?? 0) + 1);
-  }
-  const buckets = Array.from(counts.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  return { total: allKeys.length, buckets };
+export async function getClientVizCacheStatuses(
+  projectId: string,
+  visualizations: { id: string; metricId: string; resultsObjectId: string | undefined }[],
+): Promise<ClientVizCacheStatus[]> {
+  const allKeys = (await keys()).filter((k): k is string => typeof k === "string");
+
+  return visualizations.map((viz) => {
+    const poDetailPrefix = `po_detail/${projectId}|${viz.id}::`;
+    const metricInfoPrefix = `metric_info/${projectId}|${viz.metricId}::`;
+    const poItemsPrefix = viz.resultsObjectId
+      ? `po_items/${projectId}|${viz.resultsObjectId}|`
+      : null;
+    const replicantPrefix = viz.resultsObjectId
+      ? `replicant_options/${projectId}|${viz.resultsObjectId}|`
+      : null;
+
+    return {
+      id: viz.id,
+      poDetailCached: allKeys.some((k) => k.startsWith(poDetailPrefix)),
+      metricInfoCached: allKeys.some((k) => k.startsWith(metricInfoPrefix)),
+      poItemsCount: poItemsPrefix
+        ? allKeys.filter((k) => k.startsWith(poItemsPrefix)).length
+        : 0,
+      replicantOptionsCount: replicantPrefix
+        ? allKeys.filter((k) => k.startsWith(replicantPrefix)).length
+        : 0,
+    };
+  });
 }
 
 export async function clearDataCache(): Promise<void> {

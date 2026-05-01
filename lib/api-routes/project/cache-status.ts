@@ -9,6 +9,8 @@ export const cacheStatusRouteRegistry = {
       visualizations: {
         id: string;
         label: string;
+        metricId: string;
+        resultsObjectId: string | undefined;
         poDetailCached: boolean;
         metricInfoCached: boolean;
         poItemsCount: number;

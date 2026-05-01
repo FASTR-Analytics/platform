@@ -52,6 +52,8 @@ defineRoute(
         return {
           id: po.id,
           label: po.label,
+          metricId: po.metricId,
+          resultsObjectId,
           poDetailCached: await _PO_DETAIL_CACHE.exists({
             projectId,
             presentationObjectId: po.id,
