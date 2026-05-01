@@ -116,11 +116,11 @@ export function buildArrowPrimitives(
       },
       pathCoords,
       lineStyle,
-      arrowheadSize,
       arrowheads: {
         end: {
           position: toPoint,
           angle,
+          size: arrowheadSize,
         },
       },
     });

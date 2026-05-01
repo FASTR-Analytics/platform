@@ -8,6 +8,7 @@ import {
   type CalendarType,
   type CascadeArrowInfo,
   type CascadeArrowInfoFunc,
+  type ChartConnectorInfoFunc,
   type ChartSeriesInfoFunc,
   type ChartValueInfoFunc,
   Color,
@@ -22,10 +23,12 @@ import {
   type ValuesColorFunc,
 } from "./deps.ts";
 import type {
+  ArrowheadFitFallback,
   GenericAreaStyle,
   GenericBarStyle,
   GenericCascadeArrowStyle,
   GenericConfidenceBandStyle,
+  GenericConnectorStyle,
   GenericDataLabelStyle,
   GenericErrorBarStyle,
   GenericLineStyle,
@@ -151,7 +154,7 @@ const _DS = {
   },
   // Y Axis
   yTextAxis: {
-    tickPosition: typed<"sides" | "center">("center"),
+    tickPosition: typed<"sides" | "center">("sides"),
     colHeight: 30,
     paddingTop: 0,
     paddingBottom: 0,
@@ -293,6 +296,18 @@ const _DS = {
       textFormatter: typed<CascadeArrowInfoFunc<string> | "none">(
         (info: CascadeArrowInfo) => toPct0(info.relRetention),
       ),
+    },
+    connectors: {
+      func: typed<GenericConnectorStyle>({
+        show: false,
+        strokeColor: { key: "baseContent" },
+        strokeWidth: 2,
+        lineDash: "solid",
+        arrowhead: "none",
+        arrowHeadLength: 6,
+      }),
+      joinAcrossGaps: true,
+      arrowheadFitFallback: typed<ArrowheadFitFallback>("line-only"),
     },
     mapRegions: {
       func: typed<GenericMapRegionStyle>({

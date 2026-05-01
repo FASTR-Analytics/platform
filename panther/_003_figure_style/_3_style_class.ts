@@ -51,6 +51,7 @@ import {
   getBarStyleFunc,
   getCascadeArrowStyleFunc,
   getConfidenceBandStyleFunc,
+  getConnectorStyleFunc,
   getErrorBarStyleFunc,
   getLineStyleFunc,
   getMapRegionStyleFunc,
@@ -1186,6 +1187,19 @@ export class CustomFigureStyle {
           c.content?.cascadeArrows?.textFormatter,
           g.content?.cascadeArrows?.textFormatter,
           d.content.cascadeArrows.textFormatter,
+        ),
+      },
+      connectors: {
+        getStyle: getConnectorStyleFunc(sf, c, g, d),
+        joinAcrossGaps: m(
+          c.content?.connectors?.joinAcrossGaps,
+          g.content?.connectors?.joinAcrossGaps,
+          d.content.connectors.joinAcrossGaps,
+        ),
+        arrowheadFitFallback: m(
+          c.content?.connectors?.arrowheadFitFallback,
+          g.content?.connectors?.arrowheadFitFallback,
+          d.content.connectors.arrowheadFitFallback,
         ),
       },
       mapRegions: {

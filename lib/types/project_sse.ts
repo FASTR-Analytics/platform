@@ -20,6 +20,7 @@ import type { VisualizationFolder } from "./visualization_folders.ts";
  */
 export type ProjectState = {
   isReady: boolean;
+  currentUserEmail: string;
 
   // From ProjectDetail
   id: string;

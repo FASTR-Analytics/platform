@@ -8,6 +8,7 @@ import type {
   AreaStyle,
   CalendarType,
   CascadeArrowInfoFunc,
+  ChartConnectorInfoFunc,
   ChartSeriesInfoFunc,
   ChartValueInfoFunc,
   ColorAdjustmentStrategy,
@@ -23,8 +24,10 @@ import type {
   TickLabelFormatterOption,
 } from "./deps.ts";
 import type {
+  ArrowheadFitFallback,
   CascadeArrowStyle,
   ConfidenceBandStyle,
+  ConnectorStyle,
   DataLabelStyle,
   ErrorBarStyle,
   MapRegionStyle,
@@ -381,6 +384,7 @@ export type MergedContentStyle = {
   errorBars: MergedErrorBarStyle;
   confidenceBands: MergedConfidenceBandStyle;
   cascadeArrows: MergedCascadeArrowStyle;
+  connectors: MergedConnectorStyle;
   mapRegions: {
     getStyle: MapRegionInfoFunc<MapRegionStyle>;
     textFormatter: MapRegionInfoFunc<string> | "none";
@@ -393,6 +397,12 @@ export type MergedErrorBarStyle = {
 
 export type MergedConfidenceBandStyle = {
   getStyle: ChartSeriesInfoFunc<ConfidenceBandStyle>;
+};
+
+export type MergedConnectorStyle = {
+  getStyle: ChartConnectorInfoFunc<ConnectorStyle>;
+  joinAcrossGaps: boolean;
+  arrowheadFitFallback: ArrowheadFitFallback;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////

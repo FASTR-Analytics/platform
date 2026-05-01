@@ -53,6 +53,9 @@ export function buildStandardStyle(
       verticalTickLabels: config.s.verticalTickLabels,
       tickPosition: config.s.content === "points" ? "center" : undefined,
     },
+    yTextAxis: {
+      tickPosition: config.s.content === "points" ? "center" : undefined,
+    },
     xPeriodAxis: {
       forceSideTicksWhenYear: config.s.content === "bars",
       calendar: getCalendar(),

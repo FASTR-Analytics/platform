@@ -30,6 +30,12 @@ import type {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+export type Arrowhead = {
+  position: Coordinates;
+  angle: number;
+  size: number;
+};
+
 export const Z_INDEX = {
   // General-purpose layer constants
   BACK: 0,
@@ -41,6 +47,7 @@ export const Z_INDEX = {
   CONTENT_AREA: 300,
   CONTENT_LINE: 400,
   CONTENT_BAR: 500,
+  CONTENT_CONNECTOR: 550,
   CONTENT_POINT: 600,
   LABEL: 700,
   LEGEND: 800,
@@ -157,6 +164,23 @@ export type ChartAreaSeriesPrimitive = BasePrimitive & {
   // Visual
   coords: Coordinates[];
   style: AreaStyle;
+  // Optional metadata
+  sourceData?: any;
+};
+
+export type ChartConnectorPrimitive = BasePrimitive & {
+  type: "chart-connector";
+  meta: {
+    i_val: number;
+    seriesIndices: number[]; // parallel to coords; series each endpoint came from
+  };
+  // Visual
+  coords: Coordinates[]; // ≥2, in series order
+  style: LineStyle;
+  arrowheads?: {
+    start?: Arrowhead;
+    end?: Arrowhead;
+  };
   // Optional metadata
   sourceData?: any;
 };
@@ -358,11 +382,10 @@ export type ArrowPrimitive = BasePrimitive & {
   // Visual - simple array of points defining the arrow path
   pathCoords: Coordinates[];
   lineStyle: LineStyle;
-  arrowheadSize: number; // Size of arrowhead wings
   // Arrowheads (if any)
   arrowheads?: {
-    start?: { position: Coordinates; angle: number };
-    end?: { position: Coordinates; angle: number };
+    start?: Arrowhead;
+    end?: Arrowhead;
   };
 };
 
@@ -417,11 +440,7 @@ export type CascadeArrowPrimitive = BasePrimitive & {
   };
   pathSegments: PathSegment[];
   pathStyle: PathStyle;
-  arrowhead?: {
-    position: Coordinates;
-    angle: number;
-    size: number;
-  };
+  arrowhead?: Arrowhead;
   dataLabel?: DataLabel;
 };
 
@@ -620,6 +639,7 @@ export type Primitive =
   | ChartDataPointPrimitive
   | ChartLineSeriesPrimitive
   | ChartAreaSeriesPrimitive
+  | ChartConnectorPrimitive
   | ChartBarPrimitive
   | ChartErrorBarPrimitive
   | ChartConfidenceBandPrimitive

@@ -14,6 +14,7 @@ import { calculateMappedCoordinates } from "./calculate_mapped_coordinates.ts";
 import type { ContentGenerationContext } from "./content_generation_types.ts";
 import { generateAreaPrimitives } from "./generate_area_primitives.ts";
 import { generateBarPrimitives } from "./generate_bar_primitives.ts";
+import { generateConnectorPrimitives } from "./generate_connector_primitives.ts";
 import { generateLinePrimitives } from "./generate_line_primitives.ts";
 import { generatePointPrimitives } from "./generate_point_primitives.ts";
 import { resolveDataLabelOwnership } from "./resolve_data_label_ownership.ts";
@@ -124,5 +125,6 @@ export function generateContentPrimitives(
     ...generateBarPrimitives(mapped, labelOwner, ctx),
     ...generateLinePrimitives(mapped, labelOwner, ctx),
     ...generateAreaPrimitives(mapped, ctx),
+    ...generateConnectorPrimitives(mapped, ctx),
   ];
 }

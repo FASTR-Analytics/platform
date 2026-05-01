@@ -38,6 +38,7 @@ export async function buildProjectState(
   const projectState: ProjectState = {
     // Ready flag
     isReady: true,
+    currentUserEmail: projectUser?.email ?? "",
 
     // From ProjectDetail (excluding aiContext)
     id: detail.id,
