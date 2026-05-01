@@ -63,25 +63,6 @@ export type DBVisualizationFolder = {
   last_updated: string;
 };
 
-export type DBReport = {
-  id: string;
-  report_type: string;
-  config: string;
-  //
-  last_updated: string;
-  //
-  is_deleted: boolean;
-};
-
-export type DBReportItem = {
-  id: string;
-  report_id: string;
-  sort_order: number;
-  config: string;
-  //
-  last_updated: string;
-};
-
 export type DBSlideDeckFolder = {
   id: string;
   label: string;
