@@ -1,3 +1,6 @@
+[TBD] [user] [added] - Custom brand colors are now validated before saving slide deck settings
+[TBD] [admin] [added] - Custom brand color is now validated before saving slide deck settings
+[TBD] [admin] [internal] - Minor formatting and code cleanup for map visualizations
 [1.28.17] [user] [fixed] - Bold text in slides now displays with correct font weight
 [1.28.17] [admin] [fixed] - Slide bold text now loads correct font weights
 [1.28.16] [user] [changed] - Slide decks with "bold" style now keep that choice
