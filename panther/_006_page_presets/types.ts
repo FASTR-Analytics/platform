@@ -6,7 +6,6 @@
 import type {
   AlignH,
   AlignV,
-  ColorAdjustmentStrategy,
   CustomPageStyleOptions,
   KeyColors,
   LogosPlacementOptions,
@@ -15,10 +14,36 @@ import type {
   PatternConfig,
   SplitPlacement,
 } from "./deps.ts";
+import type { ColorPreset } from "./color_presets.ts";
+
+// =============================================================================
+// Palette Slots
+// =============================================================================
+
+export type PaletteSlot =
+  | "base100"
+  | "base200"
+  | "base300"
+  | "baseContent"
+  | "baseContentMuted"
+  | "primary"
+  | "primaryContent"
+  | "primaryContentMuted";
+
+// =============================================================================
+// Split Adjustment
+// =============================================================================
+
+export type SplitAdjustment =
+  | { brighten: number }
+  | { darken: number }
+  | { slot: PaletteSlot };
+
+// =============================================================================
+// Layout Types (unchanged)
+// =============================================================================
 
 export type SurfaceTreatment = "filled" | "bordered" | "none";
-
-export type PaletteSlot = "primary" | "base100" | "base200" | "base300";
 
 export type SurfacePaddingConfig = {
   paddingIfFilled: PaddingOptions;
@@ -71,65 +96,43 @@ export type LayoutPresetConfig = {
   };
 };
 
-export type TextOverride = {
-  color?: PaletteSlot;
-  opacity?: number;
-};
+// =============================================================================
+// Treatment Types (NEW - fully explicit)
+// =============================================================================
 
-export type CoverSurfaceAssignment = {
+export type CoverSurface = {
   background: PaletteSlot;
-  title?: TextOverride;
-  subTitle?: TextOverride;
-  author?: TextOverride;
-  date?: TextOverride;
+  title: PaletteSlot;
+  subTitle: PaletteSlot;
+  author: PaletteSlot;
+  date: PaletteSlot;
 };
 
-export type SectionSurfaceAssignment = {
+export type SectionSurface = {
   background: PaletteSlot;
-  title?: TextOverride;
-  subTitle?: TextOverride;
+  title: PaletteSlot;
+  subTitle: PaletteSlot;
 };
 
-export type SurfaceAssignment = {
+export type HeaderSurface = {
   treatment: SurfaceTreatment;
   background: PaletteSlot;
+  text: PaletteSlot;
 };
 
-export type ContentAssignment = {
-  treatment: "filled" | "none";
+export type FooterSurface = {
+  treatment: SurfaceTreatment;
+  background: PaletteSlot;
+  text: PaletteSlot;
+};
+
+export type ContentSurface = {
   background: PaletteSlot;
 };
 
-export type SplitBackgroundConfig =
-  | PaletteSlot
-  | { adjustCoverBackground: ColorAdjustmentStrategy }
-  | { adjustSectionBackground: ColorAdjustmentStrategy };
-
-export type SplitSurfaceAssignment = {
-  background: SplitBackgroundConfig;
-};
-
-export type FreeformSplitAssignment = {
-  background: PaletteSlot;
-};
-
-export type TreatmentPresetConfig = {
-  name: string;
-  description: string;
-
-  surfaces: {
-    cover: CoverSurfaceAssignment;
-    coverSplit?: SplitSurfaceAssignment;
-    section: SectionSurfaceAssignment;
-    sectionSplit?: SplitSurfaceAssignment;
-    header: SurfaceAssignment;
-    footer: SurfaceAssignment;
-    content: ContentAssignment;
-    freeformSplit?: FreeformSplitAssignment;
-  };
-
-  pattern?: Omit<PatternConfig, "baseColor">;
-};
+// =============================================================================
+// Resolved Style Types
+// =============================================================================
 
 export type TextColorStyles = {
   coverTitle: { color: string };
@@ -147,4 +150,5 @@ export type TextColorStyles = {
 export type ResolvedPageStyle = {
   style: CustomPageStyleOptions;
   palette: KeyColors;
+  preset?: ColorPreset;
 };

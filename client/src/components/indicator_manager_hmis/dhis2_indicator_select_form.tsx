@@ -1,11 +1,13 @@
-import { t3,
+import {
+  t3,
   type Dhis2Credentials,
   type DHIS2Indicator,
-  type DHIS2DataElement } from "lib";
+  type DHIS2DataElement,
+} from "lib";
 import {
   FrameTop,
   HeaderBarCanGoBack,
-  Input,
+  TextArea,
   Button,
   Table,
   TableColumn,
@@ -35,7 +37,6 @@ type SearchResult = {
 export function Dhis2IndicatorSelectForm(p: Props) {
   // Form state
   const [tempSearchQuery, setTempSearchQuery] = createSignal<string>("");
-  const [searchBy, setSearchBy] = createSignal<"name" | "code">("name");
   const [searchResults, setSearchResults] = createSignal<SearchResult[]>([]);
   const [hasSearched, setHasSearched] = createSignal<boolean>(false);
   const [tempSelectedElements, setTempSelectedElements] = createSignal<
@@ -46,19 +47,29 @@ export function Dhis2IndicatorSelectForm(p: Props) {
   const search = timActionForm(async () => {
     const query = tempSearchQuery().trim();
     if (!query) {
-      return { success: false, err: t3({ en: "Search query is required", fr: "La requête de recherche est requise" }) };
+      return {
+        success: false,
+        err: t3({
+          en: "Search query is required",
+          fr: "La requête de recherche est requise",
+        }),
+      };
     }
 
     const response = await serverActions.searchDhis2All({
       dhis2Credentials: p.credentials,
       query,
-      searchBy: searchBy(),
       includeDataElements: true,
       includeIndicators: true,
     });
 
     if (!response.success) {
-      return { success: false, err: response.err || t3({ en: "Search failed", fr: "Échec de la recherche" }) };
+      return {
+        success: false,
+        err:
+          response.err ||
+          t3({ en: "Search failed", fr: "Échec de la recherche" }),
+      };
     }
 
     // Convert results to unified format - response.data now directly contains { dataElements, indicators }
@@ -89,7 +100,10 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     async () => {
       const selectedItems = tempSelectedElements();
       if (selectedItems.length === 0) {
-        return { success: false, err: t3({ en: "No items selected", fr: "Aucun élément sélectionné" }) };
+        return {
+          success: false,
+          err: t3({ en: "No items selected", fr: "Aucun élément sélectionné" }),
+        };
       }
 
       const newRawIndicators = selectedItems.map((item) => {
@@ -141,7 +155,9 @@ export function Dhis2IndicatorSelectForm(p: Props) {
               : "bg-success/10 text-success"
           }`}
         >
-          {item.type === "indicator" ? t3({ en: "Indicator", fr: "Indicateur" }) : t3({ en: "Data Element", fr: "Élément de données" })}
+          {item.type === "indicator"
+            ? t3({ en: "Indicator", fr: "Indicateur" })
+            : t3({ en: "Data Element", fr: "Élément de données" })}
         </span>
       ),
     },
@@ -184,7 +200,9 @@ export function Dhis2IndicatorSelectForm(p: Props) {
           intent="base-100"
           disabled={isItemSelected(item.id)}
         >
-          {isItemSelected(item.id) ? t3({ en: "Added", fr: "Ajouté" }) : t3({ en: "Add", fr: "Ajouter" })}
+          {isItemSelected(item.id)
+            ? t3({ en: "Added", fr: "Ajouté" })
+            : t3({ en: "Add", fr: "Ajouter" })}
         </Button>
       ),
     },
@@ -194,7 +212,10 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     <FrameTop
       panelChildren={
         <HeaderBarCanGoBack
-          heading={t3({ en: "DHIS2 Indicator Selection", fr: "Sélection d'indicateurs DHIS2" })}
+          heading={t3({
+            en: "DHIS2 Indicator Selection",
+            fr: "Sélection d'indicateurs DHIS2",
+          })}
           back={() => p.close(undefined)}
         >
           <Button
@@ -204,7 +225,8 @@ export function Dhis2IndicatorSelectForm(p: Props) {
             intent="success"
             disabled={tempSelectedElements().length === 0}
           >
-            {t3({ en: "Save Selected", fr: "Enregistrer la sélection" })} ({tempSelectedElements().length})
+            {t3({ en: "Save Selected", fr: "Enregistrer la sélection" })} (
+            {tempSelectedElements().length})
           </Button>
         </HeaderBarCanGoBack>
       }
@@ -214,7 +236,10 @@ export function Dhis2IndicatorSelectForm(p: Props) {
           {/* Search Section */}
           <div class="w-full flex-none">
             <div class="font-700 mb-4 text-lg">
-              {t3({ en: "Search Indicators & Data Elements", fr: "Rechercher des indicateurs et éléments de données" })}
+              {t3({
+                en: "Search Indicators & Data Elements",
+                fr: "Rechercher des indicateurs et éléments de données",
+              })}
             </div>
             <form
               onSubmit={(e) => {
@@ -223,44 +248,42 @@ export function Dhis2IndicatorSelectForm(p: Props) {
               }}
               class="ui-gap flex items-end justify-start"
             >
-              <div class="w-96">
-                <Input
+              <div class="w-0 flex-1">
+                <TextArea
                   value={tempSearchQuery()}
                   onChange={setTempSearchQuery}
-                  placeholder={searchBy() === "code" ? t3({ en: "Enter code...", fr: "Saisir le code..." }) : t3({ en: "Enter name...", fr: "Saisir le nom..." })}
-                  label={t3({ en: "Search Query", fr: "Requête de recherche" })}
+                  placeholder={t3({
+                    en: 'e.g. Antenatal care (searches for "Antenatal care" as one term)\ne.g. BFeLG7TNOvq, CKCRDq0NBHy (searches for two IDs and combines results)\n\nUse commas, semicolons, or new lines to search multiple terms at once.',
+                    fr: "ex. Soins prénatals (recherche « Soins prénatals » comme un seul terme)\nex. BFeLG7TNOvq, CKCRDq0NBHy (recherche deux ID et combine les résultats)\n\nUtilisez des virgules, points-virgules ou retours à la ligne pour rechercher plusieurs termes.",
+                  })}
+                  label={t3({
+                    en: "Search by name, code, or ID",
+                    fr: "Rechercher par nom, code ou ID",
+                  })}
+                  rows={5}
                   fullWidth
                 />
               </div>
-              <div class="ui-gap-sm flex items-center">
-                <span class="text-base-content/70 text-sm">{t3({ en: "Search by", fr: "Rechercher par" })}:</span>
-                <div class="ui-gap-sm flex">
+              <div class="ui-gap-sm flex flex-col">
+                <Button
+                  type="submit"
+                  state={search.state()}
+                  iconName="search"
+                  intent="primary"
+                >
+                  {t3({ en: "Search", fr: "Recherche" })}
+                </Button>
+                <Show when={tempSearchQuery().trim().length > 0}>
                   <Button
-                    type="button"
-                    onClick={() => setSearchBy("name")}
-                    intent={searchBy() === "name" ? "primary" : "base-100"}
-                    outline={searchBy() !== "name"}
+                    onClick={() => setTempSearchQuery("")}
+                    iconName="x"
+                    intent="neutral"
+                    outline
                   >
-                    {t3({ en: "Name", fr: "Nom" })}
+                    {t3({ en: "Clear", fr: "Effacer" })}
                   </Button>
-                  <Button
-                    type="button"
-                    onClick={() => setSearchBy("code")}
-                    intent={searchBy() === "code" ? "primary" : "base-100"}
-                    outline={searchBy() !== "code"}
-                  >
-                    {t3({ en: "Code", fr: "Code" })}
-                  </Button>
-                </div>
+                </Show>
               </div>
-              <Button
-                type="submit"
-                state={search.state()}
-                iconName="search"
-                intent="primary"
-              >
-                {t3({ en: "Search", fr: "Recherche" })}
-              </Button>
             </form>
             <StateHolderFormError state={search.state()} />
           </div>
@@ -270,7 +293,8 @@ export function Dhis2IndicatorSelectForm(p: Props) {
             <Show when={search.state().status === "ready"}>
               <div class="border-success bg-success/10 ui-pad-sm w-full flex-none rounded border">
                 <div class="text-success font-700">
-                  {t3({ en: "Search completed:", fr: "Recherche terminée :" })} {searchResults().length}{" "}
+                  {t3({ en: "Search completed:", fr: "Recherche terminée :" })}{" "}
+                  {searchResults().length}{" "}
                   {t3({ en: "results found", fr: "résultats trouvés" })}
                 </div>
               </div>
@@ -281,7 +305,10 @@ export function Dhis2IndicatorSelectForm(p: Props) {
               fallback={
                 <div class="border-base-300 bg-base-200 ui-pad rounded border text-center">
                   <div class="text-base-content">
-                    {t3({ en: "No results found. Try a different search term.", fr: "Aucun résultat trouvé. Essayez un autre terme de recherche." })}
+                    {t3({
+                      en: "No results found. Try a different search term.",
+                      fr: "Aucun résultat trouvé. Essayez un autre terme de recherche.",
+                    })}
                   </div>
                 </div>
               }
@@ -301,10 +328,13 @@ export function Dhis2IndicatorSelectForm(p: Props) {
         </div>
         <div class="ui-pad border-base-300 h-full w-0 flex-1 overflow-auto border-l">
           <div class="mb-4">
-            <div class="font-700 text-lg">{t3({ en: "Selected Items", fr: "Éléments sélectionnés" })}</div>
+            <div class="font-700 text-lg">
+              {t3({ en: "Selected Items", fr: "Éléments sélectionnés" })}
+            </div>
             <Show when={tempSelectedElements().length > 0}>
               <div class="text-base-content text-sm">
-                {tempSelectedElements().length} {t3({ en: "items selected", fr: "éléments sélectionnés" })}
+                {tempSelectedElements().length}{" "}
+                {t3({ en: "items selected", fr: "éléments sélectionnés" })}
               </div>
             </Show>
           </div>
@@ -312,7 +342,10 @@ export function Dhis2IndicatorSelectForm(p: Props) {
             when={tempSelectedElements().length > 0}
             fallback={
               <div class="text-neutral text-sm">
-                {t3({ en: "No items selected. Search for items and click 'Add' from search results.", fr: "Aucun élément sélectionné. Recherchez des éléments et cliquez sur « Ajouter » dans les résultats." })}
+                {t3({
+                  en: "No items selected. Search for items and click 'Add' from search results.",
+                  fr: "Aucun élément sélectionné. Recherchez des éléments et cliquez sur « Ajouter » dans les résultats.",
+                })}
               </div>
             }
           >
@@ -332,7 +365,10 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                         >
                           {item.type === "indicator"
                             ? t3({ en: "Indicator", fr: "Indicateur" })
-                            : t3({ en: "Data Element", fr: "Élément de données" })}
+                            : t3({
+                                en: "Data Element",
+                                fr: "Élément de données",
+                              })}
                         </span>
                         <span class="font-mono text-xs">{item.id}</span>
                       </div>

@@ -32,7 +32,7 @@ export type CustomSeriesStyle = z.infer<typeof customSeriesStyleSchema>;
 const presentationObjectConfigSStrict = z
   .object({
     scale: z.number(),
-    content: z.enum(["lines", "bars", "points", "areas"]),
+    content: z.enum(["bars", "lines", "points", "lines-area", "lines-points"]),
     allowIndividualRowLimits: z.boolean(),
     colorScale: z.enum([
       "pastel-discrete",
@@ -59,7 +59,6 @@ const presentationObjectConfigSStrict = z
     specialBarChartDataLabels: z.enum(["all-values", "threshold-values"]),
     specialCoverageChart: z.boolean(),
     specialDisruptionsChart: z.boolean(),
-    specialScorecardTable: z.boolean(),
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),
@@ -74,6 +73,9 @@ const presentationObjectConfigSStrict = z
     formatAdminArea3Labels: z.boolean().optional(),
     mapProjection: z.enum(["equirectangular", "mercator", "naturalEarth1"]),
     mapShowRegionLabels: z.boolean().optional(),
+    mapDataLabelMode: z
+      .enum(["none", "centroid", "callout", "auto"])
+      .optional(),
   })
   .merge(cfStorageSchema);
 

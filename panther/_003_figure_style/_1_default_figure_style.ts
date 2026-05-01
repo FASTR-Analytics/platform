@@ -8,6 +8,7 @@ import {
   type CalendarType,
   type CascadeArrowInfo,
   type CascadeArrowInfoFunc,
+  type ChartConnectorInfoFunc,
   type ChartSeriesInfoFunc,
   type ChartValueInfoFunc,
   Color,
@@ -22,10 +23,12 @@ import {
   type ValuesColorFunc,
 } from "./deps.ts";
 import type {
+  ArrowheadFitFallback,
   GenericAreaStyle,
   GenericBarStyle,
   GenericCascadeArrowStyle,
   GenericConfidenceBandStyle,
+  GenericConnectorStyle,
   GenericDataLabelStyle,
   GenericErrorBarStyle,
   GenericLineStyle,
@@ -151,7 +154,7 @@ const _DS = {
   },
   // Y Axis
   yTextAxis: {
-    tickPosition: typed<"sides" | "center">("center"),
+    tickPosition: typed<"sides" | "center">("sides"),
     colHeight: 30,
     paddingTop: 0,
     paddingBottom: 0,
@@ -294,6 +297,18 @@ const _DS = {
         (info: CascadeArrowInfo) => toPct0(info.relRetention),
       ),
     },
+    connectors: {
+      func: typed<GenericConnectorStyle>({
+        show: false,
+        strokeColor: { key: "baseContent" },
+        strokeWidth: 2,
+        lineDash: "solid",
+        arrowhead: "none",
+        arrowHeadLength: 6,
+      }),
+      joinAcrossGaps: true,
+      arrowheadFitFallback: typed<ArrowheadFitFallback>("line-only"),
+    },
     mapRegions: {
       func: typed<GenericMapRegionStyle>({
         show: true,
@@ -305,10 +320,11 @@ const _DS = {
           offset: 0,
           backgroundColor: "#ffffff",
           padding: 3,
+          borderColor: { key: "base300" },
           borderWidth: 0,
           rectRadius: 0,
         },
-        leaderLineStrokeColor: "#666666",
+        leaderLineStrokeColor: { key: "base300" },
         leaderLineStrokeWidth: 1,
         leaderLineGap: 4,
       }),
@@ -399,6 +415,11 @@ const _DS = {
     boundingBox: typed<[number, number, number, number] | undefined>(undefined),
     dataLabelMode: typed<"none" | "centroid" | "callout" | "auto">("centroid"),
     calloutMargin: 30,
+    labelCollision: {
+      gap: 12,
+      maxCentroidDisplacement: 20,
+      maxIterations: 10,
+    },
   },
 };
 

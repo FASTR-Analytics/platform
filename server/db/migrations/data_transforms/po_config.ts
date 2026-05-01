@@ -31,6 +31,12 @@
 // 14. Fill specialBarChartInverted default
 // 15. Convert selectedReplicantValue number → string
 // 16. Fill missing configS and configT fields (2025-04 schema additions)
+// 17. Rename content "areas" → "lines-area"
+// 18. Remove specialScorecardTable (feature removed)
+// 19. Migrate overloaded last_n_months with nQuarters → last_n_calendar_quarters
+// 20. Strip nMonths/nYears/nQuarters from bounded filters
+// 21. Strip unused count fields from relative filters
+// 22. Fill default nMonths for last_n_months without count
 //
 // =============================================================================
 
@@ -106,16 +112,10 @@ export type MigrationStats = {
   rowsTransformed: number;
 };
 
-// ─── Reusable transform function ────────────────────────────────────────────
-// Exported for use by slide_config.ts (embedded PO configs in figure blocks)
+// ─── Reusable transform functions ───────────────────────────────────────────
+// Exported for use by metric.ts (viz presets) and module_definition.ts (defaultPresentationObjects)
 
-export function transformPOConfigData(config: Record<string, unknown>): Record<string, unknown> {
-  const c = structuredClone(config) as Record<string, unknown>;
-  const d = (c.d ?? {}) as Record<string, unknown>;
-  const s = (c.s ?? {}) as Record<string, unknown>;
-
-  // ─── configD transforms ───────────────────────────────────────────────
-
+export function transformConfigD(d: Record<string, unknown>): void {
   // Block 1: periodOpt → timeseriesGrouping
   if (d.periodOpt !== undefined) {
     d.timeseriesGrouping ??= d.periodOpt;
@@ -161,9 +161,51 @@ export function transformPOConfigData(config: Record<string, unknown>): Record<s
     d.selectedReplicantValue = String(d.selectedReplicantValue);
   }
 
-  // ─── configS transforms ───────────────────────────────────────────────
+  // Block 19: Migrate overloaded last_n_months with nQuarters → last_n_calendar_quarters
+  if (
+    pf?.filterType === "last_n_months" &&
+    pf.nQuarters !== undefined &&
+    pf.nMonths === undefined
+  ) {
+    pf.filterType = "last_n_calendar_quarters";
+  }
 
-  const isMap = d.type === "map";
+  // Block 20: Strip nMonths/nYears/nQuarters from bounded filters
+  if (pf && !RELATIVE_FILTER_TYPES.has(pf.filterType as string)) {
+    delete pf.nMonths;
+    delete pf.nYears;
+    delete pf.nQuarters;
+  }
+
+  // Block 21: Strip unused count fields from relative filters
+  if (pf?.filterType === "last_n_months") {
+    delete pf.nYears;
+    delete pf.nQuarters;
+  }
+  if (pf?.filterType === "last_n_calendar_years") {
+    delete pf.nMonths;
+    delete pf.nQuarters;
+  }
+  if (pf?.filterType === "last_n_calendar_quarters") {
+    delete pf.nMonths;
+    delete pf.nYears;
+  }
+  if (
+    pf?.filterType === "last_calendar_year" ||
+    pf?.filterType === "last_calendar_quarter"
+  ) {
+    delete pf.nMonths;
+    delete pf.nYears;
+    delete pf.nQuarters;
+  }
+
+  // Block 22: Fill default nMonths for last_n_months without count
+  if (pf?.filterType === "last_n_months" && pf.nMonths === undefined) {
+    pf.nMonths = 12;
+  }
+}
+
+export function transformConfigS(s: Record<string, unknown>, isMap: boolean): void {
   let legacyCf: ConditionalFormatting | undefined;
 
   // Block 5: Legacy conditionalFormatting string preset → capture as legacyCf
@@ -226,7 +268,7 @@ export function transformPOConfigData(config: Record<string, unknown>): Record<s
   // Block 14: Fill specialBarChartInverted default
   if (!("specialBarChartInverted" in s)) s.specialBarChartInverted = false;
 
-  // Block 16: Fill missing configS and configT fields (2025-04 schema additions)
+  // Block 16: Fill missing configS fields (2025-04 schema additions)
   if (!("diffInverted" in s)) s.diffInverted = false;
   if (!("specialBarChart" in s)) s.specialBarChart = false;
   if (!("specialBarChartDiffThreshold" in s)) s.specialBarChartDiffThreshold = 0;
@@ -237,7 +279,27 @@ export function transformPOConfigData(config: Record<string, unknown>): Record<s
   if (!("forceYMinAuto" in s)) s.forceYMinAuto = false;
   if (!("nColsInCellDisplay" in s)) s.nColsInCellDisplay = "auto";
   if (!("sortIndicatorValues" in s)) s.sortIndicatorValues = "none";
+
+  // Block 17: Rename content "areas" → "lines-area"
+  if (s.content === "areas") s.content = "lines-area";
+
+  // Block 18: Remove specialScorecardTable (feature removed)
+  delete s.specialScorecardTable;
+}
+
+// ─── Full PO config transform ───────────────────────────────────────────────
+// Exported for use by slide_config.ts and module_definition.ts
+
+export function transformPOConfigData(config: Record<string, unknown>): Record<string, unknown> {
+  const c = structuredClone(config) as Record<string, unknown>;
+  const d = (c.d ?? {}) as Record<string, unknown>;
+  const s = (c.s ?? {}) as Record<string, unknown>;
   const t = (c.t ?? {}) as Record<string, unknown>;
+
+  transformConfigD(d);
+  transformConfigS(s, d.type === "map");
+
+  // Block 16 (continued): Fill configT fields
   if (!("captionRelFontSize" in t)) t.captionRelFontSize = 1;
   if (!("subCaptionRelFontSize" in t)) t.subCaptionRelFontSize = 1;
   if (!("footnoteRelFontSize" in t)) t.footnoteRelFontSize = 1;

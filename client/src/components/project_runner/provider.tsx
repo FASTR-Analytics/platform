@@ -48,7 +48,6 @@ export function ProjectRunnerProvider(p: Props) {
     commonIndicators: [],
     visualizations: [],
     visualizationFolders: [],
-    reports: [],
     slideDecks: [],
     slideDeckFolders: [],
     projectUsers: [],
@@ -100,27 +99,21 @@ export function ProjectRunnerProvider(p: Props) {
       projectLastUpdated: "",
       anyRunning: false,
       moduleDirtyStates: {},
-      anyModuleLastRun: "",
       moduleLastRun: {},
       moduleLastRunGitRef: {},
       lastUpdated: {
         datasets: {},
         modules: {},
         presentation_objects: {},
-        reports: {},
-        report_items: {},
         slide_decks: {},
         slides: {},
       },
     });
 
-  function safeSet(
-    prop: "projectLastUpdated" | "anyModuleLastRun",
-    newLastUpdated: string,
-  ) {
-    const existingTimestamp = projectDirtyStates[prop];
-    if (validateTimestamp(newLastUpdated, existingTimestamp, prop)) {
-      setProjectDirtyStates(prop, newLastUpdated);
+  function safeSetProjectLastUpdated(newLastUpdated: string) {
+    const existingTimestamp = projectDirtyStates.projectLastUpdated;
+    if (validateTimestamp(newLastUpdated, existingTimestamp, "projectLastUpdated")) {
+      setProjectDirtyStates("projectLastUpdated", newLastUpdated);
     }
   }
 
@@ -155,7 +148,7 @@ export function ProjectRunnerProvider(p: Props) {
   }
 
   function optimisticSetProjectLastUpdated(lastUpdated: string) {
-    safeSet("projectLastUpdated", lastUpdated);
+    safeSetProjectLastUpdated( lastUpdated);
   }
 
   function optimisticSetLastUpdated(
@@ -219,12 +212,11 @@ export function ProjectRunnerProvider(p: Props) {
       if (bm.type === "starting_project_dirty_states") {
         console.log("PDS", "Starting project dirty states", bm);
         setProjectDirtyStates("isReady", bm.pds.isReady);
-        safeSet("projectLastUpdated", bm.pds.projectLastUpdated);
+        safeSetProjectLastUpdated( bm.pds.projectLastUpdated);
         setProjectDirtyStates("anyRunning", bm.pds.anyRunning);
         for (const [key, value] of Object.entries(bm.pds.moduleDirtyStates)) {
           setProjectDirtyStates("moduleDirtyStates", key, value);
         }
-        safeSet("anyModuleLastRun", bm.pds.anyModuleLastRun);
         for (const [key, value] of Object.entries(bm.pds.moduleLastRun)) {
           safeSetModuleLastRun(key, value);
         }
@@ -253,7 +245,6 @@ export function ProjectRunnerProvider(p: Props) {
           setProjectDirtyStates("moduleDirtyStates", id, bm.dirtyOrRunStatus);
           if (bm.dirtyOrRunStatus === "ready" && bm.lastRun) {
             safeSetModuleLastRun(id, bm.lastRun);
-            safeSet("anyModuleLastRun", bm.lastRun);
             if (bm.lastRunGitRef) {
               setProjectDirtyStates("moduleLastRunGitRef", id, bm.lastRunGitRef);
             }
@@ -276,7 +267,7 @@ export function ProjectRunnerProvider(p: Props) {
           listener(bm.tableName, bm.ids, bm.lastUpdated);
         }
       } else if (bm.type === "project_updated") {
-        safeSet("projectLastUpdated", bm.lastUpdated);
+        safeSetProjectLastUpdated( bm.lastUpdated);
         // Refetch project detail when project metadata changes
         fetchProjectDetail();
       }

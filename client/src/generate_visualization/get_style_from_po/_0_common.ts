@@ -18,6 +18,8 @@ import {
   _RANDOM_BLUE,
   getAbcQualScale,
   getAbcQualScale2,
+  type DeckStyleContext,
+  getSlideFontInfo,
 } from "lib";
 import { PresentationObjectConfig, selectCf } from "lib";
 
@@ -77,13 +79,27 @@ export const GLOBAL_STYLE_OPTIONS: CustomStyleOptions = {
   },
 };
 
+function getFigureFont(deckStyle: DeckStyleContext | undefined, bold: boolean): FontInfo {
+  const family = deckStyle?.fontFamily ?? "International Inter";
+  return getSlideFontInfo(family, bold, false);
+}
+
 export function getTextStyle(
   config: PresentationObjectConfig,
+  deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions["text"] {
+  const baseFont = getFigureFont(deckStyle, false);
+  const boldFont = getFigureFont(deckStyle, true);
   return {
-    caption: { relFontSize: config.t.captionRelFontSize ?? 2 },
+    base: { font: baseFont },
+    caption: { relFontSize: config.t.captionRelFontSize ?? 2, font: boldFont },
     subCaption: { relFontSize: config.t.subCaptionRelFontSize ?? 1.3 },
     footnote: { relFontSize: config.t.footnoteRelFontSize ?? 0.9 },
+    rowGroupHeaders: { font: boldFont },
+    colGroupHeaders: { font: boldFont },
+    paneHeaders: { font: boldFont },
+    tierHeaders: { font: boldFont },
+    laneHeaders: { font: boldFont },
   };
 }
 

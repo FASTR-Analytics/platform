@@ -13,7 +13,11 @@ import type {
 import { Z_INDEX } from "../deps.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
 import { getProjectionFn } from "./projections.ts";
-import { fitProjection, type FittedProjection } from "./fit_projection.ts";
+import {
+  fitProjection,
+  type FitProjectionPadding,
+  type FittedProjection,
+} from "./fit_projection.ts";
 import { geoToPathSegments } from "./geo_to_path_segments.ts";
 
 export type MapRegionResult = {
@@ -35,7 +39,7 @@ export function generateMapRegionPrimitives(
   paneIndex: number,
   tierIndex: number,
   laneIndex: number,
-  padding: number,
+  padding: FitProjectionPadding,
 ): MapRegionResult {
   const projectionFn = getProjectionFn(projection);
 

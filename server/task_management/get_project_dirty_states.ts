@@ -1,4 +1,3 @@
-import { DBGlobalLastUpdated } from "../db/mod.ts";
 import {
   _LAST_UPDATE_TABLE_NAMES,
   // _ID_FOR_PO_LISTING,
@@ -21,15 +20,12 @@ export async function getProjectDirtyStates(
       projectLastUpdated: new Date().toISOString(),
       anyRunning: false,
       moduleDirtyStates: {},
-      anyModuleLastRun: "",
       moduleLastRun: {},
       moduleLastRunGitRef: {},
       lastUpdated: {
         datasets: {},
         modules: {},
         presentation_objects: {},
-        reports: {},
-        report_items: {},
         slide_decks: {},
         slides: {},
       },
@@ -67,19 +63,6 @@ export async function getProjectDirtyStates(
         rawModule.dirty
       );
     }
-
-    ///////////////////////////////
-    //                           //
-    //    Any module last run    //
-    //                           //
-    ///////////////////////////////
-    const rawAnyModuleLastRun = (
-      await ppk.projectDb<DBGlobalLastUpdated[]>`
-SELECT * FROM global_last_updated WHERE id = 'any_module_last_run'
-`
-    ).at(0);
-    pds.anyModuleLastRun =
-      rawAnyModuleLastRun?.last_updated ?? "not_yet_any_run";
 
     ///////////////////////////
     //                       //

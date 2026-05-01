@@ -11,10 +11,8 @@ export const cacheStatusRouteRegistry = {
         label: string;
         poDetailCached: boolean;
         metricInfoCached: boolean;
-      }[];
-      slideDecks: {
-        id: string;
-        label: string;
+        poItemsCount: number;
+        replicantOptionsCount: number;
       }[];
     },
     requiresProject: true,

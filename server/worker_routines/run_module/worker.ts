@@ -9,6 +9,7 @@ import {
   throwIfErrWithData
 } from "lib";
 import { EndingTaskData } from "../../server_only_types/mod.ts";
+import { notifyProjectRScript } from "../../task_management/notify_project_v2.ts";
 import { runModuleIterator } from "./run_module_iterator.ts";
 
 const broadcastDirtyStates = new BroadcastChannel("dirty_states");
@@ -93,6 +94,8 @@ async function run(std: { projectId: string; moduleId: string }) {
       text: msg.text,
     };
     broadcastDirtyStates.postMessage(bm);
+    // V2 notify
+    notifyProjectRScript(std.projectId, std.moduleId, msg.text);
   }
 
   const etd: EndingTaskData = {

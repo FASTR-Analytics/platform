@@ -12,12 +12,30 @@ export type FittedProjection = {
   project: (lon: number, lat: number) => [number, number];
 };
 
+export type AsymmetricPadding = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+};
+
+export type FitProjectionPadding = number | AsymmetricPadding;
+
+function normalizePadding(padding: FitProjectionPadding): AsymmetricPadding {
+  if (typeof padding === "number") {
+    return { left: padding, right: padding, top: padding, bottom: padding };
+  }
+  return padding;
+}
+
 export function fitProjection(
   features: GeoJSONFeature[],
   projectionFn: ProjectionFn,
   cellRcd: RectCoordsDims,
-  padding: number,
+  padding: FitProjectionPadding,
 ): FittedProjection {
+  const pad = normalizePadding(padding);
+
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -39,14 +57,14 @@ export function fitProjection(
     return { project: () => [cellRcd.centerX(), cellRcd.centerY()] };
   }
 
-  const availW = cellRcd.w() - padding * 2;
-  const availH = cellRcd.h() - padding * 2;
+  const availW = cellRcd.w() - pad.left - pad.right;
+  const availH = cellRcd.h() - pad.top - pad.bottom;
   const scale = Math.min(availW / projW, availH / projH);
 
   const scaledW = projW * scale;
   const scaledH = projH * scale;
-  const offsetX = cellRcd.x() + padding + (availW - scaledW) / 2;
-  const offsetY = cellRcd.y() + padding + (availH - scaledH) / 2;
+  const offsetX = cellRcd.x() + pad.left + (availW - scaledW) / 2;
+  const offsetY = cellRcd.y() + pad.top + (availH - scaledH) / 2;
 
   return {
     project(lon: number, lat: number): [number, number] {

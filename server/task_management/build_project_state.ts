@@ -38,6 +38,7 @@ export async function buildProjectState(
   const projectState: ProjectState = {
     // Ready flag
     isReady: true,
+    currentUserEmail: projectUser?.email ?? "",
 
     // From ProjectDetail (excluding aiContext)
     id: detail.id,
@@ -50,7 +51,6 @@ export async function buildProjectState(
     commonIndicators: detail.commonIndicators,
     visualizations: detail.visualizations,
     visualizationFolders: detail.visualizationFolders,
-    reports: detail.reports,
     slideDecks: detail.slideDecks,
     slideDeckFolders: detail.slideDeckFolders,
     projectUsers: detail.projectUsers,
@@ -60,7 +60,6 @@ export async function buildProjectState(
     projectLastUpdated: dirtyStates.projectLastUpdated,
     anyRunning: dirtyStates.anyRunning,
     moduleDirtyStates: dirtyStates.moduleDirtyStates,
-    anyModuleLastRun: dirtyStates.anyModuleLastRun,
     moduleLastRun: dirtyStates.moduleLastRun,
     moduleLastRunGitRef: dirtyStates.moduleLastRunGitRef,
     lastUpdated: dirtyStates.lastUpdated,

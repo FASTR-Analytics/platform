@@ -39,7 +39,6 @@ import {
   installModule,
 } from "./modules.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
-import { getAllReportsForProject } from "./reports.ts";
 import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
 import { getAllVisualizationFolders } from "./visualization_folders.ts";
@@ -128,9 +127,6 @@ export async function getProjectDetail(
       }
       return 0;
     });
-
-    const resReports = await getAllReportsForProject(projectDb);
-    throwIfErrWithData(resReports);
 
     const resSlideDecks = await getAllSlideDecks(projectDb);
     throwIfErrWithData(resSlideDecks);
@@ -236,7 +232,6 @@ export async function getProjectDetail(
       commonIndicators,
       visualizations: resVisualizations.data,
       visualizationFolders: resFolders.data,
-      reports: resReports.data,
       slideDecks: resSlideDecks.data,
       slideDeckFolders: resSlideDeckFolders.data,
       projectUsers: fullProjectUsers,
@@ -435,16 +430,16 @@ export async function updateProject(
   projectId: string,
   label: string,
   aiContext: string,
-): Promise<APIResponseNoData> {
+): Promise<APIResponseWithData<{ label: string; isLocked: boolean }>> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`
-UPDATE projects 
-SET 
-  label = ${label}, 
-  ai_context = ${aiContext}
-WHERE id = ${projectId}
-`;
-    return { success: true };
+    const result = await mainDb<{ is_locked: boolean }[]>`
+      UPDATE projects
+      SET label = ${label}, ai_context = ${aiContext}
+      WHERE id = ${projectId}
+      RETURNING is_locked
+    `;
+    const isLocked = result.at(0)?.is_locked ?? false;
+    return { success: true, data: { label, isLocked } };
   });
 }
 
@@ -558,17 +553,17 @@ export async function setProjectLockStatus(
   mainDb: Sql,
   projectId: string,
   lockAction: "lock" | "unlock",
-): Promise<APIResponseNoData> {
+): Promise<APIResponseWithData<{ label: string; isLocked: boolean }>> {
   return await tryCatchDatabaseAsync(async () => {
     const isLocked = lockAction === "lock";
-
-    await mainDb`
-      UPDATE projects 
-      SET is_locked = ${isLocked} 
+    const result = await mainDb<{ label: string }[]>`
+      UPDATE projects
+      SET is_locked = ${isLocked}
       WHERE id = ${projectId}
+      RETURNING label
     `;
-
-    return { success: true };
+    const label = result.at(0)?.label ?? "";
+    return { success: true, data: { label, isLocked } };
   });
 }
 
@@ -578,12 +573,84 @@ export async function setProjectLockStatus(
 //                     //
 /////////////////////////
 
-export async function updateProjectUserRole( // delete this after implementing new permissions system
+export async function getProjectUsers(
+  mainDb: Sql,
+  projectId: string,
+): Promise<APIResponseWithData<ProjectUser[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rawAllUserRolesForProject = await mainDb<
+      DBProjectUserRole[]
+    >`SELECT * FROM project_user_roles WHERE project_id = ${projectId}`;
+
+    const projectUsers = (
+      await mainDb<DBUser[]>`SELECT * FROM users`
+    ).map<ProjectUser>((u) => {
+      if (u.is_admin) {
+        return {
+          email: u.email,
+          role: "editor",
+          isGlobalAdmin: true,
+          firstName: u.first_name ?? undefined,
+          lastName: u.last_name ?? undefined,
+          can_configure_settings: true,
+          can_create_backups: true,
+          can_restore_backups: true,
+          can_configure_modules: true,
+          can_run_modules: true,
+          can_configure_users: true,
+          can_configure_visualizations: true,
+          can_view_visualizations: true,
+          can_configure_reports: true,
+          can_view_reports: true,
+          can_configure_slide_decks: true,
+          can_view_slide_decks: true,
+          can_configure_data: true,
+          can_view_data: true,
+          can_view_metrics: true,
+          can_view_logs: true,
+          can_view_script_code: true,
+        };
+      }
+      const pur = rawAllUserRolesForProject.find(
+        (pur) => pur.email === u.email,
+      );
+      return {
+        email: u.email,
+        role: !pur ? "none" : pur.role === "editor" ? "editor" : "viewer",
+        isGlobalAdmin: false,
+        firstName: u.first_name ?? undefined,
+        lastName: u.last_name ?? undefined,
+        can_configure_settings: pur?.can_configure_settings ?? false,
+        can_create_backups: pur?.can_create_backups ?? false,
+        can_restore_backups: pur?.can_restore_backups ?? false,
+        can_configure_modules: pur?.can_configure_modules ?? false,
+        can_run_modules: pur?.can_run_modules ?? false,
+        can_configure_users: pur?.can_configure_users ?? false,
+        can_configure_visualizations:
+          pur?.can_configure_visualizations ?? false,
+        can_view_visualizations: pur?.can_view_visualizations ?? false,
+        can_configure_reports: pur?.can_configure_reports ?? false,
+        can_view_reports: pur?.can_view_reports ?? false,
+        can_configure_slide_decks: pur?.can_configure_slide_decks ?? false,
+        can_view_slide_decks: pur?.can_view_slide_decks ?? false,
+        can_configure_data: pur?.can_configure_data ?? false,
+        can_view_data: pur?.can_view_data ?? false,
+        can_view_metrics: pur?.can_view_metrics ?? false,
+        can_view_logs: pur?.can_view_logs ?? false,
+        can_view_script_code: pur?.can_view_script_code ?? false,
+      };
+    });
+
+    return { success: true, data: projectUsers };
+  });
+}
+
+export async function updateProjectUserRole(
   mainDb: Sql,
   projectId: string,
   emails: string[],
   role: ProjectUserRoleType,
-) {
+): Promise<APIResponseWithData<{ projectUsers: ProjectUser[] }>> {
   return await tryCatchDatabaseAsync(async () => {
     if (!projectId) {
       throw new Error("Project ID is required");
@@ -615,7 +682,11 @@ export async function updateProjectUserRole( // delete this after implementing n
       }
     });
 
-    return { success: true };
+    const usersRes = await getProjectUsers(mainDb, projectId);
+    if (!usersRes.success) {
+      throw new Error(usersRes.err ?? "Failed to get project users");
+    }
+    return { success: true, data: { projectUsers: usersRes.data } };
   });
 }
 
@@ -623,7 +694,7 @@ export async function addProjectUserRole(
   mainDb: Sql,
   projectId: string,
   email: string,
-): Promise<APIResponseNoData> {
+): Promise<APIResponseWithData<{ projectUsers: ProjectUser[] }>> {
   return await tryCatchDatabaseAsync(async () => {
     const defaultRow = (
       await mainDb<Record<string, boolean>[]>`
@@ -652,7 +723,6 @@ export async function addProjectUserRole(
     const d = defaultRow ?? {};
     const g = (k: string) => d[`default_project_${k}`] ?? false;
 
-    // current the role is set to viewer but I want to remove this when make the role system completely obsolete
     await mainDb`
       INSERT INTO project_user_roles (
         email, project_id, role,
@@ -672,7 +742,12 @@ export async function addProjectUserRole(
         ${g("can_configure_data")}, ${g("can_view_data")}, ${g("can_view_metrics")}, ${g("can_view_logs")}, ${g("can_view_script_code")}
       )
     `;
-    return { success: true };
+
+    const usersRes = await getProjectUsers(mainDb, projectId);
+    if (!usersRes.success) {
+      throw new Error(usersRes.err ?? "Failed to get project users");
+    }
+    return { success: true, data: { projectUsers: usersRes.data } };
   });
 }
 
@@ -681,7 +756,7 @@ export async function updateProjectUserPermissions(
   projectId: string,
   emails: string[],
   permissions: Record<ProjectPermission, boolean>,
-) {
+): Promise<APIResponseWithData<{ projectUsers: ProjectUser[] }>> {
   return await tryCatchDatabaseAsync(async () => {
     for (const email of emails) {
       await mainDb`
@@ -707,7 +782,12 @@ export async function updateProjectUserPermissions(
           can_view_script_code = ${permissions.can_view_script_code}
       `;
     }
-    return { success: true };
+
+    const usersRes = await getProjectUsers(mainDb, projectId);
+    if (!usersRes.success) {
+      throw new Error(usersRes.err ?? "Failed to get project users");
+    }
+    return { success: true, data: { projectUsers: usersRes.data } };
   });
 }
 
@@ -716,14 +796,17 @@ export async function bulkUpdateProjectUserPermissions(
   projectId: string,
   emails: string[],
   permissions: Partial<Record<ProjectPermission, boolean>>,
-) {
+): Promise<APIResponseWithData<{ projectUsers: ProjectUser[] }>> {
   return await tryCatchDatabaseAsync(async () => {
     if (Object.keys(permissions).length === 0) {
-      return { success: true };
+      const usersRes = await getProjectUsers(mainDb, projectId);
+      if (!usersRes.success) {
+        throw new Error(usersRes.err ?? "Failed to get project users");
+      }
+      return { success: true, data: { projectUsers: usersRes.data } };
     }
     await mainDb.begin(async (sql) => {
       for (const email of emails) {
-        // Ensure row exists with defaults, then update only specified permissions
         await sql`
           INSERT INTO project_user_roles (email, project_id, role)
           VALUES (${email}, ${projectId}, 'viewer')
@@ -737,7 +820,12 @@ export async function bulkUpdateProjectUserPermissions(
         `;
       }
     });
-    return { success: true };
+
+    const usersRes = await getProjectUsers(mainDb, projectId);
+    if (!usersRes.success) {
+      throw new Error(usersRes.err ?? "Failed to get project users");
+    }
+    return { success: true, data: { projectUsers: usersRes.data } };
   });
 }
 

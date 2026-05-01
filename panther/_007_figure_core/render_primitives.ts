@@ -5,11 +5,13 @@
 
 import type {
   AreaStyle,
+  Arrowhead,
   ArrowPrimitive,
   BoxPrimitive,
   CascadeArrowPrimitive,
   ChartAxisPrimitive,
   ChartCaptionPrimitive,
+  ChartConnectorPrimitive,
   ChartGridPrimitive,
   ChartLabelPrimitive,
   ChartLegendPrimitive,
@@ -118,6 +120,10 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
 
     case "chart-area-series":
       rc.rArea(primitive.coords, primitive.style);
+      break;
+
+    case "chart-connector":
+      renderConnectorPrimitive(rc, primitive);
       break;
 
     case "chart-bar":
@@ -587,63 +593,72 @@ function renderArrowPrimitive(
   rc: RenderContext,
   primitive: ArrowPrimitive,
 ): void {
-  if (primitive.pathCoords.length < 2) return;
+  renderLineWithArrowheads(
+    rc,
+    primitive.pathCoords,
+    primitive.lineStyle,
+    primitive.arrowheads,
+  );
+}
+
+function renderConnectorPrimitive(
+  rc: RenderContext,
+  primitive: ChartConnectorPrimitive,
+): void {
+  renderLineWithArrowheads(
+    rc,
+    primitive.coords,
+    primitive.style,
+    primitive.arrowheads,
+  );
+}
+
+export function renderLineWithArrowheads(
+  rc: RenderContext,
+  pathCoords: Coordinates[],
+  lineStyle: LineStyle,
+  arrowheads: { start?: Arrowhead; end?: Arrowhead } | undefined,
+): void {
+  if (pathCoords.length < 2) return;
 
   // Strokes are centered on the path, so we need to shorten the line by half
   // the stroke width at each end where there's an arrowhead
-  const halfStroke = (primitive.lineStyle.strokeWidth ?? 1) / 2;
-  let pathCoords = [...primitive.pathCoords];
+  const halfStroke = (lineStyle.strokeWidth ?? 1) / 2;
+  const adjustedCoords = [...pathCoords];
 
-  // Shorten the path at the start if there's a start arrowhead
-  if (primitive.arrowheads?.start) {
-    const angle = primitive.arrowheads.start.angle;
-    pathCoords[0] = pathCoords[0].getOffsetted({
+  if (arrowheads?.start) {
+    const angle = arrowheads.start.angle;
+    adjustedCoords[0] = adjustedCoords[0].getOffsetted({
       right: Math.cos(angle) * halfStroke,
       bottom: Math.sin(angle) * halfStroke,
     });
   }
 
-  // Shorten the path at the end if there's an end arrowhead
-  if (primitive.arrowheads?.end) {
-    const angle = primitive.arrowheads.end.angle;
-    const lastIdx = pathCoords.length - 1;
-    pathCoords[lastIdx] = pathCoords[lastIdx].getOffsetted({
+  if (arrowheads?.end) {
+    const angle = arrowheads.end.angle;
+    const lastIdx = adjustedCoords.length - 1;
+    adjustedCoords[lastIdx] = adjustedCoords[lastIdx].getOffsetted({
       right: -Math.cos(angle) * halfStroke,
       bottom: -Math.sin(angle) * halfStroke,
     });
   }
 
-  // Render the adjusted line
-  rc.rLine(pathCoords, primitive.lineStyle);
+  rc.rLine(adjustedCoords, lineStyle);
 
-  // Render arrowheads at original endpoints
-  if (primitive.arrowheads?.start) {
-    renderArrowhead(
-      rc,
-      primitive.arrowheads.start,
-      primitive.lineStyle,
-      primitive.arrowheadSize,
-    );
+  if (arrowheads?.start) {
+    renderArrowhead(rc, arrowheads.start, lineStyle);
   }
-
-  if (primitive.arrowheads?.end) {
-    renderArrowhead(
-      rc,
-      primitive.arrowheads.end,
-      primitive.lineStyle,
-      primitive.arrowheadSize,
-    );
+  if (arrowheads?.end) {
+    renderArrowhead(rc, arrowheads.end, lineStyle);
   }
 }
 
 function renderArrowhead(
   rc: RenderContext,
-  arrowhead: { position: Coordinates; angle: number },
+  arrowhead: Arrowhead,
   lineStyle: LineStyle,
-  arrowheadSize: number,
 ): void {
-  // Skip rendering if arrowhead size is 0
-  if (arrowheadSize === 0) return;
+  if (arrowhead.size === 0) return;
 
   // Wings extend backward from tip at ±150° from forward direction
   // This is equivalent to ±30° from the backward direction
@@ -655,12 +670,12 @@ function renderArrowhead(
 
   const tip = arrowhead.position;
   const p1 = tip.getOffsetted({
-    right: Math.cos(angle1) * arrowheadSize,
-    bottom: Math.sin(angle1) * arrowheadSize,
+    right: Math.cos(angle1) * arrowhead.size,
+    bottom: Math.sin(angle1) * arrowhead.size,
   });
   const p2 = tip.getOffsetted({
-    right: Math.cos(angle2) * arrowheadSize,
-    bottom: Math.sin(angle2) * arrowheadSize,
+    right: Math.cos(angle2) * arrowhead.size,
+    bottom: Math.sin(angle2) * arrowhead.size,
   });
 
   rc.rLine([p1, tip, p2], lineStyle);
@@ -721,12 +736,7 @@ function renderCascadeArrowPrimitive(
       strokeWidth: primitive.pathStyle.stroke?.width ?? 1,
       lineDash: "solid",
     };
-    renderArrowhead(
-      rc,
-      primitive.arrowhead,
-      lineStyle,
-      primitive.arrowhead.size,
-    );
+    renderArrowhead(rc, primitive.arrowhead, lineStyle);
   }
 
   if (primitive.dataLabel) {

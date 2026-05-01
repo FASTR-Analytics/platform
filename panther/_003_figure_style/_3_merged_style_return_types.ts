@@ -8,6 +8,7 @@ import type {
   AreaStyle,
   CalendarType,
   CascadeArrowInfoFunc,
+  ChartConnectorInfoFunc,
   ChartSeriesInfoFunc,
   ChartValueInfoFunc,
   ColorAdjustmentStrategy,
@@ -23,8 +24,10 @@ import type {
   TickLabelFormatterOption,
 } from "./deps.ts";
 import type {
+  ArrowheadFitFallback,
   CascadeArrowStyle,
   ConfidenceBandStyle,
+  ConnectorStyle,
   DataLabelStyle,
   ErrorBarStyle,
   MapRegionStyle,
@@ -155,6 +158,12 @@ export type MergedChartStyleBase = {
 
 export type MapDataLabelMode = "none" | "centroid" | "callout" | "auto";
 
+export type MapLabelCollisionConfig = {
+  gap: number;
+  maxCentroidDisplacement: number;
+  maxIterations: number;
+};
+
 export type MergedMapStyle = MergedChartStyleBase & {
   map: {
     projection: "equirectangular" | "mercator" | "naturalEarth1";
@@ -162,6 +171,7 @@ export type MergedMapStyle = MergedChartStyleBase & {
     boundingBox?: [number, number, number, number];
     dataLabelMode: MapDataLabelMode;
     calloutMargin: number;
+    labelCollision: MapLabelCollisionConfig;
   };
 };
 
@@ -374,6 +384,7 @@ export type MergedContentStyle = {
   errorBars: MergedErrorBarStyle;
   confidenceBands: MergedConfidenceBandStyle;
   cascadeArrows: MergedCascadeArrowStyle;
+  connectors: MergedConnectorStyle;
   mapRegions: {
     getStyle: MapRegionInfoFunc<MapRegionStyle>;
     textFormatter: MapRegionInfoFunc<string> | "none";
@@ -386,6 +397,12 @@ export type MergedErrorBarStyle = {
 
 export type MergedConfidenceBandStyle = {
   getStyle: ChartSeriesInfoFunc<ConfidenceBandStyle>;
+};
+
+export type MergedConnectorStyle = {
+  getStyle: ChartConnectorInfoFunc<ConnectorStyle>;
+  joinAcrossGaps: boolean;
+  arrowheadFitFallback: ArrowheadFitFallback;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////

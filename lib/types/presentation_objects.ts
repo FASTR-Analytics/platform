@@ -145,7 +145,6 @@ export const VIZ_TYPE_CONFIG: Record<
       mapArea: "cell",
     },
     styleResets: {
-      specialScorecardTable: false,
       sortIndicatorValues: "none",
       verticalTickLabels: false,
     },
@@ -182,7 +181,6 @@ export const VIZ_TYPE_CONFIG: Record<
     ],
     disDisplayOptFallbacks: { rowGroup: "row", colGroup: "col", mapArea: "cell" },
     styleResets: {
-      specialScorecardTable: false,
       specialCoverageChart: false,
       specialDisruptionsChart: false,
       specialBarChart: false,
@@ -205,7 +203,6 @@ export const VIZ_TYPE_CONFIG: Record<
       colGroup: "col",
     },
     styleResets: {
-      specialScorecardTable: false,
       specialBarChart: false,
       specialCoverageChart: false,
       specialDisruptionsChart: false,

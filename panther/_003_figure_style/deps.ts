@@ -11,4 +11,4 @@ export { getBaseText, getBaseTextInfo, getFontsToRegister, getTextInfo } from ".
 export type { CustomStyleTextOptions, FontInfo, FontInfoOptions, TextInfo, TextInfoOptions, TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Padding, msPadding } from "../_001_geometry/mod.ts";
 export type { AnchorPoint, PaddingOptions } from "../_001_geometry/mod.ts";
-export type { AreaStyle, CascadeArrowInfo, CascadeArrowInfoFunc, ChartSeriesInfo, ChartSeriesInfoFunc, ChartValueInfo, ChartValueInfoFunc, LineStyle, MapRegionInfo, MapRegionInfoFunc, PointStyle, PointType, RectStyle, TableCellInfo, TableCellInfoFunc } from "../_001_render_system/mod.ts";
+export type { AreaStyle, CascadeArrowInfo, CascadeArrowInfoFunc, ChartConnectorInfo, ChartConnectorInfoFunc, ChartSeriesInfo, ChartSeriesInfoFunc, ChartValueInfo, ChartValueInfoFunc, LineStyle, MapRegionInfo, MapRegionInfoFunc, PointStyle, PointType, RectStyle, TableCellInfo, TableCellInfoFunc } from "../_001_render_system/mod.ts";

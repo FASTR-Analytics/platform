@@ -21,9 +21,13 @@
 // 4. Convert createTableStatementPossibleColumns: empty/null/undefined → false, array → Record
 // 5. DELETE description from resultsObjects (unused field, never displayed)
 //
+// SHARED TRANSFORMS (applied after local blocks):
+// → defaultPresentationObjects.config uses transformPOConfigData from po_config.ts
+//
 // =============================================================================
 
 import { moduleDefinitionInstalledSchema } from "lib";
+import { transformPOConfigData } from "./po_config.ts";
 import type { Sql } from "postgres";
 
 export type MigrationStats = {
@@ -86,6 +90,17 @@ function transformModuleDefinition(mod: Record<string, unknown>): void {
 
       // Block 5: DELETE description from resultsObjects
       delete ro.description;
+    }
+  }
+
+  // ─── Apply shared PO config transforms ─────────────────────────────
+  // See po_config.ts for block details
+  if (Array.isArray(mod.defaultPresentationObjects)) {
+    const dpos = mod.defaultPresentationObjects as Record<string, unknown>[];
+    for (const dpo of dpos) {
+      if (dpo.config && typeof dpo.config === "object") {
+        dpo.config = transformPOConfigData(dpo.config as Record<string, unknown>);
+      }
     }
   }
 }

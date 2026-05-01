@@ -7,7 +7,6 @@ import type {
   PresentationObjectSummary,
   ProjectSseMessage,
   ProjectUser,
-  ReportSummary,
   SlideDeckFolder,
   SlideDeckSummary,
   VisualizationFolder,
@@ -75,16 +74,6 @@ export function notifyProjectVisualizationFoldersUpdated(
   notifyProjectV2(projectId, {
     type: "visualization_folders_updated",
     data: { visualizationFolders },
-  });
-}
-
-export function notifyProjectReportsUpdated(
-  projectId: string,
-  reports: ReportSummary[]
-): void {
-  notifyProjectV2(projectId, {
-    type: "reports_updated",
-    data: { reports },
   });
 }
 

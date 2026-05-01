@@ -97,33 +97,41 @@ const disaggregationDisplayOptionGithub = z.enum([
   "mapArea",
 ]);
 
-const relativePeriodFilterGithub = z.object({
-  filterType: z.enum([
-    "last_n_months",
-    "last_calendar_year",
-    "last_calendar_quarter",
-    "last_n_calendar_years",
-    "last_n_calendar_quarters",
-  ]),
-  nMonths: z.number().optional(),
-  nYears: z.number().optional(),
-  nQuarters: z.number().optional(),
-});
-
-const boundedPeriodFilterGithub = z.object({
-  filterType: z.enum(["custom", "from_month"]),
+// Strict period filter schema — each filterType has exactly the fields it requires
+const boundedFilterBaseGithub = z.object({
   periodOption: periodOptionGithub,
-  min: z.number(),
-  max: z.number(),
-  nMonths: z.number().optional(),
-  nYears: z.number().optional(),
-  nQuarters: z.number().optional(),
+  min: z.number().int(),
+  max: z.number().int(),
 });
 
 const periodFilterGithub = z
   .discriminatedUnion("filterType", [
-    relativePeriodFilterGithub,
-    boundedPeriodFilterGithub,
+    // Relative filters
+    z.object({
+      filterType: z.literal("last_n_months"),
+      nMonths: z.number().int().min(1),
+    }),
+    z.object({
+      filterType: z.literal("last_calendar_year"),
+    }),
+    z.object({
+      filterType: z.literal("last_calendar_quarter"),
+    }),
+    z.object({
+      filterType: z.literal("last_n_calendar_years"),
+      nYears: z.number().int().min(1),
+    }),
+    z.object({
+      filterType: z.literal("last_n_calendar_quarters"),
+      nQuarters: z.number().int().min(1),
+    }),
+    // Bounded filters
+    boundedFilterBaseGithub.extend({
+      filterType: z.literal("custom"),
+    }),
+    boundedFilterBaseGithub.extend({
+      filterType: z.literal("from_month"),
+    }),
   ])
   .optional();
 
@@ -162,7 +170,7 @@ const configDGithubStrict = z
 const configSGithubStrict = z
   .object({
     scale: z.number(),
-    content: z.enum(["lines", "bars", "points", "areas"]),
+    content: z.enum(["bars", "lines", "points", "lines-area", "lines-points"]),
     allowIndividualRowLimits: z.boolean(),
     colorScale: z.enum([
       "pastel-discrete",
@@ -189,7 +197,6 @@ const configSGithubStrict = z
     specialBarChartDataLabels: z.enum(["all-values", "threshold-values"]),
     specialCoverageChart: z.boolean(),
     specialDisruptionsChart: z.boolean(),
-    specialScorecardTable: z.boolean(),
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),

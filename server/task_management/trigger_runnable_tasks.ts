@@ -2,6 +2,7 @@ import { ProjectSseUpdateMessage } from "lib";
 import { ProjectPk, StartingTaskData } from "../server_only_types/mod.ts";
 import { instantiateRunModuleWorker } from "../worker_routines/run_module/mod.ts";
 import { areUpstreamDependenciesOfModuleAllReady } from "./get_dependents.ts";
+import { notifyProjectModuleDirtyState } from "./notify_project_v2.ts";
 import { addRunningModule, hasRunningModule } from "./running_tasks_map.ts";
 
 const broadcastDirtyStates = new BroadcastChannel("dirty_states");
@@ -28,6 +29,8 @@ export async function triggerRunnableModules(ppk: ProjectPk) {
     lastRunGitRef: undefined,
   };
   broadcastDirtyStates.postMessage(bm1);
+  // V2 notify
+  notifyProjectModuleDirtyState(ppk.projectId, modulesToRun, "running");
 }
 
 async function getNextRunnableModules(ppk: ProjectPk): Promise<string[]> {

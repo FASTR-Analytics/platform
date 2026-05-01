@@ -3,54 +3,38 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createSignal } from "solid-js";
+import type { FontInfo } from "./deps.ts";
 
-const [areFontsReady, setAreFontsReady] = createSignal(false);
-const loadedFonts = new Set<string>();
-
-function checkFonts() {
+export function loadFont(font: FontInfo): Promise<void> {
   if (typeof document === "undefined" || !document.fonts) {
-    setAreFontsReady(true);
-    return;
+    return Promise.resolve();
   }
 
-  // Wait for document.fonts.ready first
-  document.fonts.ready.then(() => {
-    // Track which fonts have loaded to detect new ones
-    document.fonts.forEach((font) => {
-      if (font.status === "loaded") {
-        const key = `${font.family}-${font.weight}-${font.style}`;
-        loadedFonts.add(key);
-      }
-    });
-    setAreFontsReady(true);
+  const style = font.italic ? "italic " : "";
+  const fontString = `${style}${font.weight} 16px "${font.fontFamily}"`;
+
+  return document.fonts.load(fontString).then((loaded) => {
+    if (loaded.length === 0) {
+      console.warn(`No matching font found for: ${fontString}`);
+    }
   });
 }
 
-// Initial check
-checkFonts();
+const FONT_LOAD_TIMEOUT_MS = 3000;
 
-// Also listen for font load events for dynamic fonts
-if (typeof document !== "undefined" && document.fonts) {
-  document.fonts.addEventListener("loadingdone", () => {
-    // Small delay to ensure all fonts are processed
-    setTimeout(() => setAreFontsReady(true), 10);
-  });
-}
+export function loadFontsWithTimeout(fonts: FontInfo[]): Promise<void> {
+  if (typeof document === "undefined" || !document.fonts) {
+    return Promise.resolve();
+  }
 
-export function fontsReady(): boolean {
-  return areFontsReady();
-}
+  if (fonts.length === 0) {
+    return Promise.resolve();
+  }
 
-// Export a function to force a specific font to load (useful for canvas)
-export function loadFont(
-  fontFamily: string,
-  text = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-) {
-  if (typeof document === "undefined" || !document.fonts) return;
+  const loadAll = Promise.all(fonts.map(loadFont)).then(() => {});
+  const timeout = new Promise<void>((resolve) =>
+    setTimeout(resolve, FONT_LOAD_TIMEOUT_MS)
+  );
 
-  // This forces the browser to load the font if it hasn't already
-  document.fonts.load(`16px ${fontFamily}`, text).catch((err) => {
-    console.warn(`Failed to load font '${fontFamily}':`, err);
-  });
+  return Promise.race([loadAll, timeout]);
 }

@@ -3,7 +3,6 @@ import {
   getAllModulesForProject,
   getMetricsWithStatus,
   getPgConnectionFromCacheOrNew,
-  getReportItemsThatDependOnPresentationObjects,
 } from "../db/mod.ts";
 import { ProjectSseUpdateMessage } from "lib";
 import { EndingTaskData } from "../server_only_types/mod.ts";
@@ -14,7 +13,10 @@ import {
   notifyLastUpdated,
   notifyProjectUpdated,
 } from "./notify_last_updated.ts";
-import { notifyProjectModulesUpdated } from "./notify_project_v2.ts";
+import {
+  notifyProjectModuleDirtyState,
+  notifyProjectModulesUpdated,
+} from "./notify_project_v2.ts";
 
 const broadcastTaskEnded = new BroadcastChannel("task_ended");
 const broadcastDirtyStates = new BroadcastChannel("dirty_states");
@@ -55,6 +57,8 @@ WHERE id = ${etd.moduleId}
       lastRunGitRef: undefined,
     };
     broadcastDirtyStates.postMessage(bm1);
+    // V2 notify
+    notifyProjectModuleDirtyState(etd.projectId, [etd.moduleId], "error");
     return;
   }
 
@@ -94,6 +98,8 @@ ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
     lastRunGitRef: computeDefGitRef ?? undefined,
   };
   broadcastDirtyStates.postMessage(bm1);
+  // V2 notify
+  notifyProjectModuleDirtyState(etd.projectId, [etd.moduleId], "ready", lastRun, computeDefGitRef ?? undefined);
 
   // Notify that modules table changed so UI refetches module list
   const bm2: ProjectSseUpdateMessage = {
@@ -142,25 +148,12 @@ async function setAllModuleDependentsLastUpdatedAndNotify(
     return;
   }
 
-  const reportItemsThatDependOnPresentationObjects =
-    await getReportItemsThatDependOnPresentationObjects(
-      projectDb,
-      presentationObjectsThatDependOnModule,
-    );
-
   await projectDb.begin(async (sql) => {
     for (const presObjId of presentationObjectsThatDependOnModule) {
       await sql`
 UPDATE presentation_objects
 SET last_updated = ${lastUpdated}
 WHERE id = ${presObjId}
-`;
-    }
-    for (const reportItemId of reportItemsThatDependOnPresentationObjects) {
-      await sql`
-UPDATE report_items
-SET last_updated = ${lastUpdated}
-WHERE id = ${reportItemId}
 `;
     }
   });
@@ -171,13 +164,4 @@ WHERE id = ${reportItemId}
     presentationObjectsThatDependOnModule,
     lastUpdated,
   );
-
-  if (reportItemsThatDependOnPresentationObjects.length > 0) {
-    notifyLastUpdated(
-      projectId,
-      "report_items",
-      reportItemsThatDependOnPresentationObjects,
-      lastUpdated,
-    );
-  }
 }

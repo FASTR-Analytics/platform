@@ -1,5 +1,5 @@
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
-import { PresentationObjectConfig, ReportConfig } from "./types/mod.ts";
+import { PresentationObjectConfig } from "./types/mod.ts";
 
 export function cleanValStrForSql(str: string | undefined): string {
   return (
@@ -38,18 +38,6 @@ export function withReplicant(
   return str
     .replaceAll("REPLICANT", config.d.selectedReplicantValue)
     .replaceAll("RÉPLICANT", config.d.selectedReplicantValue);
-}
-
-export function withReplicantForReport(
-  str: string,
-  config: ReportConfig
-): string {
-  if (!config.selectedReplicantValue) {
-    return str;
-  }
-  return str
-    .replaceAll("REPLICANT", config.selectedReplicantValue ?? "Unselected")
-    .replaceAll("RÉPLICANT", config.selectedReplicantValue ?? "Unselected");
 }
 
 export function encodeRawCsvHeader(

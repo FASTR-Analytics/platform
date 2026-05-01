@@ -10,6 +10,7 @@ export * from "./group_metrics.ts";
 export * from "./h_users.ts";
 export * from "./json_slide_serialize.ts";
 export * from "./key_colors.ts";
+export * from "./brand_presets.ts";
 export * from "./legacy_cf_presets.ts";
 export * from "./table_structures/mod.ts";
 export * from "./translate/mod.ts";

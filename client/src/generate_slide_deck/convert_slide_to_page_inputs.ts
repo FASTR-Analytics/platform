@@ -6,14 +6,19 @@ import type {
   CoverSlide,
   SectionSlide,
   LogoVisibility,
+  SlideFontFamily,
+  DeckStyleContext,
 } from "lib";
 import {
   FIGURE_AUTOFIT,
-  getPrimaryColor,
   getTextColorForBackground,
   MARKDOWN_AUTOFIT,
   _SLIDE_BACKGROUND_COLOR,
   _CF_RED,
+  resolveColorThemeToPreset,
+  getSlideFontInfo,
+  getLetterSpacing,
+  createDeckStyleContext,
 } from "lib";
 import type {
   APIResponseWithData,
@@ -27,6 +32,7 @@ import type {
   ImageInputs,
   PatternConfig,
   SplitConfig,
+  ColorPreset,
 } from "panther";
 import { resolvePageStyle } from "panther";
 import { hydrateFigureInputsForRendering } from "~/generate_visualization/mod";
@@ -47,12 +53,13 @@ export const FASTR_LOGOS = [
 
 export const FASTR_LOGO_VALUES = FASTR_LOGOS.map((l) => l.value);
 
-function getFont(bold?: boolean, italic?: boolean, defaultBold = false): FontInfo {
-  return {
-    fontFamily: "International Inter",
-    weight: (bold ?? defaultBold) ? 800 : 400,
-    italic: italic ?? false,
-  };
+function getFont(
+  fontFamily: SlideFontFamily,
+  bold?: boolean,
+  italic?: boolean,
+  defaultBold = false,
+): FontInfo {
+  return getSlideFontInfo(fontFamily, bold ?? defaultBold, italic ?? false);
 }
 
 function getSlideSplit(slide: Slide, primaryColor: string): SplitConfig | undefined {
@@ -77,10 +84,12 @@ export function buildStyleForSlide(
   config: SlideDeckConfig,
   pattern?: Omit<PatternConfig, "baseColor">,
 ): CustomPageStyleOptions {
+  const preset = resolveColorThemeToPreset(config.colorTheme);
   const { style: presetStyle } = resolvePageStyle(
     config.layout,
-    config.treatment,
-    config.primaryColor,
+    config.coverAndSectionTreatment,
+    config.freeformTreatment,
+    preset,
     pattern ? { pattern } : undefined,
   );
 
@@ -99,80 +108,77 @@ export function buildStyleForSlide(
       ? (config.globalFooterText ?? slide.footer)
       : undefined;
   const hasFooter = !!footerText?.trim();
+  const fontFamily = config.fontFamily ?? "International Inter";
 
   return {
     text: {
       coverTitle: {
-        font: getFont(coverFontSizes.titleBold, coverFontSizes.titleItalic, true),
+        font: getFont(fontFamily, coverFontSizes.titleBold, coverFontSizes.titleItalic, true),
         color: presetStyle.text!.coverTitle!.color,
         relFontSize: coverFontSizes.titleTextRelFontSize ?? 10,
-        letterSpacing: "-0.02em",
+        letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1,
       },
       coverSubTitle: {
-        font: getFont(coverFontSizes.subTitleBold, coverFontSizes.subTitleItalic, false),
+        font: getFont(fontFamily, coverFontSizes.subTitleBold, coverFontSizes.subTitleItalic, false),
         color: presetStyle.text!.coverSubTitle!.color,
         relFontSize: coverFontSizes.subTitleTextRelFontSize ?? 6,
-        letterSpacing: "-0.02em",
+        letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.1,
       },
       coverAuthor: {
-        font: getFont(coverFontSizes.presenterBold, coverFontSizes.presenterItalic, true),
+        font: getFont(fontFamily, coverFontSizes.presenterBold, coverFontSizes.presenterItalic, true),
         color: presetStyle.text!.coverAuthor!.color,
         relFontSize: coverFontSizes.presenterTextRelFontSize ?? 4,
-        letterSpacing: "-0.02em",
         lineHeight: 1.2,
       },
       coverDate: {
-        font: getFont(coverFontSizes.dateBold, coverFontSizes.dateItalic, false),
+        font: getFont(fontFamily, coverFontSizes.dateBold, coverFontSizes.dateItalic, false),
         color: presetStyle.text!.coverDate!.color,
         relFontSize: coverFontSizes.dateTextRelFontSize ?? 3,
-        letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       sectionTitle: {
-        font: getFont(sectionFontSizes.sectionTitleBold, sectionFontSizes.sectionTitleItalic, true),
+        font: getFont(fontFamily, sectionFontSizes.sectionTitleBold, sectionFontSizes.sectionTitleItalic, true),
         color: presetStyle.text!.sectionTitle!.color,
         relFontSize: sectionFontSizes.sectionTextRelFontSize ?? 8,
-        letterSpacing: "-0.02em",
+        letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.05,
       },
       sectionSubTitle: {
-        font: getFont(sectionFontSizes.sectionSubTitleBold, sectionFontSizes.sectionSubTitleItalic, false),
+        font: getFont(fontFamily, sectionFontSizes.sectionSubTitleBold, sectionFontSizes.sectionSubTitleItalic, false),
         color: presetStyle.text!.sectionSubTitle!.color,
         relFontSize: sectionFontSizes.smallerSectionTextRelFontSize ?? 5,
-        letterSpacing: "-0.02em",
+        letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.1,
       },
       header: {
-        font: getFont(undefined, undefined, true),
+        font: getFont(fontFamily, undefined, undefined, true),
         color: presetStyle.text!.header!.color,
         relFontSize: 5.5,
-        letterSpacing: "-0.02em",
+        letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1,
       },
       subHeader: {
-        font: getFont(undefined, undefined, false),
+        font: getFont(fontFamily, undefined, undefined, false),
         color: presetStyle.text!.subHeader!.color,
         relFontSize: 3.5,
-        letterSpacing: "-0.02em",
+        letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.1,
       },
       date: {
-        font: getFont(undefined, undefined, false),
+        font: getFont(fontFamily, undefined, undefined, false),
         color: presetStyle.text!.date!.color,
         relFontSize: 3,
-        letterSpacing: "-0.02em",
         lineHeight: 1.1,
       },
       footer: {
-        font: getFont(undefined, undefined, false),
+        font: getFont(fontFamily, undefined, undefined, false),
         color: presetStyle.text!.footer!.color,
         relFontSize: 2,
-        letterSpacing: "-0.02em",
       },
       pageNumber: {
-        font: getFont(undefined, undefined, false),
+        font: getFont(fontFamily, undefined, undefined, false),
         color: hasFooter ? presetStyle.text!.footer!.color : presetStyle.text!.header!.color,
         relFontSize: 1.5,
       },
@@ -198,7 +204,7 @@ export function buildStyleForSlide(
       alignV: presetStyle.section!.alignV,
     },
     freeform: {
-      split: getSlideSplit(slide, config.primaryColor),
+      split: getSlideSplit(slide, preset.primary),
       header: {
         background: presetStyle.freeform!.header!.background,
         padding: presetStyle.freeform!.header!.padding,
@@ -298,9 +304,12 @@ export async function convertSlideToPageInputs(
     };
   }
 
+  const preset = resolveColorThemeToPreset(config.colorTheme);
+  const deckStyle = createDeckStyleContext(config);
   const convertedLayout = await convertLayoutNode(
     slide.layout,
-    getPrimaryColor(config.primaryColor),
+    preset.primary,
+    deckStyle,
   );
   const footerText = config.globalFooterText ?? slide.footer;
 
@@ -387,6 +396,7 @@ function resolveTextBackground(
 async function convertLayoutNode(
   node: LayoutNode<ContentBlock>,
   primaryColor: string,
+  deckStyle: DeckStyleContext,
 ): Promise<LayoutNode<PageContentItem>> {
   if (node.type === "item") {
     if (!node.data) {
@@ -405,7 +415,7 @@ async function convertLayoutNode(
       type: "item",
       id: node.id,
       span: node.span,
-      data: await convertBlockToPageContentItem(node.data, resolved?.textColor),
+      data: await convertBlockToPageContentItem(node.data, resolved?.textColor, deckStyle),
       style: resolved?.containerStyle,
     };
   }
@@ -416,7 +426,7 @@ async function convertLayoutNode(
     span: node.span,
     children: Array.isArray(node.children)
       ? await Promise.all(
-          node.children.map((c) => convertLayoutNode(c, primaryColor)),
+          node.children.map((c) => convertLayoutNode(c, primaryColor, deckStyle)),
         )
       : [],
   };
@@ -424,16 +434,19 @@ async function convertLayoutNode(
 
 async function convertBlockToPageContentItem(
   block: ContentBlock,
-  textColor?: string,
+  textColor: string | undefined,
+  deckStyle: DeckStyleContext,
 ): Promise<PageContentItem> {
   if (block.type === "text") {
     const baseFontSize = block.style?.textSize ? 60 * block.style.textSize : 60;
+    const fontFamily = deckStyle.fontFamily;
     return {
       markdown: block.markdown,
       autofit: MARKDOWN_AUTOFIT,
       style: {
         text: {
           base: {
+            font: getSlideFontInfo(fontFamily, false, false),
             fontSize: baseFontSize,
             ...(textColor ? { color: textColor } : {}),
           },
@@ -475,52 +488,10 @@ async function convertBlockToPageContentItem(
     return { spacer: true };
   }
 
-  // --- LEGACY MIGRATION: remove once all saved slides have been rebuilt ---
-  // 1) tierHeaders was moved from yScaleAxisData to the top level of
-  //    TimeseriesDataTransformed and ChartOVDataTransformed.
-  // 2) yScaleAxisData was split into scaleAxisLimits + yScaleAxisLabel
-  //    (PLAN_SCALE_LIMITS_UNIFICATION). laneLimits is mirrored from pane-wide
-  //    min/max — safe for ChartOV/Timeseries, which never consult it.
-  // Both migrations are runtime-only; saved JSON is not re-persisted here. The
-  // yScaleAxisData field is left in place on the migrated object so that a
-  // pre-unification panther renderer still works against the same data.
-  for (const dataKey of ["timeseriesData", "chartData"] as const) {
-    const d: any = (fi as Record<string, any>)[dataKey];
-    if (!d?.isTransformed) continue;
-
-    const needsTierHeaders = !d.tierHeaders;
-    const needsScaleAxisLimits = !d.scaleAxisLimits && d.yScaleAxisData;
-    if (!needsTierHeaders && !needsScaleAxisLimits) continue;
-
-    const laneCount = d.laneHeaders?.length ?? 1;
-    const updated: any = { ...d };
-
-    if (needsTierHeaders) {
-      updated.tierHeaders = d.yScaleAxisData?.tierHeaders ?? ["default"];
-    }
-    if (needsScaleAxisLimits) {
-      updated.scaleAxisLimits = {
-        paneLimits: d.yScaleAxisData.paneLimits.map((p: any) => ({
-          valueMin: p.valueMin,
-          valueMax: p.valueMax,
-          tierLimits: p.tierLimits,
-          laneLimits: Array.from({ length: laneCount }, () => ({
-            valueMin: p.valueMin,
-            valueMax: p.valueMax,
-          })),
-        })),
-      };
-      updated.yScaleAxisLabel = d.yScaleAxisData.yScaleAxisLabel;
-    }
-
-    fi = { ...fi, [dataKey]: updated };
-  }
-  // --- END LEGACY MIGRATION ---
-
   const source = block.source?.type === "from_data"
     ? { config: block.source.config, metricId: block.source.metricId }
     : undefined;
-  fi = await hydrateFigureInputsForRendering(fi, source);
+  fi = await hydrateFigureInputsForRendering(fi, source, deckStyle);
 
   return { ...fi, autofit: FIGURE_AUTOFIT } as PageContentItem;
 }

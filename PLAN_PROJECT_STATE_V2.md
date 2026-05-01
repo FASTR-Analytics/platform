@@ -28,15 +28,11 @@ Bug fixes and dead-code cleanup happen in separate commits outside this plan.
 
 ## Resolved decisions
 
-All six open questions from the original V1 plan have been researched and resolved under the "zero functional change" constraint. Each decision is grounded in how the current code actually behaves.
+Five open questions from the original V1 plan have been researched and resolved under the "zero functional change" constraint. Each decision is grounded in how the current code actually behaves.
 
-### 1. `anyModuleLastRun` — **include on `ProjectState`**
+### 1. ~~`anyModuleLastRun`~~ — **DELETED**
 
-Currently defined in `lib/types/project_dirty_states.ts:6`. Used today as a T2 cache version key for slide inputs / reports at `client/src/state/caches/reports.ts:41`, composed with `reportLastUpdated` and `reportItemLastUpdated` via `|`-join. Dropping it would silently break slide-input cache invalidation.
-
-Written on `starting` and on every module transition to "ready" at `provider.tsx:227` (batch) and `provider.tsx:256` (incremental). Server source: `server/task_management/get_project_dirty_states.ts:81-82` reading from `global_last_updated` table.
-
-**Action:** add to `ProjectState` shape. Set in `module_dirty_state` setter. Semantics identical to today.
+Was used as a T2 cache version key for reports at `client/src/state/caches/reports.ts`. Reports feature has been removed, and with it the only consumer of `anyModuleLastRun`. The field has been deleted from `ProjectDirtyStates`, `ProjectState`, and all server/client code.
 
 ### 2. `rLogs` — **demote to T5, component-local inside `project_modules.tsx`**
 
@@ -101,8 +97,8 @@ Deleting it is a change. The refactor preserves everything including dead fields
 
 <!--
 ══════════════════════════════════════════════════════════════════════════════
-   PHASES 0–5 COMPLETE (server-side work done)
-   NEXT: Phase 6 (client store + SSE manager)
+   PHASES 0–7 COMPLETE (dual-run infrastructure ready)
+   NEXT: Phase 8 (direct migration — no shim)
 ══════════════════════════════════════════════════════════════════════════════
 -->
 
@@ -145,46 +141,41 @@ Deleting it is a change. The refactor preserves everything including dead fields
 
 ### 0.2 Client consumer map
 
-**Done.** Summary by hook:
+**Done.** Summary by hook (updated after reports removal):
 
 | Hook | Count | Files |
 |------|-------|-------|
-| `useProjectDetail` | 14 | project_ai/ (4), project/ (9), project_runner/ (def) |
-| `useProjectDirtyStates` | 12 | project/ (2), report/ (4), slide_deck/ (3), root (3) |
-| `getGlobalPDSSnapshot` | 1 | state/_infra/reactive_cache.ts:127 |
-| `useRefetchProjectDetail` | 2 | project/project_decks.tsx:62, project/project_settings.tsx:80 |
-| `useRLogs` | 1 | project/project_modules.tsx:228 |
-| `useLastUpdatedListener` | 1 | project_ai/index.tsx:29 |
+| `useProjectDetail` | 12 | project_ai/ (4), project/ (7), project_runner/ (def) |
+| `useProjectDirtyStates` | 7 | project/ (2), slide_deck/ (3), root (2) |
+| `getGlobalPDSSnapshot` | 1 | state/_infra/reactive_cache.ts |
+| `useRefetchProjectDetail` | 2 | project/project_decks.tsx, project/project_settings.tsx |
+| `useRLogs` | 1 | project/project_modules.tsx |
+| `useLastUpdatedListener` | 1 | project_ai/index.tsx |
 
 <details>
 <summary>Full list (click to expand)</summary>
 
 **useProjectDetail:**
-- `project_ai/ai_tools/DraftSlidePreview.tsx:42`
-- `project_ai/ai_tools/DraftVisualizationPreview.tsx:47`
-- `project_ai/chat_pane.tsx:33`
-- `project_ai/index.tsx:28`
-- `project/index.tsx:104`
-- `project/project_cache.tsx:8`
-- `project/project_data.tsx:30`
-- `project/project_decks.tsx:61`
-- `project/project_metrics.tsx:40`
-- `project/project_modules.tsx:48`
-- `project/project_reports.tsx:49`
-- `project/project_settings.tsx:79`
-- `project/project_visualizations.tsx:28`
+- `project_ai/ai_tools/DraftSlidePreview.tsx`
+- `project_ai/ai_tools/DraftVisualizationPreview.tsx`
+- `project_ai/chat_pane.tsx`
+- `project_ai/index.tsx`
+- `project/index.tsx`
+- `project/project_cache.tsx`
+- `project/project_data.tsx`
+- `project/project_decks.tsx`
+- `project/project_metrics.tsx`
+- `project/project_modules.tsx`
+- `project/project_settings.tsx`
+- `project/project_visualizations.tsx`
 
 **useProjectDirtyStates:**
-- `PresentationObjectMiniDisplay.tsx:18,72`
-- `ReportItemMiniDisplay.tsx:24`
-- `project/index.tsx:119`
-- `project/project_modules.tsx:227`
-- `report/index.tsx:83`
-- `report/report_item.tsx:59,152`
-- `report/select_presentation_object.tsx:32,151`
-- `slide_deck/index.tsx:37`
-- `slide_deck/slide_card.tsx:26`
-- `slide_deck/slide_deck_thumbnail.tsx:18`
+- `PresentationObjectMiniDisplay.tsx`
+- `project/index.tsx`
+- `project/project_modules.tsx`
+- `slide_deck/index.tsx`
+- `slide_deck/slide_card.tsx`
+- `slide_deck/slide_deck_thumbnail.tsx`
 
 </details>
 
@@ -297,12 +288,99 @@ Helper function added:
 
 Notes:
 - `set_module_clean.ts` is in `server/task_management/`, not `server/routes/project/` — it's a BroadcastChannel listener for task completion, not a route
-- Phase 0 audit listed `project.ts:251 updateProjectConfig → project_config_updated`, but those routes (`updateProject`, `setProjectLockStatus`) call `notifyInstanceProjectsLastUpdated` (instance-level), not `notifyProjectUpdated` — audit was wrong, no v2 notifier needed there
 - `getMetricsWithStatus` used instead of `getAllMetrics` for modules notifier (correct type)
 
 ---
 
-## Phase 6 — Client store + SSE manager (dead code)
+## Phase 5.5 — Patch: Complete Phase 0-5 gaps ✅ COMPLETE
+
+**Goal:** fix all gaps discovered in the Phase 0-5 review before proceeding to client-side work.
+
+### 5.5.1 Update Phase 0.2 consumer map
+
+**New consumer discovered:**
+- `slide_deck/slide_deck_thumbnail.tsx` uses `useProjectDetail` and `useProjectDirtyStates`
+
+**Dead code (noted for future cleanup, not blocking):**
+- `view_files.tsx`, `view_logs.tsx`, `view_script.tsx` have commented-out `useRLogs` imports
+
+### 5.5.2 Missing v2 notify calls for project user routes
+
+These routes mutate project users but only call `notifyInstanceProjectsLastUpdated` (instance-level). They need to also call `notifyProjectUsersUpdated` (project-level) for the v2 SSE to receive updates.
+
+| File | Route | Line | Action |
+|------|-------|------|--------|
+| `project.ts` | `updateProjectUserRole` | ~114 | Add `notifyProjectUsersUpdated` after success |
+| `project.ts` | `updateProjectUserPermissions` | ~137 | Add `notifyProjectUsersUpdated` after success |
+| `project.ts` | `bulkUpdateProjectUserPermissions` | ~174 | Add `notifyProjectUsersUpdated` after success |
+| `project.ts` | `addProjectUserRole` | ~423 | Add `notifyProjectUsersUpdated` after success |
+
+**Implementation pattern:**
+```ts
+if (res.success) {
+  notifyInstanceProjectsLastUpdated(new Date().toISOString());
+  // V2 notify
+  const usersRes = await getProjectUsers(c.var.mainDb, c.var.ppk.projectId);
+  if (usersRes.success) {
+    notifyProjectUsersUpdated(c.var.ppk.projectId, usersRes.data);
+  }
+}
+```
+
+**Requires:** `getProjectUsers` helper function (query `project_user_roles` joined with `users` for the given project, build `ProjectUser[]`).
+
+### 5.5.3 Missing v2 notify calls for project config routes
+
+These routes mutate project config but only call `notifyInstanceProjectsLastUpdated`. They need to also call `notifyProjectConfigUpdated`.
+
+| File | Route | Line | Action |
+|------|-------|------|--------|
+| `project.ts` | `updateProject` | ~196 | Add `notifyProjectConfigUpdated` after success |
+| `project.ts` | `setProjectLockStatus` | ~353 | Add `notifyProjectConfigUpdated` after success |
+
+**Implementation pattern:**
+```ts
+if (res.success) {
+  notifyInstanceProjectsLastUpdated(new Date().toISOString());
+  // V2 notify
+  notifyProjectConfigUpdated(params.project_id, body.label, res.data.isLocked);
+}
+```
+
+**Note:** `updateProject` also updates `aiContext`, but `aiContext` is T3 (not in ProjectState), so we only notify `label` and `isLocked`.
+
+### 5.5.4 Missing v2 notify calls for runtime events (CRITICAL)
+
+The v2 SSE endpoint subscribes to `BroadcastChannel("project_updates_v2")`, but all runtime events (module execution status, r_script logs, dirty state changes) still write directly to `BroadcastChannel("dirty_states")`. This means the v2 SSE would never receive these events.
+
+**Files that need dual-notify:**
+
+| File | Line | Event type | V2 notifier to add |
+|------|------|------------|-------------------|
+| `worker.ts` | 95 | `r_script` | `notifyProjectRScript(projectId, moduleId, text)` |
+| `running_tasks_map.ts` | 19 | `any_running: true` | `notifyProjectAnyRunning(projectId, true)` |
+| `running_tasks_map.ts` | 58 | `any_running: false` | `notifyProjectAnyRunning(projectId, false)` |
+| `trigger_runnable_tasks.ts` | 30 | `module_dirty_state: running` | `notifyProjectModuleDirtyState(projectId, ids, "running")` |
+| `set_module_dirty.ts` | 56 | `module_dirty_state: queued` | `notifyProjectModuleDirtyState(projectId, ids, "queued")` |
+| `set_module_clean.ts` | 56 | `module_dirty_state: error` | `notifyProjectModuleDirtyState(projectId, [moduleId], "error")` |
+| `set_module_clean.ts` | 95 | `module_dirty_state: ready` | `notifyProjectModuleDirtyState(projectId, [moduleId], "ready", lastRun, lastRunGitRef)` |
+
+**Implementation pattern:** After each `broadcastDirtyStates.postMessage(bm)`, add the corresponding v2 notifier call. The v1 broadcast stays for backward compatibility during dual-run.
+
+### 5.5.5 Verification
+
+After completing 5.5.2–5.5.4:
+
+1. `deno task typecheck` passes
+2. Manual test: open project, edit user permissions → v2 SSE (curl) receives `project_users_updated`
+3. Manual test: run a module → v2 SSE receives `any_running`, `r_script`, `module_dirty_state` events
+4. Manual test: update project label → v2 SSE receives `project_config_updated`
+
+**Commit:** single commit "fix(sse): complete Phase 5 dual-notify for user/config/runtime events"
+
+---
+
+## Phase 6 — Client store + SSE manager (dead code) ✅ COMPLETE
 
 **Goal:** the new client files exist and typecheck; nothing imports them yet.
 
@@ -327,9 +405,24 @@ Notes:
 
 **Verification:** typecheck. New files are unreferenced.
 
+**Completed:**
+- `client/src/state/project/t1_store.ts` created with:
+  - `EMPTY_PROJECT_STATE` constant
+  - `createStore<ProjectState>` with `setProjectState`
+  - `applyProjectSseMessage` handler for all event types (uses `reconcile` for array updates)
+  - `resetProjectState` function
+  - Module lookup maps: `metricToModule`, `resultsObjectToModule`, `metricToFormatAs`
+  - Getters: `getProjectStateSnapshot`, `getProjectId`, `getModuleIdForMetric`, `getModuleIdForResultsObject`, `getFormatAsForMetric`
+- `client/src/state/project/t1_sse.tsx` created with:
+  - `connectProjectSSE(projectId)` / `disconnectProjectSSE()` with retry/backoff
+  - EventSource pointing at `/project_sse_v2/:project_id`
+  - `addLastUpdatedListener` / `addRScriptListener` registry pattern
+  - `ProjectSSEBoundary` component (connect on mount, disconnect on cleanup, gate children on `projectState.isReady`)
+  - Connection attempt counter for permanent-failure UI
+
 ---
 
-## Phase 7 — Feature flag & parallel mount
+## Phase 7 — Feature flag & parallel mount ✅ COMPLETE
 
 **Goal:** both old Provider and new Boundary run simultaneously behind a flag. Zero consumer reads from the new store yet.
 
@@ -339,123 +432,145 @@ Notes:
 
 **Verification:** typecheck with flag `false` (shipped). Flip flag to `true` locally: confirm both EventSources open, both stores populate, no console errors. Flip back to `false`, commit.
 
----
+**Completed:**
 
-## Phase 8 — Migrate consumers, one slice at a time
+- `client/src/state/project/_v2_flag.ts` created with `USE_V2_PROJECT_STATE = false`
+- `components/project/index.tsx` updated: when flag is true, `ProjectSSEBoundary` mounts alongside (inside same Provider wrapper) with empty children — establishes v2 connection and populates new store without affecting UI
 
-**Goal:** when the flag is `true`, components read from the new store. When `false`, they read from the old Provider. Achieved via a shim layer.
+**Pre-Phase 8 fix (currentUserEmail):**
 
-### 8.0 Shim layer — read-only hooks ONLY
-
-Modify only the **read** hooks (`useProjectDetail`, `useProjectDirtyStates`, `getGlobalPDSSnapshot`, `useLastUpdatedListener`, `useRLogs`) to internally branch on `USE_V2_PROJECT_STATE`:
-
-- Flag off → return old values (current behavior).
-- Flag on → return equivalent values read from the new stores in `t1_store.ts` / listeners in `t1_sse.tsx`.
-
-**Do NOT shim `refetchProjectDetail` / `useRefetchProjectDetail`.** It continues to call the old Provider's refetch under both flag states. The old Provider, old `project-sse` endpoint, and old `notifyProjectUpdated` remain fully live throughout Phases 5–9.
-
-Consumers don't change in 8.0. Typecheck. Flip flag locally, exercise app broadly, confirm nothing obviously broken. Flip back, commit.
-
-### Sub-phases (smallest blast radius first)
-Each sub-phase: migrate the listed component(s) off the shim'd hooks onto direct imports from `~/state/project/t1_store` / `~/state/project/t1_sse`. Flag stays off in main. After each sub-phase: typecheck + locally flip flag on and exercise *only that area*.
-
-- **8.1** Project settings tab
-- **8.2** Project users tab
-- **8.3** Datasets tab
-- **8.4** Modules tab — migrates the dirty-states / last-run / module-list reads onto the new store. **`useRLogs` is NOT touched in this sub-phase.** rLogs continues to be served by the old Provider's store, and `project_modules.tsx` keeps importing `useRLogs` from the old `project_runner/` hooks. The reason: `addRScriptListener` only fires from the new v2 SSE connection, which is conditionally mounted under the flag — under flag-off (default in main), migrating rLogs early would break the running-module ticker. The rLogs demotion happens in Phase 10.
-- **8.5** Visualizations tab
-- **8.6** Reports tab
-- **8.7** Slide decks tab
-- **8.8** Cross-cutting:
-  - `client/src/state/_infra/reactive_cache.ts` — swap `getGlobalPDSSnapshot` import source (behind flag via the shim, or directly if all consumers are migrated).
-  - T2 cache files that import from `global_module_maps.ts` — swap to `getModuleIdForMetric` etc. from `t1_store.ts`.
-  - `project_ai/index.tsx` — swap `addLastUpdatedListener` source.
-
-**Verification (each sub-phase):** typecheck + manual test *of that tab only* with flag on, then flag off for commit.
+Issue discovered during review: `project_users_updated` handler wasn't re-deriving `thisUserPermissions`. Fixed by:
+- Added `currentUserEmail: string` to `ProjectState` type
+- Server sends it in `starting` payload from `buildProjectState`
+- Handler extracts permissions from matching user in updated list
 
 ---
 
-## Phase 9 — Flip the flag
+## Phase 8 — Direct migration (no shim)
 
-**Goal:** production runs on the new system. Old system still present.
+**Goal:** switch all consumers to the new store, delete the old Provider, in one pass. Git revert is the rollback mechanism.
 
-- Change `USE_V2_PROJECT_STATE = true`. Single-line diff.
-- Ship to staging. Exercise every project flow: open/switch projects, run modules, edit viz, generate reports, add/remove users, reconnect after network drop, multi-tab sync.
-- If any regression → flip back to `false` in one commit. Diagnose, fix, re-flip.
+**Decision:** The original plan used a feature-flag shim for gradual migration. Given the codebase size (~20 consumers) and single-developer context, the shim adds complexity without proportional benefit. Direct migration is simpler.
 
-**Verification:** full manual smoke. Once stable in staging → merge and ship.
+### 8.1 Replace Provider with Boundary
+
+In `components/project/index.tsx`:
+- Remove `ProjectRunnerProvider` wrapper
+- Replace with `ProjectSSEBoundary` (already imported from Phase 7)
+- Delete the conditional `Show when={USE_V2_PROJECT_STATE}` block
+
+### 8.2 Migrate all consumers
+
+Update all files that import from `~/components/project_runner/mod` to import from the new locations:
+
+| Old import | New import |
+|------------|------------|
+| `useProjectDetail()` | `projectState` from `~/state/project/t1_store` |
+| `useProjectDirtyStates()` | `projectState` from `~/state/project/t1_store` (same object) |
+| `getGlobalPDSSnapshot()` | `getProjectStateSnapshot()` from `~/state/project/t1_store` |
+| `useLastUpdatedListener(fn)` | `addLastUpdatedListener(fn)` in `onMount`, cleanup in `onCleanup` |
+| `useRLogs()` | See 8.4 below |
+
+Consumer files (from Phase 0.2):
+- `project/index.tsx`
+- `project/project_cache.tsx`
+- `project/project_data.tsx`
+- `project/project_decks.tsx`
+- `project/project_metrics.tsx`
+- `project/project_modules.tsx`
+- `project/project_settings.tsx`
+- `project/project_visualizations.tsx`
+- `project_ai/ai_tools/DraftSlidePreview.tsx`
+- `project_ai/ai_tools/DraftVisualizationPreview.tsx`
+- `project_ai/chat_pane.tsx`
+- `project_ai/index.tsx`
+- `PresentationObjectMiniDisplay.tsx`
+- `slide_deck/index.tsx`
+- `slide_deck/slide_card.tsx`
+- `slide_deck/slide_deck_thumbnail.tsx`
+
+Cross-cutting:
+- `state/_infra/reactive_cache.ts` — `getGlobalPDSSnapshot` → `getProjectStateSnapshot`
+- Files importing from `global_module_maps.ts` — use `getModuleIdForMetric` etc. from `t1_store`
+
+### 8.3 Handle `refetchProjectDetail` call sites
+
+Three current sites (fourth is inside Provider, disappears with it):
+
+- **`project_decks.tsx` (load-bearing `await`)** — add `awaitNextProjectStoreUpdate(predicate)` primitive to `t1_sse.tsx`. Returns Promise resolving on next matching SSE event. Replace `await refetchProjectDetail()` with `await awaitNextProjectStoreUpdate(m => m.type === "slide_decks_updated")`.
+- **`project_settings.tsx` (two cosmetic callbacks)** — delete the `silentFetch` callbacks; SSE updates the store reactively.
+
+### 8.4 Demote rLogs to T5 (component-local)
+
+In `project_modules.tsx`:
+- Delete `useRLogs` import
+- Add component-local `createStore<Record<string, { latest: string }>>({})` 
+- Subscribe via `addRScriptListener` in `onMount`, cleanup in `onCleanup`
+- JSX unchanged (reads `rLogs[id]?.latest ?? "..."`)
+- No seed — `createInitialRLogs()` deleted
+
+### 8.5 Delete old client code
+
+Delete entire `client/src/components/project_runner/` directory:
+- `provider.tsx`, `context.tsx`, `hooks.tsx`
+- `global_pds.ts`, `global_module_maps.ts`
+- `utils.ts`, `types.ts`, `mod.ts`
+
+Delete `client/src/state/project/_v2_flag.ts`.
+
+**Verification:** typecheck. Full manual smoke — all tabs, module run, deck editor, reconnect.
 
 ---
 
-## Phase 10 — Remove old system
+## Phase 9 — Delete old server code
 
-**Goal:** delete all old project-state code and the flag. Broken into substeps; the `refetchProjectDetail` migration is its own substep because it's the only place in Phase 10 that requires real thought.
+**Goal:** remove v1 SSE infrastructure now that client uses v2.
 
-### 10.1 Migrate `refetchProjectDetail` call sites
+### 9.1 Delete old SSE route
 
-Before deleting the old Provider, each of the four call sites needs a replacement under the new store:
+Delete `server/routes/project/project-sse.ts`. Remove registration from `main.ts`.
 
-- **`project_decks.tsx:86` (load-bearing `await`)** — introduce a small `awaitNextProjectStoreUpdate(predicate)` primitive in `t1_sse.tsx`. It returns a Promise that resolves the next time an SSE message matching the predicate is applied to the store (e.g. next `slide_decks_updated`). Replace the `await refetchProjectDetail()` with `await awaitNextProjectStoreUpdate(m => m.type === "slide_decks_updated")` — or whichever event the deck editor mutation triggers. The await still gates UI update on fresh server state; mechanism differs.
-- **`project_settings.tsx:150` (cosmetic `silentFetch` callback)** — delete the callback; the child form (SelectProjectUserRole) will observe store updates reactively via SSE.
-- **`project_settings.tsx:162` (cosmetic `silentFetch` callback)** — delete the callback; the child form (BulkEditProjectPermissionsForm) will observe store updates reactively via SSE.
-- **`provider.tsx:281` (inside the old Provider)** — disappears with the Provider itself.
+### 9.2 Delete old notify infrastructure
 
-Typecheck. Manually test deck editor round-trip and settings role change.
+- Delete `notifyProjectUpdated` and `notifyInstanceProjectsLastUpdated` calls that only served v1 (keep instance-level ones if still used elsewhere)
+- Delete old `BroadcastChannel("dirty_states")` and `BroadcastChannel("project_updates")` — keep only `"project_updates_v2"`
+- Delete `get_project_dirty_states.ts` if fully replaced by `build_project_state.ts`
 
-### 10.2 Demote rLogs to T5 (component-local)
+### 9.3 Delete deprecated types
 
-Rewrite the rLogs consumer in `client/src/components/project/project_modules.tsx`:
+- `ProjectSseUpdateMessage` in `lib/types/`
+- `ProjectDirtyStates` in `lib/types/`
 
-- Delete the `useRLogs` import.
-- Add a component-local `createStore<Record<string, { latest: string }>>({})` at the top of `InstalledModulePresentation` (or wherever the subscription should live — pick the narrowest scope that still covers the JSX read site).
-- In `onMount`, subscribe via `addRScriptListener((moduleId, text) => setRLogs(moduleId, "latest", text))`. Unsubscribe in `onCleanup`.
-- Existing JSX at `project_modules.tsx:485` is unchanged (still reads `rLogs[id]?.latest ?? "..."`).
-- No seed. `createInitialRLogs()` is no longer used.
+### 9.4 Rename v2 → canonical
 
-Because Phase 9 already flipped the flag, the new v2 SSE connection is the only one live by the time this runs. No flag gating needed.
+- `project-sse-v2.ts` → `project-sse.ts`
+- `BroadcastChannel("project_updates_v2")` → `"project_updates"`
+- `notifyProjectV2` → `notifyProject` (or similar)
+- Update all import sites
 
-Small visible change: modules whose IDs were in the stale hardcoded seed list (`m001`–`m008`) will now render `"..."` instead of `""` during the brief pre-first-event window after they start running. All other modules behave identically.
-
-### 10.3 Delete the shim branching
-
-`useProjectDetail`, `useProjectDirtyStates`, `getGlobalPDSSnapshot`, `useLastUpdatedListener` become thin re-exports from the new store (or delete the hook files entirely and migrate the final readers to direct imports). `useRLogs` and `createInitialRLogs` are deleted outright — no replacement, no shim — because 10.2 already migrated the sole consumer.
-
-### 10.4 Delete old client code
-
-Delete `client/src/components/project_runner/` (`provider.tsx`, `context.tsx`, `hooks.tsx`, `global_pds.ts`, `global_module_maps.ts`, `utils.ts`, `types.ts`, `mod.ts`).
-
-### 10.5 Delete old server code
-
-Delete old `project-sse.ts` route, old `getProjectDetail` DB function (if `build_project_state.ts` fully replaces it — else leave it for now), `get_project_dirty_states.ts`, old `notifyProjectUpdated`, old `BroadcastChannel` name. Delete deprecated types `ProjectSseUpdateMessage`, `ProjectDirtyStates`.
-
-### 10.6 Rename v2 → canonical
-
-`project-sse-v2.ts` → `project-sse.ts`, `BroadcastChannel("project_updates_v2")` → `"project_updates"`, `notifyProjectV2` → `notifyProjectUpdate`. Delete `_v2_flag.ts`.
-
-**Verification:** typecheck. No file under `components/project_runner/` remains. Full manual smoke (all project tabs, module run, deck editor round-trip, reconnect). Commit.
+**Verification:** typecheck. Server starts. Full manual smoke.
 
 ---
 
-## Phase 11 — Cache reorg (the old Step E, deferred)
+## Phase 10 — Cache reorg
 
 **Goal:** consolidate project caches into `state/project/t2_*.ts` / `t4_*.ts`. Pure mechanical file moves — one file/commit at a time.
 
 Each sub-phase: move or merge, update all import sites, typecheck, commit.
 
-- **11.1** `img_cache.ts` → `state/project/t2_images.ts`
-- **11.2** `ai_documents.ts` → `state/project/t4_ai_documents.ts`
-- **11.3** `ai_interpretations.ts` → `state/project/t4_ai_interpretations.ts`
-- **11.4** `long_form_editor.ts` → `state/project/t4_long_form_editor.ts`
-- **11.5** Merge `caches/visualizations.ts` (PO detail / items / metric info) + `po_cache.ts` → `state/project/t2_presentation_objects.ts`
-- **11.6** Merge `caches/visualizations.ts` (replicant options) + `replicant_options_cache.ts` → `state/project/t2_replicant_options.ts`
-- **11.7** Merge `caches/reports.ts` + `ri_cache.ts` → `state/project/t2_reports.ts`
-- **11.8** `caches/slides.ts` → `state/project/t2_slides.ts`
+- **10.1** `img_cache.ts` → `state/project/t2_images.ts`
+- **10.2** `ai_documents.ts` → `state/project/t4_ai_documents.ts`
+- **10.3** `ai_interpretations.ts` → `state/project/t4_ai_interpretations.ts`
+- **10.4** `long_form_editor.ts` → `state/project/t4_long_form_editor.ts`
+- **10.5** Merge `caches/visualizations.ts` (PO detail / items / metric info) + `po_cache.ts` → `state/project/t2_presentation_objects.ts`
+- **10.6** Merge `caches/visualizations.ts` (replicant options) + `replicant_options_cache.ts` → `state/project/t2_replicant_options.ts`
+- **10.7** `caches/slides.ts` → `state/project/t2_slides.ts`
 
 **Merge check after each merge:** the resulting `t2_` file defines its own cache instances AND its access functions. No cache instance is exported across files.
 
 ---
 
-## Phase 12 — Cleanup & docs
+## Phase 11 — Cleanup & docs
 
 - Delete empty `client/src/state/caches/` directory.
 - Confirm `client/src/state/` root contains only: `_infra/`, `instance/`, `project/`, `clear_caches.ts`, `t4_connection_monitor.ts`, `t4_ui.ts`.
@@ -475,12 +590,12 @@ Each sub-phase: move or merge, update all import sites, typecheck, commit.
 | 3 | New notify file, new BroadcastChannel | None (unsubscribed) | Delete file |
 | 4 | New SSE route | None (no client) | Delete route |
 | 5 | Mutation routes | Low — additive call | Revert the dual-notify commit |
+| 5.5 | Patch: more dual-notify calls | Low — additive calls | Revert one commit |
 | 6 | New client files | None (unreferenced) | Delete files |
 | 7 | `project/index.tsx` mount + flag file | Low (flag off) | Revert one commit |
-| 8.x | Per-tab migration behind flag | Low per slice | Revert one sub-phase |
-| 9 | Flag flip | Medium — real cutover | Flip flag back (one line) |
-| 10 | Deletions | Medium — no going back | Requires git revert |
-| 11.x | File moves | Low per move | Revert one sub-phase |
-| 12 | Doc edits | None | Free |
+| 8 | Direct migration — full cutover | Medium | Git revert |
+| 9 | Delete old server code | Low — cleanup | Git revert |
+| 10.x | Cache file moves | Low per move | Revert one sub-phase |
+| 11 | Doc edits | None | Free |
 
-Phase 9 is the only hard cutover, and its blast radius is one constant.
+Phase 8 is the real cutover. Test thoroughly before committing.

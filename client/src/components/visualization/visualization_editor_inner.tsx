@@ -214,9 +214,9 @@ export function VisualizationEditorInner(p: InnerProps) {
     // read explicitly here. If you add a new nested filter field, add a read here
     // too — otherwise changes to it won't re-fetch the preview.
     const _periodFilterFilterType = tempConfig.d.periodFilter?.filterType;
-    const _periodFilterNMonths = tempConfig.d.periodFilter?.nMonths;
-    const _periodFilterNYears = tempConfig.d.periodFilter?.nYears;
-    const _periodFilterNQuarters = tempConfig.d.periodFilter?.nQuarters;
+    const _periodFilterNMonths = tempConfig.d.periodFilter?.filterType === "last_n_months" ? tempConfig.d.periodFilter.nMonths : undefined;
+    const _periodFilterNYears = tempConfig.d.periodFilter?.filterType === "last_n_calendar_years" ? tempConfig.d.periodFilter.nYears : undefined;
+    const _periodFilterNQuarters = tempConfig.d.periodFilter?.filterType === "last_n_calendar_quarters" ? tempConfig.d.periodFilter.nQuarters : undefined;
     const _periodFilterBounded =
       tempConfig.d.periodFilter && periodFilterHasBounds(tempConfig.d.periodFilter)
         ? tempConfig.d.periodFilter

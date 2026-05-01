@@ -2,10 +2,11 @@ import { t3 } from "lib";
 import type { SlideDeckConfig } from "lib";
 import {
   PageHolder,
+  validateBrandColor,
   type PageInputs,
   _GLOBAL_CANVAS_PIXEL_WIDTH,
 } from "panther";
-import { createResource } from "solid-js";
+import { createResource, Show } from "solid-js";
 import { buildStyleForSlide, FASTR_LOGO_VALUES } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { getBackgroundDetail, type BackgroundDetail } from "~/generate_slide_deck/get_overlay_image";
 import { getImgFromCacheOrFetch } from "~/state/img_cache";
@@ -100,9 +101,15 @@ function getContentPageInputs(
 export function StylePreview(p: StylePreviewProps) {
   const canvasH = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
 
+  const colorError = () => {
+    if (p.config.colorTheme.type !== "custom") return null;
+    const v = validateBrandColor(p.config.colorTheme.primary);
+    return v.valid ? null : v.reason;
+  };
+
   const [bgDetail] = createResource(
-    () => ({ overlay: p.config.overlay, primaryColor: p.config.primaryColor, treatment: p.config.treatment }),
-    (source) => getBackgroundDetail({ ...p.config, overlay: source.overlay, primaryColor: source.primaryColor, treatment: source.treatment }),
+    () => ({ overlay: p.config.overlay, colorTheme: p.config.colorTheme, coverAndSectionTreatment: p.config.coverAndSectionTreatment }),
+    (source) => getBackgroundDetail({ ...p.config, overlay: source.overlay, colorTheme: source.colorTheme, coverAndSectionTreatment: source.coverAndSectionTreatment }),
   );
 
   const availableCustom = () => p.config.logos.availableCustom;
@@ -131,44 +138,51 @@ export function StylePreview(p: StylePreviewProps) {
       <div class="ui-label">
         {t3({ en: "Preview", fr: "Aperçu" })}
       </div>
-      <div class="flex gap-4">
-        <div class="flex-1">
-          <div class="text-xs text-neutral mb-1">
-            {t3({ en: "Cover", fr: "Couverture" })}
+      <Show when={colorError()}>
+        <div class="border border-danger rounded bg-danger/10 flex items-center justify-center py-8">
+          <span class="text-danger text-sm">{colorError()}</span>
+        </div>
+      </Show>
+      <Show when={!colorError()}>
+        <div class="flex gap-4" style={{ "max-width": "1600px" }}>
+          <div class="flex-1">
+            <div class="text-xs text-neutral mb-1">
+              {t3({ en: "Cover", fr: "Couverture" })}
+            </div>
+            <div class="border border-base-300 rounded overflow-hidden">
+              <PageHolder
+                pageInputs={coverInputs()}
+                fixedCanvasH={canvasH}
+                scalePixelResolution={0.2}
+              />
+            </div>
           </div>
-          <div class="border border-base-300 rounded overflow-hidden">
-            <PageHolder
-              pageInputs={coverInputs()}
-              fixedCanvasH={canvasH}
-              scalePixelResolution={0.2}
-            />
+          <div class="flex-1">
+            <div class="text-xs text-neutral mb-1">
+              {t3({ en: "Section", fr: "Section" })}
+            </div>
+            <div class="border border-base-300 rounded overflow-hidden">
+              <PageHolder
+                pageInputs={sectionInputs()}
+                fixedCanvasH={canvasH}
+                scalePixelResolution={0.2}
+              />
+            </div>
+          </div>
+          <div class="flex-1">
+            <div class="text-xs text-neutral mb-1">
+              {t3({ en: "Content", fr: "Contenu" })}
+            </div>
+            <div class="border border-base-300 rounded overflow-hidden">
+              <PageHolder
+                pageInputs={contentInputs()}
+                fixedCanvasH={canvasH}
+                scalePixelResolution={0.2}
+              />
+            </div>
           </div>
         </div>
-        <div class="flex-1">
-          <div class="text-xs text-neutral mb-1">
-            {t3({ en: "Section", fr: "Section" })}
-          </div>
-          <div class="border border-base-300 rounded overflow-hidden">
-            <PageHolder
-              pageInputs={sectionInputs()}
-              fixedCanvasH={canvasH}
-              scalePixelResolution={0.2}
-            />
-          </div>
-        </div>
-        <div class="flex-1">
-          <div class="text-xs text-neutral mb-1">
-            {t3({ en: "Content", fr: "Contenu" })}
-          </div>
-          <div class="border border-base-300 rounded overflow-hidden">
-            <PageHolder
-              pageInputs={contentInputs()}
-              fixedCanvasH={canvasH}
-              scalePixelResolution={0.2}
-            />
-          </div>
-        </div>
-      </div>
+      </Show>
     </div>
   );
 }

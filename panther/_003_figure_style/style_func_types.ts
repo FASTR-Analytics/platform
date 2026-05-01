@@ -7,6 +7,8 @@ import {
   type AreaStyle,
   type CascadeArrowInfo,
   type CascadeArrowInfoFunc,
+  type ChartConnectorInfo,
+  type ChartConnectorInfoFunc,
   type ChartSeriesInfo,
   type ChartSeriesInfoFunc,
   type ChartValueInfo,
@@ -692,6 +694,95 @@ export function getCascadeArrowStyleFunc(
         ? oArrowLabelGap * _sf
         : dArrowLabelGap,
       dataLabel: dl,
+    };
+  };
+}
+
+////////////////////////////////////////////////////////////////////////////
+//   ______                                                  __           //
+//  /      \                                                /  |          //
+// /$$$$$$  |  ______   _______   _______    ______    ____$$ |__         //
+// $$ |  $$/  /      \ /       \ /       \  /      \  /    $$ |__         //
+// $$ |      /$$$$$$  |$$$$$$$  |$$$$$$$  |/$$$$$$  |/$$$$$$$ |           //
+// $$ |   __ $$ |  $$ |$$ |  $$ |$$ |  $$ |$$    $$ |$$ |  $$ |           //
+// $$ \__/  |$$ \__$$ |$$ |  $$ |$$ |  $$ |$$$$$$$$/ $$ \__$$ |           //
+// $$    $$/ $$    $$/ $$ |  $$ |$$ |  $$ |$$       |$$    $$ |           //
+//  $$$$$$/   $$$$$$/  $$/   $$/ $$/   $$/  $$$$$$$/  $$$$$$$/            //
+////////////////////////////////////////////////////////////////////////////
+
+export type ConnectorArrowheadMode = "none" | "start" | "end" | "both";
+export type ArrowheadFitFallback = "line-only" | "skip" | "force";
+
+export type GenericConnectorStyleOptions = {
+  show?: boolean;
+  strokeColor?: ColorKeyOrString;
+  strokeWidth?: number;
+  lineDash?: "solid" | "dashed";
+  arrowhead?: ConnectorArrowheadMode;
+  arrowHeadLength?: number;
+  annotationGroup?: string;
+};
+
+export type GenericConnectorStyle = {
+  show: boolean;
+  strokeColor: ColorKeyOrString;
+  strokeWidth: number;
+  lineDash: "solid" | "dashed";
+  arrowhead: ConnectorArrowheadMode;
+  arrowHeadLength: number;
+};
+
+export type ConnectorStyle = {
+  show: boolean;
+  strokeColor: ColorKeyOrString;
+  strokeWidth: number;
+  lineDash: "solid" | "dashed";
+  arrowhead: ConnectorArrowheadMode;
+  arrowHeadLength: number;
+  annotationGroup?: string;
+};
+
+export function getConnectorStyleFunc(
+  _sf: number,
+  _c: CustomFigureStyleOptions,
+  _g: CustomFigureStyleOptions,
+  _d: DefaultFigureStyle,
+): ChartConnectorInfoFunc<ConnectorStyle> {
+  const cRaw = _c.content?.connectors?.func;
+  const c = typeof cRaw === "object" ? cRaw : undefined;
+  const cf = typeof cRaw === "function" ? cRaw : undefined;
+  const gRaw = _g.content?.connectors?.func;
+  const g = typeof gRaw === "object" ? gRaw : undefined;
+  const gf = typeof gRaw === "function" ? gRaw : undefined;
+  const d = _d.content.connectors.func;
+  const dShow = m(c?.show, g?.show, d.show);
+  const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
+  const dStrokeWidth = ms(_sf, c?.strokeWidth, g?.strokeWidth, d.strokeWidth);
+  const dLineDash = m(c?.lineDash, g?.lineDash, d.lineDash);
+  const dArrowhead = m(c?.arrowhead, g?.arrowhead, d.arrowhead);
+  const dArrowHeadLength = ms(
+    _sf,
+    c?.arrowHeadLength,
+    g?.arrowHeadLength,
+    d.arrowHeadLength,
+  );
+  return (info: ChartConnectorInfo): ConnectorStyle => {
+    const oc = cf?.(info);
+    const og = gf?.(info);
+    const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
+    const oArrowHeadLength = oc?.arrowHeadLength ?? og?.arrowHeadLength;
+    return {
+      show: oc?.show ?? og?.show ?? dShow,
+      strokeColor: oc?.strokeColor ?? og?.strokeColor ?? dStrokeColor,
+      strokeWidth: oStrokeWidth !== undefined
+        ? oStrokeWidth * _sf
+        : dStrokeWidth,
+      lineDash: oc?.lineDash ?? og?.lineDash ?? dLineDash,
+      arrowhead: oc?.arrowhead ?? og?.arrowhead ?? dArrowhead,
+      arrowHeadLength: oArrowHeadLength !== undefined
+        ? oArrowHeadLength * _sf
+        : dArrowHeadLength,
+      annotationGroup: oc?.annotationGroup ?? og?.annotationGroup,
     };
   };
 }

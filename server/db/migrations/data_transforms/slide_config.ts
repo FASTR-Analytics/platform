@@ -16,6 +16,7 @@
 // 6. Rename source.type "from_metric" → "from_data" and add snapshotAt
 // 7. Transform embedded PO configs in figure blocks (reuses po_config transforms)
 // 8. Remove per-slide logo fields (now deck-level)
+// 9. Migrate figureInputs: yScaleAxisData → scaleAxisLimits + tierHeaders
 //
 // =============================================================================
 
@@ -32,10 +33,66 @@ type LayoutNode = {
   type: string;
   data?: {
     type: string;
-    source?: { type: string; config?: Record<string, unknown>; snapshotAt?: string };
+    figureInputs?: Record<string, unknown>;
+    source?: {
+      type: string;
+      config?: Record<string, unknown>;
+      snapshotAt?: string;
+    };
   };
   children?: LayoutNode[];
 };
+
+// Block 9: Migrate figureInputs from old panther schema
+// - yScaleAxisData.tierHeaders → top-level tierHeaders (if missing)
+// - yScaleAxisData → scaleAxisLimits (with added laneLimits)
+// - yScaleAxisData.yScaleAxisLabel → top-level yScaleAxisLabel
+function transformFigureInputs(fi: Record<string, unknown>): void {
+  for (const dataKey of ["timeseriesData", "chartData"]) {
+    const d = fi[dataKey] as Record<string, unknown> | undefined;
+    if (!d || d.isTransformed !== true) continue;
+
+    const needsTierHeaders = !d.tierHeaders;
+    const yScaleAxisData = d.yScaleAxisData as
+      | Record<string, unknown>
+      | undefined;
+    const needsScaleAxisLimits = !d.scaleAxisLimits && yScaleAxisData;
+
+    if (!needsTierHeaders && !needsScaleAxisLimits) continue;
+
+    if (needsTierHeaders) {
+      const oldTierHeaders = yScaleAxisData?.tierHeaders as
+        | string[]
+        | undefined;
+      d.tierHeaders = oldTierHeaders ?? ["default"];
+    }
+
+    if (needsScaleAxisLimits && yScaleAxisData) {
+      const oldPaneLimits = yScaleAxisData.paneLimits as Array<{
+        valueMin: number;
+        valueMax: number;
+        tierLimits: Array<{ valueMin: number; valueMax: number }>;
+      }>;
+      const laneCount = (d.laneHeaders as string[] | undefined)?.length ?? 1;
+
+      d.scaleAxisLimits = {
+        paneLimits: oldPaneLimits.map((p) => ({
+          valueMin: p.valueMin,
+          valueMax: p.valueMax,
+          tierLimits: p.tierLimits,
+          laneLimits: Array.from({ length: laneCount }, () => ({
+            valueMin: p.valueMin,
+            valueMax: p.valueMax,
+          })),
+        })),
+      };
+      d.yScaleAxisLabel = yScaleAxisData.yScaleAxisLabel;
+    }
+
+    // Clean up old field
+    delete d.yScaleAxisData;
+  }
+}
 
 function transformLayoutNode(node: LayoutNode): void {
   // Block 3: Convert span from string → number (or delete if invalid)
@@ -60,15 +117,26 @@ function transformLayoutNode(node: LayoutNode): void {
       node.data = { type: "figure" };
     }
     // Block 4: Rename source.type "from_metric" → "from_data" and add snapshotAt
-    if (node.data.type === "figure" && node.data.source?.type === "from_metric") {
+    if (
+      node.data.type === "figure" &&
+      node.data.source?.type === "from_metric"
+    ) {
       node.data.source.type = "from_data";
       if (!node.data.source.snapshotAt) {
         node.data.source.snapshotAt = new Date().toISOString();
       }
     }
     // Block 5: Transform embedded PO configs in figure blocks
-    if (node.data.type === "figure" && node.data.source?.type === "from_data" && node.data.source.config) {
+    if (
+      node.data.type === "figure" &&
+      node.data.source?.type === "from_data" &&
+      node.data.source.config
+    ) {
       node.data.source.config = transformPOConfigData(node.data.source.config);
+    }
+    // Block 9: Migrate figureInputs yScaleAxisData → scaleAxisLimits
+    if (node.data.type === "figure" && node.data.figureInputs) {
+      transformFigureInputs(node.data.figureInputs);
     }
   } else if ((node.type === "rows" || node.type === "cols") && node.children) {
     for (const child of node.children) {
@@ -77,7 +145,10 @@ function transformLayoutNode(node: LayoutNode): void {
   }
 }
 
-export async function migrateSlideConfigs(tx: Sql, _projectId: string): Promise<MigrationStats> {
+export async function migrateSlideConfigs(
+  tx: Sql,
+  _projectId: string,
+): Promise<MigrationStats> {
   const rows = await tx<{ id: string; config: string }[]>`
     SELECT id, config FROM slides
   `;

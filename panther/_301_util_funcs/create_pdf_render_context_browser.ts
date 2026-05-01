@@ -10,6 +10,7 @@ import {
   injectKerningIntoJsPdf,
   PdfRenderContext,
 } from "./deps.ts";
+import { loadFontsWithTimeout } from "./fonts_ready.ts";
 
 export async function createPdfRenderContextWithFontsBrowser(
   width: number,
@@ -81,6 +82,11 @@ export async function createPdfRenderContextWithFontsBrowser(
         String(font.weight),
       );
     }
+  }
+
+  // Load fonts in browser for canvas text measurement
+  if (fonts && fonts.length > 0) {
+    await loadFontsWithTimeout(fonts);
   }
 
   const rc = new PdfRenderContext(pdf, ctx, createCanvasFn);

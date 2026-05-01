@@ -15,7 +15,6 @@ import { aiToolsRouteRegistry } from "./project/ai-tools.ts";
 import { moduleRouteRegistry } from "./project/modules.ts";
 import { presentationObjectRouteRegistry } from "./project/presentation-objects.ts";
 import { projectRouteRegistry } from "./project/projects.ts";
-import { reportRouteRegistry } from "./project/reports.ts";
 import { slideDeckRouteRegistry } from "./project/slide-decks.ts";
 import { slideDeckFolderRouteRegistry } from "./project/slide-deck-folders.ts";
 import { slideRouteRegistry } from "./project/slides.ts";
@@ -42,7 +41,6 @@ export const routeRegistry = {
   ...projectRouteRegistry,
   ...aiToolsRouteRegistry,
   ...presentationObjectRouteRegistry,
-  ...reportRouteRegistry,
   ...slideDeckRouteRegistry,
   ...slideDeckFolderRouteRegistry,
   ...slideRouteRegistry,

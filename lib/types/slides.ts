@@ -1,21 +1,44 @@
 import type {
+  ColorPresetId,
+  CoverTreatmentId,
   FigureInputs,
+  FreeformTreatmentId,
   LayoutNode,
   LayoutPresetId,
   LogosSizingOptions as LogosSizingOptionsImport,
   PatternType,
-  TreatmentPresetId,
 } from "@timroberton/panther";
+import type { BrandPresetId } from "../brand_presets.ts";
 
 type ImageOverlayType = "dots" | "rivers" | "waves" | "world";
 type PatternOverlayType = `pattern-${PatternType}`;
-export type BackgroundDetailType = "none" | ImageOverlayType | PatternOverlayType;
+export type BackgroundDetailType =
+  | "none"
+  | ImageOverlayType
+  | PatternOverlayType;
 
 export type LogosSizingOptions = LogosSizingOptionsImport;
 import { Color } from "@timroberton/panther";
 import type { PresentationObjectConfig } from "./presentation_objects.ts";
 import { _GFF_GREEN } from "../key_colors.ts";
 import { t3 } from "../translate/t-func.ts";
+
+export type AllPresetId = ColorPresetId | BrandPresetId;
+
+import { type SlideFontFamily } from "./_slide_fonts.ts";
+export {
+  SLIDE_FONTS,
+  SLIDE_FONT_FAMILIES,
+  type SlideFontFamily,
+  getSlideFontInfo,
+  getAllSlideFontVariants,
+  getBoldWeight,
+  getLetterSpacing,
+} from "./_slide_fonts.ts";
+
+export type ColorTheme =
+  | { type: "preset"; id: AllPresetId }
+  | { type: "custom"; primary: string };
 
 // Re-export schemas from underscore-prefixed files (stored data validation)
 export { slideDeckConfigSchema } from "./_slide_deck_config.ts";
@@ -44,10 +67,12 @@ export type SlideDeckConfig = {
   headerSize: number;
   useWatermark: boolean;
   watermarkText: string;
-  primaryColor: string;
+  colorTheme: ColorTheme;
   overlay: BackgroundDetailType | undefined;
   layout: LayoutPresetId;
-  treatment: TreatmentPresetId;
+  coverAndSectionTreatment: CoverTreatmentId;
+  freeformTreatment: FreeformTreatmentId;
+  fontFamily?: SlideFontFamily;
 };
 
 export function getTextColorForBackground(bgColor: string): string {
@@ -60,6 +85,37 @@ export function isColorLight(color: string): boolean {
 
 export function getPrimaryColor(primaryColor?: string): string {
   return primaryColor || _GFF_GREEN;
+}
+
+import {
+  type ColorPreset,
+  getColorPreset,
+  resolveColorTheme as resolveColorThemeCore,
+} from "@timroberton/panther";
+import { getBrandPreset, isBrandPresetId } from "../brand_presets.ts";
+
+export function resolveColorThemeToPreset(theme: ColorTheme): ColorPreset {
+  if (theme.type === "custom") {
+    return resolveColorThemeCore(theme);
+  }
+  if (isBrandPresetId(theme.id)) {
+    return getBrandPreset(theme.id);
+  }
+  return getColorPreset(theme.id);
+}
+
+export type DeckStyleContext = {
+  fontFamily: SlideFontFamily;
+  colorPreset: ColorPreset;
+};
+
+export function createDeckStyleContext(
+  config: SlideDeckConfig,
+): DeckStyleContext {
+  return {
+    fontFamily: config.fontFamily ?? "International Inter",
+    colorPreset: resolveColorThemeToPreset(config.colorTheme),
+  };
 }
 
 export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
@@ -78,10 +134,12 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
     headerSize: 1,
     useWatermark: false,
     watermarkText: "",
-    primaryColor: _GFF_GREEN,
+    colorTheme: { type: "preset", id: "gff" },
     overlay: "none",
     layout: "default",
-    treatment: "default",
+    coverAndSectionTreatment: "bold",
+    freeformTreatment: "default",
+    fontFamily: "International Inter",
   };
 }
 

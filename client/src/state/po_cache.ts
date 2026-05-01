@@ -376,6 +376,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
 
   // Validate replicant value if required
   const replicateBy = getReplicateByProp(config);
+  let finalFetchConfig = resFetchConfig.data;
   if (replicateBy) {
     const replicantRes = await getReplicantOptionsFromCacheOrFetch(
       projectId,
@@ -386,25 +387,27 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     if (replicantRes.success && replicantRes.data.status === "ok") {
       const validValues = replicantRes.data.possibleValues;
       const selected = config.d.selectedReplicantValue;
-      if (!selected) {
-        yield {
-          status: "error",
-          err: t3({
-            en: `[INFO] This visualization requires selecting a value for "${replicateBy}". Available: ${validValues.join(", ")}`,
-            fr: `[INFO] Cette visualisation nécessite de sélectionner une valeur pour "${replicateBy}". Disponibles: ${validValues.join(", ")}`,
-          }),
-        };
-        return;
-      }
-      if (!validValues.includes(selected)) {
-        yield {
-          status: "error",
-          err: t3({
-            en: `[INFO] Invalid value "${selected}" for "${replicateBy}". Available: ${validValues.join(", ")}`,
-            fr: `[INFO] Valeur invalide "${selected}" pour "${replicateBy}". Disponibles: ${validValues.join(", ")}`,
-          }),
-        };
-        return;
+      if (!selected || !validValues.includes(selected)) {
+        if (validValues.length === 0) {
+          yield {
+            status: "error",
+            err: t3({
+              en: `[INFO] No values available for "${replicateBy}"`,
+              fr: `[INFO] Aucune valeur disponible pour "${replicateBy}"`,
+            }),
+          };
+          return;
+        }
+        // Auto-select first available value for thumbnail rendering
+        config.d.selectedReplicantValue = validValues[0];
+        // Regenerate fetch config with corrected value
+        const newFetchConfig = getFetchConfigFromPresentationObjectConfig(
+          poDetail.resultsValue,
+          config,
+        );
+        if (newFetchConfig.success) {
+          finalFetchConfig = newFetchConfig.data;
+        }
       }
     }
   }
@@ -412,7 +415,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   const { data, version, isInflight } = await _PO_ITEMS_CACHE.get({
     projectId,
     resultsObjectId: poDetail.resultsValue.resultsObjectId,
-    fetchConfig: resFetchConfig.data,
+    fetchConfig: finalFetchConfig,
   });
 
   if (data) {
@@ -440,7 +443,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     serverActions.getPresentationObjectItems({
       projectId,
       resultsObjectId: poDetail.resultsValue.resultsObjectId,
-      fetchConfig: resFetchConfig.data,
+      fetchConfig: finalFetchConfig,
       firstPeriodOption: poDetail.resultsValue.mostGranularTimePeriodColumnInResultsFile,
     })
   );
@@ -450,7 +453,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     {
       projectId,
       resultsObjectId: poDetail.resultsValue.resultsObjectId,
-      fetchConfig: resFetchConfig.data,
+      fetchConfig: finalFetchConfig,
     },
     version,
   );

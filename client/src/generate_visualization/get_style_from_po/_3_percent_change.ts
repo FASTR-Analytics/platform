@@ -8,22 +8,16 @@ import {
   _CF_COMPARISON,
   _CF_GREEN,
   _CF_RED,
+  type DeckStyleContext,
   getCalendar,
   PresentationObjectConfig,
-  selectCf,
 } from "lib";
-import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
-import {
-  getMapRegionsContent,
-  getStandardSeriesColorFunc,
-  getTableCellsContent,
-  getTableLayoutStyle,
-  getTextStyle,
-} from "./_0_common";
+import { getStandardSeriesColorFunc, getTextStyle } from "./_0_common";
 
 export function buildPercentChangeChartStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   const threshold = config.s.specialBarChartDiffThreshold ?? 0.1;
   const inverted = config.s.specialBarChartInverted;
@@ -31,7 +25,7 @@ export function buildPercentChangeChartStyle(
   return {
     scale: config.s.scale,
     seriesColorFunc: getStandardSeriesColorFunc(config),
-    text: getTextStyle(config),
+    text: getTextStyle(config, deckStyle),
     panes: { nCols: config.s.nColsInCellDisplay },
     xPeriodAxis: { forceSideTicksWhenYear: true, calendar: getCalendar() },
     yScaleAxis: {
@@ -43,10 +37,7 @@ export function buildPercentChangeChartStyle(
         : "auto-number") as TickLabelFormatterOption,
     },
     content: {
-      points: {
-        func: { show: false, dataLabel: { show: false } },
-        textFormatter: () => "",
-      },
+      points: { func: { show: false } },
       bars: {
         func: (info) => {
           const diff = getSpecialBarChartDiff(info);
@@ -92,19 +83,8 @@ export function buildPercentChangeChartStyle(
         },
         stacking: "none",
       },
-      lines: {
-        func: { show: false, dataLabel: { show: false } },
-        textFormatter: () => "",
-      },
-      tableCells: getTableCellsContent(config, formatAs),
-      mapRegions: getMapRegionsContent(config, formatAs),
+      lines: { func: { show: false } },
     },
-    table: getTableLayoutStyle(config),
-    valuesColorFunc: compileCfToValuesColorFunc(selectCf(config.s)),
-    map:
-      config.d.type === "map"
-        ? { projection: config.s.mapProjection ?? "equirectangular", dataLabelMode: "centroid" }
-        : undefined,
   };
 }
 

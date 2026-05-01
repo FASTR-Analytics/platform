@@ -1,3 +1,98 @@
+[TBD] [user] [added] - Cache status page now shows additional cached item counts per visualization
+[TBD] [user] [added] - Cache status page now displays client-side browser cache details
+[TBD] [user] [changed] - Removed slide decks section from cache status page
+[TBD] [admin] [added] - Cache status now shows PO Items and Replicant Options counts per visualization
+[TBD] [admin] [added] - Client-side IndexedDB cache breakdown visible in cache status page
+[TBD] [admin] [changed] - Slide decks section removed from cache status view
+[TBD] [admin] [added] - Refresh button to re-scan client-side cache entries on demand
+[TBD] [user] [fixed] - Fixed vertical axis label alignment on point charts
+[TBD] [user] [improved] - Improved real-time project updates and connection reliability
+[TBD] [admin] [internal] - Groundwork laid for improved real-time project sync system
+[TBD] [admin] [changed] - Removed redundant tracking of last module run timestamp
+[TBD] [admin] [fixed] - Vertical axis tick labels now align correctly for point charts
+[TBD] [admin] [changed] - User permission and role changes now update all connected users in real time
+[TBD] [user] [changed] - Reports feature has been removed from projects
+[TBD] [admin] [changed] - Legacy "Reports" feature has been fully removed from the platform
+[TBD] [user] [added] - Custom brand colors are now validated before saving slide deck settings
+[TBD] [admin] [added] - Custom brand color is now validated before saving slide deck settings
+[TBD] [admin] [internal] - Minor formatting and code cleanup for map visualizations
+[1.28.17] [user] [fixed] - Bold text in slides now displays with correct font weight
+[1.28.17] [admin] [fixed] - Slide bold text now loads correct font weights
+[1.28.16] [user] [changed] - Slide decks with "bold" style now keep that choice
+[1.28.16] [admin] [fixed] - Slide decks with "bold" freeform treatment no longer forcibly reset to default
+[1.28.15] [user] [fixed] - Period filters now correctly default to quarters when using quarterly data
+[1.28.15] [user] [fixed] - Switching period filter types no longer carries over unrelated settings
+[1.28.15] [user] [changed] - New slide decks now use an updated default freeform slide style
+[1.28.15] [admin] [fixed] - Period filters now correctly save only relevant settings per filter type
+[1.28.15] [admin] [fixed] - Quarterly visualizations now default to quarter-based filters when enabled
+[1.28.15] [admin] [changed] - New slide decks now use an updated default freeform slide style
+[1.28.15] [admin] [internal] - Existing slide decks with outdated freeform styles are automatically migrated
+[1.28.15] [admin] [internal] - Legacy period filter data is cleaned up during migration
+[1.28.14] [user] [changed] - Decimal places option now available for all table types
+[1.28.14] [user] [changed] - Conditional formatting now available for all table types
+[1.28.14] [user] [fixed] - Fixed time period filters not updating correctly in some cases
+[1.28.14] [user] [removed] - Removed the legacy scorecard table format
+[1.28.14] [admin] [changed] - Removed the legacy scorecard table feature entirely
+[1.28.14] [admin] [changed] - Decimal places and conditional formatting now available for all table types
+[1.28.14] [admin] [fixed] - Period filter bounds now update more reliably when changed
+[1.28.14] [admin] [internal] - Legacy chart data migration moved from export-time to database migration
+[1.28.14] [admin] [internal] - Removed debug logging from map visualizations
+[1.28.14] [admin] [internal] - Removed unused derived date columns from HMIS dataset queries
+[1.28.13] [admin] [fixed] - Default presentation object configs now receive all standard data migrations
+[1.28.13] [admin] [internal] - Shared migration logic applied consistently across all config types
+[1.28.12] [user] [changed] - Slide deck font now applies consistently to all charts and text
+[1.28.12] [admin] [added] - Slide deck font now applies to charts and visualizations
+[1.28.11] [user] [added] - Font picker for slide decks with four font options
+[1.28.11] [user] [added] - Label placement options for map visualizations: Center, Callout, or Auto
+[1.28.11] [user] [fixed] - Map legends now display correctly for threshold-based color rules
+[1.28.11] [user] [changed] - Maps with detailed regions now auto-zoom to fit the data
+[1.28.11] [user] [changed] - Removed "elegant" cover treatment option from slide styling
+[1.28.11] [admin] [added] - Font picker for slide decks with four font options
+[1.28.11] [admin] [added] - Map label placement options: center, callout, or auto
+[1.28.11] [admin] [fixed] - Map legends now display correctly for threshold-based coloring
+[1.28.11] [admin] [changed] - Maps with detailed regions now auto-zoom to fit data
+[1.28.11] [admin] [changed] - Exported PDFs now use the selected slide deck font
+[1.28.11] [admin] [internal] - Existing slide decks auto-migrated to default font setting
+[1.28.10] [user] [changed] - DHIS2 search now searches by name, code, and ID simultaneously
+[1.28.10] [user] [added] - Search multiple terms at once using commas, semicolons, or new lines
+[1.28.10] [user] [changed] - Search input replaced with larger text area for easier multi-term entry
+[1.28.10] [user] [added] - Clear button to quickly reset the search field
+[1.28.10] [admin] [changed] - DHIS2 search now checks name, code, and ID simultaneously
+[1.28.10] [admin] [added] - Search multiple DHIS2 terms at once using commas, semicolons, or new lines
+[1.28.10] [admin] [changed] - DHIS2 search input replaced with larger text area for multi-term queries
+[1.28.9] [user] [added] - New color theme picker with preset and custom color options
+[1.28.9] [user] [added] - Separate style controls for cover/section and content page treatments
+[1.28.9] [user] [added] - Visual background detail picker with pattern thumbnails
+[1.28.9] [user] [added] - Inline editing for slide deck name in the settings header
+[1.28.9] [user] [changed] - Reorganized slide deck settings into clearer sections
+[1.28.9] [user] [changed] - Style preview now shows a validation message for invalid custom colors
+[1.28.9] [user] [fixed] - AI-generated slides now load fonts before arranging layout, preventing misaligned text
+[1.28.9] [admin] [added] - New color theme picker with preset and custom color options
+[1.28.9] [admin] [added] - Separate style controls for cover/section and content page treatments
+[1.28.9] [admin] [added] - Visual background detail picker with pattern thumbnails
+[1.28.9] [admin] [added] - Inline editing for slide deck name in the heading bar
+[1.28.9] [admin] [changed] - Slide deck settings page reorganized into clearer sections
+[1.28.9] [admin] [changed] - Color selection replaces single primary color with theme presets
+[1.28.9] [admin] [changed] - Treatment setting split into cover/section and content page options
+[1.28.9] [admin] [fixed] - Custom fonts now load before AI slide layout optimization
+[1.28.9] [admin] [fixed] - Style preview shows validation error for invalid custom colors
+[1.28.9] [admin] [internal] - Existing slide decks automatically migrated to new color theme format
+[1.28.8] [user] [changed] - AI assistant now uses your country's geographic terminology automatically
+[1.28.8] [admin] [added] - AI assistant now uses custom admin area labels when configured
+[1.28.8] [admin] [changed] - AI responses use instance-specific terminology for geographic levels
+[1.28.6] [user] [changed] - Filter labels simplified to "Data values" and "Time period"
+[1.28.6] [user] [fixed] - Charts with replicated data now display correctly after auto-selection
+[1.28.6] [admin] [changed] - Shorter filter labels in visualization editor
+[1.28.6] [admin] [fixed] - Replicated charts now fetch correct data after auto-selecting a value
+[1.28.5] [user] [fixed] - Visualizations now auto-select a value instead of showing an error when none is chosen
+[1.28.5] [admin] [fixed] - Visualizations with replicated values now auto-select the first available option instead of showing an error
+[1.28.4] [user] [added] - Line charts now offer "Add points" and "Fill area" options
+[1.28.4] [user] [changed] - "Areas" display format replaced with "Fill area" option under Lines
+[1.28.4] [user] [improved] - Map visualizations show clearer message when map files are missing
+[1.28.4] [admin] [added] - Line charts now support optional points and area fill toggles
+[1.28.4] [admin] [changed] - "Areas" display format replaced by "Fill area" option under Lines
+[1.28.4] [admin] [fixed] - Map visualizations show clearer message when map files are missing
+[1.28.4] [admin] [internal] - Existing "areas" chart settings automatically migrated to new format
 [1.28.2] [user] [changed] - "Not available" messages now show a clearer explanation of why results cannot be displayed
 [1.28.2] [user] [fixed] - Visualizations with too many data points or no data now show a friendly informational message instead of an error
 [1.28.2] [user] [fixed] - Rendering errors in visualizations now display a clear message instead of crashing

@@ -154,36 +154,7 @@ CREATE INDEX idx_presentation_objects_folder_id ON presentation_objects(folder_i
 CREATE INDEX idx_presentation_objects_sort_order ON presentation_objects(sort_order);
 
 -- ============================================================================
--- REPORTING
--- ============================================================================
-
-CREATE TABLE reports (
-  id text PRIMARY KEY NOT NULL,
-  report_type text NOT NULL,
-  config text NOT NULL,
-  last_updated text NOT NULL,
-  is_deleted boolean NOT NULL
-);
-
-CREATE INDEX idx_reports_report_type ON reports(report_type);
-CREATE INDEX idx_reports_is_deleted ON reports(is_deleted);
-CREATE INDEX idx_reports_last_updated ON reports(last_updated);
-
-CREATE TABLE report_items (
-  id text PRIMARY KEY NOT NULL,
-  report_id text NOT NULL,
-  sort_order integer NOT NULL,
-  config text NOT NULL,
-  last_updated text NOT NULL,
-  FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_report_items_report_id ON report_items(report_id);
-CREATE INDEX idx_report_items_sort_order ON report_items(report_id, sort_order);
-CREATE INDEX idx_report_items_last_updated ON report_items(last_updated);
-
--- ============================================================================
--- AI SLIDE DECKS
+-- SLIDE DECKS
 -- ============================================================================
 
 CREATE TABLE slide_deck_folders (

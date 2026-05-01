@@ -8,6 +8,7 @@ import {
   assert,
   type CalendarType,
   type CascadeArrowInfoFunc,
+  type ChartConnectorInfoFunc,
   type ChartSeriesInfoFunc,
   type ChartValueInfoFunc,
   type ColorAdjustmentStrategy,
@@ -19,10 +20,12 @@ import {
   type ValuesColorFunc,
 } from "./deps.ts";
 import type {
+  ArrowheadFitFallback,
   GenericAreaStyleOptions,
   GenericBarStyleOptions,
   GenericCascadeArrowStyleOptions,
   GenericConfidenceBandStyleOptions,
+  GenericConnectorStyleOptions,
   GenericDataLabelStyleOptions,
   GenericErrorBarStyleOptions,
   GenericLineStyleOptions,
@@ -307,6 +310,14 @@ export type CustomFigureStyleOptions = {
         | "none";
       textFormatter?: CascadeArrowInfoFunc<string> | "none";
     };
+    connectors?: {
+      func?:
+        | GenericConnectorStyleOptions
+        | ChartConnectorInfoFunc<GenericConnectorStyleOptions>
+        | "none";
+      joinAcrossGaps?: boolean;
+      arrowheadFitFallback?: ArrowheadFitFallback;
+    };
     mapRegions?: {
       func?:
         | GenericMapRegionStyleOptions
@@ -436,6 +447,11 @@ export type CustomFigureStyleOptions = {
     boundingBox?: [number, number, number, number];
     dataLabelMode?: "none" | "centroid" | "callout" | "auto";
     calloutMargin?: number;
+    labelCollision?: {
+      gap?: number;
+      maxCentroidDisplacement?: number;
+      maxIterations?: number;
+    };
   };
 };
 

@@ -4,7 +4,12 @@ import {
   getFormatterFunc,
   type TickLabelFormatterOption,
 } from "panther";
-import { getCalendar, PresentationObjectConfig, selectCf } from "lib";
+import {
+  type DeckStyleContext,
+  getCalendar,
+  PresentationObjectConfig,
+  selectCf,
+} from "lib";
 import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
   getMapRegionsContent,
@@ -13,19 +18,25 @@ import {
   getTableLayoutStyle,
   getTextStyle,
 } from "./_0_common";
+import { getAdminAreaLevelFromMapConfig } from "../get_admin_area_level_from_config";
 
 export function buildStandardStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   const dataFormat = formatAs;
   const cf = selectCf(config.s);
   const cfOn = cf.type !== "none";
+  const c = config.s.content;
+  const showPoints = c === "points" || c === "lines-points";
+  const showLines = c === "lines" || c === "lines-area" || c === "lines-points";
+  const showAreas = c === "lines-area";
 
   return {
     scale: config.s.scale,
     seriesColorFunc: getStandardSeriesColorFunc(config),
-    text: getTextStyle(config),
+    text: getTextStyle(config, deckStyle),
     surrounds: {
       legendPosition: config.s.hideLegend ? "none" : undefined,
     },
@@ -40,6 +51,9 @@ export function buildStandardStyle(
     },
     xTextAxis: {
       verticalTickLabels: config.s.verticalTickLabels,
+      tickPosition: config.s.content === "points" ? "center" : undefined,
+    },
+    yTextAxis: {
       tickPosition: config.s.content === "points" ? "center" : undefined,
     },
     xPeriodAxis: {
@@ -65,7 +79,7 @@ export function buildStandardStyle(
     content: {
       points: {
         func: {
-          show: config.s.content === "points",
+          show: showPoints,
           dataLabel: { show: config.s.showDataLabels },
         },
         textFormatter: (info: ChartValueInfo) =>
@@ -73,7 +87,7 @@ export function buildStandardStyle(
       },
       bars: {
         func:
-          config.s.content !== "bars"
+          c !== "bars"
             ? { show: false }
             : cfOn
               ? {
@@ -84,21 +98,18 @@ export function buildStandardStyle(
               : { show: true, dataLabel: { show: config.s.showDataLabels } },
         textFormatter: (info: ChartValueInfo) =>
           getFormatterFunc(dataFormat, config.s.decimalPlaces ?? 0)(info.val),
-        stacking:
-          config.s.content === "bars" && config.s.barsStacked
-            ? "stacked"
-            : "none",
+        stacking: c === "bars" && config.s.barsStacked ? "stacked" : "none",
       },
       lines: {
         func: {
-          show: config.s.content === "lines" || config.s.content === "areas",
+          show: showLines,
           dataLabel: { show: config.s.showDataLabelsLineCharts },
         },
         textFormatter: (info: ChartValueInfo) =>
           getFormatterFunc(dataFormat, config.s.decimalPlaces ?? 0)(info.val),
       },
       areas: {
-        func: { show: config.s.content === "areas" },
+        func: { show: showAreas },
       },
       tableCells: getTableCellsContent(config, formatAs),
       mapRegions: getMapRegionsContent(config, formatAs),
@@ -109,7 +120,11 @@ export function buildStandardStyle(
       config.d.type === "map"
         ? {
             projection: config.s.mapProjection ?? "equirectangular",
-            dataLabelMode: "centroid",
+            dataLabelMode: config.s.mapDataLabelMode ?? "centroid",
+            fit:
+              (getAdminAreaLevelFromMapConfig(config) ?? 0) >= 3
+                ? "only-regions-in-data"
+                : undefined,
           }
         : undefined,
   };

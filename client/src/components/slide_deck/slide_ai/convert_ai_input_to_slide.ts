@@ -3,6 +3,7 @@ import {
   createCanvasRenderContextBrowser,
   RectCoordsDims,
   createItemNode,
+  loadFontsWithTimeout,
   type LayoutNode,
   type OptimizerConfig,
   type PageContentItem,
@@ -15,7 +16,7 @@ import type {
   MetricWithStatus,
   SlideDeckConfig,
 } from "lib";
-import { FIGURE_AUTOFIT, MARKDOWN_AUTOFIT, slideConfigSchema } from "lib";
+import { FIGURE_AUTOFIT, MARKDOWN_AUTOFIT, slideConfigSchema, getAllSlideFontVariants } from "lib";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
@@ -114,6 +115,19 @@ export async function convertAiInputToSlide(
     return nodeWithShortId;
   });
 
+  // Build style and load fonts before layout optimization
+  const pageStyle = buildStyleForSlide(
+    {
+      type: "content",
+      header: slideInput.header,
+      layout: { type: "item", id: "tmp", data: { type: "text", markdown: "" } },
+    },
+    deckConfig,
+  );
+  const fontFamily = deckConfig.fontFamily ?? "International Inter";
+  const fonts = getAllSlideFontVariants(fontFamily);
+  await loadFontsWithTimeout(fonts);
+
   // Optimize layout
   const rc = createCanvasRenderContextBrowser();
   const bounds = new RectCoordsDims([0, 0, 1920, 1080]);
@@ -122,18 +136,7 @@ export async function convertAiInputToSlide(
     rc,
     bounds,
     itemNodes,
-    buildStyleForSlide(
-      {
-        type: "content",
-        header: slideInput.header,
-        layout: {
-          type: "item",
-          id: "tmp",
-          data: { type: "text", markdown: "" },
-        },
-      },
-      deckConfig,
-    ),
+    pageStyle,
     undefined,
     getOptimizerConfig(slideInput.layoutPreference, resolvedBlocks.length),
   );

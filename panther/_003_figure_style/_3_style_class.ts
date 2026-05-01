@@ -51,6 +51,7 @@ import {
   getBarStyleFunc,
   getCascadeArrowStyleFunc,
   getConfidenceBandStyleFunc,
+  getConnectorStyleFunc,
   getErrorBarStyleFunc,
   getLineStyleFunc,
   getMapRegionStyleFunc,
@@ -497,6 +498,25 @@ export class CustomFigureStyle {
           g.map?.calloutMargin,
           d.map.calloutMargin,
         ),
+        labelCollision: {
+          gap: ms(
+            sf,
+            c.map?.labelCollision?.gap,
+            g.map?.labelCollision?.gap,
+            d.map.labelCollision.gap,
+          ),
+          maxCentroidDisplacement: ms(
+            sf,
+            c.map?.labelCollision?.maxCentroidDisplacement,
+            g.map?.labelCollision?.maxCentroidDisplacement,
+            d.map.labelCollision.maxCentroidDisplacement,
+          ),
+          maxIterations: m(
+            c.map?.labelCollision?.maxIterations,
+            g.map?.labelCollision?.maxIterations,
+            d.map.labelCollision.maxIterations,
+          ),
+        },
       },
     };
   }
@@ -1167,6 +1187,19 @@ export class CustomFigureStyle {
           c.content?.cascadeArrows?.textFormatter,
           g.content?.cascadeArrows?.textFormatter,
           d.content.cascadeArrows.textFormatter,
+        ),
+      },
+      connectors: {
+        getStyle: getConnectorStyleFunc(sf, c, g, d),
+        joinAcrossGaps: m(
+          c.content?.connectors?.joinAcrossGaps,
+          g.content?.connectors?.joinAcrossGaps,
+          d.content.connectors.joinAcrossGaps,
+        ),
+        arrowheadFitFallback: m(
+          c.content?.connectors?.arrowheadFitFallback,
+          g.content?.connectors?.arrowheadFitFallback,
+          d.content.connectors.arrowheadFitFallback,
         ),
       },
       mapRegions: {

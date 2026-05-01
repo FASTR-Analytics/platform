@@ -51,45 +51,61 @@ function buildAISystemContext(
   sections.push("- admin_area_1 is always the national level");
   if (instance.maxAdminArea >= 2) {
     const aa = instance.maxAdminArea;
-    const sub =
-      aa >= 4
-        ? "admin_area_2, admin_area_3, admin_area_4 etc."
-        : aa >= 3
-          ? "admin_area_2, admin_area_3 etc."
-          : "admin_area_2 etc.";
-    sections.push(`- ${sub} are sub-national levels. For example:`);
-    const examples: {
-      country: string;
-      aa2: string;
-      aa3?: string;
-      aa4?: string;
-    }[] = [
-      {
-        country: "Nigeria",
-        aa2: "Zone",
-        aa3: "State",
-        aa4: "LGA (Local Government Area)",
-      },
-      { country: "Ghana", aa2: "Region", aa3: "District" },
-      { country: "Burkina Faso", aa2: "Région", aa3: "Province" },
-      { country: "Zambia", aa2: "Province", aa3: "District" },
-      { country: "Liberia", aa2: "County", aa3: "District" },
-      { country: "Sierra Leone", aa2: "District", aa3: "District Council" },
-      {
-        country: "République Démocratique du Congo (RDC)",
-        aa2: "Province",
-        aa3: "Zone de Santé",
-      },
-    ];
-    for (const ex of examples) {
-      let line = `  - ${ex.country}: admin_area_2 = ${ex.aa2}`;
-      if (aa >= 3 && ex.aa3) line += `, admin_area_3 = ${ex.aa3}`;
-      if (aa >= 4 && ex.aa4) line += `, admin_area_4 = ${ex.aa4}`;
-      sections.push(line);
+    const labels = instance.adminAreaLabels;
+    const hasCustomLabels = labels.label2 || labels.label3 || labels.label4;
+
+    if (hasCustomLabels) {
+      sections.push("- Sub-national levels in this instance:");
+      if (aa >= 2 && labels.label2)
+        sections.push(`  - admin_area_2 = "${labels.label2}"`);
+      if (aa >= 3 && labels.label3)
+        sections.push(`  - admin_area_3 = "${labels.label3}"`);
+      if (aa >= 4 && labels.label4)
+        sections.push(`  - admin_area_4 = "${labels.label4}"`);
+      sections.push(
+        "- Use these terms instead of 'admin_area_2' etc. when communicating with the user",
+      );
+    } else {
+      const sub =
+        aa >= 4
+          ? "admin_area_2, admin_area_3, admin_area_4 etc."
+          : aa >= 3
+            ? "admin_area_2, admin_area_3 etc."
+            : "admin_area_2 etc.";
+      sections.push(`- ${sub} are sub-national levels. For example:`);
+      const examples: {
+        country: string;
+        aa2: string;
+        aa3?: string;
+        aa4?: string;
+      }[] = [
+        {
+          country: "Nigeria",
+          aa2: "Zone",
+          aa3: "State",
+          aa4: "LGA (Local Government Area)",
+        },
+        { country: "Ghana", aa2: "Region", aa3: "District" },
+        { country: "Burkina Faso", aa2: "Région", aa3: "Province" },
+        { country: "Zambia", aa2: "Province", aa3: "District" },
+        { country: "Liberia", aa2: "County", aa3: "District" },
+        { country: "Sierra Leone", aa2: "District", aa3: "District Council" },
+        {
+          country: "République Démocratique du Congo (RDC)",
+          aa2: "Province",
+          aa3: "Zone de Santé",
+        },
+      ];
+      for (const ex of examples) {
+        let line = `  - ${ex.country}: admin_area_2 = ${ex.aa2}`;
+        if (aa >= 3 && ex.aa3) line += `, admin_area_3 = ${ex.aa3}`;
+        if (aa >= 4 && ex.aa4) line += `, admin_area_4 = ${ex.aa4}`;
+        sections.push(line);
+      }
+      sections.push(
+        "- If this instance's country matches one of the above, use that country's terminology instead of 'admin_area_2' etc.",
+      );
     }
-    sections.push(
-      "- If this instance's country matches one of the above, use that country's terminology instead of 'admin_area_2' etc.",
-    );
   }
   sections.push("");
   const hasHmis = instance.datasetsWithData.includes("hmis");

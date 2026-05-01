@@ -24,9 +24,18 @@ export function ChartStyleControls(p: Props) {
               { value: "points", label: t3({ en: "Points", fr: "Points" }) },
               { value: "lines", label: t3({ en: "Lines", fr: "Lignes" }) },
             ]}
-            value={p.tempConfig.s.content}
+            value={
+              p.tempConfig.s.content === "lines-points" ||
+              p.tempConfig.s.content === "lines-area"
+                ? "lines"
+                : p.tempConfig.s.content
+            }
             onChange={(v) =>
-              p.setTempConfig("s", "content", v as "bars" | "points")
+              p.setTempConfig(
+                "s",
+                "content",
+                v as "bars" | "points" | "lines",
+              )
             }
             horizontal
           />
@@ -36,6 +45,30 @@ export function ChartStyleControls(p: Props) {
                 label={t3({ en: "Stacked bars", fr: "Histogramme empilé" })}
                 checked={p.tempConfig.s.barsStacked}
                 onChange={(v) => p.setTempConfig("s", "barsStacked", v)}
+              />
+            </StyleRevealGroup>
+          </Show>
+          <Show
+            when={
+              p.tempConfig.s.content === "lines" ||
+              p.tempConfig.s.content === "lines-points" ||
+              p.tempConfig.s.content === "lines-area"
+            }
+          >
+            <StyleRevealGroup>
+              <Checkbox
+                label={t3({ en: "Add points", fr: "Ajouter des points" })}
+                checked={p.tempConfig.s.content === "lines-points"}
+                onChange={(v) =>
+                  p.setTempConfig("s", "content", v ? "lines-points" : "lines")
+                }
+              />
+              <Checkbox
+                label={t3({ en: "Fill area", fr: "Remplir la zone" })}
+                checked={p.tempConfig.s.content === "lines-area"}
+                onChange={(v) =>
+                  p.setTempConfig("s", "content", v ? "lines-area" : "lines")
+                }
               />
             </StyleRevealGroup>
           </Show>

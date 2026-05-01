@@ -39,7 +39,7 @@ export type TextInfoUnkeyed = {
   color: string;
   lineHeight: number;
   lineBreakGap: number | "none";
-  letterSpacing: "0px" | "-0.02em";
+  letterSpacing: string;
 };
 
 export type TextInfo = {
@@ -48,7 +48,7 @@ export type TextInfo = {
   color: ColorKeyOrString;
   lineHeight: number;
   lineBreakGap: number | "none";
-  letterSpacing: "0px" | "-0.02em";
+  letterSpacing: string;
 };
 
 export type TextInfoOptions = {
@@ -57,7 +57,7 @@ export type TextInfoOptions = {
   color?: ColorKeyOrString;
   lineHeight?: number;
   lineBreakGap?: number | "none";
-  letterSpacing?: "0px" | "-0.02em";
+  letterSpacing?: string;
 };
 
 export type CustomStyleTextOptions = {
@@ -66,7 +66,7 @@ export type CustomStyleTextOptions = {
   color?: ColorKeyOrString | "same-as-base";
   lineHeight?: number | "same-as-base";
   lineBreakGap?: number | "none" | "same-as-base";
-  letterSpacing?: "0px" | "-0.02em" | "same-as-base";
+  letterSpacing?: string | "same-as-base";
 };
 
 export type TextAdjustmentOptions = {
@@ -75,7 +75,7 @@ export type TextAdjustmentOptions = {
   font?: FontInfoOptions;
   lineHeight?: number;
   lineBreakGap?: number | "none";
-  letterSpacing?: "0px" | "-0.02em";
+  letterSpacing?: string;
 };
 
 export function getAdjustedText(

@@ -211,7 +211,8 @@ export function ChartLikeControls(p: Props) {
           <Show
             when={
               p.tempConfig.s.content === "lines" ||
-              p.tempConfig.s.content === "areas"
+              p.tempConfig.s.content === "lines-area" ||
+              p.tempConfig.s.content === "lines-points"
             }
           >
             <Checkbox

@@ -15,7 +15,7 @@ import type {
   YAxisWidthInfoBase,
   YScaleAxisWidthInfo,
 } from "../../types.ts";
-import { getGoodAxisTickValues_V2 } from "../get_good_axis_tick_values.ts";
+import { getGoodAxisTickValues } from "../get_good_axis_tick_values.ts";
 
 export function estimateMinYAxisWidth(
   rc: RenderContext,
@@ -87,7 +87,7 @@ export function measureYScaleAxisWidthInfo(
       finalValueMin = finalValueMax;
       finalValueMax = temp;
     }
-    return getGoodAxisTickValues_V2(
+    return getGoodAxisTickValues(
       finalValueMax,
       finalValueMin,
       guessMaxNTicks,

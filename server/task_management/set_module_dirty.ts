@@ -4,6 +4,7 @@ import {
   addModulesThatDependOnDataset,
   addOtherModulesThatDependOnModule,
 } from "./get_dependents.ts";
+import { notifyProjectModuleDirtyState } from "./notify_project_v2.ts";
 import {
   getRunningModuleOrUndefined,
   removeRunningModule,
@@ -54,6 +55,8 @@ UPDATE modules SET dirty = 'queued' WHERE id = ${moduleId}
     lastRunGitRef: undefined,
   };
   broadcastDirtyStates.postMessage(bm1);
+  // V2 notify
+  notifyProjectModuleDirtyState(ppk.projectId, moduleIds, "queued");
 
   triggerRunnableModules(ppk);
 }

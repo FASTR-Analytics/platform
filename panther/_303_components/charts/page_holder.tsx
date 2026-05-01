@@ -14,7 +14,6 @@ import {
   Switch,
 } from "solid-js";
 import type {
-  FontInfo,
   MeasuredColsLayoutNode,
   MeasuredLayoutNode,
   MeasuredPage,
@@ -28,11 +27,10 @@ import {
   _GLOBAL_CANVAS_PIXEL_WIDTH,
   buildHitRegions,
   CanvasRenderContext,
-  CustomStyle,
   findHitTarget,
-  fontsReady,
+  getFontsForPage,
   getMinimumSpan,
-  loadFont,
+  loadFontsWithTimeout,
   PageRenderer,
   RectCoordsDims,
   releaseCanvasGPUMemory,
@@ -130,6 +128,30 @@ export function PageHolder(p: Props) {
     MeasuredPage | undefined
   >();
   const [dragState, setDragState] = createSignal<DragState | undefined>();
+  const [fontsLoaded, setFontsLoaded] = createSignal(false);
+
+  const fontKey = () => {
+    const inputs = p.pageInputs;
+    const fonts = inputs ? getFontsForPage(inputs) : [];
+    return fonts.map(f => `${f.fontFamily}-${f.weight}-${f.italic}`).join(',');
+  };
+
+  let fontLoadVersion = 0;
+
+  createEffect(() => {
+    fontKey(); // Track font changes
+    const inputs = p.pageInputs;
+    const fonts = inputs ? getFontsForPage(inputs) : [];
+
+    const thisVersion = ++fontLoadVersion;
+    setFontsLoaded(false);
+
+    loadFontsWithTimeout(fonts).then(() => {
+      if (thisVersion === fontLoadVersion) {
+        setFontsLoaded(true);
+      }
+    });
+  });
 
   onMount(() => {
     mainCanvas.width = fixedCanvasW;
@@ -166,37 +188,30 @@ export function PageHolder(p: Props) {
 
       document.addEventListener("keydown", handleKeyDown);
     }
-
-    if (p.pageInputs) {
-      const style = new CustomStyle(p.pageInputs.style);
-      const fonts = style.getFontsToRegister();
-      fonts.forEach((fontInfo: FontInfo) => {
-        loadFont(fontInfo.fontFamily);
-      });
-    }
-
   });
 
   createEffect(() => {
-    fontsReady();
-
-    updatePage(
-      mainCachedContext!,
-      p.pageInputs,
-      setErr,
-      setOverflow,
-      needsInteractive,
-      setHitRegions,
-      setMeasuredPage,
-      unscaledW,
-      unscaledH,
-      p.externalError,
-      p.onMeasured,
-      animationFrameId,
-      (id: number | undefined) => {
-        animationFrameId = id;
-      },
-    );
+    const loaded = fontsLoaded();
+    console.log("[PH] render effect, loaded=", loaded);
+    if (loaded) {
+      updatePage(
+        mainCachedContext!,
+        p.pageInputs,
+        setErr,
+        setOverflow,
+        needsInteractive,
+        setHitRegions,
+        setMeasuredPage,
+        unscaledW,
+        unscaledH,
+        p.externalError,
+        p.onMeasured,
+        animationFrameId,
+        (id: number | undefined) => {
+          animationFrameId = id;
+        },
+      );
+    }
 
     onCleanup(() => {
       if (animationFrameId !== undefined) {

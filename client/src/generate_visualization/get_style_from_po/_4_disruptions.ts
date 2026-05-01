@@ -9,28 +9,23 @@ import {
 import {
   _CF_GREEN,
   _CF_RED,
+  type DeckStyleContext,
   getCalendar,
   PresentationObjectConfig,
-  selectCf,
 } from "lib";
-import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
-import {
-  getMapRegionsContent,
-  getTableCellsContent,
-  getTableLayoutStyle,
-  getTextStyle,
-} from "./_0_common";
+import { getTextStyle } from "./_0_common";
 
 export function buildDisruptionsChartStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   const inverted = config.s.diffInverted;
 
   return {
     scale: config.s.scale,
     seriesColorFunc: getDisruptionsSeriesColorFunc(inverted),
-    text: getTextStyle(config),
+    text: getTextStyle(config, deckStyle),
     panes: {
       nCols: config.s.nColsInCellDisplay,
     },
@@ -44,18 +39,8 @@ export function buildDisruptionsChartStyle(
         : "auto-number") as TickLabelFormatterOption,
     },
     content: {
-      points: {
-        func: {
-          show: false,
-          dataLabel: { show: false },
-        },
-        textFormatter: () => "",
-      },
-      bars: {
-        func: { show: false },
-        textFormatter: () => "",
-        stacking: "none",
-      },
+      points: { func: { show: false } },
+      bars: { func: { show: false } },
       lines: {
         func: (info) => ({
           show: true,
@@ -71,18 +56,7 @@ export function buildDisruptionsChartStyle(
         func: { show: true },
         diff: { enabled: true },
       },
-      tableCells: getTableCellsContent(config, formatAs),
-      mapRegions: getMapRegionsContent(config, formatAs),
     },
-    table: getTableLayoutStyle(config),
-    valuesColorFunc: compileCfToValuesColorFunc(selectCf(config.s)),
-    map:
-      config.d.type === "map"
-        ? {
-            projection: config.s.mapProjection ?? "equirectangular",
-            dataLabelMode: "centroid",
-          }
-        : undefined,
   };
 }
 

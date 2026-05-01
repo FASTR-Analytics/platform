@@ -24,6 +24,8 @@ import {
   useProjectDetail,
   useProjectDirtyStates,
 } from "~/components/project_runner/mod";
+import { USE_V2_PROJECT_STATE } from "~/state/project/_v2_flag";
+import { ProjectSSEBoundary } from "~/state/project/t1_sse";
 
 import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
@@ -91,6 +93,11 @@ function AIContextSync() {
 export default function Project(p: Props) {
   return (
     <ProjectRunnerProvider projectId={p.projectId}>
+      <Show when={USE_V2_PROJECT_STATE} fallback={null}>
+        <ProjectSSEBoundary projectId={p.projectId}>
+          <></>
+        </ProjectSSEBoundary>
+      </Show>
       <ProjectInner
         isGlobalAdmin={p.isGlobalAdmin}
         currentUserEmail={p.currentUserEmail}

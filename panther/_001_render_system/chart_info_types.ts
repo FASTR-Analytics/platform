@@ -47,6 +47,30 @@ export type CascadeArrowInfo = ChartSeriesInfo & {
 
 export type CascadeArrowInfoFunc<T> = (info: CascadeArrowInfo) => T;
 
+export type ChartConnectorInfo = {
+  i_val: number;
+  isFirstVal: boolean;
+  isLastVal: boolean;
+  valueMin: number;
+  valueMax: number;
+  nVals: number;
+  nSerieses: number;
+  seriesValArrays: (number | undefined)[][];
+  i_pane: number;
+  nPanes: number;
+  i_tier: number;
+  nTiers: number;
+  i_lane: number;
+  nLanes: number;
+  // Endpoint info — parallel arrays describing each point on the connector,
+  // in series order, after gap filtering.
+  seriesIndices: number[];
+  seriesHeaders: string[];
+  values: number[];
+};
+
+export type ChartConnectorInfoFunc<T> = (info: ChartConnectorInfo) => T;
+
 export type MapRegionInfo = {
   featureId: string;
   value: number | undefined;

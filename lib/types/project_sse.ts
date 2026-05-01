@@ -7,7 +7,6 @@ import type {
   DirtyOrRunStatus,
   LastUpdateTableName,
 } from "./project_dirty_states.ts";
-import type { ReportSummary } from "./reports.ts";
 import type { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import type { VisualizationFolder } from "./visualization_folders.ts";
 
@@ -21,6 +20,7 @@ import type { VisualizationFolder } from "./visualization_folders.ts";
  */
 export type ProjectState = {
   isReady: boolean;
+  currentUserEmail: string;
 
   // From ProjectDetail
   id: string;
@@ -33,7 +33,6 @@ export type ProjectState = {
   commonIndicators: { id: string; label: string }[];
   visualizations: PresentationObjectSummary[];
   visualizationFolders: VisualizationFolder[];
-  reports: ReportSummary[];
   slideDecks: SlideDeckSummary[];
   slideDeckFolders: SlideDeckFolder[];
   projectUsers: ProjectUser[];
@@ -43,7 +42,6 @@ export type ProjectState = {
   projectLastUpdated: string;
   anyRunning: boolean;
   moduleDirtyStates: Record<string, DirtyOrRunStatus>;
-  anyModuleLastRun: string;
   moduleLastRun: Record<string, string>;
   moduleLastRunGitRef: Record<string, string>;
   lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
@@ -91,7 +89,6 @@ export type ProjectSseMessage =
       type: "visualization_folders_updated";
       data: { visualizationFolders: VisualizationFolder[] };
     }
-  | { type: "reports_updated"; data: { reports: ReportSummary[] } }
   | { type: "slide_decks_updated"; data: { slideDecks: SlideDeckSummary[] } }
   | {
       type: "slide_deck_folders_updated";

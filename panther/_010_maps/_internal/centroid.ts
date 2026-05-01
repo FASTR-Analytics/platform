@@ -100,3 +100,82 @@ export function computeScreenBBox(
   if (minX === Infinity) return undefined;
   return { minX, minY, maxX, maxY };
 }
+
+export function findExtremeBoundaryVertex(
+  geometry: GeoJSONGeometry,
+  fitted: FittedProjection,
+  side: "left" | "right",
+): { x: number; y: number } | undefined {
+  const polygons = getPolygonRings(geometry);
+  if (polygons.length === 0) return undefined;
+
+  let bestX: number | undefined;
+  let bestY: number | undefined;
+
+  for (const polygon of polygons) {
+    for (const ring of polygon) {
+      for (const coord of ring) {
+        const [sx, sy] = fitted.project(coord[0], coord[1]);
+        if (bestX === undefined) {
+          bestX = sx;
+          bestY = sy;
+        } else if (side === "left" && sx < bestX) {
+          bestX = sx;
+          bestY = sy;
+        } else if (side === "right" && sx > bestX) {
+          bestX = sx;
+          bestY = sy;
+        }
+      }
+    }
+  }
+
+  if (bestX === undefined || bestY === undefined) return undefined;
+  return { x: bestX, y: bestY };
+}
+
+export function findBoundaryIntersection(
+  geometry: GeoJSONGeometry,
+  fitted: FittedProjection,
+  side: "left" | "right",
+  atY: number,
+): { x: number; y: number } | undefined {
+  const polygons = getPolygonRings(geometry);
+  if (polygons.length === 0) return undefined;
+
+  let bestX: number | undefined;
+
+  for (const polygon of polygons) {
+    for (const ring of polygon) {
+      const screenRing = ring.map((coord) =>
+        fitted.project(coord[0], coord[1])
+      );
+
+      for (let i = 0; i < screenRing.length; i++) {
+        const [x1, y1] = screenRing[i];
+        const [x2, y2] = screenRing[(i + 1) % screenRing.length];
+
+        if (y1 === y2) continue;
+
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        if (atY < minY || atY > maxY) continue;
+
+        const t = (atY - y1) / (y2 - y1);
+        const intersectX = x1 + t * (x2 - x1);
+
+        if (bestX === undefined) {
+          bestX = intersectX;
+        } else if (side === "left") {
+          bestX = Math.min(bestX, intersectX);
+        } else {
+          bestX = Math.max(bestX, intersectX);
+        }
+      }
+    }
+  }
+
+  if (bestX === undefined) return undefined;
+
+  return { x: bestX, y: atY };
+}

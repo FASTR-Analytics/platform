@@ -19,6 +19,7 @@ import type {
   PptxSlide,
 } from "./types.ts";
 import { pixelsToInches, pixelsToPoints } from "./pptx_units.ts";
+import { mapFontForPptx } from "./font_mapping.ts";
 import { renderCoverSlide } from "./render_cover_slide.ts";
 import { renderSectionSlide } from "./render_section_slide.ts";
 import { renderFreeformSlide } from "./render_freeform_slide.ts";
@@ -100,7 +101,13 @@ function renderSlideFromMeasured(
       ];
 
     if (pageNumberStyle.background !== "none") {
-      renderPptxPageNumberBackground(slide, pageNumberStyle, mText, x, measured);
+      renderPptxPageNumberBackground(
+        slide,
+        pageNumberStyle,
+        mText,
+        x,
+        measured,
+      );
     }
 
     slide.addText(measured.item.pageNumber, {
@@ -110,7 +117,7 @@ function renderSlideFromMeasured(
       ),
       w: pixelsToInches(mText.dims.w()),
       h: pixelsToInches(mText.dims.h()),
-      fontFace: mText.ti.font.fontFamily,
+      fontFace: mapFontForPptx(mText.ti.font.fontFamily),
       fontSize: pixelsToPoints(mText.ti.fontSize),
       color: Color.toHexNoHash(mText.ti.color),
       align: alignH,

@@ -10,11 +10,12 @@ import {
   getBackgroundBaseColor,
   getColor,
   ImageRenderer,
+  isPatternConfig,
   MarkdownRenderer,
-  measureLogos,
   type MeasuredFreeformPage,
   type MeasuredLayoutNode,
   type MeasuredText,
+  measureLogos,
   Padding,
   type PageContentItem,
   RectCoordsDims,
@@ -32,6 +33,7 @@ import {
   pixelsToPoints,
   rcdToSlidePosition,
 } from "./pptx_units.ts";
+import { mapFontForPptx } from "./font_mapping.ts";
 import { addMeasuredMarkdownToSlide } from "./text_to_pptx.ts";
 
 export function renderFreeformSlide(
@@ -56,6 +58,33 @@ export function renderFreeformSlide(
     line: { color: Color.toHexNoHash(bgColor), width: 0 },
   });
 
+  // Split background
+  if (measured.splitImageBounds && measured.splitBackground) {
+    const splitBg = measured.splitBackground;
+    const splitColor = isPatternConfig(splitBg)
+      ? getColor(splitBg.baseColor)
+      : getColor(splitBg);
+    slide.addShape("rect", {
+      ...rcdToSlidePosition(measured.splitImageBounds),
+      fill: { color: Color.toHexNoHash(splitColor) },
+      line: { width: 0 },
+    });
+  }
+  if (measured.measuredSplitImage) {
+    const splitImg = measured.measuredSplitImage;
+    const imgDataUrl = imageToDataUrl(
+      splitImg.item.image as HTMLImageElement,
+      createCanvasRenderContext,
+    );
+    slide.addImage({
+      data: imgDataUrl,
+      x: pixelsToInches(splitImg.drawX),
+      y: pixelsToInches(splitImg.drawY),
+      w: pixelsToInches(splitImg.drawW),
+      h: pixelsToInches(splitImg.drawH),
+    });
+  }
+
   // Render header
   if (measured.header) {
     renderHeader(slide, measured, s, createCanvasRenderContext);
@@ -79,7 +108,7 @@ export function renderFreeformSlide(
       y: pixelsToInches(bounds.centerY() - mText.dims.h() / 2),
       w: pixelsToInches(bounds.w()),
       h: pixelsToInches(mText.dims.h()),
-      fontFace: mText.ti.font.fontFamily,
+      fontFace: mapFontForPptx(mText.ti.font.fontFamily),
       fontSize: pixelsToPoints(mText.ti.fontSize),
       color: watermarkColor.hexNoHash(),
       transparency: alpha < 1 ? (1 - alpha) * 100 : 0,
@@ -117,11 +146,11 @@ function renderHeader(
       createCanvasRenderContext,
     );
     const overlayFinalWidth = header.rcdHeaderOuter.w();
-    const overlayFinalHeight =
-      overlayFinalWidth * (inputs.overlay.height / inputs.overlay.width);
+    const overlayFinalHeight = overlayFinalWidth *
+      (inputs.overlay.height / inputs.overlay.width);
     if (overlayFinalHeight > header.rcdHeaderOuter.h()) {
-      const overlayFinalYOffset =
-        overlayFinalHeight - header.rcdHeaderOuter.h();
+      const overlayFinalYOffset = overlayFinalHeight -
+        header.rcdHeaderOuter.h();
       slide.addImage({
         data: overlayDataUrl,
         x: pixelsToInches(header.rcdHeaderOuter.x()),
@@ -131,8 +160,8 @@ function renderHeader(
       });
     } else {
       const finalHeight = header.rcdHeaderOuter.h();
-      const finalWidth =
-        finalHeight * (inputs.overlay.width / inputs.overlay.height);
+      const finalWidth = finalHeight *
+        (inputs.overlay.width / inputs.overlay.height);
       const xOffset = (finalWidth - header.rcdHeaderOuter.w()) / 2;
       slide.addImage({
         data: overlayDataUrl,
@@ -322,15 +351,14 @@ function renderContainerStyle(
   const borderWidthPts = pixelsToPoints(rs.borderWidth);
 
   const shapeType = rs.rectRadius > 0 ? "roundRect" : "rect";
-  const radiusOpts =
-    rs.rectRadius > 0
-      ? {
-          rectRadius: Math.min(
-            rs.rectRadius / (Math.min(renderBounds.w(), renderBounds.h()) / 2),
-            1,
-          ),
-        }
-      : {};
+  const radiusOpts = rs.rectRadius > 0
+    ? {
+      rectRadius: Math.min(
+        rs.rectRadius / (Math.min(renderBounds.w(), renderBounds.h()) / 2),
+        1,
+      ),
+    }
+    : {};
 
   if (hasBackground && hasBorder) {
     slide.addShape(shapeType, {
@@ -403,18 +431,17 @@ function addContentItem(
       dataUrl = imageItem.image;
     } else {
       // Support cover mode with source cropping
-      const crop =
-        measured.srcX !== undefined &&
-        measured.srcY !== undefined &&
-        measured.srcW !== undefined &&
-        measured.srcH !== undefined
-          ? {
-              sx: measured.srcX,
-              sy: measured.srcY,
-              sw: measured.srcW,
-              sh: measured.srcH,
-            }
-          : undefined;
+      const crop = measured.srcX !== undefined &&
+          measured.srcY !== undefined &&
+          measured.srcW !== undefined &&
+          measured.srcH !== undefined
+        ? {
+          sx: measured.srcX,
+          sy: measured.srcY,
+          sw: measured.srcW,
+          sh: measured.srcH,
+        }
+        : undefined;
       dataUrl = imageToDataUrl(
         imageItem.image,
         createCanvasRenderContext,
@@ -464,7 +491,7 @@ function addMeasuredTextToSlide(
     y: pixelsToInches(y),
     w: pixelsToInches(containerW),
     h: pixelsToInches(h),
-    fontFace: ti.font.fontFamily,
+    fontFace: mapFontForPptx(ti.font.fontFamily),
     fontSize: pixelsToPoints(ti.fontSize),
     color: Color.toHexNoHash(ti.color),
     bold: ti.font.weight >= 700,

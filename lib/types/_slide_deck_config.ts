@@ -2,8 +2,19 @@
 // Slide Deck Config — STORED SHAPE (slide_decks.config column)
 // =============================================================================
 
-import { LAYOUT_PRESET_IDS, TREATMENT_PRESET_IDS } from "@timroberton/panther";
+import { COLOR_PRESET_IDS, COVER_TREATMENT_IDS, FREEFORM_TREATMENT_IDS, LAYOUT_PRESET_IDS } from "@timroberton/panther";
 import { z } from "zod";
+import { BRAND_PRESET_IDS } from "../brand_presets.ts";
+import { SLIDE_FONT_FAMILIES } from "./_slide_fonts.ts";
+
+const ALL_PRESET_IDS = [...COLOR_PRESET_IDS, ...BRAND_PRESET_IDS] as const;
+
+const colorThemeSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("preset"), id: z.enum(ALL_PRESET_IDS) }),
+  z.object({ type: z.literal("custom"), primary: z.string() }),
+]);
+
+export type ColorThemeFromSchema = z.infer<typeof colorThemeSchema>;
 
 const logosSizingOptionsSchema = z.object({
   targetArea: z.number().optional(),
@@ -35,7 +46,7 @@ export const slideDeckConfigSchema = z.object({
   headerSize: z.number(),
   useWatermark: z.boolean(),
   watermarkText: z.string(),
-  primaryColor: z.string(),
+  colorTheme: colorThemeSchema,
   overlay: z.enum([
     "none",
     "dots", "rivers", "waves", "world",
@@ -43,7 +54,9 @@ export const slideDeckConfigSchema = z.object({
     "pattern-grid", "pattern-chevrons", "pattern-waves", "pattern-noise", "pattern-none",
   ]).optional(),
   layout: z.enum(LAYOUT_PRESET_IDS),
-  treatment: z.enum(TREATMENT_PRESET_IDS),
+  coverAndSectionTreatment: z.enum(COVER_TREATMENT_IDS),
+  freeformTreatment: z.enum(FREEFORM_TREATMENT_IDS),
+  fontFamily: z.enum(SLIDE_FONT_FAMILIES).optional(),
 });
 
 export type SlideDeckConfigFromSchema = z.infer<typeof slideDeckConfigSchema>;
@@ -85,9 +98,11 @@ const _completeDeckConfig: Required<SlideDeckConfig> = {
   headerSize: 1,
   useWatermark: false,
   watermarkText: "",
-  primaryColor: "",
+  colorTheme: { type: "preset", id: "teal" },
   overlay: "none",
   layout: "default",
-  treatment: "default",
+  coverAndSectionTreatment: "bold",
+  freeformTreatment: "classic",
+  fontFamily: "International Inter",
 };
 slideDeckConfigSchema.parse(_completeDeckConfig);
