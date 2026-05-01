@@ -1,3 +1,9 @@
+[TBD] [user] [fixed] - Fixed vertical axis label alignment on point charts
+[TBD] [user] [improved] - Improved real-time project updates and connection reliability
+[TBD] [admin] [internal] - Groundwork laid for improved real-time project sync system
+[TBD] [admin] [changed] - Removed redundant tracking of last module run timestamp
+[TBD] [admin] [fixed] - Vertical axis tick labels now align correctly for point charts
+[TBD] [admin] [changed] - User permission and role changes now update all connected users in real time
 [TBD] [user] [changed] - Reports feature has been removed from projects
 [TBD] [admin] [changed] - Legacy "Reports" feature has been fully removed from the platform
 [TBD] [user] [added] - Custom brand colors are now validated before saving slide deck settings
