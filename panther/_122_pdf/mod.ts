@@ -7,6 +7,5 @@ export { PdfRenderContext } from "./pdf_render_context.ts";
 export {
   injectKerningIntoJsPdf,
   patchJsPdfForKerning,
-  patchJsPdfForKerningCharByChar,
 } from "./inject_kerning.ts";
 export { pagesToPdf } from "./pages_to_pdf.ts";

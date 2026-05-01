@@ -5,7 +5,7 @@
 
 import { isUnique } from "../deps.ts";
 
-export function getGoodAxisTickValues_V2(
+export function getGoodAxisTickValues(
   maxValue: number,
   minValue: number,
   startingMaxNumberTicks: number,
@@ -30,7 +30,7 @@ export function getGoodAxisTickValues_V2(
   if (range <= epsilon) {
     const adjustedMax = maxValue === 0 ? 1 : maxValue * 1.1;
     const adjustedMin = minValue === 0 ? 0 : minValue * 0.9;
-    return getGoodAxisTickValues_V2(
+    return getGoodAxisTickValues(
       adjustedMax,
       adjustedMin,
       startingMaxNumberTicks,

@@ -131,63 +131,6 @@ export type ContentSurface = {
 };
 
 // =============================================================================
-// Legacy Types (keep for backwards compat during migration)
-// =============================================================================
-
-/** @deprecated Use PaletteSlot instead */
-export type TextOverride = {
-  color?: "primary" | "base100" | "base200" | "base300";
-  opacity?: number;
-};
-
-/** @deprecated Use CoverSurface instead */
-export type CoverSurfaceAssignment = {
-  background: "primary" | "base100" | "base200" | "base300";
-  title?: TextOverride;
-  subTitle?: TextOverride;
-  author?: TextOverride;
-  date?: TextOverride;
-};
-
-/** @deprecated Use SectionSurface instead */
-export type SectionSurfaceAssignment = {
-  background: "primary" | "base100" | "base200" | "base300";
-  title?: TextOverride;
-  subTitle?: TextOverride;
-};
-
-/** @deprecated Use HeaderSurface or FooterSurface instead */
-export type SurfaceAssignment = {
-  treatment: SurfaceTreatment;
-  background: "primary" | "base100" | "base200" | "base300";
-};
-
-/** @deprecated Use ContentSurface instead */
-export type ContentAssignment = {
-  treatment: "filled" | "none";
-  background: "primary" | "base100" | "base200" | "base300";
-};
-
-/** @deprecated Use SplitAdjustment instead */
-export type SplitBackgroundConfig =
-  | "primary"
-  | "base100"
-  | "base200"
-  | "base300"
-  | { adjustCoverBackground: { brighten?: number; darken?: number } }
-  | { adjustSectionBackground: { brighten?: number; darken?: number } };
-
-/** @deprecated Use SplitAdjustment instead */
-export type SplitSurfaceAssignment = {
-  background: SplitBackgroundConfig;
-};
-
-/** @deprecated Use SplitAdjustment instead */
-export type FreeformSplitAssignment = {
-  background: "primary" | "base100" | "base200" | "base300";
-};
-
-// =============================================================================
 // Resolved Style Types
 // =============================================================================
 

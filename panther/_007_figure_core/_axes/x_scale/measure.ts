@@ -11,7 +11,7 @@ import {
   type RenderContext,
 } from "../../deps.ts";
 import type { ChartScaleAxisLimits } from "../../types.ts";
-import { getGoodAxisTickValues_V2 } from "../get_good_axis_tick_values.ts";
+import { getGoodAxisTickValues } from "../get_good_axis_tick_values.ts";
 import type { XScaleAxisHeightInfo, XScaleAxisMeasuredInfo } from "./types.ts";
 
 export function estimateMinXAxisHeightForScale(
@@ -73,7 +73,7 @@ export function measureXScaleAxisHeightInfo(
       vMin = vMax;
       vMax = t;
     }
-    return getGoodAxisTickValues_V2(
+    return getGoodAxisTickValues(
       vMax,
       vMin,
       guessMaxNTicks,
