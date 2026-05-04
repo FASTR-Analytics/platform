@@ -20,14 +20,13 @@ import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { _SERVER_HOST } from "~/server_actions";
 import { SettingsForProjectDatasetHmis } from "./settings_for_project_dataset_hmis";
-import { useProjectDetail } from "~/components/project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 
 type Props = {
   isGlobalAdmin: boolean;
 };
 
 export function ProjectData(p: Props) {
-  const projectDetail = useProjectDetail();
   const { openEditor, EditorWrapper } = getEditorWrapper();
   return (
     <EditorWrapper>
@@ -38,9 +37,9 @@ export function ProjectData(p: Props) {
           <Switch>
             <Match
               when={
-                projectDetail.projectDatasets.find(
+                projectState.projectDatasets.find(
                   (d) => d.datasetType === "hmis"
-                ) as Extract<typeof projectDetail.projectDatasets[number], { datasetType: "hmis" }> | undefined
+                ) as Extract<typeof projectState.projectDatasets[number], { datasetType: "hmis" }> | undefined
               }
               keyed
             >
@@ -99,7 +98,7 @@ export function ProjectData(p: Props) {
                   await openEditor({
                     element: SettingsForProjectDatasetHmis,
                     props: {
-                      projectDetail: projectDetail,
+                      projectState: projectState,
                       facilityColumns: instanceState.facilityColumns,
                       indicatorMappingsVersion:
                         instanceState.indicatorMappingsVersion,
@@ -111,7 +110,7 @@ export function ProjectData(p: Props) {
 
                 const disableDataset = timActionButton(() =>
                   serverActions.removeDatasetFromProject({
-                    projectId: projectDetail.id,
+                    projectId: projectState.id,
                     dataset_type: "hmis",
                   }),
                 );
@@ -129,12 +128,12 @@ export function ProjectData(p: Props) {
                       </div>
                       <Show
                         when={
-                          !projectDetail.isLocked && p.isGlobalAdmin
+                          !projectState.isLocked && p.isGlobalAdmin
                         }
                       >
                         <div class="ui-gap-sm flex">
                           <Button
-                            href={`${_SERVER_HOST}/${projectDetail.id}/datasets/hmis.csv?t=${Date.now()}`}
+                            href={`${_SERVER_HOST}/${projectState.id}/datasets/hmis.csv?t=${Date.now()}`}
                             download={`hmis.csv`}
                             outline
                           >
@@ -316,7 +315,7 @@ export function ProjectData(p: Props) {
                   await openEditor({
                     element: SettingsForProjectDatasetHmis,
                     props: {
-                      projectDetail: projectDetail,
+                      projectState: projectState,
                       facilityColumns: instanceState.facilityColumns,
                       indicatorMappingsVersion:
                         instanceState.indicatorMappingsVersion,
@@ -334,7 +333,7 @@ export function ProjectData(p: Props) {
                       <div class="">
                         <Show
                           when={
-                            !projectDetail.isLocked && p.isGlobalAdmin
+                            !projectState.isLocked && p.isGlobalAdmin
                           }
                           fallback={
                             <div class="font-400 text-neutral text-sm">
@@ -361,9 +360,9 @@ export function ProjectData(p: Props) {
           <Switch>
             <Match
               when={
-                projectDetail.projectDatasets.find(
+                projectState.projectDatasets.find(
                   (d) => d.datasetType === "hfa"
-                ) as Extract<typeof projectDetail.projectDatasets[number], { datasetType: "hfa" }> | undefined
+                ) as Extract<typeof projectState.projectDatasets[number], { datasetType: "hfa" }> | undefined
               }
               keyed
             >
@@ -427,14 +426,14 @@ export function ProjectData(p: Props) {
 
                 const disableDataset = timActionButton(() =>
                   serverActions.removeDatasetFromProject({
-                    projectId: projectDetail.id,
+                    projectId: projectState.id,
                     dataset_type: "hfa",
                   }),
                 );
 
                 const updateData = timActionButton(() =>
                   serverActions.addDatasetToProject({
-                    projectId: projectDetail.id,
+                    projectId: projectState.id,
                     datasetType: "hfa",
                     windowing: undefined,
                   }),
@@ -453,7 +452,7 @@ export function ProjectData(p: Props) {
                       </div>
                       <Show
                         when={
-                          !projectDetail.isLocked && p.isGlobalAdmin
+                          !projectState.isLocked && p.isGlobalAdmin
                         }
                       >
                         <div class="ui-gap-sm flex">
@@ -512,7 +511,7 @@ export function ProjectData(p: Props) {
                   }
 
                   return await serverActions.addDatasetToProject({
-                    projectId: projectDetail.id,
+                    projectId: projectState.id,
                     datasetType: "hfa",
                     windowing: undefined,
                   });
@@ -527,7 +526,7 @@ export function ProjectData(p: Props) {
                       <div class="">
                         <Show
                           when={
-                            !projectDetail.isLocked && p.isGlobalAdmin
+                            !projectState.isLocked && p.isGlobalAdmin
                           }
                           fallback={
                             <div class="font-400 text-neutral text-sm">

@@ -3,6 +3,7 @@ import {
   // _ID_FOR_PO_LISTING,
   ProjectSseUpdateMessage,
 } from "lib";
+import { notifyProjectLastUpdatedV2 } from "./notify_project_v2.ts";
 
 const broadcastDirtyStates = new BroadcastChannel("dirty_states");
 
@@ -29,6 +30,7 @@ export function notifyLastUpdated(
     lastUpdated,
   };
   broadcastDirtyStates.postMessage(bm1);
+  notifyProjectLastUpdatedV2(projectId, tableName, ids, lastUpdated);
 }
 
 // let _LAST_UPDATED_PO_LISTING = new Date().toISOString();

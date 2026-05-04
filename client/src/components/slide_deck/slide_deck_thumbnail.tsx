@@ -5,7 +5,7 @@ import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to
 import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { serverActions } from "~/server_actions";
-import { useProjectDetail, useProjectDirtyStates } from "../project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 
 const _defaultConfig = getStartingConfigForSlideDeck("");
 
@@ -16,18 +16,15 @@ type Props = {
 };
 
 export function SlideDeckThumbnail(p: Props) {
-  const projectDetail = useProjectDetail();
-  const pds = useProjectDirtyStates();
-
   const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
     msg: t3({ en: "Loading...", fr: "Chargement..." }),
   });
 
   createEffect(async () => {
-    pds.lastUpdated.slide_decks[p.deckId];
-    pds.lastUpdated.slides[p.slideId];
-    const deck = projectDetail.slideDecks.find((d) => d.id === p.deckId);
+    projectState.lastUpdated.slide_decks[p.deckId];
+    projectState.lastUpdated.slides[p.slideId];
+    const deck = projectState.slideDecks.find((d) => d.id === p.deckId);
     const config = deck?.config ?? _defaultConfig;
     trackDeep(config);
 

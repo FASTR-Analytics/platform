@@ -1,5 +1,4 @@
 import {
-  ProjectDetail,
   ProjectUser,
   PROJECT_PERMISSIONS,
   PROJECT_PERMISSION_LABELS,
@@ -35,10 +34,7 @@ import { CopyProjectForm } from "./copy_project";
 import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";
 import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
-import {
-  useProjectDetail,
-  useRefetchProjectDetail,
-} from "~/components/project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 
 // Backup types
 interface BackupFileInfo {
@@ -75,15 +71,13 @@ type Props = {
 };
 
 export function ProjectSettings(p: Props) {
-  const projectDetail = useProjectDetail();
-  const refetchProjectDetail = useRefetchProjectDetail();
   // Actions
 
   async function attemptCopyProject() {
     const res = await openComponent({
       element: CopyProjectForm,
       props: {
-        projectId: projectDetail.id,
+        projectId: projectState.id,
       },
     });
     if (res) {
@@ -106,13 +100,13 @@ export function ProjectSettings(p: Props) {
           en: "Edit project name",
           fr: "Modifier le nom du projet",
         }),
-        existingLabel: projectDetail.label,
+        existingLabel: projectState.label,
         mutateFunc: (newLabel) =>
           serverActions.updateProject({
-            project_id: projectDetail.id,
-            projectId: projectDetail.id,
+            project_id: projectState.id,
+            projectId: projectState.id,
             label: newLabel,
-            aiContext: projectDetail.aiContext,
+            aiContext: projectState.aiContext,
           }),
       },
     });
@@ -126,12 +120,12 @@ export function ProjectSettings(p: Props) {
           en: "Edit project context",
           fr: "Modifier le contexte du projet",
         }),
-        existingLabel: projectDetail.aiContext,
+        existingLabel: projectState.aiContext,
         mutateFunc: (newAiContext) =>
           serverActions.updateProject({
-            project_id: projectDetail.id,
-            projectId: projectDetail.id,
-            label: projectDetail.label,
+            project_id: projectState.id,
+            projectId: projectState.id,
+            label: projectState.label,
             aiContext: newAiContext,
           }),
         textArea: true,
@@ -143,10 +137,9 @@ export function ProjectSettings(p: Props) {
     await openComponent({
       element: SelectProjectUserRole,
       props: {
-        projectId: projectDetail.id,
-        projectLabel: projectDetail.label,
+        projectId: projectState.id,
+        projectLabel: projectState.label,
         users,
-        silentFetch: refetchProjectDetail,
       },
     });
   }
@@ -156,9 +149,8 @@ export function ProjectSettings(p: Props) {
     await openComponent({
       element: BulkEditProjectPermissionsForm,
       props: {
-        projectId: projectDetail.id,
+        projectId: projectState.id,
         emails,
-        silentFetch: refetchProjectDetail,
       },
     });
   }
@@ -167,7 +159,7 @@ export function ProjectSettings(p: Props) {
     await openComponent({
       element: DisplayProjectUserRole,
       props: {
-        projectId: projectDetail.id,
+        projectId: projectState.id,
         user,
       },
     });
@@ -176,8 +168,8 @@ export function ProjectSettings(p: Props) {
   const lockProject = timActionButton(
     () =>
       serverActions.setProjectLockStatus({
-        project_id: projectDetail.id,
-        projectId: projectDetail.id,
+        project_id: projectState.id,
+        projectId: projectState.id,
         lockAction: "lock",
       }),
     async () => {},
@@ -186,8 +178,8 @@ export function ProjectSettings(p: Props) {
   const unlockProject = timActionButton(
     () =>
       serverActions.setProjectLockStatus({
-        project_id: projectDetail.id,
-        projectId: projectDetail.id,
+        project_id: projectState.id,
+        projectId: projectState.id,
         lockAction: "unlock",
       }),
     async () => {},
@@ -200,12 +192,12 @@ export function ProjectSettings(p: Props) {
           en: "Are you sure you want to delete this project?",
           fr: "Êtes-vous sûr de vouloir supprimer ce projet ?",
         }),
-        itemList: [projectDetail.label],
+        itemList: [projectState.label],
       },
       () =>
         serverActions.deleteProject({
-          project_id: projectDetail.id,
-          projectId: projectDetail.id,
+          project_id: projectState.id,
+          projectId: projectState.id,
         }),
       async () => {},
       p.backToHome,
@@ -228,20 +220,20 @@ export function ProjectSettings(p: Props) {
         <SettingsSection
           header={t3({ en: "Project name", fr: "Nom du projet" })}
           rightChildren={
-            <Show when={!projectDetail.isLocked}>
+            <Show when={!projectState.isLocked}>
               <Button onClick={attemptUpdateProjectLabel} iconName="settings">
                 {t3(TC.edit)}
               </Button>
             </Show>
           }
         >
-          <div class="">{projectDetail.label}</div>
+          <div class="">{projectState.label}</div>
         </SettingsSection>
         <SettingsSection
           header={t3({ en: "Project users", fr: "Utilisateurs du projet" })}
         >
           <ProjectUserTable
-            users={projectDetail.projectUsers}
+            users={projectState.projectUsers}
             onUserClick={attemptSelectUserRole}
             onBulkEditPermissions={attemptBulkEditPermissions}
             onDisplayUserRole={attemptDisplayUserRole}
@@ -253,7 +245,7 @@ export function ProjectSettings(p: Props) {
             fr: "Contexte du projet pour l'interprétation de l'IA",
           })}
           rightChildren={
-            <Show when={!projectDetail.isLocked}>
+            <Show when={!projectState.isLocked}>
               <Button
                 onClick={attemptUpdateProjectAiContext}
                 iconName="settings"
@@ -264,13 +256,13 @@ export function ProjectSettings(p: Props) {
           }
         >
           <div class="">
-            {projectDetail.aiContext ||
+            {projectState.aiContext ||
               t3({ en: "No context set", fr: "Aucun contexte défini" })}
           </div>
         </SettingsSection>
 
         <Switch>
-          <Match when={projectDetail.isLocked}>
+          <Match when={projectState.isLocked}>
             <SettingsSection
               header={t3({
                 en: "Project lock status",
@@ -298,7 +290,7 @@ export function ProjectSettings(p: Props) {
               </div>
             </SettingsSection>
           </Match>
-          <Match when={!projectDetail.isLocked}>
+          <Match when={!projectState.isLocked}>
             <SettingsSection
               header={t3({
                 en: "Project lock status",
@@ -326,11 +318,11 @@ export function ProjectSettings(p: Props) {
         </Switch>
 
         <SettingsSection header={t3({ en: "Backups", fr: "Sauvegardes" })}>
-          <ProjectBackups projectId={projectDetail.id} />
+          <ProjectBackups projectId={projectState.id} />
         </SettingsSection>
 
         <div class="ui-gap flex">
-          <Show when={!projectDetail.isLocked}>
+          <Show when={!projectState.isLocked}>
             <Button
               onClick={attemptDeleteProject}
               intent="danger"

@@ -6,7 +6,8 @@ import { instanceState } from "~/state/instance/t1_store";
 import { ConsolidatedChatPane } from "./chat_pane";
 import { buildToolsForContext } from "./build_tools";
 import { buildSystemPromptForContext } from "./build_system_prompt";
-import { useProjectDetail, useLastUpdatedListener } from "~/components/project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
+import { addLastUpdatedListener } from "~/state/project/t1_sse";
 import { showAi, setShowAi } from "~/state/t4_ui";
 import { useAIDocuments } from "./ai_documents";
 
@@ -25,9 +26,7 @@ export function AIProjectWrapper(props: ParentProps) {
 
 function AIProjectWrapperInner(props: ParentProps) {
   const { aiContext, notifyAI, getPendingInteractionsMessage, clearPendingInteractions } = useAIProjectContext();
-  const projectDetail = useProjectDetail();
-  const addListener = useLastUpdatedListener();
-  const projectId = projectDetail.id;
+  const projectId = projectState.id;
 
   const sdkClient = createProjectSDKClient(projectId);
 
@@ -36,10 +35,10 @@ function AIProjectWrapperInner(props: ParentProps) {
   const tools = createMemo(() => {
     // console.log("[WRAPPER] tools memo recomputing, aiContext mode:", aiContext().mode);
     // Touch all properties used by tools (bespoke reader pattern)
-    projectDetail.projectModules.forEach(m => {
+    projectState.projectModules.forEach(m => {
       const _v = m.id + m.label + m.hasParameters + m.presentationDefUpdatedAt + m.lastRunAt + m.dirty;
     });
-    projectDetail.metrics.forEach(m => {
+    projectState.metrics.forEach(m => {
       const _v = m.status + m.moduleId + m.label + m.variantLabel + m.id + m.formatAs;
       m.valueProps.forEach(p => { const _vp = p; });
       if (m.valueLabelReplacements) {
@@ -60,21 +59,21 @@ function AIProjectWrapperInner(props: ParentProps) {
     });
 
     // Visualizations
-    projectDetail.visualizations.forEach(v => {
+    projectState.visualizations.forEach(v => {
       const _v = v.id + v.label;
     });
 
     // Slide decks
-    projectDetail.slideDecks.forEach(d => {
+    projectState.slideDecks.forEach(d => {
       const _v = d.id + d.label;
     });
 
     return buildToolsForContext({
       projectId,
-      modules: projectDetail.projectModules,
-      metrics: projectDetail.metrics,
-      visualizations: projectDetail.visualizations,
-      slideDecks: projectDetail.slideDecks,
+      modules: projectState.projectModules,
+      metrics: projectState.metrics,
+      visualizations: projectState.visualizations,
+      slideDecks: projectState.slideDecks,
       aiContext: aiContext,
     });
   });
@@ -83,13 +82,13 @@ function AIProjectWrapperInner(props: ParentProps) {
     buildSystemPromptForContext(
       aiContext(),
       instanceState,
-      projectDetail
+      projectState
     )
   );
 
   // Subscribe to SSE changes - track ALL changes, filter later in reducer
   onMount(() => {
-    const cleanup = addListener((tableName, ids, timestamp) => {
+    const cleanup = addLastUpdatedListener((tableName, ids, timestamp) => {
       // Slides - always notify (reducer filters by deck)
       if (tableName === "slides") {
         ids.forEach(id => {
@@ -101,7 +100,7 @@ function AIProjectWrapperInner(props: ParentProps) {
       // Presentation objects (visualizations) - always notify
       if (tableName === "presentation_objects") {
         ids.forEach(id => {
-          const viz = projectDetail.visualizations.find(v => v.id === id);
+          const viz = projectState.visualizations.find(v => v.id === id);
           if (viz) {
             notifyAI({
               type: "custom",

@@ -463,15 +463,30 @@ In `components/project/index.tsx`:
 
 Update all files that import from `~/components/project_runner/mod` to import from the new locations:
 
-| Old import | New import |
-|------------|------------|
+| Old accessor | New import |
+|--------------|------------|
 | `useProjectDetail()` | `projectState` from `~/state/project/t1_store` |
 | `useProjectDirtyStates()` | `projectState` from `~/state/project/t1_store` (same object) |
+| `useAnyRunning()` | `projectState.anyRunning` from `~/state/project/t1_store` |
 | `getGlobalPDSSnapshot()` | `getProjectStateSnapshot()` from `~/state/project/t1_store` |
+| `useOptimisticSetLastUpdated()` | `setLastUpdated` from `~/state/project/t1_store` (add to store) |
+| `useOptimisticSetProjectLastUpdated()` | `setProjectLastUpdated` from `~/state/project/t1_store` (add to store) |
 | `useLastUpdatedListener(fn)` | `addLastUpdatedListener(fn)` in `onMount`, cleanup in `onCleanup` |
 | `useRLogs()` | See 8.4 below |
 
-Consumer files (from Phase 0.2):
+**Pre-requisite:** Add optimistic write functions to `t1_store.ts`:
+```ts
+export function setLastUpdated(tableName: LastUpdateTableName, id: string, timestamp: string): void {
+  setProjectState("lastUpdated", tableName, id, timestamp);
+}
+
+export function setProjectLastUpdated(timestamp: string): void {
+  setProjectState("projectLastUpdated", timestamp);
+}
+```
+
+Consumer files (updated — 20 total):
+- `components/DirtyStatus.tsx`
 - `project/index.tsx`
 - `project/project_cache.tsx`
 - `project/project_data.tsx`
@@ -488,17 +503,32 @@ Consumer files (from Phase 0.2):
 - `slide_deck/index.tsx`
 - `slide_deck/slide_card.tsx`
 - `slide_deck/slide_deck_thumbnail.tsx`
+- `slide_deck/slide_editor/index.tsx`
+- `slide_deck/slide_list.tsx`
+- `visualization/visualization_editor_inner.tsx`
 
 Cross-cutting:
 - `state/_infra/reactive_cache.ts` — `getGlobalPDSSnapshot` → `getProjectStateSnapshot`
-- Files importing from `global_module_maps.ts` — use `getModuleIdForMetric` etc. from `t1_store`
+- `state/caches/visualizations.ts` — `getModuleIdForMetric`, `getModuleIdForResultsObject` → import from `t1_store`
+- `generate_visualization/strip_figure_inputs.ts` — `getFormatAsForMetric` → import from `t1_store`
 
 ### 8.3 Handle `refetchProjectDetail` call sites
 
 Three current sites (fourth is inside Provider, disappears with it):
 
-- **`project_decks.tsx` (load-bearing `await`)** — add `awaitNextProjectStoreUpdate(predicate)` primitive to `t1_sse.tsx`. Returns Promise resolving on next matching SSE event. Replace `await refetchProjectDetail()` with `await awaitNextProjectStoreUpdate(m => m.type === "slide_decks_updated")`.
+- **`project_decks.tsx` (load-bearing `await`)** — replace `await refetchProjectDetail()` with `await awaitNextProjectStoreUpdate(m => m.type === "slide_decks_updated")`.
 - **`project_settings.tsx` (two cosmetic callbacks)** — delete the `silentFetch` callbacks; SSE updates the store reactively.
+
+**Pre-requisite:** Implement `awaitNextProjectStoreUpdate(predicate)` in `t1_sse.tsx`:
+```ts
+export function awaitNextProjectStoreUpdate(
+  predicate: (msg: ProjectSseMessage) => boolean
+): Promise<void> {
+  return new Promise((resolve) => {
+    // Subscribe to SSE message stream, resolve when predicate matches
+  });
+}
+```
 
 ### 8.4 Demote rLogs to T5 (component-local)
 

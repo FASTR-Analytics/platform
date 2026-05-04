@@ -11,6 +11,7 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   currentUserEmail: "",
   id: "",
   label: "",
+  aiContext: "",
   thisUserRole: "viewer",
   isLocked: false,
   projectDatasets: [],

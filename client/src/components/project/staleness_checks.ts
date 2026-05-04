@@ -2,14 +2,14 @@ import {
   hashFacilityColumnsConfig,
   type InstanceState,
   type ModuleLatestCommit,
-  type ProjectDetail,
+  type ProjectState,
 } from "lib";
 
 export function checkDataNeedsUpdate(
-  projectDetail: ProjectDetail,
+  projectState: ProjectState,
   instanceState: InstanceState,
 ): boolean {
-  const hmis = projectDetail.projectDatasets.find((d) => d.datasetType === "hmis");
+  const hmis = projectState.projectDatasets.find((d) => d.datasetType === "hmis");
   if (hmis && hmis.datasetType === "hmis") {
     const info = hmis.info;
     const instVersion = instanceState.datasetVersions.hmis;
@@ -30,7 +30,7 @@ export function checkDataNeedsUpdate(
     ) return true;
   }
 
-  const hfa = projectDetail.projectDatasets.find((d) => d.datasetType === "hfa");
+  const hfa = projectState.projectDatasets.find((d) => d.datasetType === "hfa");
   if (hfa && hfa.datasetType === "hfa") {
     const info = hfa.info;
     if (!info.hfaCacheHash) return false;
@@ -44,7 +44,7 @@ export function checkDataNeedsUpdate(
 }
 
 export function checkModulesNeedUpdate(
-  projectModules: ProjectDetail["projectModules"],
+  projectModules: ProjectState["projectModules"],
   moduleLatestCommits: ModuleLatestCommit[] | undefined,
 ): boolean {
   if (!moduleLatestCommits) return false;

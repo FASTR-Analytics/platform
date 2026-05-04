@@ -7,7 +7,7 @@ import {
   hashFetchConfig,
   type DisaggregationOption,
 } from "lib";
-import { getModuleIdForMetric, getModuleIdForResultsObject } from "~/components/project_runner/global_module_maps";
+import { getModuleIdForMetric, getModuleIdForResultsObject } from "~/state/project/t1_store";
 import { createReactiveCache } from "../_infra/reactive_cache";
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -13,7 +13,7 @@ import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "./add_visualization";
 import { getPODetailFromCacheorFetch } from "~/state/po_cache";
 import { updateProjectView } from "~/state/t4_ui";
-import { useProjectDetail } from "~/components/project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 
@@ -25,14 +25,13 @@ type Props = {
 };
 
 export function ProjectVisualizations(p: Props) {
-  const projectDetail = useProjectDetail();
   const [searchText, setSearchText] = createSignal<string>("");
   const { aiContext } = useAIProjectContext();
 
   async function openVisualizationEditor(po: PresentationObjectSummary) {
     if (po.isDefault) {
       const poDetailRes = await getPODetailFromCacheorFetch(
-        projectDetail.id,
+        projectState.id,
         po.id,
       );
       if (poDetailRes.success === false) {
@@ -47,12 +46,12 @@ export function ProjectVisualizations(p: Props) {
         element: VisualizationEditor,
         props: {
           mode: "create" as const,
-          projectId: projectDetail.id,
+          projectId: projectState.id,
           label: `${t3({ en: "Copy of", fr: "Copie de" })} ${poDetailRes.data.label}`,
           isGlobalAdmin: p.isGlobalAdmin,
           returnToContext: aiContext(),
           ...snapshotForVizEditor({
-            projectDetail,
+            projectState,
 
             resultsValue: poDetailRes.data.resultsValue,
             config: poDetailRes.data.config,
@@ -61,7 +60,7 @@ export function ProjectVisualizations(p: Props) {
       });
 
       if (result?.created) {
-        // SSE will update projectDetail automatically
+        // SSE will update projectState automatically
         updateProjectView({
           vizGroupingMode: "folders",
           vizSelectedGroup: result.created.folderId === null ? "_unfiled" : result.created.folderId,
@@ -74,27 +73,27 @@ export function ProjectVisualizations(p: Props) {
       element: VisualizationEditor,
       props: {
         mode: "edit" as const,
-        projectId: projectDetail.id,
+        projectId: projectState.id,
         presentationObjectId: po.id,
         isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
         ...snapshotForVizEditor({
-          projectDetail,
+          projectState,
 
         }),
       },
     });
-    // SSE will update projectDetail automatically
+    // SSE will update projectState automatically
   }
 
   async function attempAddPresentationObject() {
     const res = await openComponent({
       element: AddVisualization,
       props: {
-        projectId: projectDetail.id,
+        projectId: projectState.id,
         isGlobalAdmin: p.isGlobalAdmin,
-        metrics: projectDetail.metrics,
-        modules: projectDetail.projectModules,
+        metrics: projectState.metrics,
+        modules: projectState.projectModules,
       },
     });
     if (res === undefined) {
@@ -105,12 +104,12 @@ export function ProjectVisualizations(p: Props) {
       element: VisualizationEditor,
       props: {
         mode: "create" as const,
-        projectId: projectDetail.id,
+        projectId: projectState.id,
         label: res.label,
         isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
         ...snapshotForVizEditor({
-          projectDetail,
+          projectState,
 
           resultsValue: res.resultsValue,
           config: res.config,
@@ -123,9 +122,9 @@ export function ProjectVisualizations(p: Props) {
   //   const res = await openComponent({
   //     element: CreateVisualizationFromPromptModal,
   //     props: {
-  //       projectId: projectDetail.id,
+  //       projectId: projectState.id,
   //       instanceDetail: p.instanceDetail,
-  //       projectDetail: projectDetail,
+  //       projectState: projectState,
   //     },
   //   });
   //   if (res === undefined) {
@@ -136,12 +135,12 @@ export function ProjectVisualizations(p: Props) {
   //     element: VisualizationEditor,
   //     props: {
   //       mode: "create" as const,
-  //       projectId: projectDetail.id,
+  //       projectId: projectState.id,
   //       label: res.label,
   //       resultsValue: res.resultsValue,
   //       config: res.config,
   //       instanceDetail: p.instanceDetail,
-  //       projectDetail: projectDetail,
+  //       projectState: projectState,
   //       isGlobalAdmin: p.isGlobalAdmin,
   //     },
   //   });
@@ -149,7 +148,7 @@ export function ProjectVisualizations(p: Props) {
 
   // async function attemptBackupPresentationObjects() {
   //   const res = await serverActions.backupPresentationObjects({
-  //     projectId: p.projectDetail.id,
+  //     projectId: p.projectState.id,
   //   });
   //   if (res.success === false) {
   //     await openAlert({ text: t("Backup failed"), intent: "danger" });
@@ -173,8 +172,8 @@ export function ProjectVisualizations(p: Props) {
         >
           <Show
             when={
-              !projectDetail.isLocked &&
-              projectDetail.projectModules.length > 0
+              !projectState.isLocked &&
+              projectState.projectModules.length > 0
             }
           >
             <div class="flex items-center ui-gap-sm">
@@ -190,7 +189,7 @@ export function ProjectVisualizations(p: Props) {
       }
     >
       <Show
-        when={projectDetail.projectModules.length > 0}
+        when={projectState.projectModules.length > 0}
         fallback={
           <div class="ui-pad text-neutral text-sm">
             {t3({ en: "You need to enable at least one module to create visualizations", fr: "Vous devez activer au moins un module pour créer des visualisations" })}
@@ -198,7 +197,7 @@ export function ProjectVisualizations(p: Props) {
         }
       >
         <PresentationObjectPanelDisplay
-          projectDetail={projectDetail}
+          projectState={projectState}
           searchText={searchText().trim()}
           onClick={openVisualizationEditor}
         />

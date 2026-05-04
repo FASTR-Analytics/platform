@@ -3,7 +3,7 @@ import type { DeckStyleContext, PresentationObjectConfig } from "lib";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { getStyleFromPresentationObject } from "./get_style_from_po";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
-import { getFormatAsForMetric } from "~/components/project_runner/global_module_maps";
+import { getFormatAsForMetric } from "~/state/project/t1_store";
 
 export function stripFigureInputsForStorage(fi: FigureInputs): FigureInputs {
   const stripped: any = { ...fi, style: undefined };

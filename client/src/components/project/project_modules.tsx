@@ -1,6 +1,5 @@
 import {
   InstalledModuleSummary,
-  ProjectDetail,
   getPossibleModules,
   t3,
   TC,
@@ -18,17 +17,13 @@ import {
   showMenu,
   timActionButton,
 } from "panther";
-import { createMemo, createSignal, For, Match, onMount, Show, Switch } from "solid-js";
+import { createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { createStore } from "solid-js/store";
 import { moduleLatestCommits, setModuleLatestCommits } from "~/state/t4_ui";
 import { getInstanceCountryIso3 } from "~/state/instance/t1_store";
+import { projectState } from "~/state/project/t1_store";
+import { addRScriptListener } from "~/state/project/t1_sse";
 import { DirtyStatus } from "~/components/DirtyStatus";
-import {
-  useOptimisticSetLastUpdated,
-  useOptimisticSetProjectLastUpdated,
-  useProjectDirtyStates,
-  useRLogs,
-  useProjectDetail,
-} from "~/components/project_runner/mod";
 import { serverActions } from "~/server_actions";
 import { SettingsForProjectModuleGeneric } from "../project_module_settings/settings_generic";
 import { ViewFiles } from "./view_files";
@@ -45,7 +40,6 @@ type Props = {
 };
 
 export function ProjectModules(p: Props) {
-  const projectDetail = useProjectDetail();
   const { openEditor, EditorWrapper } = getEditorWrapper();
   const [checkingUpdates, setCheckingUpdates] = createSignal(false);
   const [checkError, setCheckError] = createSignal<string | undefined>(undefined);
@@ -77,7 +71,7 @@ export function ProjectModules(p: Props) {
     const commits = moduleLatestCommits();
     if (!commits) return 0;
     let count = 0;
-    for (const mod of projectDetail.projectModules) {
+    for (const mod of projectState.projectModules) {
       const entry = commits.find((c) => c.moduleId === mod.id);
       if (
         entry &&
@@ -93,8 +87,8 @@ export function ProjectModules(p: Props) {
     await openComponent({
       element: UpdateAllModules,
       props: {
-        projectId: projectDetail.id,
-        modules: projectDetail.projectModules,
+        projectId: projectState.id,
+        modules: projectState.projectModules,
       },
     });
   }
@@ -136,8 +130,8 @@ export function ProjectModules(p: Props) {
               </Button>
               <Show
                 when={
-                  !projectDetail.isLocked &&
-                  projectDetail.projectModules.length > 0 &&
+                  !projectState.isLocked &&
+                  projectState.projectModules.length > 0 &&
                   (p.isGlobalAdmin || p.canConfigureModules)
                 }
               >
@@ -155,7 +149,7 @@ export function ProjectModules(p: Props) {
               return (
                 <Switch>
                   <Match
-                    when={projectDetail.projectModules.find(
+                    when={projectState.projectModules.find(
                       (m) => m.id === possibleModuleDef.id,
                     )}
                     keyed
@@ -163,14 +157,13 @@ export function ProjectModules(p: Props) {
                     {(keyedInstalledModule) => {
                       return (
                         <InstalledModulePresentation
-                          projectDetail={projectDetail}
-                          projectId={projectDetail.id}
+                          projectId={projectState.id}
                           isGlobalAdmin={p.isGlobalAdmin}
                           canConfigureModules={p.canConfigureModules}
                           canRunModules={p.canRunModules}
                           canViewScriptCode={p.canViewScriptCode}
                           thisInstalledModule={keyedInstalledModule}
-                          allInstalledModules={projectDetail.projectModules}
+                          allInstalledModules={projectState.projectModules}
                           openEditor={openEditor}
                         />
                       );
@@ -178,8 +171,7 @@ export function ProjectModules(p: Props) {
                   </Match>
                   <Match when={true}>
                     <UninstalledModulePresentation
-                      projectDetail={projectDetail}
-                      projectId={projectDetail.id}
+                      projectId={projectState.id}
                       isGlobalAdmin={p.isGlobalAdmin}
                       canConfigureModules={p.canConfigureModules}
                       thisUninstalledModuleId={possibleModuleDef.id}
@@ -187,7 +179,7 @@ export function ProjectModules(p: Props) {
                       thisUninstalledModulePrerequisiteModules={
                         possibleModuleDef.prerequisiteModules
                       }
-                      currentModules={projectDetail.projectModules}
+                      currentModules={projectState.projectModules}
                     />
                   </Match>
                 </Switch>
@@ -211,7 +203,6 @@ export function ProjectModules(p: Props) {
 
 type InstalledModuleProps = {
   projectId: string;
-  projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
   canConfigureModules: boolean;
   canRunModules: boolean;
@@ -224,8 +215,14 @@ type InstalledModuleProps = {
 };
 
 function InstalledModulePresentation(p: InstalledModuleProps) {
-  const pds = useProjectDirtyStates();
-  const rLogs = useRLogs();
+  const [rLogs, setRLogs] = createStore<Record<string, { latest: string }>>({});
+
+  onMount(() => {
+    const unsubscribe = addRScriptListener((moduleId, text) => {
+      setRLogs(moduleId, { latest: text });
+    });
+    onCleanup(unsubscribe);
+  });
 
   const hasUpdateAvailable = createMemo(() => {
     const commits = moduleLatestCommits();
@@ -251,7 +248,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
       element: SettingsForProjectModuleGeneric,
       props: {
         projectId: p.projectId,
-        projectIsLocked: p.projectDetail.isLocked,
+        projectIsLocked: projectState.isLocked,
         installedModuleId: p.thisInstalledModule.id,
         installedModuleLabel: p.thisInstalledModule.label,
         moduleLabel: p.thisInstalledModule.label,
@@ -283,7 +280,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
     const _res = await openComponent({
       element: UpdateModule,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: p.projectId,
         moduleId: p.thisInstalledModule.id,
       },
     });
@@ -295,7 +292,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
     const _res = await p.openEditor({
       element: ViewFiles,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: p.projectId,
         moduleId: p.thisInstalledModule.id,
         moduleLabel: p.thisInstalledModule.label,
         resultsObjectIds:
@@ -308,7 +305,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
     const _res = await p.openEditor({
       element: ViewLogs,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: p.projectId,
         moduleId: p.thisInstalledModule.id,
         moduleLabel: p.thisInstalledModule.label,
       },
@@ -319,7 +316,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
     const _res = await p.openEditor({
       element: ViewScript,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: p.projectId,
         moduleId: p.thisInstalledModule.id,
         moduleLabel: p.thisInstalledModule.label,
       },
@@ -337,11 +334,11 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
   }
 
   function openMoreMenu(e: MouseEvent) {
-    const dirtyState = pds.moduleDirtyStates[p.thisInstalledModule.id];
+    const dirtyState = projectState.moduleDirtyStates[p.thisInstalledModule.id];
     const isReadyOrError = dirtyState === "ready" || dirtyState === "error";
     const isReady = dirtyState === "ready";
-    const canRun = !p.projectDetail.isLocked && (p.isGlobalAdmin || p.canRunModules);
-    const canConfigure = !p.projectDetail.isLocked && (p.isGlobalAdmin || p.canConfigureModules);
+    const canRun = !projectState.isLocked && (p.isGlobalAdmin || p.canRunModules);
+    const canConfigure = !projectState.isLocked && (p.isGlobalAdmin || p.canConfigureModules);
     const canViewScript = p.isGlobalAdmin || p.canViewScriptCode;
 
     const items: MenuItem[] = [];
@@ -377,7 +374,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
           <span class="mr-4">{p.thisInstalledModule.label}</span>
           <DirtyStatus
             id={p.thisInstalledModule.id}
-            moduleDirtyStates={pds.moduleDirtyStates}
+            moduleDirtyStates={projectState.moduleDirtyStates}
           />
           <Show when={hasUpdateAvailable()}>
             <span class="bg-warning/15 text-warning font-500 ml-2 rounded px-2 py-0.5 text-xs">
@@ -387,7 +384,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
         </div>
         <div class="flex-1"></div>
         <Show when={p.isGlobalAdmin || p.canConfigureModules}>
-          <Show when={!p.projectDetail.isLocked}>
+          <Show when={!projectState.isLocked}>
             <Button onClick={updateModule} iconName="refresh">
               {t3(TC.update)}
             </Button>
@@ -400,9 +397,9 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
       </div>
       <Show
         when={
-          pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready" ||
-          pds.moduleDirtyStates[p.thisInstalledModule.id] === "running" ||
-          pds.moduleDirtyStates[p.thisInstalledModule.id] === "error"
+          projectState.moduleDirtyStates[p.thisInstalledModule.id] === "ready" ||
+          projectState.moduleDirtyStates[p.thisInstalledModule.id] === "running" ||
+          projectState.moduleDirtyStates[p.thisInstalledModule.id] === "error"
         }
         fallback={
           <div class="ui-pad text-neutral text-xs">
@@ -416,13 +413,13 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
         <div class="ui-pad">
           <Switch>
             <Match
-              when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "ready"}
+              when={projectState.moduleDirtyStates[p.thisInstalledModule.id] === "ready"}
             >
               {(() => {
                 const computeUpdatedAt = p.thisInstalledModule.computeDefUpdatedAt;
                 const definitionUpdatedAt = p.thisInstalledModule.presentationDefUpdatedAt;
                 const lastRunDate = new Date(
-                  pds.moduleLastRun[p.thisInstalledModule.id],
+                  projectState.moduleLastRun[p.thisInstalledModule.id],
                 );
                 const resultsStale = computeUpdatedAt
                   ? new Date(computeUpdatedAt) > lastRunDate
@@ -458,9 +455,9 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                         {t3({ en: "Last run", fr: "Dernière exécution" })}:{" "}
                         {lastRunDate.toLocaleString()}
                       </span>
-                      <Show when={pds.moduleLastRunGitRef[p.thisInstalledModule.id]}>
+                      <Show when={projectState.moduleLastRunGitRef[p.thisInstalledModule.id]}>
                         <span class="font-mono">
-                          ({pds.moduleLastRunGitRef[p.thisInstalledModule.id].slice(0, 7)})
+                          ({projectState.moduleLastRunGitRef[p.thisInstalledModule.id].slice(0, 7)})
                         </span>
                       </Show>
                       <Show when={resultsStale}>
@@ -478,7 +475,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
             </Match>
             <Match
               when={
-                pds.moduleDirtyStates[p.thisInstalledModule.id] === "running"
+                projectState.moduleDirtyStates[p.thisInstalledModule.id] === "running"
               }
             >
               <div class="truncate text-xs">
@@ -486,7 +483,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
               </div>
             </Match>
             <Match
-              when={pds.moduleDirtyStates[p.thisInstalledModule.id] === "error"}
+              when={projectState.moduleDirtyStates[p.thisInstalledModule.id] === "error"}
             >
               <div class="text-danger truncate text-xs">
                 {t3({
@@ -513,7 +510,6 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
 
 type UninstalledModuleProps = {
   projectId: string;
-  projectDetail: ProjectDetail;
   isGlobalAdmin: boolean;
   canConfigureModules: boolean;
   thisUninstalledModuleId: ModuleId;
@@ -523,9 +519,6 @@ type UninstalledModuleProps = {
 };
 
 function UninstalledModulePresentation(p: UninstalledModuleProps) {
-  const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
-  const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
-
   const enableModule = timActionButton(async () => {
     for (const prereq of p.thisUninstalledModulePrerequisiteModules) {
       if (!p.currentModules.some((m) => m.id === prereq)) {
@@ -537,21 +530,10 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
         };
       }
     }
-    const res = await serverActions.installModule({
+    return serverActions.installModule({
       projectId: p.projectId,
       module_id: p.thisUninstalledModuleId,
     });
-    if (res.success) {
-      for (const poId of res.data.presObjIdsWithNewLastUpdateds) {
-        optimisticSetLastUpdated(
-          "presentation_objects",
-          poId,
-          res.data.lastUpdated,
-        );
-      }
-      optimisticSetProjectLastUpdated(res.data.lastUpdated);
-    }
-    return res;
   });
 
   return (
@@ -559,7 +541,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
       <div class="font-700 flex-1 text-lg">{p.thisUninstalledModuleLabel}</div>
       <Show
         when={
-          !p.projectDetail.isLocked &&
+          !projectState.isLocked &&
           (p.isGlobalAdmin || p.canConfigureModules)
         }
         fallback={

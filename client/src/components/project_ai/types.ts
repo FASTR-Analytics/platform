@@ -54,11 +54,6 @@ export type AIContextEditingSlideDeck = {
   getDeckConfig: () => SlideDeckConfig;
   getSlideIds: () => string[];
   getSelectedSlideIds: () => string[];
-  optimisticSetLastUpdated: (
-    tableName: "slides" | "slide_decks",
-    id: string,
-    lastUpdated: string,
-  ) => void;
 };
 
 export type AIContextEditingVisualization = {

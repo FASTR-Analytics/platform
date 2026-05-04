@@ -4,7 +4,7 @@ import {
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
   getCountryLabel,
   type InstanceState,
-  type ProjectDetail,
+  type ProjectState,
 } from "lib";
 import type { AIContext } from "./types";
 
@@ -13,12 +13,12 @@ import type { AIContext } from "./types";
 export function buildSystemPromptForContext(
   aiContext: AIContext,
   instance: InstanceState,
-  projectDetail: ProjectDetail,
+  projectState: ProjectState,
 ): string {
   const currentDate = new Date().toISOString().split("T")[0];
   const dateHeader = `**CURRENT DATE: ${currentDate}**\n\n---\n\n`;
 
-  const contextSection = buildAISystemContext(instance, projectDetail);
+  const contextSection = buildAISystemContext(instance, projectState);
   const baseInstructions = getBaseInstructions();
   const modeInstructions = getModeInstructions(aiContext);
 
@@ -29,7 +29,7 @@ export function buildSystemPromptForContext(
 
 function buildAISystemContext(
   instance: InstanceState,
-  projectDetail: ProjectDetail,
+  projectState: ProjectState,
 ): string {
   const sections: string[] = [];
 
@@ -125,12 +125,12 @@ function buildAISystemContext(
 
   sections.push("# Project");
   sections.push("");
-  sections.push(`**Name:** ${projectDetail.label}`);
+  sections.push(`**Name:** ${projectState.label}`);
 
-  const hmisDataset = projectDetail.projectDatasets.find(
+  const hmisDataset = projectState.projectDatasets.find(
     (d) => d.datasetType === "hmis",
   );
-  const hfaDataset = projectDetail.projectDatasets.find(
+  const hfaDataset = projectState.projectDatasets.find(
     (d) => d.datasetType === "hfa",
   );
 
@@ -145,20 +145,20 @@ function buildAISystemContext(
     }
   }
 
-  if (projectDetail.commonIndicators.length > 0) {
+  if (projectState.commonIndicators.length > 0) {
     sections.push("");
     sections.push(
-      `**Common indicators (${projectDetail.commonIndicators.length}):**`,
+      `**Common indicators (${projectState.commonIndicators.length}):**`,
     );
-    for (const ind of projectDetail.commonIndicators) {
+    for (const ind of projectState.commonIndicators) {
       sections.push(`- ${ind.id}: ${ind.label}`);
     }
   }
 
-  if (projectDetail.projectModules.length > 0) {
+  if (projectState.projectModules.length > 0) {
     sections.push("");
     sections.push(
-      `**Installed analysis modules:** ${projectDetail.projectModules.length}`,
+      `**Installed analysis modules:** ${projectState.projectModules.length}`,
     );
   }
 
@@ -176,17 +176,17 @@ function buildAISystemContext(
 
   sections.push("");
   sections.push(
-    `**Available visualizations:** ${projectDetail.visualizations.length} (use get_available_visualizations for details)`,
+    `**Available visualizations:** ${projectState.visualizations.length} (use get_available_visualizations for details)`,
   );
   sections.push(
-    `**Available slide decks:** ${projectDetail.slideDecks.length} (use get_available_slide_decks for details)`,
+    `**Available slide decks:** ${projectState.slideDecks.length} (use get_available_slide_decks for details)`,
   );
 
-  if (projectDetail.aiContext.trim()) {
+  if (projectState.aiContext.trim()) {
     sections.push("");
     sections.push("# Additional Project Context");
     sections.push("");
-    sections.push(projectDetail.aiContext.trim());
+    sections.push(projectState.aiContext.trim());
   }
 
   sections.push("");

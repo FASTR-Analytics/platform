@@ -3,7 +3,7 @@ import type {
   ContentBlock,
   ContentSlide,
   CoverSlide,
-  ProjectDetail,
+  ProjectState,
   SectionSlide,
   Slide,
   SlideDeckConfig,
@@ -67,7 +67,6 @@ import {
 import { setShowAi, showAi } from "~/state/t4_ui";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
-import { useOptimisticSetLastUpdated } from "../../project_runner/mod";
 import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
@@ -101,7 +100,7 @@ type SlideEditorInnerProps = {
   slideId: string;
   slide: Slide;
   lastUpdated: string;
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   isGlobalAdmin: boolean;
   deckConfig: SlideDeckConfig;
   returnToContext?: AIContext;
@@ -111,7 +110,6 @@ type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
 
 export function SlideEditor(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
-  const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const { aiContext, setAIContext, notifyAI } = useAIProjectContext();
 
   // No normalization needed - panther operations produce valid output
@@ -257,12 +255,6 @@ export function SlideEditor(p: Props) {
           return createRes;
         }
 
-        optimisticSetLastUpdated(
-          "slides",
-          createRes.data.slideId,
-          createRes.data.lastUpdated,
-        );
-
         return {
           success: true,
           data: { lastUpdated: createRes.data.lastUpdated, conflictResolutionDecision: "user_chose_save_as_new" },
@@ -279,12 +271,6 @@ export function SlideEditor(p: Props) {
       return updateRes;
     }
 
-    optimisticSetLastUpdated("slides", p.slideId, updateRes.data.lastUpdated);
-
-    const cached = await _SLIDE_CACHE.get({
-      projectId: p.projectId,
-      slideId: p.slideId,
-    });
     const promise = serverActions.getSlide({
       projectId: p.projectId,
       slide_id: p.slideId,
@@ -292,7 +278,7 @@ export function SlideEditor(p: Props) {
     await _SLIDE_CACHE.setPromise(
       promise,
       { projectId: p.projectId, slideId: p.slideId },
-      cached.version,
+      updateRes.data.lastUpdated,
     );
     await promise;
 
@@ -456,7 +442,7 @@ export function SlideEditor(p: Props) {
     const source = block.source;
 
     try {
-      const resultsValue = p.projectDetail.metrics.find(
+      const resultsValue = p.projectState.metrics.find(
         (m) => m.id === source.metricId,
       );
 
@@ -477,7 +463,7 @@ export function SlideEditor(p: Props) {
           isGlobalAdmin: p.isGlobalAdmin,
           returnToContext: aiContext(),
           ...snapshotForVizEditor({
-            projectDetail: p.projectDetail,
+            projectState: p.projectState,
             resultsValue,
             config: source.config,
           }),
@@ -577,7 +563,7 @@ export function SlideEditor(p: Props) {
 
     const result = await openEditor({
       element: SelectVisualizationForSlide,
-      props: { projectDetail: p.projectDetail },
+      props: { projectState: p.projectState },
     });
 
     if (!result) return;
@@ -644,8 +630,8 @@ export function SlideEditor(p: Props) {
       props: {
         projectId: p.projectId,
         isGlobalAdmin: p.isGlobalAdmin,
-        metrics: p.projectDetail.metrics,
-        modules: p.projectDetail.projectModules,
+        metrics: p.projectState.metrics,
+        modules: p.projectState.projectModules,
       },
     });
 

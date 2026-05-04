@@ -26,7 +26,7 @@ import { MoveDeckToFolderModal } from "./move_deck_to_folder_modal";
 import { DuplicateDeckModal } from "./duplicate_deck_modal";
 import { ProjectAiSlideDeck } from "../slide_deck";
 import { SlideDeckThumbnail } from "../slide_deck/slide_deck_thumbnail";
-import { useProjectDetail, useRefetchProjectDetail } from "~/components/project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import {
   deckGroupingMode,
@@ -58,8 +58,6 @@ type ExtendedProps = {
 };
 
 export function ProjectDecks(p: ExtendedProps) {
-  const projectDetail = useProjectDetail();
-  const refetchProjectDetail = useRefetchProjectDetail();
   const { aiContext } = useAIProjectContext();
 
   const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
@@ -78,18 +76,17 @@ export function ProjectDecks(p: ExtendedProps) {
       props: {
         deckId,
         reportLabel: deckLabel,
-        projectDetail,
+        projectState: projectState,
         isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
       },
     });
-    await refetchProjectDetail();
   }
 
   const [searchText, setSearchText] = createSignal<string>("");
 
   const filteredBySearch = () => {
-    const decks = projectDetail.slideDecks;
+    const decks = projectState.slideDecks;
     if (searchText().length < 3) return decks;
     const searchLower = searchText().toLowerCase();
     return decks.filter((d) => d.label.toLowerCase().includes(searchLower));
@@ -106,7 +103,7 @@ export function ProjectDecks(p: ExtendedProps) {
           { value: "_unfiled", label: t3(TC.general), count: generalCount },
         ];
         groups.push(
-          ...projectDetail.slideDeckFolders.map((f) => ({
+          ...projectState.slideDeckFolders.map((f) => ({
             value: f.id,
             label: f.label,
             count: decks.filter((d) => d.folderId === f.id).length,
@@ -245,10 +242,10 @@ export function ProjectDecks(p: ExtendedProps) {
     await openComponent({
       element: MoveDeckToFolderModal,
       props: {
-        projectId: projectDetail.id,
+        projectId: projectState.id,
         deckIds: idsToMove,
         currentFolderId: deck.folderId,
-        folders: projectDetail.slideDeckFolders,
+        folders: projectState.slideDeckFolders,
       },
     });
 
@@ -264,16 +261,16 @@ export function ProjectDecks(p: ExtendedProps) {
       : [deck.id];
 
     const deckDetails = idsToDuplicate
-      .map((id) => projectDetail.slideDecks.find((d) => d.id === id))
+      .map((id) => projectState.slideDecks.find((d) => d.id === id))
       .filter((d): d is SlideDeckSummary => d !== undefined)
       .map((d) => ({ id: d.id, label: d.label, folderId: d.folderId }));
 
     await openComponent({
       element: DuplicateDeckModal,
       props: {
-        projectId: projectDetail.id,
+        projectId: projectState.id,
         deckDetails,
-        folders: projectDetail.slideDeckFolders,
+        folders: projectState.slideDeckFolders,
       },
     });
 
@@ -298,7 +295,7 @@ export function ProjectDecks(p: ExtendedProps) {
       async () => {
         const promises = idsToDelete.map((id) =>
           serverActions.deleteSlideDeck({
-            projectId: projectDetail.id,
+            projectId: projectState.id,
             deck_id: id,
           }),
         );
@@ -355,7 +352,7 @@ export function ProjectDecks(p: ExtendedProps) {
   function handleFolderContextMenu(e: MouseEvent, folderId: string) {
     e.preventDefault();
     e.stopPropagation();
-    const folder = projectDetail.slideDeckFolders.find(
+    const folder = projectState.slideDeckFolders.find(
       (f) => f.id === folderId,
     );
     if (!folder) return;
@@ -368,7 +365,7 @@ export function ProjectDecks(p: ExtendedProps) {
           await openComponent({
             element: EditDeckFolderModal,
             props: {
-              projectId: projectDetail.id,
+              projectId: projectState.id,
               folder,
             },
           });
@@ -383,7 +380,7 @@ export function ProjectDecks(p: ExtendedProps) {
             t3({ en: "Are you sure you want to delete this folder? Slide decks will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les présentations seront déplacées dans Général." }),
             () =>
               serverActions.deleteSlideDeckFolder({
-                projectId: projectDetail.id,
+                projectId: projectState.id,
                 folder_id: folderId,
               }),
             () => { },
@@ -439,15 +436,15 @@ export function ProjectDecks(p: ExtendedProps) {
     const res = await openComponent({
       element: AddDeckForm,
       props: {
-        projectId: projectDetail.id,
-        folders: projectDetail.slideDeckFolders,
+        projectId: projectState.id,
+        folders: projectState.slideDeckFolders,
         currentFolderId,
       },
     });
     if (res === undefined) {
       return;
     }
-    const deck = projectDetail.slideDecks.find((d) => d.id === res.newDeckId);
+    const deck = projectState.slideDecks.find((d) => d.id === res.newDeckId);
     await openDeck(res.newDeckId, deck?.label || t3({ en: "Slide deck", fr: "Présentation" }));
   }
 
@@ -462,8 +459,8 @@ export function ProjectDecks(p: ExtendedProps) {
         >
           <Show
             when={
-              !projectDetail.isLocked &&
-              projectDetail.projectModules.length > 0
+              !projectState.isLocked &&
+              projectState.projectModules.length > 0
             }
           >
             <Button onClick={attemptAddDeck} iconName="plus">
@@ -474,7 +471,7 @@ export function ProjectDecks(p: ExtendedProps) {
       }
     >
       <Show
-        when={projectDetail.projectModules.length > 0}
+        when={projectState.projectModules.length > 0}
         fallback={
           <div class="ui-pad text-neutral text-sm">
             {t3({ en: "You need to enable at least one module to create slide decks", fr: "Vous devez activer au moins un module pour créer des présentations" })}
@@ -515,7 +512,7 @@ export function ProjectDecks(p: ExtendedProps) {
                       onClick={async () => {
                         await openComponent({
                           element: EditDeckFolderModal,
-                          props: { projectId: projectDetail.id },
+                          props: { projectId: projectState.id },
                         });
                       }}
                     >
@@ -595,7 +592,7 @@ export function ProjectDecks(p: ExtendedProps) {
                         }
                       >
                         <SlideDeckThumbnail
-                          projectId={projectDetail.id}
+                          projectId={projectState.id}
                           deckId={deck.id}
                           slideId={deck.firstSlideId!}
                         />

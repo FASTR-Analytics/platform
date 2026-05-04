@@ -1,4 +1,4 @@
-import { type ProjectDetail, type Slide, type SlideDeckConfig, getStartingConfigForSlideDeck, t3 } from "lib";
+import { type ProjectState, type Slide, type SlideDeckConfig, getStartingConfigForSlideDeck, t3 } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import {
   createAIChat,
@@ -9,7 +9,7 @@ import {
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
-import { useOptimisticSetLastUpdated, useProjectDirtyStates } from "../project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 import { DownloadSlideDeck } from "./download_slide_deck";
 import { ShareSlideDeck } from "./share_slide_deck";
 import { SlideEditor } from "./slide_editor";
@@ -23,7 +23,7 @@ type SlideDeckModalReturn = undefined;
 
 type Props = EditorComponentProps<
   {
-    projectDetail: ProjectDetail;
+    projectState: ProjectState;
     deckId: string;
     reportLabel: string;
     isGlobalAdmin: boolean;
@@ -33,9 +33,7 @@ type Props = EditorComponentProps<
 >;
 
 export function ProjectAiSlideDeck(p: Props) {
-  const projectId = p.projectDetail.id;
-  const pds = useProjectDirtyStates();
-  const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
+  const projectId = p.projectState.id;
   const { aiContext, setAIContext } = useAIProjectContext();
 
   async function handleClose() {
@@ -68,7 +66,6 @@ export function ProjectAiSlideDeck(p: Props) {
       getDeckConfig: () => deckConfig(),
       getSlideIds: () => slideIds(),
       getSelectedSlideIds: () => selectedSlideIds(),
-      optimisticSetLastUpdated,
     });
   });
 
@@ -78,7 +75,7 @@ export function ProjectAiSlideDeck(p: Props) {
 
   // SSE handling - watch for deck updates
   createEffect(() => {
-    const deckUpdate = pds.lastUpdated.slide_decks[p.deckId];
+    const deckUpdate = projectState.lastUpdated.slide_decks[p.deckId];
     if (deckUpdate) {
       // Deck metadata changed - refetch deck details
       serverActions.getSlideDeckDetail({ projectId, deck_id: p.deckId }).then((res) => {
@@ -93,12 +90,11 @@ export function ProjectAiSlideDeck(p: Props) {
 
   return (
     <ProjectAiSlideDeckInner
-      projectDetail={p.projectDetail}
+      projectState={p.projectState}
       isGlobalAdmin={p.isGlobalAdmin}
       deckId={p.deckId}
       deckLabel={deckLabel()}
       deckConfig={deckConfig()}
-      optimisticSetLastUpdated={optimisticSetLastUpdated}
       slideIds={slideIds()}
       isLoading={isLoading()}
       setSelectedSlideIds={setSelectedSlideIds}
@@ -108,12 +104,11 @@ export function ProjectAiSlideDeck(p: Props) {
 }
 
 function ProjectAiSlideDeckInner(p: {
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   isGlobalAdmin: boolean;
   deckId: string;
   deckLabel: string;
   deckConfig: SlideDeckConfig;
-  optimisticSetLastUpdated: ReturnType<typeof useOptimisticSetLastUpdated>;
   slideIds: string[];
   isLoading: boolean;
   setSelectedSlideIds: (ids: string[]) => void;
@@ -130,20 +125,18 @@ function ProjectAiSlideDeckInner(p: {
     await openSettingsEditor<SlideDeckSettingsProps, "AFTER_DELETE">({
       element: SlideDeckSettings,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: p.projectState.id,
         config: p.deckConfig,
         heading: t3({ en: "Slide deck settings", fr: "Paramètres de la présentation" }),
         nameLabel: t3({ en: "Slide deck name", fr: "Nom de la présentation" }),
         showPageNumbersSuffix: t3({ en: "(except on cover and section slides)", fr: "(sauf sur les diapositives de couverture et de section)" }),
         saveConfig: (config) =>
           serverActions.updateSlideDeckConfig({
-            projectId: p.projectDetail.id,
+            projectId: p.projectState.id,
             deck_id: p.deckId,
             config,
           }),
-        onSaved: async (lastUpdated) => {
-          p.optimisticSetLastUpdated("slide_decks", p.deckId, lastUpdated);
-        },
+        onSaved: async () => {},
       },
     });
   }
@@ -152,7 +145,7 @@ function ProjectAiSlideDeckInner(p: {
     const _res = await openComponent({
       element: DownloadSlideDeck,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: p.projectState.id,
         deckId: p.deckId,
       },
     });
@@ -162,7 +155,7 @@ function ProjectAiSlideDeckInner(p: {
     await openComponent({
       element: ShareSlideDeck,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: p.projectState.id,
         deckId: p.deckId,
         deckLabel: p.deckLabel,
         userEmails: instanceState.users.map((u) => u.email),
@@ -171,12 +164,12 @@ function ProjectAiSlideDeckInner(p: {
   }
 
   async function handleEditSlide(slideId: string) {
-    const cached = await _SLIDE_CACHE.get({ projectId: p.projectDetail.id, slideId });
+    const cached = await _SLIDE_CACHE.get({ projectId: p.projectState.id, slideId });
     let slide: Slide;
     let lastUpdated: string;
 
     if (!cached.data) {
-      const res = await serverActions.getSlide({ projectId: p.projectDetail.id, slide_id: slideId });
+      const res = await serverActions.getSlide({ projectId: p.projectState.id, slide_id: slideId });
       if (!res.success) return;
       slide = res.data.slide;
       lastUpdated = res.data.lastUpdated;
@@ -187,10 +180,10 @@ function ProjectAiSlideDeckInner(p: {
 
     setEditingSlideId(slideId);
 
-    const saved = await openEditor({
+    await openEditor({
       element: SlideEditor,
       props: {
-        projectId: p.projectDetail.id,
+        projectId: p.projectState.id,
         deckId: p.deckId,
         deckLabel: p.deckLabel,
         slideId: slideId,
@@ -199,24 +192,20 @@ function ProjectAiSlideDeckInner(p: {
         slide,
         returnToContext: aiContext(),
         ...snapshotForSlideEditor({
-          projectDetail: p.projectDetail,
+          projectState: p.projectState,
           deckConfig: p.deckConfig,
         }),
       },
     });
 
     setEditingSlideId(undefined);
-
-    if (saved) {
-      p.optimisticSetLastUpdated("slides", slideId, Date.now().toString());
-    }
   }
 
   return (
     <SettingsEditorWrapper>
       <EditorWrapper>
         <SlideList
-          projectDetail={p.projectDetail}
+          projectState={p.projectState}
           deckId={p.deckId}
           slideIds={p.slideIds}
           isLoading={p.isLoading}

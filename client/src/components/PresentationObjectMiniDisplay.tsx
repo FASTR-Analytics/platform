@@ -1,7 +1,7 @@
 import { ReplicantValueOverride, t3 } from "lib";
 import { FigureInputs, ChartHolder, Loading, StateHolder } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
-import { useProjectDirtyStates } from "~/components/project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/po_cache";
 import { NotAvailableBox } from "./NotAvailableBox";
 
@@ -16,7 +16,6 @@ type Props = {
 };
 
 export function PresentationObjectMiniDisplay(p: Props) {
-  const pds = useProjectDirtyStates();
 
   const [figureInputs, setFigureInputs] = createSignal<
     StateHolder<FigureInputs>
@@ -37,7 +36,7 @@ export function PresentationObjectMiniDisplay(p: Props) {
   }
 
   createEffect(() => {
-    void pds.lastUpdated.presentation_objects[p.presentationObjectId];
+    void projectState.lastUpdated.presentation_objects[p.presentationObjectId];
     attemptGetFigureInputs();
   });
 
@@ -72,11 +71,10 @@ type PresentationObjectMiniDisplayStateHolderWrapperProps = {
 function PresentationObjectMiniDisplayStateHolderWrapper(
   p: PresentationObjectMiniDisplayStateHolderWrapperProps,
 ) {
-  const pds = useProjectDirtyStates();
   const moduleDirtyStatus = () => {
     try {
       const mid = p.moduleId;
-      return mid ? pds.moduleDirtyStates[mid] : "no_id_provided_which_is_ok";
+      return mid ? projectState.moduleDirtyStates[mid] : "no_id_provided_which_is_ok";
     } catch {
       return "no_id_provided_which_is_ok";
     }

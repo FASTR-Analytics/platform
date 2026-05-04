@@ -1,11 +1,11 @@
 import { del, get, keys, set } from "idb-keyval";
-import type { APIResponseWithData, ProjectDirtyStates } from "lib";
-import { getGlobalPDSSnapshot } from "~/components/project_runner/mod";
+import type { APIResponseWithData, ProjectState } from "lib";
+import { getProjectStateSnapshot } from "~/state/project/t1_store";
 
 /**
- * Reactive Cache System - Context-Aware Caching with ProjectDirtyStates Integration
+ * Reactive Cache System - Context-Aware Caching with ProjectState Integration
  *
- * This cache system automatically reads ProjectDirtyStates from Solid.js context,
+ * This cache system automatically reads ProjectState from Solid.js context,
  * eliminating the need for manual version threading throughout the application.
  *
  * Key features:
@@ -45,7 +45,7 @@ export type ReactiveCacheConfig<Params, Data> = {
   uniquenessKeys: (params: Params) => (string | number | undefined)[];
 
   /** Extract version from params + PDS - version is part of cache key */
-  versionKey: (params: Params, pds: ProjectDirtyStates) => string;
+  versionKey: (params: Params, pds: ProjectState) => string;
 
   /** Max number of entries in memory cache (LRU eviction). Default: 100 */
   maxSize?: number;
@@ -67,7 +67,7 @@ export interface ReactiveCache<Params, Data> {
 }
 
 /**
- * Create a reactive cache that reads ProjectDirtyStates from context
+ * Create a reactive cache that reads ProjectState from context
  */
 export function createReactiveCache<Params, Data>(
   config: ReactiveCacheConfig<Params, Data>,
@@ -85,7 +85,7 @@ export function createReactiveCache<Params, Data>(
   }
 
   /** Get cache key from params + PDS */
-  function getCacheKey(params: Params, pds: ProjectDirtyStates): string {
+  function getCacheKey(params: Params, pds: ProjectState): string {
     const uniquenessHash = hashKeys(config.uniquenessKeys(params));
     const versionHash = config.versionKey(params, pds);
     // Version is PART of the key - different version = different key = automatic miss
@@ -124,7 +124,7 @@ export function createReactiveCache<Params, Data>(
     params: Params,
   ): Promise<{ data: Data | undefined; version: string; isInflight?: boolean }> {
     // Get non-reactive snapshot from global (works in async contexts)
-    const pds = getGlobalPDSSnapshot();
+    const pds = getProjectStateSnapshot();
 
     // If PDS not available or not ready, check if cache requires it
     if (!pds || !pds.isReady) {

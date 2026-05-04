@@ -4,7 +4,7 @@ import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to
 import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH, showMenu, type MenuItem } from "panther";
 import { _SLIDE_CACHE } from "~/state/caches/slides";
 import { serverActions } from "~/server_actions";
-import { useProjectDirtyStates } from "../project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 
 type Props = {
   projectId: string;
@@ -23,16 +23,14 @@ type Props = {
 };
 
 export function SlideCard(p: Props) {
-  const pds = useProjectDirtyStates();
-
   const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
     msg: t3({ en: "Loading...", fr: "Chargement..." }),
   });
 
-  // Fetch slide from cache, reactive to PDS updates
+  // Fetch slide from cache, reactive to state updates
   createEffect(async () => {
-    pds.lastUpdated.slides[p.slideId]; // Track for reactivity
+    projectState.lastUpdated.slides[p.slideId]; // Track for reactivity
     const config = p.deckConfig; // Track synchronously before first await
 
     const cached = await _SLIDE_CACHE.get({ projectId: p.projectId, slideId: p.slideId });

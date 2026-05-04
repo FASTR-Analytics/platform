@@ -31,7 +31,6 @@ export function SelectProjectUserRole(
       projectId: string;
       projectLabel: string;
       users: ProjectUser[];
-      silentFetch?: () => Promise<void>;
     },
     undefined
   >,
@@ -73,10 +72,7 @@ export function SelectProjectUserRole(
         permissions: perms,
       });
     },
-    async () => {
-      await p.silentFetch?.();
-      p.close(undefined);
-    },
+    () => p.close(undefined),
   );
 
   return (

@@ -3,7 +3,7 @@ import {
   ItemsHolderPresentationObject,
   PresentationObjectConfig,
   PresentationObjectDetail,
-  ProjectDetail,
+  ProjectState,
   ResultsValueInfoForPresentationObject,
   getEffectivePOConfig,
   getReplicateByProp,
@@ -47,10 +47,6 @@ import { ReplicateByOptionsPresentationObject } from "~/components/ReplicateByOp
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import { DownloadPresentationObject } from "~/components/forms_editors/download_presentation_object";
 import { ViewResultsObject } from "~/components/forms_editors/view_results_object";
-import {
-  useOptimisticSetLastUpdated,
-  useOptimisticSetProjectLastUpdated,
-} from "~/components/project_runner/mod";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
@@ -71,7 +67,7 @@ import type { AIContext } from "../project_ai/types";
 
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   isGlobalAdmin: boolean;
   poDetail: PresentationObjectDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
@@ -90,8 +86,6 @@ export function VisualizationEditorInner(p: InnerProps) {
   const [editorHeight, setEditorHeight] = createSignal<"flex" | "ideal">(
     defaultHeight,
   );
-  const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
-  const optimisticSetProjectLastUpdated = useOptimisticSetProjectLastUpdated();
   const { setAIContext, notifyAI } = useAIProjectContext();
 
   const [lastKnownServerTimestamp, setLastKnownServerTimestamp] = createSignal(
@@ -99,9 +93,9 @@ export function VisualizationEditorInner(p: InnerProps) {
   );
 
   // Extract static values from stores to prevent external reactivity
-  const projectId = p.projectDetail.id;
-  // const visualizationFolders = structuredClone(p.projectDetail.visualizationFolders);
-  // const isLocked = p.projectDetail.isLocked;
+  const projectId = p.projectState.id;
+  // const visualizationFolders = structuredClone(p.projectState.visualizationFolders);
+  // const isLocked = p.projectState.isLocked;
 
   const {
     openEditor: openEditorForResultsObject,
@@ -264,7 +258,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         existingLabel: p.poDetail.label,
         resultsValue: p.poDetail.resultsValue,
         config: unwrappedTempConfig,
-        folders: p.projectDetail.visualizationFolders,
+        folders: p.projectState.visualizationFolders,
       },
     });
     if (modalRes) {
@@ -334,13 +328,6 @@ export function VisualizationEditorInner(p: InnerProps) {
           return createRes;
         }
 
-        optimisticSetLastUpdated(
-          "presentation_objects",
-          createRes.data.newPresentationObjectId,
-          createRes.data.lastUpdated,
-        );
-        optimisticSetProjectLastUpdated(createRes.data.lastUpdated);
-
         return {
           success: true,
           data: {
@@ -365,13 +352,6 @@ export function VisualizationEditorInner(p: InnerProps) {
 
     setNeedsSave(false);
     setLastKnownServerTimestamp(res.data.lastUpdated);
-
-    optimisticSetLastUpdated(
-      "presentation_objects",
-      p.poDetail.id,
-      res.data.lastUpdated,
-    );
-    optimisticSetProjectLastUpdated(res.data.lastUpdated);
 
     return { success: true, data: { lastUpdated: res.data.lastUpdated } };
   }
@@ -414,13 +394,13 @@ export function VisualizationEditorInner(p: InnerProps) {
         presentationObjectId: p.poDetail.id,
         resultsObjectId: p.poDetail.resultsValue.resultsObjectId,
         moduleId:
-          p.projectDetail.metrics.find(
+          p.projectState.metrics.find(
             (m) => m.id === p.poDetail.resultsValue.id,
           )?.moduleId ?? "",
         isDefault: p.poDetail.isDefault,
         existingLabel: p.poDetail.label,
         currentFolderId: p.poDetail.folderId,
-        folders: p.projectDetail.visualizationFolders,
+        folders: p.projectState.visualizationFolders,
         silentFetchPoDetail: async () => {},
         mutateFunc: async (newLabel) =>
           serverActions.updatePresentationObjectLabel({
@@ -453,13 +433,12 @@ export function VisualizationEditorInner(p: InnerProps) {
             folderId: p.poDetail.folderId,
           },
         ],
-        folders: p.projectDetail.visualizationFolders,
+        folders: p.projectState.visualizationFolders,
       },
     });
     if (res === undefined) {
       return;
     }
-    optimisticSetProjectLastUpdated(res.lastUpdated);
 
     (p.onClose as (result: EditModeReturn) => void)({ saved: true });
 
@@ -602,7 +581,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       props: {
         projectId: projectId,
         moduleId:
-          p.projectDetail.metrics.find(
+          p.projectState.metrics.find(
             (m) => m.id === p.poDetail.resultsValue.id,
           )?.moduleId ?? "",
         resultsObjectId,
@@ -650,7 +629,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                 <Match
                   when={
                     (needsSave() || p.mode === "create") &&
-                    !p.projectDetail.isLocked &&
+                    !p.projectState.isLocked &&
                     !p.poDetail.isDefault
                   }
                 >
@@ -726,7 +705,7 @@ export function VisualizationEditorInner(p: InnerProps) {
               </Show>
             </div>
             <div class="ui-gap-sm flex items-center">
-              <Show when={!p.projectDetail.isLocked && p.mode === "edit"}>
+              <Show when={!p.projectState.isLocked && p.mode === "edit"}>
                 <Button
                   onClick={attemptUpdateLabel}
                   iconName="settings"
@@ -771,7 +750,7 @@ export function VisualizationEditorInner(p: InnerProps) {
           hoverOffset="offset-for-border-1-on-left"
           panelChildren={
             <PresentationObjectEditorPanel
-              projectDetail={p.projectDetail}
+              projectState={p.projectState}
               poDetail={p.poDetail}
               resultsValueInfo={p.resultsValueInfo}
               tempConfig={tempConfig}

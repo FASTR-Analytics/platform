@@ -5,7 +5,7 @@ import {
   type MetricGroup,
   type MetricWithStatus,
   type ModuleId,
-  type ProjectDetail,
+  type ProjectState,
 } from "lib";
 import {
   Button,
@@ -19,7 +19,7 @@ import { getInstanceCountryIso3 } from "~/state/instance/t1_store";
 import { VisualizationEditor } from "../visualization";
 import { MetricDetailsModal } from "./metric_details_modal";
 import { AddVisualization } from "./add_visualization";
-import { useProjectDetail } from "~/components/project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 
@@ -37,7 +37,6 @@ type MetricsByModule = {
 };
 
 export function ProjectMetrics(p: Props) {
-  const projectDetail = useProjectDetail();
   function organizeMetrics(metrics: MetricWithStatus[]): MetricsByModule[] {
     const moduleMap = new Map<ModuleId, MetricWithStatus[]>();
     for (const metric of metrics) {
@@ -61,7 +60,7 @@ export function ProjectMetrics(p: Props) {
     return result;
   }
 
-  const organized = () => organizeMetrics(projectDetail.metrics);
+  const organized = () => organizeMetrics(projectState.metrics);
 
   return (
     <FrameTop
@@ -84,8 +83,8 @@ export function ProjectMetrics(p: Props) {
                   {(metricGroup) => (
                     <MetricGroupCard
                       metricGroup={metricGroup}
-                      projectId={projectDetail.id}
-                      projectDetail={projectDetail}
+                      projectId={projectState.id}
+                      projectState={projectState}
                       isGlobalAdmin={p.isGlobalAdmin}
                       openProjectEditor={p.openProjectEditor}
                     />
@@ -106,7 +105,7 @@ type MetricGroupCardProps = {
     variants: MetricWithStatus[];
   };
   projectId: string;
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
@@ -132,7 +131,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         projectId: p.projectId,
         isGlobalAdmin: p.isGlobalAdmin,
         preselectedMetric: metric,
-        modules: p.projectDetail.projectModules,
+        modules: p.projectState.projectModules,
       },
     });
     if (!res) {
@@ -148,7 +147,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
         ...snapshotForVizEditor({
-          projectDetail: p.projectDetail,
+          projectState: p.projectState,
           resultsValue: res.resultsValue,
           config: res.config,
         }),

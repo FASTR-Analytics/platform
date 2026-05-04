@@ -2,14 +2,12 @@ import { t3 } from "lib";
 import { HeadingBar, StateHolderWrapper, timQuery } from "panther";
 import { createResource, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { useProjectDetail } from "~/components/project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 import { getClientCacheBuckets } from "~/state/clear_caches";
 
 export function ProjectCache() {
-  const projectDetail = useProjectDetail();
-
   const cacheQuery = timQuery(
-    () => serverActions.getCacheStatus({ projectId: projectDetail.id }),
+    () => serverActions.getCacheStatus({ projectId: projectState.id }),
     t3({ en: "Loading cache status...", fr: "Chargement du statut du cache..." }),
   );
 
