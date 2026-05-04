@@ -28,7 +28,7 @@ import {
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
-import { _SLIDE_CACHE } from "~/state/caches/slides";
+import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,

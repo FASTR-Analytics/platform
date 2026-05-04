@@ -1,6 +1,6 @@
 import { DisaggregationOption } from "lib";
 import { StateHolderWrapper, timQuery } from "panther";
-import { getPODetailFromCacheorFetch } from "~/state/po_cache";
+import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
 import { ReplicateByOptionsPresentationObjectSelect } from "~/components/ReplicateByOptions";
 
 type Props = {

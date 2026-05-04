@@ -26,7 +26,6 @@ import {
   setAllModulesDirty,
   setModulesDirtyForDataset,
 } from "../../task_management/mod.ts";
-import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
 import {
   notifyProjectConfigUpdated,
   notifyProjectDatasetsUpdated,
@@ -262,8 +261,6 @@ defineRoute(
           [body.datasetType],
           res.data.lastUpdated,
         );
-        notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-        // V2 notify
         const datasetsRes = await getAllDatasetsForProject(c.var.ppk.projectDb);
         if (datasetsRes.success) {
           notifyProjectDatasetsUpdated(c.var.ppk.projectId, datasetsRes.data);
@@ -293,8 +290,6 @@ defineRoute(
     );
     if (res.success === true) {
       await setModulesDirtyForDataset(c.var.ppk, params.dataset_type);
-      notifyProjectUpdated(c.var.ppk.projectId, new Date().toISOString());
-      // V2 notify
       const datasetsRes = await getAllDatasetsForProject(c.var.ppk.projectDb);
       if (datasetsRes.success) {
         notifyProjectDatasetsUpdated(c.var.ppk.projectId, datasetsRes.data);

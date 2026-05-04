@@ -12,7 +12,6 @@ import {
 } from "../../db/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
-import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
 import { notifyProjectSlideDecksUpdated } from "../../task_management/notify_project_v2.ts";
 import { defineRoute } from "../route-helpers.ts";
 
@@ -62,8 +61,6 @@ defineRoute(
       res.data.lastUpdated,
     );
 
-    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-    // V2 notify
     const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
     if (decksRes.success) {
       notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
@@ -97,8 +94,6 @@ defineRoute(
       res.data.lastUpdated,
     );
 
-    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-    // V2 notify
     const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
     if (decksRes.success) {
       notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
@@ -160,8 +155,6 @@ defineRoute(
       res.data.lastUpdated,
     );
 
-    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-    // V2 notify
     const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
     if (decksRes.success) {
       notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
@@ -185,8 +178,6 @@ defineRoute(
       body.folderId,
     );
     if (res.success) {
-      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-      // V2 notify
       const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
       if (decksRes.success) {
         notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
@@ -211,8 +202,6 @@ defineRoute(
       body.folderId,
     );
     if (res.success) {
-      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-      // V2 notify
       const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
       if (decksRes.success) {
         notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
@@ -232,8 +221,6 @@ defineRoute(
   async (c, { params }) => {
     const res = await deleteSlideDeck(c.var.ppk.projectDb, params.deck_id);
     if (res.success) {
-      notifyProjectUpdated(c.var.ppk.projectId, new Date().toISOString());
-      // V2 notify
       const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
       if (decksRes.success) {
         notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);

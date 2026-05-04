@@ -11,7 +11,7 @@ import { Show, createSignal } from "solid-js";
 import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectPanelDisplay";
 import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "./add_visualization";
-import { getPODetailFromCacheorFetch } from "~/state/po_cache";
+import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
 import { updateProjectView } from "~/state/t4_ui";
 import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";

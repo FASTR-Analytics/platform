@@ -12,7 +12,6 @@ import {
   getAllPresentationObjectsForProject,
 } from "../../db/project/presentation_objects.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
-import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
 import {
   notifyProjectVisualizationFoldersUpdated,
   notifyProjectVisualizationsUpdated,
@@ -36,8 +35,6 @@ defineRoute(
       body.description,
     );
     if (res.success) {
-      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-      // V2 notify
       const foldersRes = await getAllVisualizationFolders(c.var.ppk.projectDb);
       if (foldersRes.success) {
         notifyProjectVisualizationFoldersUpdated(c.var.ppk.projectId, foldersRes.data);
@@ -63,8 +60,6 @@ defineRoute(
       body.description,
     );
     if (res.success) {
-      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-      // V2 notify
       const foldersRes = await getAllVisualizationFolders(c.var.ppk.projectDb);
       if (foldersRes.success) {
         notifyProjectVisualizationFoldersUpdated(c.var.ppk.projectId, foldersRes.data);
@@ -87,8 +82,6 @@ defineRoute(
       params.folder_id,
     );
     if (res.success) {
-      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-      // V2 notify
       const foldersRes = await getAllVisualizationFolders(c.var.ppk.projectDb);
       if (foldersRes.success) {
         notifyProjectVisualizationFoldersUpdated(c.var.ppk.projectId, foldersRes.data);
@@ -111,8 +104,6 @@ defineRoute(
       body.folderIds,
     );
     if (res.success) {
-      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-      // V2 notify
       const foldersRes = await getAllVisualizationFolders(c.var.ppk.projectDb);
       if (foldersRes.success) {
         notifyProjectVisualizationFoldersUpdated(c.var.ppk.projectId, foldersRes.data);
@@ -136,8 +127,6 @@ defineRoute(
       body.folderId,
     );
     if (res.success) {
-      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-      // V2 notify
       const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
       if (vizRes.success) {
         notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
@@ -160,8 +149,6 @@ defineRoute(
       body.orderUpdates,
     );
     if (res.success) {
-      notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-      // V2 notify
       const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
       if (vizRes.success) {
         notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);

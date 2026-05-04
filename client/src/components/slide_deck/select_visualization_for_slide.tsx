@@ -18,7 +18,7 @@ import {
   t3,
   TC,
 } from "lib";
-import { getPODetailFromCacheorFetch } from "~/state/po_cache";
+import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
 
 type SelectVisualizationResult = {
   visualizationId: string;

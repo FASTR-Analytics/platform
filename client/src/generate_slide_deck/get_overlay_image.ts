@@ -7,7 +7,7 @@ import {
   type PatternConfig,
   type PatternType,
 } from "panther";
-import { getImgFromCacheOrFetch } from "~/state/img_cache";
+import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
 
 function getCoverBackgroundColor(config: SlideDeckConfig): string {
   const colorPreset = resolveColorThemeToPreset(config.colorTheme);

@@ -4,22 +4,17 @@ import {
   getMetricsWithStatus,
   getPgConnectionFromCacheOrNew,
 } from "../db/mod.ts";
-import { ProjectSseUpdateMessage } from "lib";
 import { EndingTaskData } from "../server_only_types/mod.ts";
 import { hasRunningModule, removeRunningModule } from "./running_tasks_map.ts";
 import { triggerRunnableModules } from "./trigger_runnable_tasks.ts";
 import { getPresentationObjectsThatDependOnModule } from "./get_dependents.ts";
-import {
-  notifyLastUpdated,
-  notifyProjectUpdated,
-} from "./notify_last_updated.ts";
+import { notifyLastUpdated } from "./notify_last_updated.ts";
 import {
   notifyProjectModuleDirtyState,
   notifyProjectModulesUpdated,
 } from "./notify_project_v2.ts";
 
 const broadcastTaskEnded = new BroadcastChannel("task_ended");
-const broadcastDirtyStates = new BroadcastChannel("dirty_states");
 
 broadcastTaskEnded.addEventListener("message", async (evt) => {
   const etd: EndingTaskData = evt.data;
@@ -48,16 +43,6 @@ UPDATE modules
 SET dirty = 'error' 
 WHERE id = ${etd.moduleId}
 `;
-    const bm1: ProjectSseUpdateMessage = {
-      projectId: etd.projectId,
-      type: "module_dirty_state_and_last_run",
-      ids: [etd.moduleId],
-      dirtyOrRunStatus: "error",
-      lastRun: undefined,
-      lastRunGitRef: undefined,
-    };
-    broadcastDirtyStates.postMessage(bm1);
-    // V2 notify
     notifyProjectModuleDirtyState(etd.projectId, [etd.moduleId], "error");
     return;
   }
@@ -89,27 +74,9 @@ ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
 `,
   ]);
 
-  const bm1: ProjectSseUpdateMessage = {
-    projectId: etd.projectId,
-    type: "module_dirty_state_and_last_run",
-    ids: [etd.moduleId],
-    dirtyOrRunStatus: "ready",
-    lastRun,
-    lastRunGitRef: computeDefGitRef ?? undefined,
-  };
-  broadcastDirtyStates.postMessage(bm1);
-  // V2 notify
   notifyProjectModuleDirtyState(etd.projectId, [etd.moduleId], "ready", lastRun, computeDefGitRef ?? undefined);
 
-  // Notify that modules table changed so UI refetches module list
-  const bm2: ProjectSseUpdateMessage = {
-    projectId: etd.projectId,
-    type: "last_updated",
-    tableName: "modules",
-    ids: [etd.moduleId],
-    lastUpdated: lastRun,
-  };
-  broadcastDirtyStates.postMessage(bm2);
+  notifyLastUpdated(etd.projectId, "modules", [etd.moduleId], lastRun);
 
   await setAllModuleDependentsLastUpdatedAndNotify(
     etd.projectId,
@@ -118,8 +85,6 @@ ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
     lastRun,
   );
 
-  notifyProjectUpdated(etd.projectId, lastRun);
-  // V2 notify
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const [modulesRes, metricsRes] = await Promise.all([
     getAllModulesForProject(projectDb),

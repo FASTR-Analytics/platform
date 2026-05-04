@@ -10,7 +10,8 @@ import {
 } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { _PO_DETAIL_CACHE, _PO_ITEMS_CACHE, _REPLICANT_OPTIONS_CACHE, _METRIC_INFO_CACHE } from "~/state/caches/visualizations";
+import { _PO_DETAIL_CACHE, _PO_ITEMS_CACHE, _METRIC_INFO_CACHE } from "~/state/project/t2_presentation_objects";
+import { _REPLICANT_OPTIONS_CACHE } from "~/state/project/t2_replicant_options";
 
 export function VisualizationSettings(
   p: AlertComponentProps<

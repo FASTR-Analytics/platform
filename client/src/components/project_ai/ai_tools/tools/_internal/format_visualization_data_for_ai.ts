@@ -1,5 +1,5 @@
 import type { MetricWithStatus } from "lib";
-import { getPODetailFromCacheorFetch } from "~/state/po_cache";
+import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
 import { getDataFromConfig } from "./format_metric_data_for_ai";
 
 export async function getVisualizationDataAsCSV(

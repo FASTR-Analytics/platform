@@ -15,7 +15,7 @@ import {
   timQuery,
   getSelectOptions,
 } from "panther";
-import { getReplicantOptionsFromCacheOrFetch } from "~/state/replicant_options_cache";
+import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
 import { createEffect, Match, Switch } from "solid-js";
 import { trackDeep } from "@solid-primitives/deep";
 

@@ -12,7 +12,7 @@ import { Match, Switch } from "solid-js";
 import {
   getPODetailFromCacheorFetch,
   getResultsValueInfoForPresentationObjectFromCacheOrFetch,
-} from "~/state/po_cache";
+} from "~/state/project/t2_presentation_objects";
 import { VisualizationEditorInner } from "./visualization_editor_inner";
 import type { AIContext } from "~/components/project_ai/types";
 

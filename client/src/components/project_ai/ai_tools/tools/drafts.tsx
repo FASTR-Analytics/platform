@@ -17,7 +17,7 @@ import {
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { getPODetailFromCacheorFetch } from "~/state/po_cache";
+import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
 import type { AIContext } from "~/components/project_ai/types";
 import { DraftVisualizationPreview } from "../DraftVisualizationPreview";
 import { DraftSlidePreview } from "../DraftSlidePreview";

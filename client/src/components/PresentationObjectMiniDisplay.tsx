@@ -2,7 +2,7 @@ import { ReplicantValueOverride, t3 } from "lib";
 import { FigureInputs, ChartHolder, Loading, StateHolder } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
-import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/po_cache";
+import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/project/t2_presentation_objects";
 import { NotAvailableBox } from "./NotAvailableBox";
 
 type Props = {

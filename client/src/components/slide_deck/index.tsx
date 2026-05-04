@@ -8,7 +8,7 @@ import {
 } from "panther";
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { _SLIDE_CACHE } from "~/state/caches/slides";
+import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { projectState } from "~/state/project/t1_store";
 import { DownloadSlideDeck } from "./download_slide_deck";
 import { ShareSlideDeck } from "./share_slide_deck";

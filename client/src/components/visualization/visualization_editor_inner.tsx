@@ -55,7 +55,7 @@ import { serverActions } from "~/server_actions";
 import {
   getPresentationObjectItemsFromCacheOrFetch,
   getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
-} from "~/state/po_cache";
+} from "~/state/project/t2_presentation_objects";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import type { CreateModeReturn, EditModeReturn, EphemeralModeReturn } from ".";
 import { DuplicateVisualization } from "./duplicate_visualization";

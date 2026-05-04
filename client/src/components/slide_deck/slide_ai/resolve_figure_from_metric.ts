@@ -4,13 +4,13 @@ import type {
   MetricWithStatus,
 } from "lib";
 import { getFetchConfigFromPresentationObjectConfig, getReplicateByProp } from "lib";
-import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
+import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { getFigureInputsFromPresentationObject, stripFigureInputsForStorage } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
-import { getReplicantOptionsFromCacheOrFetch } from "~/state/replicant_options_cache";
+import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
 import { validateMetricInputs } from "~/components/project_ai/ai_tools/validators/content_validators";
 import { buildConfigFromPreset } from "./build_config_from_metric";
 

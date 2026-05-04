@@ -8,7 +8,7 @@ import {
   type PeriodOption,
 } from "lib";
 import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
-import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/po_cache";
+import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 
 const MARKDOWN_TABLE_PATTERNS = [
   /\|.*\|.*\|/m, // Lines with multiple pipes (table rows)

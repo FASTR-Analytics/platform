@@ -1,5 +1,5 @@
 import { getSlideTitle, type Slide } from "lib";
-import { _SLIDE_CACHE } from "~/state/caches/slides";
+import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { extractBlocksFromLayout } from "./extract_blocks_from_layout";
 
 function getContentSummary(slide: Slide): string {

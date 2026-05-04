@@ -22,7 +22,7 @@ import { createSignal, ErrorBoundary, Match, onMount, Show, Switch } from "solid
 import {
   getPOFigureInputsFromCacheOrFetch_AsyncGenerator,
   getPODetailFromCacheorFetch,
-} from "~/state/po_cache";
+} from "~/state/project/t2_presentation_objects";
 import { PresentationObjectMiniDisplay } from "~/components/PresentationObjectMiniDisplay";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { buildConfigFromPreset } from "~/components/slide_deck/slide_ai/build_config_from_metric";

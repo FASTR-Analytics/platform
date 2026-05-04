@@ -4,7 +4,7 @@ import {
   getDocumentsForProject,
   removeDocumentFromProject,
   type ProjectDocument,
-} from "~/state/ai_documents";
+} from "~/state/project/t4_ai_documents";
 import { AIDocumentSelectorModal } from "./AIDocumentSelectorModal";
 
 type UseAIDocumentsOptions = {

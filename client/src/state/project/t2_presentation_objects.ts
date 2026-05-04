@@ -1,38 +1,71 @@
 import {
   APIResponseWithData,
+  GenericLongFormFetchConfig,
   ItemsHolderPresentationObject,
   PresentationObjectConfig,
   PresentationObjectDetail,
   ReplicantValueOverride,
+  ResultsValueInfoForPresentationObject,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
+  hashFetchConfig,
   t3,
 } from "lib";
-import { getReplicantOptionsFromCacheOrFetch } from "./replicant_options_cache";
+import { getModuleIdForMetric, getModuleIdForResultsObject } from "~/state/project/t1_store";
+import { createReactiveCache } from "../_infra/reactive_cache";
+import { poItemsQueue, resultsValueInfoQueue } from "~/state/_infra/request_queue";
+import { serverActions } from "~/server_actions";
 import { FigureInputs, StateHolder, type GeoJSONFeatureCollection } from "panther";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
-import { serverActions } from "~/server_actions";
-import { getGeoJsonSync } from "./instance/t2_geojson";
-import {
-  _PO_DETAIL_CACHE,
-  _PO_ITEMS_CACHE,
-  _METRIC_INFO_CACHE,
-} from "./caches/visualizations";
-import { poItemsQueue, resultsValueInfoQueue } from "~/state/_infra/request_queue";
+import { getGeoJsonSync } from "../instance/t2_geojson";
+import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//  _______    ______         __     __                     __            __        __                  __             ______           //
-// /       \  /      \       /  |   /  |                   /  |          /  |      /  |                /  |           /      \          //
-// $$$$$$$  |/$$$$$$  |      $$ |   $$ | ______    ______  $$/   ______  $$ |____  $$ |  ______        $$/  _______  /$$$$$$  |______   //
-// $$ |__$$ |$$ |  $$ |      $$ |   $$ |/      \  /      \ /  | /      \ $$      \ $$ | /      \       /  |/       \ $$ |_ $$//      \  //
-// $$    $$< $$ |  $$ |      $$  \ /$$/ $$$$$$  |/$$$$$$  |$$ | $$$$$$  |$$$$$$$  |$$ |/$$$$$$  |      $$ |$$$$$$$  |$$   |  /$$$$$$  | //
-// $$$$$$$  |$$ |  $$ |       $$  /$$/  /    $$ |$$ |  $$/ $$ | /    $$ |$$ |  $$ |$$ |$$    $$ |      $$ |$$ |  $$ |$$$$/   $$ |  $$ | //
-// $$ |  $$ |$$ \__$$ |        $$ $$/  /$$$$$$$ |$$ |      $$ |/$$$$$$$ |$$ |__$$ |$$ |$$$$$$$$/       $$ |$$ |  $$ |$$ |    $$ \__$$ | //
-// $$ |  $$ |$$    $$/          $$$/   $$    $$ |$$ |      $$ |$$    $$ |$$    $$/ $$ |$$       |      $$ |$$ |  $$ |$$ |    $$    $$/  //
-// $$/   $$/  $$$$$$/            $/     $$$$$$$/ $$/       $$/  $$$$$$$/ $$$$$$$/  $$/  $$$$$$$/       $$/ $$/   $$/ $$/      $$$$$$/   //
-//                                                                                                                                      //
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+export const _METRIC_INFO_CACHE = createReactiveCache<
+  {
+    projectId: string;
+    metricId: string;
+  },
+  ResultsValueInfoForPresentationObject
+>({
+  name: "metric_info",
+  uniquenessKeys: (params) => [
+    params.projectId,
+    params.metricId,
+  ],
+  versionKey: (params, pds) => pds.moduleLastRun[getModuleIdForMetric(params.metricId)] ?? "unknown",
+});
+
+export const _PO_DETAIL_CACHE = createReactiveCache<
+  {
+    projectId: string;
+    presentationObjectId: string;
+  },
+  PresentationObjectDetail
+>({
+  name: "po_detail",
+  uniquenessKeys: (params) => [params.projectId, params.presentationObjectId],
+  versionKey: (params, pds) =>
+    pds.lastUpdated.presentation_objects[params.presentationObjectId] ?? "unknown",
+});
+
+export const _PO_ITEMS_CACHE = createReactiveCache<
+  {
+    projectId: string;
+    resultsObjectId: string;
+    fetchConfig: GenericLongFormFetchConfig;
+  },
+  ItemsHolderPresentationObject
+>({
+  name: "po_items",
+  uniquenessKeys: (params) => [
+    params.projectId,
+    params.resultsObjectId,
+    hashFetchConfig(params.fetchConfig),
+  ],
+  versionKey: (params, pds) =>
+    pds.moduleLastRun[getModuleIdForResultsObject(params.resultsObjectId)] ?? "unknown",
+});
 
 export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
   projectId: string,
@@ -47,7 +80,6 @@ export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
     return { success: true, data } as const;
   }
 
-  // Queue the network request to prevent overwhelming server
   const newPromise = resultsValueInfoQueue.enqueue(() =>
     serverActions.getResultsValueInfoForPresentationObject({
       projectId,
@@ -67,22 +99,6 @@ export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
   const result = await newPromise;
   return result;
 }
-
-/////////////////////////////////////////////////////////////////////////////////////////
-//  ________  __                  __                                  __               //
-// /        |/  |                /  |                                /  |              //
-// $$$$$$$$/ $$/   ______        $$/  _______    ______   __    __  _$$ |_    _______  //
-// $$ |__    /  | /      \       /  |/       \  /      \ /  |  /  |/ $$   |  /       | //
-// $$    |   $$ |/$$$$$$  |      $$ |$$$$$$$  |/$$$$$$  |$$ |  $$ |$$$$$$/  /$$$$$$$/  //
-// $$$$$/    $$ |$$ |  $$ |      $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |  $$ | __$$      \  //
-// $$ |      $$ |$$ \__$$ |      $$ |$$ |  $$ |$$ |__$$ |$$ \__$$ |  $$ |/  |$$$$$$  | //
-// $$ |      $$ |$$    $$ |      $$ |$$ |  $$ |$$    $$/ $$    $$/   $$  $$//     $$/  //
-// $$/       $$/  $$$$$$$ |      $$/ $$/   $$/ $$$$$$$/   $$$$$$/     $$$$/ $$$$$$$/   //
-//               /  \__$$ |                    $$ |                                    //
-//               $$    $$/                     $$ |                                    //
-//                $$$$$$/                      $$/                                     //
-//                                                                                     //
-/////////////////////////////////////////////////////////////////////////////////////////
 
 export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
   projectId: string,
@@ -108,9 +124,6 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
   if (!readyPoDetail) {
     throw new Error("Should not happen");
   }
-  ///////////////////////////////////////////////////////////////////////////////////
-  ////////////////////// Integrate OVERRIDES for reports /////////////////////////
-  ///////////////////////////////////////////////////////////////////////////////////
   const configWithReplicateOverride: PresentationObjectConfig = structuredClone(
     readyPoDetail.data.config,
   );
@@ -136,9 +149,6 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
   if (replicateOverride?.hideFigureFootnote) {
     configWithReplicateOverride.t.footnote = "";
   }
-  ///////////////////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////////////////
 
   const iterPoItems = getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
     projectId,
@@ -160,7 +170,6 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
     throw new Error("Should not happen");
   }
 
-  // Check status and handle non-ok states
   if (readyPoItems.data.ih.status === "too_many_items") {
     yield {
       status: "error",
@@ -228,33 +237,16 @@ export async function getPOFigureInputsFromCacheOrFetch(
   return { success: true, data: last.data };
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//  _______    ______               __              __                __  __  //
-// /       \  /      \             /  |            /  |              /  |/  | //
-// $$$$$$$  |/$$$$$$  |        ____$$ |  ______   _$$ |_     ______  $$/ $$ | //
-// $$ |__$$ |$$ |  $$ |       /    $$ | /      \ / $$   |   /      \ /  |$$ | //
-// $$    $$/ $$ |  $$ |      /$$$$$$$ |/$$$$$$  |$$$$$$/    $$$$$$  |$$ |$$ | //
-// $$$$$$$/  $$ |  $$ |      $$ |  $$ |$$    $$ |  $$ | __  /    $$ |$$ |$$ | //
-// $$ |      $$ \__$$ |      $$ \__$$ |$$$$$$$$/   $$ |/  |/$$$$$$$ |$$ |$$ | //
-// $$ |      $$    $$/       $$    $$ |$$       |  $$  $$/ $$    $$ |$$ |$$ | //
-// $$/        $$$$$$/         $$$$$$$/  $$$$$$$/    $$$$/   $$$$$$$/ $$/ $$/  //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
 async function* getPODetailFromCacheorFetch_AsyncGenderator(
   projectId: string,
   presentationObjectId: string,
 ): AsyncGenerator<StateHolder<PresentationObjectDetail>> {
-  const t0 = performance.now();
   const { data, version, isInflight } = await _PO_DETAIL_CACHE.get({
     projectId,
     presentationObjectId,
   });
 
   if (data) {
-    const t1 = performance.now();
-    const status = isInflight ? "INFLIGHT" : "HIT";
-    // console.log(`[VIZ] ${presentationObjectId.slice(0, 8)} "${data.label}" | Detail: ${status} (${(t1 - t0).toFixed(0)}ms)`);
     yield {
       status: "ready",
       data,
@@ -281,16 +273,13 @@ async function* getPODetailFromCacheorFetch_AsyncGenderator(
   );
 
   const res = await newPromise;
-  const t1 = performance.now();
   if (res.success === false) {
-    // console.log(`[VIZ] ${presentationObjectId.slice(0, 8)} | Detail: MISS ERROR (${(t1 - t0).toFixed(0)}ms)`);
     yield {
       status: "error",
       err: res.err,
     };
     return;
   }
-  // console.log(`[VIZ] ${presentationObjectId.slice(0, 8)} "${res.data.label}" | Detail: MISS (${(t1 - t0).toFixed(0)}ms)`);
   yield {
     status: "ready",
     data: res.data,
@@ -319,25 +308,11 @@ export async function getPODetailFromCacheorFetch(
   if (last.status === "error") {
     return { success: false, err: last.err };
   }
-  // At this point, last.status must be "ready" and last.data must be PresentationObjectDetail
   if (last.status !== "ready") {
     return { success: false, err: "Should not be possible" };
   }
   return { success: true, data: last.data };
 }
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//  _______    ______          ______             __                __              __    __                                        //
-// /       \  /      \        /      \           /  |              /  |            /  |  /  |                                       //
-// $$$$$$$  |/$$$$$$  |      /$$$$$$  |______   _$$ |_     _______ $$ |____        $$/  _$$ |_     ______   _____  ____    _______  //
-// $$ |__$$ |$$ |  $$ |      $$ |_ $$//      \ / $$   |   /       |$$      \       /  |/ $$   |   /      \ /     \/    \  /       | //
-// $$    $$/ $$ |  $$ |      $$   |  /$$$$$$  |$$$$$$/   /$$$$$$$/ $$$$$$$  |      $$ |$$$$$$/   /$$$$$$  |$$$$$$ $$$$  |/$$$$$$$/  //
-// $$$$$$$/  $$ |  $$ |      $$$$/   $$    $$ |  $$ | __ $$ |      $$ |  $$ |      $$ |  $$ | __ $$    $$ |$$ | $$ | $$ |$$      \  //
-// $$ |      $$ \__$$ |      $$ |    $$$$$$$$/   $$ |/  |$$ \_____ $$ |  $$ |      $$ |  $$ |/  |$$$$$$$$/ $$ | $$ | $$ | $$$$$$  | //
-// $$ |      $$    $$/       $$ |    $$       |  $$  $$/ $$       |$$ |  $$ |      $$ |  $$  $$/ $$       |$$ | $$ | $$ |/     $$/  //
-// $$/        $$$$$$/        $$/      $$$$$$$/    $$$$/   $$$$$$$/ $$/   $$/       $$/    $$$$/   $$$$$$$/ $$/  $$/  $$/ $$$$$$$/   //
-//                                                                                                                                  //
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
   projectId: string,
@@ -349,7 +324,6 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     config: PresentationObjectConfig;
   }>
 > {
-  const t0 = performance.now();
   const resResultsValueInfo =
     await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
       poDetail.projectId,
@@ -374,7 +348,6 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     return;
   }
 
-  // Validate replicant value if required
   const replicateBy = getReplicateByProp(config);
   let finalFetchConfig = resFetchConfig.data;
   if (replicateBy) {
@@ -398,9 +371,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
           };
           return;
         }
-        // Auto-select first available value for thumbnail rendering
         config.d.selectedReplicantValue = validValues[0];
-        // Regenerate fetch config with corrected value
         const newFetchConfig = getFetchConfigFromPresentationObjectConfig(
           poDetail.resultsValue,
           config,
@@ -419,14 +390,6 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   });
 
   if (data) {
-    const t1 = performance.now();
-    const cacheStatus = isInflight ? "INFLIGHT" : "HIT";
-    const itemsInfo = data.status === "ok"
-      ? `${data.items.length} rows`
-      : data.status === "too_many_items"
-      ? "TOO MANY ITEMS"
-      : "NO DATA";
-    // console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: ${cacheStatus} (${(t1 - t0).toFixed(0)}ms) | ${itemsInfo}`);
     yield {
       status: "ready",
       data: { ih: data, config },
@@ -438,7 +401,6 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     status: "loading",
   };
 
-  // Queue the network request to prevent overwhelming server
   const newPromise = poItemsQueue.enqueue(() =>
     serverActions.getPresentationObjectItems({
       projectId,
@@ -459,21 +421,9 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   );
 
   const res = await newPromise;
-  const t1 = performance.now();
-  const queueStats = poItemsQueue.getStats();
   if (res.success === false) {
-    // console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS ERROR (${(t1 - t0).toFixed(0)}ms) [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
     yield { status: "error", err: res.err };
     return;
-  }
-
-  // Log based on status
-  if (res.data.status === "ok") {
-    // console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS (${(t1 - t0).toFixed(0)}ms) | ${res.data.items.length} rows [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
-  } else if (res.data.status === "too_many_items") {
-    // console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS (${(t1 - t0).toFixed(0)}ms) | TOO MANY ITEMS [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
-  } else {
-    // console.log(`[VIZ] ${poDetail.id.slice(0, 8)} "${poDetail.label}" | Items: MISS (${(t1 - t0).toFixed(0)}ms) | NO DATA [Queue: ${queueStats.running}/${queueStats.maxConcurrent} running, ${queueStats.queued} waiting]`);
   }
 
   yield {

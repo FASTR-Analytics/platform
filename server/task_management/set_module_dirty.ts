@@ -1,4 +1,4 @@
-import { ProjectSseUpdateMessage, type DatasetType } from "lib";
+import type { DatasetType } from "lib";
 import { ProjectPk } from "../server_only_types/mod.ts";
 import {
   addModulesThatDependOnDataset,
@@ -10,8 +10,6 @@ import {
   removeRunningModule,
 } from "./running_tasks_map.ts";
 import { triggerRunnableModules } from "./trigger_runnable_tasks.ts";
-
-const broadcastDirtyStates = new BroadcastChannel("dirty_states");
 
 export async function setModulesDirtyForDataset(
   ppk: ProjectPk,
@@ -46,16 +44,6 @@ async function setDirtyInner(ppk: ProjectPk, moduleIds: string[]) {
 UPDATE modules SET dirty = 'queued' WHERE id = ${moduleId}
 `;
   }
-  const bm1: ProjectSseUpdateMessage = {
-    projectId: ppk.projectId,
-    type: "module_dirty_state_and_last_run",
-    ids: moduleIds,
-    dirtyOrRunStatus: "queued",
-    lastRun: undefined,
-    lastRunGitRef: undefined,
-  };
-  broadcastDirtyStates.postMessage(bm1);
-  // V2 notify
   notifyProjectModuleDirtyState(ppk.projectId, moduleIds, "queued");
 
   triggerRunnableModules(ppk);

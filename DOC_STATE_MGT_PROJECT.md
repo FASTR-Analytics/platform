@@ -2,19 +2,11 @@
 
 ## Overview
 
-Project state is scoped to a single project: modules, visualizations, reports, slide decks, dirty states, metrics, and project users. After the project state consolidation (`PLAN_PROJECT_STATE.md`), project state will use the same global store + SSE pattern as instance state.
+Project state is scoped to a single project: modules, visualizations, slide decks, dirty states, metrics, and project users. Project state uses the same global store + SSE pattern as instance state.
 
 For instance-level state management, see `DOC_STATE_MGT_INSTANCE.md`.
 
-> **Status — this whole document describes the target architecture, not current code.** Project state is mid-migration:
->
-> - **T1 (SSE store):** does not exist yet. Current code uses a Context/Provider in `client/src/components/project_runner/` (`provider.tsx`, `context.tsx`, `hooks.tsx`, `global_pds.ts`, `global_module_maps.ts`). Built in Steps A–D of `PLAN_PROJECT_STATE.md`.
-> - **T2 (reactive caches):** the *concepts* and the cache implementations exist, but the *file paths shown* (`project/t2_presentation_objects.ts`, etc.) do not. Current paths: `state/po_cache.ts`, `state/ri_cache.ts`, `state/replicant_options_cache.ts`, `state/img_cache.ts`, `state/caches/visualizations.ts`, `state/caches/reports.ts`, `state/caches/slides.ts`. Reorganized into `state/project/t2_*.ts` in Step E of `PLAN_PROJECT_STATE.md`.
-> - **T3:** accurate.
-> - **T4:** the concepts and code exist; file paths shown (`project/t4_*.ts`) are target. Current paths: `state/ai_documents.ts`, `state/ai_interpretations.ts`, `state/long_form_editor.ts`. Moved in Step E.
-> - **T5:** accurate.
-
-## Architecture (target, after `PLAN_PROJECT_STATE.md`)
+## Architecture
 
 5 files, one per concern — same structure as instance:
 
@@ -53,18 +45,16 @@ Metadata and list data for the project. Pushed via SSE on every change. Componen
 | Common indicators | `commonIndicators` | `modules_updated` (derived) | — |
 | Visualizations | `visualizations` | `visualizations_updated` | — |
 | Visualization folders | `visualizationFolders` | `visualization_folders_updated` | — |
-| Reports | `reports` | `reports_updated` | — |
 | Slide decks | `slideDecks` | `slide_decks_updated` | — |
 | Slide deck folders | `slideDeckFolders` | `slide_deck_folders_updated` | — |
 | Project users | `projectUsers` | `project_users_updated` | — |
 | Module dirty states | `moduleDirtyStates` | `module_dirty_state` | — |
 | Module last run | `moduleLastRun`, `moduleLastRunGitRef` | `module_dirty_state` | `moduleLastRun[moduleId]` |
 | Any running | `anyRunning` | `any_running` | — |
-| R logs | `rLogs` | `r_script` | — |
 | Per-entity timestamps | `lastUpdated` | `last_updated` | `lastUpdated[tableName][entityId]` |
 | Current user permissions | `thisUserPermissions` | `project_users_updated` (re-derived) | — |
 
-**Per-entity `lastUpdated` timestamps:** Unlike instance state, project T2 caches need per-entity versioning. For example, when a single presentation object is edited, only that PO's cache entry should invalidate — not all POs. The `lastUpdated` field is a nested record: `Record<LastUpdateTableName, Record<string, string>>`, where table names include `presentation_objects`, `reports`, `report_items`, `slides`, `slide_decks`, `modules`, `datasets`.
+**Per-entity `lastUpdated` timestamps:** Unlike instance state, project T2 caches need per-entity versioning. For example, when a single presentation object is edited, only that PO's cache entry should invalidate — not all POs. The `lastUpdated` field is a nested record: `Record<LastUpdateTableName, Record<string, string>>`, where table names include `presentation_objects`, `slides`, `slide_decks`, `modules`, `datasets`.
 
 **Derived lookup maps:** `t1_store.ts` maintains internal lookup maps (`metricToModule`, `resultsObjectToModule`, `metricToFormatAs`) recomputed from `projectModules`/`metrics` whenever those fields update. Exported via getter functions (`getModuleIdForMetric()`, `getModuleIdForResultsObject()`, `getFormatAsForMetric()`). Used by T2 caches to resolve module-based version keys.
 
@@ -82,9 +72,6 @@ Heavy project data too large for SSE. Cached in memory + IndexedDB. Auto-invalid
 | PO items (data rows) | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` (via resultsObjectId lookup) | Potentially thousands of rows |
 | Metric info (results value info) | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` (via metricId lookup) | Per-metric results metadata |
 | Replicant options | `project/t2_replicant_options.ts` | `moduleLastRun[moduleId]` (via resultsObjectId lookup) | Disaggregation options per fetch config |
-| Report detail | `project/t2_reports.ts` | `lastUpdated.reports[reportId]` | Full report config |
-| Report item | `project/t2_reports.ts` | `lastUpdated.report_items[reportItemId]` | Per-item config |
-| Slide inputs (page layouts) | `project/t2_reports.ts` | `anyModuleLastRun` + `lastUpdated.reports` + `lastUpdated.report_items` | Composite — depends on module output + report/item config |
 | Slide content | `project/t2_slides.ts` | `lastUpdated.slides[slideId]` | Full slide with blocks and metadata |
 | Slide deck meta | `project/t2_slides.ts` | `lastUpdated.slide_decks[deckId]` | Deck label, plan, slide order |
 | Image blobs | `project/t2_images.ts` | URL-based (not PDS-keyed) | Binary data, IndexedDB + memory |

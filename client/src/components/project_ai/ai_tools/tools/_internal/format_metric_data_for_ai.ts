@@ -11,7 +11,7 @@ import {
   periodFilterHasBounds,
 } from "lib";
 import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
-import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
+import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 

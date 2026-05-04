@@ -14,7 +14,7 @@ import {
   getDocumentsForProject,
   removeDocumentFromProject,
   type ProjectDocument,
-} from "~/state/ai_documents";
+} from "~/state/project/t4_ai_documents";
 
 type Props = {
   projectId: string;

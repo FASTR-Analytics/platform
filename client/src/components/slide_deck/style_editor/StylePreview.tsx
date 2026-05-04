@@ -9,7 +9,7 @@ import {
 import { createResource, Show } from "solid-js";
 import { buildStyleForSlide, FASTR_LOGO_VALUES } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { getBackgroundDetail, type BackgroundDetail } from "~/generate_slide_deck/get_overlay_image";
-import { getImgFromCacheOrFetch } from "~/state/img_cache";
+import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
 import { _SERVER_HOST } from "~/server_actions";
 
 type StylePreviewProps = {
