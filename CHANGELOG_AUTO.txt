@@ -1,3 +1,8 @@
+[TBD] [user] [changed] - Project data now updates in real time more reliably
+[TBD] [admin] [changed] - Project state updates now use real-time server events exclusively
+[TBD] [admin] [fixed] - Slide deck and visualization edits sync faster across users
+[TBD] [admin] [changed] - Removed manual refresh requirements after editing user permissions
+[TBD] [admin] [internal] - Simplified project data synchronization architecture
 [TBD] [user] [added] - Cache status page now shows additional cached item counts per visualization
 [TBD] [user] [added] - Cache status page now displays client-side browser cache details
 [TBD] [user] [changed] - Removed slide decks section from cache status page
