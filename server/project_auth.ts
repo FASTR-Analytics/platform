@@ -202,6 +202,7 @@ export async function getGlobalUser(
       lastName: auth.sessionClaims.lastName as string,
       approved: _OPEN_ACCESS || !!rawUser,
       isGlobalAdmin,
+      organisation: rawUser?.organisation ?? null,
       thisUserPermissions,
     };
     return globalUser;

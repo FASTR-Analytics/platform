@@ -13,7 +13,7 @@ export default function InstanceLoggedInWrapper() {
         setCalendar(globalUser.instanceCalendar);
         return (
           <InstanceSSEBoundary>
-            <Instance attemptSignOut={attemptSignOut} />
+            <Instance globalUser={globalUser} attemptSignOut={attemptSignOut} />
           </InstanceSSEBoundary>
         );
       }}

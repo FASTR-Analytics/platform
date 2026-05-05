@@ -36,6 +36,18 @@ export async function syncUserName(
   `;
 }
 
+export async function updateUserOrganisation(
+  mainDb: Sql,
+  email: string,
+  organisation: string,
+): Promise<void> {
+  await mainDb`
+    UPDATE users
+    SET organisation = ${organisation}
+    WHERE email = ${email}
+  `;
+}
+
 export async function getOtherUser(
   mainDb: Sql,
   email: string,

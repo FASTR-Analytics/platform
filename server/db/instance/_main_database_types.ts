@@ -3,6 +3,7 @@ export type DBUser = {
   is_admin: boolean;
   first_name: string | null;
   last_name: string | null;
+  organisation: string | null;
   can_configure_users: boolean;
   can_view_users: boolean;
   can_view_logs: boolean;

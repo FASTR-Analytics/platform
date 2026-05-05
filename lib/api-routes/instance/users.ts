@@ -35,6 +35,11 @@ export const userRouteRegistry = {
     method: "POST",
     body: {} as { asset_file_name: string; replace_all_existing: boolean },
   }),
+  updateMyOrganisation: route({
+    path: "/user/organisation",
+    method: "POST",
+    body: {} as { organisation: string },
+  }),
   getAllUserLogs: route({
     path: "/all-user-logs",
     method: "GET",

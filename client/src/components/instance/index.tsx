@@ -1,5 +1,5 @@
 import { useSearchParams } from "@solidjs/router";
-import { TC, isFrench, t3, LANGUAGE_STORAGE_KEY } from "lib";
+import { TC, isFrench, t3, LANGUAGE_STORAGE_KEY, type GlobalUser } from "lib";
 import {
   AlertProvider,
   Button,
@@ -15,6 +15,7 @@ import {
 import { Match, Show, Switch, createSignal, onMount } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { EmailOptInModal } from "~/components/email_opt_in_modal";
+import { OrganisationModal } from "~/components/organisation_modal";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
@@ -27,6 +28,7 @@ import { InstanceSettings } from "./instance_settings";
 import { ProfileForm } from "./profile";
 
 type Props = {
+  globalUser: GlobalUser;
   attemptSignOut: () => Promise<void>;
 };
 
@@ -53,12 +55,18 @@ export default function Instance(p: Props) {
     return t;
   };
 
-  // email opt in modal
+  // post-login modals
   onMount(async () => {
     if (!clerk.user) return; // skips dev bypass mode naturally
     if (!clerk.user.unsafeMetadata?.emailOptInAsked) {
       await openComponent({
         element: EmailOptInModal,
+        props: undefined,
+      });
+    }
+    if (p.globalUser.organisation === null) {
+      await openComponent({
+        element: OrganisationModal,
         props: undefined,
       });
     }

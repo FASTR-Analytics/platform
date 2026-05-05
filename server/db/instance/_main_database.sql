@@ -17,6 +17,7 @@ CREATE TABLE users (
   can_create_projects boolean NOT NULL DEFAULT FALSE,
   first_name text,
   last_name text,
+  organisation text,
   default_project_can_configure_settings boolean NOT NULL DEFAULT FALSE,
   default_project_can_create_backups boolean NOT NULL DEFAULT FALSE,
   default_project_can_restore_backups boolean NOT NULL DEFAULT FALSE,

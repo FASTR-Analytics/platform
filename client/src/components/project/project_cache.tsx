@@ -3,7 +3,7 @@ import { HeadingBar, StateHolderWrapper, timQuery } from "panther";
 import { createResource, For } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { projectState } from "~/state/project/t1_store";
-import { getClientCacheBuckets } from "~/state/clear_caches";
+import { getClientVizCacheStatuses, type ClientVizCacheStatus } from "~/state/clear_caches";
 
 export function ProjectCache() {
   const cacheQuery = timQuery(
@@ -18,7 +18,7 @@ export function ProjectCache() {
         <StateHolderWrapper state={cacheQuery.state()}>
           {(data) => {
             const [clientStatuses, { refetch: refetchClient }] = createResource(() =>
-              getClientVizCacheStatuses(projectDetail.id, data.visualizations),
+              getClientVizCacheStatuses(projectState.id, data.visualizations),
             );
 
             const clientMap = (): Map<string, ClientVizCacheStatus> => {

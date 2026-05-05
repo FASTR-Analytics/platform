@@ -4,6 +4,7 @@ import { t3, TC } from "lib";
 import {
   Button,
   Checkbox,
+  Input,
   ModalContainer,
   SettingsSection,
   StateHolderWrapper,
@@ -61,6 +62,14 @@ export function ProfileForm(
     >
       <StateHolderWrapper state={userDetails.state()} noPad>
         {(keyedUser) => {
+          const [organisation, setOrganisation] = createSignal(
+            keyedUser.organisation ?? "",
+          );
+
+          const saveOrganisation = timActionButton(
+            () => serverActions.updateMyOrganisation({ organisation: organisation() }),
+          );
+
           const [optedIn, setOptedIn] = createSignal(
             clerk.user?.unsafeMetadata?.emailOptIn === true,
           );
@@ -110,6 +119,27 @@ export function ProfileForm(
                   </button>
                 </div>
               </div>
+
+              {/* Organisation */}
+              <SettingsSection
+                header={t3({ en: "Organisation", fr: "Organisation" })}
+                rightChildren={
+                  <Button
+                    onClick={saveOrganisation.click}
+                    state={saveOrganisation.state()}
+                    intent="primary"
+                    outline
+                  >
+                    {t3({ en: "Save", fr: "Enregistrer" })}
+                  </Button>
+                }
+              >
+                <Input
+                  value={organisation()}
+                  onChange={setOrganisation}
+                  placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
+                />
+              </SettingsSection>
 
               {/* Mailing list */}
               <SettingsSection

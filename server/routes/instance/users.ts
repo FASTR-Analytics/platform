@@ -13,6 +13,7 @@ import {
   syncUserName,
   toggleAdmin,
   updateUserDefaultProjectPermissions,
+  updateUserOrganisation,
   updateUserPermissions,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
@@ -32,6 +33,17 @@ defineRoute(
     // Sync name from Clerk on first login only — syncUserName is a no-op once the name is set.
     syncUserName(c.var.mainDb, email, firstName ?? null, lastName ?? null).catch(() => {});
     return c.json({ success: true, data: c.var.globalUser });
+  },
+);
+
+defineRoute(
+  routesUsers,
+  "updateMyOrganisation",
+  requireGlobalPermission(),
+  log("updateMyOrganisation"),
+  async (c, { body }) => {
+    await updateUserOrganisation(c.var.mainDb, c.var.globalUser.email, body.organisation);
+    return c.json({ success: true });
   },
 );
 
