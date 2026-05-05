@@ -1,6 +1,8 @@
 -- ============================================================================
 -- USER AND PROJECT MANAGEMENT
 -- ============================================================================
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
 
 CREATE TABLE users (
   email text PRIMARY KEY NOT NULL,
