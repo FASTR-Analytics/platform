@@ -2,7 +2,7 @@ import {
   IneffectiveDisaggregator,
   PresentationObjectConfig,
   PresentationObjectDetail,
-  ProjectDetail,
+  ProjectState,
   ResultsValueInfoForPresentationObject,
 } from "lib";
 import { SetStoreFunction } from "solid-js/store";
@@ -14,7 +14,7 @@ import { Filters } from "./presentation_object_editor_panel_data/_2_filters";
 import { DisaggregationSection } from "./presentation_object_editor_panel_data/_3_disaggregation";
 
 type Props = {
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   poDetail: PresentationObjectDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;

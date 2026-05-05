@@ -38,7 +38,6 @@ import {
   notifyLastUpdated,
   setModuleDirty,
 } from "../../task_management/mod.ts";
-import { notifyProjectUpdated } from "../../task_management/notify_last_updated.ts";
 import { notifyProjectModulesUpdated } from "../../task_management/notify_project_v2.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
@@ -85,8 +84,6 @@ defineRoute(
       res.data.presObjIdsWithNewLastUpdateds,
       res.data.lastUpdated,
     );
-    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-    // V2 notify
     const [modulesRes, metricsRes] = await Promise.all([
       getAllModulesForProject(c.var.ppk.projectDb),
       getMetricsWithStatus(c.var.mainDb, c.var.ppk.projectDb),
@@ -116,8 +113,6 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
-    notifyProjectUpdated(c.var.ppk.projectId, new Date().toISOString());
-    // V2 notify
     const [modulesRes, metricsRes] = await Promise.all([
       getAllModulesForProject(c.var.ppk.projectDb),
       getMetricsWithStatus(c.var.mainDb, c.var.ppk.projectDb),
@@ -172,8 +167,6 @@ defineRoute(
       res.data.presObjIdsWithNewLastUpdateds,
       res.data.lastUpdated,
     );
-    notifyProjectUpdated(c.var.ppk.projectId, res.data.lastUpdated);
-    // V2 notify
     const [modulesRes, metricsRes] = await Promise.all([
       getAllModulesForProject(c.var.ppk.projectDb),
       getMetricsWithStatus(c.var.mainDb, c.var.ppk.projectDb),

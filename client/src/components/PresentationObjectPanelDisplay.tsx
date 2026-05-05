@@ -5,7 +5,7 @@ import {
   InstalledModuleSummary,
   MetricWithStatus,
   PresentationObjectSummary,
-  ProjectDetail,
+  ProjectState,
   SlideDeckFolder,
   SlideDeckSummary,
   VisualizationFolder,
@@ -73,24 +73,24 @@ type SubGroupConfig = {
 };
 
 type Props = {
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   searchText: string;
   onClick: (presentationObject: PresentationObjectSummary) => void;
 };
 
 export function PresentationObjectPanelDisplay(p: Props) {
   const metricModuleMap = () =>
-    new Map(p.projectDetail.metrics.map((m) => [m.id, m.moduleId]));
+    new Map(p.projectState.metrics.map((m) => [m.id, m.moduleId]));
 
   const readyMetricIds = () =>
     new Set(
-      p.projectDetail.metrics
+      p.projectState.metrics
         .filter((m) => m.status === "ready")
         .map((m) => m.id),
     );
 
   const filteredBySearch = () => {
-    let vizs = p.projectDetail.visualizations;
+    let vizs = p.projectState.visualizations;
 
     if (hideUnreadyVisualizations()) {
       const ready = readyMetricIds();
@@ -121,7 +121,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
           { value: "_unfiled", label: t3(TC.general), count: generalCount },
         ];
         groups.push(
-          ...p.projectDetail.visualizationFolders.map((f) => ({
+          ...p.projectState.visualizationFolders.map((f) => ({
             value: f.id,
             label: f.label,
             count: vizs.filter((v) => v.folderId === f.id && !v.isDefault)
@@ -133,7 +133,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
       }
 
       case "module":
-        return p.projectDetail.projectModules.map((m) => ({
+        return p.projectState.projectModules.map((m) => ({
           value: m.id,
           label: m.label,
           count: vizs.filter((v) => metricModuleMap().get(v.metricId) === m.id)
@@ -141,9 +141,9 @@ export function PresentationObjectPanelDisplay(p: Props) {
         }));
 
       case "metric": {
-        const metricGroups = groupMetricsByLabel(p.projectDetail.metrics);
+        const metricGroups = groupMetricsByLabel(p.projectState.metrics);
         const moduleOrder = new Map(
-          p.projectDetail.projectModules.map((m, i) => [m.id, i]),
+          p.projectState.projectModules.map((m, i) => [m.id, i]),
         );
         return metricGroups
           .filter((group) => {
@@ -216,7 +216,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
 
       case "metric": {
         // group is the metric label, find all metric IDs with that label
-        const metricGroups = groupMetricsByLabel(p.projectDetail.metrics);
+        const metricGroups = groupMetricsByLabel(p.projectState.metrics);
         const metricGroup = metricGroups.find((g) => g.label === group);
         if (!metricGroup) return [];
         const metricIds = new Set(metricGroup.variants.map((m) => m.id));
@@ -247,7 +247,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
 
     // Sub-group by metric for module view
     if (mode === "module") {
-      const lookup = createMetricLookup(p.projectDetail.metrics);
+      const lookup = createMetricLookup(p.projectState.metrics);
       return {
         getGroupKey: (po) => po.metricId,
         getGroupLabel: (key) => {
@@ -260,10 +260,10 @@ export function PresentationObjectPanelDisplay(p: Props) {
 
     // Sub-group by variant for metric view (only if metric has multiple variants)
     if (mode === "metric" && group) {
-      const metricGroups = groupMetricsByLabel(p.projectDetail.metrics);
+      const metricGroups = groupMetricsByLabel(p.projectState.metrics);
       const metricGroup = metricGroups.find((g) => g.label === group);
       if (metricGroup && metricGroup.variants.length > 1) {
-        const lookup = createMetricLookup(p.projectDetail.metrics);
+        const lookup = createMetricLookup(p.projectState.metrics);
         return {
           getGroupKey: (po) => po.metricId,
           getGroupLabel: (key) => {
@@ -290,7 +290,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
   function handleFolderContextMenu(e: MouseEvent, folderId: string) {
     e.preventDefault();
     e.stopPropagation();
-    const folder = p.projectDetail.visualizationFolders.find(
+    const folder = p.projectState.visualizationFolders.find(
       (f) => f.id === folderId,
     );
     if (!folder) return;
@@ -306,7 +306,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
           await openComponent({
             element: EditFolderModal,
             props: {
-              projectId: p.projectDetail.id,
+              projectId: p.projectState.id,
               folder,
             },
           });
@@ -324,7 +324,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
             }),
             () =>
               serverActions.deleteVisualizationFolder({
-                projectId: p.projectDetail.id,
+                projectId: p.projectState.id,
                 folder_id: folderId,
               }),
             () => {},
@@ -414,7 +414,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
                   onClick={async () => {
                     await openComponent({
                       element: EditFolderModal,
-                      props: { projectId: p.projectDetail.id },
+                      props: { projectId: p.projectState.id },
                     });
                   }}
                 >
@@ -427,13 +427,13 @@ export function PresentationObjectPanelDisplay(p: Props) {
       }
     >
       <VisualizationGrid
-        projectId={p.projectDetail.id}
+        projectId={p.projectState.id}
         visualizations={filteredVisualizations()}
-        folders={p.projectDetail.visualizationFolders}
-        modules={p.projectDetail.projectModules}
-        metrics={p.projectDetail.metrics}
-        slideDecks={p.projectDetail.slideDecks}
-        slideDeckFolders={p.projectDetail.slideDeckFolders}
+        folders={p.projectState.visualizationFolders}
+        modules={p.projectState.projectModules}
+        metrics={p.projectState.metrics}
+        slideDecks={p.projectState.slideDecks}
+        slideDeckFolders={p.projectState.slideDeckFolders}
         subGroupConfig={subGroupConfig()}
         onClick={p.onClick}
         searchText={p.searchText}

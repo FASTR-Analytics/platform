@@ -1,22 +1,17 @@
 import { DirtyOrRunStatus, t3 } from "lib";
 import { capitalizeFirstLetter, type Intent } from "panther";
-import { Show, createMemo } from "solid-js";
-import { useAnyRunning } from "~/components/project_runner/mod";
+import { createMemo, Show } from "solid-js";
+import { projectState } from "~/state/project/t1_store";
 
-type ProjectRunStatusProps = {
-  // moduleDirtyStates: Record<string, DirtyOrRunStatus>;
-};
-
-export function ProjectRunStatus(p: ProjectRunStatusProps) {
-  const anyRunning = createMemo(() => useAnyRunning());
+export function ProjectRunStatus() {
   return (
-    <Show when={anyRunning()}>
+    <Show when={projectState.anyRunning}>
       <div
         class="ui-intent-fill ui-intent-outline data-[running=true]:ui-running bg-base-100 font-400 inline-flex flex-none select-none items-center justify-center whitespace-nowrap rounded border px-3 py-1.5 align-middle text-sm leading-none text-white data-[width=true]:w-full data-[border=false]:border-transparent data-[border=true]:border-[currentColor]"
         data-intent={"neutral"}
         data-outline={true}
         data-border={false}
-        data-running={anyRunning()}
+        data-running={projectState.anyRunning}
       >
         {t3({ en: "Running", fr: "En cours d'exécution" })}
       </div>

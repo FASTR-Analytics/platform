@@ -1,7 +1,5 @@
-import { DirtyOrRunStatus, ProjectSseUpdateMessage } from "lib";
+import { DirtyOrRunStatus } from "lib";
 import { notifyProjectAnyRunning } from "./notify_project_v2.ts";
-
-const broadcastDirtyStates = new BroadcastChannel("dirty_states");
 
 const RUNNING_MODULES_ALL_PROJECTS = new Map<string, Map<string, Worker>>();
 
@@ -12,13 +10,6 @@ export function addRunningModule(
 ) {
   const rt = getRunningModulesForProject(projectId);
   if (rt.size === 0) {
-    const bm: ProjectSseUpdateMessage = {
-      projectId,
-      type: "any_running",
-      anyRunning: true,
-    };
-    broadcastDirtyStates.postMessage(bm);
-    // V2 notify
     notifyProjectAnyRunning(projectId, true);
   }
   rt.set(moduleId, worker);
@@ -53,13 +44,6 @@ export function removeRunningModule(projectId: string, moduleId: string) {
       if (rt.size > 0) {
         return;
       }
-      const bm: ProjectSseUpdateMessage = {
-        projectId,
-        type: "any_running",
-        anyRunning: false,
-      };
-      broadcastDirtyStates.postMessage(bm);
-      // V2 notify
       notifyProjectAnyRunning(projectId, false);
     }, 200);
   }

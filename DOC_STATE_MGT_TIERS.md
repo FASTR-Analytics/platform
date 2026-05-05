@@ -90,5 +90,3 @@ state/
   t4_*.ts            ← cross-cutting T4 state (UI prefs, connection monitor)
   clear_caches.ts    ← utility (not state)
 ```
-
-See `PLAN_PROJECT_STATE.md` for the remaining migration work (project state consolidation + project cache restructure).

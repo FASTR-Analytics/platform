@@ -1,5 +1,5 @@
 import { unwrap } from "solid-js/store";
-import type { PresentationObjectConfig, ProjectDetail, ResultsValue, SlideDeckConfig } from "lib";
+import type { PresentationObjectConfig, ProjectState, ResultsValue, SlideDeckConfig } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 
 function snap<T>(value: T): T {
@@ -7,7 +7,7 @@ function snap<T>(value: T): T {
 }
 
 type VizSnapshotBase = {
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   instanceDetail: ReturnType<typeof snap<typeof instanceState>>;
 };
 
@@ -16,11 +16,11 @@ type VizSnapshotWithData = VizSnapshotBase & {
   resultsValue: ResultsValue;
 };
 
-export function snapshotForVizEditor(p: { projectDetail: ProjectDetail; config: PresentationObjectConfig; resultsValue: ResultsValue }): VizSnapshotWithData;
-export function snapshotForVizEditor(p: { projectDetail: ProjectDetail }): VizSnapshotBase;
-export function snapshotForVizEditor(p: { projectDetail: ProjectDetail; config?: PresentationObjectConfig; resultsValue?: ResultsValue }) {
+export function snapshotForVizEditor(p: { projectState: ProjectState; config: PresentationObjectConfig; resultsValue: ResultsValue }): VizSnapshotWithData;
+export function snapshotForVizEditor(p: { projectState: ProjectState }): VizSnapshotBase;
+export function snapshotForVizEditor(p: { projectState: ProjectState; config?: PresentationObjectConfig; resultsValue?: ResultsValue }) {
   const result: Record<string, unknown> = {
-    projectDetail: snap(p.projectDetail),
+    projectState: snap(p.projectState),
     instanceDetail: snap(instanceState),
   };
   if (p.config !== undefined) result.config = snap(p.config);
@@ -29,11 +29,11 @@ export function snapshotForVizEditor(p: { projectDetail: ProjectDetail; config?:
 }
 
 export function snapshotForSlideEditor(p: {
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   deckConfig: SlideDeckConfig;
 }) {
   return {
-    projectDetail: snap(p.projectDetail),
+    projectState: snap(p.projectState),
     instanceDetail: snap(instanceState),
     deckConfig: snap(p.deckConfig),
   };

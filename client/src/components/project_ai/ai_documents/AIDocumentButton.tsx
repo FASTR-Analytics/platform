@@ -1,6 +1,6 @@
 import { Button, FileIcon, XIcon } from "panther";
 import { Show, For } from "solid-js";
-import type { ProjectDocument } from "~/state/ai_documents";
+import type { ProjectDocument } from "~/state/project/t4_ai_documents";
 
 type Props = {
   documents: ProjectDocument[];

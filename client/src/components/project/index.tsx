@@ -19,13 +19,8 @@ import {
   Switch,
 } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
-import {
-  ProjectRunnerProvider,
-  useProjectDetail,
-  useProjectDirtyStates,
-} from "~/components/project_runner/mod";
-import { USE_V2_PROJECT_STATE } from "~/state/project/_v2_flag";
 import { ProjectSSEBoundary } from "~/state/project/t1_sse";
+import { projectState } from "~/state/project/t1_store";
 
 import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
@@ -92,22 +87,16 @@ function AIContextSync() {
 
 export default function Project(p: Props) {
   return (
-    <ProjectRunnerProvider projectId={p.projectId}>
-      <Show when={USE_V2_PROJECT_STATE} fallback={null}>
-        <ProjectSSEBoundary projectId={p.projectId}>
-          <></>
-        </ProjectSSEBoundary>
-      </Show>
+    <ProjectSSEBoundary projectId={p.projectId}>
       <ProjectInner
         isGlobalAdmin={p.isGlobalAdmin}
         currentUserEmail={p.currentUserEmail}
       />
-    </ProjectRunnerProvider>
+    </ProjectSSEBoundary>
   );
 }
 
 function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
-  const projectDetail = useProjectDetail();
   const navigate = useNavigate();
 
   const { openEditor: openProjectEditor, EditorWrapper: ProjectEditorWrapper } =
@@ -122,24 +111,22 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
     }
   });
 
-  const pds = useProjectDirtyStates();
-
   const dataNeedsUpdate = createMemo(() =>
-    checkDataNeedsUpdate(projectDetail, instanceState),
+    checkDataNeedsUpdate(projectState, instanceState),
   );
 
   const modulesNeedUpdate = createMemo(() =>
-    checkModulesNeedUpdate(projectDetail.projectModules, moduleLatestCommits()),
+    checkModulesNeedUpdate(projectState.projectModules, moduleLatestCommits()),
   );
 
   const modulesHaveError = createMemo(() =>
-    projectDetail.projectModules.some(
-      (mod) => pds.moduleDirtyStates[mod.id] === "error",
+    projectState.projectModules.some(
+      (mod) => projectState.moduleDirtyStates[mod.id] === "error",
     ),
   );
 
   const allTabs = [
-    ...(projectDetail.thisUserPermissions.can_view_slide_decks
+    ...(projectState.thisUserPermissions.can_view_slide_decks
       ? [
           {
             value: "decks" as const,
@@ -147,7 +134,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
           },
         ]
       : []),
-    ...(projectDetail.thisUserPermissions.can_view_visualizations
+    ...(projectState.thisUserPermissions.can_view_visualizations
       ? [
           {
             value: "visualizations" as const,
@@ -155,12 +142,12 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
           },
         ]
       : []),
-    // ...(projectDetail.thisUserPermissions.can_view_metrics
+    // ...(projectState.thisUserPermissions.can_view_metrics
     //   ? [{ value: "metrics" as const, label: t3({ en: "Metrics", fr: "Indicateurs" }) }]
     //   : []),
-    ...(projectDetail.thisUserPermissions.can_configure_modules ||
-    projectDetail.thisUserPermissions.can_run_modules ||
-    projectDetail.thisUserPermissions.can_view_script_code
+    ...(projectState.thisUserPermissions.can_configure_modules ||
+    projectState.thisUserPermissions.can_run_modules ||
+    projectState.thisUserPermissions.can_view_script_code
       ? [
           {
             value: "modules" as const,
@@ -168,7 +155,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
           },
         ]
       : []),
-    ...(projectDetail.thisUserPermissions.can_view_data
+    ...(projectState.thisUserPermissions.can_view_data
       ? [
           {
             value: "data" as const,
@@ -176,7 +163,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
           },
         ]
       : []),
-    ...(projectDetail.thisUserPermissions.can_configure_settings
+    ...(projectState.thisUserPermissions.can_configure_settings
       ? [
           {
             value: "settings" as const,
@@ -236,7 +223,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
               <div class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b">
                 <Button iconName="chevronLeft" onClick={() => navigate("/")} />
                 <div class="font-700 flex-1 truncate text-xl">
-                  <span class="font-400">{projectDetail.label}</span>
+                  <span class="font-400">{projectState.label}</span>
                 </div>
                 <div class="ui-gap-sm flex items-center">
                   <Button
@@ -244,7 +231,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                       openComponent({
                         element: FeedbackForm,
                         props: {
-                          projectLabel: projectDetail.label,
+                          projectLabel: projectState.label,
                         },
                       })
                     }
@@ -297,7 +284,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                 <Match
                   when={
                     projectTab() === "decks" &&
-                    projectDetail.thisUserPermissions.can_view_slide_decks
+                    projectState.thisUserPermissions.can_view_slide_decks
                   }
                 >
                   <ProjectDecks
@@ -308,7 +295,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                 <Match
                   when={
                     projectTab() === "visualizations" &&
-                    projectDetail.thisUserPermissions.can_view_visualizations
+                    projectState.thisUserPermissions.can_view_visualizations
                   }
                 >
                   <ProjectVisualizations
@@ -319,7 +306,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                 <Match
                   when={
                     projectTab() === "metrics" &&
-                    projectDetail.thisUserPermissions.can_view_metrics
+                    projectState.thisUserPermissions.can_view_metrics
                   }
                 >
                   <ProjectMetrics
@@ -330,28 +317,28 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                 <Match
                   when={
                     projectTab() === "modules" &&
-                    (projectDetail.thisUserPermissions.can_configure_modules ||
-                      projectDetail.thisUserPermissions.can_run_modules ||
-                      projectDetail.thisUserPermissions.can_view_script_code)
+                    (projectState.thisUserPermissions.can_configure_modules ||
+                      projectState.thisUserPermissions.can_run_modules ||
+                      projectState.thisUserPermissions.can_view_script_code)
                   }
                 >
                   <ProjectModules
                     isGlobalAdmin={p.isGlobalAdmin}
                     canConfigureModules={
-                      projectDetail.thisUserPermissions.can_configure_modules
+                      projectState.thisUserPermissions.can_configure_modules
                     }
                     canRunModules={
-                      projectDetail.thisUserPermissions.can_run_modules
+                      projectState.thisUserPermissions.can_run_modules
                     }
                     canViewScriptCode={
-                      projectDetail.thisUserPermissions.can_view_script_code
+                      projectState.thisUserPermissions.can_view_script_code
                     }
                   />
                 </Match>
                 <Match
                   when={
                     projectTab() === "data" &&
-                    projectDetail.thisUserPermissions.can_view_data
+                    projectState.thisUserPermissions.can_view_data
                   }
                 >
                   <ProjectData isGlobalAdmin={p.isGlobalAdmin} />
@@ -359,7 +346,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                 <Match
                   when={
                     projectTab() === "settings" &&
-                    projectDetail.thisUserPermissions.can_configure_settings
+                    projectState.thisUserPermissions.can_configure_settings
                   }
                 >
                   <ProjectSettings

@@ -1,7 +1,7 @@
 import {
   PresentationObjectConfig,
   PresentationObjectDetail,
-  ProjectDetail,
+  ProjectState,
   ResultsValue,
   ResultsValueInfoForPresentationObject,
   t3,
@@ -12,7 +12,7 @@ import { Match, Switch } from "solid-js";
 import {
   getPODetailFromCacheorFetch,
   getResultsValueInfoForPresentationObjectFromCacheOrFetch,
-} from "~/state/po_cache";
+} from "~/state/project/t2_presentation_objects";
 import { VisualizationEditorInner } from "./visualization_editor_inner";
 import type { AIContext } from "~/components/project_ai/types";
 
@@ -29,7 +29,7 @@ type EditModeProps = {
   presentationObjectId: string;
   projectId: string;
 
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   isGlobalAdmin: boolean;
   returnToContext?: AIContext;
   close: (result: EditModeReturn) => void;
@@ -42,7 +42,7 @@ type CreateModeProps = {
   config: PresentationObjectConfig;
   projectId: string;
 
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   isGlobalAdmin: boolean;
   returnToContext?: AIContext;
   close: (result: CreateModeReturn) => void;
@@ -55,7 +55,7 @@ type EphemeralModeProps = {
   config: PresentationObjectConfig;
   projectId: string;
 
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   isGlobalAdmin: boolean;
   returnToContext?: AIContext;
   close: (result: EphemeralModeReturn) => void;
@@ -156,7 +156,7 @@ function VisualizationEditorEdit(p: EditModeProps) {
           <VisualizationEditorInner
             mode="edit"
 
-            projectDetail={p.projectDetail}
+            projectState={p.projectState}
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={keyedCombinedData.poDetail}
             resultsValueInfo={keyedCombinedData.resultsValueInfo}
@@ -197,7 +197,7 @@ function VisualizationEditorCreate(p: CreateModeProps) {
           <VisualizationEditorInner
             mode="create"
 
-            projectDetail={p.projectDetail}
+            projectState={p.projectState}
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={syntheticPoDetail}
             resultsValueInfo={keyedResultsValueInfo}
@@ -238,7 +238,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
           <VisualizationEditorInner
             mode="ephemeral"
 
-            projectDetail={p.projectDetail}
+            projectState={p.projectState}
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={syntheticPoDetail}
             resultsValueInfo={keyedResultsValueInfo}

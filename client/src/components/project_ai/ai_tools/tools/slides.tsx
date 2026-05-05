@@ -28,7 +28,7 @@ import {
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
-import { _SLIDE_CACHE } from "~/state/caches/slides";
+import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
@@ -149,8 +149,6 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        ctx.optimisticSetLastUpdated("slides", res.data.slideId, res.data.lastUpdated);
-        ctx.optimisticSetLastUpdated("slide_decks", ctx.deckId, res.data.lastUpdated);
 
         return `Created slide ${res.data.slideId}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
@@ -202,7 +200,6 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        ctx.optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
 
         return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`;
       },
@@ -260,7 +257,6 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        ctx.optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
 
         const blockIds = input.updates.map(u => u.blockId).join(", ");
         return `Updated ${input.updates.length} block(s) in slide ${input.slideId}: ${blockIds}`;
@@ -303,7 +299,6 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        ctx.optimisticSetLastUpdated("slides", input.slideId, res.data.lastUpdated);
 
         return `Updated header for slide ${input.slideId}: "${input.newHeader}"`;
       },
@@ -455,12 +450,6 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        ctx.optimisticSetLastUpdated(
-          "slides",
-          input.slideId,
-          res.data.lastUpdated,
-        );
-
         const parts = [`Modified layout for slide ${input.slideId}.`];
         if (removedBlocks.length > 0) {
           parts.push(
@@ -504,12 +493,6 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new Error(res.err);
 
-        const lastUpdated = new Date().toISOString();
-        for (const slideId of input.slideIds) {
-          ctx.optimisticSetLastUpdated("slides", slideId, lastUpdated);
-        }
-        ctx.optimisticSetLastUpdated("slide_decks", ctx.deckId, lastUpdated);
-
         return `Deleted ${res.data.deletedCount} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
       inProgressLabel: (input) =>
@@ -546,11 +529,6 @@ export function getToolsForSlides(
           slideIds: input.slideIds,
         });
         if (!res.success) throw new Error(res.err);
-
-        for (const slideId of res.data.newSlideIds) {
-          ctx.optimisticSetLastUpdated("slides", slideId, res.data.lastUpdated);
-        }
-        ctx.optimisticSetLastUpdated("slide_decks", ctx.deckId, res.data.lastUpdated);
 
         return `Duplicated ${input.slideIds.length} slide(s). Created ${res.data.newSlideIds.length} new slide(s) with IDs: ${res.data.newSlideIds.join(', ')}. Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
@@ -599,12 +577,6 @@ export function getToolsForSlides(
           position: input.position,
         });
         if (!res.success) throw new Error(res.err);
-
-        const lastUpdated = res.data.slides[0]?.lastUpdated || new Date().toISOString();
-        for (const slide of res.data.slides) {
-          ctx.optimisticSetLastUpdated("slides", slide.id, slide.lastUpdated);
-        }
-        ctx.optimisticSetLastUpdated("slide_decks", ctx.deckId, lastUpdated);
 
         return `Moved ${input.slideIds.length} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },

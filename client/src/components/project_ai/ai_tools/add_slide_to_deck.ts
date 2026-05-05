@@ -14,6 +14,4 @@ export async function addSlideDirectlyToDeck(
     slide,
   });
   if (!res.success) throw new Error(res.err);
-  ctx.optimisticSetLastUpdated("slides", res.data.slideId, res.data.lastUpdated);
-  ctx.optimisticSetLastUpdated("slide_decks", ctx.deckId, res.data.lastUpdated);
 }

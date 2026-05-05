@@ -3,10 +3,31 @@ import {
   DisaggregationOption,
   GenericLongFormFetchConfig,
   ReplicantOptionsForPresentationObject,
+  hashFetchConfig,
 } from "lib";
-import { _REPLICANT_OPTIONS_CACHE } from "./caches/visualizations";
+import { getModuleIdForResultsObject } from "~/state/project/t1_store";
+import { createReactiveCache } from "../_infra/reactive_cache";
 import { resultsValueInfoQueue } from "~/state/_infra/request_queue";
 import { serverActions } from "~/server_actions";
+
+export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
+  {
+    projectId: string;
+    resultsObjectId: string;
+    replicateBy: DisaggregationOption;
+    fetchConfig: GenericLongFormFetchConfig;
+  },
+  ReplicantOptionsForPresentationObject
+>({
+  name: "replicant_options",
+  uniquenessKeys: (params) => [
+    params.projectId,
+    params.resultsObjectId,
+    params.replicateBy,
+    hashFetchConfig(params.fetchConfig),
+  ],
+  versionKey: (params, pds) => pds.moduleLastRun[getModuleIdForResultsObject(params.resultsObjectId)] ?? "unknown",
+});
 
 export async function getReplicantOptionsFromCacheOrFetch(
   projectId: string,

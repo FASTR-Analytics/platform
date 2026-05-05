@@ -20,7 +20,7 @@ import { unwrap } from "solid-js/store";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
-import { _PO_ITEMS_CACHE } from "~/state/caches/visualizations";
+import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 

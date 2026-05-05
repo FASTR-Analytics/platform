@@ -25,6 +25,7 @@ export type ProjectState = {
   // From ProjectDetail
   id: string;
   label: string;
+  aiContext: string;
   thisUserRole: "viewer" | "editor" | "admin"; // kept with hardcoding bug intact
   isLocked: boolean;
   projectDatasets: DatasetInProject[];

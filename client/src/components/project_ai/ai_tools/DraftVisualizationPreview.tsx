@@ -22,14 +22,14 @@ import { createSignal, ErrorBoundary, Match, onMount, Show, Switch } from "solid
 import {
   getPOFigureInputsFromCacheOrFetch_AsyncGenerator,
   getPODetailFromCacheorFetch,
-} from "~/state/po_cache";
+} from "~/state/project/t2_presentation_objects";
 import { PresentationObjectMiniDisplay } from "~/components/PresentationObjectMiniDisplay";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { buildConfigFromPreset } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { hydrateFigureInputsForRendering } from "~/generate_visualization/mod";
 import { SaveAsNewVisualizationModal } from "~/components/visualization/save_as_new_visualization_modal";
-import { useProjectDetail } from "~/components/project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
@@ -44,7 +44,6 @@ type Props = {
 };
 
 export function DraftVisualizationPreview(p: Props) {
-  const projectDetail = useProjectDetail();
   const { aiContext } = useAIProjectContext();
 
   const [figureState, setFigureState] = createSignal<StateHolder<FigureInputs>>(
@@ -149,7 +148,7 @@ export function DraftVisualizationPreview(p: Props) {
           existingLabel: p.title || poDetailRes.data.label,
           resultsValue: poDetailRes.data.resultsValue,
           config: poDetailRes.data.config,
-          folders: projectDetail.visualizationFolders,
+          folders: projectState.visualizationFolders,
         },
       });
     } else {
@@ -166,7 +165,7 @@ export function DraftVisualizationPreview(p: Props) {
           existingLabel: p.title || t3({ en: "New Visualization", fr: "Nouvelle visualisation" }),
           resultsValue,
           config,
-          folders: projectDetail.visualizationFolders,
+          folders: projectState.visualizationFolders,
         },
       });
     }
@@ -197,8 +196,8 @@ export function DraftVisualizationPreview(p: Props) {
         props: {
           projectId: p.projectId,
           slide,
-          slideDecks: projectDetail.slideDecks,
-          slideDeckFolders: projectDetail.slideDeckFolders,
+          slideDecks: projectState.slideDecks,
+          slideDeckFolders: projectState.slideDeckFolders,
         },
       });
     }

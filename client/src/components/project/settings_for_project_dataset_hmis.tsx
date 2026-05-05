@@ -2,7 +2,7 @@ import { trackStore } from "@solid-primitives/deep";
 import {
   DEFAULT_PERIOD_END,
   DEFAULT_PERIOD_START,
-  ProjectDetail,
+  ProjectState,
   t3,
   TC,
   type DatasetHmisInfoInProject,
@@ -34,7 +34,7 @@ import { WindowingSelector } from "../WindowingSelector";
 export function SettingsForProjectDatasetHmis(
   p: EditorComponentProps<
     {
-      projectDetail: ProjectDetail;
+      projectState: ProjectState;
       facilityColumns: InstanceConfigFacilityColumns;
       hmisInfo: DatasetHmisInfoInProject | undefined;
       indicatorMappingsVersion: string;
@@ -173,7 +173,7 @@ export function SettingsForProjectDatasetHmis(
 
       return await serverActions.addDatasetToProject(
         {
-          projectId: p.projectDetail.id,
+          projectId: p.projectState.id,
           datasetType: "hmis",
           windowing: {
             ...newWindowing,

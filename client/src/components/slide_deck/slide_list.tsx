@@ -1,7 +1,7 @@
 import {
   t3,
   TC,
-  type ProjectDetail,
+  type ProjectState,
   type Slide,
   type SlideDeckConfig,
   getDefaultCoverSlide,
@@ -12,13 +12,12 @@ import { Button, FrameTop, HeadingBar, Loading, type MenuItem, MenuTriggerWrappe
 import SortableVendor, { SortableJs } from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { useOptimisticSetLastUpdated } from "../project_runner/mod";
 import { SlideCard } from "./slide_card";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import { useAIProjectContext } from "~/components/project_ai";
 
 type Props = {
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   deckId: string;
   slideIds: string[];
   isLoading: boolean;
@@ -33,7 +32,6 @@ type Props = {
 };
 
 export function SlideList(p: Props) {
-  const optimisticSetLastUpdated = useOptimisticSetLastUpdated();
   const { notifyAI } = useAIProjectContext();
 
   const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
@@ -203,17 +201,14 @@ export function SlideList(p: Props) {
     const deleteAction = timActionDelete(
       confirmText,
       () => serverActions.deleteSlides({
-        projectId: p.projectDetail.id,
+        projectId: p.projectState.id,
         deck_id: p.deckId,
         slideIds: slideIdsToDelete,
       }),
-      (data) => {
-        // Optimistic: remove from local state immediately
+      () => {
+        // Remove from local state immediately
         setSortableSlideItems(items => items.filter(i => !slideIdsToDelete.includes(i.id)));
         clearSelection();
-        // Trigger SSE refetch which will sync the real state
-        optimisticSetLastUpdated("slide_decks", p.deckId, data.lastUpdated);
-
       },
     );
     await deleteAction.click();
@@ -227,7 +222,7 @@ export function SlideList(p: Props) {
     const slideIdsToDuplicate = shouldDuplicateMultiple ? Array.from(selected) : [slideId];
 
     const res = await serverActions.duplicateSlides({
-      projectId: p.projectDetail.id,
+      projectId: p.projectState.id,
       deck_id: p.deckId,
       slideIds: slideIdsToDuplicate,
     });
@@ -251,15 +246,6 @@ export function SlideList(p: Props) {
         }
         return newItems;
       });
-
-      // Trigger SSE refetch
-      for (const slideId of res.data.newSlideIds) {
-        optimisticSetLastUpdated("slides", slideId, res.data.lastUpdated);
-      }
-      optimisticSetLastUpdated("slide_decks", p.deckId, res.data.lastUpdated);
-
-      // Track changes
-
     }
   }
 
@@ -295,20 +281,12 @@ export function SlideList(p: Props) {
 
     if (movedIds.length === 0 || !targetPosition) return;
 
-    const res = await serverActions.moveSlides({
-      projectId: p.projectDetail.id,
+    await serverActions.moveSlides({
+      projectId: p.projectState.id,
       deck_id: p.deckId,
       slideIds: movedIds,
       position: targetPosition,
     });
-
-    if (res.success) {
-      // Trigger SSE refetch
-      for (const id of movedIds) {
-        optimisticSetLastUpdated("slides", id, res.data.lastUpdated);
-      }
-      optimisticSetLastUpdated("slide_decks", p.deckId, res.data.lastUpdated);
-    }
   }
 
   function getInsertPosition(): { after: string } | { toEnd: true } {
@@ -334,7 +312,7 @@ export function SlideList(p: Props) {
     const afterSlideId = "after" in position ? position.after : null;
 
     const res = await serverActions.createSlide({
-      projectId: p.projectDetail.id,
+      projectId: p.projectState.id,
       deck_id: p.deckId,
       position,
       slide,
@@ -353,8 +331,6 @@ export function SlideList(p: Props) {
         newItems.splice(afterIndex + 1, 0, { id: res.data.slideId });
         return newItems;
       });
-      optimisticSetLastUpdated("slides", res.data.slideId, res.data.lastUpdated);
-      optimisticSetLastUpdated("slide_decks", p.deckId, res.data.lastUpdated);
     }
   }
 
@@ -492,7 +468,7 @@ export function SlideList(p: Props) {
               const index = () => sortableSlideItems().findIndex(i => i.id === item.id);
               return (
                 <SlideCard
-                  projectId={p.projectDetail.id}
+                  projectId={p.projectState.id}
                   deckId={p.deckId}
                   slideId={item.id}
                   index={index()}

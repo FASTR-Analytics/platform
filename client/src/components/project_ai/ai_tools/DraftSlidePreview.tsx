@@ -20,7 +20,7 @@ import { createSignal, ErrorBoundary, Match, onMount, Show, Switch } from "solid
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { useAIProjectContext } from "~/components/project_ai/context";
-import { useProjectDetail } from "~/components/project_runner/mod";
+import { projectState } from "~/state/project/t1_store";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
 
@@ -39,7 +39,6 @@ type Props = {
 
 export function DraftSlidePreview(p: Props) {
   const { aiContext } = useAIProjectContext();
-  const projectDetail = useProjectDetail();
 
   const [slideState, setSlideState] = createSignal<StateHolder<SlideState>>({
     status: "loading",
@@ -117,8 +116,8 @@ export function DraftSlidePreview(p: Props) {
         props: {
           projectId: p.projectId,
           slide: state.data.convertedSlide,
-          slideDecks: projectDetail.slideDecks,
-          slideDeckFolders: projectDetail.slideDeckFolders,
+          slideDecks: projectState.slideDecks,
+          slideDeckFolders: projectState.slideDeckFolders,
         },
       });
     }

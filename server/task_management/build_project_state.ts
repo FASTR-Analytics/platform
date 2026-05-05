@@ -40,9 +40,10 @@ export async function buildProjectState(
     isReady: true,
     currentUserEmail: projectUser?.email ?? "",
 
-    // From ProjectDetail (excluding aiContext)
+    // From ProjectDetail
     id: detail.id,
     label: detail.label,
+    aiContext: detail.aiContext,
     thisUserRole: detail.thisUserRole,
     isLocked: detail.isLocked,
     projectDatasets: detail.projectDatasets,

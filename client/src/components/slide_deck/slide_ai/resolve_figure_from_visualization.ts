@@ -1,6 +1,6 @@
 import type { AiFigureFromVisualization, FigureBlock } from "lib";
 import { stripFigureInputsForStorage } from "~/generate_visualization/mod";
-import { getPODetailFromCacheorFetch, getPOFigureInputsFromCacheOrFetch } from "~/state/po_cache";
+import { getPODetailFromCacheorFetch, getPOFigureInputsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 
 export async function resolveFigureFromVisualization(
   projectId: string,

@@ -36,7 +36,7 @@ import type {
 } from "panther";
 import { resolvePageStyle } from "panther";
 import { hydrateFigureInputsForRendering } from "~/generate_visualization/mod";
-import { getImgFromCacheOrFetch } from "~/state/img_cache";
+import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
 import { getBackgroundDetail } from "./get_overlay_image";
 import { _SERVER_HOST } from "~/server_actions";
 

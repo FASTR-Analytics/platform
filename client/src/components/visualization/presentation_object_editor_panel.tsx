@@ -1,7 +1,7 @@
 import {
   PresentationObjectConfig,
   PresentationObjectDetail,
-  ProjectDetail,
+  ProjectState,
   ResultsValueInfoForPresentationObject,
   getEffectivePOConfig,
   getPeriodFilterExactBounds,
@@ -14,7 +14,7 @@ import { PresentationObjectEditorPanelStyle } from "./presentation_object_editor
 import { PresentationObjectEditorPanelText } from "./presentation_object_editor_panel_text";
 
 type Props = {
-  projectDetail: ProjectDetail;
+  projectState: ProjectState;
   poDetail: PresentationObjectDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;
@@ -67,7 +67,7 @@ export function PresentationObjectEditorPanel(p: Props) {
         <Switch>
           <Match when={tab() === "data"}>
             <PresentationObjectEditorPanelData
-              projectDetail={p.projectDetail}
+              projectState={p.projectState}
               poDetail={p.poDetail}
               resultsValueInfo={p.resultsValueInfo}
               tempConfig={p.tempConfig}
@@ -80,7 +80,7 @@ export function PresentationObjectEditorPanel(p: Props) {
           </Match>
           <Match when={tab() === "style"}>
             <PresentationObjectEditorPanelStyle
-              projectId={p.projectDetail.id}
+              projectId={p.projectState.id}
               poDetail={p.poDetail}
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
@@ -90,7 +90,7 @@ export function PresentationObjectEditorPanel(p: Props) {
           </Match>
           <Match when={tab() === "text"}>
             <PresentationObjectEditorPanelText
-              projectId={p.projectDetail.id}
+              projectId={p.projectState.id}
               poDetail={p.poDetail}
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}

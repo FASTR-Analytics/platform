@@ -13,12 +13,12 @@ import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectP
 import { ReplicateByOptionsPresentationObjectSelect } from "~/components/ReplicateByOptions";
 import {
   PresentationObjectSummary,
-  ProjectDetail,
+  ProjectState,
   getReplicateByProp,
   t3,
   TC,
 } from "lib";
-import { getPODetailFromCacheorFetch } from "~/state/po_cache";
+import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
 
 type SelectVisualizationResult = {
   visualizationId: string;
@@ -27,7 +27,7 @@ type SelectVisualizationResult = {
 
 export function SelectVisualizationForSlide(
   p: EditorComponentProps<
-    { projectDetail: ProjectDetail },
+    { projectState: ProjectState },
     SelectVisualizationResult
   >,
 ) {
@@ -41,7 +41,7 @@ export function SelectVisualizationForSlide(
       await openAlert({ text: t3({ en: "You must select a visualization in order to save", fr: "Vous devez sélectionner une visualisation pour sauvegarder" }) });
       return;
     }
-    const resPoDetail = await getPODetailFromCacheorFetch(p.projectDetail.id, presObjSummary.id);
+    const resPoDetail = await getPODetailFromCacheorFetch(p.projectState.id, presObjSummary.id);
     if (resPoDetail.success === false) {
       await openAlert({ text: resPoDetail.err, intent: "danger" });
       return;
@@ -80,7 +80,7 @@ export function SelectVisualizationForSlide(
       <div class="flex h-full w-full">
         <div class="w-0 flex-1 overflow-auto">
           <PresentationObjectPanelDisplay
-            projectDetail={p.projectDetail}
+            projectState={p.projectState}
             searchText={searchText().trim()}
             onClick={(po) => setSelectedPresObj(po)}
           />
@@ -93,9 +93,9 @@ export function SelectVisualizationForSlide(
           >
             {(kP) => (
               <Side
-                projectId={p.projectDetail.id}
+                projectId={p.projectState.id}
                 presObjId={kP.id}
-                moduleId={p.projectDetail.metrics.find(m => m.id === kP.metricId)?.moduleId ?? ""}
+                moduleId={p.projectState.metrics.find(m => m.id === kP.metricId)?.moduleId ?? ""}
                 selectedReplicant={selectedReplicant()}
                 setSelectedReplicant={setSelectedReplicant}
               />

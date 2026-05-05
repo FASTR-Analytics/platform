@@ -8,7 +8,7 @@ import {
 } from "panther";
 import { type Slide, getAllSlideFontVariants } from "lib";
 import { serverActions } from "~/server_actions";
-import { _SLIDE_CACHE } from "~/state/caches/slides";
+import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { convertSlideToPageInputs } from "../generate_slide_deck/convert_slide_to_page_inputs";
 import fontMap from "~/font-map.json";
 

@@ -4,15 +4,11 @@ import {
   getFacilityColumnsConfig,
   getCountryIso3Config,
 } from "../../db/mod.ts";
-import {
-  ProjectSseUpdateMessage,
-  throwIfErrWithData
-} from "lib";
+import { throwIfErrWithData } from "lib";
 import { EndingTaskData } from "../../server_only_types/mod.ts";
 import { notifyProjectRScript } from "../../task_management/notify_project_v2.ts";
 import { runModuleIterator } from "./run_module_iterator.ts";
 
-const broadcastDirtyStates = new BroadcastChannel("dirty_states");
 const broadcastTaskEnded = new BroadcastChannel("task_ended");
 
 (self as unknown as Worker).onmessage = (e) => {
@@ -87,14 +83,6 @@ async function run(std: { projectId: string; moduleId: string }) {
       // Break without sending
       break;
     }
-    const bm: ProjectSseUpdateMessage = {
-      projectId: std.projectId,
-      moduleId: std.moduleId,
-      type: "r_script",
-      text: msg.text,
-    };
-    broadcastDirtyStates.postMessage(bm);
-    // V2 notify
     notifyProjectRScript(std.projectId, std.moduleId, msg.text);
   }
 
