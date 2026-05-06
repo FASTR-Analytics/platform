@@ -1,3 +1,7 @@
+[TBD] [user] [fixed] - Data displays now refresh more reliably after changes
+[TBD] [admin] [fixed] - GeoJSON and dataset views now refresh more reliably after changes
+[TBD] [admin] [internal] - Removed unused AI interpretation and long-form editor features
+[TBD] [admin] [internal] - Simplified data refresh logic across dataset and map management screens
 [TBD] [user] [changed] - Project data now updates in real time more reliably
 [TBD] [admin] [changed] - Project state updates now use real-time server events exclusively
 [TBD] [admin] [fixed] - Slide deck and visualization edits sync faster across users
