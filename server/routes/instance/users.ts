@@ -51,6 +51,16 @@ defineRoute(
 
 defineRoute(
   routesUsers,
+  "getAiUsage",
+  requireGlobalPermission(),
+  async (c) => {
+    const tokensUsedToday = await GetUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email);
+    return c.json({ success: true, data: { tokensUsedToday, dailyTokenLimit: _DAILY_TOKEN_LIMIT } });
+  },
+);
+
+defineRoute(
+  routesUsers,
   "getOtherUser",
   requireGlobalPermission("can_configure_users"),
   log("getOtherUser"),
@@ -250,15 +260,5 @@ defineRoute(
       body.permissions,
     );
     return c.json(res);
-  },
-);
-
-defineRoute(
-  routesUsers,
-  "getAiUsage",
-  requireGlobalPermission(),
-  async (c) => {
-    const tokensUsedToday = await GetUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email);
-    return c.json({ success: true, data: { tokensUsedToday, dailyTokenLimit: _DAILY_TOKEN_LIMIT } });
   },
 );
