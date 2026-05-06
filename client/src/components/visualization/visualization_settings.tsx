@@ -19,6 +19,7 @@ export function VisualizationSettings(
       projectId: string;
       presentationObjectId: string;
       resultsObjectId: string;
+      metricId: string;
       moduleId: string;
       isDefault: boolean;
       existingLabel: string;
@@ -71,7 +72,7 @@ export function VisualizationSettings(
 
       await _METRIC_INFO_CACHE.clearEntry({
         projectId: p.projectId,
-        metricId: p.resultsObjectId,
+        metricId: p.metricId,
       });
 
       // Clear all items for this results object (all fetchConfig variations)

@@ -7,24 +7,24 @@ function snap<T>(value: T): T {
 }
 
 type VizSnapshotBase = {
-  projectState: ProjectState;
-  instanceDetail: ReturnType<typeof snap<typeof instanceState>>;
+  projectStateSnapshot: ProjectState;
+  instanceDetailSnapshot: ReturnType<typeof snap<typeof instanceState>>;
 };
 
 type VizSnapshotWithData = VizSnapshotBase & {
-  config: PresentationObjectConfig;
-  resultsValue: ResultsValue;
+  configSnapshot: PresentationObjectConfig;
+  resultsValueSnapshot: ResultsValue;
 };
 
 export function snapshotForVizEditor(p: { projectState: ProjectState; config: PresentationObjectConfig; resultsValue: ResultsValue }): VizSnapshotWithData;
 export function snapshotForVizEditor(p: { projectState: ProjectState }): VizSnapshotBase;
 export function snapshotForVizEditor(p: { projectState: ProjectState; config?: PresentationObjectConfig; resultsValue?: ResultsValue }) {
   const result: Record<string, unknown> = {
-    projectState: snap(p.projectState),
-    instanceDetail: snap(instanceState),
+    projectStateSnapshot: snap(p.projectState),
+    instanceDetailSnapshot: snap(instanceState),
   };
-  if (p.config !== undefined) result.config = snap(p.config);
-  if (p.resultsValue !== undefined) result.resultsValue = snap(p.resultsValue);
+  if (p.config !== undefined) result.configSnapshot = snap(p.config);
+  if (p.resultsValue !== undefined) result.resultsValueSnapshot = snap(p.resultsValue);
   return result;
 }
 
@@ -33,8 +33,8 @@ export function snapshotForSlideEditor(p: {
   deckConfig: SlideDeckConfig;
 }) {
   return {
-    projectState: snap(p.projectState),
-    instanceDetail: snap(instanceState),
-    deckConfig: snap(p.deckConfig),
+    projectStateSnapshot: snap(p.projectState),
+    instanceDetailSnapshot: snap(instanceState),
+    deckConfigSnapshot: snap(p.deckConfig),
   };
 }

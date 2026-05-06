@@ -67,7 +67,7 @@ import type { AIContext } from "../project_ai/types";
 
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
-  projectState: ProjectState;
+  projectStateSnapshot: ProjectState;
   isGlobalAdmin: boolean;
   poDetail: PresentationObjectDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
@@ -93,9 +93,9 @@ export function VisualizationEditorInner(p: InnerProps) {
   );
 
   // Extract static values from stores to prevent external reactivity
-  const projectId = p.projectState.id;
-  // const visualizationFolders = structuredClone(p.projectState.visualizationFolders);
-  // const isLocked = p.projectState.isLocked;
+  const projectId = p.projectStateSnapshot.id;
+  // const visualizationFolders = structuredClone(p.projectStateSnapshot.visualizationFolders);
+  // const isLocked = p.projectStateSnapshot.isLocked;
 
   const {
     openEditor: openEditorForResultsObject,
@@ -258,7 +258,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         existingLabel: p.poDetail.label,
         resultsValue: p.poDetail.resultsValue,
         config: unwrappedTempConfig,
-        folders: p.projectState.visualizationFolders,
+        folders: p.projectStateSnapshot.visualizationFolders,
       },
     });
     if (modalRes) {
@@ -393,14 +393,15 @@ export function VisualizationEditorInner(p: InnerProps) {
         projectId: projectId,
         presentationObjectId: p.poDetail.id,
         resultsObjectId: p.poDetail.resultsValue.resultsObjectId,
+        metricId: p.poDetail.resultsValue.id,
         moduleId:
-          p.projectState.metrics.find(
+          p.projectStateSnapshot.metrics.find(
             (m) => m.id === p.poDetail.resultsValue.id,
           )?.moduleId ?? "",
         isDefault: p.poDetail.isDefault,
         existingLabel: p.poDetail.label,
         currentFolderId: p.poDetail.folderId,
-        folders: p.projectState.visualizationFolders,
+        folders: p.projectStateSnapshot.visualizationFolders,
         silentFetchPoDetail: async () => {},
         mutateFunc: async (newLabel) =>
           serverActions.updatePresentationObjectLabel({
@@ -433,7 +434,7 @@ export function VisualizationEditorInner(p: InnerProps) {
             folderId: p.poDetail.folderId,
           },
         ],
-        folders: p.projectState.visualizationFolders,
+        folders: p.projectStateSnapshot.visualizationFolders,
       },
     });
     if (res === undefined) {
@@ -581,7 +582,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       props: {
         projectId: projectId,
         moduleId:
-          p.projectState.metrics.find(
+          p.projectStateSnapshot.metrics.find(
             (m) => m.id === p.poDetail.resultsValue.id,
           )?.moduleId ?? "",
         resultsObjectId,
@@ -629,7 +630,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                 <Match
                   when={
                     (needsSave() || p.mode === "create") &&
-                    !p.projectState.isLocked &&
+                    !p.projectStateSnapshot.isLocked &&
                     !p.poDetail.isDefault
                   }
                 >
@@ -705,7 +706,7 @@ export function VisualizationEditorInner(p: InnerProps) {
               </Show>
             </div>
             <div class="ui-gap-sm flex items-center">
-              <Show when={!p.projectState.isLocked && p.mode === "edit"}>
+              <Show when={!p.projectStateSnapshot.isLocked && p.mode === "edit"}>
                 <Button
                   onClick={attemptUpdateLabel}
                   iconName="settings"
@@ -750,7 +751,7 @@ export function VisualizationEditorInner(p: InnerProps) {
           hoverOffset="offset-for-border-1-on-left"
           panelChildren={
             <PresentationObjectEditorPanel
-              projectState={p.projectState}
+              projectStateSnapshot={p.projectStateSnapshot}
               poDetail={p.poDetail}
               resultsValueInfo={p.resultsValueInfo}
               tempConfig={tempConfig}

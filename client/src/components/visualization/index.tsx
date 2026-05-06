@@ -29,7 +29,7 @@ type EditModeProps = {
   presentationObjectId: string;
   projectId: string;
 
-  projectState: ProjectState;
+  projectStateSnapshot: ProjectState;
   isGlobalAdmin: boolean;
   returnToContext?: AIContext;
   close: (result: EditModeReturn) => void;
@@ -38,11 +38,11 @@ type EditModeProps = {
 type CreateModeProps = {
   mode: "create";
   label: string;
-  resultsValue: ResultsValue;
-  config: PresentationObjectConfig;
+  resultsValueSnapshot: ResultsValue;
+  configSnapshot: PresentationObjectConfig;
   projectId: string;
 
-  projectState: ProjectState;
+  projectStateSnapshot: ProjectState;
   isGlobalAdmin: boolean;
   returnToContext?: AIContext;
   close: (result: CreateModeReturn) => void;
@@ -51,11 +51,11 @@ type CreateModeProps = {
 type EphemeralModeProps = {
   mode: "ephemeral";
   label: string;
-  resultsValue: ResultsValue;
-  config: PresentationObjectConfig;
+  resultsValueSnapshot: ResultsValue;
+  configSnapshot: PresentationObjectConfig;
   projectId: string;
 
-  projectState: ProjectState;
+  projectStateSnapshot: ProjectState;
   isGlobalAdmin: boolean;
   returnToContext?: AIContext;
   close: (result: EphemeralModeReturn) => void;
@@ -156,7 +156,7 @@ function VisualizationEditorEdit(p: EditModeProps) {
           <VisualizationEditorInner
             mode="edit"
 
-            projectState={p.projectState}
+            projectStateSnapshot={p.projectStateSnapshot}
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={keyedCombinedData.poDetail}
             resultsValueInfo={keyedCombinedData.resultsValueInfo}
@@ -174,7 +174,7 @@ function VisualizationEditorCreate(p: CreateModeProps) {
     () =>
       getResultsValueInfoForPresentationObjectFromCacheOrFetch(
         p.projectId,
-        p.resultsValue.id,
+        p.resultsValueSnapshot.id,
       ),
     t3(TC.loading),
   );
@@ -184,8 +184,8 @@ function VisualizationEditorCreate(p: CreateModeProps) {
     projectId: p.projectId,
     lastUpdated: "",
     label: p.label,
-    resultsValue: p.resultsValue,
-    config: p.config,
+    resultsValue: p.resultsValueSnapshot,
+    config: p.configSnapshot,
     isDefault: false,
     folderId: null,
   };
@@ -197,7 +197,7 @@ function VisualizationEditorCreate(p: CreateModeProps) {
           <VisualizationEditorInner
             mode="create"
 
-            projectState={p.projectState}
+            projectStateSnapshot={p.projectStateSnapshot}
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={syntheticPoDetail}
             resultsValueInfo={keyedResultsValueInfo}
@@ -215,7 +215,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
     () =>
       getResultsValueInfoForPresentationObjectFromCacheOrFetch(
         p.projectId,
-        p.resultsValue.id,
+        p.resultsValueSnapshot.id,
       ),
     t3(TC.loading),
   );
@@ -225,8 +225,8 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
     projectId: p.projectId,
     lastUpdated: "",
     label: p.label,
-    resultsValue: p.resultsValue,
-    config: p.config,
+    resultsValue: p.resultsValueSnapshot,
+    config: p.configSnapshot,
     isDefault: false,
     folderId: null,
   };
@@ -238,7 +238,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
           <VisualizationEditorInner
             mode="ephemeral"
 
-            projectState={p.projectState}
+            projectStateSnapshot={p.projectStateSnapshot}
             isGlobalAdmin={p.isGlobalAdmin}
             poDetail={syntheticPoDetail}
             resultsValueInfo={keyedResultsValueInfo}
