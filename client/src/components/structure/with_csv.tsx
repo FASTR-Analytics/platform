@@ -16,18 +16,11 @@ export function StructureWithCsv(p: Props) {
     msg: t3(TC.fetchingData),
   });
 
-  async function attemptGetStructureItems() {
+  async function attemptGetStructureItems(lastUpdated: string, maxAA: number, fcHash: string) {
     seStructureItems({
       status: "loading",
       msg: t3(TC.fetchingData),
     });
-    const lastUpdated = instanceState.structureLastUpdated;
-    if (!lastUpdated) {
-      seStructureItems({ status: "error", err: "No structure data" });
-      return;
-    }
-    const maxAA = instanceState.maxAdminArea;
-    const fcHash = Object.values(instanceState.facilityColumns).sort().join("_");
     const res = await getStructureItemsFromCacheOrFetch(lastUpdated, maxAA, fcHash);
     if (res.success === false) {
       seStructureItems({ status: "error", err: res.err });
@@ -44,7 +37,14 @@ export function StructureWithCsv(p: Props) {
   }
 
   createEffect(() => {
-    attemptGetStructureItems();
+    const lastUpdated = instanceState.structureLastUpdated;
+    const maxAA = instanceState.maxAdminArea;
+    const fcHash = Object.values(instanceState.facilityColumns).sort().join("_");
+    if (!lastUpdated) {
+      seStructureItems({ status: "error", err: "No structure data" });
+      return;
+    }
+    attemptGetStructureItems(lastUpdated, maxAA, fcHash);
   });
 
   return (

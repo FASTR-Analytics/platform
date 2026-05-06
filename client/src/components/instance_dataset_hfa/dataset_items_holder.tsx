@@ -24,12 +24,12 @@ export function DatasetItemsHolder(p: { cacheHash: string }) {
     msg: t3({ en: "Fetching data...", fr: "Récupération des données..." }),
   });
 
-  async function attemptGetDatatable() {
+  async function attemptGetDatatable(cacheHash: string) {
     setItemsHolder({
       status: "loading",
       msg: t3({ en: "Fetching data...", fr: "Récupération des données..." }),
     });
-    const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(p.cacheHash);
+    const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(cacheHash);
     if (res.success === false) {
       setItemsHolder({ status: "error", err: res.err });
       return;
@@ -45,7 +45,8 @@ export function DatasetItemsHolder(p: { cacheHash: string }) {
   }
 
   createEffect(() => {
-    attemptGetDatatable();
+    const hash = p.cacheHash;
+    attemptGetDatatable(hash);
   });
 
   return (

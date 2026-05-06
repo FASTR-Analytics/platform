@@ -83,7 +83,6 @@ export function InstanceDatasetHfa(p: Props) {
       props: {
         timePoints,
         isGlobalAdmin: p.isGlobalAdmin,
-        onRefresh: fetchUploadAttempt,
       },
     });
   }
@@ -94,7 +93,6 @@ export function InstanceDatasetHfa(p: Props) {
       props: {
         isGlobalAdmin: p.isGlobalAdmin,
         timePoints,
-        silentFetch: fetchUploadAttempt,
       },
     });
   }

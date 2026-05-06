@@ -1,7 +1,7 @@
 import { ResultsValue, t3 } from "lib";
 import { Button, ModalContainer, type AlertComponentProps } from "panther";
 import { For, Show } from "solid-js";
-import { getDisplayDisaggregationLabel } from "~/state/instance/disaggregation_label";
+import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 
 export function MetricDetailsModal(
   p: AlertComponentProps<

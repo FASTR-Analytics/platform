@@ -87,7 +87,6 @@ export function Step4(p: Props) {
         });
 
         if (res.success) {
-          state.silentRefresh();
           state.close(undefined);
         }
         return res;
@@ -129,7 +128,6 @@ export function Step4(p: Props) {
           return { success: false, err: errors.join("; ") };
         }
 
-        state.silentRefresh();
         state.close(undefined);
         return { success: true };
       }

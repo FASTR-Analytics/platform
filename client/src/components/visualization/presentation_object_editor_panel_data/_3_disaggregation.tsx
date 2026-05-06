@@ -13,7 +13,7 @@ import {
 import { Checkbox, RadioGroup, Select } from "panther";
 import { For, Match, Show, Switch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { getDisplayDisaggregationLabel } from "~/state/instance/disaggregation_label";
+import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 
 type DisaggregationSectionProps = {
   poDetail: PresentationObjectDetail;

@@ -9,7 +9,7 @@ import { InstanceHfaTimePoints } from "../instance_hfa_time_points";
 import { Structure } from "../structure";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
 import { instanceState } from "~/state/instance/t1_store";
-import { getAdminAreaLabel } from "~/state/instance/disaggregation_label";
+import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 
 type Props = {
   isGlobalAdmin: boolean;

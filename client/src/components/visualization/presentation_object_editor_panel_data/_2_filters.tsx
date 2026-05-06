@@ -25,7 +25,7 @@ import {
 } from "panther";
 import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { getDisplayDisaggregationLabel } from "~/state/instance/disaggregation_label";
+import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 
 /**
  * Legacy configs may have periodFilter.periodOption mismatched with periodBounds.periodOption

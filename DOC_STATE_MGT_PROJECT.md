@@ -103,8 +103,6 @@ State that originates on the client, persists across component mounts and naviga
 | Data | File | Storage mechanism | Why T4, not T5 |
 | --- | --- | --- | --- |
 | AI documents (Anthropic file IDs) | `project/t4_ai_documents.ts` | IndexedDB (per project) | Persists across AI panel open/close; survives navigation |
-| AI interpretations (per PO) | `project/t4_ai_interpretations.ts` | In-memory Solid store (24h TTL) | Persists across viz navigation; auto-cleanup after 24h |
-| Long form editor mode | `project/t4_long_form_editor.ts` | Module-level signals | Persists editor UI mode across component remounts |
 
 ---
 
