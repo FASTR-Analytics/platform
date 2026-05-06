@@ -109,7 +109,12 @@ async function getProjectUserForSSE(
 ): Promise<ProjectUser | undefined> {
   try {
     if (_BYPASS_AUTH) {
-      return undefined;
+      return {
+        email: "bypass@example.com",
+        role: "editor" as const,
+        isGlobalAdmin: true,
+        ..._PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+      };
     }
 
     const auth = getAuth(c);

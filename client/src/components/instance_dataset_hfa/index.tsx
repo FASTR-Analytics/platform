@@ -17,7 +17,7 @@ import {
 } from "solid-js";
 import { DatasetHfaUploadAttemptForm } from "~/components/instance_dataset_hfa_import";
 import { serverActions } from "~/server_actions";
-import { instanceState, getHfaCacheHash } from "~/state/instance/t1_store";
+import { instanceState } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
 import { TimePointsView } from "./_time_points";
 import { DatasetItemsHolder } from "./dataset_items_holder";
@@ -218,7 +218,7 @@ export function InstanceDatasetHfa(p: Props) {
               when={instanceState.hfaTimePoints.length > 0}
               fallback={<div class="ui-pad">{t3({ en: "No data", fr: "Aucune donnée" })}</div>}
             >
-              <DatasetItemsHolder cacheHash={getHfaCacheHash()} />
+              <DatasetItemsHolder cacheHash={instanceState.hfaCacheHash} />
             </Show>
           </div>
         </FrameRight>
