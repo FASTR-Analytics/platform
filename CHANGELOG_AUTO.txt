@@ -1,3 +1,6 @@
+[TBD] [user] [fixed] - Fixed visualization settings not clearing the correct cached data
+[TBD] [admin] [fixed] - Fixed visualization settings clearing wrong cache after changes
+[TBD] [admin] [internal] - Improved slide loading reliability with centralized caching
 [TBD] [user] [fixed] - Data displays now refresh more reliably after changes
 [TBD] [admin] [fixed] - GeoJSON and dataset views now refresh more reliably after changes
 [TBD] [admin] [internal] - Removed unused AI interpretation and long-form editor features
