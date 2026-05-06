@@ -28,6 +28,11 @@ export function ProfileForm(
     t3({ en: "Loading your profile...", fr: "Chargement de votre profil..." }),
   );
 
+  const aiUsage = timQuery(
+    () => serverActions.getAiUsage({}),
+    t3({ en: "Loading AI usage...", fr: "Chargement de l'utilisation IA..." }),
+  );
+
   const clearCache = timActionButton(
     async () => {
       await clearDataCache();
@@ -139,6 +144,37 @@ export function ProfileForm(
                   onChange={setOrganisation}
                   placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
                 />
+              </SettingsSection>
+
+              {/* AI usage */}
+              <SettingsSection
+                header={t3({ en: "AI usage today", fr: "Utilisation IA aujourd'hui" })}
+              >
+                <StateHolderWrapper state={aiUsage.state()} noPad>
+                  {(usage) => {
+                    const pct = usage.dailyTokenLimit !== null
+                      ? Math.min(100, Math.round((usage.tokensUsedToday / usage.dailyTokenLimit) * 100))
+                      : null;
+                    return (
+                      <div class="flex flex-col gap-2">
+                        {pct !== null && (
+                          <div class="bg-base-200 h-2 w-full overflow-hidden rounded-full">
+                            <div
+                              class={`h-full rounded-full transition-all ${pct >= 80 ? "bg-warning" : "bg-primary"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        )}
+                        <div class="text-neutral text-sm">
+                          {usage.tokensUsedToday.toLocaleString()}{" "}
+                          {usage.dailyTokenLimit !== null
+                            ? `/ ${usage.dailyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens" })} (${pct}%)`
+                            : t3({ en: "tokens used today · Unlimited", fr: "tokens utilisés aujourd'hui · Illimité" })}
+                        </div>
+                      </div>
+                    );
+                  }}
+                </StateHolderWrapper>
               </SettingsSection>
 
               {/* Mailing list */}

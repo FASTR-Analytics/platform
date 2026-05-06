@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { requireProjectPermission } from "../../project_auth.ts";
-import { AddAiUsageLog } from "../../db/mod.ts";
+import { AddAiUsageLog, GetUserDailyTokenUsage, IncrementUserDailyTokenUsage } from "../../db/mod.ts";
+import { _DAILY_TOKEN_LIMIT } from "../../exposed_env_vars.ts";
 
 export const routesAiProxy = new Hono();
 
@@ -17,6 +18,13 @@ routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
   const userEmail = c.var.globalUser.email;
   const projectId = c.var.ppk.projectId;
   const mainDb = c.var.mainDb;
+
+  if (_DAILY_TOKEN_LIMIT !== null) {
+    const todayUsage = await GetUserDailyTokenUsage(mainDb, userEmail);
+    if (todayUsage >= _DAILY_TOKEN_LIMIT) {
+      return c.json({ error: "Daily AI token limit reached. Try again tomorrow." }, 429);
+    }
+  }
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -100,6 +108,9 @@ routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
         AddAiUsageLog(mainDb, userEmail, projectId, rest.model,
           inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens,
         ).catch(() => {});
+        if (_DAILY_TOKEN_LIMIT !== null) {
+          IncrementUserDailyTokenUsage(mainDb, userEmail, inputTokens + outputTokens).catch(() => {});
+        }
       },
     });
 
@@ -114,9 +125,14 @@ routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
 
   const data = await response.json();
   const u = data.usage ?? {};
+  const inputTokens = u.input_tokens ?? 0;
+  const outputTokens = u.output_tokens ?? 0;
   AddAiUsageLog(mainDb, userEmail, projectId, rest.model,
-    u.input_tokens ?? 0, u.output_tokens ?? 0,
+    inputTokens, outputTokens,
     u.cache_read_input_tokens ?? 0, u.cache_creation_input_tokens ?? 0,
   ).catch(() => {});
+  if (_DAILY_TOKEN_LIMIT !== null) {
+    IncrementUserDailyTokenUsage(mainDb, userEmail, inputTokens + outputTokens).catch(() => {});
+  }
   return c.json(data);
 });

@@ -130,6 +130,10 @@ if (_SEND_GRID_API === undefined) {
 
 export const _GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
 
+export const _DAILY_TOKEN_LIMIT: number | null = Deno.env.get("DAILY_TOKEN_LIMIT")
+  ? parseInt(Deno.env.get("DAILY_TOKEN_LIMIT")!)
+  : null;
+
 ///////////////////////////////////////////////////////////////////////////////
 // Authentication (Optional)
 ///////////////////////////////////////////////////////////////////////////////

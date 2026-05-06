@@ -29,6 +29,8 @@ export type DBUser = {
   default_project_can_view_metrics: boolean;
   default_project_can_view_logs: boolean;
   default_project_can_view_script_code: boolean;
+  daily_token_usage: number;
+  daily_token_usage_date: Date;
 };
 
 export type UserLog = {

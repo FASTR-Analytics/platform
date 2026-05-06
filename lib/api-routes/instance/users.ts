@@ -77,4 +77,9 @@ export const userRouteRegistry = {
     method: "POST",
     body: {} as { emails: string[]; permissions: Partial<Record<ProjectPermission, boolean>> },
   }),
+  getAiUsage: route({
+    path: "/user/ai-usage",
+    method: "GET",
+    response: {} as { tokensUsedToday: number; dailyTokenLimit: number | null },
+  }),
 } as const;
