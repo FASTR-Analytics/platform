@@ -1,3 +1,7 @@
+[1.29.0] [user] [fixed] - Clearer error message when server is temporarily unavailable
+[1.29.0] [user] [changed] - Removed the "Group label" field from the calculated indicator editor
+[1.29.0] [admin] [fixed] - Clearer error message when server is temporarily unavailable
+[1.29.0] [admin] [changed] - Group label field temporarily hidden in calculated indicator editor
 [1.29.0] [user] [added] - New scorecard table mode for visualizations with color-coded performance indicators
 [1.29.0] [user] [added] - Population type selector when setting population-based denominators for calculated indicators
 [1.29.0] [user] [added] - Drag-and-drop sorting for calculated indicators
