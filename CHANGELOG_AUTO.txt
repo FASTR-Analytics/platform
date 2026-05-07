@@ -1,3 +1,5 @@
+[1.32.0] [user] [fixed] - Special chart modes now correctly require matching chart type to activate
+[1.32.0] [admin] [fixed] - Special chart modes now correctly check chart type before activating
 [1.32.0] [user] [added] - New scorecard table view option for metrics
 [1.32.0] [user] [added] - Option to show region labels on maps
 [1.32.0] [user] [added] - Data label display modes for map charts including callout labels
