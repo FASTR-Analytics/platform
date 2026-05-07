@@ -114,6 +114,9 @@ export function CalculatedIndicatorsTable(p: Props) {
   }
 
   function denomText(si: CalculatedIndicator): string {
+    if (si.denom.kind === "none") {
+      return "—";
+    }
     if (si.denom.kind === "indicator") {
       return si.denom.indicator_id;
     }

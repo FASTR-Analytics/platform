@@ -45,8 +45,8 @@ export function EditCalculatedIndicatorForm(
   const [numIndicatorId, setNumIndicatorId] = createSignal(
     p.existing?.num_indicator_id ?? "",
   );
-  const [denomKind, setDenomKind] = createSignal<"indicator" | "population">(
-    p.existing?.denom.kind ?? "indicator",
+  const [denomKind, setDenomKind] = createSignal<"none" | "indicator" | "population">(
+    p.existing?.denom.kind ?? "none",
   );
   const [denomIndicatorId, setDenomIndicatorId] = createSignal(
     p.existing?.denom.kind === "indicator" ? p.existing.denom.indicator_id : "",
@@ -199,7 +199,9 @@ export function EditCalculatedIndicatorForm(
       }
 
       let denom: CalculatedIndicator["denom"];
-      if (denomKind() === "indicator") {
+      if (denomKind() === "none") {
+        denom = { kind: "none" };
+      } else if (denomKind() === "indicator") {
         const denomId = denomIndicatorId().trim();
         if (!denomId) {
           return {
@@ -355,11 +357,18 @@ export function EditCalculatedIndicatorForm(
           <div class="font-700 text-sm">
             {t3({ en: "Denominator", fr: "Dénominateur" })}
           </div>
-          <RadioGroup<"indicator" | "population">
+          <RadioGroup<"none" | "indicator" | "population">
             label={t3({ en: "Denominator kind", fr: "Type de dénominateur" })}
             value={denomKind()}
-            onChange={(v) => setDenomKind(v as "indicator" | "population")}
+            onChange={(v) => setDenomKind(v as "none" | "indicator" | "population")}
             options={[
+              {
+                value: "none",
+                label: t3({
+                  en: "None (raw count)",
+                  fr: "Aucun (compte brut)",
+                }),
+              },
               {
                 value: "indicator",
                 label: t3({
@@ -375,7 +384,6 @@ export function EditCalculatedIndicatorForm(
                 }),
               },
             ]}
-            horizontal
           />
           <Show when={denomKind() === "indicator"}>
             <Select

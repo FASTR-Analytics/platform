@@ -1,7 +1,12 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import { Button } from "panther";
+import { Button, ModalContainer } from "panther";
 import type { FigureInputs } from "panther";
-import type { PresentationObjectConfig, ShareTokenInfo, ShareVizBundle, IndicatorMetadata } from "lib";
+import type {
+  PresentationObjectConfig,
+  ShareTokenInfo,
+  ShareVizBundle,
+  IndicatorMetadata,
+} from "lib";
 import { stripFigureInputsForStorage } from "~/generate_visualization/strip_figure_inputs";
 import { _SERVER_HOST } from "~/server_actions";
 
@@ -26,9 +31,12 @@ export function ShareVisualizationModal(p: Props) {
   const [copiedToken, setCopiedToken] = createSignal<string | null>(null);
 
   const fetchTokens = async () => {
-    const res = await fetch(`${_SERVER_HOST}/api/share/viz?resourceId=${p.presentationObjectId}`, {
-      credentials: "include",
-    });
+    const res = await fetch(
+      `${_SERVER_HOST}/api/share/viz?resourceId=${p.presentationObjectId}`,
+      {
+        credentials: "include",
+      },
+    );
     const json = await res.json();
     setTokens(json.success ? json.tokens : []);
   };
@@ -86,45 +94,58 @@ export function ShareVisualizationModal(p: Props) {
   };
 
   return (
-    <div style={{ padding: "20px", "min-width": "400px" }}>
-      <h2 style={{ margin: "0 0 16px 0" }}>Share Visualization</h2>
-
+    <ModalContainer
+      title="Share visualization"
+      rightButtons={<Button onClick={() => p.close()}>Done</Button>}
+    >
       <Button onClick={createShareLink} disabled={creating()}>
         {creating() ? "Creating..." : "Create New Share Link"}
       </Button>
 
       <Show when={tokens() && tokens()!.length > 0}>
         <div style={{ "margin-top": "20px" }}>
-          <h3 style={{ margin: "0 0 12px 0" }}>Existing Links</h3>
+          <h3 class="font-700 text-sm">Existing links</h3>
           <For each={tokens()}>
-            {(t) => (
-              <div style={{
-                display: "flex",
-                "align-items": "center",
-                gap: "8px",
-                padding: "8px",
-                "border-bottom": "1px solid #eee",
-              }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ "font-size": "12px", color: "#666" }}>
+            {(t, i) => (
+              <div
+                class="ui-gap border-base-300 flex items-center py-2"
+                classList={{
+                  "border-t": i() > 0,
+                }}
+                // style={{
+                //   "border-bottom": "1px solid #eee",
+                // }}
+              >
+                <div class="text-neutral flex-1 text-sm">
+                  <div>
                     Created: {new Date(t.createdAt).toLocaleDateString()}
                     {" · "}
                     Views: {t.viewCount}
                   </div>
                 </div>
-                <Button onClick={() => copyUrl(t.token)}>
-                  {copiedToken() === t.token ? "Copied!" : "Copy"}
-                </Button>
-                <Button onClick={() => deleteToken(t.token)}>Delete</Button>
+                <div class="ui-gap-sm flex items-center">
+                  <Button
+                    onClick={() => copyUrl(t.token)}
+                    size="sm"
+                    iconName="copy"
+                  >
+                    {copiedToken() === t.token ? "Copied!" : "Copy"}
+                  </Button>
+                  <Button
+                    onClick={() => deleteToken(t.token)}
+                    size="sm"
+                    iconName="trash"
+                    intent="danger"
+                    outline
+                  >
+                    {/* Delete */}
+                  </Button>
+                </div>
               </div>
             )}
           </For>
         </div>
       </Show>
-
-      <div style={{ "margin-top": "20px", "text-align": "right" }}>
-        <Button onClick={() => p.close()}>Close</Button>
-      </div>
-    </div>
+    </ModalContainer>
   );
 }

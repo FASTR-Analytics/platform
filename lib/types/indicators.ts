@@ -51,6 +51,7 @@ export type CalculatedIndicator = {
 
   num_indicator_id: string;
   denom:
+    | { kind: "none" }
     | { kind: "indicator"; indicator_id: string }
     | { kind: "population"; population_type: PopulationType; multiplier: number };
 
@@ -66,6 +67,12 @@ export type CalculatedIndicator = {
 // Type Definitions
 // ============================================================================
 
+export interface DHIS2CategoryOptionCombo {
+  id: string;
+  name: string;
+  displayName?: string;
+}
+
 export interface DHIS2DataElement {
   id: string;
   name: string;
@@ -78,6 +85,8 @@ export interface DHIS2DataElement {
   categoryCombo?: {
     id: string;
     name: string;
+    isDefault?: boolean;
+    categoryOptionCombos?: DHIS2CategoryOptionCombo[];
   };
   dataElementGroups?: Array<{
     id: string;

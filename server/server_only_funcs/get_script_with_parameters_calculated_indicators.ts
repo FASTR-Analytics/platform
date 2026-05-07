@@ -29,9 +29,10 @@ export function getScriptWithParametersCalculatedIndicators(
         ci.denom.indicator_id,
         "denom_indicator_id"
       );
-    } else {
+    } else if (ci.denom.kind === "population") {
       assertValidPopulationType(ci.denom.population_type, "denom_population_type");
     }
+    // "none" kind has no additional fields to validate
   }
 
   let str = moduleDefinition.script;
@@ -98,24 +99,42 @@ export function getScriptWithParametersCalculatedIndicators(
     const varName = `rows_${i + 1}`;
 
     let denomExpr: string;
-    if (ci.denom.kind === "indicator") {
+    let denomColName: string | null;
+    if (ci.denom.kind === "none") {
+      denomExpr = "1";
+      denomColName = null;
+    } else if (ci.denom.kind === "indicator") {
       denomExpr = `data[["${ci.denom.indicator_id}"]]`;
+      denomColName = ci.denom.indicator_id;
     } else {
       denomExpr = `data[["${ci.denom.population_type}"]] * ${ci.denom.multiplier} * PERIOD_FRACTION`;
+      denomColName = ci.denom.population_type;
     }
 
-    const denomColName = ci.denom.kind === "indicator"
-      ? ci.denom.indicator_id
-      : ci.denom.population_type;
-    const denomColCheck = `"${denomColName}" %in% names(data)`;
-
-    blocks.push(`
+    if (denomColName === null) {
+      // No denominator column to check
+      blocks.push(`
+# ${ci.calculated_indicator_id}
+{
+  num_col <- "${ci.num_indicator_id}"
+  num_ok <- num_col %in% names(data)
+  if (!num_ok) stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires numerator column '", num_col, "' but it is missing from the data. Check your indicator configuration.")
+  ${varName} <- data %>%
+    select(all_of(geo_cols), period_id) %>%
+    mutate(
+      indicator_common_id = "${ci.calculated_indicator_id}",
+      numerator = data[[num_col]],
+      denominator = ${denomExpr}
+    )
+}`);
+    } else {
+      blocks.push(`
 # ${ci.calculated_indicator_id}
 {
   num_col <- "${ci.num_indicator_id}"
   denom_col <- "${denomColName}"
   num_ok <- num_col %in% names(data)
-  denom_ok <- ${denomColCheck}
+  denom_ok <- denom_col %in% names(data)
   if (!num_ok) stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires numerator column '", num_col, "' but it is missing from the data. Check your indicator configuration.")
   if (!denom_ok) stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires denominator column '", denom_col, "' but it is missing. For population-based denominators, ensure population.csv includes this population_type.")
   ${varName} <- data %>%
@@ -126,6 +145,7 @@ export function getScriptWithParametersCalculatedIndicators(
       denominator = ${denomExpr}
     )
 }`);
+    }
   }
 
   // Generate the bind_rows call

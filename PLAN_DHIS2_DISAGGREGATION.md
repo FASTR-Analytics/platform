@@ -317,9 +317,17 @@ Update indicator tables to show:
 
 ## Open Questions
 
-1. **Should we support the `*` wildcard?** — Fetching all COCs at once via `DE.*` could be useful but adds complexity
-2. **Attribute option combos?** — Do your colleagues need AOC support (the third part of the operand)? This is less common.
-3. **Backward compatibility?** — Are there existing indicator mappings that use simple data element IDs that would break?
+1. **Should we support the `*` wildcard?** — **RESOLVED:** No. Defer wildcard support.
+
+2. **Attribute option combos?** — **RESOLVED:** No. Defer AOC (3-part operand) support.
+
+3. **Backward compatibility?** — **RESOLVED:** Mixed formats (simple DE IDs and operand format DE.COC) are acceptable in the same instance.
+
+4. **UI pattern for COC selection?** — **RESOLVED:** Nested/expandable under parent data element. User can click "add" on individual COCs or on the parent DE itself. No "select all" button.
+
+5. **Label format for operands?** — **RESOLVED:** Use dash separator: `"Data Element Name - COC Name"`
+
+6. **isDefault field verification?** — **RESOLVED:** Verified in DHIS2 source code. The `isDefault` field exists on categoryCombo and is exposed via `@JsonProperty("isDefault")`. Returns true when `name === "default"`.
 
 ---
 

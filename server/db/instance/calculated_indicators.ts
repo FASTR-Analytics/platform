@@ -13,7 +13,7 @@ export type DBCalculatedIndicator = {
   group_label: string;
   sort_order: number;
   num_indicator_id: string;
-  denom_kind: "indicator" | "population";
+  denom_kind: "none" | "indicator" | "population";
   denom_indicator_id: string | null;
   denom_population_type: PopulationType | null;
   denom_population_multiplier: number | null;
@@ -28,20 +28,25 @@ export type DBCalculatedIndicator = {
 export function dbRowToCalculatedIndicator(
   row: DBCalculatedIndicator,
 ): CalculatedIndicator {
+  let denom: CalculatedIndicator["denom"];
+  if (row.denom_kind === "none") {
+    denom = { kind: "none" };
+  } else if (row.denom_kind === "indicator") {
+    denom = { kind: "indicator", indicator_id: row.denom_indicator_id! };
+  } else {
+    denom = {
+      kind: "population",
+      population_type: row.denom_population_type!,
+      multiplier: row.denom_population_multiplier!,
+    };
+  }
   return {
     calculated_indicator_id: row.calculated_indicator_id,
     label: row.label,
     group_label: row.group_label,
     sort_order: row.sort_order,
     num_indicator_id: row.num_indicator_id,
-    denom:
-      row.denom_kind === "indicator"
-        ? { kind: "indicator", indicator_id: row.denom_indicator_id! }
-        : {
-            kind: "population",
-            population_type: row.denom_population_type!,
-            multiplier: row.denom_population_multiplier!,
-          },
+    denom,
     format_as: row.format_as,
     decimal_places: row.decimal_places,
     threshold_direction: row.threshold_direction,
@@ -51,7 +56,7 @@ export function dbRowToCalculatedIndicator(
 }
 
 type DenomFields = {
-  denom_kind: "indicator" | "population";
+  denom_kind: "none" | "indicator" | "population";
   denom_indicator_id: string | null;
   denom_population_type: PopulationType | null;
   denom_population_multiplier: number | null;
@@ -60,6 +65,14 @@ type DenomFields = {
 function denomFieldsFromCalculatedIndicator(
   indicator: CalculatedIndicator,
 ): DenomFields {
+  if (indicator.denom.kind === "none") {
+    return {
+      denom_kind: "none",
+      denom_indicator_id: null,
+      denom_population_type: null,
+      denom_population_multiplier: null,
+    };
+  }
   if (indicator.denom.kind === "indicator") {
     return {
       denom_kind: "indicator",
