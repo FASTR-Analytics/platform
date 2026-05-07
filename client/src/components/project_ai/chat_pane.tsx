@@ -296,7 +296,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
       <Show when={usagePct() !== null}>
         <div
-          class="h-1 w-full cursor-default overflow-hidden bg-base-200"
+          class="h-2 w-full cursor-default overflow-hidden bg-base-200"
           title={usageTooltip()}
         >
           <div
