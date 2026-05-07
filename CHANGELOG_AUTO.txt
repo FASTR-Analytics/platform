@@ -1,3 +1,7 @@
+[1.30.0] [user] [changed] - Shared visualizations now display without a title header
+[1.30.0] [user] [changed] - Improved spacing and layout for shared visualization pages
+[1.30.0] [admin] [changed] - Public visualizations no longer show the title header
+[1.30.0] [admin] [changed] - Improved spacing and layout for public visualization pages
 [1.30.0] [admin] [internal] - Updated internal API paths for shared visualization links
 [1.30.0] [user] [added] - Share visualizations via public link with anyone
 [1.30.0] [user] [added] - Manage, copy, and delete shared visualization links
