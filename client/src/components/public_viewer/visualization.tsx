@@ -13,12 +13,12 @@ async function fetchBundle(
 
 export default function PublicVisualization() {
   const params = useParams<{ token: string }>();
-  const [searchParams] = useSearchParams<{ embed?: string; height?: string }>();
+  const [searchParams] = useSearchParams<{ embed?: string; height?: string; noRescale?: string }>();
   const bundleHolder = timQuery(() => fetchBundle(params.token), "Loading...");
 
   const isEmbed = () => searchParams.embed === "true";
-  const chartHeight = () =>
-    searchParams.height === "ideal" ? "ideal" : "flex";
+  const chartHeight = () => searchParams.height === "ideal" ? "ideal" : "flex";
+  const noRescale = () => searchParams.noRescale === "true";
 
   return (
     <div
@@ -37,7 +37,7 @@ export default function PublicVisualization() {
           );
           return (
             <ChartHolder
-              noRescaleWithWidthChange
+              noRescaleWithWidthChange={noRescale()}
               chartInputs={fi}
               height={chartHeight()}
             />
