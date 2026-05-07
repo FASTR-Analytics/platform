@@ -263,7 +263,24 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           <span class="font-700">{t3({ en: "AI", fr: "IA" })}</span>
           <span class="font-400 text-sm opacity-70">{titleSubtext()}</span>
         </h3>
-        <div class="ui-gap-sm flex">
+        <div class="ui-gap-sm flex items-center">
+          <Show when={usagePct() !== null}>
+            <div title={usageTooltip()} class="cursor-default">
+              <svg width="20" height="20" viewBox="0 0 20 20">
+                <circle cx="10" cy="10" r="7" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="3" />
+                <circle
+                  cx="10" cy="10" r="7"
+                  fill="none"
+                  stroke={usagePct()! >= 100 ? "#ef4444" : usagePct()! >= 80 ? "#f59e0b" : "white"}
+                  stroke-width="3"
+                  stroke-dasharray="43.98"
+                  stroke-dashoffset={43.98 * (1 - usagePct()! / 100)}
+                  transform="rotate(-90 10 10)"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </div>
+          </Show>
           <MenuTriggerWrapper items={menuItems} position="bottom-end">
             <Button
               outline
@@ -294,17 +311,6 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         />
       </div>
 
-      <Show when={usagePct() !== null}>
-        <div
-          class="h-2 w-full cursor-default overflow-hidden bg-base-200"
-          title={usageTooltip()}
-        >
-          <div
-            class={`h-full transition-all ${usagePct()! >= 100 ? "bg-error" : usagePct()! >= 80 ? "bg-warning" : "bg-primary"}`}
-            style={{ width: `${usagePct()}%` }}
-          />
-        </div>
-      </Show>
     </div>
   );
 }
