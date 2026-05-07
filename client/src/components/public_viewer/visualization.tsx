@@ -1,57 +1,49 @@
-import { createResource, Show } from "solid-js";
-import { useParams } from "@solidjs/router";
-import { ChartHolder } from "panther";
-import type { ShareVizBundle } from "lib";
+import { useParams, useSearchParams } from "@solidjs/router";
+import { ChartHolder, StateHolderWrapper, timQuery } from "panther";
+import type { APIResponseWithData, ShareVizBundle } from "lib";
 import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/strip_figure_inputs";
 import { _SERVER_HOST } from "~/server_actions";
 
-async function fetchBundle(token: string): Promise<ShareVizBundle | null> {
+async function fetchBundle(
+  token: string,
+): Promise<APIResponseWithData<ShareVizBundle>> {
   const res = await fetch(`${_SERVER_HOST}/api/share/viz/${token}`);
-  const json = await res.json();
-  if (!json.success) return null;
-  return json.data as ShareVizBundle;
+  return res.json();
 }
 
 export default function PublicVisualization() {
   const params = useParams<{ token: string }>();
-  const [bundle] = createResource(() => params.token, fetchBundle);
+  const [searchParams] = useSearchParams<{ embed?: string; height?: string }>();
+  const bundleHolder = timQuery(() => fetchBundle(params.token), "Loading...");
+
+  const isEmbed = () => searchParams.embed === "true";
+  const chartHeight = () =>
+    searchParams.height === "ideal" ? "ideal" : "flex";
 
   return (
     <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        "flex-direction": "column",
+      class="h-full w-full overflow-y-auto"
+      classList={{
+        "ui-pad-lg": !isEmbed(),
       }}
-      class="ui-pad"
     >
-      <Show when={bundle.loading}>
-        <div>Loading...</div>
-      </Show>
-      <Show when={bundle.error || (bundle() === null && !bundle.loading)}>
-        <div>Visualization not found</div>
-      </Show>
-      <Show when={bundle()}>
-        {(b) => {
+      <StateHolderWrapper state={bundleHolder.state()} noPad>
+        {(bundle) => {
           const fi = hydrateFigureInputsForPublicRendering(
-            b().strippedFigureInputs,
-            b().source,
-            b().geoData,
-            b().indicatorMetadata,
+            bundle.strippedFigureInputs,
+            bundle.source,
+            bundle.geoData,
+            bundle.indicatorMetadata,
           );
           return (
-            <>
-              {/* <div style={{ padding: "12px 20px", "border-bottom": "1px solid #e5e5e5" }}>
-                <h1 style={{ margin: 0, "font-size": "18px" }}>{b().label}</h1>
-              </div>
-              <div style={{ flex: 1 }}> */}
-              <ChartHolder chartInputs={fi} height="flex" />
-              {/* </div> */}
-            </>
+            <ChartHolder
+              noRescaleWithWidthChange
+              chartInputs={fi}
+              height={chartHeight()}
+            />
           );
         }}
-      </Show>
+      </StateHolderWrapper>
     </div>
   );
 }

@@ -9,7 +9,7 @@ routesPublicShare.get("/api/share/viz/:token", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const data = await getShareTokenData(mainDb, token);
   if (!data) {
-    return c.json({ success: false, error: "Not found" }, 404);
+    return c.json({ success: false, err: "Not found" }, 404);
   }
   return c.json({ success: true, data });
 });

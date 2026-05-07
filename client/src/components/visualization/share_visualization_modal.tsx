@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 import { Button } from "panther";
 import type { FigureInputs } from "panther";
 import type { PresentationObjectConfig, ShareTokenInfo, ShareVizBundle, IndicatorMetadata } from "lib";
@@ -20,21 +20,22 @@ type PropsBase = {
 
 type Props = AlertComponentProps<PropsBase, void>;
 
-async function fetchExistingTokens(resourceId: string): Promise<ShareTokenInfo[]> {
-  const res = await fetch(`${_SERVER_HOST}/api/share/viz?resourceId=${resourceId}`, {
-    credentials: "include",
-  });
-  const json = await res.json();
-  return json.success ? json.tokens : [];
-}
-
 export function ShareVisualizationModal(p: Props) {
-  const [tokens, { refetch }] = createResource(
-    () => p.presentationObjectId,
-    fetchExistingTokens,
-  );
+  const [tokens, setTokens] = createSignal<ShareTokenInfo[]>([]);
   const [creating, setCreating] = createSignal(false);
   const [copiedToken, setCopiedToken] = createSignal<string | null>(null);
+
+  const fetchTokens = async () => {
+    const res = await fetch(`${_SERVER_HOST}/api/share/viz?resourceId=${p.presentationObjectId}`, {
+      credentials: "include",
+    });
+    const json = await res.json();
+    setTokens(json.success ? json.tokens : []);
+  };
+
+  onMount(() => {
+    fetchTokens();
+  });
 
   const createShareLink = async () => {
     setCreating(true);
@@ -64,7 +65,7 @@ export function ShareVisualizationModal(p: Props) {
       const url = `${window.location.origin}/share/viz/${json.token}`;
       await navigator.clipboard.writeText(url);
       setCopiedToken(json.token);
-      refetch();
+      fetchTokens();
       setTimeout(() => setCopiedToken(null), 2000);
     }
   };
@@ -74,7 +75,7 @@ export function ShareVisualizationModal(p: Props) {
       method: "DELETE",
       credentials: "include",
     });
-    refetch();
+    fetchTokens();
   };
 
   const copyUrl = async (token: string) => {

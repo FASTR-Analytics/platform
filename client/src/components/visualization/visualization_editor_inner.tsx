@@ -209,11 +209,21 @@ export function VisualizationEditorInner(p: InnerProps) {
     // read explicitly here. If you add a new nested filter field, add a read here
     // too — otherwise changes to it won't re-fetch the preview.
     const _periodFilterFilterType = tempConfig.d.periodFilter?.filterType;
-    const _periodFilterNMonths = tempConfig.d.periodFilter?.filterType === "last_n_months" ? tempConfig.d.periodFilter.nMonths : undefined;
-    const _periodFilterNYears = tempConfig.d.periodFilter?.filterType === "last_n_calendar_years" ? tempConfig.d.periodFilter.nYears : undefined;
-    const _periodFilterNQuarters = tempConfig.d.periodFilter?.filterType === "last_n_calendar_quarters" ? tempConfig.d.periodFilter.nQuarters : undefined;
+    const _periodFilterNMonths =
+      tempConfig.d.periodFilter?.filterType === "last_n_months"
+        ? tempConfig.d.periodFilter.nMonths
+        : undefined;
+    const _periodFilterNYears =
+      tempConfig.d.periodFilter?.filterType === "last_n_calendar_years"
+        ? tempConfig.d.periodFilter.nYears
+        : undefined;
+    const _periodFilterNQuarters =
+      tempConfig.d.periodFilter?.filterType === "last_n_calendar_quarters"
+        ? tempConfig.d.periodFilter.nQuarters
+        : undefined;
     const _periodFilterBounded =
-      tempConfig.d.periodFilter && periodFilterHasBounds(tempConfig.d.periodFilter)
+      tempConfig.d.periodFilter &&
+      periodFilterHasBounds(tempConfig.d.periodFilter)
         ? tempConfig.d.periodFilter
         : undefined;
     const _periodFilterOpt = _periodFilterBounded?.periodOption;
@@ -735,14 +745,20 @@ export function VisualizationEditorInner(p: InnerProps) {
               </Show>
             </div>
             <div class="ui-gap-sm flex items-center">
-              <Show when={!p.projectStateSnapshot.isLocked && p.mode === "edit"}>
+              <Show
+                when={!p.projectStateSnapshot.isLocked && p.mode === "edit"}
+              >
                 <Button
                   onClick={attemptUpdateLabel}
                   iconName="settings"
                   outline
                 ></Button>
                 <Button onClick={duplicate} iconName="copy" outline></Button>
-                <Button onClick={openShareModal} iconName="upload" outline></Button>
+                <Button
+                  onClick={openShareModal}
+                  iconName="arrowRight"
+                  outline
+                ></Button>
                 <Show when={!p.poDetail.isDefault}>
                   <Button
                     onClick={attemptDeletePresentationObjectDetail}
@@ -808,9 +824,12 @@ export function VisualizationEditorInner(p: InnerProps) {
             </Show>
             <Show
               when={(() => {
-                const { config, effectiveValueProps } = getEffectivePOConfig(tempConfig, {
-                  valueProps: p.poDetail.resultsValue.valueProps,
-                });
+                const { config, effectiveValueProps } = getEffectivePOConfig(
+                  tempConfig,
+                  {
+                    valueProps: p.poDetail.resultsValue.valueProps,
+                  },
+                );
                 return !hasDuplicateDisaggregatorDisplayOptions(
                   p.poDetail.resultsValue,
                   config,
@@ -902,9 +921,12 @@ export function VisualizationEditorInner(p: InnerProps) {
                                 keyedItemsHolder.ih.items.length > 0
                               ) {
                                 if (!tempConfig.d.timeseriesGrouping) {
-                                  throw new Error("Timeseries config missing timeseriesGrouping");
+                                  throw new Error(
+                                    "Timeseries config missing timeseriesGrouping",
+                                  );
                                 }
-                                const periodProp = tempConfig.d.timeseriesGrouping;
+                                const periodProp =
+                                  tempConfig.d.timeseriesGrouping;
                                 if (
                                   !(periodProp in keyedItemsHolder.ih.items[0])
                                 ) {
