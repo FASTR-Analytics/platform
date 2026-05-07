@@ -1,3 +1,5 @@
+[1.30.0] [user] [added] - Shared charts can now control automatic rescaling via link settings
+[1.30.0] [admin] [changed] - Shared chart links can now control rescaling behavior via URL parameter
 [1.30.0] [user] [added] - Shared visualizations now support embedding with customizable height
 [1.30.0] [user] [changed] - Share button icon updated for clarity
 [1.30.0] [admin] [changed] - Shared visualizations now support embedding with custom height options
