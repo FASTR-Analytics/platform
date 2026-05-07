@@ -1,3 +1,5 @@
+[1.29.0] [user] [added] - Option to skip re-running modules when updating data
+[1.29.0] [admin] [added] - Option to skip re-running modules when updating dataset
 [1.29.0] [user] [fixed] - Clearer error message when server is temporarily unavailable
 [1.29.0] [user] [changed] - Removed the "Group label" field from the calculated indicator editor
 [1.29.0] [admin] [fixed] - Clearer error message when server is temporarily unavailable
