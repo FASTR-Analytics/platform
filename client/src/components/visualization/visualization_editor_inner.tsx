@@ -453,7 +453,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     });
   }
 
-  const openShareModal = () => {
+  const openShareModal = async () => {
     const ih = itemsHolder();
     if (ih.status !== "ready") return;
     if (ih.data.ih.status !== "ok") return;
@@ -466,7 +466,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     );
     if (figureInputsResult.status !== "ready") return;
 
-    openComponent({
+    await openComponent({
       element: ShareVisualizationModal,
       props: {
         presentationObjectId: p.mode === "edit" ? p.poDetail.id : "",

@@ -6,7 +6,7 @@ import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/
 import { _SERVER_HOST } from "~/server_actions";
 
 async function fetchBundle(token: string): Promise<ShareVizBundle | null> {
-  const res = await fetch(`${_SERVER_HOST}/share/viz/${token}`);
+  const res = await fetch(`${_SERVER_HOST}/api/share/viz/${token}`);
   const json = await res.json();
   if (!json.success) return null;
   return json.data as ShareVizBundle;

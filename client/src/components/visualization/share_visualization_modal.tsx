@@ -21,7 +21,7 @@ type PropsBase = {
 type Props = AlertComponentProps<PropsBase, void>;
 
 async function fetchExistingTokens(resourceId: string): Promise<ShareTokenInfo[]> {
-  const res = await fetch(`${_SERVER_HOST}/share/viz?resourceId=${resourceId}`, {
+  const res = await fetch(`${_SERVER_HOST}/api/share/viz?resourceId=${resourceId}`, {
     credentials: "include",
   });
   const json = await res.json();
@@ -51,7 +51,7 @@ export function ShareVisualizationModal(p: Props) {
       indicatorMetadata: p.indicatorMetadata,
     };
 
-    const res = await fetch(`${_SERVER_HOST}/share/viz`, {
+    const res = await fetch(`${_SERVER_HOST}/api/share/viz`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -70,7 +70,7 @@ export function ShareVisualizationModal(p: Props) {
   };
 
   const deleteToken = async (token: string) => {
-    await fetch(`${_SERVER_HOST}/share/viz/${token}`, {
+    await fetch(`${_SERVER_HOST}/api/share/viz/${token}`, {
       method: "DELETE",
       credentials: "include",
     });

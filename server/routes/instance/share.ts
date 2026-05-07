@@ -11,7 +11,7 @@ import type { ShareVizBundle } from "lib";
 export const routesShare = new Hono();
 
 // Create share link
-routesShare.post("/share/viz", requireGlobalPermission(), async (c) => {
+routesShare.post("/api/share/viz", requireGlobalPermission(), async (c) => {
   const body = await c.req.json<{ resourceId: string; bundle: ShareVizBundle }>();
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const token = await createShareToken(
@@ -25,7 +25,7 @@ routesShare.post("/share/viz", requireGlobalPermission(), async (c) => {
 });
 
 // List share links for a visualization
-routesShare.get("/share/viz", requireGlobalPermission(), async (c) => {
+routesShare.get("/api/share/viz", requireGlobalPermission(), async (c) => {
   const resourceId = c.req.query("resourceId");
   if (!resourceId) {
     return c.json({ success: false, error: "resourceId required" }, 400);
@@ -36,7 +36,7 @@ routesShare.get("/share/viz", requireGlobalPermission(), async (c) => {
 });
 
 // Delete share link
-routesShare.delete("/share/viz/:token", requireGlobalPermission(), async (c) => {
+routesShare.delete("/api/share/viz/:token", requireGlobalPermission(), async (c) => {
   const token = c.req.param("token");
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const deleted = await deleteShareToken(mainDb, token, c.var.globalUser.email);

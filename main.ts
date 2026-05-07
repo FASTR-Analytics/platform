@@ -73,7 +73,7 @@ await connectValkey();
 const app = new Hono();
 
 // CORS for public routes
-app.use("/share/*", corsMiddleware);
+app.use("/api/share/*", corsMiddleware);
 
 // Public routes (no auth required) - must be before authMiddleware
 app.route("/", routesPublicShare);

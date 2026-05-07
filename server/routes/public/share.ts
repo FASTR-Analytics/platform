@@ -4,7 +4,7 @@ import { getShareTokenData } from "../../db/instance/share_tokens.ts";
 
 export const routesPublicShare = new Hono();
 
-routesPublicShare.get("/share/viz/:token", async (c) => {
+routesPublicShare.get("/api/share/viz/:token", async (c) => {
   const token = c.req.param("token");
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const data = await getShareTokenData(mainDb, token);
