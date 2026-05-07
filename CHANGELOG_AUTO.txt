@@ -1,56 +1,56 @@
-[TBD] [user] [added] - New scorecard table mode for visualizations with color-coded performance indicators
-[TBD] [user] [added] - Population type selector when setting population-based denominators for calculated indicators
-[TBD] [user] [added] - Drag-and-drop sorting for calculated indicators
-[TBD] [user] [added] - Real-time validation when entering calculated indicator IDs
-[TBD] [user] [added] - Calculated indicators count now shown on the instance data summary
-[TBD] [user] [added] - Calculated indicators sync status shown on project data page
-[TBD] [user] [added] - Stale data warning when calculated indicators have changed since last export
-[TBD] [user] [added] - New Scorecard module available in the module list
-[TBD] [user] [changed] - Population denominator now uses a multiplier instead of a fraction
-[TBD] [user] [changed] - Sort order for calculated indicators is now managed via the sort modal instead of manual entry
-[TBD] [user] [fixed] - Fixed potential division errors in calculated expressions with whitespace
-[TBD] [admin] [added] - New "Scorecard" module (M8) available for installation
-[TBD] [admin] [added] - Population-based denominators now support specific population types (e.g., Under 5, Women of reproductive age)
-[TBD] [admin] [added] - Drag-and-drop sorting for calculated indicators
-[TBD] [admin] [added] - Scorecard table mode with automatic color-coded thresholds
-[TBD] [admin] [added] - Calculated indicator count now shown on instance overview
-[TBD] [admin] [added] - Calculated indicators version tracking and staleness detection in projects
-[TBD] [admin] [added] - ID format validation when creating calculated indicators
-[TBD] [admin] [changed] - Population denominator now uses a multiplier instead of a fraction (0–1)
-[TBD] [admin] [changed] - Sort order for calculated indicators is now managed via the sort modal, not per-indicator
-[TBD] [admin] [changed] - Calculated indicators are snapshotted into projects during HMIS data export
-[TBD] [admin] [changed] - Project data shown as stale when calculated indicators change
-[TBD] [admin] [fixed] - Division-by-zero protection now works when spaces surround the operator in expressions
-[TBD] [user] [fixed] - Fixed visualization settings not clearing the correct cached data
-[TBD] [admin] [fixed] - Fixed visualization settings clearing wrong cache after changes
-[TBD] [admin] [internal] - Improved slide loading reliability with centralized caching
-[TBD] [user] [fixed] - Data displays now refresh more reliably after changes
-[TBD] [admin] [fixed] - GeoJSON and dataset views now refresh more reliably after changes
-[TBD] [admin] [internal] - Removed unused AI interpretation and long-form editor features
-[TBD] [admin] [internal] - Simplified data refresh logic across dataset and map management screens
-[TBD] [user] [changed] - Project data now updates in real time more reliably
-[TBD] [admin] [changed] - Project state updates now use real-time server events exclusively
-[TBD] [admin] [fixed] - Slide deck and visualization edits sync faster across users
-[TBD] [admin] [changed] - Removed manual refresh requirements after editing user permissions
-[TBD] [admin] [internal] - Simplified project data synchronization architecture
-[TBD] [user] [added] - Cache status page now shows additional cached item counts per visualization
-[TBD] [user] [added] - Cache status page now displays client-side browser cache details
-[TBD] [user] [changed] - Removed slide decks section from cache status page
-[TBD] [admin] [added] - Cache status now shows PO Items and Replicant Options counts per visualization
-[TBD] [admin] [added] - Client-side IndexedDB cache breakdown visible in cache status page
-[TBD] [admin] [changed] - Slide decks section removed from cache status view
-[TBD] [admin] [added] - Refresh button to re-scan client-side cache entries on demand
-[TBD] [user] [fixed] - Fixed vertical axis label alignment on point charts
-[TBD] [user] [improved] - Improved real-time project updates and connection reliability
-[TBD] [admin] [internal] - Groundwork laid for improved real-time project sync system
-[TBD] [admin] [changed] - Removed redundant tracking of last module run timestamp
-[TBD] [admin] [fixed] - Vertical axis tick labels now align correctly for point charts
-[TBD] [admin] [changed] - User permission and role changes now update all connected users in real time
-[TBD] [user] [changed] - Reports feature has been removed from projects
-[TBD] [admin] [changed] - Legacy "Reports" feature has been fully removed from the platform
-[TBD] [user] [added] - Custom brand colors are now validated before saving slide deck settings
-[TBD] [admin] [added] - Custom brand color is now validated before saving slide deck settings
-[TBD] [admin] [internal] - Minor formatting and code cleanup for map visualizations
+[1.29.0] [user] [added] - New scorecard table mode for visualizations with color-coded performance indicators
+[1.29.0] [user] [added] - Population type selector when setting population-based denominators for calculated indicators
+[1.29.0] [user] [added] - Drag-and-drop sorting for calculated indicators
+[1.29.0] [user] [added] - Real-time validation when entering calculated indicator IDs
+[1.29.0] [user] [added] - Calculated indicators count now shown on the instance data summary
+[1.29.0] [user] [added] - Calculated indicators sync status shown on project data page
+[1.29.0] [user] [added] - Stale data warning when calculated indicators have changed since last export
+[1.29.0] [user] [added] - New Scorecard module available in the module list
+[1.29.0] [user] [changed] - Population denominator now uses a multiplier instead of a fraction
+[1.29.0] [user] [changed] - Sort order for calculated indicators is now managed via the sort modal instead of manual entry
+[1.29.0] [user] [fixed] - Fixed potential division errors in calculated expressions with whitespace
+[1.29.0] [admin] [added] - New "Scorecard" module (M8) available for installation
+[1.29.0] [admin] [added] - Population-based denominators now support specific population types (e.g., Under 5, Women of reproductive age)
+[1.29.0] [admin] [added] - Drag-and-drop sorting for calculated indicators
+[1.29.0] [admin] [added] - Scorecard table mode with automatic color-coded thresholds
+[1.29.0] [admin] [added] - Calculated indicator count now shown on instance overview
+[1.29.0] [admin] [added] - Calculated indicators version tracking and staleness detection in projects
+[1.29.0] [admin] [added] - ID format validation when creating calculated indicators
+[1.29.0] [admin] [changed] - Population denominator now uses a multiplier instead of a fraction (0–1)
+[1.29.0] [admin] [changed] - Sort order for calculated indicators is now managed via the sort modal, not per-indicator
+[1.29.0] [admin] [changed] - Calculated indicators are snapshotted into projects during HMIS data export
+[1.29.0] [admin] [changed] - Project data shown as stale when calculated indicators change
+[1.29.0] [admin] [fixed] - Division-by-zero protection now works when spaces surround the operator in expressions
+[1.29.0] [user] [fixed] - Fixed visualization settings not clearing the correct cached data
+[1.29.0] [admin] [fixed] - Fixed visualization settings clearing wrong cache after changes
+[1.29.0] [admin] [internal] - Improved slide loading reliability with centralized caching
+[1.29.0] [user] [fixed] - Data displays now refresh more reliably after changes
+[1.29.0] [admin] [fixed] - GeoJSON and dataset views now refresh more reliably after changes
+[1.29.0] [admin] [internal] - Removed unused AI interpretation and long-form editor features
+[1.29.0] [admin] [internal] - Simplified data refresh logic across dataset and map management screens
+[1.29.0] [user] [changed] - Project data now updates in real time more reliably
+[1.29.0] [admin] [changed] - Project state updates now use real-time server events exclusively
+[1.29.0] [admin] [fixed] - Slide deck and visualization edits sync faster across users
+[1.29.0] [admin] [changed] - Removed manual refresh requirements after editing user permissions
+[1.29.0] [admin] [internal] - Simplified project data synchronization architecture
+[1.29.0] [user] [added] - Cache status page now shows additional cached item counts per visualization
+[1.29.0] [user] [added] - Cache status page now displays client-side browser cache details
+[1.29.0] [user] [changed] - Removed slide decks section from cache status page
+[1.29.0] [admin] [added] - Cache status now shows PO Items and Replicant Options counts per visualization
+[1.29.0] [admin] [added] - Client-side IndexedDB cache breakdown visible in cache status page
+[1.29.0] [admin] [changed] - Slide decks section removed from cache status view
+[1.29.0] [admin] [added] - Refresh button to re-scan client-side cache entries on demand
+[1.29.0] [user] [fixed] - Fixed vertical axis label alignment on point charts
+[1.29.0] [user] [improved] - Improved real-time project updates and connection reliability
+[1.29.0] [admin] [internal] - Groundwork laid for improved real-time project sync system
+[1.29.0] [admin] [changed] - Removed redundant tracking of last module run timestamp
+[1.29.0] [admin] [fixed] - Vertical axis tick labels now align correctly for point charts
+[1.29.0] [admin] [changed] - User permission and role changes now update all connected users in real time
+[1.29.0] [user] [changed] - Reports feature has been removed from projects
+[1.29.0] [admin] [changed] - Legacy "Reports" feature has been fully removed from the platform
+[1.29.0] [user] [added] - Custom brand colors are now validated before saving slide deck settings
+[1.29.0] [admin] [added] - Custom brand color is now validated before saving slide deck settings
+[1.29.0] [admin] [internal] - Minor formatting and code cleanup for map visualizations
 [1.28.17] [user] [fixed] - Bold text in slides now displays with correct font weight
 [1.28.17] [admin] [fixed] - Slide bold text now loads correct font weights
 [1.28.16] [user] [changed] - Slide decks with "bold" style now keep that choice
