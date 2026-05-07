@@ -1,3 +1,8 @@
+[1.30.0] [user] [added] - Shared visualizations now support embedding with customizable height
+[1.30.0] [user] [changed] - Share button icon updated for clarity
+[1.30.0] [admin] [changed] - Shared visualizations now support embedding with custom height options
+[1.30.0] [admin] [changed] - Share button icon updated from upload to arrow icon
+[1.30.0] [admin] [internal] - Improved loading and error handling for shared visualization links
 [1.30.0] [user] [changed] - Shared visualizations now display without a title header
 [1.30.0] [user] [changed] - Improved spacing and layout for shared visualization pages
 [1.30.0] [admin] [changed] - Public visualizations no longer show the title header
