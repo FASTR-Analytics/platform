@@ -15,7 +15,7 @@ import {
   type MenuItem,
 } from "panther";
 import { t3, TC } from "lib";
-import { createEffect, createResource, on, Show, type Accessor } from "solid-js";
+import { createEffect, createSignal, on, onMount, Show, type Accessor } from "solid-js";
 import { useAIProjectContext } from "./context";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
@@ -239,16 +239,26 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }
   };
 
-  const [aiUsage, { refetch: refetchAiUsage }] = createResource(() => serverActions.getAiUsage({}));
+  type AiUsageData = { tokensUsedToday: number; dailyTokenLimit: number | null };
+  const [aiUsage, setAiUsage] = createSignal<AiUsageData | null>(null);
+
+  async function refreshAiUsage() {
+    try {
+      const res = await serverActions.getAiUsage({});
+      if (res.success) setAiUsage(res.data);
+    } catch { /* ignore */ }
+  }
+
+  onMount(refreshAiUsage);
 
   createEffect(on(isLoading, (loading) => {
-    if (!loading) refetchAiUsage();
+    if (!loading) refreshAiUsage();
   }, { defer: true }));
 
   const usagePct = () => {
-    const res = aiUsage();
-    if (!res || !res.success || res.data.dailyTokenLimit === null) return null;
-    return Math.min(100, Math.round((res.data.tokensUsedToday / res.data.dailyTokenLimit) * 100));
+    const u = aiUsage();
+    if (!u || u.dailyTokenLimit === null) return null;
+    return Math.min(100, Math.round((u.tokensUsedToday / u.dailyTokenLimit) * 100));
   };
 
   const usageTooltip = () => {
