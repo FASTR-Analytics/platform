@@ -51,16 +51,18 @@ export function EditCalculatedIndicatorForm(
   const [denomIndicatorId, setDenomIndicatorId] = createSignal(
     p.existing?.denom.kind === "indicator" ? p.existing.denom.indicator_id : "",
   );
-  const [denomPopulationType, setDenomPopulationType] = createSignal<PopulationType>(
-    p.existing?.denom.kind === "population"
-      ? p.existing.denom.population_type
-      : "total_population",
-  );
-  const [denomPopulationMultiplier, setDenomPopulationMultiplier] = createSignal(
-    p.existing?.denom.kind === "population"
-      ? String(p.existing.denom.multiplier)
-      : "1",
-  );
+  const [denomPopulationType, setDenomPopulationType] =
+    createSignal<PopulationType>(
+      p.existing?.denom.kind === "population"
+        ? p.existing.denom.population_type
+        : "total_population",
+    );
+  const [denomPopulationMultiplier, setDenomPopulationMultiplier] =
+    createSignal(
+      p.existing?.denom.kind === "population"
+        ? String(p.existing.denom.multiplier)
+        : "1",
+    );
 
   const [formatAs, setFormatAs] = createSignal<FormatAs>(
     p.existing?.format_as ?? "percent",
@@ -320,7 +322,7 @@ export function EditCalculatedIndicatorForm(
             disabled={mode === "update"}
           />
           <Show when={idValidationError()}>
-            <div class="text-error text-xs -mt-1">{idValidationError()}</div>
+            <div class="text-error -mt-1 text-xs">{idValidationError()}</div>
           </Show>
           <Input
             label={t3(TC.label)}
@@ -328,12 +330,12 @@ export function EditCalculatedIndicatorForm(
             onChange={setLabel}
             fullWidth
           />
-          <Input
+          {/* <Input
             label={t3({ en: "Group label", fr: "Libellé du groupe" })}
             value={groupLabel()}
             onChange={setGroupLabel}
             fullWidth
-          />
+          /> */}
         </div>
 
         <div class="ui-spy-sm">
