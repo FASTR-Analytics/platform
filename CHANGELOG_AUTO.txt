@@ -1,3 +1,11 @@
+[1.30.0] [user] [added] - Share visualizations via public link with anyone
+[1.30.0] [user] [added] - Manage, copy, and delete shared visualization links
+[1.30.0] [user] [added] - View shared visualizations without logging in
+[1.30.0] [user] [changed] - Updated appearance of the "Sort indicators" button
+[1.30.0] [admin] [added] - Share visualizations via public link with anyone
+[1.30.0] [admin] [added] - Manage existing share links with view counts and deletion
+[1.30.0] [admin] [changed] - Updated styling of the sort indicators button
+[1.30.0] [admin] [fixed] - Fixed real-time project updates occasionally sending malformed messages
 [1.29.0] [user] [added] - Option to skip re-running modules when updating data
 [1.29.0] [admin] [added] - Option to skip re-running modules when updating dataset
 [1.29.0] [user] [fixed] - Clearer error message when server is temporarily unavailable
