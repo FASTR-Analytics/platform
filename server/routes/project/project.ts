@@ -253,8 +253,10 @@ defineRoute(
           return;
         }
 
-        await writer.progress(0.9, "Updating module dependencies...");
-        await setModulesDirtyForDataset(c.var.ppk, body.datasetType);
+        if (!body.skipModuleRerun) {
+          await writer.progress(0.9, "Updating module dependencies...");
+          await setModulesDirtyForDataset(c.var.ppk, body.datasetType);
+        }
         notifyLastUpdated(
           c.var.ppk.projectId,
           "datasets",

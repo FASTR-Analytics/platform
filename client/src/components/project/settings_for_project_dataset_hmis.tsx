@@ -11,6 +11,7 @@ import {
 } from "lib";
 import {
   Button,
+  Checkbox,
   EditorComponentProps,
   FrameTop,
   HeadingBar,
@@ -39,6 +40,7 @@ export function SettingsForProjectDatasetHmis(
       hmisInfo: DatasetHmisInfoInProject | undefined;
       indicatorMappingsVersion: string;
       autoTriggerSave?: boolean;
+      skipModuleRerun?: boolean;
     },
     undefined
   >,
@@ -88,6 +90,7 @@ export function SettingsForProjectDatasetHmis(
   const [needsSave, setNeedsSave] = createSignal<boolean>(
     !p.hmisInfo?.windowing,
   );
+  const [skipModuleRerun, setSkipModuleRerun] = createSignal(p.skipModuleRerun ?? false);
   let firstRun = true;
 
   createEffect(() => {
@@ -185,6 +188,7 @@ export function SettingsForProjectDatasetHmis(
             takeAllFacilityTypes,
             facilityTypesToInclude,
           },
+          skipModuleRerun: skipModuleRerun(),
         },
         onProgress,
       );
@@ -242,6 +246,15 @@ export function SettingsForProjectDatasetHmis(
               includeOrDelete="include"
               facilityColumns={p.facilityColumns}
             />
+            <Show when={p.hmisInfo}>
+              <div class="pt-4 border-t mt-4">
+                <Checkbox
+                  label={t3({ en: "Don't re-run modules on data update", fr: "Ne pas réexécuter les modules lors de la mise à jour des données" })}
+                  checked={skipModuleRerun()}
+                  onChange={setSkipModuleRerun}
+                />
+              </div>
+            </Show>
           </Match>
         </Switch>
       </div>

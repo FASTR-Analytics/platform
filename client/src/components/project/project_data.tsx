@@ -7,6 +7,7 @@ import {
 } from "lib";
 import {
   Button,
+  Checkbox,
   FrameTop,
   HeadingBar,
   formatPeriod,
@@ -15,7 +16,7 @@ import {
   timActionButton,
   toNum0,
 } from "panther";
-import { For, Match, Show, Switch } from "solid-js";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { _SERVER_HOST } from "~/server_actions";
@@ -44,6 +45,7 @@ export function ProjectData(p: Props) {
               keyed
             >
               {(keyedProjectDatasetHmis) => {
+                const [skipModuleRerunHmis, setSkipModuleRerunHmis] = createSignal(false);
                 const projectVersion = () => keyedProjectDatasetHmis.info.version.id;
                 const instanceVersion = () => instanceState.datasetVersions.hmis;
 
@@ -112,6 +114,7 @@ export function ProjectData(p: Props) {
                         instanceState.indicatorMappingsVersion,
                       hmisInfo: keyedProjectDatasetHmis.info,
                       autoTriggerSave: autoTriggerSave,
+                      skipModuleRerun: skipModuleRerunHmis(),
                     },
                   });
                 }
@@ -174,6 +177,13 @@ export function ProjectData(p: Props) {
                               {(reason) => <li>{reason}</li>}
                             </For>
                           </ul>
+                          <div class="py-2">
+                            <Checkbox
+                              label={t3({ en: "Don't re-run modules on data update", fr: "Ne pas réexécuter les modules lors de la mise à jour des données" })}
+                              checked={skipModuleRerunHmis()}
+                              onChange={setSkipModuleRerunHmis}
+                            />
+                          </div>
                           <div class="">
                             <Button
                               onClick={() => editSettings(true)}
@@ -396,6 +406,8 @@ export function ProjectData(p: Props) {
               keyed
             >
               {(keyedProjectDatasetHfa) => {
+                const [skipModuleRerun, setSkipModuleRerun] = createSignal(false);
+
                 const stalenessCheck = () => {
                   const info = keyedProjectDatasetHfa.info;
 
@@ -465,6 +477,7 @@ export function ProjectData(p: Props) {
                     projectId: projectState.id,
                     datasetType: "hfa",
                     windowing: undefined,
+                    skipModuleRerun: skipModuleRerun(),
                   }),
                 );
 
@@ -506,6 +519,13 @@ export function ProjectData(p: Props) {
                               {(reason) => <li>{reason}</li>}
                             </For>
                           </ul>
+                          <div class="py-2">
+                            <Checkbox
+                              label={t3({ en: "Don't re-run modules on data update", fr: "Ne pas réexécuter les modules lors de la mise à jour des données" })}
+                              checked={skipModuleRerun()}
+                              onChange={setSkipModuleRerun}
+                            />
+                          </div>
                           <div class="">
                             <Button
                               onClick={updateData.click}

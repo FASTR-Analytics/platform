@@ -2,303 +2,369 @@
 
 ## Goal
 
-Enable users to share visualizations, slide decks, and interactive views via public links that work both standalone (direct navigation) and embedded (iframe in external sites).
+Public links to view visualizations without authentication.
 
-## Current State
+## Architecture
 
-- **No public routes** - All routes require Clerk authentication
-- **Email sharing exists** - Slide decks can be exported as PDF and emailed via SendGrid
-- **Client-side rendering** - Visualizations rendered with Panther Canvas (client-side)
-- **Project-scoped access** - All endpoints check `requireProjectPermission()`
-
-## Requirements
-
-| Feature | Standalone | Embeddable | Notes |
-|---------|------------|------------|-------|
-| Static visualization | ✓ | ✓ | Single chart/table/map, no interactivity |
-| Interactive visualization | ✓ | ✓ | Replicant selection, period filter |
-| Slide deck viewer | ✓ | ✓ | Navigate slides, optionally download |
-| Report (multi-viz) | ✓ | ✓ | Scroll through multiple visualizations |
-
-## Architecture Options
-
-### Option A: Pre-rendered Static Images
-
-Generate PNG/SVG on share, serve from `/public/assets/{uuid}.png`.
-
-**Pros:** No auth needed, CDN-cacheable, simple
-**Cons:** No interactivity, stale data, storage cost
-
-### Option B: Token-Based Dynamic Views (RECOMMENDED)
-
-Generate unique token per share link. Token grants read-only access to specific resource.
-
-```
-/share/viz/{token}      → Single visualization
-/share/deck/{token}     → Slide deck viewer
-/share/report/{token}   → Multi-viz report
-```
-
-**Pros:** Dynamic data, revocable, audit trail, scales to all resource types
-**Cons:** Token lookup per request, requires public viewer component
-
-### Option C: Project Access Keys
-
-Single read-only key per project. Anyone with key sees entire project.
-
-**Pros:** Simple, one key to manage
-**Cons:** All-or-nothing access, less granular
-
-### Option D: OAuth-Style With Permissions
-
-Full share link system with fine-grained permissions, recipient whitelists, password protection.
-
-**Pros:** Most flexible
-**Cons:** Complex, overkill for initial launch
-
-## Recommended Approach: Token-Based (Option B)
-
-### Phase 1: Static Visualization View (Quick Win)
-
-**Scope:** Single visualization, full-screen, read-only, no auth required, live data
-
-**Target:** 2-3 days to working prototype
+Token-based key-value store. Client sends data blob, server stores it, server returns it on view.
 
 ---
 
-#### User Flow
+## Phase 1: Static Visualization Sharing
 
-1. **Creator** opens a visualization in the editor
-2. Clicks "Share" button in toolbar
-3. Modal appears, clicks "Create Link"
-4. Server generates token, stores mapping, returns URL
-5. Creator copies `https://fastr.example.com/share/viz/abc123`
-6. **Viewer** opens that URL (no login required)
-7. Page fetches bundled data via token, renders the viz full-screen
+### Step 1: SQL Migration
 
----
-
-#### Database Schema
+**Create file:** `server/db/migrations/instance/026_share_tokens.sql`
 
 ```sql
--- In main database (instance-level, cross-project)
-CREATE TABLE share_tokens (
+CREATE TABLE IF NOT EXISTS share_tokens (
   id VARCHAR PRIMARY KEY,
   token VARCHAR UNIQUE NOT NULL,
-  project_id VARCHAR NOT NULL,
-  resource_type VARCHAR NOT NULL,  -- 'visualization' | 'slide_deck' | 'report'
-  resource_id VARCHAR NOT NULL,
+  resource_type VARCHAR NOT NULL,
+  data JSONB NOT NULL,
   created_by_email VARCHAR NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
-  expires_at TIMESTAMP,            -- NULL = never expires
-  is_revoked BOOLEAN DEFAULT FALSE,
-  view_count INTEGER DEFAULT 0,
-  last_viewed_at TIMESTAMP
+  view_count INTEGER DEFAULT 0
 );
-CREATE INDEX idx_share_tokens_token ON share_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_share_tokens_token ON share_tokens(token);
+```
+
+**Update file:** `server/db/migrations/instance/_main_database.sql`
+
+Add the same CREATE TABLE block to the live schema file.
+
+---
+
+### Step 2: Type Definition
+
+**Create file:** `lib/types/share.ts`
+
+```typescript
+import type { FigureInputs } from "panther";
+import type { IndicatorMetadata, PresentationObjectConfig } from "./mod.ts";
+
+export type ShareVizBundle = {
+  label: string;
+  strippedFigureInputs: FigureInputs;
+  source: {
+    config: PresentationObjectConfig;
+    metricId: string;
+    formatAs: "percent" | "number";
+  };
+  geoData?: unknown;
+  indicatorMetadata?: IndicatorMetadata[];
+};
+```
+
+**Update file:** `lib/types/mod.ts`
+
+Add export:
+```typescript
+export * from "./share.ts";
 ```
 
 ---
 
-#### Backend Implementation
+### Step 3: DB Functions
 
-**1. Database functions** (`server/db/instance/share_tokens.ts`)
-
-```typescript
-createShareToken(projectId, resourceType, resourceId, createdByEmail) → token
-getShareToken(token) → { projectId, resourceType, resourceId } | null
-revokeShareToken(token) → void
-incrementViewCount(token) → void
-```
-
-**2. Public route** (`server/routes/public/share.ts`)
+**Create file:** `server/db/instance/share_tokens.ts`
 
 ```typescript
-GET /share/viz/:token
-  → Look up token (reject if expired/revoked)
-  → Increment view_count
-  → Fetch PO config from project database
-  → Fetch results data for that PO's metric
-  → Fetch instance structure (indicators, admin areas, etc.)
-  → Return bundled JSON
-```
+import { Sql } from "postgres";
 
-**3. Auth bypass** (`server/middleware/auth.ts`)
+export async function createShareToken(
+  mainDb: Sql,
+  resourceType: string,
+  data: unknown,
+  createdByEmail: string,
+): Promise<string> {
+  const id = crypto.randomUUID();
+  const token = crypto.randomUUID();
+  await mainDb`
+    INSERT INTO share_tokens (id, token, resource_type, data, created_by_email)
+    VALUES (${id}, ${token}, ${resourceType}, ${JSON.stringify(data)}, ${createdByEmail})
+  `;
+  return token;
+}
 
-```typescript
-if (c.req.path.startsWith("/share/")) {
-  return next();
+export async function getShareTokenData(
+  mainDb: Sql,
+  token: string,
+): Promise<unknown | null> {
+  const rows = await mainDb<{ data: unknown }[]>`
+    UPDATE share_tokens
+    SET view_count = view_count + 1
+    WHERE token = ${token}
+    RETURNING data
+  `;
+  return rows.length > 0 ? rows[0].data : null;
 }
 ```
 
-**4. Create share endpoint** (`server/routes/project/presentation_objects.ts`)
-
-```typescript
-POST /project/presentation_objects/:id/share
-  → Generate UUID token
-  → Store in share_tokens table
-  → Return { token, url }
-```
-
 ---
 
-#### Frontend Implementation
+### Step 4: Public Route (Server)
 
-**1. Route** (`client/src/routes/share.tsx`)
-
-- New route outside the main `<Instance>` wrapper
-- No sidebar, no header, no auth check
-- Renders `<PublicVisualization token={params.token} />`
-
-**2. Public viewer component** (`client/src/components/public_viewer/visualization.tsx`)
-
-- Fetches `/share/viz/:token` on mount
-- Passes data to existing Panther figure renderer
-- Full-screen canvas
-- Minimal chrome (title + optional "Powered by FASTR" footer)
-
-**3. Share button** - Add to visualization toolbar
-
-- Opens modal with "Create Share Link" button
-- Calls `POST /project/presentation_objects/:id/share`
-- Shows copyable URL
-
----
-
-#### Data Bundle Structure
-
-The public endpoint returns everything needed to render:
+**Create file:** `server/routes/public/share.ts`
 
 ```typescript
-{
-  po: PresentationObjectConfig,      // Chart type, title, styling
-  resultsData: ResultsValue[],       // The actual numbers
-  structure: {
-    indicators: Indicator[],         // Metadata for labels
-    adminAreas: AdminArea[],         // Geographic names
-    facilities: Facility[],          // Facility names
-    periods: Period[],               // Time period labels
+import { Hono } from "hono";
+import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
+import { getShareTokenData } from "../../db/instance/share_tokens.ts";
+
+export const routesPublicShare = new Hono();
+
+routesPublicShare.get("/share/viz/:token", async (c) => {
+  const token = c.req.param("token");
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  const data = await getShareTokenData(mainDb, token);
+  if (!data) {
+    return c.json({ success: false, error: "Not found" }, 404);
   }
+  return c.json({ success: true, data });
+});
+```
+
+---
+
+### Step 5: Create Share Endpoint (Server)
+
+**Create file:** `server/routes/instance/share.ts`
+
+```typescript
+import { Hono } from "hono";
+import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
+import { createShareToken } from "../../db/instance/share_tokens.ts";
+import { requireGlobalPermission, extractGlobalUser } from "../route-helpers.ts";
+import type { ShareVizBundle } from "lib";
+
+export const routesShare = new Hono();
+
+routesShare.post("/share/viz", requireGlobalPermission(), async (c) => {
+  const user = extractGlobalUser(c);
+  const body = await c.req.json<{ bundle: ShareVizBundle }>();
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  const token = await createShareToken(mainDb, "visualization", body.bundle, user.email);
+  const baseUrl = new URL(c.req.url).origin;
+  return c.json({ success: true, token, url: `${baseUrl}/share/viz/${token}` });
+});
+```
+
+---
+
+### Step 6: Register Routes in main.ts
+
+**Update file:** `main.ts`
+
+Add imports at top:
+```typescript
+import { routesPublicShare } from "./server/routes/public/share.ts";
+import { routesShare } from "./server/routes/instance/share.ts";
+```
+
+Add public route BEFORE auth middleware (around line 67):
+```typescript
+// Public routes (no auth)
+app.route("/", routesPublicShare);
+
+//@ts-ignore - Clerk middleware types not fully compatible with Hono
+app.use("*", authMiddleware);
+```
+
+Add authenticated route with other instance routes (around line 110):
+```typescript
+app.route("/", routesShare);
+```
+
+---
+
+### Step 7: Hydration Function for Public Rendering
+
+**Update file:** `client/src/generate_visualization/strip_figure_inputs.ts`
+
+Add new function after existing `hydrateFigureInputsForRendering`:
+
+```typescript
+export function hydrateFigureInputsForPublicRendering(
+  fi: FigureInputs,
+  source: { config: PresentationObjectConfig; metricId: string; formatAs: "percent" | "number" },
+  geoData?: unknown,
+): FigureInputs {
+  let hydrated = fi;
+
+  if ("mapData" in hydrated && hydrated.mapData && !hydrated.mapData.geoData && geoData) {
+    hydrated = { ...hydrated, mapData: { ...hydrated.mapData, geoData } };
+  }
+
+  const style = getStyleFromPresentationObject(source.config, source.formatAs);
+  hydrated = { ...hydrated, style };
+
+  return hydrated;
 }
 ```
 
-The public viewer calls the same `getFigureInputsFromPresentationObject()` function the main app uses.
-
 ---
 
-#### Files to Create
+### Step 8: Client Route
 
-| File | Purpose |
-|------|---------|
-| `server/db/instance/share_tokens.ts` | Token CRUD functions |
-| `server/db/migrations/instance/XXX_share_tokens.ts` | Migration |
-| `server/routes/public/share.ts` | Public GET endpoint |
-| `client/src/routes/share.tsx` | Public route definition |
-| `client/src/components/public_viewer/visualization.tsx` | Viewer component |
-| `client/src/components/visualization/share_modal.tsx` | Share link modal |
+**Update file:** `client/src/app.tsx`
 
-#### Files to Modify
+```typescript
+import { Router, Route } from "@solidjs/router";
+import { Suspense, lazy } from "solid-js";
+import "./app.css";
+import InstanceLoggedInWrapper from "./routes/index.tsx";
 
-| File | Change |
-|------|--------|
-| `server/middleware/auth.ts` | Skip auth for `/share/*` |
-| `server/routes/project/presentation_objects.ts` | Add POST `.../share` endpoint |
-| `client/src/components/visualization/toolbar.tsx` (or equivalent) | Add Share button |
-| `client/src/routes/index.tsx` | Add `/share/*` routes |
+const PublicVisualization = lazy(() => import("./components/public_viewer/visualization.tsx"));
 
----
-
-#### Implementation Checklist
-
-**Day 1: Backend**
-- [ ] Create `share_tokens` table migration
-- [ ] Create `server/db/instance/share_tokens.ts` with CRUD functions
-- [ ] Create `server/routes/public/share.ts` with token validation
-- [ ] Add `/share/*` bypass to auth middleware
-- [ ] Create server function to bundle all data needed for rendering
-- [ ] Add `POST /project/presentation_objects/:id/share` endpoint
-
-**Day 2: Frontend**
-- [ ] Create `/share/viz/:token` route (outside main app shell)
-- [ ] Create `<PublicVisualization />` component
-- [ ] Wire up data fetching and Panther rendering
-- [ ] Add "Share" button to visualization toolbar
-- [ ] Create modal for share link generation/copy
-
-**Day 3: Polish**
-- [ ] Error states (invalid token, expired, revoked)
-- [ ] Loading states
-- [ ] Mobile responsive layout
-- [ ] Test iframe embedding
-- [ ] View count tracking
-
-### Phase 2: Interactive Visualization
-
-Add optional interactivity to shared visualizations:
-
-- Replicant selector (choose different data slice)
-- Period filter (select time range)
-- Disaggregation toggle
-
-**Implementation:**
-- Store allowed interactions in share token config
-- Public viewer fetches additional data on interaction
-- Rate limiting on public data endpoints
-
-### Phase 3: Slide Deck Viewer
-
-Full slide deck navigation in browser:
-
-- Arrow key / swipe navigation
-- Fullscreen mode
-- Optional download button (PDF)
-- Presenter notes view (if enabled)
-
-### Phase 4: Embeddable Widgets
-
-Provide embed codes for external sites:
-
-```html
-<iframe 
-  src="https://fastr.example.com/share/embed/abc123"
-  width="800" 
-  height="600"
-  frameborder="0"
-></iframe>
+export default function App() {
+  return (
+    <Router root={(props) => <Suspense>{props.children}</Suspense>}>
+      <Route path="/share/viz/:token" component={PublicVisualization} />
+      <Route path="/*" component={InstanceLoggedInWrapper} />
+    </Router>
+  );
+}
 ```
 
-Features:
-- Responsive sizing
-- Theme options (light/dark)
-- Attribution toggle
+---
 
-### Phase 5: Advanced Sharing
+### Step 9: Public Viewer Component
 
-- Password-protected links
-- Email whitelist (only specific recipients can view)
-- Expiration dates
-- Download restrictions
-- Share analytics dashboard
+**Create file:** `client/src/components/public_viewer/visualization.tsx`
 
-## Open Questions
+```typescript
+import { createResource, Show } from "solid-js";
+import { useParams } from "@solidjs/router";
+import { ChartHolder, FigureInputs } from "panther";
+import type { ShareVizBundle } from "lib";
+import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/strip_figure_inputs";
+import { _SERVER_HOST } from "~/server_actions";
 
-1. **Token format:** UUID vs shorter human-readable (e.g., `abc-123-xyz`)?
-2. **Default expiration:** Never, 30 days, or require user to choose?
-3. **Revocation UI:** Where should users manage their shared links?
-4. **Analytics:** Track views? Show to creator?
-5. **Rate limiting:** How aggressive for public endpoints?
+async function fetchBundle(token: string): Promise<ShareVizBundle | null> {
+  const res = await fetch(`${_SERVER_HOST}/share/viz/${token}`);
+  const json = await res.json();
+  if (!json.success) return null;
+  return json.data as ShareVizBundle;
+}
 
-## Non-Goals (for now)
+export default function PublicVisualization() {
+  const params = useParams<{ token: string }>();
+  const [bundle] = createResource(() => params.token, fetchBundle);
 
-- Collaborative editing via share links
-- Comments/annotations on shared views
-- Social sharing (Twitter cards, Open Graph)
-- Public search/discovery of shared content
-- Monetization/paywall features
+  return (
+    <div style={{ width: "100vw", height: "100vh", display: "flex", "flex-direction": "column" }}>
+      <Show when={bundle.loading}>
+        <div style={{ padding: "20px" }}>Loading...</div>
+      </Show>
+      <Show when={bundle.error}>
+        <div style={{ padding: "20px" }}>Error loading visualization</div>
+      </Show>
+      <Show when={bundle() === null && !bundle.loading}>
+        <div style={{ padding: "20px" }}>Visualization not found</div>
+      </Show>
+      <Show when={bundle()}>
+        {(b) => {
+          const fi = hydrateFigureInputsForPublicRendering(
+            b().strippedFigureInputs,
+            b().source,
+            b().geoData,
+          );
+          return (
+            <>
+              <div style={{ padding: "12px 20px", "border-bottom": "1px solid #e5e5e5" }}>
+                <h1 style={{ margin: 0, "font-size": "18px" }}>{b().label}</h1>
+              </div>
+              <div style={{ flex: 1 }}>
+                <ChartHolder figureInputs={fi} />
+              </div>
+            </>
+          );
+        }}
+      </Show>
+    </div>
+  );
+}
+```
 
-## Success Metrics
+---
 
-- Time to generate share link: < 2 seconds
-- Public page load time: < 3 seconds
-- Embed iframe load time: < 3 seconds
-- Zero auth errors on public routes
+### Step 10: Share Button in Visualization Editor
+
+**Update file:** `client/src/components/visualization/visualization_editor_inner.tsx`
+
+Add import at top:
+```typescript
+import { stripFigureInputsForStorage } from "~/generate_visualization/strip_figure_inputs";
+import { getGeoJsonSync } from "~/state/instance/t2_geojson";
+import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
+import type { ShareVizBundle } from "lib";
+```
+
+Add share function inside component (where other action handlers are):
+```typescript
+const handleShare = async () => {
+  const fi = currentFigureInputs(); // however current figure inputs are accessed
+  if (!fi) return;
+  
+  const stripped = stripFigureInputsForStorage(fi);
+  const mapLevel = getAdminAreaLevelFromMapConfig(config);
+  const geoData = mapLevel ? getGeoJsonSync(mapLevel) : undefined;
+  
+  const bundle: ShareVizBundle = {
+    label: poDetail.label,
+    strippedFigureInputs: stripped,
+    source: {
+      config: config,
+      metricId: poDetail.metricId,
+      formatAs: resultsValueInfo.formatAs,
+    },
+    geoData,
+  };
+  
+  const res = await fetch(`${_SERVER_HOST}/share/viz`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bundle }),
+  });
+  const json = await res.json();
+  if (json.success) {
+    await navigator.clipboard.writeText(json.url);
+    // Show toast: "Link copied to clipboard"
+  }
+};
+```
+
+Add button in toolbar (where other action buttons are):
+```typescript
+<Button onClick={handleShare}>Share</Button>
+```
+
+---
+
+## Files Summary
+
+**Create:**
+- `server/db/migrations/instance/026_share_tokens.sql`
+- `server/db/instance/share_tokens.ts`
+- `server/routes/public/share.ts`
+- `server/routes/instance/share.ts`
+- `lib/types/share.ts`
+- `client/src/components/public_viewer/visualization.tsx`
+
+**Update:**
+- `server/db/migrations/instance/_main_database.sql`
+- `lib/types/mod.ts`
+- `main.ts`
+- `client/src/app.tsx`
+- `client/src/generate_visualization/strip_figure_inputs.ts`
+- `client/src/components/visualization/visualization_editor_inner.tsx`
+
+---
+
+## Future Phases
+
+- Phase 2: Interactive viz (replicant selector)
+- Phase 3: Slide deck viewer
+- Phase 4: Embed codes
+- Phase 5: Expiration, revocation, analytics
