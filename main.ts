@@ -131,12 +131,11 @@ setupStaticServing(app);
 // Only serve static HTML in production (when client_dist exists)
 try {
   const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
-  app.get("/docs", (c) => c.html(indexHtml));
-  app.get("/claire", (c) => c.html(indexHtml));
+  app.get("/share/viz/:token", (c) => c.html(indexHtml));
 } catch {
   // In development, these routes are handled by the Vite dev server
   console.log(
-    "Skipping /docs and /claire routes (client_dist not found - running in dev mode)",
+    "Skipping SPA routes (client_dist not found - running in dev mode)",
   );
 }
 

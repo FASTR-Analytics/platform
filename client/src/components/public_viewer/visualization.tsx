@@ -17,12 +17,20 @@ export default function PublicVisualization() {
   const [bundle] = createResource(() => params.token, fetchBundle);
 
   return (
-    <div style={{ width: "100vw", height: "100vh", display: "flex", "flex-direction": "column" }}>
+    <div
+      style={{
+        width: "100vw",
+        height: "100vh",
+        display: "flex",
+        "flex-direction": "column",
+      }}
+      class="ui-pad"
+    >
       <Show when={bundle.loading}>
-        <div style={{ padding: "20px" }}>Loading...</div>
+        <div>Loading...</div>
       </Show>
       <Show when={bundle.error || (bundle() === null && !bundle.loading)}>
-        <div style={{ padding: "20px" }}>Visualization not found</div>
+        <div>Visualization not found</div>
       </Show>
       <Show when={bundle()}>
         {(b) => {
@@ -34,12 +42,12 @@ export default function PublicVisualization() {
           );
           return (
             <>
-              <div style={{ padding: "12px 20px", "border-bottom": "1px solid #e5e5e5" }}>
+              {/* <div style={{ padding: "12px 20px", "border-bottom": "1px solid #e5e5e5" }}>
                 <h1 style={{ margin: 0, "font-size": "18px" }}>{b().label}</h1>
               </div>
-              <div style={{ flex: 1 }}>
-                <ChartHolder chartInputs={fi} height="flex" />
-              </div>
+              <div style={{ flex: 1 }}> */}
+              <ChartHolder chartInputs={fi} height="flex" />
+              {/* </div> */}
             </>
           );
         }}

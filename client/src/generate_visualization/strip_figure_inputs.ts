@@ -1,5 +1,9 @@
 import type { FigureInputs } from "panther";
-import type { DeckStyleContext, IndicatorMetadata, PresentationObjectConfig } from "lib";
+import type {
+  DeckStyleContext,
+  IndicatorMetadata,
+  PresentationObjectConfig,
+} from "lib";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { getStyleFromPresentationObject } from "./get_style_from_po";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
@@ -15,12 +19,22 @@ export function stripFigureInputsForStorage(fi: FigureInputs): FigureInputs {
 
 export async function hydrateFigureInputsForRendering(
   fi: FigureInputs,
-  source?: { config: PresentationObjectConfig; metricId: string; formatAs?: "percent" | "number" },
+  source?: {
+    config: PresentationObjectConfig;
+    metricId: string;
+    formatAs?: "percent" | "number";
+  },
   deckStyle?: DeckStyleContext,
 ): Promise<FigureInputs> {
   let hydrated = fi;
 
-  if ("mapData" in hydrated && hydrated.mapData && !("isTransformed" in hydrated.mapData) && !hydrated.mapData.geoData && source) {
+  if (
+    "mapData" in hydrated &&
+    hydrated.mapData &&
+    !("isTransformed" in hydrated.mapData) &&
+    !hydrated.mapData.geoData &&
+    source
+  ) {
     const mapLevel = getAdminAreaLevelFromMapConfig(source.config);
     if (mapLevel) {
       const geoData = getGeoJsonSync(mapLevel);
@@ -32,7 +46,11 @@ export async function hydrateFigureInputsForRendering(
 
   if (source) {
     const formatAs = source.formatAs ?? getFormatAsForMetric(source.metricId);
-    const style = getStyleFromPresentationObject(source.config, formatAs, deckStyle);
+    const style = getStyleFromPresentationObject(
+      source.config,
+      formatAs,
+      deckStyle,
+    );
     hydrated = { ...hydrated, style };
   }
 
@@ -51,8 +69,20 @@ export function hydrateFigureInputsForPublicRendering(
 ): FigureInputs {
   let hydrated = fi;
 
-  if ("mapData" in hydrated && hydrated.mapData && !("isTransformed" in hydrated.mapData) && !hydrated.mapData.geoData && geoData) {
-    hydrated = { ...hydrated, mapData: { ...hydrated.mapData, geoData: geoData as typeof hydrated.mapData.geoData } };
+  if (
+    "mapData" in hydrated &&
+    hydrated.mapData &&
+    !("isTransformed" in hydrated.mapData) &&
+    !hydrated.mapData.geoData &&
+    geoData
+  ) {
+    hydrated = {
+      ...hydrated,
+      mapData: {
+        ...hydrated.mapData,
+        geoData: geoData as typeof hydrated.mapData.geoData,
+      },
+    };
   }
 
   const style = getStyleFromPresentationObject(
@@ -61,6 +91,7 @@ export function hydrateFigureInputsForPublicRendering(
     undefined,
     indicatorMetadata,
   );
+  // style.scale = 2;
   hydrated = { ...hydrated, style };
 
   return hydrated;
