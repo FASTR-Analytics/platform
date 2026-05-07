@@ -2,7 +2,7 @@ import { z } from "zod";
 import { AssetInfo } from "./assets.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { DatasetType } from "./datasets.ts";
-import type { IndicatorType } from "./indicators.ts";
+import type { IndicatorMetadata, IndicatorType } from "./indicators.ts";
 import type { ProjectUserPermissions, UserPermissions } from "./permissions.ts";
 import {
   GenericLongFormFetchConfig,
@@ -424,7 +424,7 @@ export type ItemsHolderPresentationObject = {
   | {
       status: "ok";
       items: Record<string, string>[];
-      indicatorLabelReplacements: Record<string, string>;
+      indicatorMetadata: IndicatorMetadata[];
     }
   | {
       status: "too_many_items";

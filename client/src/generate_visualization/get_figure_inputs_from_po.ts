@@ -7,12 +7,14 @@ import {
   type GeoJSONFeatureCollection,
 } from "panther";
 import {
+  type IndicatorMetadata,
   ItemsHolderPresentationObject,
   PeriodBounds,
   PresentationObjectConfig,
   ResultsValueForVisualization,
   getCalendar,
   getEffectivePOConfig,
+  indicatorMetadataToLabelMap,
   selectCf,
   withReplicant,
 } from "lib";
@@ -41,6 +43,13 @@ type StateHolder<T> =
       data: T;
     };
 
+function buildIndicatorSortOrder(metadata: IndicatorMetadata[]): string[] {
+  return [...metadata]
+    .filter((m) => m.sort_order !== undefined)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .flatMap((m) => [m.id, m.label]);
+}
+
 export function getFigureInputsFromPresentationObject(
   resultsValue: ResultsValueForVisualization,
   ih: ItemsHolderPresentationObject,
@@ -51,6 +60,8 @@ export function getFigureInputsFromPresentationObject(
   if (ih.status !== "ok") {
     throw new Error("getFigureInputsFromPresentationObject called with non-ok status");
   }
+
+  const indicatorLabelReplacements = indicatorMetadataToLabelMap(ih.indicatorMetadata);
 
   const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(config, {
     dateRange: ih.dateRange,
@@ -63,7 +74,7 @@ export function getFigureInputsFromPresentationObject(
         resultsValue,
         effectiveConfig,
         effectiveValueProps,
-        ih.indicatorLabelReplacements,
+        indicatorLabelReplacements,
         ih.items,
       );
       const d = getTimeseriesDataTransformed(
@@ -81,7 +92,7 @@ export function getFigureInputsFromPresentationObject(
             withReplicant(
               config.t.caption,
               config,
-              ih.indicatorLabelReplacements,
+              indicatorLabelReplacements,
             ),
             ih.dateRange,
           ),
@@ -89,7 +100,7 @@ export function getFigureInputsFromPresentationObject(
             withReplicant(
               config.t.subCaption,
               config,
-              ih.indicatorLabelReplacements,
+              indicatorLabelReplacements,
             ),
             ih.dateRange,
           ),
@@ -97,17 +108,20 @@ export function getFigureInputsFromPresentationObject(
             withReplicant(
               config.t.footnote,
               config,
-              ih.indicatorLabelReplacements,
+              indicatorLabelReplacements,
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
+          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
           legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
         },
       };
     }
 
     if (effectiveConfig.d.type === "table") {
+      const customSortHeaders = config.s.specialScorecardTable
+        ? buildIndicatorSortOrder(ih.indicatorMetadata)
+        : undefined;
       return {
         status: "ready",
         data: {
@@ -117,15 +131,16 @@ export function getFigureInputsFromPresentationObject(
               resultsValue,
               effectiveConfig,
               effectiveValueProps,
-              ih.indicatorLabelReplacements,
+              indicatorLabelReplacements,
               ih.items,
+              customSortHeaders,
             ),
           },
           caption: withDateRange(
             withReplicant(
               config.t.caption,
               config,
-              ih.indicatorLabelReplacements,
+              indicatorLabelReplacements,
             ),
             ih.dateRange,
           ),
@@ -133,7 +148,7 @@ export function getFigureInputsFromPresentationObject(
             withReplicant(
               config.t.subCaption,
               config,
-              ih.indicatorLabelReplacements,
+              indicatorLabelReplacements,
             ),
             ih.dateRange,
           ),
@@ -141,11 +156,11 @@ export function getFigureInputsFromPresentationObject(
             withReplicant(
               config.t.footnote,
               config,
-              ih.indicatorLabelReplacements,
+              indicatorLabelReplacements,
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
+          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
           legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
         },
       };
@@ -157,7 +172,7 @@ export function getFigureInputsFromPresentationObject(
           withReplicant(
             config.t.caption,
             config,
-            ih.indicatorLabelReplacements,
+            indicatorLabelReplacements,
           ),
           ih.dateRange,
         ),
@@ -165,7 +180,7 @@ export function getFigureInputsFromPresentationObject(
           withReplicant(
             config.t.subCaption,
             config,
-            ih.indicatorLabelReplacements,
+            indicatorLabelReplacements,
           ),
           ih.dateRange,
         ),
@@ -173,11 +188,11 @@ export function getFigureInputsFromPresentationObject(
           withReplicant(
             config.t.footnote,
             config,
-            ih.indicatorLabelReplacements,
+            indicatorLabelReplacements,
           ),
           ih.dateRange,
         ),
-        style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
+        style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
         legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
       };
 
@@ -192,7 +207,7 @@ export function getFigureInputsFromPresentationObject(
                   resultsValue,
                   effectiveConfig,
                   effectiveValueProps,
-                  ih.indicatorLabelReplacements,
+                  indicatorLabelReplacements,
                   ih.items,
                 ),
             },
@@ -211,7 +226,7 @@ export function getFigureInputsFromPresentationObject(
                 resultsValue,
                 effectiveConfig,
                 effectiveValueProps,
-                ih.indicatorLabelReplacements,
+                indicatorLabelReplacements,
                 ih.items,
               ),
           },
@@ -229,7 +244,7 @@ export function getFigureInputsFromPresentationObject(
         resultsValue,
         effectiveConfig,
         effectiveValueProps,
-        ih.indicatorLabelReplacements,
+        indicatorLabelReplacements,
       );
 
       const mapItems = ih.items.map((row: any) => {
@@ -255,7 +270,7 @@ export function getFigureInputsFromPresentationObject(
             withReplicant(
               config.t.caption,
               config,
-              ih.indicatorLabelReplacements,
+              indicatorLabelReplacements,
             ),
             ih.dateRange,
           ),
@@ -263,7 +278,7 @@ export function getFigureInputsFromPresentationObject(
             withReplicant(
               config.t.subCaption,
               config,
-              ih.indicatorLabelReplacements,
+              indicatorLabelReplacements,
             ),
             ih.dateRange,
           ),
@@ -271,11 +286,11 @@ export function getFigureInputsFromPresentationObject(
             withReplicant(
               config.t.footnote,
               config,
-              ih.indicatorLabelReplacements,
+              indicatorLabelReplacements,
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number"),
+          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
           legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, resultsValue.formatAs ?? "number"),
         },
       };

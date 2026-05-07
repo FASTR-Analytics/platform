@@ -178,3 +178,20 @@ export async function deleteCalculatedIndicators(
     return { success: true };
   });
 }
+
+export async function reorderCalculatedIndicators(
+  mainDb: Sql,
+  order: string[],
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    for (let i = 0; i < order.length; i++) {
+      await mainDb`
+        UPDATE calculated_indicators
+        SET sort_order = ${i + 1},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE calculated_indicator_id = ${order[i]}
+      `;
+    }
+    return { success: true };
+  });
+}

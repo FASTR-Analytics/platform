@@ -154,3 +154,29 @@ export interface DHIS2PagedResponse<T> {
     pageSize: number;
   };
 }
+
+// ============================================================================
+// Indicator Metadata (for presentation objects)
+// ============================================================================
+
+export type IndicatorMetadata = {
+  id: string;
+  label: string;
+  format_as?: "percent" | "number" | "rate_per_10k";
+  decimal_places?: number;
+  threshold_direction?: "higher_is_better" | "lower_is_better";
+  threshold_green?: number;
+  threshold_yellow?: number;
+  group_label?: string;
+  sort_order?: number;
+};
+
+export function indicatorMetadataToLabelMap(
+  metadata: IndicatorMetadata[],
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const m of metadata) {
+    map[m.id] = m.label;
+  }
+  return map;
+}

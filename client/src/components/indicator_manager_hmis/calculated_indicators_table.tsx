@@ -15,6 +15,7 @@ import {
 } from "lib";
 import { serverActions } from "~/server_actions";
 import { EditCalculatedIndicatorForm } from "./calculated_indicator_editor";
+import { SortCalculatedIndicatorsModal } from "./sort_calculated_indicators_modal";
 
 type Props = {
   calculatedIndicators: CalculatedIndicator[];
@@ -74,6 +75,15 @@ export function CalculatedIndicatorsTable(p: Props) {
         }),
     );
     await deleteAction.click();
+  }
+
+  async function handleSort() {
+    await openComponent({
+      element: SortCalculatedIndicatorsModal,
+      props: {
+        calculatedIndicators: p.calculatedIndicators,
+      },
+    });
   }
 
   async function handleBulkDelete(selected: CalculatedIndicator[]) {
@@ -212,6 +222,9 @@ export function CalculatedIndicatorsTable(p: Props) {
           {t3({ en: "Calculated indicators", fr: "Indicateurs calculés" })}
         </div>
         <Show when={p.isGlobalAdmin}>
+          <Button onClick={handleSort} iconName="gripVertical" intent="base-100">
+            {t3({ en: "Sort indicators", fr: "Trier les indicateurs" })}
+          </Button>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
             {t3({
               en: "Create Calculated indicator",

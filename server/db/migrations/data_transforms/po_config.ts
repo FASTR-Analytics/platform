@@ -285,6 +285,9 @@ export function transformConfigS(s: Record<string, unknown>, isMap: boolean): vo
 
   // Block 18: Remove specialScorecardTable (feature removed)
   delete s.specialScorecardTable;
+
+  // Block 19: Re-add specialScorecardTable
+  if (!("specialScorecardTable" in s)) s.specialScorecardTable = false;
 }
 
 // ─── Full PO config transform ───────────────────────────────────────────────

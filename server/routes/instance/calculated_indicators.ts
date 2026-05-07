@@ -8,6 +8,7 @@ import {
   deleteCalculatedIndicators,
   getInstanceIndicatorsSummary,
   getCalculatedIndicators,
+  reorderCalculatedIndicators,
   updateCalculatedIndicator,
 } from "../../db/mod.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -101,6 +102,21 @@ defineRoute(
       c.var.mainDb,
       body.calculatedIndicatorIds,
     );
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesCalculatedIndicators,
+  "reorderCalculatedIndicators",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await reorderCalculatedIndicators(c.var.mainDb, body.order);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),

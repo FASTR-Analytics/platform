@@ -94,6 +94,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   jsonArray?: any[],
+  customSortHeaders?: string[],
 ): TableJsonDataConfig {
   if (config.d.type !== "table") {
     throw new Error("Bad config type");
@@ -115,7 +116,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
     rowProp,
     colGroupProp,
     rowGroupProp,
-    sortHeaders: getSortHeaders(config),
+    sortHeaders: customSortHeaders ?? getSortHeaders(config),
     labelReplacementsBeforeSorting: resultsValue.valueLabelReplacements ?? {},
     labelReplacementsAfterSorting: buildLabelReplacementsAfterSorting(
       indicatorLabelReplacements,

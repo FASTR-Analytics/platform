@@ -71,6 +71,13 @@ export function getLegendFromConfig(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
 ): LegendInput | undefined {
+  if (config.s.specialScorecardTable) {
+    return [
+      { label: t3({ en: "On track", fr: "En bonne voie" }), color: _CF_LIGHTER_GREEN },
+      { label: t3({ en: "Progress needed", fr: "Progrès nécessaire" }), color: _CF_LIGHTER_YELLOW },
+      { label: t3({ en: "Not on track", fr: "Pas en bonne voie" }), color: _CF_LIGHTER_RED },
+    ];
+  }
   if (config.s.specialCoverageChart) {
     return [
       {

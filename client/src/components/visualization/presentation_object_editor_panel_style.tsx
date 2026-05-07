@@ -11,6 +11,7 @@ import {
   SPECIAL_COVERAGE_CHART_METRICS,
   SPECIAL_DISRUPTIONS_CHART_METRICS,
   SPECIAL_PERCENT_CHANGE_CHART_METRICS,
+  SPECIAL_SCORECARD_TABLE_METRICS,
 } from "~/generate_visualization/get_style_from_po/_0_conditional_consts";
 import { SharedControlsTop } from "./presentation_object_editor_panel_style/_shared";
 import { TimeseriesStyleControls } from "./presentation_object_editor_panel_style/_timeseries";
@@ -38,6 +39,9 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
 
   const showDisruptionsMode = () =>
     SPECIAL_DISRUPTIONS_CHART_METRICS.includes(metricId());
+
+  const showScorecardMode = () =>
+    SPECIAL_SCORECARD_TABLE_METRICS.includes(metricId());
 
   async function editCustomSeriesStyles() {
     const res = await openComponent({
@@ -92,6 +96,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             poDetail={p.poDetail}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
+            showScorecardMode={showScorecardMode()}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "map"}>

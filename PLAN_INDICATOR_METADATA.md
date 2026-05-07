@@ -6,6 +6,39 @@ Unify `indicatorLabelReplacements` into a richer `indicatorMetadata` structure t
 
 ---
 
+## Critical Design Decisions
+
+### Threshold Scaling Convention
+
+**Thresholds are stored as scaled values** (e.g., `80` for 80%, not `0.8`).
+**Raw data values from modules are decimals** (e.g., `0.8` for 80%).
+
+Therefore: scale raw values before comparing to thresholds.
+
+```ts
+// Data: 0.8, Threshold: 80, format_as: "percent"
+const scaled = 0.8 * 100;  // = 80
+scaled >= threshold_green  // 80 >= 80 → green
+```
+
+### Column/Row Header Lookup
+
+**Problem:** `TableCellInfo.colHeader` contains the **display label** after `labelReplacementsAfterSorting` is applied, not the raw indicator ID. Also, tables can be pivoted — indicators may be columns OR rows.
+
+**Solution:** Build lookup by `label`, check both `colHeader` and `rowHeader`:
+```ts
+const metadataByLabel = new Map(indicatorMetadata.map(m => [m.label, m]));
+const meta = metadataByLabel.get(info.colHeader) ?? metadataByLabel.get(info.rowHeader);
+```
+
+**Assumption:** Calculated indicator labels are unique within a project. This is enforced by the UI.
+
+### HFA Scorecard
+
+HFA modules won't have threshold data (only `id` + `label`). This is acceptable — HFA doesn't use scorecard tables.
+
+---
+
 ## New Type
 
 **File:** `lib/types/indicators.ts`
@@ -34,6 +67,8 @@ export function indicatorMetadataToLabelMap(
   return map;
 }
 ```
+
+**Also:** Add `IndicatorMetadata` to `lib/types/mod.ts` exports.
 
 ---
 
@@ -236,15 +271,15 @@ Add to `DEFAULT_S_CONFIG`:
 specialScorecardTable: false,
 ```
 
-### 3.2 Undo migration block 18
+### 3.2 Add migration block 19
 
 **File:** `server/db/migrations/data_transforms/po_config.ts`
 
-Block 18 currently deletes `specialScorecardTable`. Change to:
+Add at end of `transformConfigS`:
+
 ```ts
-// Block 18: Fill specialScorecardTable default
+// Block 19: Re-add specialScorecardTable (scorecard feature restored)
 if (!("specialScorecardTable" in s)) s.specialScorecardTable = false;
-// Remove the delete statement
 ```
 
 ### 3.3 Create `_5_scorecard.ts`
@@ -295,7 +330,9 @@ export function buildScorecardStyle(
   indicatorMetadata: IndicatorMetadata[],
   deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
-  const metadataById = new Map(indicatorMetadata.map(m => [m.id, m]));
+  // Lookup by LABEL, not ID — headers contain display label after labelReplacements applied
+  // Check both colHeader and rowHeader to handle both table orientations
+  const metadataByLabel = new Map(indicatorMetadata.map(m => [m.label, m]));
 
   return {
     scale: config.s.scale,
@@ -305,7 +342,7 @@ export function buildScorecardStyle(
     content: {
       tableCells: {
         func: (info: TableCellInfo) => {
-          const meta = metadataById.get(info.colHeader);
+          const meta = metadataByLabel.get(info.colHeader) ?? metadataByLabel.get(info.rowHeader);
           if (meta?.threshold_direction && info.valueAsNumber !== undefined) {
             const scaled = scaleValueForFormat(info.valueAsNumber, meta.format_as ?? "number");
             return {
@@ -321,7 +358,7 @@ export function buildScorecardStyle(
           return { backgroundColor: "none" };
         },
         textFormatter: (info: TableCellInfo) => {
-          const meta = metadataById.get(info.colHeader);
+          const meta = metadataByLabel.get(info.colHeader) ?? metadataByLabel.get(info.rowHeader);
           if (meta?.format_as && info.valueAsNumber !== undefined) {
             return formatScorecardValue(
               info.valueAsNumber,
@@ -378,7 +415,7 @@ The `ItemsHolderDatasetHmisDisplay` type also has `indicatorLabelReplacements`. 
 | `lib/types/presentation_object_defaults.ts` | Add `specialScorecardTable: false` |
 | `server/server_only_funcs_presentation_objects/get_indicator_label_replacements.ts` | Rename to `get_indicator_metadata.ts`, return `IndicatorMetadata[]` |
 | `server/server_only_funcs_presentation_objects/get_presentation_object_items.ts` | Use new function, return `indicatorMetadata` |
-| `server/db/migrations/data_transforms/po_config.ts` | Block 18: fill default instead of delete |
+| `server/db/migrations/data_transforms/po_config.ts` | Add Block 19: fill `specialScorecardTable` default |
 | `client/src/generate_visualization/get_figure_inputs_from_po.ts` | Derive label map from metadata, pass metadata to scorecard style |
 | `client/src/generate_visualization/get_style_from_po.ts` | Add `indicatorMetadata` param, dispatch to scorecard |
 | `client/src/generate_visualization/get_style_from_po/_5_scorecard.ts` | **NEW** — scorecard style builder |
@@ -425,14 +462,26 @@ The `ItemsHolderDatasetHmisDisplay` type also has `indicatorLabelReplacements`. 
 
 ## Implementation Order
 
-1. Add `IndicatorMetadata` type and helper (lib)
-2. Create `get_indicator_metadata.ts` (server)
-3. Update `get_presentation_object_items.ts` (server)
-4. Update `ItemsHolderPresentationObject` type (lib)
-5. Add `specialScorecardTable` to schema + defaults (lib)
-6. Fix migration block 18 (server)
-7. Update `get_figure_inputs_from_po.ts` — derive label map (client)
-8. Create `_5_scorecard.ts` (client)
-9. Update `get_style_from_po.ts` — dispatch to scorecard (client)
-10. Add scorecard legend (client)
-11. Test
+### Phase 1: Indicator Metadata Plumbing
+
+Get the richer metadata flowing through the system. No formatting changes yet.
+
+1. Add `IndicatorMetadata` type and helper to `lib/types/indicators.ts`
+2. Export from `lib/types/mod.ts`
+3. Rename `get_indicator_label_replacements.ts` → `get_indicator_metadata.ts`, return `IndicatorMetadata[]`
+4. Update `get_presentation_object_items.ts` to use new function
+5. Update `ItemsHolderPresentationObject` type in `lib/types/instance.ts`
+6. Update `get_figure_inputs_from_po.ts`:
+   - Derive `indicatorLabelReplacements` from `ih.indicatorMetadata` at top
+   - Pass `ih.indicatorMetadata` to `getStyleFromPresentationObject`
+7. Update `get_style_from_po.ts` signature to accept optional `indicatorMetadata`
+8. **Test:** Verify all existing visualizations still work
+
+### Phase 2: Scorecard Formatting (after Phase 1 verified)
+
+1. Add `specialScorecardTable` to config schema + defaults
+2. Add migration block 19
+3. Create `_5_scorecard.ts` style builder
+4. Add dispatch in `get_style_from_po.ts`
+5. Add scorecard legend
+6. **Test:** Scorecard PO renders with colors/formatting

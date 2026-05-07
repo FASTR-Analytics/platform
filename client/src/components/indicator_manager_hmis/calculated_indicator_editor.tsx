@@ -41,9 +41,6 @@ export function EditCalculatedIndicatorForm(
   const [groupLabel, setGroupLabel] = createSignal(
     p.existing?.group_label ?? "",
   );
-  const [sortOrder, setSortOrder] = createSignal(
-    String(p.existing?.sort_order ?? 0),
-  );
 
   const [numIndicatorId, setNumIndicatorId] = createSignal(
     p.existing?.num_indicator_id ?? "",
@@ -269,7 +266,7 @@ export function EditCalculatedIndicatorForm(
         calculated_indicator_id: id,
         label: lbl,
         group_label: groupLabel().trim(),
-        sort_order: Number(sortOrder()) || 0,
+        sort_order: p.existing?.sort_order ?? 0,
         num_indicator_id: numIndicatorId(),
         denom,
         format_as: formatAs(),
@@ -336,12 +333,6 @@ export function EditCalculatedIndicatorForm(
             value={groupLabel()}
             onChange={setGroupLabel}
             fullWidth
-          />
-          <Input
-            label={t3({ en: "Sort order", fr: "Ordre de tri" })}
-            value={sortOrder()}
-            onChange={setSortOrder}
-            type="number"
           />
         </div>
 

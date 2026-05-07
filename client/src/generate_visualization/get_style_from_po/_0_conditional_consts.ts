@@ -14,6 +14,8 @@ export const SPECIAL_DISRUPTIONS_CHART_METRICS = [
   "m3-05-01",
 ];
 
+export const SPECIAL_SCORECARD_TABLE_METRICS = ["m8-01-01"];
+
 export const METRICS_WITH_NEGATIVE_PCT_VALUES = [
   "m3-02-02",
   "m3-03-02",
