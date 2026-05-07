@@ -10,6 +10,8 @@ export const DEFAULT_MODEL_CONFIG = {
 
 export const DEFAULT_BUILTIN_TOOLS = { webSearch: true };
 
+let limitAlertPending = false;
+
 export function createProjectSDKClient(projectId: string) {
   const baseURL = _SERVER_HOST
     ? `${_SERVER_HOST}/ai`
@@ -24,7 +26,8 @@ export function createProjectSDKClient(projectId: string) {
       if (response.status === 429) {
         const body = await response.clone().json().catch(() => ({}));
         const error = body?.error;
-        if (error?.type === "daily_token_limit_exceeded") {
+        if (error?.type === "daily_token_limit_exceeded" && !limitAlertPending) {
+          limitAlertPending = true;
           const resetAt = error.resetAt ? new Date(error.resetAt) : null;
           const resetTimeStr = resetAt
             ? resetAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
@@ -33,6 +36,8 @@ export function createProjectSDKClient(projectId: string) {
             title: "Daily AI limit reached",
             text: `You have reached your daily AI token limit. Your limit will reset at ${resetTimeStr}.`,
             intent: "danger",
+          }).finally(() => {
+            limitAlertPending = false;
           });
         }
       }
