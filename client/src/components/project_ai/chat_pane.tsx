@@ -15,7 +15,7 @@ import {
   type MenuItem,
 } from "panther";
 import { t3, TC } from "lib";
-import { createResource, Show, type Accessor } from "solid-js";
+import { createEffect, createResource, on, Show, type Accessor } from "solid-js";
 import { useAIProjectContext } from "./context";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
@@ -239,7 +239,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }
   };
 
-  const [aiUsage] = createResource(() => serverActions.getAiUsage({}));
+  const [aiUsage, { refetch: refetchAiUsage }] = createResource(() => serverActions.getAiUsage({}));
+
+  createEffect(on(isLoading, (loading) => {
+    if (!loading) refetchAiUsage();
+  }, { defer: true }));
 
   const usagePct = () => {
     const res = aiUsage();
