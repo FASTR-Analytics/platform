@@ -15,9 +15,10 @@ import {
   type MenuItem,
 } from "panther";
 import { t3, TC } from "lib";
-import type { Accessor } from "solid-js";
+import { createResource, Show, type Accessor } from "solid-js";
 import { useAIProjectContext } from "./context";
 import { setShowAi } from "~/state/t4_ui";
+import { serverActions } from "~/server_actions";
 import { useAIDocuments, AIDocumentList } from "./ai_documents";
 import { usePromptLibrary } from "./ai_prompt_library";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
@@ -238,6 +239,23 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }
   };
 
+  const [aiUsage] = createResource(() => serverActions.getAiUsage({}));
+
+  const usagePct = () => {
+    const res = aiUsage();
+    if (!res || !res.success || res.data.dailyTokenLimit === null) return null;
+    return Math.min(100, Math.round((res.data.tokensUsedToday / res.data.dailyTokenLimit) * 100));
+  };
+
+  const usageTooltip = () => {
+    const pct = usagePct();
+    if (pct === null) return "";
+    const resetAt = new Date();
+    resetAt.setUTCDate(resetAt.getUTCDate() + 1);
+    resetAt.setUTCHours(0, 0, 0, 0);
+    return `${pct}% of daily AI limit used · Resets ${resetAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`;
+  };
+
   return (
     <div class="flex h-full w-full flex-col border-l">
       <div class="ui-pad ui-gap border-base-content bg-primary flex items-center justify-between border-b text-white">
@@ -275,6 +293,18 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           onScrollReady={(fn) => (scrollToBottom = fn)}
         />
       </div>
+
+      <Show when={usagePct() !== null}>
+        <div
+          class="h-1 w-full cursor-default overflow-hidden bg-base-200"
+          title={usageTooltip()}
+        >
+          <div
+            class={`h-full transition-all ${usagePct()! >= 100 ? "bg-error" : usagePct()! >= 80 ? "bg-warning" : "bg-primary"}`}
+            style={{ width: `${usagePct()}%` }}
+          />
+        </div>
+      </Show>
     </div>
   );
 }
