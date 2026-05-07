@@ -1,3 +1,4 @@
+[1.30.0] [admin] [internal] - Updated internal API paths for shared visualization links
 [1.30.0] [user] [added] - Share visualizations via public link with anyone
 [1.30.0] [user] [added] - Manage, copy, and delete shared visualization links
 [1.30.0] [user] [added] - View shared visualizations without logging in
