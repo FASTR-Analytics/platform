@@ -1,3 +1,17 @@
+[1.30.0] [user] [added] - Calculated indicators can now use raw counts without a denominator
+[1.30.0] [user] [added] - DHIS2 search results now show disaggregated category option combos
+[1.30.0] [user] [added] - You can expand data elements to select specific disaggregations
+[1.30.0] [user] [added] - Download button added to shared visualizations for saving as image
+[1.30.0] [user] [changed] - Denominator type options now displayed vertically instead of horizontally
+[1.30.0] [user] [changed] - Share visualization dialog redesigned with cleaner layout and icons
+[1.30.0] [user] [changed] - DHIS2 search results now shown as a list instead of a table
+[1.30.0] [admin] [added] - Calculated indicators can now use raw counts without a denominator
+[1.30.0] [admin] [added] - DHIS2 search now shows disaggregated data element operands for selection
+[1.30.0] [admin] [added] - Download button added to shared public visualizations
+[1.30.0] [admin] [changed] - Share visualization dialog redesigned with cleaner layout
+[1.30.0] [admin] [changed] - Denominator type options now displayed vertically instead of horizontally
+[1.30.0] [admin] [added] - New scorecard table visualization option available
+[1.30.0] [admin] [added] - Map visualizations support region labels and data label display modes
 [1.30.0] [user] [added] - Shared charts can now control automatic rescaling via link settings
 [1.30.0] [admin] [changed] - Shared chart links can now control rescaling behavior via URL parameter
 [1.30.0] [user] [added] - Shared visualizations now support embedding with customizable height
