@@ -25,6 +25,7 @@ export type DatasetHmisInfoInProject = {
   indicatorMappingsVersion?: string;
   facilityColumnsConfig?: InstanceConfigFacilityColumns;
   maxAdminArea?: number;
+  calculatedIndicatorsVersion?: string;
 };
 
 export type DatasetHfaInfoInProject = {

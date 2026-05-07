@@ -11,8 +11,10 @@ import { Show, createMemo, createSignal } from "solid-js";
 import {
   t3,
   TC,
+  POPULATION_TYPES,
   type CommonIndicatorWithMappings,
   type CalculatedIndicator,
+  type PopulationType,
 } from "lib";
 import { serverActions } from "~/server_actions";
 
@@ -51,10 +53,15 @@ export function EditCalculatedIndicatorForm(
   const [denomIndicatorId, setDenomIndicatorId] = createSignal(
     p.existing?.denom.kind === "indicator" ? p.existing.denom.indicator_id : "",
   );
-  const [denomPopulationFraction, setDenomPopulationFraction] = createSignal(
+  const [denomPopulationType, setDenomPopulationType] = createSignal<PopulationType>(
     p.existing?.denom.kind === "population"
-      ? String(p.existing.denom.population_fraction)
-      : "",
+      ? p.existing.denom.population_type
+      : "total_population",
+  );
+  const [denomPopulationMultiplier, setDenomPopulationMultiplier] = createSignal(
+    p.existing?.denom.kind === "population"
+      ? String(p.existing.denom.multiplier)
+      : "1",
   );
 
   const [formatAs, setFormatAs] = createSignal<FormatAs>(
@@ -196,17 +203,21 @@ export function EditCalculatedIndicatorForm(
         }
         denom = { kind: "indicator", indicator_id: denomId };
       } else {
-        const fraction = Number(denomPopulationFraction());
-        if (!Number.isFinite(fraction) || fraction <= 0 || fraction > 1) {
+        const multiplier = Number(denomPopulationMultiplier());
+        if (!Number.isFinite(multiplier) || multiplier <= 0) {
           return {
             success: false,
             err: t3({
-              en: "Population fraction must be a positive number ≤ 1",
-              fr: "La fraction de population doit être un nombre positif ≤ 1",
+              en: "Population multiplier must be a positive number",
+              fr: "Le multiplicateur de population doit être un nombre positif",
             }),
           };
         }
-        denom = { kind: "population", population_fraction: fraction };
+        denom = {
+          kind: "population",
+          population_type: denomPopulationType(),
+          multiplier,
+        };
       }
 
       const dp = Number(decimalPlaces());
@@ -361,13 +372,26 @@ export function EditCalculatedIndicatorForm(
             />
           </Show>
           <Show when={denomKind() === "population"}>
+            <Select
+              label={t3({
+                en: "Population type",
+                fr: "Type de population",
+              })}
+              value={denomPopulationType()}
+              onChange={(v) => setDenomPopulationType(v as PopulationType)}
+              options={POPULATION_TYPES.map((pt) => ({
+                value: pt.id,
+                label: pt.label,
+              }))}
+              fullWidth
+            />
             <Input
               label={t3({
-                en: "Population fraction (annual, 0–1). Module applies period scaling.",
-                fr: "Fraction annuelle de la population (0–1). Le module applique la mise à l'échelle de la période.",
+                en: "Multiplier (usually 1). Module applies period scaling.",
+                fr: "Multiplicateur (généralement 1). Le module applique la mise à l'échelle de la période.",
               })}
-              value={denomPopulationFraction()}
-              onChange={setDenomPopulationFraction}
+              value={denomPopulationMultiplier()}
+              onChange={setDenomPopulationMultiplier}
               type="number"
             />
           </Show>

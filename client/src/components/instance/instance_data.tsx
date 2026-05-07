@@ -277,6 +277,28 @@ export function InstanceData(p: Props) {
                         </div>
                       )}
                     </Show>
+                    <Show
+                      when={
+                        instanceState.indicators.calculatedIndicators > 0 &&
+                        instanceState.indicators.calculatedIndicators
+                      }
+                      keyed
+                    >
+                      {(keyedNumber) => (
+                        <div class="ui-spy-sm text-success text-xs">
+                          <div class="flex justify-between gap-4">
+                            <span>
+                              {t3({
+                                en: "Calculated indicators",
+                                fr: "Indicateurs calculés",
+                              })}
+                              :
+                            </span>
+                            <span class="font-mono">{toNum0(keyedNumber)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </Show>
                   </div>
                 </div>
               </div>

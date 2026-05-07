@@ -89,6 +89,14 @@ export function ProjectData(p: Props) {
                     reasons.push(t3({ en: "Admin area structure changed", fr: "Structure des unités administratives modifiée" }));
                   }
 
+                  // Calculated indicators
+                  if (
+                    instanceState.calculatedIndicatorsVersion !==
+                    keyedProjectDatasetHmis.info.calculatedIndicatorsVersion
+                  ) {
+                    reasons.push(t3({ en: "Calculated indicators changed", fr: "Indicateurs calculés modifiés" }));
+                  }
+
                   return { isStale: reasons.length > 0, reasons };
                 };
 
@@ -296,6 +304,27 @@ export function ProjectData(p: Props) {
                           </div>
                         </div>
                       </Show>
+                      <div class="grid grid-cols-12 text-sm pt-4">
+                        <div class="col-span-4">
+                          {t3({ en: "Calculated indicators", fr: "Indicateurs calculés" })}
+                        </div>
+                        <div class="col-span-8">
+                          <Show
+                            when={keyedProjectDatasetHmis.info.calculatedIndicatorsVersion}
+                            fallback={
+                              <span class="text-warning">
+                                {t3({ en: "Not snapshotted (re-export to include)", fr: "Non capturé (réexporter pour inclure)" })}
+                              </span>
+                            }
+                          >
+                            <span class={instanceState.calculatedIndicatorsVersion === keyedProjectDatasetHmis.info.calculatedIndicatorsVersion ? "text-success" : "text-warning"}>
+                              {instanceState.calculatedIndicatorsVersion === keyedProjectDatasetHmis.info.calculatedIndicatorsVersion
+                                ? t3({ en: "Up to date", fr: "À jour" })
+                                : t3({ en: "Out of date", fr: "Obsolète" })}
+                            </span>
+                          </Show>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );

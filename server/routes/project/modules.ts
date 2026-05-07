@@ -5,6 +5,7 @@ import {
   _SANDBOX_DIR_PATH,
 } from "../../exposed_env_vars.ts";
 import {
+  getAllCalculatedIndicatorsFromSnapshot,
   getAllHfaIndicatorCodeFromSnapshot,
   getAllHfaIndicatorsFromSnapshot,
   getAllMetrics,
@@ -26,6 +27,7 @@ import {
   MODULE_REGISTRY,
   isModuleAllowedForCountry,
   throwIfErrWithData,
+  type CalculatedIndicator,
   type HfaIndicator,
   type HfaIndicatorCode,
   type ModuleUpdatePreview,
@@ -279,6 +281,8 @@ defineRoute(
     let knownDatasetVariables: Set<string> | undefined;
     let hfaIndicators: HfaIndicator[] | undefined;
     let hfaIndicatorCode: HfaIndicatorCode[] | undefined;
+    let calculatedIndicators: CalculatedIndicator[] | undefined;
+
     if (res.data.moduleDefinition.scriptGenerationType === "hfa") {
       const hfaVarRows = await c.var.ppk.projectDb<{ var_name: string }[]>`
         SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
@@ -295,6 +299,14 @@ defineRoute(
       );
     }
 
+    if (res.data.moduleDefinition.scriptGenerationType === "calculated_indicators") {
+      // Read from the project-level snapshot so preview matches what the
+      // runner actually executes (same source, same rows).
+      calculatedIndicators = await getAllCalculatedIndicatorsFromSnapshot(
+        c.var.ppk.projectDb,
+      );
+    }
+
     const script = getScriptWithParameters(
       res.data.moduleDefinition,
       res.data.configSelections,
@@ -302,6 +314,7 @@ defineRoute(
       knownDatasetVariables,
       hfaIndicators,
       hfaIndicatorCode,
+      calculatedIndicators,
     );
     return c.json({ success: true, data: { script } });
   },

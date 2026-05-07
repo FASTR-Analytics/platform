@@ -6,6 +6,7 @@ import Papa from "papaparse";
 import { Sql } from "postgres";
 import {
   getResultsObjectTableName,
+  getAllCalculatedIndicatorsFromSnapshot,
   getAllHfaIndicatorCodeFromSnapshot,
   getAllHfaIndicatorsFromSnapshot,
 } from "../../db/mod.ts";
@@ -23,6 +24,7 @@ import {
   APIResponseNoData,
   ResultsObjectDefinition,
   throwIfErrNoData,
+  type CalculatedIndicator,
   type HfaIndicator,
   type HfaIndicatorCode,
   type ModuleDetailForRunningScript,
@@ -108,6 +110,8 @@ export async function* runModuleIterator(
     let knownDatasetVariables: Set<string> | undefined;
     let hfaIndicatorsFromSnapshot: HfaIndicator[] | undefined;
     let hfaIndicatorCodeFromSnapshot: HfaIndicatorCode[] | undefined;
+    let calculatedIndicatorsFromSnapshot: CalculatedIndicator[] | undefined;
+
     if (moduleDetail.moduleDefinition.scriptGenerationType === "hfa") {
       const hfaVarRows = await projectDb<{ var_name: string }[]>`
         SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
@@ -130,6 +134,20 @@ export async function* runModuleIterator(
         await getAllHfaIndicatorCodeFromSnapshot(projectDb);
     }
 
+    if (moduleDetail.moduleDefinition.scriptGenerationType === "calculated_indicators") {
+      // Read calculated indicators from the project-level snapshot written at
+      // HMIS data export time. This guarantees indicator defs and project data
+      // stay in sync for this module run.
+      calculatedIndicatorsFromSnapshot =
+        await getAllCalculatedIndicatorsFromSnapshot(projectDb);
+
+      if (calculatedIndicatorsFromSnapshot.length === 0) {
+        throw new Error(
+          "No calculated indicators in project snapshot. Re-import HMIS data.",
+        );
+      }
+    }
+
     const scriptWithParameters = getScriptWithParameters(
       moduleDetail.moduleDefinition,
       moduleDetail.configSelections,
@@ -137,6 +155,7 @@ export async function* runModuleIterator(
       knownDatasetVariables,
       hfaIndicatorsFromSnapshot,
       hfaIndicatorCodeFromSnapshot,
+      calculatedIndicatorsFromSnapshot,
     );
     const scriptFilePath = join(moduleDirPath, _MODULE_SCRIPT_FILE_NAME);
     await Deno.writeTextFile(scriptFilePath, scriptWithParameters);

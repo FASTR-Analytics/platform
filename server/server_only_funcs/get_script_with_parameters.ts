@@ -1,4 +1,11 @@
-import type { HfaIndicator, HfaIndicatorCode, ModuleConfigSelections, ModuleDefinitionInstalled } from "lib";
+import type {
+  CalculatedIndicator,
+  HfaIndicator,
+  HfaIndicatorCode,
+  ModuleConfigSelections,
+  ModuleDefinitionInstalled,
+} from "lib";
+import { getScriptWithParametersCalculatedIndicators } from "./get_script_with_parameters_calculated_indicators.ts";
 import { getScriptWithParametersHfa } from "./get_script_with_parameters_hfa.ts";
 
 export function getScriptWithParameters(
@@ -8,7 +15,22 @@ export function getScriptWithParameters(
   knownDatasetVariables?: Set<string>,
   hfaIndicators?: HfaIndicator[],
   hfaIndicatorCode?: HfaIndicatorCode[],
+  calculatedIndicators?: CalculatedIndicator[],
 ): string {
+  if (moduleDefinition.scriptGenerationType === "calculated_indicators") {
+    if (!calculatedIndicators) {
+      throw new Error(
+        "calculatedIndicators is required for calculated_indicators module script generation"
+      );
+    }
+    return getScriptWithParametersCalculatedIndicators(
+      moduleDefinition,
+      configSelections,
+      countryIso3,
+      calculatedIndicators,
+    );
+  }
+
   if (moduleDefinition.scriptGenerationType === "hfa") {
     if (!knownDatasetVariables) {
       throw new Error(

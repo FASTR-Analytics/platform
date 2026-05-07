@@ -67,6 +67,15 @@ export const MODULE_REGISTRY = [
     allowedCountries: [CountryCodes.Nigeria],
   },
   {
+    id: "m008",
+    label: {
+      en: "M8. Scorecard (Catalog-Driven)",
+      fr: "M8. Scorecard (piloté par catalogue)",
+    },
+    prerequisites: ["m002"],
+    github: { owner: "FASTR-Analytics", repo: "modules", path: "m008" },
+  },
+  {
     id: "hfa001",
     label: {
       en: "HFA001. Health facility assessment",
@@ -92,9 +101,6 @@ export function getValidatedModuleId(id: string): ModuleId {
   if (!entry) throw new Error(`Unknown module id: ${id}`);
   return entry.id;
 }
-
-export const MODULE_SOURCE: "local" | "github" = "github";
-export const MODULES_LOCAL_DIR = "./modules";
 
 export function isModuleAllowedForCountry(
   m: ModuleRegistryEntry,

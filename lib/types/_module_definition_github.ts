@@ -25,7 +25,7 @@ const translatableStringGithub = z.object({
   fr: z.string(),
 });
 
-const scriptGenerationTypeGithub = z.enum(["template", "hfa"]);
+const scriptGenerationTypeGithub = z.enum(["template", "hfa", "calculated_indicators"]);
 
 const dataSourceDatasetGithub = z.object({
   sourceType: z.literal("dataset"),

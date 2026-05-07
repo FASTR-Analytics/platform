@@ -37,3 +37,4 @@ export * from "./structure.ts";
 export * from "./visualization_folders.ts";
 export * from "./permissions.ts";
 export * from "./permission_labels.ts";
+export * from "./calculated_indicator_id.ts";

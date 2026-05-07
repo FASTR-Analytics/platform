@@ -32,6 +32,17 @@ export type BatchIndicator = {
 // Calculated indicators
 // ============================================================================
 
+export const POPULATION_TYPES = [
+  { id: "total_population", label: "Total population" },
+  { id: "u5", label: "Under 5 population" },
+  { id: "u1", label: "Under 1 population" },
+  { id: "wra", label: "Women of reproductive age (15-49)" },
+  { id: "births", label: "Expected births" },
+  { id: "pregnancies", label: "Expected pregnancies" },
+] as const;
+
+export type PopulationType = (typeof POPULATION_TYPES)[number]["id"];
+
 export type CalculatedIndicator = {
   calculated_indicator_id: string;
   label: string;
@@ -41,7 +52,7 @@ export type CalculatedIndicator = {
   num_indicator_id: string;
   denom:
     | { kind: "indicator"; indicator_id: string }
-    | { kind: "population"; population_fraction: number };
+    | { kind: "population"; population_type: PopulationType; multiplier: number };
 
   format_as: "percent" | "number" | "rate_per_10k";
   decimal_places: number;

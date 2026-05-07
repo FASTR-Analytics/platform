@@ -11,8 +11,11 @@ import { Show, createMemo, createSignal } from "solid-js";
 import {
   t3,
   TC,
+  isValidCalculatedIndicatorIdentifier,
+  POPULATION_TYPES,
   type CommonIndicatorWithMappings,
   type CalculatedIndicator,
+  type PopulationType,
 } from "lib";
 import { serverActions } from "~/server_actions";
 
@@ -51,10 +54,15 @@ export function EditCalculatedIndicatorForm(
   const [denomIndicatorId, setDenomIndicatorId] = createSignal(
     p.existing?.denom.kind === "indicator" ? p.existing.denom.indicator_id : "",
   );
-  const [denomPopulationFraction, setDenomPopulationFraction] = createSignal(
+  const [denomPopulationType, setDenomPopulationType] = createSignal<PopulationType>(
     p.existing?.denom.kind === "population"
-      ? String(p.existing.denom.population_fraction)
-      : "",
+      ? p.existing.denom.population_type
+      : "total_population",
+  );
+  const [denomPopulationMultiplier, setDenomPopulationMultiplier] = createSignal(
+    p.existing?.denom.kind === "population"
+      ? String(p.existing.denom.multiplier)
+      : "1",
   );
 
   const [formatAs, setFormatAs] = createSignal<FormatAs>(
@@ -74,6 +82,18 @@ export function EditCalculatedIndicatorForm(
   const [thresholdYellow, setThresholdYellow] = createSignal(
     String(p.existing?.threshold_yellow ?? 70),
   );
+
+  const idValidationError = createMemo(() => {
+    const id = calculatedIndicatorId().trim();
+    if (!id || mode === "update") return null;
+    if (!isValidCalculatedIndicatorIdentifier(id)) {
+      return t3({
+        en: "Must start with lowercase letter, only a-z, 0-9, _ allowed",
+        fr: "Doit commencer par une lettre minuscule, seuls a-z, 0-9, _ sont autorisés",
+      });
+    }
+    return null;
+  });
 
   const commonIndicatorOptions = () => [
     {
@@ -122,6 +142,15 @@ export function EditCalculatedIndicatorForm(
           err: t3({
             en: "Calculated indicator ID is required",
             fr: "L'identifiant est requis",
+          }),
+        };
+      }
+      if (mode === "create" && !isValidCalculatedIndicatorIdentifier(id)) {
+        return {
+          success: false,
+          err: t3({
+            en: "ID must start with a lowercase letter and contain only lowercase letters, numbers, and underscores (max 64 chars)",
+            fr: "L'ID doit commencer par une lettre minuscule et ne contenir que des lettres minuscules, des chiffres et des tirets bas (max 64 caractères)",
           }),
         };
       }
@@ -196,17 +225,21 @@ export function EditCalculatedIndicatorForm(
         }
         denom = { kind: "indicator", indicator_id: denomId };
       } else {
-        const fraction = Number(denomPopulationFraction());
-        if (!Number.isFinite(fraction) || fraction <= 0 || fraction > 1) {
+        const multiplier = Number(denomPopulationMultiplier());
+        if (!Number.isFinite(multiplier) || multiplier <= 0) {
           return {
             success: false,
             err: t3({
-              en: "Population fraction must be a positive number ≤ 1",
-              fr: "La fraction de population doit être un nombre positif ≤ 1",
+              en: "Population multiplier must be a positive number",
+              fr: "Le multiplicateur de population doit être un nombre positif",
             }),
           };
         }
-        denom = { kind: "population", population_fraction: fraction };
+        denom = {
+          kind: "population",
+          population_type: denomPopulationType(),
+          multiplier,
+        };
       }
 
       const dp = Number(decimalPlaces());
@@ -289,6 +322,9 @@ export function EditCalculatedIndicatorForm(
             mono
             disabled={mode === "update"}
           />
+          <Show when={idValidationError()}>
+            <div class="text-error text-xs -mt-1">{idValidationError()}</div>
+          </Show>
           <Input
             label={t3(TC.label)}
             value={label()}
@@ -361,13 +397,26 @@ export function EditCalculatedIndicatorForm(
             />
           </Show>
           <Show when={denomKind() === "population"}>
+            <Select
+              label={t3({
+                en: "Population type",
+                fr: "Type de population",
+              })}
+              value={denomPopulationType()}
+              onChange={(v) => setDenomPopulationType(v as PopulationType)}
+              options={POPULATION_TYPES.map((pt) => ({
+                value: pt.id,
+                label: pt.label,
+              }))}
+              fullWidth
+            />
             <Input
               label={t3({
-                en: "Population fraction (annual, 0–1). Module applies period scaling.",
-                fr: "Fraction annuelle de la population (0–1). Le module applique la mise à l'échelle de la période.",
+                en: "Multiplier (usually 1). Module applies period scaling.",
+                fr: "Multiplicateur (généralement 1). Le module applique la mise à l'échelle de la période.",
               })}
-              value={denomPopulationFraction()}
-              onChange={setDenomPopulationFraction}
+              value={denomPopulationMultiplier()}
+              onChange={setDenomPopulationMultiplier}
               type="number"
             />
           </Show>

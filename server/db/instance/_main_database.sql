@@ -381,7 +381,8 @@ CREATE TABLE IF NOT EXISTS calculated_indicators (
   num_indicator_id           TEXT NOT NULL,
   denom_kind                 TEXT NOT NULL CHECK (denom_kind IN ('indicator', 'population')),
   denom_indicator_id         TEXT,
-  denom_population_fraction  REAL,
+  denom_population_type      TEXT,
+  denom_population_multiplier REAL,
 
   format_as                  TEXT NOT NULL DEFAULT 'percent' CHECK (format_as IN ('percent', 'number', 'rate_per_10k')),
   decimal_places             INTEGER NOT NULL DEFAULT 0,
@@ -395,12 +396,17 @@ CREATE TABLE IF NOT EXISTS calculated_indicators (
   CHECK (
     (denom_kind = 'indicator'
        AND denom_indicator_id IS NOT NULL
-       AND denom_population_fraction IS NULL)
+       AND denom_population_type IS NULL
+       AND denom_population_multiplier IS NULL)
     OR
     (denom_kind = 'population'
        AND denom_indicator_id IS NULL
-       AND denom_population_fraction IS NOT NULL)
-  )
+       AND denom_population_type IS NOT NULL
+       AND denom_population_multiplier IS NOT NULL)
+  ),
+
+  FOREIGN KEY (num_indicator_id) REFERENCES indicators(indicator_common_id) ON DELETE RESTRICT,
+  FOREIGN KEY (denom_indicator_id) REFERENCES indicators(indicator_common_id) ON DELETE RESTRICT
 );
 
 -- ============================================================================
