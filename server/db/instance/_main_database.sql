@@ -379,7 +379,7 @@ CREATE TABLE IF NOT EXISTS calculated_indicators (
   sort_order                 INTEGER NOT NULL DEFAULT 0,
 
   num_indicator_id           TEXT NOT NULL,
-  denom_kind                 TEXT NOT NULL CHECK (denom_kind IN ('indicator', 'population')),
+  denom_kind                 TEXT NOT NULL CHECK (denom_kind IN ('none', 'indicator', 'population')),
   denom_indicator_id         TEXT,
   denom_population_type      TEXT,
   denom_population_multiplier REAL,
@@ -394,6 +394,11 @@ CREATE TABLE IF NOT EXISTS calculated_indicators (
   updated_at                 TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   CHECK (
+    (denom_kind = 'none'
+       AND denom_indicator_id IS NULL
+       AND denom_population_type IS NULL
+       AND denom_population_multiplier IS NULL)
+    OR
     (denom_kind = 'indicator'
        AND denom_indicator_id IS NOT NULL
        AND denom_population_type IS NULL

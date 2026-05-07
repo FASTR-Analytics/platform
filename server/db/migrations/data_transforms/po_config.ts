@@ -32,7 +32,7 @@
 // 15. Convert selectedReplicantValue number → string
 // 16. Fill missing configS and configT fields (2025-04 schema additions)
 // 17. Rename content "areas" → "lines-area"
-// 18. Remove specialScorecardTable (feature removed)
+// 18. (removed)
 // 19. Migrate overloaded last_n_months with nQuarters → last_n_calendar_quarters
 // 20. Strip nMonths/nYears/nQuarters from bounded filters
 // 21. Strip unused count fields from relative filters
@@ -283,10 +283,7 @@ export function transformConfigS(s: Record<string, unknown>, isMap: boolean): vo
   // Block 17: Rename content "areas" → "lines-area"
   if (s.content === "areas") s.content = "lines-area";
 
-  // Block 18: Remove specialScorecardTable (feature removed)
-  delete s.specialScorecardTable;
-
-  // Block 19: Re-add specialScorecardTable
+  // Block 19: Ensure specialScorecardTable exists
   if (!("specialScorecardTable" in s)) s.specialScorecardTable = false;
 }
 
