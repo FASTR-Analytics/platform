@@ -222,7 +222,7 @@ export function CalculatedIndicatorsTable(p: Props) {
           {t3({ en: "Calculated indicators", fr: "Indicateurs calculés" })}
         </div>
         <Show when={p.isGlobalAdmin}>
-          <Button onClick={handleSort} iconName="gripVertical" intent="base-100">
+          <Button onClick={handleSort} iconName="gripVertical" outline>
             {t3({ en: "Sort indicators", fr: "Trier les indicateurs" })}
           </Button>
           <Button onClick={handleCreate} iconName="plus" intent="primary">

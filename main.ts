@@ -46,6 +46,12 @@ import { routesSlideDeckFolders } from "./server/routes/project/slide_deck_folde
 import { routesEmails } from "./server/routes/project/emails.ts";
 import { routesCacheStatus } from "./server/routes/project/cache_status.ts";
 
+// Public routes (no auth)
+import { routesPublicShare } from "./server/routes/public/share.ts";
+
+// Share routes (auth required)
+import { routesShare } from "./server/routes/instance/share.ts";
+
 await dbStartUp();
 
 const runLogCleanup = () => {
@@ -65,6 +71,12 @@ setInterval(runProjectPurge, 24 * 60 * 60 * 1000);
 await connectValkey();
 
 const app = new Hono();
+
+// CORS for public routes
+app.use("/share/*", corsMiddleware);
+
+// Public routes (no auth required) - must be before authMiddleware
+app.route("/", routesPublicShare);
 
 //@ts-ignore - Clerk middleware types not fully compatible with Hono
 // LOCAL_DEVELOPMENT_TOGGLE
@@ -108,6 +120,7 @@ app.route("/", routesCacheStatus);
 app.route("/ai", routesAiProxy);
 app.route("/ai", routesAiFiles);
 app.route("/", routesAiTools);
+app.route("/", routesShare);
 
 // Cache headers middleware
 app.use("*", cacheMiddleware);

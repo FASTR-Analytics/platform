@@ -62,6 +62,7 @@ import { DuplicateVisualization } from "./duplicate_visualization";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
 import { SaveAsNewVisualizationModal } from "./save_as_new_visualization_modal";
 import { VisualizationSettings } from "./visualization_settings";
+import { ShareVisualizationModal } from "./share_visualization_modal";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext } from "../project_ai/types";
 
@@ -452,6 +453,34 @@ export function VisualizationEditorInner(p: InnerProps) {
     });
   }
 
+  const openShareModal = () => {
+    const ih = itemsHolder();
+    if (ih.status !== "ready") return;
+    if (ih.data.ih.status !== "ok") return;
+
+    const figureInputsResult = getFigureInputsFromPresentationObject(
+      p.poDetail.resultsValue,
+      ih.data.ih,
+      ih.data.config,
+      ih.data.geoJson,
+    );
+    if (figureInputsResult.status !== "ready") return;
+
+    openComponent({
+      element: ShareVisualizationModal,
+      props: {
+        presentationObjectId: p.mode === "edit" ? p.poDetail.id : "",
+        label: p.poDetail.label,
+        config: ih.data.config,
+        metricId: p.poDetail.resultsValue.id,
+        formatAs: p.poDetail.resultsValue.formatAs,
+        figureInputs: figureInputsResult.data,
+        geoData: ih.data.geoJson,
+        indicatorMetadata: ih.data.ih.indicatorMetadata,
+      },
+    });
+  };
+
   async function download() {
     if (needsSave()) {
       await openAlert({
@@ -713,6 +742,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                   outline
                 ></Button>
                 <Button onClick={duplicate} iconName="copy" outline></Button>
+                <Button onClick={openShareModal} iconName="upload" outline></Button>
                 <Show when={!p.poDetail.isDefault}>
                   <Button
                     onClick={attemptDeletePresentationObjectDetail}
