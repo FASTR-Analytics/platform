@@ -5,6 +5,12 @@ import { buildCoverageChartStyle } from "./get_style_from_po/_2_coverage";
 import { buildPercentChangeChartStyle } from "./get_style_from_po/_3_percent_change";
 import { buildDisruptionsChartStyle } from "./get_style_from_po/_4_disruptions";
 import { buildScorecardStyle } from "./get_style_from_po/_5_scorecard";
+import {
+  isSpecialBarChartActive,
+  isSpecialCoverageChartActive,
+  isSpecialDisruptionsChartActive,
+  isSpecialScorecardTableActive,
+} from "./special_chart_checks";
 
 export function getStyleFromPresentationObject(
   config: PresentationObjectConfig,
@@ -12,16 +18,16 @@ export function getStyleFromPresentationObject(
   deckStyle?: DeckStyleContext,
   indicatorMetadata?: IndicatorMetadata[],
 ): CustomFigureStyleOptions {
-  if (config.s.specialScorecardTable && indicatorMetadata) {
+  if (isSpecialScorecardTableActive(config) && indicatorMetadata) {
     return buildScorecardStyle(config, indicatorMetadata, deckStyle);
   }
-  if (config.s.specialCoverageChart) {
+  if (isSpecialCoverageChartActive(config)) {
     return buildCoverageChartStyle(config, formatAs, deckStyle);
   }
-  if (config.s.specialBarChart) {
+  if (isSpecialBarChartActive(config)) {
     return buildPercentChangeChartStyle(config, formatAs, deckStyle);
   }
-  if (config.s.specialDisruptionsChart) {
+  if (isSpecialDisruptionsChartActive(config)) {
     return buildDisruptionsChartStyle(config, formatAs, deckStyle);
   }
   return buildStandardStyle(config, formatAs, deckStyle);

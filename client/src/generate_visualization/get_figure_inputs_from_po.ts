@@ -28,6 +28,7 @@ import {
 import { getStyleFromPresentationObject } from "./get_style_from_po";
 import { getMapJsonDataConfigFromPresentationObjectConfig } from "./get_data_config_for_map";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
+import { isSpecialScorecardTableActive } from "./special_chart_checks";
 
 type StateHolder<T> =
   | {
@@ -119,7 +120,7 @@ export function getFigureInputsFromPresentationObject(
     }
 
     if (effectiveConfig.d.type === "table") {
-      const customSortHeaders = config.s.specialScorecardTable
+      const customSortHeaders = isSpecialScorecardTableActive(config)
         ? buildIndicatorSortOrder(ih.indicatorMetadata)
         : undefined;
       return {
