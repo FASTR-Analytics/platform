@@ -1,3 +1,9 @@
+[1.32.0] [user] [added] - New scorecard table view option for metrics
+[1.32.0] [user] [added] - Option to show region labels on maps
+[1.32.0] [user] [added] - Data label display modes for map charts including callout labels
+[1.32.0] [admin] [added] - New scorecard table display option for metrics
+[1.32.0] [admin] [added] - Option to show region labels on map visualizations
+[1.32.0] [admin] [added] - Configurable map data label placement mode
 [1.31.0] [admin] [fixed] - Scorecard table setting is now preserved correctly during migrations
 [1.30.0] [user] [added] - Calculated indicators can now use raw counts without a denominator
 [1.30.0] [user] [added] - DHIS2 search results now show disaggregated category option combos
