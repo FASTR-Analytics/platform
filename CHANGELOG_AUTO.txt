@@ -1,3 +1,26 @@
+[TBD] [user] [added] - New scorecard table mode for visualizations with color-coded performance indicators
+[TBD] [user] [added] - Population type selector when setting population-based denominators for calculated indicators
+[TBD] [user] [added] - Drag-and-drop sorting for calculated indicators
+[TBD] [user] [added] - Real-time validation when entering calculated indicator IDs
+[TBD] [user] [added] - Calculated indicators count now shown on the instance data summary
+[TBD] [user] [added] - Calculated indicators sync status shown on project data page
+[TBD] [user] [added] - Stale data warning when calculated indicators have changed since last export
+[TBD] [user] [added] - New Scorecard module available in the module list
+[TBD] [user] [changed] - Population denominator now uses a multiplier instead of a fraction
+[TBD] [user] [changed] - Sort order for calculated indicators is now managed via the sort modal instead of manual entry
+[TBD] [user] [fixed] - Fixed potential division errors in calculated expressions with whitespace
+[TBD] [admin] [added] - New "Scorecard" module (M8) available for installation
+[TBD] [admin] [added] - Population-based denominators now support specific population types (e.g., Under 5, Women of reproductive age)
+[TBD] [admin] [added] - Drag-and-drop sorting for calculated indicators
+[TBD] [admin] [added] - Scorecard table mode with automatic color-coded thresholds
+[TBD] [admin] [added] - Calculated indicator count now shown on instance overview
+[TBD] [admin] [added] - Calculated indicators version tracking and staleness detection in projects
+[TBD] [admin] [added] - ID format validation when creating calculated indicators
+[TBD] [admin] [changed] - Population denominator now uses a multiplier instead of a fraction (0–1)
+[TBD] [admin] [changed] - Sort order for calculated indicators is now managed via the sort modal, not per-indicator
+[TBD] [admin] [changed] - Calculated indicators are snapshotted into projects during HMIS data export
+[TBD] [admin] [changed] - Project data shown as stale when calculated indicators change
+[TBD] [admin] [fixed] - Division-by-zero protection now works when spaces surround the operator in expressions
 [TBD] [user] [fixed] - Fixed visualization settings not clearing the correct cached data
 [TBD] [admin] [fixed] - Fixed visualization settings clearing wrong cache after changes
 [TBD] [admin] [internal] - Improved slide loading reliability with centralized caching
