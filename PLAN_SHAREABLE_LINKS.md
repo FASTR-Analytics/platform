@@ -280,34 +280,6 @@ Features:
 - Download restrictions
 - Share analytics dashboard
 
-## Quick Win Implementation Plan
-
-**Target: 2-3 days to working prototype**
-
-### Day 1: Backend
-
-- [ ] Create `share_tokens` table and migration
-- [ ] Create `server/db/instance/share_tokens.ts` with CRUD functions
-- [ ] Create `server/routes/public/share.ts` with token validation
-- [ ] Add `/share/*` bypass to auth middleware
-- [ ] Create server function to bundle all data needed for rendering
-
-### Day 2: Frontend
-
-- [ ] Create `/share/viz/:token` route (outside main app shell)
-- [ ] Create `<PublicVisualization />` component
-- [ ] Wire up data fetching and Panther rendering
-- [ ] Add "Create Share Link" button to visualization toolbar
-- [ ] Create modal for share link generation/copy
-
-### Day 3: Polish
-
-- [ ] Error states (invalid token, expired, revoked)
-- [ ] Loading states
-- [ ] Mobile responsive layout
-- [ ] Test iframe embedding
-- [ ] Add view count tracking
-
 ## Open Questions
 
 1. **Token format:** UUID vs shorter human-readable (e.g., `abc-123-xyz`)?
@@ -315,7 +287,6 @@ Features:
 3. **Revocation UI:** Where should users manage their shared links?
 4. **Analytics:** Track views? Show to creator?
 5. **Rate limiting:** How aggressive for public endpoints?
-6. **Data freshness:** Real-time or cached snapshots?
 
 ## Non-Goals (for now)
 
