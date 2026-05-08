@@ -239,7 +239,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }
   };
 
-  type AiUsageData = { tokensUsedToday: number; dailyTokenLimit: number | null };
+  type AiUsageData = { tokensUsedToday: number; dailyTokenLimit: number | null; isUnlimited: boolean };
   const [aiUsage, setAiUsage] = createSignal<AiUsageData | null>(null);
 
   async function refreshAiUsage() {
@@ -257,7 +257,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   const usagePct = () => {
     const u = aiUsage();
-    if (!u || u.dailyTokenLimit === null) return null;
+    if (!u || u.isUnlimited || u.dailyTokenLimit === null) return null;
     return Math.min(100, Math.round((u.tokensUsedToday / u.dailyTokenLimit) * 100));
   };
 

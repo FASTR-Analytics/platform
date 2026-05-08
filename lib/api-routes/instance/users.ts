@@ -80,6 +80,11 @@ export const userRouteRegistry = {
   getAiUsage: route({
     path: "/user/ai-usage",
     method: "GET",
-    response: {} as { tokensUsedToday: number; dailyTokenLimit: number | null },
+    response: {} as { tokensUsedToday: number; dailyTokenLimit: number | null; isUnlimited: boolean },
+  }),
+  setUserUnlimitedAi: route({
+    path: "/user/unlimited-ai",
+    method: "POST",
+    body: {} as { email: string; unlimited: boolean },
   }),
 } as const;

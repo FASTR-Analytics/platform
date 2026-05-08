@@ -220,6 +220,7 @@ export type GlobalUser = {
   isGlobalAdmin: boolean;
   organisation: string | null;
   thisUserPermissions: UserPermissions;
+  unlimitedAi: boolean;
 };
 
 export type ProjectUser = {
@@ -235,6 +236,7 @@ export type OtherUser = {
   isGlobalAdmin: boolean;
   firstName?: string;
   lastName?: string;
+  unlimitedAi: boolean;
 } & UserPermissions;
 
 export type UserLog = {
@@ -277,6 +279,7 @@ export function createDevGlobalUser(
       can_view_data: true,
       can_create_projects: true,
     },
+    unlimitedAi: false,
   };
 }
 

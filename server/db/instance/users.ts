@@ -84,6 +84,7 @@ export async function getOtherUser(
     const user: OtherUser = {
       email,
       isGlobalAdmin: rawUser.is_admin,
+      unlimitedAi: rawUser.unlimited_ai,
       ...(rawUser.is_admin
         ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
         : buildUserPermissionsFromRow(rawUser)),
@@ -119,6 +120,17 @@ export async function toggleAdmin(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb`UPDATE users SET is_admin = ${makeAdmin} WHERE email = ANY(${emails})`;
+    return { success: true };
+  });
+}
+
+export async function SetUserUnlimitedAi(
+  mainDb: Sql,
+  email: string,
+  unlimited: boolean,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`UPDATE users SET unlimited_ai = ${unlimited} WHERE email = ${email}`;
     return { success: true };
   });
 }

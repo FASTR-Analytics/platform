@@ -19,7 +19,7 @@ routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
   const projectId = c.var.ppk.projectId;
   const mainDb = c.var.mainDb;
 
-  if (_DAILY_TOKEN_LIMIT !== null) {
+  if (_DAILY_TOKEN_LIMIT !== null && !c.var.globalUser.unlimitedAi) {
     const todayUsage = await GetUserDailyTokenUsage(mainDb, userEmail);
     if (todayUsage >= _DAILY_TOKEN_LIMIT) {
       const resetAt = new Date();

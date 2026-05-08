@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { H_USERS } from "lib";
 import { GetLogs } from "../../db/instance/user_logs.ts";
 import {
   addUsers,
@@ -11,6 +12,7 @@ import {
   getUserDefaultProjectPermissions,
   getUserPermissions,
   GetUserDailyTokenUsage,
+  SetUserUnlimitedAi,
   syncUserName,
   toggleAdmin,
   updateUserDefaultProjectPermissions,
@@ -55,7 +57,23 @@ defineRoute(
   requireGlobalPermission(),
   async (c) => {
     const tokensUsedToday = await GetUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email);
-    return c.json({ success: true, data: { tokensUsedToday, dailyTokenLimit: _DAILY_TOKEN_LIMIT } });
+    return c.json({ success: true, data: { tokensUsedToday, dailyTokenLimit: _DAILY_TOKEN_LIMIT, isUnlimited: c.var.globalUser.unlimitedAi } });
+  },
+);
+
+defineRoute(
+  routesUsers,
+  "setUserUnlimitedAi",
+  requireGlobalPermission(),
+  async (c, { body }) => {
+    if (!H_USERS.includes(c.var.globalUser.email)) {
+      return c.json({ success: false, err: "Not authorized" }, 403);
+    }
+    const res = await SetUserUnlimitedAi(c.var.mainDb, body.email, body.unlimited);
+    if (res.success) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
+    return c.json(res);
   },
 );
 
