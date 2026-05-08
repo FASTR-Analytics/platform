@@ -37,7 +37,8 @@ CREATE TABLE users (
   default_project_can_view_script_code boolean NOT NULL DEFAULT FALSE,
   daily_token_usage integer NOT NULL DEFAULT 0,
   daily_token_usage_date date NOT NULL DEFAULT CURRENT_DATE,
-  unlimited_ai boolean NOT NULL DEFAULT false
+  unlimited_ai boolean NOT NULL DEFAULT false,
+  is_contact_person boolean NOT NULL DEFAULT false
 );
 
 CREATE TABLE projects (

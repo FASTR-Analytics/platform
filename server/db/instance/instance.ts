@@ -77,6 +77,7 @@ export async function getInstanceUsers(mainDb: Sql): Promise<OtherUser[]> {
       firstName: rawUser.first_name ?? undefined,
       lastName: rawUser.last_name ?? undefined,
       unlimitedAi: rawUser.unlimited_ai,
+      isContactPerson: rawUser.is_contact_person,
       ...(rawUser.is_admin
         ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
         : buildUserPermissionsFromRow(rawUser)),

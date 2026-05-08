@@ -237,6 +237,7 @@ export type OtherUser = {
   firstName?: string;
   lastName?: string;
   unlimitedAi: boolean;
+  isContactPerson: boolean;
 } & UserPermissions;
 
 export type UserLog = {

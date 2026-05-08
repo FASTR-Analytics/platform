@@ -12,6 +12,7 @@ import {
   getUserDefaultProjectPermissions,
   getUserPermissions,
   GetUserDailyTokenUsage,
+  setUserContactPerson,
   SetUserUnlimitedAi,
   syncUserName,
   toggleAdmin,
@@ -177,6 +178,22 @@ defineRoute(
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesUsers,
+  "setUserContactPerson",
+  requireGlobalPermission(),
+  async (c, { body }) => {
+    if (!H_USERS.includes(c.var.globalUser.email)) {
+      return c.json({ success: false, err: "Not authorized" }, 403);
+    }
+    const res = await setUserContactPerson(c.var.mainDb, body.email, body.isContactPerson);
+    if (res.success) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
     return c.json(res);
   },

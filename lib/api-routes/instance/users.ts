@@ -87,4 +87,9 @@ export const userRouteRegistry = {
     method: "POST",
     body: {} as { email: string; unlimited: boolean },
   }),
+  setUserContactPerson: route({
+    path: "/user/contact-person",
+    method: "POST",
+    body: {} as { email: string; isContactPerson: boolean },
+  }),
 } as const;

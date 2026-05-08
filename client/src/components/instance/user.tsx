@@ -50,6 +50,12 @@ export function User(p: Props) {
     () => { setUnlimitedAi((v) => !v); },
   );
 
+  const [isContactPerson, setIsContactPerson] = createSignal(p.user.isContactPerson);
+  const toggleContactPerson = timActionButton(
+    () => serverActions.setUserContactPerson({ email: p.user.email, isContactPerson: !isContactPerson() }),
+    () => { setIsContactPerson((v) => !v); },
+  );
+
   // get user permissions
   (async () => {
     const res = await serverActions.getUserPermissions({ email: p.user.email });
@@ -238,6 +244,11 @@ export function User(p: Props) {
                 label={t3({ en: "Unlimited AI token usage", fr: "Utilisation IA illimitée" })}
                 checked={unlimitedAi()}
                 onChange={toggleUnlimitedAi.click}
+              />
+              <Checkbox
+                label={t3({ en: "Contact person", fr: "Personne de contact" })}
+                checked={isContactPerson()}
+                onChange={toggleContactPerson.click}
               />
             </SettingsSection>
           </Show>

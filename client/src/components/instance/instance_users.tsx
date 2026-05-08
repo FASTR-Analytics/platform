@@ -160,6 +160,7 @@ type UserData = {
   isGlobalAdmin: boolean;
   firstName?: string;
   lastName?: string;
+  isContactPerson: boolean;
 } & Record<UserPermission, boolean>;
 
 function hasGlobalPermissions(user: UserData): boolean {
@@ -290,6 +291,18 @@ function UserTable(p: {
               en: "Instance administrator",
               fr: "Administrateur d'instance",
             })}
+          </span>
+        </Show>
+      ),
+    },
+    {
+      key: "isContactPerson",
+      header: t3({ en: "Contact", fr: "Contact" }),
+      sortable: true,
+      render: (user) => (
+        <Show when={user.isContactPerson}>
+          <span class="text-primary text-sm">
+            {t3({ en: "Contact person", fr: "Personne de contact" })}
           </span>
         </Show>
       ),

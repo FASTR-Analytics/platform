@@ -32,6 +32,7 @@ export type DBUser = {
   daily_token_usage: number;
   daily_token_usage_date: Date;
   unlimited_ai: boolean;
+  is_contact_person: boolean;
 };
 
 export type UserLog = {
