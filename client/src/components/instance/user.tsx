@@ -245,6 +245,8 @@ export function User(p: Props) {
                 checked={unlimitedAi()}
                 onChange={toggleUnlimitedAi.click}
               />
+            </SettingsSection>
+            <SettingsSection header={t3({ en: "Contact person", fr: "Personne de contact" })}>
               <Checkbox
                 label={t3({ en: "Contact person", fr: "Personne de contact" })}
                 checked={isContactPerson()}

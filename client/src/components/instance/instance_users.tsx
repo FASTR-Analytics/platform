@@ -275,37 +275,27 @@ function UserTable(p: {
       key: "isGlobalAdmin",
       header: t3({ en: "Status", fr: "Statut" }),
       sortable: true,
-      render: (user) => (
-        <Show
-          when={user.isGlobalAdmin}
-          fallback={
-            <span
-              class={`text-sm ${!hasGlobalPermissions(user) ? "text-neutral" : ""}`}
-            >
-              {getGlobalPermissionSummary(user)}
+      render: (user) => {
+        if (user.isContactPerson) {
+          return (
+            <span class="text-primary text-sm">
+              {t3({ en: "Contact person", fr: "Personne de contact" })}
             </span>
-          }
-        >
-          <span class="text-primary text-sm">
-            {t3({
-              en: "Instance administrator",
-              fr: "Administrateur d'instance",
-            })}
+          );
+        }
+        if (user.isGlobalAdmin) {
+          return (
+            <span class="text-primary text-sm">
+              {t3({ en: "Instance administrator", fr: "Administrateur d'instance" })}
+            </span>
+          );
+        }
+        return (
+          <span class={`text-sm ${!hasGlobalPermissions(user) ? "text-neutral" : ""}`}>
+            {getGlobalPermissionSummary(user)}
           </span>
-        </Show>
-      ),
-    },
-    {
-      key: "isContactPerson",
-      header: t3({ en: "Contact", fr: "Contact" }),
-      sortable: true,
-      render: (user) => (
-        <Show when={user.isContactPerson}>
-          <span class="text-primary text-sm">
-            {t3({ en: "Contact person", fr: "Personne de contact" })}
-          </span>
-        </Show>
-      ),
+        );
+      },
     },
     {
       key: "actions",
