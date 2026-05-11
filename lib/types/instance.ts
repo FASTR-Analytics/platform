@@ -250,6 +250,16 @@ export type UserLog = {
   project_id?: string;
 };
 
+export type UserLogAggregate = {
+  id: number;
+  user_email: string;
+  endpoint: string;
+  endpoint_result: string;
+  project_id: string | null;
+  week_start: Date;
+  count: number;
+};
+
 // ============================================================================
 // Dev/Offline Mode Helpers
 // ============================================================================

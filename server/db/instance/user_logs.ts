@@ -39,11 +39,29 @@ export async function DeleteOldLogs(
     mainDb: Sql,
 ): Promise<APIResponseNoData> {
     return await tryCatchDatabaseAsync(async () => {
-        await mainDb`
+        await mainDb.begin(async (sql) => {
+            await sql`
+INSERT INTO user_logs_aggregate (user_email, endpoint, endpoint_result, project_id, week_start, count)
+SELECT
+    user_email,
+    endpoint,
+    endpoint_result,
+    project_id,
+    DATE_TRUNC('week', timestamp)::date AS week_start,
+    COUNT(*) AS count
+FROM user_logs
+WHERE timestamp < NOW() - INTERVAL '7 days'
+  AND endpoint != 'getCurrentUser'
+GROUP BY user_email, endpoint, endpoint_result, project_id, DATE_TRUNC('week', timestamp)::date
+ON CONFLICT (user_email, endpoint, endpoint_result, COALESCE(project_id, ''), week_start)
+DO UPDATE SET count = user_logs_aggregate.count + EXCLUDED.count
+            `;
+            await sql`
 DELETE FROM user_logs
 WHERE timestamp < NOW() - INTERVAL '7 days'
   AND endpoint != 'getCurrentUser'
-        `;
+            `;
+        });
         return { success: true };
     });
 }

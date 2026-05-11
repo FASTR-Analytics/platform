@@ -57,6 +57,16 @@ export type AiUsageLog = {
   cache_creation_input_tokens: number;
 };
 
+export type UserLogAggregate = {
+  id: number;
+  user_email: string;
+  endpoint: string;
+  endpoint_result: string;
+  project_id: string | null;
+  week_start: Date;
+  count: number;
+};
+
 export type DBInstanceConfig = {
   config_key: string;
   config_json_value: string;
