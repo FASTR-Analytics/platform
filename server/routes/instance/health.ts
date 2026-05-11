@@ -124,6 +124,22 @@ ORDER BY day
   return c.json({ activeDays: rows.map((r) => r.day) });
 });
 
+routesHealth.get("/user_logs_aggregate", async (c: Context) => {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const logs = await mainDb<
+    {
+      id: number;
+      user_email: string;
+      endpoint: string;
+      endpoint_result: string;
+      project_id: string | null;
+      week_start: string;
+      count: number;
+    }[]
+  >`SELECT id, user_email, endpoint, endpoint_result, project_id, week_start::text, count FROM user_logs_aggregate ORDER BY week_start DESC`;
+  return c.json({ logs });
+});
+
 routesHealth.get("/ai_usage", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const since = c.req.query("since");
