@@ -62,12 +62,13 @@ import { DuplicateVisualization } from "./duplicate_visualization";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
 import { SaveAsNewVisualizationModal } from "./save_as_new_visualization_modal";
 import { VisualizationSettings } from "./visualization_settings";
+import { ShareVisualizationModal } from "./share_visualization_modal";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext } from "../project_ai/types";
 
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
-  projectState: ProjectState;
+  projectStateSnapshot: ProjectState;
   isGlobalAdmin: boolean;
   poDetail: PresentationObjectDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
@@ -93,9 +94,9 @@ export function VisualizationEditorInner(p: InnerProps) {
   );
 
   // Extract static values from stores to prevent external reactivity
-  const projectId = p.projectState.id;
-  // const visualizationFolders = structuredClone(p.projectState.visualizationFolders);
-  // const isLocked = p.projectState.isLocked;
+  const projectId = p.projectStateSnapshot.id;
+  // const visualizationFolders = structuredClone(p.projectStateSnapshot.visualizationFolders);
+  // const isLocked = p.projectStateSnapshot.isLocked;
 
   const {
     openEditor: openEditorForResultsObject,
@@ -208,11 +209,21 @@ export function VisualizationEditorInner(p: InnerProps) {
     // read explicitly here. If you add a new nested filter field, add a read here
     // too — otherwise changes to it won't re-fetch the preview.
     const _periodFilterFilterType = tempConfig.d.periodFilter?.filterType;
-    const _periodFilterNMonths = tempConfig.d.periodFilter?.filterType === "last_n_months" ? tempConfig.d.periodFilter.nMonths : undefined;
-    const _periodFilterNYears = tempConfig.d.periodFilter?.filterType === "last_n_calendar_years" ? tempConfig.d.periodFilter.nYears : undefined;
-    const _periodFilterNQuarters = tempConfig.d.periodFilter?.filterType === "last_n_calendar_quarters" ? tempConfig.d.periodFilter.nQuarters : undefined;
+    const _periodFilterNMonths =
+      tempConfig.d.periodFilter?.filterType === "last_n_months"
+        ? tempConfig.d.periodFilter.nMonths
+        : undefined;
+    const _periodFilterNYears =
+      tempConfig.d.periodFilter?.filterType === "last_n_calendar_years"
+        ? tempConfig.d.periodFilter.nYears
+        : undefined;
+    const _periodFilterNQuarters =
+      tempConfig.d.periodFilter?.filterType === "last_n_calendar_quarters"
+        ? tempConfig.d.periodFilter.nQuarters
+        : undefined;
     const _periodFilterBounded =
-      tempConfig.d.periodFilter && periodFilterHasBounds(tempConfig.d.periodFilter)
+      tempConfig.d.periodFilter &&
+      periodFilterHasBounds(tempConfig.d.periodFilter)
         ? tempConfig.d.periodFilter
         : undefined;
     const _periodFilterOpt = _periodFilterBounded?.periodOption;
@@ -258,7 +269,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         existingLabel: p.poDetail.label,
         resultsValue: p.poDetail.resultsValue,
         config: unwrappedTempConfig,
-        folders: p.projectState.visualizationFolders,
+        folders: p.projectStateSnapshot.visualizationFolders,
       },
     });
     if (modalRes) {
@@ -393,14 +404,15 @@ export function VisualizationEditorInner(p: InnerProps) {
         projectId: projectId,
         presentationObjectId: p.poDetail.id,
         resultsObjectId: p.poDetail.resultsValue.resultsObjectId,
+        metricId: p.poDetail.resultsValue.id,
         moduleId:
-          p.projectState.metrics.find(
+          p.projectStateSnapshot.metrics.find(
             (m) => m.id === p.poDetail.resultsValue.id,
           )?.moduleId ?? "",
         isDefault: p.poDetail.isDefault,
         existingLabel: p.poDetail.label,
         currentFolderId: p.poDetail.folderId,
-        folders: p.projectState.visualizationFolders,
+        folders: p.projectStateSnapshot.visualizationFolders,
         silentFetchPoDetail: async () => {},
         mutateFunc: async (newLabel) =>
           serverActions.updatePresentationObjectLabel({
@@ -433,7 +445,7 @@ export function VisualizationEditorInner(p: InnerProps) {
             folderId: p.poDetail.folderId,
           },
         ],
-        folders: p.projectState.visualizationFolders,
+        folders: p.projectStateSnapshot.visualizationFolders,
       },
     });
     if (res === undefined) {
@@ -450,6 +462,34 @@ export function VisualizationEditorInner(p: InnerProps) {
       intent: "success",
     });
   }
+
+  const openShareModal = async () => {
+    const ih = itemsHolder();
+    if (ih.status !== "ready") return;
+    if (ih.data.ih.status !== "ok") return;
+
+    const figureInputsResult = getFigureInputsFromPresentationObject(
+      p.poDetail.resultsValue,
+      ih.data.ih,
+      ih.data.config,
+      ih.data.geoJson,
+    );
+    if (figureInputsResult.status !== "ready") return;
+
+    await openComponent({
+      element: ShareVisualizationModal,
+      props: {
+        presentationObjectId: p.mode === "edit" ? p.poDetail.id : "",
+        label: p.poDetail.label,
+        config: ih.data.config,
+        metricId: p.poDetail.resultsValue.id,
+        formatAs: p.poDetail.resultsValue.formatAs,
+        figureInputs: figureInputsResult.data,
+        geoData: ih.data.geoJson,
+        indicatorMetadata: ih.data.ih.indicatorMetadata,
+      },
+    });
+  };
 
   async function download() {
     if (needsSave()) {
@@ -581,7 +621,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       props: {
         projectId: projectId,
         moduleId:
-          p.projectState.metrics.find(
+          p.projectStateSnapshot.metrics.find(
             (m) => m.id === p.poDetail.resultsValue.id,
           )?.moduleId ?? "",
         resultsObjectId,
@@ -629,7 +669,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                 <Match
                   when={
                     (needsSave() || p.mode === "create") &&
-                    !p.projectState.isLocked &&
+                    !p.projectStateSnapshot.isLocked &&
                     !p.poDetail.isDefault
                   }
                 >
@@ -705,13 +745,20 @@ export function VisualizationEditorInner(p: InnerProps) {
               </Show>
             </div>
             <div class="ui-gap-sm flex items-center">
-              <Show when={!p.projectState.isLocked && p.mode === "edit"}>
+              <Show
+                when={!p.projectStateSnapshot.isLocked && p.mode === "edit"}
+              >
                 <Button
                   onClick={attemptUpdateLabel}
                   iconName="settings"
                   outline
                 ></Button>
                 <Button onClick={duplicate} iconName="copy" outline></Button>
+                <Button
+                  onClick={openShareModal}
+                  iconName="arrowRight"
+                  outline
+                ></Button>
                 <Show when={!p.poDetail.isDefault}>
                   <Button
                     onClick={attemptDeletePresentationObjectDetail}
@@ -750,7 +797,7 @@ export function VisualizationEditorInner(p: InnerProps) {
           hoverOffset="offset-for-border-1-on-left"
           panelChildren={
             <PresentationObjectEditorPanel
-              projectState={p.projectState}
+              projectStateSnapshot={p.projectStateSnapshot}
               poDetail={p.poDetail}
               resultsValueInfo={p.resultsValueInfo}
               tempConfig={tempConfig}
@@ -777,9 +824,12 @@ export function VisualizationEditorInner(p: InnerProps) {
             </Show>
             <Show
               when={(() => {
-                const { config, effectiveValueProps } = getEffectivePOConfig(tempConfig, {
-                  valueProps: p.poDetail.resultsValue.valueProps,
-                });
+                const { config, effectiveValueProps } = getEffectivePOConfig(
+                  tempConfig,
+                  {
+                    valueProps: p.poDetail.resultsValue.valueProps,
+                  },
+                );
                 return !hasDuplicateDisaggregatorDisplayOptions(
                   p.poDetail.resultsValue,
                   config,
@@ -871,9 +921,12 @@ export function VisualizationEditorInner(p: InnerProps) {
                                 keyedItemsHolder.ih.items.length > 0
                               ) {
                                 if (!tempConfig.d.timeseriesGrouping) {
-                                  throw new Error("Timeseries config missing timeseriesGrouping");
+                                  throw new Error(
+                                    "Timeseries config missing timeseriesGrouping",
+                                  );
                                 }
-                                const periodProp = tempConfig.d.timeseriesGrouping;
+                                const periodProp =
+                                  tempConfig.d.timeseriesGrouping;
                                 if (
                                   !(periodProp in keyedItemsHolder.ih.items[0])
                                 ) {

@@ -32,6 +32,17 @@ export type BatchIndicator = {
 // Calculated indicators
 // ============================================================================
 
+export const POPULATION_TYPES = [
+  { id: "total_population", label: "Total population" },
+  { id: "u5", label: "Under 5 population" },
+  { id: "u1", label: "Under 1 population" },
+  { id: "wra", label: "Women of reproductive age (15-49)" },
+  { id: "births", label: "Expected births" },
+  { id: "pregnancies", label: "Expected pregnancies" },
+] as const;
+
+export type PopulationType = (typeof POPULATION_TYPES)[number]["id"];
+
 export type CalculatedIndicator = {
   calculated_indicator_id: string;
   label: string;
@@ -40,8 +51,9 @@ export type CalculatedIndicator = {
 
   num_indicator_id: string;
   denom:
+    | { kind: "none" }
     | { kind: "indicator"; indicator_id: string }
-    | { kind: "population"; population_fraction: number };
+    | { kind: "population"; population_type: PopulationType; multiplier: number };
 
   format_as: "percent" | "number" | "rate_per_10k";
   decimal_places: number;
@@ -55,6 +67,12 @@ export type CalculatedIndicator = {
 // Type Definitions
 // ============================================================================
 
+export interface DHIS2CategoryOptionCombo {
+  id: string;
+  name: string;
+  displayName?: string;
+}
+
 export interface DHIS2DataElement {
   id: string;
   name: string;
@@ -67,6 +85,8 @@ export interface DHIS2DataElement {
   categoryCombo?: {
     id: string;
     name: string;
+    isDefault?: boolean;
+    categoryOptionCombos?: DHIS2CategoryOptionCombo[];
   };
   dataElementGroups?: Array<{
     id: string;
@@ -142,4 +162,30 @@ export interface DHIS2PagedResponse<T> {
     total: number;
     pageSize: number;
   };
+}
+
+// ============================================================================
+// Indicator Metadata (for presentation objects)
+// ============================================================================
+
+export type IndicatorMetadata = {
+  id: string;
+  label: string;
+  format_as?: "percent" | "number" | "rate_per_10k";
+  decimal_places?: number;
+  threshold_direction?: "higher_is_better" | "lower_is_better";
+  threshold_green?: number;
+  threshold_yellow?: number;
+  group_label?: string;
+  sort_order?: number;
+};
+
+export function indicatorMetadataToLabelMap(
+  metadata: IndicatorMetadata[],
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const m of metadata) {
+    map[m.id] = m.label;
+  }
+  return map;
 }

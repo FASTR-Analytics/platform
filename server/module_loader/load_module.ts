@@ -2,8 +2,6 @@ import {
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
   MODULE_REGISTRY,
-  MODULE_SOURCE,
-  MODULES_LOCAL_DIR,
   moduleDefinitionGithubSchema,
   resolveTS,
   type APIResponseWithData,
@@ -20,7 +18,9 @@ import {
 import { stripFrontmatter } from "../github/fetch_module.ts";
 import { getTranslateFunc } from "./translation_utils.ts";
 
-import { _GITHUB_TOKEN } from "../exposed_env_vars.ts";
+import { _GITHUB_TOKEN, _IS_PRODUCTION, _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
+
+const MODULE_SOURCE: "local" | "github" = _IS_PRODUCTION ? "github" : "local";
 
 export function deriveDefaultPresentationObjects(
   metrics: Metric[],
@@ -65,12 +65,13 @@ export async function fetchModuleFiles(
   }
 
   if (MODULE_SOURCE === "local") {
-    const basePath = `${MODULES_LOCAL_DIR}/${registryEntry.github.path}`;
+    const basePath = `${_MODULES_LOCAL_DIR}/${registryEntry.github.path}`;
     const definitionText = await Deno.readTextFile(`${basePath}/definition.json`);
     const rawScript = await Deno.readTextFile(`${basePath}/script.R`);
     const rawDefinition = JSON.parse(definitionText);
     const definition = validateDefinition(rawDefinition, moduleId);
-    return { definition, script: stripFrontmatter(rawScript), gitRef: "local" };
+    const localRef = `loc-${crypto.randomUUID().slice(0, 8)}`;
+    return { definition, script: stripFrontmatter(rawScript), gitRef: localRef };
   }
 
   const { owner, repo, path } = registryEntry.github;

@@ -14,7 +14,7 @@ import { Filters } from "./presentation_object_editor_panel_data/_2_filters";
 import { DisaggregationSection } from "./presentation_object_editor_panel_data/_3_disaggregation";
 
 type Props = {
-  projectState: ProjectState;
+  projectStateSnapshot: ProjectState;
   poDetail: PresentationObjectDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;

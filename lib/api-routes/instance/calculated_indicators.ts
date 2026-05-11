@@ -28,4 +28,10 @@ export const calculatedIndicatorRouteRegistry = {
     method: "POST",
     body: {} as { calculatedIndicatorIds: string[] },
   }),
+
+  reorderCalculatedIndicators: route({
+    path: "/calculated-indicators/reorder",
+    method: "POST",
+    body: {} as { order: string[] },
+  }),
 } as const;

@@ -3,14 +3,13 @@ import {
   type Dhis2Credentials,
   type DHIS2Indicator,
   type DHIS2DataElement,
+  type DHIS2CategoryOptionCombo,
 } from "lib";
 import {
   FrameTop,
   HeaderBarCanGoBack,
   TextArea,
   Button,
-  Table,
-  TableColumn,
   StateHolderFormError,
   timActionForm,
   type EditorComponentProps,
@@ -26,24 +25,31 @@ type Props = EditorComponentProps<
   undefined
 >;
 
-type SearchResult = {
+type SelectedItem = {
   id: string;
   name: string;
-  type: "indicator" | "dataElement";
-  code?: string;
-  shortName?: string;
+  type: "indicator" | "dataElement" | "dataElementOperand";
+};
+
+type SearchResults = {
+  indicators: DHIS2Indicator[];
+  dataElements: DHIS2DataElement[];
 };
 
 export function Dhis2IndicatorSelectForm(p: Props) {
-  // Form state
   const [tempSearchQuery, setTempSearchQuery] = createSignal<string>("");
-  const [searchResults, setSearchResults] = createSignal<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = createSignal<SearchResults>({
+    indicators: [],
+    dataElements: [],
+  });
   const [hasSearched, setHasSearched] = createSignal<boolean>(false);
   const [tempSelectedElements, setTempSelectedElements] = createSignal<
-    SearchResult[]
+    SelectedItem[]
   >([]);
+  const [expandedDataElements, setExpandedDataElements] = createSignal<
+    Set<string>
+  >(new Set());
 
-  // Search action
   const search = timActionForm(async () => {
     const query = tempSearchQuery().trim();
     if (!query) {
@@ -72,30 +78,14 @@ export function Dhis2IndicatorSelectForm(p: Props) {
       };
     }
 
-    // Convert results to unified format - response.data now directly contains { dataElements, indicators }
-    const results: SearchResult[] = [
-      ...response.data.indicators.map((indicator: DHIS2Indicator) => ({
-        id: indicator.id,
-        name: indicator.name,
-        type: "indicator" as const,
-        code: indicator.code,
-        shortName: indicator.shortName,
-      })),
-      ...response.data.dataElements.map((dataElement: DHIS2DataElement) => ({
-        id: dataElement.id,
-        name: dataElement.name,
-        type: "dataElement" as const,
-        code: dataElement.code,
-        shortName: dataElement.shortName,
-      })),
-    ];
-
-    setSearchResults(results);
+    setSearchResults({
+      indicators: response.data.indicators,
+      dataElements: response.data.dataElements,
+    });
     setHasSearched(true);
     return response;
   });
 
-  // Save selected items action
   const save = timActionButton(
     async () => {
       const selectedItems = tempSelectedElements();
@@ -121,8 +111,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     () => p.close(undefined),
   );
 
-  // Selection helper functions
-  function addToSelection(item: SearchResult) {
+  function addToSelection(item: SelectedItem) {
     const isAlreadySelected = tempSelectedElements().some(
       (selected) => selected.id === item.id,
     );
@@ -141,72 +130,38 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     return tempSelectedElements().some((item) => item.id === itemId);
   }
 
-  // Table columns
-  const columns: TableColumn<SearchResult>[] = [
-    {
-      key: "type",
-      header: t3({ en: "Type", fr: "Type" }),
-      sortable: true,
-      render: (item) => (
-        <span
-          class={`font-400 inline-block rounded px-2 py-1 text-xs ${
-            item.type === "indicator"
-              ? "bg-primary/10 text-primary"
-              : "bg-success/10 text-success"
-          }`}
-        >
-          {item.type === "indicator"
-            ? t3({ en: "Indicator", fr: "Indicateur" })
-            : t3({ en: "Data Element", fr: "Élément de données" })}
-        </span>
-      ),
-    },
-    {
-      key: "id",
-      header: t3({ en: "ID", fr: "ID" }),
-      sortable: true,
-      render: (item) => <span class="font-mono text-sm">{item.id}</span>,
-    },
-    {
-      key: "name",
-      header: t3({ en: "Name", fr: "Nom" }),
-      sortable: true,
-    },
-    // {
-    //   key: "code",
-    //   header: t("Code"),
-    //   sortable: true,
-    //   render: (item) => (
-    //     <span class="font-mono text-sm">{item.code || "-"}</span>
-    //   ),
-    // },
-    // {
-    //   key: "shortName",
-    //   header: t("Short Name"),
-    //   sortable: true,
-    //   render: (item) => <span class="text-sm">{item.shortName || "-"}</span>,
-    // },
-    {
-      key: "actions",
-      header: "",
-      alignH: "right",
-      render: (item) => (
-        <Button
-          onClick={(e: MouseEvent) => {
-            e.stopPropagation();
-            addToSelection(item);
-          }}
-          iconName="plus"
-          intent="base-100"
-          disabled={isItemSelected(item.id)}
-        >
-          {isItemSelected(item.id)
-            ? t3({ en: "Added", fr: "Ajouté" })
-            : t3({ en: "Add", fr: "Ajouter" })}
-        </Button>
-      ),
-    },
-  ];
+  function toggleExpanded(dataElementId: string) {
+    setExpandedDataElements((prev) => {
+      const next = new Set(prev);
+      if (next.has(dataElementId)) {
+        next.delete(dataElementId);
+      } else {
+        next.add(dataElementId);
+      }
+      return next;
+    });
+  }
+
+  function isExpanded(dataElementId: string): boolean {
+    return expandedDataElements().has(dataElementId);
+  }
+
+  function hasDisaggregation(de: DHIS2DataElement): boolean {
+    return (
+      de.categoryCombo?.isDefault !== true &&
+      (de.categoryCombo?.categoryOptionCombos?.length ?? 0) > 0
+    );
+  }
+
+  function getCOCs(de: DHIS2DataElement): DHIS2CategoryOptionCombo[] {
+    return de.categoryCombo?.categoryOptionCombos ?? [];
+  }
+
+  function totalResultCount(): number {
+    return (
+      searchResults().indicators.length + searchResults().dataElements.length
+    );
+  }
 
   return (
     <FrameTop
@@ -294,14 +249,13 @@ export function Dhis2IndicatorSelectForm(p: Props) {
               <div class="border-success bg-success/10 ui-pad-sm w-full flex-none rounded border">
                 <div class="text-success font-700">
                   {t3({ en: "Search completed:", fr: "Recherche terminée :" })}{" "}
-                  {searchResults().length}{" "}
+                  {totalResultCount()}{" "}
                   {t3({ en: "results found", fr: "résultats trouvés" })}
                 </div>
               </div>
             </Show>
-            {/* <div class="border-base-300 bg-base-100 ui-pad flex h-0 flex-1 flex-col rounded border"> */}
             <Show
-              when={searchResults().length > 0}
+              when={totalResultCount() > 0}
               fallback={
                 <div class="border-base-300 bg-base-200 ui-pad rounded border text-center">
                   <div class="text-base-content">
@@ -313,19 +267,148 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                 </div>
               }
             >
-              <div class="h-0 w-full flex-1">
-                <Table
-                  data={searchResults()}
-                  columns={columns}
-                  keyField="id"
-                  noRowsMessage={t3({ en: "No results", fr: "Aucun résultat" })}
-                  fitTableToAvailableHeight
-                />
+              <div class="h-0 w-full flex-1 overflow-auto">
+                <div class="ui-spy-sm">
+                  {/* Indicators */}
+                  <For each={searchResults().indicators}>
+                    {(indicator) => (
+                      <div class="border-base-300 ui-pad-sm flex items-center gap-2 rounded border">
+                        <span class="bg-primary/10 text-primary font-400 inline-block flex-none rounded px-2 py-1 text-xs">
+                          {t3({ en: "Indicator", fr: "Indicateur" })}
+                        </span>
+                        <span class="font-700 flex-1 truncate">
+                          {indicator.name}
+                        </span>
+                        <span class="text-base-content flex-none font-mono text-xs">
+                          {indicator.id}
+                        </span>
+                        <Button
+                          onClick={() =>
+                            addToSelection({
+                              id: indicator.id,
+                              name: indicator.name,
+                              type: "indicator",
+                            })
+                          }
+                          iconName="plus"
+                          intent="base-100"
+                          disabled={isItemSelected(indicator.id)}
+                        >
+                          {isItemSelected(indicator.id)
+                            ? t3({ en: "Added", fr: "Ajouté" })
+                            : t3({ en: "Add", fr: "Ajouter" })}
+                        </Button>
+                      </div>
+                    )}
+                  </For>
+
+                  {/* Data Elements */}
+                  <For each={searchResults().dataElements}>
+                    {(de) => (
+                      <div class="border-base-300 rounded border">
+                        {/* Data Element row */}
+                        <div class="ui-pad-sm flex items-center gap-2">
+                          <Show when={hasDisaggregation(de)}>
+                            <Button
+                              onClick={() => toggleExpanded(de.id)}
+                              iconName={
+                                isExpanded(de.id)
+                                  ? "chevronDown"
+                                  : "chevronRight"
+                              }
+                              intent="neutral"
+                              outline
+                            />
+                          </Show>
+                          <span class="bg-success/10 text-success font-400 inline-block flex-none rounded px-2 py-1 text-xs">
+                            {t3({
+                              en: "Data Element",
+                              fr: "Élément de données",
+                            })}
+                          </span>
+                          <span class="font-700 flex-1 truncate">
+                            {de.name}
+                          </span>
+                          <Show when={hasDisaggregation(de)}>
+                            <span class="bg-warning/10 text-warning flex-none rounded px-2 py-0.5 text-xs">
+                              {getCOCs(de).length}{" "}
+                              {t3({
+                                en: "COCs",
+                                fr: "COCs",
+                              })}
+                            </span>
+                          </Show>
+                          <span class="text-base-content flex-none font-mono text-xs">
+                            {de.id}
+                          </span>
+                          <Button
+                            onClick={() =>
+                              addToSelection({
+                                id: de.id,
+                                name: de.name,
+                                type: "dataElement",
+                              })
+                            }
+                            iconName="plus"
+                            intent="base-100"
+                            disabled={isItemSelected(de.id)}
+                          >
+                            {isItemSelected(de.id)
+                              ? t3({ en: "Added", fr: "Ajouté" })
+                              : t3({ en: "Add", fr: "Ajouter" })}
+                          </Button>
+                        </div>
+
+                        {/* Expanded COCs */}
+                        <Show when={hasDisaggregation(de) && isExpanded(de.id)}>
+                          <div class="border-base-300 bg-base-50 border-t">
+                            <For each={getCOCs(de)}>
+                              {(coc) => {
+                                const operandId = `${de.id}.${coc.id}`;
+                                const operandLabel = `${de.name} - ${coc.displayName || coc.name}`;
+                                return (
+                                  <div class="border-base-200 ui-pad-sm flex items-center gap-2 border-b pl-10 last:border-b-0">
+                                    <span class="bg-info/10 text-info font-400 inline-block flex-none rounded px-2 py-1 text-xs">
+                                      {t3({ en: "COC", fr: "COC" })}
+                                    </span>
+                                    <span class="font-500 flex-1 truncate">
+                                      {coc.displayName || coc.name}
+                                    </span>
+                                    <span class="text-base-content flex-none font-mono text-xs">
+                                      {operandId}
+                                    </span>
+                                    <Button
+                                      onClick={() =>
+                                        addToSelection({
+                                          id: operandId,
+                                          name: operandLabel,
+                                          type: "dataElementOperand",
+                                        })
+                                      }
+                                      iconName="plus"
+                                      intent="base-100"
+                                      disabled={isItemSelected(operandId)}
+                                    >
+                                      {isItemSelected(operandId)
+                                        ? t3({ en: "Added", fr: "Ajouté" })
+                                        : t3({ en: "Add", fr: "Ajouter" })}
+                                    </Button>
+                                  </div>
+                                );
+                              }}
+                            </For>
+                          </div>
+                        </Show>
+                      </div>
+                    )}
+                  </For>
+                </div>
               </div>
             </Show>
-            {/* </div> */}
           </Show>
         </div>
+
+        {/* Selected Items Panel */}
         <div class="ui-pad border-base-300 h-full w-0 flex-1 overflow-auto border-l">
           <div class="mb-4">
             <div class="font-700 text-lg">
@@ -360,15 +443,19 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                           class={`font-400 inline-block rounded px-2 py-1 text-xs ${
                             item.type === "indicator"
                               ? "bg-primary/10 text-primary"
-                              : "bg-success/10 text-success"
+                              : item.type === "dataElementOperand"
+                                ? "bg-info/10 text-info"
+                                : "bg-success/10 text-success"
                           }`}
                         >
                           {item.type === "indicator"
                             ? t3({ en: "Indicator", fr: "Indicateur" })
-                            : t3({
-                                en: "Data Element",
-                                fr: "Élément de données",
-                              })}
+                            : item.type === "dataElementOperand"
+                              ? t3({ en: "Operand", fr: "Opérande" })
+                              : t3({
+                                  en: "Data Element",
+                                  fr: "Élément de données",
+                                })}
                         </span>
                         <span class="font-mono text-xs">{item.id}</span>
                       </div>

@@ -3,8 +3,7 @@ import { trackDeep } from "@solid-primitives/deep";
 import { createSignal, createEffect, Show } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
-import { _SLIDE_CACHE } from "~/state/project/t2_slides";
-import { serverActions } from "~/server_actions";
+import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
 import { projectState } from "~/state/project/t1_store";
 
 const _defaultConfig = getStartingConfigForSlideDeck("");
@@ -28,29 +27,18 @@ export function SlideDeckThumbnail(p: Props) {
     const config = deck?.config ?? _defaultConfig;
     trackDeep(config);
 
-    const cached = await _SLIDE_CACHE.get({ projectId: p.projectId, slideId: p.slideId });
+    const res = await getSlideFromCacheOrFetch(p.projectId, p.slideId);
 
-    if (!cached.data) {
-      const promise = serverActions.getSlide({ projectId: p.projectId, slide_id: p.slideId });
-      await _SLIDE_CACHE.setPromise(promise, { projectId: p.projectId, slideId: p.slideId }, cached.version);
-      const res = await promise;
-      if (res.success) {
-        const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, undefined, config);
-        if (renderRes.success) {
-          setPageInputs({ status: "ready", data: renderRes.data });
-        } else {
-          setPageInputs({ status: "error", err: renderRes.err });
-        }
-      } else {
-        setPageInputs({ status: "error", err: res.err });
-      }
+    if (!res.success) {
+      setPageInputs({ status: "error", err: res.err });
+      return;
+    }
+
+    const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, undefined, config);
+    if (renderRes.success) {
+      setPageInputs({ status: "ready", data: renderRes.data });
     } else {
-      const renderRes = await convertSlideToPageInputs(p.projectId, cached.data.slide, undefined, config);
-      if (renderRes.success) {
-        setPageInputs({ status: "ready", data: renderRes.data });
-      } else {
-        setPageInputs({ status: "error", err: renderRes.err });
-      }
+      setPageInputs({ status: "error", err: renderRes.err });
     }
   });
 

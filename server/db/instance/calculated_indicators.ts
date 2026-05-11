@@ -3,6 +3,7 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   type CalculatedIndicator,
+  type PopulationType,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 
@@ -12,9 +13,10 @@ export type DBCalculatedIndicator = {
   group_label: string;
   sort_order: number;
   num_indicator_id: string;
-  denom_kind: "indicator" | "population";
+  denom_kind: "none" | "indicator" | "population";
   denom_indicator_id: string | null;
-  denom_population_fraction: number | null;
+  denom_population_type: PopulationType | null;
+  denom_population_multiplier: number | null;
   format_as: "percent" | "number" | "rate_per_10k";
   decimal_places: number;
   threshold_direction: "higher_is_better" | "lower_is_better";
@@ -26,19 +28,25 @@ export type DBCalculatedIndicator = {
 export function dbRowToCalculatedIndicator(
   row: DBCalculatedIndicator,
 ): CalculatedIndicator {
+  let denom: CalculatedIndicator["denom"];
+  if (row.denom_kind === "none") {
+    denom = { kind: "none" };
+  } else if (row.denom_kind === "indicator") {
+    denom = { kind: "indicator", indicator_id: row.denom_indicator_id! };
+  } else {
+    denom = {
+      kind: "population",
+      population_type: row.denom_population_type!,
+      multiplier: row.denom_population_multiplier!,
+    };
+  }
   return {
     calculated_indicator_id: row.calculated_indicator_id,
     label: row.label,
     group_label: row.group_label,
     sort_order: row.sort_order,
     num_indicator_id: row.num_indicator_id,
-    denom:
-      row.denom_kind === "indicator"
-        ? { kind: "indicator", indicator_id: row.denom_indicator_id! }
-        : {
-            kind: "population",
-            population_fraction: row.denom_population_fraction!,
-          },
+    denom,
     format_as: row.format_as,
     decimal_places: row.decimal_places,
     threshold_direction: row.threshold_direction,
@@ -48,25 +56,36 @@ export function dbRowToCalculatedIndicator(
 }
 
 type DenomFields = {
-  denom_kind: "indicator" | "population";
+  denom_kind: "none" | "indicator" | "population";
   denom_indicator_id: string | null;
-  denom_population_fraction: number | null;
+  denom_population_type: PopulationType | null;
+  denom_population_multiplier: number | null;
 };
 
 function denomFieldsFromCalculatedIndicator(
   indicator: CalculatedIndicator,
 ): DenomFields {
+  if (indicator.denom.kind === "none") {
+    return {
+      denom_kind: "none",
+      denom_indicator_id: null,
+      denom_population_type: null,
+      denom_population_multiplier: null,
+    };
+  }
   if (indicator.denom.kind === "indicator") {
     return {
       denom_kind: "indicator",
       denom_indicator_id: indicator.denom.indicator_id,
-      denom_population_fraction: null,
+      denom_population_type: null,
+      denom_population_multiplier: null,
     };
   }
   return {
     denom_kind: "population",
     denom_indicator_id: null,
-    denom_population_fraction: indicator.denom.population_fraction,
+    denom_population_type: indicator.denom.population_type,
+    denom_population_multiplier: indicator.denom.multiplier,
   };
 }
 
@@ -96,7 +115,8 @@ export async function createCalculatedIndicator(
         num_indicator_id,
         denom_kind,
         denom_indicator_id,
-        denom_population_fraction,
+        denom_population_type,
+        denom_population_multiplier,
         format_as,
         decimal_places,
         threshold_direction,
@@ -112,7 +132,8 @@ export async function createCalculatedIndicator(
         ${indicator.num_indicator_id},
         ${d.denom_kind},
         ${d.denom_indicator_id},
-        ${d.denom_population_fraction},
+        ${d.denom_population_type},
+        ${d.denom_population_multiplier},
         ${indicator.format_as},
         ${indicator.decimal_places},
         ${indicator.threshold_direction},
@@ -134,20 +155,21 @@ export async function updateCalculatedIndicator(
     const d = denomFieldsFromCalculatedIndicator(indicator);
     await mainDb`
       UPDATE calculated_indicators
-      SET calculated_indicator_id    = ${indicator.calculated_indicator_id},
-          label                     = ${indicator.label},
-          group_label               = ${indicator.group_label},
-          sort_order                = ${indicator.sort_order},
-          num_indicator_id          = ${indicator.num_indicator_id},
-          denom_kind                = ${d.denom_kind},
-          denom_indicator_id        = ${d.denom_indicator_id},
-          denom_population_fraction = ${d.denom_population_fraction},
-          format_as                 = ${indicator.format_as},
-          decimal_places            = ${indicator.decimal_places},
-          threshold_direction       = ${indicator.threshold_direction},
-          threshold_green           = ${indicator.threshold_green},
-          threshold_yellow          = ${indicator.threshold_yellow},
-          updated_at                = CURRENT_TIMESTAMP
+      SET calculated_indicator_id       = ${indicator.calculated_indicator_id},
+          label                        = ${indicator.label},
+          group_label                  = ${indicator.group_label},
+          sort_order                   = ${indicator.sort_order},
+          num_indicator_id             = ${indicator.num_indicator_id},
+          denom_kind                   = ${d.denom_kind},
+          denom_indicator_id           = ${d.denom_indicator_id},
+          denom_population_type        = ${d.denom_population_type},
+          denom_population_multiplier  = ${d.denom_population_multiplier},
+          format_as                    = ${indicator.format_as},
+          decimal_places               = ${indicator.decimal_places},
+          threshold_direction          = ${indicator.threshold_direction},
+          threshold_green              = ${indicator.threshold_green},
+          threshold_yellow             = ${indicator.threshold_yellow},
+          updated_at                   = CURRENT_TIMESTAMP
       WHERE calculated_indicator_id = ${oldCalculatedIndicatorId}
     `;
     return { success: true };
@@ -166,6 +188,23 @@ export async function deleteCalculatedIndicators(
       DELETE FROM calculated_indicators
       WHERE calculated_indicator_id = ANY(${calculatedIndicatorIds})
     `;
+    return { success: true };
+  });
+}
+
+export async function reorderCalculatedIndicators(
+  mainDb: Sql,
+  order: string[],
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    for (let i = 0; i < order.length; i++) {
+      await mainDb`
+        UPDATE calculated_indicators
+        SET sort_order = ${i + 1},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE calculated_indicator_id = ${order[i]}
+      `;
+    }
     return { success: true };
   });
 }

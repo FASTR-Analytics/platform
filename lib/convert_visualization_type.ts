@@ -69,6 +69,10 @@ export function convertVisualizationType(
       type: newType,
       valuesDisDisplayOpt: typeConfig.defaultValuesDisDisplayOpt,
       disaggregateBy: newDisaggregateBy,
+      // Set default timeseriesGrouping when converting to timeseries
+      timeseriesGrouping: newType === "timeseries"
+        ? (config.d.timeseriesGrouping ?? "period_id")
+        : config.d.timeseriesGrouping,
     },
     s: {
       ...config.s,

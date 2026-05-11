@@ -15,7 +15,6 @@ export function DeleteData(
     {
       isGlobalAdmin: boolean;
       timePoints: HfaTimePoint[];
-      silentFetch: () => Promise<void>;
     },
     undefined
   >,
@@ -34,7 +33,6 @@ export function DeleteData(
         ? `Are you very sure you want to delete all data for time point "${timePoint}"?`
         : "Are you very sure you want to delete all of your data?",
       () => serverActions.deleteDatasetHfaData({ timePoint }),
-      p.silentFetch,
       () => p.close(undefined),
     );
 

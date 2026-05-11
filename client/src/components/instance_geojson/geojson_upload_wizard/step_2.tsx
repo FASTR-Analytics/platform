@@ -2,7 +2,7 @@ import { t3 } from "lib";
 import { Button, Select, StateHolderFormError, timActionForm } from "panther";
 import { For, Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { getAdminAreaLabel } from "~/state/instance/disaggregation_label";
+import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import type { WizardState, LevelMappingState } from "./index";
 
 type Props = {

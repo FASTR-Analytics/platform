@@ -28,7 +28,7 @@ import {
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
-import { _SLIDE_CACHE } from "~/state/project/t2_slides";
+import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
@@ -77,22 +77,10 @@ export function getToolsForSlides(
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
       }),
       handler: async (input) => {
-        const cached = await _SLIDE_CACHE.get({ projectId, slideId: input.slideId });
+        const res = await getSlideFromCacheOrFetch(projectId, input.slideId);
+        if (!res.success) throw new Error(res.err);
 
-        let slide;
-        if (!cached.data) {
-          // Cache miss - fetch and cache
-          const promise = serverActions.getSlide({ projectId, slide_id: input.slideId });
-          await _SLIDE_CACHE.setPromise(promise, { projectId, slideId: input.slideId }, cached.version);
-          const res = await promise;
-          if (!res.success) throw new Error(res.err);
-          slide = res.data.slide;
-        } else {
-          // Cache hit
-          slide = cached.data.slide;
-        }
-
-        const simplified = await simplifySlideForAI(projectId, slide, metrics);
+        const simplified = await simplifySlideForAI(projectId, res.data.slide, metrics);
         return simplified;
       },
       inProgressLabel: (input) => `Getting slide ${input.slideId}...`,

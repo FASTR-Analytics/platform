@@ -100,9 +100,9 @@ type SlideEditorInnerProps = {
   slideId: string;
   slide: Slide;
   lastUpdated: string;
-  projectState: ProjectState;
+  projectStateSnapshot: ProjectState;
   isGlobalAdmin: boolean;
-  deckConfig: SlideDeckConfig;
+  deckConfigSnapshot: SlideDeckConfig;
   returnToContext?: AIContext;
 };
 
@@ -147,7 +147,7 @@ export function SlideEditor(p: Props) {
       p.projectId,
       slide,
       undefined,
-      p.deckConfig,
+      p.deckConfigSnapshot,
     );
     if (res.success) {
       setPageInputs({ status: "ready", data: res.data });
@@ -442,7 +442,7 @@ export function SlideEditor(p: Props) {
     const source = block.source;
 
     try {
-      const resultsValue = p.projectState.metrics.find(
+      const resultsValue = p.projectStateSnapshot.metrics.find(
         (m) => m.id === source.metricId,
       );
 
@@ -463,7 +463,7 @@ export function SlideEditor(p: Props) {
           isGlobalAdmin: p.isGlobalAdmin,
           returnToContext: aiContext(),
           ...snapshotForVizEditor({
-            projectState: p.projectState,
+            projectState: p.projectStateSnapshot,
             resultsValue,
             config: source.config,
           }),
@@ -563,7 +563,7 @@ export function SlideEditor(p: Props) {
 
     const result = await openEditor({
       element: SelectVisualizationForSlide,
-      props: { projectState: p.projectState },
+      props: { projectState: p.projectStateSnapshot },
     });
 
     if (!result) return;
@@ -630,8 +630,8 @@ export function SlideEditor(p: Props) {
       props: {
         projectId: p.projectId,
         isGlobalAdmin: p.isGlobalAdmin,
-        metrics: p.projectState.metrics,
-        modules: p.projectState.projectModules,
+        metrics: p.projectStateSnapshot.metrics,
+        modules: p.projectStateSnapshot.projectModules,
       },
     });
 
@@ -810,10 +810,10 @@ export function SlideEditor(p: Props) {
               onEditVisualization={handleEditVisualization}
               onSelectVisualization={() => handleSelectVisualization()}
               onCreateVisualization={handleCreateVisualization}
-              showCoverLogosByDefault={p.deckConfig.logos.cover.showByDefault}
-              showHeaderLogosByDefault={p.deckConfig.logos.header.showByDefault}
-              showFooterLogosByDefault={p.deckConfig.logos.footer.showByDefault}
-              hasGlobalFooterText={p.deckConfig.globalFooterText !== undefined}
+              showCoverLogosByDefault={p.deckConfigSnapshot.logos.cover.showByDefault}
+              showHeaderLogosByDefault={p.deckConfigSnapshot.logos.header.showByDefault}
+              showFooterLogosByDefault={p.deckConfigSnapshot.logos.footer.showByDefault}
+              hasGlobalFooterText={p.deckConfigSnapshot.globalFooterText !== undefined}
             />
           }
         >

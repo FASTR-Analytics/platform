@@ -11,8 +11,11 @@ import { Show, createMemo, createSignal } from "solid-js";
 import {
   t3,
   TC,
+  isValidCalculatedIndicatorIdentifier,
+  POPULATION_TYPES,
   type CommonIndicatorWithMappings,
   type CalculatedIndicator,
+  type PopulationType,
 } from "lib";
 import { serverActions } from "~/server_actions";
 
@@ -38,24 +41,28 @@ export function EditCalculatedIndicatorForm(
   const [groupLabel, setGroupLabel] = createSignal(
     p.existing?.group_label ?? "",
   );
-  const [sortOrder, setSortOrder] = createSignal(
-    String(p.existing?.sort_order ?? 0),
-  );
 
   const [numIndicatorId, setNumIndicatorId] = createSignal(
     p.existing?.num_indicator_id ?? "",
   );
-  const [denomKind, setDenomKind] = createSignal<"indicator" | "population">(
-    p.existing?.denom.kind ?? "indicator",
+  const [denomKind, setDenomKind] = createSignal<"none" | "indicator" | "population">(
+    p.existing?.denom.kind ?? "none",
   );
   const [denomIndicatorId, setDenomIndicatorId] = createSignal(
     p.existing?.denom.kind === "indicator" ? p.existing.denom.indicator_id : "",
   );
-  const [denomPopulationFraction, setDenomPopulationFraction] = createSignal(
-    p.existing?.denom.kind === "population"
-      ? String(p.existing.denom.population_fraction)
-      : "",
-  );
+  const [denomPopulationType, setDenomPopulationType] =
+    createSignal<PopulationType>(
+      p.existing?.denom.kind === "population"
+        ? p.existing.denom.population_type
+        : "total_population",
+    );
+  const [denomPopulationMultiplier, setDenomPopulationMultiplier] =
+    createSignal(
+      p.existing?.denom.kind === "population"
+        ? String(p.existing.denom.multiplier)
+        : "1",
+    );
 
   const [formatAs, setFormatAs] = createSignal<FormatAs>(
     p.existing?.format_as ?? "percent",
@@ -74,6 +81,18 @@ export function EditCalculatedIndicatorForm(
   const [thresholdYellow, setThresholdYellow] = createSignal(
     String(p.existing?.threshold_yellow ?? 70),
   );
+
+  const idValidationError = createMemo(() => {
+    const id = calculatedIndicatorId().trim();
+    if (!id || mode === "update") return null;
+    if (!isValidCalculatedIndicatorIdentifier(id)) {
+      return t3({
+        en: "Must start with lowercase letter, only a-z, 0-9, _ allowed",
+        fr: "Doit commencer par une lettre minuscule, seuls a-z, 0-9, _ sont autorisés",
+      });
+    }
+    return null;
+  });
 
   const commonIndicatorOptions = () => [
     {
@@ -125,6 +144,15 @@ export function EditCalculatedIndicatorForm(
           }),
         };
       }
+      if (mode === "create" && !isValidCalculatedIndicatorIdentifier(id)) {
+        return {
+          success: false,
+          err: t3({
+            en: "ID must start with a lowercase letter and contain only lowercase letters, numbers, and underscores (max 64 chars)",
+            fr: "L'ID doit commencer par une lettre minuscule et ne contenir que des lettres minuscules, des chiffres et des tirets bas (max 64 caractères)",
+          }),
+        };
+      }
       if (!lbl) {
         return {
           success: false,
@@ -171,7 +199,9 @@ export function EditCalculatedIndicatorForm(
       }
 
       let denom: CalculatedIndicator["denom"];
-      if (denomKind() === "indicator") {
+      if (denomKind() === "none") {
+        denom = { kind: "none" };
+      } else if (denomKind() === "indicator") {
         const denomId = denomIndicatorId().trim();
         if (!denomId) {
           return {
@@ -196,17 +226,21 @@ export function EditCalculatedIndicatorForm(
         }
         denom = { kind: "indicator", indicator_id: denomId };
       } else {
-        const fraction = Number(denomPopulationFraction());
-        if (!Number.isFinite(fraction) || fraction <= 0 || fraction > 1) {
+        const multiplier = Number(denomPopulationMultiplier());
+        if (!Number.isFinite(multiplier) || multiplier <= 0) {
           return {
             success: false,
             err: t3({
-              en: "Population fraction must be a positive number ≤ 1",
-              fr: "La fraction de population doit être un nombre positif ≤ 1",
+              en: "Population multiplier must be a positive number",
+              fr: "Le multiplicateur de population doit être un nombre positif",
             }),
           };
         }
-        denom = { kind: "population", population_fraction: fraction };
+        denom = {
+          kind: "population",
+          population_type: denomPopulationType(),
+          multiplier,
+        };
       }
 
       const dp = Number(decimalPlaces());
@@ -236,7 +270,7 @@ export function EditCalculatedIndicatorForm(
         calculated_indicator_id: id,
         label: lbl,
         group_label: groupLabel().trim(),
-        sort_order: Number(sortOrder()) || 0,
+        sort_order: p.existing?.sort_order ?? 0,
         num_indicator_id: numIndicatorId(),
         denom,
         format_as: formatAs(),
@@ -289,24 +323,21 @@ export function EditCalculatedIndicatorForm(
             mono
             disabled={mode === "update"}
           />
+          <Show when={idValidationError()}>
+            <div class="text-error -mt-1 text-xs">{idValidationError()}</div>
+          </Show>
           <Input
             label={t3(TC.label)}
             value={label()}
             onChange={setLabel}
             fullWidth
           />
-          <Input
+          {/* <Input
             label={t3({ en: "Group label", fr: "Libellé du groupe" })}
             value={groupLabel()}
             onChange={setGroupLabel}
             fullWidth
-          />
-          <Input
-            label={t3({ en: "Sort order", fr: "Ordre de tri" })}
-            value={sortOrder()}
-            onChange={setSortOrder}
-            type="number"
-          />
+          /> */}
         </div>
 
         <div class="ui-spy-sm">
@@ -326,11 +357,18 @@ export function EditCalculatedIndicatorForm(
           <div class="font-700 text-sm">
             {t3({ en: "Denominator", fr: "Dénominateur" })}
           </div>
-          <RadioGroup<"indicator" | "population">
+          <RadioGroup<"none" | "indicator" | "population">
             label={t3({ en: "Denominator kind", fr: "Type de dénominateur" })}
             value={denomKind()}
-            onChange={(v) => setDenomKind(v as "indicator" | "population")}
+            onChange={(v) => setDenomKind(v as "none" | "indicator" | "population")}
             options={[
+              {
+                value: "none",
+                label: t3({
+                  en: "None (raw count)",
+                  fr: "Aucun (compte brut)",
+                }),
+              },
               {
                 value: "indicator",
                 label: t3({
@@ -346,7 +384,6 @@ export function EditCalculatedIndicatorForm(
                 }),
               },
             ]}
-            horizontal
           />
           <Show when={denomKind() === "indicator"}>
             <Select
@@ -361,13 +398,26 @@ export function EditCalculatedIndicatorForm(
             />
           </Show>
           <Show when={denomKind() === "population"}>
+            <Select
+              label={t3({
+                en: "Population type",
+                fr: "Type de population",
+              })}
+              value={denomPopulationType()}
+              onChange={(v) => setDenomPopulationType(v as PopulationType)}
+              options={POPULATION_TYPES.map((pt) => ({
+                value: pt.id,
+                label: pt.label,
+              }))}
+              fullWidth
+            />
             <Input
               label={t3({
-                en: "Population fraction (annual, 0–1). Module applies period scaling.",
-                fr: "Fraction annuelle de la population (0–1). Le module applique la mise à l'échelle de la période.",
+                en: "Multiplier (usually 1). Module applies period scaling.",
+                fr: "Multiplicateur (généralement 1). Le module applique la mise à l'échelle de la période.",
               })}
-              value={denomPopulationFraction()}
-              onChange={setDenomPopulationFraction}
+              value={denomPopulationMultiplier()}
+              onChange={setDenomPopulationMultiplier}
               type="number"
             />
           </Show>

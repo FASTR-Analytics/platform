@@ -9,7 +9,6 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { clearGeoJsonMemoryCache } from "~/state/instance/t2_geojson";
 import { instanceState } from "~/state/instance/t1_store";
 import { GeoJsonUploadWizard } from "./geojson_upload_wizard/index";
 import { GeoJsonEditModal } from "./geojson_edit_modal";
@@ -25,11 +24,7 @@ export function GeoJsonManager(p: Props) {
   async function handleUpload() {
     await openEditor({
       element: GeoJsonUploadWizard,
-      props: {
-        silentRefresh: () => {
-          clearGeoJsonMemoryCache();
-        },
-      },
+      props: {},
     });
   }
 
@@ -38,9 +33,6 @@ export function GeoJsonManager(p: Props) {
       element: GeoJsonEditModal,
       props: {
         adminAreaLevel: level,
-        silentRefresh: () => {
-          clearGeoJsonMemoryCache();
-        },
       },
     });
   }
@@ -77,7 +69,6 @@ export function GeoJsonManager(p: Props) {
             serverActions.deleteGeoJsonMap({
               adminAreaLevel: item.adminAreaLevel,
             }),
-          () => clearGeoJsonMemoryCache(),
         );
         return (
           <Show when={p.isGlobalAdmin}>

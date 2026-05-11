@@ -11,6 +11,8 @@ import type { Language } from "@timroberton/panther";
 
 export const _IS_PRODUCTION = !!Deno.env.get("IS_PRODUCTION");
 
+export const _MODULES_LOCAL_DIR = Deno.env.get("FASTR_MODULES_LOCAL_DIR") ?? "./modules";
+
 ///////////////////////////////////////////////////////////////////////////////
 // Instance Configuration
 ///////////////////////////////////////////////////////////////////////////////

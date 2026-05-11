@@ -12,6 +12,12 @@ import {
   TranslatableString,
 } from "lib";
 import { compileCfToLegend } from "./conditional_formatting/compile";
+import {
+  isSpecialBarChartActive,
+  isSpecialCoverageChartActive,
+  isSpecialDisruptionsChartActive,
+  isSpecialScorecardTableActive,
+} from "./special_chart_checks";
 
 function getPeriodChangeLabels(
   timeseriesGrouping: PeriodOption,
@@ -71,7 +77,14 @@ export function getLegendFromConfig(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
 ): LegendInput | undefined {
-  if (config.s.specialCoverageChart) {
+  if (isSpecialScorecardTableActive(config)) {
+    return [
+      { label: t3({ en: "On track", fr: "En bonne voie" }), color: _CF_LIGHTER_GREEN },
+      { label: t3({ en: "Progress needed", fr: "Progrès nécessaire" }), color: _CF_LIGHTER_YELLOW },
+      { label: t3({ en: "Not on track", fr: "Pas en bonne voie" }), color: _CF_LIGHTER_RED },
+    ];
+  }
+  if (isSpecialCoverageChartActive(config)) {
     return [
       {
         label: t3({
@@ -99,7 +112,7 @@ export function getLegendFromConfig(
       },
     ];
   }
-  if (config.s.content === "bars" && config.s.specialBarChart) {
+  if (isSpecialBarChartActive(config)) {
     if (!config.d.timeseriesGrouping) return undefined;
     const labels = getPeriodChangeLabels(
       config.d.timeseriesGrouping,
@@ -116,7 +129,7 @@ export function getLegendFromConfig(
       { label: labels.decrease, color: _CF_RED },
     ];
   }
-  if (config.s.specialDisruptionsChart) {
+  if (isSpecialDisruptionsChartActive(config)) {
     if (config.s.diffInverted) {
       return [
         { label: t3({ en: "Actual", fr: "Réel" }), color: "#000000", pointStyle: "as-line" },

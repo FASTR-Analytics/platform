@@ -8,7 +8,6 @@ import { Step3 } from "./step_3";
 import { Step4 } from "./step_4";
 
 type Props = {
-  silentRefresh: () => void;
   close: (p: unknown) => void;
 };
 
@@ -81,7 +80,6 @@ export type WizardState = {
   setCurrentLevelIndex: (i: number) => void;
   // Common
   close: (p: unknown) => void;
-  silentRefresh: () => void;
 };
 
 export function GeoJsonUploadWizard(p: Props) {
@@ -139,7 +137,6 @@ export function GeoJsonUploadWizard(p: Props) {
     currentLevelIndex,
     setCurrentLevelIndex,
     close: p.close,
-    silentRefresh: p.silentRefresh,
   };
 
   return (

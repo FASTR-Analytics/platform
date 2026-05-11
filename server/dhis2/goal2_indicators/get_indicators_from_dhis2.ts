@@ -37,7 +37,7 @@ const DEFAULT_DATA_ELEMENT_FIELDS = [
   "aggregationType",
   "domainType",
   "valueType",
-  "categoryCombo[id,name]",
+  "categoryCombo[id,name,isDefault,categoryOptionCombos[id,name,displayName]]",
   "dataElementGroups[id,name]",
   "created",
   "lastUpdated",

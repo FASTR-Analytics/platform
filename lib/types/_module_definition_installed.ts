@@ -12,7 +12,7 @@ import { presentationObjectConfigSchema } from "./_presentation_object_config.ts
 // Module-specific atoms
 // ============================================================================
 
-export const scriptGenerationType = z.enum(["template", "hfa"]);
+export const scriptGenerationType = z.enum(["template", "hfa", "calculated_indicators"]);
 
 export const dataSourceDataset = z.object({
   sourceType: z.literal("dataset"),

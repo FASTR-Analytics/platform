@@ -20,12 +20,16 @@ import {
   type DatasetType,
 } from "lib";
 import { DBIndicator } from "../instance/_main_database_types.ts";
+import { getCalculatedIndicators } from "../instance/calculated_indicators.ts";
 import {
   getFacilityColumnsConfig,
   getMaxAdminAreaConfig,
 } from "../instance/config.ts";
 import { getCurrentDatasetHmisVersion } from "../instance/dataset_hmis.ts";
-import { getIndicatorMappingsVersion } from "../instance/instance.ts";
+import {
+  getCalculatedIndicatorsVersion,
+  getIndicatorMappingsVersion,
+} from "../instance/instance.ts";
 import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
 
 export async function addDatasetHmisToProject(
@@ -136,6 +140,12 @@ export async function addDatasetHmisToProject(
 
     const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
 
+    const calculatedIndicatorsVersion =
+      await getCalculatedIndicatorsVersion(mainDb);
+    const resCalculatedIndicators = await getCalculatedIndicators(mainDb);
+    throwIfErrWithData(resCalculatedIndicators);
+    const calculatedIndicators = resCalculatedIndicators.data;
+
     const info: DatasetHmisInfoInProject = {
       version,
       windowing: startingWindowing,
@@ -144,6 +154,7 @@ export async function addDatasetHmisToProject(
       indicatorMappingsVersion,
       facilityColumnsConfig: resFacilityConfig.data,
       maxAdminArea: resMaxAdminArea.data.maxAdminArea,
+      calculatedIndicatorsVersion,
     };
 
     if (onProgress) await onProgress(0.5, "Exporting data to CSV...");
@@ -249,6 +260,7 @@ ON CONFLICT (dataset_type) DO UPDATE SET
 `,
       sql`DELETE FROM indicators`,
       sql`DELETE FROM facilities`,
+      sql`DELETE FROM calculated_indicators_snapshot`,
       ...indicators.map(
         (ind) =>
           sql`INSERT INTO indicators (indicator_common_id, indicator_common_label)
@@ -261,6 +273,22 @@ ON CONFLICT (dataset_type) DO UPDATE SET
         VALUES (${fac.facility_id}, ${fac.admin_area_4}, ${fac.admin_area_3}, ${fac.admin_area_2}, ${fac.admin_area_1}, ${fac.facility_name}, ${fac.facility_type}, ${fac.facility_ownership}, ${fac.facility_custom_1}, ${fac.facility_custom_2}, ${fac.facility_custom_3}, ${fac.facility_custom_4}, ${fac.facility_custom_5})`
           )
         : []),
+      ...calculatedIndicators.map(
+        (ci) =>
+          sql`INSERT INTO calculated_indicators_snapshot (
+            calculated_indicator_id, label, group_label, sort_order,
+            num_indicator_id, denom_kind, denom_indicator_id, denom_population_type, denom_population_multiplier,
+            format_as, decimal_places, threshold_direction, threshold_green, threshold_yellow
+          ) VALUES (
+            ${ci.calculated_indicator_id}, ${ci.label}, ${ci.group_label}, ${ci.sort_order},
+            ${ci.num_indicator_id}, ${ci.denom.kind},
+            ${ci.denom.kind === "indicator" ? ci.denom.indicator_id : null},
+            ${ci.denom.kind === "population" ? ci.denom.population_type : null},
+            ${ci.denom.kind === "population" ? ci.denom.multiplier : null},
+            ${ci.format_as}, ${ci.decimal_places}, ${ci.threshold_direction},
+            ${ci.threshold_green}, ${ci.threshold_yellow}
+          )`
+      ),
     ]);
 
     return { success: true, data: { lastUpdated } };
@@ -281,6 +309,7 @@ export async function removeDatasetFromProject(
         ? [
             sql`DELETE FROM indicators`,
             sql`DELETE FROM facilities`,
+            sql`DELETE FROM calculated_indicators_snapshot`,
           ]
         : [
             sql`DELETE FROM hfa_indicator_code_snapshot`,

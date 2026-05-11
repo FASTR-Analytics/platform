@@ -15,7 +15,7 @@ import { buildProjectState } from "../../task_management/build_project_state.ts"
 
 export const routesProjectSSEV2 = new Hono();
 
-type QueuedMessage = { projectId: string; message: ProjectSseMessage };
+type QueuedMessage = ProjectSseMessage & { projectId: string };
 
 /**
  * V2 Project SSE endpoint.
@@ -83,7 +83,8 @@ routesProjectSSEV2.get("/project_sse_v2/:project_id", async (c) => {
       while (true) {
         while (messageQueue.length > 0) {
           const queued = messageQueue.shift()!;
-          await stream.writeSSE({ data: JSON.stringify(queued.message) });
+          const { projectId: _pid, ...message } = queued;
+          await stream.writeSSE({ data: JSON.stringify(message) });
         }
         await new Promise<void>((resolve) => {
           notifyNewMessage = resolve;
@@ -109,7 +110,12 @@ async function getProjectUserForSSE(
 ): Promise<ProjectUser | undefined> {
   try {
     if (_BYPASS_AUTH) {
-      return undefined;
+      return {
+        email: "bypass@example.com",
+        role: "editor" as const,
+        isGlobalAdmin: true,
+        ..._PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+      };
     }
 
     const auth = getAuth(c);

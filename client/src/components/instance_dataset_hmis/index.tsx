@@ -20,7 +20,7 @@ import {
 } from "solid-js";
 import { DatasetHmisUploadAttemptForm } from "~/components/instance_dataset_hmis_import";
 import { serverActions } from "~/server_actions";
-import { instanceState, getIndicatorMappingsVersion, getInstanceFacilityColumns } from "~/state/instance/t1_store";
+import { instanceState } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
 import { PreviousImports } from "./_previous_imports";
 import { DatasetItemsHolder } from "./dataset_items_holder";
@@ -96,9 +96,9 @@ export function InstanceDatasetHmis(p: Props) {
       element: DeleteData,
       props: {
         hmisVersionId: versionId,
-        indicatorMappingsVersion: getIndicatorMappingsVersion(),
+        indicatorMappingsVersion: instanceState.indicatorMappingsVersion,
         isGlobalAdmin: p.isGlobalAdmin,
-        facilityColumns: getInstanceFacilityColumns(),
+        facilityColumns: instanceState.facilityColumns,
         silentFetch: fetchUploadAttempt,
       },
     });
@@ -297,8 +297,8 @@ export function InstanceDatasetHmis(p: Props) {
               {(versionId) => (
                 <DatasetItemsHolder
                   versionId={versionId}
-                  indicatorMappingsVersion={getIndicatorMappingsVersion()}
-                  facilityColumns={getInstanceFacilityColumns()}
+                  indicatorMappingsVersion={instanceState.indicatorMappingsVersion}
+                  facilityColumns={instanceState.facilityColumns}
                 />
               )}
             </Show>

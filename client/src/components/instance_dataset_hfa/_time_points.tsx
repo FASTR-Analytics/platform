@@ -18,7 +18,6 @@ export function TimePointsView(
     {
       timePoints: HfaTimePoint[];
       isGlobalAdmin: boolean;
-      onRefresh: () => Promise<void>;
     },
     undefined
   >,
@@ -62,7 +61,6 @@ export function TimePointsView(
 
     if (res.success) {
       setEditingLabel(null);
-      await p.onRefresh();
       setLocalTimePoints([...p.timePoints].sort((a, b) => a.sortOrder - b.sortOrder));
     }
 
@@ -73,8 +71,7 @@ export function TimePointsView(
     const deleteAction = timActionDelete(
       t3({ en: `Delete time point "${label}" and all its data?`, fr: `Supprimer le point temporel « ${label} » et toutes ses données ?` }),
       () => serverActions.deleteHfaTimePoint({ label }),
-      async () => {
-        await p.onRefresh();
+      () => {
         setLocalTimePoints((prev) => prev.filter((tp) => tp.label !== label));
       },
     );
@@ -87,7 +84,6 @@ export function TimePointsView(
     [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
     setLocalTimePoints(newOrder);
     await serverActions.reorderHfaTimePoints({ order: newOrder.map((tp) => tp.label) });
-    await p.onRefresh();
   }
 
   async function moveDown(index: number) {
@@ -97,7 +93,6 @@ export function TimePointsView(
     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
     setLocalTimePoints(newOrder);
     await serverActions.reorderHfaTimePoints({ order: newOrder.map((tp) => tp.label) });
-    await p.onRefresh();
   }
 
   return (

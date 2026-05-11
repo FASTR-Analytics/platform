@@ -5,7 +5,6 @@ import { serverActions } from "~/server_actions";
 
 type Props = {
   adminAreaLevel: 2 | 3 | 4;
-  silentRefresh: () => void;
   close: (p: unknown) => void;
 };
 
@@ -125,7 +124,6 @@ export function GeoJsonEditModal(p: Props) {
       });
 
       if (res.success) {
-        p.silentRefresh();
         p.close(undefined);
       }
 

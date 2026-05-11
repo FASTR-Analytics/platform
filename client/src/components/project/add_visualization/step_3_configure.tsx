@@ -7,7 +7,7 @@ import {
 } from "lib";
 import { Checkbox } from "panther";
 import { For, Show } from "solid-js";
-import { getDisplayDisaggregationLabel } from "~/state/instance/disaggregation_label";
+import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import { TypeCard } from "./type_card";
 
 type Props = {

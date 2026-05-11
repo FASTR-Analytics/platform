@@ -15,7 +15,7 @@ import {
 } from "panther";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { getAdminAreaLabel } from "~/state/instance/disaggregation_label";
+import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 
 type Props = {
   step3Result: StructureStagingResult;

@@ -28,6 +28,9 @@ export function checkDataNeedsUpdate(
       info.maxAdminArea !== undefined &&
       instanceState.maxAdminArea !== info.maxAdminArea
     ) return true;
+    if (
+      instanceState.calculatedIndicatorsVersion !== info.calculatedIndicatorsVersion
+    ) return true;
   }
 
   const hfa = projectState.projectDatasets.find((d) => d.datasetType === "hfa");

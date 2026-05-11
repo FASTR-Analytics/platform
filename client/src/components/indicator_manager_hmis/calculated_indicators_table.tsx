@@ -15,6 +15,7 @@ import {
 } from "lib";
 import { serverActions } from "~/server_actions";
 import { EditCalculatedIndicatorForm } from "./calculated_indicator_editor";
+import { SortCalculatedIndicatorsModal } from "./sort_calculated_indicators_modal";
 
 type Props = {
   calculatedIndicators: CalculatedIndicator[];
@@ -23,18 +24,6 @@ type Props = {
 };
 
 export function CalculatedIndicatorsTable(p: Props) {
-  const commonIndicatorIds = () =>
-    new Set(p.commonIndicators.map((ci) => ci.indicator_common_id));
-
-  function hasBrokenReference(si: CalculatedIndicator): boolean {
-    const ids = commonIndicatorIds();
-    if (!ids.has(si.num_indicator_id)) return true;
-    if (si.denom.kind === "indicator" && !ids.has(si.denom.indicator_id)) {
-      return true;
-    }
-    return false;
-  }
-
   async function handleCreate() {
     await openComponent({
       element: EditCalculatedIndicatorForm,
@@ -88,6 +77,15 @@ export function CalculatedIndicatorsTable(p: Props) {
     await deleteAction.click();
   }
 
+  async function handleSort() {
+    await openComponent({
+      element: SortCalculatedIndicatorsModal,
+      props: {
+        calculatedIndicators: p.calculatedIndicators,
+      },
+    });
+  }
+
   async function handleBulkDelete(selected: CalculatedIndicator[]) {
     const ids = selected.map((si) => si.calculated_indicator_id);
     const labels = selected.map(
@@ -116,10 +114,13 @@ export function CalculatedIndicatorsTable(p: Props) {
   }
 
   function denomText(si: CalculatedIndicator): string {
+    if (si.denom.kind === "none") {
+      return "—";
+    }
     if (si.denom.kind === "indicator") {
       return si.denom.indicator_id;
     }
-    return `pop × ${si.denom.population_fraction}`;
+    return `${si.denom.population_type} × ${si.denom.multiplier}`;
   }
 
   const columns: TableColumn<CalculatedIndicator>[] = [
@@ -135,16 +136,7 @@ export function CalculatedIndicatorsTable(p: Props) {
       key: "label",
       header: t3(TC.label),
       sortable: true,
-      render: (si) => (
-        <div class="flex items-center gap-2">
-          <span>{si.label}</span>
-          <Show when={hasBrokenReference(si)}>
-            <span class="bg-danger text-danger-content font-500 rounded px-2 py-0.5 text-xs">
-              {t3({ en: "Broken reference", fr: "Référence cassée" })}
-            </span>
-          </Show>
-        </div>
-      ),
+      render: (si) => si.label,
     },
     {
       key: "group_label",
@@ -233,6 +225,9 @@ export function CalculatedIndicatorsTable(p: Props) {
           {t3({ en: "Calculated indicators", fr: "Indicateurs calculés" })}
         </div>
         <Show when={p.isGlobalAdmin}>
+          <Button onClick={handleSort} iconName="gripVertical" outline>
+            {t3({ en: "Sort indicators", fr: "Trier les indicateurs" })}
+          </Button>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
             {t3({
               en: "Create Calculated indicator",

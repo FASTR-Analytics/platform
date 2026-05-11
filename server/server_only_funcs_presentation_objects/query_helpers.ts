@@ -286,7 +286,8 @@ export function applyPostAggregationExpressionV2(
   }
 
   // Protect against division by zero by replacing /column with /NULLIF(column, 0)
-  const safeExpression = expression.replace(/\/(\w+)/g, "/NULLIF($1, 0)");
+  // Note: \s* handles optional whitespace around the division operator
+  const safeExpression = expression.replace(/\/\s*(\w+)/g, "/ NULLIF($1, 0)");
 
   const groupByPrefix = groupBys.length === 0 ? "" : `${groupBys.join(", ")}, `;
 

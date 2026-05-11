@@ -9,7 +9,7 @@ import { InstanceHfaTimePoints } from "../instance_hfa_time_points";
 import { Structure } from "../structure";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
 import { instanceState } from "~/state/instance/t1_store";
-import { getAdminAreaLabel } from "~/state/instance/disaggregation_label";
+import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 
 type Props = {
   isGlobalAdmin: boolean;
@@ -269,6 +269,28 @@ export function InstanceData(p: Props) {
                               {t3({
                                 en: "DHIS2 indicators",
                                 fr: "Indicateurs DHIS2",
+                              })}
+                              :
+                            </span>
+                            <span class="font-mono">{toNum0(keyedNumber)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </Show>
+                    <Show
+                      when={
+                        instanceState.indicators.calculatedIndicators > 0 &&
+                        instanceState.indicators.calculatedIndicators
+                      }
+                      keyed
+                    >
+                      {(keyedNumber) => (
+                        <div class="ui-spy-sm text-success text-xs">
+                          <div class="flex justify-between gap-4">
+                            <span>
+                              {t3({
+                                en: "Calculated indicators",
+                                fr: "Indicateurs calculés",
                               })}
                               :
                             </span>

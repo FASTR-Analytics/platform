@@ -9,7 +9,7 @@ import {
 } from "lib";
 import { MAX_ITEMS } from "./consts.ts";
 import { buildCombinedQueryV2 } from "./get_combined_query.ts";
-import { getIndicatorLabelReplacements } from "./get_indicator_label_replacements.ts";
+import { getIndicatorMetadata } from "./get_indicator_metadata.ts";
 import { getPeriodBounds } from "./get_period_bounds.ts";
 import { buildQueryContext } from "./get_query_context.ts";
 import { buildWhereClause } from "./query_helpers.ts";
@@ -45,7 +45,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     //                       //
     ///////////////////////////
 
-    const indicatorLabelReplacements = await getIndicatorLabelReplacements(
+    const indicatorMetadata = await getIndicatorMetadata(
       mainDb,
       projectDb,
       moduleId,
@@ -151,7 +151,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
       dateRange,
       status: "ok" as const,
       items: rawItems,
-      indicatorLabelReplacements,
+      indicatorMetadata,
     };
 
     return { success: true, data: ih };

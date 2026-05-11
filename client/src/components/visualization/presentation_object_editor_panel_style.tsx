@@ -8,10 +8,11 @@ import { Match, Switch } from "solid-js";
 import { SetStoreFunction, unwrap } from "solid-js/store";
 import { CustomSeriesStyles } from "~/components/forms_editors/custom_series_styles";
 import {
-  SPECIAL_COVERAGE_CHART_METRICS,
-  SPECIAL_DISRUPTIONS_CHART_METRICS,
-  SPECIAL_PERCENT_CHANGE_CHART_METRICS,
-} from "~/generate_visualization/get_style_from_po/_0_conditional_consts";
+  canUseSpecialCoverageChart,
+  canUseSpecialDisruptionsChart,
+  canUseSpecialPercentChangeChart,
+  canUseSpecialScorecardTable,
+} from "~/generate_visualization/special_chart_checks";
 import { SharedControlsTop } from "./presentation_object_editor_panel_style/_shared";
 import { TimeseriesStyleControls } from "./presentation_object_editor_panel_style/_timeseries";
 import { ChartStyleControls } from "./presentation_object_editor_panel_style/_chart";
@@ -30,14 +31,10 @@ type Props = {
 export function PresentationObjectEditorPanelStyle(p: Props) {
   const metricId = () => p.poDetail.resultsValue.id;
 
-  const showCoverageMode = () =>
-    SPECIAL_COVERAGE_CHART_METRICS.includes(metricId());
-
-  const showPercentChangeMode = () =>
-    SPECIAL_PERCENT_CHANGE_CHART_METRICS.includes(metricId());
-
-  const showDisruptionsMode = () =>
-    SPECIAL_DISRUPTIONS_CHART_METRICS.includes(metricId());
+  const showCoverageMode = () => canUseSpecialCoverageChart(metricId());
+  const showPercentChangeMode = () => canUseSpecialPercentChangeChart(metricId());
+  const showDisruptionsMode = () => canUseSpecialDisruptionsChart(metricId());
+  const showScorecardMode = () => canUseSpecialScorecardTable(metricId());
 
   async function editCustomSeriesStyles() {
     const res = await openComponent({
@@ -92,6 +89,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             poDetail={p.poDetail}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
+            showScorecardMode={showScorecardMode()}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "map"}>

@@ -112,6 +112,16 @@ export async function tryCatchServer<
         continue;
       }
 
+      // Check if we got HTML (nginx maintenance page) instead of JSON
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        reportNetworkFailure();
+        return {
+          success: false,
+          err: "Server is temporarily unavailable - please try again in a few minutes",
+        } as T;
+      }
+
       // Handle other non-OK responses
       if (!res.ok) {
         const text = await res.text();

@@ -196,6 +196,7 @@ export const configSStrict = z
     specialBarChartDataLabels: z.enum(["all-values", "threshold-values"]),
     specialCoverageChart: z.boolean(),
     specialDisruptionsChart: z.boolean(),
+    specialScorecardTable: z.boolean(),
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),
@@ -215,6 +216,8 @@ export const configSStrict = z
     sortIndicatorValues: z.enum(["ascending", "descending", "none"]),
     formatAdminArea3Labels: z.boolean().optional(),
     mapProjection: z.enum(["equirectangular", "mercator", "naturalEarth1"]),
+    mapShowRegionLabels: z.boolean().optional(),
+    mapDataLabelMode: z.enum(["none", "centroid", "callout", "auto"]).optional(),
   })
   .merge(cfStorageSchema)
   .partial();

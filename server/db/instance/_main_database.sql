@@ -401,9 +401,10 @@ CREATE TABLE IF NOT EXISTS calculated_indicators (
   sort_order                 INTEGER NOT NULL DEFAULT 0,
 
   num_indicator_id           TEXT NOT NULL,
-  denom_kind                 TEXT NOT NULL CHECK (denom_kind IN ('indicator', 'population')),
+  denom_kind                 TEXT NOT NULL,
   denom_indicator_id         TEXT,
-  denom_population_fraction  REAL,
+  denom_population_type      TEXT,
+  denom_population_multiplier REAL,
 
   format_as                  TEXT NOT NULL DEFAULT 'percent' CHECK (format_as IN ('percent', 'number', 'rate_per_10k')),
   decimal_places             INTEGER NOT NULL DEFAULT 0,
@@ -414,15 +415,27 @@ CREATE TABLE IF NOT EXISTS calculated_indicators (
 
   updated_at                 TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-  CHECK (
+  CONSTRAINT calculated_indicators_check CHECK (denom_kind IN ('none', 'indicator', 'population')),
+
+  CONSTRAINT calculated_indicators_denom_fields_check CHECK (
+    (denom_kind = 'none'
+       AND denom_indicator_id IS NULL
+       AND denom_population_type IS NULL
+       AND denom_population_multiplier IS NULL)
+    OR
     (denom_kind = 'indicator'
        AND denom_indicator_id IS NOT NULL
-       AND denom_population_fraction IS NULL)
+       AND denom_population_type IS NULL
+       AND denom_population_multiplier IS NULL)
     OR
     (denom_kind = 'population'
        AND denom_indicator_id IS NULL
-       AND denom_population_fraction IS NOT NULL)
-  )
+       AND denom_population_type IS NOT NULL
+       AND denom_population_multiplier IS NOT NULL)
+  ),
+
+  FOREIGN KEY (num_indicator_id) REFERENCES indicators(indicator_common_id) ON DELETE RESTRICT,
+  FOREIGN KEY (denom_indicator_id) REFERENCES indicators(indicator_common_id) ON DELETE RESTRICT
 );
 
 -- ============================================================================
@@ -434,6 +447,23 @@ CREATE TABLE geojson_maps (
   geojson text NOT NULL,
   uploaded_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- ============================================================================
+-- SHARE TOKENS
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS share_tokens (
+  id VARCHAR PRIMARY KEY,
+  token VARCHAR UNIQUE NOT NULL,
+  resource_type VARCHAR NOT NULL,
+  resource_id VARCHAR NOT NULL,
+  data TEXT NOT NULL,
+  created_by_email VARCHAR NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  view_count INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_share_tokens_token ON share_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_share_tokens_resource ON share_tokens(resource_type, resource_id);
 
 -- ============================================================================
 -- SCHEMA MIGRATIONS
