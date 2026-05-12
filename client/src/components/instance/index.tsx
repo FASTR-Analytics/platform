@@ -1,5 +1,5 @@
 import { useSearchParams } from "@solidjs/router";
-import { TC, isFrench, t3, LANGUAGE_STORAGE_KEY, type GlobalUser } from "lib";
+import { TC, isFrench, t3, LANGUAGE_STORAGE_KEY } from "lib";
 import {
   AlertProvider,
   Button,
@@ -28,7 +28,6 @@ import { InstanceSettings } from "./instance_settings";
 import { ProfileForm } from "./profile";
 
 type Props = {
-  globalUser: GlobalUser;
   attemptSignOut: () => Promise<void>;
 };
 
@@ -64,7 +63,7 @@ export default function Instance(p: Props) {
         props: undefined,
       });
     }
-    if (p.globalUser.organisation === null) {
+    if (!clerk.user.unsafeMetadata?.organisation) {
       await openComponent({
         element: OrganisationModal,
         props: undefined,

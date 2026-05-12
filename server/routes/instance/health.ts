@@ -30,7 +30,7 @@ routesHealth.get("/health_check", async (c) => {
   const adminUsers = users.filter((u) => u.is_admin).map((u) => u.email);
   const contactPersons = users
     .filter((u) => u.is_contact_person)
-    .map((u) => ({ email: u.email, firstName: u.first_name, lastName: u.last_name, organisation: u.organisation }));
+    .map((u) => ({ email: u.email, firstName: u.first_name, lastName: u.last_name }));
   const projects = await mainDb<
     DBProject[]
   >`SELECT id, label FROM projects ORDER BY LOWER(label)`;

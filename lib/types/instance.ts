@@ -218,7 +218,6 @@ export type GlobalUser = {
   lastName: string;
   approved: boolean;
   isGlobalAdmin: boolean;
-  organisation: string | null;
   thisUserPermissions: UserPermissions;
   unlimitedAi: boolean;
 };
@@ -279,7 +278,6 @@ export function createDevGlobalUser(
     lastName: "User",
     approved: true,
     isGlobalAdmin: true,
-    organisation: null,
     thisUserPermissions: {
       can_configure_users: true,
       can_view_users: true,

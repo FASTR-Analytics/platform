@@ -1,7 +1,7 @@
+import { clerk } from "~/components/LoggedInWrapper";
 import { Button, Input, ModalContainer, type AlertComponentProps } from "panther";
 import { createSignal } from "solid-js";
 import { t3 } from "lib";
-import { serverActions } from "~/server_actions";
 
 export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
   const [organisation, setOrganisation] = createSignal("");
@@ -12,7 +12,12 @@ export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
     if (!value) return;
     setLoading(true);
     try {
-      await serverActions.updateMyOrganisation({ organisation: value });
+      await clerk.user?.update({
+        unsafeMetadata: {
+          ...clerk.user.unsafeMetadata,
+          organisation: value,
+        },
+      });
     } finally {
       setLoading(false);
     }

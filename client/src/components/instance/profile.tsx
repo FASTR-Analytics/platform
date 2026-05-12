@@ -68,12 +68,18 @@ export function ProfileForm(
       <StateHolderWrapper state={userDetails.state()} noPad>
         {(keyedUser) => {
           const [organisation, setOrganisation] = createSignal(
-            keyedUser.organisation ?? "",
+            (clerk.user?.unsafeMetadata?.organisation as string | undefined) ?? "",
           );
 
-          const saveOrganisation = timActionButton(
-            () => serverActions.updateMyOrganisation({ organisation: organisation() }),
-          );
+          const saveOrganisation = timActionButton(async () => {
+            await clerk.user?.update({
+              unsafeMetadata: {
+                ...clerk.user.unsafeMetadata,
+                organisation: organisation(),
+              },
+            });
+            return { success: true };
+          });
 
           const [optedIn, setOptedIn] = createSignal(
             clerk.user?.unsafeMetadata?.emailOptIn === true,

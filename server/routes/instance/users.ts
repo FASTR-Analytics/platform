@@ -18,7 +18,6 @@ import {
   syncUserName,
   toggleAdmin,
   updateUserDefaultProjectPermissions,
-  updateUserOrganisation,
   updateUserPermissions,
 } from "../../db/mod.ts";
 import { _DAILY_TOKEN_LIMIT, _WEEKLY_TOKEN_LIMIT } from "../../exposed_env_vars.ts";
@@ -42,16 +41,6 @@ defineRoute(
   },
 );
 
-defineRoute(
-  routesUsers,
-  "updateMyOrganisation",
-  requireGlobalPermission(),
-  log("updateMyOrganisation"),
-  async (c, { body }) => {
-    await updateUserOrganisation(c.var.mainDb, c.var.globalUser.email, body.organisation);
-    return c.json({ success: true });
-  },
-);
 
 defineRoute(
   routesUsers,
