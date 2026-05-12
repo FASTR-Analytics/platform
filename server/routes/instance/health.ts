@@ -219,3 +219,21 @@ routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
   await mainDb`SELECT pg_stat_statements_reset()`;
   return c.json({ reset: true, serverTime: new Date().toISOString() });
 });
+
+routesHealth.get("/contact_persons", async (c: Context) => {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const rows = await mainDb<Pick<DBUser, "email" | "first_name" | "last_name" | "organisation">[]>`
+    SELECT email, first_name, last_name, organisation
+    FROM users
+    WHERE is_contact_person = true
+    ORDER BY LOWER(email)
+  `;
+  return c.json({
+    contactPersons: rows.map((r) => ({
+      email: r.email,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      organisation: r.organisation,
+    })),
+  });
+});
