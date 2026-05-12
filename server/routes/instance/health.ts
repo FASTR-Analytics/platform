@@ -28,6 +28,9 @@ routesHealth.get("/health_check", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const users = await mainDb<DBUser[]>`SELECT * FROM users`;
   const adminUsers = users.filter((u) => u.is_admin).map((u) => u.email);
+  const contactPersons = users
+    .filter((u) => u.is_contact_person)
+    .map((u) => ({ email: u.email, firstName: u.first_name, lastName: u.last_name, organisation: u.organisation }));
   const projects = await mainDb<
     DBProject[]
   >`SELECT id, label FROM projects ORDER BY LOWER(label)`;
@@ -68,6 +71,7 @@ routesHealth.get("/health_check", async (c) => {
         }
       : null,
     hasRunningModules,
+    contactPersons,
     datasets: {
       hmis: hmisVersion
         ? {
@@ -218,22 +222,4 @@ routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   await mainDb`SELECT pg_stat_statements_reset()`;
   return c.json({ reset: true, serverTime: new Date().toISOString() });
-});
-
-routesHealth.get("/contact_persons", async (c: Context) => {
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const rows = await mainDb<Pick<DBUser, "email" | "first_name" | "last_name" | "organisation">[]>`
-    SELECT email, first_name, last_name, organisation
-    FROM users
-    WHERE is_contact_person = true
-    ORDER BY LOWER(email)
-  `;
-  return c.json({
-    contactPersons: rows.map((r) => ({
-      email: r.email,
-      firstName: r.first_name,
-      lastName: r.last_name,
-      organisation: r.organisation,
-    })),
-  });
 });
