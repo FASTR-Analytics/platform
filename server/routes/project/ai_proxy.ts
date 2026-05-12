@@ -22,10 +22,7 @@ routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
   if (_DAILY_TOKEN_LIMIT !== null && !c.var.globalUser.unlimitedAi) {
     const todayUsage = await GetUserDailyTokenUsage(mainDb, userEmail);
     if (todayUsage >= _DAILY_TOKEN_LIMIT) {
-      const resetAt = new Date();
-      resetAt.setUTCDate(resetAt.getUTCDate() + 1);
-      resetAt.setUTCHours(0, 0, 0, 0);
-      return c.json({ error: { type: "daily_token_limit_exceeded", resetAt: resetAt.toISOString() } }, 429);
+      return c.json({ type: "error", error: { type: "rate_limit_error", message: "Rate limit: You have reached your daily AI token limit. Your usage will reset at midnight UTC." } }, 429);
     }
   }
 
