@@ -72,13 +72,22 @@ export function classifyDatabaseError(e: unknown): CategorizedError {
   }
 
   // Fall back to PostgreSQL error pattern matching
-  if (/relation .* does not exist/.test(technicalMessage)) {
+  const relationMatch = technicalMessage.match(/relation "([^"]+)" does not exist/);
+  if (relationMatch) {
+    const tableName = relationMatch[1];
+    if (tableName.startsWith("ro_")) {
+      return {
+        category: ERROR_CATEGORY.DATA_NOT_FOUND,
+        userMessage:
+          "The data for this visualization is not available. The module may need to be run.",
+        technicalMessage,
+        suggestedAction: "Run the module to generate the required data.",
+      };
+    }
     return {
       category: ERROR_CATEGORY.DATA_NOT_FOUND,
-      userMessage:
-        "The data for this visualization is not available. The module may need to be run.",
+      userMessage: `Database table "${tableName}" does not exist`,
       technicalMessage,
-      suggestedAction: "Run the module to generate the required data.",
     };
   }
 

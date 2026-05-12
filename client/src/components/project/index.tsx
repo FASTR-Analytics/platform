@@ -59,7 +59,6 @@ function AIContextSync() {
 
   createEffect(() => {
     const tab = projectTab();
-    console.log("[AIContextSync] Tab changed:", tab);
     switch (tab) {
       case "visualizations":
         setAIContext({ mode: "viewing_visualizations" });

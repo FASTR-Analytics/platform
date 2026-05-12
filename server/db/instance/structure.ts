@@ -112,7 +112,7 @@ export async function deleteAllStructureData(
       SELECT COUNT(*) as count FROM dataset_hmis
     `;
     const hfaCount = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*) as count FROM dataset_hfa
+      SELECT COUNT(*) as count FROM hfa_data
     `;
 
     const hmisRecords = hmisCount[0]?.count || 0;

@@ -86,10 +86,22 @@ function computeScaleAxisLimitsFromValues(
             const p = paneLimits[i_pane];
             p.valueMin = Math.min(p.valueMin, value);
             p.valueMax = Math.max(p.valueMax, value);
-            p.tierLimits[i_tier].valueMin = Math.min(p.tierLimits[i_tier].valueMin, value);
-            p.tierLimits[i_tier].valueMax = Math.max(p.tierLimits[i_tier].valueMax, value);
-            p.laneLimits[i_lane].valueMin = Math.min(p.laneLimits[i_lane].valueMin, value);
-            p.laneLimits[i_lane].valueMax = Math.max(p.laneLimits[i_lane].valueMax, value);
+            p.tierLimits[i_tier].valueMin = Math.min(
+              p.tierLimits[i_tier].valueMin,
+              value,
+            );
+            p.tierLimits[i_tier].valueMax = Math.max(
+              p.tierLimits[i_tier].valueMax,
+              value,
+            );
+            p.laneLimits[i_lane].valueMin = Math.min(
+              p.laneLimits[i_lane].valueMin,
+              value,
+            );
+            p.laneLimits[i_lane].valueMax = Math.max(
+              p.laneLimits[i_lane].valueMax,
+              value,
+            );
           }
         }
       }
@@ -155,9 +167,15 @@ function transformFigureInputs(fi: Record<string, unknown>): void {
       | { paneLimits?: unknown }
       | undefined;
     if (!scaleAxisLimits?.paneLimits && d.values) {
-      const paneHeaders = (d.paneHeaders as string[] | undefined) ?? ["default"];
-      const tierHeaders = (d.tierHeaders as string[] | undefined) ?? ["default"];
-      const laneHeaders = (d.laneHeaders as string[] | undefined) ?? ["default"];
+      const paneHeaders = (d.paneHeaders as string[] | undefined) ?? [
+        "default",
+      ];
+      const tierHeaders = (d.tierHeaders as string[] | undefined) ?? [
+        "default",
+      ];
+      const laneHeaders = (d.laneHeaders as string[] | undefined) ?? [
+        "default",
+      ];
       d.scaleAxisLimits = computeScaleAxisLimitsFromValues(
         d.values as (number | undefined)[][][][][],
         paneHeaders.length,
@@ -231,47 +249,8 @@ export async function migrateSlideConfigs(
   for (const row of rows) {
     const config = JSON.parse(row.config);
 
-    // =========================================================================
-    // PRE-VALIDATION BLOCK A: One-time fix for missing scaleAxisLimits
-    // Runs on ALL rows regardless of validation status.
-    // TODO: DELETE THIS BLOCK after all instances have received this update
-    // =========================================================================
-    let preValidationChanged = false;
-    if (config.type === "content" && config.layout) {
-      const fixMissingScaleAxisLimits = (node: LayoutNode): void => {
-        if (node.type === "item" && node.data?.type === "figure" && node.data.figureInputs) {
-          const fi = node.data.figureInputs;
-          for (const dataKey of ["timeseriesData", "chartData", "chartOHData"]) {
-            const d = fi[dataKey] as Record<string, unknown> | undefined;
-            if (!d || d.isTransformed !== true) continue;
-            const scaleAxisLimits = d.scaleAxisLimits as { paneLimits?: unknown } | undefined;
-            if (!scaleAxisLimits?.paneLimits && d.values) {
-              const paneHeaders = (d.paneHeaders as string[] | undefined) ?? ["default"];
-              const tierHeaders = (d.tierHeaders as string[] | undefined) ?? ["default"];
-              const laneHeaders = (d.laneHeaders as string[] | undefined) ?? ["default"];
-              d.scaleAxisLimits = computeScaleAxisLimitsFromValues(
-                d.values as (number | undefined)[][][][][],
-                paneHeaders.length,
-                tierHeaders.length,
-                laneHeaders.length,
-              );
-              preValidationChanged = true;
-            }
-          }
-        } else if ((node.type === "rows" || node.type === "cols") && node.children) {
-          for (const child of node.children) {
-            fixMissingScaleAxisLimits(child);
-          }
-        }
-      };
-      fixMissingScaleAxisLimits(config.layout as LayoutNode);
-    }
-    // =========================================================================
-    // END PRE-VALIDATION BLOCK A
-    // =========================================================================
-
     // Already valid? Skip (unless pre-validation made changes).
-    if (!preValidationChanged && slideConfigSchema.safeParse(config).success) {
+    if (slideConfigSchema.safeParse(config).success) {
       continue;
     }
 
