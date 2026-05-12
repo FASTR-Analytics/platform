@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { requireProjectPermission } from "../../project_auth.ts";
-import { AddAiUsageLog, GetUserDailyTokenUsage, IncrementUserDailyTokenUsage } from "../../db/mod.ts";
-import { _DAILY_TOKEN_LIMIT } from "../../exposed_env_vars.ts";
+import { AddAiUsageLog, GetInstanceWeeklyTokenUsage, IncrementInstanceWeeklyTokenUsage, GetUserDailyTokenUsage, IncrementUserDailyTokenUsage } from "../../db/mod.ts";
+import { _DAILY_TOKEN_LIMIT, _WEEKLY_TOKEN_LIMIT } from "../../exposed_env_vars.ts";
 
 export const routesAiProxy = new Hono();
 
@@ -22,7 +22,21 @@ routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
   if (_DAILY_TOKEN_LIMIT !== null && !c.var.globalUser.unlimitedAi) {
     const todayUsage = await GetUserDailyTokenUsage(mainDb, userEmail);
     if (todayUsage >= _DAILY_TOKEN_LIMIT) {
-      return c.json({ type: "error", error: { type: "rate_limit_error", message: "Rate limit: You have reached your daily AI token limit. Your usage will reset at midnight UTC." } }, 429);
+      const resetAt = new Date();
+      resetAt.setUTCDate(resetAt.getUTCDate() + 1);
+      resetAt.setUTCHours(0, 0, 0, 0);
+      return c.json({ type: "error", error: { type: "rate_limit_error", message: `Rate limit: You have reached your daily AI token limit. Your usage will reset at ${resetAt.toISOString()}.` } }, 429);
+    }
+  }
+
+  if (_WEEKLY_TOKEN_LIMIT !== null && !c.var.globalUser.unlimitedAi) {
+    const weeklyUsage = await GetInstanceWeeklyTokenUsage(mainDb);
+    if (weeklyUsage >= _WEEKLY_TOKEN_LIMIT) {
+      const nextMonday = new Date();
+      const daysUntilMonday = (8 - nextMonday.getUTCDay()) % 7 || 7;
+      nextMonday.setUTCDate(nextMonday.getUTCDate() + daysUntilMonday);
+      nextMonday.setUTCHours(0, 0, 0, 0);
+      return c.json({ type: "error", error: { type: "rate_limit_error", message: `Rate limit: The instance's weekly AI token limit has been reached. Usage will reset at ${nextMonday.toISOString()}.` } }, 429);
     }
   }
 
@@ -111,6 +125,9 @@ routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
         if (_DAILY_TOKEN_LIMIT !== null) {
           IncrementUserDailyTokenUsage(mainDb, userEmail, inputTokens + outputTokens).catch(() => {});
         }
+        if (_WEEKLY_TOKEN_LIMIT !== null) {
+          IncrementInstanceWeeklyTokenUsage(mainDb, inputTokens + outputTokens).catch(() => {});
+        }
       },
     });
 
@@ -133,6 +150,9 @@ routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
   ).catch(() => {});
   if (_DAILY_TOKEN_LIMIT !== null) {
     IncrementUserDailyTokenUsage(mainDb, userEmail, inputTokens + outputTokens).catch(() => {});
+  }
+  if (_WEEKLY_TOKEN_LIMIT !== null) {
+    IncrementInstanceWeeklyTokenUsage(mainDb, inputTokens + outputTokens).catch(() => {});
   }
   return c.json(data);
 });

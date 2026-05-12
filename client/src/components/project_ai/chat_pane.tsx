@@ -239,7 +239,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }
   };
 
-  type AiUsageData = { tokensUsedToday: number; dailyTokenLimit: number | null; isUnlimited: boolean };
+  type AiUsageData = { tokensUsedToday: number; dailyTokenLimit: number | null; isUnlimited: boolean; tokensUsedThisWeek: number; weeklyTokenLimit: number | null };
   const [aiUsage, setAiUsage] = createSignal<AiUsageData | null>(null);
 
   async function refreshAiUsage() {

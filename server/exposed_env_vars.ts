@@ -136,6 +136,10 @@ export const _DAILY_TOKEN_LIMIT: number | null = Deno.env.get("DAILY_TOKEN_LIMIT
   ? parseInt(Deno.env.get("DAILY_TOKEN_LIMIT")!)
   : null;
 
+export const _WEEKLY_TOKEN_LIMIT: number | null = Deno.env.get("WEEKLY_TOKEN_LIMIT")
+  ? parseInt(Deno.env.get("WEEKLY_TOKEN_LIMIT")!)
+  : null;
+
 ///////////////////////////////////////////////////////////////////////////////
 // Authentication (Optional)
 ///////////////////////////////////////////////////////////////////////////////

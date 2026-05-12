@@ -11,6 +11,7 @@ import {
   getOtherUser,
   getUserDefaultProjectPermissions,
   getUserPermissions,
+  GetInstanceWeeklyTokenUsage,
   GetUserDailyTokenUsage,
   setUserContactPerson,
   SetUserUnlimitedAi,
@@ -20,7 +21,7 @@ import {
   updateUserOrganisation,
   updateUserPermissions,
 } from "../../db/mod.ts";
-import { _DAILY_TOKEN_LIMIT } from "../../exposed_env_vars.ts";
+import { _DAILY_TOKEN_LIMIT, _WEEKLY_TOKEN_LIMIT } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { notifyInstanceUsersUpdated, notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -57,8 +58,11 @@ defineRoute(
   "getAiUsage",
   requireGlobalPermission(),
   async (c) => {
-    const tokensUsedToday = await GetUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email);
-    return c.json({ success: true, data: { tokensUsedToday, dailyTokenLimit: _DAILY_TOKEN_LIMIT, isUnlimited: c.var.globalUser.unlimitedAi } });
+    const [tokensUsedToday, tokensUsedThisWeek] = await Promise.all([
+      GetUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email),
+      GetInstanceWeeklyTokenUsage(c.var.mainDb),
+    ]);
+    return c.json({ success: true, data: { tokensUsedToday, dailyTokenLimit: _DAILY_TOKEN_LIMIT, isUnlimited: c.var.globalUser.unlimitedAi, tokensUsedThisWeek, weeklyTokenLimit: _WEEKLY_TOKEN_LIMIT } });
   },
 );
 

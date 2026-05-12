@@ -1,6 +1,24 @@
 import { Sql } from "postgres";
 import { AiUsageLog } from "./_main_database_types.ts";
 
+export async function GetInstanceWeeklyTokenUsage(mainDb: Sql): Promise<number> {
+  const result = await mainDb<[{ total_tokens: number }]>`
+    SELECT COALESCE(total_tokens, 0) AS total_tokens
+    FROM instance_weekly_token_usage
+    WHERE week_start = date_trunc('week', CURRENT_DATE)::date
+  `;
+  return result[0]?.total_tokens ?? 0;
+}
+
+export async function IncrementInstanceWeeklyTokenUsage(mainDb: Sql, tokens: number): Promise<void> {
+  await mainDb`
+    INSERT INTO instance_weekly_token_usage (week_start, total_tokens)
+    VALUES (date_trunc('week', CURRENT_DATE)::date, ${tokens})
+    ON CONFLICT (week_start) DO UPDATE
+    SET total_tokens = instance_weekly_token_usage.total_tokens + ${tokens}
+  `;
+}
+
 export async function AddAiUsageLog(
     mainDb: Sql,
     user_email: string,

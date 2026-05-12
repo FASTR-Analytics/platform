@@ -77,6 +77,11 @@ CREATE TABLE ai_usage_logs (
 );
 
 CREATE INDEX idx_ai_usage_logs_user_email ON ai_usage_logs(user_email);
+
+CREATE TABLE instance_weekly_token_usage (
+  week_start date PRIMARY KEY,
+  total_tokens integer NOT NULL DEFAULT 0
+);
 CREATE INDEX idx_ai_usage_logs_project_id ON ai_usage_logs(project_id);
 CREATE INDEX idx_ai_usage_logs_timestamp ON ai_usage_logs(timestamp DESC);
 

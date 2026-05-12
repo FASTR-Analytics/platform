@@ -177,6 +177,37 @@ export function ProfileForm(
                 </StateHolderWrapper>
               </SettingsSection>
 
+              {/* AI usage this week */}
+              <SettingsSection
+                header={t3({ en: "AI usage this week (instance)", fr: "Utilisation IA cette semaine (instance)" })}
+              >
+                <StateHolderWrapper state={aiUsage.state()} noPad>
+                  {(usage) => {
+                    const pct = usage.weeklyTokenLimit !== null
+                      ? Math.min(100, Math.round((usage.tokensUsedThisWeek / usage.weeklyTokenLimit) * 100))
+                      : null;
+                    return (
+                      <div class="flex flex-col gap-2">
+                        {pct !== null && (
+                          <div class="bg-base-200 h-2 w-full overflow-hidden rounded-full">
+                            <div
+                              class={`h-full rounded-full transition-all ${pct >= 80 ? "bg-warning" : "bg-primary"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        )}
+                        <div class="text-neutral text-sm">
+                          {usage.tokensUsedThisWeek.toLocaleString()}{" "}
+                          {usage.weeklyTokenLimit !== null
+                            ? `/ ${usage.weeklyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens" })} (${pct}%)`
+                            : t3({ en: "tokens used this week · Unlimited", fr: "tokens utilisés cette semaine · Illimité" })}
+                        </div>
+                      </div>
+                    );
+                  }}
+                </StateHolderWrapper>
+              </SettingsSection>
+
               {/* Mailing list */}
               <SettingsSection
                 header={t3({ en: "Mailing list", fr: "Liste de diffusion" })}
