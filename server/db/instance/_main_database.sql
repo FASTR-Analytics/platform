@@ -55,6 +55,8 @@ CREATE TABLE user_logs (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
+CREATE INDEX idx_user_logs_project_id ON user_logs(project_id) WHERE project_id IS NOT NULL;
+
 CREATE TABLE ai_usage_logs (
   id SERIAL PRIMARY KEY,
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),

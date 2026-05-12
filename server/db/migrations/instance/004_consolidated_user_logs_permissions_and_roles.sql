@@ -46,17 +46,18 @@ ALTER TABLE project_user_roles
 -- ============================================================================
 ALTER TABLE user_logs ADD COLUMN IF NOT EXISTS project_id text;
 
--- Add foreign key constraint if it doesn't already exist
+-- Add foreign key constraint if none exists on project_id column
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints
-    WHERE constraint_name = 'fk_user_logs_project_id'
-      AND table_name = 'user_logs'
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_attribute a ON a.attnum = ANY(c.conkey) AND a.attrelid = c.conrelid
+    WHERE c.conrelid = 'user_logs'::regclass
+      AND c.contype = 'f'
+      AND a.attname = 'project_id'
   ) THEN
     ALTER TABLE user_logs
-      ADD CONSTRAINT fk_user_logs_project_id
-      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+      ADD FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
   END IF;
 END $$;
 

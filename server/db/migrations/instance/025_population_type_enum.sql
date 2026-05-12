@@ -4,11 +4,19 @@ ALTER TABLE calculated_indicators
   ADD COLUMN IF NOT EXISTS denom_population_multiplier REAL;
 
 -- Migrate existing data: fraction → total_population with that fraction as multiplier
-UPDATE calculated_indicators
-SET denom_population_type = 'total_population',
-    denom_population_multiplier = denom_population_fraction
-WHERE denom_kind = 'population'
-  AND denom_population_type IS NULL;
+-- Only if old column exists (skip on fresh DBs where table was created with new schema)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'calculated_indicators'
+             AND column_name = 'denom_population_fraction') THEN
+    UPDATE calculated_indicators
+    SET denom_population_type = 'total_population',
+        denom_population_multiplier = denom_population_fraction
+    WHERE denom_kind = 'population'
+      AND denom_population_type IS NULL;
+  END IF;
+END $$;
 
 -- Drop old column (idempotent via DO block)
 DO $$
