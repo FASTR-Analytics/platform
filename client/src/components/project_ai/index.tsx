@@ -1,6 +1,14 @@
-import { AIChatProvider, type AIChatConfig, FrameRightResizable, useConversations } from "panther";
+import {
+  AIChatProvider,
+  type AIChatConfig,
+  FrameRightResizable,
+  useConversations,
+} from "panther";
 import { createMemo, onCleanup, onMount, type ParentProps } from "solid-js";
-import { DEFAULT_MODEL_CONFIG, createProjectSDKClient } from "./ai_configs/defaults";
+import {
+  DEFAULT_MODEL_CONFIG,
+  createProjectSDKClient,
+} from "./ai_configs/defaults";
 import { AIProjectContextProvider, useAIProjectContext } from "./context";
 import { instanceState } from "~/state/instance/t1_store";
 import { ConsolidatedChatPane } from "./chat_pane";
@@ -13,19 +21,21 @@ import { useAIDocuments } from "./ai_documents";
 
 export { useAIProjectContext } from "./context";
 
-
 export function AIProjectWrapper(props: ParentProps) {
   return (
     <AIProjectContextProvider>
-      <AIProjectWrapperInner>
-        {props.children}
-      </AIProjectWrapperInner>
+      <AIProjectWrapperInner>{props.children}</AIProjectWrapperInner>
     </AIProjectContextProvider>
   );
 }
 
 function AIProjectWrapperInner(props: ParentProps) {
-  const { aiContext, notifyAI, getPendingInteractionsMessage, clearPendingInteractions } = useAIProjectContext();
+  const {
+    aiContext,
+    notifyAI,
+    getPendingInteractionsMessage,
+    clearPendingInteractions,
+  } = useAIProjectContext();
   const projectId = projectState.id;
 
   const sdkClient = createProjectSDKClient(projectId);
@@ -35,12 +45,21 @@ function AIProjectWrapperInner(props: ParentProps) {
   const tools = createMemo(() => {
     // console.log("[WRAPPER] tools memo recomputing, aiContext mode:", aiContext().mode);
     // Touch all properties used by tools (bespoke reader pattern)
-    projectState.projectModules.forEach(m => {
-      const _v = m.id + m.label + m.hasParameters + m.presentationDefUpdatedAt + m.lastRunAt + m.dirty;
+    projectState.projectModules.forEach((m) => {
+      const _v =
+        m.id +
+        m.label +
+        m.hasParameters +
+        m.presentationDefUpdatedAt +
+        m.lastRunAt +
+        m.dirty;
     });
-    projectState.metrics.forEach(m => {
-      const _v = m.status + m.moduleId + m.label + m.variantLabel + m.id + m.formatAs;
-      m.valueProps.forEach(p => { const _vp = p; });
+    projectState.metrics.forEach((m) => {
+      const _v =
+        m.status + m.moduleId + m.label + m.variantLabel + m.id + m.formatAs;
+      m.valueProps.forEach((p) => {
+        const _vp = p;
+      });
       if (m.valueLabelReplacements) {
         for (const k in m.valueLabelReplacements) {
           const _vlr = m.valueLabelReplacements[k];
@@ -54,17 +73,19 @@ function AIProjectWrapperInner(props: ParentProps) {
         const _aidc = m.aiDescription.caveats;
         const _aiddg = m.aiDescription.disaggregationGuidance;
       }
-      m.disaggregationOptions.forEach(d => { const _d = d.value + d.isRequired; });
+      m.disaggregationOptions.forEach((d) => {
+        const _d = d.value + d.isRequired;
+      });
       const _po = m.mostGranularTimePeriodColumnInResultsFile;
     });
 
     // Visualizations
-    projectState.visualizations.forEach(v => {
+    projectState.visualizations.forEach((v) => {
       const _v = v.id + v.label;
     });
 
     // Slide decks
-    projectState.slideDecks.forEach(d => {
+    projectState.slideDecks.forEach((d) => {
       const _v = d.id + d.label;
     });
 
@@ -79,11 +100,7 @@ function AIProjectWrapperInner(props: ParentProps) {
   });
 
   const systemPrompt = createMemo(() =>
-    buildSystemPromptForContext(
-      aiContext(),
-      instanceState,
-      projectState
-    )
+    buildSystemPromptForContext(aiContext(), instanceState, projectState),
   );
 
   // Subscribe to SSE changes - track ALL changes, filter later in reducer
@@ -91,7 +108,7 @@ function AIProjectWrapperInner(props: ParentProps) {
     const cleanup = addLastUpdatedListener((tableName, ids, timestamp) => {
       // Slides - always notify (reducer filters by deck)
       if (tableName === "slides") {
-        ids.forEach(id => {
+        ids.forEach((id) => {
           notifyAI({ type: "edited_slide", slideId: id });
         });
         return;
@@ -99,12 +116,12 @@ function AIProjectWrapperInner(props: ParentProps) {
 
       // Presentation objects (visualizations) - always notify
       if (tableName === "presentation_objects") {
-        ids.forEach(id => {
-          const viz = projectState.visualizations.find(v => v.id === id);
+        ids.forEach((id) => {
+          const viz = projectState.visualizations.find((v) => v.id === id);
           if (viz) {
             notifyAI({
               type: "custom",
-              message: `Visualization "${viz.label}" updated`
+              message: `Visualization "${viz.label}" updated`,
             });
           }
         });
@@ -161,7 +178,13 @@ function AIProjectWrapperInner(props: ParentProps) {
         hoverOffset="offset-for-border-1-on-right"
         isShown={showAi()}
         onToggleShow={() => setShowAi(false)}
-        panelChildren={<ConsolidatedChatPane aiDocs={aiDocs} getSystemPrompt={systemPrompt} />}>
+        panelChildren={
+          <ConsolidatedChatPane
+            aiDocs={aiDocs}
+            getSystemPrompt={systemPrompt}
+          />
+        }
+      >
         {props.children}
       </FrameRightResizable>
     </AIChatProvider>

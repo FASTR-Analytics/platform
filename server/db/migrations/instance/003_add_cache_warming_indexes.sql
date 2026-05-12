@@ -49,12 +49,5 @@ CREATE INDEX IF NOT EXISTS idx_dataset_hmis_period_id
 ON dataset_hmis(period_id);
 
 -- Dataset HFA queries:
--- 11. SELECT id FROM dataset_hfa_versions ORDER BY id DESC LIMIT 1
---     Uses PK - already optimal
-
--- 12. Heavy query: SELECT var_name, facility_id, time_point, value FROM dataset_hfa
---     Already has: idx_dataset_hfa_var_name, idx_dataset_hfa_facility_id
---     For SELECT with all these columns, a covering index would help
-CREATE INDEX IF NOT EXISTS idx_dataset_hfa_covering
-ON dataset_hfa(var_name, facility_id, time_point)
-INCLUDE (value);
+-- (Removed: dataset_hfa was replaced by hfa_data in migration 023_hfa_schema_redesign.sql
+--  Indexes for hfa_data are defined in that migration)
