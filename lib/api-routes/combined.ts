@@ -21,6 +21,7 @@ import { slideRouteRegistry } from "./project/slides.ts";
 import { visualizationFolderRouteRegistry } from "./project/visualization-folders.ts";
 import { emailRouteRegistry } from "./project/emails.ts";
 import { cacheStatusRouteRegistry } from "./project/cache-status.ts";
+import { customPromptRouteRegistry } from "./instance/custom_prompts.ts";
 
 // Combined route registry
 export const routeRegistry = {
@@ -47,4 +48,5 @@ export const routeRegistry = {
   ...visualizationFolderRouteRegistry,
   ...emailRouteRegistry,
   ...cacheStatusRouteRegistry,
+  ...customPromptRouteRegistry,
 } as const;

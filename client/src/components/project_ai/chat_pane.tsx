@@ -21,6 +21,7 @@ import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
 import { useAIDocuments, AIDocumentList } from "./ai_documents";
 import { usePromptLibrary } from "./ai_prompt_library";
+import { SaveableUserTextRenderer } from "./ai_prompt_library/SaveableUserTextRenderer";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
 import { projectState } from "~/state/project/t1_store";
 
@@ -71,7 +72,7 @@ function ToolErrorRenderer(props: { item: { errorMessage: string; errorDetails: 
   );
 }
 
-const customChatRenderers = { toolError: ToolErrorRenderer } as Parameters<typeof AIChat>[0]["customRenderers"];
+const customChatRenderers = { toolError: ToolErrorRenderer, userText: SaveableUserTextRenderer } as Parameters<typeof AIChat>[0]["customRenderers"];
 
 type ConsolidatedChatPaneProps = {
   aiDocs: ReturnType<typeof useAIDocuments>;

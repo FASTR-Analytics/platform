@@ -1,5 +1,5 @@
 import { clerk } from "~/components/LoggedInWrapper";
-import { Button, Input, ModalContainer, type AlertComponentProps } from "panther";
+import { Button, TextArea, ModalContainer, type AlertComponentProps } from "panther";
 import { createSignal } from "solid-js";
 import { t3 } from "lib";
 
@@ -64,10 +64,12 @@ export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
             fr: "À quelle organisation appartenez-vous ?",
           })}
         </p>
-        <Input
+        <TextArea
           value={organisation()}
           onChange={setOrganisation}
           placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
+          fullWidth
+          rows={2}
           disabled={loading()}
         />
       </div>

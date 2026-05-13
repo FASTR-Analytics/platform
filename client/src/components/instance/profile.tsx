@@ -4,7 +4,7 @@ import { t3, TC } from "lib";
 import {
   Button,
   Checkbox,
-  Input,
+  TextArea,
   ModalContainer,
   SettingsSection,
   StateHolderWrapper,
@@ -145,10 +145,12 @@ export function ProfileForm(
                   </Button>
                 }
               >
-                <Input
+                <TextArea
                   value={organisation()}
                   onChange={setOrganisation}
                   placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
+                  fullWidth
+                  rows={3}
                 />
               </SettingsSection>
 
