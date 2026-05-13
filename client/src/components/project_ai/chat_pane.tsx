@@ -24,7 +24,7 @@ import { usePromptLibrary } from "./ai_prompt_library";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
 import { projectState } from "~/state/project/t1_store";
 
-const RESET_RE = /will reset at (.+?)\.?\s*$/i;
+const RESET_RE = /will reset at ([^".}]+)/i;
 
 function RateLimitErrorBox(props: { item: { errorDetails: string } }) {
   const isWeekly = () => /weekly|country/i.test(props.item.errorDetails);
