@@ -24,6 +24,55 @@ import { usePromptLibrary } from "./ai_prompt_library";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
 import { projectState } from "~/state/project/t1_store";
 
+const RESET_RE = /will reset at (.+?)\.?\s*$/i;
+
+function RateLimitErrorBox(props: { item: { errorDetails: string } }) {
+  const isWeekly = () => /weekly|country/i.test(props.item.errorDetails);
+  const resetTime = () => props.item.errorDetails.match(RESET_RE)?.[1] ?? null;
+  return (
+    <div class="border-base-300 bg-base-100 my-1 max-w-sm rounded border p-3">
+      <div class="text-warning text-sm font-medium">
+        {isWeekly()
+          ? t3({ en: "Country AI usage limit reached", fr: "Limite IA du pays atteinte" })
+          : t3({ en: "Daily AI usage limit reached", fr: "Limite IA journalière atteinte" })}
+      </div>
+      <Show when={resetTime()}>
+        {(time) => (
+          <div class="text-neutral mt-1 text-xs">
+            {t3({ en: "Usage will reset at", fr: "L'utilisation se réinitialisera à" })} {time()}
+          </div>
+        )}
+      </Show>
+    </div>
+  );
+}
+
+function ToolErrorRenderer(props: { item: { errorMessage: string; errorDetails: string } }) {
+  const isRateLimit = () => /rate.?limit/i.test(props.item.errorDetails);
+  const [expanded, setExpanded] = createSignal(false);
+  return (
+    <Show when={isRateLimit()} fallback={
+      <div class="my-1">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-left text-xs"
+        >
+          <span class="mt-0.5">{expanded() ? "▾" : "▸"}</span>
+          <span class="font-medium">{props.item.errorMessage}</span>
+        </button>
+        <Show when={expanded()}>
+          <div class="ml-4 mt-1 text-xs">{props.item.errorDetails}</div>
+        </Show>
+      </div>
+    }>
+      <RateLimitErrorBox item={props.item} />
+    </Show>
+  );
+}
+
+const customChatRenderers = { toolError: ToolErrorRenderer } as Parameters<typeof AIChat>[0]["customRenderers"];
+
 type ConsolidatedChatPaneProps = {
   aiDocs: ReturnType<typeof useAIDocuments>;
   getSystemPrompt: Accessor<string>;
@@ -305,6 +354,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         <AIChat
           placeholder={placeholder()}
           onScrollReady={(fn) => (scrollToBottom = fn)}
+          customRenderers={customChatRenderers}
         />
       </div>
 
