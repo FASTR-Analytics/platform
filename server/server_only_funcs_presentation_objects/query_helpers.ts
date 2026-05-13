@@ -55,13 +55,12 @@ export function buildNationalTotalQueryV2(
     return null;
   }
 
-  const nationalCode = fetchConfig.includeNationalPosition === "top"
-    ? "__NATIONAL"
-    : "zzNATIONAL";
+  const nationalCode =
+    fetchConfig.includeNationalPosition === "top" ? "__NATIONAL" : "zzNATIONAL";
 
   // Build SELECT columns with national code replacement
   const selectColumns: string[] = fetchConfig.groupBys.map((gb) =>
-    gb === "admin_area_2" ? `'${nationalCode}' AS admin_area_2` : gb
+    gb === "admin_area_2" ? `'${nationalCode}' AS admin_area_2` : gb,
   );
 
   const aggregateColumns = buildAggregateColumns(fetchConfig.values, true);
@@ -123,8 +122,7 @@ function buildSelectQueryV2(
   let fromClause = `FROM ${sourceTable}`;
 
   if (queryContext.needsFacilityJoin && facilityCTEName) {
-    fromClause +=
-      `\nLEFT JOIN ${facilityCTEName} f ON ${sourceTable}.facility_id = f.facility_id`;
+    fromClause += `\nLEFT JOIN ${facilityCTEName} f ON ${sourceTable}.facility_id = f.facility_id`;
   }
 
   /////////////////////////
@@ -134,9 +132,10 @@ function buildSelectQueryV2(
   /////////////////////////
   const adjustedSelectColumns = applyColumnPrefixes(selectColumns);
 
-  const selectStr = adjustedSelectColumns.length === 0
-    ? aggregateColumns
-    : `${adjustedSelectColumns.join(", ")}, ${aggregateColumns}`;
+  const selectStr =
+    adjustedSelectColumns.length === 0
+      ? aggregateColumns
+      : `${adjustedSelectColumns.join(", ")}, ${aggregateColumns}`;
 
   ////////////////////////
   //                    //
@@ -149,9 +148,10 @@ function buildSelectQueryV2(
     columnPrefixes,
   );
 
-  const whereClause = whereStatements.length === 0
-    ? ""
-    : `WHERE ${whereStatements.join(" AND ")}`;
+  const whereClause =
+    whereStatements.length === 0
+      ? ""
+      : `WHERE ${whereStatements.join(" AND ")}`;
 
   ///////////////////////////
   //                       //
@@ -161,9 +161,10 @@ function buildSelectQueryV2(
 
   const adjustedGroupByColumns = applyColumnPrefixes(groupByColumns);
 
-  const groupByClause = adjustedGroupByColumns.length === 0
-    ? ""
-    : `GROUP BY ${adjustedGroupByColumns.join(", ")}`;
+  const groupByClause =
+    adjustedGroupByColumns.length === 0
+      ? ""
+      : `GROUP BY ${adjustedGroupByColumns.join(", ")}`;
 
   ////////////////////
   //                //
@@ -193,7 +194,13 @@ export function buildWhereClause(
   const whereStatements: string[] = [];
 
   // Add filter conditions (case-insensitive for text, direct for integers)
-  const INTEGER_COLUMNS = new Set(["year", "month", "quarter_id", "period_id", "time_point"]);
+  const INTEGER_COLUMNS = new Set([
+    "year",
+    "month",
+    "quarter_id",
+    "period_id",
+    "time_point",
+  ]);
 
   for (const filter of fetchConfig.filters) {
     if (filter.values.length === 0) continue;
@@ -267,12 +274,12 @@ function buildAggregateColumns(
  * The v2 version ensures CTEs stay at the top level
  */
 export function applyPostAggregationExpressionV2(
-  query: string,
+  sqlQuery: string,
   postAggregationExpression: string | undefined,
   groupBys: (DisaggregationOption | PeriodOption)[],
 ): string {
   if (!postAggregationExpression || !postAggregationExpression.includes("=")) {
-    return query;
+    return sqlQuery;
   }
 
   const chunks = postAggregationExpression
@@ -282,7 +289,7 @@ export function applyPostAggregationExpressionV2(
   const expression = chunks.at(-1);
 
   if (!value || !expression) {
-    return query;
+    return sqlQuery;
   }
 
   // Protect against division by zero by replacing /column with /NULLIF(column, 0)
@@ -292,8 +299,7 @@ export function applyPostAggregationExpressionV2(
   const groupByPrefix = groupBys.length === 0 ? "" : `${groupBys.join(", ")}, `;
 
   // Build the post-aggregation wrapper
-  const wrappedQuery =
-    `SELECT ${groupByPrefix}(${safeExpression}) as ${value} FROM (${query}) AS subq`;
+  const wrappedQuery = `SELECT ${groupByPrefix}(${safeExpression}) as ${value} FROM (${sqlQuery}) AS subq`;
 
   // If there are CTEs, they need to be moved to the outer level
   // This is handled by the caller in buildCombinedQueryV2

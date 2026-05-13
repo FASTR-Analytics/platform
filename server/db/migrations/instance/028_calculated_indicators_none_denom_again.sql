@@ -33,4 +33,11 @@ BEGIN
        AND denom_population_type IS NOT NULL
        AND denom_population_multiplier IS NOT NULL)
   );
+
+  -- Re-add inline column constraints that were dropped
+  ALTER TABLE calculated_indicators ADD CONSTRAINT calculated_indicators_format_as_check
+    CHECK (format_as IN ('percent', 'number', 'rate_per_10k'));
+
+  ALTER TABLE calculated_indicators ADD CONSTRAINT calculated_indicators_threshold_direction_check
+    CHECK (threshold_direction IN ('higher_is_better', 'lower_is_better'));
 END $$;

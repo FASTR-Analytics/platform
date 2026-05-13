@@ -24,9 +24,11 @@ export async function getPresentationObjectItems(
   moduleLastRun: string,
 ): Promise<APIResponseWithData<ItemsHolderPresentationObject>> {
   return await tryCatchDatabaseAsync(async () => {
-    const roRow = (await projectDb<{ module_id: string }[]>`
+    const roRow = (
+      await projectDb<{ module_id: string }[]>`
 SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
-`).at(0);
+`
+    ).at(0);
     if (!roRow) throw new Error(`Unknown results object: ${resultsObjectId}`);
     const moduleId = roRow.module_id;
 
@@ -108,7 +110,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     //                       //
     ///////////////////////////
 
-    const query = buildCombinedQueryV2({
+    const sqlQuery = buildCombinedQueryV2({
       tableName,
       fetchConfig: resolvedFetchConfig,
       queryContext,
@@ -116,7 +118,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     });
 
     // Execute the query
-    const rawItems = await projectDb.unsafe(query);
+    const rawItems = await projectDb.unsafe(sqlQuery);
 
     // Check for special states
     if (rawItems.length > MAX_ITEMS) {
@@ -124,7 +126,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
         projectId,
         resultsObjectId,
         fetchConfig,
-          moduleLastRun,
+        moduleLastRun,
         dateRange,
         status: "too_many_items" as const,
       };
@@ -136,7 +138,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
         projectId,
         resultsObjectId,
         fetchConfig,
-          moduleLastRun,
+        moduleLastRun,
         dateRange,
         status: "no_data_available" as const,
       };

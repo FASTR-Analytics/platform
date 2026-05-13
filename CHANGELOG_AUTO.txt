@@ -1,3 +1,11 @@
+[1.36.0] [user] [fixed] - Clearer error messages when expected data tables are missing
+[1.36.0] [admin] [fixed] - Clearer error messages when database tables are missing
+[1.36.0] [admin] [fixed] - Corrected table reference for HFA data during imports and deletions
+[1.36.0] [admin] [internal] - Removed temporary migration workaround for visualization data
+[1.33.0] [user] [fixed] - Charts now display correct axis scales when data was missing
+[1.33.0] [admin] [fixed] - Charts with missing scale limits now auto-compute correctly
+[1.33.0] [admin] [fixed] - Existing slides with missing chart scale data are repaired automatically
+[1.33.0] [admin] [internal] - Code formatting and cleanup across comparison and AI components
 [1.32.0] [user] [fixed] - Special chart modes now correctly require matching chart type to activate
 [1.32.0] [admin] [fixed] - Special chart modes now correctly check chart type before activating
 [1.32.0] [user] [added] - New scorecard table view option for metrics

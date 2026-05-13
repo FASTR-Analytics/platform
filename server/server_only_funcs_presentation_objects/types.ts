@@ -3,7 +3,6 @@ import type {
   InstanceConfigFacilityColumns,
   OptionalFacilityColumn,
 } from "lib";
-import type { CTEManager } from "./cte_manager.ts";
 import type { DynamicPeriodColumn } from "./period_helpers.ts";
 
 /**
@@ -14,15 +13,6 @@ export interface QueryConfigV2 {
   fetchConfig: GenericLongFormFetchConfig;
   queryContext: QueryContext;
   limit: number;
-}
-
-/**
- * Result of building a combined query (v2)
- */
-export interface CombinedQueryResultV2 {
-  query: string;
-  whereStatements: string[];
-  cteManager: CTEManager;
 }
 
 export interface QueryContext {

@@ -1,0 +1,102 @@
+#!/bin/bash
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTAINER_NAME="wb-fastr-migration-test-$$"
+DB_PORT=54329
+DB_NAME="migration_test"
+DB_USER="postgres"
+DB_PASS="testpass"
+
+cleanup() {
+    echo "Cleaning up..."
+    docker stop "$CONTAINER_NAME" 2>/dev/null || true
+    docker rm "$CONTAINER_NAME" 2>/dev/null || true
+    rm -f /tmp/schema_before_$$.sql /tmp/schema_after_$$.sql
+}
+
+trap cleanup EXIT
+
+echo "Starting temporary postgres container..."
+docker run -d \
+    --name "$CONTAINER_NAME" \
+    -e POSTGRES_PASSWORD="$DB_PASS" \
+    -e POSTGRES_DB="$DB_NAME" \
+    -p "$DB_PORT:5432" \
+    postgres:15 > /dev/null
+
+echo "Waiting for postgres to be ready..."
+for i in {1..30}; do
+    if docker exec "$CONTAINER_NAME" pg_isready -U "$DB_USER" -d "$DB_NAME" > /dev/null 2>&1; then
+        break
+    fi
+    sleep 0.5
+done
+
+PSQL="docker exec -i $CONTAINER_NAME psql -U $DB_USER -d $DB_NAME -v ON_ERROR_STOP=1"
+PG_DUMP="docker exec $CONTAINER_NAME pg_dump -U $DB_USER -d $DB_NAME --schema-only --no-owner --no-privileges"
+
+echo "Running base schema (_main_database.sql)..."
+cat "$SCRIPT_DIR/server/db/instance/_main_database.sql" | $PSQL -q
+
+echo "Capturing schema snapshot (before migrations)..."
+$PG_DUMP | grep -v "^--" | grep -v "^$" | grep -v "^\\\\restrict" | grep -v "^\\\\unrestrict" | sort > /tmp/schema_before_$$.sql
+
+echo "Running migrations..."
+MIGRATION_DIR="$SCRIPT_DIR/server/db/migrations/instance"
+MIGRATION_COUNT=0
+MIGRATION_FAILED=0
+
+for f in "$MIGRATION_DIR"/*.sql; do
+    if [[ "$(basename "$f")" == _* ]]; then
+        continue
+    fi
+
+    filename=$(basename "$f")
+    echo "  Applying: $filename"
+
+    if ! cat "$f" | $PSQL -q 2>&1; then
+        echo "  FAILED: $filename"
+        MIGRATION_FAILED=1
+        break
+    fi
+
+    MIGRATION_COUNT=$((MIGRATION_COUNT + 1))
+done
+
+if [ "$MIGRATION_FAILED" -eq 1 ]; then
+    echo ""
+    echo -e "\033[91m╔══════════════════════════════════════════════════════════════╗"
+    echo "║              MIGRATION VALIDATION FAILED                     ║"
+    echo "║                                                              ║"
+    echo "║  A migration crashed. See error above.                       ║"
+    echo "╚══════════════════════════════════════════════════════════════╝\033[0m"
+    exit 1
+fi
+
+echo "Capturing schema snapshot (after migrations)..."
+$PG_DUMP | grep -v "^--" | grep -v "^$" | grep -v "^\\\\restrict" | grep -v "^\\\\unrestrict" | sort > /tmp/schema_after_$$.sql
+
+echo "Comparing schemas..."
+if ! diff -q /tmp/schema_before_$$.sql /tmp/schema_after_$$.sql > /dev/null 2>&1; then
+    echo ""
+    echo -e "\033[91m╔══════════════════════════════════════════════════════════════╗"
+    echo "║              MIGRATION VALIDATION FAILED                     ║"
+    echo "║                                                              ║"
+    echo "║  Schema changed after running migrations on fresh DB.        ║"
+    echo "║  This means migrations are not idempotent.                   ║"
+    echo "╚══════════════════════════════════════════════════════════════╝\033[0m"
+    echo ""
+    echo "Diff (before vs after):"
+    diff /tmp/schema_before_$$.sql /tmp/schema_after_$$.sql || true
+    exit 1
+fi
+
+echo ""
+echo -e "\033[92m╔══════════════════════════════════════════════════════════════╗"
+echo "║              MIGRATION VALIDATION PASSED                     ║"
+echo "║                                                              ║"
+printf "║  %d migrations ran successfully                              ║\n" "$MIGRATION_COUNT"
+echo "║  Schema unchanged (all migrations idempotent)                ║"
+echo "╚══════════════════════════════════════════════════════════════╝\033[0m"

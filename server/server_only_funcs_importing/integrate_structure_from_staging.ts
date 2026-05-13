@@ -399,9 +399,9 @@ export async function integrateStructureFromStaging(
 async function deleteAllStructureData(sql: Sql): Promise<void> {
   console.log("Deleting all existing structure data...");
 
-  // Delete in reverse order with constraint deferral in single statement
+  // Delete in reverse order with constraint deferral
   await sql.unsafe(`
-    SET CONSTRAINTS dataset_hmis_facility_id_fkey, dataset_hfa_facility_id_fkey DEFERRED;
+    SET CONSTRAINTS dataset_hmis_facility_id_fkey, hfa_data_facility_id_fkey DEFERRED;
     DELETE FROM facilities;
   `);
   await sql`DELETE FROM admin_areas_4`;

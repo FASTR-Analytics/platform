@@ -61,6 +61,8 @@ CREATE TABLE user_logs (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
+CREATE INDEX idx_user_logs_project_id ON user_logs(project_id) WHERE project_id IS NOT NULL;
+
 CREATE TABLE ai_usage_logs (
   id SERIAL PRIMARY KEY,
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -338,11 +340,13 @@ CREATE TABLE hfa_variable_values (
 -- ============================================================================
 
 CREATE TABLE hfa_data (
-  facility_id TEXT NOT NULL REFERENCES facilities(facility_id),
-  time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
+  facility_id TEXT NOT NULL,
+  time_point TEXT NOT NULL,
   var_name TEXT NOT NULL,
   value TEXT NOT NULL,
   PRIMARY KEY (facility_id, time_point, var_name),
+  FOREIGN KEY (facility_id) REFERENCES facilities(facility_id) ON DELETE RESTRICT DEFERRABLE,
+  FOREIGN KEY (time_point) REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
   FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE
 );
 

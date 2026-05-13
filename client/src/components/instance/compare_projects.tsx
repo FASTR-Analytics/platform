@@ -17,7 +17,7 @@ import { For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 export function CompareProjects(p: EditorComponentProps<{}, undefined>) {
-  const query = timQuery(
+  const comparisonData = timQuery(
     () => serverActions.compareProjects({}),
     t3({
       en: "Loading comparison data...",
@@ -39,7 +39,7 @@ export function CompareProjects(p: EditorComponentProps<{}, undefined>) {
         </div>
       }
     >
-      <StateHolderWrapper state={query.state()}>
+      <StateHolderWrapper state={comparisonData.state()}>
         {(data: CompareProjectsData) => <ComparisonTable data={data} />}
       </StateHolderWrapper>
     </FrameTop>
@@ -78,7 +78,10 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
     );
   }
 
-  function isInconsistent(moduleId: string, getValue: (mod: CompareProjectsModule) => string | undefined): boolean {
+  function isInconsistent(
+    moduleId: string,
+    getValue: (mod: CompareProjectsModule) => string | undefined,
+  ): boolean {
     const values: string[] = [];
     for (const project of projects()) {
       const mod = project.modules.find((m) => m.id === moduleId);
@@ -91,17 +94,22 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
     return values.some((v) => v !== values[0]);
   }
 
-  function rowHeaderClass(moduleId: string, getValue: (mod: CompareProjectsModule) => string | undefined): string {
+  function rowHeaderClass(
+    moduleId: string,
+    getValue: (mod: CompareProjectsModule) => string | undefined,
+  ): string {
     const danger = isInconsistent(moduleId, getValue);
     return danger
       ? "text-danger bg-danger/5 ui-pad-sm sticky left-0 pl-6 text-xs"
       : "text-neutral ui-pad-sm sticky left-0 bg-base-100 pl-6 text-xs";
   }
 
-  function rowCellClass(moduleId: string, getValue: (mod: CompareProjectsModule) => string | undefined, base: string): string {
-    return isInconsistent(moduleId, getValue)
-      ? `${base} bg-danger/5`
-      : base;
+  function rowCellClass(
+    moduleId: string,
+    getValue: (mod: CompareProjectsModule) => string | undefined,
+    base: string,
+  ): string {
+    return isInconsistent(moduleId, getValue) ? `${base} bg-danger/5` : base;
   }
 
   function dirtyBadge(dirty: string) {
@@ -123,7 +131,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
       <table class="border-base-300 w-full border-collapse border text-sm">
         <thead>
           <tr class="border-base-300 border-b">
-            <th class="text-neutral ui-pad-sm font-500 sticky left-0 bg-base-100 text-left"></th>
+            <th class="text-neutral ui-pad-sm font-500 bg-base-100 sticky left-0 text-left"></th>
             <For each={projects()}>
               {(project) => (
                 <th class="ui-pad-sm font-600 text-left whitespace-nowrap">
@@ -143,7 +151,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
               return (
                 <>
                   <tr class="border-base-300 bg-base-200/50 border-b">
-                    <td class="ui-pad-sm font-600 sticky left-0 bg-base-200">
+                    <td class="ui-pad-sm font-600 bg-base-200 sticky left-0">
                       {t3(registryMod.label)}
                     </td>
                     <For each={projects()}>
@@ -164,14 +172,25 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                   </tr>
                   <Show when={anyInstalled}>
                     <tr class="border-base-300 border-b">
-                      <td class={rowHeaderClass(registryMod.id, (m) => m.computeDefGitRef)}>
+                      <td
+                        class={rowHeaderClass(
+                          registryMod.id,
+                          (m) => m.computeDefGitRef,
+                        )}
+                      >
                         {t3({ en: "Compute SHA", fr: "SHA calcul" })}
                       </td>
                       <For each={projects()}>
                         {(_, i) => {
                           const mod = getModule(i(), registryMod.id);
                           return (
-                            <td class={rowCellClass(registryMod.id, (m) => m.computeDefGitRef, "ui-pad-sm font-mono text-xs")}>
+                            <td
+                              class={rowCellClass(
+                                registryMod.id,
+                                (m) => m.computeDefGitRef,
+                                "ui-pad-sm font-mono text-xs",
+                              )}
+                            >
                               {mod?.computeDefGitRef?.slice(0, 7) ?? (
                                 <span class="text-neutral">—</span>
                               )}
@@ -181,14 +200,25 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                       </For>
                     </tr>
                     <tr class="border-base-300 border-b">
-                      <td class={rowHeaderClass(registryMod.id, (m) => m.presentationDefGitRef)}>
+                      <td
+                        class={rowHeaderClass(
+                          registryMod.id,
+                          (m) => m.presentationDefGitRef,
+                        )}
+                      >
                         {t3({ en: "Presentation SHA", fr: "SHA présentation" })}
                       </td>
                       <For each={projects()}>
                         {(_, i) => {
                           const mod = getModule(i(), registryMod.id);
                           return (
-                            <td class={rowCellClass(registryMod.id, (m) => m.presentationDefGitRef, "ui-pad-sm font-mono text-xs")}>
+                            <td
+                              class={rowCellClass(
+                                registryMod.id,
+                                (m) => m.presentationDefGitRef,
+                                "ui-pad-sm font-mono text-xs",
+                              )}
+                            >
                               {mod?.presentationDefGitRef?.slice(0, 7) ?? (
                                 <span class="text-neutral">—</span>
                               )}
@@ -198,15 +228,22 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                       </For>
                     </tr>
                     <tr class="border-base-300 border-b">
-                      <td class="text-neutral ui-pad-sm sticky left-0 bg-base-100 pl-6 text-xs">
-                        {t3({ en: "Presentation updated", fr: "Présentation mise à jour" })}
+                      <td class="text-neutral ui-pad-sm bg-base-100 sticky left-0 pl-6 text-xs">
+                        {t3({
+                          en: "Presentation updated",
+                          fr: "Présentation mise à jour",
+                        })}
                       </td>
                       <For each={projects()}>
                         {(_, i) => {
                           const mod = getModule(i(), registryMod.id);
                           return (
                             <td class="ui-pad-sm text-xs">
-                              {mod?.presentationDefUpdatedAt ? new Date(mod.presentationDefUpdatedAt).toLocaleDateString() : (
+                              {mod?.presentationDefUpdatedAt ? (
+                                new Date(
+                                  mod.presentationDefUpdatedAt,
+                                ).toLocaleDateString()
+                              ) : (
                                 <span class="text-neutral">—</span>
                               )}
                             </td>
@@ -215,14 +252,28 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                       </For>
                     </tr>
                     <tr class="border-base-300 border-b">
-                      <td class={rowHeaderClass(registryMod.id, (m) => m.lastRunGitRef)}>
-                        {t3({ en: "Last run SHA", fr: "SHA dernière exécution" })}
+                      <td
+                        class={rowHeaderClass(
+                          registryMod.id,
+                          (m) => m.lastRunGitRef,
+                        )}
+                      >
+                        {t3({
+                          en: "Last run SHA",
+                          fr: "SHA dernière exécution",
+                        })}
                       </td>
                       <For each={projects()}>
                         {(_, i) => {
                           const mod = getModule(i(), registryMod.id);
                           return (
-                            <td class={rowCellClass(registryMod.id, (m) => m.lastRunGitRef, "ui-pad-sm font-mono text-xs")}>
+                            <td
+                              class={rowCellClass(
+                                registryMod.id,
+                                (m) => m.lastRunGitRef,
+                                "ui-pad-sm font-mono text-xs",
+                              )}
+                            >
                               {mod?.lastRunGitRef?.slice(0, 7) ?? (
                                 <span class="text-neutral">—</span>
                               )}
@@ -232,7 +283,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                       </For>
                     </tr>
                     <tr class="border-base-300 border-b">
-                      <td class="text-neutral ui-pad-sm sticky left-0 bg-base-100 pl-6 text-xs">
+                      <td class="text-neutral ui-pad-sm bg-base-100 sticky left-0 pl-6 text-xs">
                         {t3({ en: "Last run at", fr: "Dernière exécution le" })}
                       </td>
                       <For each={projects()}>
@@ -240,7 +291,9 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                           const mod = getModule(i(), registryMod.id);
                           return (
                             <td class="ui-pad-sm text-xs">
-                              {mod?.lastRunAt ? new Date(mod.lastRunAt).toLocaleDateString() : (
+                              {mod?.lastRunAt ? (
+                                new Date(mod.lastRunAt).toLocaleDateString()
+                              ) : (
                                 <span class="text-neutral">—</span>
                               )}
                             </td>
@@ -251,7 +304,17 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                     <For each={params}>
                       {(param) => (
                         <tr class="border-base-300 border-b">
-                          <td class={rowHeaderClass(registryMod.id, (m) => m.parameters.find((pa) => pa.replacementString === param.replacementString)?.value)}>
+                          <td
+                            class={rowHeaderClass(
+                              registryMod.id,
+                              (m) =>
+                                m.parameters.find(
+                                  (pa) =>
+                                    pa.replacementString ===
+                                    param.replacementString,
+                                )?.value,
+                            )}
+                          >
                             {param.description}
                           </td>
                           <For each={projects()}>
@@ -262,9 +325,22 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                                   pa.replacementString ===
                                   param.replacementString,
                               )?.value;
-                              const getParamValue = (m: CompareProjectsModule) => m.parameters.find((pa) => pa.replacementString === param.replacementString)?.value;
+                              const getParamValue = (
+                                m: CompareProjectsModule,
+                              ) =>
+                                m.parameters.find(
+                                  (pa) =>
+                                    pa.replacementString ===
+                                    param.replacementString,
+                                )?.value;
                               return (
-                                <td class={rowCellClass(registryMod.id, getParamValue, "ui-pad-sm text-xs")}>
+                                <td
+                                  class={rowCellClass(
+                                    registryMod.id,
+                                    getParamValue,
+                                    "ui-pad-sm text-xs",
+                                  )}
+                                >
                                   {value ?? <span class="text-neutral">—</span>}
                                 </td>
                               );

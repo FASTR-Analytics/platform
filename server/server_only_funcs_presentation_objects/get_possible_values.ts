@@ -38,9 +38,8 @@ export async function getPossibleValues(
     const tableName = getResultsObjectTableName(resultsObjectId);
 
     // Filter out the current disaggregation option from filters
-    const filteredFilters = filters?.filter((f) =>
-      f.disOpt !== disaggregationOption
-    ) ?? [];
+    const filteredFilters =
+      filters?.filter((f) => f.disOpt !== disaggregationOption) ?? [];
 
     // Build minimal fetchConfig to leverage buildQueryContext
     const fetchConfig = {
@@ -74,19 +73,27 @@ export async function getPossibleValues(
       queryContext.hasPeriodId,
       columnPrefixes,
     );
-    const whereClause = whereStatements.length === 0
-      ? ""
-      : `WHERE ${whereStatements.join(" AND ")}`;
+    const whereClause =
+      whereStatements.length === 0
+        ? ""
+        : `WHERE ${whereStatements.join(" AND ")}`;
 
     // Check if this is a dynamic period column (derivable from period_id or quarter_id)
     const isDynamicPeriodColumn =
-      (queryContext.hasPeriodId && (DYNAMIC_PERIOD_COLUMNS as readonly string[]).includes(disaggregationOption)) ||
-      (queryContext.hasQuarterId && disaggregationOption in QUARTER_ID_COLUMN_EXPRESSIONS);
+      (queryContext.hasPeriodId &&
+        (DYNAMIC_PERIOD_COLUMNS as readonly string[]).includes(
+          disaggregationOption,
+        )) ||
+      (queryContext.hasQuarterId &&
+        disaggregationOption in QUARTER_ID_COLUMN_EXPRESSIONS);
 
     // Check if any filters reference dynamic period columns
-    const filterUsesDynamicPeriodColumn = filteredFilters.some((f) =>
-      (queryContext.hasPeriodId && (DYNAMIC_PERIOD_COLUMNS as readonly string[]).includes(f.disOpt)) ||
-      (queryContext.hasQuarterId && f.disOpt in QUARTER_ID_COLUMN_EXPRESSIONS)
+    const filterUsesDynamicPeriodColumn = filteredFilters.some(
+      (f) =>
+        (queryContext.hasPeriodId &&
+          (DYNAMIC_PERIOD_COLUMNS as readonly string[]).includes(f.disOpt)) ||
+        (queryContext.hasQuarterId &&
+          f.disOpt in QUARTER_ID_COLUMN_EXPRESSIONS),
     );
 
     // Need period CTE if we're selecting a dynamic column OR filtering by one
@@ -104,19 +111,23 @@ export async function getPossibleValues(
     } else if (isDynamicPeriodColumn) {
       // No CTE needed, use inline expression
       if (queryContext.hasPeriodId) {
-        columnRef = getPeriodColumnExpression(disaggregationOption as DynamicPeriodColumn);
+        columnRef = getPeriodColumnExpression(
+          disaggregationOption as DynamicPeriodColumn,
+        );
       } else {
         columnRef =
-          QUARTER_ID_COLUMN_EXPRESSIONS[disaggregationOption as keyof typeof QUARTER_ID_COLUMN_EXPRESSIONS];
+          QUARTER_ID_COLUMN_EXPRESSIONS[
+            disaggregationOption as keyof typeof QUARTER_ID_COLUMN_EXPRESSIONS
+          ];
       }
     } else {
       // Regular column
-      columnRef = columnPrefixes.get(disaggregationOption) ||
-        disaggregationOption;
+      columnRef =
+        columnPrefixes.get(disaggregationOption) || disaggregationOption;
     }
 
     // Build the query
-    let query: string;
+    let sqlQuery: string;
 
     if (queryContext.needsFacilityJoin) {
       // Check if the disaggregation option column exists in project facilities table
@@ -129,8 +140,7 @@ export async function getPossibleValues(
         if (!columnExists) {
           return {
             success: false,
-            err:
-              `Column ${disaggregationOption} does not exist in project facilities table`,
+            err: `Column ${disaggregationOption} does not exist in project facilities table`,
           };
         }
       }
@@ -149,24 +159,24 @@ export async function getPossibleValues(
   FROM ${tableName}
 ),
 facility_subset AS (
-  SELECT facility_id, ${
-          queryContext.requestedOptionalFacilityColumns.join(", ")
-        }
+  SELECT facility_id, ${queryContext.requestedOptionalFacilityColumns.join(
+    ", ",
+  )}
   FROM facilities
 )
 `;
         sourceTable = "period_data";
       } else {
         ctePrefix = `WITH facility_subset AS (
-  SELECT facility_id, ${
-          queryContext.requestedOptionalFacilityColumns.join(", ")
-        }
+  SELECT facility_id, ${queryContext.requestedOptionalFacilityColumns.join(
+    ", ",
+  )}
   FROM facilities
 )
 `;
       }
 
-      query = `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
+      sqlQuery = `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${sourceTable}
 LEFT JOIN facility_subset f ON ${sourceTable}.facility_id = f.facility_id
 ${whereClause}
@@ -200,14 +210,13 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
 )
 `;
         sourceTable = "period_data";
-        query =
-          `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
+        sqlQuery = `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${sourceTable}
 ${whereClause}
 ORDER BY ${columnRef}
 LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
       } else {
-        query = `SELECT DISTINCT ${columnRef} AS disaggregation_value
+        sqlQuery = `SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${tableName}
 ${whereClause}
 ORDER BY ${columnRef}
@@ -215,9 +224,8 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
       }
     }
 
-    const results = await projectDb.unsafe<{ disaggregation_value: string }[]>(
-      query,
-    );
+    const results =
+      await projectDb.unsafe<{ disaggregation_value: string }[]>(sqlQuery);
 
     const possibleValues = results
       .map((opt) => opt.disaggregation_value)

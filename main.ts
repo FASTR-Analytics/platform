@@ -78,6 +78,14 @@ app.use("/api/share/*", corsMiddleware);
 // Public routes (no auth required) - must be before authMiddleware
 app.route("/", routesPublicShare);
 
+// Serve SPA HTML for public share routes (before auth)
+try {
+  const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
+  app.get("/share/viz/:token", (c) => c.html(indexHtml));
+} catch {
+  // In development, handled by Vite dev server
+}
+
 //@ts-ignore - Clerk middleware types not fully compatible with Hono
 // LOCAL_DEVELOPMENT_TOGGLE
 app.use("*", authMiddleware);
@@ -127,17 +135,6 @@ app.use("*", cacheMiddleware);
 
 // Static file serving
 setupStaticServing(app);
-
-// Only serve static HTML in production (when client_dist exists)
-try {
-  const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
-  app.get("/share/viz/:token", (c) => c.html(indexHtml));
-} catch {
-  // In development, these routes are handled by the Vite dev server
-  console.log(
-    "Skipping SPA routes (client_dist not found - running in dev mode)",
-  );
-}
 
 app.get("*", (c) => {
   return c.redirect("/", 302);
