@@ -153,6 +153,16 @@ export function PromptLibraryModal(
     p.close({ action: "run_new", promptText: editedContent() });
   };
 
+  const handleNewCustomPrompt = async () => {
+    const result = await openComponent<{ initialContent: string }, SaveToPromptLibraryResult>({
+      element: SaveToPromptLibraryModal,
+      props: { initialContent: "" },
+    });
+    if (result?.saved) {
+      await loadCustomPrompts();
+    }
+  };
+
   const handleEditCustomPrompt = async (prompt: CustomPrompt) => {
     const result = await openComponent<{ initialContent: string; existingPrompt: CustomPrompt }, SaveToPromptLibraryResult>({
       element: SaveToPromptLibraryModal,
@@ -195,6 +205,9 @@ export function PromptLibraryModal(
             [
               <Button onClick={() => p.close(undefined)} intent="neutral">
                 {t3({ en: "Cancel", fr: "Annuler" })}
+              </Button>,
+              <Button onClick={handleNewCustomPrompt} intent="primary" iconName="plus">
+                {t3({ en: "New prompt", fr: "Nouveau prompt" })}
               </Button>,
             ]
           : undefined

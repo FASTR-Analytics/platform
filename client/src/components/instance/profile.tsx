@@ -150,7 +150,8 @@ export function ProfileForm(
                   onChange={setOrganisation}
                   placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
                   fullWidth
-                  rows={3}
+                  rows={1}
+                  size="sm"
                 />
               </SettingsSection>
 

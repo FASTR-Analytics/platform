@@ -69,7 +69,7 @@ export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
           onChange={setOrganisation}
           placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
           fullWidth
-          rows={2}
+          rows={1}
           disabled={loading()}
         />
       </div>
