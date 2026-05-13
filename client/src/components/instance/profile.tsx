@@ -134,7 +134,16 @@ export function ProfileForm(
               {/* Organisation */}
               <SettingsSection
                 header={t3({ en: "Organisation", fr: "Organisation" })}
-                rightChildren={
+              >
+                <div class="flex items-center gap-2">
+                  <TextArea
+                    value={organisation()}
+                    onChange={setOrganisation}
+                    placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
+                    fullWidth
+                    rows={1}
+                    size="sm"
+                  />
                   <Button
                     onClick={saveOrganisation.click}
                     state={saveOrganisation.state()}
@@ -143,16 +152,7 @@ export function ProfileForm(
                   >
                     {t3({ en: "Save", fr: "Enregistrer" })}
                   </Button>
-                }
-              >
-                <TextArea
-                  value={organisation()}
-                  onChange={setOrganisation}
-                  placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
-                  fullWidth
-                  rows={1}
-                  size="sm"
-                />
+                </div>
               </SettingsSection>
 
               {/* AI usage */}
