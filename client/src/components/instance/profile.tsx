@@ -13,7 +13,7 @@ import {
   type AlertComponentProps,
 } from "panther";
 import { serverActions } from "~/server_actions";
-import { createSignal } from "solid-js";
+import { createSignal, Show } from "solid-js";
 
 export function ProfileForm(
   p: AlertComponentProps<
@@ -71,6 +71,8 @@ export function ProfileForm(
             (clerk.user?.unsafeMetadata?.organisation as string | undefined) ?? "",
           );
 
+          const [editingOrganisation, setEditingOrganisation] = createSignal(false);
+
           const saveOrganisation = timActionButton(async () => {
             await clerk.user?.update({
               unsafeMetadata: {
@@ -78,6 +80,7 @@ export function ProfileForm(
                 organisation: organisation(),
               },
             });
+            setEditingOrganisation(false);
             return { success: true };
           });
 
@@ -135,24 +138,42 @@ export function ProfileForm(
               <SettingsSection
                 header={t3({ en: "Organisation", fr: "Organisation" })}
               >
-                <div class="flex items-center gap-2">
-                  <TextArea
-                    value={organisation()}
-                    onChange={setOrganisation}
-                    placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
-                    fullWidth
-                    rows={1}
-                    size="sm"
-                  />
-                  <Button
-                    onClick={saveOrganisation.click}
-                    state={saveOrganisation.state()}
-                    intent="primary"
-                    outline
-                  >
-                    {t3({ en: "Save", fr: "Enregistrer" })}
-                  </Button>
-                </div>
+                <Show
+                  when={editingOrganisation()}
+                  fallback={
+                    <div class="flex items-center gap-2">
+                      <span class="text-base-content/80 text-sm flex-1">
+                        {organisation() || <span class="text-base-content/40">{t3({ en: "Not set", fr: "Non défini" })}</span>}
+                      </span>
+                      <Button onClick={() => setEditingOrganisation(true)} outline size="sm" iconName="pencil">
+                        {t3({ en: "Edit", fr: "Modifier" })}
+                      </Button>
+                    </div>
+                  }
+                >
+                  <div class="flex items-center gap-2">
+                    <TextArea
+                      value={organisation()}
+                      onChange={setOrganisation}
+                      placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
+                      fullWidth
+                      rows={1}
+                      size="sm"
+                      autoFocus
+                    />
+                    <Button
+                      onClick={saveOrganisation.click}
+                      state={saveOrganisation.state()}
+                      intent="primary"
+                      outline
+                    >
+                      {t3({ en: "Save", fr: "Enregistrer" })}
+                    </Button>
+                    <Button onClick={() => setEditingOrganisation(false)} intent="neutral" outline>
+                      {t3({ en: "Cancel", fr: "Annuler" })}
+                    </Button>
+                  </div>
+                </Show>
               </SettingsSection>
 
               {/* AI usage */}
