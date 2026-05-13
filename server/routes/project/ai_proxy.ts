@@ -36,7 +36,7 @@ routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
       const daysUntilMonday = (8 - nextMonday.getUTCDay()) % 7 || 7;
       nextMonday.setUTCDate(nextMonday.getUTCDate() + daysUntilMonday);
       nextMonday.setUTCHours(0, 0, 0, 0);
-      return c.json({ type: "error", error: { type: "rate_limit_error", message: `Rate limit: The instance's weekly AI token limit has been reached. Usage will reset at ${nextMonday.toISOString()}.` } }, 429);
+      return c.json({ type: "error", error: { type: "rate_limit_error", message: `Rate limit: The country's weekly AI token limit has been reached. Usage will reset at ${nextMonday.toISOString()}.` } }, 429);
     }
   }
 
@@ -125,7 +125,7 @@ routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
         if (_DAILY_TOKEN_LIMIT !== null) {
           IncrementUserDailyTokenUsage(mainDb, userEmail, inputTokens + outputTokens).catch(() => {});
         }
-        if (_WEEKLY_TOKEN_LIMIT !== null) {
+        if (_WEEKLY_TOKEN_LIMIT !== null && !c.var.globalUser.unlimitedAi) {
           IncrementInstanceWeeklyTokenUsage(mainDb, inputTokens + outputTokens).catch(() => {});
         }
       },
@@ -151,7 +151,7 @@ routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
   if (_DAILY_TOKEN_LIMIT !== null) {
     IncrementUserDailyTokenUsage(mainDb, userEmail, inputTokens + outputTokens).catch(() => {});
   }
-  if (_WEEKLY_TOKEN_LIMIT !== null) {
+  if (_WEEKLY_TOKEN_LIMIT !== null && !c.var.globalUser.unlimitedAi) {
     IncrementInstanceWeeklyTokenUsage(mainDb, inputTokens + outputTokens).catch(() => {});
   }
   return c.json(data);

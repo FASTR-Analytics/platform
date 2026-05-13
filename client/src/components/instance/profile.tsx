@@ -158,7 +158,7 @@ export function ProfileForm(
               >
                 <StateHolderWrapper state={aiUsage.state()} noPad>
                   {(usage) => {
-                    const pct = usage.dailyTokenLimit !== null
+                    const pct = !usage.isUnlimited && usage.dailyTokenLimit !== null
                       ? Math.min(100, Math.round((usage.tokensUsedToday / usage.dailyTokenLimit) * 100))
                       : null;
                     return (
@@ -172,10 +172,15 @@ export function ProfileForm(
                           </div>
                         )}
                         <div class="text-neutral text-sm">
-                          {usage.tokensUsedToday.toLocaleString()}{" "}
-                          {usage.dailyTokenLimit !== null
-                            ? `/ ${usage.dailyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens" })} (${pct}%)`
-                            : t3({ en: "tokens used today · Unlimited", fr: "tokens utilisés aujourd'hui · Illimité" })}
+                          {usage.isUnlimited
+                            ? t3({ en: "Unlimited", fr: "Illimité" })
+                            : <>
+                                {usage.tokensUsedToday.toLocaleString()}{" "}
+                                {usage.dailyTokenLimit !== null
+                                  ? `/ ${usage.dailyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens" })} (${pct}%)`
+                                  : t3({ en: "tokens used today · Unlimited", fr: "tokens utilisés aujourd'hui · Illimité" })}
+                              </>
+                          }
                         </div>
                       </div>
                     );
@@ -185,7 +190,7 @@ export function ProfileForm(
 
               {/* AI usage this week */}
               <SettingsSection
-                header={t3({ en: "AI usage this week (instance)", fr: "Utilisation IA cette semaine (instance)" })}
+                header={t3({ en: "AI usage this week (country)", fr: "Utilisation IA cette semaine (pays)" })}
               >
                 <StateHolderWrapper state={aiUsage.state()} noPad>
                   {(usage) => {
