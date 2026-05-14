@@ -303,7 +303,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
                   </span>
                 </div>
               }
-              defaultOpen={true}
+              defaultOpen={false}
               borderStyle="full"
               rounded
               padding="sm"
@@ -334,7 +334,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
                   </span>
                 </div>
               }
-              defaultOpen={true}
+              defaultOpen={false}
               borderStyle="full"
               rounded
               padding="sm"
