@@ -72,4 +72,19 @@ export const userRouteRegistry = {
     method: "POST",
     body: {} as { emails: string[]; permissions: Partial<Record<ProjectPermission, boolean>> },
   }),
+  getAiUsage: route({
+    path: "/user/ai-usage",
+    method: "GET",
+    response: {} as { tokensUsedToday: number; dailyTokenLimit: number | null; isUnlimited: boolean; tokensUsedThisWeek: number; weeklyTokenLimit: number | null },
+  }),
+  setUserUnlimitedAi: route({
+    path: "/user/unlimited-ai",
+    method: "POST",
+    body: {} as { email: string; unlimited: boolean },
+  }),
+  setUserContactPerson: route({
+    path: "/user/contact-person",
+    method: "POST",
+    body: {} as { email: string; isContactPerson: boolean },
+  }),
 } as const;

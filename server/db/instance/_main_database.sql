@@ -1,6 +1,8 @@
 -- ============================================================================
 -- USER AND PROJECT MANAGEMENT
 -- ============================================================================
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
 
 CREATE TABLE users (
   email text PRIMARY KEY NOT NULL,
@@ -31,7 +33,11 @@ CREATE TABLE users (
   default_project_can_view_data boolean NOT NULL DEFAULT FALSE,
   default_project_can_view_metrics boolean NOT NULL DEFAULT FALSE,
   default_project_can_view_logs boolean NOT NULL DEFAULT FALSE,
-  default_project_can_view_script_code boolean NOT NULL DEFAULT FALSE
+  default_project_can_view_script_code boolean NOT NULL DEFAULT FALSE,
+  daily_token_usage integer NOT NULL DEFAULT 0,
+  daily_token_usage_date date NOT NULL DEFAULT CURRENT_DATE,
+  unlimited_ai boolean NOT NULL DEFAULT false,
+  is_contact_person boolean NOT NULL DEFAULT false
 );
 
 CREATE TABLE projects (
@@ -72,8 +78,28 @@ CREATE TABLE ai_usage_logs (
 );
 
 CREATE INDEX idx_ai_usage_logs_user_email ON ai_usage_logs(user_email);
+
+CREATE TABLE instance_weekly_token_usage (
+  week_start date PRIMARY KEY,
+  total_tokens integer NOT NULL DEFAULT 0
+);
 CREATE INDEX idx_ai_usage_logs_project_id ON ai_usage_logs(project_id);
 CREATE INDEX idx_ai_usage_logs_timestamp ON ai_usage_logs(timestamp DESC);
+
+CREATE TABLE user_logs_aggregate (
+  id SERIAL PRIMARY KEY,
+  user_email TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  endpoint_result TEXT NOT NULL,
+  project_id TEXT,
+  week_start DATE NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX idx_user_logs_aggregate_unique
+ON user_logs_aggregate (user_email, endpoint, endpoint_result, COALESCE(project_id, ''), week_start);
 
 CREATE TABLE instance_config (
   config_key text PRIMARY KEY NOT NULL,
@@ -446,6 +472,23 @@ CREATE TABLE IF NOT EXISTS share_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_share_tokens_token ON share_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_share_tokens_resource ON share_tokens(resource_type, resource_id);
+
+-- ============================================================================
+-- CUSTOM PROMPTS
+-- ============================================================================
+
+CREATE TABLE custom_prompts (
+  id text PRIMARY KEY NOT NULL,
+  name text NOT NULL,
+  content text NOT NULL,
+  category text NOT NULL,
+  scope text NOT NULL CHECK (scope IN ('user', 'country')),
+  created_by text NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  FOREIGN KEY (created_by) REFERENCES users(email) ON DELETE CASCADE
+);
+CREATE INDEX idx_custom_prompts_created_by ON custom_prompts(created_by);
+CREATE INDEX idx_custom_prompts_scope ON custom_prompts(scope);
 
 -- ============================================================================
 -- SCHEMA MIGRATIONS

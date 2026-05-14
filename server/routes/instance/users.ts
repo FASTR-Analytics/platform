@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { H_USERS } from "lib";
 import { GetLogs } from "../../db/instance/user_logs.ts";
 import {
   addUsers,
@@ -10,11 +11,16 @@ import {
   getOtherUser,
   getUserDefaultProjectPermissions,
   getUserPermissions,
+  GetInstanceWeeklyTokenUsage,
+  GetUserDailyTokenUsage,
+  setUserContactPerson,
+  SetUserUnlimitedAi,
   syncUserName,
   toggleAdmin,
   updateUserDefaultProjectPermissions,
   updateUserPermissions,
 } from "../../db/mod.ts";
+import { _DAILY_TOKEN_LIMIT, _WEEKLY_TOKEN_LIMIT } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { notifyInstanceUsersUpdated, notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -32,6 +38,36 @@ defineRoute(
     // Sync name from Clerk on first login only — syncUserName is a no-op once the name is set.
     syncUserName(c.var.mainDb, email, firstName ?? null, lastName ?? null).catch(() => {});
     return c.json({ success: true, data: c.var.globalUser });
+  },
+);
+
+
+defineRoute(
+  routesUsers,
+  "getAiUsage",
+  requireGlobalPermission(),
+  async (c) => {
+    const [tokensUsedToday, tokensUsedThisWeek] = await Promise.all([
+      GetUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email),
+      GetInstanceWeeklyTokenUsage(c.var.mainDb),
+    ]);
+    return c.json({ success: true, data: { tokensUsedToday, dailyTokenLimit: _DAILY_TOKEN_LIMIT, isUnlimited: c.var.globalUser.unlimitedAi, tokensUsedThisWeek, weeklyTokenLimit: _WEEKLY_TOKEN_LIMIT } });
+  },
+);
+
+defineRoute(
+  routesUsers,
+  "setUserUnlimitedAi",
+  requireGlobalPermission(),
+  async (c, { body }) => {
+    if (!H_USERS.includes(c.var.globalUser.email)) {
+      return c.json({ success: false, err: "Not authorized" }, 403);
+    }
+    const res = await SetUserUnlimitedAi(c.var.mainDb, body.email, body.unlimited);
+    if (res.success) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
+    return c.json(res);
   },
 );
 
@@ -135,6 +171,22 @@ defineRoute(
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesUsers,
+  "setUserContactPerson",
+  requireGlobalPermission(),
+  async (c, { body }) => {
+    if (!H_USERS.includes(c.var.globalUser.email)) {
+      return c.json({ success: false, err: "Not authorized" }, 403);
+    }
+    const res = await setUserContactPerson(c.var.mainDb, body.email, body.isContactPerson);
+    if (res.success) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
     return c.json(res);
   },

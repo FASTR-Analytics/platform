@@ -39,3 +39,4 @@ export * from "./permissions.ts";
 export * from "./permission_labels.ts";
 export * from "./calculated_indicator_id.ts";
 export * from "./share.ts";
+export * from "./custom_prompts.ts";

@@ -15,6 +15,7 @@ import type { GlobalUser, ProjectUser, ProjectPermission } from "lib";
 import {
   createDevGlobalUser,
   createDevProjectUser,
+  H_USERS,
   _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
   _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
   _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
@@ -203,6 +204,7 @@ export async function getGlobalUser(
       approved: _OPEN_ACCESS || !!rawUser,
       isGlobalAdmin,
       thisUserPermissions,
+      unlimitedAi: H_USERS.includes(email) || (rawUser?.unlimited_ai ?? false),
     };
     return globalUser;
   } catch (error) {

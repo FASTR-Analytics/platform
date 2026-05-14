@@ -36,6 +36,7 @@ export async function syncUserName(
   `;
 }
 
+
 export async function getOtherUser(
   mainDb: Sql,
   email: string,
@@ -72,6 +73,8 @@ export async function getOtherUser(
     const user: OtherUser = {
       email,
       isGlobalAdmin: rawUser.is_admin,
+      unlimitedAi: rawUser.unlimited_ai,
+      isContactPerson: rawUser.is_contact_person,
       ...(rawUser.is_admin
         ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
         : buildUserPermissionsFromRow(rawUser)),
@@ -107,6 +110,28 @@ export async function toggleAdmin(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb`UPDATE users SET is_admin = ${makeAdmin} WHERE email = ANY(${emails})`;
+    return { success: true };
+  });
+}
+
+export async function SetUserUnlimitedAi(
+  mainDb: Sql,
+  email: string,
+  unlimited: boolean,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`UPDATE users SET unlimited_ai = ${unlimited} WHERE email = ${email}`;
+    return { success: true };
+  });
+}
+
+export async function setUserContactPerson(
+  mainDb: Sql,
+  email: string,
+  isContactPerson: boolean,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`UPDATE users SET is_contact_person = ${isContactPerson} WHERE email = ${email}`;
     return { success: true };
   });
 }
@@ -251,6 +276,40 @@ export async function bulkUpdateUserDefaultProjectPermissions(
     `;
     return { success: true };
   });
+}
+
+export async function GetUserDailyTokenUsage(
+  mainDb: Sql,
+  userEmail: string,
+): Promise<number> {
+  const result = await mainDb<
+    [{ daily_token_usage: number; daily_token_usage_date: Date }]
+  >`
+    SELECT daily_token_usage, daily_token_usage_date
+    FROM users WHERE email = ${userEmail}
+  `;
+  const row = result[0];
+  if (!row) return 0;
+  const isToday =
+    row.daily_token_usage_date.toISOString().slice(0, 10) ===
+    new Date().toISOString().slice(0, 10);
+  return isToday ? row.daily_token_usage : 0;
+}
+
+export async function IncrementUserDailyTokenUsage(
+  mainDb: Sql,
+  userEmail: string,
+  tokens: number,
+): Promise<void> {
+  await mainDb`
+    UPDATE users SET
+      daily_token_usage = CASE
+        WHEN daily_token_usage_date = CURRENT_DATE THEN daily_token_usage + ${tokens}
+        ELSE ${tokens}
+      END,
+      daily_token_usage_date = CURRENT_DATE
+    WHERE email = ${userEmail}
+  `;
 }
 
 export async function deleteUser(

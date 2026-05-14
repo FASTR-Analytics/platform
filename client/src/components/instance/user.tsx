@@ -1,4 +1,5 @@
 import {
+  H_USERS,
   OtherUser,
   type ProjectSummary,
   t3,
@@ -38,8 +39,22 @@ function makeDefaultUserPermissions(): Record<UserPermission, boolean> {
 }
 
 export function User(p: Props) {
+  const currentUserIsHUser = () => H_USERS.includes(p.thisLoggedInUserEmail);
+
   const [permissions, setPermissions] = createSignal<Record<UserPermission, boolean> | null>(null);
   const [originalPermissions, setOriginalPermissions] = createSignal<Record<UserPermission, boolean> | null>(null);
+
+  const [unlimitedAi, setUnlimitedAi] = createSignal(p.user.unlimitedAi);
+  const toggleUnlimitedAi = timActionButton(
+    () => serverActions.setUserUnlimitedAi({ email: p.user.email, unlimited: !unlimitedAi() }),
+    () => { setUnlimitedAi((v) => !v); },
+  );
+
+  const [isContactPerson, setIsContactPerson] = createSignal(p.user.isContactPerson);
+  const toggleContactPerson = timActionButton(
+    () => serverActions.setUserContactPerson({ email: p.user.email, isContactPerson: !isContactPerson() }),
+    () => { setIsContactPerson((v) => !v); },
+  );
 
   // get user permissions
   (async () => {
@@ -221,6 +236,22 @@ export function User(p: Props) {
                   {t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)" })}
                 </button>
               </div>
+            </SettingsSection>
+          </Show>
+          <Show when={currentUserIsHUser()}>
+            <SettingsSection header={t3({ en: "AI usage", fr: "Utilisation IA" })}>
+              <Checkbox
+                label={t3({ en: "Unlimited AI token usage", fr: "Utilisation IA illimitée" })}
+                checked={unlimitedAi()}
+                onChange={toggleUnlimitedAi.click}
+              />
+            </SettingsSection>
+            <SettingsSection header={t3({ en: "Contact person", fr: "Personne de contact" })}>
+              <Checkbox
+                label={t3({ en: "Contact person", fr: "Personne de contact" })}
+                checked={isContactPerson()}
+                onChange={toggleContactPerson.click}
+              />
             </SettingsSection>
           </Show>
           <Button

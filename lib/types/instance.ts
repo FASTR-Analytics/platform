@@ -219,6 +219,7 @@ export type GlobalUser = {
   approved: boolean;
   isGlobalAdmin: boolean;
   thisUserPermissions: UserPermissions;
+  unlimitedAi: boolean;
 };
 
 export type ProjectUser = {
@@ -234,6 +235,8 @@ export type OtherUser = {
   isGlobalAdmin: boolean;
   firstName?: string;
   lastName?: string;
+  unlimitedAi: boolean;
+  isContactPerson: boolean;
 } & UserPermissions;
 
 export type UserLog = {
@@ -244,6 +247,16 @@ export type UserLog = {
   endpoint_result: string;
   details?: string;
   project_id?: string;
+};
+
+export type UserLogAggregate = {
+  id: number;
+  user_email: string;
+  endpoint: string;
+  endpoint_result: string;
+  project_id: string | null;
+  week_start: Date;
+  count: number;
 };
 
 // ============================================================================
@@ -275,6 +288,7 @@ export function createDevGlobalUser(
       can_view_data: true,
       can_create_projects: true,
     },
+    unlimitedAi: false,
   };
 }
 

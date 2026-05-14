@@ -28,6 +28,10 @@ export type DBUser = {
   default_project_can_view_metrics: boolean;
   default_project_can_view_logs: boolean;
   default_project_can_view_script_code: boolean;
+  daily_token_usage: number;
+  daily_token_usage_date: Date;
+  unlimited_ai: boolean;
+  is_contact_person: boolean;
 };
 
 export type UserLog = {
@@ -50,6 +54,16 @@ export type AiUsageLog = {
   output_tokens: number;
   cache_read_input_tokens: number;
   cache_creation_input_tokens: number;
+};
+
+export type UserLogAggregate = {
+  id: number;
+  user_email: string;
+  endpoint: string;
+  endpoint_result: string;
+  project_id: string | null;
+  week_start: Date;
+  count: number;
 };
 
 export type DBInstanceConfig = {

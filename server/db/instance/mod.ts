@@ -11,3 +11,4 @@ export * from "./users.ts";
 export * from "./geojson_maps.ts";
 export * from "./hfa_indicators.ts";
 export * from "./calculated_indicators.ts";
+export * from "./custom_prompts.ts";

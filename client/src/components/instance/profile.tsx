@@ -4,6 +4,7 @@ import { t3, TC } from "lib";
 import {
   Button,
   Checkbox,
+  TextArea,
   ModalContainer,
   SettingsSection,
   StateHolderWrapper,
@@ -12,7 +13,7 @@ import {
   type AlertComponentProps,
 } from "panther";
 import { serverActions } from "~/server_actions";
-import { createSignal } from "solid-js";
+import { createSignal, Show } from "solid-js";
 
 export function ProfileForm(
   p: AlertComponentProps<
@@ -25,6 +26,11 @@ export function ProfileForm(
   const userDetails = timQuery(
     () => serverActions.getCurrentUser({}),
     t3({ en: "Loading your profile...", fr: "Chargement de votre profil..." }),
+  );
+
+  const aiUsage = timQuery(
+    () => serverActions.getAiUsage({}),
+    t3({ en: "Loading AI usage...", fr: "Chargement de l'utilisation IA..." }),
   );
 
   const clearCache = timActionButton(
@@ -61,6 +67,23 @@ export function ProfileForm(
     >
       <StateHolderWrapper state={userDetails.state()} noPad>
         {(keyedUser) => {
+          const [organisation, setOrganisation] = createSignal(
+            (clerk.user?.unsafeMetadata?.organisation as string | undefined) ?? "",
+          );
+
+          const [editingOrganisation, setEditingOrganisation] = createSignal(false);
+
+          const saveOrganisation = timActionButton(async () => {
+            await clerk.user?.update({
+              unsafeMetadata: {
+                ...clerk.user.unsafeMetadata,
+                organisation: organisation(),
+              },
+            });
+            setEditingOrganisation(false);
+            return { success: true };
+          });
+
           const [optedIn, setOptedIn] = createSignal(
             clerk.user?.unsafeMetadata?.emailOptIn === true,
           );
@@ -110,6 +133,115 @@ export function ProfileForm(
                   </button>
                 </div>
               </div>
+
+              {/* Organisation */}
+              <SettingsSection
+                header={t3({ en: "Organisation", fr: "Organisation" })}
+              >
+                <Show
+                  when={editingOrganisation()}
+                  fallback={
+                    <div class="flex items-center gap-2">
+                      <span class="text-base-content/80 text-sm flex-1">
+                        {organisation() || <span class="text-base-content/40">{t3({ en: "Not set", fr: "Non défini" })}</span>}
+                      </span>
+                      <Button onClick={() => setEditingOrganisation(true)} outline size="sm" iconName="pencil">
+                        {t3({ en: "Edit", fr: "Modifier" })}
+                      </Button>
+                    </div>
+                  }
+                >
+                  <div class="flex items-center gap-2">
+                    <TextArea
+                      value={organisation()}
+                      onChange={setOrganisation}
+                      placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
+                      fullWidth
+                      rows={1}
+                      size="sm"
+                      autoFocus
+                    />
+                    <Button
+                      onClick={saveOrganisation.click}
+                      state={saveOrganisation.state()}
+                      intent="primary"
+                      outline
+                    >
+                      {t3({ en: "Save", fr: "Enregistrer" })}
+                    </Button>
+                    <Button onClick={() => setEditingOrganisation(false)} intent="neutral" outline>
+                      {t3({ en: "Cancel", fr: "Annuler" })}
+                    </Button>
+                  </div>
+                </Show>
+              </SettingsSection>
+
+              {/* AI usage */}
+              <SettingsSection
+                header={t3({ en: "AI usage today", fr: "Utilisation IA aujourd'hui" })}
+              >
+                <StateHolderWrapper state={aiUsage.state()} noPad>
+                  {(usage) => {
+                    const pct = !usage.isUnlimited && usage.dailyTokenLimit !== null
+                      ? Math.min(100, Math.round((usage.tokensUsedToday / usage.dailyTokenLimit) * 100))
+                      : null;
+                    return (
+                      <div class="flex flex-col gap-2">
+                        {pct !== null && (
+                          <div class="bg-base-200 h-2 w-full overflow-hidden rounded-full">
+                            <div
+                              class={`h-full rounded-full transition-all ${pct >= 80 ? "bg-warning" : "bg-primary"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        )}
+                        <div class="text-neutral text-sm">
+                          {usage.isUnlimited
+                            ? t3({ en: "Unlimited", fr: "Illimité" })
+                            : <>
+                                {usage.tokensUsedToday.toLocaleString()}{" "}
+                                {usage.dailyTokenLimit !== null
+                                  ? `/ ${usage.dailyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens" })} (${pct}%)`
+                                  : t3({ en: "tokens used today · Unlimited", fr: "tokens utilisés aujourd'hui · Illimité" })}
+                              </>
+                          }
+                        </div>
+                      </div>
+                    );
+                  }}
+                </StateHolderWrapper>
+              </SettingsSection>
+
+              {/* AI usage this week */}
+              <SettingsSection
+                header={t3({ en: "AI usage this week (country)", fr: "Utilisation IA cette semaine (pays)" })}
+              >
+                <StateHolderWrapper state={aiUsage.state()} noPad>
+                  {(usage) => {
+                    const pct = usage.weeklyTokenLimit !== null
+                      ? Math.min(100, Math.round((usage.tokensUsedThisWeek / usage.weeklyTokenLimit) * 100))
+                      : null;
+                    return (
+                      <div class="flex flex-col gap-2">
+                        {pct !== null && (
+                          <div class="bg-base-200 h-2 w-full overflow-hidden rounded-full">
+                            <div
+                              class={`h-full rounded-full transition-all ${pct >= 80 ? "bg-warning" : "bg-primary"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        )}
+                        <div class="text-neutral text-sm">
+                          {usage.tokensUsedThisWeek.toLocaleString()}{" "}
+                          {usage.weeklyTokenLimit !== null
+                            ? `/ ${usage.weeklyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens" })} (${pct}%)`
+                            : t3({ en: "tokens used this week · Unlimited", fr: "tokens utilisés cette semaine · Illimité" })}
+                        </div>
+                      </div>
+                    );
+                  }}
+                </StateHolderWrapper>
+              </SettingsSection>
 
               {/* Mailing list */}
               <SettingsSection

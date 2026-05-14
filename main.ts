@@ -51,6 +51,7 @@ import { routesPublicShare } from "./server/routes/public/share.ts";
 
 // Share routes (auth required)
 import { routesShare } from "./server/routes/instance/share.ts";
+import { routesCustomPrompts } from "./server/routes/instance/custom_prompts.ts";
 
 await dbStartUp();
 
@@ -129,6 +130,7 @@ app.route("/ai", routesAiProxy);
 app.route("/ai", routesAiFiles);
 app.route("/", routesAiTools);
 app.route("/", routesShare);
+app.route("/", routesCustomPrompts);
 
 // Cache headers middleware
 app.use("*", cacheMiddleware);

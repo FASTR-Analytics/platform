@@ -15,6 +15,7 @@ import {
 import { Match, Show, Switch, createSignal, onMount } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { EmailOptInModal } from "~/components/email_opt_in_modal";
+import { OrganisationModal } from "~/components/organisation_modal";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
@@ -53,12 +54,18 @@ export default function Instance(p: Props) {
     return t;
   };
 
-  // email opt in modal
+  // post-login modals
   onMount(async () => {
     if (!clerk.user) return; // skips dev bypass mode naturally
     if (!clerk.user.unsafeMetadata?.emailOptInAsked) {
       await openComponent({
         element: EmailOptInModal,
+        props: undefined,
+      });
+    }
+    if (!clerk.user.unsafeMetadata?.organisation) {
+      await openComponent({
+        element: OrganisationModal,
         props: undefined,
       });
     }
