@@ -1,3 +1,28 @@
+[TBD] [user] [added] - You are now asked for your organisation after login
+[TBD] [user] [added] - Organisation field visible and editable in your profile
+[TBD] [user] [added] - AI usage shown as daily and weekly progress bars in your profile
+[TBD] [user] [added] - Daily AI usage indicator displayed at the bottom of the AI chat panel
+[TBD] [user] [added] - Clear warning message when daily or weekly AI limit is reached
+[TBD] [user] [added] - Save your own prompts to a personal prompt library
+[TBD] [user] [added] - Share prompts with all users in your country
+[TBD] [user] [added] - Edit and delete your saved prompts from the prompt library
+[TBD] [user] [added] - Save any message you sent to AI directly to your prompt library
+[TBD] [user] [added] - "New prompt" button added to the prompt library browser
+[TBD] [user] [added] - Contact person role now shown in the users list
+[TBD] [user] [changed] - Rate limit reset times now shown in your local time zone
+[TBD] [admin] [added] - Users are now prompted to enter their organisation after login
+[TBD] [admin] [added] - Organisation field visible and editable in user profile
+[TBD] [admin] [added] - AI usage shown in user profile with daily and weekly limits
+[TBD] [admin] [added] - Daily and weekly AI token usage limits enforced per user and per country
+[TBD] [admin] [added] - Users exceeding AI limits see a clear rate-limit message with reset time
+[TBD] [admin] [added] - "Unlimited AI usage" toggle available for designated users
+[TBD] [admin] [added] - "Contact person" role can be assigned to users
+[TBD] [admin] [added] - Contact person status displayed in the users table
+[TBD] [admin] [added] - Custom prompt library: create, edit, and delete personal or country-shared prompts
+[TBD] [admin] [added] - Save any AI conversation prompt to the prompt library
+[TBD] [admin] [added] - AI usage progress indicator shown at the bottom of the AI chat panel
+[TBD] [admin] [changed] - Cache status page now shows client-side cache per visualization
+[TBD] [admin] [internal] - Old user logs are now aggregated weekly before deletion
 [1.36.0] [user] [fixed] - Clearer error messages when expected data tables are missing
 [1.36.0] [admin] [fixed] - Clearer error messages when database tables are missing
 [1.36.0] [admin] [fixed] - Corrected table reference for HFA data during imports and deletions
