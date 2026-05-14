@@ -1,4 +1,4 @@
-CREATE TABLE user_logs_aggregate (
+CREATE TABLE IF NOT EXISTS user_logs_aggregate (
   id SERIAL PRIMARY KEY,
   user_email TEXT NOT NULL,
   endpoint TEXT NOT NULL,
@@ -10,5 +10,5 @@ CREATE TABLE user_logs_aggregate (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX idx_user_logs_aggregate_unique
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_logs_aggregate_unique
 ON user_logs_aggregate (user_email, endpoint, endpoint_result, COALESCE(project_id, ''), week_start);
