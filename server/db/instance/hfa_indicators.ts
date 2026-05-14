@@ -120,29 +120,41 @@ export async function batchUploadHfaIndicators(
       if (replaceAll) {
         await sql`DELETE FROM hfa_indicators`;
       }
+
+      let existingVarNames = new Set<string>();
+      let nextSortOrder = 0;
+      if (!replaceAll) {
+        const existingRows = await sql<{ var_name: string }[]>`
+          SELECT var_name FROM hfa_indicators
+        `;
+        existingVarNames = new Set(existingRows.map((r) => r.var_name));
+        const maxResult = await sql<{ max_order: number | null }[]>`
+          SELECT MAX(sort_order) as max_order FROM hfa_indicators
+        `;
+        nextSortOrder = (maxResult[0]?.max_order ?? -1) + 1;
+      }
+
+      const insertedVarNames = new Set<string>();
       for (let i = 0; i < indicators.length; i++) {
         const ind = indicators[i];
+        if (!replaceAll && existingVarNames.has(ind.varName)) {
+          continue;
+        }
+        const sortOrder = replaceAll ? i : nextSortOrder++;
         await sql`
           INSERT INTO hfa_indicators (var_name, category, definition, type, aggregation, sort_order, has_syntax_error, code_consistent, updated_at)
-          VALUES (${ind.varName}, ${ind.category}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${i}, ${ind.hasSyntaxError}, ${ind.codeConsistent}, CURRENT_TIMESTAMP)
-          ON CONFLICT (var_name)
-          DO UPDATE SET
-            category = EXCLUDED.category,
-            definition = EXCLUDED.definition,
-            type = EXCLUDED.type,
-            aggregation = EXCLUDED.aggregation,
-            sort_order = EXCLUDED.sort_order,
-            has_syntax_error = EXCLUDED.has_syntax_error,
-            code_consistent = EXCLUDED.code_consistent,
-            updated_at = CURRENT_TIMESTAMP
+          VALUES (${ind.varName}, ${ind.category}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.hasSyntaxError}, ${ind.codeConsistent}, CURRENT_TIMESTAMP)
+          ON CONFLICT (var_name) DO NOTHING
         `;
+        insertedVarNames.add(ind.varName);
       }
-      const uploadedVarNames = new Set(indicators.map((i) => i.varName));
-      for (const varName of uploadedVarNames) {
+
+      for (const varName of insertedVarNames) {
         await sql`DELETE FROM hfa_indicator_code WHERE var_name = ${varName}`;
       }
       for (const c of code) {
         if (!c.rCode.trim()) continue;
+        if (!insertedVarNames.has(c.varName)) continue;
         await sql`
           INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
           VALUES (${c.varName}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
@@ -176,7 +188,7 @@ export async function saveHfaIndicatorFull(
             updated_at = CURRENT_TIMESTAMP
         WHERE var_name = ${oldVarName}
       `;
-      await sql`DELETE FROM hfa_indicator_code WHERE var_name = ${indicator.varName}`;
+      await sql`DELETE FROM hfa_indicator_code WHERE var_name = ${oldVarName}`;
       for (const c of code) {
         if (!c.rCode.trim()) continue;
         await sql`

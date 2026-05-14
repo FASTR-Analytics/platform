@@ -211,7 +211,12 @@ defineRoute(
 
       for (const feature of parsed.features) {
         const currentAreaId = feature.properties?.area_id;
-        if (typeof currentAreaId === "string" && remapping[currentAreaId]) {
+        const sourceName = feature.properties?.source_name;
+
+        // For unmatched features (empty area_id), check if source_name has a mapping
+        if (currentAreaId === "" && typeof sourceName === "string" && remapping[`__source__${sourceName}`]) {
+          feature.properties.area_id = remapping[`__source__${sourceName}`];
+        } else if (typeof currentAreaId === "string" && remapping[currentAreaId]) {
           feature.properties.area_id = remapping[currentAreaId];
         }
       }

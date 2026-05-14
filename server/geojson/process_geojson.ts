@@ -70,8 +70,7 @@ export function processGeoJson(
     const matchValue = feature.properties?.[areaMatchProp];
     if (matchValue == null) continue;
     const sourceName = String(matchValue);
-    const adminAreaName = reverseMapping[sourceName];
-    if (!adminAreaName) continue;
+    const adminAreaName = reverseMapping[sourceName] ?? "";
 
     processedFeatures.push({
       type: "Feature",
@@ -108,8 +107,7 @@ export function processGeoJsonFromDhis2(
     const matchValue = feature.properties?.[areaMatchProp];
     if (matchValue == null) continue;
     const sourceName = String(matchValue);
-    const adminAreaName = reverseMapping[sourceName];
-    if (!adminAreaName) continue;
+    const adminAreaName = reverseMapping[sourceName] ?? "";
 
     processedFeatures.push({
       type: "Feature",

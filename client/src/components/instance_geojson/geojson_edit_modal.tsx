@@ -9,6 +9,7 @@ type Props = {
 };
 
 type FeatureGroup = {
+  key: string;
   areaId: string;
   sourceName: string | null;
   count: number;
@@ -54,19 +55,30 @@ export function GeoJsonEditModal(p: Props) {
         // Support both new (source_name) and old (dhis2_name) formats
         const sourceName = feature.properties?.source_name ?? feature.properties?.dhis2_name ?? null;
 
-        if (!groups.has(areaId)) {
-          groups.set(areaId, { areaId, sourceName, count: 0 });
+        // Group by source_name for unmatched features, otherwise by area_id
+        const groupKey = areaId === "" ? `__unmatched__${sourceName ?? ""}` : areaId;
+
+        if (!groups.has(groupKey)) {
+          groups.set(groupKey, { key: groupKey, areaId, sourceName, count: 0 });
         }
-        groups.get(areaId)!.count++;
+        groups.get(groupKey)!.count++;
       }
 
-      const sortedGroups = [...groups.values()].sort((a, b) => a.areaId.localeCompare(b.areaId));
+      // Sort: unmatched first, then by area name
+      const sortedGroups = [...groups.values()].sort((a, b) => {
+        if (a.areaId === "" && b.areaId !== "") return -1;
+        if (a.areaId !== "" && b.areaId === "") return 1;
+        if (a.areaId === "" && b.areaId === "") {
+          return (a.sourceName ?? "").localeCompare(b.sourceName ?? "");
+        }
+        return a.areaId.localeCompare(b.areaId);
+      });
       setFeatureGroups(sortedGroups);
 
-      // Initialize current mappings
+      // Initialize current mappings (keyed by group.key)
       const initial: Record<string, string> = {};
       for (const group of sortedGroups) {
-        initial[group.areaId] = group.areaId;
+        initial[group.key] = group.areaId;
       }
       setCurrentMappings(initial);
 
@@ -78,13 +90,15 @@ export function GeoJsonEditModal(p: Props) {
   });
 
   const hasSourceNames = createMemo(() => featureGroups().some((g) => g.sourceName !== null));
+  const unmatchedCount = createMemo(() => featureGroups().filter((g) => g.areaId === "").length);
+  const matchedCount = createMemo(() => featureGroups().filter((g) => g.areaId !== "").length);
 
   // Track the current mapping for each feature group (starts as the stored area_id)
   const [currentMappings, setCurrentMappings] = createSignal<Record<string, string>>({});
 
   const hasChanges = createMemo(() => {
     const current = currentMappings();
-    return featureGroups().some((g) => current[g.areaId] !== g.areaId);
+    return featureGroups().some((g) => current[g.key] !== g.areaId);
   });
 
   const selectOptions = createMemo(() => [
@@ -92,10 +106,10 @@ export function GeoJsonEditModal(p: Props) {
     ...adminAreaOptions(),
   ]);
 
-  function handleMappingChange(originalAreaId: string, newAreaId: string) {
+  function handleMappingChange(groupKey: string, newAreaId: string) {
     setCurrentMappings((prev) => ({
       ...prev,
-      [originalAreaId]: newAreaId,
+      [groupKey]: newAreaId,
     }));
   }
 
@@ -104,8 +118,14 @@ export function GeoJsonEditModal(p: Props) {
     const current = currentMappings();
     const result: Record<string, string> = {};
     for (const group of featureGroups()) {
-      if (current[group.areaId] && current[group.areaId] !== group.areaId) {
-        result[group.areaId] = current[group.areaId];
+      const newAreaId = current[group.key];
+      if (newAreaId && newAreaId !== group.areaId) {
+        // For unmatched features, use __source__ prefix so server can match by source_name
+        if (group.areaId === "" && group.sourceName) {
+          result[`__source__${group.sourceName}`] = newAreaId;
+        } else {
+          result[group.areaId] = newAreaId;
+        }
       }
     }
     return result;
@@ -163,7 +183,10 @@ export function GeoJsonEditModal(p: Props) {
 
       <Show when={!loading() && !error()}>
         <div class="text-base-500 text-sm">
-          {featureGroups().length} {t3({ en: "features mapped", fr: "entités mappées" })}
+          {matchedCount()} {t3({ en: "mapped", fr: "mappés" })}
+          <Show when={unmatchedCount() > 0}>
+            {" "}<span class="text-warning font-600">· {unmatchedCount()} {t3({ en: "unmatched", fr: "non mappés" })}</span>
+          </Show>
         </div>
 
         <div class="border-base-300 max-h-96 overflow-auto rounded border">
@@ -177,12 +200,15 @@ export function GeoJsonEditModal(p: Props) {
           </div>
           <For each={featureGroups()}>
             {(group) => (
-              <div class="border-base-200 flex items-center border-b px-3 py-1 last:border-b-0">
+              <div class={`border-base-200 flex items-center border-b px-3 py-1 last:border-b-0 ${group.areaId === "" ? "bg-warning/10" : ""}`}>
                 <div class="w-1/2">
                   <div class="text-sm">
                     {group.sourceName ?? group.areaId}
+                    <Show when={group.areaId === ""}>
+                      {" "}<span class="text-warning text-xs font-600">{t3({ en: "(unmatched)", fr: "(non mappé)" })}</span>
+                    </Show>
                   </div>
-                  <Show when={group.sourceName && group.sourceName !== group.areaId}>
+                  <Show when={group.areaId !== "" && group.sourceName && group.sourceName !== group.areaId}>
                     <div class="text-base-400 text-xs">
                       {t3({ en: "Currently mapped to", fr: "Actuellement mappé vers" })}: {group.areaId}
                     </div>
@@ -196,8 +222,8 @@ export function GeoJsonEditModal(p: Props) {
                 <div class="w-1/2">
                   <Select
                     options={selectOptions()}
-                    value={currentMappings()[group.areaId] ?? ""}
-                    onChange={(v) => handleMappingChange(group.areaId, v)}
+                    value={currentMappings()[group.key] ?? ""}
+                    onChange={(v) => handleMappingChange(group.key, v)}
                     fullWidth
                     size="sm"
                   />
