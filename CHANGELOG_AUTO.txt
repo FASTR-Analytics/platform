@@ -1,3 +1,13 @@
+[1.37.1] [user] [added] - Unmatched map areas are now shown with a warning highlight
+[1.37.1] [user] [added] - You can now assign unmatched map areas to the correct locations
+[1.37.1] [user] [changed] - Map editor shows separate counts for matched and unmatched areas
+[1.37.1] [user] [fixed] - Uploading indicators no longer overwrites existing ones when appending
+[1.37.1] [user] [fixed] - Editing an indicator name no longer loses its associated code
+[1.37.1] [admin] [added] - Unmatched GeoJSON features are now visible and can be mapped
+[1.37.1] [admin] [changed] - GeoJSON edit screen shows matched and unmatched counts separately
+[1.37.1] [admin] [changed] - Unmatched features are highlighted and sorted to the top for easy review
+[1.37.1] [admin] [fixed] - Uploading HFA indicators no longer overwrites existing indicators when not replacing all
+[1.37.1] [admin] [fixed] - Renaming an HFA indicator now correctly removes old associated code
 [1.37.0] [user] [added] - You are now asked for your organisation after login
 [1.37.0] [user] [added] - Organisation field visible and editable in your profile
 [1.37.0] [user] [added] - AI usage shown as daily and weekly progress bars in your profile
