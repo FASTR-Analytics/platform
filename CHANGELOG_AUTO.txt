@@ -1,3 +1,4 @@
+[TBD] [admin] [changed] - Unapproved users no longer generate activity logs
 [1.37.1] [user] [added] - Unmatched map areas are now shown with a warning highlight
 [1.37.1] [user] [added] - You can now assign unmatched map areas to the correct locations
 [1.37.1] [user] [changed] - Map editor shows separate counts for matched and unmatched areas
