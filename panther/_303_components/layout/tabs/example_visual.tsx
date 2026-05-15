@@ -61,10 +61,8 @@ export function ExampleVisualTabs() {
     <div class="ui-spy">
       <div>
         <h3>Horizontal Tabs with FrameTop</h3>
-        <div class="h-80 border border-base-300">
-          <FrameTop
-            panelChildren={<TabsNavigation tabs={basicTabs} />}
-          >
+        <div class="border-base-300 h-80 border">
+          <FrameTop panelChildren={<TabsNavigation tabs={basicTabs} />}>
             <div class="ui-pad h-full">
               <Switch>
                 <Match when={basicTabs.isTabActive("overview")}>
@@ -107,18 +105,15 @@ export function ExampleVisualTabs() {
             </div>
           </FrameTop>
         </div>
-        <p class="text-sm text-base-content">
+        <p class="text-base-content text-sm">
           Current tab: {basicTabs.currentTab()}
         </p>
       </div>
 
       <div>
         <h3>Horizontal Tabs with Badges</h3>
-        <TabsNavigation
-          tabs={advancedTabs}
-          showBadge={getBadgeCount}
-        />
-        <div class="ui-pad border border-t-0 border-base-300">
+        <TabsNavigation tabs={advancedTabs} />
+        <div class="ui-pad border-base-300 border border-t-0">
           <Switch>
             <Match when={advancedTabs.isTabActive("inbox")}>
               <div>You have 12 new messages!</div>
@@ -138,7 +133,7 @@ export function ExampleVisualTabs() {
 
       <div>
         <h3>Vertical Tabs with FrameLeft</h3>
-        <div class="h-80 border border-base-300">
+        <div class="border-base-300 h-80 border">
           <FrameLeft
             panelChildren={<TabsNavigation tabs={userTabs} vertical={true} />}
           >
@@ -178,7 +173,7 @@ export function ExampleVisualTabs() {
             </div>
           </FrameLeft>
         </div>
-        <p class="text-sm text-base-content">
+        <p class="text-base-content text-sm">
           Selected user ID: {userTabs.currentTab()}
         </p>
       </div>
@@ -199,10 +194,11 @@ export function ExampleVisualTabs() {
         <h3>Custom Label Formatter</h3>
         <TabsNavigation
           tabs={advancedTabs}
-          tabLabelFormatter={(option) => typeof option.label === "string"
-            ? option.label.replace(/[^\w\s]/g, "") // Remove emojis
-            : String(option.value)}
-          showBadge={getBadgeCount}
+          tabLabelFormatter={(option) =>
+            typeof option.label === "string"
+              ? option.label.replace(/[^\w\s]/g, "") // Remove emojis
+              : String(option.value)
+          }
         />
       </div>
     </div>

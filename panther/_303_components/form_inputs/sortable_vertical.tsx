@@ -4,13 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { type JSX, Show } from "solid-js";
-import type { SetStoreFunction } from "solid-js/store";
 import SortableVendor from "./solid_sortablejs_vendored.tsx";
 import { GripVerticalIcon } from "../icons/icons.tsx";
 
 export function TimSortableVertical<T extends { id: string }>(p: {
   items: T[];
-  setItems: SetStoreFunction<T[]>;
+  setItems: (items: T[]) => void;
   children: (item: T, index: number) => JSX.Element;
   showHandle?: boolean;
   handlePosition?: "left" | "right";

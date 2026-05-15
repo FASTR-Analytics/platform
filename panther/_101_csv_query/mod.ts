@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { query, QueryBuilder } from "./query_builder.ts";
+export { queryCsv, CsvQueryBuilder } from "./query_builder.ts";
 export type {
   AggregateFunction,
   OrderDirection,

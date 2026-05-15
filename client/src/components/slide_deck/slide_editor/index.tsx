@@ -21,6 +21,7 @@ import {
   Button,
   FrameLeftResizable,
   FrameTop,
+  getQueryStateFromApiResponse,
   HeadingBar,
   PageHolder,
   PageInputs,
@@ -149,11 +150,7 @@ export function SlideEditor(p: Props) {
       undefined,
       p.deckConfigSnapshot,
     );
-    if (res.success) {
-      setPageInputs({ status: "ready", data: res.data });
-    } else {
-      setPageInputs({ status: "error", err: res.err });
-    }
+    setPageInputs(getQueryStateFromApiResponse(res));
   }
 
   // Debounced re-render on changes (100ms)
@@ -426,7 +423,7 @@ export function SlideEditor(p: Props) {
     const callbacks = getLayoutCallbacks();
     if (!callbacks) return;
     const items = buildLayoutContextMenu(tempSlide.layout, blockId, callbacks);
-    showMenu({ x, y, items });
+    showMenu({ anchor: { x, y, width: 0, height: 0 }, items });
   }
 
   async function handleEditVisualization() {
@@ -972,7 +969,7 @@ export function SlideEditor(p: Props) {
                           },
                         },
                       );
-                      showMenu({ x: e.clientX, y: e.clientY, items });
+                      showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
                     }}
                   />
                 </div>

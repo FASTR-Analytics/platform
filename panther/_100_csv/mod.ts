@@ -8,12 +8,3 @@ export { compareCsvs } from "./compare.ts";
 export { parseCSV, parseCSVToObjects } from "./parse.ts";
 export { stringifyCsv, stringifyCsvWithHeaders } from "./stringify.ts";
 export type { CompareResult, CsvOptions } from "./types.ts";
-
-export { query, QueryBuilder } from "../_101_csv_query/mod.ts";
-export type {
-  AggregateFunction,
-  OrderDirection,
-  OrderSpec,
-  WhereFilter,
-  WherePredicate,
-} from "../_101_csv_query/mod.ts";

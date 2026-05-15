@@ -15,7 +15,7 @@ import { getModuleIdForMetric, getModuleIdForResultsObject } from "~/state/proje
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { poItemsQueue, resultsValueInfoQueue } from "~/state/_infra/request_queue";
 import { serverActions } from "~/server_actions";
-import { FigureInputs, StateHolder, type GeoJSONFeatureCollection } from "panther";
+import { FigureInputs, getApiResponseFromGenerator, StateHolder, type GeoJSONFeatureCollection } from "panther";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getGeoJsonSync } from "../instance/t2_geojson";
@@ -215,26 +215,9 @@ export async function getPOFigureInputsFromCacheOrFetch(
   presentationObjectId: string,
   replicateOverride: ReplicantValueOverride | undefined,
 ): Promise<APIResponseWithData<FigureInputs>> {
-  const iter = getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
-    projectId,
-    presentationObjectId,
-    replicateOverride,
+  return getApiResponseFromGenerator(
+    getPOFigureInputsFromCacheOrFetch_AsyncGenerator(projectId, presentationObjectId, replicateOverride)
   );
-  const arr: StateHolder<FigureInputs>[] = [];
-  for await (const y of iter) {
-    arr.push(y);
-  }
-  const last = arr.at(-1);
-  if (!last) {
-    return { success: false, err: "Should not be possible" };
-  }
-  if (last.status === "loading") {
-    return { success: false, err: "Should not be possible" };
-  }
-  if (last.status === "error") {
-    return { success: false, err: last.err };
-  }
-  return { success: true, data: last.data };
 }
 
 async function* getPODetailFromCacheorFetch_AsyncGenderator(
@@ -290,28 +273,9 @@ export async function getPODetailFromCacheorFetch(
   projectId: string,
   presentationObjectId: string,
 ): Promise<APIResponseWithData<PresentationObjectDetail>> {
-  const iter = getPODetailFromCacheorFetch_AsyncGenderator(
-    projectId,
-    presentationObjectId,
+  return getApiResponseFromGenerator(
+    getPODetailFromCacheorFetch_AsyncGenderator(projectId, presentationObjectId)
   );
-  const arr: StateHolder<PresentationObjectDetail>[] = [];
-  for await (const y of iter) {
-    arr.push(y);
-  }
-  const last = arr.at(-1);
-  if (!last) {
-    return { success: false, err: "Should not be possible" };
-  }
-  if (last.status === "loading") {
-    return { success: false, err: "Should not be possible" };
-  }
-  if (last.status === "error") {
-    return { success: false, err: last.err };
-  }
-  if (last.status !== "ready") {
-    return { success: false, err: "Should not be possible" };
-  }
-  return { success: true, data: last.data };
 }
 
 export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
@@ -442,27 +406,7 @@ export async function getPresentationObjectItemsFromCacheOrFetch(
     config: PresentationObjectConfig;
   }>
 > {
-  const iter = getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
-    projectId,
-    poDetail,
-    config,
+  return getApiResponseFromGenerator(
+    getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(projectId, poDetail, config)
   );
-  const arr: StateHolder<{
-    ih: ItemsHolderPresentationObject;
-    config: PresentationObjectConfig;
-  }>[] = [];
-  for await (const y of iter) {
-    arr.push(y);
-  }
-  const last = arr.at(-1);
-  if (!last) {
-    return { success: false, err: "Should not be possible" };
-  }
-  if (last.status === "loading") {
-    return { success: false, err: "Should not be possible" };
-  }
-  if (last.status === "error") {
-    return { success: false, err: last.err };
-  }
-  return { success: true, data: last.data };
 }

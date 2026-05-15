@@ -20,7 +20,7 @@ type AggregateSpec = {
 
 type GroupKey = (string | number | boolean | null)[];
 
-export class QueryBuilder<T> {
+export class CsvQueryBuilder<T> {
   private csv: Csv<T>;
   private whereFilters: Array<WhereFilter | WherePredicate<T>> = [];
   private groupByCols: string[] = [];
@@ -33,14 +33,14 @@ export class QueryBuilder<T> {
 
   where(
     filterOrPredicate: WhereFilter | WherePredicate<T>,
-  ): QueryBuilder<T> {
+  ): CsvQueryBuilder<T> {
     this.whereFilters.push(filterOrPredicate);
     return this;
   }
 
   // Note: groupBy always produces Csv<string> results (both keys and aggregates are stringified)
   // Without aggregates, acts like SELECT DISTINCT on the specified columns
-  groupBy(cols: string[]): QueryBuilder<T> {
+  groupBy(cols: string[]): CsvQueryBuilder<T> {
     if (this.groupByCols.length > 0) {
       throw new Error("groupBy() can only be called once");
     }
@@ -51,7 +51,7 @@ export class QueryBuilder<T> {
     return this;
   }
 
-  sum(col: string, outputCol?: string): QueryBuilder<T> {
+  sum(col: string, outputCol?: string): CsvQueryBuilder<T> {
     this.aggregateSpecs.push({
       col,
       func: "SUM",
@@ -60,7 +60,7 @@ export class QueryBuilder<T> {
     return this;
   }
 
-  avg(col: string, outputCol?: string): QueryBuilder<T> {
+  avg(col: string, outputCol?: string): CsvQueryBuilder<T> {
     this.aggregateSpecs.push({
       col,
       func: "AVG",
@@ -69,7 +69,7 @@ export class QueryBuilder<T> {
     return this;
   }
 
-  count(col: string, outputCol?: string): QueryBuilder<T> {
+  count(col: string, outputCol?: string): CsvQueryBuilder<T> {
     this.aggregateSpecs.push({
       col,
       func: "COUNT",
@@ -78,7 +78,7 @@ export class QueryBuilder<T> {
     return this;
   }
 
-  min(col: string, outputCol?: string): QueryBuilder<T> {
+  min(col: string, outputCol?: string): CsvQueryBuilder<T> {
     this.aggregateSpecs.push({
       col,
       func: "MIN",
@@ -87,7 +87,7 @@ export class QueryBuilder<T> {
     return this;
   }
 
-  max(col: string, outputCol?: string): QueryBuilder<T> {
+  max(col: string, outputCol?: string): CsvQueryBuilder<T> {
     this.aggregateSpecs.push({
       col,
       func: "MAX",
@@ -96,7 +96,7 @@ export class QueryBuilder<T> {
     return this;
   }
 
-  median(col: string, outputCol?: string): QueryBuilder<T> {
+  median(col: string, outputCol?: string): CsvQueryBuilder<T> {
     this.aggregateSpecs.push({
       col,
       func: "MEDIAN",
@@ -105,7 +105,7 @@ export class QueryBuilder<T> {
     return this;
   }
 
-  countDistinct(col: string, outputCol?: string): QueryBuilder<T> {
+  countDistinct(col: string, outputCol?: string): CsvQueryBuilder<T> {
     this.aggregateSpecs.push({
       col,
       func: "COUNT_DISTINCT",
@@ -114,7 +114,7 @@ export class QueryBuilder<T> {
     return this;
   }
 
-  first(col: string, outputCol?: string): QueryBuilder<T> {
+  first(col: string, outputCol?: string): CsvQueryBuilder<T> {
     this.aggregateSpecs.push({
       col,
       func: "FIRST",
@@ -123,7 +123,7 @@ export class QueryBuilder<T> {
     return this;
   }
 
-  last(col: string, outputCol?: string): QueryBuilder<T> {
+  last(col: string, outputCol?: string): CsvQueryBuilder<T> {
     this.aggregateSpecs.push({
       col,
       func: "LAST",
@@ -135,7 +135,7 @@ export class QueryBuilder<T> {
   orderBy(
     col: string | OrderSpec[],
     direction: OrderDirection = "asc",
-  ): QueryBuilder<T> {
+  ): CsvQueryBuilder<T> {
     if (this.orderBySpecs.length > 0) {
       throw new Error("orderBy() can only be called once");
     }
@@ -230,7 +230,8 @@ export class QueryBuilder<T> {
         const val = row[idx];
         if (val === null || val === undefined) return null;
         if (
-          typeof val === "string" || typeof val === "number" ||
+          typeof val === "string" ||
+          typeof val === "number" ||
           typeof val === "boolean"
         ) {
           return val;
@@ -317,9 +318,10 @@ export class QueryBuilder<T> {
             }
             const sorted = [...numericValues].sort((a, b) => a - b);
             const mid = Math.floor(sorted.length / 2);
-            const median = sorted.length % 2 === 0
-              ? (sorted[mid - 1] + sorted[mid]) / 2
-              : sorted[mid];
+            const median =
+              sorted.length % 2 === 0
+                ? (sorted[mid - 1] + sorted[mid]) / 2
+                : sorted[mid];
             return String(median);
         }
       });
@@ -375,6 +377,6 @@ export class QueryBuilder<T> {
   }
 }
 
-export function query<T>(csv: Csv<T>): QueryBuilder<T> {
-  return new QueryBuilder(csv);
+export function queryCsv<T>(csv: Csv<T>): CsvQueryBuilder<T> {
+  return new CsvQueryBuilder(csv);
 }

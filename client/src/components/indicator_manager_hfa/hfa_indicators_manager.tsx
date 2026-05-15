@@ -8,6 +8,7 @@ import {
 import {
   Button,
   FrameTop,
+  getQueryStateFromApiResponse,
   StateHolderWrapper,
   Table,
   TableColumn,
@@ -44,34 +45,30 @@ export function HfaIndicatorsManager(p: Props) {
       }),
     },
   );
-  const [dictionary, setDictionary] =
-    createSignal<HfaDictionaryForValidation | null>(null);
+  const [dictionary, setDictionary] = createSignal<
+    StateHolder<HfaDictionaryForValidation>
+  >({ status: "loading" });
 
   createEffect(async () => {
     const version = instanceState.hfaIndicatorsVersion;
     if (!version) return;
     const res = await getHfaIndicatorsFromCacheOrFetch(version);
-    if (res.success) {
-      setIndicators({ status: "ready", data: res.data });
-    } else if (indicators().status !== "ready") {
-      setIndicators({ status: "error", err: res.err });
-    }
+    setIndicators(getQueryStateFromApiResponse(res));
   });
 
   createEffect(async () => {
     const hfaCacheHash = instanceState.hfaCacheHash;
     if (!hfaCacheHash) return;
     const res = await getHfaDictionaryFromCacheOrFetch(hfaCacheHash);
-    if (res.success) {
-      setDictionary(res.data);
-    }
+    setDictionary(getQueryStateFromApiResponse(res));
   });
 
   const [revalidating, setRevalidating] = createSignal(false);
 
   async function handleRevalidateAll() {
-    const dict = dictionary();
-    if (!dict) return;
+    const dictState = dictionary();
+    if (dictState.status !== "ready") return;
+    const dict = dictState.data;
 
     setRevalidating(true);
 
@@ -170,8 +167,9 @@ export function HfaIndicatorsManager(p: Props) {
     indicator: HfaIndicator,
     allIndicators: HfaIndicator[],
   ) {
-    const dict = dictionary();
-    if (!dict) return;
+    const dictState = dictionary();
+    if (dictState.status !== "ready") return;
+    const dict = dictState.data;
     await openEditor({
       element: HfaIndicatorCodeEditor,
       props: {
@@ -219,8 +217,9 @@ export function HfaIndicatorsManager(p: Props) {
   }
 
   async function handleDownloadCsv(data: HfaIndicator[]) {
-    const dict = dictionary();
-    if (!dict) return;
+    const dictState = dictionary();
+    if (dictState.status !== "ready") return;
+    const dict = dictState.data;
     const codeRes = await serverActions.getAllHfaIndicatorCode({});
     if (!codeRes.success) return;
 
@@ -278,11 +277,11 @@ export function HfaIndicatorsManager(p: Props) {
   }
 
   async function handleCsvUpload() {
-    const dict = dictionary();
-    if (!dict) return;
+    const dictState = dictionary();
+    if (dictState.status !== "ready") return;
     await openEditor({
       element: HfaIndicatorsCsvUploadForm,
-      props: { dictionary: dict },
+      props: { dictionary: dictState.data },
     });
   }
 

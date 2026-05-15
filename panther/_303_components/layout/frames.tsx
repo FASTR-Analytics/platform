@@ -57,15 +57,13 @@ type ThreeColumnResizableProps = {
   leftChild?: JSX.Element;
   leftLabel?: string;
   onLeftExpand?: () => void;
-  centerChild?: JSX.Element;
-  centerLabel?: string;
-  onCenterExpand?: () => void;
+  centerChild: JSX.Element;
   rightChild?: JSX.Element;
   rightLabel?: string;
   onRightExpand?: () => void;
-  startingWidths: [number, number, number];
-  minWidths?: [number, number, number];
-  maxWidths?: [number, number, number];
+  startingWidths: [number, number];
+  minWidths?: [number, number];
+  maxWidths?: [number, number];
   resetKey?: string | number;
   hiddenTabColor?: string;
   leftHandleHoverOffset?: HoverOffset;
@@ -156,8 +154,11 @@ export function FrameBottom(p: FrameProps) {
 export function FrameLeftResizable(p: ResizableFrameProps) {
   const minWidth = p.minWidth ?? 100;
   const maxWidth = p.maxWidth ?? 600;
-  const [width, setWidth] = createSignal(
+  const [actualWidth, setActualWidth] = createSignal(
     clamp(p.startingWidth, minWidth, maxWidth),
+  );
+  const displayWidth = createMemo(() =>
+    p.isShown === false ? 0 : actualWidth()
   );
   const [targetPercentage, setTargetPercentage] = createSignal<number>(0);
   const [containerWidth, setContainerWidth] = createSignal<number>(0);
@@ -172,7 +173,7 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
     if (!p.preventPanelResizeOnParentResize && containerRef) {
       const initialWidth = containerRef.offsetWidth;
       setContainerWidth(initialWidth);
-      setTargetPercentage(width() / initialWidth);
+      setTargetPercentage(actualWidth() / initialWidth);
 
       resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
@@ -183,7 +184,7 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
             minWidth,
             maxWidth,
           );
-          setWidth(newWidth);
+          setActualWidth(newWidth);
         }
       });
 
@@ -196,14 +197,14 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
     e.preventDefault();
 
     const startX = e.clientX;
-    const startWidth = width();
+    const startWidth = actualWidth();
 
     handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
 
       const deltaX = e.clientX - startX;
       const newWidth = clamp(startWidth + deltaX, minWidth, maxWidth);
-      setWidth(newWidth);
+      setActualWidth(newWidth);
 
       if (!p.preventPanelResizeOnParentResize && containerWidth() > 0) {
         setTargetPercentage(newWidth / containerWidth());
@@ -246,13 +247,21 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
       <div ref={containerRef} class="flex h-full w-full">
         <div
           class="relative h-full flex-none"
-          style={{ width: `${width()}px` }}
+          style={{ width: `${displayWidth()}px` }}
         >
-          <div class="h-full overflow-auto">{p.panelChildren}</div>
+          <div
+            class="h-full overflow-auto"
+            style={{ display: p.isShown === false ? "none" : "block" }}
+          >
+            {p.panelChildren}
+          </div>
           <div
             class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
-            style={hoverOffsetStyle(p.hoverOffset)}
             onMouseDown={handleMouseDown}
+            style={{
+              display: p.isShown === false ? "none" : "block",
+              ...hoverOffsetStyle(p.hoverOffset),
+            }}
           />
         </div>
         <div class="h-full w-0 flex-1 overflow-auto">{p.children}</div>
@@ -381,21 +390,17 @@ export function FrameRightResizable(p: ResizableFrameProps) {
 }
 
 export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
-  const minWidths = p.minWidths ?? [100, 100, 100];
-  const maxWidths = p.maxWidths ?? [2000, 2000, 2000];
+  const minWidths = p.minWidths ?? [100, 100];
+  const maxWidths = p.maxWidths ?? [2000, 2000];
 
   const [leftWidth, setLeftWidth] = createSignal(
     clamp(p.startingWidths[0], minWidths[0], maxWidths[0]),
   );
-  const [centerWidth, setCenterWidth] = createSignal(
-    clamp(p.startingWidths[1], minWidths[1], maxWidths[1]),
-  );
   const [rightWidth, setRightWidth] = createSignal(
-    clamp(p.startingWidths[2], minWidths[2], maxWidths[2]),
+    clamp(p.startingWidths[1], minWidths[1], maxWidths[1]),
   );
 
   const [leftPercent, setLeftPercent] = createSignal<number>(0);
-  const [centerPercent, setCenterPercent] = createSignal<number>(0);
   const [rightPercent, setRightPercent] = createSignal<number>(0);
   const [containerWidth, setContainerWidth] = createSignal<number>(0);
 
@@ -410,57 +415,27 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   const hasLeft = createMemo(
     () => p.leftChild !== undefined && p.leftChild !== null,
   );
-  const hasCenter = createMemo(
-    () => p.centerChild !== undefined && p.centerChild !== null,
-  );
   const hasRight = createMemo(
     () => p.rightChild !== undefined && p.rightChild !== null,
   );
 
-  const normalizeWidths = () => {
-    const visiblePanes = [hasLeft(), hasCenter(), hasRight()];
-    const visibleCount = visiblePanes.filter(Boolean).length;
+  const resetWidths = () => {
+    const currentContainerWidth =
+      containerWidth() || containerRef?.offsetWidth || 1;
 
-    if (visibleCount === 0) return;
+    const newLeftWidth = clamp(p.startingWidths[0], minWidths[0], maxWidths[0]);
+    const newRightWidth = clamp(p.startingWidths[1], minWidths[1], maxWidths[1]);
 
-    const originalWidths = p.startingWidths;
-    const totalOriginalWidth = visiblePanes.reduce(
-      (sum, isVisible, i) => sum + (isVisible ? originalWidths[i] : 0),
-      0,
-    );
-
-    const currentContainerWidth = containerWidth() ||
-      containerRef?.offsetWidth || 1;
-
-    if (hasLeft()) {
-      const normalizedWidth = (originalWidths[0] / totalOriginalWidth) *
-        currentContainerWidth;
-      const clampedWidth = clamp(normalizedWidth, minWidths[0], maxWidths[0]);
-      setLeftWidth(clampedWidth);
-      setLeftPercent(clampedWidth / currentContainerWidth);
-    }
-
-    if (hasCenter()) {
-      const normalizedWidth = (originalWidths[1] / totalOriginalWidth) *
-        currentContainerWidth;
-      const clampedWidth = clamp(normalizedWidth, minWidths[1], maxWidths[1]);
-      setCenterWidth(clampedWidth);
-      setCenterPercent(clampedWidth / currentContainerWidth);
-    }
-
-    if (hasRight()) {
-      const normalizedWidth = (originalWidths[2] / totalOriginalWidth) *
-        currentContainerWidth;
-      const clampedWidth = clamp(normalizedWidth, minWidths[2], maxWidths[2]);
-      setRightWidth(clampedWidth);
-      setRightPercent(clampedWidth / currentContainerWidth);
-    }
+    setLeftWidth(newLeftWidth);
+    setRightWidth(newRightWidth);
+    setLeftPercent(newLeftWidth / currentContainerWidth);
+    setRightPercent(newRightWidth / currentContainerWidth);
   };
 
   createEffect(() => {
     if (p.resetKey !== undefined) {
       p.resetKey;
-      normalizeWidths();
+      resetWidths();
     }
   });
 
@@ -469,7 +444,6 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
       const initialWidth = containerRef.offsetWidth;
       setContainerWidth(initialWidth);
       setLeftPercent(leftWidth() / initialWidth);
-      setCenterPercent(centerWidth() / initialWidth);
       setRightPercent(rightWidth() / initialWidth);
 
       resizeObserver = new ResizeObserver((entries) => {
@@ -484,18 +458,11 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
               maxWidths[0],
             ),
           );
-          setCenterWidth(
-            clamp(
-              centerPercent() * newContainerWidth,
-              minWidths[1],
-              maxWidths[1],
-            ),
-          );
           setRightWidth(
             clamp(
               rightPercent() * newContainerWidth,
-              minWidths[2],
-              maxWidths[2],
+              minWidths[1],
+              maxWidths[1],
             ),
           );
         }
@@ -512,7 +479,6 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
 
     const startX = e.clientX;
     const startLeftWidth = leftWidth();
-    const startCenterWidth = centerWidth();
     const startRightWidth = rightWidth();
 
     handleMouseMove = (e: MouseEvent) => {
@@ -526,41 +492,27 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
         const deltaX = e.clientX - startX;
 
         if (activeHandle === "left") {
-          const newLeftWidth = clamp(
-            startLeftWidth + deltaX,
-            minWidths[0],
-            maxWidths[0],
-          );
-          const newCenterWidth = clamp(
-            startCenterWidth - deltaX,
-            minWidths[1],
-            maxWidths[1],
-          );
+          const maxDelta = maxWidths[0] - startLeftWidth;
+          const minDelta = minWidths[0] - startLeftWidth;
+          const constrainedDelta = clamp(deltaX, minDelta, maxDelta);
+
+          const newLeftWidth = startLeftWidth + constrainedDelta;
 
           setLeftWidth(newLeftWidth);
-          setCenterWidth(newCenterWidth);
 
           if (containerWidth() > 0) {
             setLeftPercent(newLeftWidth / containerWidth());
-            setCenterPercent(newCenterWidth / containerWidth());
           }
         } else if (activeHandle === "right") {
-          const newCenterWidth = clamp(
-            startCenterWidth + deltaX,
-            minWidths[1],
-            maxWidths[1],
-          );
-          const newRightWidth = clamp(
-            startRightWidth - deltaX,
-            minWidths[2],
-            maxWidths[2],
-          );
+          const maxDelta = startRightWidth - minWidths[1];
+          const minDelta = startRightWidth - maxWidths[1];
+          const constrainedDelta = clamp(deltaX, minDelta, maxDelta);
 
-          setCenterWidth(newCenterWidth);
+          const newRightWidth = startRightWidth - constrainedDelta;
+
           setRightWidth(newRightWidth);
 
           if (containerWidth() > 0) {
-            setCenterPercent(newCenterWidth / containerWidth());
             setRightPercent(newRightWidth / containerWidth());
           }
         }
@@ -601,22 +553,10 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     }
   });
 
-  const isLastVisible = (pane: "left" | "center" | "right") => {
-    if (pane === "right" && hasRight()) return true;
-    if (pane === "center" && hasCenter() && !hasRight()) return true;
-    if (pane === "left" && hasLeft() && !hasCenter() && !hasRight()) {
-      return true;
-    }
-    return false;
-  };
-
   const collapsedPanes = () => {
     const panes: Array<{ label: string; onClick: () => void }> = [];
     if (!hasLeft() && p.leftLabel && p.onLeftExpand) {
       panes.push({ label: p.leftLabel, onClick: p.onLeftExpand });
-    }
-    if (!hasCenter() && p.centerLabel && p.onCenterExpand) {
-      panes.push({ label: p.centerLabel, onClick: p.onCenterExpand });
     }
     if (!hasRight() && p.rightLabel && p.onRightExpand) {
       panes.push({ label: p.rightLabel, onClick: p.onRightExpand });
@@ -629,55 +569,36 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
       <div class="flex h-0 w-full flex-1">
         <Show when={hasLeft()}>
           <div
-            class={isLastVisible("left")
-              ? "relative h-full w-0 flex-1"
-              : "relative h-full flex-none"}
-            style={!isLastVisible("left") ? { width: `${leftWidth()}px` } : {}}
+            class="relative h-full flex-none"
+            style={{ width: `${leftWidth()}px` }}
           >
             <div class="h-full overflow-auto">{p.leftChild}</div>
-            <Show when={hasCenter() || hasRight()}>
-              <div
-                class="absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
-                style={hoverOffsetStyle(p.leftHandleHoverOffset)}
-                onMouseDown={handleMouseDown("left")}
-              />
-            </Show>
+            <div
+              class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+              style={hoverOffsetStyle(p.leftHandleHoverOffset)}
+              onMouseDown={handleMouseDown("left")}
+            />
           </div>
         </Show>
 
-        <Show when={hasCenter()}>
-          <div
-            class={isLastVisible("center")
-              ? "relative h-full w-0 flex-1"
-              : "relative h-full flex-none"}
-            style={!isLastVisible("center")
-              ? { width: `${centerWidth()}px` }
-              : {}}
-          >
-            <div class="h-full overflow-auto">{p.centerChild}</div>
-            <Show when={hasRight()}>
-              <div
-                class="absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
-                style={hoverOffsetStyle(p.rightHandleHoverOffset)}
-                onMouseDown={handleMouseDown("right")}
-              />
-            </Show>
-          </div>
-        </Show>
+        <div class="relative h-full w-0 flex-1">
+          <div class="h-full overflow-auto">{p.centerChild}</div>
+          <Show when={hasRight()}>
+            <div
+              class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+              style={hoverOffsetStyle(p.rightHandleHoverOffset)}
+              onMouseDown={handleMouseDown("right")}
+            />
+          </Show>
+        </div>
 
         <Show when={hasRight()}>
-          <div class="relative h-full w-0 flex-1">
+          <div
+            class="relative h-full flex-none"
+            style={{ width: `${rightWidth()}px` }}
+          >
             <div class="h-full overflow-auto">{p.rightChild}</div>
           </div>
-        </Show>
-
-        <Show
-          when={!hasLeft() &&
-            !hasCenter() &&
-            !hasRight() &&
-            collapsedPanes().length === 0}
-        >
-          <div class="h-full w-full overflow-auto" />
         </Show>
       </div>
 

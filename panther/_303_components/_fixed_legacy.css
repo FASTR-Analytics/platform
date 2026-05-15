@@ -515,16 +515,14 @@
     position-area: right;
   }
 
-  /* Virtual anchor for popover positioning */
+  /* Virtual anchor for popover positioning (dimensions set by JS) */
   .ui-popover-anchor {
     position: fixed;
-    width: 1px;
-    height: 1px;
     pointer-events: none;
     anchor-name: --popover-menu-anchor;
   }
 
-  /* Popover base styles */
+  /* Popover base styles (gap handled by expanding anchor vertically in JS) */
   .ui-popover-menu {
     position: absolute;
     position-anchor: --popover-menu-anchor;

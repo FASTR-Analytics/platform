@@ -129,6 +129,50 @@ export function MaximizeIcon(p: { class?: string }) {
   );
 }
 
+export function ArrowsDiagonalIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M16 4l4 0l0 4" />
+      <path d="M14 10l6 -6" />
+      <path d="M8 20l-4 0l0 -4" />
+      <path d="M4 20l6 -6" />
+    </IconWrapper>
+  );
+}
+
+export function ArrowsDiagonal2Icon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M16 20l4 0l0 -4" />
+      <path d="M14 14l6 6" />
+      <path d="M8 4l-4 0l0 4" />
+      <path d="M4 4l6 6" />
+    </IconWrapper>
+  );
+}
+
+export function ArrowsDiagonalMinimizeIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M6 10h4v-4" />
+      <path d="M4 4l6 6" />
+      <path d="M18 14h-4v4" />
+      <path d="M14 14l6 6" />
+    </IconWrapper>
+  );
+}
+
+export function ArrowsDiagonalMinimize2Icon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M18 10h-4v-4" />
+      <path d="M20 4l-6 6" />
+      <path d="M6 14h4v4" />
+      <path d="M10 14l-6 6" />
+    </IconWrapper>
+  );
+}
+
 export function MinimizeIcon(p: { class?: string }) {
   return (
     <IconWrapper {...p}>
@@ -482,6 +526,35 @@ export function InfoIcon(p: { class?: string }) {
   );
 }
 
+export function InfoSquareIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14" />
+      <path d="M12 9h.01" />
+      <path d="M11 12h1v4h1" />
+    </IconWrapper>
+  );
+}
+
+export function InfoSmallIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M12 9h.01" />
+      <path d="M11 12h1v4h1" />
+    </IconWrapper>
+  );
+}
+
+export function AlertCircleIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+      <path d="M12 8v4" />
+      <path d="M12 16h.01" />
+    </IconWrapper>
+  );
+}
+
 export function VersionsIcon(p: { class?: string }) {
   return (
     <IconWrapper {...p}>
@@ -511,6 +584,84 @@ export function HelpIcon(p: { class?: string }) {
       <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
       <path d="M12 16v.01" />
       <path d="M12 13a2 2 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483" />
+    </IconWrapper>
+  );
+}
+
+export function HelpSquareIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14" />
+      <path d="M12 16v.01" />
+      <path d="M12 13a2 2 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483" />
+    </IconWrapper>
+  );
+}
+
+export function QuestionMarkIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M8 8a3.5 3 0 0 1 3.5 -3h1a3.5 3 0 0 1 3.5 3a3 3 0 0 1 -2 3a3 4 0 0 0 -2 4" />
+      <path d="M12 19l0 .01" />
+    </IconWrapper>
+  );
+}
+
+export function LifebuoyIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+      <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+      <path d="M15 15l3.35 3.35" />
+      <path d="M9 15l-3.35 3.35" />
+      <path d="M5.65 5.65l3.35 3.35" />
+      <path d="M18.35 5.65l-3.35 3.35" />
+    </IconWrapper>
+  );
+}
+
+export function EraserIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3" />
+      <path d="M18 13.3l-6.3 -6.3" />
+    </IconWrapper>
+  );
+}
+
+export function ClearAllIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M8 6h12" />
+      <path d="M6 12h12" />
+      <path d="M4 18h12" />
+    </IconWrapper>
+  );
+}
+
+export function BackspaceIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M20 6a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-11l-5 -5a1.5 1.5 0 0 1 0 -2l5 -5l11 0" />
+      <path d="M12 10l4 4m0 -4l-4 4" />
+    </IconWrapper>
+  );
+}
+
+export function RestoreIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M3.06 13a9 9 0 1 0 .49 -4.087" />
+      <path d="M3 4.001v5h5" />
+      <path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+    </IconWrapper>
+  );
+}
+
+export function RotateIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M19.95 11a8 8 0 1 0 -.5 4m.5 5v-5h-5" />
     </IconWrapper>
   );
 }
@@ -636,10 +787,16 @@ export function EyeOffIcon(p: { class?: string }) {
 }
 
 export const _ICON_MAP = {
+  alertCircle: AlertCircleIcon,
   arrowDown: ArrowDownIcon,
   arrowLeft: ArrowLeftIcon,
   arrowRight: ArrowRightIcon,
   arrowUp: ArrowUpIcon,
+  arrowsDiagonal: ArrowsDiagonalIcon,
+  arrowsDiagonal2: ArrowsDiagonal2Icon,
+  arrowsDiagonalMinimize: ArrowsDiagonalMinimizeIcon,
+  arrowsDiagonalMinimize2: ArrowsDiagonalMinimize2Icon,
+  backspace: BackspaceIcon,
   badge: BadgeIcon,
   box: BoxIcon,
   chart: ChartIcon,
@@ -649,6 +806,7 @@ export const _ICON_MAP = {
   chevronRight: ChevronRightIcon,
   chevronUp: ChevronUpIcon,
   circleX: CircleXIcon,
+  clearAll: ClearAllIcon,
   code: CodeIcon,
   copy: CopyIcon,
   database: DatabaseIcon,
@@ -657,12 +815,17 @@ export const _ICON_MAP = {
   download: DownloadIcon,
   eye: EyeIcon,
   eyeOff: EyeOffIcon,
+  eraser: EraserIcon,
   file: FileIcon,
   folder: FolderIcon,
   gripVertical: GripVerticalIcon,
   help: HelpIcon,
+  helpSquare: HelpSquareIcon,
   import: ImportIcon,
   info: InfoIcon,
+  infoSmall: InfoSmallIcon,
+  infoSquare: InfoSquareIcon,
+  lifebuoy: LifebuoyIcon,
   lock: LockIcon,
   login: LoginIcon,
   maximize: MaximizeIcon,
@@ -675,9 +838,12 @@ export const _ICON_MAP = {
   photo: PhotoIcon,
   plus: PlusIcon,
   print: PrintIcon,
+  questionMark: QuestionMarkIcon,
   redo: RedoIcon,
   refresh: RefreshIcon,
   report: ReportIcon,
+  restore: RestoreIcon,
+  rotate: RotateIcon,
   save: SaveIcon,
   search: SearchIcon,
   selector: SelectorIcon,

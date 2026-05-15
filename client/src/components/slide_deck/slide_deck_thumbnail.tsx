@@ -2,7 +2,7 @@ import { getStartingConfigForSlideDeck, t3 } from "lib";
 import { trackDeep } from "@solid-primitives/deep";
 import { createSignal, createEffect, Show } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
+import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
 import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
 import { projectState } from "~/state/project/t1_store";
 
@@ -35,11 +35,7 @@ export function SlideDeckThumbnail(p: Props) {
     }
 
     const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, undefined, config);
-    if (renderRes.success) {
-      setPageInputs({ status: "ready", data: renderRes.data });
-    } else {
-      setPageInputs({ status: "error", err: renderRes.err });
-    }
+    setPageInputs(getQueryStateFromApiResponse(renderRes));
   });
 
   const canvasH = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
