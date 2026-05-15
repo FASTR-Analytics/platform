@@ -1,10 +1,13 @@
-[TBD] [user] [fixed] - Right-click menus now appear more reliably at the correct position
-[TBD] [admin] [internal] - Improved internal data loading and error handling consistency
-[TBD] [user] [changed] - Indicator actions like revalidation and editing now feel faster
-[TBD] [user] [fixed] - Indicator list no longer resets to error during background refresh
-[TBD] [admin] [changed] - HFA dictionary is now cached for faster indicator operations
-[TBD] [admin] [changed] - Revalidation updates refresh automatically via live events
-[TBD] [admin] [changed] - Unapproved users no longer generate activity logs
+[1.37.2] [user] [changed] - Missing indicators are now skipped instead of stopping your analysis
+[1.37.2] [admin] [added] - Calculated indicators can now skip missing data instead of failing
+[1.37.2] [admin] [changed] - Missing indicator columns log a warning instead of stopping the process when skip mode is enabled
+[1.37.2] [user] [fixed] - Right-click menus now appear more reliably at the correct position
+[1.37.2] [admin] [internal] - Improved internal data loading and error handling consistency
+[1.37.2] [user] [changed] - Indicator actions like revalidation and editing now feel faster
+[1.37.2] [user] [fixed] - Indicator list no longer resets to error during background refresh
+[1.37.2] [admin] [changed] - HFA dictionary is now cached for faster indicator operations
+[1.37.2] [admin] [changed] - Revalidation updates refresh automatically via live events
+[1.37.2] [admin] [changed] - Unapproved users no longer generate activity logs
 [1.37.1] [user] [added] - Unmatched map areas are now shown with a warning highlight
 [1.37.1] [user] [added] - You can now assign unmatched map areas to the correct locations
 [1.37.1] [user] [changed] - Map editor shows separate counts for matched and unmatched areas
