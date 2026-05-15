@@ -122,35 +122,52 @@ export function getScriptWithParametersCalculatedIndicators(
       // No denominator column to check
       blocks.push(`
 # ${ci.calculated_indicator_id}
-{
+${varName} <- {
   num_col <- "${ci.num_indicator_id}"
   num_ok <- num_col %in% names(data)
-  if (!num_ok) stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires numerator column '", num_col, "' but it is missing from the data. Check your indicator configuration.")
-  ${varName} <- data %>%
-    select(all_of(geo_cols), period_id) %>%
-    mutate(
-      indicator_common_id = "${ci.calculated_indicator_id}",
-      numerator = data[[num_col]],
-      denominator = ${denomExpr}
-    )
+  if (!num_ok) {
+    if (SKIP_MISSING_INDICATORS) {
+      message("    SKIPPED: '${ci.calculated_indicator_id}' - numerator '", num_col, "' not found")
+      tibble()
+    } else {
+      stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires numerator column '", num_col, "' but it is missing from the data.")
+    }
+  } else {
+    data %>%
+      select(all_of(geo_cols), period_id) %>%
+      mutate(
+        indicator_common_id = "${ci.calculated_indicator_id}",
+        numerator = data[[num_col]],
+        denominator = ${denomExpr}
+      )
+  }
 }`);
     } else {
       blocks.push(`
 # ${ci.calculated_indicator_id}
-{
+${varName} <- {
   num_col <- "${ci.num_indicator_id}"
   denom_col <- "${denomColName}"
   num_ok <- num_col %in% names(data)
   denom_ok <- denom_col %in% names(data)
-  if (!num_ok) stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires numerator column '", num_col, "' but it is missing from the data. Check your indicator configuration.")
-  if (!denom_ok) stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires denominator column '", denom_col, "' but it is missing. For population-based denominators, ensure population.csv includes this population_type.")
-  ${varName} <- data %>%
-    select(all_of(geo_cols), period_id) %>%
-    mutate(
-      indicator_common_id = "${ci.calculated_indicator_id}",
-      numerator = data[[num_col]],
-      denominator = ${denomExpr}
-    )
+  if (!num_ok || !denom_ok) {
+    if (SKIP_MISSING_INDICATORS) {
+      if (!num_ok) message("    SKIPPED: '${ci.calculated_indicator_id}' - numerator '", num_col, "' not found")
+      if (!denom_ok) message("    SKIPPED: '${ci.calculated_indicator_id}' - denominator '", denom_col, "' not found")
+      tibble()
+    } else {
+      if (!num_ok) stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires numerator column '", num_col, "' but it is missing from the data.")
+      stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires denominator column '", denom_col, "' but it is missing.")
+    }
+  } else {
+    data %>%
+      select(all_of(geo_cols), period_id) %>%
+      mutate(
+        indicator_common_id = "${ci.calculated_indicator_id}",
+        numerator = data[[num_col]],
+        denominator = ${denomExpr}
+      )
+  }
 }`);
     }
   }
