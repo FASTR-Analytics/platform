@@ -1,3 +1,7 @@
+[TBD] [user] [changed] - Indicator actions like revalidation and editing now feel faster
+[TBD] [user] [fixed] - Indicator list no longer resets to error during background refresh
+[TBD] [admin] [changed] - HFA dictionary is now cached for faster indicator operations
+[TBD] [admin] [changed] - Revalidation updates refresh automatically via live events
 [TBD] [admin] [changed] - Unapproved users no longer generate activity logs
 [1.37.1] [user] [added] - Unmatched map areas are now shown with a warning highlight
 [1.37.1] [user] [added] - You can now assign unmatched map areas to the correct locations
