@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Right-click menus now appear more reliably at the correct position
+[TBD] [admin] [internal] - Improved internal data loading and error handling consistency
 [TBD] [user] [changed] - Indicator actions like revalidation and editing now feel faster
 [TBD] [user] [fixed] - Indicator list no longer resets to error during background refresh
 [TBD] [admin] [changed] - HFA dictionary is now cached for faster indicator operations
