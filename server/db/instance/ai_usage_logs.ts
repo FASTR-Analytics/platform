@@ -39,6 +39,25 @@ VALUES
     `;
 }
 
+export async function LogAiLimitHit(mainDb: Sql, userEmail: string, limitType: "daily_user" | "weekly_instance"): Promise<void> {
+  await mainDb`
+    INSERT INTO ai_limit_hits (user_email, limit_type, hit_date)
+    VALUES (${userEmail}, ${limitType}, CURRENT_DATE)
+    ON CONFLICT DO NOTHING
+  `;
+}
+
+export async function GetAiLimitHits(mainDb: Sql, since?: string): Promise<{ user_email: string; limit_type: string; hit_date: string }[]> {
+  if (since) {
+    return await mainDb<{ user_email: string; limit_type: string; hit_date: string }[]>`
+      SELECT user_email, limit_type, hit_date::text FROM ai_limit_hits WHERE hit_date >= ${since} ORDER BY hit_date DESC
+    `;
+  }
+  return await mainDb<{ user_email: string; limit_type: string; hit_date: string }[]>`
+    SELECT user_email, limit_type, hit_date::text FROM ai_limit_hits ORDER BY hit_date DESC
+  `;
+}
+
 export async function GetAiUsageLogs(mainDb: Sql, since?: string): Promise<AiUsageLog[]> {
     if (since) {
         return await mainDb<AiUsageLog[]>`
