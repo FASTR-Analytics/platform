@@ -4,6 +4,7 @@ import {
   DBUser,
   getCurrentDatasetHmisMaxVersionId,
   GetAiUsageLogs,
+  GetAiLimitHits,
   getPgConnectionFromCacheOrNew,
   UserLog,
 } from "../../db/mod.ts";
@@ -157,6 +158,13 @@ routesHealth.get("/ai_usage", async (c) => {
   const since = c.req.query("since");
   const logs = await GetAiUsageLogs(mainDb, since ?? undefined);
   return c.json({ logs });
+});
+
+routesHealth.get("/ai_limit_hits", async (c: Context) => {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const since = c.req.query("since");
+  const hits = await GetAiLimitHits(mainDb, since ?? undefined);
+  return c.json({ hits });
 });
 
 routesHealth.get("/pg_stat_statements", async (c: Context) => {

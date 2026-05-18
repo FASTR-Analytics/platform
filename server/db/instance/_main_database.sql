@@ -83,6 +83,14 @@ CREATE TABLE instance_weekly_token_usage (
   week_start date PRIMARY KEY,
   total_tokens integer NOT NULL DEFAULT 0
 );
+
+CREATE TABLE ai_limit_hits (
+  user_email text NOT NULL,
+  limit_type text NOT NULL CHECK (limit_type IN ('daily_user', 'weekly_instance')),
+  hit_date date NOT NULL,
+  PRIMARY KEY (user_email, limit_type, hit_date)
+);
+
 CREATE INDEX idx_ai_usage_logs_project_id ON ai_usage_logs(project_id);
 CREATE INDEX idx_ai_usage_logs_timestamp ON ai_usage_logs(timestamp DESC);
 
