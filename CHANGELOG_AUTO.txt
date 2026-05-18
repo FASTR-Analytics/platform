@@ -1,3 +1,5 @@
+[TBD] [admin] [added] - AI usage limit hits are now tracked and logged
+[TBD] [admin] [added] - New endpoint to view when users hit AI usage limits
 [1.37.2] [user] [changed] - Missing indicators are now skipped instead of stopping your analysis
 [1.37.2] [admin] [added] - Calculated indicators can now skip missing data instead of failing
 [1.37.2] [admin] [changed] - Missing indicator columns log a warning instead of stopping the process when skip mode is enabled
