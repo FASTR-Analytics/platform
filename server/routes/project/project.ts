@@ -38,6 +38,11 @@ import { GetLogsByProject } from "../../db/instance/user_logs.ts";
 import { log } from "../../middleware/logging.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import {
+  checkSpaceForCopyProject,
+  checkSpaceForDataset,
+  checkSpaceForNewProject,
+} from "../../utils/disk_space.ts";
 
 export const routesProject = new Hono();
 
@@ -49,6 +54,15 @@ defineRoute(
   requireGlobalPermission("can_create_projects"),
   log("createProject"),
   async (c, { body }) => {
+    const spaceCheck = await checkSpaceForNewProject();
+    if (!spaceCheck.ok) {
+      return c.json({
+        success: false,
+        err: spaceCheck.resizeTriggered
+          ? `Not enough disk space to create a new project (${spaceCheck.availableGB} GB available). A volume resize has been triggered — please try again in a few minutes.`
+          : `Not enough disk space to create a new project (${spaceCheck.availableGB} GB available). Please contact your administrator.`,
+      });
+    }
     const res = await addProject(
       c.var.mainDb,
       c.var.globalUser,
@@ -220,6 +234,15 @@ defineRoute(
   log("addDatasetToProject"),
   (c, { body }) => {
     return streamResponse<{ lastUpdated: string }>(c, async (writer) => {
+      const datasetSpaceCheck = await checkSpaceForDataset(c.var.mainDb, body.datasetType);
+      if (!datasetSpaceCheck.ok) {
+        await writer.error(
+          datasetSpaceCheck.resizeTriggered
+            ? `Not enough disk space to enable this dataset (requires ~${datasetSpaceCheck.requiredGB} GB, ${datasetSpaceCheck.availableGB} GB available). A volume resize has been triggered — please try again in a few minutes.`
+            : `Not enough disk space to enable this dataset (requires ~${datasetSpaceCheck.requiredGB} GB, ${datasetSpaceCheck.availableGB} GB available). Please contact your administrator.`,
+        );
+        return;
+      }
       const lockKey = `${c.var.ppk.projectId}_${body.datasetType}`;
       if (_datasetLocks.has(lockKey)) {
         await writer.error("A dataset operation is already in progress for this project. Please wait for it to complete.");
@@ -383,6 +406,15 @@ defineRoute(
   requireProjectPermission({ requireAdmin: true }),
   log("copyProject"),
   async (c, { params, body }) => {
+    const copySpaceCheck = await checkSpaceForCopyProject(c.var.mainDb, params.project_id);
+    if (!copySpaceCheck.ok) {
+      return c.json({
+        success: false,
+        err: copySpaceCheck.resizeTriggered
+          ? `Not enough disk space to copy this project (requires ~${copySpaceCheck.requiredGB} GB, ${copySpaceCheck.availableGB} GB available). A volume resize has been triggered — please try again in a few minutes.`
+          : `Not enough disk space to copy this project (requires ~${copySpaceCheck.requiredGB} GB, ${copySpaceCheck.availableGB} GB available). Please contact your administrator.`,
+      });
+    }
     const res = await copyProjectSync(
       c.var.mainDb,
       params.project_id,
