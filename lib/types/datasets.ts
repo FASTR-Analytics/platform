@@ -2,4 +2,4 @@
 // Dataset Type Definitions
 // ============================================================================
 
-export type DatasetType = "hmis" | "hfa";
+export type DatasetType = "hmis" | "hfa" | "iceh";

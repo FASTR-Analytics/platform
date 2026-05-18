@@ -10,4 +10,5 @@ export type AssetInfo = {
   isCsv: boolean;
   isXlsx: boolean;
   isImage: boolean;
+  isZip: boolean;
 };

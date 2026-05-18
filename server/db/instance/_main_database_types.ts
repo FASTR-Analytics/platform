@@ -175,6 +175,17 @@ export type DBDatasetHfaUploadAttempt = {
   step_3_result: string | null;
 };
 
+export type DBIcehUploadAttempt = {
+  id: string;
+  date_started: string;
+  step: number;
+  status: string;
+  status_type: string;
+  step_1_result: string | null;
+  step_2_result: string | null;
+  step_3_result: string | null;
+};
+
 // Audit logging
 
 export type DBAuditLog = {

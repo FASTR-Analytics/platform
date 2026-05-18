@@ -195,6 +195,9 @@ export async function getInstanceDatasetsSummary(
   if (await detectHasAnyRows(mainDb, "hfa_data")) {
     datasetsWithData.push("hfa");
   }
+  if (await detectHasAnyRows(mainDb, "iceh_data")) {
+    datasetsWithData.push("iceh");
+  }
   const hmis = await getCurrentDatasetHmisMaxVersionId(mainDb);
   const hmisNVersions =
     (
@@ -389,6 +392,9 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
     }
     if (await detectHasAnyRows(mainDb, "hfa_data")) {
       datasetsWithData.push("hfa");
+    }
+    if (await detectHasAnyRows(mainDb, "iceh_data")) {
+      datasetsWithData.push("iceh");
     }
 
     const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
