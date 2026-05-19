@@ -1,3 +1,19 @@
+[TBD] [user] [changed] - Data tables now support sorting and improved formatting
+[TBD] [user] [changed] - Indicators table now shows numerator and denominator columns
+[TBD] [user] [changed] - Data import progress now shows percentage and auto-updates
+[TBD] [user] [changed] - Deleting all data now requires typing a confirmation phrase
+[TBD] [user] [changed] - Import panel moved to a sidebar for easier navigation
+[TBD] [user] [changed] - Only indicators with actual data are shown in the indicators list
+[TBD] [user] [added] - Import status shows distinct messages for staging, integrating, errors, and completion
+[TBD] [user] [changed] - Completed imports now prompt you to remove the upload form
+[TBD] [admin] [changed] - ICEH data tables now support sorting and improved display
+[TBD] [admin] [changed] - Indicators list now shows numerator and denominator columns
+[TBD] [admin] [changed] - Only indicators with actual data rows are shown and imported
+[TBD] [admin] [changed] - Deleting all ICEH data now requires typing a confirmation phrase
+[TBD] [admin] [changed] - Import progress and status shown in a side panel with live updates
+[TBD] [admin] [changed] - Completed imports now prompt you to remove the upload form
+[TBD] [admin] [added] - Dedicated lightweight status polling endpoint for active imports
+[TBD] [admin] [fixed] - Duplicate indicators no longer appear in the indicators list
 [TBD] [user] [changed] - Updated arrow icon style on navigation buttons
 [TBD] [admin] [changed] - Dataset viewer tabs updated to use improved navigation style
 [TBD] [admin] [fixed] - Layout fix for dataset viewer frame structure
