@@ -27,7 +27,7 @@ import {
   type MenuItem,
   type SelectOption,
 } from "panther";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, onMount, Show } from "solid-js";
 import {
   vizGroupingMode,
   setVizGroupingMode,
@@ -36,7 +36,7 @@ import {
   hideUnreadyVisualizations,
   setHideUnreadyVisualizations,
 } from "~/state/t4_ui";
-import { serverActions } from "~/server_actions";
+import { serverActions, _SERVER_HOST } from "~/server_actions";
 import { PresentationObjectMiniDisplay } from "./PresentationObjectMiniDisplay";
 import { NotAvailableBox } from "./NotAvailableBox";
 import { EditFolderModal } from "./project/edit_folder_modal";
@@ -79,6 +79,29 @@ type Props = {
 };
 
 export function PresentationObjectPanelDisplay(p: Props) {
+  const [sharedVizCounts, setSharedVizCounts] = createSignal<Map<string, number>>(new Map());
+
+  onMount(async () => {
+    try {
+      const res = await fetch(`${_SERVER_HOST}/api/share/viz/all`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resourceIds: p.projectState.visualizations.map((v) => v.id),
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const counts = new Map<string, number>();
+        for (const t of json.tokens as { resourceId: string }[]) {
+          counts.set(t.resourceId, (counts.get(t.resourceId) ?? 0) + 1);
+        }
+        setSharedVizCounts(counts);
+      }
+    } catch {}
+  });
+
   const metricModuleMap = () =>
     new Map(p.projectState.metrics.map((m) => [m.id, m.moduleId]));
 
@@ -435,6 +458,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         slideDecks={p.projectState.slideDecks}
         slideDeckFolders={p.projectState.slideDeckFolders}
         subGroupConfig={subGroupConfig()}
+        sharedVizCounts={sharedVizCounts()}
         onClick={p.onClick}
         searchText={p.searchText}
       />
@@ -451,6 +475,7 @@ type VisualizationGridProps = {
   slideDecks: SlideDeckSummary[];
   slideDeckFolders: SlideDeckFolder[];
   subGroupConfig: SubGroupConfig | null;
+  sharedVizCounts: Map<string, number>;
   onClick: (po: PresentationObjectSummary) => void;
   searchText: string;
 };
@@ -794,6 +819,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       metricLookup={metricLookup()}
       isSelected={selectedIds().has(po.id)}
       selectedCount={selectedIds().size}
+      shareCount={p.sharedVizCounts.get(po.id) ?? 0}
       index={index}
       onClick={() => {
         clearSelection();
@@ -917,6 +943,7 @@ type VisualizationCardProps = {
   metricLookup: Map<string, MetricWithStatus>;
   isSelected: boolean;
   selectedCount: number;
+  shareCount: number;
   index: number;
   onClick: () => void;
   onCardClick: (event: MouseEvent, isCircleClick: boolean) => void;
@@ -1065,6 +1092,11 @@ function VisualizationCard(p: VisualizationCardProps) {
         </div>
       </Show>
       <div class="ui-gap-sm flex items-start justify-end pt-1 select-none">
+        <Show when={p.shareCount > 0}>
+          <div class="bg-neutral font-400 text-base-100 rounded px-1 py-0.5 text-xs">
+            {p.shareCount} {t3({ en: "link", fr: "lien" })}{p.shareCount > 1 ? "s" : ""}
+          </div>
+        </Show>
         <Show when={p.po.replicateBy && !p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
             {t3({ en: "REPLICATED", fr: "RÉPLIQUÉ" })}:{" "}
