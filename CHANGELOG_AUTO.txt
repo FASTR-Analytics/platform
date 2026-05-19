@@ -1,3 +1,13 @@
+[TBD] [user] [added] - ICEH equity data can now be added to projects
+[TBD] [user] [changed] - "Disaggregators" tab renamed to "Stratifiers" for clarity
+[TBD] [user] [added] - Stale data warnings shown when ICEH data is outdated in a project
+[TBD] [user] [added] - Option to update ICEH project data without re-running modules
+[TBD] [user] [changed] - Data, indicators, and stratifiers load together in one step
+[TBD] [admin] [added] - ICEH equity dataset can now be added to projects
+[TBD] [admin] [changed] - "Disaggregators" tab renamed to "Stratifiers" with standardized definitions
+[TBD] [admin] [added] - Stale data detection for ICEH datasets in projects
+[TBD] [admin] [added] - Option to update ICEH project data without re-running modules
+[TBD] [admin] [changed] - ICEH data, indicators, and stratifiers now load in a single request
 [TBD] [user] [changed] - Data tables now support sorting and improved formatting
 [TBD] [user] [changed] - Indicators table now shows numerator and denominator columns
 [TBD] [user] [changed] - Data import progress now shows percentage and auto-updates
