@@ -35,7 +35,7 @@ export default function PublicVisualization() {
     setViewState({ status: "loading" });
     try {
       const res = password
-        ? await fetch(`${_SERVER_HOST}/api/share/viz/${params.token}`, {
+        ? await fetch(`${_SERVER_HOST}/api/share/viz/${params.token}/verify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ password }),

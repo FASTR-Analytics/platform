@@ -13,7 +13,7 @@ routesPublicShare.get("/api/share/viz/:token", async (c) => {
   return c.json({ success: true, data: result.data });
 });
 
-routesPublicShare.post("/api/share/viz/:token", async (c) => {
+routesPublicShare.post("/api/share/viz/:token/verify", async (c) => {
   const token = c.req.param("token");
   const body = await c.req.json<{ password: string }>();
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
