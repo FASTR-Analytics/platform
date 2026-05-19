@@ -8,12 +8,13 @@ import {
   FrameRight,
   FrameTop,
   getEditorWrapper,
+  getTabs,
+  TabsNavigation,
   timActionButton,
   timQuery,
   StateHolderWrapper,
-  Tabs,
 } from "panther";
-import { createSignal, onCleanup, onMount, Show } from "solid-js";
+import { onCleanup, onMount, Show } from "solid-js";
 import { DatasetIcehUploadAttemptForm } from "~/components/instance_dataset_iceh_import";
 import { serverActions } from "~/server_actions";
 import { IndicatorsTab } from "./_indicators_tab";
@@ -71,12 +72,12 @@ export function InstanceDatasetIceh(p: Props) {
 
   return (
     <>
-      <EditorWrapper />
+      <EditorWrapper>
       <FrameTop
         panelChildren={
           <div class="ui-pad flex items-center justify-between">
             <div class="flex items-center gap-4">
-              <Button onClick={p.backToInstance} iconName="arrow-left">
+              <Button onClick={p.backToInstance} iconName="arrowLeft">
                 {t3({ en: "Back", fr: "Retour" })}
               </Button>
               <h2 class="font-700 text-lg">
@@ -125,6 +126,7 @@ export function InstanceDatasetIceh(p: Props) {
           )}
         </StateHolderWrapper>
       </FrameTop>
+      </EditorWrapper>
     </>
   );
 }
@@ -136,7 +138,11 @@ function DataViewContent(p: {
   isGlobalAdmin: boolean;
   newUploadAttemptState: any;
 }) {
-  const [activeTab, setActiveTab] = createSignal<"summary" | "indicators" | "disaggregators">("summary");
+  const tabs = getTabs([
+    { value: "summary", label: t3({ en: "Summary", fr: "Résumé" }) },
+    { value: "indicators", label: t3({ en: "Indicators", fr: "Indicateurs" }) },
+    { value: "disaggregators", label: t3({ en: "Disaggregators", fr: "Désagrégateurs" }) },
+  ]);
 
   const hasData = p.data.dataRows > 0;
 
@@ -185,24 +191,16 @@ function DataViewContent(p: {
       </div>
 
       <Show when={hasData}>
-        <Tabs
-          activeTab={activeTab()}
-          setActiveTab={setActiveTab as (tab: string) => void}
-          tabs={[
-            { id: "summary", label: t3({ en: "Summary", fr: "Résumé" }) },
-            { id: "indicators", label: t3({ en: "Indicators", fr: "Indicateurs" }) },
-            { id: "disaggregators", label: t3({ en: "Disaggregators", fr: "Désagrégateurs" }) },
-          ]}
-        />
+        <TabsNavigation tabs={tabs} />
 
         <div class="mt-4">
-          <Show when={activeTab() === "summary"}>
+          <Show when={tabs.isTabActive("summary")}>
             <DataTab />
           </Show>
-          <Show when={activeTab() === "indicators"}>
+          <Show when={tabs.isTabActive("indicators")}>
             <IndicatorsTab />
           </Show>
-          <Show when={activeTab() === "disaggregators"}>
+          <Show when={tabs.isTabActive("disaggregators")}>
             <DisaggregatorsTab />
           </Show>
         </div>

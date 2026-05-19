@@ -3,7 +3,7 @@ import { Button, type TimActionButton } from "panther";
 
 type Props = {
   nRowsIntegrated: number;
-  deleteSafe: TimActionButton;
+  deleteSafe: TimActionButton<[]>;
 };
 
 export function ProgressComplete(p: Props) {

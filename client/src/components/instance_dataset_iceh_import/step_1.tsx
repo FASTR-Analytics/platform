@@ -74,7 +74,7 @@ export function Step1(p: Props) {
         </Button>
 
         {p.step1Result && (
-          <Button onClick={p.goNext} intent="primary" iconName="arrow-right">
+          <Button onClick={p.goNext} intent="primary" iconName="arrowRight">
             {t3({ en: "Continue", fr: "Continuer" })}
           </Button>
         )}

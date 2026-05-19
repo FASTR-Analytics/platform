@@ -57,7 +57,7 @@ export function Step2(p: Props) {
       <StateHolderFormError state={startImport.state()} />
 
       <div class="ui-gap-sm flex">
-        <Button onClick={p.goPrev} iconName="arrow-left">
+        <Button onClick={p.goPrev} iconName="arrowLeft">
           {t3({ en: "Back", fr: "Retour" })}
         </Button>
         <Button
