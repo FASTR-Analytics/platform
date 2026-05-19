@@ -45,7 +45,9 @@ export const log = (routeName: string) =>
             const details = JSON.stringify({ params, body, headers, error: error ? String(error) : undefined });
 
             const projectId = c.var.ppk?.projectId as string | undefined;
-            AddLog(mainDb, userEmail, routeName, status, details, projectId).catch(() => {});
+            if (c.var.globalUser?.approved !== false) {
+                AddLog(mainDb, userEmail, routeName, status, details, projectId).catch(() => {});
+            }
         } catch {
             // Don't let logging errors break the response
         }

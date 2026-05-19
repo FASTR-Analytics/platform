@@ -13,6 +13,7 @@ export type TableColumn<T> = {
   key: string;
   header: string;
   sortable?: boolean;
+  sortValue?: (item: T) => any;
   render?: (item: T) => JSX.Element;
   width?: string;
   alignH?: "left" | "center" | "right";
@@ -54,6 +55,7 @@ export type TableProps<T> = {
   tableContentMaxHeight?: string; // e.g. "400px", "50vh" - limits tbody height and makes it scrollable
   fitTableToAvailableHeight?: boolean; // enables overflow-y: auto for scrollable table
   defaultSort?: SortConfig; // initial sort configuration
+  onSortChange?: (config: SortConfig | null) => void; // callback when sort changes
   selectedKeys?: Accessor<Set<any>>; // controlled selection state
   setSelectedKeys?: (keys: Set<any>) => void; // controlled selection setter
   paddingX?: TablePadding; // horizontal padding (default: "normal")

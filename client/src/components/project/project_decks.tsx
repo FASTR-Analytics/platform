@@ -344,7 +344,7 @@ export function ProjectDecks(p: ExtendedProps) {
         onClick: () => handleDelete(deck),
       },
     ];
-    showMenu({ x: e.clientX, y: e.clientY, items });
+    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
   }
 
   // Folder context menu
@@ -389,7 +389,7 @@ export function ProjectDecks(p: ExtendedProps) {
         },
       },
     ];
-    showMenu({ x: e.clientX, y: e.clientY, items });
+    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
   }
 
   const renderGroupOption = (selectOpt: SelectOption<string>) => {

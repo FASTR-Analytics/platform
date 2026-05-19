@@ -11,6 +11,7 @@ import {
   FrameLeft,
   FrameRight,
   FrameTop,
+  getQueryStateFromApiResponse,
   StateHolderWrapper,
   Table,
   TableColumn,
@@ -92,37 +93,15 @@ export function IndicatorsManager(p: Props) {
   createEffect(async () => {
     const version = instanceState.indicatorMappingsVersion;
     if (!version) return;
-    setIndicators({
-      status: "loading",
-      msg: t3({
-        en: "Loading indicators...",
-        fr: "Chargement des indicateurs...",
-      }),
-    });
     const res = await getIndicatorsFromCacheOrFetch(version);
-    if (res.success) {
-      setIndicators({ status: "ready", data: res.data });
-    } else {
-      setIndicators({ status: "error", err: res.err });
-    }
+    setIndicators(getQueryStateFromApiResponse(res));
   });
 
   createEffect(async () => {
     const version = instanceState.calculatedIndicatorsVersion;
     if (!version) return;
-    setCalculatedIndicators({
-      status: "loading",
-      msg: t3({
-        en: "Loading calculated indicators...",
-        fr: "Chargement des indicateurs calculés...",
-      }),
-    });
     const res = await getCalculatedIndicatorsFromCacheOrFetch(version);
-    if (res.success) {
-      setCalculatedIndicators({ status: "ready", data: res.data });
-    } else {
-      setCalculatedIndicators({ status: "error", err: res.err });
-    }
+    setCalculatedIndicators(getQueryStateFromApiResponse(res));
   });
 
   function handleDownloadCommonCsv(

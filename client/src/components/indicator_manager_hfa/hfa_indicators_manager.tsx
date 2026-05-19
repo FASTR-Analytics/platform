@@ -1,7 +1,14 @@
-import { t3, TC, type HfaIndicator, type HfaIndicatorCode } from "lib";
+import {
+  t3,
+  TC,
+  type HfaDictionaryForValidation,
+  type HfaIndicator,
+  type HfaIndicatorCode,
+} from "lib";
 import {
   Button,
   FrameTop,
+  getQueryStateFromApiResponse,
   StateHolderWrapper,
   Table,
   TableColumn,
@@ -14,6 +21,7 @@ import {
 import { Show, createEffect, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { getHfaDictionaryFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { getHfaIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
 import { EditHfaIndicator } from "../forms_editors/edit_hfa_indicator";
 import { HfaIndicatorCodeEditor } from "./hfa_indicator_code_editor";
@@ -37,36 +45,33 @@ export function HfaIndicatorsManager(p: Props) {
       }),
     },
   );
+  const [dictionary, setDictionary] = createSignal<
+    StateHolder<HfaDictionaryForValidation>
+  >({ status: "loading" });
 
   createEffect(async () => {
     const version = instanceState.hfaIndicatorsVersion;
     if (!version) return;
-    setIndicators({
-      status: "loading",
-      msg: t3({
-        en: "Loading HFA indicators...",
-        fr: "Chargement des indicateurs HFA...",
-      }),
-    });
     const res = await getHfaIndicatorsFromCacheOrFetch(version);
-    if (res.success) {
-      setIndicators({ status: "ready", data: res.data });
-    } else {
-      setIndicators({ status: "error", err: res.err });
-    }
+    setIndicators(getQueryStateFromApiResponse(res));
+  });
+
+  createEffect(async () => {
+    const hfaCacheHash = instanceState.hfaCacheHash;
+    if (!hfaCacheHash) return;
+    const res = await getHfaDictionaryFromCacheOrFetch(hfaCacheHash);
+    setDictionary(getQueryStateFromApiResponse(res));
   });
 
   const [revalidating, setRevalidating] = createSignal(false);
 
   async function handleRevalidateAll() {
+    const dictState = dictionary();
+    if (dictState.status !== "ready") return;
+    const dict = dictState.data;
+
     setRevalidating(true);
 
-    // Fetch dictionary and all code
-    const dictRes = await serverActions.getHfaDictionaryForValidation({});
-    if (!dictRes.success) {
-      setRevalidating(false);
-      return;
-    }
     const codeRes = await serverActions.getAllHfaIndicatorCode({});
     if (!codeRes.success) {
       setRevalidating(false);
@@ -102,7 +107,7 @@ export function HfaIndicatorsManager(p: Props) {
 
       let hasSyntaxError = false;
       for (const c of indCode) {
-        const tp = dictRes.data.timePoints.find(
+        const tp = dict.timePoints.find(
           (t) => t.timePoint === c.timePoint,
         );
         const availableVars = tp
@@ -142,19 +147,8 @@ export function HfaIndicatorsManager(p: Props) {
       updates.push({ varName: ind.varName, hasSyntaxError, codeConsistent });
     }
 
-    // Send bulk update
-    const res = await serverActions.bulkUpdateHfaIndicatorValidation({
-      updates,
-    });
-    if (res.success) {
-      const version = instanceState.hfaIndicatorsVersion;
-      if (version) {
-        const fetchRes = await getHfaIndicatorsFromCacheOrFetch(version);
-        if (fetchRes.success) {
-          setIndicators({ status: "ready", data: fetchRes.data });
-        }
-      }
-    }
+    // Send bulk update - SSE will trigger refetch via createEffect
+    await serverActions.bulkUpdateHfaIndicatorValidation({ updates });
     setRevalidating(false);
   }
 
@@ -173,13 +167,14 @@ export function HfaIndicatorsManager(p: Props) {
     indicator: HfaIndicator,
     allIndicators: HfaIndicator[],
   ) {
-    const dictRes = await serverActions.getHfaDictionaryForValidation({});
-    if (!dictRes.success) return;
+    const dictState = dictionary();
+    if (dictState.status !== "ready") return;
+    const dict = dictState.data;
     await openEditor({
       element: HfaIndicatorCodeEditor,
       props: {
         indicator,
-        dictionary: dictRes.data,
+        dictionary: dict,
         allIndicatorVarNames: allIndicators.map((i) => i.varName),
       },
     });
@@ -222,12 +217,13 @@ export function HfaIndicatorsManager(p: Props) {
   }
 
   async function handleDownloadCsv(data: HfaIndicator[]) {
-    const dictRes = await serverActions.getHfaDictionaryForValidation({});
-    if (!dictRes.success) return;
+    const dictState = dictionary();
+    if (dictState.status !== "ready") return;
+    const dict = dictState.data;
     const codeRes = await serverActions.getAllHfaIndicatorCode({});
     if (!codeRes.success) return;
 
-    const sortedTimePoints = [...dictRes.data.timePoints].sort((a, b) =>
+    const sortedTimePoints = [...dict.timePoints].sort((a, b) =>
       a.timePoint.localeCompare(b.timePoint),
     );
 
@@ -281,11 +277,11 @@ export function HfaIndicatorsManager(p: Props) {
   }
 
   async function handleCsvUpload() {
-    const dictRes = await serverActions.getHfaDictionaryForValidation({});
-    if (!dictRes.success) return;
+    const dictState = dictionary();
+    if (dictState.status !== "ready") return;
     await openEditor({
       element: HfaIndicatorsCsvUploadForm,
-      props: { dictionary: dictRes.data },
+      props: { dictionary: dictState.data },
     });
   }
 

@@ -363,7 +363,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
     }
 
     if (items.length > 0) {
-      showMenu({ x: e.clientX, y: e.clientY, items });
+      showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
     }
   }
 

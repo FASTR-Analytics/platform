@@ -42,8 +42,8 @@ const NO_DATA_DEFAULT_SCALE = "#f0f0f0";
 export function ConditionalFormattingEditor(p: Props) {
   const cf = (): ConditionalFormatting => p.value ?? { type: "none" };
 
-  const handleModeChange = (mode: Mode) => {
-    if (mode === "none") {
+  const handleModeChange = (mode: Mode | undefined) => {
+    if (!mode || mode === "none") {
       p.onChange({ type: "none" });
       return;
     }

@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { ProcessedData, SortConfig, TableGroup } from "./types.ts";
+import type {
+  ProcessedData,
+  SortConfig,
+  TableColumn,
+  TableGroup,
+} from "./types.ts";
 
 export function compareValues(a: any, b: any): number {
   if (a === undefined || a === null) return 1;
@@ -27,12 +32,16 @@ export function compareValues(a: any, b: any): number {
 export function sortData<T extends Record<string, any>>(
   data: T[],
   sortConfig: SortConfig | null,
+  columns?: TableColumn<T>[],
 ): T[] {
   if (!sortConfig) return data;
 
+  const column = columns?.find((c) => c.key === sortConfig.key);
+  const getValue = column?.sortValue ?? ((item: T) => item[sortConfig.key]);
+
   const sorted = [...data];
   sorted.sort((a, b) => {
-    const comparison = compareValues(a[sortConfig.key], b[sortConfig.key]);
+    const comparison = compareValues(getValue(a), getValue(b));
     return sortConfig.direction === "asc" ? comparison : -comparison;
   });
 
@@ -43,6 +52,7 @@ export function groupData<T extends Record<string, any>>(
   data: T[],
   group: TableGroup<T>,
   sortConfig: SortConfig | null,
+  columns?: TableColumn<T>[],
 ): ProcessedData<T> {
   const grouped: Record<string, T[]> = {};
   const groupOrder: string[] = [];
@@ -58,9 +68,12 @@ export function groupData<T extends Record<string, any>>(
 
   // Sort within each group if needed
   if (sortConfig) {
+    const column = columns?.find((c) => c.key === sortConfig.key);
+    const getValue = column?.sortValue ?? ((item: T) => item[sortConfig.key]);
+
     Object.values(grouped).forEach((items) => {
       items.sort((a, b) => {
-        const comparison = compareValues(a[sortConfig.key], b[sortConfig.key]);
+        const comparison = compareValues(getValue(a), getValue(b));
         return sortConfig.direction === "asc" ? comparison : -comparison;
       });
     });
@@ -92,15 +105,17 @@ export function getPaddingClasses(
   paddingX: "compact" | "normal" | "comfortable",
   paddingY: "compact" | "normal" | "comfortable",
 ): { px: string; py: string } {
-  const px = paddingX === "compact"
-    ? "px-2"
-    : paddingX === "comfortable"
-    ? "px-6"
-    : "px-4";
-  const py = paddingY === "compact"
-    ? "py-0.5"
-    : paddingY === "comfortable"
-    ? "py-3"
-    : "py-1";
+  const px =
+    paddingX === "compact"
+      ? "px-2"
+      : paddingX === "comfortable"
+        ? "px-6"
+        : "px-4";
+  const py =
+    paddingY === "compact"
+      ? "py-0.5"
+      : paddingY === "comfortable"
+        ? "py-3"
+        : "py-1.5";
   return { px, py };
 }

@@ -133,7 +133,9 @@ export function PageHolder(p: Props) {
   const fontKey = () => {
     const inputs = p.pageInputs;
     const fonts = inputs ? getFontsForPage(inputs) : [];
-    return fonts.map(f => `${f.fontFamily}-${f.weight}-${f.italic}`).join(',');
+    return fonts
+      .map((f) => `${f.fontFamily}-${f.weight}-${f.italic}`)
+      .join(",");
   };
 
   let fontLoadVersion = 0;
@@ -192,7 +194,6 @@ export function PageHolder(p: Props) {
 
   createEffect(() => {
     const loaded = fontsLoaded();
-    console.log("[PH] render effect, loaded=", loaded);
     if (loaded) {
       updatePage(
         mainCachedContext!,
@@ -261,7 +262,8 @@ export function PageHolder(p: Props) {
         (r): r is PageHitTargetColDivider => r.type === "colDivider",
       );
       for (const region of dividers) {
-        const isThisHovered = hit?.type === "colDivider" &&
+        const isThisHovered =
+          hit?.type === "colDivider" &&
           hit.gap.colsNodeId === region.gap.colsNodeId &&
           hit.gap.afterColIndex === region.gap.afterColIndex;
         if (!isThisHovered) {
@@ -365,10 +367,10 @@ export function PageHolder(p: Props) {
 
     if (drag?.type === "layoutItem") {
       const hit = findHitTarget(hitRegions(), coords.x, coords.y);
-      const dropTarget = hit?.type === "layoutItem" &&
-          hit.node.id !== drag.source.node.id
-        ? hit
-        : undefined;
+      const dropTarget =
+        hit?.type === "layoutItem" && hit.node.id !== drag.source.node.id
+          ? hit
+          : undefined;
       setDragState({
         ...drag,
         dropTarget,
@@ -476,11 +478,11 @@ export function PageHolder(p: Props) {
   let justFinishedDrag = false;
   let pendingItemDrag:
     | {
-      source: PageHitTargetLayoutItem;
-      startX: number;
-      startY: number;
-      pointerId: number;
-    }
+        source: PageHitTargetLayoutItem;
+        startX: number;
+        startY: number;
+        pointerId: number;
+      }
     | undefined;
 
   function handleClick() {
@@ -561,17 +563,18 @@ export function PageHolder(p: Props) {
           class="absolute left-1/2 top-0 -translate-x-1/2 data-[fitWithin=true]:max-h-full data-[fitWithin=false]:w-full data-[fitWithin=true]:max-w-full"
           data-fitWithin={!!p.fitWithin}
           style={{
-            cursor: dragState()?.type === "divider"
-              ? "col-resize"
-              : dragState()?.type === "layoutItem"
-              ? "grabbing"
-              : currentHit()?.type === "colDivider"
-              ? "col-resize"
-              : currentHit()?.type === "layoutItem" && p.onLayoutItemSwap
-              ? "grab"
-              : currentHit()
-              ? "pointer"
-              : "default",
+            cursor:
+              dragState()?.type === "divider"
+                ? "col-resize"
+                : dragState()?.type === "layoutItem"
+                  ? "grabbing"
+                  : currentHit()?.type === "colDivider"
+                    ? "col-resize"
+                    : currentHit()?.type === "layoutItem" && p.onLayoutItemSwap
+                      ? "grab"
+                      : currentHit()
+                        ? "pointer"
+                        : "default",
           }}
           onPointerEnter={handlePointerEnter}
           onPointerMove={handlePointerMove}
@@ -883,21 +886,21 @@ function findColsNodeById<T>(
 
 type DragState =
   | {
-    type: "divider";
-    target: PageHitTargetColDivider;
-    startX: number;
-    currentX: number;
-    colsNode: MeasuredColsLayoutNode<PageContentItem>;
-  }
+      type: "divider";
+      target: PageHitTargetColDivider;
+      startX: number;
+      currentX: number;
+      colsNode: MeasuredColsLayoutNode<PageContentItem>;
+    }
   | {
-    type: "layoutItem";
-    source: PageHitTargetLayoutItem;
-    dropTarget: PageHitTargetLayoutItem | undefined;
-    startX: number;
-    startY: number;
-    currentX: number;
-    currentY: number;
-  };
+      type: "layoutItem";
+      source: PageHitTargetLayoutItem;
+      dropTarget: PageHitTargetLayoutItem | undefined;
+      startX: number;
+      startY: number;
+      currentX: number;
+      currentY: number;
+    };
 
 type DividerDragState = Extract<DragState, { type: "divider" }>;
 

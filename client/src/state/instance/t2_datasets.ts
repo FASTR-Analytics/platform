@@ -1,6 +1,7 @@
 import {
   APIResponseWithData,
   ItemsHolderDatasetHmisDisplay,
+  type HfaDictionaryForValidation,
   type IndicatorType,
   type InstanceConfigFacilityColumns,
 } from "lib";
@@ -125,6 +126,34 @@ export async function getDatasetHfaDisplayInfoFromCacheOrFetch(
     { cacheHash },
     version,
   );
+
+  return await newPromise;
+}
+
+// ============================================================================
+// HFA Dictionary (for indicator code validation)
+// ============================================================================
+
+const _HFA_DICTIONARY_CACHE = createReactiveCache<
+  { hfaCacheHash: string },
+  HfaDictionaryForValidation
+>({
+  name: "hfa_dictionary",
+  uniquenessKeys: () => ["hfa_dictionary"],
+  versionKey: (params) => params.hfaCacheHash,
+  pdsNotRequired: true,
+});
+
+export async function getHfaDictionaryFromCacheOrFetch(hfaCacheHash: string) {
+  const { data, version } = await _HFA_DICTIONARY_CACHE.get({ hfaCacheHash });
+
+  if (data) {
+    return { success: true, data } as const;
+  }
+
+  const newPromise = serverActions.getHfaDictionaryForValidation({});
+
+  _HFA_DICTIONARY_CACHE.setPromise(newPromise, { hfaCacheHash }, version);
 
   return await newPromise;
 }

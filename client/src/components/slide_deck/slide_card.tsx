@@ -1,7 +1,7 @@
 import { t3, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH, showMenu, type MenuItem } from "panther";
+import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH, showMenu, type MenuItem } from "panther";
 import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
 import { projectState } from "~/state/project/t1_store";
 
@@ -40,11 +40,7 @@ export function SlideCard(p: Props) {
     }
 
     const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, p.index, config);
-    if (renderRes.success) {
-      setPageInputs({ status: "ready", data: renderRes.data });
-    } else {
-      setPageInputs({ status: "error", err: renderRes.err });
-    }
+    setPageInputs(getQueryStateFromApiResponse(renderRes));
   });
 
   const canvasH = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
@@ -78,7 +74,7 @@ export function SlideCard(p: Props) {
         onClick: p.onDelete,
       },
     ];
-    showMenu({ x: e.clientX, y: e.clientY, items });
+    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
   }
 
   return (

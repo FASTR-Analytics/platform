@@ -65,10 +65,10 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
     const group = p.groups?.find((g) => g.key === currentGroup);
 
     if (group) {
-      return groupData(p.data, group, sortConfig());
+      return groupData(p.data, group, sortConfig(), p.columns);
     }
 
-    const sorted = sortData(p.data, sortConfig());
+    const sorted = sortData(p.data, sortConfig(), p.columns);
     return {
       isGrouped: false,
       groups: [],
@@ -80,15 +80,14 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
   const handleSort = (column: TableColumn<T>) => {
     if (!column.sortable) return;
 
-    setSortConfig((prev) => {
-      if (prev?.key === column.key) {
-        return {
-          key: column.key,
-          direction: prev.direction === "asc" ? "desc" : "asc",
-        };
-      }
-      return { key: column.key, direction: "asc" };
-    });
+    const prev = sortConfig();
+    const newConfig: SortConfig =
+      prev?.key === column.key
+        ? { key: column.key, direction: prev.direction === "asc" ? "desc" : "asc" }
+        : { key: column.key, direction: "asc" };
+
+    setSortConfig(newConfig);
+    p.onSortChange?.(newConfig);
   };
 
   // Handle selection

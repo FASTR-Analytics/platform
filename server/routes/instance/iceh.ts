@@ -1,0 +1,152 @@
+import { Hono } from "hono";
+import {
+  getDatasetIcehDetail,
+  getDatasetIcehIndicators,
+  getDatasetIcehDisaggregators,
+  getDatasetIcehData,
+  getDatasetIcehUploadAttempt,
+  createDatasetIcehUploadAttempt,
+  deleteDatasetIcehUploadAttempt,
+  updateDatasetIcehUploadAttemptStep1,
+  updateDatasetIcehUploadAttemptStep2,
+  updateDatasetIcehUploadAttemptStep3,
+  deleteDatasetIcehData,
+} from "../../db/instance/dataset_iceh.ts";
+import { getInstanceDatasetsSummary } from "../../db/instance/instance.ts";
+import { log } from "../../middleware/logging.ts";
+import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
+import { defineRoute } from "../route-helpers.ts";
+
+export const routesIceh = new Hono();
+
+defineRoute(
+  routesIceh,
+  "getDatasetIcehDetail",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetIcehDetail"),
+  async (c) => {
+    const res = await getDatasetIcehDetail(c.var.mainDb);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "getDatasetIcehIndicators",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetIcehIndicators"),
+  async (c) => {
+    const res = await getDatasetIcehIndicators(c.var.mainDb);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "getDatasetIcehDisaggregators",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetIcehDisaggregators"),
+  async (c) => {
+    const res = await getDatasetIcehDisaggregators(c.var.mainDb);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "getDatasetIcehData",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetIcehData"),
+  async (c) => {
+    const res = await getDatasetIcehData(c.var.mainDb);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "createDatasetIcehUploadAttempt",
+  requireGlobalPermission("can_configure_data"),
+  log("createDatasetIcehUploadAttempt"),
+  async (c) => {
+    const res = await createDatasetIcehUploadAttempt(c.var.mainDb);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "getDatasetIcehUploadAttempt",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetIcehUploadAttempt"),
+  async (c) => {
+    const res = await getDatasetIcehUploadAttempt(c.var.mainDb);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "deleteDatasetIcehUploadAttempt",
+  requireGlobalPermission("can_configure_data"),
+  log("deleteDatasetIcehUploadAttempt"),
+  async (c) => {
+    const res = await deleteDatasetIcehUploadAttempt(c.var.mainDb);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "updateDatasetIcehUploadAttemptStep1",
+  requireGlobalPermission("can_configure_data"),
+  log("updateDatasetIcehUploadAttemptStep1"),
+  async (c) => {
+    const body = await c.req.json<{ zipAssetFileName: string }>();
+    const res = await updateDatasetIcehUploadAttemptStep1(
+      c.var.mainDb,
+      body.zipAssetFileName
+    );
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "updateDatasetIcehUploadAttemptStep2",
+  requireGlobalPermission("can_configure_data"),
+  log("updateDatasetIcehUploadAttemptStep2"),
+  async (c) => {
+    const res = await updateDatasetIcehUploadAttemptStep2(c.var.mainDb);
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "updateDatasetIcehUploadAttemptStep3",
+  requireGlobalPermission("can_configure_data"),
+  log("updateDatasetIcehUploadAttemptStep3"),
+  async (c) => {
+    const res = await updateDatasetIcehUploadAttemptStep3(c.var.mainDb);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "deleteDatasetIcehData",
+  requireGlobalPermission("can_configure_data"),
+  log("deleteDatasetIcehData"),
+  async (c) => {
+    const res = await deleteDatasetIcehData(c.var.mainDb);
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  }
+);

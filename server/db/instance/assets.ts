@@ -30,6 +30,7 @@ export async function getAssetsForInstance(): Promise<
       lowerName.endsWith(".jpeg") ||
       lowerName.endsWith(".gif") ||
       lowerName.endsWith(".webp");
+    const isZip = lowerName.endsWith(".zip");
     assets.push({
       fileName: dirEntry.name,
       size: stat.size,
@@ -38,6 +39,7 @@ export async function getAssetsForInstance(): Promise<
       isCsv,
       isXlsx,
       isImage,
+      isZip,
     });
   }
   sortAlphabeticalByFunc(assets, (a) => a.fileName);

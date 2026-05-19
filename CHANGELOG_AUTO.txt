@@ -1,3 +1,67 @@
+[TBD] [user] [changed] - Updated arrow icon style on navigation buttons
+[TBD] [admin] [changed] - Dataset viewer tabs updated to use improved navigation style
+[TBD] [admin] [fixed] - Layout fix for dataset viewer frame structure
+[TBD] [user] [added] - New ICEH Equity Data section for importing and viewing equity datasets
+[TBD] [user] [added] - Import ICEH data from zip files downloaded from the ICEH Retriever
+[TBD] [user] [added] - View ICEH indicators, disaggregators, and data rows in organized tabs
+[TBD] [user] [added] - Progress tracking during ICEH data import with staging and integration steps
+[TBD] [user] [added] - Support for uploading zip files in the file upload area
+[TBD] [user] [fixed] - Calculated indicators now show a clear error if they reference missing data
+[TBD] [admin] [added] - New ICEH equity data source available for instances
+[TBD] [admin] [added] - Import ICEH data from zip files downloaded from equidade.org/retriever
+[TBD] [admin] [added] - View ICEH indicators, disaggregators, and data rows after import
+[TBD] [admin] [added] - Delete all ICEH data (global admins only)
+[TBD] [admin] [added] - Zip file uploads now supported in the asset manager
+[TBD] [admin] [changed] - Import warns if data country does not match instance country
+[TBD] [admin] [changed] - Re-importing ICEH data replaces all existing ICEH data
+[TBD] [admin] [fixed] - Projects now block adding data when calculated indicators reference missing indicators
+[TBD] [admin] [added] - AI usage limit hits are now tracked and logged
+[TBD] [admin] [added] - New endpoint to view when users hit AI usage limits
+[1.37.2] [user] [changed] - Missing indicators are now skipped instead of stopping your analysis
+[1.37.2] [admin] [added] - Calculated indicators can now skip missing data instead of failing
+[1.37.2] [admin] [changed] - Missing indicator columns log a warning instead of stopping the process when skip mode is enabled
+[1.37.2] [user] [fixed] - Right-click menus now appear more reliably at the correct position
+[1.37.2] [admin] [internal] - Improved internal data loading and error handling consistency
+[1.37.2] [user] [changed] - Indicator actions like revalidation and editing now feel faster
+[1.37.2] [user] [fixed] - Indicator list no longer resets to error during background refresh
+[1.37.2] [admin] [changed] - HFA dictionary is now cached for faster indicator operations
+[1.37.2] [admin] [changed] - Revalidation updates refresh automatically via live events
+[1.37.2] [admin] [changed] - Unapproved users no longer generate activity logs
+[1.37.1] [user] [added] - Unmatched map areas are now shown with a warning highlight
+[1.37.1] [user] [added] - You can now assign unmatched map areas to the correct locations
+[1.37.1] [user] [changed] - Map editor shows separate counts for matched and unmatched areas
+[1.37.1] [user] [fixed] - Uploading indicators no longer overwrites existing ones when appending
+[1.37.1] [user] [fixed] - Editing an indicator name no longer loses its associated code
+[1.37.1] [admin] [added] - Unmatched GeoJSON features are now visible and can be mapped
+[1.37.1] [admin] [changed] - GeoJSON edit screen shows matched and unmatched counts separately
+[1.37.1] [admin] [changed] - Unmatched features are highlighted and sorted to the top for easy review
+[1.37.1] [admin] [fixed] - Uploading HFA indicators no longer overwrites existing indicators when not replacing all
+[1.37.1] [admin] [fixed] - Renaming an HFA indicator now correctly removes old associated code
+[1.37.0] [user] [added] - You are now asked for your organisation after login
+[1.37.0] [user] [added] - Organisation field visible and editable in your profile
+[1.37.0] [user] [added] - AI usage shown as daily and weekly progress bars in your profile
+[1.37.0] [user] [added] - Daily AI usage indicator displayed at the bottom of the AI chat panel
+[1.37.0] [user] [added] - Clear warning message when daily or weekly AI limit is reached
+[1.37.0] [user] [added] - Save your own prompts to a personal prompt library
+[1.37.0] [user] [added] - Share prompts with all users in your country
+[1.37.0] [user] [added] - Edit and delete your saved prompts from the prompt library
+[1.37.0] [user] [added] - Save any message you sent to AI directly to your prompt library
+[1.37.0] [user] [added] - "New prompt" button added to the prompt library browser
+[1.37.0] [user] [added] - Contact person role now shown in the users list
+[1.37.0] [user] [changed] - Rate limit reset times now shown in your local time zone
+[1.37.0] [admin] [added] - Users are now prompted to enter their organisation after login
+[1.37.0] [admin] [added] - Organisation field visible and editable in user profile
+[1.37.0] [admin] [added] - AI usage shown in user profile with daily and weekly limits
+[1.37.0] [admin] [added] - Daily and weekly AI token usage limits enforced per user and per country
+[1.37.0] [admin] [added] - Users exceeding AI limits see a clear rate-limit message with reset time
+[1.37.0] [admin] [added] - "Unlimited AI usage" toggle available for designated users
+[1.37.0] [admin] [added] - "Contact person" role can be assigned to users
+[1.37.0] [admin] [added] - Contact person status displayed in the users table
+[1.37.0] [admin] [added] - Custom prompt library: create, edit, and delete personal or country-shared prompts
+[1.37.0] [admin] [added] - Save any AI conversation prompt to the prompt library
+[1.37.0] [admin] [added] - AI usage progress indicator shown at the bottom of the AI chat panel
+[1.37.0] [admin] [changed] - Cache status page now shows client-side cache per visualization
+[1.37.0] [admin] [internal] - Old user logs are now aggregated weekly before deletion
 [1.36.0] [user] [fixed] - Clearer error messages when expected data tables are missing
 [1.36.0] [admin] [fixed] - Clearer error messages when database tables are missing
 [1.36.0] [admin] [fixed] - Corrected table reference for HFA data during imports and deletions

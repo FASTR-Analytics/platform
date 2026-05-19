@@ -48,11 +48,12 @@ function getButtonGroupItemClasses(size?: "sm") {
 type ButtonGroupProps<T extends string> = {
   value: T | undefined;
   options: { value: T; label?: string; iconName?: IconName; intent?: Intent }[];
-  onChange: (v: T) => void;
+  onChange: (v: T | undefined) => void;
   label?: string | JSX.Element;
   fullWidth?: boolean;
   itemWidth?: string;
   size?: "sm";
+  allowDeselect?: boolean;
 };
 
 export function ButtonGroup<T extends string>(p: ButtonGroupProps<T>) {
@@ -84,7 +85,11 @@ export function ButtonGroup<T extends string>(p: ButtonGroupProps<T>) {
                 data-LeftOfSelected={isLeftOfSelected()}
                 data-intent={opt.intent}
                 data-outline={!isSelected()}
-                onClick={() => p.onChange(opt.value)}
+                onClick={() =>
+                  p.onChange(
+                    p.allowDeselect && isSelected() ? undefined : opt.value,
+                  )
+                }
                 type="button"
               >
                 {/* Icon & Text */}

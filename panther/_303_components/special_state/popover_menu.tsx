@@ -51,9 +51,15 @@ export type PopoverPosition =
   | "left"
   | "right";
 
-export type ShowMenuOptions = {
+export type AnchorRect = {
   x: number;
   y: number;
+  width: number;
+  height: number;
+};
+
+export type ShowMenuOptions = {
+  anchor: AnchorRect;
   position?: PopoverPosition;
   items: MenuItem[];
 };
@@ -70,8 +76,6 @@ export type MenuButtonOptions = {
 };
 
 type MenuState = {
-  x: number;
-  y: number;
   position: PopoverPosition;
   items: MenuItem[];
 };
@@ -93,47 +97,37 @@ let popoverRef: HTMLDivElement | undefined;
 let subMenuPopoverRef: HTMLDivElement | undefined;
 let virtualAnchorRef: HTMLDivElement | undefined;
 
-const POPOVER_GAP = 6;
-
 export function showMenu(opts: ShowMenuOptions): void {
-  // Hide first to force recalculation of anchor positioning fallbacks
   popoverRef?.hidePopover();
 
   const position = opts.position ?? "bottom-start";
 
   setMenuState({
-    x: opts.x,
-    y: opts.y,
     position,
     items: opts.items,
   });
 
-  // Offset anchor away from popover position to create gap
-  let offsetX = 0;
-  let offsetY = 0;
-
-  if (position.startsWith("bottom")) {
-    offsetY = POPOVER_GAP;
-  } else if (position.startsWith("top")) {
-    offsetY = -POPOVER_GAP;
-  } else if (position === "left") {
-    offsetX = -POPOVER_GAP;
-  } else if (position === "right") {
-    offsetX = POPOVER_GAP;
-  }
-
-  // Position the virtual anchor at click coordinates with offset
   if (virtualAnchorRef) {
-    virtualAnchorRef.style.left = `${opts.x + offsetX}px`;
-    virtualAnchorRef.style.top = `${opts.y + offsetY}px`;
+    const GAP = 6;
+    virtualAnchorRef.style.left = `${opts.anchor.x}px`;
+    virtualAnchorRef.style.top = `${opts.anchor.y - GAP}px`;
+    virtualAnchorRef.style.width = `${opts.anchor.width}px`;
+    virtualAnchorRef.style.height = `${opts.anchor.height + GAP * 2}px`;
   }
 
-  // Double rAF: first lets SolidJS update DOM, second lets browser process styles
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       popoverRef?.showPopover();
     });
   });
+}
+
+export function showMenuAtPoint(
+  x: number,
+  y: number,
+  options: Omit<ShowMenuOptions, "anchor">,
+): void {
+  showMenu({ ...options, anchor: { x, y, width: 1, height: 1 } });
 }
 
 export function hideMenu(): void {
@@ -384,30 +378,8 @@ export function createMenuButton(opts: MenuButtonOptions) {
 
     function handleClick() {
       if (!buttonRef) return;
-      const rect = buttonRef.getBoundingClientRect();
-
-      // Position based on the specified position
-      let x = rect.left;
-      let y = rect.bottom;
-
-      if (opts.position === "top" || opts.position === "top-start") {
-        y = rect.top;
-      } else if (opts.position === "top-end") {
-        x = rect.right;
-        y = rect.top;
-      } else if (opts.position === "bottom-end") {
-        x = rect.right;
-      } else if (opts.position === "left") {
-        x = rect.left;
-        y = rect.top;
-      } else if (opts.position === "right") {
-        x = rect.right;
-        y = rect.top;
-      }
-
       showMenu({
-        x,
-        y,
+        anchor: buttonRef.getBoundingClientRect(),
         position: opts.position ?? "bottom-start",
         items: opts.items,
       });
@@ -442,35 +414,12 @@ export function MenuTriggerWrapper(
   function handleClick(e: MouseEvent) {
     e.stopPropagation();
     if (!wrapperRef) return;
-    const rect = wrapperRef.getBoundingClientRect();
-    const position = props.position ?? "bottom-start";
-
-    let x = rect.left;
-    let y = rect.bottom;
-
-    if (position === "top" || position === "top-start") {
-      y = rect.top;
-    } else if (position === "top-end") {
-      x = rect.right;
-      y = rect.top;
-    } else if (position === "bottom-end") {
-      x = rect.right;
-    } else if (position === "left") {
-      x = rect.left;
-      y = rect.top;
-    } else if (position === "right") {
-      x = rect.right;
-      y = rect.top;
-    }
-
     const items = typeof props.items === "function"
       ? props.items()
       : props.items;
-
     showMenu({
-      x,
-      y,
-      position,
+      anchor: wrapperRef.getBoundingClientRect(),
+      position: props.position ?? "bottom-start",
       items,
     });
   }

@@ -4,6 +4,7 @@ import { backupRouteRegistry } from "./instance/backups.ts";
 import { datasetRouteRegistry } from "./instance/datasets.ts";
 import { hfaIndicatorRouteRegistry } from "./instance/hfa_indicators.ts";
 import { hfaTimePointRouteRegistry } from "./instance/hfa_time_points.ts";
+import { icehRouteRegistry } from "./instance/iceh.ts";
 import { indicatorRouteRegistry } from "./instance/indicators.ts";
 import { calculatedIndicatorRouteRegistry } from "./instance/calculated_indicators.ts";
 import { indicatorsDhis2RouteRegistry } from "./instance/indicators_dhis2.ts";
@@ -31,6 +32,7 @@ export const routeRegistry = {
   ...datasetRouteRegistry,
   ...hfaIndicatorRouteRegistry,
   ...hfaTimePointRouteRegistry,
+  ...icehRouteRegistry,
   ...indicatorRouteRegistry,
   ...calculatedIndicatorRouteRegistry,
   ...indicatorsDhis2RouteRegistry,

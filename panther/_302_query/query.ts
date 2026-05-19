@@ -4,21 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { type Accessor, createSignal } from "solid-js";
-import type { APIResponseNoData, APIResponseWithData } from "./types.ts";
-
-export type QueryState<T> =
-  | { status: "loading"; msg?: string }
-  | { status: "error"; err: string }
-  | { status: "ready"; data: T };
-
-export type FormActionState =
-  | { status: "loading" }
-  | { status: "error"; err: string }
-  | { status: "ready" };
-
-export type ButtonActionState =
-  | { status: "loading" }
-  | { status: "ready" };
+import {
+  getQueryStateFromApiResponse,
+  type APIResponseNoData,
+  type APIResponseWithData,
+  type FormActionState,
+  type QueryState,
+} from "./types.ts";
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //  ________  __                       ______                                           //
@@ -70,14 +62,8 @@ export function timQuery<T>(
 
     try {
       const res = await queryFunc();
-
       if (thisRequestId !== requestId) return;
-
-      if (res.success === false) {
-        setter({ status: "error", err: res.err });
-        return;
-      }
-      setter({ status: "ready", data: res.data });
+      setter(getQueryStateFromApiResponse(res));
     } catch (err) {
       if (thisRequestId !== requestId) return;
       setter({
@@ -92,14 +78,8 @@ export function timQuery<T>(
 
     try {
       const res = await queryFunc();
-
       if (thisRequestId !== requestId) return;
-
-      if (res.success === false) {
-        setter({ status: "error", err: res.err });
-        return;
-      }
-      setter({ status: "ready", data: res.data });
+      setter(getQueryStateFromApiResponse(res));
     } catch (err) {
       if (thisRequestId !== requestId) return;
       setter({

@@ -1,73 +1,73 @@
-admin_area_2,admin_area_3,period_id,population_type,count
-"Banadir Administration","Benadir Region",202201,total_population,2500000
-"Banadir Administration","Benadir Region",202301,total_population,2575000
-"Banadir Administration","Benadir Region",202401,total_population,2652250
-"Banadir Administration","Benadir Region",202501,total_population,2731818
-"Galmudug State","Galgadud Region",202201,total_population,450000
-"Galmudug State","Galgadud Region",202301,total_population,463500
-"Galmudug State","Galgadud Region",202401,total_population,477405
-"Galmudug State","Galgadud Region",202501,total_population,491727
-"Galmudug State","Mudug Region (Galmudug)",202201,total_population,380000
-"Galmudug State","Mudug Region (Galmudug)",202301,total_population,391400
-"Galmudug State","Mudug Region (Galmudug)",202401,total_population,403142
-"Galmudug State","Mudug Region (Galmudug)",202501,total_population,415236
-"Hirshabelle State","Hiiraan Region",202201,total_population,520000
-"Hirshabelle State","Hiiraan Region",202301,total_population,535600
-"Hirshabelle State","Hiiraan Region",202401,total_population,551668
-"Hirshabelle State","Hiiraan Region",202501,total_population,568218
-"Hirshabelle State","Middle Shebelle Region",202201,total_population,410000
-"Hirshabelle State","Middle Shebelle Region",202301,total_population,422300
-"Hirshabelle State","Middle Shebelle Region",202401,total_population,434969
-"Hirshabelle State","Middle Shebelle Region",202501,total_population,448018
-"Jubaland State","Gedo Region",202201,total_population,720000
-"Jubaland State","Gedo Region",202301,total_population,741600
-"Jubaland State","Gedo Region",202401,total_population,763848
-"Jubaland State","Gedo Region",202501,total_population,786763
-"Jubaland State","Lower Juba Region",202201,total_population,490000
-"Jubaland State","Lower Juba Region",202301,total_population,504700
-"Jubaland State","Lower Juba Region",202401,total_population,519841
-"Jubaland State","Lower Juba Region",202501,total_population,535436
-"Puntland State","Ayn Region",202201,total_population,180000
-"Puntland State","Ayn Region",202301,total_population,185400
-"Puntland State","Ayn Region",202401,total_population,190962
-"Puntland State","Ayn Region",202501,total_population,196691
-"Puntland State","Bari Region",202201,total_population,350000
-"Puntland State","Bari Region",202301,total_population,360500
-"Puntland State","Bari Region",202401,total_population,371315
-"Puntland State","Bari Region",202501,total_population,382454
-"Puntland State","Karkaar Region",202201,total_population,290000
-"Puntland State","Karkaar Region",202301,total_population,298700
-"Puntland State","Karkaar Region",202401,total_population,307661
-"Puntland State","Karkaar Region",202501,total_population,316891
-"Puntland State","Mudug Region (Puntland)",202201,total_population,420000
-"Puntland State","Mudug Region (Puntland)",202301,total_population,432600
-"Puntland State","Mudug Region (Puntland)",202401,total_population,445578
-"Puntland State","Mudug Region (Puntland)",202501,total_population,458945
-"Puntland State","Nugaal Region",202201,total_population,310000
-"Puntland State","Nugaal Region",202301,total_population,319300
-"Puntland State","Nugaal Region",202401,total_population,328879
-"Puntland State","Nugaal Region",202501,total_population,338745
-"Puntland State","Ras-Asayr  Region",202201,total_population,85000
-"Puntland State","Ras-Asayr  Region",202301,total_population,87550
-"Puntland State","Ras-Asayr  Region",202401,total_population,90177
-"Puntland State","Ras-Asayr  Region",202501,total_population,92882
-"Puntland State","Sanaag Region (Puntland)",202201,total_population,240000
-"Puntland State","Sanaag Region (Puntland)",202301,total_population,247200
-"Puntland State","Sanaag Region (Puntland)",202401,total_population,254616
-"Puntland State","Sanaag Region (Puntland)",202501,total_population,262255
-"Puntland State","Sool Region (Puntland)",202201,total_population,320000
-"Puntland State","Sool Region (Puntland)",202301,total_population,329600
-"Puntland State","Sool Region (Puntland)",202401,total_population,339488
-"Puntland State","Sool Region (Puntland)",202501,total_population,349673
-"Southwest State","Bakool Region",202201,total_population,360000
-"Southwest State","Bakool Region",202301,total_population,370800
-"Southwest State","Bakool Region",202401,total_population,381924
-"Southwest State","Bakool Region",202501,total_population,393382
-"Southwest State","Bay Region",202201,total_population,680000
-"Southwest State","Bay Region",202301,total_population,700400
-"Southwest State","Bay Region",202401,total_population,721412
-"Southwest State","Bay Region",202501,total_population,743054
-"Southwest State","Lower Shabelle Region",202201,total_population,890000
-"Southwest State","Lower Shabelle Region",202301,total_population,916700
-"Southwest State","Lower Shabelle Region",202401,total_population,944201
-"Southwest State","Lower Shabelle Region",202501,total_population,972527
+admin_area_2,admin_area_3,year,population_type,count
+"Banadir Administration","Benadir Region",2022,total_population,2500000
+"Banadir Administration","Benadir Region",2023,total_population,2575000
+"Banadir Administration","Benadir Region",2024,total_population,2652250
+"Banadir Administration","Benadir Region",2025,total_population,2731818
+"Galmudug State","Galgadud Region",2022,total_population,450000
+"Galmudug State","Galgadud Region",2023,total_population,463500
+"Galmudug State","Galgadud Region",2024,total_population,477405
+"Galmudug State","Galgadud Region",2025,total_population,491727
+"Galmudug State","Mudug Region (Galmudug)",2022,total_population,380000
+"Galmudug State","Mudug Region (Galmudug)",2023,total_population,391400
+"Galmudug State","Mudug Region (Galmudug)",2024,total_population,403142
+"Galmudug State","Mudug Region (Galmudug)",2025,total_population,415236
+"Hirshabelle State","Hiiraan Region",2022,total_population,520000
+"Hirshabelle State","Hiiraan Region",2023,total_population,535600
+"Hirshabelle State","Hiiraan Region",2024,total_population,551668
+"Hirshabelle State","Hiiraan Region",2025,total_population,568218
+"Hirshabelle State","Middle Shebelle Region",2022,total_population,410000
+"Hirshabelle State","Middle Shebelle Region",2023,total_population,422300
+"Hirshabelle State","Middle Shebelle Region",2024,total_population,434969
+"Hirshabelle State","Middle Shebelle Region",2025,total_population,448018
+"Jubaland State","Gedo Region",2022,total_population,720000
+"Jubaland State","Gedo Region",2023,total_population,741600
+"Jubaland State","Gedo Region",2024,total_population,763848
+"Jubaland State","Gedo Region",2025,total_population,786763
+"Jubaland State","Lower Juba Region",2022,total_population,490000
+"Jubaland State","Lower Juba Region",2023,total_population,504700
+"Jubaland State","Lower Juba Region",2024,total_population,519841
+"Jubaland State","Lower Juba Region",2025,total_population,535436
+"Puntland State","Ayn Region",2022,total_population,180000
+"Puntland State","Ayn Region",2023,total_population,185400
+"Puntland State","Ayn Region",2024,total_population,190962
+"Puntland State","Ayn Region",2025,total_population,196691
+"Puntland State","Bari Region",2022,total_population,350000
+"Puntland State","Bari Region",2023,total_population,360500
+"Puntland State","Bari Region",2024,total_population,371315
+"Puntland State","Bari Region",2025,total_population,382454
+"Puntland State","Karkaar Region",2022,total_population,290000
+"Puntland State","Karkaar Region",2023,total_population,298700
+"Puntland State","Karkaar Region",2024,total_population,307661
+"Puntland State","Karkaar Region",2025,total_population,316891
+"Puntland State","Mudug Region (Puntland)",2022,total_population,420000
+"Puntland State","Mudug Region (Puntland)",2023,total_population,432600
+"Puntland State","Mudug Region (Puntland)",2024,total_population,445578
+"Puntland State","Mudug Region (Puntland)",2025,total_population,458945
+"Puntland State","Nugaal Region",2022,total_population,310000
+"Puntland State","Nugaal Region",2023,total_population,319300
+"Puntland State","Nugaal Region",2024,total_population,328879
+"Puntland State","Nugaal Region",2025,total_population,338745
+"Puntland State","Ras-Asayr  Region",2022,total_population,85000
+"Puntland State","Ras-Asayr  Region",2023,total_population,87550
+"Puntland State","Ras-Asayr  Region",2024,total_population,90177
+"Puntland State","Ras-Asayr  Region",2025,total_population,92882
+"Puntland State","Sanaag Region (Puntland)",2022,total_population,240000
+"Puntland State","Sanaag Region (Puntland)",2023,total_population,247200
+"Puntland State","Sanaag Region (Puntland)",2024,total_population,254616
+"Puntland State","Sanaag Region (Puntland)",2025,total_population,262255
+"Puntland State","Sool Region (Puntland)",2022,total_population,320000
+"Puntland State","Sool Region (Puntland)",2023,total_population,329600
+"Puntland State","Sool Region (Puntland)",2024,total_population,339488
+"Puntland State","Sool Region (Puntland)",2025,total_population,349673
+"Southwest State","Bakool Region",2022,total_population,360000
+"Southwest State","Bakool Region",2023,total_population,370800
+"Southwest State","Bakool Region",2024,total_population,381924
+"Southwest State","Bakool Region",2025,total_population,393382
+"Southwest State","Bay Region",2022,total_population,680000
+"Southwest State","Bay Region",2023,total_population,700400
+"Southwest State","Bay Region",2024,total_population,721412
+"Southwest State","Bay Region",2025,total_population,743054
+"Southwest State","Lower Shabelle Region",2022,total_population,890000
+"Southwest State","Lower Shabelle Region",2023,total_population,916700
+"Southwest State","Lower Shabelle Region",2024,total_population,944201
+"Southwest State","Lower Shabelle Region",2025,total_population,972527

@@ -333,7 +333,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         },
       },
     ];
-    showMenu({ x: e.clientX, y: e.clientY, items });
+    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
   }
 
   const renderGroupOption = (selectOpt: SelectOption<string>) => {
@@ -1007,7 +1007,7 @@ function VisualizationCard(p: VisualizationCardProps) {
         onClick: p.onDelete,
       },
     );
-    showMenu({ x: e.clientX, y: e.clientY, items });
+    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
   }
 
   const isReady = () => p.metricLookup.get(p.po.metricId)?.status === "ready";

@@ -581,6 +581,16 @@
     @apply text-base-content font-400 inline-block pb-1 text-sm leading-tight;
   }
 
+  /* Hide number input spinners */
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
   /* ============================================= */
   /* Scrollbar Utilities                          */
   /* ============================================= */
@@ -669,11 +679,9 @@
     position-area: right;
   }
 
-  /* Virtual anchor for menu popover positioning */
+  /* Virtual anchor for menu popover positioning (dimensions set by JS) */
   .ui-popover-anchor {
     position: fixed;
-    width: 1px;
-    height: 1px;
     pointer-events: none;
     anchor-name: --popover-menu-anchor;
   }
@@ -682,13 +690,13 @@
   .ui-popover {
     position: absolute;
     position-try-order: most-block-size;
-    margin: 6px;
+    margin: 0;
     padding: 0;
     border: none;
     background: transparent;
   }
 
-  /* Menu popover - uses virtual anchor */
+  /* Menu popover - uses virtual anchor (gap handled by expanding anchor vertically in JS) */
   .ui-popover-menu {
     position: absolute;
     position-anchor: --popover-menu-anchor;

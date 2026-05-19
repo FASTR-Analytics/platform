@@ -166,6 +166,32 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
 SELECT * FROM indicators
     `;
 
+    const indicatorIdsInData = new Set(
+      indicators.map((ind) => ind.indicator_common_id)
+    );
+    const calculatedIndicatorsWithMissingData: string[] = [];
+    for (const ci of calculatedIndicators) {
+      if (!indicatorIdsInData.has(ci.num_indicator_id)) {
+        calculatedIndicatorsWithMissingData.push(
+          `Calculated indicator '${ci.calculated_indicator_id}' requires numerator '${ci.num_indicator_id}' which is not in the data`
+        );
+      }
+      if (
+        ci.denom.kind === "indicator" &&
+        !indicatorIdsInData.has(ci.denom.indicator_id)
+      ) {
+        calculatedIndicatorsWithMissingData.push(
+          `Calculated indicator '${ci.calculated_indicator_id}' requires denominator '${ci.denom.indicator_id}' which is not in the data`
+        );
+      }
+    }
+    if (calculatedIndicatorsWithMissingData.length > 0) {
+      return {
+        success: false,
+        err: `Cannot add data to project. The following calculated indicators reference indicators that don't exist in your data:\n\n${calculatedIndicatorsWithMissingData.join("\n")}\n\nPlease edit or remove these calculated indicators, or ensure your data includes the required indicators.`,
+      };
+    }
+
     // Fetch facilities based on the windowing configuration
     let facilitiesQuery = `SELECT * FROM facilities`;
     const facilityWhereConditions: string[] = [];

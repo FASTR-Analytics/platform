@@ -18,19 +18,22 @@ export function getScriptWithParametersCalculatedIndicators(
   for (const ci of calculatedIndicators) {
     assertValidCalculatedIndicatorIdentifier(
       ci.calculated_indicator_id,
-      "calculated_indicator_id"
+      "calculated_indicator_id",
     );
     assertValidCalculatedIndicatorIdentifier(
       ci.num_indicator_id,
-      "num_indicator_id"
+      "num_indicator_id",
     );
     if (ci.denom.kind === "indicator") {
       assertValidCalculatedIndicatorIdentifier(
         ci.denom.indicator_id,
-        "denom_indicator_id"
+        "denom_indicator_id",
       );
     } else if (ci.denom.kind === "population") {
-      assertValidPopulationType(ci.denom.population_type, "denom_population_type");
+      assertValidPopulationType(
+        ci.denom.population_type,
+        "denom_population_type",
+      );
     }
     // "none" kind has no additional fields to validate
   }
@@ -44,12 +47,12 @@ export function getScriptWithParametersCalculatedIndicators(
     if (ds.sourceType === "dataset") {
       str = str.replaceAll(
         ds.replacementString,
-        `'../datasets/${ds.datasetType}.csv'`
+        `'../datasets/${ds.datasetType}.csv'`,
       );
     } else {
       str = str.replaceAll(
         ds.replacementString,
-        `../${ds.moduleId}/${ds.replacementString}`
+        `../${ds.moduleId}/${ds.replacementString}`,
       );
     }
   }
@@ -57,43 +60,47 @@ export function getScriptWithParametersCalculatedIndicators(
   // Parameter substitutions
   for (const inputParam of configSelections.parameterDefinitions) {
     const mappedParameter =
-      configSelections.parameterSelections[inputParam.replacementString]?.trim();
+      configSelections.parameterSelections[
+        inputParam.replacementString
+      ]?.trim();
     if (inputParam.input.inputType === "select") {
       if (inputParam.input.valueType === "string") {
         str = str.replaceAll(
           inputParam.replacementString,
-          `'${mappedParameter ?? "UNSELECTED"}'`
+          `'${mappedParameter ?? "UNSELECTED"}'`,
         );
       } else {
         str = str.replaceAll(
           inputParam.replacementString,
-          mappedParameter ?? "UNSELECTED"
+          mappedParameter ?? "UNSELECTED",
         );
       }
     }
     if (inputParam.input.inputType === "boolean") {
       str = str.replaceAll(
         inputParam.replacementString,
-        mappedParameter ?? "FALSE"
+        mappedParameter ?? "FALSE",
       );
     }
     if (inputParam.input.inputType === "text") {
       str = str.replaceAll(
         inputParam.replacementString,
-        `'${mappedParameter ?? "UNSELECTED"}'`
+        `'${mappedParameter ?? "UNSELECTED"}'`,
       );
     }
     if (inputParam.input.inputType === "number") {
       str = str.replaceAll(
         inputParam.replacementString,
-        mappedParameter ?? "UNSELECTED"
+        mappedParameter ?? "UNSELECTED",
       );
     }
   }
 
   // Generate per-indicator R blocks
   const blocks: string[] = [];
-  blocks.push(`message("  Computing ${calculatedIndicators.length} calculated indicator(s)...")`);
+  blocks.push(
+    `message("  Computing ${calculatedIndicators.length} calculated indicator(s)...")`,
+  );
   for (let i = 0; i < calculatedIndicators.length; i++) {
     const ci = calculatedIndicators[i];
     const varName = `rows_${i + 1}`;
@@ -115,35 +122,52 @@ export function getScriptWithParametersCalculatedIndicators(
       // No denominator column to check
       blocks.push(`
 # ${ci.calculated_indicator_id}
-{
+${varName} <- {
   num_col <- "${ci.num_indicator_id}"
   num_ok <- num_col %in% names(data)
-  if (!num_ok) stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires numerator column '", num_col, "' but it is missing from the data. Check your indicator configuration.")
-  ${varName} <- data %>%
-    select(all_of(geo_cols), period_id) %>%
-    mutate(
-      indicator_common_id = "${ci.calculated_indicator_id}",
-      numerator = data[[num_col]],
-      denominator = ${denomExpr}
-    )
+  if (!num_ok) {
+    if (SKIP_MISSING_INDICATORS) {
+      message("    SKIPPED: '${ci.calculated_indicator_id}' - numerator '", num_col, "' not found")
+      tibble()
+    } else {
+      stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires numerator column '", num_col, "' but it is missing from the data.")
+    }
+  } else {
+    data %>%
+      select(all_of(geo_cols), period_id) %>%
+      mutate(
+        indicator_common_id = "${ci.calculated_indicator_id}",
+        numerator = data[[num_col]],
+        denominator = ${denomExpr}
+      )
+  }
 }`);
     } else {
       blocks.push(`
 # ${ci.calculated_indicator_id}
-{
+${varName} <- {
   num_col <- "${ci.num_indicator_id}"
   denom_col <- "${denomColName}"
   num_ok <- num_col %in% names(data)
   denom_ok <- denom_col %in% names(data)
-  if (!num_ok) stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires numerator column '", num_col, "' but it is missing from the data. Check your indicator configuration.")
-  if (!denom_ok) stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires denominator column '", denom_col, "' but it is missing. For population-based denominators, ensure population.csv includes this population_type.")
-  ${varName} <- data %>%
-    select(all_of(geo_cols), period_id) %>%
-    mutate(
-      indicator_common_id = "${ci.calculated_indicator_id}",
-      numerator = data[[num_col]],
-      denominator = ${denomExpr}
-    )
+  if (!num_ok || !denom_ok) {
+    if (SKIP_MISSING_INDICATORS) {
+      if (!num_ok) message("    SKIPPED: '${ci.calculated_indicator_id}' - numerator '", num_col, "' not found")
+      if (!denom_ok) message("    SKIPPED: '${ci.calculated_indicator_id}' - denominator '", denom_col, "' not found")
+      tibble()
+    } else {
+      if (!num_ok) stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires numerator column '", num_col, "' but it is missing from the data.")
+      stop("ERROR: Calculated indicator '${ci.calculated_indicator_id}' requires denominator column '", denom_col, "' but it is missing.")
+    }
+  } else {
+    data %>%
+      select(all_of(geo_cols), period_id) %>%
+      mutate(
+        indicator_common_id = "${ci.calculated_indicator_id}",
+        numerator = data[[num_col]],
+        denominator = ${denomExpr}
+      )
+  }
 }`);
     }
   }

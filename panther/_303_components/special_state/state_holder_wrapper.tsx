@@ -34,6 +34,8 @@ export function StateHolderFormError(p: StateHolderErrorProps) {
 type StateHolderWrapperProps<T> = {
   state: StateHolder<T>;
   children: (v: T) => JSX.Element;
+  loadingRenderer?: (msg: string | undefined) => JSX.Element;
+  errorRenderer?: (err: string) => JSX.Element;
   onErrorButton?:
     | {
       label: string;
@@ -62,6 +64,9 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
     <Switch>
       <Match when={p.state.status === "loading"}>
         <Switch>
+          <Match when={p.loadingRenderer}>
+            {p.loadingRenderer!((p.state as { msg?: string }).msg)}
+          </Match>
           <Match when={p.spinner}>
             <Spinner />
           </Match>
@@ -69,6 +74,9 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
             <Loading msg={(p.state as { msg?: string }).msg} noPad={p.noPad} />
           </Match>
         </Switch>
+      </Match>
+      <Match when={p.state.status === "error" && p.errorRenderer}>
+        {p.errorRenderer!((p.state as { err: string }).err)}
       </Match>
       <Match when={p.state.status === "error"}>
         <div class="data-[no-pad=false]:ui-pad ui-spy" data-no-pad={!!p.noPad}>

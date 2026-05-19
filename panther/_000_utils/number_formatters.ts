@@ -196,6 +196,44 @@ export function toNum3(
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+// Auto (strips trailing zeros, max 3 decimals)
+
+export function toNumAuto(
+  v: number | string | null | undefined,
+  replacementStringForNullOrUndefined?: string,
+): string {
+  if (v === null || v === undefined) {
+    if (replacementStringForNullOrUndefined) {
+      return replacementStringForNullOrUndefined;
+    }
+    throw new Error("Value is null or undefined");
+  }
+  const num = Number(v);
+  if (isNaN(num)) {
+    throw new Error("Value is not a number: " + v);
+  }
+  const rounded = Math.round(num * 1000) / 1000;
+  return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+export function toPctAuto(
+  v: number | string | null | undefined,
+  replacementStringForNullOrUndefined?: string,
+): string {
+  if (v === null || v === undefined) {
+    if (replacementStringForNullOrUndefined) {
+      return replacementStringForNullOrUndefined;
+    }
+    throw new Error("Value is null or undefined");
+  }
+  const num = Number(v);
+  if (isNaN(num)) {
+    throw new Error("Value is not a number: " + v);
+  }
+  const rounded = Math.round(num * 100000) / 1000;
+  return rounded.toString() + "%";
+}
+
 // Abbrev
 
 export function toAbbrev0(

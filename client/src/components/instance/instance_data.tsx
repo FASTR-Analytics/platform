@@ -5,6 +5,7 @@ import { HfaIndicatorsManager } from "../indicator_manager_hfa/hfa_indicators_ma
 import { IndicatorsManager } from "../indicator_manager_hmis/indicators_manager";
 import { InstanceDatasetHfa } from "../instance_dataset_hfa";
 import { InstanceDatasetHmis } from "../instance_dataset_hmis";
+import { InstanceDatasetIceh } from "../instance_dataset_iceh";
 import { InstanceHfaTimePoints } from "../instance_hfa_time_points";
 import { Structure } from "../structure";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
@@ -48,6 +49,12 @@ export function InstanceData(p: Props) {
       </Match>
       <Match when={selectedDataSource() === "hfa"} keyed>
         <InstanceDatasetHfa
+          backToInstance={() => setSelecteDatasource(undefined)}
+          isGlobalAdmin={p.isGlobalAdmin}
+        />
+      </Match>
+      <Match when={selectedDataSource() === "iceh"} keyed>
+        <InstanceDatasetIceh
           backToInstance={() => setSelecteDatasource(undefined)}
           isGlobalAdmin={p.isGlobalAdmin}
         />
@@ -403,6 +410,40 @@ export function InstanceData(p: Props) {
                             {toNum0(instanceState.hfaTimePoints.length)}
                           </span>
                         </div>
+                      </div>
+                    </Show>
+                  </div>
+                </div>
+              </div>
+
+              {/* ICEH */}
+              <div class="flex gap-6">
+                <div class="w-44 shrink-0 pt-3">
+                  <div class="font-700 text-base">
+                    {t3({ en: "ICEH", fr: "ICEH" })}
+                  </div>
+                </div>
+                <div class="ui-gap flex flex-1 flex-wrap">
+                  <div
+                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    onClick={() => setSelecteDatasource("iceh")}
+                  >
+                    <div class="font-700 pb-2">
+                      {t3({ en: "Equity data", fr: "Données d'équité" })}
+                    </div>
+                    <Show
+                      when={instanceState.datasetsWithData.includes("iceh")}
+                      fallback={
+                        <div class="text-danger text-xs">
+                          {t3({
+                            en: "No data added",
+                            fr: "Aucune donnée ajoutée",
+                          })}
+                        </div>
+                      }
+                    >
+                      <div class="text-success text-xs">
+                        {t3({ en: "Has data", fr: "Contient des données" })}
                       </div>
                     </Show>
                   </div>
