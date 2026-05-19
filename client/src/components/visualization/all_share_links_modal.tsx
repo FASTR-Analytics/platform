@@ -15,11 +15,15 @@ export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
   const [copiedToken, setCopiedToken] = createSignal<string | null>(null);
 
   const fetchTokens = async () => {
-    const res = await fetch(`${_SERVER_HOST}/api/share/viz/all`, {
-      credentials: "include",
-    });
-    const json = await res.json();
-    setTokens(json.success ? json.tokens : []);
+    try {
+      const res = await fetch(`${_SERVER_HOST}/api/share/viz/all`, {
+        credentials: "include",
+      });
+      const json = await res.json();
+      setTokens(json.success ? json.tokens : []);
+    } catch {
+      setTokens([]);
+    }
   };
 
   onMount(() => {
