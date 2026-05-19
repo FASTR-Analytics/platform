@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { PostgresError } from "postgres";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import {
   createShareToken,
@@ -13,18 +14,27 @@ export const routesShare = new Hono();
 
 // Create share link
 routesShare.post("/api/share/viz", requireGlobalPermission(), async (c) => {
-  const body = await c.req.json<{ resourceId: string; bundle: ShareVizBundle; slug?: string }>();
+  const body = await c.req.json<{ resourceId: string; bundle: ShareVizBundle; slug?: string; password?: string }>();
   const slug = body.slug?.trim() || null;
+  const password = body.password?.trim() || null;
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-  const token = await createShareToken(
-    mainDb,
-    "visualization",
-    body.resourceId,
-    body.bundle,
-    c.var.globalUser.email,
-    slug,
-  );
-  return c.json({ success: true, token, slug });
+  try {
+    const token = await createShareToken(
+      mainDb,
+      "visualization",
+      body.resourceId,
+      body.bundle,
+      c.var.globalUser.email,
+      slug,
+      password,
+    );
+    return c.json({ success: true, token, slug });
+  } catch (err) {
+    if (err instanceof PostgresError && err.code === "23505") {
+      return c.json({ success: false, error: "slug_taken" }, 409);
+    }
+    throw err;
+  }
 });
 
 // List share links for a visualization

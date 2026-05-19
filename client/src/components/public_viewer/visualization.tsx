@@ -1,24 +1,18 @@
 import { useParams, useSearchParams } from "@solidjs/router";
-import {
-  Button,
-  ChartHolder,
-  saveAs,
-  StateHolderWrapper,
-  timQuery,
-} from "panther";
-import { Show } from "solid-js";
-import type { APIResponseWithData, ShareVizBundle } from "lib";
+import { Button, ChartHolder, saveAs } from "panther";
+import { createSignal, Match, Switch } from "solid-js";
+import type { ShareVizBundle } from "lib";
 import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/strip_figure_inputs";
 import { _SERVER_HOST } from "~/server_actions";
+import { PasswordGate } from "~/components/PasswordGate";
 
 const CANVAS_ID = "PUBLIC_VIZ_CANVAS";
 
-async function fetchBundle(
-  token: string,
-): Promise<APIResponseWithData<ShareVizBundle>> {
-  const res = await fetch(`${_SERVER_HOST}/api/share/viz/${token}`);
-  return res.json();
-}
+type ViewState =
+  | { status: "loading" }
+  | { status: "password_required"; wrongPassword?: true }
+  | { status: "not_found" }
+  | { status: "ready"; bundle: ShareVizBundle };
 
 export default function PublicVisualization() {
   const params = useParams<{ token: string }>();
@@ -28,7 +22,8 @@ export default function PublicVisualization() {
     height?: string;
     noRescale?: string;
   }>();
-  const bundleHolder = timQuery(() => fetchBundle(params.token), "Loading...");
+
+  const [viewState, setViewState] = createSignal<ViewState>({ status: "loading" });
 
   const padding = () =>
     searchParams.pad === "true" || searchParams.padding === "true";
@@ -36,59 +31,101 @@ export default function PublicVisualization() {
     searchParams.height === "ideal" ? "ideal" : "flex";
   const noRescale = () => searchParams.noRescale === "true";
 
-  const download = async () => {
-    const canvas = document.getElementById(
-      CANVAS_ID,
-    ) as HTMLCanvasElement | null;
-    if (!canvas) return;
+  const load = async (password?: string) => {
+    setViewState({ status: "loading" });
+    try {
+      const res = password
+        ? await fetch(`${_SERVER_HOST}/api/share/viz/${params.token}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password }),
+          })
+        : await fetch(`${_SERVER_HOST}/api/share/viz/${params.token}`);
 
-    const padding = 50;
-    const newW = canvas.width + 2 * padding;
-    const newH = canvas.height + 2 * padding;
-    const backCanvas = new OffscreenCanvas(newW, newH);
+      const json = await res.json();
+
+      if (json.requiresPassword) {
+        setViewState({ status: "password_required" });
+      } else if (json.wrongPassword) {
+        setViewState({ status: "password_required", wrongPassword: true });
+      } else if (!json.success) {
+        setViewState({ status: "not_found" });
+      } else {
+        setViewState({ status: "ready", bundle: json.data as ShareVizBundle });
+      }
+    } catch {
+      setViewState({ status: "not_found" });
+    }
+  };
+
+  load();
+
+  const download = async () => {
+    const canvas = document.getElementById(CANVAS_ID) as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const pad = 50;
+    const backCanvas = new OffscreenCanvas(canvas.width + 2 * pad, canvas.height + 2 * pad);
     const ctx = backCanvas.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, newW, newH);
-    ctx.drawImage(canvas, padding, padding);
-    const blob = await backCanvas.convertToBlob({
-      type: "image/png",
-      quality: 1,
-    });
+    ctx.fillRect(0, 0, backCanvas.width, backCanvas.height);
+    ctx.drawImage(canvas, pad, pad);
+    const blob = await backCanvas.convertToBlob({ type: "image/png", quality: 1 });
     saveAs(blob, "visualization.png");
   };
 
   return (
     <div
       class="relative h-full w-full overflow-y-auto"
-      classList={{
-        "ui-pad-lg": padding(),
-      }}
+      classList={{ "ui-pad-lg": padding() }}
     >
-      {/* <Show when={padding()}> */}
-      <div class="absolute top-4 right-4 z-10">
-        <Button onClick={download} iconName="download" outline>
-          {/* Download */}
-        </Button>
-      </div>
-      {/* </Show> */}
-      <StateHolderWrapper state={bundleHolder.state()} noPad>
-        {(bundle) => {
-          const fi = hydrateFigureInputsForPublicRendering(
-            bundle.strippedFigureInputs,
-            bundle.source,
-            bundle.geoData,
-            bundle.indicatorMetadata,
-          );
-          return (
-            <ChartHolder
-              canvasElementId={CANVAS_ID}
-              noRescaleWithWidthChange={noRescale()}
-              chartInputs={fi}
-              height={chartHeight()}
-            />
-          );
-        }}
-      </StateHolderWrapper>
+      <Switch>
+        <Match when={viewState().status === "loading"}>
+          <div class="flex h-full items-center justify-center">
+            <div class="text-neutral text-sm">Loading...</div>
+          </div>
+        </Match>
+
+        <Match when={viewState().status === "not_found"}>
+          <div class="flex h-full items-center justify-center">
+            <div class="text-neutral text-sm">Visualization not found.</div>
+          </div>
+        </Match>
+
+        <Match when={viewState().status === "password_required" || viewState().status === "ready"}>
+          {(() => {
+            const state = viewState();
+            return (
+              <PasswordGate
+                requiresPassword={state.status === "password_required"}
+                wrongPassword={(state as { wrongPassword?: true }).wrongPassword}
+                onSubmit={(pwd) => load(pwd)}
+              >
+                {state.status === "ready" && (() => {
+                  const fi = hydrateFigureInputsForPublicRendering(
+                    (state as { bundle: ShareVizBundle }).bundle.strippedFigureInputs,
+                    (state as { bundle: ShareVizBundle }).bundle.source,
+                    (state as { bundle: ShareVizBundle }).bundle.geoData,
+                    (state as { bundle: ShareVizBundle }).bundle.indicatorMetadata,
+                  );
+                  return (
+                    <>
+                      <div class="absolute top-4 right-4 z-10">
+                        <Button onClick={download} iconName="download" outline />
+                      </div>
+                      <ChartHolder
+                        canvasElementId={CANVAS_ID}
+                        noRescaleWithWidthChange={noRescale()}
+                        chartInputs={fi}
+                        height={chartHeight()}
+                      />
+                    </>
+                  );
+                })()}
+              </PasswordGate>
+            );
+          })()}
+        </Match>
+      </Switch>
     </div>
   );
 }

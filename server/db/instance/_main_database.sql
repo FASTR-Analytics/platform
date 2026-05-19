@@ -472,6 +472,7 @@ CREATE TABLE IF NOT EXISTS share_tokens (
   id VARCHAR PRIMARY KEY,
   token VARCHAR UNIQUE NOT NULL,
   slug VARCHAR UNIQUE,
+  password_hash TEXT,
   resource_type VARCHAR NOT NULL,
   resource_id VARCHAR NOT NULL,
   data TEXT NOT NULL,

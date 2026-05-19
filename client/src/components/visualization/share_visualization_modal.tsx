@@ -1,5 +1,5 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import { Button, Input, ModalContainer } from "panther";
+import { Button, ModalContainer, openComponent } from "panther";
 import type { FigureInputs } from "panther";
 import type {
   PresentationObjectConfig,
@@ -9,6 +9,7 @@ import type {
 } from "lib";
 import { stripFigureInputsForStorage } from "~/generate_visualization/strip_figure_inputs";
 import { _SERVER_HOST } from "~/server_actions";
+import { CreateShareLinkModal } from "./create_share_link_modal";
 
 import type { AlertComponentProps } from "panther";
 
@@ -29,16 +30,9 @@ function tokenUrl(token: string, slug: string | null) {
   return `${window.location.origin}/share/viz/${slug ?? token}`;
 }
 
-function sanitizeSlug(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
-}
-
 export function ShareVisualizationModal(p: Props) {
   const [tokens, setTokens] = createSignal<ShareTokenInfo[]>([]);
-  const [creating, setCreating] = createSignal(false);
-  const [slug, setSlug] = createSignal("");
   const [copiedToken, setCopiedToken] = createSignal<string | null>(null);
-  const [slugError, setSlugError] = createSignal<string | null>(null);
 
   const fetchTokens = async () => {
     const res = await fetch(
@@ -53,43 +47,35 @@ export function ShareVisualizationModal(p: Props) {
     fetchTokens();
   });
 
-  const createShareLink = async () => {
-    setCreating(true);
-    setSlugError(null);
-    const stripped = stripFigureInputsForStorage(p.figureInputs);
-    const bundle: ShareVizBundle = {
-      label: p.label,
-      strippedFigureInputs: stripped,
-      source: {
-        config: p.config,
-        metricId: p.metricId,
-        formatAs: p.formatAs,
-      },
-      geoData: p.geoData,
-      indicatorMetadata: p.indicatorMetadata,
-    };
+  const buildBundle = (): ShareVizBundle => ({
+    label: p.label,
+    strippedFigureInputs: stripFigureInputsForStorage(p.figureInputs),
+    source: { config: p.config, metricId: p.metricId, formatAs: p.formatAs },
+    geoData: p.geoData,
+    indicatorMetadata: p.indicatorMetadata,
+  });
 
-    const slugValue = slug().trim() || null;
-
+  const createLink = async (slug: string | null, password: string | null) => {
     const res = await fetch(`${_SERVER_HOST}/api/share/viz`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ resourceId: p.presentationObjectId, bundle, slug: slugValue }),
+      body: JSON.stringify({ resourceId: p.presentationObjectId, bundle: buildBundle(), slug, password }),
     });
-    const json = await res.json();
-    setCreating(false);
+    return res.json();
+  };
 
-    if (json.success) {
-      const url = tokenUrl(json.token, json.slug);
-      await navigator.clipboard.writeText(url);
-      setCopiedToken(json.token);
-      setSlug("");
-      fetchTokens();
-      setTimeout(() => setCopiedToken(null), 2000);
-    } else if (json.error?.includes("slug")) {
-      setSlugError("That slug is already in use. Try a different one.");
-    }
+  const handleCreateLink = async () => {
+    const result = await openComponent({
+      element: CreateShareLinkModal,
+      props: { createLink },
+    });
+    if (result === undefined) return;
+    const url = tokenUrl(result.token, result.slug);
+    await navigator.clipboard.writeText(url);
+    setCopiedToken(result.token);
+    fetchTokens();
+    setTimeout(() => setCopiedToken(null), 2000);
   };
 
   const deleteToken = async (token: string) => {
@@ -112,27 +98,9 @@ export function ShareVisualizationModal(p: Props) {
       title="Share visualization"
       rightButtons={<Button onClick={() => p.close()}>Done</Button>}
     >
-      <div class="flex flex-col ui-gap">
-        <Input
-          value={slug()}
-          onChange={(val) => {
-            setSlugError(null);
-            setSlug(sanitizeSlug(val));
-          }}
-          placeholder="custom-slug (optional)"
-        />
-        <Show when={slugError()}>
-          <div class="text-danger text-xs">{slugError()}</div>
-        </Show>
-        <Show when={slug()}>
-          <div class="text-neutral text-xs">
-            URL: {window.location.origin}/share/viz/{slug()}
-          </div>
-        </Show>
-        <Button onClick={createShareLink} disabled={creating()}>
-          {creating() ? "Creating..." : "Create New Share Link"}
-        </Button>
-      </div>
+      <Button onClick={handleCreateLink} iconName="plus">
+        Create New Share Link
+      </Button>
 
       <Show when={tokens().length > 0}>
         <div style={{ "margin-top": "20px" }}>
@@ -144,22 +112,20 @@ export function ShareVisualizationModal(p: Props) {
                 classList={{ "border-t": i() > 0 }}
               >
                 <div class="text-neutral flex-1 text-sm">
-                  <div>
-                    <Show when={t.slug}>
-                      <span class="text-base-content font-500">{t.slug}</span>
-                      {" · "}
-                    </Show>
-                    Created: {new Date(t.createdAt).toLocaleDateString()}
+                  <Show when={t.slug}>
+                    <span class="text-base-content font-500">{t.slug}</span>
                     {" · "}
-                    Views: {t.viewCount}
-                  </div>
+                  </Show>
+                  <Show when={t.hasPassword}>
+                    <span class="text-base-content">🔒</span>
+                    {" · "}
+                  </Show>
+                  Created: {new Date(t.createdAt).toLocaleDateString()}
+                  {" · "}
+                  Views: {t.viewCount}
                 </div>
                 <div class="ui-gap-sm flex items-center">
-                  <Button
-                    onClick={() => copyUrl(t)}
-                    size="sm"
-                    iconName="copy"
-                  >
+                  <Button onClick={() => copyUrl(t)} size="sm" iconName="copy">
                     {copiedToken() === t.token ? "Copied!" : "Copy"}
                   </Button>
                   <Button
