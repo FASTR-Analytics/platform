@@ -48,6 +48,24 @@ export async function listShareTokensForResource(
   }));
 }
 
+export async function listAllShareTokensForType(
+  mainDb: Sql,
+  resourceType: string,
+): Promise<(ShareTokenInfo & { resourceId: string })[]> {
+  const rows = await mainDb<{ resource_id: string; token: string; created_at: string; view_count: number }[]>`
+    SELECT resource_id, token, created_at, view_count
+    FROM share_tokens
+    WHERE resource_type = ${resourceType}
+    ORDER BY resource_id, created_at DESC
+  `;
+  return rows.map(r => ({
+    resourceId: r.resource_id,
+    token: r.token,
+    createdAt: r.created_at,
+    viewCount: r.view_count,
+  }));
+}
+
 export async function deleteShareToken(
   mainDb: Sql,
   token: string,

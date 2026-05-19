@@ -11,6 +11,7 @@ import { Show, createSignal } from "solid-js";
 import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectPanelDisplay";
 import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "./add_visualization";
+import { AllShareLinksModal } from "../visualization/all_share_links_modal";
 import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
 import { updateProjectView } from "~/state/t4_ui";
 import { projectState } from "~/state/project/t1_store";
@@ -84,6 +85,15 @@ export function ProjectVisualizations(p: Props) {
       },
     });
     // SSE will update projectState automatically
+  }
+
+  async function openAllShareLinks() {
+    await openComponent({
+      element: AllShareLinksModal,
+      props: {
+        visualizations: projectState.visualizations,
+      },
+    });
   }
 
   async function attempAddPresentationObject() {
@@ -180,6 +190,9 @@ export function ProjectVisualizations(p: Props) {
               {/* <Button onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
                 {t("Create with AI")}
               </Button> */}
+              <Button onClick={openAllShareLinks} iconName="copy" outline>
+                {t3({ en: "Share links", fr: "Liens de partage" })}
+              </Button>
               <Button onClick={attempAddPresentationObject} iconName="plus">
                 {t3({ en: "Create visualization", fr: "Créer une visualisation" })}
               </Button>
