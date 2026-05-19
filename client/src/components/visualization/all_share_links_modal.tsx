@@ -12,9 +12,11 @@ type AllShareToken = ShareTokenInfo & { resourceId: string };
 
 export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
   const [tokens, setTokens] = createSignal<AllShareToken[]>([]);
+  const [loading, setLoading] = createSignal(true);
   const [copiedToken, setCopiedToken] = createSignal<string | null>(null);
 
   const fetchTokens = async () => {
+    setLoading(true);
     const results = await Promise.all(
       p.visualizations.map(async (viz) => {
         try {
@@ -31,6 +33,7 @@ export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
       }),
     );
     setTokens(results.flat());
+    setLoading(false);
   };
 
   onMount(() => {
@@ -67,10 +70,15 @@ export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
       title="All share links"
       rightButtons={<Button onClick={() => p.close()}>Done</Button>}
     >
+      <Show when={loading()}>
+        <div class="text-neutral text-sm">Loading...</div>
+      </Show>
       <Show
-        when={tokens().length > 0}
+        when={!loading() && tokens().length > 0}
         fallback={
-          <div class="text-neutral text-sm">No share links have been created yet.</div>
+          <Show when={!loading()}>
+            <div class="text-neutral text-sm">No share links have been created yet.</div>
+          </Show>
         }
       >
         <div class="flex flex-col ui-gap">
