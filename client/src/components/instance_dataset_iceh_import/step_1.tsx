@@ -1,14 +1,12 @@
-import { createSignal } from "solid-js";
-import { t3, type IcehStep1Result } from "lib";
+import { createSignal, Show } from "solid-js";
+import { t3, TC, type IcehStep1Result } from "lib";
 import { serverActions } from "~/server_actions";
 import { Button, StateHolderFormError, timActionForm } from "panther";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 
 type Props = {
   step1Result: IcehStep1Result | undefined;
-  setStep1Result: (result: IcehStep1Result | undefined) => void;
   silentFetch: () => Promise<void>;
-  goNext: () => void;
 };
 
 export function Step1(p: Props) {
@@ -27,25 +25,23 @@ export function Step1(p: Props) {
     if (!zipAssetFileName) {
       return {
         success: false,
-        err: t3({ en: "You must select a zip file", fr: "Vous devez sélectionner un fichier zip" }),
+        err: t3({
+          en: "You must select a zip file",
+          fr: "Vous devez sélectionner un fichier zip",
+        }),
       };
     }
-    const res = await serverActions.updateDatasetIcehUploadAttemptStep1({
+    return serverActions.updateDatasetIcehUploadAttemptStep1({
       zipAssetFileName,
     });
-    if (res.success) {
-      p.setStep1Result(res.data);
-      setNeedsSaving(false);
-    }
-    return res;
   }, p.silentFetch);
 
   return (
     <div class="ui-pad ui-spy">
-      <h3 class="font-700 text-lg mb-4">
+      <h3 class="font-700 text-lg">
         {t3({ en: "ICEH Zip File", fr: "Fichier Zip ICEH" })}
       </h3>
-      <p class="text-neutral mb-4">
+      <p class="text-neutral">
         {t3({
           en: "Upload a zip file downloaded from the ICEH Retriever (equidade.org/retriever). The zip should contain results_csv.csv and indicators.xlsx.",
           fr: "Téléversez un fichier zip téléchargé depuis le Retriever ICEH (equidade.org/retriever). Le zip doit contenir results_csv.csv et indicators.xlsx.",
@@ -53,16 +49,21 @@ export function Step1(p: Props) {
       </p>
 
       <FileUploadSelector
-        buttonLabel={t3({ en: "Upload zip file", fr: "Téléverser un fichier zip" })}
-        selectLabel={t3({ en: "Select uploaded zip file", fr: "Sélectionner le fichier zip téléversé" })}
+        buttonLabel={t3({
+          en: "Upload new zip file to use",
+          fr: "Téléverser un nouveau fichier zip à utiliser",
+        })}
+        selectLabel={t3({
+          en: "Existing zip file to use",
+          fr: "Fichier zip existant à utiliser",
+        })}
         filter={(a) => a.isZip}
         value={selectedZipFileName()}
         onChange={updateSelectedZipFileName}
       />
 
       <StateHolderFormError state={save.state()} />
-
-      <div class="ui-gap-sm mt-6 flex">
+      <div class="ui-gap-sm flex">
         <Button
           onClick={save.click}
           intent="success"
@@ -70,45 +71,45 @@ export function Step1(p: Props) {
           disabled={!needsSaving() || !selectedZipFileName()}
           iconName="save"
         >
-          {t3({ en: "Validate zip", fr: "Valider le zip" })}
+          {t3(TC.save)}
         </Button>
-
-        {p.step1Result && (
-          <Button onClick={p.goNext} intent="primary" iconName="arrowRight">
-            {t3({ en: "Continue", fr: "Continuer" })}
-          </Button>
-        )}
       </div>
 
-      {p.step1Result && (
-        <div class="mt-6 rounded border p-4">
-          <h4 class="font-700 mb-2">
-            {t3({ en: "Zip Contents", fr: "Contenu du zip" })}
-          </h4>
-          <div class="text-sm">
-            <p>
-              <strong>{t3({ en: "Country:", fr: "Pays :" })}</strong>{" "}
-              {p.step1Result.countryName} ({p.step1Result.countryIso})
-            </p>
-            <p>
-              <strong>{t3({ en: "Indicators:", fr: "Indicateurs :" })}</strong>{" "}
-              {p.step1Result.indicatorCount}
-            </p>
-            <p>
-              <strong>{t3({ en: "Data rows:", fr: "Lignes de données :" })}</strong>{" "}
-              {p.step1Result.dataRowCount.toLocaleString()}
-            </p>
-            <p>
-              <strong>{t3({ en: "Years:", fr: "Années :" })}</strong>{" "}
-              {p.step1Result.years.join(", ")}
-            </p>
-            <p>
-              <strong>{t3({ en: "Disaggregators:", fr: "Désagrégateurs :" })}</strong>{" "}
-              {p.step1Result.strats.join(", ")}
-            </p>
+      <Show when={p.step1Result}>
+        {(result) => (
+          <div class="rounded border p-4">
+            <h4 class="font-700 mb-2">
+              {t3({ en: "Zip Contents", fr: "Contenu du zip" })}
+            </h4>
+            <div class="text-sm">
+              <p>
+                <strong>{t3({ en: "Country:", fr: "Pays :" })}</strong>{" "}
+                {result().countryName} ({result().countryIso})
+              </p>
+              <p>
+                <strong>{t3({ en: "Indicators:", fr: "Indicateurs :" })}</strong>{" "}
+                {result().indicatorCount}
+              </p>
+              <p>
+                <strong>
+                  {t3({ en: "Data rows:", fr: "Lignes de données :" })}
+                </strong>{" "}
+                {result().dataRowCount.toLocaleString()}
+              </p>
+              <p>
+                <strong>{t3({ en: "Years:", fr: "Années :" })}</strong>{" "}
+                {result().years.join(", ")}
+              </p>
+              <p>
+                <strong>
+                  {t3({ en: "Disaggregators:", fr: "Désagrégateurs :" })}
+                </strong>{" "}
+                {result().strats.join(", ")}
+              </p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Show>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import {
-  type IcehUploadAttemptSummary,
+  type IcehUploadAttemptDetail,
   type IcehUploadAttemptStatus,
-  type IcehStep1Result,
+  type IcehUploadAttemptStatusLight,
   t3,
 } from "lib";
 import {
@@ -39,22 +39,27 @@ export function DatasetIcehUploadAttemptForm(p: Props) {
     }
     return res as
       | { success: false; err: string }
-      | { success: true; data: IcehUploadAttemptSummary | undefined };
+      | { success: true; data: IcehUploadAttemptDetail };
   }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation..." }));
 
-  const [pollingStatus, setPollingStatus] = createSignal<IcehUploadAttemptStatus | null>(null);
-  const [step1Result, setStep1Result] = createSignal<IcehStep1Result | undefined>(undefined);
+  const [pollingStatus, setPollingStatus] =
+    createSignal<IcehUploadAttemptStatusLight | null>(null);
 
   const stepper = getStepper(() => uploadAttempt.state(), {
-    initialStep: 1,
-    minStep: 1,
-    maxStep: 3,
+    initialStep: 0,
+    minStep: 0,
+    maxStep: 2,
     getValidation: (currentStep, state) => {
       if (state.status !== "ready") {
         return { canGoPrev: false, canGoNext: false };
       }
+      const dua = state.data;
+
       if (currentStep === 1) {
-        return { canGoPrev: false, canGoNext: !!step1Result() };
+        if (dua.step1Result) {
+          return { canGoPrev: true, canGoNext: true };
+        }
+        return { canGoPrev: true, canGoNext: false };
       }
       if (currentStep === 2) {
         return { canGoPrev: true, canGoNext: false };
@@ -69,18 +74,23 @@ export function DatasetIcehUploadAttemptForm(p: Props) {
   onMount(() => {
     pollingIntervalId = setInterval(async () => {
       if (uploadAttempt.state().status === "ready") {
-        const statusRes = await serverActions.getDatasetIcehUploadAttempt({});
-        if (statusRes.success && statusRes.data) {
-          const newStatus = statusRes.data.status.status;
-          if (currentStatus !== null && currentStatus !== newStatus) {
-            currentStatus = newStatus;
+        const statusRes = await serverActions.getDatasetIcehUploadStatus({});
+
+        if (statusRes.success) {
+          if (
+            currentStatus !== null &&
+            currentStatus !== statusRes.data.status.status
+          ) {
+            currentStatus = statusRes.data.status.status;
             await uploadAttempt.silentFetch();
             return;
           }
+
           if (currentStatus === null) {
-            currentStatus = newStatus;
+            currentStatus = statusRes.data.status.status;
           }
-          if (newStatus === "staging" || newStatus === "integrating") {
+
+          if (statusRes.data.isActive) {
             setPollingStatus(statusRes.data.status);
           } else {
             setPollingStatus(null);
@@ -98,11 +108,15 @@ export function DatasetIcehUploadAttemptForm(p: Props) {
 
   async function attemptDeleteUploadAttempt() {
     const deleteAction = timActionDelete(
-      t3({ en: "Are you sure you want to cancel this import?", fr: "Êtes-vous sûr de vouloir annuler cette importation ?" }),
+      t3({
+        en: "Are you sure you want to delete this import?",
+        fr: "Êtes-vous sûr de vouloir supprimer cette importation ?",
+      }),
       () => serverActions.deleteDatasetIcehUploadAttempt({}),
       p.silentFetch,
       () => p.close(undefined)
     );
+
     await deleteAction.click();
   }
 
@@ -129,10 +143,14 @@ export function DatasetIcehUploadAttemptForm(p: Props) {
           <div class="ui-gap-sm flex flex-none items-center">
             <StepperNavigationVisual
               stepper={stepper}
-              stepLabelFormatter={(step) => `${step}`}
+              stepLabelFormatter={(step) => `${step + 1}`}
             />
             <Button iconName="refresh" onClick={uploadAttempt.fetch} />
-            <Button onClick={attemptDeleteUploadAttempt} intent="danger" iconName="trash">
+            <Button
+              onClick={attemptDeleteUploadAttempt}
+              intent="danger"
+              iconName="trash"
+            >
               {t3({ en: "Discard import", fr: "Annuler l'importation" })}
             </Button>
           </div>
@@ -146,80 +164,82 @@ export function DatasetIcehUploadAttemptForm(p: Props) {
           onClick: () => p.close(undefined),
         }}
       >
-        {(data) => {
-          const ua = data;
-          if (!ua) {
-            return (
-              <div class="ui-pad text-danger">
-                {t3({ en: "No upload attempt found", fr: "Aucune tentative de téléchargement trouvée" })}
-              </div>
-            );
-          }
-
+        {(keyedUploadAttempt) => {
           return (
             <Switch
               fallback={
                 <div class="ui-pad text-danger">
-                  {t3({ en: "Something went wrong", fr: "Une erreur s'est produite" })}
+                  {t3({
+                    en: "Something went wrong: Bad step in dataset upload attempt",
+                    fr: "Une erreur s'est produite : étape incorrecte dans la tentative de téléversement",
+                  })}
                 </div>
               }
             >
-              <Match when={ua.status.status === "error"}>
-                <div class="ui-pad">
-                  <div class="text-danger mb-4">
-                    {t3({ en: "ERROR!", fr: "ERREUR !" })}{" "}
-                    {(ua.status as { status: "error"; err: string }).err}
-                  </div>
-                  <Button onClick={() => deleteSafe.click()} intent="danger">
-                    {t3({ en: "Discard and start over", fr: "Annuler et recommencer" })}
-                  </Button>
+              <Match when={keyedUploadAttempt.status.status === "error"}>
+                <div class="ui-pad text-danger">
+                  {t3({ en: "ERROR!", fr: "ERREUR !" })}{" "}
+                  {JSON.stringify(keyedUploadAttempt.status)}...
                 </div>
               </Match>
-              <Match when={ua.status.status === "complete"}>
+              <Match when={keyedUploadAttempt.status.status === "complete"}>
                 <ProgressComplete
-                  nRowsIntegrated={(ua.status as { status: "complete"; nRowsIntegrated: number }).nRowsIntegrated}
+                  status={
+                    keyedUploadAttempt.status as Extract<
+                      IcehUploadAttemptStatus,
+                      { status: "complete" }
+                    >
+                  }
                   deleteSafe={deleteSafe}
                 />
               </Match>
-              <Match when={ua.status.status === "staging"}>
+              <Match when={keyedUploadAttempt.status.status === "staging"}>
                 <ProgressStaging
                   status={
-                    (pollingStatus() || ua.status) as Extract<
+                    (pollingStatus() || keyedUploadAttempt.status) as Extract<
                       IcehUploadAttemptStatus,
                       { status: "staging" }
                     >
                   }
                 />
               </Match>
-              <Match when={ua.status.status === "staged"}>
+              <Match when={keyedUploadAttempt.status.status === "staged"}>
                 <ProgressStaging
                   status={{ status: "staging", progress: 100 }}
-                  staged={(ua.status as { status: "staged"; result: any }).result}
+                  staged={
+                    (
+                      keyedUploadAttempt.status as Extract<
+                        IcehUploadAttemptStatus,
+                        { status: "staged" }
+                      >
+                    ).result
+                  }
                 />
               </Match>
-              <Match when={ua.status.status === "integrating"}>
+              <Match when={keyedUploadAttempt.status.status === "integrating"}>
                 <ProgressIntegrating
                   status={
-                    (pollingStatus() || ua.status) as Extract<
+                    (pollingStatus() || keyedUploadAttempt.status) as Extract<
                       IcehUploadAttemptStatus,
                       { status: "integrating" }
                     >
                   }
                 />
               </Match>
-              <Match when={stepper.currentStep() === 1}>
-                <Step1
-                  step1Result={step1Result()}
-                  setStep1Result={setStep1Result}
+              <Match
+                when={
+                  stepper.currentStep() >= 2 && keyedUploadAttempt.step1Result
+                }
+              >
+                <Step2
+                  step1Result={keyedUploadAttempt.step1Result!}
                   silentFetch={uploadAttempt.silentFetch}
-                  goNext={() => stepper.setCurrentStep(2)}
                 />
               </Match>
-              <Match when={stepper.currentStep() === 2 && step1Result()}>
-                <Step2
-                  step1Result={step1Result()!}
+              <Match when={stepper.currentStep() >= 1}>
+                <Step1
+                  step1Result={keyedUploadAttempt.step1Result}
                   silentFetch={uploadAttempt.silentFetch}
-                  goPrev={() => stepper.setCurrentStep(1)}
                 />
               </Match>
             </Switch>

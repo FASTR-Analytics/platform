@@ -6,6 +6,8 @@
 ////////////////////////
 //                    //
 //    Core modules    //
+//                    //
+////////////////////////
 
 export * from "./_000_consts/mod.ts";
 export * from "./_000_utils/mod.ts";
@@ -41,12 +43,30 @@ export * from "./_106_markdown_to_word/mod.ts";
 export * from "./_110_ai_types/mod.ts";
 export * from "./_121_page/mod.ts";
 export * from "./_122_pdf/mod.ts";
+export * from "./_122_pptx/mod.ts";
+
 //////////////////////
 //                  //
 //    UI modules    //
+//                  //
+//////////////////////
+
 export * from "./_301_util_funcs/mod.ts";
 export * from "./_302_query/mod.ts";
 export * from "./_303_components/mod.ts";
 export * from "./_304_query/mod.ts";
 export * from "./_305_ai/mod.ts";
 export * from "./_306_text_editor/mod.ts";
+
+/////////////////////
+//                 //
+//    Protocols    //
+//                 //
+/////////////////////
+
+// @protocol README.md
+// @protocol PROTOCOL_TYPESCRIPT.md
+// @protocol PROTOCOL_STRUCTURE.md
+// @protocol PROTOCOL_SOLIDJS.md
+// @protocol PROTOCOL_STATE.md
+// @protocol PROTOCOL_STYLING.md

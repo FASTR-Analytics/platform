@@ -1,7 +1,16 @@
 {
-  "timestamp": "2026-05-15T04:06:30.484Z",
-  "pantherGitCommit": "b7fb247",
-  "pantherGitDirty": false,
+  "timestamp": "2026-05-19T03:45:16.302Z",
+  "pantherGitCommit": "dde4b37",
+  "pantherGitDirty": true,
   "mode": "both",
-  "configName": "wb-fastr"
+  "configName": "wb-fastr",
+  "protocols": [
+    "README.md",
+    "PROTOCOL_TYPESCRIPT.md",
+    "PROTOCOL_STRUCTURE.md",
+    "PROTOCOL_API.md",
+    "PROTOCOL_SOLIDJS.md",
+    "PROTOCOL_STATE.md",
+    "PROTOCOL_STYLING.md"
+  ]
 }

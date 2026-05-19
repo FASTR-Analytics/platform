@@ -333,7 +333,10 @@ export function PresentationObjectPanelDisplay(p: Props) {
         },
       },
     ];
-    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
+    });
   }
 
   const renderGroupOption = (selectOpt: SelectOption<string>) => {
@@ -504,9 +507,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       order.length > 0
         ? [
             ...order.filter((key) => groups.has(key)),
-            ...Array.from(groups.keys()).filter(
-              (key) => !order.includes(key),
-            ),
+            ...Array.from(groups.keys()).filter((key) => !order.includes(key)),
           ]
         : Array.from(groups.keys());
 
@@ -1007,7 +1008,10 @@ function VisualizationCard(p: VisualizationCardProps) {
         onClick: p.onDelete,
       },
     );
-    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
+    });
   }
 
   const isReady = () => p.metricLookup.get(p.po.metricId)?.status === "ready";
@@ -1095,11 +1099,6 @@ function VisualizationCard(p: VisualizationCardProps) {
             {t3({ en: "Default", fr: "Par défaut" })}
           </div>
         </Show>
-        {/* <Show when={!p.po.createdByAI && !p.po.isDefault}>
-          <div class="font-400 text-base-100 rounded bg-[orange] px-1 py-0.5 text-xs">
-            {t3({ en: "User", fr: "Utilisateur" })}
-          </div>
-        </Show> */}
       </div>
     </div>
   );

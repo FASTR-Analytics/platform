@@ -5,7 +5,8 @@ import type {
   IcehDataRow,
 } from "../../types/dataset_iceh.ts";
 import type {
-  IcehUploadAttemptSummary,
+  IcehUploadAttemptDetail,
+  IcehUploadStatusResponse,
   IcehStep1Result,
 } from "../../types/dataset_iceh_import.ts";
 import { route } from "../route-utils.ts";
@@ -38,7 +39,12 @@ export const icehRouteRegistry = {
   getDatasetIcehUploadAttempt: route({
     method: "GET",
     path: "/iceh/upload-attempt",
-    response: {} as IcehUploadAttemptSummary | undefined,
+    response: {} as IcehUploadAttemptDetail | undefined,
+  }),
+  getDatasetIcehUploadStatus: route({
+    method: "GET",
+    path: "/iceh/upload-attempt/status",
+    response: {} as IcehUploadStatusResponse,
   }),
   deleteDatasetIcehUploadAttempt: route({
     method: "DELETE",

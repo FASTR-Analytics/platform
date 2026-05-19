@@ -1,34 +1,36 @@
-import { t3 } from "lib";
+import { t3, type IcehUploadAttemptStatus } from "lib";
 import { Button, type TimActionButton } from "panther";
 
 type Props = {
-  nRowsIntegrated: number;
+  status: Extract<IcehUploadAttemptStatus, { status: "complete" }>;
   deleteSafe: TimActionButton<[]>;
 };
 
 export function ProgressComplete(p: Props) {
   return (
-    <div class="ui-pad">
-      <h3 class="font-700 text-success text-lg mb-4">
-        {t3({ en: "Import Complete!", fr: "Importation terminée !" })}
-      </h3>
-
-      <div class="mb-6 rounded border p-4">
-        <p class="text-sm">
-          <strong>{t3({ en: "Rows integrated:", fr: "Lignes intégrées :" })}</strong>{" "}
-          {p.nRowsIntegrated.toLocaleString()}
-        </p>
-      </div>
-
-      <p class="text-neutral mb-4">
+    <div class="ui-pad ui-spy">
+      <div class="">
         {t3({
-          en: "The ICEH data has been successfully imported. You can now view and analyze the equity data.",
-          fr: "Les données ICEH ont été importées avec succès. Vous pouvez maintenant consulter et analyser les données d'équité.",
+          en: `Import complete! ${p.status.nRowsIntegrated.toLocaleString()} rows integrated.`,
+          fr: `Importation terminée ! ${p.status.nRowsIntegrated.toLocaleString()} lignes intégrées.`,
         })}
-      </p>
-
-      <Button onClick={() => p.deleteSafe.click()} intent="primary">
-        {t3({ en: "Close and finish", fr: "Fermer et terminer" })}
+      </div>
+      <div class="">
+        {t3({
+          en: "You should now remove the upload form.",
+          fr: "Vous devez maintenant supprimer le formulaire de téléversement.",
+        })}
+      </div>
+      <Button
+        onClick={p.deleteSafe.click}
+        state={p.deleteSafe.state()}
+        intent="success"
+        iconName="trash"
+      >
+        {t3({
+          en: "Remove completed upload form",
+          fr: "Supprimer le formulaire de téléversement terminé",
+        })}
       </Button>
     </div>
   );

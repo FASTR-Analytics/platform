@@ -8,18 +8,21 @@ import {
   FrameRight,
   FrameTop,
   getEditorWrapper,
-  getTabs,
-  TabsNavigation,
   timActionButton,
-  timQuery,
-  StateHolderWrapper,
+  toPct0,
 } from "panther";
-import { onCleanup, onMount, Show } from "solid-js";
+import {
+  Match,
+  Show,
+  Switch,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import { DatasetIcehUploadAttemptForm } from "~/components/instance_dataset_iceh_import";
 import { serverActions } from "~/server_actions";
-import { IndicatorsTab } from "./_indicators_tab";
-import { DisaggregatorsTab } from "./_disaggregators_tab";
-import { DataTab } from "./_data_tab";
+import { DatasetItemsHolder } from "./dataset_items_holder";
+import { DeleteData } from "./_delete_data";
 
 type Props = {
   backToInstance: () => void;
@@ -29,17 +32,32 @@ type Props = {
 export function InstanceDatasetIceh(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const detail = timQuery(async () => {
-    return await serverActions.getDatasetIcehDetail({});
-  }, t3({ en: "Loading ICEH data...", fr: "Chargement des données ICEH..." }));
+  const [detail, setDetail] = createSignal<IcehDataDetail | undefined>(
+    undefined
+  );
+  const [uploadAttempt, setUploadAttempt] = createSignal<
+    IcehUploadAttemptSummary | undefined
+  >(undefined);
+
+  async function fetchDetail() {
+    try {
+      const result = await serverActions.getDatasetIcehDetail({});
+      if (result.success) {
+        setDetail(result.data);
+        setUploadAttempt(result.data.uploadAttempt);
+      }
+    } catch {
+      // Silent fail
+    }
+  }
 
   let pollingInterval: ReturnType<typeof setInterval> | undefined;
 
   onMount(() => {
+    fetchDetail();
     pollingInterval = setInterval(async () => {
-      const state = detail.state();
-      if (state.status === "ready" && state.data.uploadAttempt !== undefined) {
-        await detail.silentFetch();
+      if (uploadAttempt() !== undefined) {
+        await fetchDetail();
       }
     }, 5000);
   });
@@ -52,7 +70,7 @@ export function InstanceDatasetIceh(p: Props) {
 
   const newUploadAttempt = timActionButton(
     () => serverActions.createDatasetIcehUploadAttempt({}),
-    detail.silentFetch,
+    fetchDetail,
     openUploadAttempt
   );
 
@@ -60,151 +78,196 @@ export function InstanceDatasetIceh(p: Props) {
     await openEditor({
       element: DatasetIcehUploadAttemptForm,
       props: {
-        silentFetch: detail.silentFetch,
+        silentFetch: fetchDetail,
       },
     });
   }
 
-  const deleteAllData = timActionButton(
-    () => serverActions.deleteDatasetIcehData({}),
-    detail.silentFetch
-  );
+  async function deleteData() {
+    await openEditor({
+      element: DeleteData,
+      props: {
+        isGlobalAdmin: p.isGlobalAdmin,
+        silentFetch: fetchDetail,
+      },
+    });
+  }
 
   return (
-    <>
-      <EditorWrapper>
+    <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad flex items-center justify-between">
-            <div class="flex items-center gap-4">
-              <Button onClick={p.backToInstance} iconName="arrowLeft">
-                {t3({ en: "Back", fr: "Retour" })}
-              </Button>
-              <h2 class="font-700 text-lg">
+          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
+            <Button iconName="chevronLeft" onClick={p.backToInstance} />
+            <div class="font-700 flex-1 truncate text-xl">
+              {t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES" })}
+              <span class="font-400 ml-4">
                 {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH" })}
-              </h2>
-            </div>
-            <div class="ui-gap-sm flex items-center">
-              <Button iconName="refresh" onClick={detail.fetch} />
+              </span>
             </div>
           </div>
         }
       >
-        <StateHolderWrapper state={detail.state()}>
-          {(data) => (
-            <div class="ui-pad">
-              <Show
-                when={data.uploadAttempt}
-                fallback={
-                  <DataViewContent
-                    data={data}
-                    onStartImport={() => newUploadAttempt.click()}
-                    onDeleteAll={() => deleteAllData.click()}
-                    isGlobalAdmin={p.isGlobalAdmin}
-                    newUploadAttemptState={newUploadAttempt.state()}
-                  />
-                }
-              >
-                {(ua) => (
-                  <div class="rounded border p-4">
-                    <h3 class="font-700 mb-2">
-                      {t3({ en: "Import in progress", fr: "Importation en cours" })}
-                    </h3>
-                    <p class="text-neutral mb-4">
-                      {t3({
-                        en: `Status: ${ua().status.status}`,
-                        fr: `Statut : ${ua().status.status}`,
-                      })}
-                    </p>
-                    <Button onClick={openUploadAttempt} intent="primary">
-                      {t3({ en: "View import", fr: "Voir l'importation" })}
-                    </Button>
+        <FrameRight
+          panelChildren={
+            <Show when={p.isGlobalAdmin}>
+              <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
+                <div class="font-700 text-lg">
+                  {t3({ en: "Imports", fr: "Importations" })}
+                </div>
+                <Switch>
+                  <Match when={!uploadAttempt()}>
+                    <div class="">
+                      <Button
+                        onClick={newUploadAttempt.click}
+                        state={newUploadAttempt.state()}
+                        iconName="upload"
+                        fullWidth
+                      >
+                        {t3({
+                          en: "Start new import",
+                          fr: "Nouvelle importation",
+                        })}
+                      </Button>
+                    </div>
+                  </Match>
+                  <Match when={uploadAttempt()} keyed>
+                    {(keyedUploadAttempt) => {
+                      return (
+                        <div
+                          class="ui-hoverable ui-pad border-base-300 bg-base-200 rounded border"
+                          onClick={openUploadAttempt}
+                        >
+                          <Switch>
+                            <Match
+                              when={
+                                keyedUploadAttempt.status.status === "complete"
+                              }
+                            >
+                              <div class="text-sm">
+                                {t3({
+                                  en: "Import is complete! Click to view and remove.",
+                                  fr: "Importation terminée ! Cliquez pour consulter et supprimer.",
+                                })}
+                              </div>
+                            </Match>
+                            <Match
+                              when={
+                                keyedUploadAttempt.status.status === "error"
+                              }
+                            >
+                              <div class="text-danger text-sm">
+                                {t3({
+                                  en: "Error with upload. Click to view.",
+                                  fr: "Erreur lors du téléversement. Cliquez pour consulter.",
+                                })}
+                              </div>
+                            </Match>
+                            <Match
+                              when={
+                                keyedUploadAttempt.status.status === "staging"
+                              }
+                              keyed
+                            >
+                              <div class="ui-spy-sm text-center">
+                                <div class="">
+                                  {t3({
+                                    en: "Staging underway",
+                                    fr: "Préparation en cours",
+                                  })}
+                                </div>
+                                <div class="font-700 text-lg">
+                                  {toPct0(
+                                    ((keyedUploadAttempt.status as any)
+                                      ?.progress ?? 0) / 100
+                                  )}
+                                </div>
+                                <div class="text-xs">
+                                  {t3({
+                                    en: "This number will automatically update. No need to refresh.",
+                                    fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.",
+                                  })}
+                                </div>
+                              </div>
+                            </Match>
+                            <Match
+                              when={
+                                keyedUploadAttempt.status.status ===
+                                "integrating"
+                              }
+                              keyed
+                            >
+                              <div class="ui-spy-sm text-center">
+                                <div class="">
+                                  {t3({
+                                    en: "Integrating underway",
+                                    fr: "Intégration en cours",
+                                  })}
+                                </div>
+                                <div class="font-700 text-lg">
+                                  {toPct0(
+                                    ((keyedUploadAttempt.status as any)
+                                      ?.progress ?? 0) / 100
+                                  )}
+                                </div>
+                                <div class="text-xs">
+                                  {t3({
+                                    en: "This number will automatically update. No need to refresh.",
+                                    fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.",
+                                  })}
+                                </div>
+                              </div>
+                            </Match>
+                            <Match when={true}>
+                              <div class="text-sm">
+                                {t3({
+                                  en: "Import in draft stage. Click to continue.",
+                                  fr: "Importation en cours de préparation. Cliquez pour continuer.",
+                                })}
+                              </div>
+                            </Match>
+                          </Switch>
+                        </div>
+                      );
+                    }}
+                  </Match>
+                </Switch>
+                <Show when={detail() && detail()!.dataRows > 0}>
+                  <div class="ui-spy text-sm">
+                    <div class="">
+                      <Button
+                        onClick={deleteData}
+                        intent="danger"
+                        iconName="trash"
+                        outline
+                        fullWidth
+                      >
+                        {t3({
+                          en: "Delete data",
+                          fr: "Supprimer les données",
+                        })}
+                      </Button>
+                    </div>
                   </div>
-                )}
-              </Show>
-            </div>
-          )}
-        </StateHolderWrapper>
+                </Show>
+              </div>
+            </Show>
+          }
+        >
+          <div class="h-full w-full">
+            <Show
+              when={detail() && detail()!.dataRows > 0}
+              fallback={
+                <div class="ui-pad">
+                  {t3({ en: "No data", fr: "Aucune donnée" })}
+                </div>
+              }
+            >
+              <DatasetItemsHolder detail={detail()!} />
+            </Show>
+          </div>
+        </FrameRight>
       </FrameTop>
-      </EditorWrapper>
-    </>
-  );
-}
-
-function DataViewContent(p: {
-  data: IcehDataDetail;
-  onStartImport: () => void;
-  onDeleteAll: () => void;
-  isGlobalAdmin: boolean;
-  newUploadAttemptState: any;
-}) {
-  const tabs = getTabs([
-    { value: "summary", label: t3({ en: "Summary", fr: "Résumé" }) },
-    { value: "indicators", label: t3({ en: "Indicators", fr: "Indicateurs" }) },
-    { value: "disaggregators", label: t3({ en: "Disaggregators", fr: "Désagrégateurs" }) },
-  ]);
-
-  const hasData = p.data.dataRows > 0;
-
-  return (
-    <div>
-      <div class="mb-6 flex items-center justify-between">
-        <div>
-          <Show
-            when={hasData}
-            fallback={
-              <p class="text-neutral">
-                {t3({
-                  en: "No ICEH data imported yet.",
-                  fr: "Aucune donnée ICEH importée.",
-                })}
-              </p>
-            }
-          >
-            <p class="text-sm">
-              <strong>{p.data.indicators}</strong>{" "}
-              {t3({ en: "indicators", fr: "indicateurs" })},{" "}
-              <strong>{p.data.dataRows.toLocaleString()}</strong>{" "}
-              {t3({ en: "data rows", fr: "lignes de données" })},{" "}
-              <strong>{p.data.years.length}</strong>{" "}
-              {t3({ en: "years", fr: "années" })}
-            </p>
-          </Show>
-        </div>
-        <div class="ui-gap-sm flex">
-          <Button
-            onClick={p.onStartImport}
-            intent="primary"
-            state={p.newUploadAttemptState}
-            iconName="upload"
-          >
-            {hasData
-              ? t3({ en: "Re-import data", fr: "Réimporter les données" })
-              : t3({ en: "Import data", fr: "Importer les données" })}
-          </Button>
-          <Show when={hasData && p.isGlobalAdmin}>
-            <Button onClick={p.onDeleteAll} intent="danger" iconName="trash">
-              {t3({ en: "Delete all", fr: "Tout supprimer" })}
-            </Button>
-          </Show>
-        </div>
-      </div>
-
-      <Show when={hasData}>
-        <TabsNavigation tabs={tabs} />
-
-        <div class="mt-4">
-          <Show when={tabs.isTabActive("summary")}>
-            <DataTab />
-          </Show>
-          <Show when={tabs.isTabActive("indicators")}>
-            <IndicatorsTab />
-          </Show>
-          <Show when={tabs.isTabActive("disaggregators")}>
-            <DisaggregatorsTab />
-          </Show>
-        </div>
-      </Show>
-    </div>
+    </EditorWrapper>
   );
 }

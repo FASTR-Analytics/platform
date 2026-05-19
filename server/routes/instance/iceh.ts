@@ -5,6 +5,7 @@ import {
   getDatasetIcehDisaggregators,
   getDatasetIcehData,
   getDatasetIcehUploadAttempt,
+  getDatasetIcehUploadStatus,
   createDatasetIcehUploadAttempt,
   deleteDatasetIcehUploadAttempt,
   updateDatasetIcehUploadAttemptStep1,
@@ -82,6 +83,17 @@ defineRoute(
   log("getDatasetIcehUploadAttempt"),
   async (c) => {
     const res = await getDatasetIcehUploadAttempt(c.var.mainDb);
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "getDatasetIcehUploadStatus",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetIcehUploadStatus"),
+  async (c) => {
+    const res = await getDatasetIcehUploadStatus(c.var.mainDb);
     return c.json(res);
   }
 );

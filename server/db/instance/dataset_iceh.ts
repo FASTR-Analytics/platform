@@ -14,8 +14,11 @@ import {
   IcehIndicator,
   IcehDisaggregator,
   IcehDataRow,
+  IcehUploadAttemptDetail,
   IcehUploadAttemptSummary,
   IcehUploadAttemptStatus,
+  IcehUploadAttemptStatusLight,
+  IcehUploadStatusResponse,
   IcehStep1Result,
   IcehStagingResult,
 } from "lib";
@@ -38,13 +41,12 @@ async function getRawUAOrThrow(mainDb: Sql): Promise<DBIcehUploadAttempt> {
   return rawUA;
 }
 
-function parseUploadAttempt(
+function parseUploadAttemptSummary(
   raw: DBIcehUploadAttempt
 ): IcehUploadAttemptSummary {
   return {
     id: raw.id,
     dateStarted: raw.date_started,
-    step: raw.step,
     status: parseJsonOrThrow<IcehUploadAttemptStatus>(raw.status),
   };
 }
@@ -54,7 +56,7 @@ export async function getDatasetIcehDetail(
 ): Promise<APIResponseWithData<IcehDataDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawUA = await getRawUA(mainDb);
-    const uploadAttempt = rawUA ? parseUploadAttempt(rawUA) : undefined;
+    const uploadAttempt = rawUA ? parseUploadAttemptSummary(rawUA) : undefined;
 
     const indicatorCount = await mainDb<{ count: number }[]>`
       SELECT COUNT(*)::int as count FROM iceh_indicators
@@ -66,7 +68,7 @@ export async function getDatasetIcehDetail(
       SELECT DISTINCT year FROM iceh_data ORDER BY year
     `;
     const disaggregatorsResult = await mainDb<{ strat: string }[]>`
-      SELECT DISTINCT strat FROM iceh_disaggregators ORDER BY sort_order
+      SELECT strat FROM iceh_disaggregators ORDER BY sort_order
     `;
 
     const detail: IcehDataDetail = {
@@ -92,8 +94,11 @@ export async function getDatasetIcehIndicators(
       denominator: string;
       sort_order: number;
     }[]>`
-      SELECT indicator_code, indicator_name, category, numerator, denominator, sort_order
-      FROM iceh_indicators ORDER BY sort_order, indicator_code
+      SELECT DISTINCT ON (i.indicator_code)
+        i.indicator_code, i.indicator_name, i.category, i.numerator, i.denominator, i.sort_order
+      FROM iceh_indicators i
+      INNER JOIN iceh_data d ON d.indicator_code = i.indicator_code
+      ORDER BY i.indicator_code, i.sort_order
     `;
     const indicators: IcehIndicator[] = rows.map((r) => ({
       indicatorCode: r.indicator_code,
@@ -176,11 +181,72 @@ export async function deleteDatasetIcehData(
 
 export async function getDatasetIcehUploadAttempt(
   mainDb: Sql
-): Promise<APIResponseWithData<IcehUploadAttemptSummary | undefined>> {
+): Promise<APIResponseWithData<IcehUploadAttemptDetail | undefined>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawUA = await getRawUA(mainDb);
-    const data = rawUA ? parseUploadAttempt(rawUA) : undefined;
+    if (!rawUA) {
+      return { success: true, data: undefined };
+    }
+    const data: IcehUploadAttemptDetail = {
+      id: rawUA.id,
+      dateStarted: rawUA.date_started,
+      step: rawUA.step,
+      status: parseJsonOrThrow<IcehUploadAttemptStatus>(rawUA.status),
+      step1Result: parseJsonOrUndefined<IcehStep1Result>(rawUA.step_1_result ?? ""),
+    };
     return { success: true, data };
+  });
+}
+
+export async function getDatasetIcehUploadStatus(
+  mainDb: Sql
+): Promise<APIResponseWithData<IcehUploadStatusResponse>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rawUA = await getRawUA(mainDb);
+    if (!rawUA) {
+      throw new Error("No upload attempt found");
+    }
+    const status = parseJsonOrThrow<IcehUploadAttemptStatus>(rawUA.status);
+    const statusLight: IcehUploadAttemptStatusLight =
+      status.status === "staged"
+        ? { status: "staged" }
+        : status.status === "complete"
+        ? { status: "complete" }
+        : status;
+
+    const isActive =
+      status.status === "staging" || status.status === "integrating";
+
+    if (isActive) {
+      return {
+        success: true,
+        data: {
+          id: rawUA.id,
+          step: rawUA.step,
+          status: statusLight,
+          isActive: true,
+        },
+      };
+    }
+
+    const fullDetail: IcehUploadAttemptDetail = {
+      id: rawUA.id,
+      dateStarted: rawUA.date_started,
+      step: rawUA.step,
+      status,
+      step1Result: parseJsonOrUndefined<IcehStep1Result>(rawUA.step_1_result ?? ""),
+    };
+
+    return {
+      success: true,
+      data: {
+        id: rawUA.id,
+        step: rawUA.step,
+        status: statusLight,
+        isActive: false,
+        fullDetail,
+      },
+    };
   });
 }
 
@@ -479,11 +545,14 @@ async function stageAndIntegrateIcehData(
         });
       }
 
+      // Get unique indicator codes from valid data rows
+      const indicatorCodesInData = new Set(validDataRows.map((r) => r.indicatorCode));
+
       const stagingResult: IcehStagingResult = {
         nRowsTotal: dataRows.length,
         nRowsValid: validDataRows.length,
         nRowsSkippedMissingEstimate,
-        nIndicators: indicators.length,
+        nIndicators: indicatorCodesInData.size,
         nDisaggregators: disaggregators.size,
         years: Array.from(years).sort((a, b) => a - b),
       };
@@ -503,6 +572,8 @@ async function stageAndIntegrateIcehData(
         WHERE id = 'single_row'
       `;
 
+      const indicatorsWithData = indicators.filter((ind) => indicatorCodesInData.has(ind.code));
+
       await mainDb.begin(async (sql) => {
         await sql`DELETE FROM iceh_data`;
         await sql`DELETE FROM iceh_indicators`;
@@ -515,14 +586,14 @@ async function stageAndIntegrateIcehData(
           `;
         }
 
-        for (const ind of indicators) {
+        for (const ind of indicatorsWithData) {
           await sql`
             INSERT INTO iceh_indicators (indicator_code, indicator_name, category, numerator, denominator, sort_order)
             VALUES (${ind.code}, ${ind.name}, ${ind.category}, ${ind.numerator}, ${ind.denominator}, ${ind.sortOrder})
           `;
         }
 
-        const indicatorCodesInDb = new Set(indicators.map((i) => i.code));
+        const indicatorCodesInDb = new Set(indicatorsWithData.map((i) => i.code));
         const stratCodesInDb = new Set(disaggregators.keys());
 
         let inserted = 0;

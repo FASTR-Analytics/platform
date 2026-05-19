@@ -10,11 +10,26 @@ export type IcehUploadAttemptStatus =
   | { status: "complete"; nRowsIntegrated: number }
   | { status: "error"; err: string };
 
+export type IcehUploadAttemptStatusLight =
+  | { status: "configuring" }
+  | { status: "staging"; progress: number }
+  | { status: "staged" }
+  | { status: "integrating"; progress: number }
+  | { status: "complete" }
+  | { status: "error"; err: string };
+
 export type IcehUploadAttemptSummary = {
+  id: string;
+  dateStarted: string;
+  status: IcehUploadAttemptStatus;
+};
+
+export type IcehUploadAttemptDetail = {
   id: string;
   dateStarted: string;
   step: number;
   status: IcehUploadAttemptStatus;
+  step1Result: IcehStep1Result | undefined;
 };
 
 export type IcehStep1Result = {
@@ -35,3 +50,18 @@ export type IcehStagingResult = {
   nDisaggregators: number;
   years: number[];
 };
+
+export type IcehUploadStatusResponse =
+  | {
+      id: string;
+      step: number;
+      status: IcehUploadAttemptStatusLight;
+      isActive: true;
+    }
+  | {
+      id: string;
+      step: number;
+      status: IcehUploadAttemptStatusLight;
+      isActive: false;
+      fullDetail: IcehUploadAttemptDetail;
+    };

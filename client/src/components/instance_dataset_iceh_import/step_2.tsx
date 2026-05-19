@@ -5,7 +5,6 @@ import { Button, StateHolderFormError, timActionForm } from "panther";
 type Props = {
   step1Result: IcehStep1Result;
   silentFetch: () => Promise<void>;
-  goPrev: () => void;
 };
 
 export function Step2(p: Props) {
@@ -15,13 +14,13 @@ export function Step2(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <h3 class="font-700 text-lg mb-4">
-        {t3({ en: "Confirm Import", fr: "Confirmer l'importation" })}
+      <h3 class="font-700 text-lg">
+        {t3({ en: "Confirm import", fr: "Confirmer l'importation" })}
       </h3>
 
-      <div class="mb-6 rounded border p-4">
+      <div class="border-base-300 rounded border p-4">
         <h4 class="font-700 mb-2">
-          {t3({ en: "Data to Import", fr: "Données à importer" })}
+          {t3({ en: "Data to import", fr: "Données à importer" })}
         </h4>
         <div class="text-sm">
           <p>
@@ -33,7 +32,9 @@ export function Step2(p: Props) {
             {p.step1Result.indicatorCount}
           </p>
           <p>
-            <strong>{t3({ en: "Data rows:", fr: "Lignes de données :" })}</strong>{" "}
+            <strong>
+              {t3({ en: "Data rows:", fr: "Lignes de données :" })}
+            </strong>{" "}
             {p.step1Result.dataRowCount.toLocaleString()}
           </p>
           <p>
@@ -41,13 +42,15 @@ export function Step2(p: Props) {
             {p.step1Result.years.join(", ")}
           </p>
           <p>
-            <strong>{t3({ en: "Disaggregators:", fr: "Désagrégateurs :" })}</strong>{" "}
+            <strong>
+              {t3({ en: "Disaggregators:", fr: "Désagrégateurs :" })}
+            </strong>{" "}
             {p.step1Result.strats.length}
           </p>
         </div>
       </div>
 
-      <p class="text-warning mb-4">
+      <p class="text-warning">
         {t3({
           en: "This will replace all existing ICEH data. This action cannot be undone.",
           fr: "Cela remplacera toutes les données ICEH existantes. Cette action ne peut pas être annulée.",
@@ -57,16 +60,13 @@ export function Step2(p: Props) {
       <StateHolderFormError state={startImport.state()} />
 
       <div class="ui-gap-sm flex">
-        <Button onClick={p.goPrev} iconName="arrowLeft">
-          {t3({ en: "Back", fr: "Retour" })}
-        </Button>
         <Button
           onClick={startImport.click}
           intent="success"
           state={startImport.state()}
-          iconName="upload"
+          iconName="database"
         >
-          {t3({ en: "Start Import", fr: "Démarrer l'importation" })}
+          {t3({ en: "Start import", fr: "Démarrer l'importation" })}
         </Button>
       </div>
     </div>
