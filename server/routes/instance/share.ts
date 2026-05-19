@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { PostgresError } from "postgres";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import {
   createShareToken,
@@ -30,7 +29,7 @@ routesShare.post("/api/share/viz", requireGlobalPermission(), async (c) => {
     );
     return c.json({ success: true, token, slug });
   } catch (err) {
-    if (err instanceof PostgresError && err.code === "23505") {
+    if (typeof err === "object" && err !== null && "code" in err && err.code === "23505") {
       return c.json({ success: false, error: "slug_taken" }, 409);
     }
     throw err;
