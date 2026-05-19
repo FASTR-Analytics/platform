@@ -1,3 +1,17 @@
+[TBD] [user] [added] - New ICEH Equity Data section for importing and viewing equity datasets
+[TBD] [user] [added] - Import ICEH data from zip files downloaded from the ICEH Retriever
+[TBD] [user] [added] - View ICEH indicators, disaggregators, and data rows in organized tabs
+[TBD] [user] [added] - Progress tracking during ICEH data import with staging and integration steps
+[TBD] [user] [added] - Support for uploading zip files in the file upload area
+[TBD] [user] [fixed] - Calculated indicators now show a clear error if they reference missing data
+[TBD] [admin] [added] - New ICEH equity data source available for instances
+[TBD] [admin] [added] - Import ICEH data from zip files downloaded from equidade.org/retriever
+[TBD] [admin] [added] - View ICEH indicators, disaggregators, and data rows after import
+[TBD] [admin] [added] - Delete all ICEH data (global admins only)
+[TBD] [admin] [added] - Zip file uploads now supported in the asset manager
+[TBD] [admin] [changed] - Import warns if data country does not match instance country
+[TBD] [admin] [changed] - Re-importing ICEH data replaces all existing ICEH data
+[TBD] [admin] [fixed] - Projects now block adding data when calculated indicators reference missing indicators
 [TBD] [admin] [added] - AI usage limit hits are now tracked and logged
 [TBD] [admin] [added] - New endpoint to view when users hit AI usage limits
 [1.37.2] [user] [changed] - Missing indicators are now skipped instead of stopping your analysis
