@@ -36,10 +36,10 @@ export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
     fetchTokens();
   });
 
-  const copyUrl = async (token: string) => {
-    const url = `${window.location.origin}/share/viz/${token}`;
+  const copyUrl = async (t: AllShareToken) => {
+    const url = `${window.location.origin}/share/viz/${t.slug ?? t.token}`;
     await navigator.clipboard.writeText(url);
-    setCopiedToken(token);
+    setCopiedToken(t.token);
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
@@ -89,13 +89,17 @@ export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
                       classList={{ "border-t": i() > 0 }}
                     >
                       <div class="text-neutral flex-1 text-sm">
+                        <Show when={t.slug}>
+                          <span class="text-base-content font-500">{t.slug}</span>
+                          {" · "}
+                        </Show>
                         Created: {new Date(t.createdAt).toLocaleDateString()}
                         {" · "}
                         Views: {t.viewCount}
                       </div>
                       <div class="ui-gap-sm flex items-center">
                         <Button
-                          onClick={() => copyUrl(t.token)}
+                          onClick={() => copyUrl(t)}
                           size="sm"
                           iconName="copy"
                         >
