@@ -1,3 +1,6 @@
+[TBD] [user] [changed] - Updated arrow icon style on navigation buttons
+[TBD] [admin] [changed] - Dataset viewer tabs updated to use improved navigation style
+[TBD] [admin] [fixed] - Layout fix for dataset viewer frame structure
 [TBD] [user] [added] - New ICEH Equity Data section for importing and viewing equity datasets
 [TBD] [user] [added] - Import ICEH data from zip files downloaded from the ICEH Retriever
 [TBD] [user] [added] - View ICEH indicators, disaggregators, and data rows in organized tabs
