@@ -26,8 +26,10 @@ async function getDiskStats(): Promise<DiskStats | null> {
     const availBytes = parseInt(parts[0], 10);
     const totalBytes = parseInt(parts[1], 10);
     if (isNaN(availBytes) || isNaN(totalBytes) || totalBytes === 0) return null;
+    console.log(`[disk_space] avail=${toGB(availBytes)}GB total=${toGB(totalBytes)}GB used=${toGB(totalBytes - availBytes)}GB (${Math.round((1 - availBytes / totalBytes) * 100)}%)`);
     return { availBytes, totalBytes };
   } catch {
+    console.warn("[disk_space] getDiskStats failed");
     return null;
   }
 }

@@ -44,4 +44,9 @@ export const instanceRouteRegistry = {
     method: "POST",
     body: {} as { countryIso3: string | undefined },
   }),
+  getDiskSpace: route({
+    path: "/disk_space",
+    method: "GET",
+    response: {} as { ok: boolean; availableGB?: number },
+  }),
 } as const;
