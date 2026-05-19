@@ -217,7 +217,7 @@ export function PromptLibraryModal(
                 {t3({ en: "Cancel", fr: "Annuler" })}
               </Button>,
               <Button onClick={handleNewCustomPrompt} intent="primary" iconName="plus">
-                {t3({ en: "New prompt", fr: "Nouveau prompt" })}
+                {t3({ en: "Create custom prompt", fr: "Créer un prompt personnalisé" })}
               </Button>,
             ]
           : undefined
