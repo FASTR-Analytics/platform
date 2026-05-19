@@ -13,7 +13,8 @@ export const routesShare = new Hono();
 
 // Create share link
 routesShare.post("/api/share/viz", requireGlobalPermission(), async (c) => {
-  const body = await c.req.json<{ resourceId: string; bundle: ShareVizBundle }>();
+  const body = await c.req.json<{ resourceId: string; bundle: ShareVizBundle; slug?: string }>();
+  const slug = body.slug?.trim() || null;
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const token = await createShareToken(
     mainDb,
@@ -21,8 +22,9 @@ routesShare.post("/api/share/viz", requireGlobalPermission(), async (c) => {
     body.resourceId,
     body.bundle,
     c.var.globalUser.email,
+    slug,
   );
-  return c.json({ success: true, token });
+  return c.json({ success: true, token, slug });
 });
 
 // List share links for a visualization

@@ -7,24 +7,25 @@ export async function createShareToken(
   resourceId: string,
   data: unknown,
   createdByEmail: string,
+  slug: string | null,
 ): Promise<string> {
   const id = crypto.randomUUID();
   const token = crypto.randomUUID();
   await mainDb`
-    INSERT INTO share_tokens (id, token, resource_type, resource_id, data, created_by_email)
-    VALUES (${id}, ${token}, ${resourceType}, ${resourceId}, ${JSON.stringify(data)}, ${createdByEmail})
+    INSERT INTO share_tokens (id, token, slug, resource_type, resource_id, data, created_by_email)
+    VALUES (${id}, ${token}, ${slug}, ${resourceType}, ${resourceId}, ${JSON.stringify(data)}, ${createdByEmail})
   `;
   return token;
 }
 
 export async function getShareTokenData(
   mainDb: Sql,
-  token: string,
+  tokenOrSlug: string,
 ): Promise<unknown | null> {
   const rows = await mainDb<{ data: string }[]>`
     UPDATE share_tokens
     SET view_count = view_count + 1
-    WHERE token = ${token}
+    WHERE token = ${tokenOrSlug} OR slug = ${tokenOrSlug}
     RETURNING data
   `;
   return rows.length > 0 ? JSON.parse(rows[0].data) : null;
@@ -35,14 +36,15 @@ export async function listShareTokensForResource(
   resourceType: string,
   resourceId: string,
 ): Promise<ShareTokenInfo[]> {
-  const rows = await mainDb<{ token: string; created_at: string; view_count: number }[]>`
-    SELECT token, created_at, view_count
+  const rows = await mainDb<{ token: string; slug: string | null; created_at: string; view_count: number }[]>`
+    SELECT token, slug, created_at, view_count
     FROM share_tokens
     WHERE resource_type = ${resourceType} AND resource_id = ${resourceId}
     ORDER BY created_at DESC
   `;
   return rows.map(r => ({
     token: r.token,
+    slug: r.slug,
     createdAt: r.created_at,
     viewCount: r.view_count,
   }));
@@ -54,8 +56,8 @@ export async function listShareTokensForResources(
   resourceIds: string[],
 ): Promise<(ShareTokenInfo & { resourceId: string })[]> {
   if (resourceIds.length === 0) return [];
-  const rows = await mainDb<{ resource_id: string; token: string; created_at: string; view_count: number }[]>`
-    SELECT resource_id, token, created_at, view_count
+  const rows = await mainDb<{ resource_id: string; token: string; slug: string | null; created_at: string; view_count: number }[]>`
+    SELECT resource_id, token, slug, created_at, view_count
     FROM share_tokens
     WHERE resource_type = ${resourceType} AND resource_id = ANY(${resourceIds})
     ORDER BY resource_id, created_at DESC
@@ -63,6 +65,7 @@ export async function listShareTokensForResources(
   return rows.map(r => ({
     resourceId: r.resource_id,
     token: r.token,
+    slug: r.slug,
     createdAt: r.created_at,
     viewCount: r.view_count,
   }));

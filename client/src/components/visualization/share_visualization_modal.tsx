@@ -1,5 +1,5 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import { Button, ModalContainer } from "panther";
+import { Button, Input, ModalContainer } from "panther";
 import type { FigureInputs } from "panther";
 import type {
   PresentationObjectConfig,
@@ -25,17 +25,25 @@ type PropsBase = {
 
 type Props = AlertComponentProps<PropsBase, void>;
 
+function tokenUrl(token: string, slug: string | null) {
+  return `${window.location.origin}/share/viz/${slug ?? token}`;
+}
+
+function sanitizeSlug(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+}
+
 export function ShareVisualizationModal(p: Props) {
   const [tokens, setTokens] = createSignal<ShareTokenInfo[]>([]);
   const [creating, setCreating] = createSignal(false);
+  const [slug, setSlug] = createSignal("");
   const [copiedToken, setCopiedToken] = createSignal<string | null>(null);
+  const [slugError, setSlugError] = createSignal<string | null>(null);
 
   const fetchTokens = async () => {
     const res = await fetch(
       `${_SERVER_HOST}/api/share/viz?resourceId=${p.presentationObjectId}`,
-      {
-        credentials: "include",
-      },
+      { credentials: "include" },
     );
     const json = await res.json();
     setTokens(json.success ? json.tokens : []);
@@ -47,6 +55,7 @@ export function ShareVisualizationModal(p: Props) {
 
   const createShareLink = async () => {
     setCreating(true);
+    setSlugError(null);
     const stripped = stripFigureInputsForStorage(p.figureInputs);
     const bundle: ShareVizBundle = {
       label: p.label,
@@ -60,21 +69,26 @@ export function ShareVisualizationModal(p: Props) {
       indicatorMetadata: p.indicatorMetadata,
     };
 
+    const slugValue = slug().trim() || null;
+
     const res = await fetch(`${_SERVER_HOST}/api/share/viz`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ resourceId: p.presentationObjectId, bundle }),
+      body: JSON.stringify({ resourceId: p.presentationObjectId, bundle, slug: slugValue }),
     });
     const json = await res.json();
     setCreating(false);
 
     if (json.success) {
-      const url = `${window.location.origin}/share/viz/${json.token}`;
+      const url = tokenUrl(json.token, json.slug);
       await navigator.clipboard.writeText(url);
       setCopiedToken(json.token);
+      setSlug("");
       fetchTokens();
       setTimeout(() => setCopiedToken(null), 2000);
+    } else if (json.error?.includes("slug")) {
+      setSlugError("That slug is already in use. Try a different one.");
     }
   };
 
@@ -86,10 +100,10 @@ export function ShareVisualizationModal(p: Props) {
     fetchTokens();
   };
 
-  const copyUrl = async (token: string) => {
-    const url = `${window.location.origin}/share/viz/${token}`;
+  const copyUrl = async (t: ShareTokenInfo) => {
+    const url = tokenUrl(t.token, t.slug);
     await navigator.clipboard.writeText(url);
-    setCopiedToken(token);
+    setCopiedToken(t.token);
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
@@ -98,26 +112,43 @@ export function ShareVisualizationModal(p: Props) {
       title="Share visualization"
       rightButtons={<Button onClick={() => p.close()}>Done</Button>}
     >
-      <Button onClick={createShareLink} disabled={creating()}>
-        {creating() ? "Creating..." : "Create New Share Link"}
-      </Button>
+      <div class="flex flex-col ui-gap">
+        <Input
+          value={slug()}
+          onChange={(val) => {
+            setSlugError(null);
+            setSlug(sanitizeSlug(val));
+          }}
+          placeholder="custom-slug (optional)"
+        />
+        <Show when={slugError()}>
+          <div class="text-danger text-xs">{slugError()}</div>
+        </Show>
+        <Show when={slug()}>
+          <div class="text-neutral text-xs">
+            URL: {window.location.origin}/share/viz/{slug()}
+          </div>
+        </Show>
+        <Button onClick={createShareLink} disabled={creating()}>
+          {creating() ? "Creating..." : "Create New Share Link"}
+        </Button>
+      </div>
 
-      <Show when={tokens() && tokens()!.length > 0}>
+      <Show when={tokens().length > 0}>
         <div style={{ "margin-top": "20px" }}>
           <h3 class="font-700 text-sm">Existing links</h3>
           <For each={tokens()}>
             {(t, i) => (
               <div
                 class="ui-gap border-base-300 flex items-center py-2"
-                classList={{
-                  "border-t": i() > 0,
-                }}
-                // style={{
-                //   "border-bottom": "1px solid #eee",
-                // }}
+                classList={{ "border-t": i() > 0 }}
               >
                 <div class="text-neutral flex-1 text-sm">
                   <div>
+                    <Show when={t.slug}>
+                      <span class="text-base-content font-500">{t.slug}</span>
+                      {" · "}
+                    </Show>
                     Created: {new Date(t.createdAt).toLocaleDateString()}
                     {" · "}
                     Views: {t.viewCount}
@@ -125,7 +156,7 @@ export function ShareVisualizationModal(p: Props) {
                 </div>
                 <div class="ui-gap-sm flex items-center">
                   <Button
-                    onClick={() => copyUrl(t.token)}
+                    onClick={() => copyUrl(t)}
                     size="sm"
                     iconName="copy"
                   >
@@ -137,9 +168,7 @@ export function ShareVisualizationModal(p: Props) {
                     iconName="trash"
                     intent="danger"
                     outline
-                  >
-                    {/* Delete */}
-                  </Button>
+                  />
                 </div>
               </div>
             )}

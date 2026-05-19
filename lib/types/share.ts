@@ -15,6 +15,7 @@ export type ShareVizBundle = {
 
 export type ShareTokenInfo = {
   token: string;
+  slug: string | null;
   createdAt: string;
   viewCount: number;
 };
