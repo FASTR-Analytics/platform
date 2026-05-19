@@ -3,13 +3,7 @@
 // ============================================================================
 
 import type { IcehUploadAttemptSummary } from "./dataset_iceh_import.ts";
-
-export type IcehDisaggregator = {
-  strat: string;
-  label: string;
-  sortOrder: number;
-  isEquityDimension: boolean;
-};
+import type { IcehStrat } from "./iceh_strats.ts";
 
 export type IcehIndicator = {
   indicatorCode: string;
@@ -24,7 +18,7 @@ export type IcehDataRow = {
   indicatorCode: string;
   year: number;
   source: string;
-  strat: string;
+  strat: IcehStrat;
   level: string;
   estimate: number | null;
   standardError: number | null;
@@ -36,5 +30,9 @@ export type IcehDataDetail = {
   indicators: number;
   dataRows: number;
   years: number[];
-  disaggregators: string[];
+};
+
+export type IcehDisplayData = {
+  indicators: IcehIndicator[];
+  dataRows: IcehDataRow[];
 };

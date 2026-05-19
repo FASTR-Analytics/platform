@@ -7,6 +7,7 @@ export * from "./dimension_definitions.ts";
 export * from "./dataset_hfa_import.ts";
 export * from "./dataset_iceh.ts";
 export * from "./dataset_iceh_import.ts";
+export * from "./iceh_strats.ts";
 export * from "./dataset_hmis.ts";
 export * from "./dataset_hmis_import.ts";
 export * from "./datasets.ts";

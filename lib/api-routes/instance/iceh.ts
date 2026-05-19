@@ -1,8 +1,6 @@
 import type {
   IcehDataDetail,
-  IcehIndicator,
-  IcehDisaggregator,
-  IcehDataRow,
+  IcehDisplayData,
 } from "../../types/dataset_iceh.ts";
 import type {
   IcehUploadAttemptDetail,
@@ -17,20 +15,10 @@ export const icehRouteRegistry = {
     path: "/iceh/detail",
     response: {} as IcehDataDetail,
   }),
-  getDatasetIcehIndicators: route({
+  getDatasetIcehDisplayData: route({
     method: "GET",
-    path: "/iceh/indicators",
-    response: {} as IcehIndicator[],
-  }),
-  getDatasetIcehDisaggregators: route({
-    method: "GET",
-    path: "/iceh/disaggregators",
-    response: {} as IcehDisaggregator[],
-  }),
-  getDatasetIcehData: route({
-    method: "GET",
-    path: "/iceh/data",
-    response: {} as IcehDataRow[],
+    path: "/iceh/display-data",
+    response: {} as IcehDisplayData,
   }),
   createDatasetIcehUploadAttempt: route({
     method: "POST",

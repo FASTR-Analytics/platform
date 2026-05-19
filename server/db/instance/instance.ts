@@ -30,6 +30,7 @@ import {
 } from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
 import { computeHfaCacheHash } from "./dataset_hfa.ts";
+import { getIcehCacheHash } from "./dataset_iceh.ts";
 
 export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
@@ -216,6 +217,7 @@ export async function getInstanceDatasetsSummary(
     SELECT label, period_id, sort_order, imported_at FROM hfa_time_points ORDER BY sort_order
   `;
   const hfaCacheHash = computeHfaCacheHash(hfaTimePointRows);
+  const icehCacheHash = await getIcehCacheHash(mainDb);
   return {
     datasetsWithData,
     datasetVersions: {
@@ -230,6 +232,7 @@ export async function getInstanceDatasetsSummary(
       importedAt: r.imported_at ?? undefined,
     })),
     hfaCacheHash,
+    icehCacheHash,
   };
 }
 

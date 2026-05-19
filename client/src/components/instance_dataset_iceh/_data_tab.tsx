@@ -1,32 +1,19 @@
-import { t3 } from "lib";
-import { Csv, StateHolderWrapper, TableFromCsv, timQuery } from "panther";
+import { t3, type IcehDataRow } from "lib";
+import { Csv, TableFromCsv } from "panther";
 import { createMemo } from "solid-js";
-import { serverActions } from "~/server_actions";
 
-export function DataTab() {
-  const data = timQuery(
-    async () => serverActions.getDatasetIcehData({}),
-    t3({ en: "Loading data...", fr: "Chargement des données..." })
-  );
+export function DataTab(p: { dataRows: IcehDataRow[] }) {
+  const csv = createMemo(() => Csv.fromObjects(p.dataRows));
 
   return (
-    <StateHolderWrapper state={data.state()}>
-      {(rows) => {
-        const csv = createMemo(() => Csv.fromObjects(rows));
-        return (
-          <div class="ui-pad h-full w-full">
-            <TableFromCsv
-              csv={csv()}
-              knownTotalCount={rows.length}
-              cellFormatter={(str) =>
-                str === "null" || str === "undefined" ? "-" : str
-              }
-              alignText="left"
-              unsorted
-            />
-          </div>
-        );
-      }}
-    </StateHolderWrapper>
+    <TableFromCsv
+      csv={csv()}
+      knownTotalCount={p.dataRows.length}
+      cellFormatter={(str) =>
+        str === "null" || str === "undefined" ? "-" : str
+      }
+      alignText="left"
+      unsorted
+    />
   );
 }

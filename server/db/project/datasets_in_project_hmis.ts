@@ -337,12 +337,16 @@ export async function removeDatasetFromProject(
             sql`DELETE FROM facilities`,
             sql`DELETE FROM calculated_indicators_snapshot`,
           ]
-        : [
-            sql`DELETE FROM hfa_indicator_code_snapshot`,
-            sql`DELETE FROM hfa_indicators_snapshot`,
-            sql`DELETE FROM indicators_hfa`,
-            sql`DELETE FROM facilities`,
-          ]),
+        : datasetType === "hfa"
+          ? [
+              sql`DELETE FROM hfa_indicator_code_snapshot`,
+              sql`DELETE FROM hfa_indicators_snapshot`,
+              sql`DELETE FROM indicators_hfa`,
+              sql`DELETE FROM facilities`,
+            ]
+          : datasetType === "iceh"
+            ? [sql`DELETE FROM iceh_indicators_snapshot`]
+            : []),
     ]);
     try {
       const datasetFilePath = getDatasetFilePath(projectId, datasetType);

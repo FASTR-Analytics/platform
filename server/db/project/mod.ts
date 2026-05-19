@@ -1,6 +1,7 @@
 export * from "./_project_database_types.ts";
 export * from "./datasets_in_project_hmis.ts";
 export * from "./datasets_in_project_hfa.ts";
+export * from "./datasets_in_project_iceh.ts";
 export * from "./modules.ts";
 export * from "./presentation_objects.ts";
 export * from "./projects.ts";

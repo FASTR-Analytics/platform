@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import {
   addDatasetHfaToProject,
   addDatasetHmisToProject,
+  addDatasetIcehToProject,
   addProject,
   addProjectUserRole,
   bulkUpdateProjectUserPermissions,
@@ -246,7 +247,14 @@ defineRoute(
                   c.var.ppk.projectId,
                   writer.progress.bind(writer),
                 )
-              : { success: false as const, err: "Can only do hmis and hfa" };
+              : body.datasetType === "iceh"
+                ? await addDatasetIcehToProject(
+                    c.var.mainDb,
+                    c.var.ppk.projectDb,
+                    c.var.ppk.projectId,
+                    writer.progress.bind(writer),
+                  )
+                : { success: false as const, err: "Unknown dataset type" };
 
         if (res.success === false) {
           await writer.error(res.err);

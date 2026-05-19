@@ -598,6 +598,166 @@ export function ProjectData(p: Props) {
               })()}
             </Match>
           </Switch>
+
+          {/* ICEH Dataset */}
+          <Switch>
+            <Match
+              when={
+                projectState.projectDatasets.find(
+                  (d) => d.datasetType === "iceh"
+                ) as Extract<typeof projectState.projectDatasets[number], { datasetType: "iceh" }> | undefined
+              }
+              keyed
+            >
+              {(keyedProjectDatasetIceh) => {
+                const [skipModuleRerun, setSkipModuleRerun] = createSignal(false);
+
+                const stalenessCheck = () => {
+                  const info = keyedProjectDatasetIceh.info;
+                  if (info.icehCacheHash !== instanceState.icehCacheHash) {
+                    return {
+                      isStale: true,
+                      reasons: [t3({ en: "ICEH data updated", fr: "Données ICEH mises à jour" })],
+                    };
+                  }
+                  return { isStale: false, reasons: [] };
+                };
+
+                const isStale = () => stalenessCheck().isStale;
+
+                const disableDataset = timActionButton(() =>
+                  serverActions.removeDatasetFromProject({
+                    projectId: projectState.id,
+                    dataset_type: "iceh",
+                  }),
+                );
+
+                const updateData = timActionButton(() =>
+                  serverActions.addDatasetToProject({
+                    projectId: projectState.id,
+                    datasetType: "iceh",
+                    windowing: undefined,
+                    skipModuleRerun: skipModuleRerun(),
+                  }),
+                );
+
+                return (
+                  <div class="border-base-300 rounded border">
+                    <div class="ui-pad border-base-300 flex items-center border-b">
+                      <div class="font-700 flex-1 text-lg">
+                        {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH" })}
+                        <Show when={isStale()}>
+                          <span class="ml-2 bg-warning text-warning-content rounded px-2 py-1 text-xs font-500">
+                            {t3({ en: "Instance data updated", fr: "Données de l'instance mises à jour" })}
+                          </span>
+                        </Show>
+                      </div>
+                      <Show
+                        when={
+                          !projectState.isLocked && p.isGlobalAdmin
+                        }
+                      >
+                        <div class="ui-gap-sm flex">
+                          <Button
+                            onClick={disableDataset.click}
+                            state={disableDataset.state()}
+                            outline
+                          >
+                            {t3({ en: "Disable", fr: "Désactiver" })}
+                          </Button>
+                        </div>
+                      </Show>
+                    </div>
+                    <div class="ui-pad ui-spy-sm">
+                      <Show when={isStale()}>
+                        <div class="ui-spy-sm mb-4 inline-block ui-pad border rounded">
+                          <div class="font-700">
+                            {t3({ en: "Project data is out of date", fr: "Les données du projet ne sont plus à jour" })}
+                          </div>
+                          <ul class="list-disc pl-5 text-xs space-y-1">
+                            <For each={stalenessCheck().reasons}>
+                              {(reason) => <li>{reason}</li>}
+                            </For>
+                          </ul>
+                          <div class="py-2">
+                            <Checkbox
+                              label={t3({ en: "Don't re-run modules on data update", fr: "Ne pas réexécuter les modules lors de la mise à jour des données" })}
+                              checked={skipModuleRerun()}
+                              onChange={setSkipModuleRerun}
+                            />
+                          </div>
+                          <div class="">
+                            <Button
+                              onClick={updateData.click}
+                              state={updateData.state()}
+                              intent="primary"
+                              iconName="refresh"
+                            >
+                              {t3({ en: "Update data", fr: "Mettre à jour les données" })}
+                            </Button>
+                          </div>
+                        </div>
+                      </Show>
+                      <div class={`text-xs ${isStale() ? "text-warning" : "text-success"}`}>
+                        {t3({ en: "Last exported from instance into project", fr: "Dernière exportation de l'instance vers le projet" })}:{" "}
+                        {new Date(
+                          keyedProjectDatasetIceh.dateExported,
+                        ).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }}
+            </Match>
+            <Match when={true}>
+              {(() => {
+                const enableDatasetIceh = timActionButton(async () => {
+                  if (!instanceState.datasetsWithData.includes("iceh")) {
+                    return {
+                      success: false,
+                      err: t3({ en: "This dataset has no data at the instance level", fr: "Ce jeu de données ne contient aucune donnée au niveau de l'instance" }),
+                    };
+                  }
+
+                  return await serverActions.addDatasetToProject({
+                    projectId: projectState.id,
+                    datasetType: "iceh",
+                    windowing: undefined,
+                  });
+                });
+
+                return (
+                  <div class="ui-pad border-base-300 ui-spy rounded border">
+                    <div class="font-700 flex items-center">
+                      <div class="flex-1 text-lg">
+                        {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH" })}
+                      </div>
+                      <div class="">
+                        <Show
+                          when={
+                            !projectState.isLocked && p.isGlobalAdmin
+                          }
+                          fallback={
+                            <div class="font-400 text-neutral text-sm">
+                              {t3({ en: "Deactivated", fr: "Désactivé" })}
+                            </div>
+                          }
+                        >
+                          <Button
+                            onClick={enableDatasetIceh.click}
+                            state={enableDatasetIceh.state()}
+                            outline
+                          >
+                            {t3({ en: "Enable", fr: "Activer" })}
+                          </Button>
+                        </Show>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </Match>
+          </Switch>
         </div>
       </FrameTop>
     </EditorWrapper>

@@ -56,6 +56,7 @@ export type InstanceState = {
   hmisNVersions: number;
   hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
+  icehCacheHash: string;
 
   // Cache versioning (regular fields, read by dataset caches as version keys)
   indicatorMappingsVersion: string;
@@ -112,6 +113,7 @@ export type InstanceDatasetsSummary = {
   hmisNVersions: number;
   hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
+  icehCacheHash: string;
 };
 
 // ============================================================================

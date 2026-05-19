@@ -1,11 +1,23 @@
-import { t3, type IcehDataDetail } from "lib";
-import { FrameTop, getTabs, TabsNavigation } from "panther";
-import { Show } from "solid-js";
+import { ICEH_STRATS, ICEH_STRAT_INFO, t3, type IcehDataDetail } from "lib";
+import {
+  FrameTop,
+  getTabs,
+  StateHolderWrapper,
+  TabsNavigation,
+  timQuery,
+} from "panther";
+import { createMemo, Show } from "solid-js";
+import { serverActions } from "~/server_actions";
 import { DataTab } from "./_data_tab";
-import { DisaggregatorsTab } from "./_disaggregators_tab";
+import { StratifiersTab } from "./_stratifiers_tab";
 import { IndicatorsTab } from "./_indicators_tab";
 
 export function DatasetItemsHolder(p: { detail: IcehDataDetail }) {
+  const displayData = timQuery(
+    async () => serverActions.getDatasetIcehDisplayData({}),
+    t3({ en: "Loading...", fr: "Chargement..." }),
+  );
+
   const tabs = getTabs([
     { value: "data", label: t3({ en: "Data", fr: "Données" }) },
     {
@@ -13,28 +25,41 @@ export function DatasetItemsHolder(p: { detail: IcehDataDetail }) {
       label: t3({ en: "Indicators", fr: "Indicateurs" }),
     },
     {
-      value: "disaggregators",
-      label: t3({ en: "Disaggregators", fr: "Désagrégateurs" }),
+      value: "stratifiers",
+      label: t3({ en: "Stratifiers", fr: "Stratificateurs" }),
     },
   ]);
 
   return (
-    <FrameTop
-      panelChildren={
-        <div class="ui-pad-x border-base-300 flex h-full items-center border-b">
-          <TabsNavigation tabs={tabs} />
-        </div>
-      }
-    >
-      <Show when={tabs.isTabActive("data")}>
-        <DataTab />
-      </Show>
-      <Show when={tabs.isTabActive("indicators")}>
-        <IndicatorsTab />
-      </Show>
-      <Show when={tabs.isTabActive("disaggregators")}>
-        <DisaggregatorsTab />
-      </Show>
-    </FrameTop>
+    <StateHolderWrapper state={displayData.state()}>
+      {(data) => {
+        const stratsInData = createMemo(() => {
+          const stratSet = new Set(data.dataRows.map((r) => r.strat));
+          return ICEH_STRATS.filter((s) => stratSet.has(s))
+            .map((strat) => ({
+              _key: strat,
+              strat,
+              label: ICEH_STRAT_INFO[strat].label,
+              sortOrder: ICEH_STRAT_INFO[strat].sortOrder,
+              isEquityDimension: ICEH_STRAT_INFO[strat].isEquityDimension,
+            }))
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+        });
+
+        return (
+          <FrameTop panelChildren={<TabsNavigation tabs={tabs} />}>
+            <Show when={tabs.isTabActive("data")}>
+              <DataTab dataRows={data.dataRows} />
+            </Show>
+            <Show when={tabs.isTabActive("indicators")}>
+              <IndicatorsTab indicators={data.indicators} />
+            </Show>
+            <Show when={tabs.isTabActive("stratifiers")}>
+              <StratifiersTab strats={stratsInData()} />
+            </Show>
+          </FrameTop>
+        );
+      }}
+    </StateHolderWrapper>
   );
 }

@@ -382,7 +382,7 @@ CREATE TABLE hfa_upload_attempts (
 -- HFA INDICATORS
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS hfa_indicators (
+CREATE TABLE hfa_indicators (
   var_name TEXT PRIMARY KEY NOT NULL,
   category TEXT NOT NULL DEFAULT '',
   definition TEXT NOT NULL DEFAULT '',
@@ -410,7 +410,7 @@ CREATE TABLE hfa_indicator_code (
 -- CALCULATED INDICATORS
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS calculated_indicators (
+CREATE TABLE calculated_indicators (
   calculated_indicator_id     TEXT PRIMARY KEY NOT NULL,
   label                      TEXT NOT NULL UNIQUE,
   group_label                TEXT NOT NULL DEFAULT '',
@@ -468,7 +468,7 @@ CREATE TABLE geojson_maps (
 -- SHARE TOKENS
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS share_tokens (
+CREATE TABLE share_tokens (
   id VARCHAR PRIMARY KEY,
   token VARCHAR UNIQUE NOT NULL,
   resource_type VARCHAR NOT NULL,
@@ -478,8 +478,8 @@ CREATE TABLE IF NOT EXISTS share_tokens (
   created_at TIMESTAMP DEFAULT NOW(),
   view_count INTEGER DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS idx_share_tokens_token ON share_tokens(token);
-CREATE INDEX IF NOT EXISTS idx_share_tokens_resource ON share_tokens(resource_type, resource_id);
+CREATE INDEX idx_share_tokens_token ON share_tokens(token);
+CREATE INDEX idx_share_tokens_resource ON share_tokens(resource_type, resource_id);
 
 -- ============================================================================
 -- CUSTOM PROMPTS
@@ -502,28 +502,24 @@ CREATE INDEX idx_custom_prompts_scope ON custom_prompts(scope);
 -- ICEH DATA
 -- ============================================================================
 
-CREATE TABLE iceh_disaggregators (
-  strat TEXT PRIMARY KEY,
-  label TEXT NOT NULL,
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  is_equity_dimension BOOLEAN NOT NULL DEFAULT TRUE
-);
-
 CREATE TABLE iceh_indicators (
   indicator_code TEXT PRIMARY KEY,
   indicator_name TEXT NOT NULL,
   category TEXT NOT NULL DEFAULT '',
   numerator TEXT NOT NULL DEFAULT '',
   denominator TEXT NOT NULL DEFAULT '',
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  sort_order INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE iceh_data (
   indicator_code TEXT NOT NULL REFERENCES iceh_indicators(indicator_code) ON DELETE CASCADE,
   year INTEGER NOT NULL,
   source TEXT NOT NULL,
-  strat TEXT NOT NULL REFERENCES iceh_disaggregators(strat) ON DELETE RESTRICT,
+  strat TEXT NOT NULL CHECK (strat IN (
+    'national', 'area', 'wealth_quintiles', 'wealth_deciles',
+    'womans_education', 'womans_education_4_groups',
+    'womans_age_current', 'womans_age_at_birth', 'sex', 'subnational_unit'
+  )),
   level TEXT NOT NULL,
   estimate REAL,
   standard_error REAL,
@@ -550,7 +546,7 @@ CREATE TABLE iceh_upload_attempts (
 -- SCHEMA MIGRATIONS
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS schema_migrations (
+CREATE TABLE schema_migrations (
   migration_id text PRIMARY KEY NOT NULL,
   applied_at timestamptz NOT NULL DEFAULT NOW()
 );

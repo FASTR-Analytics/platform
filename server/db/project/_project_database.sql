@@ -39,6 +39,15 @@ CREATE TABLE hfa_indicator_code_snapshot (
   FOREIGN KEY (var_name) REFERENCES hfa_indicators_snapshot(var_name) ON DELETE CASCADE
 );
 
+CREATE TABLE iceh_indicators_snapshot (
+  indicator_code TEXT PRIMARY KEY NOT NULL,
+  indicator_name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  numerator TEXT NOT NULL,
+  denominator TEXT NOT NULL,
+  sort_order INTEGER NOT NULL
+);
+
 -- Point-in-time snapshot of calculated indicator definitions,
 -- copied from the instance DB at HMIS data export time.
 CREATE TABLE calculated_indicators_snapshot (

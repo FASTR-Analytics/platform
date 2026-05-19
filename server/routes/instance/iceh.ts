@@ -1,9 +1,7 @@
 import { Hono } from "hono";
 import {
   getDatasetIcehDetail,
-  getDatasetIcehIndicators,
-  getDatasetIcehDisaggregators,
-  getDatasetIcehData,
+  getDatasetIcehDisplayData,
   getDatasetIcehUploadAttempt,
   getDatasetIcehUploadStatus,
   createDatasetIcehUploadAttempt,
@@ -34,33 +32,11 @@ defineRoute(
 
 defineRoute(
   routesIceh,
-  "getDatasetIcehIndicators",
+  "getDatasetIcehDisplayData",
   requireGlobalPermission("can_view_data"),
-  log("getDatasetIcehIndicators"),
+  log("getDatasetIcehDisplayData"),
   async (c) => {
-    const res = await getDatasetIcehIndicators(c.var.mainDb);
-    return c.json(res);
-  }
-);
-
-defineRoute(
-  routesIceh,
-  "getDatasetIcehDisaggregators",
-  requireGlobalPermission("can_view_data"),
-  log("getDatasetIcehDisaggregators"),
-  async (c) => {
-    const res = await getDatasetIcehDisaggregators(c.var.mainDb);
-    return c.json(res);
-  }
-);
-
-defineRoute(
-  routesIceh,
-  "getDatasetIcehData",
-  requireGlobalPermission("can_view_data"),
-  log("getDatasetIcehData"),
-  async (c) => {
-    const res = await getDatasetIcehData(c.var.mainDb);
+    const res = await getDatasetIcehDisplayData(c.var.mainDb);
     return c.json(res);
   }
 );

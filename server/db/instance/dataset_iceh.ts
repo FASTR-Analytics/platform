@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { join } from "@std/path";
 import { Sql } from "postgres";
 import JSZip from "npm:jszip";
@@ -11,9 +12,7 @@ import {
   parseJsonOrThrow,
   parseJsonOrUndefined,
   IcehDataDetail,
-  IcehIndicator,
-  IcehDisaggregator,
-  IcehDataRow,
+  IcehDisplayData,
   IcehUploadAttemptDetail,
   IcehUploadAttemptSummary,
   IcehUploadAttemptStatus,
@@ -21,6 +20,8 @@ import {
   IcehUploadStatusResponse,
   IcehStep1Result,
   IcehStagingResult,
+  IcehStrat,
+  normalizeIcehStrat,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import type { DBIcehUploadAttempt } from "./_main_database_types.ts";
@@ -39,6 +40,28 @@ async function getRawUAOrThrow(mainDb: Sql): Promise<DBIcehUploadAttempt> {
     throw new Error("No upload attempt found");
   }
   return rawUA;
+}
+
+export function computeIcehCacheHash(
+  indicatorCount: number,
+  dataRowCount: number,
+  years: number[],
+): string {
+  const input = `${indicatorCount}:${dataRowCount}:${years.sort((a, b) => a - b).join(",")}`;
+  return createHash("md5").update(input).digest("hex").slice(0, 12);
+}
+
+export async function getIcehCacheHash(mainDb: Sql): Promise<string> {
+  const indicatorCount = (await mainDb<{ count: number }[]>`
+    SELECT COUNT(*)::int as count FROM iceh_indicators
+  `)[0]?.count ?? 0;
+  const dataRowCount = (await mainDb<{ count: number }[]>`
+    SELECT COUNT(*)::int as count FROM iceh_data
+  `)[0]?.count ?? 0;
+  const yearsResult = await mainDb<{ year: number }[]>`
+    SELECT DISTINCT year FROM iceh_data ORDER BY year
+  `;
+  return computeIcehCacheHash(indicatorCount, dataRowCount, yearsResult.map((r) => r.year));
 }
 
 function parseUploadAttemptSummary(
@@ -67,26 +90,22 @@ export async function getDatasetIcehDetail(
     const yearsResult = await mainDb<{ year: number }[]>`
       SELECT DISTINCT year FROM iceh_data ORDER BY year
     `;
-    const disaggregatorsResult = await mainDb<{ strat: string }[]>`
-      SELECT strat FROM iceh_disaggregators ORDER BY sort_order
-    `;
 
     const detail: IcehDataDetail = {
       uploadAttempt,
       indicators: indicatorCount[0]?.count ?? 0,
       dataRows: dataRowCount[0]?.count ?? 0,
       years: yearsResult.map((r) => r.year),
-      disaggregators: disaggregatorsResult.map((r) => r.strat),
     };
     return { success: true, data: detail };
   });
 }
 
-export async function getDatasetIcehIndicators(
+export async function getDatasetIcehDisplayData(
   mainDb: Sql
-): Promise<APIResponseWithData<IcehIndicator[]>> {
+): Promise<APIResponseWithData<IcehDisplayData>> {
   return await tryCatchDatabaseAsync(async () => {
-    const rows = await mainDb<{
+    const indicatorRows = await mainDb<{
       indicator_code: string;
       indicator_name: string;
       category: string;
@@ -94,56 +113,16 @@ export async function getDatasetIcehIndicators(
       denominator: string;
       sort_order: number;
     }[]>`
-      SELECT DISTINCT ON (i.indicator_code)
-        i.indicator_code, i.indicator_name, i.category, i.numerator, i.denominator, i.sort_order
-      FROM iceh_indicators i
-      INNER JOIN iceh_data d ON d.indicator_code = i.indicator_code
-      ORDER BY i.indicator_code, i.sort_order
+      SELECT indicator_code, indicator_name, category, numerator, denominator, sort_order
+      FROM iceh_indicators
+      ORDER BY sort_order
     `;
-    const indicators: IcehIndicator[] = rows.map((r) => ({
-      indicatorCode: r.indicator_code,
-      indicatorName: r.indicator_name,
-      category: r.category,
-      numerator: r.numerator,
-      denominator: r.denominator,
-      sortOrder: r.sort_order,
-    }));
-    return { success: true, data: indicators };
-  });
-}
 
-export async function getDatasetIcehDisaggregators(
-  mainDb: Sql
-): Promise<APIResponseWithData<IcehDisaggregator[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rows = await mainDb<{
-      strat: string;
-      label: string;
-      sort_order: number;
-      is_equity_dimension: boolean;
-    }[]>`
-      SELECT strat, label, sort_order, is_equity_dimension
-      FROM iceh_disaggregators ORDER BY sort_order
-    `;
-    const disaggregators: IcehDisaggregator[] = rows.map((r) => ({
-      strat: r.strat,
-      label: r.label,
-      sortOrder: r.sort_order,
-      isEquityDimension: r.is_equity_dimension,
-    }));
-    return { success: true, data: disaggregators };
-  });
-}
-
-export async function getDatasetIcehData(
-  mainDb: Sql
-): Promise<APIResponseWithData<IcehDataRow[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rows = await mainDb<{
+    const dataRows = await mainDb<{
       indicator_code: string;
       year: number;
       source: string;
-      strat: string;
+      strat: IcehStrat;
       level: string;
       estimate: number | null;
       standard_error: number | null;
@@ -152,17 +131,30 @@ export async function getDatasetIcehData(
       SELECT indicator_code, year, source, strat, level, estimate, standard_error, sample_size
       FROM iceh_data ORDER BY indicator_code, year, strat, level
     `;
-    const data: IcehDataRow[] = rows.map((r) => ({
-      indicatorCode: r.indicator_code,
-      year: r.year,
-      source: r.source,
-      strat: r.strat,
-      level: r.level,
-      estimate: r.estimate,
-      standardError: r.standard_error,
-      sampleSize: r.sample_size,
-    }));
-    return { success: true, data: data };
+
+    return {
+      success: true,
+      data: {
+        indicators: indicatorRows.map((r) => ({
+          indicatorCode: r.indicator_code,
+          indicatorName: r.indicator_name,
+          category: r.category,
+          numerator: r.numerator,
+          denominator: r.denominator,
+          sortOrder: r.sort_order,
+        })),
+        dataRows: dataRows.map((r) => ({
+          indicatorCode: r.indicator_code,
+          year: r.year,
+          source: r.source,
+          strat: r.strat,
+          level: r.level,
+          estimate: r.estimate,
+          standardError: r.standard_error,
+          sampleSize: r.sample_size,
+        })),
+      },
+    };
   });
 }
 
@@ -173,7 +165,6 @@ export async function deleteDatasetIcehData(
     await mainDb.begin(async (sql) => {
       await sql`DELETE FROM iceh_data`;
       await sql`DELETE FROM iceh_indicators`;
-      await sql`DELETE FROM iceh_disaggregators`;
     });
     return { success: true };
   });
@@ -465,7 +456,6 @@ async function stageAndIntegrateIcehData(
       const headerRow = rows[2];
       const dataRows = rows.slice(3);
 
-      const isoIndex = headerRow.indexOf("ISO");
       const yearIndex = headerRow.indexOf("Year");
       const sourceIndex = headerRow.indexOf("Source");
       const indicatorCodeIndex = headerRow.indexOf("Indicator Code");
@@ -475,22 +465,11 @@ async function stageAndIntegrateIcehData(
       const seIndex = headerRow.indexOf("Standard Error");
       const sampleSizeIndex = headerRow.indexOf("Sample Size");
 
-      const disaggregators = new Map<string, { label: string; sortOrder: number; isEquity: boolean }>();
-      const stratOrder = [
-        "national", "area", "wealth quintiles", "wealth deciles",
-        "woman's education", "woman's education (4 groups)",
-        "woman's age (current)", "woman's age (at birth)", "sex", "subnational unit"
-      ];
-      const equityStrats = new Set([
-        "area", "wealth quintiles", "wealth deciles",
-        "woman's education", "woman's education (4 groups)", "sex"
-      ]);
-
       const validDataRows: {
         indicatorCode: string;
         year: number;
         source: string;
-        strat: string;
+        strat: IcehStrat;
         level: string;
         estimate: number | null;
         standardError: number | null;
@@ -498,17 +477,17 @@ async function stageAndIntegrateIcehData(
       }[] = [];
 
       let nRowsSkippedMissingEstimate = 0;
+      let nRowsSkippedUnknownStrat = 0;
       const years = new Set<number>();
+      const stratsInData = new Set<IcehStrat>();
 
       for (const row of dataRows) {
-        const strat = row[stratIndex]?.trim() ?? "";
-        if (strat && !disaggregators.has(strat)) {
-          const sortOrder = stratOrder.indexOf(strat);
-          disaggregators.set(strat, {
-            label: strat,
-            sortOrder: sortOrder >= 0 ? sortOrder : 100,
-            isEquity: equityStrats.has(strat),
-          });
+        const rawStrat = row[stratIndex]?.trim() ?? "";
+        const strat = normalizeIcehStrat(rawStrat);
+
+        if (!strat) {
+          nRowsSkippedUnknownStrat++;
+          continue;
         }
 
         const estimateStr = row[estimateIndex]?.trim();
@@ -533,6 +512,7 @@ async function stageAndIntegrateIcehData(
         const sampleSize = sampleSizeStr && sampleSizeStr !== "NA" ? parseInt(sampleSizeStr, 10) : null;
 
         years.add(year);
+        stratsInData.add(strat);
         validDataRows.push({
           indicatorCode: row[indicatorCodeIndex]?.trim() ?? "",
           year,
@@ -545,7 +525,6 @@ async function stageAndIntegrateIcehData(
         });
       }
 
-      // Get unique indicator codes from valid data rows
       const indicatorCodesInData = new Set(validDataRows.map((r) => r.indicatorCode));
 
       const stagingResult: IcehStagingResult = {
@@ -553,7 +532,7 @@ async function stageAndIntegrateIcehData(
         nRowsValid: validDataRows.length,
         nRowsSkippedMissingEstimate,
         nIndicators: indicatorCodesInData.size,
-        nDisaggregators: disaggregators.size,
+        nDisaggregators: stratsInData.size,
         years: Array.from(years).sort((a, b) => a - b),
       };
 
@@ -573,18 +552,11 @@ async function stageAndIntegrateIcehData(
       `;
 
       const indicatorsWithData = indicators.filter((ind) => indicatorCodesInData.has(ind.code));
+      const indicatorCodesInDb = new Set(indicatorsWithData.map((i) => i.code));
 
       await mainDb.begin(async (sql) => {
         await sql`DELETE FROM iceh_data`;
         await sql`DELETE FROM iceh_indicators`;
-        await sql`DELETE FROM iceh_disaggregators`;
-
-        for (const [strat, info] of disaggregators) {
-          await sql`
-            INSERT INTO iceh_disaggregators (strat, label, sort_order, is_equity_dimension)
-            VALUES (${strat}, ${info.label}, ${info.sortOrder}, ${info.isEquity})
-          `;
-        }
 
         for (const ind of indicatorsWithData) {
           await sql`
@@ -593,13 +565,8 @@ async function stageAndIntegrateIcehData(
           `;
         }
 
-        const indicatorCodesInDb = new Set(indicatorsWithData.map((i) => i.code));
-        const stratCodesInDb = new Set(disaggregators.keys());
-
-        let inserted = 0;
         for (const row of validDataRows) {
           if (!indicatorCodesInDb.has(row.indicatorCode)) continue;
-          if (!stratCodesInDb.has(row.strat)) continue;
 
           await sql`
             INSERT INTO iceh_data (indicator_code, year, source, strat, level, estimate, standard_error, sample_size)
@@ -609,27 +576,20 @@ async function stageAndIntegrateIcehData(
               standard_error = ${row.standardError},
               sample_size = ${row.sampleSize}
           `;
-          inserted++;
-
-          if (inserted % 500 === 0) {
-            const progress = Math.round((inserted / validDataRows.length) * 100);
-            status = { status: "integrating", progress };
-            await mainDb`
-              UPDATE iceh_upload_attempts
-              SET status = ${JSON.stringify(status)}
-              WHERE id = 'single_row'
-            `;
-          }
         }
-
-        status = { status: "complete", nRowsIntegrated: inserted };
-        await mainDb`
-          UPDATE iceh_upload_attempts
-          SET status = ${JSON.stringify(status)}, status_type = 'complete',
-              step_3_result = ${JSON.stringify({ nRowsIntegrated: inserted })}
-          WHERE id = 'single_row'
-        `;
       });
+
+      const nRowsIntegrated = validDataRows.filter(
+        (r) => indicatorCodesInDb.has(r.indicatorCode)
+      ).length;
+
+      status = { status: "complete", nRowsIntegrated };
+      await mainDb`
+        UPDATE iceh_upload_attempts
+        SET status = ${JSON.stringify(status)}, status_type = 'complete',
+            step_3_result = ${JSON.stringify({ nRowsIntegrated })}
+        WHERE id = 'single_row'
+      `;
     } finally {
       try {
         await Deno.remove(tempXlsxPath);

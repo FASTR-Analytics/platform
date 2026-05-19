@@ -20,7 +20,7 @@ Two types of migrations:
 
 ## The System
 
-### Schema Changes
+### Schema Changesch
 
 When you change a stored schema (add field, rename field, change structure):
 
@@ -183,16 +183,16 @@ Before INSERT/UPDATE, validate against Zod schema. Invalid data cannot enter the
 
 **Catalog of write paths:**
 
-| Table.Column | File | Functions | Schema |
-|--------------|------|-----------|--------|
-| `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `addPresentationObject`, `updatePresentationObjectConfig`, `batchUpdatePresentationObjectsPeriodFilter` | `presentationObjectConfigSchema` |
-| `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `duplicatePresentationObject` | (copies validated row) |
-| `presentation_objects.config` | `server/db/project/modules.ts` | `installModule`, `updateModuleDefinition` | `presentationObjectConfigSchema` |
-| `modules.module_definition` | `server/db/project/modules.ts` | `installModule`, `updateModuleDefinition` | `moduleDefinitionInstalledSchema` |
-| `metrics.*` | `server/db/project/modules.ts` | `installModule`, `updateModuleDefinition` | `metricStrict` |
-| `slide_decks.config` | `server/db/project/slide_decks.ts` | `createSlideDeck`, `duplicateSlideDeck`, `updateSlideDeckConfig` | `slideDeckConfigSchema` |
-| `slides.config` | `server/db/project/slides.ts` | `createSlide`, `updateSlide` | `slideConfigSchema` |
-| `instance_config.*` | `server/db/instance/config.ts` | `updateMaxAdminArea`, `updateFacilityColumnsConfig`, `updateCountryIso3Config`, `updateAdminAreaLabelsConfig` | Type-specific schemas |
+| Table.Column                  | File                                        | Functions                                                                                                     | Schema                            |
+|-------------------------------|---------------------------------------------|---------------------------------------------------------------------------------------------------------------|-----------------------------------|
+| `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `addPresentationObject`, `updatePresentationObjectConfig`, `batchUpdatePresentationObjectsPeriodFilter`       | `presentationObjectConfigSchema`  |
+| `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `duplicatePresentationObject`                                                                                 | (copies validated row)            |
+| `presentation_objects.config` | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `presentationObjectConfigSchema`  |
+| `modules.module_definition`   | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `moduleDefinitionInstalledSchema` |
+| `metrics.*`                   | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `metricStrict`                    |
+| `slide_decks.config`          | `server/db/project/slide_decks.ts`          | `createSlideDeck`, `duplicateSlideDeck`, `updateSlideDeckConfig`                                              | `slideDeckConfigSchema`           |
+| `slides.config`               | `server/db/project/slides.ts`               | `createSlide`, `updateSlide`                                                                                  | `slideConfigSchema`               |
+| `instance_config.*`           | `server/db/instance/config.ts`              | `updateMaxAdminArea`, `updateFacilityColumnsConfig`, `updateCountryIso3Config`, `updateAdminAreaLabelsConfig` | Type-specific schemas             |
 
 **Note:** `slideDeckConfigSchema` and `slideConfigSchema` are currently `z.unknown()` stubs. Validation is wired up but accepts anything until real schemas are defined.
 
@@ -212,13 +212,13 @@ The startup sweep already validated this data. Write-time validation ensures onl
 
 External input is validated at the point it enters the system:
 
-| Boundary | Location | Schema | Notes |
-|----------|----------|--------|-------|
-| GitHub module definitions | `server/module_loader/load_module.ts` | `moduleDefinitionGithubSchema` | Validated at fetch time, throws on invalid |
-| User form input (PO config) | Routes → DB functions | `presentationObjectConfigSchema` | DB functions validate before write |
-| API request bodies | Routes → DB functions | Various | All stored schema writes validate in DB layer |
-| DHIS2 imports | `server/dhis2/` | N/A | Imports structure/analytics data, not stored JSON schemas |
-| CSV uploads | `server/worker_routines/stage_*` | Row validation | Stages raw data, not stored JSON schemas |
+| Boundary                    | Location                              | Schema                           | Notes                                                     |
+|-----------------------------|---------------------------------------|----------------------------------|-----------------------------------------------------------|
+| GitHub module definitions   | `server/module_loader/load_module.ts` | `moduleDefinitionGithubSchema`   | Validated at fetch time, throws on invalid                |
+| User form input (PO config) | Routes → DB functions                 | `presentationObjectConfigSchema` | DB functions validate before write                        |
+| API request bodies          | Routes → DB functions                 | Various                          | All stored schema writes validate in DB layer             |
+| DHIS2 imports               | `server/dhis2/`                       | N/A                              | Imports structure/analytics data, not stored JSON schemas |
+| CSV uploads                 | `server/worker_routines/stage_*`      | Row validation                   | Stages raw data, not stored JSON schemas                  |
 
 **Note:** Routes don't need separate validation because all writes to stored schemas go through DB functions that validate before INSERT/UPDATE.
 
@@ -260,17 +260,17 @@ Non-prefixed type files contain plain TypeScript types that are not stored/valid
 
 ### Locations
 
-| Data | Schema Location | Table |
-|------|-----------------|-------|
-| Presentation object config | `lib/types/_presentation_object_config.ts` | `presentation_objects.config` |
-| Module definition (installed) | `lib/types/_module_definition_installed.ts` | `modules.module_definition` |
-| Metric (full row) | `lib/types/_metric_installed.ts` | `metrics.*` |
-| Metric AI description | `lib/types/_metric_installed.ts` | `metrics.ai_description` |
-| Metric viz presets | `lib/types/_metric_installed.ts` | `metrics.viz_presets` |
-| Viz config (d/s schemas) | `lib/types/_metric_installed.ts` | (embedded in above + PO config) |
-| Slide deck config | `lib/types/_slide_deck_config.ts` | `slide_decks.config` |
-| Slide config | `lib/types/_slide_config.ts` | `slides.config` |
-| Instance configs | `lib/types/instance_config.ts` | `instance_config.config_json_value` |
+| Data                          | Schema Location                             | Table                               |
+|-------------------------------|---------------------------------------------|-------------------------------------|
+| Presentation object config    | `lib/types/_presentation_object_config.ts`  | `presentation_objects.config`       |
+| Module definition (installed) | `lib/types/_module_definition_installed.ts` | `modules.module_definition`         |
+| Metric (full row)             | `lib/types/_metric_installed.ts`            | `metrics.*`                         |
+| Metric AI description         | `lib/types/_metric_installed.ts`            | `metrics.ai_description`            |
+| Metric viz presets            | `lib/types/_metric_installed.ts`            | `metrics.viz_presets`               |
+| Viz config (d/s schemas)      | `lib/types/_metric_installed.ts`            | (embedded in above + PO config)     |
+| Slide deck config             | `lib/types/_slide_deck_config.ts`           | `slide_decks.config`                |
+| Slide config                  | `lib/types/_slide_config.ts`                | `slides.config`                     |
+| Instance configs              | `lib/types/instance_config.ts`              | `instance_config.config_json_value` |
 
 **Note:** `report_items.config` is excluded — reports are deprecated. Legacy adapters remain for the migration tool only.
 

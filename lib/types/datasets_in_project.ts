@@ -14,6 +14,11 @@ export type DatasetInProject =
       datasetType: "hfa";
       info: DatasetHfaInfoInProject;
       dateExported: string;
+    }
+  | {
+      datasetType: "iceh";
+      info: DatasetIcehInfoInProject;
+      dateExported: string;
     };
 
 export type DatasetHmisInfoInProject = {
@@ -38,4 +43,8 @@ export type DatasetHfaInfoInProject = {
   hfaIndicatorsVersion?: string;
   structureLastUpdated?: string;
   facilityColumnsHash?: string;
+};
+
+export type DatasetIcehInfoInProject = {
+  icehCacheHash: string;
 };

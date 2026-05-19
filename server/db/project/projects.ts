@@ -63,6 +63,13 @@ export async function getAllDatasetsForProject(
           dateExported: row.last_updated,
         };
       }
+      if (row.dataset_type === "iceh") {
+        return {
+          datasetType: "iceh",
+          info: parseJsonOrThrow(row.info),
+          dateExported: row.last_updated,
+        };
+      }
       return {
         datasetType: "hfa",
         info: parseJsonOrThrow(row.info),
@@ -99,6 +106,13 @@ export async function getProjectDetail(
       if (row.dataset_type === "hmis") {
         return {
           datasetType: "hmis",
+          info: parseJsonOrThrow(row.info),
+          dateExported: row.last_updated,
+        };
+      }
+      if (row.dataset_type === "iceh") {
+        return {
+          datasetType: "iceh",
           info: parseJsonOrThrow(row.info),
           dateExported: row.last_updated,
         };
