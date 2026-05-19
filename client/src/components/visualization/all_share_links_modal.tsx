@@ -17,22 +17,18 @@ export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
 
   const fetchTokens = async () => {
     setLoading(true);
-    const results = await Promise.all(
-      p.visualizations.map(async (viz) => {
-        try {
-          const res = await fetch(
-            `${_SERVER_HOST}/api/share/viz?resourceId=${viz.id}`,
-            { credentials: "include" },
-          );
-          const json = await res.json();
-          const vizTokens: ShareTokenInfo[] = json.success ? json.tokens : [];
-          return vizTokens.map((t) => ({ ...t, resourceId: viz.id }));
-        } catch {
-          return [];
-        }
-      }),
-    );
-    setTokens(results.flat());
+    try {
+      const res = await fetch(`${_SERVER_HOST}/api/share/viz/all`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resourceIds: p.visualizations.map((v) => v.id) }),
+      });
+      const json = await res.json();
+      setTokens(json.success ? json.tokens : []);
+    } catch {
+      setTokens([]);
+    }
     setLoading(false);
   };
 

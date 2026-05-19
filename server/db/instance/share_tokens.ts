@@ -48,14 +48,16 @@ export async function listShareTokensForResource(
   }));
 }
 
-export async function listAllShareTokensForType(
+export async function listShareTokensForResources(
   mainDb: Sql,
   resourceType: string,
+  resourceIds: string[],
 ): Promise<(ShareTokenInfo & { resourceId: string })[]> {
+  if (resourceIds.length === 0) return [];
   const rows = await mainDb<{ resource_id: string; token: string; created_at: string; view_count: number }[]>`
     SELECT resource_id, token, created_at, view_count
     FROM share_tokens
-    WHERE resource_type = ${resourceType}
+    WHERE resource_type = ${resourceType} AND resource_id = ANY(${resourceIds})
     ORDER BY resource_id, created_at DESC
   `;
   return rows.map(r => ({

@@ -3,7 +3,7 @@ import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import {
   createShareToken,
   listShareTokensForResource,
-  listAllShareTokensForType,
+  listShareTokensForResources,
   deleteShareToken,
 } from "../../db/instance/share_tokens.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -36,10 +36,11 @@ routesShare.get("/api/share/viz", requireGlobalPermission(), async (c) => {
   return c.json({ success: true, tokens });
 });
 
-// List all share links for all visualizations
-routesShare.get("/api/share/viz/all", requireGlobalPermission(), async (c) => {
+// List share links for multiple visualizations
+routesShare.post("/api/share/viz/all", requireGlobalPermission(), async (c) => {
+  const body = await c.req.json<{ resourceIds: string[] }>();
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const tokens = await listAllShareTokensForType(mainDb, "visualization");
+  const tokens = await listShareTokensForResources(mainDb, "visualization", body.resourceIds);
   return c.json({ success: true, tokens });
 });
 
