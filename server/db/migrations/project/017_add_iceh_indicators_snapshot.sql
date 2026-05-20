@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS iceh_indicators_snapshot (
-  indicator_code TEXT PRIMARY KEY NOT NULL,
+  iceh_indicator TEXT PRIMARY KEY NOT NULL,
   indicator_name TEXT NOT NULL,
   category TEXT NOT NULL,
   numerator TEXT NOT NULL,

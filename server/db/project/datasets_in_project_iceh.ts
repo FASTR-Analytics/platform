@@ -16,7 +16,7 @@ import { removeDatasetFromProject } from "./datasets_in_project_hmis.ts";
 import { computeIcehCacheHash } from "../instance/dataset_iceh.ts";
 
 type DBIcehIndicator = {
-  indicator_code: string;
+  iceh_indicator: string;
   indicator_name: string;
   category: string;
   numerator: string;
@@ -70,7 +70,7 @@ export async function addDatasetIcehToProject(
     await mainDb.unsafe(`
       COPY (
         SELECT
-          indicator_code,
+          iceh_indicator,
           year,
           source,
           strat,
@@ -79,7 +79,7 @@ export async function addDatasetIcehToProject(
           standard_error,
           sample_size
         FROM iceh_data
-        ORDER BY indicator_code, year, strat, level
+        ORDER BY iceh_indicator, year, strat, level
       ) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, HEADER true)
     `);
 
@@ -87,9 +87,9 @@ export async function addDatasetIcehToProject(
     const lastUpdated = new Date().toISOString();
 
     const indicators = await mainDb<DBIcehIndicator[]>`
-      SELECT indicator_code, indicator_name, category, numerator, denominator, sort_order
+      SELECT iceh_indicator, indicator_name, category, numerator, denominator, sort_order
       FROM iceh_indicators
-      ORDER BY sort_order, indicator_code
+      ORDER BY sort_order, iceh_indicator
     `;
 
     const icehCacheHash = computeIcehCacheHash(indicatorCount, dataRowCount, years);
@@ -109,8 +109,8 @@ export async function addDatasetIcehToProject(
       ...indicators.map(
         (ind) =>
           sql`INSERT INTO iceh_indicators_snapshot
-            (indicator_code, indicator_name, category, numerator, denominator, sort_order)
-            VALUES (${ind.indicator_code}, ${ind.indicator_name}, ${ind.category}, ${ind.numerator}, ${ind.denominator}, ${ind.sort_order})`,
+            (iceh_indicator, indicator_name, category, numerator, denominator, sort_order)
+            VALUES (${ind.iceh_indicator}, ${ind.indicator_name}, ${ind.category}, ${ind.numerator}, ${ind.denominator}, ${ind.sort_order})`,
       ),
     ]);
 
@@ -122,12 +122,12 @@ export async function getAllIcehIndicatorsFromSnapshot(
   projectDb: Sql,
 ): Promise<IcehIndicator[]> {
   const rows = await projectDb<DBIcehIndicator[]>`
-    SELECT indicator_code, indicator_name, category, numerator, denominator, sort_order
+    SELECT iceh_indicator, indicator_name, category, numerator, denominator, sort_order
     FROM iceh_indicators_snapshot
-    ORDER BY sort_order, indicator_code
+    ORDER BY sort_order, iceh_indicator
   `;
   return rows.map((r) => ({
-    indicatorCode: r.indicator_code,
+    indicatorCode: r.iceh_indicator,
     indicatorName: r.indicator_name,
     category: r.category,
     numerator: r.numerator,

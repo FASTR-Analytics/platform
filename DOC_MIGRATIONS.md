@@ -239,6 +239,7 @@ Naming: `NNN_description.sql`
 - Idempotent: `IF NOT EXISTS`, `IF EXISTS`, `ON CONFLICT DO NOTHING`
 - Update live schema files too (`_main_database.sql`, `_project_database.sql`)
 - Don't rewrite old migrations — fix forward
+- **Always run `./validate_migrations` after adding or modifying SQL migrations**
 
 **Use SQL migrations for:** Adding columns, creating tables, adding indexes, constraints.
 

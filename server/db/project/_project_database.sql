@@ -40,7 +40,7 @@ CREATE TABLE hfa_indicator_code_snapshot (
 );
 
 CREATE TABLE iceh_indicators_snapshot (
-  indicator_code TEXT PRIMARY KEY NOT NULL,
+  iceh_indicator TEXT PRIMARY KEY NOT NULL,
   indicator_name TEXT NOT NULL,
   category TEXT NOT NULL,
   numerator TEXT NOT NULL,

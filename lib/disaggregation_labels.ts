@@ -79,8 +79,8 @@ export function getDisaggregationLabel(
       return { en: "HFA category", fr: "HFA category" };
     case "time_point":
       return { en: "Time point", fr: "Time point" };
-    case "indicator_code":
-      return { en: "Indicator", fr: "Indicateur" };
+    case "iceh_indicator":
+      return { en: "ICEH indicator", fr: "Indicateur ICEH" };
     case "strat":
       return { en: "Stratifier", fr: "Stratificateur" };
     case "level":

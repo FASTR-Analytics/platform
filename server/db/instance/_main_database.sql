@@ -503,7 +503,7 @@ CREATE INDEX idx_custom_prompts_scope ON custom_prompts(scope);
 -- ============================================================================
 
 CREATE TABLE iceh_indicators (
-  indicator_code TEXT PRIMARY KEY,
+  iceh_indicator TEXT PRIMARY KEY,
   indicator_name TEXT NOT NULL,
   category TEXT NOT NULL DEFAULT '',
   numerator TEXT NOT NULL DEFAULT '',
@@ -512,7 +512,7 @@ CREATE TABLE iceh_indicators (
 );
 
 CREATE TABLE iceh_data (
-  indicator_code TEXT NOT NULL REFERENCES iceh_indicators(indicator_code) ON DELETE CASCADE,
+  iceh_indicator TEXT NOT NULL REFERENCES iceh_indicators(iceh_indicator) ON DELETE CASCADE,
   year INTEGER NOT NULL,
   source TEXT NOT NULL,
   strat TEXT NOT NULL CHECK (strat IN (
@@ -524,10 +524,10 @@ CREATE TABLE iceh_data (
   estimate REAL,
   standard_error REAL,
   sample_size INTEGER,
-  PRIMARY KEY (indicator_code, year, source, strat, level)
+  PRIMARY KEY (iceh_indicator, year, source, strat, level)
 );
 
-CREATE INDEX idx_iceh_data_indicator ON iceh_data(indicator_code);
+CREATE INDEX idx_iceh_data_indicator ON iceh_data(iceh_indicator);
 CREATE INDEX idx_iceh_data_year ON iceh_data(year);
 CREATE INDEX idx_iceh_data_strat ON iceh_data(strat);
 

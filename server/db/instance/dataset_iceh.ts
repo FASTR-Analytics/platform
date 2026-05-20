@@ -106,20 +106,20 @@ export async function getDatasetIcehDisplayData(
 ): Promise<APIResponseWithData<IcehDisplayData>> {
   return await tryCatchDatabaseAsync(async () => {
     const indicatorRows = await mainDb<{
-      indicator_code: string;
+      iceh_indicator: string;
       indicator_name: string;
       category: string;
       numerator: string;
       denominator: string;
       sort_order: number;
     }[]>`
-      SELECT indicator_code, indicator_name, category, numerator, denominator, sort_order
+      SELECT iceh_indicator, indicator_name, category, numerator, denominator, sort_order
       FROM iceh_indicators
       ORDER BY sort_order
     `;
 
     const dataRows = await mainDb<{
-      indicator_code: string;
+      iceh_indicator: string;
       year: number;
       source: string;
       strat: IcehStrat;
@@ -128,15 +128,15 @@ export async function getDatasetIcehDisplayData(
       standard_error: number | null;
       sample_size: number | null;
     }[]>`
-      SELECT indicator_code, year, source, strat, level, estimate, standard_error, sample_size
-      FROM iceh_data ORDER BY indicator_code, year, strat, level
+      SELECT iceh_indicator, year, source, strat, level, estimate, standard_error, sample_size
+      FROM iceh_data ORDER BY iceh_indicator, year, strat, level
     `;
 
     return {
       success: true,
       data: {
         indicators: indicatorRows.map((r) => ({
-          indicatorCode: r.indicator_code,
+          indicatorCode: r.iceh_indicator,
           indicatorName: r.indicator_name,
           category: r.category,
           numerator: r.numerator,
@@ -144,7 +144,7 @@ export async function getDatasetIcehDisplayData(
           sortOrder: r.sort_order,
         })),
         dataRows: dataRows.map((r) => ({
-          indicatorCode: r.indicator_code,
+          indicatorCode: r.iceh_indicator,
           year: r.year,
           source: r.source,
           strat: r.strat,
@@ -560,7 +560,7 @@ async function stageAndIntegrateIcehData(
 
         for (const ind of indicatorsWithData) {
           await sql`
-            INSERT INTO iceh_indicators (indicator_code, indicator_name, category, numerator, denominator, sort_order)
+            INSERT INTO iceh_indicators (iceh_indicator, indicator_name, category, numerator, denominator, sort_order)
             VALUES (${ind.code}, ${ind.name}, ${ind.category}, ${ind.numerator}, ${ind.denominator}, ${ind.sortOrder})
           `;
         }
@@ -569,9 +569,9 @@ async function stageAndIntegrateIcehData(
           if (!indicatorCodesInDb.has(row.indicatorCode)) continue;
 
           await sql`
-            INSERT INTO iceh_data (indicator_code, year, source, strat, level, estimate, standard_error, sample_size)
+            INSERT INTO iceh_data (iceh_indicator, year, source, strat, level, estimate, standard_error, sample_size)
             VALUES (${row.indicatorCode}, ${row.year}, ${row.source}, ${row.strat}, ${row.level}, ${row.estimate}, ${row.standardError}, ${row.sampleSize})
-            ON CONFLICT (indicator_code, year, source, strat, level) DO UPDATE SET
+            ON CONFLICT (iceh_indicator, year, source, strat, level) DO UPDATE SET
               estimate = ${row.estimate},
               standard_error = ${row.standardError},
               sample_size = ${row.sampleSize}

@@ -81,7 +81,7 @@ async function buildDisaggregationOptions(
     "hfa_indicator",
     "hfa_category",
     "time_point",
-    "indicator_code",
+    "iceh_indicator",
     "strat",
     "level",
   ];
