@@ -5,6 +5,7 @@ import {
   listShareTokensForResource,
   listShareTokensForResources,
   deleteShareToken,
+  updateShareToken,
 } from "../../db/instance/share_tokens.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import type { ShareVizBundle } from "lib";
@@ -53,6 +54,32 @@ routesShare.post("/api/share/viz/all", requireGlobalPermission(), async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const tokens = await listShareTokensForResources(mainDb, "visualization", body.resourceIds);
   return c.json({ success: true, tokens });
+});
+
+// Edit share link (slug and/or password)
+routesShare.patch("/api/share/viz/:token", requireGlobalPermission(), async (c) => {
+  const token = c.req.param("token");
+  const body = await c.req.json<{
+    slug: string | null;
+    passwordAction: "keep" | "clear" | "set";
+    newPassword?: string;
+  }>();
+  const passwordOp =
+    body.passwordAction === "keep"
+      ? ("keep" as const)
+      : body.passwordAction === "clear"
+        ? ("clear" as const)
+        : { newPassword: body.newPassword! };
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  try {
+    const updated = await updateShareToken(mainDb, token, body.slug, passwordOp);
+    return c.json({ success: updated });
+  } catch (err) {
+    if (typeof err === "object" && err !== null && "code" in err && err.code === "23505") {
+      return c.json({ success: false, error: "slug_taken" }, 409);
+    }
+    throw err;
+  }
 });
 
 // Delete share link

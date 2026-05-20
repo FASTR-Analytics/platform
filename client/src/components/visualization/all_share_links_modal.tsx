@@ -1,6 +1,7 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import { Button, ModalContainer } from "panther";
+import { Button, ModalContainer, openComponent } from "panther";
 import type { AlertComponentProps } from "panther";
+import { EditShareLinkModal } from "./edit_share_link_modal";
 import type { PresentationObjectSummary, ShareTokenInfo } from "lib";
 import { _SERVER_HOST } from "~/server_actions";
 
@@ -41,6 +42,27 @@ export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
     await navigator.clipboard.writeText(url);
     setCopiedToken(t.token);
     setTimeout(() => setCopiedToken(null), 2000);
+  };
+
+  const editToken = async (t: AllShareToken) => {
+    const updateLink = async (
+      slug: string | null,
+      passwordAction: "keep" | "clear" | "set",
+      newPassword?: string,
+    ) => {
+      const res = await fetch(`${_SERVER_HOST}/api/share/viz/${t.token}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, passwordAction, newPassword }),
+      });
+      return res.json();
+    };
+    await openComponent({
+      element: EditShareLinkModal,
+      props: { currentSlug: t.slug, hasPassword: t.hasPassword, updateLink },
+    });
+    fetchTokens();
   };
 
   const deleteToken = async (token: string) => {
@@ -93,6 +115,10 @@ export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
                           <span class="text-base-content font-500">{t.slug}</span>
                           {" · "}
                         </Show>
+                        <Show when={t.hasPassword}>
+                          <span class="text-base-content">🔒</span>
+                          {" · "}
+                        </Show>
                         Created: {new Date(t.createdAt).toLocaleDateString()}
                         {" · "}
                         Views: {t.viewCount}
@@ -105,6 +131,12 @@ export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
                         >
                           {copiedToken() === t.token ? "Copied!" : "Copy"}
                         </Button>
+                        <Button
+                          onClick={() => editToken(t)}
+                          size="sm"
+                          iconName="pencil"
+                          outline
+                        />
                         <Button
                           onClick={() => deleteToken(t.token)}
                           size="sm"

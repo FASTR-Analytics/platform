@@ -133,6 +133,33 @@ export async function listShareTokensForResources(
   }));
 }
 
+export async function updateShareToken(
+  mainDb: Sql,
+  token: string,
+  slug: string | null,
+  passwordOp: "keep" | "clear" | { newPassword: string },
+): Promise<boolean> {
+  let result;
+  if (passwordOp === "keep") {
+    result = await mainDb`
+      UPDATE share_tokens SET slug = ${slug}
+      WHERE token = ${token}
+    `;
+  } else if (passwordOp === "clear") {
+    result = await mainDb`
+      UPDATE share_tokens SET slug = ${slug}, password_hash = ${null}
+      WHERE token = ${token}
+    `;
+  } else {
+    const hash = await hashPassword(passwordOp.newPassword);
+    result = await mainDb`
+      UPDATE share_tokens SET slug = ${slug}, password_hash = ${hash}
+      WHERE token = ${token}
+    `;
+  }
+  return result.count > 0;
+}
+
 export async function deleteShareToken(
   mainDb: Sql,
   token: string,

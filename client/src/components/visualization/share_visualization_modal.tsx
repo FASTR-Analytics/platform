@@ -10,6 +10,7 @@ import type {
 import { stripFigureInputsForStorage } from "~/generate_visualization/strip_figure_inputs";
 import { _SERVER_HOST } from "~/server_actions";
 import { CreateShareLinkModal } from "./create_share_link_modal";
+import { EditShareLinkModal } from "./edit_share_link_modal";
 
 import type { AlertComponentProps } from "panther";
 
@@ -78,6 +79,27 @@ export function ShareVisualizationModal(p: Props) {
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
+  const editToken = async (t: ShareTokenInfo) => {
+    const updateLink = async (
+      slug: string | null,
+      passwordAction: "keep" | "clear" | "set",
+      newPassword?: string,
+    ) => {
+      const res = await fetch(`${_SERVER_HOST}/api/share/viz/${t.token}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, passwordAction, newPassword }),
+      });
+      return res.json();
+    };
+    await openComponent({
+      element: EditShareLinkModal,
+      props: { currentSlug: t.slug, hasPassword: t.hasPassword, updateLink },
+    });
+    fetchTokens();
+  };
+
   const deleteToken = async (token: string) => {
     await fetch(`${_SERVER_HOST}/api/share/viz/${token}`, {
       method: "DELETE",
@@ -128,6 +150,12 @@ export function ShareVisualizationModal(p: Props) {
                   <Button onClick={() => copyUrl(t)} size="sm" iconName="copy">
                     {copiedToken() === t.token ? "Copied!" : "Copy"}
                   </Button>
+                  <Button
+                    onClick={() => editToken(t)}
+                    size="sm"
+                    iconName="pencil"
+                    outline
+                  />
                   <Button
                     onClick={() => deleteToken(t.token)}
                     size="sm"
