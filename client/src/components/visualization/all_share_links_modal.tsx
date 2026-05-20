@@ -1,5 +1,5 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import { Button, ModalContainer, openComponent } from "panther";
+import { Button, IconRenderer, ModalContainer, openComponent } from "panther";
 import type { AlertComponentProps } from "panther";
 import { EditShareLinkModal } from "./edit_share_link_modal";
 import type { PresentationObjectSummary, ShareTokenInfo } from "lib";
@@ -116,7 +116,7 @@ export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
                           {" · "}
                         </Show>
                         <Show when={t.hasPassword}>
-                          <span class="text-base-content">🔒</span>
+                          <IconRenderer iconName="lock" size="sm" />
                           {" · "}
                         </Show>
                         Created: {new Date(t.createdAt).toLocaleDateString()}

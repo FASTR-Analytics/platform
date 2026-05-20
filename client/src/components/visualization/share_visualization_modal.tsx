@@ -1,5 +1,5 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import { Button, ModalContainer, openComponent } from "panther";
+import { Button, IconRenderer, ModalContainer, openComponent } from "panther";
 import type { FigureInputs } from "panther";
 import type {
   PresentationObjectConfig,
@@ -139,7 +139,7 @@ export function ShareVisualizationModal(p: Props) {
                     {" · "}
                   </Show>
                   <Show when={t.hasPassword}>
-                    <span class="text-base-content">🔒</span>
+                    <IconRenderer iconName="lock" size="sm" />
                     {" · "}
                   </Show>
                   Created: {new Date(t.createdAt).toLocaleDateString()}
