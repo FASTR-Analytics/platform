@@ -59,20 +59,10 @@ routesShare.post("/api/share/viz/all", requireGlobalPermission(), async (c) => {
 // Edit share link (slug and/or password)
 routesShare.patch("/api/share/viz/:token", requireGlobalPermission(), async (c) => {
   const token = c.req.param("token");
-  const body = await c.req.json<{
-    slug: string | null;
-    passwordAction: "keep" | "clear" | "set";
-    newPassword?: string;
-  }>();
-  const passwordOp =
-    body.passwordAction === "keep"
-      ? ("keep" as const)
-      : body.passwordAction === "clear"
-        ? ("clear" as const)
-        : { newPassword: body.newPassword! };
+  const body = await c.req.json<{ slug: string | null; password: string | null }>();
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   try {
-    const updated = await updateShareToken(mainDb, token, body.slug, passwordOp);
+    const updated = await updateShareToken(mainDb, token, body.slug, body.password);
     return c.json({ success: updated });
   } catch (err) {
     if (typeof err === "object" && err !== null && "code" in err && err.code === "23505") {

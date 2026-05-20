@@ -1,5 +1,5 @@
-import { createSignal, For, onMount, Show } from "solid-js";
-import { Button, IconRenderer, ModalContainer, openComponent } from "panther";
+import { createSignal, For, onMount, Show, Switch, Match } from "solid-js";
+import { Button, IconRenderer, Input, ModalContainer } from "panther";
 import type { FigureInputs } from "panther";
 import type {
   PresentationObjectConfig,
@@ -9,8 +9,6 @@ import type {
 } from "lib";
 import { stripFigureInputsForStorage } from "~/generate_visualization/strip_figure_inputs";
 import { _SERVER_HOST } from "~/server_actions";
-import { CreateShareLinkModal } from "./create_share_link_modal";
-import { EditShareLinkModal } from "./edit_share_link_modal";
 
 import type { AlertComponentProps } from "panther";
 
@@ -27,13 +25,25 @@ type PropsBase = {
 
 type Props = AlertComponentProps<PropsBase, void>;
 
+type Mode = "list" | "create" | { editing: ShareTokenInfo };
+
 function tokenUrl(token: string, slug: string | null) {
   return `${window.location.origin}/share/viz/${slug ?? token}`;
+}
+
+function sanitizeSlug(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
 }
 
 export function ShareVisualizationModal(p: Props) {
   const [tokens, setTokens] = createSignal<ShareTokenInfo[]>([]);
   const [copiedToken, setCopiedToken] = createSignal<string | null>(null);
+  const [mode, setMode] = createSignal<Mode>("list");
+
+  const [slug, setSlug] = createSignal("");
+  const [password, setPassword] = createSignal("");
+  const [formError, setFormError] = createSignal<string | null>(null);
+  const [submitting, setSubmitting] = createSignal(false);
 
   const fetchTokens = async () => {
     const res = await fetch(
@@ -56,48 +66,70 @@ export function ShareVisualizationModal(p: Props) {
     indicatorMetadata: p.indicatorMetadata,
   });
 
-  const createLink = async (slug: string | null, password: string | null) => {
+  const startCreate = () => {
+    setSlug("");
+    setPassword("");
+    setFormError(null);
+    setMode("create");
+  };
+
+  const startEdit = (t: ShareTokenInfo) => {
+    setSlug(t.slug ?? "");
+    setPassword(t.password ?? "");
+    setFormError(null);
+    setMode({ editing: t });
+  };
+
+  const handleCreate = async () => {
+    setSubmitting(true);
+    setFormError(null);
     const res = await fetch(`${_SERVER_HOST}/api/share/viz`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ resourceId: p.presentationObjectId, bundle: buildBundle(), slug, password }),
+      body: JSON.stringify({
+        resourceId: p.presentationObjectId,
+        bundle: buildBundle(),
+        slug: slug().trim() || null,
+        password: password().trim() || null,
+      }),
     });
-    return res.json();
+    const result = await res.json();
+    setSubmitting(false);
+    if (result.success) {
+      await fetchTokens();
+      setMode("list");
+    } else if (result.error === "slug_taken") {
+      setFormError("That slug is already in use. Try a different one.");
+    } else {
+      setFormError("Something went wrong. Please try again.");
+    }
   };
 
-  const handleCreateLink = async () => {
-    const result = await openComponent({
-      element: CreateShareLinkModal,
-      props: { createLink },
+  const handleEdit = async () => {
+    const m = mode();
+    if (typeof m !== "object") return;
+    setSubmitting(true);
+    setFormError(null);
+    const res = await fetch(`${_SERVER_HOST}/api/share/viz/${m.editing.token}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        slug: slug().trim() || null,
+        password: password().trim() || null,
+      }),
     });
-    if (result === undefined) return;
-    const url = tokenUrl(result.token, result.slug);
-    await navigator.clipboard.writeText(url);
-    setCopiedToken(result.token);
-    fetchTokens();
-    setTimeout(() => setCopiedToken(null), 2000);
-  };
-
-  const editToken = async (t: ShareTokenInfo) => {
-    const updateLink = async (
-      slug: string | null,
-      passwordAction: "keep" | "clear" | "set",
-      newPassword?: string,
-    ) => {
-      const res = await fetch(`${_SERVER_HOST}/api/share/viz/${t.token}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, passwordAction, newPassword }),
-      });
-      return res.json();
-    };
-    await openComponent({
-      element: EditShareLinkModal,
-      props: { currentSlug: t.slug, hasPassword: t.hasPassword, updateLink },
-    });
-    fetchTokens();
+    const result = await res.json();
+    setSubmitting(false);
+    if (result.success) {
+      await fetchTokens();
+      setMode("list");
+    } else if (result.error === "slug_taken") {
+      setFormError("That slug is already in use. Try a different one.");
+    } else {
+      setFormError("Something went wrong. Please try again.");
+    }
   };
 
   const deleteToken = async (token: string) => {
@@ -115,62 +147,117 @@ export function ShareVisualizationModal(p: Props) {
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
+  const isForm = () => mode() !== "list";
+
   return (
     <ModalContainer
-      title="Share visualization"
-      rightButtons={<Button onClick={() => p.close()}>Done</Button>}
-    >
-      <Button onClick={handleCreateLink} iconName="plus">
-        Create New Share Link
-      </Button>
-
-      <Show when={tokens().length > 0}>
-        <div style={{ "margin-top": "20px" }}>
-          <h3 class="font-700 text-sm">Existing links</h3>
-          <For each={tokens()}>
-            {(t, i) => (
-              <div
-                class="ui-gap border-base-300 flex items-center py-2"
-                classList={{ "border-t": i() > 0 }}
+      title={
+        mode() === "create"
+          ? "Create share link"
+          : typeof mode() === "object"
+            ? "Edit share link"
+            : "Share visualization"
+      }
+      rightButtons={
+        isForm()
+          ? <>
+              <Button onClick={() => setMode("list")} outline>Cancel</Button>
+              <Button
+                onClick={mode() === "create" ? handleCreate : handleEdit}
+                disabled={submitting()}
               >
-                <div class="text-neutral flex-1 text-sm">
-                  <Show when={t.slug}>
-                    <span class="text-base-content font-500">{t.slug}</span>
-                    {" · "}
-                  </Show>
-                  <Show when={t.hasPassword}>
-                    <span class="inline-flex items-center align-middle">
-                      <IconRenderer iconName="lock" size="sm" />
-                    </span>
-                    {" · "}
-                  </Show>
-                  Created: {new Date(t.createdAt).toLocaleDateString()}
-                  {" · "}
-                  Views: {t.viewCount}
-                </div>
-                <div class="ui-gap-sm flex items-center">
-                  <Button onClick={() => copyUrl(t)} size="sm" iconName="copy">
-                    {copiedToken() === t.token ? "Copied!" : "Copy"}
-                  </Button>
-                  <Button
-                    onClick={() => editToken(t)}
-                    size="sm"
-                    iconName="pencil"
-                    outline
-                  />
-                  <Button
-                    onClick={() => deleteToken(t.token)}
-                    size="sm"
-                    iconName="trash"
-                    intent="danger"
-                    outline
-                  />
-                </div>
+                {mode() === "create"
+                  ? (submitting() ? "Creating..." : "Create")
+                  : (submitting() ? "Saving..." : "Save")}
+              </Button>
+            </>
+          : <Button onClick={() => p.close()}>Done</Button>
+      }
+    >
+      <Switch>
+        <Match when={mode() === "list"}>
+          <div class="flex flex-col ui-gap">
+            <Button onClick={startCreate} iconName="plus">
+              Create New Share Link
+            </Button>
+            <Show when={tokens().length > 0}>
+              <div>
+                <h3 class="font-700 text-sm mb-2">Existing links</h3>
+                <For each={tokens()}>
+                  {(t, i) => (
+                    <div
+                      class="border-base-300 py-2"
+                      classList={{ "border-t": i() > 0 }}
+                    >
+                      <div class="flex items-center ui-gap">
+                        <div class="text-neutral flex-1 text-sm">
+                          <Show when={t.slug}>
+                            <span class="text-base-content font-500">{t.slug}</span>
+                            {" · "}
+                          </Show>
+                          Created: {new Date(t.createdAt).toLocaleDateString()}
+                          {" · "}
+                          Views: {t.viewCount}
+                        </div>
+                        <div class="ui-gap-sm flex items-center">
+                          <Button onClick={() => copyUrl(t)} size="sm" iconName="copy">
+                            {copiedToken() === t.token ? "Copied!" : "Copy"}
+                          </Button>
+                          <Button onClick={() => startEdit(t)} size="sm" iconName="pencil" outline />
+                          <Button
+                            onClick={() => deleteToken(t.token)}
+                            size="sm"
+                            iconName="trash"
+                            intent="danger"
+                            outline
+                          />
+                        </div>
+                      </div>
+                      <Show when={t.password}>
+                        <div class="text-neutral text-xs mt-1 flex items-center ui-gap-sm">
+                          <span class="inline-flex items-center align-middle">
+                            <IconRenderer iconName="lock" size="sm" />
+                          </span>
+                          Password:{" "}
+                          <span class="text-base-content">{t.password}</span>
+                        </div>
+                      </Show>
+                    </div>
+                  )}
+                </For>
               </div>
-            )}
-          </For>
-        </div>
-      </Show>
+            </Show>
+          </div>
+        </Match>
+
+        <Match when={mode() === "create" || typeof mode() === "object"}>
+          <div class="flex flex-col ui-gap">
+            <Input
+              value={slug()}
+              onChange={(val) => {
+                setFormError(null);
+                setSlug(sanitizeSlug(val));
+              }}
+              placeholder="custom-slug (optional)"
+              label="Custom slug"
+            />
+            <Show when={slug() && !formError()}>
+              <div class="text-neutral text-xs">
+                URL: {window.location.origin}/share/viz/{slug()}
+              </div>
+            </Show>
+            <Input
+              value={password()}
+              onChange={setPassword}
+              placeholder="Leave blank for public access"
+              label="Password (optional)"
+            />
+            <Show when={formError()}>
+              <div class="text-danger text-xs">{formError()}</div>
+            </Show>
+          </div>
+        </Match>
+      </Switch>
     </ModalContainer>
   );
 }
