@@ -9,10 +9,25 @@ export async function getIndicatorMetadata(
 ): Promise<IndicatorMetadata[]> {
   const metadata: IndicatorMetadata[] = [];
 
-  if (moduleId.toLowerCase().startsWith("hfa")) {
+  const moduleRow = await projectDb<{ module_definition: string }[]>`
+    SELECT module_definition FROM modules WHERE id = ${moduleId}
+  `.then(rows => rows.at(0));
+
+  const isHfaModule = moduleRow
+    ? JSON.parse(moduleRow.module_definition).scriptGenerationType === "hfa"
+    : false;
+
+  if (isHfaModule) {
     const hfaRows = await mainDb<DBHfaIndicator[]>`SELECT * FROM hfa_indicators`;
     for (const row of hfaRows) {
-      metadata.push({ id: row.var_name, label: row.definition });
+      const format_as = row.type === "binary" && row.aggregation === "avg" ? "percent" : "number";
+      metadata.push({
+        id: row.var_name,
+        label: row.definition,
+        format_as,
+        group_label: row.category,
+        sort_order: row.sort_order,
+      });
     }
   } else {
     const rawIndicators = await projectDb<DBIndicator_IN_PROJECT[]>`SELECT * FROM indicators`;

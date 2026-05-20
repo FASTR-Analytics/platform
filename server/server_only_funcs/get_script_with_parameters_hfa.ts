@@ -253,13 +253,15 @@ indicator_cols <- c(${ordered.map((ind) => `"${ind.varName}"`).join(", ")})
 results_final <- results %>%
   select(all_of(indicator_cols))
 
-# Create category mapping
-indicator_categories <- data.frame(
+# Create indicator metadata mapping (category, type, aggregation)
+indicator_metadata <- data.frame(
   hfa_indicator = c(${ordered.map((indicator) => `"${indicator.varName}"`).join(", ")}),
-  hfa_category = c(${ordered.map((indicator) => `"${indicator.category}"`).join(", ")})
+  hfa_category = c(${ordered.map((indicator) => `"${indicator.category}"`).join(", ")}),
+  ind_type = c(${ordered.map((indicator) => `"${indicator.type}"`).join(", ")}),
+  ind_aggregation = c(${ordered.map((indicator) => `"${indicator.aggregation}"`).join(", ")})
 )
 
-# Pivot back to long format and add categories
+# Pivot back to long format and add metadata
 facility_info <- data_wide %>%
   select(all_of(facility_cols))
 
@@ -268,17 +270,24 @@ results_long <- facility_info %>%
   pivot_longer(
     cols = all_of(indicator_cols),
     names_to = "hfa_indicator",
-    values_to = "value"
+    values_to = "raw_value"
   ) %>%
-  left_join(indicator_categories, by = "hfa_indicator") %>%
-  filter(!is.na(value))
+  left_join(indicator_metadata, by = "hfa_indicator") %>%
+  filter(!is.na(raw_value)) %>%
+  mutate(
+    numeric_sum = ifelse(ind_type == "numeric" & ind_aggregation == "sum", raw_value, NA_real_),
+    numeric_avg = ifelse(ind_type == "numeric" & ind_aggregation == "avg", raw_value, NA_real_),
+    boolean_sum = ifelse(ind_type == "binary" & ind_aggregation == "sum", raw_value, NA_real_),
+    boolean_avg = ifelse(ind_type == "binary" & ind_aggregation == "avg", raw_value, NA_real_)
+  ) %>%
+  select(-raw_value, -ind_type, -ind_aggregation)
 
 if (nrow(results_long) == 0) {
   stop("No results generated - all indicator values are NA. Check that HFA indicators have been configured with R code.")
 }
 
 # Write output
-write.csv(results_long, "HFA001_results.csv", row.names = FALSE)
+write.csv(results_long, "M10_hfa_results.csv", row.names = FALSE)
 
 print("HFA script completed successfully!")
 `;

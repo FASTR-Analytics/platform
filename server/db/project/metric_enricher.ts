@@ -81,6 +81,9 @@ async function buildDisaggregationOptions(
     "hfa_indicator",
     "hfa_category",
     "time_point",
+    "indicator_code",
+    "strat",
+    "level",
   ];
 
   for (const disOpt of physicalColumnsToCheck) {

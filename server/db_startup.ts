@@ -1,11 +1,13 @@
 import {
   _COMMON_INDICATORS,
   H_USERS,
+  MODULE_REGISTRY,
   type InstanceConfigAdminAreaLabels,
   type InstanceConfigCountryIso3,
   type InstanceConfigFacilityColumns,
   type InstanceConfigMaxAdminArea,
 } from "lib";
+import { uninstallModule } from "./db/project/modules.ts";
 import {
   runInstanceMigrations,
   runProjectMigrations,
@@ -64,6 +66,13 @@ ${userInserts}
 
     // Project data transforms — each in its own transaction
     await runProjectDataTransforms(project.id, projectDb);
+
+    // =========================================================================
+    // TEMPORARY: Remove after all ~5 production instances have been updated
+    // Added: 2025-05-20 for hfa001 → m010 rename
+    // This uninstalls any modules not in MODULE_REGISTRY (orphaned modules)
+    // =========================================================================
+    await cleanupOrphanModules(projectDb);
   }
 }
 
@@ -251,4 +260,20 @@ VALUES
   ${valueRows.join(",\n  ")}
 ON CONFLICT (indicator_common_id) DO NOTHING;
 `;
+}
+
+// =============================================================================
+// TEMPORARY: Remove this function after all ~5 production instances updated
+// Added: 2025-05-20 for hfa001 → m010 rename
+// =============================================================================
+async function cleanupOrphanModules(projectDb: Sql): Promise<void> {
+  const validIds = MODULE_REGISTRY.map((m) => m.id);
+  const installed = await projectDb<{ id: string }[]>`SELECT id FROM modules`;
+
+  for (const mod of installed) {
+    if (!validIds.includes(mod.id as typeof validIds[number])) {
+      console.log(`[cleanup] Removing orphan module: ${mod.id}`);
+      await uninstallModule(projectDb, mod.id);
+    }
+  }
 }

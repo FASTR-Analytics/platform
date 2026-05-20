@@ -107,9 +107,7 @@ export function HfaIndicatorsManager(p: Props) {
 
       let hasSyntaxError = false;
       for (const c of indCode) {
-        const tp = dict.timePoints.find(
-          (t) => t.timePoint === c.timePoint,
-        );
+        const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
         const availableVars = tp
           ? new Set(tp.vars.map((v) => v.varName))
           : new Set<string>();
@@ -307,7 +305,10 @@ export function HfaIndicatorsManager(p: Props) {
       header: t3({ en: "Type", fr: "Type" }),
       sortable: true,
       render: (ind) => (
-        <span>{ind.type === "binary" ? "Boolean" : "Numeric"}</span>
+        <span>
+          {ind.type === "binary" ? "Boolean" : "Numeric"} (
+          {ind.aggregation === "sum" ? "Sum" : "Avg"})
+        </span>
       ),
     },
     {

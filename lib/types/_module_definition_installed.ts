@@ -17,7 +17,7 @@ export const scriptGenerationType = z.enum(["template", "hfa", "calculated_indic
 export const dataSourceDataset = z.object({
   sourceType: z.literal("dataset"),
   replacementString: z.string(),
-  datasetType: z.enum(["hmis", "hfa"]),
+  datasetType: z.enum(["hmis", "hfa", "iceh"]),
 });
 
 export const dataSourceResultsObject = z.object({

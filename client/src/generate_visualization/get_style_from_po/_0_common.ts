@@ -58,6 +58,12 @@ export const GLOBAL_STYLE_OPTIONS: CustomStyleOptions = {
       points: {
         func: { innerColorStrategy: { brighten: 0.5 } },
       },
+      connectors: {
+        func: {
+          show: true,
+          strokeColor: { key: "neutral" },
+        },
+      },
     },
   },
   page: {
@@ -79,7 +85,10 @@ export const GLOBAL_STYLE_OPTIONS: CustomStyleOptions = {
   },
 };
 
-function getFigureFont(deckStyle: DeckStyleContext | undefined, bold: boolean): FontInfo {
+function getFigureFont(
+  deckStyle: DeckStyleContext | undefined,
+  bold: boolean,
+): FontInfo {
   const family = deckStyle?.fontFamily ?? "International Inter";
   return getSlideFontInfo(family, bold, false);
 }

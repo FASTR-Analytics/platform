@@ -79,6 +79,12 @@ export function getDisaggregationLabel(
       return { en: "HFA category", fr: "HFA category" };
     case "time_point":
       return { en: "Time point", fr: "Time point" };
+    case "indicator_code":
+      return { en: "Indicator", fr: "Indicateur" };
+    case "strat":
+      return { en: "Stratifier", fr: "Stratificateur" };
+    case "level":
+      return { en: "Level", fr: "Niveau" };
     default:
       return { en: String(disOpt), fr: String(disOpt) };
   }

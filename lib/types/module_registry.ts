@@ -76,13 +76,22 @@ export const MODULE_REGISTRY = [
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m008" },
   },
   {
-    id: "hfa001",
+    id: "m009",
     label: {
-      en: "HFA001. Health facility assessment",
-      fr: "HFA001. Évaluation des établissements de santé",
+      en: "M9. ICEH Survey Data Analysis",
+      fr: "M9. Analyse des données d'enquête ICEH",
     },
     prerequisites: [],
-    github: { owner: "FASTR-Analytics", repo: "modules", path: "hfa001" },
+    github: { owner: "FASTR-Analytics", repo: "modules", path: "m009" },
+  },
+  {
+    id: "m010",
+    label: {
+      en: "M10. Health facility assessment",
+      fr: "M10. Évaluation des établissements de santé",
+    },
+    prerequisites: [],
+    github: { owner: "FASTR-Analytics", repo: "modules", path: "m010" },
   },
 ] as const;
 

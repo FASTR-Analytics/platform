@@ -145,6 +145,7 @@ async function run(std: {
 
     const facilities = await mainDb<{ facility_id: string }[]>`
       SELECT facility_id FROM facilities
+      WHERE facility_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}$'
     `;
     console.log("DEBUG: Raw facilities from DB:", facilities.slice(0, 5));
     console.log("DEBUG: Total facilities from DB:", facilities.length);

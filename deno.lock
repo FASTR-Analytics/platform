@@ -57,6 +57,7 @@
     "npm:papaparse@5.4.1": "5.4.1",
     "npm:papaparse@^5.5.2": "5.5.2",
     "npm:parse-multipart@^1.0.4": "1.0.4",
+    "npm:postgres@*": "3.4.5",
     "npm:postgres@^3.4.5": "3.4.5",
     "npm:pptxgenjs@^4.0.1": "4.0.1",
     "npm:redis@^4.7.0": "4.7.1_@redis+client@1.6.1",
