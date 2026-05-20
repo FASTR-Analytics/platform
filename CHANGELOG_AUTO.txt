@@ -1,3 +1,16 @@
+[TBD] [user] [added] - Aggregation type (Sum or Avg) now shown for indicators
+[TBD] [user] [added] - New module: ICEH Survey Data Analysis
+[TBD] [user] [changed] - Health facility assessment module renumbered to M10
+[TBD] [user] [added] - Connector lines between data points in charts
+[TBD] [user] [fixed] - Filtered out invalid facility IDs during data imports
+[TBD] [admin] [added] - New ICEH Survey Data Analysis module (M9) available
+[TBD] [admin] [changed] - Health Facility Assessment module renumbered from HFA001 to M10
+[TBD] [admin] [changed] - HFA indicator list now shows aggregation type (Sum or Avg)
+[TBD] [admin] [added] - ICEH disaggregation options now available for analysis
+[TBD] [admin] [added] - HFA indicators now include format and category metadata for visualizations
+[TBD] [admin] [changed] - HFA results now split into separate columns by indicator type and aggregation
+[TBD] [admin] [fixed] - DHIS2 data sync now filters out invalid facility identifiers
+[TBD] [admin] [added] - Connector lines now shown by default in visualizations
 [TBD] [user] [added] - ICEH equity data can now be added to projects
 [TBD] [user] [changed] - "Disaggregators" tab renamed to "Stratifiers" for clarity
 [TBD] [user] [added] - Stale data warnings shown when ICEH data is outdated in a project
