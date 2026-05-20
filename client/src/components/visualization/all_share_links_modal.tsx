@@ -116,7 +116,9 @@ export function AllShareLinksModal(p: AlertComponentProps<Props, void>) {
                           {" · "}
                         </Show>
                         <Show when={t.hasPassword}>
-                          <IconRenderer iconName="lock" size="sm" />
+                          <span class="inline-flex items-center align-middle">
+                            <IconRenderer iconName="lock" size="sm" />
+                          </span>
                           {" · "}
                         </Show>
                         Created: {new Date(t.createdAt).toLocaleDateString()}
