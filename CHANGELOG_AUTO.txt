@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - AI usage limit errors now display more clearly with specific daily or weekly limits
+[TBD] [admin] [fixed] - AI token limit errors now detected more accurately in chat
 [TBD] [user] [added] - Aggregation type (Sum or Avg) now shown for indicators
 [TBD] [user] [added] - New module: ICEH Survey Data Analysis
 [TBD] [user] [changed] - Health facility assessment module renumbered to M10
