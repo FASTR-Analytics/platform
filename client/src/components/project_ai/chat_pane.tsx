@@ -49,7 +49,7 @@ function RateLimitErrorBox(props: { item: { errorDetails: string } }) {
 }
 
 function ToolErrorRenderer(props: { item: { errorMessage: string; errorDetails: string } }) {
-  const isRateLimit = () => /rate.?limit/i.test(props.item.errorDetails);
+  const isRateLimit = () => /daily AI token limit|weekly AI token limit/i.test(props.item.errorDetails);
   const [expanded, setExpanded] = createSignal(false);
   return (
     <Show when={isRateLimit()} fallback={
