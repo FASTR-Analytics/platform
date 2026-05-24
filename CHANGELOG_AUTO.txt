@@ -1,3 +1,18 @@
+[TBD] [user] [added] - ICEH survey data now recognized as a data source in projects
+[TBD] [user] [added] - ICEH indicators and stratifiers are shown to the AI assistant for better analysis
+[TBD] [user] [added] - Stratifier labels now appear alongside codes in data summaries
+[TBD] [user] [changed] - Replicate-by dropdown now shows translated labels for stratifiers
+[TBD] [user] [changed] - Dimension summaries now display up to 20 unique values instead of 10
+[TBD] [user] [fixed] - Upload status page no longer crashes when no ICEH upload exists
+[TBD] [user] [fixed] - ICEH data import now properly notifies the system upon completion
+[TBD] [admin] [added] - ICEH survey data now recognized as a data source in projects
+[TBD] [admin] [added] - ICEH indicators and stratifiers shown to AI assistant for better analysis
+[TBD] [admin] [added] - AI assistant now understands ICEH stratifier levels (wealth quintiles, education groups, etc.)
+[TBD] [admin] [changed] - Stratifier labels now displayed for ICEH replicate-by options
+[TBD] [admin] [changed] - Dimension summaries now show up to 20 unique values instead of 10
+[TBD] [admin] [fixed] - ICEH upload status no longer errors when no upload has been started
+[TBD] [admin] [fixed] - ICEH data import now properly notifies the system only after integration completes
+[TBD] [admin] [fixed] - Visualizations now refresh automatically after module configuration changes
 [TBD] [user] [fixed] - AI usage limit errors now display more clearly with specific daily or weekly limits
 [TBD] [admin] [fixed] - AI token limit errors now detected more accurately in chat
 [TBD] [user] [added] - Aggregation type (Sum or Avg) now shown for indicators
