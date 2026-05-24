@@ -21,6 +21,7 @@ function getDebugViewOptions(): SelectOption<DebugView>[] {
 
 export type AIDebugPanelProps = {
   metrics: MetricWithStatus[];
+  icehIndicators: { id: string; label: string; category: string }[];
   visualizations: PresentationObjectSummary[];
 };
 
@@ -32,7 +33,7 @@ export function AIDebugPanel(p: Props) {
   const content = () => {
     switch (view()) {
       case "metrics":
-        return formatMetricsListForAI(p.metrics);
+        return formatMetricsListForAI(p.metrics, p.icehIndicators);
       case "visualizations":
         return formatVisualizationsListForAI(p.visualizations);
     }

@@ -5,7 +5,13 @@ import { getMetricDataForAI, inferPeriodFilter } from "./_internal/format_metric
 import { formatMetricsListForAI } from "./_internal/format_metrics_list_for_ai";
 import { validateAiMetricQuery, validateMetricInputs } from "../validators/content_validators";
 
-export function getToolsForMetrics(projectId: string, metrics: MetricWithStatus[]) {
+type IcehIndicator = { id: string; label: string; category: string };
+
+export function getToolsForMetrics(
+  projectId: string,
+  metrics: MetricWithStatus[],
+  icehIndicators: IcehIndicator[]
+) {
   return [
     createAITool({
       name: "get_available_metrics",
@@ -13,7 +19,7 @@ export function getToolsForMetrics(projectId: string, metrics: MetricWithStatus[
         "Get all available metrics from installed modules. Returns metric IDs, labels, summaries, disaggregation options, and visualization presets. Use get_metric_data for detailed information about a specific metric.",
       inputSchema: z.strictObject({}),
       handler: async () => {
-        return formatMetricsListForAI(metrics);
+        return formatMetricsListForAI(metrics, icehIndicators);
       },
       inProgressLabel: "Getting available metrics...",
       completionMessage: `Retrieved ${metrics.length} metric(s)`,

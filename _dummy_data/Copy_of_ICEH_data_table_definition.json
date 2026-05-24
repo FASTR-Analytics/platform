@@ -1,33 +1,40 @@
 {
-  "id": "q62",
-  "label": "Temp",
-  "metricId": "m3-03-02",
+  "id": "6c4",
+  "label": "Copy of ICEH data table",
+  "metricId": "m9-01-01",
   "config": {
     "d": {
-      "type": "map",
-      "timeseriesGrouping": "period_id",
-      "valuesDisDisplayOpt": "cell",
+      "type": "chart",
+      "timeseriesGrouping": "year",
+      "valuesDisDisplayOpt": "col",
       "disaggregateBy": [
         {
-          "disOpt": "admin_area_2",
-          "disDisplayOpt": "mapArea"
+          "disOpt": "iceh_indicator",
+          "disDisplayOpt": "indicator"
         },
         {
-          "disOpt": "indicator_common_id",
+          "disOpt": "strat",
           "disDisplayOpt": "replicant"
+        },
+        {
+          "disOpt": "level",
+          "disDisplayOpt": "series"
+        },
+        {
+          "disOpt": "year",
+          "disDisplayOpt": "cell"
         }
       ],
       "filterBy": [],
       "periodFilter": {
-        "filterType": "last_n_calendar_quarters",
-        "nYears": 1,
-        "nQuarters": 1
+        "filterType": "last_n_months",
+        "nMonths": 12
       },
-      "selectedReplicantValue": "anc1"
+      "selectedReplicantValue": "wealth_quintiles"
     },
     "s": {
       "scale": 3,
-      "content": "bars",
+      "content": "points",
       "allowIndividualRowLimits": true,
       "colorScale": "pastel-discrete",
       "decimalPlaces": 0,
@@ -44,6 +51,7 @@
       "specialDisruptionsChart": false,
       "specialScorecardTable": false,
       "verticalTickLabels": false,
+      "horizontal": true,
       "allowVerticalColHeaders": true,
       "forceYMax1": false,
       "forceYMinAuto": false,
@@ -52,7 +60,7 @@
       "seriesColorFuncPropToUse": "series",
       "sortIndicatorValues": "none",
       "mapProjection": "equirectangular",
-      "cfMode": "thresholds",
+      "cfMode": "none",
       "cfScalePaletteKind": "preset",
       "cfScalePalettePreset": "rd-yl-gn",
       "cfScaleCustomFrom": "#fee0d2",
@@ -64,48 +72,17 @@
       "cfScaleDomainMin": 0,
       "cfScaleDomainMax": 1,
       "cfScaleNoDataColor": "#f0f0f0",
-      "cfThresholdCutoffs": [
-        -0.2,
-        -0.1,
-        -0.05,
-        0.05,
-        0.1,
-        0.2
-      ],
-      "cfThresholdBuckets": [
-        {
-          "color": "#e73535"
-        },
-        {
-          "color": "#F18989"
-        },
-        {
-          "color": "#f8c4c4"
-        },
-        {
-          "color": {
-            "key": "base200"
-          }
-        },
-        {
-          "color": "#b4e3c8"
-        },
-        {
-          "color": "#68C690"
-        },
-        {
-          "color": "#3ea46a"
-        }
-      ],
+      "cfThresholdCutoffs": [],
+      "cfThresholdBuckets": [],
       "cfThresholdDirection": "higher-is-better",
       "cfThresholdNoDataColor": "#ffffff"
     },
     "t": {
-      "caption": "Perturbation des services",
+      "caption": "ICEH Survey Data",
       "captionRelFontSize": 2,
-      "subCaption": "Différence en pourcentage entre le volume de services réel et attendu par région",
+      "subCaption": "Survey estimates by indicator, DATE_RANGE",
       "subCaptionRelFontSize": 1.3,
-      "footnote": "Les valeurs négatives indiquent une prestation de services inférieure aux niveaux attendus. Les valeurs attendues sont basées sur les tendances pré-perturbation. Les couleurs plus foncées indiquent des perturbations plus importantes.",
+      "footnote": "",
       "footnoteRelFontSize": 0.9
     }
   }

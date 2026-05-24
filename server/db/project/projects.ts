@@ -234,6 +234,16 @@ export async function getProjectDetail(
       label: row.indicator_common_label,
     }));
 
+    const icehIndicators = (
+      await projectDb<
+        { iceh_indicator: string; indicator_name: string; category: string }[]
+      >`SELECT iceh_indicator, indicator_name, category FROM iceh_indicators_snapshot ORDER BY sort_order, iceh_indicator`
+    ).map((row) => ({
+      id: row.iceh_indicator,
+      label: row.indicator_name,
+      category: row.category,
+    }));
+
     const projectDetail: ProjectDetail = {
       id: projectId,
       label: rawProject.label,
@@ -244,6 +254,7 @@ export async function getProjectDetail(
       projectModules: sortedModules,
       metrics: resMetrics.data,
       commonIndicators,
+      icehIndicators,
       visualizations: resVisualizations.data,
       visualizationFolders: resFolders.data,
       slideDecks: resSlideDecks.data,

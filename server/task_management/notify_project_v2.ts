@@ -39,11 +39,12 @@ export function notifyProjectModulesUpdated(
   projectId: string,
   projectModules: InstalledModuleSummary[],
   metrics: MetricWithStatus[],
-  commonIndicators: { id: string; label: string }[]
+  commonIndicators: { id: string; label: string }[],
+  icehIndicators: { id: string; label: string; category: string }[]
 ): void {
   notifyProjectV2(projectId, {
     type: "modules_updated",
-    data: { projectModules, metrics, commonIndicators },
+    data: { projectModules, metrics, commonIndicators, icehIndicators },
   });
 }
 

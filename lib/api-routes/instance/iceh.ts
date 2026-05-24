@@ -32,7 +32,7 @@ export const icehRouteRegistry = {
   getDatasetIcehUploadStatus: route({
     method: "GET",
     path: "/iceh/upload-attempt/status",
-    response: {} as IcehUploadStatusResponse,
+    response: {} as IcehUploadStatusResponse | null,
   }),
   deleteDatasetIcehUploadAttempt: route({
     method: "DELETE",

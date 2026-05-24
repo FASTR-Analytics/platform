@@ -32,6 +32,7 @@ export type ProjectState = {
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
   commonIndicators: { id: string; label: string }[];
+  icehIndicators: { id: string; label: string; category: string }[];
   visualizations: PresentationObjectSummary[];
   visualizationFolders: VisualizationFolder[];
   slideDecks: SlideDeckSummary[];
@@ -79,6 +80,7 @@ export type ProjectSseMessage =
         projectModules: InstalledModuleSummary[];
         metrics: MetricWithStatus[];
         commonIndicators: { id: string; label: string }[];
+        icehIndicators: { id: string; label: string; category: string }[];
       };
     }
   | { type: "datasets_updated"; data: { projectDatasets: DatasetInProject[] } }

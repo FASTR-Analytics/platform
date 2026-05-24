@@ -11,7 +11,7 @@ export function cleanValStrForSql(str: string | undefined): string {
 export function withReplicant(
   str: string,
   config: PresentationObjectConfig,
-  indicatorLabelReplacements: Record<string, string>
+  indicatorLabelReplacements: Record<string, string>,
 ): string {
   const replicateBy = getReplicateByProp(config);
   if (config && !replicateBy) {
@@ -22,22 +22,12 @@ export function withReplicant(
       .replaceAll("REPLICANT", "Unselected")
       .replaceAll("RÉPLICANT", "Unselected");
   }
-  if (replicateBy === "indicator_common_id") {
-    return str
-      .replaceAll(
-        "REPLICANT",
-        indicatorLabelReplacements[config.d.selectedReplicantValue] ??
-          config.d.selectedReplicantValue
-      )
-      .replaceAll(
-        "RÉPLICANT",
-        indicatorLabelReplacements[config.d.selectedReplicantValue] ??
-          config.d.selectedReplicantValue
-      );
-  }
+  const replicantLabel =
+    indicatorLabelReplacements[config.d.selectedReplicantValue] ??
+    config.d.selectedReplicantValue;
   return str
-    .replaceAll("REPLICANT", config.d.selectedReplicantValue)
-    .replaceAll("RÉPLICANT", config.d.selectedReplicantValue);
+    .replaceAll("REPLICANT", replicantLabel)
+    .replaceAll("RÉPLICANT", replicantLabel);
 }
 
 export function encodeRawCsvHeader(

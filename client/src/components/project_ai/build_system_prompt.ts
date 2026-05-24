@@ -110,7 +110,8 @@ function buildAISystemContext(
   sections.push("");
   const hasHmis = instance.datasetsWithData.includes("hmis");
   const hasHfa = instance.datasetsWithData.includes("hfa");
-  if (hasHmis || hasHfa) {
+  const hasIceh = instance.datasetsWithData.includes("iceh");
+  if (hasHmis || hasHfa || hasIceh) {
     sections.push("**Data sources:**");
     if (hasHmis) {
       sections.push(
@@ -119,6 +120,11 @@ function buildAISystemContext(
     }
     if (hasHfa) {
       sections.push("- HFA: Health Facility Assessment (facility survey data)");
+    }
+    if (hasIceh) {
+      sections.push(
+        "- ICEH: International Center for Equity in Health survey data (DHS, MICS, and other nationally representative household surveys)",
+      );
     }
     sections.push("");
   }
@@ -133,8 +139,11 @@ function buildAISystemContext(
   const hfaDataset = projectState.projectDatasets.find(
     (d) => d.datasetType === "hfa",
   );
+  const icehDataset = projectState.projectDatasets.find(
+    (d) => d.datasetType === "iceh",
+  );
 
-  if (hmisDataset || hfaDataset) {
+  if (hmisDataset || hfaDataset || icehDataset) {
     sections.push("");
     sections.push("**Loaded datasets:**");
     if (hmisDataset && hmisDataset.datasetType === "hmis") {
@@ -142,6 +151,9 @@ function buildAISystemContext(
     }
     if (hfaDataset) {
       sections.push(`- HFA data`);
+    }
+    if (icehDataset) {
+      sections.push(`- ICEH survey data`);
     }
   }
 
@@ -151,6 +163,16 @@ function buildAISystemContext(
       `**Common indicators (${projectState.commonIndicators.length}):**`,
     );
     for (const ind of projectState.commonIndicators) {
+      sections.push(`- ${ind.id}: ${ind.label}`);
+    }
+  }
+
+  if (projectState.icehIndicators.length > 0) {
+    sections.push("");
+    sections.push(
+      `**ICEH indicators (${projectState.icehIndicators.length}):**`,
+    );
+    for (const ind of projectState.icehIndicators) {
       sections.push(`- ${ind.id}: ${ind.label}`);
     }
   }

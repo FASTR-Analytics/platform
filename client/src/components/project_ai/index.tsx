@@ -93,6 +93,7 @@ function AIProjectWrapperInner(props: ParentProps) {
       projectId,
       modules: projectState.projectModules,
       metrics: projectState.metrics,
+      icehIndicators: projectState.icehIndicators,
       visualizations: projectState.visualizations,
       slideDecks: projectState.slideDecks,
       aiContext: aiContext,

@@ -1,11 +1,13 @@
 import {
   type AiMetricQuery,
+  type IndicatorMetadata,
   type MetricAIDescription,
   type MetricWithStatus,
   type PresentationObjectConfig,
   type TranslatableString,
   DisaggregationOption,
   GenericLongFormFetchConfig,
+  ICEH_STRAT_INFO,
   ItemsHolderPresentationObject,
   PeriodOption,
   periodFilterHasBounds,
@@ -153,6 +155,8 @@ export async function getMetricDataForAI(
     itemsHolder = res.data;
   }
 
+  const indicatorMetadata = itemsHolder.status === "ok" ? itemsHolder.indicatorMetadata : [];
+
   return formatItemsAsMarkdown(
     itemsHolder,
     metric,
@@ -160,6 +164,7 @@ export async function getMetricDataForAI(
     filters,
     periodFilter,
     aiDescription,
+    indicatorMetadata,
   );
 }
 
@@ -175,6 +180,7 @@ function formatItemsAsMarkdown(
   filters?: { disOpt: DisaggregationOption; values: (string | number)[] }[],
   periodFilter?: { filterType: "custom"; periodOption: PeriodOption; min: number; max: number },
   aiDescription?: MetricAIDescription,
+  indicatorMetadata?: IndicatorMetadata[],
 ): string {
   const lines: string[] = [];
 
@@ -277,6 +283,8 @@ function formatItemsAsMarkdown(
     disaggregations.includes(col as DisaggregationOption),
   );
 
+  const metadataById = new Map(indicatorMetadata?.map(m => [m.id, m]) ?? []);
+
   if (dimensionColumns.length > 0) {
     const dimensionStats = getDimensionStats(items, dimensionColumns);
     lines.push("## Dimension Summary");
@@ -287,8 +295,19 @@ function formatItemsAsMarkdown(
         lines.push(
           `**${col}:** ${stats.uniqueCount} unique value${stats.uniqueCount === 1 ? "" : "s"}`,
         );
-        if (stats.uniqueCount <= 10) {
-          lines.push(`  ${stats.uniqueValues.join(", ")}`);
+        if (stats.uniqueCount <= 20) {
+          const valuesWithLabels = stats.uniqueValues.map(val => {
+            const meta = metadataById.get(val);
+            if (meta?.label && meta.label !== val) {
+              return `${val} (${meta.label})`;
+            }
+            if (col === "strat") {
+              const stratInfo = ICEH_STRAT_INFO[val as keyof typeof ICEH_STRAT_INFO];
+              if (stratInfo) return `${val} (${stratInfo.label})`;
+            }
+            return val;
+          });
+          lines.push(`  ${valuesWithLabels.join(", ")}`);
         }
       }
     }

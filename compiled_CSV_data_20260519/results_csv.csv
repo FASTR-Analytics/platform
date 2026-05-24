@@ -1,0 +1,511 @@
+This dataset was obtained through the ICEH retriever, a data platform developed by the International Center for Equity in Health (https://www.equidade.org/retriever)
+Database version: 2026-04
+ISO,Country,Year,Final Year,Source,UNICEF Region,Indicator Code,Indicator,Reference,Strat,Level,Estimate,Standard Error,Sample Size
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,area,urban,110.4,1,046.9,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,area,rural,144.7,789.8,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,national,all,130.0,656.4,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,subnational unit,Somaliland,70.4,940.4,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,subnational unit,Puntland,111.7,926.8,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,subnational unit,South Central,159.1,856.5,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth deciles,D01,111.8,2,171.4,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth deciles,D02,125.5,1,575.9,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth deciles,D03,157.4,1,586.6,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth deciles,D04,150.9,1,840.7,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth deciles,D05,165.6,1,547.2,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth deciles,D06,156.9,1,696.7,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth deciles,D07,169.8,1,848.3,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth deciles,D08,112.7,1,723.0,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth deciles,D09,115.2,1,186.0,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth deciles,D10,62.5,1,481.0,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth quintiles,Q1,119.5,1,377.0,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth quintiles,Q2,153.9,1,363.6,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth quintiles,Q3,161.3,1,203.6,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth quintiles,Q4,139.2,1,443.9,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,wealth quintiles,Q5,86.6,1,172.5,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,woman's education,none,144.1,707.3,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,woman's education,primary,110.9,1,245.5,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,woman's education,secondary+,21.4,1,090.9,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,woman's education (4 groups),none,144.1,707.3,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,woman's education (4 groups),primary,110.9,1,245.5,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,woman's education (4 groups),secondary,SS,SS,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,asfr1,Adolescent fertility rate,,woman's education (4 groups),higher,SS,SS,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,area,urban,31.9,4.5,190
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,area,rural,60.4,3.5,322
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,national,all,50.2,3.0,512
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,sex,male,49.1,3.5,284
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,sex,female,51.5,4.0,228
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,subnational unit,Somaliland,43.1,5.5,107
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,subnational unit,Puntland,38.2,5.7,134
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,subnational unit,South Central,55.0,4.0,271
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth deciles,D01,70.8,7.5,45
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth deciles,D02,71.3,6.6,50
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth deciles,D03,67.9,5.6,61
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth deciles,D04,59.3,7.1,43
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth deciles,D05,62.6,7.9,38
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth deciles,D06,44.1,8.6,55
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth deciles,D07,36.7,7.1,60
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth deciles,D08,36.8,7.2,54
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth deciles,D09,32.0,7.4,52
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth deciles,D10,18.8,6.6,54
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth quintiles,Q1,71.0,5.4,95
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth quintiles,Q2,64.5,4.7,104
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth quintiles,Q3,52.4,6.7,93
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth quintiles,Q4,36.7,5.4,114
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,wealth quintiles,Q5,25.5,5.0,106
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,woman's education,none,52.4,3.3,415
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,woman's education,primary,41.9,5.9,78
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,woman's education,secondary+,SS,SS,17
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,woman's education (4 groups),none,52.4,3.3,415
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,woman's education (4 groups),primary,41.9,5.9,78
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,woman's education (4 groups),secondary,SS,SS,15
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_15,Percentage of children who are currently breastfeeding,Age 12-15 months,woman's education (4 groups),higher,SS,SS,2
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,area,urban,28.2,2.8,421
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,area,rural,52.2,2.6,675
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,national,all,43.2,2.1,1096
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,sex,male,42.9,2.6,587
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,sex,female,43.5,2.5,509
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,subnational unit,Somaliland,30.9,3.2,243
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,subnational unit,Puntland,28.5,3.5,265
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,subnational unit,South Central,50.1,2.8,588
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth deciles,D01,61.4,5.6,91
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth deciles,D02,60.4,5.4,93
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth deciles,D03,61.4,4.6,124
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth deciles,D04,46.9,5.7,85
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth deciles,D05,49.9,5.0,103
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth deciles,D06,45.3,4.8,112
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth deciles,D07,32.7,4.5,136
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth deciles,D08,30.4,4.5,118
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth deciles,D09,26.9,4.1,117
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth deciles,D10,18.3,4.1,117
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth quintiles,Q1,60.9,4.3,184
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth quintiles,Q2,55.7,3.9,209
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth quintiles,Q3,47.6,3.7,215
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth quintiles,Q4,31.6,3.7,254
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,wealth quintiles,Q5,22.7,2.9,234
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,woman's education,none,47.3,2.3,868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,woman's education,primary,27.2,3.6,182
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,woman's education,secondary+,17.3,5.7,43
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,woman's education (4 groups),none,47.3,2.3,868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,woman's education (4 groups),primary,27.2,3.6,182
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,woman's education (4 groups),secondary,13.6,5.8,37
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur12_23,Percentage of children who are currently breastfeeding,Age 12-23 months,woman's education (4 groups),higher,SS,SS,6
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,area,urban,26.8,5.1,70
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,area,rural,40.9,4.7,110
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,national,all,35.4,3.5,180
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,sex,male,40.1,4.6,93
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,sex,female,30.1,4.8,87
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,subnational unit,Somaliland,17.0,5.1,47
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,subnational unit,Puntland,20.4,5.5,38
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,subnational unit,South Central,45.5,4.5,95
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth deciles,D01,SS,SS,10
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth deciles,D02,SS,SS,15
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth deciles,D03,53.8,10.1,27
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth deciles,D04,SS,SS,11
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth deciles,D05,SS,SS,16
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth deciles,D06,SS,SS,20
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth deciles,D07,27.0,7.8,33
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth deciles,D08,SS,SS,13
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth deciles,D09,SS,SS,17
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth deciles,D10,SS,SS,18
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth quintiles,Q1,46.4,7.0,25
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth quintiles,Q2,44.3,8.8,38
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth quintiles,Q3,45.8,8.5,36
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth quintiles,Q4,22.7,6.6,46
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,wealth quintiles,Q5,18.6,6.7,35
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,woman's education,none,38.3,4.0,137
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,woman's education,primary,30.9,8.3,31
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,woman's education,secondary+,SS,SS,11
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,woman's education (4 groups),none,38.3,4.0,137
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,woman's education (4 groups),primary,30.9,8.3,31
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,woman's education (4 groups),secondary,SS,SS,9
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur20_23,Percentage of children who are currently breastfeeding,Age 20-23 months,woman's education (4 groups),higher,SS,SS,2
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,area,urban,74.6,3.2,237
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,area,rural,83.5,2.1,416
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,national,all,80.4,1.8,653
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,sex,male,80.8,2.5,324
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,sex,female,80.1,2.5,329
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,subnational unit,Somaliland,74.9,4.1,135
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,subnational unit,Puntland,67.5,4.3,148
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,subnational unit,South Central,84.2,2.2,370
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth deciles,D01,92.7,3.7,59
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth deciles,D02,80.8,5.2,55
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth deciles,D03,82.2,6.2,51
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth deciles,D04,92.2,3.1,67
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth deciles,D05,86.1,4.2,71
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth deciles,D06,81.6,5.1,66
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth deciles,D07,77.2,4.3,85
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth deciles,D08,71.5,5.3,89
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth deciles,D09,63.2,5.3,66
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth deciles,D10,74.0,7.7,44
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth quintiles,Q1,87.2,3.2,114
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth quintiles,Q2,88.1,3.3,118
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth quintiles,Q3,84.0,3.8,137
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth quintiles,Q4,74.5,3.4,174
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,wealth quintiles,Q5,67.2,4.5,110
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,woman's education,none,82.6,1.8,530
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,woman's education,primary,69.8,4.9,109
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,woman's education,secondary+,SS,SS,13
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,woman's education (4 groups),none,82.6,1.8,530
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,woman's education (4 groups),primary,69.8,4.9,109
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,woman's education (4 groups),secondary,SS,SS,13
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,bfcur6_11,Percentage of children who are currently breastfeeding,Age 6-11 months,woman's education (4 groups),higher,SS,SS,0
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,area,urban,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,area,rural,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,national,all,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,subnational unit,Somaliland,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,subnational unit,Puntland,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,subnational unit,South Central,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth deciles,D01,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth deciles,D02,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth deciles,D03,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth deciles,D04,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth deciles,D05,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth deciles,D06,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth deciles,D07,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth deciles,D08,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth deciles,D09,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth deciles,D10,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth quintiles,Q1,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth quintiles,Q2,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth quintiles,Q3,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth quintiles,Q4,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,wealth quintiles,Q5,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,woman's education,none,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,woman's education,primary,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,woman's education,secondary+,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,woman's education (4 groups),none,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,woman's education (4 groups),primary,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,woman's education (4 groups),secondary,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,cci,Composite coverage index,,woman's education (4 groups),higher,NA,NA,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,area,urban,2.7,0.6,868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,area,rural,1.5,0.3,1458
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,national,all,2.0,0.3,2326
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,subnational unit,Somaliland,2.5,0.8,432
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,subnational unit,Puntland,1.8,0.5,584
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,subnational unit,South Central,1.8,0.4,1310
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth deciles,D01,1.3,0.9,174
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth deciles,D02,1.7,1.0,217
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth deciles,D03,1.9,1.0,231
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth deciles,D04,1.0,0.7,225
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth deciles,D05,0.5,0.4,231
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth deciles,D06,0.7,0.5,250
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth deciles,D07,2.0,0.8,281
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth deciles,D08,2.4,1.0,271
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth deciles,D09,2.9,1.1,243
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth deciles,D10,5.9,1.9,203
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth quintiles,Q1,1.5,0.6,391
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth quintiles,Q2,1.5,0.6,456
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth quintiles,Q3,0.6,0.3,481
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth quintiles,Q4,2.2,0.6,552
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,wealth quintiles,Q5,4.2,1.1,446
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,woman's education,none,1.7,0.3,1868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,woman's education,primary,3.4,1.1,345
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,woman's education,secondary+,4.2,2.6,69
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,woman's education (4 groups),none,1.7,0.3,1868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,woman's education (4 groups),primary,3.4,1.1,345
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,woman's education (4 groups),secondary,4.6,2.8,63
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,csection2,Percentage of children delivered by caesarean section ,Last-birth in the last 2 years ,woman's education (4 groups),higher,SS,SS,6
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,area,urban,38.6,404.7,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,area,rural,35.4,281.4,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,national,all,36.6,185.8,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,sex,male,39.2,268.7,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,sex,female,33.3,246.2,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,subnational unit,Somaliland,31.5,414.3,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,subnational unit,Puntland,30.7,360.8,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,subnational unit,South Central,39.1,306.4,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth deciles,D01,25.3,472.7,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth deciles,D02,35.9,563.8,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth deciles,D03,36.4,555.0,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth deciles,D04,38.2,545.0,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth deciles,D05,37.4,584.0,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth deciles,D06,43.2,527.8,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth deciles,D07,37.1,542.1,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth deciles,D08,41.0,558.3,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth deciles,D09,30.2,433.5,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth deciles,D10,42.8,622.9,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth quintiles,Q1,30.5,368.5,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth quintiles,Q2,37.2,401.3,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth quintiles,Q3,40.2,396.5,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth quintiles,Q4,39.0,430.5,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,wealth quintiles,Q5,35.7,350.8,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's age (at birth),15-17 yrs,55.6,799.0,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's age (at birth),15-19 yrs,0.0,0.5,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's age (at birth),18-19 yrs,34.9,584.2,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's age (at birth),20-34 yrs,0.0,0.2,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's age (at birth),20-49 yrs,35.1,209.3,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's age (at birth),35-49 yrs,0.0,0.5,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's education,none,35.0,232.7,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's education,primary,41.4,602.7,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's education,secondary+,55.1,1,316.4,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's education (4 groups),none,35.0,232.7,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's education (4 groups),primary,41.4,602.7,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's education (4 groups),secondary,50.3,1,237.0,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,nmr,Neonatal mortality rate,,woman's education (4 groups),higher,SS,SS,NA
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,area,urban,65.0,3.2,868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,area,rural,14.5,1.2,1458
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,national,all,33.0,2.2,2326
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,subnational unit,Somaliland,41.3,5.3,432
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,subnational unit,Puntland,36.8,3.2,584
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,subnational unit,South Central,29.7,2.7,1310
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth deciles,D01,10.9,2.4,174
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth deciles,D02,10.4,2.0,217
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth deciles,D03,15.5,2.5,231
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth deciles,D04,13.1,2.4,225
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth deciles,D05,14.8,2.7,231
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth deciles,D06,24.5,3.8,250
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth deciles,D07,38.4,3.8,281
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth deciles,D08,52.2,4.3,271
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth deciles,D09,73.6,3.3,243
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth deciles,D10,80.7,3.8,203
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth quintiles,Q1,10.6,1.6,391
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth quintiles,Q2,14.3,1.8,456
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth quintiles,Q3,19.6,2.6,481
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth quintiles,Q4,45.1,3.4,552
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,wealth quintiles,Q5,76.8,2.9,446
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,woman's education,none,27.1,2.0,1868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,woman's education,primary,59.3,3.5,345
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,woman's education,secondary+,72.6,6.4,69
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,woman's education (4 groups),none,27.1,2.0,1868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,woman's education (4 groups),primary,59.3,3.5,345
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,woman's education (4 groups),secondary,71.3,6.7,63
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,sba2,Percentage of children delivered by a skilled birth attendant,Last-birth in the last 2 years,woman's education (4 groups),higher,SS,SS,6
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,area,urban,32.4,1.8,2091
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,area,rural,47.7,1.7,3518
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,national,all,42.1,1.4,5609
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,sex,male,42.8,1.5,2893
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,sex,female,41.4,1.5,2716
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,subnational unit,Somaliland,23.7,1.8,951
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,subnational unit,Puntland,27.8,1.4,1237
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,subnational unit,South Central,48.5,1.6,3421
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth deciles,D01,53.2,3.2,511
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth deciles,D02,50.5,2.6,514
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth deciles,D03,55.1,3.0,565
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth deciles,D04,48.8,2.8,538
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth deciles,D05,48.9,2.6,555
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth deciles,D06,45.5,2.5,581
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth deciles,D07,34.1,3.0,637
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth deciles,D08,31.4,2.1,608
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth deciles,D09,28.1,2.9,618
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth deciles,D10,22.4,2.7,482
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth quintiles,Q1,51.9,2.2,1025
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth quintiles,Q2,52.1,2.4,1103
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth quintiles,Q3,47.2,2.1,1136
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth quintiles,Q4,32.8,1.9,1245
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,wealth quintiles,Q5,25.7,2.2,1100
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,woman's education,none,44.5,1.5,4596
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,woman's education,primary,30.6,2.1,815
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,woman's education,secondary+,27.3,4.8,180
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,woman's education (4 groups),none,44.5,1.5,4596
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,woman's education (4 groups),primary,30.6,2.1,815
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,woman's education (4 groups),secondary,27.4,5.0,166
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,stunt5,Percentage of children who are stunted,Live births in the last 5 years,woman's education (4 groups),higher,SS,SS,14
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,area,urban,26.1,3.6,421
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,area,rural,6.8,1.3,675
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,national,all,14.1,1.8,1096
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,sex,male,15.7,2.3,587
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,sex,female,12.2,1.8,509
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,subnational unit,Somaliland,4.7,1.3,243
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,subnational unit,Puntland,6.4,2.0,265
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,subnational unit,South Central,18.7,2.5,588
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D01,4.8,2.6,91
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D02,6.0,3.0,93
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D03,4.1,1.8,124
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D04,10.3,4.2,85
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D05,14.4,4.0,103
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D06,14.3,4.4,112
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D07,13.3,3.4,136
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D08,15.8,3.7,118
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D09,32.2,5.4,117
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D10,24.9,5.1,117
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q1,5.4,2.5,184
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q2,6.5,2.1,209
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q3,14.3,3.4,215
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q4,14.5,3.0,254
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q5,28.6,4.5,234
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education,none,12.6,1.9,868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education,primary,19.1,4.2,182
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education,secondary+,24.4,7.5,43
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),none,12.6,1.9,868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),primary,19.1,4.2,182
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),secondary,21.9,7.4,37
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),higher,SS,SS,6
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,area,urban,29.1,3.1,451
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,area,rural,9.3,1.9,792
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,national,all,16.3,1.8,1243
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,sex,male,15.5,2.0,646
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,sex,female,17.1,2.5,597
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,subnational unit,Somaliland,12.4,2.7,185
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,subnational unit,Puntland,6.6,1.7,259
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,subnational unit,South Central,18.3,2.3,799
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth deciles,D01,9.4,3.7,112
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth deciles,D02,9.5,2.9,124
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth deciles,D03,5.7,2.1,117
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth deciles,D04,7.0,3.0,139
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth deciles,D05,16.5,4.2,143
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth deciles,D06,15.8,4.2,127
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth deciles,D07,14.1,3.5,125
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth deciles,D08,25.6,4.2,122
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth deciles,D09,34.1,5.2,134
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth deciles,D10,29.4,5.5,100
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth quintiles,Q1,9.5,2.9,236
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth quintiles,Q2,6.4,2.1,256
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth quintiles,Q3,16.2,3.3,270
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth quintiles,Q4,19.8,3.1,247
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,wealth quintiles,Q5,32.2,4.0,234
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,woman's education,none,14.3,1.8,1019
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,woman's education,primary,25.5,4.2,177
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,woman's education,secondary+,30.3,6.8,44
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,woman's education (4 groups),none,14.3,1.8,1019
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,woman's education (4 groups),primary,25.5,4.2,177
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,woman's education (4 groups),secondary,31.2,7.0,42
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vdpt24_35,Percentage of children who received 3 doses of DPT-containing vaccine ,Children aged 24-35 months,woman's education (4 groups),higher,SS,SS,2
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,area,urban,21.5,3.4,421
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,area,rural,5.6,1.2,675
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,national,all,11.6,1.6,1096
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,sex,male,13.8,2.2,587
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,sex,female,9.2,1.6,509
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,subnational unit,Somaliland,3.3,1.1,243
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,subnational unit,Puntland,5.1,1.6,265
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,subnational unit,South Central,15.7,2.3,588
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D01,4.8,2.6,91
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D02,6.0,3.0,93
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D03,3.2,1.6,124
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D04,6.5,2.9,85
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D05,11.4,3.7,103
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D06,14.3,4.4,112
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D07,11.3,3.3,136
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D08,14.7,3.6,118
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D09,24.9,5.2,117
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D10,18.3,4.5,117
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q1,5.4,2.5,184
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q2,4.5,1.7,209
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q3,12.9,3.3,215
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q4,12.9,2.9,254
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q5,21.7,4.0,234
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education,none,10.6,1.7,868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education,primary,15.0,4.1,182
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education,secondary+,18.6,6.4,43
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),none,10.6,1.7,868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),primary,15.0,4.1,182
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),secondary,18.5,7.2,37
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull,Percentage of children fully vaccinated with the four basic vaccines,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),higher,SS,SS,6
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,area,urban,20.1,2.4,451
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,area,rural,6.9,1.7,792
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,national,all,11.5,1.5,1243
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,sex,male,10.9,1.5,646
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,sex,female,12.2,2.2,597
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,subnational unit,Somaliland,5.7,1.7,185
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,subnational unit,Puntland,4.9,1.4,259
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,subnational unit,South Central,13.6,1.9,799
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth deciles,D01,8.4,3.4,112
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth deciles,D02,6.0,2.6,124
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth deciles,D03,2.8,1.5,117
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth deciles,D04,6.2,2.9,139
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth deciles,D05,15.2,3.8,143
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth deciles,D06,10.0,3.7,127
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth deciles,D07,8.5,2.6,125
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth deciles,D08,16.6,3.5,122
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth deciles,D09,24.5,4.6,134
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth deciles,D10,18.6,3.9,100
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth quintiles,Q1,7.2,2.7,236
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth quintiles,Q2,4.6,1.8,256
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth quintiles,Q3,12.8,3.1,270
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth quintiles,Q4,12.5,2.3,247
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,wealth quintiles,Q5,22.2,3.3,234
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,woman's education,none,9.9,1.4,1019
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,woman's education,primary,20.2,3.6,177
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,woman's education,secondary+,18.7,6.2,44
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,woman's education (4 groups),none,9.9,1.4,1019
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,woman's education (4 groups),primary,20.2,3.6,177
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,woman's education (4 groups),secondary,19.2,6.3,42
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vfull24_35,Percentage of children fully vaccinated with the four basic vaccines,Children aged 24-35 months,woman's education (4 groups),higher,SS,SS,2
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,area,urban,58.1,3.8,421
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,area,rural,86.7,1.9,675
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,national,all,75.9,2.2,1096
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,sex,male,75.1,2.5,587
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,sex,female,76.9,2.6,509
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,subnational unit,Somaliland,75.6,3.8,243
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,subnational unit,Puntland,84.0,2.9,265
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,subnational unit,South Central,74.6,3.0,588
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D01,83.6,5.6,91
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D02,90.1,3.5,93
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D03,91.5,2.8,124
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D04,85.1,4.6,85
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D05,78.8,4.5,103
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D06,80.5,4.5,112
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D07,77.7,4.5,136
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D08,69.6,5.4,118
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D09,55.2,5.8,117
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth deciles,D10,48.0,5.6,117
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q1,86.8,3.9,184
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q2,89.0,2.8,209
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q3,79.6,3.5,215
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q4,73.9,3.8,254
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,wealth quintiles,Q5,51.7,4.6,234
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education,none,79.8,2.2,868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education,primary,63.8,4.7,182
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education,secondary+,41.8,8.2,43
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),none,79.8,2.2,868
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),primary,63.8,4.7,182
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),secondary,43.4,9.2,37
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt,Percentage of children who did not receive any dose of DPT vaccine,Children aged 12-23m or 15-26m or 18-29m depending on measles country's vaccination calendar,woman's education (4 groups),higher,SS,SS,6
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,area,urban,55.6,3.1,451
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,area,rural,83.7,2.5,792
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,national,all,73.8,2.2,1243
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,sex,male,73.9,2.4,646
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,sex,female,73.6,2.8,597
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,subnational unit,Somaliland,66.9,3.7,185
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,subnational unit,Puntland,84.7,3.1,259
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,subnational unit,South Central,73.8,2.8,799
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth deciles,D01,85.8,4.9,112
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth deciles,D02,84.0,4.0,124
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth deciles,D03,86.7,3.6,117
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth deciles,D04,87.8,3.5,139
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth deciles,D05,73.7,5.6,143
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth deciles,D06,71.6,5.6,127
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth deciles,D07,73.1,4.2,125
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth deciles,D08,64.7,4.8,122
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth deciles,D09,56.1,5.6,134
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth deciles,D10,44.1,5.4,100
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth quintiles,Q1,84.8,4.0,236
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth quintiles,Q2,87.3,2.8,256
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth quintiles,Q3,72.7,4.3,270
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth quintiles,Q4,68.9,3.6,247
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,wealth quintiles,Q5,51.4,4.3,234
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,woman's education,none,77.2,2.2,1019
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,woman's education,primary,59.8,4.1,177
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,woman's education,secondary+,44.0,7.8,44
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,woman's education (4 groups),none,77.2,2.2,1019
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,woman's education (4 groups),primary,59.8,4.1,177
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,woman's education (4 groups),secondary,44.6,7.9,42
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,vzdpt24_35,Percentage of children who did not receive any dose of DPT vaccine,Children aged 24-35 months,woman's education (4 groups),higher,SS,SS,2
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,area,urban,8.4,0.7,2087
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,area,rural,15.9,0.8,3531
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,national,all,13.2,0.6,5618
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,sex,male,14.3,0.9,2914
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,sex,female,12.0,0.7,2704
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,subnational unit,Somaliland,11.3,1.1,938
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,subnational unit,Puntland,22.4,1.8,1229
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,subnational unit,South Central,12.3,0.8,3451
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth deciles,D01,16.0,2.2,506
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth deciles,D02,17.1,2.0,521
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth deciles,D03,12.7,1.5,576
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth deciles,D04,16.9,1.9,538
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth deciles,D05,17.7,1.9,564
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth deciles,D06,15.1,1.4,584
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth deciles,D07,13.4,1.5,628
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth deciles,D08,9.0,1.2,602
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth deciles,D09,6.8,1.0,620
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth deciles,D10,6.2,1.1,479
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth quintiles,Q1,16.6,1.4,1027
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth quintiles,Q2,14.7,1.3,1114
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth quintiles,Q3,16.4,1.2,1148
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth quintiles,Q4,11.2,1.0,1230
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,wealth quintiles,Q5,6.6,0.8,1099
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,woman's education,none,14.0,0.7,4619
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,woman's education,primary,9.1,1.2,805
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,woman's education,secondary+,10.6,2.5,177
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,woman's education (4 groups),none,14.0,0.7,4619
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,woman's education (4 groups),primary,9.1,1.2,805
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,woman's education (4 groups),secondary,9.9,2.6,164
+SOM,Somalia,2006,2006,MICS,Eastern & Southern Africa,wast5,Percentage of children who are wasted,Live births in the last 5 years,woman's education (4 groups),higher,SS,SS,13

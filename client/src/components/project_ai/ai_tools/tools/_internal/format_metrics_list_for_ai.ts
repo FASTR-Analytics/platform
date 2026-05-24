@@ -1,6 +1,11 @@
-import type { MetricWithStatus } from "lib";
+import { ICEH_STRAT_INFO, type MetricWithStatus } from "lib";
 
-export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
+type IcehIndicator = { id: string; label: string; category: string };
+
+export function formatMetricsListForAI(
+  metrics: MetricWithStatus[],
+  icehIndicators: IcehIndicator[]
+): string {
   const lines: string[] = [
     "AVAILABLE METRICS",
     "=".repeat(80),
@@ -53,6 +58,31 @@ export function formatMetricsListForAI(metrics: MetricWithStatus[]): string {
 
     if (optional.length > 0) {
       lines.push(`  Optional disaggregations: ${optional.map(opt => opt.value).join(", ")}`);
+    }
+
+    const isIcehMetric = metric.disaggregationOptions.some(opt => opt.value === "iceh_indicator");
+    if (isIcehMetric && icehIndicators.length > 0) {
+      const grouped = new Map<string, IcehIndicator[]>();
+      for (const ind of icehIndicators) {
+        const cat = ind.category || "Other";
+        if (!grouped.has(cat)) grouped.set(cat, []);
+        grouped.get(cat)!.push(ind);
+      }
+      lines.push(`  ICEH indicators (iceh_indicator column values):`);
+      for (const [category, indicators] of grouped) {
+        lines.push(`    [${category}]`);
+        for (const ind of indicators) {
+          lines.push(`      - ${ind.id}: ${ind.label}`);
+        }
+      }
+      lines.push(`  ICEH stratifiers (strat column values):`);
+      for (const [stratCode, info] of Object.entries(ICEH_STRAT_INFO)) {
+        const levelsStr = info.levels
+          ? ` → levels: ${Object.entries(info.levels).map(([k, v]) => `${k} (${v})`).join(", ")}`
+          : "";
+        const equityNote = info.isEquityDimension ? " [equity dimension]" : "";
+        lines.push(`    - ${stratCode}: ${info.label}${equityNote}${levelsStr}`);
+      }
     }
 
     if (metric.vizPresets && metric.vizPresets.length > 0) {

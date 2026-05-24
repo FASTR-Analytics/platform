@@ -30,6 +30,7 @@ export type ProjectDetail = {
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
   commonIndicators: { id: string; label: string }[];
+  icehIndicators: { id: string; label: string; category: string }[];
   visualizations: PresentationObjectSummary[];
   visualizationFolders: VisualizationFolder[];
   slideDecks: SlideDeckSummary[];

@@ -69,23 +69,37 @@ export function ReplicateByOptionsPresentationObject(
           return (
             <Switch>
               <Match when={keyedReplicantOptions.status === "too_many_values"}>
-                <div class="text-sm w-36">
-                  {t3({ en: "Too many replicant values (over 500). Use filter options to narrow down.", fr: "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner." })}
+                <div class="w-36 text-sm">
+                  {t3({
+                    en: "Too many replicant values (over 500). Use filter options to narrow down.",
+                    fr: "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner.",
+                  })}
                 </div>
               </Match>
-              <Match when={keyedReplicantOptions.status === "no_values_available"}>
-                <div class="text-sm w-36">
-                  {t3({ en: "No data available with current filter selection.", fr: "Aucune donnée disponible avec la sélection de filtre actuelle." })}
+              <Match
+                when={keyedReplicantOptions.status === "no_values_available"}
+              >
+                <div class="w-36 text-sm">
+                  {t3({
+                    en: "No data available with current filter selection.",
+                    fr: "Aucune donnée disponible avec la sélection de filtre actuelle.",
+                  })}
                 </div>
               </Match>
               <Match when={keyedReplicantOptions.status === "ok"}>
                 {(() => {
                   const options = getSelectOptions(
-                    (keyedReplicantOptions as Extract<typeof keyedReplicantOptions, { status: "ok" }>).possibleValues
+                    (
+                      keyedReplicantOptions as Extract<
+                        typeof keyedReplicantOptions,
+                        { status: "ok" }
+                      >
+                    ).possibleValues,
                   ).map((opt) => ({
                     ...opt,
                     label:
-                      p.replicateBy === "indicator_common_id"
+                      p.replicateBy === "indicator_common_id" ||
+                      p.replicateBy === "strat"
                         ? translateIndicatorId(opt.value).toUpperCase()
                         : opt.label,
                   }));
@@ -95,7 +109,10 @@ export function ReplicateByOptionsPresentationObject(
                       options={options}
                       value={p.selectedReplicantValue}
                       onChange={(v: string) => p.setSelectedReplicant(v)}
-                      emptyMessage={t3({ en: "No replicant options", fr: "Aucune option de réplicant" })}
+                      emptyMessage={t3({
+                        en: "No replicant options",
+                        fr: "Aucune option de réplicant",
+                      })}
                     />
                   );
                 })()}
@@ -134,7 +151,10 @@ export function ReplicateByOptionsPresentationObjectSelect(
   createEffect(() => {
     const state = replicantOptions.state();
     if (state.status === "ready" && state.data.status === "ok") {
-      p.setSelectedReplicant(p.selectedReplicantValue || "", state.data.possibleValues);
+      p.setSelectedReplicant(
+        p.selectedReplicantValue || "",
+        state.data.possibleValues,
+      );
     }
   });
 
@@ -144,18 +164,31 @@ export function ReplicateByOptionsPresentationObjectSelect(
         return (
           <Switch>
             <Match when={keyedReplicantOptions.status === "too_many_values"}>
-              <div class="text-sm w-36">
-                {t3({ en: "Too many replicant values (over 500). Use filter options to narrow down.", fr: "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner." })}
+              <div class="w-36 text-sm">
+                {t3({
+                  en: "Too many replicant values (over 500). Use filter options to narrow down.",
+                  fr: "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner.",
+                })}
               </div>
             </Match>
-            <Match when={keyedReplicantOptions.status === "no_values_available"}>
-              <div class="text-sm w-36">
-                {t3({ en: "No data available with current filter selection.", fr: "Aucune donnée disponible avec la sélection de filtre actuelle." })}
+            <Match
+              when={keyedReplicantOptions.status === "no_values_available"}
+            >
+              <div class="w-36 text-sm">
+                {t3({
+                  en: "No data available with current filter selection.",
+                  fr: "Aucune donnée disponible avec la sélection de filtre actuelle.",
+                })}
               </div>
             </Match>
             <Match when={keyedReplicantOptions.status === "ok"}>
               {(() => {
-                const possibleValues = (keyedReplicantOptions as Extract<typeof keyedReplicantOptions, { status: "ok" }>).possibleValues;
+                const possibleValues = (
+                  keyedReplicantOptions as Extract<
+                    typeof keyedReplicantOptions,
+                    { status: "ok" }
+                  >
+                ).possibleValues;
 
                 return (
                   <Select
@@ -171,7 +204,10 @@ export function ReplicateByOptionsPresentationObjectSelect(
                     value={p.selectedReplicantValue}
                     onChange={(v) => p.setSelectedReplicant(v, possibleValues)}
                     fullWidth={p.fullWidth}
-                    placeholder={t3({ en: "Needs selection", fr: "Nécessite une sélection" })}
+                    placeholder={t3({
+                      en: "Needs selection",
+                      fr: "Nécessite une sélection",
+                    })}
                   />
                 );
               })()}

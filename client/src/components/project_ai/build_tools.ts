@@ -21,18 +21,19 @@ type BuildToolsParams = {
   projectId: string;
   modules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
+  icehIndicators: { id: string; label: string; category: string }[];
   visualizations: PresentationObjectSummary[];
   slideDecks: SlideDeckSummary[];
   aiContext: () => AIContext;
 };
 
 export function buildToolsForContext(params: BuildToolsParams) {
-  const { projectId, modules, metrics, visualizations, slideDecks, aiContext } =
+  const { projectId, modules, metrics, icehIndicators, visualizations, slideDecks, aiContext } =
     params;
 
   return [
     // Base data tools - always available
-    ...getToolsForMetrics(projectId, metrics),
+    ...getToolsForMetrics(projectId, metrics, icehIndicators),
     ...getToolsForModules(projectId, modules, metrics),
     ...getToolsForVisualizations(projectId, visualizations, metrics),
     ...getToolsForSlideDecks(slideDecks),

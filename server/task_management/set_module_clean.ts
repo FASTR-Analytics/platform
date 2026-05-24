@@ -95,8 +95,13 @@ ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
       SELECT indicator_common_id, indicator_common_label FROM indicators ORDER BY indicator_common_label
     `
   ).map((row: { indicator_common_id: string; indicator_common_label: string }) => ({ id: row.indicator_common_id, label: row.indicator_common_label }));
+  const icehIndicators = (
+    await projectDb<{ iceh_indicator: string; indicator_name: string; category: string }[]>`
+      SELECT iceh_indicator, indicator_name, category FROM iceh_indicators_snapshot ORDER BY sort_order, iceh_indicator
+    `
+  ).map((row) => ({ id: row.iceh_indicator, label: row.indicator_name, category: row.category }));
   if (modulesRes.success && metricsRes.success) {
-    notifyProjectModulesUpdated(etd.projectId, modulesRes.data, metricsRes.data, commonIndicators);
+    notifyProjectModulesUpdated(etd.projectId, modulesRes.data, metricsRes.data, commonIndicators, icehIndicators);
   }
 }
 

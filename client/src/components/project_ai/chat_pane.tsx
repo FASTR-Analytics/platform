@@ -203,6 +203,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           element: AIDebugPanel,
           props: {
             metrics: projectState.metrics,
+            icehIndicators: projectState.icehIndicators,
             visualizations: projectState.visualizations,
           },
         }),

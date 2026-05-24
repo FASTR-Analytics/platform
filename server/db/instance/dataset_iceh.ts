@@ -191,11 +191,11 @@ export async function getDatasetIcehUploadAttempt(
 
 export async function getDatasetIcehUploadStatus(
   mainDb: Sql
-): Promise<APIResponseWithData<IcehUploadStatusResponse>> {
+): Promise<APIResponseWithData<IcehUploadStatusResponse | null>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawUA = await getRawUA(mainDb);
     if (!rawUA) {
-      throw new Error("No upload attempt found");
+      return { success: true, data: null };
     }
     const status = parseJsonOrThrow<IcehUploadAttemptStatus>(rawUA.status);
     const statusLight: IcehUploadAttemptStatusLight =
@@ -364,7 +364,8 @@ export async function updateDatasetIcehUploadAttemptStep1(
 }
 
 export async function updateDatasetIcehUploadAttemptStep2(
-  mainDb: Sql
+  mainDb: Sql,
+  onComplete?: () => void,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawUA = await getRawUAOrThrow(mainDb);
@@ -393,7 +394,7 @@ export async function updateDatasetIcehUploadAttemptStep2(
       WHERE id = 'single_row'
     `;
 
-    stageAndIntegrateIcehData(mainDb, step1Result);
+    stageAndIntegrateIcehData(mainDb, step1Result, onComplete);
 
     return { success: true };
   });
@@ -401,7 +402,8 @@ export async function updateDatasetIcehUploadAttemptStep2(
 
 async function stageAndIntegrateIcehData(
   mainDb: Sql,
-  step1Result: IcehStep1Result
+  step1Result: IcehStep1Result,
+  onComplete?: () => void,
 ): Promise<void> {
   try {
     const zipPath = join(_ASSETS_DIR_PATH, step1Result.zipFileName);
@@ -590,6 +592,12 @@ async function stageAndIntegrateIcehData(
             step_3_result = ${JSON.stringify({ nRowsIntegrated })}
         WHERE id = 'single_row'
       `;
+
+      try {
+        await onComplete?.();
+      } catch (err) {
+        console.error("ICEH integration onComplete callback failed:", err);
+      }
     } finally {
       try {
         await Deno.remove(tempXlsxPath);

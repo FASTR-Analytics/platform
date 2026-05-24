@@ -76,7 +76,7 @@ export function DatasetIcehUploadAttemptForm(p: Props) {
       if (uploadAttempt.state().status === "ready") {
         const statusRes = await serverActions.getDatasetIcehUploadStatus({});
 
-        if (statusRes.success) {
+        if (statusRes.success && statusRes.data) {
           if (
             currentStatus !== null &&
             currentStatus !== statusRes.data.status.status

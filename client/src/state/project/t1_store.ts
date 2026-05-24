@@ -18,6 +18,7 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   projectModules: [],
   metrics: [],
   commonIndicators: [],
+  icehIndicators: [],
   visualizations: [],
   visualizationFolders: [],
   slideDecks: [],
@@ -89,6 +90,7 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       setProjectState("projectModules", reconcile(msg.data.projectModules));
       setProjectState("metrics", reconcile(msg.data.metrics));
       setProjectState("commonIndicators", reconcile(msg.data.commonIndicators));
+      setProjectState("icehIndicators", reconcile(msg.data.icehIndicators));
       rebuildModuleMaps(projectState);
       break;
 
