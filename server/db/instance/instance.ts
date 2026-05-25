@@ -1,6 +1,7 @@
 import { Sql } from "postgres";
 import {
   APIResponseWithData,
+  H_USERS,
   InstanceDetail,
   OtherUser,
   ProjectSummary,
@@ -237,7 +238,7 @@ export async function getProjectsForUser(
   mainDb: Sql,
   globalUser: GlobalUser,
 ): Promise<ProjectSummary[]> {
-  if (globalUser.isGlobalAdmin) {
+  if (globalUser.isGlobalAdmin || H_USERS.includes(globalUser.email)) {
     return (
       await mainDb<(DBProject & { last_activity_at: string | null })[]>`
         SELECT p.*, la.last_activity_at
@@ -255,6 +256,7 @@ export async function getProjectsForUser(
       label: p.label,
       thisUserRole: "editor",
       isLocked: p.is_locked,
+      isCentralReporting: p.is_central_reporting,
       status: p.status as ProjectSummary["status"],
       lastActivityAt: p.last_activity_at ?? undefined,
       deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
@@ -273,6 +275,7 @@ export async function getProjectsForUser(
         GROUP BY project_id
       ) la ON la.project_id = p.id
       WHERE pur.email = ${globalUser.email}
+      AND p.is_central_reporting = FALSE
       AND (
         pur.can_configure_settings OR pur.can_create_backups OR pur.can_restore_backups OR
         pur.can_configure_modules OR pur.can_run_modules OR pur.can_configure_users OR
@@ -288,6 +291,7 @@ export async function getProjectsForUser(
     label: p.label,
     thisUserRole: p.role === "editor" ? "editor" : "viewer",
     isLocked: p.is_locked,
+    isCentralReporting: false,
     status: p.status as ProjectSummary["status"],
     lastActivityAt: p.last_activity_at ?? undefined,
     deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,

@@ -15,6 +15,7 @@ import {
   getProjectDetail,
   getProjectUserPermissions,
   removeDatasetFromProject,
+  setProjectCentralReportingStatus,
   setProjectLockStatus,
   updateProject,
   updateProjectUserPermissions,
@@ -38,6 +39,7 @@ import { GetLogsByProject } from "../../db/instance/user_logs.ts";
 import { log } from "../../middleware/logging.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { H_USERS } from "lib";
 import {
   checkSpaceForCopyProject,
   checkSpaceForDataset,
@@ -384,6 +386,28 @@ defineRoute(
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
       // V2 notify
       notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked);
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesProject,
+  "setProjectCentralReportingStatus",
+  requireProjectPermission({ requireAdmin: true }),
+  log("setProjectCentralReportingStatus"),
+  async (c, { params, body }) => {
+    if (!H_USERS.includes(c.var.globalUser.email)) {
+      return c.json({ success: false, err: "Only h_users can set central reporting status" }, 403);
+    }
+    const res = await setProjectCentralReportingStatus(
+      c.var.mainDb,
+      params.project_id,
+      body.isCentralReporting,
+    );
+    if (res.success) {
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
+      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked, res.data.isCentralReporting);
     }
     return c.json(res);
   },

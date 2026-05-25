@@ -73,6 +73,16 @@ export const projectRouteRegistry = {
     requiresProject: true,
   }),
 
+  setProjectCentralReportingStatus: route({
+    path: "/project/:project_id/central_reporting",
+    method: "POST",
+    params: {} as { project_id: string },
+    body: {} as {
+      isCentralReporting: boolean;
+    },
+    requiresProject: true,
+  }),
+
   updateProjectUserRole: route({
     path: "/project_user_role",
     method: "POST",

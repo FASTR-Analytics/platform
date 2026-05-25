@@ -261,6 +261,10 @@ export function ProjectSettings(p: Props) {
           </div>
         </SettingsSection>
 
+        <Show when={H_USERS.includes(projectState.currentUserEmail)}>
+          <CentralReportingSection />
+        </Show>
+
         <Switch>
           <Match when={projectState.isLocked}>
             <SettingsSection
@@ -338,6 +342,41 @@ export function ProjectSettings(p: Props) {
         </div>
       </div>
     </FrameTop>
+  );
+}
+
+function CentralReportingSection() {
+  const setCentralReporting = timActionButton(
+    async () => {
+      const res = await serverActions.setProjectCentralReportingStatus({
+        project_id: projectState.id,
+        projectId: projectState.id,
+        isCentralReporting: !projectState.isCentralReporting,
+      });
+      if (!res.success) {
+        await openAlert({ title: "Cannot set central reporting project", text: res.err });
+        return res;
+      }
+      return res;
+    },
+    async () => {},
+  );
+
+  return (
+    <SettingsSection
+      header="Central reporting project"
+      rightChildren={
+        <Button onClick={setCentralReporting.click} state={setCentralReporting.state()}>
+          {projectState.isCentralReporting ? "Remove central reporting designation" : "Set as central reporting project"}
+        </Button>
+      }
+    >
+      <div>
+        {projectState.isCentralReporting
+          ? "This project is currently designated as the central reporting project. It is only visible to h_users."
+          : "This project is not designated as the central reporting project."}
+      </div>
+    </SettingsSection>
   );
 }
 

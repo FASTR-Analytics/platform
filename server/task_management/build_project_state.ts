@@ -46,6 +46,7 @@ export async function buildProjectState(
     aiContext: detail.aiContext,
     thisUserRole: detail.thisUserRole,
     isLocked: detail.isLocked,
+    isCentralReporting: detail.isCentralReporting,
     projectDatasets: detail.projectDatasets,
     projectModules: detail.projectModules,
     metrics: detail.metrics,

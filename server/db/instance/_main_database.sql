@@ -45,6 +45,7 @@ CREATE TABLE projects (
   label text NOT NULL,
   ai_context text NOT NULL,
   is_locked boolean NOT NULL DEFAULT FALSE,
+  is_central_reporting boolean NOT NULL DEFAULT FALSE,
   status text NOT NULL DEFAULT 'ready',
   deletion_scheduled_at TIMESTAMPTZ
 );
