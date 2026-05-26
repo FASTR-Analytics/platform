@@ -1,3 +1,15 @@
+[TBD] [user] [fixed] - Tables now display correct formatting per indicator (e.g., percentages, rates)
+[TBD] [user] [fixed] - Scorecard colors and values now match correctly when indicators are reordered
+[TBD] [user] [fixed] - Chart and table sorting now orders items alphabetically by display name
+[TBD] [user] [fixed] - National aggregate row now consistently appears in correct position in tables
+[TBD] [user] [fixed] - Shared visualizations now preserve indicator-specific formatting
+[TBD] [user] [fixed] - Highlight colors in data selection preview now apply correctly
+[TBD] [admin] [fixed] - Tables and charts now display per-indicator number formatting correctly
+[TBD] [admin] [fixed] - Scorecard conditional formatting matches indicators more reliably
+[TBD] [admin] [fixed] - Shared visualizations now retain indicator metadata for proper display
+[TBD] [admin] [changed] - Chart and table sorting improved for consistent label ordering
+[TBD] [admin] [fixed] - National aggregate row now sorts correctly in tables and charts
+[TBD] [admin] [internal] - Slide deck figures now store indicator metadata alongside source data
 [TBD] [user] [added] - ICEH survey data now recognized as a data source in projects
 [TBD] [user] [added] - ICEH indicators and stratifiers are shown to the AI assistant for better analysis
 [TBD] [user] [added] - Stratifier labels now appear alongside codes in data summaries
