@@ -221,7 +221,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
 
                           const inSelectedIndicators =
                             takeAll ||
-                            indicators.includes(pointInfo.seriesHeader);
+                            // TODO: prefer .id once we confirm `indicators` holds raw source ids
+                            indicators.includes(pointInfo.seriesHeader.label);
 
                           const isGreen = inPeriodRange && inSelectedIndicators;
                           return isGreen
@@ -245,7 +246,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
 
                           const inSelectedIndicators =
                             takeAll ||
-                            indicators.includes(pointInfo.seriesHeader);
+                            // TODO: prefer .id once we confirm `indicators` holds raw source ids
+                            indicators.includes(pointInfo.seriesHeader.label);
 
                           const isRed = inPeriodRange && inSelectedIndicators;
                           return isRed

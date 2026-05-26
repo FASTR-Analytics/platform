@@ -142,6 +142,7 @@ export async function resolveFigureFromMetric(
       metricId,
       config,
       snapshotAt: new Date().toISOString(),
+      indicatorMetadata: itemsHolder.indicatorMetadata,
     },
   };
 }

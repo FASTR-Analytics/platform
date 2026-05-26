@@ -35,7 +35,7 @@ import type {
   ColorPreset,
 } from "panther";
 import { resolvePageStyle } from "panther";
-import { hydrateFigureInputsForRendering } from "~/generate_visualization/mod";
+import { hydrateFigureInputsForRendering, figureSourceToHydrationSource } from "~/generate_visualization/mod";
 import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
 import { getBackgroundDetail } from "./get_overlay_image";
 import { _SERVER_HOST } from "~/server_actions";
@@ -488,10 +488,10 @@ async function convertBlockToPageContentItem(
     return { spacer: true };
   }
 
-  const source = block.source?.type === "from_data"
-    ? { config: block.source.config, metricId: block.source.metricId }
+  const hydrationSource = block.source?.type === "from_data"
+    ? figureSourceToHydrationSource(block.source)
     : undefined;
-  fi = await hydrateFigureInputsForRendering(fi, source, deckStyle);
+  fi = await hydrateFigureInputsForRendering(fi, hydrationSource, deckStyle);
 
   return { ...fi, autofit: FIGURE_AUTOFIT } as PageContentItem;
 }

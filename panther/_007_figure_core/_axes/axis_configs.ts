@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  HeaderItem,
   MergedXPeriodAxisStyle,
   MergedXScaleAxisStyle,
   MergedXTextAxisStyle,
@@ -16,7 +17,7 @@ import type { ChartScaleAxisLimits } from "../types.ts";
 export type XAxisConfig =
   | {
     type: "text";
-    indicatorHeaders: string[];
+    indicatorHeaders: HeaderItem[];
     axisStyle: MergedXTextAxisStyle;
   }
   | {
@@ -43,7 +44,7 @@ export type YAxisConfig =
   }
   | {
     type: "text";
-    indicatorHeaders: string[];
+    indicatorHeaders: HeaderItem[];
     axisStyle: MergedYTextAxisStyle;
   }
   | { type: "none" };

@@ -8,9 +8,9 @@ export type ShareVizBundle = {
     config: PresentationObjectConfig;
     metricId: string;
     formatAs: "percent" | "number";
+    indicatorMetadata?: IndicatorMetadata[];
   };
   geoData?: unknown;
-  indicatorMetadata?: IndicatorMetadata[];
 };
 
 export type ShareTokenInfo = {

@@ -19,6 +19,7 @@ import {
   getAbcQualScale,
   getAbcQualScale2,
   type DeckStyleContext,
+  type IndicatorMetadata,
   getSlideFontInfo,
 } from "lib";
 import { PresentationObjectConfig, selectCf } from "lib";
@@ -129,8 +130,13 @@ export function getTableLayoutStyle(config: PresentationObjectConfig) {
 export function getTableCellsContent(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  indicatorMetadata?: IndicatorMetadata[],
 ) {
   const cfOn = selectCf(config.s).type !== "none";
+  const metadataById = indicatorMetadata
+    ? new Map(indicatorMetadata.map((m) => [m.id, m]))
+    : undefined;
+
   return {
     func: cfOn
       ? {
@@ -141,9 +147,31 @@ export function getTableCellsContent(
           },
         }
       : undefined,
-    textFormatter: (info: TableCellInfo) =>
-      getFormatterFunc(formatAs, config.s.decimalPlaces ?? 0)(info.value),
+    textFormatter: (info: TableCellInfo) => {
+      if (metadataById && info.valueAsNumber !== undefined) {
+        const meta =
+          metadataById.get(info.colHeader?.id ?? "") ??
+          metadataById.get(info.rowHeader?.id ?? "");
+        if (meta?.format_as) {
+          return formatIndicatorValue(info.valueAsNumber, meta.format_as, meta.decimal_places ?? 0);
+        }
+      }
+      return getFormatterFunc(formatAs, config.s.decimalPlaces ?? 0)(info.value);
+    },
   };
+}
+
+function formatIndicatorValue(
+  rawValue: number,
+  formatAs: "percent" | "number" | "rate_per_10k",
+  decimalPlaces: number,
+): string {
+  let scaled = rawValue;
+  if (formatAs === "percent") scaled = rawValue * 100;
+  else if (formatAs === "rate_per_10k") scaled = rawValue * 10000;
+  const formatted = scaled.toFixed(decimalPlaces);
+  if (formatAs === "percent") return `${formatted}%`;
+  return formatted;
 }
 
 export function getMapRegionsContent(

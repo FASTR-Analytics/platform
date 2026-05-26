@@ -65,3 +65,65 @@ export function downloadBase64Image(base64: string, filename?: string) {
   const blob = base64ToBlob(base64);
   saveAs(blob, filename ?? "image.png");
 }
+
+type TextFileType = ".csv" | ".txt" | ".json" | ".md" | ".xml";
+type BinaryFileType = ".xlsx" | ".xls" | ".zip" | ".pdf" | ".png" | ".jpg" | ".docx";
+
+export function pickFileAsText(
+  fileTypesToAccept?: TextFileType[],
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    if (fileTypesToAccept) input.accept = fileTypesToAccept.join(",");
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => resolve(null);
+      reader.readAsText(file);
+    };
+    input.oncancel = () => resolve(null);
+    input.click();
+  });
+}
+
+export function pickFileAsArrayBuffer(
+  fileTypesToAccept?: BinaryFileType[],
+): Promise<ArrayBuffer | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    if (fileTypesToAccept) input.accept = fileTypesToAccept.join(",");
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer | null);
+      reader.onerror = () => resolve(null);
+      reader.readAsArrayBuffer(file);
+    };
+    input.oncancel = () => resolve(null);
+    input.click();
+  });
+}
+
+export function pickFileRaw(
+  fileTypesToAccept?: (TextFileType | BinaryFileType)[],
+): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    if (fileTypesToAccept) input.accept = fileTypesToAccept.join(",");
+    input.onchange = () => resolve(input.files?.[0] ?? null);
+    input.oncancel = () => resolve(null);
+    input.click();
+  });
+}

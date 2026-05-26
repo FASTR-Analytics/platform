@@ -27,7 +27,7 @@ import { PresentationObjectMiniDisplay } from "~/components/PresentationObjectMi
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { buildConfigFromPreset } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
-import { hydrateFigureInputsForRendering } from "~/generate_visualization/mod";
+import { hydrateFigureInputsForRendering, figureSourceToHydrationSource } from "~/generate_visualization/mod";
 import { SaveAsNewVisualizationModal } from "~/components/visualization/save_as_new_visualization_modal";
 import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";
@@ -76,11 +76,10 @@ export function DraftVisualizationPreview(p: Props) {
       if (source?.type === "from_data") {
         const metric = p.metrics.find((m) => m.id === source.metricId);
         if (metric) {
-          finalInputs = await hydrateFigureInputsForRendering(finalInputs, {
-            config: source.config,
-            metricId: source.metricId,
-            formatAs: metric.formatAs,
-          });
+          finalInputs = await hydrateFigureInputsForRendering(
+            finalInputs,
+            figureSourceToHydrationSource(source, metric.formatAs),
+          );
         }
       }
       setFigureState({ status: "ready", data: finalInputs });

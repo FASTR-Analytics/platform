@@ -7,6 +7,8 @@ import type {
   ChartScaleAxisLimits,
   CustomFigureStyle,
   FigureInputsBase,
+  HeaderItem,
+  HeaderSortConfig,
   JsonArray,
   LegendInput,
   Measured,
@@ -35,20 +37,25 @@ export type ChartOHJsonDataConfig = {
   tierProp?: string | "--v";
   paneProp?: string | "--v";
   uncertainty?: UncertaintyConfig;
-  sortHeaders?: boolean | string[];
+  labelReplacements?: Record<string, string>;
+  sort?: {
+    indicator?: HeaderSortConfig;
+    series?: HeaderSortConfig;
+    lane?: HeaderSortConfig;
+    tier?: HeaderSortConfig;
+    pane?: HeaderSortConfig;
+  };
   sortIndicatorValues?: "ascending" | "descending" | "none";
-  labelReplacementsBeforeSorting?: Record<string, string>;
-  labelReplacementsAfterSorting?: Record<string, string>;
   xScaleAxisLabel?: string;
 };
 
 export type ChartOHDataTransformed = {
   isTransformed: true;
-  indicatorHeaders: string[]; // Y categories
-  seriesHeaders: string[];
-  laneHeaders: string[];
-  tierHeaders: string[];
-  paneHeaders: string[];
+  indicatorHeaders: HeaderItem[]; // Y categories
+  seriesHeaders: HeaderItem[];
+  laneHeaders: HeaderItem[];
+  tierHeaders: HeaderItem[];
+  paneHeaders: HeaderItem[];
   values: (number | undefined)[][][][][]; // [pane][tier][lane][series][indicator]
   bounds?: {
     ub: (number | undefined)[][][][][];

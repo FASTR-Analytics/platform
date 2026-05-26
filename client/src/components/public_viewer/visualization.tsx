@@ -77,7 +77,6 @@ export default function PublicVisualization() {
             bundle.strippedFigureInputs,
             bundle.source,
             bundle.geoData,
-            bundle.indicatorMetadata,
           );
           return (
             <ChartHolder

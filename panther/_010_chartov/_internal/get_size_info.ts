@@ -44,7 +44,7 @@ export function getChartOVComponentSizes(
 
   let maxWordWidth = 0;
   for (const header of indicatorHeaders) {
-    const words = header.split(/\s+/);
+    const words = header.label.split(/\s+/);
     for (const word of words) {
       if (word.length === 0) continue;
       const mText = rc.mText(word, textStyle, Infinity);
@@ -57,7 +57,8 @@ export function getChartOVComponentSizes(
     ? nIndicators * maxWordWidth
     : nIndicators * maxWordWidth + gridStrokeWidth * (nIndicators + 1);
 
-  const resolvedLegendLabels = inputs.legend ?? data.seriesHeaders;
+  const resolvedLegendLabels = inputs.legend ??
+    data.seriesHeaders.map((h) => h.label);
 
   return {
     customFigureStyle: cs,
@@ -70,7 +71,12 @@ export function getChartOVComponentSizes(
     xAxisHeight,
     paneHeaderHeight,
     minYAxisWidth: estimateMinYAxisWidth(rc, ms.yScaleAxis, ms.grid),
-    surroundsMinWidth: estimateMinSurroundsWidth(rc, cs, resolvedLegendLabels),
+    surroundsMinWidth: estimateMinSurroundsWidth(
+      rc,
+      cs,
+      resolvedLegendLabels,
+      data.seriesHeaders,
+    ),
     resolvedLegendLabels,
   };
 }

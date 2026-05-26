@@ -8,15 +8,15 @@ import {
   checkValuePropsAssignment,
   collectHeaders,
   createArray,
-  createSortFunction,
+  createHeaderItems,
   fillValuesWithDuplicateCheck,
   getHeaderIndex,
   isRowBasedUncertainty,
   type JsonArray,
   type ProcessedHeaders,
+  sortHeaderItems,
   validateDataInput,
   validateUncertaintyConfig,
-  withAnyLabelReplacement,
 } from "./deps.ts";
 import {
   type ChartOVData,
@@ -94,10 +94,9 @@ export function getChartOVDataJsonTransformed(
     paneProp,
     tierProp,
     uncertainty,
-    sortHeaders,
+    labelReplacements,
+    sort,
     sortIndicatorValues,
-    labelReplacementsBeforeSorting,
-    labelReplacementsAfterSorting,
   } = jsonDataConfig;
 
   if (uncertainty) {
@@ -122,15 +121,41 @@ export function getChartOVDataJsonTransformed(
     ? jsonArray
     : sourceRows;
 
-  const indicatorHeaders = collectHeaders(
-    headersSource,
-    indicatorProp,
-    valueProps,
+  const indicatorHeadersRaw = createHeaderItems(
+    collectHeaders(headersSource, indicatorProp, valueProps),
+    labelReplacements,
   );
-  const seriesHeaders = collectHeaders(headersSource, seriesProp, valueProps);
-  const laneHeaders = collectHeaders(headersSource, laneProp, valueProps);
-  const tierHeaders = collectHeaders(headersSource, tierProp, valueProps);
-  const paneHeaders = collectHeaders(headersSource, paneProp, valueProps);
+  const indicatorHeaders = sortIndicatorValues
+    ? indicatorHeadersRaw
+    : sortHeaderItems(indicatorHeadersRaw, sort?.indicator);
+  const seriesHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectHeaders(headersSource, seriesProp, valueProps),
+      labelReplacements,
+    ),
+    sort?.series,
+  );
+  const laneHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectHeaders(headersSource, laneProp, valueProps),
+      labelReplacements,
+    ),
+    sort?.lane,
+  );
+  const tierHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectHeaders(headersSource, tierProp, valueProps),
+      labelReplacements,
+    ),
+    sort?.tier,
+  );
+  const paneHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectHeaders(headersSource, paneProp, valueProps),
+      labelReplacements,
+    ),
+    sort?.pane,
+  );
 
   checkValuePropsAssignment(valueProps, {
     indicatorProp,
@@ -139,20 +164,6 @@ export function getChartOVDataJsonTransformed(
     tierProp,
     paneProp,
   });
-
-  if (sortHeaders) {
-    const sortFunc = createSortFunction(
-      sortHeaders,
-      labelReplacementsBeforeSorting,
-    );
-    if (!sortIndicatorValues) {
-      indicatorHeaders.sort(sortFunc);
-    }
-    seriesHeaders.sort(sortFunc);
-    laneHeaders.sort(sortFunc);
-    tierHeaders.sort(sortFunc);
-    paneHeaders.sort(sortFunc);
-  }
 
   const nPanes = paneHeaders.length;
   const nTiers = tierHeaders.length;
@@ -335,21 +346,13 @@ export function getChartOVDataJsonTransformed(
     }
   }
 
-  const combinedReplacements = {
-    ...labelReplacementsBeforeSorting,
-    ...labelReplacementsAfterSorting,
-  };
-
   return {
     isTransformed: true,
-    indicatorHeaders: withAnyLabelReplacement(
-      finalIndicatorHeaders,
-      combinedReplacements,
-    ),
-    seriesHeaders: withAnyLabelReplacement(seriesHeaders, combinedReplacements),
-    laneHeaders: withAnyLabelReplacement(laneHeaders, combinedReplacements),
-    tierHeaders: withAnyLabelReplacement(tierHeaders, combinedReplacements),
-    paneHeaders: withAnyLabelReplacement(paneHeaders, combinedReplacements),
+    indicatorHeaders: finalIndicatorHeaders,
+    seriesHeaders,
+    laneHeaders,
+    tierHeaders,
+    paneHeaders,
     values: finalValues,
     bounds: finalBounds,
     scaleAxisLimits: scaleLimits,

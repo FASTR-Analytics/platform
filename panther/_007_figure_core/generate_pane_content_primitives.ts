@@ -239,7 +239,10 @@ export function generatePaneContentPrimitives<TData>(
         if (orientation === "horizontal") {
           const mx = measured.xAxisMeasuredInfo as XScaleAxisMeasuredInfo;
           valueRange = getXScaleAxisValueRange(mx.xScaleHeightInfo, i_lane);
-          const yCfg = getYAxisRenderConfig(yAxisConfig, measured.yAxisWidthInfo);
+          const yCfg = getYAxisRenderConfig(
+            yAxisConfig,
+            measured.yAxisWidthInfo,
+          );
           nVals = yCfg.nVals;
           isCentered = yCfg.isCentered;
           // Per-indicator row height inside the plot area.
@@ -249,7 +252,10 @@ export function generatePaneContentPrimitives<TData>(
               baseStyle.grid.gridStrokeWidth * (nVals + 1)) / nVals;
         } else {
           valueRange = getScaleAxisValueRange(measured.yAxisWidthInfo, i_tier);
-          const xCfg = getXAxisRenderConfig(xAxisConfig, measured.xAxisMeasuredInfo);
+          const xCfg = getXAxisRenderConfig(
+            xAxisConfig,
+            measured.xAxisMeasuredInfo,
+          );
           categoryIncrement = xCfg.categoryIncrement;
           isCentered = xCfg.isCentered;
           nVals = xCfg.nVals;
@@ -264,10 +270,13 @@ export function generatePaneContentPrimitives<TData>(
               seriesValArrays: seriesVals,
               i_pane,
               nPanes: config.dataProps.paneHeaders.length,
+              paneHeader: config.dataProps.paneHeaders[i_pane],
               i_tier,
               nTiers: tierHeaders.length,
+              tierHeader: tierHeaders[i_tier],
               i_lane,
               nLanes: laneHeaders.length,
+              laneHeader: laneHeaders[i_lane],
             },
             seriesVals,
             valueRange,
@@ -276,7 +285,10 @@ export function generatePaneContentPrimitives<TData>(
             gridStrokeWidth: baseStyle.grid.gridStrokeWidth,
             nVals,
             orientation,
-            transformedData: { seriesHeaders: config.dataProps.seriesHeaders },
+            transformedData: {
+              seriesHeaders: config.dataProps.seriesHeaders,
+              indicatorHeaders: config.dataProps.indicatorHeaders,
+            },
             contentStyle: baseStyle.content,
             dataLabelsTextStyle: baseStyle.text.dataLabels,
             boundsUbSeriesVals: chartData.bounds?.ub[i_pane][i_tier][i_lane],

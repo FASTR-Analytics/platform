@@ -9,6 +9,7 @@ import {
   type ChartConnectorInfo,
   computeBoundsForPath,
   Coordinates,
+  type HeaderItem,
   type LineStyle,
   type Primitive,
   Z_INDEX,
@@ -26,7 +27,7 @@ type Endpoint = {
   coord: Coordinates;
   val: number;
   i_series: number;
-  seriesHeader: string;
+  seriesHeader: HeaderItem;
   pointRadius: number;
 };
 
@@ -103,6 +104,7 @@ function collectEndpoints(
       i_val,
       ctx.valueRange.minVal,
       ctx.valueRange.maxVal,
+      ctx.indicatorHeaders?.[i_val],
     );
     const pointStyle = s.points.getStyle(valueInfo);
     endpoints.push({
@@ -133,10 +135,13 @@ function buildConnectorInfo(
     seriesValArrays: ctx.subChartInfo.seriesValArrays,
     i_pane: ctx.subChartInfo.i_pane,
     nPanes: ctx.subChartInfo.nPanes,
+    paneHeader: ctx.subChartInfo.paneHeader,
     i_tier: ctx.subChartInfo.i_tier,
     nTiers: ctx.subChartInfo.nTiers,
+    tierHeader: ctx.subChartInfo.tierHeader,
     i_lane: ctx.subChartInfo.i_lane,
     nLanes: ctx.subChartInfo.nLanes,
+    laneHeader: ctx.subChartInfo.laneHeader,
     seriesIndices: endpoints.map((e) => e.i_series),
     seriesHeaders: endpoints.map((e) => e.seriesHeader),
     values: endpoints.map((e) => e.val),

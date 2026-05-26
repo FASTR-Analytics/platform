@@ -8,10 +8,9 @@ import {
   assert,
   createArray,
   getValidNumberOrUndefined,
-  sortAlphabetical,
+  type HeaderItem,
   sum,
 } from "./deps.ts";
-import { withAnyLabelReplacement } from "./with_any_label_replacement.ts";
 import type {
   ChartScaleAxisLimits,
   ChartScaleAxisPaneLimits,
@@ -56,11 +55,11 @@ export function getHeaderIndex(
   prop: string | undefined,
   valueProp: string,
   obj: JsonArrayItem,
-  headers: string[],
+  headers: HeaderItem[],
 ): number {
   if (!prop) return 0;
-  if (prop === "--v") return headers.indexOf(valueProp);
-  return headers.indexOf(String(obj[prop]));
+  if (prop === "--v") return headers.findIndex((h) => h.id === valueProp);
+  return headers.findIndex((h) => h.id === String(obj[prop]));
 }
 
 export function checkValuePropsAssignment(
@@ -72,96 +71,6 @@ export function checkValuePropsAssignment(
   const hasVAssignment = Object.values(props).some((prop) => prop === "--v");
   if (!hasVAssignment && valueProps.length > 1) {
     throw new Error("Missing --v assignment");
-  }
-}
-
-export function createSortFunction(
-  sortHeaders: boolean | string[],
-  labelReplacements?: Record<string, string>,
-): (a: string, b: string) => number {
-  if (Array.isArray(sortHeaders)) {
-    return (a: string, b: string) => {
-      const aReplaced = labelReplacements?.[a] ?? a;
-      const bReplaced = labelReplacements?.[b] ?? b;
-      const aIndex = sortHeaders.indexOf(aReplaced);
-      const bIndex = sortHeaders.indexOf(bReplaced);
-
-      if (aIndex !== -1 && bIndex !== -1) {
-        return aIndex - bIndex;
-      }
-      if (aIndex !== -1) return -1;
-      if (bIndex !== -1) return 1;
-
-      return aReplaced.localeCompare(bReplaced);
-    };
-  } else {
-    return (a: string, b: string) => {
-      const aReplaced = labelReplacements?.[a] ?? a;
-      const bReplaced = labelReplacements?.[b] ?? b;
-      return aReplaced.localeCompare(bReplaced);
-    };
-  }
-}
-
-export function sortByCustomOrder(
-  headers: string[],
-  customOrder: string[],
-): void {
-  // Create a mapping of headers to their preferred order
-  const orderMap = new Map<string, number>();
-
-  headers.forEach((header) => {
-    // Check if header is in the custom order
-    const index = customOrder.indexOf(header);
-    // Use the found index, or default to end if not found
-    const priority = index !== -1 ? index : customOrder.length;
-    orderMap.set(header, priority);
-  });
-
-  // Sort using the priority map, with alphabetical as secondary sort
-  headers.sort((a, b) => {
-    const priorityA = orderMap.get(a)!;
-    const priorityB = orderMap.get(b)!;
-
-    if (priorityA !== priorityB) {
-      return priorityA - priorityB;
-    }
-
-    // Secondary alphabetical sort for items with same priority
-    return a.localeCompare(b);
-  });
-}
-
-export function sortHeadersIfNeeded(
-  headers: ProcessedHeaders & { [key: string]: string[] },
-  sortHeaders: boolean | string[] | undefined,
-): void {
-  if (sortHeaders) {
-    if (Array.isArray(sortHeaders)) {
-      // Custom sort order
-      sortByCustomOrder(headers.series, sortHeaders);
-      sortByCustomOrder(headers.lane, sortHeaders);
-      sortByCustomOrder(headers.tier, sortHeaders);
-      sortByCustomOrder(headers.cell, sortHeaders);
-      // Sort any additional dimension headers
-      for (const key of Object.keys(headers)) {
-        if (!["series", "lane", "tier", "cell"].includes(key)) {
-          sortByCustomOrder(headers[key], sortHeaders);
-        }
-      }
-    } else {
-      // Alphabetical sort
-      sortAlphabetical(headers.series);
-      sortAlphabetical(headers.lane);
-      sortAlphabetical(headers.tier);
-      sortAlphabetical(headers.cell);
-      // Sort any additional dimension headers
-      for (const key of Object.keys(headers)) {
-        if (!["series", "lane", "tier", "cell"].includes(key)) {
-          sortAlphabetical(headers[key]);
-        }
-      }
-    }
   }
 }
 
@@ -281,54 +190,11 @@ function updateLimits(
   );
 }
 
-export interface CommonDataTransformConfig {
-  jsonArray: JsonArray;
-  valueProps: string[];
-  seriesProp?: string;
-  laneProp?: string;
-  tierProp?: string;
-  paneProp?: string;
-  sortHeaders?: boolean;
-  labelReplacements?: Record<string, string>;
-  stacked: boolean;
-}
-
 export interface ProcessedHeaders {
-  series: string[];
-  lane: string[];
-  tier: string[];
-  pane: string[];
-}
-
-export function processCommonHeaders(
-  config: CommonDataTransformConfig,
-): ProcessedHeaders {
-  const headers: ProcessedHeaders = {
-    series: collectHeaders(
-      config.jsonArray,
-      config.seriesProp,
-      config.valueProps,
-    ),
-    lane: collectHeaders(config.jsonArray, config.laneProp, config.valueProps),
-    tier: collectHeaders(config.jsonArray, config.tierProp, config.valueProps),
-    pane: collectHeaders(config.jsonArray, config.paneProp, config.valueProps),
-  };
-
-  // Check for --v assignment
-  checkValuePropsAssignment(config.valueProps, {
-    seriesProp: config.seriesProp,
-    laneProp: config.laneProp,
-    tierProp: config.tierProp,
-    paneProp: config.paneProp,
-  });
-
-  // Sort if needed
-  sortHeadersIfNeeded(
-    headers as ProcessedHeaders & { [key: string]: string[] },
-    config.sortHeaders,
-  );
-
-  return headers;
+  series: HeaderItem[];
+  lane: HeaderItem[];
+  tier: HeaderItem[];
+  pane: HeaderItem[];
 }
 
 export function fillValuesWithDuplicateCheck(
@@ -387,20 +253,4 @@ export function fillValuesWithDuplicateCheck(
       values[i_pane][i_tier][i_lane][i_series][i_lastDim] = value;
     }
   }
-}
-
-export function applyLabelReplacements<T extends { [key: string]: string[] }>(
-  headers: T,
-  labelReplacements: Record<string, string> | undefined,
-): T {
-  if (!labelReplacements) return headers;
-
-  const result = {} as T;
-  for (const [key, headerArray] of Object.entries(headers)) {
-    result[key as keyof T] = withAnyLabelReplacement(
-      headerArray,
-      labelReplacements,
-    ) as T[keyof T];
-  }
-  return result;
 }

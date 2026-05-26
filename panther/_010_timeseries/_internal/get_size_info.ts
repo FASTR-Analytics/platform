@@ -49,7 +49,8 @@ export function getTimeseriesComponentSizes(
     ? data.nTimePoints * tickLabelHeight * 0.5
     : data.nTimePoints * tickLabelHeight;
 
-  const resolvedLegendLabels = inputs.legend ?? data.seriesHeaders;
+  const resolvedLegendLabels = inputs.legend ??
+    data.seriesHeaders.map((h) => h.label);
 
   return {
     customFigureStyle: cs,
@@ -62,7 +63,12 @@ export function getTimeseriesComponentSizes(
     xAxisHeight,
     paneHeaderHeight,
     minYAxisWidth: estimateMinYAxisWidth(rc, ms.yScaleAxis, ms.grid),
-    surroundsMinWidth: estimateMinSurroundsWidth(rc, cs, resolvedLegendLabels),
+    surroundsMinWidth: estimateMinSurroundsWidth(
+      rc,
+      cs,
+      resolvedLegendLabels,
+      data.seriesHeaders,
+    ),
     resolvedLegendLabels,
   };
 }

@@ -5,6 +5,7 @@
 
 import type {
   ChartAxisPrimitive,
+  HeaderItem,
   LineStyle,
   MeasuredText,
   MergedGridStyle,
@@ -43,7 +44,7 @@ export function generateXTextAxisPrimitive(
   i_lane: number,
   subChartAreaX: number,
   mx: XTextAxisMeasuredInfo,
-  indicatorHeaders: string[],
+  indicatorHeaders: HeaderItem[],
   axisStyle: MergedXTextAxisStyle,
   gridStyle: MergedGridStyle,
 ): ChartAxisPrimitive {
@@ -71,7 +72,7 @@ export function generateXTextAxisPrimitive(
 
     // Measure tick label
     const mText = rc.mText(
-      indicatorHeaders[i_indicator],
+      indicatorHeaders[i_indicator].label,
       sx.text.xTextAxisTickLabels,
       sx.verticalTickLabels
         ? Number.POSITIVE_INFINITY
@@ -637,7 +638,7 @@ export function generateYTextAxisPrimitive(
   yAxisRcd: RectCoordsDims,
   subChartAreaY: number,
   subChartAreaHeight: number,
-  indicatorHeaders: string[],
+  indicatorHeaders: HeaderItem[],
   sy: MergedYTextAxisStyle,
   sg: MergedGridStyle,
 ): ChartAxisPrimitive {
@@ -661,7 +662,7 @@ export function generateYTextAxisPrimitive(
     const tickY = centeredTicks ? currentY + rowInner / 2 : currentY;
 
     const mText = rc.mText(
-      indicatorHeaders[i_indicator],
+      indicatorHeaders[i_indicator].label,
       sy.text.yTextAxisTickLabels,
       yAxisWidthInfo.maxTickLabelW,
     );

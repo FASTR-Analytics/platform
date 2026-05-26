@@ -35,6 +35,7 @@ export function resolveDataLabelOwnership(
         i_val,
         ctx.valueRange.minVal,
         ctx.valueRange.maxVal,
+        ctx.indicatorHeaders?.[i_val],
       );
 
       const pointStyle = s.points.getStyle(valueInfo);

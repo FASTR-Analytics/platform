@@ -5,6 +5,7 @@
 
 import type {
   CustomFigureStyle,
+  HeaderItem,
   MeasuredText,
   MergedChartStyleBase,
   Primitive,
@@ -25,10 +26,11 @@ export interface SimplifiedChartConfig<
   mergedStyle: TStyle;
   transformedData: TData;
   dataProps: {
-    paneHeaders: string[];
-    tierHeaders: string[];
-    laneHeaders: string[];
-    seriesHeaders: string[];
+    paneHeaders: HeaderItem[];
+    tierHeaders: HeaderItem[];
+    laneHeaders: HeaderItem[];
+    seriesHeaders: HeaderItem[];
+    indicatorHeaders?: HeaderItem[];
   };
   xAxisConfig: XAxisConfig;
   yAxisConfig: YAxisConfig;
@@ -48,10 +50,11 @@ export interface MeasurePaneConfig<TData> {
   };
   paneHeader: MeasuredText | undefined;
   dataProps: {
-    paneHeaders: string[];
-    tierHeaders: string[];
-    laneHeaders: string[];
-    seriesHeaders: string[];
+    paneHeaders: HeaderItem[];
+    tierHeaders: HeaderItem[];
+    laneHeaders: HeaderItem[];
+    seriesHeaders: HeaderItem[];
+    indicatorHeaders?: HeaderItem[];
   };
   data: TData;
   baseStyle: MergedChartStyleBase;

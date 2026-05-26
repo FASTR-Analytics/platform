@@ -10,6 +10,7 @@ import {
 import { measureXAxis } from "./_axes/measure_x_axis.ts";
 import type {
   ChartLabelPrimitive,
+  HeaderItem,
   MeasuredText,
   MergedChartStyleBase,
   Primitive,
@@ -191,7 +192,7 @@ export function measurePane<TData>(
 function measureTierHeaders(
   rc: RenderContext,
   nTiers: number,
-  tierHeaders: string[],
+  tierHeaders: HeaderItem[],
   tierHeadersTextStyle: TextInfoUnkeyed,
   labelGap: number,
   maxWidth: number,
@@ -202,7 +203,11 @@ function measureTierHeaders(
   const measuredTexts: MeasuredText[] = [];
   let maxMeasuredWidth = 0;
   for (let i_tier = 0; i_tier < tierHeaders.length; i_tier++) {
-    const mText = rc.mText(tierHeaders[i_tier], tierHeadersTextStyle, maxWidth);
+    const mText = rc.mText(
+      tierHeaders[i_tier].label,
+      tierHeadersTextStyle,
+      maxWidth,
+    );
     measuredTexts.push(mText);
     maxMeasuredWidth = Math.max(maxMeasuredWidth, mText.dims.w());
   }
@@ -212,7 +217,7 @@ function measureTierHeaders(
 function measureLaneHeaders(
   rc: RenderContext,
   subChartAreaWidth: number,
-  laneHeaders: string[],
+  laneHeaders: HeaderItem[],
   s: MergedChartStyleBase,
 ): { value: number; measuredTexts: MeasuredText[] } {
   if (laneHeaders.length < 2) {
@@ -222,7 +227,7 @@ function measureLaneHeaders(
   let maxHeight = 0;
   for (let i_lane = 0; i_lane < laneHeaders.length; i_lane++) {
     const mText = rc.mText(
-      laneHeaders[i_lane],
+      laneHeaders[i_lane].label,
       s.text.laneHeaders,
       subChartAreaWidth,
     );

@@ -6,6 +6,7 @@
 import type {
   CustomFigureStyle,
   FigureInputsBase,
+  HeaderSortConfig,
   JsonArray,
   LegendInput,
   LegendItem,
@@ -62,9 +63,11 @@ export type TableJsonDataConfig = {
   colGroupProp?: string | "--v";
   rowGroupProp?: string | "--v";
   //
-  sortHeaders?: boolean | string[]; // true = alphabetical, string array = custom order
-  labelReplacementsBeforeSorting?: Record<string, string>;
-  labelReplacementsAfterSorting?: Record<string, string>;
+  labelReplacements?: Record<string, string>;
+  sort?: {
+    col?: HeaderSortConfig;
+    row?: HeaderSortConfig;
+  };
 };
 
 ///////////////////////
@@ -99,21 +102,25 @@ export function isTableDataTransformed(
 }
 
 export type ColGroup = {
+  id: string | undefined;
   label: string | undefined;
   cols: ColGroupCol[];
 };
 
 export type ColGroupCol = {
+  id: string | undefined;
   label: string | undefined;
   index: number;
 };
 
 export type RowGroup = {
+  id: string | undefined;
   label: string | undefined;
   rows: RowGroupRow[];
 };
 
 export type RowGroupRow = {
+  id: string | undefined;
   label: string | undefined;
   index: number;
 };
@@ -139,6 +146,7 @@ export type TableHeightInfo = {
 
 export type RowHeaderInfo = {
   mText: MeasuredText | undefined;
+  id: string | undefined;
   label: string | undefined;
   index: number | "group-header";
 };

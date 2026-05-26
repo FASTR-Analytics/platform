@@ -44,7 +44,7 @@ export function measureChart<
   const dataProps = config.dataProps;
 
   const legend = config.resolvedLegend ?? inputs.legend ??
-    dataProps.seriesHeaders;
+    dataProps.seriesHeaders.map((h) => h.label);
 
   const measuredSurrounds = measureSurrounds(
     rc,
@@ -54,6 +54,7 @@ export function measureChart<
     subCaption,
     footnote,
     legend,
+    dataProps.seriesHeaders,
   );
   const extraHeightDueToSurrounds = measuredSurrounds.extraHeightDueToSurrounds;
 
@@ -78,7 +79,7 @@ export function measureChart<
     dataProps.paneHeaders.forEach((paneHeader) => {
       mCellHeaders.push(
         rc.mText(
-          paneHeader,
+          paneHeader.label,
           mergedStyle.text.paneHeaders,
           paneWidth - panePadding.totalPx(),
         ),

@@ -89,7 +89,7 @@ export async function convertAiInputToSlide(
   }
 
   // Extract PageContentItems and build ID → source map
-  const sourceMap = new Map<string, FigureSource>();
+  const sourceMap = new Map<string, FigureSource | undefined>();
   const generateId = createIdGeneratorForLayout();
   const itemNodes = resolvedBlocks.map((block) => {
     let pageItem: PageContentItem;
@@ -108,7 +108,7 @@ export async function convertAiInputToSlide(
     const shortId = generateId();
     const nodeWithShortId = { ...node, id: shortId };
 
-    if (block.type === "figure" && block.source) {
+    if (block.type === "figure") {
       sourceMap.set(shortId, block.source);
     }
 
@@ -150,12 +150,14 @@ export async function convertAiInputToSlide(
   }) as Slide;
 }
 
+type SourceMap = Map<string, FigureSource | undefined>;
+
 /**
  * Restore source metadata into layout tree after optimization
  */
 function restoreMetadata(
   node: LayoutNode<PageContentItem>,
-  sourceMap: Map<string, FigureSource>,
+  sourceMap: SourceMap,
 ): LayoutNode<ContentBlock> {
   if (node.type === "item") {
     const pageItem = node.data;
@@ -169,7 +171,11 @@ function restoreMetadata(
       contentBlock = { type: "text", markdown: pageItem.markdown };
     } else {
       const { autofit, ...figureInputs } = pageItem as any;
-      contentBlock = { type: "figure", figureInputs, source };
+      contentBlock = {
+        type: "figure",
+        figureInputs,
+        source,
+      };
     }
 
     return { type: "item", id: node.id, span: node.span, data: contentBlock };

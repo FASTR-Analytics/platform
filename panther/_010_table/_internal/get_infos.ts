@@ -28,6 +28,7 @@ export function getRowHeaderInfos(
       );
       rowHeaderInfos.push({
         mText,
+        id: rowGroup.id,
         label: rowGroup.label,
         index: "group-header",
       });
@@ -38,6 +39,7 @@ export function getRowHeaderInfos(
         : rc.mText(row.label, s.text.rowHeaders, maxPossibleWidth);
       rowHeaderInfos.push({
         mText,
+        id: row.id,
         label: row.label,
         index: row.index,
       });

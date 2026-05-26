@@ -55,9 +55,9 @@ export function ShareVisualizationModal(p: Props) {
         config: p.config,
         metricId: p.metricId,
         formatAs: p.formatAs,
+        indicatorMetadata: p.indicatorMetadata,
       },
       geoData: p.geoData,
-      indicatorMetadata: p.indicatorMetadata,
     };
 
     const res = await fetch(`${_SERVER_HOST}/api/share/viz`, {

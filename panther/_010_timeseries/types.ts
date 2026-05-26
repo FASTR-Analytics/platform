@@ -7,6 +7,8 @@ import type {
   ChartScaleAxisLimits,
   CustomFigureStyle,
   FigureInputsBase,
+  HeaderItem,
+  HeaderSortConfig,
   JsonArray,
   LegendInput,
   LegendItem,
@@ -49,9 +51,13 @@ export type TimeseriesJsonDataConfig = {
   paneProp?: string | "--v";
   uncertainty?: UncertaintyConfig;
   //
-  sortHeaders?: boolean | string[];
-  labelReplacementsBeforeSorting?: Record<string, string>;
-  labelReplacementsAfterSorting?: Record<string, string>;
+  labelReplacements?: Record<string, string>;
+  sort?: {
+    series?: HeaderSortConfig;
+    lane?: HeaderSortConfig;
+    tier?: HeaderSortConfig;
+    pane?: HeaderSortConfig;
+  };
   yScaleAxisLabel?: string;
 };
 
@@ -67,10 +73,10 @@ export type TimeseriesDataTransformed = {
   timeMin: number;
   timeMax: number;
   nTimePoints: number;
-  seriesHeaders: string[];
-  laneHeaders: string[];
-  tierHeaders: string[];
-  paneHeaders: string[];
+  seriesHeaders: HeaderItem[];
+  laneHeaders: HeaderItem[];
+  tierHeaders: HeaderItem[];
+  paneHeaders: HeaderItem[];
   values: (number | undefined)[][][][][];
   bounds?: {
     ub: (number | undefined)[][][][][];

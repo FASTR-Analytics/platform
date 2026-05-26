@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { JsonArray } from "./deps.ts";
+import { createHeaderItems, type JsonArray, sortHeaderItems } from "./deps.ts";
 import type { GeoJSONFeature } from "./_internal/geojson_types.ts";
 import { decodeTopojson } from "./_internal/topojson_decode.ts";
 import type { MapData, MapDataJson, MapDataTransformed } from "./types.ts";
@@ -18,25 +18,27 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
   const config = data.jsonDataConfig;
   const jsonArray = data.jsonArray;
 
-  const paneHeaders = collectUniqueHeaders(jsonArray, config.paneProp);
-  const tierHeaders = collectUniqueHeaders(jsonArray, config.tierProp);
-  const laneHeaders = collectUniqueHeaders(jsonArray, config.laneProp);
-
-  if (config.sortHeaders === true) {
-    paneHeaders.sort();
-    tierHeaders.sort();
-    laneHeaders.sort();
-  } else if (Array.isArray(config.sortHeaders)) {
-    const order = config.sortHeaders;
-    const sortByOrder = (a: string, b: string) => {
-      const ia = order.indexOf(a);
-      const ib = order.indexOf(b);
-      return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
-    };
-    paneHeaders.sort(sortByOrder);
-    tierHeaders.sort(sortByOrder);
-    laneHeaders.sort(sortByOrder);
-  }
+  const paneHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectUniqueHeaders(jsonArray, config.paneProp),
+      config.labelReplacements,
+    ),
+    config.sort?.pane,
+  );
+  const tierHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectUniqueHeaders(jsonArray, config.tierProp),
+      config.labelReplacements,
+    ),
+    config.sort?.tier,
+  );
+  const laneHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectUniqueHeaders(jsonArray, config.laneProp),
+      config.labelReplacements,
+    ),
+    config.sort?.lane,
+  );
 
   const valueMaps: Record<string, number | undefined>[][][] = [];
   let globalMin = Infinity;
@@ -58,13 +60,19 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
     const value = typeof rawValue === "number" ? rawValue : undefined;
 
     const ip = config.paneProp
-      ? paneHeaders.indexOf(String(row[config.paneProp] ?? ""))
+      ? paneHeaders.findIndex((h) =>
+        h.id === String(row[config.paneProp!] ?? "")
+      )
       : 0;
     const it = config.tierProp
-      ? tierHeaders.indexOf(String(row[config.tierProp] ?? ""))
+      ? tierHeaders.findIndex((h) =>
+        h.id === String(row[config.tierProp!] ?? "")
+      )
       : 0;
     const il = config.laneProp
-      ? laneHeaders.indexOf(String(row[config.laneProp] ?? ""))
+      ? laneHeaders.findIndex((h) =>
+        h.id === String(row[config.laneProp!] ?? "")
+      )
       : 0;
 
     if (ip === -1 || it === -1 || il === -1) continue;
@@ -78,14 +86,6 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
 
   if (!isFinite(globalMin)) globalMin = 0;
   if (!isFinite(globalMax)) globalMax = 1;
-
-  if (config.labelReplacements) {
-    const r = config.labelReplacements;
-    const replace = (headers: string[]) => headers.map((h) => r[h] ?? h);
-    paneHeaders.splice(0, paneHeaders.length, ...replace(paneHeaders));
-    tierHeaders.splice(0, tierHeaders.length, ...replace(tierHeaders));
-    laneHeaders.splice(0, laneHeaders.length, ...replace(laneHeaders));
-  }
 
   return {
     isTransformed: true,

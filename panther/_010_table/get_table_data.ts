@@ -15,10 +15,10 @@ import {
 import {
   assert,
   createArray,
+  type HeaderSortConfig,
   type JsonArray,
   type JsonArrayItem,
   sortAlphabetical,
-  withAnyLabelReplacement,
 } from "./deps.ts";
 
 export function getTableDataTransformed(d: TableData): TableDataTransformed {
@@ -41,16 +41,16 @@ function getTableDataJsonTransformed(
     rowProp,
     colGroupProp,
     rowGroupProp,
-    sortHeaders,
-    labelReplacementsBeforeSorting,
-    labelReplacementsAfterSorting,
+    labelReplacements,
+    sort,
   } = jsonDataConfig;
 
   if (valueProps.length === 0) {
     throw new Error("Need at least one valueProp");
   }
 
-  // Collect unique combinations using Sets for better performance
+  // Collect unique combinations using Sets for better performance.
+  // Combos hold raw ids only (`groupId:::itemId`); labels are resolved later.
   const { colGroupCombos, rowGroupCombos } = collectUniqueCombos(
     jsonArray,
     valueProps,
@@ -58,43 +58,26 @@ function getTableDataJsonTransformed(
     colProp,
     rowGroupProp,
     rowProp,
-    labelReplacementsBeforeSorting,
   );
 
-  // Sort if requested
-  if (sortHeaders) {
-    if (Array.isArray(sortHeaders)) {
-      sortByCustomOrder(colGroupCombos, sortHeaders);
-      sortByCustomOrder(rowGroupCombos, sortHeaders);
-    } else {
-      sortAlphabetical(colGroupCombos);
-      sortAlphabetical(rowGroupCombos);
-    }
-  }
+  const colCombosSorted = applyTableSort(colGroupCombos, sort?.col);
+  const rowCombosSorted = applyTableSort(rowGroupCombos, sort?.row);
 
-  const colGroups = createGroups(
-    colGroupCombos,
-    labelReplacementsAfterSorting,
-    "col",
-  );
-  const rowGroups = createGroups(
-    rowGroupCombos,
-    labelReplacementsAfterSorting,
-    "row",
-  );
+  const colGroups = createGroups(colCombosSorted, labelReplacements, "col");
+  const rowGroups = createGroups(rowCombosSorted, labelReplacements, "row");
 
-  // Create lookup maps for O(1) performance
+  // Create lookup maps for O(1) performance (keyed by sorted combo order)
   const colComboToIndex = new Map(
-    colGroupCombos.map((combo, index) => [combo, index]),
+    colCombosSorted.map((combo, index) => [combo, index]),
   );
   const rowComboToIndex = new Map(
-    rowGroupCombos.map((combo, index) => [combo, index]),
+    rowCombosSorted.map((combo, index) => [combo, index]),
   );
 
   // Initialize the data array
   const aoa: string[][] = createArray(
-    rowGroupCombos.length,
-    () => createArray(colGroupCombos.length, UNDEFINED_PLACEHOLDER),
+    rowCombosSorted.length,
+    () => createArray(colCombosSorted.length, UNDEFINED_PLACEHOLDER),
   );
 
   // Fill the data array
@@ -108,7 +91,6 @@ function getTableDataJsonTransformed(
     rowProp,
     colComboToIndex,
     rowComboToIndex,
-    labelReplacementsBeforeSorting,
   );
 
   // Replace undefined placeholders with dots
@@ -130,6 +112,32 @@ function getTableDataJsonTransformed(
 
 const UNDEFINED_PLACEHOLDER = "___";
 const SEPARATOR = ":::";
+
+// Table sorting operates on raw-id combo strings, so it supports `by-id` /
+// `by-label` (alphabetical on the combo) and `{ byIdOrder }` (custom id order).
+// `byLabelOrder` and arbitrary HeaderSortFunc are not expressible here — see
+// PLAN_TABLE_SORTING.md for the planned structured per-axis sort.
+function applyTableSort(
+  combos: string[],
+  sortConfig: HeaderSortConfig | undefined,
+): string[] {
+  if (sortConfig === undefined) {
+    return combos;
+  }
+  const out = [...combos];
+  if (typeof sortConfig === "object" && "byIdOrder" in sortConfig) {
+    sortByCustomOrder(out, sortConfig.byIdOrder);
+    return out;
+  }
+  if (sortConfig === "by-id" || sortConfig === "by-label") {
+    sortAlphabetical(out);
+    return out;
+  }
+  throw new Error(
+    "Table sort supports 'by-id', 'by-label', or { byIdOrder }; " +
+      "byLabelOrder and custom HeaderSortFunc are not supported for tables",
+  );
+}
 
 function sortByCustomOrder(combos: string[], customOrder: string[]): void {
   // Pre-build index map for O(1) lookups instead of O(n) indexOf calls
@@ -176,29 +184,14 @@ function collectUniqueCombos(
   colProp: string | undefined,
   rowGroupProp: string | undefined,
   rowProp: string | undefined,
-  labelReplacements?: Record<string, string>,
 ): { colGroupCombos: string[]; rowGroupCombos: string[] } {
   const colComboSet = new Set<string>();
   const rowComboSet = new Set<string>();
 
   for (const vp of valueProps) {
     for (const obj of jsonArray) {
-      const colCombo = getComboKey(
-        colGroupProp,
-        colProp,
-        vp,
-        obj,
-        labelReplacements,
-      );
-      const rowCombo = getComboKey(
-        rowGroupProp,
-        rowProp,
-        vp,
-        obj,
-        labelReplacements,
-      );
-      colComboSet.add(colCombo);
-      rowComboSet.add(rowCombo);
+      colComboSet.add(getComboKey(colGroupProp, colProp, vp, obj));
+      rowComboSet.add(getComboKey(rowGroupProp, rowProp, vp, obj));
     }
   }
 
@@ -224,25 +217,31 @@ function createGroups(
   groupType: "col" | "row",
 ): ColGroup[] | RowGroup[] {
   const groups: (ColGroup | RowGroup)[] = [];
-  let currentGroupHeader = "";
+  let currentGroupRaw = "";
   let currentGroupIndex = -1;
 
   combos.forEach((combo, index) => {
-    const [groupHeader, itemHeader] = combo.split(SEPARATOR);
+    const [groupRaw, itemRaw] = combo.split(SEPARATOR);
 
-    if (groupHeader !== currentGroupHeader) {
-      const groupLabel = processLabel(groupHeader, labelReplacements);
+    if (groupRaw !== currentGroupRaw) {
+      const groupId = groupRaw === UNDEFINED_PLACEHOLDER ? undefined : groupRaw;
+      const groupLabel = groupId === undefined
+        ? undefined
+        : (labelReplacements?.[groupId] ?? groupId);
       if (groupType === "col") {
-        groups.push({ label: groupLabel, cols: [] });
+        groups.push({ id: groupId, label: groupLabel, cols: [] });
       } else {
-        groups.push({ label: groupLabel, rows: [] });
+        groups.push({ id: groupId, label: groupLabel, rows: [] });
       }
-      currentGroupHeader = groupHeader;
+      currentGroupRaw = groupRaw;
       currentGroupIndex = groups.length - 1;
     }
 
-    const itemLabel = processLabel(itemHeader, labelReplacements);
-    const item = { label: itemLabel, index };
+    const itemId = itemRaw === UNDEFINED_PLACEHOLDER ? undefined : itemRaw;
+    const itemLabel = itemId === undefined
+      ? undefined
+      : (labelReplacements?.[itemId] ?? itemId);
+    const item = { id: itemId, label: itemLabel, index };
 
     if (groupType === "col") {
       (groups[currentGroupIndex] as ColGroup).cols.push(item);
@@ -264,7 +263,6 @@ function fillDataArray(
   rowProp: string | undefined,
   colComboToIndex: Map<string, number>,
   rowComboToIndex: Map<string, number>,
-  labelReplacements?: Record<string, string>,
 ): void {
   for (const vp of valueProps) {
     for (const obj of jsonArray) {
@@ -272,20 +270,8 @@ function fillDataArray(
         continue;
       }
 
-      const colCombo = getComboKey(
-        colGroupProp,
-        colProp,
-        vp,
-        obj,
-        labelReplacements,
-      );
-      const rowCombo = getComboKey(
-        rowGroupProp,
-        rowProp,
-        vp,
-        obj,
-        labelReplacements,
-      );
+      const colCombo = getComboKey(colGroupProp, colProp, vp, obj);
+      const rowCombo = getComboKey(rowGroupProp, rowProp, vp, obj);
 
       const colIndex = colComboToIndex.get(colCombo)!;
       const rowIndex = rowComboToIndex.get(rowCombo)!;
@@ -304,37 +290,13 @@ function getComboKey(
   prop: string | undefined,
   valueProp: string,
   obj: JsonArrayItem,
-  labelReplacements?: Record<string, string>,
 ): string {
-  let groupValue = groupProp === "--v"
+  const groupValue = groupProp === "--v"
     ? valueProp
     : obj[groupProp!] ?? UNDEFINED_PLACEHOLDER;
-  let propValue = prop === "--v"
+  const propValue = prop === "--v"
     ? valueProp
     : obj[prop!] ?? UNDEFINED_PLACEHOLDER;
 
-  // Apply label replacements if provided
-  if (labelReplacements) {
-    if (groupValue !== UNDEFINED_PLACEHOLDER) {
-      groupValue =
-        withAnyLabelReplacement(String(groupValue), labelReplacements) ??
-          String(groupValue);
-    }
-    if (propValue !== UNDEFINED_PLACEHOLDER) {
-      propValue =
-        withAnyLabelReplacement(String(propValue), labelReplacements) ??
-          String(propValue);
-    }
-  }
-
   return `${groupValue}${SEPARATOR}${propValue}`;
-}
-
-function processLabel(
-  value: string,
-  labelReplacements: Record<string, string> | undefined,
-): string | undefined {
-  return value === UNDEFINED_PLACEHOLDER
-    ? undefined
-    : withAnyLabelReplacement(value, labelReplacements);
 }

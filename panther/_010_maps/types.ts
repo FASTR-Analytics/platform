@@ -5,6 +5,8 @@
 
 import type {
   FigureInputsBase,
+  HeaderItem,
+  HeaderSortConfig,
   JsonArray,
   MeasuredChartBase,
   MergedMapStyle,
@@ -38,17 +40,21 @@ export type MapJsonDataConfig = {
   paneProp?: string;
   tierProp?: string;
   laneProp?: string;
-  sortHeaders?: boolean | string[];
   labelReplacements?: Record<string, string>;
+  sort?: {
+    pane?: HeaderSortConfig;
+    tier?: HeaderSortConfig;
+    lane?: HeaderSortConfig;
+  };
 };
 
 export type MapDataTransformed = {
   isTransformed: true;
   geoFeatures: GeoJSONFeature[];
   areaMatchProp: string;
-  paneHeaders: string[];
-  tierHeaders: string[];
-  laneHeaders: string[];
+  paneHeaders: HeaderItem[];
+  tierHeaders: HeaderItem[];
+  laneHeaders: HeaderItem[];
   valueMaps: Record<string, number | undefined>[][][];
   valueRange: { min: number; max: number };
 };

@@ -9,6 +9,7 @@ import {
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   findOptimalScaleForBounds,
+  type HeaderItem,
   type HeightConstraints,
   RectCoordsDims,
   type RenderContext,
@@ -16,6 +17,7 @@ import {
   resolveFigureAutofitOptions,
   sum,
   type TableCellInfo,
+  toHeaderItem,
 } from "./deps.ts";
 import { getTableDataTransformed } from "./get_table_data.ts";
 import type { TableInputs } from "./mod.ts";
@@ -95,10 +97,10 @@ function getMinComfortableWidth(
   }
 
   // Build row header lookup for TableCellInfo
-  const rowHeaderLabels: string[] = [];
+  const rowHeaderItems: (HeaderItem | undefined)[] = [];
   for (const rowGroup of d.rowGroups) {
     for (const row of rowGroup.rows) {
-      rowHeaderLabels[row.index] = row.label ?? "";
+      rowHeaderItems[row.index] = toHeaderItem(row.id, row.label);
     }
   }
 
@@ -128,8 +130,8 @@ function getMinComfortableWidth(
           i_col: col.index,
           nRows,
           nCols,
-          rowHeader: rowHeaderLabels[rowIndex] ?? "",
-          colHeader: col.label ?? "",
+          rowHeader: rowHeaderItems[rowIndex],
+          colHeader: toHeaderItem(col.id, col.label),
         };
         const textFormatter = s.tableCells.textFormatter;
         const valStr = textFormatter === "none" ||

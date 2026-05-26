@@ -10,15 +10,16 @@ import {
   checkValuePropsAssignment,
   collectHeaders,
   createArray,
-  createSortFunction,
+  createHeaderItems,
   getHeaderIndex,
   getValidNumberOrUndefined,
+  type HeaderItem,
   isRowBasedUncertainty,
   type JsonArray,
   type PeriodType,
+  sortHeaderItems,
   validateDataInput,
   validateUncertaintyConfig,
-  withAnyLabelReplacement,
 } from "./deps.ts";
 import {
   isTimeseriesDataJson,
@@ -79,10 +80,10 @@ function fillTimeseriesValues(
   laneProp: string | undefined,
   tierProp: string | undefined,
   paneProp: string | undefined,
-  seriesHeaders: string[],
-  laneHeaders: string[],
-  tierHeaders: string[],
-  paneHeaders: string[],
+  seriesHeaders: HeaderItem[],
+  laneHeaders: HeaderItem[],
+  tierHeaders: HeaderItem[],
+  paneHeaders: HeaderItem[],
 ): void {
   for (const obj of rows) {
     for (const valueProp of valueProps) {
@@ -134,9 +135,8 @@ export function getTimeseriesDataJsonTransformed(
     tierProp,
     paneProp,
     uncertainty,
-    sortHeaders,
-    labelReplacementsBeforeSorting,
-    labelReplacementsAfterSorting,
+    labelReplacements,
+    sort,
   } = jsonDataConfig;
 
   if (uncertainty) {
@@ -161,10 +161,34 @@ export function getTimeseriesDataJsonTransformed(
     ? jsonArray
     : sourceRows;
 
-  const seriesHeaders = collectHeaders(headersSource, seriesProp, valueProps);
-  const laneHeaders = collectHeaders(headersSource, laneProp, valueProps);
-  const tierHeaders = collectHeaders(headersSource, tierProp, valueProps);
-  const paneHeaders = collectHeaders(headersSource, paneProp, valueProps);
+  const seriesHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectHeaders(headersSource, seriesProp, valueProps),
+      labelReplacements,
+    ),
+    sort?.series,
+  );
+  const laneHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectHeaders(headersSource, laneProp, valueProps),
+      labelReplacements,
+    ),
+    sort?.lane,
+  );
+  const tierHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectHeaders(headersSource, tierProp, valueProps),
+      labelReplacements,
+    ),
+    sort?.tier,
+  );
+  const paneHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectHeaders(headersSource, paneProp, valueProps),
+      labelReplacements,
+    ),
+    sort?.pane,
+  );
 
   let periodIdMin: number = Number.POSITIVE_INFINITY;
   let periodIdMax: number = Number.NEGATIVE_INFINITY;
@@ -196,17 +220,6 @@ export function getTimeseriesDataJsonTransformed(
   const nTimes = timeMax - timeMin + 1;
   assert(nTimes >= 1);
   assert(nTimes <= 50 * 12);
-
-  if (sortHeaders) {
-    const sortFunc = createSortFunction(
-      sortHeaders,
-      labelReplacementsBeforeSorting,
-    );
-    seriesHeaders.sort(sortFunc);
-    laneHeaders.sort(sortFunc);
-    tierHeaders.sort(sortFunc);
-    paneHeaders.sort(sortFunc);
-  }
 
   const nPanes = paneHeaders.length;
   const nTiers = tierHeaders.length;
@@ -384,21 +397,16 @@ export function getTimeseriesDataJsonTransformed(
     }
   }
 
-  const combinedReplacements = {
-    ...labelReplacementsBeforeSorting,
-    ...labelReplacementsAfterSorting,
-  };
-
   return {
     isTransformed: true,
     periodType: jsonDataConfig.periodType,
     timeMin,
     timeMax,
     nTimePoints: 1 + timeMax - timeMin,
-    seriesHeaders: withAnyLabelReplacement(seriesHeaders, combinedReplacements),
-    laneHeaders: withAnyLabelReplacement(laneHeaders, combinedReplacements),
-    tierHeaders: withAnyLabelReplacement(tierHeaders, combinedReplacements),
-    paneHeaders: withAnyLabelReplacement(paneHeaders, combinedReplacements),
+    seriesHeaders,
+    laneHeaders,
+    tierHeaders,
+    paneHeaders,
     values,
     bounds,
     scaleAxisLimits: scaleLimits,

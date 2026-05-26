@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  HeaderItem,
   MergedGridStyle,
   MergedXTextAxisStyle,
   RectCoordsDims,
@@ -17,7 +18,7 @@ export function measureXTextAxis(
   contentRcd: RectCoordsDims,
   yAxisWidthInfo: YAxisWidthInfoBase,
   subChartAreaWidth: number,
-  indicatorHeaders: string[],
+  indicatorHeaders: HeaderItem[],
   axisStyle: MergedXTextAxisStyle,
   gridStyle: MergedGridStyle,
 ): XTextAxisMeasuredInfo {
@@ -38,7 +39,7 @@ export function measureXTextAxis(
 
   for (const indicatorHeader of indicatorHeaders) {
     const mText = rc.mText(
-      indicatorHeader,
+      indicatorHeader.label,
       sx.text.xTextAxisTickLabels,
       sx.verticalTickLabels
         ? Number.POSITIVE_INFINITY

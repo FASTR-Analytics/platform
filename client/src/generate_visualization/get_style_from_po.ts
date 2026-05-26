@@ -30,5 +30,5 @@ export function getStyleFromPresentationObject(
   if (isSpecialDisruptionsChartActive(config)) {
     return buildDisruptionsChartStyle(config, formatAs, deckStyle);
   }
-  return buildStandardStyle(config, formatAs, deckStyle);
+  return buildStandardStyle(config, formatAs, deckStyle, indicatorMetadata);
 }

@@ -12,6 +12,7 @@ import {
   type RenderContext,
   sum,
   type TableCellInfo,
+  toHeaderItem,
 } from "../deps.ts";
 import { getTableDataTransformed } from "../get_table_data.ts";
 import type {
@@ -152,8 +153,8 @@ export function measureTable(
             i_col: col.index,
             nRows,
             nCols,
-            rowHeader: rhi.label ?? "",
-            colHeader: col.label ?? "",
+            rowHeader: toHeaderItem(rhi.id, rhi.label),
+            colHeader: toHeaderItem(col.id, col.label),
           };
           const textFormatter = s.tableCells.textFormatter;
           const cellStr = textFormatter === "none" ||

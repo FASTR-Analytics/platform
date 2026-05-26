@@ -8,6 +8,8 @@ import type {
   ColorKeyOrString,
   CustomFigureStyle,
   FigureInputsBase,
+  HeaderItem,
+  HeaderSortConfig,
   JsonArray,
   LegendInput,
   LegendItem,
@@ -44,10 +46,15 @@ export type ChartOVJsonDataConfig = {
   paneProp?: string | "--v";
   uncertainty?: UncertaintyConfig;
   //
-  sortHeaders?: boolean | string[];
+  labelReplacements?: Record<string, string>;
+  sort?: {
+    indicator?: HeaderSortConfig;
+    series?: HeaderSortConfig;
+    lane?: HeaderSortConfig;
+    tier?: HeaderSortConfig;
+    pane?: HeaderSortConfig;
+  };
   sortIndicatorValues?: "ascending" | "descending" | "none";
-  labelReplacementsBeforeSorting?: Record<string, string>;
-  labelReplacementsAfterSorting?: Record<string, string>;
   yScaleAxisLabel?: string;
 };
 
@@ -59,11 +66,11 @@ export type ChartOVJsonDataConfig = {
 
 export type ChartOVDataTransformed = {
   isTransformed: true;
-  indicatorHeaders: string[];
-  seriesHeaders: string[];
-  laneHeaders: string[];
-  tierHeaders: string[];
-  paneHeaders: string[];
+  indicatorHeaders: HeaderItem[];
+  seriesHeaders: HeaderItem[];
+  laneHeaders: HeaderItem[];
+  tierHeaders: HeaderItem[];
+  paneHeaders: HeaderItem[];
   values: (number | undefined)[][][][][];
   bounds?: {
     ub: (number | undefined)[][][][][];

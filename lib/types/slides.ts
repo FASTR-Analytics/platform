@@ -9,6 +9,7 @@ import type {
   PatternType,
 } from "@timroberton/panther";
 import type { BrandPresetId } from "../brand_presets.ts";
+import type { IndicatorMetadata } from "./indicators.ts";
 
 type ImageOverlayType = "dots" | "rivers" | "waves" | "world";
 type PatternOverlayType = `pattern-${PatternType}`;
@@ -193,6 +194,7 @@ export type FigureSource =
       metricId: string;
       config: PresentationObjectConfig;
       snapshotAt: string;
+      indicatorMetadata?: IndicatorMetadata[];
     }
   | {
       type: "custom";

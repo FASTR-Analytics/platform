@@ -1,27 +1,65 @@
-import type { AiFigureFromVisualization, FigureBlock } from "lib";
-import { stripFigureInputsForStorage } from "~/generate_visualization/mod";
-import { getPODetailFromCacheorFetch, getPOFigureInputsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
+import type { AiFigureFromVisualization, FigureBlock, PresentationObjectConfig } from "lib";
+import { getFetchConfigFromPresentationObjectConfig, getReplicateByProp } from "lib";
+import { getFigureInputsFromPresentationObject, stripFigureInputsForStorage } from "~/generate_visualization/mod";
+import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
+import { getGeoJsonSync } from "~/state/instance/t2_geojson";
+import {
+  getPODetailFromCacheorFetch,
+  getPresentationObjectItemsFromCacheOrFetch,
+} from "~/state/project/t2_presentation_objects";
 
 export async function resolveFigureFromVisualization(
   projectId: string,
-  block: AiFigureFromVisualization
+  block: AiFigureFromVisualization,
 ): Promise<FigureBlock> {
-  const replicateOverride = block.replicant
-    ? { selectedReplicantValue: block.replicant, _forOptimizer: true }
-    : { _forOptimizer: true };
-
   const poDetailRes = await getPODetailFromCacheorFetch(projectId, block.visualizationId);
   if (!poDetailRes.success) {
     throw new Error(`Failed to fetch visualization: ${poDetailRes.err}`);
   }
 
-  const figureInputsRes = await getPOFigureInputsFromCacheOrFetch(
+  const config: PresentationObjectConfig = structuredClone(poDetailRes.data.config);
+
+  // Apply replicant override if specified
+  if (block.replicant) {
+    const replicateBy = getReplicateByProp(config);
+    if (replicateBy) {
+      config.d.selectedReplicantValue = block.replicant;
+    }
+  }
+
+  const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
     projectId,
-    block.visualizationId,
-    replicateOverride as any,
+    poDetailRes.data,
+    config,
   );
-  if (!figureInputsRes.success) {
-    throw new Error(`Failed to generate figure from visualization: ${figureInputsRes.err}`);
+  if (!itemsRes.success) {
+    throw new Error(`Failed to fetch items: ${itemsRes.err}`);
+  }
+
+  const ih = itemsRes.data.ih;
+  if (ih.status === "too_many_items") {
+    throw new Error("Too many data points selected");
+  }
+  if (ih.status === "no_data_available") {
+    throw new Error("No data available with current selection");
+  }
+
+  let geoJson;
+  const mapLevel = getAdminAreaLevelFromMapConfig(config);
+  if (mapLevel) {
+    geoJson = getGeoJsonSync(mapLevel);
+  }
+
+  const figureInputsRes = getFigureInputsFromPresentationObject(
+    poDetailRes.data.resultsValue,
+    ih,
+    config,
+    geoJson,
+  );
+  if (figureInputsRes.status !== "ready") {
+    throw new Error(
+      figureInputsRes.status === "error" ? figureInputsRes.err : "Failed to generate figure",
+    );
   }
 
   return {
@@ -30,8 +68,9 @@ export async function resolveFigureFromVisualization(
     source: {
       type: "from_data",
       metricId: poDetailRes.data.resultsValue.id,
-      config: structuredClone(poDetailRes.data.config),
+      config,
       snapshotAt: new Date().toISOString(),
+      indicatorMetadata: ih.indicatorMetadata,
     },
   };
 }

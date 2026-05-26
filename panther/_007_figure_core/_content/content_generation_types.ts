@@ -6,6 +6,7 @@
 import type {
   ChartSeriesInfo,
   ChartValueInfo,
+  HeaderItem,
   MergedContentStyle,
   RectCoordsDims,
   RenderContext,
@@ -21,17 +22,21 @@ export type ContentGenerationContext = {
     seriesValArrays: (number | undefined)[][];
     i_pane: number;
     nPanes: number;
+    paneHeader: HeaderItem;
     i_tier: number;
     nTiers: number;
+    tierHeader: HeaderItem;
     i_lane: number;
     nLanes: number;
+    laneHeader: HeaderItem;
   };
   nVals: number;
   nSeries: number;
   orientation: "vertical" | "horizontal";
   categoryIncrement: number;
   gridStrokeWidth: number;
-  seriesHeaders: string[];
+  seriesHeaders: HeaderItem[];
+  indicatorHeaders?: HeaderItem[];
   contentStyle: MergedContentStyle;
   dataLabelsTextStyle: TextInfoUnkeyed;
   valueRange: { minVal: number; maxVal: number };
@@ -63,6 +68,7 @@ export function buildValueInfo(
   i_val: number,
   valueMin: number,
   valueMax: number,
+  indicatorHeader: HeaderItem | undefined,
 ): ChartValueInfo {
   return {
     ...seriesInfo,
@@ -72,5 +78,6 @@ export function buildValueInfo(
     isLastVal: i_val === seriesInfo.nVals - 1,
     valueMin,
     valueMax,
+    indicatorHeader,
   };
 }

@@ -1,6 +1,7 @@
 import type { FigureInputs } from "panther";
 import type {
   DeckStyleContext,
+  FigureSource,
   IndicatorMetadata,
   PresentationObjectConfig,
 } from "lib";
@@ -17,13 +18,16 @@ export function stripFigureInputsForStorage(fi: FigureInputs): FigureInputs {
   return stripped;
 }
 
+type HydrationSource = {
+  config: PresentationObjectConfig;
+  metricId: string;
+  formatAs?: "percent" | "number";
+  indicatorMetadata?: IndicatorMetadata[];
+};
+
 export async function hydrateFigureInputsForRendering(
   fi: FigureInputs,
-  source?: {
-    config: PresentationObjectConfig;
-    metricId: string;
-    formatAs?: "percent" | "number";
-  },
+  source?: HydrationSource,
   deckStyle?: DeckStyleContext,
 ): Promise<FigureInputs> {
   let hydrated = fi;
@@ -50,6 +54,7 @@ export async function hydrateFigureInputsForRendering(
       source.config,
       formatAs,
       deckStyle,
+      source.indicatorMetadata,
     );
     hydrated = { ...hydrated, style };
   }
@@ -57,15 +62,23 @@ export async function hydrateFigureInputsForRendering(
   return hydrated;
 }
 
+export function figureSourceToHydrationSource(
+  source: FigureSource,
+  formatAs?: "percent" | "number",
+): HydrationSource | undefined {
+  if (source.type !== "from_data") return undefined;
+  return {
+    config: source.config,
+    metricId: source.metricId,
+    formatAs,
+    indicatorMetadata: source.indicatorMetadata,
+  };
+}
+
 export function hydrateFigureInputsForPublicRendering(
   fi: FigureInputs,
-  source: {
-    config: PresentationObjectConfig;
-    metricId: string;
-    formatAs: "percent" | "number";
-  },
+  source: HydrationSource & { formatAs: "percent" | "number" },
   geoData?: unknown,
-  indicatorMetadata?: IndicatorMetadata[],
 ): FigureInputs {
   let hydrated = fi;
 
@@ -89,9 +102,8 @@ export function hydrateFigureInputsForPublicRendering(
     source.config,
     source.formatAs,
     undefined,
-    indicatorMetadata,
+    source.indicatorMetadata,
   );
-  // style.scale = 2;
   hydrated = { ...hydrated, style };
 
   return hydrated;

@@ -5,6 +5,7 @@
 
 import {
   type CustomFigureStyle,
+  type HeaderItem,
   type HeightConstraints,
   type MergedChartStyleBase,
   RectCoordsDims,
@@ -24,7 +25,7 @@ export type ChartComponentSizes = {
   mergedStyle: MergedChartStyleBase;
   nLanes: number;
   nTiers: number;
-  paneHeaders: string[];
+  paneHeaders: HeaderItem[];
   minSubChartWidth: number;
   minSubChartHeight: number;
   xAxisHeight: number;

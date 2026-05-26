@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  HeaderItem,
   MergedGridStyle,
   MergedYTextAxisStyle,
   RectCoordsDims,
@@ -22,7 +23,7 @@ export function estimateMinYTextAxisWidth(
 
 export function measureYTextAxisWidthInfo(
   rc: RenderContext,
-  indicatorHeaders: string[],
+  indicatorHeaders: HeaderItem[],
   sy: MergedYTextAxisStyle,
   sg: MergedGridStyle,
   contentRcd: RectCoordsDims,
@@ -32,7 +33,7 @@ export function measureYTextAxisWidthInfo(
   let maxTickLabelW = 0;
   let maxTickLabelH = 0;
   for (const h of indicatorHeaders) {
-    const m = rc.mText(h, sy.text.yTextAxisTickLabels, maxWidth);
+    const m = rc.mText(h.label, sy.text.yTextAxisTickLabels, maxWidth);
     if (m.dims.w() > maxTickLabelW) maxTickLabelW = m.dims.w();
     if (m.dims.h() > maxTickLabelH) maxTickLabelH = m.dims.h();
   }

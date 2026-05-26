@@ -28,4 +28,3 @@ export * from "./measure_types.ts";
 export * from "./generate_annotation_primitives.ts";
 export * from "./render_primitives.ts";
 export * from "./types.ts";
-export * from "./with_any_label_replacement.ts";

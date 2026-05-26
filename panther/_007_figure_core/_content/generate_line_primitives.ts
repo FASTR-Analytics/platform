@@ -84,6 +84,7 @@ export function generateLinePrimitives(
           i_val,
           ctx.valueRange.minVal,
           ctx.valueRange.maxVal,
+          ctx.indicatorHeaders?.[i_val],
         );
         const labelStr = s.lines.textFormatter !== "none"
           ? s.lines.textFormatter(valueInfo)

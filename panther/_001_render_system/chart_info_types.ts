@@ -3,20 +3,25 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import type { HeaderItem } from "./header_types.ts";
+
 export type ChartSeriesInfo = {
   i_series: number;
   isFirstSeries: boolean;
   isLastSeries: boolean;
-  seriesHeader: string;
+  seriesHeader: HeaderItem;
   nSerieses: number;
   seriesValArrays: (number | undefined)[][];
   nVals: number;
   i_pane: number;
   nPanes: number;
+  paneHeader: HeaderItem;
   i_tier: number;
   nTiers: number;
+  tierHeader: HeaderItem;
   i_lane: number;
   nLanes: number;
+  laneHeader: HeaderItem;
 };
 
 export type ChartSeriesInfoFunc<T> = (info: ChartSeriesInfo) => T;
@@ -28,6 +33,9 @@ export type ChartValueInfo = ChartSeriesInfo & {
   isLastVal: boolean;
   valueMin: number;
   valueMax: number;
+  // For category charts (chartov/chartoh) this is the indicator at i_val.
+  // For timeseries, i_val is a time point and this is undefined.
+  indicatorHeader: HeaderItem | undefined;
 };
 
 export type ChartValueInfoFunc<T> = (info: ChartValueInfo) => T;
@@ -58,14 +66,17 @@ export type ChartConnectorInfo = {
   seriesValArrays: (number | undefined)[][];
   i_pane: number;
   nPanes: number;
+  paneHeader: HeaderItem;
   i_tier: number;
   nTiers: number;
+  tierHeader: HeaderItem;
   i_lane: number;
   nLanes: number;
+  laneHeader: HeaderItem;
   // Endpoint info — parallel arrays describing each point on the connector,
   // in series order, after gap filtering.
   seriesIndices: number[];
-  seriesHeaders: string[];
+  seriesHeaders: HeaderItem[];
   values: number[];
 };
 
@@ -93,8 +104,8 @@ export type TableCellInfo = {
   i_col: number;
   nRows: number;
   nCols: number;
-  rowHeader: string;
-  colHeader: string;
+  rowHeader: HeaderItem | undefined;
+  colHeader: HeaderItem | undefined;
 };
 
 export type TableCellInfoFunc<T> = (info: TableCellInfo) => T;

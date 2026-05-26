@@ -46,6 +46,7 @@ export function measureChartOV(
       tierHeaders: transformedData.tierHeaders,
       laneHeaders: transformedData.laneHeaders,
       seriesHeaders: transformedData.seriesHeaders,
+      indicatorHeaders: transformedData.indicatorHeaders,
     },
     xAxisConfig: {
       type: "text",

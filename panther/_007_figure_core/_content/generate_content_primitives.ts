@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  HeaderItem,
   MergedContentStyle,
   Primitive,
   RectCoordsDims,
@@ -28,10 +29,13 @@ export type ContentPrimitiveGenerationParams = {
     seriesValArrays: (number | undefined)[][];
     i_pane: number;
     nPanes: number;
+    paneHeader: HeaderItem;
     i_tier: number;
     nTiers: number;
+    tierHeader: HeaderItem;
     i_lane: number;
     nLanes: number;
+    laneHeader: HeaderItem;
   };
   seriesVals: (number | undefined)[][];
   valueRange: ValueRange;
@@ -40,7 +44,10 @@ export type ContentPrimitiveGenerationParams = {
   gridStrokeWidth: number;
   nVals: number;
   orientation: "vertical" | "horizontal";
-  transformedData: { seriesHeaders: string[] };
+  transformedData: {
+    seriesHeaders: HeaderItem[];
+    indicatorHeaders?: HeaderItem[];
+  };
   contentStyle: MergedContentStyle;
   dataLabelsTextStyle: TextInfoUnkeyed;
   boundsUbSeriesVals?: (number | undefined)[][];
@@ -111,6 +118,7 @@ export function generateContentPrimitives(
     categoryIncrement,
     gridStrokeWidth,
     seriesHeaders: d.seriesHeaders,
+    indicatorHeaders: d.indicatorHeaders,
     contentStyle: s,
     dataLabelsTextStyle: params.dataLabelsTextStyle,
     valueRange,

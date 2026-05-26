@@ -139,16 +139,20 @@ function convertMarkdownTableToTableData(
   const tableData: TableData = {
     isTransformed: true,
     colGroups: [{
+      id: undefined,
       label: undefined,
       cols: colHeaders.map((header, index) => ({
+        id: header,
         label: header,
         index,
         width: undefined,
       })),
     }],
     rowGroups: [{
+      id: undefined,
       label: undefined,
       rows: dataRows.map((row, index) => ({
+        id: undefined,
         label: undefined,
         index,
         values: row,

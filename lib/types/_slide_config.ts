@@ -45,6 +45,7 @@ const figureSourceSchema = z.discriminatedUnion("type", [
     metricId: z.string(),
     config: presentationObjectConfigSchema,
     snapshotAt: z.string(),
+    indicatorMetadata: z.array(z.unknown()).optional(),
   }),
   z.object({
     type: z.literal("custom"),

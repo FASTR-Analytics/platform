@@ -429,5 +429,40 @@ dataLabels: {
 ---
 
 **Dependency chain:**
-1. PLAN_PANTHER_HEADER_IDS.md (provides IDs in Info objects)
+
+1. PLAN_PANTHER_HEADER_IDS.md (provides IDs in Info objects) ✓ DONE
 2. This plan (uses IDs for metadata lookup)
+
+---
+
+## Implementation Status
+
+### ✓ Phase 1: Server — Unified Metadata Fetching
+
+Already implemented. `getIndicatorMetadata()` handles all indicator sources.
+
+### ✓ Phase 2: Database — ICEH Formatting Columns
+
+Skipped — using defaults in code.
+
+### ✓ Phase 3: Client — ID-Based Styling Logic (Completed 2026-05-25)
+
+Files updated:
+
+- `client/src/generate_visualization/get_style_from_po/_5_scorecard.ts` — Uses `metadataById.get(info.colHeader?.id)` instead of label-based lookup
+- `client/src/generate_visualization/get_style_from_po/_1_standard.ts` — Passes `indicatorMetadata` to `getTableCellsContent()`
+- `client/src/generate_visualization/get_style_from_po/_0_common.ts` — Added indicator-aware formatting in `getTableCellsContent()` with ID-based lookup and fallback
+- `client/src/generate_visualization/get_style_from_po.ts` — Already passes `indicatorMetadata` to `buildStandardStyle()`
+
+Additional work for slides/AI replication:
+
+- `lib/types/slides.ts` — Added `indicatorMetadata?: IndicatorMetadata[]` to `FigureBlock`
+- `lib/types/_slide_config.ts` — Added to zod schema
+- `client/src/state/project/t2_presentation_objects.ts` — New `getPOFigureInputsWithMetadataFromCacheOrFetch()` returns both figureInputs and indicatorMetadata
+- `client/src/generate_visualization/strip_figure_inputs.ts` — `hydrateFigureInputsForRendering()` accepts `indicatorMetadata` param
+- `client/src/components/slide_deck/slide_ai/` — Multiple files updated to capture and restore indicatorMetadata for AI previews
+- `client/src/components/slide_deck/slide_editor/index.tsx` — FigureBlock creation sites include indicatorMetadata
+
+### ⏳ Phase 4: Client — Sorting via Metadata
+
+Not yet implemented. The plan describes a `HeaderSortFunc` approach using panther's new sorting API. Current sorting still uses string-based sort order lists.

@@ -6,6 +6,7 @@ import {
 } from "panther";
 import {
   type DeckStyleContext,
+  type IndicatorMetadata,
   getCalendar,
   PresentationObjectConfig,
   selectCf,
@@ -24,6 +25,7 @@ export function buildStandardStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
   deckStyle?: DeckStyleContext,
+  indicatorMetadata?: IndicatorMetadata[],
 ): CustomFigureStyleOptions {
   const dataFormat = formatAs;
   const cf = selectCf(config.s);
@@ -111,7 +113,7 @@ export function buildStandardStyle(
       areas: {
         func: { show: showAreas },
       },
-      tableCells: getTableCellsContent(config, formatAs),
+      tableCells: getTableCellsContent(config, formatAs, indicatorMetadata),
       mapRegions: getMapRegionsContent(config, formatAs),
     },
     table: getTableLayoutStyle(config),

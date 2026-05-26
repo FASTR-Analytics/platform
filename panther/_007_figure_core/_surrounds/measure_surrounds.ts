@@ -6,6 +6,7 @@
 import {
   Coordinates,
   type CustomFigureStyle,
+  type HeaderItem,
   type MeasuredText,
   type MergedSurroundsStyle,
   type RectCoordsDims,
@@ -26,10 +27,15 @@ import {
 } from "../_legend/scale_legend_types.ts";
 import type { LegendItem } from "../types.ts";
 
+// Legend swatches have no pane/tier/lane context; this matches the "default"
+// sentinel that collectHeaders emits for an absent dimension.
+const DEFAULT_HEADER: HeaderItem = { id: "default", label: "default" };
+
 export function estimateMinSurroundsWidth(
   rc: RenderContext,
   cs: CustomFigureStyle,
   legendLabels: LegendInput | undefined,
+  seriesHeaders?: HeaderItem[],
 ): number {
   const sSurrounds = cs.getMergedSurroundsStyle();
 
@@ -68,16 +74,19 @@ export function estimateMinSurroundsWidth(
         i_series: i_label,
         isFirstSeries: i_label === 0,
         isLastSeries: i_label === arr_label.length - 1,
-        seriesHeader: label,
+        seriesHeader: seriesHeaders?.[i_label] ?? { id: label, label },
         nSerieses: arr_label.length,
         seriesValArrays: [],
         nVals: 0,
         i_lane: 0,
         nLanes: 0,
+        laneHeader: DEFAULT_HEADER,
         i_tier: 0,
         nTiers: 0,
+        tierHeader: DEFAULT_HEADER,
         i_pane: 0,
         nPanes: 0,
+        paneHeader: DEFAULT_HEADER,
       }),
     }));
 
@@ -133,6 +142,7 @@ export function measureSurrounds(
   subCaption: string | undefined,
   footnote: string | string[] | undefined,
   legendLabels: LegendInput | undefined,
+  seriesHeaders?: HeaderItem[],
 ): MeasuredSurrounds {
   const sSurrounds = cs.getMergedSurroundsStyle();
   const innerRcd = rcd.getPadded(sSurrounds.padding);
@@ -260,16 +270,19 @@ export function measureSurrounds(
               i_series: i_label,
               isFirstSeries: i_label === 0,
               isLastSeries: i_label === arr_label.length - 1,
-              seriesHeader: label,
+              seriesHeader: seriesHeaders?.[i_label] ?? { id: label, label },
               nSerieses: arr_label.length,
               seriesValArrays: [],
               nVals: 0,
               i_lane: 0,
               nLanes: 0,
+              laneHeader: DEFAULT_HEADER,
               i_tier: 0,
               nTiers: 0,
+              tierHeader: DEFAULT_HEADER,
               i_pane: 0,
               nPanes: 0,
+              paneHeader: DEFAULT_HEADER,
             }),
           };
         });

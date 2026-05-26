@@ -175,7 +175,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
                 periodProp: "period_id",
                 periodType: "year-month",
                 seriesProp: "indicator_id",
-                labelReplacementsBeforeSorting:
+                labelReplacements:
                   p.displayItems.indicatorLabelReplacements,
                 yScaleAxisLabel:
                   value === "count"
@@ -192,8 +192,8 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
                 valueProps: [value],
                 colProp: "indicator_id",
                 rowProp: "period_id",
-                sortHeaders: true,
-                labelReplacementsBeforeSorting:
+                sort: { col: "by-label", row: "by-label" },
+                labelReplacements:
                   p.displayItems.indicatorLabelReplacements,
               },
             },

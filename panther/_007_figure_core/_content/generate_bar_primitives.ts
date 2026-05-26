@@ -66,6 +66,7 @@ export function generateBarPrimitives(
         i_val,
         ctx.valueRange.minVal,
         ctx.valueRange.maxVal,
+        ctx.indicatorHeaders?.[i_val],
       );
       const barStyle = s.bars.getStyle(valueInfo);
       if (!barStyle.show) continue;

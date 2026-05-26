@@ -9,7 +9,7 @@ import type {
   SlideDeckConfig,
   SlideType,
 } from "lib";
-import { getSlideTitle, t3, TC } from "lib";
+import { getSlideTitle, t3, TC, getReplicateByProp, type PresentationObjectConfig } from "lib";
 import type {
   DividerDragUpdate,
   LayoutItemSwapUpdate,
@@ -62,7 +62,6 @@ import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import {
   getPODetailFromCacheorFetch,
-  getPOFigureInputsFromCacheOrFetch,
   getPresentationObjectItemsFromCacheOrFetch,
 } from "~/state/project/t2_presentation_objects";
 import { setShowAi, showAi } from "~/state/t4_ui";
@@ -523,6 +522,7 @@ export function SlideEditor(p: Props) {
           return;
         }
 
+        const indicatorMeta = newItemsRes.data.ih.indicatorMetadata;
         const updatedLayout = updateBlockInLayout(
           tempSlide.layout,
           blockId,
@@ -536,6 +536,7 @@ export function SlideEditor(p: Props) {
                 metricId: source.metricId,
                 config: newConfig,
                 snapshotAt: new Date().toISOString(),
+                indicatorMetadata: indicatorMeta,
               },
             };
           },
@@ -566,10 +567,6 @@ export function SlideEditor(p: Props) {
     if (!result) return;
 
     try {
-      const replicateOverride = result.replicant
-        ? { selectedReplicantValue: result.replicant, _forOptimizer: true }
-        : { _forOptimizer: true };
-
       const poDetailRes = await getPODetailFromCacheorFetch(
         p.projectId,
         result.visualizationId,
@@ -579,13 +576,51 @@ export function SlideEditor(p: Props) {
         return;
       }
 
-      const figureInputsRes = await getPOFigureInputsFromCacheOrFetch(
+      const config: PresentationObjectConfig = structuredClone(poDetailRes.data.config);
+      if (result.replicant) {
+        const replicateBy = getReplicateByProp(config);
+        if (replicateBy) {
+          config.d.selectedReplicantValue = result.replicant;
+        }
+      }
+
+      const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
         p.projectId,
-        result.visualizationId,
-        replicateOverride as any,
+        poDetailRes.data,
+        config,
       );
-      if (!figureInputsRes.success) {
-        await openAlert({ text: figureInputsRes.err, intent: "danger" });
+      if (!itemsRes.success) {
+        await openAlert({ text: itemsRes.err, intent: "danger" });
+        return;
+      }
+
+      const ih = itemsRes.data.ih;
+      if (ih.status === "too_many_items") {
+        await openAlert({ text: "Too many data points selected", intent: "danger" });
+        return;
+      }
+      if (ih.status === "no_data_available") {
+        await openAlert({ text: "No data available with current selection", intent: "danger" });
+        return;
+      }
+
+      let geoJson;
+      const mapLevel = getAdminAreaLevelFromMapConfig(config);
+      if (mapLevel) {
+        geoJson = getGeoJsonSync(mapLevel);
+      }
+
+      const figureInputsRes = getFigureInputsFromPresentationObject(
+        poDetailRes.data.resultsValue,
+        ih,
+        config,
+        geoJson,
+      );
+      if (figureInputsRes.status !== "ready") {
+        await openAlert({
+          text: figureInputsRes.status === "error" ? figureInputsRes.err : "Failed to generate figure",
+          intent: "danger",
+        });
         return;
       }
 
@@ -600,8 +635,9 @@ export function SlideEditor(p: Props) {
           source: {
             type: "from_data" as const,
             metricId: poDetailRes.data.resultsValue.id,
-            config: structuredClone(poDetailRes.data.config),
+            config,
             snapshotAt: new Date().toISOString(),
+            indicatorMetadata: ih.indicatorMetadata,
           },
         }),
       );
@@ -690,6 +726,7 @@ export function SlideEditor(p: Props) {
         return;
       }
 
+      const indicatorMeta = newItemsRes.data.ih.indicatorMetadata;
       const updatedLayout = updateBlockInLayout(
         tempSlide.layout,
         blockId,
@@ -701,6 +738,7 @@ export function SlideEditor(p: Props) {
             metricId: resultsValue.id,
             config,
             snapshotAt: new Date().toISOString(),
+            indicatorMetadata: indicatorMeta,
           },
         }),
       );

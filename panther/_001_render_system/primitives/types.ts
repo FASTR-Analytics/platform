@@ -11,6 +11,7 @@ import type {
   ColorAdjustmentStrategy,
   ColorKeyOrString,
   Coordinates,
+  HeaderItem,
   Padding,
   RectCoordsDims,
 } from "../deps.ts";
@@ -260,7 +261,7 @@ export type ChartAxisPrimitive = BasePrimitive & {
         v: "top" | "middle" | "bottom";
       };
     };
-    value: number | string;
+    value: number | string | HeaderItem;
   }>;
   axisLine: { coords: Coordinates[]; style: LineStyle };
   tickStyle: LineStyle;
@@ -540,8 +541,8 @@ export type TableCellPrimitive = BasePrimitive & {
   meta: {
     i_row: number;
     i_col: number;
-    rowHeader: string;
-    colHeader: string;
+    rowHeader: HeaderItem | undefined;
+    colHeader: HeaderItem | undefined;
   };
   backgroundColor: ColorKeyOrString | "none";
   mText: MeasuredText;

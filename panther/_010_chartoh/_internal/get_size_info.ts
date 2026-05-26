@@ -54,7 +54,7 @@ export function getChartOHComponentSizes(
   const contentMaxWidth = Infinity;
   let maxTickLabelH = 0;
   for (const header of indicatorHeaders) {
-    const mText = rc.mText(header, textStyle, contentMaxWidth);
+    const mText = rc.mText(header.label, textStyle, contentMaxWidth);
     if (mText.dims.h() > maxTickLabelH) maxTickLabelH = mText.dims.h();
   }
   const gridStrokeWidth = ms.grid.gridStrokeWidth;
@@ -62,7 +62,8 @@ export function getChartOHComponentSizes(
     ? nIndicators * maxTickLabelH
     : nIndicators * maxTickLabelH + gridStrokeWidth * (nIndicators + 1);
 
-  const resolvedLegendLabels = inputs.legend ?? data.seriesHeaders;
+  const resolvedLegendLabels = inputs.legend ??
+    data.seriesHeaders.map((h) => h.label);
 
   return {
     customFigureStyle: cs,
@@ -75,7 +76,12 @@ export function getChartOHComponentSizes(
     xAxisHeight,
     paneHeaderHeight,
     minYAxisWidth,
-    surroundsMinWidth: estimateMinSurroundsWidth(rc, cs, resolvedLegendLabels),
+    surroundsMinWidth: estimateMinSurroundsWidth(
+      rc,
+      cs,
+      resolvedLegendLabels,
+      data.seriesHeaders,
+    ),
     resolvedLegendLabels,
   };
 }
