@@ -138,6 +138,55 @@ export type PublicDashboardItem = {
 };
 ```
 
+### Zod Schemas
+
+**File: `lib/types/_dashboard_config.ts`** (new file)
+
+```typescript
+import { z } from "zod";
+
+export const dashboardLayoutSchema = z.object({
+  type: z.literal("sidebar"),
+  menuPosition: z.enum(["left", "right"]),
+});
+
+export const dashboardItemSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  order: z.number(),
+  figureBlock: z.object({
+    type: z.literal("figure"),
+    figureInputs: z.unknown().optional(),
+    source: z.unknown().optional(),
+  }),
+  geoData: z.unknown().optional(),
+});
+
+export const dashboardSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  logoAssetId: z.string().optional(),
+  layout: dashboardLayoutSchema,
+  items: z.array(dashboardItemSchema),
+  createdByEmail: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type DashboardFromSchema = z.infer<typeof dashboardSchema>;
+export type DashboardLayoutFromSchema = z.infer<typeof dashboardLayoutSchema>;
+export type DashboardItemFromSchema = z.infer<typeof dashboardItemSchema>;
+```
+
+### Type Exports
+
+**File: `lib/types/mod.ts`** — add export:
+
+```typescript
+export * from "./dashboard.ts";
+```
+
 ---
 
 ## Database Schema
@@ -162,11 +211,69 @@ CREATE TABLE dashboards (
 CREATE INDEX idx_dashboards_slug ON dashboards(slug);
 ```
 
+### Database Access Layer
+
+**File: `server/db/project/dashboards.ts`** (new file)
+
+```typescript
+import { Sql } from "postgres";
+import type { APIResponseNoData, APIResponseWithData, DashboardSummary, DashboardDetail } from "lib";
+import { tryCatchDatabaseAsync } from "../utils.ts";
+
+export async function getAllDashboards(projectDb: Sql): Promise<APIResponseWithData<DashboardSummary[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rows = await projectDb<DBDashboard[]>`
+      SELECT id, slug, title, items, created_at, updated_at
+      FROM dashboards ORDER BY updated_at DESC
+    `;
+    return {
+      success: true,
+      data: rows.map((d) => ({
+        id: d.id,
+        slug: d.slug,
+        title: d.title,
+        itemCount: JSON.parse(d.items).length,
+        createdAt: d.created_at,
+        updatedAt: d.updated_at,
+      })),
+    };
+  });
+}
+
+export async function getDashboardDetail(projectDb: Sql, dashboardId: string): Promise<APIResponseWithData<DashboardDetail>> { ... }
+export async function createDashboard(projectDb: Sql, create: DashboardCreate, createdByEmail: string): Promise<APIResponseWithData<{ dashboardId: string; lastUpdated: string }>> { ... }
+export async function updateDashboard(projectDb: Sql, dashboardId: string, update: Partial<DashboardCreate>): Promise<APIResponseWithData<{ lastUpdated: string }>> { ... }
+export async function deleteDashboard(projectDb: Sql, dashboardId: string): Promise<APIResponseNoData> { ... }
+export async function addDashboardItem(projectDb: Sql, dashboardId: string, item: Omit<DashboardItem, "id" | "order">): Promise<APIResponseWithData<{ itemId: string; lastUpdated: string }>> { ... }
+export async function updateDashboardItem(projectDb: Sql, dashboardId: string, itemId: string, update: { label?: string; order?: number }): Promise<APIResponseWithData<{ lastUpdated: string }>> { ... }
+export async function deleteDashboardItem(projectDb: Sql, dashboardId: string, itemId: string): Promise<APIResponseWithData<{ lastUpdated: string }>> { ... }
+export async function reorderDashboardItems(projectDb: Sql, dashboardId: string, itemIds: string[]): Promise<APIResponseWithData<{ lastUpdated: string }>> { ... }
+export async function getDashboardBySlug(projectDb: Sql, slug: string): Promise<APIResponseWithData<DashboardDetail | null>> { ... }
+```
+
 Notes:
 - Stored in **project database** (not main/instance) since dashboards reference project visualizations
 - `items` stored as JSONB array — simpler than separate table, items are always loaded together
 - `slug` is unique within project (enforced by unique constraint)
 - `layout` stored as JSONB for flexibility as layout options expand
+
+### Database Access Export
+
+**File: `server/db/project/mod.ts`** — add export:
+
+```typescript
+export * from "./dashboards.ts";
+```
+
+### ID Generation
+
+**File: `server/utils/id_generation.ts`** — add function:
+
+```typescript
+export async function generateUniqueDashboardId(db: Sql): Promise<string> {
+  return generateUniqueId(db, "dashboards", "db");
+}
+```
 
 ---
 
@@ -176,17 +283,105 @@ Notes:
 
 **File: `server/routes/project/dashboards.ts`** (new file)
 
-| Method   | Path                                                   | Description                                           |
-|----------|--------------------------------------------------------|-------------------------------------------------------|
-| `GET`    | `/api/project/:projectId/dashboards`                   | List all dashboards (returns `DashboardSummary[]`)    |
-| `GET`    | `/api/project/:projectId/dashboards/:id`               | Get dashboard detail                                  |
-| `POST`   | `/api/project/:projectId/dashboards`                   | Create dashboard                                      |
-| `PUT`    | `/api/project/:projectId/dashboards/:id`               | Update dashboard metadata (title, slug, logo, layout) |
-| `DELETE` | `/api/project/:projectId/dashboards/:id`               | Delete dashboard                                      |
-| `POST`   | `/api/project/:projectId/dashboards/:id/items`         | Add item(s) to dashboard                              |
-| `PUT`    | `/api/project/:projectId/dashboards/:id/items/:itemId` | Update item (label, order)                            |
-| `DELETE` | `/api/project/:projectId/dashboards/:id/items/:itemId` | Remove item                                           |
-| `POST`   | `/api/project/:projectId/dashboards/:id/items/reorder` | Bulk reorder items                                    |
+Routes follow existing pattern — `projectId` comes from middleware (`c.var.ppk.projectId`), not URL path.
+
+| Method   | Path                                       | Description                                           |
+|----------|--------------------------------------------|-------------------------------------------------------|
+| `GET`    | `/dashboards`                              | List all dashboards (returns `DashboardSummary[]`)    |
+| `GET`    | `/dashboards/:dashboard_id`                | Get dashboard detail                                  |
+| `POST`   | `/dashboards`                              | Create dashboard                                      |
+| `PUT`    | `/dashboards/:dashboard_id`                | Update dashboard metadata (title, slug, logo, layout) |
+| `DELETE` | `/dashboards/:dashboard_id`                | Delete dashboard                                      |
+| `POST`   | `/dashboards/:dashboard_id/items`          | Add item to dashboard                                 |
+| `PUT`    | `/dashboards/:dashboard_id/items/:item_id` | Update item (label, order)                            |
+| `DELETE` | `/dashboards/:dashboard_id/items/:item_id` | Remove item                                           |
+| `POST`   | `/dashboards/:dashboard_id/items/reorder`  | Bulk reorder items                                    |
+
+### Route Registry
+
+**File: `lib/api-routes/project/dashboards.ts`** (new file)
+
+```typescript
+import { route } from "../route-utils.ts";
+import type { DashboardSummary, DashboardDetail, DashboardCreate, DashboardItem } from "../../types/dashboard.ts";
+
+export const dashboardRouteRegistry = {
+  getAllDashboards: route({
+    path: "/dashboards",
+    method: "GET",
+    response: {} as DashboardSummary[],
+    requiresProject: true,
+  }),
+
+  getDashboardDetail: route({
+    path: "/dashboards/:dashboard_id",
+    method: "GET",
+    params: {} as { dashboard_id: string },
+    response: {} as DashboardDetail,
+    requiresProject: true,
+  }),
+
+  createDashboard: route({
+    path: "/dashboards",
+    method: "POST",
+    body: {} as DashboardCreate,
+    response: {} as { dashboardId: string; lastUpdated: string },
+    requiresProject: true,
+  }),
+
+  updateDashboard: route({
+    path: "/dashboards/:dashboard_id",
+    method: "PUT",
+    params: {} as { dashboard_id: string },
+    body: {} as Partial<DashboardCreate>,
+    response: {} as { lastUpdated: string },
+    requiresProject: true,
+  }),
+
+  deleteDashboard: route({
+    path: "/dashboards/:dashboard_id",
+    method: "DELETE",
+    params: {} as { dashboard_id: string },
+    response: {} as never,
+    requiresProject: true,
+  }),
+
+  addDashboardItem: route({
+    path: "/dashboards/:dashboard_id/items",
+    method: "POST",
+    params: {} as { dashboard_id: string },
+    body: {} as { label: string; figureBlock: FigureBlock; geoData?: unknown },
+    response: {} as { itemId: string; lastUpdated: string },
+    requiresProject: true,
+  }),
+
+  updateDashboardItem: route({
+    path: "/dashboards/:dashboard_id/items/:item_id",
+    method: "PUT",
+    params: {} as { dashboard_id: string; item_id: string },
+    body: {} as { label?: string; order?: number },
+    response: {} as { lastUpdated: string },
+    requiresProject: true,
+  }),
+
+  deleteDashboardItem: route({
+    path: "/dashboards/:dashboard_id/items/:item_id",
+    method: "DELETE",
+    params: {} as { dashboard_id: string; item_id: string },
+    response: {} as { lastUpdated: string },
+    requiresProject: true,
+  }),
+
+  reorderDashboardItems: route({
+    path: "/dashboards/:dashboard_id/items/reorder",
+    method: "POST",
+    params: {} as { dashboard_id: string },
+    body: {} as { itemIds: string[] },
+    response: {} as { lastUpdated: string },
+    requiresProject: true,
+  }),
+};
+```
 
 ### Add Items Endpoint
 
@@ -207,14 +402,33 @@ The `POST .../items` endpoint receives complete FigureBlock data from the client
 4. Client POSTs the complete item with FigureBlock to server
 5. Server stores it
 
-For **"add all replicants"** (new functionality to build):
+For **"add all replicants"** — follows established pattern from `create_slide_from_visualization_modal.tsx`:
 
-1. Extend the selection flow with an "Add all replicants" option (not currently in `SelectVisualizationForSlide`)
-2. Client fetches all replicant values
-3. Client generates FigureBlock for each (sequentially, with progress UI)
-4. Client POSTs each item (or batches them)
+**File: `client/src/components/dashboards/add_dashboard_item_modal.tsx`** (new file)
 
-The single-item flow matches the slides pattern exactly — the server is just storage. The "add all replicants" option is new work specific to dashboards.
+```typescript
+// Pattern from create_slide_from_visualization_modal.tsx
+import { getProgress, ProgressBar, RadioGroup } from "panther";
+
+const progress = getProgress();
+const [creationMode, setCreationMode] = createSignal<"single" | "all">("single");
+const [replicantOptions, setReplicantOptions] = createSignal<string[]>([]);
+
+// When "all" mode selected, iterate with progress:
+for (let i = 0; i < options.length; i++) {
+  progress.onProgress(i / options.length, `Adding item ${i + 1} of ${options.length}...`);
+  // Generate FigureBlock, POST to server
+}
+progress.onProgress(1, `Added ${options.length} items`);
+```
+
+Key components to reuse:
+- `InlineReplicantSelector` — fetches options, calls `onChange(value, allOptions)`
+- `getProgress()` + `ProgressBar` — progress tracking
+- `RadioGroup` — "Add selected replicant" vs "Add all replicants" choice
+- `timActionForm` — form submission with loading state
+
+The single-item flow matches the slides pattern exactly — the server is just storage.
 
 ### Public Route (no auth)
 
@@ -224,15 +438,53 @@ The single-item flow matches the slides pattern exactly — the server is just s
 |--------|---------------------------|-----------------------------|
 | `GET`  | `/api/d/:projectId/:slug` | Get public dashboard bundle |
 
-Implementation:
-1. Connect to project database using `projectId` from URL
-2. Query `dashboards` table by `slug`
-3. Return `PublicDashboardBundle` with items hydrated for rendering
-4. If connection fails or slug not found, return 404
+```typescript
+import { Hono } from "hono";
+import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
+import { getDashboardBySlug } from "../../db/project/dashboards.ts";
+
+export const routesPublicDashboard = new Hono();
+
+routesPublicDashboard.get("/api/d/:projectId/:slug", async (c) => {
+  const { projectId, slug } = c.req.param();
+  
+  // Connect to project database (projectId IS the database name)
+  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
+  
+  const result = await getDashboardBySlug(projectDb, slug);
+  if (!result.success || !result.data) {
+    return c.json({ success: false, err: "Not found" }, 404);
+  }
+  
+  // Transform to PublicDashboardBundle
+  const dashboard = result.data;
+  const bundle: PublicDashboardBundle = {
+    title: dashboard.title,
+    logoUrl: dashboard.logoAssetId ? `/assets/${dashboard.logoAssetId}` : undefined,
+    layout: dashboard.layout,
+    items: dashboard.items.map((item) => ({
+      id: item.id,
+      label: item.label,
+      order: item.order,
+      strippedFigureInputs: item.figureBlock.figureInputs!,
+      source: {
+        config: item.figureBlock.source?.type === "from_data" ? item.figureBlock.source.config : {} as any,
+        metricId: item.figureBlock.source?.type === "from_data" ? item.figureBlock.source.metricId : "",
+        formatAs: "number",
+        indicatorMetadata: item.figureBlock.source?.type === "from_data" ? item.figureBlock.source.indicatorMetadata : undefined,
+      },
+      geoData: item.geoData,
+    })),
+  };
+  
+  return c.json({ success: true, data: bundle });
+});
+```
 
 Notes:
 - No authentication required
-- Uses same project DB connection logic as authenticated routes (extracted into reusable function)
+- `projectId` from URL is used directly as database name (same pattern as authenticated routes)
+- Database connection via `getPgConnectionFromCacheOrNew(projectId, "READ_ONLY")`
 
 ---
 
@@ -319,29 +571,79 @@ Features:
 
 ### Server (`main.ts`)
 
+Add import at top:
 ```typescript
-// Public dashboard route (before auth middleware)
-app.use("/api/d/*", corsMiddleware);
-app.route("/", routesPublicDashboard);
-app.get("/d/:projectId/:slug", (c) => c.html(indexHtml));
+import { routesPublicDashboard } from "./server/routes/public/dashboard.ts";
+import { routesDashboards } from "./server/routes/project/dashboards.ts";
+```
 
-// ... auth middleware ...
+Add public routes BEFORE auth middleware (after existing share routes):
+```typescript
+// CORS for public routes (add /api/d/* to existing)
+app.use("/api/share/*", corsMiddleware);
+app.use("/api/d/*", corsMiddleware);  // ADD THIS
 
-// Authenticated dashboard routes (after auth, in project routes)
-app.route("/", routesDashboards);
+// Public routes (no auth required) - must be before authMiddleware
+app.route("/", routesPublicShare);
+app.route("/", routesPublicDashboard);  // ADD THIS
+
+// Serve SPA HTML for public routes (before auth)
+try {
+  const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
+  app.get("/share/viz/:token", (c) => c.html(indexHtml));
+  app.get("/d/:projectId/:slug", (c) => c.html(indexHtml));  // ADD THIS
+} catch {
+  // In development, handled by Vite dev server
+}
+```
+
+Add authenticated routes AFTER auth middleware (with other project routes):
+```typescript
+app.route("/", routesDashboards);  // ADD after routesSlideDeckFolders
 ```
 
 ### Client
 
+**File: `client/src/app.tsx`** — add public route BEFORE the catch-all:
+
 ```typescript
-// app.tsx - add public route only
+import PublicDashboard from "./components/public_viewer/dashboard.tsx";
+
+// In Router:
 <Route path="/d/:projectId/:slug" component={PublicDashboard} />
+<Route path="/share/viz/:token" component={PublicVisualization} />
+<Route path="/*" component={InstanceLoggedInWrapper} />
+```
 
-// state/t4_ui.ts - add to TabOption type
-type TabOption = "reports" | "decks" | "dashboards" | "visualizations" | ...
+**File: `client/src/state/t4_ui.ts`** — add to TabOption type:
 
-// project/index.tsx - add to allTabs array and add Match block
-<Match when={projectTab() === "dashboards"}>
+```typescript
+export type TabOption = "reports" | "decks" | "dashboards" | "visualizations" | "metrics" | "modules" | "data" | "settings" | "cache";
+```
+
+**File: `client/src/components/project/index.tsx`** — add to allTabs array and Match block:
+
+```typescript
+// In allTabs array (after decks, before visualizations):
+...(projectState.thisUserPermissions.can_view_slide_decks
+  ? [
+      {
+        value: "dashboards" as const,
+        label: t3({ en: "Dashboards", fr: "Tableaux de bord" }),
+      },
+    ]
+  : []),
+
+// In tabIcons object:
+dashboards: "grid" as const,  // "grid" icon exists in panther
+
+// In Switch component:
+<Match
+  when={
+    projectTab() === "dashboards" &&
+    projectState.thisUserPermissions.can_view_slide_decks
+  }
+>
   <ProjectDashboards />
 </Match>
 ```
@@ -377,7 +679,7 @@ type TabOption = "reports" | "decks" | "dashboards" | "visualizations" | ...
 1. Create dashboard list page component
 2. Create dashboard modal
 3. Add route and navigation link in project sidebar
-4. Implement API client functions in `server_actions/`
+4. Server actions auto-generated from route registry (no manual implementation needed)
 
 ### Phase 5: Client - Dashboard Editor
 
@@ -417,22 +719,206 @@ type TabOption = "reports" | "decks" | "dashboards" | "visualizations" | ...
 | `server/db/project/dashboards.ts`                             | Database access layer    |
 | `server/routes/project/dashboards.ts`                         | Authenticated API routes |
 | `server/routes/public/dashboard.ts`                           | Public API route         |
-| `client/src/server_actions/dashboards.ts`                     | API client functions     |
+| `client/src/state/project/t2_dashboards.ts`                   | T2 reactive cache        |
 | `client/src/components/dashboards/dashboard_list.tsx`         | List page                |
 | `client/src/components/dashboards/dashboard_editor.tsx`       | Editor page              |
 | `client/src/components/dashboards/create_dashboard_modal.tsx` | Create modal             |
+| `client/src/components/dashboards/add_dashboard_item_modal.tsx` | Add item modal (with "add all replicants" support) |
 | `client/src/components/dashboards/dashboard_item_list.tsx`    | Sortable item list       |
+| `client/src/components/project/project_dashboards.tsx`        | Dashboards tab wrapper   |
 | `client/src/components/public_viewer/dashboard.tsx`           | Public viewer            |
 
-## Files to Modify
+## Files to Modify (with code snippets)
 
-| File                                       | Change                                   |
-|--------------------------------------------|------------------------------------------|
-| `main.ts`                                  | Register dashboard routes                |
-| `client/src/app.tsx`                       | Add public dashboard route               |
-| `client/src/state/t4_ui.ts`                | Add `"dashboards"` to `TabOption`        |
-| `client/src/components/project/index.tsx`  | Add dashboards tab and Match block       |
-| `server/route-tracker.ts`                  | Register new routes                      |
+### `lib/types/mod.ts`
+
+```typescript
+export * from "./dashboard.ts";  // ADD THIS LINE
+```
+
+### `lib/api-routes/combined.ts`
+
+```typescript
+import { dashboardRouteRegistry } from "./project/dashboards.ts";  // ADD IMPORT
+
+export const routeRegistry = {
+  // ... existing registries ...
+  ...dashboardRouteRegistry,  // ADD THIS LINE
+} as const;
+```
+
+## Files to Modify (summary table)
+
+| File                                                | Change                                                              |
+|-----------------------------------------------------|---------------------------------------------------------------------|
+| `lib/types/mod.ts`                                  | Add `export * from "./dashboard.ts";`                               |
+| `lib/types/project_dirty_states.ts`                 | Add `"dashboards"` to `LastUpdateTableName` and `_LAST_UPDATE_TABLE_NAMES` |
+| `lib/types/project_sse.ts`                          | Import `DashboardSummary`, add `dashboards: DashboardSummary[]` to `ProjectState`, add `dashboards_updated` message type |
+| `lib/api-routes/combined.ts`                        | Import and spread `dashboardRouteRegistry`                          |
+| `server/db/project/mod.ts`                          | Add `export * from "./dashboards.ts";`                              |
+| `main.ts`                                           | Import routes, add CORS for `/api/d/*`, register public route before auth, register authenticated route after auth, serve HTML for `/d/:projectId/:slug` |
+| `server/task_management/notify_project_v2.ts`       | Import `DashboardSummary`, add `notifyProjectDashboardsUpdated()` function |
+| `server/routes/project/project-sse-v2.ts`           | Import `getAllDashboards`, include dashboards in initial `ProjectState` payload |
+| `client/src/app.tsx`                                | Import `PublicDashboard`, add route `/d/:projectId/:slug` before catch-all |
+| `client/src/state/t4_ui.ts`                         | Add `"dashboards"` to `TabOption` union                             |
+| `client/src/state/project/t1_store.ts`              | Add `dashboards: []` to empty state, add `dashboards: {}` to `lastUpdated`, add `"dashboards_updated"` case in handler |
+| `client/src/components/project/index.tsx`           | Import `ProjectDashboards`, add to `allTabs` (uses `can_view_slide_decks`), add `dashboards: "grid"` to `tabIcons`, add `Match` block |
+| `server/utils/id_generation.ts`                     | Add `generateUniqueDashboardId()` function                          |
+| `server/db/project/projects.ts`                     | Import `getAllDashboards`, fetch in `getProjectDetail()`, include in return |
+| `server/task_management/build_project_state.ts`     | Add `dashboards: detail.dashboards` to ProjectState construction    |
+| `lib/types/projects.ts`                             | Add `dashboards: DashboardSummary[]` to `ProjectDetail` type        |
+
+---
+
+## SSE & State Management
+
+Dashboards follow the same T1/T2 tier pattern as slide decks (see `DOC_STATE_MGT_PROJECT.md`).
+
+### T1: SSE Store Additions
+
+**File: `lib/types/project_dirty_states.ts`** — add to `LastUpdateTableName`:
+
+```typescript
+export type LastUpdateTableName =
+  | "dashboards"  // ADD THIS
+  | "datasets"
+  | "modules"
+  | "presentation_objects"
+  | "slide_decks"
+  | "slides";
+
+export const _LAST_UPDATE_TABLE_NAMES = [
+  "dashboards",  // ADD THIS
+  "datasets",
+  // ...
+] as const satisfies readonly LastUpdateTableName[];
+```
+
+**File: `lib/types/project_sse.ts`** — add to `ProjectState` and `ProjectSseMessage`:
+
+```typescript
+export type ProjectState = {
+  // ... existing fields ...
+  dashboards: DashboardSummary[];  // ADD THIS
+  // lastUpdated already includes dashboards via LastUpdateTableName
+};
+
+export type ProjectSseMessage =
+  // ... existing messages ...
+  | { type: "dashboards_updated"; data: { dashboards: DashboardSummary[] } }  // ADD THIS
+```
+
+**File: `client/src/state/project/t1_store.ts`** — add to empty state and handler:
+
+```typescript
+const EMPTY_PROJECT_STATE: ProjectState = {
+  // ... existing fields ...
+  dashboards: [],
+  lastUpdated: {
+    dashboards: {},  // ADD THIS
+    datasets: {},
+    // ...
+  },
+};
+
+// In applyProjectSseMessage:
+case "dashboards_updated":
+  setProjectState("dashboards", reconcile(msg.data.dashboards));
+  break;
+```
+
+**File: `server/task_management/notify_project_v2.ts`** — add notification function:
+
+```typescript
+export function notifyProjectDashboardsUpdated(
+  projectId: string,
+  dashboards: DashboardSummary[]
+): void {
+  notifyProjectV2(projectId, {
+    type: "dashboards_updated",
+    data: { dashboards },
+  });
+}
+```
+
+### T2: Reactive Cache
+
+**File: `client/src/state/project/t2_dashboards.ts`** (new file)
+
+```typescript
+import { createReactiveCache } from "~/state/_infra/reactive_cache";
+import { projectState } from "./t1_store";
+import { serverActions } from "~/server_actions";
+
+const dashboardDetailCache = createReactiveCache<DashboardDetail>();
+
+export async function getDashboardDetailFromCacheOrFetch(
+  projectId: string,
+  dashboardId: string
+): Promise<APIResponseWithData<DashboardDetail>> {
+  const version = projectState.lastUpdated.dashboards[dashboardId] ?? "";
+  return dashboardDetailCache.getOrFetch(
+    `${projectId}:${dashboardId}`,
+    version,
+    () => serverActions.getDashboardDetail({ projectId, dashboard_id: dashboardId })
+  );
+}
+```
+
+### ProjectDetail Type Update
+
+**File: `lib/types/projects.ts`** — add to `ProjectDetail` type:
+
+```typescript
+import type { DashboardSummary } from "./dashboard.ts";
+
+export type ProjectDetail = {
+  // ... existing fields ...
+  dashboards: DashboardSummary[];  // ADD THIS
+};
+```
+
+### Project Detail Fetch Update
+
+**File: `server/db/project/projects.ts`** — in `getProjectDetail()`:
+
+```typescript
+import { getAllDashboards } from "./dashboards.ts";
+
+// In getProjectDetail(), add fetch:
+const resDashboards = await getAllDashboards(projectDb);
+throwIfErrWithData(resDashboards);
+
+// In projectDetail return object:
+const projectDetail: ProjectDetail = {
+  // ... existing fields ...
+  dashboards: resDashboards.data,  // ADD THIS
+};
+```
+
+### Build Project State Update
+
+**File: `server/task_management/build_project_state.ts`** — add to projectState construction:
+
+```typescript
+const projectState: ProjectState = {
+  // ... existing fields from detail ...
+  dashboards: detail.dashboards,  // ADD THIS
+  // ... existing fields from dirtyStates ...
+};
+```
+
+### Permissions
+
+Dashboards reuse slide deck permissions:
+- `can_view_slide_decks` → can view dashboards tab and list
+- `can_configure_slide_decks` → can create/edit/delete dashboards
+
+No new permissions or database migrations required.
+
+### Tab Icon
+
+Use `"grid"` icon for the dashboards tab in `project/index.tsx` (verified to exist in panther).
 
 ---
 
