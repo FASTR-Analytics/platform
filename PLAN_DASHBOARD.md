@@ -28,11 +28,12 @@ This cannot be solved by "show all replicants" because:
 ## Solution: Dashboard Concept
 
 A **Dashboard** is a new project-level entity that:
-- Has a user-defined public slug (e.g., `/d/nigeria-immunization-2024`)
-- Contains multiple **DashboardItems**, each with iwts own visualization snapshot
+- Has a user-defined public slug (e.g., `/d/{projectId}/nigeria-immunization-2024`)
+- Contains multiple **DashboardItems**, each with its own visualization snapshot
 - Supports ordering and labeling of items
 - Has a layout system (starting with sidebar navigation)
-- Can have a title and logo
+- Has a title
+- Has an explicit `is_public` flag — must be toggled on before the public URL works (404 until published)
 
 ### Reusing FigureBlock
 
@@ -45,13 +46,18 @@ type FigureBlock = {
   source?: FigureSource;         // metadata for potential refresh
 };
 
-type FigureSource = {
-  type: "from_data";
-  metricId: string;
-  config: PresentationObjectConfig;  // includes selectedReplicantValue
-  snapshotAt: string;
-  indicatorMetadata?: IndicatorMetadata[];
-};
+type FigureSource =
+  | {
+      type: "from_data";
+      metricId: string;
+      config: PresentationObjectConfig;
+      snapshotAt: string;
+      indicatorMetadata?: IndicatorMetadata[];
+    }
+  | {
+      type: "custom";
+      description?: string;
+    };
 ```
 
 This pattern:
@@ -69,14 +75,20 @@ This pattern:
 **File: `lib/types/dashboard.ts`** (new file)
 
 ```typescript
+import type { FigureInputs } from "@timroberton/panther";
+import type { FigureBlock, FigureSource } from "./slides.ts";
+import type { IndicatorMetadata, PresentationObjectConfig } from "./presentation_objects.ts";
+
+// Re-export for convenience
+export type { FigureBlock, FigureSource };
+
 export type Dashboard = {
   id: string;
-  projectId: string;
   slug: string;                    // unique within project, used in public URL
   title: string;
-  logoAssetId?: string;            // references assets table
+  isPublic: boolean;               // when false, public URL returns 404
   layout: DashboardLayout;
-  items: DashboardItem[];
+  items: DashboardItem[];          // loaded separately from dashboard_items table
   createdByEmail: string;
   createdAt: string;
   updatedAt: string;
@@ -89,18 +101,26 @@ export type DashboardLayout = {
 
 export type DashboardItem = {
   id: string;
+  dashboardId: string;
   label: string;                   // "National", "Lagos State", etc.
-  order: number;
+  sortOrder: number;
   figureBlock: FigureBlock;        // reuse from slides
-  geoData?: unknown;               // for map visualizations
+  geoData?: unknown;               // for map visualizations (per item, since each item is its own viz)
+  lastUpdated: string;
 };
 
 // For creating/updating
 export type DashboardCreate = {
   slug: string;
   title: string;
-  logoAssetId?: string;
   layout?: DashboardLayout;        // defaults to { type: "sidebar", menuPosition: "left" }
+};
+
+export type DashboardUpdate = {
+  slug?: string;
+  title?: string;
+  isPublic?: boolean;
+  layout?: DashboardLayout;
 };
 
 // API response types
@@ -108,6 +128,7 @@ export type DashboardSummary = {
   id: string;
   slug: string;
   title: string;
+  isPublic: boolean;
   itemCount: number;
   createdAt: string;
   updatedAt: string;
@@ -118,7 +139,6 @@ export type DashboardDetail = Dashboard;
 // Public access bundle (no auth required)
 export type PublicDashboardBundle = {
   title: string;
-  logoUrl?: string;                // resolved from assetId
   layout: DashboardLayout;
   items: PublicDashboardItem[];
 };
@@ -126,7 +146,7 @@ export type PublicDashboardBundle = {
 export type PublicDashboardItem = {
   id: string;
   label: string;
-  order: number;
+  sortOrder: number;
   strippedFigureInputs: FigureInputs;
   source: {
     config: PresentationObjectConfig;
@@ -137,6 +157,18 @@ export type PublicDashboardItem = {
   geoData?: unknown;
 };
 ```
+
+### Slug Validation Rules
+
+- Lowercase only
+- Alphanumeric + hyphens (`a-z`, `0-9`, `-`)
+- 3-60 characters
+- Cannot start or end with hyphen
+- Cannot contain consecutive hyphens
+
+Regex: `^[a-z0-9]+(-[a-z0-9]+)*$` (3-60 chars)
+
+Uniqueness enforced by DB constraint within the project database. On conflict, server returns error and client surfaces it.
 
 ### Zod Schemas
 
@@ -152,21 +184,23 @@ export const dashboardLayoutSchema = z.object({
 
 export const dashboardItemSchema = z.object({
   id: z.string(),
+  dashboardId: z.string(),
   label: z.string(),
-  order: z.number(),
+  sortOrder: z.number(),
   figureBlock: z.object({
     type: z.literal("figure"),
     figureInputs: z.unknown().optional(),
     source: z.unknown().optional(),
   }),
   geoData: z.unknown().optional(),
+  lastUpdated: z.string(),
 });
 
 export const dashboardSchema = z.object({
   id: z.string(),
   slug: z.string(),
   title: z.string(),
-  logoAssetId: z.string().optional(),
+  isPublic: z.boolean(),
   layout: dashboardLayoutSchema,
   items: z.array(dashboardItemSchema),
   createdByEmail: z.string(),
@@ -194,21 +228,63 @@ export * from "./dashboard.ts";
 **File: `server/db/migrations/project/018_dashboards.sql`** (new migration)
 
 ```sql
-CREATE TABLE dashboards (
+CREATE TABLE IF NOT EXISTS dashboards (
   id VARCHAR PRIMARY KEY,
   slug VARCHAR NOT NULL,
   title VARCHAR NOT NULL,
-  logo_asset_id VARCHAR,
+  is_public BOOLEAN NOT NULL DEFAULT FALSE,
   layout JSONB NOT NULL DEFAULT '{"type": "sidebar", "menuPosition": "left"}',
-  items JSONB NOT NULL DEFAULT '[]',
   created_by_email VARCHAR NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
-  
+  last_updated TIMESTAMP DEFAULT NOW(),
+
   UNIQUE(slug)
 );
 
-CREATE INDEX idx_dashboards_slug ON dashboards(slug);
+CREATE INDEX IF NOT EXISTS idx_dashboards_slug ON dashboards(slug);
+
+CREATE TABLE IF NOT EXISTS dashboard_items (
+  id VARCHAR PRIMARY KEY,
+  dashboard_id VARCHAR NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+  label VARCHAR NOT NULL,
+  sort_order INTEGER NOT NULL,
+  figure_block JSONB NOT NULL,
+  geo_data JSONB,
+  last_updated TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_dashboard_items_dashboard_id ON dashboard_items(dashboard_id);
+```
+
+Items are a separate table (matching the `slide_decks` / `slides` pattern). This enables atomic per-item operations and avoids rewriting an entire dashboard row when a single item changes — important when each item carries a stripped `FigureInputs` payload (potentially hundreds of KB per item, ~37 items in the Nigeria case).
+
+### Database Types
+
+**File: `server/db/project/_project_database_types.ts`** — add types:
+
+```typescript
+export type DBDashboard = {
+  id: string;
+  slug: string;
+  title: string;
+  is_public: boolean;
+  layout: string;
+  created_by_email: string;
+  created_at: string;
+  updated_at: string;
+  last_updated: string;
+};
+
+export type DBDashboardItem = {
+  id: string;
+  dashboard_id: string;
+  label: string;
+  sort_order: number;
+  figure_block: string;
+  geo_data: string | null;
+  last_updated: string;
+};
 ```
 
 ### Database Access Layer
@@ -217,45 +293,39 @@ CREATE INDEX idx_dashboards_slug ON dashboards(slug);
 
 ```typescript
 import { Sql } from "postgres";
-import type { APIResponseNoData, APIResponseWithData, DashboardSummary, DashboardDetail } from "lib";
+import {
+  APIResponseNoData,
+  APIResponseWithData,
+  DashboardSummary,
+  DashboardDetail,
+  DashboardItem,
+  DashboardCreate,
+  DashboardUpdate,
+  FigureBlock,
+} from "lib";
+import { parseJsonOrThrow } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
+import { DBDashboard, DBDashboardItem } from "./_project_database_types.ts";
+import { generateUniqueDashboardId, generateUniqueDashboardItemId } from "../../utils/id_generation.ts";
 
-export async function getAllDashboards(projectDb: Sql): Promise<APIResponseWithData<DashboardSummary[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rows = await projectDb<DBDashboard[]>`
-      SELECT id, slug, title, items, created_at, updated_at
-      FROM dashboards ORDER BY updated_at DESC
-    `;
-    return {
-      success: true,
-      data: rows.map((d) => ({
-        id: d.id,
-        slug: d.slug,
-        title: d.title,
-        itemCount: JSON.parse(d.items).length,
-        createdAt: d.created_at,
-        updatedAt: d.updated_at,
-      })),
-    };
-  });
-}
-
-export async function getDashboardDetail(projectDb: Sql, dashboardId: string): Promise<APIResponseWithData<DashboardDetail>> { ... }
-export async function createDashboard(projectDb: Sql, create: DashboardCreate, createdByEmail: string): Promise<APIResponseWithData<{ dashboardId: string; lastUpdated: string }>> { ... }
-export async function updateDashboard(projectDb: Sql, dashboardId: string, update: Partial<DashboardCreate>): Promise<APIResponseWithData<{ lastUpdated: string }>> { ... }
-export async function deleteDashboard(projectDb: Sql, dashboardId: string): Promise<APIResponseNoData> { ... }
-export async function addDashboardItem(projectDb: Sql, dashboardId: string, item: Omit<DashboardItem, "id" | "order">): Promise<APIResponseWithData<{ itemId: string; lastUpdated: string }>> { ... }
-export async function updateDashboardItem(projectDb: Sql, dashboardId: string, itemId: string, update: { label?: string; order?: number }): Promise<APIResponseWithData<{ lastUpdated: string }>> { ... }
-export async function deleteDashboardItem(projectDb: Sql, dashboardId: string, itemId: string): Promise<APIResponseWithData<{ lastUpdated: string }>> { ... }
-export async function reorderDashboardItems(projectDb: Sql, dashboardId: string, itemIds: string[]): Promise<APIResponseWithData<{ lastUpdated: string }>> { ... }
-export async function getDashboardBySlug(projectDb: Sql, slug: string): Promise<APIResponseWithData<DashboardDetail | null>> { ... }
+export async function getAllDashboards(projectDb: Sql): Promise<APIResponseWithData<DashboardSummary[]>>;
+export async function getDashboardDetail(projectDb: Sql, dashboardId: string): Promise<APIResponseWithData<DashboardDetail>>;
+export async function getDashboardBySlug(projectDb: Sql, slug: string): Promise<APIResponseWithData<DashboardDetail | null>>;
+export async function createDashboard(projectDb: Sql, create: DashboardCreate, createdByEmail: string): Promise<APIResponseWithData<{ dashboardId: string; lastUpdated: string }>>;
+export async function updateDashboard(projectDb: Sql, dashboardId: string, update: DashboardUpdate): Promise<APIResponseWithData<{ lastUpdated: string }>>;
+export async function deleteDashboard(projectDb: Sql, dashboardId: string): Promise<APIResponseNoData>;
+export async function addDashboardItem(projectDb: Sql, dashboardId: string, item: { label: string; figureBlock: FigureBlock; geoData?: unknown }): Promise<APIResponseWithData<{ itemId: string; lastUpdated: string }>>;
+export async function updateDashboardItem(projectDb: Sql, dashboardId: string, itemId: string, update: { label?: string }): Promise<APIResponseWithData<{ lastUpdated: string }>>;
+export async function deleteDashboardItem(projectDb: Sql, dashboardId: string, itemId: string): Promise<APIResponseWithData<{ lastUpdated: string }>>;
+export async function moveDashboardItems(projectDb: Sql, dashboardId: string, itemIds: string[], position: { after: string } | { before: string } | { toStart: true } | { toEnd: true }): Promise<APIResponseWithData<{ lastUpdated: string }>>;
 ```
 
 Notes:
 - Stored in **project database** (not main/instance) since dashboards reference project visualizations
-- `items` stored as JSONB array — simpler than separate table, items are always loaded together
-- `slug` is unique within project (enforced by unique constraint)
-- `layout` stored as JSONB for flexibility as layout options expand
+- `slug` unique within project DB (natural per-project scoping since project DBs are isolated)
+- `layout` stored as JSONB
+- Item operations transactionally update the parent dashboard's `last_updated`
+- `moveDashboardItems` mirrors the `moveSlides` pattern (position-based reordering, not bulk array replace)
 
 ### Database Access Export
 
@@ -267,11 +337,27 @@ export * from "./dashboards.ts";
 
 ### ID Generation
 
-**File: `server/utils/id_generation.ts`** — add function:
+**File: `server/utils/id_generation.ts`** — add functions following the existing pattern:
 
 ```typescript
 export async function generateUniqueDashboardId(db: Sql): Promise<string> {
-  return generateUniqueId(db, "dashboards", "db");
+  const maxAttempts = 10;
+  for (let i = 0; i < maxAttempts; i++) {
+    const id = generateId();
+    const existing = await db`SELECT 1 FROM dashboards WHERE id = ${id}`;
+    if (existing.length === 0) return id;
+  }
+  throw new Error("Failed to generate unique dashboard ID after 10 attempts");
+}
+
+export async function generateUniqueDashboardItemId(db: Sql): Promise<string> {
+  const maxAttempts = 10;
+  for (let i = 0; i < maxAttempts; i++) {
+    const id = generateId();
+    const existing = await db`SELECT 1 FROM dashboard_items WHERE id = ${id}`;
+    if (existing.length === 0) return id;
+  }
+  throw new Error("Failed to generate unique dashboard item ID after 10 attempts");
 }
 ```
 
@@ -285,17 +371,21 @@ export async function generateUniqueDashboardId(db: Sql): Promise<string> {
 
 Routes follow existing pattern — `projectId` comes from middleware (`c.var.ppk.projectId`), not URL path.
 
-| Method   | Path                                       | Description                                           |
-|----------|--------------------------------------------|-------------------------------------------------------|
-| `GET`    | `/dashboards`                              | List all dashboards (returns `DashboardSummary[]`)    |
-| `GET`    | `/dashboards/:dashboard_id`                | Get dashboard detail                                  |
-| `POST`   | `/dashboards`                              | Create dashboard                                      |
-| `PUT`    | `/dashboards/:dashboard_id`                | Update dashboard metadata (title, slug, logo, layout) |
-| `DELETE` | `/dashboards/:dashboard_id`                | Delete dashboard                                      |
-| `POST`   | `/dashboards/:dashboard_id/items`          | Add item to dashboard                                 |
-| `PUT`    | `/dashboards/:dashboard_id/items/:item_id` | Update item (label, order)                            |
-| `DELETE` | `/dashboards/:dashboard_id/items/:item_id` | Remove item                                           |
-| `POST`   | `/dashboards/:dashboard_id/items/reorder`  | Bulk reorder items                                    |
+| Method   | Path                                       | Description                                              |
+|----------|--------------------------------------------|----------------------------------------------------------|
+| `GET`    | `/dashboards`                              | List all dashboards (returns `DashboardSummary[]`)       |
+| `GET`    | `/dashboards/:dashboard_id`                | Get dashboard detail with all items                      |
+| `POST`   | `/dashboards`                              | Create dashboard                                         |
+| `PUT`    | `/dashboards/:dashboard_id`                | Update dashboard metadata (title, slug, isPublic, layout)|
+| `DELETE` | `/dashboards/:dashboard_id`                | Delete dashboard (cascades to items)                     |
+| `POST`   | `/dashboards/:dashboard_id/items`          | Add item to dashboard                                    |
+| `PUT`    | `/dashboards/:dashboard_id/items/:item_id` | Update item (label)                                      |
+| `DELETE` | `/dashboards/:dashboard_id/items/:item_id` | Remove item                                              |
+| `POST`   | `/dashboards/:dashboard_id/items/move`     | Move items to a new position                             |
+
+After each mutation:
+- Call `notifyLastUpdated(projectId, "dashboards", [dashboardId], lastUpdated)` and (for item changes) `notifyLastUpdated(projectId, "dashboard_items", [itemId], lastUpdated)`
+- Call `notifyProjectDashboardsUpdated(projectId, summaries)` to refresh the list
 
 ### Route Registry
 
@@ -303,7 +393,13 @@ Routes follow existing pattern — `projectId` comes from middleware (`c.var.ppk
 
 ```typescript
 import { route } from "../route-utils.ts";
-import type { DashboardSummary, DashboardDetail, DashboardCreate, DashboardItem } from "../../types/dashboard.ts";
+import type {
+  DashboardSummary,
+  DashboardDetail,
+  DashboardCreate,
+  DashboardUpdate,
+  FigureBlock,
+} from "../../types/dashboard.ts";
 
 export const dashboardRouteRegistry = {
   getAllDashboards: route({
@@ -333,7 +429,7 @@ export const dashboardRouteRegistry = {
     path: "/dashboards/:dashboard_id",
     method: "PUT",
     params: {} as { dashboard_id: string },
-    body: {} as Partial<DashboardCreate>,
+    body: {} as DashboardUpdate,
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -359,7 +455,7 @@ export const dashboardRouteRegistry = {
     path: "/dashboards/:dashboard_id/items/:item_id",
     method: "PUT",
     params: {} as { dashboard_id: string; item_id: string },
-    body: {} as { label?: string; order?: number },
+    body: {} as { label?: string },
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -372,11 +468,14 @@ export const dashboardRouteRegistry = {
     requiresProject: true,
   }),
 
-  reorderDashboardItems: route({
-    path: "/dashboards/:dashboard_id/items/reorder",
+  moveDashboardItems: route({
+    path: "/dashboards/:dashboard_id/items/move",
     method: "POST",
     params: {} as { dashboard_id: string },
-    body: {} as { itemIds: string[] },
+    body: {} as {
+      itemIds: string[];
+      position: { after: string } | { before: string } | { toStart: true } | { toEnd: true };
+    },
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -406,25 +505,10 @@ For **"add all replicants"** — follows established pattern from `create_slide_
 
 **File: `client/src/components/dashboards/add_dashboard_item_modal.tsx`** (new file)
 
-```typescript
-// Pattern from create_slide_from_visualization_modal.tsx
-import { getProgress, ProgressBar, RadioGroup } from "panther";
-
-const progress = getProgress();
-const [creationMode, setCreationMode] = createSignal<"single" | "all">("single");
-const [replicantOptions, setReplicantOptions] = createSignal<string[]>([]);
-
-// When "all" mode selected, iterate with progress:
-for (let i = 0; i < options.length; i++) {
-  progress.onProgress(i / options.length, `Adding item ${i + 1} of ${options.length}...`);
-  // Generate FigureBlock, POST to server
-}
-progress.onProgress(1, `Added ${options.length} items`);
-```
-
 Key components to reuse:
-- `InlineReplicantSelector` — fetches options, calls `onChange(value, allOptions)`
-- `getProgress()` + `ProgressBar` — progress tracking
+- `SelectVisualizationForSlide` — choose visualization + replicant
+- `InlineReplicantSelector` — when in "all replicants" mode, used to fetch the full list
+- `getProgress()` + `ProgressBar` — progress tracking during bulk add
 - `RadioGroup` — "Add selected replicant" vs "Add all replicants" choice
 - `timActionForm` — form submission with loading state
 
@@ -442,30 +526,40 @@ The single-item flow matches the slides pattern exactly — the server is just s
 import { Hono } from "hono";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { getDashboardBySlug } from "../../db/project/dashboards.ts";
+import type { PublicDashboardBundle } from "lib";
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const routesPublicDashboard = new Hono();
 
 routesPublicDashboard.get("/api/d/:projectId/:slug", async (c) => {
   const { projectId, slug } = c.req.param();
-  
-  // Connect to project database (projectId IS the database name)
-  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
-  
-  const result = await getDashboardBySlug(projectDb, slug);
-  if (!result.success || !result.data) {
+
+  // Validate projectId format before opening a DB connection
+  if (!UUID_REGEX.test(projectId)) {
     return c.json({ success: false, err: "Not found" }, 404);
   }
-  
-  // Transform to PublicDashboardBundle
+
+  let projectDb;
+  try {
+    projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
+  } catch {
+    return c.json({ success: false, err: "Not found" }, 404);
+  }
+
+  const result = await getDashboardBySlug(projectDb, slug);
+  if (!result.success || !result.data || !result.data.isPublic) {
+    return c.json({ success: false, err: "Not found" }, 404);
+  }
+
   const dashboard = result.data;
   const bundle: PublicDashboardBundle = {
     title: dashboard.title,
-    logoUrl: dashboard.logoAssetId ? `/assets/${dashboard.logoAssetId}` : undefined,
     layout: dashboard.layout,
     items: dashboard.items.map((item) => ({
       id: item.id,
       label: item.label,
-      order: item.order,
+      sortOrder: item.sortOrder,
       strippedFigureInputs: item.figureBlock.figureInputs!,
       source: {
         config: item.figureBlock.source?.type === "from_data" ? item.figureBlock.source.config : {} as any,
@@ -476,15 +570,17 @@ routesPublicDashboard.get("/api/d/:projectId/:slug", async (c) => {
       geoData: item.geoData,
     })),
   };
-  
+
   return c.json({ success: true, data: bundle });
 });
 ```
 
 Notes:
 - No authentication required
-- `projectId` from URL is used directly as database name (same pattern as authenticated routes)
-- Database connection via `getPgConnectionFromCacheOrNew(projectId, "READ_ONLY")`
+- `projectId` validated as UUID before opening DB connection (prevents arbitrary DB name input)
+- Connection failure also returns 404
+- Dashboard must have `isPublic = true` or response is 404 (avoids accidentally exposing dashboards in progress)
+- Connection cached via `getPgConnectionFromCacheOrNew(projectId, "READ_ONLY")` — same pattern as authenticated routes
 
 ---
 
@@ -492,16 +588,19 @@ Notes:
 
 Public dashboards accessed via: `/d/:projectId/:slug`
 
-Example: `https://fastr.worldbank.org/d/abc123/nigeria-immunization-2024`
+Example: `https://fastr.worldbank.org/d/abc123-def4-5678-90ab-cdef12345678/nigeria-immunization-2024`
 
 The URL contains:
 - `projectId`: needed to locate the correct project database
 - `slug`: user-friendly identifier chosen at dashboard creation
 
+A dashboard returns 404 unless `is_public = true`. Toggling the flag is how users "publish" or "unpublish" a dashboard.
+
 Alternative considered: Generate a random token like current shares. Rejected because:
 - User-defined slugs are more memorable and professional
 - Slug uniqueness is scoped to project, avoiding global collision issues
 - ProjectId in URL is acceptable — it's already exposed in authenticated routes
+- The `is_public` gate provides explicit publishing control
 
 ---
 
@@ -511,10 +610,10 @@ Alternative considered: Generate a random token like current shares. Rejected be
 
 **File: `client/src/components/dashboards/dashboard_list.tsx`** (new file)
 
-Accessed via new "dashboards" tab in project navigation (parallel to "visualizations" tab).
+Accessed via new "dashboards" tab in project navigation (parallel to "decks" tab).
 
 Features:
-- Grid/list of dashboard cards showing title, item count, created date
+- Grid/list of dashboard cards showing title, item count, public/private status, created date
 - Create new dashboard button → opens create modal
 - Click dashboard → navigate to editor
 
@@ -525,17 +624,18 @@ Features:
 Shown when a dashboard is selected from the list (similar to deck editing pattern).
 
 Layout:
-- Header: title (editable), public URL display/copy, settings button
-- Left panel: sortable list of items (drag to reorder)
-- Right panel: preview of selected item's visualization
+- Header: title (editable), publish toggle, public URL display/copy (only shown when published), settings button
+- Left panel: sortable list of items (drag to reorder via SortableJS)
+- Right panel: preview of selected item's visualization (reuses ChartHolder)
 
 Features:
-- Edit dashboard metadata (title, slug, logo)
+- Edit dashboard metadata (title, slug, layout)
+- Toggle public/private (when public, copy URL button appears)
 - Add visualization button → opens `SelectVisualizationForSlide` (reused from slides)
   - When visualization has replicants: show "Add selected replicant" vs "Add all replicants" choice
-- Reorder items via drag-and-drop
+- Reorder items via drag-and-drop (SortableJS, calls `moveDashboardItems`)
 - Edit item labels inline
-- Delete items
+- Delete items with confirmation
 - Preview renders current visualization
 
 ### Create Dashboard Modal
@@ -544,8 +644,9 @@ Features:
 
 Fields:
 - Title (required)
-- Slug (required, validated: lowercase, alphanumeric + hyphens, unique check)
-- Logo (optional, asset picker)
+- Slug (required, validated client-side: regex `^[a-z0-9]+(-[a-z0-9]+)*$`, 3-60 chars; auto-suggested from title)
+
+New dashboards default to `is_public = false`. User publishes from the editor.
 
 ### Public Dashboard Viewer
 
@@ -554,16 +655,18 @@ Fields:
 Located at route `/d/:projectId/:slug`
 
 Layout (sidebar mode):
-- Left sidebar: menu of items (clickable labels)
-- Main area: currently selected visualization
-- Header: dashboard title + logo
+- Left sidebar: menu of items (clickable labels, sorted by `sortOrder`)
+- Main area: currently selected visualization (uses `hydrateFigureInputsForPublicRendering` + `ChartHolder`, same as `client/src/components/public_viewer/visualization.tsx`)
+- Header: dashboard title
 
 Features:
 - No authentication required
-- Initial selection: first item by order
+- Fetches via `GET /api/d/:projectId/:slug` (plain `fetch()`, no credentials)
+- Initial selection: first item by sortOrder
 - Click menu item → show that visualization
 - Download button for current visualization (PNG)
 - Responsive: on mobile, menu becomes dropdown or collapsible
+- 404 page if dashboard not found or not published
 
 ---
 
@@ -599,7 +702,7 @@ try {
 
 Add authenticated routes AFTER auth middleware (with other project routes):
 ```typescript
-app.route("/", routesDashboards);  // ADD after routesSlideDeckFolders
+app.route("/", routesDashboards);  // ADD after routesSlideDecks
 ```
 
 ### Client
@@ -635,7 +738,7 @@ export type TabOption = "reports" | "decks" | "dashboards" | "visualizations" | 
   : []),
 
 // In tabIcons object:
-dashboards: "grid" as const,  // "grid" icon exists in panther
+dashboards: "grid" as const,
 
 // In Switch component:
 <Match
@@ -650,137 +753,18 @@ dashboards: "grid" as const,  // "grid" icon exists in panther
 
 ---
 
-## Implementation Phases
-
-### Phase 1: Database & Types
-
-1. Create `lib/types/dashboard.ts` with all type definitions
-2. Create Zod schemas in `lib/types/_dashboard_config.ts`
-3. Create migration `server/db/migrations/project/018_dashboards.sql`
-4. Create database access layer `server/db/project/dashboards.ts`
-
-### Phase 2: Server Routes (Authenticated)
-
-1. Create `server/routes/project/dashboards.ts`
-2. Implement CRUD operations for dashboards
-3. Implement add/remove/reorder items
-4. Implement "add all replicants" bulk operation
-5. Register routes in `main.ts`
-6. Add to route tracker
-
-### Phase 3: Server Routes (Public)
-
-1. Create `server/routes/public/dashboard.ts`
-2. Implement public bundle fetching with hydration
-3. Register route before auth middleware
-
-### Phase 4: Client - Dashboard List & Create
-
-1. Create dashboard list page component
-2. Create dashboard modal
-3. Add route and navigation link in project sidebar
-4. Server actions auto-generated from route registry (no manual implementation needed)
-
-### Phase 5: Client - Dashboard Editor
-
-1. Create editor component with item list + preview
-2. Integrate `SelectVisualizationForSlide` for adding items
-3. Implement "add all replicants" option in selection flow
-4. Implement drag-and-drop reordering
-5. Implement inline label editing
-6. Implement delete with confirmation
-
-### Phase 6: Client - Public Viewer
-
-1. Create public dashboard viewer component
-2. Implement sidebar layout with menu
-3. Implement visualization rendering (reuse `ChartHolder` pattern from share viewer)
-4. Add download functionality
-5. Mobile responsive layout
-
-### Phase 7: Polish & Edge Cases
-
-1. Slug validation (uniqueness check, format validation)
-2. Empty state handling
-3. Loading states
-4. Error handling
-5. Logo upload/display
-
----
-
-## Files to Create
-
-| File                                                          | Description              |
-|---------------------------------------------------------------|--------------------------|
-| `lib/types/dashboard.ts`                                      | Type definitions         |
-| `lib/types/_dashboard_config.ts`                              | Zod schemas              |
-| `lib/api-routes/project/dashboards.ts`                        | Route registry           |
-| `server/db/migrations/project/018_dashboards.sql`             | Database migration       |
-| `server/db/project/dashboards.ts`                             | Database access layer    |
-| `server/routes/project/dashboards.ts`                         | Authenticated API routes |
-| `server/routes/public/dashboard.ts`                           | Public API route         |
-| `client/src/state/project/t2_dashboards.ts`                   | T2 reactive cache        |
-| `client/src/components/dashboards/dashboard_list.tsx`         | List page                |
-| `client/src/components/dashboards/dashboard_editor.tsx`       | Editor page              |
-| `client/src/components/dashboards/create_dashboard_modal.tsx` | Create modal             |
-| `client/src/components/dashboards/add_dashboard_item_modal.tsx` | Add item modal (with "add all replicants" support) |
-| `client/src/components/dashboards/dashboard_item_list.tsx`    | Sortable item list       |
-| `client/src/components/project/project_dashboards.tsx`        | Dashboards tab wrapper   |
-| `client/src/components/public_viewer/dashboard.tsx`           | Public viewer            |
-
-## Files to Modify (with code snippets)
-
-### `lib/types/mod.ts`
-
-```typescript
-export * from "./dashboard.ts";  // ADD THIS LINE
-```
-
-### `lib/api-routes/combined.ts`
-
-```typescript
-import { dashboardRouteRegistry } from "./project/dashboards.ts";  // ADD IMPORT
-
-export const routeRegistry = {
-  // ... existing registries ...
-  ...dashboardRouteRegistry,  // ADD THIS LINE
-} as const;
-```
-
-## Files to Modify (summary table)
-
-| File                                                | Change                                                              |
-|-----------------------------------------------------|---------------------------------------------------------------------|
-| `lib/types/mod.ts`                                  | Add `export * from "./dashboard.ts";`                               |
-| `lib/types/project_dirty_states.ts`                 | Add `"dashboards"` to `LastUpdateTableName` and `_LAST_UPDATE_TABLE_NAMES` |
-| `lib/types/project_sse.ts`                          | Import `DashboardSummary`, add `dashboards: DashboardSummary[]` to `ProjectState`, add `dashboards_updated` message type |
-| `lib/api-routes/combined.ts`                        | Import and spread `dashboardRouteRegistry`                          |
-| `server/db/project/mod.ts`                          | Add `export * from "./dashboards.ts";`                              |
-| `main.ts`                                           | Import routes, add CORS for `/api/d/*`, register public route before auth, register authenticated route after auth, serve HTML for `/d/:projectId/:slug` |
-| `server/task_management/notify_project_v2.ts`       | Import `DashboardSummary`, add `notifyProjectDashboardsUpdated()` function |
-| `server/routes/project/project-sse-v2.ts`           | Import `getAllDashboards`, include dashboards in initial `ProjectState` payload |
-| `client/src/app.tsx`                                | Import `PublicDashboard`, add route `/d/:projectId/:slug` before catch-all |
-| `client/src/state/t4_ui.ts`                         | Add `"dashboards"` to `TabOption` union                             |
-| `client/src/state/project/t1_store.ts`              | Add `dashboards: []` to empty state, add `dashboards: {}` to `lastUpdated`, add `"dashboards_updated"` case in handler |
-| `client/src/components/project/index.tsx`           | Import `ProjectDashboards`, add to `allTabs` (uses `can_view_slide_decks`), add `dashboards: "grid"` to `tabIcons`, add `Match` block |
-| `server/utils/id_generation.ts`                     | Add `generateUniqueDashboardId()` function                          |
-| `server/db/project/projects.ts`                     | Import `getAllDashboards`, fetch in `getProjectDetail()`, include in return |
-| `server/task_management/build_project_state.ts`     | Add `dashboards: detail.dashboards` to ProjectState construction    |
-| `lib/types/projects.ts`                             | Add `dashboards: DashboardSummary[]` to `ProjectDetail` type        |
-
----
-
 ## SSE & State Management
 
 Dashboards follow the same T1/T2 tier pattern as slide decks (see `DOC_STATE_MGT_PROJECT.md`).
 
 ### T1: SSE Store Additions
 
-**File: `lib/types/project_dirty_states.ts`** — add to `LastUpdateTableName`:
+**File: `lib/types/project_dirty_states.ts`** — add to `LastUpdateTableName` and `_LAST_UPDATE_TABLE_NAMES`:
 
 ```typescript
 export type LastUpdateTableName =
-  | "dashboards"  // ADD THIS
+  | "dashboards"        // ADD THIS
+  | "dashboard_items"   // ADD THIS
   | "datasets"
   | "modules"
   | "presentation_objects"
@@ -788,9 +772,13 @@ export type LastUpdateTableName =
   | "slides";
 
 export const _LAST_UPDATE_TABLE_NAMES = [
-  "dashboards",  // ADD THIS
+  "dashboards",        // ADD THIS
+  "dashboard_items",   // ADD THIS
   "datasets",
-  // ...
+  "modules",
+  "presentation_objects",
+  "slide_decks",
+  "slides",
 ] as const satisfies readonly LastUpdateTableName[];
 ```
 
@@ -800,7 +788,7 @@ export const _LAST_UPDATE_TABLE_NAMES = [
 export type ProjectState = {
   // ... existing fields ...
   dashboards: DashboardSummary[];  // ADD THIS
-  // lastUpdated already includes dashboards via LastUpdateTableName
+  // lastUpdated already includes dashboards + dashboard_items via LastUpdateTableName
 };
 
 export type ProjectSseMessage =
@@ -815,7 +803,8 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   // ... existing fields ...
   dashboards: [],
   lastUpdated: {
-    dashboards: {},  // ADD THIS
+    dashboards: {},         // ADD THIS
+    dashboard_items: {},    // ADD THIS
     datasets: {},
     // ...
   },
@@ -845,23 +834,28 @@ export function notifyProjectDashboardsUpdated(
 
 **File: `client/src/state/project/t2_dashboards.ts`** (new file)
 
+Pattern matches `t2_presentation_objects.ts`:
+
 ```typescript
 import { createReactiveCache } from "~/state/_infra/reactive_cache";
 import { projectState } from "./t1_store";
 import { serverActions } from "~/server_actions";
 
-const dashboardDetailCache = createReactiveCache<DashboardDetail>();
+export const _DASHBOARD_DETAIL_CACHE = createReactiveCache<
+  { projectId: string; dashboardId: string },
+  DashboardDetail
+>({
+  name: "dashboard_detail",
+  uniquenessKeys: (params) => [params.projectId, params.dashboardId],
+  versionKey: (params, pds) =>
+    pds.lastUpdated.dashboards[params.dashboardId] ?? "unknown",
+});
 
 export async function getDashboardDetailFromCacheOrFetch(
   projectId: string,
-  dashboardId: string
+  dashboardId: string,
 ): Promise<APIResponseWithData<DashboardDetail>> {
-  const version = projectState.lastUpdated.dashboards[dashboardId] ?? "";
-  return dashboardDetailCache.getOrFetch(
-    `${projectId}:${dashboardId}`,
-    version,
-    () => serverActions.getDashboardDetail({ projectId, dashboard_id: dashboardId })
-  );
+  // ... same pattern as getPODetailFromCacheorFetch
 }
 ```
 
@@ -912,26 +906,146 @@ const projectState: ProjectState = {
 
 Dashboards reuse slide deck permissions:
 - `can_view_slide_decks` → can view dashboards tab and list
-- `can_configure_slide_decks` → can create/edit/delete dashboards
+- `can_configure_slide_decks` → can create/edit/delete/publish dashboards
 
-No new permissions or database migrations required.
+No new permissions or database migrations required for permissions.
 
 ### Tab Icon
 
-Use `"grid"` icon for the dashboards tab in `project/index.tsx` (verified to exist in panther).
+Use `"grid"` icon for the dashboards tab in `project/index.tsx`.
+
+---
+
+## Implementation Phases
+
+### Phase 1: Database & Types
+
+1. Create `lib/types/dashboard.ts` with all type definitions
+2. Create Zod schemas in `lib/types/_dashboard_config.ts`
+3. Add `dashboards` and `dashboard_items` to `LastUpdateTableName` + `_LAST_UPDATE_TABLE_NAMES`
+4. Add `dashboards: DashboardSummary[]` to `ProjectDetail` and `ProjectState`
+5. Add `dashboards_updated` message type to `ProjectSseMessage`
+6. Create migration `server/db/migrations/project/018_dashboards.sql` (both tables)
+7. Add `DBDashboard` and `DBDashboardItem` types
+8. Add `generateUniqueDashboardId` and `generateUniqueDashboardItemId` to `id_generation.ts`
+9. Create database access layer `server/db/project/dashboards.ts`
+10. Export from `server/db/project/mod.ts`
+11. Wire dashboards into `getProjectDetail()` and `build_project_state.ts`
+
+### Phase 2: Server Routes (Authenticated)
+
+1. Create route registry `lib/api-routes/project/dashboards.ts`
+2. Register in `lib/api-routes/combined.ts`
+3. Create `server/routes/project/dashboards.ts` with all handlers
+4. Implement CRUD operations for dashboards + items (with `notifyLastUpdated` and `notifyProjectDashboardsUpdated`)
+5. Add `notifyProjectDashboardsUpdated` to `notify_project_v2.ts`
+6. Register routes in `main.ts` after auth middleware
+
+### Phase 3: Server Routes (Public)
+
+1. Create `server/routes/public/dashboard.ts`
+2. Implement public bundle fetching with projectId validation and `is_public` check
+3. Register route in `main.ts` before auth middleware
+4. Add CORS for `/api/d/*`
+5. Add SPA HTML serve for `/d/:projectId/:slug` before auth
+
+### Phase 4: Client - State & List
+
+1. Create `client/src/state/project/t2_dashboards.ts` reactive cache
+2. Add `"dashboards_updated"` case in `t1_store.ts` SSE handler
+3. Add `dashboards: []` and `lastUpdated.dashboards`, `lastUpdated.dashboard_items` to empty state
+4. Add `"dashboards"` to `TabOption` in `t4_ui.ts`
+5. Create dashboard list page component
+6. Create dashboard tab wrapper component
+7. Add tab + Match block in `project/index.tsx`
+
+### Phase 5: Client - Create & Editor
+
+1. Create create dashboard modal with slug validation
+2. Create dashboard editor component (header + item list + preview pane)
+3. Implement publish toggle and copy URL UI
+4. Integrate `SelectVisualizationForSlide` for adding items
+5. Implement "add all replicants" option with progress bar
+6. Implement drag-and-drop reordering via SortableJS (matches `slide_list.tsx`)
+7. Implement inline label editing
+8. Implement delete with confirmation
+
+### Phase 6: Client - Public Viewer
+
+1. Create public dashboard viewer component
+2. Implement sidebar layout with menu
+3. Implement visualization rendering (reuse `hydrateFigureInputsForPublicRendering` + `ChartHolder`)
+4. Add download functionality
+5. Mobile responsive layout
+6. 404 state when dashboard not found or unpublished
+7. Add public route to `app.tsx` before catch-all
+
+### Phase 7: Polish & Edge Cases
+
+1. Empty states (no dashboards, dashboard with no items)
+2. Loading states
+3. Error handling (slug conflict, network errors)
+4. Confirm unpublish UX (warn that public URL will stop working)
+5. Manual testing of full flow
+
+---
+
+## Files to Create
+
+| File                                                            | Description                                        |
+|-----------------------------------------------------------------|----------------------------------------------------|
+| `lib/types/dashboard.ts`                                        | Type definitions                                   |
+| `lib/types/_dashboard_config.ts`                                | Zod schemas                                        |
+| `lib/api-routes/project/dashboards.ts`                          | Route registry                                     |
+| `server/db/migrations/project/018_dashboards.sql`               | Database migration (both tables)                   |
+| `server/db/project/dashboards.ts`                               | Database access layer                              |
+| `server/routes/project/dashboards.ts`                           | Authenticated API routes                           |
+| `server/routes/public/dashboard.ts`                             | Public API route                                   |
+| `client/src/state/project/t2_dashboards.ts`                     | T2 reactive cache                                  |
+| `client/src/components/dashboards/dashboard_list.tsx`           | List page                                          |
+| `client/src/components/dashboards/dashboard_editor.tsx`         | Editor page                                        |
+| `client/src/components/dashboards/create_dashboard_modal.tsx`   | Create modal                                       |
+| `client/src/components/dashboards/add_dashboard_item_modal.tsx` | Add item modal (with "add all replicants" support) |
+| `client/src/components/dashboards/dashboard_item_list.tsx`      | Sortable item list                                 |
+| `client/src/components/project/project_dashboards.tsx`          | Dashboards tab wrapper                             |
+| `client/src/components/public_viewer/dashboard.tsx`             | Public viewer                                      |
+
+## Files to Modify
+
+| File                                                | Change                                                              |
+|-----------------------------------------------------|---------------------------------------------------------------------|
+| `lib/types/mod.ts`                                  | Add `export * from "./dashboard.ts";`                               |
+| `lib/types/project_dirty_states.ts`                 | Add `"dashboards"` and `"dashboard_items"` to `LastUpdateTableName` and `_LAST_UPDATE_TABLE_NAMES` |
+| `lib/types/project_sse.ts`                          | Import `DashboardSummary`, add `dashboards: DashboardSummary[]` to `ProjectState`, add `dashboards_updated` message type |
+| `lib/types/projects.ts`                             | Add `dashboards: DashboardSummary[]` to `ProjectDetail` type        |
+| `lib/api-routes/combined.ts`                        | Import and spread `dashboardRouteRegistry`                          |
+| `server/db/project/_project_database_types.ts`      | Add `DBDashboard` and `DBDashboardItem` types                       |
+| `server/db/project/mod.ts`                          | Add `export * from "./dashboards.ts";`                              |
+| `server/db/project/projects.ts`                     | Import `getAllDashboards`, fetch in `getProjectDetail()`, include in return |
+| `server/utils/id_generation.ts`                     | Add `generateUniqueDashboardId()` and `generateUniqueDashboardItemId()` functions |
+| `server/task_management/notify_project_v2.ts`       | Import `DashboardSummary`, add `notifyProjectDashboardsUpdated()` function |
+| `server/task_management/build_project_state.ts`     | Add `dashboards: detail.dashboards` to ProjectState construction    |
+| `server/routes/project/project-sse-v2.ts`           | No change needed — `getProjectDetail()` already includes dashboards |
+| `main.ts`                                           | Import routes, add CORS for `/api/d/*`, register public route before auth, register authenticated route after auth, serve HTML for `/d/:projectId/:slug` |
+| `client/src/app.tsx`                                | Import `PublicDashboard`, add route `/d/:projectId/:slug` before catch-all |
+| `client/src/state/t4_ui.ts`                         | Add `"dashboards"` to `TabOption` union                             |
+| `client/src/state/project/t1_store.ts`              | Add `dashboards: []` to empty state, add `dashboards: {}` and `dashboard_items: {}` to `lastUpdated`, add `"dashboards_updated"` case in handler |
+| `client/src/components/project/index.tsx`           | Import `ProjectDashboards`, add to `allTabs` (uses `can_view_slide_decks`), add `dashboards: "grid"` to `tabIcons`, add `Match` block |
 
 ---
 
 ## Future Enhancements (Out of Scope)
 
-1. **Additional layouts**: grid, carousel, tabs
-2. **View analytics**: track which items are viewed most
-3. **Embed mode**: `?embed=true` for iframe embedding
-4. **Password protection**: optional password for sensitive dashboards
-5. **Expiration**: auto-expire dashboards after N days
-6. **Refresh capability**: button to refresh all items from source data
-7. **Mixed visualizations**: items from different visualizations (already supported by data model)
-8. **Custom styling**: per-dashboard color themes
+1. **Logo support**: per-dashboard logo (requires public asset serving — non-trivial because current static middleware serves `_ASSETS_DIR_PATH` at root with `requireGlobalPermission`, and `client_dist/assets/` may shadow paths; design needed later)
+2. **Additional layouts**: grid, carousel, tabs
+3. **View analytics**: track which items are viewed most (like `share_tokens.view_count`)
+4. **Embed mode**: `?embed=true` for iframe embedding
+5. **Password protection**: optional password for sensitive dashboards
+6. **Expiration**: auto-expire dashboards after N days
+7. **Refresh capability**: button to refresh all items from source data
+8. **Mixed visualizations**: items from different visualizations (already supported by data model)
+9. **Custom styling**: per-dashboard color themes
+10. **Separate `can_view_dashboards` / `can_configure_dashboards` permissions** (currently reuses slide deck permissions)
 
 ---
 
@@ -947,13 +1061,19 @@ No migration needed. Users continue using single shares for simple cases and cre
 
 ## Summary
 
-| Aspect                 | Decision                                    |
-|------------------------|---------------------------------------------|
-| Storage location       | Project database                            |
-| URL structure          | `/d/:projectId/:slug`                       |
-| Slug                   | User-defined, validated, unique per project |
-| Data approach          | Snapshot via FigureBlock pattern            |
-| Item creation          | One-by-one or bulk "add all replicants"     |
-| Visualization selector | Reuse from slides                           |
-| Initial layout         | Sidebar only                                |
-| Relationship to shares | Coexist, different use cases                |
+| Aspect                 | Decision                                                    |
+|------------------------|-------------------------------------------------------------|
+| Storage location       | Project database                                            |
+| Items storage          | Separate `dashboard_items` table (matches slides pattern)   |
+| URL structure          | `/d/:projectId/:slug`                                       |
+| Slug                   | User-defined, validated, unique per project                 |
+| Public access          | Explicit `is_public` flag; 404 until published              |
+| projectId validation   | UUID regex check before opening DB connection               |
+| Logo                   | Out of scope for v1                                         |
+| Permissions            | Reuse `can_view_slide_decks` / `can_configure_slide_decks`  |
+| Data approach          | Snapshot via FigureBlock pattern                            |
+| Item creation          | One-by-one or bulk "add all replicants"                     |
+| Visualization selector | Reuse `SelectVisualizationForSlide` from slides             |
+| Reorder UI             | SortableJS via `moveDashboardItems` (mirrors `moveSlides`)  |
+| Initial layout         | Sidebar only                                                |
+| Relationship to shares | Coexist, different use cases                                |
