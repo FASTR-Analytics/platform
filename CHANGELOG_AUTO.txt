@@ -1,3 +1,25 @@
+[TBD] [user] [added] - Dashboards: create, edit, and manage interactive dashboards within projects
+[TBD] [user] [added] - Add visualizations to dashboards as individual items
+[TBD] [user] [added] - Option to add all replicants of a visualization to a dashboard at once
+[TBD] [user] [added] - Drag-and-drop reordering of dashboard items
+[TBD] [user] [added] - Rename and delete individual dashboard items
+[TBD] [user] [added] - Dashboard settings: title, URL slug, layout, and authentication options
+[TBD] [user] [added] - Public shareable link for dashboards that don't require login
+[TBD] [user] [added] - Copy dashboard link button for easy sharing
+[TBD] [user] [added] - Choose left or right sidebar layout for public dashboards
+[TBD] [user] [added] - Download dashboard charts as images from the public view
+[TBD] [user] [added] - Search and filter dashboards by title or URL slug
+[TBD] [user] [added] - New "Dashboards" tab in the project navigation
+[TBD] [admin] [added] - New Dashboards feature for creating shareable data dashboards
+[TBD] [admin] [added] - Dashboards can be made public with a shareable URL
+[TBD] [admin] [added] - Dashboard items can be added from existing visualizations
+[TBD] [admin] [added] - Option to add all replicants at once when adding dashboard items
+[TBD] [admin] [added] - Drag-and-drop reordering of dashboard items
+[TBD] [admin] [added] - Dashboard settings for title, URL slug, layout, and authentication
+[TBD] [admin] [added] - Sidebar layout option with left or right menu position
+[TBD] [admin] [added] - Public dashboard viewer with image download support
+[TBD] [admin] [changed] - Dashboards tab appears for users with slide deck view permissions
+[TBD] [admin] [changed] - Warning shown when making a public dashboard require authentication
 [TBD] [user] [fixed] - Tables now display correct formatting per indicator (e.g., percentages, rates)
 [TBD] [user] [fixed] - Scorecard colors and values now match correctly when indicators are reordered
 [TBD] [user] [fixed] - Chart and table sorting now orders items alphabetically by display name
