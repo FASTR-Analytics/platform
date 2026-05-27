@@ -1,3 +1,6 @@
+[TBD] [user] [fixed] - Fixed sorting issues in table column and row groups
+[TBD] [admin] [fixed] - Table sorting now applies consistently to all row and column groups
+[TBD] [admin] [internal] - Public dashboard rendering streamlined for better reliability
 [TBD] [admin] [internal] - Simplified how global admin status is determined across the interface
 [TBD] [user] [added] - Dashboards: create, edit, and manage interactive dashboards within projects
 [TBD] [user] [added] - Add visualizations to dashboards as individual items
