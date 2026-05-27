@@ -17,7 +17,6 @@ import { ImportInformation } from "./_import_information";
 export function PreviousImports(
   p: EditorComponentProps<
     {
-      isGlobalAdmin: boolean;
     },
     undefined
   >,
@@ -95,7 +94,6 @@ export function PreviousImports(
       props: {
         version,
         isCurrentVersion,
-        isGlobalAdmin: p.isGlobalAdmin,
       },
     });
   }

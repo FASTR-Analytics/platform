@@ -20,6 +20,7 @@ import {
 import { createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
 import { moduleLatestCommits, setModuleLatestCommits } from "~/state/t4_ui";
+import { instanceState } from "~/state/instance/t1_store";
 import { getInstanceCountryIso3 } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
 import { addRScriptListener } from "~/state/project/t1_sse";
@@ -33,7 +34,6 @@ import { UpdateAllModules } from "./update_all_modules";
 import { UpdateModule } from "./update_module";
 
 type Props = {
-  isGlobalAdmin: boolean;
   canConfigureModules: boolean;
   canRunModules: boolean;
   canViewScriptCode: boolean;
@@ -132,7 +132,7 @@ export function ProjectModules(p: Props) {
                 when={
                   !projectState.isLocked &&
                   projectState.projectModules.length > 0 &&
-                  (p.isGlobalAdmin || p.canConfigureModules)
+                  (instanceState.currentUserIsGlobalAdmin || p.canConfigureModules)
                 }
               >
                 <Button onClick={updateAllModules} iconName="refresh" outline>
@@ -158,7 +158,6 @@ export function ProjectModules(p: Props) {
                       return (
                         <InstalledModulePresentation
                           projectId={projectState.id}
-                          isGlobalAdmin={p.isGlobalAdmin}
                           canConfigureModules={p.canConfigureModules}
                           canRunModules={p.canRunModules}
                           canViewScriptCode={p.canViewScriptCode}
@@ -172,7 +171,6 @@ export function ProjectModules(p: Props) {
                   <Match when={true}>
                     <UninstalledModulePresentation
                       projectId={projectState.id}
-                      isGlobalAdmin={p.isGlobalAdmin}
                       canConfigureModules={p.canConfigureModules}
                       thisUninstalledModuleId={possibleModuleDef.id}
                       thisUninstalledModuleLabel={possibleModuleDef.label}
@@ -203,7 +201,6 @@ export function ProjectModules(p: Props) {
 
 type InstalledModuleProps = {
   projectId: string;
-  isGlobalAdmin: boolean;
   canConfigureModules: boolean;
   canRunModules: boolean;
   canViewScriptCode: boolean;
@@ -337,9 +334,9 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
     const dirtyState = projectState.moduleDirtyStates[p.thisInstalledModule.id];
     const isReadyOrError = dirtyState === "ready" || dirtyState === "error";
     const isReady = dirtyState === "ready";
-    const canRun = !projectState.isLocked && (p.isGlobalAdmin || p.canRunModules);
-    const canConfigure = !projectState.isLocked && (p.isGlobalAdmin || p.canConfigureModules);
-    const canViewScript = p.isGlobalAdmin || p.canViewScriptCode;
+    const canRun = !projectState.isLocked && (instanceState.currentUserIsGlobalAdmin || p.canRunModules);
+    const canConfigure = !projectState.isLocked && (instanceState.currentUserIsGlobalAdmin || p.canConfigureModules);
+    const canViewScript = instanceState.currentUserIsGlobalAdmin || p.canViewScriptCode;
 
     const items: MenuItem[] = [];
 
@@ -383,7 +380,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
           </Show>
         </div>
         <div class="flex-1"></div>
-        <Show when={p.isGlobalAdmin || p.canConfigureModules}>
+        <Show when={instanceState.currentUserIsGlobalAdmin || p.canConfigureModules}>
           <Show when={!projectState.isLocked}>
             <Button onClick={updateModule} iconName="refresh">
               {t3(TC.update)}
@@ -510,7 +507,6 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
 
 type UninstalledModuleProps = {
   projectId: string;
-  isGlobalAdmin: boolean;
   canConfigureModules: boolean;
   thisUninstalledModuleId: ModuleId;
   thisUninstalledModuleLabel: string;
@@ -542,7 +538,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
       <Show
         when={
           !projectState.isLocked &&
-          (p.isGlobalAdmin || p.canConfigureModules)
+          (instanceState.currentUserIsGlobalAdmin || p.canConfigureModules)
         }
         fallback={
           <div class="font-400 text-neutral text-sm">

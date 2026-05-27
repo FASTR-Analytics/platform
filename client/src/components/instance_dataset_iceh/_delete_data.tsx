@@ -12,7 +12,6 @@ import { serverActions } from "~/server_actions";
 export function DeleteData(
   p: EditorComponentProps<
     {
-      isGlobalAdmin: boolean;
       silentFetch: () => Promise<void>;
     },
     undefined

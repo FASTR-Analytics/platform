@@ -42,7 +42,6 @@ import {
 } from "~/state/instance/t4_dhis2_session";
 
 type Props = {
-  isGlobalAdmin: boolean;
   backToInstance: () => void;
 };
 
@@ -199,7 +198,7 @@ export function IndicatorsManager(p: Props) {
               {t3({ en: "INDICATORS", fr: "INDICATEURS" })}
             </div>
             <div class="ui-gap-sm flex items-center">
-              <Show when={p.isGlobalAdmin}>
+              <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <Button iconName="upload" onClick={handleBatchUpload}>
                   {t3({
                     en: "Batch import from CSV",
@@ -220,7 +219,6 @@ export function IndicatorsManager(p: Props) {
                     <CommonIndicatorsTable
                       commonIndicators={keyedIndicators.commonIndicators}
                       rawIndicators={keyedIndicators.rawIndicators}
-                      isGlobalAdmin={p.isGlobalAdmin}
                       handleDownloadCsv={handleDownloadCommonCsv}
                     />
                   </div>
@@ -234,7 +232,6 @@ export function IndicatorsManager(p: Props) {
                     <RawIndicatorsTable
                       commonIndicators={keyedIndicators.commonIndicators}
                       rawIndicators={keyedIndicators.rawIndicators}
-                      isGlobalAdmin={p.isGlobalAdmin}
                       handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
                       handleDownloadCsv={handleDownloadRawCsv}
                     />
@@ -251,7 +248,6 @@ export function IndicatorsManager(p: Props) {
                         <CalculatedIndicatorsTable
                           calculatedIndicators={calculatedList}
                           commonIndicators={keyedIndicators.commonIndicators}
-                          isGlobalAdmin={p.isGlobalAdmin}
                         />
                       </div>
                     )}
@@ -282,7 +278,6 @@ export function IndicatorsManager(p: Props) {
 function CommonIndicatorsTable(p: {
   commonIndicators: CommonIndicatorWithMappings[];
   rawIndicators: RawIndicatorWithMappings[];
-  isGlobalAdmin: boolean;
   handleDownloadCsv: (commonIndicators: CommonIndicatorWithMappings[]) => void;
 }) {
   async function handleCreateIndicator() {
@@ -391,7 +386,7 @@ function CommonIndicatorsTable(p: {
     },
   ];
 
-  if (p.isGlobalAdmin) {
+  if (instanceState.currentUserIsGlobalAdmin) {
     columns.push({
       key: "actions",
       header: "",
@@ -419,7 +414,7 @@ function CommonIndicatorsTable(p: {
     });
   }
 
-  const bulkActions: BulkAction<CommonIndicatorWithMappings>[] = p.isGlobalAdmin
+  const bulkActions: BulkAction<CommonIndicatorWithMappings>[] = instanceState.currentUserIsGlobalAdmin
     ? [
         {
           label: t3(TC.delete),
@@ -436,7 +431,7 @@ function CommonIndicatorsTable(p: {
         <div class="font-700 flex-1 text-xl">
           {t3({ en: "Common Indicators", fr: "Indicateurs communs" })}
         </div>
-        <Show when={p.isGlobalAdmin}>
+        <Show when={instanceState.currentUserIsGlobalAdmin}>
           <Button
             onClick={() => p.handleDownloadCsv(p.commonIndicators)}
             iconName="download"
@@ -490,7 +485,6 @@ function CommonIndicatorsTable(p: {
 function RawIndicatorsTable(p: {
   commonIndicators: CommonIndicatorWithMappings[];
   rawIndicators: RawIndicatorWithMappings[];
-  isGlobalAdmin: boolean;
   handleDhis2IndicatorSelect: () => Promise<void>;
   handleDownloadCsv: (rawIndicators: RawIndicatorWithMappings[]) => void;
 }) {
@@ -587,7 +581,7 @@ function RawIndicatorsTable(p: {
     },
   ];
 
-  if (p.isGlobalAdmin) {
+  if (instanceState.currentUserIsGlobalAdmin) {
     columns.push({
       key: "actions",
       header: "",
@@ -617,7 +611,7 @@ function RawIndicatorsTable(p: {
     });
   }
 
-  const bulkActions: BulkAction<RawIndicatorWithMappings>[] = p.isGlobalAdmin
+  const bulkActions: BulkAction<RawIndicatorWithMappings>[] = instanceState.currentUserIsGlobalAdmin
     ? [
         {
           label: t3(TC.delete),
@@ -637,7 +631,7 @@ function RawIndicatorsTable(p: {
             fr: "Indicateurs DHIS2 (ID JSON)",
           })}
         </div>
-        <Show when={p.isGlobalAdmin}>
+        <Show when={instanceState.currentUserIsGlobalAdmin}>
           <Button
             onClick={() => p.handleDownloadCsv(p.rawIndicators)}
             iconName="download"

@@ -26,7 +26,6 @@ type Props = EditorComponentProps<
     projectState: ProjectState;
     deckId: string;
     reportLabel: string;
-    isGlobalAdmin: boolean;
     returnToContext?: AIContext;
   },
   SlideDeckModalReturn
@@ -91,7 +90,6 @@ export function ProjectAiSlideDeck(p: Props) {
   return (
     <ProjectAiSlideDeckInner
       projectState={p.projectState}
-      isGlobalAdmin={p.isGlobalAdmin}
       deckId={p.deckId}
       deckLabel={deckLabel()}
       deckConfig={deckConfig()}
@@ -105,7 +103,6 @@ export function ProjectAiSlideDeck(p: Props) {
 
 function ProjectAiSlideDeckInner(p: {
   projectState: ProjectState;
-  isGlobalAdmin: boolean;
   deckId: string;
   deckLabel: string;
   deckConfig: SlideDeckConfig;
@@ -188,7 +185,6 @@ function ProjectAiSlideDeckInner(p: {
         deckLabel: p.deckLabel,
         slideId: slideId,
         lastUpdated: lastUpdated,
-        isGlobalAdmin: p.isGlobalAdmin,
         slide,
         returnToContext: aiContext(),
         ...snapshotForSlideEditor({

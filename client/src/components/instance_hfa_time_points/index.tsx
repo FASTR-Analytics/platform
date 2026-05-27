@@ -15,7 +15,6 @@ import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   backToInstance: () => void;
-  isGlobalAdmin: boolean;
 };
 
 export function InstanceHfaTimePoints(p: Props) {
@@ -129,7 +128,7 @@ export function InstanceHfaTimePoints(p: Props) {
                               )}
                             </div>
                           </div>
-                          <Show when={p.isGlobalAdmin}>
+                          <Show when={instanceState.currentUserIsGlobalAdmin}>
                             <div class="ui-gap-sm flex items-center">
                               <Button
                                 iconName="chevronUp"

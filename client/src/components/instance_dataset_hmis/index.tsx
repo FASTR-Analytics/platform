@@ -27,7 +27,6 @@ import { DatasetItemsHolder } from "./dataset_items_holder";
 
 type Props = {
   backToInstance: () => void;
-  isGlobalAdmin: boolean;
 };
 
 export function InstanceDatasetHmis(p: Props) {
@@ -84,7 +83,6 @@ export function InstanceDatasetHmis(p: Props) {
     await openEditor({
       element: PreviousImports,
       props: {
-        isGlobalAdmin: p.isGlobalAdmin,
       },
     });
   }
@@ -97,7 +95,6 @@ export function InstanceDatasetHmis(p: Props) {
       props: {
         hmisVersionId: versionId,
         indicatorMappingsVersion: instanceState.indicatorMappingsVersion,
-        isGlobalAdmin: p.isGlobalAdmin,
         facilityColumns: instanceState.facilityColumns,
         silentFetch: fetchUploadAttempt,
       },
@@ -121,7 +118,7 @@ export function InstanceDatasetHmis(p: Props) {
       >
         <FrameRight
           panelChildren={
-            <Show when={p.isGlobalAdmin}>
+            <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
                 <div class="font-700 text-lg">
                   {t3({ en: "Imports", fr: "Importations" })}

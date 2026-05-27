@@ -101,7 +101,6 @@ type SlideEditorInnerProps = {
   slide: Slide;
   lastUpdated: string;
   projectStateSnapshot: ProjectState;
-  isGlobalAdmin: boolean;
   deckConfigSnapshot: SlideDeckConfig;
   returnToContext?: AIContext;
 };
@@ -456,7 +455,6 @@ export function SlideEditor(p: Props) {
           mode: "ephemeral" as const,
           label: resultsValue.label,
           projectId: p.projectId,
-          isGlobalAdmin: p.isGlobalAdmin,
           returnToContext: aiContext(),
           ...snapshotForVizEditor({
             projectState: p.projectStateSnapshot,
@@ -662,7 +660,6 @@ export function SlideEditor(p: Props) {
       element: AddVisualization,
       props: {
         projectId: p.projectId,
-        isGlobalAdmin: p.isGlobalAdmin,
         metrics: p.projectStateSnapshot.metrics,
         modules: p.projectStateSnapshot.projectModules,
       },

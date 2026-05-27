@@ -41,7 +41,6 @@ type Props = EditorComponentProps<
     projectId: string;
     dashboardId: string;
     title: string;
-    isGlobalAdmin: boolean;
   },
   undefined
 >;

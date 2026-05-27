@@ -29,7 +29,6 @@ import { HfaIndicatorsCsvUploadForm } from "./hfa_indicators_csv_upload_form";
 import { validateRCode } from "./hfa_r_code_validator";
 
 type Props = {
-  isGlobalAdmin: boolean;
   backToInstance: () => void;
 };
 
@@ -339,7 +338,7 @@ export function HfaIndicatorsManager(p: Props) {
     },
   ];
 
-  if (p.isGlobalAdmin) {
+  if (instanceState.currentUserIsGlobalAdmin) {
     columns.push({
       key: "actions",
       header: "",
@@ -368,7 +367,7 @@ export function HfaIndicatorsManager(p: Props) {
     });
   }
 
-  const bulkActions: BulkAction<HfaIndicator>[] = p.isGlobalAdmin
+  const bulkActions: BulkAction<HfaIndicator>[] = instanceState.currentUserIsGlobalAdmin
     ? [
         {
           label: t3(TC.delete),
@@ -389,7 +388,7 @@ export function HfaIndicatorsManager(p: Props) {
               {t3({ en: "HFA INDICATORS", fr: "INDICATEURS HFA" })}
             </div>
             <div class="ui-gap-sm flex items-center">
-              <Show when={p.isGlobalAdmin}>
+              <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <Button
                   iconName="refresh"
                   onClick={handleRevalidateAll}
@@ -417,7 +416,7 @@ export function HfaIndicatorsManager(p: Props) {
                     {t3({ en: "Indicators", fr: "Indicateurs" })} (
                     {keyedIndicators.length})
                   </div>
-                  <Show when={p.isGlobalAdmin && keyedIndicators.length > 0}>
+                  <Show when={instanceState.currentUserIsGlobalAdmin && keyedIndicators.length > 0}>
                     <Button
                       onClick={() => {
                         handleDownloadCsv(keyedIndicators);

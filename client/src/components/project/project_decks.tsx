@@ -51,7 +51,6 @@ type GroupOption = {
 };
 
 type ExtendedProps = {
-  isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -77,7 +76,6 @@ export function ProjectDecks(p: ExtendedProps) {
         deckId,
         reportLabel: deckLabel,
         projectState: projectState,
-        isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
       },
     });

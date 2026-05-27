@@ -13,7 +13,6 @@ import { instanceState } from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 
 type Props = {
-  isGlobalAdmin: boolean;
 };
 
 export function InstanceData(p: Props) {
@@ -26,48 +25,40 @@ export function InstanceData(p: Props) {
       <Match when={selectedDataSource() === "structure"}>
         <Structure
           backToInstance={() => setSelecteDatasource(undefined)}
-          isGlobalAdmin={p.isGlobalAdmin}
         />
       </Match>
       <Match when={selectedDataSource() === "hfa_indicators"}>
         <HfaIndicatorsManager
-          isGlobalAdmin={p.isGlobalAdmin}
           backToInstance={() => setSelecteDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource() === "indicators"}>
         <IndicatorsManager
-          isGlobalAdmin={p.isGlobalAdmin}
           backToInstance={() => setSelecteDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource() === "hmis"} keyed>
         <InstanceDatasetHmis
           backToInstance={() => setSelecteDatasource(undefined)}
-          isGlobalAdmin={p.isGlobalAdmin}
         />
       </Match>
       <Match when={selectedDataSource() === "hfa"} keyed>
         <InstanceDatasetHfa
           backToInstance={() => setSelecteDatasource(undefined)}
-          isGlobalAdmin={p.isGlobalAdmin}
         />
       </Match>
       <Match when={selectedDataSource() === "iceh"} keyed>
         <InstanceDatasetIceh
           backToInstance={() => setSelecteDatasource(undefined)}
-          isGlobalAdmin={p.isGlobalAdmin}
         />
       </Match>
       <Match when={selectedDataSource() === "hfa_time_points"}>
         <InstanceHfaTimePoints
           backToInstance={() => setSelecteDatasource(undefined)}
-          isGlobalAdmin={p.isGlobalAdmin}
         />
       </Match>
       <Match when={selectedDataSource() === "geojson"}>
         <GeoJsonManager
-          isGlobalAdmin={p.isGlobalAdmin}
           backToInstance={() => setSelecteDatasource(undefined)}
         />
       </Match>

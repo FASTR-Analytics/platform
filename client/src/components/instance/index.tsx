@@ -98,7 +98,6 @@ export default function Instance(p: Props) {
         <Match when={getFirstString(searchParams.p)}>
           <Project
             projectId={getFirstString(searchParams.p)!}
-            isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
             currentUserEmail={instanceState.currentUserEmail}
           />
         </Match>
@@ -291,7 +290,6 @@ export default function Instance(p: Props) {
                   }
                 >
                   <InstanceData
-                    isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
                   />
                 </Match>
                 <Match
@@ -302,7 +300,6 @@ export default function Instance(p: Props) {
                   }
                 >
                   <InstanceAssets
-                    isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
                   />
                 </Match>
                 <Match
@@ -332,7 +329,6 @@ export default function Instance(p: Props) {
                 </Match>
                 <Match when={true}>
                   <InstanceProjects
-                    isGlobalAdmin={instanceState.currentUserIsGlobalAdmin}
                     canCreateProjects={
                       instanceState.currentUserPermissions.can_create_projects
                     }

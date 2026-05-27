@@ -30,7 +30,6 @@ type EditModeProps = {
   projectId: string;
 
   projectStateSnapshot: ProjectState;
-  isGlobalAdmin: boolean;
   returnToContext?: AIContext;
   close: (result: EditModeReturn) => void;
 };
@@ -43,7 +42,6 @@ type CreateModeProps = {
   projectId: string;
 
   projectStateSnapshot: ProjectState;
-  isGlobalAdmin: boolean;
   returnToContext?: AIContext;
   close: (result: CreateModeReturn) => void;
 };
@@ -56,7 +54,6 @@ type EphemeralModeProps = {
   projectId: string;
 
   projectStateSnapshot: ProjectState;
-  isGlobalAdmin: boolean;
   returnToContext?: AIContext;
   close: (result: EphemeralModeReturn) => void;
 };
@@ -157,7 +154,6 @@ function VisualizationEditorEdit(p: EditModeProps) {
             mode="edit"
 
             projectStateSnapshot={p.projectStateSnapshot}
-            isGlobalAdmin={p.isGlobalAdmin}
             poDetail={keyedCombinedData.poDetail}
             resultsValueInfo={keyedCombinedData.resultsValueInfo}
             returnToContext={p.returnToContext}
@@ -198,7 +194,6 @@ function VisualizationEditorCreate(p: CreateModeProps) {
             mode="create"
 
             projectStateSnapshot={p.projectStateSnapshot}
-            isGlobalAdmin={p.isGlobalAdmin}
             poDetail={syntheticPoDetail}
             resultsValueInfo={keyedResultsValueInfo}
             returnToContext={p.returnToContext}
@@ -239,7 +234,6 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
             mode="ephemeral"
 
             projectStateSnapshot={p.projectStateSnapshot}
-            isGlobalAdmin={p.isGlobalAdmin}
             poDetail={syntheticPoDetail}
             resultsValueInfo={keyedResultsValueInfo}
             returnToContext={p.returnToContext}

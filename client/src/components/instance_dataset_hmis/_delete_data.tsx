@@ -23,7 +23,6 @@ export function DeleteData(
     {
       hmisVersionId: number;
       indicatorMappingsVersion: string;
-      isGlobalAdmin: boolean;
       silentFetch: () => Promise<void>;
       facilityColumns: InstanceConfigFacilityColumns;
     },

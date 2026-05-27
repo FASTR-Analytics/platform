@@ -66,7 +66,6 @@ interface BackupInfo {
 }
 
 type Props = {
-  isGlobalAdmin: boolean;
   backToHome: () => void;
 };
 

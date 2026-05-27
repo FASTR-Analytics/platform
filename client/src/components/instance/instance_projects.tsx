@@ -15,7 +15,6 @@ import { PendingDeletions } from "./pending_deletions";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
-  isGlobalAdmin: boolean;
   canCreateProjects: boolean;
 };
 
@@ -75,12 +74,12 @@ export function InstanceProjects(p: Props) {
         panelChildren={
           <HeadingBarMainRibbon heading={t3({ en: "Projects", fr: "Projets" })}>
             <div class="ui-gap-sm flex items-center">
-              <Show when={p.isGlobalAdmin}>
+              <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <Button onClick={compareProjects} outline intent="base-100">
                   {t3({ en: "Compare projects", fr: "Comparer les projets" })}
                 </Button>
               </Show>
-              <Show when={p.isGlobalAdmin && pendingDeletionCount() > 0}>
+              <Show when={instanceState.currentUserIsGlobalAdmin && pendingDeletionCount() > 0}>
                 <Button onClick={openPendingDeletions} outline intent="base-100">
                   {t3({
                     en: `Pending deletions (${pendingDeletionCount()})`,
@@ -88,7 +87,7 @@ export function InstanceProjects(p: Props) {
                   })}
                 </Button>
               </Show>
-              <Show when={p.isGlobalAdmin || p.canCreateProjects}>
+              <Show when={instanceState.currentUserIsGlobalAdmin || p.canCreateProjects}>
                 <Button onClick={attemptAddProject} iconName="plus">
                   {t3({ en: "Create project", fr: "Créer un projet" })}
                 </Button>

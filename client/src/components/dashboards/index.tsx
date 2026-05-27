@@ -14,7 +14,6 @@ import { CreateDashboardModal } from "./create_dashboard_modal";
 import { DashboardEditor } from "./dashboard_editor";
 
 type Props = {
-  isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -40,7 +39,6 @@ export function ProjectDashboards(p: Props) {
         projectId: projectState.id,
         dashboardId,
         title,
-        isGlobalAdmin: p.isGlobalAdmin,
       },
     });
   }

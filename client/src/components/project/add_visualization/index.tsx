@@ -27,7 +27,6 @@ import { Step3Configure } from "./step_3_configure";
 
 type AddVisualizationProps = {
   projectId: string;
-  isGlobalAdmin: boolean;
   modules: InstalledModuleSummary[];
 } & (
   | { preselectedMetric: MetricWithStatus }

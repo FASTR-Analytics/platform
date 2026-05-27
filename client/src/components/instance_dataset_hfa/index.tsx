@@ -24,7 +24,6 @@ import { DatasetItemsHolder } from "./dataset_items_holder";
 
 type Props = {
   backToInstance: () => void;
-  isGlobalAdmin: boolean;
 };
 
 export function InstanceDatasetHfa(p: Props) {
@@ -82,7 +81,6 @@ export function InstanceDatasetHfa(p: Props) {
       element: TimePointsView,
       props: {
         timePoints,
-        isGlobalAdmin: p.isGlobalAdmin,
       },
     });
   }
@@ -91,7 +89,6 @@ export function InstanceDatasetHfa(p: Props) {
     await openEditor({
       element: DeleteData,
       props: {
-        isGlobalAdmin: p.isGlobalAdmin,
         timePoints,
       },
     });
@@ -112,7 +109,7 @@ export function InstanceDatasetHfa(p: Props) {
       >
         <FrameRight
           panelChildren={
-            <Show when={p.isGlobalAdmin}>
+            <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
                 <div class="font-700 text-lg">{t3({ en: "Imports", fr: "Importations" })}</div>
                 <Switch>

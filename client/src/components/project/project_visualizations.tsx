@@ -18,7 +18,6 @@ import { useAIProjectContext } from "~/components/project_ai/context";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 
 type Props = {
-  isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -48,7 +47,6 @@ export function ProjectVisualizations(p: Props) {
           mode: "create" as const,
           projectId: projectState.id,
           label: `${t3({ en: "Copy of", fr: "Copie de" })} ${poDetailRes.data.label}`,
-          isGlobalAdmin: p.isGlobalAdmin,
           returnToContext: aiContext(),
           ...snapshotForVizEditor({
             projectState,
@@ -75,7 +73,6 @@ export function ProjectVisualizations(p: Props) {
         mode: "edit" as const,
         projectId: projectState.id,
         presentationObjectId: po.id,
-        isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
         ...snapshotForVizEditor({
           projectState,
@@ -91,7 +88,6 @@ export function ProjectVisualizations(p: Props) {
       element: AddVisualization,
       props: {
         projectId: projectState.id,
-        isGlobalAdmin: p.isGlobalAdmin,
         metrics: projectState.metrics,
         modules: projectState.projectModules,
       },
@@ -106,7 +102,6 @@ export function ProjectVisualizations(p: Props) {
         mode: "create" as const,
         projectId: projectState.id,
         label: res.label,
-        isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
         ...snapshotForVizEditor({
           projectState,

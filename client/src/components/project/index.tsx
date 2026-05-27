@@ -50,7 +50,6 @@ import {
 } from "./staleness_checks";
 
 type Props = {
-  isGlobalAdmin: boolean;
   projectId: string;
   currentUserEmail: string;
 };
@@ -89,14 +88,13 @@ export default function Project(p: Props) {
   return (
     <ProjectSSEBoundary projectId={p.projectId}>
       <ProjectInner
-        isGlobalAdmin={p.isGlobalAdmin}
         currentUserEmail={p.currentUserEmail}
       />
     </ProjectSSEBoundary>
   );
 }
 
-function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
+function ProjectInner(p: { currentUserEmail: string }) {
   const navigate = useNavigate();
 
   const { openEditor: openProjectEditor, EditorWrapper: ProjectEditorWrapper } =
@@ -297,7 +295,6 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                   }
                 >
                   <ProjectDecks
-                    isGlobalAdmin={p.isGlobalAdmin}
                     openProjectEditor={openProjectEditor}
                   />
                 </Match>
@@ -308,7 +305,6 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                   }
                 >
                   <ProjectDashboards
-                    isGlobalAdmin={p.isGlobalAdmin}
                     openProjectEditor={openProjectEditor}
                   />
                 </Match>
@@ -319,7 +315,6 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                   }
                 >
                   <ProjectVisualizations
-                    isGlobalAdmin={p.isGlobalAdmin}
                     openProjectEditor={openProjectEditor}
                   />
                 </Match>
@@ -330,7 +325,6 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                   }
                 >
                   <ProjectMetrics
-                    isGlobalAdmin={p.isGlobalAdmin}
                     openProjectEditor={openProjectEditor}
                   />
                 </Match>
@@ -343,7 +337,6 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                   }
                 >
                   <ProjectModules
-                    isGlobalAdmin={p.isGlobalAdmin}
                     canConfigureModules={
                       projectState.thisUserPermissions.can_configure_modules
                     }
@@ -361,7 +354,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                     projectState.thisUserPermissions.can_view_data
                   }
                 >
-                  <ProjectData isGlobalAdmin={p.isGlobalAdmin} />
+                  <ProjectData />
                 </Match>
                 <Match
                   when={
@@ -370,11 +363,10 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                   }
                 >
                   <ProjectSettings
-                    isGlobalAdmin={p.isGlobalAdmin}
                     backToHome={() => navigate("/")}
                   />
                 </Match>
-                <Match when={projectTab() === "cache" && p.isGlobalAdmin}>
+                <Match when={projectTab() === "cache" && instanceState.currentUserIsGlobalAdmin}>
                   <ProjectCache />
                 </Match>
               </Switch>

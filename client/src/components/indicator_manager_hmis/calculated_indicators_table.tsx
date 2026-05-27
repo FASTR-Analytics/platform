@@ -14,13 +14,13 @@ import {
   type CalculatedIndicator,
 } from "lib";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import { EditCalculatedIndicatorForm } from "./calculated_indicator_editor";
 import { SortCalculatedIndicatorsModal } from "./sort_calculated_indicators_modal";
 
 type Props = {
   calculatedIndicators: CalculatedIndicator[];
   commonIndicators: CommonIndicatorWithMappings[];
-  isGlobalAdmin: boolean;
 };
 
 export function CalculatedIndicatorsTable(p: Props) {
@@ -171,7 +171,7 @@ export function CalculatedIndicatorsTable(p: Props) {
     },
   ];
 
-  if (p.isGlobalAdmin) {
+  if (instanceState.currentUserIsGlobalAdmin) {
     columns.push({
       key: "actions",
       header: "",
@@ -207,7 +207,7 @@ export function CalculatedIndicatorsTable(p: Props) {
     });
   }
 
-  const bulkActions: BulkAction<CalculatedIndicator>[] = p.isGlobalAdmin
+  const bulkActions: BulkAction<CalculatedIndicator>[] = instanceState.currentUserIsGlobalAdmin
     ? [
         {
           label: t3(TC.delete),
@@ -224,7 +224,7 @@ export function CalculatedIndicatorsTable(p: Props) {
         <div class="font-700 flex-1 text-xl">
           {t3({ en: "Calculated indicators", fr: "Indicateurs calculés" })}
         </div>
-        <Show when={p.isGlobalAdmin}>
+        <Show when={instanceState.currentUserIsGlobalAdmin}>
           <Button onClick={handleSort} iconName="gripVertical" outline>
             {t3({ en: "Sort indicators", fr: "Trier les indicateurs" })}
           </Button>

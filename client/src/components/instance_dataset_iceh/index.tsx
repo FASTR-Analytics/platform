@@ -21,12 +21,12 @@ import {
 } from "solid-js";
 import { DatasetIcehUploadAttemptForm } from "~/components/instance_dataset_iceh_import";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import { DatasetItemsHolder } from "./dataset_items_holder";
 import { DeleteData } from "./_delete_data";
 
 type Props = {
   backToInstance: () => void;
-  isGlobalAdmin: boolean;
 };
 
 export function InstanceDatasetIceh(p: Props) {
@@ -87,7 +87,6 @@ export function InstanceDatasetIceh(p: Props) {
     await openEditor({
       element: DeleteData,
       props: {
-        isGlobalAdmin: p.isGlobalAdmin,
         silentFetch: fetchDetail,
       },
     });
@@ -110,7 +109,7 @@ export function InstanceDatasetIceh(p: Props) {
       >
         <FrameRight
           panelChildren={
-            <Show when={p.isGlobalAdmin}>
+            <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
                 <div class="font-700 text-lg">
                   {t3({ en: "Imports", fr: "Importations" })}

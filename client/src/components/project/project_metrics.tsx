@@ -24,7 +24,6 @@ import { useAIProjectContext } from "~/components/project_ai/context";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 
 type Props = {
-  isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -85,7 +84,6 @@ export function ProjectMetrics(p: Props) {
                       metricGroup={metricGroup}
                       projectId={projectState.id}
                       projectState={projectState}
-                      isGlobalAdmin={p.isGlobalAdmin}
                       openProjectEditor={p.openProjectEditor}
                     />
                   )}
@@ -106,7 +104,6 @@ type MetricGroupCardProps = {
   };
   projectId: string;
   projectState: ProjectState;
-  isGlobalAdmin: boolean;
   openProjectEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -129,7 +126,6 @@ function MetricGroupCard(p: MetricGroupCardProps) {
       element: AddVisualization,
       props: {
         projectId: p.projectId,
-        isGlobalAdmin: p.isGlobalAdmin,
         preselectedMetric: metric,
         modules: p.projectState.projectModules,
       },
@@ -144,7 +140,6 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         mode: "create" as const,
         projectId: p.projectId,
         label: res.label,
-        isGlobalAdmin: p.isGlobalAdmin,
         returnToContext: aiContext(),
         ...snapshotForVizEditor({
           projectState: p.projectState,

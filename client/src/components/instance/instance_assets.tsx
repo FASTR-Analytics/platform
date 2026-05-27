@@ -15,7 +15,6 @@ import { Table, TableColumn } from "panther";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
-  isGlobalAdmin: boolean;
 };
 
 export function InstanceAssets(p: Props) {
@@ -48,7 +47,7 @@ export function InstanceAssets(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBarMainRibbon heading={t3({ en: "Assets", fr: "Ressources" })}>
-          <Show when={p.isGlobalAdmin}>
+          <Show when={instanceState.currentUserIsGlobalAdmin}>
             <Button id="select-file-button" iconName="upload">
               {t3({ en: "Upload assets", fr: "Téléverser des ressources" })}
             </Button>
@@ -59,7 +58,6 @@ export function InstanceAssets(p: Props) {
       <div class="ui-pad h-full w-full">
         <AssetTable
           assets={instanceState.assets}
-          isGlobalAdmin={p.isGlobalAdmin}
           onDelete={attemptDeleteAssetFile}
         />
       </div>
@@ -71,7 +69,6 @@ type AssetWithType = AssetInfo & { fileType: string };
 
 function AssetTable(p: {
   assets: AssetInfo[];
-  isGlobalAdmin: boolean;
   onDelete: (fileName: string) => void;
 }) {
   function getFileType(asset: AssetInfo): string {
@@ -163,7 +160,7 @@ function AssetTable(p: {
             href={`${_SERVER_HOST}/${asset.fileName}`}
             download={asset.fileName}
           />
-          <Show when={p.isGlobalAdmin}>
+          <Show when={instanceState.currentUserIsGlobalAdmin}>
             <Button
               iconName="trash"
               intent="base-100"
@@ -178,7 +175,7 @@ function AssetTable(p: {
     },
   ];
 
-  const bulkActions: BulkAction<AssetWithType>[] = p.isGlobalAdmin
+  const bulkActions: BulkAction<AssetWithType>[] = instanceState.currentUserIsGlobalAdmin
     ? [
         {
           label: t3(TC.delete),

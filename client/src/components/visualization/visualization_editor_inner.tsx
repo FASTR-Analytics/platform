@@ -69,7 +69,6 @@ import type { AIContext } from "../project_ai/types";
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
   projectStateSnapshot: ProjectState;
-  isGlobalAdmin: boolean;
   poDetail: PresentationObjectDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   returnToContext?: AIContext;

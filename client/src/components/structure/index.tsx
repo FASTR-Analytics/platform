@@ -16,7 +16,6 @@ import { StructureWithCsv } from "./with_csv";
 
 type Props = {
   backToInstance: () => void;
-  isGlobalAdmin: boolean;
 };
 
 export function Structure(p: Props) {
@@ -106,7 +105,7 @@ export function Structure(p: Props) {
         <div class="flex h-full w-full">
           <Switch>
             <Match when={instanceState.structure}>
-              <Show when={p.isGlobalAdmin}>
+              <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <div class="ui-pad ui-gap-sm border-base-300 flex h-full flex-none flex-col overflow-auto border-r">
                   <Switch>
                     <Match when={uploadAttempt()}>
@@ -146,7 +145,7 @@ export function Structure(p: Props) {
             <Match when={true}>
               <div class="ui-pad ui-gap-sm flex h-full flex-none flex-col overflow-auto border-l">
                 <Switch>
-                  <Match when={!p.isGlobalAdmin}>
+                  <Match when={!instanceState.currentUserIsGlobalAdmin}>
                     {t3({ en: "Waiting for admin to add admin areas and facilities", fr: "En attente de l'ajout des unités administratives et des établissements de santé par l'administrateur" })}
                   </Match>
                   <Match when={uploadAttempt()}>

@@ -10,7 +10,6 @@ export function ImportInformation(
     {
       version: DatasetHmisVersion;
       isCurrentVersion: boolean;
-      isGlobalAdmin: boolean;
     },
     undefined
   >,

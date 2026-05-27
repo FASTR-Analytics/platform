@@ -24,7 +24,6 @@ import { SettingsForProjectDatasetHmis } from "./settings_for_project_dataset_hm
 import { projectState } from "~/state/project/t1_store";
 
 type Props = {
-  isGlobalAdmin: boolean;
 };
 
 export function ProjectData(p: Props) {
@@ -139,7 +138,7 @@ export function ProjectData(p: Props) {
                       </div>
                       <Show
                         when={
-                          !projectState.isLocked && p.isGlobalAdmin
+                          !projectState.isLocked && instanceState.currentUserIsGlobalAdmin
                         }
                       >
                         <div class="ui-gap-sm flex">
@@ -372,7 +371,7 @@ export function ProjectData(p: Props) {
                       <div class="">
                         <Show
                           when={
-                            !projectState.isLocked && p.isGlobalAdmin
+                            !projectState.isLocked && instanceState.currentUserIsGlobalAdmin
                           }
                           fallback={
                             <div class="font-400 text-neutral text-sm">
@@ -494,7 +493,7 @@ export function ProjectData(p: Props) {
                       </div>
                       <Show
                         when={
-                          !projectState.isLocked && p.isGlobalAdmin
+                          !projectState.isLocked && instanceState.currentUserIsGlobalAdmin
                         }
                       >
                         <div class="ui-gap-sm flex">
@@ -575,7 +574,7 @@ export function ProjectData(p: Props) {
                       <div class="">
                         <Show
                           when={
-                            !projectState.isLocked && p.isGlobalAdmin
+                            !projectState.isLocked && instanceState.currentUserIsGlobalAdmin
                           }
                           fallback={
                             <div class="font-400 text-neutral text-sm">
@@ -654,7 +653,7 @@ export function ProjectData(p: Props) {
                       </div>
                       <Show
                         when={
-                          !projectState.isLocked && p.isGlobalAdmin
+                          !projectState.isLocked && instanceState.currentUserIsGlobalAdmin
                         }
                       >
                         <div class="ui-gap-sm flex">
@@ -735,7 +734,7 @@ export function ProjectData(p: Props) {
                       <div class="">
                         <Show
                           when={
-                            !projectState.isLocked && p.isGlobalAdmin
+                            !projectState.isLocked && instanceState.currentUserIsGlobalAdmin
                           }
                           fallback={
                             <div class="font-400 text-neutral text-sm">

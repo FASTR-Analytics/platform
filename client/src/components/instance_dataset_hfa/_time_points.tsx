@@ -12,12 +12,12 @@ import {
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 
 export function TimePointsView(
   p: EditorComponentProps<
     {
       timePoints: HfaTimePoint[];
-      isGlobalAdmin: boolean;
     },
     undefined
   >,
@@ -133,7 +133,7 @@ export function TimePointsView(
                             )}
                           </div>
                         </div>
-                        <Show when={p.isGlobalAdmin}>
+                        <Show when={instanceState.currentUserIsGlobalAdmin}>
                           <div class="ui-gap-sm flex items-center">
                             <Button
                               iconName="chevronUp"

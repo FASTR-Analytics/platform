@@ -14,7 +14,6 @@ import { GeoJsonUploadWizard } from "./geojson_upload_wizard/index";
 import { GeoJsonEditModal } from "./geojson_edit_modal";
 
 type Props = {
-  isGlobalAdmin: boolean;
   backToInstance: () => void;
 };
 
@@ -71,7 +70,7 @@ export function GeoJsonManager(p: Props) {
             }),
         );
         return (
-          <Show when={p.isGlobalAdmin}>
+          <Show when={instanceState.currentUserIsGlobalAdmin}>
             <div class="flex gap-2">
               <Button
                 iconName="pencil"
@@ -102,7 +101,7 @@ export function GeoJsonManager(p: Props) {
               {t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON" })}
             </div>
             <div class="flex-1" />
-            <Show when={p.isGlobalAdmin}>
+            <Show when={instanceState.currentUserIsGlobalAdmin}>
               <Button iconName="plus" onClick={handleUpload}>
                 {t3({ en: "Upload GeoJSON", fr: "Télécharger GeoJSON" })}
               </Button>
