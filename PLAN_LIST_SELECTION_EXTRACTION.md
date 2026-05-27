@@ -73,7 +73,9 @@ const ids = shouldBatchOp ? Array.from(selected) : [item.id];
 
 These are framework-level utilities with no wb-fastr dependencies.
 
-Both files live in one new directory: `panther/_303_components/list_selection/`. This matches panther's organize-by-category convention (`form_inputs/`, `layout/`, `special_state/`, etc.) rather than splitting by file type (`hooks/`, `selection/`).
+Both files live in one new directory in the **panther source repo**: `timroberton-panther/modules/_303_components/list_selection/`. This matches panther's organize-by-category convention (`form_inputs/`, `layout/`, `special_state/`, etc.) rather than splitting by file type (`hooks/`, `selection/`).
+
+After implementation, sync panther to wb-fastr.
 
 #### 1.1 `createListSelection` Hook
 
