@@ -182,6 +182,8 @@ const selection = createListSelection<string>({
 });
 
 // Update item order when list changes (handles grouped views)
+// NOTE: getOrderedVisualizationIds is a new local helper - same logic as
+// existing getVisualIndexMap but returns string[] instead of Map<string, number>
 createEffect(() => {
   const orderedIds = getOrderedVisualizationIds(p.visualizations, subGroupConfig());
   selection.setItems(orderedIds);
@@ -272,11 +274,10 @@ For each refactored component:
 
 | Task | Time |
 |------|------|
-| Phase 1: Panther primitives (2 files) | 1.5-2 hours |
-| Phase 2: wb-fastr wrapper | 30 min |
-| Phase 3.1: Refactor VisualizationGrid | 1-2 hours |
-| Phase 3.2: Refactor ProjectDecks | 1 hour |
-| Phase 3.3: Add to ProjectDashboards | 1 hour |
+| Phase 1: Panther primitives | 1.5-2 hours |
+| Phase 2.1: Refactor VisualizationGrid | 1-2 hours |
+| Phase 2.2: Refactor ProjectDecks | 1 hour |
+| Phase 2.3: Add to ProjectDashboards | 1 hour |
 | Testing | 1 hour |
 | **Total** | **5-7 hours** |
 
@@ -293,17 +294,15 @@ For each refactored component:
 
 ## Files to Modify
 
-### New Files
+### New Files (panther)
 
 - `panther/_303_components/list_selection/create_list_selection.ts`
 - `panther/_303_components/list_selection/selection_circle.tsx`
 - `panther/_303_components/list_selection/mod.ts`
-- `panther/_303_components/list_selection/deps.ts` (only if external imports needed)
-- `client/src/hooks/use_list_selection_with_ai.ts`
 
 ### Modified Files
 
-- `panther/_303_components/mod.ts` (exports)
+- `panther/_303_components/mod.ts` (add export for `list_selection/mod.ts`)
 - `client/src/components/PresentationObjectPanelDisplay.tsx`
 - `client/src/components/project/project_decks.tsx`
 - `client/src/components/dashboards/index.tsx`
