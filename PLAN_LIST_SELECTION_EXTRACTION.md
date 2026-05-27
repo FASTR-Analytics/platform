@@ -79,7 +79,7 @@ After implementation, sync panther to wb-fastr.
 
 #### 1.1 `createListSelection` Hook
 
-**Location**: `panther/_303_components/list_selection/create_list_selection.ts`
+**Location**: `timroberton-panther/modules/_303_components/list_selection/create_list_selection.ts`
 
 **Interface**:
 ```ts
@@ -134,7 +134,7 @@ function createListSelection<TId extends string>(
 
 #### 1.2 `SelectionCircle` Component
 
-**Location**: `panther/_303_components/list_selection/selection_circle.tsx`
+**Location**: `timroberton-panther/modules/_303_components/list_selection/selection_circle.tsx`
 
 **Interface**:
 ```ts
@@ -231,6 +231,8 @@ Same pattern as visualizations. Estimated reduction: ~150 lines → ~20 lines.
 
 Currently 159 lines with no selection. After adding selection with the extracted hooks: ~180 lines (only +20 lines for full multi-select support).
 
+Context menu: **delete only** (no folders, no duplicate for now).
+
 ---
 
 ## Implementation Order
@@ -296,15 +298,18 @@ For each refactored component:
 
 ## Files to Modify
 
-### New Files (panther)
+### New Files (panther source repo)
 
-- `panther/_303_components/list_selection/create_list_selection.ts`
-- `panther/_303_components/list_selection/selection_circle.tsx`
-- `panther/_303_components/list_selection/mod.ts`
+- `timroberton-panther/modules/_303_components/list_selection/create_list_selection.ts`
+- `timroberton-panther/modules/_303_components/list_selection/selection_circle.tsx`
+- `timroberton-panther/modules/_303_components/list_selection/mod.ts`
 
-### Modified Files
+### Modified Files (panther source repo)
 
-- `panther/_303_components/mod.ts` (add export for `list_selection/mod.ts`)
+- `timroberton-panther/modules/_303_components/mod.ts` (add export for `list_selection/mod.ts`)
+
+### Modified Files (wb-fastr, after panther sync)
+
 - `client/src/components/PresentationObjectPanelDisplay.tsx`
 - `client/src/components/project/project_decks.tsx`
 - `client/src/components/dashboards/index.tsx`
