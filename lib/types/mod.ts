@@ -1,5 +1,6 @@
 export * from "./assets.ts";
 export * from "./conditional_formatting.ts";
+export * from "./dashboard.ts";
 export * from "./errors.ts";
 export * from "./geojson_maps.ts";
 export * from "./dataset_hfa.ts";

@@ -1,4 +1,5 @@
 import type {
+  DashboardSummary,
   DatasetInProject,
   DirtyOrRunStatus,
   InstalledModuleSummary,
@@ -95,6 +96,16 @@ export function notifyProjectSlideDeckFoldersUpdated(
   notifyProjectV2(projectId, {
     type: "slide_deck_folders_updated",
     data: { slideDeckFolders },
+  });
+}
+
+export function notifyProjectDashboardsUpdated(
+  projectId: string,
+  dashboards: DashboardSummary[]
+): void {
+  notifyProjectV2(projectId, {
+    type: "dashboards_updated",
+    data: { dashboards },
   });
 }
 

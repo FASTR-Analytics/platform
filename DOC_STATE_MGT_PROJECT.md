@@ -1,5 +1,7 @@
 # Project-Level State Management
 
+> ⚠️ **Before writing state code, read `DOC_STATE_RULES.md`.** It's a short hit-list of rules that have each produced real production bugs (notably around Solid.js reactive tracking, SSE-driven invalidation, when to use `timQuery` vs `createEffect`, and the "don't flash loading on Variant B re-runs" rule specific to project-level per-entity caches).
+
 ## Overview
 
 Project state is scoped to a single project: modules, visualizations, slide decks, dirty states, metrics, and project users. Project state uses the same global store + SSE pattern as instance state.
@@ -66,17 +68,74 @@ Metadata and list data for the project. Pushed via SSE on every change. Componen
 
 Heavy project data too large for SSE. Cached in memory + IndexedDB. Auto-invalidated by T1 `lastUpdated` timestamps or `moduleLastRun`.
 
-| Data | File | Cache version key(s) | Why cached, not on SSE |
-| --- | --- | --- | --- |
-| PO detail (config, metadata) | `project/t2_presentation_objects.ts` | `lastUpdated.presentation_objects[poId]` | Full config object per PO |
-| PO items (data rows) | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` (via resultsObjectId lookup) | Potentially thousands of rows |
-| Metric info (results value info) | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` (via metricId lookup) | Per-metric results metadata |
-| Replicant options | `project/t2_replicant_options.ts` | `moduleLastRun[moduleId]` (via resultsObjectId lookup) | Disaggregation options per fetch config |
-| Slide content | `project/t2_slides.ts` | `lastUpdated.slides[slideId]` | Full slide with blocks and metadata |
-| Slide deck meta | `project/t2_slides.ts` | `lastUpdated.slide_decks[deckId]` | Deck label, plan, slide order |
-| Image blobs | `project/t2_images.ts` | URL-based (not PDS-keyed) | Binary data, IndexedDB + memory |
+Most project-level T2 caches are **per-entity** — keyed by an individual entity ID rather than a single global version. This is the **Variant B** pattern from `DOC_STATE_MGT_TIERS.md`. Read that doc first.
+
+| Data | File | Cache version key(s) | Variant | Why cached, not on SSE |
+| --- | --- | --- | --- | --- |
+| Dashboard detail (with items) | `project/t2_dashboards.ts` | `lastUpdated.dashboards[dashboardId]` | B (per-entity) | Items array can be large (stripped figure inputs) |
+| PO detail (config, metadata) | `project/t2_presentation_objects.ts` | `lastUpdated.presentation_objects[poId]` | B (per-entity) | Full config object per PO |
+| PO items (data rows) | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` (via resultsObjectId lookup) | A (whole-module data) | Potentially thousands of rows |
+| Metric info (results value info) | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` (via metricId lookup) | A | Per-metric results metadata |
+| Replicant options | `project/t2_replicant_options.ts` | `moduleLastRun[moduleId]` (via resultsObjectId lookup) | A | Disaggregation options per fetch config |
+| Slide content | `project/t2_slides.ts` | `lastUpdated.slides[slideId]` | B (per-entity) | Full slide with blocks and metadata |
+| Slide deck meta | `project/t2_slides.ts` | `lastUpdated.slide_decks[deckId]` | B (per-entity) | Deck label, plan, slide order |
+| Image blobs | `project/t2_images.ts` | URL-based (not PDS-keyed) | — | Binary data, IndexedDB + memory |
 
 **Image cache note:** `t2_images.ts` uses `TimCacheD` (IndexedDB) rather than `createReactiveCache`. It's URL-keyed with failure backoff, not PDS-versioned. It's T2 because it caches fetched data that persists across navigation, but its invalidation pattern is different from the other T2 caches.
+
+### Per-entity T2 (Variant B) — canonical client pattern (live read)
+
+The version key for a per-entity cache is `projectState.lastUpdated.{tableName}[entityId]`. When that single entity changes (the user added an item to a dashboard, edited a slide, renamed a deck), only its version key flips. Other entities are unaffected. The data change is usually **incremental** — one item added, one field edited — so the existing rendered view stays mostly correct.
+
+This is a **live read** pattern (see `DOC_STATE_RULES.md` rule #6) — required for any long-lived view of a per-entity record. For short-lived picker modals that fetch the same data, a **snapshot read** via `timQuery` is acceptable; SSE updates during the modal's lifetime aren't consumed.
+
+**Rules for consuming per-entity T2 data as a live read:**
+
+1. Use `createSignal<StateHolder<T>>` initialized to `{ status: "loading" }`.
+2. Use `createEffect` that **reactively reads** the per-entity version key.
+3. **Do NOT call `setData({ status: "loading" })` inside the effect.** Stale data stays visible while the refetch is in flight. Initial loading is handled by the signal default.
+4. **Do NOT call `silentFetch()`, `fetch()`, or any manual `refresh()` after a mutation.** SSE handles propagation. The server route handler called `notifyLastUpdated(...)` after the mutation; the SSE message will flip the version key; the `createEffect` will fire; the cache will miss; fresh data arrives.
+
+```tsx
+const [data, setData] = createSignal<StateHolder<DashboardDetail>>({
+  status: "loading",
+});
+
+createEffect(async () => {
+  const _v = projectState.lastUpdated.dashboards[p.dashboardId]; // reactive read for tracking
+  // NOTE: No setData({ status: "loading" }) here — Variant B leaves stale data visible.
+  const res = await getDashboardDetailFromCacheOrFetch(p.projectId, p.dashboardId);
+  if (res.success) {
+    setData({ status: "ready", data: res.data });
+  } else {
+    setData({ status: "error", err: res.err });
+  }
+});
+
+<StateHolderWrapper state={data()}>
+  {(dashboard) => <DashboardView dashboard={dashboard} />}
+</StateHolderWrapper>
+```
+
+This gives:
+
+- ✅ Loading flash **only on first mount** (signal default).
+- ✅ **No flash** on SSE-triggered refetches — stale data stays visible until fresh data arrives.
+- ⚠️ If the refetch errors out (e.g. transient network failure), the stale data is replaced with an error state. This is an accepted trade-off — rare in practice, and showing stale data without ever indicating the error would be worse.
+
+**Note on `void` vs `const _v`:** Both `void projectState.lastUpdated.dashboards[id]` and `const _v = projectState.lastUpdated.dashboards[id]` achieve the same thing — they create a reactive dependency without using the value. Use whichever is clearer in context. Some components in the codebase use one, some use the other.
+
+### Whole-module T2 (Variant A) — for `moduleLastRun`-keyed caches
+
+`PO items`, `metric info`, and `replicant options` are keyed off `moduleLastRun[moduleId]`. When a module re-runs, ALL of that module's outputs change at once. This is whole-collection invalidation (Variant A) — show loading on every effect re-run. Follow the Variant A pattern in `DOC_STATE_MGT_INSTANCE.md`.
+
+### Anti-patterns (do not write these in project-level code)
+
+See `DOC_STATE_MGT_TIERS.md` for the full anti-pattern catalogue. The most common ones in project-level code:
+
+1. **Using `timQuery` (snapshot read) for a long-lived view of per-entity data.** SSE updates will never be reflected; the view goes stale silently. Use a live read (`createEffect` + version key) instead. (Snapshot reads via `timQuery` ARE appropriate for short-lived picker modals — see `DOC_STATE_RULES.md` rule #6 for the distinction.)
+2. **Calling `silentFetch()` or `refresh()` after a mutation.** Duplicates work and races with SSE. Remove the call; let SSE drive invalidation.
+3. **Setting `{ status: "loading" }` on every Variant B effect re-run.** Flashes "Loading..." every time anything changes, even one-character edits to a label.
 
 ---
 

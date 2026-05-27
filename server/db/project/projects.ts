@@ -41,6 +41,7 @@ import {
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
 import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
+import { getAllDashboards } from "./dashboards.ts";
 import { getAllVisualizationFolders } from "./visualization_folders.ts";
 
 /////////////////////////
@@ -147,6 +148,9 @@ export async function getProjectDetail(
 
     const resSlideDeckFolders = await getAllSlideDeckFolders(projectDb);
     throwIfErrWithData(resSlideDeckFolders);
+
+    const resDashboards = await getAllDashboards(projectDb);
+    throwIfErrWithData(resDashboards);
 
     const resVisualizations =
       await getAllPresentationObjectsForProject(projectDb);
@@ -259,6 +263,7 @@ export async function getProjectDetail(
       visualizationFolders: resFolders.data,
       slideDecks: resSlideDecks.data,
       slideDeckFolders: resSlideDeckFolders.data,
+      dashboards: resDashboards.data,
       projectUsers: fullProjectUsers,
       thisUserPermissions: {
         can_configure_settings: projectUser?.can_configure_settings ?? false,

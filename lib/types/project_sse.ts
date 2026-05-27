@@ -9,6 +9,7 @@ import type {
 } from "./project_dirty_states.ts";
 import type { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import type { VisualizationFolder } from "./visualization_folders.ts";
+import type { DashboardSummary } from "./dashboard.ts";
 
 /**
  * Unified project state pushed via SSE.
@@ -37,6 +38,7 @@ export type ProjectState = {
   visualizationFolders: VisualizationFolder[];
   slideDecks: SlideDeckSummary[];
   slideDeckFolders: SlideDeckFolder[];
+  dashboards: DashboardSummary[];
   projectUsers: ProjectUser[];
   thisUserPermissions: ProjectUserPermissions;
 
@@ -97,6 +99,7 @@ export type ProjectSseMessage =
       type: "slide_deck_folders_updated";
       data: { slideDeckFolders: SlideDeckFolder[] };
     }
+  | { type: "dashboards_updated"; data: { dashboards: DashboardSummary[] } }
   | { type: "project_users_updated"; data: { projectUsers: ProjectUser[] } }
 
   // Per-entity timestamps (kept — project caches use per-entity versioning)

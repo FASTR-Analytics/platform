@@ -44,11 +44,13 @@ import { routesAiFiles } from "./server/routes/project/ai_files.ts";
 import { routesAiTools } from "./server/routes/project/ai_tools.ts";
 import { routesVisualizationFolders } from "./server/routes/project/visualization_folders.ts";
 import { routesSlideDeckFolders } from "./server/routes/project/slide_deck_folders.ts";
+import { routesDashboards } from "./server/routes/project/dashboards.ts";
 import { routesEmails } from "./server/routes/project/emails.ts";
 import { routesCacheStatus } from "./server/routes/project/cache_status.ts";
 
 // Public routes (no auth)
 import { routesPublicShare } from "./server/routes/public/share.ts";
+import { routesPublicDashboard } from "./server/routes/public/dashboard.ts";
 
 // Share routes (auth required)
 import { routesShare } from "./server/routes/instance/share.ts";
@@ -76,14 +78,17 @@ const app = new Hono();
 
 // CORS for public routes
 app.use("/api/share/*", corsMiddleware);
+app.use("/api/d/*", corsMiddleware);
 
 // Public routes (no auth required) - must be before authMiddleware
 app.route("/", routesPublicShare);
+app.route("/", routesPublicDashboard);
 
 // Serve SPA HTML for public share routes (before auth)
 try {
   const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
   app.get("/share/viz/:token", (c) => c.html(indexHtml));
+  app.get("/d/:projectId/:slug", (c) => c.html(indexHtml));
 } catch {
   // In development, handled by Vite dev server
 }
@@ -123,6 +128,7 @@ app.route("/", routesInstanceModules);
 app.route("/", routesModules);
 app.route("/", routesSlideDecks);
 app.route("/", routesSlides);
+app.route("/", routesDashboards);
 app.route("/", routesPresentationObjects);
 app.route("/", routesVisualizationFolders);
 app.route("/", routesSlideDeckFolders);

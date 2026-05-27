@@ -33,3 +33,23 @@ export async function generateUniquePresentationObjectId(db: Sql): Promise<strin
   }
   throw new Error("Failed to generate unique presentation object ID after 10 attempts");
 }
+
+export async function generateUniqueDashboardId(db: Sql): Promise<string> {
+  const maxAttempts = 10;
+  for (let i = 0; i < maxAttempts; i++) {
+    const id = generateId();
+    const existing = await db`SELECT 1 FROM dashboards WHERE id = ${id}`;
+    if (existing.length === 0) return id;
+  }
+  throw new Error("Failed to generate unique dashboard ID after 10 attempts");
+}
+
+export async function generateUniqueDashboardItemId(db: Sql): Promise<string> {
+  const maxAttempts = 10;
+  for (let i = 0; i < maxAttempts; i++) {
+    const id = generateId();
+    const existing = await db`SELECT 1 FROM dashboard_items WHERE id = ${id}`;
+    if (existing.length === 0) return id;
+  }
+  throw new Error("Failed to generate unique dashboard item ID after 10 attempts");
+}

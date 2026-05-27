@@ -24,6 +24,7 @@ import { projectState } from "~/state/project/t1_store";
 
 import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
+import { ProjectDashboards } from "../dashboards";
 import { ProjectMetrics } from "./project_metrics";
 import { ProjectModules } from "./project_modules";
 import { ProjectSettings } from "./project_settings";
@@ -133,6 +134,14 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
           },
         ]
       : []),
+    ...(projectState.thisUserPermissions.can_view_slide_decks
+      ? [
+          {
+            value: "dashboards" as const,
+            label: t3({ en: "Dashboards", fr: "Tableaux de bord" }),
+          },
+        ]
+      : []),
     ...(projectState.thisUserPermissions.can_view_visualizations
       ? [
           {
@@ -182,6 +191,7 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
 
   const tabIcons = {
     decks: "sparkles" as const,
+    dashboards: "box" as const,
     reports: "report" as const,
     visualizations: "chart" as const,
     metrics: "badge" as const,
@@ -287,6 +297,17 @@ function ProjectInner(p: { isGlobalAdmin: boolean; currentUserEmail: string }) {
                   }
                 >
                   <ProjectDecks
+                    isGlobalAdmin={p.isGlobalAdmin}
+                    openProjectEditor={openProjectEditor}
+                  />
+                </Match>
+                <Match
+                  when={
+                    projectTab() === "dashboards" &&
+                    projectState.thisUserPermissions.can_view_slide_decks
+                  }
+                >
+                  <ProjectDashboards
                     isGlobalAdmin={p.isGlobalAdmin}
                     openProjectEditor={openProjectEditor}
                   />

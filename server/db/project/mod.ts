@@ -11,3 +11,4 @@ export * from "./slide_deck_folders.ts";
 export * from "./slides.ts";
 export * from "./move_slides.ts";
 export * from "./calculated_indicators_snapshot.ts";
+export * from "./dashboards.ts";

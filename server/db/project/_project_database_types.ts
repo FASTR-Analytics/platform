@@ -89,6 +89,28 @@ export type DBSlide = {
   last_updated: string;
 };
 
+export type DBDashboard = {
+  id: string;
+  slug: string;
+  title: string;
+  is_public: boolean;
+  layout: string;
+  created_by_email: string;
+  created_at: string;
+  updated_at: string;
+  last_updated: string;
+};
+
+export type DBDashboardItem = {
+  id: string;
+  dashboard_id: string;
+  label: string;
+  sort_order: number;
+  figure_block: string;
+  geo_data: string | null;
+  last_updated: string;
+};
+
 export type DBGlobalLastUpdated = {
   id: string;
   last_updated: string;

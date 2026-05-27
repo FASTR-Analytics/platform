@@ -23,6 +23,8 @@ export async function getProjectDirtyStates(
       moduleLastRun: {},
       moduleLastRunGitRef: {},
       lastUpdated: {
+        dashboards: {},
+        dashboard_items: {},
         datasets: {},
         modules: {},
         presentation_objects: {},

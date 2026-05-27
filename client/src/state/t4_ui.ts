@@ -1,17 +1,30 @@
 import { createSignal } from "solid-js";
-import type { ModuleLatestCommit, SlideDeckGroupingMode, VisualizationGroupingMode } from "lib";
+import type {
+  ModuleLatestCommit,
+  SlideDeckGroupingMode,
+  VisualizationGroupingMode,
+} from "lib";
 
 // ============================================================================
 // Project View State
 // ============================================================================
 
 // Active tab selection
-export type TabOption = "reports" | "decks" | "visualizations" | "metrics" | "modules" | "data" | "settings" | "cache";
+export type TabOption =
+  | "reports"
+  | "decks"
+  | "dashboards"
+  | "visualizations"
+  | "metrics"
+  | "modules"
+  | "data"
+  | "settings"
+  | "cache";
 
 const storedTab = localStorage.getItem("projectTab") as TabOption | null;
 
 export const [projectTab, setProjectTabInternal] = createSignal<TabOption>(
-  storedTab ?? "visualizations"
+  storedTab ?? "visualizations",
 );
 
 export function setProjectTab(tab: TabOption) {
@@ -23,7 +36,7 @@ export function setProjectTab(tab: TabOption) {
 const storedNavCollapsed = localStorage.getItem("navCollapsed");
 
 export const [navCollapsed, setNavCollapsedInternal] = createSignal<boolean>(
-  storedNavCollapsed === null ? true : storedNavCollapsed === "true"
+  storedNavCollapsed === null ? true : storedNavCollapsed === "true",
 );
 
 export function setNavCollapsed(collapsed: boolean) {
@@ -32,11 +45,12 @@ export function setNavCollapsed(collapsed: boolean) {
 }
 
 // Visualization grouping/filtering
-const storedGroupingMode = localStorage.getItem("vizGroupingMode") as VisualizationGroupingMode | null;
+const storedGroupingMode = localStorage.getItem(
+  "vizGroupingMode",
+) as VisualizationGroupingMode | null;
 
-export const [vizGroupingMode, setVizGroupingModeInternal] = createSignal<VisualizationGroupingMode>(
-  storedGroupingMode ?? "folders"
-);
+export const [vizGroupingMode, setVizGroupingModeInternal] =
+  createSignal<VisualizationGroupingMode>(storedGroupingMode ?? "folders");
 
 export function setVizGroupingMode(mode: VisualizationGroupingMode) {
   localStorage.setItem("vizGroupingMode", mode);
@@ -45,9 +59,9 @@ export function setVizGroupingMode(mode: VisualizationGroupingMode) {
 
 const storedSelectedGroup = localStorage.getItem("vizSelectedGroup");
 
-export const [vizSelectedGroup, setVizSelectedGroupInternal] = createSignal<string | null>(
-  storedSelectedGroup
-);
+export const [vizSelectedGroup, setVizSelectedGroupInternal] = createSignal<
+  string | null
+>(storedSelectedGroup);
 
 export function setVizSelectedGroup(group: string | null) {
   if (group === null) {
@@ -58,11 +72,11 @@ export function setVizSelectedGroup(group: string | null) {
   setVizSelectedGroupInternal(group);
 }
 
-const storedHideUnreadyViz = localStorage.getItem("hideUnreadyVisualizations") === "true";
+const storedHideUnreadyViz =
+  localStorage.getItem("hideUnreadyVisualizations") === "true";
 
-export const [hideUnreadyVisualizations, setHideUnreadyVisualizationsInternal] = createSignal<boolean>(
-  storedHideUnreadyViz
-);
+export const [hideUnreadyVisualizations, setHideUnreadyVisualizationsInternal] =
+  createSignal<boolean>(storedHideUnreadyViz);
 
 export function setHideUnreadyVisualizations(value: boolean) {
   localStorage.setItem("hideUnreadyVisualizations", value.toString());
@@ -70,11 +84,12 @@ export function setHideUnreadyVisualizations(value: boolean) {
 }
 
 // Slide deck grouping/filtering
-const storedDeckGroupingMode = localStorage.getItem("deckGroupingMode") as SlideDeckGroupingMode | null;
+const storedDeckGroupingMode = localStorage.getItem(
+  "deckGroupingMode",
+) as SlideDeckGroupingMode | null;
 
-export const [deckGroupingMode, setDeckGroupingModeInternal] = createSignal<SlideDeckGroupingMode>(
-  storedDeckGroupingMode ?? "folders"
-);
+export const [deckGroupingMode, setDeckGroupingModeInternal] =
+  createSignal<SlideDeckGroupingMode>(storedDeckGroupingMode ?? "folders");
 
 export function setDeckGroupingMode(mode: SlideDeckGroupingMode) {
   localStorage.setItem("deckGroupingMode", mode);
@@ -83,9 +98,9 @@ export function setDeckGroupingMode(mode: SlideDeckGroupingMode) {
 
 const storedDeckSelectedGroup = localStorage.getItem("deckSelectedGroup");
 
-export const [deckSelectedGroup, setDeckSelectedGroupInternal] = createSignal<string | null>(
-  storedDeckSelectedGroup
-);
+export const [deckSelectedGroup, setDeckSelectedGroupInternal] = createSignal<
+  string | null
+>(storedDeckSelectedGroup);
 
 export function setDeckSelectedGroup(group: string | null) {
   if (group === null) {
@@ -151,30 +166,40 @@ export function updateProjectView(updates: ProjectViewStateUpdates) {
 // Chart/Viz Display Settings
 // ============================================================================
 
-export const [fitWithin, setFitWithin] = createSignal<"fit-within" | "fit-width">("fit-within");
+export const [fitWithin, setFitWithin] = createSignal<
+  "fit-within" | "fit-width"
+>("fit-within");
 
 // ============================================================================
 // AI Settings
 // ============================================================================
 
-export const [showAi, setShowAi] = createSignal<boolean>(true);
+export const [showAi, setShowAi] = createSignal<boolean>(false);
 
 // ============================================================================
 // Slide/Report Editor State
 // ============================================================================
 
-export const [headerOrContent, setHeaderOrContent] = createSignal<"slideHeader" | "content">("content");
+export const [headerOrContent, setHeaderOrContent] = createSignal<
+  "slideHeader" | "content"
+>("content");
 
-export const [policyHeaderOrContent, setPolicyHeaderOrContent] = createSignal<"policyHeaderFooter" | "content">("content");
+export const [policyHeaderOrContent, setPolicyHeaderOrContent] = createSignal<
+  "policyHeaderFooter" | "content"
+>("content");
 
 // ============================================================================
 // Module Display
 // ============================================================================
 
-export const [showModules, setShowModules] = createSignal<string | undefined>("m001");
+export const [showModules, setShowModules] = createSignal<string | undefined>(
+  "m001",
+);
 
 // ============================================================================
 // Module Update Status
 // ============================================================================
 
-export const [moduleLatestCommits, setModuleLatestCommits] = createSignal<ModuleLatestCommit[] | undefined>(undefined);
+export const [moduleLatestCommits, setModuleLatestCommits] = createSignal<
+  ModuleLatestCommit[] | undefined
+>(undefined);

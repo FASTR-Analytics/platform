@@ -23,6 +23,7 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   visualizationFolders: [],
   slideDecks: [],
   slideDeckFolders: [],
+  dashboards: [],
   projectUsers: [],
   thisUserPermissions: structuredClone(_PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS),
   projectLastUpdated: "",
@@ -31,6 +32,8 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   moduleLastRun: {},
   moduleLastRunGitRef: {},
   lastUpdated: {
+    dashboards: {},
+    dashboard_items: {},
     datasets: {},
     modules: {},
     presentation_objects: {},
@@ -112,6 +115,10 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
 
     case "slide_deck_folders_updated":
       setProjectState("slideDeckFolders", reconcile(msg.data.slideDeckFolders));
+      break;
+
+    case "dashboards_updated":
+      setProjectState("dashboards", reconcile(msg.data.dashboards));
       break;
 
     case "project_users_updated":

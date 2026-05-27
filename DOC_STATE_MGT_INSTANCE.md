@@ -1,5 +1,7 @@
 # Instance-Level State Management
 
+> ⚠️ **Before writing state code, read `DOC_STATE_RULES.md`.** It's a short hit-list of rules that have each produced real production bugs (notably around Solid.js reactive tracking, SSE-driven invalidation, and when to use `timQuery` vs `createEffect`).
+
 ## Overview
 
 Instance state is shared across all projects: users, indicators, structure, datasets, config, assets, and current user permissions. Managed via SSE (Server-Sent Events) — server pushes updates, client stores state in a global Solid `createStore`, components read reactively or via non-reactive getters.
@@ -56,31 +58,31 @@ Lightweight metadata. Pushed via SSE on every change. Components read directly f
 
 All other T1 fields are identical across all clients.
 
-### Reading state in components (reactive)
+### Reading state: live reads vs snapshot reads
 
-Import the store directly. Solid tracks which fields you read and only re-renders when those specific fields change.
+Every read of T1 state is either a **live read** (subscribes to subsequent changes) or a **snapshot read** (captures the value at the moment of the call and ignores subsequent changes). Pick deliberately based on context. See `DOC_STATE_RULES.md` rule #5.
+
+**Live read** — import the store directly. Solid tracks which fields you read and re-renders when those specific fields change.
 
 ```tsx
 import { instanceState } from "~/state/instance/t1_store";
 
-// In JSX -- reactive, re-renders when projects change
+// In JSX — live: re-renders when projects change.
 <For each={instanceState.projects}>{(p) => <div>{p.label}</div>}</For>
 ```
 
-Use reactive access when: rendering in JSX, inside `createEffect`, inside `createMemo`.
+Use a live read when: rendering in JSX, inside `createEffect`, inside `createMemo`.
 
-### Reading state in caches / async code (non-reactive)
-
-Use the exported getter functions. These call `unwrap()` to avoid creating reactive tracking dependencies.
+**Snapshot read** — use the exported getter functions. These call `unwrap()` internally to avoid creating reactive tracking dependencies.
 
 ```typescript
 import { getIndicatorMappingsVersion, getDatasetVersionHmis } from "~/state/instance/t1_store";
 
-// In cache version key computation
+// In cache version key computation — snapshot: just want the current value, no subscription.
 const version = `${getDatasetVersionHmis()}_${getIndicatorMappingsVersion()}`;
 ```
 
-Use non-reactive access when: inside async functions, cache operations, event handlers, or any context where you just need the current value without triggering re-renders.
+Use a snapshot read when: inside async functions, cache operations, event handlers, or any context where you need the current value without triggering re-renders.
 
 ### State fields as cache version keys
 
@@ -122,6 +124,8 @@ Handles `onMount` (connect), `onCleanup` (disconnect), and gates rendering on `i
 
 Medium-to-heavy data that is too large for SSE but still needs to be reactive. Cached in memory + IndexedDB. **Reactive** — a `createEffect` watches the version key from T1, so when SSE pushes a new version, the effect fires, the cache misses, and the component automatically re-fetches.
 
+All instance-level T2 caches are **Variant A** (whole-collection): a single version key invalidates the entire collection, and a loading flash on re-run is appropriate. See `DOC_STATE_MGT_TIERS.md` for the Variant A vs Variant B distinction; project-level per-entity caches use Variant B (no loading flash on SSE re-runs).
+
 | Data | File | Cache version key(s) | Why cached, not on SSE |
 | --- | --- | --- | --- |
 | HMIS display items (data rows) | `instance/t2_datasets.ts` | `datasetVersions.hmis` + `indicatorMappingsVersion` | Potentially thousands of rows |
@@ -132,7 +136,7 @@ Medium-to-heavy data that is too large for SSE but still needs to be reactive. C
 | Structure items (facility/admin area rows) | `instance/t2_structure.ts` | `structureLastUpdated` + `maxAdminArea` + `facilityColumnsHash` | Potentially thousands of rows |
 | GeoJSON map data | `instance/t2_geojson.ts` | `uploadedAt` per admin level | Large GeoJSON feature collections |
 
-**Client pattern** (same for all T2 data):
+**Client pattern (Variant A — show loading on every re-run):**
 
 ```typescript
 // 1. StateHolder signal for loading/error/ready
@@ -144,7 +148,7 @@ const [data, setData] = createSignal<StateHolder<MyDataType>>({
 // 2. createEffect watches version key(s) from T1 store (reactive reads)
 createEffect(async () => {
   const version = instanceState.indicatorMappingsVersion; // reactive — triggers re-run on SSE update
-  setData({ status: "loading", msg: "Loading..." });
+  setData({ status: "loading", msg: "Loading..." });      // OK to flash — whole collection changed
   const res = await getFromCacheOrFetch(version);
   if (res.success) {
     setData({ status: "ready", data: res.data });
@@ -176,6 +180,10 @@ createEffect(async () => {
 **Multi-user sync:** If User B changes data while User A is viewing it, User A's view updates automatically (SSE → version key change → createEffect → re-fetch).
 
 **Cache implementation:** Uses `createReactiveCache` from `client/src/state/_infra/reactive_cache.ts`. All use `pdsNotRequired: true` since they're instance-level.
+
+**Live read vs snapshot read:** This T2 client pattern is a **live read** — `createEffect` subscribes to the version key and refetches on SSE updates. T2 data can also be consumed in **snapshot mode** (via `timQuery`) for short-lived picker modals, where SSE updates during the view's lifetime aren't consumed. See `DOC_STATE_RULES.md` rule #6 for when each is appropriate.
+
+**Common mistakes:** See the "Anti-patterns" section in `DOC_STATE_MGT_TIERS.md`. The two most frequent are (1) using `timQuery` (snapshot read) for a long-lived editor — SSE updates won't be reflected and the view goes silently stale; and (2) manually calling `silentFetch()` or `refresh()` after a mutation — SSE already handles that.
 
 ---
 

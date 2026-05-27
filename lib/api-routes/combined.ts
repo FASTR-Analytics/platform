@@ -19,6 +19,7 @@ import { projectRouteRegistry } from "./project/projects.ts";
 import { slideDeckRouteRegistry } from "./project/slide-decks.ts";
 import { slideDeckFolderRouteRegistry } from "./project/slide-deck-folders.ts";
 import { slideRouteRegistry } from "./project/slides.ts";
+import { dashboardRouteRegistry } from "./project/dashboards.ts";
 import { visualizationFolderRouteRegistry } from "./project/visualization-folders.ts";
 import { emailRouteRegistry } from "./project/emails.ts";
 import { cacheStatusRouteRegistry } from "./project/cache-status.ts";
@@ -47,6 +48,7 @@ export const routeRegistry = {
   ...slideDeckRouteRegistry,
   ...slideDeckFolderRouteRegistry,
   ...slideRouteRegistry,
+  ...dashboardRouteRegistry,
   ...visualizationFolderRouteRegistry,
   ...emailRouteRegistry,
   ...cacheStatusRouteRegistry,

@@ -11,6 +11,8 @@ export type ProjectDirtyStates = {
 export type DirtyOrRunStatus = "queued" | "ready" | "error" | "running";
 
 export type LastUpdateTableName =
+  | "dashboards"
+  | "dashboard_items"
   | "datasets"
   | "modules"
   | "presentation_objects"
@@ -18,6 +20,8 @@ export type LastUpdateTableName =
   | "slides";
 
 export const _LAST_UPDATE_TABLE_NAMES = [
+  "dashboards",
+  "dashboard_items",
   "datasets",
   "modules",
   "presentation_objects",

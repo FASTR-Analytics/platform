@@ -5,6 +5,7 @@ import type { ProjectUserPermissions } from "./permissions.ts";
 import { PresentationObjectSummary } from "./presentation_objects.ts";
 import { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import { VisualizationFolder } from "./visualization_folders.ts";
+import { DashboardSummary } from "./dashboard.ts";
 
 // ============================================================================
 // Project Types
@@ -35,6 +36,7 @@ export type ProjectDetail = {
   visualizationFolders: VisualizationFolder[];
   slideDecks: SlideDeckSummary[];
   slideDeckFolders: SlideDeckFolder[];
+  dashboards: DashboardSummary[];
   projectUsers: ProjectUser[];
   thisUserPermissions: ProjectUserPermissions;
 };
