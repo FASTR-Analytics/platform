@@ -28,18 +28,11 @@ export function getTtfFontAbsoluteFilePath(
 }
 
 export function getDefaultFontDirectory(): string {
-  const preferredPath = "/Users/timroberton/projects/FONT_FILES";
-
   try {
-    Deno.statSync(preferredPath);
-    return preferredPath;
+    const homeDir = getHomeDir();
+    return join(homeDir, "fonts");
   } catch {
-    try {
-      const homeDir = getHomeDir();
-      return join(homeDir, "fonts");
-    } catch {
-      return "/usr/share/fonts";
-    }
+    return "/usr/share/fonts";
   }
 }
 
@@ -53,7 +46,8 @@ function getFontAbsoluteFilePathWithExtension(
 
   const relativeFilePath = FONT_MAP[fontInfoId as FontId];
   assertNotUndefined(relativeFilePath, `No font file path for: ${fontInfoId}`);
-  const fontFilesDir = Deno.env.get("FONT_FILES") ?? getDefaultFontDirectory();
+  const fontFilesDir = Deno.env.get("PANTHER_FONT_DIR") ??
+    getDefaultFontDirectory();
   const absolutePath = join(fontFilesDir, relativeFilePath + extension);
 
   validateFilePath(absolutePath);

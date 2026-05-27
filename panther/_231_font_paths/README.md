@@ -46,15 +46,14 @@ const ttfPath2 = getTtfFontAbsoluteFilePath(fontInfo);
 
 The module looks for fonts in the following order:
 
-1. **Environment variable**: `FONT_FILES`
-2. **Preferred path**: `/Users/timroberton/projects/FONT_FILES` (if exists)
-3. **Home directory**: `~/fonts`
-4. **System fallback**: `/usr/share/fonts`
+1. **Environment variable**: `PANTHER_FONT_DIR`
+2. **Home directory**: `~/fonts`
+3. **System fallback**: `/usr/share/fonts`
 
 Set the font directory:
 
 ```bash
-export FONT_FILES=/path/to/your/fonts
+export PANTHER_FONT_DIR=/path/to/your/fonts
 ```
 
 ## Available Fonts
@@ -190,7 +189,7 @@ while maintaining type safety for each font format.
 
 ## Best Practices
 
-1. **Set FONT_FILES environment variable** for production deployments
+1. **Set PANTHER_FONT_DIR environment variable** for production deployments
 2. **Ensure both formats exist** if using both Skia and jsPDF
 3. **Use type-safe imports** rather than string literals
 4. **Handle font loading errors** gracefully with fallbacks

@@ -14,11 +14,13 @@ import {
 } from "./types.ts";
 import {
   assert,
+  assertNotUndefined,
   createArray,
-  type HeaderSortConfig,
+  type HeaderItem,
+  type HeaderSortFunc,
   type JsonArray,
   type JsonArrayItem,
-  sortAlphabetical,
+  resolveSortFunc,
 } from "./deps.ts";
 
 export function getTableDataTransformed(d: TableData): TableDataTransformed {
@@ -49,38 +51,48 @@ function getTableDataJsonTransformed(
     throw new Error("Need at least one valueProp");
   }
 
-  // Collect unique combinations using Sets for better performance.
-  // Combos hold raw ids only (`groupId:::itemId`); labels are resolved later.
-  const { colGroupCombos, rowGroupCombos } = collectUniqueCombos(
+  // Build structured axes from raw JSON
+  const colAxis = buildStructuredAxis(
     jsonArray,
     valueProps,
     colGroupProp,
     colProp,
+    labelReplacements,
+  );
+  const rowAxis = buildStructuredAxis(
+    jsonArray,
+    valueProps,
     rowGroupProp,
     rowProp,
+    labelReplacements,
   );
 
-  const colCombosSorted = applyTableSort(colGroupCombos, sort?.col);
-  const rowCombosSorted = applyTableSort(rowGroupCombos, sort?.row);
-
-  const colGroups = createGroups(colCombosSorted, labelReplacements, "col");
-  const rowGroups = createGroups(rowCombosSorted, labelReplacements, "row");
-
-  // Create lookup maps for O(1) performance (keyed by sorted combo order)
-  const colComboToIndex = new Map(
-    colCombosSorted.map((combo, index) => [combo, index]),
+  // Sort each axis independently
+  const sortedColAxis = sortStructuredAxis(
+    colAxis,
+    resolveSortFunc(sort?.colGroup),
+    resolveSortFunc(sort?.col),
   );
-  const rowComboToIndex = new Map(
-    rowCombosSorted.map((combo, index) => [combo, index]),
+  const sortedRowAxis = sortStructuredAxis(
+    rowAxis,
+    resolveSortFunc(sort?.rowGroup),
+    resolveSortFunc(sort?.row),
   );
 
-  // Initialize the data array
+  // Flatten to ColGroup[]/RowGroup[] and build index mappings
+  const { colGroups, colComboToIndex, totalCols } = flattenToColGroups(
+    sortedColAxis,
+  );
+  const { rowGroups, rowComboToIndex, totalRows } = flattenToRowGroups(
+    sortedRowAxis,
+  );
+
+  // Initialize and fill the data array
   const aoa: string[][] = createArray(
-    rowCombosSorted.length,
-    () => createArray(colCombosSorted.length, UNDEFINED_PLACEHOLDER),
+    totalRows,
+    () => createArray(totalCols, UNDEFINED_PLACEHOLDER),
   );
 
-  // Fill the data array
   fillDataArray(
     aoa,
     jsonArray,
@@ -107,150 +119,176 @@ function getTableDataJsonTransformed(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Types
+///////////////////////////////////////////////////////////////////////////////
+
+type StructuredAxisGroup = {
+  header: HeaderItem | undefined;
+  items: (HeaderItem | undefined)[];
+};
+
+type StructuredAxis = StructuredAxisGroup[];
+
+///////////////////////////////////////////////////////////////////////////////
 // Helper functions
 ///////////////////////////////////////////////////////////////////////////////
 
 const UNDEFINED_PLACEHOLDER = "___";
-const SEPARATOR = ":::";
 
-// Table sorting operates on raw-id combo strings, so it supports `by-id` /
-// `by-label` (alphabetical on the combo) and `{ byIdOrder }` (custom id order).
-// `byLabelOrder` and arbitrary HeaderSortFunc are not expressible here — see
-// PLAN_TABLE_SORTING.md for the planned structured per-axis sort.
-function applyTableSort(
-  combos: string[],
-  sortConfig: HeaderSortConfig | undefined,
-): string[] {
-  if (sortConfig === undefined) {
-    return combos;
-  }
-  const out = [...combos];
-  if (typeof sortConfig === "object" && "byIdOrder" in sortConfig) {
-    sortByCustomOrder(out, sortConfig.byIdOrder);
-    return out;
-  }
-  if (sortConfig === "by-id" || sortConfig === "by-label") {
-    sortAlphabetical(out);
-    return out;
-  }
-  throw new Error(
-    "Table sort supports 'by-id', 'by-label', or { byIdOrder }; " +
-      "byLabelOrder and custom HeaderSortFunc are not supported for tables",
-  );
-}
-
-function sortByCustomOrder(combos: string[], customOrder: string[]): void {
-  // Pre-build index map for O(1) lookups instead of O(n) indexOf calls
-  const orderIndexMap = new Map<string, number>(
-    customOrder.map((item, index) => [item, index]),
-  );
-
-  // Helper to format priority with consistent padding
-  const formatPriority = (index: number): string =>
-    `$$$${index.toString().padStart(5, "0")}`;
-
-  // Create a mapping of combo keys to their sort keys
-  const sortKeyMap = new Map<string, string>();
-
-  combos.forEach((combo) => {
-    const [groupHeader, itemHeader] = combo.split(SEPARATOR);
-
-    // Build sort key by concatenating group and item priorities
-    const groupIndex = orderIndexMap.get(groupHeader);
-    const groupSortKey = groupIndex !== undefined
-      ? formatPriority(groupIndex)
-      : groupHeader;
-
-    const itemIndex = orderIndexMap.get(itemHeader);
-    const itemSortKey = itemIndex !== undefined
-      ? formatPriority(itemIndex)
-      : itemHeader;
-
-    sortKeyMap.set(combo, groupSortKey + SEPARATOR + itemSortKey);
-  });
-
-  // Sort using the pre-computed sort keys
-  combos.sort((a, b) => {
-    const sortKeyA = sortKeyMap.get(a)!;
-    const sortKeyB = sortKeyMap.get(b)!;
-    return sortKeyA.localeCompare(sortKeyB);
-  });
-}
-
-function collectUniqueCombos(
+function buildStructuredAxis(
   jsonArray: JsonArray,
   valueProps: string[],
-  colGroupProp: string | undefined,
-  colProp: string | undefined,
-  rowGroupProp: string | undefined,
-  rowProp: string | undefined,
-): { colGroupCombos: string[]; rowGroupCombos: string[] } {
-  const colComboSet = new Set<string>();
-  const rowComboSet = new Set<string>();
+  groupProp: string | undefined,
+  itemProp: string | undefined,
+  labelReplacements: Record<string, string> | undefined,
+): StructuredAxis {
+  // Collect unique (groupId, itemId) pairs preserving insertion order
+  const groupToItems = new Map<string | undefined, Set<string | undefined>>();
 
   for (const vp of valueProps) {
     for (const obj of jsonArray) {
-      colComboSet.add(getComboKey(colGroupProp, colProp, vp, obj));
-      rowComboSet.add(getComboKey(rowGroupProp, rowProp, vp, obj));
+      const groupId = resolveId(groupProp, vp, obj);
+      const itemId = resolveId(itemProp, vp, obj);
+
+      let itemSet = groupToItems.get(groupId);
+      if (!itemSet) {
+        itemSet = new Set();
+        groupToItems.set(groupId, itemSet);
+      }
+      itemSet.add(itemId);
     }
   }
 
-  return {
-    colGroupCombos: Array.from(colComboSet),
-    rowGroupCombos: Array.from(rowComboSet),
+  // Convert to structured axis with HeaderItems. Undefined ids are kept as
+  // undefined entries so rows with missing dimension values still get a bucket
+  // (and don't silently disappear in fillDataArray).
+  const axis: StructuredAxis = [];
+  for (const [groupId, itemIds] of groupToItems) {
+    const groupHeader = toHeaderItem(groupId, labelReplacements);
+    const items: (HeaderItem | undefined)[] = [];
+    for (const itemId of itemIds) {
+      items.push(toHeaderItem(itemId, labelReplacements));
+    }
+    axis.push({ header: groupHeader, items });
+  }
+
+  return axis;
+}
+
+function toHeaderItem(
+  id: string | undefined,
+  labelReplacements: Record<string, string> | undefined,
+): HeaderItem | undefined {
+  if (id === undefined) return undefined;
+  return { id, label: labelReplacements?.[id] ?? id };
+}
+
+function resolveId(
+  prop: string | undefined,
+  valueProp: string,
+  obj: JsonArrayItem,
+): string | undefined {
+  if (prop === "--v") return valueProp;
+  if (prop === undefined) return undefined;
+  const val = obj[prop];
+  return val === undefined || val === null ? undefined : String(val);
+}
+
+function sortStructuredAxis(
+  axis: StructuredAxis,
+  groupSortFunc: HeaderSortFunc | undefined,
+  itemSortFunc: HeaderSortFunc | undefined,
+): StructuredAxis {
+  // Sort items within each group. Undefined items go last regardless of the
+  // configured sort func (they have no id/label to compare).
+  const withSortedItems = axis.map((group) => ({
+    header: group.header,
+    items: itemSortFunc
+      ? [...group.items].sort(sortWithUndefinedLast(itemSortFunc))
+      : group.items,
+  }));
+
+  // Sort groups. Undefined-headed groups go last for the same reason.
+  if (groupSortFunc) {
+    withSortedItems.sort((a, b) => {
+      const cmp = sortWithUndefinedLast(groupSortFunc);
+      return cmp(a.header, b.header);
+    });
+  }
+
+  return withSortedItems;
+}
+
+function sortWithUndefinedLast(
+  fn: HeaderSortFunc,
+): (a: HeaderItem | undefined, b: HeaderItem | undefined) => number {
+  return (a, b) => {
+    if (a === undefined && b === undefined) return 0;
+    if (a === undefined) return 1;
+    if (b === undefined) return -1;
+    return fn(a, b);
   };
 }
 
-function createGroups(
-  combos: string[],
-  labelReplacements: Record<string, string> | undefined,
-  groupType: "col",
-): ColGroup[];
-function createGroups(
-  combos: string[],
-  labelReplacements: Record<string, string> | undefined,
-  groupType: "row",
-): RowGroup[];
-function createGroups(
-  combos: string[],
-  labelReplacements: Record<string, string> | undefined,
-  groupType: "col" | "row",
-): ColGroup[] | RowGroup[] {
-  const groups: (ColGroup | RowGroup)[] = [];
-  let currentGroupRaw = "";
-  let currentGroupIndex = -1;
+function flattenToColGroups(axis: StructuredAxis): {
+  colGroups: ColGroup[];
+  colComboToIndex: Map<string, number>;
+  totalCols: number;
+} {
+  const colGroups: ColGroup[] = [];
+  const colComboToIndex = new Map<string, number>();
+  let index = 0;
 
-  combos.forEach((combo, index) => {
-    const [groupRaw, itemRaw] = combo.split(SEPARATOR);
+  for (const group of axis) {
+    const cols: ColGroup["cols"] = group.items.map((item) => {
+      const comboKey = makeComboKey(group.header?.id, item?.id);
+      colComboToIndex.set(comboKey, index);
+      return { id: item?.id, label: item?.label, index: index++ };
+    });
 
-    if (groupRaw !== currentGroupRaw) {
-      const groupId = groupRaw === UNDEFINED_PLACEHOLDER ? undefined : groupRaw;
-      const groupLabel = groupId === undefined
-        ? undefined
-        : (labelReplacements?.[groupId] ?? groupId);
-      if (groupType === "col") {
-        groups.push({ id: groupId, label: groupLabel, cols: [] });
-      } else {
-        groups.push({ id: groupId, label: groupLabel, rows: [] });
-      }
-      currentGroupRaw = groupRaw;
-      currentGroupIndex = groups.length - 1;
-    }
+    colGroups.push({
+      id: group.header?.id,
+      label: group.header?.label,
+      cols,
+    });
+  }
 
-    const itemId = itemRaw === UNDEFINED_PLACEHOLDER ? undefined : itemRaw;
-    const itemLabel = itemId === undefined
-      ? undefined
-      : (labelReplacements?.[itemId] ?? itemId);
-    const item = { id: itemId, label: itemLabel, index };
+  return { colGroups, colComboToIndex, totalCols: index };
+}
 
-    if (groupType === "col") {
-      (groups[currentGroupIndex] as ColGroup).cols.push(item);
-    } else {
-      (groups[currentGroupIndex] as RowGroup).rows.push(item);
-    }
-  });
+function flattenToRowGroups(axis: StructuredAxis): {
+  rowGroups: RowGroup[];
+  rowComboToIndex: Map<string, number>;
+  totalRows: number;
+} {
+  const rowGroups: RowGroup[] = [];
+  const rowComboToIndex = new Map<string, number>();
+  let index = 0;
 
-  return groups as ColGroup[] | RowGroup[];
+  for (const group of axis) {
+    const rows: RowGroup["rows"] = group.items.map((item) => {
+      const comboKey = makeComboKey(group.header?.id, item?.id);
+      rowComboToIndex.set(comboKey, index);
+      return { id: item?.id, label: item?.label, index: index++ };
+    });
+
+    rowGroups.push({
+      id: group.header?.id,
+      label: group.header?.label,
+      rows,
+    });
+  }
+
+  return { rowGroups, rowComboToIndex, totalRows: index };
+}
+
+function makeComboKey(
+  groupId: string | undefined,
+  itemId: string | undefined,
+): string {
+  const g = groupId ?? UNDEFINED_PLACEHOLDER;
+  const i = itemId ?? UNDEFINED_PLACEHOLDER;
+  return `${g}:::${i}`;
 }
 
 function fillDataArray(
@@ -270,33 +308,31 @@ function fillDataArray(
         continue;
       }
 
-      const colCombo = getComboKey(colGroupProp, colProp, vp, obj);
-      const rowCombo = getComboKey(rowGroupProp, rowProp, vp, obj);
+      const colGroupId = resolveId(colGroupProp, vp, obj);
+      const colItemId = resolveId(colProp, vp, obj);
+      const rowGroupId = resolveId(rowGroupProp, vp, obj);
+      const rowItemId = resolveId(rowProp, vp, obj);
 
-      const colIndex = colComboToIndex.get(colCombo)!;
-      const rowIndex = rowComboToIndex.get(rowCombo)!;
+      const colCombo = makeComboKey(colGroupId, colItemId);
+      const rowCombo = makeComboKey(rowGroupId, rowItemId);
+
+      const colIndex = colComboToIndex.get(colCombo);
+      const rowIndex = rowComboToIndex.get(rowCombo);
+
+      assertNotUndefined(
+        colIndex,
+        `Missing col combo in index: ${colCombo}`,
+      );
+      assertNotUndefined(
+        rowIndex,
+        `Missing row combo in index: ${rowCombo}`,
+      );
 
       assert(
         aoa[rowIndex][colIndex] === UNDEFINED_PLACEHOLDER,
-        "Duplicate value",
+        `Duplicate value at col=${colCombo} row=${rowCombo}`,
       );
       aoa[rowIndex][colIndex] = String(obj[vp]);
     }
   }
-}
-
-function getComboKey(
-  groupProp: string | undefined,
-  prop: string | undefined,
-  valueProp: string,
-  obj: JsonArrayItem,
-): string {
-  const groupValue = groupProp === "--v"
-    ? valueProp
-    : obj[groupProp!] ?? UNDEFINED_PLACEHOLDER;
-  const propValue = prop === "--v"
-    ? valueProp
-    : obj[prop!] ?? UNDEFINED_PLACEHOLDER;
-
-  return `${groupValue}${SEPARATOR}${propValue}`;
 }

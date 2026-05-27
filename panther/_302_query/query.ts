@@ -5,10 +5,10 @@
 
 import { type Accessor, createSignal } from "solid-js";
 import {
-  getQueryStateFromApiResponse,
   type APIResponseNoData,
   type APIResponseWithData,
   type FormActionState,
+  getQueryStateFromApiResponse,
   type QueryState,
 } from "./types.ts";
 
@@ -35,11 +35,18 @@ export type TimQuery<T> = {
 };
 
 /**
- * Creates a query that fetches data and manages loading/error/ready states.
+ * One-shot query: queryFunc runs ONCE on mount. There is no key — reactive
+ * reads inside queryFunc are NOT tracked, and the query does not re-run when
+ * inputs change. For views that must react to changing inputs or server
+ * updates, use createEffect + createSignal<StateHolder<T>> instead. See
+ * PROTOCOL_STATE.md.
  *
- * Race condition protection: If multiple fetch() or silentFetch() calls are made
- * before previous requests complete, only the most recent request will update state.
- * Stale responses are ignored to prevent data corruption.
+ * Use fetch()/silentFetch() to manually re-run. If you find yourself calling
+ * these to "refresh after a mutation", the view is long-lived enough that it
+ * should be using createEffect watching a version signal.
+ *
+ * Race condition protection: if multiple fetch()/silentFetch() calls overlap,
+ * only the most recent updates state.
  */
 export function timQuery<T>(
   queryFunc: () => Promise<APIResponseWithData<T>>,

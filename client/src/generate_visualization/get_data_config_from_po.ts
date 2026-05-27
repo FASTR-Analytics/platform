@@ -66,10 +66,6 @@ function getChartIndicatorSort(config: PresentationObjectConfig): HeaderSortConf
 // `__NATIONAL` is forced first, `zzNATIONAL` last; everything else sorts by label.
 // Preserves the prior "sort by raw key" positioning hack under the new
 // HeaderItem-based sort model.
-//
-// NOTE: table sort cannot use this — panther's `applyTableSort` operates on raw
-// combo strings and explicitly throws on a custom HeaderSortFunc. For tables,
-// position NATIONAL aggregates via `{ byIdOrder: [...] }` with an explicit list.
 function nationalAwareSortByLabel(a: HeaderItem, b: HeaderItem): number {
   const aPri = a.id === "__NATIONAL" ? -1 : a.id === "zzNATIONAL" ? 1 : 0;
   const bPri = b.id === "__NATIONAL" ? -1 : b.id === "zzNATIONAL" ? 1 : 0;
@@ -146,9 +142,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
     ? getDateLabelReplacements(jsonArray, [colProp, rowProp, colGroupProp, rowGroupProp])
     : {};
 
-  // Table sort operates on raw combo strings; byIdOrder + by-label are the
-  // available shapes. customSortHeaders is a list of ids → byIdOrder.
-  const colRowSort: HeaderSortConfig = customSortHeaders
+  const tableSort: HeaderSortConfig = customSortHeaders
     ? { byIdOrder: customSortHeaders }
     : includesIndicatorDisaggregation(config)
       ? { byIdOrder: get_INDICATOR_COMMON_IDS_IN_SORT_ORDER() }
@@ -160,7 +154,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
     rowProp,
     colGroupProp,
     rowGroupProp,
-    sort: { col: colRowSort, row: colRowSort },
+    sort: { colGroup: tableSort, col: tableSort, rowGroup: tableSort, row: tableSort },
     labelReplacements: buildLabelReplacements(
       resultsValue,
       indicatorLabelReplacements,

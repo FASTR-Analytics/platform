@@ -65,7 +65,9 @@ export type TableJsonDataConfig = {
   //
   labelReplacements?: Record<string, string>;
   sort?: {
+    colGroup?: HeaderSortConfig;
     col?: HeaderSortConfig;
+    rowGroup?: HeaderSortConfig;
     row?: HeaderSortConfig;
   };
 };

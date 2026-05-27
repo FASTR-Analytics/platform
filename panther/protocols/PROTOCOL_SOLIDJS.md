@@ -7,12 +7,15 @@ For detailed explanations, see `FRONTEND_STYLE_GUIDE.md`.
 ## Rules
 
 1. **No conditional returns** — Never use early returns in component functions
-2. **Access deps before conditionals** — Read all reactive deps before any `if`
-3. **Never use createResource** — Triggers Suspense, causes full-page reloads
-4. **Use control flow components** — `<Show>`, `<For>`, `<Switch>`/`<Match>`
-5. **Props as `p`** — Never destructure, never name it `props`
-6. **Function declarations** — Not arrow functions for components
-7. **Use panther components** — Don't rebuild Button, Input, Select, etc.
+2. **Access deps before conditionals** — Read all reactive deps at top of
+   `createEffect`/`createMemo` before any `if`
+3. **No tracking after `await`** — Reads after `await` in an async effect are
+   silently untracked
+4. **Never use createResource** — Triggers Suspense, causes full-page reloads
+5. **Use control flow components** — `<Show>`, `<For>`, `<Switch>`/`<Match>`
+6. **Props as `p`** — Never destructure, never name it `props`
+7. **Function declarations** — Not arrow functions for components
+8. **Use panther components** — Don't rebuild Button, Input, Select, etc.
 
 ## Do / Don't
 
@@ -55,6 +58,32 @@ createEffect(() => {
   }
 });
 ```
+
+**Why:** Early returns silently break tracking. The effect runs ONCE in dev
+(looks fine), then never re-runs when the un-read signals change.
+
+### Async Effects
+
+```tsx
+// ❌ DON'T — someSignal() after await is not tracked
+createEffect(async () => {
+  const _v = version(); // tracked
+  await fetchSomething();
+  const x = someSignal(); // NOT tracked — effect won't re-run when x changes
+  doSomething(x);
+});
+
+// ✅ DO — read everything synchronously first
+createEffect(async () => {
+  const _v = version();
+  const x = someSignal(); // tracked
+  await fetchSomething();
+  doSomething(x);
+});
+```
+
+**Why:** Solid's tracking context is synchronous. Once you `await`, you can no
+longer set up new tracking dependencies in that effect run.
 
 ### Data Fetching
 
@@ -130,4 +159,5 @@ export function Card(p: Props) {
 - [ ] Props accessed via `p.` not destructured
 - [ ] Control flow uses `<Show>`, `<For>`, `<Switch>`
 - [ ] All reactive deps accessed before conditionals in effects
+- [ ] All reactive deps accessed before `await` in async effects
 - [ ] Components use function declarations

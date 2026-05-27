@@ -67,7 +67,9 @@ setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
 
 const runProjectPurge = () => {
   const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-  purgeExpiredProjects(db).catch((e) => console.error("Project purge failed:", e));
+  purgeExpiredProjects(db).catch((e) =>
+    console.error("Project purge failed:", e),
+  );
 };
 runProjectPurge();
 setInterval(runProjectPurge, 24 * 60 * 60 * 1000);
