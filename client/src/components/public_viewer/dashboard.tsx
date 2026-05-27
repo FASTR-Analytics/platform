@@ -1,9 +1,5 @@
 import { useParams } from "@solidjs/router";
-import type {
-  APIResponseWithData,
-  PublicDashboardBundle,
-  PublicDashboardItem,
-} from "lib";
+import type { PublicDashboardBundle } from "lib";
 import { t3 } from "lib";
 import {
   Button,
@@ -19,22 +15,22 @@ import { _SERVER_HOST } from "~/server_actions";
 
 const CANVAS_ID = "PUBLIC_DASHBOARD_CANVAS";
 
-async function fetchBundle(
-  projectId: string,
-  slug: string,
-): Promise<APIResponseWithData<PublicDashboardBundle>> {
-  const res = await fetch(`${_SERVER_HOST}/api/d/${projectId}/${slug}`);
-  return res.json();
-}
-
 export default function PublicDashboard() {
   const params = useParams<{ projectId: string; slug: string }>();
-  const bundleHolder = timQuery(
-    () => fetchBundle(params.projectId, params.slug),
-    t3({ en: "Loading...", fr: "Chargement..." }),
-  );
+
   const [selectedItemId, setSelectedItemId] = createSignal<string | undefined>(
     undefined,
+  );
+
+  const bundleHolder = timQuery<PublicDashboardBundle>(
+    async () => {
+      const res = await fetch(
+        `${_SERVER_HOST}/api/d/${params.projectId}/${params.slug}`,
+      );
+      const resJson = await res.json();
+      return resJson;
+    },
+    t3({ en: "Loading...", fr: "Chargement..." }),
   );
 
   async function download() {
@@ -81,7 +77,8 @@ type InnerProps = {
 };
 
 function PublicDashboardInner(p: InnerProps) {
-  const items = () => [...p.bundle.items].sort((a, b) => a.sortOrder - b.sortOrder);
+  const items = () =>
+    [...p.bundle.items].sort((a, b) => a.sortOrder - b.sortOrder);
 
   const currentItem = () => {
     const list = items();
@@ -92,79 +89,69 @@ function PublicDashboardInner(p: InnerProps) {
 
   const isRight = () => p.bundle.layout.menuPosition === "right";
 
-  const sidebar = (
-    <div
-      class="border-base-300 ui-spy-sm flex w-64 min-w-0 flex-col overflow-auto md:h-screen"
-      classList={{
-        "border-r md:border-r": !isRight(),
-        "border-l md:border-l md:order-2": isRight(),
-      }}
-    >
-      <div class="border-base-300 ui-pad border-b">
-        <div class="font-700 text-lg truncate">{p.bundle.title}</div>
-      </div>
-      <div class="flex-1 overflow-auto p-2">
-        <SelectList
-          options={items().map((item) => ({
-            value: item.id,
-            label: item.label,
-          }))}
-          value={currentItem()?.id}
-          onChange={(id) => p.setSelectedItemId(id)}
-          intent="primary"
-          fullWidth
-        />
-      </div>
-    </div>
-  );
-
-  const main = (
-    <div
-      class="relative flex-1 overflow-auto"
-      classList={{ "md:order-1": isRight() }}
-    >
-      <div class="absolute right-4 top-4 z-10">
-        <Show when={currentItem()}>
-          <Button onClick={p.onDownload} iconName="download" outline />
-        </Show>
-      </div>
-      <Show
-        when={currentItem()}
-        keyed
-        fallback={
-          <div class="ui-pad text-neutral text-sm">
-            {t3({
-              en: "No items in this dashboard",
-              fr: "Aucun élément dans ce tableau de bord",
-            })}
-          </div>
-        }
-      >
-        {(item) => <PublicItemCanvas item={item} />}
-      </Show>
-    </div>
-  );
-
   return (
     <div class="flex h-screen w-screen flex-col md:flex-row">
-      {sidebar}
-      {main}
+      <div
+        class="border-base-300 ui-spy-sm flex w-64 min-w-0 flex-col overflow-auto md:h-screen"
+        classList={{
+          "border-r md:border-r": !isRight(),
+          "border-l md:border-l md:order-2": isRight(),
+        }}
+      >
+        <div class="border-base-300 ui-pad border-b">
+          <div class="font-700 truncate text-lg">{p.bundle.title}</div>
+        </div>
+        <div class="flex-1 overflow-auto p-2">
+          <SelectList
+            options={items().map((item) => ({
+              value: item.id,
+              label: item.label,
+            }))}
+            value={currentItem()?.id}
+            onChange={(id) => p.setSelectedItemId(id)}
+            intent="primary"
+            fullWidth
+          />
+        </div>
+      </div>
+      <div
+        class="relative flex-1 overflow-auto"
+        classList={{ "md:order-1": isRight() }}
+      >
+        <div class="absolute top-4 right-4 z-10">
+          <Show when={currentItem()}>
+            <Button onClick={p.onDownload} iconName="download" outline />
+          </Show>
+        </div>
+        <Show
+          when={currentItem()}
+          keyed
+          fallback={
+            <div class="ui-pad text-neutral text-sm">
+              {t3({
+                en: "No items in this dashboard",
+                fr: "Aucun élément dans ce tableau de bord",
+              })}
+            </div>
+          }
+        >
+          {(item) => {
+            const fi = () =>
+              hydrateFigureInputsForPublicRendering(
+                item.strippedFigureInputs,
+                item.source,
+                item.geoData,
+              );
+            return (
+              <ChartHolder
+                canvasElementId={`${CANVAS_ID}_${item.id}`}
+                chartInputs={fi()}
+                height={"flex"}
+              />
+            );
+          }}
+        </Show>
+      </div>
     </div>
-  );
-}
-
-function PublicItemCanvas(p: { item: PublicDashboardItem }) {
-  const fi = () =>
-    hydrateFigureInputsForPublicRendering(
-      p.item.strippedFigureInputs,
-      p.item.source,
-      p.item.geoData,
-    );
-  return (
-    <ChartHolder
-      canvasElementId={`${CANVAS_ID}_${p.item.id}`}
-      chartInputs={fi()}
-      height={"flex"}
-    />
   );
 }
