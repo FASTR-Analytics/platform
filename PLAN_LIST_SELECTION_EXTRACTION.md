@@ -241,7 +241,7 @@ Context menu: **delete only** (no folders, no duplicate for now).
    - `create_list_selection.ts` (includes `getBatchIds` as a method)
    - `selection_circle.tsx`
    - `mod.ts` for exports
-   - Update `panther/_303_components/mod.ts` to export from `list_selection/mod.ts`
+   - Update `timroberton-panther/modules/_303_components/mod.ts` to export from `list_selection/mod.ts`
 
 2. **Refactor VisualizationGrid** (most complex, validates the API)
    - Test shift+click range selection with grouped views
