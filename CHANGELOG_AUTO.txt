@@ -1,3 +1,4 @@
+[TBD] [admin] [internal] - Simplified how global admin status is determined across the interface
 [TBD] [user] [added] - Dashboards: create, edit, and manage interactive dashboards within projects
 [TBD] [user] [added] - Add visualizations to dashboards as individual items
 [TBD] [user] [added] - Option to add all replicants of a visualization to a dashboard at once
