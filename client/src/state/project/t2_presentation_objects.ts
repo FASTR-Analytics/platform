@@ -324,7 +324,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     if (replicantRes.success && replicantRes.data.status === "ok") {
       const validValues = replicantRes.data.possibleValues;
       const selected = config.d.selectedReplicantValue;
-      if (!selected || !validValues.includes(selected)) {
+      if (!selected || !validValues.some(v => v.id === selected)) {
         if (validValues.length === 0) {
           yield {
             status: "error",
@@ -335,7 +335,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
           };
           return;
         }
-        config.d.selectedReplicantValue = validValues[0];
+        config.d.selectedReplicantValue = validValues[0].id;
         const newFetchConfig = getFetchConfigFromPresentationObjectConfig(
           poDetail.resultsValue,
           config,

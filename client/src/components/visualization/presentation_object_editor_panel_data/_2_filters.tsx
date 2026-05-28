@@ -485,8 +485,8 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
         keyed
       >
         {(keyedFilter) => {
-          function toggleVal(val: string) {
-            const normalized = String(val).toLowerCase();
+          function toggleVal(id: string) {
+            const normalized = String(id).toLowerCase();
             p.setTempConfig(
               "d",
               "filterBy",
@@ -496,7 +496,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                 if (prev?.some(v => String(v).toLowerCase() === normalized)) {
                   return prev.filter(v => String(v).toLowerCase() !== normalized);
                 }
-                return [...(prev ?? []), val];
+                return [...(prev ?? []), id];
               },
             );
             p.setTempConfig("d", "selectedReplicantValue", undefined);
@@ -521,22 +521,18 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                   </div>
                 </Match>
                 <Match when={p.keyedStatus.status === "ok"}>
-                  <div class="ui-gap-sm ui-pad border-base-300 flex max-h-[300px] flex-wrap overflow-auto rounded border font-mono text-xs">
+                  <div class="ui-gap-sm ui-pad border-base-300 flex max-h-[300px] flex-wrap overflow-auto rounded border text-xs">
                     <For each={(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "ok" }>).values}>
                       {(opt) => {
                         return (
                           <div
                             class="ui-hoverable bg-base-200 data-[selected=true]:bg-success data-[selected=true]:text-base-100 rounded px-2 py-1"
-                            onClick={() => toggleVal(opt)}
+                            onClick={() => toggleVal(opt.id)}
                             data-selected={keyedFilter.values.some(
-                              v => String(v).toLowerCase() === String(opt).toLowerCase()
+                              v => String(v).toLowerCase() === String(opt.id).toLowerCase()
                             )}
                           >
-                            <span class="relative">
-                              {keyedFilter.disOpt === "indicator_common_id"
-                                ? String(opt).toUpperCase()
-                                : opt}
-                            </span>
+                            <span class="relative">{opt.label}</span>
                           </div>
                         );
                       }}

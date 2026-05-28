@@ -54,16 +54,16 @@ export async function resolveFigureFromMetric(
     if (replicantRes.success && replicantRes.data.status === "ok") {
       const validValues = replicantRes.data.possibleValues;
       const selected = config.d.selectedReplicantValue;
-      if (selected && !validValues.includes(selected)) {
+      if (selected && !validValues.some(v => v.id === selected)) {
         throw new Error(
           `Invalid replicant value "${selected}" for metric "${metricId}". ` +
-          `Valid values: ${validValues.join(", ")}`,
+          `Valid values: ${validValues.map(v => v.label).join(", ")}`,
         );
       }
       if (!selected) {
         throw new Error(
           `This preset requires a selectedReplicant value. ` +
-          `Valid values: ${validValues.join(", ")}`,
+          `Valid values: ${validValues.map(v => v.label).join(", ")}`,
         );
       }
     }

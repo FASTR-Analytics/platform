@@ -5,7 +5,6 @@ import {
   PresentationObjectDetail,
   t3,
   TC,
-  translateIndicatorId,
   throwIfErrWithData,
 } from "lib";
 import {
@@ -13,7 +12,7 @@ import {
   SelectList,
   StateHolderWrapper,
   timQuery,
-  getSelectOptions,
+  getSelectOptionsFromIdLabel,
 } from "panther";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
 import { createEffect, Match, Switch } from "solid-js";
@@ -88,21 +87,14 @@ export function ReplicateByOptionsPresentationObject(
               </Match>
               <Match when={keyedReplicantOptions.status === "ok"}>
                 {(() => {
-                  const options = getSelectOptions(
+                  const options = getSelectOptionsFromIdLabel(
                     (
                       keyedReplicantOptions as Extract<
                         typeof keyedReplicantOptions,
                         { status: "ok" }
                       >
                     ).possibleValues,
-                  ).map((opt) => ({
-                    ...opt,
-                    label:
-                      p.replicateBy === "indicator_common_id" ||
-                      p.replicateBy === "strat"
-                        ? translateIndicatorId(opt.value).toUpperCase()
-                        : opt.label,
-                  }));
+                  );
 
                   return (
                     <SelectList
@@ -153,7 +145,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
     if (state.status === "ready" && state.data.status === "ok") {
       p.setSelectedReplicant(
         p.selectedReplicantValue || "",
-        state.data.possibleValues,
+        state.data.possibleValues.map(pv => pv.id),
       );
     }
   });
@@ -192,17 +184,9 @@ export function ReplicateByOptionsPresentationObjectSelect(
 
                 return (
                   <Select
-                    options={possibleValues.map((pv: string) => {
-                      return {
-                        value: pv,
-                        label:
-                          p.replicateBy === "indicator_common_id"
-                            ? translateIndicatorId(pv).toUpperCase()
-                            : pv,
-                      };
-                    })}
+                    options={getSelectOptionsFromIdLabel(possibleValues)}
                     value={p.selectedReplicantValue}
-                    onChange={(v) => p.setSelectedReplicant(v, possibleValues)}
+                    onChange={(v) => p.setSelectedReplicant(v, possibleValues.map(pv => pv.id))}
                     fullWidth={p.fullWidth}
                     placeholder={t3({
                       en: "Needs selection",

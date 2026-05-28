@@ -10,6 +10,7 @@ import {
 } from "lib";
 import { getPeriodBounds } from "./get_period_bounds.ts";
 import { getPossibleValues } from "./get_possible_values.ts";
+import { getIndicatorMetadata } from "./get_indicator_metadata.ts";
 import { resolveMetricById } from "../db/project/results_value_resolver.ts";
 import { getFacilityColumnsConfig } from "../db/instance/config.ts";
 import { MAX_REPLICANT_OPTIONS } from "./consts.ts";
@@ -33,10 +34,11 @@ export async function getResultsValueInfoForPresentationObject(
     throwIfErrWithData(resResultsValue);
 
     // Extract everything from the ResultsValue
-    const resultsObjectId = resResultsValue.data.resultsObjectId;
-    const disaggregationOptions = resResultsValue.data.disaggregationOptions
+    const { resultsValue, moduleId } = resResultsValue.data;
+    const resultsObjectId = resultsValue.resultsObjectId;
+    const disaggregationOptions = resultsValue.disaggregationOptions
       .map((d) => d.value);
-    const firstPeriodOption = resResultsValue.data.mostGranularTimePeriodColumnInResultsFile;
+    const firstPeriodOption = resultsValue.mostGranularTimePeriodColumnInResultsFile;
 
     // Call the core logic with all derived values
     return await getResultsObjectVariableInfoCore(
@@ -48,6 +50,7 @@ export async function getResultsValueInfoForPresentationObject(
       firstPeriodOption,
       disaggregationOptions,
       moduleLastRun,
+      moduleId,
     );
   });
 }
@@ -85,6 +88,7 @@ async function getResultsObjectVariableInfoCore(
   firstPeriodOption: PeriodOption | undefined,
   disaggregationOptions: DisaggregationOption[],
   moduleLastRun: string,
+  moduleId: string,
 ): Promise<
   APIResponseWithData<ResultsValueInfoForPresentationObject>
 > {
@@ -114,12 +118,17 @@ async function getResultsObjectVariableInfoCore(
       [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
     } = {};
 
+    // Fetch indicator metadata once for label lookup
+    const indicatorMetadata = await getIndicatorMetadata(mainDb, projectDb, moduleId);
+    const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
+
     for (const disOpt of disaggregationOptions) {
       const resDisPossibleVals = await getPossibleValues(
         projectDb,
         resultsObjectId,
         disOpt,
         mainDb,
+        labelMap,
       );
       if (resDisPossibleVals.success === false) {
         console.warn(

@@ -77,7 +77,7 @@ export function periodFilterHasBounds(
 export type DisaggregationPossibleValuesStatus =
   | {
       status: "ok";
-      values: string[];
+      values: { id: string; label: string }[];
     }
   | {
       status: "too_many_values";
@@ -111,7 +111,7 @@ export type ReplicantOptionsForPresentationObject = {
 } & (
   | {
       status: "ok";
-      possibleValues: string[];
+      possibleValues: { id: string; label: string }[];
     }
   | {
       status: "too_many_values";

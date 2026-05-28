@@ -173,11 +173,11 @@ export async function validateMetricInputs(
   for (const filter of filters ?? []) {
     const dimValues = metricInfoRes.data.disaggregationPossibleValues[filter.disOpt];
     if (dimValues?.status === "ok") {
-      const invalid = filter.values.filter(v => !dimValues.values.some(dv => String(dv) === String(v)));
+      const invalid = filter.values.filter(v => !dimValues.values.some(dv => dv.id === String(v)));
       if (invalid.length > 0) {
         throw new Error(
           `Invalid filter value(s) for "${filter.disOpt}": ${invalid.join(", ")}. ` +
-          `Valid: ${dimValues.values.join(", ")}`
+          `Valid: ${dimValues.values.map(v => v.label).join(", ")}`
         );
       }
     }

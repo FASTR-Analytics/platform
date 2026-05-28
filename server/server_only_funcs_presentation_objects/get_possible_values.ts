@@ -27,13 +27,14 @@ export async function getPossibleValues(
   resultsObjectId: string,
   disaggregationOption: DisaggregationOption,
   mainDb: Sql,
+  labelMap: Map<string, string>,
   filters?: GenericLongFormFetchConfig["filters"],
   periodFilterExactBounds?: {
     periodOption: PeriodOption;
     min: number;
     max: number;
   },
-): Promise<APIResponseWithData<string[]>> {
+): Promise<APIResponseWithData<{ id: string; label: string }[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const tableName = getResultsObjectTableName(resultsObjectId);
 
@@ -227,9 +228,16 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
     const results =
       await projectDb.unsafe<{ disaggregation_value: string }[]>(sqlQuery);
 
-    const possibleValues = results
+    const rawValues = results
       .map((opt) => opt.disaggregation_value)
       .filter((v) => v != null && String(v).trim() !== "");
+
+    // Apply labels from map; falls back to id for non-matching values (e.g., year, facility_id)
+    const possibleValues = rawValues.map((id) => ({
+      id: String(id),
+      label: labelMap.get(String(id)) ?? String(id),
+    }));
+
     return { success: true, data: possibleValues };
   });
 }

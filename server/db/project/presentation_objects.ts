@@ -196,7 +196,7 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
     const presObj: PresentationObjectDetail = {
       id: rawPresObj.id,
       projectId,
-      resultsValue: resResultsValue.data,
+      resultsValue: resResultsValue.data.resultsValue,
       lastUpdated: rawPresObj.last_updated,
       label: rawPresObj.label,
       config: parsePresentationObjectConfig(rawPresObj.config),

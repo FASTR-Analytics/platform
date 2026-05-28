@@ -18,6 +18,7 @@ import { log } from "../../middleware/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { MAX_REPLICANT_OPTIONS } from "../../server_only_funcs_presentation_objects/consts.ts";
 import {
+  getIndicatorMetadata,
   getPossibleValues,
   getPresentationObjectItems,
   getResultsValueInfoForPresentationObject,
@@ -619,11 +620,16 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
       );
 
       const newPromise = (async () => {
+        // Fetch indicator metadata for label lookup
+        const indicatorMetadata = await getIndicatorMetadata(c.var.mainDb, c.var.ppk.projectDb, moduleId);
+        const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
+
         const resDisPossibleVals = await getPossibleValues(
           c.var.ppk.projectDb,
           body.resultsObjectId,
           body.replicateBy,
           c.var.mainDb,
+          labelMap,
           body.fetchConfig.filters,
           body.fetchConfig.periodFilter &&
             periodFilterHasBounds(body.fetchConfig.periodFilter)

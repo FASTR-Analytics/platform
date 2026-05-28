@@ -15,7 +15,7 @@ export async function resolveMetricById(
   projectDb: Sql,
   metricId: string,
   facilityConfig?: InstanceConfigFacilityColumns,
-): Promise<APIResponseWithData<ResultsValue>> {
+): Promise<APIResponseWithData<{ resultsValue: ResultsValue; moduleId: string }>> {
   try {
     const dbMetric = (
       await projectDb<DBMetric[]>`
@@ -28,7 +28,7 @@ export async function resolveMetricById(
     }
 
     const enrichedMetric = await enrichMetric(dbMetric, projectDb, facilityConfig);
-    return { success: true, data: enrichedMetric };
+    return { success: true, data: { resultsValue: enrichedMetric, moduleId: dbMetric.module_id } };
   } catch (error) {
     return { success: false, err: `Error resolving metric: ${error}` };
   }

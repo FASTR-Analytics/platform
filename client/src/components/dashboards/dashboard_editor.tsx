@@ -137,7 +137,7 @@ export function DashboardEditor(p: Props) {
         fcRes.data,
       );
       if (optRes.success && optRes.data.status === "ok") {
-        allReplicants = optRes.data.possibleValues;
+        allReplicants = optRes.data.possibleValues.map(pv => pv.id);
       }
     }
 
