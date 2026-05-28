@@ -105,6 +105,25 @@ routesExportCentral.get(
 
     const metrics = await projectDb<DBMetric[]>`SELECT * FROM metrics`;
 
+    type DBCalcIndicator = {
+      calculated_indicator_id: string; label: string; format_as: string;
+      decimal_places: number; threshold_direction: string;
+      threshold_green: number; threshold_yellow: number;
+      group_label: string; sort_order: number;
+    };
+    let calculatedIndicators: DBCalcIndicator[] = [];
+    try {
+      calculatedIndicators = await projectDb<DBCalcIndicator[]>`
+        SELECT calculated_indicator_id, label, format_as, decimal_places,
+               threshold_direction, threshold_green, threshold_yellow,
+               group_label, sort_order
+        FROM calculated_indicators_snapshot
+        ORDER BY sort_order, calculated_indicator_id
+      `;
+    } catch {
+      // Table may not exist on older instances
+    }
+
     return c.json({
       success: true,
       data: {
@@ -115,6 +134,7 @@ routesExportCentral.get(
         modules,
         resultsObjects,
         metrics,
+        calculatedIndicators,
       },
     });
   },
