@@ -1,3 +1,7 @@
+[TBD] [user] [changed] - Filter and breakdown options now display readable labels instead of codes
+[TBD] [user] [fixed] - Error messages now show readable names instead of internal identifiers
+[TBD] [admin] [changed] - Filter and replicate-by options now show human-readable labels instead of raw IDs
+[TBD] [admin] [fixed] - Indicator names in disaggregation filters no longer require special uppercase formatting
 [TBD] [user] [added] - Dashboards now support a grid layout option
 [TBD] [user] [changed] - Dashboard editor shows a live full-dashboard preview instead of one item at a time
 [TBD] [user] [changed] - Dashboard layout setting replaces left/right sidebar option with sidebar or grid choice
