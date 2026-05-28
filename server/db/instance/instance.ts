@@ -37,7 +37,15 @@ export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
       COALESCE((SELECT MAX(updated_at) FROM hfa_indicators)::text, '') || '|' ||
-      (SELECT COUNT(*) FROM hfa_indicators)::text
+      (SELECT COUNT(*) FROM hfa_indicators)::text || '|' ||
+      COALESCE((
+        SELECT string_agg(id || ':' || label || ':' || sort_order, ',' ORDER BY id)
+        FROM hfa_indicator_categories
+      ), '') || '|' ||
+      COALESCE((
+        SELECT string_agg(id || ':' || category_id || ':' || label || ':' || sort_order, ',' ORDER BY id)
+        FROM hfa_indicator_sub_categories
+      ), '')
     ) as version
   `;
   return result[0]?.version ?? "none";

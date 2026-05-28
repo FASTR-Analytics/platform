@@ -96,7 +96,7 @@ export function DashboardViewer(p: DashboardViewerProps) {
   return (
     <FrameTop
       panelChildren={
-        <div class="font-700 border-base-300 ui-pad-x-lg ui-pad border-b text-lg">
+        <div class="font-700 border-base-300 ui-pad border-b text-lg">
           {p.bundle.title}
         </div>
       }
@@ -145,7 +145,7 @@ export function SidebarLayout(p: SidebarLayoutProps) {
         </div>
       }
     >
-      <div class="ui-pad-lg relative h-full w-full overflow-auto">
+      <div class="ui-pad relative h-full w-full overflow-auto">
         <div class="absolute top-4 right-4 z-10">
           <Show when={p.currentItem}>
             <Button onClick={p.onDownload} iconName="download" outline />
@@ -184,7 +184,7 @@ export type GridLayoutProps = {
 
 export function GridLayout(p: GridLayoutProps) {
   return (
-    <div class="ui-gap-lg ui-pad-lg grid grid-cols-2 content-start overflow-auto">
+    <div class="ui-gap ui-pad grid grid-cols-2 content-start overflow-auto">
       <For each={p.items}>
         {(item) => (
           <div class="border-base-300 ui-pad aspect-video rounded border">

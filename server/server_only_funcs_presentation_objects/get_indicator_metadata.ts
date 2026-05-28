@@ -43,17 +43,53 @@ export async function getIndicatorMetadata(
   const isIcehModule = datasetTypes.includes("iceh");
 
   if (isHfaModule) {
-    const hfaRows = await mainDb<DBHfaIndicator[]>`SELECT * FROM hfa_indicators`;
-    for (const row of hfaRows) {
+    // 1. Indicator metadata (for hfa_indicator disaggregation)
+    const hfaIndicators = await projectDb<{
+      var_name: string;
+      short_label: string;
+      definition: string;
+      type: string;
+      aggregation: string;
+      sort_order: number;
+    }[]>`
+      SELECT var_name, short_label, definition, type, aggregation, sort_order
+      FROM hfa_indicators_snapshot
+      ORDER BY sort_order, var_name
+    `;
+    for (const row of hfaIndicators) {
       const format_as = row.type === "binary" && row.aggregation === "avg" ? "percent" : "number";
       metadata.push({
         id: row.var_name,
-        label: row.definition,
+        label: row.short_label || row.definition,
         format_as,
-        group_label: row.category,
         sort_order: row.sort_order,
       });
     }
+
+    // 2. Category metadata (for hfa_category disaggregation labels)
+    const hfaCategories = await projectDb<{ id: string; label: string; sort_order: number }[]>`
+      SELECT id, label, sort_order FROM hfa_indicator_categories_snapshot ORDER BY sort_order, label
+    `;
+    for (const cat of hfaCategories) {
+      metadata.push({
+        id: cat.id,
+        label: cat.label,
+        sort_order: cat.sort_order,
+      });
+    }
+
+    // 3. Sub-category metadata (for hfa_sub_category disaggregation labels)
+    const hfaSubCategories = await projectDb<{ id: string; label: string; sort_order: number }[]>`
+      SELECT id, label, sort_order FROM hfa_indicator_sub_categories_snapshot ORDER BY sort_order, label
+    `;
+    for (const subCat of hfaSubCategories) {
+      metadata.push({
+        id: subCat.id,
+        label: subCat.label,
+        sort_order: subCat.sort_order,
+      });
+    }
+
     return metadata;
   }
 

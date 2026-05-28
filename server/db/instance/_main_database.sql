@@ -380,19 +380,39 @@ CREATE TABLE hfa_upload_attempts (
 );
 
 -- ============================================================================
+-- HFA INDICATOR CATEGORIES
+-- ============================================================================
+
+CREATE TABLE hfa_indicator_categories (
+  id TEXT PRIMARY KEY NOT NULL,
+  label TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE hfa_indicator_sub_categories (
+  id TEXT PRIMARY KEY NOT NULL,
+  category_id TEXT NOT NULL REFERENCES hfa_indicator_categories(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+-- ============================================================================
 -- HFA INDICATORS
 -- ============================================================================
 
 CREATE TABLE hfa_indicators (
   var_name TEXT PRIMARY KEY NOT NULL,
-  category TEXT NOT NULL DEFAULT '',
+  category_id TEXT REFERENCES hfa_indicator_categories(id) ON DELETE SET NULL,
+  sub_category_id TEXT REFERENCES hfa_indicator_sub_categories(id) ON DELETE SET NULL,
+  short_label TEXT NOT NULL DEFAULT '',
   definition TEXT NOT NULL DEFAULT '',
   type TEXT NOT NULL CHECK (type IN ('binary', 'numeric')),
   aggregation TEXT NOT NULL DEFAULT 'sum' CHECK (aggregation IN ('sum', 'avg')),
   sort_order INTEGER NOT NULL DEFAULT 0,
   has_syntax_error BOOLEAN NOT NULL DEFAULT FALSE,
   code_consistent BOOLEAN NOT NULL DEFAULT TRUE,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT hfa_indicators_sub_category_requires_category CHECK ((sub_category_id IS NULL) OR (category_id IS NOT NULL))
 );
 
 -- ============================================================================

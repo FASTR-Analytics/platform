@@ -15,6 +15,8 @@ import {
   throwIfErrWithData,
   type HfaIndicator,
   type HfaIndicatorCode,
+  type HfaIndicatorCategory,
+  type HfaIndicatorSubCategory,
 } from "lib";
 import {
   getFacilityColumnsConfig,
@@ -23,7 +25,11 @@ import {
 import { computeHfaCacheHash } from "../instance/dataset_hfa.ts";
 import {
   DBHfaIndicator,
+  DBHfaIndicatorCategory,
+  DBHfaIndicatorSubCategory,
   dbRowToHfaIndicator,
+  dbRowToHfaIndicatorCategory,
+  dbRowToHfaIndicatorSubCategory,
 } from "../instance/hfa_indicators.ts";
 import { getHfaIndicatorsVersion } from "../instance/instance.ts";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -99,6 +105,16 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
 
     if (onProgress) await onProgress(0.8, "Updating project database...");
     const lastUpdated = new Date().toISOString();
+
+    // Fetch HFA categories from instance DB for snapshot
+    const hfaCategoriesForSnapshot = await mainDb<DBHfaIndicatorCategory[]>`
+      SELECT id, label, sort_order FROM hfa_indicator_categories ORDER BY sort_order, label
+    `;
+
+    // Fetch HFA sub-categories from instance DB for snapshot
+    const hfaSubCategoriesForSnapshot = await mainDb<DBHfaIndicatorSubCategory[]>`
+      SELECT id, category_id, label, sort_order FROM hfa_indicator_sub_categories ORDER BY category_id, sort_order, label
+    `;
 
     // Fetch HFA indicator definitions + per-time-point R code from the instance
     // DB for the project-level snapshot. The module runner reads from the
@@ -204,6 +220,8 @@ ON CONFLICT (dataset_type) DO UPDATE SET
 `,
       sql`DELETE FROM hfa_indicator_code_snapshot`,
       sql`DELETE FROM hfa_indicators_snapshot`,
+      sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
+      sql`DELETE FROM hfa_indicator_categories_snapshot`,
       sql`DELETE FROM facilities`,
       sql`DELETE FROM indicators_hfa`,
       ...(facilities.length > 0
@@ -261,11 +279,21 @@ ON CONFLICT (dataset_type) DO UPDATE SET
       `),
         ]
         : []),
+      ...hfaCategoriesForSnapshot.map(
+        (cat) =>
+          sql`INSERT INTO hfa_indicator_categories_snapshot (id, label, sort_order)
+            VALUES (${cat.id}, ${cat.label}, ${cat.sort_order})`,
+      ),
+      ...hfaSubCategoriesForSnapshot.map(
+        (subCat) =>
+          sql`INSERT INTO hfa_indicator_sub_categories_snapshot (id, category_id, label, sort_order)
+            VALUES (${subCat.id}, ${subCat.category_id}, ${subCat.label}, ${subCat.sort_order})`,
+      ),
       ...hfaIndicatorRowsForSnapshot.map(
         (ind) =>
           sql`INSERT INTO hfa_indicators_snapshot
-            (var_name, category, definition, type, aggregation, sort_order)
-            VALUES (${ind.var_name}, ${ind.category}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${ind.sort_order})`,
+            (var_name, category_id, sub_category_id, short_label, definition, type, aggregation, sort_order)
+            VALUES (${ind.var_name}, ${ind.category_id}, ${ind.sub_category_id}, ${ind.short_label}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${ind.sort_order})`,
       ),
       ...hfaIndicatorCodeRowsForSnapshot.map(
         (c) =>
@@ -290,20 +318,44 @@ type DBHfaIndicatorCodeSnapshot = {
   r_filter_code: string | null;
 };
 
+export async function getAllHfaIndicatorCategoriesFromSnapshot(
+  projectDb: Sql,
+): Promise<HfaIndicatorCategory[]> {
+  const rows = await projectDb<DBHfaIndicatorCategory[]>`
+    SELECT id, label, sort_order FROM hfa_indicator_categories_snapshot ORDER BY sort_order, label
+  `;
+  return rows.map(dbRowToHfaIndicatorCategory);
+}
+
+export async function getAllHfaIndicatorSubCategoriesFromSnapshot(
+  projectDb: Sql,
+): Promise<HfaIndicatorSubCategory[]> {
+  const rows = await projectDb<DBHfaIndicatorSubCategory[]>`
+    SELECT id, category_id, label, sort_order FROM hfa_indicator_sub_categories_snapshot ORDER BY category_id, sort_order, label
+  `;
+  return rows.map(dbRowToHfaIndicatorSubCategory);
+}
+
 export async function getAllHfaIndicatorsFromSnapshot(
   projectDb: Sql,
 ): Promise<HfaIndicator[]> {
   const rows = await projectDb<DBHfaIndicator[]>`
     SELECT
-      var_name,
-      category,
-      definition,
-      type,
-      aggregation,
-      sort_order,
-      '' as updated_at
-    FROM hfa_indicators_snapshot
-    ORDER BY sort_order, var_name
+      i.var_name,
+      i.category_id,
+      i.sub_category_id,
+      i.short_label,
+      i.definition,
+      i.type,
+      i.aggregation,
+      i.sort_order,
+      '' as updated_at,
+      false as has_syntax_error,
+      true as code_consistent
+    FROM hfa_indicators_snapshot i
+    LEFT JOIN hfa_indicator_categories_snapshot c ON i.category_id = c.id
+    LEFT JOIN hfa_indicator_sub_categories_snapshot sc ON i.sub_category_id = sc.id
+    ORDER BY COALESCE(c.sort_order, 999999), COALESCE(sc.sort_order, 999999), i.sort_order, i.var_name
   `;
   return rows.map(dbRowToHfaIndicator);
 }

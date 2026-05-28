@@ -137,7 +137,7 @@ export function DashboardEditor(p: Props) {
         fcRes.data,
       );
       if (optRes.success && optRes.data.status === "ok") {
-        allReplicants = optRes.data.possibleValues.map(pv => pv.id);
+        allReplicants = optRes.data.possibleValues.map((pv) => pv.id);
       }
     }
 
@@ -259,19 +259,24 @@ export function DashboardEditor(p: Props) {
         panelChildren={
           <StateHolderWrapper state={data()} noPad>
             {(dashboard) => (
-              <HeadingBar heading={dashboard.title} class="border-base-300">
+              <HeadingBar
+                heading={dashboard.title}
+                class="border-base-300"
+                leftChildren={
+                  <Button
+                    iconName="chevronLeft"
+                    onClick={() => p.close(undefined)}
+                  />
+                }
+              >
                 <div class="ui-gap-sm flex items-center">
                   <CopyToClipboardButton
                     text={publicUrl(dashboard.slug)}
                     outline
-                    size="sm"
                   >
                     {t3({ en: "Copy link", fr: "Copier le lien" })}
                   </CopyToClipboardButton>
                   <Show when={canConfigure()}>
-                    <Button onClick={attemptAddItem} iconName="plus">
-                      {t3({ en: "Add item", fr: "Ajouter un élément" })}
-                    </Button>
                     <Button
                       onClick={() => openSettings(dashboard)}
                       iconName="settings"
@@ -279,14 +284,10 @@ export function DashboardEditor(p: Props) {
                     >
                       {t3({ en: "Settings", fr: "Paramètres" })}
                     </Button>
+                    <Button onClick={attemptAddItem} iconName="plus">
+                      {t3({ en: "Add item", fr: "Ajouter un élément" })}
+                    </Button>
                   </Show>
-                  <Button
-                    onClick={() => p.close(undefined)}
-                    iconName="x"
-                    outline
-                  >
-                    {t3({ en: "Close", fr: "Fermer" })}
-                  </Button>
                 </div>
               </HeadingBar>
             )}
@@ -390,7 +391,7 @@ function DashboardEditorInner(p: InnerProps) {
         </div>
       }
     >
-      <div class="ui-pad-lg bg-base-200 h-full w-full">
+      <div class="ui-pad bg-base-200 h-full w-full">
         <div class="h-full w-full border bg-white shadow-2xl">
           <DashboardViewer
             bundle={bundle()}

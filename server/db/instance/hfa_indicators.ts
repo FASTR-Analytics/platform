@@ -4,13 +4,31 @@ import {
   APIResponseWithData,
   type HfaIndicator,
   type HfaIndicatorCode,
+  type HfaIndicatorCategory,
+  type HfaIndicatorSubCategory,
+  type HfaWorkbookImport,
   type HfaDictionaryForValidation,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 
+export type DBHfaIndicatorCategory = {
+  id: string;
+  label: string;
+  sort_order: number;
+};
+
+export type DBHfaIndicatorSubCategory = {
+  id: string;
+  category_id: string;
+  label: string;
+  sort_order: number;
+};
+
 export type DBHfaIndicator = {
   var_name: string;
-  category: string;
+  category_id: string | null;
+  sub_category_id: string | null;
+  short_label: string;
   definition: string;
   type: "binary" | "numeric";
   aggregation: "sum" | "avg";
@@ -27,10 +45,29 @@ type DBHfaIndicatorCode = {
   r_filter_code: string | null;
 };
 
+export function dbRowToHfaIndicatorCategory(row: DBHfaIndicatorCategory): HfaIndicatorCategory {
+  return {
+    id: row.id,
+    label: row.label,
+    sortOrder: row.sort_order,
+  };
+}
+
+export function dbRowToHfaIndicatorSubCategory(row: DBHfaIndicatorSubCategory): HfaIndicatorSubCategory {
+  return {
+    id: row.id,
+    categoryId: row.category_id,
+    label: row.label,
+    sortOrder: row.sort_order,
+  };
+}
+
 export function dbRowToHfaIndicator(row: DBHfaIndicator): HfaIndicator {
   return {
     varName: row.var_name,
-    category: row.category,
+    categoryId: row.category_id,
+    subCategoryId: row.sub_category_id,
+    shortLabel: row.short_label,
     definition: row.definition,
     type: row.type,
     aggregation: row.aggregation,
@@ -60,14 +97,170 @@ export async function getHfaIndicators(
   });
 }
 
+// ============================================================================
+// Categories
+// ============================================================================
+
+export async function getHfaIndicatorCategories(
+  mainDb: Sql,
+): Promise<APIResponseWithData<HfaIndicatorCategory[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rows = await mainDb<DBHfaIndicatorCategory[]>`
+      SELECT * FROM hfa_indicator_categories ORDER BY sort_order, label
+    `;
+    return { success: true, data: rows.map(dbRowToHfaIndicatorCategory) };
+  });
+}
+
+export async function createHfaIndicatorCategory(
+  mainDb: Sql,
+  category: HfaIndicatorCategory,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
+      INSERT INTO hfa_indicator_categories (id, label, sort_order)
+      VALUES (${category.id}, ${category.label}, ${category.sortOrder})
+    `;
+    return { success: true };
+  });
+}
+
+export async function updateHfaIndicatorCategory(
+  mainDb: Sql,
+  oldId: string,
+  category: HfaIndicatorCategory,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
+      UPDATE hfa_indicator_categories
+      SET id = ${category.id},
+          label = ${category.label},
+          sort_order = ${category.sortOrder}
+      WHERE id = ${oldId}
+    `;
+    return { success: true };
+  });
+}
+
+export async function deleteHfaIndicatorCategory(
+  mainDb: Sql,
+  id: string,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
+      DELETE FROM hfa_indicator_categories WHERE id = ${id}
+    `;
+    return { success: true };
+  });
+}
+
+export async function reorderHfaIndicatorCategories(
+  mainDb: Sql,
+  orderedIds: string[],
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb.begin(async (sql) => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        await sql`
+          UPDATE hfa_indicator_categories
+          SET sort_order = ${i}
+          WHERE id = ${orderedIds[i]}
+        `;
+      }
+    });
+    return { success: true };
+  });
+}
+
+// ============================================================================
+// Sub-Categories
+// ============================================================================
+
+export async function getHfaIndicatorSubCategories(
+  mainDb: Sql,
+): Promise<APIResponseWithData<HfaIndicatorSubCategory[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rows = await mainDb<DBHfaIndicatorSubCategory[]>`
+      SELECT * FROM hfa_indicator_sub_categories ORDER BY category_id, sort_order, label
+    `;
+    return { success: true, data: rows.map(dbRowToHfaIndicatorSubCategory) };
+  });
+}
+
+export async function createHfaIndicatorSubCategory(
+  mainDb: Sql,
+  subCategory: HfaIndicatorSubCategory,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
+      INSERT INTO hfa_indicator_sub_categories (id, category_id, label, sort_order)
+      VALUES (${subCategory.id}, ${subCategory.categoryId}, ${subCategory.label}, ${subCategory.sortOrder})
+    `;
+    return { success: true };
+  });
+}
+
+export async function updateHfaIndicatorSubCategory(
+  mainDb: Sql,
+  oldId: string,
+  subCategory: HfaIndicatorSubCategory,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
+      UPDATE hfa_indicator_sub_categories
+      SET id = ${subCategory.id},
+          category_id = ${subCategory.categoryId},
+          label = ${subCategory.label},
+          sort_order = ${subCategory.sortOrder}
+      WHERE id = ${oldId}
+    `;
+    return { success: true };
+  });
+}
+
+export async function deleteHfaIndicatorSubCategory(
+  mainDb: Sql,
+  id: string,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
+      DELETE FROM hfa_indicator_sub_categories WHERE id = ${id}
+    `;
+    return { success: true };
+  });
+}
+
+export async function reorderHfaIndicatorSubCategories(
+  mainDb: Sql,
+  categoryId: string,
+  orderedIds: string[],
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb.begin(async (sql) => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        await sql`
+          UPDATE hfa_indicator_sub_categories
+          SET sort_order = ${i}
+          WHERE id = ${orderedIds[i]} AND category_id = ${categoryId}
+        `;
+      }
+    });
+    return { success: true };
+  });
+}
+
+// ============================================================================
+// Indicators
+// ============================================================================
+
 export async function createHfaIndicator(
   mainDb: Sql,
   indicator: HfaIndicator,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb`
-      INSERT INTO hfa_indicators (var_name, category, definition, type, aggregation, sort_order, updated_at)
-      VALUES (${indicator.varName}, ${indicator.category}, ${indicator.definition}, ${indicator.type}, ${indicator.aggregation}, ${indicator.sortOrder}, CURRENT_TIMESTAMP)
+      INSERT INTO hfa_indicators (var_name, category_id, sub_category_id, short_label, definition, type, aggregation, sort_order, updated_at)
+      VALUES (${indicator.varName}, ${indicator.categoryId}, ${indicator.subCategoryId}, ${indicator.shortLabel}, ${indicator.definition}, ${indicator.type}, ${indicator.aggregation}, ${indicator.sortOrder}, CURRENT_TIMESTAMP)
     `;
     return { success: true };
   });
@@ -82,7 +275,9 @@ export async function updateHfaIndicator(
     await mainDb`
       UPDATE hfa_indicators
       SET var_name = ${indicator.varName},
-          category = ${indicator.category},
+          category_id = ${indicator.categoryId},
+          sub_category_id = ${indicator.subCategoryId},
+          short_label = ${indicator.shortLabel},
           definition = ${indicator.definition},
           type = ${indicator.type},
           aggregation = ${indicator.aggregation},
@@ -142,8 +337,146 @@ export async function batchUploadHfaIndicators(
         }
         const sortOrder = replaceAll ? i : nextSortOrder++;
         await sql`
-          INSERT INTO hfa_indicators (var_name, category, definition, type, aggregation, sort_order, has_syntax_error, code_consistent, updated_at)
-          VALUES (${ind.varName}, ${ind.category}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.hasSyntaxError}, ${ind.codeConsistent}, CURRENT_TIMESTAMP)
+          INSERT INTO hfa_indicators (var_name, category_id, sub_category_id, short_label, definition, type, aggregation, sort_order, has_syntax_error, code_consistent, updated_at)
+          VALUES (${ind.varName}, ${ind.categoryId}, ${ind.subCategoryId}, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.hasSyntaxError}, ${ind.codeConsistent}, CURRENT_TIMESTAMP)
+          ON CONFLICT (var_name) DO NOTHING
+        `;
+        insertedVarNames.add(ind.varName);
+      }
+
+      for (const varName of insertedVarNames) {
+        await sql`DELETE FROM hfa_indicator_code WHERE var_name = ${varName}`;
+      }
+      for (const c of code) {
+        if (!c.rCode.trim()) continue;
+        if (!insertedVarNames.has(c.varName)) continue;
+        await sql`
+          INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
+          VALUES (${c.varName}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
+        `;
+      }
+    });
+    return { success: true };
+  });
+}
+
+// Imports an entire HFA indicator workbook (categories + sub-categories +
+// indicators + per-time-point code) in one transaction. Row order in each
+// list defines sort_order, so reordering rows in the source spreadsheet
+// reorders them in the app. Categories/sub-categories are written before
+// indicators so the foreign keys always resolve.
+export async function importHfaIndicatorsWorkbook(
+  mainDb: Sql,
+  data: HfaWorkbookImport,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb.begin(async (sql) => {
+      const { categories, subCategories, indicators, code, replaceAll } = data;
+
+      if (replaceAll) {
+        // Deleting indicators cascades to hfa_indicator_code; delete in
+        // FK-safe order (indicators -> sub-categories -> categories).
+        await sql`DELETE FROM hfa_indicators`;
+        await sql`DELETE FROM hfa_indicator_sub_categories`;
+        await sql`DELETE FROM hfa_indicator_categories`;
+
+        for (let i = 0; i < categories.length; i++) {
+          const cat = categories[i];
+          await sql`
+            INSERT INTO hfa_indicator_categories (id, label, sort_order)
+            VALUES (${cat.id}, ${cat.label}, ${i})
+          `;
+        }
+
+        const subOrderByCat = new Map<string, number>();
+        for (const sc of subCategories) {
+          const order = subOrderByCat.get(sc.categoryId) ?? 0;
+          subOrderByCat.set(sc.categoryId, order + 1);
+          await sql`
+            INSERT INTO hfa_indicator_sub_categories (id, category_id, label, sort_order)
+            VALUES (${sc.id}, ${sc.categoryId}, ${sc.label}, ${order})
+          `;
+        }
+      } else {
+        // Upsert categories, preserving existing order; new ones appended.
+        const existingCatRows = await sql<{ id: string }[]>`
+          SELECT id FROM hfa_indicator_categories
+        `;
+        const existingCatIds = new Set(existingCatRows.map((r) => r.id));
+        const maxCatRow = await sql<{ m: number | null }[]>`
+          SELECT MAX(sort_order) as m FROM hfa_indicator_categories
+        `;
+        let nextCatOrder = (maxCatRow[0]?.m ?? -1) + 1;
+        for (const cat of categories) {
+          if (existingCatIds.has(cat.id)) {
+            await sql`
+              UPDATE hfa_indicator_categories SET label = ${cat.label} WHERE id = ${cat.id}
+            `;
+          } else {
+            await sql`
+              INSERT INTO hfa_indicator_categories (id, label, sort_order)
+              VALUES (${cat.id}, ${cat.label}, ${nextCatOrder++})
+            `;
+          }
+        }
+
+        // Upsert sub-categories, preserving existing order; new ones appended
+        // within their category.
+        const existingSubRows = await sql<
+          { id: string; category_id: string; sort_order: number }[]
+        >`
+          SELECT id, category_id, sort_order FROM hfa_indicator_sub_categories
+        `;
+        const existingSubIds = new Set(existingSubRows.map((r) => r.id));
+        const maxSubOrderByCat = new Map<string, number>();
+        for (const r of existingSubRows) {
+          maxSubOrderByCat.set(
+            r.category_id,
+            Math.max(maxSubOrderByCat.get(r.category_id) ?? -1, r.sort_order),
+          );
+        }
+        for (const sc of subCategories) {
+          if (existingSubIds.has(sc.id)) {
+            await sql`
+              UPDATE hfa_indicator_sub_categories
+              SET category_id = ${sc.categoryId}, label = ${sc.label}
+              WHERE id = ${sc.id}
+            `;
+          } else {
+            const order = (maxSubOrderByCat.get(sc.categoryId) ?? -1) + 1;
+            maxSubOrderByCat.set(sc.categoryId, order);
+            await sql`
+              INSERT INTO hfa_indicator_sub_categories (id, category_id, label, sort_order)
+              VALUES (${sc.id}, ${sc.categoryId}, ${sc.label}, ${order})
+            `;
+          }
+        }
+      }
+
+      // Indicators
+      let existingVarNames = new Set<string>();
+      let nextSortOrder = 0;
+      if (!replaceAll) {
+        const existingRows = await sql<{ var_name: string }[]>`
+          SELECT var_name FROM hfa_indicators
+        `;
+        existingVarNames = new Set(existingRows.map((r) => r.var_name));
+        const maxResult = await sql<{ max_order: number | null }[]>`
+          SELECT MAX(sort_order) as max_order FROM hfa_indicators
+        `;
+        nextSortOrder = (maxResult[0]?.max_order ?? -1) + 1;
+      }
+
+      const insertedVarNames = new Set<string>();
+      for (let i = 0; i < indicators.length; i++) {
+        const ind = indicators[i];
+        if (!replaceAll && existingVarNames.has(ind.varName)) {
+          continue;
+        }
+        const sortOrder = replaceAll ? i : nextSortOrder++;
+        await sql`
+          INSERT INTO hfa_indicators (var_name, category_id, sub_category_id, short_label, definition, type, aggregation, sort_order, updated_at)
+          VALUES (${ind.varName}, ${ind.categoryId}, ${ind.subCategoryId}, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, CURRENT_TIMESTAMP)
           ON CONFLICT (var_name) DO NOTHING
         `;
         insertedVarNames.add(ind.varName);
@@ -178,7 +511,9 @@ export async function saveHfaIndicatorFull(
       await sql`
         UPDATE hfa_indicators
         SET var_name = ${indicator.varName},
-            category = ${indicator.category},
+            category_id = ${indicator.categoryId},
+            sub_category_id = ${indicator.subCategoryId},
+            short_label = ${indicator.shortLabel},
             definition = ${indicator.definition},
             type = ${indicator.type},
             aggregation = ${indicator.aggregation},

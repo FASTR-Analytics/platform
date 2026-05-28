@@ -1,7 +1,77 @@
-import type { HfaDictionaryForValidation, HfaIndicator, HfaIndicatorCode } from "../../types/mod.ts";
+import type {
+  HfaDictionaryForValidation,
+  HfaIndicator,
+  HfaIndicatorCode,
+  HfaIndicatorCategory,
+  HfaIndicatorSubCategory,
+  HfaWorkbookImport,
+} from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 export const hfaIndicatorRouteRegistry = {
+  // Categories
+  getHfaIndicatorCategories: route({
+    path: "/hfa-indicator-categories",
+    method: "GET",
+    response: {} as HfaIndicatorCategory[],
+  }),
+
+  createHfaIndicatorCategory: route({
+    path: "/hfa-indicator-categories",
+    method: "POST",
+    body: {} as { category: HfaIndicatorCategory },
+  }),
+
+  updateHfaIndicatorCategory: route({
+    path: "/hfa-indicator-categories/update",
+    method: "POST",
+    body: {} as { oldId: string; category: HfaIndicatorCategory },
+  }),
+
+  deleteHfaIndicatorCategory: route({
+    path: "/hfa-indicator-categories/delete",
+    method: "POST",
+    body: {} as { id: string },
+  }),
+
+  reorderHfaIndicatorCategories: route({
+    path: "/hfa-indicator-categories/reorder",
+    method: "POST",
+    body: {} as { orderedIds: string[] },
+  }),
+
+  // Sub-categories
+  getHfaIndicatorSubCategories: route({
+    path: "/hfa-indicator-sub-categories",
+    method: "GET",
+    response: {} as HfaIndicatorSubCategory[],
+  }),
+
+  createHfaIndicatorSubCategory: route({
+    path: "/hfa-indicator-sub-categories",
+    method: "POST",
+    body: {} as { subCategory: HfaIndicatorSubCategory },
+  }),
+
+  updateHfaIndicatorSubCategory: route({
+    path: "/hfa-indicator-sub-categories/update",
+    method: "POST",
+    body: {} as { oldId: string; subCategory: HfaIndicatorSubCategory },
+  }),
+
+  deleteHfaIndicatorSubCategory: route({
+    path: "/hfa-indicator-sub-categories/delete",
+    method: "POST",
+    body: {} as { id: string },
+  }),
+
+  reorderHfaIndicatorSubCategories: route({
+    path: "/hfa-indicator-sub-categories/reorder",
+    method: "POST",
+    body: {} as { categoryId: string; orderedIds: string[] },
+  }),
+
+  // Indicators
   getHfaIndicators: route({
     path: "/hfa-indicators",
     method: "GET",
@@ -34,6 +104,12 @@ export const hfaIndicatorRouteRegistry = {
       code: HfaIndicatorCode[];
       replaceAll: boolean;
     },
+  }),
+
+  importHfaIndicatorsWorkbook: route({
+    path: "/hfa-indicators/import-workbook",
+    method: "POST",
+    body: {} as HfaWorkbookImport,
   }),
 
   getHfaIndicatorCode: route({

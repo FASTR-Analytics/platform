@@ -234,9 +234,51 @@ Location: `server/db/migrations/instance/` and `server/db/migrations/project/`
 
 Naming: `NNN_description.sql`
 
-**Rules:**
+### The Golden Rule: Idempotency
 
-- Idempotent: `IF NOT EXISTS`, `IF EXISTS`, `ON CONFLICT DO NOTHING`
+**Every migration must be idempotent.** Running the same migration twice must produce the same result as running it once. The base schema (`_main_database.sql`, `_project_database.sql`) represents the current state — migrations run on top of it, so they must handle the case where their changes already exist.
+
+Common patterns:
+
+| Operation | Idempotent Pattern |
+|-----------|-------------------|
+| Create table | `CREATE TABLE IF NOT EXISTS` |
+| Add column | `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` |
+| Drop column | `ALTER TABLE ... DROP COLUMN IF EXISTS` |
+| Create index | `CREATE INDEX IF NOT EXISTS` |
+| Drop table | `DROP TABLE IF EXISTS` |
+| Insert seed data | `INSERT ... ON CONFLICT DO NOTHING` |
+| Rename column | Wrap in `DO $$ ... END $$` with existence check |
+| Add constraint | Wrap in `DO $$ ... END $$` checking `pg_constraint` |
+| Complex logic | Use `DO $$ BEGIN ... END $$` with `IF EXISTS` checks |
+
+Example — renaming a column safely:
+
+```sql
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns 
+             WHERE table_name = 'my_table' AND column_name = 'old_name')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+             WHERE table_name = 'my_table' AND column_name = 'new_name') THEN
+    ALTER TABLE my_table RENAME COLUMN old_name TO new_name;
+  END IF;
+END $$;
+```
+
+Example — adding a constraint safely:
+
+```sql
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'my_constraint_name') THEN
+    ALTER TABLE my_table ADD CONSTRAINT my_constraint_name CHECK (...);
+  END IF;
+END $$;
+```
+
+### Other Rules
+
 - Update live schema files too (`_main_database.sql`, `_project_database.sql`)
 - Don't rewrite old migrations — fix forward
 - **Always run `./validate_migrations` after adding or modifying SQL migrations**

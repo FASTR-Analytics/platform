@@ -1,9 +1,10 @@
-import { type HfaIndicator, t3 } from "lib";
+import { type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorSubCategory, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
   Input,
   RadioGroup,
+  Select,
   TextArea,
   timActionForm,
 } from "panther";
@@ -15,6 +16,8 @@ export function EditHfaIndicator(
     {
       existingIndicator?: HfaIndicator;
       sortOrder: number;
+      categories: HfaIndicatorCategory[];
+      subCategories: HfaIndicatorSubCategory[];
     },
     undefined
   >,
@@ -22,10 +25,18 @@ export function EditHfaIndicator(
   const mode = p.existingIndicator ? "update" : "create";
 
   const [varName, setVarName] = createSignal(p.existingIndicator?.varName ?? "");
-  const [category, setCategory] = createSignal(p.existingIndicator?.category ?? "");
+  const [categoryId, setCategoryId] = createSignal<string | null>(p.existingIndicator?.categoryId ?? null);
+  const [subCategoryId, setSubCategoryId] = createSignal<string | null>(p.existingIndicator?.subCategoryId ?? null);
+  const [shortLabel, setShortLabel] = createSignal(p.existingIndicator?.shortLabel ?? "");
   const [definition, setDefinition] = createSignal(p.existingIndicator?.definition ?? "");
   const [type, setType] = createSignal<"binary" | "numeric">(p.existingIndicator?.type ?? "binary");
   const [aggregation, setAggregation] = createSignal<"sum" | "avg">(p.existingIndicator?.aggregation ?? "sum");
+
+  const filteredSubCategories = () => {
+    const catId = categoryId();
+    if (!catId) return [];
+    return p.subCategories.filter((sc) => sc.categoryId === catId);
+  };
 
   const save = timActionForm(
     async (e: MouseEvent) => {
@@ -38,7 +49,9 @@ export function EditHfaIndicator(
 
       const indicator: HfaIndicator = {
         varName: trimmedVarName,
-        category: category().trim(),
+        categoryId: categoryId(),
+        subCategoryId: subCategoryId(),
+        shortLabel: shortLabel().trim(),
         definition: definition().trim(),
         type: type(),
         aggregation: aggregation(),
@@ -82,14 +95,41 @@ export function EditHfaIndicator(
           autoFocus
           mono
         />
-        <Input
+        <Select
           label={t3({ en: "Category", fr: "Catégorie" })}
-          value={category()}
-          onChange={setCategory}
+          value={categoryId() ?? ""}
+          onChange={(v) => {
+            setCategoryId(v || null);
+            setSubCategoryId(null);
+          }}
+          options={[
+            { value: "", label: t3({ en: "— None —", fr: "— Aucune —" }) },
+            ...p.categories.map((c) => ({ value: c.id, label: c.label })),
+          ]}
+          fullWidth
+        />
+        <Select
+          label={t3({ en: "Sub-category", fr: "Sous-catégorie" })}
+          value={subCategoryId() ?? ""}
+          onChange={(v) => setSubCategoryId(v || null)}
+          options={
+            categoryId()
+              ? [
+                  { value: "", label: t3({ en: "— None —", fr: "— Aucune —" }) },
+                  ...filteredSubCategories().map((sc) => ({ value: sc.id, label: sc.label })),
+                ]
+              : [{ value: "", label: t3({ en: "— Select category first —", fr: "— Sélectionnez d'abord une catégorie —" }) }]
+          }
+          fullWidth
+        />
+        <Input
+          label={t3({ en: "Short label", fr: "Libellé court" })}
+          value={shortLabel()}
+          onChange={setShortLabel}
           fullWidth
         />
         <TextArea
-          label={t3({ en: "Definition", fr: "Définition" })}
+          label={t3({ en: "Long label", fr: "Libellé long" })}
           value={definition()}
           onChange={setDefinition}
           fullWidth

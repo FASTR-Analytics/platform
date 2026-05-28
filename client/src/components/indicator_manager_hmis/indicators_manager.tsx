@@ -195,7 +195,7 @@ export function IndicatorsManager(p: Props) {
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={p.backToInstance} />
             <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "INDICATORS", fr: "INDICATEURS" })}
+              {t3({ en: "HMIS INDICATORS", fr: "INDICATEURS" })}
             </div>
             <div class="ui-gap-sm flex items-center">
               <Show when={instanceState.currentUserIsGlobalAdmin}>
@@ -210,8 +210,8 @@ export function IndicatorsManager(p: Props) {
           </div>
         }
       >
-        <FrameLeft panelChildren={<TabsNavigation tabs={tabs} vertical />}>
-          <div class="ui-pad ui-spy h-full w-full overflow-auto border-l">
+        <FrameTop panelChildren={<TabsNavigation tabs={tabs} />}>
+          <div class="ui-pad ui-spy h-full w-full overflow-auto">
             <Show when={tabs.isTabActive("common")}>
               <StateHolderWrapper state={indicators()} noPad>
                 {(keyedIndicators) => (
@@ -256,7 +256,7 @@ export function IndicatorsManager(p: Props) {
               </StateHolderWrapper>
             </Show>
           </div>
-        </FrameLeft>
+        </FrameTop>
       </FrameTop>
     </EditorWrapper>
   );
@@ -414,16 +414,17 @@ function CommonIndicatorsTable(p: {
     });
   }
 
-  const bulkActions: BulkAction<CommonIndicatorWithMappings>[] = instanceState.currentUserIsGlobalAdmin
-    ? [
-        {
-          label: t3(TC.delete),
-          intent: "danger",
-          outline: true,
-          onClick: handleBulkDeleteIndicators,
-        },
-      ]
-    : [];
+  const bulkActions: BulkAction<CommonIndicatorWithMappings>[] =
+    instanceState.currentUserIsGlobalAdmin
+      ? [
+          {
+            label: t3(TC.delete),
+            intent: "danger",
+            outline: true,
+            onClick: handleBulkDeleteIndicators,
+          },
+        ]
+      : [];
 
   return (
     <div class="flex h-full flex-col">
@@ -611,16 +612,17 @@ function RawIndicatorsTable(p: {
     });
   }
 
-  const bulkActions: BulkAction<RawIndicatorWithMappings>[] = instanceState.currentUserIsGlobalAdmin
-    ? [
-        {
-          label: t3(TC.delete),
-          intent: "danger",
-          outline: true,
-          onClick: handleBulkDeleteRawIndicators,
-        },
-      ]
-    : [];
+  const bulkActions: BulkAction<RawIndicatorWithMappings>[] =
+    instanceState.currentUserIsGlobalAdmin
+      ? [
+          {
+            label: t3(TC.delete),
+            intent: "danger",
+            outline: true,
+            onClick: handleBulkDeleteRawIndicators,
+          },
+        ]
+      : [];
 
   return (
     <div class="flex h-full flex-col">
