@@ -1,3 +1,7 @@
+[1.38.1] [user] [fixed] - Selected category no longer resets when data refreshes
+[1.38.1] [user] [added] - Sub-category is now available as a disaggregation option
+[1.38.1] [admin] [fixed] - HFA category selection no longer resets after data updates
+[1.38.1] [admin] [added] - HFA sub-category now available as a disaggregation option
 [1.38.0] [user] [added] - HFA indicators now support categories and sub-categories for better organization
 [1.38.0] [user] [added] - New Categories tab in HFA Indicators manager to create, edit, reorder, and delete categories and sub-categories
 [1.38.0] [user] [added] - Indicators can now have a short label in addition to the long label
