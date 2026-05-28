@@ -1,3 +1,29 @@
+[TBD] [user] [added] - Password protection option for shared visualization links
+[TBD] [user] [added] - Custom slugs for shared visualization links
+[TBD] [user] [added] - "Share links" button to view all shared links in a project
+[TBD] [user] [added] - Edit and update existing share links
+[TBD] [user] [added] - Share link count badge shown on visualization cards
+[TBD] [user] [added] - "Save to library" option when editing AI prompts
+[TBD] [user] [changed] - "New prompt" button renamed to "Create custom prompt"
+[TBD] [user] [added] - Disk space warning when creating a new project
+[TBD] [user] [added] - Disk space warning when copying a project
+[TBD] [user] [added] - Disk space warning when enabling a dataset
+[TBD] [user] [added] - Disk space warning when running a module
+[TBD] [admin] [added] - Share links now support custom slugs and password protection
+[TBD] [admin] [added] - New "Share links" button to view and manage all shared visualization links in a project
+[TBD] [admin] [added] - Visualization cards now show a badge indicating how many share links exist
+[TBD] [admin] [added] - Shared visualizations can be edited after creation to change slug or password
+[TBD] [admin] [added] - Password-protected shared visualizations prompt viewers for a password before displaying
+[TBD] [admin] [added] - Disk space is checked before creating projects, copying projects, enabling datasets, or running modules
+[TBD] [admin] [added] - Automatic volume resize is requested when disk usage exceeds 90%
+[TBD] [admin] [added] - Low disk space warning shown when attempting to create a new project
+[TBD] [admin] [added] - Projects can be designated as "central reporting" projects by authorized users
+[TBD] [admin] [added] - Central reporting projects are hidden from regular users and only visible to authorized users
+[TBD] [admin] [added] - New API endpoint to export data from central reporting projects
+[TBD] [admin] [added] - AI weekly token usage endpoint now available for monitoring
+[TBD] [admin] [added] - "Save to library" button added when editing a prompt in the AI prompt library
+[TBD] [admin] [changed] - "New prompt" button in prompt library renamed to "Create custom prompt"
+[TBD] [admin] [changed] - Share links now display creation date, view count, slug, and password status
 [TBD] [user] [changed] - Filter and breakdown options now display readable labels instead of codes
 [TBD] [user] [fixed] - Error messages now show readable names instead of internal identifiers
 [TBD] [admin] [changed] - Filter and replicate-by options now show human-readable labels instead of raw IDs
