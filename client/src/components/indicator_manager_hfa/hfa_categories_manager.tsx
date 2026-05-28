@@ -9,7 +9,7 @@ import {
   openComponent,
   timActionDelete,
 } from "panther";
-import { Show, createEffect, createMemo, createSignal } from "solid-js";
+import { Show, createEffect, createMemo } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -19,24 +19,24 @@ import { EditHfaIndicatorSubCategory } from "./edit_hfa_indicator_sub_category";
 type Props = {
   categories: HfaIndicatorCategory[];
   subCategories: HfaIndicatorSubCategory[];
+  selectedCategoryId: string | null;
+  onSelectCategory: (id: string | null) => void;
 };
 
 export function HfaCategoriesManager(p: Props) {
-  const [selectedCategoryId, setSelectedCategoryId] = createSignal<
-    string | null
-  >(p.categories[0]?.id ?? null);
-
+  // Selection is owned by the parent so it survives the StateHolderWrapper
+  // remount on every SSE refetch. Reconcile it against the current categories.
   createEffect(() => {
-    const current = selectedCategoryId();
+    const current = p.selectedCategoryId;
     if (current && !p.categories.some((c) => c.id === current)) {
-      setSelectedCategoryId(p.categories[0]?.id ?? null);
+      p.onSelectCategory(p.categories[0]?.id ?? null);
     } else if (!current && p.categories.length > 0) {
-      setSelectedCategoryId(p.categories[0].id);
+      p.onSelectCategory(p.categories[0].id);
     }
   });
 
   const selectedCategory = createMemo(() =>
-    p.categories.find((c) => c.id === selectedCategoryId()),
+    p.categories.find((c) => c.id === p.selectedCategoryId),
   );
 
   return (
@@ -44,8 +44,8 @@ export function HfaCategoriesManager(p: Props) {
       <div class="border-base-300 flex w-1/2 flex-none flex-col border-r pr-4">
         <CategoriesPane
           categories={p.categories}
-          selectedCategoryId={selectedCategoryId()}
-          onSelect={setSelectedCategoryId}
+          selectedCategoryId={p.selectedCategoryId}
+          onSelect={p.onSelectCategory}
         />
       </div>
       <div class="flex min-w-0 flex-1 flex-col pl-4">

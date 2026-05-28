@@ -29,12 +29,12 @@ export function getDisaggregationLabel(
   if (disOpt === "facility_type") {
     const custom = config.facilityColumns?.labelTypes;
     if (custom) return { en: custom, fr: custom };
-    return { en: "Facility type", fr: "Facility type" };
+    return { en: "Facility type", fr: "Type d'établissement" };
   }
   if (disOpt === "facility_ownership") {
     const custom = config.facilityColumns?.labelOwnership;
     if (custom) return { en: custom, fr: custom };
-    return { en: "Facility ownership", fr: "Facility ownership" };
+    return { en: "Facility ownership", fr: "Propriété de l'établissement" };
   }
   if (
     disOpt === "facility_custom_1" ||
@@ -46,7 +46,7 @@ export function getDisaggregationLabel(
     const n = Number(disOpt.slice(-1)) as 1 | 2 | 3 | 4 | 5;
     const custom = config.facilityColumns?.[`labelCustom${n}`];
     if (custom) return { en: custom, fr: custom };
-    return { en: `Facility custom ${n}`, fr: `Facility custom ${n}` };
+    return { en: `Facility custom ${n}`, fr: `Champ personnalisé ${n}` };
   }
 
   switch (disOpt) {
@@ -61,24 +61,26 @@ export function getDisaggregationLabel(
     case "indicator_common_id":
       return { en: "Indicator", fr: "Indicateur" };
     case "denominator":
-      return { en: "Denominator", fr: "Denominator" };
+      return { en: "Denominator", fr: "Dénominateur" };
     case "denominator_best_or_survey":
       return {
         en: "Denominator (best or survey)",
-        fr: "Denominator (best or survey)",
+        fr: "Dénominateur (meilleur ou enquête)",
       };
     case "source_indicator":
-      return { en: "Source indicator", fr: "Source indicator" };
+      return { en: "Source indicator", fr: "Indicateur source" };
     case "target_population":
-      return { en: "Target population", fr: "Target population" };
+      return { en: "Target population", fr: "Population cible" };
     case "ratio_type":
       return { en: "Ratio type", fr: "Type de ratio" };
     case "hfa_indicator":
-      return { en: "HFA indicator", fr: "HFA indicator" };
+      return { en: "HFA indicator", fr: "Indicateur HFA" };
     case "hfa_category":
-      return { en: "HFA category", fr: "HFA category" };
+      return { en: "HFA category", fr: "Catégorie HFA" };
+    case "hfa_sub_category":
+      return { en: "HFA sub-category", fr: "Sous-catégorie HFA" };
     case "time_point":
-      return { en: "Time point", fr: "Time point" };
+      return { en: "Time point", fr: "Point temporel" };
     case "iceh_indicator":
       return { en: "ICEH indicator", fr: "Indicateur ICEH" };
     case "strat":

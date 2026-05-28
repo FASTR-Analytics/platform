@@ -69,6 +69,12 @@ export function HfaIndicatorsManager(p: Props) {
     status: "loading",
   });
 
+  // Hoisted here (not inside HfaCategoriesManager) so the selection survives the
+  // StateHolderWrapper remount that happens on every SSE refetch/mutation.
+  const [selectedCategoryId, setSelectedCategoryId] = createSignal<string | null>(
+    null,
+  );
+
   const tabs = getTabs(
     [
       {
@@ -669,6 +675,8 @@ export function HfaIndicatorsManager(p: Props) {
                       <HfaCategoriesManager
                         categories={keyedCategories}
                         subCategories={keyedSubCategories}
+                        selectedCategoryId={selectedCategoryId()}
+                        onSelectCategory={setSelectedCategoryId}
                       />
                     )}
                   </StateHolderWrapper>
