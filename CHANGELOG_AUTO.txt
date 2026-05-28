@@ -1,3 +1,18 @@
+[TBD] [user] [added] - Dashboards now support a grid layout option
+[TBD] [user] [changed] - Dashboard editor shows a live full-dashboard preview instead of one item at a time
+[TBD] [user] [changed] - Dashboard layout setting replaces left/right sidebar option with sidebar or grid choice
+[TBD] [user] [added] - Dashboard cards now support multi-select with click, shift-click, and right-click actions
+[TBD] [user] [added] - Right-click menu on dashboard cards to delete one or multiple dashboards
+[TBD] [user] [changed] - Consistent multi-select behavior across visualizations, slide decks, and dashboards
+[TBD] [user] [fixed] - Shared visualizations and dashboard charts now display at correct scale
+[TBD] [admin] [added] - Dashboards now support a grid layout option
+[TBD] [admin] [changed] - Dashboard layout setting replaces menu position with layout type choice
+[TBD] [admin] [changed] - Dashboard editor now shows a live full-dashboard preview instead of single item preview
+[TBD] [admin] [added] - Multi-select support added to the dashboards list with batch delete
+[TBD] [admin] [added] - Right-click context menu on dashboard cards for quick actions
+[TBD] [admin] [changed] - Dashboard item list no longer highlights a selected item inline
+[TBD] [admin] [internal] - Standardized multi-select behavior across visualizations, slide decks, and dashboards
+[TBD] [admin] [internal] - HFA module scripts now use configurable templates instead of hardcoded R code
 [TBD] [user] [fixed] - Fixed sorting issues in table column and row groups
 [TBD] [admin] [fixed] - Table sorting now applies consistently to all row and column groups
 [TBD] [admin] [internal] - Public dashboard rendering streamlined for better reliability
