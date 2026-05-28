@@ -16,18 +16,20 @@ import {
 import {
   Button,
   Checkbox,
+  createListSelection,
   FrameLeftResizable,
   getColor,
   openAlert,
   openComponent,
   Select,
+  SelectionCircle,
   SelectList,
   showMenu,
   timActionDelete,
   type MenuItem,
   type SelectOption,
 } from "panther";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, For, Show } from "solid-js";
 import {
   vizGroupingMode,
   setVizGroupingMode,
@@ -462,37 +464,16 @@ function VisualizationGrid(p: VisualizationGridProps) {
   const metricLookup = () => createMetricLookup(p.metrics);
   const { notifyAI } = useAIProjectContext();
 
-  const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
-  const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(
-    null,
-  );
+  const selection = createListSelection<string>({
+    onSelectionChange: (ids) =>
+      notifyAI({ type: "selected_visualizations", vizIds: ids }),
+  });
 
-  function updateSelection(newSelected: Set<string>) {
-    setSelectedIds(newSelected);
-    notifyAI({
-      type: "selected_visualizations",
-      vizIds: Array.from(newSelected),
-    });
-  }
-
-  function clearSelection() {
-    setSelectedIds(new Set<string>());
-    setLastSelectedIndex(null);
-    notifyAI({ type: "selected_visualizations", vizIds: [] });
-  }
-
-  // Compute visual index order for current view (flat or grouped)
-  const getVisualIndexMap = (): Map<string, number> => {
+  const getOrderedVisualizationIds = (): string[] => {
     if (!p.subGroupConfig) {
-      // Flat view: use array order
-      const map = new Map<string, number>();
-      p.visualizations.forEach((po, idx) => {
-        map.set(po.id, idx);
-      });
-      return map;
+      return p.visualizations.map((po) => po.id);
     }
 
-    // Grouped view: use visual display order
     const { getGroupKey, getGroupOrder } = p.subGroupConfig;
     const order = getGroupOrder(p.modules);
     const groups = new Map<string, PresentationObjectSummary[]>();
@@ -511,114 +492,29 @@ function VisualizationGrid(p: VisualizationGridProps) {
           ]
         : Array.from(groups.keys());
 
-    let visualIndex = 0;
-    const visualIndexMap = new Map<string, number>();
+    const orderedIds: string[] = [];
     for (const key of keys) {
       const items = groups.get(key)!;
       for (const po of items) {
-        visualIndexMap.set(po.id, visualIndex++);
+        orderedIds.push(po.id);
       }
     }
-    return visualIndexMap;
+    return orderedIds;
   };
 
-  function handleVisualizationClick(
-    index: number,
-    po: PresentationObjectSummary,
-    event: MouseEvent,
-    isCircleClick: boolean,
-  ) {
-    if (isCircleClick) {
-      event.stopPropagation();
+  const visualIndexMap = (): Map<string, number> => {
+    const ids = getOrderedVisualizationIds();
+    const map = new Map<string, number>();
+    ids.forEach((id, idx) => map.set(id, idx));
+    return map;
+  };
 
-      // Cmd/Meta + circle click toggles
-      if (event.metaKey || event.ctrlKey) {
-        const newSelected = new Set(selectedIds());
-        if (newSelected.has(po.id)) {
-          newSelected.delete(po.id);
-        } else {
-          newSelected.add(po.id);
-        }
-        updateSelection(newSelected);
-        setLastSelectedIndex(index);
-        return;
-      }
-
-      // Shift + circle click does range selection
-      if (event.shiftKey && lastSelectedIndex() !== null) {
-        event.preventDefault();
-        const newSelected = new Set(selectedIds());
-        const start = Math.min(lastSelectedIndex()!, index);
-        const end = Math.max(lastSelectedIndex()!, index);
-
-        // Use visual index map to select items in display order
-        const visualIndexMap = getVisualIndexMap();
-        for (const viz of p.visualizations) {
-          const vizIndex = visualIndexMap.get(viz.id);
-          if (vizIndex !== undefined && vizIndex >= start && vizIndex <= end) {
-            newSelected.add(viz.id);
-          }
-        }
-        updateSelection(newSelected);
-        return;
-      }
-
-      // Regular circle click: if already selected, deselect; otherwise select only this one
-      const currentlySelected = selectedIds();
-      if (currentlySelected.has(po.id)) {
-        const newSelected = new Set(currentlySelected);
-        newSelected.delete(po.id);
-        updateSelection(newSelected);
-      } else {
-        updateSelection(new Set([po.id]));
-      }
-      setLastSelectedIndex(index);
-      return;
-    }
-
-    // Cmd/Meta + click on card body toggles
-    if (event.metaKey || event.ctrlKey) {
-      const newSelected = new Set(selectedIds());
-      if (newSelected.has(po.id)) {
-        newSelected.delete(po.id);
-      } else {
-        newSelected.add(po.id);
-      }
-      updateSelection(newSelected);
-      setLastSelectedIndex(index);
-      return;
-    }
-
-    // Shift + click on card body does range selection
-    if (event.shiftKey && lastSelectedIndex() !== null) {
-      event.preventDefault();
-      const newSelected = new Set(selectedIds());
-      const start = Math.min(lastSelectedIndex()!, index);
-      const end = Math.max(lastSelectedIndex()!, index);
-
-      // Use visual index map to select items in display order
-      const visualIndexMap = getVisualIndexMap();
-      for (const viz of p.visualizations) {
-        const vizIndex = visualIndexMap.get(viz.id);
-        if (vizIndex !== undefined && vizIndex >= start && vizIndex <= end) {
-          newSelected.add(viz.id);
-        }
-      }
-      updateSelection(newSelected);
-      return;
-    }
-
-    // Regular click - existing "edit viz" behavior
-    clearSelection();
-    p.onClick(po);
-  }
+  createEffect(() => {
+    selection.setItems(getOrderedVisualizationIds());
+  });
 
   async function handleMoveToFolder(po: PresentationObjectSummary) {
-    const selected = selectedIds();
-    const isItemSelected = selected.has(po.id);
-    const shouldMoveMultiple = isItemSelected && selected.size > 1;
-
-    const idsToMove = shouldMoveMultiple ? Array.from(selected) : [po.id];
+    const idsToMove = selection.getBatchIds(po.id);
 
     await openComponent({
       element: MoveToFolderModal,
@@ -630,20 +526,16 @@ function VisualizationGrid(p: VisualizationGridProps) {
       },
     });
 
-    clearSelection();
+    selection.clearSelection();
   }
 
   async function handleEditCommonProperties(po: PresentationObjectSummary) {
-    const selected = selectedIds();
-    const isItemSelected = selected.has(po.id);
-    const shouldEditMultiple = isItemSelected && selected.size > 1;
+    const idsToEdit = selection.getBatchIds(po.id);
 
-    if (!shouldEditMultiple) {
+    if (idsToEdit.length === 1) {
       p.onClick(po);
       return;
     }
-
-    const idsToEdit = Array.from(selected);
 
     const firstViz = p.visualizations.find((v) => v.id === idsToEdit[0]);
     if (!firstViz) return;
@@ -665,15 +557,11 @@ function VisualizationGrid(p: VisualizationGridProps) {
       },
     });
 
-    clearSelection();
+    selection.clearSelection();
   }
 
   async function handleCreateSlides(po: PresentationObjectSummary) {
-    const selected = selectedIds();
-    const isItemSelected = selected.has(po.id);
-    const shouldCreateMultiple = isItemSelected && selected.size > 1;
-
-    const idsToCreate = shouldCreateMultiple ? Array.from(selected) : [po.id];
+    const idsToCreate = selection.getBatchIds(po.id);
 
     // Get visualization details
     const vizsToCreate = idsToCreate
@@ -716,17 +604,11 @@ function VisualizationGrid(p: VisualizationGridProps) {
       },
     });
 
-    clearSelection();
+    selection.clearSelection();
   }
 
   async function handleDuplicate(po: PresentationObjectSummary) {
-    const selected = selectedIds();
-    const isItemSelected = selected.has(po.id);
-    const shouldDuplicateMultiple = isItemSelected && selected.size > 1;
-
-    const idsToDuplicate = shouldDuplicateMultiple
-      ? Array.from(selected)
-      : [po.id];
+    const idsToDuplicate = selection.getBatchIds(po.id);
 
     const poDetails = idsToDuplicate
       .map((id) => p.visualizations.find((v) => v.id === id))
@@ -742,15 +624,11 @@ function VisualizationGrid(p: VisualizationGridProps) {
       },
     });
 
-    clearSelection();
+    selection.clearSelection();
   }
 
   async function handleDelete(po: PresentationObjectSummary) {
-    const selected = selectedIds();
-    const isItemSelected = selected.has(po.id);
-    const shouldDeleteMultiple = isItemSelected && selected.size > 1;
-
-    const idsToDelete = shouldDeleteMultiple ? Array.from(selected) : [po.id];
+    const idsToDelete = selection.getBatchIds(po.id);
     const confirmText =
       idsToDelete.length > 1
         ? t3({
@@ -779,7 +657,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
         return results[0];
       },
       () => {
-        clearSelection();
+        selection.clearSelection();
         // SSE will handle refresh
       },
     );
@@ -793,16 +671,14 @@ function VisualizationGrid(p: VisualizationGridProps) {
       folders={p.folders}
       metrics={p.metrics}
       metricLookup={metricLookup()}
-      isSelected={selectedIds().has(po.id)}
-      selectedCount={selectedIds().size}
-      index={index}
-      onClick={() => {
-        clearSelection();
-        p.onClick(po);
+      isSelected={selection.isSelected(po.id)}
+      selectedCount={selection.selectedCount()}
+      onCardClick={(e) => {
+        e.stopPropagation();
+        selection.handleCardClick(index, po.id, e, () => p.onClick(po));
       }}
-      onCardClick={(e, isCircleClick) =>
-        handleVisualizationClick(index, po, e, isCircleClick)
-      }
+      onCircleClick={(e) => selection.handleCircleClick(index, po.id, e)}
+      onOpen={() => p.onClick(po)}
       onDuplicate={() => handleDuplicate(po)}
       onDelete={() => handleDelete(po)}
       onMoveToFolder={() => handleMoveToFolder(po)}
@@ -828,7 +704,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       fallback={
         <div
           class="ui-pad ui-gap grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
-          onClick={() => clearSelection()}
+          onClick={() => selection.clearSelection()}
         >
           <For each={p.visualizations} fallback={emptyMessage()}>
             {(po, i) => renderCard(po, i())}
@@ -859,20 +735,17 @@ function VisualizationGrid(p: VisualizationGridProps) {
                 ]
               : Array.from(groups.keys());
 
-          const visualIndexMap = getVisualIndexMap();
-
           return keys.map((key) => ({
             key,
             label: getGroupLabel(key, p.modules),
             items: groups.get(key)!,
-            visualIndexMap,
           }));
         };
 
         return (
           <div
             class="h-full w-full overflow-auto"
-            onClick={() => clearSelection()}
+            onClick={() => selection.clearSelection()}
           >
             <Show
               when={grouped().length > 0}
@@ -895,7 +768,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
                     <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start px-4 pt-1 pb-4">
                       <For each={group.items}>
                         {(po) =>
-                          renderCard(po, group.visualIndexMap.get(po.id)!)
+                          renderCard(po, visualIndexMap().get(po.id) ?? 0)
                         }
                       </For>
                     </div>
@@ -918,9 +791,9 @@ type VisualizationCardProps = {
   metricLookup: Map<string, MetricWithStatus>;
   isSelected: boolean;
   selectedCount: number;
-  index: number;
-  onClick: () => void;
-  onCardClick: (event: MouseEvent, isCircleClick: boolean) => void;
+  onCardClick: (event: MouseEvent) => void;
+  onCircleClick: (event: MouseEvent) => void;
+  onOpen: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onMoveToFolder: () => void;
@@ -980,7 +853,7 @@ function VisualizationCard(p: VisualizationCardProps) {
           fr: "Modifier la visualisation",
         }),
         icon: "pencil",
-        onClick: p.onClick,
+        onClick: p.onOpen,
       });
     }
     if (!p.po.isDefault) {
@@ -1034,29 +907,13 @@ function VisualizationCard(p: VisualizationCardProps) {
             "border-primary": p.isSelected,
             "hover:border-primary": !p.isSelected,
           }}
-          onClick={(e) => {
-            e.stopPropagation();
-            p.onCardClick(e, false);
-          }}
+          onClick={p.onCardClick}
           onContextMenu={handleContextMenu}
         >
-          <div
-            class="absolute top-2 right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
-            classList={{
-              "bg-primary text-primary-content opacity-100": p.isSelected,
-              "border border-base-300 bg-transparent hover:bg-base-300 hover:text-white [&:not(:hover)]:text-transparent":
-                !p.isSelected,
-            }}
-            onClick={(e) => p.onCardClick(e, true)}
-          >
-            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fill-rule="evenodd"
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                clip-rule="evenodd"
-              />
-            </svg>
-          </div>
+          <SelectionCircle
+            isSelected={p.isSelected}
+            onClick={p.onCircleClick}
+          />
           <PresentationObjectMiniDisplay
             projectId={p.projectId}
             presentationObjectId={p.po.id}

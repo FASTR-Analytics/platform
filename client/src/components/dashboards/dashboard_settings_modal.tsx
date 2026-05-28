@@ -34,8 +34,8 @@ export function DashboardSettingsModal(
   const [title, setTitle] = createSignal(p.initialTitle);
   const [slug, setSlug] = createSignal(p.initialSlug);
   const [isPublic, setIsPublic] = createSignal(p.initialIsPublic);
-  const [menuPosition, setMenuPosition] = createSignal<"left" | "right">(
-    p.initialLayout.menuPosition,
+  const [layoutType, setLayoutType] = createSignal<"sidebar" | "grid">(
+    p.initialLayout.type,
   );
 
   const save = timActionForm(
@@ -75,10 +75,7 @@ export function DashboardSettingsModal(
           };
         }
       }
-      const layout: DashboardLayout = {
-        type: "sidebar",
-        menuPosition: menuPosition(),
-      };
+      const layout: DashboardLayout = { type: layoutType() };
       return await serverActions.updateDashboard({
         projectId: p.projectId,
         dashboard_id: p.dashboardId,
@@ -121,19 +118,19 @@ export function DashboardSettingsModal(
           })}
         />
         <Select
-          label={t3({ en: "Menu position", fr: "Position du menu" })}
+          label={t3({ en: "Layout", fr: "Disposition" })}
           options={[
             {
-              value: "left",
-              label: t3({ en: "Left sidebar", fr: "Barre latérale gauche" }),
+              value: "sidebar",
+              label: t3({ en: "Sidebar", fr: "Barre latérale" }),
             },
             {
-              value: "right",
-              label: t3({ en: "Right sidebar", fr: "Barre latérale droite" }),
+              value: "grid",
+              label: t3({ en: "Grid", fr: "Grille" }),
             },
           ]}
-          value={menuPosition()}
-          onChange={(v) => setMenuPosition(v as "left" | "right")}
+          value={layoutType()}
+          onChange={(v) => setLayoutType(v as "sidebar" | "grid")}
           fullWidth
         />
       </div>

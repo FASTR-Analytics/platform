@@ -34,9 +34,9 @@ export type DashboardFigureBlockFromSchema = z.infer<typeof dashboardFigureBlock
 
 // ── Layout ──────────────────────────────────────────────────────────────────
 
-export const dashboardLayoutSchema = z.object({
-  type: z.literal("sidebar"),
-  menuPosition: z.enum(["left", "right"]),
-});
+export const dashboardLayoutSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("sidebar") }),
+  z.object({ type: z.literal("grid") }),
+]);
 
 export type DashboardLayoutFromSchema = z.infer<typeof dashboardLayoutSchema>;

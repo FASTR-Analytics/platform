@@ -8,7 +8,6 @@ import {
 } from "lib";
 import {
   Button,
-  ChartHolder,
   CopyToClipboardButton,
   EditorComponentProps,
   FrameLeftResizable,
@@ -29,12 +28,13 @@ import {
   getResultsValueInfoForPresentationObjectFromCacheOrFetch,
 } from "~/state/project/t2_presentation_objects";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
-import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/strip_figure_inputs";
 import { serverActions } from "~/server_actions";
 import { SelectVisualizationForSlide } from "~/components/slide_deck/select_visualization_for_slide";
 import { AddDashboardItemConfirmModal } from "./add_dashboard_item_modal";
 import { DashboardSettingsModal } from "./dashboard_settings_modal";
 import { DashboardItemList } from "./dashboard_item_list";
+import { DashboardViewer } from "~/components/public_viewer/dashboard";
+import type { PublicDashboardBundle } from "lib";
 
 type Props = EditorComponentProps<
   {
@@ -44,8 +44,6 @@ type Props = EditorComponentProps<
   },
   undefined
 >;
-
-const CANVAS_ID = "DASHBOARD_PREVIEW_CANVAS";
 
 export function DashboardEditor(p: Props) {
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
@@ -138,10 +136,7 @@ export function DashboardEditor(p: Props) {
         replicateBy,
         fcRes.data,
       );
-      if (
-        optRes.success &&
-        optRes.data.status === "ok"
-      ) {
+      if (optRes.success && optRes.data.status === "ok") {
         allReplicants = optRes.data.possibleValues;
       }
     }
@@ -260,54 +255,58 @@ export function DashboardEditor(p: Props) {
 
   return (
     <InnerEditorWrapper>
-    <FrameTop
-      panelChildren={
-        <StateHolderWrapper state={data()} noPad>
-          {(dashboard) => (
-            <HeadingBar heading={dashboard.title} class="border-base-300">
-              <div class="ui-gap-sm flex items-center">
-                <CopyToClipboardButton
-                  text={publicUrl(dashboard.slug)}
-                  outline
-                  size="sm"
-                >
-                  {t3({ en: "Copy link", fr: "Copier le lien" })}
-                </CopyToClipboardButton>
-                <Show when={canConfigure()}>
-                  <Button onClick={attemptAddItem} iconName="plus">
-                    {t3({ en: "Add item", fr: "Ajouter un élément" })}
-                  </Button>
+      <FrameTop
+        panelChildren={
+          <StateHolderWrapper state={data()} noPad>
+            {(dashboard) => (
+              <HeadingBar heading={dashboard.title} class="border-base-300">
+                <div class="ui-gap-sm flex items-center">
+                  <CopyToClipboardButton
+                    text={publicUrl(dashboard.slug)}
+                    outline
+                    size="sm"
+                  >
+                    {t3({ en: "Copy link", fr: "Copier le lien" })}
+                  </CopyToClipboardButton>
+                  <Show when={canConfigure()}>
+                    <Button onClick={attemptAddItem} iconName="plus">
+                      {t3({ en: "Add item", fr: "Ajouter un élément" })}
+                    </Button>
+                    <Button
+                      onClick={() => openSettings(dashboard)}
+                      iconName="settings"
+                      outline
+                    >
+                      {t3({ en: "Settings", fr: "Paramètres" })}
+                    </Button>
+                  </Show>
                   <Button
-                    onClick={() => openSettings(dashboard)}
-                    iconName="settings"
+                    onClick={() => p.close(undefined)}
+                    iconName="x"
                     outline
                   >
-                    {t3({ en: "Settings", fr: "Paramètres" })}
+                    {t3({ en: "Close", fr: "Fermer" })}
                   </Button>
-                </Show>
-                <Button onClick={() => p.close(undefined)} iconName="x" outline>
-                  {t3({ en: "Close", fr: "Fermer" })}
-                </Button>
-              </div>
-            </HeadingBar>
+                </div>
+              </HeadingBar>
+            )}
+          </StateHolderWrapper>
+        }
+      >
+        <StateHolderWrapper state={data()}>
+          {(dashboard) => (
+            <DashboardEditorInner
+              dashboard={dashboard}
+              selectedItemId={selectedItemId()}
+              setSelectedItemId={setSelectedItemId}
+              canConfigure={canConfigure()}
+              onReorder={handleReorder}
+              onUpdateLabel={updateLabel}
+              onDelete={attemptDeleteItem}
+            />
           )}
         </StateHolderWrapper>
-      }
-    >
-      <StateHolderWrapper state={data()}>
-        {(dashboard) => (
-          <DashboardEditorInner
-            dashboard={dashboard}
-            selectedItemId={selectedItemId()}
-            setSelectedItemId={setSelectedItemId}
-            canConfigure={canConfigure()}
-            onReorder={handleReorder}
-            onUpdateLabel={updateLabel}
-            onDelete={attemptDeleteItem}
-          />
-        )}
-      </StateHolderWrapper>
-    </FrameTop>
+      </FrameTop>
     </InnerEditorWrapper>
   );
 }
@@ -334,8 +333,35 @@ function DashboardEditorInner(p: InnerProps) {
     }
   });
 
-  const currentItem = createMemo(() =>
-    p.dashboard.items.find((x) => x.id === p.selectedItemId),
+  const layoutItems = createMemo((): PublicDashboardBundle["items"] => {
+    return p.dashboard.items
+      .map((item) => {
+        const source = item.figureBlock.source;
+        const fi = item.figureBlock.figureInputs;
+        if (!fi || !source || source.type !== "from_data") return undefined;
+        return {
+          id: item.id,
+          label: item.label,
+          sortOrder: item.sortOrder,
+          strippedFigureInputs: fi,
+          source: {
+            config: source.config,
+            metricId: source.metricId,
+            formatAs: "number" as const,
+            indicatorMetadata: source.indicatorMetadata,
+          },
+          geoData: item.geoData,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== undefined);
+  });
+
+  const bundle = createMemo(
+    (): PublicDashboardBundle => ({
+      title: p.dashboard.title,
+      layout: p.dashboard.layout,
+      items: layoutItems(),
+    }),
   );
 
   return (
@@ -355,8 +381,6 @@ function DashboardEditorInner(p: InnerProps) {
           <div class="flex-1 overflow-auto p-2">
             <DashboardItemList
               items={p.dashboard.items}
-              selectedItemId={p.selectedItemId}
-              setSelectedItemId={(id) => p.setSelectedItemId(id)}
               canConfigure={p.canConfigure}
               onReorder={p.onReorder}
               onUpdateLabel={p.onUpdateLabel}
@@ -366,63 +390,15 @@ function DashboardEditorInner(p: InnerProps) {
         </div>
       }
     >
-      <div class="h-full w-full p-4">
-        <Show
-          when={currentItem()}
-          keyed
-          fallback={
-            <div class="text-neutral text-sm">
-              {t3({
-                en: "Select an item to preview",
-                fr: "Sélectionnez un élément pour l'aperçu",
-              })}
-            </div>
-          }
-        >
-          {(item) => <DashboardItemPreview item={item} />}
-        </Show>
+      <div class="ui-pad-lg bg-base-200 h-full w-full">
+        <div class="h-full w-full border bg-white shadow-2xl">
+          <DashboardViewer
+            bundle={bundle()}
+            selectedItemId={p.selectedItemId}
+            setSelectedItemId={(id) => p.setSelectedItemId(id)}
+          />
+        </div>
       </div>
     </FrameLeftResizable>
-  );
-}
-
-function DashboardItemPreview(p: { item: DashboardItem }) {
-  const validSource = createMemo(() => {
-    const source = p.item.figureBlock.source;
-    const fi = p.item.figureBlock.figureInputs;
-    if (!fi || !source || source.type !== "from_data") return undefined;
-    return { source, fi };
-  });
-
-  return (
-    <Show
-      when={validSource()}
-      keyed
-      fallback={
-        <div class="text-neutral text-sm">
-          {t3({
-            en: "This item has no rendered figure data.",
-            fr: "Cet élément ne contient pas de données de figure.",
-          })}
-        </div>
-      }
-    >
-      {(v) => (
-        <ChartHolder
-          canvasElementId={`${CANVAS_ID}_${p.item.id}`}
-          chartInputs={hydrateFigureInputsForPublicRendering(
-            v.fi,
-            {
-              config: v.source.config,
-              metricId: v.source.metricId,
-              formatAs: "number",
-              indicatorMetadata: v.source.indicatorMetadata,
-            },
-            p.item.geoData,
-          )}
-          height={"flex"}
-        />
-      )}
-    </Show>
   );
 }

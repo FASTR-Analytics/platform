@@ -6,11 +6,13 @@ import {
 } from "lib";
 import {
   Button,
+  createListSelection,
   FrameLeftResizable,
   FrameTop,
   HeadingBar,
   OpenEditorProps,
   Select,
+  SelectionCircle,
   SelectList,
   getColor,
   openComponent,
@@ -59,15 +61,7 @@ type ExtendedProps = {
 export function ProjectDecks(p: ExtendedProps) {
   const { aiContext } = useAIProjectContext();
 
-  const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
-  const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(
-    null,
-  );
-
-  function clearSelection() {
-    setSelectedIds(new Set<string>());
-    setLastSelectedIndex(null);
-  }
+  const selection = createListSelection<string>();
 
   async function openDeck(deckId: string, deckLabel: string) {
     await p.openProjectEditor({
@@ -148,94 +142,14 @@ export function ProjectDecks(p: ExtendedProps) {
     }
   });
 
-  // Selection handlers
-
-  function handleDeckClick(
-    index: number,
-    deck: SlideDeckSummary,
-    event: MouseEvent,
-    isCircleClick: boolean,
-  ) {
-    if (isCircleClick) {
-      event.stopPropagation();
-
-      if (event.metaKey || event.ctrlKey) {
-        const newSelected = new Set(selectedIds());
-        if (newSelected.has(deck.id)) {
-          newSelected.delete(deck.id);
-        } else {
-          newSelected.add(deck.id);
-        }
-        setSelectedIds(newSelected);
-        setLastSelectedIndex(index);
-        return;
-      }
-
-      if (event.shiftKey && lastSelectedIndex() !== null) {
-        event.preventDefault();
-        const newSelected = new Set(selectedIds());
-        const start = Math.min(lastSelectedIndex()!, index);
-        const end = Math.max(lastSelectedIndex()!, index);
-        const decks = filteredDecks();
-        for (let i = start; i <= end; i++) {
-          if (decks[i]) {
-            newSelected.add(decks[i].id);
-          }
-        }
-        setSelectedIds(newSelected);
-        return;
-      }
-
-      const currentlySelected = selectedIds();
-      if (currentlySelected.has(deck.id)) {
-        const newSelected = new Set(currentlySelected);
-        newSelected.delete(deck.id);
-        setSelectedIds(newSelected);
-      } else {
-        setSelectedIds(new Set([deck.id]));
-      }
-      setLastSelectedIndex(index);
-      return;
-    }
-
-    if (event.metaKey || event.ctrlKey) {
-      const newSelected = new Set(selectedIds());
-      if (newSelected.has(deck.id)) {
-        newSelected.delete(deck.id);
-      } else {
-        newSelected.add(deck.id);
-      }
-      setSelectedIds(newSelected);
-      setLastSelectedIndex(index);
-      return;
-    }
-
-    if (event.shiftKey && lastSelectedIndex() !== null) {
-      event.preventDefault();
-      const newSelected = new Set(selectedIds());
-      const start = Math.min(lastSelectedIndex()!, index);
-      const end = Math.max(lastSelectedIndex()!, index);
-      const decks = filteredDecks();
-      for (let i = start; i <= end; i++) {
-        if (decks[i]) {
-          newSelected.add(decks[i].id);
-        }
-      }
-      setSelectedIds(newSelected);
-      return;
-    }
-
-    clearSelection();
-    openDeck(deck.id, deck.label);
-  }
+  createEffect(() => {
+    selection.setItems(filteredDecks().map((d) => d.id));
+  });
 
   // Batch operation handlers
 
   async function handleMoveToFolder(deck: SlideDeckSummary) {
-    const selected = selectedIds();
-    const isItemSelected = selected.has(deck.id);
-    const shouldMoveMultiple = isItemSelected && selected.size > 1;
-    const idsToMove = shouldMoveMultiple ? Array.from(selected) : [deck.id];
+    const idsToMove = selection.getBatchIds(deck.id);
 
     await openComponent({
       element: MoveDeckToFolderModal,
@@ -247,16 +161,11 @@ export function ProjectDecks(p: ExtendedProps) {
       },
     });
 
-    clearSelection();
+    selection.clearSelection();
   }
 
   async function handleDuplicate(deck: SlideDeckSummary) {
-    const selected = selectedIds();
-    const isItemSelected = selected.has(deck.id);
-    const shouldDuplicateMultiple = isItemSelected && selected.size > 1;
-    const idsToDuplicate = shouldDuplicateMultiple
-      ? Array.from(selected)
-      : [deck.id];
+    const idsToDuplicate = selection.getBatchIds(deck.id);
 
     const deckDetails = idsToDuplicate
       .map((id) => projectState.slideDecks.find((d) => d.id === id))
@@ -272,16 +181,11 @@ export function ProjectDecks(p: ExtendedProps) {
       },
     });
 
-    clearSelection();
+    selection.clearSelection();
   }
 
   async function handleDelete(deck: SlideDeckSummary) {
-    const selected = selectedIds();
-    const isItemSelected = selected.has(deck.id);
-    const shouldDeleteMultiple = isItemSelected && selected.size > 1;
-    const idsToDelete = shouldDeleteMultiple
-      ? Array.from(selected)
-      : [deck.id];
+    const idsToDelete = selection.getBatchIds(deck.id);
 
     const confirmText =
       idsToDelete.length > 1
@@ -305,7 +209,7 @@ export function ProjectDecks(p: ExtendedProps) {
         return results[0];
       },
       () => {
-        clearSelection();
+        selection.clearSelection();
       },
     );
     await deleteAction.click();
@@ -315,8 +219,8 @@ export function ProjectDecks(p: ExtendedProps) {
     e.preventDefault();
 
     const isMultiSelect =
-      selectedIds().has(deck.id) && selectedIds().size > 1;
-    const count = selectedIds().size;
+      selection.isSelected(deck.id) && selection.selectedCount() > 1;
+    const count = selection.selectedCount();
 
     const items: MenuItem[] = [
       {
@@ -524,7 +428,7 @@ export function ProjectDecks(p: ExtendedProps) {
         >
           <div
             class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
-            onClick={() => clearSelection()}
+            onClick={() => selection.clearSelection()}
           >
             <For
               each={filteredDecks()}
@@ -537,7 +441,7 @@ export function ProjectDecks(p: ExtendedProps) {
               }
             >
               {(deck, i) => {
-                const isSelected = () => selectedIds().has(deck.id);
+                const isSelected = () => selection.isSelected(deck.id);
                 return (
                   <div class="group grid grid-rows-subgrid row-span-2 gap-y-1">
                     <div class="font-400 text-base-content text-xs italic select-none pointer-events-none pb-1">
@@ -552,32 +456,18 @@ export function ProjectDecks(p: ExtendedProps) {
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeckClick(i(), deck, e, false);
+                        selection.handleCardClick(i(), deck.id, e, () =>
+                          openDeck(deck.id, deck.label),
+                        );
                       }}
                       onContextMenu={(e) => handleContextMenu(e, deck)}
                     >
-                      <div
-                        class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
-                        classList={{
-                          "bg-primary text-primary-content opacity-100":
-                            isSelected(),
-                          "border border-base-300 bg-transparent hover:bg-base-300 hover:text-white [&:not(:hover)]:text-transparent":
-                            !isSelected(),
-                        }}
-                        onClick={(e) => handleDeckClick(i(), deck, e, true)}
-                      >
-                        <svg
-                          class="h-4 w-4"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
+                      <SelectionCircle
+                        isSelected={isSelected()}
+                        onClick={(e) =>
+                          selection.handleCircleClick(i(), deck.id, e)
+                        }
+                      />
                       <Show
                         when={deck.firstSlideId}
                         fallback={

@@ -4,12 +4,16 @@ import { t3 } from "lib";
 import {
   Button,
   ChartHolder,
+  FrameLeft,
+  FrameRight,
+  FrameTop,
   SelectList,
   StateHolderWrapper,
   saveAs,
   timQuery,
+  type FigureInputs,
 } from "panther";
-import { Show, createSignal } from "solid-js";
+import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/strip_figure_inputs";
 import { _SERVER_HOST } from "~/server_actions";
 
@@ -58,7 +62,7 @@ export default function PublicDashboard() {
   return (
     <StateHolderWrapper state={bundleHolder.state()}>
       {(bundle) => (
-        <PublicDashboardInner
+        <DashboardViewer
           bundle={bundle}
           selectedItemId={selectedItemId()}
           setSelectedItemId={setSelectedItemId}
@@ -69,14 +73,14 @@ export default function PublicDashboard() {
   );
 }
 
-type InnerProps = {
+export type DashboardViewerProps = {
   bundle: PublicDashboardBundle;
   selectedItemId: string | undefined;
   setSelectedItemId: (id: string) => void;
-  onDownload: () => void;
+  onDownload?: () => void;
 };
 
-function PublicDashboardInner(p: InnerProps) {
+export function DashboardViewer(p: DashboardViewerProps) {
   const items = () =>
     [...p.bundle.items].sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -87,47 +91,71 @@ function PublicDashboardInner(p: InnerProps) {
     return list.find((i) => i.id === selected) ?? list[0];
   };
 
-  const isRight = () => p.bundle.layout.menuPosition === "right";
+  const layoutType = () => p.bundle.layout.type;
 
   return (
-    <div class="flex h-screen w-screen flex-col md:flex-row">
-      <div
-        class="border-base-300 ui-spy-sm flex w-64 min-w-0 flex-col overflow-auto md:h-screen"
-        classList={{
-          "border-r md:border-r": !isRight(),
-          "border-l md:border-l md:order-2": isRight(),
-        }}
-      >
-        <div class="border-base-300 ui-pad border-b">
-          <div class="font-700 truncate text-lg">{p.bundle.title}</div>
+    <FrameTop
+      panelChildren={
+        <div class="font-700 border-base-300 ui-pad-x-lg ui-pad border-b text-lg">
+          {p.bundle.title}
         </div>
-        <div class="flex-1 overflow-auto p-2">
+      }
+    >
+      <Switch>
+        <Match when={layoutType() === "grid"}>
+          <GridLayout title={p.bundle.title} items={items()} />
+        </Match>
+        <Match when={layoutType() === "sidebar"}>
+          <SidebarLayout
+            title={p.bundle.title}
+            items={items()}
+            currentItem={currentItem()}
+            setSelectedItemId={p.setSelectedItemId}
+            onDownload={p.onDownload}
+          />
+        </Match>
+      </Switch>
+    </FrameTop>
+  );
+}
+
+export type SidebarLayoutProps = {
+  title: string;
+  items: PublicDashboardBundle["items"];
+  currentItem: PublicDashboardBundle["items"][number] | undefined;
+  setSelectedItemId: (id: string) => void;
+  onDownload?: () => void;
+};
+
+export function SidebarLayout(p: SidebarLayoutProps) {
+  return (
+    <FrameLeft
+      panelChildren={
+        <div class="ui-pad border-base-300 h-full max-w-[400px] border-r">
           <SelectList
-            options={items().map((item) => ({
+            options={p.items.map((item) => ({
               value: item.id,
               label: item.label,
             }))}
-            value={currentItem()?.id}
+            value={p.currentItem?.id}
             onChange={(id) => p.setSelectedItemId(id)}
             intent="primary"
             fullWidth
           />
         </div>
-      </div>
-      <div
-        class="relative flex-1 overflow-auto"
-        classList={{ "md:order-1": isRight() }}
-      >
+      }
+    >
+      <div class="ui-pad-lg relative h-full w-full overflow-auto">
         <div class="absolute top-4 right-4 z-10">
-          <Show when={currentItem()}>
+          <Show when={p.currentItem}>
             <Button onClick={p.onDownload} iconName="download" outline />
           </Show>
         </div>
         <Show
-          when={currentItem()}
+          when={p.currentItem}
           keyed
           fallback={
-            <div class="ui-pad text-neutral text-sm">
+            <div class="text-neutral text-sm">
               {t3({
                 en: "No items in this dashboard",
                 fr: "Aucun élément dans ce tableau de bord",
@@ -135,23 +163,73 @@ function PublicDashboardInner(p: InnerProps) {
             </div>
           }
         >
-          {(item) => {
-            const fi = () =>
-              hydrateFigureInputsForPublicRendering(
-                item.strippedFigureInputs,
-                item.source,
-                item.geoData,
-              );
-            return (
-              <ChartHolder
-                canvasElementId={`${CANVAS_ID}_${item.id}`}
-                chartInputs={fi()}
-                height={"flex"}
-              />
-            );
-          }}
+          {(item) => (
+            <DashboardItemChart
+              itemId={item.id}
+              strippedFigureInputs={item.strippedFigureInputs}
+              source={item.source}
+              geoData={item.geoData}
+            />
+          )}
         </Show>
       </div>
+    </FrameLeft>
+  );
+}
+
+export type GridLayoutProps = {
+  title: string;
+  items: PublicDashboardBundle["items"];
+};
+
+export function GridLayout(p: GridLayoutProps) {
+  return (
+    <div class="ui-gap-lg ui-pad-lg grid grid-cols-2 content-start overflow-auto">
+      <For each={p.items}>
+        {(item) => (
+          <div class="border-base-300 ui-pad aspect-video rounded border">
+            <DashboardItemChart
+              itemId={item.id}
+              strippedFigureInputs={item.strippedFigureInputs}
+              source={item.source}
+              geoData={item.geoData}
+            />
+          </div>
+        )}
+      </For>
     </div>
+  );
+}
+
+export type DashboardItemChartProps = {
+  itemId: string;
+  strippedFigureInputs: FigureInputs;
+  source: PublicDashboardBundle["items"][number]["source"];
+  geoData?: unknown;
+};
+
+export function DashboardItemChart(p: DashboardItemChartProps) {
+  const fi = () =>
+    hydrateFigureInputsForPublicRendering(
+      p.strippedFigureInputs,
+      p.source,
+      p.geoData,
+    );
+  const scaledFi = (): FigureInputs => {
+    const originalFi = fi();
+    return {
+      ...originalFi,
+      style: {
+        ...originalFi.style,
+        scale: 1,
+      },
+    };
+  };
+  return (
+    <ChartHolder
+      canvasElementId={`${CANVAS_ID}_${p.itemId}`}
+      chartInputs={scaledFi()}
+      height={"flex"}
+    />
   );
 }

@@ -5,6 +5,7 @@ import {
   saveAs,
   StateHolderWrapper,
   timQuery,
+  type FigureInputs,
 } from "panther";
 import { Show } from "solid-js";
 import type { APIResponseWithData, ShareVizBundle } from "lib";
@@ -73,16 +74,27 @@ export default function PublicVisualization() {
       {/* </Show> */}
       <StateHolderWrapper state={bundleHolder.state()} noPad>
         {(bundle) => {
-          const fi = hydrateFigureInputsForPublicRendering(
-            bundle.strippedFigureInputs,
-            bundle.source,
-            bundle.geoData,
-          );
+          const fi = () =>
+            hydrateFigureInputsForPublicRendering(
+              bundle.strippedFigureInputs,
+              bundle.source,
+              bundle.geoData,
+            );
+          const scaledFi = (): FigureInputs => {
+            const originalFi = fi();
+            return {
+              ...originalFi,
+              style: {
+                ...originalFi.style,
+                scale: 1,
+              },
+            };
+          };
           return (
             <ChartHolder
               canvasElementId={CANVAS_ID}
               noRescaleWithWidthChange={noRescale()}
-              chartInputs={fi}
+              chartInputs={scaledFi()}
               height={chartHeight()}
             />
           );

@@ -1,13 +1,17 @@
-import { DashboardSummary, t3 } from "lib";
+import { DashboardSummary, t3, TC } from "lib";
 import {
   Button,
+  createListSelection,
   FrameTop,
   HeadingBar,
   OpenEditorProps,
   openComponent,
+  SelectionCircle,
+  showMenu,
   timActionDelete,
+  type MenuItem,
 } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
 import { serverActions } from "~/server_actions";
 import { CreateDashboardModal } from "./create_dashboard_modal";
@@ -22,6 +26,8 @@ type Props = {
 export function ProjectDashboards(p: Props) {
   const [searchText, setSearchText] = createSignal("");
 
+  const selection = createListSelection<string>();
+
   const filtered = (): DashboardSummary[] => {
     const dashboards = projectState.dashboards;
     if (searchText().length < 3) return dashboards;
@@ -31,6 +37,10 @@ export function ProjectDashboards(p: Props) {
         d.title.toLowerCase().includes(q) || d.slug.toLowerCase().includes(q),
     );
   };
+
+  createEffect(() => {
+    selection.setItems(filtered().map((d) => d.id));
+  });
 
   async function openDashboard(dashboardId: string, title: string) {
     await p.openProjectEditor({
@@ -53,19 +63,67 @@ export function ProjectDashboards(p: Props) {
     await openDashboard(res.newDashboardId, d?.title || "Dashboard");
   }
 
-  async function attemptDelete(dashboard: DashboardSummary) {
+  async function handleDelete(dashboard: DashboardSummary) {
+    const idsToDelete = selection.getBatchIds(dashboard.id);
+
+    const confirmText =
+      idsToDelete.length > 1
+        ? t3({
+            en: `Are you sure you want to delete ${idsToDelete.length} dashboards?`,
+            fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} tableaux de bord ?`,
+          })
+        : t3({
+            en: `Are you sure you want to delete "${dashboard.title}"?`,
+            fr: `Êtes-vous sûr de vouloir supprimer « ${dashboard.title} » ?`,
+          });
+
     const deleteAction = timActionDelete(
-      t3({
-        en: `Are you sure you want to delete "${dashboard.title}"?`,
-        fr: `Êtes-vous sûr de vouloir supprimer « ${dashboard.title} » ?`,
-      }),
-      async () =>
-        serverActions.deleteDashboard({
-          projectId: projectState.id,
-          dashboard_id: dashboard.id,
-        }),
+      confirmText,
+      async () => {
+        const promises = idsToDelete.map((id) =>
+          serverActions.deleteDashboard({
+            projectId: projectState.id,
+            dashboard_id: id,
+          }),
+        );
+        const results = await Promise.all(promises);
+        const failed = results.filter((r) => !r.success);
+        if (failed.length > 0) {
+          return failed[0];
+        }
+        return results[0];
+      },
+      () => {
+        selection.clearSelection();
+      },
     );
     await deleteAction.click();
+  }
+
+  function handleContextMenu(e: MouseEvent, dashboard: DashboardSummary) {
+    e.preventDefault();
+
+    const isMultiSelect =
+      selection.isSelected(dashboard.id) && selection.selectedCount() > 1;
+    const count = selection.selectedCount();
+
+    const items: MenuItem[] = [
+      {
+        label: isMultiSelect
+          ? t3({
+              en: `Delete ${count} dashboards`,
+              fr: `Supprimer ${count} tableaux de bord`,
+            })
+          : t3(TC.delete),
+        icon: "trash",
+        intent: "danger",
+        onClick: () => handleDelete(dashboard),
+      },
+    ];
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
+    });
   }
 
   const canConfigure = () =>
@@ -89,7 +147,10 @@ export function ProjectDashboards(p: Props) {
         </HeadingBar>
       }
     >
-      <div class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] content-start items-start overflow-auto">
+      <div
+        class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] content-start items-start overflow-auto"
+        onClick={() => selection.clearSelection()}
+      >
         <For
           each={filtered()}
           fallback={
@@ -106,12 +167,29 @@ export function ProjectDashboards(p: Props) {
             </div>
           }
         >
-          {(dashboard) => (
-            <div class="border-base-300 ui-spy hover:border-primary cursor-pointer rounded-md border p-3 transition-colors">
+          {(dashboard, i) => {
+            const isSelected = () => selection.isSelected(dashboard.id);
+            return (
               <div
-                class="ui-spy"
-                onClick={() => openDashboard(dashboard.id, dashboard.title)}
+                class="group relative cursor-pointer rounded-md border p-3 transition-colors"
+                classList={{
+                  "border-base-300 hover:border-primary": !isSelected(),
+                  "border-primary": isSelected(),
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selection.handleCardClick(i(), dashboard.id, e, () =>
+                    openDashboard(dashboard.id, dashboard.title),
+                  );
+                }}
+                onContextMenu={(e) => handleContextMenu(e, dashboard)}
               >
+                <SelectionCircle
+                  isSelected={isSelected()}
+                  onClick={(e) =>
+                    selection.handleCircleClick(i(), dashboard.id, e)
+                  }
+                />
                 <div class="font-700 truncate text-base">{dashboard.title}</div>
                 <div class="text-neutral truncate font-mono text-xs">
                   /{dashboard.slug}
@@ -136,22 +214,8 @@ export function ProjectDashboards(p: Props) {
                   </span>
                 </div>
               </div>
-              <Show when={canConfigure()}>
-                <div class="flex justify-end">
-                  <Button
-                    size="sm"
-                    intent="danger"
-                    outline
-                    iconName="trash"
-                    onClick={(e: MouseEvent) => {
-                      e.stopPropagation();
-                      attemptDelete(dashboard);
-                    }}
-                  />
-                </div>
-              </Show>
-            </div>
-          )}
+            );
+          }}
         </For>
       </div>
     </FrameTop>

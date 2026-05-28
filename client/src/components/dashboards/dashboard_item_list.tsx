@@ -5,8 +5,6 @@ import { For, Show, createEffect, createSignal, on } from "solid-js";
 
 type Props = {
   items: DashboardItem[];
-  selectedItemId: string | undefined;
-  setSelectedItemId: (id: string) => void;
   canConfigure: boolean;
   onReorder: (oldIds: string[], newIds: string[]) => Promise<void>;
   onUpdateLabel: (itemId: string, label: string) => Promise<void>;
@@ -80,9 +78,7 @@ export function DashboardItemList(p: Props) {
               {(fullItem) => (
                 <DashboardItemRow
                   item={fullItem}
-                  isSelected={p.selectedItemId === fullItem.id}
                   canConfigure={p.canConfigure}
-                  onSelect={() => p.setSelectedItemId(fullItem.id)}
                   onUpdateLabel={(label) =>
                     p.onUpdateLabel(fullItem.id, label)
                   }
@@ -99,9 +95,7 @@ export function DashboardItemList(p: Props) {
 
 type RowProps = {
   item: DashboardItem;
-  isSelected: boolean;
   canConfigure: boolean;
-  onSelect: () => void;
   onUpdateLabel: (label: string) => Promise<void>;
   onDelete: () => Promise<void>;
 };
@@ -110,8 +104,7 @@ function DashboardItemRow(p: RowProps) {
   const [editing, setEditing] = createSignal(false);
   const [draftLabel, setDraftLabel] = createSignal(p.item.label);
 
-  function startEdit(e: MouseEvent) {
-    e.stopPropagation();
+  function startEdit() {
     setDraftLabel(p.item.label);
     setEditing(true);
   }
@@ -133,11 +126,8 @@ function DashboardItemRow(p: RowProps) {
     <div
       class="border-base-300 rounded border p-2"
       classList={{
-        "bg-primary text-base-100": p.isSelected,
-        "hover:bg-base-200 cursor-pointer": !p.isSelected,
         "cursor-grab": p.canConfigure,
       }}
-      onClick={p.onSelect}
     >
       <Show
         when={editing()}

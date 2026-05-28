@@ -14,10 +14,9 @@ export type { FigureBlock, FigureSource };
 
 // ── Dashboard core types ────────────────────────────────────────────────────
 
-export type DashboardLayout = {
-  type: "sidebar";
-  menuPosition: "left" | "right";
-};
+export type DashboardLayout =
+  | { type: "sidebar" }
+  | { type: "grid" };
 
 export type DashboardItem = {
   id: string;
@@ -44,7 +43,7 @@ export type Dashboard = {
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 export function getStartingLayoutForDashboard(): DashboardLayout {
-  return { type: "sidebar", menuPosition: "left" };
+  return { type: "sidebar" };
 }
 
 // ── API DTOs ────────────────────────────────────────────────────────────────

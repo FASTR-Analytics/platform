@@ -1,4 +1,9 @@
-import type { HfaIndicator, HfaIndicatorCode } from "lib";
+import type {
+  HfaIndicator,
+  HfaIndicatorCode,
+  ModuleConfigSelections,
+  ModuleDefinitionInstalled,
+} from "lib";
 import {
   extractDependenciesFromCode,
   buildUnionDependencyGraph,
@@ -94,11 +99,17 @@ function buildPerTimePointMutateExpression(
 }
 
 export function getScriptWithParametersHfa(
+  moduleDefinition: ModuleDefinitionInstalled,
+  configSelections: ModuleConfigSelections,
+  countryIso3: string | undefined,
   indicators: HfaIndicator[],
   indicatorCode: HfaIndicatorCode[],
   knownDatasetVariables: Set<string>,
-  stopIfIndicatorFails: boolean,
 ): string {
+  const stopIfIndicatorFails =
+    configSelections.parameterSelections["STOP_IF_INDICATOR_FAILS"]?.trim() !==
+      "FALSE";
+
   const allIndicatorVarNames = new Set(indicators.map((ind) => ind.varName));
 
   // Group code by indicator
@@ -167,7 +178,10 @@ export function getScriptWithParametersHfa(
     for (const indicator of filteredIndicators) {
       const deps = graphResult.dependenciesMap.get(indicator.varName) ?? [];
       for (const dep of deps) {
-        if (skippedIndicators.has(dep) && !skippedIndicators.has(indicator.varName)) {
+        if (
+          skippedIndicators.has(dep) &&
+          !skippedIndicators.has(indicator.varName)
+        ) {
           skippedIndicators.add(indicator.varName);
           warnings.push(
             `Skipped indicator "${indicator.varName}": depends on skipped indicator "${dep}"`,
@@ -196,101 +210,116 @@ export function getScriptWithParametersHfa(
     knownDatasetVariables,
   );
 
-  const { ordered, cycles } = topologicalSort(filteredIndicators, filteredGraphResult);
+  const { ordered, cycles } = topologicalSort(
+    filteredIndicators,
+    filteredGraphResult,
+  );
   if (cycles.length > 0) {
     throw new Error(
       `Circular dependencies detected:\n${formatCycles(cycles)}`,
     );
   }
 
-  const warningPrints = warnings.length > 0
-    ? warnings.map((w) => `warning("${w.replace(/"/g, '\\"')}")`).join("\n") + "\n\n"
-    : "";
+  // Build dynamic R fragments
+  const warningPrints = warnings
+    .map((w) => `warning("${w.replace(/"/g, '\\"')}")`)
+    .join("\n");
 
-  const script = `
-library(dplyr)
-library(tidyr)
+  const indicatorMutates = ordered
+    .map((indicator) => {
+      const snippets = codeByIndicator.get(indicator.varName) ?? [];
+      const activeSnippets = snippets.filter(
+        (s) => s.rCode && s.rCode.trim() !== "",
+      );
+      if (activeSnippets.length === 0) {
+        throw new Error(
+          `Indicator "${indicator.varName}" has no R code configured for any time point. Configure R code for this indicator before running the module.`,
+        );
+      }
+      const expr = buildPerTimePointMutateExpression(
+        indicator,
+        activeSnippets,
+        allIndicatorVarNames,
+        knownDatasetVariables,
+      );
+      return `  mutate(${indicator.varName} = ${expr})`;
+    })
+    .join(" %>%\n");
 
-print("Starting HFA script...")
-${warningPrints}
-# Read and pivot data to wide format
-data <- read.csv('../datasets/hfa.csv')
-data_wide <- data %>%
-  pivot_wider(names_from = var_name, values_from = value)
+  const indicatorCols = ordered
+    .map((ind) => `"${ind.varName}"`)
+    .join(", ");
 
-# Detect facility columns dynamically
-facility_cols <- names(data_wide)[grepl("^(facility_|admin_area_|time_point)", names(data_wide))]
+  const indicatorMetadata = [
+    `  hfa_indicator = c(${ordered.map((i) => `"${i.varName}"`).join(", ")})`,
+    `  hfa_category = c(${ordered.map((i) => `"${i.category}"`).join(", ")})`,
+    `  ind_type = c(${ordered.map((i) => `"${i.type}"`).join(", ")})`,
+    `  ind_aggregation = c(${ordered.map((i) => `"${i.aggregation}"`).join(", ")})`,
+  ].join(",\n");
 
-# Convert pivoted variable columns to numeric (they may be character after pivot)
-data_wide <- data_wide %>%
-  mutate(across(-all_of(facility_cols), as.numeric))
+  let str = moduleDefinition.script;
 
-# Calculate indicators
-results <- data_wide %>%
-${ordered
-  .map((indicator) => {
-    const snippets = codeByIndicator.get(indicator.varName) ?? [];
-    const activeSnippets = snippets.filter(
-      (s) => s.rCode && s.rCode.trim() !== "",
-    );
-    if (activeSnippets.length === 0) {
-      throw new Error(
-        `Indicator "${indicator.varName}" has no R code configured for any time point. Configure R code for this indicator before running the module.`,
+  // Standard substitutions
+  str = str.replaceAll("COUNTRY_ISO3", `"${countryIso3 ?? "UNKNOWN"}"`);
+
+  for (const ds of moduleDefinition.dataSources) {
+    if (ds.sourceType === "dataset") {
+      str = str.replaceAll(
+        ds.replacementString,
+        `'../datasets/${ds.datasetType}.csv'`,
+      );
+    } else {
+      str = str.replaceAll(
+        ds.replacementString,
+        `../${ds.moduleId}/${ds.replacementString}`,
       );
     }
-    const expr = buildPerTimePointMutateExpression(
-      indicator,
-      activeSnippets,
-      allIndicatorVarNames,
-      knownDatasetVariables,
-    );
-    return `  mutate(${indicator.varName} = ${expr})`;
-  })
-  .join(" %>%\n")}
+  }
 
-# Select only indicator columns
-indicator_cols <- c(${ordered.map((ind) => `"${ind.varName}"`).join(", ")})
-results_final <- results %>%
-  select(all_of(indicator_cols))
+  // Parameter substitutions
+  for (const inputParam of configSelections.parameterDefinitions) {
+    const mappedParameter =
+      configSelections.parameterSelections[
+        inputParam.replacementString
+      ]?.trim();
+    if (inputParam.input.inputType === "select") {
+      if (inputParam.input.valueType === "string") {
+        str = str.replaceAll(
+          inputParam.replacementString,
+          `'${mappedParameter ?? "UNSELECTED"}'`,
+        );
+      } else {
+        str = str.replaceAll(
+          inputParam.replacementString,
+          mappedParameter ?? "UNSELECTED",
+        );
+      }
+    }
+    if (inputParam.input.inputType === "boolean") {
+      str = str.replaceAll(
+        inputParam.replacementString,
+        mappedParameter ?? "FALSE",
+      );
+    }
+    if (inputParam.input.inputType === "text") {
+      str = str.replaceAll(
+        inputParam.replacementString,
+        `'${mappedParameter ?? "UNSELECTED"}'`,
+      );
+    }
+    if (inputParam.input.inputType === "number") {
+      str = str.replaceAll(
+        inputParam.replacementString,
+        mappedParameter ?? "UNSELECTED",
+      );
+    }
+  }
 
-# Create indicator metadata mapping (category, type, aggregation)
-indicator_metadata <- data.frame(
-  hfa_indicator = c(${ordered.map((indicator) => `"${indicator.varName}"`).join(", ")}),
-  hfa_category = c(${ordered.map((indicator) => `"${indicator.category}"`).join(", ")}),
-  ind_type = c(${ordered.map((indicator) => `"${indicator.type}"`).join(", ")}),
-  ind_aggregation = c(${ordered.map((indicator) => `"${indicator.aggregation}"`).join(", ")})
-)
+  // Marker substitutions
+  str = str.replaceAll("__WARNING_PRINTS__", warningPrints);
+  str = str.replaceAll("__INDICATOR_MUTATES__", indicatorMutates);
+  str = str.replaceAll("__INDICATOR_COLS__", indicatorCols);
+  str = str.replaceAll("__INDICATOR_METADATA__", indicatorMetadata);
 
-# Pivot back to long format and add metadata
-facility_info <- data_wide %>%
-  select(all_of(facility_cols))
-
-results_long <- facility_info %>%
-  bind_cols(results_final) %>%
-  pivot_longer(
-    cols = all_of(indicator_cols),
-    names_to = "hfa_indicator",
-    values_to = "raw_value"
-  ) %>%
-  left_join(indicator_metadata, by = "hfa_indicator") %>%
-  filter(!is.na(raw_value)) %>%
-  mutate(
-    numeric_sum = ifelse(ind_type == "numeric" & ind_aggregation == "sum", raw_value, NA_real_),
-    numeric_avg = ifelse(ind_type == "numeric" & ind_aggregation == "avg", raw_value, NA_real_),
-    boolean_sum = ifelse(ind_type == "binary" & ind_aggregation == "sum", raw_value, NA_real_),
-    boolean_avg = ifelse(ind_type == "binary" & ind_aggregation == "avg", raw_value, NA_real_)
-  ) %>%
-  select(-raw_value, -ind_type, -ind_aggregation)
-
-if (nrow(results_long) == 0) {
-  stop("No results generated - all indicator values are NA. Check that HFA indicators have been configured with R code.")
-}
-
-# Write output
-write.csv(results_long, "M10_hfa_results.csv", row.names = FALSE)
-
-print("HFA script completed successfully!")
-`;
-
-  return script;
+  return str;
 }
