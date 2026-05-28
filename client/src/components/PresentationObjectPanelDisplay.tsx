@@ -700,6 +700,8 @@ function VisualizationGrid(p: VisualizationGridProps) {
       metricLookup={metricLookup()}
       isSelected={selection.isSelected(po.id)}
       selectedCount={selection.selectedCount()}
+      shareCount={p.sharedVizCounts.get(po.id) ?? 0}
+      index={index}
       onCardClick={(e) => {
         e.stopPropagation();
         selection.handleCardClick(index, po.id, e, () => p.onClick(po));
@@ -820,8 +822,9 @@ type VisualizationCardProps = {
   selectedCount: number;
   shareCount: number;
   index: number;
-  onClick: () => void;
-  onCardClick: (event: MouseEvent, isCircleClick: boolean) => void;
+  onOpen: () => void;
+  onCardClick: (e: MouseEvent) => void;
+  onCircleClick: (e: MouseEvent) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onMoveToFolder: () => void;
