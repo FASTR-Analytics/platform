@@ -45,6 +45,7 @@ CREATE TABLE projects (
   label text NOT NULL,
   ai_context text NOT NULL,
   is_locked boolean NOT NULL DEFAULT FALSE,
+  is_central_reporting boolean NOT NULL DEFAULT FALSE,
   status text NOT NULL DEFAULT 'ready',
   deletion_scheduled_at TIMESTAMPTZ
 );
@@ -471,6 +472,8 @@ CREATE TABLE geojson_maps (
 CREATE TABLE share_tokens (
   id VARCHAR PRIMARY KEY,
   token VARCHAR UNIQUE NOT NULL,
+  slug VARCHAR UNIQUE,
+  password TEXT,
   resource_type VARCHAR NOT NULL,
   resource_id VARCHAR NOT NULL,
   data TEXT NOT NULL,
@@ -478,8 +481,9 @@ CREATE TABLE share_tokens (
   created_at TIMESTAMP DEFAULT NOW(),
   view_count INTEGER DEFAULT 0
 );
-CREATE INDEX idx_share_tokens_token ON share_tokens(token);
-CREATE INDEX idx_share_tokens_resource ON share_tokens(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_share_tokens_token ON share_tokens(token);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_share_tokens_slug ON share_tokens(slug) WHERE slug IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_share_tokens_resource ON share_tokens(resource_type, resource_id);
 
 -- ============================================================================
 -- CUSTOM PROMPTS

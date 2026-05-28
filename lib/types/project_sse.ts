@@ -29,6 +29,7 @@ export type ProjectState = {
   aiContext: string;
   thisUserRole: "viewer" | "editor" | "admin"; // kept with hardcoding bug intact
   isLocked: boolean;
+  isCentralReporting: boolean;
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
@@ -75,7 +76,7 @@ export type ProjectSseMessage =
     }
 
   // Data updates (replace current "project_updated" catch-all)
-  | { type: "project_config_updated"; data: { label: string; isLocked: boolean } }
+  | { type: "project_config_updated"; data: { label: string; isLocked: boolean; isCentralReporting?: boolean } }
   | {
       type: "modules_updated";
       data: {

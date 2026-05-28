@@ -16,6 +16,7 @@ export type ProjectSummary = {
   label: string;
   thisUserRole: "viewer" | "editor";
   isLocked: boolean;
+  isCentralReporting: boolean;
   status: "ready" | "copying" | "pending_deletion";
   lastActivityAt: string | undefined;
   deletionScheduledAt: string | undefined;
@@ -27,6 +28,7 @@ export type ProjectDetail = {
   aiContext: string;
   thisUserRole: "viewer" | "editor" | "admin";
   isLocked: boolean;
+  isCentralReporting: boolean;
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];

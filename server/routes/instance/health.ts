@@ -3,8 +3,9 @@ import {
   DBProject,
   DBUser,
   getCurrentDatasetHmisMaxVersionId,
-  GetAiUsageLogs,
   GetAiLimitHits,
+  GetAiUsageLogs,
+  GetInstanceWeeklyTokenUsage,
   getPgConnectionFromCacheOrNew,
   UserLog,
 } from "../../db/mod.ts";
@@ -17,6 +18,7 @@ import {
   _IS_PRODUCTION,
   _SERVER_VERSION,
   _START_TIME,
+  _WEEKLY_TOKEN_LIMIT,
 } from "../../exposed_env_vars.ts";
 
 export const routesHealth = new Hono();
@@ -158,6 +160,12 @@ routesHealth.get("/ai_usage", async (c) => {
   const since = c.req.query("since");
   const logs = await GetAiUsageLogs(mainDb, since ?? undefined);
   return c.json({ logs });
+});
+
+routesHealth.get("/ai_weekly_usage", async (c: Context) => {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const tokensUsedThisWeek = await GetInstanceWeeklyTokenUsage(mainDb);
+  return c.json({ tokensUsedThisWeek, weeklyTokenLimit: _WEEKLY_TOKEN_LIMIT });
 });
 
 routesHealth.get("/ai_limit_hits", async (c: Context) => {

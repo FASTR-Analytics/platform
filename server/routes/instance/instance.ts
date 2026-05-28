@@ -26,6 +26,7 @@ import {
 import { log } from "../../middleware/mod.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { checkSpaceForNewProject } from "../../utils/disk_space.ts";
 
 export const routesInstance = new Hono();
 
@@ -130,6 +131,11 @@ defineRoute(
     return c.json(res);
   },
 );
+
+defineRoute(routesInstance, "getDiskSpace", requireGlobalPermission(), async (c) => {
+  const res = await checkSpaceForNewProject();
+  return c.json({ success: true, data: { ok: res.ok, availableGB: res.availableGB } });
+});
 
 async function notifyConfigUpdated(mainDb: Parameters<typeof getMaxAdminAreaConfig>[0]) {
   const [maxRes, fcRes, isoRes, labelsRes] = await Promise.all([

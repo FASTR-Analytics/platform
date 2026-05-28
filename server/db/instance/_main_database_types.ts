@@ -76,6 +76,7 @@ export type DBProject = {
   label: string;
   ai_context: string;
   is_locked: boolean;
+  is_central_reporting: boolean;
   status: string;
   deletion_scheduled_at: Date | null;
 };

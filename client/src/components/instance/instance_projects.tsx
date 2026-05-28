@@ -6,9 +6,11 @@ import {
   HeadingBarMainRibbon,
   LockIcon,
   getEditorWrapper,
+  openAlert,
   openComponent,
 } from "panther";
 import { createMemo, For, Show } from "solid-js";
+import { serverActions } from "~/server_actions";
 import { AddProjectForm } from "./add_project";
 import { CompareProjects } from "./compare_projects";
 import { PendingDeletions } from "./pending_deletions";
@@ -56,6 +58,17 @@ export function InstanceProjects(p: Props) {
   }
 
   async function attemptAddProject() {
+    const spaceRes = await serverActions.getDiskSpace({});
+    if (spaceRes.success && !spaceRes.data.ok) {
+      await openAlert({
+        text: t3({
+          en: `Not enough disk space to create a project. Only ${spaceRes.data.availableGB} GB available.`,
+          fr: `Espace disque insuffisant pour créer un projet. Seulement ${spaceRes.data.availableGB} Go disponible.`,
+        }),
+        intent: "danger",
+      });
+      return;
+    }
     const res = await openComponent({
       element: AddProjectForm,
       props: {

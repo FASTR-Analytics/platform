@@ -254,6 +254,7 @@ export async function getProjectDetail(
       aiContext: rawProject.ai_context,
       thisUserRole: "viewer",
       isLocked: rawProject.is_locked,
+      isCentralReporting: rawProject.is_central_reporting,
       projectDatasets: datasetsInProject,
       projectModules: sortedModules,
       metrics: resMetrics.data,
@@ -594,6 +595,36 @@ export async function setProjectLockStatus(
     `;
     const label = result.at(0)?.label ?? "";
     return { success: true, data: { label, isLocked } };
+  });
+}
+
+export async function setProjectCentralReportingStatus(
+  mainDb: Sql,
+  projectId: string,
+  isCentralReporting: boolean,
+): Promise<APIResponseWithData<{ label: string; isLocked: boolean; isCentralReporting: boolean }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    if (isCentralReporting) {
+      const existing = await mainDb<{ id: string }[]>`
+        SELECT id FROM projects
+        WHERE is_central_reporting = TRUE AND id != ${projectId}
+        LIMIT 1
+      `;
+      if (existing.length > 0) {
+        return {
+          success: false,
+          err: "Another project is already set as the central reporting project. Remove that designation first.",
+        };
+      }
+    }
+    const result = await mainDb<{ label: string; is_locked: boolean }[]>`
+      UPDATE projects
+      SET is_central_reporting = ${isCentralReporting}
+      WHERE id = ${projectId}
+      RETURNING label, is_locked
+    `;
+    const row = result.at(0);
+    return { success: true, data: { label: row?.label ?? "", isLocked: row?.is_locked ?? false, isCentralReporting } };
   });
 }
 

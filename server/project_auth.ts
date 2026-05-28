@@ -249,15 +249,19 @@ async function getProjectUser(
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
 
     const rawProjectResult = await mainDb<
-      { label: string; is_locked: boolean }[]
-    >`SELECT label, is_locked FROM projects WHERE id = ${projectId}`;
+      { label: string; is_locked: boolean; is_central_reporting: boolean }[]
+    >`SELECT label, is_locked, is_central_reporting FROM projects WHERE id = ${projectId}`;
     const rawProject = rawProjectResult.at(0);
 
     if (!rawProject) {
       throw new Error("Middleware error: No project listing in main.db");
     }
 
-    if (globalUser.isGlobalAdmin) {
+    if (rawProject.is_central_reporting && !H_USERS.includes(globalUser.email)) {
+      throw new Error("Middleware error: User does not have access to this project");
+    }
+
+    if (globalUser.isGlobalAdmin || H_USERS.includes(globalUser.email)) {
       return {
         projectId,
         projectLabel: rawProject.label,

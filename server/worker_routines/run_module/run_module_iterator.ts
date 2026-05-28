@@ -1,4 +1,5 @@
 import { emptyDir } from "@std/fs";
+import { checkSpaceForModuleRun } from "../../utils/disk_space.ts";
 import { join } from "@std/path";
 import { mergeReadableStreams } from "@std/streams";
 import { stripVTControlCharacters } from "node:util";
@@ -81,6 +82,14 @@ export async function* runModuleIterator(
     //    Clear everything first    //
     //                              //
     //////////////////////////////////
+    const moduleSpaceCheck = await checkSpaceForModuleRun();
+    if (!moduleSpaceCheck.ok) {
+      throw new Error(
+        moduleSpaceCheck.resizeTriggered
+          ? `Not enough disk space to run this module (${moduleSpaceCheck.availableGB} GB available). A volume resize has been triggered — please try again in a few minutes.`
+          : `Not enough disk space to run this module (${moduleSpaceCheck.availableGB} GB available). Please contact your administrator.`,
+      );
+    }
     await emptyDir(moduleDirPath);
     for (const ro of moduleDetail.moduleDefinition.resultsObjects) {
       const tableName = getResultsObjectTableName(ro.id);

@@ -132,6 +132,12 @@ if (_SEND_GRID_API === undefined) {
 
 export const _GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
 
+///////////////////////////////////////////////////////////////////////////////
+// Volume Auto-Resize (Optional)
+///////////////////////////////////////////////////////////////////////////////
+
+export const _VOLUME_NAME = Deno.env.get("VOLUME_NAME");
+
 export const _DAILY_TOKEN_LIMIT: number | null = Deno.env.get("DAILY_TOKEN_LIMIT")
   ? parseInt(Deno.env.get("DAILY_TOKEN_LIMIT")!)
   : null;

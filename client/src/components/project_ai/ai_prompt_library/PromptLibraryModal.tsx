@@ -153,6 +153,16 @@ export function PromptLibraryModal(
     p.close({ action: "run_new", promptText: editedContent() });
   };
 
+  const handleSaveToLibrary = async () => {
+    const result = await openComponent<{ initialContent: string }, SaveToPromptLibraryResult>({
+      element: SaveToPromptLibraryModal,
+      props: { initialContent: editedContent() },
+    });
+    if (result?.saved) {
+      await loadCustomPrompts();
+    }
+  };
+
   const handleNewCustomPrompt = async () => {
     const result = await openComponent<{ initialContent: string }, SaveToPromptLibraryResult>({
       element: SaveToPromptLibraryModal,
@@ -207,7 +217,7 @@ export function PromptLibraryModal(
                 {t3({ en: "Cancel", fr: "Annuler" })}
               </Button>,
               <Button onClick={handleNewCustomPrompt} intent="primary" iconName="plus">
-                {t3({ en: "New prompt", fr: "Nouveau prompt" })}
+                {t3({ en: "Create custom prompt", fr: "Créer un prompt personnalisé" })}
               </Button>,
             ]
           : undefined
@@ -253,6 +263,7 @@ export function PromptLibraryModal(
               onRunCurrent={handleRunCurrent}
               onRunNew={handleRunNew}
               onCancel={() => p.close(undefined)}
+              onSaveToLibrary={handleSaveToLibrary}
             />
           )}
         </Show>
@@ -478,6 +489,7 @@ type EditPhaseProps = {
   onRunCurrent: () => void;
   onRunNew: () => void;
   onCancel: () => void;
+  onSaveToLibrary: () => void;
 };
 
 function EditPhase(p: EditPhaseProps) {
@@ -493,6 +505,9 @@ function EditPhase(p: EditPhaseProps) {
       <div class="mt-4 flex gap-2">
         <Button outline iconName="chevronLeft" onClick={p.onBack}>
           {t3({ en: "Back", fr: "Retour" })}
+        </Button>
+        <Button outline iconName="save" onClick={p.onSaveToLibrary}>
+          {t3({ en: "Save to library", fr: "Sauvegarder dans la bibliothèque" })}
         </Button>
         <div class="flex-1"></div>
         <Button onClick={p.onRunCurrent} intent="primary">

@@ -14,6 +14,7 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   aiContext: "",
   thisUserRole: "viewer",
   isLocked: false,
+  isCentralReporting: false,
   projectDatasets: [],
   projectModules: [],
   metrics: [],
@@ -87,6 +88,9 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
     case "project_config_updated":
       setProjectState("label", msg.data.label);
       setProjectState("isLocked", msg.data.isLocked);
+      if (msg.data.isCentralReporting !== undefined) {
+        setProjectState("isCentralReporting", msg.data.isCentralReporting);
+      }
       break;
 
     case "modules_updated":
