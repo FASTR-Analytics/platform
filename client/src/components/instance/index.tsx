@@ -10,6 +10,7 @@ import {
   UserCircleIcon,
   getFirstString,
   openComponent,
+  type ListItem,
   type MenuItem,
 } from "panther";
 import { Match, Show, Switch, createSignal, onMount } from "solid-js";
@@ -26,6 +27,105 @@ import { FeedbackForm } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
 import { InstanceSettings } from "./instance_settings";
 import { ProfileForm } from "./profile";
+
+type InstanceTab = "projects" | "data" | "assets" | "users" | "settings";
+
+function compactNavItems(): ListItem<InstanceTab>[] {
+  const items: ListItem<InstanceTab>[] = [
+    {
+      id: "projects",
+      label: "",
+      labelText: t3({ en: "Projects", fr: "Projets" }),
+      iconName: "folder",
+    },
+    {
+      id: "data",
+      label: "",
+      labelText: t3({ en: "Data", fr: "Données" }),
+      iconName: "database",
+    },
+    {
+      id: "assets",
+      label: "",
+      labelText: t3({ en: "Assets", fr: "Ressources" }),
+      iconName: "package",
+    },
+  ];
+  if (
+    instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_configure_users ||
+    instanceState.currentUserPermissions.can_view_users
+  ) {
+    items.push({
+      id: "users",
+      label: "",
+      labelText: t3({ en: "Users", fr: "Utilisateurs" }),
+      iconName: "users",
+    });
+  }
+  if (instanceState.currentUserIsGlobalAdmin) {
+    items.push({
+      id: "settings",
+      label: "",
+      labelText: t3(TC.settings),
+      iconName: "settings",
+    });
+  }
+  return items;
+}
+
+function wideNavItems(): ListItem<InstanceTab>[] {
+  const items: ListItem<InstanceTab>[] = [
+    {
+      id: "projects",
+      label: t3({ en: "Projects", fr: "Projets" }),
+      iconName: "folder",
+    },
+  ];
+  if (
+    instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_view_data ||
+    instanceState.currentUserPermissions.can_configure_data
+  ) {
+    items.push({
+      id: "data",
+      label: t3({ en: "Data", fr: "Données" }),
+      iconName: "database",
+    });
+  }
+  if (
+    instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_configure_assets
+  ) {
+    items.push({
+      id: "assets",
+      label: t3({ en: "Assets", fr: "Ressources" }),
+      iconName: "package",
+    });
+  }
+  if (
+    instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_configure_users ||
+    instanceState.currentUserPermissions.can_view_users
+  ) {
+    items.push({
+      id: "users",
+      label: t3({ en: "Users", fr: "Utilisateurs" }),
+      iconName: "users",
+    });
+  }
+  if (
+    instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_configure_settings
+  ) {
+    items.push({
+      id: "settings",
+      label: t3(TC.settings),
+      iconName: "settings",
+    });
+  }
+  return items;
+}
 
 type Props = {
   attemptSignOut: () => Promise<void>;
@@ -121,39 +221,7 @@ export default function Instance(p: Props) {
                     <ButtonGroup
                       value={tab()}
                       onChange={setTab}
-                      options={[
-                        {
-                          value: "projects",
-                          iconName: "folder",
-                        },
-                        {
-                          value: "data",
-                          iconName: "database",
-                        },
-                        {
-                          value: "assets",
-                          iconName: "package",
-                        },
-                        ...(instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions
-                          .can_configure_users ||
-                        instanceState.currentUserPermissions.can_view_users
-                          ? [
-                              {
-                                value: "users",
-                                iconName: "users",
-                              },
-                            ]
-                          : ([] as any)),
-                        ...(instanceState.currentUserIsGlobalAdmin
-                          ? [
-                              {
-                                value: "settings",
-                                iconName: "settings",
-                              },
-                            ]
-                          : ([] as any)),
-                      ]}
+                      items={compactNavItems()}
                       itemWidth="50px"
                     />
                   </div>
@@ -161,58 +229,7 @@ export default function Instance(p: Props) {
                     <ButtonGroup
                       value={tab()}
                       onChange={setTab}
-                      options={[
-                        {
-                          value: "projects",
-                          label: t3({ en: "Projects", fr: "Projets" }),
-                          iconName: "folder",
-                        },
-                        ...(instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions.can_view_data ||
-                        instanceState.currentUserPermissions.can_configure_data
-                          ? [
-                              {
-                                value: "data",
-                                label: t3({ en: "Data", fr: "Données" }),
-                                iconName: "database",
-                              },
-                            ]
-                          : ([] as any)),
-                        ...(instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions
-                          .can_configure_assets
-                          ? [
-                              {
-                                value: "assets",
-                                label: t3({ en: "Assets", fr: "Ressources" }),
-                                iconName: "package",
-                              },
-                            ]
-                          : ([] as any)),
-                        ...(instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions
-                          .can_configure_users ||
-                        instanceState.currentUserPermissions.can_view_users
-                          ? [
-                              {
-                                value: "users",
-                                label: t3({ en: "Users", fr: "Utilisateurs" }),
-                                iconName: "users",
-                              },
-                            ]
-                          : ([] as any)),
-                        ...(instanceState.currentUserIsGlobalAdmin ||
-                        instanceState.currentUserPermissions
-                          .can_configure_settings
-                          ? [
-                              {
-                                value: "settings",
-                                label: t3(TC.settings),
-                                iconName: "settings",
-                              },
-                            ]
-                          : ([] as any)),
-                      ]}
+                      items={wideNavItems()}
                       itemWidth={isFrench() ? "140px" : "115px"}
                     />
                   </div>

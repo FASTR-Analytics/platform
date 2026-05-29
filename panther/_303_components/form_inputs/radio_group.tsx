@@ -10,7 +10,7 @@ import { SelectOption } from "./types.ts";
 type RadioGroupProps<T extends string> = {
   value: T | undefined;
   options: SelectOption<T>[];
-  onChange: (v: string) => void;
+  onChange: (v: T) => void;
   label?: string | JSX.Element;
   horizontal?: boolean;
   convertToSelectThreshold?: number;

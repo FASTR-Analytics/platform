@@ -6,7 +6,7 @@ import {
 } from "lib";
 import {
   Button,
-  createListSelection,
+  createSelectionController,
   FrameLeftResizable,
   FrameTop,
   HeadingBar,
@@ -18,8 +18,8 @@ import {
   openComponent,
   showMenu,
   timActionDelete,
+  type ListItem,
   type MenuItem,
-  type SelectOption,
 } from "panther";
 import { For, Show, createEffect, createSignal } from "solid-js";
 import { AddDeckForm } from "./add_deck";
@@ -60,8 +60,6 @@ type ExtendedProps = {
 
 export function ProjectDecks(p: ExtendedProps) {
   const { aiContext } = useAIProjectContext();
-
-  const selection = createListSelection<string>();
 
   async function openDeck(deckId: string, deckLabel: string) {
     await p.openProjectEditor({
@@ -142,8 +140,9 @@ export function ProjectDecks(p: ExtendedProps) {
     }
   });
 
-  createEffect(() => {
-    selection.setItems(filteredDecks().map((d) => d.id));
+  const selection = createSelectionController<string>({
+    ids: () => filteredDecks().map((d) => d.id),
+    mode: "multi",
   });
 
   // Batch operation handlers
@@ -161,7 +160,7 @@ export function ProjectDecks(p: ExtendedProps) {
       },
     });
 
-    selection.clearSelection();
+    selection.clear();
   }
 
   async function handleDuplicate(deck: SlideDeckSummary) {
@@ -181,7 +180,7 @@ export function ProjectDecks(p: ExtendedProps) {
       },
     });
 
-    selection.clearSelection();
+    selection.clear();
   }
 
   async function handleDelete(deck: SlideDeckSummary) {
@@ -209,7 +208,7 @@ export function ProjectDecks(p: ExtendedProps) {
         return results[0];
       },
       () => {
-        selection.clearSelection();
+        selection.clear();
       },
     );
     await deleteAction.click();
@@ -294,19 +293,19 @@ export function ProjectDecks(p: ExtendedProps) {
     showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
   }
 
-  const renderGroupOption = (selectOpt: SelectOption<string>) => {
-    const opt = groupOptions().find((g) => g.value === selectOpt.value);
-    if (!opt) return <span>{selectOpt.label}</span>;
+  const renderGroupOption = (item: ListItem<string>) => {
+    const opt = groupOptions().find((g) => g.value === item.id);
+    if (!opt) return <span>{item.label}</span>;
 
     const mode = deckGroupingMode();
     if (mode === "folders") {
-      const isUserFolder = !selectOpt.value.startsWith("_");
+      const isUserFolder = !item.id.startsWith("_");
       return (
         <div
           class="flex items-center gap-2"
           onContextMenu={
             isUserFolder
-              ? (e) => handleFolderContextMenu(e, selectOpt.value)
+              ? (e) => handleFolderContextMenu(e, item.id)
               : undefined
           }
         >
@@ -399,10 +398,13 @@ export function ProjectDecks(p: ExtendedProps) {
               </div>
               <div class="flex-1 overflow-auto p-2">
                 <SelectList
-                  options={groupOptions()}
+                  items={groupOptions().map((g) => ({
+                    id: g.value,
+                    label: g.label,
+                  }))}
                   value={deckSelectedGroup() ?? undefined}
                   onChange={setDeckSelectedGroup}
-                  renderOption={renderGroupOption}
+                  renderItem={renderGroupOption}
                   fullWidth
                 />
                 <Show when={deckGroupingMode() === "folders"}>
@@ -428,7 +430,7 @@ export function ProjectDecks(p: ExtendedProps) {
         >
           <div
             class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
-            onClick={() => selection.clearSelection()}
+            onClick={() => selection.clear()}
           >
             <For
               each={filteredDecks()}
@@ -440,7 +442,7 @@ export function ProjectDecks(p: ExtendedProps) {
                 </div>
               }
             >
-              {(deck, i) => {
+              {(deck) => {
                 const isSelected = () => selection.isSelected(deck.id);
                 return (
                   <div class="group grid grid-rows-subgrid row-span-2 gap-y-1">
@@ -456,7 +458,7 @@ export function ProjectDecks(p: ExtendedProps) {
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        selection.handleCardClick(i(), deck.id, e, () =>
+                        selection.handleClick(deck.id, e, () =>
                           openDeck(deck.id, deck.label),
                         );
                       }}
@@ -464,9 +466,7 @@ export function ProjectDecks(p: ExtendedProps) {
                     >
                       <SelectionCircle
                         isSelected={isSelected()}
-                        onClick={(e) =>
-                          selection.handleCircleClick(i(), deck.id, e)
-                        }
+                        onClick={(e) => selection.handleClick(deck.id, e)}
                       />
                       <Show
                         when={deck.firstSlideId}

@@ -17,10 +17,10 @@ import {
   TableColumn,
   TabsNavigation,
   getEditorWrapper,
-  getTabs,
   openComponent,
   timActionDelete,
   type BulkAction,
+  type ListItem,
   type StateHolder,
 } from "panther";
 import { Show, createEffect, createSignal } from "solid-js";
@@ -68,26 +68,23 @@ export function IndicatorsManager(p: Props) {
     }),
   });
 
-  const tabs = getTabs(
-    [
-      {
-        value: "common",
-        label: t3({ en: "Common Indicators", fr: "Indicateurs communs" }),
-      },
-      {
-        value: "raw",
-        label: t3({ en: "Raw DHIS2 Indicators", fr: "Indicateurs DHIS2" }),
-      },
-      {
-        value: "calculated",
-        label: t3({
-          en: "Calculated indicators",
-          fr: "Indicateurs calculés",
-        }),
-      },
-    ],
-    { initialTab: "common" },
+  const [tab, setTab] = createSignal<"common" | "raw" | "calculated">(
+    "common",
   );
+  const tabItems: ListItem<"common" | "raw" | "calculated">[] = [
+    {
+      id: "common",
+      label: t3({ en: "Common Indicators", fr: "Indicateurs communs" }),
+    },
+    {
+      id: "raw",
+      label: t3({ en: "Raw DHIS2 Indicators", fr: "Indicateurs DHIS2" }),
+    },
+    {
+      id: "calculated",
+      label: t3({ en: "Calculated indicators", fr: "Indicateurs calculés" }),
+    },
+  ];
 
   createEffect(async () => {
     const version = instanceState.indicatorMappingsVersion;
@@ -210,9 +207,9 @@ export function IndicatorsManager(p: Props) {
           </div>
         }
       >
-        <FrameTop panelChildren={<TabsNavigation tabs={tabs} />}>
+        <FrameTop panelChildren={<TabsNavigation items={tabItems} value={tab()} onChange={setTab} />}>
           <div class="ui-pad ui-spy h-full w-full overflow-auto">
-            <Show when={tabs.isTabActive("common")}>
+            <Show when={tab() === ("common")}>
               <StateHolderWrapper state={indicators()} noPad>
                 {(keyedIndicators) => (
                   <div class="h-full">
@@ -225,7 +222,7 @@ export function IndicatorsManager(p: Props) {
                 )}
               </StateHolderWrapper>
             </Show>
-            <Show when={tabs.isTabActive("raw")}>
+            <Show when={tab() === ("raw")}>
               <StateHolderWrapper state={indicators()} noPad>
                 {(keyedIndicators) => (
                   <div class="h-full">
@@ -239,7 +236,7 @@ export function IndicatorsManager(p: Props) {
                 )}
               </StateHolderWrapper>
             </Show>
-            <Show when={tabs.isTabActive("calculated")}>
+            <Show when={tab() === ("calculated")}>
               <StateHolderWrapper state={indicators()} noPad>
                 {(keyedIndicators) => (
                   <StateHolderWrapper state={calculatedIndicators()} noPad>

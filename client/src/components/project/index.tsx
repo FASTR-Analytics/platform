@@ -7,7 +7,7 @@ import {
   TabsNavigation,
   getEditorWrapper,
   openComponent,
-  type Tabs,
+  type ListItem,
 } from "panther";
 import { FeedbackForm } from "~/components/instance/feedback_form";
 import {
@@ -123,91 +123,67 @@ function ProjectInner(p: { currentUserEmail: string }) {
     ),
   );
 
-  const allTabs = [
-    ...(projectState.thisUserPermissions.can_view_slide_decks
-      ? [
-          {
-            value: "decks" as const,
-            label: t3({ en: "Slide decks", fr: "Présentations" }),
-          },
-        ]
-      : []),
-    ...(projectState.thisUserPermissions.can_view_slide_decks
-      ? [
-          {
-            value: "dashboards" as const,
-            label: t3({ en: "Dashboards", fr: "Tableaux de bord" }),
-          },
-        ]
-      : []),
-    ...(projectState.thisUserPermissions.can_view_visualizations
-      ? [
-          {
-            value: "visualizations" as const,
-            label: t3({ en: "Visualizations", fr: "Visualisations" }),
-          },
-        ]
-      : []),
-    // ...(projectState.thisUserPermissions.can_view_metrics
-    //   ? [{ value: "metrics" as const, label: t3({ en: "Metrics", fr: "Indicateurs" }) }]
-    //   : []),
-    ...(projectState.thisUserPermissions.can_configure_modules ||
-    projectState.thisUserPermissions.can_run_modules ||
-    projectState.thisUserPermissions.can_view_script_code
-      ? [
-          {
-            value: "modules" as const,
-            label: t3({ en: "Modules", fr: "Modules" }),
-          },
-        ]
-      : []),
-    ...(projectState.thisUserPermissions.can_view_data
-      ? [
-          {
-            value: "data" as const,
-            label: t3({ en: "Data", fr: "Données" }),
-          },
-        ]
-      : []),
-    ...(projectState.thisUserPermissions.can_configure_settings
-      ? [
-          {
-            value: "settings" as const,
-            label: t3(TC.settings),
-          },
-        ]
-      : []),
-    ...(_DEV_USERS.includes(p.currentUserEmail)
-      ? [
-          {
-            value: "cache" as const,
-            label: t3({ en: "Cache", fr: "Cache" }),
-          },
-        ]
-      : []),
-  ];
-
-  const tabIcons = {
-    decks: "sparkles" as const,
-    dashboards: "box" as const,
-    reports: "report" as const,
-    visualizations: "chart" as const,
-    metrics: "badge" as const,
-    modules: "code" as const,
-    data: "database" as const,
-    settings: "settings" as const,
-    cache: "database" as const,
-  };
-
-  const tabs: Tabs = {
-    currentTab: projectTab,
-    setCurrentTab: (tab) => {
-      const newTab = typeof tab === "function" ? tab(projectTab()) : tab;
-      updateProjectView({ tab: newTab as TabOption });
-    },
-    tabs: allTabs,
-    isTabActive: (tab) => projectTab() === tab,
-    getAllTabs: () => allTabs.map((t) => t.value),
+  const tabItems = (): ListItem<TabOption>[] => {
+    const perms = projectState.thisUserPermissions;
+    const items: ListItem<TabOption>[] = [];
+    if (perms.can_view_slide_decks) {
+      items.push({
+        id: "decks",
+        label: t3({ en: "Slide decks", fr: "Présentations" }),
+        iconName: "sparkles",
+      });
+      items.push({
+        id: "dashboards",
+        label: t3({ en: "Dashboards", fr: "Tableaux de bord" }),
+        iconName: "box",
+      });
+    }
+    if (perms.can_view_visualizations) {
+      items.push({
+        id: "visualizations",
+        label: t3({ en: "Visualizations", fr: "Visualisations" }),
+        iconName: "chart",
+      });
+    }
+    if (
+      perms.can_configure_modules ||
+      perms.can_run_modules ||
+      perms.can_view_script_code
+    ) {
+      items.push({
+        id: "modules",
+        label: t3({ en: "Modules", fr: "Modules" }),
+        iconName: "code",
+        dot: modulesHaveError()
+          ? "danger"
+          : modulesNeedUpdate()
+          ? "warning"
+          : undefined,
+      });
+    }
+    if (perms.can_view_data) {
+      items.push({
+        id: "data",
+        label: t3({ en: "Data", fr: "Données" }),
+        iconName: "database",
+        dot: dataNeedsUpdate() ? "warning" : undefined,
+      });
+    }
+    if (perms.can_configure_settings) {
+      items.push({
+        id: "settings",
+        label: t3(TC.settings),
+        iconName: "settings",
+      });
+    }
+    if (_DEV_USERS.includes(p.currentUserEmail)) {
+      items.push({
+        id: "cache",
+        label: t3({ en: "Cache", fr: "Cache" }),
+        iconName: "database",
+      });
+    }
+    return items;
   };
 
   return (
@@ -215,7 +191,7 @@ function ProjectInner(p: { currentUserEmail: string }) {
       <AIContextSync />
       <ProjectEditorWrapper>
         <Show
-          when={allTabs.length > 0}
+          when={tabItems().length > 0}
           fallback={
             <div class="ui-pad text-danger">
               {t3({
@@ -269,20 +245,13 @@ function ProjectInner(p: { currentUserEmail: string }) {
               panelChildren={
                 <div class="h-full border-r">
                   <TabsNavigation
-                    tabs={tabs}
+                    items={tabItems()}
+                    value={projectTab()}
+                    onChange={(tab) => updateProjectView({ tab })}
                     vertical
                     collapsible
                     collapsed={navCollapsed()}
                     onCollapsedChange={setNavCollapsed}
-                    icons={tabIcons}
-                    dots={{
-                      ...(dataNeedsUpdate() && { data: "warning" as const }),
-                      ...(modulesHaveError()
-                        ? { modules: "danger" as const }
-                        : modulesNeedUpdate() && {
-                            modules: "warning" as const,
-                          }),
-                    }}
                   />
                 </div>
               }

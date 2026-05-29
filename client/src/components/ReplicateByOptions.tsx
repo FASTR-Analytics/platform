@@ -13,6 +13,7 @@ import {
   StateHolderWrapper,
   timQuery,
   getSelectOptionsFromIdLabel,
+  selectOptionToListItem,
 } from "panther";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
 import { createEffect, Match, Switch } from "solid-js";
@@ -98,7 +99,7 @@ export function ReplicateByOptionsPresentationObject(
 
                   return (
                     <SelectList
-                      options={options}
+                      items={options.map(selectOptionToListItem)}
                       value={p.selectedReplicantValue}
                       onChange={(v: string) => p.setSelectedReplicant(v)}
                       emptyMessage={t3({

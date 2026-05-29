@@ -133,8 +133,8 @@ export function SidebarLayout(p: SidebarLayoutProps) {
       panelChildren={
         <div class="ui-pad border-base-300 h-full max-w-[400px] border-r">
           <SelectList
-            options={p.items.map((item) => ({
-              value: item.id,
+            items={p.items.map((item) => ({
+              id: item.id,
               label: item.label,
             }))}
             value={p.currentItem?.id}

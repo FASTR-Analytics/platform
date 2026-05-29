@@ -46,7 +46,7 @@ function getSelectClasses(size?: "sm") {
 type Props<T extends string> = {
   value: T | undefined;
   options: SelectOption<T>[];
-  onChange: (v: string) => void;
+  onChange: (v: T) => void;
   intent?: Intent;
   label?: string | JSX.Element;
   placeholder?: string;
@@ -71,7 +71,7 @@ export function Select<T extends string>(p: Props<T>) {
             useAutoFocus(el, p.autoFocus)}
           value={p.value ?? ""}
           onChange={(e) =>
-            p.onChange(e.currentTarget.value)}
+            p.onChange(e.currentTarget.value as T)}
           class={getSelectClasses(p.size)}
           data-mono={p.mono}
           data-placeholder={p.placeholder && !p.value}

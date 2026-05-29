@@ -1,7 +1,7 @@
 import { DashboardSummary, t3, TC } from "lib";
 import {
   Button,
-  createListSelection,
+  createSelectionController,
   FrameTop,
   HeadingBar,
   OpenEditorProps,
@@ -11,7 +11,7 @@ import {
   timActionDelete,
   type MenuItem,
 } from "panther";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
 import { serverActions } from "~/server_actions";
 import { CreateDashboardModal } from "./create_dashboard_modal";
@@ -26,8 +26,6 @@ type Props = {
 export function ProjectDashboards(p: Props) {
   const [searchText, setSearchText] = createSignal("");
 
-  const selection = createListSelection<string>();
-
   const filtered = (): DashboardSummary[] => {
     const dashboards = projectState.dashboards;
     if (searchText().length < 3) return dashboards;
@@ -38,8 +36,9 @@ export function ProjectDashboards(p: Props) {
     );
   };
 
-  createEffect(() => {
-    selection.setItems(filtered().map((d) => d.id));
+  const selection = createSelectionController<string>({
+    ids: () => filtered().map((d) => d.id),
+    mode: "multi",
   });
 
   async function openDashboard(dashboardId: string, title: string) {
@@ -94,7 +93,7 @@ export function ProjectDashboards(p: Props) {
         return results[0];
       },
       () => {
-        selection.clearSelection();
+        selection.clear();
       },
     );
     await deleteAction.click();
@@ -149,7 +148,7 @@ export function ProjectDashboards(p: Props) {
     >
       <div
         class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] content-start items-start overflow-auto"
-        onClick={() => selection.clearSelection()}
+        onClick={() => selection.clear()}
       >
         <For
           each={filtered()}
@@ -167,7 +166,7 @@ export function ProjectDashboards(p: Props) {
             </div>
           }
         >
-          {(dashboard, i) => {
+          {(dashboard) => {
             const isSelected = () => selection.isSelected(dashboard.id);
             return (
               <div
@@ -178,7 +177,7 @@ export function ProjectDashboards(p: Props) {
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  selection.handleCardClick(i(), dashboard.id, e, () =>
+                  selection.handleClick(dashboard.id, e, () =>
                     openDashboard(dashboard.id, dashboard.title),
                   );
                 }}
@@ -186,9 +185,7 @@ export function ProjectDashboards(p: Props) {
               >
                 <SelectionCircle
                   isSelected={isSelected()}
-                  onClick={(e) =>
-                    selection.handleCircleClick(i(), dashboard.id, e)
-                  }
+                  onClick={(e) => selection.handleClick(dashboard.id, e)}
                 />
                 <div class="font-700 truncate text-base">{dashboard.title}</div>
                 <div class="text-neutral truncate font-mono text-xs">

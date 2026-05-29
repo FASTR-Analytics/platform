@@ -5,7 +5,7 @@ import {
 } from "lib";
 import {
   Button,
-  TimSortableVertical,
+  SortableList,
   openComponent,
   timActionDelete,
 } from "panther";
@@ -90,11 +90,10 @@ function CategoriesPane(p: {
     setItems(reconcile([...p.categories]));
   });
 
-  async function handleReorder(newItems: HfaIndicatorCategory[]) {
-    setItems(reconcile(newItems));
-    await serverActions.reorderHfaIndicatorCategories({
-      orderedIds: newItems.map((c) => c.id),
-    });
+  async function handleReorder(orderedIds: string[]) {
+    const reordered = orderedIds.map((id) => items.find((c) => c.id === id)!);
+    setItems(reconcile(reordered));
+    await serverActions.reorderHfaIndicatorCategories({ orderedIds });
   }
 
   async function handleCreate() {
@@ -167,7 +166,7 @@ function CategoriesPane(p: {
               </div>
             }
           >
-            <TimSortableVertical items={items} setItems={handleReorder}>
+            <SortableList items={items} onReorder={handleReorder}>
               {(cat) => (
                 <CategoryRow
                   category={cat}
@@ -177,7 +176,7 @@ function CategoriesPane(p: {
                   onDelete={() => handleDelete(cat)}
                 />
               )}
-            </TimSortableVertical>
+            </SortableList>
           </Show>
         </Show>
       </div>
@@ -246,11 +245,12 @@ function SubCategoriesPane(p: {
     setItems(reconcile(sorted));
   });
 
-  async function handleReorder(newItems: HfaIndicatorSubCategory[]) {
-    setItems(reconcile(newItems));
+  async function handleReorder(orderedIds: string[]) {
+    const reordered = orderedIds.map((id) => items.find((sc) => sc.id === id)!);
+    setItems(reconcile(reordered));
     await serverActions.reorderHfaIndicatorSubCategories({
       categoryId: p.category.id,
-      orderedIds: newItems.map((sc) => sc.id),
+      orderedIds,
     });
   }
 
@@ -328,7 +328,7 @@ function SubCategoriesPane(p: {
               </div>
             }
           >
-            <TimSortableVertical items={items} setItems={handleReorder}>
+            <SortableList items={items} onReorder={handleReorder}>
               {(sc) => (
                 <div class="bg-base-200 flex items-center gap-2 rounded px-3 py-2">
                   <div class="min-w-0 flex-1">
@@ -349,7 +349,7 @@ function SubCategoriesPane(p: {
                   />
                 </div>
               )}
-            </TimSortableVertical>
+            </SortableList>
           </Show>
         </Show>
       </div>

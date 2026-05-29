@@ -43,6 +43,7 @@ receive it during sync.
 | `PROTOCOL_STYLING.md` | UI | Tailwind theme, semantic colors, ui-* utilities |
 | `PROTOCOL_API.md` | Deno | Hono patterns, route structure, validation |
 | `PROTOCOL_STRUCTURE.md` | All | File organization, imports, panther integration |
+| `PROTOCOL_SIZING.md` | All | Figure/page sizing: DUs, resolution, shrink-to-fit |
 
 ## Protocol Structure
 

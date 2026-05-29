@@ -1,11 +1,9 @@
 import { t3 } from "lib";
-import { LabelHolder, MultiSelect, TimSortableVertical } from "panther";
-import { createEffect, Show } from "solid-js";
-import { createStore, SetStoreFunction } from "solid-js/store";
+import { MultiSelect, SortableList } from "panther";
+import { Show } from "solid-js";
 import { FASTR_LOGOS } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 
 type Props = {
-  // label: string;
   values: string[];
   customLogos: string[];
   onChange: (logos: string[]) => void;
@@ -24,24 +22,7 @@ function getLogoLabel(value: string): string {
   return value;
 }
 
-type LogoItem = { id: string };
-
 export function LogoSelector(p: Props) {
-  const [items, setItems] = createStore<LogoItem[]>(
-    p.values.map((v) => ({ id: v })),
-  );
-
-  createEffect(() => {
-    const newItems = p.values.map((v) => ({ id: v }));
-    setItems(newItems);
-  });
-
-  const handleSetItems: SetStoreFunction<LogoItem[]> = (...args: any[]) => {
-    (setItems as any)(...args);
-    const currentIds = items.map((item) => item.id);
-    p.onChange(currentIds);
-  };
-
   return (
     <>
       <div class="text-xs">
@@ -56,13 +37,16 @@ export function LogoSelector(p: Props) {
           <div class="text-neutral mb-1 text-xs">
             {t3({ en: "Order", fr: "Ordre" })}
           </div>
-          <TimSortableVertical items={items} setItems={handleSetItems}>
+          <SortableList
+            items={p.values.map((v) => ({ id: v }))}
+            onReorder={(ids) => p.onChange(ids)}
+          >
             {(item) => (
               <span class="text-base-content/70 text-xs">
                 {getLogoLabel(item.id)}
               </span>
             )}
-          </TimSortableVertical>
+          </SortableList>
         </div>
       </Show>
     </>

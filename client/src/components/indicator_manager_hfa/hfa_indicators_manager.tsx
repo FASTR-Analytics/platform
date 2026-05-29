@@ -17,7 +17,7 @@ import {
   TableColumn,
   TabsNavigation,
   getEditorWrapper,
-  getTabs,
+  type ListItem,
   openComponent,
   saveAs,
   timActionDelete,
@@ -75,19 +75,19 @@ export function HfaIndicatorsManager(p: Props) {
     null,
   );
 
-  const tabs = getTabs(
-    [
-      {
-        value: "indicators",
-        label: t3({ en: "Indicators", fr: "Indicateurs" }),
-      },
-      {
-        value: "categories",
-        label: t3({ en: "Categories", fr: "Catégories" }),
-      },
-    ],
-    { initialTab: "indicators" },
+  const [tab, setTab] = createSignal<"indicators" | "categories">(
+    "indicators",
   );
+  const tabItems: ListItem<"indicators" | "categories">[] = [
+    {
+      id: "indicators",
+      label: t3({ en: "Indicators", fr: "Indicateurs" }),
+    },
+    {
+      id: "categories",
+      label: t3({ en: "Categories", fr: "Catégories" }),
+    },
+  ];
 
   createEffect(async () => {
     const version = instanceState.hfaIndicatorsVersion;
@@ -608,9 +608,9 @@ export function HfaIndicatorsManager(p: Props) {
           </div>
         }
       >
-        <FrameTop panelChildren={<TabsNavigation tabs={tabs} />}>
+        <FrameTop panelChildren={<TabsNavigation items={tabItems} value={tab()} onChange={setTab} />}>
           <div class="ui-pad h-full w-full overflow-auto">
-            <Show when={tabs.isTabActive("indicators")}>
+            <Show when={tab() === ("indicators")}>
               <StateHolderWrapper state={indicators()} noPad>
                 {(keyedIndicators) => (
                   <div class="flex h-full flex-col">
@@ -667,7 +667,7 @@ export function HfaIndicatorsManager(p: Props) {
                 )}
               </StateHolderWrapper>
             </Show>
-            <Show when={tabs.isTabActive("categories")}>
+            <Show when={tab() === ("categories")}>
               <StateHolderWrapper state={categories()} noPad>
                 {(keyedCategories) => (
                   <StateHolderWrapper state={subCategories()} noPad>
