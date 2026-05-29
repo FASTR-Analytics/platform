@@ -43,6 +43,17 @@ export function getScriptWithParametersCalculatedIndicators(
   // Standard substitutions
   str = str.replaceAll("COUNTRY_ISO3", `"${countryIso3 ?? "UNKNOWN"}"`);
 
+  // Population is only required when at least one calculated indicator uses a
+  // population-based denominator. When none do, the R script ignores
+  // population.csv entirely, so a mismatched/placeholder file is harmless.
+  const needsPopulation = calculatedIndicators.some(
+    (ci) => ci.denom.kind === "population",
+  );
+  str = str.replaceAll(
+    "__NEEDS_POPULATION_VALUE__",
+    needsPopulation ? "TRUE" : "FALSE",
+  );
+
   for (const ds of moduleDefinition.dataSources) {
     if (ds.sourceType === "dataset") {
       str = str.replaceAll(
