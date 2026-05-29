@@ -1,5 +1,5 @@
-[TBD] [user] [fixed] - Population data only loaded when actually needed by your analysis
-[TBD] [admin] [added] - Population data is only required when indicators use population-based calculations
+[1.38.2] [user] [fixed] - Population data only loaded when actually needed by your analysis
+[1.38.2] [admin] [added] - Population data is only required when indicators use population-based calculations
 [1.38.1] [user] [fixed] - Selected category no longer resets when data refreshes
 [1.38.1] [user] [added] - Sub-category is now available as a disaggregation option
 [1.38.1] [admin] [fixed] - HFA category selection no longer resets after data updates
