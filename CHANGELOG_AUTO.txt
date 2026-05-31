@@ -1,3 +1,6 @@
+[TBD] [admin] [changed] - Navigation tabs now show permission-appropriate items more consistently
+[TBD] [admin] [internal] - Updated selection behavior for visualizations, dashboards, and slide decks
+[TBD] [admin] [internal] - Reorderable lists updated to use improved drag-and-drop component
 [1.38.2] [user] [fixed] - Population data only loaded when actually needed by your analysis
 [1.38.2] [admin] [added] - Population data is only required when indicators use population-based calculations
 [1.38.1] [user] [fixed] - Selected category no longer resets when data refreshes
