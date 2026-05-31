@@ -1,3 +1,4 @@
+[TBD] [admin] [fixed] - Fixed visualization selection initialization order to prevent errors
 [TBD] [admin] [changed] - Navigation tabs now show permission-appropriate items more consistently
 [TBD] [admin] [internal] - Updated selection behavior for visualizations, dashboards, and slide decks
 [TBD] [admin] [internal] - Reorderable lists updated to use improved drag-and-drop component
