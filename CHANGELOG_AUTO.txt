@@ -1,3 +1,9 @@
+[TBD] [user] [fixed] - Dashboard chart no longer reloads when reordering items
+[TBD] [user] [changed] - Renaming dashboard items now uses a cleaner popup dialog
+[TBD] [user] [fixed] - Dashboard preview no longer flickers when switching between items
+[TBD] [admin] [fixed] - Dashboard chart no longer reloads when reordering items
+[TBD] [admin] [changed] - Renaming dashboard items now uses a popup dialog
+[TBD] [admin] [fixed] - Switching dashboard items no longer causes unnecessary chart reloads
 [TBD] [admin] [fixed] - Fixed visualization selection initialization order to prevent errors
 [TBD] [admin] [changed] - Navigation tabs now show permission-appropriate items more consistently
 [TBD] [admin] [internal] - Updated selection behavior for visualizations, dashboards, and slide decks
