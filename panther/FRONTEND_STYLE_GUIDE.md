@@ -54,8 +54,13 @@ Panther provides:
 
 - **Form components**: Button, Input, TextArea, Select, Checkbox, RadioGroup,
   Slider, etc.
-- **Layout components**: FrameTop, FrameSide, HeadingBar, Tabs, Stepper,
-  Collapsible sections
+- **List & selection**: SelectList / TabsNavigation / ButtonGroup (one shared
+  `items`/`value`/`onChange` contract — swap = rename), EditableList
+  (add/delete/reorder/select), SortableList, and the optional
+  `createSelectionController` helper for multi-select card grids. See
+  [../DOC_LIST_SELECTION.md](../DOC_LIST_SELECTION.md).
+- **Layout components**: FrameTop, FrameSide, HeadingBar, TabsNavigation,
+  Stepper, Collapsible sections
 - **State wrappers**: StateHolderWrapper, StateHolderFormError,
   GenericEditorWrapper
 - **Data display**: DisplayTable with sorting/filtering/pagination, ChartHolder,

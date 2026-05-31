@@ -74,7 +74,8 @@ export function EditableList<T extends string, M = never>(
   p: EditableListProps<T, M>,
 ) {
   const selectable = () =>
-    p.mode !== undefined || p.selected !== undefined ||
+    p.mode !== undefined ||
+    p.selected !== undefined ||
     p.onSelectChange !== undefined;
 
   const controller = createSelectionController<T>({
@@ -116,7 +117,7 @@ export function EditableList<T extends string, M = never>(
   function row(item: ListItem<T, M>, withHandle: boolean): JSX.Element {
     return (
       <div
-        class="flex items-center gap-1 rounded text-sm"
+        class="flex items-center gap-1 rounded p-1 text-sm"
         classList={{
           "ui-hoverable": true,
           "bg-base-200": selectable() && controller.isSelected(item.id),

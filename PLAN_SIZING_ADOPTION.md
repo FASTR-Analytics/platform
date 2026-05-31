@@ -4,167 +4,267 @@ Adopt panther's new sizing model: **DUs only · `sizing: "reflow" | "zoom"` ·
 `resolution` is sharpness · shrink-to-fit**, with **no `scale`** and **no
 `responsiveScale`**.
 
-Model + rationale: panther `DOC_SIZING_MODEL.md`, `PLAN_SIZING_REFACTOR.md`, and
-the synced rules at [panther/protocols/PROTOCOL_SIZING.md](panther/protocols/PROTOCOL_SIZING.md).
+One line: *a figure reflows into the space it's given; a page (and any export)
+zooms to a fixed 1000-DU frame; `resolution` is just sharpness; DUs are global to
+the surface.*
 
-The whole model in one line: *a figure reflows into the space it's given; a page
-(and any export) zooms to a fixed 1000-DU frame; resolution is just sharpness;
-DUs are global to the surface.*
+Model + rationale: panther `DOC_SIZING_MODEL.md`, `PLAN_SIZING_REFACTOR.md`,
+`PLAN_MERGE_SIZING_BRANCH.md`, and `panther/protocols/PROTOCOL_SIZING.md`.
+
+---
+
+## Structure: two phases, reversible-first
+
+This plan is split so we can **see new panther running before deleting
+anything**:
+
+- **Phase 1 — Clean build & run.** The *minimum* to compile and run wb-fastr
+  against new panther and see it in action. **Reversible by design:** we stop
+  *feeding* panther the removed props, but we do **not** delete wb-fastr's own
+  data models, sliders, or stored config. `config.s.scale` and friends stay
+  (inert) until Phase 2, so the whole step can be reverted by re-adding a few
+  emission lines.
+- **Phase 2 — Cleanup & deadcode.** Once we're happy with the new behaviour,
+  delete the now-inert config/sliders/dead knobs and do the design redo.
+
+The dividing rule: **Phase 1 changes only what breaks the build or renders
+wrong; Phase 2 removes what's merely unused.**
+
+---
 
 ## Dependency & status
 
-Cannot be implemented until the panther refactor ships and is synced into
-`./panther` — wb-fastr imports the new API (`sizing`, `resolution`, no `scale`,
-`REFERENCE_WIDTH_DU`) and won't compile otherwise. **Revisit after panther
-lands** — final API names may shift these steps.
+Phase 1 cannot start until the panther refactor (now merged to panther `main`) is
+**synced into `./panther`** — wb-fastr currently vendors the *old* panther (still
+has `archived_page_holder.tsx`, `scalePixelResolution`, `noRescaleWithWidthChange`,
+`_GLOBAL_CANVAS_PIXEL_WIDTH`). Sync first, then Phase 1.
 
-## 1. Remove `config.s.scale` (the per-PO size knob) — one atomic change
+### Confirmed panther API (names are now locked — no longer "may shift")
 
-`s.scale` is a stored, user-set multiplier (default **3**) that no longer exists.
-All of the following must land together (the zod parse must **strip**, not
-reject, legacy persisted `s.scale`):
+Verified against panther `main`:
+
+- `ChartHolder` props: `sizing?: "reflow" | "zoom"` (default `reflow`),
+  `resolution?: number` (default 1, DPR folded in), `height`, `onCramped?`.
+  **Removed:** `scalePixelResolution`, `noRescaleWithWidthChange`.
+- `PageHolder`: `resolution?`, `fixedCanvasH` (now a DU height in the 1000-frame),
+  always zoom.
+- `REFERENCE_WIDTH_DU = 1000` (was `_GLOBAL_CANVAS_PIXEL_WIDTH = 4000`),
+  `MIN_FONT_SIZE_DU = 5`, `SizingMode`, `getStage2Sizing`/`getExportDevicePxPerDu`
+  in `_000_consts`.
+- Style options: **no `scale`** on figure/markdown/page options or
+  `setGlobalStyle`. `autofit` still accepts `{ minScale, maxScale, minFontSizeDu? }`,
+  default-on, grow dropped (maxScale ≤ 1); measured types now carry `cramped?`.
+- Export: `pagesToPptx(pages, width, height, …)` unchanged (still
+  `slideWidthInches = width / 96`); `getFigureAsCanvas(inputs, outputWidthPx,
+  outputHeightPx?)` and `writeFigure(path, inputs, { outputWidthPx, outputHeightPx? })`
+  (wb-fastr client doesn't call `writeFigure`/`writeSlide` — server-only).
+
+### Census (verified now)
+
+24 `scalePixelResolution` call sites · 5 `noRescaleWithWidthChange` files · 8
+`_GLOBAL_CANVAS_PIXEL_WIDTH` import sites · 5 `scale: config.s.scale` style
+emitters · only `export_slide_deck_as_pptx.ts` calls a panther export fn directly.
+
+---
+
+# PHASE 1 — Clean build & run (reversible)
+
+Each item is tagged **[build]** (won't compile otherwise) or **[run]** (compiles,
+but renders/exports wrong).
+
+## 1.1 `scalePixelResolution` → `resolution` — and drop it for thumbnails **[build]**
+
+24 call sites across `PresentationObjectPanelDisplay.tsx`,
+`PresentationObjectMiniDisplay.tsx`, `slide_card.tsx`, `slide_deck_thumbnail.tsx`,
+`style_editor/StylePreview.tsx`, `select_visualization_for_slide.tsx`,
+`preset_preview.tsx`, the AI previews, etc.
+
+- **Full surfaces:** rename `scalePixelResolution` → `resolution`, keep the value
+  (almost always `1`).
+- **Thumbnails / mini / preview surfaces: just delete the prop.** *(Corrects the
+  original plan's "keep tiers 0.2/0.5/0.6/1 as sharpness.")* The low tiers were a
+  **memory workaround** for the old fixed-4000 backing — every figure allocated a
+  4000px buffer regardless of display size, so thumbnails dialed `resolution`
+  down to claw it back. New panther sizes the backing from the **displayed**
+  width (`backing = displayedWidthPx × dpr × resolution`), so a small thumbnail at
+  the default `resolution: 1` already gets a small, native-crisp backing — and
+  actually *less* memory than the old `0.2` workaround (e.g. ~300px vs 800px). So
+  thumbnails need **no `resolution` at all**. Only ever set `resolution > 1` for a
+  focal/enlarge-on-hover element; never below 1.
+
+## 1.2 `noRescaleWithWidthChange` → `sizing` per surface **[build + run]**
+
+The prop no longer exists (build break); set the right mode per surface family.
+**Readable surfaces → `reflow`; previews/selectors/thumbnails → `zoom`;
+pages/slides always `zoom`.**
+
+| Surface | File | New |
+| --- | --- | --- |
+| Viz editor preview | `visualization/visualization_editor_inner.tsx` | **reflow** |
+| Dashboard tile | `public_viewer/dashboard.tsx` | **reflow** |
+| Public single-viz | `public_viewer/visualization.tsx` | **reflow** |
+| Dataset main viz | `instance_dataset_hmis/dataset_items_holder.tsx` | **reflow** |
+| Mini display | `PresentationObjectMiniDisplay.tsx` | **zoom** |
+| Preset preview | `project/preset_preview.tsx` | **zoom** |
+| AI viz preview | `project_ai/ai_tools/DraftVisualizationPreview.tsx` | **zoom** |
+| Windowing selector | `visualization/WindowingSelector.tsx` | **zoom** |
+| Slide card / thumbnail / AI slide | `slide_deck/*`, `DraftSlidePreview.tsx` | n/a — `PageHolder` is always zoom |
+
+## 1.3 Stop feeding `scale` to panther — but KEEP `config.s.scale` **[build]**
+
+`scale` is gone from panther's style options, so every object that emits it fails
+to compile. **Remove only the emission; leave wb-fastr's stored `s.scale` data
+model alone** (this is the key reversibility point — `config.s.scale`, its zod
+schemas, default, and the Scale slider all stay until Phase 2; they just stop
+reaching panther).
+
+Remove these `scale:` emissions:
+
+- The **5 readers**: `get_style_from_po/_1_standard.ts:39`, `_2_coverage.ts:18`,
+  `_3_percent_change.ts:26`, `_4_disruptions.ts:26`, `_5_scorecard.ts:54` — drop
+  the `scale: config.s.scale` line.
+- `GLOBAL_STYLE_OPTIONS.scale` — `get_style_from_po/_0_common.ts:34` (`scale: 1`).
+- The **4 inline scale hacks** (these set `style.scale` to fight the old conflated
+  axes — delete the emission, rely on `sizing` + shrink-to-fit):
+  - `public_viewer/dashboard.tsx:231` `scale: 1` → delete (tile is reflow).
+  - `project/preset_preview.tsx:185` `scale × 2` → delete (surface is zoom).
+  - `visualization/WindowingSelector.tsx` (~`scale: 0.6` + font fudge) → delete
+    (zoom).
+  - `instance_dataset_hmis/dataset_items_holder.tsx:115/134/146`
+    (`scale: 1`, `vizConfig.scale * 0.6`, `scale: scale`) → drop the `scale:`
+    emission; the now-unused local can be `_`-prefixed or removed (reversible).
+
+`config.s.scale` keeps being read/written by the slider and `additionalScale`
+consumer — that's fine, it's just no longer passed to panther. No data migration
+(the stored value stays valid).
+
+## 1.4 `_GLOBAL_CANVAS_PIXEL_WIDTH` → `REFERENCE_WIDTH_DU` **[build]**
+
+Rename at the **8 live import sites**: `exports/export_slide_deck_as_pdf_vector.ts`,
+`export_slide_deck_as_pptx.ts`, `export_slide_deck_as_pdf_base64.ts`,
+`slide_deck/slide_card.tsx`, `slide_deck_thumbnail.tsx`,
+`slide_deck/style_editor/StylePreview.tsx`, `slide_deck/slide_editor/index.tsx`,
+`project_ai/ai_tools/DraftSlidePreview.tsx`. (Dead refs in `_OLD_REPORT_CODE/` are
+out of build — leave.)
+
+**On-screen `fixedCanvasH = (const * 9) / 16` derivations are SAFE under the
+rename** — both numerator and the frame width scale from the same const, so the
+aspect stays 16:9 (`1000 : 562.5` = `4000 : 2250`). The 5 sites that compute it
+(`slide_card.tsx`, `slide_deck_thumbnail.tsx`, `StylePreview.tsx`,
+`slide_editor/index.tsx`, `DraftSlidePreview.tsx`) need **only the rename**, no
+re-derivation. *(This is why wb-fastr dodges panther's R11 caller-breakage — it
+derives `fixedCanvasH` from the const rather than hardcoding a 4000-frame height.)*
+
+## 1.5 Decouple **export** geometry from the DU width **[run]**
+
+Critical: the const drops 4000 → 1000, and exports pass it as a **physical** size.
+`export_slide_deck_as_pptx.ts:34` sets `canvasW = _GLOBAL_CANVAS_PIXEL_WIDTH` and
+feeds it to `pagesToPptx`, which computes `slideWidthInches = width / 96` — so a
+naive rename turns a slide from ~41.7in into ~10.4in. Same shape for
+`export_slide_deck_as_pdf_vector.ts:36` (`pdfW` → `pdf.addPage([pdfW, pdfH])`) and
+the base64 PDF.
+
+Give each export an **explicit absolute output size** (e.g. a local
+`SLIDE_EXPORT_WIDTH_PX = 4000`, or inches × DPI) that is **independent of
+`REFERENCE_WIDTH_DU`**, so PPTX/PDF/PNG physical dimensions are preserved. Verify
+exported file dimensions after the on-screen check.
+
+## 1.6 Editor PNG download **[run]**
+
+The editor `ChartHolder` (`visualization_editor_inner.tsx`,
+`canvasElementId="CANVAS_FOR_DOWNLOADING"`) is grabbed by `download()` via
+`toBlob`. Now that the editor is **reflow** (1.2), that canvas is only on-screen
+width, so the downloaded PNG shrinks. Route downloads through a **canonical
+high-res render** instead — `getFigureAsCanvas(figureInputs, outputWidthPx)` at a
+chosen export width (panther: export = canonical 1000-DU frame supersampled to
+`outputWidthPx`) — don't capture the reflow preview canvas.
+
+## 1.7 AI slide layout bounds **[run, lower priority]**
+
+`slide_deck/slide_ai/convert_ai_input_to_slide.ts:133` optimises layout at a
+hardcoded `RectCoordsDims([0,0,1920,1080])` while render now uses the 1000-DU
+frame. Derive the optimiser bounds from `REFERENCE_WIDTH_DU` so "fits at layout" ==
+"fits at render." (Only matters for AI slides; can follow once they're in the
+verification loop.)
+
+### Phase 1 done = clean `build` + app runs + on-screen surfaces render + exports
+keep their physical dimensions. Stop here and evaluate before Phase 2.
+
+---
+
+# PHASE 2 — Cleanup & deadcode (once happy)
+
+Now delete the inert data models and finish alignment. All of this is safe to do
+only after Phase 1 is validated.
+
+## 2.1 Remove `config.s.scale` (the stored per-PO knob)
+
+Land together; the zod parse must **strip** (not reject) legacy persisted
+`s.scale`:
 
 - `DEFAULT_S_CONFIG.scale` — `lib/types/presentation_object_defaults.ts:9`.
-- Three zod schemas declaring `scale: z.number()` —
-  `lib/types/_presentation_object_config.ts:34` (required, not `.partial()`),
-  `lib/types/_metric_installed.ts:171`, `lib/types/_module_definition_github.ts:172`.
-- The **five** readers emitting `scale: config.s.scale` (full paths) —
-  `client/src/generate_visualization/get_style_from_po/`: `_1_standard.ts:39`,
-  `_2_coverage.ts:18`, `_3_percent_change.ts:26`, `_4_disruptions.ts:26`,
-  `_5_scorecard.ts:54`.
-- `GLOBAL_STYLE_OPTIONS.scale` —
-  `client/src/generate_visualization/get_style_from_po/_0_common.ts:34`.
-- The **Scale slider** in `SharedControlsTop` —
-  `client/src/components/visualization/presentation_object_editor_panel_style/_shared.tsx`
-  (and remove/confirm the orphaned `TC.scale` key, `lib/translate/common.ts:16`,
-  also used by the dataset slider below).
-- The `additionalScale` consumer that reads/writes `config.s.scale` —
-  `state/project/t2_presentation_objects.ts:130-132` (see §3).
+- 3 zod schemas — `lib/types/_presentation_object_config.ts:34`,
+  `_metric_installed.ts:171`, `_module_definition_github.ts:172`.
+- The **Scale slider** in `SharedControlsTop`
+  (`components/visualization/presentation_object_editor_panel_style/_shared.tsx`)
+  + the orphaned `TC.scale` translate key (`lib/translate/common.ts:16`).
 
-No user-facing size control replaces it (decided). Stored `s.scale` is ignored
-once readers drop it — no functional data migration needed.
+No replacement user control (decided). No functional data migration — stored
+`s.scale` is simply ignored, then stripped.
 
-## 2. Remove per-surface scale hacks
-
-These only exist to fight the old conflated axes. Delete; rely on `sizing` +
-shrink-to-fit.
-
-| Site | Did | Replace with |
-| --- | --- | --- |
-| `public_viewer/dashboard.tsx` (~218–227) | forces figure `scale: 1` | delete; tile = `reflow` + shrink-to-fit |
-| `project/preset_preview.tsx` (~185) | `scale × 2` | delete; `sizing: "zoom"` |
-| `WindowingSelector.tsx` (~198) | `scale: 0.6` (+ ~0.75 font fudge) | delete; `sizing: "zoom"` |
-| `instance_dataset_hmis/dataset_items_holder.tsx` (~134) | `scale × 0.6` + its own scale slider (~244–249) | delete multiplier + slider; `sizing: "reflow"` |
-
-## 3. Remove dead knobs
+## 2.2 Remove dead knobs
 
 - `figureScale` — `lib/types/slides.ts` (type + default 2),
-  `lib/types/_slide_deck_config.ts` (zod + default 1). **Never read.** Delete.
-- `additionalScale` — consumed in `state/project/t2_presentation_objects.ts:130-132`,
-  typed in `lib/types/presentation_objects.ts:287`, **never produced.** Delete;
-  must land in or before §1 (its consumer touches `config.s.scale`).
+  `lib/types/_slide_deck_config.ts` (zod + default 1). **Never read.**
+- `additionalScale` — consumer `state/project/t2_presentation_objects.ts:130-132`,
+  type `lib/types/presentation_objects.ts:287`. **Never produced.** (Its consumer
+  also touches `config.s.scale`, so sequence with 2.1.)
 
-## 4. `noRescaleWithWidthChange` → `sizing` per surface family
+## 2.3 Remove the dataset's own scale slider
 
-Set `sizing` deliberately per surface (not per PO). **Readable surfaces →
-`reflow`; previews/selectors/thumbnails → `zoom`; pages/slides always `zoom`.**
+`instance_dataset_hmis/dataset_items_holder.tsx` (~244-249) — its bespoke scale
+slider goes once the `× 0.6` emission is gone (1.3).
 
-| Surface | File | Today | New |
-| --- | --- | --- | --- |
-| Viz editor preview | `visualization/visualization_editor_inner.tsx` | `noRescale=true` (zoom) | **reflow** |
-| Dashboard tile | `public_viewer/dashboard.tsx` | reflow (no noRescale) + force `scale:1` | **reflow** |
-| Public single-viz | `public_viewer/visualization.tsx` | URL toggle, default reflow | **reflow** |
-| Dataset main viz | `instance_dataset_hmis/dataset_items_holder.tsx` | reflow, `style.scale × 0.6` | **reflow** |
-| Mini display | `PresentationObjectMiniDisplay.tsx` | `noRescale=true` | **zoom** |
-| Preset preview | `project/preset_preview.tsx` | `noRescale=true` | **zoom** |
-| AI viz preview | `project_ai/ai_tools/DraftVisualizationPreview.tsx` | `noRescale=true` | **zoom** |
-| Windowing selector | `WindowingSelector.tsx` | reflow, `style.scale 0.6` | **zoom** |
-| Slide card / thumbnail | `slide_deck/slide_card.tsx`, `slide_deck_thumbnail.tsx` | `PageHolder` | n/a — page is always zoom |
-| AI slide preview | `project_ai/ai_tools/DraftSlidePreview.tsx` | `PageHolder` | n/a — page is always zoom |
+## 2.4 Align slide / AI autofit with panther's floor + `cramped`
 
-Notes:
+`FIGURE_AUTOFIT {0.3,1}` / `MARKDOWN_AUTOFIT {0.2,1}` (`lib/consts.ts`) feed
+`generate_slide_deck/convert_slide_to_page_inputs.ts` (~445/496) and
+`slide_deck/slide_ai/convert_ai_input_to_slide.ts:97/101`. Keep the `autofit`
+config; map `minScale` floors to the new min-font floor (`minFontSizeDu`), drop the
+grow path (maxScale ≤ 1, already enforced by panther), and **surface `cramped`** in
+the UI where a block hit the floor and still overflows.
 
-- The "Today" column distinguishes the **sizing mode** (noRescale) from the
-  **`style.scale` hack**: WindowingSelector and dataset viz are *reflow today*;
-  their `0.6` is a `style.scale`, handled in §2.
-- **Editor PNG download regression:** the editor `ChartHolder`
-  (`visualization_editor_inner.tsx:955/958`, `canvasElementId="CANVAS_FOR_DOWNLOADING"`)
-  is captured by `download()` (~:504/:558) via `toBlob`. Flipping it `zoom →
-  reflow` shrinks the downloaded PNG to on-screen width. Route downloads through
-  a separate canonical `REFERENCE_WIDTH`/high-res render (per the model: export =
-  canonical frame), don't grab the reflow preview canvas.
-
-## 5. Rename `scalePixelResolution` → `resolution`, and handle `_GLOBAL_CANVAS_PIXEL_WIDTH`
-
-- **Rename `scalePixelResolution` → `resolution`** at every `ChartHolder` /
-  `PageHolder` call site (`PresentationObjectPanelDisplay.tsx`,
-  `PresentationObjectMiniDisplay.tsx`, `slide_card.tsx`, `slide_deck_thumbnail.tsx`,
-  `style_editor/StylePreview.tsx`, `select_visualization_for_slide.tsx`,
-  `preset_preview.tsx`, the AI previews). Keep tiers (0.2/0.5/0.6/1) as
-  sharpness; with DPR now folded in, re-confirm `1` is the default for full
-  surfaces.
-- **`_GLOBAL_CANVAS_PIXEL_WIDTH` → `REFERENCE_WIDTH_DU`** at all **8 live**
-  import sites: `exports/export_slide_deck_as_pdf_vector.ts`,
-  `export_slide_deck_as_pptx.ts`, `export_slide_deck_as_pdf_base64.ts`,
-  `components/slide_deck/slide_card.tsx`, `slide_deck_thumbnail.tsx`,
-  `slide_editor/index.tsx`, `style_editor/StylePreview.tsx`,
-  `project_ai/ai_tools/DraftSlidePreview.tsx`. (There are also dead refs in
-  `_OLD_REPORT_CODE/` — out of build, leave or delete.) Plus the **5** places
-  that recompute `fixedCanvasH = (_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16`
-  (`slide_card.tsx`, `slide_deck_thumbnail.tsx`, `style_editor/StylePreview.tsx`,
-  `slide_editor/index.tsx`, `DraftSlidePreview.tsx`; the export sites' `*9/16` is
-  covered below).
-- **Decouple export geometry from the DU width** (critical — the value drops
-  4000 → 1000): exports currently use the const as *physical* output.
-  `export_slide_deck_as_pptx.ts:34` sets `canvasW = _GLOBAL_CANVAS_PIXEL_WIDTH`
-  and passes it to `pagesToPptxBrowser`, which (in panther
-  `_122_pptx/pages_to_pptx.ts`) computes `slideWidthInches = width / DPI`
-  (DPI = 96) → 4000→1000 changes a slide from ~41.7in to ~10.4in;
-  `export_slide_deck_as_pdf_vector.ts:36` `pdfW` drives
-  `pdf.addPage([pdfW, pdfH])`. Give each export an **explicit absolute output
-  size** (inches/points/px) independent of `REFERENCE_WIDTH_DU`, so PPTX/PDF/PNG
-  physical dimensions are preserved.
-
-## 6. Slide / AI-slide autofit
-
-- `FIGURE_AUTOFIT {0.3,1}` / `MARKDOWN_AUTOFIT {0.2,1}` (`lib/consts.ts`) feed
-  `generate_slide_deck/convert_slide_to_page_inputs.ts` (~445/496) **and**
-  `slide_deck/slide_ai/convert_ai_input_to_slide.ts:97/101`. Keep, but align with
-  panther's renamed/defaulted shrink-to-fit (config stays `autofit`; add the
-  min-font floor; surface `cramped`). The `minScale` floors map to the font
-  floor; the grow path is dropped (maxScale ≤ 1).
-- **AI layout bounds:** `convert_ai_input_to_slide.ts:133` optimizes at a
-  hardcoded `RectCoordsDims([0,0,1920,1080])` while render uses the
-  `REFERENCE_WIDTH_DU`-derived frame (1000). Derive the optimizer bounds from
-  `REFERENCE_WIDTH_DU` so "fits at layout" matches "fits at render" (especially
-  while defaults are un-rebased and min-widths are larger).
-
-## 7. Global type scale + logos — deferred to the design redo
+## 2.5 Joint design redo (retune — separate holistic pass)
 
 - `GLOBAL_STYLE_OPTIONS` numbers (`baseText.fontSize: 24`, `figure.text.base: 14`,
-  paddings, gaps; `get_style_from_po/_0_common.ts`) are tuned for the old
-  4000-frame × `scale: 3` world. With `REFERENCE_WIDTH = 1000` and `scale` gone,
-  sizing shifts and needs a holistic retune. **Interim is modest, not 4×:**
-  reflow surfaces ~unchanged (14 DU = 14 px); zoom surfaces ~1.3×; the editor
-  changes more because it flips zoom→reflow.
-- **Logos use `msArea` (sf²):** with the removed `scale: 3`, logo `targetArea`
-  (e.g. 40000 in `_005_page_style` defaults and `LogoSectionEditor.tsx`) shrinks
-  ~9× (3× linear) and scales non-linearly vs everything else. Retune separately
-  in the design redo.
+  paddings, gaps; `get_style_from_po/_0_common.ts`) were tuned for the old
+  4000-frame × `scale: 3` world. Interim shift is modest, not 4× (reflow
+  ~unchanged; zoom ~1.3×; editor more, since it flips zoom→reflow), but they need a
+  holistic retune at print width together with the **legibility floor** value.
+- **Logos use `msArea` (sf²):** with `scale: 3` gone, logo `targetArea` (e.g.
+  40000 in `_005_page_style` defaults and `LogoSectionEditor.tsx`) shrinks ~9×
+  (3× linear) and scales non-linearly vs everything else. Retune in the same pass.
 
-## Phasing (after panther syncs)
+---
 
-1. Mechanical: `scalePixelResolution` → `resolution`; `_GLOBAL_CANVAS_PIXEL_WIDTH`
-   → `REFERENCE_WIDTH_DU` (§5, incl. export-geometry decoupling).
-2. Remove dead knobs (`figureScale`, `additionalScale`) (§3).
-3. Remove `config.s.scale` atomically (§1: default + 3 zod + 5 readers + global +
-   slider).
-4. Delete the four scale hacks; set `sizing` per surface; fix editor PNG download
-   (§2, §4).
-5. Align slide/AI autofit + bounds (§6).
-6. Joint design redo: retune `GLOBAL_STYLE_OPTIONS` + logos + the floor (§7).
+## Reversibility note
 
-## Revisit
+Phase 1 is intentionally a set of **prop/emission edits**, not deletions of
+wb-fastr's data: `config.s.scale`, `figureScale`, `additionalScale`, the Scale
+slider, and `DEFAULT_S_CONFIG.scale` all still exist after Phase 1 — they're just
+no longer wired into panther. To revert Phase 1, re-add the ~10 `scale:`/prop
+lines. The irreversible deletions are quarantined in Phase 2, after we've seen new
+panther working.
 
-Re-check after panther lands — final API names (`sizing`, `resolution`,
-`autofit`/floor, `cramped`, `REFERENCE_WIDTH_DU`) may adjust these steps.
+## How to "see it in action" (Phase 1 verification)
+
+1. `deno task typecheck` / `tsc` — clean build (proves 1.1–1.4).
+2. Run the app; eyeball each surface family: editor (reflow — fonts fixed size,
+   content reflows on resize), dashboard tiles (reflow), previews/selectors/mini
+   (zoom — scales with width), slide cards/thumbnails (zoom, 16:9). Resize panels
+   and confirm no blank/stale canvas.
+3. Tight slots: confirm shrink-to-fit kicks in (figures **and** markdown) and
+   `cramped` reports where it can't.
+4. Exports: open a generated PPTX/PDF and confirm physical dimensions are
+   unchanged (proves 1.5); download an editor PNG and confirm it's full-res
+   (proves 1.6).

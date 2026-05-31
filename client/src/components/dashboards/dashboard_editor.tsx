@@ -75,6 +75,14 @@ export function DashboardEditor(p: Props) {
     }
   });
 
+  // Hold the latest successfully-loaded dashboard so SSE refetches (e.g. a
+  // reorder) update the inner editor's props in place instead of remounting it
+  // through a keyed StateHolderWrapper — a remount reloads the preview chart.
+  const readyDashboard = createMemo<DashboardDetail | undefined>((prev) => {
+    const d = data();
+    return d.status === "ready" ? d.data : prev;
+  }, undefined);
+
   const canConfigure = () =>
     projectState.thisUserPermissions.can_configure_slide_decks &&
     !projectState.isLocked;
@@ -294,19 +302,22 @@ export function DashboardEditor(p: Props) {
           </StateHolderWrapper>
         }
       >
-        <StateHolderWrapper state={data()}>
-          {(dashboard) => (
-            <DashboardEditorInner
-              dashboard={dashboard}
-              selectedItemId={selectedItemId()}
-              setSelectedItemId={setSelectedItemId}
-              canConfigure={canConfigure()}
-              onReorder={handleReorder}
-              onUpdateLabel={updateLabel}
-              onDelete={attemptDeleteItem}
-            />
-          )}
-        </StateHolderWrapper>
+        <Show
+          when={readyDashboard()}
+          fallback={
+            <StateHolderWrapper state={data()}>{() => <></>}</StateHolderWrapper>
+          }
+        >
+          <DashboardEditorInner
+            dashboard={readyDashboard()!}
+            selectedItemId={selectedItemId()}
+            setSelectedItemId={setSelectedItemId}
+            canConfigure={canConfigure()}
+            onReorder={handleReorder}
+            onUpdateLabel={updateLabel}
+            onDelete={attemptDeleteItem}
+          />
+        </Show>
       </FrameTop>
     </InnerEditorWrapper>
   );

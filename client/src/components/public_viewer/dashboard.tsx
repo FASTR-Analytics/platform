@@ -152,7 +152,7 @@ export function SidebarLayout(p: SidebarLayoutProps) {
           </Show>
         </div>
         <Show
-          when={p.currentItem}
+          when={p.currentItem?.id}
           keyed
           fallback={
             <div class="text-neutral text-sm">
@@ -163,14 +163,21 @@ export function SidebarLayout(p: SidebarLayoutProps) {
             </div>
           }
         >
-          {(item) => (
-            <DashboardItemChart
-              itemId={item.id}
-              strippedFigureInputs={item.strippedFigureInputs}
-              source={item.source}
-              geoData={item.geoData}
-            />
-          )}
+          {(id) => {
+            const item = () => p.items.find((i) => i.id === id);
+            return (
+              <Show when={item()}>
+                {(it) => (
+                  <DashboardItemChart
+                    itemId={id}
+                    strippedFigureInputs={it().strippedFigureInputs}
+                    source={it().source}
+                    geoData={it().geoData}
+                  />
+                )}
+              </Show>
+            );
+          }}
         </Show>
       </div>
     </FrameLeft>
