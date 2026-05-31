@@ -110,6 +110,24 @@ pages/slides always `zoom`.**
 | Windowing selector | `visualization/WindowingSelector.tsx` | **zoom** |
 | Slide card / thumbnail / AI slide | `slide_deck/*`, `DraftSlidePreview.tsx` | n/a — `PageHolder` is always zoom |
 
+**`tsc` won't catch the prop-absent sites — audit all 9 `<ChartHolder>` tags.**
+The build only breaks where `noRescaleWithWidthChange` is *currently* passed (the
+**5** files: editor, public-viz, Mini ×2, preset, AI viz). The other ChartHolders
+pass no mode prop and silently take the new default (`reflow`). Note the old
+default was **also `reflow`** (old `noRescale` absent ⇒ `responsiveScale =
+4000/containerW` ⇒ fixed-px = reflow; only `noRescale=true` was zoom) — so there
+is **no silent zoom→reflow flip**:
+
+- `public_viewer/dashboard.tsx`, `instance_dataset_hmis/dataset_items_holder.tsx`
+  → want `reflow`; new default already correct, **no edit, no behaviour change
+  from the mode** (their `style.scale` hacks still change — see §1.3).
+- `visualization/WindowingSelector.tsx` → wants **zoom** but has no prop, so `tsc`
+  stays green while it renders `reflow` (wrong). **Add `sizing="zoom"`** — there's
+  nothing to "rename," so a prop-rename pass alone would miss it.
+
+(Ignore any review framing that says the old default was "zoom-like" or that the
+dashboard/dataset surfaces flip mode — verified false against the old holder.)
+
 ## 1.3 Stop feeding `scale` to panther — but KEEP `config.s.scale` **[build]**
 
 `scale` is gone from panther's style options, so every object that emits it fails
@@ -130,9 +148,11 @@ Remove these `scale:` emissions:
   - `project/preset_preview.tsx:185` `scale × 2` → delete (surface is zoom).
   - `visualization/WindowingSelector.tsx` (~`scale: 0.6` + font fudge) → delete
     (zoom).
-  - `instance_dataset_hmis/dataset_items_holder.tsx:115/134/146`
-    (`scale: 1`, `vizConfig.scale * 0.6`, `scale: scale`) → drop the `scale:`
-    emission; the now-unused local can be `_`-prefixed or removed (reversible).
+  - `instance_dataset_hmis/dataset_items_holder.tsx:146` `scale: scale` → drop
+    this (the **only** panther emission here) plus the now-dead
+    `const scale = vizConfig.scale * 0.6` on `:134`. **Keep `:115` `scale: 1`** —
+    that line is wb-fastr's own `vizConfig` store default (`createStore({...})`),
+    not a panther style emission; leave it (reversibility).
 
 `config.s.scale` keeps being read/written by the slider and `additionalScale`
 consumer — that's fine, it's just no longer passed to panther. No data migration
