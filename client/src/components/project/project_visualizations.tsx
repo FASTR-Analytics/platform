@@ -36,7 +36,10 @@ export function ProjectVisualizations(p: Props) {
       );
       if (poDetailRes.success === false) {
         await openAlert({
-          text: t3({ en: "Failed to load visualization", fr: "Échec du chargement de la visualisation" }),
+          text: t3({
+            en: "Failed to load visualization",
+            fr: "Échec du chargement de la visualisation",
+          }),
           intent: "danger",
         });
         return;
@@ -62,7 +65,10 @@ export function ProjectVisualizations(p: Props) {
         // SSE will update projectState automatically
         updateProjectView({
           vizGroupingMode: "folders",
-          vizSelectedGroup: result.created.folderId === null ? "_unfiled" : result.created.folderId,
+          vizSelectedGroup:
+            result.created.folderId === null
+              ? "_unfiled"
+              : result.created.folderId,
         });
       }
       return;
@@ -77,7 +83,6 @@ export function ProjectVisualizations(p: Props) {
         returnToContext: aiContext(),
         ...snapshotForVizEditor({
           projectState,
-
         }),
       },
     });
@@ -177,11 +182,10 @@ export function ProjectVisualizations(p: Props) {
         >
           <Show
             when={
-              !projectState.isLocked &&
-              projectState.projectModules.length > 0
+              !projectState.isLocked && projectState.projectModules.length > 0
             }
           >
-            <div class="flex items-center ui-gap-sm">
+            <div class="ui-gap-sm flex items-center">
               {/* <Button onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
                 {t("Create with AI")}
               </Button> */}
@@ -189,7 +193,10 @@ export function ProjectVisualizations(p: Props) {
                 {t3({ en: "Share links", fr: "Liens de partage" })}
               </Button>
               <Button onClick={attempAddPresentationObject} iconName="plus">
-                {t3({ en: "Create visualization", fr: "Créer une visualisation" })}
+                {t3({
+                  en: "Create visualization",
+                  fr: "Créer une visualisation",
+                })}
               </Button>
             </div>
           </Show>
@@ -200,7 +207,10 @@ export function ProjectVisualizations(p: Props) {
         when={projectState.projectModules.length > 0}
         fallback={
           <div class="ui-pad text-neutral text-sm">
-            {t3({ en: "You need to enable at least one module to create visualizations", fr: "Vous devez activer au moins un module pour créer des visualisations" })}
+            {t3({
+              en: "You need to enable at least one module to create visualizations",
+              fr: "Vous devez activer au moins un module pour créer des visualisations",
+            })}
           </div>
         }
       >

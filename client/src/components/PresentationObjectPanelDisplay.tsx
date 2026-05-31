@@ -429,7 +429,10 @@ export function PresentationObjectPanelDisplay(p: Props) {
           </div>
           <div class="flex-1 overflow-auto p-2">
             <SelectList
-              items={groupOptions().map((g) => ({ id: g.value, label: g.label }))}
+              items={groupOptions().map((g) => ({
+                id: g.value,
+                label: g.label,
+              }))}
               value={vizSelectedGroup() ?? undefined}
               onChange={setVizSelectedGroup}
               renderItem={renderGroupOption}
@@ -491,13 +494,6 @@ function VisualizationGrid(p: VisualizationGridProps) {
   const metricLookup = () => createMetricLookup(p.metrics);
   const { notifyAI } = useAIProjectContext();
 
-  const selection = createSelectionController<string>({
-    ids: () => getOrderedVisualizationIds(),
-    mode: "multi",
-    onSelectionChange: (ids) =>
-      notifyAI({ type: "selected_visualizations", vizIds: ids }),
-  });
-
   const getOrderedVisualizationIds = (): string[] => {
     if (!p.subGroupConfig) {
       return p.visualizations.map((po) => po.id);
@@ -530,6 +526,13 @@ function VisualizationGrid(p: VisualizationGridProps) {
     }
     return orderedIds;
   };
+
+  const selection = createSelectionController<string>({
+    ids: () => getOrderedVisualizationIds(),
+    mode: "multi",
+    onSelectionChange: (ids) =>
+      notifyAI({ type: "selected_visualizations", vizIds: ids }),
+  });
 
   const visualIndexMap = (): Map<string, number> => {
     const ids = getOrderedVisualizationIds();

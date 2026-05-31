@@ -87,9 +87,7 @@ function AIContextSync() {
 export default function Project(p: Props) {
   return (
     <ProjectSSEBoundary projectId={p.projectId}>
-      <ProjectInner
-        currentUserEmail={p.currentUserEmail}
-      />
+      <ProjectInner currentUserEmail={p.currentUserEmail} />
     </ProjectSSEBoundary>
   );
 }
@@ -157,8 +155,8 @@ function ProjectInner(p: { currentUserEmail: string }) {
         dot: modulesHaveError()
           ? "danger"
           : modulesNeedUpdate()
-          ? "warning"
-          : undefined,
+            ? "warning"
+            : undefined,
       });
     }
     if (perms.can_view_data) {
@@ -263,9 +261,7 @@ function ProjectInner(p: { currentUserEmail: string }) {
                     projectState.thisUserPermissions.can_view_slide_decks
                   }
                 >
-                  <ProjectDecks
-                    openProjectEditor={openProjectEditor}
-                  />
+                  <ProjectDecks openProjectEditor={openProjectEditor} />
                 </Match>
                 <Match
                   when={
@@ -273,9 +269,7 @@ function ProjectInner(p: { currentUserEmail: string }) {
                     projectState.thisUserPermissions.can_view_slide_decks
                   }
                 >
-                  <ProjectDashboards
-                    openProjectEditor={openProjectEditor}
-                  />
+                  <ProjectDashboards openProjectEditor={openProjectEditor} />
                 </Match>
                 <Match
                   when={
@@ -293,9 +287,7 @@ function ProjectInner(p: { currentUserEmail: string }) {
                     projectState.thisUserPermissions.can_view_metrics
                   }
                 >
-                  <ProjectMetrics
-                    openProjectEditor={openProjectEditor}
-                  />
+                  <ProjectMetrics openProjectEditor={openProjectEditor} />
                 </Match>
                 <Match
                   when={
@@ -331,11 +323,14 @@ function ProjectInner(p: { currentUserEmail: string }) {
                     projectState.thisUserPermissions.can_configure_settings
                   }
                 >
-                  <ProjectSettings
-                    backToHome={() => navigate("/")}
-                  />
+                  <ProjectSettings backToHome={() => navigate("/")} />
                 </Match>
-                <Match when={projectTab() === "cache" && instanceState.currentUserIsGlobalAdmin}>
+                <Match
+                  when={
+                    projectTab() === "cache" &&
+                    instanceState.currentUserIsGlobalAdmin
+                  }
+                >
                   <ProjectCache />
                 </Match>
               </Switch>
