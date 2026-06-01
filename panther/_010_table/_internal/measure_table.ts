@@ -41,6 +41,7 @@ export function measureTable(
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
     fitScale,
+    inputs.autofitSurrounds,
   );
 
   // Register the styles that you will need for this class

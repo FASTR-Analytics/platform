@@ -18,7 +18,37 @@ export type BackgroundDetailType =
   | ImageOverlayType
   | PatternOverlayType;
 
-export type LogosSizingOptions = LogosSizingOptionsImport;
+// Render-layer type (panther). Numbers, consumed by the page-style renderer.
+export type PantherLogosSizing = LogosSizingOptionsImport;
+
+// Stored shape: semantic keys, resolved to numbers at render time.
+export type LogoSizeKey = "sm" | "md" | "lg" | "xl";
+export type LogoSizingConfig = { size?: LogoSizeKey; spacing?: LogoSizeKey };
+
+// Single source of truth for how keys map to render numbers. Tweak here.
+export const LOGO_SIZE_TARGET_AREA: Record<LogoSizeKey, number> = {
+  sm: 4000,
+  md: 8000,
+  lg: 16000,
+  xl: 32000,
+};
+export const LOGO_SPACING_GAP_X: Record<LogoSizeKey, number> = {
+  sm: 5,
+  md: 15,
+  lg: 25,
+  xl: 40,
+};
+
+// Resolve stored keys to render numbers. Omits unset keys so preset
+// defaults show through when a section has no override.
+export function resolveLogoSizing(
+  sizing: LogoSizingConfig | undefined,
+): Pick<PantherLogosSizing, "targetArea" | "gapX"> {
+  const out: Pick<PantherLogosSizing, "targetArea" | "gapX"> = {};
+  if (sizing?.size) out.targetArea = LOGO_SIZE_TARGET_AREA[sizing.size];
+  if (sizing?.spacing) out.gapX = LOGO_SPACING_GAP_X[sizing.spacing];
+  return out;
+}
 import { Color } from "@timroberton/panther";
 import type { PresentationObjectConfig } from "./presentation_objects.ts";
 import { _GFF_GREEN } from "../key_colors.ts";
@@ -47,7 +77,7 @@ export { slideConfigSchema } from "./_slide_config.ts";
 
 export type LogoSectionConfig = {
   selected: string[];
-  sizing?: LogosSizingOptions;
+  sizing?: LogoSizingConfig;
   showByDefault: boolean;
 };
 

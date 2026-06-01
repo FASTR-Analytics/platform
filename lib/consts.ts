@@ -169,5 +169,5 @@ export const FIGURE_EXPORT_WIDTH_PX = 1920;
 // optimization, and all deck exports) reads these — never recompute the aspect
 // inline. Screen and export stay in lockstep because they read the same values.
 export const PAGE_ASPECT = 9 / 16;
-export const PAGE_WIDTH_DU = 1300;
+export const PAGE_WIDTH_DU = 1400;
 export const PAGE_HEIGHT_DU = Math.round(PAGE_WIDTH_DU * PAGE_ASPECT);

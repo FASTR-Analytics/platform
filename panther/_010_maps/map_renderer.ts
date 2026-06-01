@@ -69,7 +69,11 @@ function getMapComponentSizes(
   item: MapInputs,
   scale: number,
 ): ChartComponentSizes {
-  const customFigureStyle = new CustomFigureStyle(item.style, scale);
+  const customFigureStyle = new CustomFigureStyle(
+    item.style,
+    scale,
+    item.autofitSurrounds,
+  );
   const mergedStyle = customFigureStyle.getMergedMapStyle();
   const transformedData = getMapDataTransformed(item.mapData);
   const resolvedLegendLabels: LegendInput | undefined =

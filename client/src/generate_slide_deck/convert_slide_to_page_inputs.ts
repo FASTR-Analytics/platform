@@ -16,6 +16,7 @@ import {
   getSlideFontInfo,
   getTextColorForBackground,
   resolveColorThemeToPreset,
+  resolveLogoSizing,
 } from "lib";
 import type {
   APIResponseWithData,
@@ -196,13 +197,13 @@ export function buildStyleForSlide(
         color: presetStyle.text!.subHeader!.color,
         relFontSize: 2,
         letterSpacing: getLetterSpacing(fontFamily),
-        lineHeight: 1.1,
+        lineHeight: 1,
       },
       date: {
         font: getFont(fontFamily, undefined, undefined, false),
         color: presetStyle.text!.date!.color,
         relFontSize: 1,
-        lineHeight: 1.1,
+        lineHeight: 1,
       },
       footer: {
         font: getFont(fontFamily, undefined, undefined, false),
@@ -223,7 +224,7 @@ export function buildStyleForSlide(
       split: presetStyle.cover!.split,
       logosSizing: {
         ...presetStyle.cover!.logosSizing,
-        ...config.logos.cover.sizing,
+        ...resolveLogoSizing(config.logos.cover.sizing),
         maxHeight: Infinity,
         maxWidth: Infinity,
       },
@@ -249,7 +250,7 @@ export function buildStyleForSlide(
         padding: presetStyle.freeform!.header!.padding,
         logosSizing: {
           ...presetStyle.freeform!.header!.logosSizing,
-          ...config.logos.header.sizing,
+          ...resolveLogoSizing(config.logos.header.sizing),
           maxHeight: Infinity,
           maxWidth: Infinity,
         },
@@ -272,7 +273,7 @@ export function buildStyleForSlide(
         padding: presetStyle.freeform!.footer!.padding,
         logosSizing: {
           ...presetStyle.freeform!.footer!.logosSizing,
-          ...config.logos.footer.sizing,
+          ...resolveLogoSizing(config.logos.footer.sizing),
           maxHeight: Infinity,
           maxWidth: Infinity,
         },

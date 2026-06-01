@@ -43,8 +43,8 @@ const LAYOUT_PRESETS = {
           maxWidth: 100,
           gapX: 20,
         },
-        headerBottomPadding: 25,
-        subHeaderBottomPadding: 18,
+        headerBottomPadding: 8,
+        subHeaderBottomPadding: 5,
       },
       footer: {
         alignH: "left",
@@ -99,8 +99,8 @@ const LAYOUT_PRESETS = {
           maxWidth: 100,
           gapX: 20,
         },
-        headerBottomPadding: 22,
-        subHeaderBottomPadding: 16,
+        headerBottomPadding: 8,
+        subHeaderBottomPadding: 5,
       },
       footer: {
         alignH: "left",
@@ -155,8 +155,8 @@ const LAYOUT_PRESETS = {
           maxWidth: 100,
           gapX: 20,
         },
-        headerBottomPadding: 22,
-        subHeaderBottomPadding: 16,
+        headerBottomPadding: 8,
+        subHeaderBottomPadding: 5,
       },
       footer: {
         alignH: "left",
@@ -213,8 +213,8 @@ const LAYOUT_PRESETS = {
           maxWidth: 100,
           gapX: 20,
         },
-        headerBottomPadding: 22,
-        subHeaderBottomPadding: 16,
+        headerBottomPadding: 8,
+        subHeaderBottomPadding: 5,
       },
       footer: {
         alignH: "left",

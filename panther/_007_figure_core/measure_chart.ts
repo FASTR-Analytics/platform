@@ -37,6 +37,7 @@ export function measureChart<
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
     fitScale,
+    inputs.autofitSurrounds,
   );
 
   const mergedStyle = config.mergedStyle;

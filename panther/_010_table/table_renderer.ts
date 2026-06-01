@@ -45,7 +45,11 @@ function getMinComfortableWidth(
   item: TableInputs,
   fitScale?: number,
 ): number {
-  const customFigureStyle = new CustomFigureStyle(item.style, fitScale);
+  const customFigureStyle = new CustomFigureStyle(
+    item.style,
+    fitScale,
+    item.autofitSurrounds,
+  );
   const s = customFigureStyle.getMergedTableStyle();
   const d = getTableDataTransformed(item.tableData);
 

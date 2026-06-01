@@ -99,9 +99,12 @@ export function getTextStyle(
   const boldFont = getFigureFont(deckStyle, true);
   return {
     base: { font: baseFont },
-    caption: { relFontSize: config.t.captionRelFontSize ?? 2, font: boldFont },
-    subCaption: { relFontSize: config.t.subCaptionRelFontSize ?? 1.3 },
-    footnote: { relFontSize: config.t.footnoteRelFontSize ?? 0.9 },
+    // caption: { relFontSize: config.t.captionRelFontSize ?? 2, font: boldFont },
+    // subCaption: { relFontSize: config.t.subCaptionRelFontSize ?? 1.3 },
+    // footnote: { relFontSize: config.t.footnoteRelFontSize ?? 0.9 },
+    caption: { relFontSize: 1.6, font: boldFont },
+    subCaption: { relFontSize: 1.2 },
+    footnote: { relFontSize: 0.9 },
     rowGroupHeaders: { font: boldFont },
     colGroupHeaders: { font: boldFont },
     paneHeaders: { font: boldFont },
@@ -150,10 +153,17 @@ export function getTableCellsContent(
           metadataById.get(info.colHeader?.id ?? "") ??
           metadataById.get(info.rowHeader?.id ?? "");
         if (meta?.format_as) {
-          return formatIndicatorValue(info.valueAsNumber, meta.format_as, meta.decimal_places ?? 0);
+          return formatIndicatorValue(
+            info.valueAsNumber,
+            meta.format_as,
+            meta.decimal_places ?? 0,
+          );
         }
       }
-      return getFormatterFunc(formatAs, config.s.decimalPlaces ?? 0)(info.value);
+      return getFormatterFunc(
+        formatAs,
+        config.s.decimalPlaces ?? 0,
+      )(info.value);
     },
   };
 }

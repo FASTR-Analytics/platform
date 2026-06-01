@@ -16,16 +16,16 @@ const colorThemeSchema = z.discriminatedUnion("type", [
 
 export type ColorThemeFromSchema = z.infer<typeof colorThemeSchema>;
 
-const logosSizingOptionsSchema = z.object({
-  targetArea: z.number().optional(),
-  maxHeight: z.number().optional(),
-  maxWidth: z.number().optional(),
-  gapX: z.number().optional(),
+const logoSizeKeySchema = z.enum(["sm", "md", "lg", "xl"]);
+
+const logoSizingConfigSchema = z.object({
+  size: logoSizeKeySchema.optional(),
+  spacing: logoSizeKeySchema.optional(),
 });
 
 const logoSectionConfigSchema = z.object({
   selected: z.array(z.string()),
-  sizing: logosSizingOptionsSchema.optional(),
+  sizing: logoSizingConfigSchema.optional(),
   showByDefault: z.boolean(),
 });
 
@@ -67,16 +67,14 @@ export type SlideDeckConfigFromSchema = z.infer<typeof slideDeckConfigSchema>;
 // - If schema doesn't have that field, parse() throws at startup
 
 import type { SlideDeckConfig, LogosConfig, LogoSectionConfig } from "./slides.ts";
-import type { LogosSizingOptions } from "./slides.ts";
+import type { LogoSizingConfig } from "./slides.ts";
 
 const _completeLogoSectionConfig: Required<LogoSectionConfig> = {
   selected: [],
   sizing: {
-    targetArea: 1,
-    maxHeight: 1,
-    maxWidth: 1,
-    gapX: 1,
-  } satisfies Required<LogosSizingOptions>,
+    size: "md",
+    spacing: "md",
+  } satisfies Required<LogoSizingConfig>,
   showByDefault: true,
 };
 
