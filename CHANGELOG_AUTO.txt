@@ -1,3 +1,13 @@
+[1.39.1] [user] [fixed] - Dashboard card labels and charts now align properly across rows
+[1.39.1] [user] [fixed] - Dashboard card labels no longer cut off long text
+[1.39.1] [user] [changed] - AI assistant now creates reports directly instead of showing a draft preview first
+[1.39.1] [user] [changed] - Report view mode has improved spacing and layout
+[1.39.1] [user] [fixed] - Charts and tables now refresh correctly after updating datasets
+[1.39.1] [admin] [fixed] - Charts and labels now align correctly on dashboards
+[1.39.1] [admin] [fixed] - Dashboard card labels no longer cut off long text
+[1.39.1] [admin] [fixed] - Visualizations now refresh after dataset re-integration without re-running modules
+[1.39.1] [admin] [changed] - AI assistant creates reports directly instead of showing a draft preview
+[1.39.1] [admin] [changed] - Report view mode has improved spacing and layout
 [1.39.0] [user] [added] - Dashboard items can now be added as replicant groups
 [1.39.0] [user] [added] - Replicant groups appear as stacked cards showing member count
 [1.39.0] [user] [added] - Group editor panel to rename, switch, or edit grouped items
