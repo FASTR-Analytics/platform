@@ -11,7 +11,7 @@ A **"reports"** feature: long-form analytical documents (narrative prose + embed
 Management (list, folders, create/duplicate/move/delete, permissions) mirrors the existing **slide_deck** feature. The new, hard part is the **document data model** and the **editor**, which is what most of this plan addresses.
 
 Goals, in priority order:
-1. Excellent editing UX — ideally WYSIWYG eventually, easy for non-markdown users. A markdown↔preview **toggle is acceptable for v1**, *provided the architecture can evolve to WYSIWYG without a rewrite*.
+1. Excellent editing UX — ideally WYSIWYG eventually, easy for non-markdown users. v1 delivers a **single CodeMirror surface with live inline figure widgets** (figures never shown as raw markdown; §3), evolvable to a full block editor without a storage rewrite.
 2. Robust AI authoring **and** surgical editing while a human co-edits. Genuinely co-owned: AI typically drafts the whole thing, also makes targeted edits, also reacts to user edits.
 3. Embedded figures are **live references** to project visualizations that re-render from current data (not static images) — same construct as figures in slide decks.
 4. High-fidelity **Word/PDF export**.
@@ -56,19 +56,24 @@ Figure *data* (a live `FigureSource`) is structured JSON. Embedding it inside th
 
 ## 3. Editor strategy
 
-### Decision
+### Decision — client-side CodeMirror 6 editor with live, atomic figure widgets
 
-- **v1:** a markdown **toggle** editor using panther's `MarkdownTextEditor` (present in panther with the two modes below, but **not yet used anywhere in the app** — this is its first integration here), which has two modes:
-  - `editable_text` — CodeMirror markdown source (one continuous editing surface; select/edit across paragraphs normally — there is **no per-block UI**).
-  - `presentation` — rendered preview via `MarkdownPresentationJsx`, with a `renderImage` callback that resolves `figure:id` tokens to **live** figure components.
-- **Preview fidelity (decided):** the in-editor preview is the **approximate HTML** render (`MarkdownPresentationJsx`); it will not exactly match the paginated PDF/Word (different renderers — page breaks, figure sizing, fonts). For an accurate check, a **"Preview as PDF"** button renders the real export output on demand. Accepted for v1.
-- **Future (WYSIWYG):** drop in a ProseMirror/BlockNote-class block editor over the **same storage**. It parses `body` → its node tree on load, renders figures as a custom node bound to the registry, and serializes back to markdown on save. No data migration.
-- **Editor chrome conformance:** the editor is **not** raw markup. It mounts in the existing editor shell (`getEditorWrapper()` / `FrameTop` toolbar, as the slide editor does), the mode toggle is a `ButtonGroup`, and insert-figure / insert-image / "Preview as PDF" are `Button`s with `iconName`. Bound by **§8.0 UI conformance**.
+**v1 is a single continuous CodeMirror 6 markdown surface where figures render as live inline widgets — never as raw `![](figure:id)` markdown.** This replaces the earlier "markdown↔preview toggle" idea: editing the prose *and* seeing the figures at the same time is the whole point, and the toggle showed confusing raw tokens in edit mode.
+
+- **Built in the client, not in panther's `TextEditor`.** CM6 is already a direct client dependency (`codemirror`, `@codemirror/state`, `@codemirror/view`, `@codemirror/lang-markdown`, `@codemirror/merge`). We drive an `EditorView` directly so we can add a **decoration extension**; panther's `TextEditor` wrapper exposes no way to pass extensions, and the figure widget is inherently client-coupled (it calls client-side `hydrateFigureInputsForRendering` + project state and mounts `<ChartHolder>`). *Not* "forget panther" wholesale — we still reuse panther's `parseMarkdown` (to locate `![](…)` token ranges), `ChartHolder` (live figures), and `MarkdownPresentationJsx` (the read-only / "preview" render and export-fidelity preview).
+- **Figures as atomic widgets.** Each `![caption](figure:<id>)` / `![alt](image:<id>)` token range is replaced by a CM `Decoration.replace({ widget, block: true })` whose `WidgetType.toDOM()` returns a container we mount a Solid component into (`render(() => <ChartHolder chartInputs={…}/>, el)` for figures; `<img>` for images), disposed in the widget's `destroy()`. The token text still lives in the doc underneath (so `body` round-trips byte-stable); the widget is just its *rendering*. Widget identity via `eq()` keyed on id + inputs so the chart isn't torn down/re-rendered on every keystroke; `updateDOM()` for in-place updates; the range is atomic so the cursor skips it cleanly.
+- **Each figure widget carries its own controls** (the "full-fledged figure editor"): change source (re-pick visualization / metric preset), edit caption, refresh-from-data, delete — wired to the `figures` registry. Delete removes the token (registry entry kept until load-time GC, per §11).
+- **Body is a constrained markdown vocabulary — no arbitrary HTML.** Panther renders a fixed element set (`ParsedMarkdownItem`: headings, paragraphs, inline marks, lists, blockquotes, hr, code, math, image, table) identically across preview/PDF/Word; there is **no raw-HTML node**, and PDF/Word are a canvas page-renderer / docx-builder, not HTML engines. So raw `<div>`/`<iframe>` typed into the body will not render consistently and is not supported. **Embeds (figures/images) are the only escape hatch**, and they render only where we supply a renderer (the editor widget + the export resolver). Arbitrary DOM *inside a figure widget* is unrestricted (it's our `toDOM`); arbitrary HTML *as document content* is not.
+- **Preview fidelity:** the in-editor widgets are an approximate (screen) render; they won't match paginated PDF/Word exactly (page breaks, figure sizing, fonts). A **"Preview as PDF"** button renders the real export output on demand. Accepted for v1.
+- **Editor chrome conformance:** mounts in the existing editor shell (`getEditorWrapper()` / `FrameTop` toolbar, as the slide editor does); insert-figure / insert-image / "Preview as PDF" are `Button`s with `iconName`; figure picker via `openComponent()`. Bound by **§8.0 UI conformance**.
+- **No in-house precedent + a small dep nit:** nothing in panther/client uses CM decorations today (net-new), and `@codemirror/view` should be added to `client/package.json` + the vite alias (currently only resolvable transitively).
+- **Future (WYSIWYG, Phase 7):** promote the generic CM-widget shell into panther (figure resolution injected as a `renderEmbed` callback, mirroring `renderImage`), and/or swap to a ProseMirror block editor over the **same** `body`+registry storage. No data migration either way.
 
 ### How IDs behave across editing (the question we drilled into)
 
-- **In the block-editor future:** block IDs are node attributes maintained live by the editor through transactions (split keeps the original's ID + mints one for the new half; merge keeps the survivor's; cross-paragraph delete drops only fully-removed nodes). No text reparse → genuine retention.
-- **In v1 markdown editing:** while typing it's just a string — there are no prose block IDs to lose. We don't persist prose IDs at all in v1. **Figures keep their id via their token, always.** A full markdown→structure parse only happens for whole-document inputs (AI full draft, paste/import), and there figures anchor exactly while prose is re-derived. This is acceptable because nothing durable depends on prose IDs in v1.
+- **Figures keep their id via their token, always** — the `figure:<id>` text is the durable anchor; the widget is only its rendering, so the id survives every edit and round-trips byte-stable.
+- **Prose needs no IDs in v1.** It's just the string between tokens; we don't persist per-paragraph identity. A full markdown→structure parse only happens for whole-document inputs (AI full draft, paste/import), where figures anchor exactly while prose is re-derived. Durable prose identity (for anchored comments) is a Phase-7 concern.
+- **In the block-editor future:** block IDs would be node attributes maintained through transactions (split keeps the original's id + mints one for the new half; merge keeps the survivor's). Out of scope for v1.
 
 ---
 
@@ -80,11 +85,9 @@ Human edits **autosave**; AI edits operate by **scoped rewrite, staged as a prop
 
 This is **not** a verbatim clone of the slide editor. The slide editor is a **modal, manual-Save** surface (open → edit, with AI writing into a shared `createStore` temp buffer → click Save / discard; `expectedLastUpdated` conflict modal). A long-form prose doc needs autosave (an explicit Save button is the wrong instinct), so the editing/persistence/concurrency layer below is net-new design; only the figure pipeline, export, data model, and CRUD plumbing clone slides.
 
-### The editor constraint (verified — drives the whole model)
+### Why we still gate all AI edits (even though we own the `EditorView`)
 
-panther's `MarkdownTextEditor` is a **controlled `value`/`onChange` component with no imperative handle**. Its only external-update path is a **destructive full-document replace** (`text_editor.tsx:84-100` — `view.dispatch({changes:{from:0,to:doc.length,insert:newValue}})`). So an externally-applied (AI) edit *cannot* be a targeted CodeMirror transaction in v1: it resets cursor/selection and lands as one undo step. The guard `if (newValue !== currentValue)` makes the effect a **no-op for human typing** (human `onChange` already synced `value`), so human undo/redo works correctly on its own.
-
-This single fact collapses the "gate big edits vs. gate everything" question into one answer: **gate all AI edits for v1.** Because every AI edit applies via the full-replace path, it must be user-invoked (an accept click) for the cursor reset to be acceptable. Transaction-level *silent* small edits require owning the `EditorView` (extend panther / embed CodeMirror) — deferred to Phase 7, where ProseMirror gives the transaction model for free.
+Because we drive CM6 directly (§3), an AI edit is **no longer forced through a destructive full-document replace** — we *can* apply it as a targeted transaction (replace just the changed range, preserving cursor/selection/history). We nonetheless **gate every AI edit behind an explicit accept** (stage → diff → accept/reject), not because the editor forces it but because that's the correct co-editing model for long prose: the human may be typing in the seconds the AI takes to generate, so silently mutating the live doc is unacceptable regardless of editor capability. (Earlier drafts justified gate-all by a panther full-replace limitation; that limitation is gone, the *decision* stands on co-editing safety.) Silent small in-place AI edits remain deliberately out of scope for v1.
 
 ### Human editing — autosave
 
@@ -93,7 +96,7 @@ This single fact collapses the "gate big edits vs. gate everything" question int
 
 ### AI editing — own tools, staged, anchor-guarded
 
-Tools are **our own** `createAITool` definitions (consistent with `project_ai`'s existing tool registry — we are **not** wiring panther's `createTextEditorHandler`/Anthropic str_replace schema, which doesn't fit our tool set). `rewrite_report` / `rewrite_section` / `insert_figure` stage a proposal; the editor renders a **diff**; **accept** applies via `body` → `updateReportBody` (full-replace, tolerable because user-invoked), **reject** discards. Whole-doc `rewrite_report` also returns optional figures.
+Tools are **our own** `createAITool` definitions (consistent with `project_ai`'s existing tool registry — we are **not** wiring panther's `createTextEditorHandler`/Anthropic str_replace schema, which doesn't fit our tool set). `rewrite_report` / `rewrite_section` / `insert_figure` stage a proposal; the editor renders a **diff**; **accept** applies the change as a **targeted CM transaction** (replace only the changed range → cursor/history preserved) and persists via `updateReportBody`, **reject** discards. Whole-doc `rewrite_report` also returns optional figures.
 
 **The collision window is real even with gate-all — the anchor guard is load-bearing, not belt-and-suspenders.** AI generation takes seconds, and the human can keep typing in that latency between the tool reading the doc and the proposal landing. So every apply re-validates against the live body before committing:
 
@@ -105,11 +108,11 @@ On any anchor/guard mismatch the tool **refuses and tells the AI the doc changed
 
 ### Undo/redo
 
-CodeMirror's local history covers the **body string only.** An accepted AI edit is a full-replace → one undo step (acceptable; user invoked it). The **figure/image registry is not in the undo history** — a figure insert is two writes (token into buffer + registry entry) and only the token is undoable; undoing the token leaves a harmless **orphan registry entry, GC'd on save** (§11). Do not promise registry mutations are undoable.
+We own the `EditorView`, so human typing and accepted AI edits share **one CM history** — undo/redo just works, and an accepted AI edit is a clean transaction (one undo step, cursor preserved). The history covers the **body string only**: the **figure/image registry is not undoable** — a figure insert is two writes (token into the doc + registry entry) and only the token is in history; undoing the token leaves a harmless **orphan registry entry, pruned at next report load, not on autosave** (§11). Do not promise registry mutations are undoable.
 
 ### Net-new build flags (not free clones)
 
-- `ReportMarkdownDiff.tsx` — **net-new.** Nothing in the codebase renders an accept/reject diff today; don't budget it as a clone.
+- `ReportMarkdownDiff.tsx` — **net-new** (nothing in the codebase renders an accept/reject diff today), **but `@codemirror/merge` is already a client dep** (`unifiedMergeView`) — prototype the markdown accept/reject diff on it rather than hand-rolling.
 - The autosave + presence-banner + anchor-guard wiring — net-new (slides are modal/manual-Save with no anchor guard).
 
 ### Why
@@ -145,14 +148,16 @@ Every stage reuses existing slide code (file paths are the real functions):
 | Pick from a saved visualization | `slide_deck/slide_ai/resolve_figure_from_visualization.ts` → `resolveFigureFromVisualization(projectId, block: AiFigureFromVisualization)` where `block = { type:"from_visualization"; visualizationId; replicant? }` (the literal `type` field is **required**) | fetch PO config+data → `getFigureInputsFromPresentationObject` → returns a `FigureBlock` |
 | Pick from a metric/preset (AI) | `slide_deck/slide_ai/resolve_figure_from_metric.ts` → `resolveFigureFromMetric(projectId, block, metrics)` | same, building config from a preset |
 | Store | `generate_visualization/strip_figure_inputs.ts` → `stripFigureInputsForStorage(fi)` | drops heavy `style` + map `geoData`; persist stripped `figureInputs` + `source` |
-| Render live (editor preview) | `await hydrateFigureInputsForRendering(fi, figureSourceToHydrationSource(source), …)` → `<ChartHolder chartInputs={…}>` | hydration **recomputes `style` from `source`** and re-attaches map `geoData` at render time (passing `source` is load-bearing; `deckStyle` is only optional theming); `ChartHolder` draws to canvas — same path as dashboards / `DraftVisualizationPreview`. NB `FigureRenderer` is a panther canvas Renderer *object*, **not** a JSX component |
+| Render live (editor) | one reusable **`ReportFigureEmbed`**: `await hydrateFigureInputsForRendering(fi, figureSourceToHydrationSource(source, formatAs), …)` → `<ChartHolder chartInputs={…} height="ideal" />` (reflow is the **default** — see sizing note) | a report embed is a **single figure** → `ChartHolder`, **NOT** slides' `PageHolder` / `convertSlideToPageInputs` (that's whole-page layout, wrong altitude). Hydration recomputes `style` from `source` + re-attaches map `geoData` (passing `source` is load-bearing). Wrap in panther `StateHolderWrapper` for loading/error. Copy-source: `DraftVisualizationPreview`'s private `FigureStateWrapper`/`fetchMetricFigure`. (`FigureRenderer` is a canvas Renderer object, not a JSX component.) |
 | Refresh from current data | re-run `resolveFigureFrom*` | re-fetch items, regenerate `figureInputs`, new `snapshotAt` |
 | Export (Word/PDF) | hydrate each figure → put the **hydrated `FigureInputs`** into a `FigureMap` (`Map<"figure:<id>", FigureInputs>`) | **Do NOT pre-rasterize.** `FigureMap` holds `FigureInputs`, not data URLs — the export rasterizes internally (Word) / vector-renders (PDF). `getFigureAsDataUrlBrowser(fi, widthPx)` returns an **`ImageMap`** value (`{dataUrl,width,height}`), so it belongs to the image path, not figures. Hand `body` + `figures` (FigureMap) + `images` (ImageMap) to `markdownToPdfBrowser`/`markdownToWordBrowser` |
 
 The only **new** (report-specific) glue:
 1. **Reference token** `![caption](figure:<figureId>)` in `body`; `<figureId>` is the registry key. Displayed caption comes from the figure's own config (as in slides); the markdown alt is decorative/fallback.
-2. **`renderImage(src, alt)`** callback for `MarkdownPresentationJsx` — it is **synchronous** (`(src, alt) => JSX.Element | undefined`). Because figure hydration is **async**, it returns a small **self-managing wrapper component** (`createSignal` + `onMount` → `await hydrateFigureInputsForRendering` → render `<ChartHolder chartInputs={…}>` once ready; the `FigureStateWrapper` pattern in `DraftVisualizationPreview.tsx`). Flow: parse `figure:<id>` → registry lookup → that wrapper. (Not a synchronous `<FigureRenderer>` — no such component exists.)
+2. **`renderImage(src, alt)`** callback for `MarkdownPresentationJsx` — **synchronous** (`(src, alt) => JSX.Element | undefined`). It returns **`<ReportFigureEmbed>`** (the one reusable component), which self-manages the **async** hydration (`createSignal` + `onMount` → `await hydrateFigureInputsForRendering` → `<ChartHolder height="ideal" />` when ready). Flow: parse `figure:<id>` → registry lookup → `<ReportFigureEmbed>`. (Not a synchronous `<FigureRenderer>` — no such component.)
 3. **Export resolver**: walk the `figures` registry, **hydrate** each entry, and put the hydrated `FigureInputs` into a `FigureMap` keyed by `"figure:<id>"` (export rasterizes). Separately walk the `images` registry → fetch asset → `{dataUrl,width,height}` into an `ImageMap` keyed by `"image:<id>"`. No manual figure rasterization.
+
+**Figure embed sizing (decided):** `ReportFigureEmbed` uses panther's **`reflow`** mode (the default — pass no `sizing` prop) + `height="ideal"` in a `w-full` content column. Per `PROTOCOL_ALL_SIZING.md` rule 5 + `DOC_SIZING_MODEL.md`, the **editor is a reflow/readable surface** (alongside dashboards, public viewer): figures render at their authored, legibility-tuned DU sizes (1 DU = 1 CSS px), consistent across surfaces. **`zoom` is for thumbnails/grid-previews/pages only** — using it on a readable surface re-introduces the per-surface text-size drift the sizing refactor deleted. Note: export (PDF/Word) is a *separate* renderer (§5 export row), so the editor's sizing mode has **no** bearing on export — this is a readability choice, not a fidelity one.
 
 Figure **picker** (net-new UI, **not** a clone): `create_slide_from_visualization_modal.tsx` returns `{ deckId }` and creates a whole *slide in a deck* — it is deck-coupled (`DeckSelector`, `convertAiInputToSlide`, `createSlide`, navigates to the deck on close) and does **not** produce a `FigureBlock`. Build a small report figure picker around `resolveFigureFromVisualization(projectId, block)` (the real `FigureBlock` producer), then add the registry entry + insert the token.
 
@@ -240,8 +245,8 @@ Non-negotiables from those docs: **panther primitives over raw HTML** (`Button`,
 
 - **Cloned components conform by inheritance** (copy the slide_deck source, adjust types): `project_reports.tsx`, `add_report.tsx`, `duplicate_report_modal.tsx`, `move_report_to_folder_modal.tsx`, `edit_report_folder_modal.tsx`, `download_report.tsx`. No new design — match `project_decks.tsx` / its modals / `download_slide_deck.tsx` exactly (Pattern C list: `FrameTop`+`HeadingBar` → `FrameLeftResizable` grouping → `SelectionCircle` card grid + muted empty state).
 - **Net-new components have no clone source — spec their primitives explicitly so they don't drift:**
-  - `report_editor.tsx` — mount in `getEditorWrapper()`/`FrameTop` shell; mode toggle = `ButtonGroup`; insert-figure/insert-image/"Preview as PDF" = `Button` + `iconName`; figure picker = the cloned create-from-visualization modal via `openComponent()`.
-  - `ReportMarkdownDiff.tsx` — **highest risk (no panther diff primitive).** Accept/reject = `Button` with `success`/`danger` intents; added/removed lines use semantic tokens (additions `success`-tinted, deletions `danger`-tinted), never literal green/red hex; labels sentence case; spacing `ui-*`.
+  - `report_editor.tsx` — client-side CM6 editor (§3) mounted in `getEditorWrapper()`/`FrameTop` shell; toolbar insert-figure/insert-image/"Preview as PDF" = `Button` + `iconName`; figure picker = a **net-new** report picker around `resolveFigureFromVisualization` via `openComponent()` (not the deck-coupled slide modal). No mode toggle — figures render live in the edit surface.
+  - `ReportMarkdownDiff.tsx` — build on `@codemirror/merge` `unifiedMergeView` (already a client dep; no hand-rolled diff primitive needed). Accept/reject = `Button` with `success`/`danger` intents; added/removed lines use semantic tokens (additions `success`-tinted, deletions `danger`-tinted), never literal green/red hex; labels sentence case; spacing `ui-*`.
   - `DraftReportPreview.tsx` — render via `MarkdownPresentationJsx` (same `renderImage` as the editor); "Create / Add to existing" actions = `Button`s via `timActionButton`.
   - **Presence banner** (§4) — a `neutral`-toned strip using semantic tokens + `ui-pad`/`ui-gap`; not an arbitrary-colored bar.
 
@@ -275,11 +280,17 @@ Non-negotiables from those docs: **panther primitives over raw HTML** (`Button`,
   - `openReport()` via `openProjectEditor()`, and an `AIContextSync` case → `viewing_reports`.
 - **Server actions** `client/src/server_actions/reports.ts` (or rely on codegen).
 
-### Phase 4 — Editor component
-- `client/src/components/report/report_editor.tsx`: `MarkdownTextEditor` with mode toggle (`editable_text` ↔ `presentation`), `value=body`, debounced `onChange` → `updateReportBody`.
-- `renderImage(src, alt)` callback (sync, returns `JSX.Element | undefined`): `figure:<id>` → registry → an **async wrapper component** (`createSignal` + `onMount` hydrate → `<ChartHolder chartInputs={…}>`); `image:<id>` → asset → `<img>`; fall back to `<img>` for plain URLs. (No synchronous `<FigureRenderer>` — it doesn't exist as a component.)
-- Embed insertion: figure picker (clone the slide modal) adds a `FigureBlock` + inserts `![caption](figure:id)`; image upload (existing asset pipeline) adds an `ImageBlock` + inserts `![alt](image:id)`.
-- AI context: expose `mode: "editing_report"`, `getBody()`, `getFigures()`, `getImages()`, plus selection.
+### Phase 4 — Editor component (client-side CM6, per §3)
+- **Skeleton built + typechecks** (`client/src/components/report/`: `report_editor.tsx`, `figure_widget_extension.tsx`, `ReportFigureEmbed.tsx`). Compiling confirmed all the type-level API choices (StateField→block `Decoration.replace`, `WidgetType` overrides, `EditorView.decorations.from`/`atomicRanges`, Solid `render` mount, `ChartHolder`/hydration wiring). **Still runtime-unproven (needs a browser):** block-decoration line-boundary layout, atomic cursor/backspace/undo, Solid mount-in-widget reattach + `destroy()` disposing ChartHolder's ResizeObserver/GPU, `requestMeasure` after async settle, and the `@codemirror/view` duplicate-instance dedup (a runtime issue invisible to typecheck).
+- Add `@codemirror/view` to `client/package.json` + the vite alias — a **runtime** requirement (avoids a 2nd `@codemirror/state`/`view` copy); typecheck resolves it transitively, so this only bites when it runs.
+- `client/src/components/report/report_editor.tsx`: drive a CM6 `EditorView` directly (markdown language, `value=body`, debounced doc-change → `updateReportBody`). **Not** panther's `MarkdownTextEditor` wrapper — we need to attach a decoration extension.
+- **Figure/image widget extension:** a `ViewPlugin`/`StateField` that scans for `![…](figure:<id>)` / `![…](image:<id>)` token ranges (via panther `parseMarkdown` or a token regex) and emits `Decoration.replace({ widget, block: true })`. The `WidgetType`:
+  - `toDOM()` → container; mount **`<ReportFigureEmbed>`** (figures) / `<img>` (images) via Solid `render(() => …, el)`. `ReportFigureEmbed` self-hydrates and renders `<ChartHolder height="ideal" />` (reflow default — §5 sizing note). Dispose the Solid root in `destroy()`. Call `view.requestMeasure()` when the figure's height settles (ChartHolder lays out async; block widgets need a measure on height change).
+  - `eq(other)` keyed on id + (hydrated) inputs so the chart isn't rebuilt on unrelated keystrokes; `updateDOM()` for in-place updates; atomic range so the cursor skips it.
+  - Widget chrome = the figure controls (change source / caption / refresh / delete), wired to the `figures` registry.
+- Embed insertion: figure picker (net-new UI around `resolveFigureFromVisualization`, **not** the deck-coupled slide modal — see §5) adds a `FigureBlock` + inserts `![caption](figure:id)`; image upload (existing asset pipeline) adds an `ImageBlock` + inserts `![alt](image:id)`.
+- Read-only / preview render reuses panther `MarkdownPresentationJsx` + the `renderImage(src, alt)` callback (sync → returns an async wrapper that hydrates → `<ChartHolder>`; `image:<id>` → `<img>`).
+- AI context: expose `mode: "editing_report"`, `getBody()`, `getFigures()`, `getImages()`, plus selection (CM `onSelectionChange`).
 
 ### Phase 5 — Export (Word/PDF)
 - `client/src/exports/export_report_as_pdf.ts`: resolve `figures`→`FigureMap` (**hydrated `FigureInputs`, not rasterized**) and `images`→`ImageMap`, then `markdownToPdfBrowser(body, { figures, images, fontPaths: { basePath: "/fonts", fontMap: fontMap.ttf }, style, pageBreakRules })`. `fontPaths` is **required**. Reuse `client/src/font-map.json` (the `{ basePath, fontMap.ttf }` shape matches the slide-deck export). ⚠️ Keep `asSlides` unset/false — when true, panther splits the body on `\n---\n`, turning markdown horizontal rules into page breaks.
@@ -300,12 +311,12 @@ Non-negotiables from those docs: **panther primitives over raw HTML** (`Button`,
 - `project_ai/ai_tools/validators/report_validators.ts`: every `![](figure:id)` / `![](image:id)` resolves in its registry; unique ids; max body length; no unresolved/orphan tokens before persist. (Images are user-uploaded, not AI-generated — the AI references existing image ids but doesn't create images.)
 - `project_ai/build_tools.ts`: register `getToolsForReports` / `getToolsForReportEditor`; add `reports` to `BuildToolsParams`.
 - `project_ai/build_system_prompt.ts`: `viewing_reports` / `editing_report` mode instructions; add "Available reports: N" to project context.
-- Diff/preview components: `DraftReportPreview.tsx`, `ReportMarkdownDiff.tsx`.
+- Diff/preview components: `DraftReportPreview.tsx` (reuses `MarkdownPresentationJsx` + `renderImage`); `ReportMarkdownDiff.tsx` (build on `@codemirror/merge` `unifiedMergeView` — already a client dep).
 
 ### Phase 7 — Future (not v1)
-- WYSIWYG block editor (ProseMirror/BlockNote) over the same `body`+`figures`+`images` storage; figures/images as custom nodes.
+- WYSIWYG block editor (ProseMirror) over the same `body`+`figures`+`images` storage; figures/images as custom nodes. (v1 already owns a CM6 `EditorView`, so this is an editor swap, not a new integration.)
 - Anchored comments / threads (introduces persisted prose identity — add hidden IDs or a CRDT layer then).
-- Possibly build the shared report renderer/editor into panther.
+- Promote the v1 CM6 figure-widget editor shell into panther (figure resolution injected as a `renderEmbed` callback, mirroring `renderImage`) so other apps reuse it.
 
 ---
 
@@ -315,20 +326,21 @@ Non-negotiables from those docs: **panther primitives over raw HTML** (`Button`,
 
 **lib:** `types/reports.ts` (N) · `types/figures.ts` (N, lifted) · `types/slides.ts` (M, re-export) · `types/project_sse.ts` (M) · `types/project_dirty_states.ts` (M) · `api-routes/project/reports.ts` (N) · `api-routes/project/report-folders.ts` (N) · `api-routes/combined.ts` (M)
 
-**client:** `state/project/t1_store.ts` (M) · `state/t4_ui.ts` (M) · `components/project/index.tsx` (M) · `components/project/project_reports.tsx` (N) · `add_report.tsx` (N) · `duplicate_report_modal.tsx` (N) · `move_report_to_folder_modal.tsx` (N) · `edit_report_folder_modal.tsx` (N) · `components/report/report_editor.tsx` (N) · `components/report/download_report.tsx` (N) · `exports/export_report_as_pdf.ts` (N) · `exports/export_report_as_word.ts` (N) · `server_actions/reports.ts` (N) · `components/project_ai/types.ts` (M) · `ai_tools/tools/reports.ts` (N) · `ai_tools/validators/report_validators.ts` (N) · `build_tools.ts` (M) · `build_system_prompt.ts` (M) · `DraftReportPreview.tsx` (N) · `ReportMarkdownDiff.tsx` (N)
+**client:** `state/project/t1_store.ts` (M) · `state/t4_ui.ts` (M) · `components/project/index.tsx` (M) · `components/project/project_reports.tsx` (N) · `add_report.tsx` (N) · `duplicate_report_modal.tsx` (N) · `move_report_to_folder_modal.tsx` (N) · `edit_report_folder_modal.tsx` (N) · `components/report/report_editor.tsx` (N) · `components/report/download_report.tsx` (N) · `exports/export_report_as_pdf.ts` (N) · `exports/export_report_as_word.ts` (N) · `server_actions/reports.ts` (N) · `components/project_ai/types.ts` (M) · `ai_tools/tools/reports.ts` (N) · `ai_tools/validators/report_validators.ts` (N) · `build_tools.ts` (M) · `build_system_prompt.ts` (M) · `DraftReportPreview.tsx` (N) · `ReportMarkdownDiff.tsx` (N) · `components/report/ReportFigureEmbed.tsx` (N, the one reusable FigureBlock→live-`ChartHolder` component) · `package.json` (M, add `@codemirror/view`) · `vite.config.ts` (M, alias)
 
-Rough scope: ~15 new + ~12 modified files; most plumbing is mechanical cloning of slide_deck.
+Rough scope: ~15 new + ~14 modified files. Phases 1–3 (server/types/state/list) are mostly mechanical slide_deck clones; the **editor (CM6 figure widgets), export (`markdownTo*Browser`), and AI diff are net-new** — not clones (see §3/§5/§11).
 
 ---
 
 ## 10. Open questions / to confirm before/while building
 
 1. **Prose granularity** — *Decided: non-blocking, no storage impact.* When structure is needed (export pagination, future editor) use panther's `ParsedMarkdownItem[]` element split. Revisit only at the WYSIWYG phase.
-2. **`ReportConfig` scope** — *Decided for v1: minimal.* No per-report styling in v1 — reports render with one default style (typography/margins). Per-report theming/header-footer reuses slide-deck style presets in a later phase. **(Override this if you want light styling in v1.)**
+2. **`ReportConfig` scope** — *Decided: fixed minimal style, no per-report config in v1.* Reports export with one built-in style — **A4, standard margins, default typography from `font-map.json`**; no theme picker. Per-report theming/header-footer (reusing slide-deck style presets) is a later phase.
 3. ~~Figure picker source~~ — **settled: figure/image *data* works exactly like slides** (`FigureBlock` via `resolveFigureFrom*`; `ImageBlock` via the asset-upload pipeline). See §5. **Correction:** the picker *UI* is net-new — `create_slide_from_visualization_modal.tsx` is deck-coupled and returns `{ deckId }`; it does **not** yield a `FigureBlock`. Wrap `resolveFigureFromVisualization` in a small report picker instead.
 4. **`rewrite_section` addressing vs. guarding** — *Decided:* two distinct roles (see §4). **Address** by heading text; non-unique heading → require a disambiguating index (Nth occurrence) or fall back to whole-doc `rewrite_report`; never guess. **Guard** staleness on a snapshot/hash of the section's *content* (not the heading — heading-only is a false negative that silently clobbers edits made under an unchanged heading).
 5. **Naming hygiene** — *Verify at build:* keep new public types named `Report*`; `lib/types/slides.ts` `DeckSummary.reportId` is an unrelated existing field — avoid type/identifier collisions when wiring AI context.
-6. **Permissions** — *Verify at build:* confirm `can_view_reports` / `can_configure_reports` exist and are seeded for roles; otherwise add them like the slide-deck pair.
+6. **Permissions** — *Confirmed (no action):* `can_view_reports` / `can_configure_reports` already exist in `lib/types/permissions.ts` and are seeded in `project_user_roles` + presets server-side.
+7. **Resolved (decisions round):** **Editor** — client-side CM6 with live atomic figure widgets (§3). **Folders** — included in v1 (clone slide-deck folders). **Conflicts** — last-write-wins + non-blocking banner (§4). **AI authoring** — AI always stages a diff/preview (never silent create/mutate) and may author `from_metric`/`from_visualization` figures; images are user-upload only (AI references existing ids). **Captions** — rendered from the markdown `![caption]` alt, falling back to the figure's own title. **Figure sizing** — `reflow` (default) + `height="ideal"` in a `w-full` content column; editor is a reflow/readable surface per `PROTOCOL_ALL_SIZING.md` (zoom is for thumbnails/pages). No per-figure controls (defer to WYSIWYG). One reusable `ReportFigureEmbed` (`ChartHolder`, **not** slides' `PageHolder`) used by the CM widget, the preview `renderImage`, and `DraftReportPreview`. **Starting content** — new report scaffolds `# {label}` + empty intro. **Diff** — `@codemirror/merge` (`unifiedMergeView`), no new dependency. **Figure GC** — orphans pruned at report load, not autosave (§11). **No arbitrary HTML** — body is the fixed markdown vocabulary; embeds are the only escape hatch (§3).
 
 ---
 
@@ -336,8 +348,8 @@ Rough scope: ~15 new + ~12 modified files; most plumbing is mechanical cloning o
 
 - **Export fidelity gap** — what the live editor preview shows vs. what panther's paginated Word/PDF produces (page breaks, figure sizing, fonts) will differ; budget time to tune `style` / `pageBreakRules` and figure DPI.
 - **Figure resolution cost** — exporting re-renders/rasterizes every figure; large reports may need batching/progress UI (the download modal already has a progress pattern).
-- **Referential integrity** — orphan `figure:id`/`image:id` tokens or orphan registry entries; add a validate/GC step on save and on AI edits.
-- **Editor evolution** — v1 markdown toggle must not bake in assumptions that block the later WYSIWYG swap; keep `body`+`figures` as the only persisted truth.
+- **Referential integrity / figure GC** — two cases, handled asymmetrically. A **broken token** (a `figure:id`/`image:id` token in `body` with no registry entry) must *never* be persisted → validate before every save; if the AI emits one, refuse. An **orphan entry** (registry entry no token references) is harmless — not rendered, not exported — and must **NOT** be GC'd on autosave: doing so breaks undo (delete figure → autosave prunes entry → Ctrl+Z restores the token → broken token = lost figure). **Decided: prune orphan entries only at report load** (fresh session ⇒ empty undo history ⇒ any orphan is truly unreachable); keep them for the whole editing session. They're cheap (stripped `figureInputs`).
+- **Editor evolution** — the v1 CM6 widget editor must not bake in assumptions that block the later ProseMirror swap or the promote-to-panther move; keep `body`+`figures` as the only persisted truth.
 - **Export path is net-new, not a proven clone** — reports are the first code to call `markdownToPdfBrowser`/`markdownToWordBrowser`; the slide exports use a different mechanism (`PageRenderer` / `convertSlideToPageInputs`). Only the `fontPaths` shape is shared. Expect more integration/fidelity work than "clone slides".
-- **`MarkdownTextEditor` has zero usages in the app today** — it exists in panther but the v1 editor is its first integration here; expect unknowns (selection-callback typing, scroll/focus, preview padding, the sync-`renderImage`-vs-async-figure wrapper in §5/Phase 4).
+- **The figure-widget editor is net-new (no in-house precedent)** — nothing in panther/client uses CM decorations today. The real work is widget lifecycle (`eq`/`updateDOM`/atomic ranges so charts don't rebuild on every keystroke), cursor behavior around atomic widgets, and the async-hydrate-inside-`toDOM` mount/dispose. Prototype this slice first to de-risk.
 - **`asSlides` footgun** — the report PDF/Word calls must keep `asSlides` false; otherwise markdown horizontal rules (`---`, an explicitly supported element) silently become page breaks.
