@@ -48,9 +48,7 @@ export async function getAllDashboards(
   projectDb: Sql,
 ): Promise<APIResponseWithData<DashboardSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const rows = await projectDb<
-      (DBDashboard & { item_count: number })[]
-    >`
+    const rows = await projectDb<(DBDashboard & { item_count: number })[]>`
       SELECT d.*,
         (SELECT count(*) FROM dashboard_items WHERE dashboard_id = d.id)::int AS item_count
       FROM dashboards d
@@ -158,7 +156,10 @@ export async function createDashboard(
       SELECT id FROM dashboards WHERE slug = ${create.slug}
     `;
     if (existing.length > 0) {
-      return { success: false, err: "A dashboard with this slug already exists" };
+      return {
+        success: false,
+        err: "A dashboard with this slug already exists",
+      };
     }
 
     const dashboardId = await generateUniqueDashboardId(projectDb);
@@ -173,7 +174,7 @@ export async function createDashboard(
         ${dashboardId},
         ${create.slug},
         ${create.title},
-        ${false},
+        ${true},
         ${JSON.stringify(dashboardLayoutSchema.parse(layout))},
         ${createdByEmail},
         ${now},
@@ -200,7 +201,10 @@ export async function updateDashboard(
         SELECT id FROM dashboards WHERE slug = ${update.slug} AND id <> ${dashboardId}
       `;
       if (existing.length > 0) {
-        return { success: false, err: "A dashboard with this slug already exists" };
+        return {
+          success: false,
+          err: "A dashboard with this slug already exists",
+        };
       }
     }
 
@@ -263,8 +267,11 @@ export async function addDashboardItem(
     ).at(0);
     const newSortOrder = (maxResult?.max_sort_order ?? 0) + 10;
 
-    const validatedFigureBlock = dashboardFigureBlockSchema.parse(item.figureBlock);
-    const geoData = item.geoData !== undefined ? JSON.stringify(item.geoData) : null;
+    const validatedFigureBlock = dashboardFigureBlockSchema.parse(
+      item.figureBlock,
+    );
+    const geoData =
+      item.geoData !== undefined ? JSON.stringify(item.geoData) : null;
 
     await projectDb.begin((sql) => [
       sql`
@@ -295,7 +302,7 @@ export async function updateDashboardItem(
   projectDb: Sql,
   dashboardId: string,
   itemId: string,
-  update: { label?: string },
+  update: { label?: string; figureBlock?: FigureBlock; geoData?: unknown },
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const now = new Date().toISOString();
@@ -310,11 +317,24 @@ export async function updateDashboardItem(
     }
 
     const nextLabel = update.label ?? current.label;
+    const nextFigureBlock =
+      update.figureBlock !== undefined
+        ? JSON.stringify(dashboardFigureBlockSchema.parse(update.figureBlock))
+        : current.figure_block;
+    const nextGeoData =
+      update.figureBlock !== undefined
+        ? update.geoData !== undefined
+          ? JSON.stringify(update.geoData)
+          : null
+        : current.geo_data;
 
     await projectDb.begin((sql) => [
       sql`
         UPDATE dashboard_items
-        SET label = ${nextLabel}, last_updated = ${now}
+        SET label = ${nextLabel},
+            figure_block = ${nextFigureBlock},
+            geo_data = ${nextGeoData},
+            last_updated = ${now}
         WHERE id = ${itemId}
       `,
       sql`

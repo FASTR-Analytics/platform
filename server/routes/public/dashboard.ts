@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { getAuth } from "@hono/clerk-auth";
 import type { FigureInputs } from "@timroberton/panther";
 import type {
   IndicatorMetadata,
@@ -8,6 +9,7 @@ import type {
 } from "lib";
 import { getDashboardBySlug } from "../../db/project/dashboards.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
+import { _BYPASS_AUTH } from "../../exposed_env_vars.ts";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,8 +32,18 @@ routesPublicDashboard.get("/api/d/:projectId/:slug", async (c) => {
   }
 
   const result = await getDashboardBySlug(projectDb, slug);
-  if (!result.success || !result.data || !result.data.isPublic) {
+  if (!result.success || !result.data) {
     return c.json({ success: false, err: "Not found" }, 404);
+  }
+
+  // isPublic: true  → anyone can see it.
+  // isPublic: false → only authenticated users can see it.
+  if (!result.data.isPublic) {
+    // @ts-ignore: Clerk middleware types not fully compatible with Hono
+    const isAuthenticated = _BYPASS_AUTH || !!getAuth(c)?.userId;
+    if (!isAuthenticated) {
+      return c.json({ success: false, err: "Not found" }, 404);
+    }
   }
 
   const dashboard = result.data;
