@@ -25,7 +25,7 @@ import { projectState } from "~/state/project/t1_store";
 import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
 import { ProjectReports } from "./project_reports";
-import { ProjectDashboards } from "../dashboards";
+import { ProjectDashboards } from "./project_dashboards";
 import { ProjectMetrics } from "./project_metrics";
 import { ProjectModules } from "./project_modules";
 import { ProjectSettings } from "./project_settings";

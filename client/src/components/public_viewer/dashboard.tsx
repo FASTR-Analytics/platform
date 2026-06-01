@@ -5,9 +5,8 @@ import {
   Button,
   ChartHolder,
   FrameLeft,
-  FrameRight,
   FrameTop,
-  SelectList,
+  Select,
   StateHolderWrapper,
   saveAs,
   timQuery,
@@ -81,15 +80,16 @@ export type DashboardViewerProps = {
   onDownload?: () => void;
 };
 
+type PublicEntry = PublicDashboardBundle["entries"][number];
+type PublicItem = PublicDashboardBundle["items"][number];
+
 export function DashboardViewer(p: DashboardViewerProps) {
-  const items = () =>
-    [...p.bundle.items].sort((a, b) => a.sortOrder - b.sortOrder);
+  const entries = () => p.bundle.entries;
 
   const currentItem = () => {
-    const list = items();
+    const list = p.bundle.items;
     if (list.length === 0) return undefined;
-    const selected = p.selectedItemId;
-    return list.find((i) => i.id === selected) ?? list[0];
+    return list.find((i) => i.id === p.selectedItemId) ?? list[0];
   };
 
   const layoutType = () => p.bundle.layout.type;
@@ -104,12 +104,11 @@ export function DashboardViewer(p: DashboardViewerProps) {
     >
       <Switch>
         <Match when={layoutType() === "grid"}>
-          <GridLayout title={p.bundle.title} items={items()} />
+          <GridLayout entries={entries()} />
         </Match>
         <Match when={layoutType() === "sidebar"}>
           <SidebarLayout
-            title={p.bundle.title}
-            items={items()}
+            entries={entries()}
             currentItem={currentItem()}
             setSelectedItemId={p.setSelectedItemId}
             onDownload={p.onDownload}
@@ -120,29 +119,81 @@ export function DashboardViewer(p: DashboardViewerProps) {
   );
 }
 
+function replicantLabel(
+  group: Extract<PublicEntry, { kind: "group" }>["group"],
+  member: PublicItem,
+): string {
+  return (
+    group.replicants.find((r) => r.value === member.replicantValue)?.label ??
+    member.label
+  );
+}
+
 export type SidebarLayoutProps = {
-  title: string;
-  items: PublicDashboardBundle["items"];
-  currentItem: PublicDashboardBundle["items"][number] | undefined;
+  entries: PublicEntry[];
+  currentItem: PublicItem | undefined;
   setSelectedItemId: (id: string) => void;
   onDownload?: () => void;
 };
 
 export function SidebarLayout(p: SidebarLayoutProps) {
+  const NavRow = (q: {
+    label: string;
+    active: boolean;
+    indent?: boolean;
+    onClick: () => void;
+  }) => (
+    <div
+      class="ui-hoverable cursor-pointer truncate rounded px-2 py-1 text-sm"
+      classList={{
+        "bg-primary text-primary-content": q.active,
+        "pl-5": q.indent,
+        "text-base-content/70": q.indent && !q.active,
+      }}
+      onClick={q.onClick}
+    >
+      {q.label}
+    </div>
+  );
+
   return (
     <FrameLeft
       panelChildren={
-        <div class="ui-pad border-base-300 h-full max-w-[400px] border-r">
-          <SelectList
-            items={p.items.map((item) => ({
-              id: item.id,
-              label: item.label,
-            }))}
-            value={p.currentItem?.id}
-            onChange={(id) => p.setSelectedItemId(id)}
-            intent="primary"
-            fullWidth
-          />
+        <div class="ui-pad border-base-300 ui-spy-sm h-full max-w-[400px] overflow-auto border-r">
+          <For each={p.entries}>
+            {(entry) => (
+              <Switch>
+                <Match when={entry.kind === "item" ? entry : undefined}>
+                  {(it) => (
+                    <NavRow
+                      label={it().item.label}
+                      active={p.currentItem?.id === it().item.id}
+                      onClick={() => p.setSelectedItemId(it().item.id)}
+                    />
+                  )}
+                </Match>
+                <Match when={entry.kind === "group" ? entry : undefined}>
+                  {(grp) => (
+                    <div>
+                      <div class="truncate px-2 py-1 text-sm select-none">
+                        {grp().group.label}
+                      </div>
+                      <For each={grp().members}>
+                        {(m) => (
+                          <NavRow
+                            indent
+                            label={replicantLabel(grp().group, m)}
+                            active={p.currentItem?.id === m.id}
+                            onClick={() => p.setSelectedItemId(m.id)}
+                          />
+                        )}
+                      </For>
+                    </div>
+                  )}
+                </Match>
+              </Switch>
+            )}
+          </For>
         </div>
       }
     >
@@ -153,7 +204,7 @@ export function SidebarLayout(p: SidebarLayoutProps) {
           </Show>
         </div>
         <Show
-          when={p.currentItem?.id}
+          when={p.currentItem}
           keyed
           fallback={
             <div class="text-neutral text-sm">
@@ -164,21 +215,14 @@ export function SidebarLayout(p: SidebarLayoutProps) {
             </div>
           }
         >
-          {(id) => {
-            const item = () => p.items.find((i) => i.id === id);
-            return (
-              <Show when={item()}>
-                {(it) => (
-                  <DashboardItemChart
-                    itemId={id}
-                    strippedFigureInputs={it().strippedFigureInputs}
-                    source={it().source}
-                    geoData={it().geoData}
-                  />
-                )}
-              </Show>
-            );
-          }}
+          {(it) => (
+            <DashboardItemChart
+              itemId={it.id}
+              strippedFigureInputs={it.strippedFigureInputs}
+              source={it.source}
+              geoData={it.geoData}
+            />
+          )}
         </Show>
       </div>
     </FrameLeft>
@@ -186,25 +230,77 @@ export function SidebarLayout(p: SidebarLayoutProps) {
 }
 
 export type GridLayoutProps = {
-  title: string;
-  items: PublicDashboardBundle["items"];
+  entries: PublicEntry[];
 };
 
 export function GridLayout(p: GridLayoutProps) {
   return (
     <div class="ui-gap ui-pad grid content-start overflow-auto lg:grid-cols-2">
-      <For each={p.items}>
-        {(item) => (
+      <For each={p.entries}>
+        {(entry) => (
           <div class="border-base-300 ui-pad aspect-video rounded border">
-            <DashboardItemChart
-              itemId={item.id}
-              strippedFigureInputs={item.strippedFigureInputs}
-              source={item.source}
-              geoData={item.geoData}
-            />
+            <Switch>
+              <Match when={entry.kind === "item" ? entry : undefined}>
+                {(it) => (
+                  <DashboardItemChart
+                    itemId={it().item.id}
+                    strippedFigureInputs={it().item.strippedFigureInputs}
+                    source={it().item.source}
+                    geoData={it().item.geoData}
+                  />
+                )}
+              </Match>
+              <Match when={entry.kind === "group" ? entry : undefined}>
+                {(grp) => (
+                  <GroupTile group={grp().group} members={grp().members} />
+                )}
+              </Match>
+            </Switch>
           </div>
         )}
       </For>
+    </div>
+  );
+}
+
+function GroupTile(p: {
+  group: Extract<PublicEntry, { kind: "group" }>["group"];
+  members: PublicItem[];
+}) {
+  const [value, setValue] = createSignal(
+    p.group.defaultReplicantValue ?? p.members[0]?.replicantValue ?? "",
+  );
+  const current = () =>
+    p.members.find((m) => m.replicantValue === value()) ?? p.members[0];
+
+  return (
+    <div class="flex h-full w-full flex-col">
+      <div class="ui-gap-sm flex items-center pb-1">
+        <div class="text-neutral font-700 flex-1 truncate text-xs">
+          {p.group.label}
+        </div>
+        <Select
+          value={value()}
+          options={p.group.replicants.map((r) => ({
+            value: r.value,
+            label: r.label,
+          }))}
+          onChange={(v: string) => setValue(v)}
+          size="sm"
+        />
+      </div>
+      <div class="min-h-0 flex-1">
+        <Show when={current()} keyed>
+          {(it) => (
+            <DashboardItemChart
+              itemId={it.id}
+              strippedFigureInputs={it.strippedFigureInputs}
+              source={it.source}
+              geoData={it.geoData}
+            />
+          )}
+        </Show>
+      </div>
     </div>
   );
 }

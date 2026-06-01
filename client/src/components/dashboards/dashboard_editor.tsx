@@ -1,9 +1,10 @@
 import {
   DashboardDetail,
   DashboardItem,
+  DashboardItemGroup,
   FigureBlock,
   PresentationObjectConfig,
-  PublicDashboardItem,
+  PublicDashboardEntry,
   ResultsValue,
   getReplicateByProp,
   getFetchConfigFromPresentationObjectConfig,
@@ -50,8 +51,9 @@ import {
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { AddDashboardItemConfirmModal } from "./add_dashboard_item_modal";
 import { DashboardSettingsModal } from "./dashboard_settings_modal";
-import { DashboardItemGrid } from "./dashboard_item_grid";
+import { DashboardItemGrid, type DashboardGridEntry } from "./dashboard_item_grid";
 import { DashboardItemEditor } from "./dashboard_item_editor";
+import { DashboardGroupEditor } from "./dashboard_group_editor";
 import { buildDashboardBundle } from "./build_dashboard_bundle";
 
 type Props = EditorComponentProps<
@@ -116,37 +118,78 @@ export function DashboardEditor(p: Props) {
     }
   });
 
-  // Hold the latest successfully-loaded dashboard so SSE refetches update props
-  // in place instead of remounting (a remount reloads the preview charts).
-  const readyDashboard = createMemo<DashboardDetail | undefined>((prev) => {
+  // Variant B (per-entity T2): the StateHolder itself retains the last ready
+  // value across SSE refetches (the effect never resets to loading), so it is
+  // the stale-while-revalidate holder — no separate "last ready" memo needed.
+  const ready = (): DashboardDetail | undefined => {
     const d = data();
-    return d.status === "ready" ? d.data : prev;
-  }, undefined);
+    return d.status === "ready" ? d.data : undefined;
+  };
 
-  const items = (): DashboardItem[] => readyDashboard()?.items ?? [];
+  const items = (): DashboardItem[] => ready()?.items ?? [];
 
   const canConfigure = () =>
     projectState.thisUserPermissions.can_configure_slide_decks &&
     !projectState.isLocked;
 
-  const bundleItems = createMemo<PublicDashboardItem[]>(() => {
-    const d = readyDashboard();
-    return d ? buildDashboardBundle(d).items : [];
+  // Entries collapse a replicant group's N members into one unit (standalone
+  // item | group). The grid, selection and reorder all operate on entries.
+  const entries = createMemo<PublicDashboardEntry[]>(() => {
+    const d = ready();
+    return d ? buildDashboardBundle(d).entries : [];
+  });
+
+  const gridEntries = createMemo<DashboardGridEntry[]>(() =>
+    entries().map((e) => {
+      if (e.kind === "item") {
+        return {
+          id: e.item.id,
+          kind: "item" as const,
+          label: e.item.label,
+          thumbnail: e.item,
+          count: 1,
+        };
+      }
+      const def =
+        e.members.find((m) => m.replicantValue === e.group.defaultReplicantValue) ??
+        e.members[0];
+      return {
+        id: e.group.id,
+        kind: "group" as const,
+        label: e.group.label,
+        thumbnail: def,
+        count: e.members.length,
+      };
+    }),
+  );
+
+  // entry id → the underlying item ids it covers (a group → all member ids).
+  const entryMemberIds = createMemo<Map<string, string[]>>(() => {
+    const m = new Map<string, string[]>();
+    for (const e of entries()) {
+      if (e.kind === "item") m.set(e.item.id, [e.item.id]);
+      else m.set(e.group.id, e.members.map((x) => x.id));
+    }
+    return m;
   });
 
   // Selection — same mechanism as the dashboard list and slide grid: multi
-  // select (click / shift-range / cmd-toggle / circle). Seed ids from the items
-  // actually rendered in the grid so selection can't include a hidden item.
+  // select (click / shift-range / cmd-toggle / circle), keyed by ENTRY id.
   const selection = createSelectionController<string>({
-    ids: () => bundleItems().map((i) => i.id),
+    ids: () => gridEntries().map((e) => e.id),
     mode: "multi",
   });
 
-  const selectedItem = createMemo<DashboardItem | undefined>(() => {
-    if (selection.selectedCount() !== 1) return undefined;
-    const id = selection.selectedId();
-    return items().find((i) => i.id === id);
-  });
+  const selectedEntryId = () =>
+    selection.selectedCount() === 1 ? selection.selectedId() : undefined;
+
+  const selectedItem = createMemo<DashboardItem | undefined>(() =>
+    items().find((i) => i.id === selectedEntryId()),
+  );
+
+  const selectedGroup = createMemo<DashboardItemGroup | undefined>(() =>
+    (ready()?.groups ?? []).find((g) => g.id === selectedEntryId()),
+  );
 
   function publicUrl(slug: string) {
     return `${window.location.origin}/d/${p.projectId}/${slug}`;
@@ -248,7 +291,7 @@ export function DashboardEditor(p: Props) {
     const visualizationLabel = vizSummary?.label ?? "Visualization";
 
     const replicateBy = getReplicateByProp(poRes.data.config);
-    let allReplicants: string[] = [];
+    let allReplicants: { value: string; label: string }[] = [];
 
     if (replicateBy) {
       const config: PresentationObjectConfig = structuredClone(poRes.data.config);
@@ -279,7 +322,10 @@ export function DashboardEditor(p: Props) {
         fcRes.data,
       );
       if (optRes.success && optRes.data.status === "ok") {
-        allReplicants = optRes.data.possibleValues.map((pv) => pv.id);
+        allReplicants = optRes.data.possibleValues.map((pv) => ({
+          value: pv.id,
+          label: pv.label,
+        }));
       }
     }
 
@@ -291,34 +337,45 @@ export function DashboardEditor(p: Props) {
         visualizationId: selResult.visualizationId,
         visualizationLabel,
         selectedReplicant: selResult.replicant,
+        replicateBy: replicateBy ?? undefined,
         allReplicants,
       },
     });
   }
 
-  async function deleteItems(ids: string[]) {
-    if (ids.length === 0) return;
-    const list = items();
+  // Delete one or more ENTRIES — dispatched by kind (a group entry id is not a
+  // row id, so it must go through deleteDashboardItemGroup, which cascades).
+  async function deleteEntries(entryIds: string[]) {
+    if (entryIds.length === 0) return;
+    const all = gridEntries();
+    const kindOf = new Map(all.map((e) => [e.id, e.kind]));
+    const labelOf = new Map(all.map((e) => [e.id, e.label]));
     const confirmText =
-      ids.length > 1
+      entryIds.length > 1
         ? t3({
-            en: `Delete ${ids.length} items?`,
-            fr: `Supprimer ${ids.length} éléments ?`,
+            en: `Delete ${entryIds.length} items?`,
+            fr: `Supprimer ${entryIds.length} éléments ?`,
           })
         : t3({
-            en: `Delete "${list.find((i) => i.id === ids[0])?.label ?? ""}"?`,
-            fr: `Supprimer « ${list.find((i) => i.id === ids[0])?.label ?? ""} » ?`,
+            en: `Delete "${labelOf.get(entryIds[0]) ?? ""}"?`,
+            fr: `Supprimer « ${labelOf.get(entryIds[0]) ?? ""} » ?`,
           });
     const deleteAction = timActionDelete(
       confirmText,
       async () => {
         const results = await Promise.all(
-          ids.map((id) =>
-            serverActions.deleteDashboardItem({
-              projectId: p.projectId,
-              dashboard_id: p.dashboardId,
-              item_id: id,
-            }),
+          entryIds.map((id) =>
+            kindOf.get(id) === "group"
+              ? serverActions.deleteDashboardItemGroup({
+                  projectId: p.projectId,
+                  dashboard_id: p.dashboardId,
+                  group_id: id,
+                })
+              : serverActions.deleteDashboardItem({
+                  projectId: p.projectId,
+                  dashboard_id: p.dashboardId,
+                  item_id: id,
+                }),
           ),
         );
         return results.find((r) => !r.success) ?? results[0];
@@ -328,14 +385,29 @@ export function DashboardEditor(p: Props) {
     await deleteAction.click();
   }
 
-  async function handleReorder(orderedIds: string[]) {
-    const move = computeSingleItemMove(items().map((i) => i.id), orderedIds);
+  // Reorder operates on ENTRIES. The moved entry's member ids move as a block,
+  // anchored after the previous entry's LAST member (or to the start).
+  async function handleReorder(orderedEntryIds: string[]) {
+    const oldEntryIds = gridEntries().map((e) => e.id);
+    const move = computeSingleItemMove(oldEntryIds, orderedEntryIds);
     if (!move) return;
+    const memberMap = entryMemberIds();
+    const movedIds = memberMap.get(move.id) ?? [];
+    if (movedIds.length === 0) return;
+    let position: { toStart: true } | { after: string };
+    if ("after" in move.position) {
+      const anchorMembers = memberMap.get(move.position.after) ?? [];
+      const last = anchorMembers[anchorMembers.length - 1];
+      if (!last) return;
+      position = { after: last };
+    } else {
+      position = { toStart: true };
+    }
     const res = await serverActions.moveDashboardItems({
       projectId: p.projectId,
       dashboard_id: p.dashboardId,
-      itemIds: [move.id],
-      position: move.position,
+      itemIds: movedIds,
+      position,
     });
     if (!res.success) await openAlert({ text: res.err, intent: "danger" });
   }
@@ -430,10 +502,126 @@ export function DashboardEditor(p: Props) {
     await persistFigureBlock(it.id, built.figureBlock, built.geoData);
   }
 
-  function handleItemContextMenu(e: MouseEvent, itemId: string) {
+  // ── Group handlers (the selected entry is a replicant group) ───────────────
+
+  async function handleGroupRename(label: string) {
+    const g = selectedGroup();
+    if (!g) return;
+    const res = await serverActions.updateDashboardItemGroup({
+      projectId: p.projectId,
+      dashboard_id: p.dashboardId,
+      group_id: g.id,
+      label,
+    });
+    if (!res.success) await openAlert({ text: res.err, intent: "danger" });
+  }
+
+  async function handleGroupSetDefault(value: string) {
+    const g = selectedGroup();
+    if (!g) return;
+    const res = await serverActions.updateDashboardItemGroup({
+      projectId: p.projectId,
+      dashboard_id: p.dashboardId,
+      group_id: g.id,
+      defaultReplicantValue: value,
+    });
+    if (!res.success) await openAlert({ text: res.err, intent: "danger" });
+  }
+
+  // Re-resolve every member of the group from a new visualization (Switch) or a
+  // tweaked config (Edit), then persist in one transaction.
+  async function persistGroupMembers(
+    g: DashboardItemGroup,
+    resolveOne: (
+      replicantValue: string,
+    ) => Promise<{ figureBlock: FigureBlock; geoData?: unknown }>,
+  ) {
+    try {
+      const members: { replicantValue: string; figureBlock: FigureBlock }[] = [];
+      let sharedGeoData: unknown = undefined;
+      for (const r of g.replicants) {
+        const { figureBlock, geoData } = await resolveOne(r.value);
+        members.push({ replicantValue: r.value, figureBlock });
+        if (sharedGeoData === undefined && geoData !== undefined) {
+          sharedGeoData = geoData;
+        }
+      }
+      const res = await serverActions.updateDashboardItemGroup({
+        projectId: p.projectId,
+        dashboard_id: p.dashboardId,
+        group_id: g.id,
+        geoData: sharedGeoData,
+        members,
+      });
+      if (!res.success) await openAlert({ text: res.err, intent: "danger" });
+    } catch (err) {
+      await openAlert({
+        text: err instanceof Error ? err.message : "Failed to update group",
+        intent: "danger",
+      });
+    }
+  }
+
+  async function handleGroupSwitch() {
+    const g = selectedGroup();
+    if (!g) return;
+    const sel = await openInnerEditor({
+      element: SelectVisualizationForSlide,
+      props: { projectState },
+    });
+    if (!sel) return;
+    await persistGroupMembers(g, (replicantValue) =>
+      resolveFigureAndGeoFromVisualization(p.projectId, {
+        type: "from_visualization",
+        visualizationId: sel.visualizationId,
+        replicant: replicantValue,
+      }),
+    );
+  }
+
+  async function handleGroupEdit() {
+    const g = selectedGroup();
+    if (!g) return;
+    const member = items().find((i) => i.replicantGroupId === g.id);
+    const source = member?.figureBlock.source;
+    if (!source || source.type !== "from_data") return;
+    const resultsValue = projectState.metrics.find(
+      (m) => m.id === source.metricId,
+    );
+    if (!resultsValue) {
+      await openAlert({ text: "Metric not found in project", intent: "danger" });
+      return;
+    }
+    const result = await openInnerEditor({
+      element: VisualizationEditor,
+      props: {
+        mode: "ephemeral" as const,
+        label: resultsValue.label,
+        projectId: p.projectId,
+        ...snapshotForVizEditor({
+          projectState,
+          resultsValue,
+          config: source.config,
+        }),
+      },
+    });
+    if (!result?.updated) return;
+    const baseConfig = result.updated.config;
+    await persistGroupMembers(g, async (replicantValue) => {
+      const config: PresentationObjectConfig = structuredClone(baseConfig);
+      if (getReplicateByProp(config)) {
+        config.d.selectedReplicantValue = replicantValue;
+      }
+      const built = await buildFigureBlock(resultsValue, config);
+      if (!built.ok) throw new Error(built.err);
+      return { figureBlock: built.figureBlock, geoData: built.geoData };
+    });
+  }
+
+  function handleEntryContextMenu(e: MouseEvent, entryId: string) {
     e.preventDefault();
     if (!canConfigure()) return;
-    const ids = selection.getBatchIds(itemId);
+    const ids = selection.getBatchIds(entryId);
     const menuItems: MenuItem[] = [
       {
         label:
@@ -442,10 +630,10 @@ export function DashboardEditor(p: Props) {
                 en: `Delete ${ids.length} items`,
                 fr: `Supprimer ${ids.length} éléments`,
               })
-            : t3({ en: "Delete item", fr: "Supprimer l'élément" }),
+            : t3({ en: "Delete", fr: "Supprimer" }),
         icon: "trash",
         intent: "danger",
-        onClick: () => deleteItems(ids),
+        onClick: () => deleteEntries(ids),
       },
     ];
     showMenu({
@@ -470,10 +658,10 @@ export function DashboardEditor(p: Props) {
 
   return (
     <InnerEditorWrapper>
-      <FrameTop
-        panelChildren={
-          <StateHolderWrapper state={data()} noPad>
-            {(dashboard) => (
+      <StateHolderWrapper state={data()}>
+        {(dashboard) => (
+          <FrameTop
+            panelChildren={
               <HeadingBar
                 heading={dashboard.title}
                 class="border-base-300"
@@ -520,51 +708,61 @@ export function DashboardEditor(p: Props) {
                   </Show>
                 </div>
               </HeadingBar>
-            )}
-          </StateHolderWrapper>
-        }
-      >
-        <Show
-          when={readyDashboard()}
-          fallback={
-            <StateHolderWrapper state={data()}>{() => <></>}</StateHolderWrapper>
-          }
-        >
-          <FrameLeftResizable
-            startingWidth={300}
-            minWidth={240}
-            maxWidth={460}
-            hoverOffset="offset-for-border-1-on-left"
-            panelChildren={
-              <div class="border-base-300 flex h-full w-full flex-col border-r">
-                <DashboardItemEditor
-                  item={selectedItem()}
-                  selectedCount={selection.selectedCount()}
-                  canConfigure={canConfigure()}
-                  onUpdateLabel={handleUpdateLabel}
-                  onEdit={handleEdit}
-                  onSwitch={handleSwitch}
-                  onCreate={handleCreate}
-                  onDelete={() => {
-                    const it = selectedItem();
-                    if (it) deleteItems([it.id]);
-                  }}
-                />
-              </div>
             }
           >
-            <div class="bg-base-200 h-full w-full">
-              <DashboardItemGrid
-                items={bundleItems()}
-                selection={selection}
-                canConfigure={canConfigure()}
-                onReorder={handleReorder}
-                onContextMenu={handleItemContextMenu}
-              />
-            </div>
-          </FrameLeftResizable>
-        </Show>
-      </FrameTop>
+            <FrameLeftResizable
+              startingWidth={300}
+              minWidth={240}
+              maxWidth={460}
+              hoverOffset="offset-for-border-1-on-left"
+              panelChildren={
+                <div class="border-base-300 flex h-full w-full flex-col border-r">
+                  <Show
+                    when={selectedGroup()}
+                    fallback={
+                      <DashboardItemEditor
+                        item={selectedItem()}
+                        selectedCount={selection.selectedCount()}
+                        canConfigure={canConfigure()}
+                        onUpdateLabel={handleUpdateLabel}
+                        onEdit={handleEdit}
+                        onSwitch={handleSwitch}
+                        onCreate={handleCreate}
+                        onDelete={() => {
+                          const it = selectedItem();
+                          if (it) deleteEntries([it.id]);
+                        }}
+                      />
+                    }
+                  >
+                    {(g) => (
+                      <DashboardGroupEditor
+                        group={g()}
+                        canConfigure={canConfigure()}
+                        onUpdateLabel={handleGroupRename}
+                        onSetDefaultReplicant={handleGroupSetDefault}
+                        onSwitch={handleGroupSwitch}
+                        onEdit={handleGroupEdit}
+                        onDelete={() => deleteEntries([g().id])}
+                      />
+                    )}
+                  </Show>
+                </div>
+              }
+            >
+              <div class="bg-base-200 h-full w-full">
+                <DashboardItemGrid
+                  entries={gridEntries()}
+                  selection={selection}
+                  canConfigure={canConfigure()}
+                  onReorder={handleReorder}
+                  onContextMenu={handleEntryContextMenu}
+                />
+              </div>
+            </FrameLeftResizable>
+          </FrameTop>
+        )}
+      </StateHolderWrapper>
     </InnerEditorWrapper>
   );
 }

@@ -129,6 +129,19 @@ export type DBDashboardItem = {
   figure_block: string;
   geo_data: string | null;
   last_updated: string;
+  replicant_group_id: string | null;
+  replicant_value: string | null;
+};
+
+export type DBDashboardItemGroup = {
+  id: string;
+  dashboard_id: string;
+  label: string;
+  replicate_by: string;
+  default_replicant_value: string | null;
+  replicants: string;
+  geo_data: string | null;
+  last_updated: string;
 };
 
 export type DBGlobalLastUpdated = {

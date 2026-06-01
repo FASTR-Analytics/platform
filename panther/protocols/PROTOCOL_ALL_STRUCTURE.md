@@ -39,6 +39,8 @@ src/
 └── utils/             # Business logic
 ```
 
+For the opinionated rules *inside* `components/` (feature-mirrors-UI, the `_shared/` home, co-location, facet nesting), see `PROTOCOL_UI_STRUCTURE.md`.
+
 ### Full-Stack App (both mode)
 
 ```

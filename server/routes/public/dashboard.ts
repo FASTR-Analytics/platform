@@ -1,12 +1,6 @@
 import { Hono } from "hono";
 import { getAuth } from "@hono/clerk-auth";
-import type { FigureInputs } from "@timroberton/panther";
-import type {
-  IndicatorMetadata,
-  PresentationObjectConfig,
-  PublicDashboardBundle,
-  PublicDashboardItem,
-} from "lib";
+import { buildPublicDashboardBundle } from "lib";
 import { getDashboardBySlug } from "../../db/project/dashboards.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 
@@ -48,33 +42,9 @@ routesPublicDashboard.get("/api/d/:projectId/:slug", async (c) => {
     }
   }
 
-  const dashboard = result.data;
-
-  const items: PublicDashboardItem[] = dashboard.items.map((item) => {
-    const source = item.figureBlock.source;
-    const fromData = source?.type === "from_data" ? source : undefined;
-    return {
-      id: item.id,
-      label: item.label,
-      sortOrder: item.sortOrder,
-      strippedFigureInputs: (item.figureBlock.figureInputs ?? {}) as FigureInputs,
-      source: {
-        config: (fromData?.config ?? {}) as PresentationObjectConfig,
-        metricId: fromData?.metricId ?? "",
-        formatAs: "number",
-        indicatorMetadata: fromData?.indicatorMetadata as
-          | IndicatorMetadata[]
-          | undefined,
-      },
-      geoData: item.geoData,
-    };
-  });
-
-  const bundle: PublicDashboardBundle = {
-    title: dashboard.title,
-    layout: dashboard.layout,
-    items,
-  };
+  // Shared transform (lib): groups collapse to entries, group members carry the
+  // group's shared geojson. Same builder the editor uses.
+  const bundle = buildPublicDashboardBundle(result.data);
 
   return c.json({ success: true, data: bundle });
 });

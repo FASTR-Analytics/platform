@@ -6,7 +6,7 @@
 
 Project state is scoped to a single project: modules, visualizations, slide decks, dirty states, metrics, and project users. Project state uses the same global store + SSE pattern as instance state.
 
-For instance-level state management, see `DOC_STATE_MGT_INSTANCE.md`.
+For instance-level state management, see `DOC_STATE_MGT_INSTANCE.md`. For the **server-side producer** of the SSE feed this state consumes (BroadcastChannel → SSE, the notify catalog, and the `last_updated` version-key coupling), see [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md).
 
 ## Architecture
 
@@ -16,7 +16,7 @@ For instance-level state management, see `DOC_STATE_MGT_INSTANCE.md`.
 | --- | --- |
 | Types (state shape, SSE events) | `lib/types/project_sse.ts` |
 | Server notifications | `server/task_management/notify_project_updated.ts` |
-| Server SSE endpoint | `server/routes/project/project-sse.ts` |
+| Server SSE endpoint | `server/routes/project/project-sse-v2.ts` |
 | Client state (store + getters) | `client/src/state/project/t1_store.ts` |
 | Client SSE connection + boundary | `client/src/state/project/t1_sse.tsx` |
 

@@ -8,15 +8,25 @@ import {
 } from "lib";
 import {
   Button,
+  ButtonGroup,
   type EditorComponentProps,
   FrameLeftResizable,
   FrameTop,
   getEditorWrapper,
   HeadingBar,
+  MarkdownPresentationJsx,
   openAlert,
   openComponent,
 } from "panther";
-import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  type JSX,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { serverActions, _SERVER_HOST } from "~/server_actions";
 import { projectState } from "~/state/project/t1_store";
 import { setShowAi, showAi } from "~/state/t4_ui";
@@ -35,16 +45,19 @@ import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "../project/add_visualization";
 import { snapshotForVizEditor } from "../_editor_snapshot";
 import { ReportEditor, type ReportEditorApi } from "./report_editor";
+import { REPORT_MARKDOWN_STYLE } from "./report_markdown_style";
 import {
   ReportEmbedEditor,
   type SelectedReportEmbed,
 } from "./ReportEmbedEditor";
 import { ReportImagePicker } from "./report_image_picker";
 import { ReportMarkdownDiff } from "./ReportMarkdownDiff";
+import { ReportFigureEmbed } from "./ReportFigureEmbed";
 import { DownloadReport } from "./download_report";
 
 type EmbedKind = "figure" | "image";
 type EmbedSelection = { kind: EmbedKind; id: string };
+type ReportMode = "edit" | "view";
 
 type Props = EditorComponentProps<
   {
@@ -84,7 +97,7 @@ function referencedEmbedIds(body: string): {
 
 export function ProjectReport(p: Props) {
   const projectId = p.projectState.id;
-  const { setAIContext } = useAIProjectContext();
+  const { setAIContext, notifyAI } = useAIProjectContext();
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
     getEditorWrapper();
 
@@ -98,6 +111,11 @@ export function ProjectReport(p: Props) {
   const [lastUpdated, setLastUpdated] = createSignal<string>("");
   const [showConflictBanner, setShowConflictBanner] = createSignal(false);
   const [saveError, setSaveError] = createSignal<string | undefined>();
+  // Autosave indicator. "unsaved" = an edit is pending in the debounce window.
+  const [saveStatus, setSaveStatus] = createSignal<
+    "saved" | "unsaved" | "saving" | "error"
+  >("saved");
+  const [lastSavedAt, setLastSavedAt] = createSignal<string>("");
   // A staged AI edit awaiting the user's accept/reject (PLAN_REPORTS.md §4).
   const [pendingProposal, setPendingProposal] = createSignal<
     ReportEditProposal | undefined
@@ -106,9 +124,60 @@ export function ProjectReport(p: Props) {
   const [selectedEmbed, setSelectedEmbed] = createSignal<
     EmbedSelection | undefined
   >();
+  // Edit (CodeMirror) vs View (read-only HTML preview). AI is mode-agnostic:
+  // the editor stays mounted in both modes (PLAN_REPORT_PREVIEW_TOGGLE.md §2).
+  const [mode, setMode] = createSignal<ReportMode>("edit");
+
+  // Leaving Edit clears the selection (the preview isn't clickable, so the left
+  // panel resets to its empty state); re-entering Edit re-measures the CM that
+  // was hidden in View.
+  createEffect(() => {
+    if (mode() === "view") setSelectedEmbed(undefined);
+    else editorApi?.refresh();
+  });
+
+  // Resolve an embed token to its live render — same funnel as the CM widget, so
+  // a figure/image looks identical in Edit and View. Plain markdown image URLs
+  // return undefined → MarkdownPresentationJsx falls back to a plain <img>.
+  function renderEmbed(src: string, alt: string): JSX.Element | undefined {
+    const fig = /^figure:(.+)$/.exec(src);
+    if (fig) {
+      const fb = figures()[fig[1]];
+      return fb ? (
+        <div class="border-base-300 ui-pad my-4 rounded border">
+          <ReportFigureEmbed figure={fb} />
+        </div>
+      ) : (
+        <div class="text-danger text-xs">Missing figure: {fig[1]}</div>
+      );
+    }
+    const img = /^image:(.+)$/.exec(src);
+    if (img) {
+      const ib = images()[img[1]];
+      return ib ? (
+        <img class="w-full" src={assetUrl(ib.imgFile)} alt={alt} />
+      ) : (
+        <div class="text-danger text-xs">Missing image: {img[1]}</div>
+      );
+    }
+    return undefined;
+  }
 
   let editorApi: ReportEditorApi | undefined;
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  // Resolver for the in-flight AI proposal — settled when the user accepts or
+  // rejects, so the proposing tool call learns the outcome (see proposeEdit).
+  let proposalResolve: ((r: { accepted: boolean }) => void) | undefined;
+  // Suppresses the "user edited" AI notification while we apply an AI-accepted
+  // edit through the editor (setBody also fires the CM change listener).
+  let applyingProgrammaticEdit = false;
+
+  // Settle any in-flight proposal (used when one is superseded or the editor
+  // closes), so an awaiting AI tool never hangs.
+  function settleProposal(accepted: boolean) {
+    proposalResolve?.({ accepted });
+    proposalResolve = undefined;
+  }
 
   const canConfigure = () =>
     projectState.thisUserPermissions.can_configure_reports &&
@@ -122,6 +191,40 @@ export function ProjectReport(p: Props) {
   function bumpLastUpdated(ts: string) {
     setLastUpdated((prev) => (ts > prev ? ts : prev));
   }
+
+  const saveIndicator = createMemo(() => {
+    switch (saveStatus()) {
+      case "saving":
+        return {
+          text: t3({ en: "Saving…", fr: "Enregistrement…" }),
+          dot: "bg-warning",
+        };
+      case "unsaved":
+        return {
+          text: t3({
+            en: "Unsaved changes",
+            fr: "Modifications non enregistrées",
+          }),
+          dot: "bg-base-300",
+        };
+      case "error":
+        return {
+          text: t3({ en: "Save failed", fr: "Échec de l'enregistrement" }),
+          dot: "bg-danger",
+        };
+      case "saved":
+      default:
+        return {
+          text: lastSavedAt()
+            ? t3({
+                en: `Saved ${lastSavedAt()}`,
+                fr: `Enregistré ${lastSavedAt()}`,
+              })
+            : t3({ en: "Saved", fr: "Enregistré" }),
+          dot: "bg-success",
+        };
+    }
+  });
 
   // Caption for an embed = the markdown alt text in its token.
   function captionForId(kind: EmbedKind, id: string): string {
@@ -197,7 +300,15 @@ export function ProjectReport(p: Props) {
       getBody: () => body(),
       getFigures: () => figures(),
       getImages: () => images(),
-      proposeEdit: (proposal) => setPendingProposal(proposal),
+      getSelection: () => editorApi?.getSelection(),
+      proposeEdit: (proposal) => {
+        // Supersede any unresolved proposal (treat as rejected) before staging.
+        settleProposal(false);
+        setPendingProposal(proposal);
+        return new Promise<{ accepted: boolean }>((resolve) => {
+          proposalResolve = resolve;
+        });
+      },
     });
   });
 
@@ -220,29 +331,43 @@ export function ProjectReport(p: Props) {
       setFigures(next);
       await persistFigures(next);
     }
+    applyingProgrammaticEdit = true;
     editorApi?.setBody(prop.newBody);
+    applyingProgrammaticEdit = false;
     if (saveTimer) {
       clearTimeout(saveTimer);
       saveTimer = undefined;
     }
     await persistBody(prop.newBody);
     setPendingProposal(undefined);
+    settleProposal(true);
     editorApi?.refresh();
   }
 
   function rejectProposal() {
     setPendingProposal(undefined);
+    settleProposal(false);
     editorApi?.refresh();
   }
 
   onCleanup(() => {
     void flushBodySave();
+    settleProposal(false);
     setAIContext(p.returnToContext ?? { mode: "viewing_reports" });
   });
 
   // ── persistence ────────────────────────────────────────────────────────────
 
+  // Stamp a successful save for the autosave indicator (local clock time).
+  function markSaved() {
+    setLastSavedAt(
+      new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    );
+    setSaveStatus("saved");
+  }
+
   async function persistBody(nextBody: string) {
+    setSaveStatus("saving");
     const res = await serverActions.updateReportBody({
       projectId,
       report_id: p.reportId,
@@ -254,35 +379,52 @@ export function ProjectReport(p: Props) {
       bumpLastUpdated(res.data.lastUpdated);
       if (res.data.conflicted) setShowConflictBanner(true);
       setSaveError(undefined);
+      markSaved();
     } else {
       setSaveError(res.err);
+      setSaveStatus("error");
     }
   }
 
   function handleBodyChange(nextBody: string) {
     setBody(nextBody);
+    setSaveStatus("unsaved");
+    // Let the AI know the user touched the body (skip AI-applied edits).
+    if (!applyingProgrammaticEdit) notifyAI({ type: "edited_report_locally" });
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => void persistBody(nextBody), AUTOSAVE_MS);
   }
 
   async function persistFigures(next: Record<string, FigureBlock>) {
+    setSaveStatus("saving");
     const res = await serverActions.updateReportFigures({
       projectId,
       report_id: p.reportId,
       figures: next,
     });
-    if (res.success) bumpLastUpdated(res.data.lastUpdated);
-    else setSaveError(res.err);
+    if (res.success) {
+      bumpLastUpdated(res.data.lastUpdated);
+      markSaved();
+    } else {
+      setSaveError(res.err);
+      setSaveStatus("error");
+    }
   }
 
   async function persistImages(next: Record<string, ImageBlock>) {
+    setSaveStatus("saving");
     const res = await serverActions.updateReportImages({
       projectId,
       report_id: p.reportId,
       images: next,
     });
-    if (res.success) bumpLastUpdated(res.data.lastUpdated);
-    else setSaveError(res.err);
+    if (res.success) {
+      bumpLastUpdated(res.data.lastUpdated);
+      markSaved();
+    } else {
+      setSaveError(res.err);
+      setSaveStatus("error");
+    }
   }
 
   async function updateFigure(id: string, figureBlock: FigureBlock) {
@@ -521,6 +663,81 @@ export function ProjectReport(p: Props) {
     });
   }
 
+  // The content area (banners + CM editor + preview + diff), shared by both
+  // modes. The CM editor stays mounted in View too — AI accept applies via its
+  // imperative setBody and body() updates flow through onBodyChange regardless
+  // of mode (PLAN_REPORT_PREVIEW_TOGGLE.md §2). Only the left sidebar differs.
+  const MainArea = () => (
+    <div
+      class="bg-base-200 flex h-full w-full flex-col"
+      onClick={() => setSelectedEmbed(undefined)}
+    >
+      <Show when={showConflictBanner()}>
+        <div class="bg-base-200 text-base-content ui-pad flex items-center gap-2 text-xs">
+          <span class="flex-1">
+            {t3({
+              en: "Someone else may be editing this report — your changes were saved over theirs.",
+              fr: "Quelqu'un d'autre modifie peut-être ce rapport — vos modifications ont été enregistrées par-dessus les siennes.",
+            })}
+          </span>
+          <Button
+            size="sm"
+            outline
+            onClick={() => setShowConflictBanner(false)}
+          >
+            {t3({ en: "Dismiss", fr: "Ignorer" })}
+          </Button>
+        </div>
+      </Show>
+      <Show when={saveError()}>
+        <div class="text-danger ui-pad text-xs">{saveError()}</div>
+      </Show>
+      <Show when={!isLoading()}>
+        <div
+          class="ui-pad-lg min-h-0 flex-1"
+          classList={{ hidden: mode() !== "edit" || !!pendingProposal() }}
+        >
+          <ReportEditor
+            body={body()}
+            figures={figures()}
+            images={images()}
+            assetUrl={assetUrl}
+            onBodyChange={handleBodyChange}
+            onSelectEmbed={(kind, id) => setSelectedEmbed({ kind, id })}
+            selectedId={() => selectedEmbed()?.id}
+            ref={(api) => (editorApi = api)}
+          />
+        </div>
+        {/* Read-only HTML preview — View mode, not during a proposal. */}
+        <Show when={mode() === "view" && !pendingProposal()}>
+          <div class="ui-pad-lg min-h-0 flex-1">
+            <div class="bg-base-100 ui-pad mx-auto h-full w-full max-w-4xl overflow-auto rounded border">
+              <MarkdownPresentationJsx
+                markdown={body()}
+                renderImage={renderEmbed}
+                style={REPORT_MARKDOWN_STYLE}
+              />
+            </div>
+          </div>
+        </Show>
+        {/* keyed so a *new* proposal rebuilds the diff (M1). */}
+        <Show when={pendingProposal()} keyed>
+          {(prop) => (
+            <div class="bg-base-100 min-h-0 flex-1">
+              <ReportMarkdownDiff
+                oldText={body()}
+                newText={prop.newBody}
+                summary={prop.summary}
+                onAccept={acceptProposal}
+                onReject={rejectProposal}
+              />
+            </div>
+          )}
+        </Show>
+      </Show>
+    </div>
+  );
+
   return (
     <InnerEditorWrapper>
       <FrameTop
@@ -534,8 +751,28 @@ export function ProjectReport(p: Props) {
                 onClick={() => p.close(undefined)}
               />
             }
+            centerChildren={
+              <ButtonGroup<ReportMode>
+                items={[
+                  { id: "edit", label: t3({ en: "Edit", fr: "Édition" }) },
+                  { id: "view", label: t3({ en: "View", fr: "Aperçu" }) },
+                ]}
+                value={mode()}
+                onChange={(v) => v && setMode(v)}
+              />
+            }
           >
             <div class="ui-gap-sm flex items-center">
+              <div class="text-neutral mr-2 flex items-center gap-1.5 text-xs">
+                <div
+                  class="h-1.5 w-1.5 flex-none rounded-full"
+                  classList={{
+                    [saveIndicator().dot]: true,
+                    "animate-pulse": saveStatus() === "saving",
+                  }}
+                />
+                <span>{saveIndicator().text}</span>
+              </div>
               <Button outline iconName="download" onClick={download}>
                 {t3({ en: "Download", fr: "Télécharger" })}
               </Button>
@@ -552,16 +789,21 @@ export function ProjectReport(p: Props) {
           </HeadingBar>
         }
       >
+        {/* One always-mounted frame: the sidebar collapses (isShown=false) in
+            View, but MainArea stays mounted across the toggle — the CM editor
+            and figure widgets never remount (no re-hydration flicker; undo and
+            scroll preserved). */}
         <FrameLeftResizable
           startingWidth={300}
           minWidth={240}
           maxWidth={460}
           hoverOffset="offset-for-border-1-on-left"
+          isShown={mode() === "edit"}
           panelChildren={
             <div class="border-base-300 flex h-full w-full flex-col border-r">
               <ReportEmbedEditor
                 embed={selectedEmbedDetail()}
-                canConfigure={canConfigure()}
+                canConfigure={canConfigure() && mode() === "edit"}
                 onUpdateCaption={handleUpdateCaption}
                 onEditFigure={handleEdit}
                 onSwitchFigure={handleSwitch}
@@ -574,64 +816,7 @@ export function ProjectReport(p: Props) {
             </div>
           }
         >
-          <div
-            class="bg-base-200 flex h-full w-full flex-col"
-            onClick={() => setSelectedEmbed(undefined)}
-          >
-            <Show when={showConflictBanner()}>
-              <div class="bg-base-200 text-base-content ui-pad flex items-center gap-2 text-xs">
-                <span class="flex-1">
-                  {t3({
-                    en: "Someone else may be editing this report — your changes were saved over theirs.",
-                    fr: "Quelqu'un d'autre modifie peut-être ce rapport — vos modifications ont été enregistrées par-dessus les siennes.",
-                  })}
-                </span>
-                <Button
-                  size="sm"
-                  outline
-                  onClick={() => setShowConflictBanner(false)}
-                >
-                  {t3({ en: "Dismiss", fr: "Ignorer" })}
-                </Button>
-              </div>
-            </Show>
-            <Show when={saveError()}>
-              <div class="text-danger ui-pad text-xs">{saveError()}</div>
-            </Show>
-            <Show when={!isLoading()}>
-              {/* Editor stays mounted (hidden) while a proposal is under review
-                  so accept can apply via its imperative setBody. */}
-              <div
-                class="ui-pad min-h-0 flex-1"
-                classList={{ hidden: !!pendingProposal() }}
-              >
-                <ReportEditor
-                  body={body()}
-                  figures={figures()}
-                  images={images()}
-                  assetUrl={assetUrl}
-                  onBodyChange={handleBodyChange}
-                  onSelectEmbed={(kind, id) => setSelectedEmbed({ kind, id })}
-                  selectedId={() => selectedEmbed()?.id}
-                  ref={(api) => (editorApi = api)}
-                />
-              </div>
-              {/* keyed so a *new* proposal rebuilds the diff (M1). */}
-              <Show when={pendingProposal()} keyed>
-                {(prop) => (
-                  <div class="min-h-0 flex-1">
-                    <ReportMarkdownDiff
-                      oldText={body()}
-                      newText={prop.newBody}
-                      summary={prop.summary}
-                      onAccept={acceptProposal}
-                      onReject={rejectProposal}
-                    />
-                  </div>
-                )}
-              </Show>
-            </Show>
-          </div>
+          <MainArea />
         </FrameLeftResizable>
       </FrameTop>
     </InnerEditorWrapper>

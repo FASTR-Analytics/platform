@@ -17,6 +17,7 @@ export type AIUserInteraction =
   | { type: "selected_visualizations"; vizIds: string[] }
   | { type: "edited_viz_locally" }
   | { type: "edited_slide_locally" }
+  | { type: "edited_report_locally" }
   | { type: "custom"; message: string };
 
 // Viewing contexts (browsing main project sections)
@@ -85,6 +86,15 @@ export type ReportEditProposal = {
   summary: string;
 };
 
+// Live CodeMirror selection, surfaced to the AI so it can act on what the user
+// has highlighted (mirrors how slide decks expose getSelectedSlideIds).
+export type ReportEditorSelection = {
+  empty: boolean; // true when it's just a cursor (no text selected)
+  fromLine: number; // 1-based
+  toLine: number;
+  text: string; // selected text ("" when empty)
+};
+
 export type AIContextEditingReport = {
   mode: "editing_report";
   reportId: string;
@@ -92,7 +102,12 @@ export type AIContextEditingReport = {
   getBody: () => string;
   getFigures: () => Record<string, FigureBlock>;
   getImages: () => Record<string, ImageBlock>;
-  proposeEdit: (proposal: ReportEditProposal) => void;
+  // Live CodeMirror selection (undefined if the editor isn't mounted yet).
+  getSelection: () => ReportEditorSelection | undefined;
+  // Stage an edit as a diff and resolve once the user accepts or rejects it, so
+  // the calling AI tool learns the outcome (mirrors panther's ask_user_questions
+  // await-resolve pattern). Resolves { accepted: false } if superseded/closed.
+  proposeEdit: (proposal: ReportEditProposal) => Promise<{ accepted: boolean }>;
 };
 
 export type AIContext =

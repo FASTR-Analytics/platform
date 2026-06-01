@@ -1,4 +1,4 @@
-import { t3 } from "lib";
+import { FigureBlock, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -17,7 +17,8 @@ type Props = {
   visualizationId: string;
   visualizationLabel: string;
   selectedReplicant: string | undefined;
-  allReplicants: string[];
+  replicateBy: string | undefined;
+  allReplicants: { value: string; label: string }[];
 };
 
 type ReturnType = { addedCount: number };
@@ -31,7 +32,8 @@ export function AddDashboardItemConfirmModal(
   );
   const progress = getProgress();
 
-  async function addOne(replicant: string | undefined, itemLabel: string) {
+  // Single add → one standalone item (unchanged behaviour).
+  async function addSingle(replicant: string | undefined, itemLabel: string) {
     const { figureBlock, geoData } = await resolveFigureAndGeoFromVisualization(
       p.projectId,
       {
@@ -53,33 +55,54 @@ export function AddDashboardItemConfirmModal(
     async (e: MouseEvent) => {
       e.preventDefault();
 
-      if (hasReplicants && creationMode() === "all") {
-        let added = 0;
+      // Add all → ONE replicant group: resolve every member's figureBlock +
+      // the shared geojson once, then persist atomically (addDashboardItemGroup).
+      if (hasReplicants && creationMode() === "all" && p.replicateBy) {
+        const members: {
+          replicantValue: string;
+          label: string;
+          figureBlock: FigureBlock;
+        }[] = [];
+        let sharedGeoData: unknown = undefined;
         for (let i = 0; i < p.allReplicants.length; i++) {
-          const replicantValue = p.allReplicants[i];
+          const { value, label } = p.allReplicants[i];
           progress.onProgress(
-            i / p.allReplicants.length,
-            `Adding item ${i + 1} of ${p.allReplicants.length}...`,
+            (i / p.allReplicants.length) * 0.9,
+            `Resolving ${i + 1} of ${p.allReplicants.length}...`,
           );
           try {
-            const itemLabel = `${p.visualizationLabel} - ${replicantValue}`;
-            const res = await addOne(replicantValue, itemLabel);
-            if (!res.success) {
-              return {
-                success: false as const,
-                err: `Failed on item ${i + 1} (${replicantValue}): ${res.err}. Added ${added}.`,
-              };
+            const { figureBlock, geoData } =
+              await resolveFigureAndGeoFromVisualization(p.projectId, {
+                type: "from_visualization",
+                visualizationId: p.visualizationId,
+                replicant: value,
+              });
+            members.push({ replicantValue: value, label, figureBlock });
+            if (sharedGeoData === undefined && geoData !== undefined) {
+              sharedGeoData = geoData;
             }
-            added++;
           } catch (err) {
             return {
               success: false as const,
-              err: `Failed on item ${i + 1}: ${err instanceof Error ? err.message : String(err)}. Added ${added}.`,
+              err: `Failed resolving replicant ${i + 1} (${label}): ${err instanceof Error ? err.message : String(err)}`,
             };
           }
         }
-        progress.onProgress(1, `Added ${added} items`);
-        return { success: true as const, data: { addedCount: added } };
+        progress.onProgress(0.95, "Saving group...");
+        const res = await serverActions.addDashboardItemGroup({
+          projectId: p.projectId,
+          dashboard_id: p.dashboardId,
+          label: p.visualizationLabel,
+          replicateBy: p.replicateBy,
+          defaultReplicantValue:
+            p.selectedReplicant ?? p.allReplicants[0]?.value,
+          replicants: p.allReplicants,
+          geoData: sharedGeoData,
+          members,
+        });
+        if (!res.success) return res;
+        progress.onProgress(1, `Added group of ${members.length}`);
+        return { success: true as const, data: { addedCount: members.length } };
       }
 
       // Single mode
@@ -87,7 +110,7 @@ export function AddDashboardItemConfirmModal(
         ? `${p.visualizationLabel} - ${p.selectedReplicant}`
         : p.visualizationLabel;
       try {
-        const res = await addOne(p.selectedReplicant, itemLabel);
+        const res = await addSingle(p.selectedReplicant, itemLabel);
         if (!res.success) return res;
         return { success: true as const, data: { addedCount: 1 } };
       } catch (err) {
@@ -132,8 +155,8 @@ export function AddDashboardItemConfirmModal(
               {
                 value: "all",
                 label: t3({
-                  en: `All replicants (${p.allReplicants.length})`,
-                  fr: `Tous les réplicants (${p.allReplicants.length})`,
+                  en: `All replicants as a group (${p.allReplicants.length})`,
+                  fr: `Tous les réplicants en groupe (${p.allReplicants.length})`,
                 }),
               },
             ]}

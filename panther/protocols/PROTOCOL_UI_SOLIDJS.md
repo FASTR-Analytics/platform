@@ -17,6 +17,7 @@ For component-library usage see `PROTOCOL_UI_COMPONENTS.md`; for data/actions se
 6. **Props as `p`** — Never destructure, never name it `props`
 7. **Function declarations** — Not arrow functions for components
 8. **Batch related updates** — Wrap multiple signal writes in `batch()`
+9. **Peer branches use `<Match>`, not `fallback`** — `<Show fallback>` is only for genuinely subordinate content (loading / empty / absent). Equal alternatives use `<Switch>` with an explicit `when` on each `<Match>` — never relegate a peer to `fallback` or a `when={true}` catch-all
 
 ## Do / Don't
 
@@ -153,6 +154,23 @@ export function Card(p: Props) {
 </Switch>
 ```
 
+### Equal branches (peers, not a fallback)
+
+```tsx
+// ❌ DON'T — two equal branches, but one is forced into "fallback"
+<Show when={mode() === "edit"} fallback={<ReadView item={item()} />}>
+  <EditView item={item()} />
+</Show>
+
+// ✅ DO — peers stay peers; every branch states its own condition
+<Switch>
+  <Match when={mode() === "edit"}><EditView item={item()} /></Match>
+  <Match when={mode() === "read"}><ReadView item={item()} /></Match>
+</Switch>
+```
+
+**Why:** `fallback` encodes a primary/secondary hierarchy. For genuine alternatives that's a lie that hides intent and misleads the next reader. Reserve `<Show>`'s `fallback` (and a `when={true}` catch-all) for content that truly *is* subordinate — loading, empty, or absent — like the data / "No data" case above.
+
 ### Batched Updates
 
 ```tsx
@@ -177,6 +195,7 @@ batch(() => {
 - [ ] No `createResource` usage
 - [ ] Props accessed via `p.` not destructured
 - [ ] Control flow uses `<Show>`, `<For>`, `<Switch>`
+- [ ] `<Show fallback>` only for subordinate content; equal branches use `<Switch>`/`<Match>` with an explicit `when` on each
 - [ ] All reactive deps accessed before conditionals in effects
 - [ ] All reactive deps accessed before `await` in async effects
 - [ ] Components use function declarations

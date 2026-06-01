@@ -73,3 +73,4 @@ export * from "./_306_text_editor/mod.ts";
 // @protocol PROTOCOL_UI_STATE.md
 // @protocol PROTOCOL_UI_STYLING.md
 // @protocol PROTOCOL_UI_COMPONENTS.md
+// @protocol PROTOCOL_UI_STRUCTURE.md

@@ -161,6 +161,17 @@ function AIProjectWrapperInner(props: ParentProps) {
             }
           } else if (ctx.mode === "editing_slide") {
             modeStr += ` | slideId: ${ctx.slideId} | deckId: ${ctx.deckId}`;
+          } else if (ctx.mode === "editing_report") {
+            modeStr += ` | reportId: ${ctx.reportId}`;
+            const sel = ctx.getSelection();
+            if (sel && !sel.empty) {
+              const preview = sel.text.replace(/\s+/g, " ").trim().slice(0, 200);
+              modeStr +=
+                ` | user has SELECTED text (lines ${sel.fromLine}-${sel.toLine}, ` +
+                `${sel.text.length} chars): "${preview}${sel.text.length > 200 ? "…" : ""}"`;
+            } else if (sel) {
+              modeStr += ` | cursor at line ${sel.fromLine}`;
+            }
           }
           modeStr += "]";
           const parts: string[] = [modeStr];

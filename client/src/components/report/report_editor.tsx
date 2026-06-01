@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { markdown } from "@codemirror/lang-markdown";
 import type { FigureBlock, ImageBlock } from "lib";
+import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
 
 export type ReportEditorApi = {
@@ -18,6 +19,8 @@ export type ReportEditorApi = {
     id: string,
     caption: string,
   ) => void;
+  // Current text selection / cursor (surfaced to the AI).
+  getSelection: () => ReportEditorSelection;
   // Re-measure (e.g. after the editor was hidden during a diff review).
   refresh: () => void;
 };
@@ -81,6 +84,7 @@ export function ReportEditor(props: Props) {
           "&": { fontSize: "15px" },
           ".cm-scroller": { overflow: "auto" },
           ".cm-content, .cm-gutter": { minHeight: "100%" },
+          ".cm-content": { paddingTop: "1rem", paddingBottom: "1rem" },
         }),
         embedWidgets(resolver),
         EditorView.updateListener.of((u) => {
@@ -131,6 +135,17 @@ export function ReportEditor(props: Props) {
       });
     }
 
+    function getSelection() {
+      const sel = view!.state.selection.main;
+      const doc = view!.state.doc;
+      return {
+        empty: sel.empty,
+        fromLine: doc.lineAt(sel.from).number,
+        toLine: doc.lineAt(sel.to).number,
+        text: view!.state.sliceDoc(sel.from, sel.to),
+      };
+    }
+
     function refresh() {
       view?.requestMeasure();
     }
@@ -140,6 +155,7 @@ export function ReportEditor(props: Props) {
       setBody,
       removeEmbedToken,
       setEmbedCaption,
+      getSelection,
       refresh,
     });
   });

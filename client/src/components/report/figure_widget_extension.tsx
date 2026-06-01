@@ -52,7 +52,7 @@ class EmbedWidget extends WidgetType {
     // Block widgets must NOT have vertical margins — CodeMirror measures the
     // widget's box for vertical layout, and margins fall outside it, which
     // desyncs cursor positions below the widget. Use vertical PADDING instead.
-    dom.className = "w-full py-4 select-none";
+    dom.className = "w-full p-4 select-none";
     dom.contentEditable = "false";
     dom.style.cursor = "pointer";
     dom.addEventListener("click", (e) => {
@@ -66,7 +66,7 @@ class EmbedWidget extends WidgetType {
     const dispose = render(
       () => (
         <div
-          class="ui-pad mx-8 rounded border"
+          class="ui-pad rounded border"
           classList={{
             "border-primary border-2":
               this.resolver.getSelectedId() === this.id,

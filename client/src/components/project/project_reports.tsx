@@ -1,5 +1,6 @@
 import {
   ReportGroupingMode,
+  ReportPreview,
   ReportSummary,
   t3,
   TC,
@@ -36,6 +37,27 @@ import {
   setReportSelectedGroup,
 } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
+
+function previewCounts(preview: ReportPreview): string {
+  const parts: string[] = [];
+  if (preview.figureCount > 0) {
+    parts.push(
+      t3({
+        en: `${preview.figureCount} ${preview.figureCount === 1 ? "figure" : "figures"}`,
+        fr: `${preview.figureCount} figure${preview.figureCount === 1 ? "" : "s"}`,
+      }),
+    );
+  }
+  if (preview.imageCount > 0) {
+    parts.push(
+      t3({
+        en: `${preview.imageCount} ${preview.imageCount === 1 ? "image" : "images"}`,
+        fr: `${preview.imageCount} image${preview.imageCount === 1 ? "" : "s"}`,
+      }),
+    );
+  }
+  return parts.join(" · ");
+}
 
 function getGroupingOptions(): { value: ReportGroupingMode; label: string }[] {
   return [
@@ -423,7 +445,7 @@ export function ProjectReports(p: ExtendedProps) {
             {(report) => {
               const isSelected = () => selection.isSelected(report.id);
               return (
-                <div class="group grid grid-rows-subgrid row-span-2 gap-y-1">
+                <div class="group grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid row-span-2 gap-y-1">
                   <div class="font-400 text-base-content text-xs italic select-none pointer-events-none pb-1">
                     {report.label}
                   </div>
@@ -447,15 +469,44 @@ export function ProjectReports(p: ExtendedProps) {
                       onClick={(e) => selection.handleClick(report.id, e)}
                     />
                     <div
-                      class="bg-white flex flex-col gap-1.5 p-4"
-                      style={{ "aspect-ratio": "1 / 1.294" }}
+                      class="bg-white overflow-hidden p-4"
+                      style={{ "aspect-ratio": "16/9" }}
                     >
-                      <div class="bg-base-300 h-2 w-1/2 rounded-sm" />
-                      <div class="bg-base-200 mt-1.5 h-1.5 w-full rounded-sm" />
-                      <div class="bg-base-200 h-1.5 w-full rounded-sm" />
-                      <div class="bg-base-200 h-1.5 w-5/6 rounded-sm" />
-                      <div class="bg-base-200 h-1.5 w-full rounded-sm" />
-                      <div class="bg-base-200 h-1.5 w-2/3 rounded-sm" />
+                      <Show
+                        when={report.preview.lines.length > 0}
+                        fallback={
+                          <div class="text-neutral text-xs italic">
+                            {t3({ en: "Empty report", fr: "Rapport vide" })}
+                          </div>
+                        }
+                      >
+                        <For each={report.preview.lines}>
+                          {(line) => (
+                            <div
+                              class="truncate text-[0.7rem] leading-snug"
+                              classList={{
+                                "text-base-content font-700":
+                                  line.headingLevel === 1,
+                                "text-base-content font-400":
+                                  line.headingLevel >= 2,
+                                "text-base-content/70": line.headingLevel === 0,
+                              }}
+                            >
+                              {line.text}
+                            </div>
+                          )}
+                        </For>
+                      </Show>
+                      <Show
+                        when={
+                          report.preview.figureCount > 0 ||
+                          report.preview.imageCount > 0
+                        }
+                      >
+                        <div class="text-neutral pt-2 text-[0.65rem]">
+                          {previewCounts(report.preview)}
+                        </div>
+                      </Show>
                     </div>
                   </div>
                 </div>

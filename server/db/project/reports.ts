@@ -2,6 +2,7 @@ import { Sql } from "postgres";
 import {
   type APIResponseNoData,
   type APIResponseWithData,
+  buildReportPreview,
   type FigureBlock,
   getStartingConfigForReport,
   type ImageBlock,
@@ -17,19 +18,28 @@ import { DBReport } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { generateUniqueReportId } from "../../utils/id_generation.ts";
 
-function parseReportConfig(report: DBReport): ReportConfig {
+function parseReportConfig(report: Pick<DBReport, "config">): ReportConfig {
   if (report.config) {
     return parseJsonOrThrow(report.config) as ReportConfig;
   }
   return getStartingConfigForReport();
 }
 
+// Summary list: only the columns the summary needs. Crucially excludes the
+// heavy `figures`/`images` JSON (figureInputs snapshots) — the preview is
+// derived from `body` alone, so loading them here would be pure waste on every
+// list load and every `reports_updated` re-broadcast.
+type DBReportSummaryRow = Pick<
+  DBReport,
+  "id" | "label" | "folder_id" | "config" | "body"
+>;
+
 export async function getAllReports(
   projectDb: Sql,
 ): Promise<APIResponseWithData<ReportSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const reports = await projectDb<DBReport[]>`
-      SELECT * FROM reports ORDER BY last_updated DESC
+    const reports = await projectDb<DBReportSummaryRow[]>`
+      SELECT id, label, folder_id, config, body FROM reports ORDER BY last_updated DESC
     `;
 
     return {
@@ -39,6 +49,7 @@ export async function getAllReports(
         label: r.label,
         folderId: r.folder_id,
         config: parseReportConfig(r),
+        preview: buildReportPreview(r.body),
       })),
     };
   });

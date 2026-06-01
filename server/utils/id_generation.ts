@@ -63,3 +63,18 @@ export async function generateUniqueDashboardItemId(db: Sql): Promise<string> {
   }
   throw new Error("Failed to generate unique dashboard item ID after 10 attempts");
 }
+
+export async function generateUniqueDashboardItemGroupId(
+  db: Sql,
+): Promise<string> {
+  const maxAttempts = 10;
+  for (let i = 0; i < maxAttempts; i++) {
+    const id = generateId();
+    const existing =
+      await db`SELECT 1 FROM dashboard_item_groups WHERE id = ${id}`;
+    if (existing.length === 0) return id;
+  }
+  throw new Error(
+    "Failed to generate unique dashboard item group ID after 10 attempts",
+  );
+}

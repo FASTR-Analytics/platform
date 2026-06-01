@@ -19,6 +19,9 @@ For detailed explanations, see `DOC_CODING_CONVENTIONS.md`.
 11. **Static imports only** — Never use dynamic imports
 12. **Exports first** — Main/exported functions at top, helpers below
 13. **Async/await** — Never use Promise chains
+14. **No vestigial versioning** — Don't suffix the only/current version (`fooV2` with no `foo`). When superseding, migrate callers and delete the old
+15. **No dead code** — Delete unused and commented-out code; git is the history
+16. **No silent failures** — Never swallow with `.catch(() => {})`. Await it, or log if genuinely fire-and-forget
 
 ## Do / Don't
 
@@ -83,6 +86,40 @@ if (!data) {
 }
 ```
 
+### Versioning
+
+```typescript
+// ❌ DON'T — version suffix when there is no other version
+export function buildQueryV2(...) { ... }            // there is no buildQuery
+const channel = new BroadcastChannel("updates_v2");
+
+// ✅ DO — name for what it is; when you supersede something, replace and delete the old
+export function buildQuery(...) { ... }
+```
+
+### Dead Code
+
+```typescript
+// ❌ DON'T — keep old code as a breadcrumb
+// export function oldBuildQuery(...) { ... }   // "identical to v1"
+export function buildQuery(...) { ... }
+
+// ✅ DO — delete it; recover from git history if ever needed
+export function buildQuery(...) { ... }
+```
+
+### Silent Failures
+
+```typescript
+// ❌ DON'T — swallow the error
+logUsage(data).catch(() => {});
+
+// ✅ DO — await it, or log the failure if genuinely fire-and-forget
+await logUsage(data);
+// or
+logUsage(data).catch((e) => console.error(`logUsage failed: ${e.message}`));
+```
+
 ## Naming
 
 | Element | Convention | Example |
@@ -112,3 +149,6 @@ if (!data) {
 - [ ] No magic numbers/strings
 - [ ] Static imports only
 - [ ] Exports before helpers in file order
+- [ ] No version-suffixed names without a surviving prior version
+- [ ] No commented-out or dead code
+- [ ] No empty `.catch(() => {})`

@@ -131,6 +131,13 @@ defineRoute(
       res.data.lastUpdated,
     );
 
+    // Re-broadcast the summary list so the list-card preview (derived from the
+    // body) stays fresh.
+    const reportsRes = await getAllReports(c.var.ppk.projectDb);
+    if (reportsRes.success) {
+      notifyProjectReportsUpdated(c.var.ppk.projectId, reportsRes.data);
+    }
+
     return c.json(res);
   },
 );

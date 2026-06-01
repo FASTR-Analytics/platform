@@ -12,6 +12,7 @@ export function reduceInteractions(
   let latestSelectedViz: AIUserInteraction | null = null;
   let hasEditedVizLocally = false;
   let hasEditedSlideLocally = false;
+  let hasEditedReportLocally = false;
   const customMessages: string[] = [];
 
   for (const interaction of interactions) {
@@ -33,6 +34,9 @@ export function reduceInteractions(
         break;
       case "edited_slide_locally":
         hasEditedSlideLocally = true;
+        break;
+      case "edited_report_locally":
+        hasEditedReportLocally = true;
         break;
       case "custom":
         customMessages.push(interaction.message);
@@ -73,6 +77,12 @@ export function reduceInteractions(
     }
   }
 
+  if (currentContext.mode === "editing_report") {
+    if (hasEditedReportLocally) {
+      reduced.push({ type: "edited_report_locally" });
+    }
+  }
+
   if (currentContext.mode === "viewing_slide_decks") {
     if (latestSelection) {
       reduced.push(latestSelection);
@@ -106,6 +116,8 @@ export function formatInteraction(interaction: AIUserInteraction): string {
       return `- User made local changes to the visualization config (unsaved)`;
     case "edited_slide_locally":
       return `- User made local changes to the slide content (unsaved)`;
+    case "edited_report_locally":
+      return `- User edited the report body (re-read with get_report_editor before proposing edits)`;
     case "custom":
       return `- ${interaction.message}`;
     default: {

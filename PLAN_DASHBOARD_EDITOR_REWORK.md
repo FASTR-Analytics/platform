@@ -43,7 +43,8 @@ There is **one** dashboard URL, `/d/:projectId/:slug`, rendered by the existing 
 The bug was that the public route gated on `isPublic` for *everyone* and never checked auth, so an editor (or the creator) got a 404 on a not-public dashboard. Fix (implemented):
 
 - `/api/d/*` now runs Clerk middleware so the route can **read** the session without rejecting anonymous requests ([main.ts](main.ts)).
-- The route serves a not-public dashboard only when authenticated (`_BYPASS_AUTH || getAuth(c)?.userId`), else 404 ([server/routes/public/dashboard.ts](server/routes/public/dashboard.ts)). Public dashboards serve to everyone as before.
+- The route serves a not-public dashboard only when there is a **real Clerk session** — `getAuth(c)?.userId`, deliberately **not** `_BYPASS_AUTH` — else 404 ([server/routes/public/dashboard.ts](server/routes/public/dashboard.ts)). Public dashboards serve to everyone as before.
+- **Dev gotcha:** under `BYPASS_AUTH=true` there is no Clerk session at all, so a not-public dashboard 404s for **everyone, including the dev browser** — i.e. the editor's Preview button on a not-public dashboard 404s locally. To exercise the real "editor sees / anonymous doesn't" flow, run with real Clerk (`BYPASS_AUTH` off). This is why the gate excludes `_BYPASS_AUTH`: it must not treat an anonymous request as authenticated.
 - The client `/d/` page fetch sends `credentials: "include"` so the session cookie reaches the server (needed cross-origin in dev).
 
 `buildDashboardBundle(detail)` is extracted to [build_dashboard_bundle.ts](client/src/components/dashboards/build_dashboard_bundle.ts) as the canonical transform, used by the editor grid.

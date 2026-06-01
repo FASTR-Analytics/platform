@@ -1,14 +1,17 @@
 import { Hono } from "hono";
 import {
   addDashboardItem,
+  addDashboardItemGroup,
   createDashboard,
   deleteDashboard,
   deleteDashboardItem,
+  deleteDashboardItemGroup,
   getAllDashboards,
   getDashboardDetail,
   moveDashboardItems,
   updateDashboard,
   updateDashboardItem,
+  updateDashboardItemGroup,
 } from "../../db/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
@@ -265,6 +268,101 @@ defineRoute(
       body.itemIds,
       res.data.lastUpdated,
     );
+
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDashboards,
+  "addDashboardItemGroup",
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_slide_decks",
+  ),
+  async (c, { params, body }) => {
+    const res = await addDashboardItemGroup(
+      c.var.ppk.projectDb,
+      params.dashboard_id,
+      body,
+    );
+    if (!res.success) {
+      return c.json(res);
+    }
+
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "dashboards",
+      [params.dashboard_id],
+      res.data.lastUpdated,
+    );
+
+    const listRes = await getAllDashboards(c.var.ppk.projectDb);
+    if (listRes.success) {
+      notifyProjectDashboardsUpdated(c.var.ppk.projectId, listRes.data);
+    }
+
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDashboards,
+  "updateDashboardItemGroup",
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_slide_decks",
+  ),
+  async (c, { params, body }) => {
+    const res = await updateDashboardItemGroup(
+      c.var.ppk.projectDb,
+      params.dashboard_id,
+      params.group_id,
+      body,
+    );
+    if (!res.success) {
+      return c.json(res);
+    }
+
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "dashboards",
+      [params.dashboard_id],
+      res.data.lastUpdated,
+    );
+
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDashboards,
+  "deleteDashboardItemGroup",
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_slide_decks",
+  ),
+  async (c, { params }) => {
+    const res = await deleteDashboardItemGroup(
+      c.var.ppk.projectDb,
+      params.dashboard_id,
+      params.group_id,
+    );
+    if (!res.success) {
+      return c.json(res);
+    }
+
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "dashboards",
+      [params.dashboard_id],
+      res.data.lastUpdated,
+    );
+
+    const listRes = await getAllDashboards(c.var.ppk.projectDb);
+    if (listRes.success) {
+      notifyProjectDashboardsUpdated(c.var.ppk.projectId, listRes.data);
+    }
 
     return c.json(res);
   },

@@ -47,7 +47,7 @@ export function buildToolsForContext(params: BuildToolsParams) {
     // Mode-specific tools - check mode in handler
     ...getToolsForSlides(projectId, aiContext, metrics),
     ...getToolsForSlideEditor(projectId, aiContext, metrics),
-    ...getToolsForReportEditor(projectId, aiContext),
+    ...getToolsForReportEditor(projectId, aiContext, metrics),
     ...getToolsForVizEditor(projectId, aiContext, metrics),
 
     // Navigation tools - always available

@@ -6,6 +6,7 @@ import {
   DashboardCreate,
   DashboardDetail,
   DashboardItem,
+  DashboardItemGroup,
   DashboardLayout,
   DashboardSummary,
   DashboardUpdate,
@@ -16,12 +17,23 @@ import {
   isValidDashboardSlug,
   parseJsonOrThrow,
 } from "lib";
-import { DBDashboard, DBDashboardItem } from "./_project_database_types.ts";
+import {
+  DBDashboard,
+  DBDashboardItem,
+  DBDashboardItemGroup,
+} from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import {
   generateUniqueDashboardId,
   generateUniqueDashboardItemId,
+  generateUniqueDashboardItemGroupId,
 } from "../../utils/id_generation.ts";
+
+type GroupMemberInput = {
+  replicantValue: string;
+  label: string;
+  figureBlock: FigureBlock;
+};
 
 function parseLayout(raw: string | null | undefined): DashboardLayout {
   if (!raw) return getStartingLayoutForDashboard();
@@ -41,7 +53,35 @@ function mapDashboardItem(raw: DBDashboardItem): DashboardItem {
     figureBlock: parseFigureBlock(raw.figure_block),
     geoData: raw.geo_data ? parseJsonOrThrow(raw.geo_data) : undefined,
     lastUpdated: raw.last_updated,
+    replicantGroupId: raw.replicant_group_id ?? undefined,
+    replicantValue: raw.replicant_value ?? undefined,
   };
+}
+
+function mapDashboardItemGroup(raw: DBDashboardItemGroup): DashboardItemGroup {
+  return {
+    id: raw.id,
+    dashboardId: raw.dashboard_id,
+    label: raw.label,
+    replicateBy: raw.replicate_by,
+    defaultReplicantValue: raw.default_replicant_value ?? undefined,
+    replicants: parseJsonOrThrow(raw.replicants) as {
+      value: string;
+      label: string;
+    }[],
+    geoData: raw.geo_data ? parseJsonOrThrow(raw.geo_data) : undefined,
+    lastUpdated: raw.last_updated,
+  };
+}
+
+async function loadDashboardItemGroups(
+  projectDb: Sql,
+  dashboardId: string,
+): Promise<DashboardItemGroup[]> {
+  const rows = await projectDb<DBDashboardItemGroup[]>`
+    SELECT * FROM dashboard_item_groups WHERE dashboard_id = ${dashboardId}
+  `;
+  return rows.map(mapDashboardItemGroup);
 }
 
 export async function getAllDashboards(
@@ -97,6 +137,7 @@ export async function getDashboardDetail(
       isPublic: row.is_public,
       layout: parseLayout(row.layout),
       items: itemRows.map(mapDashboardItem),
+      groups: await loadDashboardItemGroups(projectDb, dashboardId),
       createdByEmail: row.created_by_email,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -134,6 +175,7 @@ export async function getDashboardBySlug(
       isPublic: row.is_public,
       layout: parseLayout(row.layout),
       items: itemRows.map(mapDashboardItem),
+      groups: await loadDashboardItemGroups(projectDb, row.id),
       createdByEmail: row.created_by_email,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -368,6 +410,187 @@ export async function deleteDashboardItem(
       `,
       reSequence(sql, dashboardId),
     ]);
+
+    return { success: true, data: { lastUpdated: now } };
+  });
+}
+
+// ── Replicant groups ────────────────────────────────────────────────────────
+
+// Add a replicated viz as ONE group: a group row + N member rows, contiguous
+// sort_order, in a single transaction. Members store figure_block per replicant;
+// the shared geojson lives once on the group (members' geo_data = NULL).
+export async function addDashboardItemGroup(
+  projectDb: Sql,
+  dashboardId: string,
+  input: {
+    label: string;
+    replicateBy: string;
+    defaultReplicantValue?: string;
+    replicants: { value: string; label: string }[];
+    geoData?: unknown;
+    members: GroupMemberInput[];
+  },
+): Promise<APIResponseWithData<{ groupId: string; lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const groupId = await generateUniqueDashboardItemGroupId(projectDb);
+    const now = new Date().toISOString();
+
+    const maxResult = (
+      await projectDb<{ max_sort_order: number | null }[]>`
+        SELECT max(sort_order) AS max_sort_order FROM dashboard_items
+        WHERE dashboard_id = ${dashboardId}
+      `
+    ).at(0);
+    const baseSort = maxResult?.max_sort_order ?? 0;
+
+    const members = input.members.map((m) => ({
+      replicantValue: m.replicantValue,
+      label: m.label,
+      figureBlockJson: JSON.stringify(
+        dashboardFigureBlockSchema.parse(m.figureBlock),
+      ),
+    }));
+    const memberIds: string[] = [];
+    for (let i = 0; i < members.length; i++) {
+      memberIds.push(await generateUniqueDashboardItemId(projectDb));
+    }
+
+    const groupGeoData =
+      input.geoData !== undefined ? JSON.stringify(input.geoData) : null;
+    const replicantsJson = JSON.stringify(input.replicants);
+
+    await projectDb.begin(async (sql) => {
+      await sql`
+        INSERT INTO dashboard_item_groups (
+          id, dashboard_id, label, replicate_by, default_replicant_value,
+          replicants, geo_data, last_updated
+        ) VALUES (
+          ${groupId}, ${dashboardId}, ${input.label}, ${input.replicateBy},
+          ${input.defaultReplicantValue ?? null}, ${replicantsJson},
+          ${groupGeoData}, ${now}
+        )
+      `;
+      for (let i = 0; i < members.length; i++) {
+        await sql`
+          INSERT INTO dashboard_items (
+            id, dashboard_id, label, sort_order, figure_block, geo_data,
+            last_updated, replicant_group_id, replicant_value
+          ) VALUES (
+            ${memberIds[i]}, ${dashboardId}, ${members[i].label},
+            ${baseSort + 10 * (i + 1)}, ${members[i].figureBlockJson}, ${null},
+            ${now}, ${groupId}, ${members[i].replicantValue}
+          )
+        `;
+      }
+      await sql`
+        UPDATE dashboards SET updated_at = ${now}, last_updated = ${now}
+        WHERE id = ${dashboardId}
+      `;
+      await reSequence(sql, dashboardId);
+    });
+
+    return { success: true, data: { groupId, lastUpdated: now } };
+  });
+}
+
+// Delete a whole group: removing the group row cascades to its member items
+// (FK ON DELETE CASCADE), then the remaining items are re-sequenced.
+export async function deleteDashboardItemGroup(
+  projectDb: Sql,
+  dashboardId: string,
+  groupId: string,
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const now = new Date().toISOString();
+    await projectDb.begin((sql) => [
+      sql`
+        DELETE FROM dashboard_item_groups
+        WHERE id = ${groupId} AND dashboard_id = ${dashboardId}
+      `,
+      sql`
+        UPDATE dashboards SET updated_at = ${now}, last_updated = ${now}
+        WHERE id = ${dashboardId}
+      `,
+      reSequence(sql, dashboardId),
+    ]);
+    return { success: true, data: { lastUpdated: now } };
+  });
+}
+
+// Update a group: rename, and/or re-resolve members (Switch/Edit). Member
+// figure_blocks are updated in place matched by replicant_value (the replicant
+// SET is assumed stable — v1 supports same-dimension switch/edit), so ids and
+// ordering are untouched. The shared geojson is replaced when provided.
+export async function updateDashboardItemGroup(
+  projectDb: Sql,
+  dashboardId: string,
+  groupId: string,
+  update: {
+    label?: string;
+    defaultReplicantValue?: string;
+    replicants?: { value: string; label: string }[];
+    geoData?: unknown;
+    members?: { replicantValue: string; figureBlock: FigureBlock }[];
+  },
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const now = new Date().toISOString();
+    const current = (
+      await projectDb<DBDashboardItemGroup[]>`
+        SELECT * FROM dashboard_item_groups
+        WHERE id = ${groupId} AND dashboard_id = ${dashboardId}
+      `
+    ).at(0);
+    if (!current) {
+      throw new Error("Dashboard item group not found");
+    }
+
+    const nextLabel = update.label ?? current.label;
+    const nextDefault =
+      update.defaultReplicantValue !== undefined
+        ? update.defaultReplicantValue
+        : current.default_replicant_value;
+    const nextReplicants =
+      update.replicants !== undefined
+        ? JSON.stringify(update.replicants)
+        : current.replicants;
+    const nextGeoData =
+      update.geoData !== undefined
+        ? JSON.stringify(update.geoData)
+        : current.geo_data;
+
+    const members =
+      update.members?.map((m) => ({
+        replicantValue: m.replicantValue,
+        figureBlockJson: JSON.stringify(
+          dashboardFigureBlockSchema.parse(m.figureBlock),
+        ),
+      })) ?? [];
+
+    await projectDb.begin(async (sql) => {
+      await sql`
+        UPDATE dashboard_item_groups
+        SET label = ${nextLabel},
+            default_replicant_value = ${nextDefault},
+            replicants = ${nextReplicants},
+            geo_data = ${nextGeoData},
+            last_updated = ${now}
+        WHERE id = ${groupId}
+      `;
+      for (const m of members) {
+        await sql`
+          UPDATE dashboard_items
+          SET figure_block = ${m.figureBlockJson}, last_updated = ${now}
+          WHERE replicant_group_id = ${groupId}
+            AND replicant_value = ${m.replicantValue}
+        `;
+      }
+      await sql`
+        UPDATE dashboards SET updated_at = ${now}, last_updated = ${now}
+        WHERE id = ${dashboardId}
+      `;
+    });
 
     return { success: true, data: { lastUpdated: now } };
   });

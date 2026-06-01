@@ -14,8 +14,8 @@ import {
 import { createSignal, For, Show } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
 import { serverActions } from "~/server_actions";
-import { CreateDashboardModal } from "./create_dashboard_modal";
-import { DashboardEditor } from "./dashboard_editor";
+import { CreateDashboardModal } from "../dashboards/create_dashboard_modal";
+import { DashboardEditor } from "../dashboards/dashboard_editor";
 
 type Props = {
   openProjectEditor: <TProps, TReturn>(
@@ -170,7 +170,7 @@ export function ProjectDashboards(p: Props) {
             const isSelected = () => selection.isSelected(dashboard.id);
             return (
               <div
-                class="group relative cursor-pointer rounded-md border p-3 transition-colors"
+                class="group relative cursor-pointer rounded-md border p-3"
                 classList={{
                   "border-base-300 hover:border-primary": !isSelected(),
                   "border-primary": isSelected(),

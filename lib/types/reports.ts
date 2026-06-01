@@ -45,13 +45,59 @@ export type ReportFolder = {
   sortOrder: number;
 };
 
+// Cheap, server-computed preview shown on the report list card. Lives on the
+// (lightweight) summary so it rides the existing `reports_updated` SSE path — no
+// per-card detail fetch. Derived entirely from the markdown body.
+export type ReportPreviewLine = { text: string; headingLevel: number }; // 0 = body
+
+export type ReportPreview = {
+  lines: ReportPreviewLine[]; // first few body lines, markdown stripped, headings flagged
+  figureCount: number;
+  imageCount: number;
+};
+
 // List view
 export type ReportSummary = {
   id: string;
   label: string;
   folderId: string | null;
   config: ReportConfig;
+  preview: ReportPreview;
 };
+
+function stripInlineMarkdown(s: string): string {
+  return s
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ") // drop image/embed tokens
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // links → link text
+    .replace(/[*_`~]/g, "") // emphasis / code markers
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function buildReportPreview(body: string): ReportPreview {
+  // Embed tokens are `![caption](figure:id)` / `![caption](image:id)`.
+  const figureCount = (body.match(/\]\(figure:/g) ?? []).length;
+  const imageCount = (body.match(/\]\(image:/g) ?? []).length;
+
+  const lines: ReportPreviewLine[] = [];
+  let chars = 0;
+  for (const raw of body.split("\n")) {
+    if (lines.length >= 8 || chars >= 300) break;
+    if (/^\s*!\[[^\]]*\]\((figure|image):/.test(raw)) continue; // skip embed lines
+    const headingMatch = raw.match(/^\s*(#{1,6})\s+(.*)$/);
+    const text = stripInlineMarkdown(
+      headingMatch ? headingMatch[2] : raw.replace(/^\s*(>|[-*+])\s+/, ""),
+    ).slice(0, 120);
+    if (!text) continue;
+    lines.push({
+      text,
+      headingLevel: headingMatch ? headingMatch[1].length : 0,
+    });
+    chars += text.length;
+  }
+
+  return { lines, figureCount, imageCount };
+}
 
 // Editor / render
 export type ReportDetail = {

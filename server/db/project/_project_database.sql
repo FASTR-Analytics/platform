@@ -287,6 +287,20 @@ CREATE TABLE dashboards (
 CREATE INDEX idx_dashboards_slug ON dashboards(slug);
 CREATE INDEX idx_dashboards_last_updated ON dashboards(last_updated);
 
+CREATE TABLE dashboard_item_groups (
+  id text PRIMARY KEY NOT NULL,
+  dashboard_id text NOT NULL,
+  label text NOT NULL,
+  replicate_by text NOT NULL,
+  default_replicant_value text,
+  replicants text NOT NULL,
+  geo_data text,
+  last_updated text NOT NULL,
+  FOREIGN KEY (dashboard_id) REFERENCES dashboards(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_dashboard_item_groups_dashboard_id ON dashboard_item_groups(dashboard_id);
+
 CREATE TABLE dashboard_items (
   id text PRIMARY KEY NOT NULL,
   dashboard_id text NOT NULL,
@@ -295,12 +309,16 @@ CREATE TABLE dashboard_items (
   figure_block text NOT NULL,
   geo_data text,
   last_updated text NOT NULL,
-  FOREIGN KEY (dashboard_id) REFERENCES dashboards(id) ON DELETE CASCADE
+  replicant_group_id text,
+  replicant_value text,
+  FOREIGN KEY (dashboard_id) REFERENCES dashboards(id) ON DELETE CASCADE,
+  FOREIGN KEY (replicant_group_id) REFERENCES dashboard_item_groups(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_dashboard_items_dashboard_id ON dashboard_items(dashboard_id);
 CREATE INDEX idx_dashboard_items_dashboard_sort ON dashboard_items(dashboard_id, sort_order);
 CREATE INDEX idx_dashboard_items_last_updated ON dashboard_items(last_updated);
+CREATE INDEX idx_dashboard_items_replicant_group_id ON dashboard_items(replicant_group_id);
 
 -- ============================================================================
 -- METADATA

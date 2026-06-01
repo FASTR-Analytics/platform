@@ -3,6 +3,7 @@ import type { APIResponseNoData } from "lib";
 import { serverActions } from "~/server_actions";
 import fontMap from "~/font-map.json";
 import { buildReportFigureMap, buildReportImageMap } from "./_report_export_maps";
+import { REPORT_MARKDOWN_STYLE } from "~/components/report/report_markdown_style";
 
 // A4 portrait DU frame (1000 wide × ~1.414 → 1414). Fixed minimal style for v1
 // (PLAN_REPORTS.md §10.2). Keep asSlides unset/false (§5 footgun).
@@ -37,6 +38,7 @@ export async function exportReportAsPdf(
       pageWidth: PAGE_WIDTH,
       pageHeight: PAGE_HEIGHT,
       pageNumbers: true,
+      style: { markdown: REPORT_MARKDOWN_STYLE },
     });
 
     progress(1);
