@@ -1,3 +1,21 @@
+[TBD] [user] [added] - Dashboard items now display as a visual card grid with chart previews
+[TBD] [user] [added] - Select, multi-select, and right-click context menu for dashboard items
+[TBD] [user] [added] - Side panel to edit a selected dashboard item's label and visualization
+[TBD] [user] [added] - Edit, switch, or create a new visualization directly from a dashboard item
+[TBD] [user] [added] - Delete multiple dashboard items at once
+[TBD] [user] [added] - Preview button to open the public dashboard in a new tab
+[TBD] [user] [added] - Map visualizations now display correctly on public dashboards
+[TBD] [user] [changed] - Newly created dashboards are now visible to logged-in users by default
+[TBD] [user] [changed] - Drag-and-drop reordering now works directly on the card grid
+[TBD] [admin] [added] - Dashboard items now display as a visual card grid
+[TBD] [admin] [added] - Edit, switch, or create visualizations directly from dashboard items
+[TBD] [admin] [added] - Multi-select dashboard items for bulk deletion
+[TBD] [admin] [added] - Right-click context menu on dashboard items for quick actions
+[TBD] [admin] [added] - Preview button opens public dashboard link in new tab
+[TBD] [admin] [added] - Side panel shows editable label and actions for selected item
+[TBD] [admin] [changed] - New dashboards are now created as non-public by default
+[TBD] [admin] [changed] - Non-public dashboards are visible to authenticated users only
+[TBD] [admin] [added] - Map geographic data is now saved with dashboard items for public viewing
 [TBD] [user] [changed] - Logo size and spacing options now apply more consistently across slides
 [TBD] [user] [changed] - Removed manual font size sliders for captions, sub-captions, and footnotes
 [TBD] [user] [changed] - Improved default text sizing for captions and sub-captions in figures
