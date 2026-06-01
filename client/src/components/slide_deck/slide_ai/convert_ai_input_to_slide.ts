@@ -2,6 +2,7 @@ import {
   optimizePageLayout,
   createCanvasRenderContextBrowser,
   RectCoordsDims,
+  REFERENCE_WIDTH_DU,
   createItemNode,
   loadFontsWithTimeout,
   type LayoutNode,
@@ -130,14 +131,19 @@ export async function convertAiInputToSlide(
 
   // Optimize layout
   const rc = createCanvasRenderContextBrowser();
-  const bounds = new RectCoordsDims([0, 0, 1920, 1080]);
+  // Optimize at the canonical render frame so "fits at layout" == "fits at render".
+  const bounds = new RectCoordsDims([
+    0,
+    0,
+    REFERENCE_WIDTH_DU,
+    (REFERENCE_WIDTH_DU * 9) / 16,
+  ]);
 
   const result = optimizePageLayout(
     rc,
     bounds,
     itemNodes,
     pageStyle,
-    undefined,
     getOptimizerConfig(slideInput.layoutPreference, resolvedBlocks.length),
   );
 

@@ -18,8 +18,6 @@ import type {
 } from "./types.ts";
 
 const _DS = {
-  scale: 1,
-
   cover: {
     padding: [200, 300] as PaddingOptions,
     background: { key: "base300" } as PageBackgroundStyle,

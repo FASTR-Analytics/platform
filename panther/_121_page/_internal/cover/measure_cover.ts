@@ -26,7 +26,6 @@ export function measureCover(
   bounds: RectCoordsDims,
   item: CoverPageInputs,
   style: MergedCoverStyle,
-  responsiveScale: number | undefined,
   fullPageBounds: RectCoordsDims,
   measuredSplitImage: MeasuredImage | undefined,
   mWatermark: MeasuredText | undefined,
@@ -64,7 +63,6 @@ export function measureCover(
     item,
     bounds,
     style,
-    responsiveScale,
     overflow: totalH > bounds.h(),
     fullPageBounds,
     measuredSplitImage,
@@ -162,8 +160,9 @@ function buildFixedLogosCover(
     bounds.h() - padding.totalPy(),
   ]);
 
-  const { alignH: logoAlignH, alignV: logoAlignV } =
-    getFixedPlacementAlignment(placement);
+  const { alignH: logoAlignH, alignV: logoAlignV } = getFixedPlacementAlignment(
+    placement,
+  );
   const mLogos = measureLogos(paddedBounds, {
     images: logos,
     style: s.logosSizing,
@@ -186,17 +185,17 @@ function buildFixedLogosCover(
 
   const contentBounds = isTop
     ? new RCD([
-        bounds.x(),
-        bounds.y() + padding.pt() + logoSpace,
-        bounds.w(),
-        bounds.h() - padding.pt() - logoSpace,
-      ])
+      bounds.x(),
+      bounds.y() + padding.pt() + logoSpace,
+      bounds.w(),
+      bounds.h() - padding.pt() - logoSpace,
+    ])
     : new RCD([
-        bounds.x(),
-        bounds.y(),
-        bounds.w(),
-        bounds.h() - padding.pb() - logoSpace,
-      ]);
+      bounds.x(),
+      bounds.y(),
+      bounds.w(),
+      bounds.h() - padding.pb() - logoSpace,
+    ]);
 
   const contentPadding = isTop
     ? new Padding([0, padding.pr(), padding.pb(), padding.pl()])
@@ -281,7 +280,12 @@ function buildFlowCover(
     if (item.type === "logo" && mLogos && logos) {
       const positioned = measureLogos(
         new RCD([bounds.x() + padding.pl(), currentY, textMaxWidth, item.h]),
-        { images: logos, style: s.logosSizing, alignH: s.alignH, alignV: "top" },
+        {
+          images: logos,
+          style: s.logosSizing,
+          alignH: s.alignH,
+          alignV: "top",
+        },
       );
       for (let j = 0; j < positioned.items.length; j++) {
         const logo = positioned.items[j];
@@ -367,8 +371,9 @@ function buildContentStack(
   const items: StackItem[] = [];
 
   if (mTitle) items.push({ type: "title", mText: mTitle, gap: titleGap });
-  if (mSubTitle)
+  if (mSubTitle) {
     items.push({ type: "subtitle", mText: mSubTitle, gap: subtitleGap });
+  }
   if (mAuthor) items.push({ type: "author", mText: mAuthor, gap: authorGap });
   if (mDate) items.push({ type: "date", mText: mDate, gap: 0 });
 

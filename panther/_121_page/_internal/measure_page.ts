@@ -21,9 +21,8 @@ export function measurePage(
   rc: RenderContext,
   bounds: RectCoordsDims,
   item: PageInputs,
-  responsiveScale?: number,
 ): MeasuredPage {
-  const pageStyle = new CustomPageStyle(item.style, responsiveScale);
+  const pageStyle = new CustomPageStyle(item.style);
   const fullPageBounds = bounds;
 
   let boundsForPageType: RectCoordsDims = bounds;
@@ -51,14 +50,17 @@ export function measurePage(
     case "cover": {
       const style = pageStyle.getMergedCoverStyle();
       const mWatermark: MeasuredText | undefined = item.watermark?.trim()
-        ? rc.mText(item.watermark.trim(), style.text.watermark, fullPageBounds.w())
+        ? rc.mText(
+          item.watermark.trim(),
+          style.text.watermark,
+          fullPageBounds.w(),
+        )
         : undefined;
       result = measureCover(
         rc,
         boundsForPageType,
         item,
         style,
-        responsiveScale,
         fullPageBounds,
         measuredSplitImage,
         mWatermark,
@@ -68,14 +70,17 @@ export function measurePage(
     case "section": {
       const style = pageStyle.getMergedSectionStyle();
       const mWatermark: MeasuredText | undefined = item.watermark?.trim()
-        ? rc.mText(item.watermark.trim(), style.text.watermark, fullPageBounds.w())
+        ? rc.mText(
+          item.watermark.trim(),
+          style.text.watermark,
+          fullPageBounds.w(),
+        )
         : undefined;
       result = measureSection(
         rc,
         boundsForPageType,
         item,
         style,
-        responsiveScale,
         fullPageBounds,
         measuredSplitImage,
         mWatermark,
@@ -85,14 +90,17 @@ export function measurePage(
     case "freeform": {
       const style = pageStyle.getMergedFreeformStyle();
       const mWatermark: MeasuredText | undefined = item.watermark?.trim()
-        ? rc.mText(item.watermark.trim(), style.text.watermark, fullPageBounds.w())
+        ? rc.mText(
+          item.watermark.trim(),
+          style.text.watermark,
+          fullPageBounds.w(),
+        )
         : undefined;
       result = measureFreeform(
         rc,
         boundsForPageType,
         item,
         style,
-        responsiveScale,
         fullPageBounds,
         measuredSplitImage,
         mWatermark,

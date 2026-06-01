@@ -163,8 +163,10 @@ export type PageRenderContext = { rc: RenderContext; s: MergedFreeformStyle };
 
 // Base type for all measured pages (shared fields, no style - each page type has its own)
 type MeasuredPageBase = Measured<PageInputs> & {
-  responsiveScale?: number;
   overflow: boolean;
+  // Reserved: per-block shrink-to-fit cramped signal aggregated to the page.
+  // Populated by the shared-shrink follow-up; page-level "didn't fit" is `overflow`.
+  cramped?: boolean;
   fullPageBounds: RectCoordsDims;
   mWatermark?: MeasuredText;
   measuredSplitImage?: MeasuredImage;

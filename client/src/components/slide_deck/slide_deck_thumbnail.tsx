@@ -2,7 +2,7 @@ import { getStartingConfigForSlideDeck, t3 } from "lib";
 import { trackDeep } from "@solid-primitives/deep";
 import { createSignal, createEffect, Show } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH } from "panther";
+import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs, REFERENCE_WIDTH_DU } from "panther";
 import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
 import { projectState } from "~/state/project/t1_store";
 
@@ -38,7 +38,7 @@ export function SlideDeckThumbnail(p: Props) {
     setPageInputs(getQueryStateFromApiResponse(renderRes));
   });
 
-  const canvasH = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
+  const canvasH = Math.round((REFERENCE_WIDTH_DU * 9) / 16);
 
   return (
     <>
@@ -56,7 +56,6 @@ export function SlideDeckThumbnail(p: Props) {
           fixedCanvasH={canvasH}
           simpleError
           externalError={(pageInputs() as { err: string }).err}
-          scalePixelResolution={0.2}
         />
       </Show>
       <Show when={pageInputs().status === "ready"}>
@@ -64,7 +63,6 @@ export function SlideDeckThumbnail(p: Props) {
           pageInputs={(pageInputs() as { data: PageInputs }).data}
           fixedCanvasH={canvasH}
           simpleError
-          scalePixelResolution={0.2}
         />
       </Show>
     </>

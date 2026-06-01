@@ -30,13 +30,13 @@ export function measureChart<
   rcdWithSurrounds: RectCoordsDims,
   inputs: TInputs,
   config: SimplifiedChartConfig<TInputs, TData, TStyle>,
-  responsiveScale?: number,
+  fitScale?: number,
 ): MeasuredChartBase<TInputs, TData, TStyle> {
   const { caption, subCaption, footnote } = inputs;
 
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
-    responsiveScale,
+    fitScale,
   );
 
   const mergedStyle = config.mergedStyle;

@@ -6,54 +6,61 @@
 import {
   type Canvas,
   CustomPageStyle,
+  getExportDevicePxPerDu,
   type PageInputs,
   PageRenderer,
+  RectCoordsDims,
+  REFERENCE_WIDTH_DU,
 } from "./deps.ts";
 import { registerFontWithSkiaIfNeeded } from "./register_font.ts";
 import { createCanvasRenderContext, writeCanvas } from "./utils.ts";
+import type { ExportSizeOptions } from "./write_figure.ts";
 
 export async function writeSlide(
   filePath: string,
   inputs: PageInputs,
-  w: number,
-  h: number | undefined,
+  opts: ExportSizeOptions,
 ): Promise<void> {
-  // Validate inputs
   if (!inputs) {
     throw new Error("Slide inputs are required");
   }
 
-  const canvas = await getSlideAsCanvas(inputs, w, h);
+  const canvas = await getSlideAsCanvas(
+    inputs,
+    opts.outputWidthPx,
+    opts.outputHeightPx,
+  );
   writeCanvas(filePath, canvas);
 }
 
 export async function writeSlides(
   dirPath: string,
   inputs: PageInputs[],
-  w: number,
-  h: number,
+  opts: ExportSizeOptions,
 ): Promise<void> {
-  // Validate inputs
   if (!inputs) {
     throw new Error("Slide inputs are required");
   }
 
-  // Determine padding based on total number of slides
   const padLength = inputs.length > 99 ? 3 : 2;
 
-  // Write each slide
   for (let i = 0; i < inputs.length; i++) {
     const slideNumber = String(i + 1).padStart(padLength, "0");
     const filePath = `${dirPath}/slide_${slideNumber}.png`;
-    const canvas = await getSlideAsCanvas(inputs[i], w, h, i + 1);
+    const canvas = await getSlideAsCanvas(
+      inputs[i],
+      opts.outputWidthPx,
+      opts.outputHeightPx,
+      i + 1,
+    );
     writeCanvas(filePath, canvas);
   }
 }
 
 async function getSlideAsCanvas(
   inputs: PageInputs,
-  w: number,
-  h: number | undefined,
+  outputWidthPx: number,
+  outputHeightPx?: number,
   slideNumber?: number,
 ): Promise<Canvas> {
   // Register fonts
@@ -62,16 +69,26 @@ async function getSlideAsCanvas(
     await registerFontWithSkiaIfNeeded(font);
   }
 
-  let finalH: number;
+  const devicePxPerDu = getExportDevicePxPerDu(outputWidthPx);
 
-  if (h === undefined) {
-    const { rc } = await createCanvasRenderContext(w, 100);
-    finalH = PageRenderer.getIdealHeight(rc, w, inputs).idealH;
+  // Pages are always laid out zoom at the reference frame width.
+  let frameHDu: number;
+  if (outputHeightPx === undefined) {
+    const { rc } = createCanvasRenderContext(REFERENCE_WIDTH_DU, 100);
+    frameHDu =
+      PageRenderer.getIdealHeight(rc, REFERENCE_WIDTH_DU, inputs).idealH;
   } else {
-    finalH = h;
+    frameHDu = outputHeightPx / devicePxPerDu;
   }
 
-  const { canvas, rc, rcd } = await createCanvasRenderContext(w, finalH);
+  const backingW = Math.round(REFERENCE_WIDTH_DU * devicePxPerDu); // === outputWidthPx
+  const backingH = Math.round(frameHDu * devicePxPerDu);
+
+  const { canvas, rc } = createCanvasRenderContext(backingW, backingH);
+  const ctx = canvas.getContext("2d")!;
+  ctx.setTransform(devicePxPerDu, 0, 0, devicePxPerDu, 0, 0);
+  const rcd = new RectCoordsDims([0, 0, REFERENCE_WIDTH_DU, frameHDu]);
+
   const mSlide = await PageRenderer.measure(rc, rcd, inputs);
 
   // Check for overflow

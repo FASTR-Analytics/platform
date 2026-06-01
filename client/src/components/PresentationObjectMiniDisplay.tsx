@@ -147,8 +147,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                       <ChartHolder
                         chartInputs={keyedFigureInputs}
                         height={h1}
-                        noRescaleWithWidthChange
-                        scalePixelResolution={p.scalePixelResolution}
+                        sizing="zoom"
                         renderError={renderError}
                       />
                     </div>
@@ -157,8 +156,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                     <ChartHolder
                       chartInputs={keyedFigureInputs}
                       height={h1}
-                      noRescaleWithWidthChange
-                      scalePixelResolution={p.scalePixelResolution}
+                      sizing="zoom"
                       renderError={renderError}
                     />
                   </Match>

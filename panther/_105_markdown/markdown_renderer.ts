@@ -155,19 +155,16 @@ function measureWithAutofit(
     autofitOpts,
   );
 
-  const scaledInput: MarkdownRendererInput = {
-    ...input,
-    style: {
-      ...input.style,
-      scale: (input.style?.scale ?? 1) * optimalScale,
-    },
-  };
-
-  const measured = measureMarkdown(rc, bounds, scaledInput);
+  // optimalScale is threaded as the fitScale (shrink-to-fit factor).
+  const measured = measureMarkdown(rc, bounds, input, optimalScale);
+  // cramped: shrank as far as allowed and the content still does not fit the
+  // available height (e.g. an embedded markdown block in a tight page slot).
+  const cramped = measured.bounds.h() > bounds.h();
   return {
     ...measured,
     item: input,
     autofitScale: optimalScale,
+    cramped,
   };
 }
 
@@ -210,7 +207,6 @@ export const MarkdownRenderer: Renderer<
     rc: RenderContext,
     width: number,
     input: MarkdownRendererInput,
-    _responsiveScale?: number,
   ): HeightConstraints {
     const autofitOpts = resolveAutofitOptions(input.autofit);
 

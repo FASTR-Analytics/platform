@@ -29,9 +29,8 @@ export const SimpleVizRenderer: Renderer<
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: SimpleVizInputs,
-    responsiveScale?: number,
   ): MeasuredSimpleViz {
-    return measureSimpleViz(rc, bounds, item, responsiveScale);
+    return measureSimpleViz(rc, bounds, item);
   },
 
   render(rc: RenderContext, measured: MeasuredSimpleViz): void {
@@ -42,9 +41,8 @@ export const SimpleVizRenderer: Renderer<
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: SimpleVizInputs,
-    responsiveScale?: number,
   ): void {
-    const measured = measureSimpleViz(rc, bounds, item, responsiveScale);
+    const measured = measureSimpleViz(rc, bounds, item);
     renderSimpleViz(rc, measured);
   },
 
@@ -52,10 +50,9 @@ export const SimpleVizRenderer: Renderer<
     rc: RenderContext,
     width: number,
     item: SimpleVizInputs,
-    responsiveScale?: number,
   ): HeightConstraints {
     const dummyRcd = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
-    const mSimpleViz = measureSimpleViz(rc, dummyRcd, item, responsiveScale);
+    const mSimpleViz = measureSimpleViz(rc, dummyRcd, item);
 
     // Calculate bounds from the rendered primitives (after auto-sizing and scaling)
     const boxPrimitives = mSimpleViz.primitives.filter((p) =>

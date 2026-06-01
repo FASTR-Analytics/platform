@@ -93,9 +93,8 @@ export function PresetPreview(p: Props) {
                 <ChartHolder
                   chartInputs={figureInputs}
                   height="ideal"
-                  noRescaleWithWidthChange
-                  scalePixelResolution={0.5}
-                />
+                  sizing="zoom"
+                  />
               )}
             </Match>
           </Switch>

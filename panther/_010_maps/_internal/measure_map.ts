@@ -34,11 +34,11 @@ export function measureMap(
   rc: RenderContext,
   bounds: RectCoordsDims,
   inputs: MapInputs,
-  responsiveScale?: number,
+  fitScale?: number,
 ): MeasuredMap {
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
-    responsiveScale,
+    fitScale,
   );
   const mergedStyle = customFigureStyle.getMergedMapStyle();
   const transformedData = getMapDataTransformed(inputs.mapData);
@@ -73,7 +73,7 @@ export function measureMap(
     bounds,
     inputs,
     config,
-    responsiveScale,
+    fitScale,
   );
 
   const dlMode = mergedStyle.map.dataLabelMode;

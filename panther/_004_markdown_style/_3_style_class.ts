@@ -37,15 +37,15 @@ export class CustomMarkdownStyle {
   private _sf: number;
   private _baseText: TextInfo;
 
+  // fitScale is the shrink-to-fit factor (default 1, set only by shrink-to-fit).
   constructor(
     customStyle: CustomMarkdownStyleOptions | undefined,
-    responsiveScale?: number,
+    fitScale?: number,
   ) {
     this._d = getDefaultMarkdownStyle();
     this._g = getGlobalMarkdownStyle();
     this._c = customStyle ?? {};
-    this._sf = (this._c?.scale ?? this._g?.scale ?? this._d.scale) *
-      (responsiveScale ?? 1);
+    this._sf = fitScale ?? 1;
     this._baseText = getBaseTextInfo(
       this._c.text?.base,
       this._g.text?.base,

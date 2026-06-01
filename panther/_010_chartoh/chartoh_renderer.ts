@@ -25,7 +25,6 @@ export const ChartOHRenderer: Renderer<ChartOHInputs, MeasuredChartOH> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: ChartOHInputs,
-    responsiveScale?: number,
   ): MeasuredChartOH {
     return measureChartWithAutofit(
       rc,
@@ -33,7 +32,6 @@ export const ChartOHRenderer: Renderer<ChartOHInputs, MeasuredChartOH> = {
       item,
       (scale) => getChartOHComponentSizes(rc, item, scale),
       measureChartOH,
-      responsiveScale,
     );
   },
 
@@ -45,7 +43,6 @@ export const ChartOHRenderer: Renderer<ChartOHInputs, MeasuredChartOH> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: ChartOHInputs,
-    responsiveScale?: number,
   ): void {
     const measured = measureChartWithAutofit(
       rc,
@@ -53,7 +50,6 @@ export const ChartOHRenderer: Renderer<ChartOHInputs, MeasuredChartOH> = {
       item,
       (scale) => getChartOHComponentSizes(rc, item, scale),
       measureChartOH,
-      responsiveScale,
     );
     renderChartOH(rc, measured);
   },
@@ -62,14 +58,12 @@ export const ChartOHRenderer: Renderer<ChartOHInputs, MeasuredChartOH> = {
     rc: RenderContext,
     width: number,
     item: ChartOHInputs,
-    responsiveScale?: number,
   ): HeightConstraints {
     return getChartHeightConstraints(
       rc,
       width,
       item,
       (scale) => getChartOHComponentSizes(rc, item, scale),
-      responsiveScale,
     );
   },
 };

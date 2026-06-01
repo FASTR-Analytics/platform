@@ -3,14 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { _GLOBAL_CANVAS_PIXEL_WIDTH } from "../_000_consts/mod.ts";
+export { getStage2Sizing } from "../_000_consts/mod.ts";
+export type { SizingMode } from "../_000_consts/mod.ts";
 export { capitalizeFirstLetter, clamp, createArray, getSortedAlphabetical, isFrench, normalizeTo01, t3, to100Pct0, toNum0, toPct3 } from "../_000_utils/mod.ts";
 export { Color } from "../_001_color/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export { CanvasRenderContext } from "../_002_canvas/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
-export { CustomStyle } from "../_006_style/mod.ts";
 export type { CustomStyleOptions } from "../_006_style/mod.ts";
 export { getMinimumSpan } from "../_008_layouter/mod.ts";
 export type { MeasuredColsLayoutNode, MeasuredLayoutNode } from "../_008_layouter/mod.ts";

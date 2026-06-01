@@ -23,6 +23,7 @@ export type JsonArray = JsonArrayItem[];
 export type FigureAutofitOptions = {
   minScale?: number;
   maxScale?: number;
+  minFontSizeDu?: number;
 };
 
 export type FigureAnnotation = {

@@ -89,7 +89,7 @@ export async function markdownToPdfDeno(
       footerHeight,
       gapY: mergedPageStyle.content.gapY,
       pageBreakRules: config.pageBreakRules,
-      style: config.style,
+      style: config.style?.markdown,
       images: config.images,
       figures: config.figures,
     },
@@ -105,7 +105,7 @@ export async function markdownToPdfDeno(
     firstPageHeader: config.firstPageHeader,
     firstPageSubHeader: config.firstPageSubHeader,
     skipHeaderOnFirstPage: config.skipHeaderOnFirstPage,
-    style: config.style,
+    style: config.style?.page,
   });
 
   const rcd = new RectCoordsDims([0, 0, width, height]);

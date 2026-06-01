@@ -2,7 +2,7 @@ import {
   APIResponseNoData,
   pagesToPptxBrowser,
   PageInputs,
-  _GLOBAL_CANVAS_PIXEL_WIDTH,
+  REFERENCE_WIDTH_DU,
   saveAs,
 } from "panther";
 import type { Slide } from "lib";
@@ -31,7 +31,7 @@ export async function exportSlideDeckAsPptx(
       return resDeckDetail;
     }
 
-    const canvasW = _GLOBAL_CANVAS_PIXEL_WIDTH;
+    const canvasW = REFERENCE_WIDTH_DU;
     const canvasH = Math.round((canvasW * 9) / 16);
 
     await new Promise((res) => setTimeout(res, 0));

@@ -2,7 +2,7 @@ import {
   APIResponseNoData,
   RectCoordsDims,
   PageRenderer,
-  _GLOBAL_CANVAS_PIXEL_WIDTH,
+  REFERENCE_WIDTH_DU,
   createPdfRenderContextWithFontsBrowser,
   type FontInfo,
 } from "panther";
@@ -33,7 +33,7 @@ export async function exportSlideDeckAsPdfVector(
       return resDeckDetail;
     }
 
-    const pdfW = _GLOBAL_CANVAS_PIXEL_WIDTH;
+    const pdfW = REFERENCE_WIDTH_DU;
     const pdfH = Math.round((pdfW * 9) / 16);
     const pdfOrientation = "landscape";
 

@@ -27,7 +27,7 @@ import {
   PageInputs,
   Select,
   StateHolder,
-  _GLOBAL_CANVAS_PIXEL_WIDTH,
+  REFERENCE_WIDTH_DU,
   applyDividerDragUpdate,
   findNodeInDraft,
   createItemNode,
@@ -879,7 +879,7 @@ export function SlideEditor(p: Props) {
                     pageInputs={keyedPageInputs}
                     canvasElementId="SLIDE_EDITOR_CANVAS"
                     fixedCanvasH={Math.round(
-                      (_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16,
+                      (REFERENCE_WIDTH_DU * 9) / 16,
                     )}
                     fitWithin={true}
                     hoverStyle={{

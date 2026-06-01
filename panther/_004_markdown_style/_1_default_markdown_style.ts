@@ -6,7 +6,6 @@
 import type { AlignH, ColorKeyOrString } from "./deps.ts";
 
 const _DS = {
-  scale: 1,
   alignH: "left" as AlignH,
 
   headingRelFontSizes: {

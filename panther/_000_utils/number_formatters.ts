@@ -236,8 +236,31 @@ export function toPctAuto(
 
 // Abbrev
 
-export function toAbbrev0(
+function abbreviateNumber(num: number, decimals: number): string {
+  const sign = num < 0 ? "-" : "";
+  let abs = Math.abs(num);
+  const units = ["K", "M", "B"];
+  let unitIndex = -1;
+  while (unitIndex < units.length - 1 && abs >= 1000) {
+    abs = abs / 1000;
+    unitIndex++;
+  }
+  if (unitIndex === -1) {
+    return sign + Math.round(abs).toFixed(0);
+  }
+  const factor = Math.pow(10, decimals);
+  let mantissa = Math.round(abs * factor) / factor;
+  // Rounding can push the mantissa up into the next unit (e.g. 999_999 -> "1M").
+  if (mantissa >= 1000 && unitIndex < units.length - 1) {
+    mantissa = Math.round((mantissa / 1000) * factor) / factor;
+    unitIndex++;
+  }
+  return sign + mantissa.toFixed(decimals) + units[unitIndex];
+}
+
+function toAbbrevWithDecimals(
   v: number | string | null | undefined,
+  decimals: number,
   replacementStringForNullOrUndefined?: string,
 ): string {
   if (v === null || v === undefined) {
@@ -250,86 +273,30 @@ export function toAbbrev0(
   if (isNaN(num)) {
     throw new Error("Value is not a number: " + v);
   }
+  return abbreviateNumber(num, decimals);
+}
 
-  const abs = Math.abs(num);
-  const sign = num < 0 ? "-" : "";
-
-  if (abs >= 1e9) {
-    return sign + Math.round(abs / 1e9).toFixed(0) + "B";
-  }
-  if (abs >= 1e6) {
-    return sign + Math.round(abs / 1e6).toFixed(0) + "M";
-  }
-  if (abs >= 1e3) {
-    return sign + Math.round(abs / 1e3).toFixed(0) + "K";
-  }
-  return sign + Math.round(abs).toFixed(0);
+export function toAbbrev0(
+  v: number | string | null | undefined,
+  replacementStringForNullOrUndefined?: string,
+): string {
+  return toAbbrevWithDecimals(v, 0, replacementStringForNullOrUndefined);
 }
 
 export function toAbbrev1(
   v: number | string | null | undefined,
   replacementStringForNullOrUndefined?: string,
 ): string {
-  if (v === null || v === undefined) {
-    if (replacementStringForNullOrUndefined) {
-      return replacementStringForNullOrUndefined;
-    }
-    throw new Error("Value is null or undefined");
-  }
-  const num = Number(v);
-  if (isNaN(num)) {
-    throw new Error("Value is not a number: " + v);
-  }
-
-  const abs = Math.abs(num);
-  const sign = num < 0 ? "-" : "";
-
-  if (abs >= 1e9) {
-    return sign + (Math.round((abs / 1e9) * 10) / 10).toFixed(1) + "B";
-  }
-  if (abs >= 1e6) {
-    return sign + (Math.round((abs / 1e6) * 10) / 10).toFixed(1) + "M";
-  }
-  if (abs >= 1e3) {
-    return sign + (Math.round((abs / 1e3) * 10) / 10).toFixed(1) + "K";
-  }
-  return sign + Math.round(abs).toFixed(0);
+  return toAbbrevWithDecimals(v, 1, replacementStringForNullOrUndefined);
 }
 
 export function toAbbrev2(
   v: number | string | null | undefined,
   replacementStringForNullOrUndefined?: string,
 ): string {
-  if (v === null || v === undefined) {
-    if (replacementStringForNullOrUndefined) {
-      return replacementStringForNullOrUndefined;
-    }
-    throw new Error("Value is null or undefined");
-  }
-  const num = Number(v);
-  if (isNaN(num)) {
-    throw new Error("Value is not a number: " + v);
-  }
-
-  const abs = Math.abs(num);
-  const sign = num < 0 ? "-" : "";
-
-  if (abs >= 1e9) {
-    return sign + (Math.round((abs / 1e9) * 100) / 100).toFixed(2) + "B";
-  }
-  if (abs >= 1e6) {
-    return sign + (Math.round((abs / 1e6) * 100) / 100).toFixed(2) + "M";
-  }
-  if (abs >= 1e3) {
-    return sign + (Math.round((abs / 1e3) * 100) / 100).toFixed(2) + "K";
-  }
-  return sign + Math.round(abs).toFixed(0);
+  return toAbbrevWithDecimals(v, 2, replacementStringForNullOrUndefined);
 }
 
-/**
- * Format bytes into human readable string
- * This is a value-add utility not provided by Deno
- */
 export function formatFileSize(bytes: number, decimals = 2): string {
   if (bytes === 0) return "0 Bytes";
 
@@ -337,9 +304,14 @@ export function formatFileSize(bytes: number, decimals = 2): string {
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
 
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const sign = bytes < 0 ? "-" : "";
+  const abs = Math.abs(bytes);
+  const i = Math.max(
+    0,
+    Math.min(sizes.length - 1, Math.floor(Math.log(abs) / Math.log(k))),
+  );
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+  return sign + parseFloat((abs / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 }
 
 export function computeMinDecimalPlaces(values: number[]): number {

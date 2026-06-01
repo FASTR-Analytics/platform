@@ -4,7 +4,7 @@ import {
   PageHolder,
   validateBrandColor,
   type PageInputs,
-  _GLOBAL_CANVAS_PIXEL_WIDTH,
+  REFERENCE_WIDTH_DU,
 } from "panther";
 import { createResource, Show } from "solid-js";
 import { buildStyleForSlide, FASTR_LOGO_VALUES } from "~/generate_slide_deck/convert_slide_to_page_inputs";
@@ -99,7 +99,7 @@ function getContentPageInputs(
 }
 
 export function StylePreview(p: StylePreviewProps) {
-  const canvasH = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
+  const canvasH = Math.round((REFERENCE_WIDTH_DU * 9) / 16);
 
   const colorError = () => {
     if (p.config.colorTheme.type !== "custom") return null;
@@ -153,7 +153,6 @@ export function StylePreview(p: StylePreviewProps) {
               <PageHolder
                 pageInputs={coverInputs()}
                 fixedCanvasH={canvasH}
-                scalePixelResolution={0.2}
               />
             </div>
           </div>
@@ -165,7 +164,6 @@ export function StylePreview(p: StylePreviewProps) {
               <PageHolder
                 pageInputs={sectionInputs()}
                 fixedCanvasH={canvasH}
-                scalePixelResolution={0.2}
               />
             </div>
           </div>
@@ -177,7 +175,6 @@ export function StylePreview(p: StylePreviewProps) {
               <PageHolder
                 pageInputs={contentInputs()}
                 fixedCanvasH={canvasH}
-                scalePixelResolution={0.2}
               />
             </div>
           </div>

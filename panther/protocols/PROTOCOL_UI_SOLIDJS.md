@@ -2,7 +2,8 @@
 
 **Scope:** UI
 
-For detailed explanations, see `FRONTEND_STYLE_GUIDE.md`.
+For component-library usage see `PROTOCOL_UI_COMPONENTS.md`; for data/actions see
+`PROTOCOL_UI_STATE.md`.
 
 ## Rules
 
@@ -15,7 +16,7 @@ For detailed explanations, see `FRONTEND_STYLE_GUIDE.md`.
 5. **Use control flow components** — `<Show>`, `<For>`, `<Switch>`/`<Match>`
 6. **Props as `p`** — Never destructure, never name it `props`
 7. **Function declarations** — Not arrow functions for components
-8. **Use panther components** — Don't rebuild Button, Input, Select, etc.
+8. **Batch related updates** — Wrap multiple signal writes in `batch()`
 
 ## Do / Don't
 
@@ -151,6 +152,24 @@ export function Card(p: Props) {
   <Match when={true}><C /></Match>
 </Switch>
 ```
+
+### Batched Updates
+
+```tsx
+// ❌ DON'T — three separate updates
+setField1(a);
+setField2(b);
+setField3(c);
+
+// ✅ DO — coalesced into one
+batch(() => {
+  setField1(a);
+  setField2(b);
+  setField3(c);
+});
+```
+
+**Why:** `batch()` collapses multiple signal writes into a single reactive update.
 
 ## Checklist
 

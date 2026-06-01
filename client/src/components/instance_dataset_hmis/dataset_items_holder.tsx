@@ -131,7 +131,6 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
 
     const value = vizConfig.value;
     const figureType = vizConfig.figureType;
-    const scale = vizConfig.scale * 0.6;
 
     const showLegend =
       vizConfig.indicators.length > 0 && vizConfig.indicators.length < 6;
@@ -143,7 +142,6 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
       legend: {
         maxLegendItemsInOneColumn: 1,
       },
-      scale: scale,
       seriesColorFunc: (info: any) => getAbcQualScale(info.i_series),
       yScaleAxis: {
         tickLabelFormatter: toNum0,

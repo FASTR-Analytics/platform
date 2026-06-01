@@ -37,7 +37,6 @@ import type { FigureTextStyleOptions } from "./text_style_keys.ts";
 import type { LegendPosition } from "./types.ts";
 
 export type CustomFigureStyleOptions = {
-  scale?: number;
   seriesColorFunc?: ChartSeriesInfoFunc<ColorKeyOrString>;
   valuesColorFunc?: ValuesColorFunc;
 

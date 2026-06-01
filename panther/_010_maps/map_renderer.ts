@@ -32,7 +32,6 @@ export const MapRenderer: Renderer<MapInputs, MeasuredMap> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: MapInputs,
-    responsiveScale?: number,
   ): MeasuredMap {
     return measureChartWithAutofit(
       rc,
@@ -40,7 +39,6 @@ export const MapRenderer: Renderer<MapInputs, MeasuredMap> = {
       item,
       (scale) => getMapComponentSizes(rc, item, scale),
       measureMap,
-      responsiveScale,
     );
   },
 
@@ -52,9 +50,8 @@ export const MapRenderer: Renderer<MapInputs, MeasuredMap> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: MapInputs,
-    responsiveScale?: number,
   ): void {
-    const measured = this.measure(rc, bounds, item, responsiveScale);
+    const measured = this.measure(rc, bounds, item);
     this.render(rc, measured);
   },
 
@@ -62,7 +59,6 @@ export const MapRenderer: Renderer<MapInputs, MeasuredMap> = {
     rc: RenderContext,
     width: number,
     item: MapInputs,
-    _responsiveScale?: number,
   ): HeightConstraints {
     return getMapIdealHeight(rc, width, item);
   },

@@ -85,16 +85,15 @@ export class CustomPageStyle {
   private _sf: number;
   private _baseText: TextInfo;
 
+  // fitScale is the shrink-to-fit factor (default 1, set only by shrink-to-fit).
   constructor(
     customStyle: CustomPageStyleOptions | undefined,
-    responsiveScale?: number,
+    fitScale?: number,
   ) {
     this._d = getDefaultPageStyle();
     this._g = getGlobalPageStyle();
     this._c = customStyle ?? {};
-    this._sf =
-      (this._c?.scale ?? this._g?.scale ?? this._d.scale) *
-      (responsiveScale ?? 1);
+    this._sf = fitScale ?? 1;
     this._baseText = getBaseTextInfo(
       this._c.text?.base,
       this._g.text?.base,

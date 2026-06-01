@@ -136,7 +136,7 @@ export default function PublicVisualization() {
                         </div>
                         <ChartHolder
                           canvasElementId={CANVAS_ID}
-                          noRescaleWithWidthChange={noRescale()}
+                          sizing={noRescale() ? "zoom" : "reflow"}
                           chartInputs={fi}
                           height={chartHeight()}
                         />

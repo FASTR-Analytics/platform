@@ -15,18 +15,13 @@ export function createArray<T>(
   if (valOrValFunc === undefined) {
     return new Array(n).fill(0).map((_, i) => i);
   }
-  if (typeof valOrValFunc === "string") {
-    return new Array(n).fill(0).map(() => valOrValFunc);
-  }
-  if (typeof valOrValFunc === "number") {
-    return new Array(n).fill(0).map(() => valOrValFunc);
-  }
   if (typeof valOrValFunc === "function") {
     const func = valOrValFunc as (i: number) => T;
     return new Array(n).fill(0).map((_, i) => func(i));
   }
-  if (typeof valOrValFunc === "object") {
+  if (typeof valOrValFunc === "object" && valOrValFunc !== null) {
     return new Array(n).fill(0).map(() => structuredClone(valOrValFunc));
   }
-  throw new Error("Should not happen");
+  // Primitives (string, number, boolean, bigint, symbol, null) fill directly.
+  return new Array(n).fill(0).map(() => valOrValFunc);
 }

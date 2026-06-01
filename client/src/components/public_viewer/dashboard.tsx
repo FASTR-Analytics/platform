@@ -228,7 +228,6 @@ export function DashboardItemChart(p: DashboardItemChartProps) {
       ...originalFi,
       style: {
         ...originalFi.style,
-        scale: 1,
       },
     };
   };

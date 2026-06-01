@@ -5,6 +5,7 @@
 
 // Main exports - simplified API surface
 export {
+  type ExportSizeOptions,
   getFigureAsCanvas,
   getFigureAsDataUrl,
   writeFigure,

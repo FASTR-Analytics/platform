@@ -22,11 +22,11 @@ export function measureTimeseries(
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
   inputs: TimeseriesInputs,
-  responsiveScale?: number,
+  fitScale?: number,
 ): MeasuredTimeseries {
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
-    responsiveScale,
+    fitScale,
   );
   const mergedStyle = customFigureStyle.getMergedTimeseriesStyle();
   const transformedData = getTimeseriesDataTransformed(
@@ -63,5 +63,5 @@ export function measureTimeseries(
     orientation: "vertical",
   };
 
-  return measureChart(rc, rcdWithSurrounds, inputs, config, responsiveScale);
+  return measureChart(rc, rcdWithSurrounds, inputs, config, fitScale);
 }

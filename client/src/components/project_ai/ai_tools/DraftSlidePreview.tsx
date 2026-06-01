@@ -14,7 +14,7 @@ import {
   ModalContainer,
   openComponent,
   PageHolder,
-  _GLOBAL_CANVAS_PIXEL_WIDTH,
+  REFERENCE_WIDTH_DU,
 } from "panther";
 import { createSignal, ErrorBoundary, Match, onMount, Show, Switch } from "solid-js";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
@@ -24,7 +24,7 @@ import { projectState } from "~/state/project/t1_store";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
 
-const CANVAS_H = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
+const CANVAS_H = Math.round((REFERENCE_WIDTH_DU * 9) / 16);
 
 type SlideState = {
   pageInputs: PageInputs;
@@ -180,7 +180,6 @@ function SlideStateWrapper(p: SlideStateWrapperProps) {
           <PageHolder
             pageInputs={(p.state as { data: SlideState }).data.pageInputs}
             fixedCanvasH={CANVAS_H}
-            scalePixelResolution={p.scalePixelResolution}
           />
         </div>
       </Match>
@@ -220,7 +219,6 @@ function ExpandedSlideModal(
         <PageHolder
           pageInputs={p.pageInputs}
           fixedCanvasH={CANVAS_H}
-          scalePixelResolution={0.5}
         />
       </div>
     </ModalContainer>

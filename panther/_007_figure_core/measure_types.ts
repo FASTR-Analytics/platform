@@ -76,4 +76,6 @@ export interface MeasuredChartBase<TInputs, TData, TStyle> {
   footnote?: string | string[];
   legend?: LegendInput;
   primitives: Primitive[];
+  // shrink-to-fit shrank to the legibility floor and content still overflows.
+  cramped?: boolean;
 }

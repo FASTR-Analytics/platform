@@ -29,7 +29,6 @@ export const TimeseriesRenderer: Renderer<
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: TimeseriesInputs,
-    responsiveScale?: number,
   ): MeasuredTimeseries {
     return measureChartWithAutofit(
       rc,
@@ -37,7 +36,6 @@ export const TimeseriesRenderer: Renderer<
       item,
       (scale) => getTimeseriesComponentSizes(rc, item, scale),
       measureTimeseries,
-      responsiveScale,
     );
   },
 
@@ -49,7 +47,6 @@ export const TimeseriesRenderer: Renderer<
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: TimeseriesInputs,
-    responsiveScale?: number,
   ): void {
     const measured = measureChartWithAutofit(
       rc,
@@ -57,7 +54,6 @@ export const TimeseriesRenderer: Renderer<
       item,
       (scale) => getTimeseriesComponentSizes(rc, item, scale),
       measureTimeseries,
-      responsiveScale,
     );
     renderTimeseries(rc, measured);
   },
@@ -66,14 +62,12 @@ export const TimeseriesRenderer: Renderer<
     rc: RenderContext,
     width: number,
     item: TimeseriesInputs,
-    responsiveScale?: number,
   ): HeightConstraints {
     return getChartHeightConstraints(
       rc,
       width,
       item,
       (scale) => getTimeseriesComponentSizes(rc, item, scale),
-      responsiveScale,
     );
   },
 };

@@ -22,9 +22,9 @@ export function calculateCost(
   const cacheCreationTokens = usage.cache_creation_input_tokens ?? 0;
   const cacheReadTokens = usage.cache_read_input_tokens ?? 0;
 
-  const regularInputTokens = inputTokens - cacheReadTokens;
-
-  const inputCost = (regularInputTokens / 1_000_000) * pricing.inputPer1M;
+  // usage.input_tokens already excludes cache reads/creation (separate fields),
+  // so it must not be discounted again here.
+  const inputCost = (inputTokens / 1_000_000) * pricing.inputPer1M;
   const outputCost = (outputTokens / 1_000_000) * pricing.outputPer1M;
   const cacheCost = (cacheCreationTokens / 1_000_000) *
     pricing.cacheWritePer1M;

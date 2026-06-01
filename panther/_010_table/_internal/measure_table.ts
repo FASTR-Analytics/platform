@@ -33,14 +33,14 @@ export function measureTable(
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
   inputs: TableInputs,
-  responsiveScale?: number,
+  fitScale?: number,
 ) {
   const caption = inputs.caption;
   const subCaption = inputs.subCaption;
   const footnote = inputs.footnote;
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
-    responsiveScale,
+    fitScale,
   );
 
   // Register the styles that you will need for this class

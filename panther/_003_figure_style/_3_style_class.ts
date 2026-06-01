@@ -67,15 +67,16 @@ export class CustomFigureStyle {
   private _sf: number;
   private _baseText: TextInfo;
 
+  // fitScale is the shrink-to-fit factor (default 1, set only by shrink-to-fit).
+  // It is the one internal size multiplier; there is no `scale` / `responsiveScale`.
   constructor(
     customStyle: CustomFigureStyleOptions | undefined,
-    responsiveScale?: number,
+    fitScale?: number,
   ) {
     this._d = getDefaultFigureStyle();
     this._g = getGlobalFigureStyle();
     this._c = customStyle ?? {};
-    this._sf = (this._c?.scale ?? this._g?.scale ?? this._d.scale) *
-      (responsiveScale ?? 1);
+    this._sf = fitScale ?? 1;
     this._baseText = getBaseTextInfo(
       this._c.text?.base,
       this._g.text?.base,
@@ -86,6 +87,10 @@ export class CustomFigureStyle {
 
   get sf(): number {
     return this._sf;
+  }
+
+  get baseFontSize(): number {
+    return this._baseText.fontSize;
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////

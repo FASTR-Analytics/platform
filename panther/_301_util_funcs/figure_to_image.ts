@@ -7,14 +7,19 @@ import {
   CanvasRenderContext,
   type FigureInputs,
   FigureRenderer,
+  getExportDevicePxPerDu,
   RectCoordsDims,
+  REFERENCE_WIDTH_DU,
 } from "./deps.ts";
 
+// Browser figure export. A file always renders the canonical REFERENCE_WIDTH_DU
+// frame; `outputWidthPx` is the file's pixel width (the supersample). Layout is
+// independent of it. `outputHeightPx` is optional — otherwise the figure's
+// ideal height in the reference frame is used.
 export function getFigureAsCanvas(
   figureInputs: FigureInputs,
-  width: number,
-  scale: number,
-  responsiveScale?: number,
+  outputWidthPx: number,
+  outputHeightPx?: number,
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -23,41 +28,47 @@ export function getFigureAsCanvas(
   }
 
   const rc = new CanvasRenderContext(ctx);
-  const idealHeight = FigureRenderer.getIdealHeight(
-    rc,
-    width,
-    figureInputs,
-    responsiveScale,
-  ).idealH;
+  const devicePxPerDu = getExportDevicePxPerDu(outputWidthPx);
 
-  canvas.width = width * scale;
-  canvas.height = idealHeight * scale;
+  let frameHDu: number;
+  if (outputHeightPx === undefined) {
+    frameHDu = FigureRenderer.getIdealHeight(
+      rc,
+      REFERENCE_WIDTH_DU,
+      figureInputs,
+    ).idealH;
+  } else {
+    frameHDu = outputHeightPx / devicePxPerDu;
+  }
 
-  ctx.scale(scale, scale);
+  canvas.width = Math.round(REFERENCE_WIDTH_DU * devicePxPerDu); // === outputWidthPx
+  canvas.height = Math.round(frameHDu * devicePxPerDu);
+
+  // Supersample: draw the DU-space picture into the device-pixel backing buffer.
+  ctx.setTransform(devicePxPerDu, 0, 0, devicePxPerDu, 0, 0);
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, idealHeight);
+  ctx.fillRect(0, 0, REFERENCE_WIDTH_DU, frameHDu);
 
-  const bounds = new RectCoordsDims([0, 0, width, idealHeight]);
-  FigureRenderer.measureAndRender(rc, bounds, figureInputs, responsiveScale);
+  const bounds = new RectCoordsDims([0, 0, REFERENCE_WIDTH_DU, frameHDu]);
+  FigureRenderer.measureAndRender(rc, bounds, figureInputs);
 
   return canvas;
 }
 
 export function getFigureAsBase64(
   figureInputs: FigureInputs,
-  width: number,
-  scale: number,
-  responsiveScale?: number,
+  outputWidthPx: number,
+  outputHeightPx?: number,
 ): string {
-  const canvas = getFigureAsCanvas(figureInputs, width, scale, responsiveScale);
+  const canvas = getFigureAsCanvas(figureInputs, outputWidthPx, outputHeightPx);
   return canvas.toDataURL("image/png");
 }
 
 export async function getFigureAsDataUrlBrowser(
   figureInputs: FigureInputs,
-  width: number,
+  outputWidthPx: number,
 ): Promise<{ dataUrl: string; width: number; height: number }> {
-  const canvas = getFigureAsCanvas(figureInputs, width, 1);
+  const canvas = getFigureAsCanvas(figureInputs, outputWidthPx);
   return {
     dataUrl: canvas.toDataURL("image/png"),
     width: canvas.width,

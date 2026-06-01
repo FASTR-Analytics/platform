@@ -955,7 +955,6 @@ export function VisualizationEditorInner(p: InnerProps) {
                                         canvasElementId="CANVAS_FOR_DOWNLOADING"
                                         chartInputs={keyedFigureInputs}
                                         height={editorHeight()}
-                                        noRescaleWithWidthChange
                                       />
                                     );
                                   }}

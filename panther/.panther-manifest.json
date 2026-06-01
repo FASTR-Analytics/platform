@@ -1,16 +1,19 @@
 {
-  "timestamp": "2026-05-31T06:47:59.379Z",
-  "pantherGitCommit": "4737562",
+  "timestamp": "2026-06-01T01:36:00.683Z",
+  "pantherGitCommit": "2026e2c",
   "pantherGitDirty": true,
   "mode": "both",
   "configName": "wb-fastr",
   "protocols": [
     "README.md",
-    "PROTOCOL_TYPESCRIPT.md",
-    "PROTOCOL_STRUCTURE.md",
-    "PROTOCOL_API.md",
-    "PROTOCOL_SOLIDJS.md",
-    "PROTOCOL_STATE.md",
-    "PROTOCOL_STYLING.md"
+    "PROTOCOL_ALL_TYPESCRIPT.md",
+    "PROTOCOL_ALL_STRUCTURE.md",
+    "PROTOCOL_ALL_SIZING.md",
+    "PROTOCOL_ALL_TRANSLATION.md",
+    "PROTOCOL_DENO_API.md",
+    "PROTOCOL_UI_SOLIDJS.md",
+    "PROTOCOL_UI_STATE.md",
+    "PROTOCOL_UI_STYLING.md",
+    "PROTOCOL_UI_COMPONENTS.md"
   ]
 }

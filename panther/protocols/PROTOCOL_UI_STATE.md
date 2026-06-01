@@ -2,7 +2,7 @@
 
 **Scope:** UI
 
-For detailed explanations, see `FRONTEND_STYLE_GUIDE.md`.
+See `PROTOCOL_UI_SOLIDJS.md` for reactivity rules.
 
 ## Rules
 

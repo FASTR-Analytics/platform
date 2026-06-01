@@ -5,13 +5,11 @@
 
 import { Anthropic } from "../deps.ts";
 
-export interface SDKClientConfig {
+export type SDKClientConfig = {
   baseURL: string;
-
   apiKey?: string;
-
   defaultHeaders?: Record<string, string>;
-}
+};
 
 export function createSDKClient(config: SDKClientConfig): Anthropic {
   return new Anthropic({

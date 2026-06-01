@@ -61,7 +61,10 @@ function arraysAreEqual<T>(
     if (asNumbers === "as-numbers") {
       if (Number(a[i]) !== Number(b[i])) {
         if (isNaN(Number(a[i])) && isNaN(Number(b[i]))) {
-          continue;
+          if (a[i] === b[i]) {
+            continue;
+          }
+          return false;
         }
         return false;
       }

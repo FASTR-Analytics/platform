@@ -18,16 +18,12 @@ export function measureSimpleViz(
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
   item: SimpleVizInputs,
-  responsiveScale?: number,
 ): MeasuredSimpleViz {
   const caption = item.caption;
   const subCaption = item.subCaption;
   const footnote = item.footnote;
 
-  const customFigureStyle = new CustomFigureStyle(
-    item.style,
-    responsiveScale,
-  );
+  const customFigureStyle = new CustomFigureStyle(item.style);
 
   const legend = item.legend;
 

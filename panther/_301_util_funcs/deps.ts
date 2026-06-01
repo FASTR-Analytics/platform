@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export { REFERENCE_WIDTH_DU, getExportDevicePxPerDu } from "../_000_consts/mod.ts";
 export { clamp } from "../_000_utils/mod.ts";
 export { setKeyColors } from "../_001_color/mod.ts";
 export { getFontInfoId } from "../_001_font/mod.ts";

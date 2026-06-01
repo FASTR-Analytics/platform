@@ -181,7 +181,7 @@ export function formatPeriod(
   }
   if (periodType === "year-quarter") {
     const prefix = isFrench() ? "T" : "Q";
-    return str.slice(0, 4) + " / " + prefix + str.slice(5, 6);
+    return str.slice(0, 4) + " / " + prefix + Number(str.slice(4, 6));
   }
   return str;
 }

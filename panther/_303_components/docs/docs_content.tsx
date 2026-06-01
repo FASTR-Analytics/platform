@@ -45,7 +45,7 @@ export function DocsContent(p: DocsContentProps) {
           <div class="py-16">
             <MarkdownPresentation
               markdown={data}
-              style={p.style}
+              style={p.style?.markdown}
               contentWidth="56rem"
             />
           </div>

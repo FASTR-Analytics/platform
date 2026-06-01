@@ -10,6 +10,9 @@ import type { RenderContext } from "./render_context.ts";
 export interface Measured<TItem> {
   item: TItem;
   bounds: RectCoordsDims;
+  // Set by shrink-to-fit when the content shrank to the min-font floor and still
+  // does not fit its frame. Undefined/false means it fit (possibly after shrinking).
+  cramped?: boolean;
 }
 
 // Height constraints for layout system
@@ -28,7 +31,6 @@ export interface Renderer<TItem, TMeasured extends Measured<TItem>> {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: TItem,
-    responsiveScale?: number,
   ): TMeasured;
 
   render(rc: RenderContext, measured: TMeasured): void;
@@ -37,14 +39,12 @@ export interface Renderer<TItem, TMeasured extends Measured<TItem>> {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: TItem,
-    responsiveScale?: number,
   ): void;
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
     item: TItem,
-    responsiveScale?: number,
   ): HeightConstraints;
 }
 
@@ -56,7 +56,6 @@ export interface AsyncRenderer<TItem, TMeasured extends Measured<TItem>> {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: TItem,
-    responsiveScale?: number,
   ): Promise<TMeasured>;
 
   render(rc: RenderContext, measured: TMeasured): Promise<void>;
@@ -65,13 +64,11 @@ export interface AsyncRenderer<TItem, TMeasured extends Measured<TItem>> {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: TItem,
-    responsiveScale?: number,
   ): Promise<void>;
 
   getIdealHeight(
     rc: RenderContext,
     width: number,
     item: TItem,
-    responsiveScale?: number,
   ): Promise<HeightConstraints>;
 }

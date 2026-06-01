@@ -25,10 +25,7 @@ export function isFrench(): boolean {
 }
 
 export function t3(val: TranslatableString): string {
-  if (_LANGUAGE.lang === "fr") {
-    return val.fr;
-  }
-  return val.en;
+  return resolveTS(val, _LANGUAGE.lang);
 }
 
 export function resolveTS(val: TranslatableString, lang: Language): string {

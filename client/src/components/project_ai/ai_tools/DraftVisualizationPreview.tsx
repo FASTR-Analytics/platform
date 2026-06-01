@@ -310,9 +310,8 @@ function FigureStateWrapper(p: FigureStateWrapperProps) {
               <ChartHolder
                 chartInputs={keyedFigureInputs}
                 height={h1}
-                noRescaleWithWidthChange
-                scalePixelResolution={p.scalePixelResolution}
-              />
+                sizing="zoom"
+                />
             </div>
           );
         }}

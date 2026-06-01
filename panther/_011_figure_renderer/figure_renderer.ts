@@ -71,9 +71,8 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: FigureInputs,
-    responsiveScale?: number,
   ): MeasuredFigure {
-    return measureFigure(rc, bounds, item, responsiveScale);
+    return measureFigure(rc, bounds, item);
   },
 
   render(rc: RenderContext, measured: MeasuredFigure): void {
@@ -84,9 +83,8 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: FigureInputs,
-    responsiveScale?: number,
   ): void {
-    const measured = measureFigure(rc, bounds, item, responsiveScale);
+    const measured = measureFigure(rc, bounds, item);
     renderFigure(rc, measured);
   },
 
@@ -94,10 +92,9 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
     rc: RenderContext,
     width: number,
     item: FigureInputs,
-    responsiveScale?: number,
   ): HeightConstraints {
     const renderer = getRendererForFigureItem(item);
-    return renderer.getIdealHeight(rc, width, item as any, responsiveScale);
+    return renderer.getIdealHeight(rc, width, item as any);
   },
 };
 
@@ -109,10 +106,9 @@ function measureFigure(
   rc: RenderContext,
   bounds: RectCoordsDims,
   item: FigureInputs,
-  responsiveScale?: number,
 ): MeasuredFigure {
   const renderer = getRendererForFigureItem(item);
-  const measured = renderer.measure(rc, bounds, item as any, responsiveScale);
+  const measured = renderer.measure(rc, bounds, item as any);
   if (item.annotations?.length) {
     const sf = measured.customFigureStyle.sf;
     const annotationPrimitives = generateAnnotationPrimitives(
