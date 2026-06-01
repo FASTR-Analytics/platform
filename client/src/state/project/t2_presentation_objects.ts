@@ -4,6 +4,7 @@ import {
   ItemsHolderPresentationObject,
   PresentationObjectConfig,
   PresentationObjectDetail,
+  ProjectState,
   ReplicantValueOverride,
   ResultsValueInfoForPresentationObject,
   getFetchConfigFromPresentationObjectConfig,
@@ -21,6 +22,16 @@ import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_adm
 import { getGeoJsonSync } from "../instance/t2_geojson";
 import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
 
+// indicatorMetadata baked into PO items and metric info is rewritten on dataset
+// integration (bumps lastUpdated.datasets), independently of moduleLastRun — so
+// those caches version on it too. Mirrors the server Valkey version hash.
+function datasetsVersionKey(pds: ProjectState): string {
+  return Object.keys(pds.lastUpdated.datasets)
+    .sort()
+    .map((dt) => `${dt}:${pds.lastUpdated.datasets[dt]}`)
+    .join(",");
+}
+
 export const _METRIC_INFO_CACHE = createReactiveCache<
   {
     projectId: string;
@@ -33,7 +44,8 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
     params.projectId,
     params.metricId,
   ],
-  versionKey: (params, pds) => pds.moduleLastRun[getModuleIdForMetric(params.metricId)] ?? "unknown",
+  versionKey: (params, pds) =>
+    `${pds.moduleLastRun[getModuleIdForMetric(params.metricId)] ?? "unknown"}|${datasetsVersionKey(pds)}`,
 });
 
 export const _PO_DETAIL_CACHE = createReactiveCache<
@@ -64,7 +76,7 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
     hashFetchConfig(params.fetchConfig),
   ],
   versionKey: (params, pds) =>
-    pds.moduleLastRun[getModuleIdForResultsObject(params.resultsObjectId)] ?? "unknown",
+    `${pds.moduleLastRun[getModuleIdForResultsObject(params.resultsObjectId)] ?? "unknown"}|${datasetsVersionKey(pds)}`,
 });
 
 export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(

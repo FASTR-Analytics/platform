@@ -21,6 +21,7 @@ export async function getResultsValueInfoForPresentationObject(
   projectId: string,
   metricId: string,
   moduleLastRun: string,
+  datasetsVersion: string,
 ): Promise<
   APIResponseWithData<ResultsValueInfoForPresentationObject>
 > {
@@ -51,6 +52,7 @@ export async function getResultsValueInfoForPresentationObject(
       disaggregationOptions,
       moduleLastRun,
       moduleId,
+      datasetsVersion,
     );
   });
 }
@@ -89,6 +91,7 @@ async function getResultsObjectVariableInfoCore(
   disaggregationOptions: DisaggregationOption[],
   moduleLastRun: string,
   moduleId: string,
+  datasetsVersion: string,
 ): Promise<
   APIResponseWithData<ResultsValueInfoForPresentationObject>
 > {
@@ -167,6 +170,7 @@ async function getResultsObjectVariableInfoCore(
         metricId,
         projectId,
         moduleLastRun,
+        datasetsVersion,
         periodBounds,
         disaggregationPossibleValues,
       },

@@ -47,6 +47,7 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
   },
   {
     moduleLastRun: string;
+    datasetsVersion: string;
   },
   APIResponseWithData<ItemsHolderPresentationObject>
 >("po_items", {
@@ -56,7 +57,8 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
       params.resultsObjectId,
       hashFetchConfig(params.fetchConfig),
     ].join("|"),
-  versionHashFromParams: (params) => params.moduleLastRun,
+  versionHashFromParams: (params) =>
+    `${params.moduleLastRun}|${params.datasetsVersion}`,
   parseData: (res) => {
     if (res.success === false) {
       return {
@@ -72,7 +74,7 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
         res.data.resultsObjectId,
         hashFetchConfig(res.data.fetchConfig),
       ].join("|"),
-      versionHash: res.data.moduleLastRun,
+      versionHash: `${res.data.moduleLastRun}|${res.data.datasetsVersion}`,
     };
   },
 });
@@ -84,12 +86,14 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
   },
   {
     moduleLastRun: string;
+    datasetsVersion: string;
   },
   APIResponseWithData<ResultsValueInfoForPresentationObject>
 >("metric_info", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.metricId].join("::"),
-  versionHashFromParams: (params) => params.moduleLastRun,
+  versionHashFromParams: (params) =>
+    `${params.moduleLastRun}|${params.datasetsVersion}`,
   parseData: (res) => {
     if (res.success === false) {
       return {
@@ -104,7 +108,7 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
         res.data.projectId,
         res.data.metricId,
       ].join("::"),
-      versionHash: res.data.moduleLastRun,
+      versionHash: `${res.data.moduleLastRun}|${res.data.datasetsVersion}`,
     };
   },
 });

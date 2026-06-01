@@ -2,7 +2,6 @@ import type { ReportSummary } from "lib";
 import { createAITool } from "panther";
 import { z } from "zod";
 import { serverActions } from "~/server_actions";
-import { DraftReportPreview } from "../DraftReportPreview";
 
 function formatReportsListForAI(reports: ReportSummary[]): string {
   if (reports.length === 0) return "No reports exist yet.";
@@ -53,7 +52,7 @@ export function getToolsForReports(
     createAITool({
       name: "create_report",
       description:
-        "Create a new report with a label and a markdown body. Use markdown headings, paragraphs, bold/italic, lists, blockquotes, and tables. Do NOT embed raw HTML or figure/image tokens (figures are added in the editor). Prefer show_draft_report_to_user first so the user can preview before creating.",
+        "Create a new report with a label and a markdown body. Use markdown headings, paragraphs, bold/italic, lists, blockquotes, and tables. Do NOT embed raw HTML or figure/image tokens (figures are added later in the report editor). The user opens the report in the editor to review and edit it — never show a report preview in the chat.",
       inputSchema: z.object({
         label: z.string(),
         markdown: z.string(),
@@ -79,28 +78,6 @@ export function getToolsForReports(
       },
       inProgressLabel: "Creating report...",
       completionMessage: "Created report",
-    }),
-
-    createAITool({
-      name: "show_draft_report_to_user",
-      description:
-        "Show an inline preview of a drafted report (prose markdown) in the chat, with a 'Create report' button so the user can create it. Use this to propose a report before creating. Do NOT include figure/image tokens in the draft — figures are added in the editor after creation.",
-      inputSchema: z.object({
-        label: z.string(),
-        markdown: z.string(),
-      }),
-      handler: async () => "Report draft preview shown to user.",
-      displayComponent: (props: {
-        input: { label: string; markdown: string };
-      }) => (
-        <DraftReportPreview
-          projectId={projectId}
-          label={props.input.label}
-          markdown={props.input.markdown}
-        />
-      ),
-      inProgressLabel: "Creating report preview...",
-      completionMessage: "Report draft preview shown",
     }),
   ];
 }

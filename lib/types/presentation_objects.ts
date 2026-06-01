@@ -95,6 +95,11 @@ export type ResultsValueInfoForPresentationObject = {
   metricId: string;
   projectId: string;
   moduleLastRun: string;
+  // Freshness of the dataset(s) feeding indicator metadata, which labels the
+  // cached disaggregation values. Rewritten on dataset integration (bumps
+  // datasets.last_updated) independently of moduleLastRun, so the cache versions
+  // on it too. Carried here so parseData can reproduce the version hash.
+  datasetsVersion: string;
   periodBounds?: PeriodBounds;
   disaggregationPossibleValues: {
     [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;

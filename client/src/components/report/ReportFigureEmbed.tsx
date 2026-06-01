@@ -17,8 +17,8 @@ type Props = {
   onMeasured?: () => void;
 };
 
-// One reusable FigureBlock -> live ChartHolder embed (editor widget, preview
-// renderImage, and DraftReportPreview all use this). reflow + height="ideal"
+// One reusable FigureBlock -> live ChartHolder embed (editor widget and the
+// View-mode preview renderImage both use this). reflow + height="ideal"
 // per PROTOCOL_ALL_SIZING (editor is a readable surface). Re-hydrates reactively
 // when the figure block changes (e.g. refresh / AI replace of an existing id).
 export function ReportFigureEmbed(props: Props): JSX.Element {
