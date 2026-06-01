@@ -1,3 +1,7 @@
+[1.39.3] [user] [fixed] - Clearer error messages when AI suggests invalid filter values
+[1.39.3] [user] [fixed] - Only relevant indicators are shown when adding datasets
+[1.39.3] [admin] [fixed] - AI error messages now show clearer filter value details
+[1.39.3] [admin] [fixed] - Dataset setup no longer includes indicators without mappings
 [1.39.2] [user] [fixed] - Reports now scroll correctly in view mode
 [1.39.2] [user] [fixed] - Charts update properly after new data imports
 [1.39.2] [admin] [fixed] - Replicant option labels now update after dataset re-integration
