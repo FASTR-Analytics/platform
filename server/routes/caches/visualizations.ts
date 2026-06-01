@@ -122,6 +122,7 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
   },
   {
     moduleLastRun: string;
+    datasetsVersion: string;
   },
   APIResponseWithData<ReplicantOptionsForPresentationObject>
 >("replicant_opts", {
@@ -133,7 +134,8 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
       hashFetchConfig(params.fetchConfig),
     ].join("::");
   },
-  versionHashFromParams: (params) => params.moduleLastRun,
+  versionHashFromParams: (params) =>
+    `${params.moduleLastRun}|${params.datasetsVersion}`,
   parseData: (res) => {
     if (res.success === false) {
       return {
@@ -150,7 +152,7 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
         res.data.replicateBy,
         hashFetchConfig(res.data.fetchConfig),
       ].join("::"),
-      versionHash: res.data.moduleLastRun,
+      versionHash: `${res.data.moduleLastRun}|${res.data.datasetsVersion}`,
     };
   },
 });

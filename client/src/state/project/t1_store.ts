@@ -186,4 +186,16 @@ export function getFormatAsForMetric(metricId: string): "percent" | "number" {
   return metricToFormatAs[metricId] ?? "number";
 }
 
+// Version-key fragment for caches whose value embeds indicator metadata (PO
+// items, metric info, replicant options). indicatorMetadata is rewritten on
+// dataset integration (bumps lastUpdated.datasets) independently of
+// moduleLastRun, so those caches must version on it too. Mirrors the server
+// Valkey version hash (datasets sorted by type, `type:last_updated`).
+export function datasetsVersionKey(pds: ProjectState): string {
+  return Object.keys(pds.lastUpdated.datasets)
+    .sort()
+    .map((dt) => `${dt}:${pds.lastUpdated.datasets[dt]}`)
+    .join(",");
+}
+
 export { projectState };

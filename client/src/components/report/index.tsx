@@ -710,8 +710,8 @@ export function ProjectReport(p: Props) {
         </div>
         {/* Read-only HTML preview — View mode, not during a proposal. */}
         <Show when={mode() === "view" && !pendingProposal()}>
-          <div class="ui-pad-lg min-h-0 flex-1">
-            <div class="bg-base-100 mx-auto h-full w-full max-w-4xl overflow-auto rounded border px-6 py-10">
+          <div class="ui-pad-lg min-h-0 flex-1 overflow-auto">
+            <div class="bg-base-100 mx-auto w-full max-w-4xl rounded border px-6 py-10">
               <MarkdownPresentationJsx
                 markdown={body()}
                 renderImage={renderEmbed}

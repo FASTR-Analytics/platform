@@ -601,6 +601,8 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
       )}: REQUEST received (${filterSummary}, replicateBy: ${body.replicateBy}, moduleLastRun: ${moduleLastRun})`,
     );
 
+    const datasetsVersion = await getDatasetsVersion(c.var.ppk.projectDb);
+
     // Check cache BEFORE queueing
     const existing = await _REPLICANT_OPTIONS_CACHE.get(
       {
@@ -609,7 +611,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         replicateBy: body.replicateBy,
         fetchConfig: body.fetchConfig,
       },
-      { moduleLastRun },
+      { moduleLastRun, datasetsVersion },
     );
 
     if (existing && existing.success === true) {
@@ -674,6 +676,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               replicateBy: body.replicateBy,
               fetchConfig: body.fetchConfig,
               moduleLastRun,
+              datasetsVersion,
               status: "no_values_available" as const,
             },
           };
@@ -690,6 +693,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               replicateBy: body.replicateBy,
               fetchConfig: body.fetchConfig,
               moduleLastRun,
+              datasetsVersion,
               status: "too_many_values" as const,
             },
           };
@@ -704,6 +708,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               replicateBy: body.replicateBy,
               fetchConfig: body.fetchConfig,
               moduleLastRun,
+              datasetsVersion,
               status: "no_values_available" as const,
             },
           };
@@ -717,6 +722,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
             replicateBy: body.replicateBy,
             fetchConfig: body.fetchConfig,
             moduleLastRun,
+            datasetsVersion,
             status: "ok" as const,
             possibleValues: vals,
           },
@@ -731,7 +737,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           replicateBy: body.replicateBy,
           fetchConfig: body.fetchConfig,
         },
-        { moduleLastRun },
+        { moduleLastRun, datasetsVersion },
       );
 
       const res = await newPromise;

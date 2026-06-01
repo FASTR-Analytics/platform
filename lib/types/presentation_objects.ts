@@ -113,6 +113,10 @@ export type ReplicantOptionsForPresentationObject = {
   replicateBy: DisaggregationOption;
   fetchConfig: GenericLongFormFetchConfig;
   moduleLastRun: string;
+  // Replicant value labels come from indicator metadata, rewritten on dataset
+  // integration (bumps datasets.last_updated) independently of moduleLastRun, so
+  // the cache versions on it too. Carried here so parseData can reproduce it.
+  datasetsVersion: string;
 } & (
   | {
       status: "ok";
