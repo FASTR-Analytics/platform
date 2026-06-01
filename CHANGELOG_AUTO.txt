@@ -1,3 +1,28 @@
+[TBD] [user] [added] - Reports section for creating long-form analytical documents
+[TBD] [user] [added] - Markdown editor for writing reports with headings, lists, and tables
+[TBD] [user] [added] - Embed live data figures from saved visualizations into reports
+[TBD] [user] [added] - Embed uploaded images into reports
+[TBD] [user] [added] - Download reports as PDF or Word documents
+[TBD] [user] [added] - Organize reports into color-coded folders
+[TBD] [user] [added] - Duplicate one or multiple reports at once
+[TBD] [user] [added] - Move reports between folders individually or in bulk
+[TBD] [user] [added] - AI assistant can draft, rewrite, and edit reports
+[TBD] [user] [added] - AI can insert live data figures into reports from visualizations
+[TBD] [user] [added] - AI-proposed report edits shown as accept/reject diffs
+[TBD] [user] [added] - AI button added to dashboard editor toolbar
+[TBD] [user] [added] - AI button added to report editor toolbar
+[TBD] [user] [changed] - Dashboard item grid now shows item labels above thumbnails
+[TBD] [user] [changed] - Dashboard item thumbnails now match visualization panel styling
+[TBD] [admin] [added] - Reports module for long-form analytical documents with markdown editing
+[TBD] [admin] [added] - Embed live data figures and images inside reports
+[TBD] [admin] [added] - AI assistant can draft, rewrite, and edit reports
+[TBD] [admin] [added] - AI can insert figures from saved visualizations into reports
+[TBD] [admin] [added] - Export reports as PDF or Word documents
+[TBD] [admin] [added] - Organize reports with folders and color-coded labels
+[TBD] [admin] [added] - Duplicate, move, and bulk-manage reports
+[TBD] [admin] [added] - AI-proposed report edits shown as accept/reject diffs
+[TBD] [admin] [added] - AI button added to dashboard and report editors
+[TBD] [admin] [changed] - Dashboard editor grid now matches visualization panel thumbnail style
 [TBD] [user] [added] - Dashboard items now display as a visual card grid with chart previews
 [TBD] [user] [added] - Select, multi-select, and right-click context menu for dashboard items
 [TBD] [user] [added] - Side panel to edit a selected dashboard item's label and visualization
