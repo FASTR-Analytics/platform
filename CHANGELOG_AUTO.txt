@@ -1,3 +1,12 @@
+[TBD] [user] [changed] - Logo size and spacing options now apply more consistently across slides
+[TBD] [user] [changed] - Removed manual font size sliders for captions, sub-captions, and footnotes
+[TBD] [user] [changed] - Improved default text sizing for captions and sub-captions in figures
+[TBD] [user] [changed] - Tighter line spacing on slide cover headers and dates
+[TBD] [admin] [changed] - Logo sizing now uses simple size labels instead of raw numbers
+[TBD] [admin] [changed] - Existing logo sizing settings automatically migrated to new format
+[TBD] [admin] [changed] - Caption, sub-caption, and footnote font sizes are now standardized
+[TBD] [admin] [changed] - Font size sliders removed from chart text editor panel
+[TBD] [admin] [changed] - Tighter line spacing on slide cover headers and dates
 [TBD] [user] [changed] - Removed the "Scale" slider from visualization style settings
 [TBD] [user] [changed] - Removed the "Scale" slider from dataset chart display options
 [TBD] [user] [changed] - Charts and slides now render more sharply at any size
