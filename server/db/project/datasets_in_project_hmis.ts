@@ -163,7 +163,11 @@ export async function addDatasetHmisToProject(
 COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, HEADER true, FREEZE false)
 `);
     const indicators = await mainDb<DBIndicator[]>`
-SELECT * FROM indicators
+SELECT i.* FROM indicators i
+WHERE EXISTS (
+  SELECT 1 FROM indicator_mappings im
+  WHERE im.indicator_common_id = i.indicator_common_id
+)
     `;
 
     const indicatorIdsInData = new Set(
