@@ -1,3 +1,17 @@
+[TBD] [user] [changed] - Removed the "Scale" slider from visualization style settings
+[TBD] [user] [changed] - Removed the "Scale" slider from dataset chart display options
+[TBD] [user] [changed] - Charts and slides now render more sharply at any size
+[TBD] [user] [changed] - Dashboard grid layout now stacks to single column on smaller screens
+[TBD] [user] [fixed] - Exported images now render at consistent high resolution regardless of screen size
+[TBD] [user] [changed] - Slide text sizes adjusted for improved readability
+[TBD] [admin] [changed] - Removed the "Scale" slider from visualization style settings
+[TBD] [admin] [changed] - Removed the "Scale" slider from dataset display controls
+[TBD] [admin] [changed] - Removed the "figureScale" option from slide deck configuration
+[TBD] [admin] [fixed] - Charts and slides now render at consistent, resolution-independent sizes
+[TBD] [admin] [fixed] - Exported visualizations now render at a fixed high-resolution size
+[TBD] [admin] [fixed] - Public dashboard grid layout now responsive on smaller screens
+[TBD] [admin] [fixed] - Slide previews and thumbnails render more sharply and consistently
+[TBD] [admin] [fixed] - PDF and PowerPoint exports use standardized page dimensions
 [TBD] [user] [fixed] - Dashboard chart no longer reloads when reordering items
 [TBD] [user] [changed] - Renaming dashboard items now uses a cleaner popup dialog
 [TBD] [user] [fixed] - Dashboard preview no longer flickers when switching between items
