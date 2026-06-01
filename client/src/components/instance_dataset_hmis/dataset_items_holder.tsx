@@ -3,7 +3,6 @@ import {
   getAbcQualScale,
   getCalendar,
   t3,
-  TC,
   type IndicatorType,
   type InstanceConfigFacilityColumns,
 } from "lib";
@@ -14,7 +13,6 @@ import {
   FrameLeftResizable,
   MultiSelect,
   RadioGroup,
-  Slider,
   StateHolder,
   StateHolderWrapper,
   getSelectOptionsWithFirstCapital,
@@ -112,7 +110,6 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
   const [vizConfig, setVizConfig] = createStore({
     value: "count" as "count" | "sum",
     figureType: "chart" as "table" | "chart",
-    scale: 1,
     indicators: p.displayItems.indicators.map((ind) => ind.value),
   });
 
@@ -237,16 +234,6 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
             values={vizConfig.indicators}
             onChange={(v) => setVizConfig("indicators", v)}
             showSelectAll
-          />
-          <Slider
-            label={t3(TC.scale)}
-            min={0.1}
-            max={2}
-            step={0.1}
-            value={vizConfig.scale}
-            onChange={(v) => setVizConfig("scale", v)}
-            fullWidth
-            showValueInLabel
           />
         </div>
       }

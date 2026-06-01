@@ -177,11 +177,10 @@ async function fetchPreview(
 ): Promise<StateHolder<FigureInputs>> {
   const presetConfig = structuredClone(unwrap(preset.config));
   const config: PresentationObjectConfig = {
-    d: { ...presetConfig.d },
+    d: presetConfig.d,
     s: {
       ...DEFAULT_S_CONFIG,
       ...presetConfig.s,
-      scale: (presetConfig.s?.scale ?? DEFAULT_S_CONFIG.scale) * 2,
     },
     t: { ...DEFAULT_T_CONFIG },
   };

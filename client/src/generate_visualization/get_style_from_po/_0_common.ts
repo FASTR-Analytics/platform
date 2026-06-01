@@ -33,12 +33,10 @@ const _InternationalInter_800: FontInfo = {
 export const GLOBAL_STYLE_OPTIONS: CustomStyleOptions = {
   baseText: {
     font: { fontFamily: "International Inter", weight: 400, italic: false },
-    fontSize: 24,
     lineHeight: 1.4,
   },
   figure: {
     text: {
-      base: { fontSize: 14 },
       caption: { font: _InternationalInter_800 },
       subCaption: { color: "#959595" },
       footnote: { color: "#959595" },

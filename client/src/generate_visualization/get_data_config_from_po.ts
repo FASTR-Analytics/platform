@@ -1,7 +1,6 @@
 import {
   ChartOHJsonDataConfig,
   ChartOVJsonDataConfig,
-  HeaderItem,
   HeaderSortConfig,
   TableJsonDataConfig,
   TimeseriesJsonDataConfig,
@@ -64,16 +63,12 @@ function getChartIndicatorSort(config: PresentationObjectConfig): HeaderSortConf
 
 // Alphabetical-by-label sort with raw-id positioning for the National sentinels:
 // `__NATIONAL` is forced first, `zzNATIONAL` last; everything else sorts by label.
-// Preserves the prior "sort by raw key" positioning hack under the new
-// HeaderItem-based sort model.
-function nationalAwareSortByLabel(a: HeaderItem, b: HeaderItem): number {
-  const aPri = a.id === "__NATIONAL" ? -1 : a.id === "zzNATIONAL" ? 1 : 0;
-  const bPri = b.id === "__NATIONAL" ? -1 : b.id === "zzNATIONAL" ? 1 : 0;
-  if (aPri !== bPri) {
-    return aPri - bPri;
-  }
-  return a.label.localeCompare(b.label);
-}
+// Declarative so it stays structuredClone-safe inside stored FigureInputs.
+const nationalAwareSortByLabel: HeaderSortConfig = {
+  base: "by-label",
+  first: ["__NATIONAL"],
+  last: ["zzNATIONAL"],
+};
 
 export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { getStage2Sizing } from "../_000_consts/mod.ts";
+export { getStage2Sizing, REFERENCE_WIDTH_DU } from "../_000_consts/mod.ts";
 export type { SizingMode } from "../_000_consts/mod.ts";
 export { capitalizeFirstLetter, clamp, createArray, getSortedAlphabetical, isFrench, normalizeTo01, t3, to100Pct0, toNum0, toPct3 } from "../_000_utils/mod.ts";
 export { Color } from "../_001_color/mod.ts";

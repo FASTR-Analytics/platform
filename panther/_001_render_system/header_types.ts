@@ -15,7 +15,8 @@ export type HeaderSortConfig =
   | "by-label"
   | "by-id"
   | { byIdOrder: string[] }
-  | { byLabelOrder: string[] };
+  | { byLabelOrder: string[] }
+  | { base: "by-label" | "by-id"; first?: string[]; last?: string[] };
 
 export function sortByLabel(a: HeaderItem, b: HeaderItem): number {
   return a.label.localeCompare(b.label);
@@ -49,6 +50,32 @@ export function sortByLabelOrder(order: string[]): HeaderSortFunc {
   };
 }
 
+export function sortByPinned(
+  base: "by-label" | "by-id",
+  first: string[],
+  last: string[],
+): HeaderSortFunc {
+  const baseFunc = base === "by-id" ? sortById : sortByLabel;
+  const firstRank = new Map(first.map((id, i) => [id, i]));
+  const lastRank = new Map(last.map((id, i) => [id, i]));
+  const bucket = (id: string): number =>
+    firstRank.has(id) ? 0 : lastRank.has(id) ? 2 : 1;
+  return (a, b) => {
+    const ab = bucket(a.id);
+    const bb = bucket(b.id);
+    if (ab !== bb) {
+      return ab - bb;
+    }
+    if (ab === 0) {
+      return firstRank.get(a.id)! - firstRank.get(b.id)!;
+    }
+    if (ab === 2) {
+      return lastRank.get(a.id)! - lastRank.get(b.id)!;
+    }
+    return baseFunc(a, b);
+  };
+}
+
 export function resolveSortFunc(
   config: HeaderSortConfig | undefined,
 ): HeaderSortFunc | undefined {
@@ -69,6 +96,9 @@ export function resolveSortFunc(
   }
   if ("byLabelOrder" in config) {
     return sortByLabelOrder(config.byLabelOrder);
+  }
+  if ("base" in config) {
+    return sortByPinned(config.base, config.first ?? [], config.last ?? []);
   }
   throw new Error("Invalid sort config");
 }

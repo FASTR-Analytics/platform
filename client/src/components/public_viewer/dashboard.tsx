@@ -191,7 +191,7 @@ export type GridLayoutProps = {
 
 export function GridLayout(p: GridLayoutProps) {
   return (
-    <div class="ui-gap ui-pad grid grid-cols-2 content-start overflow-auto">
+    <div class="ui-gap ui-pad grid content-start overflow-auto lg:grid-cols-2">
       <For each={p.items}>
         {(item) => (
           <div class="border-base-300 ui-pad aspect-video rounded border">
@@ -222,19 +222,10 @@ export function DashboardItemChart(p: DashboardItemChartProps) {
       p.source,
       p.geoData,
     );
-  const scaledFi = (): FigureInputs => {
-    const originalFi = fi();
-    return {
-      ...originalFi,
-      style: {
-        ...originalFi.style,
-      },
-    };
-  };
   return (
     <ChartHolder
       canvasElementId={`${CANVAS_ID}_${p.itemId}`}
-      chartInputs={scaledFi()}
+      chartInputs={fi()}
       height={"flex"}
     />
   );

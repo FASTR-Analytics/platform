@@ -1,5 +1,6 @@
 import { trackStore } from "@solid-primitives/deep";
 import {
+  FIGURE_EXPORT_WIDTH_PX,
   ItemsHolderPresentationObject,
   PresentationObjectConfig,
   PresentationObjectDetail,
@@ -26,6 +27,7 @@ import {
   downloadCsv,
   downloadJson,
   getEditorWrapper,
+  getFigureAsCanvas,
   openAlert,
   openComponent,
   saveAs,
@@ -500,16 +502,29 @@ export function VisualizationEditorInner(p: InnerProps) {
       });
       return;
     }
-    const canvas = window.document.getElementById(
-      "CANVAS_FOR_DOWNLOADING",
-    ) as HTMLCanvasElement;
-    if (!canvas) {
-      await openAlert({
-        text: "Could not get canvas",
-        intent: "danger",
-      });
+    const ih = itemsHolder();
+    if (ih.status !== "ready" || ih.data.ih.status !== "ok") {
+      await openAlert({ text: "Could not get figure", intent: "danger" });
       return;
     }
+    const figureInputsResult = getFigureInputsFromPresentationObject(
+      p.poDetail.resultsValue,
+      ih.data.ih,
+      ih.data.config,
+      ih.data.geoJson,
+    );
+    if (figureInputsResult.status !== "ready") {
+      await openAlert({ text: "Could not get figure", intent: "danger" });
+      return;
+    }
+    // Render the figure at the canonical 1000-DU frame, supersampled to a fixed
+    // export resolution — not the on-screen (reflow) canvas, which is only
+    // container width. (getFigureAsCanvas fills white, so the "transparent"
+    // download option yields white until panther offers a transparent flag.)
+    const canvas = getFigureAsCanvas(
+      figureInputsResult.data,
+      FIGURE_EXPORT_WIDTH_PX,
+    );
     const replicateBy = getReplicateByProp(tempConfig);
     const res = await openComponent({
       element: DownloadPresentationObject,
@@ -952,7 +967,6 @@ export function VisualizationEditorInner(p: InnerProps) {
                                   {(keyedFigureInputs) => {
                                     return (
                                       <ChartHolder
-                                        canvasElementId="CANVAS_FOR_DOWNLOADING"
                                         chartInputs={keyedFigureInputs}
                                         height={editorHeight()}
                                       />

@@ -228,7 +228,6 @@ export function DraftVisualizationPreview(p: Props) {
                     projectId={p.projectId}
                     presentationObjectId={vizFigure().visualizationId}
                     shapeType="force-aspect-video"
-                    scalePixelResolution={0.2}
                     repliantOverride={
                       vizFigure().replicant
                         ? { selectedReplicantValue: vizFigure().replicant! }
@@ -247,7 +246,6 @@ export function DraftVisualizationPreview(p: Props) {
               <div class="pointer-events-none">
                 <FigureStateWrapper
                   state={figureState()}
-                  scalePixelResolution={0.2}
                 />
               </div>
             </div>
@@ -281,7 +279,6 @@ export function DraftVisualizationPreview(p: Props) {
 
 type FigureStateWrapperProps = {
   state: StateHolder<FigureInputs>;
-  scalePixelResolution?: number;
 };
 
 function FigureStateWrapper(p: FigureStateWrapperProps) {
@@ -359,7 +356,6 @@ function ExpandedVizModal(p: AlertComponentProps<ExpandedVizModalProps, void>) {
       {/* <div style={{ width: "min(80vw, 1200px)" }}> */}
       <FigureStateWrapper
         state={{ status: "ready" as const, data: p.figureInputs }}
-        scalePixelResolution={0.5}
       />
       {/* </div> */}
     </ModalContainer>

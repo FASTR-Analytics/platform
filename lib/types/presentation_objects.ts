@@ -284,7 +284,6 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
 
 export type ReplicantValueOverride = {
   selectedReplicantValue?: string;
-  additionalScale?: number;
   hideFigureCaption?: boolean;
   hideFigureSubCaption?: boolean;
   hideFigureFootnote?: boolean;

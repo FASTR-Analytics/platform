@@ -9,7 +9,7 @@ import type {
   SlideDeckConfig,
   SlideType,
 } from "lib";
-import { getSlideTitle, t3, TC, getReplicateByProp, type PresentationObjectConfig } from "lib";
+import { getSlideTitle, t3, TC, getReplicateByProp, type PresentationObjectConfig, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import type {
   DividerDragUpdate,
   LayoutItemSwapUpdate,
@@ -27,7 +27,6 @@ import {
   PageInputs,
   Select,
   StateHolder,
-  REFERENCE_WIDTH_DU,
   applyDividerDragUpdate,
   findNodeInDraft,
   createItemNode,
@@ -174,6 +173,26 @@ export function SlideEditor(p: Props) {
   });
 
   onMount(() => {
+    // FUZZ DEBUG: read the settled canvas backing vs displayed size a few times,
+    // since onMeasured won't re-fire when the canvas resizes itself.
+    [200, 600, 1500, 3000].forEach((ms) =>
+      setTimeout(() => {
+        const c = document.getElementById(
+          "SLIDE_EDITOR_CANVAS",
+        ) as HTMLCanvasElement | null;
+        if (!c) return;
+        const r = c.getBoundingClientRect();
+        const dpr = globalThis.devicePixelRatio || 1;
+        console.log(`=== SLIDE FUZZ DEBUG @${ms}ms ===`, {
+          backingW: c.width,
+          displayW: Math.round(r.width),
+          dpr,
+          shouldBeBackingW: Math.round(r.width * dpr),
+          ratio_backing_over_display: +(c.width / r.width).toFixed(2),
+          undersized: c.width < Math.round(r.width * dpr),
+        });
+      }, ms)
+    );
     attemptGetPageInputs(unwrap(tempSlide));
     setAIContext({
       mode: "editing_slide",
@@ -878,9 +897,8 @@ export function SlideEditor(p: Props) {
                   <PageHolder
                     pageInputs={keyedPageInputs}
                     canvasElementId="SLIDE_EDITOR_CANVAS"
-                    fixedCanvasH={Math.round(
-                      (REFERENCE_WIDTH_DU * 9) / 16,
-                    )}
+                    pageWidthDu={PAGE_WIDTH_DU}
+                    pageHeightDu={PAGE_HEIGHT_DU}
                     fitWithin={true}
                     hoverStyle={{
                       fillColor: "rgba(0, 112, 243, 0.1)",
@@ -909,6 +927,25 @@ export function SlideEditor(p: Props) {
                       }
                     }}
                     onMeasured={(mPage) => {
+                      const c = document.getElementById(
+                        "SLIDE_EDITOR_CANVAS",
+                      ) as HTMLCanvasElement | null;
+                      if (c) {
+                        const r = c.getBoundingClientRect();
+                        const dpr = globalThis.devicePixelRatio || 1;
+                        console.log("=== SLIDE FUZZ DEBUG ===", {
+                          backingW: c.width,
+                          backingH: c.height,
+                          displayW: Math.round(r.width),
+                          displayH: Math.round(r.height),
+                          dpr,
+                          shouldBeBackingW: Math.round(r.width * dpr),
+                          ratio_backing_over_display: +(c.width / r.width).toFixed(
+                            2,
+                          ),
+                          undersized: c.width < Math.round(r.width * dpr),
+                        });
+                      }
                       const mLayout = (mPage as any).mLayout;
                       if (!mLayout) return;
                       console.log("=== LAYOUT TREE ===");

@@ -61,7 +61,7 @@ const _DS = {
       background: "none",
     } as SplitConfig,
     header: {
-      padding: [40, 60] as PaddingOptions,
+      padding: [10, 15] as PaddingOptions,
       logosSizing: {
         targetArea: 90000,
         maxHeight: 10000,

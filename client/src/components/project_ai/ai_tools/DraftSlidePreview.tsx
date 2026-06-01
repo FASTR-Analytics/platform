@@ -1,7 +1,8 @@
 import {
   t3,
   getStartingConfigForSlideDeck,
-  
+  PAGE_HEIGHT_DU,
+  PAGE_WIDTH_DU,
   type AiSlideInput,
   type MetricWithStatus,
   type Slide,
@@ -14,7 +15,6 @@ import {
   ModalContainer,
   openComponent,
   PageHolder,
-  REFERENCE_WIDTH_DU,
 } from "panther";
 import { createSignal, ErrorBoundary, Match, onMount, Show, Switch } from "solid-js";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
@@ -23,8 +23,6 @@ import { useAIProjectContext } from "~/components/project_ai/context";
 import { projectState } from "~/state/project/t1_store";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
-
-const CANVAS_H = Math.round((REFERENCE_WIDTH_DU * 9) / 16);
 
 type SlideState = {
   pageInputs: PageInputs;
@@ -134,7 +132,6 @@ export function DraftSlidePreview(p: Props) {
           <div class="pointer-events-none">
             <SlideStateWrapper
               state={slideState()}
-              scalePixelResolution={0.2}
             />
           </div>
         </div>
@@ -159,7 +156,6 @@ export function DraftSlidePreview(p: Props) {
 
 type SlideStateWrapperProps = {
   state: StateHolder<SlideState>;
-  scalePixelResolution?: number;
 };
 
 function SlideStateWrapper(p: SlideStateWrapperProps) {
@@ -179,7 +175,8 @@ function SlideStateWrapper(p: SlideStateWrapperProps) {
         <div class="aspect-video overflow-hidden">
           <PageHolder
             pageInputs={(p.state as { data: SlideState }).data.pageInputs}
-            fixedCanvasH={CANVAS_H}
+            pageWidthDu={PAGE_WIDTH_DU}
+            pageHeightDu={PAGE_HEIGHT_DU}
           />
         </div>
       </Match>
@@ -218,7 +215,8 @@ function ExpandedSlideModal(
       <div class="border-base-300 aspect-video overflow-hidden rounded border">
         <PageHolder
           pageInputs={p.pageInputs}
-          fixedCanvasH={CANVAS_H}
+          pageWidthDu={PAGE_WIDTH_DU}
+          pageHeightDu={PAGE_HEIGHT_DU}
         />
       </div>
     </ModalContainer>

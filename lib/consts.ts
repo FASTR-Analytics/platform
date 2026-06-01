@@ -159,6 +159,15 @@ export const MAX_CONTENT_BLOCKS = 3;
 export const SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET = "50-100";
 export const SLIDE_TEXT_TOTAL_WORD_COUNT_MAX = 180;
 
-// Autofit configuration for markdown and figures
-export const MARKDOWN_AUTOFIT = { minScale: 0.2, maxScale: 1 } as const;
-export const FIGURE_AUTOFIT = { minScale: 0.3, maxScale: 1 } as const;
+// Output pixel width for downloading a single figure as a PNG. The figure is
+// laid out at the canonical REFERENCE_WIDTH_DU frame and supersampled to this.
+export const FIGURE_EXPORT_WIDTH_PX = 1920;
+
+// The deck's zoom-frame geometry, in DUs. PAGE_WIDTH_DU is wider than the
+// default REFERENCE_WIDTH_DU (1000) for a roomier page without retuning styles.
+// One source of truth: every slide/page surface (PageHolder on screen, AI layout
+// optimization, and all deck exports) reads these — never recompute the aspect
+// inline. Screen and export stay in lockstep because they read the same values.
+export const PAGE_ASPECT = 9 / 16;
+export const PAGE_WIDTH_DU = 1300;
+export const PAGE_HEIGHT_DU = Math.round(PAGE_WIDTH_DU * PAGE_ASPECT);

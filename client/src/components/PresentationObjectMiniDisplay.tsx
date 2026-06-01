@@ -12,7 +12,6 @@ type Props = {
   onClick?: () => void;
   shapeType: "ideal" | "force-aspect-video";
   repliantOverride?: ReplicantValueOverride;
-  scalePixelResolution?: number;
 };
 
 export function PresentationObjectMiniDisplay(p: Props) {
@@ -46,7 +45,6 @@ export function PresentationObjectMiniDisplay(p: Props) {
       moduleId={p.moduleId}
       shapeType={p.shapeType}
       onClick={p.onClick}
-      scalePixelResolution={p.scalePixelResolution}
     />
   );
 }
@@ -65,7 +63,6 @@ type PresentationObjectMiniDisplayStateHolderWrapperProps = {
       };
   onClick?: () => void;
   shapeType: "ideal" | "force-aspect-video";
-  scalePixelResolution?: number;
 };
 
 function PresentationObjectMiniDisplayStateHolderWrapper(

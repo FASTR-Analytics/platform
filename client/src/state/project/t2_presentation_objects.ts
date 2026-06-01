@@ -127,10 +127,6 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
   const configWithReplicateOverride: PresentationObjectConfig = structuredClone(
     readyPoDetail.data.config,
   );
-  if (replicateOverride?.additionalScale) {
-    configWithReplicateOverride.s.scale =
-      configWithReplicateOverride.s.scale * replicateOverride.additionalScale;
-  }
   const replicateBy = getReplicateByProp(configWithReplicateOverride);
   if (
     replicateBy &&

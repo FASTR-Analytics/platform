@@ -1,5 +1,5 @@
 import { PresentationObjectConfig, PresentationObjectDetail, t3 } from "lib";
-import { Checkbox, LabelHolder, Slider, toNum0 } from "panther";
+import { Checkbox, LabelHolder, Slider } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { StyleRevealGroup } from "./_style_components";
@@ -14,21 +14,6 @@ type SharedTopProps = {
 export function SharedControlsTop(p: SharedTopProps) {
   return (
     <>
-      <Slider
-        label={t3({ en: "Scale", fr: "Échelle" })}
-        min={0.1}
-        max={5}
-        step={0.1}
-        value={p.tempConfig.s.scale}
-        onChange={(v) => p.setTempConfig("s", "scale", v)}
-        fullWidth
-        showValueInLabel
-        ticks={{
-          major: [0.1, 1, 2, 3, 4, 5],
-          showLabels: true,
-          labelFormatter: toNum0,
-        }}
-      />
       <Show when={p.usingCells()}>
         <LabelHolder
           label={t3({

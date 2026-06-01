@@ -33,9 +33,9 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [60, 80],
-        paddingIfBordered: [60, 80],
-        paddingIfNone: [60, 80, 0, 80],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [20, 30, 0, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 80000,
@@ -48,9 +48,9 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [45, 80],
-        paddingIfBordered: [45, 80],
-        paddingIfNone: [45, 80],
+        paddingIfFilled: [15, 30],
+        paddingIfBordered: [15, 30],
+        paddingIfNone: [10, 30, 15, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 60000,
@@ -59,7 +59,7 @@ const LAYOUT_PRESETS = {
           gapX: 80,
         },
       },
-      content: { padding: [60, 80], gapX: 100, gapY: 80 },
+      content: { padding: [20, 30], gapX: 30, gapY: 20 },
     },
   },
   modern: {
@@ -89,9 +89,9 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [60, 80],
-        paddingIfBordered: [60, 80],
-        paddingIfNone: [60, 80, 0, 80],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [20, 30, 0, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 70000,
@@ -104,9 +104,9 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [45, 80],
-        paddingIfBordered: [45, 80],
-        paddingIfNone: [45, 80],
+        paddingIfFilled: [15, 30],
+        paddingIfBordered: [15, 30],
+        paddingIfNone: [10, 30, 15, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 55000,
@@ -115,7 +115,7 @@ const LAYOUT_PRESETS = {
           gapX: 40,
         },
       },
-      content: { padding: [60, 80], gapX: 100, gapY: 80 },
+      content: { padding: [20, 30], gapX: 30, gapY: 20 },
     },
   },
   corporate: {
@@ -145,9 +145,9 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [60, 80],
-        paddingIfBordered: [60, 80],
-        paddingIfNone: [60, 80, 0, 80],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [20, 30, 0, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 75000,
@@ -160,9 +160,9 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [45, 80],
-        paddingIfBordered: [45, 80],
-        paddingIfNone: [45, 80],
+        paddingIfFilled: [15, 30],
+        paddingIfBordered: [15, 30],
+        paddingIfNone: [10, 30, 15, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 58000,
@@ -171,7 +171,7 @@ const LAYOUT_PRESETS = {
           gapX: 60,
         },
       },
-      content: { padding: [60, 80], gapX: 100, gapY: 80 },
+      content: { padding: [20, 30], gapX: 30, gapY: 20 },
     },
   },
   split: {
@@ -203,9 +203,9 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [60, 80],
-        paddingIfBordered: [60, 80],
-        paddingIfNone: [60, 80, 0, 80],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [20, 30, 0, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 75000,
@@ -218,9 +218,9 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [45, 80],
-        paddingIfBordered: [45, 80],
-        paddingIfNone: [45, 80],
+        paddingIfFilled: [15, 30],
+        paddingIfBordered: [15, 30],
+        paddingIfNone: [10, 30, 15, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 58000,
@@ -229,7 +229,7 @@ const LAYOUT_PRESETS = {
           gapX: 60,
         },
       },
-      content: { padding: [60, 80], gapX: 100, gapY: 80 },
+      content: { padding: [20, 30], gapX: 30, gapY: 20 },
     },
   },
 } as const satisfies Record<string, LayoutPresetConfig>;

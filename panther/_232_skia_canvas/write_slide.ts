@@ -10,16 +10,24 @@ import {
   type PageInputs,
   PageRenderer,
   RectCoordsDims,
-  REFERENCE_WIDTH_DU,
 } from "./deps.ts";
 import { registerFontWithSkiaIfNeeded } from "./register_font.ts";
 import { createCanvasRenderContext, writeCanvas } from "./utils.ts";
-import type { ExportSizeOptions } from "./write_figure.ts";
+
+// Slide export sizing. A slide renders the page's fixed DU frame
+// (pageWidthDu × pageHeightDu) — the same frame the on-screen PageHolder and the
+// pdf/pptx exports use. `outputWidthPx` is the file's pixel width (the
+// supersample); the pixel height follows the frame aspect.
+export type SlideExportSizeOptions = {
+  outputWidthPx: number;
+  pageWidthDu: number;
+  pageHeightDu: number;
+};
 
 export async function writeSlide(
   filePath: string,
   inputs: PageInputs,
-  opts: ExportSizeOptions,
+  opts: SlideExportSizeOptions,
 ): Promise<void> {
   if (!inputs) {
     throw new Error("Slide inputs are required");
@@ -28,7 +36,8 @@ export async function writeSlide(
   const canvas = await getSlideAsCanvas(
     inputs,
     opts.outputWidthPx,
-    opts.outputHeightPx,
+    opts.pageWidthDu,
+    opts.pageHeightDu,
   );
   writeCanvas(filePath, canvas);
 }
@@ -36,7 +45,7 @@ export async function writeSlide(
 export async function writeSlides(
   dirPath: string,
   inputs: PageInputs[],
-  opts: ExportSizeOptions,
+  opts: SlideExportSizeOptions,
 ): Promise<void> {
   if (!inputs) {
     throw new Error("Slide inputs are required");
@@ -50,7 +59,8 @@ export async function writeSlides(
     const canvas = await getSlideAsCanvas(
       inputs[i],
       opts.outputWidthPx,
-      opts.outputHeightPx,
+      opts.pageWidthDu,
+      opts.pageHeightDu,
       i + 1,
     );
     writeCanvas(filePath, canvas);
@@ -60,7 +70,8 @@ export async function writeSlides(
 async function getSlideAsCanvas(
   inputs: PageInputs,
   outputWidthPx: number,
-  outputHeightPx?: number,
+  pageWidthDu: number,
+  pageHeightDu: number,
   slideNumber?: number,
 ): Promise<Canvas> {
   // Register fonts
@@ -69,25 +80,16 @@ async function getSlideAsCanvas(
     await registerFontWithSkiaIfNeeded(font);
   }
 
-  const devicePxPerDu = getExportDevicePxPerDu(outputWidthPx);
-
-  // Pages are always laid out zoom at the reference frame width.
-  let frameHDu: number;
-  if (outputHeightPx === undefined) {
-    const { rc } = createCanvasRenderContext(REFERENCE_WIDTH_DU, 100);
-    frameHDu =
-      PageRenderer.getIdealHeight(rc, REFERENCE_WIDTH_DU, inputs).idealH;
-  } else {
-    frameHDu = outputHeightPx / devicePxPerDu;
-  }
-
-  const backingW = Math.round(REFERENCE_WIDTH_DU * devicePxPerDu); // === outputWidthPx
-  const backingH = Math.round(frameHDu * devicePxPerDu);
+  // Pages are always zoom: lay out in the fixed (pageWidthDu × pageHeightDu)
+  // frame. outputWidthPx is the supersample; the backing height follows aspect.
+  const devicePxPerDu = getExportDevicePxPerDu(outputWidthPx, pageWidthDu);
+  const backingW = Math.round(pageWidthDu * devicePxPerDu); // === outputWidthPx
+  const backingH = Math.round(pageHeightDu * devicePxPerDu);
 
   const { canvas, rc } = createCanvasRenderContext(backingW, backingH);
   const ctx = canvas.getContext("2d")!;
   ctx.setTransform(devicePxPerDu, 0, 0, devicePxPerDu, 0, 0);
-  const rcd = new RectCoordsDims([0, 0, REFERENCE_WIDTH_DU, frameHDu]);
+  const rcd = new RectCoordsDims([0, 0, pageWidthDu, pageHeightDu]);
 
   const mSlide = await PageRenderer.measure(rc, rcd, inputs);
 

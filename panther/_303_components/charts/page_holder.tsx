@@ -65,9 +65,13 @@ export type DividerDragUpdate = {
 type Props = {
   pageInputs?: PageInputs;
   canvasElementId?: string;
-  // Page-box height in DUs (in the REFERENCE_WIDTH_DU frame). Pages are always
-  // laid out zoom: frame = REFERENCE_WIDTH_DU × fixedCanvasH.
-  fixedCanvasH: number;
+  // The page's DU frame (Stage 1: zoom). The page always lays out zoom, in a
+  // frame pageWidthDu wide by pageHeightDu tall — pass both as a matched aspect
+  // pair. Use REFERENCE_WIDTH_DU (1000) for the default frame, or widen it for a
+  // roomier canvas without retuning styles (this breaks cross-page text
+  // consistency by design — see PROTOCOL_ALL_SIZING.md).
+  pageWidthDu: number;
+  pageHeightDu: number;
   fitWithin?: boolean;
   simpleError?: boolean;
   externalError?: string;
@@ -126,20 +130,21 @@ export function PageHolder(p: Props) {
   const [dragState, setDragState] = createSignal<DragState | undefined>();
   const [fontsLoaded, setFontsLoaded] = createSignal(false);
 
-  // P2/P3: one reactive source of truth for Stage-2 sizing. The displayed width
-  // is read from the CANVAS rect (letterboxed in fitWithin mode → narrower than
-  // div), and both the main and overlay effects read this same memo.
+  // One reactive source of truth for Stage-2 sizing. The displayed width comes
+  // from readDisplayedW (derived from the div, letterboxed in fitWithin mode);
+  // both the main and overlay effects read this same memo.
   const [displayedW, setDisplayedW] = createSignal(0);
   const dims = createMemo(() => {
     const dw = displayedW();
     const dpr = globalThis.devicePixelRatio || 1;
-    const frameH = p.fixedCanvasH; // DU height in the REFERENCE_WIDTH_DU frame
+    const frameH = p.pageHeightDu; // DU height in the pageWidthDu frame
     const { frameWidthDu: frameW, backingWidthPx: backingW, devicePxPerDu } =
       getStage2Sizing({
         sizing: "zoom",
         displayedWidthPx: dw,
         devicePixelRatio: dpr,
         resolution: p.resolution ?? 1,
+        referenceWidthDu: p.pageWidthDu,
       });
     const backingH = Math.round(frameH * devicePxPerDu);
     return { dw, frameW, frameH, backingW, backingH, devicePxPerDu };
@@ -196,6 +201,31 @@ export function PageHolder(p: Props) {
     });
   });
 
+  // Displayed canvas width, derived from the div — the element we observe — not
+  // the canvas's own rect. Under fitWithin the canvas is letterboxed, so its rect
+  // is backing-driven (sizing the backing from it is circular, and in the
+  // height-bound regime the div never re-fires to correct it). The div is always
+  // container-driven, so observing and reading the same box keeps the backing in
+  // lockstep with what's painted. A w-full (non-fitWithin) canvas just fills the
+  // div width.
+  function readDisplayedW(): number {
+    const rect = div.getBoundingClientRect();
+    if (rect.width === 0) {
+      return 0;
+    }
+    if (!p.fitWithin) {
+      return rect.width;
+    }
+    if (rect.height === 0) {
+      return 0;
+    }
+    // Letterbox to the page aspect (pageWidthDu : pageHeightDu).
+    return Math.min(
+      rect.width,
+      (rect.height * p.pageWidthDu) / p.pageHeightDu,
+    );
+  }
+
   onMount(() => {
     mainCanvasTrackingId = trackCanvas(mainCanvas, "PageHolder-main");
     if (needsInteractive) {
@@ -206,21 +236,16 @@ export function PageHolder(p: Props) {
       document.addEventListener("keydown", handleKeyDown);
     }
 
-    // P1 + P2: PageHolder now needs a ResizeObserver (it had none). Observe the
-    // div for the trigger; read the canvas rect for the value (no feedback loop:
-    // canvas aspect is fixed at frameW:frameH regardless of backing magnitude).
+    // Observe the div and read the div (same element) — see readDisplayedW.
     let resizeTimer: ReturnType<typeof setTimeout> | undefined;
     const ro = new ResizeObserver(() => {
       if (resizeTimer !== undefined) {
         clearTimeout(resizeTimer);
       }
-      resizeTimer = setTimeout(
-        () => setDisplayedW(mainCanvas.getBoundingClientRect().width),
-        10,
-      );
+      resizeTimer = setTimeout(() => setDisplayedW(readDisplayedW()), 10);
     });
     ro.observe(div);
-    setDisplayedW(mainCanvas.getBoundingClientRect().width); // initial
+    setDisplayedW(readDisplayedW()); // initial
 
     onCleanup(() => {
       ro.disconnect();

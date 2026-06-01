@@ -62,7 +62,6 @@ export type SlideDeckConfig = {
   label: string;
   selectedReplicantValue: undefined | string;
   logos: LogosConfig;
-  figureScale: number;
   globalFooterText: string | undefined;
   showPageNumbers: boolean;
   headerSize: number;
@@ -129,7 +128,6 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
       header: { selected: [], showByDefault: true },
       footer: { selected: [], showByDefault: true },
     },
-    figureScale: 2,
     globalFooterText: undefined,
     showPageNumbers: true,
     headerSize: 1,

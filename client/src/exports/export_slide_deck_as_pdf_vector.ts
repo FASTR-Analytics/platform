@@ -2,11 +2,10 @@ import {
   APIResponseNoData,
   RectCoordsDims,
   PageRenderer,
-  REFERENCE_WIDTH_DU,
   createPdfRenderContextWithFontsBrowser,
   type FontInfo,
 } from "panther";
-import { type Slide, getAllSlideFontVariants } from "lib";
+import { type Slide, getAllSlideFontVariants, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { convertSlideToPageInputs } from "../generate_slide_deck/convert_slide_to_page_inputs";
@@ -33,8 +32,8 @@ export async function exportSlideDeckAsPdfVector(
       return resDeckDetail;
     }
 
-    const pdfW = REFERENCE_WIDTH_DU;
-    const pdfH = Math.round((pdfW * 9) / 16);
+    const pdfW = PAGE_WIDTH_DU;
+    const pdfH = PAGE_HEIGHT_DU;
     const pdfOrientation = "landscape";
 
     const fontFamily = resDeckDetail.data.config.fontFamily ?? "International Inter";

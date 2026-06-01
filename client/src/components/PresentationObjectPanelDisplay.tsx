@@ -953,7 +953,6 @@ function VisualizationCard(p: VisualizationCardProps) {
               p.metrics.find((m) => m.id === p.po.metricId)?.moduleId ?? ""
             }
             shapeType={"force-aspect-video"}
-            scalePixelResolution={0.2}
           />
         </div>
       </Show>

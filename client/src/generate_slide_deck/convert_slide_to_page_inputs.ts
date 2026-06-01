@@ -1,44 +1,43 @@
 import type {
-  Slide,
   ContentBlock,
-  ContentSlide,
-  SlideDeckConfig,
   CoverSlide,
-  SectionSlide,
-  LogoVisibility,
-  SlideFontFamily,
   DeckStyleContext,
+  LogoVisibility,
+  SectionSlide,
+  Slide,
+  SlideDeckConfig,
+  SlideFontFamily,
 } from "lib";
 import {
-  FIGURE_AUTOFIT,
-  getTextColorForBackground,
-  MARKDOWN_AUTOFIT,
-  _SLIDE_BACKGROUND_COLOR,
   _CF_RED,
-  resolveColorThemeToPreset,
-  getSlideFontInfo,
-  getLetterSpacing,
+  _SLIDE_BACKGROUND_COLOR,
   createDeckStyleContext,
+  getLetterSpacing,
+  getSlideFontInfo,
+  getTextColorForBackground,
+  resolveColorThemeToPreset,
 } from "lib";
 import type {
   APIResponseWithData,
-  PageInputs,
-  PageContentItem,
-  LayoutNode,
   ContainerStyleOptions,
   CustomPageStyleOptions,
   FigureInputs,
   FontInfo,
   ImageInputs,
+  LayoutNode,
+  PageContentItem,
+  PageInputs,
   PatternConfig,
   SplitConfig,
-  ColorPreset,
 } from "panther";
-import { resolvePageStyle } from "panther";
-import { hydrateFigureInputsForRendering, figureSourceToHydrationSource } from "~/generate_visualization/mod";
+import { getBaseText, resolvePageStyle } from "panther";
+import {
+  figureSourceToHydrationSource,
+  hydrateFigureInputsForRendering,
+} from "~/generate_visualization/mod";
+import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
 import { getBackgroundDetail } from "./get_overlay_image";
-import { _SERVER_HOST } from "~/server_actions";
 
 export const FASTR_LOGOS = [
   {
@@ -62,7 +61,10 @@ function getFont(
   return getSlideFontInfo(fontFamily, bold ?? defaultBold, italic ?? false);
 }
 
-function getSlideSplit(slide: Slide, primaryColor: string): SplitConfig | undefined {
+function getSlideSplit(
+  slide: Slide,
+  primaryColor: string,
+): SplitConfig | undefined {
   if (slide.type !== "content" || !slide.split) return undefined;
   const { placement, sizeAsPct, fill } = slide.split;
   const size = sizeAsPct / 100;
@@ -113,81 +115,118 @@ export function buildStyleForSlide(
   return {
     text: {
       coverTitle: {
-        font: getFont(fontFamily, coverFontSizes.titleBold, coverFontSizes.titleItalic, true),
+        font: getFont(
+          fontFamily,
+          coverFontSizes.titleBold,
+          coverFontSizes.titleItalic,
+          true,
+        ),
         color: presetStyle.text!.coverTitle!.color,
-        relFontSize: coverFontSizes.titleTextRelFontSize ?? 10,
+        relFontSize: (coverFontSizes.titleTextRelFontSize ?? 10) / 2,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1,
       },
       coverSubTitle: {
-        font: getFont(fontFamily, coverFontSizes.subTitleBold, coverFontSizes.subTitleItalic, false),
+        font: getFont(
+          fontFamily,
+          coverFontSizes.subTitleBold,
+          coverFontSizes.subTitleItalic,
+          false,
+        ),
         color: presetStyle.text!.coverSubTitle!.color,
-        relFontSize: coverFontSizes.subTitleTextRelFontSize ?? 6,
+        relFontSize: (coverFontSizes.subTitleTextRelFontSize ?? 6) / 2,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.1,
       },
       coverAuthor: {
-        font: getFont(fontFamily, coverFontSizes.presenterBold, coverFontSizes.presenterItalic, true),
+        font: getFont(
+          fontFamily,
+          coverFontSizes.presenterBold,
+          coverFontSizes.presenterItalic,
+          true,
+        ),
         color: presetStyle.text!.coverAuthor!.color,
-        relFontSize: coverFontSizes.presenterTextRelFontSize ?? 4,
+        relFontSize: (coverFontSizes.presenterTextRelFontSize ?? 4) / 2,
         lineHeight: 1.2,
       },
       coverDate: {
-        font: getFont(fontFamily, coverFontSizes.dateBold, coverFontSizes.dateItalic, false),
+        font: getFont(
+          fontFamily,
+          coverFontSizes.dateBold,
+          coverFontSizes.dateItalic,
+          false,
+        ),
         color: presetStyle.text!.coverDate!.color,
-        relFontSize: coverFontSizes.dateTextRelFontSize ?? 3,
+        relFontSize: (coverFontSizes.dateTextRelFontSize ?? 3) / 2,
         lineHeight: 1.1,
       },
       sectionTitle: {
-        font: getFont(fontFamily, sectionFontSizes.sectionTitleBold, sectionFontSizes.sectionTitleItalic, true),
+        font: getFont(
+          fontFamily,
+          sectionFontSizes.sectionTitleBold,
+          sectionFontSizes.sectionTitleItalic,
+          true,
+        ),
         color: presetStyle.text!.sectionTitle!.color,
-        relFontSize: sectionFontSizes.sectionTextRelFontSize ?? 8,
+        relFontSize: (sectionFontSizes.sectionTextRelFontSize ?? 8) / 2,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.05,
       },
       sectionSubTitle: {
-        font: getFont(fontFamily, sectionFontSizes.sectionSubTitleBold, sectionFontSizes.sectionSubTitleItalic, false),
+        font: getFont(
+          fontFamily,
+          sectionFontSizes.sectionSubTitleBold,
+          sectionFontSizes.sectionSubTitleItalic,
+          false,
+        ),
         color: presetStyle.text!.sectionSubTitle!.color,
-        relFontSize: sectionFontSizes.smallerSectionTextRelFontSize ?? 5,
+        relFontSize: (sectionFontSizes.smallerSectionTextRelFontSize ?? 5) / 2,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.1,
       },
       header: {
         font: getFont(fontFamily, undefined, undefined, true),
         color: presetStyle.text!.header!.color,
-        relFontSize: 5.5,
+        relFontSize: 3.5,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1,
       },
       subHeader: {
         font: getFont(fontFamily, undefined, undefined, false),
         color: presetStyle.text!.subHeader!.color,
-        relFontSize: 3.5,
+        relFontSize: 2,
         letterSpacing: getLetterSpacing(fontFamily),
         lineHeight: 1.1,
       },
       date: {
         font: getFont(fontFamily, undefined, undefined, false),
         color: presetStyle.text!.date!.color,
-        relFontSize: 3,
+        relFontSize: 1,
         lineHeight: 1.1,
       },
       footer: {
         font: getFont(fontFamily, undefined, undefined, false),
         color: presetStyle.text!.footer!.color,
-        relFontSize: 2,
+        relFontSize: 1,
       },
       pageNumber: {
         font: getFont(fontFamily, undefined, undefined, false),
-        color: hasFooter ? presetStyle.text!.footer!.color : presetStyle.text!.header!.color,
-        relFontSize: 1.5,
+        color: hasFooter
+          ? presetStyle.text!.footer!.color
+          : presetStyle.text!.header!.color,
+        relFontSize: 0.8,
       },
     },
     cover: {
       background: presetStyle.cover!.background,
       padding: presetStyle.cover!.padding,
       split: presetStyle.cover!.split,
-      logosSizing: { ...presetStyle.cover!.logosSizing, ...config.logos.cover.sizing, maxHeight: Infinity, maxWidth: Infinity },
+      logosSizing: {
+        ...presetStyle.cover!.logosSizing,
+        ...config.logos.cover.sizing,
+        maxHeight: Infinity,
+        maxWidth: Infinity,
+      },
       logosPlacement: presetStyle.cover!.logosPlacement,
       titleBottomPadding: presetStyle.cover!.titleBottomPadding,
       subTitleBottomPadding: presetStyle.cover!.subTitleBottomPadding,
@@ -208,10 +247,17 @@ export function buildStyleForSlide(
       header: {
         background: presetStyle.freeform!.header!.background,
         padding: presetStyle.freeform!.header!.padding,
-        logosSizing: { ...presetStyle.freeform!.header!.logosSizing, ...config.logos.header.sizing, maxHeight: Infinity, maxWidth: Infinity },
+        logosSizing: {
+          ...presetStyle.freeform!.header!.logosSizing,
+          ...config.logos.header.sizing,
+          maxHeight: Infinity,
+          maxWidth: Infinity,
+        },
         headerBottomPadding: presetStyle.freeform!.header!.headerBottomPadding,
-        subHeaderBottomPadding: presetStyle.freeform!.header!.subHeaderBottomPadding,
-        bottomBorderStrokeWidth: presetStyle.freeform!.header!.bottomBorderStrokeWidth,
+        subHeaderBottomPadding:
+          presetStyle.freeform!.header!.subHeaderBottomPadding,
+        bottomBorderStrokeWidth:
+          presetStyle.freeform!.header!.bottomBorderStrokeWidth,
         bottomBorderColor: presetStyle.freeform!.header!.bottomBorderColor,
         alignH: presetStyle.freeform!.header!.alignH,
       },
@@ -224,7 +270,12 @@ export function buildStyleForSlide(
       footer: {
         background: presetStyle.freeform!.footer!.background,
         padding: presetStyle.freeform!.footer!.padding,
-        logosSizing: { ...presetStyle.freeform!.footer!.logosSizing, ...config.logos.footer.sizing, maxHeight: Infinity, maxWidth: Infinity },
+        logosSizing: {
+          ...presetStyle.freeform!.footer!.logosSizing,
+          ...config.logos.footer.sizing,
+          maxHeight: Infinity,
+          maxWidth: Infinity,
+        },
         alignH: presetStyle.freeform!.footer!.alignH,
       },
     },
@@ -270,9 +321,15 @@ export async function convertSlideToPageInputs(
   const watermark = config.useWatermark ? config.watermarkText : undefined;
 
   if (slide.type === "cover") {
-    const showCoverLogos = shouldShowLogos(slide.showLogos, config.logos.cover.showByDefault);
+    const showCoverLogos = shouldShowLogos(
+      slide.showLogos,
+      config.logos.cover.showByDefault,
+    );
     const titleLogos = showCoverLogos
-      ? await loadLogos(config.logos.cover.selected, config.logos.availableCustom)
+      ? await loadLogos(
+          config.logos.cover.selected,
+          config.logos.availableCustom,
+        )
       : [];
     return {
       success: true,
@@ -313,19 +370,33 @@ export async function convertSlideToPageInputs(
   );
   const footerText = config.globalFooterText ?? slide.footer;
 
-  const showHeaderLogos = shouldShowLogos(slide.showHeaderLogos, config.logos.header.showByDefault);
-  const showFooterLogos = shouldShowLogos(slide.showFooterLogos, config.logos.footer.showByDefault);
+  const showHeaderLogos = shouldShowLogos(
+    slide.showHeaderLogos,
+    config.logos.header.showByDefault,
+  );
+  const showFooterLogos = shouldShowLogos(
+    slide.showFooterLogos,
+    config.logos.footer.showByDefault,
+  );
 
   const headerLogos = showHeaderLogos
-    ? await loadLogos(config.logos.header.selected, config.logos.availableCustom)
+    ? await loadLogos(
+        config.logos.header.selected,
+        config.logos.availableCustom,
+      )
     : [];
   const footerLogos = showFooterLogos
-    ? await loadLogos(config.logos.footer.selected, config.logos.availableCustom)
+    ? await loadLogos(
+        config.logos.footer.selected,
+        config.logos.availableCustom,
+      )
     : [];
 
   let splitImage: HTMLImageElement | undefined;
   if (slide.split?.fill.type === "image" && slide.split.fill.imgFile) {
-    const res = await getImgFromCacheOrFetch(`${_SERVER_HOST}/${slide.split.fill.imgFile}`);
+    const res = await getImgFromCacheOrFetch(
+      `${_SERVER_HOST}/${slide.split.fill.imgFile}`,
+    );
     if (res.success) {
       splitImage = res.data;
     }
@@ -415,7 +486,11 @@ async function convertLayoutNode(
       type: "item",
       id: node.id,
       span: node.span,
-      data: await convertBlockToPageContentItem(node.data, resolved?.textColor, deckStyle),
+      data: await convertBlockToPageContentItem(
+        node.data,
+        resolved?.textColor,
+        deckStyle,
+      ),
       style: resolved?.containerStyle,
     };
   }
@@ -426,7 +501,9 @@ async function convertLayoutNode(
     span: node.span,
     children: Array.isArray(node.children)
       ? await Promise.all(
-          node.children.map((c) => convertLayoutNode(c, primaryColor, deckStyle)),
+          node.children.map((c) =>
+            convertLayoutNode(c, primaryColor, deckStyle),
+          ),
         )
       : [],
   };
@@ -438,11 +515,10 @@ async function convertBlockToPageContentItem(
   deckStyle: DeckStyleContext,
 ): Promise<PageContentItem> {
   if (block.type === "text") {
-    const baseFontSize = block.style?.textSize ? 60 * block.style.textSize : 60;
+    const baseFontSize = getBaseText().fontSize * (block.style?.textSize ?? 1);
     const fontFamily = deckStyle.fontFamily;
     return {
       markdown: block.markdown,
-      autofit: MARKDOWN_AUTOFIT,
       style: {
         text: {
           base: {
@@ -488,10 +564,11 @@ async function convertBlockToPageContentItem(
     return { spacer: true };
   }
 
-  const hydrationSource = block.source?.type === "from_data"
-    ? figureSourceToHydrationSource(block.source)
-    : undefined;
+  const hydrationSource =
+    block.source?.type === "from_data"
+      ? figureSourceToHydrationSource(block.source)
+      : undefined;
   fi = await hydrateFigureInputsForRendering(fi, hydrationSource, deckStyle);
 
-  return { ...fi, autofit: FIGURE_AUTOFIT } as PageContentItem;
+  return fi as PageContentItem;
 }
