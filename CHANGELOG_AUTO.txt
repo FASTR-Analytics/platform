@@ -1,79 +1,110 @@
-[TBD] [user] [added] - Reports section for creating long-form analytical documents
-[TBD] [user] [added] - Markdown editor for writing reports with headings, lists, and tables
-[TBD] [user] [added] - Embed live data figures from saved visualizations into reports
-[TBD] [user] [added] - Embed uploaded images into reports
-[TBD] [user] [added] - Download reports as PDF or Word documents
-[TBD] [user] [added] - Organize reports into color-coded folders
-[TBD] [user] [added] - Duplicate one or multiple reports at once
-[TBD] [user] [added] - Move reports between folders individually or in bulk
-[TBD] [user] [added] - AI assistant can draft, rewrite, and edit reports
-[TBD] [user] [added] - AI can insert live data figures into reports from visualizations
-[TBD] [user] [added] - AI-proposed report edits shown as accept/reject diffs
-[TBD] [user] [added] - AI button added to dashboard editor toolbar
-[TBD] [user] [added] - AI button added to report editor toolbar
-[TBD] [user] [changed] - Dashboard item grid now shows item labels above thumbnails
-[TBD] [user] [changed] - Dashboard item thumbnails now match visualization panel styling
-[TBD] [admin] [added] - Reports module for long-form analytical documents with markdown editing
-[TBD] [admin] [added] - Embed live data figures and images inside reports
-[TBD] [admin] [added] - AI assistant can draft, rewrite, and edit reports
-[TBD] [admin] [added] - AI can insert figures from saved visualizations into reports
-[TBD] [admin] [added] - Export reports as PDF or Word documents
-[TBD] [admin] [added] - Organize reports with folders and color-coded labels
-[TBD] [admin] [added] - Duplicate, move, and bulk-manage reports
-[TBD] [admin] [added] - AI-proposed report edits shown as accept/reject diffs
-[TBD] [admin] [added] - AI button added to dashboard and report editors
-[TBD] [admin] [changed] - Dashboard editor grid now matches visualization panel thumbnail style
-[TBD] [user] [added] - Dashboard items now display as a visual card grid with chart previews
-[TBD] [user] [added] - Select, multi-select, and right-click context menu for dashboard items
-[TBD] [user] [added] - Side panel to edit a selected dashboard item's label and visualization
-[TBD] [user] [added] - Edit, switch, or create a new visualization directly from a dashboard item
-[TBD] [user] [added] - Delete multiple dashboard items at once
-[TBD] [user] [added] - Preview button to open the public dashboard in a new tab
-[TBD] [user] [added] - Map visualizations now display correctly on public dashboards
-[TBD] [user] [changed] - Newly created dashboards are now visible to logged-in users by default
-[TBD] [user] [changed] - Drag-and-drop reordering now works directly on the card grid
-[TBD] [admin] [added] - Dashboard items now display as a visual card grid
-[TBD] [admin] [added] - Edit, switch, or create visualizations directly from dashboard items
-[TBD] [admin] [added] - Multi-select dashboard items for bulk deletion
-[TBD] [admin] [added] - Right-click context menu on dashboard items for quick actions
-[TBD] [admin] [added] - Preview button opens public dashboard link in new tab
-[TBD] [admin] [added] - Side panel shows editable label and actions for selected item
-[TBD] [admin] [changed] - New dashboards are now created as non-public by default
-[TBD] [admin] [changed] - Non-public dashboards are visible to authenticated users only
-[TBD] [admin] [added] - Map geographic data is now saved with dashboard items for public viewing
-[TBD] [user] [changed] - Logo size and spacing options now apply more consistently across slides
-[TBD] [user] [changed] - Removed manual font size sliders for captions, sub-captions, and footnotes
-[TBD] [user] [changed] - Improved default text sizing for captions and sub-captions in figures
-[TBD] [user] [changed] - Tighter line spacing on slide cover headers and dates
-[TBD] [admin] [changed] - Logo sizing now uses simple size labels instead of raw numbers
-[TBD] [admin] [changed] - Existing logo sizing settings automatically migrated to new format
-[TBD] [admin] [changed] - Caption, sub-caption, and footnote font sizes are now standardized
-[TBD] [admin] [changed] - Font size sliders removed from chart text editor panel
-[TBD] [admin] [changed] - Tighter line spacing on slide cover headers and dates
-[TBD] [user] [changed] - Removed the "Scale" slider from visualization style settings
-[TBD] [user] [changed] - Removed the "Scale" slider from dataset chart display options
-[TBD] [user] [changed] - Charts and slides now render more sharply at any size
-[TBD] [user] [changed] - Dashboard grid layout now stacks to single column on smaller screens
-[TBD] [user] [fixed] - Exported images now render at consistent high resolution regardless of screen size
-[TBD] [user] [changed] - Slide text sizes adjusted for improved readability
-[TBD] [admin] [changed] - Removed the "Scale" slider from visualization style settings
-[TBD] [admin] [changed] - Removed the "Scale" slider from dataset display controls
-[TBD] [admin] [changed] - Removed the "figureScale" option from slide deck configuration
-[TBD] [admin] [fixed] - Charts and slides now render at consistent, resolution-independent sizes
-[TBD] [admin] [fixed] - Exported visualizations now render at a fixed high-resolution size
-[TBD] [admin] [fixed] - Public dashboard grid layout now responsive on smaller screens
-[TBD] [admin] [fixed] - Slide previews and thumbnails render more sharply and consistently
-[TBD] [admin] [fixed] - PDF and PowerPoint exports use standardized page dimensions
-[TBD] [user] [fixed] - Dashboard chart no longer reloads when reordering items
-[TBD] [user] [changed] - Renaming dashboard items now uses a cleaner popup dialog
-[TBD] [user] [fixed] - Dashboard preview no longer flickers when switching between items
-[TBD] [admin] [fixed] - Dashboard chart no longer reloads when reordering items
-[TBD] [admin] [changed] - Renaming dashboard items now uses a popup dialog
-[TBD] [admin] [fixed] - Switching dashboard items no longer causes unnecessary chart reloads
-[TBD] [admin] [fixed] - Fixed visualization selection initialization order to prevent errors
-[TBD] [admin] [changed] - Navigation tabs now show permission-appropriate items more consistently
-[TBD] [admin] [internal] - Updated selection behavior for visualizations, dashboards, and slide decks
-[TBD] [admin] [internal] - Reorderable lists updated to use improved drag-and-drop component
+[1.39.0] [user] [added] - Dashboard items can now be added as replicant groups
+[1.39.0] [user] [added] - Replicant groups appear as stacked cards showing member count
+[1.39.0] [user] [added] - Group editor panel to rename, switch, or edit grouped items
+[1.39.0] [user] [added] - Choose a default replicant for each group
+[1.39.0] [user] [added] - Public dashboards show a dropdown to switch between replicants in a group
+[1.39.0] [user] [added] - Sidebar navigation nests group members under the group label
+[1.39.0] [user] [added] - Reports now show an Edit/View toggle for preview mode
+[1.39.0] [user] [added] - Report list cards show a content preview instead of placeholder lines
+[1.39.0] [user] [added] - Report list cards display figure and image counts
+[1.39.0] [user] [added] - Autosave status indicator shows saved, saving, or error state
+[1.39.0] [user] [added] - AI can now replace specific text selections in reports
+[1.39.0] [user] [added] - AI can now replace an existing figure in a report with a new one
+[1.39.0] [user] [added] - AI can build new charts directly from metrics when inserting figures
+[1.39.0] [user] [added] - AI sees your current text selection and can act on it
+[1.39.0] [user] [changed] - AI edit proposals now show whether user accepted or rejected
+[1.39.0] [user] [changed] - Report PDF and Word exports use consistent heading styles
+[1.39.0] [admin] [added] - Dashboard replicant groups: add all replicants as a single grouped item
+[1.39.0] [admin] [added] - Group editor panel for renaming, switching default replicant, and editing grouped items
+[1.39.0] [admin] [added] - Public dashboard grid shows replicant groups with a dropdown to switch between members
+[1.39.0] [admin] [added] - Public dashboard sidebar shows replicant groups as expandable navigation sections
+[1.39.0] [admin] [added] - Report editor now has Edit/View toggle for live HTML preview
+[1.39.0] [admin] [added] - Report list cards show a content preview instead of placeholder bars
+[1.39.0] [admin] [added] - Autosave status indicator in the report editor heading bar
+[1.39.0] [admin] [added] - AI can now make targeted text replacements in reports
+[1.39.0] [admin] [added] - AI can replace an existing report figure with a new chart
+[1.39.0] [admin] [added] - AI can build new charts from metrics directly when inserting report figures
+[1.39.0] [admin] [added] - AI now sees the user's text selection in the report editor
+[1.39.0] [admin] [changed] - AI report edit proposals now wait for user accept/reject before continuing
+[1.39.0] [admin] [changed] - Report PDF and Word exports use a consistent shared heading style
+[1.39.0] [admin] [changed] - Deleting a replicant group removes all its member items automatically
+[1.39.0] [admin] [internal] - Dashboard public bundle generation shared between editor and public viewer
+[1.39.0] [user] [added] - Reports section for creating long-form analytical documents
+[1.39.0] [user] [added] - Markdown editor for writing reports with headings, lists, and tables
+[1.39.0] [user] [added] - Embed live data figures from saved visualizations into reports
+[1.39.0] [user] [added] - Embed uploaded images into reports
+[1.39.0] [user] [added] - Download reports as PDF or Word documents
+[1.39.0] [user] [added] - Organize reports into color-coded folders
+[1.39.0] [user] [added] - Duplicate one or multiple reports at once
+[1.39.0] [user] [added] - Move reports between folders individually or in bulk
+[1.39.0] [user] [added] - AI assistant can draft, rewrite, and edit reports
+[1.39.0] [user] [added] - AI can insert live data figures into reports from visualizations
+[1.39.0] [user] [added] - AI-proposed report edits shown as accept/reject diffs
+[1.39.0] [user] [added] - AI button added to dashboard editor toolbar
+[1.39.0] [user] [added] - AI button added to report editor toolbar
+[1.39.0] [user] [changed] - Dashboard item grid now shows item labels above thumbnails
+[1.39.0] [user] [changed] - Dashboard item thumbnails now match visualization panel styling
+[1.39.0] [admin] [added] - Reports module for long-form analytical documents with markdown editing
+[1.39.0] [admin] [added] - Embed live data figures and images inside reports
+[1.39.0] [admin] [added] - AI assistant can draft, rewrite, and edit reports
+[1.39.0] [admin] [added] - AI can insert figures from saved visualizations into reports
+[1.39.0] [admin] [added] - Export reports as PDF or Word documents
+[1.39.0] [admin] [added] - Organize reports with folders and color-coded labels
+[1.39.0] [admin] [added] - Duplicate, move, and bulk-manage reports
+[1.39.0] [admin] [added] - AI-proposed report edits shown as accept/reject diffs
+[1.39.0] [admin] [added] - AI button added to dashboard and report editors
+[1.39.0] [admin] [changed] - Dashboard editor grid now matches visualization panel thumbnail style
+[1.39.0] [user] [added] - Dashboard items now display as a visual card grid with chart previews
+[1.39.0] [user] [added] - Select, multi-select, and right-click context menu for dashboard items
+[1.39.0] [user] [added] - Side panel to edit a selected dashboard item's label and visualization
+[1.39.0] [user] [added] - Edit, switch, or create a new visualization directly from a dashboard item
+[1.39.0] [user] [added] - Delete multiple dashboard items at once
+[1.39.0] [user] [added] - Preview button to open the public dashboard in a new tab
+[1.39.0] [user] [added] - Map visualizations now display correctly on public dashboards
+[1.39.0] [user] [changed] - Newly created dashboards are now visible to logged-in users by default
+[1.39.0] [user] [changed] - Drag-and-drop reordering now works directly on the card grid
+[1.39.0] [admin] [added] - Dashboard items now display as a visual card grid
+[1.39.0] [admin] [added] - Edit, switch, or create visualizations directly from dashboard items
+[1.39.0] [admin] [added] - Multi-select dashboard items for bulk deletion
+[1.39.0] [admin] [added] - Right-click context menu on dashboard items for quick actions
+[1.39.0] [admin] [added] - Preview button opens public dashboard link in new tab
+[1.39.0] [admin] [added] - Side panel shows editable label and actions for selected item
+[1.39.0] [admin] [changed] - New dashboards are now created as non-public by default
+[1.39.0] [admin] [changed] - Non-public dashboards are visible to authenticated users only
+[1.39.0] [admin] [added] - Map geographic data is now saved with dashboard items for public viewing
+[1.39.0] [user] [changed] - Logo size and spacing options now apply more consistently across slides
+[1.39.0] [user] [changed] - Removed manual font size sliders for captions, sub-captions, and footnotes
+[1.39.0] [user] [changed] - Improved default text sizing for captions and sub-captions in figures
+[1.39.0] [user] [changed] - Tighter line spacing on slide cover headers and dates
+[1.39.0] [admin] [changed] - Logo sizing now uses simple size labels instead of raw numbers
+[1.39.0] [admin] [changed] - Existing logo sizing settings automatically migrated to new format
+[1.39.0] [admin] [changed] - Caption, sub-caption, and footnote font sizes are now standardized
+[1.39.0] [admin] [changed] - Font size sliders removed from chart text editor panel
+[1.39.0] [admin] [changed] - Tighter line spacing on slide cover headers and dates
+[1.39.0] [user] [changed] - Removed the "Scale" slider from visualization style settings
+[1.39.0] [user] [changed] - Removed the "Scale" slider from dataset chart display options
+[1.39.0] [user] [changed] - Charts and slides now render more sharply at any size
+[1.39.0] [user] [changed] - Dashboard grid layout now stacks to single column on smaller screens
+[1.39.0] [user] [fixed] - Exported images now render at consistent high resolution regardless of screen size
+[1.39.0] [user] [changed] - Slide text sizes adjusted for improved readability
+[1.39.0] [admin] [changed] - Removed the "Scale" slider from visualization style settings
+[1.39.0] [admin] [changed] - Removed the "Scale" slider from dataset display controls
+[1.39.0] [admin] [changed] - Removed the "figureScale" option from slide deck configuration
+[1.39.0] [admin] [fixed] - Charts and slides now render at consistent, resolution-independent sizes
+[1.39.0] [admin] [fixed] - Exported visualizations now render at a fixed high-resolution size
+[1.39.0] [admin] [fixed] - Public dashboard grid layout now responsive on smaller screens
+[1.39.0] [admin] [fixed] - Slide previews and thumbnails render more sharply and consistently
+[1.39.0] [admin] [fixed] - PDF and PowerPoint exports use standardized page dimensions
+[1.39.0] [user] [fixed] - Dashboard chart no longer reloads when reordering items
+[1.39.0] [user] [changed] - Renaming dashboard items now uses a cleaner popup dialog
+[1.39.0] [user] [fixed] - Dashboard preview no longer flickers when switching between items
+[1.39.0] [admin] [fixed] - Dashboard chart no longer reloads when reordering items
+[1.39.0] [admin] [changed] - Renaming dashboard items now uses a popup dialog
+[1.39.0] [admin] [fixed] - Switching dashboard items no longer causes unnecessary chart reloads
+[1.39.0] [admin] [fixed] - Fixed visualization selection initialization order to prevent errors
+[1.39.0] [admin] [changed] - Navigation tabs now show permission-appropriate items more consistently
+[1.39.0] [admin] [internal] - Updated selection behavior for visualizations, dashboards, and slide decks
+[1.39.0] [admin] [internal] - Reorderable lists updated to use improved drag-and-drop component
 [1.38.2] [user] [fixed] - Population data only loaded when actually needed by your analysis
 [1.38.2] [admin] [added] - Population data is only required when indicators use population-based calculations
 [1.38.1] [user] [fixed] - Selected category no longer resets when data refreshes
