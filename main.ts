@@ -83,6 +83,12 @@ const app = new Hono();
 app.use("/api/share/*", corsMiddleware);
 app.use("/api/d/*", corsMiddleware);
 
+// Dashboards are readable anonymously only when public; not-public dashboards
+// require an authenticated user. Run Clerk here so the route can READ the
+// session — clerkMiddleware populates auth without rejecting anonymous requests.
+//@ts-ignore - Clerk middleware types not fully compatible with Hono
+app.use("/api/d/*", authMiddleware);
+
 // Public routes (no auth required) - must be before authMiddleware
 app.route("/", routesPublicShare);
 app.route("/", routesPublicDashboard);

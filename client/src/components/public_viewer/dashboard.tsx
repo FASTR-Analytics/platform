@@ -30,6 +30,7 @@ export default function PublicDashboard() {
     async () => {
       const res = await fetch(
         `${_SERVER_HOST}/api/d/${params.projectId}/${params.slug}`,
+        { credentials: "include" },
       );
       const resJson = await res.json();
       return resJson;

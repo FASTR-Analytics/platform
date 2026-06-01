@@ -67,7 +67,7 @@ export const dashboardRouteRegistry = {
     path: "/dashboards/:dashboard_id/items/:item_id",
     method: "PUT",
     params: {} as { dashboard_id: string; item_id: string },
-    body: {} as { label?: string },
+    body: {} as { label?: string; figureBlock?: FigureBlock; geoData?: unknown },
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),

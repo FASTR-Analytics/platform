@@ -9,7 +9,7 @@ import {
 } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
+import { resolveFigureAndGeoFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 
 type Props = {
   projectId: string;
@@ -32,16 +32,20 @@ export function AddDashboardItemConfirmModal(
   const progress = getProgress();
 
   async function addOne(replicant: string | undefined, itemLabel: string) {
-    const figureBlock = await resolveFigureFromVisualization(p.projectId, {
-      type: "from_visualization",
-      visualizationId: p.visualizationId,
-      replicant,
-    });
+    const { figureBlock, geoData } = await resolveFigureAndGeoFromVisualization(
+      p.projectId,
+      {
+        type: "from_visualization",
+        visualizationId: p.visualizationId,
+        replicant,
+      },
+    );
     return await serverActions.addDashboardItem({
       projectId: p.projectId,
       dashboard_id: p.dashboardId,
       label: itemLabel,
       figureBlock,
+      geoData,
     });
   }
 
