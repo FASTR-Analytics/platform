@@ -28,6 +28,7 @@ import {
 } from "panther";
 import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
+import { setShowAi, showAi } from "~/state/t4_ui";
 import { getDashboardDetailFromCacheOrFetch } from "~/state/project/t2_dashboards";
 import {
   getPODetailFromCacheorFetch,
@@ -506,6 +507,15 @@ export function DashboardEditor(p: Props) {
                     </Button>
                     <Button onClick={attemptAddItem} iconName="plus">
                       {t3({ en: "Add item", fr: "Ajouter un élément" })}
+                    </Button>
+                  </Show>
+                  <Show when={!showAi()}>
+                    <Button
+                      onClick={() => setShowAi(true)}
+                      iconName="chevronLeft"
+                      outline
+                    >
+                      {t3({ en: "AI", fr: "IA" })}
                     </Button>
                   </Show>
                 </div>

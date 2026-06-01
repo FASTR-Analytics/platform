@@ -1,5 +1,11 @@
-import { createSignal, Match, onMount, Switch, type JSX } from "solid-js";
-import { ChartHolder, type FigureInputs, type StateHolder } from "panther";
+import {
+  createEffect,
+  createResource,
+  Match,
+  Switch,
+  type JSX,
+} from "solid-js";
+import { ChartHolder, type FigureInputs } from "panther";
 import type { FigureBlock } from "lib";
 import {
   figureSourceToHydrationSource,
@@ -13,48 +19,45 @@ type Props = {
 
 // One reusable FigureBlock -> live ChartHolder embed (editor widget, preview
 // renderImage, and DraftReportPreview all use this). reflow + height="ideal"
-// per PROTOCOL_ALL_SIZING (editor is a readable surface).
+// per PROTOCOL_ALL_SIZING (editor is a readable surface). Re-hydrates reactively
+// when the figure block changes (e.g. refresh / AI replace of an existing id).
 export function ReportFigureEmbed(props: Props): JSX.Element {
-  const [state, setState] = createSignal<StateHolder<FigureInputs>>({
-    status: "loading",
-  });
-
-  onMount(async () => {
-    const fi = props.figure.figureInputs;
-    if (!fi) {
-      setState({ status: "error", err: "Figure has no stored inputs" });
-      return;
-    }
-    try {
-      const source = props.figure.source
-        ? figureSourceToHydrationSource(props.figure.source)
+  const [hydrated] = createResource(
+    () => props.figure,
+    async (figure) => {
+      const fi = figure.figureInputs;
+      if (!fi) throw new Error("Figure has no stored inputs");
+      const source = figure.source
+        ? figureSourceToHydrationSource(figure.source)
         : undefined;
-      const hydrated = await hydrateFigureInputsForRendering(fi, source);
-      setState({ status: "ready", data: hydrated });
-      props.onMeasured?.();
-    } catch (e) {
-      setState({
-        status: "error",
-        err: e instanceof Error ? e.message : String(e),
-      });
-    }
+      return await hydrateFigureInputsForRendering(fi, source);
+    },
+  );
+
+  createEffect(() => {
+    if (hydrated.state === "ready") props.onMeasured?.();
   });
 
   return (
     <Switch>
-      <Match when={state().status === "loading"}>
+      <Match when={hydrated.loading}>
         <div class="ui-pad text-base-content/50 text-xs">Loading figure…</div>
       </Match>
-      <Match when={state().status === "error"}>
+      <Match when={hydrated.error}>
         <div class="ui-pad text-danger text-xs">
-          {(state() as { err?: string }).err ?? "Error"}
+          {hydrated.error instanceof Error
+            ? hydrated.error.message
+            : String(hydrated.error)}
         </div>
       </Match>
-      <Match when={state().status === "ready"}>
-        <ChartHolder
-          chartInputs={(state() as { data: FigureInputs }).data}
-          height="ideal"
-        />
+      <Match when={hydrated()}>
+        {(fi) => (
+          <ChartHolder
+            chartInputs={fi() as FigureInputs}
+            height="ideal"
+            sizing="zoom"
+          />
+        )}
       </Match>
     </Switch>
   );

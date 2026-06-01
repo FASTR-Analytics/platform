@@ -11,13 +11,19 @@ import {
   StateField,
 } from "@codemirror/state";
 import { render } from "solid-js/web";
+import { Show } from "solid-js";
 import type { FigureBlock, ImageBlock } from "lib";
 import { ReportFigureEmbed } from "./ReportFigureEmbed";
+
+export type EmbedKind = "figure" | "image";
 
 export type EmbedResolver = {
   getFigure: (id: string) => FigureBlock | undefined;
   getImage: (id: string) => ImageBlock | undefined;
   assetUrl: (imgFile: string) => string;
+  // Clicking an embed selects it (opens the left-side editor, dashboard-style).
+  onSelectEmbed: (kind: EmbedKind, id: string) => void;
+  getSelectedId: () => string | undefined;
 };
 
 // A line that is exactly a single embed token: ![caption](figure:id) / ![alt](image:id)
@@ -43,32 +49,65 @@ class EmbedWidget extends WidgetType {
 
   override toDOM(view: EditorView): HTMLElement {
     const dom = document.createElement("div");
-    dom.className = "w-full my-4 select-none";
+    // Block widgets must NOT have vertical margins — CodeMirror measures the
+    // widget's box for vertical layout, and margins fall outside it, which
+    // desyncs cursor positions below the widget. Use vertical PADDING instead.
+    dom.className = "w-full py-4 select-none";
     dom.contentEditable = "false";
+    dom.style.cursor = "pointer";
+    dom.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.resolver.onSelectEmbed(this.kind, this.id);
+    });
 
-    const dispose = render(() => {
-      if (this.kind === "figure") {
-        const fig = this.resolver.getFigure(this.id);
-        return fig
-          ? (
-            <ReportFigureEmbed
-              figure={fig}
-              onMeasured={() => view.requestMeasure()}
-            />
-          )
-          : <div class="text-danger text-xs">Missing figure: {this.id}</div>;
-      }
-      const img = this.resolver.getImage(this.id);
-      return img
-        ? (
-          <img
-            class="w-full"
-            src={this.resolver.assetUrl(img.imgFile)}
-            alt={this.caption}
-          />
-        )
-        : <div class="text-danger text-xs">Missing image: {this.id}</div>;
-    }, dom);
+    // Reactive: the selected ring tracks the selection signal, and the embed
+    // content (figure/image) re-renders when its registry entry changes (so
+    // Switch/Edit visualization updates the live figure).
+    const dispose = render(
+      () => (
+        <div
+          class="ui-pad mx-8 rounded border"
+          classList={{
+            "border-primary border-2":
+              this.resolver.getSelectedId() === this.id,
+            "border-base-300 hover:border-primary":
+              this.resolver.getSelectedId() !== this.id,
+          }}
+        >
+          {this.kind === "figure" ? (
+            <Show
+              when={this.resolver.getFigure(this.id)}
+              fallback={
+                <div class="text-danger text-xs">Missing figure: {this.id}</div>
+              }
+            >
+              {(fig) => (
+                <ReportFigureEmbed
+                  figure={fig()}
+                  onMeasured={() => view.requestMeasure()}
+                />
+              )}
+            </Show>
+          ) : (
+            <Show
+              when={this.resolver.getImage(this.id)}
+              fallback={
+                <div class="text-danger text-xs">Missing image: {this.id}</div>
+              }
+            >
+              {(img) => (
+                <img
+                  class="w-full"
+                  src={this.resolver.assetUrl(img().imgFile)}
+                  alt={this.caption}
+                />
+              )}
+            </Show>
+          )}
+        </div>
+      ),
+      dom,
+    );
 
     (dom as unknown as { _dispose?: () => void })._dispose = dispose;
     return dom;
@@ -127,8 +166,5 @@ export function embedWidgets(resolver: EmbedResolver): Extension {
     provide: (f) => EditorView.decorations.from(f),
   });
 
-  return [
-    field,
-    EditorView.atomicRanges.of((view) => view.state.field(field)),
-  ];
+  return [field, EditorView.atomicRanges.of((view) => view.state.field(field))];
 }

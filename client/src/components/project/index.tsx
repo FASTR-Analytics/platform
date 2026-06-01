@@ -24,6 +24,7 @@ import { projectState } from "~/state/project/t1_store";
 
 import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
+import { ProjectReports } from "./project_reports";
 import { ProjectDashboards } from "../dashboards";
 import { ProjectMetrics } from "./project_metrics";
 import { ProjectModules } from "./project_modules";
@@ -62,6 +63,9 @@ function AIContextSync() {
     switch (tab) {
       case "visualizations":
         setAIContext({ mode: "viewing_visualizations" });
+        break;
+      case "reports":
+        setAIContext({ mode: "viewing_reports" });
         break;
       case "decks":
         setAIContext({ mode: "viewing_slide_decks" });
@@ -124,6 +128,13 @@ function ProjectInner(p: { currentUserEmail: string }) {
   const tabItems = (): ListItem<TabOption>[] => {
     const perms = projectState.thisUserPermissions;
     const items: ListItem<TabOption>[] = [];
+    if (perms.can_view_reports) {
+      items.push({
+        id: "reports",
+        label: t3({ en: "Reports", fr: "Rapports" }),
+        iconName: "report",
+      });
+    }
     if (perms.can_view_slide_decks) {
       items.push({
         id: "decks",
@@ -255,6 +266,14 @@ function ProjectInner(p: { currentUserEmail: string }) {
               }
             >
               <Switch>
+                <Match
+                  when={
+                    projectTab() === "reports" &&
+                    projectState.thisUserPermissions.can_view_reports
+                  }
+                >
+                  <ProjectReports openProjectEditor={openProjectEditor} />
+                </Match>
                 <Match
                   when={
                     projectTab() === "decks" &&

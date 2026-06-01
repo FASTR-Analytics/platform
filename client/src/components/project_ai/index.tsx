@@ -96,6 +96,7 @@ function AIProjectWrapperInner(props: ParentProps) {
       icehIndicators: projectState.icehIndicators,
       visualizations: projectState.visualizations,
       slideDecks: projectState.slideDecks,
+      reports: projectState.reports,
       aiContext: aiContext,
     });
   });

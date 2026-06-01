@@ -89,6 +89,26 @@ export type DBSlide = {
   last_updated: string;
 };
 
+export type DBReportFolder = {
+  id: string;
+  label: string;
+  color: string | null;
+  description: string | null;
+  sort_order: number;
+  last_updated: string;
+};
+
+export type DBReport = {
+  id: string;
+  label: string;
+  body: string;
+  figures: string;
+  images: string;
+  config: string | null;
+  folder_id: string | null;
+  last_updated: string;
+};
+
 export type DBDashboard = {
   id: string;
   slug: string;

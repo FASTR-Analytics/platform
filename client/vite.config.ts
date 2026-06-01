@@ -11,6 +11,7 @@ export default defineConfig({
       "@timroberton/panther": path.resolve(__dirname, "../panther/mod.ui.ts"),
       codemirror: path.resolve(__dirname, "node_modules/codemirror"),
       "@codemirror/state": path.resolve(__dirname, "node_modules/@codemirror/state"),
+      "@codemirror/view": path.resolve(__dirname, "node_modules/@codemirror/view"),
       "@codemirror/lang-markdown": path.resolve(__dirname, "node_modules/@codemirror/lang-markdown"),
       "@codemirror/merge": path.resolve(__dirname, "node_modules/@codemirror/merge"),
       "solid-js": path.resolve(__dirname, "node_modules/solid-js"),

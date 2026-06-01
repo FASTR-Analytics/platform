@@ -8,6 +8,8 @@ import type {
   PresentationObjectSummary,
   ProjectSseMessage,
   ProjectUser,
+  ReportFolder,
+  ReportSummary,
   SlideDeckFolder,
   SlideDeckSummary,
   VisualizationFolder,
@@ -97,6 +99,26 @@ export function notifyProjectSlideDeckFoldersUpdated(
   notifyProjectV2(projectId, {
     type: "slide_deck_folders_updated",
     data: { slideDeckFolders },
+  });
+}
+
+export function notifyProjectReportsUpdated(
+  projectId: string,
+  reports: ReportSummary[]
+): void {
+  notifyProjectV2(projectId, {
+    type: "reports_updated",
+    data: { reports },
+  });
+}
+
+export function notifyProjectReportFoldersUpdated(
+  projectId: string,
+  reportFolders: ReportFolder[]
+): void {
+  notifyProjectV2(projectId, {
+    type: "report_folders_updated",
+    data: { reportFolders },
   });
 }
 

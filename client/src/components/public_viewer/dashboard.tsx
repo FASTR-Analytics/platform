@@ -216,6 +216,8 @@ export type DashboardItemChartProps = {
   geoData?: unknown;
 };
 
+// Public viewer (readable surface) → reflow (the ChartHolder default). The
+// editor grid uses FigureThumbnail (zoom) instead, matching viz thumbnails.
 export function DashboardItemChart(p: DashboardItemChartProps) {
   const fi = () =>
     hydrateFigureInputsForPublicRendering(

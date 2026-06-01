@@ -239,6 +239,35 @@ CREATE INDEX idx_slides_deck_sort ON slides(slide_deck_id, sort_order);
 CREATE INDEX idx_slides_last_updated ON slides(last_updated);
 
 -- ============================================================================
+-- REPORTS
+-- ============================================================================
+
+CREATE TABLE report_folders (
+  id text PRIMARY KEY,
+  label text NOT NULL,
+  color text,
+  description text,
+  sort_order integer NOT NULL DEFAULT 0,
+  last_updated text NOT NULL
+);
+
+CREATE INDEX idx_report_folders_sort_order ON report_folders(sort_order);
+
+CREATE TABLE reports (
+  id text PRIMARY KEY NOT NULL,
+  label text NOT NULL,
+  body text NOT NULL DEFAULT '',
+  figures text NOT NULL DEFAULT '{}',
+  images text NOT NULL DEFAULT '{}',
+  config text,
+  last_updated text NOT NULL,
+  folder_id text REFERENCES report_folders(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_reports_last_updated ON reports(last_updated);
+CREATE INDEX idx_reports_folder_id ON reports(folder_id);
+
+-- ============================================================================
 -- DASHBOARDS
 -- ============================================================================
 

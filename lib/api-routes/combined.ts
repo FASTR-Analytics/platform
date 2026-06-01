@@ -18,6 +18,8 @@ import { presentationObjectRouteRegistry } from "./project/presentation-objects.
 import { projectRouteRegistry } from "./project/projects.ts";
 import { slideDeckRouteRegistry } from "./project/slide-decks.ts";
 import { slideDeckFolderRouteRegistry } from "./project/slide-deck-folders.ts";
+import { reportRouteRegistry } from "./project/reports.ts";
+import { reportFolderRouteRegistry } from "./project/report-folders.ts";
 import { slideRouteRegistry } from "./project/slides.ts";
 import { dashboardRouteRegistry } from "./project/dashboards.ts";
 import { visualizationFolderRouteRegistry } from "./project/visualization-folders.ts";
@@ -47,6 +49,8 @@ export const routeRegistry = {
   ...presentationObjectRouteRegistry,
   ...slideDeckRouteRegistry,
   ...slideDeckFolderRouteRegistry,
+  ...reportRouteRegistry,
+  ...reportFolderRouteRegistry,
   ...slideRouteRegistry,
   ...dashboardRouteRegistry,
   ...visualizationFolderRouteRegistry,

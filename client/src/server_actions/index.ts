@@ -1,5 +1,10 @@
 import type { APIResponseWithData, ProjectSummary } from "lib";
-import { prepareSlideForTransmit, restoreSlideAfterReceive } from "lib";
+import {
+  prepareReportFiguresForTransmit,
+  prepareSlideForTransmit,
+  restoreReportFiguresAfterReceive,
+  restoreSlideAfterReceive,
+} from "lib";
 import { createAllServerActions } from "./create_server_action";
 import { tryCatchServer } from "./try_catch_server";
 
@@ -38,6 +43,24 @@ export const serverActions = {
       }));
     }
     return result;
+  },
+
+  // Report figures carry the same undefined-bearing figureInputs as slides —
+  // round-trip them through the sentinel encode/decode (C1).
+  getReportDetail: async (args: any) => {
+    const result = await baseActions.getReportDetail(args);
+    if (result.success && result.data?.figures) {
+      result.data.figures = restoreReportFiguresAfterReceive(result.data.figures);
+    }
+    return result;
+  },
+
+  updateReportFigures: async (args: any) => {
+    const preparedArgs = {
+      ...args,
+      figures: prepareReportFiguresForTransmit(args.figures),
+    };
+    return await baseActions.updateReportFigures(preparedArgs);
   },
 };
 

@@ -49,6 +49,24 @@ export function PresentationObjectMiniDisplay(p: Props) {
   );
 }
 
+// Render an ALREADY-RESOLVED FigureInputs as a thumbnail — identical rendering
+// to the presentation-object mini display (zoom, aspect-video, table-aware
+// height, NotAvailableBox errors), but for snapshotted figures that have no
+// live presentation-object id (e.g. dashboard items).
+export function FigureThumbnail(p: {
+  figureInputs: FigureInputs;
+  shapeType?: "ideal" | "force-aspect-video";
+  onClick?: () => void;
+}) {
+  return (
+    <PresentationObjectMiniDisplayStateHolderWrapper
+      state={{ status: "ready", data: p.figureInputs }}
+      shapeType={p.shapeType ?? "force-aspect-video"}
+      onClick={p.onClick}
+    />
+  );
+}
+
 type PresentationObjectMiniDisplayStateHolderWrapperProps = {
   state: StateHolder<FigureInputs>;
   moduleId?: string;

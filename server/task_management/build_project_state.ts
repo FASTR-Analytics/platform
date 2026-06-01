@@ -56,6 +56,8 @@ export async function buildProjectState(
     visualizationFolders: detail.visualizationFolders,
     slideDecks: detail.slideDecks,
     slideDeckFolders: detail.slideDeckFolders,
+    reports: detail.reports,
+    reportFolders: detail.reportFolders,
     dashboards: detail.dashboards,
     projectUsers: detail.projectUsers,
     thisUserPermissions: detail.thisUserPermissions,

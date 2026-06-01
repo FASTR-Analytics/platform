@@ -22,6 +22,7 @@ import { migrateModuleDefinitions } from "./db/migrations/data_transforms/module
 import { migrateMetricsColumns } from "./db/migrations/data_transforms/metric.ts";
 import { migrateSlideDeckConfigs } from "./db/migrations/data_transforms/slide_deck_config.ts";
 import { migrateSlideConfigs } from "./db/migrations/data_transforms/slide_config.ts";
+import { migrateReports } from "./db/migrations/data_transforms/reports.ts";
 import { migrateInstanceConfigs } from "./db/migrations/data_transforms/instance_config.ts";
 
 export async function dbStartUp() {
@@ -100,6 +101,7 @@ const PROJECT_DATA_TRANSFORMS: { name: string; fn: ProjectMigrationFn }[] = [
   { name: "metrics_columns", fn: migrateMetricsColumns },
   { name: "slide_deck_config", fn: migrateSlideDeckConfigs },
   { name: "slide_config", fn: migrateSlideConfigs },
+  { name: "reports", fn: migrateReports },
 ];
 
 async function runInstanceDataTransforms(

@@ -238,11 +238,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           en: "Ask about this visualization...",
           fr: "Posez une question sur cette visualisation...",
         });
-      // case "editing_report":
-      //   return t3({ en: "Ask about this report...", fr: "Posez une question sur ce rapport..." });
+      case "editing_report":
+        return t3({ en: "Ask about this report...", fr: "Posez une question sur ce rapport..." });
       case "viewing_visualizations":
       case "viewing_slide_decks":
-      // case "viewing_reports":
+      case "viewing_reports":
       case "viewing_data":
       case "viewing_metrics":
       case "viewing_modules":
@@ -267,14 +267,14 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         return ctx.slideLabel;
       case "editing_visualization":
         return ctx.vizLabel;
-      // case "editing_report":
-      //   return ctx.reportLabel;
+      case "editing_report":
+        return ctx.reportLabel;
       case "viewing_visualizations":
         return t3({ en: "Visualizations", fr: "Visualisations" });
       case "viewing_slide_decks":
         return t3({ en: "Slide Decks", fr: "Présentations" });
-      // case "viewing_reports":
-      //   return t3({ en: "Reports", fr: "Rapports" });
+      case "viewing_reports":
+        return t3({ en: "Reports", fr: "Rapports" });
       case "viewing_data":
         return t3({ en: "Data", fr: "Données" });
       case "viewing_metrics":

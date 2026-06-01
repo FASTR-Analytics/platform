@@ -3,7 +3,8 @@ import { t3 } from "lib";
 import { SelectionCircle, type SelectionController } from "panther";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import SortableVendor from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
-import { DashboardItemChart } from "~/components/public_viewer/dashboard";
+import { FigureThumbnail } from "~/components/PresentationObjectMiniDisplay";
+import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/strip_figure_inputs";
 
 type Props = {
   items: PublicDashboardItem[];
@@ -13,13 +14,14 @@ type Props = {
   onContextMenu: (e: MouseEvent, itemId: string) => void;
 };
 
+// Match the visualization panel grid (PresentationObjectPanelDisplay).
 const GRID_CLASS =
-  "ui-gap grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] content-start";
+  "ui-pad ui-gap grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start";
 
 export function DashboardItemGrid(p: Props) {
   const byId = () => new Map(p.items.map((i) => [i.id, i]));
 
-  // Local order mirror for optimistic drag-reorder (slide_list pattern).
+  // Local order mirror for optimistic drag-reorder.
   const [order, setOrder] = createSignal<{ id: string }[]>(
     p.items.map((i) => ({ id: i.id })),
   );
@@ -41,7 +43,7 @@ export function DashboardItemGrid(p: Props) {
   );
 
   const empty = (
-    <div class="text-neutral text-sm">
+    <div class="ui-pad text-neutral text-sm">
       {t3({
         en: "No items yet. Click 'Add item' to start.",
         fr: "Aucun élément. Cliquez sur « Ajouter un élément ».",
@@ -51,7 +53,7 @@ export function DashboardItemGrid(p: Props) {
 
   return (
     <div
-      class="ui-pad h-full w-full overflow-auto"
+      class="h-full w-full overflow-auto"
       onClick={() => p.selection.clear()}
     >
       <Show when={p.items.length > 0} fallback={empty}>
@@ -95,35 +97,39 @@ function ItemCard(props: { item: PublicDashboardItem; p: Props }) {
   const item = () => props.item;
   const id = () => props.item.id;
   const isSelected = () => props.p.selection.isSelected(id());
+  const figureInputs = () =>
+    hydrateFigureInputsForPublicRendering(
+      item().strippedFigureInputs,
+      item().source,
+      item().geoData,
+    );
 
   return (
-    <div
-      class="group relative cursor-pointer overflow-clip rounded-md border bg-white p-2 transition-colors"
-      classList={{
-        "border-base-300 hover:border-primary": !isSelected(),
-        "border-primary": isSelected(),
-      }}
-      onClick={(e) => {
-        e.stopPropagation();
-        props.p.selection.handleClick(id(), e);
-      }}
-      onContextMenu={(e) => props.p.onContextMenu(e, id())}
-    >
-      <Show when={props.p.canConfigure}>
+    <div class="group row-span-2 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]">
+      <div class="ui-gap-sm flex items-end pb-1">
+        <div class="font-400 text-base-content pointer-events-none truncate text-xs italic select-none">
+          {item().label}
+        </div>
+      </div>
+      <div
+        class="bg-base-100 relative cursor-pointer rounded border p-2"
+        classList={{
+          "border-base-300": !isSelected(),
+          "border-primary": isSelected(),
+          "hover:border-primary": !isSelected(),
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          props.p.selection.handleClick(id(), e);
+        }}
+        onContextMenu={(e) => props.p.onContextMenu(e, id())}
+      >
         <SelectionCircle
           isSelected={isSelected()}
           onClick={(e) => props.p.selection.handleClick(id(), e)}
         />
-      </Show>
-      <div class="aspect-video w-full">
-        <DashboardItemChart
-          itemId={id()}
-          strippedFigureInputs={item().strippedFigureInputs}
-          source={item().source}
-          geoData={item().geoData}
-        />
+        <FigureThumbnail figureInputs={figureInputs()} />
       </div>
-      <div class="mt-1 truncate text-sm font-medium">{item().label}</div>
     </div>
   );
 }

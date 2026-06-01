@@ -1,5 +1,7 @@
 import type {
   AiContentSlideInput,
+  FigureBlock,
+  ImageBlock,
   PresentationObjectConfig,
   ResultsValue,
   Slide,
@@ -76,17 +78,28 @@ export type AIContextEditingSlide = {
   setTempSlide: SetStoreFunction<Slide>;
 };
 
+// A staged AI edit the user accepts/rejects via a diff (never silent mutation).
+export type ReportEditProposal = {
+  newBody: string;
+  addFigures?: Record<string, FigureBlock>;
+  summary: string;
+};
+
 export type AIContextEditingReport = {
   mode: "editing_report";
   reportId: string;
   reportLabel: string;
+  getBody: () => string;
+  getFigures: () => Record<string, FigureBlock>;
+  getImages: () => Record<string, ImageBlock>;
+  proposeEdit: (proposal: ReportEditProposal) => void;
 };
 
 export type AIContext =
   | AIContextViewingVisualizations
   | AIContextViewingSlideDecks
-  // | AIContextViewingReports
-  // | AIContextEditingReport;
+  | AIContextViewingReports
+  | AIContextEditingReport
   | AIContextViewingData
   | AIContextViewingMetrics
   | AIContextViewingModules
