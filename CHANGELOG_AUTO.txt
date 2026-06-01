@@ -1,3 +1,7 @@
+[1.39.2] [user] [fixed] - Reports now scroll correctly in view mode
+[1.39.2] [user] [fixed] - Charts update properly after new data imports
+[1.39.2] [admin] [fixed] - Replicant option labels now update after dataset re-integration
+[1.39.2] [admin] [fixed] - Report view scrolling works correctly for long documents
 [1.39.1] [user] [fixed] - Dashboard card labels and charts now align properly across rows
 [1.39.1] [user] [fixed] - Dashboard card labels no longer cut off long text
 [1.39.1] [user] [changed] - AI assistant now creates reports directly instead of showing a draft preview first
