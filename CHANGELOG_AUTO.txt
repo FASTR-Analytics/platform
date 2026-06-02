@@ -1,3 +1,14 @@
+[TBD] [user] [added] - Add logos to dashboard header with size options
+[TBD] [user] [added] - Add summary text displayed below the dashboard title
+[TBD] [user] [added] - Add "About this dashboard" info button and dialog
+[TBD] [user] [added] - Download figures with background and margin options
+[TBD] [user] [added] - Each chart tile in grid layout now has its own download button
+[TBD] [admin] [added] - Dashboards now support displaying logos in the header
+[TBD] [admin] [added] - Dashboard settings include logo size options (S, M, L, XL)
+[TBD] [admin] [added] - Dashboards can show a summary below the title using markdown
+[TBD] [admin] [added] - Dashboards can have an "About this dashboard" info dialog with markdown content
+[TBD] [admin] [changed] - Chart download now lets you choose background and margin options
+[TBD] [admin] [changed] - Grid layout tiles now each have their own download button
 [1.39.3] [user] [fixed] - Clearer error messages when AI suggests invalid filter values
 [1.39.3] [user] [fixed] - Only relevant indicators are shown when adding datasets
 [1.39.3] [admin] [fixed] - AI error messages now show clearer filter value details
