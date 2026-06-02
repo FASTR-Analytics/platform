@@ -1,3 +1,9 @@
+[1.40.2] [user] [added] - Contextual help topics now available throughout the platform
+[1.40.2] [user] [added] - Help guidance for the AI assistant feature
+[1.40.2] [user] [added] - Help guidance for dashboards, slide decks, and reports
+[1.40.2] [user] [added] - Help guidance for data imports, modules, and project settings
+[1.40.2] [user] [added] - Help guidance for user and permission management
+[1.40.2] [admin] [added] - In-app help topics now cover all major platform areas
 [1.40.1] [user] [added] - Dashboard logos can now be placed left or right of the header
 [1.40.1] [user] [changed] - Dashboard settings now open in a full editor panel instead of a popup dialog
 [1.40.1] [user] [changed] - Dashboard logos display at a consistent fixed size instead of configurable sizes
