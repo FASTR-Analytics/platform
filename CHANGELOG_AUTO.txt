@@ -1,3 +1,4 @@
+[TBD] [admin] [changed] - Project exports no longer include raw module definition data
 [1.43.0] [user] [changed] - Presenter name on cover slides is no longer bold by default
 [1.43.0] [admin] [changed] - Presenter name on cover slides defaults to non-bold
 [1.43.0] [user] [changed] - Slightly more spacing around text backgrounds in slides
