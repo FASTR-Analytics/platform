@@ -1,3 +1,5 @@
+[1.43.0] [user] [changed] - Data exports to central hub now load faster
+[1.43.0] [admin] [changed] - Faster metric label loading during central hub exports
 [1.43.0] [admin] [changed] - Export rows endpoint now requires a valid results object identifier
 [1.43.0] [user] [fixed] - Fixed export errors when report names contain special characters
 [1.43.0] [admin] [fixed] - Export Central now handles special characters in identifiers correctly
