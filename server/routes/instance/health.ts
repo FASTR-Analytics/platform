@@ -239,3 +239,11 @@ routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
   await mainDb`SELECT pg_stat_statements_reset()`;
   return c.json({ reset: true, serverTime: new Date().toISOString() });
 });
+
+routesHealth.get("/indicators", async (c: Context) => {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const indicators = await mainDb<
+    { indicator_raw_label: string }[]
+  >`SELECT indicator_raw_label FROM indicators_raw ORDER BY LOWER(indicator_raw_label)`;
+  return c.json({ indicators: indicators.map((i) => i.indicator_raw_label) });
+});

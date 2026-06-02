@@ -1,3 +1,49 @@
+# Instance data (never in image)
 _example_instance_dir
+
+# Source files not needed in image (client_dist at root is the built output)
+client
+
+# Large dependency trees
+node_modules
+
+# Git history
+.git
+
+# Archives and test data
+_archive_report_to_slide_deck_migration
+_archive_policy_briefs
+_OLD_REPORT_CODE
+_scorecard_populations
+_dummy_data
+compiled_CSV_data_*
+
+# Build artifacts not COPYed into image
+module_defs_dist
+module_defs
+client_dist.backup
+*.backup
+
+# Dev/deploy scripts (not needed at runtime)
+deploy
+run
+pg_connect
+pg_run
+valkey_connect
+valkey_run
+get_schema
+validate_migrations
+
+# Lock/config files not used in container
+deno.lock
+package-lock.json
+package.json
+
+# Documentation
+*.md
+CHANGELOG_AUTO.txt
+*.txt
+
+# Misc
 server-app
 test.db
