@@ -1,3 +1,5 @@
+[1.43.0] [user] [changed] - Presenter name on cover slides is no longer bold by default
+[1.43.0] [admin] [changed] - Presenter name on cover slides defaults to non-bold
 [1.43.0] [user] [changed] - Slightly more spacing around text backgrounds in slides
 [1.43.0] [admin] [changed] - Increased text background padding in generated slide decks
 [1.43.0] [user] [fixed] - Charts with multiple tiers no longer show overflowing bars
