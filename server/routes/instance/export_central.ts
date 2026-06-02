@@ -124,18 +124,34 @@ routesExportCentral.get(
       // Table may not exist on older instances
     }
 
-    return c.json({
-      success: true,
-      data: {
-        exportedAt: new Date().toISOString(),
-        sourceInstanceId: _INSTANCE_ID,
-        sourceInstanceLabel: _INSTANCE_NAME,
-        sourceProjectId: projectId,
-        modules,
-        resultsObjects,
-        metrics,
-        calculatedIndicators,
+    const enc = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const w = (s: string) => controller.enqueue(enc.encode(s));
+        w(`{"success":true,"data":{`);
+        w(`"exportedAt":${JSON.stringify(new Date().toISOString())},`);
+        w(`"sourceInstanceId":${JSON.stringify(_INSTANCE_ID)},`);
+        w(`"sourceInstanceLabel":${JSON.stringify(_INSTANCE_NAME)},`);
+        w(`"sourceProjectId":${JSON.stringify(projectId)},`);
+        w(`"modules":${JSON.stringify(modules)},`);
+        w(`"metrics":${JSON.stringify(metrics)},`);
+        w(`"calculatedIndicators":${JSON.stringify(calculatedIndicators)},`);
+        w(`"resultsObjects":[`);
+        for (let i = 0; i < resultsObjects.length; i++) {
+          if (i > 0) w(",");
+          const ro = resultsObjects[i];
+          w(`{"id":${JSON.stringify(ro.id)},"moduleId":${JSON.stringify(ro.moduleId)},"columnDefinitions":${JSON.stringify(ro.columnDefinitions)},"rows":[`);
+          const chunkSize = 500;
+          for (let j = 0; j < ro.rows.length; j += chunkSize) {
+            if (j > 0) w(",");
+            w(ro.rows.slice(j, j + chunkSize).map((r) => JSON.stringify(r)).join(","));
+          }
+          w("]}");
+        }
+        w("]}}");
+        controller.close();
       },
     });
+    return new Response(stream, { headers: { "Content-Type": "application/json" } });
   },
 );
