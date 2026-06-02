@@ -1,18 +1,31 @@
-[TBD] [user] [added] - Help buttons now appear with quick summaries and links to documentation
-[TBD] [user] [changed] - Dashboard header logos, info, and download buttons are now aligned in a single row
-[TBD] [admin] [added] - Contextual help buttons link to documentation from within the app
-[TBD] [admin] [changed] - Dashboard header layout groups logos and action buttons on one line
-[TBD] [user] [added] - Add logos to dashboard header with size options
-[TBD] [user] [added] - Add summary text displayed below the dashboard title
-[TBD] [user] [added] - Add "About this dashboard" info button and dialog
-[TBD] [user] [added] - Download figures with background and margin options
-[TBD] [user] [added] - Each chart tile in grid layout now has its own download button
-[TBD] [admin] [added] - Dashboards now support displaying logos in the header
-[TBD] [admin] [added] - Dashboard settings include logo size options (S, M, L, XL)
-[TBD] [admin] [added] - Dashboards can show a summary below the title using markdown
-[TBD] [admin] [added] - Dashboards can have an "About this dashboard" info dialog with markdown content
-[TBD] [admin] [changed] - Chart download now lets you choose background and margin options
-[TBD] [admin] [changed] - Grid layout tiles now each have their own download button
+[1.40.1] [user] [added] - Dashboard logos can now be placed left or right of the header
+[1.40.1] [user] [changed] - Dashboard settings now open in a full editor panel instead of a popup dialog
+[1.40.1] [user] [changed] - Dashboard logos display at a consistent fixed size instead of configurable sizes
+[1.40.1] [user] [added] - "About this dashboard" dialog now shows logos alongside the description
+[1.40.1] [user] [changed] - Report image caption field renamed to "Alt text for screen readers"
+[1.40.1] [user] [changed] - Sidebar navigation labels no longer cut off long text
+[1.40.1] [user] [changed] - Report image editor shows alt text field only for images, not figures
+[1.40.1] [admin] [changed] - Dashboard settings now open in a full editor panel instead of a modal
+[1.40.1] [admin] [added] - Dashboard logos can be placed left of title or right of buttons
+[1.40.1] [admin] [changed] - Dashboard logo size option replaced with fixed, consistent sizing
+[1.40.1] [admin] [added] - "About this dashboard" modal now displays logos alongside description
+[1.40.1] [admin] [changed] - Report image caption field renamed to "Alt text for screen readers"
+[1.40.1] [admin] [changed] - Sidebar navigation labels no longer truncate long text
+[1.40.1] [user] [added] - Help buttons now appear with quick summaries and links to documentation
+[1.40.1] [user] [changed] - Dashboard header logos, info, and download buttons are now aligned in a single row
+[1.40.1] [admin] [added] - Contextual help buttons link to documentation from within the app
+[1.40.1] [admin] [changed] - Dashboard header layout groups logos and action buttons on one line
+[1.40.1] [user] [added] - Add logos to dashboard header with size options
+[1.40.1] [user] [added] - Add summary text displayed below the dashboard title
+[1.40.1] [user] [added] - Add "About this dashboard" info button and dialog
+[1.40.1] [user] [added] - Download figures with background and margin options
+[1.40.1] [user] [added] - Each chart tile in grid layout now has its own download button
+[1.40.1] [admin] [added] - Dashboards now support displaying logos in the header
+[1.40.1] [admin] [added] - Dashboard settings include logo size options (S, M, L, XL)
+[1.40.1] [admin] [added] - Dashboards can show a summary below the title using markdown
+[1.40.1] [admin] [added] - Dashboards can have an "About this dashboard" info dialog with markdown content
+[1.40.1] [admin] [changed] - Chart download now lets you choose background and margin options
+[1.40.1] [admin] [changed] - Grid layout tiles now each have their own download button
 [1.39.3] [user] [fixed] - Clearer error messages when AI suggests invalid filter values
 [1.39.3] [user] [fixed] - Only relevant indicators are shown when adding datasets
 [1.39.3] [admin] [fixed] - AI error messages now show clearer filter value details
