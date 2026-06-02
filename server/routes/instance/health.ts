@@ -257,26 +257,26 @@ routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
   return c.json({ reset: true, serverTime: new Date().toISOString() });
 });
 
-// routesHealth.get("/indicators", async (c: Context) => {
-//   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-//   const indicators = await mainDb<
-//     { indicator_raw_id: string; indicator_raw_label: string; mapped_to: string | null }[]
-//   >`
-//     SELECT
-//       ir.indicator_raw_id,
-//       ir.indicator_raw_label,
-//       STRING_AGG(i.indicator_common_id, ', ' ORDER BY i.indicator_common_id) AS mapped_to
-//     FROM indicators_raw ir
-//     LEFT JOIN indicator_mappings im ON ir.indicator_raw_id = im.indicator_raw_id
-//     LEFT JOIN indicators i ON im.indicator_common_id = i.indicator_common_id
-//     GROUP BY ir.indicator_raw_id, ir.indicator_raw_label
-//     ORDER BY LOWER(ir.indicator_raw_label)
-//   `;
-//   return c.json({
-//     indicators: indicators.map((i) => ({
-//       id: i.indicator_raw_id,
-//       label: i.indicator_raw_label,
-//       mappedTo: i.mapped_to ?? null,
-//     })),
-//   });
-// });
+routesHealth.get("/dhis2-indicators-export", async (c: Context) => {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const indicators = await mainDb<
+    { indicator_raw_id: string; indicator_raw_label: string; mapped_to: string | null }[]
+  >`
+    SELECT
+      ir.indicator_raw_id,
+      ir.indicator_raw_label,
+      STRING_AGG(i.indicator_common_id, ', ' ORDER BY i.indicator_common_id) AS mapped_to
+    FROM indicators_raw ir
+    LEFT JOIN indicator_mappings im ON ir.indicator_raw_id = im.indicator_raw_id
+    LEFT JOIN indicators i ON im.indicator_common_id = i.indicator_common_id
+    GROUP BY ir.indicator_raw_id, ir.indicator_raw_label
+    ORDER BY LOWER(ir.indicator_raw_label)
+  `;
+  return c.json({
+    indicators: indicators.map((i) => ({
+      id: i.indicator_raw_id,
+      label: i.indicator_raw_label,
+      mappedTo: i.mapped_to ?? null,
+    })),
+  });
+});
