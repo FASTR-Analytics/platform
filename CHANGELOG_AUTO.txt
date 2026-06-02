@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Exported metric labels now always appear in English
+[TBD] [admin] [fixed] - Exported metrics now always use English labels regardless of instance language
 [1.43.0] [user] [changed] - Updated icons for Slide decks and Dashboards navigation items
 [1.43.0] [admin] [changed] - Updated icons for slide decks and dashboards in project navigation
 [1.43.0] [admin] [changed] - Project exports no longer include raw module definition data
