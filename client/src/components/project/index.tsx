@@ -139,12 +139,12 @@ function ProjectInner(p: { currentUserEmail: string }) {
       items.push({
         id: "decks",
         label: t3({ en: "Slide decks", fr: "Présentations" }),
-        iconName: "sparkles",
+        iconName: "presentation",
       });
       items.push({
         id: "dashboards",
         label: t3({ en: "Dashboards", fr: "Tableaux de bord" }),
-        iconName: "box",
+        iconName: "layoutDashboard",
       });
     }
     if (perms.can_view_visualizations) {

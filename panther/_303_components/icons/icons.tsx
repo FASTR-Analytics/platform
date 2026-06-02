@@ -786,6 +786,78 @@ export function EyeOffIcon(p: { class?: string }) {
   );
 }
 
+export function PresentationIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M3 4l18 0" />
+      <path d="M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10" />
+      <path d="M12 16l0 4" />
+      <path d="M9 20l6 0" />
+      <path d="M8 12l3 -3l2 2l3 -3" />
+    </IconWrapper>
+  );
+}
+
+export function DashboardIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M10 13a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M13.45 11.55l2.05 -2.05" />
+      <path d="M6.4 20a9 9 0 1 1 11.2 0l-11.2 0" />
+    </IconWrapper>
+  );
+}
+
+export function LayoutDashboardIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M5 4h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
+      <path d="M5 16h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
+      <path d="M15 12h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
+      <path d="M15 4h4a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1" />
+    </IconWrapper>
+  );
+}
+
+export function LayoutGridIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M4 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" />
+      <path d="M14 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" />
+      <path d="M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" />
+      <path d="M14 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" />
+    </IconWrapper>
+  );
+}
+
+export function PresentationAnalyticsIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M9 12v-4" />
+      <path d="M15 12v-2" />
+      <path d="M12 12v-1" />
+      <path d="M3 4h18" />
+      <path d="M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10" />
+      <path d="M12 16v4" />
+      <path d="M9 20h6" />
+    </IconWrapper>
+  );
+}
+
+export function SlideshowIcon(p: { class?: string }) {
+  return (
+    <IconWrapper {...p}>
+      <path d="M15 6l.01 0" />
+      <path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -8" />
+      <path d="M3 13l4 -4a3 5 0 0 1 3 0l4 4" />
+      <path d="M13 12l2 -2a3 5 0 0 1 3 0l3 3" />
+      <path d="M8 21l.01 0" />
+      <path d="M12 21l.01 0" />
+      <path d="M16 21l.01 0" />
+    </IconWrapper>
+  );
+}
+
 export const _ICON_MAP = {
   alertCircle: AlertCircleIcon,
   arrowDown: ArrowDownIcon,
@@ -809,6 +881,7 @@ export const _ICON_MAP = {
   clearAll: ClearAllIcon,
   code: CodeIcon,
   copy: CopyIcon,
+  dashboard: DashboardIcon,
   database: DatabaseIcon,
   databaseImport: DatabaseImportIcon,
   document: DocumentIcon,
@@ -825,6 +898,8 @@ export const _ICON_MAP = {
   info: InfoIcon,
   infoSmall: InfoSmallIcon,
   infoSquare: InfoSquareIcon,
+  layoutDashboard: LayoutDashboardIcon,
+  layoutGrid: LayoutGridIcon,
   lifebuoy: LifebuoyIcon,
   lock: LockIcon,
   login: LoginIcon,
@@ -837,6 +912,8 @@ export const _ICON_MAP = {
   pencil: PencilIcon,
   photo: PhotoIcon,
   plus: PlusIcon,
+  presentation: PresentationIcon,
+  presentationAnalytics: PresentationAnalyticsIcon,
   print: PrintIcon,
   questionMark: QuestionMarkIcon,
   redo: RedoIcon,
@@ -849,6 +926,7 @@ export const _ICON_MAP = {
   selector: SelectorIcon,
   settings: SettingsIcon,
   settingsCog: SettingsCogIcon,
+  slideshow: SlideshowIcon,
   sparkles: SparklesIcon,
   switchHorizontal: SwitchHorizontalIcon,
   text: TextIcon,
