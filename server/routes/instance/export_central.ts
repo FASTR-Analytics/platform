@@ -77,7 +77,13 @@ routesExportCentral.get(
 
     const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
 
-    const modules = await projectDb<DBModule[]>`SELECT * FROM modules`;
+    const moduleRows = await projectDb<DBModule[]>`
+      SELECT id, config_selections, dirty, compute_def_updated_at, compute_def_git_ref,
+             presentation_def_updated_at, presentation_def_git_ref, config_updated_at,
+             last_run_at, last_run_git_ref
+      FROM modules
+    `;
+    const modules = moduleRows.map((m) => ({ ...m, module_definition: "" }));
 
     const resultsObjectsMeta = await projectDb<
       { id: string; module_id: string; column_definitions: string | null }[]
