@@ -75,7 +75,9 @@ defineRoute(
 
     const res = await createIndicatorsCommon(c.var.mainDb, body.indicators);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -108,7 +110,9 @@ defineRoute(
       body.mapped_raw_ids,
     );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -133,7 +137,9 @@ defineRoute(
       body.indicator_common_ids,
     );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -183,7 +189,9 @@ defineRoute(
 
     const res = await createIndicatorsRaw(c.var.mainDb, body.indicators);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -216,7 +224,9 @@ defineRoute(
       body.mapped_common_ids,
     );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -238,7 +248,9 @@ defineRoute(
 
     const res = await deleteIndicatorRaw(c.var.mainDb, body.indicator_raw_ids);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -278,7 +290,9 @@ defineRoute(
       body.replace_all_existing,
     );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -303,7 +317,9 @@ defineRoute(
       body.replace_all_existing,
     );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -318,7 +334,9 @@ defineRoute(
   async (c) => {
     const res = await deleteAllIndicators(c.var.mainDb);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },

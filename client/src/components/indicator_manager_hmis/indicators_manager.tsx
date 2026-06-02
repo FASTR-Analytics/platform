@@ -68,9 +68,7 @@ export function IndicatorsManager(p: Props) {
     }),
   });
 
-  const [tab, setTab] = createSignal<"common" | "raw" | "calculated">(
-    "common",
-  );
+  const [tab, setTab] = createSignal<"common" | "raw" | "calculated">("common");
   const tabItems: ListItem<"common" | "raw" | "calculated">[] = [
     {
       id: "common",
@@ -207,9 +205,13 @@ export function IndicatorsManager(p: Props) {
           </div>
         }
       >
-        <FrameTop panelChildren={<TabsNavigation items={tabItems} value={tab()} onChange={setTab} />}>
+        <FrameTop
+          panelChildren={
+            <TabsNavigation items={tabItems} value={tab()} onChange={setTab} />
+          }
+        >
           <div class="ui-pad ui-spy h-full w-full overflow-auto">
-            <Show when={tab() === ("common")}>
+            <Show when={tab() === "common"}>
               <StateHolderWrapper state={indicators()} noPad>
                 {(keyedIndicators) => (
                   <div class="h-full">
@@ -222,7 +224,7 @@ export function IndicatorsManager(p: Props) {
                 )}
               </StateHolderWrapper>
             </Show>
-            <Show when={tab() === ("raw")}>
+            <Show when={tab() === "raw"}>
               <StateHolderWrapper state={indicators()} noPad>
                 {(keyedIndicators) => (
                   <div class="h-full">
@@ -236,7 +238,7 @@ export function IndicatorsManager(p: Props) {
                 )}
               </StateHolderWrapper>
             </Show>
-            <Show when={tab() === ("calculated")}>
+            <Show when={tab() === "calculated"}>
               <StateHolderWrapper state={indicators()} noPad>
                 {(keyedIndicators) => (
                   <StateHolderWrapper state={calculatedIndicators()} noPad>
