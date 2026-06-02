@@ -7,6 +7,8 @@ import { _INSTANCE_ID, _INSTANCE_NAME } from "../../exposed_env_vars.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import type { DBMetric, DBModule } from "../../db/project/_project_database_types.ts";
 import type { DBProject } from "../../db/instance/_main_database_types.ts";
+import { getModuleDefinitionDetail } from "../../module_loader/load_module.ts";
+import type { ModuleId } from "lib";
 
 type Env = { Variables: { globalUser: GlobalUser; mainDb: Sql } };
 
@@ -98,6 +100,27 @@ routesExportCentral.get(
 
     const metrics = await projectDb<DBMetric[]>`SELECT * FROM metrics`;
 
+    // Build English label map from module definitions so the central hub always
+    // receives English labels regardless of this instance's INSTANCE_LANGUAGE.
+    const metricLabelMap = new Map<string, { label: string; variantLabel: string | null }>();
+    for (const m of moduleRows) {
+      try {
+        const defResult = await getModuleDefinitionDetail(m.id as ModuleId, "en");
+        if (defResult.success) {
+          for (const metric of defResult.data.metrics) {
+            metricLabelMap.set(metric.id, { label: metric.label, variantLabel: metric.variantLabel ?? null });
+          }
+        }
+      } catch {
+        // Module definition unavailable — fall back to stored label
+      }
+    }
+    const metricsExport = metrics.map((m) => ({
+      ...m,
+      label: metricLabelMap.get(m.id)?.label ?? m.label,
+      variant_label: metricLabelMap.get(m.id)?.variantLabel ?? m.variant_label,
+    }));
+
     type DBCalcIndicator = {
       calculated_indicator_id: string; label: string; format_as: string;
       decimal_places: number; threshold_direction: string;
@@ -126,7 +149,7 @@ routesExportCentral.get(
         sourceProjectId: projectId,
         modules,
         resultsObjects,
-        metrics,
+        metrics: metricsExport,
         calculatedIndicators,
       },
     });
