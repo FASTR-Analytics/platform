@@ -1,9 +1,19 @@
 import type Uppy from "@uppy/core";
-import { Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import {
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import type { AssetInfo } from "lib";
 import { t3 } from "lib";
 import { Button, Select, getSelectOptions } from "panther";
-import { cleanupUppy, createUppyInstance } from "~/components/_uppy_file_upload";
+import {
+  cleanupUppy,
+  createUppyInstance,
+} from "~/components/_uppy_file_upload";
 import { instanceState } from "~/state/instance/t1_store";
 
 let idCounter = 0;
@@ -14,11 +24,14 @@ type Props = {
   filter: (asset: AssetInfo) => boolean;
   value: string;
   onChange: (fileName: string) => void;
+  fullWidth?: boolean;
 };
 
 export function FileUploadSelector(p: Props) {
   const triggerId = `file-upload-trigger-${++idCounter}`;
-  const [waitingForAsset, setWaitingForAsset] = createSignal<string | null>(null);
+  const [waitingForAsset, setWaitingForAsset] = createSignal<string | null>(
+    null,
+  );
 
   let uppy: Uppy | undefined;
 
@@ -59,7 +72,9 @@ export function FileUploadSelector(p: Props) {
 
     if (!pending) return;
 
-    const exists = instanceState.assets.filter(p.filter).some((a) => a.fileName === pending);
+    const exists = instanceState.assets
+      .filter(p.filter)
+      .some((a) => a.fileName === pending);
     if (exists) {
       p.onChange(pending);
       setWaitingForAsset(null);
@@ -67,7 +82,9 @@ export function FileUploadSelector(p: Props) {
   });
 
   const options = createMemo(() =>
-    getSelectOptions(instanceState.assets.filter(p.filter).map((a) => a.fileName)),
+    getSelectOptions(
+      instanceState.assets.filter(p.filter).map((a) => a.fileName),
+    ),
   );
 
   return (
@@ -81,11 +98,14 @@ export function FileUploadSelector(p: Props) {
         when={!waitingForAsset()}
         fallback={
           <div class="text-neutral py-2 text-sm">
-            {t3({ en: "Processing upload...", fr: "Traitement du téléversement..." })}
+            {t3({
+              en: "Processing upload...",
+              fr: "Traitement du téléversement...",
+            })}
           </div>
         }
       >
-        <div class="w-96">
+        <div class={p.fullWidth ? "w-full" : "max-w-96"}>
           <Select
             label={p.selectLabel}
             options={options()}

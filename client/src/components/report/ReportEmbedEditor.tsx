@@ -1,7 +1,15 @@
 import type { FigureBlock, ImageBlock } from "lib";
 import { t3 } from "lib";
 import { Button, Input } from "panther";
-import { createEffect, createSignal, Match, on, onCleanup, Show, Switch } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  Match,
+  on,
+  onCleanup,
+  Show,
+  Switch,
+} from "solid-js";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 
 // The currently-selected report embed (report-specific — no Dashboard naming).
@@ -101,13 +109,6 @@ export function ReportEmbedEditor(p: Props) {
       >
         {(embed) => (
           <div class="ui-pad ui-spy">
-            <Input
-              label={t3({ en: "Caption", fr: "Légende" })}
-              value={captionDraft()}
-              onChange={onCaptionInput}
-              disabled={!p.canConfigure}
-              fullWidth
-            />
             <Show when={p.canConfigure}>
               <Switch>
                 <Match when={embed().kind === "figure"}>
@@ -142,24 +143,44 @@ export function ReportEmbedEditor(p: Props) {
                   </div>
                 </Match>
                 <Match when={embed().kind === "image"}>
-                  <FileUploadSelector
-                    buttonLabel={t3({
-                      en: "Upload image",
-                      fr: "Téléverser une image",
-                    })}
-                    selectLabel={t3({ en: "Image file", fr: "Fichier image" })}
-                    filter={(a) => a.isImage}
-                    value={(embed() as { imageBlock: ImageBlock }).imageBlock
-                      .imgFile}
-                    onChange={(v) => p.onChangeImageFile(embed().id, v)}
-                  />
+                  <div class="ui-spy">
+                    <FileUploadSelector
+                      buttonLabel={t3({
+                        en: "Upload image",
+                        fr: "Téléverser une image",
+                      })}
+                      selectLabel={t3({
+                        en: "Image file",
+                        fr: "Fichier image",
+                      })}
+                      filter={(a) => a.isImage}
+                      value={
+                        (embed() as { imageBlock: ImageBlock }).imageBlock
+                          .imgFile
+                      }
+                      onChange={(v) => p.onChangeImageFile(embed().id, v)}
+                      fullWidth
+                    />
+                    <Input
+                      label={t3({
+                        en: "Alt text for screen readers (optional)",
+                        fr: "Texte alternatif pour lecteurs d'écran (facultatif)",
+                      })}
+                      value={captionDraft()}
+                      onChange={onCaptionInput}
+                      fullWidth
+                    />
+                  </div>
                 </Match>
               </Switch>
               <div class="pt-2">
                 <Button intent="danger" outline onClick={() => p.onDelete()}>
                   <Show
                     when={embed().kind === "figure"}
-                    fallback={t3({ en: "Delete image", fr: "Supprimer l'image" })}
+                    fallback={t3({
+                      en: "Delete image",
+                      fr: "Supprimer l'image",
+                    })}
                   >
                     {t3({ en: "Delete figure", fr: "Supprimer la figure" })}
                   </Show>

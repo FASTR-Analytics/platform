@@ -25,7 +25,7 @@ import {
   CoverTreatmentPicker,
   FreeformTreatmentPicker,
 } from "./style_editor/TreatmentPicker.tsx";
-import { LogoSectionEditor } from "./slide_editor/LogoSectionEditor.tsx";
+import { LogoSectionEditor } from "~/components/_shared/logo_section_editor";
 import { StylePreview } from "./style_editor/StylePreview.tsx";
 
 export type SlideDeckSettingsProps = {

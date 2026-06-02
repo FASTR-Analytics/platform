@@ -56,12 +56,12 @@ export const GLOBAL_STYLE_OPTIONS: CustomStyleOptions = {
       points: {
         func: { innerColorStrategy: { brighten: 0.5 } },
       },
-      connectors: {
-        func: {
-          show: true,
-          strokeColor: { key: "neutral" },
-        },
-      },
+      // connectors: {
+      //   func: {
+      //     show: true,
+      //     strokeColor: { key: "neutral" },
+      //   },
+      // },
     },
   },
   page: {

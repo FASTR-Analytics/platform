@@ -48,7 +48,10 @@ export type DashboardLayoutFromSchema = z.infer<typeof dashboardLayoutSchema>;
 const dashboardLogosConfigSchema = z.object({
   availableCustom: z.array(z.string()),
   selected: z.array(z.string()),
-  size: z.enum(["sm", "md", "lg", "xl"]).optional(),
+  // "left" = far left (left of the title); "right" (default) = far right
+  // (right of all header buttons). Logos render within a fixed max-h/max-w box
+  // (no per-dashboard size option — see DashboardLogos).
+  placement: z.enum(["left", "right"]).optional(),
 });
 
 const dashboardAboutConfigSchema = z.object({
