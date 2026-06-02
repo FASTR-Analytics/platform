@@ -19,9 +19,12 @@
 // 9. Migrate figureInputs: yScaleAxisData → scaleAxisLimits + tierHeaders
 // 10. Compute missing scaleAxisLimits from values array (includes chartOHData)
 // 11. Convert text block style.textSize number → semantic key
+// 12. Normalize figureInputs string[] headers → HeaderItem[] ({ id, label })
 //
 // PRE-VALIDATION BLOCK (runs on ALL rows):
-// A. One-time fix for missing scaleAxisLimits - DELETE AFTER ALL INSTANCES UPDATED
+// A. One-time force of the figureInputs migration (Blocks 9/10/12). Needed
+//    because the skip gate validates figureInputs as z.unknown(), so figure
+//    drift is invisible to it. DELETE AFTER ALL INSTANCES UPDATED
 //
 // =============================================================================
 
@@ -200,6 +203,27 @@ function transformFigureInputs(fi: Record<string, unknown>): void {
         tierHeaders.length,
         laneHeaders.length,
       );
+    }
+
+    // Block 12: Normalize string[] headers → HeaderItem[] ({ id, label }).
+    // Pre-2026-05-26 transformed data stored headers as plain strings; the
+    // current renderer expects { id, label } objects and reads .id / .label
+    // (undefined on a string → broken tier/pane/lane layout + id matching).
+    for (
+      const headerKey of [
+        "seriesHeaders",
+        "laneHeaders",
+        "tierHeaders",
+        "paneHeaders",
+        "indicatorHeaders",
+      ]
+    ) {
+      const arr = d[headerKey];
+      if (Array.isArray(arr)) {
+        d[headerKey] = arr.map((h) =>
+          typeof h === "string" ? { id: h, label: h } : h
+        );
+      }
     }
   }
 }
