@@ -5,9 +5,11 @@ import type { PresentationObjectConfig } from "./presentation_objects.ts";
 
 // Re-export schemas from underscore-prefixed file (stored data validation)
 export {
+  dashboardConfigSchema,
   dashboardFigureBlockSchema,
   dashboardLayoutSchema,
 } from "./_dashboard_config.ts";
+import type { DashboardConfigFromSchema } from "./_dashboard_config.ts";
 
 // Re-export for convenience
 export type { FigureBlock, FigureSource };
@@ -17,6 +19,16 @@ export type { FigureBlock, FigureSource };
 export type DashboardLayout =
   | { type: "sidebar" }
   | { type: "grid" };
+
+export type DashboardConfig = DashboardConfigFromSchema;
+export type DashboardLogoSize = NonNullable<DashboardConfig["logos"]["size"]>;
+
+export function getStartingDashboardConfig(): DashboardConfig {
+  return {
+    logos: { availableCustom: [], selected: [] },
+    about: { summary: "", body: "" },
+  };
+}
 
 export type DashboardItem = {
   id: string;
@@ -53,6 +65,7 @@ export type Dashboard = {
   title: string;
   isPublic: boolean;
   layout: DashboardLayout;
+  config: DashboardConfig;
   items: DashboardItem[];
   groups: DashboardItemGroup[];
   createdByEmail: string;
@@ -79,6 +92,7 @@ export type DashboardUpdate = {
   title?: string;
   isPublic?: boolean;
   layout?: DashboardLayout;
+  config?: DashboardConfig;
 };
 
 export type DashboardSummary = {
@@ -98,6 +112,10 @@ export type DashboardDetail = Dashboard;
 export type PublicDashboardBundle = {
   title: string;
   layout: DashboardLayout;
+  // Branding logos (identifiers resolved to URLs client-side) + size key.
+  logos: { selected: string[]; size?: DashboardLogoSize };
+  // Markdown: inline summary (under heading) + long body (About modal).
+  about: { summary: string; body: string };
   // Flat list of every renderable item (group members + standalones), in order.
   items: PublicDashboardItem[];
   // Grouped view: a standalone item or a replicant group with its members.
@@ -201,7 +219,19 @@ export function buildPublicDashboardBundle(
     }
   }
 
-  return { title: dashboard.title, layout: dashboard.layout, items, entries };
+  // Defensive `??`: a browser holding a pre-config-feature cached DashboardDetail
+  // will lack `config`, and the version-keyed detail cache won't refetch unchanged
+  // dashboards after deploy (the no-op data transform doesn't bump last_updated).
+  const cfg = dashboard.config ?? getStartingDashboardConfig();
+
+  return {
+    title: dashboard.title,
+    layout: dashboard.layout,
+    logos: { selected: cfg.logos.selected, size: cfg.logos.size },
+    about: cfg.about,
+    items,
+    entries,
+  };
 }
 
 // ── Slug validation ─────────────────────────────────────────────────────────

@@ -652,6 +652,7 @@ export function DashboardEditor(p: Props) {
         initialSlug: dashboard.slug,
         initialIsPublic: dashboard.isPublic,
         initialLayout: dashboard.layout,
+        initialConfig: dashboard.config,
       },
     });
   }

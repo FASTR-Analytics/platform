@@ -1,165 +1,199 @@
 import { useParams } from "@solidjs/router";
-import type { PublicDashboardBundle } from "lib";
-import { t3 } from "lib";
+import type {
+  PublicDashboardBundle,
+  PublicDashboardEntry,
+  PublicDashboardEntryGroup,
+  PublicDashboardItem,
+} from "lib";
+import { FIGURE_EXPORT_WIDTH_PX, t3, TC } from "lib";
 import {
+  AlertProvider,
   Button,
   ChartHolder,
+  downloadBase64Image,
   FrameLeft,
   FrameTop,
+  getFigureAsBase64,
+  HeadingBar,
+  MarkdownPresentationJsx,
+  openAlert,
+  openComponent,
   Select,
   StateHolderWrapper,
-  saveAs,
   timQuery,
   type FigureInputs,
 } from "panther";
-import { For, Match, Show, Switch, createSignal } from "solid-js";
+import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/strip_figure_inputs";
+import { FASTR_LOGO_VALUES } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { _SERVER_HOST } from "~/server_actions";
+import {
+  DownloadFigureModal,
+  type DownloadFigureResult,
+} from "./download_figure_modal.tsx";
 
-const CANVAS_ID = "PUBLIC_DASHBOARD_CANVAS";
+const DASHBOARD_LOGO_HEIGHT: Record<string, number> = {
+  sm: 24,
+  md: 32,
+  lg: 40,
+  xl: 56,
+};
+
+// Built-in FASTR logos are served from the app root; uploaded image assets from
+// the server host (mirrors the slide-deck logo loader).
+function resolveLogoUrl(logo: string): string {
+  return FASTR_LOGO_VALUES.includes(logo)
+    ? `/${logo}`
+    : `${_SERVER_HOST}/${logo}`;
+}
+
+function openAbout(body: string): void {
+  void openAlert({
+    title: t3({
+      en: "About this dashboard",
+      fr: "À propos de ce tableau de bord",
+    }),
+    text: (
+      <div class="max-w-prose">
+        <MarkdownPresentationJsx markdown={body} />
+      </div>
+    ),
+  });
+}
 
 export default function PublicDashboard() {
   const params = useParams<{ projectId: string; slug: string }>();
 
-  const [selectedItemId, setSelectedItemId] = createSignal<string | undefined>(
-    undefined,
-  );
-
-  const bundleHolder = timQuery<PublicDashboardBundle>(
-    async () => {
-      const res = await fetch(
-        `${_SERVER_HOST}/api/d/${params.projectId}/${params.slug}`,
-        { credentials: "include" },
-      );
-      const resJson = await res.json();
-      return resJson;
-    },
-    t3({ en: "Loading...", fr: "Chargement..." }),
-  );
-
-  async function download() {
-    const id = selectedItemId();
-    if (!id) return;
-    const canvas = document.getElementById(
-      `${CANVAS_ID}_${id}`,
-    ) as HTMLCanvasElement | null;
-    if (!canvas) return;
-    const padding = 50;
-    const newW = canvas.width + 2 * padding;
-    const newH = canvas.height + 2 * padding;
-    const backCanvas = new OffscreenCanvas(newW, newH);
-    const ctx = backCanvas.getContext("2d")!;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, newW, newH);
-    ctx.drawImage(canvas, padding, padding);
-    const blob = await backCanvas.convertToBlob({
-      type: "image/png",
-      quality: 1,
-    });
-    saveAs(blob, "dashboard.png");
-  }
+  const bundleHolder = timQuery<PublicDashboardBundle>(async () => {
+    const res = await fetch(
+      `${_SERVER_HOST}/api/d/${params.projectId}/${params.slug}`,
+      { credentials: "include" },
+    );
+    return await res.json();
+  }, t3(TC.loading));
 
   return (
-    <StateHolderWrapper state={bundleHolder.state()}>
-      {(bundle) => (
-        <DashboardViewer
-          bundle={bundle}
-          selectedItemId={selectedItemId()}
-          setSelectedItemId={setSelectedItemId}
-          onDownload={download}
-        />
-      )}
-    </StateHolderWrapper>
+    <>
+      <StateHolderWrapper state={bundleHolder.state()}>
+        {(bundle) => <DashboardViewer bundle={bundle} />}
+      </StateHolderWrapper>
+      {/* Public routes render outside the app shell, so the modal host that
+          powers openComponent must be mounted here. */}
+      <AlertProvider />
+    </>
   );
 }
 
-export type DashboardViewerProps = {
+type PublicEntry = PublicDashboardEntry;
+type PublicItem = PublicDashboardItem;
+
+type DashboardViewerProps = {
   bundle: PublicDashboardBundle;
-  selectedItemId: string | undefined;
-  setSelectedItemId: (id: string) => void;
-  onDownload?: () => void;
 };
 
-type PublicEntry = PublicDashboardBundle["entries"][number];
-type PublicItem = PublicDashboardBundle["items"][number];
-
-export function DashboardViewer(p: DashboardViewerProps) {
-  const entries = () => p.bundle.entries;
+function DashboardViewer(p: DashboardViewerProps) {
+  const [selectedItemId, setSelectedItemId] = createSignal<string>();
 
   const currentItem = () => {
     const list = p.bundle.items;
-    if (list.length === 0) return undefined;
-    return list.find((i) => i.id === p.selectedItemId) ?? list[0];
+    if (list.length === 0) {
+      return undefined;
+    }
+    return list.find((i) => i.id === selectedItemId()) ?? list[0];
   };
 
   const layoutType = () => p.bundle.layout.type;
 
+  // Sidebar shows one chart at a time, so a single header Download is
+  // unambiguous; the grid shows many, so each tile downloads itself instead.
+  const headerDownloadItem = () =>
+    layoutType() === "sidebar" ? currentItem() : undefined;
+
+  const logoHeight = () => DASHBOARD_LOGO_HEIGHT[p.bundle.logos.size ?? "md"];
+
   return (
     <FrameTop
       panelChildren={
-        <div class="font-700 border-base-300 ui-pad border-b text-lg">
-          {p.bundle.title}
-        </div>
+        <HeadingBar
+          class="border-base-300"
+          heading={<span class="font-800 text-2xl">{p.bundle.title}</span>}
+        >
+          <Show when={p.bundle.logos.selected.length > 0}>
+            <div class="ui-gap flex items-center">
+              <For each={p.bundle.logos.selected}>
+                {(logo) => (
+                  <img
+                    src={resolveLogoUrl(logo)}
+                    alt=""
+                    class="w-auto object-contain"
+                    style={{ height: `${logoHeight()}px` }}
+                  />
+                )}
+              </For>
+            </div>
+          </Show>
+          <Show when={p.bundle.about.body.trim()}>
+            <Button
+              onClick={() => openAbout(p.bundle.about.body)}
+              iconName="info"
+              outline
+            >
+              {t3({
+                en: "About this dashboard",
+                fr: "À propos de ce tableau de bord",
+              })}
+            </Button>
+          </Show>
+          <Show when={headerDownloadItem()} keyed>
+            {(it) => (
+              <Button
+                onClick={() => downloadItem(it)}
+                iconName="download"
+                outline
+              >
+                {t3({ en: "Download", fr: "Télécharger" })}
+              </Button>
+            )}
+          </Show>
+        </HeadingBar>
       }
     >
-      <Switch>
-        <Match when={layoutType() === "grid"}>
-          <GridLayout entries={entries()} />
-        </Match>
-        <Match when={layoutType() === "sidebar"}>
-          <SidebarLayout
-            entries={entries()}
-            currentItem={currentItem()}
-            setSelectedItemId={p.setSelectedItemId}
-            onDownload={p.onDownload}
-          />
-        </Match>
-      </Switch>
+      <div class="flex h-full w-full flex-col">
+        <Show when={p.bundle.about.summary.trim()}>
+          <div class="border-base-300 ui-pad border-b text-sm">
+            <MarkdownPresentationJsx markdown={p.bundle.about.summary} />
+          </div>
+        </Show>
+        <div class="min-h-0 flex-1">
+          <Switch>
+            <Match when={layoutType() === "sidebar"}>
+              <SidebarLayout
+                entries={p.bundle.entries}
+                currentItem={currentItem()}
+                setSelectedItemId={setSelectedItemId}
+              />
+            </Match>
+            <Match when={layoutType() === "grid"}>
+              <GridLayout entries={p.bundle.entries} />
+            </Match>
+          </Switch>
+        </div>
+      </div>
     </FrameTop>
   );
 }
 
-function replicantLabel(
-  group: Extract<PublicEntry, { kind: "group" }>["group"],
-  member: PublicItem,
-): string {
-  return (
-    group.replicants.find((r) => r.value === member.replicantValue)?.label ??
-    member.label
-  );
-}
-
-export type SidebarLayoutProps = {
+type SidebarLayoutProps = {
   entries: PublicEntry[];
   currentItem: PublicItem | undefined;
   setSelectedItemId: (id: string) => void;
-  onDownload?: () => void;
 };
 
-export function SidebarLayout(p: SidebarLayoutProps) {
-  const NavRow = (q: {
-    label: string;
-    active: boolean;
-    indent?: boolean;
-    onClick: () => void;
-  }) => (
-    <div
-      class="ui-hoverable cursor-pointer truncate rounded px-2 py-1 text-sm"
-      classList={{
-        "bg-primary text-primary-content": q.active,
-        "pl-5": q.indent,
-        "text-base-content/70": q.indent && !q.active,
-      }}
-      onClick={q.onClick}
-    >
-      {q.label}
-    </div>
-  );
-
+function SidebarLayout(p: SidebarLayoutProps) {
   return (
     <FrameLeft
       panelChildren={
-        <div class="ui-pad border-base-300 ui-spy-sm h-full max-w-[400px] overflow-auto border-r">
+        <div class="ui-pad border-base-300 ui-spy-sm h-full w-56 overflow-auto border-r lg:w-64 xl:w-72">
           <For each={p.entries}>
             {(entry) => (
               <Switch>
@@ -198,11 +232,6 @@ export function SidebarLayout(p: SidebarLayoutProps) {
       }
     >
       <div class="ui-pad relative h-full w-full overflow-auto">
-        <div class="absolute top-4 right-4 z-10">
-          <Show when={p.currentItem}>
-            <Button onClick={p.onDownload} iconName="download" outline />
-          </Show>
-        </div>
         <Show
           when={p.currentItem}
           keyed
@@ -215,40 +244,47 @@ export function SidebarLayout(p: SidebarLayoutProps) {
             </div>
           }
         >
-          {(it) => (
-            <DashboardItemChart
-              itemId={it.id}
-              strippedFigureInputs={it.strippedFigureInputs}
-              source={it.source}
-              geoData={it.geoData}
-            />
-          )}
+          {(it) => <DashboardItemChart item={it} />}
         </Show>
       </div>
     </FrameLeft>
   );
 }
 
-export type GridLayoutProps = {
+function NavRow(p: {
+  label: string;
+  active: boolean;
+  indent?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      class="ui-hoverable cursor-pointer truncate rounded px-2 py-1 text-sm"
+      classList={{
+        "bg-primary text-primary-content": p.active,
+        "pl-5": p.indent,
+        "text-base-content/70": p.indent && !p.active,
+      }}
+      onClick={p.onClick}
+    >
+      {p.label}
+    </div>
+  );
+}
+
+type GridLayoutProps = {
   entries: PublicEntry[];
 };
 
-export function GridLayout(p: GridLayoutProps) {
+function GridLayout(p: GridLayoutProps) {
   return (
     <div class="ui-gap ui-pad grid content-start overflow-auto lg:grid-cols-2">
       <For each={p.entries}>
         {(entry) => (
-          <div class="border-base-300 ui-pad aspect-video rounded border">
+          <div class="border-base-300 ui-pad flex aspect-video flex-col rounded border">
             <Switch>
               <Match when={entry.kind === "item" ? entry : undefined}>
-                {(it) => (
-                  <DashboardItemChart
-                    itemId={it().item.id}
-                    strippedFigureInputs={it().item.strippedFigureInputs}
-                    source={it().item.source}
-                    geoData={it().item.geoData}
-                  />
-                )}
+                {(it) => <ItemTile item={it().item} />}
               </Match>
               <Match when={entry.kind === "group" ? entry : undefined}>
                 {(grp) => (
@@ -263,8 +299,22 @@ export function GridLayout(p: GridLayoutProps) {
   );
 }
 
+function ItemTile(p: { item: PublicItem }) {
+  return (
+    <div class="flex h-full w-full flex-col">
+      <TileHeader
+        label={p.item.label}
+        onDownload={() => downloadItem(p.item)}
+      />
+      <div class="min-h-0 flex-1">
+        <DashboardItemChart item={p.item} />
+      </div>
+    </div>
+  );
+}
+
 function GroupTile(p: {
-  group: Extract<PublicEntry, { kind: "group" }>["group"];
+  group: PublicDashboardEntryGroup;
   members: PublicItem[];
 }) {
   const [value, setValue] = createSignal(
@@ -275,10 +325,15 @@ function GroupTile(p: {
 
   return (
     <div class="flex h-full w-full flex-col">
-      <div class="ui-gap-sm flex items-center pb-1">
-        <div class="text-neutral font-700 flex-1 truncate text-xs">
-          {p.group.label}
-        </div>
+      <TileHeader
+        label={p.group.label}
+        onDownload={() => {
+          const c = current();
+          if (c) {
+            downloadItem(c);
+          }
+        }}
+      >
         <Select
           value={value()}
           options={p.group.replicants.map((r) => ({
@@ -288,44 +343,97 @@ function GroupTile(p: {
           onChange={(v: string) => setValue(v)}
           size="sm"
         />
-      </div>
+      </TileHeader>
       <div class="min-h-0 flex-1">
         <Show when={current()} keyed>
-          {(it) => (
-            <DashboardItemChart
-              itemId={it.id}
-              strippedFigureInputs={it.strippedFigureInputs}
-              source={it.source}
-              geoData={it.geoData}
-            />
-          )}
+          {(it) => <DashboardItemChart item={it} />}
         </Show>
       </div>
     </div>
   );
 }
 
-export type DashboardItemChartProps = {
-  itemId: string;
-  strippedFigureInputs: FigureInputs;
-  source: PublicDashboardBundle["items"][number]["source"];
-  geoData?: unknown;
-};
-
-// Public viewer (readable surface) → reflow (the ChartHolder default). The
-// editor grid uses FigureThumbnail (zoom) instead, matching viz thumbnails.
-export function DashboardItemChart(p: DashboardItemChartProps) {
-  const fi = () =>
-    hydrateFigureInputsForPublicRendering(
-      p.strippedFigureInputs,
-      p.source,
-      p.geoData,
-    );
+function TileHeader(p: {
+  label: string;
+  onDownload: () => void;
+  children?: JSX.Element;
+}) {
   return (
-    <ChartHolder
-      canvasElementId={`${CANVAS_ID}_${p.itemId}`}
-      chartInputs={fi()}
-      height={"flex"}
-    />
+    <div class="ui-gap-sm flex items-center pb-1">
+      <div class="text-neutral font-700 flex-1 truncate text-xs">{p.label}</div>
+      {p.children}
+      <Button
+        onClick={p.onDownload}
+        iconName="download"
+        intent="neutral"
+        outline
+        size="sm"
+        ariaLabel={t3({ en: "Download", fr: "Télécharger" })}
+      />
+    </div>
+  );
+}
+
+function DashboardItemChart(p: { item: PublicItem }) {
+  return <ChartHolder chartInputs={itemFigureInputs(p.item)} height="flex" />;
+}
+
+function replicantLabel(
+  group: PublicDashboardEntryGroup,
+  member: PublicItem,
+): string {
+  return (
+    group.replicants.find((r) => r.value === member.replicantValue)?.label ??
+    member.label
+  );
+}
+
+function itemFigureInputs(item: PublicItem): FigureInputs {
+  return hydrateFigureInputsForPublicRendering(
+    item.strippedFigureInputs,
+    item.source,
+    item.geoData,
+  );
+}
+
+const DOWNLOAD_MARGIN_DU = 40;
+
+// Background and margin are baked into the figure's surrounds so the plain
+// panther export helper renders them — no manual canvas compositing.
+function figureInputsForDownload(
+  fi: FigureInputs,
+  transparent: boolean,
+  padding: boolean,
+): FigureInputs {
+  return {
+    ...fi,
+    style: {
+      ...fi.style,
+      surrounds: {
+        ...fi.style?.surrounds,
+        backgroundColor: transparent ? "none" : "#ffffff",
+        padding: padding ? DOWNLOAD_MARGIN_DU : 0,
+      },
+    },
+  };
+}
+
+async function downloadItem(item: PublicItem): Promise<void> {
+  const res = await openComponent<Record<string, never>, DownloadFigureResult>({
+    element: DownloadFigureModal,
+    props: {},
+  });
+  if (!res) {
+    return;
+  }
+  const cleanLabel = item.label.trim().replace(/\s+/g, "_") || "figure";
+  const fi = figureInputsForDownload(
+    itemFigureInputs(item),
+    res.transparent,
+    res.padding,
+  );
+  downloadBase64Image(
+    getFigureAsBase64(fi, FIGURE_EXPORT_WIDTH_PX),
+    `${cleanLabel}.png`,
   );
 }

@@ -115,6 +115,7 @@ export type DBDashboard = {
   title: string;
   is_public: boolean;
   layout: string;
+  config: string;
   created_by_email: string;
   created_at: string;
   updated_at: string;

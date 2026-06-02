@@ -3,6 +3,7 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   Dashboard,
+  DashboardConfig,
   DashboardCreate,
   DashboardDetail,
   DashboardItem,
@@ -11,8 +12,10 @@ import {
   DashboardSummary,
   DashboardUpdate,
   FigureBlock,
+  dashboardConfigSchema,
   dashboardFigureBlockSchema,
   dashboardLayoutSchema,
+  getStartingDashboardConfig,
   getStartingLayoutForDashboard,
   isValidDashboardSlug,
   parseJsonOrThrow,
@@ -39,6 +42,13 @@ function parseLayout(raw: string | null | undefined): DashboardLayout {
   if (!raw) return getStartingLayoutForDashboard();
   return dashboardLayoutSchema.parse(parseJsonOrThrow(raw));
 }
+
+function parseDashboardConfig(raw: string | null | undefined): DashboardConfig {
+  if (!raw) return getStartingDashboardConfig();
+  return dashboardConfigSchema.parse(parseJsonOrThrow(raw));
+}
+
+const STARTING_CONFIG_JSON = JSON.stringify(getStartingDashboardConfig());
 
 function parseFigureBlock(raw: string): FigureBlock {
   return dashboardFigureBlockSchema.parse(parseJsonOrThrow(raw)) as FigureBlock;
@@ -136,6 +146,7 @@ export async function getDashboardDetail(
       title: row.title,
       isPublic: row.is_public,
       layout: parseLayout(row.layout),
+      config: parseDashboardConfig(row.config),
       items: itemRows.map(mapDashboardItem),
       groups: await loadDashboardItemGroups(projectDb, dashboardId),
       createdByEmail: row.created_by_email,
@@ -174,6 +185,7 @@ export async function getDashboardBySlug(
       title: row.title,
       isPublic: row.is_public,
       layout: parseLayout(row.layout),
+      config: parseDashboardConfig(row.config),
       items: itemRows.map(mapDashboardItem),
       groups: await loadDashboardItemGroups(projectDb, row.id),
       createdByEmail: row.created_by_email,
@@ -210,7 +222,7 @@ export async function createDashboard(
 
     await projectDb`
       INSERT INTO dashboards (
-        id, slug, title, is_public, layout,
+        id, slug, title, is_public, layout, config,
         created_by_email, created_at, updated_at, last_updated
       ) VALUES (
         ${dashboardId},
@@ -218,6 +230,7 @@ export async function createDashboard(
         ${create.title},
         ${true},
         ${JSON.stringify(dashboardLayoutSchema.parse(layout))},
+        ${STARTING_CONFIG_JSON},
         ${createdByEmail},
         ${now},
         ${now},
@@ -266,6 +279,9 @@ export async function updateDashboard(
     const nextLayout = update.layout
       ? JSON.stringify(dashboardLayoutSchema.parse(update.layout))
       : current.layout;
+    const nextConfig = update.config
+      ? JSON.stringify(dashboardConfigSchema.parse(update.config))
+      : current.config;
 
     await projectDb`
       UPDATE dashboards
@@ -273,6 +289,7 @@ export async function updateDashboard(
           slug = ${nextSlug},
           is_public = ${nextIsPublic},
           layout = ${nextLayout},
+          config = ${nextConfig},
           updated_at = ${now},
           last_updated = ${now}
       WHERE id = ${dashboardId}

@@ -277,6 +277,7 @@ CREATE TABLE dashboards (
   title text NOT NULL,
   is_public boolean NOT NULL DEFAULT FALSE,
   layout text NOT NULL,
+  config text NOT NULL DEFAULT '{"logos":{"availableCustom":[],"selected":[]},"about":{"summary":"","body":""}}',
   created_by_email text NOT NULL,
   created_at text NOT NULL,
   updated_at text NOT NULL,
