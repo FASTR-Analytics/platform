@@ -8,6 +8,7 @@ import type {
   LastUpdateTableName,
 } from "./project_dirty_states.ts";
 import type { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
+import type { ReportFolder, ReportSummary } from "./reports.ts";
 import type { VisualizationFolder } from "./visualization_folders.ts";
 import type { DashboardSummary } from "./dashboard.ts";
 
@@ -39,6 +40,8 @@ export type ProjectState = {
   visualizationFolders: VisualizationFolder[];
   slideDecks: SlideDeckSummary[];
   slideDeckFolders: SlideDeckFolder[];
+  reports: ReportSummary[];
+  reportFolders: ReportFolder[];
   dashboards: DashboardSummary[];
   projectUsers: ProjectUser[];
   thisUserPermissions: ProjectUserPermissions;
@@ -99,6 +102,11 @@ export type ProjectSseMessage =
   | {
       type: "slide_deck_folders_updated";
       data: { slideDeckFolders: SlideDeckFolder[] };
+    }
+  | { type: "reports_updated"; data: { reports: ReportSummary[] } }
+  | {
+      type: "report_folders_updated";
+      data: { reportFolders: ReportFolder[] };
     }
   | { type: "dashboards_updated"; data: { dashboards: DashboardSummary[] } }
   | { type: "project_users_updated"; data: { projectUsers: ProjectUser[] } }

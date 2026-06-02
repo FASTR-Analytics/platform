@@ -195,7 +195,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             const inputs: TimeseriesInputs = {
               timeseriesData: timeseriesData,
               style: {
-                scale: 0.6,
                 text: {
                   yScaleAxisLabel: {
                     relFontSize: 0.75,
@@ -281,7 +280,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               </div>
               <Show when={figureInputs()} keyed>
                 {(figInputs) => {
-                  return <ChartHolder chartInputs={figInputs} height={300} />;
+                  return <ChartHolder chartInputs={figInputs} height={300} sizing="zoom" />;
                 }}
               </Show>
               <PeriodSelector

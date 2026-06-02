@@ -13,7 +13,6 @@ export const TC = {
   national: { en: "National", fr: "National" },
   columns: { en: "Columns", fr: "Colonnes" },
   rows: { en: "Rows", fr: "Lignes" },
-  scale: { en: "Scale", fr: "Échelle" },
   loading: { en: "Loading...", fr: "Chargement..." },
   loadingFiles: { en: "Loading files...", fr: "Chargement des fichiers..." },
   loadingAssets: { en: "Loading asset files...", fr: "Chargement des fichiers ressources..." },

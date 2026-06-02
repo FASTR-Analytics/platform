@@ -69,9 +69,8 @@ function measure(
   rc: RenderContext,
   bounds: RectCoordsDims,
   item: SankeyExplicitInputs,
-  responsiveScale?: number,
 ): MeasuredSankeyExplicit {
-  const customFigureStyle = new CustomFigureStyle(item.style, responsiveScale);
+  const customFigureStyle = new CustomFigureStyle(item.style);
 
   const measuredSurrounds = measureSurrounds(
     rc,
@@ -178,9 +177,8 @@ function measureAndRender(
   rc: RenderContext,
   bounds: RectCoordsDims,
   item: SankeyExplicitInputs,
-  responsiveScale?: number,
 ): void {
-  const measured = measure(rc, bounds, item, responsiveScale);
+  const measured = measure(rc, bounds, item);
   render(rc, measured);
 }
 
@@ -188,9 +186,8 @@ function getIdealHeight(
   rc: RenderContext,
   width: number,
   item: SankeyExplicitInputs,
-  responsiveScale?: number,
 ): HeightConstraints {
-  const customFigureStyle = new CustomFigureStyle(item.style, responsiveScale);
+  const customFigureStyle = new CustomFigureStyle(item.style);
 
   const tempBounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 1000 });
   const measuredSurrounds = measureSurrounds(

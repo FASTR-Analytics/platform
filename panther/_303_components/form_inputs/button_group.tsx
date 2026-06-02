@@ -4,8 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, type JSX, Show } from "solid-js";
-import type { IconName } from "../icons/mod.ts";
-import type { Intent } from "../types.ts";
+import type { ListItem } from "../list_selection/list_item_types.ts";
 import { IconRenderer } from "./icon_renderer.tsx";
 
 // Button group item classes composed from utility classes and component classes
@@ -45,9 +44,12 @@ function getButtonGroupItemClasses(size?: "sm") {
   ].join(" ");
 }
 
-type ButtonGroupProps<T extends string> = {
+// Segmented single-select skin. Shares the `ListItem` contract with `SelectList`
+// and `TabsNavigation` (swap = rename). Icon-only buttons: pass an empty `label`
+// and a `labelText` for the aria-label.
+export type ButtonGroupProps<T extends string, M = never> = {
   value: T | undefined;
-  options: { value: T; label?: string; iconName?: IconName; intent?: Intent }[];
+  items: ListItem<T, M>[];
   onChange: (v: T | undefined) => void;
   label?: string | JSX.Element;
   fullWidth?: boolean;
@@ -56,7 +58,9 @@ type ButtonGroupProps<T extends string> = {
   allowDeselect?: boolean;
 };
 
-export function ButtonGroup<T extends string>(p: ButtonGroupProps<T>) {
+export function ButtonGroup<T extends string, M = never>(
+  p: ButtonGroupProps<T, M>,
+) {
   return (
     <div class="">
       <Show when={p.label}>
@@ -66,14 +70,14 @@ export function ButtonGroup<T extends string>(p: ButtonGroupProps<T>) {
         class="inline-flex data-[width=true]:w-full"
         data-width={p.fullWidth}
       >
-        <For each={p.options}>
-          {(opt, i_opt) => {
-            const i_selected = () =>
-              p.options.findIndex((v) => v.value === p.value);
-            const isSelected = () => opt.value === p.value;
+        <For each={p.items}>
+          {(item, i_opt) => {
+            const i_selected = () => p.items.findIndex((v) => v.id === p.value);
+            const isSelected = () => item.id === p.value;
             const isFirst = () => i_opt() === 0;
-            const isLast = () => i_opt() === p.options.length - 1;
+            const isLast = () => i_opt() === p.items.length - 1;
             const isLeftOfSelected = () => i_opt() === i_selected() - 1;
+            const hasLabel = () => !!item.label;
 
             return (
               <button
@@ -83,32 +87,33 @@ export function ButtonGroup<T extends string>(p: ButtonGroupProps<T>) {
                 data-first={isFirst()}
                 data-last={isLast()}
                 data-LeftOfSelected={isLeftOfSelected()}
-                data-intent={opt.intent}
+                data-intent={item.intent}
                 data-outline={!isSelected()}
+                aria-label={item.labelText}
+                disabled={item.disabled}
                 onClick={() =>
                   p.onChange(
-                    p.allowDeselect && isSelected() ? undefined : opt.value,
-                  )
-                }
+                    p.allowDeselect && isSelected() ? undefined : item.id,
+                  )}
                 type="button"
               >
                 {/* Icon & Text */}
-                <Show when={opt.label && opt.iconName}>
-                  <IconRenderer iconName={opt.iconName} size={p.size} />
+                <Show when={hasLabel() && item.iconName}>
+                  <IconRenderer iconName={item.iconName} size={p.size} />
                   <span class="relative inline-flex min-h-[1.25em] items-center">
-                    {opt.label}
+                    {item.label}
                   </span>
                 </Show>
                 {/* Only Text */}
-                <Show when={opt.label && !opt.iconName}>
+                <Show when={hasLabel() && !item.iconName}>
                   <span class="relative inline-flex min-h-[1.25em] items-center">
-                    {opt.label}
+                    {item.label}
                   </span>
                 </Show>
                 {/* Only Icon */}
-                <Show when={!opt.label && opt.iconName}>
+                <Show when={!hasLabel() && item.iconName}>
                   <IconRenderer
-                    iconName={opt.iconName}
+                    iconName={item.iconName}
                     iconOnly
                     size={p.size}
                   />

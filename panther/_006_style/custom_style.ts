@@ -18,44 +18,41 @@ export class CustomStyle {
   private _markdown: CustomMarkdownStyle;
   private _page: CustomPageStyle;
 
-  constructor(options?: CustomStyleOptions, responsiveScale?: number) {
-    const { scale, baseText, figure, markdown, page } = options ?? {};
+  constructor(options?: CustomStyleOptions, fitScale?: number) {
+    const { baseText, figure, markdown, page } = options ?? {};
 
     // Merge shared baseText with domain-specific text options
     this._figure = new CustomFigureStyle(
       {
-        scale,
         ...figure,
         text: {
           ...figure?.text,
           base: getAdjustedBaseTextOptions(baseText, figure?.text?.base),
         },
       },
-      responsiveScale,
+      fitScale,
     );
 
     this._markdown = new CustomMarkdownStyle(
       {
-        scale,
         ...markdown,
         text: {
           ...markdown?.text,
           base: getAdjustedBaseTextOptions(baseText, markdown?.text?.base),
         },
       },
-      responsiveScale,
+      fitScale,
     );
 
     this._page = new CustomPageStyle(
       {
-        scale,
         ...page,
         text: {
           ...page?.text,
           base: getAdjustedBaseTextOptions(baseText, page?.text?.base),
         },
       },
-      responsiveScale,
+      fitScale,
     );
   }
 

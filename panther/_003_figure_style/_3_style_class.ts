@@ -65,27 +65,47 @@ export class CustomFigureStyle {
   private _g: CustomFigureStyleOptions;
   private _c: CustomFigureStyleOptions;
   private _sf: number;
+  private _sfSurrounds: number;
   private _baseText: TextInfo;
+  private _baseTextSurrounds: TextInfo;
 
+  // fitScale is the shrink-to-fit factor (default 1, set only by shrink-to-fit).
+  // It is the only internal size multiplier; there is no `scale`.
+  // Surrounds (caption/subCaption/footnote text + padding) are pinned at full
+  // size by default while the body still scales; set autofitSurrounds=true to
+  // make them scale with the body. The legend always scales with the body.
   constructor(
     customStyle: CustomFigureStyleOptions | undefined,
-    responsiveScale?: number,
+    fitScale?: number,
+    autofitSurrounds?: boolean,
   ) {
     this._d = getDefaultFigureStyle();
     this._g = getGlobalFigureStyle();
     this._c = customStyle ?? {};
-    this._sf = (this._c?.scale ?? this._g?.scale ?? this._d.scale) *
-      (responsiveScale ?? 1);
+    this._sf = fitScale ?? 1;
+    this._sfSurrounds = autofitSurrounds === true ? this._sf : 1;
     this._baseText = getBaseTextInfo(
       this._c.text?.base,
       this._g.text?.base,
       getBaseText(),
       this._sf,
     );
+    this._baseTextSurrounds = this._sfSurrounds === this._sf
+      ? this._baseText
+      : getBaseTextInfo(
+        this._c.text?.base,
+        this._g.text?.base,
+        getBaseText(),
+        this._sfSurrounds,
+      );
   }
 
   get sf(): number {
     return this._sf;
+  }
+
+  get baseFontSize(): number {
+    return this._baseText.fontSize;
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -102,19 +122,24 @@ export class CustomFigureStyle {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   getMergedSurroundsStyle(): MergedSurroundsStyle {
     const sf = this._sf;
+    // Surrounds scale/base: pinned independently of the body when
+    // autofitSurrounds is false; otherwise equal to sf. Applies to
+    // caption/subCaption/footnote text + their padding/gaps. NOT legendGap or
+    // the legend, which ride the body scale.
+    const sfSur = this._sfSurrounds;
     const c = this._c;
     const g = this._g;
     const d = this._d;
-    const baseText = this._baseText;
+    const baseTextSur = this._baseTextSurrounds;
     return {
       text: {
-        caption: getTextInfo(c.text?.caption, g.text?.caption, baseText),
+        caption: getTextInfo(c.text?.caption, g.text?.caption, baseTextSur),
         subCaption: getTextInfo(
           c.text?.subCaption,
           g.text?.subCaption,
-          baseText,
+          baseTextSur,
         ),
-        footnote: getTextInfo(c.text?.footnote, g.text?.footnote, baseText),
+        footnote: getTextInfo(c.text?.footnote, g.text?.footnote, baseTextSur),
       },
       backgroundColor: getColor(
         m(
@@ -124,25 +149,25 @@ export class CustomFigureStyle {
         ),
       ),
       padding: msPadding(
-        sf,
+        sfSur,
         c.surrounds?.padding,
         g.surrounds?.padding,
         d.surrounds.padding,
       ),
       captionGap: ms(
-        sf,
+        sfSur,
         c.surrounds?.captionGap,
         g.surrounds?.captionGap,
         d.surrounds.captionGap,
       ),
       subCaptionTopPadding: ms(
-        sf,
+        sfSur,
         c.surrounds?.subCaptionTopPadding,
         g.surrounds?.subCaptionTopPadding,
         d.surrounds.subCaptionTopPadding,
       ),
       footnoteGap: ms(
-        sf,
+        sfSur,
         c.surrounds?.footnoteGap,
         g.surrounds?.footnoteGap,
         d.surrounds.footnoteGap,

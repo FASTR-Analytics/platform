@@ -131,7 +131,6 @@ function Side(p: SideProps) {
               moduleId={p.moduleId}
               shapeType={"force-aspect-video"}
               repliantOverride={{ selectedReplicantValue: p.selectedReplicant }}
-              scalePixelResolution={0.5}
             />
           </div>
           <Show when={getReplicateByProp(keyedPoDetail.config)} keyed>

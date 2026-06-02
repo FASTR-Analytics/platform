@@ -25,7 +25,6 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: ChartOVInputs,
-    responsiveScale?: number,
   ): MeasuredChartOV {
     return measureChartWithAutofit(
       rc,
@@ -33,7 +32,6 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
       item,
       (scale) => getChartOVComponentSizes(rc, item, scale),
       measureChartOV,
-      responsiveScale,
     );
   },
 
@@ -45,7 +43,6 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: ChartOVInputs,
-    responsiveScale?: number,
   ): void {
     const measured = measureChartWithAutofit(
       rc,
@@ -53,7 +50,6 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
       item,
       (scale) => getChartOVComponentSizes(rc, item, scale),
       measureChartOV,
-      responsiveScale,
     );
     renderChartOV(rc, measured);
   },
@@ -62,14 +58,12 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
     rc: RenderContext,
     width: number,
     item: ChartOVInputs,
-    responsiveScale?: number,
   ): HeightConstraints {
     return getChartHeightConstraints(
       rc,
       width,
       item,
       (scale) => getChartOVComponentSizes(rc, item, scale),
-      responsiveScale,
     );
   },
 };

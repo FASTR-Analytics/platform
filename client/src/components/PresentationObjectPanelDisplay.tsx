@@ -16,7 +16,7 @@ import {
 import {
   Button,
   Checkbox,
-  createListSelection,
+  createSelectionController,
   FrameLeftResizable,
   getColor,
   openAlert,
@@ -26,8 +26,8 @@ import {
   SelectList,
   showMenu,
   timActionDelete,
+  type ListItem,
   type MenuItem,
-  type SelectOption,
 } from "panther";
 import { createEffect, createSignal, For, onMount, Show } from "solid-js";
 import {
@@ -366,19 +366,19 @@ export function PresentationObjectPanelDisplay(p: Props) {
     });
   }
 
-  const renderGroupOption = (selectOpt: SelectOption<string>) => {
-    const opt = groupOptions().find((g) => g.value === selectOpt.value);
-    if (!opt) return <span>{selectOpt.label}</span>;
+  const renderGroupOption = (item: ListItem<string>) => {
+    const opt = groupOptions().find((g) => g.value === item.id);
+    if (!opt) return <span>{item.label}</span>;
 
     const mode = vizGroupingMode();
     if (mode === "folders") {
-      const isUserFolder = !selectOpt.value.startsWith("_");
+      const isUserFolder = !item.id.startsWith("_");
       return (
         <div
           class="flex items-center gap-2"
           onContextMenu={
             isUserFolder
-              ? (e) => handleFolderContextMenu(e, selectOpt.value)
+              ? (e) => handleFolderContextMenu(e, item.id)
               : undefined
           }
         >
@@ -429,10 +429,13 @@ export function PresentationObjectPanelDisplay(p: Props) {
           </div>
           <div class="flex-1 overflow-auto p-2">
             <SelectList
-              options={groupOptions()}
+              items={groupOptions().map((g) => ({
+                id: g.value,
+                label: g.label,
+              }))}
               value={vizSelectedGroup() ?? undefined}
               onChange={setVizSelectedGroup}
-              renderOption={renderGroupOption}
+              renderItem={renderGroupOption}
               fullWidth
             />
             <Show when={vizGroupingMode() === "folders"}>
@@ -491,11 +494,6 @@ function VisualizationGrid(p: VisualizationGridProps) {
   const metricLookup = () => createMetricLookup(p.metrics);
   const { notifyAI } = useAIProjectContext();
 
-  const selection = createListSelection<string>({
-    onSelectionChange: (ids) =>
-      notifyAI({ type: "selected_visualizations", vizIds: ids }),
-  });
-
   const getOrderedVisualizationIds = (): string[] => {
     if (!p.subGroupConfig) {
       return p.visualizations.map((po) => po.id);
@@ -529,16 +527,19 @@ function VisualizationGrid(p: VisualizationGridProps) {
     return orderedIds;
   };
 
+  const selection = createSelectionController<string>({
+    ids: () => getOrderedVisualizationIds(),
+    mode: "multi",
+    onSelectionChange: (ids) =>
+      notifyAI({ type: "selected_visualizations", vizIds: ids }),
+  });
+
   const visualIndexMap = (): Map<string, number> => {
     const ids = getOrderedVisualizationIds();
     const map = new Map<string, number>();
     ids.forEach((id, idx) => map.set(id, idx));
     return map;
   };
-
-  createEffect(() => {
-    selection.setItems(getOrderedVisualizationIds());
-  });
 
   async function handleMoveToFolder(po: PresentationObjectSummary) {
     const idsToMove = selection.getBatchIds(po.id);
@@ -553,7 +554,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       },
     });
 
-    selection.clearSelection();
+    selection.clear();
   }
 
   async function handleEditCommonProperties(po: PresentationObjectSummary) {
@@ -584,7 +585,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       },
     });
 
-    selection.clearSelection();
+    selection.clear();
   }
 
   async function handleCreateSlides(po: PresentationObjectSummary) {
@@ -631,7 +632,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       },
     });
 
-    selection.clearSelection();
+    selection.clear();
   }
 
   async function handleDuplicate(po: PresentationObjectSummary) {
@@ -651,7 +652,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       },
     });
 
-    selection.clearSelection();
+    selection.clear();
   }
 
   async function handleDelete(po: PresentationObjectSummary) {
@@ -684,7 +685,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
         return results[0];
       },
       () => {
-        selection.clearSelection();
+        selection.clear();
         // SSE will handle refresh
       },
     );
@@ -704,9 +705,9 @@ function VisualizationGrid(p: VisualizationGridProps) {
       index={index}
       onCardClick={(e) => {
         e.stopPropagation();
-        selection.handleCardClick(index, po.id, e, () => p.onClick(po));
+        selection.handleClick(po.id, e, () => p.onClick(po));
       }}
-      onCircleClick={(e) => selection.handleCircleClick(index, po.id, e)}
+      onCircleClick={(e) => selection.handleClick(po.id, e)}
       onOpen={() => p.onClick(po)}
       onDuplicate={() => handleDuplicate(po)}
       onDelete={() => handleDelete(po)}
@@ -733,7 +734,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       fallback={
         <div
           class="ui-pad ui-gap grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
-          onClick={() => selection.clearSelection()}
+          onClick={() => selection.clear()}
         >
           <For each={p.visualizations} fallback={emptyMessage()}>
             {(po, i) => renderCard(po, i())}
@@ -774,7 +775,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
         return (
           <div
             class="h-full w-full overflow-auto"
-            onClick={() => selection.clearSelection()}
+            onClick={() => selection.clear()}
           >
             <Show
               when={grouped().length > 0}
@@ -952,7 +953,6 @@ function VisualizationCard(p: VisualizationCardProps) {
               p.metrics.find((m) => m.id === p.po.metricId)?.moduleId ?? ""
             }
             shapeType={"force-aspect-video"}
-            scalePixelResolution={0.2}
           />
         </div>
       </Show>

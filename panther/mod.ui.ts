@@ -65,8 +65,12 @@ export * from "./_306_text_editor/mod.ts";
 /////////////////////
 
 // @protocol README.md
-// @protocol PROTOCOL_TYPESCRIPT.md
-// @protocol PROTOCOL_STRUCTURE.md
-// @protocol PROTOCOL_SOLIDJS.md
-// @protocol PROTOCOL_STATE.md
-// @protocol PROTOCOL_STYLING.md
+// @protocol PROTOCOL_ALL_TYPESCRIPT.md
+// @protocol PROTOCOL_ALL_STRUCTURE.md
+// @protocol PROTOCOL_ALL_SIZING.md
+// @protocol PROTOCOL_ALL_TRANSLATION.md
+// @protocol PROTOCOL_UI_SOLIDJS.md
+// @protocol PROTOCOL_UI_STATE.md
+// @protocol PROTOCOL_UI_STYLING.md
+// @protocol PROTOCOL_UI_COMPONENTS.md
+// @protocol PROTOCOL_UI_STRUCTURE.md

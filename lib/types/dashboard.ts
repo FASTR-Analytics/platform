@@ -5,9 +5,11 @@ import type { PresentationObjectConfig } from "./presentation_objects.ts";
 
 // Re-export schemas from underscore-prefixed file (stored data validation)
 export {
+  dashboardConfigSchema,
   dashboardFigureBlockSchema,
   dashboardLayoutSchema,
 } from "./_dashboard_config.ts";
+import type { DashboardConfigFromSchema } from "./_dashboard_config.ts";
 
 // Re-export for convenience
 export type { FigureBlock, FigureSource };
@@ -18,12 +20,41 @@ export type DashboardLayout =
   | { type: "sidebar" }
   | { type: "grid" };
 
+export type DashboardConfig = DashboardConfigFromSchema;
+export type DashboardLogoSize = NonNullable<DashboardConfig["logos"]["size"]>;
+
+export function getStartingDashboardConfig(): DashboardConfig {
+  return {
+    logos: { availableCustom: [], selected: [] },
+    about: { summary: "", body: "" },
+  };
+}
+
 export type DashboardItem = {
   id: string;
   dashboardId: string;
   label: string;
   sortOrder: number;
   figureBlock: FigureBlock;
+  geoData?: unknown;
+  lastUpdated: string;
+  // Set when this item is a member of a replicant group (see
+  // PLAN_DASHBOARD_REPLICANT_GROUPS.md). Group members store geoData on the
+  // group, not the row.
+  replicantGroupId?: string;
+  replicantValue?: string;
+};
+
+// A replicated visualization added as one group: N member items + this row,
+// which owns the group's label, dimension, default replicant, and the shared
+// geojson (one copy for all members).
+export type DashboardItemGroup = {
+  id: string;
+  dashboardId: string;
+  label: string;
+  replicateBy: string;
+  defaultReplicantValue?: string;
+  replicants: { value: string; label: string }[];
   geoData?: unknown;
   lastUpdated: string;
 };
@@ -34,7 +65,9 @@ export type Dashboard = {
   title: string;
   isPublic: boolean;
   layout: DashboardLayout;
+  config: DashboardConfig;
   items: DashboardItem[];
+  groups: DashboardItemGroup[];
   createdByEmail: string;
   createdAt: string;
   updatedAt: string;
@@ -59,6 +92,7 @@ export type DashboardUpdate = {
   title?: string;
   isPublic?: boolean;
   layout?: DashboardLayout;
+  config?: DashboardConfig;
 };
 
 export type DashboardSummary = {
@@ -78,7 +112,14 @@ export type DashboardDetail = Dashboard;
 export type PublicDashboardBundle = {
   title: string;
   layout: DashboardLayout;
+  // Branding logos (identifiers resolved to URLs client-side) + size key.
+  logos: { selected: string[]; size?: DashboardLogoSize };
+  // Markdown: inline summary (under heading) + long body (About modal).
+  about: { summary: string; body: string };
+  // Flat list of every renderable item (group members + standalones), in order.
   items: PublicDashboardItem[];
+  // Grouped view: a standalone item or a replicant group with its members.
+  entries: PublicDashboardEntry[];
 };
 
 export type PublicDashboardItem = {
@@ -93,7 +134,105 @@ export type PublicDashboardItem = {
     indicatorMetadata?: IndicatorMetadata[];
   };
   geoData?: unknown;
+  // Set for group members — the replicant this item represents.
+  replicantValue?: string;
 };
+
+export type PublicDashboardEntryGroup = {
+  id: string;
+  label: string;
+  replicateBy: string;
+  defaultReplicantValue?: string;
+  replicants: { value: string; label: string }[];
+};
+
+export type PublicDashboardEntry =
+  | { kind: "item"; item: PublicDashboardItem }
+  | { kind: "group"; group: PublicDashboardEntryGroup; members: PublicDashboardItem[] };
+
+// Canonical Dashboard → PublicDashboardBundle transform. Shared by the client
+// editor preview and the server public route so they can never diverge. Group
+// members carry the group's shared geojson (members store geo_data = NULL).
+export function buildPublicDashboardBundle(
+  dashboard: Dashboard,
+): PublicDashboardBundle {
+  function toPublicItem(
+    item: DashboardItem,
+    geoData: unknown,
+  ): PublicDashboardItem | undefined {
+    const source = item.figureBlock.source;
+    const fi = item.figureBlock.figureInputs;
+    if (!fi || !source || source.type !== "from_data") return undefined;
+    return {
+      id: item.id,
+      label: item.label,
+      sortOrder: item.sortOrder,
+      strippedFigureInputs: fi,
+      source: {
+        config: source.config,
+        metricId: source.metricId,
+        formatAs: "number" as const,
+        indicatorMetadata: source.indicatorMetadata,
+      },
+      geoData,
+      replicantValue: item.replicantValue,
+    };
+  }
+
+  const groupsById = new Map(dashboard.groups.map((g) => [g.id, g]));
+  const sorted = [...dashboard.items].sort((a, b) => a.sortOrder - b.sortOrder);
+  const items: PublicDashboardItem[] = [];
+  const entries: PublicDashboardEntry[] = [];
+  const groupEntryIndex = new Map<string, number>();
+
+  for (const item of sorted) {
+    const gid = item.replicantGroupId;
+    const group = gid ? groupsById.get(gid) : undefined;
+    if (group) {
+      const pub = toPublicItem(item, group.geoData);
+      if (!pub) continue;
+      items.push(pub);
+      const existing = groupEntryIndex.get(group.id);
+      if (existing !== undefined) {
+        (entries[existing] as { members: PublicDashboardItem[] }).members.push(
+          pub,
+        );
+      } else {
+        groupEntryIndex.set(group.id, entries.length);
+        entries.push({
+          kind: "group",
+          group: {
+            id: group.id,
+            label: group.label,
+            replicateBy: group.replicateBy,
+            defaultReplicantValue: group.defaultReplicantValue,
+            replicants: group.replicants,
+          },
+          members: [pub],
+        });
+      }
+    } else {
+      const pub = toPublicItem(item, item.geoData);
+      if (!pub) continue;
+      items.push(pub);
+      entries.push({ kind: "item", item: pub });
+    }
+  }
+
+  // Defensive `??`: a browser holding a pre-config-feature cached DashboardDetail
+  // will lack `config`, and the version-keyed detail cache won't refetch unchanged
+  // dashboards after deploy (the no-op data transform doesn't bump last_updated).
+  const cfg = dashboard.config ?? getStartingDashboardConfig();
+
+  return {
+    title: dashboard.title,
+    layout: dashboard.layout,
+    logos: { selected: cfg.logos.selected, size: cfg.logos.size },
+    about: cfg.about,
+    items,
+    entries,
+  };
+}
 
 // ── Slug validation ─────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { t3, type MetricsByModule, type ModuleId } from "lib";
-import { SelectList } from "panther";
+import { type ListItem, SelectList } from "panther";
 import { createMemo } from "solid-js";
 
 type Props = {
@@ -9,41 +9,35 @@ type Props = {
   totalMetricCount: number;
 };
 
-type ModuleOption = {
-  value: ModuleId | "all";
-  label: string;
-  count: number;
-};
+type ModuleItem = ListItem<ModuleId | "all", number>;
 
 export function ModuleSidebar(p: Props) {
-  const options = createMemo((): ModuleOption[] => {
-    const allOption: ModuleOption = {
-      value: "all",
+  const items = createMemo((): ModuleItem[] => {
+    const allItem: ModuleItem = {
+      id: "all",
       label: t3({ en: "All modules", fr: "Tous les modules" }),
-      count: p.totalMetricCount,
+      meta: p.totalMetricCount,
     };
 
-    const moduleOptions: ModuleOption[] = p.metricsByModule.map((mod) => ({
-      value: mod.moduleId,
+    const moduleItems: ModuleItem[] = p.metricsByModule.map((mod) => ({
+      id: mod.moduleId,
       label: mod.moduleLabel,
-      count: mod.metricGroups.reduce((sum, g) => sum + g.variants.length, 0),
+      meta: mod.metricGroups.reduce((sum, g) => sum + g.variants.length, 0),
     }));
 
-    return [allOption, ...moduleOptions];
+    return [allItem, ...moduleItems];
   });
 
   return (
     <SelectList
-      options={options()}
+      items={items()}
       value={p.selectedModule}
       onChange={p.onSelectModule}
       fullWidth
-      renderOption={(opt) => (
+      renderItem={(item) => (
         <div class="flex items-center justify-between gap-2">
-          <span class="truncate">{opt.label}</span>
-          <span class="text-neutral shrink-0 text-xs">
-            {(opt as ModuleOption).count}
-          </span>
+          <span class="truncate">{item.label}</span>
+          <span class="text-neutral shrink-0 text-xs">{item.meta}</span>
         </div>
       )}
     />

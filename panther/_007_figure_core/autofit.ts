@@ -3,24 +3,53 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { MIN_FONT_SIZE_DU } from "./deps.ts";
 import type { FigureAutofitOptions } from "./types.ts";
+
+const DEFAULT_FIGURE_MIN_SCALE = 0.5;
 
 export type ResolvedFigureAutofitOptions = {
   minScale: number;
   maxScale: number;
+  minFontSizeDu: number;
 };
 
+// shrink-to-fit is the default: undefined / true both enable it. Only an
+// explicit `false` opts out. It never grows (maxScale is clamped to 1).
 export function resolveFigureAutofitOptions(
   autofit: boolean | FigureAutofitOptions | undefined,
 ): ResolvedFigureAutofitOptions | null {
-  if (!autofit) return null;
-  if (autofit === true) {
-    return { minScale: 0.5, maxScale: 1.0 };
+  if (autofit === false) {
+    return null;
+  }
+  if (autofit === undefined || autofit === true) {
+    return {
+      minScale: DEFAULT_FIGURE_MIN_SCALE,
+      maxScale: 1.0,
+      minFontSizeDu: MIN_FONT_SIZE_DU,
+    };
   }
   return {
-    minScale: autofit.minScale ?? 0.5,
-    maxScale: autofit.maxScale ?? 1.0,
+    minScale: autofit.minScale ?? DEFAULT_FIGURE_MIN_SCALE,
+    maxScale: Math.min(autofit.maxScale ?? 1.0, 1.0),
+    minFontSizeDu: autofit.minFontSizeDu ?? MIN_FONT_SIZE_DU,
   };
+}
+
+// The shrink-to-fit floor: never shrink below the larger of minScale and the
+// scale at which the base font would hit the min-font floor. Clamped to 1
+// (shrink-to-fit never grows).
+export function computeFloorScale(opts: {
+  minScale: number;
+  maxScale: number;
+  baseFontSizeDu: number;
+  minFontSizeDu: number;
+}): number {
+  const fromFont = opts.baseFontSizeDu > 0
+    ? opts.minFontSizeDu / opts.baseFontSizeDu
+    : opts.minScale;
+  const floor = Math.max(opts.minScale, fromFont);
+  return Math.min(floor, opts.maxScale, 1);
 }
 
 export function getDiscreteScales(
@@ -36,7 +65,7 @@ export function getDiscreteScales(
 
 export function findOptimalScale(
   availableWidth: number,
-  options: ResolvedFigureAutofitOptions,
+  options: { minScale: number; maxScale: number },
   getMinWidthAtScale: (scale: number) => number,
 ): number {
   const minWidthAt1 = getMinWidthAtScale(1.0);
@@ -68,7 +97,7 @@ export function findOptimalScale(
 export function findOptimalScaleForBounds(
   availableWidth: number,
   availableHeight: number,
-  options: ResolvedFigureAutofitOptions,
+  options: { minScale: number; maxScale: number },
   getSizeAtScale: (scale: number) => { minWidth: number; idealHeight: number },
 ): number {
   const size1 = getSizeAtScale(1.0);
@@ -100,4 +129,32 @@ export function findOptimalScaleForBounds(
   }
 
   return bestScale;
+}
+
+// Resolves the shrink-to-fit factor with a legibility floor and reports
+// `cramped`. The factor is never below the floor; if the content still does not
+// fit at the floor, it is rendered at the floor and flagged `cramped`.
+export function findFitScaleWithFloor(
+  availableWidth: number,
+  availableHeight: number,
+  opts: {
+    minScale: number;
+    maxScale: number;
+    baseFontSizeDu: number;
+    minFontSizeDu: number;
+  },
+  getSizeAtScale: (scale: number) => { minWidth: number; idealHeight: number },
+): { fitScale: number; cramped: boolean } {
+  const floorScale = computeFloorScale(opts);
+  const fitScale = findOptimalScaleForBounds(
+    availableWidth,
+    availableHeight,
+    { minScale: floorScale, maxScale: opts.maxScale },
+    getSizeAtScale,
+  );
+  const size = getSizeAtScale(fitScale);
+  // 0.5px tolerance so sub-pixel rounding does not produce a false `cramped`.
+  const cramped = availableWidth + 0.5 < size.minWidth ||
+    availableHeight + 0.5 < size.idealHeight;
+  return { fitScale, cramped };
 }

@@ -2,6 +2,8 @@ import {
   t3,
   type HfaDictionaryForValidation,
   type HfaIndicator,
+  type HfaIndicatorCategory,
+  type HfaIndicatorSubCategory,
   type HfaIndicatorCode,
 } from "lib";
 import {
@@ -10,6 +12,7 @@ import {
   FrameTop,
   Input,
   RadioGroup,
+  Select,
   StateHolderWrapper,
   TextArea,
   timQuery,
@@ -30,7 +33,9 @@ type TempCodeEntry = {
 
 type TempState = {
   varName: string;
-  category: string;
+  categoryId: string | null;
+  subCategoryId: string | null;
+  shortLabel: string;
   definition: string;
   type: "binary" | "numeric";
   aggregation: "sum" | "avg";
@@ -43,6 +48,8 @@ export function HfaIndicatorCodeEditor(
       indicator: HfaIndicator;
       dictionary: HfaDictionaryForValidation;
       allIndicatorVarNames: string[];
+      categories: HfaIndicatorCategory[];
+      subCategories: HfaIndicatorSubCategory[];
     },
     undefined
   >,
@@ -115,6 +122,8 @@ export function HfaIndicatorCodeEditor(
             indicator={p.indicator}
             dictionary={p.dictionary}
             allIndicatorVarNames={p.allIndicatorVarNames}
+            categories={p.categories}
+            subCategories={p.subCategories}
             initialCodeSnippets={codeSnippets}
             setNeedsSaving={setNeedsSaving}
             registerSave={(fn) => {
@@ -131,6 +140,8 @@ function EditorInner(p: {
   indicator: HfaIndicator;
   dictionary: HfaDictionaryForValidation;
   allIndicatorVarNames: string[];
+  categories: HfaIndicatorCategory[];
+  subCategories: HfaIndicatorSubCategory[];
   initialCodeSnippets: HfaIndicatorCode[];
   setNeedsSaving: (v: boolean) => void;
   registerSave: (fn: () => Promise<void>) => void;
@@ -148,12 +159,19 @@ function EditorInner(p: {
 
   const [state, setState] = createStore<TempState>({
     varName: p.indicator.varName,
-    category: p.indicator.category,
+    categoryId: p.indicator.categoryId,
+    subCategoryId: p.indicator.subCategoryId,
+    shortLabel: p.indicator.shortLabel,
     definition: p.indicator.definition,
     type: p.indicator.type,
     aggregation: p.indicator.aggregation,
     code: initialCode,
   });
+
+  const filteredSubCategories = () => {
+    if (!state.categoryId) return [];
+    return p.subCategories.filter((sc) => sc.categoryId === state.categoryId);
+  };
 
   const [selectedTimePoint, setSelectedTimePoint] = createSignal(
     p.dictionary.timePoints[0]?.timePoint ?? "",
@@ -273,7 +291,9 @@ function EditorInner(p: {
       oldVarName: p.indicator.varName,
       indicator: {
         varName: trimmedVarName,
-        category: state.category.trim(),
+        categoryId: state.categoryId,
+        subCategoryId: state.subCategoryId,
+        shortLabel: state.shortLabel.trim(),
         definition: state.definition.trim(),
         type: state.type,
         aggregation: state.aggregation,
@@ -309,13 +329,34 @@ function EditorInner(p: {
               }}
               mono
             />
-            <Input
+            <Select
               label={t3({ en: "Category", fr: "Catégorie" })}
-              value={state.category}
+              value={state.categoryId ?? ""}
               onChange={(v) => {
-                setState("category", v);
+                setState("categoryId", v || null);
+                setState("subCategoryId", null);
                 markDirty();
               }}
+              options={[
+                { value: "", label: t3({ en: "— None —", fr: "— Aucune —" }) },
+                ...p.categories.map((c) => ({ value: c.id, label: c.label })),
+              ]}
+            />
+            <Select
+              label={t3({ en: "Sub-category", fr: "Sous-catégorie" })}
+              value={state.subCategoryId ?? ""}
+              onChange={(v) => {
+                setState("subCategoryId", v || null);
+                markDirty();
+              }}
+              options={
+                state.categoryId
+                  ? [
+                      { value: "", label: t3({ en: "— None —", fr: "— Aucune —" }) },
+                      ...filteredSubCategories().map((sc) => ({ value: sc.id, label: sc.label })),
+                    ]
+                  : [{ value: "", label: t3({ en: "— Select category first —", fr: "— Sélectionnez d'abord une catégorie —" }) }]
+              }
             />
             <RadioGroup
               label={t3({ en: "Type", fr: "Type" })}
@@ -349,7 +390,16 @@ function EditorInner(p: {
             />
           </div>
           <Input
-            label={t3({ en: "Definition", fr: "Définition" })}
+            label={t3({ en: "Short label", fr: "Libellé court" })}
+            value={state.shortLabel}
+            onChange={(v) => {
+              setState("shortLabel", v);
+              markDirty();
+            }}
+            fullWidth
+          />
+          <Input
+            label={t3({ en: "Long label", fr: "Libellé long" })}
             value={state.definition}
             onChange={(v) => {
               setState("definition", v);

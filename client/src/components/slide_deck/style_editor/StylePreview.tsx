@@ -1,13 +1,14 @@
-import { t3 } from "lib";
+import { t3, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import type { SlideDeckConfig } from "lib";
 import {
   PageHolder,
   validateBrandColor,
   type PageInputs,
-  _GLOBAL_CANVAS_PIXEL_WIDTH,
+  getBaseText,
 } from "panther";
 import { createResource, Show } from "solid-js";
-import { buildStyleForSlide, FASTR_LOGO_VALUES } from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { FASTR_LOGO_VALUES } from "~/components/_shared/fastr_logos";
 import { getBackgroundDetail, type BackgroundDetail } from "~/generate_slide_deck/get_overlay_image";
 import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
 import { _SERVER_HOST } from "~/server_actions";
@@ -91,7 +92,7 @@ function getContentPageInputs(
       id: "a",
       data: {
         markdown: LOREM_TEXT,
-        style: { text: { base: { fontSize: 60 } } },
+        style: { text: { base: { fontSize: getBaseText().fontSize } } },
       },
     },
     style,
@@ -99,8 +100,6 @@ function getContentPageInputs(
 }
 
 export function StylePreview(p: StylePreviewProps) {
-  const canvasH = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
-
   const colorError = () => {
     if (p.config.colorTheme.type !== "custom") return null;
     const v = validateBrandColor(p.config.colorTheme.primary);
@@ -152,8 +151,8 @@ export function StylePreview(p: StylePreviewProps) {
             <div class="border border-base-300 rounded overflow-hidden">
               <PageHolder
                 pageInputs={coverInputs()}
-                fixedCanvasH={canvasH}
-                scalePixelResolution={0.2}
+                pageWidthDu={PAGE_WIDTH_DU}
+                pageHeightDu={PAGE_HEIGHT_DU}
               />
             </div>
           </div>
@@ -164,8 +163,8 @@ export function StylePreview(p: StylePreviewProps) {
             <div class="border border-base-300 rounded overflow-hidden">
               <PageHolder
                 pageInputs={sectionInputs()}
-                fixedCanvasH={canvasH}
-                scalePixelResolution={0.2}
+                pageWidthDu={PAGE_WIDTH_DU}
+                pageHeightDu={PAGE_HEIGHT_DU}
               />
             </div>
           </div>
@@ -176,8 +175,8 @@ export function StylePreview(p: StylePreviewProps) {
             <div class="border border-base-300 rounded overflow-hidden">
               <PageHolder
                 pageInputs={contentInputs()}
-                fixedCanvasH={canvasH}
-                scalePixelResolution={0.2}
+                pageWidthDu={PAGE_WIDTH_DU}
+                pageHeightDu={PAGE_HEIGHT_DU}
               />
             </div>
           </div>

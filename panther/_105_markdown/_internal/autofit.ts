@@ -3,7 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { RectCoordsDims, type RenderContext } from "../deps.ts";
+import {
+  MIN_FONT_SIZE_DU,
+  RectCoordsDims,
+  type RenderContext,
+} from "../deps.ts";
 import type {
   MarkdownAutofitOptions,
   MarkdownRendererInput,
@@ -16,33 +20,38 @@ export type ResolvedAutofitOptions = {
   minFontSize: number;
 };
 
+// Shrink-to-fit is ON by default (per the sizing model, D6): only an explicit
+// `false` opts out. `true`, an options object, or omitting it all enable it.
+// maxScale is capped at 1 so markdown never grows; `minFontSize` (DU) is the
+// legibility floor, shared with figures via MIN_FONT_SIZE_DU.
 export function resolveAutofitOptions(
   autofit: boolean | MarkdownAutofitOptions | undefined,
 ): ResolvedAutofitOptions | null {
-  if (!autofit) return null;
-  if (autofit === true) {
+  if (autofit === false) return null;
+  if (autofit === true || autofit === undefined) {
     return {
       minScale: 0,
       maxScale: 1,
-      minFontSize: 0,
+      minFontSize: MIN_FONT_SIZE_DU,
     };
   }
   return {
     minScale: autofit.minScale ?? 0,
-    maxScale: autofit.maxScale ?? 1,
-    minFontSize: autofit.minFontSize ?? 0,
+    // shrink-to-fit never grows
+    maxScale: Math.min(autofit.maxScale ?? 1, 1),
+    minFontSize: autofit.minFontSize ?? MIN_FONT_SIZE_DU,
   };
 }
 
+// shrink-to-fit only: generate scales smaller than 1.0, down by 1pt at a time
+// (14/14=1.0, 13/14≈0.929, 12/14≈0.857, …), stopping at the minScale / min-font
+// floor. There is no grow path.
 export function getDiscreteScales(
   baseFontSize: number,
   options: ResolvedAutofitOptions,
-): { shrinkScales: number[]; growScales: number[] } {
+): number[] {
   const shrinkScales: number[] = [];
-  const growScales: number[] = [];
 
-  // Generate shrink scales (smaller than 1.0)
-  // Go down by 1pt at a time: 14/14=1.0, 13/14≈0.929, 12/14≈0.857, etc.
   for (let pt = baseFontSize - 1; pt >= 1; pt--) {
     const scale = pt / baseFontSize;
 
@@ -55,20 +64,7 @@ export function getDiscreteScales(
     shrinkScales.push(scale);
   }
 
-  // Generate grow scales (larger than 1.0)
-  // Go up by 1pt at a time: 15/14≈1.071, 16/14≈1.143, etc.
-  if (options.maxScale > 1) {
-    for (let pt = baseFontSize + 1; pt <= baseFontSize * 3; pt++) {
-      const scale = pt / baseFontSize;
-
-      // Stop if above maxScale
-      if (scale > options.maxScale) break;
-
-      growScales.push(scale);
-    }
-  }
-
-  return { shrinkScales, growScales };
+  return shrinkScales;
 }
 
 export function getHeightAtScale(
@@ -77,20 +73,17 @@ export function getHeightAtScale(
   input: MarkdownRendererInput,
   scale: number,
 ): number {
-  const scaledInput: MarkdownRendererInput = {
-    ...input,
-    style: { ...input.style, scale: (input.style?.scale ?? 1) * scale },
-  };
   const bounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: 99999 });
 
   try {
-    const measured = measureMarkdown(rc, bounds, scaledInput);
+    // scale is threaded as the fitScale (shrink-to-fit factor), not style.scale.
+    const measured = measureMarkdown(rc, bounds, input, scale);
     return measured.bounds.h();
   } catch (_err) {
     // Markdown contains tables/images which aren't supported in MarkdownRenderer
     // Return a conservative height estimate based on line count
-    const lineCount = scaledInput.markdown.split("\n").length;
-    const baseFontSize = scaledInput.style?.text?.base?.fontSize ?? 14;
+    const lineCount = input.markdown.split("\n").length;
+    const baseFontSize = input.style?.text?.base?.fontSize ?? 14;
     const scaledFontSize = baseFontSize * scale;
     const lineHeight = scaledFontSize * 1.5;
     return lineCount * lineHeight;
@@ -105,31 +98,13 @@ export function findOptimalScale(
   baseFontSize: number,
   options: ResolvedAutofitOptions,
 ): number {
-  const { shrinkScales, growScales } = getDiscreteScales(baseFontSize, options);
+  const shrinkScales = getDiscreteScales(baseFontSize, options);
 
   // First, try scale 1.0
   const heightAt1 = getHeightAtScale(rc, width, input, 1.0);
 
   if (heightAt1 <= availableHeight) {
-    // Content fits at scale 1.0 - try growing if allowed
-    if (growScales.length > 0) {
-      // Binary search for largest grow scale that still fits
-      let lo = 0;
-      let hi = growScales.length - 1;
-      let bestScale = 1.0;
-
-      while (lo <= hi) {
-        const mid = Math.floor((lo + hi) / 2);
-        const h = getHeightAtScale(rc, width, input, growScales[mid]);
-        if (h <= availableHeight) {
-          bestScale = growScales[mid];
-          lo = mid + 1; // Try even larger scales
-        } else {
-          hi = mid - 1; // Scale is too big
-        }
-      }
-      return bestScale;
-    }
+    // Content fits at scale 1.0 - shrink-to-fit never grows
     return 1.0;
   }
 
@@ -184,14 +159,11 @@ export function getAutofitHeightConstraints(
     minScale = 1 / baseFontSize; // Effectively 1pt font
   }
 
-  const effectiveMaxScale = Math.min(options.maxScale, 3);
-
   const minH = minScale < 1
     ? getHeightAtScale(rc, width, input, minScale)
     : idealH;
-  let maxH = effectiveMaxScale > 1
-    ? getHeightAtScale(rc, width, input, effectiveMaxScale)
-    : idealH;
+  // shrink-to-fit never grows, so maxH is the ideal (full-size) height.
+  let maxH = idealH;
 
   // Empty markdown should be growable (like placeholder)
   if (input.markdown.trim() === "") {

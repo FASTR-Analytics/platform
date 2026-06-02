@@ -191,6 +191,8 @@ Returns `{ periodOption, min, max }` for the time slider in the filter UI. The `
 
 **File**: [server/server_only_funcs_presentation_objects/get_possible_values.ts](server/server_only_funcs_presentation_objects/get_possible_values.ts)
 
+> **CTE note:** the sanctioned way to build period/facility CTEs is `CTEManager` ([DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md](DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md)). `get_possible_values.ts` and `get_period_bounds.ts` currently hand-write their own `WITH period_data` strings (and derive all three period columns regardless of need) — the source of the `quarter_id`-only-table drift noted above. New CTE construction should go through `CTEManager`.
+
 For each disaggregation option, queries `SELECT DISTINCT column` to get the available values. For dynamic columns:
 
 - `isDynamicPeriodColumn` is true when:

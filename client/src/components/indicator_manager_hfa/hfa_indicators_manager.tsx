@@ -3,29 +3,37 @@ import {
   TC,
   type HfaDictionaryForValidation,
   type HfaIndicator,
+  type HfaIndicatorCategory,
+  type HfaIndicatorSubCategory,
   type HfaIndicatorCode,
 } from "lib";
 import {
   Button,
+  FrameLeft,
   FrameTop,
   getQueryStateFromApiResponse,
   StateHolderWrapper,
   Table,
   TableColumn,
+  TabsNavigation,
   getEditorWrapper,
+  type ListItem,
   openComponent,
+  saveAs,
   timActionDelete,
   type BulkAction,
   type StateHolder,
 } from "panther";
-import { Show, createEffect, createSignal } from "solid-js";
+import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getHfaDictionaryFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { getHfaIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
 import { EditHfaIndicator } from "../forms_editors/edit_hfa_indicator";
 import { HfaIndicatorCodeEditor } from "./hfa_indicator_code_editor";
-import { HfaIndicatorsCsvUploadForm } from "./hfa_indicators_csv_upload_form";
+import { HfaIndicatorsXlsxUploadForm } from "./hfa_indicators_xlsx_upload_form";
+import { HfaCategoriesManager } from "./hfa_categories_manager";
+import { buildHfaWorkbookBlob } from "./_xlsx_workbook";
 import { validateRCode } from "./hfa_r_code_validator";
 
 type Props = {
@@ -47,6 +55,39 @@ export function HfaIndicatorsManager(p: Props) {
   const [dictionary, setDictionary] = createSignal<
     StateHolder<HfaDictionaryForValidation>
   >({ status: "loading" });
+  const [categories, setCategories] = createSignal<
+    StateHolder<HfaIndicatorCategory[]>
+  >({
+    status: "loading",
+  });
+  const [subCategories, setSubCategories] = createSignal<
+    StateHolder<HfaIndicatorSubCategory[]>
+  >({
+    status: "loading",
+  });
+  const [allCode, setAllCode] = createSignal<StateHolder<HfaIndicatorCode[]>>({
+    status: "loading",
+  });
+
+  // Hoisted here (not inside HfaCategoriesManager) so the selection survives the
+  // StateHolderWrapper remount that happens on every SSE refetch/mutation.
+  const [selectedCategoryId, setSelectedCategoryId] = createSignal<string | null>(
+    null,
+  );
+
+  const [tab, setTab] = createSignal<"indicators" | "categories">(
+    "indicators",
+  );
+  const tabItems: ListItem<"indicators" | "categories">[] = [
+    {
+      id: "indicators",
+      label: t3({ en: "Indicators", fr: "Indicateurs" }),
+    },
+    {
+      id: "categories",
+      label: t3({ en: "Categories", fr: "Catégories" }),
+    },
+  ];
 
   createEffect(async () => {
     const version = instanceState.hfaIndicatorsVersion;
@@ -60,6 +101,125 @@ export function HfaIndicatorsManager(p: Props) {
     if (!hfaCacheHash) return;
     const res = await getHfaDictionaryFromCacheOrFetch(hfaCacheHash);
     setDictionary(getQueryStateFromApiResponse(res));
+  });
+
+  createEffect(async () => {
+    const version = instanceState.hfaIndicatorsVersion;
+    if (!version) return;
+    const res = await serverActions.getHfaIndicatorCategories({});
+    setCategories(getQueryStateFromApiResponse(res));
+  });
+
+  createEffect(async () => {
+    const version = instanceState.hfaIndicatorsVersion;
+    if (!version) return;
+    const res = await serverActions.getHfaIndicatorSubCategories({});
+    setSubCategories(getQueryStateFromApiResponse(res));
+  });
+
+  createEffect(async () => {
+    const version = instanceState.hfaIndicatorsVersion;
+    if (!version) return;
+    const res = await serverActions.getAllHfaIndicatorCode({});
+    setAllCode(getQueryStateFromApiResponse(res));
+  });
+
+  type IndicatorCodeStats = {
+    withCode: number;
+    total: number;
+    ready: number;
+    error: number;
+    consistent: boolean;
+  };
+
+  const statsByVarName = createMemo(() => {
+    const map = new Map<string, IndicatorCodeStats>();
+    const dictSt = dictionary();
+    const codeSt = allCode();
+    const indSt = indicators();
+    if (
+      dictSt.status !== "ready" ||
+      codeSt.status !== "ready" ||
+      indSt.status !== "ready"
+    ) {
+      return map;
+    }
+    const dict = dictSt.data;
+    const total = dict.timePoints.length;
+
+    const codeByVarName = new Map<string, HfaIndicatorCode[]>();
+    for (const c of codeSt.data) {
+      const arr = codeByVarName.get(c.varName) ?? [];
+      arr.push(c);
+      codeByVarName.set(c.varName, arr);
+    }
+
+    const allVarNames = new Set(indSt.data.map((i) => i.varName));
+
+    for (const ind of indSt.data) {
+      const indCode = codeByVarName.get(ind.varName) ?? [];
+      const otherVarNames = new Set(allVarNames);
+      otherVarNames.delete(ind.varName);
+
+      const withCodeEntries = indCode.filter((c) => c.rCode.trim());
+      let ready = 0;
+      let error = 0;
+      for (const c of withCodeEntries) {
+        const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
+        const availableVars = tp
+          ? new Set(tp.vars.map((v) => v.varName))
+          : new Set<string>();
+        let hasErr = false;
+        const rCodeResult = validateRCode(
+          c.rCode,
+          availableVars,
+          otherVarNames,
+        );
+        if (
+          rCodeResult.syntaxErrors.length > 0 ||
+          rCodeResult.warnings.length > 0
+        ) {
+          hasErr = true;
+        }
+        if (c.rFilterCode?.trim()) {
+          const rFilterResult = validateRCode(
+            c.rFilterCode,
+            availableVars,
+            otherVarNames,
+          );
+          if (
+            rFilterResult.syntaxErrors.length > 0 ||
+            rFilterResult.warnings.length > 0
+          ) {
+            hasErr = true;
+          }
+        }
+        if (hasErr) error++;
+        else ready++;
+      }
+
+      const nonEmpty = indCode.filter(
+        (c) => c.rCode.trim() || c.rFilterCode?.trim(),
+      );
+      let consistent = true;
+      if (nonEmpty.length > 1) {
+        const first = nonEmpty[0];
+        consistent = nonEmpty.every(
+          (c) =>
+            c.rCode.trim() === first.rCode.trim() &&
+            (c.rFilterCode?.trim() ?? "") === (first.rFilterCode?.trim() ?? ""),
+        );
+      }
+
+      map.set(ind.varName, {
+        withCode: withCodeEntries.length,
+        total,
+        ready,
+        error,
+        consistent,
+      });
+    }
+    return map;
   });
 
   const [revalidating, setRevalidating] = createSignal(false);
@@ -151,11 +311,16 @@ export function HfaIndicatorsManager(p: Props) {
 
   async function handleCreate() {
     const st = indicators();
+    const catSt = categories();
+    const subCatSt = subCategories();
+    if (catSt.status !== "ready" || subCatSt.status !== "ready") return;
     const sortOrder = st.status === "ready" ? st.data.length : 0;
     await openComponent({
       element: EditHfaIndicator,
       props: {
         sortOrder,
+        categories: catSt.data,
+        subCategories: subCatSt.data,
       },
     });
   }
@@ -165,7 +330,14 @@ export function HfaIndicatorsManager(p: Props) {
     allIndicators: HfaIndicator[],
   ) {
     const dictState = dictionary();
-    if (dictState.status !== "ready") return;
+    const catSt = categories();
+    const subCatSt = subCategories();
+    if (
+      dictState.status !== "ready" ||
+      catSt.status !== "ready" ||
+      subCatSt.status !== "ready"
+    )
+      return;
     const dict = dictState.data;
     await openEditor({
       element: HfaIndicatorCodeEditor,
@@ -173,6 +345,8 @@ export function HfaIndicatorsManager(p: Props) {
         indicator,
         dictionary: dict,
         allIndicatorVarNames: allIndicators.map((i) => i.varName),
+        categories: catSt.data,
+        subCategories: subCatSt.data,
       },
     });
   }
@@ -213,80 +387,72 @@ export function HfaIndicatorsManager(p: Props) {
     await deleteAction.click();
   }
 
-  async function handleDownloadCsv(data: HfaIndicator[]) {
-    const dictState = dictionary();
-    if (dictState.status !== "ready") return;
-    const dict = dictState.data;
-    const codeRes = await serverActions.getAllHfaIndicatorCode({});
-    if (!codeRes.success) return;
-
-    const sortedTimePoints = [...dict.timePoints].sort((a, b) =>
-      a.timePoint.localeCompare(b.timePoint),
-    );
-
-    const headers = [
-      "varName",
-      "category",
-      "definition",
-      "type",
-      "aggregation",
-    ];
-    for (let k = 0; k < sortedTimePoints.length; k++) {
-      headers.push(`r_code_${k + 1}`, `r_filter_code_${k + 1}`);
-    }
-
-    const codeByKey = new Map<string, { rCode: string; rFilterCode: string }>();
-    for (const c of codeRes.data) {
-      codeByKey.set(`${c.varName}__${c.timePoint}`, {
-        rCode: c.rCode,
-        rFilterCode: c.rFilterCode ?? "",
-      });
-    }
-
-    const rows = data.map((ind) => {
-      const row: string[] = [
-        ind.varName,
-        ind.category,
-        ind.definition,
-        ind.type,
-        ind.aggregation,
-      ];
-      for (const tp of sortedTimePoints) {
-        const entry = codeByKey.get(`${ind.varName}__${tp.timePoint}`);
-        row.push(entry?.rCode ?? "", entry?.rFilterCode ?? "");
-      }
-      return row;
-    });
-
-    const escape = (cell: string) => `"${cell.replace(/"/g, '""')}"`;
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.map(escape).join(",")),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "hfa_indicators.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+  function sortedTimePointLabels(): string[] | undefined {
+    const dictSt = dictionary();
+    if (dictSt.status !== "ready") return undefined;
+    return [...dictSt.data.timePoints]
+      .sort((a, b) => a.timePoint.localeCompare(b.timePoint))
+      .map((tp) => tp.timePoint);
   }
 
-  async function handleCsvUpload() {
-    const dictState = dictionary();
-    if (dictState.status !== "ready") return;
+  function handleDownloadXlsx() {
+    const indSt = indicators();
+    const catSt = categories();
+    const subCatSt = subCategories();
+    const codeSt = allCode();
+    const timePoints = sortedTimePointLabels();
+    if (
+      indSt.status !== "ready" ||
+      catSt.status !== "ready" ||
+      subCatSt.status !== "ready" ||
+      codeSt.status !== "ready" ||
+      timePoints === undefined
+    ) {
+      return;
+    }
+    const blob = buildHfaWorkbookBlob({
+      categories: catSt.data,
+      subCategories: subCatSt.data,
+      indicators: indSt.data,
+      code: codeSt.data,
+      timePoints,
+    });
+    saveAs(blob, "hfa_indicators.xlsx");
+  }
+
+  async function handleXlsxUpload() {
+    const timePoints = sortedTimePointLabels();
+    if (timePoints === undefined) return;
     await openEditor({
-      element: HfaIndicatorsCsvUploadForm,
-      props: { dictionary: dictState.data },
+      element: HfaIndicatorsXlsxUploadForm,
+      props: { timePoints },
     });
   }
 
   const columns: TableColumn<HfaIndicator>[] = [
     {
-      key: "category",
+      key: "categoryId",
       header: t3({ en: "Category", fr: "Catégorie" }),
       sortable: true,
+      render: (ind) => {
+        if (!ind.categoryId) return "—";
+        const catSt = categories();
+        if (catSt.status !== "ready") return ind.categoryId;
+        const cat = catSt.data.find((c) => c.id === ind.categoryId);
+        return cat?.label ?? ind.categoryId;
+      },
+    },
+    {
+      key: "subCategoryId",
+      header: t3({ en: "Sub-category", fr: "Sous-catégorie" }),
+      sortable: true,
+      render: (ind) => {
+        if (!ind.subCategoryId) return "—";
+        const subCatSt = subCategories();
+        if (subCatSt.status !== "ready") return ind.subCategoryId;
+        const subCat = subCatSt.data.find((sc) => sc.id === ind.subCategoryId);
+        return subCat?.label ?? ind.subCategoryId;
+      },
     },
     {
       key: "varName",
@@ -295,8 +461,15 @@ export function HfaIndicatorsManager(p: Props) {
       render: (ind) => <span class="font-mono">{ind.varName}</span>,
     },
     {
+      key: "shortLabel",
+      header: t3({ en: "Short label", fr: "Libellé court" }),
+      sortable: true,
+      render: (ind) =>
+        ind.shortLabel ? ind.shortLabel : <span class="text-neutral">—</span>,
+    },
+    {
       key: "definition",
-      header: t3({ en: "Definition", fr: "Définition" }),
+      header: t3({ en: "Long label", fr: "Libellé long" }),
       sortable: true,
     },
     {
@@ -311,30 +484,74 @@ export function HfaIndicatorsManager(p: Props) {
       ),
     },
     {
-      key: "hasSyntaxError",
-      header: t3({ en: "Syntax", fr: "Syntaxe" }),
+      key: "timePoints",
+      header: t3({ en: "Time points", fr: "Points temporels" }),
       sortable: true,
-      render: (ind) => (
-        <span
-          class={ind.hasSyntaxError ? "text-danger font-700" : "text-success"}
-        >
-          {ind.hasSyntaxError
-            ? t3({ en: "Error", fr: "Erreur" })
-            : t3({ en: "OK", fr: "OK" })}
-        </span>
-      ),
+      sortValue: (ind) => statsByVarName().get(ind.varName)?.withCode ?? -1,
+      render: (ind) => {
+        const stats = statsByVarName().get(ind.varName);
+        if (!stats) return "…";
+        return (
+          <span class={stats.withCode === 0 ? "text-neutral" : ""}>
+            {t3({
+              en: `${stats.withCode} of ${stats.total}`,
+              fr: `${stats.withCode} sur ${stats.total}`,
+            })}
+          </span>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: t3({ en: "Status", fr: "Statut" }),
+      sortable: true,
+      sortValue: (ind) => statsByVarName().get(ind.varName)?.error ?? -1,
+      render: (ind) => {
+        const stats = statsByVarName().get(ind.varName);
+        if (!stats) return "…";
+        if (stats.withCode === 0) {
+          return <span class="text-neutral">—</span>;
+        }
+        return (
+          <span>
+            <span class="text-success">
+              {t3({ en: `${stats.ready} ready`, fr: `${stats.ready} prêt` })}
+            </span>
+            <Show when={stats.error > 0}>
+              <span>, </span>
+              <span class="text-danger font-700">
+                {t3({
+                  en: `${stats.error} error`,
+                  fr: `${stats.error} erreur`,
+                })}
+              </span>
+            </Show>
+          </span>
+        );
+      },
     },
     {
       key: "codeConsistent",
       header: t3({ en: "Consistent", fr: "Cohérent" }),
       sortable: true,
-      render: (ind) => (
-        <span class="">
-          {ind.codeConsistent
-            ? t3({ en: "Yes", fr: "Oui" })
-            : t3({ en: "No", fr: "Non" })}
-        </span>
-      ),
+      sortValue: (ind) => {
+        const stats = statsByVarName().get(ind.varName);
+        if (!stats || stats.withCode === 0) return -1;
+        return stats.consistent ? 1 : 0;
+      },
+      render: (ind) => {
+        const stats = statsByVarName().get(ind.varName);
+        if (!stats || stats.withCode === 0) {
+          return <span class="text-neutral">—</span>;
+        }
+        return (
+          <span>
+            {stats.consistent
+              ? t3({ en: "Yes", fr: "Oui" })
+              : t3({ en: "No", fr: "Non" })}
+          </span>
+        );
+      },
     },
   ];
 
@@ -367,16 +584,17 @@ export function HfaIndicatorsManager(p: Props) {
     });
   }
 
-  const bulkActions: BulkAction<HfaIndicator>[] = instanceState.currentUserIsGlobalAdmin
-    ? [
-        {
-          label: t3(TC.delete),
-          intent: "danger",
-          outline: true,
-          onClick: handleBulkDelete,
-        },
-      ]
-    : [];
+  const bulkActions: BulkAction<HfaIndicator>[] =
+    instanceState.currentUserIsGlobalAdmin
+      ? [
+          {
+            label: t3(TC.delete),
+            intent: "danger",
+            outline: true,
+            onClick: handleBulkDelete,
+          },
+        ]
+      : [];
 
   return (
     <EditorWrapper>
@@ -387,65 +605,86 @@ export function HfaIndicatorsManager(p: Props) {
             <div class="font-700 flex-1 truncate text-xl">
               {t3({ en: "HFA INDICATORS", fr: "INDICATEURS HFA" })}
             </div>
-            <div class="ui-gap-sm flex items-center">
-              <Show when={instanceState.currentUserIsGlobalAdmin}>
-                <Button
-                  iconName="refresh"
-                  onClick={handleRevalidateAll}
-                  loading={revalidating()}
-                >
-                  {t3({ en: "Revalidate all", fr: "Revalider tout" })}
-                </Button>
-                <Button iconName="upload" onClick={handleCsvUpload}>
-                  {t3({ en: "Upload CSV", fr: "Téléverser CSV" })}
-                </Button>
-                <Button iconName="plus" intent="primary" onClick={handleCreate}>
-                  {t3({ en: "Add", fr: "Ajouter" })}
-                </Button>
-              </Show>
-            </div>
           </div>
         }
       >
-        <div class="ui-pad h-full w-full overflow-auto">
-          <StateHolderWrapper state={indicators()} noPad>
-            {(keyedIndicators) => (
-              <div class="flex h-full flex-col">
-                <div class="ui-gap-sm flex flex-none items-center pb-4">
-                  <div class="font-700 flex-1 text-xl">
-                    {t3({ en: "Indicators", fr: "Indicateurs" })} (
-                    {keyedIndicators.length})
+        <FrameTop panelChildren={<TabsNavigation items={tabItems} value={tab()} onChange={setTab} />}>
+          <div class="ui-pad h-full w-full overflow-auto">
+            <Show when={tab() === ("indicators")}>
+              <StateHolderWrapper state={indicators()} noPad>
+                {(keyedIndicators) => (
+                  <div class="flex h-full flex-col">
+                    <div class="ui-gap-sm flex flex-none items-center pb-4">
+                      <div class="font-700 flex-1 text-xl">
+                        {t3({ en: "Indicators", fr: "Indicateurs" })} (
+                        {keyedIndicators.length})
+                      </div>
+                      <Show when={instanceState.currentUserIsGlobalAdmin}>
+                        <Button
+                          iconName="download"
+                          intent="neutral"
+                          onClick={handleDownloadXlsx}
+                        >
+                          {t3({ en: "Download Excel", fr: "Télécharger Excel" })}
+                        </Button>
+                        <Button
+                          iconName="refresh"
+                          onClick={handleRevalidateAll}
+                          loading={revalidating()}
+                        >
+                          {t3({ en: "Revalidate all", fr: "Revalider tout" })}
+                        </Button>
+                        <Button iconName="upload" onClick={handleXlsxUpload}>
+                          {t3({ en: "Import Excel", fr: "Importer Excel" })}
+                        </Button>
+                        <Button
+                          iconName="plus"
+                          intent="primary"
+                          onClick={handleCreate}
+                        >
+                          {t3({ en: "Add", fr: "Ajouter" })}
+                        </Button>
+                      </Show>
+                    </div>
+                    <div class="h-0 w-full flex-1">
+                      <Table
+                        data={keyedIndicators}
+                        columns={columns}
+                        keyField="varName"
+                        noRowsMessage={t3({
+                          en: "No HFA indicators configured",
+                          fr: "Aucun indicateur HFA configuré",
+                        })}
+                        bulkActions={bulkActions}
+                        selectionLabel={t3({
+                          en: "indicator",
+                          fr: "indicateur",
+                        })}
+                        fitTableToAvailableHeight
+                      />
+                    </div>
                   </div>
-                  <Show when={instanceState.currentUserIsGlobalAdmin && keyedIndicators.length > 0}>
-                    <Button
-                      onClick={() => {
-                        handleDownloadCsv(keyedIndicators);
-                      }}
-                      iconName="download"
-                      intent="neutral"
-                    >
-                      {t3({ en: "Download CSV", fr: "Télécharger CSV" })}
-                    </Button>
-                  </Show>
-                </div>
-                <div class="h-0 w-full flex-1">
-                  <Table
-                    data={keyedIndicators}
-                    columns={columns}
-                    keyField="varName"
-                    noRowsMessage={t3({
-                      en: "No HFA indicators configured",
-                      fr: "Aucun indicateur HFA configuré",
-                    })}
-                    bulkActions={bulkActions}
-                    selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
-                    fitTableToAvailableHeight
-                  />
-                </div>
-              </div>
-            )}
-          </StateHolderWrapper>
-        </div>
+                )}
+              </StateHolderWrapper>
+            </Show>
+            <Show when={tab() === ("categories")}>
+              <StateHolderWrapper state={categories()} noPad>
+                {(keyedCategories) => (
+                  <StateHolderWrapper state={subCategories()} noPad>
+                    {(keyedSubCategories) => (
+                      <HfaCategoriesManager
+                        categories={keyedCategories}
+                        subCategories={keyedSubCategories}
+                        selectedCategoryId={selectedCategoryId()}
+                        onSelectCategory={setSelectedCategoryId}
+                      />
+                    )}
+                  </StateHolderWrapper>
+                )}
+              </StateHolderWrapper>
+            </Show>
+          </div>
+        </FrameTop>
       </FrameTop>
     </EditorWrapper>
   );

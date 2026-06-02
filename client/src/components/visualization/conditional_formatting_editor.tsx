@@ -57,11 +57,11 @@ export function ConditionalFormattingEditor(p: Props) {
   return (
     <div class="ui-spy-sm">
       <ButtonGroup<Mode>
-        options={[
-          { value: "none", label: t3({ en: "Off", fr: "Désactivé" }) },
-          { value: "scale", label: t3({ en: "Scale", fr: "Échelle" }) },
+        items={[
+          { id: "none", label: t3({ en: "Off", fr: "Désactivé" }) },
+          { id: "scale", label: t3({ en: "Scale", fr: "Échelle" }) },
           {
-            value: "thresholds",
+            id: "thresholds",
             label: t3({ en: "Thresholds", fr: "Seuils" }),
           },
         ]}

@@ -6,7 +6,6 @@ import type { PresentationObjectConfig } from "./presentation_objects.ts";
 // 2. Creating presentation objects programmatically
 
 export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
-  scale: 3,
   content: "bars",
   ...CF_STORAGE_DEFAULTS,
   allowIndividualRowLimits: true,

@@ -44,6 +44,8 @@ import { routesAiFiles } from "./server/routes/project/ai_files.ts";
 import { routesAiTools } from "./server/routes/project/ai_tools.ts";
 import { routesVisualizationFolders } from "./server/routes/project/visualization_folders.ts";
 import { routesSlideDeckFolders } from "./server/routes/project/slide_deck_folders.ts";
+import { routesReports } from "./server/routes/project/reports.ts";
+import { routesReportFolders } from "./server/routes/project/report_folders.ts";
 import { routesDashboards } from "./server/routes/project/dashboards.ts";
 import { routesEmails } from "./server/routes/project/emails.ts";
 import { routesCacheStatus } from "./server/routes/project/cache_status.ts";
@@ -82,6 +84,12 @@ const app = new Hono();
 // CORS for public routes
 app.use("/api/share/*", corsMiddleware);
 app.use("/api/d/*", corsMiddleware);
+
+// Dashboards are readable anonymously only when public; not-public dashboards
+// require an authenticated user. Run Clerk here so the route can READ the
+// session — clerkMiddleware populates auth without rejecting anonymous requests.
+//@ts-ignore - Clerk middleware types not fully compatible with Hono
+app.use("/api/d/*", authMiddleware);
 
 // Public routes (no auth required) - must be before authMiddleware
 app.route("/", routesPublicShare);
@@ -130,6 +138,8 @@ app.route("/", routesIndicatorsDhis2);
 app.route("/", routesInstanceModules);
 app.route("/", routesModules);
 app.route("/", routesSlideDecks);
+app.route("/", routesReports);
+app.route("/", routesReportFolders);
 app.route("/", routesSlides);
 app.route("/", routesDashboards);
 app.route("/", routesPresentationObjects);

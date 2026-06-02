@@ -24,7 +24,7 @@ export class Csv<T> {
     this.aoa = opts.aoa;
 
     this.nRows = this.aoa.length;
-    this.nCols = this.aoa.length > 0 ? this.aoa[0].length : 0;
+    this.nCols = this.colHeaders.length;
 
     this.validate();
   }
@@ -703,12 +703,6 @@ export class Csv<T> {
   // ================================================================================
 
   private validate(): void {
-    if (this.colHeaders.length !== this.nCols) {
-      throw new Error(
-        `Column headers length (${this.colHeaders.length}) does not match number of columns (${this.nCols})`,
-      );
-    }
-
     const uniqueColHeaders = new Set(this.colHeaders);
     if (uniqueColHeaders.size !== this.colHeaders.length) {
       throw new Error("Column headers must be unique");

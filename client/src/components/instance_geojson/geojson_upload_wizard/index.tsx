@@ -25,29 +25,13 @@ export type Dhis2FeatureContext = {
   parentName: string | null;
 };
 
-export type DetectedMapping = {
-  adminAreaLevel: 2 | 3 | 4;
-  adminAreaCount: number;
-  dhis2Level: number | null;
-  dhis2LevelName: string | null;
-  dhis2Count: number | null;
-  geometryCount: number | null;
-  matchedNames: number;
-  confidence: "high" | "medium" | "low" | "none";
+export type Dhis2Level = {
+  level: number;
+  name: string;
+  orgUnitCount: number;
 };
 
 export type AdminAreaOption = { value: string; label: string };
-
-export type LevelMappingState = {
-  adminAreaLevel: 2 | 3 | 4;
-  dhis2Level: number;
-  analysisResult: AnalysisResult | undefined;
-  dhis2Features: Dhis2FeatureContext[];
-  adminAreaNames: string[];
-  adminAreaOptions: AdminAreaOption[];
-  geoToAdmin: Record<string, string>;
-  selectedProp: string;
-};
 
 export type WizardState = {
   step: () => 0 | 1 | 2 | 3 | 4;
@@ -57,6 +41,7 @@ export type WizardState = {
   // File source state
   selectedFileName: () => string;
   setSelectedFileName: (s: string) => void;
+  // Shared state (used by both file and DHIS2)
   analysisResult: () => AnalysisResult | undefined;
   setAnalysisResult: (r: AnalysisResult | undefined) => void;
   adminAreaLevel: () => number;
@@ -72,12 +57,12 @@ export type WizardState = {
   // DHIS2 source state
   dhis2Credentials: () => Dhis2Credentials | undefined;
   setDhis2Credentials: (c: Dhis2Credentials | undefined) => void;
-  detectedMappings: () => DetectedMapping[];
-  setDetectedMappings: (m: DetectedMapping[]) => void;
-  levelMappingStates: () => LevelMappingState[];
-  setLevelMappingStates: (s: LevelMappingState[]) => void;
-  currentLevelIndex: () => number;
-  setCurrentLevelIndex: (i: number) => void;
+  dhis2Levels: () => Dhis2Level[];
+  setDhis2Levels: (levels: Dhis2Level[]) => void;
+  selectedDhis2Level: () => number | null;
+  setSelectedDhis2Level: (level: number | null) => void;
+  dhis2Features: () => Dhis2FeatureContext[];
+  setDhis2Features: (features: Dhis2FeatureContext[]) => void;
   // Common
   close: (p: unknown) => void;
 };
@@ -88,6 +73,8 @@ export function GeoJsonUploadWizard(p: Props) {
 
   // File source state
   const [selectedFileName, setSelectedFileName] = createSignal<string>("");
+
+  // Shared state (used by both file and DHIS2)
   const [analysisResult, setAnalysisResult] = createSignal<AnalysisResult | undefined>(undefined);
   const [adminAreaLevel, setAdminAreaLevel] = createSignal<number>(2);
   const [selectedProp, setSelectedProp] = createSignal<string>("");
@@ -97,9 +84,9 @@ export function GeoJsonUploadWizard(p: Props) {
 
   // DHIS2 source state
   const [dhis2Credentials, setDhis2Credentials] = createSignal<Dhis2Credentials | undefined>(undefined);
-  const [detectedMappings, setDetectedMappings] = createSignal<DetectedMapping[]>([]);
-  const [levelMappingStates, setLevelMappingStates] = createSignal<LevelMappingState[]>([]);
-  const [currentLevelIndex, setCurrentLevelIndex] = createSignal<number>(0);
+  const [dhis2Levels, setDhis2Levels] = createSignal<Dhis2Level[]>([]);
+  const [selectedDhis2Level, setSelectedDhis2Level] = createSignal<number | null>(null);
+  const [dhis2Features, setDhis2Features] = createSignal<Dhis2FeatureContext[]>([]);
 
   function setGeoToAdmin(mapping: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) {
     if (typeof mapping === "function") {
@@ -130,12 +117,12 @@ export function GeoJsonUploadWizard(p: Props) {
     setGeoToAdmin,
     dhis2Credentials,
     setDhis2Credentials,
-    detectedMappings,
-    setDetectedMappings,
-    levelMappingStates,
-    setLevelMappingStates,
-    currentLevelIndex,
-    setCurrentLevelIndex,
+    dhis2Levels,
+    setDhis2Levels,
+    selectedDhis2Level,
+    setSelectedDhis2Level,
+    dhis2Features,
+    setDhis2Features,
     close: p.close,
   };
 

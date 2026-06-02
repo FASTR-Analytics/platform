@@ -141,7 +141,7 @@ export const ALL_DISAGGREGATION_OPTIONS = [
 
 ### 2. Instance DB Migrations
 
-**New file: `server/db/migrations/instance/038_hfa_indicator_categories.sql`**
+**New file: `server/db/migrations/instance/042_hfa_indicator_categories.sql`**
 
 ```sql
 -- Create categories table
@@ -1527,7 +1527,7 @@ To:
 
 This editor also allows editing indicator metadata and needs the same updates.
 
-#### 14.1 Update TempState type (lines 31-38)
+#### 13.1 Update TempState type (lines 31-38)
 
 Change from:
 ```typescript
@@ -1555,7 +1555,7 @@ type TempState = {
 };
 ```
 
-#### 14.2 Update props to include categories/subCategories
+#### 13.2 Update props to include categories/subCategories
 
 Change props type (lines 40-48) to include:
 ```typescript
@@ -1573,7 +1573,7 @@ export function HfaIndicatorCodeEditor(
 ) {
 ```
 
-#### 14.3 Update state initialization (lines 149-156)
+#### 13.3 Update state initialization (lines 149-156)
 
 Change from:
 ```typescript
@@ -1606,7 +1606,7 @@ To:
   };
 ```
 
-#### 14.4 Update save function indicator object (lines 274-283)
+#### 13.4 Update save function indicator object (lines 274-283)
 
 Change from:
 ```typescript
@@ -1638,7 +1638,7 @@ To:
       },
 ```
 
-#### 14.5 Update form UI (lines 312-319)
+#### 13.5 Update form UI (lines 312-319)
 
 Change category input from free-text to dropdown selectors with "None" options:
 ```typescript
@@ -1678,7 +1678,7 @@ Change category input from free-text to dropdown selectors with "None" options:
 />
 ```
 
-#### 14.6 Update caller in hfa_indicators_manager.tsx
+#### 13.6 Update caller in hfa_indicators_manager.tsx
 
 Update `handleOpenCodeEditor` function to pass categories/subCategories:
 ```typescript

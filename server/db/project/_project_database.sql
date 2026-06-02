@@ -18,12 +18,29 @@ CREATE TABLE indicators_hfa (
   example_values text NOT NULL
 );
 
+-- HFA indicator categories snapshot (mirrors instance table at export time)
+CREATE TABLE hfa_indicator_categories_snapshot (
+  id text PRIMARY KEY NOT NULL,
+  label text NOT NULL,
+  sort_order integer NOT NULL DEFAULT 0
+);
+
+-- HFA indicator sub-categories snapshot (mirrors instance table at export time)
+CREATE TABLE hfa_indicator_sub_categories_snapshot (
+  id text PRIMARY KEY NOT NULL,
+  category_id text NOT NULL,
+  label text NOT NULL,
+  sort_order integer NOT NULL DEFAULT 0
+);
+
 -- Point-in-time snapshot of HFA indicator definitions + per-time-point R code,
 -- copied from the instance DB at HFA data export time. The module runner reads
 -- from these tables so indicators and data always stay in sync.
 CREATE TABLE hfa_indicators_snapshot (
   var_name text PRIMARY KEY NOT NULL,
-  category text NOT NULL,
+  category_id text,
+  sub_category_id text,
+  short_label text NOT NULL DEFAULT '',
   definition text NOT NULL,
   type text NOT NULL,
   aggregation text NOT NULL,
@@ -222,6 +239,35 @@ CREATE INDEX idx_slides_deck_sort ON slides(slide_deck_id, sort_order);
 CREATE INDEX idx_slides_last_updated ON slides(last_updated);
 
 -- ============================================================================
+-- REPORTS
+-- ============================================================================
+
+CREATE TABLE report_folders (
+  id text PRIMARY KEY,
+  label text NOT NULL,
+  color text,
+  description text,
+  sort_order integer NOT NULL DEFAULT 0,
+  last_updated text NOT NULL
+);
+
+CREATE INDEX idx_report_folders_sort_order ON report_folders(sort_order);
+
+CREATE TABLE reports (
+  id text PRIMARY KEY NOT NULL,
+  label text NOT NULL,
+  body text NOT NULL DEFAULT '',
+  figures text NOT NULL DEFAULT '{}',
+  images text NOT NULL DEFAULT '{}',
+  config text,
+  last_updated text NOT NULL,
+  folder_id text REFERENCES report_folders(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_reports_last_updated ON reports(last_updated);
+CREATE INDEX idx_reports_folder_id ON reports(folder_id);
+
+-- ============================================================================
 -- DASHBOARDS
 -- ============================================================================
 
@@ -231,6 +277,7 @@ CREATE TABLE dashboards (
   title text NOT NULL,
   is_public boolean NOT NULL DEFAULT FALSE,
   layout text NOT NULL,
+  config text NOT NULL DEFAULT '{"logos":{"availableCustom":[],"selected":[]},"about":{"summary":"","body":""}}',
   created_by_email text NOT NULL,
   created_at text NOT NULL,
   updated_at text NOT NULL,
@@ -241,6 +288,20 @@ CREATE TABLE dashboards (
 CREATE INDEX idx_dashboards_slug ON dashboards(slug);
 CREATE INDEX idx_dashboards_last_updated ON dashboards(last_updated);
 
+CREATE TABLE dashboard_item_groups (
+  id text PRIMARY KEY NOT NULL,
+  dashboard_id text NOT NULL,
+  label text NOT NULL,
+  replicate_by text NOT NULL,
+  default_replicant_value text,
+  replicants text NOT NULL,
+  geo_data text,
+  last_updated text NOT NULL,
+  FOREIGN KEY (dashboard_id) REFERENCES dashboards(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_dashboard_item_groups_dashboard_id ON dashboard_item_groups(dashboard_id);
+
 CREATE TABLE dashboard_items (
   id text PRIMARY KEY NOT NULL,
   dashboard_id text NOT NULL,
@@ -249,12 +310,16 @@ CREATE TABLE dashboard_items (
   figure_block text NOT NULL,
   geo_data text,
   last_updated text NOT NULL,
-  FOREIGN KEY (dashboard_id) REFERENCES dashboards(id) ON DELETE CASCADE
+  replicant_group_id text,
+  replicant_value text,
+  FOREIGN KEY (dashboard_id) REFERENCES dashboards(id) ON DELETE CASCADE,
+  FOREIGN KEY (replicant_group_id) REFERENCES dashboard_item_groups(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_dashboard_items_dashboard_id ON dashboard_items(dashboard_id);
 CREATE INDEX idx_dashboard_items_dashboard_sort ON dashboard_items(dashboard_id, sort_order);
 CREATE INDEX idx_dashboard_items_last_updated ON dashboard_items(last_updated);
+CREATE INDEX idx_dashboard_items_replicant_group_id ON dashboard_items(replicant_group_id);
 
 -- ============================================================================
 -- METADATA

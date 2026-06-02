@@ -22,7 +22,6 @@ export type ListLevelOptionsEm = {
 };
 
 export type CustomMarkdownStyleOptions = {
-  scale?: number;
   alignH?: AlignH;
 
   text?: MarkdownTextStyleOptions;

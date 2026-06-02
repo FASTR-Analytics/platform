@@ -5,11 +5,7 @@
 
 import { measurePage } from "./_internal/measure_page.ts";
 import { renderPage } from "./_internal/render_page.ts";
-import type {
-  HeightConstraints,
-  RectCoordsDims,
-  RenderContext,
-} from "./deps.ts";
+import type { RectCoordsDims, RenderContext } from "./deps.ts";
 import type { MeasuredPage, PageInputs } from "./types.ts";
 
 type PageRendererType = {
@@ -18,21 +14,13 @@ type PageRendererType = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: PageInputs,
-    responsiveScale?: number,
   ): MeasuredPage;
   render(rc: RenderContext, mPage: MeasuredPage): void;
   measureAndRender(
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: PageInputs,
-    responsiveScale?: number,
   ): void;
-  getIdealHeight(
-    rc: RenderContext,
-    width: number,
-    item: PageInputs,
-    responsiveScale?: number,
-  ): HeightConstraints;
 };
 
 export const PageRenderer: PageRendererType = {
@@ -80,9 +68,8 @@ export const PageRenderer: PageRendererType = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: PageInputs,
-    responsiveScale?: number,
   ): MeasuredPage {
-    return measurePage(rc, bounds, item, responsiveScale);
+    return measurePage(rc, bounds, item);
   },
 
   //////////////////////////////////////////////////////////////////
@@ -106,35 +93,8 @@ export const PageRenderer: PageRendererType = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: PageInputs,
-    responsiveScale?: number,
   ): void {
-    const mPage = measurePage(rc, bounds, item, responsiveScale);
+    const mPage = measurePage(rc, bounds, item);
     renderPage(rc, mPage);
-  },
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  //  ______        __                      __        __                  __            __          __      //
-  // /      |      /  |                    /  |      /  |                /  |          /  |        /  |     //
-  // $$$$$$/   ____$$ |  ______    ______  $$ |      $$ |____    ______  $$/   ______  $$ |____   _$$ |_    //
-  //   $$ |   /    $$ | /      \  /      \ $$ |      $$      \  /      \ /  | /      \ $$      \ / $$   |   //
-  //   $$ |  /$$$$$$$ |/$$$$$$  | $$$$$$  |$$ |      $$$$$$$  |/$$$$$$  |$$ |/$$$$$$  |$$$$$$$  |$$$$$$/    //
-  //   $$ |  $$ |  $$ |$$    $$ | /    $$ |$$ |      $$ |  $$ |$$    $$ |$$ |$$ |  $$ |$$ |  $$ |  $$ | __  //
-  //  _$$ |_ $$ \__$$ |$$$$$$$$/ /$$$$$$$ |$$ |      $$ |  $$ |$$$$$$$$/ $$ |$$ \__$$ |$$ |  $$ |  $$ |/  | //
-  // / $$   |$$    $$ |$$       |$$    $$ |$$ |      $$ |  $$ |$$       |$$ |$$    $$ |$$ |  $$ |  $$  $$/  //
-  // $$$$$$/  $$$$$$$/  $$$$$$$/  $$$$$$$/ $$/       $$/   $$/  $$$$$$$/ $$/  $$$$$$$ |$$/   $$/    $$$$/   //
-  //                                                                         /  \__$$ |                     //
-  //                                                                         $$    $$/                      //
-  //                                                                          $$$$$$/                       //
-  //                                                                                                        //
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  getIdealHeight(
-    _rc: RenderContext,
-    width: number,
-    _item: PageInputs,
-    _responsiveScale?: number,
-  ): HeightConstraints {
-    const h = Math.round((width * 9) / 16);
-    return { minH: h, idealH: h, maxH: h };
   },
 };

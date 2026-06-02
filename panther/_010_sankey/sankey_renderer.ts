@@ -22,9 +22,8 @@ export const SankeyRenderer: Renderer<SankeyInputs, MeasuredSankey> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: SankeyInputs,
-    responsiveScale?: number,
   ): MeasuredSankey {
-    return measureSankey(rc, bounds, item, responsiveScale);
+    return measureSankey(rc, bounds, item);
   },
 
   render(rc: RenderContext, measured: MeasuredSankey): void {
@@ -35,9 +34,8 @@ export const SankeyRenderer: Renderer<SankeyInputs, MeasuredSankey> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: SankeyInputs,
-    responsiveScale?: number,
   ): void {
-    const measured = this.measure(rc, bounds, item, responsiveScale);
+    const measured = this.measure(rc, bounds, item);
     this.render(rc, measured);
   },
 
@@ -45,11 +43,10 @@ export const SankeyRenderer: Renderer<SankeyInputs, MeasuredSankey> = {
     rc: RenderContext,
     width: number,
     item: SankeyInputs,
-    responsiveScale?: number,
   ): HeightConstraints {
     const testHeight = 1000;
     const bounds = new RectCoordsDims({ x: 0, y: 0, w: width, h: testHeight });
-    const measured = this.measure(rc, bounds, item, responsiveScale);
+    const measured = this.measure(rc, bounds, item);
     const idealH = testHeight + measured.extraHeightDueToSurrounds;
     return { minH: 0, idealH, maxH: Infinity };
   },

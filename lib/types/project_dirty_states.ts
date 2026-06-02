@@ -17,7 +17,8 @@ export type LastUpdateTableName =
   | "modules"
   | "presentation_objects"
   | "slide_decks"
-  | "slides";
+  | "slides"
+  | "reports";
 
 export const _LAST_UPDATE_TABLE_NAMES = [
   "dashboards",
@@ -27,4 +28,5 @@ export const _LAST_UPDATE_TABLE_NAMES = [
   "presentation_objects",
   "slide_decks",
   "slides",
+  "reports",
 ] as const satisfies readonly LastUpdateTableName[];

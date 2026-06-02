@@ -5,12 +5,17 @@
 
 // Main exports - simplified API surface
 export {
+  type ExportSizeOptions,
   getFigureAsCanvas,
   getFigureAsDataUrl,
   writeFigure,
   writeFigures,
 } from "./write_figure.ts";
-export { writeSlide, writeSlides } from "./write_slide.ts";
+export {
+  type SlideExportSizeOptions,
+  writeSlide,
+  writeSlides,
+} from "./write_slide.ts";
 
 // Utility exports for advanced usage
 export { createCanvasRenderContext, writeCanvas } from "./utils.ts";

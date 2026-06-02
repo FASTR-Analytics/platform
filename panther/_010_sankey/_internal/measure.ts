@@ -26,9 +26,8 @@ export function measureSankey(
   rc: RenderContext,
   bounds: RectCoordsDims,
   item: SankeyInputs,
-  responsiveScale?: number,
 ): MeasuredSankey {
-  const customFigureStyle = new CustomFigureStyle(item.style, responsiveScale);
+  const customFigureStyle = new CustomFigureStyle(item.style);
 
   const measuredSurrounds = measureSurrounds(
     rc,

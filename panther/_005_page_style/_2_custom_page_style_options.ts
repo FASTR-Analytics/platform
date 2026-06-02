@@ -90,7 +90,6 @@ export type PageNumberStyleOptions = {
 };
 
 export type CustomPageStyleOptions = {
-  scale?: number;
   text?: PageTextStyleOptions;
   cover?: CoverStyleOptions;
   section?: SectionStyleOptions;

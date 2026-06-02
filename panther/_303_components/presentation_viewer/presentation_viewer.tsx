@@ -273,7 +273,7 @@ function PresentationViewerContent(p: ContentProps) {
               <MarkdownPresentation
                 markdown={currentSlide()!}
                 scale={scale()}
-                style={p.style}
+                style={p.style?.markdown}
               />
             </div>
           </FrameBottom>

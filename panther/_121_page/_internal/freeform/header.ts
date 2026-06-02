@@ -97,10 +97,7 @@ export function measureHeader(
 
   if (hasLogos) {
     yOffsetHeader = Math.max(0, (logosHeight - totalInnerHeaderHeight) / 2);
-    yOffsetRightPlacementLogos = Math.max(
-      0,
-      (totalInnerHeaderHeight - logosHeight) / 2,
-    );
+    // Logos are top-aligned (yOffsetRightPlacementLogos stays 0).
     totalInnerHeaderHeight = Math.max(totalInnerHeaderHeight, logosHeight);
   }
 

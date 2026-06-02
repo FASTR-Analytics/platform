@@ -19,7 +19,7 @@ export function getChartOVComponentSizes(
   inputs: ChartOVInputs,
   scale?: number,
 ): ChartComponentSizes {
-  const cs = new CustomFigureStyle(inputs.style, scale);
+  const cs = new CustomFigureStyle(inputs.style, scale, inputs.autofitSurrounds);
   const ms = cs.getMergedChartOVStyle();
   const data = getChartOVDataTransformed(
     inputs.chartData,

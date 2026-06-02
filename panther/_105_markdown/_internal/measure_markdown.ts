@@ -16,10 +16,11 @@ export function measureMarkdown(
   rc: RenderContext,
   bounds: RectCoordsDims,
   input: MarkdownRendererInput,
+  fitScale?: number,
   _debug = false,
 ): MeasuredMarkdown {
   const parsed = parseMarkdown(input.markdown);
-  const styleInstance = new CustomMarkdownStyle(input.style);
+  const styleInstance = new CustomMarkdownStyle(input.style, fitScale);
   const style = styleInstance.getMergedMarkdownStyle();
   const result = measureMarkdownItems(
     rc,

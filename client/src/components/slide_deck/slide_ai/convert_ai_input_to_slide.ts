@@ -16,7 +16,7 @@ import type {
   MetricWithStatus,
   SlideDeckConfig,
 } from "lib";
-import { FIGURE_AUTOFIT, MARKDOWN_AUTOFIT, slideConfigSchema, getAllSlideFontVariants } from "lib";
+import { slideConfigSchema, getAllSlideFontVariants, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
@@ -94,11 +94,11 @@ export async function convertAiInputToSlide(
   const itemNodes = resolvedBlocks.map((block) => {
     let pageItem: PageContentItem;
     if (block.type === "text") {
-      pageItem = { markdown: block.markdown, autofit: MARKDOWN_AUTOFIT };
+      pageItem = { markdown: block.markdown };
     } else if (block.type === "image") {
       pageItem = { spacer: true };
     } else if (block.figureInputs) {
-      pageItem = { ...block.figureInputs, autofit: FIGURE_AUTOFIT };
+      pageItem = block.figureInputs;
     } else {
       pageItem = { spacer: true };
     }
@@ -130,14 +130,19 @@ export async function convertAiInputToSlide(
 
   // Optimize layout
   const rc = createCanvasRenderContextBrowser();
-  const bounds = new RectCoordsDims([0, 0, 1920, 1080]);
+  // Optimize at the canonical render frame so "fits at layout" == "fits at render".
+  const bounds = new RectCoordsDims([
+    0,
+    0,
+    PAGE_WIDTH_DU,
+    PAGE_HEIGHT_DU,
+  ]);
 
   const result = optimizePageLayout(
     rc,
     bounds,
     itemNodes,
     pageStyle,
-    undefined,
     getOptimizerConfig(slideInput.layoutPreference, resolvedBlocks.length),
   );
 

@@ -1,7 +1,18 @@
 import { Hono } from "hono";
 import {
   getHfaIndicators,
+  getHfaIndicatorCategories,
+  getHfaIndicatorSubCategories,
+  createHfaIndicatorCategory,
+  updateHfaIndicatorCategory,
+  deleteHfaIndicatorCategory,
+  reorderHfaIndicatorCategories,
+  createHfaIndicatorSubCategory,
+  updateHfaIndicatorSubCategory,
+  deleteHfaIndicatorSubCategory,
+  reorderHfaIndicatorSubCategories,
   getInstanceIndicatorsSummary,
+  importHfaIndicatorsWorkbook,
   createHfaIndicator,
   updateHfaIndicator,
   deleteHfaIndicators,
@@ -18,6 +29,155 @@ import { notifyInstanceIndicatorsUpdated } from "../../task_management/notify_in
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesHfaIndicators = new Hono();
+
+defineRoute(
+  routesHfaIndicators,
+  "importHfaIndicatorsWorkbook",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await importHfaIndicatorsWorkbook(c.var.mainDb, body);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+// ============================================================================
+// Categories
+// ============================================================================
+
+defineRoute(
+  routesHfaIndicators,
+  "getHfaIndicatorCategories",
+  requireGlobalPermission("can_configure_data"),
+  async (c) => {
+    const res = await getHfaIndicatorCategories(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "createHfaIndicatorCategory",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await createHfaIndicatorCategory(c.var.mainDb, body.category);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "updateHfaIndicatorCategory",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await updateHfaIndicatorCategory(c.var.mainDb, body.oldId, body.category);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "deleteHfaIndicatorCategory",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await deleteHfaIndicatorCategory(c.var.mainDb, body.id);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "reorderHfaIndicatorCategories",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await reorderHfaIndicatorCategories(c.var.mainDb, body.orderedIds);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+// ============================================================================
+// Sub-Categories
+// ============================================================================
+
+defineRoute(
+  routesHfaIndicators,
+  "getHfaIndicatorSubCategories",
+  requireGlobalPermission("can_configure_data"),
+  async (c) => {
+    const res = await getHfaIndicatorSubCategories(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "createHfaIndicatorSubCategory",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await createHfaIndicatorSubCategory(c.var.mainDb, body.subCategory);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "updateHfaIndicatorSubCategory",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await updateHfaIndicatorSubCategory(c.var.mainDb, body.oldId, body.subCategory);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "deleteHfaIndicatorSubCategory",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await deleteHfaIndicatorSubCategory(c.var.mainDb, body.id);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "reorderHfaIndicatorSubCategories",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await reorderHfaIndicatorSubCategories(c.var.mainDb, body.categoryId, body.orderedIds);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+// ============================================================================
+// Indicators
+// ============================================================================
 
 defineRoute(
   routesHfaIndicators,

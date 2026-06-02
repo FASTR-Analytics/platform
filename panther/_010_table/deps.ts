@@ -38,8 +38,9 @@ export type {
   TableCellStyle,
 } from "../_003_figure_style/mod.ts";
 export {
+  computeFloorScale,
   estimateMinSurroundsWidth,
-  findOptimalScaleForBounds,
+  findFitScaleWithFloor,
   generateSurroundsPrimitives,
   measureSurrounds,
   renderFigureBackground,

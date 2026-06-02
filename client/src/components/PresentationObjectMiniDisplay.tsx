@@ -12,7 +12,6 @@ type Props = {
   onClick?: () => void;
   shapeType: "ideal" | "force-aspect-video";
   repliantOverride?: ReplicantValueOverride;
-  scalePixelResolution?: number;
 };
 
 export function PresentationObjectMiniDisplay(p: Props) {
@@ -46,7 +45,24 @@ export function PresentationObjectMiniDisplay(p: Props) {
       moduleId={p.moduleId}
       shapeType={p.shapeType}
       onClick={p.onClick}
-      scalePixelResolution={p.scalePixelResolution}
+    />
+  );
+}
+
+// Render an ALREADY-RESOLVED FigureInputs as a thumbnail — identical rendering
+// to the presentation-object mini display (zoom, aspect-video, table-aware
+// height, NotAvailableBox errors), but for snapshotted figures that have no
+// live presentation-object id (e.g. dashboard items).
+export function FigureThumbnail(p: {
+  figureInputs: FigureInputs;
+  shapeType?: "ideal" | "force-aspect-video";
+  onClick?: () => void;
+}) {
+  return (
+    <PresentationObjectMiniDisplayStateHolderWrapper
+      state={{ status: "ready", data: p.figureInputs }}
+      shapeType={p.shapeType ?? "force-aspect-video"}
+      onClick={p.onClick}
     />
   );
 }
@@ -65,7 +81,6 @@ type PresentationObjectMiniDisplayStateHolderWrapperProps = {
       };
   onClick?: () => void;
   shapeType: "ideal" | "force-aspect-video";
-  scalePixelResolution?: number;
 };
 
 function PresentationObjectMiniDisplayStateHolderWrapper(
@@ -147,8 +162,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                       <ChartHolder
                         chartInputs={keyedFigureInputs}
                         height={h1}
-                        noRescaleWithWidthChange
-                        scalePixelResolution={p.scalePixelResolution}
+                        sizing="zoom"
                         renderError={renderError}
                       />
                     </div>
@@ -157,8 +171,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                     <ChartHolder
                       chartInputs={keyedFigureInputs}
                       height={h1}
-                      noRescaleWithWidthChange
-                      scalePixelResolution={p.scalePixelResolution}
+                      sizing="zoom"
                       renderError={renderError}
                     />
                   </Match>

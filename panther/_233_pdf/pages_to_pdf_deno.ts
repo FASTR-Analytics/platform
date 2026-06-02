@@ -37,7 +37,7 @@ function extractFontsFromPages(pages: PageInputs[]): FontInfo[] {
   const allFonts: FontInfo[] = new CustomStyle().getFontsToRegister();
   for (const page of pages) {
     if (page.style) {
-      const customStyle = new CustomStyle(page.style);
+      const customStyle = new CustomStyle({ page: page.style });
       allFonts.push(...customStyle.getFontsToRegister());
     }
   }

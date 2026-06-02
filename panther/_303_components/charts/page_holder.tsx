@@ -4,12 +4,13 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  batch,
   createEffect,
+  createMemo,
   createSignal,
   Match,
   onCleanup,
   onMount,
-  type Setter,
   Show,
   Switch,
 } from "solid-js";
@@ -24,12 +25,12 @@ import type {
   PageInputs,
 } from "../deps.ts";
 import {
-  _GLOBAL_CANVAS_PIXEL_WIDTH,
   buildHitRegions,
   CanvasRenderContext,
   findHitTarget,
   getFontsForPage,
   getMinimumSpan,
+  getStage2Sizing,
   loadFontsWithTimeout,
   PageRenderer,
   RectCoordsDims,
@@ -64,11 +65,18 @@ export type DividerDragUpdate = {
 type Props = {
   pageInputs?: PageInputs;
   canvasElementId?: string;
-  fixedCanvasH: number;
+  // The page's DU frame (Stage 1: zoom). The page always lays out zoom, in a
+  // frame pageWidthDu wide by pageHeightDu tall — pass both as a matched aspect
+  // pair. Use REFERENCE_WIDTH_DU (1000) for the default frame, or widen it for a
+  // roomier canvas without retuning styles (this breaks cross-page text
+  // consistency by design — see PROTOCOL_ALL_SIZING.md).
+  pageWidthDu: number;
+  pageHeightDu: number;
   fitWithin?: boolean;
   simpleError?: boolean;
   externalError?: string;
-  scalePixelResolution?: number;
+  // Sharpness only (Stage 2). 1 = native-crisp on screen. Never changes layout.
+  resolution?: number;
   hoverStyle?: EditableHoverStyle;
   onClick?: (target: PageHitTarget) => void;
   onContextMenu?: (e: MouseEvent, target: PageHitTarget) => void;
@@ -106,16 +114,8 @@ export function PageHolder(p: Props) {
   let mainCanvas!: HTMLCanvasElement;
   let overlayCanvas!: HTMLCanvasElement;
   let animationFrameId: number | undefined;
-  let mainCachedContext: CanvasRenderingContext2D | undefined;
-  let overlayCachedContext: CanvasRenderingContext2D | undefined;
   let mainCanvasTrackingId: string | undefined;
   let overlayCanvasTrackingId: string | undefined;
-
-  const scale = p.scalePixelResolution ?? 1;
-  const fixedCanvasW = Math.round(_GLOBAL_CANVAS_PIXEL_WIDTH * scale);
-  const fixedCanvasH = Math.round(p.fixedCanvasH * scale);
-  const unscaledW = _GLOBAL_CANVAS_PIXEL_WIDTH;
-  const unscaledH = p.fixedCanvasH;
 
   const [err, setErr] = createSignal<string>("");
   const [overflow, setOverflow] = createSignal<boolean>(false);
@@ -129,6 +129,52 @@ export function PageHolder(p: Props) {
   >();
   const [dragState, setDragState] = createSignal<DragState | undefined>();
   const [fontsLoaded, setFontsLoaded] = createSignal(false);
+
+  // One reactive source of truth for Stage-2 sizing. The displayed width comes
+  // from readDisplayedW (derived from the div, letterboxed in fitWithin mode);
+  // both the main and overlay effects read this same memo.
+  const [displayedW, setDisplayedW] = createSignal(0);
+  const dims = createMemo(() => {
+    const dw = displayedW();
+    const dpr = globalThis.devicePixelRatio || 1;
+    const frameH = p.pageHeightDu; // DU height in the pageWidthDu frame
+    const { frameWidthDu: frameW, backingWidthPx: backingW, devicePxPerDu } =
+      getStage2Sizing({
+        sizing: "zoom",
+        displayedWidthPx: dw,
+        devicePixelRatio: dpr,
+        resolution: p.resolution ?? 1,
+        referenceWidthDu: p.pageWidthDu,
+      });
+    const backingH = Math.round(frameH * devicePxPerDu);
+    return { dw, frameW, frameH, backingW, backingH, devicePxPerDu };
+  });
+
+  // Overlay-only: size → setTransform → clear → draw (sync, raw ctx). The main
+  // render path is bespoke and async (P4), so it cannot use this.
+  function paint(
+    canvasEl: HTMLCanvasElement,
+    draw: (
+      ctx: CanvasRenderingContext2D,
+      d: ReturnType<typeof dims>,
+    ) => void,
+  ) {
+    const d = dims();
+    if (d.dw === 0) {
+      return; // R1 guard
+    }
+    if (canvasEl.width !== d.backingW) {
+      canvasEl.width = d.backingW;
+    }
+    if (canvasEl.height !== d.backingH) {
+      canvasEl.height = d.backingH;
+    }
+    const ctx = canvasEl.getContext("2d", { willReadFrequently: false })!;
+    // Absolute transform → idempotent every frame.
+    ctx.setTransform(d.devicePxPerDu, 0, 0, d.devicePxPerDu, 0, 0);
+    ctx.clearRect(0, 0, d.frameW, d.frameH);
+    draw(ctx, d);
+  }
 
   const fontKey = () => {
     const inputs = p.pageInputs;
@@ -155,183 +201,226 @@ export function PageHolder(p: Props) {
     });
   });
 
-  onMount(() => {
-    mainCanvas.width = fixedCanvasW;
-    mainCanvas.height = fixedCanvasH;
-
-    mainCachedContext = mainCanvas.getContext("2d", {
-      willReadFrequently: false,
-    })!;
-
-    if (scale !== 1) {
-      mainCachedContext.save();
-      mainCachedContext.scale(scale, scale);
+  // Displayed canvas width, derived from the div — the element we observe — not
+  // the canvas's own rect. Under fitWithin the canvas is letterboxed, so its rect
+  // is backing-driven (sizing the backing from it is circular, and in the
+  // height-bound regime the div never re-fires to correct it). The div is always
+  // container-driven, so observing and reading the same box keeps the backing in
+  // lockstep with what's painted. A w-full (non-fitWithin) canvas just fills the
+  // div width.
+  function readDisplayedW(): number {
+    const rect = div.getBoundingClientRect();
+    if (rect.width === 0) {
+      return 0;
     }
+    if (!p.fitWithin) {
+      return rect.width;
+    }
+    if (rect.height === 0) {
+      return 0;
+    }
+    // Letterbox to the page aspect (pageWidthDu : pageHeightDu).
+    return Math.min(
+      rect.width,
+      (rect.height * p.pageWidthDu) / p.pageHeightDu,
+    );
+  }
 
+  onMount(() => {
     mainCanvasTrackingId = trackCanvas(mainCanvas, "PageHolder-main");
-
     if (needsInteractive) {
-      overlayCanvas.width = fixedCanvasW;
-      overlayCanvas.height = fixedCanvasH;
-
-      overlayCachedContext = overlayCanvas.getContext("2d", {
-        willReadFrequently: false,
-      })!;
-
-      if (scale !== 1) {
-        overlayCachedContext.save();
-        overlayCachedContext.scale(scale, scale);
-      }
-
       overlayCanvasTrackingId = trackCanvas(
         overlayCanvas,
         "PageHolder-overlay",
       );
-
       document.addEventListener("keydown", handleKeyDown);
     }
-  });
 
-  createEffect(() => {
-    const loaded = fontsLoaded();
-    if (loaded) {
-      updatePage(
-        mainCachedContext!,
-        p.pageInputs,
-        setErr,
-        setOverflow,
-        needsInteractive,
-        setHitRegions,
-        setMeasuredPage,
-        unscaledW,
-        unscaledH,
-        p.externalError,
-        p.onMeasured,
-        animationFrameId,
-        (id: number | undefined) => {
-          animationFrameId = id;
-        },
-      );
-    }
+    // Observe the div and read the div (same element) — see readDisplayedW.
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    const ro = new ResizeObserver(() => {
+      if (resizeTimer !== undefined) {
+        clearTimeout(resizeTimer);
+      }
+      resizeTimer = setTimeout(() => setDisplayedW(readDisplayedW()), 10);
+    });
+    ro.observe(div);
+    setDisplayedW(readDisplayedW()); // initial
 
     onCleanup(() => {
+      ro.disconnect();
+      if (resizeTimer !== undefined) {
+        clearTimeout(resizeTimer);
+      }
       if (animationFrameId !== undefined) {
         cancelAnimationFrame(animationFrameId);
+      }
+      if (mainCanvasTrackingId) {
+        untrackCanvas(mainCanvasTrackingId);
+      }
+      if (mainCanvas) {
+        releaseCanvasGPUMemory(mainCanvas);
+      }
+      if (needsInteractive) {
+        if (overlayCanvasTrackingId) {
+          untrackCanvas(overlayCanvasTrackingId);
+        }
+        if (overlayCanvas) {
+          releaseCanvasGPUMemory(overlayCanvas);
+        }
+        setDragState(undefined);
+        document.removeEventListener("keydown", handleKeyDown);
       }
     });
   });
 
+  // Main render: bespoke async; reacts to fonts + inputs + dims (P3/P4).
+  let renderVersion = 0;
   createEffect(() => {
-    if (!needsInteractive) return;
+    // Read all reactive deps before any conditional (Solid tracking).
+    const loaded = fontsLoaded();
+    const d = dims();
+    const inputs = p.pageInputs;
+    const externalError = p.externalError;
+    if (!loaded || d.dw === 0) {
+      return;
+    }
+    if (animationFrameId !== undefined) {
+      cancelAnimationFrame(animationFrameId);
+    }
+    animationFrameId = requestAnimationFrame(() => {
+      animationFrameId = undefined;
+      if (externalError) {
+        setErr(externalError);
+        return;
+      }
+      if (!inputs) {
+        return;
+      }
+      setErr("");
+      if (mainCanvas.width !== d.backingW) {
+        mainCanvas.width = d.backingW;
+      }
+      if (mainCanvas.height !== d.backingH) {
+        mainCanvas.height = d.backingH;
+      }
+      const ctx = mainCanvas.getContext("2d", { willReadFrequently: false })!;
+      ctx.setTransform(d.devicePxPerDu, 0, 0, d.devicePxPerDu, 0, 0);
+      ctx.clearRect(0, 0, d.frameW, d.frameH);
+      const rc = new CanvasRenderContext(ctx);
+      const rcd = new RectCoordsDims([0, 0, d.frameW, d.frameH]);
+      const myVersion = ++renderVersion; // stale-async guard (R9)
+      (async () => {
+        try {
+          const mPage = await PageRenderer.measure(rc, rcd, inputs);
+          if (myVersion !== renderVersion) {
+            return; // superseded by a newer render
+          }
+          batch(() => {
+            setOverflow(mPage.overflow);
+            if (needsInteractive) {
+              setHitRegions(buildHitRegions(mPage));
+              setMeasuredPage(mPage);
+            }
+          });
+          if (needsInteractive) {
+            p.onMeasured?.(mPage);
+          }
+          await PageRenderer.render(rc, mPage);
+        } catch (e) {
+          console.error("PageHolder render error:", e);
+          setErr(
+            "Bad chart config: " + (e instanceof Error ? e.message : String(e)),
+          );
+        }
+      })();
+    });
+  });
 
+  // Overlay: paint() + decorations; reacts to hit/drag + dims.
+  createEffect(() => {
+    if (!needsInteractive) {
+      return;
+    }
     const hit = currentHit();
     const regions = hitRegions();
     const canvasHovered = isCanvasHovered();
     const drag = dragState();
-    const ctx = overlayCachedContext;
-    if (!ctx) return;
+    paint(overlayCanvas, (ctx, d) => {
+      const style = p.hoverStyle ?? DEFAULT_HOVER_STYLE;
+      // Use the shared dims width (d.dw), not a fresh overlay-rect read, so the
+      // overlay's DU-per-px matches exactly what main was sized with (P3).
+      const screenPixelSize = d.dw > 0 ? d.frameW / d.dw : 1; // DU per CSS px
 
-    ctx.clearRect(0, 0, unscaledW, unscaledH);
+      if (canvasHovered && style.showLayoutBoundaries) {
+        // Layout items - dotted rect boundaries
+        const layoutItems = regions.filter((r) => r.type === "layoutItem");
+        const hitLayoutId = hit?.type === "layoutItem"
+          ? hit.node.id
+          : undefined;
+        for (const region of layoutItems) {
+          renderBoundary(
+            ctx,
+            region,
+            hitLayoutId === region.node.id,
+            screenPixelSize,
+          );
+        }
 
-    const style = p.hoverStyle ?? DEFAULT_HOVER_STYLE;
-    const displayedWidth = overlayCanvas.getBoundingClientRect().width;
-    const screenPixelSize = displayedWidth > 0 ? unscaledW / displayedWidth : 1;
+        // Text items - dotted rect boundaries
+        const textItems = regions.filter((r) => isTextHitTarget(r));
+        for (const region of textItems) {
+          const isThisHovered = hit?.type === region.type;
+          renderBoundary(ctx, region, isThisHovered, screenPixelSize);
+        }
 
-    if (canvasHovered && style.showLayoutBoundaries) {
-      // Layout items - dotted rect boundaries
-      const layoutItems = regions.filter((r) => r.type === "layoutItem");
-      const hitLayoutId = hit?.type === "layoutItem" ? hit.node.id : undefined;
-      for (const region of layoutItems) {
-        renderBoundary(
-          ctx,
-          region,
-          hitLayoutId === region.node.id,
-          screenPixelSize,
+        // Dividers - thin lines (not rects)
+        const dividers = regions.filter(
+          (r): r is PageHitTargetColDivider => r.type === "colDivider",
         );
-      }
-
-      // Text items - dotted rect boundaries
-      const textItems = regions.filter((r) => isTextHitTarget(r));
-      for (const region of textItems) {
-        const isThisHovered = hit?.type === region.type;
-        renderBoundary(ctx, region, isThisHovered, screenPixelSize);
-      }
-
-      // Dividers - thin lines (not rects)
-      const dividers = regions.filter(
-        (r): r is PageHitTargetColDivider => r.type === "colDivider",
-      );
-      for (const region of dividers) {
-        const isThisHovered =
-          hit?.type === "colDivider" &&
-          hit.gap.colsNodeId === region.gap.colsNodeId &&
-          hit.gap.afterColIndex === region.gap.afterColIndex;
-        if (!isThisHovered) {
-          renderDividerLine(ctx, region, false, screenPixelSize);
+        for (const region of dividers) {
+          const isThisHovered = hit?.type === "colDivider" &&
+            hit.gap.colsNodeId === region.gap.colsNodeId &&
+            hit.gap.afterColIndex === region.gap.afterColIndex;
+          if (!isThisHovered) {
+            renderDividerLine(ctx, region, false, screenPixelSize);
+          }
         }
       }
-    }
 
-    if (drag?.type === "divider") {
-      const { target, startX, currentX } = drag;
-      const gap = target.gap;
-      const deltaX = currentX - startX;
-      const snappedX = calculateSnappedDividerX(drag, deltaX);
+      if (drag?.type === "divider") {
+        const { gap } = drag.target;
+        const deltaX = drag.currentX - drag.startX;
+        const snappedX = calculateSnappedDividerX(drag, deltaX);
 
-      ctx.strokeStyle = "rgba(0, 112, 243, 0.9)";
-      ctx.lineWidth = 2 * screenPixelSize;
-      ctx.beginPath();
-      ctx.moveTo(snappedX, gap.line.y1);
-      ctx.lineTo(snappedX, gap.line.y2);
-      ctx.stroke();
-    } else if (drag?.type === "layoutItem") {
-      const dStyle = p.dragStyle ?? DEFAULT_DRAG_STYLE;
-      renderDragSource(ctx, drag.source, dStyle, screenPixelSize);
-      if (drag.dropTarget) {
-        renderDropTarget(ctx, drag.dropTarget, dStyle, screenPixelSize);
+        ctx.strokeStyle = "rgba(0, 112, 243, 0.9)";
+        ctx.lineWidth = 2 * screenPixelSize;
+        ctx.beginPath();
+        ctx.moveTo(snappedX, gap.line.y1);
+        ctx.lineTo(snappedX, gap.line.y2);
+        ctx.stroke();
+      } else if (drag?.type === "layoutItem") {
+        const dStyle = p.dragStyle ?? DEFAULT_DRAG_STYLE;
+        renderDragSource(ctx, drag.source, dStyle, screenPixelSize);
+        if (drag.dropTarget) {
+          renderDropTarget(ctx, drag.dropTarget, dStyle, screenPixelSize);
+        }
+        const deltaX = drag.currentX - drag.startX;
+        const deltaY = drag.currentY - drag.startY;
+        renderDragGhost(
+          ctx,
+          drag.source,
+          dStyle,
+          screenPixelSize,
+          deltaX,
+          deltaY,
+        );
+      } else if (hit) {
+        renderHover(ctx, hit, style, screenPixelSize);
       }
-      const deltaX = drag.currentX - drag.startX;
-      const deltaY = drag.currentY - drag.startY;
-      renderDragGhost(
-        ctx,
-        drag.source,
-        dStyle,
-        screenPixelSize,
-        deltaX,
-        deltaY,
-      );
-    } else if (hit) {
-      renderHover(ctx, hit, style, screenPixelSize);
-    }
+    });
 
     p.onHover?.(drag ? undefined : hit);
-  });
-
-  onCleanup(() => {
-    if (animationFrameId !== undefined) {
-      cancelAnimationFrame(animationFrameId);
-    }
-
-    if (scale !== 1 && mainCachedContext) {
-      mainCachedContext.restore();
-    }
-
-    if (mainCanvasTrackingId) untrackCanvas(mainCanvasTrackingId);
-    if (mainCanvas) releaseCanvasGPUMemory(mainCanvas);
-    mainCachedContext = undefined;
-
-    if (needsInteractive) {
-      if (scale !== 1 && overlayCachedContext) {
-        overlayCachedContext.restore();
-      }
-
-      if (overlayCanvasTrackingId) untrackCanvas(overlayCanvasTrackingId);
-      if (overlayCanvas) releaseCanvasGPUMemory(overlayCanvas);
-      overlayCachedContext = undefined;
-
-      setDragState(undefined);
-      document.removeEventListener("keydown", handleKeyDown);
-    }
   });
 
   function handlePointerEnter() {
@@ -339,7 +428,7 @@ export function PageHolder(p: Props) {
   }
 
   function handlePointerMove(e: PointerEvent) {
-    const coords = getCanvasCoords(e, overlayCanvas, scale);
+    const coords = getCanvasCoords(e, overlayCanvas);
     const drag = dragState();
 
     if (drag?.type === "divider") {
@@ -397,7 +486,7 @@ export function PageHolder(p: Props) {
       e.preventDefault();
       overlayCanvas.setPointerCapture(e.pointerId);
 
-      const coords = getCanvasCoords(e, overlayCanvas, scale);
+      const coords = getCanvasCoords(e, overlayCanvas);
       setDragState({
         type: "divider",
         target: hit,
@@ -411,7 +500,7 @@ export function PageHolder(p: Props) {
     if (hit?.type === "layoutItem" && p.onLayoutItemSwap) {
       e.preventDefault();
       overlayCanvas.setPointerCapture(e.pointerId);
-      const coords = getCanvasCoords(e, overlayCanvas, scale);
+      const coords = getCanvasCoords(e, overlayCanvas);
       pendingItemDrag = {
         source: hit,
         startX: coords.x,
@@ -435,7 +524,7 @@ export function PageHolder(p: Props) {
     justFinishedDrag = true;
 
     if (drag.type === "divider") {
-      const coords = getCanvasCoords(e, overlayCanvas, scale);
+      const coords = getCanvasCoords(e, overlayCanvas);
       const deltaX = coords.x - drag.startX;
 
       if (Math.abs(deltaX) > 5) {
@@ -478,11 +567,11 @@ export function PageHolder(p: Props) {
   let justFinishedDrag = false;
   let pendingItemDrag:
     | {
-        source: PageHitTargetLayoutItem;
-        startX: number;
-        startY: number;
-        pointerId: number;
-      }
+      source: PageHitTargetLayoutItem;
+      startX: number;
+      startY: number;
+      pointerId: number;
+    }
     | undefined;
 
   function handleClick() {
@@ -504,7 +593,7 @@ export function PageHolder(p: Props) {
 
   function handleContextMenu(e: MouseEvent) {
     if (!p.onContextMenu) return;
-    const coords = getCanvasCoords(e, overlayCanvas, scale);
+    const coords = getCanvasCoords(e, overlayCanvas);
     const hit = findHitTarget(hitRegions(), coords.x, coords.y);
     if (hit) {
       e.preventDefault();
@@ -563,18 +652,17 @@ export function PageHolder(p: Props) {
           class="absolute left-1/2 top-0 -translate-x-1/2 data-[fitWithin=true]:max-h-full data-[fitWithin=false]:w-full data-[fitWithin=true]:max-w-full"
           data-fitWithin={!!p.fitWithin}
           style={{
-            cursor:
-              dragState()?.type === "divider"
-                ? "col-resize"
-                : dragState()?.type === "layoutItem"
-                  ? "grabbing"
-                  : currentHit()?.type === "colDivider"
-                    ? "col-resize"
-                    : currentHit()?.type === "layoutItem" && p.onLayoutItemSwap
-                      ? "grab"
-                      : currentHit()
-                        ? "pointer"
-                        : "default",
+            cursor: dragState()?.type === "divider"
+              ? "col-resize"
+              : dragState()?.type === "layoutItem"
+              ? "grabbing"
+              : currentHit()?.type === "colDivider"
+              ? "col-resize"
+              : currentHit()?.type === "layoutItem" && p.onLayoutItemSwap
+              ? "grab"
+              : currentHit()
+              ? "pointer"
+              : "default",
           }}
           onPointerEnter={handlePointerEnter}
           onPointerMove={handlePointerMove}
@@ -588,76 +676,22 @@ export function PageHolder(p: Props) {
       </Show>
     </div>
   );
-}
 
-function updatePage(
-  ctx: CanvasRenderingContext2D,
-  pageInputs: PageInputs | undefined,
-  setErr: Setter<string>,
-  setOverflow: Setter<boolean>,
-  needsInteractive: boolean,
-  setHitRegions: Setter<PageHitTarget[]>,
-  setMeasuredPage: Setter<MeasuredPage | undefined>,
-  unscaledW: number,
-  unscaledH: number,
-  externalError: string | undefined,
-  onMeasured: ((measured: MeasuredPage) => void) | undefined,
-  currentFrameId?: number,
-  setFrameId?: (id: number | undefined) => void,
-) {
-  if (currentFrameId !== undefined) {
-    cancelAnimationFrame(currentFrameId);
+  // Maps a pointer event to DU coordinates in the page frame (always zoom:
+  // frameW × frameH). Reads the canvas rect, so it is correct under letterboxing.
+  function getCanvasCoords(
+    e: { clientX: number; clientY: number },
+    canvasEl: HTMLCanvasElement,
+  ): { x: number; y: number } {
+    const rect = canvasEl.getBoundingClientRect();
+    const d = dims();
+    return {
+      x: rect.width > 0 ? ((e.clientX - rect.left) / rect.width) * d.frameW : 0,
+      y: rect.height > 0
+        ? ((e.clientY - rect.top) / rect.height) * d.frameH
+        : 0,
+    };
   }
-
-  const frameId = requestAnimationFrame(() => {
-    if (setFrameId) setFrameId(undefined);
-    if (externalError) {
-      setErr(externalError);
-      return;
-    }
-    if (!pageInputs) {
-      return;
-    }
-
-    setErr("");
-
-    (async () => {
-      try {
-        const rc = new CanvasRenderContext(ctx);
-        const rcd = new RectCoordsDims([0, 0, unscaledW, unscaledH]);
-
-        const mPage = await PageRenderer.measure(rc, rcd, pageInputs);
-        setOverflow(mPage.overflow);
-
-        if (needsInteractive) {
-          const regions = buildHitRegions(mPage);
-          setHitRegions(regions);
-          setMeasuredPage(mPage);
-          onMeasured?.(mPage);
-        }
-
-        await PageRenderer.render(rc, mPage);
-      } catch (e) {
-        console.error("PageHolder render error:", e);
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        setErr("Bad chart config: " + errorMessage);
-      }
-    })();
-  });
-
-  if (setFrameId) setFrameId(frameId);
-}
-
-function getCanvasCoords(
-  e: { clientX: number; clientY: number },
-  canvas: HTMLCanvasElement,
-  scale: number,
-): { x: number; y: number } {
-  const rect = canvas.getBoundingClientRect();
-  return {
-    x: (canvas.width * (e.clientX - rect.left)) / rect.width / scale,
-    y: (canvas.height * (e.clientY - rect.top)) / rect.height / scale,
-  };
 }
 
 function renderBoundary(
@@ -886,21 +920,21 @@ function findColsNodeById<T>(
 
 type DragState =
   | {
-      type: "divider";
-      target: PageHitTargetColDivider;
-      startX: number;
-      currentX: number;
-      colsNode: MeasuredColsLayoutNode<PageContentItem>;
-    }
+    type: "divider";
+    target: PageHitTargetColDivider;
+    startX: number;
+    currentX: number;
+    colsNode: MeasuredColsLayoutNode<PageContentItem>;
+  }
   | {
-      type: "layoutItem";
-      source: PageHitTargetLayoutItem;
-      dropTarget: PageHitTargetLayoutItem | undefined;
-      startX: number;
-      startY: number;
-      currentX: number;
-      currentY: number;
-    };
+    type: "layoutItem";
+    source: PageHitTargetLayoutItem;
+    dropTarget: PageHitTargetLayoutItem | undefined;
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  };
 
 type DividerDragState = Extract<DragState, { type: "divider" }>;
 

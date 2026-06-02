@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { Sql } from "postgres";
 import {
   periodFilterHasBounds,
   validateFetchConfig,
@@ -44,6 +45,23 @@ const poItemsQueue = new RequestQueue(10);
 // Queue for Variable Info requests
 // These are lighter queries, but still need limiting during burst loads
 const resultsValueInfoQueue = new RequestQueue(15);
+
+// Version string for the datasets feeding a project's indicator metadata.
+// indicatorMetadata — baked into items holders (getPresentationObjectItems) and
+// metric info (getResultsValueInfoForPresentationObject) — is rewritten on
+// dataset integration, which bumps datasets.last_updated independently of
+// moduleLastRun. Both caches version on this so re-integration invalidates them.
+async function getDatasetsVersion(projectDb: Sql): Promise<string> {
+  const rows = await projectDb<{ dataset_type: string; last_updated: string }[]>`
+SELECT dataset_type, last_updated FROM datasets ORDER BY dataset_type
+`;
+  return rows
+    .map(
+      (d: { dataset_type: string; last_updated: string }) =>
+        `${d.dataset_type}:${d.last_updated}`,
+    )
+    .join(",");
+}
 
 defineRoute(
   routesPresentationObjects,
@@ -353,6 +371,8 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
       });
     }
 
+    const datasetsVersion = await getDatasetsVersion(c.var.ppk.projectDb);
+
     // Check cache BEFORE queueing - prevents duplicates from consuming queue slots
     const existing = await _PO_ITEMS_CACHE.get(
       {
@@ -360,7 +380,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         resultsObjectId: body.resultsObjectId,
         fetchConfig: body.fetchConfig,
       },
-      { moduleLastRun },
+      { moduleLastRun, datasetsVersion },
     );
     if (existing && existing.success === true) {
       const t1 = performance.now();
@@ -399,6 +419,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         body.fetchConfig,
         body.firstPeriodOption,
         moduleLastRun,
+        datasetsVersion,
       );
       _PO_ITEMS_CACHE.setPromise(
         newPromise,
@@ -407,7 +428,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           resultsObjectId: body.resultsObjectId,
           fetchConfig: body.fetchConfig,
         },
-        { moduleLastRun },
+        { moduleLastRun, datasetsVersion },
       );
       const res = await newPromise;
       const t1 = performance.now();
@@ -462,13 +483,15 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
       )}: REQUEST received (moduleLastRun: ${moduleLastRun})`,
     );
 
+    const datasetsVersion = await getDatasetsVersion(c.var.ppk.projectDb);
+
     // Check cache BEFORE queueing - prevents duplicates from consuming queue slots
     const existing = await _METRIC_INFO_CACHE.get(
       {
         projectId: c.var.ppk.projectId,
         metricId: body.metricId,
       },
-      { moduleLastRun },
+      { moduleLastRun, datasetsVersion },
     );
 
     if (existing && existing.success === true) {
@@ -508,6 +531,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         c.var.ppk.projectId,
         body.metricId,
         moduleLastRun,
+        datasetsVersion,
       );
 
       _METRIC_INFO_CACHE.setPromise(
@@ -516,7 +540,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           projectId: c.var.ppk.projectId,
           metricId: body.metricId,
         },
-        { moduleLastRun },
+        { moduleLastRun, datasetsVersion },
       );
 
       const res = await newPromise;
@@ -577,6 +601,8 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
       )}: REQUEST received (${filterSummary}, replicateBy: ${body.replicateBy}, moduleLastRun: ${moduleLastRun})`,
     );
 
+    const datasetsVersion = await getDatasetsVersion(c.var.ppk.projectDb);
+
     // Check cache BEFORE queueing
     const existing = await _REPLICANT_OPTIONS_CACHE.get(
       {
@@ -585,7 +611,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         replicateBy: body.replicateBy,
         fetchConfig: body.fetchConfig,
       },
-      { moduleLastRun },
+      { moduleLastRun, datasetsVersion },
     );
 
     if (existing && existing.success === true) {
@@ -650,6 +676,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               replicateBy: body.replicateBy,
               fetchConfig: body.fetchConfig,
               moduleLastRun,
+              datasetsVersion,
               status: "no_values_available" as const,
             },
           };
@@ -666,6 +693,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               replicateBy: body.replicateBy,
               fetchConfig: body.fetchConfig,
               moduleLastRun,
+              datasetsVersion,
               status: "too_many_values" as const,
             },
           };
@@ -680,6 +708,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               replicateBy: body.replicateBy,
               fetchConfig: body.fetchConfig,
               moduleLastRun,
+              datasetsVersion,
               status: "no_values_available" as const,
             },
           };
@@ -693,6 +722,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
             replicateBy: body.replicateBy,
             fetchConfig: body.fetchConfig,
             moduleLastRun,
+            datasetsVersion,
             status: "ok" as const,
             possibleValues: vals,
           },
@@ -707,7 +737,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           replicateBy: body.replicateBy,
           fetchConfig: body.fetchConfig,
         },
-        { moduleLastRun },
+        { moduleLastRun, datasetsVersion },
       );
 
       const res = await newPromise;

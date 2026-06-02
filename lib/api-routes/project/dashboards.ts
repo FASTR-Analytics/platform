@@ -67,7 +67,7 @@ export const dashboardRouteRegistry = {
     path: "/dashboards/:dashboard_id/items/:item_id",
     method: "PUT",
     params: {} as { dashboard_id: string; item_id: string },
-    body: {} as { label?: string },
+    body: {} as { label?: string; figureBlock?: FigureBlock; geoData?: unknown },
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -88,6 +88,49 @@ export const dashboardRouteRegistry = {
       itemIds: string[];
       position: DashboardItemPosition;
     },
+    response: {} as { lastUpdated: string },
+    requiresProject: true,
+  }),
+
+  addDashboardItemGroup: route({
+    path: "/dashboards/:dashboard_id/groups",
+    method: "POST",
+    params: {} as { dashboard_id: string },
+    body: {} as {
+      label: string;
+      replicateBy: string;
+      defaultReplicantValue?: string;
+      replicants: { value: string; label: string }[];
+      geoData?: unknown;
+      members: {
+        replicantValue: string;
+        label: string;
+        figureBlock: FigureBlock;
+      }[];
+    },
+    response: {} as { groupId: string; lastUpdated: string },
+    requiresProject: true,
+  }),
+
+  updateDashboardItemGroup: route({
+    path: "/dashboards/:dashboard_id/groups/:group_id",
+    method: "PUT",
+    params: {} as { dashboard_id: string; group_id: string },
+    body: {} as {
+      label?: string;
+      defaultReplicantValue?: string;
+      replicants?: { value: string; label: string }[];
+      geoData?: unknown;
+      members?: { replicantValue: string; figureBlock: FigureBlock }[];
+    },
+    response: {} as { lastUpdated: string },
+    requiresProject: true,
+  }),
+
+  deleteDashboardItemGroup: route({
+    path: "/dashboards/:dashboard_id/groups/:group_id",
+    method: "DELETE",
+    params: {} as { dashboard_id: string; group_id: string },
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),

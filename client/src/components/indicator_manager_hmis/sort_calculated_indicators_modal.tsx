@@ -1,10 +1,10 @@
 import {
   AlertComponentProps,
   AlertFormHolder,
-  TimSortableVertical,
+  SortableList,
   timActionForm,
 } from "panther";
-import { createStore } from "solid-js/store";
+import { createSignal } from "solid-js";
 import { t3, type CalculatedIndicator } from "lib";
 import { serverActions } from "~/server_actions";
 
@@ -14,7 +14,7 @@ type Props = AlertComponentProps<
 >;
 
 export function SortCalculatedIndicatorsModal(p: Props) {
-  const [items, setItems] = createStore(
+  const [items, setItems] = createSignal(
     [...p.calculatedIndicators]
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((ci) => ({ id: ci.calculated_indicator_id, label: ci.label })),
@@ -22,7 +22,7 @@ export function SortCalculatedIndicatorsModal(p: Props) {
 
   const save = timActionForm(
     async () => {
-      const order = items.map((i) => i.id);
+      const order = items().map((i) => i.id);
       const res = await serverActions.reorderCalculatedIndicators({ order });
       if (!res.success) {
         return { success: false, err: res.err };
@@ -44,14 +44,18 @@ export function SortCalculatedIndicatorsModal(p: Props) {
       cancelFunc={() => p.close(undefined)}
     >
       <div class="">
-        <TimSortableVertical items={items} setItems={setItems}>
+        <SortableList
+          items={items()}
+          onReorder={(ids) =>
+            setItems((prev) => ids.map((id) => prev.find((i) => i.id === id)!))}
+        >
           {(item) => (
             <div class="bg-base-200 rounded px-3 py-2">
               <span class="text-neutral mr-2 font-mono text-xs">{item.id}</span>
               {item.label}
             </div>
           )}
-        </TimSortableVertical>
+        </SortableList>
       </div>
     </AlertFormHolder>
   );

@@ -23,6 +23,7 @@ export type JsonArray = JsonArrayItem[];
 export type FigureAutofitOptions = {
   minScale?: number;
   maxScale?: number;
+  minFontSizeDu?: number;
 };
 
 export type FigureAnnotation = {
@@ -50,6 +51,11 @@ export type FigureInputsBase = {
   legend?: LegendInput | undefined;
   style?: CustomFigureStyleOptions | undefined;
   autofit?: boolean | FigureAutofitOptions;
+  // When shrink-to-fit shrinks a figure, surrounds (caption/subCaption/footnote
+  // text + their padding/gaps) stay at full size by default while the body
+  // scales. Set true to make them shrink with the body. The legend always
+  // scales with the body, regardless of this flag.
+  autofitSurrounds?: boolean;
   annotations?: FigureAnnotation[];
 };
 

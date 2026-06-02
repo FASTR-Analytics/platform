@@ -43,8 +43,6 @@ function typed<T>(value: T): T {
 }
 
 const _DS = {
-  scale: 1,
-
   seriesColorFunc: typed<ChartSeriesInfoFunc<ColorKeyOrString>>(() => ({
     key: "baseContent",
   })),

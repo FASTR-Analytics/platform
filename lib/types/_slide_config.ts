@@ -39,7 +39,7 @@ const contentSlideSplitSchema = z.object({
 
 // ── Figure Source ───────────────────────────────────────────────────────────
 
-const figureSourceSchema = z.discriminatedUnion("type", [
+export const figureSourceSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("from_data"),
     metricId: z.string(),
@@ -61,13 +61,13 @@ const textBlockSchema = z.object({
   style: textBlockStyleSchema.optional(),
 });
 
-const figureBlockSchema = z.object({
+export const figureBlockSchema = z.object({
   type: z.literal("figure"),
   figureInputs: z.unknown().optional(),
   source: figureSourceSchema.optional(),
 });
 
-const imageBlockSchema = z.object({
+export const imageBlockSchema = z.object({
   type: z.literal("image"),
   imgFile: z.string(),
   style: imageBlockStyleSchema.optional(),

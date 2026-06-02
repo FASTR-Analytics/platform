@@ -40,3 +40,25 @@ export const dashboardLayoutSchema = z.discriminatedUnion("type", [
 ]);
 
 export type DashboardLayoutFromSchema = z.infer<typeof dashboardLayoutSchema>;
+
+// ── Dashboard config — STORED SHAPE (dashboards.config column) ───────────────
+// Logos mirror the slide-deck pattern: identifiers are FASTR built-in logo
+// values or uploaded image asset filenames; URLs are resolved at render time.
+
+const dashboardLogosConfigSchema = z.object({
+  availableCustom: z.array(z.string()),
+  selected: z.array(z.string()),
+  size: z.enum(["sm", "md", "lg", "xl"]).optional(),
+});
+
+const dashboardAboutConfigSchema = z.object({
+  summary: z.string(), // inline markdown under the heading ("" = hidden)
+  body: z.string(), // long markdown for the About modal ("" = button hidden)
+});
+
+export const dashboardConfigSchema = z.object({
+  logos: dashboardLogosConfigSchema,
+  about: dashboardAboutConfigSchema,
+});
+
+export type DashboardConfigFromSchema = z.infer<typeof dashboardConfigSchema>;

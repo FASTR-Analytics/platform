@@ -22,11 +22,11 @@ export function measureChartOH(
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
   inputs: ChartOHInputs,
-  responsiveScale?: number,
+  fitScale?: number,
 ): MeasuredChartOH {
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
-    responsiveScale,
+    fitScale,
   );
   const mergedStyle = customFigureStyle.getMergedChartOHStyle();
   const transformedData = getChartOHDataTransformed(
@@ -62,5 +62,5 @@ export function measureChartOH(
     orientation: "horizontal",
   };
 
-  return measureChart(rc, rcdWithSurrounds, inputs, config, responsiveScale);
+  return measureChart(rc, rcdWithSurrounds, inputs, config, fitScale);
 }

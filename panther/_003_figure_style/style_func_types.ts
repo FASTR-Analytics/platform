@@ -134,7 +134,7 @@ function applyDataLabelOverrides(
     offset: o.offset !== undefined ? o.offset * sf : defaults.offset,
     backgroundColor: o.backgroundColor ?? defaults.backgroundColor,
     padding: o.padding !== undefined
-      ? msPadding(sf, o.padding, undefined, 0)
+      ? msPadding(sf, o.padding, undefined, defaults.padding.toScaled(1 / sf))
       : defaults.padding,
     borderColor: o.borderColor ?? defaults.borderColor,
     borderWidth: o.borderWidth !== undefined

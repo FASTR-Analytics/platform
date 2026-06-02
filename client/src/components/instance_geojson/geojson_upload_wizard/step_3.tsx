@@ -1,7 +1,7 @@
 import { t3 } from "lib";
 import { Button, Select } from "panther";
 import { For, Show, createMemo } from "solid-js";
-import type { WizardState, Dhis2FeatureContext, LevelMappingState, AdminAreaOption } from "./index";
+import type { WizardState, Dhis2FeatureContext } from "./index";
 
 type Props = {
   state: WizardState;
@@ -15,27 +15,11 @@ type GroupedFeature = {
 export function Step3(p: Props) {
   const { state } = p;
 
-  // For file source - use single-level state
-  // For DHIS2 source - use levelMappingStates with currentLevelIndex
-
-  const currentLevel = createMemo((): LevelMappingState | null => {
-    if (state.source() === "file") return null;
-    const states = state.levelMappingStates();
-    const idx = state.currentLevelIndex();
-    return states[idx] ?? null;
-  });
-
   const geoJsonValues = createMemo(() => {
-    if (state.source() === "file") {
-      const result = state.analysisResult();
-      const prop = state.selectedProp();
-      if (!result || !prop) return [];
-      return result.sampleValues[prop] ?? [];
-    } else {
-      const level = currentLevel();
-      if (!level) return [];
-      return level.analysisResult?.sampleValues[level.selectedProp] ?? [];
-    }
+    const result = state.analysisResult();
+    const prop = state.selectedProp();
+    if (!result || !prop) return [];
+    return result.sampleValues[prop] ?? [];
   });
 
   const groupedByMatchProp = createMemo((): GroupedFeature[] => {
@@ -43,12 +27,12 @@ export function Step3(p: Props) {
       return geoJsonValues().map((v) => ({ geoVal: v, features: [] }));
     }
 
-    const level = currentLevel();
-    if (!level) return [];
+    const dhis2Features = state.dhis2Features();
+    const selectedProp = state.selectedProp();
 
     const groups = new Map<string, Dhis2FeatureContext[]>();
-    for (const f of level.dhis2Features) {
-      const matchVal = level.selectedProp === "name" ? f.name : level.selectedProp === "code" ? (f.code ?? "") : f.name;
+    for (const f of dhis2Features) {
+      const matchVal = selectedProp === "name" ? f.name : selectedProp === "code" ? (f.code ?? "") : f.name;
       if (!groups.has(matchVal)) {
         groups.set(matchVal, []);
       }
@@ -61,121 +45,30 @@ export function Step3(p: Props) {
     }));
   });
 
-  const geoToAdmin = createMemo(() => {
-    if (state.source() === "file") {
-      return state.geoToAdmin();
-    }
-    const level = currentLevel();
-    return level?.geoToAdmin ?? {};
-  });
-
-  const adminAreaNames = createMemo(() => {
-    if (state.source() === "file") {
-      return state.adminAreaNames();
-    }
-    const level = currentLevel();
-    return level?.adminAreaNames ?? [];
-  });
-
-  const storedOptions = createMemo((): AdminAreaOption[] => {
-    if (state.source() === "file") {
-      return state.adminAreaOptions();
-    }
-    const level = currentLevel();
-    return level?.adminAreaOptions ?? [];
-  });
-
-  const mappedCount = createMemo(() => Object.keys(geoToAdmin()).length);
+  const mappedCount = createMemo(() => Object.keys(state.geoToAdmin()).length);
   const unmappedGeoCount = createMemo(() => geoJsonValues().length - mappedCount());
 
   const adminAreaOptions = createMemo(() => {
-    const options = storedOptions();
     return [
       { value: "", label: t3({ en: "— Not mapped —", fr: "— Non mappé —" }) },
-      ...options,
+      ...state.adminAreaOptions(),
     ];
   });
 
-  function updateMappingForGeoValue(geoJsonValue: string, adminAreaName: string) {
-    if (state.source() === "file") {
-      state.setGeoToAdmin((prev) => {
-        const next = { ...prev };
-        if (adminAreaName === "") {
-          delete next[geoJsonValue];
-        } else {
-          next[geoJsonValue] = adminAreaName;
-        }
-        return next;
-      });
-    } else {
-      const idx = state.currentLevelIndex();
-      const states = [...state.levelMappingStates()];
-      const level = { ...states[idx] };
-      const newMapping = { ...level.geoToAdmin };
-
+  function updateMapping(geoJsonValue: string, adminAreaName: string) {
+    state.setGeoToAdmin((prev) => {
+      const next = { ...prev };
       if (adminAreaName === "") {
-        delete newMapping[geoJsonValue];
+        delete next[geoJsonValue];
       } else {
-        newMapping[geoJsonValue] = adminAreaName;
+        next[geoJsonValue] = adminAreaName;
       }
-      level.geoToAdmin = newMapping;
-
-      states[idx] = level;
-      state.setLevelMappingStates(states);
-    }
+      return next;
+    });
   }
 
   const hasDhis2Ambiguity = createMemo(() => {
     return groupedByMatchProp().some((g) => g.features.length > 1);
-  });
-
-  function handleNext() {
-    if (state.source() === "file") {
-      state.setStep(4);
-    } else {
-      const idx = state.currentLevelIndex();
-      const total = state.levelMappingStates().length;
-      if (idx < total - 1) {
-        state.setCurrentLevelIndex(idx + 1);
-      } else {
-        state.setStep(4);
-      }
-    }
-  }
-
-  function handleBack() {
-    if (state.source() === "file") {
-      state.setStep(2);
-    } else {
-      const idx = state.currentLevelIndex();
-      if (idx > 0) {
-        state.setCurrentLevelIndex(idx - 1);
-      } else {
-        state.setStep(2);
-      }
-    }
-  }
-
-  const levelLabel = createMemo(() => {
-    if (state.source() === "file") {
-      return `AA${state.adminAreaLevel()}`;
-    }
-    const level = currentLevel();
-    return level ? `AA${level.adminAreaLevel}` : "";
-  });
-
-  const progressLabel = createMemo(() => {
-    if (state.source() === "file") return "";
-    const idx = state.currentLevelIndex();
-    const total = state.levelMappingStates().length;
-    return `(${idx + 1}/${total})`;
-  });
-
-  const isLastLevel = createMemo(() => {
-    if (state.source() === "file") return true;
-    const idx = state.currentLevelIndex();
-    const total = state.levelMappingStates().length;
-    return idx >= total - 1;
   });
 
   return (
@@ -183,7 +76,7 @@ export function Step3(p: Props) {
       <div class="ui-spy-sm">
         <div class="font-600">
           {t3({ en: "Step 3: Map GeoJSON features to admin areas", fr: "Étape 3 : Associer les entités GeoJSON aux unités administratives" })}
-          {" "}{levelLabel()} {progressLabel()}
+          {" "}AA{state.adminAreaLevel()}
         </div>
         <div class="text-base-500 text-sm">
           {mappedCount()}/{geoJsonValues().length} {t3({ en: "mapped", fr: "mappés" })}
@@ -216,8 +109,8 @@ export function Step3(p: Props) {
                   <div class="w-1/2">
                     <Select
                       options={adminAreaOptions()}
-                      value={geoToAdmin()[group.geoVal] ?? ""}
-                      onChange={(v) => updateMappingForGeoValue(group.geoVal, v)}
+                      value={state.geoToAdmin()[group.geoVal] ?? ""}
+                      onChange={(v) => updateMapping(group.geoVal, v)}
                       fullWidth
                       size="sm"
                     />
@@ -240,8 +133,8 @@ export function Step3(p: Props) {
                     <div class="w-1/2">
                       <Select
                         options={adminAreaOptions()}
-                        value={geoToAdmin()[group.geoVal] ?? ""}
-                        onChange={(v) => updateMappingForGeoValue(group.geoVal, v)}
+                        value={state.geoToAdmin()[group.geoVal] ?? ""}
+                        onChange={(v) => updateMapping(group.geoVal, v)}
                         fullWidth
                         size="sm"
                       />
@@ -255,12 +148,10 @@ export function Step3(p: Props) {
       </div>
 
       <div class="ui-gap-sm flex">
-        <Button onClick={handleNext} disabled={mappedCount() === 0} intent="primary">
-          {isLastLevel()
-            ? t3({ en: "Review & save", fr: "Vérifier et enregistrer" })
-            : t3({ en: "Next level", fr: "Niveau suivant" })}
+        <Button onClick={() => state.setStep(4)} disabled={mappedCount() === 0} intent="primary">
+          {t3({ en: "Review & save", fr: "Vérifier et enregistrer" })}
         </Button>
-        <Button intent="neutral" onClick={handleBack}>
+        <Button intent="neutral" onClick={() => state.setStep(2)}>
           {t3({ en: "Back", fr: "Retour" })}
         </Button>
       </div>

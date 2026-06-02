@@ -82,7 +82,7 @@ wb-fastr/
 - Shared structural data (indicators, facilities, admin areas)
 - Dataset upload attempts and versions
 
-**Project Databases** (per-project, e.g., `project_{uuid}`)
+**Project Databases** (per-project, named by the bare project UUID, e.g. `f47ac10b-...` — **not** `project_{uuid}`; see [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md))
 
 - Project-specific data isolation
 - Module instances and configurations
@@ -282,6 +282,44 @@ Workflow:
 5. Git commit and push
 
 Docker image: `timroberton/comb:wb-fastr-server-v{version}`
+
+## Protocol Docs (`DOC_*.md`)
+
+Prescriptive protocols for how this app is built (distinct from the `panther/protocols/` library protocols). Read the relevant one before working in that area.
+
+### Server / architecture
+
+- [DOC_API_ROUTES.md](DOC_API_ROUTES.md) — registry-as-contract, `defineRoute`, `APIResponse` envelope, streaming sub-protocol
+- [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md) — Clerk, the two permission guards, `Project-Id` scoping, special modes
+- [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md) — connections, DB-function shape, error funnel, **SQL-safety rule** (authoritative for the multi-DB naming/connection model)
+- [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md) — BroadcastChannel→SSE, notify catalog, the `last_updated → SSE → cache` triangle
+- [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md) — `TimCacheC`, version-hash keying, implicit invalidation
+- [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md) — dirty state machine, dependency propagation, `task_ended` loop
+- [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md) — Web Worker pattern, READY handshake, report-back mechanisms
+- [DOC_IMPORT_PIPELINE.md](DOC_IMPORT_PIPELINE.md) — stage→integrate ingestion (HMIS/HFA/structure, CSV/DHIS2)
+- [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md) — module load + R-script parameterize/execute/ingest
+- [DOC_DHIS2_INTEGRATION.md](DOC_DHIS2_INTEGRATION.md) — DHIS2 API client: base fetcher, retry, goals
+- [DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md](DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md) — Anthropic proxy, token limits, usage logging
+- [DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md](DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md) — config → SQL (CTEManager, national totals, post-aggregation)
+- [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md) — SQL migrations + JSON data transforms + validation boundaries
+
+### Data / domain
+
+- [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md), [DOC_period_column_handling.md](DOC_period_column_handling.md), [DOC_DISAGGREGATION_OPTIONS_HANDLING.md](DOC_DISAGGREGATION_OPTIONS_HANDLING.md), [DOC_POPULATION_CSV.md](DOC_POPULATION_CSV.md), [DOC_AI_TOOL_SCHEMAS.md](DOC_AI_TOOL_SCHEMAS.md)
+
+### Client / UI
+
+- [DOC_BUILD_INSTRUCTIONS.md](DOC_BUILD_INSTRUCTIONS.md), [DOC_DESIGN_SYSTEM.md](DOC_DESIGN_SYSTEM.md), [DOC_SPECIAL_CHART_MODES.md](DOC_SPECIAL_CHART_MODES.md), [DOC_TRANSLATION.md](DOC_TRANSLATION.md), [DOC_STATE_RULES.md](DOC_STATE_RULES.md) (+ `DOC_STATE_MGT_*`)
+
+### Cross-project base (`panther/protocols/`)
+
+The `DOC_*.md` files above are app-specific. The cross-project conventions they build on live in `panther/protocols/` (synced from the panther repo — do not edit here):
+
+- `PROTOCOL_ALL_*` — universal: TypeScript/code-quality, structure, sizing, translation
+- `PROTOCOL_UI_*` — frontend: SolidJS, state, styling, components, and **`PROTOCOL_UI_STRUCTURE`** (client file organisation — components mirror the UI, `_shared/` home, co-location)
+- `PROTOCOL_DENO_API` — backend route/validation patterns
+
+When a base convention is wrong or missing, fix it in the panther source and re-sync — never edit `panther/` directly.
 
 ## Important Notes
 

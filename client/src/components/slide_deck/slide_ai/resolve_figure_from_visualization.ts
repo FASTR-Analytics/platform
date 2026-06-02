@@ -12,6 +12,17 @@ export async function resolveFigureFromVisualization(
   projectId: string,
   block: AiFigureFromVisualization,
 ): Promise<FigureBlock> {
+  return (await resolveFigureAndGeoFromVisualization(projectId, block)).figureBlock;
+}
+
+// Like resolveFigureFromVisualization, but also returns the resolved geojson so
+// callers that render outside the authenticated client (public dashboards) can
+// persist it. Slides don't need this — they re-hydrate geojson from the local
+// cache at render time.
+export async function resolveFigureAndGeoFromVisualization(
+  projectId: string,
+  block: AiFigureFromVisualization,
+): Promise<{ figureBlock: FigureBlock; geoData?: unknown }> {
   const poDetailRes = await getPODetailFromCacheorFetch(projectId, block.visualizationId);
   if (!poDetailRes.success) {
     throw new Error(`Failed to fetch visualization: ${poDetailRes.err}`);
@@ -63,14 +74,17 @@ export async function resolveFigureFromVisualization(
   }
 
   return {
-    type: "figure",
-    figureInputs: structuredClone(stripFigureInputsForStorage(figureInputsRes.data)),
-    source: {
-      type: "from_data",
-      metricId: poDetailRes.data.resultsValue.id,
-      config,
-      snapshotAt: new Date().toISOString(),
-      indicatorMetadata: ih.indicatorMetadata,
+    figureBlock: {
+      type: "figure",
+      figureInputs: structuredClone(stripFigureInputsForStorage(figureInputsRes.data)),
+      source: {
+        type: "from_data",
+        metricId: poDetailRes.data.resultsValue.id,
+        config,
+        snapshotAt: new Date().toISOString(),
+        indicatorMetadata: ih.indicatorMetadata,
+      },
     },
+    geoData: geoJson,
   };
 }

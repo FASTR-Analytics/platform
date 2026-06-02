@@ -12,6 +12,7 @@ type Props = {
   heading: string | JSX.Element;
   children?: JSX.Element;
   leftChildren?: JSX.Element;
+  centerChildren?: JSX.Element;
   setSearchText?: (v: string) => void;
   searchText?: string;
   class?: string;
@@ -52,6 +53,11 @@ export function HeadingBar(p: Props) {
               />
             </Show>
           </div>
+        </Show>
+        <Show when={p.centerChildren} keyed>
+          {(keyedCenterChildren) => (
+            <div class="flex-none">{keyedCenterChildren}</div>
+          )}
         </Show>
       </div>
       <div class="flex flex-1 basis-1 items-center justify-end">

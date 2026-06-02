@@ -2,10 +2,9 @@ import {
   APIResponseNoData,
   pagesToPptxBrowser,
   PageInputs,
-  _GLOBAL_CANVAS_PIXEL_WIDTH,
   saveAs,
 } from "panther";
-import type { Slide } from "lib";
+import { type Slide, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { convertSlideToPageInputs } from "../generate_slide_deck/convert_slide_to_page_inputs";
@@ -30,9 +29,6 @@ export async function exportSlideDeckAsPptx(
     if (resDeckDetail.success === false) {
       return resDeckDetail;
     }
-
-    const canvasW = _GLOBAL_CANVAS_PIXEL_WIDTH;
-    const canvasH = Math.round((canvasW * 9) / 16);
 
     await new Promise((res) => setTimeout(res, 0));
     progress(0.2);
@@ -78,7 +74,7 @@ export async function exportSlideDeckAsPptx(
     await new Promise((res) => setTimeout(res, 0));
     progress(0.95);
 
-    const pptx = pagesToPptxBrowser(pages, canvasW, canvasH);
+    const pptx = pagesToPptxBrowser(pages, PAGE_WIDTH_DU, PAGE_HEIGHT_DU);
     const blob = (await pptx.write({ outputType: "blob" })) as Blob;
     saveAs(blob, `${resDeckDetail.data.label}.pptx`);
 

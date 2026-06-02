@@ -22,11 +22,11 @@ export function measureChartOV(
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
   inputs: ChartOVInputs,
-  responsiveScale?: number,
+  fitScale?: number,
 ): MeasuredChartOV {
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
-    responsiveScale,
+    fitScale,
   );
   const mergedStyle = customFigureStyle.getMergedChartOVStyle();
   const transformedData = getChartOVDataTransformed(
@@ -62,5 +62,5 @@ export function measureChartOV(
     orientation: "vertical",
   };
 
-  return measureChart(rc, rcdWithSurrounds, inputs, config, responsiveScale);
+  return measureChart(rc, rcdWithSurrounds, inputs, config, fitScale);
 }

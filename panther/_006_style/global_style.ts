@@ -18,7 +18,7 @@ export function setGlobalStyle(options: CustomStyleOptions): void {
   assert(!_hasBeenSet, "Global styles have already been set");
   _hasBeenSet = true;
 
-  const { scale, baseText, figure, markdown, page } = options;
+  const { baseText, figure, markdown, page } = options;
 
   // Set base text at the font layer (foundation for all style domains)
   if (baseText) {
@@ -27,17 +27,14 @@ export function setGlobalStyle(options: CustomStyleOptions): void {
 
   // Pass domain-specific options through
   setGlobalFigureStyle({
-    scale,
     ...figure,
   });
 
   setGlobalMarkdownStyle({
-    scale,
     ...markdown,
   });
 
   setGlobalPageStyle({
-    scale,
     ...page,
   });
 }

@@ -1,161 +1,336 @@
-[TBD] [user] [added] - Password protection option for shared visualization links
-[TBD] [user] [added] - Custom slugs for shared visualization links
-[TBD] [user] [added] - "Share links" button to view all shared links in a project
-[TBD] [user] [added] - Edit and update existing share links
-[TBD] [user] [added] - Share link count badge shown on visualization cards
-[TBD] [user] [added] - "Save to library" option when editing AI prompts
-[TBD] [user] [changed] - "New prompt" button renamed to "Create custom prompt"
-[TBD] [user] [added] - Disk space warning when creating a new project
-[TBD] [user] [added] - Disk space warning when copying a project
-[TBD] [user] [added] - Disk space warning when enabling a dataset
-[TBD] [user] [added] - Disk space warning when running a module
-[TBD] [admin] [added] - Share links now support custom slugs and password protection
-[TBD] [admin] [added] - New "Share links" button to view and manage all shared visualization links in a project
-[TBD] [admin] [added] - Visualization cards now show a badge indicating how many share links exist
-[TBD] [admin] [added] - Shared visualizations can be edited after creation to change slug or password
-[TBD] [admin] [added] - Password-protected shared visualizations prompt viewers for a password before displaying
-[TBD] [admin] [added] - Disk space is checked before creating projects, copying projects, enabling datasets, or running modules
-[TBD] [admin] [added] - Automatic volume resize is requested when disk usage exceeds 90%
-[TBD] [admin] [added] - Low disk space warning shown when attempting to create a new project
-[TBD] [admin] [added] - Projects can be designated as "central reporting" projects by authorized users
-[TBD] [admin] [added] - Central reporting projects are hidden from regular users and only visible to authorized users
-[TBD] [admin] [added] - New API endpoint to export data from central reporting projects
-[TBD] [admin] [added] - AI weekly token usage endpoint now available for monitoring
-[TBD] [admin] [added] - "Save to library" button added when editing a prompt in the AI prompt library
-[TBD] [admin] [changed] - "New prompt" button in prompt library renamed to "Create custom prompt"
-[TBD] [admin] [changed] - Share links now display creation date, view count, slug, and password status
-[TBD] [user] [changed] - Filter and breakdown options now display readable labels instead of codes
-[TBD] [user] [fixed] - Error messages now show readable names instead of internal identifiers
-[TBD] [admin] [changed] - Filter and replicate-by options now show human-readable labels instead of raw IDs
-[TBD] [admin] [fixed] - Indicator names in disaggregation filters no longer require special uppercase formatting
-[TBD] [user] [added] - Dashboards now support a grid layout option
-[TBD] [user] [changed] - Dashboard editor shows a live full-dashboard preview instead of one item at a time
-[TBD] [user] [changed] - Dashboard layout setting replaces left/right sidebar option with sidebar or grid choice
-[TBD] [user] [added] - Dashboard cards now support multi-select with click, shift-click, and right-click actions
-[TBD] [user] [added] - Right-click menu on dashboard cards to delete one or multiple dashboards
-[TBD] [user] [changed] - Consistent multi-select behavior across visualizations, slide decks, and dashboards
-[TBD] [user] [fixed] - Shared visualizations and dashboard charts now display at correct scale
-[TBD] [admin] [added] - Dashboards now support a grid layout option
-[TBD] [admin] [changed] - Dashboard layout setting replaces menu position with layout type choice
-[TBD] [admin] [changed] - Dashboard editor now shows a live full-dashboard preview instead of single item preview
-[TBD] [admin] [added] - Multi-select support added to the dashboards list with batch delete
-[TBD] [admin] [added] - Right-click context menu on dashboard cards for quick actions
-[TBD] [admin] [changed] - Dashboard item list no longer highlights a selected item inline
-[TBD] [admin] [internal] - Standardized multi-select behavior across visualizations, slide decks, and dashboards
-[TBD] [admin] [internal] - HFA module scripts now use configurable templates instead of hardcoded R code
-[TBD] [user] [fixed] - Fixed sorting issues in table column and row groups
-[TBD] [admin] [fixed] - Table sorting now applies consistently to all row and column groups
-[TBD] [admin] [internal] - Public dashboard rendering streamlined for better reliability
-[TBD] [admin] [internal] - Simplified how global admin status is determined across the interface
-[TBD] [user] [added] - Dashboards: create, edit, and manage interactive dashboards within projects
-[TBD] [user] [added] - Add visualizations to dashboards as individual items
-[TBD] [user] [added] - Option to add all replicants of a visualization to a dashboard at once
-[TBD] [user] [added] - Drag-and-drop reordering of dashboard items
-[TBD] [user] [added] - Rename and delete individual dashboard items
-[TBD] [user] [added] - Dashboard settings: title, URL slug, layout, and authentication options
-[TBD] [user] [added] - Public shareable link for dashboards that don't require login
-[TBD] [user] [added] - Copy dashboard link button for easy sharing
-[TBD] [user] [added] - Choose left or right sidebar layout for public dashboards
-[TBD] [user] [added] - Download dashboard charts as images from the public view
-[TBD] [user] [added] - Search and filter dashboards by title or URL slug
-[TBD] [user] [added] - New "Dashboards" tab in the project navigation
-[TBD] [admin] [added] - New Dashboards feature for creating shareable data dashboards
-[TBD] [admin] [added] - Dashboards can be made public with a shareable URL
-[TBD] [admin] [added] - Dashboard items can be added from existing visualizations
-[TBD] [admin] [added] - Option to add all replicants at once when adding dashboard items
-[TBD] [admin] [added] - Drag-and-drop reordering of dashboard items
-[TBD] [admin] [added] - Dashboard settings for title, URL slug, layout, and authentication
-[TBD] [admin] [added] - Sidebar layout option with left or right menu position
-[TBD] [admin] [added] - Public dashboard viewer with image download support
-[TBD] [admin] [changed] - Dashboards tab appears for users with slide deck view permissions
-[TBD] [admin] [changed] - Warning shown when making a public dashboard require authentication
-[TBD] [user] [fixed] - Tables now display correct formatting per indicator (e.g., percentages, rates)
-[TBD] [user] [fixed] - Scorecard colors and values now match correctly when indicators are reordered
-[TBD] [user] [fixed] - Chart and table sorting now orders items alphabetically by display name
-[TBD] [user] [fixed] - National aggregate row now consistently appears in correct position in tables
-[TBD] [user] [fixed] - Shared visualizations now preserve indicator-specific formatting
-[TBD] [user] [fixed] - Highlight colors in data selection preview now apply correctly
-[TBD] [admin] [fixed] - Tables and charts now display per-indicator number formatting correctly
-[TBD] [admin] [fixed] - Scorecard conditional formatting matches indicators more reliably
-[TBD] [admin] [fixed] - Shared visualizations now retain indicator metadata for proper display
-[TBD] [admin] [changed] - Chart and table sorting improved for consistent label ordering
-[TBD] [admin] [fixed] - National aggregate row now sorts correctly in tables and charts
-[TBD] [admin] [internal] - Slide deck figures now store indicator metadata alongside source data
-[TBD] [user] [added] - ICEH survey data now recognized as a data source in projects
-[TBD] [user] [added] - ICEH indicators and stratifiers are shown to the AI assistant for better analysis
-[TBD] [user] [added] - Stratifier labels now appear alongside codes in data summaries
-[TBD] [user] [changed] - Replicate-by dropdown now shows translated labels for stratifiers
-[TBD] [user] [changed] - Dimension summaries now display up to 20 unique values instead of 10
-[TBD] [user] [fixed] - Upload status page no longer crashes when no ICEH upload exists
-[TBD] [user] [fixed] - ICEH data import now properly notifies the system upon completion
-[TBD] [admin] [added] - ICEH survey data now recognized as a data source in projects
-[TBD] [admin] [added] - ICEH indicators and stratifiers shown to AI assistant for better analysis
-[TBD] [admin] [added] - AI assistant now understands ICEH stratifier levels (wealth quintiles, education groups, etc.)
-[TBD] [admin] [changed] - Stratifier labels now displayed for ICEH replicate-by options
-[TBD] [admin] [changed] - Dimension summaries now show up to 20 unique values instead of 10
-[TBD] [admin] [fixed] - ICEH upload status no longer errors when no upload has been started
-[TBD] [admin] [fixed] - ICEH data import now properly notifies the system only after integration completes
-[TBD] [admin] [fixed] - Visualizations now refresh automatically after module configuration changes
-[TBD] [user] [fixed] - AI usage limit errors now display more clearly with specific daily or weekly limits
-[TBD] [admin] [fixed] - AI token limit errors now detected more accurately in chat
-[TBD] [user] [added] - Aggregation type (Sum or Avg) now shown for indicators
-[TBD] [user] [added] - New module: ICEH Survey Data Analysis
-[TBD] [user] [changed] - Health facility assessment module renumbered to M10
-[TBD] [user] [added] - Connector lines between data points in charts
-[TBD] [user] [fixed] - Filtered out invalid facility IDs during data imports
-[TBD] [admin] [added] - New ICEH Survey Data Analysis module (M9) available
-[TBD] [admin] [changed] - Health Facility Assessment module renumbered from HFA001 to M10
-[TBD] [admin] [changed] - HFA indicator list now shows aggregation type (Sum or Avg)
-[TBD] [admin] [added] - ICEH disaggregation options now available for analysis
-[TBD] [admin] [added] - HFA indicators now include format and category metadata for visualizations
-[TBD] [admin] [changed] - HFA results now split into separate columns by indicator type and aggregation
-[TBD] [admin] [fixed] - DHIS2 data sync now filters out invalid facility identifiers
-[TBD] [admin] [added] - Connector lines now shown by default in visualizations
-[TBD] [user] [added] - ICEH equity data can now be added to projects
-[TBD] [user] [changed] - "Disaggregators" tab renamed to "Stratifiers" for clarity
-[TBD] [user] [added] - Stale data warnings shown when ICEH data is outdated in a project
-[TBD] [user] [added] - Option to update ICEH project data without re-running modules
-[TBD] [user] [changed] - Data, indicators, and stratifiers load together in one step
-[TBD] [admin] [added] - ICEH equity dataset can now be added to projects
-[TBD] [admin] [changed] - "Disaggregators" tab renamed to "Stratifiers" with standardized definitions
-[TBD] [admin] [added] - Stale data detection for ICEH datasets in projects
-[TBD] [admin] [added] - Option to update ICEH project data without re-running modules
-[TBD] [admin] [changed] - ICEH data, indicators, and stratifiers now load in a single request
-[TBD] [user] [changed] - Data tables now support sorting and improved formatting
-[TBD] [user] [changed] - Indicators table now shows numerator and denominator columns
-[TBD] [user] [changed] - Data import progress now shows percentage and auto-updates
-[TBD] [user] [changed] - Deleting all data now requires typing a confirmation phrase
-[TBD] [user] [changed] - Import panel moved to a sidebar for easier navigation
-[TBD] [user] [changed] - Only indicators with actual data are shown in the indicators list
-[TBD] [user] [added] - Import status shows distinct messages for staging, integrating, errors, and completion
-[TBD] [user] [changed] - Completed imports now prompt you to remove the upload form
-[TBD] [admin] [changed] - ICEH data tables now support sorting and improved display
-[TBD] [admin] [changed] - Indicators list now shows numerator and denominator columns
-[TBD] [admin] [changed] - Only indicators with actual data rows are shown and imported
-[TBD] [admin] [changed] - Deleting all ICEH data now requires typing a confirmation phrase
-[TBD] [admin] [changed] - Import progress and status shown in a side panel with live updates
-[TBD] [admin] [changed] - Completed imports now prompt you to remove the upload form
-[TBD] [admin] [added] - Dedicated lightweight status polling endpoint for active imports
-[TBD] [admin] [fixed] - Duplicate indicators no longer appear in the indicators list
-[TBD] [user] [changed] - Updated arrow icon style on navigation buttons
-[TBD] [admin] [changed] - Dataset viewer tabs updated to use improved navigation style
-[TBD] [admin] [fixed] - Layout fix for dataset viewer frame structure
-[TBD] [user] [added] - New ICEH Equity Data section for importing and viewing equity datasets
-[TBD] [user] [added] - Import ICEH data from zip files downloaded from the ICEH Retriever
-[TBD] [user] [added] - View ICEH indicators, disaggregators, and data rows in organized tabs
-[TBD] [user] [added] - Progress tracking during ICEH data import with staging and integration steps
-[TBD] [user] [added] - Support for uploading zip files in the file upload area
-[TBD] [user] [fixed] - Calculated indicators now show a clear error if they reference missing data
-[TBD] [admin] [added] - New ICEH equity data source available for instances
-[TBD] [admin] [added] - Import ICEH data from zip files downloaded from equidade.org/retriever
-[TBD] [admin] [added] - View ICEH indicators, disaggregators, and data rows after import
-[TBD] [admin] [added] - Delete all ICEH data (global admins only)
-[TBD] [admin] [added] - Zip file uploads now supported in the asset manager
-[TBD] [admin] [changed] - Import warns if data country does not match instance country
-[TBD] [admin] [changed] - Re-importing ICEH data replaces all existing ICEH data
-[TBD] [admin] [fixed] - Projects now block adding data when calculated indicators reference missing indicators
-[TBD] [admin] [added] - AI usage limit hits are now tracked and logged
-[TBD] [admin] [added] - New endpoint to view when users hit AI usage limits
+[TBD] [user] [added] - Help buttons now appear with quick summaries and links to documentation
+[TBD] [user] [changed] - Dashboard header logos, info, and download buttons are now aligned in a single row
+[TBD] [admin] [added] - Contextual help buttons link to documentation from within the app
+[TBD] [admin] [changed] - Dashboard header layout groups logos and action buttons on one line
+[TBD] [user] [added] - Add logos to dashboard header with size options
+[TBD] [user] [added] - Add summary text displayed below the dashboard title
+[TBD] [user] [added] - Add "About this dashboard" info button and dialog
+[TBD] [user] [added] - Download figures with background and margin options
+[TBD] [user] [added] - Each chart tile in grid layout now has its own download button
+[TBD] [admin] [added] - Dashboards now support displaying logos in the header
+[TBD] [admin] [added] - Dashboard settings include logo size options (S, M, L, XL)
+[TBD] [admin] [added] - Dashboards can show a summary below the title using markdown
+[TBD] [admin] [added] - Dashboards can have an "About this dashboard" info dialog with markdown content
+[TBD] [admin] [changed] - Chart download now lets you choose background and margin options
+[TBD] [admin] [changed] - Grid layout tiles now each have their own download button
+[1.39.3] [user] [fixed] - Clearer error messages when AI suggests invalid filter values
+[1.39.3] [user] [fixed] - Only relevant indicators are shown when adding datasets
+[1.39.3] [admin] [fixed] - AI error messages now show clearer filter value details
+[1.39.3] [admin] [fixed] - Dataset setup no longer includes indicators without mappings
+[1.39.2] [user] [fixed] - Reports now scroll correctly in view mode
+[1.39.2] [user] [fixed] - Charts update properly after new data imports
+[1.39.2] [admin] [fixed] - Replicant option labels now update after dataset re-integration
+[1.39.2] [admin] [fixed] - Report view scrolling works correctly for long documents
+[1.39.1] [user] [fixed] - Dashboard card labels and charts now align properly across rows
+[1.39.1] [user] [fixed] - Dashboard card labels no longer cut off long text
+[1.39.1] [user] [changed] - AI assistant now creates reports directly instead of showing a draft preview first
+[1.39.1] [user] [changed] - Report view mode has improved spacing and layout
+[1.39.1] [user] [fixed] - Charts and tables now refresh correctly after updating datasets
+[1.39.1] [admin] [fixed] - Charts and labels now align correctly on dashboards
+[1.39.1] [admin] [fixed] - Dashboard card labels no longer cut off long text
+[1.39.1] [admin] [fixed] - Visualizations now refresh after dataset re-integration without re-running modules
+[1.39.1] [admin] [changed] - AI assistant creates reports directly instead of showing a draft preview
+[1.39.1] [admin] [changed] - Report view mode has improved spacing and layout
+[1.39.0] [user] [added] - Dashboard items can now be added as replicant groups
+[1.39.0] [user] [added] - Replicant groups appear as stacked cards showing member count
+[1.39.0] [user] [added] - Group editor panel to rename, switch, or edit grouped items
+[1.39.0] [user] [added] - Choose a default replicant for each group
+[1.39.0] [user] [added] - Public dashboards show a dropdown to switch between replicants in a group
+[1.39.0] [user] [added] - Sidebar navigation nests group members under the group label
+[1.39.0] [user] [added] - Reports now show an Edit/View toggle for preview mode
+[1.39.0] [user] [added] - Report list cards show a content preview instead of placeholder lines
+[1.39.0] [user] [added] - Report list cards display figure and image counts
+[1.39.0] [user] [added] - Autosave status indicator shows saved, saving, or error state
+[1.39.0] [user] [added] - AI can now replace specific text selections in reports
+[1.39.0] [user] [added] - AI can now replace an existing figure in a report with a new one
+[1.39.0] [user] [added] - AI can build new charts directly from metrics when inserting figures
+[1.39.0] [user] [added] - AI sees your current text selection and can act on it
+[1.39.0] [user] [changed] - AI edit proposals now show whether user accepted or rejected
+[1.39.0] [user] [changed] - Report PDF and Word exports use consistent heading styles
+[1.39.0] [admin] [added] - Dashboard replicant groups: add all replicants as a single grouped item
+[1.39.0] [admin] [added] - Group editor panel for renaming, switching default replicant, and editing grouped items
+[1.39.0] [admin] [added] - Public dashboard grid shows replicant groups with a dropdown to switch between members
+[1.39.0] [admin] [added] - Public dashboard sidebar shows replicant groups as expandable navigation sections
+[1.39.0] [admin] [added] - Report editor now has Edit/View toggle for live HTML preview
+[1.39.0] [admin] [added] - Report list cards show a content preview instead of placeholder bars
+[1.39.0] [admin] [added] - Autosave status indicator in the report editor heading bar
+[1.39.0] [admin] [added] - AI can now make targeted text replacements in reports
+[1.39.0] [admin] [added] - AI can replace an existing report figure with a new chart
+[1.39.0] [admin] [added] - AI can build new charts from metrics directly when inserting report figures
+[1.39.0] [admin] [added] - AI now sees the user's text selection in the report editor
+[1.39.0] [admin] [changed] - AI report edit proposals now wait for user accept/reject before continuing
+[1.39.0] [admin] [changed] - Report PDF and Word exports use a consistent shared heading style
+[1.39.0] [admin] [changed] - Deleting a replicant group removes all its member items automatically
+[1.39.0] [admin] [internal] - Dashboard public bundle generation shared between editor and public viewer
+[1.39.0] [user] [added] - Reports section for creating long-form analytical documents
+[1.39.0] [user] [added] - Markdown editor for writing reports with headings, lists, and tables
+[1.39.0] [user] [added] - Embed live data figures from saved visualizations into reports
+[1.39.0] [user] [added] - Embed uploaded images into reports
+[1.39.0] [user] [added] - Download reports as PDF or Word documents
+[1.39.0] [user] [added] - Organize reports into color-coded folders
+[1.39.0] [user] [added] - Duplicate one or multiple reports at once
+[1.39.0] [user] [added] - Move reports between folders individually or in bulk
+[1.39.0] [user] [added] - AI assistant can draft, rewrite, and edit reports
+[1.39.0] [user] [added] - AI can insert live data figures into reports from visualizations
+[1.39.0] [user] [added] - AI-proposed report edits shown as accept/reject diffs
+[1.39.0] [user] [added] - AI button added to dashboard editor toolbar
+[1.39.0] [user] [added] - AI button added to report editor toolbar
+[1.39.0] [user] [changed] - Dashboard item grid now shows item labels above thumbnails
+[1.39.0] [user] [changed] - Dashboard item thumbnails now match visualization panel styling
+[1.39.0] [admin] [added] - Reports module for long-form analytical documents with markdown editing
+[1.39.0] [admin] [added] - Embed live data figures and images inside reports
+[1.39.0] [admin] [added] - AI assistant can draft, rewrite, and edit reports
+[1.39.0] [admin] [added] - AI can insert figures from saved visualizations into reports
+[1.39.0] [admin] [added] - Export reports as PDF or Word documents
+[1.39.0] [admin] [added] - Organize reports with folders and color-coded labels
+[1.39.0] [admin] [added] - Duplicate, move, and bulk-manage reports
+[1.39.0] [admin] [added] - AI-proposed report edits shown as accept/reject diffs
+[1.39.0] [admin] [added] - AI button added to dashboard and report editors
+[1.39.0] [admin] [changed] - Dashboard editor grid now matches visualization panel thumbnail style
+[1.39.0] [user] [added] - Dashboard items now display as a visual card grid with chart previews
+[1.39.0] [user] [added] - Select, multi-select, and right-click context menu for dashboard items
+[1.39.0] [user] [added] - Side panel to edit a selected dashboard item's label and visualization
+[1.39.0] [user] [added] - Edit, switch, or create a new visualization directly from a dashboard item
+[1.39.0] [user] [added] - Delete multiple dashboard items at once
+[1.39.0] [user] [added] - Preview button to open the public dashboard in a new tab
+[1.39.0] [user] [added] - Map visualizations now display correctly on public dashboards
+[1.39.0] [user] [changed] - Newly created dashboards are now visible to logged-in users by default
+[1.39.0] [user] [changed] - Drag-and-drop reordering now works directly on the card grid
+[1.39.0] [admin] [added] - Dashboard items now display as a visual card grid
+[1.39.0] [admin] [added] - Edit, switch, or create visualizations directly from dashboard items
+[1.39.0] [admin] [added] - Multi-select dashboard items for bulk deletion
+[1.39.0] [admin] [added] - Right-click context menu on dashboard items for quick actions
+[1.39.0] [admin] [added] - Preview button opens public dashboard link in new tab
+[1.39.0] [admin] [added] - Side panel shows editable label and actions for selected item
+[1.39.0] [admin] [changed] - New dashboards are now created as non-public by default
+[1.39.0] [admin] [changed] - Non-public dashboards are visible to authenticated users only
+[1.39.0] [admin] [added] - Map geographic data is now saved with dashboard items for public viewing
+[1.39.0] [user] [changed] - Logo size and spacing options now apply more consistently across slides
+[1.39.0] [user] [changed] - Removed manual font size sliders for captions, sub-captions, and footnotes
+[1.39.0] [user] [changed] - Improved default text sizing for captions and sub-captions in figures
+[1.39.0] [user] [changed] - Tighter line spacing on slide cover headers and dates
+[1.39.0] [admin] [changed] - Logo sizing now uses simple size labels instead of raw numbers
+[1.39.0] [admin] [changed] - Existing logo sizing settings automatically migrated to new format
+[1.39.0] [admin] [changed] - Caption, sub-caption, and footnote font sizes are now standardized
+[1.39.0] [admin] [changed] - Font size sliders removed from chart text editor panel
+[1.39.0] [admin] [changed] - Tighter line spacing on slide cover headers and dates
+[1.39.0] [user] [changed] - Removed the "Scale" slider from visualization style settings
+[1.39.0] [user] [changed] - Removed the "Scale" slider from dataset chart display options
+[1.39.0] [user] [changed] - Charts and slides now render more sharply at any size
+[1.39.0] [user] [changed] - Dashboard grid layout now stacks to single column on smaller screens
+[1.39.0] [user] [fixed] - Exported images now render at consistent high resolution regardless of screen size
+[1.39.0] [user] [changed] - Slide text sizes adjusted for improved readability
+[1.39.0] [admin] [changed] - Removed the "Scale" slider from visualization style settings
+[1.39.0] [admin] [changed] - Removed the "Scale" slider from dataset display controls
+[1.39.0] [admin] [changed] - Removed the "figureScale" option from slide deck configuration
+[1.39.0] [admin] [fixed] - Charts and slides now render at consistent, resolution-independent sizes
+[1.39.0] [admin] [fixed] - Exported visualizations now render at a fixed high-resolution size
+[1.39.0] [admin] [fixed] - Public dashboard grid layout now responsive on smaller screens
+[1.39.0] [admin] [fixed] - Slide previews and thumbnails render more sharply and consistently
+[1.39.0] [admin] [fixed] - PDF and PowerPoint exports use standardized page dimensions
+[1.39.0] [user] [fixed] - Dashboard chart no longer reloads when reordering items
+[1.39.0] [user] [changed] - Renaming dashboard items now uses a cleaner popup dialog
+[1.39.0] [user] [fixed] - Dashboard preview no longer flickers when switching between items
+[1.39.0] [admin] [fixed] - Dashboard chart no longer reloads when reordering items
+[1.39.0] [admin] [changed] - Renaming dashboard items now uses a popup dialog
+[1.39.0] [admin] [fixed] - Switching dashboard items no longer causes unnecessary chart reloads
+[1.39.0] [admin] [fixed] - Fixed visualization selection initialization order to prevent errors
+[1.39.0] [admin] [changed] - Navigation tabs now show permission-appropriate items more consistently
+[1.39.0] [admin] [internal] - Updated selection behavior for visualizations, dashboards, and slide decks
+[1.39.0] [admin] [internal] - Reorderable lists updated to use improved drag-and-drop component
+[1.38.2] [user] [fixed] - Population data only loaded when actually needed by your analysis
+[1.38.2] [admin] [added] - Population data is only required when indicators use population-based calculations
+[1.38.1] [user] [fixed] - Selected category no longer resets when data refreshes
+[1.38.1] [user] [added] - Sub-category is now available as a disaggregation option
+[1.38.1] [admin] [fixed] - HFA category selection no longer resets after data updates
+[1.38.1] [admin] [added] - HFA sub-category now available as a disaggregation option
+[1.38.0] [user] [added] - HFA indicators now support categories and sub-categories for better organization
+[1.38.0] [user] [added] - New Categories tab in HFA Indicators manager to create, edit, reorder, and delete categories and sub-categories
+[1.38.0] [user] [added] - Indicators can now have a short label in addition to the long label
+[1.38.0] [user] [changed] - HFA indicator import and export now uses Excel (.xlsx) format instead of CSV
+[1.38.0] [user] [changed] - Excel workbook includes separate sheets for categories, sub-categories, and indicators
+[1.38.0] [user] [changed] - Indicator table now shows category, sub-category, short label, time point coverage, and status columns
+[1.38.0] [user] [changed] - "Definition" field renamed to "Long label" throughout the indicator editor
+[1.38.0] [user] [changed] - Category field on indicators changed from free text to a dropdown selector
+[1.38.0] [user] [changed] - HMIS indicators tab navigation moved from vertical sidebar to horizontal tabs
+[1.38.0] [user] [changed] - Dashboard editor now has a back arrow button instead of a close button
+[1.38.0] [user] [changed] - Dashboard viewer spacing adjusted for a more compact layout
+[1.38.0] [user] [changed] - DHIS2 GeoJSON import simplified to one level at a time instead of batch multi-level import
+[1.38.0] [user] [changed] - DHIS2 connection step no longer auto-detects level mappings; you now choose the level manually
+[1.38.0] [user] [added] - Sub-category disaggregation option available for HFA analyses
+[1.38.0] [admin] [added] - HFA indicators now support categories and sub-categories
+[1.38.0] [admin] [added] - New Categories tab in HFA Indicators manager for organizing indicators
+[1.38.0] [admin] [added] - Categories and sub-categories can be created, edited, reordered, and deleted
+[1.38.0] [admin] [added] - HFA indicators now have a short label field
+[1.38.0] [admin] [changed] - HFA indicator "Definition" field renamed to "Long label"
+[1.38.0] [admin] [changed] - HFA indicator category is now a dropdown selection instead of free text
+[1.38.0] [admin] [changed] - HFA indicator import/export switched from CSV to Excel (.xlsx) format
+[1.38.0] [admin] [changed] - Excel workbook now includes Categories and Sub-categories sheets
+[1.38.0] [admin] [changed] - Indicator table now shows time point coverage and status columns
+[1.38.0] [admin] [changed] - HMIS Indicators tabs now display horizontally instead of vertically
+[1.38.0] [admin] [changed] - DHIS2 GeoJSON import simplified to one level at a time
+[1.38.0] [admin] [changed] - Dashboard editor close button replaced with back arrow
+[1.38.0] [admin] [changed] - Dashboard editor button order updated, settings before add item
+[1.38.0] [admin] [changed] - Dashboard viewer spacing adjusted for tighter layout
+[1.38.0] [admin] [added] - Sub-category available as a new disaggregation option
+[1.38.0] [user] [added] - Password protection option for shared visualization links
+[1.38.0] [user] [added] - Custom slugs for shared visualization links
+[1.38.0] [user] [added] - "Share links" button to view all shared links in a project
+[1.38.0] [user] [added] - Edit and update existing share links
+[1.38.0] [user] [added] - Share link count badge shown on visualization cards
+[1.38.0] [user] [added] - "Save to library" option when editing AI prompts
+[1.38.0] [user] [changed] - "New prompt" button renamed to "Create custom prompt"
+[1.38.0] [user] [added] - Disk space warning when creating a new project
+[1.38.0] [user] [added] - Disk space warning when copying a project
+[1.38.0] [user] [added] - Disk space warning when enabling a dataset
+[1.38.0] [user] [added] - Disk space warning when running a module
+[1.38.0] [admin] [added] - Share links now support custom slugs and password protection
+[1.38.0] [admin] [added] - New "Share links" button to view and manage all shared visualization links in a project
+[1.38.0] [admin] [added] - Visualization cards now show a badge indicating how many share links exist
+[1.38.0] [admin] [added] - Shared visualizations can be edited after creation to change slug or password
+[1.38.0] [admin] [added] - Password-protected shared visualizations prompt viewers for a password before displaying
+[1.38.0] [admin] [added] - Disk space is checked before creating projects, copying projects, enabling datasets, or running modules
+[1.38.0] [admin] [added] - Automatic volume resize is requested when disk usage exceeds 90%
+[1.38.0] [admin] [added] - Low disk space warning shown when attempting to create a new project
+[1.38.0] [admin] [added] - Projects can be designated as "central reporting" projects by authorized users
+[1.38.0] [admin] [added] - Central reporting projects are hidden from regular users and only visible to authorized users
+[1.38.0] [admin] [added] - New API endpoint to export data from central reporting projects
+[1.38.0] [admin] [added] - AI weekly token usage endpoint now available for monitoring
+[1.38.0] [admin] [added] - "Save to library" button added when editing a prompt in the AI prompt library
+[1.38.0] [admin] [changed] - "New prompt" button in prompt library renamed to "Create custom prompt"
+[1.38.0] [admin] [changed] - Share links now display creation date, view count, slug, and password status
+[1.38.0] [user] [changed] - Filter and breakdown options now display readable labels instead of codes
+[1.38.0] [user] [fixed] - Error messages now show readable names instead of internal identifiers
+[1.38.0] [admin] [changed] - Filter and replicate-by options now show human-readable labels instead of raw IDs
+[1.38.0] [admin] [fixed] - Indicator names in disaggregation filters no longer require special uppercase formatting
+[1.38.0] [user] [added] - Dashboards now support a grid layout option
+[1.38.0] [user] [changed] - Dashboard editor shows a live full-dashboard preview instead of one item at a time
+[1.38.0] [user] [changed] - Dashboard layout setting replaces left/right sidebar option with sidebar or grid choice
+[1.38.0] [user] [added] - Dashboard cards now support multi-select with click, shift-click, and right-click actions
+[1.38.0] [user] [added] - Right-click menu on dashboard cards to delete one or multiple dashboards
+[1.38.0] [user] [changed] - Consistent multi-select behavior across visualizations, slide decks, and dashboards
+[1.38.0] [user] [fixed] - Shared visualizations and dashboard charts now display at correct scale
+[1.38.0] [admin] [added] - Dashboards now support a grid layout option
+[1.38.0] [admin] [changed] - Dashboard layout setting replaces menu position with layout type choice
+[1.38.0] [admin] [changed] - Dashboard editor now shows a live full-dashboard preview instead of single item preview
+[1.38.0] [admin] [added] - Multi-select support added to the dashboards list with batch delete
+[1.38.0] [admin] [added] - Right-click context menu on dashboard cards for quick actions
+[1.38.0] [admin] [changed] - Dashboard item list no longer highlights a selected item inline
+[1.38.0] [admin] [internal] - Standardized multi-select behavior across visualizations, slide decks, and dashboards
+[1.38.0] [admin] [internal] - HFA module scripts now use configurable templates instead of hardcoded R code
+[1.38.0] [user] [fixed] - Fixed sorting issues in table column and row groups
+[1.38.0] [admin] [fixed] - Table sorting now applies consistently to all row and column groups
+[1.38.0] [admin] [internal] - Public dashboard rendering streamlined for better reliability
+[1.38.0] [admin] [internal] - Simplified how global admin status is determined across the interface
+[1.38.0] [user] [added] - Dashboards: create, edit, and manage interactive dashboards within projects
+[1.38.0] [user] [added] - Add visualizations to dashboards as individual items
+[1.38.0] [user] [added] - Option to add all replicants of a visualization to a dashboard at once
+[1.38.0] [user] [added] - Drag-and-drop reordering of dashboard items
+[1.38.0] [user] [added] - Rename and delete individual dashboard items
+[1.38.0] [user] [added] - Dashboard settings: title, URL slug, layout, and authentication options
+[1.38.0] [user] [added] - Public shareable link for dashboards that don't require login
+[1.38.0] [user] [added] - Copy dashboard link button for easy sharing
+[1.38.0] [user] [added] - Choose left or right sidebar layout for public dashboards
+[1.38.0] [user] [added] - Download dashboard charts as images from the public view
+[1.38.0] [user] [added] - Search and filter dashboards by title or URL slug
+[1.38.0] [user] [added] - New "Dashboards" tab in the project navigation
+[1.38.0] [admin] [added] - New Dashboards feature for creating shareable data dashboards
+[1.38.0] [admin] [added] - Dashboards can be made public with a shareable URL
+[1.38.0] [admin] [added] - Dashboard items can be added from existing visualizations
+[1.38.0] [admin] [added] - Option to add all replicants at once when adding dashboard items
+[1.38.0] [admin] [added] - Drag-and-drop reordering of dashboard items
+[1.38.0] [admin] [added] - Dashboard settings for title, URL slug, layout, and authentication
+[1.38.0] [admin] [added] - Sidebar layout option with left or right menu position
+[1.38.0] [admin] [added] - Public dashboard viewer with image download support
+[1.38.0] [admin] [changed] - Dashboards tab appears for users with slide deck view permissions
+[1.38.0] [admin] [changed] - Warning shown when making a public dashboard require authentication
+[1.38.0] [user] [fixed] - Tables now display correct formatting per indicator (e.g., percentages, rates)
+[1.38.0] [user] [fixed] - Scorecard colors and values now match correctly when indicators are reordered
+[1.38.0] [user] [fixed] - Chart and table sorting now orders items alphabetically by display name
+[1.38.0] [user] [fixed] - National aggregate row now consistently appears in correct position in tables
+[1.38.0] [user] [fixed] - Shared visualizations now preserve indicator-specific formatting
+[1.38.0] [user] [fixed] - Highlight colors in data selection preview now apply correctly
+[1.38.0] [admin] [fixed] - Tables and charts now display per-indicator number formatting correctly
+[1.38.0] [admin] [fixed] - Scorecard conditional formatting matches indicators more reliably
+[1.38.0] [admin] [fixed] - Shared visualizations now retain indicator metadata for proper display
+[1.38.0] [admin] [changed] - Chart and table sorting improved for consistent label ordering
+[1.38.0] [admin] [fixed] - National aggregate row now sorts correctly in tables and charts
+[1.38.0] [admin] [internal] - Slide deck figures now store indicator metadata alongside source data
+[1.38.0] [user] [added] - ICEH survey data now recognized as a data source in projects
+[1.38.0] [user] [added] - ICEH indicators and stratifiers are shown to the AI assistant for better analysis
+[1.38.0] [user] [added] - Stratifier labels now appear alongside codes in data summaries
+[1.38.0] [user] [changed] - Replicate-by dropdown now shows translated labels for stratifiers
+[1.38.0] [user] [changed] - Dimension summaries now display up to 20 unique values instead of 10
+[1.38.0] [user] [fixed] - Upload status page no longer crashes when no ICEH upload exists
+[1.38.0] [user] [fixed] - ICEH data import now properly notifies the system upon completion
+[1.38.0] [admin] [added] - ICEH survey data now recognized as a data source in projects
+[1.38.0] [admin] [added] - ICEH indicators and stratifiers shown to AI assistant for better analysis
+[1.38.0] [admin] [added] - AI assistant now understands ICEH stratifier levels (wealth quintiles, education groups, etc.)
+[1.38.0] [admin] [changed] - Stratifier labels now displayed for ICEH replicate-by options
+[1.38.0] [admin] [changed] - Dimension summaries now show up to 20 unique values instead of 10
+[1.38.0] [admin] [fixed] - ICEH upload status no longer errors when no upload has been started
+[1.38.0] [admin] [fixed] - ICEH data import now properly notifies the system only after integration completes
+[1.38.0] [admin] [fixed] - Visualizations now refresh automatically after module configuration changes
+[1.38.0] [user] [fixed] - AI usage limit errors now display more clearly with specific daily or weekly limits
+[1.38.0] [admin] [fixed] - AI token limit errors now detected more accurately in chat
+[1.38.0] [user] [added] - Aggregation type (Sum or Avg) now shown for indicators
+[1.38.0] [user] [added] - New module: ICEH Survey Data Analysis
+[1.38.0] [user] [changed] - Health facility assessment module renumbered to M10
+[1.38.0] [user] [added] - Connector lines between data points in charts
+[1.38.0] [user] [fixed] - Filtered out invalid facility IDs during data imports
+[1.38.0] [admin] [added] - New ICEH Survey Data Analysis module (M9) available
+[1.38.0] [admin] [changed] - Health Facility Assessment module renumbered from HFA001 to M10
+[1.38.0] [admin] [changed] - HFA indicator list now shows aggregation type (Sum or Avg)
+[1.38.0] [admin] [added] - ICEH disaggregation options now available for analysis
+[1.38.0] [admin] [added] - HFA indicators now include format and category metadata for visualizations
+[1.38.0] [admin] [changed] - HFA results now split into separate columns by indicator type and aggregation
+[1.38.0] [admin] [fixed] - DHIS2 data sync now filters out invalid facility identifiers
+[1.38.0] [admin] [added] - Connector lines now shown by default in visualizations
+[1.38.0] [user] [added] - ICEH equity data can now be added to projects
+[1.38.0] [user] [changed] - "Disaggregators" tab renamed to "Stratifiers" for clarity
+[1.38.0] [user] [added] - Stale data warnings shown when ICEH data is outdated in a project
+[1.38.0] [user] [added] - Option to update ICEH project data without re-running modules
+[1.38.0] [user] [changed] - Data, indicators, and stratifiers load together in one step
+[1.38.0] [admin] [added] - ICEH equity dataset can now be added to projects
+[1.38.0] [admin] [changed] - "Disaggregators" tab renamed to "Stratifiers" with standardized definitions
+[1.38.0] [admin] [added] - Stale data detection for ICEH datasets in projects
+[1.38.0] [admin] [added] - Option to update ICEH project data without re-running modules
+[1.38.0] [admin] [changed] - ICEH data, indicators, and stratifiers now load in a single request
+[1.38.0] [user] [changed] - Data tables now support sorting and improved formatting
+[1.38.0] [user] [changed] - Indicators table now shows numerator and denominator columns
+[1.38.0] [user] [changed] - Data import progress now shows percentage and auto-updates
+[1.38.0] [user] [changed] - Deleting all data now requires typing a confirmation phrase
+[1.38.0] [user] [changed] - Import panel moved to a sidebar for easier navigation
+[1.38.0] [user] [changed] - Only indicators with actual data are shown in the indicators list
+[1.38.0] [user] [added] - Import status shows distinct messages for staging, integrating, errors, and completion
+[1.38.0] [user] [changed] - Completed imports now prompt you to remove the upload form
+[1.38.0] [admin] [changed] - ICEH data tables now support sorting and improved display
+[1.38.0] [admin] [changed] - Indicators list now shows numerator and denominator columns
+[1.38.0] [admin] [changed] - Only indicators with actual data rows are shown and imported
+[1.38.0] [admin] [changed] - Deleting all ICEH data now requires typing a confirmation phrase
+[1.38.0] [admin] [changed] - Import progress and status shown in a side panel with live updates
+[1.38.0] [admin] [changed] - Completed imports now prompt you to remove the upload form
+[1.38.0] [admin] [added] - Dedicated lightweight status polling endpoint for active imports
+[1.38.0] [admin] [fixed] - Duplicate indicators no longer appear in the indicators list
+[1.38.0] [user] [changed] - Updated arrow icon style on navigation buttons
+[1.38.0] [admin] [changed] - Dataset viewer tabs updated to use improved navigation style
+[1.38.0] [admin] [fixed] - Layout fix for dataset viewer frame structure
+[1.38.0] [user] [added] - New ICEH Equity Data section for importing and viewing equity datasets
+[1.38.0] [user] [added] - Import ICEH data from zip files downloaded from the ICEH Retriever
+[1.38.0] [user] [added] - View ICEH indicators, disaggregators, and data rows in organized tabs
+[1.38.0] [user] [added] - Progress tracking during ICEH data import with staging and integration steps
+[1.38.0] [user] [added] - Support for uploading zip files in the file upload area
+[1.38.0] [user] [fixed] - Calculated indicators now show a clear error if they reference missing data
+[1.38.0] [admin] [added] - New ICEH equity data source available for instances
+[1.38.0] [admin] [added] - Import ICEH data from zip files downloaded from equidade.org/retriever
+[1.38.0] [admin] [added] - View ICEH indicators, disaggregators, and data rows after import
+[1.38.0] [admin] [added] - Delete all ICEH data (global admins only)
+[1.38.0] [admin] [added] - Zip file uploads now supported in the asset manager
+[1.38.0] [admin] [changed] - Import warns if data country does not match instance country
+[1.38.0] [admin] [changed] - Re-importing ICEH data replaces all existing ICEH data
+[1.38.0] [admin] [fixed] - Projects now block adding data when calculated indicators reference missing indicators
+[1.38.0] [admin] [added] - AI usage limit hits are now tracked and logged
+[1.38.0] [admin] [added] - New endpoint to view when users hit AI usage limits
 [1.37.2] [user] [changed] - Missing indicators are now skipped instead of stopping your analysis
 [1.37.2] [admin] [added] - Calculated indicators can now skip missing data instead of failing
 [1.37.2] [admin] [changed] - Missing indicator columns log a warning instead of stopping the process when skip mode is enabled

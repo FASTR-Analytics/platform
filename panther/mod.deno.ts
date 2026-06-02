@@ -70,6 +70,8 @@ export * from "./_236_video/mod.ts";
 /////////////////////
 
 // @protocol README.md
-// @protocol PROTOCOL_TYPESCRIPT.md
-// @protocol PROTOCOL_STRUCTURE.md
-// @protocol PROTOCOL_API.md
+// @protocol PROTOCOL_ALL_TYPESCRIPT.md
+// @protocol PROTOCOL_ALL_STRUCTURE.md
+// @protocol PROTOCOL_ALL_SIZING.md
+// @protocol PROTOCOL_ALL_TRANSLATION.md
+// @protocol PROTOCOL_DENO_API.md

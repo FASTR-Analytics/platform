@@ -433,6 +433,11 @@ export type ItemsHolderPresentationObject = {
   resultsObjectId: string;
   fetchConfig: GenericLongFormFetchConfig;
   moduleLastRun: string;
+  // Freshness of the dataset(s) feeding this module's indicator metadata.
+  // indicatorMetadata is rewritten on dataset integration (which bumps
+  // datasets.last_updated) independently of moduleLastRun, so the cache must
+  // version on this too. Carried in the holder so parseData can reproduce it.
+  datasetsVersion: string;
   dateRange: PeriodBounds | undefined;
 } & (
   | {

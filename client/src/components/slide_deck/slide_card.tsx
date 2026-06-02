@@ -1,7 +1,8 @@
 import { t3, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs, _GLOBAL_CANVAS_PIXEL_WIDTH, showMenu, type MenuItem } from "panther";
+import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs, showMenu, type MenuItem } from "panther";
+import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
 import { projectState } from "~/state/project/t1_store";
 
@@ -43,7 +44,6 @@ export function SlideCard(p: Props) {
     setPageInputs(getQueryStateFromApiResponse(renderRes));
   });
 
-  const canvasH = Math.round((_GLOBAL_CANVAS_PIXEL_WIDTH * 9) / 16);
 
   function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
@@ -124,18 +124,18 @@ export function SlideCard(p: Props) {
         <Show when={pageInputs().status === "error"}>
           <PageHolder
             pageInputs={undefined}
-            fixedCanvasH={canvasH}
+            pageWidthDu={PAGE_WIDTH_DU}
+            pageHeightDu={PAGE_HEIGHT_DU}
             simpleError
             externalError={(pageInputs() as { err: string }).err}
-            scalePixelResolution={0.6}
           />
         </Show>
         <Show when={pageInputs().status === "ready"}>
           <PageHolder
             pageInputs={(pageInputs() as { data: PageInputs }).data}
-            fixedCanvasH={canvasH}
+            pageWidthDu={PAGE_WIDTH_DU}
+            pageHeightDu={PAGE_HEIGHT_DU}
             simpleError
-            scalePixelResolution={0.6}
           />
         </Show>
       </div>

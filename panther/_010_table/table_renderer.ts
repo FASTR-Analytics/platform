@@ -6,9 +6,10 @@
 import { measureTable } from "./_internal/measure_table.ts";
 import { renderTable } from "./_internal/render_table.ts";
 import {
+  computeFloorScale,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
-  findOptimalScaleForBounds,
+  findFitScaleWithFloor,
   type HeaderItem,
   type HeightConstraints,
   RectCoordsDims,
@@ -42,9 +43,13 @@ function getWidestWord(
 function getMinComfortableWidth(
   rc: RenderContext,
   item: TableInputs,
-  responsiveScale?: number,
+  fitScale?: number,
 ): number {
-  const customFigureStyle = new CustomFigureStyle(item.style, responsiveScale);
+  const customFigureStyle = new CustomFigureStyle(
+    item.style,
+    fitScale,
+    item.autofitSurrounds,
+  );
   const s = customFigureStyle.getMergedTableStyle();
   const d = getTableDataTransformed(item.tableData);
 
@@ -188,26 +193,33 @@ function measureWithAutofit(
   rc: RenderContext,
   bounds: RectCoordsDims,
   item: TableInputs,
-  responsiveScale?: number,
 ): MeasuredTable {
   const autofitOpts = resolveFigureAutofitOptions(item.autofit);
 
   if (!autofitOpts) {
-    return measureTable(rc, bounds, item, responsiveScale);
+    return measureTable(rc, bounds, item);
   }
 
-  // Find optimal scale for BOTH width and height
-  const optimalScale = findOptimalScaleForBounds(
+  // shrink-to-fit for BOTH width and height, with a legibility floor + cramped.
+  const baseFontSizeDu = new CustomFigureStyle(item.style).baseFontSize;
+  const { fitScale, cramped } = findFitScaleWithFloor(
     bounds.w(),
     bounds.h(),
-    autofitOpts,
+    {
+      minScale: autofitOpts.minScale,
+      maxScale: autofitOpts.maxScale,
+      baseFontSizeDu,
+      minFontSizeDu: autofitOpts.minFontSizeDu,
+    },
     (scale) => ({
       minWidth: getMinComfortableWidth(rc, item, scale),
       idealHeight: getIdealHeightAtScale(rc, bounds.w(), item, scale),
     }),
   );
 
-  return measureTable(rc, bounds, item, optimalScale);
+  const measured = measureTable(rc, bounds, item, fitScale);
+  measured.cramped = cramped;
+  return measured;
 }
 
 export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
@@ -248,9 +260,8 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: TableInputs,
-    responsiveScale?: number,
   ): MeasuredTable {
-    return measureWithAutofit(rc, bounds, item, responsiveScale);
+    return measureWithAutofit(rc, bounds, item);
   },
 
   //////////////////////////////////////////////////////////////////
@@ -274,9 +285,8 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     rc: RenderContext,
     bounds: RectCoordsDims,
     item: TableInputs,
-    responsiveScale?: number,
   ): void {
-    const measured = measureWithAutofit(rc, bounds, item, responsiveScale);
+    const measured = measureWithAutofit(rc, bounds, item);
     renderTable(rc, measured);
   },
 
@@ -300,15 +310,13 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     rc: RenderContext,
     width: number,
     item: TableInputs,
-    responsiveScale?: number,
   ): HeightConstraints {
     const autofitOpts = resolveFigureAutofitOptions(item.autofit);
 
-    const baseScale = responsiveScale ?? 1.0;
-    const idealH = getIdealHeightAtScale(rc, width, item, baseScale);
+    const idealH = getIdealHeightAtScale(rc, width, item, 1.0);
 
     // Width-based scaling for optimizer scoring
-    const minComfortableWidth = getMinComfortableWidth(rc, item, baseScale);
+    const minComfortableWidth = getMinComfortableWidth(rc, item, 1.0);
     const neededScalingToFitWidth = width >= minComfortableWidth
       ? 1.0
       : width / minComfortableWidth;
@@ -322,8 +330,14 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
       };
     }
 
-    // With autofit - minH is height at minimum scale
-    const minH = getIdealHeightAtScale(rc, width, item, autofitOpts.minScale);
+    // With autofit - minH is the height at the (floor-aware) minimum scale
+    const floorScale = computeFloorScale({
+      minScale: autofitOpts.minScale,
+      maxScale: autofitOpts.maxScale,
+      baseFontSizeDu: new CustomFigureStyle(item.style).baseFontSize,
+      minFontSizeDu: autofitOpts.minFontSizeDu,
+    });
+    const minH = getIdealHeightAtScale(rc, width, item, floorScale);
 
     return { minH, idealH, maxH: Infinity, neededScalingToFitWidth };
   },

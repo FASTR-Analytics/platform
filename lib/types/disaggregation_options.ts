@@ -22,6 +22,7 @@ export const ALL_DISAGGREGATION_OPTIONS = [
   "facility_custom_5",
   "hfa_indicator",
   "hfa_category",
+  "hfa_sub_category",
   "time_point",
   "iceh_indicator",
   "strat",

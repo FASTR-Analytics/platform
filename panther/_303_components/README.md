@@ -38,6 +38,8 @@ Display Panther visualizations in SolidJS apps.
 <Button intent="primary" onClick={handleClick}>Save</Button>
 <Input value={value()} onChange={setValue} />
 <Select options={options} value={selected()} onChange={setSelected} />
+<SelectList items={items} value={selected()} onChange={setSelected} />
+<ButtonGroup items={items} value={selected()} onChange={setSelected} />
 <Slider min={0} max={100} value={value()} onChange={setValue} />
 <Checkbox checked={checked()} onChange={setChecked} />
 <TextArea value={text()} onChange={setText} />
@@ -50,11 +52,16 @@ Complete form control library.
 ```typescript
 <FrameSide sidebar={<Sidebar />}>{mainContent}</FrameSide>
 <FrameTop header={<Header />}>{mainContent}</FrameTop>
-<Tabs tabs={tabs} activeTab={active()} onTabChange={setActive} />
+<TabsNavigation items={items} value={active()} onChange={setActive} vertical />
 <Stepper steps={steps} currentStep={current()} />
 ```
 
 Page layout and navigation components.
+
+`SelectList` / `TabsNavigation` / `ButtonGroup` share one `items`/`value`/
+`onChange` contract (swap = rename); `EditableList` adds add/delete/reorder; the
+optional `createSelectionController` helper backs multi-select card grids. See
+**[DOC_LIST_SELECTION.md](../../DOC_LIST_SELECTION.md)**.
 
 ### Icons (`icons/`)
 

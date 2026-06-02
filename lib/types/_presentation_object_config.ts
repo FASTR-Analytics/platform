@@ -31,7 +31,6 @@ export type CustomSeriesStyle = z.infer<typeof customSeriesStyleSchema>;
 // `conditionalFormatting` field).
 const presentationObjectConfigSStrict = z
   .object({
-    scale: z.number(),
     content: z.enum(["bars", "lines", "points", "lines-area", "lines-points"]),
     allowIndividualRowLimits: z.boolean(),
     colorScale: z.enum([

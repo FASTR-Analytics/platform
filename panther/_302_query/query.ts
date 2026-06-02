@@ -39,7 +39,7 @@ export type TimQuery<T> = {
  * reads inside queryFunc are NOT tracked, and the query does not re-run when
  * inputs change. For views that must react to changing inputs or server
  * updates, use createEffect + createSignal<StateHolder<T>> instead. See
- * PROTOCOL_STATE.md.
+ * PROTOCOL_UI_STATE.md.
  *
  * Use fetch()/silentFetch() to manually re-run. If you find yourself calling
  * these to "refresh after a mutation", the view is long-lived enough that it

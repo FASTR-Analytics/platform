@@ -252,7 +252,9 @@ export function getScriptWithParametersHfa(
 
   const indicatorMetadata = [
     `  hfa_indicator = c(${ordered.map((i) => `"${i.varName}"`).join(", ")})`,
-    `  hfa_category = c(${ordered.map((i) => `"${i.category}"`).join(", ")})`,
+    `  hfa_category = c(${ordered.map((i) => `"${i.categoryId ?? ""}"`).join(", ")})`,
+    `  hfa_sub_category = c(${ordered.map((i) => `"${i.subCategoryId ?? ""}"`).join(", ")})`,
+    `  hfa_short_label = c(${ordered.map((i) => `"${i.shortLabel.replace(/"/g, '\\"')}"`).join(", ")})`,
     `  ind_type = c(${ordered.map((i) => `"${i.type}"`).join(", ")})`,
     `  ind_aggregation = c(${ordered.map((i) => `"${i.aggregation}"`).join(", ")})`,
   ].join(",\n");

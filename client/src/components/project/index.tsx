@@ -7,7 +7,7 @@ import {
   TabsNavigation,
   getEditorWrapper,
   openComponent,
-  type Tabs,
+  type ListItem,
 } from "panther";
 import { FeedbackForm } from "~/components/instance/feedback_form";
 import {
@@ -24,7 +24,8 @@ import { projectState } from "~/state/project/t1_store";
 
 import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
-import { ProjectDashboards } from "../dashboards";
+import { ProjectReports } from "./project_reports";
+import { ProjectDashboards } from "./project_dashboards";
 import { ProjectMetrics } from "./project_metrics";
 import { ProjectModules } from "./project_modules";
 import { ProjectSettings } from "./project_settings";
@@ -63,6 +64,9 @@ function AIContextSync() {
       case "visualizations":
         setAIContext({ mode: "viewing_visualizations" });
         break;
+      case "reports":
+        setAIContext({ mode: "viewing_reports" });
+        break;
       case "decks":
         setAIContext({ mode: "viewing_slide_decks" });
         break;
@@ -87,9 +91,7 @@ function AIContextSync() {
 export default function Project(p: Props) {
   return (
     <ProjectSSEBoundary projectId={p.projectId}>
-      <ProjectInner
-        currentUserEmail={p.currentUserEmail}
-      />
+      <ProjectInner currentUserEmail={p.currentUserEmail} />
     </ProjectSSEBoundary>
   );
 }
@@ -123,91 +125,74 @@ function ProjectInner(p: { currentUserEmail: string }) {
     ),
   );
 
-  const allTabs = [
-    ...(projectState.thisUserPermissions.can_view_slide_decks
-      ? [
-          {
-            value: "decks" as const,
-            label: t3({ en: "Slide decks", fr: "Présentations" }),
-          },
-        ]
-      : []),
-    ...(projectState.thisUserPermissions.can_view_slide_decks
-      ? [
-          {
-            value: "dashboards" as const,
-            label: t3({ en: "Dashboards", fr: "Tableaux de bord" }),
-          },
-        ]
-      : []),
-    ...(projectState.thisUserPermissions.can_view_visualizations
-      ? [
-          {
-            value: "visualizations" as const,
-            label: t3({ en: "Visualizations", fr: "Visualisations" }),
-          },
-        ]
-      : []),
-    // ...(projectState.thisUserPermissions.can_view_metrics
-    //   ? [{ value: "metrics" as const, label: t3({ en: "Metrics", fr: "Indicateurs" }) }]
-    //   : []),
-    ...(projectState.thisUserPermissions.can_configure_modules ||
-    projectState.thisUserPermissions.can_run_modules ||
-    projectState.thisUserPermissions.can_view_script_code
-      ? [
-          {
-            value: "modules" as const,
-            label: t3({ en: "Modules", fr: "Modules" }),
-          },
-        ]
-      : []),
-    ...(projectState.thisUserPermissions.can_view_data
-      ? [
-          {
-            value: "data" as const,
-            label: t3({ en: "Data", fr: "Données" }),
-          },
-        ]
-      : []),
-    ...(projectState.thisUserPermissions.can_configure_settings
-      ? [
-          {
-            value: "settings" as const,
-            label: t3(TC.settings),
-          },
-        ]
-      : []),
-    ...(_DEV_USERS.includes(p.currentUserEmail)
-      ? [
-          {
-            value: "cache" as const,
-            label: t3({ en: "Cache", fr: "Cache" }),
-          },
-        ]
-      : []),
-  ];
-
-  const tabIcons = {
-    decks: "sparkles" as const,
-    dashboards: "box" as const,
-    reports: "report" as const,
-    visualizations: "chart" as const,
-    metrics: "badge" as const,
-    modules: "code" as const,
-    data: "database" as const,
-    settings: "settings" as const,
-    cache: "database" as const,
-  };
-
-  const tabs: Tabs = {
-    currentTab: projectTab,
-    setCurrentTab: (tab) => {
-      const newTab = typeof tab === "function" ? tab(projectTab()) : tab;
-      updateProjectView({ tab: newTab as TabOption });
-    },
-    tabs: allTabs,
-    isTabActive: (tab) => projectTab() === tab,
-    getAllTabs: () => allTabs.map((t) => t.value),
+  const tabItems = (): ListItem<TabOption>[] => {
+    const perms = projectState.thisUserPermissions;
+    const items: ListItem<TabOption>[] = [];
+    if (perms.can_view_reports) {
+      items.push({
+        id: "reports",
+        label: t3({ en: "Reports", fr: "Rapports" }),
+        iconName: "report",
+      });
+    }
+    if (perms.can_view_slide_decks) {
+      items.push({
+        id: "decks",
+        label: t3({ en: "Slide decks", fr: "Présentations" }),
+        iconName: "sparkles",
+      });
+      items.push({
+        id: "dashboards",
+        label: t3({ en: "Dashboards", fr: "Tableaux de bord" }),
+        iconName: "box",
+      });
+    }
+    if (perms.can_view_visualizations) {
+      items.push({
+        id: "visualizations",
+        label: t3({ en: "Visualizations", fr: "Visualisations" }),
+        iconName: "chart",
+      });
+    }
+    if (
+      perms.can_configure_modules ||
+      perms.can_run_modules ||
+      perms.can_view_script_code
+    ) {
+      items.push({
+        id: "modules",
+        label: t3({ en: "Modules", fr: "Modules" }),
+        iconName: "code",
+        dot: modulesHaveError()
+          ? "danger"
+          : modulesNeedUpdate()
+            ? "warning"
+            : undefined,
+      });
+    }
+    if (perms.can_view_data) {
+      items.push({
+        id: "data",
+        label: t3({ en: "Data", fr: "Données" }),
+        iconName: "database",
+        dot: dataNeedsUpdate() ? "warning" : undefined,
+      });
+    }
+    if (perms.can_configure_settings) {
+      items.push({
+        id: "settings",
+        label: t3(TC.settings),
+        iconName: "settings",
+      });
+    }
+    if (_DEV_USERS.includes(p.currentUserEmail)) {
+      items.push({
+        id: "cache",
+        label: t3({ en: "Cache", fr: "Cache" }),
+        iconName: "database",
+      });
+    }
+    return items;
   };
 
   return (
@@ -215,7 +200,7 @@ function ProjectInner(p: { currentUserEmail: string }) {
       <AIContextSync />
       <ProjectEditorWrapper>
         <Show
-          when={allTabs.length > 0}
+          when={tabItems().length > 0}
           fallback={
             <div class="ui-pad text-danger">
               {t3({
@@ -269,20 +254,13 @@ function ProjectInner(p: { currentUserEmail: string }) {
               panelChildren={
                 <div class="h-full border-r">
                   <TabsNavigation
-                    tabs={tabs}
+                    items={tabItems()}
+                    value={projectTab()}
+                    onChange={(tab) => updateProjectView({ tab })}
                     vertical
                     collapsible
                     collapsed={navCollapsed()}
                     onCollapsedChange={setNavCollapsed}
-                    icons={tabIcons}
-                    dots={{
-                      ...(dataNeedsUpdate() && { data: "warning" as const }),
-                      ...(modulesHaveError()
-                        ? { modules: "danger" as const }
-                        : modulesNeedUpdate() && {
-                            modules: "warning" as const,
-                          }),
-                    }}
                   />
                 </div>
               }
@@ -290,13 +268,19 @@ function ProjectInner(p: { currentUserEmail: string }) {
               <Switch>
                 <Match
                   when={
+                    projectTab() === "reports" &&
+                    projectState.thisUserPermissions.can_view_reports
+                  }
+                >
+                  <ProjectReports openProjectEditor={openProjectEditor} />
+                </Match>
+                <Match
+                  when={
                     projectTab() === "decks" &&
                     projectState.thisUserPermissions.can_view_slide_decks
                   }
                 >
-                  <ProjectDecks
-                    openProjectEditor={openProjectEditor}
-                  />
+                  <ProjectDecks openProjectEditor={openProjectEditor} />
                 </Match>
                 <Match
                   when={
@@ -304,9 +288,7 @@ function ProjectInner(p: { currentUserEmail: string }) {
                     projectState.thisUserPermissions.can_view_slide_decks
                   }
                 >
-                  <ProjectDashboards
-                    openProjectEditor={openProjectEditor}
-                  />
+                  <ProjectDashboards openProjectEditor={openProjectEditor} />
                 </Match>
                 <Match
                   when={
@@ -324,9 +306,7 @@ function ProjectInner(p: { currentUserEmail: string }) {
                     projectState.thisUserPermissions.can_view_metrics
                   }
                 >
-                  <ProjectMetrics
-                    openProjectEditor={openProjectEditor}
-                  />
+                  <ProjectMetrics openProjectEditor={openProjectEditor} />
                 </Match>
                 <Match
                   when={
@@ -362,11 +342,14 @@ function ProjectInner(p: { currentUserEmail: string }) {
                     projectState.thisUserPermissions.can_configure_settings
                   }
                 >
-                  <ProjectSettings
-                    backToHome={() => navigate("/")}
-                  />
+                  <ProjectSettings backToHome={() => navigate("/")} />
                 </Match>
-                <Match when={projectTab() === "cache" && instanceState.currentUserIsGlobalAdmin}>
+                <Match
+                  when={
+                    projectTab() === "cache" &&
+                    instanceState.currentUserIsGlobalAdmin
+                  }
+                >
                   <ProjectCache />
                 </Match>
               </Switch>

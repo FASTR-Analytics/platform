@@ -169,7 +169,6 @@ const configDGithubStrict = z
 // configSStrict in _module_definition_installed.ts in lockstep.
 const configSGithubStrict = z
   .object({
-    scale: z.number(),
     content: z.enum(["bars", "lines", "points", "lines-area", "lines-points"]),
     allowIndividualRowLimits: z.boolean(),
     colorScale: z.enum([

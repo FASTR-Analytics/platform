@@ -1,6 +1,7 @@
 import { createSignal } from "solid-js";
 import type {
   ModuleLatestCommit,
+  ReportGroupingMode,
   SlideDeckGroupingMode,
   VisualizationGroupingMode,
 } from "lib";
@@ -111,6 +112,33 @@ export function setDeckSelectedGroup(group: string | null) {
   setDeckSelectedGroupInternal(group);
 }
 
+// Report grouping/filtering
+const storedReportGroupingMode = localStorage.getItem(
+  "reportGroupingMode",
+) as ReportGroupingMode | null;
+
+export const [reportGroupingMode, setReportGroupingModeInternal] =
+  createSignal<ReportGroupingMode>(storedReportGroupingMode ?? "folders");
+
+export function setReportGroupingMode(mode: ReportGroupingMode) {
+  localStorage.setItem("reportGroupingMode", mode);
+  setReportGroupingModeInternal(mode);
+}
+
+const storedReportSelectedGroup = localStorage.getItem("reportSelectedGroup");
+
+export const [reportSelectedGroup, setReportSelectedGroupInternal] =
+  createSignal<string | null>(storedReportSelectedGroup);
+
+export function setReportSelectedGroup(group: string | null) {
+  if (group === null) {
+    localStorage.removeItem("reportSelectedGroup");
+  } else {
+    localStorage.setItem("reportSelectedGroup", group);
+  }
+  setReportSelectedGroupInternal(group);
+}
+
 // Consolidated updater for project view state
 export type ProjectViewStateUpdates = {
   tab?: TabOption;
@@ -119,6 +147,8 @@ export type ProjectViewStateUpdates = {
   hideUnreadyVisualizations?: boolean;
   deckGroupingMode?: SlideDeckGroupingMode;
   deckSelectedGroup?: string | null;
+  reportGroupingMode?: ReportGroupingMode;
+  reportSelectedGroup?: string | null;
   fitWithin?: "fit-within" | "fit-width";
   showAi?: boolean;
   headerOrContent?: "slideHeader" | "content";
@@ -144,6 +174,12 @@ export function updateProjectView(updates: ProjectViewStateUpdates) {
   }
   if (updates.deckSelectedGroup !== undefined) {
     setDeckSelectedGroup(updates.deckSelectedGroup);
+  }
+  if (updates.reportGroupingMode !== undefined) {
+    setReportGroupingMode(updates.reportGroupingMode);
+  }
+  if (updates.reportSelectedGroup !== undefined) {
+    setReportSelectedGroup(updates.reportSelectedGroup);
   }
   if (updates.fitWithin !== undefined) {
     setFitWithin(updates.fitWithin);

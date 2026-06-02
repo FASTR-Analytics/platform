@@ -22,7 +22,7 @@ export function getValidNumberOrThrowError(val: unknown): number {
     throw new Error("Cannot read cell as number. Cell is an empty string.");
   }
   const num = Number(val);
-  if (isNaN(num)) {
+  if (!Number.isFinite(num)) {
     throw new Error("Cannot read cell as number. Cell is NaN. " + val);
   }
   return num;
@@ -33,7 +33,7 @@ export function getValidNumberOrZero(val: string | number): number {
     return 0;
   }
   const num = Number(val);
-  if (isNaN(num)) {
+  if (!Number.isFinite(num)) {
     return 0;
   }
   return num;
@@ -50,7 +50,7 @@ export function getValidNumberOrUndefined(val: unknown): number | undefined {
     return undefined;
   }
   const num = Number(val);
-  if (isNaN(num)) {
+  if (!Number.isFinite(num)) {
     return undefined;
   }
   return num;

@@ -1,12 +1,12 @@
 import { ICEH_STRATS, ICEH_STRAT_INFO, t3, type IcehDataDetail } from "lib";
 import {
   FrameTop,
-  getTabs,
+  type ListItem,
   StateHolderWrapper,
   TabsNavigation,
   timQuery,
 } from "panther";
-import { createMemo, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { DataTab } from "./_data_tab";
 import { StratifiersTab } from "./_stratifiers_tab";
@@ -18,17 +18,20 @@ export function DatasetItemsHolder(p: { detail: IcehDataDetail }) {
     t3({ en: "Loading...", fr: "Chargement..." }),
   );
 
-  const tabs = getTabs([
-    { value: "data", label: t3({ en: "Data", fr: "Données" }) },
+  const [tab, setTab] = createSignal<"data" | "indicators" | "stratifiers">(
+    "data",
+  );
+  const tabItems: ListItem<"data" | "indicators" | "stratifiers">[] = [
+    { id: "data", label: t3({ en: "Data", fr: "Données" }) },
     {
-      value: "indicators",
+      id: "indicators",
       label: t3({ en: "Indicators", fr: "Indicateurs" }),
     },
     {
-      value: "stratifiers",
+      id: "stratifiers",
       label: t3({ en: "Stratifiers", fr: "Stratificateurs" }),
     },
-  ]);
+  ];
 
   return (
     <StateHolderWrapper state={displayData.state()}>
@@ -47,14 +50,14 @@ export function DatasetItemsHolder(p: { detail: IcehDataDetail }) {
         });
 
         return (
-          <FrameTop panelChildren={<TabsNavigation tabs={tabs} />}>
-            <Show when={tabs.isTabActive("data")}>
+          <FrameTop panelChildren={<TabsNavigation items={tabItems} value={tab()} onChange={setTab} />}>
+            <Show when={tab() === ("data")}>
               <DataTab dataRows={data.dataRows} />
             </Show>
-            <Show when={tabs.isTabActive("indicators")}>
+            <Show when={tab() === ("indicators")}>
               <IndicatorsTab indicators={data.indicators} />
             </Show>
-            <Show when={tabs.isTabActive("stratifiers")}>
+            <Show when={tab() === ("stratifiers")}>
               <StratifiersTab strats={stratsInData()} />
             </Show>
           </FrameTop>

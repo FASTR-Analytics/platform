@@ -24,6 +24,8 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   visualizationFolders: [],
   slideDecks: [],
   slideDeckFolders: [],
+  reports: [],
+  reportFolders: [],
   dashboards: [],
   projectUsers: [],
   thisUserPermissions: structuredClone(_PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS),
@@ -40,6 +42,7 @@ const EMPTY_PROJECT_STATE: ProjectState = {
     presentation_objects: {},
     slide_decks: {},
     slides: {},
+    reports: {},
   },
 };
 
@@ -121,6 +124,14 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       setProjectState("slideDeckFolders", reconcile(msg.data.slideDeckFolders));
       break;
 
+    case "reports_updated":
+      setProjectState("reports", reconcile(msg.data.reports));
+      break;
+
+    case "report_folders_updated":
+      setProjectState("reportFolders", reconcile(msg.data.reportFolders));
+      break;
+
     case "dashboards_updated":
       setProjectState("dashboards", reconcile(msg.data.dashboards));
       break;
@@ -173,6 +184,18 @@ export function getModuleIdForResultsObject(resultsObjectId: string): string {
 
 export function getFormatAsForMetric(metricId: string): "percent" | "number" {
   return metricToFormatAs[metricId] ?? "number";
+}
+
+// Version-key fragment for caches whose value embeds indicator metadata (PO
+// items, metric info, replicant options). indicatorMetadata is rewritten on
+// dataset integration (bumps lastUpdated.datasets) independently of
+// moduleLastRun, so those caches must version on it too. Mirrors the server
+// Valkey version hash (datasets sorted by type, `type:last_updated`).
+export function datasetsVersionKey(pds: ProjectState): string {
+  return Object.keys(pds.lastUpdated.datasets)
+    .sort()
+    .map((dt) => `${dt}:${pds.lastUpdated.datasets[dt]}`)
+    .join(",");
 }
 
 export { projectState };

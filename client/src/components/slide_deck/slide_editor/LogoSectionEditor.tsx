@@ -1,8 +1,8 @@
-import type { LogoSectionConfig } from "lib";
+import type { LogoSectionConfig, LogoSizeKey } from "lib";
 import { t3 } from "lib";
 import { Checkbox, Select } from "panther";
 import { Show } from "solid-js";
-import { LogoSelector } from "./LogoSelector.tsx";
+import { LogoSelector } from "~/components/_shared/logo_selector";
 
 type Props = {
   title: string;
@@ -24,50 +24,6 @@ const GAP_OPTIONS = [
   { value: "lg", label: "L" },
   { value: "xl", label: "XL" },
 ];
-
-const SIZE_VALUES: Record<string, number> = {
-  sm: 40000,
-  md: 80000,
-  lg: 160000,
-  xl: 320000,
-};
-
-const GAP_VALUES: Record<string, number> = {
-  sm: 20,
-  md: 60,
-  lg: 100,
-  xl: 150,
-};
-
-function getSizeKey(targetArea: number | undefined): string {
-  if (!targetArea) return "md";
-  const entries = Object.entries(SIZE_VALUES);
-  let closest = "md";
-  let minDiff = Infinity;
-  for (const [key, val] of entries) {
-    const diff = Math.abs(val - targetArea);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closest = key;
-    }
-  }
-  return closest;
-}
-
-function getGapKey(gapX: number | undefined): string {
-  if (!gapX) return "md";
-  const entries = Object.entries(GAP_VALUES);
-  let closest = "md";
-  let minDiff = Infinity;
-  for (const [key, val] of entries) {
-    const diff = Math.abs(val - gapX);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closest = key;
-    }
-  }
-  return closest;
-}
 
 export function LogoSectionEditor(p: Props) {
   const hasLogos = () => p.config.selected.length > 0;
@@ -91,11 +47,11 @@ export function LogoSectionEditor(p: Props) {
             <Select
               label={t3({ en: "Size", fr: "Taille" })}
               options={SIZE_OPTIONS}
-              value={getSizeKey(p.config.sizing?.targetArea)}
+              value={p.config.sizing?.size ?? "md"}
               onChange={(v) =>
                 p.onChange({
                   ...p.config,
-                  sizing: { ...p.config.sizing, targetArea: SIZE_VALUES[v] },
+                  sizing: { ...p.config.sizing, size: v as LogoSizeKey },
                 })
               }
             />
@@ -103,11 +59,11 @@ export function LogoSectionEditor(p: Props) {
               <Select
                 label={t3({ en: "Spacing", fr: "Espacement" })}
                 options={GAP_OPTIONS}
-                value={getGapKey(p.config.sizing?.gapX)}
+                value={p.config.sizing?.spacing ?? "md"}
                 onChange={(v) =>
                   p.onChange({
                     ...p.config,
-                    sizing: { ...p.config.sizing, gapX: GAP_VALUES[v] },
+                    sizing: { ...p.config.sizing, spacing: v as LogoSizeKey },
                   })
                 }
               />

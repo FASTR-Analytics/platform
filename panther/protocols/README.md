@@ -13,7 +13,18 @@ consumer apps and serve as the authoritative source for AI and human developers.
 
 ## Naming
 
-Files are named `PROTOCOL_*.md` to distinguish from:
+Files are named `PROTOCOL_<SCOPE>_*.md`, where `<SCOPE>` is the audience:
+
+- `PROTOCOL_UI_*` — frontend only (scope: UI)
+- `PROTOCOL_DENO_*` — backend only (scope: Deno)
+- `PROTOCOL_ALL_*` — universal (scope: All)
+
+The prefix matches the in-file `**Scope:**` header and the `@protocol` list the
+file appears in (UI → `mod.ui.ts`, Deno → `mod.deno.ts`, All → both). To point a
+tool or person at the frontend rules, glob `PROTOCOL_UI_*` plus the
+`PROTOCOL_ALL_*` files (which always apply).
+
+Distinguish from:
 
 - `DOC_*.md` — Panther library internals (how panther works)
 - `PLAN_*.md` — Temporary implementation plans
@@ -28,7 +39,7 @@ Each protocol declares its scope:
 |-------|-----------|--------------|
 | **UI** | `mode: "ui"` or `mode: "both"` | Building SolidJS frontends |
 | **Deno** | `mode: "deno"` or `mode: "both"` | Building Deno servers/scripts |
-| **All** | All modes | Universal TypeScript conventions |
+| **All** | All modes | Universal conventions (TypeScript, structure, sizing, translation) |
 
 Scope is declared in the protocol header and determines which consumer apps
 receive it during sync.
@@ -37,12 +48,16 @@ receive it during sync.
 
 | Protocol | Scope | Content |
 |----------|-------|---------|
-| `PROTOCOL_TYPESCRIPT.md` | All | Coding conventions, function style, types, error handling |
-| `PROTOCOL_SOLIDJS.md` | UI | Reactivity rules, component patterns, control flow |
-| `PROTOCOL_STATE.md` | UI | timQuery, timAction*, StateHolderWrapper patterns |
-| `PROTOCOL_STYLING.md` | UI | Tailwind theme, semantic colors, ui-* utilities |
-| `PROTOCOL_API.md` | Deno | Hono patterns, route structure, validation |
-| `PROTOCOL_STRUCTURE.md` | All | File organization, imports, panther integration |
+| `PROTOCOL_ALL_TYPESCRIPT.md` | All | Coding conventions, function style, types, error handling |
+| `PROTOCOL_ALL_STRUCTURE.md` | All | File organization, imports, panther integration |
+| `PROTOCOL_ALL_SIZING.md` | All | Figure/page sizing: DUs, resolution, shrink-to-fit |
+| `PROTOCOL_ALL_TRANSLATION.md` | All | TranslatableString, t3/resolveTS, language handling |
+| `PROTOCOL_UI_SOLIDJS.md` | UI | Reactivity rules, component declaration, control flow |
+| `PROTOCOL_UI_STATE.md` | UI | timQuery, timAction*, StateHolderWrapper patterns |
+| `PROTOCOL_UI_STYLING.md` | UI | Tailwind theme, semantic colors, ui-* utilities |
+| `PROTOCOL_UI_COMPONENTS.md` | UI | Using the panther component library |
+| `PROTOCOL_UI_STRUCTURE.md` | UI | Client file organization: components mirror UI, `_shared/`, co-location |
+| `PROTOCOL_DENO_API.md` | Deno | Hono patterns, route structure, validation |
 
 ## Protocol Structure
 
@@ -137,7 +152,7 @@ If a rule belongs in one protocol, don't repeat it in another. Cross-reference
 instead:
 
 ```markdown
-See PROTOCOL_TYPESCRIPT.md for function declaration rules.
+See PROTOCOL_ALL_TYPESCRIPT.md for function declaration rules.
 ```
 
 ## Sync Integration
@@ -146,16 +161,21 @@ The sync CLI (`cli/copy.ts`) copies protocols to consumer apps based on mode:
 
 ```
 protocols/
-├── PROTOCOL_TYPESCRIPT.md   → All modes
-├── PROTOCOL_STRUCTURE.md    → All modes
-├── PROTOCOL_SOLIDJS.md      → UI, Both
-├── PROTOCOL_STATE.md        → UI, Both
-├── PROTOCOL_STYLING.md      → UI, Both
-└── PROTOCOL_API.md          → Deno, Both
+├── PROTOCOL_ALL_TYPESCRIPT.md    → All modes
+├── PROTOCOL_ALL_STRUCTURE.md     → All modes
+├── PROTOCOL_ALL_SIZING.md        → All modes
+├── PROTOCOL_ALL_TRANSLATION.md   → All modes
+├── PROTOCOL_UI_SOLIDJS.md        → UI, Both
+├── PROTOCOL_UI_STATE.md          → UI, Both
+├── PROTOCOL_UI_STYLING.md        → UI, Both
+├── PROTOCOL_UI_COMPONENTS.md     → UI, Both
+├── PROTOCOL_UI_STRUCTURE.md      → UI, Both
+└── PROTOCOL_DENO_API.md          → Deno, Both
 ```
 
 Protocols land in `panther/protocols/` in consumer apps, alongside the module
-code.
+code. The authoritative per-mode list is the `@protocol` comments in
+`modules/mod.ui.ts` and `modules/mod.deno.ts`.
 
 ## Consumer App Integration
 
@@ -169,10 +189,8 @@ rather than duplicating rules:
 
 This project follows panther protocols. See `panther/protocols/`:
 
-- PROTOCOL_TYPESCRIPT.md — Coding conventions
-- PROTOCOL_SOLIDJS.md — Component and reactivity patterns
-- PROTOCOL_STATE.md — State management
-- PROTOCOL_STYLING.md — Tailwind and styling
+- PROTOCOL_ALL_*.md — Universal conventions (TypeScript, structure, sizing, translation)
+- PROTOCOL_UI_*.md — Frontend: SolidJS, state, styling, components
 
 ## App-Specific
 
@@ -185,8 +203,8 @@ This eliminates duplication and ensures a single source of truth.
 
 | Document | Location | Purpose | Protocols replace? |
 |----------|----------|---------|-------------------|
-| `DOC_CODING_CONVENTIONS.md` | panther root | TypeScript style | Yes → `PROTOCOL_TYPESCRIPT.md` |
-| `FRONTEND_STYLE_GUIDE.md` | modules/ | SolidJS patterns | Yes → `PROTOCOL_SOLIDJS.md` + `PROTOCOL_STATE.md` |
+| `DOC_CODING_CONVENTIONS.md` | panther root | TypeScript style (long-form) | Summarized by `PROTOCOL_ALL_TYPESCRIPT.md` |
+| `FRONTEND_STYLE_GUIDE.md` | (removed) | SolidJS patterns | Replaced by `PROTOCOL_UI_*` |
 | `DOC_*.md` (panther) | panther root | Library internals | No — different purpose |
 | `DOC_*.md` (apps) | app roots | App-specific systems | No — app-specific |
 | `CLAUDE.md` (apps) | app roots | Architecture + conventions | Partially — remove duplicated rules |

@@ -18,8 +18,6 @@ import type {
 } from "./types.ts";
 
 const _DS = {
-  scale: 1,
-
   cover: {
     padding: [200, 300] as PaddingOptions,
     background: { key: "base300" } as PageBackgroundStyle,
@@ -63,7 +61,7 @@ const _DS = {
       background: "none",
     } as SplitConfig,
     header: {
-      padding: [40, 60] as PaddingOptions,
+      padding: [10, 15] as PaddingOptions,
       logosSizing: {
         targetArea: 90000,
         maxHeight: 10000,

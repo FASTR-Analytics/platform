@@ -6,54 +6,72 @@
 import {
   type Canvas,
   CustomPageStyle,
+  getExportDevicePxPerDu,
   type PageInputs,
   PageRenderer,
+  RectCoordsDims,
 } from "./deps.ts";
 import { registerFontWithSkiaIfNeeded } from "./register_font.ts";
 import { createCanvasRenderContext, writeCanvas } from "./utils.ts";
 
+// Slide export sizing. A slide renders the page's fixed DU frame
+// (pageWidthDu × pageHeightDu) — the same frame the on-screen PageHolder and the
+// pdf/pptx exports use. `outputWidthPx` is the file's pixel width (the
+// supersample); the pixel height follows the frame aspect.
+export type SlideExportSizeOptions = {
+  outputWidthPx: number;
+  pageWidthDu: number;
+  pageHeightDu: number;
+};
+
 export async function writeSlide(
   filePath: string,
   inputs: PageInputs,
-  w: number,
-  h: number | undefined,
+  opts: SlideExportSizeOptions,
 ): Promise<void> {
-  // Validate inputs
   if (!inputs) {
     throw new Error("Slide inputs are required");
   }
 
-  const canvas = await getSlideAsCanvas(inputs, w, h);
+  const canvas = await getSlideAsCanvas(
+    inputs,
+    opts.outputWidthPx,
+    opts.pageWidthDu,
+    opts.pageHeightDu,
+  );
   writeCanvas(filePath, canvas);
 }
 
 export async function writeSlides(
   dirPath: string,
   inputs: PageInputs[],
-  w: number,
-  h: number,
+  opts: SlideExportSizeOptions,
 ): Promise<void> {
-  // Validate inputs
   if (!inputs) {
     throw new Error("Slide inputs are required");
   }
 
-  // Determine padding based on total number of slides
   const padLength = inputs.length > 99 ? 3 : 2;
 
-  // Write each slide
   for (let i = 0; i < inputs.length; i++) {
     const slideNumber = String(i + 1).padStart(padLength, "0");
     const filePath = `${dirPath}/slide_${slideNumber}.png`;
-    const canvas = await getSlideAsCanvas(inputs[i], w, h, i + 1);
+    const canvas = await getSlideAsCanvas(
+      inputs[i],
+      opts.outputWidthPx,
+      opts.pageWidthDu,
+      opts.pageHeightDu,
+      i + 1,
+    );
     writeCanvas(filePath, canvas);
   }
 }
 
 async function getSlideAsCanvas(
   inputs: PageInputs,
-  w: number,
-  h: number | undefined,
+  outputWidthPx: number,
+  pageWidthDu: number,
+  pageHeightDu: number,
   slideNumber?: number,
 ): Promise<Canvas> {
   // Register fonts
@@ -62,16 +80,17 @@ async function getSlideAsCanvas(
     await registerFontWithSkiaIfNeeded(font);
   }
 
-  let finalH: number;
+  // Pages are always zoom: lay out in the fixed (pageWidthDu × pageHeightDu)
+  // frame. outputWidthPx is the supersample; the backing height follows aspect.
+  const devicePxPerDu = getExportDevicePxPerDu(outputWidthPx, pageWidthDu);
+  const backingW = Math.round(pageWidthDu * devicePxPerDu); // === outputWidthPx
+  const backingH = Math.round(pageHeightDu * devicePxPerDu);
 
-  if (h === undefined) {
-    const { rc } = await createCanvasRenderContext(w, 100);
-    finalH = PageRenderer.getIdealHeight(rc, w, inputs).idealH;
-  } else {
-    finalH = h;
-  }
+  const { canvas, rc } = createCanvasRenderContext(backingW, backingH);
+  const ctx = canvas.getContext("2d")!;
+  ctx.setTransform(devicePxPerDu, 0, 0, devicePxPerDu, 0, 0);
+  const rcd = new RectCoordsDims([0, 0, pageWidthDu, pageHeightDu]);
 
-  const { canvas, rc, rcd } = await createCanvasRenderContext(w, finalH);
   const mSlide = await PageRenderer.measure(rc, rcd, inputs);
 
   // Check for overflow

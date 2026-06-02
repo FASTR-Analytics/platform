@@ -111,9 +111,9 @@ export class Color {
     }
     if (opts instanceof Array) {
       assert(opts.length === 3 || opts.length === 4, "Bad array for color");
-      this._r = opts[0];
-      this._g = opts[1];
-      this._b = opts[2];
+      this._r = clamp(Math.round(opts[0]), 0, 255);
+      this._g = clamp(Math.round(opts[1]), 0, 255);
+      this._b = clamp(Math.round(opts[2]), 0, 255);
       this._a = opts[3] ?? 1;
       this.validate();
       return;
@@ -128,9 +128,9 @@ export class Color {
       return;
     }
     if (Color.isRgb(opts)) {
-      this._r = opts.r;
-      this._g = opts.g;
-      this._b = opts.b;
+      this._r = clamp(Math.round(opts.r), 0, 255);
+      this._g = clamp(Math.round(opts.g), 0, 255);
+      this._b = clamp(Math.round(opts.b), 0, 255);
       this._a = (opts as ColorRgba).a ?? 1;
       this.validate();
       return;
@@ -204,9 +204,9 @@ export class Color {
   }
 
   MUTATE_setRgb(rgb: ColorRgb): void {
-    this._r = rgb.r;
-    this._g = rgb.g;
-    this._b = rgb.b;
+    this._r = clamp(Math.round(rgb.r), 0, 255);
+    this._g = clamp(Math.round(rgb.g), 0, 255);
+    this._b = clamp(Math.round(rgb.b), 0, 255);
   }
 
   MUTATE_opacity(opacity: number): void {
@@ -483,6 +483,9 @@ export class Color {
         "Cannot use scaleContinuous with a qualitative palette. Use scaleDiscrete instead.",
       );
     }
+    if (stops.length === 1) {
+      return stops[0];
+    }
     const lo = min ?? 0;
     const hi = max ?? 1;
     const t = lo === hi ? 0.5 : normalizeTo01(val, lo, hi);
@@ -506,6 +509,9 @@ export class Color {
     const i = clamp(index, 0, n !== undefined ? n - 1 : stops.length - 1);
     if (category === "qualitative") {
       return stops[i % stops.length];
+    }
+    if (stops.length === 1) {
+      return stops[0];
     }
     const count = n ?? stops.length;
     const t = count > 1 ? i / (count - 1) : 0.5;

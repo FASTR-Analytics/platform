@@ -151,7 +151,7 @@ export function generateXTextAxisPrimitive(
       strokeWidth: sg.gridStrokeWidth,
       lineDash: "solid",
     },
-    zIndex: (Z_INDEX as any).AXIS,
+    zIndex: Z_INDEX.AXIS,
   };
 }
 
@@ -388,7 +388,7 @@ export function generateXPeriodAxisPrimitive(
       strokeWidth: sg.gridStrokeWidth,
       lineDash: "solid",
     },
-    zIndex: (Z_INDEX as any).AXIS,
+    zIndex: Z_INDEX.AXIS,
   };
 }
 
@@ -509,7 +509,7 @@ export function generateYScaleAxisPrimitive(
       lineDash: "solid",
     },
     axisLabel,
-    zIndex: (Z_INDEX as any).AXIS,
+    zIndex: Z_INDEX.AXIS,
   };
 }
 
@@ -620,7 +620,7 @@ export function generateXScaleAxisPrimitive(
       lineDash: "solid",
     },
     axisLabel,
-    zIndex: (Z_INDEX as any).AXIS,
+    zIndex: Z_INDEX.AXIS,
   };
 }
 
@@ -740,6 +740,6 @@ export function generateYTextAxisPrimitive(
       strokeWidth: sg.gridStrokeWidth,
       lineDash: "solid",
     },
-    zIndex: (Z_INDEX as any).AXIS,
+    zIndex: Z_INDEX.AXIS,
   };
 }

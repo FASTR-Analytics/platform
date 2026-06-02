@@ -11,7 +11,7 @@ type Props = {
 export function SlideEditorPanelSection(p: Props) {
   return (
     <div class="ui-pad ui-spy">
-      <div class="">
+      <div class="ui-spy-sm">
         <TextArea
           label={t3({ en: "Section Title", fr: "Titre de section" })}
           value={p.tempSlide.sectionTitle}
@@ -38,7 +38,7 @@ export function SlideEditorPanelSection(p: Props) {
           />
         </div>
       </div>
-      <div class="">
+      <div class="ui-spy-sm">
         <TextArea
           label={t3({ en: "Section Subtitle", fr: "Sous-titre de section" })}
           value={p.tempSlide.sectionSubtitle ?? ""}
@@ -51,7 +51,9 @@ export function SlideEditorPanelSection(p: Props) {
         <div class="flex w-full justify-end">
           <TextStylePopover
             size={p.tempSlide.smallerSectionTextRelFontSize ?? 5}
-            onSizeChange={(v) => p.setTempSlide("smallerSectionTextRelFontSize", v)}
+            onSizeChange={(v) =>
+              p.setTempSlide("smallerSectionTextRelFontSize", v)
+            }
             bold={p.tempSlide.sectionSubTitleBold ?? false}
             onBoldChange={(v) => p.setTempSlide("sectionSubTitleBold", v)}
             italic={p.tempSlide.sectionSubTitleItalic ?? false}

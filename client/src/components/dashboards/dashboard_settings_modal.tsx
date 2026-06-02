@@ -1,21 +1,29 @@
 import {
   DASHBOARD_SLUG_MAX_LENGTH,
   DASHBOARD_SLUG_MIN_LENGTH,
+  DashboardConfig,
   DashboardLayout,
+  getStartingDashboardConfig,
   isValidDashboardSlug,
   t3,
 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
+  Button,
   Checkbox,
   Input,
   Select,
+  TextArea,
+  getSelectOptions,
   openConfirm,
   timActionForm,
 } from "panther";
-import { createSignal } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
+import { createStore, unwrap } from "solid-js/store";
+import { instanceState } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
+import { LogoSelector } from "../_shared/logo_selector";
 
 type Props = {
   projectId: string;
@@ -24,9 +32,17 @@ type Props = {
   initialSlug: string;
   initialIsPublic: boolean;
   initialLayout: DashboardLayout;
+  initialConfig: DashboardConfig;
 };
 
 type ReturnType = { saved: true };
+
+const LOGO_SIZE_OPTIONS = [
+  { value: "sm", label: "S" },
+  { value: "md", label: "M" },
+  { value: "lg", label: "L" },
+  { value: "xl", label: "XL" },
+];
 
 export function DashboardSettingsModal(
   p: AlertComponentProps<Props, ReturnType>,
@@ -37,6 +53,23 @@ export function DashboardSettingsModal(
   const [layoutType, setLayoutType] = createSignal<"sidebar" | "grid">(
     p.initialLayout.type,
   );
+  const [config, setConfig] = createStore<DashboardConfig>(
+    p.initialConfig ?? getStartingDashboardConfig(),
+  );
+
+  function addCustomLogo() {
+    setConfig("logos", "availableCustom", (prev) => [...prev, ""]);
+  }
+
+  function removeCustomLogo(index: number) {
+    const removed = config.logos.availableCustom[index];
+    setConfig("logos", "availableCustom", (prev) => prev.toSpliced(index, 1));
+    if (removed) {
+      setConfig("logos", "selected", (prev) =>
+        prev.filter((l) => l !== removed),
+      );
+    }
+  }
 
   const save = timActionForm(
     async (e: MouseEvent) => {
@@ -76,6 +109,14 @@ export function DashboardSettingsModal(
         }
       }
       const layout: DashboardLayout = { type: layoutType() };
+      // Drop empty custom-logo rows before saving.
+      const cleanedConfig: DashboardConfig = {
+        ...unwrap(config),
+        logos: {
+          ...unwrap(config).logos,
+          availableCustom: config.logos.availableCustom.filter(Boolean),
+        },
+      };
       return await serverActions.updateDashboard({
         projectId: p.projectId,
         dashboard_id: p.dashboardId,
@@ -83,6 +124,7 @@ export function DashboardSettingsModal(
         slug: slug(),
         isPublic: isPublic(),
         layout,
+        config: cleanedConfig,
       });
     },
     () => p.close({ saved: true }),
@@ -133,6 +175,94 @@ export function DashboardSettingsModal(
           onChange={(v) => setLayoutType(v as "sidebar" | "grid")}
           fullWidth
         />
+
+        <div class="border-base-300 ui-spy-sm border-t pt-4">
+          <div class="font-700 text-sm">
+            {t3({ en: "Logos", fr: "Logos" })}
+          </div>
+          <div class="text-base-content/70 mb-1 text-xs">
+            {t3({
+              en: "Custom logos (uploaded image assets)",
+              fr: "Logos personnalisés (images téléversées)",
+            })}
+          </div>
+          <For each={config.logos.availableCustom}>
+            {(logo, i_logo) => (
+              <div class="ui-gap-sm flex items-center">
+                <Select
+                  options={getSelectOptions(
+                    instanceState.assets
+                      .filter((f) => f.isImage)
+                      .map((f) => f.fileName),
+                  )}
+                  value={logo}
+                  onChange={(v) =>
+                    setConfig("logos", "availableCustom", i_logo(), v)
+                  }
+                  fullWidth
+                />
+                <Button
+                  intent="danger"
+                  onClick={() => removeCustomLogo(i_logo())}
+                  outline
+                  iconName="trash"
+                />
+              </div>
+            )}
+          </For>
+          <Button onClick={addCustomLogo} iconName="plus" size="sm">
+            {t3({ en: "Add", fr: "Ajouter" })}
+          </Button>
+
+          <div class="pt-2">
+            <div class="text-base-content/70 mb-1 text-xs">
+              {t3({ en: "Show on dashboard", fr: "Afficher sur le tableau de bord" })}
+            </div>
+            <LogoSelector
+              values={config.logos.selected}
+              customLogos={config.logos.availableCustom.filter(Boolean)}
+              onChange={(logos) => setConfig("logos", "selected", logos)}
+            />
+            <Show when={config.logos.selected.length > 0}>
+              <div class="pt-2">
+                <Select
+                  label={t3({ en: "Size", fr: "Taille" })}
+                  options={LOGO_SIZE_OPTIONS}
+                  value={config.logos.size ?? "md"}
+                  onChange={(v) =>
+                    setConfig("logos", "size", v as "sm" | "md" | "lg" | "xl")
+                  }
+                />
+              </div>
+            </Show>
+          </div>
+        </div>
+
+        <div class="border-base-300 ui-spy-sm border-t pt-4">
+          <div class="font-700 text-sm">
+            {t3({ en: "About", fr: "À propos" })}
+          </div>
+          <TextArea
+            label={t3({
+              en: "Summary (shown under the title) — markdown",
+              fr: "Résumé (affiché sous le titre) — markdown",
+            })}
+            value={config.about.summary}
+            onChange={(v) => setConfig("about", "summary", v)}
+            rows={2}
+            fullWidth
+          />
+          <TextArea
+            label={t3({
+              en: "About this dashboard (shown in a dialog) — markdown",
+              fr: "À propos de ce tableau de bord (affiché dans une boîte de dialogue) — markdown",
+            })}
+            value={config.about.body}
+            onChange={(v) => setConfig("about", "body", v)}
+            rows={6}
+            fullWidth
+          />
+        </div>
       </div>
     </AlertFormHolder>
   );

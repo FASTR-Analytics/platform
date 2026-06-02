@@ -28,7 +28,9 @@ export async function enrichMetric(
   const resultsObjectId = dbMetric.results_object_id;
 
   const disaggregationOptions = await buildDisaggregationOptions(
-    z.array(disaggregationOption).parse(JSON.parse(dbMetric.required_disaggregation_options)),
+    z
+      .array(disaggregationOption)
+      .parse(JSON.parse(dbMetric.required_disaggregation_options)),
     resultsObjectId,
     projectDb,
     facilityConfig,
@@ -40,16 +42,21 @@ export async function enrichMetric(
     valueProps: z.array(z.string()).parse(JSON.parse(dbMetric.value_props)),
     valueFunc: dbMetric.value_func as ResultsValue["valueFunc"],
     postAggregationExpression: dbMetric.post_aggregation_expression
-      ? postAggregationExpressionStrict.parse(JSON.parse(dbMetric.post_aggregation_expression))
+      ? postAggregationExpressionStrict.parse(
+          JSON.parse(dbMetric.post_aggregation_expression),
+        )
       : undefined,
     valueLabelReplacements: dbMetric.value_label_replacements
-      ? z.record(z.string(), z.string()).parse(JSON.parse(dbMetric.value_label_replacements))
+      ? z
+          .record(z.string(), z.string())
+          .parse(JSON.parse(dbMetric.value_label_replacements))
       : undefined,
     label: dbMetric.label,
     variantLabel: dbMetric.variant_label ?? undefined,
     formatAs: dbMetric.format_as as "percent" | "number",
     disaggregationOptions,
-    mostGranularTimePeriodColumnInResultsFile: inferMostGranularTimePeriodColumn(disaggregationOptions),
+    mostGranularTimePeriodColumnInResultsFile:
+      inferMostGranularTimePeriodColumn(disaggregationOptions),
     aiDescription: dbMetric.ai_description
       ? metricAIDescriptionInstalled.parse(JSON.parse(dbMetric.ai_description))
       : undefined,
@@ -80,6 +87,7 @@ async function buildDisaggregationOptions(
     "ratio_type",
     "hfa_indicator",
     "hfa_category",
+    "hfa_sub_category",
     "time_point",
     "iceh_indicator",
     "strat",
@@ -91,17 +99,28 @@ async function buildDisaggregationOptions(
       out.push({
         value: disOpt,
         isRequired: requiredOptions.includes(disOpt),
-        allowedPresentationOptions: getDisaggregationAllowedPresentationOptions(disOpt),
+        allowedPresentationOptions:
+          getDisaggregationAllowedPresentationOptions(disOpt),
       });
     }
   }
 
   if (facilityConfig) {
-    const hasFacilityId = await detectColumnExists(projectDb, tableName, "facility_id");
+    const hasFacilityId = await detectColumnExists(
+      projectDb,
+      tableName,
+      "facility_id",
+    );
     if (hasFacilityId) {
-      const facilityOptions: { option: DisaggregationOption; enabled: boolean }[] = [
+      const facilityOptions: {
+        option: DisaggregationOption;
+        enabled: boolean;
+      }[] = [
         { option: "facility_type", enabled: facilityConfig.includeTypes },
-        { option: "facility_ownership", enabled: facilityConfig.includeOwnership },
+        {
+          option: "facility_ownership",
+          enabled: facilityConfig.includeOwnership,
+        },
         { option: "facility_custom_1", enabled: facilityConfig.includeCustom1 },
         { option: "facility_custom_2", enabled: facilityConfig.includeCustom2 },
         { option: "facility_custom_3", enabled: facilityConfig.includeCustom3 },
@@ -113,19 +132,30 @@ async function buildDisaggregationOptions(
         out.push({
           value: f.option,
           isRequired: requiredOptions.includes(f.option),
-          allowedPresentationOptions: getDisaggregationAllowedPresentationOptions(f.option),
+          allowedPresentationOptions:
+            getDisaggregationAllowedPresentationOptions(f.option),
         });
       }
     }
   }
 
-  const hasPeriodId = await detectColumnExists(projectDb, tableName, "period_id");
+  const hasPeriodId = await detectColumnExists(
+    projectDb,
+    tableName,
+    "period_id",
+  );
   if (hasPeriodId) {
-    for (const disOpt of ["year", "month", "quarter_id", "period_id"] as DisaggregationOption[]) {
+    for (const disOpt of [
+      "year",
+      "month",
+      "quarter_id",
+      "period_id",
+    ] as DisaggregationOption[]) {
       out.push({
         value: disOpt,
         isRequired: requiredOptions.includes(disOpt),
-        allowedPresentationOptions: getDisaggregationAllowedPresentationOptions(disOpt),
+        allowedPresentationOptions:
+          getDisaggregationAllowedPresentationOptions(disOpt),
       });
     }
   } else if (await detectColumnExists(projectDb, tableName, "quarter_id")) {
@@ -133,14 +163,16 @@ async function buildDisaggregationOptions(
       out.push({
         value: disOpt,
         isRequired: requiredOptions.includes(disOpt),
-        allowedPresentationOptions: getDisaggregationAllowedPresentationOptions(disOpt),
+        allowedPresentationOptions:
+          getDisaggregationAllowedPresentationOptions(disOpt),
       });
     }
   } else if (await detectColumnExists(projectDb, tableName, "year")) {
     out.push({
       value: "year",
       isRequired: requiredOptions.includes("year"),
-      allowedPresentationOptions: getDisaggregationAllowedPresentationOptions("year"),
+      allowedPresentationOptions:
+        getDisaggregationAllowedPresentationOptions("year"),
     });
   }
 

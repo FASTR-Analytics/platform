@@ -22,6 +22,7 @@ export async function getPresentationObjectItems(
   fetchConfig: GenericLongFormFetchConfig,
   firstPeriodOption: PeriodOption | undefined,
   moduleLastRun: string,
+  datasetsVersion: string,
 ): Promise<APIResponseWithData<ItemsHolderPresentationObject>> {
   return await tryCatchDatabaseAsync(async () => {
     const roRow = (
@@ -93,6 +94,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
         resultsObjectId,
         fetchConfig,
         moduleLastRun,
+        datasetsVersion,
         dateRange: undefined,
         status: "no_data_available" as const,
       };
@@ -127,6 +129,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
         resultsObjectId,
         fetchConfig,
         moduleLastRun,
+        datasetsVersion,
         dateRange,
         status: "too_many_items" as const,
       };
@@ -139,6 +142,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
         resultsObjectId,
         fetchConfig,
         moduleLastRun,
+        datasetsVersion,
         dateRange,
         status: "no_data_available" as const,
       };
@@ -150,6 +154,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
       resultsObjectId,
       fetchConfig,
       moduleLastRun,
+      datasetsVersion,
       dateRange,
       status: "ok" as const,
       items: rawItems,

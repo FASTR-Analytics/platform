@@ -14,7 +14,8 @@ import {
 import type { FigureInputsBase } from "./types.ts";
 import type { LegendInput } from "./_legend/scale_legend_types.ts";
 import {
-  findOptimalScaleForBounds,
+  computeFloorScale,
+  findFitScaleWithFloor,
   resolveFigureAutofitOptions,
 } from "./autofit.ts";
 import { measureSurrounds } from "./_surrounds/measure_surrounds.ts";
@@ -114,7 +115,7 @@ export function calculateChartIdealHeight(
 
 export function measureChartWithAutofit<
   TInputs extends FigureInputsBase,
-  TMeasured,
+  TMeasured extends { cramped?: boolean },
 >(
   rc: RenderContext,
   bounds: RectCoordsDims,
@@ -124,19 +125,27 @@ export function measureChartWithAutofit<
     rc: RenderContext,
     bounds: RectCoordsDims,
     inputs: TInputs,
-    scale?: number,
+    fitScale?: number,
   ) => TMeasured,
-  responsiveScale?: number,
 ): TMeasured {
   const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
   if (!autofitOpts) {
-    return measureFn(rc, bounds, inputs, responsiveScale);
+    // No shrink-to-fit: lay out at authored DU sizes (fitScale defaults to 1).
+    return measureFn(rc, bounds, inputs);
   }
 
-  const optimalScale = findOptimalScaleForBounds(
+  const baseFontSizeDu =
+    getChartComponentSizes(1.0).customFigureStyle.baseFontSize;
+
+  const { fitScale, cramped } = findFitScaleWithFloor(
     bounds.w(),
     bounds.h(),
-    autofitOpts,
+    {
+      minScale: autofitOpts.minScale,
+      maxScale: autofitOpts.maxScale,
+      baseFontSizeDu,
+      minFontSizeDu: autofitOpts.minFontSizeDu,
+    },
     (scale) => {
       const info = getChartComponentSizes(scale);
       return {
@@ -146,7 +155,9 @@ export function measureChartWithAutofit<
     },
   );
 
-  return measureFn(rc, bounds, inputs, optimalScale);
+  const measured = measureFn(rc, bounds, inputs, fitScale);
+  measured.cramped = cramped;
+  return measured;
 }
 
 export function getChartHeightConstraints(
@@ -154,12 +165,10 @@ export function getChartHeightConstraints(
   width: number,
   inputs: FigureInputsBase,
   getChartComponentSizes: (scale: number) => ChartComponentSizes,
-  responsiveScale?: number,
 ): HeightConstraints {
   const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
 
-  const baseScale = responsiveScale ?? 1.0;
-  const info = getChartComponentSizes(baseScale);
+  const info = getChartComponentSizes(1.0);
   const idealH = calculateChartIdealHeight(rc, width, info, inputs);
 
   const minComfortableWidth = calculateChartMinWidth(info);
@@ -176,7 +185,15 @@ export function getChartHeightConstraints(
     };
   }
 
-  const infoMin = getChartComponentSizes(autofitOpts.minScale);
+  const baseFontSizeDu =
+    getChartComponentSizes(1.0).customFigureStyle.baseFontSize;
+  const floorScale = computeFloorScale({
+    minScale: autofitOpts.minScale,
+    maxScale: autofitOpts.maxScale,
+    baseFontSizeDu,
+    minFontSizeDu: autofitOpts.minFontSizeDu,
+  });
+  const infoMin = getChartComponentSizes(floorScale);
   const minH = calculateChartIdealHeight(rc, width, infoMin, inputs);
 
   return { minH, idealH, maxH: Infinity, neededScalingToFitWidth };

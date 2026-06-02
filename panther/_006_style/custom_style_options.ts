@@ -12,7 +12,6 @@ import type {
 
 export type CustomStyleOptions = {
   // SHARED: Applied to all three style domains
-  scale?: number;
   baseText?: TextInfoOptions;
 
   // NAMESPACED: Domain-specific options

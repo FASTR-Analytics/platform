@@ -177,7 +177,7 @@ export async function validateMetricInputs(
       if (invalid.length > 0) {
         throw new Error(
           `Invalid filter value(s) for "${filter.disOpt}": ${invalid.join(", ")}. ` +
-          `Valid: ${dimValues.values.map(v => v.label).join(", ")}`
+          `Valid: ${dimValues.values.map(v => v.label && v.label !== v.id ? `${v.id} (${v.label})` : v.id).join(", ")}`
         );
       }
     }

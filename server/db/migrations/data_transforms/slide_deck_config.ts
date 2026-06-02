@@ -13,6 +13,7 @@
 // 3. Migrate primaryColor → colorTheme
 // 4. Split treatment → coverAndSectionTreatment + freeformTreatment
 // 5. Add fontFamily default
+// 6. Migrate logo sizing numbers → semantic keys (size/spacing)
 //
 // =============================================================================
 
@@ -48,6 +49,53 @@ function findNearestPresetByHue(primaryColor: string): ColorPresetId {
 function isColorTooLight(hex: string): boolean {
   const { l } = new Color(hex).hsl();
   return l > 40;
+}
+
+// Old numeric sizing thresholds — what the editor wrote before the
+// semantic-key migration. Frozen here; do not retune (the live render
+// values live in lib's LOGO_SIZE_TARGET_AREA / LOGO_SPACING_GAP_X).
+const OLD_SIZE_TARGET_AREA: Record<string, number> = {
+  sm: 40000,
+  md: 80000,
+  lg: 160000,
+  xl: 320000,
+};
+const OLD_SPACING_GAP_X: Record<string, number> = {
+  sm: 20,
+  md: 60,
+  lg: 100,
+  xl: 150,
+};
+
+function nearestKey(value: number, table: Record<string, number>): string {
+  let closest = "md";
+  let minDiff = Infinity;
+  for (const [key, val] of Object.entries(table)) {
+    const diff = Math.abs(val - value);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = key;
+    }
+  }
+  return closest;
+}
+
+// Convert an old numeric sizing object to the semantic-key shape.
+// Returns undefined to drop sizing entirely when no override was set.
+function migrateLogoSizing(
+  sizing: unknown,
+): { size?: string; spacing?: string } | undefined {
+  if (!sizing || typeof sizing !== "object") return sizing as undefined;
+  const s = sizing as Record<string, unknown>;
+  const out: { size?: string; spacing?: string } = {};
+  if (typeof s.targetArea === "number") {
+    out.size = nearestKey(s.targetArea, OLD_SIZE_TARGET_AREA);
+  }
+  if (typeof s.gapX === "number") {
+    out.spacing = nearestKey(s.gapX, OLD_SPACING_GAP_X);
+  }
+  if (out.size === undefined && out.spacing === undefined) return undefined;
+  return out;
 }
 
 export type MigrationStats = {
@@ -194,6 +242,25 @@ export async function migrateSlideDeckConfigs(
       )
     ) {
       config.fontFamily = "International Inter";
+    }
+
+    // Block 6: Migrate logo sizing numbers → semantic keys
+    // Old: sizing: { targetArea, maxHeight, maxWidth, gapX } (numbers)
+    // New: sizing: { size?, spacing? } (keys), or absent if no override.
+    // Idempotent: already-key shapes have no numeric targetArea/gapX, so
+    // migrateLogoSizing leaves them untouched.
+    if (config.logos && typeof config.logos === "object") {
+      for (const section of ["cover", "header", "footer"] as const) {
+        const sec = config.logos[section];
+        if (sec && typeof sec === "object" && "sizing" in sec) {
+          const migrated = migrateLogoSizing(sec.sizing);
+          if (migrated === undefined) {
+            delete sec.sizing;
+          } else {
+            sec.sizing = migrated;
+          }
+        }
+      }
     }
 
     const validated = slideDeckConfigSchema.parse(config);

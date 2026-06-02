@@ -1,4 +1,4 @@
-import type { Slide, ContentSlide } from "./types/slides.ts";
+import type { ContentSlide, FigureBlock, Slide } from "./types/slides.ts";
 
 const UNDEFINED_SENTINEL = "@@__UNDEFINED__@@";
 
@@ -126,5 +126,30 @@ export function restoreSlideAfterReceive(slide: Slide): Slide {
     ...contentSlide,
     layout: processLayoutNode(contentSlide.layout, deepRestoreUndefined),
   } as ContentSlide;
+}
+
+/**
+ * Report figure registries hold the SAME FigureBlock.figureInputs as slides, so
+ * their data containers carry `undefined`s that JSON drops. Round-trip them
+ * through the same sentinel encode/decode (applied per registry entry).
+ */
+export function prepareReportFiguresForTransmit(
+  figures: Record<string, FigureBlock>,
+): Record<string, FigureBlock> {
+  const out: Record<string, FigureBlock> = {};
+  for (const [id, block] of Object.entries(figures)) {
+    out[id] = processFigureInputsInBlock(block, deepReplaceUndefined) as FigureBlock;
+  }
+  return out;
+}
+
+export function restoreReportFiguresAfterReceive(
+  figures: Record<string, FigureBlock>,
+): Record<string, FigureBlock> {
+  const out: Record<string, FigureBlock> = {};
+  for (const [id, block] of Object.entries(figures)) {
+    out[id] = processFigureInputsInBlock(block, deepRestoreUndefined) as FigureBlock;
+  }
+  return out;
 }
 

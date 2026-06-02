@@ -89,12 +89,33 @@ export type DBSlide = {
   last_updated: string;
 };
 
+export type DBReportFolder = {
+  id: string;
+  label: string;
+  color: string | null;
+  description: string | null;
+  sort_order: number;
+  last_updated: string;
+};
+
+export type DBReport = {
+  id: string;
+  label: string;
+  body: string;
+  figures: string;
+  images: string;
+  config: string | null;
+  folder_id: string | null;
+  last_updated: string;
+};
+
 export type DBDashboard = {
   id: string;
   slug: string;
   title: string;
   is_public: boolean;
   layout: string;
+  config: string;
   created_by_email: string;
   created_at: string;
   updated_at: string;
@@ -107,6 +128,19 @@ export type DBDashboardItem = {
   label: string;
   sort_order: number;
   figure_block: string;
+  geo_data: string | null;
+  last_updated: string;
+  replicant_group_id: string | null;
+  replicant_value: string | null;
+};
+
+export type DBDashboardItemGroup = {
+  id: string;
+  dashboard_id: string;
+  label: string;
+  replicate_by: string;
+  default_replicant_value: string | null;
+  replicants: string;
   geo_data: string | null;
   last_updated: string;
 };

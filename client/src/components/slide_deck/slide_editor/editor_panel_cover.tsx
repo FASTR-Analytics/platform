@@ -31,10 +31,15 @@ export function SlideEditorPanelCover(p: Props) {
         label={t3({ en: "Cover logos", fr: "Logos de couverture" })}
         value={p.tempSlide.showLogos ?? "inherit"}
         options={getLogoVisibilityOptions(p.showLogosByDefault)}
-        onChange={(v) => p.setTempSlide("showLogos", v === "inherit" ? undefined : v as LogoVisibility)}
+        onChange={(v) =>
+          p.setTempSlide(
+            "showLogos",
+            v === "inherit" ? undefined : (v as LogoVisibility),
+          )
+        }
       />
       <div class="ui-spy">
-        <div class="">
+        <div class="ui-spy-sm">
           <TextArea
             label={t3({ en: "Title", fr: "Titre" })}
             value={p.tempSlide.title}
@@ -61,7 +66,7 @@ export function SlideEditorPanelCover(p: Props) {
             />
           </div>
         </div>
-        <div class="">
+        <div class="ui-spy-sm">
           <TextArea
             label={t3({ en: "Subtitle", fr: "Sous-titre" })}
             value={p.tempSlide.subtitle ?? ""}
@@ -88,7 +93,7 @@ export function SlideEditorPanelCover(p: Props) {
             />
           </div>
         </div>
-        <div class="">
+        <div class="ui-spy-sm">
           <TextArea
             label={t3({ en: "Presenter", fr: "Présentateur" })}
             value={p.tempSlide.presenter ?? ""}
@@ -101,7 +106,9 @@ export function SlideEditorPanelCover(p: Props) {
           <div class="flex w-full justify-end">
             <TextStylePopover
               size={p.tempSlide.presenterTextRelFontSize ?? 4}
-              onSizeChange={(v) => p.setTempSlide("presenterTextRelFontSize", v)}
+              onSizeChange={(v) =>
+                p.setTempSlide("presenterTextRelFontSize", v)
+              }
               bold={p.tempSlide.presenterBold ?? true}
               onBoldChange={(v) => p.setTempSlide("presenterBold", v)}
               italic={p.tempSlide.presenterItalic ?? false}
@@ -117,7 +124,7 @@ export function SlideEditorPanelCover(p: Props) {
             />
           </div>
         </div>
-        <div class="">
+        <div class="ui-spy-sm">
           <TextArea
             label={t3({ en: "Date", fr: "Date" })}
             value={p.tempSlide.date ?? ""}

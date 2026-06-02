@@ -203,6 +203,9 @@ function buildAISystemContext(
   sections.push(
     `**Available slide decks:** ${projectState.slideDecks.length} (use get_available_slide_decks for details)`,
   );
+  sections.push(
+    `**Available reports:** ${projectState.reports.length} (use get_available_reports for details)`,
+  );
 
   if (projectState.aiContext.trim()) {
     sections.push("");
@@ -258,6 +261,10 @@ function getModeInstructions(aiContext: AIContext): string {
       return getViewingVisualizationsInstructions();
     case "viewing_slide_decks":
       return getViewingSlideDecksInstructions();
+    case "viewing_reports":
+      return getViewingReportsInstructions();
+    case "editing_report":
+      return getEditingReportInstructions(aiContext.reportLabel);
     case "viewing_data":
       return getViewingDataInstructions();
     case "viewing_metrics":
@@ -319,6 +326,52 @@ ${getAllToolsList()}
 - Help explore existing slide decks
 - Answer questions about deck content
 - Suggest new decks to create`;
+}
+
+function getViewingReportsInstructions(): string {
+  return `# Current View: Reports Library
+
+The user is browsing their long-form reports (markdown documents with embedded live data figures).
+
+## Primary Tools (most relevant here)
+
+**get_available_reports** - List all reports
+**get_report** - Get a report's full markdown body + embedded figure/image ids
+**create_report** - Create a new report from a markdown body
+
+## Other Available Tools
+
+${getAllToolsList()}
+
+## Actions
+
+- Help explore existing reports
+- Draft a new report (use create_report with well-structured markdown: headings, paragraphs, lists, tables)
+- Do NOT put raw HTML in report bodies; for live data tables/charts, the user inserts figures via the editor`;
+}
+
+function getEditingReportInstructions(reportLabel: string): string {
+  return `# Current View: Editing Report "${reportLabel}"
+
+The user is editing a long-form report (markdown body + embedded live figures).
+
+## Primary Tools (most relevant here)
+
+**get_report_editor** - Read the live editor body + figure/image ids. ALWAYS call this first.
+**rewrite_report** - Propose a full-body rewrite (user reviews a diff, accepts/rejects).
+**rewrite_section** - Propose rewriting one heading-bounded section.
+**insert_figure** - Propose inserting a live figure from a saved visualization.
+
+## Other Available Tools
+
+${getAllToolsList()}
+
+## How editing works
+
+- Every edit you propose is STAGED as a diff the user accepts or rejects — nothing is applied silently. Make focused, well-scoped edits.
+- Prefer **rewrite_section** for targeted changes; use **rewrite_report** only for whole-document restructures.
+- You may only reference figure/image ids that already exist; do not invent embed ids. Use **insert_figure** to add a new figure from a visualization.
+- Use clean markdown (headings, paragraphs, lists, tables); never raw HTML. For data tables, prefer inserting a figure.`;
 }
 
 function getViewingDataInstructions(): string {

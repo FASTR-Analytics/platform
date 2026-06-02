@@ -236,4 +236,5 @@ export type MeasuredMarkdownCodeBlock = {
 export type MeasuredMarkdown = Measured<MarkdownRendererInput> & {
   markdownItems: MeasuredMarkdownItem[];
   autofitScale?: number;
+  cramped?: boolean;
 };

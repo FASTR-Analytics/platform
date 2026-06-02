@@ -95,6 +95,11 @@ export type ResultsValueInfoForPresentationObject = {
   metricId: string;
   projectId: string;
   moduleLastRun: string;
+  // Freshness of the dataset(s) feeding indicator metadata, which labels the
+  // cached disaggregation values. Rewritten on dataset integration (bumps
+  // datasets.last_updated) independently of moduleLastRun, so the cache versions
+  // on it too. Carried here so parseData can reproduce the version hash.
+  datasetsVersion: string;
   periodBounds?: PeriodBounds;
   disaggregationPossibleValues: {
     [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
@@ -108,6 +113,10 @@ export type ReplicantOptionsForPresentationObject = {
   replicateBy: DisaggregationOption;
   fetchConfig: GenericLongFormFetchConfig;
   moduleLastRun: string;
+  // Replicant value labels come from indicator metadata, rewritten on dataset
+  // integration (bumps datasets.last_updated) independently of moduleLastRun, so
+  // the cache versions on it too. Carried here so parseData can reproduce it.
+  datasetsVersion: string;
 } & (
   | {
       status: "ok";
@@ -284,7 +293,6 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
 
 export type ReplicantValueOverride = {
   selectedReplicantValue?: string;
-  additionalScale?: number;
   hideFigureCaption?: boolean;
   hideFigureSubCaption?: boolean;
   hideFigureFootnote?: boolean;

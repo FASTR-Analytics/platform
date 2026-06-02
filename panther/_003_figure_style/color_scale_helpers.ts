@@ -24,7 +24,7 @@ export function valuesColorScale(
       if (max === min) return Color.scaleContinuous(config, value, min, max);
       const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
       const stepIndex = Math.min(steps - 1, Math.floor(t * steps));
-      const snappedT = steps === 1 ? 0.5 : stepIndex / (steps - 1);
+      const snappedT = stepIndex / (steps - 1);
       const snappedValue = min + snappedT * (max - min);
       return Color.scaleContinuous(config, snappedValue, min, max);
     }

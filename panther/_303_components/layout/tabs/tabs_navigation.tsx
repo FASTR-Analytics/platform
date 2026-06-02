@@ -4,63 +4,39 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, Show } from "solid-js";
-import type { Tabs } from "./get_tabs.ts";
-import { SelectOption } from "../../form_inputs/types.ts";
-import { ChevronLeftIcon, ChevronRightIcon } from "../../icons/mod.ts";
 import { IconRenderer } from "../../form_inputs/icon_renderer.tsx";
-import type { IconName } from "../../icons/mod.ts";
 import { Tooltip } from "../../special_state/tooltip.tsx";
 import { Button } from "../../form_inputs/mod.ts";
 import type { Intent } from "../../types.ts";
+import type { ListItem } from "../../list_selection/list_item_types.ts";
 
-interface TabsNavigationProps {
-  tabs: Tabs;
-  onTabClick?: (tab: string) => void;
-  tabLabelFormatter?: (option: SelectOption<string>) => string;
-  badges?: Record<string, string | number>;
-  dots?: Record<string, Intent>;
+interface TabsNavigationProps<T extends string = string, M = never> {
+  items: ListItem<T, M>[];
+  value: T;
+  onChange: (value: T) => void;
+  tabLabelFormatter?: (item: ListItem<T, M>) => string;
   vertical?: boolean;
 
-  // Collapsible functionality
+  // Collapsible functionality (vertical only)
   collapsible?: boolean;
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
-  icons?: Record<string, IconName>;
-  defaultIcon?: IconName;
 }
 
-export function TabsNavigation(p: TabsNavigationProps) {
+export function TabsNavigation<T extends string = string, M = never>(
+  p: TabsNavigationProps<T, M>,
+) {
   const isVertical = p.vertical === true;
   const isCollapsed = () => p.collapsed === true && isVertical;
   const isCollapsible = p.collapsible === true && isVertical;
 
-  const handleTabClick = (tab: string) => {
-    if (p.onTabClick) {
-      p.onTabClick(tab);
-    } else {
-      p.tabs.setCurrentTab(() => tab);
-    }
-  };
+  const isActive = (id: T) => id === p.value;
 
   const handleToggleCollapse = () => {
     p.onCollapsedChange?.(!p.collapsed);
   };
 
-  // Icons are opt-in. Return undefined when the caller hasn't configured
-  // any, so callers without icon intent don't get a surprise chevron.
-  // Exception: the collapsed vertical mode is icon-only, so it falls back
-  // to chevronRight where no icon is otherwise provided — handled at the
-  // render site below.
-  const getIcon = (tabValue: string): IconName | undefined => {
-    if (p.icons?.[tabValue]) {
-      return p.icons[tabValue];
-    }
-    return p.defaultIcon;
-  };
-
-  const getTabClasses = (tab: string) => {
-    const isActive = p.tabs.isTabActive(tab);
-
+  const getTabClasses = (id: T) => {
     if (!isVertical) {
       // Horizontal tabs render their own bottom border, which overlaps the
       // container's continuous underline (see containerClasses + rowClasses
@@ -70,28 +46,29 @@ export function TabsNavigation(p: TabsNavigationProps) {
       const baseClasses =
         "ui-hoverable ui-focusable relative flex items-center justify-center ui-gap-sm ui-pad font-700 cursor-pointer border-b-2";
 
-      if (isActive) {
+      if (isActive(id)) {
         return `${baseClasses} border-primary text-primary bg-base-100`;
       }
       return `${baseClasses} border-transparent text-base-content hover:text-primary hover:border-primary/40`;
     } else {
-      // Vertical tabs - match original wb-fastr styling
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";
       const paddingClass = isCollapsed() ? "pr-4 pl-5 py-4" : "py-4 pr-4 pl-5";
-      const baseClasses = `ui-hoverable ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${paddingClass} w-full font-700 text-sm leading-tight cursor-pointer`;
+      const baseClasses =
+        `ui-hoverable ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${paddingClass} w-full font-700 text-sm leading-tight cursor-pointer`;
 
-      if (isActive) {
+      if (isActive(id)) {
         return `${baseClasses} shadow-[inset_4px_0_0_0_var(--color-primary)] text-primary bg-base-200`;
       }
       return `${baseClasses} text-base-content hover:text-primary hover:bg-base-100`;
     }
   };
 
-  const formatter =
-    p.tabLabelFormatter ??
-    ((option: SelectOption<string>) =>
-      typeof option.label === "string" ? option.label : String(option.value));
+  const labelString = (item: ListItem<T, M>) =>
+    item.labelText ??
+      (typeof item.label === "string" ? item.label : String(item.id));
+
+  const formatter = p.tabLabelFormatter ?? labelString;
 
   const containerClasses = !isVertical
     ? "bg-base-100 w-full border-b border-base-300"
@@ -122,18 +99,18 @@ export function TabsNavigation(p: TabsNavigationProps) {
     }
   };
 
-  const renderTabContent = (option: SelectOption<string>) => {
-    const badge = () => p.badges?.[option.value];
-    const dotIntent = () => p.dots?.[option.value];
-    const icon = getIcon(option.value);
+  const renderTabContent = (item: ListItem<T, M>) => {
+    const badge = item.badge;
+    const dot = item.dot;
+    const icon = item.iconName;
 
     if (isCollapsed()) {
       return (
         <span class="relative flex h-[1.25em] w-[1.25em] flex-none items-center">
           <IconRenderer iconName={icon ?? "chevronRight"} />
-          <Show when={dotIntent()}>
+          <Show when={dot}>
             <span
-              class={`${getDotClasses(dotIntent()!)} absolute -right-2 -top-1`}
+              class={`${getDotClasses(dot!)} absolute -right-2 -top-1`}
             />
           </Show>
         </span>
@@ -150,20 +127,20 @@ export function TabsNavigation(p: TabsNavigationProps) {
             </span>
           </Show>
           <span class="whitespace-nowrap leading-tight">
-            {formatter(option)}
+            {formatter(item)}
           </span>
         </div>
-        <Show when={badge()}>
+        <Show when={badge !== undefined}>
           <span
             class={`bg-base-300 text-base-content rounded-full px-2 py-0.5 text-xs ${
               isVertical ? "flex-none" : ""
             }`}
           >
-            {badge()}
+            {badge}
           </span>
         </Show>
-        <Show when={dotIntent()}>
-          <span class={getDotClasses(dotIntent()!)} />
+        <Show when={dot}>
+          <span class={getDotClasses(dot!)} />
         </Show>
       </>
     );
@@ -172,42 +149,32 @@ export function TabsNavigation(p: TabsNavigationProps) {
   return (
     <div class={containerClasses}>
       <div class={rowClasses}>
-        <For each={p.tabs.tabs}>
-          {(option) => {
-            const tooltipContent =
-              typeof option.label === "string"
-                ? option.label
-                : String(option.value);
-
-            // Wrap with tooltip when collapsed - use Show for reactivity
+        <For each={p.items}>
+          {(item) => {
             return (
               <Show
                 when={isCollapsed()}
                 fallback={
                   <button
                     type="button"
-                    class={getTabClasses(option.value)}
-                    onClick={() => handleTabClick(option.value)}
-                    aria-current={
-                      p.tabs.isTabActive(option.value) ? "page" : undefined
-                    }
+                    class={getTabClasses(item.id)}
+                    onClick={() => p.onChange(item.id)}
+                    aria-current={isActive(item.id) ? "page" : undefined}
                     role="tab"
                   >
-                    {renderTabContent(option)}
+                    {renderTabContent(item)}
                   </button>
                 }
               >
-                <Tooltip content={tooltipContent} position="right">
+                <Tooltip content={labelString(item)} position="right">
                   <button
                     type="button"
-                    class={getTabClasses(option.value)}
-                    onClick={() => handleTabClick(option.value)}
-                    aria-current={
-                      p.tabs.isTabActive(option.value) ? "page" : undefined
-                    }
+                    class={getTabClasses(item.id)}
+                    onClick={() => p.onChange(item.id)}
+                    aria-current={isActive(item.id) ? "page" : undefined}
                     role="tab"
                   >
-                    {renderTabContent(option)}
+                    {renderTabContent(item)}
                   </button>
                 </Tooltip>
               </Show>
@@ -227,13 +194,14 @@ export function TabsNavigation(p: TabsNavigationProps) {
         >
           <Button
             onClick={handleToggleCollapse}
-            aria-label={
-              isCollapsed() ? "Expand navigation" : "Collapse navigation"
-            }
+            aria-label={isCollapsed()
+              ? "Expand navigation"
+              : "Collapse navigation"}
             outline
             iconName={isCollapsed() ? "chevronRight" : "chevronLeft"}
             intent="neutral"
-          ></Button>
+          >
+          </Button>
         </div>
       </Show>
     </div>
