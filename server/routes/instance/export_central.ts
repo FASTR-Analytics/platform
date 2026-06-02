@@ -83,25 +83,12 @@ routesExportCentral.get(
       { id: string; module_id: string; column_definitions: string | null }[]
     >`SELECT id, module_id, column_definitions FROM results_objects`;
 
-    const resultsObjects = await Promise.all(
-      resultsObjectsMeta.map(async (ro) => {
-        const tableName = getResultsObjectTableName(ro.id);
-        let rows: Record<string, unknown>[] = [];
-        try {
-          rows = await projectDb<Record<string, unknown>[]>`
-            SELECT * FROM ${projectDb(tableName)}
-          `;
-        } catch {
-          // Table may not exist yet if module hasn't run
-        }
-        return {
-          id: ro.id,
-          moduleId: ro.module_id,
-          columnDefinitions: ro.column_definitions,
-          rows,
-        };
-      }),
-    );
+    const resultsObjects = resultsObjectsMeta.map((ro) => ({
+      id: ro.id,
+      moduleId: ro.module_id,
+      columnDefinitions: ro.column_definitions,
+      rows: [] as Record<string, unknown>[],
+    }));
 
     const metrics = await projectDb<DBMetric[]>`SELECT * FROM metrics`;
 
@@ -124,34 +111,51 @@ routesExportCentral.get(
       // Table may not exist on older instances
     }
 
-    const enc = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        const w = (s: string) => controller.enqueue(enc.encode(s));
-        w(`{"success":true,"data":{`);
-        w(`"exportedAt":${JSON.stringify(new Date().toISOString())},`);
-        w(`"sourceInstanceId":${JSON.stringify(_INSTANCE_ID)},`);
-        w(`"sourceInstanceLabel":${JSON.stringify(_INSTANCE_NAME)},`);
-        w(`"sourceProjectId":${JSON.stringify(projectId)},`);
-        w(`"modules":${JSON.stringify(modules)},`);
-        w(`"metrics":${JSON.stringify(metrics)},`);
-        w(`"calculatedIndicators":${JSON.stringify(calculatedIndicators)},`);
-        w(`"resultsObjects":[`);
-        for (let i = 0; i < resultsObjects.length; i++) {
-          if (i > 0) w(",");
-          const ro = resultsObjects[i];
-          w(`{"id":${JSON.stringify(ro.id)},"moduleId":${JSON.stringify(ro.moduleId)},"columnDefinitions":${JSON.stringify(ro.columnDefinitions)},"rows":[`);
-          const chunkSize = 500;
-          for (let j = 0; j < ro.rows.length; j += chunkSize) {
-            if (j > 0) w(",");
-            w(ro.rows.slice(j, j + chunkSize).map((r) => JSON.stringify(r)).join(","));
-          }
-          w("]}");
-        }
-        w("]}}");
-        controller.close();
+    return c.json({
+      success: true,
+      data: {
+        exportedAt: new Date().toISOString(),
+        sourceInstanceId: _INSTANCE_ID,
+        sourceInstanceLabel: _INSTANCE_NAME,
+        sourceProjectId: projectId,
+        modules,
+        resultsObjects,
+        metrics,
+        calculatedIndicators,
       },
     });
-    return new Response(stream, { headers: { "Content-Type": "application/json" } });
+  },
+);
+
+const ROWS_PAGE_SIZE = 20000;
+
+routesExportCentral.get(
+  "/export_central/:project_id/rows/:ro_id",
+  requireGlobalPermission(),
+  async (c) => {
+    if (!H_USERS.includes(c.var.globalUser.email)) {
+      return c.json({ success: false, err: "Not authorized" }, 403);
+    }
+    const projectId = c.req.param("project_id");
+    const roId = c.req.param("ro_id");
+    const offset = parseInt(c.req.query("offset") ?? "0");
+
+    const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
+    const tableName = getResultsObjectTableName(roId);
+
+    let rows: Record<string, unknown>[] = [];
+    try {
+      rows = await projectDb<Record<string, unknown>[]>`
+        SELECT * FROM ${projectDb(tableName)}
+        LIMIT ${ROWS_PAGE_SIZE} OFFSET ${offset}
+      `;
+    } catch {
+      // Table may not exist
+    }
+
+    return c.json({
+      success: true,
+      data: { rows, hasMore: rows.length === ROWS_PAGE_SIZE },
+    });
   },
 );
