@@ -248,7 +248,7 @@ routesHealth.get("/indicators", async (c: Context) => {
     SELECT
       ir.indicator_raw_id,
       ir.indicator_raw_label,
-      STRING_AGG(i.indicator_common_label, ', ' ORDER BY i.indicator_common_label) AS mapped_to
+      STRING_AGG(i.indicator_common_id, ', ' ORDER BY i.indicator_common_id) AS mapped_to
     FROM indicators_raw ir
     LEFT JOIN indicator_mappings im ON ir.indicator_raw_id = im.indicator_raw_id
     LEFT JOIN indicators i ON im.indicator_common_id = i.indicator_common_id
