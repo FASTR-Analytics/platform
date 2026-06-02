@@ -1,3 +1,7 @@
+[TBD] [user] [added] - Help buttons now appear with quick summaries and links to documentation
+[TBD] [user] [changed] - Dashboard header logos, info, and download buttons are now aligned in a single row
+[TBD] [admin] [added] - Contextual help buttons link to documentation from within the app
+[TBD] [admin] [changed] - Dashboard header layout groups logos and action buttons on one line
 [TBD] [user] [added] - Add logos to dashboard header with size options
 [TBD] [user] [added] - Add summary text displayed below the dashboard title
 [TBD] [user] [added] - Add "About this dashboard" info button and dialog
