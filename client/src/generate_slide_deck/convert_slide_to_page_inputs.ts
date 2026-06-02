@@ -423,7 +423,7 @@ function resolveTextBackground(
   bg: string | undefined,
   primaryColor: string,
 ): ResolvedTextBackground | undefined {
-  const TEXT_BACKGROUND_PADDING = [12, 16];
+  const TEXT_BACKGROUND_PADDING = [15, 20];
   if (!bg || bg === "none") return undefined;
   if (bg === "grey") {
     return {
