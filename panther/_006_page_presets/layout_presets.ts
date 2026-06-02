@@ -33,9 +33,9 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [15, 30, 0, 30],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [20, 30, 0, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -48,9 +48,9 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [10, 30, 15, 30],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [10, 30, 20, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -89,9 +89,9 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [15, 30, 0, 30],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [20, 30, 0, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -104,9 +104,9 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [10, 30, 15, 30],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [10, 30, 20, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -145,9 +145,9 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [15, 30, 0, 30],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [20, 30, 0, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -160,9 +160,9 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [10, 30, 15, 30],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [10, 30, 20, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -203,9 +203,9 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [15, 30, 0, 30],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [20, 30, 0, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -218,9 +218,9 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [10, 30, 15, 30],
+        paddingIfFilled: [20, 30],
+        paddingIfBordered: [20, 30],
+        paddingIfNone: [10, 30, 20, 30],
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
