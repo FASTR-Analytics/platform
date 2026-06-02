@@ -1,3 +1,5 @@
+[1.43.0] [user] [changed] - Slightly more spacing around text backgrounds in slides
+[1.43.0] [admin] [changed] - Increased text background padding in generated slide decks
 [1.43.0] [user] [fixed] - Charts with multiple tiers no longer show overflowing bars
 [1.43.0] [user] [changed] - Slightly larger text in slide deck exports
 [1.43.0] [admin] [fixed] - Charts with multiple tiers no longer overflow due to incorrect axis limits
