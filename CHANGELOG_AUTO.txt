@@ -1,3 +1,6 @@
+[TBD] [user] [fixed] - Exporting large projects no longer causes timeouts or failures
+[TBD] [admin] [improved] - Large project exports are now streamed to prevent timeouts
+[TBD] [admin] [added] - New health endpoint to view indicator mappings
 [1.41.1] [user] [fixed] - Fixed coverage charts failing to display for some saved figures
 [1.41.1] [admin] [fixed] - Coverage charts no longer crash when viewing older saved figures
 [1.41.0] [user] [changed] - Text in slides now displays at a larger default size
