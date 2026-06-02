@@ -136,7 +136,7 @@ export function buildStyleForSlide(
           fontFamily,
           coverFontSizes.presenterBold,
           coverFontSizes.presenterItalic,
-          true,
+          false,
         ),
         color: presetStyle.text!.coverAuthor!.color,
         relFontSize: (coverFontSizes.presenterTextRelFontSize ?? 4) / 2,

@@ -109,13 +109,13 @@ export function SlideEditorPanelCover(p: Props) {
               onSizeChange={(v) =>
                 p.setTempSlide("presenterTextRelFontSize", v)
               }
-              bold={p.tempSlide.presenterBold ?? true}
+              bold={p.tempSlide.presenterBold ?? false}
               onBoldChange={(v) => p.setTempSlide("presenterBold", v)}
               italic={p.tempSlide.presenterItalic ?? false}
               onItalicChange={(v) => p.setTempSlide("presenterItalic", v)}
               sizeMin={2}
               sizeMax={12}
-              defaults={{ size: 4, bold: true, italic: false }}
+              defaults={{ size: 4, bold: false, italic: false }}
               onReset={() => {
                 p.setTempSlide("presenterTextRelFontSize", undefined);
                 p.setTempSlide("presenterBold", undefined);
