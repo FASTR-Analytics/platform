@@ -2,7 +2,7 @@ import type { LogoSectionConfig, LogoSizeKey } from "lib";
 import { t3 } from "lib";
 import { Checkbox, Select } from "panther";
 import { Show } from "solid-js";
-import { LogoSelector } from "./LogoSelector.tsx";
+import { LogoSelector } from "~/components/_shared/logo_selector";
 
 type Props = {
   title: string;

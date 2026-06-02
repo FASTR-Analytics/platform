@@ -38,20 +38,8 @@ import {
 } from "~/generate_visualization/mod";
 import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
+import { FASTR_LOGO_VALUES } from "~/components/_shared/fastr_logos";
 import { getBackgroundDetail } from "./get_overlay_image";
-
-export const FASTR_LOGOS = [
-  {
-    value: "images/FASTR_Primary_01_Horiz.png",
-    label: { en: "FASTR (colored)", fr: "FASTR (couleur)" },
-  },
-  {
-    value: "images/FASTR_White_Horiz.png",
-    label: { en: "FASTR (white)", fr: "FASTR (blanc)" },
-  },
-];
-
-export const FASTR_LOGO_VALUES = FASTR_LOGOS.map((l) => l.value);
 
 function getFont(
   fontFamily: SlideFontFamily,

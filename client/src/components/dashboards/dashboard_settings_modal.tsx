@@ -23,7 +23,7 @@ import { createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { instanceState } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
-import { LogoSelector } from "../slide_deck/slide_editor/LogoSelector";
+import { LogoSelector } from "../_shared/logo_selector";
 
 type Props = {
   projectId: string;

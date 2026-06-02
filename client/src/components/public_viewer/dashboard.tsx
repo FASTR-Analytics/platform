@@ -25,7 +25,7 @@ import {
 } from "panther";
 import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/strip_figure_inputs";
-import { FASTR_LOGO_VALUES } from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { resolveLogoUrl } from "~/components/_shared/fastr_logos";
 import { _SERVER_HOST } from "~/server_actions";
 import {
   DownloadFigureModal,
@@ -38,14 +38,6 @@ const DASHBOARD_LOGO_HEIGHT: Record<string, number> = {
   lg: 40,
   xl: 56,
 };
-
-// Built-in FASTR logos are served from the app root; uploaded image assets from
-// the server host (mirrors the slide-deck logo loader).
-function resolveLogoUrl(logo: string): string {
-  return FASTR_LOGO_VALUES.includes(logo)
-    ? `/${logo}`
-    : `${_SERVER_HOST}/${logo}`;
-}
 
 function openAbout(body: string): void {
   void openAlert({
@@ -118,43 +110,45 @@ function DashboardViewer(p: DashboardViewerProps) {
           class="border-base-300"
           heading={<span class="font-800 text-2xl">{p.bundle.title}</span>}
         >
-          <Show when={p.bundle.logos.selected.length > 0}>
-            <div class="ui-gap flex items-center">
-              <For each={p.bundle.logos.selected}>
-                {(logo) => (
-                  <img
-                    src={resolveLogoUrl(logo)}
-                    alt=""
-                    class="w-auto object-contain"
-                    style={{ height: `${logoHeight()}px` }}
-                  />
-                )}
-              </For>
-            </div>
-          </Show>
-          <Show when={p.bundle.about.body.trim()}>
-            <Button
-              onClick={() => openAbout(p.bundle.about.body)}
-              iconName="info"
-              outline
-            >
-              {t3({
-                en: "About this dashboard",
-                fr: "À propos de ce tableau de bord",
-              })}
-            </Button>
-          </Show>
-          <Show when={headerDownloadItem()} keyed>
-            {(it) => (
+          <div class="ui-gap flex items-center">
+            <Show when={p.bundle.logos.selected.length > 0}>
+              <div class="ui-gap flex items-center">
+                <For each={p.bundle.logos.selected}>
+                  {(logo) => (
+                    <img
+                      src={resolveLogoUrl(logo)}
+                      alt=""
+                      class="w-auto object-contain"
+                      style={{ height: `${logoHeight()}px` }}
+                    />
+                  )}
+                </For>
+              </div>
+            </Show>
+            <Show when={p.bundle.about.body.trim()}>
               <Button
-                onClick={() => downloadItem(it)}
-                iconName="download"
+                onClick={() => openAbout(p.bundle.about.body)}
+                iconName="info"
                 outline
               >
-                {t3({ en: "Download", fr: "Télécharger" })}
+                {t3({
+                  en: "About this dashboard",
+                  fr: "À propos de ce tableau de bord",
+                })}
               </Button>
-            )}
-          </Show>
+            </Show>
+            <Show when={headerDownloadItem()} keyed>
+              {(it) => (
+                <Button
+                  onClick={() => downloadItem(it)}
+                  iconName="download"
+                  outline
+                >
+                  {t3({ en: "Download", fr: "Télécharger" })}
+                </Button>
+              )}
+            </Show>
+          </div>
         </HeadingBar>
       }
     >

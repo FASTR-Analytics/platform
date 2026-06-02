@@ -15,7 +15,9 @@ import {
 // Browser figure export. A file always renders the canonical REFERENCE_WIDTH_DU
 // frame; `outputWidthPx` is the file's pixel width (the supersample). Layout is
 // independent of it. `outputHeightPx` is optional — otherwise the figure's
-// ideal height in the reference frame is used.
+// ideal height in the reference frame is used. The background is the figure's
+// own `surrounds.backgroundColor` (transparent by default); set it on the
+// figure inputs to export white, exactly like on-screen and PDF rendering.
 export function getFigureAsCanvas(
   figureInputs: FigureInputs,
   outputWidthPx: number,
@@ -45,9 +47,8 @@ export function getFigureAsCanvas(
   canvas.height = Math.round(frameHDu * devicePxPerDu);
 
   // Supersample: draw the DU-space picture into the device-pixel backing buffer.
+  // No background fill — the figure's surrounds.backgroundColor governs it.
   ctx.setTransform(devicePxPerDu, 0, 0, devicePxPerDu, 0, 0);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, REFERENCE_WIDTH_DU, frameHDu);
 
   const bounds = new RectCoordsDims([0, 0, REFERENCE_WIDTH_DU, frameHDu]);
   FigureRenderer.measureAndRender(rc, bounds, figureInputs);

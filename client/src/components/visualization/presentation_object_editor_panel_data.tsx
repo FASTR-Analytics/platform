@@ -12,6 +12,7 @@ import {
 } from "./presentation_object_editor_panel_data/_1_summary";
 import { Filters } from "./presentation_object_editor_panel_data/_2_filters";
 import { DisaggregationSection } from "./presentation_object_editor_panel_data/_3_disaggregation";
+import { HelpButton } from "../HelpButton";
 
 type Props = {
   projectStateSnapshot: ProjectState;
@@ -28,10 +29,14 @@ type Props = {
 export function PresentationObjectEditorPanelData(p: Props) {
   const allowedFilterOptions = () => {
     return p.poDetail.resultsValue.disaggregationOptions.filter((disOpt) => {
-      if (disOpt.allowedPresentationOptions && !disOpt.allowedPresentationOptions.includes(p.tempConfig.d.type)) {
+      if (
+        disOpt.allowedPresentationOptions &&
+        !disOpt.allowedPresentationOptions.includes(p.tempConfig.d.type)
+      ) {
         return false;
       }
-      const possibleValues = p.resultsValueInfo.disaggregationPossibleValues[disOpt.value];
+      const possibleValues =
+        p.resultsValueInfo.disaggregationPossibleValues[disOpt.value];
       if (!possibleValues || possibleValues.status === "no_values_available") {
         return false;
       }
@@ -41,6 +46,9 @@ export function PresentationObjectEditorPanelData(p: Props) {
 
   return (
     <div class="ui-pad ui-spy h-full w-full overflow-auto">
+      <div class="h-0 text-right">
+        <HelpButton id="viz-data-tab" />
+      </div>
       <DataValuesSummary poDetail={p.poDetail} />
       <PresentationTypeSummary
         tempConfig={p.tempConfig}

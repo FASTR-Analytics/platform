@@ -43,6 +43,7 @@
   "tasks": {
     "dev": "deno run --allow-all --env-file --unstable-broadcast-channel main.ts",
     "build:client": "cd client && npm run build",
+    "build:help-buttons": "deno run --allow-read --allow-write --allow-env scripts/build_help_buttons.ts",
     "build:server": "echo 'No server build steps'",
     "typecheck": "deno check main.ts && echo '✓ Server typecheck passed' && sh -c 'cd client && npm run typecheck' && echo '✓ Client typecheck passed\n\n'",
     "check": "deno check main.ts",

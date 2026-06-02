@@ -37,7 +37,9 @@ L'onglet Données est l'endroit où vous choisissez l'indicateur…
   links together. The build fails if one language is missing it.
 - The tag is an HTML comment — **invisible** on the rendered page.
 - The **anchor is the heading directly above the tag** (slugified), not the tag
-  itself. The summary is the prose that follows (or an explicit override).
+  itself; the **summary is the prose below the tag** (first ~200 chars). The tag
+  carries only the `#id` — nothing goes inside it. Any heading level works
+  (`#`–`######`); the tag binds to the nearest heading above it.
 
 Full authoring rules — id naming, the summary override, the EN/FR requirement —
 are in **[wb-fastr-site/DOC_HELP_BUTTONS.md](../wb-fastr-site/DOC_HELP_BUTTONS.md)**.
@@ -54,7 +56,7 @@ deno task build:help-buttons
 This reads the sibling `../wb-fastr-site` checkout (override with the
 `WB_FASTR_SITE_DIR` env var), walks every EN/FR page pair, and writes:
 
-```
+```text
 lib/help/help_targets.generated.ts
 ```
 
@@ -84,7 +86,7 @@ are all derived from the generated table.
 
 ## How it fits together
 
-```
+```text
 wb-fastr-site (.md tags)  ──build:help-buttons──▶  lib/help/help_targets.generated.ts
                                                             │
                                                    <HelpButton id="…" />
