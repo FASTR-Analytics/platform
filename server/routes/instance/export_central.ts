@@ -103,7 +103,7 @@ routesExportCentral.get(
     // Build English label map from module definitions so the central hub always
     // receives English labels regardless of this instance's INSTANCE_LANGUAGE.
     const metricLabelMap = new Map<string, { label: string; variantLabel: string | null }>();
-    for (const m of moduleRows) {
+    await Promise.all(moduleRows.map(async (m) => {
       try {
         const defResult = await getModuleDefinitionDetail(m.id as ModuleId, "en");
         if (defResult.success) {
@@ -114,7 +114,7 @@ routesExportCentral.get(
       } catch {
         // Module definition unavailable — fall back to stored label
       }
-    }
+    }));
     const metricsExport = metrics.map((m) => ({
       ...m,
       label: metricLabelMap.get(m.id)?.label ?? m.label,
