@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Fixed broken chart layouts caused by older saved figures
+[TBD] [admin] [fixed] - Fixed broken chart layouts caused by outdated header formats
 [TBD] [user] [fixed] - Exporting large projects no longer causes timeouts or failures
 [TBD] [admin] [improved] - Large project exports are now streamed to prevent timeouts
 [TBD] [admin] [added] - New health endpoint to view indicator mappings
