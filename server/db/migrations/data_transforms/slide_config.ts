@@ -17,7 +17,8 @@
 // 7. Transform embedded PO configs in figure blocks (reuses po_config transforms)
 // 8. Remove per-slide logo fields (now deck-level)
 // 9. Migrate figureInputs: yScaleAxisData → scaleAxisLimits + tierHeaders
-// 10. Compute missing scaleAxisLimits from values array (includes chartOHData)
+// 10. (Re)compute scaleAxisLimits from values when missing OR wrong-length
+//     (truncated tierLimits/laneLimits → overflow); includes chartOHData
 // 11. Convert text block style.textSize number → semantic key
 // 12. Normalize figureInputs string[] headers → HeaderItem[] ({ id, label })
 //
@@ -183,26 +184,35 @@ function transformFigureInputs(fi: Record<string, unknown>): void {
     }
     delete d.yScaleAxisData;
 
-    // Block 10: Compute scaleAxisLimits from values if still missing
-    const scaleAxisLimits = d.scaleAxisLimits as
-      | { paneLimits?: unknown }
-      | undefined;
-    if (!scaleAxisLimits?.paneLimits && d.values) {
-      const paneHeaders = (d.paneHeaders as string[] | undefined) ?? [
-        "default",
-      ];
-      const tierHeaders = (d.tierHeaders as string[] | undefined) ?? [
-        "default",
-      ];
-      const laneHeaders = (d.laneHeaders as string[] | undefined) ?? [
-        "default",
-      ];
-      d.scaleAxisLimits = computeScaleAxisLimitsFromValues(
-        d.values as (number | undefined)[][][][][],
-        paneHeaders.length,
-        tierHeaders.length,
-        laneHeaders.length,
-      );
+    // Block 10: (Re)compute scaleAxisLimits from values when it is missing OR
+    // when the per-tier / per-lane limit arrays are the wrong length. Pre-2026
+    // transformed data stored a truncated tierLimits (e.g. length 1 on a 3-tier
+    // chart), so tiers beyond the first had no limits → the renderer fell back
+    // to [0,1] and bars overflowed. The values array is authoritative and fully
+    // populated, so recompute reproduces the correct limits (verified against
+    // production: it matches the known-good tier-0 limits exactly; affected data
+    // has no uncertainty bounds).
+    if (d.values) {
+      const paneCount = (d.paneHeaders as unknown[] | undefined)?.length ?? 1;
+      const tierCount = (d.tierHeaders as unknown[] | undefined)?.length ?? 1;
+      const laneCount = (d.laneHeaders as unknown[] | undefined)?.length ?? 1;
+      const paneLimits = (d.scaleAxisLimits as
+        | { paneLimits?: { tierLimits?: unknown[]; laneLimits?: unknown[] }[] }
+        | undefined)?.paneLimits;
+      const malformed = !paneLimits ||
+        paneLimits.length !== paneCount ||
+        paneLimits.some((p) =>
+          (p.tierLimits?.length ?? 0) !== tierCount ||
+          (p.laneLimits?.length ?? 0) !== laneCount
+        );
+      if (malformed) {
+        d.scaleAxisLimits = computeScaleAxisLimitsFromValues(
+          d.values as (number | undefined)[][][][][],
+          paneCount,
+          tierCount,
+          laneCount,
+        );
+      }
     }
 
     // Block 12: Normalize string[] headers → HeaderItem[] ({ id, label }).

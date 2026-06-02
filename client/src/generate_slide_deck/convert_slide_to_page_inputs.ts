@@ -43,7 +43,7 @@ import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
 import { FASTR_LOGO_VALUES } from "~/components/_shared/fastr_logos";
 import { getBackgroundDetail } from "./get_overlay_image";
 
-const MARKDOWN_TEXT_SIZE_SCALE = 1.5;
+const MARKDOWN_TEXT_SIZE_SCALE = 1.6;
 
 function getFont(
   fontFamily: SlideFontFamily,
