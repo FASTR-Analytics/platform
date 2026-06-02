@@ -18,15 +18,33 @@
 // 8. Remove per-slide logo fields (now deck-level)
 // 9. Migrate figureInputs: yScaleAxisData → scaleAxisLimits + tierHeaders
 // 10. Compute missing scaleAxisLimits from values array (includes chartOHData)
+// 11. Convert text block style.textSize number → semantic key
 //
 // PRE-VALIDATION BLOCK (runs on ALL rows):
 // A. One-time fix for missing scaleAxisLimits - DELETE AFTER ALL INSTANCES UPDATED
 //
 // =============================================================================
 
-import { slideConfigSchema } from "lib";
+import { slideConfigSchema, TEXT_SIZE_KEYS, TEXT_SIZE_REL } from "lib";
+import type { TextSizeKey } from "lib";
 import type { Sql } from "postgres";
 import { transformPOConfigData } from "./po_config.ts";
+
+// Map an old numeric textSize multiplier to the nearest semantic key.
+// Old data stored the raw relFontSize numbers (0.41, 1, 1.56, …); the new shape
+// stores the key and resolves the number at render time via TEXT_SIZE_REL.
+function relToTextSizeKey(value: number): TextSizeKey {
+  let closest: TextSizeKey = "m";
+  let minDiff = Infinity;
+  for (const key of TEXT_SIZE_KEYS) {
+    const diff = Math.abs(TEXT_SIZE_REL[key] - value);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = key;
+    }
+  }
+  return closest;
+}
 
 export type MigrationStats = {
   rowsChecked: number;
@@ -186,6 +204,32 @@ function transformFigureInputs(fi: Record<string, unknown>): void {
   }
 }
 
+// ONE-TIME PRE-VALIDATION helper: force the figureInputs migration on every
+// figure block in a layout, returning whether anything changed. Needed because
+// the skip gate in migrateSlideConfigs validates against slideConfigSchema,
+// which treats figureInputs as z.unknown() — so figureInputs drift (old
+// yScaleAxisData / missing scaleAxisLimits) is invisible to it and would
+// otherwise never get transformed. DELETE after all instances are updated.
+function forceMigrateFigureInputs(node: LayoutNode): boolean {
+  if (
+    node.type === "item" &&
+    node.data?.type === "figure" &&
+    node.data.figureInputs
+  ) {
+    const before = JSON.stringify(node.data.figureInputs);
+    transformFigureInputs(node.data.figureInputs);
+    return JSON.stringify(node.data.figureInputs) !== before;
+  }
+  if ((node.type === "rows" || node.type === "cols") && node.children) {
+    let changed = false;
+    for (const child of node.children) {
+      if (forceMigrateFigureInputs(child)) changed = true;
+    }
+    return changed;
+  }
+  return false;
+}
+
 function transformLayoutNode(node: LayoutNode): void {
   // Block 3: Convert span from string → number (or delete if invalid)
   const nodeAny = node as Record<string, unknown>;
@@ -229,6 +273,15 @@ function transformLayoutNode(node: LayoutNode): void {
     if (node.data.type === "figure" && node.data.figureInputs) {
       transformFigureInputs(node.data.figureInputs);
     }
+    // Block 11: Convert text block style.textSize number → semantic key
+    if (node.data.type === "text") {
+      const style = (node.data as Record<string, unknown>).style as
+        | { textSize?: unknown }
+        | undefined;
+      if (style && typeof style.textSize === "number") {
+        style.textSize = relToTextSizeKey(style.textSize);
+      }
+    }
   } else if ((node.type === "rows" || node.type === "cols") && node.children) {
     for (const child of node.children) {
       transformLayoutNode(child);
@@ -249,8 +302,23 @@ export async function migrateSlideConfigs(
   for (const row of rows) {
     const config = JSON.parse(row.config);
 
+    // =========================================================================
+    // PRE-VALIDATION BLOCK A: One-time force of the figureInputs migration.
+    // Runs on ALL rows regardless of validation status, because the skip gate
+    // below validates against slideConfigSchema, which treats figureInputs as
+    // z.unknown() — so stale figureInputs (old yScaleAxisData / missing
+    // scaleAxisLimits) pass validation and would otherwise never be transformed.
+    // TODO: DELETE THIS BLOCK after all instances have received this update.
+    // =========================================================================
+    let preValidationChanged = false;
+    if (config.type === "content" && config.layout) {
+      preValidationChanged = forceMigrateFigureInputs(
+        config.layout as LayoutNode,
+      );
+    }
+
     // Already valid? Skip (unless pre-validation made changes).
-    if (slideConfigSchema.safeParse(config).success) {
+    if (!preValidationChanged && slideConfigSchema.safeParse(config).success) {
       continue;
     }
 
