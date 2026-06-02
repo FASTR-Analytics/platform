@@ -1,8 +1,8 @@
-[TBD] [user] [fixed] - Fixed broken chart layouts caused by older saved figures
-[TBD] [admin] [fixed] - Fixed broken chart layouts caused by outdated header formats
-[TBD] [user] [fixed] - Exporting large projects no longer causes timeouts or failures
-[TBD] [admin] [improved] - Large project exports are now streamed to prevent timeouts
-[TBD] [admin] [added] - New health endpoint to view indicator mappings
+[1.42.0] [user] [fixed] - Fixed broken chart layouts caused by older saved figures
+[1.42.0] [admin] [fixed] - Fixed broken chart layouts caused by outdated header formats
+[1.42.0] [user] [fixed] - Exporting large projects no longer causes timeouts or failures
+[1.42.0] [admin] [improved] - Large project exports are now streamed to prevent timeouts
+[1.42.0] [admin] [added] - New health endpoint to view indicator mappings
 [1.41.1] [user] [fixed] - Fixed coverage charts failing to display for some saved figures
 [1.41.1] [admin] [fixed] - Coverage charts no longer crash when viewing older saved figures
 [1.41.0] [user] [changed] - Text in slides now displays at a larger default size
