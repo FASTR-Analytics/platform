@@ -159,15 +159,16 @@ routesExportCentral.get(
 const ROWS_PAGE_SIZE = 20000;
 
 routesExportCentral.get(
-  "/export_central/:project_id/rows/:ro_id",
+  "/export_central/:project_id/rows",
   requireGlobalPermission(),
   async (c) => {
     if (!H_USERS.includes(c.var.globalUser.email)) {
       return c.json({ success: false, err: "Not authorized" }, 403);
     }
     const projectId = c.req.param("project_id");
-    const roId = decodeURIComponent(c.req.param("ro_id"));
+    const roId = c.req.query("ro_id") ?? "";
     const offset = parseInt(c.req.query("offset") ?? "0");
+    if (!roId) return c.json({ success: false, err: "ro_id required" }, 400);
 
     const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
     const tableName = getResultsObjectTableName(roId);
