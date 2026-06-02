@@ -1,3 +1,5 @@
+[1.41.1] [user] [fixed] - Fixed coverage charts failing to display for some saved figures
+[1.41.1] [admin] [fixed] - Coverage charts no longer crash when viewing older saved figures
 [1.41.0] [user] [changed] - Text in slides now displays at a larger default size
 [1.41.0] [user] [changed] - Text background padding is now more compact in slides
 [1.41.0] [user] [fixed] - Existing custom text sizes preserved correctly after update
