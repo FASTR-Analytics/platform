@@ -1,3 +1,6 @@
+[TBD] [user] [fixed] - Exporting large projects is now more reliable and less likely to time out
+[TBD] [admin] [changed] - Project export now loads result rows in paginated batches
+[TBD] [admin] [improved] - Faster and more reliable exports for large projects
 [1.42.0] [user] [fixed] - Fixed broken chart layouts caused by older saved figures
 [1.42.0] [admin] [fixed] - Fixed broken chart layouts caused by outdated header formats
 [1.42.0] [user] [fixed] - Exporting large projects no longer causes timeouts or failures
