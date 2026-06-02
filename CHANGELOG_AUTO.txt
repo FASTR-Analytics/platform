@@ -1,3 +1,4 @@
+[1.43.0] [admin] [changed] - Export rows endpoint now requires a valid results object identifier
 [1.43.0] [user] [fixed] - Fixed export errors when report names contain special characters
 [1.43.0] [admin] [fixed] - Export Central now handles special characters in identifiers correctly
 [1.43.0] [user] [fixed] - Exported metric labels now always appear in English
