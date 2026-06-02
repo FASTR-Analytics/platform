@@ -1,3 +1,10 @@
+[1.41.0] [user] [changed] - Text in slides now displays at a larger default size
+[1.41.0] [user] [changed] - Text background padding is now more compact in slides
+[1.41.0] [user] [fixed] - Existing custom text sizes preserved correctly after update
+[1.41.0] [admin] [changed] - Text size in slides now uses named sizes instead of numbers
+[1.41.0] [admin] [fixed] - Text background padding corrected for slide text blocks
+[1.41.0] [admin] [internal] - Existing slide text sizes automatically migrated to new format
+[1.41.0] [admin] [internal] - Text size slider temporarily disabled during transition
 [1.40.2] [user] [added] - Contextual help topics now available throughout the platform
 [1.40.2] [user] [added] - Help guidance for the AI assistant feature
 [1.40.2] [user] [added] - Help guidance for dashboards, slide decks, and reports
