@@ -4,7 +4,7 @@ import type { Sql } from "postgres";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { getResultsObjectTableName } from "../../db/utils.ts";
 import { _INSTANCE_ID, _INSTANCE_NAME } from "../../exposed_env_vars.ts";
-import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { requireGlobalPermission, authMiddleware } from "../../middleware/mod.ts";
 import type { DBMetric, DBModule } from "../../db/project/_project_database_types.ts";
 import type { DBProject } from "../../db/instance/_main_database_types.ts";
 import { getModuleDefinitionDetail } from "../../module_loader/load_module.ts";
@@ -166,7 +166,7 @@ routesExportCentral.get(
       return c.json({ success: false, err: "Not authorized" }, 403);
     }
     const projectId = c.req.param("project_id");
-    const roId = c.req.param("ro_id");
+    const roId = decodeURIComponent(c.req.param("ro_id"));
     const offset = parseInt(c.req.query("offset") ?? "0");
 
     const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
