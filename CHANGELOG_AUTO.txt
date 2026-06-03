@@ -1,7 +1,7 @@
-[TBD] [user] [changed] - Faster export of large project datasets
-[TBD] [admin] [changed] - Data export to central server now streams results for better performance with large datasets
-[TBD] [admin] [changed] - Row export endpoint now uses a server secret instead of user login for authentication
-[TBD] [admin] [added] - New configuration option: central server secret for export authentication
+[1.43.4] [user] [changed] - Faster export of large project datasets
+[1.43.4] [admin] [changed] - Data export to central server now streams results for better performance with large datasets
+[1.43.4] [admin] [changed] - Row export endpoint now uses a server secret instead of user login for authentication
+[1.43.4] [admin] [added] - New configuration option: central server secret for export authentication
 [1.43.2] [user] [added] - Export DHIS2 indicators with their mapping details
 [1.43.2] [admin] [added] - New endpoint to export DHIS2 indicator mappings
 [1.43.0] [user] [changed] - Data exports to central hub now load faster
