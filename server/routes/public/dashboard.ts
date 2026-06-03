@@ -3,6 +3,7 @@ import { getAuth } from "@hono/clerk-auth";
 import { buildPublicDashboardBundle } from "lib";
 import { getDashboardBySlug } from "../../db/project/dashboards.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
+import { getCountryIso3Config } from "../../db/instance/config.ts";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -42,9 +43,22 @@ routesPublicDashboard.get("/api/d/:projectId/:slug", async (c) => {
     }
   }
 
+  // Country drives display-only label cleaning (e.g. Nigeria admin-area names)
+  // in the shared transform. Best-effort and non-sensitive: a failure here must
+  // never block serving the dashboard, so fall back to no cleaning.
+  let countryIso3: string | undefined;
+  try {
+    const countryRes = await getCountryIso3Config(
+      getPgConnectionFromCacheOrNew("main", "READ_ONLY"),
+    );
+    countryIso3 = countryRes.success ? countryRes.data.countryIso3 : undefined;
+  } catch {
+    countryIso3 = undefined;
+  }
+
   // Shared transform (lib): groups collapse to entries, group members carry the
   // group's shared geojson. Same builder the editor uses.
-  const bundle = buildPublicDashboardBundle(result.data);
+  const bundle = buildPublicDashboardBundle(result.data, countryIso3);
 
   return c.json({ success: true, data: bundle });
 });

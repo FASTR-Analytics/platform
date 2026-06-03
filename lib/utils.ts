@@ -1,4 +1,5 @@
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
+import { formatReplicantLabelForDisplay } from "./format_nigeria_admin_label.ts";
 import { PresentationObjectConfig } from "./types/mod.ts";
 
 export function cleanValStrForSql(str: string | undefined): string {
@@ -12,6 +13,7 @@ export function withReplicant(
   str: string,
   config: PresentationObjectConfig,
   indicatorLabelReplacements: Record<string, string>,
+  countryIso3?: string,
 ): string {
   const replicateBy = getReplicateByProp(config);
   if (config && !replicateBy) {
@@ -22,9 +24,12 @@ export function withReplicant(
       .replaceAll("REPLICANT", "Unselected")
       .replaceAll("RÉPLICANT", "Unselected");
   }
-  const replicantLabel =
+  const replicantLabel = formatReplicantLabelForDisplay(
     indicatorLabelReplacements[config.d.selectedReplicantValue] ??
-    config.d.selectedReplicantValue;
+      config.d.selectedReplicantValue,
+    replicateBy,
+    countryIso3,
+  );
   return str
     .replaceAll("REPLICANT", replicantLabel)
     .replaceAll("RÉPLICANT", replicantLabel);

@@ -2,6 +2,7 @@ import type { FigureInputs } from "@timroberton/panther";
 import type { FigureBlock, FigureSource } from "./slides.ts";
 import type { IndicatorMetadata } from "./indicators.ts";
 import type { PresentationObjectConfig } from "./presentation_objects.ts";
+import { formatReplicantLabelForDisplay } from "../format_nigeria_admin_label.ts";
 
 // Re-export schemas from underscore-prefixed file (stored data validation)
 export {
@@ -157,6 +158,7 @@ export type PublicDashboardEntry =
 // members carry the group's shared geojson (members store geo_data = NULL).
 export function buildPublicDashboardBundle(
   dashboard: Dashboard,
+  countryIso3?: string,
 ): PublicDashboardBundle {
   function toPublicItem(
     item: DashboardItem,
@@ -208,7 +210,16 @@ export function buildPublicDashboardBundle(
             label: group.label,
             replicateBy: group.replicateBy,
             defaultReplicantValue: group.defaultReplicantValue,
-            replicants: group.replicants,
+            // Display-only: clean Nigeria admin-area labels on the way out;
+            // stored replicants[].value/label stay raw.
+            replicants: group.replicants.map((r) => ({
+              value: r.value,
+              label: formatReplicantLabelForDisplay(
+                r.label,
+                group.replicateBy,
+                countryIso3,
+              ),
+            })),
           },
           members: [pub],
         });

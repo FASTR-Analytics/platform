@@ -1,5 +1,6 @@
 import {
   DisaggregationOption,
+  formatReplicantLabelForDisplay,
   getFetchConfigFromPresentationObjectConfig,
   PresentationObjectConfig,
   PresentationObjectDetail,
@@ -7,6 +8,7 @@ import {
   TC,
   throwIfErrWithData,
 } from "lib";
+import { instanceState } from "~/state/instance/t1_store";
 import {
   Select,
   SelectList,
@@ -30,6 +32,27 @@ import { trackDeep } from "@solid-primitives/deep";
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
+
+// Replicant picker options with Nigeria admin-area labels cleaned for display
+// (raw id/value untouched). Re-sorts by cleaned label only when cleaning
+// changed something, so the server's ORDER BY ordering is preserved otherwise.
+function cleanedReplicantSelectOptions(
+  possibleValues: { id: string; label: string }[],
+  replicateBy: DisaggregationOption,
+) {
+  const cleaned = possibleValues.map((pv) => ({
+    id: pv.id,
+    label: formatReplicantLabelForDisplay(
+      pv.label,
+      replicateBy,
+      instanceState.countryIso3,
+    ),
+  }));
+  if (cleaned.some((c, i) => c.label !== possibleValues[i].label)) {
+    cleaned.sort((a, b) => a.label.localeCompare(b.label));
+  }
+  return getSelectOptionsFromIdLabel(cleaned);
+}
 
 type ReplicateByOptionsPresentationObjectProps = {
   replicateBy: DisaggregationOption;
@@ -88,13 +111,14 @@ export function ReplicateByOptionsPresentationObject(
               </Match>
               <Match when={keyedReplicantOptions.status === "ok"}>
                 {(() => {
-                  const options = getSelectOptionsFromIdLabel(
+                  const options = cleanedReplicantSelectOptions(
                     (
                       keyedReplicantOptions as Extract<
                         typeof keyedReplicantOptions,
                         { status: "ok" }
                       >
                     ).possibleValues,
+                    p.replicateBy,
                   );
 
                   return (
@@ -185,7 +209,10 @@ export function ReplicateByOptionsPresentationObjectSelect(
 
                 return (
                   <Select
-                    options={getSelectOptionsFromIdLabel(possibleValues)}
+                    options={cleanedReplicantSelectOptions(
+                      possibleValues,
+                      p.replicateBy,
+                    )}
                     value={p.selectedReplicantValue}
                     onChange={(v) => p.setSelectedReplicant(v, possibleValues.map(pv => pv.id))}
                     fullWidth={p.fullWidth}

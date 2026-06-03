@@ -101,9 +101,9 @@ function DashboardViewer(p: DashboardViewerProps) {
           class="border-base-300"
           heading={<span class="font-800 text-2xl">{p.bundle.title}</span>}
           leftChildren={
-            <Show when={hasLogos() && logoPlacement() === "left"}>
+            hasLogos() && logoPlacement() === "left" ? (
               <DashboardLogos selected={p.bundle.logos.selected} />
-            </Show>
+            ) : null
           }
         >
           <div class="ui-gap-sm flex items-center">

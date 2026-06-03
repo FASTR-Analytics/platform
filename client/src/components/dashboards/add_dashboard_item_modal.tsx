@@ -1,4 +1,4 @@
-import { FigureBlock, t3 } from "lib";
+import { FigureBlock, formatReplicantLabelForDisplay, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -9,6 +9,7 @@ import {
 } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import { resolveFigureAndGeoFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 
 type Props = {
@@ -27,6 +28,15 @@ export function AddDashboardItemConfirmModal(
   p: AlertComponentProps<Props, ReturnType>,
 ) {
   const hasReplicants = p.allReplicants.length > 0;
+  // Display-only cleaned form of the selected replicant value (e.g. Nigeria
+  // admin-area names). The underlying value passed to the server stays raw.
+  const selectedReplicantLabel = p.selectedReplicant
+    ? formatReplicantLabelForDisplay(
+        p.selectedReplicant,
+        p.replicateBy,
+        instanceState.countryIso3,
+      )
+    : undefined;
   const [creationMode, setCreationMode] = createSignal<"single" | "all">(
     "single",
   );
@@ -106,8 +116,8 @@ export function AddDashboardItemConfirmModal(
       }
 
       // Single mode
-      const itemLabel = p.selectedReplicant
-        ? `${p.visualizationLabel} - ${p.selectedReplicant}`
+      const itemLabel = selectedReplicantLabel
+        ? `${p.visualizationLabel} - ${selectedReplicantLabel}`
         : p.visualizationLabel;
       try {
         const res = await addSingle(p.selectedReplicant, itemLabel);
@@ -142,10 +152,10 @@ export function AddDashboardItemConfirmModal(
             options={[
               {
                 value: "single",
-                label: p.selectedReplicant
+                label: selectedReplicantLabel
                   ? t3({
-                      en: `Selected replicant only (${p.selectedReplicant})`,
-                      fr: `Seulement le réplicant sélectionné (${p.selectedReplicant})`,
+                      en: `Selected replicant only (${selectedReplicantLabel})`,
+                      fr: `Seulement le réplicant sélectionné (${selectedReplicantLabel})`,
                     })
                   : t3({
                       en: "Selected replicant only",

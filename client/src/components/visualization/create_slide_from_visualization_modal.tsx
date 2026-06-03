@@ -1,9 +1,10 @@
 import { useNavigate } from "@solidjs/router";
 import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckConfig, SlideDeckFolder, SlideDeckSummary } from "lib";
-import { getStartingConfigForSlideDeck, t3 } from "lib";
+import { formatReplicantLabelForDisplay, getStartingConfigForSlideDeck, t3 } from "lib";
 import { AlertComponentProps, AlertFormHolder, RadioGroup, ProgressBar, getProgress, timActionForm } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import { DeckSelector } from "~/components/project_ai/ai_tools/DeckSelector";
 import { convertAiInputToSlide } from "../slide_deck/slide_ai/convert_ai_input_to_slide";
 import { InlineReplicantSelector } from "./inline_replicant_selector";
@@ -106,7 +107,11 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
             const replicantValue = options[i];
             const replicantLabel = p.replicateBy === "indicator_common_id"
               ? replicantValue.toUpperCase()
-              : replicantValue;
+              : formatReplicantLabelForDisplay(
+                  replicantValue,
+                  p.replicateBy,
+                  instanceState.countryIso3,
+                );
 
             progress.onProgress(
               i / options.length,
