@@ -1,3 +1,18 @@
+[1.44.0] [user] [added] - Download dashboards as PDF or PowerPoint files
+[1.44.0] [user] [added] - Choose to export a single figure or all figures at once
+[1.44.0] [user] [changed] - Dashboard sharing links are now shorter, without project ID
+[1.44.0] [user] [changed] - Download button is always visible in dashboard header
+[1.44.0] [user] [fixed] - Visualization cards with unavailable metrics can now be selected and deleted
+[1.44.0] [user] [added] - Progress bar shown during dashboard export
+[1.44.0] [user] [added] - Warning prompt when exporting dashboards with many figures
+[1.44.0] [user] [added] - Option to include About text in PDF exports
+[1.44.0] [user] [changed] - Dashboard slugs are now unique across all projects
+[1.44.0] [admin] [changed] - Public dashboard URLs no longer include the project ID
+[1.44.0] [admin] [added] - Dashboard slugs are now globally unique across all projects
+[1.44.0] [admin] [added] - Dashboards can be exported as PDF or PowerPoint from the public viewer
+[1.44.0] [admin] [changed] - Download button on public dashboards opens a unified export dialog
+[1.44.0] [admin] [fixed] - Visualization cards with unavailable metrics can now be selected and deleted
+[1.44.0] [admin] [added] - Large exports (50+ figures) require explicit confirmation before proceeding
 [1.43.4] [user] [fixed] - Cleaned up Nigerian admin-area names throughout the platform for easier reading
 [1.43.4] [user] [fixed] - Dashboard replicant labels now display simplified Nigerian location names
 [1.43.4] [user] [fixed] - Slide creation shows cleaned Nigerian admin-area names instead of raw codes
