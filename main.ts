@@ -99,7 +99,7 @@ app.route("/", routesPublicDashboard);
 try {
   const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
   app.get("/share/viz/:token", (c) => c.html(indexHtml));
-  app.get("/d/:projectId/:slug", (c) => c.html(indexHtml));
+  app.get("/d/:slug", (c) => c.html(indexHtml));
 } catch {
   // In development, handled by Vite dev server
 }
