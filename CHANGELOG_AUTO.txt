@@ -1,5 +1,5 @@
-[TBD] [user] [added] - Export DHIS2 indicators with their mapping details
-[TBD] [admin] [added] - New endpoint to export DHIS2 indicator mappings
+[1.43.2] [user] [added] - Export DHIS2 indicators with their mapping details
+[1.43.2] [admin] [added] - New endpoint to export DHIS2 indicator mappings
 [1.43.0] [user] [changed] - Data exports to central hub now load faster
 [1.43.0] [admin] [changed] - Faster metric label loading during central hub exports
 [1.43.0] [admin] [changed] - Export rows endpoint now requires a valid results object identifier
