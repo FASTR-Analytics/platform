@@ -336,6 +336,7 @@ When a base convention is wrong or missing, fix it in the panther source and re-
 - **Strict TypeScript typing** - avoid `any`
 - Follow existing patterns and conventions
 - Use functional programming where appropriate
+- **Never create a `scripts/` folder** - put build/utility scripts at the repo root
 
 ### Database Migrations
 
