@@ -1,0 +1,272 @@
+import {
+  FIGURE_EXPORT_WIDTH_PX,
+  type PublicDashboardBundle,
+  t3,
+  TC,
+} from "lib";
+import {
+  Button,
+  Checkbox,
+  downloadBase64Image,
+  type EditorComponentProps,
+  getFigureAsBase64,
+  ModalContainer,
+  RadioGroup,
+  StateHolderFormError,
+  toPct0,
+  toPct1,
+} from "panther";
+import { createSignal, Show } from "solid-js";
+import {
+  buildDashboardExportModel,
+  figureInputsForDownload,
+  itemFigureInputs,
+  sanitizeFilename,
+} from "~/exports/_dashboard_export_model";
+import { exportDashboardAsPdf } from "~/exports/export_dashboard_as_pdf";
+import { exportDashboardAsPptx } from "~/exports/export_dashboard_as_pptx";
+
+type Format = "png" | "pdf" | "pptx";
+type Scope = "current" | "all";
+
+// Above this many figures, an "all" export needs an explicit confirm.
+const COUNT_WARN_THRESHOLD = 50;
+
+export function DownloadDashboardModal(
+  p: EditorComponentProps<
+    { bundle: PublicDashboardBundle; currentItemId?: string },
+    undefined
+  >,
+) {
+  const hasCurrent = () => p.currentItemId !== undefined;
+
+  const [format, setFormat] = createSignal<Format>(
+    hasCurrent() ? "png" : "pdf",
+  );
+  const [scope, setScope] = createSignal<Scope>(
+    hasCurrent() ? "current" : "all",
+  );
+  const [includeAbout, setIncludeAbout] = createSignal(true);
+  const [background, setBackground] = createSignal<string>("white");
+  const [margin, setMargin] = createSignal<string>("padding");
+  const [confirmedLarge, setConfirmedLarge] = createSignal(false);
+  const [pct, setPct] = createSignal(0);
+  const [err, setErr] = createSignal("");
+
+  // `items` is the flat list of every renderable figure (group members
+  // included), so its length is the "all" figure count without any hydration.
+  const allCount = () => p.bundle.items.length;
+  const aboutAvailable = () =>
+    [p.bundle.about.summary, p.bundle.about.body].some(
+      (s) => s.trim().length > 0,
+    );
+
+  // PNG has no "all" form; without a current item only PDF/PPTX make sense.
+  const pptxLabel = t3({ en: "PowerPoint (.pptx)", fr: "PowerPoint (.pptx)" });
+  const formatOptions = (): { value: Format; label: string }[] =>
+    hasCurrent()
+      ? [
+          { value: "png", label: "PNG" },
+          { value: "pdf", label: "PDF" },
+          { value: "pptx", label: pptxLabel },
+        ]
+      : [
+          { value: "pdf", label: "PDF" },
+          { value: "pptx", label: pptxLabel },
+        ];
+
+  const scopeOptions = (): { value: Scope; label: string }[] => [
+    {
+      value: "current",
+      label: t3({ en: "This figure", fr: "Cette figure" }),
+    },
+    {
+      value: "all",
+      label: t3({ en: "All figures", fr: "Toutes les figures" }),
+    },
+  ];
+
+  const isImageExport = () => format() === "png";
+  const effectiveScope = (): Scope => (isImageExport() ? "current" : scope());
+  const showScope = () => !isImageExport() && hasCurrent();
+  const showAbout = () =>
+    !isImageExport() && effectiveScope() === "all" && aboutAvailable();
+  const showCount = () => !isImageExport() && effectiveScope() === "all";
+  const showLargeConfirm = () =>
+    showCount() && allCount() > COUNT_WARN_THRESHOLD;
+  const canDownload = () => !showLargeConfirm() || confirmedLarge();
+
+  async function attemptExport() {
+    setErr("");
+    setPct(0.02);
+    await new Promise((res) => setTimeout(res, 0));
+
+    if (isImageExport()) {
+      const item = p.bundle.items.find((i) => i.id === p.currentItemId);
+      if (!item) {
+        setErr(
+          t3({ en: "No figure selected", fr: "Aucune figure sélectionnée" }),
+        );
+        setPct(0);
+        return;
+      }
+      const fi = figureInputsForDownload(
+        itemFigureInputs(item),
+        background() === "transparent",
+        margin() === "padding",
+      );
+      downloadBase64Image(
+        getFigureAsBase64(fi, FIGURE_EXPORT_WIDTH_PX),
+        `${sanitizeFilename(item.label, "figure")}.png`,
+      );
+      p.close(undefined);
+      return;
+    }
+
+    const sc = effectiveScope();
+    const model = buildDashboardExportModel(p.bundle, sc, p.currentItemId);
+    const opts = {
+      includeCover: sc === "all",
+      includeAbout: sc === "all" && includeAbout() && aboutAvailable(),
+    };
+    const res =
+      format() === "pdf"
+        ? await exportDashboardAsPdf(model, opts, setPct)
+        : await exportDashboardAsPptx(model, opts, setPct);
+    if (res.success === false) {
+      setErr(res.err);
+      setPct(0);
+      return;
+    }
+    p.close(undefined);
+  }
+
+  return (
+    <ModalContainer
+      title={t3(TC.download)}
+      width="sm"
+      leftButtons={
+        pct() > 0
+          ? undefined
+          : // eslint-disable-next-line jsx-key
+            [
+              <Button
+                onClick={attemptExport}
+                intent="success"
+                iconName="download"
+                disabled={!canDownload()}
+              >
+                {t3(TC.download)}
+              </Button>,
+              <Button
+                onClick={() => p.close(undefined)}
+                intent="neutral"
+                iconName="x"
+              >
+                {t3(TC.cancel)}
+              </Button>,
+            ]
+      }
+    >
+      <div class="ui-spy">
+        <RadioGroup
+          label={t3({ en: "Format", fr: "Format" })}
+          options={formatOptions()}
+          value={format()}
+          onChange={setFormat}
+          horizontal
+        />
+
+        <Show when={showScope()}>
+          <RadioGroup
+            label={t3({ en: "Include", fr: "Inclure" })}
+            options={scopeOptions()}
+            value={scope()}
+            onChange={setScope}
+            horizontal
+          />
+        </Show>
+
+        <Show when={isImageExport()}>
+          <div class="ui-gap flex">
+            <RadioGroup
+              label={t3({ en: "Background", fr: "Arrière-plan" })}
+              options={[
+                { value: "white", label: t3({ en: "White", fr: "Blanc" }) },
+                {
+                  value: "transparent",
+                  label: t3({ en: "Transparent", fr: "Transparent" }),
+                },
+              ]}
+              value={background()}
+              onChange={setBackground}
+            />
+            <RadioGroup
+              label={t3({ en: "Margin", fr: "Marge" })}
+              options={[
+                {
+                  value: "padding",
+                  label: t3({ en: "With margins", fr: "Avec marges" }),
+                },
+                {
+                  value: "no-padding",
+                  label: t3({ en: "No margins", fr: "Sans marges" }),
+                },
+              ]}
+              value={margin()}
+              onChange={setMargin}
+            />
+          </div>
+        </Show>
+
+        <Show when={showAbout()}>
+          <Checkbox
+            checked={includeAbout()}
+            onChange={setIncludeAbout}
+            label={t3({
+              en: "Include About text",
+              fr: "Inclure le texte À propos",
+            })}
+          />
+        </Show>
+
+        <Show when={showCount()}>
+          <div class="text-neutral text-sm">
+            {t3({
+              en: `This will export ${allCount()} figures.`,
+              fr: `Ceci exportera ${allCount()} figures.`,
+            })}
+          </div>
+        </Show>
+
+        <Show when={showLargeConfirm()}>
+          <Checkbox
+            checked={confirmedLarge()}
+            onChange={setConfirmedLarge}
+            intentWhenChecked="warning"
+            label={t3({
+              en: `Yes, export all ${allCount()} figures (this may be slow).`,
+              fr: `Oui, exporter les ${allCount()} figures (cela peut être lent).`,
+            })}
+          />
+        </Show>
+      </div>
+
+      <Show when={pct() > 0}>
+        <div class="ui-spy-sm">
+          <div class="bg-base-300 h-8 w-full">
+            <div
+              class="bg-primary h-full"
+              style={{ width: toPct1(pct()) }}
+            ></div>
+          </div>
+          <div class="text-center">{toPct0(pct())}</div>
+        </div>
+      </Show>
+
+      <Show when={pct() === 0 && err()}>
+        <StateHolderFormError state={{ status: "error", err: err() }} />
+      </Show>
+    </ModalContainer>
+  );
+}
