@@ -1,3 +1,11 @@
+[1.43.4] [user] [fixed] - Cleaned up Nigerian admin-area names throughout the platform for easier reading
+[1.43.4] [user] [fixed] - Dashboard replicant labels now display simplified Nigerian location names
+[1.43.4] [user] [fixed] - Slide creation shows cleaned Nigerian admin-area names instead of raw codes
+[1.43.4] [user] [fixed] - Chart titles and captions now display simplified Nigerian location names
+[1.43.4] [admin] [fixed] - Nigeria admin-area names now display cleanly across the platform
+[1.43.4] [admin] [changed] - Public dashboards show cleaned admin-area labels for Nigeria instances
+[1.43.4] [admin] [changed] - Dashboard item labels and replicant pickers use simplified area names
+[1.43.4] [admin] [changed] - Slide creation from visualizations uses cleaned admin-area labels
 [1.43.4] [user] [changed] - Faster export of large project datasets
 [1.43.4] [admin] [changed] - Data export to central server now streams results for better performance with large datasets
 [1.43.4] [admin] [changed] - Row export endpoint now uses a server secret instead of user login for authentication
