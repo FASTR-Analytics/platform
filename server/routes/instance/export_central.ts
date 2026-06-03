@@ -3,7 +3,7 @@ import { H_USERS, type GlobalUser } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { getResultsObjectTableName } from "../../db/utils.ts";
-import { _INSTANCE_ID, _INSTANCE_NAME } from "../../exposed_env_vars.ts";
+import { _CENTRAL_SERVER_SECRET, _INSTANCE_ID, _INSTANCE_NAME } from "../../exposed_env_vars.ts";
 import { requireGlobalPermission, authMiddleware } from "../../middleware/mod.ts";
 import type { DBMetric, DBModule } from "../../db/project/_project_database_types.ts";
 import type { DBProject } from "../../db/instance/_main_database_types.ts";
@@ -176,11 +176,11 @@ const ROWS_PAGE_SIZE = 20000;
 
 routesExportCentral.get(
   "/export_central/:project_id/rows",
-  requireGlobalPermission(),
   async (c) => {
-    if (!H_USERS.includes(c.var.globalUser.email)) {
-      return c.json({ success: false, err: "Not authorized" }, 403);
+    if (!_CENTRAL_SERVER_SECRET || c.req.header("X-Central-Secret") !== _CENTRAL_SERVER_SECRET) {
+      return c.json({ success: false, err: "Authentication required", authError: true }, 401);
     }
+
     const projectId = c.req.param("project_id");
     const roId = c.req.query("ro_id") ?? "";
     const offset = parseInt(c.req.query("offset") ?? "0");
@@ -199,34 +199,6 @@ routesExportCentral.get(
       // Table may not exist
     }
 
-    const enc = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        const w = (s: string) => controller.enqueue(enc.encode(s));
-        w(`{"success":true,"data":{`);
-        w(`"exportedAt":${JSON.stringify(new Date().toISOString())},`);
-        w(`"sourceInstanceId":${JSON.stringify(_INSTANCE_ID)},`);
-        w(`"sourceInstanceLabel":${JSON.stringify(_INSTANCE_NAME)},`);
-        w(`"sourceProjectId":${JSON.stringify(projectId)},`);
-        w(`"modules":${JSON.stringify(modules)},`);
-        w(`"metrics":${JSON.stringify(metrics)},`);
-        w(`"calculatedIndicators":${JSON.stringify(calculatedIndicators)},`);
-        w(`"resultsObjects":[`);
-        for (let i = 0; i < resultsObjects.length; i++) {
-          if (i > 0) w(",");
-          const ro = resultsObjects[i];
-          w(`{"id":${JSON.stringify(ro.id)},"moduleId":${JSON.stringify(ro.moduleId)},"columnDefinitions":${JSON.stringify(ro.columnDefinitions)},"rows":[`);
-          const chunkSize = 500;
-          for (let j = 0; j < ro.rows.length; j += chunkSize) {
-            if (j > 0) w(",");
-            w(ro.rows.slice(j, j + chunkSize).map((r) => JSON.stringify(r)).join(","));
-          }
-          w("]}");
-        }
-        w("]}}");
-        controller.close();
-      },
-    });
-    return new Response(stream, { headers: { "Content-Type": "application/json" } });
+    return c.json({ success: true, data: { rows, hasMore: rows.length === ROWS_PAGE_SIZE } });
   },
 );
