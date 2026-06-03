@@ -5,6 +5,33 @@
 
 import type { LayoutPresetConfig } from "./types.ts";
 
+const X_PAD = 45;
+const Y_PAD = 30;
+
+// const FREEFORM_HEADERS_PADDING = {
+//   paddingIfFilled: [Y_PAD, X_PAD],
+//   paddingIfBordered: [Y_PAD, X_PAD],
+//   paddingIfNone: [Y_PAD, X_PAD, 0, X_PAD],
+// };
+
+const FREEFORM_HEADERS_PADDING = {
+  paddingIfFilled: [Y_PAD, X_PAD],
+  paddingIfBordered: [Y_PAD, X_PAD],
+  paddingIfNone: [Y_PAD, X_PAD, 0, X_PAD],
+};
+
+const FREEFORM_CONTENT_PADDING: LayoutPresetConfig["freeform"]["content"] = {
+  padding: [Y_PAD, X_PAD],
+  gapX: X_PAD,
+  gapY: Y_PAD,
+};
+
+const FREEFORM_FOOTER_PADDING = {
+  paddingIfFilled: [Y_PAD, X_PAD],
+  paddingIfBordered: [Y_PAD, X_PAD],
+  paddingIfNone: [10, X_PAD, Y_PAD, X_PAD],
+};
+
 const LAYOUT_PRESETS = {
   default: {
     name: "Default",
@@ -33,9 +60,7 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [15, 30, 0, 30],
+        ...FREEFORM_HEADERS_PADDING,
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -48,9 +73,7 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [10, 30, 15, 30],
+        ...FREEFORM_FOOTER_PADDING,
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -59,7 +82,7 @@ const LAYOUT_PRESETS = {
           gapX: 20,
         },
       },
-      content: { padding: [20, 30], gapX: 30, gapY: 20 },
+      content: FREEFORM_CONTENT_PADDING,
     },
   },
   modern: {
@@ -89,9 +112,7 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [15, 30, 0, 30],
+        ...FREEFORM_HEADERS_PADDING,
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -104,9 +125,7 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [10, 30, 15, 30],
+        ...FREEFORM_FOOTER_PADDING,
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -115,7 +134,7 @@ const LAYOUT_PRESETS = {
           gapX: 20,
         },
       },
-      content: { padding: [20, 30], gapX: 30, gapY: 20 },
+      content: FREEFORM_CONTENT_PADDING,
     },
   },
   corporate: {
@@ -145,9 +164,7 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [15, 30, 0, 30],
+        ...FREEFORM_HEADERS_PADDING,
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -160,9 +177,7 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [10, 30, 15, 30],
+        ...FREEFORM_FOOTER_PADDING,
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -171,7 +186,7 @@ const LAYOUT_PRESETS = {
           gapX: 20,
         },
       },
-      content: { padding: [20, 30], gapX: 30, gapY: 20 },
+      content: FREEFORM_CONTENT_PADDING,
     },
   },
   split: {
@@ -203,9 +218,7 @@ const LAYOUT_PRESETS = {
     freeform: {
       header: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [15, 30, 0, 30],
+        ...FREEFORM_HEADERS_PADDING,
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -218,9 +231,7 @@ const LAYOUT_PRESETS = {
       },
       footer: {
         alignH: "left",
-        paddingIfFilled: [15, 30],
-        paddingIfBordered: [15, 30],
-        paddingIfNone: [10, 30, 15, 30],
+        ...FREEFORM_FOOTER_PADDING,
         borderWidthIfBordered: 6,
         logosSizing: {
           targetArea: 6000,
@@ -229,10 +240,10 @@ const LAYOUT_PRESETS = {
           gapX: 20,
         },
       },
-      content: { padding: [20, 30], gapX: 30, gapY: 20 },
+      content: FREEFORM_CONTENT_PADDING,
     },
   },
-} as const satisfies Record<string, LayoutPresetConfig>;
+} satisfies Record<string, LayoutPresetConfig>;
 
 export const LAYOUT_PRESET_IDS = [
   "default",

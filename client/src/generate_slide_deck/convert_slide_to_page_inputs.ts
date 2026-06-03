@@ -12,11 +12,13 @@ import {
   _CF_RED,
   _SLIDE_BACKGROUND_COLOR,
   createDeckStyleContext,
+  DEFAULT_TEXT_SIZE_KEY,
   getLetterSpacing,
   getSlideFontInfo,
   getTextColorForBackground,
   resolveColorThemeToPreset,
   resolveLogoSizing,
+  TEXT_SIZE_REL,
 } from "lib";
 import type {
   APIResponseWithData,
@@ -40,6 +42,8 @@ import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
 import { FASTR_LOGO_VALUES } from "~/components/_shared/fastr_logos";
 import { getBackgroundDetail } from "./get_overlay_image";
+
+const MARKDOWN_TEXT_SIZE_SCALE = 1.6;
 
 function getFont(
   fontFamily: SlideFontFamily,
@@ -132,7 +136,7 @@ export function buildStyleForSlide(
           fontFamily,
           coverFontSizes.presenterBold,
           coverFontSizes.presenterItalic,
-          true,
+          false,
         ),
         color: presetStyle.text!.coverAuthor!.color,
         relFontSize: (coverFontSizes.presenterTextRelFontSize ?? 4) / 2,
@@ -419,19 +423,23 @@ function resolveTextBackground(
   bg: string | undefined,
   primaryColor: string,
 ): ResolvedTextBackground | undefined {
+  const TEXT_BACKGROUND_PADDING = [15, 20];
   if (!bg || bg === "none") return undefined;
   if (bg === "grey") {
     return {
       containerStyle: {
         backgroundColor: { key: "base200" },
-        padding: [50, 60],
+        padding: TEXT_BACKGROUND_PADDING,
       },
       textColor: "#1E1E1E",
     };
   }
   if (bg === "primary") {
     return {
-      containerStyle: { backgroundColor: primaryColor, padding: [50, 60] },
+      containerStyle: {
+        backgroundColor: primaryColor,
+        padding: TEXT_BACKGROUND_PADDING,
+      },
       textColor: getTextColorForBackground(primaryColor),
     };
   }
@@ -439,14 +447,17 @@ function resolveTextBackground(
     return {
       containerStyle: {
         backgroundColor: _SLIDE_BACKGROUND_COLOR,
-        padding: [50, 60],
+        padding: TEXT_BACKGROUND_PADDING,
       },
       textColor: getTextColorForBackground(_SLIDE_BACKGROUND_COLOR),
     };
   }
   if (bg === "danger") {
     return {
-      containerStyle: { backgroundColor: _CF_RED, padding: [50, 60] },
+      containerStyle: {
+        backgroundColor: _CF_RED,
+        padding: TEXT_BACKGROUND_PADDING,
+      },
       textColor: getTextColorForBackground(_CF_RED),
     };
   }
@@ -504,7 +515,8 @@ async function convertBlockToPageContentItem(
   deckStyle: DeckStyleContext,
 ): Promise<PageContentItem> {
   if (block.type === "text") {
-    const baseFontSize = getBaseText().fontSize * (block.style?.textSize ?? 1);
+    const baseFontSize = getBaseText().fontSize * MARKDOWN_TEXT_SIZE_SCALE;
+    // TEXT_SIZE_REL[block.style?.textSize ?? DEFAULT_TEXT_SIZE_KEY];
     const fontFamily = deckStyle.fontFamily;
     return {
       markdown: block.markdown,

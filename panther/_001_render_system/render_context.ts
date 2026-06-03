@@ -104,7 +104,7 @@ export type PathStyle = {
 
 export type RenderContext = {
   mText: (
-    text: string,
+    text: string | null | undefined,
     ti: TextInfoUnkeyed,
     maxWidth: number,
     opts?: {

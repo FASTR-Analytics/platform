@@ -16,7 +16,7 @@ export const _GLOBAL_LAYOUT_COLUMNS = 12;
 // content renders at the floor and is flagged `cramped`. One home for figures and
 // markdown so their floors can't drift. Placeholder value — the real legibility
 // floor is set holistically in the design redo (see PLAN_SIZING_REFACTOR.md).
-export const MIN_FONT_SIZE_DU = 5;
+export const MIN_FONT_SIZE_DU = 4;
 
 export type SizingMode = "reflow" | "zoom";
 

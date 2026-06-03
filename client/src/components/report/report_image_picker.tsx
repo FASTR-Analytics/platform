@@ -7,9 +7,7 @@ type ReturnType = { imgFile: string; alt: string } | undefined;
 
 // Matches the slide image model: imgFile is an instance asset. Reuses the app's
 // canonical FileUploadSelector (upload via Uppy + select existing).
-export function ReportImagePicker(
-  p: AlertComponentProps<object, ReturnType>,
-) {
+export function ReportImagePicker(p: AlertComponentProps<object, ReturnType>) {
   const [imgFile, setImgFile] = createSignal("");
   const [alt, setAlt] = createSignal("");
 
@@ -38,9 +36,13 @@ export function ReportImagePicker(
           filter={(a) => a.isImage}
           value={imgFile()}
           onChange={setImgFile}
+          fullWidth
         />
         <Input
-          label={t3({ en: "Caption (optional)", fr: "Légende (facultatif)" })}
+          label={t3({
+            en: "Alt text for screen readers (optional)",
+            fr: "Texte alternatif pour lecteurs d'écran (facultatif)",
+          })}
           value={alt()}
           onChange={setAlt}
           fullWidth

@@ -4,11 +4,12 @@
 
 import { z } from "zod";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
+import { TEXT_SIZE_KEYS } from "../consts.ts";
 
 // ── Block Styles ────────────────────────────────────────────────────────────
 
 const textBlockStyleSchema = z.object({
-  textSize: z.number().optional(),
+  textSize: z.enum(TEXT_SIZE_KEYS).optional(),
   textBackground: z.string().optional(),
 });
 
@@ -234,7 +235,7 @@ const _completeContent: Required<ContentSlide> = {
     data: {
       type: "text",
       markdown: "",
-      style: { textSize: 1, textBackground: "" } satisfies Required<TextBlockStyle>,
+      style: { textSize: "m", textBackground: "" } satisfies Required<TextBlockStyle>,
     },
   },
   split: {

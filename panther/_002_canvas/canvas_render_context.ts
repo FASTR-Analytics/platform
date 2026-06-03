@@ -40,7 +40,7 @@ export class CanvasRenderContext implements RenderContext {
   }
 
   mText(
-    text: string,
+    text: string | null | undefined,
     ti: TextInfoUnkeyed,
     maxWidth: number,
     opts?: {

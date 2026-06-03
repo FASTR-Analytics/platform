@@ -5,10 +5,11 @@ import type {
   ContentSlideSplitFill,
   FigureBlock,
   TextBlock,
+  TextSizeKey,
   ImageBlock,
   LogoVisibility,
 } from "lib";
-import { t3 } from "lib";
+import { DEFAULT_TEXT_SIZE_KEY, t3, TEXT_SIZE_KEYS } from "lib";
 import type { PatternType } from "panther";
 import {
   TextArea,
@@ -279,7 +280,9 @@ export function SlideEditorPanelContent(p: Props) {
                       { value: "45", label: "45%" },
                       { value: "50", label: "50%" },
                     ]}
-                    onChange={(v) => p.setTempSlide("split", "sizeAsPct", Number(v))}
+                    onChange={(v) =>
+                      p.setTempSlide("split", "sizeAsPct", Number(v))
+                    }
                     fullWidth
                   />
                   <Select
@@ -506,104 +509,95 @@ export function SlideEditorPanelContent(p: Props) {
                         }
                         fullWidth
                       />
-                      {(() => {
-                        const TEXT_SIZES = [
-                          0.41, 0.51, 0.64, 0.8, 1, 1.25, 1.56, 1.95, 2.44,
-                          3.05, 3.81, 4.77,
-                        ];
-                        const TEXT_SIZE_LABELS: Record<number, string> = {
-                          0.41: "3XS",
-                          0.64: "XS",
-                          1: "M",
-                          1.56: "XL",
-                          2.44: "3XL",
-                          4.77: "6XL",
-                        };
-                        const SIZE_LABELS = [
-                          "3XS",
-                          "2XS",
-                          "XS",
-                          "S",
-                          "M",
-                          "L",
-                          "XL",
-                          "2XL",
-                          "3XL",
-                          "4XL",
-                          "5XL",
-                          "6XL",
-                        ];
-                        const blockIndex = () => {
-                          const size =
-                            (getCurrentBlock() as TextBlock).style?.textSize ??
-                            1;
-                          const idx = TEXT_SIZES.indexOf(size);
-                          return idx >= 0 ? idx : TEXT_SIZES.indexOf(1);
-                        };
-                        const [dragIndex, setDragIndex] = createSignal<
-                          number | undefined
-                        >(undefined);
-                        const displayIndex = () => dragIndex() ?? blockIndex();
-                        const disableReset = () =>
-                          (getCurrentBlock() as TextBlock).style?.textSize ===
-                            1 ||
-                          (getCurrentBlock() as TextBlock).style === undefined;
-                        return (
-                          <div class="ui-gap-sm flex items-center">
-                            <Slider
-                              label={t3({
-                                en: "Text size",
-                                fr: "Taille du texte",
-                              })}
-                              value={displayIndex()}
-                              onChange={(i) => setDragIndex(i)}
-                              onRelease={(i) => {
-                                setDragIndex(undefined);
-                                const size = TEXT_SIZES[i];
-                                updateSelectedBlock((b) => {
-                                  const tb = b as TextBlock;
-                                  return {
-                                    ...tb,
-                                    style: { ...tb.style, textSize: size },
-                                  };
-                                });
-                              }}
-                              min={0}
-                              max={TEXT_SIZES.length - 1}
-                              step={1}
-                              showValueInLabel
-                              valueInLabelFormatter={(i) =>
-                                SIZE_LABELS[i] ?? ""
-                              }
-                              ticks={{
-                                major: TEXT_SIZES.map((_, i) => i),
-                                showLabels: true,
-                                labelFormatter: (i) =>
-                                  TEXT_SIZE_LABELS[TEXT_SIZES[i]] ?? "",
-                              }}
-                              fullWidth
-                            />
+                      {/* <>
+                        {(() => {
+                          const TICK_LABEL_KEYS = new Set<TextSizeKey>([
+                            "3xs",
+                            "xs",
+                            "m",
+                            "xl",
+                            "3xl",
+                            "6xl",
+                          ]);
+                          const blockIndex = () => {
+                            const key =
+                              (getCurrentBlock() as TextBlock).style
+                                ?.textSize ?? DEFAULT_TEXT_SIZE_KEY;
+                            const idx = TEXT_SIZE_KEYS.indexOf(key);
+                            return idx >= 0
+                              ? idx
+                              : TEXT_SIZE_KEYS.indexOf(DEFAULT_TEXT_SIZE_KEY);
+                          };
+                          const [dragIndex, setDragIndex] = createSignal<
+                            number | undefined
+                          >(undefined);
+                          const displayIndex = () =>
+                            dragIndex() ?? blockIndex();
+                          const disableReset = () =>
+                            (getCurrentBlock() as TextBlock).style?.textSize ===
+                              DEFAULT_TEXT_SIZE_KEY ||
+                            (getCurrentBlock() as TextBlock).style ===
+                              undefined;
+                          return (
+                            <div class="ui-gap-sm flex items-center">
+                              <Slider
+                                label={t3({
+                                  en: "Text size",
+                                  fr: "Taille du texte",
+                                })}
+                                value={displayIndex()}
+                                onChange={(i) => setDragIndex(i)}
+                                onRelease={(i) => {
+                                  setDragIndex(undefined);
+                                  const key = TEXT_SIZE_KEYS[i];
+                                  updateSelectedBlock((b) => {
+                                    const tb = b as TextBlock;
+                                    return {
+                                      ...tb,
+                                      style: { ...tb.style, textSize: key },
+                                    };
+                                  });
+                                }}
+                                min={0}
+                                max={TEXT_SIZE_KEYS.length - 1}
+                                step={1}
+                                showValueInLabel
+                                valueInLabelFormatter={(i) =>
+                                  TEXT_SIZE_KEYS[i]?.toUpperCase() ?? ""
+                                }
+                                ticks={{
+                                  major: TEXT_SIZE_KEYS.map((_, i) => i),
+                                  showLabels: true,
+                                  labelFormatter: (i) =>
+                                    TICK_LABEL_KEYS.has(TEXT_SIZE_KEYS[i])
+                                      ? TEXT_SIZE_KEYS[i].toUpperCase()
+                                      : "",
+                                }}
+                                fullWidth
+                              />
 
-                            <Button
-                              outline
-                              onClick={() => {
-                                setDragIndex(undefined);
-                                updateSelectedBlock((b) => {
-                                  const tb = b as TextBlock;
-                                  return {
-                                    ...tb,
-                                    style: { ...tb.style, textSize: 1 },
-                                  };
-                                });
-                              }}
-                              iconName="refresh"
-                              disabled={disableReset()}
-                            >
-                              {/* Layout */}
-                            </Button>
-                          </div>
-                        );
-                      })()}
+                              <Button
+                                outline
+                                onClick={() => {
+                                  setDragIndex(undefined);
+                                  updateSelectedBlock((b) => {
+                                    const tb = b as TextBlock;
+                                    return {
+                                      ...tb,
+                                      style: {
+                                        ...tb.style,
+                                        textSize: DEFAULT_TEXT_SIZE_KEY,
+                                      },
+                                    };
+                                  });
+                                }}
+                                iconName="refresh"
+                                disabled={disableReset()}
+                              ></Button>
+                            </div>
+                          );
+                        })()}
+                      </> */}
                     </Match>
                     <Match when={getCurrentBlock()?.type === "figure"}>
                       {(() => {

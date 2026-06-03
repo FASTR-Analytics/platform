@@ -13,11 +13,11 @@ import { setCtxFont } from "./set_ctx_font.ts";
 
 export function measureText(
   ctx: CanvasRenderingContext2D,
-  text: string,
+  text: string | null | undefined,
   ti: TextInfoUnkeyed,
   maxWidth: number,
 ): MeasuredText {
-  if (text === "") {
+  if (!text) {
     return {
       lines: [],
       dims: new Dimensions({ w: 0, h: 0 }),
@@ -130,7 +130,7 @@ export function measureText(
 
 export function measureVerticalText(
   ctx: CanvasRenderingContext2D,
-  text: string,
+  text: string | null | undefined,
   ti: TextInfoUnkeyed,
   maxHeight: number,
   rotation: "anticlockwise" | "clockwise",

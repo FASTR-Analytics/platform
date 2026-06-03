@@ -54,15 +54,21 @@ function getCoverageSeriesColorFunc(): (
   return (info) => {
     // TODO: switch to .id matching once raw series ids are confirmed
     // (and drop the French branches — id is locale-stable, label is not)
-    if (info.seriesHeader.label.startsWith("default")) return "#000000";
+    // Stored figures may carry seriesHeader as a bare string instead of
+    // { id, label }; fall back to the string (or empty) so .startsWith is safe.
+    const header = info.seriesHeader as unknown;
+    const label = typeof header === "string"
+      ? header
+      : (header as { label?: string } | undefined)?.label ?? "";
+    if (label.startsWith("default")) return "#000000";
     if (
-      info.seriesHeader.label.startsWith("Survey") ||
-      info.seriesHeader.label.startsWith("Estimation basée")
+      label.startsWith("Survey") ||
+      label.startsWith("Estimation basée")
     )
       return "#000000";
     if (
-      info.seriesHeader.label.startsWith("Projected") ||
-      info.seriesHeader.label.startsWith("Estimation projetée")
+      label.startsWith("Projected") ||
+      label.startsWith("Estimation projetée")
     )
       return "#F04D44";
     return "#CED4DB";

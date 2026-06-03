@@ -17,16 +17,38 @@
 // 7. Transform embedded PO configs in figure blocks (reuses po_config transforms)
 // 8. Remove per-slide logo fields (now deck-level)
 // 9. Migrate figureInputs: yScaleAxisData → scaleAxisLimits + tierHeaders
-// 10. Compute missing scaleAxisLimits from values array (includes chartOHData)
+// 10. (Re)compute scaleAxisLimits from values when missing OR wrong-length
+//     (truncated tierLimits/laneLimits → overflow); includes chartOHData
+// 11. Convert text block style.textSize number → semantic key
+// 12. Normalize figureInputs string[] headers → HeaderItem[] ({ id, label })
 //
 // PRE-VALIDATION BLOCK (runs on ALL rows):
-// A. One-time fix for missing scaleAxisLimits - DELETE AFTER ALL INSTANCES UPDATED
+// A. One-time force of the figureInputs migration (Blocks 9/10/12). Needed
+//    because the skip gate validates figureInputs as z.unknown(), so figure
+//    drift is invisible to it. DELETE AFTER ALL INSTANCES UPDATED
 //
 // =============================================================================
 
-import { slideConfigSchema } from "lib";
+import { slideConfigSchema, TEXT_SIZE_KEYS, TEXT_SIZE_REL } from "lib";
+import type { TextSizeKey } from "lib";
 import type { Sql } from "postgres";
 import { transformPOConfigData } from "./po_config.ts";
+
+// Map an old numeric textSize multiplier to the nearest semantic key.
+// Old data stored the raw relFontSize numbers (0.41, 1, 1.56, …); the new shape
+// stores the key and resolves the number at render time via TEXT_SIZE_REL.
+function relToTextSizeKey(value: number): TextSizeKey {
+  let closest: TextSizeKey = "m";
+  let minDiff = Infinity;
+  for (const key of TEXT_SIZE_KEYS) {
+    const diff = Math.abs(TEXT_SIZE_REL[key] - value);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = key;
+    }
+  }
+  return closest;
+}
 
 export type MigrationStats = {
   rowsChecked: number;
@@ -162,28 +184,84 @@ function transformFigureInputs(fi: Record<string, unknown>): void {
     }
     delete d.yScaleAxisData;
 
-    // Block 10: Compute scaleAxisLimits from values if still missing
-    const scaleAxisLimits = d.scaleAxisLimits as
-      | { paneLimits?: unknown }
-      | undefined;
-    if (!scaleAxisLimits?.paneLimits && d.values) {
-      const paneHeaders = (d.paneHeaders as string[] | undefined) ?? [
-        "default",
-      ];
-      const tierHeaders = (d.tierHeaders as string[] | undefined) ?? [
-        "default",
-      ];
-      const laneHeaders = (d.laneHeaders as string[] | undefined) ?? [
-        "default",
-      ];
-      d.scaleAxisLimits = computeScaleAxisLimitsFromValues(
-        d.values as (number | undefined)[][][][][],
-        paneHeaders.length,
-        tierHeaders.length,
-        laneHeaders.length,
-      );
+    // Block 10: (Re)compute scaleAxisLimits from values when it is missing OR
+    // when the per-tier / per-lane limit arrays are the wrong length. Pre-2026
+    // transformed data stored a truncated tierLimits (e.g. length 1 on a 3-tier
+    // chart), so tiers beyond the first had no limits → the renderer fell back
+    // to [0,1] and bars overflowed. The values array is authoritative and fully
+    // populated, so recompute reproduces the correct limits (verified against
+    // production: it matches the known-good tier-0 limits exactly; affected data
+    // has no uncertainty bounds).
+    if (d.values) {
+      const paneCount = (d.paneHeaders as unknown[] | undefined)?.length ?? 1;
+      const tierCount = (d.tierHeaders as unknown[] | undefined)?.length ?? 1;
+      const laneCount = (d.laneHeaders as unknown[] | undefined)?.length ?? 1;
+      const paneLimits = (d.scaleAxisLimits as
+        | { paneLimits?: { tierLimits?: unknown[]; laneLimits?: unknown[] }[] }
+        | undefined)?.paneLimits;
+      const malformed = !paneLimits ||
+        paneLimits.length !== paneCount ||
+        paneLimits.some((p) =>
+          (p.tierLimits?.length ?? 0) !== tierCount ||
+          (p.laneLimits?.length ?? 0) !== laneCount
+        );
+      if (malformed) {
+        d.scaleAxisLimits = computeScaleAxisLimitsFromValues(
+          d.values as (number | undefined)[][][][][],
+          paneCount,
+          tierCount,
+          laneCount,
+        );
+      }
+    }
+
+    // Block 12: Normalize string[] headers → HeaderItem[] ({ id, label }).
+    // Pre-2026-05-26 transformed data stored headers as plain strings; the
+    // current renderer expects { id, label } objects and reads .id / .label
+    // (undefined on a string → broken tier/pane/lane layout + id matching).
+    for (
+      const headerKey of [
+        "seriesHeaders",
+        "laneHeaders",
+        "tierHeaders",
+        "paneHeaders",
+        "indicatorHeaders",
+      ]
+    ) {
+      const arr = d[headerKey];
+      if (Array.isArray(arr)) {
+        d[headerKey] = arr.map((h) =>
+          typeof h === "string" ? { id: h, label: h } : h
+        );
+      }
     }
   }
+}
+
+// ONE-TIME PRE-VALIDATION helper: force the figureInputs migration on every
+// figure block in a layout, returning whether anything changed. Needed because
+// the skip gate in migrateSlideConfigs validates against slideConfigSchema,
+// which treats figureInputs as z.unknown() — so figureInputs drift (old
+// yScaleAxisData / missing scaleAxisLimits) is invisible to it and would
+// otherwise never get transformed. DELETE after all instances are updated.
+function forceMigrateFigureInputs(node: LayoutNode): boolean {
+  if (
+    node.type === "item" &&
+    node.data?.type === "figure" &&
+    node.data.figureInputs
+  ) {
+    const before = JSON.stringify(node.data.figureInputs);
+    transformFigureInputs(node.data.figureInputs);
+    return JSON.stringify(node.data.figureInputs) !== before;
+  }
+  if ((node.type === "rows" || node.type === "cols") && node.children) {
+    let changed = false;
+    for (const child of node.children) {
+      if (forceMigrateFigureInputs(child)) changed = true;
+    }
+    return changed;
+  }
+  return false;
 }
 
 function transformLayoutNode(node: LayoutNode): void {
@@ -229,6 +307,15 @@ function transformLayoutNode(node: LayoutNode): void {
     if (node.data.type === "figure" && node.data.figureInputs) {
       transformFigureInputs(node.data.figureInputs);
     }
+    // Block 11: Convert text block style.textSize number → semantic key
+    if (node.data.type === "text") {
+      const style = (node.data as Record<string, unknown>).style as
+        | { textSize?: unknown }
+        | undefined;
+      if (style && typeof style.textSize === "number") {
+        style.textSize = relToTextSizeKey(style.textSize);
+      }
+    }
   } else if ((node.type === "rows" || node.type === "cols") && node.children) {
     for (const child of node.children) {
       transformLayoutNode(child);
@@ -249,8 +336,23 @@ export async function migrateSlideConfigs(
   for (const row of rows) {
     const config = JSON.parse(row.config);
 
+    // =========================================================================
+    // PRE-VALIDATION BLOCK A: One-time force of the figureInputs migration.
+    // Runs on ALL rows regardless of validation status, because the skip gate
+    // below validates against slideConfigSchema, which treats figureInputs as
+    // z.unknown() — so stale figureInputs (old yScaleAxisData / missing
+    // scaleAxisLimits) pass validation and would otherwise never be transformed.
+    // TODO: DELETE THIS BLOCK after all instances have received this update.
+    // =========================================================================
+    let preValidationChanged = false;
+    if (config.type === "content" && config.layout) {
+      preValidationChanged = forceMigrateFigureInputs(
+        config.layout as LayoutNode,
+      );
+    }
+
     // Already valid? Skip (unless pre-validation made changes).
-    if (slideConfigSchema.safeParse(config).success) {
+    if (!preValidationChanged && slideConfigSchema.safeParse(config).success) {
       continue;
     }
 

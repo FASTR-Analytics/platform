@@ -21,7 +21,6 @@ export type DashboardLayout =
   | { type: "grid" };
 
 export type DashboardConfig = DashboardConfigFromSchema;
-export type DashboardLogoSize = NonNullable<DashboardConfig["logos"]["size"]>;
 
 export function getStartingDashboardConfig(): DashboardConfig {
   return {
@@ -112,8 +111,11 @@ export type DashboardDetail = Dashboard;
 export type PublicDashboardBundle = {
   title: string;
   layout: DashboardLayout;
-  // Branding logos (identifiers resolved to URLs client-side) + size key.
-  logos: { selected: string[]; size?: DashboardLogoSize };
+  // Branding logos (identifiers resolved to URLs client-side) + placement.
+  logos: {
+    selected: string[];
+    placement?: "left" | "right";
+  };
   // Markdown: inline summary (under heading) + long body (About modal).
   about: { summary: string; body: string };
   // Flat list of every renderable item (group members + standalones), in order.
@@ -227,7 +229,10 @@ export function buildPublicDashboardBundle(
   return {
     title: dashboard.title,
     layout: dashboard.layout,
-    logos: { selected: cfg.logos.selected, size: cfg.logos.size },
+    logos: {
+      selected: cfg.logos.selected,
+      placement: cfg.logos.placement,
+    },
     about: cfg.about,
     items,
     entries,

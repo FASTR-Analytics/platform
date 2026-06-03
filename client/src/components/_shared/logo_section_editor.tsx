@@ -2,13 +2,16 @@ import type { LogoSectionConfig, LogoSizeKey } from "lib";
 import { t3 } from "lib";
 import { Checkbox, Select } from "panther";
 import { Show } from "solid-js";
-import { LogoSelector } from "~/components/_shared/logo_selector";
+import { LogoSelector } from "./logo_selector";
 
 type Props = {
   title: string;
   config: LogoSectionConfig;
   customLogos: string[];
   onChange: (config: LogoSectionConfig) => void;
+  // Hide the slide-specific extras (show-by-default + size + spacing) — e.g. the
+  // dashboard, which renders logos at a fixed CSS box and has no per-logo sizing.
+  dontShowSizing?: boolean;
 };
 
 const SIZE_OPTIONS = [
@@ -36,7 +39,7 @@ export function LogoSectionEditor(p: Props) {
         customLogos={p.customLogos}
         onChange={(logos) => p.onChange({ ...p.config, selected: logos })}
       />
-      <Show when={hasLogos()}>
+      <Show when={hasLogos() && !p.dontShowSizing}>
         <div class="ui-spy-sm pt-2">
           <Checkbox
             label={t3({ en: "Show by default", fr: "Afficher par défaut" })}

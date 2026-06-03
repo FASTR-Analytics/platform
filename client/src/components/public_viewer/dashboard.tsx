@@ -12,11 +12,11 @@ import {
   ChartHolder,
   downloadBase64Image,
   FrameLeft,
+  FrameLeftResizable,
   FrameTop,
   getFigureAsBase64,
   HeadingBar,
   MarkdownPresentationJsx,
-  openAlert,
   openComponent,
   Select,
   StateHolderWrapper,
@@ -25,31 +25,21 @@ import {
 } from "panther";
 import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/strip_figure_inputs";
-import { resolveLogoUrl } from "~/components/_shared/fastr_logos";
 import { _SERVER_HOST } from "~/server_actions";
 import {
   DownloadFigureModal,
   type DownloadFigureResult,
 } from "./download_figure_modal.tsx";
+import { DashboardLogos } from "./dashboard_logos.tsx";
+import { AboutDashboardModal } from "./about_dashboard_modal.tsx";
 
-const DASHBOARD_LOGO_HEIGHT: Record<string, number> = {
-  sm: 24,
-  md: 32,
-  lg: 40,
-  xl: 56,
-};
-
-function openAbout(body: string): void {
-  void openAlert({
-    title: t3({
-      en: "About this dashboard",
-      fr: "À propos de ce tableau de bord",
-    }),
-    text: (
-      <div class="max-w-prose">
-        <MarkdownPresentationJsx markdown={body} />
-      </div>
-    ),
+function openAbout(bundle: PublicDashboardBundle): void {
+  void openComponent({
+    element: AboutDashboardModal,
+    props: {
+      body: bundle.about.body,
+      logos: bundle.logos.selected,
+    },
   });
 }
 
@@ -101,7 +91,8 @@ function DashboardViewer(p: DashboardViewerProps) {
   const headerDownloadItem = () =>
     layoutType() === "sidebar" ? currentItem() : undefined;
 
-  const logoHeight = () => DASHBOARD_LOGO_HEIGHT[p.bundle.logos.size ?? "md"];
+  const hasLogos = () => p.bundle.logos.selected.length > 0;
+  const logoPlacement = () => p.bundle.logos.placement ?? "right";
 
   return (
     <FrameTop
@@ -109,25 +100,16 @@ function DashboardViewer(p: DashboardViewerProps) {
         <HeadingBar
           class="border-base-300"
           heading={<span class="font-800 text-2xl">{p.bundle.title}</span>}
-        >
-          <div class="ui-gap flex items-center">
-            <Show when={p.bundle.logos.selected.length > 0}>
-              <div class="ui-gap flex items-center">
-                <For each={p.bundle.logos.selected}>
-                  {(logo) => (
-                    <img
-                      src={resolveLogoUrl(logo)}
-                      alt=""
-                      class="w-auto object-contain"
-                      style={{ height: `${logoHeight()}px` }}
-                    />
-                  )}
-                </For>
-              </div>
+          leftChildren={
+            <Show when={hasLogos() && logoPlacement() === "left"}>
+              <DashboardLogos selected={p.bundle.logos.selected} />
             </Show>
+          }
+        >
+          <div class="ui-gap-sm flex items-center">
             <Show when={p.bundle.about.body.trim()}>
               <Button
-                onClick={() => openAbout(p.bundle.about.body)}
+                onClick={() => openAbout(p.bundle)}
                 iconName="info"
                 outline
               >
@@ -147,6 +129,9 @@ function DashboardViewer(p: DashboardViewerProps) {
                   {t3({ en: "Download", fr: "Télécharger" })}
                 </Button>
               )}
+            </Show>
+            <Show when={hasLogos() && logoPlacement() === "right"}>
+              <DashboardLogos selected={p.bundle.logos.selected} />
             </Show>
           </div>
         </HeadingBar>
@@ -202,8 +187,8 @@ function SidebarLayout(p: SidebarLayoutProps) {
                 </Match>
                 <Match when={entry.kind === "group" ? entry : undefined}>
                   {(grp) => (
-                    <div>
-                      <div class="truncate px-2 py-1 text-sm select-none">
+                    <div class="space-y-1">
+                      <div class="px-2 py-1 text-sm select-none">
                         {grp().group.label}
                       </div>
                       <For each={grp().members}>
@@ -253,7 +238,7 @@ function NavRow(p: {
 }) {
   return (
     <div
-      class="ui-hoverable cursor-pointer truncate rounded px-2 py-1 text-sm"
+      class="ui-hoverable cursor-pointer rounded px-2 py-1 text-sm"
       classList={{
         "bg-primary text-primary-content": p.active,
         "pl-5": p.indent,

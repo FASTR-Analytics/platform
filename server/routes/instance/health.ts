@@ -33,7 +33,11 @@ routesHealth.get("/health_check", async (c) => {
   const adminUsers = users.filter((u) => u.is_admin).map((u) => u.email);
   const contactPersons = users
     .filter((u) => u.is_contact_person)
-    .map((u) => ({ email: u.email, firstName: u.first_name, lastName: u.last_name }));
+    .map((u) => ({
+      email: u.email,
+      firstName: u.first_name,
+      lastName: u.last_name,
+    }));
   const projects = await mainDb<
     DBProject[]
   >`SELECT id, label FROM projects ORDER BY LOWER(label)`;
@@ -134,7 +138,13 @@ ORDER BY day
 routesHealth.get("/user_logs_all", async (c: Context) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const logs = await mainDb<
-    { user_email: string; endpoint: string; endpoint_result: string; timestamp: string; project_id: string | null }[]
+    {
+      user_email: string;
+      endpoint: string;
+      endpoint_result: string;
+      timestamp: string;
+      project_id: string | null;
+    }[]
   >`SELECT user_email, endpoint, endpoint_result, timestamp::text, project_id FROM user_logs ORDER BY timestamp DESC`;
   return c.json({ logs });
 });
@@ -178,16 +188,23 @@ routesHealth.get("/ai_limit_hits", async (c: Context) => {
 routesHealth.get("/pg_stat_statements", async (c: Context) => {
   const orderByRaw = c.req.query("orderBy");
   const orderBy =
-    orderByRaw === "mean" ? "mean_exec_time"
-    : orderByRaw === "max" ? "max_exec_time"
-    : orderByRaw === "calls" ? "calls"
-    : "total_exec_time";
+    orderByRaw === "mean"
+      ? "mean_exec_time"
+      : orderByRaw === "max"
+        ? "max_exec_time"
+        : orderByRaw === "calls"
+          ? "calls"
+          : "total_exec_time";
 
   const limitRaw = Number(c.req.query("limit"));
-  const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 500 ? Math.floor(limitRaw) : 50;
+  const limit =
+    Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 500
+      ? Math.floor(limitRaw)
+      : 50;
 
   const minMeanMsRaw = Number(c.req.query("minMeanMs"));
-  const minMeanMs = Number.isFinite(minMeanMsRaw) && minMeanMsRaw >= 0 ? minMeanMsRaw : 0;
+  const minMeanMs =
+    Number.isFinite(minMeanMsRaw) && minMeanMsRaw >= 0 ? minMeanMsRaw : 0;
 
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const statements = await mainDb<
@@ -240,7 +257,7 @@ routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
   return c.json({ reset: true, serverTime: new Date().toISOString() });
 });
 
-routesHealth.get("/indicators", async (c: Context) => {
+routesHealth.get("/dhis2-indicators-export", async (c: Context) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const indicators = await mainDb<
     { indicator_raw_id: string; indicator_raw_label: string; mapped_to: string | null }[]

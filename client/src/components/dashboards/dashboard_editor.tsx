@@ -50,8 +50,14 @@ import {
 } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { AddDashboardItemConfirmModal } from "./add_dashboard_item_modal";
-import { DashboardSettingsModal } from "./dashboard_settings_modal";
-import { DashboardItemGrid, type DashboardGridEntry } from "./dashboard_item_grid";
+import {
+  DashboardSettings,
+  type DashboardSettingsProps,
+} from "./dashboard_settings";
+import {
+  DashboardItemGrid,
+  type DashboardGridEntry,
+} from "./dashboard_item_grid";
 import { DashboardItemEditor } from "./dashboard_item_editor";
 import { DashboardGroupEditor } from "./dashboard_group_editor";
 import { buildDashboardBundle } from "./build_dashboard_bundle";
@@ -98,6 +104,10 @@ function computeSingleItemMove(
 export function DashboardEditor(p: Props) {
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
     getEditorWrapper();
+  const {
+    openEditor: openSettingsEditor,
+    EditorWrapper: SettingsEditorWrapper,
+  } = getEditorWrapper();
 
   // T2 (Variant B — per-entity): SSE pushes a new lastUpdated when this
   // dashboard (or its items) changes, triggering a refetch. Stale data stays
@@ -151,8 +161,9 @@ export function DashboardEditor(p: Props) {
         };
       }
       const def =
-        e.members.find((m) => m.replicantValue === e.group.defaultReplicantValue) ??
-        e.members[0];
+        e.members.find(
+          (m) => m.replicantValue === e.group.defaultReplicantValue,
+        ) ?? e.members[0];
       return {
         id: e.group.id,
         kind: "group" as const,
@@ -168,7 +179,11 @@ export function DashboardEditor(p: Props) {
     const m = new Map<string, string[]>();
     for (const e of entries()) {
       if (e.kind === "item") m.set(e.item.id, [e.item.id]);
-      else m.set(e.group.id, e.members.map((x) => x.id));
+      else
+        m.set(
+          e.group.id,
+          e.members.map((x) => x.id),
+        );
     }
     return m;
   });
@@ -294,7 +309,9 @@ export function DashboardEditor(p: Props) {
     let allReplicants: { value: string; label: string }[] = [];
 
     if (replicateBy) {
-      const config: PresentationObjectConfig = structuredClone(poRes.data.config);
+      const config: PresentationObjectConfig = structuredClone(
+        poRes.data.config,
+      );
       if (selResult.replicant) {
         config.d.selectedReplicantValue = selResult.replicant;
       }
@@ -431,18 +448,17 @@ export function DashboardEditor(p: Props) {
     });
     if (!sel) return;
     try {
-      const { figureBlock, geoData } = await resolveFigureAndGeoFromVisualization(
-        p.projectId,
-        {
+      const { figureBlock, geoData } =
+        await resolveFigureAndGeoFromVisualization(p.projectId, {
           type: "from_visualization",
           visualizationId: sel.visualizationId,
           replicant: sel.replicant,
-        },
-      );
+        });
       await persistFigureBlock(it.id, figureBlock, geoData);
     } catch (err) {
       await openAlert({
-        text: err instanceof Error ? err.message : "Failed to switch visualization",
+        text:
+          err instanceof Error ? err.message : "Failed to switch visualization",
         intent: "danger",
       });
     }
@@ -457,7 +473,10 @@ export function DashboardEditor(p: Props) {
       (m) => m.id === source.metricId,
     );
     if (!resultsValue) {
-      await openAlert({ text: "Metric not found in project", intent: "danger" });
+      await openAlert({
+        text: "Metric not found in project",
+        intent: "danger",
+      });
       return;
     }
     const result = await openInnerEditor({
@@ -537,7 +556,8 @@ export function DashboardEditor(p: Props) {
     ) => Promise<{ figureBlock: FigureBlock; geoData?: unknown }>,
   ) {
     try {
-      const members: { replicantValue: string; figureBlock: FigureBlock }[] = [];
+      const members: { replicantValue: string; figureBlock: FigureBlock }[] =
+        [];
       let sharedGeoData: unknown = undefined;
       for (const r of g.replicants) {
         const { figureBlock, geoData } = await resolveOne(r.value);
@@ -589,7 +609,10 @@ export function DashboardEditor(p: Props) {
       (m) => m.id === source.metricId,
     );
     if (!resultsValue) {
-      await openAlert({ text: "Metric not found in project", intent: "danger" });
+      await openAlert({
+        text: "Metric not found in project",
+        intent: "danger",
+      });
       return;
     }
     const result = await openInnerEditor({
@@ -643,8 +666,8 @@ export function DashboardEditor(p: Props) {
   }
 
   async function openSettings(dashboard: DashboardDetail) {
-    await openComponent({
-      element: DashboardSettingsModal,
+    await openSettingsEditor<DashboardSettingsProps, { saved: true }>({
+      element: DashboardSettings,
       props: {
         projectId: p.projectId,
         dashboardId: p.dashboardId,
@@ -658,112 +681,117 @@ export function DashboardEditor(p: Props) {
   }
 
   return (
-    <InnerEditorWrapper>
-      <StateHolderWrapper state={data()}>
-        {(dashboard) => (
-          <FrameTop
-            panelChildren={
-              <HeadingBar
-                heading={dashboard.title}
-                class="border-base-300"
-                leftChildren={
-                  <Button
-                    iconName="chevronLeft"
-                    onClick={() => p.close(undefined)}
-                  />
-                }
-              >
-                <div class="ui-gap-sm flex items-center">
-                  <Button
-                    onClick={() =>
-                      window.open(publicUrl(dashboard.slug), "_blank")
-                    }
-                    iconName="eye"
-                    outline
-                  >
-                    {t3({ en: "Preview", fr: "Aperçu" })}
-                  </Button>
-                  <CopyToClipboardButton text={publicUrl(dashboard.slug)} outline>
-                    {t3({ en: "Copy link", fr: "Copier le lien" })}
-                  </CopyToClipboardButton>
-                  <Show when={canConfigure()}>
-                    <Button
-                      onClick={() => openSettings(dashboard)}
-                      iconName="settings"
-                      outline
-                    >
-                      {t3({ en: "Settings", fr: "Paramètres" })}
-                    </Button>
-                    <Button onClick={attemptAddItem} iconName="plus">
-                      {t3({ en: "Add item", fr: "Ajouter un élément" })}
-                    </Button>
-                  </Show>
-                  <Show when={!showAi()}>
-                    <Button
-                      onClick={() => setShowAi(true)}
-                      iconName="chevronLeft"
-                      outline
-                    >
-                      {t3({ en: "AI", fr: "IA" })}
-                    </Button>
-                  </Show>
-                </div>
-              </HeadingBar>
-            }
-          >
-            <FrameLeftResizable
-              startingWidth={300}
-              minWidth={240}
-              maxWidth={460}
-              hoverOffset="offset-for-border-1-on-left"
+    <SettingsEditorWrapper>
+      <InnerEditorWrapper>
+        <StateHolderWrapper state={data()}>
+          {(dashboard) => (
+            <FrameTop
               panelChildren={
-                <div class="border-base-300 flex h-full w-full flex-col border-r">
-                  <Show
-                    when={selectedGroup()}
-                    fallback={
-                      <DashboardItemEditor
-                        item={selectedItem()}
-                        selectedCount={selection.selectedCount()}
-                        canConfigure={canConfigure()}
-                        onUpdateLabel={handleUpdateLabel}
-                        onEdit={handleEdit}
-                        onSwitch={handleSwitch}
-                        onCreate={handleCreate}
-                        onDelete={() => {
-                          const it = selectedItem();
-                          if (it) deleteEntries([it.id]);
-                        }}
-                      />
-                    }
-                  >
-                    {(g) => (
-                      <DashboardGroupEditor
-                        group={g()}
-                        canConfigure={canConfigure()}
-                        onUpdateLabel={handleGroupRename}
-                        onSetDefaultReplicant={handleGroupSetDefault}
-                        onSwitch={handleGroupSwitch}
-                        onEdit={handleGroupEdit}
-                        onDelete={() => deleteEntries([g().id])}
-                      />
-                    )}
-                  </Show>
-                </div>
+                <HeadingBar
+                  heading={dashboard.title}
+                  class="border-base-300"
+                  leftChildren={
+                    <Button
+                      iconName="chevronLeft"
+                      onClick={() => p.close(undefined)}
+                    />
+                  }
+                >
+                  <div class="ui-gap-sm flex items-center">
+                    <Button
+                      onClick={() =>
+                        window.open(publicUrl(dashboard.slug), "_blank")
+                      }
+                      iconName="eye"
+                      outline
+                    >
+                      {t3({ en: "Preview", fr: "Aperçu" })}
+                    </Button>
+                    <CopyToClipboardButton
+                      text={publicUrl(dashboard.slug)}
+                      outline
+                    >
+                      {t3({ en: "Copy link", fr: "Copier le lien" })}
+                    </CopyToClipboardButton>
+                    <Show when={canConfigure()}>
+                      <Button
+                        onClick={() => openSettings(dashboard)}
+                        iconName="settings"
+                        outline
+                      >
+                        {t3({ en: "Settings", fr: "Paramètres" })}
+                      </Button>
+                      <Button onClick={attemptAddItem} iconName="plus">
+                        {t3({ en: "Add item", fr: "Ajouter un élément" })}
+                      </Button>
+                    </Show>
+                    <Show when={!showAi()}>
+                      <Button
+                        onClick={() => setShowAi(true)}
+                        iconName="chevronLeft"
+                        outline
+                      >
+                        {t3({ en: "AI", fr: "IA" })}
+                      </Button>
+                    </Show>
+                  </div>
+                </HeadingBar>
               }
             >
-              <div class="bg-base-200 h-full w-full">
-                <DashboardItemGrid
-                  entries={gridEntries()}
-                  selection={selection}
-                  canConfigure={canConfigure()}
-                  onReorder={handleReorder}
-                  onContextMenu={handleEntryContextMenu}
-                />
-              </div>
-            </FrameLeftResizable>
-          </FrameTop>
-        )}
-      </StateHolderWrapper>
-    </InnerEditorWrapper>
+              <FrameLeftResizable
+                startingWidth={300}
+                minWidth={240}
+                maxWidth={460}
+                hoverOffset="offset-for-border-1-on-left"
+                panelChildren={
+                  <div class="border-base-300 flex h-full w-full flex-col border-r">
+                    <Show
+                      when={selectedGroup()}
+                      fallback={
+                        <DashboardItemEditor
+                          item={selectedItem()}
+                          selectedCount={selection.selectedCount()}
+                          canConfigure={canConfigure()}
+                          onUpdateLabel={handleUpdateLabel}
+                          onEdit={handleEdit}
+                          onSwitch={handleSwitch}
+                          onCreate={handleCreate}
+                          onDelete={() => {
+                            const it = selectedItem();
+                            if (it) deleteEntries([it.id]);
+                          }}
+                        />
+                      }
+                    >
+                      {(g) => (
+                        <DashboardGroupEditor
+                          group={g()}
+                          canConfigure={canConfigure()}
+                          onUpdateLabel={handleGroupRename}
+                          onSetDefaultReplicant={handleGroupSetDefault}
+                          onSwitch={handleGroupSwitch}
+                          onEdit={handleGroupEdit}
+                          onDelete={() => deleteEntries([g().id])}
+                        />
+                      )}
+                    </Show>
+                  </div>
+                }
+              >
+                <div class="bg-base-200 h-full w-full">
+                  <DashboardItemGrid
+                    entries={gridEntries()}
+                    selection={selection}
+                    canConfigure={canConfigure()}
+                    onReorder={handleReorder}
+                    onContextMenu={handleEntryContextMenu}
+                  />
+                </div>
+              </FrameLeftResizable>
+            </FrameTop>
+          )}
+        </StateHolderWrapper>
+      </InnerEditorWrapper>
+    </SettingsEditorWrapper>
   );
 }

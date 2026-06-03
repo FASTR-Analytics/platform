@@ -1,18 +1,74 @@
-[TBD] [user] [added] - Help buttons now appear with quick summaries and links to documentation
-[TBD] [user] [changed] - Dashboard header logos, info, and download buttons are now aligned in a single row
-[TBD] [admin] [added] - Contextual help buttons link to documentation from within the app
-[TBD] [admin] [changed] - Dashboard header layout groups logos and action buttons on one line
-[TBD] [user] [added] - Add logos to dashboard header with size options
-[TBD] [user] [added] - Add summary text displayed below the dashboard title
-[TBD] [user] [added] - Add "About this dashboard" info button and dialog
-[TBD] [user] [added] - Download figures with background and margin options
-[TBD] [user] [added] - Each chart tile in grid layout now has its own download button
-[TBD] [admin] [added] - Dashboards now support displaying logos in the header
-[TBD] [admin] [added] - Dashboard settings include logo size options (S, M, L, XL)
-[TBD] [admin] [added] - Dashboards can show a summary below the title using markdown
-[TBD] [admin] [added] - Dashboards can have an "About this dashboard" info dialog with markdown content
-[TBD] [admin] [changed] - Chart download now lets you choose background and margin options
-[TBD] [admin] [changed] - Grid layout tiles now each have their own download button
+[1.43.2] [user] [added] - Export DHIS2 indicators with their mapping details
+[1.43.2] [admin] [added] - New endpoint to export DHIS2 indicator mappings
+[1.43.0] [user] [changed] - Data exports to central hub now load faster
+[1.43.0] [admin] [changed] - Faster metric label loading during central hub exports
+[1.43.0] [admin] [changed] - Export rows endpoint now requires a valid results object identifier
+[1.43.0] [user] [fixed] - Fixed export errors when report names contain special characters
+[1.43.0] [admin] [fixed] - Export Central now handles special characters in identifiers correctly
+[1.43.0] [user] [fixed] - Exported metric labels now always appear in English
+[1.43.0] [admin] [fixed] - Exported metrics now always use English labels regardless of instance language
+[1.43.0] [user] [changed] - Updated icons for Slide decks and Dashboards navigation items
+[1.43.0] [admin] [changed] - Updated icons for slide decks and dashboards in project navigation
+[1.43.0] [admin] [changed] - Project exports no longer include raw module definition data
+[1.43.0] [user] [changed] - Presenter name on cover slides is no longer bold by default
+[1.43.0] [admin] [changed] - Presenter name on cover slides defaults to non-bold
+[1.43.0] [user] [changed] - Slightly more spacing around text backgrounds in slides
+[1.43.0] [admin] [changed] - Increased text background padding in generated slide decks
+[1.43.0] [user] [fixed] - Charts with multiple tiers no longer show overflowing bars
+[1.43.0] [user] [changed] - Slightly larger text in slide deck exports
+[1.43.0] [admin] [fixed] - Charts with multiple tiers no longer overflow due to incorrect axis limits
+[1.43.0] [admin] [fixed] - Slightly larger text in exported slide decks for better readability
+[1.43.0] [user] [fixed] - Exporting large projects is now more reliable and less likely to time out
+[1.43.0] [admin] [changed] - Project export now loads result rows in paginated batches
+[1.43.0] [admin] [improved] - Faster and more reliable exports for large projects
+[1.42.0] [user] [fixed] - Fixed broken chart layouts caused by older saved figures
+[1.42.0] [admin] [fixed] - Fixed broken chart layouts caused by outdated header formats
+[1.42.0] [user] [fixed] - Exporting large projects no longer causes timeouts or failures
+[1.42.0] [admin] [improved] - Large project exports are now streamed to prevent timeouts
+[1.42.0] [admin] [added] - New health endpoint to view indicator mappings
+[1.41.1] [user] [fixed] - Fixed coverage charts failing to display for some saved figures
+[1.41.1] [admin] [fixed] - Coverage charts no longer crash when viewing older saved figures
+[1.41.0] [user] [changed] - Text in slides now displays at a larger default size
+[1.41.0] [user] [changed] - Text background padding is now more compact in slides
+[1.41.0] [user] [fixed] - Existing custom text sizes preserved correctly after update
+[1.41.0] [admin] [changed] - Text size in slides now uses named sizes instead of numbers
+[1.41.0] [admin] [fixed] - Text background padding corrected for slide text blocks
+[1.41.0] [admin] [internal] - Existing slide text sizes automatically migrated to new format
+[1.41.0] [admin] [internal] - Text size slider temporarily disabled during transition
+[1.40.2] [user] [added] - Contextual help topics now available throughout the platform
+[1.40.2] [user] [added] - Help guidance for the AI assistant feature
+[1.40.2] [user] [added] - Help guidance for dashboards, slide decks, and reports
+[1.40.2] [user] [added] - Help guidance for data imports, modules, and project settings
+[1.40.2] [user] [added] - Help guidance for user and permission management
+[1.40.2] [admin] [added] - In-app help topics now cover all major platform areas
+[1.40.1] [user] [added] - Dashboard logos can now be placed left or right of the header
+[1.40.1] [user] [changed] - Dashboard settings now open in a full editor panel instead of a popup dialog
+[1.40.1] [user] [changed] - Dashboard logos display at a consistent fixed size instead of configurable sizes
+[1.40.1] [user] [added] - "About this dashboard" dialog now shows logos alongside the description
+[1.40.1] [user] [changed] - Report image caption field renamed to "Alt text for screen readers"
+[1.40.1] [user] [changed] - Sidebar navigation labels no longer cut off long text
+[1.40.1] [user] [changed] - Report image editor shows alt text field only for images, not figures
+[1.40.1] [admin] [changed] - Dashboard settings now open in a full editor panel instead of a modal
+[1.40.1] [admin] [added] - Dashboard logos can be placed left of title or right of buttons
+[1.40.1] [admin] [changed] - Dashboard logo size option replaced with fixed, consistent sizing
+[1.40.1] [admin] [added] - "About this dashboard" modal now displays logos alongside description
+[1.40.1] [admin] [changed] - Report image caption field renamed to "Alt text for screen readers"
+[1.40.1] [admin] [changed] - Sidebar navigation labels no longer truncate long text
+[1.40.1] [user] [added] - Help buttons now appear with quick summaries and links to documentation
+[1.40.1] [user] [changed] - Dashboard header logos, info, and download buttons are now aligned in a single row
+[1.40.1] [admin] [added] - Contextual help buttons link to documentation from within the app
+[1.40.1] [admin] [changed] - Dashboard header layout groups logos and action buttons on one line
+[1.40.1] [user] [added] - Add logos to dashboard header with size options
+[1.40.1] [user] [added] - Add summary text displayed below the dashboard title
+[1.40.1] [user] [added] - Add "About this dashboard" info button and dialog
+[1.40.1] [user] [added] - Download figures with background and margin options
+[1.40.1] [user] [added] - Each chart tile in grid layout now has its own download button
+[1.40.1] [admin] [added] - Dashboards now support displaying logos in the header
+[1.40.1] [admin] [added] - Dashboard settings include logo size options (S, M, L, XL)
+[1.40.1] [admin] [added] - Dashboards can show a summary below the title using markdown
+[1.40.1] [admin] [added] - Dashboards can have an "About this dashboard" info dialog with markdown content
+[1.40.1] [admin] [changed] - Chart download now lets you choose background and margin options
+[1.40.1] [admin] [changed] - Grid layout tiles now each have their own download button
 [1.39.3] [user] [fixed] - Clearer error messages when AI suggests invalid filter values
 [1.39.3] [user] [fixed] - Only relevant indicators are shown when adding datasets
 [1.39.3] [admin] [fixed] - AI error messages now show clearer filter value details

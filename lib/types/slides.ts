@@ -9,6 +9,7 @@ import type {
   PatternType,
 } from "@timroberton/panther";
 import type { BrandPresetId } from "../brand_presets.ts";
+import type { TextSizeKey } from "../consts.ts";
 import type { IndicatorMetadata } from "./indicators.ts";
 
 type ImageOverlayType = "dots" | "rivers" | "waves" | "world";
@@ -204,7 +205,7 @@ export type SlideType = "cover" | "section" | "content";
 
 // Text block styling
 export type TextBlockStyle = {
-  textSize?: number;
+  textSize?: TextSizeKey;
   textBackground?: string;
 };
 
