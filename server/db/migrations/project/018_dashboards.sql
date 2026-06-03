@@ -1,17 +1,19 @@
+-- The public slug originally lived here, but now lives in the main DB
+-- (dashboard_slugs) so a dashboard resolves from a bare /d/:slug URL without a
+-- projectId. Instances created before that change still have the column until
+-- migration 023_drop_dashboard_slug removes it (the backfill copies it to main
+-- first). Fresh DBs never create it.
 CREATE TABLE IF NOT EXISTS dashboards (
   id text PRIMARY KEY NOT NULL,
-  slug text NOT NULL,
   title text NOT NULL,
   is_public boolean NOT NULL DEFAULT FALSE,
   layout text NOT NULL,
   created_by_email text NOT NULL,
   created_at text NOT NULL,
   updated_at text NOT NULL,
-  last_updated text NOT NULL,
-  UNIQUE(slug)
+  last_updated text NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_dashboards_slug ON dashboards(slug);
 CREATE INDEX IF NOT EXISTS idx_dashboards_last_updated ON dashboards(last_updated);
 
 CREATE TABLE IF NOT EXISTS dashboard_items (

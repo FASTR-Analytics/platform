@@ -31,6 +31,14 @@ import {
   generateUniqueDashboardItemId,
   generateUniqueDashboardItemGroupId,
 } from "../../utils/id_generation.ts";
+import {
+  deleteDashboardSlug,
+  getDashboardSlug,
+  getDashboardSlugsForProject,
+  insertDashboardSlug,
+  isDashboardSlugTaken,
+  updateDashboardSlug,
+} from "../instance/dashboard_slugs.ts";
 
 type GroupMemberInput = {
   replicantValue: string;
@@ -96,6 +104,8 @@ async function loadDashboardItemGroups(
 
 export async function getAllDashboards(
   projectDb: Sql,
+  mainDb: Sql,
+  projectId: string,
 ): Promise<APIResponseWithData<DashboardSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await projectDb<(DBDashboard & { item_count: number })[]>`
@@ -104,11 +114,12 @@ export async function getAllDashboards(
       FROM dashboards d
       ORDER BY d.updated_at DESC
     `;
+    const slugs = await getDashboardSlugsForProject(mainDb, projectId);
     return {
       success: true,
       data: rows.map<DashboardSummary>((d) => ({
         id: d.id,
-        slug: d.slug,
+        slug: slugs.get(d.id) ?? "",
         title: d.title,
         isPublic: d.is_public,
         itemCount: d.item_count,
@@ -121,6 +132,8 @@ export async function getAllDashboards(
 
 export async function getDashboardDetail(
   projectDb: Sql,
+  mainDb: Sql,
+  projectId: string,
   dashboardId: string,
 ): Promise<APIResponseWithData<DashboardDetail>> {
   return await tryCatchDatabaseAsync(async () => {
@@ -142,7 +155,7 @@ export async function getDashboardDetail(
 
     const data: Dashboard = {
       id: row.id,
-      slug: row.slug,
+      slug: (await getDashboardSlug(mainDb, projectId, dashboardId)) ?? "",
       title: row.title,
       isPublic: row.is_public,
       layout: parseLayout(row.layout),
@@ -158,47 +171,10 @@ export async function getDashboardDetail(
   });
 }
 
-export async function getDashboardBySlug(
-  projectDb: Sql,
-  slug: string,
-): Promise<APIResponseWithData<DashboardDetail | null>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const row = (
-      await projectDb<DBDashboard[]>`
-        SELECT * FROM dashboards WHERE slug = ${slug}
-      `
-    ).at(0);
-
-    if (!row) {
-      return { success: true, data: null };
-    }
-
-    const itemRows = await projectDb<DBDashboardItem[]>`
-      SELECT * FROM dashboard_items
-      WHERE dashboard_id = ${row.id}
-      ORDER BY sort_order
-    `;
-
-    const data: Dashboard = {
-      id: row.id,
-      slug: row.slug,
-      title: row.title,
-      isPublic: row.is_public,
-      layout: parseLayout(row.layout),
-      config: parseDashboardConfig(row.config),
-      items: itemRows.map(mapDashboardItem),
-      groups: await loadDashboardItemGroups(projectDb, row.id),
-      createdByEmail: row.created_by_email,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    };
-
-    return { success: true, data };
-  });
-}
-
 export async function createDashboard(
   projectDb: Sql,
+  mainDb: Sql,
+  projectId: string,
   create: DashboardCreate,
   createdByEmail: string,
 ): Promise<APIResponseWithData<{ dashboardId: string; lastUpdated: string }>> {
@@ -206,10 +182,7 @@ export async function createDashboard(
     if (!isValidDashboardSlug(create.slug)) {
       return { success: false, err: "Invalid slug format" };
     }
-    const existing = await projectDb<{ id: string }[]>`
-      SELECT id FROM dashboards WHERE slug = ${create.slug}
-    `;
-    if (existing.length > 0) {
+    if (await isDashboardSlugTaken(mainDb, create.slug)) {
       return {
         success: false,
         err: "A dashboard with this slug already exists",
@@ -220,23 +193,30 @@ export async function createDashboard(
     const now = new Date().toISOString();
     const layout = create.layout ?? getStartingLayoutForDashboard();
 
-    await projectDb`
-      INSERT INTO dashboards (
-        id, slug, title, is_public, layout, config,
-        created_by_email, created_at, updated_at, last_updated
-      ) VALUES (
-        ${dashboardId},
-        ${create.slug},
-        ${create.title},
-        ${true},
-        ${JSON.stringify(dashboardLayoutSchema.parse(layout))},
-        ${STARTING_CONFIG_JSON},
-        ${createdByEmail},
-        ${now},
-        ${now},
-        ${now}
-      )
-    `;
+    // Reserve the global slug first; if the project-side insert then fails,
+    // release it so a slug never dangles without a dashboard.
+    await insertDashboardSlug(mainDb, create.slug, projectId, dashboardId);
+    try {
+      await projectDb`
+        INSERT INTO dashboards (
+          id, title, is_public, layout, config,
+          created_by_email, created_at, updated_at, last_updated
+        ) VALUES (
+          ${dashboardId},
+          ${create.title},
+          ${true},
+          ${JSON.stringify(dashboardLayoutSchema.parse(layout))},
+          ${STARTING_CONFIG_JSON},
+          ${createdByEmail},
+          ${now},
+          ${now},
+          ${now}
+        )
+      `;
+    } catch (e) {
+      await deleteDashboardSlug(mainDb, projectId, dashboardId);
+      throw e;
+    }
 
     return { success: true, data: { dashboardId, lastUpdated: now } };
   });
@@ -244,6 +224,8 @@ export async function createDashboard(
 
 export async function updateDashboard(
   projectDb: Sql,
+  mainDb: Sql,
+  projectId: string,
   dashboardId: string,
   update: DashboardUpdate,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
@@ -252,10 +234,11 @@ export async function updateDashboard(
       return { success: false, err: "Invalid slug format" };
     }
     if (update.slug !== undefined) {
-      const existing = await projectDb<{ id: string }[]>`
-        SELECT id FROM dashboards WHERE slug = ${update.slug} AND id <> ${dashboardId}
-      `;
-      if (existing.length > 0) {
+      const taken = await isDashboardSlugTaken(mainDb, update.slug, {
+        projectId,
+        dashboardId,
+      });
+      if (taken) {
         return {
           success: false,
           err: "A dashboard with this slug already exists",
@@ -274,7 +257,6 @@ export async function updateDashboard(
     }
 
     const nextTitle = update.title ?? current.title;
-    const nextSlug = update.slug ?? current.slug;
     const nextIsPublic = update.isPublic ?? current.is_public;
     const nextLayout = update.layout
       ? JSON.stringify(dashboardLayoutSchema.parse(update.layout))
@@ -283,10 +265,13 @@ export async function updateDashboard(
       ? JSON.stringify(dashboardConfigSchema.parse(update.config))
       : current.config;
 
+    if (update.slug !== undefined) {
+      await updateDashboardSlug(mainDb, projectId, dashboardId, update.slug);
+    }
+
     await projectDb`
       UPDATE dashboards
       SET title = ${nextTitle},
-          slug = ${nextSlug},
           is_public = ${nextIsPublic},
           layout = ${nextLayout},
           config = ${nextConfig},
@@ -301,10 +286,13 @@ export async function updateDashboard(
 
 export async function deleteDashboard(
   projectDb: Sql,
+  mainDb: Sql,
+  projectId: string,
   dashboardId: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await projectDb`DELETE FROM dashboards WHERE id = ${dashboardId}`;
+    await deleteDashboardSlug(mainDb, projectId, dashboardId);
     return { success: true };
   });
 }

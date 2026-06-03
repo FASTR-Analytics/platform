@@ -271,9 +271,10 @@ CREATE INDEX idx_reports_folder_id ON reports(folder_id);
 -- DASHBOARDS
 -- ============================================================================
 
+-- The public slug lives in the main DB (dashboard_slugs) so a dashboard resolves
+-- from a bare /d/:slug URL without a projectId. Not stored here.
 CREATE TABLE dashboards (
   id text PRIMARY KEY NOT NULL,
-  slug text NOT NULL,
   title text NOT NULL,
   is_public boolean NOT NULL DEFAULT FALSE,
   layout text NOT NULL,
@@ -281,11 +282,9 @@ CREATE TABLE dashboards (
   created_by_email text NOT NULL,
   created_at text NOT NULL,
   updated_at text NOT NULL,
-  last_updated text NOT NULL,
-  UNIQUE(slug)
+  last_updated text NOT NULL
 );
 
-CREATE INDEX idx_dashboards_slug ON dashboards(slug);
 CREATE INDEX idx_dashboards_last_updated ON dashboards(last_updated);
 
 CREATE TABLE dashboard_item_groups (

@@ -523,6 +523,24 @@ CREATE INDEX idx_custom_prompts_created_by ON custom_prompts(created_by);
 CREATE INDEX idx_custom_prompts_scope ON custom_prompts(scope);
 
 -- ============================================================================
+-- DASHBOARD SLUGS
+-- ============================================================================
+
+-- Global registry mapping a public dashboard slug to its (project, dashboard).
+-- Dashboards live in per-project databases and their id is only unique within a
+-- project, so the slug (globally unique) is what lets the public route resolve a
+-- bare /d/:slug URL to the right project DB without a projectId in the path.
+CREATE TABLE dashboard_slugs (
+  slug text PRIMARY KEY NOT NULL,
+  project_id text NOT NULL,
+  dashboard_id text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  UNIQUE (project_id, dashboard_id)
+);
+CREATE INDEX idx_dashboard_slugs_project ON dashboard_slugs(project_id);
+
+-- ============================================================================
 -- ICEH DATA
 -- ============================================================================
 

@@ -928,24 +928,24 @@ function VisualizationCard(p: VisualizationCardProps) {
           {p.po.label}
         </div>
       </div>
-      <Show
-        when={isReady()}
-        fallback={<NotAvailableBox fillAreaNotAvailable />}
+      <div
+        class="relative cursor-pointer rounded border p-2"
+        classList={{
+          "border-base-300": !p.isSelected,
+          "border-primary": p.isSelected,
+          "hover:border-primary": !p.isSelected,
+        }}
+        onClick={p.onCardClick}
+        onContextMenu={handleContextMenu}
       >
-        <div
-          class="relative cursor-pointer rounded border p-2"
-          classList={{
-            "border-base-300": !p.isSelected,
-            "border-primary": p.isSelected,
-            "hover:border-primary": !p.isSelected,
-          }}
-          onClick={p.onCardClick}
-          onContextMenu={handleContextMenu}
+        <SelectionCircle isSelected={p.isSelected} onClick={p.onCircleClick} />
+        {/* The card stays interactive even when the metric has no results, so it
+            can still be selected and deleted (via the context menu). Only the
+            inner preview falls back to the "Not available" placeholder. */}
+        <Show
+          when={isReady()}
+          fallback={<NotAvailableBox fillAreaNotAvailable />}
         >
-          <SelectionCircle
-            isSelected={p.isSelected}
-            onClick={p.onCircleClick}
-          />
           <PresentationObjectMiniDisplay
             projectId={p.projectId}
             presentationObjectId={p.po.id}
@@ -954,8 +954,8 @@ function VisualizationCard(p: VisualizationCardProps) {
             }
             shapeType={"force-aspect-video"}
           />
-        </div>
-      </Show>
+        </Show>
+      </div>
       <div class="ui-gap-sm flex items-start justify-end pt-1 select-none">
         <Show when={p.shareCount > 0}>
           <div class="bg-neutral font-400 text-base-100 rounded px-1 py-0.5 text-xs">

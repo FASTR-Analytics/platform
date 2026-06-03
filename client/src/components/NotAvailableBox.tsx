@@ -12,17 +12,15 @@ export function NotAvailableBox(p: Props) {
     <Switch>
       <Match when={p.fillAreaNotAvailable}>
         <div
-          class="border-base-300 bg-base-200 rounded border p-2"
+          class="bg-base-200 flex aspect-video flex-col items-center justify-center rounded"
           onClick={p.onClick}
         >
-          <div class="flex aspect-video flex-col items-center justify-center">
-            <span class="text-neutral text-xs">
-              {t3({ en: "Not available", fr: "Non disponible" })}
-            </span>
-            <span class="text-neutral mt-1 text-[10px] opacity-60">
-              {p.err ?? t3({ en: "Results not computed for this metric", fr: "Résultats non calculés pour cette métrique" })}
-            </span>
-          </div>
+          <span class="text-neutral text-xs">
+            {t3({ en: "Not available", fr: "Non disponible" })}
+          </span>
+          <span class="text-neutral mt-1 text-[10px] opacity-60">
+            {p.err ?? t3({ en: "Results not computed for this metric", fr: "Résultats non calculés pour cette métrique" })}
+          </span>
         </div>
       </Match>
       <Match when={!p.fillAreaNotAvailable}>

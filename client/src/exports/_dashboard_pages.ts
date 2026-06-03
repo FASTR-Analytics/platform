@@ -1,87 +1,51 @@
-import {
-  createItemNode,
-  type FreeformPageInputs,
-  getFigureAsCanvas,
-  type PageContentItem,
-  type PageInputs,
-} from "panther";
+import { type FigureInputs, getFigureAsCanvas } from "panther";
 import { t3 } from "lib";
 import {
-  aboutMarkdown,
-  type DashboardExportFigure,
   type DashboardExportModel,
   figureInputsForDownload,
 } from "./_dashboard_export_model";
 
-export type DashboardPagesOpts = {
-  includeCover: boolean;
-  includeAbout: boolean;
-};
-
 // Small render used only to detect a figure that throws (bad data / missing
-// geoData) so we can substitute a placeholder page instead of aborting.
+// geoData) so the exporters can substitute a placeholder instead of aborting.
 const VALIDATION_WIDTH_PX = 200;
 
-// Build the shared PageInputs[] that drives BOTH the PDF and PPTX renderers:
-// optional cover + About frontmatter, then one freeform page per figure (or a
-// placeholder page for any figure that fails to render). Yields per figure so
-// the modal's progress bar can advance.
-export async function buildDashboardPages(
+export type PreparedFigure = {
+  label: string;
+  // White/margin-baked figure ready to render, or null if it failed to render.
+  figureInputs: FigureInputs | null;
+};
+
+// Render-validate and white-bake each figure once. A figure that throws becomes
+// { figureInputs: null }, so one bad chart never discards the whole export.
+// Yields per figure so the modal's progress bar can advance.
+export async function prepareFigures(
   model: DashboardExportModel,
-  opts: DashboardPagesOpts,
   onProgress?: (frac: number) => void,
-): Promise<PageInputs[]> {
-  const pages: PageInputs[] = [];
-
-  if (opts.includeCover) {
-    pages.push({ type: "cover", title: model.title });
-  }
-
-  if (opts.includeAbout) {
-    const md = aboutMarkdown(model);
-    if (md.trim()) {
-      pages.push({
-        type: "freeform",
-        content: createItemNode<PageContentItem>({ markdown: md }),
-      });
-    }
-  }
-
+): Promise<PreparedFigure[]> {
+  const out: PreparedFigure[] = [];
   const n = model.figures.length;
   for (let i = 0; i < n; i++) {
-    pages.push(figurePage(model.figures[i]));
+    const fig = model.figures[i];
+    let figureInputs: FigureInputs | null = null;
+    try {
+      getFigureAsCanvas(fig.figureInputs, VALIDATION_WIDTH_PX);
+      // White background, no baked margin — page padding controls the spacing.
+      figureInputs = figureInputsForDownload(fig.figureInputs, false, false);
+    } catch {
+      figureInputs = null;
+    }
+    out.push({ label: fig.label, figureInputs });
     onProgress?.((i + 1) / n);
     await new Promise((res) => setTimeout(res, 0));
   }
-
-  return pages;
+  return out;
 }
 
-function figurePage(fig: DashboardExportFigure): FreeformPageInputs {
-  try {
-    getFigureAsCanvas(fig.figureInputs, VALIDATION_WIDTH_PX);
-  } catch {
-    return placeholderPage(fig.label);
-  }
-  const fi = figureInputsForDownload(fig.figureInputs, false, true);
-  return {
-    type: "freeform",
-    header: fig.label,
-    content: createItemNode<PageContentItem>(fi as PageContentItem),
-  };
-}
-
-function placeholderPage(label: string): FreeformPageInputs {
-  return {
-    type: "freeform",
-    header: label,
-    content: createItemNode<PageContentItem>({
-      markdown: t3({
-        en: "_This figure could not be rendered._",
-        fr: "_Cette figure n'a pas pu être affichée._",
-      }),
-    }),
-  };
+export function placeholderMarkdown(): string {
+  return t3({
+    en: "_This figure could not be rendered._",
+    fr: "_Cette figure n'a pas pu être affichée._",
+  });
 }
 
 // Filename basis: a single-figure export uses that figure's label; a collection

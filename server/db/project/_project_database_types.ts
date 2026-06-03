@@ -111,7 +111,6 @@ export type DBReport = {
 
 export type DBDashboard = {
   id: string;
-  slug: string;
   title: string;
   is_public: boolean;
   layout: string;

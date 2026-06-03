@@ -1,31 +1,37 @@
 import { Hono } from "hono";
 import { getAuth } from "@hono/clerk-auth";
 import { buildPublicDashboardBundle } from "lib";
-import { getDashboardBySlug } from "../../db/project/dashboards.ts";
+import { getDashboardDetail } from "../../db/project/dashboards.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { getCountryIso3Config } from "../../db/instance/config.ts";
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { resolveDashboardSlug } from "../../db/instance/dashboard_slugs.ts";
 
 export const routesPublicDashboard = new Hono();
 
-routesPublicDashboard.get("/api/d/:projectId/:slug", async (c) => {
-  const projectId = c.req.param("projectId");
+routesPublicDashboard.get("/api/d/:slug", async (c) => {
   const slug = c.req.param("slug");
 
-  if (!UUID_REGEX.test(projectId)) {
+  // Slug → (project, dashboard) lives in the main DB, so a bare /d/:slug URL
+  // resolves to the right project database without a projectId in the path.
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const location = await resolveDashboardSlug(mainDb, slug);
+  if (!location) {
     return c.json({ success: false, err: "Not found" }, 404);
   }
 
   let projectDb;
   try {
-    projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
+    projectDb = getPgConnectionFromCacheOrNew(location.projectId, "READ_ONLY");
   } catch {
     return c.json({ success: false, err: "Not found" }, 404);
   }
 
-  const result = await getDashboardBySlug(projectDb, slug);
+  const result = await getDashboardDetail(
+    projectDb,
+    mainDb,
+    location.projectId,
+    location.dashboardId,
+  );
   if (!result.success || !result.data) {
     return c.json({ success: false, err: "Not found" }, 404);
   }
@@ -48,9 +54,7 @@ routesPublicDashboard.get("/api/d/:projectId/:slug", async (c) => {
   // never block serving the dashboard, so fall back to no cleaning.
   let countryIso3: string | undefined;
   try {
-    const countryRes = await getCountryIso3Config(
-      getPgConnectionFromCacheOrNew("main", "READ_ONLY"),
-    );
+    const countryRes = await getCountryIso3Config(mainDb);
     countryIso3 = countryRes.success ? countryRes.data.countryIso3 : undefined;
   } catch {
     countryIso3 = undefined;

@@ -26,7 +26,7 @@ export function replicantLabel(
   );
 }
 
-const DOWNLOAD_MARGIN_DU = 40;
+const DOWNLOAD_MARGIN_DU = 20;
 
 // Background and margin are baked into the figure's surrounds so the plain
 // panther export helper renders them — no manual canvas compositing.
@@ -114,11 +114,6 @@ export function buildDashboardExportModel(
     }
   }
   return { ...base, figures };
-}
-
-// Frontmatter markdown = the same summary + body the viewer shows.
-export function aboutMarkdown(model: DashboardExportModel): string {
-  return [model.summary, model.about].filter((s) => s.trim()).join("\n\n");
 }
 
 // Filename from a title/label: keep unicode letters/numbers (FR/AR titles),

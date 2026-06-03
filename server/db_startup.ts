@@ -64,6 +64,9 @@ ${userInserts}
       project.id,
       "READ_AND_WRITE",
     );
+    // Must run BEFORE project migrations: migration 023 drops dashboards.slug,
+    // so the registry copy has to happen while the column still exists.
+    await backfillDashboardSlugsToMain(sqlMain, projectDb, project.id);
     await runProjectMigrations(projectDb);
 
     // Project data transforms — each in its own transaction
@@ -267,6 +270,42 @@ ON CONFLICT (indicator_common_id) DO NOTHING;
 }
 
 // =============================================================================
+// TEMPORARY: Remove once every instance has deployed past the dashboard-slug
+// move (project migration 023 drops dashboards.slug). The public slug now lives
+// in the main DB (dashboard_slugs); this copies each existing project's slugs
+// into that registry BEFORE 023 removes the column, so existing public
+// dashboard links keep resolving under the new /d/:slug routing. Idempotent:
+// once the column is gone (re-deploy / fresh DB) it does nothing.
+// =============================================================================
+async function backfillDashboardSlugsToMain(
+  mainDb: Sql,
+  projectDb: Sql,
+  projectId: string,
+): Promise<void> {
+  const hasSlug = await projectDb`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'dashboards' AND column_name = 'slug'
+  `;
+  if (hasSlug.length === 0) return;
+
+  const rows = await projectDb<{ id: string; slug: string }[]>`
+    SELECT id, slug FROM dashboards
+  `;
+  for (const row of rows) {
+    const res = await mainDb`
+      INSERT INTO dashboard_slugs (slug, project_id, dashboard_id)
+      VALUES (${row.slug}, ${projectId}, ${row.id})
+      ON CONFLICT DO NOTHING
+    `;
+    if (res.count === 0) {
+      console.warn(
+        `[dashboard-slug-backfill] slug "${row.slug}" (project ${projectId.slice(0, 8)}, dashboard ${row.id}) not registered — already taken globally. Re-slug it to restore its public link.`,
+      );
+    }
+  }
+}
+
+// =============================================================================
 // TEMPORARY: Remove this function after all ~5 production instances updated
 // Added: 2025-05-20 for hfa001 → m010 rename
 // =============================================================================
@@ -277,6 +316,28 @@ async function cleanupOrphanModules(projectDb: Sql): Promise<void> {
   for (const mod of installed) {
     if (!validIds.includes(mod.id as typeof validIds[number])) {
       console.log(`[cleanup] Removing orphan module: ${mod.id}`);
+
+      // presentation_objects reference metrics by metric_id with NO FK — kept on
+      // purpose so a normal uninstall/reinstall restores them. But an orphan
+      // module's metrics never come back, so its visualizations are dead. Capture
+      // the metric ids BEFORE uninstall (which cascade-deletes the metrics), then
+      // purge the visualizations pointing at them.
+      const metricIds = (
+        await projectDb<{ id: string }[]>`
+          SELECT id FROM metrics WHERE module_id = ${mod.id}
+        `
+      ).map((m) => m.id);
+      if (metricIds.length > 0) {
+        const del = await projectDb`
+          DELETE FROM presentation_objects WHERE metric_id = ANY(${metricIds})
+        `;
+        if (del.count > 0) {
+          console.log(
+            `[cleanup]   Removed ${del.count} orphan visualization(s) for module ${mod.id}`,
+          );
+        }
+      }
+
       await uninstallModule(projectDb, mod.id);
     }
   }

@@ -25,7 +25,7 @@ defineRoute(
   "getAllDashboards",
   requireProjectPermission("can_view_slide_decks"),
   async (c) => {
-    const res = await getAllDashboards(c.var.ppk.projectDb);
+    const res = await getAllDashboards(c.var.ppk.projectDb, c.var.mainDb, c.var.ppk.projectId);
     return c.json(res);
   },
 );
@@ -37,6 +37,8 @@ defineRoute(
   async (c, { params }) => {
     const res = await getDashboardDetail(
       c.var.ppk.projectDb,
+      c.var.mainDb,
+      c.var.ppk.projectId,
       params.dashboard_id,
     );
     return c.json(res);
@@ -53,6 +55,8 @@ defineRoute(
   async (c, { body }) => {
     const res = await createDashboard(
       c.var.ppk.projectDb,
+      c.var.mainDb,
+      c.var.ppk.projectId,
       body,
       c.var.globalUser.email,
     );
@@ -67,7 +71,7 @@ defineRoute(
       res.data.lastUpdated,
     );
 
-    const listRes = await getAllDashboards(c.var.ppk.projectDb);
+    const listRes = await getAllDashboards(c.var.ppk.projectDb, c.var.mainDb, c.var.ppk.projectId);
     if (listRes.success) {
       notifyProjectDashboardsUpdated(c.var.ppk.projectId, listRes.data);
     }
@@ -86,6 +90,8 @@ defineRoute(
   async (c, { params, body }) => {
     const res = await updateDashboard(
       c.var.ppk.projectDb,
+      c.var.mainDb,
+      c.var.ppk.projectId,
       params.dashboard_id,
       body,
     );
@@ -100,7 +106,7 @@ defineRoute(
       res.data.lastUpdated,
     );
 
-    const listRes = await getAllDashboards(c.var.ppk.projectDb);
+    const listRes = await getAllDashboards(c.var.ppk.projectDb, c.var.mainDb, c.var.ppk.projectId);
     if (listRes.success) {
       notifyProjectDashboardsUpdated(c.var.ppk.projectId, listRes.data);
     }
@@ -119,10 +125,12 @@ defineRoute(
   async (c, { params }) => {
     const res = await deleteDashboard(
       c.var.ppk.projectDb,
+      c.var.mainDb,
+      c.var.ppk.projectId,
       params.dashboard_id,
     );
     if (res.success) {
-      const listRes = await getAllDashboards(c.var.ppk.projectDb);
+      const listRes = await getAllDashboards(c.var.ppk.projectDb, c.var.mainDb, c.var.ppk.projectId);
       if (listRes.success) {
         notifyProjectDashboardsUpdated(c.var.ppk.projectId, listRes.data);
       }
@@ -161,7 +169,7 @@ defineRoute(
       res.data.lastUpdated,
     );
 
-    const listRes = await getAllDashboards(c.var.ppk.projectDb);
+    const listRes = await getAllDashboards(c.var.ppk.projectDb, c.var.mainDb, c.var.ppk.projectId);
     if (listRes.success) {
       notifyProjectDashboardsUpdated(c.var.ppk.projectId, listRes.data);
     }
@@ -229,7 +237,7 @@ defineRoute(
       res.data.lastUpdated,
     );
 
-    const listRes = await getAllDashboards(c.var.ppk.projectDb);
+    const listRes = await getAllDashboards(c.var.ppk.projectDb, c.var.mainDb, c.var.ppk.projectId);
     if (listRes.success) {
       notifyProjectDashboardsUpdated(c.var.ppk.projectId, listRes.data);
     }
@@ -297,7 +305,7 @@ defineRoute(
       res.data.lastUpdated,
     );
 
-    const listRes = await getAllDashboards(c.var.ppk.projectDb);
+    const listRes = await getAllDashboards(c.var.ppk.projectDb, c.var.mainDb, c.var.ppk.projectId);
     if (listRes.success) {
       notifyProjectDashboardsUpdated(c.var.ppk.projectId, listRes.data);
     }
@@ -359,7 +367,7 @@ defineRoute(
       res.data.lastUpdated,
     );
 
-    const listRes = await getAllDashboards(c.var.ppk.projectDb);
+    const listRes = await getAllDashboards(c.var.ppk.projectDb, c.var.mainDb, c.var.ppk.projectId);
     if (listRes.success) {
       notifyProjectDashboardsUpdated(c.var.ppk.projectId, listRes.data);
     }

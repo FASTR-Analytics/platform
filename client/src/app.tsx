@@ -9,7 +9,7 @@ export default function App() {
   return (
     <Router root={(props) => <Suspense>{props.children}</Suspense>}>
       <Route path="/share/viz/:token" component={PublicVisualization} />
-      <Route path="/d/:projectId/:slug" component={PublicDashboard} />
+      <Route path="/d/:slug" component={PublicDashboard} />
       <Route path="/*" component={InstanceLoggedInWrapper} />
     </Router>
   );

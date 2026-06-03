@@ -207,7 +207,7 @@ export function DashboardEditor(p: Props) {
   );
 
   function publicUrl(slug: string) {
-    return `${window.location.origin}/d/${p.projectId}/${slug}`;
+    return `${window.location.origin}/d/${slug}`;
   }
 
   // Regenerate a FigureBlock (+ geojson) from a results value + config — shared

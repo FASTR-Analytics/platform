@@ -157,7 +157,7 @@ export async function getProjectDetail(
     const resReportFolders = await getAllReportFolders(projectDb);
     throwIfErrWithData(resReportFolders);
 
-    const resDashboards = await getAllDashboards(projectDb);
+    const resDashboards = await getAllDashboards(projectDb, mainDb, projectId);
     throwIfErrWithData(resDashboards);
 
     const resVisualizations =

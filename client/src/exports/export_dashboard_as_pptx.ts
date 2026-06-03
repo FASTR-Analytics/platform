@@ -1,31 +1,48 @@
-import { pagesToPptxBrowser, saveAs } from "panther";
-import { type APIResponseNoData, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import {
+  createItemNode,
+  type PageContentItem,
+  type PageInputs,
+  pagesToPptxBrowser,
+  saveAs,
+} from "panther";
+import { type APIResponseNoData } from "lib";
 import {
   type DashboardExportModel,
   sanitizeFilename,
 } from "./_dashboard_export_model";
 import {
-  buildDashboardPages,
-  type DashboardPagesOpts,
   exportFilenameBasis,
+  placeholderMarkdown,
+  prepareFigures,
 } from "./_dashboard_pages";
+
+// 16:9 slides, same width as the PDF pages.
+const PPTX_PAGE_WIDTH = 1200;
+const PPTX_PAGE_HEIGHT = Math.round((PPTX_PAGE_WIDTH * 9) / 16); // 675
 
 export async function exportDashboardAsPptx(
   model: DashboardExportModel,
-  opts: DashboardPagesOpts,
   progress: (pct: number) => void,
 ): Promise<APIResponseNoData> {
   try {
     await new Promise((res) => setTimeout(res, 0));
     progress(0.05);
 
-    const pages = await buildDashboardPages(model, opts, (frac) =>
+    const prepared = await prepareFigures(model, (frac) =>
       progress(0.05 + 0.7 * frac),
     );
 
-    progress(0.8);
-    // 16:9 native slides; each figure is rasterized to a PNG on its slide.
-    const pptx = pagesToPptxBrowser(pages, PAGE_WIDTH_DU, PAGE_HEIGHT_DU);
+    // No header / no frontmatter — each 16:9 slide is just the figure (or a
+    // placeholder for a figure that failed to render).
+    const pages: PageInputs[] = prepared.map((pf) => ({
+      type: "freeform",
+      content: createItemNode<PageContentItem>(
+        pf.figureInputs ?? { markdown: placeholderMarkdown() },
+      ),
+    }));
+
+    progress(0.85);
+    const pptx = pagesToPptxBrowser(pages, PPTX_PAGE_WIDTH, PPTX_PAGE_HEIGHT);
     const blob = (await pptx.write({ outputType: "blob" })) as Blob;
 
     progress(0.97);

@@ -76,21 +76,21 @@ const _DS = {
       alignH: "left" as AlignH,
     },
     footer: {
-      padding: 60 as PaddingOptions,
+      padding: [10, 15] as PaddingOptions,
       logosSizing: {
         targetArea: 40000,
         maxHeight: 10000,
         maxWidth: 10000,
-        gapX: 40,
+        gapX: 20,
       } as LogosSizing,
       background: { key: "base200" } as PageBackgroundStyle,
       alignH: "left" as AlignH,
     },
     content: {
-      padding: 60 as PaddingOptions,
+      padding: [10, 15] as PaddingOptions,
       background: { key: "base100" } as PageBackgroundStyle,
-      gapX: 40,
-      gapY: 40,
+      gapX: 20,
+      gapY: 20,
     },
     layoutContainers: {
       padding: 0 as PaddingOptions,

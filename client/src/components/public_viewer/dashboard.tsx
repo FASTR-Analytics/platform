@@ -51,13 +51,12 @@ function openDownload(
 }
 
 export default function PublicDashboard() {
-  const params = useParams<{ projectId: string; slug: string }>();
+  const params = useParams<{ slug: string }>();
 
   const bundleHolder = timQuery<PublicDashboardBundle>(async () => {
-    const res = await fetch(
-      `${_SERVER_HOST}/api/d/${params.projectId}/${params.slug}`,
-      { credentials: "include" },
-    );
+    const res = await fetch(`${_SERVER_HOST}/api/d/${params.slug}`, {
+      credentials: "include",
+    });
     return await res.json();
   }, t3(TC.loading));
 

@@ -56,10 +56,9 @@ export function DownloadDashboardModal(
   // `items` is the flat list of every renderable figure (group members
   // included), so its length is the "all" figure count without any hydration.
   const allCount = () => p.bundle.items.length;
-  const aboutAvailable = () =>
-    [p.bundle.about.summary, p.bundle.about.body].some(
-      (s) => s.trim().length > 0,
-    );
+  // The About text is shown as a per-page subHeader in the PDF, so only the
+  // short summary is used (a long body would bloat every page header).
+  const summaryAvailable = () => p.bundle.about.summary.trim().length > 0;
 
   // PNG has no "all" form; without a current item only PDF/PPTX make sense.
   const pptxLabel = t3({ en: "PowerPoint (.pptx)", fr: "PowerPoint (.pptx)" });
@@ -89,8 +88,8 @@ export function DownloadDashboardModal(
   const isImageExport = () => format() === "png";
   const effectiveScope = (): Scope => (isImageExport() ? "current" : scope());
   const showScope = () => !isImageExport() && hasCurrent();
-  const showAbout = () =>
-    !isImageExport() && effectiveScope() === "all" && aboutAvailable();
+  // About text is a PDF-only page subHeader (PPTX slides have no header).
+  const showAbout = () => format() === "pdf" && summaryAvailable();
   const showCount = () => !isImageExport() && effectiveScope() === "all";
   const showLargeConfirm = () =>
     showCount() && allCount() > COUNT_WARN_THRESHOLD;
@@ -125,14 +124,14 @@ export function DownloadDashboardModal(
 
     const sc = effectiveScope();
     const model = buildDashboardExportModel(p.bundle, sc, p.currentItemId);
-    const opts = {
-      includeCover: sc === "all",
-      includeAbout: sc === "all" && includeAbout() && aboutAvailable(),
-    };
     const res =
       format() === "pdf"
-        ? await exportDashboardAsPdf(model, opts, setPct)
-        : await exportDashboardAsPptx(model, opts, setPct);
+        ? await exportDashboardAsPdf(
+            model,
+            { includeAbout: includeAbout() && summaryAvailable() },
+            setPct,
+          )
+        : await exportDashboardAsPptx(model, setPct);
     if (res.success === false) {
       setErr(res.err);
       setPct(0);
