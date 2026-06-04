@@ -1,3 +1,19 @@
+[1.44.1] [user] [added] - Split view mode shows editor and preview side by side
+[1.44.1] [user] [added] - Scroll position syncs between editor and preview in split view
+[1.44.1] [user] [added] - Check unused variables tool for HFA indicators
+[1.44.1] [user] [changed] - Dashboard logo default placement moved to far left
+[1.44.1] [user] [changed] - "Figure" renamed to "visualization" throughout reports
+[1.44.1] [user] [changed] - Logo placement options reordered in dashboard settings
+[1.44.1] [user] [fixed] - Dashboard logos now display on public share links without login
+[1.44.1] [user] [fixed] - Visualizations in reports no longer briefly flash blank when updated
+[1.44.1] [admin] [added] - Split view mode for reports showing editor and preview side by side
+[1.44.1] [admin] [added] - Scroll syncing between editor and preview in split view
+[1.44.1] [admin] [added] - Check unused variables tool for HFA indicators
+[1.44.1] [admin] [changed] - Dashboard logo placement now defaults to far left instead of far right
+[1.44.1] [admin] [changed] - Terminology updated from "figure" to "visualization" throughout reports
+[1.44.1] [admin] [changed] - Report sidebar is now fixed width instead of resizable
+[1.44.1] [admin] [fixed] - Uploaded image assets like logos now load on public dashboards without requiring login
+[1.44.1] [admin] [internal] - Error messages in reports are now bilingual (English and French)
 [1.44.0] [user] [added] - Download dashboards as PDF or PowerPoint files
 [1.44.0] [user] [added] - Choose to export a single figure or all figures at once
 [1.44.0] [user] [changed] - Dashboard sharing links are now shorter, without project ID
