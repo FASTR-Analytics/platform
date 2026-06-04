@@ -563,11 +563,15 @@ export function HfaIndicatorsManager(p: Props) {
         }
         return (
           <span>
-            <span class="text-success">
-              {t3({ en: `${stats.ready} ready`, fr: `${stats.ready} prêt` })}
-            </span>
+            <Show when={stats.ready > 0}>
+              <span class="text-success">
+                {t3({ en: `${stats.ready} ready`, fr: `${stats.ready} prêt` })}
+              </span>
+            </Show>
             <Show when={stats.error > 0}>
-              <span>, </span>
+              <Show when={stats.ready > 0}>
+                <span>, </span>
+              </Show>
               <span class="text-danger font-700">
                 {t3({
                   en: `${stats.error} error`,
