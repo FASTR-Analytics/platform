@@ -33,13 +33,15 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
+    // 0-based start line of this block (markdown-it provides it on block tokens).
+    const line = token.map?.[0];
 
     if (token.type === "hr") {
-      items.push({ type: "horizontal-rule" });
+      items.push({ type: "horizontal-rule", line });
     } else if (token.type === "fence") {
-      items.push({ type: "code-block", code: token.content ?? "" });
+      items.push({ type: "code-block", code: token.content ?? "", line });
     } else if (token.type === "math_block") {
-      items.push({ type: "math-block", latex: token.content ?? "" });
+      items.push({ type: "math-block", latex: token.content ?? "", line });
     } else if (token.type === "blockquote_open") {
       const content: MarkdownInline[] = [];
       let j = i + 1;
@@ -57,7 +59,7 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
         }
         j++;
       }
-      items.push({ type: "blockquote", content });
+      items.push({ type: "blockquote", content, line });
       i = j;
     } else if (token.type === "heading_open") {
       const level = parseInt(token.tag.substring(1)) as 1 | 2 | 3 | 4 | 5 | 6;
@@ -68,12 +70,13 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
           type: "heading",
           level,
           content: parseInlineTokens(contentToken.children || []),
+          line,
         });
       }
       i += 2;
     } else if (token.type === "table_open") {
       const tableResult = parseTable(tokens, i);
-      items.push(tableResult.item);
+      items.push({ ...tableResult.item, line });
       i = tableResult.endIndex;
     } else if (token.type === "paragraph_open" && token.level === 0) {
       const contentToken = tokens[i + 1];
@@ -91,11 +94,13 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
             type: "image",
             src,
             alt,
+            line,
           });
         } else {
           items.push({
             type: "paragraph",
             content: parseInlineTokens(children),
+            line,
           });
         }
       }
@@ -121,6 +126,7 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
             isFirstInList: false,
             isLastInList: false,
             content: parseInlineTokens(tokens[j].children || []),
+            line,
           };
 
           if (inNumberedList) {

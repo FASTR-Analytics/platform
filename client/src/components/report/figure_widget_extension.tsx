@@ -11,8 +11,8 @@ import {
   StateField,
 } from "@codemirror/state";
 import { render } from "solid-js/web";
-import { Show } from "solid-js";
-import type { FigureBlock, ImageBlock } from "lib";
+import { Match, Show, Switch } from "solid-js";
+import { type FigureBlock, type ImageBlock, t3 } from "lib";
 import { ReportFigureEmbed } from "./ReportFigureEmbed";
 
 export type EmbedKind = "figure" | "image";
@@ -74,36 +74,48 @@ class EmbedWidget extends WidgetType {
               this.resolver.getSelectedId() !== this.id,
           }}
         >
-          {this.kind === "figure" ? (
-            <Show
-              when={this.resolver.getFigure(this.id)}
-              fallback={
-                <div class="text-danger text-xs">Missing figure: {this.id}</div>
-              }
-            >
-              {(fig) => (
-                <ReportFigureEmbed
-                  figure={fig()}
-                  onMeasured={() => view.requestMeasure()}
-                />
-              )}
-            </Show>
-          ) : (
-            <Show
-              when={this.resolver.getImage(this.id)}
-              fallback={
-                <div class="text-danger text-xs">Missing image: {this.id}</div>
-              }
-            >
-              {(img) => (
-                <img
-                  class="w-full"
-                  src={this.resolver.assetUrl(img().imgFile)}
-                  alt={this.caption}
-                />
-              )}
-            </Show>
-          )}
+          <Switch>
+            <Match when={this.kind === "figure"}>
+              <Show
+                when={this.resolver.getFigure(this.id)}
+                fallback={
+                  <div class="text-danger text-xs">
+                    {t3({
+                      en: "Missing visualization:",
+                      fr: "Visualisation manquante :",
+                    })}{" "}
+                    {this.id}
+                  </div>
+                }
+              >
+                {(fig) => (
+                  <ReportFigureEmbed
+                    figure={fig()}
+                    onMeasured={() => view.requestMeasure()}
+                  />
+                )}
+              </Show>
+            </Match>
+            <Match when={this.kind === "image"}>
+              <Show
+                when={this.resolver.getImage(this.id)}
+                fallback={
+                  <div class="text-danger text-xs">
+                    {t3({ en: "Missing image:", fr: "Image manquante :" })}{" "}
+                    {this.id}
+                  </div>
+                }
+              >
+                {(img) => (
+                  <img
+                    class="w-full"
+                    src={this.resolver.assetUrl(img().imgFile)}
+                    alt={this.caption}
+                  />
+                )}
+              </Show>
+            </Match>
+          </Switch>
         </div>
       ),
       dom,

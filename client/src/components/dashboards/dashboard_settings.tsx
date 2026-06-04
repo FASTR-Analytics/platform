@@ -245,21 +245,21 @@ export function DashboardSettings(p: Props) {
                 label={t3({ en: "Placement", fr: "Emplacement" })}
                 options={[
                   {
-                    value: "right",
-                    label: t3({
-                      en: "Far right (right of buttons)",
-                      fr: "Tout à droite (à droite des boutons)",
-                    }),
-                  },
-                  {
                     value: "left",
                     label: t3({
                       en: "Far left (left of title)",
                       fr: "Tout à gauche (à gauche du titre)",
                     }),
                   },
+                  {
+                    value: "right",
+                    label: t3({
+                      en: "Far right (right of buttons)",
+                      fr: "Tout à droite (à droite des boutons)",
+                    }),
+                  },
                 ]}
-                value={config.logos.placement ?? "right"}
+                value={config.logos.placement ?? "left"}
                 onChange={(v) =>
                   setConfig("logos", "placement", v as "left" | "right")
                 }

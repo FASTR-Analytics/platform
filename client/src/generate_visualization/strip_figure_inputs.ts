@@ -25,11 +25,14 @@ type HydrationSource = {
   indicatorMetadata?: IndicatorMetadata[];
 };
 
-export async function hydrateFigureInputsForRendering(
+// Pure synchronous transform (no I/O): re-attaches geojson from the sync cache
+// and recomputes style. Kept sync so callers can derive it in a createMemo
+// instead of a Suspense-triggering createResource (see PROTOCOL_UI_SOLIDJS.md).
+export function hydrateFigureInputsForRendering(
   fi: FigureInputs,
   source?: HydrationSource,
   deckStyle?: DeckStyleContext,
-): Promise<FigureInputs> {
+): FigureInputs {
   let hydrated = fi;
 
   if (

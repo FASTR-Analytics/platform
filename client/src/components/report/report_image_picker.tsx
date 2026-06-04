@@ -3,11 +3,11 @@ import { AlertComponentProps, Button, Input, ModalContainer } from "panther";
 import { createSignal } from "solid-js";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 
-type ReturnType = { imgFile: string; alt: string } | undefined;
+type PickedImage = { imgFile: string; alt: string } | undefined;
 
 // Matches the slide image model: imgFile is an instance asset. Reuses the app's
 // canonical FileUploadSelector (upload via Uppy + select existing).
-export function ReportImagePicker(p: AlertComponentProps<object, ReturnType>) {
+export function ReportImagePicker(p: AlertComponentProps<object, PickedImage>) {
   const [imgFile, setImgFile] = createSignal("");
   const [alt, setAlt] = createSignal("");
 

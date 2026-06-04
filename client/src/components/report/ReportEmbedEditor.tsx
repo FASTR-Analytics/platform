@@ -80,8 +80,8 @@ export function ReportEmbedEditor(p: Props) {
             fallback={
               <div class="ui-pad text-base-content/60 text-sm">
                 {t3({
-                  en: "Click a figure or image to edit it.",
-                  fr: "Cliquez sur une figure ou une image pour la modifier.",
+                  en: "Click a visualization or image to edit it.",
+                  fr: "Cliquez sur une visualisation ou une image pour la modifier.",
                 })}
               </div>
             }
@@ -93,7 +93,10 @@ export function ReportEmbedEditor(p: Props) {
                 fullWidth
                 onClick={() => p.onInsertFigure()}
               >
-                {t3({ en: "Insert figure", fr: "Insérer une figure" })}
+                {t3({
+                  en: "Insert visualization",
+                  fr: "Insérer une visualisation",
+                })}
               </Button>
               <Button
                 outline
@@ -107,88 +110,96 @@ export function ReportEmbedEditor(p: Props) {
           </Show>
         }
       >
-        {(embed) => (
-          <div class="ui-pad ui-spy">
-            <Show when={p.canConfigure}>
-              <Switch>
-                <Match when={embed().kind === "figure"}>
-                  <div class="ui-gap-sm flex flex-col">
-                    <Show
-                      when={
-                        (embed() as { figureBlock: FigureBlock }).figureBlock
-                          .figureInputs &&
-                        (embed() as { figureBlock: FigureBlock }).figureBlock
-                          .source?.type === "from_data"
-                      }
-                    >
-                      <Button onClick={() => p.onEditFigure()}>
-                        {t3({
-                          en: "Edit visualization",
-                          fr: "Modifier la visualisation",
-                        })}
-                      </Button>
-                    </Show>
-                    <Button onClick={() => p.onSwitchFigure()}>
-                      {t3({
-                        en: "Switch visualization",
-                        fr: "Changer de visualisation",
-                      })}
-                    </Button>
-                    <Button onClick={() => p.onCreateFigure()}>
-                      {t3({
-                        en: "Create new visualization",
-                        fr: "Créer une nouvelle visualisation",
-                      })}
-                    </Button>
-                  </div>
-                </Match>
-                <Match when={embed().kind === "image"}>
-                  <div class="ui-spy">
-                    <FileUploadSelector
-                      buttonLabel={t3({
-                        en: "Upload image",
-                        fr: "Téléverser une image",
-                      })}
-                      selectLabel={t3({
-                        en: "Image file",
-                        fr: "Fichier image",
-                      })}
-                      filter={(a) => a.isImage}
-                      value={
-                        (embed() as { imageBlock: ImageBlock }).imageBlock
-                          .imgFile
-                      }
-                      onChange={(v) => p.onChangeImageFile(embed().id, v)}
-                      fullWidth
-                    />
-                    <Input
-                      label={t3({
-                        en: "Alt text for screen readers (optional)",
-                        fr: "Texte alternatif pour lecteurs d'écran (facultatif)",
-                      })}
-                      value={captionDraft()}
-                      onChange={onCaptionInput}
-                      fullWidth
-                    />
-                  </div>
-                </Match>
-              </Switch>
-              <div class="pt-2">
-                <Button intent="danger" outline onClick={() => p.onDelete()}>
-                  <Show
-                    when={embed().kind === "figure"}
-                    fallback={t3({
-                      en: "Delete image",
-                      fr: "Supprimer l'image",
-                    })}
-                  >
-                    {t3({ en: "Delete figure", fr: "Supprimer la figure" })}
-                  </Show>
-                </Button>
-              </div>
-            </Show>
-          </div>
-        )}
+        {(embed) => {
+          // Narrow the discriminated union once, no per-use casts.
+          const figureBlock = () => {
+            const e = embed();
+            return e.kind === "figure" ? e.figureBlock : undefined;
+          };
+          const imageBlock = () => {
+            const e = embed();
+            return e.kind === "image" ? e.imageBlock : undefined;
+          };
+          return (
+            <div class="ui-pad ui-spy">
+              <Show when={p.canConfigure}>
+                <Switch>
+                  <Match when={figureBlock()}>
+                    {(fb) => (
+                      <div class="ui-gap-sm flex flex-col">
+                        <Show
+                          when={
+                            fb().figureInputs &&
+                            fb().source?.type === "from_data"
+                          }
+                        >
+                          <Button onClick={() => p.onEditFigure()}>
+                            {t3({
+                              en: "Edit visualization",
+                              fr: "Modifier la visualisation",
+                            })}
+                          </Button>
+                        </Show>
+                        <Button onClick={() => p.onSwitchFigure()}>
+                          {t3({
+                            en: "Switch visualization",
+                            fr: "Changer de visualisation",
+                          })}
+                        </Button>
+                        <Button onClick={() => p.onCreateFigure()}>
+                          {t3({
+                            en: "New visualization",
+                            fr: "Nouvelle visualisation",
+                          })}
+                        </Button>
+                      </div>
+                    )}
+                  </Match>
+                  <Match when={imageBlock()}>
+                    {(ib) => (
+                      <div class="ui-spy">
+                        <FileUploadSelector
+                          buttonLabel={t3({
+                            en: "Upload image",
+                            fr: "Téléverser une image",
+                          })}
+                          selectLabel={t3({
+                            en: "Image file",
+                            fr: "Fichier image",
+                          })}
+                          filter={(a) => a.isImage}
+                          value={ib().imgFile}
+                          onChange={(v) => p.onChangeImageFile(embed().id, v)}
+                          fullWidth
+                        />
+                        <Input
+                          label={t3({
+                            en: "Alt text for screen readers (optional)",
+                            fr:
+                              "Texte alternatif pour lecteurs d'écran (facultatif)",
+                          })}
+                          value={captionDraft()}
+                          onChange={onCaptionInput}
+                          fullWidth
+                        />
+                      </div>
+                    )}
+                  </Match>
+                </Switch>
+                <div class="pt-2">
+                  <Button intent="danger" outline onClick={() => p.onDelete()}>
+                    {embed().kind === "figure"
+                      ? t3({
+                        en: "Delete visualization",
+                        fr: "Supprimer la visualisation",
+                      })
+                      : t3({ en: "Delete image", fr: "Supprimer l'image" })}
+                  </Button>
+                </div>
+              </Show>
+            </div>
+          );
+        }}
       </Show>
     </div>
   );

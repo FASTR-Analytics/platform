@@ -18,6 +18,8 @@ import {
 export type MarkdownImageRenderer = (
   src: string,
   alt: string,
+  // 0-based source line of the image block, for editor↔preview scroll sync.
+  line?: number,
 ) => JSX.Element | undefined;
 
 type Props = {
@@ -98,7 +100,7 @@ function ElementsRenderer(p: ElementsRendererProps) {
             <ul>
               <For each={group.elements}>
                 {(el) => (
-                  <li>
+                  <li data-line={el.line}>
                     <InlineContentRenderer
                       content={(el as ParsedMarkdownItem & {
                         type: "list-item";
@@ -114,7 +116,7 @@ function ElementsRenderer(p: ElementsRendererProps) {
             <ol>
               <For each={group.elements}>
                 {(el) => (
-                  <li>
+                  <li data-line={el.line}>
                     <InlineContentRenderer
                       content={(el as ParsedMarkdownItem & {
                         type: "list-item";
@@ -160,37 +162,37 @@ function DocElementRenderer(p: DocElementRendererProps) {
   return (
     <Switch>
       <Match when={p.element.type === "heading" && p.element.level === 1}>
-        <h1>
+        <h1 data-line={p.element.line}>
           <InlineContentRenderer content={headingElement().content} />
         </h1>
       </Match>
       <Match when={p.element.type === "heading" && p.element.level === 2}>
-        <h2>
+        <h2 data-line={p.element.line}>
           <InlineContentRenderer content={headingElement().content} />
         </h2>
       </Match>
       <Match when={p.element.type === "heading" && p.element.level === 3}>
-        <h3>
+        <h3 data-line={p.element.line}>
           <InlineContentRenderer content={headingElement().content} />
         </h3>
       </Match>
       <Match when={p.element.type === "heading" && p.element.level === 4}>
-        <h4>
+        <h4 data-line={p.element.line}>
           <InlineContentRenderer content={headingElement().content} />
         </h4>
       </Match>
       <Match when={p.element.type === "heading" && p.element.level === 5}>
-        <h5>
+        <h5 data-line={p.element.line}>
           <InlineContentRenderer content={headingElement().content} />
         </h5>
       </Match>
       <Match when={p.element.type === "heading" && p.element.level === 6}>
-        <h6>
+        <h6 data-line={p.element.line}>
           <InlineContentRenderer content={headingElement().content} />
         </h6>
       </Match>
       <Match when={p.element.type === "paragraph"}>
-        <p>
+        <p data-line={p.element.line}>
           <InlineContentRenderer content={paragraphElement().content} />
         </p>
       </Match>
@@ -200,15 +202,16 @@ function DocElementRenderer(p: DocElementRendererProps) {
           alt={imageElement().alt}
           width={imageElement().width}
           height={imageElement().height}
+          line={imageElement().line}
           images={p.images}
           renderImage={p.renderImage}
         />
       </Match>
       <Match when={p.element.type === "horizontal-rule"}>
-        <hr />
+        <hr data-line={p.element.line} />
       </Match>
       <Match when={p.element.type === "blockquote"}>
-        <blockquote>
+        <blockquote data-line={p.element.line}>
           <InlineContentRenderer content={blockquoteElement().content} />
         </blockquote>
       </Match>
@@ -216,14 +219,14 @@ function DocElementRenderer(p: DocElementRendererProps) {
         <TableElementRenderer element={tableElement()} />
       </Match>
       <Match when={p.element.type === "code-block"}>
-        <pre>
+        <pre data-line={p.element.line}>
           <code>
             {(p.element as ParsedMarkdownItem & { type: "code-block" }).code}
           </code>
         </pre>
       </Match>
       <Match when={p.element.type === "math-block"}>
-        <div class="katex-display">
+        <div class="katex-display" data-line={p.element.line}>
           <code>
             {(p.element as ParsedMarkdownItem & { type: "math-block" }).latex}
           </code>
@@ -238,6 +241,7 @@ type ImageElementRendererProps = {
   alt?: string;
   width?: number;
   height?: number;
+  line?: number;
   images?: ImageMap;
   renderImage?: MarkdownImageRenderer;
 };
@@ -245,7 +249,7 @@ type ImageElementRendererProps = {
 function ImageElementRenderer(p: ImageElementRendererProps) {
   const customElement = createMemo(() => {
     if (!p.src || !p.renderImage) return undefined;
-    return p.renderImage(p.src, p.alt ?? "");
+    return p.renderImage(p.src, p.alt ?? "", p.line);
   });
 
   const imageFromMap = createMemo(() => {
@@ -257,7 +261,13 @@ function ImageElementRenderer(p: ImageElementRendererProps) {
     <Show when={p.src}>
       <Switch
         fallback={
-          <img src={p.src} alt={p.alt} width={p.width} height={p.height} />
+          <img
+            src={p.src}
+            alt={p.alt}
+            width={p.width}
+            height={p.height}
+            data-line={p.line}
+          />
         }
       >
         <Match when={customElement()}>{customElement()}</Match>
@@ -268,6 +278,7 @@ function ImageElementRenderer(p: ImageElementRendererProps) {
               alt={p.alt}
               width={info().width ?? p.width}
               height={info().height ?? p.height}
+              data-line={p.line}
             />
           )}
         </Match>
@@ -282,7 +293,7 @@ type TableElementRendererProps = {
 
 function TableElementRenderer(p: TableElementRendererProps) {
   return (
-    <table>
+    <table data-line={p.element.line}>
       <Show when={p.element.header && p.element.header.length > 0}>
         <thead>
           <For each={p.element.header}>

@@ -10,6 +10,7 @@ import {
   Button,
   ButtonGroup,
   type EditorComponentProps,
+  FrameLeft,
   FrameLeftResizable,
   FrameTop,
   getEditorWrapper,
@@ -23,6 +24,7 @@ import {
   createMemo,
   createSignal,
   type JSX,
+  on,
   onCleanup,
   onMount,
   Show,
@@ -44,7 +46,11 @@ import { resolveFigureAndGeoFromVisualization } from "../slide_deck/slide_ai/res
 import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "../project/add_visualization";
 import { snapshotForVizEditor } from "../_editor_snapshot";
-import { ReportEditor, type ReportEditorApi } from "./report_editor";
+import {
+  EDITOR_PANE_MAX_REM,
+  ReportEditor,
+  type ReportEditorApi,
+} from "./report_editor";
 import { REPORT_MARKDOWN_STYLE } from "./report_markdown_style";
 import {
   ReportEmbedEditor,
@@ -54,10 +60,11 @@ import { ReportImagePicker } from "./report_image_picker";
 import { ReportMarkdownDiff } from "./ReportMarkdownDiff";
 import { ReportFigureEmbed } from "./ReportFigureEmbed";
 import { DownloadReport } from "./download_report";
+import { lineToPreviewTop, previewTopToLine } from "./scroll_sync";
 
 type EmbedKind = "figure" | "image";
 type EmbedSelection = { kind: EmbedKind; id: string };
-type ReportMode = "edit" | "view";
+type ReportMode = "edit" | "view" | "split";
 
 type Props = EditorComponentProps<
   {
@@ -70,6 +77,10 @@ type Props = EditorComponentProps<
 >;
 
 const AUTOSAVE_MS = 800;
+
+// Left sidebar (embed editor) width — same in Edit & Split. Also the right-side
+// pad the editor reserves so its centered column lines up with the View preview.
+const SIDEBAR_WIDTH_PX = 240;
 
 // Captions live inside ![caption](src) — strip chars that would break the token.
 function sanitizeCaption(s: string): string {
@@ -126,38 +137,85 @@ export function ProjectReport(p: Props) {
   >();
   // Edit (CodeMirror) vs View (read-only HTML preview). AI is mode-agnostic:
   // the editor stays mounted in both modes (PLAN_REPORT_PREVIEW_TOGGLE.md §2).
-  const [mode, setMode] = createSignal<ReportMode>("edit");
+  const [mode, setMode] = createSignal<ReportMode>("split");
 
-  // Leaving Edit clears the selection (the preview isn't clickable, so the left
-  // panel resets to its empty state); re-entering Edit re-measures the CM that
-  // was hidden in View.
-  createEffect(() => {
-    if (mode() === "view") setSelectedEmbed(undefined);
-    else editorApi?.refresh();
-  });
+  // The figure-editor sidebar only exists in Edit, so clear the selection in
+  // View/Split. The CM editor is visible in Edit & Split — re-measure it when it
+  // (re)appears (e.g. coming back from View where it was hidden). Also align the
+  // newly revealed pane to targetLine (§8 scroll-sync): when the editor reappears
+  // after View, scroll it to targetLine; when the preview mounts after Edit,
+  // scroll it to targetLine and arm figure-settle. One effect (not two) so refresh
+  // runs before scrollToLine and they can't race.
+  createEffect(
+    on(mode, (m, prev) => {
+      if (m === "view") setSelectedEmbed(undefined);
+      if (m !== "view") editorApi?.refresh();
+      if (prev === undefined) return; // initial render sits at the top
+
+      const editorRevealed = prev === "view" && m !== "view";
+      const previewMounted = prev === "edit" && m !== "edit";
+      if (!editorRevealed && !previewMounted) return;
+
+      // Defer so the just-shown pane has laid out (CM measure / preview mount).
+      queueMicrotask(() =>
+        requestAnimationFrame(() => {
+          if (mode() !== m) return; // toggled again mid-schedule
+          if (editorRevealed) {
+            if (targetAtBottom) editorApi?.scrollToBottom();
+            else editorApi?.scrollToLine(targetLine);
+          }
+          if (previewMounted && previewEl) {
+            if (targetAtBottom) scrollElToBottom(previewEl);
+            else previewEl.scrollTop = lineToPreviewTop(previewEl, targetLine);
+            armFigureSettle();
+          }
+        }),
+      );
+    }),
+  );
 
   // Resolve an embed token to its live render — same funnel as the CM widget, so
   // a figure/image looks identical in Edit and View. Plain markdown image URLs
   // return undefined → MarkdownPresentationJsx falls back to a plain <img>.
-  function renderEmbed(src: string, alt: string): JSX.Element | undefined {
+  function renderEmbed(
+    src: string,
+    alt: string,
+    line?: number,
+  ): JSX.Element | undefined {
     const fig = /^figure:(.+)$/.exec(src);
     if (fig) {
       const fb = figures()[fig[1]];
       return fb ? (
-        <div class="border-base-300 ui-pad my-4 rounded border">
-          <ReportFigureEmbed figure={fb} />
+        <div
+          class="border-base-300 ui-pad my-4 rounded border"
+          data-line={line}
+        >
+          <ReportFigureEmbed figure={fb} onMeasured={() => armFigureSettle()} />
         </div>
       ) : (
-        <div class="text-danger text-xs">Missing figure: {fig[1]}</div>
+        <div class="text-danger text-xs" data-line={line}>
+          {t3({
+            en: "Missing visualization:",
+            fr: "Visualisation manquante :",
+          })}{" "}
+          {fig[1]}
+        </div>
       );
     }
     const img = /^image:(.+)$/.exec(src);
     if (img) {
       const ib = images()[img[1]];
       return ib ? (
-        <img class="w-full" src={assetUrl(ib.imgFile)} alt={alt} />
+        <img
+          class="w-full"
+          src={assetUrl(ib.imgFile)}
+          alt={alt}
+          data-line={line}
+        />
       ) : (
-        <div class="text-danger text-xs">Missing image: {img[1]}</div>
+        <div class="text-danger text-xs" data-line={line}>
+          {t3({ en: "Missing image:", fr: "Image manquante :" })} {img[1]}
+        </div>
       );
     }
     return undefined;
@@ -171,6 +229,111 @@ export function ProjectReport(p: Props) {
   // Suppresses the "user edited" AI notification while we apply an AI-accepted
   // edit through the editor (setBody also fires the CM change listener).
   let applyingProgrammaticEdit = false;
+
+  // ── scroll sync (PLAN_REPORT_SCROLL_SYNC.md) ────────────────────────────────
+  // The source line is the canonical coordinate; pixel positions are derived live
+  // from the DOM at apply-time. targetLine is fractional, 0-based.
+  let targetLine = 0;
+  // Edge-snap: when the driving pane is scrolled to its end, the follower snaps
+  // to its end too (the top-line coordinate saturates near the bottom, so the
+  // last screenful can't be top-aligned). Tracked so mode-switch / figure-settle
+  // also pin to the bottom.
+  let targetAtBottom = false;
+  // Breaks the echo loop: a programmatic scroll on one pane fires that pane's
+  // scroll event, which must not re-drive the other. Cleared on the next rAF
+  // because programmatic scrollTop writes dispatch their scroll event async.
+  let syncing = false;
+  // The preview's scroll container — set on preview mount, cleared on unmount.
+  let previewEl: HTMLDivElement | undefined;
+
+  // Figure-settle (§7): figures measure their height a few frames after mount, so
+  // a one-shot align can land before they settle. While armed (and the user
+  // hasn't taken over), re-project targetLine as heights change.
+  let settleArmed = false;
+  let settleUntouched = true;
+  let quietTimer: ReturnType<typeof setTimeout> | undefined;
+  let ceilingTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function disarmSettle() {
+    settleArmed = false;
+    if (quietTimer) clearTimeout(quietTimer);
+    if (ceilingTimer) clearTimeout(ceilingTimer);
+    quietTimer = undefined;
+    ceilingTimer = undefined;
+  }
+
+  // Re-arm the quiet window (~250 ms with no further height change → disarm).
+  function bumpQuiet() {
+    if (!settleArmed) return;
+    if (quietTimer) clearTimeout(quietTimer);
+    quietTimer = setTimeout(disarmSettle, 250);
+  }
+
+  // Arm the settle window. No-op once the user has taken over this mount, so a
+  // late figure measure can't re-enable auto-scroll after a manual scroll.
+  function armFigureSettle() {
+    if (!settleUntouched) return;
+    settleArmed = true;
+    if (ceilingTimer) clearTimeout(ceilingTimer);
+    ceilingTimer = setTimeout(disarmSettle, 2000); // hard ceiling
+    bumpQuiet();
+  }
+
+  // The preview's ResizeObserver calls this as figure heights settle.
+  function onPreviewResize() {
+    if (!settleArmed || !settleUntouched || !previewEl) return;
+    bumpQuiet();
+    const next = targetAtBottom
+      ? previewEl.scrollHeight - previewEl.clientHeight
+      : lineToPreviewTop(previewEl, targetLine);
+    if (Math.abs(next - previewEl.scrollTop) < 1) return; // skip no-ops
+    syncing = true; // §7: must not masquerade as a user scroll
+    previewEl.scrollTop = next;
+    requestAnimationFrame(() => (syncing = false));
+  }
+
+  // First genuine user gesture in the preview ends the settle window (one-shot).
+  function onPreviewUserGesture() {
+    settleUntouched = false;
+    disarmSettle();
+  }
+
+  // Scrollable AND at the end (a non-scrollable pane isn't "at bottom").
+  function isElAtBottom(el: HTMLElement) {
+    return el.scrollHeight > el.clientHeight + 1 &&
+      el.scrollTop + el.clientHeight >= el.scrollHeight - 2;
+  }
+  function scrollElToBottom(el: HTMLElement) {
+    el.scrollTop = el.scrollHeight - el.clientHeight;
+  }
+
+  // Editor scrolled (fires in Edit + Split). In Split, drive the preview.
+  function onEditorScroll() {
+    if (syncing) return;
+    const line = editorApi?.getTopLine();
+    if (line === undefined) return;
+    targetLine = line;
+    targetAtBottom = editorApi?.isAtBottom() ?? false;
+    if (mode() === "split" && previewEl) {
+      syncing = true;
+      if (targetAtBottom) scrollElToBottom(previewEl);
+      else previewEl.scrollTop = lineToPreviewTop(previewEl, line);
+      requestAnimationFrame(() => (syncing = false));
+    }
+  }
+
+  // Preview scrolled (fires in View + Split). In Split, drive the editor.
+  function onPreviewScroll() {
+    if (syncing || !previewEl) return;
+    targetLine = previewTopToLine(previewEl);
+    targetAtBottom = isElAtBottom(previewEl);
+    if (mode() === "split") {
+      syncing = true;
+      if (targetAtBottom) editorApi?.scrollToBottom();
+      else editorApi?.scrollToLine(targetLine);
+      requestAnimationFrame(() => (syncing = false));
+    }
+  }
 
   // Settle any in-flight proposal (used when one is superseded or the editor
   // closes), so an awaiting AI tool never hangs.
@@ -455,7 +618,13 @@ export function ProjectReport(p: Props) {
       config,
     );
     if (!itemsRes.success || itemsRes.data.ih.status !== "ok") {
-      return { ok: false, err: "Failed to generate visualization" };
+      return {
+        ok: false,
+        err: t3({
+          en: "Failed to generate visualization",
+          fr: "Échec de la génération de la visualisation",
+        }),
+      };
     }
     const ih = itemsRes.data.ih;
     let geoJson;
@@ -470,7 +639,13 @@ export function ProjectReport(p: Props) {
     if (fi.status !== "ready") {
       return {
         ok: false,
-        err: fi.status === "error" ? fi.err : "Failed to generate figure",
+        err:
+          fi.status === "error"
+            ? fi.err
+            : t3({
+                en: "Failed to generate visualization",
+                fr: "Échec de la génération de la visualisation",
+              }),
       };
     }
     return {
@@ -507,7 +682,12 @@ export function ProjectReport(p: Props) {
     } catch (err) {
       await openAlert({
         text:
-          err instanceof Error ? err.message : "Failed to add visualization",
+          err instanceof Error
+            ? err.message
+            : t3({
+                en: "Failed to add visualization",
+                fr: "Échec de l'ajout de la visualisation",
+              }),
         intent: "danger",
       });
       return;
@@ -567,7 +747,12 @@ export function ProjectReport(p: Props) {
     } catch (err) {
       await openAlert({
         text:
-          err instanceof Error ? err.message : "Failed to switch visualization",
+          err instanceof Error
+            ? err.message
+            : t3({
+                en: "Failed to switch visualization",
+                fr: "Échec du changement de visualisation",
+              }),
         intent: "danger",
       });
     }
@@ -583,7 +768,10 @@ export function ProjectReport(p: Props) {
     );
     if (!resultsValue) {
       await openAlert({
-        text: "Metric not found in project",
+        text: t3({
+          en: "Metric not found in project",
+          fr: "Indicateur introuvable dans le projet",
+        }),
         intent: "danger",
       });
       return;
@@ -663,6 +851,60 @@ export function ProjectReport(p: Props) {
     });
   }
 
+  // The HTML preview pane (View & Split). Owns its scroll-sync lifecycle: it
+  // registers previewEl, an rAF-throttled scroll listener, a ResizeObserver on
+  // the content (figure-settle, §7), and user-gesture latches — all torn down on
+  // unmount, since the pane unmounts in Edit.
+  const ReportPreviewPane = () => {
+    let contentEl: HTMLDivElement | undefined;
+    let scrollRAF = 0;
+    onMount(() => {
+      const el = previewEl;
+      if (!el) return;
+      settleUntouched = true;
+      settleArmed = false;
+      const onScroll = () => {
+        if (scrollRAF) return;
+        scrollRAF = requestAnimationFrame(() => {
+          scrollRAF = 0;
+          onPreviewScroll();
+        });
+      };
+      el.addEventListener("scroll", onScroll, { passive: true });
+      el.addEventListener("wheel", onPreviewUserGesture, { passive: true });
+      el.addEventListener("pointerdown", onPreviewUserGesture);
+      const ro = new ResizeObserver(() => onPreviewResize());
+      if (contentEl) ro.observe(contentEl);
+      onCleanup(() => {
+        if (scrollRAF) cancelAnimationFrame(scrollRAF);
+        el.removeEventListener("scroll", onScroll);
+        el.removeEventListener("wheel", onPreviewUserGesture);
+        el.removeEventListener("pointerdown", onPreviewUserGesture);
+        ro.disconnect();
+        disarmSettle();
+        previewEl = undefined;
+      });
+    });
+    return (
+      <div
+        class="min-h-0 flex-1 overflow-auto px-8 py-10"
+        classList={{ "border-base-300 border-l": mode() === "split" }}
+        ref={(el) => (previewEl = el)}
+      >
+        <div
+          class="bg-base-100 mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-2xl"
+          ref={(el) => (contentEl = el)}
+        >
+          <MarkdownPresentationJsx
+            markdown={body()}
+            renderImage={renderEmbed}
+            style={REPORT_MARKDOWN_STYLE}
+          />
+        </div>
+      </div>
+    );
+  };
+
   // The content area (banners + CM editor + preview + diff), shared by both
   // modes. The CM editor stays mounted in View too — AI accept applies via its
   // imperative setBody and body() updates flow through onBodyChange regardless
@@ -693,33 +935,48 @@ export function ProjectReport(p: Props) {
         <div class="text-danger ui-pad text-xs">{saveError()}</div>
       </Show>
       <Show when={!isLoading()}>
+        {/* Editor + preview row. The CM editor stays mounted in every mode (AI
+            accept applies via its imperative setBody); it's hidden in View and
+            while a proposal is under review. In Split, editor (left) and preview
+            (right) sit side by side. */}
         <div
-          class="ui-pad-lg min-h-0 flex-1"
-          classList={{ hidden: mode() !== "edit" || !!pendingProposal() }}
+          class="flex min-h-0 flex-1"
+          classList={{ hidden: !!pendingProposal() }}
         >
-          <ReportEditor
-            body={body()}
-            figures={figures()}
-            images={images()}
-            assetUrl={assetUrl}
-            onBodyChange={handleBodyChange}
-            onSelectEmbed={(kind, id) => setSelectedEmbed({ kind, id })}
-            selectedId={() => selectedEmbed()?.id}
-            ref={(api) => (editorApi = api)}
-          />
-        </div>
-        {/* Read-only HTML preview — View mode, not during a proposal. */}
-        <Show when={mode() === "view" && !pendingProposal()}>
-          <div class="ui-pad-lg min-h-0 flex-1 overflow-auto">
-            <div class="bg-base-100 mx-auto w-full max-w-4xl rounded border px-6 py-10">
-              <MarkdownPresentationJsx
-                markdown={body()}
-                renderImage={renderEmbed}
-                style={REPORT_MARKDOWN_STYLE}
-              />
-            </div>
+          {/* In Split, cap the editor pane to the editor's max content width
+              (column + gutter) so it doesn't stretch to half — the preview takes
+              the leftover. flex-1 still fills it in Edit and shrinks if narrow. */}
+          <div
+            class="min-h-0 flex-1"
+            classList={{ hidden: mode() === "view" }}
+            style={mode() === "split"
+              ? { "max-width": `${EDITOR_PANE_MAX_REM}rem` }
+              : undefined}
+          >
+            <ReportEditor
+              body={body()}
+              figures={figures()}
+              images={images()}
+              assetUrl={assetUrl}
+              onBodyChange={handleBodyChange}
+              onSelectEmbed={(kind, id) => setSelectedEmbed({ kind, id })}
+              selectedId={() => selectedEmbed()?.id}
+              onScroll={onEditorScroll}
+              centered={() => mode() === "edit"}
+              // In Edit, reserve the sidebar's width on the right so the centered
+              // column lands at the window centre — same placement as the View
+              // preview (where the sidebar is collapsed). Scrollbar stays at the
+              // pane edge (padding is inside the scroller).
+              centerPadRight={() => SIDEBAR_WIDTH_PX}
+              ref={(api) => (editorApi = api)}
+            />
           </div>
-        </Show>
+          {/* HTML preview — visible in View & Split. Unmounts in Edit, so its
+              scroll/resize listeners are (re)established per mount (§7). */}
+          <Show when={mode() !== "edit"}>
+            <ReportPreviewPane />
+          </Show>
+        </div>
         {/* keyed so a *new* proposal rebuilds the diff (M1). */}
         <Show when={pendingProposal()} keyed>
           {(prop) => (
@@ -755,6 +1012,7 @@ export function ProjectReport(p: Props) {
               <ButtonGroup<ReportMode>
                 items={[
                   { id: "edit", label: t3({ en: "Edit", fr: "Édition" }) },
+                  { id: "split", label: t3({ en: "Split", fr: "Divisé" }) },
                   { id: "view", label: t3({ en: "View", fr: "Aperçu" }) },
                 ]}
                 value={mode()}
@@ -790,34 +1048,35 @@ export function ProjectReport(p: Props) {
         }
       >
         {/* One always-mounted frame: the sidebar collapses (isShown=false) in
-            View, but MainArea stays mounted across the toggle — the CM editor
-            and figure widgets never remount (no re-hydration flicker; undo and
-            scroll preserved). */}
-        <FrameLeftResizable
-          startingWidth={300}
-          minWidth={240}
-          maxWidth={460}
-          hoverOffset="offset-for-border-1-on-left"
-          isShown={mode() === "edit"}
+            View only — it's available in Edit & Split (both show the CM editor,
+            where embeds are selected). MainArea stays mounted across the toggle —
+            the CM editor and figure widgets never remount (no re-hydration
+            flicker; undo and scroll preserved). */}
+        <FrameLeft
           panelChildren={
-            <div class="border-base-300 flex h-full w-full flex-col border-r">
-              <ReportEmbedEditor
-                embed={selectedEmbedDetail()}
-                canConfigure={canConfigure() && mode() === "edit"}
-                onUpdateCaption={handleUpdateCaption}
-                onEditFigure={handleEdit}
-                onSwitchFigure={handleSwitch}
-                onCreateFigure={handleCreate}
-                onChangeImageFile={handleChangeImageFile}
-                onDelete={handleDelete}
-                onInsertFigure={insertFigure}
-                onInsertImage={insertImage}
-              />
-            </div>
+            mode() !== "view" ? (
+              <div
+                class="border-base-300 flex h-full flex-col border-r"
+                style={{ width: `${SIDEBAR_WIDTH_PX}px` }}
+              >
+                <ReportEmbedEditor
+                  embed={selectedEmbedDetail()}
+                  canConfigure={canConfigure() && mode() !== "view"}
+                  onUpdateCaption={handleUpdateCaption}
+                  onEditFigure={handleEdit}
+                  onSwitchFigure={handleSwitch}
+                  onCreateFigure={handleCreate}
+                  onChangeImageFile={handleChangeImageFile}
+                  onDelete={handleDelete}
+                  onInsertFigure={insertFigure}
+                  onInsertImage={insertImage}
+                />
+              </div>
+            ) : null
           }
         >
           <MainArea />
-        </FrameLeftResizable>
+        </FrameLeft>
       </FrameTop>
     </InnerEditorWrapper>
   );

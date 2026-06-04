@@ -26,6 +26,9 @@ export type MarkdownItToken = {
   content?: string;
   children: MarkdownItToken[] | null;
   attrs: [string, string][] | null;
+  // markdown-it source-line range [startLine, endLine), 0-based. Present on
+  // block tokens; used to map rendered blocks back to source lines.
+  map?: [number, number] | null;
 };
 
 // =============================================================================
@@ -76,26 +79,44 @@ export type MarkdownInline =
   | { type: "math-inline"; latex: string };
 
 export type ParsedMarkdownItem =
-  | { type: "paragraph"; content: MarkdownInline[] }
-  | { type: "heading"; level: 1 | 2 | 3 | 4 | 5 | 6; content: MarkdownInline[] }
-  | {
-    type: "list-item";
-    listType: "bullet" | "numbered";
-    level: 0 | 1 | 2;
-    listIndex?: number;
-    isFirstInList: boolean;
-    isLastInList: boolean;
-    content: MarkdownInline[];
-  }
-  | { type: "blockquote"; content: MarkdownInline[] }
-  | { type: "horizontal-rule" }
-  | { type: "code-block"; code: string }
-  | { type: "math-block"; latex: string }
-  | { type: "image"; src: string; alt: string; width?: number; height?: number }
-  | {
-    type: "table";
-    header?: MarkdownInline[][][];
-    rows?: MarkdownInline[][][];
+  & (
+    | { type: "paragraph"; content: MarkdownInline[] }
+    | {
+      type: "heading";
+      level: 1 | 2 | 3 | 4 | 5 | 6;
+      content: MarkdownInline[];
+    }
+    | {
+      type: "list-item";
+      listType: "bullet" | "numbered";
+      level: 0 | 1 | 2;
+      listIndex?: number;
+      isFirstInList: boolean;
+      isLastInList: boolean;
+      content: MarkdownInline[];
+    }
+    | { type: "blockquote"; content: MarkdownInline[] }
+    | { type: "horizontal-rule" }
+    | { type: "code-block"; code: string }
+    | { type: "math-block"; latex: string }
+    | {
+      type: "image";
+      src: string;
+      alt: string;
+      width?: number;
+      height?: number;
+    }
+    | {
+      type: "table";
+      header?: MarkdownInline[][][];
+      rows?: MarkdownInline[][][];
+    }
+  )
+  & {
+    // 0-based source line where this block starts (from markdown-it token.map).
+    // Enables editor↔preview scroll sync and source mapping. Optional so callers
+    // that don't need it are unaffected.
+    line?: number;
   };
 
 export type ParsedMarkdown = {

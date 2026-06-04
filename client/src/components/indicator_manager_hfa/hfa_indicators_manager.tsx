@@ -34,7 +34,11 @@ import { HfaIndicatorCodeEditor } from "./hfa_indicator_code_editor";
 import { HfaIndicatorsXlsxUploadForm } from "./hfa_indicators_xlsx_upload_form";
 import { HfaCategoriesManager } from "./hfa_categories_manager";
 import { buildHfaWorkbookBlob } from "./_xlsx_workbook";
-import { validateRCode } from "./hfa_r_code_validator";
+import { extractRIdentifiers, validateRCode } from "./hfa_r_code_validator";
+import {
+  HfaUnusedVariablesModal,
+  type UnusedVariablesByTimePoint,
+} from "./hfa_unused_variables_modal";
 
 type Props = {
   backToInstance: () => void;
@@ -71,13 +75,11 @@ export function HfaIndicatorsManager(p: Props) {
 
   // Hoisted here (not inside HfaCategoriesManager) so the selection survives the
   // StateHolderWrapper remount that happens on every SSE refetch/mutation.
-  const [selectedCategoryId, setSelectedCategoryId] = createSignal<string | null>(
-    null,
-  );
+  const [selectedCategoryId, setSelectedCategoryId] = createSignal<
+    string | null
+  >(null);
 
-  const [tab, setTab] = createSignal<"indicators" | "categories">(
-    "indicators",
-  );
+  const [tab, setTab] = createSignal<"indicators" | "categories">("indicators");
   const tabItems: ListItem<"indicators" | "categories">[] = [
     {
       id: "indicators",
@@ -429,6 +431,53 @@ export function HfaIndicatorsManager(p: Props) {
     });
   }
 
+  async function handleCheckUnusedVariables() {
+    const dictSt = dictionary();
+    const codeSt = allCode();
+    if (dictSt.status !== "ready" || codeSt.status !== "ready") return;
+    const dict = dictSt.data;
+
+    const availableByTimePoint = new Map<string, Set<string>>();
+    const usedByTimePoint = new Map<string, Set<string>>();
+    for (const tp of dict.timePoints) {
+      availableByTimePoint.set(
+        tp.timePoint,
+        new Set(tp.vars.map((v) => v.varName)),
+      );
+      usedByTimePoint.set(tp.timePoint, new Set<string>());
+    }
+
+    for (const c of codeSt.data) {
+      const available = availableByTimePoint.get(c.timePoint);
+      const used = usedByTimePoint.get(c.timePoint);
+      if (!available || !used) continue;
+      const identifiers = [
+        ...extractRIdentifiers(c.rCode),
+        ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
+      ];
+      for (const id of identifiers) {
+        if (available.has(id)) used.add(id);
+      }
+    }
+
+    const timePoints: UnusedVariablesByTimePoint[] = [...dict.timePoints]
+      .sort((a, b) => a.timePoint.localeCompare(b.timePoint))
+      .map((tp) => {
+        const used = usedByTimePoint.get(tp.timePoint) ?? new Set<string>();
+        return {
+          timePoint: tp.timePoint,
+          unused: tp.vars
+            .filter((v) => !used.has(v.varName))
+            .map((v) => ({ varName: v.varName, varLabel: v.varLabel })),
+        };
+      });
+
+    await openComponent({
+      element: HfaUnusedVariablesModal,
+      props: { timePoints },
+    });
+  }
+
   const columns: TableColumn<HfaIndicator>[] = [
     {
       key: "categoryId",
@@ -608,9 +657,13 @@ export function HfaIndicatorsManager(p: Props) {
           </div>
         }
       >
-        <FrameTop panelChildren={<TabsNavigation items={tabItems} value={tab()} onChange={setTab} />}>
+        <FrameTop
+          panelChildren={
+            <TabsNavigation items={tabItems} value={tab()} onChange={setTab} />
+          }
+        >
           <div class="ui-pad h-full w-full overflow-auto">
-            <Show when={tab() === ("indicators")}>
+            <Show when={tab() === "indicators"}>
               <StateHolderWrapper state={indicators()} noPad>
                 {(keyedIndicators) => (
                   <div class="flex h-full flex-col">
@@ -621,20 +674,38 @@ export function HfaIndicatorsManager(p: Props) {
                       </div>
                       <Show when={instanceState.currentUserIsGlobalAdmin}>
                         <Button
-                          iconName="download"
-                          intent="neutral"
-                          onClick={handleDownloadXlsx}
-                        >
-                          {t3({ en: "Download Excel", fr: "Télécharger Excel" })}
-                        </Button>
-                        <Button
                           iconName="refresh"
                           onClick={handleRevalidateAll}
                           loading={revalidating()}
+                          outline
                         >
                           {t3({ en: "Revalidate all", fr: "Revalider tout" })}
                         </Button>
-                        <Button iconName="upload" onClick={handleXlsxUpload}>
+                        <Button
+                          iconName="search"
+                          onClick={handleCheckUnusedVariables}
+                          outline
+                        >
+                          {t3({
+                            en: "Check unused variables",
+                            fr: "Vérifier les variables inutilisées",
+                          })}
+                        </Button>
+                        <Button
+                          iconName="download"
+                          onClick={handleDownloadXlsx}
+                          outline
+                        >
+                          {t3({
+                            en: "Download Excel",
+                            fr: "Télécharger Excel",
+                          })}
+                        </Button>
+                        <Button
+                          iconName="upload"
+                          onClick={handleXlsxUpload}
+                          outline
+                        >
                           {t3({ en: "Import Excel", fr: "Importer Excel" })}
                         </Button>
                         <Button
@@ -667,7 +738,7 @@ export function HfaIndicatorsManager(p: Props) {
                 )}
               </StateHolderWrapper>
             </Show>
-            <Show when={tab() === ("categories")}>
+            <Show when={tab() === "categories"}>
               <StateHolderWrapper state={categories()} noPad>
                 {(keyedCategories) => (
                   <StateHolderWrapper state={subCategories()} noPad>

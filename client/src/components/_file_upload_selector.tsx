@@ -90,7 +90,7 @@ export function FileUploadSelector(p: Props) {
   return (
     <>
       <div>
-        <Button id={triggerId} iconName="upload">
+        <Button id={triggerId} iconName="upload" fullWidth={p.fullWidth}>
           {p.buttonLabel}
         </Button>
       </div>
