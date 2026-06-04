@@ -1,3 +1,5 @@
+[1.44.1] [user] [fixed] - Indicator status no longer shows "0 ready" unnecessarily
+[1.44.1] [admin] [fixed] - Indicator status no longer shows "0 ready" unnecessarily
 [1.44.1] [user] [added] - Split view mode shows editor and preview side by side
 [1.44.1] [user] [added] - Scroll position syncs between editor and preview in split view
 [1.44.1] [user] [added] - Check unused variables tool for HFA indicators
