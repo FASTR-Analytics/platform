@@ -6,10 +6,13 @@ import {
   FrameTop,
   HeadingBarMainRibbon,
   LockIcon,
+  Table,
   timActionDelete,
+  type BulkAction,
+  type TableColumn,
 } from "panther";
 import { For, Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
-import { AssetInfo, t3 } from "lib";
+import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions";
 import { createUppyInstance, cleanupUppy } from "~/components/_uppy_file_upload";
@@ -145,9 +148,7 @@ function AssetFileSystem(p: {
     });
   }
 
-  const sharedAssets = createMemo(() =>
-    p.assets.filter((a) => a.isPublic)
-  );
+  const sharedAssets = createMemo(() => p.assets.filter((a) => a.isPublic));
 
   const privateAssets = createMemo(() =>
     p.assets.filter(
@@ -226,9 +227,7 @@ function AssetSection(p: {
 
       <Show
         when={p.assets.length > 0}
-        fallback={
-          <p class="text-sm text-neutral pl-2">{p.emptyMessage}</p>
-        }
+        fallback={<p class="text-sm text-neutral pl-2">{p.emptyMessage}</p>}
       >
         <div class="flex flex-col gap-1 border border-white/10 rounded-lg overflow-hidden">
           <For each={nonEmptyTypes()}>
@@ -238,7 +237,6 @@ function AssetSection(p: {
               const isExpanded = () => p.expandedFolders.has(folderKey);
               return (
                 <AssetFolder
-                  folderKey={folderKey}
                   label={t3(FILE_TYPE_LABELS[fileType])}
                   files={files()}
                   isExpanded={isExpanded()}
@@ -258,7 +256,6 @@ function AssetSection(p: {
 }
 
 function AssetFolder(p: {
-  folderKey: string;
   label: string;
   files: AssetInfo[];
   isExpanded: boolean;
@@ -268,6 +265,122 @@ function AssetFolder(p: {
   isAdmin: boolean;
   onDelete: (fileName: string) => void;
 }) {
+  const columns = createMemo((): TableColumn<AssetInfo>[] => {
+    const ownerCol: TableColumn<AssetInfo> = {
+      key: "uploaderEmail",
+      header: t3({ en: "Owner", fr: "Propriétaire" }),
+      sortable: true,
+      render: (asset) => (
+        <Show
+          when={asset.uploaderEmail}
+          fallback={
+            <span class="text-neutral/50 italic text-sm">
+              {t3({ en: "system", fr: "système" })}
+            </span>
+          }
+        >
+          <span class="font-mono text-sm">{asset.uploaderEmail}</span>
+        </Show>
+      ),
+    };
+
+    const cols: TableColumn<AssetInfo>[] = [
+      {
+        key: "fileName",
+        header: t3({ en: "File Name", fr: "Nom du fichier" }),
+        sortable: true,
+        render: (asset) => (
+          <span class="font-mono text-sm">{asset.fileName}</span>
+        ),
+      },
+      {
+        key: "size",
+        header: t3({ en: "Size", fr: "Taille" }),
+        sortable: true,
+        render: (asset) => (
+          <span class="text-neutral text-sm">{formatFileSize(asset.size)}</span>
+        ),
+      },
+      {
+        key: "lastModified",
+        header: t3({ en: "Modified", fr: "Modifié" }),
+        sortable: true,
+        render: (asset) => (
+          <span class="text-neutral text-sm">{formatDate(asset.lastModified)}</span>
+        ),
+      },
+    ];
+
+    if (p.showOwner) cols.push(ownerCol);
+
+    cols.push({
+      key: "actions",
+      header: "",
+      alignH: "right",
+      render: (asset) => {
+        const canDelete =
+          p.isAdmin || asset.uploaderEmail === p.currentUserEmail;
+        return (
+          <div class="ui-gap-sm flex items-center justify-end">
+            <Button
+              intent="base-100"
+              iconName="download"
+              href={`${_SERVER_HOST}/assets/${asset.fileName}`}
+              download={asset.fileName}
+            />
+            <Show when={canDelete}>
+              <Button
+                iconName="trash"
+                intent="base-100"
+                onClick={(e: MouseEvent) => {
+                  e.stopPropagation();
+                  p.onDelete(asset.fileName);
+                }}
+              />
+            </Show>
+          </div>
+        );
+      },
+    });
+
+    return cols;
+  });
+
+  async function handleBulkDelete(selected: AssetInfo[]) {
+    const assetFileNames = selected.map((a) => a.fileName);
+    const deleteAction = timActionDelete(
+      {
+        text:
+          assetFileNames.length === 1
+            ? t3({
+                en: "Are you sure you want to delete this asset file?",
+                fr: "Êtes-vous sûr de vouloir supprimer ce fichier ressource ?",
+              })
+            : t3({
+                en: "Are you sure you want to delete these asset files?",
+                fr: "Êtes-vous sûr de vouloir supprimer ces fichiers ressources ?",
+              }),
+        itemList: assetFileNames,
+      },
+      () => serverActions.deleteAssets({ assetFileNames }),
+    );
+    await deleteAction.click();
+    const res = await serverActions.getAssets({});
+    if (res.success) updateInstanceAssets(res.data);
+  }
+
+  const bulkActions = createMemo((): BulkAction<AssetInfo>[] => {
+    if (!p.isAdmin) return [];
+    return [
+      {
+        label: t3(TC.delete),
+        intent: "danger",
+        outline: true,
+        onClick: handleBulkDelete,
+      },
+    ];
+  });
+
   return (
     <div class="border-b border-white/10 last:border-b-0">
       <button
@@ -290,86 +403,15 @@ function AssetFolder(p: {
       </button>
 
       <Show when={p.isExpanded}>
-        <div class="bg-black/10">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-white/10 text-neutral text-xs">
-                <th class="text-left px-4 py-1.5 font-medium">
-                  {t3({ en: "Name", fr: "Nom" })}
-                </th>
-                <th class="text-left px-3 py-1.5 font-medium">
-                  {t3({ en: "Size", fr: "Taille" })}
-                </th>
-                <th class="text-left px-3 py-1.5 font-medium">
-                  {t3({ en: "Modified", fr: "Modifié" })}
-                </th>
-                <Show when={p.showOwner}>
-                  <th class="text-left px-3 py-1.5 font-medium">
-                    {t3({ en: "Owner", fr: "Propriétaire" })}
-                  </th>
-                </Show>
-                <th class="px-3 py-1.5" />
-              </tr>
-            </thead>
-            <tbody>
-              <For each={p.files}>
-                {(asset) => {
-                  const canDelete =
-                    p.isAdmin || asset.uploaderEmail === p.currentUserEmail;
-                  return (
-                    <tr class="border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors">
-                      <td class="px-4 py-2 font-mono text-sm text-base-content">
-                        {asset.fileName}
-                      </td>
-                      <td class="px-3 py-2 text-neutral text-sm whitespace-nowrap">
-                        {formatFileSize(asset.size)}
-                      </td>
-                      <td class="px-3 py-2 text-neutral text-sm whitespace-nowrap">
-                        {formatDate(asset.lastModified)}
-                      </td>
-                      <Show when={p.showOwner}>
-                        <td class="px-3 py-2 text-neutral text-sm">
-                          <Show
-                            when={asset.uploaderEmail}
-                            fallback={
-                              <span class="text-xs text-neutral/50 italic">
-                                {t3({ en: "system", fr: "système" })}
-                              </span>
-                            }
-                          >
-                            <span class="font-mono text-xs">
-                              {asset.uploaderEmail}
-                            </span>
-                          </Show>
-                        </td>
-                      </Show>
-                      <td class="px-3 py-2">
-                        <div class="flex items-center justify-end gap-1">
-                          <Button
-                            intent="base-100"
-                            iconName="download"
-                            href={`${_SERVER_HOST}/assets/${asset.fileName}`}
-                            download={asset.fileName}
-                          />
-                          <Show when={canDelete}>
-                            <Button
-                              iconName="trash"
-                              intent="base-100"
-                              onClick={(e: MouseEvent) => {
-                                e.stopPropagation();
-                                p.onDelete(asset.fileName);
-                              }}
-                            />
-                          </Show>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }}
-              </For>
-            </tbody>
-          </table>
-        </div>
+        <Table
+          data={p.files}
+          columns={columns()}
+          keyField="fileName"
+          defaultSort={{ key: "fileName", direction: "asc" }}
+          noRowsMessage={t3({ en: "No assets", fr: "Aucune ressource" })}
+          bulkActions={bulkActions()}
+          selectionLabel={t3({ en: "asset", fr: "ressource" })}
+        />
       </Show>
     </div>
   );
