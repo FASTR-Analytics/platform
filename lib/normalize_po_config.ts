@@ -55,7 +55,9 @@ export function getEffectivePOConfig(
     dateRange &&
     (dateRange.periodOption === "year"
       ? dateRange.min === dateRange.max
-      : Math.floor(dateRange.min / 100) === Math.floor(dateRange.max / 100));
+      : dateRange.periodOption === "quarter_id"
+        ? Math.floor(dateRange.min / 10) === Math.floor(dateRange.max / 10)
+        : Math.floor(dateRange.min / 100) === Math.floor(dateRange.max / 100));
 
   const ineffectiveDisaggregators: IneffectiveDisaggregator[] = [];
 

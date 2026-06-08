@@ -32,19 +32,28 @@ import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggrega
  * (e.g. filter has "year" values like 2025 but bounds has "period_id" values like 202512).
  * This converts the filter's min/max to match the bounds format.
  */
+// Extract the calendar year from any period value (year YYYY / quarter_id YYYYQ /
+// period_id YYYYMM), keyed by digit length now that the three formats are disjoint.
+function periodToYear(v: number): number {
+  const len = String(v).length;
+  if (len <= 4) return v;
+  if (len === 5) return Math.floor(v / 10);
+  return Math.floor(v / 100);
+}
+
 function periodIdToQuarterId(periodId: number): number {
   const year = Math.floor(periodId / 100);
   const month = periodId % 100;
   const calendar = getCalendar();
   if (calendar === "ethiopian") {
     // Ethiopian Q1 is months 11-1, with Nov/Dec belonging to NEXT year's Q1
-    if (month >= 11) return (year + 1) * 100 + 1;
-    if (month <= 1) return year * 100 + 1;
-    if (month <= 4) return year * 100 + 2;
-    if (month <= 7) return year * 100 + 3;
-    return year * 100 + 4;
+    if (month >= 11) return (year + 1) * 10 + 1;
+    if (month <= 1) return year * 10 + 1;
+    if (month <= 4) return year * 10 + 2;
+    if (month <= 7) return year * 10 + 3;
+    return year * 10 + 4;
   }
-  return year * 100 + Math.ceil(month / 3);
+  return year * 10 + Math.ceil(month / 3);
 }
 
 function reconcilePeriodFilterWithBounds(
@@ -57,10 +66,10 @@ function reconcilePeriodFilterWithBounds(
     const digits = String(v).length;
     if (digits <= 4) {
       if (target === "year") return v;
-      if (target === "quarter_id") return v * 100 + (isEnd ? 4 : 1);
+      if (target === "quarter_id") return v * 10 + (isEnd ? 4 : 1);
       if (target === "period_id") return v * 100 + (isEnd ? 12 : 1);
     }
-    const year = Math.floor(v / 100);
+    const year = periodToYear(v);
     const sub = v % 100;
     if (target === "year") return year;
     if (target === "period_id") return v;
@@ -413,7 +422,7 @@ function PeriodFilter(p: PeriodFilterProps) {
                   keyed
                 >
                   {(bf) => {
-                    const toYear = (v: number) => String(v).length <= 4 ? v : Math.floor(v / 100);
+                    const toYear = periodToYear;
                     return (
                       <PeriodFilterYear
                         periodBounds={{

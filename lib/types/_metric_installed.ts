@@ -15,6 +15,7 @@
 // ============================================================================
 
 import { z } from "zod";
+import { isPeriodId, isQuarterId, isYear } from "@timroberton/panther";
 import { cfStorageSchema } from "./conditional_formatting.ts";
 import { ALL_DISAGGREGATION_OPTIONS } from "./disaggregation_options.ts";
 
@@ -47,37 +48,22 @@ export const disaggregationDisplayOptionSchema = z.enum([
   "mapArea",
 ]);
 
-// Period value validators (internal, used by schema refinement)
-const MIN_YEAR = 1900;
-const MAX_YEAR = 2050;
-
-function isValidPeriodIdNum(v: number): boolean {
-  if (v < 190001 || v > 205012) return false;
-  const month = v % 100;
-  return month >= 1 && month <= 12;
-}
-
-function isValidQuarterIdNum(v: number): boolean {
-  if (v < 190001 || v > 205004) return false;
-  const quarter = v % 100;
-  return quarter >= 1 && quarter <= 4;
-}
-
-function isValidYearNum(v: number): boolean {
-  return v >= MIN_YEAR && v <= MAX_YEAR;
-}
-
+// Period value validators (internal, used by schema refinement) — delegate to
+// panther's predicates, the single source of truth for the disjoint
+// year (YYYY) / quarter_id (YYYYQ) / period_id (YYYYMM) ranges. A stray
+// old-format YYYY0Q quarter (e.g. 202304) now fails isQuarterId — the deliberate
+// tripwire for any source still emitting the 6-digit format.
 function isValidPeriodValue(
   v: number,
   periodOpt: "period_id" | "quarter_id" | "year",
 ): boolean {
   switch (periodOpt) {
     case "period_id":
-      return isValidPeriodIdNum(v);
+      return isPeriodId(v);
     case "quarter_id":
-      return isValidQuarterIdNum(v);
+      return isQuarterId(v);
     case "year":
-      return isValidYearNum(v);
+      return isYear(v);
   }
 }
 

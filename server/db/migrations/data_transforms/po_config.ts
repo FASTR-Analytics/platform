@@ -37,6 +37,7 @@
 // 20. Strip nMonths/nYears/nQuarters from bounded filters
 // 21. Strip unused count fields from relative filters
 // 22. Fill default nMonths for last_n_months without count
+// 23. Convert quarter_id bounds YYYY0Q (6-digit) → YYYYQ (5-digit)
 //
 // =============================================================================
 
@@ -202,6 +203,19 @@ export function transformConfigD(d: Record<string, unknown>): void {
   // Block 22: Fill default nMonths for last_n_months without count
   if (pf?.filterType === "last_n_months" && pf.nMonths === undefined) {
     pf.nMonths = 12;
+  }
+
+  // Block 23: Convert quarter_id bounds YYYY0Q (6-digit) → YYYYQ (5-digit).
+  // Targets bounded filters still tagged periodOption "quarter_id" (the tag exists
+  // in Phase 1, so this is unambiguous — relative filters had it stripped in
+  // Block 4). Idempotent: the >= 100000 guard skips already-5-digit values.
+  if (pf?.periodOption === "quarter_id") {
+    const toFiveDigitQuarter = (v: unknown): unknown =>
+      typeof v === "number" && v >= 100000
+        ? Math.floor(v / 100) * 10 + (v % 100)
+        : v;
+    pf.min = toFiveDigitQuarter(pf.min);
+    pf.max = toFiveDigitQuarter(pf.max);
   }
 }
 

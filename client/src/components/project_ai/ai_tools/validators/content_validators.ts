@@ -56,6 +56,14 @@ function isPeriodIdValid(val: number): boolean {
   return year >= 1900 && year <= 2100 && month >= 1 && month <= 12;
 }
 
+function isQuarterIdValid(val: number): boolean {
+  const str = String(val);
+  if (str.length !== 5) return false;
+  const year = Math.floor(val / 10);
+  const quarter = val % 10;
+  return year >= 1900 && year <= 2100 && quarter >= 1 && quarter <= 4;
+}
+
 function validateFilters(
   filters: { disOpt: DisaggregationOption; values: (string | number)[] }[] | undefined,
   metricId: string,
@@ -111,6 +119,12 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
       if (!isPeriodIdValid(query.startDate) || !isPeriodIdValid(query.endDate)) {
         throw new Error(
           `Invalid YYYYMM format. Got startDate: ${query.startDate}, endDate: ${query.endDate}`
+        );
+      }
+    } else if (startDigits === 5) {
+      if (!isQuarterIdValid(query.startDate) || !isQuarterIdValid(query.endDate)) {
+        throw new Error(
+          `Invalid YYYYQ format. Got startDate: ${query.startDate}, endDate: ${query.endDate}`
         );
       }
     } else if (startDigits <= 4) {

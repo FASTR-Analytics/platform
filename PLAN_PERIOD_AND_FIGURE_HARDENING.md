@@ -80,19 +80,21 @@ convert `min`/`max`. `transformConfigD` is the shared choke point reused by:
 
 One block covers all four.
 
-### 1b. Dashboards — separate carrier, **boot-failure risk**
+### 1b. Dashboards — already covered (earlier boot-failure premise was a misread)
 
-Dashboards embed a full PO config
-([_dashboard_config.ts:15](lib/types/_dashboard_config.ts#L15),
-`config: presentationObjectConfigSchema` → `configDStrict` → the refined
-`periodFilterSchema`), but
-[dashboard_config.ts](server/db/migrations/data_transforms/dashboard_config.ts) has
-**no transform blocks** and never calls `transformConfigD`. Once Workstream 2
-tightens the validator, a dashboard holding a 6-digit quarter fails `safeParse` → is
-not skipped → `dashboardConfigSchema.parse()` throws → **boot fails with no repair
-path**. **Fix:** add a block to `dashboard_config.ts` that walks each embedded
-`.config` through `transformConfigD` (mirror how `slide_config.ts` handles
-`node.data.source.config`).
+**No `dashboard_config.ts` change is needed.** Verified against the schema:
+`dashboardConfigSchema` (the `dashboards.config` column,
+[_dashboard_config.ts:62](lib/types/_dashboard_config.ts#L62)) is only
+`{ logos, about }` — it carries **no PO config and no period filter**, so there is no
+quarter to convert and no boot-failure there. The embedded
+`config: presentationObjectConfigSchema` at
+[_dashboard_config.ts:15](lib/types/_dashboard_config.ts#L15) is part of
+`dashboardFigureBlockSchema.source.config` — i.e. the **`dashboard_items.figure_block`**
+column, which is **already swept** by
+[dashboard_items.ts:51](server/db/migrations/data_transforms/dashboard_items.ts#L51)
+→ `transformFigureBlock` → `transformConfigD` (Block 23). A dashboard item with a
+6-digit quarter fails `safeParse`, runs the shared transform, and self-heals before
+`parse()`. (The original plan conflated the two dashboard columns.)
 
 ### 1c. Physical `quarter_id` columns (natively-quarterly results objects)
 
