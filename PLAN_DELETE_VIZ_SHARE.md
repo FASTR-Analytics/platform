@@ -99,6 +99,12 @@ migration. Not so here.)
   (lines 960-963). (Wrapped in a silent `try/catch` today, so it degrades quietly rather than crashing —
   but it's dead code POSTing to a now-404 endpoint and a badge that can never show.)
 
+**Help**
+- Remove the `viz-share-link` help entry from its **source markdown** (the help docs that
+  `build_help_buttons.ts` walks for `#help-id` anchors), then run `deno task build:help-buttons` to
+  regenerate `lib/help/help_targets.generated.ts` (committed; do not hand-edit). Dead data once the
+  Share button is gone — harmless if skipped, but it removes an unreachable help target.
+
 ## Verify
 
 - [ ] `./validate_migrations` passes (covers the **fresh** main DB only)
@@ -116,4 +122,6 @@ migration. Not so here.)
 ## Not in scope
 
 - Public dashboards (`is_public`) — separate mechanism, untouched (but still a FigureBundle surface).
+- Slide-deck **Share** (`share_slide_deck.tsx`) — unrelated; it emails the deck as a PDF, not a
+  `share_tokens` link. Untouched.
 - The FigureBundle refactor itself — this deletion just shrinks its surface from 4 to 3.

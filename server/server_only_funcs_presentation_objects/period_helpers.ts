@@ -1,4 +1,4 @@
-import { inferPeriodFormatFromValue, periodFilterHasBounds, type GenericLongFormFetchConfig, getCalendar } from "lib";
+import { inferPeriodFormatFromValuesIfTheSame, periodFilterHasBounds, type GenericLongFormFetchConfig, getCalendar } from "lib";
 
 // ============================================================================
 // Type Definitions
@@ -81,10 +81,12 @@ export function detectNeededPeriodColumns(
     }
   }
 
-  // Check periodFilterExactBounds — the value self-identifies its format.
+  // Check periodFilterExactBounds — add the column only when both bounds
+  // self-identify the same format (matches the WHERE-clause skip rule).
   if (fetchConfig.periodFilterExactBounds) {
-    const periodOption = inferPeriodFormatFromValue(
+    const periodOption = inferPeriodFormatFromValuesIfTheSame(
       fetchConfig.periodFilterExactBounds.min,
+      fetchConfig.periodFilterExactBounds.max,
     );
     if (periodOption && DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)) {
       needed.add(periodOption as DynamicPeriodColumn);
@@ -93,7 +95,10 @@ export function detectNeededPeriodColumns(
 
   // Also check raw periodFilter (periodFilterExactBounds may not be computed yet).
   if (fetchConfig.periodFilter && periodFilterHasBounds(fetchConfig.periodFilter)) {
-    const periodOption = inferPeriodFormatFromValue(fetchConfig.periodFilter.min);
+    const periodOption = inferPeriodFormatFromValuesIfTheSame(
+      fetchConfig.periodFilter.min,
+      fetchConfig.periodFilter.max,
+    );
     if (periodOption && DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)) {
       needed.add(periodOption as DynamicPeriodColumn);
     }

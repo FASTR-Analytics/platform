@@ -83,6 +83,18 @@ export function inferPeriodFormatFromValue(
   return pt === undefined ? undefined : periodTypeToPeriodOption(pt);
 }
 
+// Returns the shared period format of a min/max pair — but only when both values
+// self-identify AND agree; otherwise undefined. The save-time refine rejects on
+// undefined; read-time consumers skip the period filter.
+export function inferPeriodFormatFromValuesIfTheSame(
+  min: number,
+  max: number,
+): PeriodOption | undefined {
+  const fMin = inferPeriodFormatFromValue(min);
+  const fMax = inferPeriodFormatFromValue(max);
+  return fMin !== undefined && fMin === fMax ? fMin : undefined;
+}
+
 // Strict period filter schema — each filterType has exactly the fields it requires
 const boundedFilterBase = z.object({
   min: z.number().int(),
@@ -124,14 +136,10 @@ export const periodFilterSchema = periodFilterUnion
       if (filter.filterType !== "custom" && filter.filterType !== "from_month") {
         return true;
       }
-      // Tag-free + stronger: both bounds must be valid and the same format.
-      const fMin = inferPeriodFormatFromValue(filter.min);
-      const fMax = inferPeriodFormatFromValue(filter.max);
+      // Both bounds must self-identify the same format, and be ordered.
       return (
-        fMin !== undefined &&
-        fMax !== undefined &&
-        fMin === fMax &&
-        filter.min <= filter.max
+        inferPeriodFormatFromValuesIfTheSame(filter.min, filter.max) !==
+          undefined && filter.min <= filter.max
       );
     },
     {
