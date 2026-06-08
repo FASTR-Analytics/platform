@@ -3,3 +3,6 @@
 set -e
 
 psql -h 0.0.0.0  -U postgres -d main -p 7001
+
+
+# 159.223.167.134
