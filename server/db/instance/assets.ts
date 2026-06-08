@@ -2,22 +2,51 @@ import { ensureDir } from "@std/fs";
 import { join } from "@std/path";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { sortAlphabeticalByFunc } from "@timroberton/panther";
+import type { Sql } from "postgres";
 import {
   APIResponseNoData,
   APIResponseWithData,
   AssetInfo,
 } from "lib";
 
-export async function getAssetsForInstance(): Promise<
-  APIResponseWithData<AssetInfo[]>
-> {
+type AssetMetadataRow = {
+  file_name: string;
+  uploader_email: string;
+  is_public: boolean;
+};
+
+export async function getAssetsForInstance(
+  mainDb: Sql,
+  userEmail: string,
+  isAdmin: boolean,
+): Promise<APIResponseWithData<AssetInfo[]>> {
   const assetDir = join(_ASSETS_DIR_PATH);
   await ensureDir(assetDir);
+
+  const metadataRows = await mainDb<AssetMetadataRow[]>`
+    SELECT file_name, uploader_email, is_public FROM asset_metadata
+  `;
+  const metaMap = new Map<string, { uploaderEmail: string; isPublic: boolean }>();
+  for (const row of metadataRows) {
+    metaMap.set(row.file_name, {
+      uploaderEmail: row.uploader_email,
+      isPublic: row.is_public,
+    });
+  }
+
   const assets: AssetInfo[] = [];
   for await (const dirEntry of Deno.readDir(assetDir)) {
-    if (dirEntry.isDirectory) {
+    if (dirEntry.isDirectory || dirEntry.name.startsWith(".")) {
       continue;
     }
+    const meta = metaMap.get(dirEntry.name);
+    const uploaderEmail = meta?.uploaderEmail ?? null;
+    const isPublic = meta?.isPublic ?? true;
+
+    if (!isPublic && uploaderEmail !== userEmail && !isAdmin) {
+      continue;
+    }
+
     const filePath = join(assetDir, dirEntry.name);
     const stat = await Deno.stat(filePath);
     const lowerName = dirEntry.name.toLowerCase();
@@ -40,6 +69,8 @@ export async function getAssetsForInstance(): Promise<
       isXlsx,
       isImage,
       isZip,
+      uploaderEmail,
+      isPublic,
     });
   }
   sortAlphabeticalByFunc(assets, (a) => a.fileName);
@@ -47,10 +78,33 @@ export async function getAssetsForInstance(): Promise<
 }
 
 export async function deleteAssets(
-  assetFileNames: string[]
+  mainDb: Sql,
+  assetFileNames: string[],
+  userEmail: string,
+  isAdmin: boolean,
 ): Promise<APIResponseNoData> {
   if (assetFileNames.length === 0) {
     return { success: true };
+  }
+
+  if (!isAdmin) {
+    const metadataRows = await mainDb<AssetMetadataRow[]>`
+      SELECT file_name, uploader_email FROM asset_metadata
+      WHERE file_name = ANY(${assetFileNames})
+    `;
+    const metaMap = new Map<string, string>();
+    for (const row of metadataRows) {
+      metaMap.set(row.file_name, row.uploader_email);
+    }
+    for (const fileName of assetFileNames) {
+      const uploaderEmail = metaMap.get(fileName);
+      if (uploaderEmail === undefined || uploaderEmail !== userEmail) {
+        return {
+          success: false,
+          err: `You do not have permission to delete "${fileName}"`,
+        };
+      }
+    }
   }
 
   for (const assetFileName of assetFileNames) {
@@ -58,8 +112,28 @@ export async function deleteAssets(
     try {
       await Deno.remove(assetFilePath);
     } catch {
-      // Ignore errors (file might not exist)
+      // File might not exist
     }
   }
+
+  await mainDb`
+    DELETE FROM asset_metadata WHERE file_name = ANY(${assetFileNames})
+  `;
+
   return { success: true };
+}
+
+export async function createAssetMetadata(
+  mainDb: Sql,
+  fileName: string,
+  uploaderEmail: string,
+  isPublic: boolean,
+): Promise<void> {
+  await mainDb`
+    INSERT INTO asset_metadata (file_name, uploader_email, is_public)
+    VALUES (${fileName}, ${uploaderEmail}, ${isPublic})
+    ON CONFLICT (file_name) DO UPDATE
+      SET uploader_email = EXCLUDED.uploader_email,
+          is_public = EXCLUDED.is_public
+  `;
 }
