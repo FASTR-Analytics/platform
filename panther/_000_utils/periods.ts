@@ -31,14 +31,40 @@ export const _GLOBAL_MAX_YEAR_FOR_PERIODS = 2050;
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+export type DecodedPeriod = {
+  year: number;
+  // 1-based index within the year: month (1-12) for year-month,
+  // quarter (1-4) for year-quarter, 0 for year.
+  subPeriod: number;
+};
+
+// Single numeric decoder for every period format. All readers below go through
+// this rather than re-deriving year/sub-period with string slicing — slicing
+// only worked by coincidence and silently mis-parsed off-length values.
+export function decodePeriod(
+  v: number | string,
+  periodType: PeriodType,
+): DecodedPeriod {
+  const n = typeof v === "number" ? v : Number(v);
+  if (periodType === "year-month") {
+    return { year: Math.floor(n / 100), subPeriod: n % 100 };
+  }
+  if (periodType === "year-quarter") {
+    return { year: Math.floor(n / 10), subPeriod: n % 10 };
+  }
+  if (periodType === "year") {
+    return { year: n, subPeriod: 0 };
+  }
+  throw new Error("Bad period type");
+}
+
 export function getTimeFromPeriodId(
   v: number | string,
   periodType: PeriodType,
 ): number {
   const str = String(v);
   if (periodType === "year-month") {
-    const y = Number(str.slice(0, 4));
-    const m = Number(str.slice(4, 6));
+    const { year: y, subPeriod: m } = decodePeriod(v, "year-month");
     assert(!isNaN(y), `Invalid year in period ID "${str}"`);
     assert(
       y >= _GLOBAL_MIN_YEAR_FOR_PERIODS && y <= _GLOBAL_MAX_YEAR_FOR_PERIODS,
@@ -54,8 +80,7 @@ export function getTimeFromPeriodId(
     return yearsSince2000 * 12 + monthsSinceJan;
   }
   if (periodType === "year-quarter") {
-    const y = Number(str.slice(0, 4));
-    const q = Number(str.slice(4, 6));
+    const { year: y, subPeriod: q } = decodePeriod(v, "year-quarter");
     assert(!isNaN(y), `Invalid year in period ID "${str}"`);
     assert(
       y >= _GLOBAL_MIN_YEAR_FOR_PERIODS && y <= _GLOBAL_MAX_YEAR_FOR_PERIODS,
@@ -71,7 +96,7 @@ export function getTimeFromPeriodId(
     return yearsSince2000 * 4 + quartersSinceQ1;
   }
   if (periodType === "year") {
-    const y = Number(str.slice(0, 4));
+    const { year: y } = decodePeriod(v, "year");
     assert(!isNaN(y), `Invalid year in period ID "${str}"`);
     assert(
       y >= _GLOBAL_MIN_YEAR_FOR_PERIODS && y <= _GLOBAL_MAX_YEAR_FOR_PERIODS,
@@ -96,7 +121,7 @@ export function getPeriodIdFromTime(v: number, periodType: PeriodType): number {
     const quartersSinceQ1 = v % 4;
     const q = quartersSinceQ1 + 1;
     const y = yearsSince2000 + _GLOBAL_MIN_YEAR_FOR_PERIODS;
-    return y * 100 + q;
+    return y * 10 + q;
   }
   if (periodType === "year") {
     const yearsSince2000 = v;
@@ -104,6 +129,77 @@ export function getPeriodIdFromTime(v: number, periodType: PeriodType): number {
     return y;
   }
   throw new Error("Bad period type");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//                        Validation & Type Detection                         //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+// Period values are self-identifying by magnitude once quarter_id is YYYYQ:
+//   year       YYYY    1900–2050
+//   quarter_id YYYYQ   19001–20504
+//   period_id  YYYYMM  190001–205012
+// These ranges are disjoint, so a single value maps to at most one PeriodType.
+// Strings are coerced only if canonical decimal (no leading zeros, sign,
+// whitespace, decimal point, or exponent) so length stays in step with magnitude.
+
+function periodValueToInt(v: number | string): number | undefined {
+  if (typeof v === "number") {
+    return Number.isInteger(v) ? v : undefined;
+  }
+  if (!/^[1-9]\d*$/.test(v)) {
+    return undefined;
+  }
+  return Number(v);
+}
+
+export function isYear(v: number | string): boolean {
+  const n = periodValueToInt(v);
+  if (n === undefined) {
+    return false;
+  }
+  return n >= _GLOBAL_MIN_YEAR_FOR_PERIODS && n <= _GLOBAL_MAX_YEAR_FOR_PERIODS;
+}
+
+export function isQuarterId(v: number | string): boolean {
+  const n = periodValueToInt(v);
+  if (n === undefined) {
+    return false;
+  }
+  const y = Math.floor(n / 10);
+  const q = n % 10;
+  return y >= _GLOBAL_MIN_YEAR_FOR_PERIODS &&
+    y <= _GLOBAL_MAX_YEAR_FOR_PERIODS &&
+    q >= 1 && q <= 4;
+}
+
+export function isPeriodId(v: number | string): boolean {
+  const n = periodValueToInt(v);
+  if (n === undefined) {
+    return false;
+  }
+  const y = Math.floor(n / 100);
+  const m = n % 100;
+  return y >= _GLOBAL_MIN_YEAR_FOR_PERIODS &&
+    y <= _GLOBAL_MAX_YEAR_FOR_PERIODS &&
+    m >= 1 && m <= 12;
+}
+
+export function getPeriodTypeFromValue(
+  v: number | string,
+): PeriodType | undefined {
+  if (isYear(v)) {
+    return "year";
+  }
+  if (isQuarterId(v)) {
+    return "year-quarter";
+  }
+  if (isPeriodId(v)) {
+    return "year-month";
+  }
+  return undefined;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -166,22 +262,19 @@ export function formatPeriod(
   periodType: PeriodType,
   calendar: CalendarType,
 ): string {
-  const str = String(v);
   if (periodType === "year-month") {
+    const { year, subPeriod } = decodePeriod(v, "year-month");
     const _MONTHS_THREE_CHARS = get_MONTHS_THREE_CHARS(calendar);
-    const i_month = Number(str.slice(4, 6)) - 1;
-    const month = _MONTHS_THREE_CHARS[i_month] ?? "???";
+    const month = _MONTHS_THREE_CHARS[subPeriod - 1] ?? "???";
     if (calendar === "ethiopian-to-gregorian") {
-      return month + " " + (Number(str.slice(0, 4)) + 8).toFixed(0);
+      return month + " " + String(year + 8);
     }
-    if (calendar === "ethiopian") {
-      return month + " " + str.slice(0, 4);
-    }
-    return month + " " + str.slice(0, 4);
+    return month + " " + String(year);
   }
   if (periodType === "year-quarter") {
+    const { year, subPeriod } = decodePeriod(v, "year-quarter");
     const prefix = isFrench() ? "T" : "Q";
-    return str.slice(0, 4) + " / " + prefix + Number(str.slice(4, 6));
+    return String(year) + " / " + prefix + subPeriod;
   }
-  return str;
+  return String(v);
 }

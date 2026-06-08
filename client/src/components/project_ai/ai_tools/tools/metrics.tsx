@@ -33,7 +33,7 @@ export function getToolsForMetrics(
       handler: async (input: AiMetricQuery) => {
         const metric = metrics.find(m => m.id === input.metricId);
         validateAiMetricQuery(input, metric);
-        const periodFilter = inferPeriodFilter(input.startDate, input.endDate, input.disaggregations);
+        const periodFilter = inferPeriodFilter(input.startDate, input.endDate);
         await validateMetricInputs(
           projectId,
           input.metricId,

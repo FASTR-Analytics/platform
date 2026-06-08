@@ -1,3 +1,5 @@
+import { capitalizeFirstLetter } from "@timroberton/panther";
+
 // ============================================================================
 // Indicator Types
 // ============================================================================
@@ -185,7 +187,7 @@ export function indicatorMetadataToLabelMap(
 ): Record<string, string> {
   const map: Record<string, string> = {};
   for (const m of metadata) {
-    map[m.id] = m.label;
+    map[m.id] = capitalizeFirstLetter(m.label);
   }
   return map;
 }

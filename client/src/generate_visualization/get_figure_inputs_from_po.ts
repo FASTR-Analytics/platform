@@ -2,6 +2,7 @@ import {
   FigureInputs,
   PeriodType,
   formatPeriod,
+  getPeriodTypeFromValue,
   getTimeseriesDataTransformed,
   t3,
   type GeoJSONFeatureCollection,
@@ -52,6 +53,47 @@ function buildIndicatorSortOrder(metadata: IndicatorMetadata[]): string[] {
     .flatMap((m) => [m.id, m.label]);
 }
 
+// Charts/timeseries format every value with the single metric-level `formatAs`
+// (unlike tables, which read per-indicator `format_as` for each cell). A value
+// axis can carry only one format, so when every *displayed* indicator is a
+// percent we treat the whole figure as percent.
+//
+// We look at the indicators actually present in the data, not module-wide
+// `indicatorMetadata`: an HFA module mixes percent and number indicators (plus
+// label-only category entries with no `format_as`), so a module-wide check
+// almost never holds even when this figure only plots percent indicators.
+function displayedIndicatorsAllPercent(
+  items: Record<string, string>[],
+  metadata: IndicatorMetadata[],
+  config: PresentationObjectConfig,
+): boolean {
+  const formatById = new Map(
+    metadata
+      .filter((m) => m.format_as !== undefined)
+      .map((m) => [m.id, m.format_as!] as const),
+  );
+  if (formatById.size === 0) return false;
+
+  const cols = config.d.disaggregateBy.map((d) => d.disOpt);
+  let sawIndicator = false;
+
+  // Returns false as soon as a displayed indicator is not a percent.
+  const inspect = (value: string | undefined): boolean => {
+    const format = value === undefined ? undefined : formatById.get(value);
+    if (format === undefined) return true; // not an indicator id
+    sawIndicator = true;
+    return format === "percent";
+  };
+
+  if (!inspect(config.d.selectedReplicantValue)) return false;
+  for (const row of items) {
+    for (const col of cols) {
+      if (!inspect(row[col])) return false;
+    }
+  }
+  return sawIndicator;
+}
+
 export function getFigureInputsFromPresentationObject(
   resultsValue: ResultsValueForVisualization,
   ih: ItemsHolderPresentationObject,
@@ -64,6 +106,14 @@ export function getFigureInputsFromPresentationObject(
   }
 
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(ih.indicatorMetadata);
+
+  const effectiveFormatAs: "percent" | "number" = displayedIndicatorsAllPercent(
+    ih.items,
+    ih.indicatorMetadata,
+    config,
+  )
+    ? "percent"
+    : (resultsValue.formatAs ?? "number");
 
   const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(config, {
     dateRange: ih.dateRange,
@@ -117,8 +167,8 @@ export function getFigureInputsFromPresentationObject(
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
-          legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
+          style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
+          legend: getLegendFromConfig(config, effectiveFormatAs),
         },
       };
     }
@@ -168,8 +218,8 @@ export function getFigureInputsFromPresentationObject(
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
-          legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
+          style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
+          legend: getLegendFromConfig(config, effectiveFormatAs),
         },
       };
     }
@@ -203,8 +253,8 @@ export function getFigureInputsFromPresentationObject(
           ),
           ih.dateRange,
         ),
-        style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
-        legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
+        style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
+        legend: getLegendFromConfig(config, effectiveFormatAs),
       };
 
       if (effectiveConfig.s.horizontal) {
@@ -304,8 +354,8 @@ export function getFigureInputsFromPresentationObject(
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
-          legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, resultsValue.formatAs ?? "number"),
+          style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
+          legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormatAs),
         },
       };
     }
@@ -374,12 +424,7 @@ function withDateRange(
     return str;
   }
   const calendar = getCalendar();
-  const periodType: PeriodType =
-    dateRange.periodOption === "period_id"
-      ? "year-month"
-      : dateRange.periodOption === "quarter_id"
-        ? "year-quarter"
-        : "year";
+  const periodType: PeriodType = getPeriodTypeFromValue(dateRange.min) ?? "year";
   if (dateRange.min === dateRange.max) {
     const d = formatPeriod(dateRange.min, periodType, calendar);
     return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d);

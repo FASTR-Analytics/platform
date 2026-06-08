@@ -1,6 +1,7 @@
 import {
   type BoundedPeriodFilter,
   type DisaggregationPossibleValuesStatus,
+  inferPeriodFormatFromValue,
   PeriodBounds,
   periodFilterHasBounds,
   PresentationObjectConfig,
@@ -27,52 +28,13 @@ import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 
-/**
- * Legacy configs may have periodFilter.periodOption mismatched with periodBounds.periodOption
- * (e.g. filter has "year" values like 2025 but bounds has "period_id" values like 202512).
- * This converts the filter's min/max to match the bounds format.
- */
-function periodIdToQuarterId(periodId: number): number {
-  const year = Math.floor(periodId / 100);
-  const month = periodId % 100;
-  const calendar = getCalendar();
-  if (calendar === "ethiopian") {
-    // Ethiopian Q1 is months 11-1, with Nov/Dec belonging to NEXT year's Q1
-    if (month >= 11) return (year + 1) * 100 + 1;
-    if (month <= 1) return year * 100 + 1;
-    if (month <= 4) return year * 100 + 2;
-    if (month <= 7) return year * 100 + 3;
-    return year * 100 + 4;
-  }
-  return year * 100 + Math.ceil(month / 3);
-}
-
-function reconcilePeriodFilterWithBounds(
-  periodFilter: BoundedPeriodFilter,
-  periodBounds: PeriodBounds,
-): BoundedPeriodFilter {
-  if (periodFilter.periodOption === periodBounds.periodOption) return periodFilter;
-  const target = periodBounds.periodOption;
-  const convert = (v: number, isEnd: boolean): number => {
-    const digits = String(v).length;
-    if (digits <= 4) {
-      if (target === "year") return v;
-      if (target === "quarter_id") return v * 100 + (isEnd ? 4 : 1);
-      if (target === "period_id") return v * 100 + (isEnd ? 12 : 1);
-    }
-    const year = Math.floor(v / 100);
-    const sub = v % 100;
-    if (target === "year") return year;
-    if (target === "period_id") return v;
-    if (target === "quarter_id" && sub >= 1 && sub <= 12) return periodIdToQuarterId(v);
-    return v;
-  };
-  return {
-    ...periodFilter,
-    periodOption: target,
-    min: convert(periodFilter.min, false),
-    max: convert(periodFilter.max, true),
-  };
+// Extract the calendar year from any period value (year YYYY / quarter_id YYYYQ /
+// period_id YYYYMM), keyed by digit length now that the three formats are disjoint.
+function periodToYear(v: number): number {
+  const len = String(v).length;
+  if (len <= 4) return v;
+  if (len === 5) return Math.floor(v / 10);
+  return Math.floor(v / 100);
 }
 
 type FiltersProps = {
@@ -213,7 +175,7 @@ function PeriodFilter(p: PeriodFilterProps) {
         checked={!!p.tempConfig.d.periodFilter}
         onChange={(checked) => {
           if (checked) {
-            if (p.keyedPeriodBounds.periodOption === "quarter_id") {
+            if (inferPeriodFormatFromValue(p.keyedPeriodBounds.min) === "quarter_id") {
               p.setTempConfig("d", "periodFilter", { filterType: "last_n_calendar_quarters", nQuarters: 4 });
             } else {
               p.setTempConfig("d", "periodFilter", { filterType: "last_n_months", nMonths: 12 });
@@ -231,13 +193,10 @@ function PeriodFilter(p: PeriodFilterProps) {
             if (ft === "last_calendar_quarter") return "last_n_calendar_quarters";
             return ft;
           };
-          const periodOption = p.keyedPeriodBounds.periodOption;
-          const boundedFilter = createMemo(() => {
-            const pBounds = p.keyedPeriodBounds;
-            return periodFilterHasBounds(rawPeriodFilter)
-              ? reconcilePeriodFilterWithBounds(rawPeriodFilter, pBounds)
-              : undefined;
-          });
+          const periodOption = inferPeriodFormatFromValue(p.keyedPeriodBounds.min);
+          const boundedFilter = createMemo(() =>
+            periodFilterHasBounds(rawPeriodFilter) ? rawPeriodFilter : undefined
+          );
           return (
             <div class="ui-spy-sm pb-4 pl-4">
               <RadioGroup
@@ -297,7 +256,6 @@ function PeriodFilter(p: PeriodFilterProps) {
                   if (newType === "custom" || newType === "from_month") {
                     p.setTempConfig("d", "periodFilter", {
                       filterType: newType,
-                      periodOption: p.keyedPeriodBounds.periodOption,
                       min: p.keyedPeriodBounds.min,
                       max: p.keyedPeriodBounds.max,
                     });
@@ -371,7 +329,6 @@ function PeriodFilter(p: PeriodFilterProps) {
                       periodType={periodOption === "quarter_id" ? "year-quarter" : "year-month"}
                       onUpdate={(v) =>
                         p.setTempConfig("d", "periodFilter", {
-                          periodOption: p.keyedPeriodBounds.periodOption,
                           filterType: "from_month",
                           min: v.minPeriodId,
                           max: p.keyedPeriodBounds.max,
@@ -399,7 +356,6 @@ function PeriodFilter(p: PeriodFilterProps) {
                         onUpdate={(v) =>
                           p.setTempConfig("d", "periodFilter", {
                             filterType: "custom",
-                            periodOption: p.keyedPeriodBounds.periodOption,
                             min: v.minPeriodId,
                             max: v.maxPeriodId,
                           })
@@ -413,24 +369,21 @@ function PeriodFilter(p: PeriodFilterProps) {
                   keyed
                 >
                   {(bf) => {
-                    const toYear = (v: number) => String(v).length <= 4 ? v : Math.floor(v / 100);
+                    const toYear = periodToYear;
                     return (
                       <PeriodFilterYear
                         periodBounds={{
-                          periodOption: "year",
                           min: toYear(p.keyedPeriodBounds.min),
                           max: toYear(p.keyedPeriodBounds.max),
                         }}
                         periodFilter={{
                           ...bf,
-                          periodOption: "year",
                           min: toYear(bf.min),
                           max: toYear(bf.max),
                         }}
                         onUpdate={(v) =>
                           p.setTempConfig("d", "periodFilter", {
                             filterType: "custom",
-                            periodOption: bf.periodOption,
                             min: v.minYear,
                             max: v.maxYear,
                           })

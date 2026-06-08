@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { isFrench } from "../../deps.ts";
+import { decodePeriod, isFrench } from "../../deps.ts";
 import type {
   CalendarType,
   MergedGridStyle,
@@ -89,25 +89,24 @@ export function getSmallPeriodLabelIfAny(
   periodAxisType: PeriodAxisType,
   calendar: CalendarType,
 ): string | undefined {
-  const str = String(v);
   if (periodAxisType === "month-three-year") {
-    const smallIndex = Number(str.slice(4, 6)) - 1;
-    return get_MONTHS_THREE_CHARS(calendar)[smallIndex] ?? "?";
+    const { subPeriod } = decodePeriod(v, "year-month");
+    return get_MONTHS_THREE_CHARS(calendar)[subPeriod - 1] ?? "?";
   }
   if (periodAxisType === "month-one-year") {
-    const smallIndex = Number(str.slice(4, 6)) - 1;
-    return get_MONTHS_ONE_CHARS(calendar)[smallIndex] ?? "?";
+    const { subPeriod } = decodePeriod(v, "year-month");
+    return get_MONTHS_ONE_CHARS(calendar)[subPeriod - 1] ?? "?";
   }
   if (periodAxisType === "month-none-year") {
     return undefined;
   }
   if (periodAxisType === "quarter-two-year") {
-    const smallIndex = Number(str.slice(4, 6)) - 1;
-    return get_QUARTERS_TWO_CHARS()[smallIndex] ?? "?";
+    const { subPeriod } = decodePeriod(v, "year-quarter");
+    return get_QUARTERS_TWO_CHARS()[subPeriod - 1] ?? "?";
   }
   if (periodAxisType === "quarter-one-year") {
-    const smallIndex = Number(str.slice(4, 6)) - 1;
-    return _QUARTERS_ONE_CHARS[smallIndex] ?? "?";
+    const { subPeriod } = decodePeriod(v, "year-quarter");
+    return _QUARTERS_ONE_CHARS[subPeriod - 1] ?? "?";
   }
   if (periodAxisType === "quarter-none-year") {
     return undefined;
@@ -135,14 +134,11 @@ export function isLargePeriod(
   v: number | string,
   periodType: PeriodType,
 ): boolean {
-  const str = String(v);
   if (periodType === "year-month") {
-    const small = str.slice(4, 6);
-    return small === "01";
+    return decodePeriod(v, "year-month").subPeriod === 1;
   }
   if (periodType === "year-quarter") {
-    const small = str.slice(4, 6);
-    return small === "01";
+    return decodePeriod(v, "year-quarter").subPeriod === 1;
   }
   return true;
 }
@@ -401,7 +397,7 @@ export function shouldShowYearBoundary(
 ): boolean {
   if (!isLargePeriod(v, periodType)) return false;
 
-  const year = Number(String(v).slice(0, 4));
+  const year = decodePeriod(v, periodType).year;
 
   if (skipInterval === 1) return true;
   if (skipInterval === 2) return year % 2 === 0;

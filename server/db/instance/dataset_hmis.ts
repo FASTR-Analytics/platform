@@ -417,7 +417,6 @@ async function getDatasetHmisItemsForDisplayRaw(
       FROM dataset_hmis`;
 
     const periodBounds: PeriodBounds = {
-      periodOption: "period_id",
       min:
         periodBoundsResult[0]?.min_period ??
         _GLOBAL_MIN_YEAR_FOR_PERIODS * 100 + 1,
@@ -504,7 +503,6 @@ async function getDatasetHmisItemsForDisplayCommon(
       )`;
 
     const periodBounds: PeriodBounds = {
-      periodOption: "period_id",
       min:
         periodBoundsResult[0]?.min_period ??
         _GLOBAL_MIN_YEAR_FOR_PERIODS * 100 + 1,

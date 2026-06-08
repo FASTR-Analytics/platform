@@ -445,6 +445,16 @@ ENCODING 'UTF8' CSV HEADER NULL 'NA'
       sql.unsafe(createTableStatement),
       sql.unsafe(copyFileStatement),
       sql.unsafe(`ALTER TABLE ${tableName} ${dropColumnClauses}`),
+      // Normalize physical quarter_id from YYYY0Q (6-digit, as emitted by R
+      // scripts) to YYYYQ (5-digit). Single choke point — no per-module R edits.
+      // Idempotent: the >= 100000 guard skips already-5-digit values.
+      ...(hasQuarterId
+        ? [
+            sql.unsafe(
+              `UPDATE ${tableName} SET quarter_id = FLOOR(quarter_id / 100) * 10 + (quarter_id % 100) WHERE quarter_id >= 100000`,
+            ),
+          ]
+        : []),
     ]);
 
     return { success: true };

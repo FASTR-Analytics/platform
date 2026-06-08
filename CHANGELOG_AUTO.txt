@@ -1,3 +1,32 @@
+[1.46.0] [user] [fixed] - Charts now correctly show percent formatting when all displayed indicators are percentages
+[1.46.0] [admin] [fixed] - Charts now correctly show percent formatting when all displayed indicators are percents
+[1.46.0] [user] [fixed] - Charts now correctly display percent formatting for mixed indicator sets
+[1.46.0] [admin] [fixed] - Charts now display correct percent formatting when label-only indicators are present
+[1.46.0] [user] [fixed] - Charts now correctly format values as percentages when all indicators are percentages
+[1.46.0] [admin] [fixed] - Charts now show percent formatting when all indicators are percents
+[1.46.0] [user] [fixed] - Indicator labels now consistently start with a capital letter
+[1.46.0] [admin] [fixed] - Indicator labels now always start with a capital letter
+[1.46.0] [admin] [internal] - Removed a legacy data migration for quarter ID formatting
+[1.46.0] [user] [fixed] - Time period filters now automatically detect the correct date format
+[1.46.0] [user] [fixed] - Date range filters no longer fail when mixing monthly, quarterly, and yearly periods
+[1.46.0] [admin] [changed] - Time period filters now auto-detect their format from values
+[1.46.0] [admin] [fixed] - Period filter mismatches between different time formats resolved automatically
+[1.46.0] [admin] [internal] - Removed redundant period format tags from stored filter configurations
+[1.45.0] [user] [changed] - Quarterly time periods now display in shorter format (e.g., 20231 instead of 202301)
+[1.45.0] [user] [fixed] - Fixed quarterly data not displaying correctly in charts and filters
+[1.45.0] [user] [fixed] - Fixed AI assistant giving incorrect quarter format examples
+[1.45.0] [admin] [changed] - Quarter identifiers now use a shorter 5-digit format (YYYYQ)
+[1.45.0] [admin] [added] - Automatic migration converts existing quarterly data to the new format
+[1.45.0] [admin] [fixed] - Visualization caches automatically refresh after the quarter format update
+[1.45.0] [admin] [fixed] - AI assistant now correctly validates and describes quarterly date ranges
+[1.45.0] [admin] [internal] - New module runs automatically normalize quarterly data on import
+[1.45.0] [user] [fixed] - Charts with multiple tiers no longer display with incorrect scaling
+[1.45.0] [user] [fixed] - Dashboard and report figures now update correctly after data changes
+[1.45.0] [user] [fixed] - Chart labels and layout sections no longer appear broken or missing
+[1.45.0] [admin] [fixed] - Charts in dashboards and reports now display correct axis scaling
+[1.45.0] [admin] [fixed] - Multi-tier and multi-lane charts no longer overflow or show incorrect limits
+[1.45.0] [admin] [internal] - Figure block data migrations now apply consistently across slides, dashboards, and reports
+[1.45.0] [admin] [added] - Email alerts sent when automatic volume resize is triggered
 [1.44.1] [user] [fixed] - Indicator status no longer shows "0 ready" unnecessarily
 [1.44.1] [admin] [fixed] - Indicator status no longer shows "0 ready" unnecessarily
 [1.44.1] [user] [added] - Split view mode shows editor and preview side by side

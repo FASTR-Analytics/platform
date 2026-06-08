@@ -3,6 +3,7 @@ import type {
   GenericLongFormFetchConfig,
   PeriodOption,
 } from "lib";
+import { inferPeriodFormatFromValue } from "lib";
 import type { QueryContext } from "./types.ts";
 
 // ============================================================================
@@ -223,7 +224,15 @@ export function buildWhereClause(
 
   // Add period bounds if specified
   if (fetchConfig.periodFilterExactBounds) {
-    const periodColumn = fetchConfig.periodFilterExactBounds.periodOption;
+    const periodColumn = inferPeriodFormatFromValue(
+      fetchConfig.periodFilterExactBounds.min,
+    );
+    if (periodColumn === undefined) {
+      console.warn(
+        "Period bounds do not self-identify a format; skipping period filter",
+      );
+      return whereStatements;
+    }
 
     // Only check for period_id existence if we're actually filtering by period_id
     if (periodColumn === "period_id" && !hasPeriodId) {

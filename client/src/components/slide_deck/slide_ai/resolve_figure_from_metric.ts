@@ -73,7 +73,7 @@ export async function resolveFigureFromMetric(
     ? config.d.filterBy
     : undefined;
   const periodFilter = config.d.periodFilter?.filterType === "custom"
-    ? { periodOption: config.d.periodFilter.periodOption, min: config.d.periodFilter.min, max: config.d.periodFilter.max }
+    ? { min: config.d.periodFilter.min, max: config.d.periodFilter.max }
     : undefined;
   await validateMetricInputs(projectId, metricId, filters, periodFilter);
 

@@ -8,6 +8,7 @@ export {
   assert,
   buildAutoFormatter,
   createArray,
+  decodePeriod,
   getPeriodIdFromTime,
   getValidNumberOrUndefined,
   isFrench,

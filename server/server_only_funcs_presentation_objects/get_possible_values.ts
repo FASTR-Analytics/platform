@@ -8,7 +8,6 @@ import {
   APIResponseWithData,
   DisaggregationOption,
   GenericLongFormFetchConfig,
-  PeriodOption,
 } from "lib";
 import { buildQueryContext } from "./get_query_context.ts";
 import { buildWhereClause } from "./query_helpers.ts";
@@ -30,7 +29,6 @@ export async function getPossibleValues(
   labelMap: Map<string, string>,
   filters?: GenericLongFormFetchConfig["filters"],
   periodFilterExactBounds?: {
-    periodOption: PeriodOption;
     min: number;
     max: number;
   },

@@ -55,7 +55,6 @@ ${whereClause}`
     ).at(0);
     if (res?.min_period_id != null && res?.max_period_id != null) {
       return {
-        periodOption: "period_id",
         min: res.min_period_id,
         max: res.max_period_id,
       };
@@ -97,7 +96,6 @@ ${whereClause}`;
 
     if (res?.min_year != null && res?.max_year != null) {
       return {
-        periodOption: "year",
         min: res.min_year,
         max: res.max_year,
       };
@@ -116,7 +114,6 @@ ${whereClause}`;
 
     if (res?.min_quarter_id != null && res?.max_quarter_id != null) {
       return {
-        periodOption: "quarter_id",
         min: res.min_quarter_id,
         max: res.max_quarter_id,
       };

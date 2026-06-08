@@ -10,6 +10,14 @@ import {
 } from "lib";
 import { TimCacheC } from "../../valkey/cache_class_C.ts";
 
+// Bump when a code change alters the MEANING of a cached results payload without
+// bumping moduleLastRun/datasetsVersion (which only track data/run changes, not
+// code). Folding it into the versionHash invalidates the stale entries exactly
+// once, then the caches resume hitting normally.
+// "2": quarter_id format YYYY0Q → YYYYQ — pre-cutover results held 6-digit
+// quarters that the new renderer (panther) rejects.
+const PO_CACHE_VERSION = "2";
+
 export const _PO_DETAIL_CACHE = new TimCacheC<
   {
     projectId: string;
@@ -58,7 +66,7 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
       hashFetchConfig(params.fetchConfig),
     ].join("|"),
   versionHashFromParams: (params) =>
-    `${params.moduleLastRun}|${params.datasetsVersion}`,
+    `${PO_CACHE_VERSION}|${params.moduleLastRun}|${params.datasetsVersion}`,
   parseData: (res) => {
     if (res.success === false) {
       return {
@@ -74,7 +82,7 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
         res.data.resultsObjectId,
         hashFetchConfig(res.data.fetchConfig),
       ].join("|"),
-      versionHash: `${res.data.moduleLastRun}|${res.data.datasetsVersion}`,
+      versionHash: `${PO_CACHE_VERSION}|${res.data.moduleLastRun}|${res.data.datasetsVersion}`,
     };
   },
 });
@@ -93,7 +101,7 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.metricId].join("::"),
   versionHashFromParams: (params) =>
-    `${params.moduleLastRun}|${params.datasetsVersion}`,
+    `${PO_CACHE_VERSION}|${params.moduleLastRun}|${params.datasetsVersion}`,
   parseData: (res) => {
     if (res.success === false) {
       return {
@@ -108,7 +116,7 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
         res.data.projectId,
         res.data.metricId,
       ].join("::"),
-      versionHash: `${res.data.moduleLastRun}|${res.data.datasetsVersion}`,
+      versionHash: `${PO_CACHE_VERSION}|${res.data.moduleLastRun}|${res.data.datasetsVersion}`,
     };
   },
 });
@@ -135,7 +143,7 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
     ].join("::");
   },
   versionHashFromParams: (params) =>
-    `${params.moduleLastRun}|${params.datasetsVersion}`,
+    `${PO_CACHE_VERSION}|${params.moduleLastRun}|${params.datasetsVersion}`,
   parseData: (res) => {
     if (res.success === false) {
       return {
@@ -152,7 +160,7 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
         res.data.replicateBy,
         hashFetchConfig(res.data.fetchConfig),
       ].join("::"),
-      versionHash: `${res.data.moduleLastRun}|${res.data.datasetsVersion}`,
+      versionHash: `${PO_CACHE_VERSION}|${res.data.moduleLastRun}|${res.data.datasetsVersion}`,
     };
   },
 });

@@ -1,4 +1,4 @@
-import { periodFilterHasBounds, type GenericLongFormFetchConfig, getCalendar } from "lib";
+import { inferPeriodFormatFromValue, periodFilterHasBounds, type GenericLongFormFetchConfig, getCalendar } from "lib";
 
 // ============================================================================
 // Type Definitions
@@ -26,19 +26,19 @@ export function getQuarterIdExpression(): string {
   if (calendar === "ethiopian") {
     // Ethiopian Q1 is months 11-1, with Nov/Dec belonging to NEXT year's Q1
     return `(CASE
-      WHEN period_id % 100 >= 11 THEN ((period_id / 100) + 1) * 100 + 1
-      WHEN period_id % 100 <= 1 THEN (period_id / 100) * 100 + 1
-      WHEN period_id % 100 <= 4 THEN (period_id / 100) * 100 + 2
-      WHEN period_id % 100 <= 7 THEN (period_id / 100) * 100 + 3
-      ELSE (period_id / 100) * 100 + 4
+      WHEN period_id % 100 >= 11 THEN ((period_id / 100) + 1) * 10 + 1
+      WHEN period_id % 100 <= 1 THEN (period_id / 100) * 10 + 1
+      WHEN period_id % 100 <= 4 THEN (period_id / 100) * 10 + 2
+      WHEN period_id % 100 <= 7 THEN (period_id / 100) * 10 + 3
+      ELSE (period_id / 100) * 10 + 4
     END)::int`;
   }
   // Gregorian
   return `(CASE
-    WHEN period_id % 100 <= 3 THEN (period_id / 100) * 100 + 1
-    WHEN period_id % 100 <= 6 THEN (period_id / 100) * 100 + 2
-    WHEN period_id % 100 <= 9 THEN (period_id / 100) * 100 + 3
-    ELSE (period_id / 100) * 100 + 4
+    WHEN period_id % 100 <= 3 THEN (period_id / 100) * 10 + 1
+    WHEN period_id % 100 <= 6 THEN (period_id / 100) * 10 + 2
+    WHEN period_id % 100 <= 9 THEN (period_id / 100) * 10 + 3
+    ELSE (period_id / 100) * 10 + 4
   END)::int`;
 }
 
@@ -52,10 +52,10 @@ export function getPeriodColumnExpression(column: DynamicPeriodColumn): string {
 /**
  * SQL expressions for generating columns from quarter_id.
  * Used when quarter_id is the primary time column (no period_id).
- * quarter_id format: YYYYQQ (e.g. 202301 = Q1 2023, 202304 = Q4 2023)
+ * quarter_id format: YYYYQ (e.g. 20231 = Q1 2023, 20234 = Q4 2023)
  */
 export const QUARTER_ID_COLUMN_EXPRESSIONS = {
-  year: "(quarter_id / 100)::int",
+  year: "(quarter_id / 10)::int",
 } as const;
 
 // ============================================================================
@@ -81,19 +81,20 @@ export function detectNeededPeriodColumns(
     }
   }
 
-  // Check periodFilterExactBounds
+  // Check periodFilterExactBounds — the value self-identifies its format.
   if (fetchConfig.periodFilterExactBounds) {
-    const periodOption = fetchConfig.periodFilterExactBounds.periodOption;
-    if (DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)) {
+    const periodOption = inferPeriodFormatFromValue(
+      fetchConfig.periodFilterExactBounds.min,
+    );
+    if (periodOption && DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)) {
       needed.add(periodOption as DynamicPeriodColumn);
     }
   }
 
-  // Also check raw periodFilter (periodFilterExactBounds may not be computed yet)
-  // Only bounded filters carry their own periodOption; relative filters inherit from data.
+  // Also check raw periodFilter (periodFilterExactBounds may not be computed yet).
   if (fetchConfig.periodFilter && periodFilterHasBounds(fetchConfig.periodFilter)) {
-    const periodOption = fetchConfig.periodFilter.periodOption;
-    if (DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)) {
+    const periodOption = inferPeriodFormatFromValue(fetchConfig.periodFilter.min);
+    if (periodOption && DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)) {
       needed.add(periodOption as DynamicPeriodColumn);
     }
   }

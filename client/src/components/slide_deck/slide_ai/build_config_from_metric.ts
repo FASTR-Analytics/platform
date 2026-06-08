@@ -92,7 +92,6 @@ export function buildConfigFromPreset(
     const targetPeriodOption = resultsValue.mostGranularTimePeriodColumnInResultsFile;
     config.d.periodFilter = {
       filterType: "custom",
-      periodOption: targetPeriodOption,
       min: convertPeriodValue(input.startDate, targetPeriodOption, false),
       max: convertPeriodValue(input.endDate, targetPeriodOption, true),
     };
@@ -106,26 +105,40 @@ export function convertPeriodValue(
   target: PeriodOption,
   isEnd: boolean,
 ): number {
+  // Source format is self-identifying by digit length now that the three are
+  // disjoint: year YYYY (4) / quarter_id YYYYQ (5) / period_id YYYYMM (6).
+  // Quarter math is Gregorian (this AI/validation helper is calendar-agnostic).
   const digits = String(value).length;
 
   if (digits <= 4) {
     const year = value;
     if (target === "year") return year;
-    if (target === "quarter_id") return year * 100 + (isEnd ? 4 : 1);
+    if (target === "quarter_id") return year * 10 + (isEnd ? 4 : 1);
     if (target === "period_id") return year * 100 + (isEnd ? 12 : 1);
     throw new Error(`Cannot convert ${value} to ${target} format`);
   }
 
+  if (digits === 5) {
+    const year = Math.floor(value / 10);
+    const quarter = value % 10;
+    if (target === "year") return year;
+    if (target === "quarter_id") return value;
+    if (target === "period_id") {
+      return isEnd ? year * 100 + quarter * 3 : year * 100 + (quarter - 1) * 3 + 1;
+    }
+    throw new Error(`Cannot convert ${value} to ${target} format`);
+  }
+
   const year = Math.floor(value / 100);
-  const monthOrQuarter = value % 100;
+  const month = value % 100;
 
   if (target === "year") return year;
   if (target === "period_id") return value;
   if (target === "quarter_id") {
-    if (monthOrQuarter >= 1 && monthOrQuarter <= 12) {
-      return year * 100 + Math.ceil(monthOrQuarter / 3);
+    if (month >= 1 && month <= 12) {
+      return year * 10 + Math.ceil(month / 3);
     }
-    throw new Error(`Cannot convert ${value} to quarter_id format — month/quarter value ${monthOrQuarter} is out of range 1-12`);
+    throw new Error(`Cannot convert ${value} to quarter_id format — month value ${month} is out of range 1-12`);
   }
 
   throw new Error(`Cannot convert ${value} to ${target} format`);

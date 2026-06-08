@@ -20,6 +20,7 @@ import {
 } from "lib";
 import type { Sql } from "postgres";
 import type { MigrationStats } from "./po_config.ts";
+import { type FigureBlockMut, transformFigureBlock } from "./_figure_block.ts";
 
 export async function migrateReports(
   tx: Sql,
@@ -47,8 +48,17 @@ export async function migrateReports(
       continue;
     }
 
-    // (No transform blocks yet — new table. Add them above this line when a
-    //  stored shape changes, then the validation below catches regressions.)
+    // Block 1: Figure-block transforms shared with slides/dashboards — embedded
+    // PO config, source.type rename, figureInputs normalization. Repairs a
+    // report figure whose embedded config drifted under a po_config change.
+    // (figureInputs itself is z.unknown() in figureBlockSchema, so the skip gate
+    // above can't see pure figureInputs drift; a future panther figureInputs
+    // change needs a force block here, à la slide_config.ts PRE-VALIDATION A.)
+    if (figures && typeof figures === "object") {
+      for (const block of Object.values(figures)) {
+        transformFigureBlock(block as FigureBlockMut);
+      }
+    }
 
     const validated = {
       config: JSON.stringify(reportConfigSchema.parse(config)),

@@ -192,7 +192,6 @@ export function getToolsForVizEditor(
             }
             setTempConfig("d", "periodFilter", {
               filterType: "custom",
-              periodOption: filterPeriodOpt,
               min: input.periodFilter.min != null ? convertPeriodValue(input.periodFilter.min, filterPeriodOpt, false) : 0,
               max: input.periodFilter.max != null ? convertPeriodValue(input.periodFilter.max, filterPeriodOpt, true) : 999999,
             });
