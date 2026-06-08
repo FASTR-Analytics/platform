@@ -54,15 +54,44 @@ function buildIndicatorSortOrder(metadata: IndicatorMetadata[]): string[] {
 }
 
 // Charts/timeseries format every value with the single metric-level `formatAs`
-// (unlike tables, which read per-indicator `format_as`). When every indicator
-// is a percent, the whole figure is percent, so treat the metric as percent.
+// (unlike tables, which read per-indicator `format_as` for each cell). A value
+// axis can carry only one format, so when every *displayed* indicator is a
+// percent we treat the whole figure as percent.
 //
-// `indicatorMetadata` also carries label-only entries that bear no `format_as`
-// (HFA categories/sub-categories, HMIS raw indicators), so we only consider the
-// value-bearing indicators that actually declare a format.
-function allIndicatorsPercent(metadata: IndicatorMetadata[]): boolean {
-  const formatted = metadata.filter((m) => m.format_as !== undefined);
-  return formatted.length > 0 && formatted.every((m) => m.format_as === "percent");
+// We look at the indicators actually present in the data, not module-wide
+// `indicatorMetadata`: an HFA module mixes percent and number indicators (plus
+// label-only category entries with no `format_as`), so a module-wide check
+// almost never holds even when this figure only plots percent indicators.
+function displayedIndicatorsAllPercent(
+  items: Record<string, string>[],
+  metadata: IndicatorMetadata[],
+  config: PresentationObjectConfig,
+): boolean {
+  const formatById = new Map(
+    metadata
+      .filter((m) => m.format_as !== undefined)
+      .map((m) => [m.id, m.format_as!] as const),
+  );
+  if (formatById.size === 0) return false;
+
+  const cols = config.d.disaggregateBy.map((d) => d.disOpt);
+  let sawIndicator = false;
+
+  // Returns false as soon as a displayed indicator is not a percent.
+  const inspect = (value: string | undefined): boolean => {
+    const format = value === undefined ? undefined : formatById.get(value);
+    if (format === undefined) return true; // not an indicator id
+    sawIndicator = true;
+    return format === "percent";
+  };
+
+  if (!inspect(config.d.selectedReplicantValue)) return false;
+  for (const row of items) {
+    for (const col of cols) {
+      if (!inspect(row[col])) return false;
+    }
+  }
+  return sawIndicator;
 }
 
 export function getFigureInputsFromPresentationObject(
@@ -78,8 +107,10 @@ export function getFigureInputsFromPresentationObject(
 
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(ih.indicatorMetadata);
 
-  const effectiveFormatAs: "percent" | "number" = allIndicatorsPercent(
+  const effectiveFormatAs: "percent" | "number" = displayedIndicatorsAllPercent(
+    ih.items,
     ih.indicatorMetadata,
+    config,
   )
     ? "percent"
     : (resultsValue.formatAs ?? "number");
