@@ -1,3 +1,9 @@
+[TBD] [user] [fixed] - Charts with multiple tiers no longer display with incorrect scaling
+[TBD] [user] [fixed] - Dashboard and report figures now update correctly after data changes
+[TBD] [user] [fixed] - Chart labels and layout sections no longer appear broken or missing
+[TBD] [admin] [fixed] - Charts in dashboards and reports now display correct axis scaling
+[TBD] [admin] [fixed] - Multi-tier and multi-lane charts no longer overflow or show incorrect limits
+[TBD] [admin] [internal] - Figure block data migrations now apply consistently across slides, dashboards, and reports
 [TBD] [admin] [added] - Email alerts sent when automatic volume resize is triggered
 [1.44.1] [user] [fixed] - Indicator status no longer shows "0 ready" unnecessarily
 [1.44.1] [admin] [fixed] - Indicator status no longer shows "0 ready" unnecessarily
