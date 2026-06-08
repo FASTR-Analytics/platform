@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Fixed time period filters sometimes not applying correctly when date ranges use mixed formats
+[TBD] [admin] [fixed] - Period filters now validate both bounds consistently before querying
 [1.46.0] [user] [fixed] - Charts now correctly show percent formatting when all displayed indicators are percentages
 [1.46.0] [admin] [fixed] - Charts now correctly show percent formatting when all displayed indicators are percents
 [1.46.0] [user] [fixed] - Charts now correctly display percent formatting for mixed indicator sets
