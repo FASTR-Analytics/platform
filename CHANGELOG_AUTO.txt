@@ -1,3 +1,5 @@
+[1.46.0] [user] [fixed] - Charts now correctly format values as percentages when all indicators are percentages
+[1.46.0] [admin] [fixed] - Charts now show percent formatting when all indicators are percents
 [1.46.0] [user] [fixed] - Indicator labels now consistently start with a capital letter
 [1.46.0] [admin] [fixed] - Indicator labels now always start with a capital letter
 [1.46.0] [admin] [internal] - Removed a legacy data migration for quarter ID formatting
