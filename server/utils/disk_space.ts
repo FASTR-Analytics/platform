@@ -1,7 +1,9 @@
 import { join } from "@std/path";
 import { Sql } from "postgres";
 import {
+  _INSTANCE_ID,
   _SANDBOX_DIR_PATH,
+  _SEND_GRID_API,
   _STATUS_API_KEY,
   _VOLUME_NAME,
 } from "../exposed_env_vars.ts";
@@ -62,11 +64,10 @@ function maybeRequestVolumeResize(stats: DiskStats): boolean {
   const usedBytes = stats.totalBytes - stats.availBytes;
   if (usedBytes / stats.totalBytes < 0.90) return false;
   const targetSizeGB = Math.ceil(usedBytes / 0.80 / 1024 ** 3);
-  const url = "https://status-api.fastr-analytics.org/api/volumes/resize";
   const key = _STATUS_API_KEY;
   const volume = _VOLUME_NAME;
-  if (!url || !key || !volume) return false;
-  fetch(url, {
+  if (!key || !volume) return false;
+  fetch("https://status-api.fastr-analytics.org/api/volumes/resize", {
     method: "POST",
     headers: {
       "X-Internal-Key": key,
@@ -74,6 +75,26 @@ function maybeRequestVolumeResize(stats: DiskStats): boolean {
     },
     body: JSON.stringify({ volume, targetSizeGB }),
   }).catch(() => {});
+  if (_SEND_GRID_API) {
+    const usedGB = toGB(usedBytes);
+    const totalGB = toGB(stats.totalBytes);
+    const usedPct = Math.round((usedBytes / stats.totalBytes) * 100);
+    const subject = `[FASTR] Volume resize triggered — ${volume} (${_INSTANCE_ID})`;
+    const body = `Volume ${volume} on instance ${_INSTANCE_ID} is at ${usedPct}% capacity (${usedGB} GB used of ${totalGB} GB).\n\nA resize to ${targetSizeGB} GB has been triggered automatically.`;
+    const html = `<div style="font-family:sans-serif;color:#333"><p>Volume <strong>${volume}</strong> on instance <strong>${_INSTANCE_ID}</strong> is at <strong>${usedPct}%</strong> capacity (${usedGB} GB used of ${totalGB} GB).</p><p>A resize to <strong>${targetSizeGB} GB</strong> has been triggered automatically.</p></div>`;
+    for (const to of ["timroberton@gmail.com", "nick@usefuldata.com.au"]) {
+      fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${_SEND_GRID_API}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: to }] }],
+          from: { email: "noreply@fastr-analytics.org", name: "FASTR Analytics Platform" },
+          subject,
+          content: [{ type: "text/plain", value: body }, { type: "text/html", value: html }],
+        }),
+      }).catch(() => {});
+    }
+  }
   return true;
 }
 
