@@ -7,6 +7,7 @@ import { createAITool } from "panther";
 import { z } from "zod";
 import type { AIContext } from "~/components/project_ai/types";
 import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
+import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
 import { formatVizEditorForAI } from "./_internal/format_viz_editor_for_ai";
 
@@ -190,12 +191,53 @@ export function getToolsForVizEditor(
             if (!filterPeriodOpt) {
               throw new Error("Cannot set periodFilter: metric has no time period column");
             }
-            setTempConfig("d", "periodFilter", {
-              filterType: "custom",
-              min: input.periodFilter.min != null ? convertPeriodValue(input.periodFilter.min, filterPeriodOpt, false) : 0,
-              max: input.periodFilter.max != null ? convertPeriodValue(input.periodFilter.max, filterPeriodOpt, true) : 999999,
-            });
-            changes.push("periodFilter");
+            const rawMin = input.periodFilter.min;
+            const rawMax = input.periodFilter.max;
+            if (rawMin == null && rawMax == null) {
+              // No constraint → clear (all time), not an empty custom filter.
+              setTempConfig("d", "periodFilter", undefined);
+              changes.push("periodFilter (cleared)");
+            } else {
+              // Open-ended sides are filled with the metric's REAL data bounds so
+              // every stored bound self-identifies (no sentinels). Only fetch when
+              // one side is omitted.
+              let dataBounds: { min: number; max: number } | undefined;
+              if (rawMin == null || rawMax == null) {
+                const infoRes = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
+                  projectId,
+                  resultsValue.id,
+                );
+                dataBounds = infoRes.success ? infoRes.data.periodBounds : undefined;
+                if (!dataBounds) {
+                  throw new Error(
+                    "Cannot set an open-ended periodFilter: the metric's data period range is unavailable. Provide both min and max.",
+                  );
+                }
+              }
+              if (rawMin != null && rawMax != null) {
+                // Both ends fixed → custom.
+                setTempConfig("d", "periodFilter", {
+                  filterType: "custom",
+                  min: convertPeriodValue(rawMin, filterPeriodOpt, false),
+                  max: convertPeriodValue(rawMax, filterPeriodOpt, true),
+                });
+              } else if (rawMin != null) {
+                // Open upper ("from X onward") → from_month; upper end re-anchors to live data.
+                setTempConfig("d", "periodFilter", {
+                  filterType: "from_month",
+                  min: convertPeriodValue(rawMin, filterPeriodOpt, false),
+                  max: dataBounds!.max,
+                });
+              } else {
+                // Open lower ("up to X") → custom from the data's earliest period.
+                setTempConfig("d", "periodFilter", {
+                  filterType: "custom",
+                  min: dataBounds!.min,
+                  max: convertPeriodValue(rawMax!, filterPeriodOpt, true),
+                });
+              }
+              changes.push("periodFilter");
+            }
           }
         }
 

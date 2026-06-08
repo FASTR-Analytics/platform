@@ -7,6 +7,7 @@ How time/period columns work across the system — from R script output through 
 - [Mental model](#mental-model)
 - [The three scenarios](#the-three-scenarios)
 - [Format details](#format-details)
+  - [Self-identifying values (the key invariant)](#self-identifying-values-the-key-invariant)
 - [Authoring: what R scripts should produce](#authoring-what-r-scripts-should-produce)
 - [No time column](#no-time-column)
 - [Import pipeline](#import-pipeline)
@@ -22,6 +23,7 @@ How time/period columns work across the system — from R script output through 
   - [Key rule: `timeseriesGrouping` vs `mostGranularTimePeriodColumnInResultsFile`](#key-rule-timeseriesgrouping-vs-mostgranulartimeperiodcolumninresultsfile)
   - [`PeriodFilter` type split](#periodfilter-type-split)
   - [Period filter exact bounds](#period-filter-exact-bounds)
+  - [What writers must produce (the contract)](#what-writers-must-produce-the-contract)
 - [Client pipeline](#client-pipeline)
   - [Disaggregation options (enricher → UI)](#disaggregation-options-enricher--ui)
   - [Client filter UI](#client-filter-ui)
@@ -55,7 +57,7 @@ A results object table has exactly one of these as its primary time column (or n
 | Scenario | Physical column | Format | Example | Derivable columns |
 |----------|----------------|--------|---------|-------------------|
 | 1 | `period_id` | YYYYMM | `202301` = Jan 2023 | `year`, `month`, `quarter_id` |
-| 2 | `quarter_id` | YYYY0Q | `202301` = Q1 2023, `202304` = Q4 2023 | `year` |
+| 2 | `quarter_id` | YYYYQ | `20231` = Q1 2023, `20234` = Q4 2023 | `year` |
 | 3 | `year` | YYYY | `2023` | none |
 
 Priority order: `period_id` > `quarter_id` > `year` (most granular wins).
@@ -63,17 +65,36 @@ Priority order: `period_id` > `quarter_id` > `year` (most granular wins).
 The derivation expressions (defined in [server/server_only_funcs_presentation_objects/period_helpers.ts](server/server_only_funcs_presentation_objects/period_helpers.ts)):
 
 - From `period_id` (`PERIOD_COLUMN_EXPRESSIONS`): `year = (period_id / 100)::int`, `month = LPAD((period_id % 100)::text, 2, '0')`, `quarter_id = CASE on month ranges`
-- From `quarter_id` (`QUARTER_ID_COLUMN_EXPRESSIONS`): `year = (quarter_id / 100)::int`
+- From `quarter_id` (`QUARTER_ID_COLUMN_EXPRESSIONS`): `year = (quarter_id / 10)::int`
 - From `year`: nothing derivable
 
 ## Format details
 
 Some precision that matters when debugging:
 
-- **`period_id`**: integer `YYYYMM`. Value `202301` = January 2023. Sort order matches chronology.
-- **`quarter_id`**: integer `YYYY0Q` where the digit before the quarter is always `0` and `Q` is 1–4. Value `202304` = Q4 2023. Do not confuse with YYYYMM — `202304` as `quarter_id` is Q4, not April.
-- **`year`**: integer `YYYY`. Value `2023`.
+- **`period_id`**: integer `YYYYMM` (6 digits). Value `202301` = January 2023. Sort order matches chronology.
+- **`quarter_id`**: integer `YYYYQ` (5 digits) where `Q` is 1–4. Value `20234` = Q4 2023.
+- **`year`**: integer `YYYY` (4 digits). Value `2023`.
 - **`month`** (derived from `period_id`): two-character string, zero-padded (e.g. `"03"`). Not a number — enables lexicographic sort and display use.
+
+### Self-identifying values (the key invariant)
+
+The three integer formats occupy **disjoint ranges by digit count**, so a stored period value carries its own unit — its format is recoverable from the value alone, with no separate tag:
+
+| Format | Shape | Digits | Range |
+|--------|-------|--------|-------|
+| `year` | `YYYY` | 4 | 1900–2050 |
+| `quarter_id` | `YYYYQ` | 5 | 19001–20504 |
+| `period_id` | `YYYYMM` | 6 | 190001–205012 |
+
+This is the single source of the value→format relationship, in `lib` ([_metric_installed.ts](lib/types/_metric_installed.ts)):
+
+- **`inferPeriodFormatFromValue(v)`** → `"year" | "quarter_id" | "period_id" | undefined`. Returns `undefined` for values outside every range; it **never throws** (it is called while building SQL).
+- **`inferPeriodFormatFromValuesIfTheSame(min, max)`** → the shared format **only when both bounds self-identify AND agree**, else `undefined`. Used wherever a min/max *pair* is interpreted, so a malformed or mixed-format pair is rejected as a unit, not half-applied.
+
+> **There is no `periodOption` tag.** It was removed once quarters moved to the 5-digit `YYYYQ` form (previously `YYYY0Q`, which collided with `period_id` `YYYYMM` and so needed a disambiguator). Every consumer now derives format from the value.
+>
+> The grouping/display choice `timeseriesGrouping` ("group monthly data by quarter") is a *separate, legitimate* user setting, unrelated to the data's physical format — see [Key rule](#key-rule-timeseriesgrouping-vs-mostgranulartimeperiodcolumninresultsfile).
 
 ---
 
@@ -82,7 +103,7 @@ Some precision that matters when debugging:
 If you're writing a module's R script and your output CSV has a time dimension, produce **one** of these columns and not others:
 
 - **Monthly data** → include a `period_id` column in `YYYYMM` format (integer, e.g. `202403`).
-- **Quarterly data** → include a `quarter_id` column in `YYYY0Q` format (integer, e.g. `202404` for Q4 2024).
+- **Quarterly data** → include a `quarter_id` column in `YYYYQ` format (integer, e.g. `20234` for Q4 2023).
 - **Annual data** → include a `year` column in `YYYY` format (integer).
 
 Do NOT output multiple time columns simultaneously. The import pipeline ([Module import](#module-import)) drops redundancy but the expected invariant is that the CSV reflects the true granularity of the data.
@@ -159,7 +180,7 @@ WITH period_data AS (
 -- Scenario 2 (hasQuarterId, deriving year):
 WITH period_data AS (
   SELECT *,
-    (quarter_id / 100)::int AS year
+    (quarter_id / 10)::int AS year
   FROM ro_table
 )
 ```
@@ -178,13 +199,13 @@ Generating period_id-based SQL on a quarter_id table (or vice versa) would produ
 
 **File**: [server/server_only_funcs_presentation_objects/get_period_bounds.ts](server/server_only_funcs_presentation_objects/get_period_bounds.ts)
 
-Returns `{ periodOption, min, max }` for the time slider in the filter UI. The `firstPeriodOption` comes from the enricher's inferred `mostGranularTimePeriodColumnInResultsFile`.
+Returns `{ min, max }` for the time slider in the filter UI. Which column to read (`MIN`/`MAX` of `period_id` / `quarter_id` / `year`, or a derived `year`) is chosen from the enricher's inferred `mostGranularTimePeriodColumnInResultsFile`; the returned bound values self-identify their format.
 
 - `firstPeriodOption === "period_id"`: `SELECT MIN(period_id), MAX(period_id)`
 - `firstPeriodOption === "quarter_id"`: `SELECT MIN(quarter_id), MAX(quarter_id)` (always physical in this scenario)
 - `firstPeriodOption === "year"`: depends on what column exists:
   - Has `period_id` → derive inline: `SELECT MIN((period_id / 100)::int), MAX(...)`
-  - Has `quarter_id` (no `period_id`) → derive inline: `SELECT MIN((quarter_id / 100)::int), MAX(...)`
+  - Has `quarter_id` (no `period_id`) → derive inline: `SELECT MIN((quarter_id / 10)::int), MAX(...)`
   - Has physical `year` → direct: `SELECT MIN(year), MAX(year)`
 
 ### Possible values (disaggregation checkboxes)
@@ -202,7 +223,7 @@ For each disaggregation option, queries `SELECT DISTINCT column` to get the avai
 When `isDynamicPeriodColumn` is true:
 
 - If `needsPeriodCTE`: use the CTE, reference column by name
-- Otherwise: use inline SQL expression (e.g. `SELECT DISTINCT (quarter_id / 100)::int AS disaggregation_value`)
+- Otherwise: use inline SQL expression (e.g. `SELECT DISTINCT (quarter_id / 10)::int AS disaggregation_value`)
 
 When `isDynamicPeriodColumn` is false: the column is physical, query it directly.
 
@@ -214,7 +235,7 @@ If `getPossibleValues` fails (column doesn't exist, SQL error), it returns an er
 
 **File**: [server/server_only_funcs_presentation_objects/query_helpers.ts](server/server_only_funcs_presentation_objects/query_helpers.ts) — `buildWhereClause()`
 
-Period filtering uses `periodFilterExactBounds` which has `{ periodOption, min, max }`. The WHERE clause is simply `periodColumn >= min AND periodColumn <= max`. This works for all three scenarios because:
+Period filtering uses `periodFilterExactBounds` (`{ min, max }`). The period column is derived from the bound values via `inferPeriodFormatFromValuesIfTheSame(min, max)` — **if the two bounds don't self-identify the same format the filter is skipped entirely** (warn + no period WHERE), never half-applied. Otherwise the WHERE clause is simply `periodColumn >= min AND periodColumn <= max`. This works for all three scenarios because:
 
 - Scenario 1: `period_id` is physical, or derived columns are available via CTE
 - Scenario 2: `quarter_id` is physical, `year` available via CTE
@@ -230,9 +251,9 @@ Integer columns (year, month, quarter_id, period_id) use direct numeric comparis
 
 `config.d.timeseriesGrouping` controls **only** the timeseries display grouping (GROUP BY / X-axis granularity). It is never used for period filtering. It is optional — only timeseries visualizations use it; tables, bar charts, and maps omit it entirely.
 
-Period filtering — the filter UI, period bounds, `periodFilter.periodOption`, and `periodFilterExactBounds` — is always driven by `mostGranularTimePeriodColumnInResultsFile` (the metric's actual physical time column). This means a quarterly timeseries (`timeseriesGrouping: "quarter_id"`) over monthly data (`mostGranularTimePeriodColumnInResultsFile: "period_id"`) still filters by `period_id` and shows monthly filter options.
+Period filtering — the filter UI, period bounds, and `periodFilterExactBounds` — is always driven by `mostGranularTimePeriodColumnInResultsFile` (the metric's actual physical time column). This means a quarterly timeseries (`timeseriesGrouping: "quarter_id"`) over monthly data (`mostGranularTimePeriodColumnInResultsFile: "period_id"`) still filters by `period_id` and shows monthly filter options.
 
-(Historically this field was called `periodOpt`. Old stored configs are normalized on read by the PO config adapter — see [DOC_legacy_handling.md](DOC_legacy_handling.md) and [Legacy and adaptation](#legacy-and-adaptation) below.)
+(This field was historically called `periodOpt`; stored configs are migrated to `timeseriesGrouping` by the startup data-transforms — see [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md).)
 
 ### `PeriodFilter` type split
 
@@ -240,27 +261,40 @@ Period filtering — the filter UI, period bounds, `periodFilter.periodOption`, 
 
 Two shapes exist and the distinction matters throughout the filter pipeline:
 
-- **`RelativePeriodFilter`** — `filterType` is `last_n_months` / `last_calendar_year` / `last_calendar_quarter` / `last_n_calendar_years` / `last_n_calendar_quarters`. Carries only `nMonths` / `nYears` / `nQuarters`. **No** `periodOption` / `min` / `max` — these are derived at query time from the actual data bounds.
-- **`BoundedPeriodFilter`** — `filterType` is `custom` or `from_month`. Carries `periodOption` / `min` / `max` in the data's actual time format.
+- **`RelativePeriodFilter`** — `filterType` is `last_n_months` / `last_calendar_year` / `last_calendar_quarter` / `last_n_calendar_years` / `last_n_calendar_quarters`. Carries only `nMonths` / `nYears` / `nQuarters`. **No** `min` / `max` — these are derived at query time from the actual data bounds.
+- **`BoundedPeriodFilter`** — `filterType` is `custom` or `from_month`. Carries `min` / `max` as self-identifying values in the data's time format. A `.refine` on the schema rejects any bounded filter whose `min`/`max` don't self-identify the **same** format (via `inferPeriodFormatFromValuesIfTheSame`) or are out of order — so an invalid pair can never be saved.
 
-The type guard `periodFilterHasBounds(filter)` narrows to `BoundedPeriodFilter`. Use it anywhere you need to read `.periodOption` / `.min` / `.max` off a filter.
+The type guard `periodFilterHasBounds(filter)` narrows to `BoundedPeriodFilter`. Use it anywhere you need to read `.min` / `.max` off a filter; derive the format with `inferPeriodFormatFromValue(min)`.
 
 ### Period filter exact bounds
 
 **File**: [lib/get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts) — `getPeriodFilterExactBounds()`
 
-Converts user-facing filter settings into exact min/max bounds. Branches by `periodOption` (from `periodBounds`, which reflects actual data):
+Converts user-facing filter settings into exact min/max bounds. Branches by the format derived from the data bounds (`inferPeriodFormatFromValue(periodBounds.min)`, which reflects the actual data):
 
 - `"year"`: returns last year as min=max=periodBounds.max
 - `"period_id"` with `last_n_months`: uses `nMonths` and panther's `getTimeFromPeriodId`/`getPeriodIdFromTime` with `"year-month"` period type
 - `"quarter_id"` with `last_n_months`: uses `nQuarters` (NOT `nMonths`) and `"year-quarter"` period type
 - `"period_id"` with `last_n_calendar_years`/`last_n_calendar_quarters`: uses extracted helper functions `getLastFullYearBounds`/`getLastFullQuarterBounds`
 
-For relative filter types, the stored filter's `nMonths` / `nYears` / `nQuarters` are the only meaningful data — the `periodOption` and bounds come from the data at query time.
+For relative filter types, the stored filter's `nMonths` / `nYears` / `nQuarters` are the only meaningful data — the format and bounds come from the data at query time. For `from_month`, `min` is stored (re-anchored to the live data's format) while `max` is taken from the live data's latest period, so an open-ended "from X onward" range tracks new data.
 
 Calendar-based filters (`last_n_calendar_years`, `last_n_calendar_quarters`, `last_calendar_year`, `last_calendar_quarter`) use period_id month-based math. A defensive guard returns unfiltered bounds if these are reached with `quarter_id` data. The UI prevents this by not offering calendar options for `quarter_id`.
 
-**Cache implications**: after the filter refactor, relative filters no longer carry fabricated `periodOption`/`min`/`max`, so their cache keys (which include those fields via [`hashFetchConfig`](lib/get_fetch_config_from_po.ts)) are stable across queries with the same `nMonths`. Previously, fabricated bounds computed from `new Date()` drifted over time and caused spurious cache misses.
+**Cache implications**: after the filter refactor, relative filters no longer carry fabricated `min`/`max`, so their cache keys (which include those fields via [`hashFetchConfig`](lib/get_fetch_config_from_po.ts)) are stable across queries with the same `nMonths`. Previously, fabricated bounds computed from `new Date()` drifted over time and caused spurious cache misses.
+
+### What writers must produce (the contract)
+
+Anything that **creates** a bounded period filter must store real, self-identifying values — never sentinels:
+
+- **Both ends fixed** → `custom { min, max }`, both in the data's format.
+- **Open upper** ("from X onward") → `from_month { min, max: periodBounds.max }`; the query re-anchors the upper end to the data's latest period, so the range tracks new data.
+- **Open lower** ("up to X") → `custom { min: periodBounds.min, max }`. There is no lower-open filter *type*, so fill the lower bound with the metric's real earliest period.
+- **No constraint** → omit `periodFilter` entirely (all time).
+
+The AI viz-editor tool exposes a simplified `{ min?, max? }` abstraction and its handler ([visualization_editor.tsx](client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx)) performs exactly this mapping — fetching `periodBounds` to fill an omitted side rather than writing a sentinel.
+
+Every stored bound must be a value `inferPeriodFormatFromValue` can classify. Placeholder/sentinel values (e.g. `0`, `999999`) are **forbidden** — they fail the save-time `.refine` and are skipped at read. Open-endedness is encoded as a filter **type**, never as a magic value.
 
 ---
 
@@ -287,7 +321,7 @@ When `periodBounds` exists, the Filters component:
 1. Excludes `["year", "period_id", "quarter_id", "month"]` from the regular filter list
 2. Shows a `PeriodFilter` component instead, which provides slider-based time range selection
 
-The PeriodFilter UI adapts based on `periodBounds.periodOption` (3-way branch):
+The PeriodFilter UI adapts based on the format derived from `periodBounds.min` (via `inferPeriodFormatFromValue`, a 3-way branch):
 
 - `"year"`: shows "Last year" and "Custom" options
 - `"quarter_id"`: shows "Last N quarters" (with `NQuartersSelector`), "From specific quarter", "Custom"
@@ -297,7 +331,7 @@ The "From specific quarter/month" and "Custom" sliders use panther's `getTimeFro
 
 Old filter types (`last_calendar_year`, `last_calendar_quarter`) are auto-mapped to new N-based equivalents via `displayFilterType()` for backwards compatibility.
 
-**`resolvePeriodFilter` is NOT legacy adaptation.** The function at lines ~26-44 handles a runtime concern: the stored filter's `periodOption` can genuinely differ from the data's actual `periodOption` if the underlying data has been refreshed to a different granularity since the filter was authored. The function re-scales the filter's min/max to match the current data. This is orthogonal to legacy-shape adaptation (which happens server-side before the filter reaches the client).
+**No client-side reconciliation.** Earlier code (`resolvePeriodFilter` / `reconcilePeriodFilterWithBounds`) re-scaled a stored filter's `min`/`max` when the data's granularity had changed since authoring. That is **gone**: the value self-identifies, so a bound that no longer matches the current data's format simply fails `inferPeriodFormatFromValuesIfTheSame` and the filter is skipped at query time (see [WHERE clause](#where-clause--period-filtering)) rather than silently re-scaled. The slider still clamps its handles into `periodBounds`.
 
 ### Client disaggregation options
 
@@ -312,16 +346,16 @@ The `allowedFilterOptions()` function filters `disaggregationOptions` by:
 
 - Non-period options filtered to exactly one value (via `hasOnlyOneFilteredValue` checking `config.d.filterBy`)
 - All time columns when the resolved period filter is a single value (`min === max`)
-- `year` specifically when the resolved period filter spans a single year (`Math.floor(min / 100) === Math.floor(max / 100)`)
+- `year` specifically when the resolved period filter spans a single calendar year — a **format-aware** year-span check, consolidated in `getEffectivePOConfig` ([normalize_po_config.ts](lib/normalize_po_config.ts))
 
 ### Single-value disaggregation stripping (renderer)
 
 **File**: [client/src/generate_visualization/get_figure_inputs_from_po.ts](client/src/generate_visualization/get_figure_inputs_from_po.ts)
 
-Before passing config to the data config builders, `getFigureInputsFromPresentationObject` creates an `effectiveConfig` that strips disaggregations that would only have one value:
+Before passing config to the data config builders, `getFigureInputsFromPresentationObject` calls `getEffectivePOConfig` ([normalize_po_config.ts](lib/normalize_po_config.ts)) to build an `effectiveConfig` that strips disaggregations that would only have one value:
 
-- All time columns (`period_id`, `quarter_id`, `year`, `month`) when `ih.dateRange.min === ih.dateRange.max`
-- `year` specifically when `Math.floor(ih.dateRange.min / 100) === Math.floor(ih.dateRange.max / 100)`
+- All time columns (`period_id`, `quarter_id`, `year`, `month`) when `dateRange.min === dateRange.max`
+- `year` specifically when the range spans a single calendar year — **format-aware**: `Math.floor(v / 10)` for `quarter_id` (`YYYYQ`), `Math.floor(v / 100)` for `period_id` (`YYYYMM`) ([normalize_po_config.ts:57-63](lib/normalize_po_config.ts#L57))
 - Any non-period disaggregation where `config.d.filterBy` has exactly one value for it
 
 The `effectiveConfig` is used for all data config builder calls (which determine series/rows/cols/cells). The original `config` is preserved for text/captions/style. This ensures the renderer doesn't show useless column groups, legend items, or series for single-value disaggregations.
@@ -359,22 +393,20 @@ The active calendar is a project-level setting (`INSTANCE_CALENDAR` env var / in
 
 ## Legacy and adaptation
 
-Some historical field names persist in stored JSON and are normalized on read.
+Historical field shapes in stored JSON are normalized **once, at startup**, by the PO-config data-transform — not adapted on every read. (The old read-time `legacy_po_config_adapter.ts` and `DOC_legacy_handling.md` have been removed.) See [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md) for the migration framework.
 
-### PO config adapter
+### Period-relevant transforms
 
-**File**: [server/db/project/legacy_po_config_adapter.ts](server/db/project/legacy_po_config_adapter.ts)
+**File**: [server/db/migrations/data_transforms/po_config.ts](server/db/migrations/data_transforms/po_config.ts) (`transformConfigD`) — the shared choke point reused for PO configs, slides, viz-presets, and module-def default POs:
 
-Applied at every service-layer read of a PresentationObjectConfig or VizPreset. Transforms:
+- `config.d.periodOpt` → `config.d.timeseriesGrouping` (field rename)
+- `periodFilter.filterType: "last_12_months"` → `"last_n_months", nMonths: 12`
+- `periodFilter.filterType: undefined` → `"custom"` (pre-refactor undefined was implicitly custom)
+- Strips dead `periodOption` / `min` / `max` from **relative** `periodFilter`s (the pre-refactor type required bounds even on relative filters)
 
-- `config.d.periodOpt` → `config.d.timeseriesGrouping` (field rename, 2026-04)
-- Strips fabricated `periodOption` / `min` / `max` from relative `PeriodFilter`s (the pre-refactor type required bounds even on relative filters; adapter removes the dead fields)
-- Normalizes `filterType: undefined` on stored bounded-looking filters to `"custom"` (pre-refactor undefined filterType was implicitly treated as custom)
-- Drops legacy `defaultPeriodFilterForDefaultVisualizations` from VizPresets (field removed; preset authors now put filter directly on `config.d.periodFilter`)
+### The `periodOption` tag needs no dedicated strip
 
-Plus one Pattern-2 inline adapter in [get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts): `filterType: "last_12_months"` → `filterType: "last_n_months", nMonths: 12`.
-
-See [DOC_legacy_handling.md](DOC_legacy_handling.md) for the broader legacy-handling catalogue.
+The PO-config schema is a **non-strict** `z.object`, so it **drops unknown keys on parse**. Any leftover `periodOption` on a bounded `custom`/`from_month` filter is discarded the first time the config is parsed — no migration block, no boot failure. This is why removing the tag shipped without a data migration; a dedicated strip would have been redundant.
 
 ---
 
@@ -397,8 +429,8 @@ Walk-through: a user has a monthly HMIS metric (`period_id` column), creates a t
 **Server-side resolution at query time**:
 
 1. [metric_enricher.ts](server/db/project/metric_enricher.ts) — infers `mostGranularTimePeriodColumnInResultsFile = "period_id"` from the presence of `period_id` in the table.
-2. [get_period_bounds.ts](server/server_only_funcs_presentation_objects/get_period_bounds.ts) — runs `SELECT MIN(period_id), MAX(period_id)`, returns `{ periodOption: "period_id", min: 202301, max: 202404 }`.
-3. [get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts) `getPeriodFilterExactBounds` — `filterType: "last_n_months"` + `periodBounds.periodOption === "period_id"` → uses `nMonths = 6`, computes `min = 202311, max = 202404`. Returns `{ periodOption: "period_id", min: 202311, max: 202404 }`.
+2. [get_period_bounds.ts](server/server_only_funcs_presentation_objects/get_period_bounds.ts) — runs `SELECT MIN(period_id), MAX(period_id)`, returns `{ min: 202301, max: 202404 }`.
+3. [get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts) `getPeriodFilterExactBounds` — `filterType: "last_n_months"` and the bounds self-identify as `period_id` → uses `nMonths = 6`, computes `min = 202311, max = 202404`. Returns `{ min: 202311, max: 202404 }`.
 4. [buildQueryContext](server/server_only_funcs_presentation_objects/get_query_context.ts) — groupBys include `quarter_id` (from `timeseriesGrouping`). `hasPeriodId = true`. `neededPeriodColumns` = `{quarter_id}`. `needsPeriodCTE = true`.
 5. [cte_manager.ts](server/server_only_funcs_presentation_objects/cte_manager.ts) — emits Scenario-1 CTE deriving `year`, `month`, `quarter_id` from `period_id`.
 6. [query_helpers.ts](server/server_only_funcs_presentation_objects/query_helpers.ts) — WHERE clause: `period_id >= 202311 AND period_id <= 202404`. GROUP BY: `quarter_id`.
@@ -421,11 +453,11 @@ The metric has no time column. Verify with the metric detail modal or by checkin
 
 ### Period filter UI shows wrong granularity
 
-The UI adapts to `periodBounds.periodOption`, which comes from `mostGranularTimePeriodColumnInResultsFile`, which comes from the actual DB columns. If the UI shows year-based filter options but you expect month-based, the data table doesn't have `period_id` — check the R script and re-run the module.
+The UI adapts to the format derived from `periodBounds.min` (via `inferPeriodFormatFromValue`), which reflects `mostGranularTimePeriodColumnInResultsFile`, which comes from the actual DB columns. If the UI shows year-based filter options but you expect month-based, the data table doesn't have `period_id` — check the R script and re-run the module.
 
-### Quarter filter produces empty results on monthly data
+### Quarter filter returns nothing / unexpected rows
 
-Historically a stored filter could have `periodOption: "quarter_id"` while the data is `period_id`-based. The legacy adapter strips fabricated bounds from relative filters, so this should no longer happen after the refactor. If you see it on a custom filter (where bounds are real), it's the `resolvePeriodFilter` runtime realignment's job ([Client filter UI](#client-filter-ui)).
+Bounds self-identify their format. A quarter-formatted filter (`20231`–`20234`) on monthly (`period_id`) data is *not* a problem — `inferPeriodFormatFromValuesIfTheSame` resolves the bounds' own format (`quarter_id`) and the query filters the **derived** `quarter_id` column (materialized from `period_id` via CTE), so it still returns rows. Genuinely empty results point to bounds that are out of the data's range, or a **mixed-format pair** (e.g. `min` a year, `max` a `period_id`) — the latter fails `inferPeriodFormatFromValuesIfTheSame` and the filter is **skipped** (look for the `console.warn` in [`buildWhereClause`](server/server_only_funcs_presentation_objects/query_helpers.ts)). There is no silent re-scaling anymore.
 
 ### Calendar-based filter returns unexpected bounds
 
