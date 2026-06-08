@@ -1,3 +1,5 @@
+[1.46.0] [user] [fixed] - Charts now correctly display percent formatting for mixed indicator sets
+[1.46.0] [admin] [fixed] - Charts now display correct percent formatting when label-only indicators are present
 [1.46.0] [user] [fixed] - Charts now correctly format values as percentages when all indicators are percentages
 [1.46.0] [admin] [fixed] - Charts now show percent formatting when all indicators are percents
 [1.46.0] [user] [fixed] - Indicator labels now consistently start with a capital letter
