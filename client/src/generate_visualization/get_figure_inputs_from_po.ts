@@ -56,8 +56,13 @@ function buildIndicatorSortOrder(metadata: IndicatorMetadata[]): string[] {
 // Charts/timeseries format every value with the single metric-level `formatAs`
 // (unlike tables, which read per-indicator `format_as`). When every indicator
 // is a percent, the whole figure is percent, so treat the metric as percent.
+//
+// `indicatorMetadata` also carries label-only entries that bear no `format_as`
+// (HFA categories/sub-categories, HMIS raw indicators), so we only consider the
+// value-bearing indicators that actually declare a format.
 function allIndicatorsPercent(metadata: IndicatorMetadata[]): boolean {
-  return metadata.length > 0 && metadata.every((m) => m.format_as === "percent");
+  const formatted = metadata.filter((m) => m.format_as !== undefined);
+  return formatted.length > 0 && formatted.every((m) => m.format_as === "percent");
 }
 
 export function getFigureInputsFromPresentationObject(
