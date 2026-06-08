@@ -26,7 +26,9 @@ numbered migration in order (`ON_ERROR_STOP=1`), and **fails unless `base == bas
 migrations idempotent no-ops) AND no migration errors. At runtime, the base schema runs **only on a
 new DB** (`db_startup.ts:44`), while numbered migrations re-run **every startup**.
 
-**Five** migrations touch `share_tokens`, not three:
+Five migrations touch `share_tokens` — **leave every one of them exactly as it is.** DOC_MIGRATIONS:
+*"Don't rewrite old migrations — fix forward."* The migration history is append-only; only the base
+schema changes.
 
 - `026_share_tokens.sql` — `CREATE TABLE IF NOT EXISTS share_tokens` + 2 indexes
 - `027_share_tokens_text.sql` — `ALTER … data TYPE TEXT` (guarded)
@@ -34,32 +36,31 @@ new DB** (`db_startup.ts:44`), while numbered migrations re-run **every startup*
 - `039_share_tokens_password.sql` — `ALTER … ADD COLUMN password_hash`
 - `040_share_tokens_plaintext_password.sql` — rename/drop + unguarded `UPDATE share_tokens …`
 
-Once the table is removed from base, the clean end state is to **delete all five** and add a forward
-drop. (Keeping any of them is messy, not broken: `026`'s `CREATE TABLE IF NOT EXISTS` re-creates the
-table on every fresh replay only for `044` to drop it — dead create-then-drop migrations. That's also
-why the earlier "`038`/`039` would error once the table is gone" framing was wrong: during replay the
-table is never gone, because `026` brings it back.) Deleting all five means no migration references
-`share_tokens` at any point. The drop is a matched set:
+The drop is **two changes, zero deletions**:
 
 1. **Remove** `CREATE TABLE share_tokens (…)` + its 3 indexes from
-   `server/db/instance/_main_database.sql` (the `share_tokens` block, lines 492-506).
-2. **Delete** the five now-orphaned migrations:
-   - `server/db/migrations/instance/026_share_tokens.sql`
-   - `server/db/migrations/instance/027_share_tokens_text.sql`
-   - `server/db/migrations/instance/038_share_tokens_slug.sql`
-   - `server/db/migrations/instance/039_share_tokens_password.sql`
-   - `server/db/migrations/instance/040_share_tokens_plaintext_password.sql`
-   (Safe to delete: deleting a migration **file** only changes fresh-DB replay — prod instances already
-   ran them and keep their table until `044` drops it. Their forward effect is moot once the table is
-   dropped.)
-3. **Add** `server/db/migrations/instance/044_drop_share_tokens.sql`:
+   `server/db/instance/_main_database.sql` (the `share_tokens` block, lines 492-506). Base = final
+   state, and the final state has no table.
+2. **Add** `server/db/migrations/instance/044_drop_share_tokens.sql`:
    ```sql
    DROP TABLE IF EXISTS share_tokens CASCADE;
    ```
-   Idempotent: no-op on a fresh DB (nothing creates the table anymore); drops the real table on
-   existing instances at next startup. This also deletes all ~23 existing tokens.
-4. **Run `./validate_migrations`** — must pass. (Fresh-DB replay: base has no `share_tokens`; no
-   migration references it; `044` is a no-op → `before == after`, no errors.)
+   Drops the real table on existing instances at next startup; also deletes all ~23 existing tokens.
+3. **Run `./validate_migrations`** — must pass. Fresh-DB replay: base has no table → `026` re-creates
+   it (the migration owns the full `CREATE TABLE`, so it now executes for real instead of no-opping) →
+   `027/038/039/040` reshape it → `044` drops it → `after == before` (neither has the table), no errors.
+
+**Why nothing in the migration history is touched:** because `026` owns the entire `CREATE TABLE`,
+removing the table from base is sufficient — `026` just runs for real on a fresh DB and the later
+`ALTER`s have a table to work on. Nothing errors, so nothing needs editing or deleting. (Contrast the
+`dashboards.slug` case in memory `reference_base_schema_vs_drop_migration`, where *base* owned the
+table and a migration only indexed a base column — that one genuinely required touching the old
+migration. Not so here.)
+
+> **Cosmetic cost, accepted:** numbered migrations re-run every startup, so `026` re-creates an empty
+> `share_tokens` that `044` immediately drops again — a few transient DDL ops on an always-empty table,
+> gone before boot completes. Harmless, and the price of fix-forward. Do **not** delete `026` to
+> "optimize" this away — that's rewriting history.
 
 ## Code to delete
 

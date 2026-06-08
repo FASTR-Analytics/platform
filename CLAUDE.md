@@ -329,6 +329,19 @@ When a base convention is wrong or missing, fix it in the panther source and re-
 - It provides UI components and visualization utilities
 - Maintained separately with own licensing
 
+#### Importing panther (and how `lib/` reaches it)
+
+`panther/` ships two entry barrels: `mod.deno.ts` (server/Deno) and `mod.ui.ts` (client/SolidJS). Both re-export the universal `_000_utils/` (string/number helpers, `t3`, etc.); `mod.ui.ts` additionally exports the SolidJS/Canvas UI surface.
+
+Two import specifiers resolve to those barrels, per runtime:
+
+- **`@timroberton/panther`** — the runtime-agnostic specifier. Use this in `lib/` and `server/`.
+  - Deno resolves it via `deno.json` → `imports` → `./panther/mod.deno.ts`.
+  - The client resolves the *same* specifier (it appears in lib code the client bundles) via `client/tsconfig.json` `paths` **and** `client/vite.config.ts` `alias` → `../panther/mod.ui.ts`.
+- **`"panther"`** — client-only shorthand, mapped to `mod.ui.ts` in `client/tsconfig.json`. Use it in `client/` code for the UI surface.
+
+So `lib/` *can* and *does* import panther — always through `@timroberton/panther`, never the bare `"panther"`. Because `lib/` is compiled into **both** the Deno server and the Vite client, anything `lib/` imports from panther must exist in **both** barrels — i.e. only the shared `_000_utils`-level exports (e.g. `capitalizeFirstLetter`, `getAdjustedColor`), not UI-only exports. UI-only symbols belong in `client/` code.
+
 ### Code Style
 
 - **Prefer editing existing files** over creating new ones
