@@ -1,10 +1,18 @@
-[TBD] [user] [fixed] - Charts with multiple tiers no longer display with incorrect scaling
-[TBD] [user] [fixed] - Dashboard and report figures now update correctly after data changes
-[TBD] [user] [fixed] - Chart labels and layout sections no longer appear broken or missing
-[TBD] [admin] [fixed] - Charts in dashboards and reports now display correct axis scaling
-[TBD] [admin] [fixed] - Multi-tier and multi-lane charts no longer overflow or show incorrect limits
-[TBD] [admin] [internal] - Figure block data migrations now apply consistently across slides, dashboards, and reports
-[TBD] [admin] [added] - Email alerts sent when automatic volume resize is triggered
+[1.45.0] [user] [changed] - Quarterly time periods now display in shorter format (e.g., 20231 instead of 202301)
+[1.45.0] [user] [fixed] - Fixed quarterly data not displaying correctly in charts and filters
+[1.45.0] [user] [fixed] - Fixed AI assistant giving incorrect quarter format examples
+[1.45.0] [admin] [changed] - Quarter identifiers now use a shorter 5-digit format (YYYYQ)
+[1.45.0] [admin] [added] - Automatic migration converts existing quarterly data to the new format
+[1.45.0] [admin] [fixed] - Visualization caches automatically refresh after the quarter format update
+[1.45.0] [admin] [fixed] - AI assistant now correctly validates and describes quarterly date ranges
+[1.45.0] [admin] [internal] - New module runs automatically normalize quarterly data on import
+[1.45.0] [user] [fixed] - Charts with multiple tiers no longer display with incorrect scaling
+[1.45.0] [user] [fixed] - Dashboard and report figures now update correctly after data changes
+[1.45.0] [user] [fixed] - Chart labels and layout sections no longer appear broken or missing
+[1.45.0] [admin] [fixed] - Charts in dashboards and reports now display correct axis scaling
+[1.45.0] [admin] [fixed] - Multi-tier and multi-lane charts no longer overflow or show incorrect limits
+[1.45.0] [admin] [internal] - Figure block data migrations now apply consistently across slides, dashboards, and reports
+[1.45.0] [admin] [added] - Email alerts sent when automatic volume resize is triggered
 [1.44.1] [user] [fixed] - Indicator status no longer shows "0 ready" unnecessarily
 [1.44.1] [admin] [fixed] - Indicator status no longer shows "0 ready" unnecessarily
 [1.44.1] [user] [added] - Split view mode shows editor and preview side by side
