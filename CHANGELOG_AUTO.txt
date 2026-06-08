@@ -1,3 +1,7 @@
+[TBD] [user] [added] - AI can now set open-ended time period filters on charts
+[TBD] [user] [fixed] - AI clearing a time period filter now properly shows all dates
+[TBD] [admin] [added] - AI can now set open-ended time period filters on visualizations
+[TBD] [admin] [fixed] - AI clearing a period filter no longer leaves an empty custom filter
 [TBD] [user] [fixed] - Fixed time period filters sometimes not applying correctly when date ranges use mixed formats
 [TBD] [admin] [fixed] - Period filters now validate both bounds consistently before querying
 [1.46.0] [user] [fixed] - Charts now correctly show percent formatting when all displayed indicators are percentages
