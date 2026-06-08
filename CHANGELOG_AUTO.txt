@@ -1,3 +1,8 @@
+[TBD] [user] [fixed] - Time period filters now automatically detect the correct date format
+[TBD] [user] [fixed] - Date range filters no longer fail when mixing monthly, quarterly, and yearly periods
+[TBD] [admin] [changed] - Time period filters now auto-detect their format from values
+[TBD] [admin] [fixed] - Period filter mismatches between different time formats resolved automatically
+[TBD] [admin] [internal] - Removed redundant period format tags from stored filter configurations
 [1.45.0] [user] [changed] - Quarterly time periods now display in shorter format (e.g., 20231 instead of 202301)
 [1.45.0] [user] [fixed] - Fixed quarterly data not displaying correctly in charts and filters
 [1.45.0] [user] [fixed] - Fixed AI assistant giving incorrect quarter format examples
