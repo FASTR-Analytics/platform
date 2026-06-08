@@ -53,6 +53,13 @@ function buildIndicatorSortOrder(metadata: IndicatorMetadata[]): string[] {
     .flatMap((m) => [m.id, m.label]);
 }
 
+// Charts/timeseries format every value with the single metric-level `formatAs`
+// (unlike tables, which read per-indicator `format_as`). When every indicator
+// is a percent, the whole figure is percent, so treat the metric as percent.
+function allIndicatorsPercent(metadata: IndicatorMetadata[]): boolean {
+  return metadata.length > 0 && metadata.every((m) => m.format_as === "percent");
+}
+
 export function getFigureInputsFromPresentationObject(
   resultsValue: ResultsValueForVisualization,
   ih: ItemsHolderPresentationObject,
@@ -65,6 +72,12 @@ export function getFigureInputsFromPresentationObject(
   }
 
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(ih.indicatorMetadata);
+
+  const effectiveFormatAs: "percent" | "number" = allIndicatorsPercent(
+    ih.indicatorMetadata,
+  )
+    ? "percent"
+    : (resultsValue.formatAs ?? "number");
 
   const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(config, {
     dateRange: ih.dateRange,
@@ -118,8 +131,8 @@ export function getFigureInputsFromPresentationObject(
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
-          legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
+          style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
+          legend: getLegendFromConfig(config, effectiveFormatAs),
         },
       };
     }
@@ -169,8 +182,8 @@ export function getFigureInputsFromPresentationObject(
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
-          legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
+          style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
+          legend: getLegendFromConfig(config, effectiveFormatAs),
         },
       };
     }
@@ -204,8 +217,8 @@ export function getFigureInputsFromPresentationObject(
           ),
           ih.dateRange,
         ),
-        style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
-        legend: getLegendFromConfig(config, resultsValue.formatAs ?? "number"),
+        style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
+        legend: getLegendFromConfig(config, effectiveFormatAs),
       };
 
       if (effectiveConfig.s.horizontal) {
@@ -305,8 +318,8 @@ export function getFigureInputsFromPresentationObject(
             ),
             ih.dateRange,
           ),
-          style: getStyleFromPresentationObject(config, resultsValue.formatAs ?? "number", undefined, ih.indicatorMetadata),
-          legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, resultsValue.formatAs ?? "number"),
+          style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
+          legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormatAs),
         },
       };
     }
