@@ -15,7 +15,7 @@
 // ============================================================================
 
 import { z } from "zod";
-import { isPeriodId, isQuarterId, isYear } from "@timroberton/panther";
+import { getPeriodTypeFromValue, type PeriodType } from "@timroberton/panther";
 import { cfStorageSchema } from "./conditional_formatting.ts";
 import { ALL_DISAGGREGATION_OPTIONS } from "./disaggregation_options.ts";
 
@@ -48,28 +48,43 @@ export const disaggregationDisplayOptionSchema = z.enum([
   "mapArea",
 ]);
 
-// Period value validators (internal, used by schema refinement) — delegate to
-// panther's predicates, the single source of truth for the disjoint
-// year (YYYY) / quarter_id (YYYYQ) / period_id (YYYYMM) ranges. A stray
-// old-format YYYY0Q quarter (e.g. 202304) now fails isQuarterId — the deliberate
-// tripwire for any source still emitting the 6-digit format.
-function isValidPeriodValue(
-  v: number,
-  periodOpt: "period_id" | "quarter_id" | "year",
-): boolean {
-  switch (periodOpt) {
+// wb-fastr names periods by their DB column (period_id / quarter_id / year);
+// panther names them by PeriodType (year-month / year-quarter / year). These two
+// functions are the single boundary between the two vocabularies.
+export function periodOptionToPeriodType(opt: PeriodOption): PeriodType {
+  switch (opt) {
     case "period_id":
-      return isPeriodId(v);
+      return "year-month";
     case "quarter_id":
-      return isQuarterId(v);
+      return "year-quarter";
     case "year":
-      return isYear(v);
+      return "year";
   }
+}
+
+export function periodTypeToPeriodOption(pt: PeriodType): PeriodOption {
+  switch (pt) {
+    case "year-month":
+      return "period_id";
+    case "year-quarter":
+      return "quarter_id";
+    case "year":
+      return "year";
+  }
+}
+
+// Self-identifying period format: a stored value carries its own unit (the three
+// ranges are disjoint). Panther classifies the magnitude; we name the column.
+// Returns undefined for out-of-range/invalid values; never throws.
+export function inferPeriodFormatFromValue(
+  v: number,
+): PeriodOption | undefined {
+  const pt = getPeriodTypeFromValue(v);
+  return pt === undefined ? undefined : periodTypeToPeriodOption(pt);
 }
 
 // Strict period filter schema — each filterType has exactly the fields it requires
 const boundedFilterBase = z.object({
-  periodOption: periodOption,
   min: z.number().int(),
   max: z.number().int(),
 });
@@ -109,11 +124,14 @@ export const periodFilterSchema = periodFilterUnion
       if (filter.filterType !== "custom" && filter.filterType !== "from_month") {
         return true;
       }
-      const { periodOption: pOpt, min, max } = filter;
+      // Tag-free + stronger: both bounds must be valid and the same format.
+      const fMin = inferPeriodFormatFromValue(filter.min);
+      const fMax = inferPeriodFormatFromValue(filter.max);
       return (
-        isValidPeriodValue(min, pOpt) &&
-        isValidPeriodValue(max, pOpt) &&
-        min <= max
+        fMin !== undefined &&
+        fMax !== undefined &&
+        fMin === fMax &&
+        filter.min <= filter.max
       );
     },
     {

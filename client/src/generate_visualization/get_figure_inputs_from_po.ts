@@ -2,6 +2,7 @@ import {
   FigureInputs,
   PeriodType,
   formatPeriod,
+  getPeriodTypeFromValue,
   getTimeseriesDataTransformed,
   t3,
   type GeoJSONFeatureCollection,
@@ -374,12 +375,7 @@ function withDateRange(
     return str;
   }
   const calendar = getCalendar();
-  const periodType: PeriodType =
-    dateRange.periodOption === "period_id"
-      ? "year-month"
-      : dateRange.periodOption === "quarter_id"
-        ? "year-quarter"
-        : "year";
+  const periodType: PeriodType = getPeriodTypeFromValue(dateRange.min) ?? "year";
   if (dateRange.min === dateRange.max) {
     const d = formatPeriod(dateRange.min, periodType, calendar);
     return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d);

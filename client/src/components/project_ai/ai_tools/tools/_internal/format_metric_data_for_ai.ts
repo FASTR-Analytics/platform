@@ -9,10 +9,9 @@ import {
   GenericLongFormFetchConfig,
   ICEH_STRAT_INFO,
   ItemsHolderPresentationObject,
-  PeriodOption,
+  inferPeriodFormatFromValue,
   periodFilterHasBounds,
 } from "lib";
-import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
@@ -20,20 +19,10 @@ import { poItemsQueue } from "~/state/_infra/request_queue";
 export function inferPeriodFilter(
   startDate: number | undefined,
   endDate: number | undefined,
-  disaggregations?: string[],
-): { filterType: "custom"; periodOption: PeriodOption; min: number; max: number } | undefined {
+): { filterType: "custom"; min: number; max: number } | undefined {
   if (startDate == null || endDate == null) return undefined;
-  const timeDis = disaggregations?.find(
-    (d) => d === "period_id" || d === "quarter_id" || d === "year",
-  );
-  if (timeDis) {
-    return { filterType: "custom", periodOption: timeDis as PeriodOption, min: startDate, max: endDate };
-  }
-  const digits = String(startDate).length;
-  if (digits <= 4) {
-    return { filterType: "custom", periodOption: "year", min: startDate, max: endDate };
-  }
-  return { filterType: "custom", periodOption: "period_id", min: startDate, max: endDate };
+  // The value self-identifies its format downstream — no periodOption needed.
+  return { filterType: "custom", min: startDate, max: endDate };
 }
 
 export async function getMetricDataForAI(
@@ -56,23 +45,10 @@ export async function getMetricDataForAI(
     disOpt: DisaggregationOption;
     values: (string | number)[];
   }[];
-  let periodFilter = inferPeriodFilter(startDate, endDate, inputDisaggregations);
+  const periodFilter = inferPeriodFilter(startDate, endDate);
 
   const metric = metrics.find((m) => m.id === metricId);
   if (!metric) throw new Error(`Metric "${metricId}" not found`);
-
-  // Convert period filter to a format the metric supports
-  if (periodFilter && metric.mostGranularTimePeriodColumnInResultsFile !== undefined) {
-    if (metric.mostGranularTimePeriodColumnInResultsFile !== periodFilter.periodOption) {
-      const targetOption = metric.mostGranularTimePeriodColumnInResultsFile;
-      periodFilter = {
-        filterType: "custom",
-        periodOption: targetOption,
-        min: convertPeriodValue(periodFilter.min, targetOption, false),
-        max: convertPeriodValue(periodFilter.max, targetOption, true),
-      };
-    }
-  }
 
   // Auto-merge required disaggregations (AI doesn't need to specify them)
   const requiredDisaggregationOptions = metric.disaggregationOptions
@@ -178,7 +154,7 @@ function formatItemsAsMarkdown(
   metric: MetricWithStatus,
   disaggregations: DisaggregationOption[],
   filters?: { disOpt: DisaggregationOption; values: (string | number)[] }[],
-  periodFilter?: { filterType: "custom"; periodOption: PeriodOption; min: number; max: number },
+  periodFilter?: { filterType: "custom"; min: number; max: number },
   aiDescription?: MetricAIDescription,
   indicatorMetadata?: IndicatorMetadata[],
 ): string {
@@ -257,14 +233,14 @@ function formatItemsAsMarkdown(
 
   if (periodFilter) {
     lines.push(
-      `**Period filter:** ${periodFilter.periodOption} from ${periodFilter.min} to ${periodFilter.max}`,
+      `**Period filter:** ${inferPeriodFormatFromValue(periodFilter.min) ?? "unknown"} from ${periodFilter.min} to ${periodFilter.max}`,
     );
     lines.push("");
   }
 
   if (itemsHolder.dateRange) {
     lines.push(
-      `**Time range in data:** ${itemsHolder.dateRange.periodOption} (${itemsHolder.dateRange.min} to ${itemsHolder.dateRange.max})`,
+      `**Time range in data:** ${inferPeriodFormatFromValue(itemsHolder.dateRange.min) ?? "unknown"} (${itemsHolder.dateRange.min} to ${itemsHolder.dateRange.max})`,
     );
     lines.push("");
   }

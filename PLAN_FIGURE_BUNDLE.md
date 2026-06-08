@@ -75,15 +75,15 @@ So: a **Visualization** is the live thing; a **Figure** is a frozen capture of o
 | `stripFigureInputsForStorage` / `hydrateFigureInputsForRendering*` | **deleted** — subsumed by `buildFigureInputs` |
 | `getFigureInputsFromPresentationObject` | `buildFigureInputs(bundle, deckStyle?)` |
 
-### Out of scope for v1 (separable rename pass — **[DECIDE]** whether to do at all)
+### Out of scope (separable rename pass — **decided 2026-06-08: deferred, do the refactor first**)
 
 Renaming **Visualization** end-to-end (`presentation_objects` table, `/presentation_objects` routes,
 `PresentationObjectConfig`, `ItemsHolderPresentationObject`, dozens of files) is a large mechanical
 sweep with no behavior change — like `PLAN_SNAPSHOT_NAMING.md`, it should be its own focused PR, not
-bundled with this feature. **Recommendation:** adopt "Visualization" as the conceptual/UI term now,
-keep `PresentationObjectConfig` as the config type name for v1, and schedule the full rename
-separately. We rationalize the names we're already rewriting (the figure side); we don't sprawl into
-the orthogonal sweep.
+bundled with this feature. **Decided:** do the bundle refactor first; keep `PresentationObjectConfig`
+and the PO names as-is for now; revisit the full Visualization rename as a later standalone pass. We
+rationalize the names we're already rewriting (the figure side); we don't sprawl into the orthogonal
+sweep.
 
 ## 4. Live vs snapshot — where the bundle applies (Consideration 1)
 
@@ -175,32 +175,73 @@ storing the whole metric re-introduces the coupling we're removing.
    re-opens the desync.
 4. **`FigureInputs` is transient** — built at render, handed to panther, never persisted.
 
-## 8. The one real decision: snapshot immutability **[DECIDE]**
+## 8. Snapshot immutability — make the environment an explicit input
 
-`buildFigureInputs` reads ~5 ambient globals (`countryIso3`, calendar, UI language, the indicator
-sort order, `formatAs`). Re-deriving at render makes a figure's **text / sort / period-format** track
-*current* instance state. A 6-month-old share could re-localize or re-format if those change. This is
-the inverse of today's drift (frozen-blob drift → live-render drift).
+Beyond the bundle's `config` + `items`, `buildFigureInputs` also reads a handful of instance-wide
+**environment** values to finish the figure:
 
-- **Option A — accept live re-derivation (recommended default).** Simpler; arguably *correct*
-  (auto-retranslate, auto-reformat). Note language is *already* live per-session today, so frozen
-  captions are already a latent inconsistency, not a guarantee.
-- **Option B — snapshot the globals.** Add `renderContext` to the bundle (§6) and have
-  `buildFigureInputs` prefer it over ambient state. Guarantees byte-identical-forever published
-  artifacts at the cost of a few more stored fields.
+| Environment value | Affects |
+|---|---|
+| `countryIso3` | replicant label substitution + Nigeria admin-area relabeling (instance-fixed) |
+| calendar (Gregorian/Ethiopian) | how periods are written ("2024 Q1", Ethiopian months) (instance-fixed) |
+| UI language (EN/FR) | every translated string ("National", "No data"/"Aucune donnée", "to"/"à") (already live per-session today) |
 
-**Recommendation:** ship **Option A**, structure `buildFigureInputs` so the globals enter through a
-single context argument, so Option B is a later additive change (populate the context from the bundle
-instead of ambient state) rather than a rewrite.
+NOT ambient (don't list them as environment): `formatAs` / `valueProps` / `valueLabelReplacements`
+and **scorecard indicator sort** (`indicatorMetadata.sort_order`) live **in the bundle**, frozen. The
+**common-indicator axis sort** (`get_INDICATOR_COMMON_IDS_IN_SORT_ORDER`) is a static code constant
+(`_COMMON_INDICATORS`), not instance/viewer state — changes only on deploy, and you'd want that to
+propagate. So the real ambient surface is just country/calendar/language, all instance-fixed or
+already-live.
+
+Today the baked `FigureInputs` freezes these *into the text and ordering* at capture. Rebuilding at
+render recomputes text/order from whatever the environment is **now**. So the choice is whether a
+stored figure should **re-localize/re-order to match current settings (A)** or stay **frozen as
+captured (B)**:
+
+- **A** is what you want when you flip the instance to French or fix a bad sort order in a deploy —
+  old slides should pick it up. (Language is *already* live today, so this is partly the status quo.)
+- **B** is what you want for a report PDF sent to a minister — identical if reopened next year.
+
+**The decision is not A-vs-B-forever.** Make the environment an **explicit argument** to
+`buildFigureInputs` instead of letting the function read ambient globals. Then in-app render passes
+the **current** environment (→ A) and a public/export/share render can pass an environment **frozen
+into the bundle** (→ B) — choosable **per surface**, with B as a purely additive later change
+(also store the 4 values, pass those). **Decided default:** ship A everywhere now; the only firm
+commitment is making the dependency explicit so B is available later without a rewrite.
 
 ## 9. Other open questions / risks
 
-- **Backfilling existing snapshots.** We have the old `figureInputs` + `config` + `metricId`, but
-  **not** the frozen `items` (the transform is forward-only/lossy). Options: (a) re-query items via
-  stored `config`+`metricId` at backfill time — faithful only if data hasn't moved; (b) keep the
-  legacy "render baked figureInputs" path for pre-existing blocks and use bundles only for new ones,
-  retiring legacy as snapshots get refreshed; (c) one-time rebuild. **[DECIDE]** in the migration
-  plan; the vision doesn't depend on which.
+- **Backfilling existing snapshots (the hard one — but only for one figure type).** We have the old
+  `figureInputs` + `config` + `metricId`, but not the frozen `items`. **Key finding:** chart/table/map
+  already store the raw rows in the blob — `figureInputs.{tableData|chartData|chartOHData|mapData}
+  .jsonArray` *is* `ih.items`, and `stripFigureInputsForStorage` doesn't strip it. **Only timeseries**
+  stores the transformed grid and discards the rows. So:
+  - **chart/table/map → in-place backfill** from `jsonArray` (+ `valueProps` from the stored
+    `jsonDataConfig`). No re-query, no data-change risk, **value-exact**.
+  - **timeseries → re-query** via `config`+`metricId`, **pinned to the stored `dateRange`** (pass it
+    as `periodFilterExactBounds`, which `getPresentationObjectItems` already accepts — do NOT replay a
+    relative period filter, which would drift forward) and to the captured indicator set. This fixes
+    the *scope* (same periods, same indicators) exactly. **Decided 2026-06-08: re-query all and be
+    done — no dual-read, no retained legacy render / `transformFigureInputs`.** Caveat: re-query fixes
+    scope, not *values* — if the module re-ran since capture, numbers update to current (identical in
+    the common case where it hasn't). Only chart/table/map in-place backfill is value-exact.
+  - **Orphan tail → blank placeholder (DECIDED 2026-06-08).** Timeseries figures whose metric isn't
+    installed in their project can't be re-queried and have no `jsonArray`. **Decision: replace the
+    block with the empty-figure placeholder `{ type: "figure" }` (no bundle) — NO retained legacy
+    `figureInputs` path for <1% of figures.** The render already turns an empty figure into a spacer
+    (convert_slide_to_page_inputs.ts:553-566), so this is graceful in editor/export/viewer.
+    **Empirically sized (full prod sweep, 2026-06-08):** of **16,689** stored figures across 29
+    instances, **12,421 are timeseries**, and only **72 (0.58%)** are orphaned — all in **slides**,
+    referencing just two metric IDs (`m4-01-01`/`m4-02-01`, module m004 coverage), concentrated in
+    ghana (56), guinee (10), cameroun (6). These are NOT deleted metrics — m004 still exists and runs
+    in dozens of projects; these 3 GFF/R4D projects just don't have m004 installed (cloned slide decks
+    / dropped module). Backfill workload: ~12.4k one-time timeseries re-queries; chart/table/map
+    (4,261) backfill in-place from `jsonArray`, value-exact. **Bonus:** the sweep found **0** figures
+    with no `source.config` — upstream config is universal in prod, confirming `FigureSource.custom` is
+    dead and `figureInputs` is never a sole representation.
+
+  Reverse-engineering items from the timeseries grid is a rejected option (reconstructs from the
+  transformed shape we don't trust; query-time aggregation may not round-trip).
 - **Items volume for shares.** `MAX_ITEMS` (20k) bounds a single figure, but public/share bundles
   frozen in `main` with many replicant figures inline raw rows. Verify payload sizes are acceptable
   (timeseries usually *shrinks* — the dense 5-D `values` grid is often bigger than the sparse items).

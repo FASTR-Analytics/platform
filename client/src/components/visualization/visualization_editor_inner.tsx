@@ -227,7 +227,6 @@ export function VisualizationEditorInner(p: InnerProps) {
       periodFilterHasBounds(tempConfig.d.periodFilter)
         ? tempConfig.d.periodFilter
         : undefined;
-    const _periodFilterOpt = _periodFilterBounded?.periodOption;
     const _periodFilterMin = _periodFilterBounded?.min;
     const _periodFilterMax = _periodFilterBounded?.max;
     const _valuesFilter = tempConfig.d.valuesFilter?.join("-");

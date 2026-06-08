@@ -1,4 +1,4 @@
-import { PeriodBounds, PeriodFilter, PeriodOption, t3 } from "lib";
+import { inferPeriodFormatFromValue, PeriodBounds, PeriodFilter, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -27,7 +27,6 @@ type EditableFilter = {
   nMonths?: number;
   nYears?: number;
   nQuarters?: number;
-  periodOption: PeriodOption;
   min: number;
   max: number;
 };
@@ -38,7 +37,6 @@ function toPeriodFilter(e: EditableFilter): NonNullable<PeriodFilter> {
     case "from_month":
       return {
         filterType: e.filterType,
-        periodOption: e.periodOption,
         min: e.min,
         max: e.max,
       };
@@ -63,7 +61,6 @@ export function EditCommonPropertiesModal(
   const [tempPeriodFilter, setTempPeriodFilter] = createStore<EditableFilter>({
     filterType: "last_n_months",
     nMonths: 12,
-    periodOption: p.periodBounds?.periodOption ?? "period_id",
     min: p.periodBounds?.min ?? 0,
     max: p.periodBounds?.max ?? 100,
   });
@@ -123,7 +120,6 @@ export function EditCommonPropertiesModal(
                 setTempPeriodFilter({
                   filterType: "last_n_months",
                   nMonths: 12,
-                  periodOption: p.periodBounds.periodOption,
                   min: p.periodBounds.min,
                   max: p.periodBounds.max,
                 });
@@ -139,7 +135,7 @@ export function EditCommonPropertiesModal(
                 if (ft === "last_calendar_quarter") return "last_n_calendar_quarters";
                 return ft;
               };
-              const periodOption = keyedBounds.periodOption;
+              const periodOption = inferPeriodFormatFromValue(keyedBounds.min);
               return (
                 <div class="ui-spy-sm pb-4 pl-4">
                   <RadioGroup
@@ -298,7 +294,7 @@ export function EditCommonPropertiesModal(
                     <Match
                       when={
                         tempPeriodFilter?.filterType === "custom" &&
-                        p.periodBounds?.periodOption === "period_id"
+                        periodOption === "period_id"
                       }
                     >
                       <div class="ui-gap-sm ui-pad border-base-300 rounded border">
@@ -327,7 +323,7 @@ export function EditCommonPropertiesModal(
                     <Match
                       when={
                         tempPeriodFilter?.filterType === "custom" &&
-                        p.periodBounds?.periodOption === "year"
+                        periodOption === "year"
                       }
                     >
                       <div class="ui-gap-sm ui-pad border-base-300 rounded border">

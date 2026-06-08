@@ -99,7 +99,6 @@ const disaggregationDisplayOptionGithub = z.enum([
 
 // Strict period filter schema — each filterType has exactly the fields it requires
 const boundedFilterBaseGithub = z.object({
-  periodOption: periodOptionGithub,
   min: z.number().int(),
   max: z.number().int(),
 });

@@ -1,5 +1,6 @@
 import {
   getDisaggregationLabel,
+  inferPeriodFormatFromValue,
   periodFilterHasBounds,
   type PresentationObjectConfig,
   type ResultsValue,
@@ -53,7 +54,7 @@ export function formatVizEditorForAI(
   if (config.d.periodFilter) {
     const pf = config.d.periodFilter;
     if (periodFilterHasBounds(pf)) {
-      lines.push(`Period filter: ${pf.periodOption} from ${pf.min} to ${pf.max}`);
+      lines.push(`Period filter: ${inferPeriodFormatFromValue(pf.min) ?? "unknown"} from ${pf.min} to ${pf.max}`);
     } else {
       const nPart =
         pf.filterType === "last_n_months" ? `${pf.nMonths} months` :

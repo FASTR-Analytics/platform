@@ -2,10 +2,10 @@ import {
   MAX_CONTENT_BLOCKS,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
+  inferPeriodFormatFromValue,
   type AiMetricQuery,
   type DisaggregationOption,
   type MetricWithStatus,
-  type PeriodOption,
 } from "lib";
 import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
@@ -174,7 +174,7 @@ export async function validateMetricInputs(
   projectId: string,
   metricId: string,
   filters?: { disOpt: DisaggregationOption; values: (string | number)[] }[],
-  periodFilter?: { periodOption: PeriodOption; min: number; max: number },
+  periodFilter?: { min: number; max: number },
 ): Promise<void> {
   if (!filters?.length && !periodFilter) return;
 
@@ -199,13 +199,16 @@ export async function validateMetricInputs(
 
   if (periodFilter && metricInfoRes.data.periodBounds) {
     const bounds = metricInfoRes.data.periodBounds;
-    const filterMin = convertPeriodValue(periodFilter.min, bounds.periodOption, false);
-    const filterMax = convertPeriodValue(periodFilter.max, bounds.periodOption, true);
-    if (filterMax < bounds.min || filterMin > bounds.max) {
-      throw new Error(
-        `Date range ${periodFilter.min}-${periodFilter.max} is outside available data ` +
-        `${bounds.min}-${bounds.max} (${bounds.periodOption} format).`
-      );
+    const boundsFmt = inferPeriodFormatFromValue(bounds.min);
+    if (boundsFmt !== undefined) {
+      const filterMin = convertPeriodValue(periodFilter.min, boundsFmt, false);
+      const filterMax = convertPeriodValue(periodFilter.max, boundsFmt, true);
+      if (filterMax < bounds.min || filterMin > bounds.max) {
+        throw new Error(
+          `Date range ${periodFilter.min}-${periodFilter.max} is outside available data ` +
+          `${bounds.min}-${bounds.max} (${boundsFmt} format).`
+        );
+      }
     }
   }
 }

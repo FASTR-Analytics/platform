@@ -11,6 +11,7 @@ import {
   ResultsValueForVisualization,
   getDisaggregatorDisplayProp,
   get_INDICATOR_COMMON_IDS_IN_SORT_ORDER,
+  periodOptionToPeriodType,
   t3,
   TC,
 } from "lib";
@@ -84,12 +85,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
     throw new Error("Timeseries config missing timeseriesGrouping");
   }
 
-  const periodType =
-    config.d.timeseriesGrouping === "period_id"
-      ? "year-month"
-      : config.d.timeseriesGrouping === "quarter_id"
-        ? "year-quarter"
-        : "year";
+  const periodType = periodOptionToPeriodType(config.d.timeseriesGrouping);
 
   return {
     valueProps: effectiveValueProps,

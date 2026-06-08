@@ -4,7 +4,7 @@ import {
 } from "./get_fetch_config_from_po.ts";
 import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
-import type { PeriodOption } from "./types/_metric_installed.ts";
+import { inferPeriodFormatFromValue } from "./types/_metric_installed.ts";
 
 export function normalizePOConfigForStorage(
   config: PresentationObjectConfig
@@ -43,7 +43,7 @@ const TIME_COLUMNS = new Set<string>(["period_id", "quarter_id", "year", "month"
 export function getEffectivePOConfig(
   config: PresentationObjectConfig,
   context?: {
-    dateRange?: { periodOption: PeriodOption; min: number; max: number };
+    dateRange?: { min: number; max: number };
     valueProps?: string[];
   }
 ): EffectivePOConfigResult {
@@ -51,11 +51,14 @@ export function getEffectivePOConfig(
   const valueProps = context?.valueProps;
 
   const singlePeriod = dateRange && dateRange.min === dateRange.max;
+  const dateRangeFmt = dateRange
+    ? inferPeriodFormatFromValue(dateRange.min)
+    : undefined;
   const singleYear =
     dateRange &&
-    (dateRange.periodOption === "year"
+    (dateRangeFmt === "year"
       ? dateRange.min === dateRange.max
-      : dateRange.periodOption === "quarter_id"
+      : dateRangeFmt === "quarter_id"
         ? Math.floor(dateRange.min / 10) === Math.floor(dateRange.max / 10)
         : Math.floor(dateRange.min / 100) === Math.floor(dateRange.max / 100));
 

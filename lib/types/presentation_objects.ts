@@ -61,7 +61,6 @@ export type PresentationObjectDetail = {
 };
 
 export type PeriodBounds = {
-  periodOption: PeriodOption;
   min: number;
   max: number;
 };

@@ -92,7 +92,6 @@ export function buildConfigFromPreset(
     const targetPeriodOption = resultsValue.mostGranularTimePeriodColumnInResultsFile;
     config.d.periodFilter = {
       filterType: "custom",
-      periodOption: targetPeriodOption,
       min: convertPeriodValue(input.startDate, targetPeriodOption, false),
       max: convertPeriodValue(input.endDate, targetPeriodOption, true),
     };

@@ -14,7 +14,7 @@ import {
   type ResultsValueInfoForPresentationObject,
 } from "./types/presentation_objects.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
-import type { PeriodOption } from "./types/_metric_installed.ts";
+import { inferPeriodFormatFromValue, type PeriodOption } from "./types/_metric_installed.ts";
 import type { ResultsValue } from "./types/modules.ts";
 import type { APIResponseWithData } from "./types/instance.ts";
 import { getCalendar } from "./translate/mod.ts";
@@ -82,6 +82,23 @@ export function getFetchConfigFromPresentationObjectConfig(
   };
 }
 
+// Re-express a period value in `fmt`, anchored to the start of its year when the
+// source format differs (the finest alignment we can honor). Used to keep both
+// bounds the same self-identified format; returns the value unchanged when already
+// aligned or when the target format is unknown.
+function reAnchorToFormat(value: number, fmt: PeriodOption | undefined): number {
+  const src = inferPeriodFormatFromValue(value);
+  if (fmt === undefined || src === fmt) {
+    return value;
+  }
+  const year = src === "year"
+    ? value
+    : src === "quarter_id"
+    ? Math.floor(value / 10)
+    : Math.floor(value / 100);
+  return fmt === "year" ? year : fmt === "quarter_id" ? year * 10 + 1 : year * 100 + 1;
+}
+
 export function getPeriodFilterExactBounds(
   periodFilter: PeriodFilter | undefined,
   periodBounds: PeriodBounds | undefined,
@@ -90,25 +107,22 @@ export function getPeriodFilterExactBounds(
     return periodBounds;
   }
   if (periodFilter.filterType === "custom") {
-    return periodFilter;
+    return { min: periodFilter.min, max: periodFilter.max };
   }
   if (periodBounds === undefined) {
     return undefined;
   }
-  if (periodBounds.periodOption === "year") {
+  // The live data's format — bounds inherit it; the removed periodOption tag.
+  const fmt = inferPeriodFormatFromValue(periodBounds.max);
+  if (fmt === "year") {
     const max = periodBounds.max;
-    const min = max;
-    return {
-      periodOption: "year",
-      min,
-      max,
-    };
+    return { min: max, max };
   }
 
   // TODO: Calendar-based filters are hidden in UI for quarter_id data (see _2_filters.tsx:236-250).
   // This code path is unreachable. Either implement the feature or remove this block.
   if (
-    periodBounds.periodOption === "quarter_id" &&
+    fmt === "quarter_id" &&
     (periodFilter.filterType === "last_calendar_year" ||
       periodFilter.filterType === "last_calendar_quarter" ||
       periodFilter.filterType === "last_n_calendar_years" ||
@@ -124,18 +138,13 @@ export function getPeriodFilterExactBounds(
     }
     const time = getTimeFromPeriodId(periodBounds.max, "year-month");
     const min = getPeriodIdFromTime(time - (nMonths - 1), "year-month");
-    return {
-      periodOption: periodBounds.periodOption,
-      min,
-      max: periodBounds.max,
-    };
+    return { min, max: periodBounds.max };
   }
   if (periodFilter.filterType === "from_month") {
-    return {
-      periodOption: periodBounds.periodOption,
-      min: periodFilter.min,
-      max: periodBounds.max,
-    };
+    // Re-anchor a drifted stored min to the live data's format so both bounds
+    // self-identify as the same format (otherwise the period column is ambiguous).
+    const min = reAnchorToFormat(periodFilter.min, fmt);
+    return { min, max: periodBounds.max };
   }
   if (
     periodFilter.filterType === "last_calendar_year" ||
@@ -149,15 +158,11 @@ export function getPeriodFilterExactBounds(
       throw new Error(`nYears must be between 1 and 10, got ${nYears}`);
     }
     if (nYears === 1) {
-      return { periodOption: periodBounds.periodOption, ...bounds };
+      return { ...bounds };
     }
     const startTime = getTimeFromPeriodId(bounds.min, "year-month");
     const extendedMin = getPeriodIdFromTime(startTime - (nYears - 1) * 12, "year-month");
-    return {
-      periodOption: periodBounds.periodOption,
-      min: extendedMin,
-      max: bounds.max,
-    };
+    return { min: extendedMin, max: bounds.max };
   }
   if (
     periodFilter.filterType === "last_calendar_quarter" ||
@@ -171,15 +176,11 @@ export function getPeriodFilterExactBounds(
       throw new Error(`nQuarters must be between 1 and 20, got ${nQuarters}`);
     }
     if (nQuarters === 1) {
-      return { periodOption: periodBounds.periodOption, ...bounds };
+      return { ...bounds };
     }
     const startTime = getTimeFromPeriodId(bounds.min, "year-month");
     const extendedMin = getPeriodIdFromTime(startTime - (nQuarters - 1) * 3, "year-month");
-    return {
-      periodOption: periodBounds.periodOption,
-      min: extendedMin,
-      max: bounds.max,
-    };
+    return { min: extendedMin, max: bounds.max };
   }
   throw new Error("Should not happen");
 }
@@ -262,7 +263,6 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
     fc.periodFilter?.filterType === "last_n_months" ? fc.periodFilter.nMonths.toString() : "",
     fc.periodFilter?.filterType === "last_n_calendar_years" ? fc.periodFilter.nYears.toString() : "",
     fc.periodFilter?.filterType === "last_n_calendar_quarters" ? fc.periodFilter.nQuarters.toString() : "",
-    fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.periodOption : "",
     fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.min.toString() : "",
     fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.max.toString() : "",
     fc.postAggregationExpression ?? "",

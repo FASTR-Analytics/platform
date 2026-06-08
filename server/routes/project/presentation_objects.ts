@@ -660,7 +660,6 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           body.fetchConfig.periodFilter &&
             periodFilterHasBounds(body.fetchConfig.periodFilter)
             ? {
-                periodOption: body.fetchConfig.periodFilter.periodOption,
                 min: body.fetchConfig.periodFilter.min,
                 max: body.fetchConfig.periodFilter.max,
               }
