@@ -1,45 +1,45 @@
-[TBD] [user] [changed] - "Include National results" checkbox now shows the relevant geographic level name when results are scoped to a specific area
-[TBD] [user] [fixed] - Removed orphaned visualizations that could appear after modules were updated or uninstalled
-[TBD] [admin] [fixed] - Orphaned visualizations are now automatically cleaned up when modules change
-[TBD] [admin] [changed] - Rollup checkbox label now reflects the actual parent geographic level
-[TBD] [user] [changed] - All users can now access the Assets page
-[TBD] [user] [added] - Assets are now organized into folders by file type
-[TBD] [user] [added] - Each asset now shows who uploaded it
-[TBD] [user] [changed] - Any user can upload assets, not just admins
-[TBD] [user] [changed] - Users can delete their own uploaded assets
-[TBD] [user] [fixed] - Asset list now refreshes automatically after uploading or deleting
-[TBD] [admin] [changed] - All users can now view and upload assets
-[TBD] [admin] [changed] - Assets are now grouped by file type in collapsible folders
-[TBD] [admin] [added] - Asset files now show who uploaded them
-[TBD] [admin] [changed] - Users can delete their own uploaded assets
-[TBD] [admin] [changed] - Only admins can bulk-delete other users' assets
-[TBD] [admin] [changed] - The "Configure assets" permission has been removed
-[TBD] [admin] [fixed] - Asset list now refreshes automatically after upload or deletion
-[TBD] [user] [added] - Export dashboards as Excel files with table data
-[TBD] [user] [added] - Download table visualizations as CSV with formatted values
-[TBD] [user] [added] - "Include National results" now works for all admin area levels, not just admin area 2
-[TBD] [user] [added] - Roll-up row label shows parent area name when filtered to a single area
-[TBD] [user] [changed] - Editing a dashboard item that gains a disaggregation now prompts to expand into a replicant group
-[TBD] [user] [changed] - Switching or editing a replicant group that changes dimensions now shows a confirmation dialog with progress
-[TBD] [user] [changed] - Replicant groups can now collapse back to a single figure when disaggregation is removed
-[TBD] [user] [removed] - Removed visualization share links feature and "Share links" button from project view
-[TBD] [user] [removed] - Removed share link count badges from visualization cards
-[TBD] [admin] [added] - Dashboard export to Excel (.xlsx) with one sheet per table figure
-[TBD] [admin] [added] - Download table data as CSV from the visualization editor
-[TBD] [admin] [added] - "Include National results" rollup now works for all admin area levels, not just admin area 2
-[TBD] [admin] [added] - Editing a dashboard item can now expand it into a replicant group or collapse a group into a single item
-[TBD] [admin] [added] - Confirmation dialog shown when dashboard edits change an item's structure (expand, collapse, or rebuild)
-[TBD] [admin] [changed] - Rollup row label now shows the parent admin area name when filtered to a single parent
-[TBD] [admin] [changed] - Dashboard item reordering is more reliable for large replicant groups
-[TBD] [admin] [removed] - Removed visualization share links feature and "Share links" button from project view
-[TBD] [admin] [removed] - Removed shared link count badges from visualization cards
-[TBD] [admin] [fixed] - Dashboard group edits that change the replicant dimension now correctly rebuild the group instead of silently failing
-[TBD] [user] [added] - AI can now set open-ended time period filters on charts
-[TBD] [user] [fixed] - AI clearing a time period filter now properly shows all dates
-[TBD] [admin] [added] - AI can now set open-ended time period filters on visualizations
-[TBD] [admin] [fixed] - AI clearing a period filter no longer leaves an empty custom filter
-[TBD] [user] [fixed] - Fixed time period filters sometimes not applying correctly when date ranges use mixed formats
-[TBD] [admin] [fixed] - Period filters now validate both bounds consistently before querying
+[1.47.0] [user] [changed] - "Include National results" checkbox now shows the relevant geographic level name when results are scoped to a specific area
+[1.47.0] [user] [fixed] - Removed orphaned visualizations that could appear after modules were updated or uninstalled
+[1.47.0] [admin] [fixed] - Orphaned visualizations are now automatically cleaned up when modules change
+[1.47.0] [admin] [changed] - Rollup checkbox label now reflects the actual parent geographic level
+[1.47.0] [user] [changed] - All users can now access the Assets page
+[1.47.0] [user] [added] - Assets are now organized into folders by file type
+[1.47.0] [user] [added] - Each asset now shows who uploaded it
+[1.47.0] [user] [changed] - Any user can upload assets, not just admins
+[1.47.0] [user] [changed] - Users can delete their own uploaded assets
+[1.47.0] [user] [fixed] - Asset list now refreshes automatically after uploading or deleting
+[1.47.0] [admin] [changed] - All users can now view and upload assets
+[1.47.0] [admin] [changed] - Assets are now grouped by file type in collapsible folders
+[1.47.0] [admin] [added] - Asset files now show who uploaded them
+[1.47.0] [admin] [changed] - Users can delete their own uploaded assets
+[1.47.0] [admin] [changed] - Only admins can bulk-delete other users' assets
+[1.47.0] [admin] [changed] - The "Configure assets" permission has been removed
+[1.47.0] [admin] [fixed] - Asset list now refreshes automatically after upload or deletion
+[1.47.0] [user] [added] - Export dashboards as Excel files with table data
+[1.47.0] [user] [added] - Download table visualizations as CSV with formatted values
+[1.47.0] [user] [added] - "Include National results" now works for all admin area levels, not just admin area 2
+[1.47.0] [user] [added] - Roll-up row label shows parent area name when filtered to a single area
+[1.47.0] [user] [changed] - Editing a dashboard item that gains a disaggregation now prompts to expand into a replicant group
+[1.47.0] [user] [changed] - Switching or editing a replicant group that changes dimensions now shows a confirmation dialog with progress
+[1.47.0] [user] [changed] - Replicant groups can now collapse back to a single figure when disaggregation is removed
+[1.47.0] [user] [removed] - Removed visualization share links feature and "Share links" button from project view
+[1.47.0] [user] [removed] - Removed share link count badges from visualization cards
+[1.47.0] [admin] [added] - Dashboard export to Excel (.xlsx) with one sheet per table figure
+[1.47.0] [admin] [added] - Download table data as CSV from the visualization editor
+[1.47.0] [admin] [added] - "Include National results" rollup now works for all admin area levels, not just admin area 2
+[1.47.0] [admin] [added] - Editing a dashboard item can now expand it into a replicant group or collapse a group into a single item
+[1.47.0] [admin] [added] - Confirmation dialog shown when dashboard edits change an item's structure (expand, collapse, or rebuild)
+[1.47.0] [admin] [changed] - Rollup row label now shows the parent admin area name when filtered to a single parent
+[1.47.0] [admin] [changed] - Dashboard item reordering is more reliable for large replicant groups
+[1.47.0] [admin] [removed] - Removed visualization share links feature and "Share links" button from project view
+[1.47.0] [admin] [removed] - Removed shared link count badges from visualization cards
+[1.47.0] [admin] [fixed] - Dashboard group edits that change the replicant dimension now correctly rebuild the group instead of silently failing
+[1.47.0] [user] [added] - AI can now set open-ended time period filters on charts
+[1.47.0] [user] [fixed] - AI clearing a time period filter now properly shows all dates
+[1.47.0] [admin] [added] - AI can now set open-ended time period filters on visualizations
+[1.47.0] [admin] [fixed] - AI clearing a period filter no longer leaves an empty custom filter
+[1.47.0] [user] [fixed] - Fixed time period filters sometimes not applying correctly when date ranges use mixed formats
+[1.47.0] [admin] [fixed] - Period filters now validate both bounds consistently before querying
 [1.46.0] [user] [fixed] - Charts now correctly show percent formatting when all displayed indicators are percentages
 [1.46.0] [admin] [fixed] - Charts now correctly show percent formatting when all displayed indicators are percents
 [1.46.0] [user] [fixed] - Charts now correctly display percent formatting for mixed indicator sets
