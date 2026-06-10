@@ -17,6 +17,7 @@ import { StructureUploadAttemptForm } from "~/components/structure_import";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { HfaWeightsSection } from "./hfa_weights";
 import { StructureWithCsv } from "./with_csv";
 
 type Props = {
@@ -183,6 +184,9 @@ export function Facilities(p: Props) {
                   >
                     {t3({ en: "Delete these facilities", fr: "Supprimer ces établissements" })}
                   </Button>
+                  <Show when={p.family === "hfa"}>
+                    <HfaWeightsSection />
+                  </Show>
                 </div>
               </Show>
               <div class="h-full w-0 flex-1">

@@ -8,9 +8,12 @@ import {
 } from "lib";
 import {
   addStructureUploadAttempt,
+  deleteAllHfaFacilityWeights,
   deleteAllStructureData,
   deleteFamilyFacilities,
+  getHfaFacilityWeightsSummary,
   getInstanceStructureSummary,
+  importHfaFacilityWeights,
   deleteStructureUploadAttempt,
   getStructureItems,
   getStructureUploadAttempt,
@@ -90,6 +93,45 @@ defineRoute(
     if (res.success) {
       notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
     }
+    return c.json(res);
+  },
+);
+
+////////////////////////////////////////
+//                                    //
+//    HFA facility sampling weights   //
+//                                    //
+////////////////////////////////////////
+
+defineRoute(
+  routesStructure,
+  "getHfaFacilityWeightsSummary",
+  requireGlobalPermission("can_view_data"),
+  log("getHfaFacilityWeightsSummary"),
+  async (c) => {
+    const res = await getHfaFacilityWeightsSummary(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesStructure,
+  "importHfaFacilityWeights",
+  requireGlobalPermission("can_configure_data"),
+  log("importHfaFacilityWeights"),
+  async (c, { body }) => {
+    const res = await importHfaFacilityWeights(c.var.mainDb, body.assetFileName);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesStructure,
+  "deleteAllHfaFacilityWeights",
+  requireGlobalPermission("can_configure_data"),
+  log("deleteAllHfaFacilityWeights"),
+  async (c) => {
+    const res = await deleteAllHfaFacilityWeights(c.var.mainDb);
     return c.json(res);
   },
 );

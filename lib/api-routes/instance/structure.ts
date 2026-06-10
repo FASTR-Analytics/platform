@@ -1,5 +1,7 @@
 import type {
   FacilityFamily,
+  HfaFacilityWeightsImportResult,
+  HfaFacilityWeightsSummary,
   StructureUploadAttemptDetail,
   StructureUploadAttemptStatus,
   StructureColumnMappings,
@@ -25,6 +27,23 @@ export const structureRouteRegistry = {
     path: "/structure/facilities/:family",
     method: "DELETE",
     params: {} as { family: FacilityFamily },
+  }),
+  //
+  // HFA facility sampling weights (facility x time point)
+  getHfaFacilityWeightsSummary: route({
+    path: "/structure/hfa_facility_weights",
+    method: "GET",
+    response: {} as HfaFacilityWeightsSummary,
+  }),
+  importHfaFacilityWeights: route({
+    path: "/structure/hfa_facility_weights/import",
+    method: "POST",
+    body: {} as { assetFileName: string },
+    response: {} as HfaFacilityWeightsImportResult,
+  }),
+  deleteAllHfaFacilityWeights: route({
+    path: "/structure/hfa_facility_weights",
+    method: "DELETE",
   }),
   //
   addStructureUploadAttempt: route({

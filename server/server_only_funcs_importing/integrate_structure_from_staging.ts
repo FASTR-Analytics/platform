@@ -155,6 +155,10 @@ export async function integrateStructureFromStaging(
             RETURNING facility_id
           `);
 
+          if (family === "hfa") {
+            await restoreStashedHfaWeights(sql);
+          }
+
           facilitiesProcessed = facilityResult.length;
           console.log(`Processed ${facilitiesProcessed} facilities`);
           break;
@@ -383,6 +387,10 @@ export async function integrateStructureFromStaging(
  * Deletes one family's facilities with its dataset FK deferred, so the
  * replace-all strategy can re-insert within the same transaction; integrity
  * is enforced at commit. Admin areas are shared and never deleted here.
+ *
+ * HFA sampling weights cascade with the facility delete (CASCADE fires at
+ * statement time, even for facility IDs the replace re-inserts), so they are
+ * stashed first and restored for surviving facilities after the re-insert.
  */
 async function deleteFamilyFacilitiesDeferred(
   sql: Sql,
@@ -397,10 +405,27 @@ async function deleteFamilyFacilitiesDeferred(
     `);
   } else {
     await sql.unsafe(`
+      CREATE TEMP TABLE _hfa_weights_stash ON COMMIT DROP AS
+        SELECT facility_id, time_point, weight FROM hfa_facility_weights;
       SET CONSTRAINTS hfa_data_facility_id_fkey DEFERRED;
       DELETE FROM facilities_hfa;
     `);
   }
+}
+
+async function restoreStashedHfaWeights(sql: Sql): Promise<void> {
+  const restored = await sql.unsafe(`
+    INSERT INTO hfa_facility_weights (facility_id, time_point, weight)
+    SELECT s.facility_id, s.time_point, s.weight
+    FROM _hfa_weights_stash s
+    WHERE EXISTS (
+      SELECT 1 FROM facilities_hfa f WHERE f.facility_id = s.facility_id
+    )
+    RETURNING facility_id
+  `);
+  console.log(
+    `Restored ${restored.length} sampling weights for surviving facilities`
+  );
 }
 
 /**

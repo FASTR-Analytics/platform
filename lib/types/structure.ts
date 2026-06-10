@@ -157,6 +157,21 @@ export type StructureDhis2OrgUnitMetadata = {
   };
 };
 
+// ============================================================================
+// HFA Facility Sampling Weights
+// ============================================================================
+
+// CSV format: facility_id, time_point, weight (one row per facility per time point)
+export type HfaFacilityWeightsSummary = {
+  totalCount: number;
+  perTimePoint: Array<{ timePoint: string; count: number }>;
+};
+
+export type HfaFacilityWeightsImportResult = {
+  rowsImported: number;
+  timePointsCovered: string[];
+};
+
 // Column type for selective updates
 export type SelectableColumn = "all_admin_areas" | OptionalFacilityColumn;
 
