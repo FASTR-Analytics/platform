@@ -79,6 +79,12 @@ ${userInserts}
     // This uninstalls any modules not in MODULE_REGISTRY (orphaned modules)
     // =========================================================================
     await cleanupOrphanModules(projectDb);
+
+    // =========================================================================
+    // TEMPORARY: Remove after all production instances have been updated
+    // Added: 2026-06-10 — see cleanupOrphanedPresentationObjects
+    // =========================================================================
+    await cleanupOrphanedPresentationObjects(projectDb);
   }
 }
 
@@ -318,29 +324,27 @@ async function cleanupOrphanModules(projectDb: Sql): Promise<void> {
   for (const mod of installed) {
     if (!validIds.includes(mod.id as typeof validIds[number])) {
       console.log(`[cleanup] Removing orphan module: ${mod.id}`);
-
-      // presentation_objects reference metrics by metric_id with NO FK — kept on
-      // purpose so a normal uninstall/reinstall restores them. But an orphan
-      // module's metrics never come back, so its visualizations are dead. Capture
-      // the metric ids BEFORE uninstall (which cascade-deletes the metrics), then
-      // purge the visualizations pointing at them.
-      const metricIds = (
-        await projectDb<{ id: string }[]>`
-          SELECT id FROM metrics WHERE module_id = ${mod.id}
-        `
-      ).map((m) => m.id);
-      if (metricIds.length > 0) {
-        const del = await projectDb`
-          DELETE FROM presentation_objects WHERE metric_id = ANY(${metricIds})
-        `;
-        if (del.count > 0) {
-          console.log(
-            `[cleanup]   Removed ${del.count} orphan visualization(s) for module ${mod.id}`,
-          );
-        }
-      }
-
       await uninstallModule(projectDb, mod.id);
     }
+  }
+}
+
+// =============================================================================
+// TEMPORARY: Remove this function after all production instances updated
+// Added: 2026-06-10 — purge presentation objects whose metric no longer exists
+// in the project (orphaned by uninstalls/metric renames before install/update/
+// uninstall purged them). 240 such rows found across 21 instances.
+// =============================================================================
+async function cleanupOrphanedPresentationObjects(
+  projectDb: Sql,
+): Promise<void> {
+  const del = await projectDb`
+    DELETE FROM presentation_objects
+    WHERE metric_id NOT IN (SELECT id FROM metrics)
+  `;
+  if (del.count > 0) {
+    console.log(
+      `[cleanup] Removed ${del.count} orphaned visualization(s) with no matching metric`,
+    );
   }
 }

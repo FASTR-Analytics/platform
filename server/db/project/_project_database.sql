@@ -183,7 +183,7 @@ CREATE INDEX idx_visualization_folders_last_updated ON visualization_folders(las
 
 CREATE TABLE presentation_objects (
   id text PRIMARY KEY NOT NULL,
-  metric_id text NOT NULL,  -- No FK - preserved across module uninstall/reinstall
+  metric_id text NOT NULL,  -- No FK - purged when metric no longer exists in project (see purgeOrphanedPresentationObjects)
   is_default_visualization boolean NOT NULL,
   label text NOT NULL,
   config text NOT NULL,

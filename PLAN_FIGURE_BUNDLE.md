@@ -275,7 +275,7 @@ Other backfill notes:
 | **Slides / Dashboards / Reports** | Store `FigureBundle`; render via `buildFigureInputs`. The bulk of the work. |
 | **Visualizations (POs)** | Storage **unchanged**. Adopt the refactored `buildFigureInputs` (shared). |
 | **Exports / public viewer** | Call `buildFigureInputs(bundle, env)` instead of a baked blob + `hydrate*`. Stays client-side. Anonymous routes pass a frozen env (§9). |
-| **Shares (`share_tokens`)** | **Being deleted first** — see `PLAN_DELETE_VIZ_SHARE.md`. Removes a fourth figureInputs surface; not part of this work. |
+| **Shares (`share_tokens`)** | **Deleted** (landed on main 2026-06-10). The fourth figureInputs surface no longer exists. |
 | **Panther** | **Unchanged.** Still consumes `FigureInputs`. We stop *storing* it, not *using* it. |
 | **Server item cache** | **Unchanged** — `_PO_ITEMS_CACHE` already caches `ItemsHolder` (upstream items). |
 
@@ -292,7 +292,7 @@ was baked for **snapshotting, never for CPU** (`PLAN_AI_SLIDE_TOOLS.md` §8.1).
 
 ## 13. Rough phasing (detailed steps in follow-on plans)
 
-- **Phase 0 — this doc + decisions.** (Shares deleted first, separately.)
+- **Phase 0 — this doc + decisions.** (Shares deleted separately — **done, landed 2026-06-10**.)
 - **Phase 1 — `buildFigureInputs` refactor.** Define `figureBundleSchema` in `lib/types/_figure_bundle.ts`.
   Refactor the transform to take `(bundle, env, deckStyle?)` (fold in style/geo; env explicit, ambient
   read deleted). Wire the **live visualization** path to it first — no storage change. Delete nothing yet.

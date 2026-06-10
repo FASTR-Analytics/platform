@@ -7,6 +7,7 @@ import {
   ResultsValue,
   TC,
   getNextAvailableDisaggregationDisplayOption,
+  getParentAdminLevel,
   getRollupAdminLevel,
   get_DISAGGREGATION_DISPLAY_OPTIONS,
   t3,
@@ -312,13 +313,41 @@ type AdminAreaOptionsProps = {
 };
 
 function AdminAreaOptions(p: AdminAreaOptionsProps) {
+  // The roll-up row is the parent level's subtotal when the parent admin level is
+  // pinned to one value (replicant or single-value filter); otherwise it's a true
+  // national total. The checkbox names the parent LEVEL, not the pinned value,
+  // because with a replicant the value differs per replicant.
+  const pinnedParentLevel = () => {
+    const level = getRollupAdminLevel(p.tempConfig);
+    const parent = level ? getParentAdminLevel(level) : undefined;
+    if (!parent) return undefined;
+    const parentDis = p.tempConfig.d.disaggregateBy.find(
+      (d) => d.disOpt === parent,
+    );
+    if (parentDis?.disDisplayOpt === "replicant") return parent;
+    const parentFilter = p.tempConfig.d.filterBy.find(
+      (f) => f.disOpt === parent,
+    );
+    return parentFilter?.values.length === 1 ? parent : undefined;
+  };
+  const rollupCheckboxLabel = () => {
+    const parent = pinnedParentLevel();
+    if (!parent) {
+      return t3({
+        en: "Include National results",
+        fr: "Inclure les résultats nationaux",
+      });
+    }
+    const name = t3(getDisplayDisaggregationLabel(parent));
+    return t3({
+      en: `Include ${name} results`,
+      fr: `Inclure les résultats : ${name}`,
+    });
+  };
   return (
     <div class="text-right">
       <Checkbox
-        label={t3({
-          en: "Include National results",
-          fr: "Inclure les résultats nationaux",
-        })}
+        label={rollupCheckboxLabel()}
         checked={!!p.tempConfig.d.includeAdminAreaRollup}
         onChange={(v) => p.setTempConfig("d", "includeAdminAreaRollup", v)}
       />

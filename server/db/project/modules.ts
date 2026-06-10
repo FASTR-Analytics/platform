@@ -55,6 +55,16 @@ function prepareModuleDefinitionForStorage(mod: ModuleDefinitionDetail): string 
   return JSON.stringify(validated);
 }
 
+// presentation_objects.metric_id has no FK. Any PO whose metric no longer
+// exists in this project is dead (defaults are recreated on install), so purge
+// after every operation that changes the metrics table.
+async function purgeOrphanedPresentationObjects(sql: Sql): Promise<void> {
+  await sql`
+DELETE FROM presentation_objects
+WHERE metric_id NOT IN (SELECT id FROM metrics)
+`;
+}
+
 //////////////////////////////////////////////////////////////
 //  ______                        __                __  __  //
 // /      |                      /  |              /  |/  | //
@@ -181,6 +191,7 @@ DELETE FROM presentation_objects
 WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE
 `;
       }
+      await purgeOrphanedPresentationObjects(sql);
 
       // Insert default presentation objects (validate config before write)
       for (const presObjectDef of defaultPresentationObjects) {
@@ -260,6 +271,7 @@ SELECT * FROM modules WHERE id = ${moduleId}
         const roTableName = getResultsObjectTableName(resultsObject.id);
         await sql`DROP TABLE IF EXISTS ${sql(roTableName)}`;
       }
+      await purgeOrphanedPresentationObjects(sql);
     });
     return { success: true };
   });
@@ -422,6 +434,7 @@ export async function updateModuleDefinition(
         if (metricIds.length > 0) {
           await sql`DELETE FROM presentation_objects WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE`;
         }
+        await purgeOrphanedPresentationObjects(sql);
         for (const po of defaultPresentationObjects) {
           const validatedConfig = presentationObjectConfigSchema.parse(
             po.config,
@@ -483,6 +496,7 @@ export async function updateModuleDefinition(
         if (metricIds.length > 0) {
           await sql`DELETE FROM presentation_objects WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE`;
         }
+        await purgeOrphanedPresentationObjects(sql);
         for (const po of defaultPresentationObjects) {
           const validatedConfig = presentationObjectConfigSchema.parse(
             po.config,
