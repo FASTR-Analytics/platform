@@ -3,7 +3,6 @@ import {
   APIResponseWithData,
   StructureColumnMappings,
   StructureStagingResult,
-  cleanValStrForSql,
   getEnabledOptionalFacilityColumns,
   throwIfErrWithData,
 } from "lib";
@@ -185,7 +184,7 @@ export async function stageStructureFromCsv(
         }
 
         // Extract and validate all required fields
-        const facilityId = cleanValStrForSql(row[facilityIndex]);
+        const facilityId = row[facilityIndex]?.trim() ?? "";
         if (!facilityId) {
           invalidRows++;
           return;
@@ -194,7 +193,7 @@ export async function stageStructureFromCsv(
         // Extract admin areas and validate all are present (up to maxAdminArea)
         const adminValues: string[] = [];
         for (const ai of adminIndexes) {
-          const value = cleanValStrForSql(row[ai.index]);
+          const value = row[ai.index]?.trim() ?? "";
           if (!value) {
             invalidRows++;
             return;
@@ -218,7 +217,7 @@ export async function stageStructureFromCsv(
         // Extract optional column values
         const optionalValues: string[] = [];
         for (const opt of optionalIndexes) {
-          const value = cleanValStrForSql(row[opt.index]) || "";
+          const value = row[opt.index]?.trim() ?? "";
           optionalValues.push(value);
         }
 

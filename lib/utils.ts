@@ -2,13 +2,6 @@ import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import { formatReplicantLabelForDisplay } from "./format_nigeria_admin_label.ts";
 import { PresentationObjectConfig } from "./types/mod.ts";
 
-export function cleanValStrForSql(str: string | undefined): string {
-  return (
-    str?.replaceAll('"', "").replaceAll("'", "").replaceAll(",", "").trim() ??
-    ""
-  );
-}
-
 export function withReplicant(
   str: string,
   config: PresentationObjectConfig,

@@ -4,9 +4,9 @@ import {
   DBDatasetHfaUploadAttempt,
   createBulkImportConnection,
   createWorkerReadConnection,
+  escapeSqlString,
 } from "../../db/mod.ts";
 import {
-  cleanValStrForSql,
   parseJsonOrThrow,
   throwIfErrWithData,
   type DatasetHfaStep1Result,
@@ -191,7 +191,12 @@ CREATE UNLOGGED TABLE ${tempTableName} (
     let missingFacilityIdCount = 0;
     let duplicateRowsCount = 0;
     const seenFacilities = new Set<string>();
-    const cleanedTimePoint = cleanValStrForSql(timePoint);
+    const cleanedTimePoint = timePoint.trim();
+
+    // Values are kept verbatim (only trimmed); escaping happens exactly once,
+    // when the SQL VALUES tuple is built
+    const tup = (...vals: string[]) =>
+      `(${vals.map((v) => `'${escapeSqlString(v)}'`).join(",")})`;
 
     const flushBuffer = async () => {
       if (rowBuffer.length === 0) return;
@@ -213,7 +218,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
           return;
         }
 
-        const facilityId = cleanValStrForSql(facilityIdRaw);
+        const facilityId = facilityIdRaw.trim();
         if (!facilityId) {
           missingFacilityIdCount++;
           invalidRows++;
@@ -231,7 +236,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
 
         for (const mapping of csvVarMappings) {
           const valueRaw = row[mapping.csvIndex] || "";
-          const value = cleanValStrForSql(valueRaw);
+          const value = valueRaw.trim();
 
           if (
             mapping.xlsFormVar.type === "select_multiple" &&
@@ -242,18 +247,23 @@ CREATE UNLOGGED TABLE ${tempTableName} (
               value ? value.split(" ").filter((s) => s.length > 0) : [],
             );
             for (const choice of mapping.choices) {
-              const expandedVarName = `${cleanValStrForSql(mapping.xlsFormVar.name)}_${cleanValStrForSql(String(choice.name))}`;
+              const expandedVarName = `${mapping.xlsFormVar.name.trim()}_${String(choice.name).trim()}`;
               const binaryValue = selectedCodes.has(String(choice.name))
                 ? "1"
                 : "0";
               rowBuffer.push(
-                `('${facilityId}','${cleanedTimePoint}','${expandedVarName}','${binaryValue}')`,
+                tup(facilityId, cleanedTimePoint, expandedVarName, binaryValue),
               );
             }
           } else {
             // Regular variable
             rowBuffer.push(
-              `('${facilityId}','${cleanedTimePoint}','${cleanValStrForSql(mapping.xlsFormVar.name)}','${value}')`,
+              tup(
+                facilityId,
+                cleanedTimePoint,
+                mapping.xlsFormVar.name.trim(),
+                value,
+              ),
             );
           }
         }
@@ -326,42 +336,43 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
     const dictValueRows: string[] = [];
 
     for (const mapping of csvVarMappings) {
-      const varName = cleanValStrForSql(mapping.xlsFormVar.name);
-      const varLabel = cleanValStrForSql(mapping.xlsFormVar.label);
+      const varName = mapping.xlsFormVar.name.trim();
+      const varLabel = mapping.xlsFormVar.label.trim();
       const varType = mapping.xlsFormVar.type;
 
       if (mapping.xlsFormVar.type === "select_multiple" && mapping.choices) {
         for (const choice of mapping.choices) {
-          const expandedVarName = `${varName}_${cleanValStrForSql(String(choice.name))}`;
-          const compositeLabel = cleanValStrForSql(
-            `${mapping.xlsFormVar.label} - ${choice.label}`,
-          );
+          const expandedVarName = `${varName}_${String(choice.name).trim()}`;
+          const compositeLabel =
+            `${mapping.xlsFormVar.label} - ${choice.label}`.trim();
           dictVarRows.push(
-            `('${cleanedTimePoint}','${expandedVarName}','${compositeLabel}','select_multiple_binary')`,
+            tup(
+              cleanedTimePoint,
+              expandedVarName,
+              compositeLabel,
+              "select_multiple_binary",
+            ),
           );
-          dictValueRows.push(
-            `('${cleanedTimePoint}','${expandedVarName}','1','Yes')`,
-          );
-          dictValueRows.push(
-            `('${cleanedTimePoint}','${expandedVarName}','0','No')`,
-          );
+          dictValueRows.push(tup(cleanedTimePoint, expandedVarName, "1", "Yes"));
+          dictValueRows.push(tup(cleanedTimePoint, expandedVarName, "0", "No"));
         }
       } else if (
         mapping.xlsFormVar.type === "select_one" &&
         mapping.choices
       ) {
-        dictVarRows.push(
-          `('${cleanedTimePoint}','${varName}','${varLabel}','${varType}')`,
-        );
+        dictVarRows.push(tup(cleanedTimePoint, varName, varLabel, varType));
         for (const choice of mapping.choices) {
           dictValueRows.push(
-            `('${cleanedTimePoint}','${varName}','${cleanValStrForSql(String(choice.name))}','${cleanValStrForSql(choice.label)}')`,
+            tup(
+              cleanedTimePoint,
+              varName,
+              String(choice.name).trim(),
+              choice.label.trim(),
+            ),
           );
         }
       } else {
-        dictVarRows.push(
-          `('${cleanedTimePoint}','${varName}','${varLabel}','${varType}')`,
-        );
+        dictVarRows.push(tup(cleanedTimePoint, varName, varLabel, varType));
       }
     }
 

@@ -8,7 +8,6 @@ import {
 import {
   COUNT_CHECK_CONSTRAINT,
   PERIOD_ID_CHECK_CONSTRAINT,
-  cleanValStrForSql,
   isValidDatasetRow,
   parseJsonOrThrow,
   throwIfErrWithData,
@@ -184,7 +183,10 @@ CREATE UNLOGGED TABLE ${tempTableName} (
         const periodId = row[headerIndexes.periodId];
         const facilityId = row[headerIndexes.facilityId];
         const rawIndicatorId = row[headerIndexes.rawIndicatorId];
-        const countVal = cleanValStrForSql(row[headerIndexes.count]);
+        // Numeric cleaning only: tolerate thousands separators / stray quotes
+        const countVal = (row[headerIndexes.count] ?? "")
+          .replace(/[,'"]/g, "")
+          .trim();
 
         // Validate row and track specific failure reasons
         const validation = isValidDatasetRow(
