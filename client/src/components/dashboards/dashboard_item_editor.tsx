@@ -17,26 +17,35 @@ type Props = {
 export function DashboardItemEditor(p: Props) {
   const [labelDraft, setLabelDraft] = createSignal("");
   let debounce: ReturnType<typeof setTimeout> | undefined;
+  let pendingCommit: (() => void) | undefined;
 
-  function clearDebounce() {
+  // Flush (not drop) any pending label commit before the editor unmounts or the
+  // selection changes — otherwise navigating away / switching within the debounce
+  // window silently loses the edit. The commit is bound to the captured item id,
+  // so flushing after the selection moved still saves the right item.
+  function flushPending() {
     if (debounce) {
       clearTimeout(debounce);
       debounce = undefined;
     }
+    if (pendingCommit) {
+      pendingCommit();
+      pendingCommit = undefined;
+    }
   }
 
-  // Reseed the draft whenever the selected item changes (incl. SSE updates),
-  // and cancel any pending commit so it can't fire against the new item.
+  // Commit the previous item's pending label, then reseed the draft whenever the
+  // selected item changes (incl. SSE updates).
   createEffect(
     on(
       () => p.item?.id,
       () => {
-        clearDebounce();
+        flushPending();
         setLabelDraft(p.item?.label ?? "");
       },
     ),
   );
-  onCleanup(clearDebounce);
+  onCleanup(flushPending);
 
   function onLabelInput(v: string) {
     setLabelDraft(v);
@@ -44,10 +53,15 @@ export function DashboardItemEditor(p: Props) {
     // when the timer fires (selection may change mid-debounce).
     const itemId = p.item?.id;
     const origLabel = p.item?.label;
-    clearDebounce();
-    debounce = setTimeout(() => {
+    if (debounce) clearTimeout(debounce);
+    pendingCommit = () => {
       const next = v.trim();
       if (itemId && next && next !== origLabel) p.onUpdateLabel(itemId, next);
+    };
+    debounce = setTimeout(() => {
+      pendingCommit?.();
+      pendingCommit = undefined;
+      debounce = undefined;
     }, 500);
   }
 

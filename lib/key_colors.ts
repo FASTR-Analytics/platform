@@ -32,9 +32,9 @@ export const _CF_GREEN = "#27AE60";
 export const _CF_YELLOW = "#F2C94C";
 export const _CF_RED = "#EB5757";
 
-export const _CF_LIGHTER_GREEN = "#68C690";
-export const _CF_LIGHTER_YELLOW = "#F6D982";
-export const _CF_LIGHTER_RED = "#F18989";
+export const _CF_LIGHTER_GREEN = "#A9DFBF"; // Previously "#68C690"
+export const _CF_LIGHTER_YELLOW = "#FAE9B7"; // Previously "#F6D982"
+export const _CF_LIGHTER_RED = "#F7BCBC"; // Previously "#F18989"
 
 export const _COLOR_WATERMARK_WHITE = "rgba(255,255,255, 0.25)";
 export const _COLOR_WATERMARK_GREY = "rgba(150,150,150, 0.4)";

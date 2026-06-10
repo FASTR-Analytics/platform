@@ -49,6 +49,7 @@ import { AddDashboardItemConfirmModal } from "./add_dashboard_item_modal";
 import { resolveReplicantStructure } from "./resolve_replicant_structure";
 import { resolveMembersWithProgress } from "./resolve_members_with_progress";
 import { ReshapeConfirmModal } from "./reshape_confirm_modal";
+import { ProgressModal } from "./progress_modal";
 import {
   DashboardSettings,
   type DashboardSettingsProps,
@@ -540,41 +541,60 @@ export function DashboardEditor(p: Props) {
   }
 
   // Re-resolve a group's existing members from a tweaked config and update them
-  // in place (unchanged dimension + set → no structure change, no dialog).
+  // in place (unchanged dimension + set → no structure change). Runs behind a
+  // progress-only modal: re-resolving N members takes several seconds, and
+  // without feedback the edit looks like it did nothing (and a premature reopen
+  // reads the not-yet-saved data). No confirm/cancel, so it isn't the
+  // cancel-discards dialog the structural reshape deliberately avoids.
   async function updateGroupInPlace(
     g: DashboardItemGroup,
     resultsValue: ResultsValue,
     after: PresentationObjectConfig,
   ) {
-    try {
-      const { members, sharedGeoData } = await resolveMembersWithProgress(
-        g.replicants,
-        async (replicantValue) => {
-          const config = structuredClone(after);
-          config.d.selectedReplicantValue = replicantValue;
-          const built = await buildFigureBlock(resultsValue, config);
-          if (!built.ok) throw new Error(built.err);
-          return { figureBlock: built.figureBlock, geoData: built.geoData };
+    await openComponent({
+      element: ProgressModal,
+      props: {
+        title: t3({ en: "Updating group…", fr: "Mise à jour du groupe…" }),
+        run: async (report) => {
+          let resolved;
+          try {
+            resolved = await resolveMembersWithProgress(
+              g.replicants,
+              async (replicantValue) => {
+                const config = structuredClone(after);
+                config.d.selectedReplicantValue = replicantValue;
+                const built = await buildFigureBlock(resultsValue, config);
+                if (!built.ok) throw new Error(built.err);
+                return {
+                  figureBlock: built.figureBlock,
+                  geoData: built.geoData,
+                };
+              },
+              report,
+            );
+          } catch (err) {
+            return {
+              success: false as const,
+              err: err instanceof Error ? err.message : String(err),
+            };
+          }
+          report(0.95, "Saving group...");
+          const res = await serverActions.updateDashboardItemGroup({
+            projectId: p.projectId,
+            dashboard_id: p.dashboardId,
+            group_id: g.id,
+            geoData: resolved.sharedGeoData,
+            members: resolved.members.map((m) => ({
+              replicantValue: m.replicantValue,
+              figureBlock: m.figureBlock,
+            })),
+          });
+          return res.success
+            ? { success: true as const }
+            : { success: false as const, err: res.err };
         },
-        () => {},
-      );
-      const res = await serverActions.updateDashboardItemGroup({
-        projectId: p.projectId,
-        dashboard_id: p.dashboardId,
-        group_id: g.id,
-        geoData: sharedGeoData,
-        members: members.map((m) => ({
-          replicantValue: m.replicantValue,
-          figureBlock: m.figureBlock,
-        })),
-      });
-      if (!res.success) await openAlert({ text: res.err, intent: "danger" });
-    } catch (err) {
-      await openAlert({
-        text: err instanceof Error ? err.message : String(err),
-        intent: "danger",
-      });
-    }
+      },
+    });
   }
 
   // Build one figure for the previewed replicant; collapse a group into a single
@@ -745,13 +765,13 @@ export function DashboardEditor(p: Props) {
 
   // ── Group handlers (the selected entry is a replicant group) ───────────────
 
-  async function handleGroupRename(label: string) {
-    const g = selectedGroup();
-    if (!g) return;
+  // Targets the passed groupId (not selectedGroup()) so a debounced label commit
+  // flushed after the selection moved still saves the right group.
+  async function handleGroupRename(groupId: string, label: string) {
     const res = await serverActions.updateDashboardItemGroup({
       projectId: p.projectId,
       dashboard_id: p.dashboardId,
-      group_id: g.id,
+      group_id: groupId,
       label,
     });
     if (!res.success) await openAlert({ text: res.err, intent: "danger" });
