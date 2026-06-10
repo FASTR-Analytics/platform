@@ -84,7 +84,7 @@ export function generatePaneContentPrimitives<TData>(
     laneHeader: laneHeaders[i_lane],
   });
 
-  // Overhang clearances (PLAN_1/2/3): inset the scale axis's value range
+  // Overhang clearances: inset the scale axis's value range
   // within each plot area so extreme tick labels and edge data labels stay
   // inside the plot rect. start-side overhang can be absorbed by the
   // adjacent axis area (lane 0 left / last tier bottom); end-side aggregates

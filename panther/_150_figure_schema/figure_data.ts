@@ -12,6 +12,7 @@ import type {
   TableData,
   TimeseriesData,
 } from "./deps.ts";
+import { zAnyPresentObject } from "./shared.ts";
 import { zChartOHData } from "./chartoh.ts";
 import { zChartOVData } from "./chartov.ts";
 import { zTableData } from "./table.ts";
@@ -24,13 +25,6 @@ export type FigureData =
   | { timeseriesData: TimeseriesData }
   | { simpleVizData: SimpleVizData }
   | { mapData: MapData };
-
-// Present-and-object, nothing more: the permissive union members must still
-// require their key (a validator accepting undefined would make a missing key
-// pass, so ANY object would match the member and the union would gate nothing).
-function zAnyPresentObject<T>(): z.ZodType<T> {
-  return z.custom<T>((v) => typeof v === "object" && v !== null);
-}
 
 // One member per FigureInputs data field (same discriminator set as
 // FigureRenderer.isType). Timeseries / ChartOV / ChartOH / Table are validated

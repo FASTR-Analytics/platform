@@ -14,7 +14,7 @@
 //     malformed limits, string[] headers → HeaderItem[])
 //
 // figureInputs drift is visible to every sweep's skip gate: the figure-block
-// schemas validate figureInputs against panther's zFigureData (see lib/types
+// schemas validate figureInputs against panther's zFigureInputs (see lib/types
 // figureInputsSchema). Old-shape blobs fail the gate, fall through to the
 // transform here, and — if still stale afterwards (warnIfFigureInputsStale) —
 // fail the sweep's final parse, so the server refuses to start until a fix
@@ -23,7 +23,7 @@
 //
 // =============================================================================
 
-import { zFigureData } from "@timroberton/panther";
+import { zFigureInputs } from "@timroberton/panther";
 import { transformPOConfigData } from "./po_config.ts";
 
 export type FigureBlockMut = {
@@ -114,7 +114,7 @@ function computeScaleAxisLimitsFromValues(
   return { paneLimits };
 }
 
-// Post-transform drift diagnostic: a blob that still fails zFigureData after
+// Post-transform drift diagnostic: a blob that still fails zFigureInputs after
 // transformFigureInputs ran is drift the upgrader does not fix. The sweep's
 // final parse will then throw (aborting startup); this warn names the exact
 // figure block and zod issues so the failure is actionable from the boot log.
@@ -125,10 +125,10 @@ export function warnIfFigureInputsStale(
   if (fi === undefined) {
     return;
   }
-  const result = zFigureData.safeParse(fi);
+  const result = zFigureInputs.safeParse(fi);
   if (!result.success) {
     console.warn(
-      `[data_transforms] ${context}: figureInputs still fails panther zFigureData after transform (upgrader gap):`,
+      `[data_transforms] ${context}: figureInputs still fails panther zFigureInputs after transform (upgrader gap):`,
       JSON.stringify(result.error.issues.slice(0, 3)),
     );
   }

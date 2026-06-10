@@ -79,6 +79,8 @@ export function getDisaggregationLabel(
       return { en: "HFA category", fr: "Catégorie HFA" };
     case "hfa_sub_category":
       return { en: "HFA sub-category", fr: "Sous-catégorie HFA" };
+    case "hfa_service_category":
+      return { en: "Service category", fr: "Catégorie de service" };
     case "time_point":
       return { en: "Time point", fr: "Point temporel" };
     case "iceh_indicator":

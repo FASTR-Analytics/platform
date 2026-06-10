@@ -46,7 +46,7 @@ export function validateBrandColor(hex: string): BrandColorValidation {
 function buildPresetFromCustomColor(primary: string): ColorPreset {
   const { h } = new Color(primary).hsl();
   return {
-    id: "custom" as ColorPresetId,
+    id: "custom",
     name: "Custom",
     hue: h,
     swatch: primary,

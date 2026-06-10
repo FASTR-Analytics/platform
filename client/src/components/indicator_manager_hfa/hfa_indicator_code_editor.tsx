@@ -3,6 +3,7 @@ import {
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
+  type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
   type HfaIndicatorCode,
 } from "lib";
@@ -35,6 +36,7 @@ type TempState = {
   varName: string;
   categoryId: string | null;
   subCategoryId: string | null;
+  serviceCategoryId: string | null;
   shortLabel: string;
   definition: string;
   type: "binary" | "numeric";
@@ -50,6 +52,7 @@ export function HfaIndicatorCodeEditor(
       allIndicatorVarNames: string[];
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
+      serviceCategories: HfaIndicatorServiceCategory[];
     },
     undefined
   >,
@@ -124,6 +127,7 @@ export function HfaIndicatorCodeEditor(
             allIndicatorVarNames={p.allIndicatorVarNames}
             categories={p.categories}
             subCategories={p.subCategories}
+            serviceCategories={p.serviceCategories}
             initialCodeSnippets={codeSnippets}
             setNeedsSaving={setNeedsSaving}
             registerSave={(fn) => {
@@ -142,6 +146,7 @@ function EditorInner(p: {
   allIndicatorVarNames: string[];
   categories: HfaIndicatorCategory[];
   subCategories: HfaIndicatorSubCategory[];
+  serviceCategories: HfaIndicatorServiceCategory[];
   initialCodeSnippets: HfaIndicatorCode[];
   setNeedsSaving: (v: boolean) => void;
   registerSave: (fn: () => Promise<void>) => void;
@@ -161,6 +166,7 @@ function EditorInner(p: {
     varName: p.indicator.varName,
     categoryId: p.indicator.categoryId,
     subCategoryId: p.indicator.subCategoryId,
+    serviceCategoryId: p.indicator.serviceCategoryId,
     shortLabel: p.indicator.shortLabel,
     definition: p.indicator.definition,
     type: p.indicator.type,
@@ -293,6 +299,7 @@ function EditorInner(p: {
         varName: trimmedVarName,
         categoryId: state.categoryId,
         subCategoryId: state.subCategoryId,
+        serviceCategoryId: state.serviceCategoryId,
         shortLabel: state.shortLabel.trim(),
         definition: state.definition.trim(),
         type: state.type,
@@ -357,6 +364,18 @@ function EditorInner(p: {
                     ]
                   : [{ value: "", label: t3({ en: "— Select category first —", fr: "— Sélectionnez d'abord une catégorie —" }) }]
               }
+            />
+            <Select
+              label={t3({ en: "Service category", fr: "Catégorie de service" })}
+              value={state.serviceCategoryId ?? ""}
+              onChange={(v) => {
+                setState("serviceCategoryId", v || null);
+                markDirty();
+              }}
+              options={[
+                { value: "", label: t3({ en: "— None —", fr: "— Aucune —" }) },
+                ...p.serviceCategories.map((sc) => ({ value: sc.id, label: sc.label })),
+              ]}
             />
             <RadioGroup
               label={t3({ en: "Type", fr: "Type" })}

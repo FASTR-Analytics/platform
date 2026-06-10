@@ -36,6 +36,12 @@ import {
 import type { DefaultFigureStyle } from "./_1_default_figure_style.ts";
 import type { CustomFigureStyleOptions } from "./_2_custom_figure_style_options.ts";
 
+// Color sentinels accepted wherever per-element colors are configured:
+// SERIES_COLOR_SENTINEL resolves through the per-series palette (seriesColorFunc);
+// VALUES_COLOR_SENTINEL resolves through valuesColorFunc(val, valueMin, valueMax).
+export const SERIES_COLOR_SENTINEL = 666;
+export const VALUES_COLOR_SENTINEL = 777;
+
 export type GenericDataLabelStyle = {
   show: boolean;
   color?: ColorKeyOrString;
@@ -197,7 +203,7 @@ function applyDataLabelOverrides(
 }
 
 export type GenericTableCellStyle = {
-  backgroundColor: ColorKeyOrString | 777 | "none";
+  backgroundColor: ColorKeyOrString | typeof VALUES_COLOR_SENTINEL | "none";
   textColorStrategy: ColorAdjustmentStrategy | "none";
 };
 
@@ -334,12 +340,12 @@ export function getTableCellStyleFunc(
     const backgroundColor = oc?.backgroundColor ?? og?.backgroundColor ??
       dBackgroundColor;
     return {
-      backgroundColor:
-        backgroundColor === 777 && info.valueAsNumber !== undefined
-          ? valuesColorFunc(info.valueAsNumber, info.valueMin, info.valueMax)
-          : backgroundColor === 777
-          ? "none"
-          : backgroundColor,
+      backgroundColor: backgroundColor === VALUES_COLOR_SENTINEL &&
+          info.valueAsNumber !== undefined
+        ? valuesColorFunc(info.valueAsNumber, info.valueMin, info.valueMax)
+        : backgroundColor === VALUES_COLOR_SENTINEL
+        ? "none"
+        : backgroundColor,
       textColorStrategy: oc?.textColorStrategy ?? og?.textColorStrategy ??
         dTextColorStrategy,
       annotationGroup: oc?.annotationGroup ?? og?.annotationGroup,
@@ -364,7 +370,10 @@ export type GenericPointStyleOptions = {
   show?: boolean;
   pointStyle?: PointType;
   radius?: number;
-  color?: ColorKeyOrString | 666 | 777;
+  color?:
+    | ColorKeyOrString
+    | typeof SERIES_COLOR_SENTINEL
+    | typeof VALUES_COLOR_SENTINEL;
   strokeWidth?: number;
   innerColorStrategy?: ColorAdjustmentStrategy;
   dataLabelPosition?: "top" | "left" | "bottom" | "right";
@@ -376,7 +385,10 @@ export type GenericPointStyle = {
   show: boolean;
   pointStyle: PointType;
   radius: number;
-  color: ColorKeyOrString | 666 | 777;
+  color:
+    | ColorKeyOrString
+    | typeof SERIES_COLOR_SENTINEL
+    | typeof VALUES_COLOR_SENTINEL;
   strokeWidth: number;
   innerColorStrategy: ColorAdjustmentStrategy;
   dataLabelPosition: "top" | "left" | "bottom" | "right";
@@ -451,9 +463,9 @@ export function getPointStyleFunc(
       { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
     ]);
     dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
-    const resolvedColor = color === 777
+    const resolvedColor = color === VALUES_COLOR_SENTINEL
       ? valuesColorFunc(info.val, info.valueMin, info.valueMax)
-      : color === 666
+      : color === SERIES_COLOR_SENTINEL
       ? seriesColorFunc(info)
       : color;
     dl = applyDataLabelColorStrategy(dl, resolvedColor);
@@ -490,14 +502,20 @@ export function getPointStyleFunc(
 
 export type GenericBarStyleOptions = {
   show?: boolean;
-  fillColor?: ColorKeyOrString | 666 | 777;
+  fillColor?:
+    | ColorKeyOrString
+    | typeof SERIES_COLOR_SENTINEL
+    | typeof VALUES_COLOR_SENTINEL;
   dataLabel?: GenericDataLabelStyleOptions;
   annotationGroup?: string;
 };
 
 export type GenericBarStyle = {
   show: boolean;
-  fillColor: ColorKeyOrString | 666 | 777;
+  fillColor:
+    | ColorKeyOrString
+    | typeof SERIES_COLOR_SENTINEL
+    | typeof VALUES_COLOR_SENTINEL;
   dataLabel: GenericDataLabelStyle;
 };
 
@@ -554,9 +572,9 @@ export function getBarStyleFunc(
       { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
     ]);
     dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
-    const resolvedFillColor = color === 777
+    const resolvedFillColor = color === VALUES_COLOR_SENTINEL
       ? valuesColorFunc(info.val, info.valueMin, info.valueMax)
-      : color === 666
+      : color === SERIES_COLOR_SENTINEL
       ? seriesColorFunc(info)
       : color;
     dl = applyDataLabelColorStrategy(dl, resolvedFillColor);
@@ -584,7 +602,7 @@ export function getBarStyleFunc(
 
 export type GenericLineStyleOptions = {
   show?: boolean;
-  color?: ColorKeyOrString | 666;
+  color?: ColorKeyOrString | typeof SERIES_COLOR_SENTINEL;
   strokeWidth?: number;
   lineDash?: "solid" | "dashed";
   dataLabel?: GenericDataLabelStyleOptions;
@@ -593,7 +611,7 @@ export type GenericLineStyleOptions = {
 
 export type GenericLineStyle = {
   show: boolean;
-  color: ColorKeyOrString | 666;
+  color: ColorKeyOrString | typeof SERIES_COLOR_SENTINEL;
   strokeWidth: number;
   lineDash: "solid" | "dashed";
   dataLabel: GenericDataLabelStyle;
@@ -650,7 +668,9 @@ export function getLineStyleFunc(
       { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
     ]);
     dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
-    const resolvedStrokeColor = color === 666 ? seriesColorFunc(info) : color;
+    const resolvedStrokeColor = color === SERIES_COLOR_SENTINEL
+      ? seriesColorFunc(info)
+      : color;
     dl = applyDataLabelColorStrategy(dl, resolvedStrokeColor);
     return {
       show: oc?.show ?? og?.show ?? dShow,
@@ -681,7 +701,7 @@ export function getLineStyleFunc(
 export type GenericAreaStyleOptions = {
   show?: boolean;
   to?: "zero-line" | "previous-series-or-zero" | "previous-series-or-skip";
-  fillColor?: ColorKeyOrString | 666;
+  fillColor?: ColorKeyOrString | typeof SERIES_COLOR_SENTINEL;
   fillColorAdjustmentStrategy?: ColorAdjustmentStrategy;
   annotationGroup?: string;
 };
@@ -689,7 +709,7 @@ export type GenericAreaStyleOptions = {
 export type GenericAreaStyle = {
   show: boolean;
   to: "zero-line" | "previous-series-or-zero" | "previous-series-or-skip";
-  fillColor: ColorKeyOrString | 666;
+  fillColor: ColorKeyOrString | typeof SERIES_COLOR_SENTINEL;
   fillColorAdjustmentStrategy: ColorAdjustmentStrategy;
 };
 
@@ -728,7 +748,9 @@ export function getAreaStyleFunc(
     return {
       show: oc?.show ?? og?.show ?? dShow,
       to: oc?.to ?? og?.to ?? dTo,
-      fillColor: color === 666 ? seriesColorFunc(info) : color,
+      fillColor: color === SERIES_COLOR_SENTINEL
+        ? seriesColorFunc(info)
+        : color,
       fillColorAdjustmentStrategy: oc?.fillColorAdjustmentStrategy ??
         og?.fillColorAdjustmentStrategy ??
         dColorStrategy,
@@ -1044,13 +1066,13 @@ export function getErrorBarStyleFunc(
 
 export type GenericConfidenceBandStyleOptions = {
   show?: boolean;
-  fillColor?: ColorKeyOrString | 666;
+  fillColor?: ColorKeyOrString | typeof SERIES_COLOR_SENTINEL;
   fillColorAdjustmentStrategy?: ColorAdjustmentStrategy;
 };
 
 export type GenericConfidenceBandStyle = {
   show: boolean;
-  fillColor: ColorKeyOrString | 666;
+  fillColor: ColorKeyOrString | typeof SERIES_COLOR_SENTINEL;
   fillColorAdjustmentStrategy: ColorAdjustmentStrategy;
 };
 
@@ -1091,7 +1113,9 @@ export function getConfidenceBandStyleFunc(
     const fillColor = oc?.fillColor ?? og?.fillColor ?? dFillColor;
     return {
       show: oc?.show ?? og?.show ?? dShow,
-      fillColor: fillColor === 666 ? seriesColorFunc(info) : fillColor,
+      fillColor: fillColor === SERIES_COLOR_SENTINEL
+        ? seriesColorFunc(info)
+        : fillColor,
       fillColorAdjustmentStrategy: oc?.fillColorAdjustmentStrategy ??
         og?.fillColorAdjustmentStrategy ??
         dFillColorAdjustmentStrategy,
@@ -1116,7 +1140,7 @@ export function getConfidenceBandStyleFunc(
 
 export type GenericMapRegionStyleOptions = {
   show?: boolean;
-  fillColor?: ColorKeyOrString | 777 | "none";
+  fillColor?: ColorKeyOrString | typeof VALUES_COLOR_SENTINEL | "none";
   strokeColor?: ColorKeyOrString | "none";
   strokeWidth?: number;
   dataLabel?: GenericDataLabelStyleOptions;
@@ -1128,7 +1152,7 @@ export type GenericMapRegionStyleOptions = {
 
 export type GenericMapRegionStyle = {
   show: boolean;
-  fillColor: ColorKeyOrString | 777 | "none";
+  fillColor: ColorKeyOrString | typeof VALUES_COLOR_SENTINEL | "none";
   strokeColor: ColorKeyOrString | "none";
   strokeWidth: number;
   dataLabel: GenericDataLabelStyle;
@@ -1225,7 +1249,7 @@ export function getMapRegionStyleFunc(
       { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
     ]);
     dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
-    const resolvedFillColor = fillColor === 777
+    const resolvedFillColor = fillColor === VALUES_COLOR_SENTINEL
       ? valuesColorFunc(info.value, info.valueMin, info.valueMax)
       : fillColor;
     dl = applyDataLabelColorStrategy(dl, resolvedFillColor);

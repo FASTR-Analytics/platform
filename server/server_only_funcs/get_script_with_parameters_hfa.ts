@@ -250,10 +250,24 @@ export function getScriptWithParametersHfa(
     .map((ind) => `"${ind.varName}"`)
     .join(", ");
 
+  // Only emit hfa_service_category when the installed definition declares the
+  // column — ingest rejects CSV headers missing from the table definition, so
+  // module instances installed before the column existed must not produce it.
+  const supportsServiceCategory = moduleDefinition.resultsObjects.some(
+    (ro) =>
+      ro.createTableStatementPossibleColumns !== false &&
+      "hfa_service_category" in ro.createTableStatementPossibleColumns,
+  );
+
   const indicatorMetadata = [
     `  hfa_indicator = c(${ordered.map((i) => `"${i.varName}"`).join(", ")})`,
     `  hfa_category = c(${ordered.map((i) => `"${i.categoryId ?? ""}"`).join(", ")})`,
     `  hfa_sub_category = c(${ordered.map((i) => `"${i.subCategoryId ?? ""}"`).join(", ")})`,
+    ...(supportsServiceCategory
+      ? [
+        `  hfa_service_category = c(${ordered.map((i) => `"${i.serviceCategoryId ?? ""}"`).join(", ")})`,
+      ]
+      : []),
     `  hfa_short_label = c(${ordered.map((i) => `"${i.shortLabel.replace(/"/g, '\\"')}"`).join(", ")})`,
     `  ind_type = c(${ordered.map((i) => `"${i.type}"`).join(", ")})`,
     `  ind_aggregation = c(${ordered.map((i) => `"${i.aggregation}"`).join(", ")})`,

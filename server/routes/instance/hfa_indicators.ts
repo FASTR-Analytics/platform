@@ -11,6 +11,11 @@ import {
   updateHfaIndicatorSubCategory,
   deleteHfaIndicatorSubCategory,
   reorderHfaIndicatorSubCategories,
+  getHfaIndicatorServiceCategories,
+  createHfaIndicatorServiceCategory,
+  updateHfaIndicatorServiceCategory,
+  deleteHfaIndicatorServiceCategory,
+  reorderHfaIndicatorServiceCategories,
   getInstanceIndicatorsSummary,
   importHfaIndicatorsWorkbook,
   createHfaIndicator,
@@ -168,6 +173,72 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
     const res = await reorderHfaIndicatorSubCategories(c.var.mainDb, body.categoryId, body.orderedIds);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+// ============================================================================
+// Service Categories
+// ============================================================================
+
+defineRoute(
+  routesHfaIndicators,
+  "getHfaIndicatorServiceCategories",
+  requireGlobalPermission("can_configure_data"),
+  async (c) => {
+    const res = await getHfaIndicatorServiceCategories(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "createHfaIndicatorServiceCategory",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await createHfaIndicatorServiceCategory(c.var.mainDb, body.serviceCategory);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "updateHfaIndicatorServiceCategory",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await updateHfaIndicatorServiceCategory(c.var.mainDb, body.oldId, body.serviceCategory);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "deleteHfaIndicatorServiceCategory",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await deleteHfaIndicatorServiceCategory(c.var.mainDb, body.id);
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesHfaIndicators,
+  "reorderHfaIndicatorServiceCategories",
+  requireGlobalPermission("can_configure_data"),
+  async (c, { body }) => {
+    const res = await reorderHfaIndicatorServiceCategories(c.var.mainDb, body.orderedIds);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
     }

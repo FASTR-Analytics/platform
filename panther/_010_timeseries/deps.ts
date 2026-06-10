@@ -40,6 +40,7 @@ export {
   measureChartWithAutofit,
   renderFigureBackground,
   renderFigurePrimitives,
+  resolveDefaultLegend,
   validateDataInput,
   validateUncertaintyConfig,
 } from "../_007_figure_core/mod.ts";

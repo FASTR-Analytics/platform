@@ -761,12 +761,6 @@ export class CustomFigureStyle {
         g.yScaleAxis?.tickLabelAlignment,
         d.yScaleAxis.tickLabelAlignment,
       ),
-      forceTopOverhangHeight: msOrNone(
-        sf,
-        c.yScaleAxis?.forceTopOverhangHeight,
-        g.yScaleAxis?.forceTopOverhangHeight,
-        d.yScaleAxis.forceTopOverhangHeight,
-      ),
       allowIndividualTierLimits: m(
         c.yScaleAxis?.allowIndividualTierLimits,
         g.yScaleAxis?.allowIndividualTierLimits,
@@ -941,12 +935,6 @@ export class CustomFigureStyle {
         c.xScaleAxis?.tickLabelAlignment,
         g.xScaleAxis?.tickLabelAlignment,
         d.xScaleAxis.tickLabelAlignment,
-      ),
-      forceRightOverhangWidth: msOrNone(
-        sf,
-        c.xScaleAxis?.forceRightOverhangWidth,
-        g.xScaleAxis?.forceRightOverhangWidth,
-        d.xScaleAxis.forceRightOverhangWidth,
       ),
       allowIndividualLaneLimits: m(
         c.xScaleAxis?.allowIndividualLaneLimits,

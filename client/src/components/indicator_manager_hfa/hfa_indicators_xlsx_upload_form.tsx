@@ -77,9 +77,13 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
               categoryId, label
             </li>
             <li>
+              <span class="font-mono font-700">Service categories</span>: id,
+              label ({t3({ en: "optional sheet", fr: "feuille facultative" })})
+            </li>
+            <li>
               <span class="font-mono font-700">Indicators</span>: varName,
-              categoryId, subCategoryId, shortLabel, definition, type,
-              aggregation, r_code_1, r_filter_code_1, …
+              categoryId, subCategoryId, serviceCategoryId, shortLabel,
+              definition, type, aggregation, r_code_1, r_filter_code_1, …
             </li>
           </ul>
           <div class="mt-2 text-xs opacity-60">

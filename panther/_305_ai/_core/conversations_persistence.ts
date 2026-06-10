@@ -68,11 +68,17 @@ export function generateConversationId(): string {
   return `conv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+export const DEFAULT_TITLE_PREFIX = "Chat ";
+
 export function generateDefaultTitle(): string {
   const now = new Date();
-  return `Chat ${now.toLocaleDateString()} ${
+  return `${DEFAULT_TITLE_PREFIX}${now.toLocaleDateString()} ${
     now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   }`;
+}
+
+export function isDefaultTitle(title: string): boolean {
+  return title.startsWith(DEFAULT_TITLE_PREFIX);
 }
 
 export function generateTitleFromMessage(message: string): string {

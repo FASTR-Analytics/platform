@@ -16,9 +16,11 @@ export type BetaHeaderConfig = {
   hasDocuments?: boolean;
 };
 
+export const ANTHROPIC_BETA_HEADER = "anthropic-beta";
+
 export function getBetaHeaders(
   config: BetaHeaderConfig,
-): Record<string, string> | undefined {
+): Record<typeof ANTHROPIC_BETA_HEADER, string> | undefined {
   const headers: string[] = [];
 
   if (config.hasTools) {
@@ -42,7 +44,7 @@ export function getBetaHeaders(
   }
 
   return {
-    "anthropic-beta": headers.join(","),
+    [ANTHROPIC_BETA_HEADER]: headers.join(","),
   };
 }
 

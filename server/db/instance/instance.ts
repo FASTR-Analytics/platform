@@ -45,6 +45,10 @@ export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
       COALESCE((
         SELECT string_agg(id || ':' || category_id || ':' || label || ':' || sort_order, ',' ORDER BY id)
         FROM hfa_indicator_sub_categories
+      ), '') || '|' ||
+      COALESCE((
+        SELECT string_agg(id || ':' || label || ':' || sort_order, ',' ORDER BY id)
+        FROM hfa_indicator_service_categories
       ), '')
     ) as version
   `;

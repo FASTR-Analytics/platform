@@ -10,6 +10,7 @@ import {
   estimateMinSurroundsWidth,
   estimateMinYAxisWidth,
   type RenderContext,
+  resolveDefaultLegend,
 } from "../deps.ts";
 import { getTimeseriesDataTransformed } from "../get_timeseries_data.ts";
 import type { TimeseriesInputs } from "../types.ts";
@@ -53,8 +54,10 @@ export function getTimeseriesComponentSizes(
     ? data.nTimePoints * tickLabelHeight * 0.5
     : data.nTimePoints * tickLabelHeight;
 
-  const resolvedLegendLabels = inputs.legend ??
-    data.seriesHeaders.map((h) => h.label);
+  const resolvedLegendLabels = resolveDefaultLegend(
+    inputs.legend,
+    data.seriesHeaders,
+  );
 
   return {
     customFigureStyle: cs,

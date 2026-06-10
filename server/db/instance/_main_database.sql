@@ -443,6 +443,12 @@ CREATE TABLE hfa_indicator_sub_categories (
   sort_order INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE hfa_indicator_service_categories (
+  id TEXT PRIMARY KEY NOT NULL,
+  label TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
 -- ============================================================================
 -- HFA INDICATORS
 -- ============================================================================
@@ -451,6 +457,7 @@ CREATE TABLE hfa_indicators (
   var_name TEXT PRIMARY KEY NOT NULL,
   category_id TEXT REFERENCES hfa_indicator_categories(id) ON DELETE SET NULL,
   sub_category_id TEXT REFERENCES hfa_indicator_sub_categories(id) ON DELETE SET NULL,
+  service_category_id TEXT REFERENCES hfa_indicator_service_categories(id) ON DELETE SET NULL,
   short_label TEXT NOT NULL DEFAULT '',
   definition TEXT NOT NULL DEFAULT '',
   type TEXT NOT NULL CHECK (type IN ('binary', 'numeric')),

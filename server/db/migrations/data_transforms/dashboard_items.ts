@@ -17,7 +17,7 @@
 //    transform, figureInputs normalization.
 //
 // NOTE: dashboardFigureBlockSchema validates figureInputs against panther's
-// zFigureData (lib/types figureInputsSchema), so the skip gate sees
+// zFigureInputs (lib/types figureInputsSchema), so the skip gate sees
 // figureInputs drift — old-shape blobs fail the gate and fall through to
 // Block 1's figureInputs normalization.
 //
@@ -52,7 +52,7 @@ export async function migrateDashboardItems(
     // safeParse silently strips) still need the embedded-config rename.
     // figureInputs drift is covered by this same safeParse:
     // dashboardFigureBlockSchema validates figureInputs against panther's
-    // zFigureData (lib/types figureInputsSchema).
+    // zFigureInputs (lib/types figureInputsSchema).
     if (
       dashboardFigureBlockSchema.safeParse(figureBlock).success &&
       !rawJsonNeedsForcedTransform(row.figure_block)

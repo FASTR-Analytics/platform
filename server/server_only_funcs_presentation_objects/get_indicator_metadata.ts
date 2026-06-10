@@ -118,6 +118,18 @@ export async function getIndicatorMetadata(
       });
     }
 
+    // 4. Service category metadata (for hfa_service_category disaggregation labels)
+    const hfaServiceCategories = await projectDb<{ id: string; label: string; sort_order: number }[]>`
+      SELECT id, label, sort_order FROM hfa_indicator_service_categories_snapshot ORDER BY sort_order, label
+    `;
+    for (const svcCat of hfaServiceCategories) {
+      metadata.push({
+        id: svcCat.id,
+        label: svcCat.label,
+        sort_order: svcCat.sort_order,
+      });
+    }
+
     return metadata;
   }
 

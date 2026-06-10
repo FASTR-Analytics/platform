@@ -11,10 +11,17 @@ export type HfaIndicatorSubCategory = {
   sortOrder: number;
 };
 
+export type HfaIndicatorServiceCategory = {
+  id: string;
+  label: string;
+  sortOrder: number;
+};
+
 export type HfaIndicator = {
   varName: string;
   categoryId: string | null;
   subCategoryId: string | null;
+  serviceCategoryId: string | null;
   shortLabel: string;
   definition: string;
   type: "binary" | "numeric";
@@ -36,10 +43,12 @@ export type HfaIndicatorCode = {
 export type HfaWorkbookImport = {
   categories: { id: string; label: string }[];
   subCategories: { id: string; categoryId: string; label: string }[];
+  serviceCategories: { id: string; label: string }[];
   indicators: {
     varName: string;
     categoryId: string | null;
     subCategoryId: string | null;
+    serviceCategoryId: string | null;
     shortLabel: string;
     definition: string;
     type: "binary" | "numeric";

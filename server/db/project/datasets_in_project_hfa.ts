@@ -16,6 +16,7 @@ import {
   type HfaIndicator,
   type HfaIndicatorCode,
   type HfaIndicatorCategory,
+  type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
 } from "lib";
 import {
@@ -26,9 +27,11 @@ import { computeHfaCacheHash } from "../instance/dataset_hfa.ts";
 import {
   DBHfaIndicator,
   DBHfaIndicatorCategory,
+  DBHfaIndicatorServiceCategory,
   DBHfaIndicatorSubCategory,
   dbRowToHfaIndicator,
   dbRowToHfaIndicatorCategory,
+  dbRowToHfaIndicatorServiceCategory,
   dbRowToHfaIndicatorSubCategory,
 } from "../instance/hfa_indicators.ts";
 import { getHfaIndicatorsVersion } from "../instance/instance.ts";
@@ -114,6 +117,11 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
     // Fetch HFA sub-categories from instance DB for snapshot
     const hfaSubCategoriesForSnapshot = await mainDb<DBHfaIndicatorSubCategory[]>`
       SELECT id, category_id, label, sort_order FROM hfa_indicator_sub_categories ORDER BY category_id, sort_order, label
+    `;
+
+    // Fetch HFA service categories from instance DB for snapshot
+    const hfaServiceCategoriesForSnapshot = await mainDb<DBHfaIndicatorServiceCategory[]>`
+      SELECT id, label, sort_order FROM hfa_indicator_service_categories ORDER BY sort_order, label
     `;
 
     // Fetch HFA indicator definitions + per-time-point R code from the instance
@@ -222,6 +230,7 @@ ON CONFLICT (dataset_type) DO UPDATE SET
       sql`DELETE FROM hfa_indicators_snapshot`,
       sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
       sql`DELETE FROM hfa_indicator_categories_snapshot`,
+      sql`DELETE FROM hfa_indicator_service_categories_snapshot`,
       sql`DELETE FROM facilities_hfa`,
       sql`DELETE FROM indicators_hfa`,
       ...(facilities.length > 0
@@ -253,11 +262,16 @@ ON CONFLICT (dataset_type) DO UPDATE SET
           sql`INSERT INTO hfa_indicator_sub_categories_snapshot (id, category_id, label, sort_order)
             VALUES (${subCat.id}, ${subCat.category_id}, ${subCat.label}, ${subCat.sort_order})`,
       ),
+      ...hfaServiceCategoriesForSnapshot.map(
+        (svcCat) =>
+          sql`INSERT INTO hfa_indicator_service_categories_snapshot (id, label, sort_order)
+            VALUES (${svcCat.id}, ${svcCat.label}, ${svcCat.sort_order})`,
+      ),
       ...hfaIndicatorRowsForSnapshot.map(
         (ind) =>
           sql`INSERT INTO hfa_indicators_snapshot
-            (var_name, category_id, sub_category_id, short_label, definition, type, aggregation, sort_order)
-            VALUES (${ind.var_name}, ${ind.category_id}, ${ind.sub_category_id}, ${ind.short_label}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${ind.sort_order})`,
+            (var_name, category_id, sub_category_id, service_category_id, short_label, definition, type, aggregation, sort_order)
+            VALUES (${ind.var_name}, ${ind.category_id}, ${ind.sub_category_id}, ${ind.service_category_id}, ${ind.short_label}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${ind.sort_order})`,
       ),
       ...hfaIndicatorCodeRowsForSnapshot.map(
         (c) =>
@@ -300,6 +314,15 @@ export async function getAllHfaIndicatorSubCategoriesFromSnapshot(
   return rows.map(dbRowToHfaIndicatorSubCategory);
 }
 
+export async function getAllHfaIndicatorServiceCategoriesFromSnapshot(
+  projectDb: Sql,
+): Promise<HfaIndicatorServiceCategory[]> {
+  const rows = await projectDb<DBHfaIndicatorServiceCategory[]>`
+    SELECT id, label, sort_order FROM hfa_indicator_service_categories_snapshot ORDER BY sort_order, label
+  `;
+  return rows.map(dbRowToHfaIndicatorServiceCategory);
+}
+
 export async function getAllHfaIndicatorsFromSnapshot(
   projectDb: Sql,
 ): Promise<HfaIndicator[]> {
@@ -308,6 +331,7 @@ export async function getAllHfaIndicatorsFromSnapshot(
       i.var_name,
       i.category_id,
       i.sub_category_id,
+      i.service_category_id,
       i.short_label,
       i.definition,
       i.type,

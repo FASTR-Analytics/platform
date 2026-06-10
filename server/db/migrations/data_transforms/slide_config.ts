@@ -23,7 +23,7 @@
 // 12. Normalize figureInputs string[] headers → HeaderItem[] ({ id, label })
 //
 // SKIP GATE: figureBlockSchema validates figureInputs against panther's
-// zFigureData (lib/types figureInputsSchema), so the plain safeParse gate sees
+// zFigureInputs (lib/types figureInputsSchema), so the plain safeParse gate sees
 // figureInputs drift: old-shape blobs fail → the transform runs precisely on
 // those rows, and a row still stale after the transform aborts startup at the
 // final parse. (Replaced the one-time PRE-VALIDATION force block, deleted
@@ -76,7 +76,7 @@ type LayoutNode = {
 };
 
 // Collect every figure block's figureInputs in a layout tree (read-only) so
-// the skip gate can check them against panther's zFigureData.
+// the skip gate can check them against panther's zFigureInputs.
 function collectFigureInputs(
   node: LayoutNode,
   out: Record<string, unknown>[],
@@ -166,7 +166,7 @@ export async function migrateSlideConfigs(
     // Already valid? Skip — unless legacy keys (which safeParse silently
     // strips) still need the embedded-config rename. figureInputs drift is
     // covered by this same safeParse: figureBlockSchema validates figureInputs
-    // against panther's zFigureData (lib/types figureInputsSchema).
+    // against panther's zFigureInputs (lib/types figureInputsSchema).
     if (
       slideConfigSchema.safeParse(config).success &&
       !rawJsonNeedsForcedTransform(row.config)

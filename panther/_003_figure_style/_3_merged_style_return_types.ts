@@ -224,7 +224,6 @@ export type MergedXScaleAxisStyle = {
   tickLabelGap: number;
   tickLabelFormatter: TickLabelFormatterOption;
   tickLabelAlignment: "center" | "inset";
-  forceRightOverhangWidth: "none" | number;
   allowIndividualLaneLimits: boolean;
   exactAxisY: "none" | number;
 };
@@ -439,7 +438,6 @@ export type MergedYScaleAxisStyle = {
   tickLabelGap: number;
   tickLabelFormatter: TickLabelFormatterOption;
   tickLabelAlignment: "center" | "inset";
-  forceTopOverhangHeight: "none" | number;
   allowIndividualTierLimits: boolean;
   exactAxisX: "none" | number;
 };

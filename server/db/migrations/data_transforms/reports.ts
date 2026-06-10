@@ -60,7 +60,7 @@ export async function migrateReports(
     // Already valid? Skip — unless legacy keys (which safeParse silently
     // strips) still need the embedded-config rename. figureInputs drift is
     // covered by reportFiguresSchema: figureBlockSchema validates figureInputs
-    // against panther's zFigureData (lib/types figureInputsSchema).
+    // against panther's zFigureInputs (lib/types figureInputsSchema).
     if (
       reportConfigSchema.safeParse(config).success &&
       reportFiguresSchema.safeParse(figures).success &&

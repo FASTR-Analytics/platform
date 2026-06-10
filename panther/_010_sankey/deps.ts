@@ -11,6 +11,7 @@ export { Z_INDEX } from "../_001_render_system/mod.ts";
 export type {
   HeightConstraints,
   Measured,
+  MeasuredText,
   PathSegment,
   Primitive,
   RenderContext,

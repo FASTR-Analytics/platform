@@ -3,6 +3,7 @@ import type {
   HfaIndicator,
   HfaIndicatorCode,
   HfaIndicatorCategory,
+  HfaIndicatorServiceCategory,
   HfaIndicatorSubCategory,
   HfaWorkbookImport,
 } from "../../types/mod.ts";
@@ -69,6 +70,37 @@ export const hfaIndicatorRouteRegistry = {
     path: "/hfa-indicator-sub-categories/reorder",
     method: "POST",
     body: {} as { categoryId: string; orderedIds: string[] },
+  }),
+
+  // Service categories
+  getHfaIndicatorServiceCategories: route({
+    path: "/hfa-indicator-service-categories",
+    method: "GET",
+    response: {} as HfaIndicatorServiceCategory[],
+  }),
+
+  createHfaIndicatorServiceCategory: route({
+    path: "/hfa-indicator-service-categories",
+    method: "POST",
+    body: {} as { serviceCategory: HfaIndicatorServiceCategory },
+  }),
+
+  updateHfaIndicatorServiceCategory: route({
+    path: "/hfa-indicator-service-categories/update",
+    method: "POST",
+    body: {} as { oldId: string; serviceCategory: HfaIndicatorServiceCategory },
+  }),
+
+  deleteHfaIndicatorServiceCategory: route({
+    path: "/hfa-indicator-service-categories/delete",
+    method: "POST",
+    body: {} as { id: string },
+  }),
+
+  reorderHfaIndicatorServiceCategories: route({
+    path: "/hfa-indicator-service-categories/reorder",
+    method: "POST",
+    body: {} as { orderedIds: string[] },
   }),
 
   // Indicators

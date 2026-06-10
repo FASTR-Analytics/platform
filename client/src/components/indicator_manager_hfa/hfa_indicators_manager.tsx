@@ -4,6 +4,7 @@ import {
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
+  type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
   type HfaIndicatorCode,
 } from "lib";
@@ -33,6 +34,7 @@ import { EditHfaIndicator } from "../forms_editors/edit_hfa_indicator";
 import { HfaIndicatorCodeEditor } from "./hfa_indicator_code_editor";
 import { HfaIndicatorsXlsxUploadForm } from "./hfa_indicators_xlsx_upload_form";
 import { HfaCategoriesManager } from "./hfa_categories_manager";
+import { HfaServiceCategoriesManager } from "./hfa_service_categories_manager";
 import { buildHfaWorkbookBlob } from "./_xlsx_workbook";
 import { extractRIdentifiers, validateRCode } from "./hfa_r_code_validator";
 import {
@@ -69,6 +71,11 @@ export function HfaIndicatorsManager(p: Props) {
   >({
     status: "loading",
   });
+  const [serviceCategories, setServiceCategories] = createSignal<
+    StateHolder<HfaIndicatorServiceCategory[]>
+  >({
+    status: "loading",
+  });
   const [allCode, setAllCode] = createSignal<StateHolder<HfaIndicatorCode[]>>({
     status: "loading",
   });
@@ -79,8 +86,10 @@ export function HfaIndicatorsManager(p: Props) {
     string | null
   >(null);
 
-  const [tab, setTab] = createSignal<"indicators" | "categories">("indicators");
-  const tabItems: ListItem<"indicators" | "categories">[] = [
+  const [tab, setTab] = createSignal<
+    "indicators" | "categories" | "service_categories"
+  >("indicators");
+  const tabItems: ListItem<"indicators" | "categories" | "service_categories">[] = [
     {
       id: "indicators",
       label: t3({ en: "Indicators", fr: "Indicateurs" }),
@@ -88,6 +97,10 @@ export function HfaIndicatorsManager(p: Props) {
     {
       id: "categories",
       label: t3({ en: "Categories", fr: "Catégories" }),
+    },
+    {
+      id: "service_categories",
+      label: t3({ en: "Service categories", fr: "Catégories de service" }),
     },
   ];
 
@@ -117,6 +130,13 @@ export function HfaIndicatorsManager(p: Props) {
     if (!version) return;
     const res = await serverActions.getHfaIndicatorSubCategories({});
     setSubCategories(getQueryStateFromApiResponse(res));
+  });
+
+  createEffect(async () => {
+    const version = instanceState.hfaIndicatorsVersion;
+    if (!version) return;
+    const res = await serverActions.getHfaIndicatorServiceCategories({});
+    setServiceCategories(getQueryStateFromApiResponse(res));
   });
 
   createEffect(async () => {
@@ -315,7 +335,13 @@ export function HfaIndicatorsManager(p: Props) {
     const st = indicators();
     const catSt = categories();
     const subCatSt = subCategories();
-    if (catSt.status !== "ready" || subCatSt.status !== "ready") return;
+    const svcCatSt = serviceCategories();
+    if (
+      catSt.status !== "ready" ||
+      subCatSt.status !== "ready" ||
+      svcCatSt.status !== "ready"
+    )
+      return;
     const sortOrder = st.status === "ready" ? st.data.length : 0;
     await openComponent({
       element: EditHfaIndicator,
@@ -323,6 +349,7 @@ export function HfaIndicatorsManager(p: Props) {
         sortOrder,
         categories: catSt.data,
         subCategories: subCatSt.data,
+        serviceCategories: svcCatSt.data,
       },
     });
   }
@@ -334,10 +361,12 @@ export function HfaIndicatorsManager(p: Props) {
     const dictState = dictionary();
     const catSt = categories();
     const subCatSt = subCategories();
+    const svcCatSt = serviceCategories();
     if (
       dictState.status !== "ready" ||
       catSt.status !== "ready" ||
-      subCatSt.status !== "ready"
+      subCatSt.status !== "ready" ||
+      svcCatSt.status !== "ready"
     )
       return;
     const dict = dictState.data;
@@ -349,6 +378,7 @@ export function HfaIndicatorsManager(p: Props) {
         allIndicatorVarNames: allIndicators.map((i) => i.varName),
         categories: catSt.data,
         subCategories: subCatSt.data,
+        serviceCategories: svcCatSt.data,
       },
     });
   }
@@ -401,12 +431,14 @@ export function HfaIndicatorsManager(p: Props) {
     const indSt = indicators();
     const catSt = categories();
     const subCatSt = subCategories();
+    const svcCatSt = serviceCategories();
     const codeSt = allCode();
     const timePoints = sortedTimePointLabels();
     if (
       indSt.status !== "ready" ||
       catSt.status !== "ready" ||
       subCatSt.status !== "ready" ||
+      svcCatSt.status !== "ready" ||
       codeSt.status !== "ready" ||
       timePoints === undefined
     ) {
@@ -415,6 +447,7 @@ export function HfaIndicatorsManager(p: Props) {
     const blob = buildHfaWorkbookBlob({
       categories: catSt.data,
       subCategories: subCatSt.data,
+      serviceCategories: svcCatSt.data,
       indicators: indSt.data,
       code: codeSt.data,
       timePoints,
@@ -501,6 +534,20 @@ export function HfaIndicatorsManager(p: Props) {
         if (subCatSt.status !== "ready") return ind.subCategoryId;
         const subCat = subCatSt.data.find((sc) => sc.id === ind.subCategoryId);
         return subCat?.label ?? ind.subCategoryId;
+      },
+    },
+    {
+      key: "serviceCategoryId",
+      header: t3({ en: "Service category", fr: "Catégorie de service" }),
+      sortable: true,
+      render: (ind) => {
+        if (!ind.serviceCategoryId) return "—";
+        const svcCatSt = serviceCategories();
+        if (svcCatSt.status !== "ready") return ind.serviceCategoryId;
+        const svcCat = svcCatSt.data.find(
+          (sc) => sc.id === ind.serviceCategoryId,
+        );
+        return svcCat?.label ?? ind.serviceCategoryId;
       },
     },
     {
@@ -755,6 +802,15 @@ export function HfaIndicatorsManager(p: Props) {
                       />
                     )}
                   </StateHolderWrapper>
+                )}
+              </StateHolderWrapper>
+            </Show>
+            <Show when={tab() === "service_categories"}>
+              <StateHolderWrapper state={serviceCategories()} noPad>
+                {(keyedServiceCategories) => (
+                  <HfaServiceCategoriesManager
+                    serviceCategories={keyedServiceCategories}
+                  />
                 )}
               </StateHolderWrapper>
             </Show>

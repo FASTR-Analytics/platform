@@ -10,6 +10,7 @@ import {
   estimateMinSurroundsWidth,
   estimateMinYAxisWidth,
   type RenderContext,
+  resolveDefaultLegend,
 } from "../deps.ts";
 import { getChartOVDataTransformed } from "../get_chartov_data.ts";
 import type { ChartOVInputs } from "../types.ts";
@@ -61,8 +62,10 @@ export function getChartOVComponentSizes(
     ? nIndicators * maxWordWidth
     : nIndicators * maxWordWidth + gridStrokeWidth * (nIndicators + 1);
 
-  const resolvedLegendLabels = inputs.legend ??
-    data.seriesHeaders.map((h) => h.label);
+  const resolvedLegendLabels = resolveDefaultLegend(
+    inputs.legend,
+    data.seriesHeaders,
+  );
 
   return {
     customFigureStyle: cs,

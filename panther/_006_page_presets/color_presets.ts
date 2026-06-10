@@ -27,7 +27,9 @@ export const COLOR_PRESET_IDS = [
 export type ColorPresetId = (typeof COLOR_PRESET_IDS)[number];
 
 export type ColorPreset = {
-  id: ColorPresetId;
+  // "custom" only for presets built from a custom brand color — never a
+  // selectable ColorPresetId (getColorPreset never returns it).
+  id: ColorPresetId | "custom";
   name: string;
   hue: number;
   swatch: string;

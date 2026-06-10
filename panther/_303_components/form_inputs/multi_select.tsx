@@ -78,7 +78,7 @@ export function MultiSelect<T extends string>(p: MultiSelectProps<T>) {
         >
           <div class="">
             <Checkbox
-              label={t3({ en: "Select All", fr: "Tout sélectionner" })}
+              label={t3({ en: "Select all", fr: "Tout sélectionner" })}
               checked={allSelected()}
               indeterminate={someSelected()}
               onChange={toggleSelectAll}

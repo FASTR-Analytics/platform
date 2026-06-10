@@ -438,7 +438,6 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
 
   createEffect(() => {
     if (p.resetKey !== undefined) {
-      p.resetKey;
       resetWidths();
     }
   });

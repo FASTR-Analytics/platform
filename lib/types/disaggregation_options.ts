@@ -23,6 +23,7 @@ export const ALL_DISAGGREGATION_OPTIONS = [
   "hfa_indicator",
   "hfa_category",
   "hfa_sub_category",
+  "hfa_service_category",
   "time_point",
   "iceh_indicator",
   "strat",

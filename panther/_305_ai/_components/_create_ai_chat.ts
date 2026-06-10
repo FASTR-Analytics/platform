@@ -18,7 +18,11 @@ import type {
   MessageParam,
   Usage,
 } from "../deps.ts";
-import { getBetaHeaders, hasWebFetchTool } from "../_core/beta_headers.ts";
+import {
+  ANTHROPIC_BETA_HEADER,
+  getBetaHeaders,
+  hasWebFetchTool,
+} from "../_core/beta_headers.ts";
 import { resolveBuiltInTools } from "../_core/builtin_tools.ts";
 import {
   clearConversationStore,
@@ -666,5 +670,5 @@ function getBetasArray(
     hasDocuments,
   });
   if (!headers) return undefined;
-  return headers["anthropic-beta"].split(",");
+  return headers[ANTHROPIC_BETA_HEADER].split(",");
 }

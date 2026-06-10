@@ -1,4 +1,4 @@
-import { type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorSubCategory, t3 } from "lib";
+import { type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorServiceCategory, type HfaIndicatorSubCategory, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -18,6 +18,7 @@ export function EditHfaIndicator(
       sortOrder: number;
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
+      serviceCategories: HfaIndicatorServiceCategory[];
     },
     undefined
   >,
@@ -27,6 +28,7 @@ export function EditHfaIndicator(
   const [varName, setVarName] = createSignal(p.existingIndicator?.varName ?? "");
   const [categoryId, setCategoryId] = createSignal<string | null>(p.existingIndicator?.categoryId ?? null);
   const [subCategoryId, setSubCategoryId] = createSignal<string | null>(p.existingIndicator?.subCategoryId ?? null);
+  const [serviceCategoryId, setServiceCategoryId] = createSignal<string | null>(p.existingIndicator?.serviceCategoryId ?? null);
   const [shortLabel, setShortLabel] = createSignal(p.existingIndicator?.shortLabel ?? "");
   const [definition, setDefinition] = createSignal(p.existingIndicator?.definition ?? "");
   const [type, setType] = createSignal<"binary" | "numeric">(p.existingIndicator?.type ?? "binary");
@@ -51,6 +53,7 @@ export function EditHfaIndicator(
         varName: trimmedVarName,
         categoryId: categoryId(),
         subCategoryId: subCategoryId(),
+        serviceCategoryId: serviceCategoryId(),
         shortLabel: shortLabel().trim(),
         definition: definition().trim(),
         type: type(),
@@ -120,6 +123,16 @@ export function EditHfaIndicator(
                 ]
               : [{ value: "", label: t3({ en: "— Select category first —", fr: "— Sélectionnez d'abord une catégorie —" }) }]
           }
+          fullWidth
+        />
+        <Select
+          label={t3({ en: "Service category", fr: "Catégorie de service" })}
+          value={serviceCategoryId() ?? ""}
+          onChange={(v) => setServiceCategoryId(v || null)}
+          options={[
+            { value: "", label: t3({ en: "— None —", fr: "— Aucune —" }) },
+            ...p.serviceCategories.map((sc) => ({ value: sc.id, label: sc.label })),
+          ]}
           fullWidth
         />
         <Input

@@ -94,7 +94,7 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
     item: FigureInputs,
   ): HeightConstraints {
     const renderer = getRendererForFigureItem(item);
-    return renderer.getIdealHeight(rc, width, item as any);
+    return renderer.getIdealHeight(rc, width, item);
   },
 };
 
@@ -108,7 +108,7 @@ function measureFigure(
   item: FigureInputs,
 ): MeasuredFigure {
   const renderer = getRendererForFigureItem(item);
-  const measured = renderer.measure(rc, bounds, item as any);
+  const measured = renderer.measure(rc, bounds, item);
   if (item.annotations?.length) {
     const sf = measured.customFigureStyle.sf;
     const annotationPrimitives = generateAnnotationPrimitives(
@@ -124,7 +124,7 @@ function measureFigure(
 
 function renderFigure(rc: RenderContext, measured: MeasuredFigure): void {
   const renderer = getRendererForFigureItem(measured.item);
-  renderer.render(rc, measured as any);
+  renderer.render(rc, measured);
 }
 
 // ================================================================================
@@ -133,30 +133,28 @@ function renderFigure(rc: RenderContext, measured: MeasuredFigure): void {
 
 function getRendererForFigureItem(
   item: FigureInputs,
-):
-  | typeof TableRenderer
-  | typeof ChartOVRenderer
-  | typeof ChartOHRenderer
-  | typeof TimeseriesRenderer
-  | typeof SimpleVizRenderer
-  | typeof MapRenderer {
-  if (TableRenderer.isType(item)) {
-    return TableRenderer;
+): Renderer<FigureInputs, MeasuredFigure> {
+  const renderer = TableRenderer.isType(item)
+    ? TableRenderer
+    : ChartOHRenderer.isType(item)
+    ? ChartOHRenderer
+    : ChartOVRenderer.isType(item)
+    ? ChartOVRenderer
+    : TimeseriesRenderer.isType(item)
+    ? TimeseriesRenderer
+    : SimpleVizRenderer.isType(item)
+    ? SimpleVizRenderer
+    : MapRenderer.isType(item)
+    ? MapRenderer
+    : undefined;
+  if (!renderer) {
+    throw new Error("Unknown figure type");
   }
-  if (ChartOHRenderer.isType(item)) {
-    return ChartOHRenderer;
-  }
-  if (ChartOVRenderer.isType(item)) {
-    return ChartOVRenderer;
-  }
-  if (TimeseriesRenderer.isType(item)) {
-    return TimeseriesRenderer;
-  }
-  if (SimpleVizRenderer.isType(item)) {
-    return SimpleVizRenderer;
-  }
-  if (MapRenderer.isType(item)) {
-    return MapRenderer;
-  }
-  throw new Error("Unknown figure type");
+  // The single variance point of the dispatch: isType pairs the item with its
+  // renderer, but TS cannot carry that pairing through a union of
+  // Renderer<T, M> objects (method-parameter contravariance). Widen the
+  // matched renderer to the union-typed Renderer once, here — callers then
+  // need no casts, and only ever pass the item/measured the renderer was
+  // selected for.
+  return renderer as unknown as Renderer<FigureInputs, MeasuredFigure>;
 }

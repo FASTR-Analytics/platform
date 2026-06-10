@@ -10,11 +10,11 @@ import type {
   PaddingOptions,
 } from "./deps.ts";
 import type {
+  DefaultSplitConfig,
   LogosPlacement,
   LogosSizing,
   PageBackgroundStyle,
   PageNumberBackground,
-  SplitConfig,
 } from "./types.ts";
 
 const _DS = {
@@ -25,7 +25,7 @@ const _DS = {
       placement: "none",
       sizeAsPct: 0.3,
       background: "none",
-    } as SplitConfig,
+    } as DefaultSplitConfig,
     logosSizing: {
       targetArea: 102400,
       maxHeight: 10000,
@@ -49,7 +49,7 @@ const _DS = {
       placement: "none",
       sizeAsPct: 0.3,
       background: "none",
-    } as SplitConfig,
+    } as DefaultSplitConfig,
     sectionTitleBottomPadding: 30,
     alignH: "center" as AlignH,
     alignV: "middle" as AlignV,
@@ -59,7 +59,7 @@ const _DS = {
       placement: "none",
       sizeAsPct: 0.3,
       background: "none",
-    } as SplitConfig,
+    } as DefaultSplitConfig,
     header: {
       padding: [10, 15] as PaddingOptions,
       logosSizing: {

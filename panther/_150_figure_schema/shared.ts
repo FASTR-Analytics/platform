@@ -151,3 +151,10 @@ export function chartLimitsMatchHeaders(d: {
 
 export const CHART_LIMITS_LENGTH_MESSAGE =
   "scaleAxisLimits pane/tier/lane lengths must match headers";
+
+// Present-and-object, nothing more — for deliberately unvalidated members.
+// The validator must reject undefined: a validator accepting undefined would
+// make a missing key pass, so ANY object would match the containing member.
+export function zAnyPresentObject<T>(): z.ZodType<T> {
+  return z.custom<T>((v) => typeof v === "object" && v !== null);
+}

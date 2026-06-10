@@ -33,6 +33,7 @@ import {
 } from "./deps.ts";
 import { PAGE_TEXT_STYLE_KEYS } from "./text_style_keys.ts";
 import type {
+  DefaultSplitConfig,
   LogosPlacement,
   LogosPlacementOptions,
   LogosSizing,
@@ -43,12 +44,12 @@ import type {
 function getMergedSplit(
   c: SplitConfig | undefined,
   g: SplitConfig | undefined,
-  d: SplitConfig,
+  d: DefaultSplitConfig,
 ): MergedSplitConfig {
   return {
-    placement: m(c?.placement, g?.placement, d.placement!),
-    sizeAsPct: m(c?.sizeAsPct, g?.sizeAsPct, d.sizeAsPct!),
-    background: m(c?.background, g?.background, d.background!),
+    placement: m(c?.placement, g?.placement, d.placement),
+    sizeAsPct: m(c?.sizeAsPct, g?.sizeAsPct, d.sizeAsPct),
+    background: m(c?.background, g?.background, d.background),
   };
 }
 

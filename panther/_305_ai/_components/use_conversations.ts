@@ -11,6 +11,7 @@ import {
   generateConversationId,
   generateDefaultTitle,
   generateTitleFromMessage,
+  isDefaultTitle,
   loadConversationList,
   loadLastActiveConversationId,
   removeConversationFromList,
@@ -156,7 +157,7 @@ export function createConversationsManager(
     const conv = allConversations().find((c) => c.id === id);
     if (!conv) return;
 
-    const wasDefaultTitle = conv.title.startsWith("Chat ");
+    const wasDefaultTitle = isDefaultTitle(conv.title);
     if (wasDefaultTitle) {
       const newTitle = generateTitleFromMessage(message);
       await renameConversation(id, newTitle);

@@ -14,6 +14,8 @@ import {
   RectCoordsDims,
   type RenderContext,
 } from "./deps.ts";
+import { calculatePaneGrid } from "./dimension_helpers.ts";
+import { resolveDefaultLegend } from "./_legend/utils.ts";
 import { measurePane } from "./measure_pane.ts";
 import type {
   MeasuredChartBase,
@@ -44,8 +46,8 @@ export function measureChart<
   const transformedData = config.transformedData;
   const dataProps = config.dataProps;
 
-  const legend = config.resolvedLegend ?? inputs.legend ??
-    dataProps.seriesHeaders.map((h) => h.label);
+  const legend = config.resolvedLegend ??
+    resolveDefaultLegend(inputs.legend, dataProps.seriesHeaders);
 
   const measuredSurrounds = measureSurrounds(
     rc,
@@ -61,10 +63,10 @@ export function measureChart<
 
   const contentRcd = measuredSurrounds.contentRcd;
 
-  const nGCols = mergedStyle.panes.nCols === "auto"
-    ? Math.ceil(Math.sqrt(dataProps.paneHeaders.length))
-    : mergedStyle.panes.nCols;
-  const nGRows = Math.ceil(dataProps.paneHeaders.length / nGCols);
+  const { nGCols, nGRows } = calculatePaneGrid(
+    dataProps.paneHeaders.length,
+    mergedStyle.panes.nCols,
+  );
 
   const paneWidth = (contentRcd.w() - (nGCols - 1) * mergedStyle.panes.gapX) /
     nGCols;

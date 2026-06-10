@@ -3,21 +3,21 @@
 // =============================================================================
 
 import { z } from "zod";
-import { zFigureData } from "@timroberton/panther";
+import { zFigureInputs } from "@timroberton/panther";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
 import { TEXT_SIZE_KEYS } from "../consts.ts";
 
-// figureInputs is panther-owned data; validate it against panther's
-// zFigureData so stale shapes fail every parse (write paths and the migration
-// skip gates) instead of hiding inside z.unknown(). Implemented as .refine —
-// not by embedding zFigureData directly — because zod object schemas strip
-// unknown keys on parse: embedding would silently delete the surrounds
-// (caption/subCaption/footnote/legend/autofit) from every figureInputs blob on
-// the next write. The refine validates without reshaping.
+// figureInputs is panther-owned; validate it against panther's zFigureInputs
+// (data + surrounds validated, style opaque) so stale shapes fail every parse
+// (write paths and the migration skip gates) instead of hiding inside
+// z.unknown(). Implemented as .refine — not by embedding zFigureInputs
+// directly — because zod object schemas strip unknown keys on parse: embedding
+// would silently reshape every figureInputs blob on the next write. The refine
+// validates without reshaping.
 export const figureInputsSchema = z.unknown().refine(
-  (v) => v === undefined || zFigureData.safeParse(v).success,
+  (v) => v === undefined || zFigureInputs.safeParse(v).success,
   {
-    message: "figureInputs does not match panther's current figure data shape",
+    message: "figureInputs does not match panther's current FigureInputs shape",
   },
 );
 

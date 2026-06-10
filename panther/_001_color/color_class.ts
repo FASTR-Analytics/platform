@@ -209,7 +209,7 @@ export class Color {
     this._b = clamp(Math.round(rgb.b), 0, 255);
   }
 
-  MUTATE_opacity(opacity: number): void {
+  MUTATE_multiplyOpacity(opacity: number): void {
     assertNumberBetween0And1(
       opacity,
       "Opacity must be a number between 0 and 1",
@@ -219,7 +219,7 @@ export class Color {
 
   opacity(opacity: number): Color {
     const n = this.copy();
-    n.MUTATE_opacity(opacity);
+    n.MUTATE_multiplyOpacity(opacity);
     return n;
   }
 

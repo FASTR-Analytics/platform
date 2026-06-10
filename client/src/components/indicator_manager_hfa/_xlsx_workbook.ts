@@ -3,12 +3,14 @@ import type {
   HfaIndicator,
   HfaIndicatorCategory,
   HfaIndicatorCode,
+  HfaIndicatorServiceCategory,
   HfaIndicatorSubCategory,
   HfaWorkbookImport,
 } from "lib";
 
 const SHEET_CATEGORIES = "Categories";
 const SHEET_SUB_CATEGORIES = "Sub-categories";
+const SHEET_SERVICE_CATEGORIES = "Service categories";
 const SHEET_INDICATORS = "Indicators";
 
 // ============================================================================
@@ -18,11 +20,12 @@ const SHEET_INDICATORS = "Indicators";
 export function buildHfaWorkbookBlob(args: {
   categories: HfaIndicatorCategory[];
   subCategories: HfaIndicatorSubCategory[];
+  serviceCategories: HfaIndicatorServiceCategory[];
   indicators: HfaIndicator[];
   code: HfaIndicatorCode[];
   timePoints: string[]; // already sorted
 }): Blob {
-  const { categories, subCategories, indicators, code, timePoints } = args;
+  const { categories, subCategories, serviceCategories, indicators, code, timePoints } = args;
 
   const categoriesAoa: string[][] = [["id", "label"]];
   for (const cat of categories) categoriesAoa.push([cat.id, cat.label]);
@@ -31,6 +34,9 @@ export function buildHfaWorkbookBlob(args: {
   for (const sc of subCategories) {
     subCategoriesAoa.push([sc.id, sc.categoryId, sc.label]);
   }
+
+  const serviceCategoriesAoa: string[][] = [["id", "label"]];
+  for (const svc of serviceCategories) serviceCategoriesAoa.push([svc.id, svc.label]);
 
   const codeByKey = new Map<string, { rCode: string; rFilterCode: string }>();
   for (const c of code) {
@@ -44,6 +50,7 @@ export function buildHfaWorkbookBlob(args: {
     "varName",
     "categoryId",
     "subCategoryId",
+    "serviceCategoryId",
     "shortLabel",
     "definition",
     "type",
@@ -58,6 +65,7 @@ export function buildHfaWorkbookBlob(args: {
       ind.varName,
       ind.categoryId ?? "",
       ind.subCategoryId ?? "",
+      ind.serviceCategoryId ?? "",
       ind.shortLabel,
       ind.definition,
       ind.type,
@@ -73,6 +81,7 @@ export function buildHfaWorkbookBlob(args: {
   const wb = utils.book_new();
   utils.book_append_sheet(wb, utils.aoa_to_sheet(categoriesAoa), SHEET_CATEGORIES);
   utils.book_append_sheet(wb, utils.aoa_to_sheet(subCategoriesAoa), SHEET_SUB_CATEGORIES);
+  utils.book_append_sheet(wb, utils.aoa_to_sheet(serviceCategoriesAoa), SHEET_SERVICE_CATEGORIES);
   utils.book_append_sheet(wb, utils.aoa_to_sheet(indicatorsAoa), SHEET_INDICATORS);
 
   const out = write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
@@ -124,11 +133,13 @@ export function parseHfaWorkbook(
 
   let categoriesAoa: string[][] | undefined;
   let subCategoriesAoa: string[][] | undefined;
+  let serviceCategoriesAoa: string[][] | undefined;
   let indicatorsAoa: string[][] | undefined;
   for (const name of wb.SheetNames) {
     const aoa = utils.sheet_to_json<string[]>(wb.Sheets[name], { header: 1 });
     const n = normalizeSheetName(name);
     if (n === "subcategories") subCategoriesAoa = aoa;
+    else if (n === "servicecategories") serviceCategoriesAoa = aoa;
     else if (n === "categories") categoriesAoa = aoa;
     else if (n === "indicators") indicatorsAoa = aoa;
   }
@@ -173,6 +184,20 @@ export function parseHfaWorkbook(
     subCategories.push({ id, categoryId, label });
   }
 
+  // Service categories (sheet is optional; missing means none)
+  const svcRows = sheetToObjects(serviceCategoriesAoa ?? []);
+  const serviceCategories: { id: string; label: string }[] = [];
+  const serviceCategoryIds = new Set<string>();
+  for (let i = 0; i < svcRows.length; i++) {
+    const id = svcRows[i].id ?? "";
+    const label = svcRows[i].label ?? "";
+    if (!id) return { ok: false, err: `Service categories sheet, row ${i + 2}: missing id.` };
+    if (!label) return { ok: false, err: `Service categories sheet, row ${i + 2}: missing label.` };
+    if (serviceCategoryIds.has(id)) return { ok: false, err: `Service categories sheet, row ${i + 2}: duplicate id "${id}".` };
+    serviceCategoryIds.add(id);
+    serviceCategories.push({ id, label });
+  }
+
   // Indicators
   const indRows = sheetToObjects(indicatorsAoa);
   const indicators: HfaWorkbookImport["indicators"] = [];
@@ -206,7 +231,11 @@ export function parseHfaWorkbook(
 
     const categoryId = (row.categoryId ?? "").trim() || null;
     const subCategoryId = (row.subCategoryId ?? "").trim() || null;
+    const serviceCategoryId = (row.serviceCategoryId ?? "").trim() || null;
 
+    if (serviceCategoryId && !serviceCategoryIds.has(serviceCategoryId)) {
+      return { ok: false, err: `Indicators sheet, row ${i + 2}: serviceCategoryId "${serviceCategoryId}" is not in the Service categories sheet.` };
+    }
     if (categoryId && !categoryIds.has(categoryId)) {
       return { ok: false, err: `Indicators sheet, row ${i + 2}: categoryId "${categoryId}" is not in the Categories sheet.` };
     }
@@ -221,6 +250,7 @@ export function parseHfaWorkbook(
       varName,
       categoryId,
       subCategoryId,
+      serviceCategoryId,
       shortLabel: (row.shortLabel ?? "").trim(),
       definition: (row.definition ?? "").trim(),
       type,
@@ -240,5 +270,5 @@ export function parseHfaWorkbook(
     }
   }
 
-  return { ok: true, data: { categories, subCategories, indicators, code } };
+  return { ok: true, data: { categories, subCategories, serviceCategories, indicators, code } };
 }

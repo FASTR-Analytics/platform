@@ -188,7 +188,6 @@ export type CustomFigureStyleOptions = {
     tickLabelGap?: number;
     tickLabelFormatter?: TickLabelFormatterOption;
     tickLabelAlignment?: "center" | "inset";
-    forceRightOverhangWidth?: "none" | number;
     allowIndividualLaneLimits?: boolean;
     exactAxisY?: "none" | number;
   };
@@ -220,15 +219,7 @@ export type CustomFigureStyleOptions = {
     tickWidth?: number;
     tickLabelGap?: number;
     logicTickLabelWidth?: "auto" | "fixed";
-    logicColGroupLabelWidth?: "auto" | "fixed";
     maxTickLabelWidthAsPctOfChart?: number;
-    maxColGroupLabelWidthAsPctOfChart?: number;
-    colGroupGap?: number;
-    colGroupBracketGapLeft?: number;
-    colGroupBracketGapRight?: number;
-    colGroupBracketPaddingY?: number;
-    colGroupBracketTickWidth?: number;
-    verticalColGroupLabels?: boolean;
   };
   yScaleAxis?: {
     max?: number | "auto" | ((i_series: number) => number);
@@ -238,7 +229,6 @@ export type CustomFigureStyleOptions = {
     tickLabelGap?: number;
     tickLabelFormatter?: TickLabelFormatterOption;
     tickLabelAlignment?: "center" | "inset";
-    forceTopOverhangHeight?: "none" | number;
     exactAxisX?: "none" | number;
     allowIndividualTierLimits?: boolean;
   };

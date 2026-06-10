@@ -41,3 +41,14 @@ export {
 } from "./table.ts";
 export { isValidFigureData, zFigureData } from "./figure_data.ts";
 export type { FigureData } from "./figure_data.ts";
+export {
+  isValidFigureInputs,
+  zChartOHInputs,
+  zChartOVInputs,
+  zFigureInputs,
+  zLegendInput,
+  zMapInputs,
+  zSimpleVizInputs,
+  zTableInputs,
+  zTimeseriesInputs,
+} from "./figure_inputs.ts";

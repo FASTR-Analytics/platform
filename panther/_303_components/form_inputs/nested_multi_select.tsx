@@ -232,7 +232,7 @@ export function NestedMultiSelect<T extends string>(
             return (
               <>
                 <Checkbox
-                  label={t3({ en: "Select All", fr: "Tout sélectionner" })}
+                  label={t3({ en: "Select all", fr: "Tout sélectionner" })}
                   checked={allSelected()}
                   indeterminate={someSelected()}
                   onChange={toggleSelectAll}

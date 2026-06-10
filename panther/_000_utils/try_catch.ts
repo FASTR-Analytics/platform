@@ -6,8 +6,7 @@
 export function tryCatch<T>(func: () => T, msg?: string): T {
   try {
     return func();
-  } catch {
-    console.log("%c" + (msg ?? "Did not pass try-catch"), "color: red");
-    throw new Error(msg ?? "Did not pass try-catch");
+  } catch (e) {
+    throw new Error(msg ?? "Did not pass try-catch", { cause: e });
   }
 }

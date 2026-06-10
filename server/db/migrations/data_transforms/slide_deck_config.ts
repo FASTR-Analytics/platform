@@ -36,6 +36,10 @@ function findNearestPresetByHue(primaryColor: string): ColorPresetId {
   let minDiff = Infinity;
 
   for (const preset of presets) {
+    // "custom" is the synthetic brand-color preset, never a selectable id
+    if (preset.id === "custom") {
+      continue;
+    }
     const diff = Math.abs(preset.hue - brandHue);
     const wrappedDiff = Math.min(diff, 360 - diff);
     if (wrappedDiff < minDiff) {

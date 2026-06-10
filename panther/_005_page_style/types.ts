@@ -15,6 +15,10 @@ export type SplitConfig = {
   background?: PageBackgroundStyle | "none";
 };
 
+// The default layer must supply every split field so the merge needs no
+// non-null assertions.
+export type DefaultSplitConfig = Required<SplitConfig>;
+
 export type LogosPlacementPosition =
   | "top-left"
   | "top-center"

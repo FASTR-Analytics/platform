@@ -33,6 +33,13 @@ CREATE TABLE hfa_indicator_sub_categories_snapshot (
   sort_order integer NOT NULL DEFAULT 0
 );
 
+-- HFA indicator service categories snapshot (mirrors instance table at export time)
+CREATE TABLE hfa_indicator_service_categories_snapshot (
+  id text PRIMARY KEY NOT NULL,
+  label text NOT NULL,
+  sort_order integer NOT NULL DEFAULT 0
+);
+
 -- Point-in-time snapshot of HFA indicator definitions + per-time-point R code,
 -- copied from the instance DB at HFA data export time. The module runner reads
 -- from these tables so indicators and data always stay in sync.
@@ -40,6 +47,7 @@ CREATE TABLE hfa_indicators_snapshot (
   var_name text PRIMARY KEY NOT NULL,
   category_id text,
   sub_category_id text,
+  service_category_id text,
   short_label text NOT NULL DEFAULT '',
   definition text NOT NULL,
   type text NOT NULL,

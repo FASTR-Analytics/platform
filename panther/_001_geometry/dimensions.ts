@@ -133,10 +133,16 @@ export class Dimensions {
   }
 
   getHeightToWidthRatio(): number {
+    if (this._w === 0) {
+      throw new Error("getHeightToWidthRatio: width is 0");
+    }
     return this._h / this._w;
   }
 
   getWidthToHeightRatio(): number {
+    if (this._h === 0) {
+      throw new Error("getWidthToHeightRatio: height is 0");
+    }
     return this._w / this._h;
   }
 }

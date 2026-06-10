@@ -38,6 +38,10 @@ import type {
   GenericTableHeaderStyle,
   GenericTableHeaderStyleOptions,
 } from "./style_func_types.ts";
+import {
+  SERIES_COLOR_SENTINEL,
+  VALUES_COLOR_SENTINEL,
+} from "./style_func_types.ts";
 import type { LegendPosition } from "./types.ts";
 
 function typed<T>(value: T): T {
@@ -142,7 +146,6 @@ const _DS = {
     tickLabelGap: 5,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
     tickLabelAlignment: typed<"center" | "inset">("center"),
-    forceRightOverhangWidth: typed<"none" | number>("none"),
     allowIndividualLaneLimits: false,
     exactAxisY: typed<"none" | number>("none"),
   },
@@ -163,15 +166,7 @@ const _DS = {
     tickWidth: 10,
     tickLabelGap: 10,
     logicTickLabelWidth: typed<"auto" | "fixed">("auto"),
-    logicColGroupLabelWidth: typed<"auto" | "fixed">("auto"),
     maxTickLabelWidthAsPctOfChart: 0.3,
-    maxColGroupLabelWidthAsPctOfChart: 0.1,
-    colGroupGap: 0,
-    colGroupBracketGapLeft: 10,
-    colGroupBracketGapRight: 10,
-    colGroupBracketPaddingY: 0,
-    colGroupBracketTickWidth: 10,
-    verticalColGroupLabels: true,
   },
   yScaleAxis: {
     max: typed<number | "auto" | ((i_series: number) => number)>("auto"),
@@ -181,7 +176,6 @@ const _DS = {
     tickLabelGap: 5,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
     tickLabelAlignment: typed<"center" | "inset">("center"),
-    forceTopOverhangHeight: typed<"none" | number>("none"),
     exactAxisX: typed<"none" | number>("none"),
     allowIndividualTierLimits: false,
   },
@@ -200,7 +194,7 @@ const _DS = {
         show: false,
         pointStyle: "circle",
         radius: 5,
-        color: 666,
+        color: SERIES_COLOR_SENTINEL,
         strokeWidth: 2,
         innerColorStrategy: { opacity: 0.5 },
         dataLabelPosition: "top",
@@ -218,7 +212,7 @@ const _DS = {
     bars: {
       func: typed<GenericBarStyle>({
         show: false,
-        fillColor: 666,
+        fillColor: SERIES_COLOR_SENTINEL,
         dataLabel: {
           show: false,
           offset: 3,
@@ -236,7 +230,7 @@ const _DS = {
       func: typed<GenericLineStyle>({
         show: false,
         strokeWidth: 3,
-        color: 666,
+        color: SERIES_COLOR_SENTINEL,
         lineDash: "solid",
         dataLabel: {
           show: false,
@@ -254,7 +248,7 @@ const _DS = {
       func: typed<GenericAreaStyle>({
         show: false,
         to: "zero-line",
-        fillColor: 666,
+        fillColor: SERIES_COLOR_SENTINEL,
         fillColorAdjustmentStrategy: { opacity: 0.5 },
       }),
       joinAcrossGaps: true,
@@ -273,7 +267,7 @@ const _DS = {
     confidenceBands: {
       func: typed<GenericConfidenceBandStyle>({
         show: true,
-        fillColor: 666,
+        fillColor: SERIES_COLOR_SENTINEL,
         fillColorAdjustmentStrategy: { opacity: 0.15 },
       }),
     },
@@ -314,7 +308,7 @@ const _DS = {
     mapRegions: {
       func: typed<GenericMapRegionStyle>({
         show: true,
-        fillColor: 777,
+        fillColor: VALUES_COLOR_SENTINEL,
         strokeColor: { key: "baseContent" },
         strokeWidth: 1,
         dataLabel: {

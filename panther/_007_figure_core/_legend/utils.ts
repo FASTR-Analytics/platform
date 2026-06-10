@@ -3,7 +3,16 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import type { HeaderItem } from "../deps.ts";
 import type { LegendItem } from "./types.ts";
+import type { LegendInput } from "./scale_legend_types.ts";
+
+export function resolveDefaultLegend(
+  legend: LegendInput | undefined,
+  seriesHeaders: HeaderItem[],
+): LegendInput {
+  return legend ?? seriesHeaders.map((h) => h.label);
+}
 
 export function getLegendItemsInGroups(
   legendItems: LegendItem[],

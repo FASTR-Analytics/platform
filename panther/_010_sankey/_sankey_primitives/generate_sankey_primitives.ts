@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  MeasuredText,
   PathSegment,
   Primitive,
   RenderContext,
@@ -54,7 +55,7 @@ function generateNodePrimitives(
     });
 
     let labelData:
-      | { mText: any; position: Coordinates; alignH: "left" | "right" }
+      | { mText: MeasuredText; position: Coordinates; alignH: "left" | "right" }
       | undefined;
 
     if (node.label) {

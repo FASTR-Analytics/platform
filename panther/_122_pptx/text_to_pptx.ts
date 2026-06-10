@@ -309,8 +309,9 @@ function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
       const isBold = runStyle === "bold" || runStyle === "bold-italic";
       const isItalic = runStyle === "italic" || runStyle === "bold-italic";
 
-      // Use the run's actual color (which may be link color) or base color
-      const runColor = run.underline?.color ?? baseColor;
+      // Use the run's actual color (carries link color even when the link
+      // underline is disabled) or base color
+      const runColor = mText.ti.color ?? baseColor;
 
       const options: Record<string, unknown> = {
         fontFace: mapFontForPptx(mText.ti.font.fontFamily),

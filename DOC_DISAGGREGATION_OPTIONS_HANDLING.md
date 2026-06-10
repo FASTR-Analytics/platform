@@ -211,7 +211,7 @@ Grouped by semantic category:
 | **Indicator**            | `indicator_common_id`, `source_indicator`, `target_population`, `ratio_type`                            | RO table column (physical)                                                                              |
 | **Denominator**          | `denominator`, `denominator_best_or_survey`                                                             | RO table column (physical)                                                                              |
 | **Facility**             | `facility_name`, `facility_type`, `facility_ownership`, `facility_custom_1` through `facility_custom_5` | RO table has `facility_id`; values resolved via JOIN to `facilities` table; gated by instance config    |
-| **HFA**                  | `hfa_indicator`, `hfa_category`, `time_point`                                                           | HFA-dataset-specific RO columns                                                                         |
+| **HFA**                  | `hfa_indicator`, `hfa_category`, `hfa_sub_category`, `hfa_service_category`, `time_point`               | HFA-dataset-specific RO columns                                                                         |
 
 No single enum/union encodes the category — it's structural. Code that cares (enricher, possible-values query, facility-gating logic) uses explicit `if`/`in` tests.
 
@@ -293,7 +293,7 @@ For each of this fixed set —
 admin_area_2, admin_area_3, admin_area_4,
 indicator_common_id, denominator, denominator_best_or_survey,
 source_indicator, target_population, ratio_type,
-hfa_indicator, hfa_category, time_point
+hfa_indicator, hfa_category, hfa_sub_category, hfa_service_category, time_point
 ```
 
 it calls `detectColumnExists(projectDb, tableName, disOpt)` ([server/db/utils.ts](server/db/utils.ts)). If the column exists on `ro_<resultsObjectId>`, the disOpt is added to the output.
