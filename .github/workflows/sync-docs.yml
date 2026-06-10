@@ -1,0 +1,40 @@
+name: Sync Docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/**/*.ts'
+      - 'client/src/**/*.tsx'
+      - 'client/src/**/*.ts'
+      - 'lib/**/*.ts'
+      - 'VERSION'
+
+permissions:
+  contents: read
+
+jobs:
+  sync-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout platform
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout site repo
+        uses: actions/checkout@v4
+        with:
+          repository: FASTR-Analytics/site
+          token: ${{ secrets.SITE_REPO_PAT }}
+          path: _site_repo
+
+      - name: Sync docs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          SENDGRID_FROM_EMAIL: ${{ secrets.SENDGRID_FROM_EMAIL }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: bash .github/scripts/sync-docs.sh
