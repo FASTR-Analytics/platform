@@ -601,6 +601,211 @@ export async function updateDashboardItemGroup(
   });
 }
 
+type ReplaceEntryOld =
+  | { kind: "item"; itemId: string }
+  | { kind: "group"; groupId: string };
+
+type ReplaceEntryNew =
+  | { kind: "item"; label: string; figureBlock: FigureBlock; geoData?: unknown }
+  | {
+      kind: "group";
+      label: string;
+      replicateBy: string;
+      defaultReplicantValue?: string;
+      replicants: { value: string; label: string }[];
+      geoData?: unknown;
+      members: GroupMemberInput[];
+    };
+
+// Replace one entry (item OR group) in place with a new entry of EITHER kind,
+// preserving its sort position — the single primitive behind every structural
+// reshape (item↔group, group→group with a changed dimension/set). Members are
+// re-resolved upstream, so this swaps rows wholesale rather than diffing them.
+// The insert is tie-free via the duplicateSlides hole-clear idiom (shift trailing
+// rows by newCount*10 before inserting), because reSequence cannot break
+// sort_order ties when the entry's row count changes (e.g. item→group is 1→N).
+export async function replaceDashboardEntry(
+  projectDb: Sql,
+  dashboardId: string,
+  input: { oldEntry: ReplaceEntryOld; newEntry: ReplaceEntryNew },
+): Promise<APIResponseWithData<{ entryId: string; lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const now = new Date().toISOString();
+    const { oldEntry, newEntry } = input;
+
+    // Defensive: a group must have at least one member. Unreachable from the UI,
+    // but an empty group would leave an orphan group row with nothing to render.
+    if (newEntry.kind === "group" && newEntry.members.length === 0) {
+      return { success: false, err: "Cannot create a group with no members" };
+    }
+
+    // 1. Prepare the new rows (ids + validated figure blocks) before the txn.
+    const newCount = newEntry.kind === "item" ? 1 : newEntry.members.length;
+
+    let entryId: string;
+    let newItem:
+      | { id: string; label: string; figureBlockJson: string; geoData: string | null }
+      | undefined;
+    let newGroup:
+      | {
+          groupId: string;
+          label: string;
+          replicateBy: string;
+          defaultReplicantValue: string | null;
+          replicantsJson: string;
+          geoData: string | null;
+          members: {
+            id: string;
+            replicantValue: string;
+            label: string;
+            figureBlockJson: string;
+          }[];
+        }
+      | undefined;
+
+    if (newEntry.kind === "item") {
+      const itemId = await generateUniqueDashboardItemId(projectDb);
+      entryId = itemId;
+      newItem = {
+        id: itemId,
+        label: newEntry.label,
+        figureBlockJson: JSON.stringify(
+          dashboardFigureBlockSchema.parse(newEntry.figureBlock),
+        ),
+        geoData:
+          newEntry.geoData !== undefined
+            ? JSON.stringify(newEntry.geoData)
+            : null,
+      };
+    } else {
+      const groupId = await generateUniqueDashboardItemGroupId(projectDb);
+      entryId = groupId;
+      const members: {
+        id: string;
+        replicantValue: string;
+        label: string;
+        figureBlockJson: string;
+      }[] = [];
+      for (const m of newEntry.members) {
+        members.push({
+          id: await generateUniqueDashboardItemId(projectDb),
+          replicantValue: m.replicantValue,
+          label: m.label,
+          figureBlockJson: JSON.stringify(
+            dashboardFigureBlockSchema.parse(m.figureBlock),
+          ),
+        });
+      }
+      newGroup = {
+        groupId,
+        label: newEntry.label,
+        replicateBy: newEntry.replicateBy,
+        defaultReplicantValue: newEntry.defaultReplicantValue ?? null,
+        replicantsJson: JSON.stringify(newEntry.replicants),
+        geoData:
+          newEntry.geoData !== undefined
+            ? JSON.stringify(newEntry.geoData)
+            : null,
+        members,
+      };
+    }
+
+    // 2. One transaction: read position + delete old → clear a hole at baseSort →
+    //    insert new → reSequence → bump dashboard. The position read lives inside
+    //    the txn (and the DELETE row-count is checked) so a concurrent move/delete
+    //    can't make us insert at a stale position or resurrect a vanished entry.
+    await projectDb.begin(async (sql) => {
+      let baseSort: number;
+      if (oldEntry.kind === "item") {
+        const row = (
+          await sql<{ sort_order: number }[]>`
+            SELECT sort_order FROM dashboard_items
+            WHERE id = ${oldEntry.itemId} AND dashboard_id = ${dashboardId}
+          `
+        ).at(0);
+        if (!row) throw new Error("Dashboard item not found");
+        baseSort = row.sort_order;
+        const del = await sql`
+          DELETE FROM dashboard_items
+          WHERE id = ${oldEntry.itemId} AND dashboard_id = ${dashboardId}
+        `;
+        if (del.count === 0) throw new Error("Dashboard item not found");
+      } else {
+        const row = (
+          await sql<{ min_sort: number | null }[]>`
+            SELECT min(sort_order) AS min_sort FROM dashboard_items
+            WHERE replicant_group_id = ${oldEntry.groupId}
+              AND dashboard_id = ${dashboardId}
+          `
+        ).at(0);
+        if (row?.min_sort == null) {
+          throw new Error("Dashboard item group not found");
+        }
+        baseSort = row.min_sort;
+        // Group row delete cascades to its member items (FK ON DELETE CASCADE).
+        const del = await sql`
+          DELETE FROM dashboard_item_groups
+          WHERE id = ${oldEntry.groupId} AND dashboard_id = ${dashboardId}
+        `;
+        if (del.count === 0) {
+          throw new Error("Dashboard item group not found");
+        }
+      }
+
+      // Open a newCount*10-wide hole at baseSort so the inserts below cannot tie
+      // with any trailing row (reSequence can't break sort_order ties).
+      await sql`
+        UPDATE dashboard_items
+        SET sort_order = sort_order + ${newCount * 10}
+        WHERE dashboard_id = ${dashboardId} AND sort_order >= ${baseSort}
+      `;
+
+      if (newItem) {
+        await sql`
+          INSERT INTO dashboard_items (
+            id, dashboard_id, label, sort_order, figure_block, geo_data, last_updated
+          ) VALUES (
+            ${newItem.id}, ${dashboardId}, ${newItem.label}, ${baseSort},
+            ${newItem.figureBlockJson}, ${newItem.geoData}, ${now}
+          )
+        `;
+      } else if (newGroup) {
+        await sql`
+          INSERT INTO dashboard_item_groups (
+            id, dashboard_id, label, replicate_by, default_replicant_value,
+            replicants, geo_data, last_updated
+          ) VALUES (
+            ${newGroup.groupId}, ${dashboardId}, ${newGroup.label},
+            ${newGroup.replicateBy}, ${newGroup.defaultReplicantValue},
+            ${newGroup.replicantsJson}, ${newGroup.geoData}, ${now}
+          )
+        `;
+        for (let i = 0; i < newGroup.members.length; i++) {
+          const m = newGroup.members[i];
+          await sql`
+            INSERT INTO dashboard_items (
+              id, dashboard_id, label, sort_order, figure_block, geo_data,
+              last_updated, replicant_group_id, replicant_value
+            ) VALUES (
+              ${m.id}, ${dashboardId}, ${m.label}, ${baseSort + 10 * i},
+              ${m.figureBlockJson}, ${null}, ${now}, ${newGroup.groupId},
+              ${m.replicantValue}
+            )
+          `;
+        }
+      }
+
+      await sql`
+        UPDATE dashboards SET updated_at = ${now}, last_updated = ${now}
+        WHERE id = ${dashboardId}
+      `;
+      await reSequence(sql, dashboardId);
+    });
+
+    return { success: true, data: { entryId, lastUpdated: now } };
+  });
+}
+
 export type DashboardItemPosition =
   | { after: string }
   | { before: string }
@@ -616,54 +821,58 @@ export async function moveDashboardItems(
   return await tryCatchDatabaseAsync(async () => {
     const now = new Date().toISOString();
 
-    let anchorSortOrder: number;
+    // Full-order rewrite (mirrors moveSlides): splice the moved block into the
+    // current order, then renumber every row to (i+1)*10. Tie-free by
+    // construction — the older anchor+offset+reSequence approach collided when a
+    // moved block (a replicant group's N members) was wider than the 10-unit gap
+    // to its neighbour, and reSequence cannot break sort_order ties.
+    const allRows = await projectDb<{ id: string }[]>`
+      SELECT id FROM dashboard_items
+      WHERE dashboard_id = ${dashboardId}
+      ORDER BY sort_order
+    `;
+    const allIds = allRows.map((r) => r.id);
+    const allIdsSet = new Set(allIds);
 
-    if ("toEnd" in position) {
-      const maxResult = (
-        await projectDb<{ max_sort_order: number | null }[]>`
-          SELECT max(sort_order) AS max_sort_order FROM dashboard_items
-          WHERE dashboard_id = ${dashboardId} AND id <> ALL(${itemIds})
-        `
-      ).at(0);
-      anchorSortOrder = (maxResult?.max_sort_order ?? 0) + 10;
-    } else if ("toStart" in position) {
-      const minResult = (
-        await projectDb<{ min_sort_order: number | null }[]>`
-          SELECT min(sort_order) AS min_sort_order FROM dashboard_items
-          WHERE dashboard_id = ${dashboardId} AND id <> ALL(${itemIds})
-        `
-      ).at(0);
-      anchorSortOrder = (minResult?.min_sort_order ?? 10) - 100;
-    } else if ("after" in position) {
-      const afterItem = (
-        await projectDb<{ sort_order: number }[]>`
-          SELECT sort_order FROM dashboard_items
-          WHERE id = ${position.after} AND dashboard_id = ${dashboardId}
-        `
-      ).at(0);
-      if (!afterItem) {
-        throw new Error(`Target item not found: ${position.after}`);
-      }
-      anchorSortOrder = afterItem.sort_order + 1;
-    } else {
-      const beforeItem = (
-        await projectDb<{ sort_order: number }[]>`
-          SELECT sort_order FROM dashboard_items
-          WHERE id = ${position.before} AND dashboard_id = ${dashboardId}
-        `
-      ).at(0);
-      if (!beforeItem) {
-        throw new Error(`Target item not found: ${position.before}`);
-      }
-      anchorSortOrder = beforeItem.sort_order - itemIds.length;
+    const missing = itemIds.filter((id) => !allIdsSet.has(id));
+    if (missing.length > 0) {
+      throw new Error(`Dashboard items not found: ${missing.join(", ")}`);
     }
 
+    const idsSet = new Set(itemIds);
+    const remaining = allIds.filter((id) => !idsSet.has(id));
+
+    let insertIndex: number;
+    if ("toStart" in position) {
+      insertIndex = 0;
+    } else if ("toEnd" in position) {
+      insertIndex = remaining.length;
+    } else if ("after" in position) {
+      const targetIndex = remaining.indexOf(position.after);
+      if (targetIndex === -1) {
+        throw new Error(`Target item not found: ${position.after}`);
+      }
+      insertIndex = targetIndex + 1;
+    } else {
+      const targetIndex = remaining.indexOf(position.before);
+      if (targetIndex === -1) {
+        throw new Error(`Target item not found: ${position.before}`);
+      }
+      insertIndex = targetIndex;
+    }
+
+    const reordered = [
+      ...remaining.slice(0, insertIndex),
+      ...itemIds,
+      ...remaining.slice(insertIndex),
+    ];
+
     await projectDb.begin(async (sql) => {
-      for (let i = 0; i < itemIds.length; i++) {
+      for (let i = 0; i < reordered.length; i++) {
         await sql`
           UPDATE dashboard_items
-          SET sort_order = ${anchorSortOrder + i}, last_updated = ${now}
-          WHERE id = ${itemIds[i]} AND dashboard_id = ${dashboardId}
+          SET sort_order = ${(i + 1) * 10}, last_updated = ${now}
+          WHERE id = ${reordered[i]} AND dashboard_id = ${dashboardId}
         `;
       }
       await sql`
@@ -671,7 +880,6 @@ export async function moveDashboardItems(
         SET updated_at = ${now}, last_updated = ${now}
         WHERE id = ${dashboardId}
       `;
-      await reSequence(sql, dashboardId);
     });
 
     return { success: true, data: { lastUpdated: now } };

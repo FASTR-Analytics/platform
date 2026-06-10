@@ -9,6 +9,7 @@ import {
   getAllDashboards,
   getDashboardDetail,
   moveDashboardItems,
+  replaceDashboardEntry,
   updateDashboard,
   updateDashboardItem,
   updateDashboardItemGroup,
@@ -360,6 +361,41 @@ defineRoute(
       return c.json(res);
     }
 
+    notifyLastUpdated(
+      c.var.ppk.projectId,
+      "dashboards",
+      [params.dashboard_id],
+      res.data.lastUpdated,
+    );
+
+    const listRes = await getAllDashboards(c.var.ppk.projectDb, c.var.mainDb, c.var.ppk.projectId);
+    if (listRes.success) {
+      notifyProjectDashboardsUpdated(c.var.ppk.projectId, listRes.data);
+    }
+
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDashboards,
+  "replaceDashboardEntry",
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_slide_decks",
+  ),
+  async (c, { params, body }) => {
+    const res = await replaceDashboardEntry(
+      c.var.ppk.projectDb,
+      params.dashboard_id,
+      body,
+    );
+    if (!res.success) {
+      return c.json(res);
+    }
+
+    // item↔group transitions change the dashboard's item_count, so refresh the
+    // list view (notifyProjectDashboardsUpdated) as well as the editor refetch.
     notifyLastUpdated(
       c.var.ppk.projectId,
       "dashboards",

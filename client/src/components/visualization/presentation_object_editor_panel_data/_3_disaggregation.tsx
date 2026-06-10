@@ -7,6 +7,7 @@ import {
   ResultsValue,
   TC,
   getNextAvailableDisaggregationDisplayOption,
+  getRollupAdminLevel,
   get_DISAGGREGATION_DISPLAY_OPTIONS,
   t3,
 } from "lib";
@@ -292,13 +293,10 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
         }}
         fullWidth
       />
-      <Show
-        when={
-          p.disOpt.value === "admin_area_2" &&
-          p.keyedDis.disDisplayOpt !== "replicant" &&
-          p.keyedDis.disDisplayOpt !== "mapArea"
-        }
-      >
+      {/* The roll-up option appears only on the single level the roll-up would
+          collapse — getRollupAdminLevel is the one source of truth shared with the
+          gate, server, and display, so the control can't show on the wrong level. */}
+      <Show when={getRollupAdminLevel(p.tempConfig) === p.disOpt.value}>
         <AdminAreaOptions
           tempConfig={p.tempConfig}
           setTempConfig={p.setTempConfig}
@@ -321,15 +319,13 @@ function AdminAreaOptions(p: AdminAreaOptionsProps) {
           en: "Include National results",
           fr: "Inclure les résultats nationaux",
         })}
-        checked={!!p.tempConfig.d.includeNationalForAdminArea2}
-        onChange={(v) =>
-          p.setTempConfig("d", "includeNationalForAdminArea2", v)
-        }
+        checked={!!p.tempConfig.d.includeAdminAreaRollup}
+        onChange={(v) => p.setTempConfig("d", "includeAdminAreaRollup", v)}
       />
-      <Show when={p.tempConfig.d.includeNationalForAdminArea2}>
+      <Show when={p.tempConfig.d.includeAdminAreaRollup}>
         <div class="flex justify-end pt-1.5 text-sm">
           <RadioGroup
-            value={p.tempConfig.d.includeNationalPosition}
+            value={p.tempConfig.d.adminAreaRollupPosition}
             options={[
               { value: "top", label: t3({ en: "Top", fr: "Haut" }) },
               { value: "bottom", label: t3({ en: "Bottom", fr: "Bas" }) },
@@ -338,7 +334,7 @@ function AdminAreaOptions(p: AdminAreaOptionsProps) {
             onChange={(v) =>
               p.setTempConfig(
                 "d",
-                "includeNationalPosition",
+                "adminAreaRollupPosition",
                 v as "bottom" | "top",
               )
             }

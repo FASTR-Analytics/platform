@@ -3,7 +3,12 @@ import type {
   GenericLongFormFetchConfig,
   PeriodOption,
 } from "lib";
-import { inferPeriodFormatFromValuesIfTheSame } from "lib";
+import {
+  inferPeriodFormatFromValuesIfTheSame,
+  isAdminLevel,
+  ROLLUP_SENTINEL_BOTTOM,
+  ROLLUP_SENTINEL_TOP,
+} from "lib";
 import type { QueryContext } from "./types.ts";
 
 // ============================================================================
@@ -39,37 +44,44 @@ export function buildMainQuery(
 }
 
 /**
- * Builds the national totals query using externally managed CTEs
+ * Builds the admin-area roll-up ("National" / total) query using externally
+ * managed CTEs. Collapses the finest grouped admin level into a single roll-up
+ * row (sentinel in that column, dropped from GROUP BY, values re-aggregated).
  */
-export function buildNationalTotalQueryV2(
+export function buildAdminAreaRollupQuery(
   sourceTable: string,
   fetchConfig: GenericLongFormFetchConfig,
   queryContext: QueryContext,
   facilityCTEName?: string,
 ): string | null {
-  // Check conditions for including national total (same logic as v1)
+  // The client chose the collapse level (get_fetch_config_from_po → getRollupAdminLevel),
+  // accounting for replicant/mapArea and single-value filters that the server can't see.
+  // We obey it — but `level` is interpolated raw into SQL, so isAdminLevel() is the
+  // SQL-safety boundary (closed union, not free-text). It must also actually be grouped.
+  const level = fetchConfig.adminAreaRollupLevel;
   if (
-    !fetchConfig.includeNationalForAdminArea2 ||
-    !fetchConfig.groupBys.includes("admin_area_2") ||
-    fetchConfig.groupBys.includes("admin_area_3")
+    !fetchConfig.includeAdminAreaRollup ||
+    level === undefined ||
+    !isAdminLevel(level) ||
+    !fetchConfig.groupBys.includes(level)
   ) {
     return null;
   }
 
-  const nationalCode =
-    fetchConfig.includeNationalPosition === "top" ? "__NATIONAL" : "zzNATIONAL";
+  const sentinel =
+    fetchConfig.adminAreaRollupPosition === "top"
+      ? ROLLUP_SENTINEL_TOP
+      : ROLLUP_SENTINEL_BOTTOM;
 
-  // Build SELECT columns with national code replacement
+  // Replace the collapsed level with the sentinel constant.
   const selectColumns: string[] = fetchConfig.groupBys.map((gb) =>
-    gb === "admin_area_2" ? `'${nationalCode}' AS admin_area_2` : gb,
+    gb === level ? `'${sentinel}' AS ${level}` : gb,
   );
 
   const aggregateColumns = buildAggregateColumns(fetchConfig.values, true);
 
-  // GROUP BY excludes admin_area_2 (since it's replaced with a constant)
-  const groupByColumns = fetchConfig.groupBys.filter(
-    (gb) => gb !== "admin_area_2",
-  );
+  // GROUP BY excludes the collapsed level (it's replaced with a constant)
+  const groupByColumns = fetchConfig.groupBys.filter((gb) => gb !== level);
 
   return buildSelectQueryV2(
     sourceTable,

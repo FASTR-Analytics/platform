@@ -1,8 +1,8 @@
 import { CTEManager } from "./cte_manager.ts";
 import {
   applyPostAggregationExpressionV2,
+  buildAdminAreaRollupQuery,
   buildMainQuery,
-  buildNationalTotalQueryV2,
 } from "./query_helpers.ts";
 import type { QueryConfigV2 } from "./types.ts";
 
@@ -24,7 +24,7 @@ export function buildCombinedQueryV2(config: QueryConfigV2): string {
     facilityCTEName,
   );
 
-  const nationalQuery = buildNationalTotalQueryV2(
+  const rollupQuery = buildAdminAreaRollupQuery(
     sourceTable,
     fetchConfig,
     queryContext,
@@ -33,8 +33,8 @@ export function buildCombinedQueryV2(config: QueryConfigV2): string {
 
   // 4. Combine queries with UNION ALL if both exist
   let combinedQuery = mainQuery;
-  if (nationalQuery) {
-    combinedQuery = `${mainQuery}\nUNION ALL\n${nationalQuery}`;
+  if (rollupQuery) {
+    combinedQuery = `${mainQuery}\nUNION ALL\n${rollupQuery}`;
   }
 
   // 5. Apply post-aggregation expression if present (v2 version)

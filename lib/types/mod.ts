@@ -20,9 +20,9 @@ export * from "./instance.ts";
 export * from "./instance_sse.ts";
 export * from "./_metric_installed.ts";
 export {
-  moduleDefinitionGithubSchema,
-  type ModuleDefinitionGithub,
   type MetricDefinitionGithub,
+  type ModuleDefinitionGithub,
+  moduleDefinitionGithubSchema,
   type ResultsObjectDefinitionGithub,
 } from "./_module_definition_github.ts";
 export * from "./_module_definition_installed.ts";
@@ -43,5 +43,4 @@ export * from "./visualization_folders.ts";
 export * from "./permissions.ts";
 export * from "./permission_labels.ts";
 export * from "./calculated_indicator_id.ts";
-export * from "./share.ts";
 export * from "./custom_prompts.ts";

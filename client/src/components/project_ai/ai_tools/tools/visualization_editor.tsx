@@ -42,11 +42,11 @@ const vizConfigUpdateSchema = z.object({
     z.string(),
     z.null(),
   ]).optional().describe("Selected replicant value, or null to clear."),
-  includeNationalForAdminArea2: configDStrict.shape.includeNationalForAdminArea2.describe(
-    "Include national-level data when disaggregating by admin_area_2.",
+  includeAdminAreaRollup: configDStrict.shape.includeAdminAreaRollup.describe(
+    "Include an admin-area total row when disaggregating by the finest admin level (admin_area_2/3/4).",
   ),
-  includeNationalPosition: configDStrict.shape.includeNationalPosition.describe(
-    "Where to position national data row.",
+  adminAreaRollupPosition: configDStrict.shape.adminAreaRollupPosition.describe(
+    "Where to position the admin-area total row (top or bottom).",
   ),
 
   // EXCEPTION: periodFilter uses simpler abstraction (like startDate/endDate)
@@ -150,7 +150,7 @@ export function getToolsForVizEditor(
           }
         }
 
-        // Schema now enforces valid includeNationalPosition enum - no runtime check needed
+        // Schema now enforces valid adminAreaRollupPosition enum - no runtime check needed
 
         if (input.type) {
           setTempConfig("d", "type", input.type);
@@ -246,14 +246,14 @@ export function getToolsForVizEditor(
           changes.push("selectedReplicantValue");
         }
 
-        if (input.includeNationalForAdminArea2 !== undefined) {
-          setTempConfig("d", "includeNationalForAdminArea2", input.includeNationalForAdminArea2);
-          changes.push("includeNationalForAdminArea2");
+        if (input.includeAdminAreaRollup !== undefined) {
+          setTempConfig("d", "includeAdminAreaRollup", input.includeAdminAreaRollup);
+          changes.push("includeAdminAreaRollup");
         }
 
-        if (input.includeNationalPosition) {
-          setTempConfig("d", "includeNationalPosition", input.includeNationalPosition);
-          changes.push("includeNationalPosition");
+        if (input.adminAreaRollupPosition) {
+          setTempConfig("d", "adminAreaRollupPosition", input.adminAreaRollupPosition);
+          changes.push("adminAreaRollupPosition");
         }
 
         if (input.caption !== undefined) {

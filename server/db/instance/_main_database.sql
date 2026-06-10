@@ -486,26 +486,6 @@ CREATE TABLE geojson_maps (
 );
 
 -- ============================================================================
--- SHARE TOKENS
--- ============================================================================
-
-CREATE TABLE share_tokens (
-  id VARCHAR PRIMARY KEY,
-  token VARCHAR UNIQUE NOT NULL,
-  slug VARCHAR UNIQUE,
-  password TEXT,
-  resource_type VARCHAR NOT NULL,
-  resource_id VARCHAR NOT NULL,
-  data TEXT NOT NULL,
-  created_by_email VARCHAR NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  view_count INTEGER DEFAULT 0
-);
-CREATE INDEX IF NOT EXISTS idx_share_tokens_token ON share_tokens(token);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_share_tokens_slug ON share_tokens(slug) WHERE slug IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_share_tokens_resource ON share_tokens(resource_type, resource_id);
-
--- ============================================================================
 -- CUSTOM PROMPTS
 -- ============================================================================
 

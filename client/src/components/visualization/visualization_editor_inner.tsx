@@ -8,6 +8,7 @@ import {
   ResultsValueInfoForPresentationObject,
   getEffectivePOConfig,
   getReplicateByProp,
+  getRollupAdminLevel,
   hasDuplicateDisaggregatorDisplayOptions,
   normalizePOConfigForStorage,
   periodFilterHasBounds,
@@ -31,6 +32,7 @@ import {
   openAlert,
   openComponent,
   saveAs,
+  stringifyCsv,
   timActionButton,
   timActionDelete,
 } from "panther";
@@ -50,6 +52,7 @@ import { ConflictResolutionModal } from "~/components/forms_editors/conflict_res
 import { DownloadPresentationObject } from "~/components/forms_editors/download_presentation_object";
 import { ViewResultsObject } from "~/components/forms_editors/view_results_object";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
+import { getTableExportAoa } from "~/exports/get_table_export_aoa";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import type { GeoJSONFeatureCollection } from "panther";
@@ -64,7 +67,6 @@ import { DuplicateVisualization } from "./duplicate_visualization";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
 import { SaveAsNewVisualizationModal } from "./save_as_new_visualization_modal";
 import { VisualizationSettings } from "./visualization_settings";
-import { ShareVisualizationModal } from "./share_visualization_modal";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext } from "../project_ai/types";
 
@@ -230,16 +232,31 @@ export function VisualizationEditorInner(p: InnerProps) {
     const _periodFilterMin = _periodFilterBounded?.min;
     const _periodFilterMax = _periodFilterBounded?.max;
     const _valuesFilter = tempConfig.d.valuesFilter?.join("-");
-    const _includeNationalForAdminArea2 = tempConfig.d
-      .includeNationalForAdminArea2
+    const _includeAdminAreaRollup = tempConfig.d.includeAdminAreaRollup
       ? "yes"
       : "no";
+    const _adminAreaRollupPosition = tempConfig.d.adminAreaRollupPosition;
     if (firstRunConfigChange) {
       firstRunConfigChange = false;
       return;
     }
     const unwrappedTempConfig = unwrap(tempConfig);
     attemptGetPresentationObjectItems(unwrappedTempConfig);
+  });
+
+  // Clear the roll-up flag precisely when an edit makes the roll-up inapplicable — a
+  // second admin level becomes effective, the level is switched to replicant/mapArea,
+  // or the level itself is filtered to one value (e.g. via the filters panel). Reactive,
+  // so it covers every edit path, and only fires when the gate actually breaks (benign
+  // edits like row→col keep the level, so the flag survives). Prevents a stuck-on-but-
+  // hidden flag.
+  createEffect(() => {
+    if (
+      tempConfig.d.includeAdminAreaRollup &&
+      getRollupAdminLevel(tempConfig) === undefined
+    ) {
+      setTempConfig("d", "includeAdminAreaRollup", undefined);
+    }
   });
 
   let firstRunNeedsSave = true;
@@ -463,34 +480,6 @@ export function VisualizationEditorInner(p: InnerProps) {
     });
   }
 
-  const openShareModal = async () => {
-    const ih = itemsHolder();
-    if (ih.status !== "ready") return;
-    if (ih.data.ih.status !== "ok") return;
-
-    const figureInputsResult = getFigureInputsFromPresentationObject(
-      p.poDetail.resultsValue,
-      ih.data.ih,
-      ih.data.config,
-      ih.data.geoJson,
-    );
-    if (figureInputsResult.status !== "ready") return;
-
-    await openComponent({
-      element: ShareVisualizationModal,
-      props: {
-        presentationObjectId: p.mode === "edit" ? p.poDetail.id : "",
-        label: p.poDetail.label,
-        config: ih.data.config,
-        metricId: p.poDetail.resultsValue.id,
-        formatAs: p.poDetail.resultsValue.formatAs,
-        figureInputs: figureInputsResult.data,
-        geoData: ih.data.geoJson,
-        indicatorMetadata: ih.data.ih.indicatorMetadata,
-      },
-    });
-  };
-
   async function download() {
     if (needsSave()) {
       await openAlert({
@@ -529,10 +518,24 @@ export function VisualizationEditorInner(p: InnerProps) {
       element: DownloadPresentationObject,
       props: {
         isReplicateBy: !!replicateBy,
+        isTable: "tableData" in figureInputsResult.data,
         poDetail: p.poDetail,
       },
     });
     if (res === undefined) {
+      return;
+    }
+    if (res.format === "data-table-formatted") {
+      const fi = figureInputsResult.data;
+      if (!("tableData" in fi)) {
+        return;
+      }
+      downloadCsv(
+        // BOM so accented (FR) headers/labels render correctly when the CSV is
+        // opened directly in Excel on Windows.
+        stringifyCsv(getTableExportAoa(fi), { bom: true }),
+        `${p.poDetail.label.replaceAll(" ", "_").trim()}_table.csv`,
+      );
       return;
     }
     if (res.format === "json-definition") {
@@ -767,11 +770,6 @@ export function VisualizationEditorInner(p: InnerProps) {
                   outline
                 ></Button>
                 <Button onClick={duplicate} iconName="copy" outline></Button>
-                <Button
-                  onClick={openShareModal}
-                  iconName="arrowRight"
-                  outline
-                ></Button>
                 <Show when={!p.poDetail.isDefault}>
                   <Button
                     onClick={attemptDeletePresentationObjectDetail}

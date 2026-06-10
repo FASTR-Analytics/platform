@@ -25,8 +25,9 @@ import {
 } from "~/exports/_dashboard_export_model";
 import { exportDashboardAsPdf } from "~/exports/export_dashboard_as_pdf";
 import { exportDashboardAsPptx } from "~/exports/export_dashboard_as_pptx";
+import { exportDashboardAsXlsx } from "~/exports/export_dashboard_as_xlsx";
 
-type Format = "png" | "pdf" | "pptx";
+type Format = "png" | "pdf" | "pptx" | "xlsx";
 type Scope = "current" | "all";
 
 // Above this many figures, an "all" export needs an explicit confirm.
@@ -56,22 +57,29 @@ export function DownloadDashboardModal(
   // `items` is the flat list of every renderable figure (group members
   // included), so its length is the "all" figure count without any hydration.
   const allCount = () => p.bundle.items.length;
+  // Tables are the only figures the xlsx export can sheet; count them honestly
+  // (without hydrating) so the "all" promise isn't silently broken.
+  const tableCount = () =>
+    p.bundle.items.filter((i) => "tableData" in i.strippedFigureInputs).length;
   // The About text is shown as a per-page subHeader in the PDF, so only the
   // short summary is used (a long body would bloat every page header).
   const summaryAvailable = () => p.bundle.about.summary.trim().length > 0;
 
-  // PNG has no "all" form; without a current item only PDF/PPTX make sense.
+  // PNG has no "all" form; without a current item only PDF/PPTX/Excel make sense.
   const pptxLabel = t3({ en: "PowerPoint (.pptx)", fr: "PowerPoint (.pptx)" });
+  const xlsxLabel = t3({ en: "Excel (.xlsx)", fr: "Excel (.xlsx)" });
   const formatOptions = (): { value: Format; label: string }[] =>
     hasCurrent()
       ? [
           { value: "png", label: "PNG" },
           { value: "pdf", label: "PDF" },
           { value: "pptx", label: pptxLabel },
+          { value: "xlsx", label: xlsxLabel },
         ]
       : [
           { value: "pdf", label: "PDF" },
           { value: "pptx", label: pptxLabel },
+          { value: "xlsx", label: xlsxLabel },
         ];
 
   const scopeOptions = (): { value: Scope; label: string }[] => [
@@ -86,14 +94,21 @@ export function DownloadDashboardModal(
   ];
 
   const isImageExport = () => format() === "png";
-  const effectiveScope = (): Scope => (isImageExport() ? "current" : scope());
-  const showScope = () => !isImageExport() && hasCurrent();
+  const isXlsx = () => format() === "xlsx";
+  // Excel is an all-tables data export — scope is always "all".
+  const effectiveScope = (): Scope =>
+    isImageExport() ? "current" : isXlsx() ? "all" : scope();
+  const showScope = () => !isImageExport() && !isXlsx() && hasCurrent();
   // About text is a PDF-only page subHeader (PPTX slides have no header).
   const showAbout = () => format() === "pdf" && summaryAvailable();
-  const showCount = () => !isImageExport() && effectiveScope() === "all";
+  // xlsx has its own table-specific count line below.
+  const showCount = () =>
+    !isImageExport() && !isXlsx() && effectiveScope() === "all";
   const showLargeConfirm = () =>
     showCount() && allCount() > COUNT_WARN_THRESHOLD;
-  const canDownload = () => !showLargeConfirm() || confirmedLarge();
+  const canDownload = () =>
+    (!showLargeConfirm() || confirmedLarge()) &&
+    !(isXlsx() && tableCount() === 0);
 
   async function attemptExport() {
     setErr("");
@@ -131,7 +146,9 @@ export function DownloadDashboardModal(
             { includeAbout: includeAbout() && summaryAvailable() },
             setPct,
           )
-        : await exportDashboardAsPptx(model, setPct);
+        : format() === "xlsx"
+          ? await exportDashboardAsXlsx(model, setPct)
+          : await exportDashboardAsPptx(model, setPct);
     if (res.success === false) {
       setErr(res.err);
       setPct(0);
@@ -235,6 +252,20 @@ export function DownloadDashboardModal(
               en: `This will export ${allCount()} figures.`,
               fr: `Ceci exportera ${allCount()} figures.`,
             })}
+          </div>
+        </Show>
+
+        <Show when={isXlsx()}>
+          <div class="text-neutral text-sm">
+            {tableCount() === 0
+              ? t3({
+                  en: "No table figures to export.",
+                  fr: "Aucun tableau à exporter.",
+                })
+              : t3({
+                  en: `Exports ${tableCount()} of ${allCount()} figures (tables only).`,
+                  fr: `Exporte ${tableCount()} sur ${allCount()} figures (tableaux uniquement).`,
+                })}
           </div>
         </Show>
 

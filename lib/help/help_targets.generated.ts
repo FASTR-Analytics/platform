@@ -250,12 +250,6 @@ export const HELP_TARGETS = {
     title: { en: "Data tab", fr: "Onglet Données" },
     summary: { en: "The Data tab controls what information appears in the visualization. This is where you narrow the time range, add or remove disaggregations, or filter to specific values. Period filters let you focus…", fr: "L'onglet Données contrôle quelles informations apparaissent dans la visualisation. C'est ici que vous restreignez la plage temporelle, ajoutez ou supprimez des désagrégations, ou filtrez sur des…" },
   },
-  "viz-share-link": {
-    page: "user-guide/visualizations",
-    anchor: { en: "sharing-a-link", fr: "partager-un-lien" },
-    title: { en: "Sharing a link", fr: "Partager un lien" },
-    summary: { en: "You can create a public link that lets anyone view a visualization without logging in. Click Share, toggle sharing on, and copy the link. This is useful for sharing with stakeholders who don't have…", fr: "Vous pouvez créer un lien public permettant à quiconque de consulter une visualisation sans se connecter. Cliquez sur Partager, activez le partage et copiez le lien. C'est utile pour partager avec…" },
-  },
 } as const satisfies Record<string, HelpTarget>;
 
 export type HelpId = keyof typeof HELP_TARGETS;

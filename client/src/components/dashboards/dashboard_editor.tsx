@@ -7,7 +7,6 @@ import {
   PublicDashboardEntry,
   ResultsValue,
   getReplicateByProp,
-  getFetchConfigFromPresentationObjectConfig,
   t3,
 } from "lib";
 import {
@@ -34,13 +33,10 @@ import { getDashboardDetailFromCacheOrFetch } from "~/state/project/t2_dashboard
 import {
   getPODetailFromCacheorFetch,
   getPresentationObjectItemsFromCacheOrFetch,
-  getResultsValueInfoForPresentationObjectFromCacheOrFetch,
 } from "~/state/project/t2_presentation_objects";
-import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { serverActions } from "~/server_actions";
 import { SelectVisualizationForSlide } from "~/components/slide_deck/select_visualization_for_slide";
-import { resolveFigureAndGeoFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { VisualizationEditor } from "~/components/visualization";
 import { AddVisualization } from "~/components/project/add_visualization";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
@@ -50,6 +46,9 @@ import {
 } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { AddDashboardItemConfirmModal } from "./add_dashboard_item_modal";
+import { resolveReplicantStructure } from "./resolve_replicant_structure";
+import { resolveMembersWithProgress } from "./resolve_members_with_progress";
+import { ReshapeConfirmModal } from "./reshape_confirm_modal";
 import {
   DashboardSettings,
   type DashboardSettingsProps,
@@ -100,6 +99,22 @@ function computeSingleItemMove(
   }
   return undefined;
 }
+
+// Order-insensitive equality of two replicant option sets (by value).
+function sameReplicantValueSet(
+  a: { value: string }[],
+  b: { value: string }[],
+): boolean {
+  if (a.length !== b.length) return false;
+  const av = new Set(a.map((x) => x.value));
+  return b.every((x) => av.has(x.value));
+}
+
+// A reshape mode's worker: resolves figures (reporting progress) then persists,
+// returning a plain success/err the confirm modal can surface.
+type ReshapeRun = (
+  report: (frac: number, msg: string) => void,
+) => Promise<{ success: true } | { success: false; err: string }>;
 
 export function DashboardEditor(p: Props) {
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
@@ -305,45 +320,29 @@ export function DashboardEditor(p: Props) {
     );
     const visualizationLabel = vizSummary?.label ?? "Visualization";
 
-    const replicateBy = getReplicateByProp(poRes.data.config);
-    let allReplicants: { value: string; label: string }[] = [];
+    const config: PresentationObjectConfig = structuredClone(poRes.data.config);
+    if (selResult.replicant) {
+      config.d.selectedReplicantValue = selResult.replicant;
+    }
 
-    if (replicateBy) {
-      const config: PresentationObjectConfig = structuredClone(
-        poRes.data.config,
-      );
-      if (selResult.replicant) {
-        config.d.selectedReplicantValue = selResult.replicant;
-      }
-      const resInfo =
-        await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
-          p.projectId,
-          poRes.data.resultsValue.id,
-        );
-      if (!resInfo.success) {
-        await openAlert({ text: resInfo.err, intent: "danger" });
-        return;
-      }
-      const fcRes = getFetchConfigFromPresentationObjectConfig(
+    let replicateBy: string | undefined;
+    let allReplicants: { value: string; label: string }[] = [];
+    try {
+      const structure = await resolveReplicantStructure(
+        p.projectId,
         poRes.data.resultsValue,
         config,
       );
-      if (!fcRes.success) {
-        await openAlert({ text: fcRes.err, intent: "danger" });
-        return;
+      if (structure) {
+        replicateBy = structure.replicateBy;
+        allReplicants = structure.replicants;
       }
-      const optRes = await getReplicantOptionsFromCacheOrFetch(
-        p.projectId,
-        poRes.data.resultsValue.resultsObjectId,
-        replicateBy,
-        fcRes.data,
-      );
-      if (optRes.success && optRes.data.status === "ok") {
-        allReplicants = optRes.data.possibleValues.map((pv) => ({
-          value: pv.id,
-          label: pv.label,
-        }));
-      }
+    } catch (err) {
+      await openAlert({
+        text: err instanceof Error ? err.message : String(err),
+        intent: "danger",
+      });
+      return;
     }
 
     await openComponent({
@@ -354,7 +353,7 @@ export function DashboardEditor(p: Props) {
         visualizationId: selResult.visualizationId,
         visualizationLabel,
         selectedReplicant: selResult.replicant,
-        replicateBy: replicateBy ?? undefined,
+        replicateBy,
         allReplicants,
       },
     });
@@ -447,21 +446,246 @@ export function DashboardEditor(p: Props) {
       props: { projectState },
     });
     if (!sel) return;
+    const poRes = await getPODetailFromCacheorFetch(
+      p.projectId,
+      sel.visualizationId,
+    );
+    if (!poRes.success) {
+      await openAlert({ text: poRes.err, intent: "danger" });
+      return;
+    }
+    const after = structuredClone(poRes.data.config);
+    if (sel.replicant) {
+      after.d.selectedReplicantValue = sel.replicant;
+    }
+    const oldSource = it.figureBlock.source;
+    const oldConfig =
+      oldSource?.type === "from_data" ? oldSource.config : undefined;
+    // The switch modal forces a single replicant pick for replicant vizes, so a
+    // switch never expands an item — it stays a single item showing the picked
+    // replicant. Treat an explicit pick like an existing replicant dimension.
+    await reconcileItemStructure(
+      it,
+      poRes.data.resultsValue,
+      after,
+      oldConfig?.d.selectedReplicantValue,
+      !!sel.replicant || (!!oldConfig && !!getReplicateByProp(oldConfig)),
+    );
+  }
+
+  // Confirm + progress for a structural change. The modal is only ever shown for
+  // a replace (expand / collapse / rebuild), so a confirmed run always gives the
+  // entry a fresh id → drop the now-stale selection.
+  async function openReshape(opts: { message: string; run: ReshapeRun }) {
+    const res = await openComponent({
+      element: ReshapeConfirmModal,
+      props: opts,
+    });
+    if (res?.ok) selection.clear();
+  }
+
+  // Resolve every replicant into a group and replace the old entry in place.
+  function groupRun(args: {
+    oldEntry:
+      | { kind: "item"; itemId: string }
+      | { kind: "group"; groupId: string };
+    label: string;
+    resultsValue: ResultsValue;
+    after: PresentationObjectConfig;
+    structure: {
+      replicateBy: string;
+      replicants: { value: string; label: string }[];
+    };
+    defaultReplicantValue: string;
+  }): ReshapeRun {
+    return async (report) => {
+      let resolved;
+      try {
+        resolved = await resolveMembersWithProgress(
+          args.structure.replicants,
+          async (replicantValue) => {
+            const config = structuredClone(args.after);
+            config.d.selectedReplicantValue = replicantValue;
+            const built = await buildFigureBlock(args.resultsValue, config);
+            if (!built.ok) throw new Error(built.err);
+            return { figureBlock: built.figureBlock, geoData: built.geoData };
+          },
+          report,
+        );
+      } catch (err) {
+        return {
+          success: false as const,
+          err: err instanceof Error ? err.message : String(err),
+        };
+      }
+      report(0.95, "Saving group...");
+      const res = await serverActions.replaceDashboardEntry({
+        projectId: p.projectId,
+        dashboard_id: p.dashboardId,
+        oldEntry: args.oldEntry,
+        newEntry: {
+          kind: "group",
+          label: args.label,
+          replicateBy: args.structure.replicateBy,
+          defaultReplicantValue: args.defaultReplicantValue,
+          replicants: args.structure.replicants,
+          geoData: resolved.sharedGeoData,
+          members: resolved.members,
+        },
+      });
+      return res.success
+        ? { success: true as const }
+        : { success: false as const, err: res.err };
+    };
+  }
+
+  // Re-resolve a group's existing members from a tweaked config and update them
+  // in place (unchanged dimension + set → no structure change, no dialog).
+  async function updateGroupInPlace(
+    g: DashboardItemGroup,
+    resultsValue: ResultsValue,
+    after: PresentationObjectConfig,
+  ) {
     try {
-      const { figureBlock, geoData } =
-        await resolveFigureAndGeoFromVisualization(p.projectId, {
-          type: "from_visualization",
-          visualizationId: sel.visualizationId,
-          replicant: sel.replicant,
-        });
-      await persistFigureBlock(it.id, figureBlock, geoData);
+      const { members, sharedGeoData } = await resolveMembersWithProgress(
+        g.replicants,
+        async (replicantValue) => {
+          const config = structuredClone(after);
+          config.d.selectedReplicantValue = replicantValue;
+          const built = await buildFigureBlock(resultsValue, config);
+          if (!built.ok) throw new Error(built.err);
+          return { figureBlock: built.figureBlock, geoData: built.geoData };
+        },
+        () => {},
+      );
+      const res = await serverActions.updateDashboardItemGroup({
+        projectId: p.projectId,
+        dashboard_id: p.dashboardId,
+        group_id: g.id,
+        geoData: sharedGeoData,
+        members: members.map((m) => ({
+          replicantValue: m.replicantValue,
+          figureBlock: m.figureBlock,
+        })),
+      });
+      if (!res.success) await openAlert({ text: res.err, intent: "danger" });
     } catch (err) {
       await openAlert({
-        text:
-          err instanceof Error ? err.message : "Failed to switch visualization",
+        text: err instanceof Error ? err.message : String(err),
         intent: "danger",
       });
     }
+  }
+
+  // Build one figure for the previewed replicant; collapse a group into a single
+  // item, replacing it in place.
+  function collapseRun(
+    groupId: string,
+    label: string,
+    resultsValue: ResultsValue,
+    after: PresentationObjectConfig,
+  ): ReshapeRun {
+    return async (report) => {
+      report(0.3, "Resolving figure...");
+      const built = await buildFigureBlock(resultsValue, after);
+      if (!built.ok) return { success: false as const, err: built.err };
+      report(0.95, "Saving...");
+      const res = await serverActions.replaceDashboardEntry({
+        projectId: p.projectId,
+        dashboard_id: p.dashboardId,
+        oldEntry: { kind: "group", groupId },
+        newEntry: {
+          kind: "item",
+          label,
+          figureBlock: built.figureBlock,
+          geoData: built.geoData,
+        },
+      });
+      return res.success
+        ? { success: true as const }
+        : { success: false as const, err: res.err };
+    };
+  }
+
+  // Reconciliation for a standalone ITEM (shared by edit + switch). The entry
+  // expands into a group only when it *gains* a replicant dimension (a plain item
+  // you add a replicant to). An item that already showed a single replicant — or
+  // never had one — stays a single item, refreshed in place (so an Add "single"
+  // item survives editing). `oldSelectedReplicantValue` is the prior pick, the
+  // group default fallback; `oldHadReplicant` is whether the stored config already
+  // had a replicant dimension.
+  async function reconcileItemStructure(
+    it: DashboardItem,
+    resultsValue: ResultsValue,
+    after: PresentationObjectConfig,
+    oldSelectedReplicantValue: string | undefined,
+    oldHadReplicant: boolean,
+  ) {
+    async function refreshInPlace() {
+      // If an edit cleared the replicant pick (e.g. re-toggling the disaggregator),
+      // keep showing the previously-picked replicant rather than silently falling
+      // through to the fetch layer's auto-pick (the first option).
+      if (
+        oldSelectedReplicantValue &&
+        getReplicateByProp(after) &&
+        !after.d.selectedReplicantValue
+      ) {
+        after.d.selectedReplicantValue = oldSelectedReplicantValue;
+      }
+      const built = await buildFigureBlock(resultsValue, after);
+      if (!built.ok) {
+        await openAlert({ text: built.err, intent: "danger" });
+        return;
+      }
+      await persistFigureBlock(it.id, built.figureBlock, built.geoData);
+    }
+
+    const gainedReplicant = !!getReplicateByProp(after) && !oldHadReplicant;
+    if (!gainedReplicant) {
+      await refreshInPlace();
+      return;
+    }
+
+    let structure;
+    try {
+      structure = await resolveReplicantStructure(
+        p.projectId,
+        resultsValue,
+        after,
+      );
+    } catch (err) {
+      await openAlert({
+        text: err instanceof Error ? err.message : String(err),
+        intent: "danger",
+      });
+      return;
+    }
+    // No options resolved → plain item refresh (don't make an empty group).
+    if (!structure || structure.replicants.length === 0) {
+      await refreshInPlace();
+      return;
+    }
+
+    const set = new Set(structure.replicants.map((r) => r.value));
+    const defaultReplicantValue =
+      oldSelectedReplicantValue && set.has(oldSelectedReplicantValue)
+        ? oldSelectedReplicantValue
+        : structure.replicants[0].value;
+
+    await openReshape({
+      message: t3({
+        en: `This will expand "${it.label}" into ${structure.replicants.length} replicant figures.`,
+        fr: `Cela créera ${structure.replicants.length} figures de réplicants à partir de « ${it.label} ».`,
+      }),
+      run: groupRun({
+        oldEntry: { kind: "item", itemId: it.id },
+        label: it.label,
+        resultsValue,
+        after,
+        structure,
+        defaultReplicantValue,
+      }),
+    });
   }
 
   async function handleEdit() {
@@ -473,10 +697,7 @@ export function DashboardEditor(p: Props) {
       (m) => m.id === source.metricId,
     );
     if (!resultsValue) {
-      await openAlert({
-        text: "Metric not found in project",
-        intent: "danger",
-      });
+      await openAlert({ text: "Metric not found in project", intent: "danger" });
       return;
     }
     const result = await openInnerEditor({
@@ -493,12 +714,13 @@ export function DashboardEditor(p: Props) {
       },
     });
     if (!result?.updated) return;
-    const built = await buildFigureBlock(resultsValue, result.updated.config);
-    if (!built.ok) {
-      await openAlert({ text: built.err, intent: "danger" });
-      return;
-    }
-    await persistFigureBlock(it.id, built.figureBlock, built.geoData);
+    await reconcileItemStructure(
+      it,
+      resultsValue,
+      result.updated.config,
+      source.config.d.selectedReplicantValue,
+      !!getReplicateByProp(source.config),
+    );
   }
 
   async function handleCreate() {
@@ -547,41 +769,6 @@ export function DashboardEditor(p: Props) {
     if (!res.success) await openAlert({ text: res.err, intent: "danger" });
   }
 
-  // Re-resolve every member of the group from a new visualization (Switch) or a
-  // tweaked config (Edit), then persist in one transaction.
-  async function persistGroupMembers(
-    g: DashboardItemGroup,
-    resolveOne: (
-      replicantValue: string,
-    ) => Promise<{ figureBlock: FigureBlock; geoData?: unknown }>,
-  ) {
-    try {
-      const members: { replicantValue: string; figureBlock: FigureBlock }[] =
-        [];
-      let sharedGeoData: unknown = undefined;
-      for (const r of g.replicants) {
-        const { figureBlock, geoData } = await resolveOne(r.value);
-        members.push({ replicantValue: r.value, figureBlock });
-        if (sharedGeoData === undefined && geoData !== undefined) {
-          sharedGeoData = geoData;
-        }
-      }
-      const res = await serverActions.updateDashboardItemGroup({
-        projectId: p.projectId,
-        dashboard_id: p.dashboardId,
-        group_id: g.id,
-        geoData: sharedGeoData,
-        members,
-      });
-      if (!res.success) await openAlert({ text: res.err, intent: "danger" });
-    } catch (err) {
-      await openAlert({
-        text: err instanceof Error ? err.message : "Failed to update group",
-        intent: "danger",
-      });
-    }
-  }
-
   async function handleGroupSwitch() {
     const g = selectedGroup();
     if (!g) return;
@@ -590,13 +777,93 @@ export function DashboardEditor(p: Props) {
       props: { projectState },
     });
     if (!sel) return;
-    await persistGroupMembers(g, (replicantValue) =>
-      resolveFigureAndGeoFromVisualization(p.projectId, {
-        type: "from_visualization",
-        visualizationId: sel.visualizationId,
-        replicant: replicantValue,
-      }),
+    const poRes = await getPODetailFromCacheorFetch(
+      p.projectId,
+      sel.visualizationId,
     );
+    if (!poRes.success) {
+      await openAlert({ text: poRes.err, intent: "danger" });
+      return;
+    }
+    const after = structuredClone(poRes.data.config);
+    if (sel.replicant) {
+      after.d.selectedReplicantValue = sel.replicant;
+    }
+    await reconcileGroupStructure(g, poRes.data.resultsValue, after);
+  }
+
+  // Reconciliation for a replicant GROUP (shared by edit + switch). No replicant
+  // dimension → confirm + collapse to a single item. Same dimension + set → update
+  // members in place (no dialog). Different dimension or set → confirm + rebuild.
+  async function reconcileGroupStructure(
+    g: DashboardItemGroup,
+    resultsValue: ResultsValue,
+    after: PresentationObjectConfig,
+  ) {
+    async function confirmCollapse() {
+      await openReshape({
+        message: t3({
+          en: `This will collapse "${g.label}" into a single figure.`,
+          fr: `Cela regroupera « ${g.label} » en une seule figure.`,
+        }),
+        run: collapseRun(g.id, g.label, resultsValue, after),
+      });
+    }
+
+    if (!getReplicateByProp(after)) {
+      await confirmCollapse();
+      return;
+    }
+
+    let structure;
+    try {
+      structure = await resolveReplicantStructure(
+        p.projectId,
+        resultsValue,
+        after,
+      );
+    } catch (err) {
+      await openAlert({
+        text: err instanceof Error ? err.message : String(err),
+        intent: "danger",
+      });
+      return;
+    }
+    if (!structure || structure.replicants.length === 0) {
+      await confirmCollapse();
+      return;
+    }
+
+    // Same dimension + same option set → in-place member update (no dialog).
+    if (
+      structure.replicateBy === g.replicateBy &&
+      sameReplicantValueSet(structure.replicants, g.replicants)
+    ) {
+      await updateGroupInPlace(g, resultsValue, after);
+      return;
+    }
+
+    // Different dimension or changed set → rebuild the group (replace in place).
+    const defaultReplicantValue =
+      g.defaultReplicantValue &&
+      structure.replicants.some((r) => r.value === g.defaultReplicantValue)
+        ? g.defaultReplicantValue
+        : structure.replicants[0].value;
+
+    await openReshape({
+      message: t3({
+        en: `This will rebuild "${g.label}" as ${structure.replicants.length} replicant figures.`,
+        fr: `Cela reconstruira « ${g.label} » en ${structure.replicants.length} figures de réplicants.`,
+      }),
+      run: groupRun({
+        oldEntry: { kind: "group", groupId: g.id },
+        label: g.label,
+        resultsValue,
+        after,
+        structure,
+        defaultReplicantValue,
+      }),
+    });
   }
 
   async function handleGroupEdit() {
@@ -609,10 +876,7 @@ export function DashboardEditor(p: Props) {
       (m) => m.id === source.metricId,
     );
     if (!resultsValue) {
-      await openAlert({
-        text: "Metric not found in project",
-        intent: "danger",
-      });
+      await openAlert({ text: "Metric not found in project", intent: "danger" });
       return;
     }
     const result = await openInnerEditor({
@@ -629,16 +893,7 @@ export function DashboardEditor(p: Props) {
       },
     });
     if (!result?.updated) return;
-    const baseConfig = result.updated.config;
-    await persistGroupMembers(g, async (replicantValue) => {
-      const config: PresentationObjectConfig = structuredClone(baseConfig);
-      if (getReplicateByProp(config)) {
-        config.d.selectedReplicantValue = replicantValue;
-      }
-      const built = await buildFigureBlock(resultsValue, config);
-      if (!built.ok) throw new Error(built.err);
-      return { figureBlock: built.figureBlock, geoData: built.geoData };
-    });
+    await reconcileGroupStructure(g, resultsValue, result.updated.config);
   }
 
   function handleEntryContextMenu(e: MouseEvent, entryId: string) {

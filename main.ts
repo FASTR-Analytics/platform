@@ -51,11 +51,8 @@ import { routesEmails } from "./server/routes/project/emails.ts";
 import { routesCacheStatus } from "./server/routes/project/cache_status.ts";
 
 // Public routes (no auth)
-import { routesPublicShare } from "./server/routes/public/share.ts";
 import { routesPublicDashboard } from "./server/routes/public/dashboard.ts";
 
-// Share routes (auth required)
-import { routesShare } from "./server/routes/instance/share.ts";
 import { routesCustomPrompts } from "./server/routes/instance/custom_prompts.ts";
 import { routesExportCentral } from "./server/routes/instance/export_central.ts";
 
@@ -71,7 +68,7 @@ setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
 const runProjectPurge = () => {
   const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   purgeExpiredProjects(db).catch((e) =>
-    console.error("Project purge failed:", e),
+    console.error("Project purge failed:", e)
   );
 };
 runProjectPurge();
@@ -82,7 +79,6 @@ await connectValkey();
 const app = new Hono();
 
 // CORS for public routes
-app.use("/api/share/*", corsMiddleware);
 app.use("/api/d/*", corsMiddleware);
 
 // Dashboards are readable anonymously only when public; not-public dashboards
@@ -92,13 +88,11 @@ app.use("/api/d/*", corsMiddleware);
 app.use("/api/d/*", authMiddleware);
 
 // Public routes (no auth required) - must be before authMiddleware
-app.route("/", routesPublicShare);
 app.route("/", routesPublicDashboard);
 
-// Serve SPA HTML for public share routes (before auth)
+// Serve SPA HTML for public dashboard routes (before auth)
 try {
   const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
-  app.get("/share/viz/:token", (c) => c.html(indexHtml));
   app.get("/d/:slug", (c) => c.html(indexHtml));
 } catch {
   // In development, handled by Vite dev server
@@ -150,7 +144,6 @@ app.route("/", routesCacheStatus);
 app.route("/ai", routesAiProxy);
 app.route("/ai", routesAiFiles);
 app.route("/", routesAiTools);
-app.route("/", routesShare);
 app.route("/", routesCustomPrompts);
 app.route("/", routesExportCentral);
 

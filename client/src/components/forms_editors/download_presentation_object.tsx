@@ -6,18 +6,28 @@ export function DownloadPresentationObject(
   p: EditorComponentProps<
     {
       isReplicateBy: boolean;
+      isTable: boolean;
       poDetail: PresentationObjectDetail;
     },
     {
       transparent: boolean;
       padding: boolean;
       allReplicants: boolean;
-      format: "image" | "data-visualization" | "data-results-file" | "json-definition";
+      format:
+        | "image"
+        | "data-table-formatted"
+        | "data-visualization"
+        | "data-results-file"
+        | "json-definition";
     }
   >,
 ) {
   const [format, setFormat] = createSignal<
-    "image" | "data-visualization" | "data-results-file" | "json-definition"
+    | "image"
+    | "data-table-formatted"
+    | "data-visualization"
+    | "data-results-file"
+    | "json-definition"
   >("image");
   const [transparent, setTransparent] = createSignal<string>("white");
   const [padding, setPadding] = createSignal<string>("padding");
@@ -58,6 +68,14 @@ export function DownloadPresentationObject(
           label={t3({ en: "Format", fr: "Format" })}
           options={[
             { value: "image", label: t3({ en: "Visualization", fr: "Visualisation" }) },
+            ...(p.isTable
+              ? [
+                  {
+                    value: "data-table-formatted",
+                    label: t3({ en: "Table data (as shown)", fr: "Données du tableau (telles qu'affichées)" }),
+                  },
+                ]
+              : []),
             {
               value: "data-visualization",
               label: t3({ en: "Aggregated data for the visualization", fr: "Données agrégées pour la visualisation" }),

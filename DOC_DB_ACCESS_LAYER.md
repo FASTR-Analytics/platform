@@ -192,7 +192,7 @@ The validation boundary (which schema, where) is owned by [DOC_MIGRATIONS.md](DO
 - **Lint `.unsafe()`** call sites to confirm trusted-input-only, and forbid hand-built `VALUES` outside `escapeSqlString`.
 - **Consolidate `generateUnique*Id`** into one `generateUniqueId(db, tableName)`.
 - **Barrel completeness check:** `mod.ts` must re-export every sibling (some omissions force deep imports today).
-- **Require `tryCatchDatabaseAsync`**: flag DB functions that throw or return non-envelope shapes (a few raw-throwing paths exist in `share_tokens.ts`, `ai_usage_logs.ts`, etc.).
+- **Require `tryCatchDatabaseAsync`**: flag DB functions that throw or return non-envelope shapes (a few raw-throwing paths exist in `ai_usage_logs.ts`, etc.).
 
 ---
 

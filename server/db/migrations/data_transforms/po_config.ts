@@ -217,6 +217,19 @@ export function transformConfigD(d: Record<string, unknown>): void {
     pf.min = toFiveDigitQuarter(pf.min);
     pf.max = toFiveDigitQuarter(pf.max);
   }
+
+  // Block 24: Rename admin-area roll-up fields (AA2-specific names → mechanism names,
+  // now that the feature applies to the finest grouped admin level, not just AA2).
+  //   includeNationalForAdminArea2 → includeAdminAreaRollup
+  //   includeNationalPosition      → adminAreaRollupPosition
+  if ("includeNationalForAdminArea2" in d && !("includeAdminAreaRollup" in d)) {
+    d.includeAdminAreaRollup = d.includeNationalForAdminArea2;
+    delete d.includeNationalForAdminArea2;
+  }
+  if ("includeNationalPosition" in d && !("adminAreaRollupPosition" in d)) {
+    d.adminAreaRollupPosition = d.includeNationalPosition;
+    delete d.includeNationalPosition;
+  }
 }
 
 export function transformConfigS(s: Record<string, unknown>, isMap: boolean): void {

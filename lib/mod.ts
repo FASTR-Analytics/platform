@@ -1,3 +1,4 @@
+export * from "./admin_area_rollup.ts";
 export * from "./api-routes/mod.ts";
 export * from "./cache_class_B_in_memory_map.ts";
 export * from "./consts.ts";

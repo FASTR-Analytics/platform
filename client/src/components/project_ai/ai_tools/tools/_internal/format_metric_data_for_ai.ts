@@ -78,8 +78,8 @@ export async function getMetricDataForAI(
           periodFilter,
           postAggregationExpression:
             metric.postAggregationExpression.expression,
-          includeNationalForAdminArea2: false,
-          includeNationalPosition: undefined,
+          includeAdminAreaRollup: false,
+          adminAreaRollupPosition: undefined,
         }
       : {
           values: valuePropsToFetch.map((prop) => ({
@@ -90,8 +90,8 @@ export async function getMetricDataForAI(
           filters: filters,
           periodFilter,
           postAggregationExpression: undefined,
-          includeNationalForAdminArea2: false,
-          includeNationalPosition: undefined,
+          includeAdminAreaRollup: false,
+          adminAreaRollupPosition: undefined,
         };
 
   const { data, version } = await _PO_ITEMS_CACHE.get({

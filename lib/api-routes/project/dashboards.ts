@@ -134,4 +134,35 @@ export const dashboardRouteRegistry = {
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
+
+  // Replace one entry (item OR group) in place with a new entry of EITHER kind,
+  // preserving its sort position — the single primitive behind every structural
+  // reshape (item↔group, group→group with a changed dimension/set).
+  replaceDashboardEntry: route({
+    path: "/dashboards/:dashboard_id/replace-entry",
+    method: "POST",
+    params: {} as { dashboard_id: string },
+    body: {} as {
+      oldEntry:
+        | { kind: "item"; itemId: string }
+        | { kind: "group"; groupId: string };
+      newEntry:
+        | { kind: "item"; label: string; figureBlock: FigureBlock; geoData?: unknown }
+        | {
+            kind: "group";
+            label: string;
+            replicateBy: string;
+            defaultReplicantValue?: string;
+            replicants: { value: string; label: string }[];
+            geoData?: unknown;
+            members: {
+              replicantValue: string;
+              label: string;
+              figureBlock: FigureBlock;
+            }[];
+          };
+    },
+    response: {} as { entryId: string; lastUpdated: string },
+    requiresProject: true,
+  }),
 };

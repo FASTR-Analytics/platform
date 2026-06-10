@@ -46,18 +46,29 @@ export function validateFetchConfig(
   }
 
   if (
-    fetchConfig.includeNationalForAdminArea2 !== undefined &&
-    typeof fetchConfig.includeNationalForAdminArea2 !== "boolean"
+    fetchConfig.includeAdminAreaRollup !== undefined &&
+    typeof fetchConfig.includeAdminAreaRollup !== "boolean"
   ) {
-    throw new Error("Invalid includeNationalForAdminArea2: must be a boolean");
+    throw new Error("Invalid includeAdminAreaRollup: must be a boolean");
   }
 
   if (
-    fetchConfig.includeNationalPosition !== undefined &&
-    !["bottom", "top"].includes(fetchConfig.includeNationalPosition)
+    fetchConfig.adminAreaRollupPosition !== undefined &&
+    !["bottom", "top"].includes(fetchConfig.adminAreaRollupPosition)
   ) {
     throw new Error(
-      "Invalid includeNationalPosition: must be 'bottom' or 'top'"
+      "Invalid adminAreaRollupPosition: must be 'bottom' or 'top'"
+    );
+  }
+
+  if (
+    fetchConfig.adminAreaRollupLevel !== undefined &&
+    !["admin_area_2", "admin_area_3", "admin_area_4"].includes(
+      fetchConfig.adminAreaRollupLevel
+    )
+  ) {
+    throw new Error(
+      "Invalid adminAreaRollupLevel: must be admin_area_2, admin_area_3, or admin_area_4"
     );
   }
 }

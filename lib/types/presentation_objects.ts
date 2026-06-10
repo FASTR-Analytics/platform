@@ -1,3 +1,4 @@
+import { ADMIN_LEVELS, type AdminLevel } from "../admin_area_rollup.ts";
 import { getNextAvailableDisaggregationDisplayOption } from "../get_disaggregator_display_prop.ts";
 import { t3 } from "../translate/mod.ts";
 import {
@@ -309,7 +310,7 @@ export type CreateModeVisualizationData = {
 };
 
 const TIME_DISAGGREGATIONS: DisaggregationOption[] = ["period_id", "quarter_id", "year"];
-const AREA_DISAGGREGATIONS: DisaggregationOption[] = ["admin_area_2", "admin_area_3", "admin_area_4"];
+const AREA_DISAGGREGATIONS: DisaggregationOption[] = [...ADMIN_LEVELS];
 
 export function get_PRESENTATION_SELECT_OPTIONS(
   disaggregationOptions?: { value: DisaggregationOption }[],
@@ -362,8 +363,8 @@ export function getStartingConfigForPresentationObject(
       filterBy: [],
       periodFilter: undefined,
       selectedReplicantValue: undefined,
-      includeNationalForAdminArea2: false,
-      includeNationalPosition: "bottom",
+      includeAdminAreaRollup: false,
+      adminAreaRollupPosition: "bottom",
     },
     s: {
       ...DEFAULT_S_CONFIG,
@@ -404,6 +405,7 @@ export type GenericLongFormFetchConfig = {
   periodFilter: PeriodFilter | undefined;
   periodFilterExactBounds?: PeriodBounds;
   postAggregationExpression: string | undefined;
-  includeNationalForAdminArea2?: boolean;
-  includeNationalPosition?: "bottom" | "top";
+  includeAdminAreaRollup?: boolean;
+  adminAreaRollupPosition?: "bottom" | "top";
+  adminAreaRollupLevel?: AdminLevel;
 };

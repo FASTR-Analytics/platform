@@ -168,8 +168,8 @@ export const configDStrict = z
     ),
     periodFilter: periodFilterSchema,
     selectedReplicantValue: z.string().optional(),
-    includeNationalForAdminArea2: z.boolean().optional(),
-    includeNationalPosition: z.enum(["bottom", "top"]).optional(),
+    includeAdminAreaRollup: z.boolean().optional(),
+    adminAreaRollupPosition: z.enum(["bottom", "top"]).optional(),
   });
   // Note: Duplicate disDisplayOpt/disOpt entries are allowed in stored data.
   // The UI shows a warning and blocks rendering until user fixes it.

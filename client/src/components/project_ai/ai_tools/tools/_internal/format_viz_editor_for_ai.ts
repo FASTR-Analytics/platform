@@ -78,7 +78,7 @@ export function formatVizEditorForAI(
     lines.push("");
   }
 
-  lines.push(`Include national data: ${config.d.includeNationalForAdminArea2 ? "yes" : "no"}`);
+  lines.push(`Include admin-area total row: ${config.d.includeAdminAreaRollup ? "yes" : "no"}`);
   lines.push("");
 
   lines.push("Captions:");

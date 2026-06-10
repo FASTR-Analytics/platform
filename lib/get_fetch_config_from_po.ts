@@ -4,6 +4,7 @@ import {
   getSortedAlphabeticalByFunc,
   getTimeFromPeriodId,
 } from "@timroberton/panther";
+import { type AdminLevel, isAdminLevel } from "./admin_area_rollup.ts";
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import {
   periodFilterHasBounds,
@@ -37,12 +38,15 @@ export function getFetchConfigFromPresentationObjectConfig(
     groupBys.push(config.d.timeseriesGrouping);
   }
 
-  const shouldIncludeNationalAggregate = config.d.includeNationalForAdminArea2;
-  const nationalAggregateIsAllowed = config.d.disaggregateBy.some((d) => {
-    return d.disOpt === "admin_area_2" && d.disDisplayOpt !== "replicant";
-  });
-  const includeNationalForAdminArea2 =
-    shouldIncludeNationalAggregate && nationalAggregateIsAllowed;
+  // The roll-up collapses a single admin level, chosen by getRollupAdminLevel (the
+  // finest grouped admin level that isn't replicant/mapArea and isn't filtered to one
+  // value). Computed here, client-side, and baked into the fetch config as
+  // `adminAreaRollupLevel` — the server obeys it and must NOT recompute "finest" from
+  // raw groupBys (which include replicant levels, the wrong collapse target).
+  const rollupLevel = getRollupAdminLevel(config);
+  const includeAdminAreaRollup =
+    !!config.d.includeAdminAreaRollup && rollupLevel !== undefined;
+  const adminAreaRollupLevel = includeAdminAreaRollup ? rollupLevel : undefined;
 
   const filters = options?.excludeReplicantFilter
     ? getFiltersWithoutReplicant(config)
@@ -58,8 +62,9 @@ export function getFetchConfigFromPresentationObjectConfig(
         groupBys,
         filters,
         periodFilter: config.d.periodFilter,
-        includeNationalForAdminArea2,
-        includeNationalPosition: config.d.includeNationalPosition,
+        includeAdminAreaRollup,
+        adminAreaRollupPosition: config.d.adminAreaRollupPosition,
+        adminAreaRollupLevel,
       },
     };
   }
@@ -76,8 +81,9 @@ export function getFetchConfigFromPresentationObjectConfig(
       groupBys,
       filters,
       periodFilter: config.d.periodFilter,
-      includeNationalForAdminArea2,
-      includeNationalPosition: config.d.includeNationalPosition,
+      includeAdminAreaRollup,
+      adminAreaRollupPosition: config.d.adminAreaRollupPosition,
+      adminAreaRollupLevel,
     },
   };
 }
@@ -266,8 +272,9 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
     fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.min.toString() : "",
     fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.max.toString() : "",
     fc.postAggregationExpression ?? "",
-    fc.includeNationalForAdminArea2 ? "yes" : "no",
-    fc.includeNationalPosition,
+    fc.includeAdminAreaRollup ? "yes" : "no",
+    fc.adminAreaRollupPosition,
+    fc.adminAreaRollupLevel ?? "",
   ].join("#");
 }
 
@@ -289,6 +296,26 @@ export function hasOnlyOneFilteredValue(
   return (
     config.d.filterBy.find((fil) => fil.disOpt === disOpt)?.values.length === 1
   );
+}
+
+// The single admin level the roll-up collapses, or undefined if the roll-up isn't
+// applicable. It's the finest admin level that is grouped, NOT displayed as
+// replicant/mapArea, and NOT filtered to a single value — and there must be exactly
+// one such level (otherwise the per-parent-subtotal shape would arise, which Design A
+// can't render). This is the single source of truth: the gate, the server collapse
+// (via the baked `adminAreaRollupLevel`), the display label, and the table-axis pin
+// all derive from it, so they can never disagree.
+export function getRollupAdminLevel(
+  config: PresentationObjectConfig,
+): AdminLevel | undefined {
+  const effective = config.d.disaggregateBy.filter(
+    (d) =>
+      isAdminLevel(d.disOpt) &&
+      d.disDisplayOpt !== "replicant" &&
+      d.disDisplayOpt !== "mapArea" &&
+      !hasOnlyOneFilteredValue(config, d.disOpt),
+  );
+  return effective.length === 1 ? (effective[0].disOpt as AdminLevel) : undefined;
 }
 
 function getFiltersWithoutReplicant(config: PresentationObjectConfig): {

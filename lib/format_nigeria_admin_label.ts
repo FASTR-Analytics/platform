@@ -1,10 +1,7 @@
+import { ADMIN_LEVELS } from "./admin_area_rollup.ts";
 import { CountryCodes } from "./types/instance.ts";
 
-const ADMIN_AREA_DISAGGREGATIONS = new Set([
-  "admin_area_2",
-  "admin_area_3",
-  "admin_area_4",
-]);
+const ADMIN_AREA_DISAGGREGATIONS = new Set<string>(ADMIN_LEVELS);
 
 export function formatNigeriaAdminAreaLabel(label: string): string {
   // Split by space and trim each word

@@ -1,4 +1,4 @@
-import { FigureBlock, formatReplicantLabelForDisplay, t3 } from "lib";
+import { formatReplicantLabelForDisplay, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -11,6 +11,7 @@ import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { resolveFigureAndGeoFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
+import { resolveMembersWithProgress } from "./resolve_members_with_progress";
 
 type Props = {
   projectId: string;
@@ -68,35 +69,23 @@ export function AddDashboardItemConfirmModal(
       // Add all → ONE replicant group: resolve every member's figureBlock +
       // the shared geojson once, then persist atomically (addDashboardItemGroup).
       if (hasReplicants && creationMode() === "all" && p.replicateBy) {
-        const members: {
-          replicantValue: string;
-          label: string;
-          figureBlock: FigureBlock;
-        }[] = [];
-        let sharedGeoData: unknown = undefined;
-        for (let i = 0; i < p.allReplicants.length; i++) {
-          const { value, label } = p.allReplicants[i];
-          progress.onProgress(
-            (i / p.allReplicants.length) * 0.9,
-            `Resolving ${i + 1} of ${p.allReplicants.length}...`,
-          );
-          try {
-            const { figureBlock, geoData } =
-              await resolveFigureAndGeoFromVisualization(p.projectId, {
+        let resolved;
+        try {
+          resolved = await resolveMembersWithProgress(
+            p.allReplicants,
+            (value) =>
+              resolveFigureAndGeoFromVisualization(p.projectId, {
                 type: "from_visualization",
                 visualizationId: p.visualizationId,
                 replicant: value,
-              });
-            members.push({ replicantValue: value, label, figureBlock });
-            if (sharedGeoData === undefined && geoData !== undefined) {
-              sharedGeoData = geoData;
-            }
-          } catch (err) {
-            return {
-              success: false as const,
-              err: `Failed resolving replicant ${i + 1} (${label}): ${err instanceof Error ? err.message : String(err)}`,
-            };
-          }
+              }),
+            (frac, msg) => progress.onProgress(frac, msg),
+          );
+        } catch (err) {
+          return {
+            success: false as const,
+            err: err instanceof Error ? err.message : String(err),
+          };
         }
         progress.onProgress(0.95, "Saving group...");
         const res = await serverActions.addDashboardItemGroup({
@@ -107,12 +96,18 @@ export function AddDashboardItemConfirmModal(
           defaultReplicantValue:
             p.selectedReplicant ?? p.allReplicants[0]?.value,
           replicants: p.allReplicants,
-          geoData: sharedGeoData,
-          members,
+          geoData: resolved.sharedGeoData,
+          members: resolved.members,
         });
         if (!res.success) return res;
-        progress.onProgress(1, `Added group of ${members.length}`);
-        return { success: true as const, data: { addedCount: members.length } };
+        progress.onProgress(
+          1,
+          `Added group of ${resolved.members.length}`,
+        );
+        return {
+          success: true as const,
+          data: { addedCount: resolved.members.length },
+        };
       }
 
       // Single mode
