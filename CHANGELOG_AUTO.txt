@@ -1,3 +1,16 @@
+[TBD] [user] [changed] - All users can now access the Assets page
+[TBD] [user] [added] - Assets are now organized into folders by file type
+[TBD] [user] [added] - Each asset now shows who uploaded it
+[TBD] [user] [changed] - Any user can upload assets, not just admins
+[TBD] [user] [changed] - Users can delete their own uploaded assets
+[TBD] [user] [fixed] - Asset list now refreshes automatically after uploading or deleting
+[TBD] [admin] [changed] - All users can now view and upload assets
+[TBD] [admin] [changed] - Assets are now grouped by file type in collapsible folders
+[TBD] [admin] [added] - Asset files now show who uploaded them
+[TBD] [admin] [changed] - Users can delete their own uploaded assets
+[TBD] [admin] [changed] - Only admins can bulk-delete other users' assets
+[TBD] [admin] [changed] - The "Configure assets" permission has been removed
+[TBD] [admin] [fixed] - Asset list now refreshes automatically after upload or deletion
 [TBD] [user] [added] - Export dashboards as Excel files with table data
 [TBD] [user] [added] - Download table visualizations as CSV with formatted values
 [TBD] [user] [added] - "Include National results" now works for all admin area levels, not just admin area 2
