@@ -1,3 +1,7 @@
+[TBD] [user] [changed] - "Include National results" checkbox now shows the relevant geographic level name when results are scoped to a specific area
+[TBD] [user] [fixed] - Removed orphaned visualizations that could appear after modules were updated or uninstalled
+[TBD] [admin] [fixed] - Orphaned visualizations are now automatically cleaned up when modules change
+[TBD] [admin] [changed] - Rollup checkbox label now reflects the actual parent geographic level
 [TBD] [user] [changed] - All users can now access the Assets page
 [TBD] [user] [added] - Assets are now organized into folders by file type
 [TBD] [user] [added] - Each asset now shows who uploaded it
