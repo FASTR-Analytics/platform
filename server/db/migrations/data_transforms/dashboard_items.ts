@@ -16,18 +16,24 @@
 //    source.type "from_metric"→"from_data" + snapshotAt, embedded PO config
 //    transform, figureInputs normalization.
 //
-// NOTE: figureInputs is z.unknown() in dashboardFigureBlockSchema, so the skip
-// gate below can't see figureInputs drift. Block 1's figureInputs pass only
-// fires when the block already failed validation for another reason (e.g.
-// embedded config drift). A future panther figureInputs shape change needs a
-// PRE-VALIDATION force block here, mirroring slide_config.ts BLOCK A.
+// NOTE: dashboardFigureBlockSchema validates figureInputs against panther's
+// zFigureData (lib/types figureInputsSchema), so the skip gate sees
+// figureInputs drift — old-shape blobs fail the gate and fall through to
+// Block 1's figureInputs normalization.
 //
 // =============================================================================
 
 import { dashboardFigureBlockSchema } from "lib";
 import type { Sql } from "postgres";
-import { type MigrationStats, rawJsonNeedsForcedTransform } from "./po_config.ts";
-import { type FigureBlockMut, transformFigureBlock } from "./_figure_block.ts";
+import {
+  type MigrationStats,
+  rawJsonNeedsForcedTransform,
+} from "./po_config.ts";
+import {
+  type FigureBlockMut,
+  transformFigureBlock,
+  warnIfFigureInputsStale,
+} from "./_figure_block.ts";
 
 export async function migrateDashboardItems(
   tx: Sql,
@@ -44,6 +50,9 @@ export async function migrateDashboardItems(
 
     // Already valid? Skip (current-shape) — unless legacy keys (which
     // safeParse silently strips) still need the embedded-config rename.
+    // figureInputs drift is covered by this same safeParse:
+    // dashboardFigureBlockSchema validates figureInputs against panther's
+    // zFigureData (lib/types figureInputsSchema).
     if (
       dashboardFigureBlockSchema.safeParse(figureBlock).success &&
       !rawJsonNeedsForcedTransform(row.figure_block)
@@ -54,7 +63,14 @@ export async function migrateDashboardItems(
 
     // Block 1: Shared figure-block transforms.
     transformFigureBlock(figureBlock as FigureBlockMut);
+    warnIfFigureInputsStale(
+      `dashboard_items.figure_block row ${row.id}`,
+      (figureBlock as FigureBlockMut).figureInputs,
+    );
 
+    // Throws if the row is still invalid after every transform (including
+    // figureInputs drift the upgrader does not fix) — the runner then refuses
+    // to start the server. The warn above names the stale figureInputs.
     const validated = dashboardFigureBlockSchema.parse(figureBlock);
 
     // Output identical to stored (e.g. a forced-scan false positive)? Skip the

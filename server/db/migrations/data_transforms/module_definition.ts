@@ -44,14 +44,18 @@ function transformModuleDefinition(mod: Record<string, unknown>): void {
   if (!("scriptGenerationType" in mod)) mod.scriptGenerationType = "template";
   if (!("configRequirements" in mod)) {
     mod.configRequirements = { parameters: [] };
-  } else if (mod.configRequirements && typeof mod.configRequirements === "object") {
+  } else if (
+    mod.configRequirements && typeof mod.configRequirements === "object"
+  ) {
     const cr = mod.configRequirements as Record<string, unknown>;
     if (!("parameters" in cr)) cr.parameters = [];
   }
   if (!("script" in mod)) mod.script = "";
   if (!("assetsToImport" in mod)) mod.assetsToImport = [];
   if (!("resultsObjects" in mod)) mod.resultsObjects = [];
-  if (!("defaultPresentationObjects" in mod)) mod.defaultPresentationObjects = [];
+  if (!("defaultPresentationObjects" in mod)) {
+    mod.defaultPresentationObjects = [];
+  }
 
   // Block 2: Fill metricId and sortOrder in defaultPresentationObjects items
   if (Array.isArray(mod.defaultPresentationObjects)) {
@@ -80,12 +84,22 @@ function transformModuleDefinition(mod: Record<string, unknown>): void {
           ro.createTableStatementPossibleColumns = false;
         } else {
           const newCols: Record<string, string> = {};
-          for (const col of cols as { colName: string; colType: string; notNull?: boolean }[]) {
-            newCols[col.colName] = col.notNull ? `${col.colType} NOT NULL` : col.colType;
+          for (
+            const col of cols as {
+              colName: string;
+              colType: string;
+              notNull?: boolean;
+            }[]
+          ) {
+            newCols[col.colName] = col.notNull
+              ? `${col.colType} NOT NULL`
+              : col.colType;
           }
           ro.createTableStatementPossibleColumns = newCols;
         }
-      } else if (typeof cols === "object" && Object.keys(cols as object).length === 0) {
+      } else if (
+        typeof cols === "object" && Object.keys(cols as object).length === 0
+      ) {
         ro.createTableStatementPossibleColumns = false;
       }
 
@@ -100,13 +114,18 @@ function transformModuleDefinition(mod: Record<string, unknown>): void {
     const dpos = mod.defaultPresentationObjects as Record<string, unknown>[];
     for (const dpo of dpos) {
       if (dpo.config && typeof dpo.config === "object") {
-        dpo.config = transformPOConfigData(dpo.config as Record<string, unknown>);
+        dpo.config = transformPOConfigData(
+          dpo.config as Record<string, unknown>,
+        );
       }
     }
   }
 }
 
-export async function migrateModuleDefinitions(tx: Sql, _projectId: string): Promise<MigrationStats> {
+export async function migrateModuleDefinitions(
+  tx: Sql,
+  _projectId: string,
+): Promise<MigrationStats> {
   const rows = await tx<{ id: string; module_definition: string }[]>`
     SELECT id, module_definition FROM modules
   `;

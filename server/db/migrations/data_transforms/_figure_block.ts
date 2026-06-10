@@ -13,14 +13,17 @@
 //   - figureInputs normalization (yScaleAxisData → scaleAxisLimits, recompute
 //     malformed limits, string[] headers → HeaderItem[])
 //
-// figureInputs is z.unknown() in every figure-block schema, so the skip gate in
-// each sweep CANNOT see figureInputs drift on its own. Callers that need to
-// catch a future panther figureInputs shape change must force this transform on
-// every row (see slide_config.ts PRE-VALIDATION BLOCK A) rather than relying on
-// the gate.
+// figureInputs drift is visible to every sweep's skip gate: the figure-block
+// schemas validate figureInputs against panther's zFigureData (see lib/types
+// figureInputsSchema). Old-shape blobs fail the gate, fall through to the
+// transform here, and — if still stale afterwards (warnIfFigureInputsStale) —
+// fail the sweep's final parse, so the server refuses to start until a fix
+// block is added. This replaced the one-time force block (slide_config.ts
+// PRE-VALIDATION BLOCK A, deleted 2026-06).
 //
 // =============================================================================
 
+import { zFigureData } from "@timroberton/panther";
 import { transformPOConfigData } from "./po_config.ts";
 
 export type FigureBlockMut = {
@@ -109,6 +112,26 @@ function computeScaleAxisLimitsFromValues(
   }
 
   return { paneLimits };
+}
+
+// Post-transform drift diagnostic: a blob that still fails zFigureData after
+// transformFigureInputs ran is drift the upgrader does not fix. The sweep's
+// final parse will then throw (aborting startup); this warn names the exact
+// figure block and zod issues so the failure is actionable from the boot log.
+export function warnIfFigureInputsStale(
+  context: string,
+  fi: Record<string, unknown> | undefined,
+): void {
+  if (fi === undefined) {
+    return;
+  }
+  const result = zFigureData.safeParse(fi);
+  if (!result.success) {
+    console.warn(
+      `[data_transforms] ${context}: figureInputs still fails panther zFigureData after transform (upgrader gap):`,
+      JSON.stringify(result.error.issues.slice(0, 3)),
+    );
+  }
 }
 
 // Normalize a figureInputs blob in place. Only acts on transformed chart data

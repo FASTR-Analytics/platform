@@ -6,10 +6,11 @@ import {
   PresentationObjectDetail,
   ResultsValue,
   TC,
-  getEffectiveRollupLevel,
   getNextAvailableDisaggregationDisplayOption,
+  getRollupAdminLevel,
   getRollupLabelContext,
   get_DISAGGREGATION_DISPLAY_OPTIONS,
+  isRollupEligibleResultsValue,
   t3,
 } from "lib";
 import { Checkbox, RadioGroup, Select } from "panther";
@@ -298,18 +299,38 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
         fullWidth
       />
       {/* The roll-up option appears only on the single level the roll-up would
-          collapse — see getEffectiveRollupLevel (config-shape gate + metric
-          eligibility), shared with the fetch builder and the save normalizer. */}
-      <Show
-        when={
-          getEffectiveRollupLevel(p.poDetail.resultsValue, p.tempConfig) ===
-          p.disOpt.value
-        }
-      >
-        <AdminAreaOptions
-          tempConfig={p.tempConfig}
-          setTempConfig={p.setTempConfig}
-        />
+          collapse (config-shape gate). When the METRIC is ineligible
+          (isRollupEligibleResultsValue — e.g. pre-aggregated values that can't
+          be summed/averaged across areas), show the control disabled with a
+          reason rather than hiding it, so the absence is explicable. */}
+      <Show when={getRollupAdminLevel(p.tempConfig) === p.disOpt.value}>
+        <Show
+          when={isRollupEligibleResultsValue(p.poDetail.resultsValue)}
+          fallback={
+            <div class="flex flex-col items-end">
+              <Checkbox
+                label={t3({
+                  en: "Include National results",
+                  fr: "Inclure les résultats nationaux",
+                })}
+                checked={false}
+                disabled={true}
+                onChange={() => {}}
+              />
+              <div class="text-warning text-xs">
+                {t3({
+                  en: "Not available for this metric (values cannot be aggregated across areas)",
+                  fr: "Non disponible pour cette mesure (les valeurs ne peuvent pas être agrégées entre les zones)",
+                })}
+              </div>
+            </div>
+          }
+        >
+          <AdminAreaOptions
+            tempConfig={p.tempConfig}
+            setTempConfig={p.setTempConfig}
+          />
+        </Show>
       </Show>
     </div>
   );
@@ -329,8 +350,8 @@ function AdminAreaOptions(p: AdminAreaOptionsProps) {
     const ctx = getRollupLabelContext(p.tempConfig);
     if (ctx?.kind === "subset") {
       return t3({
-        en: "Include total of selected areas",
-        fr: "Inclure le total des zones sélectionnées",
+        en: "Include results for all selected areas",
+        fr: "Inclure les résultats de toutes les zones sélectionnées",
       });
     }
     if (ctx?.kind === "pinned") {

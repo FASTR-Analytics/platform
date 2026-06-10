@@ -437,7 +437,7 @@ Three server-side concepts assemble the final SQL:
 
 **`buildSelectQuery()`** — assembles SELECT + JOIN + WHERE + GROUP BY. Facility columns get `f.` prefix when joined.
 
-**`buildAdminAreaRollupQuery()`** — emits a second query producing the admin-area roll-up (total) row when `fetchConfig.includeAdminAreaRollup` is set and `fetchConfig.adminAreaRollupLevel` is a valid grouped admin level. The collapse level is chosen CLIENT-side by `getRollupAdminLevel` / `getEffectiveRollupLevel` (`lib/get_fetch_config_from_po.ts`): exactly one grouped admin level (any of AA2/3/4), not displayed as replicant/mapArea, not single-value-filtered, not a map, and a metric whose values are re-aggregatable (SUM/COUNT or post-aggregation ingredients). The roll-up row carries the sentinel `__NATIONAL` (`ROLLUP_SENTINEL`) in the collapsed column; the client maps it to a label via `getRollupLabelContext` ("National", a pinned parent's name, or "Total (selected areas)") and pins its sort position per `config.d.adminAreaRollupPosition` (display-only — never in the fetch config).
+**`buildAdminAreaRollupQuery()`** — (the roll-up feature's full rules live in [DOC_ROLLUP_ROWS.md](DOC_ROLLUP_ROWS.md)) emits a second query producing the admin-area roll-up row when `fetchConfig.includeAdminAreaRollup` is set and `fetchConfig.adminAreaRollupLevel` is a valid grouped admin level. The collapse level is chosen CLIENT-side by `getRollupAdminLevel` / `getEffectiveRollupLevel` (`lib/get_fetch_config_from_po.ts`): exactly one grouped admin level (any of AA2/3/4), not displayed as replicant/mapArea, not single-value-filtered, not a map, and a metric whose values are re-aggregatable (SUM/COUNT, post-aggregation ingredients, or AVG over facility-level rows — `hasFacilityLevelRows`, derived at enrichment from the table's `facility_id` column, distinguishes raw observations from pre-aggregated area summaries). The roll-up row carries the sentinel `__NATIONAL` (`ROLLUP_SENTINEL`) in the collapsed column; the client maps it to a label via `getRollupLabelContext` ("National", "{Area} — All areas" for a pinned parent, or "All selected areas") and pins its sort position per `config.d.adminAreaRollupPosition` (display-only — never in the fetch config).
 
 ---
 
@@ -470,7 +470,7 @@ It does **not** rename disaggregation values (e.g. "M"→"Male" for a sex disagg
 - Indicator ID → indicator label: from the indicators table, fed into `labelReplacementsAfterSorting` as `indicatorLabelReplacements`.
 - Admin area code → admin area name: from admin area label lookups.
 - Date values → formatted period: `dateLabelReplacements`.
-- `__NATIONAL` (+ legacy `zzNATIONAL` in stored figure grids) → roll-up row label from `getRollupLabelContext` (localized "National", a pinned parent area's name + "— Total", or "Total (selected areas)") — only added when the roll-up is active.
+- `__NATIONAL` (+ legacy `zzNATIONAL` in stored figure grids) → roll-up row label from `getRollupLabelContext` (localized "National", "{Area} — All areas" for a pinned parent, or "All selected areas" — scope words, never "Total", which would imply SUM) — only added when the roll-up is active.
 
 All merged into `labelReplacementsAfterSorting` so sort order is based on raw values (stable) while display uses labels.
 
@@ -674,8 +674,8 @@ Required conditions (see `getEffectiveRollupLevel` in `lib/get_fetch_config_from
 2. EXACTLY ONE admin level (AA2/3/4) is grouped, not displayed as
    replicant/mapArea, and not filtered to a single value
 3. The viz is not a map
-4. The metric is re-aggregatable: valueFunc SUM/COUNT, or it has a
-   post-aggregation expression
+4. The metric is re-aggregatable: valueFunc SUM/COUNT, a post-aggregation
+   expression, or AVG over facility-level rows (`hasFacilityLevelRows`)
 
 If any is false, the fetch config carries `includeAdminAreaRollup: false` and
 the roll-up query doesn't run (the editor also hides the checkbox).

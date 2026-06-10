@@ -89,7 +89,7 @@ export function formatVizEditorForAI(
     );
   } else {
     const reason = !isRollupEligibleResultsValue(resultsValue)
-      ? "unavailable for this metric (only SUM/COUNT metrics or metrics with a post-aggregation expression)"
+      ? "unavailable for this metric (values are not re-aggregatable across areas — requires SUM/COUNT, a post-aggregation expression, or AVG over facility-level data)"
       : getRollupAdminLevel(config) === undefined
         ? "unavailable for this configuration (requires exactly one grouped admin level, not shown as replicant/map area, not filtered to a single value; not available on maps)"
         : "no";

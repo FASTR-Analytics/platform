@@ -1,5 +1,9 @@
 import { Sql } from "postgres";
-import { getResultsObjectTableName, tryCatchDatabaseAsync } from "../db/mod.ts";
+import {
+  detectColumnExists,
+  getResultsObjectTableName,
+  tryCatchDatabaseAsync,
+} from "../db/mod.ts";
 import {
   APIResponseWithData,
   GenericLongFormFetchConfig,
@@ -47,6 +51,22 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
       fetchConfig,
       datasetFamily,
     );
+
+    // Precise half of the roll-up eligibility rule that validateFetchConfig
+    // can't see (it has no table access): AVG without a post-aggregation
+    // expression is only re-averageable when rows are raw facility
+    // observations. Mirrors isRollupEligibleResultsValue; app clients never
+    // send this — guards hand-crafted requests.
+    if (
+      fetchConfig.includeAdminAreaRollup === true &&
+      fetchConfig.postAggregationExpression === undefined &&
+      fetchConfig.values.some((v) => v.func === "AVG") &&
+      !(await detectColumnExists(projectDb, tableName, "facility_id"))
+    ) {
+      throw new Error(
+        "Invalid includeAdminAreaRollup: AVG values can only be rolled up when the results table has facility-level rows",
+      );
+    }
 
     ///////////////////////////
     //                       //

@@ -63,15 +63,20 @@ export function validateFetchConfig(
 
   // Server-side mirror of isRollupEligibleResultsValue: the roll-up
   // re-aggregates across admin areas, which is only meaningful for additive
-  // funcs or post-aggregation ingredients (recomputed after the union). App
-  // clients never send anything else; this guards hand-crafted requests.
+  // funcs, post-aggregation ingredients (recomputed after the union), or AVG
+  // over facility-level rows. AVG's facility-rows condition needs the table
+  // and is enforced in getPresentationObjectItems; here we reject the funcs
+  // that are never eligible. App clients never send these; this guards
+  // hand-crafted requests.
   if (
     fetchConfig.includeAdminAreaRollup === true &&
     fetchConfig.postAggregationExpression === undefined &&
-    fetchConfig.values.some((v) => v.func !== "SUM" && v.func !== "COUNT")
+    fetchConfig.values.some(
+      (v) => v.func !== "SUM" && v.func !== "COUNT" && v.func !== "AVG"
+    )
   ) {
     throw new Error(
-      "Invalid includeAdminAreaRollup: without a postAggregationExpression, all value funcs must be SUM or COUNT"
+      "Invalid includeAdminAreaRollup: without a postAggregationExpression, all value funcs must be SUM, COUNT, or AVG"
     );
   }
 }

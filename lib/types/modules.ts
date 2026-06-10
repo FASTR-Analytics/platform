@@ -29,6 +29,12 @@ export type ResultsValue = {
   valueProps: string[];
   valueFunc: ValueFunc;
   postAggregationExpression?: PostAggregationExpression;
+  // The results table has a facility_id column, i.e. rows are raw facility
+  // observations rather than pre-aggregated area/national summaries. Derived
+  // at enrichment time; optional because cached payloads may predate the
+  // field (absence reads as false). Drives admin-area roll-up eligibility
+  // for AVG metrics (isRollupEligibleResultsValue).
+  hasFacilityLevelRows?: boolean;
   valueLabelReplacements?: Record<string, string>;
   label: string;
   variantLabel?: string;

@@ -19,8 +19,26 @@ import {
   reportImagesSchema,
 } from "lib";
 import type { Sql } from "postgres";
-import { type MigrationStats, rawJsonNeedsForcedTransform } from "./po_config.ts";
-import { type FigureBlockMut, transformFigureBlock } from "./_figure_block.ts";
+import {
+  type MigrationStats,
+  rawJsonNeedsForcedTransform,
+} from "./po_config.ts";
+import {
+  type FigureBlockMut,
+  transformFigureBlock,
+  warnIfFigureInputsStale,
+} from "./_figure_block.ts";
+
+function getFigureInputsInFigures(
+  figures: unknown,
+): (Record<string, unknown> | undefined)[] {
+  if (!figures || typeof figures !== "object") {
+    return [];
+  }
+  return Object.values(figures).map(
+    (block) => (block as FigureBlockMut).figureInputs,
+  );
+}
 
 export async function migrateReports(
   tx: Sql,
@@ -40,7 +58,9 @@ export async function migrateReports(
     const images = JSON.parse(row.images);
 
     // Already valid? Skip — unless legacy keys (which safeParse silently
-    // strips) still need the embedded-config rename.
+    // strips) still need the embedded-config rename. figureInputs drift is
+    // covered by reportFiguresSchema: figureBlockSchema validates figureInputs
+    // against panther's zFigureData (lib/types figureInputsSchema).
     if (
       reportConfigSchema.safeParse(config).success &&
       reportFiguresSchema.safeParse(figures).success &&
@@ -58,15 +78,20 @@ export async function migrateReports(
     // Block 1: Figure-block transforms shared with slides/dashboards — embedded
     // PO config, source.type rename, figureInputs normalization. Repairs a
     // report figure whose embedded config drifted under a po_config change.
-    // (figureInputs itself is z.unknown() in figureBlockSchema, so the skip gate
-    // above can't see pure figureInputs drift; a future panther figureInputs
-    // change needs a force block here, à la slide_config.ts PRE-VALIDATION A.)
+    // (figureInputs drift is caught by the skip gate above via
+    // figureInputsSchema inside figureBlockSchema.)
     if (figures && typeof figures === "object") {
       for (const block of Object.values(figures)) {
         transformFigureBlock(block as FigureBlockMut);
       }
     }
+    for (const fi of getFigureInputsInFigures(figures)) {
+      warnIfFigureInputsStale(`reports.figures row ${row.id}`, fi);
+    }
 
+    // Throws if the row is still invalid after every transform (including
+    // figureInputs drift the upgrader does not fix) — the runner then refuses
+    // to start the server. The warn above names the offending figure block.
     const validated = {
       config: JSON.stringify(reportConfigSchema.parse(config)),
       figures: JSON.stringify(reportFiguresSchema.parse(figures)),

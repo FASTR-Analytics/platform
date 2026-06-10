@@ -65,8 +65,7 @@
     "npm:sortablejs@^1.15.0": "1.15.6",
     "npm:xlsx@0.18.5": "0.18.5",
     "npm:zod@*": "4.1.13",
-    "npm:zod@4": "4.1.13",
-    "npm:zod@^3.22.4": "3.25.76"
+    "npm:zod@4": "4.1.13"
   },
   "jsr": {
     "@denosaurs/plug@1.0.5": {
@@ -1409,7 +1408,7 @@
       "npm:postgres@^3.4.5",
       "npm:redis@^4.7.0",
       "npm:xlsx@0.18.5",
-      "npm:zod@^3.22.4"
+      "npm:zod@4"
     ],
     "members": {
       "panther": {

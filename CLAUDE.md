@@ -300,12 +300,12 @@ Prescriptive protocols for how this app is built (distinct from the `panther/pro
 - [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md) — module load + R-script parameterize/execute/ingest
 - [DOC_DHIS2_INTEGRATION.md](DOC_DHIS2_INTEGRATION.md) — DHIS2 API client: base fetcher, retry, goals
 - [DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md](DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md) — Anthropic proxy, token limits, usage logging
-- [DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md](DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md) — config → SQL (CTEManager, national totals, post-aggregation)
+- [DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md](DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md) — config → SQL (CTEManager, roll-up row, post-aggregation)
 - [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md) — SQL migrations + JSON data transforms + validation boundaries
 
 ### Data / domain
 
-- [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md), [DOC_period_column_handling.md](DOC_period_column_handling.md), [DOC_DISAGGREGATION_OPTIONS_HANDLING.md](DOC_DISAGGREGATION_OPTIONS_HANDLING.md), [DOC_POPULATION_CSV.md](DOC_POPULATION_CSV.md), [DOC_AI_TOOL_SCHEMAS.md](DOC_AI_TOOL_SCHEMAS.md)
+- [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md), [DOC_period_column_handling.md](DOC_period_column_handling.md), [DOC_DISAGGREGATION_OPTIONS_HANDLING.md](DOC_DISAGGREGATION_OPTIONS_HANDLING.md), [DOC_ROLLUP_ROWS.md](DOC_ROLLUP_ROWS.md), [DOC_POPULATION_CSV.md](DOC_POPULATION_CSV.md), [DOC_AI_TOOL_SCHEMAS.md](DOC_AI_TOOL_SCHEMAS.md)
 
 ### Client / UI
 
@@ -350,6 +350,45 @@ So `lib/` *can* and *does* import panther — always through `@timroberton/panth
 - Follow existing patterns and conventions
 - Use functional programming where appropriate
 - **Never create a `scripts/` folder** - put build/utility scripts at the repo root
+
+### Cross-Cutting Changes & Refactors (hard-won rules)
+
+- **Three repos move together.** Features often span this app, the authored
+  modules (`wb-fastr-modules` — edit `_metrics/*.ts` etc., then `deno task
+  build` regenerates `definition.json`; push it in lockstep with schema
+  changes), and panther. `./sync` (run from the panther repo) copies panther's
+  **working tree** wholesale — confirm panther typechecks before syncing, and
+  stage/commit app changes FIRST so the sync diff stays isolated.
+- **Renaming or deleting a stored JSON field is never just a rename.** Zod
+  strip mode treats the old key as valid AND silently drops it on every read,
+  so the user's setting vanishes with no error. Required in lockstep: a
+  transform block, a forced skip-gate (DOC_MIGRATIONS.md "Skip-Gate Gotcha"),
+  and the authored `definition.json` files when the github schema changes.
+- **Changing a cached payload's SHAPE needs a cache-prefix bump.** Valkey
+  version hashes track row `last_updated`, not code — a deploy that adds a
+  field keeps serving old-shape payloads for unmodified rows (e.g.
+  `po_detail` → `po_detail_v2`). When a shape changes, enumerate all three
+  persistence layers: DB JSON (migration), Valkey (prefix), stored
+  FigureInputs (force block in the slide_config sweep).
+- **Keep display-only preferences out of fetch configs and cache hashes.** A
+  render knob in the data layer means spurious refetches and gets frozen into
+  stored figure snapshots (the roll-up position/two-sentinel lesson —
+  DOC_ROLLUP_ROWS.md).
+- **Never mutate an unwrapped Solid store object.** No subscribers fire, and
+  the setter's equality guard turns the user's next identical write into a
+  silent no-op. When fixing such a mutation by switching to a copy, grep
+  EVERY consumer first — callers may depend on the aliasing.
+- **One authoritative doc comment per contract**, single-line pointers
+  everywhere else. Restated contracts drift (one gate accumulated eight
+  copies, five of them wrong).
+- **Verify by executing, not by reading.** lib/server functions run directly:
+  `deno run --allow-all -c deno.json /tmp/check.ts` with absolute-path
+  imports. A ten-line harness settles SQL/gate/normalization questions
+  decisively.
+- **Expect parallel workstreams in the working tree.** Before staging,
+  committing, or debugging typecheck errors, check `git status` for files
+  outside your scope — concurrent work is normal here, and its errors are not
+  yours to fix without asking.
 
 ### Database Migrations
 

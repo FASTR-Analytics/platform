@@ -4,6 +4,7 @@
 // =============================================================================
 
 import { z } from "zod";
+import { figureInputsSchema } from "./_slide_config.ts";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
 
 // ── Figure Source (mirrors slide figureSourceSchema) ────────────────────────
@@ -26,11 +27,13 @@ const figureSourceSchema = z.discriminatedUnion("type", [
 
 export const dashboardFigureBlockSchema = z.object({
   type: z.literal("figure"),
-  figureInputs: z.unknown().optional(),
+  figureInputs: figureInputsSchema.optional(),
   source: figureSourceSchema.optional(),
 });
 
-export type DashboardFigureBlockFromSchema = z.infer<typeof dashboardFigureBlockSchema>;
+export type DashboardFigureBlockFromSchema = z.infer<
+  typeof dashboardFigureBlockSchema
+>;
 
 // ── Layout ──────────────────────────────────────────────────────────────────
 

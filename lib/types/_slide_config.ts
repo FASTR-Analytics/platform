@@ -3,8 +3,23 @@
 // =============================================================================
 
 import { z } from "zod";
+import { zFigureData } from "@timroberton/panther";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
 import { TEXT_SIZE_KEYS } from "../consts.ts";
+
+// figureInputs is panther-owned data; validate it against panther's
+// zFigureData so stale shapes fail every parse (write paths and the migration
+// skip gates) instead of hiding inside z.unknown(). Implemented as .refine —
+// not by embedding zFigureData directly — because zod object schemas strip
+// unknown keys on parse: embedding would silently delete the surrounds
+// (caption/subCaption/footnote/legend/autofit) from every figureInputs blob on
+// the next write. The refine validates without reshaping.
+export const figureInputsSchema = z.unknown().refine(
+  (v) => v === undefined || zFigureData.safeParse(v).success,
+  {
+    message: "figureInputs does not match panther's current figure data shape",
+  },
+);
 
 // ── Block Styles ────────────────────────────────────────────────────────────
 
@@ -24,7 +39,16 @@ const contentSlideSplitFillSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("plain") }),
   z.object({
     type: z.literal("pattern"),
-    patternType: z.enum(["ovals", "circles", "dots", "lines", "grid", "chevrons", "waves", "noise"]),
+    patternType: z.enum([
+      "ovals",
+      "circles",
+      "dots",
+      "lines",
+      "grid",
+      "chevrons",
+      "waves",
+      "noise",
+    ]),
   }),
   z.object({
     type: z.literal("image"),
@@ -64,7 +88,7 @@ const textBlockSchema = z.object({
 
 export const figureBlockSchema = z.object({
   type: z.literal("figure"),
-  figureInputs: z.unknown().optional(),
+  figureInputs: figureInputsSchema.optional(),
   source: figureSourceSchema.optional(),
 });
 
@@ -178,12 +202,12 @@ export type SlideFromSchema = z.infer<typeof slideConfigSchema>;
 // - If schema doesn't have that field, parse() throws at startup
 
 import type {
-  CoverSlide,
-  SectionSlide,
   ContentSlide,
   ContentSlideSplit,
-  TextBlockStyle,
+  CoverSlide,
   ImageBlockStyle,
+  SectionSlide,
+  TextBlockStyle,
 } from "./slides.ts";
 
 const _completeCover: Required<CoverSlide> = {
@@ -235,7 +259,9 @@ const _completeContent: Required<ContentSlide> = {
     data: {
       type: "text",
       markdown: "",
-      style: { textSize: "m", textBackground: "" } satisfies Required<TextBlockStyle>,
+      style: { textSize: "m", textBackground: "" } satisfies Required<
+        TextBlockStyle
+      >,
     },
   },
   split: {
@@ -247,74 +273,97 @@ const _completeContent: Required<ContentSlide> = {
 slideConfigSchema.parse(_completeContent);
 
 // Validate split fill variants
-slideConfigSchema.parse({
-  type: "content",
-  layout: { type: "item", id: "x", data: { type: "text", markdown: "" } },
-  split: { placement: "right", sizeAsPct: 20, fill: { type: "pattern", patternType: "ovals" } },
-} satisfies ContentSlide);
+slideConfigSchema.parse(
+  {
+    type: "content",
+    layout: { type: "item", id: "x", data: { type: "text", markdown: "" } },
+    split: {
+      placement: "right",
+      sizeAsPct: 20,
+      fill: { type: "pattern", patternType: "ovals" },
+    },
+  } satisfies ContentSlide,
+);
 
-slideConfigSchema.parse({
-  type: "content",
-  layout: { type: "item", id: "x", data: { type: "text", markdown: "" } },
-  split: { placement: "left", sizeAsPct: 30, fill: { type: "image", imgFile: "test.png" } },
-} satisfies ContentSlide);
+slideConfigSchema.parse(
+  {
+    type: "content",
+    layout: { type: "item", id: "x", data: { type: "text", markdown: "" } },
+    split: {
+      placement: "left",
+      sizeAsPct: 30,
+      fill: { type: "image", imgFile: "test.png" },
+    },
+  } satisfies ContentSlide,
+);
 
 // Also validate figure block with both FigureSource variants
-import { DEFAULT_S_CONFIG, DEFAULT_T_CONFIG } from "./presentation_object_defaults.ts";
+import {
+  DEFAULT_S_CONFIG,
+  DEFAULT_T_CONFIG,
+} from "./presentation_object_defaults.ts";
 
 // FigureSource "custom" variant
-slideConfigSchema.parse({
-  type: "content",
-  layout: {
-    type: "item",
-    id: "x",
-    data: {
-      type: "figure",
-      source: {
-        type: "custom",
-        description: "",
+slideConfigSchema.parse(
+  {
+    type: "content",
+    layout: {
+      type: "item",
+      id: "x",
+      data: {
+        type: "figure",
+        source: {
+          type: "custom",
+          description: "",
+        },
       },
     },
-  },
-} satisfies ContentSlide);
+  } satisfies ContentSlide,
+);
 
 // FigureSource "from_data" variant
-slideConfigSchema.parse({
-  type: "content",
-  layout: {
-    type: "item",
-    id: "x",
-    data: {
-      type: "figure",
-      source: {
-        type: "from_data",
-        metricId: "",
-        config: {
-          d: {
-            type: "timeseries",
-            timeseriesGrouping: "year",
-            valuesDisDisplayOpt: "row",
-            disaggregateBy: [],
-            filterBy: [],
+slideConfigSchema.parse(
+  {
+    type: "content",
+    layout: {
+      type: "item",
+      id: "x",
+      data: {
+        type: "figure",
+        source: {
+          type: "from_data",
+          metricId: "",
+          config: {
+            d: {
+              type: "timeseries",
+              timeseriesGrouping: "year",
+              valuesDisDisplayOpt: "row",
+              disaggregateBy: [],
+              filterBy: [],
+            },
+            s: DEFAULT_S_CONFIG,
+            t: DEFAULT_T_CONFIG,
           },
-          s: DEFAULT_S_CONFIG,
-          t: DEFAULT_T_CONFIG,
+          snapshotAt: "",
         },
-        snapshotAt: "",
       },
     },
-  },
-} satisfies ContentSlide);
+  } satisfies ContentSlide,
+);
 
-slideConfigSchema.parse({
-  type: "content",
-  layout: {
-    type: "item",
-    id: "x",
-    data: {
-      type: "image",
-      imgFile: "",
-      style: { imgFit: "cover", imgAlign: "center" } satisfies Required<ImageBlockStyle>,
+slideConfigSchema.parse(
+  {
+    type: "content",
+    layout: {
+      type: "item",
+      id: "x",
+      data: {
+        type: "image",
+        imgFile: "",
+        style: { imgFit: "cover", imgAlign: "center" } satisfies Required<
+          ImageBlockStyle
+        >,
+      },
     },
-  },
-} satisfies ContentSlide);
+  } satisfies ContentSlide,
+);

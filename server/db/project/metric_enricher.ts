@@ -27,6 +27,15 @@ export async function enrichMetric(
 ): Promise<ResultsValue> {
   const resultsObjectId = dbMetric.results_object_id;
 
+  // facility_id on the results table means rows are raw facility observations
+  // (not pre-aggregated area summaries) — drives both the facility
+  // disaggregation options and roll-up eligibility for AVG metrics.
+  const hasFacilityLevelRows = await detectColumnExists(
+    projectDb,
+    getResultsObjectTableName(resultsObjectId),
+    "facility_id",
+  );
+
   const disaggregationOptions = await buildDisaggregationOptions(
     z
       .array(disaggregationOption)
@@ -34,6 +43,7 @@ export async function enrichMetric(
     resultsObjectId,
     projectDb,
     facilityConfig,
+    hasFacilityLevelRows,
   );
 
   const enrichedMetric: ResultsValue = {
@@ -41,6 +51,7 @@ export async function enrichMetric(
     resultsObjectId,
     valueProps: z.array(z.string()).parse(JSON.parse(dbMetric.value_props)),
     valueFunc: dbMetric.value_func as ResultsValue["valueFunc"],
+    hasFacilityLevelRows,
     postAggregationExpression: dbMetric.post_aggregation_expression
       ? postAggregationExpressionStrict.parse(
           JSON.parse(dbMetric.post_aggregation_expression),
@@ -71,6 +82,7 @@ async function buildDisaggregationOptions(
   resultsObjectId: string,
   projectDb: Sql,
   facilityConfig: InstanceConfigFacilityColumns | undefined,
+  hasFacilityId: boolean,
 ): Promise<ResultsValue["disaggregationOptions"]> {
   const out: ResultsValue["disaggregationOptions"] = [];
   const tableName = getResultsObjectTableName(resultsObjectId);
@@ -106,11 +118,6 @@ async function buildDisaggregationOptions(
   }
 
   if (facilityConfig) {
-    const hasFacilityId = await detectColumnExists(
-      projectDb,
-      tableName,
-      "facility_id",
-    );
     if (hasFacilityId) {
       const facilityOptions: {
         option: DisaggregationOption;

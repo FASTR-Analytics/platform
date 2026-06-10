@@ -1,3 +1,4 @@
+import type { RollupEligibilityInputs } from "./admin_area_rollup.ts";
 import {
   getEffectiveRollupLevel,
   getFilteredValueProps,
@@ -5,18 +6,11 @@ import {
 } from "./get_fetch_config_from_po.ts";
 import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
-import {
-  inferPeriodFormatFromValue,
-  type PostAggregationExpression,
-  type ValueFunc,
-} from "./types/_metric_installed.ts";
+import { inferPeriodFormatFromValue } from "./types/_metric_installed.ts";
 
 export function normalizePOConfigForStorage(
   config: PresentationObjectConfig,
-  resultsValue: {
-    valueFunc: ValueFunc;
-    postAggregationExpression?: PostAggregationExpression | null;
-  }
+  resultsValue: RollupEligibilityInputs
 ): PresentationObjectConfig {
   // Canonical roll-up off-state is both fields absent. The flag survives
   // transient gate closures while editing (the editor no longer eagerly clears

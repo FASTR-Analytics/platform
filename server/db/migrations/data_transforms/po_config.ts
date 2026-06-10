@@ -42,12 +42,12 @@
 // =============================================================================
 
 import {
-  presentationObjectConfigSchema,
-  flattenCf,
   CF_STORAGE_DEFAULTS,
-  LEGACY_CF_PRESETS,
   type ConditionalFormatting,
   type ConditionalFormattingScale,
+  flattenCf,
+  LEGACY_CF_PRESETS,
+  presentationObjectConfigSchema,
 } from "lib";
 import type { Sql } from "postgres";
 import { _PO_DETAIL_CACHE } from "../../../routes/caches/visualizations.ts";
@@ -74,30 +74,27 @@ function buildCfFromLegacyMapFields(
 ): ConditionalFormattingScale | undefined {
   const preset = (s.mapColorPreset as string | undefined) ?? "red-green";
   const reverse = Boolean(s.mapColorReverse);
-  const [rawFrom, rawTo] =
-    preset === "custom"
-      ? [
-          (s.mapColorFrom as string | undefined) ?? "#fee0d2",
-          (s.mapColorTo as string | undefined) ?? "#de2d26",
-        ]
-      : MAP_COLOR_PRESET_STOPS[preset] ?? MAP_COLOR_PRESET_STOPS["red-green"];
+  const [rawFrom, rawTo] = preset === "custom"
+    ? [
+      (s.mapColorFrom as string | undefined) ?? "#fee0d2",
+      (s.mapColorTo as string | undefined) ?? "#de2d26",
+    ]
+    : MAP_COLOR_PRESET_STOPS[preset] ?? MAP_COLOR_PRESET_STOPS["red-green"];
   const [from, to] = reverse ? [rawTo, rawFrom] : [rawFrom, rawTo];
 
   const scaleType = (s.mapScaleType as string | undefined) ?? "continuous";
-  const steps =
-    scaleType === "discrete"
-      ? (s.mapDiscreteSteps as number | undefined) ?? 5
-      : undefined;
+  const steps = scaleType === "discrete"
+    ? (s.mapDiscreteSteps as number | undefined) ?? 5
+    : undefined;
 
   const domainType = (s.mapDomainType as string | undefined) ?? "auto";
-  const domain: ConditionalFormattingScale["domain"] =
-    domainType === "fixed"
-      ? {
-          kind: "fixed",
-          min: (s.mapDomainMin as number | undefined) ?? 0,
-          max: (s.mapDomainMax as number | undefined) ?? 1,
-        }
-      : { kind: "auto" };
+  const domain: ConditionalFormattingScale["domain"] = domainType === "fixed"
+    ? {
+      kind: "fixed",
+      min: (s.mapDomainMin as number | undefined) ?? 0,
+      max: (s.mapDomainMax as number | undefined) ?? 1,
+    }
+    : { kind: "auto" };
 
   return {
     type: "scale",
@@ -153,7 +150,7 @@ export function transformConfigD(d: Record<string, unknown>): void {
   // Block 12: Remove filterBy entries with empty values array
   if (Array.isArray(d.filterBy)) {
     d.filterBy = (d.filterBy as { disOpt: string; values: unknown[] }[]).filter(
-      (f) => Array.isArray(f.values) && f.values.length > 0
+      (f) => Array.isArray(f.values) && f.values.length > 0,
     );
   }
 
@@ -250,7 +247,8 @@ export function transformConfigS(
   if (s.conditionalFormatting !== undefined) {
     const cfRaw = s.conditionalFormatting;
     if (typeof cfRaw === "string" && cfRaw in LEGACY_CF_PRESETS) {
-      legacyCf = LEGACY_CF_PRESETS[cfRaw as keyof typeof LEGACY_CF_PRESETS].value;
+      legacyCf =
+        LEGACY_CF_PRESETS[cfRaw as keyof typeof LEGACY_CF_PRESETS].value;
     }
     delete s.conditionalFormatting;
   }
@@ -289,8 +287,8 @@ export function transformConfigS(
   const flatSource = legacyCf
     ? flattenCf(legacyCf)
     : fillDefaults
-      ? CF_STORAGE_DEFAULTS
-      : undefined;
+    ? CF_STORAGE_DEFAULTS
+    : undefined;
   if (flatSource) {
     for (const [key, value] of Object.entries(flatSource)) {
       if (!(key in s)) s[key] = value;
@@ -321,8 +319,12 @@ export function transformConfigS(
     // Block 16: Fill missing configS fields (2025-04 schema additions)
     if (!("diffInverted" in s)) s.diffInverted = false;
     if (!("specialBarChart" in s)) s.specialBarChart = false;
-    if (!("specialBarChartDiffThreshold" in s)) s.specialBarChartDiffThreshold = 0;
-    if (!("specialBarChartDataLabels" in s)) s.specialBarChartDataLabels = "all-values";
+    if (!("specialBarChartDiffThreshold" in s)) {
+      s.specialBarChartDiffThreshold = 0;
+    }
+    if (!("specialBarChartDataLabels" in s)) {
+      s.specialBarChartDataLabels = "all-values";
+    }
     if (!("specialCoverageChart" in s)) s.specialCoverageChart = false;
     if (!("specialScorecardTable" in s)) s.specialScorecardTable = false;
     if (!("allowVerticalColHeaders" in s)) s.allowVerticalColHeaders = false;
@@ -347,7 +349,9 @@ export function transformConfigS(
 // drift is these keys passes safeParse, so a skip-on-valid gate would never
 // run the rename and runtime reads would silently drop the user's setting.
 // Every sweep gate must consult this alongside safeParse.
-export function configNeedsForcedTransform(config: Record<string, unknown>): boolean {
+export function configNeedsForcedTransform(
+  config: Record<string, unknown>,
+): boolean {
   const d = (config.d ?? {}) as Record<string, unknown>;
   return (
     "includeNationalForAdminArea2" in d || "includeNationalPosition" in d
@@ -368,7 +372,9 @@ export function rawJsonNeedsForcedTransform(raw: string): boolean {
   );
 }
 
-export function transformPOConfigData(config: Record<string, unknown>): Record<string, unknown> {
+export function transformPOConfigData(
+  config: Record<string, unknown>,
+): Record<string, unknown> {
   const c = structuredClone(config) as Record<string, unknown>;
   const d = (c.d ?? {}) as Record<string, unknown>;
   const s = (c.s ?? {}) as Record<string, unknown>;
@@ -389,7 +395,10 @@ export function transformPOConfigData(config: Record<string, unknown>): Record<s
   return c;
 }
 
-export async function migratePOConfigs(tx: Sql, projectId: string): Promise<MigrationStats> {
+export async function migratePOConfigs(
+  tx: Sql,
+  projectId: string,
+): Promise<MigrationStats> {
   const rows = await tx<{ id: string; config: string }[]>`
     SELECT id, config FROM presentation_objects
   `;

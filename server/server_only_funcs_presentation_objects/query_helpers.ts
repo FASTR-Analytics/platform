@@ -259,11 +259,14 @@ export function buildWhereClause(
 // ============================================================================
 
 /**
- * Builds aggregate column expressions based on value configuration. Identity
- * values cannot reach the roll-up branch from a real config (rollup eligibility
- * admits only SUM/COUNT metrics or post-aggregation ingredients, which are
- * SUM/AVG); the SUM fallback there is defense-in-depth for hand-crafted
- * fetch configs.
+ * Builds aggregate column expressions based on value configuration. In the
+ * roll-up branch SUM/COUNT re-add and AVG re-averages — the latter is only
+ * correct over raw facility rows, which eligibility guarantees
+ * (isRollupEligibleResultsValue client-side; the facility_id check in
+ * getPresentationObjectItems server-side). Identity values cannot reach the
+ * roll-up branch from a real config (eligible identity metrics carry a PAE,
+ * whose ingredients are SUM/AVG); the SUM fallback there is defense-in-depth
+ * for hand-crafted fetch configs.
  */
 function buildAggregateColumns(
   values: GenericLongFormFetchConfig["values"],

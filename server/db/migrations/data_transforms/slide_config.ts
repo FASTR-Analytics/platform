@@ -22,10 +22,12 @@
 // 11. Convert text block style.textSize number → semantic key
 // 12. Normalize figureInputs string[] headers → HeaderItem[] ({ id, label })
 //
-// PRE-VALIDATION BLOCK (runs on ALL rows):
-// A. One-time force of the figureInputs migration (Blocks 9/10/12). Needed
-//    because the skip gate validates figureInputs as z.unknown(), so figure
-//    drift is invisible to it. DELETE AFTER ALL INSTANCES UPDATED
+// SKIP GATE: figureBlockSchema validates figureInputs against panther's
+// zFigureData (lib/types figureInputsSchema), so the plain safeParse gate sees
+// figureInputs drift: old-shape blobs fail → the transform runs precisely on
+// those rows, and a row still stale after the transform aborts startup at the
+// final parse. (Replaced the one-time PRE-VALIDATION force block, deleted
+// 2026-06.)
 //
 // =============================================================================
 
@@ -34,7 +36,7 @@ import type { TextSizeKey } from "lib";
 import type { Sql } from "postgres";
 import {
   transformFigureBlock,
-  transformFigureInputs,
+  warnIfFigureInputsStale,
 } from "./_figure_block.ts";
 import {
   type MigrationStats,
@@ -73,30 +75,34 @@ type LayoutNode = {
   children?: LayoutNode[];
 };
 
-// ONE-TIME PRE-VALIDATION helper: force the figureInputs migration on every
-// figure block in a layout, returning whether anything changed. Needed because
-// the skip gate in migrateSlideConfigs validates against slideConfigSchema,
-// which treats figureInputs as z.unknown() — so figureInputs drift (old
-// yScaleAxisData / missing scaleAxisLimits) is invisible to it and would
-// otherwise never get transformed. DELETE after all instances are updated.
-function forceMigrateFigureInputs(node: LayoutNode): boolean {
+// Collect every figure block's figureInputs in a layout tree (read-only) so
+// the skip gate can check them against panther's zFigureData.
+function collectFigureInputs(
+  node: LayoutNode,
+  out: Record<string, unknown>[],
+): void {
   if (
     node.type === "item" &&
     node.data?.type === "figure" &&
     node.data.figureInputs
   ) {
-    const before = JSON.stringify(node.data.figureInputs);
-    transformFigureInputs(node.data.figureInputs);
-    return JSON.stringify(node.data.figureInputs) !== before;
+    out.push(node.data.figureInputs);
   }
   if ((node.type === "rows" || node.type === "cols") && node.children) {
-    let changed = false;
     for (const child of node.children) {
-      if (forceMigrateFigureInputs(child)) changed = true;
+      collectFigureInputs(child, out);
     }
-    return changed;
   }
-  return false;
+}
+
+function getFigureInputsInConfig(
+  config: Record<string, unknown>,
+): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  if (config.type === "content" && config.layout) {
+    collectFigureInputs(config.layout as LayoutNode, out);
+  }
+  return out;
 }
 
 function transformLayoutNode(node: LayoutNode): void {
@@ -157,26 +163,11 @@ export async function migrateSlideConfigs(
     const config = JSON.parse(row.config);
     const storedCanonical = JSON.stringify(config);
 
-    // =========================================================================
-    // PRE-VALIDATION BLOCK A: One-time force of the figureInputs migration.
-    // Runs on ALL rows regardless of validation status, because the skip gate
-    // below validates against slideConfigSchema, which treats figureInputs as
-    // z.unknown() — so stale figureInputs (old yScaleAxisData / missing
-    // scaleAxisLimits) pass validation and would otherwise never be transformed.
-    // TODO: DELETE THIS BLOCK after all instances have received this update.
-    // =========================================================================
-    let preValidationChanged = false;
-    if (config.type === "content" && config.layout) {
-      preValidationChanged = forceMigrateFigureInputs(
-        config.layout as LayoutNode,
-      );
-    }
-
-    // Already valid? Skip (unless pre-validation made changes, or legacy keys
-    // — which safeParse silently strips — still need the embedded-config
-    // rename).
+    // Already valid? Skip — unless legacy keys (which safeParse silently
+    // strips) still need the embedded-config rename. figureInputs drift is
+    // covered by this same safeParse: figureBlockSchema validates figureInputs
+    // against panther's zFigureData (lib/types figureInputsSchema).
     if (
-      !preValidationChanged &&
       slideConfigSchema.safeParse(config).success &&
       !rawJsonNeedsForcedTransform(row.config)
     ) {
@@ -212,6 +203,13 @@ export async function migrateSlideConfigs(
       delete config.footerLogos;
     }
 
+    for (const fi of getFigureInputsInConfig(config)) {
+      warnIfFigureInputsStale(`slides.config row ${row.id}`, fi);
+    }
+
+    // Throws if the row is still invalid after every transform (including
+    // figureInputs drift the upgrader does not fix) — the runner then refuses
+    // to start the server. The warn above names the offending figure block.
     const validated = slideConfigSchema.parse(config);
 
     // Output identical to stored (e.g. a forced-scan false positive)? Skip the

@@ -17,7 +17,7 @@
 //
 // =============================================================================
 
-import { slideDeckConfigSchema, _GFF_GREEN, findBrandPresetByHex } from "lib";
+import { _GFF_GREEN, findBrandPresetByHex, slideDeckConfigSchema } from "lib";
 import {
   Color,
   COVER_TREATMENT_IDS,

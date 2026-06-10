@@ -27,7 +27,11 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
     presentationObjectLastUpdated: string;
   },
   APIResponseWithData<PresentationObjectDetail>
->("po_detail", {
+  // Prefix is versioned: bump it whenever the cached payload SHAPE changes
+  // (the version hash only tracks the row's last_updated, so a deploy that
+  // adds a field — e.g. resultsValue.hasFacilityLevelRows in v2 — would
+  // otherwise keep serving old-shape payloads for unmodified rows).
+>("po_detail_v2", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) => params.presentationObjectLastUpdated,

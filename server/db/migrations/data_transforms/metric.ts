@@ -115,7 +115,10 @@ function transformMetricAIDescription(ai: Record<string, unknown>): void {
 
 const vizPresetsArraySchema = z.array(vizPresetInstalled);
 
-export async function migrateMetricsColumns(tx: Sql, projectId: string): Promise<MigrationStats> {
+export async function migrateMetricsColumns(
+  tx: Sql,
+  projectId: string,
+): Promise<MigrationStats> {
   const rows = await tx<{
     id: string;
     ai_description: string | null;

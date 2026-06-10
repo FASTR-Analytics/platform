@@ -79,6 +79,17 @@ if ! docker info 2>/dev/null | grep -q "Username:"; then
     echo "Run 'docker login' if needed."
 fi
 
+# Optionally validate migrations
+echo "Validate migrations? (y/n)"
+read -r VALIDATE_MIGRATIONS
+
+if [ "$VALIDATE_MIGRATIONS" = "y" ] || [ "$VALIDATE_MIGRATIONS" = "Y" ]; then
+    if ! "$SCRIPT_DIR/validate_migrations"; then
+        echo "ERROR: Migration validation failed!"
+        exit 1
+    fi
+fi
+
 if [ "$ADHOC_MODE" = "false" ]; then
     # Parse current version
     MAJOR=$(echo $ORIGINAL_VERSION | cut -d. -f1)

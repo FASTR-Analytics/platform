@@ -44,7 +44,7 @@ const vizConfigUpdateSchema = z.object({
     z.null(),
   ]).optional().describe("Selected replicant value, or null to clear."),
   includeAdminAreaRollup: configDStrict.shape.includeAdminAreaRollup.describe(
-    "Include an admin-area total row. Only available when EXACTLY ONE admin level (admin_area_2/3/4) is disaggregated, not shown as replicant/map area, and not filtered to a single value; not available on maps; the metric must be SUM/COUNT or have a post-aggregation expression. Setting this when unavailable is an error.",
+    "Include an admin-area total row. Only available when EXACTLY ONE admin level (admin_area_2/3/4) is disaggregated, not shown as replicant/map area, and not filtered to a single value; not available on maps; the metric must be re-aggregatable (SUM/COUNT, a post-aggregation expression, or AVG over facility-level data). Setting this when unavailable is an error.",
   ),
   adminAreaRollupPosition: configDStrict.shape.adminAreaRollupPosition.describe(
     "Where to position the admin-area total row (top or bottom). Display-only; defaults to bottom.",
@@ -166,7 +166,7 @@ export function getToolsForVizEditor(
           };
           if (getEffectiveRollupLevel(resultsValue, candidate) === undefined) {
             throw new Error(
-              "includeAdminAreaRollup is not available here: it requires exactly one disaggregated admin level (admin_area_2/3/4) not shown as replicant/map area and not filtered to a single value, not on a map, and a metric that is SUM/COUNT or has a post-aggregation expression. No changes were applied.",
+              "includeAdminAreaRollup is not available here: it requires exactly one disaggregated admin level (admin_area_2/3/4) not shown as replicant/map area and not filtered to a single value, not on a map, and a re-aggregatable metric (SUM/COUNT, a post-aggregation expression, or AVG over facility-level data). No changes were applied.",
             );
           }
         }

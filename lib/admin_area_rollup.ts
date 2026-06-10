@@ -29,18 +29,33 @@ export function isAdminLevel(disOpt: string): disOpt is AdminLevel {
   return (ADMIN_LEVELS as readonly string[]).includes(disOpt);
 }
 
-// The roll-up re-aggregates a metric's rows across admin areas, so it is only
-// offered when that re-aggregation is meaningful: additive value funcs, or
-// identity values whose ratio is recomputed after the union via a
-// post-aggregation expression. Bare identity (pre-aggregated percentages/rates)
-// and AVG/MIN/MAX (would silently re-average pre-aggregated rows) are excluded.
-export function isRollupEligibleResultsValue(rv: {
+// The metric fields rollup eligibility is decided from. hasFacilityLevelRows
+// is derived at enrichment time (results table has a facility_id column) and
+// may be absent on stale cached ResultsValue objects — absence reads as false.
+export type RollupEligibilityInputs = {
   valueFunc: ValueFunc;
   postAggregationExpression?: PostAggregationExpression | null;
-}): boolean {
+  hasFacilityLevelRows?: boolean;
+};
+
+// The roll-up re-aggregates a metric's rows across admin areas, so it is only
+// offered when that re-aggregation is meaningful:
+// - additive value funcs (SUM/COUNT);
+// - identity values whose ratio is recomputed after the union via a
+//   post-aggregation expression;
+// - AVG over FACILITY-LEVEL rows (raw observations — re-averaging over any
+//   collapsed scope is the correctly weighted statistic).
+// Excluded: bare identity (pre-aggregated percentages/rates), AVG over
+// pre-aggregated area rows (re-averaging gives a population-blind mean), and
+// MIN/MAX. Whether rows are observations or area summaries is exactly the
+// presence of facility_id on the results table.
+export function isRollupEligibleResultsValue(
+  rv: RollupEligibilityInputs,
+): boolean {
   return (
     !!rv.postAggregationExpression ||
     rv.valueFunc === "SUM" ||
-    rv.valueFunc === "COUNT"
+    rv.valueFunc === "COUNT" ||
+    (rv.valueFunc === "AVG" && rv.hasFacilityLevelRows === true)
   );
 }

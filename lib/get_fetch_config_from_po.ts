@@ -9,6 +9,7 @@ import {
   type AdminLevel,
   isAdminLevel,
   isRollupEligibleResultsValue,
+  type RollupEligibilityInputs,
 } from "./admin_area_rollup.ts";
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import {
@@ -23,8 +24,6 @@ import type { PresentationObjectConfig } from "./types/_presentation_object_conf
 import {
   inferPeriodFormatFromValue,
   type PeriodOption,
-  type PostAggregationExpression,
-  type ValueFunc,
 } from "./types/_metric_installed.ts";
 import type { ResultsValue } from "./types/modules.ts";
 import type { APIResponseWithData } from "./types/instance.ts";
@@ -333,10 +332,7 @@ export function getRollupAdminLevel(
 // the gate used everywhere a ResultsValue is in scope — the UI checkbox, the
 // fetch-config builder, the save-time strip, and the AI editor tool.
 export function getEffectiveRollupLevel(
-  resultsValue: {
-    valueFunc: ValueFunc;
-    postAggregationExpression?: PostAggregationExpression | null;
-  },
+  resultsValue: RollupEligibilityInputs,
   config: PresentationObjectConfig,
 ): AdminLevel | undefined {
   return isRollupEligibleResultsValue(resultsValue)
@@ -360,12 +356,18 @@ export type RollupLabelContext =
   | { kind: "pinned"; level: AdminLevel; value: string | undefined }
   | { kind: "national" };
 
-// What the roll-up row actually totals, for labeling (row label + editor checkbox).
-// Precedence: any admin filter with 2+ values at or coarser than the roll-up level
-// makes the row a subset total ("Total (selected areas)"); otherwise the FINEST
-// coarser level pinned to one value (replicant or single-value filter) names the
-// row; otherwise it is a true national total. Non-admin filters (facility type,
-// indicator, ...) deliberately do not affect the label.
+// What the roll-up row's scope actually is, for labeling (row label + editor
+// checkbox). Precedence:
+// 1. subset ("All selected areas") — an admin filter restricts the geography:
+//    2+ values at or coarser than the roll-up level, or ANY values on a level
+//    finer than it (finer filters subset the data even with one value).
+//    Levels displayed as REPLICANT are skipped: their filter narrows which
+//    panes exist, while the replicant pin (rule 2) governs each pane's data.
+// 2. pinned ("{Area} — All areas") — the FINEST coarser level pinned to one
+//    value (replicant or single-value filter) names the row.
+// 3. national — no geographic restriction.
+// Non-admin filters (facility type, indicator, ...) deliberately do not affect
+// the label ("national among the selection" reading).
 export function getRollupLabelContext(
   config: PresentationObjectConfig,
 ): RollupLabelContext | undefined {
@@ -374,9 +376,21 @@ export function getRollupLabelContext(
     return undefined;
   }
   const levelIdx = ADMIN_LEVELS.indexOf(level);
-  for (const l of ADMIN_LEVELS.slice(0, levelIdx + 1)) {
+  const replicantLevels = new Set(
+    config.d.disaggregateBy
+      .filter((d) => d.disDisplayOpt === "replicant")
+      .map((d) => d.disOpt),
+  );
+  for (const l of ADMIN_LEVELS) {
+    if (replicantLevels.has(l)) {
+      continue;
+    }
     const filter = config.d.filterBy.find((f) => f.disOpt === l);
-    if (filter && filter.values.length >= 2) {
+    if (!filter || filter.values.length === 0) {
+      continue;
+    }
+    const minValuesForSubset = ADMIN_LEVELS.indexOf(l) <= levelIdx ? 2 : 1;
+    if (filter.values.length >= minValuesForSubset) {
       return { kind: "subset" };
     }
   }

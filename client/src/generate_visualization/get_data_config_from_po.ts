@@ -70,15 +70,17 @@ function buildLabelReplacements(
 }
 
 // The roll-up row's label, from getRollupLabelContext (shared with the editor
-// checkbox): a pinned area's name with a total marker, a "selected areas" total
-// when admin filters subset the geography, otherwise "National".
+// checkbox). Scope words, not operation words ("Total" would imply SUM, but
+// the row can be an AVG or a recomputed ratio): "National", "{Area} — All
+// areas" for a pinned parent, "All selected areas" when admin filters subset
+// the geography.
 function getRollupRowLabel(config: PresentationObjectConfig): string {
   const ctx = getRollupLabelContext(config);
   if (ctx?.kind === "subset") {
-    return t3({ en: "Total (selected areas)", fr: "Total (zones sélectionnées)" });
+    return t3({ en: "All selected areas", fr: "Toutes les zones sélectionnées" });
   }
   if (ctx?.kind === "pinned" && ctx.value) {
-    return `${resolveAdminAreaLabel(ctx.value)} — ${t3({ en: "Total", fr: "Total" })}`;
+    return `${resolveAdminAreaLabel(ctx.value)} — ${t3({ en: "All areas", fr: "Toutes les zones" })}`;
   }
   return t3(TC.national);
 }
