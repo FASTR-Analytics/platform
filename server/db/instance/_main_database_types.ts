@@ -7,7 +7,6 @@ export type DBUser = {
   can_view_users: boolean;
   can_view_logs: boolean;
   can_configure_settings: boolean;
-  can_configure_assets: boolean;
   can_configure_data: boolean;
   can_view_data: boolean;
   can_create_projects: boolean;

@@ -11,7 +11,6 @@ CREATE TABLE users (
   can_view_users boolean NOT NULL DEFAULT FALSE,
   can_view_logs boolean NOT NULL DEFAULT FALSE,
   can_configure_settings boolean NOT NULL DEFAULT FALSE,
-  can_configure_assets boolean NOT NULL DEFAULT FALSE,
   can_configure_data boolean NOT NULL DEFAULT FALSE,
   can_view_data boolean NOT NULL DEFAULT FALSE,
   can_create_projects boolean NOT NULL DEFAULT FALSE,
@@ -562,6 +561,16 @@ CREATE TABLE iceh_upload_attempts (
   step_1_result TEXT,
   step_2_result TEXT,
   step_3_result TEXT
+);
+
+-- ============================================================================
+-- ASSET METADATA
+-- ============================================================================
+
+CREATE TABLE asset_metadata (
+  file_name text PRIMARY KEY,
+  uploader_email text NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 -- ============================================================================

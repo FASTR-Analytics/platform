@@ -27,7 +27,6 @@ export const INSTANCE_PERMISSION_LABELS: Record<UserPermission, TranslatableStri
   can_view_users: { en: "View users", fr: "Voir les utilisateurs" },
   can_view_logs: { en: "View logs", fr: "Voir les journaux" },
   can_configure_settings: { en: "Configure settings", fr: "Configurer les paramètres" },
-  can_configure_assets: { en: "Configure assets", fr: "Configurer les ressources" },
   can_configure_data: { en: "Configure data", fr: "Configurer les données" },
   can_view_data: { en: "View data", fr: "Voir les données" },
   can_create_projects: { en: "Create projects", fr: "Créer des projets" },

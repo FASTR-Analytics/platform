@@ -13,7 +13,7 @@ defineRoute(
   requireGlobalPermission(),
   log("getAssets"),
   async (c) => {
-    const res = await getAssetsForInstance();
+    const res = await getAssetsForInstance(c.var.mainDb);
     return c.json(res);
   },
 );
@@ -21,7 +21,7 @@ defineRoute(
 defineRoute(
   routesAssets,
   "deleteAssets",
-  requireGlobalPermission("can_configure_assets"),
+  requireGlobalPermission(),
   log("deleteAssets"),
   async (c, { body }) => {
     if (!Array.isArray(body.assetFileNames)) {
@@ -31,9 +31,15 @@ defineRoute(
       });
     }
 
-    const res = await deleteAssets(body.assetFileNames);
+    const { email, isGlobalAdmin } = c.var.globalUser;
+    const res = await deleteAssets(
+      c.var.mainDb,
+      body.assetFileNames,
+      email,
+      isGlobalAdmin,
+    );
     if (res.success) {
-      const assetsRes = await getAssetsForInstance();
+      const assetsRes = await getAssetsForInstance(c.var.mainDb);
       if (assetsRes.success) {
         notifyInstanceAssetsUpdated(assetsRes.data);
       }

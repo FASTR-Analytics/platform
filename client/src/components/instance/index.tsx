@@ -93,16 +93,11 @@ function wideNavItems(): ListItem<InstanceTab>[] {
       iconName: "database",
     });
   }
-  if (
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_assets
-  ) {
-    items.push({
-      id: "assets",
-      label: t3({ en: "Assets", fr: "Ressources" }),
-      iconName: "package",
-    });
-  }
+  items.push({
+    id: "assets",
+    label: t3({ en: "Assets", fr: "Ressources" }),
+    iconName: "package",
+  });
   if (
     instanceState.currentUserIsGlobalAdmin ||
     instanceState.currentUserPermissions.can_configure_users ||
@@ -144,11 +139,9 @@ export default function Instance(p: Props) {
     const admin = a_();
     const perms = p_();
     const canData = admin || perms.can_view_data || perms.can_configure_data;
-    const canAssets = admin || perms.can_configure_assets;
     const canUsers = admin || perms.can_configure_users || perms.can_view_users;
     const canSettings = admin || perms.can_configure_settings;
     if (t === "data" && !canData) return "projects";
-    if (t === "assets" && !canAssets) return "projects";
     if (t === "users" && !canUsers) return "projects";
     if (t === "settings" && !canSettings) return "projects";
     return t;
@@ -309,13 +302,7 @@ export default function Instance(p: Props) {
                   <InstanceData
                   />
                 </Match>
-                <Match
-                  when={
-                    tab() === "assets" &&
-                    (instanceState.currentUserIsGlobalAdmin ||
-                      instanceState.currentUserPermissions.can_configure_assets)
-                  }
-                >
+                <Match when={tab() === "assets"}>
                   <InstanceAssets
                   />
                 </Match>

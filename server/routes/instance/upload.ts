@@ -1,7 +1,7 @@
 import { ensureDir } from "@std/fs";
 import { join } from "@std/path";
 import { Hono } from "hono";
-import { getAssetsForInstance } from "../../db/mod.ts";
+import { createAssetMetadata, getAssetsForInstance } from "../../db/mod.ts";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -35,6 +35,7 @@ const uploads = new Map<
     offset: number;
     createdAt: Date;
     metadata?: Record<string, string>;
+    uploaderEmail: string;
   }
 >();
 
@@ -92,7 +93,7 @@ function parseMetadata(metadataHeader: string | null): Record<string, string> {
 // POST /upload - Create new upload
 routesUpload.post(
   "/upload",
-  requireGlobalPermission({ requireAdmin: true }),
+  requireGlobalPermission(),
   log("upload"),
   async (c) => {
     // Cleanup old uploads when starting a new one
@@ -125,6 +126,7 @@ routesUpload.post(
       offset: 0,
       createdAt: new Date(),
       metadata,
+      uploaderEmail: c.var.globalUser.email,
     };
 
     uploads.set(uploadId, upload);
@@ -198,7 +200,7 @@ routesUpload.get("/upload/:id", async (c) => {
 // PATCH /upload/:id - Upload chunk
 routesUpload.patch(
   "/upload/:id",
-  requireGlobalPermission({ requireAdmin: true }),
+  requireGlobalPermission(),
   log("upload"),
   async (c) => {
     const uploadId = c.req.param("id");
@@ -265,11 +267,17 @@ routesUpload.patch(
         const finalPath = join(_ASSETS_DIR_PATH, upload.filename);
         await Deno.rename(filePath, finalPath);
 
+        // Store ownership metadata
+        await createAssetMetadata(
+          c.var.mainDb,
+          upload.filename,
+          upload.uploaderEmail,
+        );
+
         // Delete the upload record immediately
         uploads.delete(uploadId);
 
-        // Notify all connected clients about new asset
-        getAssetsForInstance().then((assetsRes) => {
+        getAssetsForInstance(c.var.mainDb).then((assetsRes) => {
           if (assetsRes.success) {
             notifyInstanceAssetsUpdated(assetsRes.data);
           }
@@ -301,7 +309,7 @@ routesUpload.patch(
 // DELETE /upload/:id - Cancel upload
 routesUpload.delete(
   "/upload/:id",
-  requireGlobalPermission({ requireAdmin: true }),
+  requireGlobalPermission(),
   log("upload"),
   async (c) => {
     const uploadId = c.req.param("id");

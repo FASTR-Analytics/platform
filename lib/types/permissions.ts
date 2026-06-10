@@ -5,7 +5,6 @@ export type UserPermissions = {
   can_view_users: boolean;
   can_view_logs: boolean;
   can_configure_settings: boolean;
-  can_configure_assets: boolean;
   can_configure_data: boolean;
   can_view_data: boolean;
   can_create_projects: boolean;
@@ -40,7 +39,6 @@ export const USER_PERMISSIONS = [
   "can_view_users",
   "can_view_logs",
   "can_configure_settings",
-  "can_configure_assets",
   "can_configure_data",
   "can_view_data",
   "can_create_projects",
@@ -85,7 +83,6 @@ export const _USER_PERMISSIONS_DEFAULT_NO_ACCESS: UserPermissions = {
   can_view_users: false,
   can_view_logs: false,
   can_configure_settings: false,
-  can_configure_assets: false,
   can_configure_data: false,
   can_view_data: false,
   can_create_projects: false,
@@ -96,7 +93,6 @@ export const _USER_PERMISSIONS_DEFAULT_FULL_ACCESS: UserPermissions = {
   can_view_users: true,
   can_view_logs: true,
   can_configure_settings: true,
-  can_configure_assets: true,
   can_configure_data: true,
   can_view_data: true,
   can_create_projects: true,
