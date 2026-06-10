@@ -1,3 +1,25 @@
+[TBD] [user] [changed] - Admin areas and facilities are now managed as separate sections
+[TBD] [user] [added] - Separate facility lists for HMIS and HFA registries
+[TBD] [user] [added] - Delete facilities by registry (HMIS or HFA) independently
+[TBD] [user] [changed] - Admin areas are now created automatically from facility imports
+[TBD] [user] [changed] - National results row label changed from "Total" to "All areas" or "All selected areas"
+[TBD] [user] [added] - Disabled checkbox with explanation shown when national results unavailable for a metric
+[TBD] [user] [changed] - Average metrics over facility-level data now support national result rows
+[TBD] [user] [added] - Separate CSV export for HMIS and HFA facility lists
+[TBD] [admin] [changed] - Facilities are now managed separately for HMIS and HFA
+[TBD] [admin] [changed] - Admin areas card separated from facilities on the data page
+[TBD] [admin] [added] - Dedicated facility cards for HMIS and HFA with individual counts
+[TBD] [admin] [added] - Delete facilities by registry (HMIS or HFA) without affecting the other
+[TBD] [admin] [changed] - Admin areas are now created and removed automatically based on facility imports
+[TBD] [admin] [added] - Clear all admin areas and facilities button for global admins on admin areas page
+[TBD] [admin] [changed] - Facility CSV exports are now per-registry (HMIS or HFA)
+[TBD] [admin] [changed] - Import wizard title now specifies which facility registry you are importing into
+[TBD] [admin] [changed] - HFA facility imports skip the source-type step (CSV only)
+[TBD] [admin] [changed] - Only one facility import can run at a time across both registries
+[TBD] [admin] [changed] - Replace-all import strategy now applies only to the selected registry
+[TBD] [admin] [changed] - Roll-up total row label changed from "Total" to "All areas" or "All selected areas"
+[TBD] [admin] [added] - AVG metrics over facility-level data now support admin area roll-up totals
+[TBD] [admin] [changed] - Roll-up checkbox shows as disabled with explanation when metric is ineligible
 [TBD] [user] [changed] - Renaming dashboard items and groups now uses a dedicated modal instead of inline editing
 [TBD] [user] [added] - Progress indicator shown when updating a dashboard group's visualizations
 [TBD] [user] [changed] - Admin-area total row label now shows context like "Total (selected areas)" or the parent area name
