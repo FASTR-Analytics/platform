@@ -1,3 +1,21 @@
+[TBD] [user] [added] - Indicators can now be assigned a service category
+[TBD] [user] [added] - New "Service categories" tab for managing service categories
+[TBD] [user] [added] - Service category column appears in the indicators table
+[TBD] [user] [added] - Service categories included in workbook export and import
+[TBD] [user] [added] - Facility sampling weights can be uploaded via CSV
+[TBD] [user] [added] - Sampling weights summary shown per time point
+[TBD] [user] [added] - Option to delete all facility sampling weights
+[TBD] [user] [fixed] - Custom color theme no longer appears as a selectable swatch in the color picker
+[TBD] [admin] [added] - HFA indicators now support a "Service category" classification
+[TBD] [admin] [added] - New "Service categories" tab in the HFA indicator manager
+[TBD] [admin] [added] - Service categories can be created, edited, reordered, and deleted
+[TBD] [admin] [added] - Service categories included in HFA workbook export and import
+[TBD] [admin] [added] - Facility sampling weights can be uploaded via CSV for HFA
+[TBD] [admin] [added] - Facility sampling weights summary displayed per time point
+[TBD] [admin] [added] - Facility sampling weights can be deleted in bulk
+[TBD] [admin] [changed] - HFA workbook import now accepts an optional "Service categories" sheet
+[TBD] [admin] [changed] - Sampling weights are preserved when replacing HFA facilities
+[TBD] [admin] [fixed] - Custom color theme no longer appears as a selectable swatch in the color picker
 [TBD] [user] [changed] - Admin areas and facilities are now managed as separate sections
 [TBD] [user] [added] - Separate facility lists for HMIS and HFA registries
 [TBD] [user] [added] - Delete facilities by registry (HMIS or HFA) independently
