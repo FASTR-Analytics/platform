@@ -365,7 +365,6 @@ import.
 - The single fixed staging table name
   ([integrate_hmis_data/worker.ts:39](server/worker_routines/integrate_hmis_data/worker.ts#L39))
   and broader importer consolidation — see
-  [PLAN_DATA_IMPORT_ARCHITECTURE.md](PLAN_DATA_IMPORT_ARCHITECTURE.md) /
   [PLAN_IMPORTER_CONSOLIDATION.md](PLAN_IMPORTER_CONSOLIDATION.md).
 
 ## Rollback

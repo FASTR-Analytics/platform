@@ -2,7 +2,7 @@
 
 > **Status: implementation plan (v2 — revised after a fact-check + adversarial review, 48 claims, 46 confirmed/2 partial/0 refuted).** Standalone effort. **Goal: make building the *next* dataset importer cheap** — via shared UI patterns, server helpers, and a thin wiring scaffold.
 >
-> **This is deliberately NOT the monolithic generic engine** in `PLAN_DATA_IMPORT_ARCHITECTURE.md`, and it is independent of the facilities split and the population table. It consolidates *building blocks* while every importer stays its own readable file.
+> **This is deliberately NOT a monolithic generic engine** (that idea, from the now-deleted `PLAN_DATA_IMPORT_ARCHITECTURE.md`, was rejected on code evidence 2026-06-10 — see `PLAN_FACILITIES_SPLIT.md`), and it is independent of the facilities split. It consolidates *building blocks* while every importer stays its own readable file.
 >
 > **Read §1 first.** The review changed the shape of this plan: a few items are real bugs/blockers worth doing now; most of the "toolkit" is speculative and should wait for a real second customer.
 
@@ -212,8 +212,8 @@ Wiring: 4 upload-attempt tables, `CHECK (id='single_row')` ✓; HFA `source_type
 
 ## 12. Relationship to other plans
 
-- `PLAN_DATA_IMPORT_ARCHITECTURE.md` — the broader (engine + facilities split + population) program. **This is the safe, standalone subset** of its "Goal A," reframed as a toolkit (not a runtime engine) and decoupled from B/C.
-- Population table & facilities split — independent; population is the natural **first real customer** that would justify Part B.
+- `PLAN_FACILITIES_SPLIT.md` — the facilities split + HFA weights + viz family-threading program (supersedes the deleted `PLAN_DATA_IMPORT_ARCHITECTURE.md`, whose generic engine and merged-`upload_attempts` decisions were rejected against code evidence: 51 of 57 `*_upload_attempts` UPDATE/DELETE statements rely on the single-row invariant). Independent of this plan, except: do not port the structure wizard the same night the split changes structure-import server behavior.
+- Population table — future, independent; the natural **first real customer** that would justify Part B. Nothing in the split paints it into a corner.
 
 ---
 
