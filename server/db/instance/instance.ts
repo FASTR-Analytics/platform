@@ -174,7 +174,7 @@ export async function getInstanceStructureSummary(
     (
       await mainDb<
         { count: number }[]
-      >`SELECT COUNT(*) as count FROM facilities`
+      >`SELECT COUNT(*) as count FROM facilities_hmis`
     )[0]?.count ?? 0;
   const lastUpdatedRow = (
     await mainDb<{ config_json_value: string }[]>`
@@ -357,7 +357,7 @@ export async function getInstanceDetail(
         SELECT COUNT(*) as count FROM admin_areas_4
       `;
       const facilities = await mainDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM facilities
+        SELECT COUNT(*) as count FROM facilities_hmis
       `;
 
       structure = {

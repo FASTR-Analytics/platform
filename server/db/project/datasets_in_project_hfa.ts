@@ -96,7 +96,7 @@ SELECT
   h.var_name,
   h.value
 FROM hfa_data h
-INNER JOIN facilities f ON h.facility_id = f.facility_id`;
+INNER JOIN facilities_hfa f ON h.facility_id = f.facility_id`;
 
     // Use COPY with optimized settings for better performance
     await mainDb.unsafe(`
@@ -165,7 +165,7 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
 
     // Fetch facilities from main database to populate project database
     const facilities = (await mainDb.unsafe(
-      `SELECT * FROM facilities`,
+      `SELECT * FROM facilities_hfa`,
     )) as Array<{
       facility_id: string;
       admin_area_4: string;
@@ -222,50 +222,14 @@ ON CONFLICT (dataset_type) DO UPDATE SET
       sql`DELETE FROM hfa_indicators_snapshot`,
       sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
       sql`DELETE FROM hfa_indicator_categories_snapshot`,
-      sql`DELETE FROM facilities`,
+      sql`DELETE FROM facilities_hfa`,
       sql`DELETE FROM indicators_hfa`,
       ...(facilities.length > 0
-        ? [
-          sql.unsafe(`
-        INSERT INTO facilities (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
-        VALUES ${
-            facilities
-              .map(
-                (fac) =>
-                  `('${fac.facility_id}', '${fac.admin_area_4}', '${fac.admin_area_3}', '${fac.admin_area_2}', '${fac.admin_area_1}', ${
-                    fac.facility_name ? `'${fac.facility_name}'` : "NULL"
-                  }, ${
-                    fac.facility_type ? `'${fac.facility_type}'` : "NULL"
-                  }, ${
-                    fac.facility_ownership
-                      ? `'${fac.facility_ownership}'`
-                      : "NULL"
-                  }, ${
-                    fac.facility_custom_1
-                      ? `'${fac.facility_custom_1}'`
-                      : "NULL"
-                  }, ${
-                    fac.facility_custom_2
-                      ? `'${fac.facility_custom_2}'`
-                      : "NULL"
-                  }, ${
-                    fac.facility_custom_3
-                      ? `'${fac.facility_custom_3}'`
-                      : "NULL"
-                  }, ${
-                    fac.facility_custom_4
-                      ? `'${fac.facility_custom_4}'`
-                      : "NULL"
-                  }, ${
-                    fac.facility_custom_5
-                      ? `'${fac.facility_custom_5}'`
-                      : "NULL"
-                  })`,
-              )
-              .join(",\n")
-          }
-      `),
-        ]
+        ? facilities.map(
+            (fac) =>
+              sql`INSERT INTO facilities_hfa (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
+        VALUES (${fac.facility_id}, ${fac.admin_area_4}, ${fac.admin_area_3}, ${fac.admin_area_2}, ${fac.admin_area_1}, ${fac.facility_name}, ${fac.facility_type}, ${fac.facility_ownership}, ${fac.facility_custom_1}, ${fac.facility_custom_2}, ${fac.facility_custom_3}, ${fac.facility_custom_4}, ${fac.facility_custom_5})`,
+          )
         : []),
       ...(hfaIndicators.length > 0
         ? [

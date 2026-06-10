@@ -197,7 +197,7 @@ WHERE EXISTS (
     }
 
     // Fetch facilities based on the windowing configuration
-    let facilitiesQuery = `SELECT * FROM facilities`;
+    let facilitiesQuery = `SELECT * FROM facilities_hmis`;
     const facilityWhereConditions: string[] = [];
 
     // Filter by admin areas — AA3 takes priority over AA2
@@ -289,7 +289,7 @@ ON CONFLICT (dataset_type) DO UPDATE SET
   last_updated = EXCLUDED.last_updated
 `,
       sql`DELETE FROM indicators`,
-      sql`DELETE FROM facilities`,
+      sql`DELETE FROM facilities_hmis`,
       sql`DELETE FROM calculated_indicators_snapshot`,
       ...indicators.map(
         (ind) =>
@@ -299,7 +299,7 @@ ON CONFLICT (dataset_type) DO UPDATE SET
       ...(facilities.length > 0
         ? facilities.map(
             (fac) =>
-              sql`INSERT INTO facilities (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
+              sql`INSERT INTO facilities_hmis (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
         VALUES (${fac.facility_id}, ${fac.admin_area_4}, ${fac.admin_area_3}, ${fac.admin_area_2}, ${fac.admin_area_1}, ${fac.facility_name}, ${fac.facility_type}, ${fac.facility_ownership}, ${fac.facility_custom_1}, ${fac.facility_custom_2}, ${fac.facility_custom_3}, ${fac.facility_custom_4}, ${fac.facility_custom_5})`
           )
         : []),
@@ -338,7 +338,7 @@ export async function removeDatasetFromProject(
       ...(datasetType === "hmis"
         ? [
             sql`DELETE FROM indicators`,
-            sql`DELETE FROM facilities`,
+            sql`DELETE FROM facilities_hmis`,
             sql`DELETE FROM calculated_indicators_snapshot`,
           ]
         : datasetType === "hfa"
@@ -346,7 +346,7 @@ export async function removeDatasetFromProject(
               sql`DELETE FROM hfa_indicator_code_snapshot`,
               sql`DELETE FROM hfa_indicators_snapshot`,
               sql`DELETE FROM indicators_hfa`,
-              sql`DELETE FROM facilities`,
+              sql`DELETE FROM facilities_hfa`,
             ]
           : datasetType === "iceh"
             ? [sql`DELETE FROM iceh_indicators_snapshot`]
@@ -510,7 +510,7 @@ SELECT
   aggregated.indicator_common_id,
   aggregated.count
 FROM aggregated
-INNER JOIN facilities f ON aggregated.facility_id = f.facility_id${
+INNER JOIN facilities_hmis f ON aggregated.facility_id = f.facility_id${
     whereConditions.length > 0
       ? `
 WHERE ${whereConditions.join(" AND ")}`

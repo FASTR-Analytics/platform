@@ -276,10 +276,10 @@ CREATE UNLOGGED TABLE ${tempTableName} (
     // Validate facilities
     await importDb.unsafe(`
 CREATE UNLOGGED TABLE ${tempValidFacilitiesTable} AS
-SELECT DISTINCT facility_id FROM facilities
+SELECT DISTINCT facility_id FROM facilities_hfa
 WHERE EXISTS (
   SELECT 1 FROM ${tempTableName} t
-  WHERE t.facility_id = facilities.facility_id
+  WHERE t.facility_id = facilities_hfa.facility_id
 )`);
 
     await updateImportProgress(mainDb, 90);

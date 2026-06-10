@@ -379,7 +379,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
       >`
         SELECT t.facility_id, COUNT(*)::INTEGER as row_count
         FROM ${importDb(dedupTableName)} t
-        LEFT JOIN facilities f ON t.facility_id = f.facility_id
+        LEFT JOIN facilities_hmis f ON t.facility_id = f.facility_id
         WHERE f.facility_id IS NULL
         GROUP BY t.facility_id
         ORDER BY COUNT(*) DESC
@@ -392,7 +392,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
       >`
         SELECT COUNT(DISTINCT t.facility_id)::INTEGER as total_invalid
         FROM ${importDb(dedupTableName)} t
-        LEFT JOIN facilities f ON t.facility_id = f.facility_id
+        LEFT JOIN facilities_hmis f ON t.facility_id = f.facility_id
         WHERE f.facility_id IS NULL
       `;
 
@@ -400,7 +400,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
       const rowsDroppedByFacility = await importDb<{ count: number }[]>`
         SELECT COUNT(*)::INTEGER as count
         FROM ${importDb(dedupTableName)} t
-        LEFT JOIN facilities f ON t.facility_id = f.facility_id
+        LEFT JOIN facilities_hmis f ON t.facility_id = f.facility_id
         WHERE f.facility_id IS NULL
       `;
 
@@ -430,7 +430,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
         CREATE UNLOGGED TABLE ${tempValidFacilitiesTable} AS
         SELECT t.*
         FROM ${dedupTableName} t
-        INNER JOIN facilities f ON t.facility_id = f.facility_id
+        INNER JOIN facilities_hmis f ON t.facility_id = f.facility_id
       `);
 
       // Check if any rows remain after facility validation

@@ -9,7 +9,10 @@ import {
 } from "lib";
 import { MAX_ITEMS } from "./consts.ts";
 import { buildCombinedQuery } from "./get_combined_query.ts";
-import { getIndicatorMetadata } from "./get_indicator_metadata.ts";
+import {
+  getDatasetFamilyForModule,
+  getIndicatorMetadata,
+} from "./get_indicator_metadata.ts";
 import { getPeriodBounds } from "./get_period_bounds.ts";
 import { buildQueryContext } from "./get_query_context.ts";
 import { buildWhereClause } from "./query_helpers.ts";
@@ -35,11 +38,14 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
 
     const tableName = getResultsObjectTableName(resultsObjectId);
 
+    const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleId);
+
     const queryContext = await buildQueryContext(
       mainDb,
       projectDb,
       tableName,
       fetchConfig,
+      datasetFamily,
     );
 
     ///////////////////////////

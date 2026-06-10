@@ -5,16 +5,30 @@ import {
   GenericLongFormFetchConfig,
   getEnabledOptionalFacilityColumns,
   throwIfErrWithData,
+  type DatasetType,
   type OptionalFacilityColumn,
 } from "lib";
 import { detectNeededPeriodColumns } from "./period_helpers.ts";
 import type { QueryContext } from "./types.ts";
 
+export function facilitiesTableForFamily(
+  family: DatasetType | undefined,
+): string {
+  if (family === "hmis") return "facilities_hmis";
+  if (family === "hfa") return "facilities_hfa";
+  throw new Error(
+    `No facilities table for dataset family "${
+      family ?? "unknown"
+    }" — facility joins are only valid for HMIS/HFA modules`,
+  );
+}
+
 export async function buildQueryContext(
   mainDb: Sql,
   projectDb: Sql,
   tableName: string,
-  fetchConfig: GenericLongFormFetchConfig
+  fetchConfig: GenericLongFormFetchConfig,
+  datasetFamily: DatasetType | undefined,
 ): Promise<QueryContext> {
   // Get facility config first (always, to know what's enabled)
   const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
@@ -61,6 +75,7 @@ export async function buildQueryContext(
   );
 
   return {
+    datasetFamily,
     hasPeriodId,
     hasQuarterId,
     facilityConfig,

@@ -84,7 +84,7 @@ CREATE TABLE calculated_indicators_snapshot (
   threshold_yellow DOUBLE PRECISION NOT NULL
 );
 
-CREATE TABLE facilities (
+CREATE TABLE facilities_hmis (
   facility_id text PRIMARY KEY NOT NULL,
   admin_area_4 text NOT NULL,
   admin_area_3 text NOT NULL,
@@ -101,11 +101,34 @@ CREATE TABLE facilities (
   facility_custom_5 text
 );
 
-CREATE INDEX idx_facilities_admin_areas ON facilities(admin_area_4, admin_area_3, admin_area_2, admin_area_1);
-CREATE INDEX idx_facilities_admin_area_1 ON facilities(admin_area_1);
-CREATE INDEX idx_facilities_admin_area_2 ON facilities(admin_area_2);
-CREATE INDEX idx_facilities_admin_area_3 ON facilities(admin_area_3);
-CREATE INDEX idx_facilities_admin_area_4 ON facilities(admin_area_4);
+CREATE INDEX idx_facilities_hmis_admin_areas ON facilities_hmis(admin_area_4, admin_area_3, admin_area_2, admin_area_1);
+CREATE INDEX idx_facilities_hmis_admin_area_1 ON facilities_hmis(admin_area_1);
+CREATE INDEX idx_facilities_hmis_admin_area_2 ON facilities_hmis(admin_area_2);
+CREATE INDEX idx_facilities_hmis_admin_area_3 ON facilities_hmis(admin_area_3);
+CREATE INDEX idx_facilities_hmis_admin_area_4 ON facilities_hmis(admin_area_4);
+
+CREATE TABLE facilities_hfa (
+  facility_id text PRIMARY KEY NOT NULL,
+  admin_area_4 text NOT NULL,
+  admin_area_3 text NOT NULL,
+  admin_area_2 text NOT NULL,
+  admin_area_1 text NOT NULL,
+  -- Optional metadata columns
+  facility_name text,
+  facility_type text,
+  facility_ownership text,
+  facility_custom_1 text,
+  facility_custom_2 text,
+  facility_custom_3 text,
+  facility_custom_4 text,
+  facility_custom_5 text
+);
+
+CREATE INDEX idx_facilities_hfa_admin_areas ON facilities_hfa(admin_area_4, admin_area_3, admin_area_2, admin_area_1);
+CREATE INDEX idx_facilities_hfa_admin_area_1 ON facilities_hfa(admin_area_1);
+CREATE INDEX idx_facilities_hfa_admin_area_2 ON facilities_hfa(admin_area_2);
+CREATE INDEX idx_facilities_hfa_admin_area_3 ON facilities_hfa(admin_area_3);
+CREATE INDEX idx_facilities_hfa_admin_area_4 ON facilities_hfa(admin_area_4);
 
 -- ============================================================================
 -- MODULE SYSTEM

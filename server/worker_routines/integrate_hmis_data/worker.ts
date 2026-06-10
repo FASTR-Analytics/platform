@@ -78,7 +78,7 @@ async function run(std: { rawDUA: DBDatasetHmisUploadAttempt }) {
     const invalidFacilities = await importDb`
       SELECT DISTINCT a.facility_id
       FROM ${importDb(aggregatedTableName)} a
-      LEFT JOIN facilities f ON a.facility_id = f.facility_id
+      LEFT JOIN facilities_hmis f ON a.facility_id = f.facility_id
       WHERE f.facility_id IS NULL
     `;
 

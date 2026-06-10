@@ -1,4 +1,5 @@
 import type {
+  DatasetType,
   GenericLongFormFetchConfig,
   InstanceConfigFacilityColumns,
   OptionalFacilityColumn,
@@ -16,6 +17,7 @@ export interface QueryConfig {
 }
 
 export interface QueryContext {
+  datasetFamily: DatasetType | undefined;
   hasPeriodId: boolean;
   hasQuarterId: boolean;
   facilityConfig?: InstanceConfigFacilityColumns;

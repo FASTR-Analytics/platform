@@ -9,7 +9,11 @@ import {
   DisaggregationOption,
   GenericLongFormFetchConfig,
 } from "lib";
-import { buildQueryContext } from "./get_query_context.ts";
+import {
+  buildQueryContext,
+  facilitiesTableForFamily,
+} from "./get_query_context.ts";
+import { getDatasetFamilyForModule } from "./get_indicator_metadata.ts";
 import { buildWhereClause } from "./query_helpers.ts";
 import { MAX_REPLICANT_OPTIONS } from "./consts.ts";
 import {
@@ -24,6 +28,7 @@ const DYNAMIC_PERIOD_COLUMNS = ["year", "month", "quarter_id"] as const;
 export async function getPossibleValues(
   projectDb: Sql,
   resultsObjectId: string,
+  moduleId: string,
   disaggregationOption: DisaggregationOption,
   mainDb: Sql,
   labelMap: Map<string, string>,
@@ -50,12 +55,15 @@ export async function getPossibleValues(
       postAggregationExpression: undefined,
     };
 
+    const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleId);
+
     // Use buildQueryContext to determine facility joins and filter separation
     const queryContext = await buildQueryContext(
       mainDb,
       projectDb,
       tableName,
       fetchConfig,
+      datasetFamily,
     );
 
     // Build column prefixes map for facility columns
@@ -129,11 +137,15 @@ export async function getPossibleValues(
     let sqlQuery: string;
 
     if (queryContext.needsFacilityJoin) {
+      const facilitiesTable = facilitiesTableForFamily(
+        queryContext.datasetFamily,
+      );
+
       // Check if the disaggregation option column exists in project facilities table
       if (columnPrefixes.has(disaggregationOption)) {
         const columnExists = await detectColumnExists(
           projectDb,
-          "facilities",
+          facilitiesTable,
           disaggregationOption,
         );
         if (!columnExists) {
@@ -161,7 +173,7 @@ facility_subset AS (
   SELECT facility_id, ${queryContext.requestedOptionalFacilityColumns.join(
     ", ",
   )}
-  FROM facilities
+  FROM ${facilitiesTable}
 )
 `;
         sourceTable = "period_data";
@@ -170,7 +182,7 @@ facility_subset AS (
   SELECT facility_id, ${queryContext.requestedOptionalFacilityColumns.join(
     ", ",
   )}
-  FROM facilities
+  FROM ${facilitiesTable}
 )
 `;
       }

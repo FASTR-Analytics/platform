@@ -5,7 +5,7 @@ import {
   getAllCalculatedIndicatorsFromSnapshot,
   getAllIcehIndicatorsFromSnapshot,
 } from "../db/mod.ts";
-import { ICEH_STRAT_INFO, IndicatorMetadata } from "lib";
+import { ICEH_STRAT_INFO, IndicatorMetadata, type DatasetType } from "lib";
 
 type ModuleDataSource = {
   sourceType: string;
@@ -22,6 +22,34 @@ function getDatasetTypes(moduleDefinition: string): string[] {
   } catch {
     return [];
   }
+}
+
+export function getDatasetFamily(
+  moduleDefinition: string,
+): DatasetType | undefined {
+  try {
+    if (JSON.parse(moduleDefinition).scriptGenerationType === "hfa") {
+      return "hfa";
+    }
+  } catch {
+    return undefined;
+  }
+  const types = new Set(getDatasetTypes(moduleDefinition));
+  if (types.size !== 1) return undefined;
+  const only = [...types][0];
+  return only === "hmis" || only === "hfa" || only === "iceh"
+    ? only
+    : undefined;
+}
+
+export async function getDatasetFamilyForModule(
+  projectDb: Sql,
+  moduleId: string,
+): Promise<DatasetType | undefined> {
+  const row = await projectDb<{ module_definition: string }[]>`
+    SELECT module_definition FROM modules WHERE id = ${moduleId}
+  `.then((rows) => rows.at(0));
+  return row ? getDatasetFamily(row.module_definition) : undefined;
 }
 
 export async function getIndicatorMetadata(

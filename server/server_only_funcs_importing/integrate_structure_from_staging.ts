@@ -1,6 +1,10 @@
 import { Sql } from "postgres";
 import { StructureIntegrateStrategy, OptionalFacilityColumn } from "lib";
 
+// The structure import is family-agnostic: it writes both facility registries
+// identically. They diverge only once a family-specific importer exists.
+const FACILITY_TABLES = ["facilities_hmis", "facilities_hfa"] as const;
+
 export interface IntegrateStructureResult {
   success: boolean;
   adminAreasProcessed: {
@@ -157,19 +161,21 @@ export async function integrateStructureFromStaging(
           );
 
           // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          const facilityResult = await sql.unsafe(`
-            INSERT INTO facilities (${facilityColumns.join(", ")})
-            SELECT ${facilityColumns.join(", ")}
-            FROM (
-              SELECT ${facilityColumns.join(", ")},
-                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-              FROM ${stagingTableName}
-            ) t
-            WHERE rn = 1
-            RETURNING facility_id
-          `);
+          for (const facilitiesTable of FACILITY_TABLES) {
+            const facilityResult = await sql.unsafe(`
+              INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
+              SELECT ${facilityColumns.join(", ")}
+              FROM (
+                SELECT ${facilityColumns.join(", ")},
+                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+                FROM ${stagingTableName}
+              ) t
+              WHERE rn = 1
+              RETURNING facility_id
+            `);
+            facilitiesProcessed = facilityResult.length;
+          }
 
-          facilitiesProcessed = facilityResult.length;
           console.log(`Processed ${facilitiesProcessed} facilities`);
           break;
         }
@@ -187,22 +193,23 @@ export async function integrateStructureFromStaging(
 
           // Insert with ON CONFLICT UPDATE for facilities
           // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          const facilityResult = await sql.unsafe(`
-            INSERT INTO facilities (${facilityColumns.join(", ")})
-            SELECT ${facilityColumns.join(", ")}
-            FROM (
-              SELECT ${facilityColumns.join(", ")},
-                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-              FROM ${stagingTableName}
-            ) t
-            WHERE rn = 1
-            ON CONFLICT (facility_id) 
-            DO UPDATE SET 
-              ${updateSetClause}
-            RETURNING facility_id
-          `);
-
-          facilitiesProcessed = facilityResult.length;
+          for (const facilitiesTable of FACILITY_TABLES) {
+            const facilityResult = await sql.unsafe(`
+              INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
+              SELECT ${facilityColumns.join(", ")}
+              FROM (
+                SELECT ${facilityColumns.join(", ")},
+                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+                FROM ${stagingTableName}
+              ) t
+              WHERE rn = 1
+              ON CONFLICT (facility_id)
+              DO UPDATE SET
+                ${updateSetClause}
+              RETURNING facility_id
+            `);
+            facilitiesProcessed = facilityResult.length;
+          }
           console.log(`Processed ${facilitiesProcessed} facilities`);
           break;
         }
@@ -213,20 +220,21 @@ export async function integrateStructureFromStaging(
           );
 
           // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          const facilityResult = await sql.unsafe(`
-            INSERT INTO facilities (${facilityColumns.join(", ")})
-            SELECT ${facilityColumns.join(", ")}
-            FROM (
-              SELECT ${facilityColumns.join(", ")},
-                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-              FROM ${stagingTableName}
-            ) t
-            WHERE rn = 1
-            ON CONFLICT (facility_id) DO NOTHING
-            RETURNING facility_id
-          `);
-
-          facilitiesProcessed = facilityResult.length;
+          for (const facilitiesTable of FACILITY_TABLES) {
+            const facilityResult = await sql.unsafe(`
+              INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
+              SELECT ${facilityColumns.join(", ")}
+              FROM (
+                SELECT ${facilityColumns.join(", ")},
+                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+                FROM ${stagingTableName}
+              ) t
+              WHERE rn = 1
+              ON CONFLICT (facility_id) DO NOTHING
+              RETURNING facility_id
+            `);
+            facilitiesProcessed = facilityResult.length;
+          }
           console.log(`Processed ${facilitiesProcessed} facilities`);
           break;
         }
@@ -237,19 +245,20 @@ export async function integrateStructureFromStaging(
           );
 
           // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          const facilityResult = await sql.unsafe(`
-            INSERT INTO facilities (${facilityColumns.join(", ")})
-            SELECT ${facilityColumns.join(", ")}
-            FROM (
-              SELECT ${facilityColumns.join(", ")},
-                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-              FROM ${stagingTableName}
-            ) t
-            WHERE rn = 1
-            RETURNING facility_id
-          `);
-
-          facilitiesProcessed = facilityResult.length;
+          for (const facilitiesTable of FACILITY_TABLES) {
+            const facilityResult = await sql.unsafe(`
+              INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
+              SELECT ${facilityColumns.join(", ")}
+              FROM (
+                SELECT ${facilityColumns.join(", ")},
+                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+                FROM ${stagingTableName}
+              ) t
+              WHERE rn = 1
+              RETURNING facility_id
+            `);
+            facilitiesProcessed = facilityResult.length;
+          }
           console.log(`Processed ${facilitiesProcessed} facilities`);
           break;
         }
@@ -271,20 +280,21 @@ export async function integrateStructureFromStaging(
               .join(",\n              ");
 
             // Update only optional columns for existing facilities
-            const facilityResult = await sql.unsafe(`
-              UPDATE facilities
-              SET ${updateSetClause}
-              FROM (
-                SELECT facility_id, ${optionalColumns.join(", ")},
-                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-                FROM ${stagingTableName}
-              ) s
-              WHERE facilities.facility_id = s.facility_id
-                AND s.rn = 1
-              RETURNING facilities.facility_id
-            `);
-
-            facilitiesProcessed = facilityResult.length;
+            for (const facilitiesTable of FACILITY_TABLES) {
+              const facilityResult = await sql.unsafe(`
+                UPDATE ${facilitiesTable}
+                SET ${updateSetClause}
+                FROM (
+                  SELECT facility_id, ${optionalColumns.join(", ")},
+                         ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+                  FROM ${stagingTableName}
+                ) s
+                WHERE ${facilitiesTable}.facility_id = s.facility_id
+                  AND s.rn = 1
+                RETURNING ${facilitiesTable}.facility_id
+              `);
+              facilitiesProcessed = facilityResult.length;
+            }
             console.log(
               `Updated ${facilitiesProcessed} existing facilities with optional columns`
             );
@@ -320,20 +330,21 @@ export async function integrateStructureFromStaging(
             .join(",\n              ");
 
           // Update only selected columns for existing facilities
-          const facilityResult = await sql.unsafe(`
-            UPDATE facilities
-            SET ${updateSetClause}
-            FROM (
-              SELECT facility_id, ${actualColumns.join(", ")},
-                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-              FROM ${stagingTableName}
-            ) s
-            WHERE facilities.facility_id = s.facility_id
-              AND s.rn = 1
-            RETURNING facilities.facility_id
-          `);
-
-          facilitiesProcessed = facilityResult.length;
+          for (const facilitiesTable of FACILITY_TABLES) {
+            const facilityResult = await sql.unsafe(`
+              UPDATE ${facilitiesTable}
+              SET ${updateSetClause}
+              FROM (
+                SELECT facility_id, ${actualColumns.join(", ")},
+                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+                FROM ${stagingTableName}
+              ) s
+              WHERE ${facilitiesTable}.facility_id = s.facility_id
+                AND s.rn = 1
+              RETURNING ${facilitiesTable}.facility_id
+            `);
+            facilitiesProcessed = facilityResult.length;
+          }
           console.log(
             `Updated ${facilitiesProcessed} existing facilities with selected columns: ${actualColumns.join(
               ", "
@@ -402,7 +413,8 @@ async function deleteAllStructureData(sql: Sql): Promise<void> {
   // Delete in reverse order with constraint deferral
   await sql.unsafe(`
     SET CONSTRAINTS dataset_hmis_facility_id_fkey, hfa_data_facility_id_fkey DEFERRED;
-    DELETE FROM facilities;
+    DELETE FROM facilities_hmis;
+    DELETE FROM facilities_hfa;
   `);
   await sql`DELETE FROM admin_areas_4`;
   await sql`DELETE FROM admin_areas_3`;
@@ -489,29 +501,48 @@ async function insertAdminAreasFromStaging(
 async function cleanupUnusedAdminAreas(sql: Sql): Promise<void> {
   console.log("Cleaning up unused admin areas...");
 
-  // Delete unused admin areas in reverse order (4 -> 3 -> 2 -> 1)
+  // Delete unused admin areas in reverse order (4 -> 3 -> 2 -> 1).
+  // An admin area is "used" if ANY facility table references it — every
+  // admin-area-keyed table added in future (e.g. population) must be UNIONed
+  // in here, or its admin areas get cleaned up from under it.
   const deleted4 = await sql`
     DELETE FROM admin_areas_4
     WHERE (admin_area_4, admin_area_3, admin_area_2, admin_area_1)
-    NOT IN (SELECT DISTINCT admin_area_4, admin_area_3, admin_area_2, admin_area_1 FROM facilities)
+    NOT IN (
+      SELECT DISTINCT admin_area_4, admin_area_3, admin_area_2, admin_area_1 FROM facilities_hmis
+      UNION
+      SELECT DISTINCT admin_area_4, admin_area_3, admin_area_2, admin_area_1 FROM facilities_hfa
+    )
   `;
 
   const deleted3 = await sql`
     DELETE FROM admin_areas_3
     WHERE (admin_area_3, admin_area_2, admin_area_1)
-    NOT IN (SELECT DISTINCT admin_area_3, admin_area_2, admin_area_1 FROM facilities)
+    NOT IN (
+      SELECT DISTINCT admin_area_3, admin_area_2, admin_area_1 FROM facilities_hmis
+      UNION
+      SELECT DISTINCT admin_area_3, admin_area_2, admin_area_1 FROM facilities_hfa
+    )
   `;
 
   const deleted2 = await sql`
     DELETE FROM admin_areas_2
     WHERE (admin_area_2, admin_area_1)
-    NOT IN (SELECT DISTINCT admin_area_2, admin_area_1 FROM facilities)
+    NOT IN (
+      SELECT DISTINCT admin_area_2, admin_area_1 FROM facilities_hmis
+      UNION
+      SELECT DISTINCT admin_area_2, admin_area_1 FROM facilities_hfa
+    )
   `;
 
   const deleted1 = await sql`
     DELETE FROM admin_areas_1
     WHERE admin_area_1
-    NOT IN (SELECT DISTINCT admin_area_1 FROM facilities)
+    NOT IN (
+      SELECT DISTINCT admin_area_1 FROM facilities_hmis
+      UNION
+      SELECT DISTINCT admin_area_1 FROM facilities_hfa
+    )
   `;
 
   console.log(

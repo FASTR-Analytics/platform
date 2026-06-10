@@ -29,7 +29,9 @@ export async function updateMaxAdminArea(
 
     // Check if any data exists in facilities or admin_areas tables
     const facilitiesCount = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*) as count FROM facilities
+      SELECT
+        (SELECT COUNT(*) FROM facilities_hmis) +
+        (SELECT COUNT(*) FROM facilities_hfa) as count
     `;
 
     if (facilitiesCount[0].count > 0) {

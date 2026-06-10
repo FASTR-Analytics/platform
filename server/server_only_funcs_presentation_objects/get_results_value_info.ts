@@ -129,6 +129,7 @@ async function getResultsObjectVariableInfoCore(
       const resDisPossibleVals = await getPossibleValues(
         projectDb,
         resultsObjectId,
+        moduleId,
         disOpt,
         mainDb,
         labelMap,

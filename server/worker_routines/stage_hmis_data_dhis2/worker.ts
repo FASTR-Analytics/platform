@@ -105,20 +105,6 @@ async function run(std: {
       password: dhis2Credentials.password,
     };
 
-    console.log(
-      "DEBUG: dhis2Credentials structure:",
-      Object.keys(dhis2Credentials)
-    );
-    console.log("DEBUG: credentials.url:", credentials.url);
-    console.log(
-      "DEBUG: credentials.username:",
-      credentials.username ? "[set]" : "[not set]"
-    );
-    console.log(
-      "DEBUG: credentials.password:",
-      credentials.password ? "[set]" : "[not set]"
-    );
-
     const dateImported = new Date().toISOString();
     await updateImportProgress(mainDb, 5);
 
@@ -144,29 +130,12 @@ async function run(std: {
     // └─────────────────────────────────────────────────────────────────────────┘
 
     const facilities = await mainDb<{ facility_id: string }[]>`
-      SELECT facility_id FROM facilities
+      SELECT facility_id FROM facilities_hmis
       WHERE facility_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}$'
     `;
-    console.log("DEBUG: Raw facilities from DB:", facilities.slice(0, 5));
-    console.log("DEBUG: Total facilities from DB:", facilities.length);
-
-    const nullFacilities = facilities.filter((f) => !f.facility_id);
-    if (nullFacilities.length > 0) {
-      console.log(
-        "WARNING: Found facilities with null/undefined IDs:",
-        nullFacilities
-      );
-    }
 
     const facilityIds = facilities.map((f) => f.facility_id).filter(Boolean);
-    console.log(
-      "DEBUG: Facility IDs after filtering:",
-      facilityIds.slice(0, 5)
-    );
-    console.log(
-      "DEBUG: Total facility IDs after filtering:",
-      facilityIds.length
-    );
+    console.log(`Fetched ${facilityIds.length} DHIS2-shaped facility IDs`);
 
     const periods: string[] = [];
     for (let p = selection.startPeriod; p <= selection.endPeriod; p++) {

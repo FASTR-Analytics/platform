@@ -1,4 +1,5 @@
 import { PERIOD_COLUMN_EXPRESSIONS, QUARTER_ID_COLUMN_EXPRESSIONS, getQuarterIdExpression } from "./period_helpers.ts";
+import { facilitiesTableForFamily } from "./get_query_context.ts";
 import type { QueryConfig } from "./types.ts";
 
 // ============================================================================
@@ -43,7 +44,7 @@ export class CTEManager {
    * @returns Complete WITH clause or null if no CTEs are registered
    * @example
    * // With period and facility CTEs registered:
-   * // "WITH period_data AS (SELECT * FROM table),\n     facility_subset AS (SELECT facility_id, name FROM facilities)"
+   * // "WITH period_data AS (SELECT * FROM table),\n     facility_subset AS (SELECT facility_id, name FROM facilities_hmis)"
    */
   emitWITHClause(): string | null {
     if (this.ctes.size === 0) {
@@ -103,7 +104,7 @@ export class CTEManager {
     ) {
       const facilityDefinition = `SELECT facility_id, ${queryContext.requestedOptionalFacilityColumns.join(
         ", "
-      )}\n  FROM facilities`;
+      )}\n  FROM ${facilitiesTableForFamily(queryContext.datasetFamily)}`;
       manager.register("facility_subset", facilityDefinition);
       manager.facilityCTEName = "facility_subset";
     }

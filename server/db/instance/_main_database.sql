@@ -185,7 +185,7 @@ CREATE TABLE admin_areas_4 (
 CREATE INDEX idx_admin_areas_4_admin_area_3_admin_area_2_admin_area_1 ON admin_areas_4(admin_area_3, admin_area_2, admin_area_1);
 CREATE INDEX idx_admin_areas_4_admin_area_4 ON admin_areas_4(admin_area_4);
 
-CREATE TABLE facilities (
+CREATE TABLE facilities_hmis (
   facility_id text PRIMARY KEY NOT NULL,
   admin_area_4 text NOT NULL,
   admin_area_3 text NOT NULL,
@@ -203,13 +203,39 @@ CREATE TABLE facilities (
   FOREIGN KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_4 (admin_area_4, admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_facilities_admin_areas ON facilities(admin_area_4, admin_area_3, admin_area_2, admin_area_1);
-CREATE INDEX idx_facilities_admin_area_1 ON facilities(admin_area_1);
-CREATE INDEX idx_facilities_admin_area_2 ON facilities(admin_area_2);
-CREATE INDEX idx_facilities_admin_area_3 ON facilities(admin_area_3);
-CREATE INDEX idx_facilities_admin_area_4 ON facilities(admin_area_4);
-CREATE INDEX idx_facilities_facility_type ON facilities(facility_type) WHERE facility_type IS NOT NULL;
-CREATE INDEX idx_facilities_facility_ownership ON facilities(facility_ownership) WHERE facility_ownership IS NOT NULL;
+CREATE INDEX idx_facilities_hmis_admin_areas ON facilities_hmis(admin_area_4, admin_area_3, admin_area_2, admin_area_1);
+CREATE INDEX idx_facilities_hmis_admin_area_1 ON facilities_hmis(admin_area_1);
+CREATE INDEX idx_facilities_hmis_admin_area_2 ON facilities_hmis(admin_area_2);
+CREATE INDEX idx_facilities_hmis_admin_area_3 ON facilities_hmis(admin_area_3);
+CREATE INDEX idx_facilities_hmis_admin_area_4 ON facilities_hmis(admin_area_4);
+CREATE INDEX idx_facilities_hmis_facility_type ON facilities_hmis(facility_type) WHERE facility_type IS NOT NULL;
+CREATE INDEX idx_facilities_hmis_facility_ownership ON facilities_hmis(facility_ownership) WHERE facility_ownership IS NOT NULL;
+
+CREATE TABLE facilities_hfa (
+  facility_id text PRIMARY KEY NOT NULL,
+  admin_area_4 text NOT NULL,
+  admin_area_3 text NOT NULL,
+  admin_area_2 text NOT NULL,
+  admin_area_1 text NOT NULL,
+  -- Optional metadata columns
+  facility_name text,
+  facility_type text,
+  facility_ownership text,
+  facility_custom_1 text,
+  facility_custom_2 text,
+  facility_custom_3 text,
+  facility_custom_4 text,
+  facility_custom_5 text,
+  FOREIGN KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_4 (admin_area_4, admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_facilities_hfa_admin_areas ON facilities_hfa(admin_area_4, admin_area_3, admin_area_2, admin_area_1);
+CREATE INDEX idx_facilities_hfa_admin_area_1 ON facilities_hfa(admin_area_1);
+CREATE INDEX idx_facilities_hfa_admin_area_2 ON facilities_hfa(admin_area_2);
+CREATE INDEX idx_facilities_hfa_admin_area_3 ON facilities_hfa(admin_area_3);
+CREATE INDEX idx_facilities_hfa_admin_area_4 ON facilities_hfa(admin_area_4);
+CREATE INDEX idx_facilities_hfa_facility_type ON facilities_hfa(facility_type) WHERE facility_type IS NOT NULL;
+CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ownership) WHERE facility_ownership IS NOT NULL;
 
 -- ============================================================================
 -- INDICATORS
@@ -278,7 +304,8 @@ CREATE TABLE dataset_hmis (
   count integer NOT NULL CHECK (count >= 0),
   version_id integer NOT NULL,
   PRIMARY KEY (facility_id, indicator_raw_id, period_id),
-  FOREIGN KEY (facility_id) REFERENCES facilities(facility_id) ON DELETE RESTRICT DEFERRABLE,
+  -- Constraint name is load-bearing: SET CONSTRAINTS in integrate_structure_from_staging.ts
+  CONSTRAINT dataset_hmis_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hmis(facility_id) ON DELETE RESTRICT DEFERRABLE,
   FOREIGN KEY (indicator_raw_id) REFERENCES indicators_raw(indicator_raw_id) ON DELETE RESTRICT DEFERRABLE,
   FOREIGN KEY (version_id) REFERENCES dataset_hmis_versions(id) ON DELETE RESTRICT
 );
@@ -353,7 +380,8 @@ CREATE TABLE hfa_data (
   var_name TEXT NOT NULL,
   value TEXT NOT NULL,
   PRIMARY KEY (facility_id, time_point, var_name),
-  FOREIGN KEY (facility_id) REFERENCES facilities(facility_id) ON DELETE RESTRICT DEFERRABLE,
+  -- Constraint name is load-bearing: SET CONSTRAINTS in integrate_structure_from_staging.ts
+  CONSTRAINT hfa_data_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hfa(facility_id) ON DELETE RESTRICT DEFERRABLE,
   FOREIGN KEY (time_point) REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
   FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE
 );
@@ -361,6 +389,21 @@ CREATE TABLE hfa_data (
 CREATE INDEX idx_hfa_data_var_name ON hfa_data(var_name);
 CREATE INDEX idx_hfa_data_facility_id ON hfa_data(facility_id);
 CREATE INDEX idx_hfa_data_time_point ON hfa_data(time_point);
+
+-- ============================================================================
+-- HFA FACILITY SAMPLING WEIGHTS (per facility per time point)
+-- ============================================================================
+
+CREATE TABLE hfa_facility_weights (
+  facility_id text NOT NULL,
+  time_point text NOT NULL,
+  weight double precision NOT NULL CHECK (weight >= 0),
+  PRIMARY KEY (facility_id, time_point),
+  FOREIGN KEY (facility_id) REFERENCES facilities_hfa(facility_id) ON DELETE CASCADE,
+  FOREIGN KEY (time_point) REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE INDEX idx_hfa_facility_weights_time_point ON hfa_facility_weights(time_point);
 
 -- ============================================================================
 -- HFA UPLOAD ATTEMPTS

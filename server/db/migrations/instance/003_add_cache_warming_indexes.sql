@@ -14,12 +14,18 @@ ON indicator_mappings(updated_at DESC);
 --    Full table scan acceptable for small reference table
 
 -- 4. SELECT DISTINCT facility_type FROM facilities WHERE facility_type IS NOT NULL ORDER BY facility_type
-CREATE INDEX IF NOT EXISTS idx_facilities_facility_type
-ON facilities(facility_type) WHERE facility_type IS NOT NULL;
-
 -- 5. SELECT DISTINCT facility_ownership FROM facilities WHERE facility_ownership IS NOT NULL ORDER BY facility_ownership
-CREATE INDEX IF NOT EXISTS idx_facilities_facility_ownership
-ON facilities(facility_ownership) WHERE facility_ownership IS NOT NULL;
+-- Guarded: facilities is absent on fresh installs after migration 047 split it
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'facilities') THEN
+    CREATE INDEX IF NOT EXISTS idx_facilities_facility_type
+    ON facilities(facility_type) WHERE facility_type IS NOT NULL;
+
+    CREATE INDEX IF NOT EXISTS idx_facilities_facility_ownership
+    ON facilities(facility_ownership) WHERE facility_ownership IS NOT NULL;
+  END IF;
+END $$;
 
 -- 6. Heavy query: SELECT COUNT(*) AS count, SUM(count) AS sum, indicator_raw_id, period_id FROM dataset_hmis GROUP BY indicator_raw_id, period_id
 --    Already has indexes: idx_dataset_hmis_indicator_period (covers this perfectly)

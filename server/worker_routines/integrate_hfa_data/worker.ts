@@ -92,7 +92,7 @@ async function run(std: {
     const invalidFacilities = await importDb`
       SELECT DISTINCT s.facility_id
       FROM ${importDb(stagingTableName)} s
-      LEFT JOIN facilities f ON s.facility_id = f.facility_id
+      LEFT JOIN facilities_hfa f ON s.facility_id = f.facility_id
       WHERE f.facility_id IS NULL
     `;
 

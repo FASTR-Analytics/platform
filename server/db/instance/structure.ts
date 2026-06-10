@@ -75,7 +75,7 @@ export async function getStructureItems(
     const facilityConfig = resFacilityConfig.data;
 
     const counts = await mainDb<{ total_count: number }[]>`
-      SELECT count(*) AS total_count FROM facilities
+      SELECT count(*) AS total_count FROM facilities_hmis
     `;
 
     // Build column list based on maxAdminArea and facility columns config
@@ -90,7 +90,7 @@ export async function getStructureItems(
     // Select only the columns we need, with optional limit
     const limitClause = limit ? ` LIMIT ${limit}` : "";
     const items = await mainDb.unsafe<Record<string, string>[]>(`
-      SELECT ${columns.join(", ")} FROM facilities${limitClause}
+      SELECT ${columns.join(", ")} FROM facilities_hmis${limitClause}
     `);
 
     return {
@@ -136,7 +136,8 @@ export async function deleteAllStructureData(
     // Delete all structure data in a transaction
     await mainDb.begin(async (sql) => {
       // Delete facilities first due to foreign key constraints
-      await sql`DELETE FROM facilities`;
+      await sql`DELETE FROM facilities_hmis`;
+      await sql`DELETE FROM facilities_hfa`;
 
       // Delete all admin areas tables (in reverse order due to foreign keys)
       for (let i = 4; i >= 1; i--) {

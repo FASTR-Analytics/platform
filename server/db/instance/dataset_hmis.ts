@@ -167,7 +167,7 @@ export async function deleteAllDatasetHmisData(
     const delAa3Items = windowing.adminArea3sToInclude ?? [];
     if (!(windowing.takeAllAdminArea3s ?? true) && delAa3Items.length > 0) {
       const pairs = delAa3Items.map((key) => parseAa3CompositeKey(key));
-      facilitySubquery = `SELECT facility_id FROM facilities WHERE (admin_area_3, admin_area_2) IN (VALUES ${pairs
+      facilitySubquery = `SELECT facility_id FROM facilities_hmis WHERE (admin_area_3, admin_area_2) IN (VALUES ${pairs
         .map(
           (p) =>
             `('${escapeSqlString(p.aa3)}', '${escapeSqlString(p.aa2)}')`
@@ -180,7 +180,7 @@ export async function deleteAllDatasetHmisData(
       const adminAreaList = windowing.adminArea2sToInclude
         .map((aa) => `'${escapeSqlString(aa)}'`)
         .join(", ");
-      facilitySubquery = `SELECT facility_id FROM facilities WHERE admin_area_2 IN (${adminAreaList})`;
+      facilitySubquery = `SELECT facility_id FROM facilities_hmis WHERE admin_area_2 IN (${adminAreaList})`;
     }
 
     // Count rows that will be deleted
@@ -323,8 +323,8 @@ export async function getDatasetHmisItemsForDisplay(
       facilityTypes = (
         await mainDb<
           { facility_type: string }[]
-        >`SELECT DISTINCT facility_type FROM facilities 
-          WHERE facility_type IS NOT NULL 
+        >`SELECT DISTINCT facility_type FROM facilities_hmis
+          WHERE facility_type IS NOT NULL
           ORDER BY facility_type`
       ).map<string>((ft) => ft.facility_type);
     }
@@ -335,8 +335,8 @@ export async function getDatasetHmisItemsForDisplay(
       facilityOwnership = (
         await mainDb<
           { facility_ownership: string }[]
-        >`SELECT DISTINCT facility_ownership FROM facilities 
-          WHERE facility_ownership IS NOT NULL 
+        >`SELECT DISTINCT facility_ownership FROM facilities_hmis
+          WHERE facility_ownership IS NOT NULL
           ORDER BY facility_ownership`
       ).map<string>((fo) => fo.facility_ownership);
     }

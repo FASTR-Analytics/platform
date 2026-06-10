@@ -653,6 +653,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         const resDisPossibleVals = await getPossibleValues(
           c.var.ppk.projectDb,
           body.resultsObjectId,
+          moduleId,
           body.replicateBy,
           c.var.mainDb,
           labelMap,
