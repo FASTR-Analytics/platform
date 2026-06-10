@@ -92,10 +92,18 @@ prompt = (
     "- Preserve existing frontmatter (title, description, sidebar.order) unless the title must change\n"
     "- Do not add, remove, or modify screenshot placeholders or image references — leave them exactly as-is\n\n"
     "Task:\n"
-    "1. Determine which admin-guide and user-guide pages need updating based on the platform changes\n"
-    "2. Only update pages where the platform changes affect documented behaviour — skip if no user-visible change\n"
-    "3. For each page that needs updating, return the complete updated markdown content\n"
-    "4. Update both the English page AND its fr/ mirror (translate the changed text to French)\n\n"
+    "1. Determine which admin-guide and user-guide pages need TEXT updates based on the platform changes.\n"
+    "   Only include a page here if its prose wording genuinely needs to change.\n"
+    "2. For each page needing text updates, return the complete updated markdown content.\n"
+    "3. Update both the English page AND its fr/ mirror (translate the changed text to French).\n"
+    "4. Separately, identify every specific screenshot or placeholder that needs retaking because the\n"
+    "   UI area it depicts has visually changed. This includes:\n"
+    "   - Screenshots on pages whose text you also updated (list only the specific images affected, not all of them)\n"
+    "   - Screenshots on pages whose text does NOT need updating but whose UI has visually changed\n"
+    "   For each affected screenshot, provide its image path exactly as it appears in the markdown\n"
+    "   (e.g. /images/users-en.png), or null if it is a :::caution[Screenshot needed]::: placeholder\n"
+    "   (in which case describe the placeholder content instead).\n"
+    "   Only flag screenshots for visual UI changes — not backend or logic-only changes.\n\n"
     "Return strict JSON only — no preamble, no markdown wrapper:\n"
     "{\n"
     "  \"updates_needed\": true,\n"
@@ -103,11 +111,29 @@ prompt = (
     "    {\n"
     "      \"path\": \"admin-guide/modules.md\",\n"
     "      \"updated_content\": \"---\\ntitle: ...\\n---\\n...\",\n"
-    "      \"reason\": \"one sentence explaining what changed\"\n"
+    "      \"reason\": \"one sentence explaining what text changed\"\n"
+    "    }\n"
+    "  ],\n"
+    "  \"screenshot_updates\": [\n"
+    "    {\n"
+    "      \"path\": \"admin-guide/users.md\",\n"
+    "      \"screenshots\": [\n"
+    "        {\n"
+    "          \"image_path\": \"/images/user-permissions-project-en.png\",\n"
+    "          \"placeholder_description\": null,\n"
+    "          \"reason\": \"Permissions dialog now shows a bulk-assign toggle\"\n"
+    "        },\n"
+    "        {\n"
+    "          \"image_path\": null,\n"
+    "          \"placeholder_description\": \"Add user dialog\",\n"
+    "          \"reason\": \"Add user dialog has a new required role field\"\n"
+    "        }\n"
+    "      ]\n"
     "    }\n"
     "  ]\n"
     "}\n\n"
-    "If no updates needed: {\"updates_needed\": false, \"pages\": []}"
+    "If no text updates needed: \"pages\": []\n"
+    "If no screenshot updates needed: \"screenshot_updates\": []"
 )
 
 body = {
@@ -155,46 +181,27 @@ PYEOF
 # ---------------------------------------------------------------------------
 
 python3 << 'PYEOF'
-import json, os, re, glob
+import json, os
 
 result = json.load(open('/tmp/sync_docs_result.json'))
-
-if not result.get('updates_needed') or not result.get('pages'):
-    print("No documentation updates needed.")
-    json.dump([], open('/tmp/screenshot_pages.json', 'w'))
-    raise SystemExit(0)
-
 doc_dir = '_site_repo/src/content/docs'
-screenshot_pages = []
 
-for page in result['pages']:
-    path = page['path']
-    updated_content = page['updated_content']
-    reason = page.get('reason', '')
-    full_path = os.path.join(doc_dir, path)
-
-    original_content = ''
-    if os.path.exists(full_path):
-        original_content = open(full_path, 'r', encoding='utf-8').read()
-
-    has_existing_images = bool(re.search(r'!\[', original_content))
-    has_placeholders = bool(re.search(r':::caution\[(?:Screenshot|Video) needed\]', original_content))
-
-    if has_existing_images or has_placeholders:
-        screenshot_pages.append({
-            'path': path,
-            'reason': reason,
-            'has_existing_images': has_existing_images,
-            'has_placeholders': has_placeholders,
-        })
-
+# Apply text updates
+for page in result.get('pages', []):
+    full_path = os.path.join(doc_dir, page['path'])
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
-    open(full_path, 'w', encoding='utf-8').write(updated_content)
-    print(f"Updated: {path}")
+    open(full_path, 'w', encoding='utf-8').write(page['updated_content'])
+    print(f"Updated text: {page['path']}")
 
+# Build screenshot notification list from the AI's explicit screenshot_updates
+screenshot_pages = result.get('screenshot_updates', [])
 json.dump(screenshot_pages, open('/tmp/screenshot_pages.json', 'w'))
+
+if not result.get('pages') and not screenshot_pages:
+    print("No documentation or screenshot updates needed.")
+
 if screenshot_pages:
-    print(f"Pages with screenshots/placeholders: {[p['path'] for p in screenshot_pages]}")
+    print(f"Screenshot updates flagged: {[p['path'] for p in screenshot_pages]}")
 PYEOF
 
 # ---------------------------------------------------------------------------
@@ -221,7 +228,7 @@ PYEOF
 # ---------------------------------------------------------------------------
 
 python3 << 'PYEOF'
-import json, os, sys
+import json, os, sys, re, base64, mimetypes
 
 screenshot_pages = json.load(open('/tmp/screenshot_pages.json'))
 if not screenshot_pages:
@@ -235,37 +242,89 @@ if not sendgrid_api_key or not sendgrid_from:
     print("Warning: SENDGRID_API_KEY or SENDGRID_FROM_EMAIL not set — skipping email.")
     raise SystemExit(0)
 
-lines = [
+text_lines = [
     "The FASTR documentation site has been automatically updated to reflect recent platform changes.",
-    "The following pages contain screenshots or screenshot placeholders that may need attention:\n",
+    "The following screenshots need retaking:\n",
 ]
-for p in screenshot_pages:
-    tags = []
-    if p['has_existing_images']:
-        tags.append("existing screenshots may be out of date")
-    if p['has_placeholders']:
-        tags.append("screenshot/video placeholders present")
-    lines.append(f"  {p['path']}")
-    lines.append(f"    What changed: {p['reason']}")
-    lines.append(f"    Note: {' | '.join(tags)}")
-    lines.append("")
+html_sections = []
+attachments = []
+cid_counter = 0
 
-lines += [
+for p in screenshot_pages:
+    file_path = f"src/content/docs/{p['path']}"
+    html_imgs = ""
+    text_screenshots = []
+
+    for s in p.get('screenshots', []):
+        img_path = s.get('image_path')
+        reason = s.get('reason', '')
+        placeholder_desc = s.get('placeholder_description')
+
+        if img_path:
+            disk_path = f"_site_repo/public{img_path}"
+            text_screenshots.append(f"      {img_path} — {reason}")
+            if os.path.exists(disk_path):
+                mime_type = mimetypes.guess_type(disk_path)[0] or 'image/png'
+                cid = f"img{cid_counter}"
+                cid_counter += 1
+                with open(disk_path, 'rb') as f:
+                    encoded = base64.b64encode(f.read()).decode('ascii')
+                attachments.append({
+                    "content": encoded,
+                    "type": mime_type,
+                    "filename": os.path.basename(disk_path),
+                    "disposition": "inline",
+                    "content_id": cid,
+                })
+                html_imgs += (
+                    f'<p style="margin:12px 0 4px"><em>{img_path}</em> — {reason}</p>'
+                    f'<img src="cid:{cid}" alt="{img_path}" style="max-width:640px;border:1px solid #ddd;">'
+                )
+            else:
+                html_imgs += f'<p><em>{img_path}</em> — {reason} <small>(file not found in repo)</small></p>'
+        else:
+            desc = placeholder_desc or 'unnamed placeholder'
+            text_screenshots.append(f"      [placeholder: {desc}] — {reason}")
+            html_imgs += f'<p><em>[Screenshot needed: {desc}]</em> — {reason}</p>'
+
+    text_lines += [f"  {file_path}"] + text_screenshots + [""]
+    html_sections.append(
+        f'<hr><p><strong>{file_path}</strong></p>'
+        + (html_imgs or '<p><em>No specific screenshots identified.</em></p>')
+    )
+
+text_lines += [
     "Please retake the relevant screenshots and commit them to:",
     "https://github.com/FASTR-Analytics/site",
     "",
     "This notification was sent automatically by the platform sync-docs workflow.",
 ]
+html_body = (
+    "<!DOCTYPE html><html><body>"
+    "<p>The FASTR documentation site has been automatically updated to reflect recent platform changes.</p>"
+    "<p>The following pages contain screenshots that may need retaking:</p>"
+    + "".join(html_sections)
+    + "<hr><p>Please retake the relevant screenshots and commit them to "
+    '<a href="https://github.com/FASTR-Analytics/site">FASTR-Analytics/site</a>.</p>'
+    "<p><small>Sent automatically by the platform sync-docs workflow.</small></p>"
+    "</body></html>"
+)
 
 payload = {
     "personalizations": [{"to": [{"email": "nick@usefuldata.com.au"}]}],
     "from": {"email": sendgrid_from},
     "subject": "FASTR docs updated — screenshots need retaking",
-    "content": [{"type": "text/plain", "value": "\n".join(lines)}],
+    "content": [
+        {"type": "text/plain", "value": "\n".join(text_lines)},
+        {"type": "text/html",  "value": html_body},
+    ],
 }
+if attachments:
+    payload["attachments"] = attachments
+
 json.dump(payload, open('/tmp/email_payload.json', 'w'))
-print("Email payload ready.")
-print("\n".join(lines))
+print(f"Email payload ready ({len(attachments)} image(s) attached).")
+print("\n".join(text_lines))
 PYEOF
 
 SCREENSHOT_COUNT=$(python3 -c "import json; print(len(json.load(open('/tmp/screenshot_pages.json'))))")
