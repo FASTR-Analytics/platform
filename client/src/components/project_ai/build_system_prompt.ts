@@ -187,7 +187,9 @@ function buildAISystemContext(
   if (instance.structure) {
     sections.push("");
     sections.push("**Data coverage:**");
-    sections.push(`- ${instance.structure.facilities} facilities`);
+    sections.push(
+      `- ${instance.structure.facilitiesHmis} HMIS facilities, ${instance.structure.facilitiesHfa} HFA facilities`,
+    );
     if (instance.structure.adminArea2s > 0) {
       sections.push(`- ${instance.structure.adminArea2s} admin area 2s`);
     }

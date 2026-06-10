@@ -41,7 +41,8 @@ export type InstanceState = {
         adminArea2s: number;
         adminArea3s: number;
         adminArea4s: number;
-        facilities: number;
+        facilitiesHmis: number;
+        facilitiesHfa: number;
       }
     | undefined;
   structureLastUpdated: string | undefined;
@@ -89,7 +90,8 @@ export type InstanceStructureSummary = {
         adminArea2s: number;
         adminArea3s: number;
         adminArea4s: number;
-        facilities: number;
+        facilitiesHmis: number;
+        facilitiesHfa: number;
       }
     | undefined;
   structureLastUpdated: string | undefined;

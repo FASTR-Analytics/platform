@@ -131,6 +131,7 @@ export type DBStructureUploadAttempt = {
   step: number;
   status: string;
   status_type: string;
+  dataset_family: "hmis" | "hfa";
   source_type: "csv" | "dhis2" | null;
   step_1_result: string | null; // CSV details OR DHIS2 credentials
   step_2_result: string | null; // Column mappings OR DHIS2 org unit selection

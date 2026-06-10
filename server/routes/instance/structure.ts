@@ -1,9 +1,15 @@
 import { stringifyCsvWithHeaders } from "@timroberton/panther";
 import { Hono } from "hono";
-import { _DATASET_LIMIT, t3, type Dhis2Credentials } from "lib";
+import {
+  _DATASET_LIMIT,
+  t3,
+  type Dhis2Credentials,
+  type FacilityFamily,
+} from "lib";
 import {
   addStructureUploadAttempt,
   deleteAllStructureData,
+  deleteFamilyFacilities,
   getInstanceStructureSummary,
   deleteStructureUploadAttempt,
   getStructureItems,
@@ -31,6 +37,10 @@ import { streamResponse } from "../streaming.ts";
 
 export const routesStructure = new Hono();
 
+function parseFacilityFamily(raw: string): FacilityFamily | undefined {
+  return raw === "hmis" || raw === "hfa" ? raw : undefined;
+}
+
 ////////////////////////////
 //                        //
 //    Structure items    //
@@ -42,8 +52,12 @@ defineRoute(
   "getStructureItems",
   requireGlobalPermission("can_view_data"),
   log("getStructureItems"),
-  async (c) => {
-    const res = await getStructureItems(c.var.mainDb, _DATASET_LIMIT);
+  async (c, { params }) => {
+    const family = parseFacilityFamily(params.family);
+    if (!family) {
+      return c.json({ success: false, err: "Family must be hmis or hfa" });
+    }
+    const res = await getStructureItems(c.var.mainDb, family, _DATASET_LIMIT);
     return c.json(res);
   },
 );
@@ -62,6 +76,24 @@ defineRoute(
   },
 );
 
+defineRoute(
+  routesStructure,
+  "deleteFamilyFacilities",
+  requireGlobalPermission("can_configure_data"),
+  log("deleteFamilyFacilities"),
+  async (c, { params }) => {
+    const family = parseFacilityFamily(params.family);
+    if (!family) {
+      return c.json({ success: false, err: "Family must be hmis or hfa" });
+    }
+    const res = await deleteFamilyFacilities(c.var.mainDb, family);
+    if (res.success) {
+      notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
 //////////////////////////////////////
 //                                  //
 //    Structure upload attempts    //
@@ -73,8 +105,8 @@ defineRoute(
   "addStructureUploadAttempt",
   requireGlobalPermission("can_configure_data"),
   log("addStructureUploadAttempt"),
-  async (c) => {
-    const res = await addStructureUploadAttempt(c.var.mainDb);
+  async (c, { body }) => {
+    const res = await addStructureUploadAttempt(c.var.mainDb, body.datasetFamily);
     return c.json(res);
   },
 );
@@ -338,12 +370,17 @@ defineRoute(
 
 // CSV export endpoint - uses getStructureItems without limit for all rows
 routesStructure.get(
-  "/structure/facilities/export/csv",
+  "/structure/facilities/export/csv/:family",
   requireGlobalPermission("can_configure_data"),
   log("exportStructureItemsCsv"),
   async (c) => {
+    const family = parseFacilityFamily(c.req.param("family"));
+    if (!family) {
+      return c.json({ success: false, err: "Family must be hmis or hfa" });
+    }
+
     // Get all facilities with proper column selection based on maxAdminArea
-    const res = await getStructureItems(c.var.mainDb); // No limit = all rows
+    const res = await getStructureItems(c.var.mainDb, family); // No limit = all rows
 
     if (!res.success) {
       return c.json(res);
@@ -354,7 +391,7 @@ routesStructure.get(
     return new Response(csvContent, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": 'attachment; filename="facilities.csv"',
+        "Content-Disposition": `attachment; filename="facilities_${family}.csv"`,
       },
     });
   },

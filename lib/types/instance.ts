@@ -86,7 +86,8 @@ export type InstanceDetail = {
         adminArea2s: number;
         adminArea3s: number;
         adminArea4s: number;
-        facilities: number;
+        facilitiesHmis: number;
+        facilitiesHfa: number;
       }
     | undefined;
   structureLastUpdated?: string;

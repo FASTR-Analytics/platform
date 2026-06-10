@@ -1,4 +1,8 @@
-import { t3, type InstanceConfigFacilityColumns } from "lib";
+import {
+  t3,
+  type FacilityFamily,
+  type InstanceConfigFacilityColumns,
+} from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -28,6 +32,7 @@ import { Step4 } from "./step_4";
 
 type Props = EditorComponentProps<
   {
+    family: FacilityFamily;
     maxAdminArea: number;
     facilityColumns: InstanceConfigFacilityColumns;
     silentRefreshInstance: () => Promise<void>;
@@ -59,10 +64,13 @@ export function StructureUploadAttemptForm(p: Props) {
   //   t("Loading instance details..."),
   // );
 
+  // HFA facilities only come from CSV, so the source-type step is skipped
+  const minStep = p.family === "hfa" ? 1 : 0;
+
   // Stepper state
   const stepper = getStepper(() => uploadAttempt.state(), {
-    initialStep: 0,
-    minStep: 0,
+    initialStep: minStep,
+    minStep,
     maxStep: 3,
     getValidation: (currentStep, state) => {
       if (state.status !== "ready") {
@@ -78,9 +86,9 @@ export function StructureUploadAttemptForm(p: Props) {
       }
       if (currentStep === 1) {
         if (sua.sourceType && sua.step1Result) {
-          return { canGoPrev: true, canGoNext: true };
+          return { canGoPrev: currentStep > minStep, canGoNext: true };
         }
-        return { canGoPrev: true, canGoNext: false };
+        return { canGoPrev: currentStep > minStep, canGoNext: false };
       }
       if (currentStep === 2) {
         if (sua.sourceType && sua.step1Result && sua.step2Result) {
@@ -110,7 +118,17 @@ export function StructureUploadAttemptForm(p: Props) {
     <FrameTop
       panelChildren={
         <HeaderBarCanGoBack
-          heading={t3({ en: "Structure Import", fr: "Importation de la structure" })}
+          heading={
+            p.family === "hmis"
+              ? t3({
+                  en: "Import HMIS facilities",
+                  fr: "Importation des établissements SNIS",
+                })
+              : t3({
+                  en: "Import HFA facilities",
+                  fr: "Importation des établissements Enquêtes FOSA",
+                })
+          }
           back={() => p.close(undefined)}
         >
           <div class="ui-gap-sm flex flex-none items-center">
@@ -146,6 +164,14 @@ export function StructureUploadAttemptForm(p: Props) {
                 </div>
               }
             >
+              <Match when={keyedUploadAttempt.datasetFamily !== p.family}>
+                <div class="ui-pad text-danger">
+                  {t3({
+                    en: "This import attempt targets the other facility registry. Finish or discard it there.",
+                    fr: "Cette tentative d'importation cible l'autre registre d'établissements. Terminez-la ou annulez-la là-bas.",
+                  })}
+                </div>
+              </Match>
               <Match
                 when={
                   keyedUploadAttempt.status.status === "error" &&

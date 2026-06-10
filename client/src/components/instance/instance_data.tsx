@@ -7,7 +7,8 @@ import { InstanceDatasetHfa } from "../instance_dataset_hfa";
 import { InstanceDatasetHmis } from "../instance_dataset_hmis";
 import { InstanceDatasetIceh } from "../instance_dataset_iceh";
 import { InstanceHfaTimePoints } from "../instance_hfa_time_points";
-import { Structure } from "../structure";
+import { Facilities } from "../structure";
+import { AdminAreas } from "../structure/admin_areas";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
 import { instanceState } from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
@@ -22,8 +23,20 @@ export function InstanceData(p: Props) {
 
   return (
     <Switch>
-      <Match when={selectedDataSource() === "structure"}>
-        <Structure
+      <Match when={selectedDataSource() === "admin_areas"}>
+        <AdminAreas
+          backToInstance={() => setSelecteDatasource(undefined)}
+        />
+      </Match>
+      <Match when={selectedDataSource() === "facilities_hmis"}>
+        <Facilities
+          family="hmis"
+          backToInstance={() => setSelecteDatasource(undefined)}
+        />
+      </Match>
+      <Match when={selectedDataSource() === "facilities_hfa"}>
+        <Facilities
+          family="hfa"
           backToInstance={() => setSelecteDatasource(undefined)}
         />
       </Match>
@@ -88,12 +101,12 @@ export function InstanceData(p: Props) {
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("structure")}
+                    onClick={() => setSelecteDatasource("admin_areas")}
                   >
                     <div class="font-700 pb-2">
                       {t3({
-                        en: "Admin areas and facilities",
-                        fr: "Unités administratives et établissements",
+                        en: "Admin areas",
+                        fr: "Unités administratives",
                       })}
                     </div>
                     <Show
@@ -101,8 +114,8 @@ export function InstanceData(p: Props) {
                       fallback={
                         <div class="text-danger text-xs">
                           {t3({
-                            en: "No admin areas or facilities added",
-                            fr: "Aucune unité administrative ou établissement ajouté",
+                            en: "No admin areas (created by facility imports)",
+                            fr: "Aucune unité administrative (créées par l'importation d'établissements)",
                           })}
                         </div>
                       }
@@ -132,14 +145,6 @@ export function InstanceData(p: Props) {
                               </span>
                             </div>
                           </Show>
-                          <div class="ui-gap flex justify-between">
-                            <span>
-                              {t3({ en: "Facilities", fr: "Établissements" })}:
-                            </span>
-                            <span class="font-mono">
-                              {toNum0(keyedStructureNumbers.facilities)}
-                            </span>
-                          </div>
                         </div>
                       )}
                     </Show>
@@ -185,6 +190,38 @@ export function InstanceData(p: Props) {
                   </div>
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
+                  <div
+                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    onClick={() => setSelecteDatasource("facilities_hmis")}
+                  >
+                    <div class="font-700 pb-2">
+                      {t3({ en: "Facilities", fr: "Établissements" })}
+                    </div>
+                    <Show
+                      when={
+                        (instanceState.structure?.facilitiesHmis ?? 0) > 0 &&
+                        instanceState.structure?.facilitiesHmis
+                      }
+                      fallback={
+                        <div class="text-danger text-xs">
+                          {t3({
+                            en: "No facilities imported",
+                            fr: "Aucun établissement importé",
+                          })}
+                        </div>
+                      }
+                      keyed
+                    >
+                      {(keyedCount) => (
+                        <div class="text-success ui-gap flex justify-between text-xs">
+                          <span>
+                            {t3({ en: "Facilities", fr: "Établissements" })}:
+                          </span>
+                          <span class="font-mono">{toNum0(keyedCount)}</span>
+                        </div>
+                      )}
+                    </Show>
+                  </div>
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelecteDatasource("hmis")}
@@ -309,6 +346,38 @@ export function InstanceData(p: Props) {
                   </div>
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
+                  <div
+                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    onClick={() => setSelecteDatasource("facilities_hfa")}
+                  >
+                    <div class="font-700 pb-2">
+                      {t3({ en: "Facilities", fr: "Établissements" })}
+                    </div>
+                    <Show
+                      when={
+                        (instanceState.structure?.facilitiesHfa ?? 0) > 0 &&
+                        instanceState.structure?.facilitiesHfa
+                      }
+                      fallback={
+                        <div class="text-danger text-xs">
+                          {t3({
+                            en: "No facilities imported",
+                            fr: "Aucun établissement importé",
+                          })}
+                        </div>
+                      }
+                      keyed
+                    >
+                      {(keyedCount) => (
+                        <div class="text-success ui-gap flex justify-between text-xs">
+                          <span>
+                            {t3({ en: "Facilities", fr: "Établissements" })}:
+                          </span>
+                          <span class="font-mono">{toNum0(keyedCount)}</span>
+                        </div>
+                      )}
+                    </Show>
+                  </div>
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelecteDatasource("hfa")}

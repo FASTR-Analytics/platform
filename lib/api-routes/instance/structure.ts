@@ -1,4 +1,5 @@
 import type {
+  FacilityFamily,
   StructureUploadAttemptDetail,
   StructureUploadAttemptStatus,
   StructureColumnMappings,
@@ -11,18 +12,25 @@ import { route } from "../route-utils.ts";
 
 export const structureRouteRegistry = {
   getStructureItems: route({
-    path: "/structure/data",
+    path: "/structure/data/:family",
     method: "GET",
+    params: {} as { family: FacilityFamily },
     response: {} as { totalCount: number; items: Record<string, string>[] },
   }),
   deleteAllStructureData: route({
     path: "/structure/data",
     method: "DELETE",
   }),
+  deleteFamilyFacilities: route({
+    path: "/structure/facilities/:family",
+    method: "DELETE",
+    params: {} as { family: FacilityFamily },
+  }),
   //
   addStructureUploadAttempt: route({
     path: "/structure/upload_attempt",
     method: "POST",
+    body: {} as { datasetFamily: FacilityFamily },
   }),
   getStructureUploadAttempt: route({
     path: "/structure/upload_attempt",

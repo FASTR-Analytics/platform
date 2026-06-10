@@ -1,4 +1,9 @@
-import { t3, TC, type StructureUploadAttemptDetail } from "lib";
+import {
+  t3,
+  TC,
+  type FacilityFamily,
+  type StructureUploadAttemptDetail,
+} from "lib";
 import {
   Button,
   Csv,
@@ -15,10 +20,17 @@ import { instanceState } from "~/state/instance/t1_store";
 import { StructureWithCsv } from "./with_csv";
 
 type Props = {
+  family: FacilityFamily;
   backToInstance: () => void;
 };
 
-export function Structure(p: Props) {
+function familyLabel(family: FacilityFamily) {
+  return family === "hmis"
+    ? t3({ en: "HMIS facilities", fr: "Établissements SNIS" })
+    : t3({ en: "HFA facilities", fr: "Établissements Enquêtes FOSA" });
+}
+
+export function Facilities(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
   const [csvDataIsReady, setCsvDataIsReady] = createSignal<Csv<any> | null>(
@@ -46,7 +58,7 @@ export function Structure(p: Props) {
   });
 
   const attemptCreateStructureUA = timActionButton(
-    () => serverActions.addStructureUploadAttempt({}),
+    () => serverActions.addStructureUploadAttempt({ datasetFamily: p.family }),
     fetchUploadAttempt,
     openUploadAttempt,
   );
@@ -55,6 +67,7 @@ export function Structure(p: Props) {
     const res = await openEditor({
       element: StructureUploadAttemptForm,
       props: {
+        family: p.family,
         maxAdminArea: instanceState.maxAdminArea,
         facilityColumns: instanceState.facilityColumns,
         silentRefreshInstance: fetchUploadAttempt,
@@ -67,13 +80,41 @@ export function Structure(p: Props) {
 
   async function attemptDeleteItems() {
     const deleteAction = timActionDelete(
-      t3({ en: "Are you sure you want to clear all admin areas and facilities?", fr: "Êtes-vous sûr de vouloir supprimer toutes les unités administratives et les établissements de santé ?" }),
-      () => serverActions.deleteAllStructureData({}),
+      p.family === "hmis"
+        ? t3({
+            en: "Are you sure you want to delete all HMIS facilities?",
+            fr: "Êtes-vous sûr de vouloir supprimer tous les établissements SNIS ?",
+          })
+        : t3({
+            en: "Are you sure you want to delete all HFA facilities?",
+            fr: "Êtes-vous sûr de vouloir supprimer tous les établissements Enquêtes FOSA ?",
+          }),
+      () => serverActions.deleteFamilyFacilities({ family: p.family }),
       fetchUploadAttempt,
     );
 
     await deleteAction.click();
   }
+
+  // The single-row attempt is shared across families: only offer "resume" for
+  // an attempt that targets this family
+  const resumableAttempt = () => {
+    const ua = uploadAttempt();
+    return ua && ua.datasetFamily === p.family ? ua : undefined;
+  };
+  const blockingAttempt = () => {
+    const ua = uploadAttempt();
+    return ua && ua.datasetFamily !== p.family ? ua : undefined;
+  };
+
+  const BlockingAttemptNotice = () => (
+    <div class="max-w-56 text-xs">
+      {t3({
+        en: "Another facility import is in progress. Finish or discard it before importing here.",
+        fr: "Une autre importation d'établissements est en cours. Terminez-la ou annulez-la avant d'importer ici.",
+      })}
+    </div>
+  );
 
   return (
     <EditorWrapper>
@@ -82,13 +123,13 @@ export function Structure(p: Props) {
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={p.backToInstance} />
             <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "Admin areas and facilities", fr: "Unités administratives et établissements de santé" })}
+              {familyLabel(p.family)}
             </div>
             <div class="ui-gap-sm flex items-center">
               <Show when={csvDataIsReady()}>
                 <Button
                   iconName="download"
-                  href={`${_SERVER_HOST}/structure/facilities/export/csv?t=${Date.now()}`}
+                  href={`${_SERVER_HOST}/structure/facilities/export/csv/${p.family}?t=${Date.now()}`}
                   newTab
                 >
                   {t3(TC.download)}
@@ -108,12 +149,15 @@ export function Structure(p: Props) {
               <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <div class="ui-pad ui-gap-sm border-base-300 flex h-full flex-none flex-col overflow-auto border-r">
                   <Switch>
-                    <Match when={uploadAttempt()}>
+                    <Match when={blockingAttempt()}>
+                      <BlockingAttemptNotice />
+                    </Match>
+                    <Match when={resumableAttempt()}>
                       <Button
                         onClick={openUploadAttempt}
                         iconName="upload"
                       >
-                        {t3({ en: "Resume adding admin areas and facilities", fr: "Reprendre l'ajout d'unités administratives et d'établissements de santé" })}
+                        {t3({ en: "Resume importing facilities", fr: "Reprendre l'importation des établissements" })}
                       </Button>
                     </Match>
                     <Match when={true}>
@@ -122,7 +166,7 @@ export function Structure(p: Props) {
                         state={attemptCreateStructureUA.state()}
                         iconName="plus"
                       >
-                        {t3({ en: "Add more admin areas and facilities", fr: "Ajouter des unités administratives et des établissements de santé" })}
+                        {t3({ en: "Import facilities", fr: "Importer des établissements" })}
                       </Button>
                     </Match>
                   </Switch>
@@ -132,12 +176,13 @@ export function Structure(p: Props) {
                     outline
                     iconName="trash"
                   >
-                    {t3({ en: "Clear admin areas and facilities", fr: "Supprimer les unités administratives et les établissements de santé" })}
+                    {t3({ en: "Delete these facilities", fr: "Supprimer ces établissements" })}
                   </Button>
                 </div>
               </Show>
               <div class="h-full w-0 flex-1">
                 <StructureWithCsv
+                  family={p.family}
                   onCsvReady={(csv) => setCsvDataIsReady(csv)}
                 />
               </div>
@@ -146,9 +191,12 @@ export function Structure(p: Props) {
               <div class="ui-pad ui-gap-sm flex h-full flex-none flex-col overflow-auto border-l">
                 <Switch>
                   <Match when={!instanceState.currentUserIsGlobalAdmin}>
-                    {t3({ en: "Waiting for admin to add admin areas and facilities", fr: "En attente de l'ajout des unités administratives et des établissements de santé par l'administrateur" })}
+                    {t3({ en: "Waiting for admin to add facilities", fr: "En attente de l'ajout des établissements par l'administrateur" })}
                   </Match>
-                  <Match when={uploadAttempt()}>
+                  <Match when={blockingAttempt()}>
+                    <BlockingAttemptNotice />
+                  </Match>
+                  <Match when={resumableAttempt()}>
                     <Button onClick={openUploadAttempt} iconName="upload">
                       {t3({ en: "Resume importing", fr: "Reprendre l'importation" })}
                     </Button>
@@ -159,7 +207,7 @@ export function Structure(p: Props) {
                       state={attemptCreateStructureUA.state()}
                       iconName="upload"
                     >
-                      {t3({ en: "Start importing admin areas and facilities", fr: "Commencer l'importation des unités administratives et des établissements de santé" })}
+                      {t3({ en: "Start importing facilities", fr: "Commencer l'importation des établissements" })}
                     </Button>
                   </Match>
                 </Switch>

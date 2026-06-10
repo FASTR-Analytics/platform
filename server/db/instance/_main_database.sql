@@ -276,8 +276,9 @@ CREATE TABLE structure_upload_attempts (
   id text PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
   date_started text NOT NULL,
   step integer NOT NULL,
-  status text NOT NULL,  -- JSON: full status object  
+  status text NOT NULL,  -- JSON: full status object
   status_type text NOT NULL,  -- Simple status: configuring, importing, complete, error
+  dataset_family text NOT NULL,  -- 'hmis' or 'hfa': which facility registry this import targets
   source_type text,  -- csv or dhis2 (nullable until step 0 is completed)
   step_1_result text,  -- CSV details OR DHIS2 credentials
   step_2_result text,  -- Column mappings OR DHIS2 org unit selection

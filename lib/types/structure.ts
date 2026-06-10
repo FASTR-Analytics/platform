@@ -1,6 +1,10 @@
 import { CsvDetails, OptionalFacilityColumn } from "./instance.ts";
 import { Dhis2Credentials } from "./dataset_hmis_import.ts";
 
+// Which facility registry an import targets. Admin areas are shared; each
+// family has its own facilities table and its own import flow.
+export type FacilityFamily = "hmis" | "hfa";
+
 // ============================================================================
 // Structure Staging Result Types
 // ============================================================================
@@ -60,6 +64,7 @@ export type StructureUploadAttemptDetailInitial = {
   dateStarted: string;
   step: 0;
   status: StructureUploadAttemptStatus;
+  datasetFamily: FacilityFamily;
   sourceType: undefined;
   step1Result: undefined;
   step2Result: undefined;
@@ -71,6 +76,7 @@ export type StructureUploadAttemptDetailCsv = {
   dateStarted: string;
   step: 1 | 2 | 3 | 4;
   status: StructureUploadAttemptStatus;
+  datasetFamily: FacilityFamily;
   sourceType: "csv";
   // Step 1: CSV upload details
   step1Result: CsvDetails | undefined;
@@ -85,6 +91,7 @@ export type StructureUploadAttemptDetailDhis2 = {
   dateStarted: string;
   step: 1 | 2 | 3 | 4;
   status: StructureUploadAttemptStatus;
+  datasetFamily: FacilityFamily;
   sourceType: "dhis2";
   // Step 1: DHIS2 credentials (reused from dataset_hmis_import)
   step1Result: Dhis2Credentials | undefined;

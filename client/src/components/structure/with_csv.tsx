@@ -1,10 +1,11 @@
-import { ItemsHolderStructure, t3, TC } from "lib";
+import { ItemsHolderStructure, t3, TC, type FacilityFamily } from "lib";
 import { Csv, StateHolder, StateHolderWrapper, TableFromCsv } from "panther";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
 import { getStructureItemsFromCacheOrFetch } from "~/state/instance/t2_structure";
 
 type Props = {
+  family: FacilityFamily;
   onCsvReady?: (csv: Csv<any>) => void;
 };
 
@@ -21,7 +22,7 @@ export function StructureWithCsv(p: Props) {
       status: "loading",
       msg: t3(TC.fetchingData),
     });
-    const res = await getStructureItemsFromCacheOrFetch(lastUpdated, maxAA, fcHash);
+    const res = await getStructureItemsFromCacheOrFetch(p.family, lastUpdated, maxAA, fcHash);
     if (res.success === false) {
       seStructureItems({ status: "error", err: res.err });
       return;

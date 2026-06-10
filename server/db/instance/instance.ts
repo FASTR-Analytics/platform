@@ -170,11 +170,17 @@ export async function getInstanceStructureSummary(
         { count: number }[]
       >`SELECT COUNT(*) as count FROM admin_areas_4`
     )[0]?.count ?? 0;
-  const facilities =
+  const facilitiesHmis =
     (
       await mainDb<
         { count: number }[]
       >`SELECT COUNT(*) as count FROM facilities_hmis`
+    )[0]?.count ?? 0;
+  const facilitiesHfa =
+    (
+      await mainDb<
+        { count: number }[]
+      >`SELECT COUNT(*) as count FROM facilities_hfa`
     )[0]?.count ?? 0;
   const lastUpdatedRow = (
     await mainDb<{ config_json_value: string }[]>`
@@ -187,7 +193,8 @@ export async function getInstanceStructureSummary(
       adminArea2s,
       adminArea3s,
       adminArea4s,
-      facilities,
+      facilitiesHmis,
+      facilitiesHfa,
     },
     structureLastUpdated: lastUpdatedRow
       ? JSON.parse(lastUpdatedRow.config_json_value)
@@ -356,8 +363,11 @@ export async function getInstanceDetail(
       const adminArea4s = await mainDb<{ count: number }[]>`
         SELECT COUNT(*) as count FROM admin_areas_4
       `;
-      const facilities = await mainDb<{ count: number }[]>`
+      const facilitiesHmis = await mainDb<{ count: number }[]>`
         SELECT COUNT(*) as count FROM facilities_hmis
+      `;
+      const facilitiesHfa = await mainDb<{ count: number }[]>`
+        SELECT COUNT(*) as count FROM facilities_hfa
       `;
 
       structure = {
@@ -365,7 +375,8 @@ export async function getInstanceDetail(
         adminArea2s: adminArea2s[0]?.count ?? 0,
         adminArea3s: adminArea3s[0]?.count ?? 0,
         adminArea4s: adminArea4s[0]?.count ?? 0,
-        facilities: facilities[0]?.count ?? 0,
+        facilitiesHmis: facilitiesHmis[0]?.count ?? 0,
+        facilitiesHfa: facilitiesHfa[0]?.count ?? 0,
       };
     }
 

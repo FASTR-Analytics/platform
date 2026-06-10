@@ -15,12 +15,16 @@ import {
   throwIfErrWithData,
   getEnabledOptionalFacilityColumns,
   Dhis2Credentials,
+  type FacilityFamily,
   type StructureIntegrateStrategy,
 } from "lib";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { stageStructureFromCsv } from "../../server_only_funcs_importing/stage_structure_from_csv.ts";
 import { stageStructureFromDhis2V2 } from "../../server_only_funcs_importing/stage_structure_from_dhis2.ts";
-import { integrateStructureFromStaging } from "../../server_only_funcs_importing/integrate_structure_from_staging.ts";
+import {
+  cleanupUnusedAdminAreas,
+  integrateStructureFromStaging,
+} from "../../server_only_funcs_importing/integrate_structure_from_staging.ts";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { DBStructureUploadAttempt } from "./_main_database_types.ts";
 import { getMaxAdminAreaConfig, getFacilityColumnsConfig } from "./config.ts";
@@ -57,13 +61,22 @@ async function getRawUAOrThrow(mainDb: Sql): Promise<DBStructureUploadAttempt> {
 //                                                    //
 ////////////////////////////////////////////////////////
 
+export function facilitiesTableForFacilityFamily(
+  family: FacilityFamily
+): string {
+  return family === "hmis" ? "facilities_hmis" : "facilities_hfa";
+}
+
 export async function getStructureItems(
   mainDb: Sql,
+  family: FacilityFamily,
   limit?: number
 ): Promise<
   APIResponseWithData<{ totalCount: number; items: Record<string, string>[] }>
 > {
   return await tryCatchDatabaseAsync(async () => {
+    const facilitiesTable = facilitiesTableForFacilityFamily(family);
+
     // Get maxAdminArea to determine which columns to return
     const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
     throwIfErrWithData(resMaxAdminArea);
@@ -75,7 +88,7 @@ export async function getStructureItems(
     const facilityConfig = resFacilityConfig.data;
 
     const counts = await mainDb<{ total_count: number }[]>`
-      SELECT count(*) AS total_count FROM facilities_hmis
+      SELECT count(*) AS total_count FROM ${mainDb(facilitiesTable)}
     `;
 
     // Build column list based on maxAdminArea and facility columns config
@@ -90,7 +103,7 @@ export async function getStructureItems(
     // Select only the columns we need, with optional limit
     const limitClause = limit ? ` LIMIT ${limit}` : "";
     const items = await mainDb.unsafe<Record<string, string>[]>(`
-      SELECT ${columns.join(", ")} FROM facilities_hmis${limitClause}
+      SELECT ${columns.join(", ")} FROM ${facilitiesTable}${limitClause}
     `);
 
     return {
@@ -149,6 +162,39 @@ export async function deleteAllStructureData(
   });
 }
 
+export async function deleteFamilyFacilities(
+  mainDb: Sql,
+  family: FacilityFamily
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    const datasetCount =
+      family === "hmis"
+        ? await mainDb<{ count: number }[]>`
+            SELECT COUNT(*) as count FROM dataset_hmis
+          `
+        : await mainDb<{ count: number }[]>`
+            SELECT COUNT(*) as count FROM hfa_data
+          `;
+
+    if ((datasetCount[0]?.count || 0) > 0) {
+      return {
+        success: false,
+        err: `Cannot delete ${family.toUpperCase()} facilities because they are referenced by an existing ${family.toUpperCase()} dataset (${toNum0(
+          datasetCount[0].count
+        )} records). Please delete the dataset first.`,
+      };
+    }
+
+    await mainDb.begin(async (sql) => {
+      await sql`DELETE FROM ${sql(facilitiesTableForFacilityFamily(family))}`;
+      // Admin areas referenced only by this family's facilities are now orphans
+      await cleanupUnusedAdminAreas(sql);
+    });
+
+    return { success: true };
+  });
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  __    __            __                            __                    __      __                                          __               //
 // /  |  /  |          /  |                          /  |                  /  |    /  |                                        /  |              //
@@ -166,37 +212,48 @@ export async function deleteAllStructureData(
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export async function addStructureUploadAttempt(
-  mainDb: Sql
+  mainDb: Sql,
+  datasetFamily: FacilityFamily
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const existing = await getRawUA(mainDb);
     const currentTime = new Date().toISOString();
 
+    // HFA facilities only come from CSV, so the source-type step is skipped
+    const initialStep = datasetFamily === "hfa" ? 1 : 0;
+    const initialSourceType = datasetFamily === "hfa" ? "csv" : null;
+
     if (existing) {
-      // Reset to step 0 if already exists
+      // Reset if already exists
       await mainDb`
-        UPDATE structure_upload_attempts 
-        SET 
+        UPDATE structure_upload_attempts
+        SET
           date_started = ${currentTime},
-          step = 0, 
-          source_type = NULL,
-          step_1_result = NULL, 
-          step_2_result = NULL, 
+          step = ${initialStep},
+          dataset_family = ${datasetFamily},
+          source_type = ${initialSourceType},
+          step_1_result = NULL,
+          step_2_result = NULL,
+          step_3_result = NULL,
           status = ${JSON.stringify({ status: "configuring" })},
           status_type = 'configuring'
       `;
     } else {
       await mainDb`
         INSERT INTO structure_upload_attempts (
-          date_started, 
-          step, 
-          status, 
+          date_started,
+          step,
+          dataset_family,
+          source_type,
+          status,
           status_type
-        ) 
+        )
         VALUES (
-          ${currentTime}, 
-          0, 
-          ${JSON.stringify({ status: "configuring" })}, 
+          ${currentTime},
+          ${initialStep},
+          ${datasetFamily},
+          ${initialSourceType},
+          ${JSON.stringify({ status: "configuring" })},
           'configuring'
         )
       `;
@@ -214,6 +271,7 @@ export async function getStructureUploadAttempt(
       id: "single_row",
       dateStarted: rawUA.date_started,
       status: JSON.parse(rawUA.status) as StructureUploadAttemptStatus,
+      datasetFamily: rawUA.dataset_family,
     };
 
     // Return discriminated union based on step and source_type
@@ -644,6 +702,7 @@ export async function structureStep4_ImportData(
       mainDb,
       stagingResult.stagingTableName,
       strategy,
+      rawUA.dataset_family,
       enabledOptionalColumns
     );
 

@@ -1,9 +1,9 @@
 import { Sql } from "postgres";
-import { StructureIntegrateStrategy, OptionalFacilityColumn } from "lib";
-
-// The structure import is family-agnostic: it writes both facility registries
-// identically. They diverge only once a family-specific importer exists.
-const FACILITY_TABLES = ["facilities_hmis", "facilities_hfa"] as const;
+import {
+  StructureIntegrateStrategy,
+  OptionalFacilityColumn,
+  type FacilityFamily,
+} from "lib";
 
 export interface IntegrateStructureResult {
   success: boolean;
@@ -37,8 +37,11 @@ export async function integrateStructureFromStaging(
   mainDb: Sql,
   stagingTableName: string,
   strategy: StructureIntegrateStrategy,
+  family: FacilityFamily,
   optionalColumns: OptionalFacilityColumn[] = []
 ): Promise<IntegrateStructureResult> {
+  const facilitiesTable =
+    family === "hmis" ? "facilities_hmis" : "facilities_hfa";
   try {
     // Validate strategy if it has selectedColumns
     if (strategy.type === "only_update_selected_cols_by_existing_facility_id") {
@@ -87,20 +90,10 @@ export async function integrateStructureFromStaging(
       // Execute admin area steps
       for (const step of adminSteps) {
         switch (step) {
-          case "delete_all": {
-            await deleteAllStructureData(sql);
-            break;
-          }
-          case "insert_clean": {
-            const counts = await insertAdminAreasFromStaging(
-              sql,
-              stagingTableName,
-              "error"
-            );
-            adminAreasProcessed.level1 = counts.level1;
-            adminAreasProcessed.level2 = counts.level2;
-            adminAreasProcessed.level3 = counts.level3;
-            adminAreasProcessed.level4 = counts.level4;
+          case "delete_family_facilities": {
+            // Admin areas are shared across families — never wholesale-delete
+            // them here; orphans are removed by cleanupUnusedAdminAreas below.
+            await deleteFamilyFacilitiesDeferred(sql, family);
             break;
           }
           case "insert_do_nothing": {
@@ -131,7 +124,9 @@ export async function integrateStructureFromStaging(
       }
 
       // Check if we need cleanup after facility processing
-      if (strategy.type === "add_all_and_update_all_as_needed") {
+      if (strategy.type === "first_delete_all_then_add_all") {
+        needsCleanup = true; // Removed facilities can orphan admin areas
+      } else if (strategy.type === "add_all_and_update_all_as_needed") {
         needsCleanup = true; // Updates can change facility admin areas, leaving orphans
       } else if (
         strategy.type === "only_update_selected_cols_by_existing_facility_id"
@@ -161,21 +156,19 @@ export async function integrateStructureFromStaging(
           );
 
           // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          for (const facilitiesTable of FACILITY_TABLES) {
-            const facilityResult = await sql.unsafe(`
-              INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
-              SELECT ${facilityColumns.join(", ")}
-              FROM (
-                SELECT ${facilityColumns.join(", ")},
-                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-                FROM ${stagingTableName}
-              ) t
-              WHERE rn = 1
-              RETURNING facility_id
-            `);
-            facilitiesProcessed = facilityResult.length;
-          }
+          const facilityResult = await sql.unsafe(`
+            INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
+            SELECT ${facilityColumns.join(", ")}
+            FROM (
+              SELECT ${facilityColumns.join(", ")},
+                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+              FROM ${stagingTableName}
+            ) t
+            WHERE rn = 1
+            RETURNING facility_id
+          `);
 
+          facilitiesProcessed = facilityResult.length;
           console.log(`Processed ${facilitiesProcessed} facilities`);
           break;
         }
@@ -193,23 +186,22 @@ export async function integrateStructureFromStaging(
 
           // Insert with ON CONFLICT UPDATE for facilities
           // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          for (const facilitiesTable of FACILITY_TABLES) {
-            const facilityResult = await sql.unsafe(`
-              INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
-              SELECT ${facilityColumns.join(", ")}
-              FROM (
-                SELECT ${facilityColumns.join(", ")},
-                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-                FROM ${stagingTableName}
-              ) t
-              WHERE rn = 1
-              ON CONFLICT (facility_id)
-              DO UPDATE SET
-                ${updateSetClause}
-              RETURNING facility_id
-            `);
-            facilitiesProcessed = facilityResult.length;
-          }
+          const facilityResult = await sql.unsafe(`
+            INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
+            SELECT ${facilityColumns.join(", ")}
+            FROM (
+              SELECT ${facilityColumns.join(", ")},
+                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+              FROM ${stagingTableName}
+            ) t
+            WHERE rn = 1
+            ON CONFLICT (facility_id)
+            DO UPDATE SET
+              ${updateSetClause}
+            RETURNING facility_id
+          `);
+
+          facilitiesProcessed = facilityResult.length;
           console.log(`Processed ${facilitiesProcessed} facilities`);
           break;
         }
@@ -220,21 +212,20 @@ export async function integrateStructureFromStaging(
           );
 
           // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          for (const facilitiesTable of FACILITY_TABLES) {
-            const facilityResult = await sql.unsafe(`
-              INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
-              SELECT ${facilityColumns.join(", ")}
-              FROM (
-                SELECT ${facilityColumns.join(", ")},
-                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-                FROM ${stagingTableName}
-              ) t
-              WHERE rn = 1
-              ON CONFLICT (facility_id) DO NOTHING
-              RETURNING facility_id
-            `);
-            facilitiesProcessed = facilityResult.length;
-          }
+          const facilityResult = await sql.unsafe(`
+            INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
+            SELECT ${facilityColumns.join(", ")}
+            FROM (
+              SELECT ${facilityColumns.join(", ")},
+                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+              FROM ${stagingTableName}
+            ) t
+            WHERE rn = 1
+            ON CONFLICT (facility_id) DO NOTHING
+            RETURNING facility_id
+          `);
+
+          facilitiesProcessed = facilityResult.length;
           console.log(`Processed ${facilitiesProcessed} facilities`);
           break;
         }
@@ -245,20 +236,19 @@ export async function integrateStructureFromStaging(
           );
 
           // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          for (const facilitiesTable of FACILITY_TABLES) {
-            const facilityResult = await sql.unsafe(`
-              INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
-              SELECT ${facilityColumns.join(", ")}
-              FROM (
-                SELECT ${facilityColumns.join(", ")},
-                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-                FROM ${stagingTableName}
-              ) t
-              WHERE rn = 1
-              RETURNING facility_id
-            `);
-            facilitiesProcessed = facilityResult.length;
-          }
+          const facilityResult = await sql.unsafe(`
+            INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
+            SELECT ${facilityColumns.join(", ")}
+            FROM (
+              SELECT ${facilityColumns.join(", ")},
+                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+              FROM ${stagingTableName}
+            ) t
+            WHERE rn = 1
+            RETURNING facility_id
+          `);
+
+          facilitiesProcessed = facilityResult.length;
           console.log(`Processed ${facilitiesProcessed} facilities`);
           break;
         }
@@ -280,21 +270,20 @@ export async function integrateStructureFromStaging(
               .join(",\n              ");
 
             // Update only optional columns for existing facilities
-            for (const facilitiesTable of FACILITY_TABLES) {
-              const facilityResult = await sql.unsafe(`
-                UPDATE ${facilitiesTable}
-                SET ${updateSetClause}
-                FROM (
-                  SELECT facility_id, ${optionalColumns.join(", ")},
-                         ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-                  FROM ${stagingTableName}
-                ) s
-                WHERE ${facilitiesTable}.facility_id = s.facility_id
-                  AND s.rn = 1
-                RETURNING ${facilitiesTable}.facility_id
-              `);
-              facilitiesProcessed = facilityResult.length;
-            }
+            const facilityResult = await sql.unsafe(`
+              UPDATE ${facilitiesTable}
+              SET ${updateSetClause}
+              FROM (
+                SELECT facility_id, ${optionalColumns.join(", ")},
+                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+                FROM ${stagingTableName}
+              ) s
+              WHERE ${facilitiesTable}.facility_id = s.facility_id
+                AND s.rn = 1
+              RETURNING ${facilitiesTable}.facility_id
+            `);
+
+            facilitiesProcessed = facilityResult.length;
             console.log(
               `Updated ${facilitiesProcessed} existing facilities with optional columns`
             );
@@ -330,21 +319,20 @@ export async function integrateStructureFromStaging(
             .join(",\n              ");
 
           // Update only selected columns for existing facilities
-          for (const facilitiesTable of FACILITY_TABLES) {
-            const facilityResult = await sql.unsafe(`
-              UPDATE ${facilitiesTable}
-              SET ${updateSetClause}
-              FROM (
-                SELECT facility_id, ${actualColumns.join(", ")},
-                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-                FROM ${stagingTableName}
-              ) s
-              WHERE ${facilitiesTable}.facility_id = s.facility_id
-                AND s.rn = 1
-              RETURNING ${facilitiesTable}.facility_id
-            `);
-            facilitiesProcessed = facilityResult.length;
-          }
+          const facilityResult = await sql.unsafe(`
+            UPDATE ${facilitiesTable}
+            SET ${updateSetClause}
+            FROM (
+              SELECT facility_id, ${actualColumns.join(", ")},
+                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+              FROM ${stagingTableName}
+            ) s
+            WHERE ${facilitiesTable}.facility_id = s.facility_id
+              AND s.rn = 1
+            RETURNING ${facilitiesTable}.facility_id
+          `);
+
+          facilitiesProcessed = facilityResult.length;
           console.log(
             `Updated ${facilitiesProcessed} existing facilities with selected columns: ${actualColumns.join(
               ", "
@@ -405,21 +393,27 @@ export async function integrateStructureFromStaging(
 // ============================================================================
 
 /**
- * Helper function to delete all facilities and admin areas in the correct order
+ * Deletes one family's facilities with its dataset FK deferred, so the
+ * replace-all strategy can re-insert within the same transaction; integrity
+ * is enforced at commit. Admin areas are shared and never deleted here.
  */
-async function deleteAllStructureData(sql: Sql): Promise<void> {
-  console.log("Deleting all existing structure data...");
+async function deleteFamilyFacilitiesDeferred(
+  sql: Sql,
+  family: FacilityFamily
+): Promise<void> {
+  console.log(`Deleting all existing ${family} facilities...`);
 
-  // Delete in reverse order with constraint deferral
-  await sql.unsafe(`
-    SET CONSTRAINTS dataset_hmis_facility_id_fkey, hfa_data_facility_id_fkey DEFERRED;
-    DELETE FROM facilities_hmis;
-    DELETE FROM facilities_hfa;
-  `);
-  await sql`DELETE FROM admin_areas_4`;
-  await sql`DELETE FROM admin_areas_3`;
-  await sql`DELETE FROM admin_areas_2`;
-  await sql`DELETE FROM admin_areas_1`;
+  if (family === "hmis") {
+    await sql.unsafe(`
+      SET CONSTRAINTS dataset_hmis_facility_id_fkey DEFERRED;
+      DELETE FROM facilities_hmis;
+    `);
+  } else {
+    await sql.unsafe(`
+      SET CONSTRAINTS hfa_data_facility_id_fkey DEFERRED;
+      DELETE FROM facilities_hfa;
+    `);
+  }
 }
 
 /**
@@ -498,7 +492,7 @@ async function insertAdminAreasFromStaging(
 /**
  * Helper function to clean up unused admin areas
  */
-async function cleanupUnusedAdminAreas(sql: Sql): Promise<void> {
+export async function cleanupUnusedAdminAreas(sql: Sql): Promise<void> {
   console.log("Cleaning up unused admin areas...");
 
   // Delete unused admin areas in reverse order (4 -> 3 -> 2 -> 1).
@@ -558,7 +552,8 @@ async function cleanupUnusedAdminAreas(sql: Sql): Promise<void> {
 function getAdminAreaSteps(strategy: StructureIntegrateStrategy): string[] {
   switch (strategy.type) {
     case "first_delete_all_then_add_all":
-      return ["delete_all", "insert_clean"];
+      // Other families' admin areas persist, so conflicts are expected
+      return ["delete_family_facilities", "insert_do_nothing"];
 
     case "add_all_and_update_all_as_needed":
     case "add_all_new_rows_and_ignore_conflicts":
