@@ -1,3 +1,26 @@
+[TBD] [user] [changed] - Renaming dashboard items and groups now uses a dedicated modal instead of inline editing
+[TBD] [user] [added] - Progress indicator shown when updating a dashboard group's visualizations
+[TBD] [user] [changed] - Admin-area total row label now shows context like "Total (selected areas)" or the parent area name
+[TBD] [user] [fixed] - Visualizations now correctly reflect auto-selected replicant values in labels and saved configurations
+[TBD] [user] [fixed] - Quickly toggling visualization settings no longer causes stale data to briefly appear
+[TBD] [user] [changed] - Admin-area total row uses a neutral color in charts to distinguish it from data series
+[TBD] [user] [fixed] - Admin-area total row no longer distorts conditional formatting color ranges in tables
+[TBD] [user] [added] - AI assistant now explains why the admin-area total row is unavailable for certain configurations
+[TBD] [admin] [added] - Reusable import wizard framework for data imports
+[TBD] [admin] [added] - Progress modal shows feedback during dashboard group updates
+[TBD] [admin] [added] - Renaming dashboard items and groups now uses a dedicated modal
+[TBD] [admin] [changed] - Admin-area total row now works on any single grouped admin level
+[TBD] [admin] [changed] - Total row label adapts to context: national, pinned area, or selected areas
+[TBD] [admin] [changed] - Total row gets a distinct neutral color in charts to stand out
+[TBD] [admin] [changed] - Total row checkbox only appears when the metric and configuration support it
+[TBD] [admin] [changed] - Total row no longer distorts conditional formatting color ranges in tables
+[TBD] [admin] [changed] - Facility data now stored in separate tables for HMIS and HFA datasets
+[TBD] [admin] [changed] - Restoring a backup now automatically applies any pending database migrations
+[TBD] [admin] [fixed] - Visualizations now correctly reflect auto-selected replicant in labels and saved config
+[TBD] [admin] [fixed] - Rapid config edits no longer display stale data from a slower previous fetch
+[TBD] [admin] [fixed] - Legacy rollup field names are now migrated even when other config fields are valid
+[TBD] [admin] [fixed] - Migration sweeps skip unnecessary database writes to avoid false update timestamps
+[TBD] [admin] [internal] - AI assistant receives clearer context about total row availability and behavior
 [1.47.0] [user] [changed] - "Include National results" checkbox now shows the relevant geographic level name when results are scoped to a specific area
 [1.47.0] [user] [fixed] - Removed orphaned visualizations that could appear after modules were updated or uninstalled
 [1.47.0] [admin] [fixed] - Orphaned visualizations are now automatically cleaned up when modules change
