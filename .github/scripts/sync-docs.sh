@@ -113,6 +113,7 @@ prompt = (
 body = {
     'model': 'claude-sonnet-4-6',
     'max_tokens': 16000,
+    'system': 'You output only valid JSON. No preamble, no explanation, no markdown code fences.',
     'messages': [{'role': 'user', 'content': prompt}]
 }
 json.dump(body, open('/tmp/sync_docs_request.json', 'w'))
@@ -132,13 +133,21 @@ import json
 resp = json.load(open('/tmp/sync_docs_response.json'))
 text = resp['content'][0]['text'].strip()
 
-# Strip markdown code block if the model wrapped the JSON
-if text.startswith('```'):
-    text = text.split('\n', 1)[1]
-    text = text.rsplit('```', 1)[0].strip()
+# Use raw_decode to extract the first complete JSON object, ignoring any
+# surrounding prose or markdown fences the model may have included.
+start = text.find('{')
+if start == -1:
+    print(f"No JSON object found in response. Raw text:\n{text[:500]}")
+    result = {'updates_needed': False, 'pages': []}
+else:
+    try:
+        result, _ = json.JSONDecoder().raw_decode(text, start)
+    except json.JSONDecodeError as e:
+        print(f"JSON parse error: {e}\nRaw text:\n{text[:500]}")
+        result = {'updates_needed': False, 'pages': []}
 
-open('/tmp/sync_docs_result.json', 'w').write(text)
-print(f"Response: {text[:300]}...")
+json.dump(result, open('/tmp/sync_docs_result.json', 'w'))
+print(f"updates_needed={result.get('updates_needed')}, pages={[p['path'] for p in result.get('pages', [])]}")
 PYEOF
 
 # ---------------------------------------------------------------------------
