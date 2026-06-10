@@ -14,6 +14,7 @@ import {
   getPgConnection,
   closePgConnection,
 } from "../../db/postgres/connection_manager.ts";
+import { runProjectMigrations } from "../../db/migrations/runner.ts";
 import { log, requireGlobalPermission } from "../../middleware/mod.ts";
 
 export const routesBackups = new Hono();
@@ -556,6 +557,12 @@ defineRoute(
 
         console.log("Successfully restored backup");
         console.log("psql output:", stdoutText);
+
+        // A restored dump may carry an older schema (e.g. the pre-split
+        // facilities table); bring it up to date now instead of waiting for
+        // the next server restart.
+        const restoredProjectDb = getPgConnection(projectId);
+        await runProjectMigrations(restoredProjectDb);
 
         // Clean up decompressed file
         try {

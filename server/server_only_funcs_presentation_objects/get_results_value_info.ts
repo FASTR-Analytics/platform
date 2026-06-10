@@ -10,7 +10,10 @@ import {
 } from "lib";
 import { getPeriodBounds } from "./get_period_bounds.ts";
 import { getPossibleValues } from "./get_possible_values.ts";
-import { getIndicatorMetadata } from "./get_indicator_metadata.ts";
+import {
+  getDatasetFamilyForModule,
+  getIndicatorMetadata,
+} from "./get_indicator_metadata.ts";
 import { resolveMetricById } from "../db/project/results_value_resolver.ts";
 import { getFacilityColumnsConfig } from "../db/instance/config.ts";
 import { MAX_REPLICANT_OPTIONS } from "./consts.ts";
@@ -125,11 +128,13 @@ async function getResultsObjectVariableInfoCore(
     const indicatorMetadata = await getIndicatorMetadata(mainDb, projectDb, moduleId);
     const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
 
+    const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleId);
+
     for (const disOpt of disaggregationOptions) {
       const resDisPossibleVals = await getPossibleValues(
         projectDb,
         resultsObjectId,
-        moduleId,
+        datasetFamily,
         disOpt,
         mainDb,
         labelMap,

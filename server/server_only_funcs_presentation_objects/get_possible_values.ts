@@ -8,12 +8,12 @@ import {
   APIResponseWithData,
   DisaggregationOption,
   GenericLongFormFetchConfig,
+  type DatasetType,
 } from "lib";
 import {
   buildQueryContext,
   facilitiesTableForFamily,
 } from "./get_query_context.ts";
-import { getDatasetFamilyForModule } from "./get_indicator_metadata.ts";
 import { buildWhereClause } from "./query_helpers.ts";
 import { MAX_REPLICANT_OPTIONS } from "./consts.ts";
 import {
@@ -28,7 +28,7 @@ const DYNAMIC_PERIOD_COLUMNS = ["year", "month", "quarter_id"] as const;
 export async function getPossibleValues(
   projectDb: Sql,
   resultsObjectId: string,
-  moduleId: string,
+  datasetFamily: DatasetType | undefined,
   disaggregationOption: DisaggregationOption,
   mainDb: Sql,
   labelMap: Map<string, string>,
@@ -54,8 +54,6 @@ export async function getPossibleValues(
       periodFilterExactBounds,
       postAggregationExpression: undefined,
     };
-
-    const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleId);
 
     // Use buildQueryContext to determine facility joins and filter separation
     const queryContext = await buildQueryContext(
