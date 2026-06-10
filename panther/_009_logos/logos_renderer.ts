@@ -5,11 +5,7 @@
 
 import { RectCoordsDims } from "./deps.ts";
 import type { LogosSizing, RenderContext } from "./deps.ts";
-import type {
-  LogosInput,
-  MeasuredLogo,
-  MeasuredLogos,
-} from "./types.ts";
+import type { LogosInput, MeasuredLogo, MeasuredLogos } from "./types.ts";
 
 type ImageLike = { width: number; height: number };
 
@@ -50,7 +46,7 @@ export function measureLogos<T extends ImageLike>(
   }
 
   const dimensions = input.images.map((img) =>
-    calculateLogoDimensions(img, input.style),
+    calculateLogoDimensions(img, input.style)
   );
 
   let totalWidth = 0;

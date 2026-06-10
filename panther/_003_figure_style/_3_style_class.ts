@@ -57,6 +57,8 @@ import {
   getMapRegionStyleFunc,
   getPointStyleFunc,
   getTableCellStyleFunc,
+  getTableColHeaderStyleFunc,
+  getTableRowHeaderStyleFunc,
 } from "./style_func_types.ts";
 import { FIGURE_TEXT_STYLE_KEYS } from "./text_style_keys.ts";
 
@@ -616,6 +618,12 @@ export class CustomFigureStyle {
           d.content.tableCells.textFormatter,
         ),
       },
+      tableRowHeaders: {
+        getStyle: getTableRowHeaderStyleFunc(sf, c, g, d),
+      },
+      tableColHeaders: {
+        getStyle: getTableColHeaderStyleFunc(sf, c, g, d),
+      },
       colHeaderPadding: msPadding(
         sf,
         c.table?.colHeaderPadding,
@@ -747,6 +755,11 @@ export class CustomFigureStyle {
         c.yScaleAxis?.tickLabelFormatter,
         g.yScaleAxis?.tickLabelFormatter,
         d.yScaleAxis.tickLabelFormatter,
+      ),
+      tickLabelAlignment: m(
+        c.yScaleAxis?.tickLabelAlignment,
+        g.yScaleAxis?.tickLabelAlignment,
+        d.yScaleAxis.tickLabelAlignment,
       ),
       forceTopOverhangHeight: msOrNone(
         sf,
@@ -923,6 +936,11 @@ export class CustomFigureStyle {
         c.xScaleAxis?.tickLabelFormatter,
         g.xScaleAxis?.tickLabelFormatter,
         d.xScaleAxis.tickLabelFormatter,
+      ),
+      tickLabelAlignment: m(
+        c.xScaleAxis?.tickLabelAlignment,
+        g.xScaleAxis?.tickLabelAlignment,
+        d.xScaleAxis.tickLabelAlignment,
       ),
       forceRightOverhangWidth: msOrNone(
         sf,

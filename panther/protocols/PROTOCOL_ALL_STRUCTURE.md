@@ -13,12 +13,12 @@
 
 ## File Naming
 
-| Type | Convention | Example |
-| ---- | ---------- | ------- |
-| General files | snake_case | `measure_text.ts` |
-| Components | PascalCase | `DataTable.tsx` |
-| Route pages | Underscore prefix | `_4_marking.tsx` |
-| Internal modules | Underscore prefix | `_internal/` |
+| Type             | Convention        | Example           |
+| ---------------- | ----------------- | ----------------- |
+| General files    | snake_case        | `measure_text.ts` |
+| Components       | PascalCase        | `DataTable.tsx`   |
+| Route pages      | Underscore prefix | `_4_marking.tsx`  |
+| Internal modules | Underscore prefix | `_internal/`      |
 
 ## Directory Patterns
 
@@ -39,7 +39,8 @@ src/
 └── utils/             # Business logic
 ```
 
-For the opinionated rules *inside* `components/` (feature-mirrors-UI, the `_shared/` home, co-location, facet nesting), see `PROTOCOL_UI_STRUCTURE.md`.
+For the opinionated rules _inside_ `components/` (feature-mirrors-UI, the
+`_shared/` home, co-location, facet nesting), see `PROTOCOL_UI_STRUCTURE.md`.
 
 ### Full-Stack App (both mode)
 

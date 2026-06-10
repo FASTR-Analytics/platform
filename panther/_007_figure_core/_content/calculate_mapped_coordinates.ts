@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Coordinates, type RectCoordsDims } from "../deps.ts";
-import type { ValueRange } from "../types.ts";
+import type { OverhangClearance, ValueRange } from "../types.ts";
 
 export type MappedValueCoordinate =
   | {
@@ -21,11 +21,14 @@ export function calculateMappedCoordinates(
   isCentered: boolean,
   gridStrokeWidth: number,
   valueRange: ValueRange,
+  valueClearance: OverhangClearance,
   orientation: "vertical" | "horizontal" = "vertical",
 ): MappedValueCoordinate[][] {
   const { maxVal, minVal } = valueRange;
 
   if (orientation === "horizontal") {
+    const effectiveW = plotAreaRcd.w() - valueClearance.start -
+      valueClearance.end;
     return seriesVals.map((singleSeries) => {
       return singleSeries.map((val, i_val) => {
         if (val === undefined) {
@@ -38,17 +41,19 @@ export function calculateMappedCoordinates(
           categoryIncrement / 2 +
           i_val * (extraForStroke + categoryIncrement);
 
-        const barExtent = plotAreaRcd.w() *
+        const barExtent = effectiveW *
           ((val - minVal) / (maxVal - minVal));
         // coords.x() is at the VALUE end of the bar (mirrors coords.y() being
         // the value end in vertical).
-        const x = plotAreaRcd.x() + barExtent;
+        const x = plotAreaRcd.x() + valueClearance.start + barExtent;
 
         return { coords: new Coordinates({ x, y }), val, barExtent };
       });
     });
   }
 
+  const effectiveH = plotAreaRcd.h() - valueClearance.start -
+    valueClearance.end;
   return seriesVals.map((singleSeries) => {
     return singleSeries.map((val, i_val) => {
       if (val === undefined) {
@@ -61,8 +66,8 @@ export function calculateMappedCoordinates(
         categoryIncrement / 2 +
         i_val * (extraWidthForStrokeIfNeeded + categoryIncrement);
 
-      const barExtent = plotAreaRcd.h() * ((val - minVal) / (maxVal - minVal));
-      const y = plotAreaRcd.y() + (plotAreaRcd.h() - barExtent);
+      const barExtent = effectiveH * ((val - minVal) / (maxVal - minVal));
+      const y = plotAreaRcd.y() + valueClearance.end + (effectiveH - barExtent);
 
       return { coords: new Coordinates({ x, y }), val, barExtent };
     });

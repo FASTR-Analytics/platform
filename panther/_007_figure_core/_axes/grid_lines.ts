@@ -5,6 +5,7 @@
 
 import type { RectCoordsDims } from "../deps.ts";
 import type {
+  OverhangClearance,
   YAxisWidthInfo,
   YScaleAxisWidthInfo,
 } from "../types.ts";
@@ -26,6 +27,7 @@ export function calculateXAxisGridLines(
   xAxisConfig: XAxisConfig,
   xAxisMeasuredInfo: XAxisMeasuredInfo,
   gridStrokeWidth: number,
+  clearance: OverhangClearance,
 ): { x: number; tickValue?: number }[] {
   switch (xAxisConfig.type) {
     case "text":
@@ -55,6 +57,7 @@ export function calculateXAxisGridLines(
         mx.xScaleHeightInfo,
         plotAreaRcd.x(),
         plotAreaRcd.w(),
+        clearance,
       );
     }
     case "none":
@@ -68,6 +71,7 @@ export function calculateYAxisGridLines(
   gridStrokeWidth: number,
   yAxisConfig: YAxisConfig,
   yAxisWidthInfo: YAxisWidthInfo,
+  clearance: OverhangClearance,
 ): { y: number; tickValue?: number }[] {
   switch (yAxisConfig.type) {
     case "scale":
@@ -76,6 +80,7 @@ export function calculateYAxisGridLines(
         yAxisWidthInfo as YScaleAxisWidthInfo,
         plotAreaRcd.y(),
         plotAreaRcd.h(),
+        clearance,
       );
     case "text":
       return calculateHorizontalGridLinesForTierYText(

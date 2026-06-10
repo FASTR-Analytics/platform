@@ -16,7 +16,7 @@ export type HeaderSortConfig =
   | "by-id"
   | { byIdOrder: string[] }
   | { byLabelOrder: string[] }
-  | { base: "by-label" | "by-id"; first?: string[]; last?: string[] };
+  | { base?: "by-label" | "by-id"; first?: string[]; last?: string[] };
 
 export function sortByLabel(a: HeaderItem, b: HeaderItem): number {
   return a.label.localeCompare(b.label);
@@ -51,11 +51,17 @@ export function sortByLabelOrder(order: string[]): HeaderSortFunc {
 }
 
 export function sortByPinned(
-  base: "by-label" | "by-id",
+  base: "by-label" | "by-id" | undefined,
   first: string[],
   last: string[],
 ): HeaderSortFunc {
-  const baseFunc = base === "by-id" ? sortById : sortByLabel;
+  // No base: items outside the pinned buckets compare equal, so a stable sort
+  // preserves their existing order — a pin-only sort.
+  const baseFunc: HeaderSortFunc = base === "by-id"
+    ? sortById
+    : base === "by-label"
+    ? sortByLabel
+    : () => 0;
   const firstRank = new Map(first.map((id, i) => [id, i]));
   const lastRank = new Map(last.map((id, i) => [id, i]));
   const bucket = (id: string): number =>
@@ -97,7 +103,7 @@ export function resolveSortFunc(
   if ("byLabelOrder" in config) {
     return sortByLabelOrder(config.byLabelOrder);
   }
-  if ("base" in config) {
+  if ("base" in config || "first" in config || "last" in config) {
     return sortByPinned(config.base, config.first ?? [], config.last ?? []);
   }
   throw new Error("Invalid sort config");

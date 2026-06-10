@@ -2,8 +2,8 @@
 
 **Scope:** UI
 
-For component-library usage see `PROTOCOL_UI_COMPONENTS.md`; for data/actions see
-`PROTOCOL_UI_STATE.md`.
+For component-library usage see `PROTOCOL_UI_COMPONENTS.md`; for data/actions
+see `PROTOCOL_UI_STATE.md`.
 
 ## Rules
 
@@ -17,7 +17,10 @@ For component-library usage see `PROTOCOL_UI_COMPONENTS.md`; for data/actions se
 6. **Props as `p`** — Never destructure, never name it `props`
 7. **Function declarations** — Not arrow functions for components
 8. **Batch related updates** — Wrap multiple signal writes in `batch()`
-9. **Peer branches use `<Match>`, not `fallback`** — `<Show fallback>` is only for genuinely subordinate content (loading / empty / absent). Equal alternatives use `<Switch>` with an explicit `when` on each `<Match>` — never relegate a peer to `fallback` or a `when={true}` catch-all
+9. **Peer branches use `<Match>`, not `fallback`** — `<Show fallback>` is only
+   for genuinely subordinate content (loading / empty / absent). Equal
+   alternatives use `<Switch>` with an explicit `when` on each `<Match>` — never
+   relegate a peer to `fallback` or a `when={true}` catch-all
 
 ## Do / Don't
 
@@ -169,7 +172,11 @@ export function Card(p: Props) {
 </Switch>
 ```
 
-**Why:** `fallback` encodes a primary/secondary hierarchy. For genuine alternatives that's a lie that hides intent and misleads the next reader. Reserve `<Show>`'s `fallback` (and a `when={true}` catch-all) for content that truly *is* subordinate — loading, empty, or absent — like the data / "No data" case above.
+**Why:** `fallback` encodes a primary/secondary hierarchy. For genuine
+alternatives that's a lie that hides intent and misleads the next reader.
+Reserve `<Show>`'s `fallback` (and a `when={true}` catch-all) for content that
+truly _is_ subordinate — loading, empty, or absent — like the data / "No data"
+case above.
 
 ### Batched Updates
 
@@ -187,7 +194,8 @@ batch(() => {
 });
 ```
 
-**Why:** `batch()` collapses multiple signal writes into a single reactive update.
+**Why:** `batch()` collapses multiple signal writes into a single reactive
+update.
 
 ## Checklist
 
@@ -195,7 +203,8 @@ batch(() => {
 - [ ] No `createResource` usage
 - [ ] Props accessed via `p.` not destructured
 - [ ] Control flow uses `<Show>`, `<For>`, `<Switch>`
-- [ ] `<Show fallback>` only for subordinate content; equal branches use `<Switch>`/`<Match>` with an explicit `when` on each
+- [ ] `<Show fallback>` only for subordinate content; equal branches use
+      `<Switch>`/`<Match>` with an explicit `when` on each
 - [ ] All reactive deps accessed before conditionals in effects
 - [ ] All reactive deps accessed before `await` in async effects
 - [ ] Components use function declarations

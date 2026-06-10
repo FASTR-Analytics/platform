@@ -35,6 +35,8 @@ import type {
   GenericMapRegionStyle,
   GenericPointStyle,
   GenericTableCellStyle,
+  GenericTableHeaderStyle,
+  GenericTableHeaderStyleOptions,
 } from "./style_func_types.ts";
 import type { LegendPosition } from "./types.ts";
 
@@ -139,6 +141,7 @@ const _DS = {
     tickHeight: 10,
     tickLabelGap: 5,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
+    tickLabelAlignment: typed<"center" | "inset">("center"),
     forceRightOverhangWidth: typed<"none" | number>("none"),
     allowIndividualLaneLimits: false,
     exactAxisY: typed<"none" | number>("none"),
@@ -177,6 +180,7 @@ const _DS = {
     tickWidth: 10,
     tickLabelGap: 5,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
+    tickLabelAlignment: typed<"center" | "inset">("center"),
     forceTopOverhangHeight: typed<"none" | number>("none"),
     exactAxisX: typed<"none" | number>("none"),
     allowIndividualTierLimits: false,
@@ -334,6 +338,17 @@ const _DS = {
         textColorStrategy: "none",
       }),
       textFormatter: typed<TableCellInfoFunc<string> | "none">("none"),
+    },
+    tableRowHeaders: {
+      func: typed<GenericTableHeaderStyle>({
+        backgroundColor: "none",
+        textColorStrategy: "none",
+      }),
+    },
+    tableColHeaders: {
+      func: typed<GenericTableHeaderStyleOptions>({
+        textColorStrategy: "none",
+      }),
     },
   },
   // Grid

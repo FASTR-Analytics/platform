@@ -97,9 +97,9 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
               class={rowClasses(step)}
               disabled={p.stepper.getStepStatus(step) === "locked"}
               onClick={() => handleClick(step)}
-              aria-current={
-                p.stepper.currentStep() === step ? "step" : undefined
-              }
+              aria-current={p.stepper.currentStep() === step
+                ? "step"
+                : undefined}
             >
               <span class={chipClasses(step)}>{stepIndex}</span>
               {label ? <span class={labelClasses(step)}>{label}</span> : null}

@@ -44,6 +44,7 @@ export * from "./_110_ai_types/mod.ts";
 export * from "./_121_page/mod.ts";
 export * from "./_122_pdf/mod.ts";
 export * from "./_122_pptx/mod.ts";
+export * from "./_150_figure_schema/mod.ts";
 
 ////////////////////////
 //                    //

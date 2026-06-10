@@ -23,9 +23,12 @@ import {
   generateYTextAxisPrimitive,
 } from "./_axes/generate_axis_primitives.ts";
 import { generateContentPrimitives } from "./_content/generate_content_primitives.ts";
+import { measureDataLabelEndClearance } from "./_content/measure_data_label_clearance.ts";
 import type { Primitive, RenderContext } from "./deps.ts";
 import { RectCoordsDims, Z_INDEX } from "./deps.ts";
 import type { MeasurePaneConfig } from "./measure_types.ts";
+import type { OverhangClearance } from "./types.ts";
+import { clampOverhangClearance, NO_OVERHANG_CLEARANCE } from "./types.ts";
 import type { XTextAxisMeasuredInfo } from "./_axes/x_text/types.ts";
 import type { XPeriodAxisMeasuredInfo } from "./_axes/x_period/types.ts";
 import type { XScaleAxisMeasuredInfo } from "./_axes/x_scale/types.ts";
@@ -66,6 +69,138 @@ export function generatePaneContentPrimitives<TData>(
       lb: (number | undefined)[][][][][];
     };
   };
+
+  const subChartInfoFor = (i_tier: number, i_lane: number) => ({
+    nSerieses: config.dataProps.seriesHeaders.length,
+    seriesValArrays: chartData.values[i_pane][i_tier][i_lane],
+    i_pane,
+    nPanes: config.dataProps.paneHeaders.length,
+    paneHeader: config.dataProps.paneHeaders[i_pane],
+    i_tier,
+    nTiers: tierHeaders.length,
+    tierHeader: tierHeaders[i_tier],
+    i_lane,
+    nLanes: laneHeaders.length,
+    laneHeader: laneHeaders[i_lane],
+  });
+
+  // Overhang clearances (PLAN_1/2/3): inset the scale axis's value range
+  // within each plot area so extreme tick labels and edge data labels stay
+  // inside the plot rect. start-side overhang can be absorbed by the
+  // adjacent axis area (lane 0 left / last tier bottom); end-side aggregates
+  // the tick label overhang with the data label requirement. Every consumer
+  // of value-axis positions below must receive these same values.
+  const sg = baseStyle.grid;
+  const hasContent = xAxisConfig.type !== "none" && yAxisConfig.type !== "none";
+
+  let xClearances: OverhangClearance[] | undefined;
+  if (xAxisConfig.type === "scale") {
+    const mx = measured.xAxisMeasuredInfo as XScaleAxisMeasuredInfo;
+    const xOverhang = xAxisConfig.axisStyle.tickLabelAlignment === "inset"
+      ? 0
+      : Math.max(
+        0,
+        (mx.xScaleHeightInfo.maxTickLabelW - sg.gridStrokeWidth) / 2,
+      );
+    const yAxisAreaWidth =
+      measured.yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
+    xClearances = laneHeaders.map((_, i_lane) => {
+      const start = i_lane === 0
+        ? Math.max(0, xOverhang - yAxisAreaWidth)
+        : xOverhang;
+      let end = xOverhang;
+      if (
+        orientation === "horizontal" && hasContent &&
+        yAxisConfig.type === "text"
+      ) {
+        const valueRange = getXScaleAxisValueRange(
+          mx.xScaleHeightInfo,
+          i_lane,
+        );
+        const yCfg = getYAxisRenderConfig(
+          yAxisConfig,
+          measured.yAxisWidthInfo,
+        );
+        for (let i_tier = 0; i_tier < tierHeaders.length; i_tier++) {
+          end = Math.max(
+            end,
+            measureDataLabelEndClearance({
+              rc,
+              seriesVals: chartData.values[i_pane][i_tier][i_lane],
+              valueRange,
+              orientation,
+              contentStyle: baseStyle.content,
+              dataLabelsTextStyle: baseStyle.text.dataLabels,
+              plotValueExtent: measured.subChartAreaWidth,
+              startClearance: start,
+              categoryIncrement: 0,
+              nVals: yCfg.nVals,
+              subChartInfo: subChartInfoFor(i_tier, i_lane),
+              seriesHeaders: config.dataProps.seriesHeaders,
+              indicatorHeaders: config.dataProps.indicatorHeaders,
+            }),
+          );
+        }
+      }
+      return clampOverhangClearance(
+        { start, end },
+        measured.subChartAreaWidth,
+      );
+    });
+  }
+
+  let yClearances: OverhangClearance[] | undefined;
+  if (yAxisConfig.type === "scale") {
+    const my = measured.yAxisWidthInfo as YScaleAxisWidthInfo;
+    const yOverhang = yAxisConfig.axisStyle.tickLabelAlignment === "inset"
+      ? 0
+      : Math.max(0, my.halfYAxisTickLabelH - sg.gridStrokeWidth / 2);
+    const xAxisAreaHeight = measured.xAxisMeasuredInfo.xAxisRcd.h();
+    yClearances = tierHeaders.map((_, i_tier) => {
+      const start = i_tier === tierHeaders.length - 1
+        ? Math.max(0, yOverhang - xAxisAreaHeight)
+        : yOverhang;
+      let end = yOverhang;
+      if (
+        orientation === "vertical" && hasContent &&
+        (xAxisConfig.type === "text" || xAxisConfig.type === "period")
+      ) {
+        const valueRange = getScaleAxisValueRange(
+          measured.yAxisWidthInfo,
+          i_tier,
+        );
+        const xCfg = getXAxisRenderConfig(
+          xAxisConfig,
+          measured.xAxisMeasuredInfo,
+        );
+        for (let i_lane = 0; i_lane < laneHeaders.length; i_lane++) {
+          end = Math.max(
+            end,
+            measureDataLabelEndClearance({
+              rc,
+              seriesVals: chartData.values[i_pane][i_tier][i_lane],
+              valueRange,
+              orientation,
+              contentStyle: baseStyle.content,
+              dataLabelsTextStyle: baseStyle.text.dataLabels,
+              plotValueExtent: measured.subChartAreaHeight,
+              startClearance: start,
+              categoryIncrement: xCfg.categoryIncrement,
+              nVals: xCfg.nVals,
+              subChartInfo: subChartInfoFor(i_tier, i_lane),
+              seriesHeaders: config.dataProps.seriesHeaders,
+              indicatorHeaders: config.dataProps.indicatorHeaders,
+            }),
+          );
+        }
+      }
+      return clampOverhangClearance(
+        { start, end },
+        measured.subChartAreaHeight,
+      );
+    });
+  }
+
   let currentPlotAreaY = measured.yAxisRcd.y() + baseStyle.tiers.paddingTop +
     measured.tierHeaderAndLabelGapHeight;
 
@@ -81,6 +216,9 @@ export function generatePaneContentPrimitives<TData>(
         h: measured.subChartAreaHeight,
       });
 
+      const xClearance = xClearances?.[i_lane] ?? NO_OVERHANG_CLEARANCE;
+      const yClearance = yClearances?.[i_tier] ?? NO_OVERHANG_CLEARANCE;
+
       // Grid lines
       const horizontalGridLines = calculateYAxisGridLines(
         i_tier,
@@ -88,6 +226,7 @@ export function generatePaneContentPrimitives<TData>(
         baseStyle.grid.gridStrokeWidth,
         yAxisConfig,
         measured.yAxisWidthInfo,
+        yClearance,
       );
       const verticalGridLines = calculateXAxisGridLines(
         i_lane,
@@ -95,6 +234,7 @@ export function generatePaneContentPrimitives<TData>(
         xAxisConfig,
         measured.xAxisMeasuredInfo,
         baseStyle.grid.gridStrokeWidth,
+        xClearance,
       );
 
       // Grid primitive
@@ -131,6 +271,7 @@ export function generatePaneContentPrimitives<TData>(
                 measured.yAxisRcd,
                 rcd.y(),
                 measured.subChartAreaHeight,
+                yClearance,
                 yAxisConfig.axisLabel,
                 yAxisConfig.axisStyle,
                 baseStyle.grid,
@@ -214,6 +355,7 @@ export function generatePaneContentPrimitives<TData>(
                 mx.xAxisRcd,
                 rcd.x(),
                 measured.subChartAreaWidth,
+                xClearance,
                 xAxisConfig.axisLabel,
                 xAxisConfig.axisStyle,
                 baseStyle.grid,
@@ -265,21 +407,12 @@ export function generatePaneContentPrimitives<TData>(
           ...generateContentPrimitives({
             rc,
             subChartRcd: rcd,
-            subChartInfo: {
-              nSerieses: config.dataProps.seriesHeaders.length,
-              seriesValArrays: seriesVals,
-              i_pane,
-              nPanes: config.dataProps.paneHeaders.length,
-              paneHeader: config.dataProps.paneHeaders[i_pane],
-              i_tier,
-              nTiers: tierHeaders.length,
-              tierHeader: tierHeaders[i_tier],
-              i_lane,
-              nLanes: laneHeaders.length,
-              laneHeader: laneHeaders[i_lane],
-            },
+            subChartInfo: subChartInfoFor(i_tier, i_lane),
             seriesVals,
             valueRange,
+            valueClearance: orientation === "horizontal"
+              ? xClearance
+              : yClearance,
             isCentered,
             categoryIncrement,
             gridStrokeWidth: baseStyle.grid.gridStrokeWidth,

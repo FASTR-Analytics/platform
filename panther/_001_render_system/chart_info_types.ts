@@ -109,3 +109,13 @@ export type TableCellInfo = {
 };
 
 export type TableCellInfoFunc<T> = (info: TableCellInfo) => T;
+
+export type TableHeaderInfo = {
+  id: string | undefined;
+  label: string;
+  index: number | undefined;
+  n: number;
+  isGroupHeader: boolean;
+};
+
+export type TableHeaderInfoFunc<T> = (info: TableHeaderInfo) => T;

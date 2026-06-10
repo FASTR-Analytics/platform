@@ -16,6 +16,7 @@ import {
   type ColorAdjustmentStrategy,
   type ColorKeyOrString,
   type FontInfoOptions,
+  getAdjustedColor,
   type LineStyle,
   m,
   type MapRegionInfo,
@@ -29,6 +30,8 @@ import {
   type RectStyle,
   type TableCellInfo,
   type TableCellInfoFunc,
+  type TableHeaderInfo,
+  type TableHeaderInfoFunc,
 } from "./deps.ts";
 import type { DefaultFigureStyle } from "./_1_default_figure_style.ts";
 import type { CustomFigureStyleOptions } from "./_2_custom_figure_style_options.ts";
@@ -36,6 +39,7 @@ import type { CustomFigureStyleOptions } from "./_2_custom_figure_style_options.
 export type GenericDataLabelStyle = {
   show: boolean;
   color?: ColorKeyOrString;
+  colorStrategy?: ColorAdjustmentStrategy;
   relFontSize?: number;
   font?: FontInfoOptions;
   offset: number;
@@ -51,6 +55,7 @@ export type GenericDataLabelStyleOptions = Partial<GenericDataLabelStyle>;
 export type DataLabelStyle = {
   show: boolean;
   color?: ColorKeyOrString;
+  colorStrategy?: ColorAdjustmentStrategy;
   relFontSize?: number;
   font?: FontInfoOptions;
   offset: number;
@@ -61,6 +66,47 @@ export type DataLabelStyle = {
   rectRadius: number;
 };
 
+type ColorPair = {
+  color: ColorKeyOrString | undefined;
+  colorStrategy: ColorAdjustmentStrategy | undefined;
+};
+
+// color and colorStrategy cascade as a pair: the highest level that supplies
+// either field replaces both from all lower levels. Merging them
+// independently would let a low-level default color shadow a higher-level
+// colorStrategy override.
+function pickColorPair(
+  levels: Array<
+    | {
+      color?: ColorKeyOrString;
+      colorStrategy?: ColorAdjustmentStrategy;
+    }
+    | undefined
+  >,
+): ColorPair {
+  for (const lvl of levels) {
+    if (!lvl) continue;
+    if (lvl.color !== undefined || lvl.colorStrategy !== undefined) {
+      return { color: lvl.color, colorStrategy: lvl.colorStrategy };
+    }
+  }
+  return { color: undefined, colorStrategy: undefined };
+}
+
+function applyDataLabelColorStrategy(
+  dl: DataLabelStyle,
+  hostColor: ColorKeyOrString | "none",
+): DataLabelStyle {
+  if (
+    dl.color !== undefined ||
+    dl.colorStrategy === undefined ||
+    hostColor === "none"
+  ) {
+    return dl;
+  }
+  return { ...dl, color: getAdjustedColor(hostColor, dl.colorStrategy) };
+}
+
 function resolveDataLabelDefaults(
   sf: number,
   c: GenericDataLabelStyleOptions | undefined,
@@ -70,10 +116,11 @@ function resolveDataLabelDefaults(
   d: GenericDataLabelStyle,
   dc: GenericDataLabelStyle,
 ): DataLabelStyle {
+  const pair = pickColorPair([c, cc, g, gc, d, dc]);
   return {
     show: c?.show ?? cc?.show ?? g?.show ?? gc?.show ?? d.show ?? dc.show,
-    color: c?.color ?? cc?.color ?? g?.color ?? gc?.color ?? d.color ??
-      dc.color,
+    color: pair.color,
+    colorStrategy: pair.colorStrategy,
     relFontSize: c?.relFontSize ??
       cc?.relFontSize ??
       g?.relFontSize ??
@@ -128,7 +175,10 @@ function applyDataLabelOverrides(
   if (!o) return defaults;
   return {
     show: o.show ?? defaults.show,
-    color: o.color ?? defaults.color,
+    // color/colorStrategy are deliberately NOT merged from o here — they
+    // cascade as a pair via a single pickColorPair pass in each style func.
+    color: defaults.color,
+    colorStrategy: defaults.colorStrategy,
     relFontSize: o.relFontSize ?? defaults.relFontSize,
     font: o.font ?? defaults.font,
     offset: o.offset !== undefined ? o.offset * sf : defaults.offset,
@@ -160,6 +210,94 @@ export type TableCellStyle = {
   textColorStrategy: ColorAdjustmentStrategy | "none";
   annotationGroup?: string;
 };
+
+export type GenericTableHeaderStyle = {
+  backgroundColor: ColorKeyOrString | "none";
+  textColorStrategy: ColorAdjustmentStrategy | "none";
+};
+
+export type GenericTableHeaderStyleOptions = Partial<GenericTableHeaderStyle>;
+
+export type TableHeaderStyle = GenericTableHeaderStyle;
+
+export function getTableRowHeaderStyleFunc(
+  _sf: number,
+  _c: CustomFigureStyleOptions,
+  _g: CustomFigureStyleOptions,
+  _d: DefaultFigureStyle,
+): TableHeaderInfoFunc<TableHeaderStyle> {
+  const cRaw = _c.content?.tableRowHeaders?.func;
+  const c = typeof cRaw === "object" ? cRaw : undefined;
+  const cf = typeof cRaw === "function" ? cRaw : undefined;
+  const gRaw = _g.content?.tableRowHeaders?.func;
+  const g = typeof gRaw === "object" ? gRaw : undefined;
+  const gf = typeof gRaw === "function" ? gRaw : undefined;
+  const d = _d.content.tableRowHeaders.func;
+  const dBackgroundColor = m(
+    c?.backgroundColor,
+    g?.backgroundColor,
+    d.backgroundColor,
+  );
+  const dTextColorStrategy = m(
+    c?.textColorStrategy,
+    g?.textColorStrategy,
+    d.textColorStrategy,
+  );
+  return (info: TableHeaderInfo): TableHeaderStyle => {
+    const oc = cf?.(info);
+    const og = gf?.(info);
+    return {
+      backgroundColor: oc?.backgroundColor ?? og?.backgroundColor ??
+        dBackgroundColor,
+      textColorStrategy: oc?.textColorStrategy ?? og?.textColorStrategy ??
+        dTextColorStrategy,
+    };
+  };
+}
+
+export function getTableColHeaderStyleFunc(
+  _sf: number,
+  _c: CustomFigureStyleOptions,
+  _g: CustomFigureStyleOptions,
+  _d: DefaultFigureStyle,
+): TableHeaderInfoFunc<TableHeaderStyle> {
+  const cRaw = _c.content?.tableColHeaders?.func;
+  const c = typeof cRaw === "object" ? cRaw : undefined;
+  const cf = typeof cRaw === "function" ? cRaw : undefined;
+  const gRaw = _g.content?.tableColHeaders?.func;
+  const g = typeof gRaw === "object" ? gRaw : undefined;
+  const gf = typeof gRaw === "function" ? gRaw : undefined;
+  const d = _d.content.tableColHeaders.func;
+  const dTextColorStrategy: ColorAdjustmentStrategy | "none" = m(
+    c?.textColorStrategy,
+    g?.textColorStrategy,
+    d.textColorStrategy,
+  ) ?? "none";
+  // Backward-compat fallback: when no per-header backgroundColor is provided,
+  // fall back to the uniform colHeaderBackgroundColor / colGroupHeaderBackgroundColor.
+  const dColBg = m(
+    _c.table?.colHeaderBackgroundColor,
+    _g.table?.colHeaderBackgroundColor,
+    _d.table.colHeaderBackgroundColor,
+  );
+  const dColGroupBg = m(
+    _c.table?.colGroupHeaderBackgroundColor,
+    _g.table?.colGroupHeaderBackgroundColor,
+    _d.table.colGroupHeaderBackgroundColor,
+  );
+  return (info: TableHeaderInfo): TableHeaderStyle => {
+    const oc = cf?.(info);
+    const og = gf?.(info);
+    const backgroundColor = oc?.backgroundColor ?? og?.backgroundColor ??
+      c?.backgroundColor ?? g?.backgroundColor ??
+      (info.isGroupHeader ? dColGroupBg : dColBg);
+    return {
+      backgroundColor: backgroundColor as ColorKeyOrString | "none",
+      textColorStrategy: oc?.textColorStrategy ?? og?.textColorStrategy ??
+        dTextColorStrategy,
+    };
+  };
+}
 
 export function getTableCellStyleFunc(
   _sf: number,
@@ -307,15 +445,23 @@ export function getPointStyleFunc(
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
     let dl = applyDataLabelOverrides(dDataLabel, og?.dataLabel, _sf);
     dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
+    const dlPair = pickColorPair([
+      oc?.dataLabel,
+      og?.dataLabel,
+      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
+    ]);
+    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
+    const resolvedColor = color === 777
+      ? valuesColorFunc(info.val, info.valueMin, info.valueMax)
+      : color === 666
+      ? seriesColorFunc(info)
+      : color;
+    dl = applyDataLabelColorStrategy(dl, resolvedColor);
     return {
       show: oc?.show ?? og?.show ?? dShow,
       pointStyle: oc?.pointStyle ?? og?.pointStyle ?? dPointStyle,
       radius: oRadius !== undefined ? oRadius * _sf : dRadius,
-      color: color === 777
-        ? valuesColorFunc(info.val, info.valueMin, info.valueMax)
-        : color === 666
-        ? seriesColorFunc(info)
-        : color,
+      color: resolvedColor,
       strokeWidth: oStrokeWidth !== undefined
         ? oStrokeWidth * _sf
         : dStrokeWidth,
@@ -402,13 +548,21 @@ export function getBarStyleFunc(
     const color = oc?.fillColor ?? og?.fillColor ?? dColor;
     let dl = applyDataLabelOverrides(dDataLabel, og?.dataLabel, _sf);
     dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
+    const dlPair = pickColorPair([
+      oc?.dataLabel,
+      og?.dataLabel,
+      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
+    ]);
+    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
+    const resolvedFillColor = color === 777
+      ? valuesColorFunc(info.val, info.valueMin, info.valueMax)
+      : color === 666
+      ? seriesColorFunc(info)
+      : color;
+    dl = applyDataLabelColorStrategy(dl, resolvedFillColor);
     return {
       show: oc?.show ?? og?.show ?? dShow,
-      fillColor: color === 777
-        ? valuesColorFunc(info.val, info.valueMin, info.valueMax)
-        : color === 666
-        ? seriesColorFunc(info)
-        : color,
+      fillColor: resolvedFillColor,
       dataLabel: dl,
       annotationGroup: oc?.annotationGroup ?? og?.annotationGroup,
     };
@@ -490,12 +644,20 @@ export function getLineStyleFunc(
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
     let dl = applyDataLabelOverrides(dDataLabel, og?.dataLabel, _sf);
     dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
+    const dlPair = pickColorPair([
+      oc?.dataLabel,
+      og?.dataLabel,
+      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
+    ]);
+    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
+    const resolvedStrokeColor = color === 666 ? seriesColorFunc(info) : color;
+    dl = applyDataLabelColorStrategy(dl, resolvedStrokeColor);
     return {
       show: oc?.show ?? og?.show ?? dShow,
       strokeWidth: oStrokeWidth !== undefined
         ? oStrokeWidth * _sf
         : dStrokeWidth,
-      strokeColor: color === 666 ? seriesColorFunc(info) : color,
+      strokeColor: resolvedStrokeColor,
       lineDash: oc?.lineDash ?? og?.lineDash ?? dLineDash,
       dataLabel: dl,
       annotationGroup: oc?.annotationGroup ?? og?.annotationGroup,
@@ -677,9 +839,18 @@ export function getCascadeArrowStyleFunc(
     const oArrowLabelGap = oc?.arrowLabelGap ?? og?.arrowLabelGap;
     let dl = applyDataLabelOverrides(dDataLabel, og?.dataLabel, _sf);
     dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
+    const dlPair = pickColorPair([
+      oc?.dataLabel,
+      og?.dataLabel,
+      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
+    ]);
+    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
+    const resolvedStrokeColor = oc?.strokeColor ?? og?.strokeColor ??
+      dStrokeColor;
+    dl = applyDataLabelColorStrategy(dl, resolvedStrokeColor);
     return {
       show: oc?.show ?? og?.show ?? dShow,
-      strokeColor: oc?.strokeColor ?? og?.strokeColor ?? dStrokeColor,
+      strokeColor: resolvedStrokeColor,
       strokeWidth: oStrokeWidth !== undefined
         ? oStrokeWidth * _sf
         : dStrokeWidth,
@@ -1048,11 +1219,19 @@ export function getMapRegionStyleFunc(
     let dl = dDataLabel;
     dl = applyDataLabelOverrides(dl, og?.dataLabel, _sf);
     dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
+    const dlPair = pickColorPair([
+      oc?.dataLabel,
+      og?.dataLabel,
+      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
+    ]);
+    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
+    const resolvedFillColor = fillColor === 777
+      ? valuesColorFunc(info.value, info.valueMin, info.valueMax)
+      : fillColor;
+    dl = applyDataLabelColorStrategy(dl, resolvedFillColor);
     return {
       show: oc?.show ?? og?.show ?? dShow,
-      fillColor: fillColor === 777
-        ? valuesColorFunc(info.value, info.valueMin, info.valueMax)
-        : fillColor,
+      fillColor: resolvedFillColor,
       strokeColor: strokeColor,
       strokeWidth: oStrokeWidth !== undefined
         ? oStrokeWidth * _sf

@@ -259,6 +259,9 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       break;
 
     case "table-row-header":
+      if (primitive.backgroundColor !== "none") {
+        rc.rRect(primitive.bounds, { fillColor: primitive.backgroundColor });
+      }
       rc.rText(primitive.mText, primitive.textPosition, primitive.textAlignH);
       break;
 

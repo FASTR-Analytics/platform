@@ -56,15 +56,14 @@ export function buildScorecardStyle(
     surrounds: { legendPosition: config.s.hideLegend ? "none" : undefined },
     grid: { showGrid: false },
     content: {
-      tableRowHeaders: {
-        func: (info) => {
-          console.log(info);
-          return {
-            backgroundColor: "black",
-            textColorStrategy: "#ffffff",
-          };
-        },
-      },
+      // tableRowHeaders: {
+      //   func: (info) => {
+      //     return {
+      //       backgroundColor:  "black",
+      //       textColorStrategy: "#ffffff",
+      //     };
+      //   },
+      // },
       tableCells: {
         func: (info: TableCellInfo) => {
           const meta =

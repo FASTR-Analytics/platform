@@ -31,17 +31,22 @@ export function catCoord(c: Coordinates, orientation: Orientation): number {
   return orientation === "horizontal" ? c.y() : c.x();
 }
 
-// Screen coordinate of the zero-line (value=0 baseline).
-// Vertical: bottom edge of plot area (positive values grow upward).
-// Horizontal: left edge of plot area (positive values grow rightward).
+// Screen coordinate of the value-axis baseline (the valueMin grid line).
+// Vertical: bottom edge of plot area minus the start-side overhang clearance
+// (positive values grow upward). Horizontal: left edge plus the clearance
+// (positive values grow rightward). Must stay consistent with
+// calculateMappedCoordinates and getScaleAxisTickPositions.
 // Pure — callers apply the half-grid-stroke fudge themselves where they need
 // a bar edge to extend past the baseline to mask the baseline grid line:
 //   valStart = valBaseline - valExtendDir * gridStrokeWidth / 2
 export function valBaselineCoord(
   subChartRcd: RectCoordsDims,
   orientation: Orientation,
+  valueClearanceStart: number,
 ): number {
-  return orientation === "horizontal" ? subChartRcd.x() : subChartRcd.bottomY();
+  return orientation === "horizontal"
+    ? subChartRcd.x() + valueClearanceStart
+    : subChartRcd.bottomY() - valueClearanceStart;
 }
 
 // Direction a positive value extends from the baseline.

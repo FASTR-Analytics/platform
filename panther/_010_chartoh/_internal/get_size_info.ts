@@ -20,7 +20,11 @@ export function getChartOHComponentSizes(
   inputs: ChartOHInputs,
   scale?: number,
 ): ChartComponentSizes {
-  const cs = new CustomFigureStyle(inputs.style, scale, inputs.autofitSurrounds);
+  const cs = new CustomFigureStyle(
+    inputs.style,
+    scale,
+    inputs.autofitSurrounds,
+  );
   const ms = cs.getMergedChartOHStyle();
   const data = getChartOHDataTransformed(
     inputs.chartOHData,

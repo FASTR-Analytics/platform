@@ -71,9 +71,7 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
           isGroupHeader: true,
           i_colGroup,
         },
-        backgroundColor: s.colGroupHeaderBackgroundColor as
-          | ColorKeyOrString
-          | "none",
+        backgroundColor: cghi.headerStyle.backgroundColor,
         mText: cghi.mText,
         textPosition,
         textAlignH: "center",
@@ -136,9 +134,7 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
           label: chi.mText?.lines.map((l) => l.text).join("") ?? "",
           isGroupHeader: false,
         },
-        backgroundColor: s.colHeaderBackgroundColor as
-          | ColorKeyOrString
-          | "none",
+        backgroundColor: chi.headerStyle.backgroundColor,
         mText: chi.mText,
         textPosition,
         textAlignH: "center",
@@ -188,6 +184,7 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
           label: rhi.label ?? "",
           isGroupHeader,
         },
+        backgroundColor: rhi.headerStyle.backgroundColor,
         mText: rhi.mText,
         textPosition: new Coordinates([
           m.rowHeadersInnerX + s.rowHeaderPadding.pl() + indent,

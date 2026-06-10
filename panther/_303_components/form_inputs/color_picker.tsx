@@ -227,7 +227,10 @@ export const COLOR_SETS: Record<ColorSetName, string[]> = {
     "#a69280",
     "#6d5c50",
   ],
-  slideBackgrounds: SLIDE_BACKGROUND_COLORS.flat().concat(["#ffffff", "#000000"]),
+  slideBackgrounds: SLIDE_BACKGROUND_COLORS.flat().concat([
+    "#ffffff",
+    "#000000",
+  ]),
 };
 
 export type ColorPickerProps = {
@@ -259,7 +262,6 @@ function normalizeHex(hex: string): string {
   }
   return h.toLowerCase();
 }
-
 
 function ColorSwatch(props: {
   color: string;
@@ -321,7 +323,8 @@ export function ColorPicker(props: ColorPickerProps) {
   };
 
   const isTailwind = () => props.colorSet === "tailwind" && !props.colors;
-  const isSlideBackgrounds = () => props.colorSet === "slideBackgrounds" && !props.colors;
+  const isSlideBackgrounds = () =>
+    props.colorSet === "slideBackgrounds" && !props.colors;
   const colors = () => props.colors ?? COLOR_SETS[props.colorSet ?? "standard"];
   const position = () => props.position ?? "bottom-start";
   const padClass = () => (props.size === "sm" ? "ui-form-pad-sm" : "p-1.5");
@@ -385,7 +388,9 @@ export function ColorPicker(props: ColorPickerProps) {
             }
           >
             <div class="flex gap-0.5">
-              <For each={isTailwind() ? TAILWIND_COLORS : SLIDE_BACKGROUND_COLORS}>
+              <For
+                each={isTailwind() ? TAILWIND_COLORS : SLIDE_BACKGROUND_COLORS}
+              >
                 {(col) => (
                   <div class="flex flex-col gap-0.5">
                     <For each={col}>

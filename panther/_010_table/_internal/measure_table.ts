@@ -131,7 +131,37 @@ export function measureTable(
       allColIndices.push(col.index);
     }
   }
-  const columnMinMax = computeColumnMinMax(d.aoa, nRows, allColIndices);
+  // Rows listed in liveDomainExcludeIds (e.g. a total/roll-up row) do not
+  // participate in the per-column live min/max fed to cell style funcs. The
+  // excluded id can sit on the row itself OR on its row GROUP (when the
+  // excluded dimension is displayed as row groups, every row in the group is
+  // the excluded dimension's data).
+  const excludedRowIndices = new Set<number>();
+  if (d.liveDomainExcludeIds?.length) {
+    const excludeIds = d.liveDomainExcludeIds;
+    for (const rhi of rowHeaderInfos) {
+      if (
+        typeof rhi.index === "number" &&
+        rhi.id !== undefined &&
+        excludeIds.includes(rhi.id)
+      ) {
+        excludedRowIndices.add(rhi.index);
+      }
+    }
+    for (const rowGroup of d.rowGroups) {
+      if (rowGroup.id !== undefined && excludeIds.includes(rowGroup.id)) {
+        for (const row of rowGroup.rows) {
+          excludedRowIndices.add(row.index);
+        }
+      }
+    }
+  }
+  const columnMinMax = computeColumnMinMax(
+    d.aoa,
+    nRows,
+    allColIndices,
+    excludedRowIndices,
+  );
 
   // Measure all cell content for each row and compute row heights
   const measuredRows: MeasuredRowInfo[] = rowHeaderInfos.map((rhi) => {
@@ -277,6 +307,7 @@ function computeColumnMinMax(
   aoa: (string | number)[][],
   nRows: number,
   colIndices: number[],
+  excludedRowIndices: Set<number>,
 ): Map<number, { min: number; max: number }> {
   const result = new Map<number, { min: number; max: number }>();
   for (const colIdx of colIndices) {
@@ -284,6 +315,9 @@ function computeColumnMinMax(
     let max = 0;
     let hasNumeric = false;
     for (let r = 0; r < nRows; r++) {
+      if (excludedRowIndices.has(r)) {
+        continue;
+      }
       const val = aoa[r][colIdx];
       const num = Number(val);
       if (!isNaN(num)) {

@@ -43,8 +43,8 @@ function measureHeaderHeight(
   inputs: HeaderFooterInputs,
   s: MergedFreeformStyle,
 ): number {
-  const hasText =
-    inputs.header?.trim() || inputs.subHeader?.trim() || inputs.date?.trim();
+  const hasText = inputs.header?.trim() || inputs.subHeader?.trim() ||
+    inputs.date?.trim();
   const hasLogos = inputs.headerLogos && inputs.headerLogos.length > 0;
 
   if (!hasText && !hasLogos) {
@@ -56,11 +56,11 @@ function measureHeaderHeight(
 
   const logosDims = hasLogos
     ? measureLogos(new RectCoordsDims([0, 0, 10000, 10000]), {
-        images: inputs.headerLogos!,
-        style: s.header.logosSizing,
-        alignH: "left",
-        alignV: "top",
-      })
+      images: inputs.headerLogos!,
+      style: s.header.logosSizing,
+      alignH: "left",
+      alignV: "top",
+    })
     : undefined;
   const logosWidth = logosDims?.totalWidth ?? 0;
   const logosHeight = logosDims?.totalHeight ?? 0;

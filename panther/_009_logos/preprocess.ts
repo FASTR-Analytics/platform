@@ -15,9 +15,9 @@ export type LogoPreprocessOptions = {
   whiteToTransparent?:
     | boolean
     | {
-        // 0-255, pixels with R/G/B all above this become transparent (default: 250)
-        threshold?: number;
-      };
+      // 0-255, pixels with R/G/B all above this become transparent (default: 250)
+      threshold?: number;
+    };
 };
 
 // Implementation notes:

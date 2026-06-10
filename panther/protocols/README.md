@@ -35,29 +35,29 @@ Protocols are permanent, prescriptive documents about how to build apps.
 
 Each protocol declares its scope:
 
-| Scope | Synced to | Applies when |
-|-------|-----------|--------------|
-| **UI** | `mode: "ui"` or `mode: "both"` | Building SolidJS frontends |
-| **Deno** | `mode: "deno"` or `mode: "both"` | Building Deno servers/scripts |
-| **All** | All modes | Universal conventions (TypeScript, structure, sizing, translation) |
+| Scope    | Synced to                        | Applies when                                                       |
+| -------- | -------------------------------- | ------------------------------------------------------------------ |
+| **UI**   | `mode: "ui"` or `mode: "both"`   | Building SolidJS frontends                                         |
+| **Deno** | `mode: "deno"` or `mode: "both"` | Building Deno servers/scripts                                      |
+| **All**  | All modes                        | Universal conventions (TypeScript, structure, sizing, translation) |
 
 Scope is declared in the protocol header and determines which consumer apps
 receive it during sync.
 
 ## Protocol List
 
-| Protocol | Scope | Content |
-|----------|-------|---------|
-| `PROTOCOL_ALL_TYPESCRIPT.md` | All | Coding conventions, function style, types, error handling |
-| `PROTOCOL_ALL_STRUCTURE.md` | All | File organization, imports, panther integration |
-| `PROTOCOL_ALL_SIZING.md` | All | Figure/page sizing: DUs, resolution, shrink-to-fit |
-| `PROTOCOL_ALL_TRANSLATION.md` | All | TranslatableString, t3/resolveTS, language handling |
-| `PROTOCOL_UI_SOLIDJS.md` | UI | Reactivity rules, component declaration, control flow |
-| `PROTOCOL_UI_STATE.md` | UI | timQuery, timAction*, StateHolderWrapper patterns |
-| `PROTOCOL_UI_STYLING.md` | UI | Tailwind theme, semantic colors, ui-* utilities |
-| `PROTOCOL_UI_COMPONENTS.md` | UI | Using the panther component library |
-| `PROTOCOL_UI_STRUCTURE.md` | UI | Client file organization: components mirror UI, `_shared/`, co-location |
-| `PROTOCOL_DENO_API.md` | Deno | Hono patterns, route structure, validation |
+| Protocol                      | Scope | Content                                                                 |
+| ----------------------------- | ----- | ----------------------------------------------------------------------- |
+| `PROTOCOL_ALL_TYPESCRIPT.md`  | All   | Coding conventions, function style, types, error handling               |
+| `PROTOCOL_ALL_STRUCTURE.md`   | All   | File organization, imports, panther integration                         |
+| `PROTOCOL_ALL_SIZING.md`      | All   | Figure/page sizing: DUs, resolution, shrink-to-fit                      |
+| `PROTOCOL_ALL_TRANSLATION.md` | All   | TranslatableString, t3/resolveTS, language handling                     |
+| `PROTOCOL_UI_SOLIDJS.md`      | UI    | Reactivity rules, component declaration, control flow                   |
+| `PROTOCOL_UI_STATE.md`        | UI    | timQuery, timAction*, StateHolderWrapper patterns                       |
+| `PROTOCOL_UI_STYLING.md`      | UI    | Tailwind theme, semantic colors, ui-* utilities                         |
+| `PROTOCOL_UI_COMPONENTS.md`   | UI    | Using the panther component library                                     |
+| `PROTOCOL_UI_STRUCTURE.md`    | UI    | Client file organization: components mirror UI, `_shared/`, co-location |
+| `PROTOCOL_DENO_API.md`        | Deno  | Hono patterns, route structure, validation                              |
 
 ## Protocol Structure
 
@@ -82,13 +82,9 @@ Explicit code examples showing right and wrong. Grouped by topic.
 
 ### [Topic]
 
-\`\`\`tsx
-// ❌ DON'T
-[bad code example]
+\`\`\`tsx // ❌ DON'T [bad code example]
 
-// ✅ DO
-[good code example]
-\`\`\`
+// ✅ DO [good code example] \`\`\`
 
 **Why:** [one sentence explaining the rationale]
 
@@ -102,8 +98,8 @@ Canonical implementations for common scenarios. More detailed than Do/Don't.
 
 ## Checklist
 
-Machine-readable items for auditing. Each item should be verifiable by
-grep/AST analysis or manual review.
+Machine-readable items for auditing. Each item should be verifiable by grep/AST
+analysis or manual review.
 
 - [ ] [Auditable statement]
 - [ ] [Auditable statement]
@@ -125,11 +121,10 @@ Protocols are laws, not suggestions. Use "always", "never", "must" — not
 "consider", "prefer", "try to".
 
 ```markdown
-// Good
-**Never use createResource** — triggers Suspense, causes full-page reloads
+// Good **Never use createResource** — triggers Suspense, causes full-page
+reloads
 
-// Bad
-Consider avoiding createResource when possible
+// Bad Consider avoiding createResource when possible
 ```
 
 ### Rules First, Explanation Second
@@ -179,8 +174,8 @@ code. The authoritative per-mode list is the `@protocol` comments in
 
 ## Consumer App Integration
 
-After protocols exist, consumer app CLAUDE.md files should reference them
-rather than duplicating rules:
+After protocols exist, consumer app CLAUDE.md files should reference them rather
+than duplicating rules:
 
 ```markdown
 # My App
@@ -189,7 +184,8 @@ rather than duplicating rules:
 
 This project follows panther protocols. See `panther/protocols/`:
 
-- PROTOCOL_ALL_*.md — Universal conventions (TypeScript, structure, sizing, translation)
+- PROTOCOL_ALL_*.md — Universal conventions (TypeScript, structure, sizing,
+  translation)
 - PROTOCOL_UI_*.md — Frontend: SolidJS, state, styling, components
 
 ## App-Specific
@@ -201,13 +197,13 @@ This eliminates duplication and ensures a single source of truth.
 
 ## Relationship to Existing Docs
 
-| Document | Location | Purpose | Protocols replace? |
-|----------|----------|---------|-------------------|
+| Document                    | Location     | Purpose                      | Protocols replace?                         |
+| --------------------------- | ------------ | ---------------------------- | ------------------------------------------ |
 | `DOC_CODING_CONVENTIONS.md` | panther root | TypeScript style (long-form) | Summarized by `PROTOCOL_ALL_TYPESCRIPT.md` |
-| `FRONTEND_STYLE_GUIDE.md` | (removed) | SolidJS patterns | Replaced by `PROTOCOL_UI_*` |
-| `DOC_*.md` (panther) | panther root | Library internals | No — different purpose |
-| `DOC_*.md` (apps) | app roots | App-specific systems | No — app-specific |
-| `CLAUDE.md` (apps) | app roots | Architecture + conventions | Partially — remove duplicated rules |
+| `FRONTEND_STYLE_GUIDE.md`   | (removed)    | SolidJS patterns             | Replaced by `PROTOCOL_UI_*`                |
+| `DOC_*.md` (panther)        | panther root | Library internals            | No — different purpose                     |
+| `DOC_*.md` (apps)           | app roots    | App-specific systems         | No — app-specific                          |
+| `CLAUDE.md` (apps)          | app roots    | Architecture + conventions   | Partially — remove duplicated rules        |
 
 ## Future: Audit Tool
 

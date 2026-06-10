@@ -33,8 +33,10 @@ import {
   valExtendDir,
 } from "./orientation_helpers.ts";
 
-const _PROP_INDICATOR = 0.8;
-const _PROP_SERIES = 0.9;
+// Shared with measure_data_label_clearance.ts, which mirrors bar thickness
+// to reproduce data-label wrap widths at measure time.
+export const BAR_PROP_INDICATOR = 0.8;
+export const BAR_PROP_SERIES = 0.9;
 
 export function generateBarPrimitives(
   mapped: MappedValueCoordinate[][],
@@ -50,7 +52,11 @@ export function generateBarPrimitives(
   //
   // Bars whose baseline edge rests against the zero line are extended past
   // that line by `baselineFudge` so the grid line doesn't show through.
-  const valBaseline = valBaselineCoord(ctx.subChartRcd, orientation);
+  const valBaseline = valBaselineCoord(
+    ctx.subChartRcd,
+    orientation,
+    ctx.valueClearance.start,
+  );
   const extendDir = valExtendDir(orientation);
   const baselineFudge = -extendDir * (ctx.gridStrokeWidth / 2);
 
@@ -73,7 +79,7 @@ export function generateBarPrimitives(
 
       // Indicator slot — category-axis region for this i_val, centered on
       // the mapped category coordinate.
-      const indicatorSlotThickness = ctx.categoryIncrement * _PROP_INDICATOR;
+      const indicatorSlotThickness = ctx.categoryIncrement * BAR_PROP_INDICATOR;
       const indicatorSlotStart = catCoord(mappedVal.coords, orientation) -
         indicatorSlotThickness / 2;
 
@@ -88,7 +94,7 @@ export function generateBarPrimitives(
 
       if (s.bars.stacking === "stacked") {
         const seriesThickness = Math.min(
-          indicatorSlotThickness * _PROP_SERIES,
+          indicatorSlotThickness * BAR_PROP_SERIES,
           s.bars.maxBarWidth,
         );
         const seriesStart = indicatorSlotStart +
@@ -133,7 +139,7 @@ export function generateBarPrimitives(
         positionInStack = i_series;
       } else if (s.bars.stacking === "imposed") {
         const seriesThickness = Math.min(
-          indicatorSlotThickness * _PROP_SERIES,
+          indicatorSlotThickness * BAR_PROP_SERIES,
           s.bars.maxBarWidth,
         );
         const seriesStart = indicatorSlotStart +
@@ -163,7 +169,7 @@ export function generateBarPrimitives(
         positionInStack = i_series;
       } else if (s.bars.stacking === "diff") {
         const seriesThickness = Math.min(
-          indicatorSlotThickness * _PROP_SERIES,
+          indicatorSlotThickness * BAR_PROP_SERIES,
           s.bars.maxBarWidth,
         );
         const seriesStart = indicatorSlotStart +
@@ -213,7 +219,7 @@ export function generateBarPrimitives(
         const seriesOuterStart = indicatorSlotStart +
           seriesOuterAreaThickness * i_series;
         const seriesThickness = Math.min(
-          seriesOuterAreaThickness * _PROP_SERIES,
+          seriesOuterAreaThickness * BAR_PROP_SERIES,
           s.bars.maxBarWidth,
         );
         const seriesStart = seriesOuterStart +

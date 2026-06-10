@@ -558,6 +558,7 @@ export type TableRowHeaderPrimitive = BasePrimitive & {
     label: string;
     isGroupHeader: boolean;
   };
+  backgroundColor: ColorKeyOrString | "none";
   mText: MeasuredText;
   textPosition: Coordinates;
   textAlignH: "left" | "center" | "right";

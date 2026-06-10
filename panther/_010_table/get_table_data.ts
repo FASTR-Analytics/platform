@@ -115,6 +115,7 @@ function getTableDataJsonTransformed(
     colGroups,
     rowGroups,
     aoa: aoaWithMissing,
+    liveDomainExcludeIds: jsonDataConfig.liveDomainExcludeIds,
   };
 }
 

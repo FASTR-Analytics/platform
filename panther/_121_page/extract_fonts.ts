@@ -6,10 +6,15 @@
 import {
   CustomPageStyle,
   FigureRenderer,
-  MarkdownRenderer,
   type LayoutNode,
+  MarkdownRenderer,
 } from "./deps.ts";
-import { CustomFigureStyle, CustomMarkdownStyle, deduplicateFonts, type FontInfo } from "./deps.ts";
+import {
+  CustomFigureStyle,
+  CustomMarkdownStyle,
+  deduplicateFonts,
+  type FontInfo,
+} from "./deps.ts";
 import type { PageContentItem, PageInputs } from "./types.ts";
 
 const fontCache = new WeakMap<PageInputs, FontInfo[]>();
@@ -43,10 +48,14 @@ function walkLayoutForFonts(
 ): void {
   if (node.type === "item" && node.data) {
     if (MarkdownRenderer.isType(node.data) && node.data.style) {
-      fonts.push(...new CustomMarkdownStyle(node.data.style).getFontsToRegister());
+      fonts.push(
+        ...new CustomMarkdownStyle(node.data.style).getFontsToRegister(),
+      );
     }
     if (FigureRenderer.isType(node.data) && node.data.style) {
-      fonts.push(...new CustomFigureStyle(node.data.style).getFontsToRegister());
+      fonts.push(
+        ...new CustomFigureStyle(node.data.style).getFontsToRegister(),
+      );
     }
   }
   if ("children" in node && node.children) {

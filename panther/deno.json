@@ -1,6 +1,9 @@
 {
   "name": "@timroberton/panther",
   "exports": "./mod.deno.ts",
+  "fmt": {
+    "exclude": ["**/*.css", "_001_font/generated/"]
+  },
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "solid-js",

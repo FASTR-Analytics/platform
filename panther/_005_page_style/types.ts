@@ -35,7 +35,6 @@ export type LogosPlacement = {
   gap: number;
 };
 
-
 export type PageNumberBackground = "none" | "triangle" | "circle" | "rect";
 
 export type LogosSizingOptions = {

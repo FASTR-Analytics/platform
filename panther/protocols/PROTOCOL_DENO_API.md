@@ -5,7 +5,8 @@
 ## Rules
 
 1. **Validate at boundaries** — Validate external input, trust internal code
-2. **Consistent response shapes** — `{ success: true, data }` or `{ success: false, err }`
+2. **Consistent response shapes** — `{ success: true, data }` or
+   `{ success: false, err }`
 3. **Early return on error** — Check permissions/validation first
 4. **Descriptive error messages** — Include context for debugging
 5. **Let errors propagate** — Don't catch and return error strings
@@ -40,7 +41,7 @@ export async function handleGetItem(c: Context): Promise<Response> {
 
   const { id } = c.req.param();
   const item = await db.getItem(id);
-  
+
   if (!item) {
     return c.json({ success: false, err: "Item not found" });
   }
@@ -60,7 +61,7 @@ const schema = z.object({
 export async function handleCreate(c: Context): Promise<Response> {
   const body = await c.req.json();
   const parsed = schema.safeParse(body);
-  
+
   if (!parsed.success) {
     return c.json({ success: false, err: parsed.error.message });
   }
@@ -97,8 +98,8 @@ const toolSchema = storageSchema.shape.config
 
 // ❌ DON'T — create "slightly different" schemas
 const toolSchema = z.object({
-  col: z.string(),  // renamed from "column"
-  vals: z.array(),  // renamed from "values"
+  col: z.string(), // renamed from "column"
+  vals: z.array(), // renamed from "values"
 });
 ```
 

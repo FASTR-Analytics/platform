@@ -26,7 +26,9 @@ export function renderPage(
   if (measured.splitImageBounds && measured.splitBackground) {
     const bg = measured.splitBackground;
     if (isPatternConfig(bg)) {
-      rc.rRect(measured.splitImageBounds, { fillColor: getColor(bg.baseColor) });
+      rc.rRect(measured.splitImageBounds, {
+        fillColor: getColor(bg.baseColor),
+      });
       renderPattern(rc, measured.splitImageBounds, bg);
     } else {
       rc.rRect(measured.splitImageBounds, { fillColor: getColor(bg) });
@@ -94,7 +96,15 @@ function renderPageNumberOverlay(
   const textY = fpb.bottomY() - pad.pb();
 
   if (pageNumberStyle.background !== "none") {
-    renderPageNumberBackground(rc, pageNumberStyle, mText, x, textY, alignH, fpb);
+    renderPageNumberBackground(
+      rc,
+      pageNumberStyle,
+      mText,
+      x,
+      textY,
+      alignH,
+      fpb,
+    );
   }
 
   rc.rText(mText, [x, textY], alignH, "bottom");

@@ -23,7 +23,8 @@ import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 import type { XPeriodAxisMeasuredInfo } from "./x_period/types.ts";
 import type { XScaleAxisHeightInfo } from "./x_scale/types.ts";
 import type { YTextAxisWidthInfo } from "./y_text/types.ts";
-import type { YScaleAxisWidthInfo } from "../types.ts";
+import type { OverhangClearance, YScaleAxisWidthInfo } from "../types.ts";
+import { getScaleAxisTickPositions } from "./scale_tick_positions.ts";
 import {
   getLargePeriodLabel,
   getSmallPeriodLabelIfAny,
@@ -31,6 +32,38 @@ import {
   isLargePeriod,
   shouldShowYearBoundary,
 } from "./x_period/helpers.ts";
+
+// Tick label alignment for scale axes. "center" centers every label on its
+// tick; "inset" pulls the first/last labels inward so they stay within the
+// plot extent without any overhang clearance.
+function getScaleTickLabelAlignment(
+  i_tick: number,
+  nTicks: number,
+  mode: "center" | "inset",
+  axis: "x" | "y",
+): { h: "left" | "center" | "right"; v: "top" | "middle" | "bottom" } {
+  if (mode === "center" || nTicks <= 1) {
+    return axis === "x"
+      ? { h: "center", v: "top" }
+      : { h: "right", v: "middle" };
+  }
+  if (axis === "x") {
+    if (i_tick === 0) {
+      return { h: "left", v: "top" };
+    }
+    if (i_tick === nTicks - 1) {
+      return { h: "right", v: "top" };
+    }
+    return { h: "center", v: "top" };
+  }
+  if (i_tick === 0) {
+    return { h: "right", v: "bottom" };
+  }
+  if (i_tick === nTicks - 1) {
+    return { h: "right", v: "top" };
+  }
+  return { h: "right", v: "middle" };
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -406,6 +439,7 @@ export function generateYScaleAxisPrimitive(
   yAxisRcd: RectCoordsDims,
   subChartAreaY: number,
   subChartAreaHeight: number,
+  clearance: OverhangClearance,
   axisLabelText: string | undefined,
   sy: MergedYScaleAxisStyle,
   sg: MergedGridStyle,
@@ -414,31 +448,32 @@ export function generateYScaleAxisPrimitive(
   const axisX = yAxisRcd.rightX() - sg.axisStrokeWidth / 2;
   const ticks: ChartAxisPrimitive["ticks"] = [];
 
-  // Generate ticks
-  const tickIncrement = subChartAreaHeight /
-    (my.yAxisTickValues[i_tier].length - 1);
-  let currentY = subChartAreaY;
+  const tickValues = my.yAxisTickValues[i_tier];
+  const tickPositions = getScaleAxisTickPositions(
+    subChartAreaY,
+    subChartAreaHeight,
+    tickValues.length,
+    clearance,
+    "y",
+  );
 
   // This goes down (from top to bottom, which is high values to low values)
-  for (
-    let i_tick = my.yAxisTickValues[i_tier].length - 1;
-    i_tick >= 0;
-    i_tick--
-  ) {
-    const tickVal = my.yAxisTickValues[i_tier][i_tick];
+  for (let i_tick = tickValues.length - 1; i_tick >= 0; i_tick--) {
+    const tickVal = tickValues[i_tick];
+    const tickY = tickPositions[i_tick];
     const tickLabel = my.tickLabelFormatter(tickVal);
     const mTickLabel = rc.mText(tickLabel, sy.text.yScaleAxisTickLabels, 9999);
 
     ticks.push({
-      position: new Coordinates([axisX, currentY]),
+      position: new Coordinates([axisX, tickY]),
       tickLine: {
         start: new Coordinates([
           yAxisRcd.rightX() - (sg.axisStrokeWidth + sy.tickWidth),
-          currentY,
+          tickY,
         ]),
         end: new Coordinates([
           yAxisRcd.rightX() - sg.axisStrokeWidth,
-          currentY,
+          tickY,
         ]),
       },
       label: {
@@ -446,14 +481,17 @@ export function generateYScaleAxisPrimitive(
         position: new Coordinates([
           yAxisRcd.rightX() -
           (sg.axisStrokeWidth + sy.tickWidth + sy.tickLabelGap),
-          currentY,
+          tickY,
         ]),
-        alignment: { h: "right", v: "middle" },
+        alignment: getScaleTickLabelAlignment(
+          i_tick,
+          tickValues.length,
+          sy.tickLabelAlignment,
+          "y",
+        ),
       },
       value: tickVal,
     });
-
-    currentY += tickIncrement;
   }
 
   // Axis line (vertical line for y-axis)
@@ -527,6 +565,7 @@ export function generateXScaleAxisPrimitive(
   xAxisRcd: RectCoordsDims,
   subChartAreaX: number,
   subChartAreaWidth: number,
+  clearance: OverhangClearance,
   axisLabelText: string | undefined,
   sx: MergedXScaleAxisStyle,
   sg: MergedGridStyle,
@@ -535,38 +574,47 @@ export function generateXScaleAxisPrimitive(
   const ticks: ChartAxisPrimitive["ticks"] = [];
 
   const tickValues = xScaleHeightInfo.xAxisTickValues[i_lane];
-  const tickIncrement = subChartAreaWidth / (tickValues.length - 1);
-  let currentX = subChartAreaX;
+  const tickPositions = getScaleAxisTickPositions(
+    subChartAreaX,
+    subChartAreaWidth,
+    tickValues.length,
+    clearance,
+    "x",
+  );
 
   for (let i_tick = 0; i_tick < tickValues.length; i_tick++) {
     const tickVal = tickValues[i_tick];
+    const tickX = tickPositions[i_tick];
     const tickLabel = xScaleHeightInfo.tickLabelFormatter(tickVal);
     const mTickLabel = rc.mText(tickLabel, sx.text.xScaleAxisTickLabels, 9999);
 
     ticks.push({
-      position: new Coordinates([currentX, axisY]),
+      position: new Coordinates([tickX, axisY]),
       tickLine: {
         start: new Coordinates([
-          currentX,
+          tickX,
           xAxisRcd.y() + sg.axisStrokeWidth,
         ]),
         end: new Coordinates([
-          currentX,
+          tickX,
           xAxisRcd.y() + sg.axisStrokeWidth + sx.tickHeight,
         ]),
       },
       label: {
         mText: mTickLabel,
         position: new Coordinates([
-          currentX,
+          tickX,
           xAxisRcd.y() + sg.axisStrokeWidth + sx.tickHeight + sx.tickLabelGap,
         ]),
-        alignment: { h: "center", v: "top" },
+        alignment: getScaleTickLabelAlignment(
+          i_tick,
+          tickValues.length,
+          sx.tickLabelAlignment,
+          "x",
+        ),
       },
       value: tickVal,
     });
-
-    currentX += tickIncrement;
   }
 
   // Axis line (horizontal at top of xAxisRcd)

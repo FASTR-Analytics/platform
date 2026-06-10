@@ -3,7 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 import {
   buildSeriesInfo,
   buildValueInfo,
@@ -13,7 +12,7 @@ import {
 } from "./content_generation_types.ts";
 
 export function resolveDataLabelOwnership(
-  mapped: MappedValueCoordinate[][],
+  seriesVals: (number | undefined)[][],
   ctx: ContentGenerationContext,
 ): DataLabelOwnershipMap {
   const s = ctx.contentStyle;
@@ -22,16 +21,16 @@ export function resolveDataLabelOwnership(
   for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
     const row: DataLabelOwner[] = [];
     for (let i_val = 0; i_val < ctx.nVals; i_val++) {
-      const mappedVal = mapped[i_series][i_val];
-      if (mappedVal === undefined) {
+      const val = seriesVals[i_series][i_val];
+      if (val === undefined) {
         row.push("none");
         continue;
       }
 
-      const seriesInfo = buildSeriesInfo(ctx, i_series, mapped);
+      const seriesInfo = buildSeriesInfo(ctx, i_series, seriesVals);
       const valueInfo = buildValueInfo(
         seriesInfo,
-        mappedVal.val,
+        val,
         i_val,
         ctx.valueRange.minVal,
         ctx.valueRange.maxVal,

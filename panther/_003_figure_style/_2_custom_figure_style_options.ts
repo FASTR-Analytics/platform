@@ -16,6 +16,7 @@ import {
   type MapRegionInfoFunc,
   type PaddingOptions,
   type TableCellInfoFunc,
+  type TableHeaderInfoFunc,
   type TickLabelFormatterOption,
   type ValuesColorFunc,
 } from "./deps.ts";
@@ -32,6 +33,7 @@ import type {
   GenericMapRegionStyleOptions,
   GenericPointStyleOptions,
   GenericTableCellStyleOptions,
+  GenericTableHeaderStyleOptions,
 } from "./style_func_types.ts";
 import type { FigureTextStyleOptions } from "./text_style_keys.ts";
 import type { LegendPosition } from "./types.ts";
@@ -185,6 +187,7 @@ export type CustomFigureStyleOptions = {
     tickHeight?: number;
     tickLabelGap?: number;
     tickLabelFormatter?: TickLabelFormatterOption;
+    tickLabelAlignment?: "center" | "inset";
     forceRightOverhangWidth?: "none" | number;
     allowIndividualLaneLimits?: boolean;
     exactAxisY?: "none" | number;
@@ -234,6 +237,7 @@ export type CustomFigureStyleOptions = {
     tickWidth?: number;
     tickLabelGap?: number;
     tickLabelFormatter?: TickLabelFormatterOption;
+    tickLabelAlignment?: "center" | "inset";
     forceTopOverhangHeight?: "none" | number;
     exactAxisX?: "none" | number;
     allowIndividualTierLimits?: boolean;
@@ -330,6 +334,18 @@ export type CustomFigureStyleOptions = {
         | TableCellInfoFunc<GenericTableCellStyleOptions>
         | "none";
       textFormatter?: TableCellInfoFunc<string> | "none";
+    };
+    tableRowHeaders?: {
+      func?:
+        | GenericTableHeaderStyleOptions
+        | TableHeaderInfoFunc<GenericTableHeaderStyleOptions>
+        | "none";
+    };
+    tableColHeaders?: {
+      func?:
+        | GenericTableHeaderStyleOptions
+        | TableHeaderInfoFunc<GenericTableHeaderStyleOptions>
+        | "none";
     };
   };
   ////////////////////////////////////////

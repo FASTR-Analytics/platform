@@ -420,11 +420,15 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   );
 
   const resetWidths = () => {
-    const currentContainerWidth =
-      containerWidth() || containerRef?.offsetWidth || 1;
+    const currentContainerWidth = containerWidth() ||
+      containerRef?.offsetWidth || 1;
 
     const newLeftWidth = clamp(p.startingWidths[0], minWidths[0], maxWidths[0]);
-    const newRightWidth = clamp(p.startingWidths[1], minWidths[1], maxWidths[1]);
+    const newRightWidth = clamp(
+      p.startingWidths[1],
+      minWidths[1],
+      maxWidths[1],
+    );
 
     setLeftWidth(newLeftWidth);
     setRightWidth(newRightWidth);

@@ -81,10 +81,12 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
     if (!column.sortable) return;
 
     const prev = sortConfig();
-    const newConfig: SortConfig =
-      prev?.key === column.key
-        ? { key: column.key, direction: prev.direction === "asc" ? "desc" : "asc" }
-        : { key: column.key, direction: "asc" };
+    const newConfig: SortConfig = prev?.key === column.key
+      ? {
+        key: column.key,
+        direction: prev.direction === "asc" ? "desc" : "asc",
+      }
+      : { key: column.key, direction: "asc" };
 
     setSortConfig(newConfig);
     p.onSortChange?.(newConfig);

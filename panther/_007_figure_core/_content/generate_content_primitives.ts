@@ -19,7 +19,7 @@ import { generateConnectorPrimitives } from "./generate_connector_primitives.ts"
 import { generateLinePrimitives } from "./generate_line_primitives.ts";
 import { generatePointPrimitives } from "./generate_point_primitives.ts";
 import { resolveDataLabelOwnership } from "./resolve_data_label_ownership.ts";
-import type { ValueRange } from "../types.ts";
+import type { OverhangClearance, ValueRange } from "../types.ts";
 
 export type ContentPrimitiveGenerationParams = {
   rc: RenderContext;
@@ -39,6 +39,7 @@ export type ContentPrimitiveGenerationParams = {
   };
   seriesVals: (number | undefined)[][];
   valueRange: ValueRange;
+  valueClearance: OverhangClearance;
   isCentered: boolean;
   categoryIncrement: number;
   gridStrokeWidth: number;
@@ -63,6 +64,7 @@ export function generateContentPrimitives(
     subChartInfo,
     seriesVals,
     valueRange,
+    valueClearance,
     isCentered,
     categoryIncrement,
     gridStrokeWidth,
@@ -79,6 +81,7 @@ export function generateContentPrimitives(
     isCentered,
     gridStrokeWidth,
     valueRange,
+    valueClearance,
     orientation,
   );
 
@@ -92,6 +95,7 @@ export function generateContentPrimitives(
       isCentered,
       gridStrokeWidth,
       valueRange,
+      valueClearance,
       orientation,
     )
     : undefined;
@@ -104,6 +108,7 @@ export function generateContentPrimitives(
       isCentered,
       gridStrokeWidth,
       valueRange,
+      valueClearance,
       orientation,
     )
     : undefined;
@@ -122,11 +127,12 @@ export function generateContentPrimitives(
     contentStyle: s,
     dataLabelsTextStyle: params.dataLabelsTextStyle,
     valueRange,
+    valueClearance,
     mappedBoundsUb,
     mappedBoundsLb,
   };
 
-  const labelOwner = resolveDataLabelOwnership(mapped, ctx);
+  const labelOwner = resolveDataLabelOwnership(seriesVals, ctx);
 
   return [
     ...generatePointPrimitives(mapped, labelOwner, ctx),

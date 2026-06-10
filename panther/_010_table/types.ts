@@ -18,6 +18,7 @@ import type {
   RectCoordsDims,
   TableCellInfo,
   TableCellStyle,
+  TableHeaderStyle,
 } from "./deps.ts";
 
 export type TableInputs = FigureInputsBase & {
@@ -70,6 +71,10 @@ export type TableJsonDataConfig = {
     rowGroup?: HeaderSortConfig;
     row?: HeaderSortConfig;
   };
+  // Rows with these raw header ids are excluded from the per-column live
+  // min/max passed to cell style funcs (e.g. so a total/roll-up row does not
+  // stretch auto color-scale domains).
+  liveDomainExcludeIds?: string[];
 };
 
 ///////////////////////
@@ -83,6 +88,7 @@ export type TableDataTransformed = {
   colGroups: ColGroup[];
   rowGroups: RowGroup[];
   aoa: (string | number)[][];
+  liveDomainExcludeIds?: string[];
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -151,6 +157,7 @@ export type RowHeaderInfo = {
   id: string | undefined;
   label: string | undefined;
   index: number | "group-header";
+  headerStyle: TableHeaderStyle;
 };
 
 export type MeasuredCellInfo = {
@@ -168,11 +175,13 @@ export type MeasuredRowInfo = {
 export type ColGroupHeaderInfo = {
   mText: MeasuredText | undefined;
   colGroupInnerWidth: number;
+  headerStyle: TableHeaderStyle;
 };
 
 export type ColHeaderInfo = {
   mText: MeasuredText | undefined;
   index: number | undefined;
+  headerStyle: TableHeaderStyle;
 };
 
 export type TableMeasuredInfo = {

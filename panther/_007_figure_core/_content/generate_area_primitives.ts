@@ -22,18 +22,21 @@ function zeroLineMirrorCoords(
   subChartRcd: RectCoordsDims,
   gridStrokeWidth: number,
   orientation: "vertical" | "horizontal",
+  valueClearanceStart: number,
 ): Coordinates {
   if (orientation === "horizontal") {
-    // Horizontal: baseline is the left edge of the plot area.
+    // Horizontal: baseline is the valueMin grid line (left edge of the plot
+    // area plus the start-side overhang clearance).
     return new Coordinates([
-      subChartRcd.x() - gridStrokeWidth / 2,
+      subChartRcd.x() + valueClearanceStart - gridStrokeWidth / 2,
       valCoords.y(),
     ]);
   }
-  // Vertical: baseline is the bottom edge of the plot area.
+  // Vertical: baseline is the valueMin grid line (bottom edge of the plot
+  // area minus the start-side overhang clearance).
   return new Coordinates([
     valCoords.x(),
-    subChartRcd.bottomY() + gridStrokeWidth / 2,
+    subChartRcd.bottomY() - valueClearanceStart + gridStrokeWidth / 2,
   ]);
 }
 
@@ -109,6 +112,7 @@ export function generateAreaPrimitives(
             ctx.subChartRcd,
             ctx.gridStrokeWidth,
             ctx.orientation,
+            ctx.valueClearance.start,
           );
         } else if (areaStyle.to === "previous-series-or-zero") {
           const otherSeries = mapped[i_series - 1];
@@ -118,6 +122,7 @@ export function generateAreaPrimitives(
               ctx.subChartRcd,
               ctx.gridStrokeWidth,
               ctx.orientation,
+              ctx.valueClearance.start,
             );
           } else if (otherSeries[areaData.valueIndices[i_val]]) {
             mirrorCoords = otherSeries[areaData.valueIndices[i_val]]!.coords;

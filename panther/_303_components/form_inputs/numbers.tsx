@@ -86,15 +86,66 @@ export function NumberInput(p: NumberInputProps) {
 ////////////////////////////////////////////////////////////////////////////////
 
 const PERCENT_VALUES = [
-  0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45,
-  0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.96, 0.97, 0.98, 0.99,
+  0,
+  0.01,
+  0.02,
+  0.03,
+  0.04,
+  0.05,
+  0.1,
+  0.15,
+  0.2,
+  0.25,
+  0.3,
+  0.35,
+  0.4,
+  0.45,
+  0.5,
+  0.55,
+  0.6,
+  0.65,
+  0.7,
+  0.75,
+  0.8,
+  0.85,
+  0.9,
+  0.95,
+  0.96,
+  0.97,
+  0.98,
+  0.99,
   1,
 ];
 
 const NEGATIVE_PERCENT_VALUES = [
-  -1, -0.99, -0.98, -0.97, -0.96, -0.95, -0.9, -0.85, -0.8, -0.75, -0.7, -0.65,
-  -0.6, -0.55, -0.5, -0.45, -0.4, -0.35, -0.3, -0.25, -0.2, -0.15, -0.1, -0.05,
-  -0.04, -0.03, -0.02, -0.01,
+  -1,
+  -0.99,
+  -0.98,
+  -0.97,
+  -0.96,
+  -0.95,
+  -0.9,
+  -0.85,
+  -0.8,
+  -0.75,
+  -0.7,
+  -0.65,
+  -0.6,
+  -0.55,
+  -0.5,
+  -0.45,
+  -0.4,
+  -0.35,
+  -0.3,
+  -0.25,
+  -0.2,
+  -0.15,
+  -0.1,
+  -0.05,
+  -0.04,
+  -0.03,
+  -0.02,
+  -0.01,
 ];
 
 function toPct0(v: number): string {
@@ -126,7 +177,10 @@ type PercentSelectProps = {
 export function PercentSelect(p: PercentSelectProps) {
   const filteredOptions = () => {
     const baseValues = p.allowNegative
-      ? [...PERCENT_VALUES.slice().reverse(), ...NEGATIVE_PERCENT_VALUES.slice().reverse()]
+      ? [
+        ...PERCENT_VALUES.slice().reverse(),
+        ...NEGATIVE_PERCENT_VALUES.slice().reverse(),
+      ]
       : PERCENT_VALUES.slice().reverse();
     const min = p.min ?? (p.allowNegative ? -1 : 0);
     const max = p.max ?? 1;

@@ -19,9 +19,11 @@ For detailed explanations, see `DOC_CODING_CONVENTIONS.md`.
 11. **Static imports only** — Never use dynamic imports
 12. **Exports first** — Main/exported functions at top, helpers below
 13. **Async/await** — Never use Promise chains
-14. **No vestigial versioning** — Don't suffix the only/current version (`fooV2` with no `foo`). When superseding, migrate callers and delete the old
+14. **No vestigial versioning** — Don't suffix the only/current version (`fooV2`
+    with no `foo`). When superseding, migrate callers and delete the old
 15. **No dead code** — Delete unused and commented-out code; git is the history
-16. **No silent failures** — Never swallow with `.catch(() => {})`. Await it, or log if genuinely fire-and-forget
+16. **No silent failures** — Never swallow with `.catch(() => {})`. Await it, or
+    log if genuinely fire-and-forget
 
 ## Do / Don't
 
@@ -122,14 +124,14 @@ logUsage(data).catch((e) => console.error(`logUsage failed: ${e.message}`));
 
 ## Naming
 
-| Element | Convention | Example |
-|---------|------------|---------|
-| Files | snake_case | `measure_text.ts` |
-| Types | PascalCase | `MeasuredText` |
-| Functions | camelCase | `measureText` |
-| Constants | UPPER_SNAKE_CASE | `MAX_WIDTH` |
-| Private members | _prefix | `_value` |
-| Internal folders | _prefix | `_internal/` |
+| Element          | Convention       | Example           |
+| ---------------- | ---------------- | ----------------- |
+| Files            | snake_case       | `measure_text.ts` |
+| Types            | PascalCase       | `MeasuredText`    |
+| Functions        | camelCase        | `measureText`     |
+| Constants        | UPPER_SNAKE_CASE | `MAX_WIDTH`       |
+| Private members  | _prefix          | `_value`          |
+| Internal folders | _prefix          | `_internal/`      |
 
 ### Type Suffixes
 

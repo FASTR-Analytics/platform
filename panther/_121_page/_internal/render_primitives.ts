@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getColor, isPatternConfig, renderPattern, type RenderContext } from "../deps.ts";
+import {
+  getColor,
+  isPatternConfig,
+  type RenderContext,
+  renderPattern,
+} from "../deps.ts";
 import type { PagePrimitive } from "../types.ts";
 
 export function renderPagePrimitives(

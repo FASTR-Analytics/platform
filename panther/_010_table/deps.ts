@@ -31,11 +31,13 @@ export type {
   TableCellInfo,
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
+  TableHeaderInfo,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {
   MergedTableStyle,
   TableCellStyle,
+  TableHeaderStyle,
 } from "../_003_figure_style/mod.ts";
 export {
   computeFloorScale,

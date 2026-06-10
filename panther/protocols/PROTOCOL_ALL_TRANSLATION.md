@@ -2,9 +2,9 @@
 
 **Scope:** All
 
-Panther's translation primitives live in `_000_utils` and are used on both tiers:
-UI labels **and** server-rendered text (e.g. figure/period labels in Deno-built
-PDFs branch on `isFrench()`). For sentence case of UI strings see
+Panther's translation primitives live in `_000_utils` and are used on both
+tiers: UI labels **and** server-rendered text (e.g. figure/period labels in
+Deno-built PDFs branch on `isFrench()`). For sentence case of UI strings see
 `PROTOCOL_UI_STYLING.md`.
 
 ```typescript
@@ -28,10 +28,10 @@ resolveTS(ts, lang): string                       // resolve ts to an explicit l
    a chosen language).
 5. **Missing French falls back to English** — both `t3` and `resolveTS` return
    `ts.en` when `ts.fr` is empty. Rely on this; don't pre-check.
-6. **Locale formatting via `isFrench()`** — branch number/date/label *formatting*
-   on `isFrench()`; use `t3` for whole translatable strings.
-7. **Set language once at entry** — call `setLanguage()` at app start or before a
-   render pass. The language is a process-global singleton.
+6. **Locale formatting via `isFrench()`** — branch number/date/label
+   _formatting_ on `isFrench()`; use `t3` for whole translatable strings.
+7. **Set language once at entry** — call `setLanguage()` at app start or before
+   a render pass. The language is a process-global singleton.
 8. **One language per process** — you cannot resolve EN and FR concurrently from
    the global; to render both, flip `setLanguage()` between passes or use
    `resolveTS(ts, lang)` with explicit languages.
@@ -62,8 +62,8 @@ t3({ en: "Save", fr: "Enregistrer" });
 ```
 
 **Why:** Panther provides `t3` over `TranslatableString`. Some apps define their
-own `t("key")` over a translation table — that's an app convention, distinct from
-`t3`. Don't conflate them.
+own `t("key")` over a translation table — that's an app convention, distinct
+from `t3`. Don't conflate them.
 
 ### Explicit vs ambient language
 
@@ -110,4 +110,5 @@ const title = t3({ en: "Coverage by region", fr: "Couverture par région" });
 - [ ] Strings resolved via `t3` (ambient) or `resolveTS` (explicit language)
 - [ ] `t3` is called with `{ en, fr }`, never a bare string
 - [ ] `isFrench()` used only for formatting branches, not whole strings
-- [ ] `setLanguage()` called once at entry; no assumption of concurrent languages
+- [ ] `setLanguage()` called once at entry; no assumption of concurrent
+      languages

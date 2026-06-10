@@ -75,9 +75,9 @@ export function StepperLabeledBreadcrumb(p: StepperLabeledBreadcrumbProps) {
               class={classesFor(step)}
               disabled={p.stepper.getStepStatus(step) === "locked"}
               onClick={() => handleClick(step)}
-              aria-current={
-                p.stepper.currentStep() === step ? "step" : undefined
-              }
+              aria-current={p.stepper.currentStep() === step
+                ? "step"
+                : undefined}
             >
               {labelFor(step)}
             </button>

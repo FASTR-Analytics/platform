@@ -12,6 +12,7 @@ import type {
   RenderContext,
   TextInfoUnkeyed,
 } from "../deps.ts";
+import type { OverhangClearance } from "../types.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 
 export type ContentGenerationContext = {
@@ -40,6 +41,7 @@ export type ContentGenerationContext = {
   contentStyle: MergedContentStyle;
   dataLabelsTextStyle: TextInfoUnkeyed;
   valueRange: { minVal: number; maxVal: number };
+  valueClearance: OverhangClearance;
   mappedBoundsUb?: MappedValueCoordinate[][];
   mappedBoundsLb?: MappedValueCoordinate[][];
 };
@@ -50,7 +52,7 @@ export type DataLabelOwnershipMap = DataLabelOwner[][];
 export function buildSeriesInfo(
   ctx: ContentGenerationContext,
   i_series: number,
-  mappedSeriesCoordinates: MappedValueCoordinate[][],
+  seriesArrays: readonly unknown[][],
 ): ChartSeriesInfo {
   return {
     ...ctx.subChartInfo,
@@ -58,7 +60,7 @@ export function buildSeriesInfo(
     isFirstSeries: i_series === 0,
     isLastSeries: i_series === ctx.subChartInfo.nSerieses - 1,
     seriesHeader: ctx.seriesHeaders[i_series],
-    nVals: mappedSeriesCoordinates[i_series].length,
+    nVals: seriesArrays[i_series].length,
   };
 }
 

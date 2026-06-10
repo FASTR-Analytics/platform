@@ -19,7 +19,11 @@ export function getTimeseriesComponentSizes(
   inputs: TimeseriesInputs,
   scale?: number,
 ): ChartComponentSizes {
-  const cs = new CustomFigureStyle(inputs.style, scale, inputs.autofitSurrounds);
+  const cs = new CustomFigureStyle(
+    inputs.style,
+    scale,
+    inputs.autofitSurrounds,
+  );
   const ms = cs.getMergedTimeseriesStyle();
   const data = getTimeseriesDataTransformed(
     inputs.timeseriesData,

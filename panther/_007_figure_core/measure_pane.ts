@@ -19,7 +19,6 @@ import type {
 } from "./deps.ts";
 import { Padding, RectCoordsDims, Z_INDEX } from "./deps.ts";
 import type { MeasurePaneConfig } from "./measure_types.ts";
-import type { YAxisWidthInfoBase } from "./types.ts";
 import { generatePaneContentPrimitives } from "./generate_pane_content_primitives.ts";
 
 export function measurePane<TData>(
@@ -151,10 +150,24 @@ export function measurePane<TData>(
     });
   }
 
+  // How far the y-axis's topmost tick label pokes above each tier's plot
+  // area (left-positioned, top-aligned tier headers line up with it). With
+  // overhang clearance, scale-axis top labels stay inside the plot except
+  // for the half-grid-stroke rendering convention; inset labels hang fully
+  // inside.
+  const tierHeaderTopNudge = config.yAxisConfig.type === "scale"
+    ? (config.yAxisConfig.axisStyle.tickLabelAlignment === "inset"
+      ? 0
+      : Math.min(
+        yAxisWidthInfo.halfYAxisTickLabelH,
+        baseStyle.grid.gridStrokeWidth / 2,
+      ))
+    : yAxisWidthInfo.halfYAxisTickLabelH;
+
   labelPrimitives.push(
     ...tierHeaderLabelPrimitives(
       measuredTierHeaders,
-      yAxisWidthInfo,
+      tierHeaderTopNudge,
       yAxisRcd,
       subChartAreaHeight,
       tierHeaderAndLabelGapWidth,
@@ -239,7 +252,7 @@ function measureLaneHeaders(
 
 function tierHeaderLabelPrimitives(
   measuredTexts: MeasuredText[],
-  yAxisWidthInfo: YAxisWidthInfoBase,
+  tierHeaderTopNudge: number,
   yAxisRcd: RectCoordsDims,
   subChartAreaHeight: number,
   tierHeaderAndLabelGapWidth: number,
@@ -289,7 +302,7 @@ function tierHeaderLabelPrimitives(
 
     for (let i_tier = 0; i_tier < measuredTexts.length; i_tier++) {
       const tierY = tiers.headerAlignV === "top"
-        ? currentY - yAxisWidthInfo.halfYAxisTickLabelH
+        ? currentY - tierHeaderTopNudge
         : currentY;
       const tierBounds = new RectCoordsDims({
         x: yAxisRcd.x(),

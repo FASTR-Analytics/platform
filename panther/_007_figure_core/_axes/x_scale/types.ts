@@ -10,6 +10,7 @@ export type XScaleAxisHeightInfo = XAxisHeightInfoBase & {
   xAxisTickValues: number[][]; // indexed by i_lane — mirror of YScaleAxisWidthInfo.yAxisTickValues (indexed by i_tier)
   guessMaxNTicks: number;
   tickLabelFormatter: (v: number) => string;
+  maxTickLabelW: number;
 };
 
 export type XScaleAxisMeasuredInfo = {

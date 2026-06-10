@@ -97,6 +97,33 @@ export type YAxisWidthInfo =
 
 export type ValueRange = { minVal: number; maxVal: number };
 
+// Inset applied to a scale axis's value range WITHIN the plot area, so
+// elements centered on the extreme ticks (tick labels, data labels) stay
+// inside the plot rect. The plot rect itself never changes — only the
+// value-to-coordinate mapping. start = 0% end (x: left, y: bottom),
+// end = 100% end (x: right, y: top).
+export type OverhangClearance = {
+  start: number;
+  end: number;
+};
+
+export const NO_OVERHANG_CLEARANCE: OverhangClearance = { start: 0, end: 0 };
+
+// Never let clearance consume more than this fraction of the plot extent
+// per side (pathologically small plots / huge labels).
+const MAX_OVERHANG_CLEARANCE_FRACTION = 0.4;
+
+export function clampOverhangClearance(
+  clearance: OverhangClearance,
+  plotExtent: number,
+): OverhangClearance {
+  const maxPerSide = Math.max(0, plotExtent * MAX_OVERHANG_CLEARANCE_FRACTION);
+  return {
+    start: Math.max(0, Math.min(clearance.start, maxPerSide)),
+    end: Math.max(0, Math.min(clearance.end, maxPerSide)),
+  };
+}
+
 export interface TransformedDataBase {
   seriesHeaders: string[];
   laneHeaders: string[];

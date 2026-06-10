@@ -67,7 +67,14 @@ export function downloadBase64Image(base64: string, filename?: string) {
 }
 
 type TextFileType = ".csv" | ".txt" | ".json" | ".md" | ".xml";
-type BinaryFileType = ".xlsx" | ".xls" | ".zip" | ".pdf" | ".png" | ".jpg" | ".docx";
+type BinaryFileType =
+  | ".xlsx"
+  | ".xls"
+  | ".zip"
+  | ".pdf"
+  | ".png"
+  | ".jpg"
+  | ".docx";
 
 export function pickFileAsText(
   fileTypesToAccept?: TextFileType[],

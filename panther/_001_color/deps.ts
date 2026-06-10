@@ -3,4 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { assert, assertNumberBetween0And1, clamp, createArray, divideOrZero, normalizeTo01 } from "../_000_utils/mod.ts";
+export {
+  assert,
+  assertNumberBetween0And1,
+  clamp,
+  createArray,
+  divideOrZero,
+  normalizeTo01,
+} from "../_000_utils/mod.ts";

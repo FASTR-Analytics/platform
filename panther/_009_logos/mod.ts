@@ -4,8 +4,4 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { measureLogos, renderLogos } from "./logos_renderer.ts";
-export type {
-  LogosInput,
-  MeasuredLogo,
-  MeasuredLogos,
-} from "./types.ts";
+export type { LogosInput, MeasuredLogo, MeasuredLogos } from "./types.ts";

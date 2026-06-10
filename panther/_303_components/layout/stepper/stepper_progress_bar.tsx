@@ -27,11 +27,9 @@ interface StepperProgressBarProps {
  * when the wizard content itself should be the focus of the page.
  */
 export function StepperProgressBar(p: StepperProgressBarProps) {
-  const total = () =>
-    p.stepper.maxStep - p.stepper.minStep + 1;
+  const total = () => p.stepper.maxStep - p.stepper.minStep + 1;
 
-  const currentIndex = () =>
-    p.stepper.currentStep() - p.stepper.minStep;
+  const currentIndex = () => p.stepper.currentStep() - p.stepper.minStep;
 
   /** 0..1 fraction filled. Current step counts as "in-progress" — we fill
    * up to the end of the current step's slot so the bar visibly advances

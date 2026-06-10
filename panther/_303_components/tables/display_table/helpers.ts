@@ -105,17 +105,15 @@ export function getPaddingClasses(
   paddingX: "compact" | "normal" | "comfortable",
   paddingY: "compact" | "normal" | "comfortable",
 ): { px: string; py: string } {
-  const px =
-    paddingX === "compact"
-      ? "px-2"
-      : paddingX === "comfortable"
-        ? "px-6"
-        : "px-4";
-  const py =
-    paddingY === "compact"
-      ? "py-0.5"
-      : paddingY === "comfortable"
-        ? "py-3"
-        : "py-1.5";
+  const px = paddingX === "compact"
+    ? "px-2"
+    : paddingX === "comfortable"
+    ? "px-6"
+    : "px-4";
+  const py = paddingY === "compact"
+    ? "py-0.5"
+    : paddingY === "comfortable"
+    ? "py-3"
+    : "py-1.5";
   return { px, py };
 }

@@ -4,8 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  measureLogos,
   type MeasuredText,
+  measureLogos,
   type MergedFreeformStyle,
   Padding,
   RectCoordsDims,
@@ -52,11 +52,11 @@ export function measureHeader(
   const hasLogos = inputs.headerLogos && inputs.headerLogos.length > 0;
   const logosDims = hasLogos
     ? measureLogos(new RCD([0, 0, 10000, 10000]), {
-        images: inputs.headerLogos!,
-        style: s.header.logosSizing,
-        alignH: "left",
-        alignV: "top",
-      })
+      images: inputs.headerLogos!,
+      style: s.header.logosSizing,
+      alignH: "left",
+      alignV: "top",
+    })
     : undefined;
   const logosHeight = logosDims?.totalHeight ?? 0;
   const logosWidth = logosDims?.totalWidth ?? 0;
@@ -83,8 +83,8 @@ export function measureHeader(
       s.text.subHeader,
       maxWidthForHeaderText,
     );
-    totalInnerHeaderHeight +=
-      mSubHeader.dims.h() + s.header.subHeaderBottomPadding;
+    totalInnerHeaderHeight += mSubHeader.dims.h() +
+      s.header.subHeaderBottomPadding;
     lastExtraToChop = s.header.subHeaderBottomPadding;
   }
 
@@ -101,8 +101,7 @@ export function measureHeader(
     totalInnerHeaderHeight = Math.max(totalInnerHeaderHeight, logosHeight);
   }
 
-  const totalHeaderHeight =
-    totalInnerHeaderHeight +
+  const totalHeaderHeight = totalInnerHeaderHeight +
     padHeader.totalPy() +
     s.header.bottomBorderStrokeWidth;
 
@@ -145,12 +144,12 @@ export function buildHeaderPrimitives(
   // Overlay (complex sizing logic from renderHeader)
   if (inputs.overlay) {
     const overlayFinalWidth = measured.rcdHeaderOuter.w();
-    const overlayFinalHeight =
-      overlayFinalWidth * (inputs.overlay.height / inputs.overlay.width);
+    const overlayFinalHeight = overlayFinalWidth *
+      (inputs.overlay.height / inputs.overlay.width);
 
     if (overlayFinalHeight > measured.rcdHeaderOuter.h()) {
-      const overlayFinalYOffset =
-        overlayFinalHeight - measured.rcdHeaderOuter.h();
+      const overlayFinalYOffset = overlayFinalHeight -
+        measured.rcdHeaderOuter.h();
       primitives.push({
         type: "image",
         id: "headerOverlay",
@@ -164,8 +163,8 @@ export function buildHeaderPrimitives(
       });
     } else {
       const overlayFinalHeight = measured.rcdHeaderOuter.h();
-      const overlayFinalWidth =
-        overlayFinalHeight * (inputs.overlay.width / inputs.overlay.height);
+      const overlayFinalWidth = overlayFinalHeight *
+        (inputs.overlay.width / inputs.overlay.height);
       const overlayFinalXOffset =
         (overlayFinalWidth - measured.rcdHeaderOuter.w()) / 2;
       primitives.push({
@@ -183,12 +182,11 @@ export function buildHeaderPrimitives(
   }
 
   const paddedRcd = measured.rcdHeaderOuter.getPadded(padHeader);
-  const x =
-    s.header.alignH === "center"
-      ? paddedRcd.x() + measured.maxWidthForHeaderText / 2
-      : s.header.alignH === "right"
-        ? paddedRcd.x() + measured.maxWidthForHeaderText
-        : paddedRcd.x();
+  const x = s.header.alignH === "center"
+    ? paddedRcd.x() + measured.maxWidthForHeaderText / 2
+    : s.header.alignH === "right"
+    ? paddedRcd.x() + measured.maxWidthForHeaderText
+    : paddedRcd.x();
   let currentY = paddedRcd.y() + measured.yOffsetHeader;
 
   // Header text
@@ -270,12 +268,12 @@ export function buildHeaderPrimitives(
         [
           measured.rcdHeaderOuter.x(),
           measured.rcdHeaderOuter.bottomY() -
-            s.header.bottomBorderStrokeWidth / 2,
+          s.header.bottomBorderStrokeWidth / 2,
         ],
         [
           measured.rcdHeaderOuter.rightX(),
           measured.rcdHeaderOuter.bottomY() -
-            s.header.bottomBorderStrokeWidth / 2,
+          s.header.bottomBorderStrokeWidth / 2,
         ],
       ],
       style: {

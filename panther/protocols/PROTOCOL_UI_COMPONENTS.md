@@ -2,31 +2,32 @@
 
 **Scope:** UI
 
-How to use the panther component library in app code. For component *declaration*
-and reactivity rules see `PROTOCOL_UI_SOLIDJS.md`; for Tailwind theme, `ui-*`
-utilities, sizing utilities, and sentence case see `PROTOCOL_UI_STYLING.md`; for
-`timQuery` / `timAction*` / `StateHolderWrapper` see `PROTOCOL_UI_STATE.md`.
+How to use the panther component library in app code. For component
+_declaration_ and reactivity rules see `PROTOCOL_UI_SOLIDJS.md`; for Tailwind
+theme, `ui-*` utilities, sizing utilities, and sentence case see
+`PROTOCOL_UI_STYLING.md`; for `timQuery` / `timAction*` / `StateHolderWrapper`
+see `PROTOCOL_UI_STATE.md`.
 
 ## Rules
 
 1. **Panther components first** — Never hand-roll a `Button`, `Input`, `Select`,
    `TextArea`, `Checkbox`, `RadioGroup`, table, or modal that panther provides.
-2. **Compose, don't replace** — When panther lacks something, build on top of its
-   components rather than reimplementing them.
+2. **Compose, don't replace** — When panther lacks something, build on top of
+   its components rather than reimplementing them.
 3. **Custom only when justified** — Hand-write a component only when panther has
    no equivalent or the need is app-specific; even then, wrap panther parts.
-4. **Tables use `DisplayTable`** — Define `columns: TableColumn<T>[]`; never build
-   bespoke `<table>` markup for data.
-5. **Modals/editors use the helpers** — Open dialogs via the editor/alert helpers
-   (`getEditorWrapper` / `openEditor`, confirm/prompt/alert); never roll a custom
-   overlay.
+4. **Tables use `DisplayTable`** — Define `columns: TableColumn<T>[]`; never
+   build bespoke `<table>` markup for data.
+5. **Modals/editors use the helpers** — Open dialogs via the editor/alert
+   helpers (`getEditorWrapper` / `openEditor`, confirm/prompt/alert); never roll
+   a custom overlay.
 6. **Delete confirmations via `timActionDelete`** — Don't wire a custom confirm
    modal for deletes (see `PROTOCOL_UI_STATE.md`).
 7. **Size via the `size` prop** — Use `size="sm"` for small variants; resize
    globally with the `ui-form-*` utilities (see `PROTOCOL_UI_STYLING.md`). Never
    restyle a component with ad-hoc classes to change its size.
-8. **Loading/error via `StateHolderWrapper`** — Render async data through it, not
-   hand-written spinner/error branches (see `PROTOCOL_UI_STATE.md`).
+8. **Loading/error via `StateHolderWrapper`** — Render async data through it,
+   not hand-written spinner/error branches (see `PROTOCOL_UI_STATE.md`).
 
 ## Do / Don't
 
@@ -34,7 +35,10 @@ utilities, sizing utilities, and sentence case see `PROTOCOL_UI_STYLING.md`; for
 
 ```tsx
 // ❌ DON'T — hand-rolled equivalent of a panther component
-<button class="rounded bg-primary px-3 py-2 text-primary-content" onClick={save}>
+<button
+  class="rounded bg-primary px-3 py-2 text-primary-content"
+  onClick={save}
+>
   Save
 </button>;
 
@@ -42,8 +46,8 @@ utilities, sizing utilities, and sentence case see `PROTOCOL_UI_STYLING.md`; for
 <Button intent="primary" onClick={save}>Save</Button>;
 ```
 
-**Why:** Panther components centralize styling, sizing, and state integration, so
-fixes and theme changes flow from one place to every app.
+**Why:** Panther components centralize styling, sizing, and state integration,
+so fixes and theme changes flow from one place to every app.
 
 ### Form inputs
 
@@ -55,34 +59,46 @@ fixes and theme changes flow from one place to every app.
 <Input size="sm" value={v()} onChange={setV} />;
 ```
 
-**Why:** `size` and the `ui-form-*` utilities keep every input consistent; ad-hoc
-classes drift and break global resizing.
+**Why:** `size` and the `ui-form-*` utilities keep every input consistent;
+ad-hoc classes drift and break global resizing.
 
 ### Tables
 
 ```tsx
 // ❌ DON'T — bespoke table markup
 <table>
-  <For each={rows()}>{(r) => <tr><td>{r.id}</td></tr>}</For>
+  <For each={rows()}>
+    {(r) => (
+      <tr>
+        <td>{r.id}</td>
+      </tr>
+    )}
+  </For>
 </table>;
 
 // ✅ DO — DisplayTable with typed columns
 const columns: TableColumn<Row>[] = [
-  { key: "id", header: t3({ en: "ID", fr: "ID" }), sortable: true,
-    render: (item) => <span class="font-mono">{item.id}</span> },
+  {
+    key: "id",
+    header: t3({ en: "ID", fr: "ID" }),
+    sortable: true,
+    render: (item) => <span class="font-mono">{item.id}</span>,
+  },
 ];
 <DisplayTable columns={columns} data={rows()} />;
 ```
 
-**Why:** `DisplayTable` provides sorting/selection/rendering consistently; bespoke
-tables re-solve those and diverge.
+**Why:** `DisplayTable` provides sorting/selection/rendering consistently;
+bespoke tables re-solve those and diverge.
 
 ### Modals & editors
 
 ```tsx
 // ❌ DON'T — custom overlay
 <Show when={open()}>
-  <div class="fixed inset-0 bg-black/30"><div class="...">{form}</div></div>
+  <div class="fixed inset-0 bg-black/30">
+    <div class="...">{form}</div>
+  </div>
 </Show>;
 
 // ✅ DO — editor/alert helpers
@@ -109,9 +125,14 @@ duplicate that and miss edge cases.
 ### Standard data view
 
 ```tsx
-const query = timQuery(() => serverActions.getRows(), t3({ en: "Loading…", fr: "Chargement…" }));
+const query = timQuery(
+  () => serverActions.getRows(),
+  t3({ en: "Loading…", fr: "Chargement…" }),
+);
 
-<FrameTop panelChildren={<HeadingBar heading={t3({ en: "Rows", fr: "Lignes" })} />}>
+<FrameTop
+  panelChildren={<HeadingBar heading={t3({ en: "Rows", fr: "Lignes" })} />}
+>
   <StateHolderWrapper state={query.state()} noPad>
     {(rows) => <DisplayTable columns={columns} data={rows} />}
   </StateHolderWrapper>
@@ -129,4 +150,5 @@ spacing/classes: `PROTOCOL_UI_STYLING.md`. User-facing strings: `t3` /
 - [ ] Dialogs use the editor/alert helpers; deletes use `timActionDelete`
 - [ ] Component sizing uses the `size` prop / `ui-form-*`, not ad-hoc classes
 - [ ] Async data rendered through `StateHolderWrapper`
-- [ ] Custom components only where panther has no equivalent, built on panther parts
+- [ ] Custom components only where panther has no equivalent, built on panther
+      parts

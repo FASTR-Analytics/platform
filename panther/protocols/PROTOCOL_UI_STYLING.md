@@ -6,9 +6,10 @@ See `PROTOCOL_UI_COMPONENTS.md` for component usage.
 
 ## Rules
 
-1. **Semantic colors only** — `base-*`, `primary`, `neutral`, `success`, `danger`
+1. **Semantic colors only** — `base-*`, `primary`, `neutral`, `success`,
+   `danger`
 2. **No arbitrary values** — Never `bg-[#ff0000]` or `p-[23px]`
-3. **Use ui-* utilities** — `ui-pad`, `ui-gap`, `ui-spy` for spacing
+3. __Use ui-_ utilities_* — `ui-pad`, `ui-gap`, `ui-spy` for spacing
 4. **Sentence case** — All UI text in sentence case, not Title Case
 5. **No inline styles** — Use Tailwind classes only
 6. **Panther components first** — Don't rebuild existing components
@@ -104,12 +105,20 @@ See `PROTOCOL_UI_COMPONENTS.md` for component usage.
 
 ```tsx
 // ❌ DON'T
-{status === "ready" && <Badge class="bg-green-500">Ready</Badge>}
+{
+  status === "ready" && <Badge class="bg-green-500">Ready</Badge>;
+}
 
 // ✅ DO
-{status === "ready" && <Badge class="bg-success">Ready</Badge>}
-{status === "error" && <Badge class="bg-danger">Error</Badge>}
-{status === "pending" && <Badge class="bg-neutral">Pending</Badge>}
+{
+  status === "ready" && <Badge class="bg-success">Ready</Badge>;
+}
+{
+  status === "error" && <Badge class="bg-danger">Error</Badge>;
+}
+{
+  status === "pending" && <Badge class="bg-neutral">Pending</Badge>;
+}
 ```
 
 ## Patterns
@@ -121,7 +130,7 @@ See `PROTOCOL_UI_COMPONENTS.md` for component usage.
   <div class="ui-pad ui-spy">
     {/* Content */}
   </div>
-</FrameTop>
+</FrameTop>;
 ```
 
 ### Card with Border
@@ -129,7 +138,7 @@ See `PROTOCOL_UI_COMPONENTS.md` for component usage.
 ```tsx
 <div class="ui-pad border border-base-300 rounded">
   {/* Content */}
-</div>
+</div>;
 ```
 
 ### Success/Active State
@@ -144,7 +153,7 @@ See `PROTOCOL_UI_COMPONENTS.md` for component usage.
 <div class="ui-gap grid grid-cols-12">
   <div class="col-span-4">{/* ... */}</div>
   <div class="col-span-8">{/* ... */}</div>
-</div>
+</div>;
 ```
 
 ## Checklist

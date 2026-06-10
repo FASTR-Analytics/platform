@@ -6,9 +6,45 @@
 export { getColor } from "../_001_color/mod.ts";
 export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
-export { Z_INDEX, createHeaderItems, sortHeaderItems } from "../_001_render_system/mod.ts";
-export type { HeaderItem, HeaderSortConfig, HeightConstraints, MapLabelPrimitive, MapRegionInfoFunc, MapRegionPrimitive, PathSegment, Primitive, RenderContext, Renderer } from "../_001_render_system/mod.ts";
+export {
+  createHeaderItems,
+  sortHeaderItems,
+  Z_INDEX,
+} from "../_001_render_system/mod.ts";
+export type {
+  HeaderItem,
+  HeaderSortConfig,
+  HeightConstraints,
+  MapLabelPrimitive,
+  MapRegionInfoFunc,
+  MapRegionPrimitive,
+  PathSegment,
+  Primitive,
+  RenderContext,
+  Renderer,
+} from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
-export type { DataLabelStyle, MapDataLabelMode, MapLabelCollisionConfig, MapRegionStyle, MergedMapStyle } from "../_003_figure_style/mod.ts";
-export { estimateMinSurroundsWidth, isAutoScaleLegendConfig, measureChart, measureChartWithAutofit, renderFigureBackground, renderFigurePrimitives, resolveAutoScaleLegend } from "../_007_figure_core/mod.ts";
-export type { ChartComponentSizes, FigureInputsBase, JsonArray, LegendInput, MeasuredChartBase, SimplifiedChartConfig } from "../_007_figure_core/mod.ts";
+export type {
+  DataLabelStyle,
+  MapDataLabelMode,
+  MapLabelCollisionConfig,
+  MapRegionStyle,
+  MergedMapStyle,
+} from "../_003_figure_style/mod.ts";
+export {
+  estimateMinSurroundsWidth,
+  isAutoScaleLegendConfig,
+  measureChart,
+  measureChartWithAutofit,
+  renderFigureBackground,
+  renderFigurePrimitives,
+  resolveAutoScaleLegend,
+} from "../_007_figure_core/mod.ts";
+export type {
+  ChartComponentSizes,
+  FigureInputsBase,
+  JsonArray,
+  LegendInput,
+  MeasuredChartBase,
+  SimplifiedChartConfig,
+} from "../_007_figure_core/mod.ts";

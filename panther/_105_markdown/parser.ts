@@ -11,10 +11,12 @@ import type {
   ParsedMarkdownItem,
 } from "./types.ts";
 
-export function createMarkdownIt(): MarkdownIt {
+export function createMarkdownIt(options?: { html?: boolean }): MarkdownIt {
   const md = new MarkdownIt({
     breaks: true,
-    html: true,
+    // html:false by default so raw HTML is escaped, not injected — callers
+    // rendering to innerHTML must opt in explicitly for trusted content only.
+    html: options?.html ?? false,
     linkify: false,
   });
   // TODO: Fix katex plugin loading issue
@@ -23,7 +25,10 @@ export function createMarkdownIt(): MarkdownIt {
 }
 
 export function parseMarkdown(markdownContent: string): ParsedMarkdown {
-  const md = createMarkdownIt();
+  // html:true is safe here: this token stream feeds the IR (canvas/PDF/Word),
+  // which only consumes the explicitly handled tokens (e.g. <br>) and drops
+  // the rest — nothing is ever passed through to an HTML sink.
+  const md = createMarkdownIt({ html: true });
 
   const tokens = md.parse(markdownContent, {});
   const items: ParsedMarkdownItem[] = [];

@@ -19,16 +19,21 @@ type Props = {
   scale?: number;
   images?: ImageMap;
   contentWidth?: string;
+  // Renders raw HTML in the markdown unescaped — only for trusted content,
+  // never for user- or AI-generated input.
+  allowRawHtml?: boolean;
 };
 
 const md = createMarkdownIt();
 md.use(markdownItKatex);
+const mdRawHtml = createMarkdownIt({ html: true });
+mdRawHtml.use(markdownItKatex);
 
 export function MarkdownPresentation(p: Props) {
   let containerRef: HTMLDivElement | undefined;
 
   const htmlContent = createMemo(() => {
-    return md.render(p.markdown);
+    return (p.allowRawHtml ? mdRawHtml : md).render(p.markdown);
   });
 
   createEffect(() => {

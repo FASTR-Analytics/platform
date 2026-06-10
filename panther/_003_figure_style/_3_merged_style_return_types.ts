@@ -19,6 +19,7 @@ import type {
   PointStyle,
   RectStyle,
   TableCellInfoFunc,
+  TableHeaderInfoFunc,
   TextInfo,
   TextInfoUnkeyed,
   TickLabelFormatterOption,
@@ -32,6 +33,7 @@ import type {
   ErrorBarStyle,
   MapRegionStyle,
   TableCellStyle,
+  TableHeaderStyle,
 } from "./style_func_types.ts";
 import type { LegendPosition } from "./types.ts";
 
@@ -221,6 +223,7 @@ export type MergedXScaleAxisStyle = {
   tickHeight: number;
   tickLabelGap: number;
   tickLabelFormatter: TickLabelFormatterOption;
+  tickLabelAlignment: "center" | "inset";
   forceRightOverhangWidth: "none" | number;
   allowIndividualLaneLimits: boolean;
   exactAxisY: "none" | number;
@@ -272,6 +275,12 @@ export type MergedTableStyle = {
   tableCells: {
     getStyle: TableCellInfoFunc<TableCellStyle>;
     textFormatter: TableCellInfoFunc<string> | "none";
+  };
+  tableRowHeaders: {
+    getStyle: TableHeaderInfoFunc<TableHeaderStyle>;
+  };
+  tableColHeaders: {
+    getStyle: TableHeaderInfoFunc<TableHeaderStyle>;
   };
   colHeaderPadding: Padding;
   rowHeaderPadding: Padding;
@@ -429,6 +438,7 @@ export type MergedYScaleAxisStyle = {
   tickWidth: number;
   tickLabelGap: number;
   tickLabelFormatter: TickLabelFormatterOption;
+  tickLabelAlignment: "center" | "inset";
   forceTopOverhangHeight: "none" | number;
   allowIndividualTierLimits: boolean;
   exactAxisX: "none" | number;

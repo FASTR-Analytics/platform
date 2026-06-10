@@ -89,11 +89,25 @@ export function measureXScaleAxisHeightInfo(
         formatterOption === "auto-percent" ? "percent" : "number",
       );
 
+  let maxTickLabelW = 0;
+  for (const laneTicks of xAxisTickValues) {
+    for (const tickVal of laneTicks) {
+      const tickLabel = tickLabelFormatter(tickVal);
+      const mTickLabel = rc.mText(
+        tickLabel,
+        sx.text.xScaleAxisTickLabels,
+        9999,
+      );
+      maxTickLabelW = Math.max(maxTickLabelW, mTickLabel.dims.w());
+    }
+  }
+
   return {
     heightIncludingXAxisStrokeWidth,
     xAxisTickValues,
     guessMaxNTicks,
     tickLabelFormatter,
+    maxTickLabelW,
   };
 }
 

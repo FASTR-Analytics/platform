@@ -55,7 +55,10 @@ export function getApiResponseFromQueryState<T>(
   if (state.status === "ready") {
     return { success: true, data: state.data };
   }
-  return { success: false, err: state.status === "error" ? state.err : "Still loading" };
+  return {
+    success: false,
+    err: state.status === "error" ? state.err : "Still loading",
+  };
 }
 
 export async function getApiResponseFromGenerator<T>(

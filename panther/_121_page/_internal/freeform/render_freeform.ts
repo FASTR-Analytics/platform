@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getColor, isPatternConfig, renderPattern, type RenderContext } from "../../deps.ts";
+import {
+  getColor,
+  isPatternConfig,
+  type RenderContext,
+  renderPattern,
+} from "../../deps.ts";
 import { renderContent } from "./content.ts";
 import type { MeasuredFreeformPage } from "../../types.ts";
 import { renderPagePrimitives } from "../render_primitives.ts";

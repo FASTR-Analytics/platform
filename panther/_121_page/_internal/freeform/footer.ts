@@ -4,8 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  measureLogos,
   type MeasuredText,
+  measureLogos,
   type MergedFreeformStyle,
   Padding,
   RectCoordsDims,
@@ -42,11 +42,11 @@ export function measureFooter(
   const hasLogos = inputs.footerLogos && inputs.footerLogos.length > 0;
   const logosDims = hasLogos
     ? measureLogos(new RCD([0, 0, 10000, 10000]), {
-        images: inputs.footerLogos!,
-        style: s.footer.logosSizing,
-        alignH: "right",
-        alignV: "middle",
-      })
+      images: inputs.footerLogos!,
+      style: s.footer.logosSizing,
+      alignH: "right",
+      alignV: "middle",
+    })
     : undefined;
   const logosHeight = logosDims?.totalHeight ?? 0;
   const logosWidth = logosDims?.totalWidth ?? 0;
@@ -105,12 +105,11 @@ export function buildFooterPrimitives(
 
   // Footer text
   if (measured.mFooter) {
-    const x =
-      s.footer.alignH === "center"
-        ? paddedRcd.x() + measured.maxWidthForFooterText / 2
-        : s.footer.alignH === "right"
-          ? paddedRcd.x() + measured.maxWidthForFooterText
-          : paddedRcd.x();
+    const x = s.footer.alignH === "center"
+      ? paddedRcd.x() + measured.maxWidthForFooterText / 2
+      : s.footer.alignH === "right"
+      ? paddedRcd.x() + measured.maxWidthForFooterText
+      : paddedRcd.x();
     primitives.push({
       type: "text",
       id: "footerText",

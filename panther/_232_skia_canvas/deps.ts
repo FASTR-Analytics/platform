@@ -3,7 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { REFERENCE_WIDTH_DU, getExportDevicePxPerDu } from "../_000_consts/mod.ts";
+export {
+  getExportDevicePxPerDu,
+  REFERENCE_WIDTH_DU,
+} from "../_000_consts/mod.ts";
 export { getFontInfoId } from "../_001_font/mod.ts";
 export type { FontInfo } from "../_001_font/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
@@ -17,4 +20,4 @@ export { PageRenderer } from "../_121_page/mod.ts";
 export type { PageInputs } from "../_121_page/mod.ts";
 export { validateFilePath } from "../_230_file_utils/mod.ts";
 export { getWoffFontAbsoluteFilePath } from "../_231_font_paths/mod.ts";
-export { Canvas, Fonts, Image, createCanvas } from "@gfx/canvas";
+export { Canvas, createCanvas, Fonts, Image } from "@gfx/canvas";
