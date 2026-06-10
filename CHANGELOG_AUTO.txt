@@ -1,3 +1,22 @@
+[TBD] [user] [added] - Export dashboards as Excel files with table data
+[TBD] [user] [added] - Download table visualizations as CSV with formatted values
+[TBD] [user] [added] - "Include National results" now works for all admin area levels, not just admin area 2
+[TBD] [user] [added] - Roll-up row label shows parent area name when filtered to a single area
+[TBD] [user] [changed] - Editing a dashboard item that gains a disaggregation now prompts to expand into a replicant group
+[TBD] [user] [changed] - Switching or editing a replicant group that changes dimensions now shows a confirmation dialog with progress
+[TBD] [user] [changed] - Replicant groups can now collapse back to a single figure when disaggregation is removed
+[TBD] [user] [removed] - Removed visualization share links feature and "Share links" button from project view
+[TBD] [user] [removed] - Removed share link count badges from visualization cards
+[TBD] [admin] [added] - Dashboard export to Excel (.xlsx) with one sheet per table figure
+[TBD] [admin] [added] - Download table data as CSV from the visualization editor
+[TBD] [admin] [added] - "Include National results" rollup now works for all admin area levels, not just admin area 2
+[TBD] [admin] [added] - Editing a dashboard item can now expand it into a replicant group or collapse a group into a single item
+[TBD] [admin] [added] - Confirmation dialog shown when dashboard edits change an item's structure (expand, collapse, or rebuild)
+[TBD] [admin] [changed] - Rollup row label now shows the parent admin area name when filtered to a single parent
+[TBD] [admin] [changed] - Dashboard item reordering is more reliable for large replicant groups
+[TBD] [admin] [removed] - Removed visualization share links feature and "Share links" button from project view
+[TBD] [admin] [removed] - Removed shared link count badges from visualization cards
+[TBD] [admin] [fixed] - Dashboard group edits that change the replicant dimension now correctly rebuild the group instead of silently failing
 [TBD] [user] [added] - AI can now set open-ended time period filters on charts
 [TBD] [user] [fixed] - AI clearing a time period filter now properly shows all dates
 [TBD] [admin] [added] - AI can now set open-ended time period filters on visualizations
