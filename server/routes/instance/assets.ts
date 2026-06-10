@@ -13,8 +13,7 @@ defineRoute(
   requireGlobalPermission(),
   log("getAssets"),
   async (c) => {
-    const { email, isGlobalAdmin } = c.var.globalUser;
-    const res = await getAssetsForInstance(c.var.mainDb, email, isGlobalAdmin);
+    const res = await getAssetsForInstance(c.var.mainDb);
     return c.json(res);
   },
 );
@@ -40,11 +39,9 @@ defineRoute(
       isGlobalAdmin,
     );
     if (res.success) {
-      // Broadcast only public assets so private files are never exposed to other users.
-      // Each client refetches their own filtered list via getAssets to see private changes.
-      const assetsRes = await getAssetsForInstance(c.var.mainDb, email, true);
+      const assetsRes = await getAssetsForInstance(c.var.mainDb);
       if (assetsRes.success) {
-        notifyInstanceAssetsUpdated(assetsRes.data.filter((a) => a.isPublic));
+        notifyInstanceAssetsUpdated(assetsRes.data);
       }
     }
     return c.json(res);

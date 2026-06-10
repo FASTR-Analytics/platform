@@ -5,7 +5,6 @@ import {
   FolderIcon,
   FrameTop,
   HeadingBarMainRibbon,
-  LockIcon,
   Table,
   timActionDelete,
   type BulkAction,
@@ -53,18 +52,11 @@ function formatDate(timestamp: number): string {
 
 export function InstanceAssets() {
   let uppy: Uppy | undefined = undefined;
-  const [isPublicUpload, setIsPublicUpload] = createSignal(true);
 
   onMount(() => {
     uppy = createUppyInstance({
       triggerId: "#select-file-button",
       maxNumberOfFiles: 0,
-    });
-
-    uppy.on("file-added", (file: any) => {
-      uppy!.setFileMeta(file.id, {
-        isPublic: isPublicUpload() ? "true" : "false",
-      });
     });
 
     uppy.on("complete", () => {
@@ -98,25 +90,9 @@ export function InstanceAssets() {
     <FrameTop
       panelChildren={
         <HeadingBarMainRibbon heading={t3({ en: "Assets", fr: "Ressources" })}>
-          <div class="flex items-center gap-2">
-            <div class="flex rounded overflow-hidden border border-white/20 text-sm">
-              <button
-                class={`px-3 py-1 transition-colors ${isPublicUpload() ? "bg-primary text-primary-content" : "bg-base-200 text-base-content/60 hover:bg-base-200/80"}`}
-                onClick={() => setIsPublicUpload(true)}
-              >
-                {t3({ en: "Public", fr: "Public" })}
-              </button>
-              <button
-                class={`px-3 py-1 transition-colors ${!isPublicUpload() ? "bg-primary text-primary-content" : "bg-base-200 text-base-content/60 hover:bg-base-200/80"}`}
-                onClick={() => setIsPublicUpload(false)}
-              >
-                {t3({ en: "Private", fr: "Privé" })}
-              </button>
-            </div>
-            <Button id="select-file-button" iconName="upload">
-              {t3({ en: "Upload", fr: "Téléverser" })}
-            </Button>
-          </div>
+          <Button id="select-file-button" iconName="upload">
+            {t3({ en: "Upload", fr: "Téléverser" })}
+          </Button>
         </HeadingBarMainRibbon>
       }
     >
@@ -148,56 +124,6 @@ function AssetFileSystem(p: {
     });
   }
 
-  const sharedAssets = createMemo(() => p.assets.filter((a) => a.isPublic));
-
-  const privateAssets = createMemo(() =>
-    p.assets.filter(
-      (a) => !a.isPublic && a.uploaderEmail === p.currentUserEmail,
-    )
-  );
-
-  return (
-    <div class="flex flex-col gap-6">
-      <AssetSection
-        sectionId="shared"
-        title={t3({ en: "Shared Assets", fr: "Ressources partagées" })}
-        assets={sharedAssets()}
-        showOwner={true}
-        expandedFolders={expandedFolders()}
-        onToggleFolder={toggleFolder}
-        currentUserEmail={p.currentUserEmail}
-        isAdmin={p.isAdmin}
-        onDelete={p.onDelete}
-        emptyMessage={t3({ en: "No shared assets", fr: "Aucune ressource partagée" })}
-      />
-      <AssetSection
-        sectionId="private"
-        title={t3({ en: "My Private Assets", fr: "Mes ressources privées" })}
-        assets={privateAssets()}
-        showOwner={false}
-        expandedFolders={expandedFolders()}
-        onToggleFolder={toggleFolder}
-        currentUserEmail={p.currentUserEmail}
-        isAdmin={p.isAdmin}
-        onDelete={p.onDelete}
-        emptyMessage={t3({ en: "No private assets", fr: "Aucune ressource privée" })}
-      />
-    </div>
-  );
-}
-
-function AssetSection(p: {
-  sectionId: string;
-  title: string;
-  assets: AssetInfo[];
-  showOwner: boolean;
-  expandedFolders: Set<string>;
-  onToggleFolder: (key: string) => void;
-  currentUserEmail: string;
-  isAdmin: boolean;
-  onDelete: (fileName: string) => void;
-  emptyMessage: string;
-}) {
   const grouped = createMemo(() => {
     const map = new Map<FileType, AssetInfo[]>();
     for (const type of FILE_TYPE_ORDER) {
@@ -214,44 +140,35 @@ function AssetSection(p: {
   );
 
   return (
-    <div>
-      <div class="flex items-center gap-2 mb-3">
-        <Show when={p.sectionId === "private"}>
-          <LockIcon class="w-3.5 h-3.5 text-neutral" />
-        </Show>
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-base-content/80">
-          {p.title}
-        </h3>
-        <span class="text-xs text-neutral">({p.assets.length})</span>
+    <Show
+      when={p.assets.length > 0}
+      fallback={
+        <p class="text-sm text-neutral pl-2">
+          {t3({ en: "No assets uploaded yet", fr: "Aucune ressource téléversée" })}
+        </p>
+      }
+    >
+      <div class="flex flex-col gap-1 border border-white/10 rounded-lg overflow-hidden">
+        <For each={nonEmptyTypes()}>
+          {(fileType) => {
+            const files = () => grouped().get(fileType) ?? [];
+            const folderKey = fileType;
+            const isExpanded = () => expandedFolders().has(folderKey);
+            return (
+              <AssetFolder
+                label={t3(FILE_TYPE_LABELS[fileType])}
+                files={files()}
+                isExpanded={isExpanded()}
+                onToggle={() => toggleFolder(folderKey)}
+                currentUserEmail={p.currentUserEmail}
+                isAdmin={p.isAdmin}
+                onDelete={p.onDelete}
+              />
+            );
+          }}
+        </For>
       </div>
-
-      <Show
-        when={p.assets.length > 0}
-        fallback={<p class="text-sm text-neutral pl-2">{p.emptyMessage}</p>}
-      >
-        <div class="flex flex-col gap-1 border border-white/10 rounded-lg overflow-hidden">
-          <For each={nonEmptyTypes()}>
-            {(fileType) => {
-              const files = () => grouped().get(fileType) ?? [];
-              const folderKey = `${p.sectionId}-${fileType}`;
-              const isExpanded = () => p.expandedFolders.has(folderKey);
-              return (
-                <AssetFolder
-                  label={t3(FILE_TYPE_LABELS[fileType])}
-                  files={files()}
-                  isExpanded={isExpanded()}
-                  onToggle={() => p.onToggleFolder(folderKey)}
-                  showOwner={p.showOwner}
-                  currentUserEmail={p.currentUserEmail}
-                  isAdmin={p.isAdmin}
-                  onDelete={p.onDelete}
-                />
-              );
-            }}
-          </For>
-        </div>
-      </Show>
-    </div>
+    </Show>
   );
 }
 
@@ -260,13 +177,36 @@ function AssetFolder(p: {
   files: AssetInfo[];
   isExpanded: boolean;
   onToggle: () => void;
-  showOwner: boolean;
   currentUserEmail: string;
   isAdmin: boolean;
   onDelete: (fileName: string) => void;
 }) {
-  const columns = createMemo((): TableColumn<AssetInfo>[] => {
-    const ownerCol: TableColumn<AssetInfo> = {
+  const columns = createMemo((): TableColumn<AssetInfo>[] => [
+    {
+      key: "fileName",
+      header: t3({ en: "File Name", fr: "Nom du fichier" }),
+      sortable: true,
+      render: (asset) => (
+        <span class="font-mono text-sm">{asset.fileName}</span>
+      ),
+    },
+    {
+      key: "size",
+      header: t3({ en: "Size", fr: "Taille" }),
+      sortable: true,
+      render: (asset) => (
+        <span class="text-neutral text-sm">{formatFileSize(asset.size)}</span>
+      ),
+    },
+    {
+      key: "lastModified",
+      header: t3({ en: "Modified", fr: "Modifié" }),
+      sortable: true,
+      render: (asset) => (
+        <span class="text-neutral text-sm">{formatDate(asset.lastModified)}</span>
+      ),
+    },
+    {
       key: "uploaderEmail",
       header: t3({ en: "Owner", fr: "Propriétaire" }),
       sortable: true,
@@ -282,38 +222,8 @@ function AssetFolder(p: {
           <span class="font-mono text-sm">{asset.uploaderEmail}</span>
         </Show>
       ),
-    };
-
-    const cols: TableColumn<AssetInfo>[] = [
-      {
-        key: "fileName",
-        header: t3({ en: "File Name", fr: "Nom du fichier" }),
-        sortable: true,
-        render: (asset) => (
-          <span class="font-mono text-sm">{asset.fileName}</span>
-        ),
-      },
-      {
-        key: "size",
-        header: t3({ en: "Size", fr: "Taille" }),
-        sortable: true,
-        render: (asset) => (
-          <span class="text-neutral text-sm">{formatFileSize(asset.size)}</span>
-        ),
-      },
-      {
-        key: "lastModified",
-        header: t3({ en: "Modified", fr: "Modifié" }),
-        sortable: true,
-        render: (asset) => (
-          <span class="text-neutral text-sm">{formatDate(asset.lastModified)}</span>
-        ),
-      },
-    ];
-
-    if (p.showOwner) cols.push(ownerCol);
-
-    cols.push({
+    },
+    {
       key: "actions",
       header: "",
       alignH: "right",
@@ -341,10 +251,8 @@ function AssetFolder(p: {
           </div>
         );
       },
-    });
-
-    return cols;
-  });
+    },
+  ]);
 
   async function handleBulkDelete(selected: AssetInfo[]) {
     const assetFileNames = selected.map((a) => a.fileName);

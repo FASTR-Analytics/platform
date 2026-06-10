@@ -12,5 +12,4 @@ export type AssetInfo = {
   isImage: boolean;
   isZip: boolean;
   uploaderEmail: string | null;
-  isPublic: boolean;
 };

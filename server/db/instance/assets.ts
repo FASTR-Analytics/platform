@@ -12,26 +12,20 @@ import {
 type AssetMetadataRow = {
   file_name: string;
   uploader_email: string;
-  is_public: boolean;
 };
 
 export async function getAssetsForInstance(
   mainDb: Sql,
-  userEmail: string,
-  isAdmin: boolean,
 ): Promise<APIResponseWithData<AssetInfo[]>> {
   const assetDir = join(_ASSETS_DIR_PATH);
   await ensureDir(assetDir);
 
   const metadataRows = await mainDb<AssetMetadataRow[]>`
-    SELECT file_name, uploader_email, is_public FROM asset_metadata
+    SELECT file_name, uploader_email FROM asset_metadata
   `;
-  const metaMap = new Map<string, { uploaderEmail: string; isPublic: boolean }>();
+  const metaMap = new Map<string, string>();
   for (const row of metadataRows) {
-    metaMap.set(row.file_name, {
-      uploaderEmail: row.uploader_email,
-      isPublic: row.is_public,
-    });
+    metaMap.set(row.file_name, row.uploader_email);
   }
 
   const assets: AssetInfo[] = [];
@@ -39,14 +33,6 @@ export async function getAssetsForInstance(
     if (dirEntry.isDirectory || dirEntry.name.startsWith(".")) {
       continue;
     }
-    const meta = metaMap.get(dirEntry.name);
-    const uploaderEmail = meta?.uploaderEmail ?? null;
-    const isPublic = meta?.isPublic ?? true;
-
-    if (!isPublic && uploaderEmail !== userEmail && !isAdmin) {
-      continue;
-    }
-
     const filePath = join(assetDir, dirEntry.name);
     const stat = await Deno.stat(filePath);
     const lowerName = dirEntry.name.toLowerCase();
@@ -69,8 +55,7 @@ export async function getAssetsForInstance(
       isXlsx,
       isImage,
       isZip,
-      uploaderEmail,
-      isPublic,
+      uploaderEmail: metaMap.get(dirEntry.name) ?? null,
     });
   }
   sortAlphabeticalByFunc(assets, (a) => a.fileName);
@@ -127,13 +112,11 @@ export async function createAssetMetadata(
   mainDb: Sql,
   fileName: string,
   uploaderEmail: string,
-  isPublic: boolean,
 ): Promise<void> {
   await mainDb`
-    INSERT INTO asset_metadata (file_name, uploader_email, is_public)
-    VALUES (${fileName}, ${uploaderEmail}, ${isPublic})
+    INSERT INTO asset_metadata (file_name, uploader_email)
+    VALUES (${fileName}, ${uploaderEmail})
     ON CONFLICT (file_name) DO UPDATE
-      SET uploader_email = EXCLUDED.uploader_email,
-          is_public = EXCLUDED.is_public
+      SET uploader_email = EXCLUDED.uploader_email
   `;
 }

@@ -394,7 +394,7 @@ export async function getInstanceDetail(
       `
       ).at(0)?.total_count ?? 0;
 
-    const resAssets = await getAssetsForInstance(mainDb, globalUser.email, globalUser.isGlobalAdmin);
+    const resAssets = await getAssetsForInstance(mainDb);
     if (resAssets.success === false) {
       return resAssets;
     }

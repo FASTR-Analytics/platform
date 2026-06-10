@@ -585,6 +585,16 @@ CREATE TABLE iceh_upload_attempts (
 );
 
 -- ============================================================================
+-- ASSET METADATA
+-- ============================================================================
+
+CREATE TABLE asset_metadata (
+  file_name text PRIMARY KEY,
+  uploader_email text NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- ============================================================================
 -- SCHEMA MIGRATIONS
 -- ============================================================================
 
