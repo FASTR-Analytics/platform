@@ -56,6 +56,10 @@ ${userInserts}
 
   await runInstanceMigrations(sqlMain);
 
+  // A restart mid-import leaves status_type stuck at an in-flight value with no
+  // live worker, and the concurrency guards then block all future imports.
+  await resetWedgedUploadAttempts(sqlMain);
+
   // Instance data transforms — on main database
   await runInstanceDataTransforms(sqlMain);
 
@@ -85,6 +89,25 @@ ${userInserts}
     // Added: 2026-06-10 — see cleanupOrphanedPresentationObjects
     // =========================================================================
     await cleanupOrphanedPresentationObjects(projectDb);
+  }
+}
+
+async function resetWedgedUploadAttempts(mainDb: Sql): Promise<void> {
+  const message =
+    "Import interrupted by a server restart. Delete this attempt and start again.";
+  const errStatus = JSON.stringify({ status: "error", err: message });
+  const structureErrStatus = JSON.stringify({ status: "error", error: message });
+  const results = await Promise.all([
+    mainDb`UPDATE dataset_hmis_upload_attempts SET status = ${errStatus}, status_type = 'error' WHERE status_type IN ('staging', 'integrating')`,
+    mainDb`UPDATE hfa_upload_attempts SET status = ${errStatus}, status_type = 'error' WHERE status_type IN ('staging', 'integrating')`,
+    mainDb`UPDATE iceh_upload_attempts SET status = ${errStatus}, status_type = 'error' WHERE status_type IN ('staging', 'integrating')`,
+    mainDb`UPDATE structure_upload_attempts SET status = ${structureErrStatus}, status_type = 'error' WHERE status_type = 'importing'`,
+  ]);
+  const total = results.reduce((sum, r) => sum + r.count, 0);
+  if (total > 0) {
+    console.log(
+      `[startup] Reset ${total} upload attempt(s) wedged mid-import by a previous shutdown`,
+    );
   }
 }
 
