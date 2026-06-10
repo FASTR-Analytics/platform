@@ -11,7 +11,6 @@ CREATE TABLE users (
   can_view_users boolean NOT NULL DEFAULT FALSE,
   can_view_logs boolean NOT NULL DEFAULT FALSE,
   can_configure_settings boolean NOT NULL DEFAULT FALSE,
-  can_configure_assets boolean NOT NULL DEFAULT FALSE,
   can_configure_data boolean NOT NULL DEFAULT FALSE,
   can_view_data boolean NOT NULL DEFAULT FALSE,
   can_create_projects boolean NOT NULL DEFAULT FALSE,

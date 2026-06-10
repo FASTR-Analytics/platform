@@ -182,7 +182,6 @@ export async function getUserPermissions(
         can_view_users,
         can_view_logs,
         can_configure_settings,
-        can_configure_assets,
         can_configure_data,
         can_view_data,
         can_create_projects

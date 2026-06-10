@@ -283,7 +283,6 @@ export function createDevGlobalUser(
       can_view_users: true,
       can_view_logs: true,
       can_configure_settings: true,
-      can_configure_assets: true,
       can_configure_data: true,
       can_view_data: true,
       can_create_projects: true,
