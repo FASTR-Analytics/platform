@@ -35,7 +35,7 @@ export function Step4(p: Props) {
   const strategyOptions = [
     {
       value: "first_delete_all_then_add_all" as const,
-      label: t3({ en: "Replace all existing facilities and admin areas with these (i.e. delete and then add)", fr: "Remplacer toutes les formations sanitaires et unités administratives existantes (supprimer puis ajouter)" }),
+      label: t3({ en: "Replace all existing facilities in this registry with these (i.e. delete and then add)", fr: "Remplacer toutes les formations sanitaires existantes de ce registre (supprimer puis ajouter)" }),
     },
     {
       value: "add_all_and_update_all_as_needed" as const,

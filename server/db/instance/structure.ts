@@ -10,7 +10,6 @@ import {
   StructureDhis2OrgUnitSelection,
   StructureColumnMappings,
   StructureStagingResult,
-  _DATASET_LIMIT,
   parseJsonOrUndefined,
   throwIfErrWithData,
   getEnabledOptionalFacilityColumns,
@@ -156,6 +155,14 @@ export async function deleteAllStructureData(
       for (let i = 4; i >= 1; i--) {
         await sql`DELETE FROM ${sql(`admin_areas_${i}`)}`;
       }
+
+      // Bump the version the client structure-items caches are keyed on
+      await sql`
+        INSERT INTO instance_config (config_key, config_json_value)
+        VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+        ON CONFLICT (config_key)
+        DO UPDATE SET config_json_value = EXCLUDED.config_json_value
+      `;
     });
 
     return { success: true };
@@ -189,6 +196,13 @@ export async function deleteFamilyFacilities(
       await sql`DELETE FROM ${sql(facilitiesTableForFacilityFamily(family))}`;
       // Admin areas referenced only by this family's facilities are now orphans
       await cleanupUnusedAdminAreas(sql);
+      // Bump the version the client structure-items caches are keyed on
+      await sql`
+        INSERT INTO instance_config (config_key, config_json_value)
+        VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+        ON CONFLICT (config_key)
+        DO UPDATE SET config_json_value = EXCLUDED.config_json_value
+      `;
     });
 
     return { success: true };
@@ -218,6 +232,22 @@ export async function addStructureUploadAttempt(
   return await tryCatchDatabaseAsync(async () => {
     const existing = await getRawUA(mainDb);
     const currentTime = new Date().toISOString();
+
+    // The UI hides the entry points in these states, but the single-row
+    // invariant must be enforced here: a blind reset would clobber the other
+    // family's (or a mid-import) attempt.
+    if (existing && existing.status_type === "importing") {
+      return {
+        success: false,
+        err: "A facility import is currently running. Wait for it to finish before starting another.",
+      };
+    }
+    if (existing && existing.dataset_family !== datasetFamily) {
+      return {
+        success: false,
+        err: "Another facility import is in progress for the other registry. Finish or discard it first.",
+      };
+    }
 
     // HFA facilities only come from CSV, so the source-type step is skipped
     const initialStep = datasetFamily === "hfa" ? 1 : 0;
@@ -360,7 +390,13 @@ export async function structureStep0_SetSourceType(
   sourceType: "csv" | "dhis2"
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await getRawUAOrThrow(mainDb); // Verify exists
+    const rawUA = await getRawUAOrThrow(mainDb);
+    if (rawUA.dataset_family === "hfa" && sourceType === "dhis2") {
+      return {
+        success: false,
+        err: "HFA facilities can only be imported from CSV",
+      };
+    }
     await mainDb`
       UPDATE structure_upload_attempts
       SET

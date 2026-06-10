@@ -106,7 +106,11 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("addStructureUploadAttempt"),
   async (c, { body }) => {
-    const res = await addStructureUploadAttempt(c.var.mainDb, body.datasetFamily);
+    const family = parseFacilityFamily(body.datasetFamily);
+    if (!family) {
+      return c.json({ success: false, err: "Family must be hmis or hfa" });
+    }
+    const res = await addStructureUploadAttempt(c.var.mainDb, family);
     return c.json(res);
   },
 );

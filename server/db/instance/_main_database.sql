@@ -306,8 +306,8 @@ CREATE TABLE dataset_hmis (
   version_id integer NOT NULL,
   PRIMARY KEY (facility_id, indicator_raw_id, period_id),
   -- NO ACTION (default), not RESTRICT: RESTRICT's delete-side check can never be
-  -- deferred, and deleteAllStructureData relies on deferral. Constraint name is
-  -- load-bearing: SET CONSTRAINTS in integrate_structure_from_staging.ts
+  -- deferred, and the replace-all facility import relies on deferral. Constraint
+  -- name is load-bearing: SET CONSTRAINTS in integrate_structure_from_staging.ts
   CONSTRAINT dataset_hmis_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hmis(facility_id) DEFERRABLE,
   FOREIGN KEY (indicator_raw_id) REFERENCES indicators_raw(indicator_raw_id) ON DELETE RESTRICT DEFERRABLE,
   FOREIGN KEY (version_id) REFERENCES dataset_hmis_versions(id) ON DELETE RESTRICT
@@ -384,8 +384,8 @@ CREATE TABLE hfa_data (
   value TEXT NOT NULL,
   PRIMARY KEY (facility_id, time_point, var_name),
   -- NO ACTION (default), not RESTRICT: RESTRICT's delete-side check can never be
-  -- deferred, and deleteAllStructureData relies on deferral. Constraint name is
-  -- load-bearing: SET CONSTRAINTS in integrate_structure_from_staging.ts
+  -- deferred, and the replace-all facility import relies on deferral. Constraint
+  -- name is load-bearing: SET CONSTRAINTS in integrate_structure_from_staging.ts
   CONSTRAINT hfa_data_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hfa(facility_id) DEFERRABLE,
   FOREIGN KEY (time_point) REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
   FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE

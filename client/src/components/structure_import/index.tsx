@@ -134,7 +134,7 @@ export function StructureUploadAttemptForm(p: Props) {
           <div class="ui-gap-sm flex flex-none items-center">
             <StepperNavigationVisual
               stepper={stepper}
-              stepLabelFormatter={(step) => `${step + 1}`}
+              stepLabelFormatter={(step) => `${step - minStep + 1}`}
             />
             <Button iconName="refresh" onClick={uploadAttempt.fetch} />
             <Button

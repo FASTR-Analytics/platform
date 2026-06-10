@@ -156,6 +156,7 @@ No family exists at the join sites today; thread it with real table names direct
 ## 8. Deferred (explicitly out of scope)
 
 - **Weights ingestion** — likely a per-time-point upload alongside the HFA import (grain matches `hfa_upload_attempts`' time-point model); needs the wizard shell anyway. Until then the table stays empty.
+  - **CASCADE trap to resolve with ingestion:** `hfa_facility_weights.facility_id` is `ON DELETE CASCADE`, and CASCADE fires at statement time (it cannot be deferred) — so the HFA replace-all import strategy will silently wipe all weights even when re-inserting identical facility IDs. Harmless while the table has no writers; must be addressed (snapshot/re-insert, or drop CASCADE) before weights ingestion ships.
 - **Weighted means** — one lockstep change later: R-export SELECT (hfa:87-104) + m010 `script.R` (`USE_SAMPLE_WEIGHTS`) + `definition.json` possibleColumns; viz-side weighted means need weight on the results-object table (SUM(value*weight)/SUM(weight) ingredients), not a facilities join. Check no HFA survey `var_name` is literally `weight` before exporting (pivot_wider collision).
 - Per-family structure UI / counts / CSV export; DHIS2-UID regex revisit (stage_hmis_data_dhis2:148) once HMIS facility IDs diverge from HFA's.
 - A2 keyed worker registry (15 LOC, buys nothing until a 5th worker importer); A3 escaper retirement (own row-diff-gated pass); population table (nothing here paints it into a corner — the AA-cleanup UNION is written extendable for it).

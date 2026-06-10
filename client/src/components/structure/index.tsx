@@ -116,6 +116,11 @@ export function Facilities(p: Props) {
     </div>
   );
 
+  const facilityCount = () =>
+    (p.family === "hmis"
+      ? instanceState.structure?.facilitiesHmis
+      : instanceState.structure?.facilitiesHfa) ?? 0;
+
   return (
     <EditorWrapper>
       <FrameTop
@@ -145,7 +150,7 @@ export function Facilities(p: Props) {
       >
         <div class="flex h-full w-full">
           <Switch>
-            <Match when={instanceState.structure}>
+            <Match when={facilityCount() > 0}>
               <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <div class="ui-pad ui-gap-sm border-base-300 flex h-full flex-none flex-col overflow-auto border-r">
                   <Switch>

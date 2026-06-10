@@ -99,20 +99,7 @@ export async function integrateStructureFromStaging(
           case "insert_do_nothing": {
             const counts = await insertAdminAreasFromStaging(
               sql,
-              stagingTableName,
-              "do_nothing"
-            );
-            adminAreasProcessed.level1 = counts.level1;
-            adminAreasProcessed.level2 = counts.level2;
-            adminAreasProcessed.level3 = counts.level3;
-            adminAreasProcessed.level4 = counts.level4;
-            break;
-          }
-          case "insert_error_on_conflict": {
-            const counts = await insertAdminAreasFromStaging(
-              sql,
-              stagingTableName,
-              "error"
+              stagingTableName
             );
             adminAreasProcessed.level1 = counts.level1;
             adminAreasProcessed.level2 = counts.level2;
@@ -421,20 +408,18 @@ async function deleteFamilyFacilitiesDeferred(
  */
 async function insertAdminAreasFromStaging(
   sql: Sql,
-  stagingTableName: string,
-  onConflict: "do_nothing" | "error"
+  stagingTableName: string
 ): Promise<AdminAreaCounts> {
-  console.log(`Processing admin areas from staging (${onConflict})...`);
+  console.log("Processing admin areas from staging...");
 
-  const conflictClause =
-    onConflict === "do_nothing" ? " ON CONFLICT DO NOTHING" : "";
-
+  // Always ON CONFLICT DO NOTHING: admin areas are shared across families and
+  // may already exist from the other family's imports
   // Level 1
   const level1Result = await sql.unsafe(`
     INSERT INTO admin_areas_1 (admin_area_1)
     SELECT DISTINCT admin_area_1
     FROM ${stagingTableName}
-    ${conflictClause}
+    ON CONFLICT DO NOTHING
     RETURNING admin_area_1
   `);
   console.log(`Processed ${level1Result.length} level 1 admin areas`);
@@ -444,11 +429,7 @@ async function insertAdminAreasFromStaging(
     INSERT INTO admin_areas_2 (admin_area_1, admin_area_2)
     SELECT DISTINCT admin_area_1, admin_area_2
     FROM ${stagingTableName}
-    ${
-      onConflict === "do_nothing"
-        ? "ON CONFLICT (admin_area_2, admin_area_1) DO NOTHING"
-        : ""
-    }
+    ON CONFLICT (admin_area_2, admin_area_1) DO NOTHING
     RETURNING admin_area_2
   `);
   console.log(`Processed ${level2Result.length} level 2 admin areas`);
@@ -458,11 +439,7 @@ async function insertAdminAreasFromStaging(
     INSERT INTO admin_areas_3 (admin_area_1, admin_area_2, admin_area_3)
     SELECT DISTINCT admin_area_1, admin_area_2, admin_area_3
     FROM ${stagingTableName}
-    ${
-      onConflict === "do_nothing"
-        ? "ON CONFLICT (admin_area_3, admin_area_2, admin_area_1) DO NOTHING"
-        : ""
-    }
+    ON CONFLICT (admin_area_3, admin_area_2, admin_area_1) DO NOTHING
     RETURNING admin_area_3
   `);
   console.log(`Processed ${level3Result.length} level 3 admin areas`);
@@ -472,11 +449,7 @@ async function insertAdminAreasFromStaging(
     INSERT INTO admin_areas_4 (admin_area_1, admin_area_2, admin_area_3, admin_area_4)
     SELECT DISTINCT admin_area_1, admin_area_2, admin_area_3, admin_area_4
     FROM ${stagingTableName}
-    ${
-      onConflict === "do_nothing"
-        ? "ON CONFLICT (admin_area_4, admin_area_3, admin_area_2, admin_area_1) DO NOTHING"
-        : ""
-    }
+    ON CONFLICT (admin_area_4, admin_area_3, admin_area_2, admin_area_1) DO NOTHING
     RETURNING admin_area_4
   `);
   console.log(`Processed ${level4Result.length} level 4 admin areas`);
@@ -560,7 +533,10 @@ function getAdminAreaSteps(strategy: StructureIntegrateStrategy): string[] {
       return ["insert_do_nothing"];
 
     case "add_all_new_rows_and_error_if_any_conflicts":
-      return ["insert_error_on_conflict"];
+      // Conflict-erroring applies to FACILITIES only (the plain INSERT below
+      // throws on duplicates). Admin areas are shared across families and may
+      // legitimately already exist from the other family's imports.
+      return ["insert_do_nothing"];
 
     case "only_update_optional_facility_cols_by_existing_facility_id":
       return []; // Skip all admin area processing
