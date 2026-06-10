@@ -218,8 +218,9 @@ export function transformConfigD(d: Record<string, unknown>): void {
     pf.max = toFiveDigitQuarter(pf.max);
   }
 
-  // Block 24: Rename admin-area roll-up fields (AA2-specific names → mechanism names,
-  // now that the feature applies to the finest grouped admin level, not just AA2).
+  // Block 24: Rename admin-area roll-up fields (AA2-specific names → mechanism
+  // names, now that the roll-up collapses whichever single admin level the gate
+  // selects — see getRollupAdminLevel in lib/get_fetch_config_from_po.ts).
   //   includeNationalForAdminArea2 → includeAdminAreaRollup
   //   includeNationalPosition      → adminAreaRollupPosition
   if ("includeNationalForAdminArea2" in d && !("includeAdminAreaRollup" in d)) {
@@ -232,7 +233,17 @@ export function transformConfigD(d: Record<string, unknown>): void {
   }
 }
 
-export function transformConfigS(s: Record<string, unknown>, isMap: boolean): void {
+// fillDefaults: full PO configs require every s field, so missing fields are
+// filled with defaults. Viz presets' s is .partial() BY DESIGN (absent fields
+// inherit DEFAULT_S_CONFIG at viz-creation time, and several Block 16 fill
+// values deliberately differ from DEFAULT_S_CONFIG) — preset callers pass
+// fillDefaults: false so only renames/strips run, never the fills.
+export function transformConfigS(
+  s: Record<string, unknown>,
+  isMap: boolean,
+  opts?: { fillDefaults?: boolean },
+): void {
+  const fillDefaults = opts?.fillDefaults ?? true;
   let legacyCf: ConditionalFormatting | undefined;
 
   // Block 5: Legacy conditionalFormatting string preset → capture as legacyCf
@@ -273,49 +284,89 @@ export function transformConfigS(s: Record<string, unknown>, isMap: boolean): vo
   delete s.mapDomainMin;
   delete s.mapDomainMax;
 
-  // Block 8: Fill flat cf* fields from captured legacyCf or defaults
-  const flatSource = legacyCf ? flattenCf(legacyCf) : CF_STORAGE_DEFAULTS;
-  for (const [key, value] of Object.entries(flatSource)) {
-    if (!(key in s)) s[key] = value;
+  // Block 8: Fill flat cf* fields from captured legacyCf (always) or defaults
+  // (full configs only)
+  const flatSource = legacyCf
+    ? flattenCf(legacyCf)
+    : fillDefaults
+      ? CF_STORAGE_DEFAULTS
+      : undefined;
+  if (flatSource) {
+    for (const [key, value] of Object.entries(flatSource)) {
+      if (!(key in s)) s[key] = value;
+    }
   }
 
-  // Block 9: diffAreas → specialDisruptionsChart (delete legacy fields)
-  if (!("specialDisruptionsChart" in s)) {
+  // Block 9: diffAreas → specialDisruptionsChart (delete legacy fields).
+  // Without fillDefaults the field is only set when a legacy diffAreas existed.
+  if (
+    !("specialDisruptionsChart" in s) &&
+    (fillDefaults || "diffAreas" in s)
+  ) {
     s.specialDisruptionsChart = s.diffAreas === true;
   }
   delete s.diffAreas;
   delete s.diffAreasOrder;
 
-  // Block 10: Fill mapProjection default (required field added later)
-  if (!("mapProjection" in s)) s.mapProjection = "equirectangular";
+  if (fillDefaults) {
+    // Block 10: Fill mapProjection default (required field added later)
+    if (!("mapProjection" in s)) s.mapProjection = "equirectangular";
 
-  // Block 13: Fill showDataLabelsLineCharts default
-  if (!("showDataLabelsLineCharts" in s)) s.showDataLabelsLineCharts = false;
+    // Block 13: Fill showDataLabelsLineCharts default
+    if (!("showDataLabelsLineCharts" in s)) s.showDataLabelsLineCharts = false;
 
-  // Block 14: Fill specialBarChartInverted default
-  if (!("specialBarChartInverted" in s)) s.specialBarChartInverted = false;
+    // Block 14: Fill specialBarChartInverted default
+    if (!("specialBarChartInverted" in s)) s.specialBarChartInverted = false;
 
-  // Block 16: Fill missing configS fields (2025-04 schema additions)
-  if (!("diffInverted" in s)) s.diffInverted = false;
-  if (!("specialBarChart" in s)) s.specialBarChart = false;
-  if (!("specialBarChartDiffThreshold" in s)) s.specialBarChartDiffThreshold = 0;
-  if (!("specialBarChartDataLabels" in s)) s.specialBarChartDataLabels = "all-values";
-  if (!("specialCoverageChart" in s)) s.specialCoverageChart = false;
-  if (!("specialScorecardTable" in s)) s.specialScorecardTable = false;
-  if (!("allowVerticalColHeaders" in s)) s.allowVerticalColHeaders = false;
-  if (!("forceYMinAuto" in s)) s.forceYMinAuto = false;
-  if (!("nColsInCellDisplay" in s)) s.nColsInCellDisplay = "auto";
-  if (!("sortIndicatorValues" in s)) s.sortIndicatorValues = "none";
+    // Block 16: Fill missing configS fields (2025-04 schema additions)
+    if (!("diffInverted" in s)) s.diffInverted = false;
+    if (!("specialBarChart" in s)) s.specialBarChart = false;
+    if (!("specialBarChartDiffThreshold" in s)) s.specialBarChartDiffThreshold = 0;
+    if (!("specialBarChartDataLabels" in s)) s.specialBarChartDataLabels = "all-values";
+    if (!("specialCoverageChart" in s)) s.specialCoverageChart = false;
+    if (!("specialScorecardTable" in s)) s.specialScorecardTable = false;
+    if (!("allowVerticalColHeaders" in s)) s.allowVerticalColHeaders = false;
+    if (!("forceYMinAuto" in s)) s.forceYMinAuto = false;
+    if (!("nColsInCellDisplay" in s)) s.nColsInCellDisplay = "auto";
+    if (!("sortIndicatorValues" in s)) s.sortIndicatorValues = "none";
+  }
 
   // Block 17: Rename content "areas" → "lines-area"
   if (s.content === "areas") s.content = "lines-area";
 
-  // Block 19: Ensure specialScorecardTable exists
-  if (!("specialScorecardTable" in s)) s.specialScorecardTable = false;
+  // Block 19: Ensure specialScorecardTable exists (full configs only)
+  if (fillDefaults && !("specialScorecardTable" in s)) {
+    s.specialScorecardTable = false;
+  }
 }
 
 // ─── Full PO config transform ───────────────────────────────────────────────
 // Exported for use by slide_config.ts and module_definition.ts
+
+// Legacy keys that zod's strip mode silently swallows: a config whose ONLY
+// drift is these keys passes safeParse, so a skip-on-valid gate would never
+// run the rename and runtime reads would silently drop the user's setting.
+// Every sweep gate must consult this alongside safeParse.
+export function configNeedsForcedTransform(config: Record<string, unknown>): boolean {
+  const d = (config.d ?? {}) as Record<string, unknown>;
+  return (
+    "includeNationalForAdminArea2" in d || "includeNationalPosition" in d
+  );
+}
+
+// Same check for sweeps over rows that EMBED PO configs at arbitrary depth
+// (dashboard figure blocks, report figures, slide configs, viz presets): a
+// cheap raw-JSON scan for the legacy keys in their JSON-key form (quoted, so
+// prose mentioning the name in captions/notes doesn't trigger a force).
+// Callers must also skip the write when the transformed output equals the
+// stored row, so any residual false positive costs a no-op per boot, never a
+// rewrite loop.
+export function rawJsonNeedsForcedTransform(raw: string): boolean {
+  return (
+    raw.includes('"includeNationalForAdminArea2"') ||
+    raw.includes('"includeNationalPosition"')
+  );
+}
 
 export function transformPOConfigData(config: Record<string, unknown>): Record<string, unknown> {
   const c = structuredClone(config) as Record<string, unknown>;
@@ -348,8 +399,12 @@ export async function migratePOConfigs(tx: Sql, projectId: string): Promise<Migr
   for (const row of rows) {
     const config = JSON.parse(row.config);
 
-    // Already valid? Skip.
-    if (presentationObjectConfigSchema.safeParse(config).success) {
+    // Already valid? Skip — unless legacy keys (which safeParse silently
+    // strips) still need the rename.
+    if (
+      presentationObjectConfigSchema.safeParse(config).success &&
+      !configNeedsForcedTransform(config)
+    ) {
       continue;
     }
 

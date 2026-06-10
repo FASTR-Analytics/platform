@@ -50,6 +50,7 @@ import { resolveReplicantStructure } from "./resolve_replicant_structure";
 import { resolveMembersWithProgress } from "./resolve_members_with_progress";
 import { ReshapeConfirmModal } from "./reshape_confirm_modal";
 import { ProgressModal } from "./progress_modal";
+import { EditLabelForm } from "~/components/forms_editors/edit_label";
 import {
   DashboardSettings,
   type DashboardSettingsProps,
@@ -253,13 +254,17 @@ export function DashboardEditor(p: Props) {
       return { ok: false, err: "Failed to generate visualization" };
     }
     const ih = itemsRes.data.ih;
+    // The generator may auto-select a replicant on a COPY of the config — the
+    // figure (labels, captions) and the persisted source config must use that
+    // copy so they describe the data that was actually fetched.
+    const effectiveConfig = itemsRes.data.config;
     let geoJson;
-    const mapLevel = getAdminAreaLevelFromMapConfig(config);
+    const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
     if (mapLevel) geoJson = getGeoJsonSync(mapLevel);
     const fi = getFigureInputsFromPresentationObject(
       resultsValue,
       ih,
-      config,
+      effectiveConfig,
       geoJson,
     );
     if (fi.status !== "ready") {
@@ -276,7 +281,7 @@ export function DashboardEditor(p: Props) {
         source: {
           type: "from_data",
           metricId: resultsValue.id,
-          config,
+          config: effectiveConfig,
           snapshotAt: new Date().toISOString(),
           indicatorMetadata: ih.indicatorMetadata,
         },
@@ -429,14 +434,29 @@ export function DashboardEditor(p: Props) {
     if (!res.success) await openAlert({ text: res.err, intent: "danger" });
   }
 
-  async function handleUpdateLabel(itemId: string, label: string) {
-    const res = await serverActions.updateDashboardItem({
-      projectId: p.projectId,
-      dashboard_id: p.dashboardId,
-      item_id: itemId,
-      label,
+  // Rename via the shared EditLabelForm modal — one deterministic save on
+  // confirm (matches how the rest of the app renames; no inline auto-save). The
+  // mutate captures the entry id, so it targets the right entry even if the
+  // selection moves while the modal is open.
+  async function handleRenameItem() {
+    const it = selectedItem();
+    if (!it) return;
+    const itemId = it.id;
+    await openComponent({
+      element: EditLabelForm,
+      props: {
+        headerText: t3({ en: "Rename item", fr: "Renommer l'élément" }),
+        fieldLabel: t3({ en: "Label", fr: "Étiquette" }),
+        existingLabel: it.label,
+        mutateFunc: (label: string) =>
+          serverActions.updateDashboardItem({
+            projectId: p.projectId,
+            dashboard_id: p.dashboardId,
+            item_id: itemId,
+            label,
+          }),
+      },
     });
-    if (!res.success) await openAlert({ text: res.err, intent: "danger" });
   }
 
   async function handleSwitch() {
@@ -765,16 +785,25 @@ export function DashboardEditor(p: Props) {
 
   // ── Group handlers (the selected entry is a replicant group) ───────────────
 
-  // Targets the passed groupId (not selectedGroup()) so a debounced label commit
-  // flushed after the selection moved still saves the right group.
-  async function handleGroupRename(groupId: string, label: string) {
-    const res = await serverActions.updateDashboardItemGroup({
-      projectId: p.projectId,
-      dashboard_id: p.dashboardId,
-      group_id: groupId,
-      label,
+  async function handleRenameGroup() {
+    const g = selectedGroup();
+    if (!g) return;
+    const groupId = g.id;
+    await openComponent({
+      element: EditLabelForm,
+      props: {
+        headerText: t3({ en: "Rename group", fr: "Renommer le groupe" }),
+        fieldLabel: t3({ en: "Group label", fr: "Étiquette du groupe" }),
+        existingLabel: g.label,
+        mutateFunc: (label: string) =>
+          serverActions.updateDashboardItemGroup({
+            projectId: p.projectId,
+            dashboard_id: p.dashboardId,
+            group_id: groupId,
+            label,
+          }),
+      },
     });
-    if (!res.success) await openAlert({ text: res.err, intent: "danger" });
   }
 
   async function handleGroupSetDefault(value: string) {
@@ -1027,7 +1056,7 @@ export function DashboardEditor(p: Props) {
                           item={selectedItem()}
                           selectedCount={selection.selectedCount()}
                           canConfigure={canConfigure()}
-                          onUpdateLabel={handleUpdateLabel}
+                          onRename={handleRenameItem}
                           onEdit={handleEdit}
                           onSwitch={handleSwitch}
                           onCreate={handleCreate}
@@ -1042,7 +1071,7 @@ export function DashboardEditor(p: Props) {
                         <DashboardGroupEditor
                           group={g()}
                           canConfigure={canConfigure()}
-                          onUpdateLabel={handleGroupRename}
+                          onRename={handleRenameGroup}
                           onSetDefaultReplicant={handleGroupSetDefault}
                           onSwitch={handleGroupSwitch}
                           onEdit={handleGroupEdit}

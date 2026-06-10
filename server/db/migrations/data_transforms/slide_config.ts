@@ -36,6 +36,10 @@ import {
   transformFigureBlock,
   transformFigureInputs,
 } from "./_figure_block.ts";
+import {
+  type MigrationStats,
+  rawJsonNeedsForcedTransform,
+} from "./po_config.ts";
 
 // Map an old numeric textSize multiplier to the nearest semantic key.
 // Old data stored the raw relFontSize numbers (0.41, 1, 1.56, …); the new shape
@@ -53,10 +57,7 @@ function relToTextSizeKey(value: number): TextSizeKey {
   return closest;
 }
 
-export type MigrationStats = {
-  rowsChecked: number;
-  rowsTransformed: number;
-};
+export type { MigrationStats };
 
 type LayoutNode = {
   type: string;
@@ -154,6 +155,7 @@ export async function migrateSlideConfigs(
 
   for (const row of rows) {
     const config = JSON.parse(row.config);
+    const storedCanonical = JSON.stringify(config);
 
     // =========================================================================
     // PRE-VALIDATION BLOCK A: One-time force of the figureInputs migration.
@@ -170,8 +172,14 @@ export async function migrateSlideConfigs(
       );
     }
 
-    // Already valid? Skip (unless pre-validation made changes).
-    if (!preValidationChanged && slideConfigSchema.safeParse(config).success) {
+    // Already valid? Skip (unless pre-validation made changes, or legacy keys
+    // — which safeParse silently strips — still need the embedded-config
+    // rename).
+    if (
+      !preValidationChanged &&
+      slideConfigSchema.safeParse(config).success &&
+      !rawJsonNeedsForcedTransform(row.config)
+    ) {
       continue;
     }
 
@@ -206,9 +214,16 @@ export async function migrateSlideConfigs(
 
     const validated = slideConfigSchema.parse(config);
 
+    // Output identical to stored (e.g. a forced-scan false positive)? Skip the
+    // write so the row doesn't churn last_updated on every boot.
+    const out = JSON.stringify(validated);
+    if (out === storedCanonical) {
+      continue;
+    }
+
     await tx`
       UPDATE slides
-      SET config = ${JSON.stringify(validated)}, last_updated = ${now}
+      SET config = ${out}, last_updated = ${now}
       WHERE id = ${row.id}
     `;
     rowsTransformed++;

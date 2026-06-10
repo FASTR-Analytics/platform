@@ -15,11 +15,9 @@
 
 import { dashboardConfigSchema } from "lib";
 import type { Sql } from "postgres";
+import type { MigrationStats } from "./po_config.ts";
 
-export type MigrationStats = {
-  rowsChecked: number;
-  rowsTransformed: number;
-};
+export type { MigrationStats };
 
 export async function migrateDashboardConfigs(
   tx: Sql,

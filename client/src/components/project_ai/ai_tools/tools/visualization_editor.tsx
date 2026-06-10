@@ -1,5 +1,6 @@
 import {
   configDStrict,
+  getEffectiveRollupLevel,
   presentationObjectConfigTStrict,
   type MetricWithStatus,
 } from "lib";
@@ -43,10 +44,10 @@ const vizConfigUpdateSchema = z.object({
     z.null(),
   ]).optional().describe("Selected replicant value, or null to clear."),
   includeAdminAreaRollup: configDStrict.shape.includeAdminAreaRollup.describe(
-    "Include an admin-area total row when disaggregating by the finest admin level (admin_area_2/3/4).",
+    "Include an admin-area total row. Only available when EXACTLY ONE admin level (admin_area_2/3/4) is disaggregated, not shown as replicant/map area, and not filtered to a single value; not available on maps; the metric must be SUM/COUNT or have a post-aggregation expression. Setting this when unavailable is an error.",
   ),
   adminAreaRollupPosition: configDStrict.shape.adminAreaRollupPosition.describe(
-    "Where to position the admin-area total row (top or bottom).",
+    "Where to position the admin-area total row (top or bottom). Display-only; defaults to bottom.",
   ),
 
   // EXCEPTION: periodFilter uses simpler abstraction (like startDate/endDate)
@@ -150,7 +151,25 @@ export function getToolsForVizEditor(
           }
         }
 
-        // Schema now enforces valid adminAreaRollupPosition enum - no runtime check needed
+        // Roll-up gate, validated UP FRONT like the other checks (a throw must
+        // mean "nothing changed") against a candidate of the post-edit config.
+        if (input.includeAdminAreaRollup === true) {
+          const current = ctx.getTempConfig();
+          const candidate = {
+            ...current,
+            d: {
+              ...current.d,
+              type: input.type ?? current.d.type,
+              disaggregateBy: input.disaggregateBy ?? current.d.disaggregateBy,
+              filterBy: input.filterBy ?? current.d.filterBy,
+            },
+          };
+          if (getEffectiveRollupLevel(resultsValue, candidate) === undefined) {
+            throw new Error(
+              "includeAdminAreaRollup is not available here: it requires exactly one disaggregated admin level (admin_area_2/3/4) not shown as replicant/map area and not filtered to a single value, not on a map, and a metric that is SUM/COUNT or has a post-aggregation expression. No changes were applied.",
+            );
+          }
+        }
 
         if (input.type) {
           setTempConfig("d", "type", input.type);
@@ -248,6 +267,12 @@ export function getToolsForVizEditor(
 
         if (input.includeAdminAreaRollup !== undefined) {
           setTempConfig("d", "includeAdminAreaRollup", input.includeAdminAreaRollup);
+          if (
+            input.includeAdminAreaRollup === true &&
+            !ctx.getTempConfig().d.adminAreaRollupPosition
+          ) {
+            setTempConfig("d", "adminAreaRollupPosition", "bottom");
+          }
           changes.push("includeAdminAreaRollup");
         }
 

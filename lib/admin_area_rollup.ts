@@ -1,15 +1,11 @@
 // Shared definitions for the admin-area roll-up ("National" / total) row feature.
 // The server query builder and the client (gate + display) both depend on these,
-// so they live in lib/ and use no panther UI surface. The pinned sort config
-// (rollupAwareSortByLabel) is intentionally NOT here — it needs a panther UI type
-// and only the client uses it, so it stays in client/generate_visualization.
+// so they live in lib/ and use no panther UI surface.
 //
-// The roll-up COLLAPSE LEVEL is chosen by `getRollupAdminLevel` (in
-// get_fetch_config_from_po.ts, where the single-value-filter check lives) — the
-// finest admin level that is grouped, not displayed as replicant/mapArea, and not
-// filtered to a single value. That level is baked into the fetch config and the
-// server obeys it; the server must NOT recompute "finest" from raw group-bys (raw
-// group-bys include replicant levels, which are not valid collapse targets).
+// The collapse level is chosen by getRollupAdminLevel / getEffectiveRollupLevel
+// (in get_fetch_config_from_po.ts) — see the doc comment there for the contract.
+
+import type { PostAggregationExpression, ValueFunc } from "./types/_metric_installed.ts";
 
 export const ADMIN_LEVELS = [
   "admin_area_2",
@@ -19,23 +15,32 @@ export const ADMIN_LEVELS = [
 
 export type AdminLevel = (typeof ADMIN_LEVELS)[number];
 
-// Sentinel values placed in the collapsed admin column to mark the roll-up row.
-// ROLLUP_SENTINEL_TOP sorts to the top, ROLLUP_SENTINEL_BOTTOM to the bottom (see
-// rollupAwareSortByLabel, client-side). Both render as the same roll-up label.
-export const ROLLUP_SENTINEL_TOP = "__NATIONAL";
-export const ROLLUP_SENTINEL_BOTTOM = "zzNATIONAL";
+// Sentinel value placed in the collapsed admin column to mark the roll-up row.
+// The top/bottom position is a display preference handled entirely client-side
+// (getRollupAwareSort) — it never changes the SQL or the sentinel.
+export const ROLLUP_SENTINEL = "__NATIONAL";
+// Emitted by a previous release for position "bottom"; kept for one release so
+// stored FigureInputs grids containing it still render. Nothing new emits it.
+export const LEGACY_ROLLUP_SENTINEL = "zzNATIONAL";
+// The ids display code matches/pins on (current + render-compat legacy).
+export const ROLLUP_PIN_IDS = [ROLLUP_SENTINEL, LEGACY_ROLLUP_SENTINEL];
 
 export function isAdminLevel(disOpt: string): disOpt is AdminLevel {
   return (ADMIN_LEVELS as readonly string[]).includes(disOpt);
 }
 
-// The admin level one step coarser than `level` (its "parent"), used for the
-// roll-up row's label heuristic. AA2's parent (AA1) is not a disaggregation
-// option, so it returns undefined.
-export function getParentAdminLevel(level: AdminLevel): AdminLevel | undefined {
-  return level === "admin_area_4"
-    ? "admin_area_3"
-    : level === "admin_area_3"
-      ? "admin_area_2"
-      : undefined;
+// The roll-up re-aggregates a metric's rows across admin areas, so it is only
+// offered when that re-aggregation is meaningful: additive value funcs, or
+// identity values whose ratio is recomputed after the union via a
+// post-aggregation expression. Bare identity (pre-aggregated percentages/rates)
+// and AVG/MIN/MAX (would silently re-average pre-aggregated rows) are excluded.
+export function isRollupEligibleResultsValue(rv: {
+  valueFunc: ValueFunc;
+  postAggregationExpression?: PostAggregationExpression | null;
+}): boolean {
+  return (
+    !!rv.postAggregationExpression ||
+    rv.valueFunc === "SUM" ||
+    rv.valueFunc === "COUNT"
+  );
 }

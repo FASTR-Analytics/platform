@@ -6,10 +6,13 @@ import { ALL_DISAGGREGATION_OPTIONS } from "./disaggregation_options.ts";
 // Module Definition — GITHUB SHAPE.
 //
 // Strict schema for module definitions as authored in GitHub repos. Validated
-// at fetch time by load_module.ts. Strict-all-the-way-down: NO preprocess,
-// NO drift tolerance, NO defaults for missing fields. Authored definition.json
-// files must match this shape exactly — incomplete or legacy shapes get
-// rejected with clear error paths.
+// at fetch time by load_module.ts. NO preprocess, NO drift tolerance, NO
+// defaults for missing fields: incomplete shapes get rejected with clear error
+// paths. CAVEAT: zod's default strip mode silently DROPS unknown keys rather
+// than rejecting them — a definition.json carrying a renamed-away legacy key
+// (e.g. includeNationalForAdminArea2) loads with that setting silently lost.
+// Field renames must therefore land in the authored definition.json files at
+// the same time as here.
 //
 // MUST NOT import from _module_definition_installed.ts or _metric_installed.ts.
 // GitHub and installed schemas are independent — shared atoms live in

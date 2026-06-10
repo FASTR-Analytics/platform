@@ -6,9 +6,9 @@ import type {
 import type { DynamicPeriodColumn } from "./period_helpers.ts";
 
 /**
- * Configuration for building queries (v2)
+ * Configuration for building queries
  */
-export interface QueryConfigV2 {
+export interface QueryConfig {
   tableName: string;
   fetchConfig: GenericLongFormFetchConfig;
   queryContext: QueryContext;

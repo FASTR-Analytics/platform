@@ -4,7 +4,12 @@ import {
   getSortedAlphabeticalByFunc,
   getTimeFromPeriodId,
 } from "@timroberton/panther";
-import { type AdminLevel, isAdminLevel } from "./admin_area_rollup.ts";
+import {
+  ADMIN_LEVELS,
+  type AdminLevel,
+  isAdminLevel,
+  isRollupEligibleResultsValue,
+} from "./admin_area_rollup.ts";
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import {
   periodFilterHasBounds,
@@ -15,7 +20,12 @@ import {
   type ResultsValueInfoForPresentationObject,
 } from "./types/presentation_objects.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
-import { inferPeriodFormatFromValue, type PeriodOption } from "./types/_metric_installed.ts";
+import {
+  inferPeriodFormatFromValue,
+  type PeriodOption,
+  type PostAggregationExpression,
+  type ValueFunc,
+} from "./types/_metric_installed.ts";
 import type { ResultsValue } from "./types/modules.ts";
 import type { APIResponseWithData } from "./types/instance.ts";
 import { getCalendar } from "./translate/mod.ts";
@@ -38,12 +48,9 @@ export function getFetchConfigFromPresentationObjectConfig(
     groupBys.push(config.d.timeseriesGrouping);
   }
 
-  // The roll-up collapses a single admin level, chosen by getRollupAdminLevel (the
-  // finest grouped admin level that isn't replicant/mapArea and isn't filtered to one
-  // value). Computed here, client-side, and baked into the fetch config as
-  // `adminAreaRollupLevel` — the server obeys it and must NOT recompute "finest" from
-  // raw groupBys (which include replicant levels, the wrong collapse target).
-  const rollupLevel = getRollupAdminLevel(config);
+  // Collapse level baked in client-side; the server obeys it — see
+  // getEffectiveRollupLevel.
+  const rollupLevel = getEffectiveRollupLevel(resultsValue, config);
   const includeAdminAreaRollup =
     !!config.d.includeAdminAreaRollup && rollupLevel !== undefined;
   const adminAreaRollupLevel = includeAdminAreaRollup ? rollupLevel : undefined;
@@ -63,7 +70,6 @@ export function getFetchConfigFromPresentationObjectConfig(
         filters,
         periodFilter: config.d.periodFilter,
         includeAdminAreaRollup,
-        adminAreaRollupPosition: config.d.adminAreaRollupPosition,
         adminAreaRollupLevel,
       },
     };
@@ -82,7 +88,6 @@ export function getFetchConfigFromPresentationObjectConfig(
       filters,
       periodFilter: config.d.periodFilter,
       includeAdminAreaRollup,
-      adminAreaRollupPosition: config.d.adminAreaRollupPosition,
       adminAreaRollupLevel,
     },
   };
@@ -273,7 +278,6 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
     fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.max.toString() : "",
     fc.postAggregationExpression ?? "",
     fc.includeAdminAreaRollup ? "yes" : "no",
-    fc.adminAreaRollupPosition,
     fc.adminAreaRollupLevel ?? "",
   ].join("#");
 }
@@ -299,23 +303,96 @@ export function hasOnlyOneFilteredValue(
 }
 
 // The single admin level the roll-up collapses, or undefined if the roll-up isn't
-// applicable. It's the finest admin level that is grouped, NOT displayed as
-// replicant/mapArea, and NOT filtered to a single value — and there must be exactly
-// one such level (otherwise the per-parent-subtotal shape would arise, which Design A
-// can't render). This is the single source of truth: the gate, the server collapse
-// (via the baked `adminAreaRollupLevel`), the display label, and the table-axis pin
-// all derive from it, so they can never disagree.
+// applicable. There must be EXACTLY ONE admin level that is grouped, NOT displayed
+// as replicant/mapArea, and NOT filtered to a single value (more than one would
+// require per-parent subtotals, which the display layer can't render). Maps are
+// excluded entirely (a "National" pane is not wanted). This is the single source
+// of truth for the config-shape gate: the server collapse (via the baked
+// `adminAreaRollupLevel`), the display label, and the axis pins all derive from
+// it — the server must NOT recompute the level from raw groupBys (those include
+// replicant levels, the wrong collapse target). Metric eligibility is layered on
+// top by getEffectiveRollupLevel.
 export function getRollupAdminLevel(
   config: PresentationObjectConfig,
 ): AdminLevel | undefined {
-  const effective = config.d.disaggregateBy.filter(
-    (d) =>
-      isAdminLevel(d.disOpt) &&
-      d.disDisplayOpt !== "replicant" &&
-      d.disDisplayOpt !== "mapArea" &&
-      !hasOnlyOneFilteredValue(config, d.disOpt),
+  if (config.d.type === "map") {
+    return undefined;
+  }
+  const effective = config.d.disaggregateBy.flatMap((d) =>
+    isAdminLevel(d.disOpt) &&
+    d.disDisplayOpt !== "replicant" &&
+    d.disDisplayOpt !== "mapArea" &&
+    !hasOnlyOneFilteredValue(config, d.disOpt)
+      ? [d.disOpt]
+      : [],
   );
-  return effective.length === 1 ? (effective[0].disOpt as AdminLevel) : undefined;
+  return effective.length === 1 ? effective[0] : undefined;
+}
+
+// getRollupAdminLevel plus metric eligibility (isRollupEligibleResultsValue):
+// the gate used everywhere a ResultsValue is in scope — the UI checkbox, the
+// fetch-config builder, the save-time strip, and the AI editor tool.
+export function getEffectiveRollupLevel(
+  resultsValue: {
+    valueFunc: ValueFunc;
+    postAggregationExpression?: PostAggregationExpression | null;
+  },
+  config: PresentationObjectConfig,
+): AdminLevel | undefined {
+  return isRollupEligibleResultsValue(resultsValue)
+    ? getRollupAdminLevel(config)
+    : undefined;
+}
+
+// Whether a config's figure can contain roll-up sentinel rows: the flag is on
+// AND the config-shape gate is open. Display-side gate (no ResultsValue):
+// metric-ineligible configs with a stale flag get no sentinel rows from the
+// server, so display consumers of this remain inert for them.
+export function isRollupActive(config: PresentationObjectConfig): boolean {
+  return (
+    !!config.d.includeAdminAreaRollup &&
+    getRollupAdminLevel(config) !== undefined
+  );
+}
+
+export type RollupLabelContext =
+  | { kind: "subset" }
+  | { kind: "pinned"; level: AdminLevel; value: string | undefined }
+  | { kind: "national" };
+
+// What the roll-up row actually totals, for labeling (row label + editor checkbox).
+// Precedence: any admin filter with 2+ values at or coarser than the roll-up level
+// makes the row a subset total ("Total (selected areas)"); otherwise the FINEST
+// coarser level pinned to one value (replicant or single-value filter) names the
+// row; otherwise it is a true national total. Non-admin filters (facility type,
+// indicator, ...) deliberately do not affect the label.
+export function getRollupLabelContext(
+  config: PresentationObjectConfig,
+): RollupLabelContext | undefined {
+  const level = getRollupAdminLevel(config);
+  if (level === undefined) {
+    return undefined;
+  }
+  const levelIdx = ADMIN_LEVELS.indexOf(level);
+  for (const l of ADMIN_LEVELS.slice(0, levelIdx + 1)) {
+    const filter = config.d.filterBy.find((f) => f.disOpt === l);
+    if (filter && filter.values.length >= 2) {
+      return { kind: "subset" };
+    }
+  }
+  const coarser = ADMIN_LEVELS.slice(0, levelIdx);
+  for (let i = coarser.length - 1; i >= 0; i--) {
+    const l = coarser[i];
+    const dis = config.d.disaggregateBy.find((d) => d.disOpt === l);
+    if (dis?.disDisplayOpt === "replicant") {
+      return { kind: "pinned", level: l, value: config.d.selectedReplicantValue };
+    }
+    const filter = config.d.filterBy.find((f) => f.disOpt === l);
+    if (filter?.values.length === 1) {
+      return { kind: "pinned", level: l, value: String(filter.values[0]) };
+    }
+  }
+  return { kind: "national" };
 }
 
 function getFiltersWithoutReplicant(config: PresentationObjectConfig): {

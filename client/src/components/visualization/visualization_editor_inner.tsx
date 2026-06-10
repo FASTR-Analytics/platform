@@ -8,7 +8,6 @@ import {
   ResultsValueInfoForPresentationObject,
   getEffectivePOConfig,
   getReplicateByProp,
-  getRollupAdminLevel,
   hasDuplicateDisaggregatorDisplayOptions,
   normalizePOConfigForStorage,
   periodFilterHasBounds,
@@ -135,9 +134,15 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   // Sub-state updater
 
+  // Monotonic run id: a superseded fetch must not write its (stale) items —
+  // they'd be paired with the CURRENT config, which can disagree visibly
+  // (e.g. a roll-up sentinel row rendering raw when the flag was re-toggled
+  // off before the slower roll-up query resolved).
+  let itemsFetchRunId = 0;
   async function attemptGetPresentationObjectItems(
     config: PresentationObjectConfig,
   ) {
+    const runId = ++itemsFetchRunId;
     setItemsHolder({ status: "loading" });
     try {
       const iter = getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
@@ -149,8 +154,14 @@ export function VisualizationEditorInner(p: InnerProps) {
         status: "loading",
       };
       for await (const state of iter) {
+        if (runId !== itemsFetchRunId) {
+          return;
+        }
         lastState = state;
         setItemsHolder(state);
+      }
+      if (runId !== itemsFetchRunId) {
+        return;
       }
       if (lastState.status === "ready") {
         const mapLevel = getAdminAreaLevelFromMapConfig(lastState.data.config);
@@ -163,6 +174,9 @@ export function VisualizationEditorInner(p: InnerProps) {
         }
       }
     } catch (err) {
+      if (runId !== itemsFetchRunId) {
+        return;
+      }
       console.error("attemptGetPresentationObjectItems error:", err);
       setItemsHolder({
         status: "error",
@@ -232,10 +246,6 @@ export function VisualizationEditorInner(p: InnerProps) {
     const _periodFilterMin = _periodFilterBounded?.min;
     const _periodFilterMax = _periodFilterBounded?.max;
     const _valuesFilter = tempConfig.d.valuesFilter?.join("-");
-    const _includeAdminAreaRollup = tempConfig.d.includeAdminAreaRollup
-      ? "yes"
-      : "no";
-    const _adminAreaRollupPosition = tempConfig.d.adminAreaRollupPosition;
     if (firstRunConfigChange) {
       firstRunConfigChange = false;
       return;
@@ -244,21 +254,11 @@ export function VisualizationEditorInner(p: InnerProps) {
     attemptGetPresentationObjectItems(unwrappedTempConfig);
   });
 
-  // Clear the roll-up flag precisely when an edit makes the roll-up inapplicable — a
-  // second admin level becomes effective, the level is switched to replicant/mapArea,
-  // or the level itself is filtered to one value (e.g. via the filters panel). Reactive,
-  // so it covers every edit path, and only fires when the gate actually breaks (benign
-  // edits like row→col keep the level, so the flag survives). Prevents a stuck-on-but-
-  // hidden flag.
-  createEffect(() => {
-    if (
-      tempConfig.d.includeAdminAreaRollup &&
-      getRollupAdminLevel(tempConfig) === undefined
-    ) {
-      setTempConfig("d", "includeAdminAreaRollup", undefined);
-    }
-  });
-
+  // NOTE: there is deliberately no effect clearing includeAdminAreaRollup when the
+  // gate (getEffectiveRollupLevel) closes. Gate closures are often transient while
+  // editing (filter chips toggle one value at a time), the fetch-config builder
+  // re-derives the flag safely, the checkbox UI hides itself, and the flag is
+  // stripped at save time in normalizePOConfigForStorage.
   let firstRunNeedsSave = true;
   createEffect(() => {
     trackStore(tempConfig);
@@ -273,7 +273,10 @@ export function VisualizationEditorInner(p: InnerProps) {
   // Actions
 
   function getConfigForSave() {
-    return normalizePOConfigForStorage(unwrap(tempConfig));
+    return normalizePOConfigForStorage(
+      unwrap(tempConfig),
+      p.poDetail.resultsValue,
+    );
   }
 
   // Create mode: open modal to get name and folder, then create

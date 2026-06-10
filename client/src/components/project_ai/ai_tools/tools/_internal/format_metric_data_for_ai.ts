@@ -68,7 +68,10 @@ export async function getMetricDataForAI(
       ? valuesFilter.filter((vf) => metric.valueProps.includes(vf))
       : metric.valueProps;
 
-  // Build fetchConfig
+  // Build fetchConfig. The admin-area roll-up row is DELIBERATELY excluded from
+  // AI data: a total row mixed into the long-form rows would invite double
+  // counting in the model's sums. Callers that mirror a viz with the roll-up
+  // enabled must say so in the context text (see format_viz_editor_for_ai).
   const fetchConfig: GenericLongFormFetchConfig =
     metric.postAggregationExpression
       ? {
@@ -79,7 +82,6 @@ export async function getMetricDataForAI(
           postAggregationExpression:
             metric.postAggregationExpression.expression,
           includeAdminAreaRollup: false,
-          adminAreaRollupPosition: undefined,
         }
       : {
           values: valuePropsToFetch.map((prop) => ({
@@ -91,7 +93,6 @@ export async function getMetricDataForAI(
           periodFilter,
           postAggregationExpression: undefined,
           includeAdminAreaRollup: false,
-          adminAreaRollupPosition: undefined,
         };
 
   const { data, version } = await _PO_ITEMS_CACHE.get({

@@ -8,7 +8,7 @@ import {
   PeriodOption,
 } from "lib";
 import { MAX_ITEMS } from "./consts.ts";
-import { buildCombinedQueryV2 } from "./get_combined_query.ts";
+import { buildCombinedQuery } from "./get_combined_query.ts";
 import { getIndicatorMetadata } from "./get_indicator_metadata.ts";
 import { getPeriodBounds } from "./get_period_bounds.ts";
 import { buildQueryContext } from "./get_query_context.ts";
@@ -112,7 +112,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     //                       //
     ///////////////////////////
 
-    const sqlQuery = buildCombinedQueryV2({
+    const sqlQuery = buildCombinedQuery({
       tableName,
       fetchConfig: resolvedFetchConfig,
       queryContext,

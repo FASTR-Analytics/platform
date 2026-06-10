@@ -6,13 +6,12 @@ import type {
 import {
   inferPeriodFormatFromValuesIfTheSame,
   isAdminLevel,
-  ROLLUP_SENTINEL_BOTTOM,
-  ROLLUP_SENTINEL_TOP,
+  ROLLUP_SENTINEL,
 } from "lib";
 import type { QueryContext } from "./types.ts";
 
 // ============================================================================
-// Main and National Query Builders (v2)
+// Main and Roll-up Query Builders
 // ============================================================================
 
 /**
@@ -24,13 +23,13 @@ export function buildMainQuery(
   queryContext: QueryContext,
   facilityCTEName?: string,
 ): string {
-  const aggregateColumns = buildAggregateColumns(fetchConfig.values, false);
+  const aggregateColumns = buildAggregateColumns(fetchConfig.values, "main");
 
   const identityValueProps = fetchConfig.values
     .filter((v) => v.func === "identity")
     .map((v) => v.prop);
 
-  return buildSelectQueryV2(
+  return buildSelectQuery(
     sourceTable,
     fetchConfig,
     {
@@ -44,9 +43,10 @@ export function buildMainQuery(
 }
 
 /**
- * Builds the admin-area roll-up ("National" / total) query using externally
- * managed CTEs. Collapses the finest grouped admin level into a single roll-up
- * row (sentinel in that column, dropped from GROUP BY, values re-aggregated).
+ * Builds the admin-area roll-up (total) query using externally managed CTEs.
+ * Collapses the admin level chosen client-side (see getRollupAdminLevel) into a
+ * single roll-up row: sentinel in that column, dropped from GROUP BY, values
+ * re-aggregated.
  */
 export function buildAdminAreaRollupQuery(
   sourceTable: string,
@@ -54,10 +54,8 @@ export function buildAdminAreaRollupQuery(
   queryContext: QueryContext,
   facilityCTEName?: string,
 ): string | null {
-  // The client chose the collapse level (get_fetch_config_from_po → getRollupAdminLevel),
-  // accounting for replicant/mapArea and single-value filters that the server can't see.
-  // We obey it — but `level` is interpolated raw into SQL, so isAdminLevel() is the
-  // SQL-safety boundary (closed union, not free-text). It must also actually be grouped.
+  // `level` is interpolated raw into SQL, so isAdminLevel() is the SQL-safety
+  // boundary (closed union, not free-text). It must also actually be grouped.
   const level = fetchConfig.adminAreaRollupLevel;
   if (
     !fetchConfig.includeAdminAreaRollup ||
@@ -68,22 +66,17 @@ export function buildAdminAreaRollupQuery(
     return null;
   }
 
-  const sentinel =
-    fetchConfig.adminAreaRollupPosition === "top"
-      ? ROLLUP_SENTINEL_TOP
-      : ROLLUP_SENTINEL_BOTTOM;
-
   // Replace the collapsed level with the sentinel constant.
   const selectColumns: string[] = fetchConfig.groupBys.map((gb) =>
-    gb === level ? `'${sentinel}' AS ${level}` : gb,
+    gb === level ? `'${ROLLUP_SENTINEL}' AS ${level}` : gb,
   );
 
-  const aggregateColumns = buildAggregateColumns(fetchConfig.values, true);
+  const aggregateColumns = buildAggregateColumns(fetchConfig.values, "rollup");
 
   // GROUP BY excludes the collapsed level (it's replaced with a constant)
   const groupByColumns = fetchConfig.groupBys.filter((gb) => gb !== level);
 
-  return buildSelectQueryV2(
+  return buildSelectQuery(
     sourceTable,
     fetchConfig,
     {
@@ -97,14 +90,13 @@ export function buildAdminAreaRollupQuery(
 }
 
 // ============================================================================
-// SELECT Query Building (v2 - No Internal CTEs)
+// SELECT Query Building
 // ============================================================================
 
 /**
- * Builds SELECT queries without creating internal CTEs
- * This is the v2 version that uses externally managed CTEs
+ * Builds SELECT queries using externally managed CTEs
  */
-function buildSelectQueryV2(
+function buildSelectQuery(
   sourceTable: string,
   fetchConfig: GenericLongFormFetchConfig,
   options: {
@@ -192,12 +184,11 @@ ${groupByClause}`;
 }
 
 // ============================================================================
-// WHERE Clause Building (Same as v1)
+// WHERE Clause Building
 // ============================================================================
 
 /**
  * Builds WHERE clause conditions from fetch configuration
- * This function is identical to v1 and doesn't need changes
  */
 export function buildWhereClause(
   fetchConfig: GenericLongFormFetchConfig,
@@ -264,21 +255,24 @@ export function buildWhereClause(
 }
 
 // ============================================================================
-// Aggregate Column Building (Same as v1)
+// Aggregate Column Building
 // ============================================================================
 
 /**
- * Builds aggregate column expressions based on value configuration
- * This function is identical to v1 and doesn't need changes
+ * Builds aggregate column expressions based on value configuration. Identity
+ * values cannot reach the roll-up branch from a real config (rollup eligibility
+ * admits only SUM/COUNT metrics or post-aggregation ingredients, which are
+ * SUM/AVG); the SUM fallback there is defense-in-depth for hand-crafted
+ * fetch configs.
  */
 function buildAggregateColumns(
   values: GenericLongFormFetchConfig["values"],
-  forNationalTotal: boolean = false,
+  mode: "main" | "rollup",
 ): string {
   return values
     .map((valueObj) => {
       if (valueObj.func === "identity") {
-        return forNationalTotal
+        return mode === "rollup"
           ? `SUM(${valueObj.prop}) AS ${valueObj.prop}`
           : valueObj.prop;
       }
@@ -288,14 +282,14 @@ function buildAggregateColumns(
 }
 
 // ============================================================================
-// Post-Aggregation Expression (v2)
+// Post-Aggregation Expression
 // ============================================================================
 
 /**
- * Applies post-aggregation expression with proper CTE handling
- * The v2 version ensures CTEs stay at the top level
+ * Applies post-aggregation expression with proper CTE handling, keeping CTEs
+ * at the top level
  */
-export function applyPostAggregationExpressionV2(
+export function applyPostAggregationExpression(
   sqlQuery: string,
   postAggregationExpression: string | undefined,
   groupBys: (DisaggregationOption | PeriodOption)[],
@@ -324,6 +318,6 @@ export function applyPostAggregationExpressionV2(
   const wrappedQuery = `SELECT ${groupByPrefix}(${safeExpression}) as ${value} FROM (${sqlQuery}) AS subq`;
 
   // If there are CTEs, they need to be moved to the outer level
-  // This is handled by the caller in buildCombinedQueryV2
+  // This is handled by the caller in buildCombinedQuery
   return wrappedQuery;
 }

@@ -27,6 +27,7 @@ import {
 } from "@timroberton/panther";
 import type { ColorPresetId } from "@timroberton/panther";
 import type { Sql } from "postgres";
+import type { MigrationStats } from "./po_config.ts";
 
 function findNearestPresetByHue(primaryColor: string): ColorPresetId {
   const { h: brandHue } = new Color(primaryColor).hsl();
@@ -98,10 +99,7 @@ function migrateLogoSizing(
   return out;
 }
 
-export type MigrationStats = {
-  rowsChecked: number;
-  rowsTransformed: number;
-};
+export type { MigrationStats };
 
 export async function migrateSlideDeckConfigs(
   tx: Sql,

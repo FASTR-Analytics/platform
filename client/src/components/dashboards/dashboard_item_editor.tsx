@@ -1,13 +1,13 @@
 import type { DashboardItem } from "lib";
 import { t3 } from "lib";
-import { Button, Input } from "panther";
-import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
+import { Button } from "panther";
+import { Show } from "solid-js";
 
 type Props = {
   item: DashboardItem | undefined;
   selectedCount: number;
   canConfigure: boolean;
-  onUpdateLabel: (itemId: string, label: string) => void;
+  onRename: () => void;
   onEdit: () => void;
   onSwitch: () => void;
   onCreate: () => void;
@@ -15,56 +15,6 @@ type Props = {
 };
 
 export function DashboardItemEditor(p: Props) {
-  const [labelDraft, setLabelDraft] = createSignal("");
-  let debounce: ReturnType<typeof setTimeout> | undefined;
-  let pendingCommit: (() => void) | undefined;
-
-  // Flush (not drop) any pending label commit before the editor unmounts or the
-  // selection changes — otherwise navigating away / switching within the debounce
-  // window silently loses the edit. The commit is bound to the captured item id,
-  // so flushing after the selection moved still saves the right item.
-  function flushPending() {
-    if (debounce) {
-      clearTimeout(debounce);
-      debounce = undefined;
-    }
-    if (pendingCommit) {
-      pendingCommit();
-      pendingCommit = undefined;
-    }
-  }
-
-  // Commit the previous item's pending label, then reseed the draft whenever the
-  // selected item changes (incl. SSE updates).
-  createEffect(
-    on(
-      () => p.item?.id,
-      () => {
-        flushPending();
-        setLabelDraft(p.item?.label ?? "");
-      },
-    ),
-  );
-  onCleanup(flushPending);
-
-  function onLabelInput(v: string) {
-    setLabelDraft(v);
-    // Bind the commit to the item being edited NOW, not whatever is selected
-    // when the timer fires (selection may change mid-debounce).
-    const itemId = p.item?.id;
-    const origLabel = p.item?.label;
-    if (debounce) clearTimeout(debounce);
-    pendingCommit = () => {
-      const next = v.trim();
-      if (itemId && next && next !== origLabel) p.onUpdateLabel(itemId, next);
-    };
-    debounce = setTimeout(() => {
-      pendingCommit?.();
-      pendingCommit = undefined;
-      debounce = undefined;
-    }, 500);
-  }
-
   return (
     <div class="flex h-full w-full flex-col overflow-auto">
       <Show
@@ -88,15 +38,12 @@ export function DashboardItemEditor(p: Props) {
       >
         {(item) => (
           <div class="ui-pad ui-spy">
-            <Input
-              label={t3({ en: "Label", fr: "Étiquette" })}
-              value={labelDraft()}
-              onChange={onLabelInput}
-              disabled={!p.canConfigure}
-              fullWidth
-            />
+            <div class="text-sm font-700">{item().label}</div>
             <Show when={p.canConfigure}>
               <div class="ui-gap-sm flex flex-col">
+                <Button onClick={() => p.onRename()}>
+                  {t3({ en: "Rename", fr: "Renommer" })}
+                </Button>
                 <Show
                   when={
                     item().figureBlock.figureInputs &&

@@ -1,4 +1,5 @@
 import {
+  normalizePOConfigForStorage,
   PresentationObjectConfig,
   PresentationObjectDetail,
   t3,
@@ -48,7 +49,10 @@ export function SaveAsNewVisualizationModal(
         projectId: p.projectId,
         label: goodLabel,
         resultsValue: p.resultsValue,
-        config: p.config,
+        // Normalize here so ALL save-as-new paths (editor create mode, AI
+        // draft previews) enforce the canonical config form — idempotent for
+        // callers that already normalized.
+        config: normalizePOConfigForStorage(p.config, p.resultsValue),
         makeDefault: false,
         folderId,
       });

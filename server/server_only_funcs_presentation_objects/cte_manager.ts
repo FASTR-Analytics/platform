@@ -1,5 +1,5 @@
 import { PERIOD_COLUMN_EXPRESSIONS, QUARTER_ID_COLUMN_EXPRESSIONS, getQuarterIdExpression } from "./period_helpers.ts";
-import type { QueryConfigV2 } from "./types.ts";
+import type { QueryConfig } from "./types.ts";
 
 // ============================================================================
 // CTE Manager - Centralized Common Table Expression Management
@@ -63,7 +63,7 @@ export class CTEManager {
    * @param config - Query configuration containing context about needed CTEs
    * @returns CTEManager with appropriate CTEs registered
    */
-  static fromQueryConfig(config: QueryConfigV2): CTEManager {
+  static fromQueryConfig(config: QueryConfig): CTEManager {
     const { tableName, queryContext } = config;
     const manager = new CTEManager();
 

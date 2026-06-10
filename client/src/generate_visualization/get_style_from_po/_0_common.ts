@@ -21,6 +21,8 @@ import {
   type DeckStyleContext,
   type IndicatorMetadata,
   getSlideFontInfo,
+  isRollupActive,
+  ROLLUP_PIN_IDS,
 } from "lib";
 import { PresentationObjectConfig, selectCf } from "lib";
 
@@ -215,7 +217,40 @@ export function getMapRegionsContent(
   };
 }
 
+// The header whose index drives series coloring (see getIndex below) — the
+// sentinel check must look at the same axis the palette indexes.
+function getColorPropHeaderId(
+  info: ChartSeriesInfo,
+  seriesColorFuncPropToUse: "series" | "cell" | "row" | "col" | undefined,
+): string {
+  const header =
+    seriesColorFuncPropToUse === "cell"
+      ? info.paneHeader
+      : seriesColorFuncPropToUse === "col"
+        ? info.laneHeader
+        : seriesColorFuncPropToUse === "row"
+          ? info.tierHeader
+          : info.seriesHeader;
+  return header.id;
+}
+
 export function getStandardSeriesColorFunc(
+  config: PresentationObjectConfig,
+): (info: ChartSeriesInfo) => ColorKeyOrString {
+  const base = getStandardSeriesColorFuncBase(config);
+  if (!isRollupActive(config)) {
+    return base;
+  }
+  // The roll-up (total) series gets a fixed neutral color: pinning it first
+  // shifts every other series' palette index, and the total reads as a
+  // reference series rather than a member of the palette.
+  return (info: ChartSeriesInfo) => {
+    const id = getColorPropHeaderId(info, config.s.seriesColorFuncPropToUse);
+    return ROLLUP_PIN_IDS.includes(id) ? _CF_COMPARISON : base(info);
+  };
+}
+
+function getStandardSeriesColorFuncBase(
   config: PresentationObjectConfig,
 ): (info: ChartSeriesInfo) => ColorKeyOrString {
   if (config.s.colorScale === "single-grey") {

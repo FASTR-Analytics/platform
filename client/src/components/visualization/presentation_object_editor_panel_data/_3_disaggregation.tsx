@@ -6,9 +6,9 @@ import {
   PresentationObjectDetail,
   ResultsValue,
   TC,
+  getEffectiveRollupLevel,
   getNextAvailableDisaggregationDisplayOption,
-  getParentAdminLevel,
-  getRollupAdminLevel,
+  getRollupLabelContext,
   get_DISAGGREGATION_DISPLAY_OPTIONS,
   t3,
 } from "lib";
@@ -208,6 +208,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
                 <DisaggregationOptionSettings
                   disOpt={p.disOpt}
                   keyedDis={keyedDis}
+                  poDetail={p.poDetail}
                   tempConfig={p.tempConfig}
                   setTempConfig={p.setTempConfig}
                 />
@@ -257,6 +258,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
                 <DisaggregationOptionSettings
                   disOpt={p.disOpt}
                   keyedDis={keyedDis}
+                  poDetail={p.poDetail}
                   tempConfig={p.tempConfig}
                   setTempConfig={p.setTempConfig}
                 />
@@ -270,8 +272,9 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
 }
 
 type DisaggregationOptionSettingsProps = {
-  disOpt: any;
-  keyedDis: any;
+  disOpt: DisaggregationSectionProps["allDisaggregationOptions"][number];
+  keyedDis: PresentationObjectConfig["d"]["disaggregateBy"][number];
+  poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
 };
@@ -295,9 +298,14 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
         fullWidth
       />
       {/* The roll-up option appears only on the single level the roll-up would
-          collapse — getRollupAdminLevel is the one source of truth shared with the
-          gate, server, and display, so the control can't show on the wrong level. */}
-      <Show when={getRollupAdminLevel(p.tempConfig) === p.disOpt.value}>
+          collapse — see getEffectiveRollupLevel (config-shape gate + metric
+          eligibility), shared with the fetch builder and the save normalizer. */}
+      <Show
+        when={
+          getEffectiveRollupLevel(p.poDetail.resultsValue, p.tempConfig) ===
+          p.disOpt.value
+        }
+      >
         <AdminAreaOptions
           tempConfig={p.tempConfig}
           setTempConfig={p.setTempConfig}
@@ -313,48 +321,46 @@ type AdminAreaOptionsProps = {
 };
 
 function AdminAreaOptions(p: AdminAreaOptionsProps) {
-  // The roll-up row is the parent level's subtotal when the parent admin level is
-  // pinned to one value (replicant or single-value filter); otherwise it's a true
-  // national total. The checkbox names the parent LEVEL, not the pinned value,
-  // because with a replicant the value differs per replicant.
-  const pinnedParentLevel = () => {
-    const level = getRollupAdminLevel(p.tempConfig);
-    const parent = level ? getParentAdminLevel(level) : undefined;
-    if (!parent) return undefined;
-    const parentDis = p.tempConfig.d.disaggregateBy.find(
-      (d) => d.disOpt === parent,
-    );
-    if (parentDis?.disDisplayOpt === "replicant") return parent;
-    const parentFilter = p.tempConfig.d.filterBy.find(
-      (f) => f.disOpt === parent,
-    );
-    return parentFilter?.values.length === 1 ? parent : undefined;
-  };
+  // The checkbox label mirrors what the roll-up row will actually contain —
+  // getRollupLabelContext is the same helper that labels the rendered row.
+  // Pinned names the LEVEL, not the pinned value, because with a replicant the
+  // value differs per replicant.
   const rollupCheckboxLabel = () => {
-    const parent = pinnedParentLevel();
-    if (!parent) {
+    const ctx = getRollupLabelContext(p.tempConfig);
+    if (ctx?.kind === "subset") {
       return t3({
-        en: "Include National results",
-        fr: "Inclure les résultats nationaux",
+        en: "Include total of selected areas",
+        fr: "Inclure le total des zones sélectionnées",
       });
     }
-    const name = t3(getDisplayDisaggregationLabel(parent));
+    if (ctx?.kind === "pinned") {
+      const name = t3(getDisplayDisaggregationLabel(ctx.level));
+      return t3({
+        en: `Include ${name} results`,
+        fr: `Inclure les résultats : ${name}`,
+      });
+    }
     return t3({
-      en: `Include ${name} results`,
-      fr: `Inclure les résultats : ${name}`,
+      en: "Include National results",
+      fr: "Inclure les résultats nationaux",
     });
   };
   return (
-    <div class="text-right">
+    <div class="flex flex-col items-end">
       <Checkbox
         label={rollupCheckboxLabel()}
         checked={!!p.tempConfig.d.includeAdminAreaRollup}
-        onChange={(v) => p.setTempConfig("d", "includeAdminAreaRollup", v)}
+        onChange={(v) => {
+          p.setTempConfig("d", "includeAdminAreaRollup", v);
+          if (v && !p.tempConfig.d.adminAreaRollupPosition) {
+            p.setTempConfig("d", "adminAreaRollupPosition", "bottom");
+          }
+        }}
       />
       <Show when={p.tempConfig.d.includeAdminAreaRollup}>
         <div class="flex justify-end pt-1.5 text-sm">
           <RadioGroup
-            value={p.tempConfig.d.adminAreaRollupPosition}
+            value={p.tempConfig.d.adminAreaRollupPosition ?? "bottom"}
             options={[
               { value: "top", label: t3({ en: "Top", fr: "Haut" }) },
               { value: "bottom", label: t3({ en: "Bottom", fr: "Bas" }) },

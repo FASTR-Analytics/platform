@@ -1,3 +1,5 @@
+import { isAdminLevel } from "./admin_area_rollup.ts";
+import { valueFuncStrict } from "./types/_metric_installed.ts";
 import { GenericLongFormFetchConfig } from "./types/presentation_objects.ts";
 
 export function validateFetchConfig(
@@ -12,9 +14,7 @@ export function validateFetchConfig(
       throw new Error("Invalid value prop: must be a non-empty string");
     }
 
-    if (
-      !["SUM", "AVG", "COUNT", "MIN", "MAX", "identity"].includes(value.func)
-    ) {
+    if (!valueFuncStrict.options.includes(value.func)) {
       throw new Error(`Invalid value func: ${value.func}`);
     }
   }
@@ -53,22 +53,25 @@ export function validateFetchConfig(
   }
 
   if (
-    fetchConfig.adminAreaRollupPosition !== undefined &&
-    !["bottom", "top"].includes(fetchConfig.adminAreaRollupPosition)
-  ) {
-    throw new Error(
-      "Invalid adminAreaRollupPosition: must be 'bottom' or 'top'"
-    );
-  }
-
-  if (
     fetchConfig.adminAreaRollupLevel !== undefined &&
-    !["admin_area_2", "admin_area_3", "admin_area_4"].includes(
-      fetchConfig.adminAreaRollupLevel
-    )
+    !isAdminLevel(fetchConfig.adminAreaRollupLevel)
   ) {
     throw new Error(
       "Invalid adminAreaRollupLevel: must be admin_area_2, admin_area_3, or admin_area_4"
+    );
+  }
+
+  // Server-side mirror of isRollupEligibleResultsValue: the roll-up
+  // re-aggregates across admin areas, which is only meaningful for additive
+  // funcs or post-aggregation ingredients (recomputed after the union). App
+  // clients never send anything else; this guards hand-crafted requests.
+  if (
+    fetchConfig.includeAdminAreaRollup === true &&
+    fetchConfig.postAggregationExpression === undefined &&
+    fetchConfig.values.some((v) => v.func !== "SUM" && v.func !== "COUNT")
+  ) {
+    throw new Error(
+      "Invalid includeAdminAreaRollup: without a postAggregationExpression, all value funcs must be SUM or COUNT"
     );
   }
 }

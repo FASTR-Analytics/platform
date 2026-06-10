@@ -43,12 +43,14 @@ import { z } from "zod";
 import { metricAIDescriptionInstalled, vizPresetInstalled } from "lib";
 import type { Sql } from "postgres";
 import { _METRIC_INFO_CACHE } from "../../../routes/caches/visualizations.ts";
-import { transformConfigD, transformConfigS } from "./po_config.ts";
+import {
+  type MigrationStats,
+  rawJsonNeedsForcedTransform,
+  transformConfigD,
+  transformConfigS,
+} from "./po_config.ts";
 
-export type MigrationStats = {
-  rowsChecked: number;
-  rowsTransformed: number;
-};
+export type { MigrationStats };
 
 // Block 20: Fill caption/subCaption/footnote fields if missing (viz preset specific)
 function transformVizPresetTextConfig(t: Record<string, unknown>): void {
@@ -89,8 +91,11 @@ function transformVizPreset(vp: Record<string, unknown>): void {
   const s = (cfg.s ?? {}) as Record<string, unknown>;
   const t = (cfg.t ?? {}) as Record<string, unknown>;
 
+  // Preset s is .partial() by design — run renames/strips only, never the
+  // default fills (those would permanently bake values into sparse presets
+  // that should inherit DEFAULT_S_CONFIG at viz-creation time).
   transformConfigD(d);
-  transformConfigS(s, d.type === "map");
+  transformConfigS(s, d.type === "map", { fillDefaults: false });
   transformVizPresetTextConfig(t);
 
   cfg.d = d;
@@ -138,16 +143,23 @@ export async function migrateMetricsColumns(tx: Sql, projectId: string): Promise
       }
     }
 
-    // Check and transform viz_presets
+    // Check and transform viz_presets — forced when legacy keys (which
+    // safeParse silently strips) still need the embedded-config rename.
     if (row.viz_presets) {
       const vizPresets = JSON.parse(row.viz_presets);
-      if (!vizPresetsArraySchema.safeParse(vizPresets).success) {
+      if (
+        !vizPresetsArraySchema.safeParse(vizPresets).success ||
+        rawJsonNeedsForcedTransform(row.viz_presets)
+      ) {
         const cloned = structuredClone(vizPresets) as Record<string, unknown>[];
         for (const vp of cloned) {
           transformVizPreset(vp);
         }
         transformedVizPresets = vizPresetsArraySchema.parse(cloned);
-        vizPresetsNeedsUpdate = true;
+        // Skip the write when nothing actually changed (forced-scan false
+        // positive) so the row doesn't churn on every boot.
+        vizPresetsNeedsUpdate =
+          JSON.stringify(transformedVizPresets) !== JSON.stringify(vizPresets);
       }
     }
 

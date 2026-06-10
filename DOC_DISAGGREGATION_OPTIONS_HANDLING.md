@@ -435,11 +435,9 @@ Three server-side concepts assemble the final SQL:
 
 **`buildWhereClause()`** — integer columns (year, month, quarter_id, period_id, time_point) use `col IN (1, 2, …)`; text columns use `UPPER(col) IN ('FOO', 'BAR')` for case-insensitive matching.
 
-**`buildSelectQueryV2()`** — assembles SELECT + JOIN + WHERE + GROUP BY. Facility columns get `f.` prefix when joined.
+**`buildSelectQuery()`** — assembles SELECT + JOIN + WHERE + GROUP BY. Facility columns get `f.` prefix when joined.
 
-**`buildNationalTotalQueryV2()`** — emits a second query producing a "national aggregate" row/column when `config.d.includeNationalForAdminArea2` is set and the groupBys include `admin_area_2` but *not* `admin_area_3`. The national row is labelled with a sentinel admin_area_2 value (`__NATIONAL` or `zzNATIONAL`, controlling sort position), later replaced with the localized "National" string on the client.
-
-This is the only place admin area level has hardcoded special-casing in the query layer — it's specifically scoped to `admin_area_2` because that's the highest-granularity spatial disaggregation (admin_area_1 being implicitly the country itself).
+**`buildAdminAreaRollupQuery()`** — emits a second query producing the admin-area roll-up (total) row when `fetchConfig.includeAdminAreaRollup` is set and `fetchConfig.adminAreaRollupLevel` is a valid grouped admin level. The collapse level is chosen CLIENT-side by `getRollupAdminLevel` / `getEffectiveRollupLevel` (`lib/get_fetch_config_from_po.ts`): exactly one grouped admin level (any of AA2/3/4), not displayed as replicant/mapArea, not single-value-filtered, not a map, and a metric whose values are re-aggregatable (SUM/COUNT or post-aggregation ingredients). The roll-up row carries the sentinel `__NATIONAL` (`ROLLUP_SENTINEL`) in the collapsed column; the client maps it to a label via `getRollupLabelContext` ("National", a pinned parent's name, or "Total (selected areas)") and pins its sort position per `config.d.adminAreaRollupPosition` (display-only — never in the fetch config).
 
 ---
 
@@ -472,7 +470,7 @@ It does **not** rename disaggregation values (e.g. "M"→"Male" for a sex disagg
 - Indicator ID → indicator label: from the indicators table, fed into `labelReplacementsAfterSorting` as `indicatorLabelReplacements`.
 - Admin area code → admin area name: from admin area label lookups.
 - Date values → formatted period: `dateLabelReplacements`.
-- `__NATIONAL` → localized "National" string.
+- `__NATIONAL` (+ legacy `zzNATIONAL` in stored figure grids) → roll-up row label from `getRollupLabelContext` (localized "National", a pinned parent area's name + "— Total", or "Total (selected areas)") — only added when the roll-up is active.
 
 All merged into `labelReplacementsAfterSorting` so sort order is based on raw values (stable) while display uses labels.
 
@@ -510,7 +508,7 @@ Three subtleties that don't apply elsewhere:
 
 1. **`admin_area_1` is never a disaggregation option.** The top admin level is the country itself — always one value across an instance. Disaggregating by one-value dimensions is stripped everywhere (see above), so admin_area_1 would never survive the pipeline. It exists on the `facilities`/`admin_areas_1` tables but not in `DisaggregationOption`.
 
-2. **"Include National" is admin_area_2-only.** The `config.d.includeNationalForAdminArea2` toggle adds a synthetic National aggregate row when disaggregating by admin_area_2 (without admin_area_3). Hardcoded to admin_area_2 because that's the level where "all above" is meaningful. Position (`top`/`bottom`) controlled by `config.d.includeNationalPosition`; encoded as `__NATIONAL` (sorts top) or `zzNATIONAL` (sorts bottom) sentinels at query time, resolved to the localized "National" string on the client.
+2. **The admin-area roll-up collapses exactly one level.** The `config.d.includeAdminAreaRollup` toggle adds a synthetic total row when exactly one admin level (AA2/3/4) is grouped (not replicant/mapArea, not single-value-filtered, not a map) and the metric's values are re-aggregatable — see `getEffectiveRollupLevel` in `lib/get_fetch_config_from_po.ts`. The row carries the `__NATIONAL` sentinel (`ROLLUP_SENTINEL`) at query time; the client labels it via `getRollupLabelContext` and pins its position per `config.d.adminAreaRollupPosition` (display-only sort preference).
 
 3. **`maxAdminArea` instance config is not enforced at enrichment.** The instance-wide `maxAdminArea` setting controls structure import but not metric enrichment — if an RO table has an `admin_area_4` column, the disOpt appears regardless. Not a problem in normal flows (structure is consistent) but a latent gap.
 
@@ -668,15 +666,19 @@ Verify the RO table actually has `facility_id` (rather than `facility_name` or s
 
 `hasDuplicateDisaggregatorDisplayOptions` triggered — two disOpts both assigned the same `disDisplayOpt` (e.g. both set to `row`). Editor UI avoids producing this via `getNextAvailableDisaggregationDisplayOption`, so it usually indicates a bad saved config or an AI-generated config. Re-open in editor to clear.
 
-### "Include National" toggle has no effect
+### Admin-area roll-up toggle has no effect
 
-Three required conditions:
+Required conditions (see `getEffectiveRollupLevel` in `lib/get_fetch_config_from_po.ts`):
 
-1. `config.d.includeNationalForAdminArea2` is true
-2. `config.d.disaggregateBy` (via groupBys) includes `admin_area_2`
-3. `config.d.disaggregateBy` does NOT include `admin_area_3`
+1. `config.d.includeAdminAreaRollup` is true
+2. EXACTLY ONE admin level (AA2/3/4) is grouped, not displayed as
+   replicant/mapArea, and not filtered to a single value
+3. The viz is not a map
+4. The metric is re-aggregatable: valueFunc SUM/COUNT, or it has a
+   post-aggregation expression
 
-If any is false, the second national query doesn't run and no aggregate row appears.
+If any is false, the fetch config carries `includeAdminAreaRollup: false` and
+the roll-up query doesn't run (the editor also hides the checkbox).
 
 ### Viz renders, but data looks wrong at a specific admin area
 

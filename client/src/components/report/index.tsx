@@ -627,13 +627,16 @@ export function ProjectReport(p: Props) {
       };
     }
     const ih = itemsRes.data.ih;
+    // Use the generator's config (may carry an auto-selected replicant) so
+    // labels and the persisted source config describe the fetched data.
+    const effectiveConfig = itemsRes.data.config;
     let geoJson;
-    const mapLevel = getAdminAreaLevelFromMapConfig(config);
+    const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
     if (mapLevel) geoJson = getGeoJsonSync(mapLevel);
     const fi = getFigureInputsFromPresentationObject(
       resultsValue,
       ih,
-      config,
+      effectiveConfig,
       geoJson,
     );
     if (fi.status !== "ready") {
@@ -656,7 +659,7 @@ export function ProjectReport(p: Props) {
         source: {
           type: "from_data",
           metricId: resultsValue.id,
-          config,
+          config: effectiveConfig,
           snapshotAt: new Date().toISOString(),
           indicatorMetadata: ih.indicatorMetadata,
         },

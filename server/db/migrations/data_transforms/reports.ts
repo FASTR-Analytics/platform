@@ -19,7 +19,7 @@ import {
   reportImagesSchema,
 } from "lib";
 import type { Sql } from "postgres";
-import type { MigrationStats } from "./po_config.ts";
+import { type MigrationStats, rawJsonNeedsForcedTransform } from "./po_config.ts";
 import { type FigureBlockMut, transformFigureBlock } from "./_figure_block.ts";
 
 export async function migrateReports(
@@ -39,14 +39,21 @@ export async function migrateReports(
     const figures = JSON.parse(row.figures);
     const images = JSON.parse(row.images);
 
-    // Already valid? Skip.
+    // Already valid? Skip — unless legacy keys (which safeParse silently
+    // strips) still need the embedded-config rename.
     if (
       reportConfigSchema.safeParse(config).success &&
       reportFiguresSchema.safeParse(figures).success &&
-      reportImagesSchema.safeParse(images).success
+      reportImagesSchema.safeParse(images).success &&
+      !rawJsonNeedsForcedTransform(row.figures)
     ) {
       continue;
     }
+    const storedCanonical = {
+      config: JSON.stringify(config),
+      figures: JSON.stringify(figures),
+      images: JSON.stringify(images),
+    };
 
     // Block 1: Figure-block transforms shared with slides/dashboards — embedded
     // PO config, source.type rename, figureInputs normalization. Repairs a
@@ -65,6 +72,16 @@ export async function migrateReports(
       figures: JSON.stringify(reportFiguresSchema.parse(figures)),
       images: JSON.stringify(reportImagesSchema.parse(images)),
     };
+
+    // Output identical to stored (e.g. a forced-scan false positive)? Skip the
+    // write so the row doesn't churn last_updated on every boot.
+    if (
+      validated.config === storedCanonical.config &&
+      validated.figures === storedCanonical.figures &&
+      validated.images === storedCanonical.images
+    ) {
+      continue;
+    }
 
     await tx`
       UPDATE reports

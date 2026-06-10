@@ -1,14 +1,29 @@
 import {
+  getEffectiveRollupLevel,
   getFilteredValueProps,
   hasOnlyOneFilteredValue,
 } from "./get_fetch_config_from_po.ts";
 import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
-import { inferPeriodFormatFromValue } from "./types/_metric_installed.ts";
+import {
+  inferPeriodFormatFromValue,
+  type PostAggregationExpression,
+  type ValueFunc,
+} from "./types/_metric_installed.ts";
 
 export function normalizePOConfigForStorage(
-  config: PresentationObjectConfig
+  config: PresentationObjectConfig,
+  resultsValue: {
+    valueFunc: ValueFunc;
+    postAggregationExpression?: PostAggregationExpression | null;
+  }
 ): PresentationObjectConfig {
+  // Canonical roll-up off-state is both fields absent. The flag survives
+  // transient gate closures while editing (the editor no longer eagerly clears
+  // it) and is stripped here, at save time, when the gate is closed.
+  const rollupOn =
+    !!config.d.includeAdminAreaRollup &&
+    getEffectiveRollupLevel(resultsValue, config) !== undefined;
   return {
     ...config,
     d: {
@@ -16,6 +31,10 @@ export function normalizePOConfigForStorage(
       filterBy: config.d.filterBy.filter((f) => f.values.length > 0),
       valuesFilter: config.d.valuesFilter?.length
         ? config.d.valuesFilter
+        : undefined,
+      includeAdminAreaRollup: rollupOn ? true : undefined,
+      adminAreaRollupPosition: rollupOn
+        ? (config.d.adminAreaRollupPosition ?? "bottom")
         : undefined,
     },
   };

@@ -1,6 +1,9 @@
 import {
   getDisaggregationLabel,
+  getEffectiveRollupLevel,
+  getRollupAdminLevel,
   inferPeriodFormatFromValue,
+  isRollupEligibleResultsValue,
   periodFilterHasBounds,
   type PresentationObjectConfig,
   type ResultsValue,
@@ -78,7 +81,20 @@ export function formatVizEditorForAI(
     lines.push("");
   }
 
-  lines.push(`Include admin-area total row: ${config.d.includeAdminAreaRollup ? "yes" : "no"}`);
+  const rollupLevel = getEffectiveRollupLevel(resultsValue, config);
+  if (config.d.includeAdminAreaRollup && rollupLevel !== undefined) {
+    lines.push(
+      `Include admin-area total row: yes (position: ${config.d.adminAreaRollupPosition ?? "bottom"}). ` +
+        `NOTE: the rendered figure includes this total row, but the data excerpt below EXCLUDES it.`,
+    );
+  } else {
+    const reason = !isRollupEligibleResultsValue(resultsValue)
+      ? "unavailable for this metric (only SUM/COUNT metrics or metrics with a post-aggregation expression)"
+      : getRollupAdminLevel(config) === undefined
+        ? "unavailable for this configuration (requires exactly one grouped admin level, not shown as replicant/map area, not filtered to a single value; not available on maps)"
+        : "no";
+    lines.push(`Include admin-area total row: ${reason === "no" ? "no" : `no — ${reason}`}`);
+  }
   lines.push("");
 
   lines.push("Captions:");

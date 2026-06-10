@@ -55,8 +55,12 @@ export async function resolveFigureAndGeoFromVisualization(
     throw new Error("No data available with current selection");
   }
 
+  // The generator may auto-select a replicant on a COPY of the config — labels
+  // and the persisted source config must describe the data actually fetched.
+  const effectiveConfig = itemsRes.data.config;
+
   let geoJson;
-  const mapLevel = getAdminAreaLevelFromMapConfig(config);
+  const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
   if (mapLevel) {
     geoJson = getGeoJsonSync(mapLevel);
   }
@@ -64,7 +68,7 @@ export async function resolveFigureAndGeoFromVisualization(
   const figureInputsRes = getFigureInputsFromPresentationObject(
     poDetailRes.data.resultsValue,
     ih,
-    config,
+    effectiveConfig,
     geoJson,
   );
   if (figureInputsRes.status !== "ready") {
@@ -80,7 +84,7 @@ export async function resolveFigureAndGeoFromVisualization(
       source: {
         type: "from_data",
         metricId: poDetailRes.data.resultsValue.id,
-        config,
+        config: effectiveConfig,
         snapshotAt: new Date().toISOString(),
         indicatorMetadata: ih.indicatorMetadata,
       },

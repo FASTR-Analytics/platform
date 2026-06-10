@@ -6,6 +6,7 @@ import {
   type DeckStyleContext,
   type IndicatorMetadata,
   PresentationObjectConfig,
+  ROLLUP_SENTINEL,
 } from "lib";
 import { getTextStyle, getTableLayoutStyle } from "./_0_common";
 
@@ -55,6 +56,15 @@ export function buildScorecardStyle(
     surrounds: { legendPosition: config.s.hideLegend ? "none" : undefined },
     grid: { showGrid: false },
     content: {
+      tableRowHeaders: {
+        func: (info) => {
+          console.log(info);
+          return {
+            backgroundColor: "black",
+            textColorStrategy: "#ffffff",
+          };
+        },
+      },
       tableCells: {
         func: (info: TableCellInfo) => {
           const meta =

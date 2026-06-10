@@ -7,16 +7,18 @@ import {
 } from "panther";
 import {
   CountryCodes,
+  LEGACY_ROLLUP_SENTINEL,
   PresentationObjectConfig,
   ResultsValueForVisualization,
   formatNigeriaAdminAreaLabel,
   getDisaggregatorDisplayProp,
-  getParentAdminLevel,
   getRollupAdminLevel,
+  getRollupLabelContext,
   get_INDICATOR_COMMON_IDS_IN_SORT_ORDER,
+  isRollupActive,
   periodOptionToPeriodType,
-  ROLLUP_SENTINEL_BOTTOM,
-  ROLLUP_SENTINEL_TOP,
+  ROLLUP_PIN_IDS,
+  ROLLUP_SENTINEL,
   t3,
   TC,
 } from "lib";
@@ -40,10 +42,9 @@ function getNigeriaLabelReplacements(jsonArray?: any[]): Record<string, string> 
 // Order matters: later entries override earlier ones on key collision (matches
 // the previous display behavior, since "after" was applied last).
 //
-// The two roll-up sentinels are raw-data markers for the admin-area total row;
-// both translate to the same display label (see `getRollupRowLabel`). Their
-// sort-positioning is handled by `rollupAwareSortByLabel` below —
-// `ROLLUP_SENTINEL_TOP` → first, `ROLLUP_SENTINEL_BOTTOM` → last.
+// When the roll-up is active, the sentinel (plus the legacy sentinel still
+// present in stored figure grids from a prior release) maps to the roll-up
+// label; positioning is handled by `getRollupAwareSort` below.
 function buildLabelReplacements(
   resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
@@ -51,36 +52,33 @@ function buildLabelReplacements(
   dateLabelReplacements: Record<string, string>,
   jsonArray?: any[],
 ): Record<string, string> {
-  const rollupLabel = getRollupRowLabel(config);
-  return {
+  const base = {
     ...(resultsValue.valueLabelReplacements ?? {}),
     ...indicatorLabelReplacements,
     ...dateLabelReplacements,
     ...getNigeriaLabelReplacements(jsonArray),
-    [ROLLUP_SENTINEL_TOP]: rollupLabel,
-    [ROLLUP_SENTINEL_BOTTOM]: rollupLabel,
+  };
+  if (!isRollupActive(config)) {
+    return base;
+  }
+  const rollupLabel = getRollupRowLabel(config);
+  return {
+    ...base,
+    [ROLLUP_SENTINEL]: rollupLabel,
+    [LEGACY_ROLLUP_SENTINEL]: rollupLabel,
   };
 }
 
-// The roll-up row's label: the parent admin area's name when the viz is pinned to a
-// single parent value, otherwise "National". The parent can be pinned either by a
-// single-value filterBy entry OR by being the replicant (selectedReplicantValue).
-// (AA2's parent AA1 is unfilterable, so AA2 roll-ups always fall back to "National".)
+// The roll-up row's label, from getRollupLabelContext (shared with the editor
+// checkbox): a pinned area's name with a total marker, a "selected areas" total
+// when admin filters subset the geography, otherwise "National".
 function getRollupRowLabel(config: PresentationObjectConfig): string {
-  const level = getRollupAdminLevel(config);
-  const parentLevel = level ? getParentAdminLevel(level) : undefined;
-  if (!parentLevel) {
-    return t3(TC.national);
+  const ctx = getRollupLabelContext(config);
+  if (ctx?.kind === "subset") {
+    return t3({ en: "Total (selected areas)", fr: "Total (zones sélectionnées)" });
   }
-  const parentDis = config.d.disaggregateBy.find(
-    (d) => d.disOpt === parentLevel,
-  );
-  if (parentDis?.disDisplayOpt === "replicant" && config.d.selectedReplicantValue) {
-    return resolveAdminAreaLabel(config.d.selectedReplicantValue);
-  }
-  const parentFilter = config.d.filterBy.find((f) => f.disOpt === parentLevel);
-  if (parentFilter && parentFilter.values.length === 1) {
-    return resolveAdminAreaLabel(String(parentFilter.values[0]));
+  if (ctx?.kind === "pinned" && ctx.value) {
+    return `${resolveAdminAreaLabel(ctx.value)} — ${t3({ en: "Total", fr: "Total" })}`;
   }
   return t3(TC.national);
 }
@@ -102,15 +100,28 @@ function getChartIndicatorSort(config: PresentationObjectConfig): HeaderSortConf
     : "by-label";
 }
 
-// Alphabetical-by-label sort with raw-id positioning for the roll-up sentinels:
-// `ROLLUP_SENTINEL_TOP` is forced first, `ROLLUP_SENTINEL_BOTTOM` last; everything
-// else sorts by label. Declarative so it stays structuredClone-safe inside stored
-// FigureInputs. Pinning by raw id is a no-op on axes without these ids.
-const rollupAwareSortByLabel: HeaderSortConfig = {
-  base: "by-label",
-  first: [ROLLUP_SENTINEL_TOP],
-  last: [ROLLUP_SENTINEL_BOTTOM],
-};
+// Alphabetical-by-label sort that, when the roll-up is active, pins the sentinel
+// (and the legacy sentinel from stored figure grids) to the configured position.
+// Declarative so it stays structuredClone-safe inside stored FigureInputs.
+// Pinning by raw id is a no-op on axes without these ids.
+function getRollupAwareSort(config: PresentationObjectConfig): HeaderSortConfig {
+  if (!isRollupActive(config)) {
+    return "by-label";
+  }
+  return config.d.adminAreaRollupPosition === "top"
+    ? { base: "by-label", first: ROLLUP_PIN_IDS }
+    : { base: "by-label", last: ROLLUP_PIN_IDS };
+}
+
+// Pin-only sort for the chart indicator axis under sortIndicatorValues "none":
+// preserves the axis's data order (panther applies no base sort within the
+// unpinned bucket; stable sort keeps existing order) and only moves the
+// sentinel to the configured end.
+function getRollupPinOnlySort(config: PresentationObjectConfig): HeaderSortConfig {
+  return config.d.adminAreaRollupPosition === "top"
+    ? { first: ROLLUP_PIN_IDS }
+    : { last: ROLLUP_PIN_IDS };
+}
 
 export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,
@@ -138,10 +149,10 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
     laneProp: getDisaggregatorDisplayProp(resultsValue, config, ["col", "colGroup"], effectiveValueProps),
     tierProp: getDisaggregatorDisplayProp(resultsValue, config, ["row", "rowGroup"], effectiveValueProps),
     sort: {
-      series: rollupAwareSortByLabel,
-      lane: rollupAwareSortByLabel,
-      tier: rollupAwareSortByLabel,
-      pane: rollupAwareSortByLabel,
+      series: getRollupAwareSort(config),
+      lane: getRollupAwareSort(config),
+      tier: getRollupAwareSort(config),
+      pane: getRollupAwareSort(config),
     },
     labelReplacements: buildLabelReplacements(
       resultsValue,
@@ -181,7 +192,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
       ? { byIdOrder: get_INDICATOR_COMMON_IDS_IN_SORT_ORDER() }
       : "by-label";
 
-  // Pin the roll-up sentinel on whichever table axis carries the (finest) admin
+  // Pin the roll-up sentinel on whichever table axis carries the rolled-up admin
   // level — `byIdOrder` can't also carry first/last, so the admin axis uses the
   // pinned sort while other axes keep `tableSort`. On non-admin axes the pins would
   // be no-ops anyway; restricting to the admin axis avoids clobbering an indicator
@@ -189,7 +200,8 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   const adminAxis = getTableAdminAxis(config);
   const axisSort = (
     axis: "row" | "rowGroup" | "col" | "colGroup",
-  ): HeaderSortConfig => (axis === adminAxis ? rollupAwareSortByLabel : tableSort);
+  ): HeaderSortConfig =>
+    axis === adminAxis ? getRollupAwareSort(config) : tableSort;
 
   return {
     valueProps: effectiveValueProps,
@@ -203,6 +215,8 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
       rowGroup: axisSort("rowGroup"),
       row: axisSort("row"),
     },
+    // The total row must not stretch auto conditional-formatting domains.
+    liveDomainExcludeIds: isRollupActive(config) ? ROLLUP_PIN_IDS : undefined,
     labelReplacements: buildLabelReplacements(
       resultsValue,
       config,
@@ -213,7 +227,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   };
 }
 
-// The table axis (row/rowGroup/col/colGroup) displaying the finest grouped admin
+// The table axis (row/rowGroup/col/colGroup) displaying the rolled-up admin
 // level — i.e. where the roll-up sentinel row appears — or undefined if none.
 function getTableAdminAxis(
   config: PresentationObjectConfig,
@@ -252,6 +266,21 @@ function getChartJsonDataConfig(
     ? getDateLabelReplacements(jsonArray, [indicatorProp, seriesProp, paneProp, laneProp, tierProp])
     : {};
 
+  // The indicator ("Bars") axis: panther applies sort.indicator only when
+  // sortIndicatorValues is undefined — any string (incl. "none") keeps the
+  // axis in DATA order, which is deliberate ("--v" axes carry the module-defined
+  // valueProps order). So when the rolled-up admin level sits on this axis and
+  // the user hasn't chosen a value sort, we pass undefined + a PIN-ONLY sort:
+  // data order is preserved exactly, only the sentinel moves to the chosen end.
+  // With asc/desc value sorting, the total bar participates in value order.
+  const rollupOnIndicatorAxis =
+    isRollupActive(config) &&
+    config.d.disaggregateBy.find(
+      (d) => d.disOpt === getRollupAdminLevel(config),
+    )?.disDisplayOpt === "indicator";
+  const pinIndicatorAxis =
+    rollupOnIndicatorAxis && config.s.sortIndicatorValues === "none";
+
   return {
     valueProps: effectiveValueProps,
     indicatorProp,
@@ -260,13 +289,17 @@ function getChartJsonDataConfig(
     laneProp,
     tierProp,
     sort: {
-      indicator: getChartIndicatorSort(config),
-      series: rollupAwareSortByLabel,
-      lane: rollupAwareSortByLabel,
-      tier: rollupAwareSortByLabel,
-      pane: rollupAwareSortByLabel,
+      indicator: pinIndicatorAxis
+        ? getRollupPinOnlySort(config)
+        : getChartIndicatorSort(config),
+      series: getRollupAwareSort(config),
+      lane: getRollupAwareSort(config),
+      tier: getRollupAwareSort(config),
+      pane: getRollupAwareSort(config),
     },
-    sortIndicatorValues: config.s.sortIndicatorValues,
+    sortIndicatorValues: pinIndicatorAxis
+      ? undefined
+      : config.s.sortIndicatorValues,
     labelReplacements: buildLabelReplacements(
       resultsValue,
       config,

@@ -363,8 +363,8 @@ export function getStartingConfigForPresentationObject(
       filterBy: [],
       periodFilter: undefined,
       selectedReplicantValue: undefined,
-      includeAdminAreaRollup: false,
-      adminAreaRollupPosition: "bottom",
+      includeAdminAreaRollup: undefined,
+      adminAreaRollupPosition: undefined,
     },
     s: {
       ...DEFAULT_S_CONFIG,
@@ -406,6 +406,5 @@ export type GenericLongFormFetchConfig = {
   periodFilterExactBounds?: PeriodBounds;
   postAggregationExpression: string | undefined;
   includeAdminAreaRollup?: boolean;
-  adminAreaRollupPosition?: "bottom" | "top";
   adminAreaRollupLevel?: AdminLevel;
 };

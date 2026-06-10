@@ -21,11 +21,9 @@
 
 import { instanceConfigFacilityColumnsSchema } from "lib";
 import type { Sql } from "postgres";
+import type { MigrationStats } from "./po_config.ts";
 
-export type MigrationStats = {
-  rowsChecked: number;
-  rowsTransformed: number;
-};
+export type { MigrationStats };
 
 function transformFacilityColumnsConfig(config: Record<string, unknown>): void {
   // Block 1: Fill all missing include* boolean fields with false

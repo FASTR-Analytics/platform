@@ -518,8 +518,12 @@ export function SlideEditor(p: Props) {
           valueLabelReplacements: resultsValue.valueLabelReplacements,
         };
 
+        // The generator may auto-select a replicant on a COPY of the config —
+        // labels and the persisted source config must describe the fetched data.
+        const effectiveConfig = newItemsRes.data.config;
+
         let geoJson;
-        const mapLevel = getAdminAreaLevelFromMapConfig(newConfig);
+        const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
         if (mapLevel) {
           geoJson = getGeoJsonSync(mapLevel);
         }
@@ -527,7 +531,7 @@ export function SlideEditor(p: Props) {
         const newFigureInputs = getFigureInputsFromPresentationObject(
           resultsValueForViz,
           newItemsRes.data.ih,
-          newConfig,
+          effectiveConfig,
           geoJson,
         );
 
@@ -551,7 +555,7 @@ export function SlideEditor(p: Props) {
               source: {
                 type: "from_data",
                 metricId: source.metricId,
-                config: newConfig,
+                config: effectiveConfig,
                 snapshotAt: new Date().toISOString(),
                 indicatorMetadata: indicatorMeta,
               },
@@ -621,8 +625,12 @@ export function SlideEditor(p: Props) {
         return;
       }
 
+      // The generator may auto-select a replicant on a COPY of the config —
+      // labels and the persisted source config must describe the fetched data.
+      const effectiveConfig = itemsRes.data.config;
+
       let geoJson;
-      const mapLevel = getAdminAreaLevelFromMapConfig(config);
+      const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
       if (mapLevel) {
         geoJson = getGeoJsonSync(mapLevel);
       }
@@ -630,7 +638,7 @@ export function SlideEditor(p: Props) {
       const figureInputsRes = getFigureInputsFromPresentationObject(
         poDetailRes.data.resultsValue,
         ih,
-        config,
+        effectiveConfig,
         geoJson,
       );
       if (figureInputsRes.status !== "ready") {
@@ -652,7 +660,7 @@ export function SlideEditor(p: Props) {
           source: {
             type: "from_data" as const,
             metricId: poDetailRes.data.resultsValue.id,
-            config,
+            config: effectiveConfig,
             snapshotAt: new Date().toISOString(),
             indicatorMetadata: ih.indicatorMetadata,
           },
@@ -721,8 +729,12 @@ export function SlideEditor(p: Props) {
         valueLabelReplacements: resultsValue.valueLabelReplacements,
       };
 
+      // The generator may auto-select a replicant on a COPY of the config —
+      // labels and the persisted source config must describe the fetched data.
+      const effectiveConfig2 = newItemsRes.data.config;
+
       let geoJson2;
-      const mapLevel2 = getAdminAreaLevelFromMapConfig(config);
+      const mapLevel2 = getAdminAreaLevelFromMapConfig(effectiveConfig2);
       if (mapLevel2) {
         geoJson2 = getGeoJsonSync(mapLevel2);
       }
@@ -730,7 +742,7 @@ export function SlideEditor(p: Props) {
       const newFigureInputs = getFigureInputsFromPresentationObject(
         resultsValueForViz,
         newItemsRes.data.ih,
-        config,
+        effectiveConfig2,
         geoJson2,
       );
 
@@ -752,7 +764,7 @@ export function SlideEditor(p: Props) {
           source: {
             type: "from_data" as const,
             metricId: resultsValue.id,
-            config,
+            config: effectiveConfig2,
             snapshotAt: new Date().toISOString(),
             indicatorMetadata: indicatorMeta,
           },

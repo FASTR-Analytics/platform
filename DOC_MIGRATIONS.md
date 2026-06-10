@@ -144,6 +144,21 @@ const validated = schema.parse(config);
 
 **Why order matters:** Block 3 might transform a field that Block 1 filled in. If you put Block 3 before Block 1, old data without the field would fail.
 
+### Skip-Gate Gotcha: Renames and Deleted Keys
+
+The "already valid? skip" gate has a blind spot: zod object schemas in default
+(strip) mode treat **unknown keys as valid**. A row whose only drift is a
+legacy key (e.g. a field that was renamed) passes `safeParse`, so the rename
+block never runs — and every runtime read silently strips the user's setting.
+
+When a transform block renames or deletes a key, the sweep gate must force the
+transform for rows still carrying the old key. See
+`configNeedsForcedTransform` / `rawJsonNeedsForcedTransform` in
+`data_transforms/po_config.ts` (used by the po_config, dashboard_items,
+reports, slide_config, metric, and module_definition sweeps for the
+`includeNational*` → `adminAreaRollup*` rename). Add new legacy keys to those
+helpers whenever a rename/delete block is added.
+
 ### Cache Invalidation
 
 Valkey caches use `last_updated` timestamps as version hashes (the full mechanics live in [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md)). When a migration updates a row's `last_updated`:

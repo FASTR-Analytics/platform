@@ -311,6 +311,11 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
 
   const replicateBy = getReplicateByProp(config);
   let finalFetchConfig = resFetchConfig.data;
+  // The auto-selected replicant lives on a COPY yielded to the caller — never
+  // mutate the passed-in config: in the editor it is the unwrapped live store,
+  // and a raw write would bypass notification and make the user's next click on
+  // that same value a no-op (Solid's setter equality guard).
+  let effectiveConfig = config;
   if (replicateBy) {
     const replicantRes = await getReplicantOptionsFromCacheOrFetch(
       projectId,
@@ -332,10 +337,13 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
           };
           return;
         }
-        config.d.selectedReplicantValue = validValues[0].id;
+        effectiveConfig = {
+          ...config,
+          d: { ...config.d, selectedReplicantValue: validValues[0].id },
+        };
         const newFetchConfig = getFetchConfigFromPresentationObjectConfig(
           poDetail.resultsValue,
-          config,
+          effectiveConfig,
         );
         if (newFetchConfig.success) {
           finalFetchConfig = newFetchConfig.data;
@@ -353,7 +361,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   if (data) {
     yield {
       status: "ready",
-      data: { ih: data, config },
+      data: { ih: data, config: effectiveConfig },
     };
     return;
   }
@@ -389,7 +397,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
 
   yield {
     status: "ready",
-    data: { ih: res.data, config },
+    data: { ih: res.data, config: effectiveConfig },
   };
 }
 

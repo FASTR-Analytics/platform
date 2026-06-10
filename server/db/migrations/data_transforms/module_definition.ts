@@ -27,13 +27,14 @@
 // =============================================================================
 
 import { moduleDefinitionInstalledSchema } from "lib";
-import { transformPOConfigData } from "./po_config.ts";
+import {
+  type MigrationStats,
+  rawJsonNeedsForcedTransform,
+  transformPOConfigData,
+} from "./po_config.ts";
 import type { Sql } from "postgres";
 
-export type MigrationStats = {
-  rowsChecked: number;
-  rowsTransformed: number;
-};
+export type { MigrationStats };
 
 function transformModuleDefinition(mod: Record<string, unknown>): void {
   // Block 1: Fill missing top-level fields
@@ -114,8 +115,12 @@ export async function migrateModuleDefinitions(tx: Sql, _projectId: string): Pro
   for (const row of rows) {
     const modDef = JSON.parse(row.module_definition);
 
-    // Already valid? Skip.
-    if (moduleDefinitionInstalledSchema.safeParse(modDef).success) {
+    // Already valid? Skip — unless legacy keys (which safeParse silently
+    // strips) still need the embedded-config rename.
+    if (
+      moduleDefinitionInstalledSchema.safeParse(modDef).success &&
+      !rawJsonNeedsForcedTransform(row.module_definition)
+    ) {
       continue;
     }
 
@@ -128,11 +133,18 @@ export async function migrateModuleDefinitions(tx: Sql, _projectId: string): Pro
     // Validate against current schema — throws if invalid
     const validated = moduleDefinitionInstalledSchema.parse(transformed);
 
+    // Output identical to stored (e.g. a forced-scan false positive)? Skip the
+    // write so the row doesn't churn on every boot.
+    const out = JSON.stringify(validated);
+    if (out === JSON.stringify(modDef)) {
+      continue;
+    }
+
     // Write only the blob — no timestamp update (this is a schema migration, not
     // a real module update). No cache invalidation needed (modules aren't cached).
     await tx`
       UPDATE modules
-      SET module_definition = ${JSON.stringify(validated)}
+      SET module_definition = ${out}
       WHERE id = ${row.id}
     `;
     rowsTransformed++;
