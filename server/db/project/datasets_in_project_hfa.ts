@@ -96,10 +96,12 @@ SELECT
         : ""
     },
   h.time_point,
+  w.weight,
   h.var_name,
   h.value
 FROM hfa_data h
-INNER JOIN facilities_hfa f ON h.facility_id = f.facility_id`;
+INNER JOIN facilities_hfa f ON h.facility_id = f.facility_id
+LEFT JOIN hfa_facility_weights w ON w.facility_id = h.facility_id AND w.time_point = h.time_point`;
 
     // Use COPY with optimized settings for better performance
     await mainDb.unsafe(`

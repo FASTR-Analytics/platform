@@ -143,6 +143,27 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
       csvVarMappings.push(mapping);
     }
 
+    // "weight" is reserved: the project hfa.csv export adds a sampling-weight
+    // column with that name, and a survey variable named weight would collide
+    // with it at the module script's pivot_wider.
+    const storedVarNames = csvVarMappings.flatMap((m) => {
+      const varName = m.xlsFormVar.name.trim();
+      if (m.xlsFormVar.type === "select_multiple") {
+        return (m.choices ?? []).map(
+          (choice) => `${varName}_${String(choice.name).trim()}`,
+        );
+      }
+      return [varName];
+    });
+    const weightCollisions = storedVarNames.filter(
+      (name) => name.toLowerCase() === "weight",
+    );
+    if (weightCollisions.length > 0) {
+      throw new Error(
+        `The variable name "weight" is reserved for facility sampling weights. Rename the survey variable in the XLSForm/CSV and re-upload.`,
+      );
+    }
+
     const nCsvColsNotInXlsForm = unmatchedCsvCols.length;
 
     // Count XLSForm vars not in CSV (informational)

@@ -7,19 +7,12 @@ import { zFigureInputs } from "@timroberton/panther";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
 import { TEXT_SIZE_KEYS } from "../consts.ts";
 
-// figureInputs is panther-owned; validate it against panther's zFigureInputs
-// (data + surrounds validated, style opaque) so stale shapes fail every parse
-// (write paths and the migration skip gates) instead of hiding inside
-// z.unknown(). Implemented as .refine — not by embedding zFigureInputs
-// directly — because zod object schemas strip unknown keys on parse: embedding
-// would silently reshape every figureInputs blob on the next write. The refine
-// validates without reshaping.
-export const figureInputsSchema = z.unknown().refine(
-  (v) => v === undefined || zFigureInputs.safeParse(v).success,
-  {
-    message: "figureInputs does not match panther's current FigureInputs shape",
-  },
-);
+// figureInputs is panther-owned; panther's zFigureInputs validates it like any
+// other stored field (data + surrounds validated, style opaque). Stale shapes
+// fail every parse (write paths and the migration skip gates); unknown legacy
+// keys (e.g. pre-2026 chartOHData.sortHeaders) are silently stripped on the
+// next write, like everywhere else in the stored schemas.
+export const figureInputsSchema = zFigureInputs;
 
 // ── Block Styles ────────────────────────────────────────────────────────────
 
