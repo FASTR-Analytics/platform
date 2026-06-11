@@ -1,95 +1,127 @@
-[TBD] [user] [changed] - Importing weights now replaces all values for included time points
-[TBD] [user] [changed] - Blank cells in uploaded weights file now remove previously stored weights
-[TBD] [user] [changed] - Time points not included in the file are no longer affected by import
-[TBD] [user] [changed] - Import summary now clarifies that blank cells removed stored weights
-[TBD] [user] [fixed] - Projects now correctly detect when facility weights have been updated
-[TBD] [admin] [changed] - Importing facility weights now replaces data for included time points only
-[TBD] [admin] [added] - Blank cells in weight imports now remove previously stored weights
-[TBD] [admin] [added] - Weight imports and deletions now mark structure as updated for projects
-[TBD] [admin] [fixed] - Special characters in time point names no longer break analysis scripts
-[TBD] [admin] [fixed] - Special characters in indicator names no longer cause database errors
-[TBD] [user] [added] - Sampling weights now have a dedicated management page with a data table
-[TBD] [user] [added] - Sampling weights coverage summary shown on the instance data overview
-[TBD] [user] [added] - Download sampling weights as a CSV file
-[TBD] [user] [added] - Warning shown when some facilities with data are missing weights
-[TBD] [user] [changed] - Sampling weights CSV format is now wide: one row per facility, one column per time point
-[TBD] [user] [changed] - Blank cells in weights CSV are treated as "not in sample" and skipped
-[TBD] [user] [changed] - Sampling weights section moved from the facilities panel to its own page
-[TBD] [user] [added] - Exported HFA project data now includes a sampling weight column
-[TBD] [admin] [added] - HFA sampling weights now have a dedicated management page
-[TBD] [admin] [added] - Weights can be downloaded as CSV for editing and re-import
-[TBD] [admin] [added] - Weights overview card shown on instance data page with per-round coverage
-[TBD] [admin] [changed] - Weight CSV format is now wide: one row per facility, one column per time point
-[TBD] [admin] [changed] - Blank cells in weight CSV mean facility is not in that round's sample
-[TBD] [admin] [changed] - Zero weights are no longer accepted; only positive values allowed
-[TBD] [admin] [changed] - Coverage now shows facilities with data that have a weight, per time point
-[TBD] [admin] [added] - Warning displayed when some facilities with data are missing weights
-[TBD] [admin] [added] - Weights are included in project HFA data exports
-[TBD] [admin] [fixed] - Importing or deleting weights now immediately updates all connected users
-[TBD] [admin] [changed] - Survey variable named "weight" is now reserved and rejected during HFA data upload
-[TBD] [user] [added] - Indicators can now be assigned a service category
-[TBD] [user] [added] - New "Service categories" tab for managing service categories
-[TBD] [user] [added] - Service category column appears in the indicators table
-[TBD] [user] [added] - Service categories included in workbook export and import
-[TBD] [user] [added] - Facility sampling weights can be uploaded via CSV
-[TBD] [user] [added] - Sampling weights summary shown per time point
-[TBD] [user] [added] - Option to delete all facility sampling weights
-[TBD] [user] [fixed] - Custom color theme no longer appears as a selectable swatch in the color picker
-[TBD] [admin] [added] - HFA indicators now support a "Service category" classification
-[TBD] [admin] [added] - New "Service categories" tab in the HFA indicator manager
-[TBD] [admin] [added] - Service categories can be created, edited, reordered, and deleted
-[TBD] [admin] [added] - Service categories included in HFA workbook export and import
-[TBD] [admin] [added] - Facility sampling weights can be uploaded via CSV for HFA
-[TBD] [admin] [added] - Facility sampling weights summary displayed per time point
-[TBD] [admin] [added] - Facility sampling weights can be deleted in bulk
-[TBD] [admin] [changed] - HFA workbook import now accepts an optional "Service categories" sheet
-[TBD] [admin] [changed] - Sampling weights are preserved when replacing HFA facilities
-[TBD] [admin] [fixed] - Custom color theme no longer appears as a selectable swatch in the color picker
-[TBD] [user] [changed] - Admin areas and facilities are now managed as separate sections
-[TBD] [user] [added] - Separate facility lists for HMIS and HFA registries
-[TBD] [user] [added] - Delete facilities by registry (HMIS or HFA) independently
-[TBD] [user] [changed] - Admin areas are now created automatically from facility imports
-[TBD] [user] [changed] - National results row label changed from "Total" to "All areas" or "All selected areas"
-[TBD] [user] [added] - Disabled checkbox with explanation shown when national results unavailable for a metric
-[TBD] [user] [changed] - Average metrics over facility-level data now support national result rows
-[TBD] [user] [added] - Separate CSV export for HMIS and HFA facility lists
-[TBD] [admin] [changed] - Facilities are now managed separately for HMIS and HFA
-[TBD] [admin] [changed] - Admin areas card separated from facilities on the data page
-[TBD] [admin] [added] - Dedicated facility cards for HMIS and HFA with individual counts
-[TBD] [admin] [added] - Delete facilities by registry (HMIS or HFA) without affecting the other
-[TBD] [admin] [changed] - Admin areas are now created and removed automatically based on facility imports
-[TBD] [admin] [added] - Clear all admin areas and facilities button for global admins on admin areas page
-[TBD] [admin] [changed] - Facility CSV exports are now per-registry (HMIS or HFA)
-[TBD] [admin] [changed] - Import wizard title now specifies which facility registry you are importing into
-[TBD] [admin] [changed] - HFA facility imports skip the source-type step (CSV only)
-[TBD] [admin] [changed] - Only one facility import can run at a time across both registries
-[TBD] [admin] [changed] - Replace-all import strategy now applies only to the selected registry
-[TBD] [admin] [changed] - Roll-up total row label changed from "Total" to "All areas" or "All selected areas"
-[TBD] [admin] [added] - AVG metrics over facility-level data now support admin area roll-up totals
-[TBD] [admin] [changed] - Roll-up checkbox shows as disabled with explanation when metric is ineligible
-[TBD] [user] [changed] - Renaming dashboard items and groups now uses a dedicated modal instead of inline editing
-[TBD] [user] [added] - Progress indicator shown when updating a dashboard group's visualizations
-[TBD] [user] [changed] - Admin-area total row label now shows context like "Total (selected areas)" or the parent area name
-[TBD] [user] [fixed] - Visualizations now correctly reflect auto-selected replicant values in labels and saved configurations
-[TBD] [user] [fixed] - Quickly toggling visualization settings no longer causes stale data to briefly appear
-[TBD] [user] [changed] - Admin-area total row uses a neutral color in charts to distinguish it from data series
-[TBD] [user] [fixed] - Admin-area total row no longer distorts conditional formatting color ranges in tables
-[TBD] [user] [added] - AI assistant now explains why the admin-area total row is unavailable for certain configurations
-[TBD] [admin] [added] - Reusable import wizard framework for data imports
-[TBD] [admin] [added] - Progress modal shows feedback during dashboard group updates
-[TBD] [admin] [added] - Renaming dashboard items and groups now uses a dedicated modal
-[TBD] [admin] [changed] - Admin-area total row now works on any single grouped admin level
-[TBD] [admin] [changed] - Total row label adapts to context: national, pinned area, or selected areas
-[TBD] [admin] [changed] - Total row gets a distinct neutral color in charts to stand out
-[TBD] [admin] [changed] - Total row checkbox only appears when the metric and configuration support it
-[TBD] [admin] [changed] - Total row no longer distorts conditional formatting color ranges in tables
-[TBD] [admin] [changed] - Facility data now stored in separate tables for HMIS and HFA datasets
-[TBD] [admin] [changed] - Restoring a backup now automatically applies any pending database migrations
-[TBD] [admin] [fixed] - Visualizations now correctly reflect auto-selected replicant in labels and saved config
-[TBD] [admin] [fixed] - Rapid config edits no longer display stale data from a slower previous fetch
-[TBD] [admin] [fixed] - Legacy rollup field names are now migrated even when other config fields are valid
-[TBD] [admin] [fixed] - Migration sweeps skip unnecessary database writes to avoid false update timestamps
-[TBD] [admin] [internal] - AI assistant receives clearer context about total row availability and behavior
+[1.48.0] [user] [added] - Create time points directly from the time points page
+[1.48.0] [user] [added] - Map Excel time point columns to platform time points during indicator import
+[1.48.0] [user] [added] - Step-by-step wizard for importing sampling weights with column mapping
+[1.48.0] [user] [added] - Choose which time point each weight import applies to
+[1.48.0] [user] [added] - Import another round of weights immediately after completing one
+[1.48.0] [user] [changed] - Deleting HFA data now keeps time points, weights, and indicator code
+[1.48.0] [user] [changed] - Time points are sorted by their configured order instead of alphabetically
+[1.48.0] [user] [changed] - Selecting a time point during data import is now a dropdown instead of free text
+[1.48.0] [user] [changed] - Year and month for time points are now set when creating them, not during data import
+[1.48.0] [user] [changed] - Exported indicator workbooks now embed time point names in column headers
+[1.48.0] [user] [changed] - Facilities and weights pages now show import actions in a right-side panel
+[1.48.0] [user] [changed] - Decimal places setting removed from calculated indicators; formatting uses chart settings
+[1.48.0] [user] [changed] - Project sync notice now mentions sampling weight changes
+[1.48.0] [user] [changed] - Weights table now shows all facilities, not just those with weights
+[1.48.0] [user] [fixed] - Number formatting in scorecards and tables now displays consistently
+[1.48.0] [user] [added] - Warning shown if facilities must be imported before importing data or weights
+[1.48.0] [admin] [added] - Time points can now be created manually before importing data
+[1.48.0] [admin] [added] - Sampling weights are now imported one time point at a time with a guided wizard
+[1.48.0] [admin] [added] - Excel indicator import now lets you map file columns to platform time points
+[1.48.0] [admin] [added] - Exported indicator Excel files now embed time point labels in column headers
+[1.48.0] [admin] [changed] - Deleting HFA data no longer removes time points, weights, or indicator code
+[1.48.0] [admin] [changed] - HFA data import requires the time point to exist before importing
+[1.48.0] [admin] [changed] - Weights import now asks you to select facility ID, weight, and time point columns
+[1.48.0] [admin] [changed] - Time points are now sorted by display order instead of alphabetically
+[1.48.0] [admin] [changed] - HFA time point management is now available from both the dataset and dedicated pages
+[1.48.0] [admin] [changed] - Decimal places setting removed from calculated indicators; controlled per visualization instead
+[1.48.0] [admin] [changed] - Project sync notice now mentions sampling weight changes alongside facility changes
+[1.48.0] [admin] [fixed] - Deleting data for a single time point now properly clears variable values
+[1.48.0] [admin] [fixed] - Removing HFA dataset from a project now fully cleans up category snapshots
+[1.48.0] [admin] [added] - Facilities must be imported before importing HMIS or HFA data; clear error shown otherwise
+[1.48.0] [admin] [added] - Delete weights for a single time point is now supported
+[1.48.0] [admin] [changed] - Weights table now shows all facilities, not just those with weights
+[1.48.0] [user] [changed] - Importing weights now replaces all values for included time points
+[1.48.0] [user] [changed] - Blank cells in uploaded weights file now remove previously stored weights
+[1.48.0] [user] [changed] - Time points not included in the file are no longer affected by import
+[1.48.0] [user] [changed] - Import summary now clarifies that blank cells removed stored weights
+[1.48.0] [user] [fixed] - Projects now correctly detect when facility weights have been updated
+[1.48.0] [admin] [changed] - Importing facility weights now replaces data for included time points only
+[1.48.0] [admin] [added] - Blank cells in weight imports now remove previously stored weights
+[1.48.0] [admin] [added] - Weight imports and deletions now mark structure as updated for projects
+[1.48.0] [admin] [fixed] - Special characters in time point names no longer break analysis scripts
+[1.48.0] [admin] [fixed] - Special characters in indicator names no longer cause database errors
+[1.48.0] [user] [added] - Sampling weights now have a dedicated management page with a data table
+[1.48.0] [user] [added] - Sampling weights coverage summary shown on the instance data overview
+[1.48.0] [user] [added] - Download sampling weights as a CSV file
+[1.48.0] [user] [added] - Warning shown when some facilities with data are missing weights
+[1.48.0] [user] [changed] - Sampling weights CSV format is now wide: one row per facility, one column per time point
+[1.48.0] [user] [changed] - Blank cells in weights CSV are treated as "not in sample" and skipped
+[1.48.0] [user] [changed] - Sampling weights section moved from the facilities panel to its own page
+[1.48.0] [user] [added] - Exported HFA project data now includes a sampling weight column
+[1.48.0] [admin] [added] - HFA sampling weights now have a dedicated management page
+[1.48.0] [admin] [added] - Weights can be downloaded as CSV for editing and re-import
+[1.48.0] [admin] [added] - Weights overview card shown on instance data page with per-round coverage
+[1.48.0] [admin] [changed] - Weight CSV format is now wide: one row per facility, one column per time point
+[1.48.0] [admin] [changed] - Blank cells in weight CSV mean facility is not in that round's sample
+[1.48.0] [admin] [changed] - Zero weights are no longer accepted; only positive values allowed
+[1.48.0] [admin] [changed] - Coverage now shows facilities with data that have a weight, per time point
+[1.48.0] [admin] [added] - Warning displayed when some facilities with data are missing weights
+[1.48.0] [admin] [added] - Weights are included in project HFA data exports
+[1.48.0] [admin] [fixed] - Importing or deleting weights now immediately updates all connected users
+[1.48.0] [admin] [changed] - Survey variable named "weight" is now reserved and rejected during HFA data upload
+[1.48.0] [user] [added] - Indicators can now be assigned a service category
+[1.48.0] [user] [added] - New "Service categories" tab for managing service categories
+[1.48.0] [user] [added] - Service category column appears in the indicators table
+[1.48.0] [user] [added] - Service categories included in workbook export and import
+[1.48.0] [user] [added] - Facility sampling weights can be uploaded via CSV
+[1.48.0] [user] [added] - Sampling weights summary shown per time point
+[1.48.0] [user] [added] - Option to delete all facility sampling weights
+[1.48.0] [user] [fixed] - Custom color theme no longer appears as a selectable swatch in the color picker
+[1.48.0] [admin] [added] - HFA indicators now support a "Service category" classification
+[1.48.0] [admin] [added] - New "Service categories" tab in the HFA indicator manager
+[1.48.0] [admin] [added] - Service categories can be created, edited, reordered, and deleted
+[1.48.0] [admin] [added] - Service categories included in HFA workbook export and import
+[1.48.0] [admin] [added] - Facility sampling weights can be uploaded via CSV for HFA
+[1.48.0] [admin] [added] - Facility sampling weights summary displayed per time point
+[1.48.0] [admin] [added] - Facility sampling weights can be deleted in bulk
+[1.48.0] [admin] [changed] - HFA workbook import now accepts an optional "Service categories" sheet
+[1.48.0] [admin] [changed] - Sampling weights are preserved when replacing HFA facilities
+[1.48.0] [admin] [fixed] - Custom color theme no longer appears as a selectable swatch in the color picker
+[1.48.0] [user] [changed] - Admin areas and facilities are now managed as separate sections
+[1.48.0] [user] [added] - Separate facility lists for HMIS and HFA registries
+[1.48.0] [user] [added] - Delete facilities by registry (HMIS or HFA) independently
+[1.48.0] [user] [changed] - Admin areas are now created automatically from facility imports
+[1.48.0] [user] [changed] - National results row label changed from "Total" to "All areas" or "All selected areas"
+[1.48.0] [user] [added] - Disabled checkbox with explanation shown when national results unavailable for a metric
+[1.48.0] [user] [changed] - Average metrics over facility-level data now support national result rows
+[1.48.0] [user] [added] - Separate CSV export for HMIS and HFA facility lists
+[1.48.0] [admin] [changed] - Facilities are now managed separately for HMIS and HFA
+[1.48.0] [admin] [changed] - Admin areas card separated from facilities on the data page
+[1.48.0] [admin] [added] - Dedicated facility cards for HMIS and HFA with individual counts
+[1.48.0] [admin] [added] - Delete facilities by registry (HMIS or HFA) without affecting the other
+[1.48.0] [admin] [changed] - Admin areas are now created and removed automatically based on facility imports
+[1.48.0] [admin] [added] - Clear all admin areas and facilities button for global admins on admin areas page
+[1.48.0] [admin] [changed] - Facility CSV exports are now per-registry (HMIS or HFA)
+[1.48.0] [admin] [changed] - Import wizard title now specifies which facility registry you are importing into
+[1.48.0] [admin] [changed] - HFA facility imports skip the source-type step (CSV only)
+[1.48.0] [admin] [changed] - Only one facility import can run at a time across both registries
+[1.48.0] [admin] [changed] - Replace-all import strategy now applies only to the selected registry
+[1.48.0] [admin] [changed] - Roll-up total row label changed from "Total" to "All areas" or "All selected areas"
+[1.48.0] [admin] [added] - AVG metrics over facility-level data now support admin area roll-up totals
+[1.48.0] [admin] [changed] - Roll-up checkbox shows as disabled with explanation when metric is ineligible
+[1.48.0] [user] [changed] - Renaming dashboard items and groups now uses a dedicated modal instead of inline editing
+[1.48.0] [user] [added] - Progress indicator shown when updating a dashboard group's visualizations
+[1.48.0] [user] [changed] - Admin-area total row label now shows context like "Total (selected areas)" or the parent area name
+[1.48.0] [user] [fixed] - Visualizations now correctly reflect auto-selected replicant values in labels and saved configurations
+[1.48.0] [user] [fixed] - Quickly toggling visualization settings no longer causes stale data to briefly appear
+[1.48.0] [user] [changed] - Admin-area total row uses a neutral color in charts to distinguish it from data series
+[1.48.0] [user] [fixed] - Admin-area total row no longer distorts conditional formatting color ranges in tables
+[1.48.0] [user] [added] - AI assistant now explains why the admin-area total row is unavailable for certain configurations
+[1.48.0] [admin] [added] - Reusable import wizard framework for data imports
+[1.48.0] [admin] [added] - Progress modal shows feedback during dashboard group updates
+[1.48.0] [admin] [added] - Renaming dashboard items and groups now uses a dedicated modal
+[1.48.0] [admin] [changed] - Admin-area total row now works on any single grouped admin level
+[1.48.0] [admin] [changed] - Total row label adapts to context: national, pinned area, or selected areas
+[1.48.0] [admin] [changed] - Total row gets a distinct neutral color in charts to stand out
+[1.48.0] [admin] [changed] - Total row checkbox only appears when the metric and configuration support it
+[1.48.0] [admin] [changed] - Total row no longer distorts conditional formatting color ranges in tables
+[1.48.0] [admin] [changed] - Facility data now stored in separate tables for HMIS and HFA datasets
+[1.48.0] [admin] [changed] - Restoring a backup now automatically applies any pending database migrations
+[1.48.0] [admin] [fixed] - Visualizations now correctly reflect auto-selected replicant in labels and saved config
+[1.48.0] [admin] [fixed] - Rapid config edits no longer display stale data from a slower previous fetch
+[1.48.0] [admin] [fixed] - Legacy rollup field names are now migrated even when other config fields are valid
+[1.48.0] [admin] [fixed] - Migration sweeps skip unnecessary database writes to avoid false update timestamps
+[1.48.0] [admin] [internal] - AI assistant receives clearer context about total row availability and behavior
 [1.47.0] [user] [changed] - "Include National results" checkbox now shows the relevant geographic level name when results are scoped to a specific area
 [1.47.0] [user] [fixed] - Removed orphaned visualizations that could appear after modules were updated or uninstalled
 [1.47.0] [admin] [fixed] - Orphaned visualizations are now automatically cleaned up when modules change
