@@ -11,6 +11,8 @@
 
 **How m010 aggregation actually works today** (the design must slot into this): `script.R` outputs one row per facility × indicator × time_point with four mutually-exclusive ingredient columns — `numeric_sum`, `numeric_avg`, `boolean_sum`, `boolean_avg` (exactly one non-NA per row, per the indicator's type × aggregation). The metric [m10-01-01](../wb-fastr-modules/m010/_metrics/m10-01-01.ts) aggregates with `SUM` over the `*_sum` ingredients and `AVG` over the `*_avg` ingredients, then `value = COALESCE(...)`. Weighting therefore means: numerators become `raw_value * weight` computed in R, and the `AVG`s become `SUM(numerator) / SUM(weight)` in the metric expression.
 
+**Consolidation (decided):** the numeric-vs-binary split does no work in the aggregation math — both `_avg` columns get identical treatment, as do both `_sum` columns — and percent-vs-number display comes from the indicator metadata snapshot, not these columns. Since this is a breaking module update anyway, the ingredient columns consolidate to **three**: `sum_val` (complete weighted value, no denominator), `avg_num` (weighted numerator), `avg_weight` (shared denominator). An indicator's type lives in the existing `hfa_indicator` metadata; the results table no longer encodes it in column names.
+
 ---
 
 ## 1. Bringing weights into projects
@@ -30,28 +32,26 @@ All in `m010/`; one lockstep commit with §3 (same module update):
 1. **`script.R`** changes:
    - After `read.csv`: `if (!"weight" %in% names(data)) data$weight <- NA_real_` — tolerance for pre-§1 exports (compat matrix, §4).
    - Resolve the parameter once: `weight_final <- if (USE_SAMPLE_WEIGHTS) coalesce(weight, 1) else 1` (per row; `weight` is constant per facility × time_point, so it survives `pivot_wider` as an id column automatically). When `USE_SAMPLE_WEIGHTS` is TRUE, print the count of facilities falling back to weight 1 so silent coverage gaps are visible in the module log.
-   - Carry `weight_final` through to the long output (it is NOT matched by the `facility_cols` regex, so it must be explicitly selected alongside `facility_info`), then compute the ingredient columns weighted:
-     - `numeric_sum = ifelse(numeric & sum,  raw_value * weight_final, NA)`
-     - `boolean_sum = ifelse(binary & sum,   raw_value * weight_final, NA)`
-     - `numeric_avg = ifelse(numeric & avg,  raw_value * weight_final, NA)`  ← now a **numerator**
-     - `boolean_avg = ifelse(binary & avg,   raw_value * weight_final, NA)`  ← now a **numerator**
-     - `avg_weight  = ifelse(avg,            weight_final, NA)`             ← **one shared denominator** column (rows are exclusive, so numeric-avg and boolean-avg rows can share it)
-   - Drop `weight`/`weight_final` themselves from the written CSV (only the five ingredient columns go out).
+   - Carry `weight_final` through to the long output (it is NOT matched by the `facility_cols` regex, so it must be explicitly selected alongside `facility_info`), then compute the **three consolidated ingredient columns**:
+     - `sum_val    = ifelse(ind_aggregation == "sum", raw_value * weight_final, NA)`  ← complete value, no denominator
+     - `avg_num    = ifelse(ind_aggregation == "avg", raw_value * weight_final, NA)`  ← numerator
+     - `avg_weight = ifelse(ind_aggregation == "avg", weight_final, NA)`              ← shared denominator
+     (the old `numeric_*`/`boolean_*` four-way split is retired; type no longer splits columns)
+   - Drop `weight`/`weight_final` themselves from the written CSV (only the three ingredient columns go out).
    - Note the NA semantics are already right: rows with `is.na(raw_value)` are filtered out before output, so a facility that didn't answer an indicator contributes neither numerator nor denominator — the weighted mean is over responding facilities only.
-2. **`definition.json`**: add `"avg_weight": "NUMERIC"` to `createTableStatementPossibleColumns` (ingest throws on undeclared columns — this is the one schema gate). `USE_SAMPLE_WEIGHTS` is already declared; no parameter changes.
-3. **Semantics to confirm with the analysis team (one decision)**: sums are weighted above (Σw·x = estimated population total — standard for sampling weights, and reduces to the plain sum at w=1). If sums should instead stay raw counts regardless of weighting, drop `* weight_final` from the two `_sum` lines only.
+2. **`definition.json`**: in `createTableStatementPossibleColumns`, remove `numeric_sum`/`numeric_avg`/`boolean_sum`/`boolean_avg` and add `"sum_val"`, `"avg_num"`, `"avg_weight"` (all `NUMERIC`). Ingest throws on undeclared columns — this is the one schema gate. `USE_SAMPLE_WEIGHTS` is already declared; no parameter changes.
+3. **Semantics to confirm with the analysis team (one decision)**: sums are weighted above (Σw·x = estimated population total — standard for sampling weights, and reduces to the plain sum at w=1). If sums should instead stay raw counts regardless of weighting, drop `* weight_final` from the `sum_val` line only.
 
 ## 3. Using weights in aggregation (viz metric — same module update)
 
 [m10-01-01.ts](../wb-fastr-modules/m010/_metrics/m10-01-01.ts) `postAggregationExpression`:
 
-1. Ingredients become **SUM for all five** columns (the `AVG` func disappears):
-   `numeric_sum, numeric_avg, boolean_sum, boolean_avg, avg_weight` — each `{ prop, func: "SUM" }`.
-2. Expression:
-   `value = COALESCE(numeric_sum, boolean_sum, numeric_avg / NULLIF(avg_weight, 0), boolean_avg / NULLIF(avg_weight, 0))`
-   Per group only one indicator family is non-NULL (hfa_indicator is a required disaggregation), so COALESCE picks the right arm; `NULLIF` guards empty groups.
-3. Implementation check at build time: confirm the PO pipeline's expression evaluator accepts division/`NULLIF` in the post-aggregation expression string (other modules use arithmetic expressions; verify with one grep before relying on it).
-4. This works at every admin-area rollup level for free — the SUMs are re-aggregated by the existing GROUP BY machinery, and the ratio is taken after aggregation, which is exactly the weighted-mean identity. No changes to cte_manager / query context / disaggregation.
+1. Ingredients become **SUM for all three** columns (the `AVG` func disappears):
+   `sum_val, avg_num, avg_weight` — each `{ prop, func: "SUM" }`.
+2. Expression — **must use the bare division, no explicit NULLIF**:
+   `value = COALESCE(sum_val, avg_num / avg_weight)`
+   The evaluator ([applyPostAggregationExpression, query_helpers.ts:316](server/server_only_funcs_presentation_objects/query_helpers.ts#L316)) auto-wraps every `/column` with a NULLIF guard via regex (`/\/\s*(\w+)/g` → `/ NULLIF($1, 0)`), producing `avg_num / NULLIF(avg_weight, 0)` in the final SQL. Writing `NULLIF` explicitly in the expression would be double-wrapped into broken SQL (`/ NULLIF(NULLIF, 0)(avg_weight, 0)`) — verified against the current evaluator. Per group only one arm is non-NULL (hfa_indicator is a required disaggregation), so COALESCE picks correctly and the auto-guard handles empty groups.
+3. This works at every admin-area rollup level for free — the SUMs are re-aggregated by the existing GROUP BY machinery, and the ratio is taken after aggregation, which is exactly the weighted-mean identity. No changes to cte_manager / query context / disaggregation.
 
 ## 4. Rollout order & compatibility (no flag-day)
 
@@ -67,7 +67,7 @@ So: ship §1 (wb-fastr) first in its own commit; then the m010 changes (§2 + §
 ## 5. Verification checklist
 
 1. Re-add HFA dataset → `hfa.csv` contains `weight` column; facilities without weights show empty.
-2. `USE_SAMPLE_WEIGHTS = FALSE` → module results **byte-identical** to pre-change run (the w=1 reduction; this is the regression gate).
+2. `USE_SAMPLE_WEIGHTS = FALSE` → **viz output identical** to pre-change run (the w=1 reduction; this is the regression gate). Compare saved PO items JSON for an HFA viz before/after, not the results CSV — the consolidation renames the ingredient columns, so CSV bytes legitimately differ while every aggregated value must match exactly.
 3. `USE_SAMPLE_WEIGHTS = TRUE` with a hand-checkable fixture (e.g. 2 facilities, weights 1 and 3, binary avg indicator values 0 and 1 → expect 0.75) at national AND at one admin-area rollup level.
 4. Facility with data but no weight row, weights ON → counted with weight 1 + logged count in module output.
 5. Staging an HFA CSV containing a `weight` var_name → rejected with the §1.2 error.
