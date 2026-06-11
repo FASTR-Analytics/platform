@@ -92,8 +92,8 @@ export function HfaWeights(p: Props) {
           <div class="ui-pad ui-spy border-base-300 w-72 flex-none overflow-auto border-r">
             <div class="text-neutral text-xs">
               {t3({
-                en: "One row per facility, one column per time point. A blank cell means the facility is not in that round's sample. Re-uploading updates existing weights. The downloaded CSV can be edited and re-imported.",
-                fr: "Une ligne par établissement, une colonne par point temporel. Une cellule vide signifie que l'établissement n'est pas dans l'échantillon de ce tour. Un nouveau téléversement met à jour les pondérations existantes. Le CSV téléchargé peut être modifié et réimporté.",
+                en: "One row per facility, one column per time point. A blank cell means the facility is not in that round's sample. Importing replaces the stored weights for every time point present in the file (a blank cell removes a previously stored weight); time points not in the file are unchanged. The downloaded CSV can be edited and re-imported.",
+                fr: "Une ligne par établissement, une colonne par point temporel. Une cellule vide signifie que l'établissement n'est pas dans l'échantillon de ce tour. L'importation remplace les pondérations enregistrées pour chaque point temporel présent dans le fichier (une cellule vide supprime une pondération précédemment enregistrée) ; les points temporels absents du fichier restent inchangés. Le CSV téléchargé peut être modifié et réimporté.",
               })}
             </div>
             <Show when={instanceState.hfaWeights.length > 0}>
@@ -156,8 +156,8 @@ export function HfaWeights(p: Props) {
                   <Show when={keyedResult.rowsSkippedNoWeight > 0}>
                     {" "}
                     {t3({
-                      en: `(${toNum0(keyedResult.rowsSkippedNoWeight)} blank cell(s) skipped — not in sample)`,
-                      fr: `(${toNum0(keyedResult.rowsSkippedNoWeight)} cellule(s) vide(s) ignorée(s) — hors échantillon)`,
+                      en: `(${toNum0(keyedResult.rowsSkippedNoWeight)} blank cell(s) — not in sample; any stored weight for these was removed)`,
+                      fr: `(${toNum0(keyedResult.rowsSkippedNoWeight)} cellule(s) vide(s) — hors échantillon ; toute pondération enregistrée correspondante a été supprimée)`,
                     })}
                   </Show>
                 </div>

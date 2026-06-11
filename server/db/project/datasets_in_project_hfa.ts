@@ -35,7 +35,7 @@ import {
   dbRowToHfaIndicatorSubCategory,
 } from "../instance/hfa_indicators.ts";
 import { getHfaIndicatorsVersion } from "../instance/instance.ts";
-import { tryCatchDatabaseAsync } from "./../utils.ts";
+import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
 import { removeDatasetFromProject } from "./datasets_in_project_hmis.ts";
 
 export async function addDatasetHfaToProject(
@@ -248,7 +248,11 @@ ON CONFLICT (dataset_type) DO UPDATE SET
         INSERT INTO indicators_hfa (var_name, example_values)
         VALUES ${
             hfaIndicators
-              .map((ind) => `('${ind.var_name}', '${ind.sample_values || ""}')`)
+              .map((ind) =>
+                `('${escapeSqlString(ind.var_name)}', '${
+                  escapeSqlString(ind.sample_values || "")
+                }')`
+              )
               .join(",\n")
           }
       `),

@@ -15,7 +15,10 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 //   facility_id, <time point label>, <time point label>, ...
 // One row per facility, one column per round. A blank cell means the facility
 // is not in that round's sample — nothing is stored (absence is the
-// representation; decided 2026-06-11).
+// representation; decided 2026-06-11). Import replaces the stored set for
+// the rounds present as columns (so blanking a cell and re-importing removes
+// that weight); rounds not in the file are left untouched, allowing
+// one-round-at-a-time imports.
 
 // Keep batches well under Postgres's 65,534-parameter limit (3 params per row)
 const UPSERT_BATCH_SIZE = 5000;
@@ -265,18 +268,31 @@ export async function importHfaFacilityWeights(
       };
     }
 
-    // NOTE: deliberately no structure_last_updated bump yet — that lands with
-    // the analysis wiring (PLAN_WEIGHTS_WIRING §1.3), when project HFA exports
-    // actually consume weights and staleness becomes meaningful.
+    const coveredTimePoints = timePointColumns.map((c) => c.timePoint);
+
     await mainDb.begin(async (sql) => {
+      // The CSV is authoritative for the rounds it contains: replace those
+      // rounds wholesale (a blanked cell or omitted facility row removes the
+      // weight), but leave rounds not present in the file untouched
+      await sql`
+        DELETE FROM hfa_facility_weights
+        WHERE time_point = ANY(${coveredTimePoints})
+      `;
       for (let i = 0; i < rows.length; i += UPSERT_BATCH_SIZE) {
         const batch = rows.slice(i, i + UPSERT_BATCH_SIZE);
         await sql`
           INSERT INTO hfa_facility_weights ${sql(batch, "facility_id", "time_point", "weight")}
-          ON CONFLICT (facility_id, time_point)
-          DO UPDATE SET weight = EXCLUDED.weight
         `;
       }
+
+      // Weights ride into projects via the hfa.csv export; bumping
+      // structure_last_updated marks existing project exports stale
+      await sql`
+        INSERT INTO instance_config (config_key, config_json_value)
+        VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+        ON CONFLICT (config_key)
+        DO UPDATE SET config_json_value = EXCLUDED.config_json_value
+      `;
     });
 
     return {
@@ -294,7 +310,15 @@ export async function deleteAllHfaFacilityWeights(
   mainDb: Sql
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`DELETE FROM hfa_facility_weights`;
+    await mainDb.begin(async (sql) => {
+      await sql`DELETE FROM hfa_facility_weights`;
+      await sql`
+        INSERT INTO instance_config (config_key, config_json_value)
+        VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+        ON CONFLICT (config_key)
+        DO UPDATE SET config_json_value = EXCLUDED.config_json_value
+      `;
+    });
     return { success: true };
   });
 }

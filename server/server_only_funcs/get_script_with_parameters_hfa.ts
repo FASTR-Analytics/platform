@@ -37,6 +37,8 @@ function buildPerTimePointMutateExpression(
     const rCode = snippet.rCode.trim();
     if (!rCode) continue;
 
+    const timePoint = snippet.timePoint.replace(/"/g, '\\"');
+
     const rFilterCode = snippet.rFilterCode?.trim() ?? "";
     const deps = extractDependenciesFromCode(
       rCode,
@@ -49,45 +51,45 @@ function buildPerTimePointMutateExpression(
     if (indicator.type === "numeric") {
       if (rFilterCode) {
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" & (${missingnessCheck}) ~ NA_real_`,
+          `    time_point == "${timePoint}" & (${missingnessCheck}) ~ NA_real_`,
         );
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" & !(${rFilterCode}) ~ NA_real_`,
+          `    time_point == "${timePoint}" & !(${rFilterCode}) ~ NA_real_`,
         );
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" ~ ${rCode}`,
+          `    time_point == "${timePoint}" ~ ${rCode}`,
         );
       } else {
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" & (${missingnessCheck}) ~ NA_real_`,
+          `    time_point == "${timePoint}" & (${missingnessCheck}) ~ NA_real_`,
         );
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" ~ ${rCode}`,
+          `    time_point == "${timePoint}" ~ ${rCode}`,
         );
       }
     } else {
       if (rFilterCode) {
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" & (${missingnessCheck}) ~ NA_real_`,
+          `    time_point == "${timePoint}" & (${missingnessCheck}) ~ NA_real_`,
         );
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" & !(${rFilterCode}) ~ NA_real_`,
+          `    time_point == "${timePoint}" & !(${rFilterCode}) ~ NA_real_`,
         );
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" & (${rCode}) ~ 1`,
+          `    time_point == "${timePoint}" & (${rCode}) ~ 1`,
         );
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" ~ 0`,
+          `    time_point == "${timePoint}" ~ 0`,
         );
       } else {
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" & (${missingnessCheck}) ~ NA_real_`,
+          `    time_point == "${timePoint}" & (${missingnessCheck}) ~ NA_real_`,
         );
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" & (${rCode}) ~ 1`,
+          `    time_point == "${timePoint}" & (${rCode}) ~ 1`,
         );
         timePointBranches.push(
-          `    time_point == "${snippet.timePoint}" ~ 0`,
+          `    time_point == "${timePoint}" ~ 0`,
         );
       }
     }
