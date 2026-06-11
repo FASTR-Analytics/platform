@@ -14,8 +14,7 @@ import { GeoJsonManager } from "../instance_geojson/geojson_manager";
 import { instanceState } from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 
-type Props = {
-};
+type Props = {};
 
 export function InstanceData(p: Props) {
   const [selectedDataSource, setSelecteDatasource] = createSignal<
@@ -25,9 +24,7 @@ export function InstanceData(p: Props) {
   return (
     <Switch>
       <Match when={selectedDataSource() === "admin_areas"}>
-        <AdminAreas
-          backToInstance={() => setSelecteDatasource(undefined)}
-        />
+        <AdminAreas backToInstance={() => setSelecteDatasource(undefined)} />
       </Match>
       <Match when={selectedDataSource() === "facilities_hmis"}>
         <Facilities
@@ -42,9 +39,7 @@ export function InstanceData(p: Props) {
         />
       </Match>
       <Match when={selectedDataSource() === "hfa_weights"}>
-        <HfaWeights
-          backToInstance={() => setSelecteDatasource(undefined)}
-        />
+        <HfaWeights backToInstance={() => setSelecteDatasource(undefined)} />
       </Match>
       <Match when={selectedDataSource() === "hfa_indicators"}>
         <HfaIndicatorsManager
@@ -96,7 +91,7 @@ export function InstanceData(p: Props) {
           }
         >
           <div class="ui-pad overflow-auto">
-            <div class="max-w-5xl space-y-10">
+            <div class="space-y-14">
               {/* Structure & maps */}
               <div class="flex gap-6">
                 <div class="w-44 shrink-0 pt-3">
@@ -386,6 +381,40 @@ export function InstanceData(p: Props) {
                   </div>
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    onClick={() => setSelecteDatasource("hfa_time_points")}
+                  >
+                    <div class="font-700 pb-2">
+                      {t3({ en: "Time points", fr: "Points temporels" })}
+                    </div>
+                    <Show
+                      when={instanceState.hfaTimePoints.length > 0}
+                      fallback={
+                        <div class="text-danger text-xs">
+                          {t3({
+                            en: "No time points (import data to create)",
+                            fr: "Aucun point temporel (importer des données pour créer)",
+                          })}
+                        </div>
+                      }
+                    >
+                      <div class="ui-spy-sm text-success text-xs">
+                        <div class="flex justify-between gap-4">
+                          <span>
+                            {t3({
+                              en: "Time points",
+                              fr: "Points temporels",
+                            })}
+                            :
+                          </span>
+                          <span class="font-mono">
+                            {toNum0(instanceState.hfaTimePoints.length)}
+                          </span>
+                        </div>
+                      </div>
+                    </Show>
+                  </div>
+                  <div
+                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelecteDatasource("hfa_weights")}
                   >
                     <div class="font-700 pb-2">
@@ -488,40 +517,6 @@ export function InstanceData(p: Props) {
                           </div>
                         </div>
                       )}
-                    </Show>
-                  </div>
-                  <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("hfa_time_points")}
-                  >
-                    <div class="font-700 pb-2">
-                      {t3({ en: "Time points", fr: "Points temporels" })}
-                    </div>
-                    <Show
-                      when={instanceState.hfaTimePoints.length > 0}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No time points (import data to create)",
-                            fr: "Aucun point temporel (importer des données pour créer)",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="ui-spy-sm text-success text-xs">
-                        <div class="flex justify-between gap-4">
-                          <span>
-                            {t3({
-                              en: "Time points",
-                              fr: "Points temporels",
-                            })}
-                            :
-                          </span>
-                          <span class="font-mono">
-                            {toNum0(instanceState.hfaTimePoints.length)}
-                          </span>
-                        </div>
-                      </div>
                     </Show>
                   </div>
                 </div>

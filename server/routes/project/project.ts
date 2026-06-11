@@ -271,6 +271,7 @@ defineRoute(
                   c.var.ppk.projectDb,
                   c.var.ppk.projectId,
                   writer.progress.bind(writer),
+                  body.serviceCategoryScope ?? [],
                 )
               : body.datasetType === "iceh"
                 ? await addDatasetIcehToProject(

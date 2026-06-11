@@ -1,5 +1,6 @@
 import {
   t3,
+  type APIResponseNoData,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
@@ -12,10 +13,12 @@ import {
   EditorComponentProps,
   FrameTop,
   Input,
+  MultiSelect,
   RadioGroup,
   Select,
   StateHolderWrapper,
   TextArea,
+  timActionButton,
   timQuery,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
@@ -36,7 +39,7 @@ type TempState = {
   varName: string;
   categoryId: string | null;
   subCategoryId: string | null;
-  serviceCategoryId: string | null;
+  serviceCategoryIds: string[];
   shortLabel: string;
   definition: string;
   type: "binary" | "numeric";
@@ -63,22 +66,18 @@ export function HfaIndicatorCodeEditor(
   );
 
   const [needsSaving, setNeedsSaving] = createSignal(false);
-  const [isSaving, setIsSaving] = createSignal(false);
-  let doSave: (() => Promise<void>) | undefined;
+  let doSave: (() => Promise<APIResponseNoData>) | undefined;
 
-  async function handleSave() {
-    if (doSave) {
-      setIsSaving(true);
-      await doSave();
-      setIsSaving(false);
-      setNeedsSaving(false);
-    }
-  }
+  const runSave = () =>
+    doSave?.() ?? Promise.resolve({ success: true } as APIResponseNoData);
 
-  async function handleSaveAndClose() {
-    if (doSave) await doSave();
+  const save = timActionButton(runSave, () => {
+    setNeedsSaving(false);
+  });
+
+  const saveAndClose = timActionButton(runSave, () => {
     p.close(undefined);
-  }
+  });
 
   return (
     <FrameTop
@@ -94,7 +93,8 @@ export function HfaIndicatorCodeEditor(
             }
           >
             <Button
-              onClick={handleSaveAndClose}
+              onClick={saveAndClose.click}
+              state={saveAndClose.state()}
               intent="success"
               iconName="save"
             >
@@ -103,8 +103,8 @@ export function HfaIndicatorCodeEditor(
             <Button
               intent="success"
               iconName="save"
-              onClick={handleSave}
-              loading={isSaving()}
+              onClick={save.click}
+              state={save.state()}
             >
               {t3({ en: "Save", fr: "Sauvegarder" })}
             </Button>
@@ -149,7 +149,7 @@ function EditorInner(p: {
   serviceCategories: HfaIndicatorServiceCategory[];
   initialCodeSnippets: HfaIndicatorCode[];
   setNeedsSaving: (v: boolean) => void;
-  registerSave: (fn: () => Promise<void>) => void;
+  registerSave: (fn: () => Promise<APIResponseNoData>) => void;
 }) {
   const initialCode: TempCodeEntry[] = p.dictionary.timePoints.map((tp) => {
     const existing = p.initialCodeSnippets.find(
@@ -166,7 +166,7 @@ function EditorInner(p: {
     varName: p.indicator.varName,
     categoryId: p.indicator.categoryId,
     subCategoryId: p.indicator.subCategoryId,
-    serviceCategoryId: p.indicator.serviceCategoryId,
+    serviceCategoryIds: p.indicator.serviceCategoryIds,
     shortLabel: p.indicator.shortLabel,
     definition: p.indicator.definition,
     type: p.indicator.type,
@@ -255,7 +255,15 @@ function EditorInner(p: {
 
   p.registerSave(async () => {
     const trimmedVarName = state.varName.trim();
-    if (!trimmedVarName) return;
+    if (!trimmedVarName) {
+      return {
+        success: false,
+        err: t3({
+          en: "Variable name is required",
+          fr: "Le nom de variable est requis",
+        }),
+      };
+    }
 
     // Compute validation across all timepoints
     let hasSyntaxError = false;
@@ -293,13 +301,13 @@ function EditorInner(p: {
 
     const codeConsistent = roundsConsistency() !== "different";
 
-    await serverActions.saveHfaIndicatorFull({
+    return await serverActions.saveHfaIndicatorFull({
       oldVarName: p.indicator.varName,
       indicator: {
         varName: trimmedVarName,
         categoryId: state.categoryId,
         subCategoryId: state.subCategoryId,
-        serviceCategoryId: state.serviceCategoryId,
+        serviceCategoryIds: state.serviceCategoryIds,
         shortLabel: state.shortLabel.trim(),
         definition: state.definition.trim(),
         type: state.type,
@@ -365,17 +373,14 @@ function EditorInner(p: {
                   : [{ value: "", label: t3({ en: "— Select category first —", fr: "— Sélectionnez d'abord une catégorie —" }) }]
               }
             />
-            <Select
-              label={t3({ en: "Service category", fr: "Catégorie de service" })}
-              value={state.serviceCategoryId ?? ""}
+            <MultiSelect
+              label={t3({ en: "Service categories", fr: "Catégories de service" })}
+              values={state.serviceCategoryIds}
               onChange={(v) => {
-                setState("serviceCategoryId", v || null);
+                setState("serviceCategoryIds", v);
                 markDirty();
               }}
-              options={[
-                { value: "", label: t3({ en: "— None —", fr: "— Aucune —" }) },
-                ...p.serviceCategories.map((sc) => ({ value: sc.id, label: sc.label })),
-              ]}
+              options={p.serviceCategories.map((sc) => ({ value: sc.id, label: sc.label }))}
             />
             <RadioGroup
               label={t3({ en: "Type", fr: "Type" })}

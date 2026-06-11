@@ -47,7 +47,7 @@ CREATE TABLE hfa_indicators_snapshot (
   var_name text PRIMARY KEY NOT NULL,
   category_id text,
   sub_category_id text,
-  service_category_id text,
+  service_category_ids text NOT NULL DEFAULT '[]',
   short_label text NOT NULL DEFAULT '',
   definition text NOT NULL,
   type text NOT NULL,

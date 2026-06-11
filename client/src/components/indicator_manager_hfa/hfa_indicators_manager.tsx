@@ -544,17 +544,19 @@ export function HfaIndicatorsManager(p: Props) {
       },
     },
     {
-      key: "serviceCategoryId",
-      header: t3({ en: "Service category", fr: "Catégorie de service" }),
+      key: "serviceCategoryIds",
+      header: t3({ en: "Service categories", fr: "Catégories de service" }),
       sortable: true,
       render: (ind) => {
-        if (!ind.serviceCategoryId) return "—";
+        if (ind.serviceCategoryIds.length === 0) return "—";
         const svcCatSt = serviceCategories();
-        if (svcCatSt.status !== "ready") return ind.serviceCategoryId;
-        const svcCat = svcCatSt.data.find(
-          (sc) => sc.id === ind.serviceCategoryId,
-        );
-        return svcCat?.label ?? ind.serviceCategoryId;
+        if (svcCatSt.status !== "ready") return ind.serviceCategoryIds.join(", ");
+        return ind.serviceCategoryIds
+          .map(
+            (id) =>
+              svcCatSt.data.find((sc) => sc.id === id)?.label ?? id,
+          )
+          .join(", ");
       },
     },
     {

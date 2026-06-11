@@ -94,6 +94,7 @@ function AIProjectWrapperInner(props: ParentProps) {
       modules: projectState.projectModules,
       metrics: projectState.metrics,
       icehIndicators: projectState.icehIndicators,
+      hfaTaxonomy: projectState.hfaTaxonomy,
       visualizations: projectState.visualizations,
       slideDecks: projectState.slideDecks,
       reports: projectState.reports,

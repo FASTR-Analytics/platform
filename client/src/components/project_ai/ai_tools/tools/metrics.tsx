@@ -1,6 +1,6 @@
 import { createAITool } from "panther";
 import { z } from "zod";
-import { AiMetricQuerySchema, type AiMetricQuery, type MetricWithStatus } from "lib";
+import { AiMetricQuerySchema, type AiMetricQuery, type HfaTaxonomyForAI, type MetricWithStatus } from "lib";
 import { getMetricDataForAI, inferPeriodFilter } from "./_internal/format_metric_data_for_ai";
 import { formatMetricsListForAI } from "./_internal/format_metrics_list_for_ai";
 import { validateAiMetricQuery, validateMetricInputs } from "../validators/content_validators";
@@ -10,7 +10,8 @@ type IcehIndicator = { id: string; label: string; category: string };
 export function getToolsForMetrics(
   projectId: string,
   metrics: MetricWithStatus[],
-  icehIndicators: IcehIndicator[]
+  icehIndicators: IcehIndicator[],
+  hfaTaxonomy: HfaTaxonomyForAI
 ) {
   return [
     createAITool({
@@ -19,7 +20,7 @@ export function getToolsForMetrics(
         "Get all available metrics from installed modules. Returns metric IDs, labels, summaries, disaggregation options, and visualization presets. Use get_metric_data for detailed information about a specific metric.",
       inputSchema: z.strictObject({}),
       handler: async () => {
-        return formatMetricsListForAI(metrics, icehIndicators);
+        return formatMetricsListForAI(metrics, icehIndicators, hfaTaxonomy);
       },
       inProgressLabel: "Getting available metrics...",
       completionMessage: `Retrieved ${metrics.length} metric(s)`,

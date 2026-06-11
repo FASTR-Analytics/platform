@@ -108,6 +108,7 @@ export const projectRouteRegistry = {
     body: {} as {
       datasetType: DatasetType;
       windowing: DatasetHmisWindowingCommon | undefined;
+      serviceCategoryScope?: string[];
       skipModuleRerun?: boolean;
     },
     response: {} as { lastUpdated: string },

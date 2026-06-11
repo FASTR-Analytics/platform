@@ -20,6 +20,13 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   metrics: [],
   commonIndicators: [],
   icehIndicators: [],
+  hfaTaxonomy: {
+    categories: [],
+    subCategories: [],
+    serviceCategories: [],
+    timePoints: [],
+    indicators: [],
+  },
   visualizations: [],
   visualizationFolders: [],
   slideDecks: [],

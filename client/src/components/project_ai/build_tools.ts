@@ -1,4 +1,5 @@
 import type {
+  HfaTaxonomyForAI,
   InstalledModuleSummary,
   MetricWithStatus,
   PresentationObjectSummary,
@@ -25,6 +26,7 @@ type BuildToolsParams = {
   modules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
   icehIndicators: { id: string; label: string; category: string }[];
+  hfaTaxonomy: HfaTaxonomyForAI;
   visualizations: PresentationObjectSummary[];
   slideDecks: SlideDeckSummary[];
   reports: ReportSummary[];
@@ -32,12 +34,12 @@ type BuildToolsParams = {
 };
 
 export function buildToolsForContext(params: BuildToolsParams) {
-  const { projectId, modules, metrics, icehIndicators, visualizations, slideDecks, reports, aiContext } =
+  const { projectId, modules, metrics, icehIndicators, hfaTaxonomy, visualizations, slideDecks, reports, aiContext } =
     params;
 
   return [
     // Base data tools - always available
-    ...getToolsForMetrics(projectId, metrics, icehIndicators),
+    ...getToolsForMetrics(projectId, metrics, icehIndicators, hfaTaxonomy),
     ...getToolsForModules(projectId, modules, metrics),
     ...getToolsForVisualizations(projectId, visualizations, metrics),
     ...getToolsForSlideDecks(slideDecks),

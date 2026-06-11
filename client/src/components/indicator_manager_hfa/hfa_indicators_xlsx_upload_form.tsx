@@ -102,7 +102,7 @@ function PickStep(p: {
           <li><span class="font-mono font-700">Sub-categories</span>: id, categoryId, label</li>
           <li><span class="font-mono font-700">Service categories</span>: id, label ({t3({ en: "optional", fr: "facultatif" })})</li>
           <li>
-            <span class="font-mono font-700">Indicators</span>: varName, categoryId, subCategoryId, serviceCategoryId, shortLabel, definition, type, aggregation, r_code__&lt;time point&gt;, r_filter_code__&lt;time point&gt;, …
+            <span class="font-mono font-700">Indicators</span>: varName, categoryId, subCategoryId, serviceCategoryId ({t3({ en: "pipe-separated for multiple", fr: "séparés par | pour plusieurs" })}), shortLabel, definition, type, aggregation, r_code__&lt;time point&gt;, r_filter_code__&lt;time point&gt;, …
           </li>
         </ul>
       </div>

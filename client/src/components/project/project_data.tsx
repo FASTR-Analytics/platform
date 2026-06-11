@@ -21,6 +21,7 @@ import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { _SERVER_HOST } from "~/server_actions";
 import { SettingsForProjectDatasetHmis } from "./settings_for_project_dataset_hmis";
+import { SettingsForProjectDatasetHfa } from "./settings_for_project_dataset_hfa";
 import { projectState } from "~/state/project/t1_store";
 
 type Props = {
@@ -476,9 +477,22 @@ export function ProjectData(p: Props) {
                     projectId: projectState.id,
                     datasetType: "hfa",
                     windowing: undefined,
+                    serviceCategoryScope:
+                      keyedProjectDatasetHfa.info.serviceCategoryScope ?? [],
                     skipModuleRerun: skipModuleRerun(),
                   }),
                 );
+
+                async function editHfaSettings() {
+                  await openEditor({
+                    element: SettingsForProjectDatasetHfa,
+                    props: {
+                      projectState: projectState,
+                      hfaInfo: keyedProjectDatasetHfa.info,
+                      skipModuleRerun: skipModuleRerun(),
+                    },
+                  });
+                }
 
                 return (
                   <div class="border-base-300 rounded border">
@@ -503,6 +517,9 @@ export function ProjectData(p: Props) {
                             outline
                           >
                             {t3({ en: "Disable", fr: "Désactiver" })}
+                          </Button>
+                          <Button onClick={editHfaSettings} iconName="settings">
+                            {t3(TC.settings)}
                           </Button>
                         </div>
                       </Show>
@@ -550,20 +567,18 @@ export function ProjectData(p: Props) {
             </Match>
             <Match when={true}>
               {(() => {
-                const enableDatasetHfa = timActionButton(async () => {
+                async function enableDatasetHfa() {
                   if (!instanceState.datasetsWithData.includes("hfa")) {
-                    return {
-                      success: false,
-                      err: t3({ en: "This dataset has no data at the instance level", fr: "Ce jeu de données ne contient aucune donnée au niveau de l'instance" }),
-                    };
+                    return;
                   }
-
-                  return await serverActions.addDatasetToProject({
-                    projectId: projectState.id,
-                    datasetType: "hfa",
-                    windowing: undefined,
+                  await openEditor({
+                    element: SettingsForProjectDatasetHfa,
+                    props: {
+                      projectState: projectState,
+                      hfaInfo: undefined,
+                    },
                   });
-                });
+                }
 
                 return (
                   <div class="ui-pad border-base-300 ui-spy rounded border">
@@ -582,11 +597,7 @@ export function ProjectData(p: Props) {
                             </div>
                           }
                         >
-                          <Button
-                            onClick={enableDatasetHfa.click}
-                            state={enableDatasetHfa.state()}
-                            outline
-                          >
+                          <Button onClick={enableDatasetHfa} outline>
                             {t3({ en: "Enable", fr: "Activer" })}
                           </Button>
                         </Show>

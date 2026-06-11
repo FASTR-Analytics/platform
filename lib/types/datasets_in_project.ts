@@ -43,6 +43,8 @@ export type DatasetHfaInfoInProject = {
   hfaIndicatorsVersion?: string;
   structureLastUpdated?: string;
   facilityColumnsHash?: string;
+  // Project scoping: service-category ids to include. Absent/empty = include all.
+  serviceCategoryScope?: string[];
 };
 
 export type DatasetIcehInfoInProject = {

@@ -6,7 +6,12 @@ import {
   ModalContainer,
   Select,
 } from "panther";
-import { t3, type MetricWithStatus, type PresentationObjectSummary } from "lib";
+import {
+  t3,
+  type HfaTaxonomyForAI,
+  type MetricWithStatus,
+  type PresentationObjectSummary,
+} from "lib";
 import { formatMetricsListForAI } from "./ai_tools/tools/_internal/format_metrics_list_for_ai";
 import { formatVisualizationsListForAI } from "./ai_tools/tools/_internal/format_visualizations_list_for_ai";
 
@@ -22,6 +27,7 @@ function getDebugViewOptions(): SelectOption<DebugView>[] {
 export type AIDebugPanelProps = {
   metrics: MetricWithStatus[];
   icehIndicators: { id: string; label: string; category: string }[];
+  hfaTaxonomy: HfaTaxonomyForAI;
   visualizations: PresentationObjectSummary[];
 };
 
@@ -33,7 +39,7 @@ export function AIDebugPanel(p: Props) {
   const content = () => {
     switch (view()) {
       case "metrics":
-        return formatMetricsListForAI(p.metrics, p.icehIndicators);
+        return formatMetricsListForAI(p.metrics, p.icehIndicators, p.hfaTaxonomy);
       case "visualizations":
         return formatVisualizationsListForAI(p.visualizations);
     }

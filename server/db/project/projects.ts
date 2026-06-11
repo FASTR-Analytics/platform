@@ -31,7 +31,10 @@ import {
 } from "../postgres/mod.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { DBDataset_IN_PROJECT } from "./_project_database_types.ts";
-import { addDatasetHfaToProject } from "./datasets_in_project_hfa.ts";
+import {
+  addDatasetHfaToProject,
+  getHfaTaxonomyForAI,
+} from "./datasets_in_project_hfa.ts";
 import { addDatasetHmisToProject } from "./datasets_in_project_hmis.ts";
 import {
   getAllModulesForProject,
@@ -256,6 +259,8 @@ export async function getProjectDetail(
       category: row.category,
     }));
 
+    const hfaTaxonomy = await getHfaTaxonomyForAI(mainDb, projectDb);
+
     const projectDetail: ProjectDetail = {
       id: projectId,
       label: rawProject.label,
@@ -268,6 +273,7 @@ export async function getProjectDetail(
       metrics: resMetrics.data,
       commonIndicators,
       icehIndicators,
+      hfaTaxonomy,
       visualizations: resVisualizations.data,
       visualizationFolders: resFolders.data,
       slideDecks: resSlideDecks.data,

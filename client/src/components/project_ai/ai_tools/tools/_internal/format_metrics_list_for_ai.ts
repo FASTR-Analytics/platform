@@ -1,10 +1,11 @@
-import { ICEH_STRAT_INFO, type MetricWithStatus } from "lib";
+import { ICEH_STRAT_INFO, type HfaTaxonomyForAI, type MetricWithStatus } from "lib";
 
 type IcehIndicator = { id: string; label: string; category: string };
 
 export function formatMetricsListForAI(
   metrics: MetricWithStatus[],
-  icehIndicators: IcehIndicator[]
+  icehIndicators: IcehIndicator[],
+  hfaTaxonomy: HfaTaxonomyForAI
 ): string {
   const lines: string[] = [
     "AVAILABLE METRICS",
@@ -16,6 +17,12 @@ export function formatMetricsListForAI(
     "Period formats: period_id (YYYYMM), year (YYYY), month (1-12 for seasonal).",
     "",
   ];
+
+  // HFA module active → surface the full indicator taxonomy up front so the
+  // model has every category / sub-category / service-category / time-point ID.
+  if (hfaTaxonomy.indicators.length > 0) {
+    lines.push(...formatHfaTaxonomyForAI(hfaTaxonomy));
+  }
 
   const readyMetrics = metrics.filter(m => m.status === "ready");
 
@@ -110,4 +117,80 @@ export function formatMetricsListForAI(
 function getAIStr(val: string | { en: string; fr?: string }): string {
   if (typeof val === "string") return val;
   return val.en;
+}
+
+function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
+  const lines: string[] = [];
+  const catLabel = new Map(tax.categories.map((c) => [c.id, c.label]));
+  const subLabel = new Map(tax.subCategories.map((s) => [s.id, s.label]));
+
+  lines.push("HFA INDICATORS (Health Facility Assessment)");
+  lines.push("=".repeat(80));
+  lines.push(
+    "The HFA module is active. Query HFA data with get_metric_data using the HFA",
+  );
+  lines.push("metric(s) below. Filter / disaggregate with these columns + IDs:");
+  lines.push("  hfa_indicator        → indicator IDs (var names)");
+  lines.push("  hfa_category         → category IDs");
+  lines.push("  hfa_sub_category     → sub-category IDs");
+  lines.push("  hfa_service_category → service-category IDs");
+  lines.push("  time_point           → time-point IDs (survey rounds)");
+  lines.push("");
+
+  lines.push("Categories (id: label) with their sub-categories:");
+  for (const cat of tax.categories) {
+    lines.push(`  - ${cat.id}: ${cat.label}`);
+    const subs = tax.subCategories.filter((s) => s.categoryId === cat.id);
+    for (const sub of subs) {
+      lines.push(`      - ${sub.id}: ${sub.label}`);
+    }
+  }
+  lines.push("");
+
+  lines.push("Service categories (id: label):");
+  for (const svc of tax.serviceCategories) {
+    lines.push(`  - ${svc.id}: ${svc.label}`);
+  }
+  lines.push("");
+
+  lines.push("Time points / survey rounds (time_point value → period):");
+  for (const tp of tax.timePoints) {
+    lines.push(`  - ${tp.id} (period ${tp.periodId})`);
+  }
+  lines.push("");
+
+  lines.push(
+    "Indicators (hfa_indicator values), grouped by category › sub-category:",
+  );
+  let curCat: string | null | undefined = undefined;
+  let curSub: string | null | undefined = undefined;
+  for (const ind of tax.indicators) {
+    if (ind.categoryId !== curCat) {
+      curCat = ind.categoryId;
+      curSub = undefined;
+      const label = ind.categoryId
+        ? catLabel.get(ind.categoryId) ?? ind.categoryId
+        : "Uncategorised";
+      const idStr = ind.categoryId ? ` (category: ${ind.categoryId})` : "";
+      lines.push(`  [${label}]${idStr}`);
+    }
+    if (ind.subCategoryId !== curSub) {
+      curSub = ind.subCategoryId;
+      const label = ind.subCategoryId
+        ? subLabel.get(ind.subCategoryId) ?? ind.subCategoryId
+        : "(no sub-category)";
+      const idStr = ind.subCategoryId
+        ? ` (sub-category: ${ind.subCategoryId})`
+        : "";
+      lines.push(`    [${label}]${idStr}`);
+    }
+    const svcStr =
+      ind.serviceCategoryIds.length > 0
+        ? `  [service categories: ${ind.serviceCategoryIds.join(", ")}]`
+        : "";
+    lines.push(`      - ${ind.id}: ${ind.label}${svcStr}`);
+  }
+  lines.push("");
+
+  return lines;
 }

@@ -1,4 +1,5 @@
 import { Sql } from "postgres";
+import { z } from "zod";
 import {
   APIResponseNoData,
   APIResponseWithData,
@@ -35,7 +36,7 @@ export type DBHfaIndicator = {
   var_name: string;
   category_id: string | null;
   sub_category_id: string | null;
-  service_category_id: string | null;
+  service_category_ids: string; // JSON-encoded string[]
   short_label: string;
   definition: string;
   type: "binary" | "numeric";
@@ -85,7 +86,9 @@ export function dbRowToHfaIndicator(row: DBHfaIndicator): HfaIndicator {
     varName: row.var_name,
     categoryId: row.category_id,
     subCategoryId: row.sub_category_id,
-    serviceCategoryId: row.service_category_id,
+    serviceCategoryIds: z
+      .array(z.string())
+      .parse(JSON.parse(row.service_category_ids ?? "[]")),
     shortLabel: row.short_label,
     definition: row.definition,
     type: row.type,
@@ -302,13 +305,30 @@ export async function updateHfaIndicatorServiceCategory(
   serviceCategory: HfaIndicatorServiceCategory,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`
-      UPDATE hfa_indicator_service_categories
-      SET id = ${serviceCategory.id},
-          label = ${serviceCategory.label},
-          sort_order = ${serviceCategory.sortOrder}
-      WHERE id = ${oldId}
-    `;
+    await mainDb.begin(async (sql) => {
+      await sql`
+        UPDATE hfa_indicator_service_categories
+        SET id = ${serviceCategory.id},
+            label = ${serviceCategory.label},
+            sort_order = ${serviceCategory.sortOrder}
+        WHERE id = ${oldId}
+      `;
+      // No FK on the JSON list; keep indicator tags in sync when the id changes.
+      if (serviceCategory.id !== oldId) {
+        await sql`
+          UPDATE hfa_indicators
+          SET service_category_ids = (
+                SELECT COALESCE(
+                  jsonb_agg(CASE WHEN e = ${oldId} THEN ${serviceCategory.id} ELSE e END),
+                  '[]'::jsonb
+                )
+                FROM jsonb_array_elements_text(service_category_ids::jsonb) AS e
+              )::text,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE jsonb_exists(service_category_ids::jsonb, ${oldId})
+        `;
+      }
+    });
     return { success: true };
   });
 }
@@ -318,9 +338,17 @@ export async function deleteHfaIndicatorServiceCategory(
   id: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`
-      DELETE FROM hfa_indicator_service_categories WHERE id = ${id}
-    `;
+    await mainDb.begin(async (sql) => {
+      // No FK on the JSON list; scrub the deleted id from indicator tags
+      // (replaces the old ON DELETE SET NULL behaviour).
+      await sql`
+        UPDATE hfa_indicators
+        SET service_category_ids = (service_category_ids::jsonb - ${id})::text,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE jsonb_exists(service_category_ids::jsonb, ${id})
+      `;
+      await sql`DELETE FROM hfa_indicator_service_categories WHERE id = ${id}`;
+    });
     return { success: true };
   });
 }
@@ -353,8 +381,8 @@ export async function createHfaIndicator(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb`
-      INSERT INTO hfa_indicators (var_name, category_id, sub_category_id, service_category_id, short_label, definition, type, aggregation, sort_order, updated_at)
-      VALUES (${indicator.varName}, ${indicator.categoryId}, ${indicator.subCategoryId}, ${indicator.serviceCategoryId}, ${indicator.shortLabel}, ${indicator.definition}, ${indicator.type}, ${indicator.aggregation}, ${indicator.sortOrder}, CURRENT_TIMESTAMP)
+      INSERT INTO hfa_indicators (var_name, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, updated_at)
+      VALUES (${indicator.varName}, ${indicator.categoryId}, ${indicator.subCategoryId}, ${JSON.stringify(indicator.serviceCategoryIds)}, ${indicator.shortLabel}, ${indicator.definition}, ${indicator.type}, ${indicator.aggregation}, ${indicator.sortOrder}, CURRENT_TIMESTAMP)
     `;
     return { success: true };
   });
@@ -371,7 +399,7 @@ export async function updateHfaIndicator(
       SET var_name = ${indicator.varName},
           category_id = ${indicator.categoryId},
           sub_category_id = ${indicator.subCategoryId},
-          service_category_id = ${indicator.serviceCategoryId},
+          service_category_ids = ${JSON.stringify(indicator.serviceCategoryIds)},
           short_label = ${indicator.shortLabel},
           definition = ${indicator.definition},
           type = ${indicator.type},
@@ -432,8 +460,8 @@ export async function batchUploadHfaIndicators(
         }
         const sortOrder = replaceAll ? i : nextSortOrder++;
         await sql`
-          INSERT INTO hfa_indicators (var_name, category_id, sub_category_id, service_category_id, short_label, definition, type, aggregation, sort_order, has_syntax_error, code_consistent, updated_at)
-          VALUES (${ind.varName}, ${ind.categoryId}, ${ind.subCategoryId}, ${ind.serviceCategoryId}, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.hasSyntaxError}, ${ind.codeConsistent}, CURRENT_TIMESTAMP)
+          INSERT INTO hfa_indicators (var_name, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, has_syntax_error, code_consistent, updated_at)
+          VALUES (${ind.varName}, ${ind.categoryId}, ${ind.subCategoryId}, ${JSON.stringify(ind.serviceCategoryIds)}, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.hasSyntaxError}, ${ind.codeConsistent}, CURRENT_TIMESTAMP)
           ON CONFLICT (var_name) DO NOTHING
         `;
         insertedVarNames.add(ind.varName);
@@ -601,8 +629,8 @@ export async function importHfaIndicatorsWorkbook(
         }
         const sortOrder = replaceAll ? i : nextSortOrder++;
         await sql`
-          INSERT INTO hfa_indicators (var_name, category_id, sub_category_id, service_category_id, short_label, definition, type, aggregation, sort_order, updated_at)
-          VALUES (${ind.varName}, ${ind.categoryId}, ${ind.subCategoryId}, ${ind.serviceCategoryId}, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, CURRENT_TIMESTAMP)
+          INSERT INTO hfa_indicators (var_name, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, updated_at)
+          VALUES (${ind.varName}, ${ind.categoryId}, ${ind.subCategoryId}, ${JSON.stringify(ind.serviceCategoryIds)}, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, CURRENT_TIMESTAMP)
           ON CONFLICT (var_name) DO NOTHING
         `;
         insertedVarNames.add(ind.varName);
@@ -639,7 +667,7 @@ export async function saveHfaIndicatorFull(
         SET var_name = ${indicator.varName},
             category_id = ${indicator.categoryId},
             sub_category_id = ${indicator.subCategoryId},
-            service_category_id = ${indicator.serviceCategoryId},
+            service_category_ids = ${JSON.stringify(indicator.serviceCategoryIds)},
             short_label = ${indicator.shortLabel},
             definition = ${indicator.definition},
             type = ${indicator.type},

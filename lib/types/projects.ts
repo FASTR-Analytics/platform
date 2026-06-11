@@ -1,4 +1,5 @@
 import type { DatasetInProject } from "./datasets_in_project.ts";
+import type { HfaTaxonomyForAI } from "./hfa_types.ts";
 import { ProjectUser } from "./instance.ts";
 import { type MetricWithStatus, type InstalledModuleSummary } from "./modules.ts";
 import type { ProjectUserPermissions } from "./permissions.ts";
@@ -35,6 +36,7 @@ export type ProjectDetail = {
   metrics: MetricWithStatus[];
   commonIndicators: { id: string; label: string }[];
   icehIndicators: { id: string; label: string; category: string }[];
+  hfaTaxonomy: HfaTaxonomyForAI;
   visualizations: PresentationObjectSummary[];
   visualizationFolders: VisualizationFolder[];
   slideDecks: SlideDeckSummary[];

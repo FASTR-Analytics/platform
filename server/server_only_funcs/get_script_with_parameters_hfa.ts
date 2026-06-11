@@ -267,7 +267,7 @@ export function getScriptWithParametersHfa(
     `  hfa_sub_category = c(${ordered.map((i) => `"${i.subCategoryId ?? ""}"`).join(", ")})`,
     ...(supportsServiceCategory
       ? [
-        `  hfa_service_category = c(${ordered.map((i) => `"${i.serviceCategoryId ?? ""}"`).join(", ")})`,
+        `  hfa_service_category = c(${ordered.map((i) => `"${i.serviceCategoryIds.join("|")}"`).join(", ")})`,
       ]
       : []),
     `  hfa_short_label = c(${ordered.map((i) => `"${i.shortLabel.replace(/"/g, '\\"')}"`).join(", ")})`,

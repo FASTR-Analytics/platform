@@ -60,7 +60,7 @@ export function buildHfaWorkbookBlob(args: {
   for (const ind of indicators) {
     const row: string[] = [
       ind.varName, ind.categoryId ?? "", ind.subCategoryId ?? "",
-      ind.serviceCategoryId ?? "", ind.shortLabel, ind.definition,
+      ind.serviceCategoryIds.join("|"), ind.shortLabel, ind.definition,
       ind.type, ind.aggregation,
     ];
     for (const tp of timePoints) {
@@ -186,14 +186,15 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
   // Service categories (optional sheet)
   const svcRows = sheetToObjects(serviceCategoriesAoa ?? []);
   const serviceCategories: WorkbookShape["serviceCategories"] = [];
-  const serviceCategoryIds = new Set<string>();
+  const validServiceCategoryIds = new Set<string>();
   for (let i = 0; i < svcRows.length; i++) {
     const id = svcRows[i].id ?? "";
     const label = svcRows[i].label ?? "";
     if (!id) return { ok: false, err: `Service categories sheet, row ${i + 2}: missing id.` };
+    if (id.includes("|")) return { ok: false, err: `Service categories sheet, row ${i + 2}: id "${id}" cannot contain "|".` };
     if (!label) return { ok: false, err: `Service categories sheet, row ${i + 2}: missing label.` };
-    if (serviceCategoryIds.has(id)) return { ok: false, err: `Service categories sheet, row ${i + 2}: duplicate id "${id}".` };
-    serviceCategoryIds.add(id);
+    if (validServiceCategoryIds.has(id)) return { ok: false, err: `Service categories sheet, row ${i + 2}: duplicate id "${id}".` };
+    validServiceCategoryIds.add(id);
     serviceCategories.push({ id, label });
   }
 
@@ -271,10 +272,16 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
 
     const categoryId = (row.categoryId ?? "").trim() || null;
     const subCategoryId = (row.subCategoryId ?? "").trim() || null;
-    const serviceCategoryId = (row.serviceCategoryId ?? "").trim() || null;
+    // Pipe-delimited: one indicator can belong to multiple service categories.
+    const serviceCategoryIds = (row.serviceCategoryId ?? "")
+      .split("|")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-    if (serviceCategoryId && !serviceCategoryIds.has(serviceCategoryId)) {
-      return { ok: false, err: `Indicators sheet, row ${i + 2}: serviceCategoryId "${serviceCategoryId}" not found.` };
+    for (const scId of serviceCategoryIds) {
+      if (!validServiceCategoryIds.has(scId)) {
+        return { ok: false, err: `Indicators sheet, row ${i + 2}: serviceCategoryId "${scId}" not found.` };
+      }
     }
     if (categoryId && !categoryIds.has(categoryId)) {
       return { ok: false, err: `Indicators sheet, row ${i + 2}: categoryId "${categoryId}" not found.` };
@@ -286,7 +293,7 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
       if (parent !== categoryId) return { ok: false, err: `Indicators sheet, row ${i + 2}: subCategoryId "${subCategoryId}" belongs to category "${parent}".` };
     }
 
-    indicators.push({ varName, categoryId, subCategoryId, serviceCategoryId, shortLabel: (row.shortLabel ?? "").trim(), definition: (row.definition ?? "").trim(), type, aggregation });
+    indicators.push({ varName, categoryId, subCategoryId, serviceCategoryIds, shortLabel: (row.shortLabel ?? "").trim(), definition: (row.definition ?? "").trim(), type, aggregation });
 
     // Collect raw code values per position using column indices directly
     const rowAoa = (indicatorsAoa[i + 1] ?? []).map((v) => String(v ?? "").trim());

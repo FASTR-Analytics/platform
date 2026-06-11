@@ -18,6 +18,7 @@ import {
   type HfaIndicatorCategory,
   type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
+  type HfaTaxonomyForAI,
 } from "lib";
 import {
   getFacilityColumnsConfig,
@@ -43,6 +44,8 @@ export async function addDatasetHfaToProject(
   projectDb: Sql,
   projectId: string,
   onProgress?: (progress: number, message: string) => Promise<void>,
+  // Service-category ids to include. Empty = include all.
+  serviceCategoryScope: string[] = [],
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     if (onProgress) await onProgress(0.1, "Removing existing dataset...");
@@ -129,21 +132,38 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
     // Fetch HFA indicator definitions + per-time-point R code from the instance
     // DB for the project-level snapshot. The module runner reads from the
     // snapshot so indicators and data stay in sync for this project.
+    // Project scoping: when a scope is set, only indicators whose service
+    // categories overlap it are brought into the project.
+    const scopeFilter =
+      serviceCategoryScope.length > 0
+        ? mainDb`WHERE jsonb_exists_any(service_category_ids::jsonb, ${serviceCategoryScope})`
+        : mainDb``;
     const hfaIndicatorRowsForSnapshot = await mainDb<DBHfaIndicator[]>`
-      SELECT * FROM hfa_indicators ORDER BY sort_order, var_name
+      SELECT * FROM hfa_indicators ${scopeFilter} ORDER BY sort_order, var_name
     `;
-    const hfaIndicatorCodeRowsForSnapshot = await mainDb<
-      {
-        var_name: string;
-        time_point: string;
-        r_code: string;
-        r_filter_code: string | null;
-      }[]
-    >`
+    if (
+      serviceCategoryScope.length > 0 &&
+      hfaIndicatorRowsForSnapshot.length === 0
+    ) {
+      throw new Error("No HFA indicators match the selected service categories.");
+    }
+    const scopedVarNames = new Set(
+      hfaIndicatorRowsForSnapshot.map((ind) => ind.var_name),
+    );
+    const hfaIndicatorCodeRowsForSnapshot = (
+      await mainDb<
+        {
+          var_name: string;
+          time_point: string;
+          r_code: string;
+          r_filter_code: string | null;
+        }[]
+      >`
       SELECT var_name, time_point, r_code, r_filter_code
       FROM hfa_indicator_code
       ORDER BY var_name, time_point
-    `;
+    `
+    ).filter((c) => scopedVarNames.has(c.var_name));
 
     // Staleness metadata — stored in datasets.info so the client can detect
     // when the project's export is behind the instance.
@@ -171,6 +191,8 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
       hfaIndicatorsVersion,
       structureLastUpdated,
       facilityColumnsHash: hashFacilityColumnsConfig(facilityConfig),
+      serviceCategoryScope:
+        serviceCategoryScope.length > 0 ? serviceCategoryScope : undefined,
     };
 
     // Fetch facilities from main database to populate project database
@@ -213,6 +235,11 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
       GROUP BY var_name
       ORDER BY var_name
     `)) as Array<{ var_name: string; sample_values: string | null }>;
+    // NOTE: `hfaIndicators` here are the raw HFA *survey variables* (var_name =
+    // fin_01a_a, hr_01, ...) drawn from hfa_data — a DIFFERENT namespace from the
+    // hfa_indicators *definition* ids (ind001, ...). The service-category scope
+    // filters indicator DEFINITIONS + their code only; the available survey
+    // variables must stay complete or indicator R code can't resolve them.
 
     // Clear existing data and populate with HFA data. Snapshot-code rows FK
     // into snapshot-indicator rows, so the DELETE order matters (code first).
@@ -276,8 +303,8 @@ ON CONFLICT (dataset_type) DO UPDATE SET
       ...hfaIndicatorRowsForSnapshot.map(
         (ind) =>
           sql`INSERT INTO hfa_indicators_snapshot
-            (var_name, category_id, sub_category_id, service_category_id, short_label, definition, type, aggregation, sort_order)
-            VALUES (${ind.var_name}, ${ind.category_id}, ${ind.sub_category_id}, ${ind.service_category_id}, ${ind.short_label}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${ind.sort_order})`,
+            (var_name, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order)
+            VALUES (${ind.var_name}, ${ind.category_id}, ${ind.sub_category_id}, ${ind.service_category_ids}, ${ind.short_label}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${ind.sort_order})`,
       ),
       ...hfaIndicatorCodeRowsForSnapshot.map(
         (c) =>
@@ -337,7 +364,7 @@ export async function getAllHfaIndicatorsFromSnapshot(
       i.var_name,
       i.category_id,
       i.sub_category_id,
-      i.service_category_id,
+      i.service_category_ids,
       i.short_label,
       i.definition,
       i.type,
@@ -352,6 +379,49 @@ export async function getAllHfaIndicatorsFromSnapshot(
     ORDER BY COALESCE(c.sort_order, 999999), COALESCE(sc.sort_order, 999999), i.sort_order, i.var_name
   `;
   return rows.map(dbRowToHfaIndicator);
+}
+
+// Full HFA indicator taxonomy for the AI. Indicators + categories +
+// sub-categories + service categories come from the project snapshot (so they
+// respect this project's service-category scoping); time points are
+// instance-wide (`hfa_time_points`), restricted to those actually imported.
+export async function getHfaTaxonomyForAI(
+  mainDb: Sql,
+  projectDb: Sql,
+): Promise<HfaTaxonomyForAI> {
+  const [categories, subCategories, serviceCategories, indicators, timePointRows] =
+    await Promise.all([
+      getAllHfaIndicatorCategoriesFromSnapshot(projectDb),
+      getAllHfaIndicatorSubCategoriesFromSnapshot(projectDb),
+      getAllHfaIndicatorServiceCategoriesFromSnapshot(projectDb),
+      getAllHfaIndicatorsFromSnapshot(projectDb),
+      mainDb<{ label: string; period_id: string }[]>`
+        SELECT label, period_id FROM hfa_time_points
+        WHERE imported_at IS NOT NULL
+        ORDER BY sort_order
+      `,
+    ]);
+  return {
+    categories: categories.map((c) => ({ id: c.id, label: c.label })),
+    subCategories: subCategories.map((s) => ({
+      id: s.id,
+      categoryId: s.categoryId,
+      label: s.label,
+    })),
+    serviceCategories: serviceCategories.map((s) => ({ id: s.id, label: s.label })),
+    timePoints: timePointRows.map((t) => ({
+      id: t.label,
+      label: t.label,
+      periodId: t.period_id,
+    })),
+    indicators: indicators.map((i) => ({
+      id: i.varName,
+      label: i.shortLabel || i.definition,
+      categoryId: i.categoryId,
+      subCategoryId: i.subCategoryId,
+      serviceCategoryIds: i.serviceCategoryIds,
+    })),
+  };
 }
 
 export async function getAllHfaIndicatorCodeFromSnapshot(

@@ -204,6 +204,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           props: {
             metrics: projectState.metrics,
             icehIndicators: projectState.icehIndicators,
+            hfaTaxonomy: projectState.hfaTaxonomy,
             visualizations: projectState.visualizations,
           },
         }),
