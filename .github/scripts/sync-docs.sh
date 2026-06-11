@@ -242,6 +242,52 @@ if not sendgrid_api_key or not sendgrid_from:
     print("Warning: SENDGRID_API_KEY or SENDGRID_FROM_EMAIL not set — skipping email.")
     raise SystemExit(0)
 
+def find_section_heading(doc_dir, page_path, search_text):
+    """Return the heading of the section immediately above the line containing search_text."""
+    full_path = os.path.join(doc_dir, page_path)
+    if not os.path.exists(full_path):
+        return None
+    lines = open(full_path, 'r', encoding='utf-8').read().split('\n')
+    target_idx = next(
+        (i for i, line in enumerate(lines) if search_text.lower() in line.lower()),
+        None
+    )
+    if target_idx is None:
+        return None
+    for i in range(target_idx - 1, -1, -1):
+        stripped = lines[i].strip()
+        if stripped.startswith('#'):
+            return stripped.lstrip('#').strip()
+    return None
+
+def resolve_disk_path(raw_path):
+    """
+    Normalise whatever Claude returned for image_path and find the file on disk.
+    Claude may return the bare URL (/images/foo.png), a path with /public/ prefix,
+    or accidentally include markdown syntax (![alt](/images/foo.png)).
+    Returns (normalised_url, disk_path) or (normalised_url, None) if not found.
+    """
+    if not raw_path:
+        return None, None
+    # Strip markdown image syntax: ![alt](/path) → /path
+    m = re.search(r'!\[.*?\]\(([^)]+)\)', raw_path)
+    if m:
+        raw_path = m.group(1).strip()
+    raw_path = raw_path.strip()
+    if not raw_path.startswith('/'):
+        raw_path = '/' + raw_path
+    # Try the two likely disk locations
+    candidates = [
+        f"_site_repo/public{raw_path}",   # /images/foo.png  → public/images/foo.png
+        f"_site_repo{raw_path}",           # /public/images/foo.png → public/images/foo.png
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            print(f"  Found image: {raw_path} → {c}")
+            return raw_path, c
+    print(f"  Image not found on disk: {raw_path} (tried: {candidates})")
+    return raw_path, None
+
 text_lines = [
     "The FASTR documentation site has been automatically updated to reflect recent platform changes.",
     "The following screenshots need retaking:\n",
@@ -256,14 +302,19 @@ for p in screenshot_pages:
     text_screenshots = []
 
     for s in p.get('screenshots', []):
-        img_path = s.get('image_path')
+        raw_img_path = s.get('image_path')
         reason = s.get('reason', '')
         placeholder_desc = s.get('placeholder_description')
 
-        if img_path:
-            disk_path = f"_site_repo/public{img_path}"
-            text_screenshots.append(f"      {img_path} — {reason}")
-            if os.path.exists(disk_path):
+        print(f"  Screenshot entry — image_path={raw_img_path!r}, placeholder={placeholder_desc!r}")
+
+        if raw_img_path:
+            img_path, disk_path = resolve_disk_path(raw_img_path)
+            heading = find_section_heading('_site_repo/src/content/docs', p['path'], img_path)
+            under = f"Screenshot under the header {heading} potentially needs changing." if heading else "Screenshot potentially needs changing."
+            under_html = f"Screenshot under the header <strong>{heading}</strong> potentially needs changing." if heading else "Screenshot potentially needs changing."
+            text_screenshots += [f"      {under}", f"      Reason: {reason}"]
+            if disk_path:
                 mime_type = mimetypes.guess_type(disk_path)[0] or 'image/png'
                 cid = f"img{cid_counter}"
                 cid_counter += 1
@@ -277,19 +328,31 @@ for p in screenshot_pages:
                     "content_id": cid,
                 })
                 html_imgs += (
-                    f'<p style="margin:12px 0 4px"><em>{img_path}</em> — {reason}</p>'
+                    f'<p style="margin:16px 0 4px">{under_html}<br>'
+                    f'<strong>Reason:</strong> {reason}</p>'
                     f'<img src="cid:{cid}" alt="{img_path}" style="max-width:640px;border:1px solid #ddd;">'
                 )
             else:
-                html_imgs += f'<p><em>{img_path}</em> — {reason} <small>(file not found in repo)</small></p>'
+                html_imgs += (
+                    f'<p style="margin:16px 0 4px">{under_html}<br>'
+                    f'<strong>Reason:</strong> {reason}<br>'
+                    f'<small style="color:#999">(image file not found in repo: {img_path})</small></p>'
+                )
         else:
             desc = placeholder_desc or 'unnamed placeholder'
-            text_screenshots.append(f"      [placeholder: {desc}] — {reason}")
-            html_imgs += f'<p><em>[Screenshot needed: {desc}]</em> — {reason}</p>'
+            heading = find_section_heading('_site_repo/src/content/docs', p['path'], desc)
+            under = f"Screenshot under the header {heading} potentially needs changing." if heading else f"Screenshot ({desc}) potentially needs changing."
+            under_html = f"Screenshot under the header <strong>{heading}</strong> potentially needs changing." if heading else f"Screenshot ({desc}) potentially needs changing."
+            text_screenshots += [f"      {under}", f"      Reason: {reason}"]
+            html_imgs += (
+                f'<p style="margin:16px 0 4px">{under_html}<br>'
+                f'<strong>Reason:</strong> {reason}<br>'
+                f'<small style="color:#999">(no existing image — placeholder only)</small></p>'
+            )
 
-    text_lines += [f"  {file_path}"] + text_screenshots + [""]
+    text_lines += [f"file path: {file_path}"] + text_screenshots + [""]
     html_sections.append(
-        f'<hr><p><strong>{file_path}</strong></p>'
+        f'<hr><p><strong>file path: {file_path}</strong></p>'
         + (html_imgs or '<p><em>No specific screenshots identified.</em></p>')
     )
 
