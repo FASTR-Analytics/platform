@@ -1,3 +1,22 @@
+[TBD] [user] [added] - Sampling weights now have a dedicated management page with a data table
+[TBD] [user] [added] - Sampling weights coverage summary shown on the instance data overview
+[TBD] [user] [added] - Download sampling weights as a CSV file
+[TBD] [user] [added] - Warning shown when some facilities with data are missing weights
+[TBD] [user] [changed] - Sampling weights CSV format is now wide: one row per facility, one column per time point
+[TBD] [user] [changed] - Blank cells in weights CSV are treated as "not in sample" and skipped
+[TBD] [user] [changed] - Sampling weights section moved from the facilities panel to its own page
+[TBD] [user] [added] - Exported HFA project data now includes a sampling weight column
+[TBD] [admin] [added] - HFA sampling weights now have a dedicated management page
+[TBD] [admin] [added] - Weights can be downloaded as CSV for editing and re-import
+[TBD] [admin] [added] - Weights overview card shown on instance data page with per-round coverage
+[TBD] [admin] [changed] - Weight CSV format is now wide: one row per facility, one column per time point
+[TBD] [admin] [changed] - Blank cells in weight CSV mean facility is not in that round's sample
+[TBD] [admin] [changed] - Zero weights are no longer accepted; only positive values allowed
+[TBD] [admin] [changed] - Coverage now shows facilities with data that have a weight, per time point
+[TBD] [admin] [added] - Warning displayed when some facilities with data are missing weights
+[TBD] [admin] [added] - Weights are included in project HFA data exports
+[TBD] [admin] [fixed] - Importing or deleting weights now immediately updates all connected users
+[TBD] [admin] [changed] - Survey variable named "weight" is now reserved and rejected during HFA data upload
 [TBD] [user] [added] - Indicators can now be assigned a service category
 [TBD] [user] [added] - New "Service categories" tab for managing service categories
 [TBD] [user] [added] - Service category column appears in the indicators table
