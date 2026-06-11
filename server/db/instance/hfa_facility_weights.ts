@@ -20,20 +20,43 @@ export async function getHfaFacilityWeightsSummary(
 ): Promise<APIResponseWithData<HfaFacilityWeightsSummary>> {
   return await tryCatchDatabaseAsync(async () => {
     const perTimePoint = await mainDb<
-      { time_point: string; count: number }[]
+      {
+        time_point: string;
+        weight_count: number;
+        facilities_with_data: number;
+        facilities_with_data_and_weight: number;
+      }[]
     >`
-      SELECT time_point, COUNT(*)::INTEGER as count
-      FROM hfa_facility_weights
-      GROUP BY time_point
-      ORDER BY time_point
+      SELECT
+        tp.label AS time_point,
+        (
+          SELECT COUNT(*)::INTEGER FROM hfa_facility_weights w
+          WHERE w.time_point = tp.label
+        ) AS weight_count,
+        (
+          SELECT COUNT(DISTINCT d.facility_id)::INTEGER FROM hfa_data d
+          WHERE d.time_point = tp.label
+        ) AS facilities_with_data,
+        (
+          SELECT COUNT(DISTINCT d.facility_id)::INTEGER FROM hfa_data d
+          WHERE d.time_point = tp.label
+            AND EXISTS (
+              SELECT 1 FROM hfa_facility_weights w
+              WHERE w.facility_id = d.facility_id AND w.time_point = d.time_point
+            )
+        ) AS facilities_with_data_and_weight
+      FROM hfa_time_points tp
+      ORDER BY tp.sort_order
     `;
     return {
       success: true,
       data: {
-        totalCount: perTimePoint.reduce((sum, r) => sum + r.count, 0),
+        totalCount: perTimePoint.reduce((sum, r) => sum + r.weight_count, 0),
         perTimePoint: perTimePoint.map((r) => ({
           timePoint: r.time_point,
-          count: r.count,
+          weightCount: r.weight_count,
+          facilitiesWithData: r.facilities_with_data,
+          facilitiesWithDataAndWeight: r.facilities_with_data_and_weight,
         })),
       },
     };

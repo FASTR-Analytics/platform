@@ -73,13 +73,43 @@ export function HfaWeightsSection() {
           >
             <div class="ui-spy-sm text-xs">
               <For each={keyedSummary.perTimePoint}>
-                {(tp) => (
-                  <div class="ui-gap flex max-w-56 justify-between">
-                    <span>{tp.timePoint}:</span>
-                    <span class="font-mono">{toNum0(tp.count)}</span>
-                  </div>
-                )}
+                {(tp) => {
+                  const partial = () =>
+                    tp.weightCount > 0 &&
+                    tp.facilitiesWithDataAndWeight < tp.facilitiesWithData;
+                  return (
+                    <div
+                      class="ui-gap flex max-w-56 justify-between"
+                      classList={{ "text-warning": partial() }}
+                    >
+                      <span>{tp.timePoint}:</span>
+                      <span class="font-mono">
+                        {`${toNum0(tp.facilitiesWithDataAndWeight)}/${toNum0(tp.facilitiesWithData)}`}
+                      </span>
+                    </div>
+                  );
+                }}
               </For>
+              <div class="text-neutral max-w-56">
+                {t3({
+                  en: "Facilities with data that have a weight, per time point",
+                  fr: "Établissements avec données disposant d'une pondération, par point temporel",
+                })}
+              </div>
+              <Show
+                when={keyedSummary.perTimePoint.some(
+                  (tp) =>
+                    tp.weightCount > 0 &&
+                    tp.facilitiesWithDataAndWeight < tp.facilitiesWithData,
+                )}
+              >
+                <div class="text-warning max-w-56">
+                  {t3({
+                    en: "Some facilities with data have no weight — they will count with weight 1 when weighted analysis is enabled.",
+                    fr: "Certains établissements avec données n'ont pas de pondération — ils compteront avec une pondération de 1 lorsque l'analyse pondérée sera activée.",
+                  })}
+                </div>
+              </Show>
             </div>
           </Show>
         )}

@@ -164,7 +164,15 @@ export type StructureDhis2OrgUnitMetadata = {
 // CSV format: facility_id, time_point, weight (one row per facility per time point)
 export type HfaFacilityWeightsSummary = {
   totalCount: number;
-  perTimePoint: Array<{ timePoint: string; count: number }>;
+  perTimePoint: Array<{
+    timePoint: string;
+    weightCount: number;
+    // Coverage is measured against facilities WITH DATA in the round — those
+    // are the ones that enter the analysis (not-sampled facilities have no
+    // data rows and need no weight). Partial coverage is the footgun to show.
+    facilitiesWithData: number;
+    facilitiesWithDataAndWeight: number;
+  }>;
 };
 
 export type HfaFacilityWeightsImportResult = {
