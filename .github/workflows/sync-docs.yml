@@ -10,13 +10,18 @@ on:
       - 'client/src/**/*.ts'
       - 'lib/**/*.ts'
       - 'VERSION'
+  workflow_dispatch:
+    inputs:
+      diff_base:
+        description: 'Commit SHA to diff against (defaults to previous deploy commit)'
+        required: false
 
 permissions:
   contents: read
 
 jobs:
   sync-docs:
-    if: startsWith(github.event.head_commit.message, 'Deploy version')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'Deploy version')
     runs-on: ubuntu-latest
 
     steps:
@@ -38,4 +43,5 @@ jobs:
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           SENDGRID_FROM_EMAIL: ${{ secrets.SENDGRID_FROM_EMAIL }}
           BEFORE_SHA: ${{ github.event.before }}
+          DIFF_BASE_OVERRIDE: ${{ inputs.diff_base }}
         run: bash .github/scripts/sync-docs.sh

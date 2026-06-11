@@ -14,6 +14,18 @@ BEFORE="${BEFORE_SHA:-}"
 # 1. Detect what changed
 # ---------------------------------------------------------------------------
 
+# Manual runs (workflow_dispatch) can override the diff base and skip the
+# deploy-commit gate — used to recover a release the automatic run missed.
+DIFF_BASE_OVERRIDE="${DIFF_BASE_OVERRIDE:-}"
+if [ -n "$DIFF_BASE_OVERRIDE" ]; then
+    if ! git cat-file -e "$DIFF_BASE_OVERRIDE" 2>/dev/null; then
+        echo "DIFF_BASE_OVERRIDE '$DIFF_BASE_OVERRIDE' not found in history."
+        exit 1
+    fi
+    DIFF_BASE="$DIFF_BASE_OVERRIDE"
+    echo "Manual run — diffing against override: $DIFF_BASE"
+else
+
 # Only run for deploy commits (same convention as generate-changelog.sh)
 COMMIT_MSG="$(git log -1 --format=%s)"
 if [[ "$COMMIT_MSG" != "Deploy version"* ]]; then
@@ -34,6 +46,8 @@ else
     echo "No previous deploy and no usable before SHA. Skipping."
     exit 0
 fi
+
+fi  # end DIFF_BASE_OVERRIDE
 
 git diff "$DIFF_BASE"..HEAD -- \
     'server/**/*.ts' 'client/src/**/*.tsx' 'client/src/**/*.ts' 'lib/**/*.ts' \
@@ -149,7 +163,8 @@ prompt = (
 
 body = {
     'model': 'claude-sonnet-4-6',
-    'max_tokens': 16000,
+    'max_tokens': 64000,
+    'stream': True,
     'system': 'You output only valid JSON. No preamble, no explanation, no markdown code fences.',
     'messages': [{'role': 'user', 'content': prompt}]
 }
@@ -157,31 +172,61 @@ json.dump(body, open('/tmp/sync_docs_request.json', 'w'))
 print(f"Request: {len(json.dumps(body))} bytes")
 PYEOF
 
-curl -sf https://api.anthropic.com/v1/messages \
-    -H "x-api-key: $ANTHROPIC_API_KEY" \
-    -H "anthropic-version: 2023-06-01" \
-    -H "content-type: application/json" \
-    -d @/tmp/sync_docs_request.json \
-    -o /tmp/sync_docs_response.json
-
 python3 << 'PYEOF'
-import json
+import json, os, sys, urllib.request, urllib.error
 
-resp = json.load(open('/tmp/sync_docs_response.json'))
-text = resp['content'][0]['text'].strip()
+# Streaming is required for large max_tokens — long non-streaming requests
+# are rejected or time out at the network layer.
+req = urllib.request.Request(
+    'https://api.anthropic.com/v1/messages',
+    data=open('/tmp/sync_docs_request.json', 'rb').read(),
+    headers={
+        'x-api-key': os.environ['ANTHROPIC_API_KEY'],
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+    },
+)
+
+text_parts = []
+stop_reason = None
+try:
+    with urllib.request.urlopen(req, timeout=1800) as resp:
+        for raw_line in resp:
+            line = raw_line.decode('utf-8').strip()
+            if not line.startswith('data: '):
+                continue
+            event = json.loads(line[len('data: '):])
+            if event.get('type') == 'content_block_delta':
+                delta = event.get('delta', {})
+                if delta.get('type') == 'text_delta':
+                    text_parts.append(delta['text'])
+            elif event.get('type') == 'message_delta':
+                stop_reason = event.get('delta', {}).get('stop_reason')
+            elif event.get('type') == 'error':
+                print(f"API stream error: {event}")
+                sys.exit(1)
+except urllib.error.HTTPError as e:
+    print(f"API request failed: {e.code} {e.read().decode('utf-8', errors='replace')[:1000]}")
+    sys.exit(1)
+
+text = ''.join(text_parts).strip()
+print(f"Response: {len(text)} chars, stop_reason={stop_reason}")
+
+if stop_reason == 'max_tokens':
+    print("ERROR: response was truncated at max_tokens — doc updates would be lost. Failing loudly.")
+    sys.exit(1)
 
 # Use raw_decode to extract the first complete JSON object, ignoring any
 # surrounding prose or markdown fences the model may have included.
 start = text.find('{')
 if start == -1:
-    print(f"No JSON object found in response. Raw text:\n{text[:500]}")
-    result = {'updates_needed': False, 'pages': []}
-else:
-    try:
-        result, _ = json.JSONDecoder().raw_decode(text, start)
-    except json.JSONDecodeError as e:
-        print(f"JSON parse error: {e}\nRaw text:\n{text[:500]}")
-        result = {'updates_needed': False, 'pages': []}
+    print(f"ERROR: no JSON object found in response. Raw text:\n{text[:500]}")
+    sys.exit(1)
+try:
+    result, _ = json.JSONDecoder().raw_decode(text, start)
+except json.JSONDecodeError as e:
+    print(f"ERROR: JSON parse error: {e}\nRaw text:\n{text[:500]}")
+    sys.exit(1)
 
 json.dump(result, open('/tmp/sync_docs_result.json', 'w'))
 print(f"updates_needed={result.get('updates_needed')}, pages={[p['path'] for p in result.get('pages', [])]}")
