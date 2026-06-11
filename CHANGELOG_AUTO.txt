@@ -1,3 +1,17 @@
+[1.49.0] [user] [changed] - Indicators can now belong to multiple service categories
+[1.49.0] [user] [added] - Filter HFA data by service categories when adding to a project
+[1.49.0] [user] [added] - HFA data settings panel for configuring service category scope
+[1.49.0] [user] [changed] - Service category column in indicator list shows multiple categories
+[1.49.0] [user] [changed] - Excel import supports pipe-separated service categories per indicator
+[1.49.0] [user] [added] - AI assistant now understands full HFA indicator taxonomy for better answers
+[1.49.0] [user] [changed] - Time points card moved higher in the data management page layout
+[1.49.0] [admin] [changed] - HFA indicators can now belong to multiple service categories
+[1.49.0] [admin] [added] - Project-level service category scoping for HFA data
+[1.49.0] [admin] [added] - Settings panel when enabling or editing HFA data on a project
+[1.49.0] [admin] [changed] - XLSX import uses pipe-separated values for multiple service categories
+[1.49.0] [admin] [changed] - Time points card moved higher in the instance data overview
+[1.49.0] [admin] [fixed] - Renaming or deleting a service category now updates all linked indicators
+[1.49.0] [admin] [added] - AI assistant now receives full HFA indicator taxonomy for better answers
 [1.48.0] [user] [added] - Create time points directly from the time points page
 [1.48.0] [user] [added] - Map Excel time point columns to platform time points during indicator import
 [1.48.0] [user] [added] - Step-by-step wizard for importing sampling weights with column mapping
