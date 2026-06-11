@@ -203,7 +203,6 @@ export function buildWhereClause(
     "month",
     "quarter_id",
     "period_id",
-    "time_point",
   ]);
 
   for (const filter of fetchConfig.filters) {

@@ -150,7 +150,14 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("createDatasetUploadAttempt"),
   async (c) => {
-    const res = await addDatasetHmisUploadAttempt(c.var.mainDb);
+    const mainDb = c.var.mainDb;
+    const [{ count }] = await mainDb<{ count: number }[]>`
+      SELECT COUNT(*)::int AS count FROM facilities_hmis
+    `;
+    if (count === 0) {
+      return c.json({ success: false, err: "No HMIS facilities found. Import HMIS facilities before importing data." });
+    }
+    const res = await addDatasetHmisUploadAttempt(mainDb);
     return c.json(res);
   },
 );
@@ -388,7 +395,14 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("createDatasetHfaUploadAttempt"),
   async (c) => {
-    const res = await addDatasetHfaUploadAttempt(c.var.mainDb);
+    const mainDb = c.var.mainDb;
+    const [{ count }] = await mainDb<{ count: number }[]>`
+      SELECT COUNT(*)::int AS count FROM facilities_hfa
+    `;
+    if (count === 0) {
+      return c.json({ success: false, err: "No HFA facilities found. Import HFA facilities before importing data." });
+    }
+    const res = await addDatasetHfaUploadAttempt(mainDb);
     return c.json(res);
   },
 );

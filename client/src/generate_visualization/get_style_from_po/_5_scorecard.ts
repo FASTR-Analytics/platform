@@ -1,4 +1,4 @@
-import { CustomFigureStyleOptions, TableCellInfo } from "panther";
+import { CustomFigureStyleOptions, TableCellInfo, getFormatterFunc } from "panther";
 import {
   _CF_LIGHTER_GREEN,
   _CF_LIGHTER_RED,
@@ -38,10 +38,10 @@ function formatScorecardValue(
   formatAs: "percent" | "number" | "rate_per_10k",
   decimalPlaces: number,
 ): string {
-  const scaled = scaleValueForFormat(rawValue, formatAs);
-  const formatted = scaled.toFixed(decimalPlaces);
-  if (formatAs === "percent") return `${formatted}%`;
-  return formatted;
+  if (formatAs === "rate_per_10k") {
+    return getFormatterFunc("number", decimalPlaces)(rawValue * 10000);
+  }
+  return getFormatterFunc(formatAs, decimalPlaces)(rawValue);
 }
 
 export function buildScorecardStyle(
@@ -97,7 +97,7 @@ export function buildScorecardStyle(
             return formatScorecardValue(
               info.valueAsNumber,
               meta.format_as,
-              meta.decimal_places ?? 0,
+              config.s.decimalPlaces ?? 0,
             );
           }
           return String(info.value);

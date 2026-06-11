@@ -8,17 +8,17 @@ import {
   HfaWeightsCoverage,
 } from "lib";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
-import { getCsvStreamComponents } from "../../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
+import {
+  getCsvColumnIndex,
+  getCsvStreamComponents,
+} from "../../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 
-// Canonical CSV shape (import, display, and export all round-trip):
-//   facility_id, <time point label>, <time point label>, ...
-// One row per facility, one column per round. A blank cell means the facility
-// is not in that round's sample — nothing is stored (absence is the
-// representation; decided 2026-06-11). Import replaces the stored set for
-// the rounds present as columns (so blanking a cell and re-importing removes
-// that weight); rounds not in the file are left untouched, allowing
-// one-round-at-a-time imports.
+// Import shape: long-format CSV, one row per facility.
+//   facility_id, <weight>   (two columns, any column names, mapped by user)
+// One import = one time point. A blank weight cell means the facility is not
+// in this round's sample — nothing is stored (absence is the representation).
+// Import replaces all stored weights for the selected time point wholesale.
 
 // Keep batches well under Postgres's 65,534-parameter limit (3 params per row)
 const UPSERT_BATCH_SIZE = 5000;
@@ -82,7 +82,7 @@ export async function getHfaFacilityWeightsItems(
   mainDb: Sql,
   limit?: number
 ): Promise<
-  APIResponseWithData<{ totalCount: number; items: Record<string, string>[] }>
+  APIResponseWithData<{ totalCount: number; headers: string[]; items: Record<string, string>[] }>
 > {
   return await tryCatchDatabaseAsync(async () => {
     const timePoints = (
@@ -91,12 +91,17 @@ export async function getHfaFacilityWeightsItems(
       `
     ).map((r) => r.label);
 
+    const allFacilities = (
+      await mainDb<{ facility_id: string }[]>`
+        SELECT facility_id FROM facilities_hfa ORDER BY facility_id
+      `
+    ).map((r) => r.facility_id);
+
     const weights = await mainDb<
       { facility_id: string; time_point: string; weight: number }[]
     >`
       SELECT facility_id, time_point, weight
       FROM hfa_facility_weights
-      ORDER BY facility_id
     `;
 
     const byFacility = new Map<string, Map<string, number>>();
@@ -109,82 +114,59 @@ export async function getHfaFacilityWeightsItems(
       row.set(w.time_point, Number(w.weight));
     }
 
-    const facilityIds = [...byFacility.keys()];
-    const items = facilityIds
-      .slice(0, limit ?? facilityIds.length)
-      .map((facilityId) => {
-        const item: Record<string, string> = { facility_id: facilityId };
-        for (const tp of timePoints) {
-          const w = byFacility.get(facilityId)?.get(tp);
-          item[tp] = w === undefined ? "" : String(w);
-        }
-        return item;
-      });
+    const facilityIds = allFacilities.slice(0, limit ?? allFacilities.length);
+    const items = facilityIds.map((facilityId) => {
+      const item: Record<string, string> = { facility_id: facilityId };
+      for (const tp of timePoints) {
+        const w = byFacility.get(facilityId)?.get(tp);
+        item[tp] = w === undefined ? "" : String(w);
+      }
+      return item;
+    });
+
+    const headers = ["facility_id", ...timePoints];
 
     return {
       success: true,
-      data: { totalCount: facilityIds.length, items },
+      data: { totalCount: allFacilities.length, headers, items },
     };
   });
 }
 
 export async function importHfaFacilityWeights(
   mainDb: Sql,
-  assetFileName: string
+  assetFileName: string,
+  facilityIdColumn: string,
+  weightColumn: string,
+  timePoint: string,
 ): Promise<APIResponseWithData<HfaFacilityWeightsImportResult>> {
   return await tryCatchDatabaseAsync(async () => {
+    // Validate the time point exists
+    const tpRows = await mainDb<{ label: string }[]>`
+      SELECT label FROM hfa_time_points WHERE label = ${timePoint}
+    `;
+    if (tpRows.length === 0) {
+      return { success: false, err: `Time point "${timePoint}" does not exist.` };
+    }
+
     const assetFilePath = join(_ASSETS_DIR_PATH, assetFileName);
     const resCsv = await getCsvStreamComponents(assetFilePath);
     if (!resCsv.success) {
       return resCsv;
     }
-    const { headers, processRows } = resCsv.data;
+    const { encodedHeaderToIndexMap, processRows } = resCsv.data;
 
-    const trimmedHeaders = headers.map((h) => h.trim());
-    const facilityIdIndex = trimmedHeaders.findIndex(
-      (h) => h.toLowerCase() === "facility_id"
-    );
-    if (facilityIdIndex === -1) {
-      return {
-        success: false,
-        err: 'CSV is missing the required "facility_id" column. Expected shape: facility_id, then one column per time point.',
-      };
+    const mappings = { facilityIdColumn, weightColumn };
+    let facilityIdIndex: number;
+    let weightIndex: number;
+    try {
+      facilityIdIndex = getCsvColumnIndex(encodedHeaderToIndexMap, mappings, "facilityIdColumn");
+      weightIndex = getCsvColumnIndex(encodedHeaderToIndexMap, mappings, "weightColumn");
+    } catch (e) {
+      return { success: false, err: e instanceof Error ? e.message : String(e) };
     }
 
-    const knownTimePoints = new Set(
-      (
-        await mainDb<{ label: string }[]>`
-          SELECT label FROM hfa_time_points
-        `
-      ).map((r) => r.label)
-    );
-
-    // Every non-facility_id column is a time point label
-    const timePointColumns: { index: number; timePoint: string }[] = [];
-    const unknownColumns: string[] = [];
-    trimmedHeaders.forEach((h, i) => {
-      if (i === facilityIdIndex || h === "") return;
-      if (knownTimePoints.has(h)) {
-        timePointColumns.push({ index: i, timePoint: h });
-      } else {
-        unknownColumns.push(h);
-      }
-    });
-    if (unknownColumns.length > 0) {
-      return {
-        success: false,
-        err: `${unknownColumns.length} column header(s) do not match an existing time point (time points are created by HFA data imports): ${unknownColumns.slice(0, 10).join(", ")}`,
-      };
-    }
-    if (timePointColumns.length === 0) {
-      return {
-        success: false,
-        err: "CSV has no time point columns. Expected shape: facility_id, then one column per time point.",
-      };
-    }
-
-    const rows: { facility_id: string; time_point: string; weight: number }[] =
-      [];
+    const rows: { facility_id: string; time_point: string; weight: number }[] = [];
     const seenFacilities = new Set<string>();
     const duplicateFacilities = new Set<string>();
     const invalidWeights: string[] = [];
@@ -192,37 +174,24 @@ export async function importHfaFacilityWeights(
 
     await processRows((row) => {
       const facilityId = row[facilityIdIndex]?.trim() ?? "";
-      if (!facilityId) {
-        return; // skip blank lines
-      }
+      if (!facilityId) return;
       if (seenFacilities.has(facilityId)) {
         duplicateFacilities.add(facilityId);
         return;
       }
       seenFacilities.add(facilityId);
 
-      for (const col of timePointColumns) {
-        const weightRaw = row[col.index]?.trim() ?? "";
-        // A blank cell means the facility is not in this round's sample —
-        // nothing is stored (absence is the representation)
-        if (weightRaw === "") {
-          rowsSkippedNoWeight++;
-          continue;
-        }
-        // Note Number("") === 0, so blanks are handled above, before the cast.
-        // Zero is rejected: design weights are >= 1 for any surveyed facility,
-        // and a 0 silently excludes it from all estimates.
-        const weight = Number(weightRaw);
-        if (!Number.isFinite(weight) || weight <= 0) {
-          invalidWeights.push(`${facilityId} / ${col.timePoint} / ${weightRaw}`);
-          continue;
-        }
-        rows.push({
-          facility_id: facilityId,
-          time_point: col.timePoint,
-          weight,
-        });
+      const weightRaw = row[weightIndex]?.trim() ?? "";
+      if (weightRaw === "") {
+        rowsSkippedNoWeight++;
+        return;
       }
+      const weight = Number(weightRaw);
+      if (!Number.isFinite(weight) || weight <= 0) {
+        invalidWeights.push(`${facilityId}: ${weightRaw}`);
+        return;
+      }
+      rows.push({ facility_id: facilityId, time_point: timePoint, weight });
     });
 
     if (invalidWeights.length > 0) {
@@ -234,59 +203,39 @@ export async function importHfaFacilityWeights(
     if (duplicateFacilities.size > 0) {
       return {
         success: false,
-        err: `${duplicateFacilities.size} facility ID(s) appear more than once in the CSV. Each facility may appear only once.`,
+        err: `${duplicateFacilities.size} facility ID(s) appear more than once in the CSV.`,
       };
     }
     if (rows.length === 0) {
       return {
         success: false,
-        err:
-          rowsSkippedNoWeight > 0
-            ? `CSV contains no usable weights: all ${rowsSkippedNoWeight} cell(s) are blank`
-            : "CSV contains no data rows",
+        err: rowsSkippedNoWeight > 0
+          ? `CSV contains no usable weights: all ${rowsSkippedNoWeight} cell(s) are blank`
+          : "CSV contains no data rows",
       };
     }
 
     const knownFacilities = new Set(
-      (
-        await mainDb<{ facility_id: string }[]>`
-          SELECT facility_id FROM facilities_hfa
-        `
-      ).map((r) => r.facility_id)
+      (await mainDb<{ facility_id: string }[]>`SELECT facility_id FROM facilities_hfa`)
+        .map((r) => r.facility_id)
     );
-    const unknownFacilities = [
-      ...new Set(
-        rows
-          .filter((r) => !knownFacilities.has(r.facility_id))
-          .map((r) => r.facility_id)
-      ),
-    ];
+    const unknownFacilities = [...new Set(
+      rows.filter((r) => !knownFacilities.has(r.facility_id)).map((r) => r.facility_id)
+    )];
     if (unknownFacilities.length > 0) {
       return {
         success: false,
-        err: `${unknownFacilities.length} facility ID(s) do not exist in the HFA facility registry. First examples: ${unknownFacilities.slice(0, 10).join(", ")}`,
+        err: `${unknownFacilities.length} facility ID(s) not in the HFA registry. First: ${unknownFacilities.slice(0, 10).join(", ")}`,
       };
     }
 
-    const coveredTimePoints = timePointColumns.map((c) => c.timePoint);
-
-    await mainDb.begin(async (sql) => {
-      // The CSV is authoritative for the rounds it contains: replace those
-      // rounds wholesale (a blanked cell or omitted facility row removes the
-      // weight), but leave rounds not present in the file untouched
-      await sql`
-        DELETE FROM hfa_facility_weights
-        WHERE time_point = ANY(${coveredTimePoints})
-      `;
+    await mainDb.begin(async (sql: Sql) => {
+      // Replace all weights for this time point
+      await sql`DELETE FROM hfa_facility_weights WHERE time_point = ${timePoint}`;
       for (let i = 0; i < rows.length; i += UPSERT_BATCH_SIZE) {
         const batch = rows.slice(i, i + UPSERT_BATCH_SIZE);
-        await sql`
-          INSERT INTO hfa_facility_weights ${sql(batch, "facility_id", "time_point", "weight")}
-        `;
+        await sql`INSERT INTO hfa_facility_weights ${sql(batch, "facility_id", "time_point", "weight")}`;
       }
-
-      // Weights ride into projects via the hfa.csv export; bumping
-      // structure_last_updated marks existing project exports stale
       await sql`
         INSERT INTO instance_config (config_key, config_json_value)
         VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
@@ -297,12 +246,26 @@ export async function importHfaFacilityWeights(
 
     return {
       success: true,
-      data: {
-        rowsImported: rows.length,
-        rowsSkippedNoWeight,
-        timePointsCovered: [...new Set(rows.map((r) => r.time_point))].sort(),
-      },
+      data: { rowsImported: rows.length, rowsSkippedNoWeight, timePointsCovered: [timePoint] },
     };
+  });
+}
+
+export async function deleteHfaFacilityWeightsForTimePoint(
+  mainDb: Sql,
+  timePoint: string,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb.begin(async (sql: Sql) => {
+      await sql`DELETE FROM hfa_facility_weights WHERE time_point = ${timePoint}`;
+      await sql`
+        INSERT INTO instance_config (config_key, config_json_value)
+        VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+        ON CONFLICT (config_key)
+        DO UPDATE SET config_json_value = EXCLUDED.config_json_value
+      `;
+    });
+    return { success: true };
   });
 }
 

@@ -9,6 +9,7 @@ import {
 import {
   addStructureUploadAttempt,
   deleteAllHfaFacilityWeights,
+  deleteHfaFacilityWeightsForTimePoint,
   deleteAllStructureData,
   deleteFamilyFacilities,
   getHfaFacilityWeightsItems,
@@ -33,6 +34,9 @@ import {
   getOrgUnitMetadata,
   testDHIS2Connection,
 } from "../../dhis2/goal1_org_units_v2/mod.ts";
+import { join } from "@std/path";
+import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
+import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { notifyInstanceStructureUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -128,13 +132,53 @@ defineRoute(
 
 defineRoute(
   routesStructure,
+  "readWeightsCsvHeaders",
+  requireGlobalPermission("can_configure_data"),
+  log("readWeightsCsvHeaders"),
+  async (c, { body }) => {
+    const filePath = join(_ASSETS_DIR_PATH, body.assetFileName);
+    const res = await getCsvDetails(filePath, body.assetFileName);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesStructure,
   "importHfaFacilityWeights",
   requireGlobalPermission("can_configure_data"),
   log("importHfaFacilityWeights"),
   async (c, { body }) => {
-    const res = await importHfaFacilityWeights(c.var.mainDb, body.assetFileName);
+    const mainDb = c.var.mainDb;
+    const [{ count }] = await mainDb<{ count: number }[]>`
+      SELECT COUNT(*)::int AS count FROM facilities_hfa
+    `;
+    if (count === 0) {
+      return c.json({ success: false, err: "No HFA facilities found. Import HFA facilities before importing weights." });
+    }
+    const res = await importHfaFacilityWeights(
+      mainDb,
+      body.assetFileName,
+      body.facilityIdColumn,
+      body.weightColumn,
+      body.timePoint,
+    );
     if (res.success) {
-      notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+      notifyInstanceStructureUpdated(await getInstanceStructureSummary(mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesStructure,
+  "deleteHfaFacilityWeightsForTimePoint",
+  requireGlobalPermission("can_configure_data"),
+  log("deleteHfaFacilityWeightsForTimePoint"),
+  async (c, { body }) => {
+    const mainDb = c.var.mainDb;
+    const res = await deleteHfaFacilityWeightsForTimePoint(mainDb, body.timePoint);
+    if (res.success) {
+      notifyInstanceStructureUpdated(await getInstanceStructureSummary(mainDb));
     }
     return c.json(res);
   },
@@ -432,25 +476,23 @@ defineRoute(
   },
 );
 
-// Weights CSV export - same wide shape the importer accepts (round-trips)
+// Weights CSV export — wide format: facility_id + one column per time point
 routesStructure.get(
   "/structure/hfa_facility_weights/export/csv",
   requireGlobalPermission("can_configure_data"),
   log("exportHfaFacilityWeightsCsv"),
   async (c) => {
-    const res = await getHfaFacilityWeightsItems(c.var.mainDb); // No limit = all rows
-
+    const res = await getHfaFacilityWeightsItems(c.var.mainDb);
     if (!res.success) {
       return c.json(res);
     }
-
-    const csvContent = stringifyCsvWithHeaders(res.data.items);
-
+    const { headers, items } = res.data;
+    const aoa = [headers, ...items.map((row) => headers.map((h) => row[h] ?? ""))];
+    const csvContent = stringifyCsvWithHeaders(aoa);
     return new Response(csvContent, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition":
-          'attachment; filename="hfa_facility_weights.csv"',
+        "Content-Disposition": 'attachment; filename="hfa_facility_weights.csv"',
       },
     });
   },

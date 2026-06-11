@@ -123,14 +123,14 @@ routesExportCentral.get(
 
     type DBCalcIndicator = {
       calculated_indicator_id: string; label: string; format_as: string;
-      decimal_places: number; threshold_direction: string;
+      threshold_direction: string;
       threshold_green: number; threshold_yellow: number;
       group_label: string; sort_order: number;
     };
     let calculatedIndicators: DBCalcIndicator[] = [];
     try {
       calculatedIndicators = await projectDb<DBCalcIndicator[]>`
-        SELECT calculated_indicator_id, label, format_as, decimal_places,
+        SELECT calculated_indicator_id, label, format_as,
                threshold_direction, threshold_green, threshold_yellow,
                group_label, sort_order
         FROM calculated_indicators_snapshot

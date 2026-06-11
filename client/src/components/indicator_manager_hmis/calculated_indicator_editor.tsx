@@ -67,10 +67,6 @@ export function EditCalculatedIndicatorForm(
   const [formatAs, setFormatAs] = createSignal<FormatAs>(
     p.existing?.format_as ?? "percent",
   );
-  const [decimalPlaces, setDecimalPlaces] = createSignal(
-    String(p.existing?.decimal_places ?? 0),
-  );
-
   const [thresholdDirection, setThresholdDirection] =
     createSignal<ThresholdDirection>(
       p.existing?.threshold_direction ?? "higher_is_better",
@@ -111,20 +107,19 @@ export function EditCalculatedIndicatorForm(
   // ---- Live preview ----
   const previewRawValue = 0.73;
   const previewFormatted = createMemo(() => {
-    const dp = Number(decimalPlaces()) || 0;
     const fmt = formatAs();
     if (fmt === "percent") {
-      return `${(previewRawValue * 100).toFixed(dp)}%`;
+      return `${(previewRawValue * 100).toFixed(0)}%`;
     }
     if (fmt === "rate_per_10k") {
       return `${(previewRawValue * 10000).toLocaleString(undefined, {
-        minimumFractionDigits: dp,
-        maximumFractionDigits: dp,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
       })} per 10k`;
     }
     return previewRawValue.toLocaleString(undefined, {
-      minimumFractionDigits: dp,
-      maximumFractionDigits: dp,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     });
   });
 
@@ -243,17 +238,6 @@ export function EditCalculatedIndicatorForm(
         };
       }
 
-      const dp = Number(decimalPlaces());
-      if (!Number.isFinite(dp) || dp < 0 || dp > 3) {
-        return {
-          success: false,
-          err: t3({
-            en: "Decimal places must be 0–3",
-            fr: "Les décimales doivent être entre 0 et 3",
-          }),
-        };
-      }
-
       const green = Number(thresholdGreen());
       const yellow = Number(thresholdYellow());
       if (!Number.isFinite(green) || !Number.isFinite(yellow)) {
@@ -274,7 +258,6 @@ export function EditCalculatedIndicatorForm(
         num_indicator_id: numIndicatorId(),
         denom,
         format_as: formatAs(),
-        decimal_places: dp,
         threshold_direction: thresholdDirection(),
         threshold_green: green,
         threshold_yellow: yellow,
@@ -443,18 +426,6 @@ export function EditCalculatedIndicatorForm(
               },
             ]}
             fullWidth
-          />
-          <RadioGroup
-            label={t3({ en: "Decimal places", fr: "Décimales" })}
-            value={decimalPlaces()}
-            onChange={setDecimalPlaces}
-            options={[
-              { value: "0", label: "0" },
-              { value: "1", label: "1" },
-              { value: "2", label: "2" },
-              { value: "3", label: "3" },
-            ]}
-            horizontal
           />
           <div class="text-base-content/70 ui-form-text">
             {t3({ en: "Preview", fr: "Aperçu" })}:{" "}

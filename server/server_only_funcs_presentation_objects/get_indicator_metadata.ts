@@ -176,7 +176,6 @@ export async function getIndicatorMetadata(
       id: ci.calculated_indicator_id,
       label: ci.label,
       format_as: ci.format_as,
-      decimal_places: ci.decimal_places,
       threshold_direction: ci.threshold_direction,
       threshold_green: ci.threshold_green,
       threshold_yellow: ci.threshold_yellow,

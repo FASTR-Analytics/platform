@@ -115,18 +115,19 @@ export async function deleteDatasetHfaData(
   timePoint?: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    // Deletes data + dictionary only. Time points, sampling weights, and
+    // indicator code are kept — rounds are managed via the time points page.
     await mainDb.begin(async (sql) => {
       if (timePoint) {
         await sql`DELETE FROM hfa_data WHERE time_point = ${timePoint}`;
+        await sql`DELETE FROM hfa_variable_values WHERE time_point = ${timePoint}`;
         await sql`DELETE FROM hfa_variables WHERE time_point = ${timePoint}`;
-        await sql`DELETE FROM hfa_indicator_code WHERE time_point = ${timePoint}`;
-        await sql`DELETE FROM hfa_time_points WHERE label = ${timePoint}`;
+        await sql`UPDATE hfa_time_points SET imported_at = NULL WHERE label = ${timePoint}`;
       } else {
         await sql`DELETE FROM hfa_data`;
         await sql`DELETE FROM hfa_variable_values`;
         await sql`DELETE FROM hfa_variables`;
-        await sql`DELETE FROM hfa_indicator_code`;
-        await sql`DELETE FROM hfa_time_points`;
+        await sql`UPDATE hfa_time_points SET imported_at = NULL`;
       }
     });
     return { success: true };

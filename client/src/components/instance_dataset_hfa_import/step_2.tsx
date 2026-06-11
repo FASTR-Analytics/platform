@@ -4,8 +4,6 @@ import { type DatasetHfaStep1Result,
   type HfaCsvMappingParams } from "lib";
 import {
   Button,
-  Input,
-  PeriodSelect,
   Select,
   StateHolderFormError,
   getSelectOptions,
@@ -14,6 +12,7 @@ import {
 import { createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   step1Result: DatasetHfaStep1Result;
@@ -22,22 +21,24 @@ type Props = {
 };
 
 export function Step2(p: Props) {
-
   const [tempMappings, setTempMappings] = createStore<HfaCsvMappingParams>(
     p.step2Result
       ? (structuredClone(p.step2Result) as HfaCsvMappingParams)
-      : {
-          facilityIdColumn: "",
-          timePoint: "",
-          periodId: "",
-        },
+      : { facilityIdColumn: "", timePoint: "" },
   );
 
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);
 
-  const csvHeaders = () => {
-    return p.step1Result.csv.headers.map((v, i) => encodeRawCsvHeader(i, v));
-  };
+  const csvHeaders = () =>
+    p.step1Result.csv.headers.map((v, i) => encodeRawCsvHeader(i, v));
+
+  const timePointOptions = () =>
+    [...instanceState.hfaTimePoints]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((tp) => ({
+        value: tp.label,
+        label: `${tp.label} (${tp.periodId.slice(0, 4)}-${tp.periodId.slice(4, 6)})`,
+      }));
 
   const save = timActionForm(async () => {
     const mappings = unwrap(tempMappings);
@@ -50,18 +51,10 @@ export function Step2(p: Props) {
     if (!mappings.timePoint) {
       return {
         success: false,
-        err: t3({ en: "You must enter a time point label", fr: "Vous devez saisir un libellé de point temporel" }),
+        err: t3({ en: "Select a time point", fr: "Sélectionnez un point temporel" }),
       };
     }
-    if (!mappings.periodId || mappings.periodId.length !== 6) {
-      return {
-        success: false,
-        err: t3({ en: "You must select a year and month", fr: "Vous devez sélectionner une année et un mois" }),
-      };
-    }
-    return serverActions.updateDatasetHfaMappings({
-      mappings,
-    });
+    return serverActions.updateDatasetHfaMappings({ mappings });
   }, p.silentFetch);
 
   return (
@@ -82,11 +75,12 @@ export function Step2(p: Props) {
             />
           </div>
         </div>
-        <div class="space-y-3">
-          <h3 class="font-700 text-lg">{t3({ en: "Time Point", fr: "Point temporel" })}</h3>
+        <div>
+          <h3 class="font-700 text-lg mb-2">{t3({ en: "Time Point", fr: "Point temporel" })}</h3>
           <div class="w-96">
-            <Input
-              label={t3({ en: "Label (e.g. Round 1, Baseline Dec 2024)", fr: "Libellé (ex. Cycle 1, Référence Déc 2024)" })}
+            <Select
+              label={t3({ en: "Select the time point this data belongs to", fr: "Sélectionnez le point temporel auquel ces données appartiennent" })}
+              options={timePointOptions()}
               value={tempMappings.timePoint}
               onChange={(val) => {
                 setNeedsSaving(true);
@@ -95,15 +89,6 @@ export function Step2(p: Props) {
               fullWidth
             />
           </div>
-          <PeriodSelect
-            value={tempMappings.periodId}
-            onChange={(val) => {
-              setNeedsSaving(true);
-              setTempMappings("periodId", val);
-            }}
-            yearLabel={t3({ en: "Year", fr: "Année" })}
-            monthLabel={t3({ en: "Month", fr: "Mois" })}
-          />
         </div>
       </div>
       <StateHolderFormError state={save.state()} />

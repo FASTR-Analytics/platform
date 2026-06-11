@@ -8,7 +8,6 @@ import { parseJsonOrThrow } from "lib";
 import {
   DatasetHfaCsvStagingResult,
   DatasetHfaUploadAttemptStatus,
-  HfaCsvMappingParams,
 } from "lib";
 import { UPLOADED_HFA_DATA_STAGING_TABLE_NAME } from "../../exposed_env_vars.ts";
 
@@ -61,9 +60,6 @@ async function run(std: {
     if (!rawDUA.step_2_result || !rawDUA.step_3_result) {
       throw new Error("Not yet ready for integration step");
     }
-
-    const mappings = parseJsonOrThrow<HfaCsvMappingParams>(rawDUA.step_2_result);
-    const periodId = mappings.periodId;
 
     const stagingResult = parseJsonOrThrow<DatasetHfaCsvStagingResult>(
       rawDUA.step_3_result,
@@ -118,39 +114,21 @@ async function run(std: {
       await sql`SET LOCAL synchronous_commit = OFF`;
       await sql`SET LOCAL maintenance_work_mem = '512MB'`;
 
+      // Time points are created via the UI (createHfaTimePoint), never by import
+      const stamped = await sql`
+        UPDATE hfa_time_points SET imported_at = NOW() WHERE label = ${timePoint}
+      `;
+      if (stamped.count === 0) {
+        throw new Error(
+          `Time point "${timePoint}" does not exist. Create it on the HFA time points page before importing data.`,
+        );
+      }
+
       // Delete existing data for this time_point
       await sql`DELETE FROM hfa_data WHERE time_point = ${timePoint}`;
       await sql`DELETE FROM hfa_variables WHERE time_point = ${timePoint}`;
 
       await updateIntegrationProgress(30);
-
-      // UPSERT time_point with sort_order auto-increment for new rows
-      await sql`
-        INSERT INTO hfa_time_points (label, period_id, sort_order, imported_at)
-        VALUES (
-          ${timePoint},
-          ${periodId},
-          (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM hfa_time_points),
-          NOW()
-        )
-        ON CONFLICT (label) DO UPDATE SET
-          period_id = EXCLUDED.period_id,
-          imported_at = EXCLUDED.imported_at
-      `;
-
-      // Auto-copy indicator code from most recent existing time_point
-      await sql`
-        INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
-        SELECT var_name, ${timePoint}, r_code, r_filter_code
-        FROM hfa_indicator_code
-        WHERE time_point = (
-          SELECT tp.label FROM hfa_time_points tp
-          WHERE tp.label != ${timePoint}
-          ORDER BY tp.imported_at DESC NULLS LAST
-          LIMIT 1
-        )
-        ON CONFLICT DO NOTHING
-      `;
 
       // Insert dictionary vars from staging
       await sql.unsafe(`

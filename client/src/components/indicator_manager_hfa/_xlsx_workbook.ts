@@ -13,6 +13,9 @@ const SHEET_SUB_CATEGORIES = "Sub-categories";
 const SHEET_SERVICE_CATEGORIES = "Service categories";
 const SHEET_INDICATORS = "Indicators";
 
+// Export column format: r_code__<timePointLabel>, r_filter_code__<timePointLabel>
+// Import also accepts the old positional format: r_code_1, r_filter_code_1
+
 // ============================================================================
 // Build (export) — all in the browser
 // ============================================================================
@@ -31,9 +34,7 @@ export function buildHfaWorkbookBlob(args: {
   for (const cat of categories) categoriesAoa.push([cat.id, cat.label]);
 
   const subCategoriesAoa: string[][] = [["id", "categoryId", "label"]];
-  for (const sc of subCategories) {
-    subCategoriesAoa.push([sc.id, sc.categoryId, sc.label]);
-  }
+  for (const sc of subCategories) subCategoriesAoa.push([sc.id, sc.categoryId, sc.label]);
 
   const serviceCategoriesAoa: string[][] = [["id", "label"]];
   for (const svc of serviceCategories) serviceCategoriesAoa.push([svc.id, svc.label]);
@@ -47,29 +48,20 @@ export function buildHfaWorkbookBlob(args: {
   }
 
   const indicatorHeaders = [
-    "varName",
-    "categoryId",
-    "subCategoryId",
-    "serviceCategoryId",
-    "shortLabel",
-    "definition",
-    "type",
-    "aggregation",
+    "varName", "categoryId", "subCategoryId", "serviceCategoryId",
+    "shortLabel", "definition", "type", "aggregation",
   ];
-  for (let k = 0; k < timePoints.length; k++) {
-    indicatorHeaders.push(`r_code_${k + 1}`, `r_filter_code_${k + 1}`);
+  // New label-embedded format so the file is self-describing on re-import
+  for (const tp of timePoints) {
+    indicatorHeaders.push(`r_code__${tp}`, `r_filter_code__${tp}`);
   }
+
   const indicatorsAoa: string[][] = [indicatorHeaders];
   for (const ind of indicators) {
     const row: string[] = [
-      ind.varName,
-      ind.categoryId ?? "",
-      ind.subCategoryId ?? "",
-      ind.serviceCategoryId ?? "",
-      ind.shortLabel,
-      ind.definition,
-      ind.type,
-      ind.aggregation,
+      ind.varName, ind.categoryId ?? "", ind.subCategoryId ?? "",
+      ind.serviceCategoryId ?? "", ind.shortLabel, ind.definition,
+      ind.type, ind.aggregation,
     ];
     for (const tp of timePoints) {
       const entry = codeByKey.get(`${ind.varName}__${tp}`);
@@ -91,11 +83,24 @@ export function buildHfaWorkbookBlob(args: {
 }
 
 // ============================================================================
-// Parse + validate (import) — all in the browser
+// Parse + validate — phase 1: detect shape (no time point mapping yet)
 // ============================================================================
 
-type ParseResult =
-  | { ok: true; data: Omit<HfaWorkbookImport, "replaceAll"> }
+export type WorkbookShape = {
+  categories: HfaWorkbookImport["categories"];
+  subCategories: HfaWorkbookImport["subCategories"];
+  serviceCategories: HfaWorkbookImport["serviceCategories"];
+  indicators: HfaWorkbookImport["indicators"];
+  // [indicatorIdx][xlsxPosition] raw code values
+  rawCode: Array<Array<{ rCode: string; rFilterCode: string }>>;
+  // How many r_code columns are in the XLSX
+  xlsxCount: number;
+  // For each position: the embedded time point label (new format), or null (old r_code_N format)
+  xlsxLabels: Array<string | null>;
+};
+
+export type DetectResult =
+  | { ok: true; shape: WorkbookShape }
   | { ok: false; err: string };
 
 function normalizeSheetName(name: string): string {
@@ -120,10 +125,7 @@ function sheetToObjects(aoa: string[][]): Record<string, string>[] {
   return rows;
 }
 
-export function parseHfaWorkbook(
-  arrayBuffer: ArrayBuffer,
-  timePoints: string[], // already sorted
-): ParseResult {
+export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
   let wb;
   try {
     wb = read(arrayBuffer, { type: "array" });
@@ -145,15 +147,12 @@ export function parseHfaWorkbook(
   }
 
   if (!indicatorsAoa) {
-    return {
-      ok: false,
-      err: 'Workbook is missing an "Indicators" sheet. Expected sheets: Categories, Sub-categories, Indicators.',
-    };
+    return { ok: false, err: 'Workbook is missing an "Indicators" sheet.' };
   }
 
   // Categories
   const catRows = sheetToObjects(categoriesAoa ?? []);
-  const categories: { id: string; label: string }[] = [];
+  const categories: WorkbookShape["categories"] = [];
   const categoryIds = new Set<string>();
   for (let i = 0; i < catRows.length; i++) {
     const id = catRows[i].id ?? "";
@@ -167,7 +166,7 @@ export function parseHfaWorkbook(
 
   // Sub-categories
   const subRows = sheetToObjects(subCategoriesAoa ?? []);
-  const subCategories: { id: string; categoryId: string; label: string }[] = [];
+  const subCategories: WorkbookShape["subCategories"] = [];
   const subCategoryParent = new Map<string, string>();
   for (let i = 0; i < subRows.length; i++) {
     const id = subRows[i].id ?? "";
@@ -184,9 +183,9 @@ export function parseHfaWorkbook(
     subCategories.push({ id, categoryId, label });
   }
 
-  // Service categories (sheet is optional; missing means none)
+  // Service categories (optional sheet)
   const svcRows = sheetToObjects(serviceCategoriesAoa ?? []);
-  const serviceCategories: { id: string; label: string }[] = [];
+  const serviceCategories: WorkbookShape["serviceCategories"] = [];
   const serviceCategoryIds = new Set<string>();
   for (let i = 0; i < svcRows.length; i++) {
     const id = svcRows[i].id ?? "";
@@ -198,10 +197,51 @@ export function parseHfaWorkbook(
     serviceCategories.push({ id, label });
   }
 
-  // Indicators
+  // Indicators sheet — detect r_code columns before parsing rows
+  const indHeaders = (indicatorsAoa[0] ?? []).map((h) => String(h ?? "").trim());
+
+  // Detect code columns in the order they appear.
+  // New format: r_code__<label>  →  label embedded
+  // Old format: r_code_N  →  positional, label=null
+  const codeColumns: Array<{ headerIndex: number; filterHeaderIndex: number; label: string | null }> = [];
+  {
+    // Build a map from r_code column to its corresponding r_filter_code column
+    const filterMap = new Map<string, number>(); // r_code header → index of r_filter_code header
+    for (let c = 0; c < indHeaders.length; c++) {
+      const h = indHeaders[c];
+      const newFilter = h.match(/^r_filter_code__(.+)$/);
+      const oldFilter = h.match(/^r_filter_code_(\d+)$/);
+      if (newFilter) filterMap.set(`r_code__${newFilter[1]}`, c);
+      else if (oldFilter) filterMap.set(`r_code_${oldFilter[1]}`, c);
+    }
+
+    for (let c = 0; c < indHeaders.length; c++) {
+      const h = indHeaders[c];
+      const newCode = h.match(/^r_code__(.+)$/);
+      const oldCode = h.match(/^r_code_(\d+)$/);
+      if (newCode) {
+        codeColumns.push({
+          headerIndex: c,
+          filterHeaderIndex: filterMap.get(h) ?? -1,
+          label: newCode[1],
+        });
+      } else if (oldCode) {
+        codeColumns.push({
+          headerIndex: c,
+          filterHeaderIndex: filterMap.get(h) ?? -1,
+          label: null,
+        });
+      }
+    }
+  }
+
+  const xlsxCount = codeColumns.length;
+  const xlsxLabels = codeColumns.map((c) => c.label);
+
+  // Parse indicator rows
   const indRows = sheetToObjects(indicatorsAoa);
-  const indicators: HfaWorkbookImport["indicators"] = [];
-  const code: HfaIndicatorCode[] = [];
+  const indicators: WorkbookShape["indicators"] = [];
+  const rawCode: WorkbookShape["rawCode"] = [];
   const usedVarNames = new Set<string>();
   let autoVarCounter = 1;
 
@@ -234,41 +274,72 @@ export function parseHfaWorkbook(
     const serviceCategoryId = (row.serviceCategoryId ?? "").trim() || null;
 
     if (serviceCategoryId && !serviceCategoryIds.has(serviceCategoryId)) {
-      return { ok: false, err: `Indicators sheet, row ${i + 2}: serviceCategoryId "${serviceCategoryId}" is not in the Service categories sheet.` };
+      return { ok: false, err: `Indicators sheet, row ${i + 2}: serviceCategoryId "${serviceCategoryId}" not found.` };
     }
     if (categoryId && !categoryIds.has(categoryId)) {
-      return { ok: false, err: `Indicators sheet, row ${i + 2}: categoryId "${categoryId}" is not in the Categories sheet.` };
+      return { ok: false, err: `Indicators sheet, row ${i + 2}: categoryId "${categoryId}" not found.` };
     }
     if (subCategoryId) {
       const parent = subCategoryParent.get(subCategoryId);
-      if (parent === undefined) return { ok: false, err: `Indicators sheet, row ${i + 2}: subCategoryId "${subCategoryId}" is not in the Sub-categories sheet.` };
-      if (!categoryId) return { ok: false, err: `Indicators sheet, row ${i + 2}: subCategoryId "${subCategoryId}" requires a categoryId.` };
-      if (parent !== categoryId) return { ok: false, err: `Indicators sheet, row ${i + 2}: subCategoryId "${subCategoryId}" belongs to category "${parent}", not "${categoryId}".` };
+      if (parent === undefined) return { ok: false, err: `Indicators sheet, row ${i + 2}: subCategoryId "${subCategoryId}" not found.` };
+      if (!categoryId) return { ok: false, err: `Indicators sheet, row ${i + 2}: subCategoryId requires a categoryId.` };
+      if (parent !== categoryId) return { ok: false, err: `Indicators sheet, row ${i + 2}: subCategoryId "${subCategoryId}" belongs to category "${parent}".` };
     }
 
-    indicators.push({
-      varName,
-      categoryId,
-      subCategoryId,
-      serviceCategoryId,
-      shortLabel: (row.shortLabel ?? "").trim(),
-      definition: (row.definition ?? "").trim(),
-      type,
-      aggregation,
-    });
+    indicators.push({ varName, categoryId, subCategoryId, serviceCategoryId, shortLabel: (row.shortLabel ?? "").trim(), definition: (row.definition ?? "").trim(), type, aggregation });
 
-    for (let k = 0; k < timePoints.length; k++) {
-      const rCode = (row[`r_code_${k + 1}`] ?? "").trim();
-      const rFilterCode = (row[`r_filter_code_${k + 1}`] ?? "").trim();
-      if (!rCode && !rFilterCode) continue;
-      code.push({
-        varName,
-        timePoint: timePoints[k],
-        rCode,
-        rFilterCode: rFilterCode || undefined,
-      });
-    }
+    // Collect raw code values per position using column indices directly
+    const rowAoa = (indicatorsAoa[i + 1] ?? []).map((v) => String(v ?? "").trim());
+    const positionCode: Array<{ rCode: string; rFilterCode: string }> = codeColumns.map((col) => ({
+      rCode: col.headerIndex >= 0 ? (rowAoa[col.headerIndex] ?? "") : "",
+      rFilterCode: col.filterHeaderIndex >= 0 ? (rowAoa[col.filterHeaderIndex] ?? "") : "",
+    }));
+    rawCode.push(positionCode);
   }
 
-  return { ok: true, data: { categories, subCategories, serviceCategories, indicators, code } };
+  return { ok: true, shape: { categories, subCategories, serviceCategories, indicators, rawCode, xlsxCount, xlsxLabels } };
+}
+
+// ============================================================================
+// Phase 2: apply time point mapping to produce final code
+// ============================================================================
+
+// mapping[xlsxPosition] = platform time point label, or null to skip that position
+export function applyTimePointMapping(
+  shape: WorkbookShape,
+  mapping: Array<string | null>,
+): HfaIndicatorCode[] {
+  const code: HfaIndicatorCode[] = [];
+  for (let i = 0; i < shape.indicators.length; i++) {
+    const ind = shape.indicators[i];
+    const posCode = shape.rawCode[i] ?? [];
+    for (let k = 0; k < shape.xlsxCount; k++) {
+      const tp = mapping[k];
+      if (!tp) continue;
+      const { rCode, rFilterCode } = posCode[k] ?? { rCode: "", rFilterCode: "" };
+      if (!rCode && !rFilterCode) continue;
+      code.push({ varName: ind.varName, timePoint: tp, rCode, rFilterCode: rFilterCode || undefined });
+    }
+  }
+  return code;
+}
+
+// ============================================================================
+// Legacy single-step API (kept for backward compat)
+// ============================================================================
+
+type ParseResult =
+  | { ok: true; data: Omit<HfaWorkbookImport, "replaceAll"> }
+  | { ok: false; err: string };
+
+export function parseHfaWorkbook(
+  arrayBuffer: ArrayBuffer,
+  timePoints: string[],
+): ParseResult {
+  const detected = detectHfaWorkbookShape(arrayBuffer);
+  if (!detected.ok) return detected;
+  const { shape } = detected;
+  const mapping = timePoints.map((tp, k) => (k < shape.xlsxCount ? tp : null));
+  const code = applyTimePointMapping(shape, mapping);
+  return { ok: true, data: { categories: shape.categories, subCategories: shape.subCategories, serviceCategories: shape.serviceCategories, indicators: shape.indicators, code } };
 }

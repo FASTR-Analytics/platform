@@ -18,7 +18,6 @@ export type DBCalculatedIndicator = {
   denom_population_type: PopulationType | null;
   denom_population_multiplier: number | null;
   format_as: "percent" | "number" | "rate_per_10k";
-  decimal_places: number;
   threshold_direction: "higher_is_better" | "lower_is_better";
   threshold_green: number;
   threshold_yellow: number;
@@ -48,7 +47,6 @@ export function dbRowToCalculatedIndicator(
     num_indicator_id: row.num_indicator_id,
     denom,
     format_as: row.format_as,
-    decimal_places: row.decimal_places,
     threshold_direction: row.threshold_direction,
     threshold_green: row.threshold_green,
     threshold_yellow: row.threshold_yellow,
@@ -118,7 +116,6 @@ export async function createCalculatedIndicator(
         denom_population_type,
         denom_population_multiplier,
         format_as,
-        decimal_places,
         threshold_direction,
         threshold_green,
         threshold_yellow,
@@ -135,7 +132,6 @@ export async function createCalculatedIndicator(
         ${d.denom_population_type},
         ${d.denom_population_multiplier},
         ${indicator.format_as},
-        ${indicator.decimal_places},
         ${indicator.threshold_direction},
         ${indicator.threshold_green},
         ${indicator.threshold_yellow},
@@ -165,7 +161,6 @@ export async function updateCalculatedIndicator(
           denom_population_type        = ${d.denom_population_type},
           denom_population_multiplier  = ${d.denom_population_multiplier},
           format_as                    = ${indicator.format_as},
-          decimal_places               = ${indicator.decimal_places},
           threshold_direction          = ${indicator.threshold_direction},
           threshold_green              = ${indicator.threshold_green},
           threshold_yellow             = ${indicator.threshold_yellow},

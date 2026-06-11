@@ -58,7 +58,6 @@ export type CalculatedIndicator = {
     | { kind: "population"; population_type: PopulationType; multiplier: number };
 
   format_as: "percent" | "number" | "rate_per_10k";
-  decimal_places: number;
 
   threshold_direction: "higher_is_better" | "lower_is_better";
   threshold_green: number;
@@ -174,7 +173,6 @@ export type IndicatorMetadata = {
   id: string;
   label: string;
   format_as?: "percent" | "number" | "rate_per_10k";
-  decimal_places?: number;
   threshold_direction?: "higher_is_better" | "lower_is_better";
   threshold_green?: number;
   threshold_yellow?: number;

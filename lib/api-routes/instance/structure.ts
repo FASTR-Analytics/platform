@@ -1,4 +1,5 @@
 import type {
+  CsvDetails,
   FacilityFamily,
   HfaFacilityWeightsImportResult,
   HfaFacilityWeightsSummary,
@@ -38,13 +39,29 @@ export const structureRouteRegistry = {
   getHfaFacilityWeightsItems: route({
     path: "/structure/hfa_facility_weights/items",
     method: "GET",
-    response: {} as { totalCount: number; items: Record<string, string>[] },
+    response: {} as { totalCount: number; headers: string[]; items: Record<string, string>[] },
+  }),
+  readWeightsCsvHeaders: route({
+    path: "/structure/hfa_facility_weights/read_headers",
+    method: "POST",
+    body: {} as { assetFileName: string },
+    response: {} as CsvDetails,
   }),
   importHfaFacilityWeights: route({
     path: "/structure/hfa_facility_weights/import",
     method: "POST",
-    body: {} as { assetFileName: string },
+    body: {} as {
+      assetFileName: string;
+      facilityIdColumn: string;
+      weightColumn: string;
+      timePoint: string;
+    },
     response: {} as HfaFacilityWeightsImportResult,
+  }),
+  deleteHfaFacilityWeightsForTimePoint: route({
+    path: "/structure/hfa_facility_weights/time_point",
+    method: "DELETE",
+    body: {} as { timePoint: string },
   }),
   deleteAllHfaFacilityWeights: route({
     path: "/structure/hfa_facility_weights",

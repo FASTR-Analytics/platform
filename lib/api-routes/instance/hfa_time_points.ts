@@ -2,6 +2,12 @@ import type { HfaTimePoint } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 export const hfaTimePointRouteRegistry = {
+  createHfaTimePoint: route({
+    path: "/hfa-time-points/create",
+    method: "POST",
+    body: {} as { label: string; periodId: string },
+  }),
+
   updateHfaTimePoint: route({
     path: "/hfa-time-points/update",
     method: "POST",

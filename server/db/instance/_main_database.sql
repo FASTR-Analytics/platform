@@ -500,7 +500,6 @@ CREATE TABLE calculated_indicators (
   denom_population_multiplier REAL,
 
   format_as                  TEXT NOT NULL DEFAULT 'percent' CHECK (format_as IN ('percent', 'number', 'rate_per_10k')),
-  decimal_places             INTEGER NOT NULL DEFAULT 0,
 
   threshold_direction        TEXT NOT NULL DEFAULT 'higher_is_better' CHECK (threshold_direction IN ('higher_is_better', 'lower_is_better')),
   threshold_green            REAL NOT NULL,

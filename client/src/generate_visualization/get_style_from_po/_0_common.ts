@@ -158,7 +158,7 @@ export function getTableCellsContent(
           return formatIndicatorValue(
             info.valueAsNumber,
             meta.format_as,
-            meta.decimal_places ?? 0,
+            config.s.decimalPlaces ?? 0,
           );
         }
       }
@@ -175,12 +175,10 @@ function formatIndicatorValue(
   formatAs: "percent" | "number" | "rate_per_10k",
   decimalPlaces: number,
 ): string {
-  let scaled = rawValue;
-  if (formatAs === "percent") scaled = rawValue * 100;
-  else if (formatAs === "rate_per_10k") scaled = rawValue * 10000;
-  const formatted = scaled.toFixed(decimalPlaces);
-  if (formatAs === "percent") return `${formatted}%`;
-  return formatted;
+  if (formatAs === "rate_per_10k") {
+    return getFormatterFunc("number", decimalPlaces)(rawValue * 10000);
+  }
+  return getFormatterFunc(formatAs, decimalPlaces)(rawValue);
 }
 
 export function getMapRegionsContent(

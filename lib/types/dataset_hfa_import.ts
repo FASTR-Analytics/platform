@@ -88,7 +88,6 @@ export type DatasetHfaUploadAttemptDetail = {
 export type HfaCsvMappingParams = {
   facilityIdColumn: string;
   timePoint: string;
-  periodId: string;
 };
 
 // ============================================================================

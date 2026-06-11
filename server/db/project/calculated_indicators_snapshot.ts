@@ -12,7 +12,6 @@ type DBCalculatedIndicatorSnapshot = {
   denom_population_type: PopulationType | null;
   denom_population_multiplier: number | null;
   format_as: "percent" | "number" | "rate_per_10k";
-  decimal_places: number;
   threshold_direction: "higher_is_better" | "lower_is_better";
   threshold_green: number;
   threshold_yellow: number;
@@ -41,7 +40,6 @@ function dbRowToCalculatedIndicator(
     num_indicator_id: row.num_indicator_id,
     denom,
     format_as: row.format_as,
-    decimal_places: row.decimal_places,
     threshold_direction: row.threshold_direction,
     threshold_green: row.threshold_green,
     threshold_yellow: row.threshold_yellow,

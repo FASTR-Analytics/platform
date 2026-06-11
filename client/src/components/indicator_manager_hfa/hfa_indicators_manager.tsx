@@ -422,8 +422,15 @@ export function HfaIndicatorsManager(p: Props) {
   function sortedTimePointLabels(): string[] | undefined {
     const dictSt = dictionary();
     if (dictSt.status !== "ready") return undefined;
+    const sortOrderMap = new Map(
+      instanceState.hfaTimePoints.map((tp) => [tp.label, tp.sortOrder])
+    );
     return [...dictSt.data.timePoints]
-      .sort((a, b) => a.timePoint.localeCompare(b.timePoint))
+      .sort((a, b) => {
+        const sa = sortOrderMap.get(a.timePoint) ?? 9999;
+        const sb = sortOrderMap.get(b.timePoint) ?? 9999;
+        return sa !== sb ? sa - sb : a.timePoint.localeCompare(b.timePoint);
+      })
       .map((tp) => tp.timePoint);
   }
 

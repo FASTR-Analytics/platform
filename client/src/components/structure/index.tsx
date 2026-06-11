@@ -7,6 +7,7 @@ import {
 import {
   Button,
   Csv,
+  FrameRight,
   FrameTop,
   getEditorWrapper,
   timActionButton,
@@ -33,13 +34,12 @@ function familyLabel(family: FacilityFamily) {
 export function Facilities(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const [csvDataIsReady, setCsvDataIsReady] = createSignal<Csv<any> | null>(
-    null,
-  );
+  const [csvDataIsReady, setCsvDataIsReady] = createSignal<Csv<any> | null>(null);
 
   const [uploadAttempt, setUploadAttempt] = createSignal<
     StructureUploadAttemptDetail | undefined
   >(undefined);
+
   async function fetchUploadAttempt() {
     try {
       const res = await serverActions.getStructureUploadAttempt({});
@@ -92,12 +92,9 @@ export function Facilities(p: Props) {
       () => serverActions.deleteFamilyFacilities({ family: p.family }),
       fetchUploadAttempt,
     );
-
     await deleteAction.click();
   }
 
-  // The single-row attempt is shared across families: only offer "resume" for
-  // an attempt that targets this family
   const resumableAttempt = () => {
     const ua = uploadAttempt();
     return ua && ua.datasetFamily === p.family ? ua : undefined;
@@ -108,7 +105,7 @@ export function Facilities(p: Props) {
   };
 
   const BlockingAttemptNotice = () => (
-    <div class="max-w-56 text-xs">
+    <div class="text-xs">
       {t3({
         en: "Another facility import is in progress. Finish or discard it before importing here.",
         fr: "Une autre importation d'établissements est en cours. Terminez-la ou annulez-la avant d'importer ici.",
@@ -130,79 +127,31 @@ export function Facilities(p: Props) {
             <div class="font-700 flex-1 truncate text-xl">
               {familyLabel(p.family)}
             </div>
-            <div class="ui-gap-sm flex items-center">
-              <Show when={csvDataIsReady()}>
-                <Button
-                  iconName="download"
-                  href={`${_SERVER_HOST}/structure/facilities/export/csv/${p.family}?t=${Date.now()}`}
-                  newTab
-                >
-                  {t3(TC.download)}
-                </Button>
-              </Show>
+            <Show when={csvDataIsReady()}>
               <Button
-                iconName="refresh"
-                onClick={fetchUploadAttempt}
-              />
-            </div>
+                iconName="download"
+                href={`${_SERVER_HOST}/structure/facilities/export/csv/${p.family}?t=${Date.now()}`}
+                newTab
+              >
+                {t3(TC.download)}
+              </Button>
+            </Show>
           </div>
         }
       >
-        <div class="flex h-full w-full">
-          <Switch>
-            <Match when={facilityCount() > 0}>
-              <Show when={instanceState.currentUserIsGlobalAdmin}>
-                <div class="ui-pad ui-gap-sm border-base-300 flex h-full flex-none flex-col overflow-auto border-r">
-                  <Switch>
-                    <Match when={blockingAttempt()}>
-                      <BlockingAttemptNotice />
-                    </Match>
-                    <Match when={resumableAttempt()}>
-                      <Button
-                        onClick={openUploadAttempt}
-                        iconName="upload"
-                      >
-                        {t3({ en: "Resume importing facilities", fr: "Reprendre l'importation des établissements" })}
-                      </Button>
-                    </Match>
-                    <Match when={true}>
-                      <Button
-                        onClick={attemptCreateStructureUA.click}
-                        state={attemptCreateStructureUA.state()}
-                        iconName="plus"
-                      >
-                        {t3({ en: "Import facilities", fr: "Importer des établissements" })}
-                      </Button>
-                    </Match>
-                  </Switch>
-                  <Button
-                    onClick={attemptDeleteItems}
-                    intent="danger"
-                    outline
-                    iconName="trash"
-                  >
-                    {t3({ en: "Delete these facilities", fr: "Supprimer ces établissements" })}
-                  </Button>
+        <FrameRight
+          panelChildren={
+            <Show when={instanceState.currentUserIsGlobalAdmin}>
+              <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
+                <div class="font-700 text-lg">
+                  {t3({ en: "Imports", fr: "Importations" })}
                 </div>
-              </Show>
-              <div class="h-full w-0 flex-1">
-                <StructureWithCsv
-                  family={p.family}
-                  onCsvReady={(csv) => setCsvDataIsReady(csv)}
-                />
-              </div>
-            </Match>
-            <Match when={true}>
-              <div class="ui-pad ui-gap-sm flex h-full flex-none flex-col overflow-auto border-l">
                 <Switch>
-                  <Match when={!instanceState.currentUserIsGlobalAdmin}>
-                    {t3({ en: "Waiting for admin to add facilities", fr: "En attente de l'ajout des établissements par l'administrateur" })}
-                  </Match>
                   <Match when={blockingAttempt()}>
                     <BlockingAttemptNotice />
                   </Match>
                   <Match when={resumableAttempt()}>
-                    <Button onClick={openUploadAttempt} iconName="upload">
+                    <Button onClick={openUploadAttempt} iconName="upload" fullWidth>
                       {t3({ en: "Resume importing", fr: "Reprendre l'importation" })}
                     </Button>
                   </Match>
@@ -211,15 +160,43 @@ export function Facilities(p: Props) {
                       onClick={attemptCreateStructureUA.click}
                       state={attemptCreateStructureUA.state()}
                       iconName="upload"
+                      fullWidth
                     >
-                      {t3({ en: "Start importing facilities", fr: "Commencer l'importation des établissements" })}
+                      {t3({ en: "Import facilities", fr: "Importer des établissements" })}
                     </Button>
                   </Match>
                 </Switch>
+                <Show when={facilityCount() > 0}>
+                  <Button
+                    onClick={attemptDeleteItems}
+                    intent="danger"
+                    outline
+                    iconName="trash"
+                    fullWidth
+                  >
+                    {t3({ en: "Delete facilities", fr: "Supprimer les établissements" })}
+                  </Button>
+                </Show>
               </div>
-            </Match>
-          </Switch>
-        </div>
+            </Show>
+          }
+        >
+          <div class="h-full w-full">
+            <Show
+              when={facilityCount() > 0}
+              fallback={
+                <div class="ui-pad">
+                  {t3({ en: "No facilities imported", fr: "Aucun établissement importé" })}
+                </div>
+              }
+            >
+              <StructureWithCsv
+                family={p.family}
+                onCsvReady={(csv) => setCsvDataIsReady(csv)}
+              />
+            </Show>
+          </div>
+        </FrameRight>
       </FrameTop>
     </EditorWrapper>
   );

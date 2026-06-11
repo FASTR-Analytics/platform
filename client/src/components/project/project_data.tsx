@@ -441,8 +441,8 @@ export function ProjectData(p: Props) {
                       instance: instanceState.structureLastUpdated,
                       project: info.structureLastUpdated,
                       label: {
-                        en: "Facilities or admin areas changed",
-                        fr: "Établissements ou unités administratives modifiés",
+                        en: "Facilities, admin areas, or sampling weights changed",
+                        fr: "Établissements, unités administratives ou pondérations d'échantillonnage modifiés",
                       },
                     },
                     {

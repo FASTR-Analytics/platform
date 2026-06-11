@@ -308,14 +308,14 @@ ON CONFLICT (dataset_type) DO UPDATE SET
           sql`INSERT INTO calculated_indicators_snapshot (
             calculated_indicator_id, label, group_label, sort_order,
             num_indicator_id, denom_kind, denom_indicator_id, denom_population_type, denom_population_multiplier,
-            format_as, decimal_places, threshold_direction, threshold_green, threshold_yellow
+            format_as, threshold_direction, threshold_green, threshold_yellow
           ) VALUES (
             ${ci.calculated_indicator_id}, ${ci.label}, ${ci.group_label}, ${ci.sort_order},
             ${ci.num_indicator_id}, ${ci.denom.kind},
             ${ci.denom.kind === "indicator" ? ci.denom.indicator_id : null},
             ${ci.denom.kind === "population" ? ci.denom.population_type : null},
             ${ci.denom.kind === "population" ? ci.denom.multiplier : null},
-            ${ci.format_as}, ${ci.decimal_places}, ${ci.threshold_direction},
+            ${ci.format_as}, ${ci.threshold_direction},
             ${ci.threshold_green}, ${ci.threshold_yellow}
           )`
       ),
@@ -345,6 +345,9 @@ export async function removeDatasetFromProject(
           ? [
               sql`DELETE FROM hfa_indicator_code_snapshot`,
               sql`DELETE FROM hfa_indicators_snapshot`,
+              sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
+              sql`DELETE FROM hfa_indicator_categories_snapshot`,
+              sql`DELETE FROM hfa_indicator_service_categories_snapshot`,
               sql`DELETE FROM indicators_hfa`,
               sql`DELETE FROM facilities_hfa`,
             ]

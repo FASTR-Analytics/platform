@@ -86,7 +86,6 @@ CREATE TABLE calculated_indicators_snapshot (
   denom_population_type TEXT,
   denom_population_multiplier DOUBLE PRECISION,
   format_as TEXT NOT NULL,
-  decimal_places INTEGER NOT NULL,
   threshold_direction TEXT NOT NULL,
   threshold_green DOUBLE PRECISION NOT NULL,
   threshold_yellow DOUBLE PRECISION NOT NULL
