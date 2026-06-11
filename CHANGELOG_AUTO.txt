@@ -1,3 +1,13 @@
+[TBD] [user] [changed] - Importing weights now replaces all values for included time points
+[TBD] [user] [changed] - Blank cells in uploaded weights file now remove previously stored weights
+[TBD] [user] [changed] - Time points not included in the file are no longer affected by import
+[TBD] [user] [changed] - Import summary now clarifies that blank cells removed stored weights
+[TBD] [user] [fixed] - Projects now correctly detect when facility weights have been updated
+[TBD] [admin] [changed] - Importing facility weights now replaces data for included time points only
+[TBD] [admin] [added] - Blank cells in weight imports now remove previously stored weights
+[TBD] [admin] [added] - Weight imports and deletions now mark structure as updated for projects
+[TBD] [admin] [fixed] - Special characters in time point names no longer break analysis scripts
+[TBD] [admin] [fixed] - Special characters in indicator names no longer cause database errors
 [TBD] [user] [added] - Sampling weights now have a dedicated management page with a data table
 [TBD] [user] [added] - Sampling weights coverage summary shown on the instance data overview
 [TBD] [user] [added] - Download sampling weights as a CSV file
