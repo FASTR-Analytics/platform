@@ -31,6 +31,7 @@ import {
 } from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
 import { computeHfaCacheHash } from "./dataset_hfa.ts";
+import { getHfaWeightsCoverage } from "./hfa_facility_weights.ts";
 import { getIcehCacheHash } from "./dataset_iceh.ts";
 
 export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
@@ -154,7 +155,11 @@ export async function getInstanceStructureSummary(
     )[0]?.count ?? 0;
   const hasData = adminArea1s > 0;
   if (!hasData) {
-    return { structure: undefined, structureLastUpdated: undefined };
+    return {
+      structure: undefined,
+      structureLastUpdated: undefined,
+      hfaWeights: [],
+    };
   }
   const adminArea2s =
     (
@@ -203,6 +208,7 @@ export async function getInstanceStructureSummary(
     structureLastUpdated: lastUpdatedRow
       ? JSON.parse(lastUpdatedRow.config_json_value)
       : "legacy",
+    hfaWeights: await getHfaWeightsCoverage(mainDb),
   };
 }
 
@@ -461,6 +467,7 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
       adminAreaLabels,
       structure,
       structureLastUpdated,
+      hfaWeights: await getHfaWeightsCoverage(mainDb),
       indicators: {
         commonIndicators: commonIndicatorsCount,
         rawIndicators: rawIndicatorsCount,

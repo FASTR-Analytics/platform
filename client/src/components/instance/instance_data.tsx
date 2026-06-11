@@ -1,6 +1,6 @@
 import { t3 } from "lib";
 import { FrameTop, HeadingBarMainRibbon, toNum0 } from "panther";
-import { Match, Show, Switch, createSignal } from "solid-js";
+import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { HfaIndicatorsManager } from "../indicator_manager_hfa/hfa_indicators_manager";
 import { IndicatorsManager } from "../indicator_manager_hmis/indicators_manager";
 import { InstanceDatasetHfa } from "../instance_dataset_hfa";
@@ -9,6 +9,7 @@ import { InstanceDatasetIceh } from "../instance_dataset_iceh";
 import { InstanceHfaTimePoints } from "../instance_hfa_time_points";
 import { Facilities } from "../structure";
 import { AdminAreas } from "../structure/admin_areas";
+import { HfaWeights } from "../structure/hfa_weights";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
 import { instanceState } from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
@@ -37,6 +38,11 @@ export function InstanceData(p: Props) {
       <Match when={selectedDataSource() === "facilities_hfa"}>
         <Facilities
           family="hfa"
+          backToInstance={() => setSelecteDatasource(undefined)}
+        />
+      </Match>
+      <Match when={selectedDataSource() === "hfa_weights"}>
+        <HfaWeights
           backToInstance={() => setSelecteDatasource(undefined)}
         />
       </Match>
@@ -376,6 +382,51 @@ export function InstanceData(p: Props) {
                           <span class="font-mono">{toNum0(keyedCount)}</span>
                         </div>
                       )}
+                    </Show>
+                  </div>
+                  <div
+                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    onClick={() => setSelecteDatasource("hfa_weights")}
+                  >
+                    <div class="font-700 pb-2">
+                      {t3({
+                        en: "Sampling weights",
+                        fr: "Pondérations d'échantillonnage",
+                      })}
+                    </div>
+                    <Show
+                      when={instanceState.hfaWeights.some(
+                        (tp) => tp.weightCount > 0,
+                      )}
+                      fallback={
+                        <div class="text-neutral text-xs">
+                          {t3({
+                            en: "No weights imported",
+                            fr: "Aucune pondération importée",
+                          })}
+                        </div>
+                      }
+                    >
+                      <div class="ui-spy-sm text-xs">
+                        <For each={instanceState.hfaWeights}>
+                          {(tp) => (
+                            <div
+                              class="ui-gap text-success flex justify-between"
+                              classList={{
+                                "text-warning":
+                                  tp.weightCount > 0 &&
+                                  tp.facilitiesWithDataAndWeight <
+                                    tp.facilitiesWithData,
+                              }}
+                            >
+                              <span>{tp.timePoint}:</span>
+                              <span class="font-mono">
+                                {`${toNum0(tp.facilitiesWithDataAndWeight)}/${toNum0(tp.facilitiesWithData)}`}
+                              </span>
+                            </div>
+                          )}
+                        </For>
+                      </div>
                     </Show>
                   </div>
                   <div

@@ -65,6 +65,7 @@ routesInstanceSSE.get(
           geojsonMaps: res.data.geojsonMaps,
           structure: res.data.structure,
           structureLastUpdated: res.data.structureLastUpdated,
+          hfaWeights: res.data.hfaWeights,
           ...indicatorsSummary,
           ...datasetsSummary,
           currentUserEmail: globalUser.email,

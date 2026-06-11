@@ -39,6 +39,7 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   geojsonMaps: [],
   structure: undefined,
   structureLastUpdated: undefined,
+  hfaWeights: [],
   indicators: {
     commonIndicators: 0,
     rawIndicators: 0,
@@ -156,6 +157,7 @@ export function updateInstanceGeoJsonMaps(maps: GeoJsonMapSummary[]): void {
 export function updateInstanceStructure(data: InstanceStructureSummary): void {
   setInstanceState("structure", reconcile(data.structure));
   setInstanceState("structureLastUpdated", data.structureLastUpdated);
+  setInstanceState("hfaWeights", reconcile(data.hfaWeights));
 }
 
 export function updateInstanceIndicators(

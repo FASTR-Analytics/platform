@@ -35,6 +35,11 @@ export const structureRouteRegistry = {
     method: "GET",
     response: {} as HfaFacilityWeightsSummary,
   }),
+  getHfaFacilityWeightsItems: route({
+    path: "/structure/hfa_facility_weights/items",
+    method: "GET",
+    response: {} as { totalCount: number; items: Record<string, string>[] },
+  }),
   importHfaFacilityWeights: route({
     path: "/structure/hfa_facility_weights/import",
     method: "POST",

@@ -5,6 +5,7 @@ import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { InstanceConfigAdminAreaLabels, InstanceConfigFacilityColumns, OtherUser } from "./instance.ts";
 import type { ProjectSummary } from "./projects.ts";
+import type { HfaWeightsCoverage } from "./structure.ts";
 
 // ============================================================================
 // Instance SSE State
@@ -46,6 +47,7 @@ export type InstanceState = {
       }
     | undefined;
   structureLastUpdated: string | undefined;
+  hfaWeights: HfaWeightsCoverage[];
   indicators: {
     commonIndicators: number;
     rawIndicators: number;
@@ -95,6 +97,7 @@ export type InstanceStructureSummary = {
       }
     | undefined;
   structureLastUpdated: string | undefined;
+  hfaWeights: HfaWeightsCoverage[];
 };
 
 export type InstanceIndicatorsSummary = {

@@ -11,6 +11,7 @@ import {
   deleteAllHfaFacilityWeights,
   deleteAllStructureData,
   deleteFamilyFacilities,
+  getHfaFacilityWeightsItems,
   getHfaFacilityWeightsSummary,
   getInstanceStructureSummary,
   importHfaFacilityWeights,
@@ -116,11 +117,25 @@ defineRoute(
 
 defineRoute(
   routesStructure,
+  "getHfaFacilityWeightsItems",
+  requireGlobalPermission("can_view_data"),
+  log("getHfaFacilityWeightsItems"),
+  async (c) => {
+    const res = await getHfaFacilityWeightsItems(c.var.mainDb, _DATASET_LIMIT);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesStructure,
   "importHfaFacilityWeights",
   requireGlobalPermission("can_configure_data"),
   log("importHfaFacilityWeights"),
   async (c, { body }) => {
     const res = await importHfaFacilityWeights(c.var.mainDb, body.assetFileName);
+    if (res.success) {
+      notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -132,6 +147,9 @@ defineRoute(
   log("deleteAllHfaFacilityWeights"),
   async (c) => {
     const res = await deleteAllHfaFacilityWeights(c.var.mainDb);
+    if (res.success) {
+      notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+    }
     return c.json(res);
   },
 );
@@ -411,6 +429,30 @@ defineRoute(
         }`,
       });
     }
+  },
+);
+
+// Weights CSV export - same wide shape the importer accepts (round-trips)
+routesStructure.get(
+  "/structure/hfa_facility_weights/export/csv",
+  requireGlobalPermission("can_configure_data"),
+  log("exportHfaFacilityWeightsCsv"),
+  async (c) => {
+    const res = await getHfaFacilityWeightsItems(c.var.mainDb); // No limit = all rows
+
+    if (!res.success) {
+      return c.json(res);
+    }
+
+    const csvContent = stringifyCsvWithHeaders(res.data.items);
+
+    return new Response(csvContent, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition":
+          'attachment; filename="hfa_facility_weights.csv"',
+      },
+    });
   },
 );
 

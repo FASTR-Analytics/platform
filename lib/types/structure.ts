@@ -162,24 +162,27 @@ export type StructureDhis2OrgUnitMetadata = {
 // ============================================================================
 
 // CSV format: facility_id, time_point, weight (one row per facility per time point)
-export type HfaFacilityWeightsSummary = {
-  totalCount: number;
-  perTimePoint: Array<{
-    timePoint: string;
-    weightCount: number;
-    // Coverage is measured against facilities WITH DATA in the round — those
-    // are the ones that enter the analysis (not-sampled facilities have no
-    // data rows and need no weight). Partial coverage is the footgun to show.
-    facilitiesWithData: number;
-    facilitiesWithDataAndWeight: number;
-  }>;
+// Coverage is measured against facilities WITH DATA in the round — those are
+// the ones that enter the analysis (not-sampled facilities have no data rows
+// and need no weight). Partial coverage is the footgun to show.
+export type HfaWeightsCoverage = {
+  timePoint: string;
+  weightCount: number;
+  facilitiesWithData: number;
+  facilitiesWithDataAndWeight: number;
 };
 
+export type HfaFacilityWeightsSummary = {
+  totalCount: number;
+  perTimePoint: HfaWeightsCoverage[];
+};
+
+// Import CSV is WIDE: facility_id, then one column per time point label.
+// A blank cell = facility not in that round's sample; skipped rather than
+// stored (decided 2026-06-11: no surveyed-but-excluded case exists, so no
+// 0/NULL weights are ever stored). Counts below are of weight CELLS.
 export type HfaFacilityWeightsImportResult = {
   rowsImported: number;
-  // Rows with a blank weight cell = facility not in that round's sample;
-  // skipped rather than stored (decided 2026-06-11: no surveyed-but-excluded
-  // case exists, so no 0/NULL weights are ever stored)
   rowsSkippedNoWeight: number;
   timePointsCovered: string[];
 };

@@ -4,6 +4,7 @@ import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { IndicatorMetadata, IndicatorType } from "./indicators.ts";
 import type { ProjectUserPermissions, UserPermissions } from "./permissions.ts";
+import type { HfaWeightsCoverage } from "./structure.ts";
 import {
   GenericLongFormFetchConfig,
   PeriodBounds,
@@ -91,6 +92,7 @@ export type InstanceDetail = {
       }
     | undefined;
   structureLastUpdated?: string;
+  hfaWeights: HfaWeightsCoverage[];
   indicators: {
     commonIndicators: number;
     rawIndicators: number;

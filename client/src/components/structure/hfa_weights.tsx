@@ -1,20 +1,29 @@
-import { t3, type HfaFacilityWeightsImportResult } from "lib";
+import { t3, TC, type HfaFacilityWeightsImportResult } from "lib";
 import {
   Button,
+  Csv,
+  FrameTop,
   StateHolderFormError,
   StateHolderWrapper,
+  TableFromCsv,
   timActionDelete,
   timActionForm,
   timQuery,
   toNum0,
 } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { For, Show, createMemo, createSignal } from "solid-js";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 import { serverActions } from "~/server_actions";
+import { _SERVER_HOST } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 
-export function HfaWeightsSection() {
-  const summary = timQuery(
-    () => serverActions.getHfaFacilityWeightsSummary({}),
+type Props = {
+  backToInstance: () => void;
+};
+
+export function HfaWeights(p: Props) {
+  const items = timQuery(
+    () => serverActions.getHfaFacilityWeightsItems({}),
     t3({ en: "Loading weights...", fr: "Chargement des pondérations..." }),
   );
 
@@ -35,7 +44,7 @@ export function HfaWeightsSection() {
       setLastImport(res.data);
     }
     return res;
-  }, summary.silentFetch);
+  }, items.silentFetch);
 
   async function attemptDeleteAll() {
     const deleteAction = timActionDelete(
@@ -44,119 +53,178 @@ export function HfaWeightsSection() {
         fr: "Supprimer toutes les pondérations d'échantillonnage ?",
       }),
       () => serverActions.deleteAllHfaFacilityWeights({}),
-      summary.silentFetch,
+      items.silentFetch,
     );
     await deleteAction.click();
     setLastImport(null);
   }
 
+  const hasWeights = () => instanceState.hfaWeights.some((tp) => tp.weightCount > 0);
+
   return (
-    <div class="border-base-300 ui-spy-sm border-t pt-4">
-      <div class="font-700 text-sm">
-        {t3({ en: "Sampling weights", fr: "Pondérations d'échantillonnage" })}
-      </div>
-      <div class="text-neutral max-w-56 text-xs">
-        {t3({
-          en: "CSV with columns facility_id, time_point, weight. Re-uploading updates existing weights.",
-          fr: "CSV avec colonnes facility_id, time_point, weight. Un nouveau téléversement met à jour les pondérations existantes.",
-        })}
-      </div>
-      <StateHolderWrapper state={summary.state()}>
-        {(keyedSummary) => (
-          <Show
-            when={keyedSummary.totalCount > 0}
-            fallback={
-              <div class="text-neutral text-xs">
-                {t3({ en: "No weights imported", fr: "Aucune pondération importée" })}
-              </div>
-            }
-          >
-            <div class="ui-spy-sm text-xs">
-              <For each={keyedSummary.perTimePoint}>
-                {(tp) => {
-                  const partial = () =>
-                    tp.weightCount > 0 &&
-                    tp.facilitiesWithDataAndWeight < tp.facilitiesWithData;
-                  return (
+    <FrameTop
+      panelChildren={
+        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
+          <Button iconName="chevronLeft" onClick={p.backToInstance} />
+          <div class="font-700 flex-1 truncate text-xl">
+            {t3({
+              en: "HFA facility sampling weights",
+              fr: "Pondérations d'échantillonnage des établissements Enquêtes FOSA",
+            })}
+          </div>
+          <div class="ui-gap-sm flex items-center">
+            <Show when={hasWeights()}>
+              <Button
+                iconName="download"
+                href={`${_SERVER_HOST}/structure/hfa_facility_weights/export/csv?t=${Date.now()}`}
+                newTab
+              >
+                {t3(TC.download)}
+              </Button>
+            </Show>
+            <Button iconName="refresh" onClick={items.fetch} />
+          </div>
+        </div>
+      }
+    >
+      <div class="flex h-full w-full">
+        <Show when={instanceState.currentUserIsGlobalAdmin}>
+          <div class="ui-pad ui-spy border-base-300 w-72 flex-none overflow-auto border-r">
+            <div class="text-neutral text-xs">
+              {t3({
+                en: "One row per facility, one column per time point. A blank cell means the facility is not in that round's sample. Re-uploading updates existing weights. The downloaded CSV can be edited and re-imported.",
+                fr: "Une ligne par établissement, une colonne par point temporel. Une cellule vide signifie que l'établissement n'est pas dans l'échantillon de ce tour. Un nouveau téléversement met à jour les pondérations existantes. Le CSV téléchargé peut être modifié et réimporté.",
+              })}
+            </div>
+            <Show when={instanceState.hfaWeights.length > 0}>
+              <div class="ui-spy-sm text-xs">
+                <div class="font-700">
+                  {t3({
+                    en: "Coverage (facilities with data that have a weight)",
+                    fr: "Couverture (établissements avec données disposant d'une pondération)",
+                  })}
+                </div>
+                <For each={instanceState.hfaWeights}>
+                  {(tp) => (
                     <div
-                      class="ui-gap flex max-w-56 justify-between"
-                      classList={{ "text-warning": partial() }}
+                      class="ui-gap flex justify-between"
+                      classList={{
+                        "text-warning":
+                          tp.weightCount > 0 &&
+                          tp.facilitiesWithDataAndWeight < tp.facilitiesWithData,
+                      }}
                     >
                       <span>{tp.timePoint}:</span>
                       <span class="font-mono">
                         {`${toNum0(tp.facilitiesWithDataAndWeight)}/${toNum0(tp.facilitiesWithData)}`}
                       </span>
                     </div>
-                  );
-                }}
-              </For>
-              <div class="text-neutral max-w-56">
-                {t3({
-                  en: "Facilities with data that have a weight, per time point",
-                  fr: "Établissements avec données disposant d'une pondération, par point temporel",
-                })}
+                  )}
+                </For>
+                <Show
+                  when={instanceState.hfaWeights.some(
+                    (tp) =>
+                      tp.weightCount > 0 &&
+                      tp.facilitiesWithDataAndWeight < tp.facilitiesWithData,
+                  )}
+                >
+                  <div class="text-warning">
+                    {t3({
+                      en: "Some facilities with data have no weight — they will count with weight 1 when weighted analysis is enabled.",
+                      fr: "Certains établissements avec données n'ont pas de pondération — ils compteront avec une pondération de 1 lorsque l'analyse pondérée sera activée.",
+                    })}
+                  </div>
+                </Show>
               </div>
-              <Show
-                when={keyedSummary.perTimePoint.some(
-                  (tp) =>
-                    tp.weightCount > 0 &&
-                    tp.facilitiesWithDataAndWeight < tp.facilitiesWithData,
-                )}
-              >
-                <div class="text-warning max-w-56">
+            </Show>
+            <FileUploadSelector
+              buttonLabel={t3({ en: "Upload weights csv", fr: "Téléverser un CSV de pondérations" })}
+              selectLabel={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
+              filter={(a) => a.isCsv}
+              value={selectedFileName()}
+              onChange={setSelectedFileName}
+              fullWidth
+            />
+            <StateHolderFormError state={importWeights.state()} />
+            <Show when={lastImport()} keyed>
+              {(keyedResult) => (
+                <div class="text-success text-xs">
                   {t3({
-                    en: "Some facilities with data have no weight — they will count with weight 1 when weighted analysis is enabled.",
-                    fr: "Certains établissements avec données n'ont pas de pondération — ils compteront avec une pondération de 1 lorsque l'analyse pondérée sera activée.",
+                    en: `Imported ${toNum0(keyedResult.rowsImported)} weights across ${keyedResult.timePointsCovered.length} time point(s)`,
+                    fr: `${toNum0(keyedResult.rowsImported)} pondérations importées sur ${keyedResult.timePointsCovered.length} point(s) temporel(s)`,
                   })}
+                  <Show when={keyedResult.rowsSkippedNoWeight > 0}>
+                    {" "}
+                    {t3({
+                      en: `(${toNum0(keyedResult.rowsSkippedNoWeight)} blank cell(s) skipped — not in sample)`,
+                      fr: `(${toNum0(keyedResult.rowsSkippedNoWeight)} cellule(s) vide(s) ignorée(s) — hors échantillon)`,
+                    })}
+                  </Show>
                 </div>
+              )}
+            </Show>
+            <div class="ui-gap-sm flex flex-col">
+              <Button
+                onClick={importWeights.click}
+                state={importWeights.state()}
+                disabled={!selectedFileName()}
+                iconName="upload"
+              >
+                {t3({ en: "Import weights", fr: "Importer les pondérations" })}
+              </Button>
+              <Show when={hasWeights()}>
+                <Button
+                  onClick={attemptDeleteAll}
+                  intent="danger"
+                  outline
+                  iconName="trash"
+                >
+                  {t3({ en: "Delete all weights", fr: "Supprimer toutes les pondérations" })}
+                </Button>
               </Show>
             </div>
-          </Show>
-        )}
-      </StateHolderWrapper>
-      <FileUploadSelector
-        buttonLabel={t3({ en: "Upload weights csv", fr: "Téléverser un CSV de pondérations" })}
-        selectLabel={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
-        filter={(a) => a.isCsv}
-        value={selectedFileName()}
-        onChange={setSelectedFileName}
-      />
-      <StateHolderFormError state={importWeights.state()} />
-      <Show when={lastImport()} keyed>
-        {(keyedResult) => (
-          <div class="text-success max-w-56 text-xs">
-            {t3({
-              en: `Imported ${toNum0(keyedResult.rowsImported)} weights across ${keyedResult.timePointsCovered.length} time point(s)`,
-              fr: `${toNum0(keyedResult.rowsImported)} pondérations importées sur ${keyedResult.timePointsCovered.length} point(s) temporel(s)`,
-            })}
-            <Show when={keyedResult.rowsSkippedNoWeight > 0}>
-              {" "}
-              {t3({
-                en: `(${toNum0(keyedResult.rowsSkippedNoWeight)} row(s) with no weight skipped — not in sample)`,
-                fr: `(${toNum0(keyedResult.rowsSkippedNoWeight)} ligne(s) sans pondération ignorée(s) — hors échantillon)`,
-              })}
-            </Show>
           </div>
-        )}
-      </Show>
-      <div class="ui-gap-sm flex flex-col">
-        <Button
-          onClick={importWeights.click}
-          state={importWeights.state()}
-          disabled={!selectedFileName()}
-          iconName="upload"
-        >
-          {t3({ en: "Import weights", fr: "Importer les pondérations" })}
-        </Button>
-        <Button
-          onClick={attemptDeleteAll}
-          intent="danger"
-          outline
-          iconName="trash"
-        >
-          {t3({ en: "Delete all weights", fr: "Supprimer toutes les pondérations" })}
-        </Button>
+        </Show>
+        <div class="h-full w-0 flex-1">
+          <StateHolderWrapper state={items.state()}>
+            {(keyedItems) => (
+              <Show
+                when={keyedItems.items.length > 0}
+                fallback={
+                  <div class="ui-pad text-neutral">
+                    {t3({
+                      en: "No weights imported",
+                      fr: "Aucune pondération importée",
+                    })}
+                  </div>
+                }
+              >
+                <WeightsTable
+                  items={keyedItems.items}
+                  totalCount={keyedItems.totalCount}
+                />
+              </Show>
+            )}
+          </StateHolderWrapper>
+        </div>
       </div>
-    </div>
+    </FrameTop>
+  );
+}
+
+function WeightsTable(p: {
+  items: Record<string, string>[];
+  totalCount: number;
+}) {
+  const csv = createMemo(() => Csv.fromObjects(p.items));
+  return (
+    <TableFromCsv
+      csv={csv()}
+      knownTotalCount={p.totalCount}
+      cellFormatter={(str) =>
+        str === "null" || str === "undefined" || str === "" ? "." : str
+      }
+      alignText="left"
+    />
   );
 }
