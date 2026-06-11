@@ -402,7 +402,9 @@ CREATE INDEX idx_hfa_data_time_point ON hfa_data(time_point);
 CREATE TABLE hfa_facility_weights (
   facility_id text NOT NULL,
   time_point text NOT NULL,
-  weight double precision NOT NULL CHECK (weight >= 0),
+  -- Strictly positive: design weights are >= 1 for any surveyed facility, and
+  -- a 0 silently excludes the facility from all weighted estimates
+  weight double precision NOT NULL CHECK (weight > 0),
   PRIMARY KEY (facility_id, time_point),
   FOREIGN KEY (facility_id) REFERENCES facilities_hfa(facility_id) ON DELETE CASCADE,
   FOREIGN KEY (time_point) REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE

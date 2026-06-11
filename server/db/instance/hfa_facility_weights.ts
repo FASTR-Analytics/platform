@@ -80,8 +80,17 @@ export async function importHfaFacilityWeights(
         return; // skip blank lines
       }
 
+      // Note Number("") === 0, so the empty check must come before the cast.
+      // Zero is rejected too: design weights are >= 1 for any surveyed
+      // facility, and a 0 silently excludes it from all estimates.
       const weight = Number(weightRaw);
-      if (!facilityId || !timePoint || !Number.isFinite(weight) || weight < 0) {
+      if (
+        !facilityId ||
+        !timePoint ||
+        weightRaw === "" ||
+        !Number.isFinite(weight) ||
+        weight <= 0
+      ) {
         invalidWeights.push(
           `${facilityId || "?"} / ${timePoint || "?"} / ${weightRaw || "?"}`
         );
@@ -100,7 +109,7 @@ export async function importHfaFacilityWeights(
     if (invalidWeights.length > 0) {
       return {
         success: false,
-        err: `${invalidWeights.length} row(s) are invalid (weight must be a non-negative number; all columns required). First examples: ${invalidWeights.slice(0, 5).join("; ")}`,
+        err: `${invalidWeights.length} row(s) are invalid (weight must be a positive number; all columns required). First examples: ${invalidWeights.slice(0, 5).join("; ")}`,
       };
     }
     if (duplicates.size > 0) {
