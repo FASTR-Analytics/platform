@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   sync-docs:
+    if: startsWith(github.event.head_commit.message, 'Deploy version')
     runs-on: ubuntu-latest
 
     steps:

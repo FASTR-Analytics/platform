@@ -14,24 +14,35 @@ BEFORE="${BEFORE_SHA:-}"
 # 1. Detect what changed
 # ---------------------------------------------------------------------------
 
-if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-    echo "First push to branch — no before SHA. Skipping."
+# Only run for deploy commits (same convention as generate-changelog.sh)
+COMMIT_MSG="$(git log -1 --format=%s)"
+if [[ "$COMMIT_MSG" != "Deploy version"* ]]; then
+    echo "Not a deploy commit. Skipping."
     exit 0
 fi
 
-if ! git cat-file -e "$BEFORE" 2>/dev/null; then
-    echo "Before SHA not found (force-push rewrote history?). Skipping."
+# Diff against the previous deploy commit so the whole release is covered,
+# not just the final push. Falls back to BEFORE_SHA for the first deploy.
+PREV_DEPLOY="$(git log --grep '^Deploy version' --format=%H --skip 1 -n 1)"
+if [ -n "$PREV_DEPLOY" ]; then
+    DIFF_BASE="$PREV_DEPLOY"
+    echo "Diffing against previous deploy: $PREV_DEPLOY"
+elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE" 2>/dev/null; then
+    DIFF_BASE="$BEFORE"
+    echo "No previous deploy found — diffing against push base: $BEFORE"
+else
+    echo "No previous deploy and no usable before SHA. Skipping."
     exit 0
 fi
 
-git diff "$BEFORE"..HEAD -- \
+git diff "$DIFF_BASE"..HEAD -- \
     'server/**/*.ts' 'client/src/**/*.tsx' 'client/src/**/*.ts' 'lib/**/*.ts' \
     ':!deno.lock' ':!lib/translate/ui_strings.ts' \
     > /tmp/sync_docs_diff.txt 2>/dev/null || true
 
 python3 -c "
 data = open('/tmp/sync_docs_diff.txt','rb').read()
-open('/tmp/sync_docs_diff.txt','wb').write(data[:100000])
+open('/tmp/sync_docs_diff.txt','wb').write(data[:200000])
 "
 
 if [ "$(wc -c < /tmp/sync_docs_diff.txt)" -eq 0 ]; then
