@@ -99,6 +99,13 @@ export function HfaWeightsSection() {
               en: `Imported ${toNum0(keyedResult.rowsImported)} weights across ${keyedResult.timePointsCovered.length} time point(s)`,
               fr: `${toNum0(keyedResult.rowsImported)} pondérations importées sur ${keyedResult.timePointsCovered.length} point(s) temporel(s)`,
             })}
+            <Show when={keyedResult.rowsSkippedNoWeight > 0}>
+              {" "}
+              {t3({
+                en: `(${toNum0(keyedResult.rowsSkippedNoWeight)} row(s) with no weight skipped — not in sample)`,
+                fr: `(${toNum0(keyedResult.rowsSkippedNoWeight)} ligne(s) sans pondération ignorée(s) — hors échantillon)`,
+              })}
+            </Show>
           </div>
         )}
       </Show>

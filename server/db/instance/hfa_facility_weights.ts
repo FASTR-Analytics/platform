@@ -71,6 +71,7 @@ export async function importHfaFacilityWeights(
     const seen = new Set<string>();
     const duplicates = new Set<string>();
     const invalidWeights: string[] = [];
+    let rowsSkippedNoWeight = 0;
 
     await processRows((row) => {
       const facilityId = row[colIndexes.facility_id]?.trim() ?? "";
@@ -80,14 +81,20 @@ export async function importHfaFacilityWeights(
         return; // skip blank lines
       }
 
-      // Note Number("") === 0, so the empty check must come before the cast.
-      // Zero is rejected too: design weights are >= 1 for any surveyed
-      // facility, and a 0 silently excludes it from all estimates.
+      // A blank weight means the facility is not in this round's sample —
+      // skip the row (no weight row is stored; absence is the representation)
+      if (facilityId && timePoint && weightRaw === "") {
+        rowsSkippedNoWeight++;
+        return;
+      }
+
+      // Note Number("") === 0, so blanks are handled above, before the cast.
+      // Zero is rejected: design weights are >= 1 for any surveyed facility,
+      // and a 0 silently excludes it from all estimates.
       const weight = Number(weightRaw);
       if (
         !facilityId ||
         !timePoint ||
-        weightRaw === "" ||
         !Number.isFinite(weight) ||
         weight <= 0
       ) {
@@ -119,7 +126,13 @@ export async function importHfaFacilityWeights(
       };
     }
     if (rows.length === 0) {
-      return { success: false, err: "CSV contains no data rows" };
+      return {
+        success: false,
+        err:
+          rowsSkippedNoWeight > 0
+            ? `CSV contains no usable rows: all ${rowsSkippedNoWeight} data row(s) have a blank weight`
+            : "CSV contains no data rows",
+      };
     }
 
     const knownFacilities = new Set(
@@ -180,6 +193,7 @@ export async function importHfaFacilityWeights(
       success: true,
       data: {
         rowsImported: rows.length,
+        rowsSkippedNoWeight,
         timePointsCovered: [...new Set(rows.map((r) => r.time_point))].sort(),
       },
     };

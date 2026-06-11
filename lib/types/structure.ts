@@ -169,6 +169,10 @@ export type HfaFacilityWeightsSummary = {
 
 export type HfaFacilityWeightsImportResult = {
   rowsImported: number;
+  // Rows with a blank weight cell = facility not in that round's sample;
+  // skipped rather than stored (decided 2026-06-11: no surveyed-but-excluded
+  // case exists, so no 0/NULL weights are ever stored)
+  rowsSkippedNoWeight: number;
   timePointsCovered: string[];
 };
 
