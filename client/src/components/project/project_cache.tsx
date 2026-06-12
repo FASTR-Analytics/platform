@@ -1,6 +1,6 @@
 import { t3 } from "lib";
 import { HeadingBar, StateHolderWrapper, createQuery } from "panther";
-import { createResource, For } from "solid-js";
+import { createEffect, createSignal, For } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { projectState } from "~/state/project/t1_store";
 import { getClientVizCacheStatuses, type ClientVizCacheStatus } from "~/state/clear_caches";
@@ -17,13 +17,20 @@ export function ProjectCache() {
       <div class="flex-1 overflow-y-auto">
         <StateHolderWrapper state={cacheQuery.state()}>
           {(data) => {
-            const [clientStatuses, { refetch: refetchClient }] = createResource(() =>
-              getClientVizCacheStatuses(projectState.id, data.visualizations),
-            );
+            const [refreshCount, setRefreshCount] = createSignal(0);
+            const [clientStatuses, setClientStatuses] = createSignal<ClientVizCacheStatus[]>([]);
+
+            createEffect(() => {
+              refreshCount();
+              const id = projectState.id;
+              const vizs = data.visualizations;
+              async function load() { setClientStatuses(await getClientVizCacheStatuses(id, vizs)); }
+              load();
+            });
 
             const clientMap = (): Map<string, ClientVizCacheStatus> => {
               const map = new Map<string, ClientVizCacheStatus>();
-              for (const s of clientStatuses() ?? []) map.set(s.id, s);
+              for (const s of clientStatuses()) map.set(s.id, s);
               return map;
             };
 
@@ -73,7 +80,7 @@ export function ProjectCache() {
                   <button
                     type="button"
                     class="text-xs text-base-content/60 hover:text-base-content"
-                    onClick={() => refetchClient()}
+                    onClick={() => setRefreshCount((n) => n + 1)}
                   >
                     {t3({ en: "Refresh", fr: "Actualiser" })}
                   </button>

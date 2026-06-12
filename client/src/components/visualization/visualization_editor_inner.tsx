@@ -433,7 +433,6 @@ export function VisualizationEditorInner(p: InnerProps) {
         existingLabel: p.poDetail.label,
         currentFolderId: p.poDetail.folderId,
         folders: p.projectStateSnapshot.visualizationFolders,
-        silentFetchPoDetail: async () => {},
         mutateFunc: async (newLabel) =>
           serverActions.updatePresentationObjectLabel({
             projectId: projectId,

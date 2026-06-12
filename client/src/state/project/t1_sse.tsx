@@ -25,7 +25,7 @@ const rScriptListeners = new Set<RScriptListener>();
 
 let evtSource: EventSource | null = null;
 let retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
-let connectionAttempts = 0;
+const [connectionAttempts, setConnectionAttempts] = createSignal(0);
 let currentProjectId: string | null = null;
 
 export function addLastUpdatedListener(listener: LastUpdatedListener): () => void {
@@ -67,7 +67,7 @@ export function connectProjectSSE(projectId: string): void {
   }
 
   currentProjectId = projectId;
-  connectionAttempts++;
+  setConnectionAttempts((n) => n + 1);
 
   const url = `${_SERVER_HOST}/project_sse_v2/${projectId}`;
   console.log("Connecting to SSE v2:", url);
@@ -75,7 +75,7 @@ export function connectProjectSSE(projectId: string): void {
   evtSource = new EventSource(url, { withCredentials: true });
 
   evtSource.onopen = () => {
-    connectionAttempts = 0;
+    setConnectionAttempts(0);
   };
 
   evtSource.onmessage = (event) => {
@@ -107,19 +107,19 @@ export function connectProjectSSE(projectId: string): void {
       evtSource = null;
     }
 
-    if (connectionAttempts <= MAX_CONNECTION_ATTEMPTS && currentProjectId) {
+    if (connectionAttempts() <= MAX_CONNECTION_ATTEMPTS && currentProjectId) {
       retryProjectSSE();
     }
   };
 }
 
 function retryProjectSSE(): void {
-  if (connectionAttempts > MAX_CONNECTION_ATTEMPTS || !currentProjectId) {
+  if (connectionAttempts() > MAX_CONNECTION_ATTEMPTS || !currentProjectId) {
     return;
   }
 
-  const delay = getRetryDelay(connectionAttempts);
-  console.log(`Retrying SSE v2 in ${delay}ms (attempt ${connectionAttempts})`);
+  const delay = getRetryDelay(connectionAttempts());
+  console.log(`Retrying SSE v2 in ${delay}ms (attempt ${connectionAttempts()})`);
 
   if (retryTimeoutId) {
     clearTimeout(retryTimeoutId);
@@ -141,14 +141,10 @@ export function disconnectProjectSSE(): void {
   }
 
   currentProjectId = null;
-  connectionAttempts = 0;
+  setConnectionAttempts(0);
   lastUpdatedListeners.clear();
   rScriptListeners.clear();
   resetProjectState();
-}
-
-export function getConnectionAttempts(): number {
-  return connectionAttempts;
 }
 
 type ProjectSSEBoundaryProps = {
@@ -157,14 +153,8 @@ type ProjectSSEBoundaryProps = {
 };
 
 export function ProjectSSEBoundary(props: ProjectSSEBoundaryProps) {
-  const [connectAttempts, setConnectAttempts] = createSignal(0);
-
   onMount(() => {
     connectProjectSSE(props.projectId);
-    const interval = setInterval(() => {
-      setConnectAttempts(connectionAttempts);
-    }, 100);
-    onCleanup(() => clearInterval(interval));
   });
 
   onCleanup(() => {
@@ -173,7 +163,7 @@ export function ProjectSSEBoundary(props: ProjectSSEBoundaryProps) {
 
   return (
     <Show
-      when={connectAttempts() <= MAX_CONNECTION_ATTEMPTS}
+      when={connectionAttempts() <= MAX_CONNECTION_ATTEMPTS}
       fallback={
         <div class="ui-pad ui-spy-sm">
           <div>{t3({ en: "Cannot connect to project.", fr: "Impossible de se connecter au projet." })}</div>
@@ -188,8 +178,8 @@ export function ProjectSSEBoundary(props: ProjectSSEBoundaryProps) {
         fallback={
           <div class="ui-pad">
             {t3({ en: "Connecting to project", fr: "Connexion au projet" })}
-            {connectAttempts() > 1
-              ? ` (${t3({ en: "retrying", fr: "réessayer" })} ${connectAttempts() - 1})`
+            {connectionAttempts() > 1
+              ? ` (${t3({ en: "retrying", fr: "réessayer" })} ${connectionAttempts() - 1})`
               : ""}
             ...
           </div>

@@ -31,11 +31,12 @@ export function notifyProjectConfigUpdated(
   projectId: string,
   label: string,
   isLocked: boolean,
+  aiContext?: string,
   isCentralReporting?: boolean,
 ): void {
   notifyProjectV2(projectId, {
     type: "project_config_updated",
-    data: { label, isLocked, isCentralReporting },
+    data: { label, isLocked, aiContext, isCentralReporting },
   });
 }
 

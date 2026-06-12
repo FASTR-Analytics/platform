@@ -26,7 +26,7 @@ import {
   showMenu,
   createDeleteAction,
 } from "panther";
-import { Show, createEffect, createMemo, createSignal } from "solid-js";
+import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import { getDashboardDetailFromCacheOrFetch } from "~/state/project/t2_dashboards";
@@ -132,17 +132,20 @@ export function DashboardEditor(p: Props) {
   const [data, setData] = createSignal<StateHolder<DashboardDetail>>({
     status: "loading",
   });
-  createEffect(async () => {
+  createEffect(() => {
     const _v = projectState.lastUpdated.dashboards[p.dashboardId]; // reactive
-    const res = await getDashboardDetailFromCacheOrFetch(
-      p.projectId,
-      p.dashboardId,
-    );
-    if (res.success) {
-      setData({ status: "ready", data: res.data });
-    } else {
-      setData({ status: "error", err: res.err });
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const res = await getDashboardDetailFromCacheOrFetch(p.projectId, p.dashboardId);
+      if (controller.signal.aborted) return;
+      if (res.success) {
+        setData({ status: "ready", data: res.data });
+      } else {
+        setData({ status: "error", err: res.err });
+      }
     }
+    load();
   });
 
   // Variant B (per-entity T2): the StateHolder itself retains the last ready

@@ -1,4 +1,4 @@
-import { ItemsHolderStructure, t3, TC, type FacilityFamily } from "lib";
+import { hashFacilityColumnsConfig, ItemsHolderStructure, t3, TC, type FacilityFamily } from "lib";
 import { Csv, StateHolder, StateHolderWrapper, TableFromCsv } from "panther";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
@@ -40,7 +40,7 @@ export function StructureWithCsv(p: Props) {
   createEffect(() => {
     const lastUpdated = instanceState.structureLastUpdated;
     const maxAA = instanceState.maxAdminArea;
-    const fcHash = Object.values(instanceState.facilityColumns).sort().join("_");
+    const fcHash = hashFacilityColumnsConfig(instanceState.facilityColumns);
     if (!lastUpdated) {
       seStructureItems({ status: "error", err: "No structure data" });
       return;

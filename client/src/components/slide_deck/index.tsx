@@ -9,6 +9,7 @@ import {
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
+import { getSlideDeckDetailFromCacheOrFetch } from "~/state/project/t2_slide_decks";
 import { projectState } from "~/state/project/t1_store";
 import { DownloadSlideDeck } from "./download_slide_deck";
 import { ShareSlideDeck } from "./share_slide_deck";
@@ -48,7 +49,7 @@ export function ProjectAiSlideDeck(p: Props) {
 
   // Load deck metadata and set AI context on mount
   onMount(async () => {
-    const deckRes = await serverActions.getSlideDeckDetail({ projectId, deck_id: p.deckId });
+    const deckRes = await getSlideDeckDetailFromCacheOrFetch(projectId, p.deckId);
 
     if (deckRes.success) {
       setSlideIds(deckRes.data.slideIds);
@@ -75,16 +76,19 @@ export function ProjectAiSlideDeck(p: Props) {
   // SSE handling - watch for deck updates
   createEffect(() => {
     const deckUpdate = projectState.lastUpdated.slide_decks[p.deckId];
-    if (deckUpdate) {
-      // Deck metadata changed - refetch deck details
-      serverActions.getSlideDeckDetail({ projectId, deck_id: p.deckId }).then((res) => {
-        if (res.success) {
-          setSlideIds(res.data.slideIds);
-          setDeckLabel(res.data.label);
-          setDeckConfig(res.data.config);
-        }
-      });
+    if (!deckUpdate) return;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const res = await getSlideDeckDetailFromCacheOrFetch(projectId, p.deckId);
+      if (controller.signal.aborted) return;
+      if (res.success) {
+        setSlideIds(res.data.slideIds);
+        setDeckLabel(res.data.label);
+        setDeckConfig(res.data.config);
+      }
     }
+    load();
   });
 
   return (

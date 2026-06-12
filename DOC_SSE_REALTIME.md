@@ -36,7 +36,7 @@ There are exactly **two** broadcast channels, each with one SSE endpoint:
 | Channel | Endpoint | File | Guard |
 |---------|----------|------|-------|
 | `"instance_updates"` | `GET /instance_updates` | `routes/instance/instance-sse.ts` | `requireGlobalPermission()` (hard-deny) |
-| `"project_updates_v2"` | `GET /project_sse_v2/:project_id` | `routes/project/project-sse-v2.ts` | `getProjectUserForSSE` (soft, optional) |
+| `"project_updates_v2"` | `GET /project_sse_v2/:project_id` | `routes/project/project-sse-v2.ts` | `getGlobalUser` + `getProjectUserForSSE` (hard-deny, like instance) |
 
 (`BroadcastChannel` in Deno is in-process: it fans out across the main thread and all Web Workers in the same process — which is how a background worker's progress reaches the main-thread SSE connection. See [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md).)
 
@@ -49,11 +49,15 @@ There are exactly **two** broadcast channels, each with one SSE endpoint:
 Both endpoints use Hono's `streamSSE` and follow the same five steps; the project endpoint's doc-comment names this as the fix for the v1 drop race:
 
 ```text
-1. Subscribe to the BroadcastChannel  ← FIRST, so nothing is missed during build
-2. Build the full initial state from the DB (buildProjectState / getInstanceDetail+summaries)
-3. writeSSE({ type: "starting", data: state })
-4. Drain messages queued during step 2
-5. Forward all subsequent messages until the connection closes (cleanup in finally)
+1. Authenticate — hard-deny unauthenticated clients (both endpoints)
+2. Subscribe to the BroadcastChannel  ← FIRST, so nothing is missed during build
+3. Build the full initial state from the DB (buildProjectState / getInstanceDetail+summaries)
+4. writeSSE({ type: "starting", data: state })
+5. Drain messages queued during step 3
+6. Forward all subsequent messages until the connection closes
+   ↳ Abort: stream.onAbort() wakes the park loop / closes the ReadableStream controller;
+     stream.aborted is checked after build and at the top of the forward loop.
+     cleanup in finally (removeEventListener + broadcastReceiver.close()).
 ```
 
 The two implementations diverge mechanically (and shouldn't):
@@ -149,7 +153,8 @@ The load-bearing invariant: **every realtime/cached read model is keyed on a ver
 
 ## Gotchas
 
-- **`getProjectUserForSSE` soft-fails.** The project SSE endpoint resolves permissions optionally (returns `undefined` rather than denying) and is weakly typed (`c: any`, `mainDb: any`). Contrast the instance endpoint, which hard-denies via `requireGlobalPermission()`. This asymmetry is currently undocumented intent — see [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md).
+- **Project SSE hard-denies unauthenticated clients.** `getGlobalUser` is called before `streamSSE`; a `NOT_AUTHENTICATED` result returns 401 immediately. `getProjectUserForSSE` then checks project access; no project access returns 403. This matches the instance endpoint's `requireGlobalPermission()` guard. Open-access mode does NOT bypass this — anonymous SSE is not supported.
+- **`projectsLastUpdated` is server-stamped `new Date()` in `starting`.** Every SSE reconnect triggers a redundant `/my_projects` refetch on the client, even when the projects list hasn't changed. This is harmless but slightly wasteful; a targeted invalidation or a client-side staleness check would eliminate it.
 - **A failed post-write refetch silently strands clients.** `if (list.success)` means a failed refetch sends *nothing* — clients stay stale until the next mutation. At minimum log it; better, always send `last_updated` so clients self-invalidate.
 - **Channel-name strings are duplicated** between producer (`notify_*` files) and consumer (SSE endpoints). A one-character drift silently breaks delivery with no error. Use a shared constant.
 - **Vestigial `_v2`** appears on the route path, channel string, filename, and `notifyProjectLastUpdatedV2` — but only on the project side; the instance side has no suffix. Don't assume a v1 exists.

@@ -188,11 +188,12 @@ export default function Instance(p: Props) {
   return (
     <>
       <Switch>
-        <Match when={getFirstString(searchParams.p)}>
-          <Project
-            projectId={getFirstString(searchParams.p)!}
-            currentUserEmail={instanceState.currentUserEmail}
-          />
+        <Match when={getFirstString(searchParams.p)} keyed>
+          {(projectId) => (
+            <Project
+              projectId={projectId}
+            />
+          )}
         </Match>
         <Match when={true}>
           <FrameTop

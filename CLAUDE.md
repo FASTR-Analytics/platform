@@ -163,33 +163,13 @@ wb-fastr/
 
 ## State Management
 
-**Three-tier pattern for client state:**
+See the `DOC_STATE_*` protocol docs for the full architecture:
 
-1. **Global UI State** (`client/src/state/ui.ts`)
-   - UI preferences that persist across components
-   - Examples: `vizGroupingMode`, `fitWithin`, `showAi`
-   - Access: Direct import and use
-   - Updates: Use `updateProjectView()` for batch updates
-   - Persisted to localStorage where appropriate
-
-2. **Server Data** (Providers/Context)
-   - Data from server (projects, modules, metrics, etc.)
-   - Examples: `projectDetail`, `projectDirtyStates`
-   - Access: Via hooks (`useProjectDetail()`, `useProjectDirtyStates()`)
-   - Updates: SSE triggers automatic refetch via `reconcile()`
-   - Location: `client/src/components/project_runner/provider.tsx`
-
-3. **Component-Local State**
-   - Temporary UI state scoped to single component
-   - Examples: `searchText`, `isLoading`, `selectedItems`
-   - Access: `createSignal()` within component
-   - Does not need to be shared
-
-**Rules:**
-- NEVER pass server data as props - use hooks
-- NEVER put UI preferences in component state - use global state
-- NEVER manually trigger refetch - rely on SSE (provider handles it)
-- Use `updateProjectView()` for UI state changes, not individual setters
+- `DOC_STATE_MGT_TIERS.md` — 5-tier classification (T1 SSE store → T5 component-local)
+- `DOC_STATE_MGT_INSTANCE.md` — instance-level tiers and cache inventory
+- `DOC_STATE_MGT_PROJECT.md` — project-level tiers and cache inventory
+- `DOC_STATE_RULES.md` — short hit-list of rules that have each caused production bugs
+- `DOC_SSE_REALTIME.md` — server-side push system, notify catalog, connection lifecycle
 
 ## API Routes
 
@@ -301,7 +281,7 @@ Prescriptive protocols for how this app is built (distinct from the `panther/pro
 - [DOC_DHIS2_INTEGRATION.md](DOC_DHIS2_INTEGRATION.md) — DHIS2 API client: base fetcher, retry, goals
 - [DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md](DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md) — Anthropic proxy, token limits, usage logging
 - [DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md](DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md) — config → SQL (CTEManager, roll-up row, post-aggregation)
-- [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md) — SQL migrations + JSON data transforms + validation boundaries
+- [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) — SQL migrations + JSON data transforms + validation boundaries
 
 ### Data / domain
 
@@ -362,7 +342,7 @@ So `lib/` *can* and *does* import panther — always through `@timroberton/panth
 - **Renaming or deleting a stored JSON field is never just a rename.** Zod
   strip mode treats the old key as valid AND silently drops it on every read,
   so the user's setting vanishes with no error. Required in lockstep: a
-  transform block, a forced skip-gate (DOC_MIGRATIONS.md "Skip-Gate Gotcha"),
+  transform block, a forced skip-gate (PROTOCOL_APP_MIGRATIONS.md "Skip-Gate Gotcha"),
   and the authored `definition.json` files when the github schema changes.
 - **Changing a cached payload's SHAPE needs a cache-prefix bump.** Valkey
   version hashes track row `last_updated`, not code — a deploy that adds a

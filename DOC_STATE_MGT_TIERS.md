@@ -229,12 +229,76 @@ createEffect(async () => {
 | Long-lived view of T2 data that must react to SSE  | `createSignal<StateHolder<T>>` + `createEffect` | live      |
 | Short-lived picker modal selecting from T2 data    | `createQuery`                                      | snapshot  |
 | Pure T3 (loaded once at modal open; not T2-cached) | `createQuery`                                      | snapshot  |
+| Editor with snapshot-at-open + explicit save       | `createQuery` + snapshot (edit draft — see below) | snapshot  |
 | Form submission with validation                    | `createFormAction`                                 | —         |
 | Button action with loading state                   | `createButtonAction`                               | —         |
 
 If you ever find yourself wanting to "refresh" a `createQuery` result after a
 mutation, that view is long-lived enough that it should be using `createEffect`
 watching a version key — convert it, don't add manual refetches.
+
+### Edit-draft read mode (third mode — for editors with explicit save)
+
+Some editors intentionally decouple from the live SSE feed. The viz editor and report editor both open with a snapshot of the entity, allow free editing, then save explicitly. SSE updates that arrive during editing are deliberately ignored — merging live SSE changes into an in-progress draft would overwrite the user's work.
+
+This is **edit draft** mode: snapshot-at-open, user edits locally, explicit save (or autosave with optimistic concurrency via `lastUpdated` round-trip). Rule 6 in `DOC_STATE_RULES.md` discusses snapshot vs. live reads; edit draft is a snapshot with a longer intentional lifetime.
+
+**Canonical markers of edit-draft mode:**
+- A `createQuery` loads the entity once on open.
+- The component holds its own draft signal/store (not the T2 cache or T1 store).
+- Save sends the draft to the server; the server bumps `lastUpdated`; SSE propagates to other views.
+- The editor itself does not subscribe to `lastUpdated` for that entity.
+
+Edit draft is correct for: viz editor, report editor, slide settings editor, deck style editor.
+It is wrong for: dashboards (live editing by multiple users), slide lists (SSE keeps ordering fresh).
+
+### Stale-response guard for Variant B effects (AbortController pattern)
+
+A rapid SSE burst (two version flips before the first fetch resolves) can cause two concurrent in-flight fetches where the older resolves last, overwriting the fresher result. Guard all Variant B `createEffect` bodies:
+
+```tsx
+createEffect(() => {
+  const _v = projectState.lastUpdated.dashboards[id]; // reactive
+  const controller = new AbortController();
+  onCleanup(() => controller.abort());
+  async function load() {
+    const res = await getDashboardDetailFromCacheOrFetch(projectId, id);
+    if (controller.signal.aborted) return;           // discard if superseded
+    setData(res.success ? { status: "ready", data: res.data } : { status: "error", err: res.err });
+  }
+  load();
+});
+```
+
+`onCleanup` fires when the effect re-runs (new version flip), aborting the stale in-flight fetch before the new one starts.
+
+### Reactive cache sentinels
+
+`reactive_cache.ts` returns special version strings for "not ready" states:
+
+- `"pds_not_ready"` — `getProjectStateSnapshot()` returned a store that isn't ready yet (no `starting` message received). `setPromise` refuses to persist under this version.
+- `"unknown"` — the entity's `lastUpdated` entry doesn't exist yet (e.g. `pds.lastUpdated.slide_decks[newDeckId]` before the deck has been saved). `setPromise` also refuses this version.
+
+Never cache under either sentinel. Effects that receive these versions should treat the result as a cache miss and wait for the next SSE update to provide a real version.
+
+### Imperative listener side-channel (`addLastUpdatedListener` / `addRScriptListener`)
+
+Some consumers need event notifications without subscribing to the full store. Two imperative side-channels exist in `client/src/state/project/t1_sse.tsx`:
+
+- **`addLastUpdatedListener(fn)`** — called on every `last_updated` SSE event with `(tableName, ids, timestamp)`. Used to invalidate AI document registry when relevant tables change.
+- **`addRScriptListener(fn)`** — called on every `r_script` SSE event with `(moduleId, text)`. Used to stream R execution logs to the module log panel.
+
+Both return a cleanup function (`() => void`). Register in `onMount`, clean up in `onCleanup`. These are the sanctioned ephemeral-events path for consumers that need event notification outside the store model.
+
+### `moduleLatestCommits` — session-cached server data in a T4-style signal
+
+`client/src/state/project/t4_module_commits.ts` (or equivalent) holds the latest git commits for each module definition. This is server data fetched once per session (not per-project), stored in a module-level signal, and never updated by SSE. It behaves like T4 (persists across navigation, lives in a state file) but originates on the server — a "session-cached server data" variant that doesn't fit cleanly into T1-T5. Treat it as T4 for practical purposes.
+
+### Heavy entity detail — always a reactive T2 cache
+
+Any component that displays a large entity and stays mounted for more than a few seconds must use a reactive T2 cache (Variant B), not an uncached refetch. The rule: if a component listens to `lastUpdated` and refetches on SSE, that refetch MUST go through a cache. Uncached SSE-triggered refetches (raw `serverActions.*` calls inside `createEffect`) are banned — they bypass memory/IndexedDB and add unnecessary server load.
+
+Confirmed reactive T2 caches for heavy entities: dashboards (`t2_dashboards.ts`), slides (`t2_slides.ts`), slide deck detail (`t2_slide_decks.ts`), PO detail/items/metric info/replicant options (`t2_presentation_objects.ts`, `t2_replicant_options.ts`), images (`t2_images.ts`).
 
 ## T3: On-demand fetch
 

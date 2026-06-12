@@ -4,21 +4,21 @@ import {
   getFetchConfigFromPresentationObjectConfig,
   PresentationObjectConfig,
   PresentationObjectDetail,
+  ReplicantOptionsForPresentationObject,
   t3,
   TC,
-  throwIfErrWithData,
 } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import {
   Select,
   SelectList,
+  StateHolder,
   StateHolderWrapper,
-  createQuery,
   getSelectOptionsFromIdLabel,
   selectOptionToListItem,
 } from "panther";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
-import { createEffect, Match, Switch } from "solid-js";
+import { createEffect, createSignal, Match, onCleanup, Switch } from "solid-js";
 import { trackDeep } from "@solid-primitives/deep";
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -62,32 +62,48 @@ type ReplicateByOptionsPresentationObjectProps = {
   setSelectedReplicant: (v: string, allOptions?: string[]) => void;
   fullWidth?: boolean;
 };
+
 export function ReplicateByOptionsPresentationObject(
   p: ReplicateByOptionsPresentationObjectProps,
 ) {
-  const replicantOptions = createQuery(() => {
+  const [replicantOptions, setReplicantOptions] = createSignal<StateHolder<ReplicantOptionsForPresentationObject>>({
+    status: "loading",
+    msg: t3(TC.loading),
+  });
+
+  createEffect(() => {
+    trackDeep(p.config.d.filterBy);
     const resFetchConfig = getFetchConfigFromPresentationObjectConfig(
       p.poDetail.resultsValue,
       p.config,
       { excludeReplicantFilter: true },
     );
-    throwIfErrWithData(resFetchConfig);
-    return getReplicantOptionsFromCacheOrFetch(
-      p.poDetail.projectId,
-      p.poDetail.resultsValue.resultsObjectId,
-      p.replicateBy,
-      resFetchConfig.data,
-    );
-  }, t3(TC.loading));
-
-  createEffect(() => {
-    trackDeep(p.config.d.filterBy);
-    replicantOptions.fetch();
+    if (!resFetchConfig.success) {
+      setReplicantOptions({ status: "error", err: resFetchConfig.err });
+      return;
+    }
+    const projectId = p.poDetail.projectId;
+    const resultsObjectId = p.poDetail.resultsValue.resultsObjectId;
+    const replicateBy = p.replicateBy;
+    const fetchConfig = resFetchConfig.data;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    setReplicantOptions({ status: "loading", msg: t3(TC.loading) });
+    async function load() {
+      const res = await getReplicantOptionsFromCacheOrFetch(projectId, resultsObjectId, replicateBy, fetchConfig);
+      if (controller.signal.aborted) return;
+      if (res.success) {
+        setReplicantOptions({ status: "ready", data: res.data });
+      } else {
+        setReplicantOptions({ status: "error", err: res.err });
+      }
+    }
+    load();
   });
 
   return (
     <div class="ui-pad h-full max-w-[40rem] flex-none overflow-auto border-r">
-      <StateHolderWrapper state={replicantOptions.state()} noPad>
+      <StateHolderWrapper state={replicantOptions()} noPad>
         {(keyedReplicantOptions) => {
           return (
             <Switch>
@@ -145,38 +161,53 @@ export function ReplicateByOptionsPresentationObject(
 export function ReplicateByOptionsPresentationObjectSelect(
   p: ReplicateByOptionsPresentationObjectProps,
 ) {
-  const replicantOptions = createQuery(() => {
+  const [replicantOptions, setReplicantOptions] = createSignal<StateHolder<ReplicantOptionsForPresentationObject>>({
+    status: "loading",
+    msg: t3(TC.loading),
+  });
+
+  createEffect(() => {
+    trackDeep(p.config.d.filterBy);
     const resFetchConfig = getFetchConfigFromPresentationObjectConfig(
       p.poDetail.resultsValue,
       p.config,
       { excludeReplicantFilter: true },
     );
-    throwIfErrWithData(resFetchConfig);
-    return getReplicantOptionsFromCacheOrFetch(
-      p.poDetail.projectId,
-      p.poDetail.resultsValue.resultsObjectId,
-      p.replicateBy,
-      resFetchConfig.data,
-    );
-  }, t3(TC.loading));
-
-  createEffect(() => {
-    trackDeep(p.config.d.filterBy);
-    replicantOptions.fetch();
+    if (!resFetchConfig.success) {
+      setReplicantOptions({ status: "error", err: resFetchConfig.err });
+      return;
+    }
+    const projectId = p.poDetail.projectId;
+    const resultsObjectId = p.poDetail.resultsValue.resultsObjectId;
+    const replicateBy = p.replicateBy;
+    const fetchConfig = resFetchConfig.data;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    setReplicantOptions({ status: "loading", msg: t3(TC.loading) });
+    async function load() {
+      const res = await getReplicantOptionsFromCacheOrFetch(projectId, resultsObjectId, replicateBy, fetchConfig);
+      if (controller.signal.aborted) return;
+      if (res.success) {
+        setReplicantOptions({ status: "ready", data: res.data });
+      } else {
+        setReplicantOptions({ status: "error", err: res.err });
+      }
+    }
+    load();
   });
 
   createEffect(() => {
-    const state = replicantOptions.state();
+    const state = replicantOptions();
     if (state.status === "ready" && state.data.status === "ok") {
       p.setSelectedReplicant(
         p.selectedReplicantValue || "",
-        state.data.possibleValues.map(pv => pv.id),
+        state.data.possibleValues.map((pv) => pv.id),
       );
     }
   });
 
   return (
-    <StateHolderWrapper state={replicantOptions.state()}>
+    <StateHolderWrapper state={replicantOptions()}>
       {(keyedReplicantOptions) => {
         return (
           <Switch>
@@ -214,7 +245,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
                       p.replicateBy,
                     )}
                     value={p.selectedReplicantValue}
-                    onChange={(v) => p.setSelectedReplicant(v, possibleValues.map(pv => pv.id))}
+                    onChange={(v) => p.setSelectedReplicant(v, possibleValues.map((pv) => pv.id))}
                     fullWidth={p.fullWidth}
                     placeholder={t3({
                       en: "Needs selection",

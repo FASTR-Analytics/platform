@@ -16,9 +16,7 @@ import type { DashboardSummary } from "./dashboard.ts";
 /**
  * Unified project state pushed via SSE.
  *
- * Merges the current `ProjectDetail` and `ProjectDirtyStates` into one shape.
  * Excludes:
- * - `aiContext` (unbounded user content, stays T3)
  * - `rLogs` (ephemeral, demoted to T5 component-local)
  */
 export type ProjectState = {
@@ -81,7 +79,7 @@ export type ProjectSseMessage =
     }
 
   // Data updates (replace current "project_updated" catch-all)
-  | { type: "project_config_updated"; data: { label: string; isLocked: boolean; isCentralReporting?: boolean } }
+  | { type: "project_config_updated"; data: { label: string; isLocked: boolean; aiContext?: string; isCentralReporting?: boolean } }
   | {
       type: "modules_updated";
       data: {

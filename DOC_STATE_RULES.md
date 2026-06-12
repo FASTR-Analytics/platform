@@ -206,18 +206,30 @@ A user editing one field would otherwise see the entire view flash to
 "Loading..." on every keystroke-equivalent change. Initialize the signal to
 `loading` once; let stale data stay visible until fresh data arrives.
 
+Also add an `AbortController` guard to discard stale in-flight responses when two SSE bumps fire faster than a single fetch resolves. The canonical Variant B pattern:
+
 ```tsx
+// ✅ RIGHT — no loading flash, stale-response guard.
+createEffect(() => {
+  const _v = projectState.lastUpdated.dashboards[id]; // reactive
+  const controller = new AbortController();
+  onCleanup(() => controller.abort());
+  async function load() {
+    const res = await getDashboardDetailFromCacheOrFetch(projectId, id);
+    if (controller.signal.aborted) return;  // discard if superseded
+    if (res.success) {
+      setData({ status: "ready", data: res.data });
+    } else {
+      setData({ status: "error", err: res.err });
+    }
+  }
+  load();
+});
+
 // ❌ WRONG — flashes loading on every SSE update.
 createEffect(async () => {
   const _v = projectState.lastUpdated.dashboards[id];
   setData({ status: "loading" });          // ⚠️ flash
-  const res = await getDashboardDetailFromCacheOrFetch(...);
-  setData(/* ... */);
-});
-
-// ✅ RIGHT — stale data stays visible during refetch.
-createEffect(async () => {
-  const _v = projectState.lastUpdated.dashboards[id];
   const res = await getDashboardDetailFromCacheOrFetch(...);
   setData(/* ... */);
 });

@@ -231,26 +231,3 @@ if (typeof window !== "undefined") {
   });
 }
 
-// Export utility functions for cache management
-export function clearImageFailure(url: string): void {
-  _FAILED_URLS.delete(url);
-}
-
-export function clearAllImageFailures(): void {
-  _FAILED_URLS.clear();
-}
-
-export function clearImageCache(url: string): void {
-  _IMAGE_CACHE.clearEntry({ url });
-  _FAILED_URLS.delete(url);
-}
-
-export function clearAllImageCache(): void {
-  _IMAGE_CACHE.clearMemory();
-  _FAILED_URLS.clear();
-  // Revoke all active object URLs
-  for (const url of _ACTIVE_OBJECT_URLS) {
-    URL.revokeObjectURL(url);
-  }
-  _ACTIVE_OBJECT_URLS.clear();
-}

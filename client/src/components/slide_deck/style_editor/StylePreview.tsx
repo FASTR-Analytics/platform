@@ -6,7 +6,7 @@ import {
   type PageInputs,
   getBaseText,
 } from "panther";
-import { createResource, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { FASTR_LOGO_VALUES } from "~/components/_shared/fastr_logos";
 import { getBackgroundDetail, type BackgroundDetail } from "~/generate_slide_deck/get_overlay_image";
@@ -106,27 +106,39 @@ export function StylePreview(p: StylePreviewProps) {
     return v.valid ? null : v.reason;
   };
 
-  const [bgDetail] = createResource(
-    () => ({ overlay: p.config.overlay, colorTheme: p.config.colorTheme, coverAndSectionTreatment: p.config.coverAndSectionTreatment }),
-    (source) => getBackgroundDetail({ ...p.config, overlay: source.overlay, colorTheme: source.colorTheme, coverAndSectionTreatment: source.coverAndSectionTreatment }),
-  );
+  const [bgDetail, setBgDetail] = createSignal<BackgroundDetail | undefined>(undefined);
+  const [coverLogos, setCoverLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
+  const [headerLogos, setHeaderLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
+  const [footerLogos, setFooterLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
 
   const availableCustom = () => p.config.logos.availableCustom;
 
-  const [coverLogos] = createResource(
-    () => ({ selected: p.config.logos.cover.selected, custom: availableCustom() }),
-    (source) => loadLogos(source.selected, source.custom),
-  );
+  createEffect(() => {
+    const config = p.config;
+    async function load() { setBgDetail(await getBackgroundDetail(config)); }
+    load();
+  });
 
-  const [headerLogos] = createResource(
-    () => ({ selected: p.config.logos.header.selected, custom: availableCustom() }),
-    (source) => loadLogos(source.selected, source.custom),
-  );
+  createEffect(() => {
+    const selected = p.config.logos.cover.selected;
+    const custom = availableCustom();
+    async function load() { setCoverLogos(await loadLogos(selected, custom)); }
+    load();
+  });
 
-  const [footerLogos] = createResource(
-    () => ({ selected: p.config.logos.footer.selected, custom: availableCustom() }),
-    (source) => loadLogos(source.selected, source.custom),
-  );
+  createEffect(() => {
+    const selected = p.config.logos.header.selected;
+    const custom = availableCustom();
+    async function load() { setHeaderLogos(await loadLogos(selected, custom)); }
+    load();
+  });
+
+  createEffect(() => {
+    const selected = p.config.logos.footer.selected;
+    const custom = availableCustom();
+    async function load() { setFooterLogos(await loadLogos(selected, custom)); }
+    load();
+  });
 
   const coverInputs = () => getCoverPageInputs(p.config, bgDetail() ?? {}, coverLogos() ?? []);
   const sectionInputs = () => getSectionPageInputs(p.config, bgDetail() ?? {});

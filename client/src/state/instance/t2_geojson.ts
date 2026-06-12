@@ -17,7 +17,13 @@ export function getGeoJsonSync(level: number): GeoJSONFeatureCollection | undefi
 }
 
 export async function preloadGeoJson(maps: GeoJsonMapSummary[]): Promise<void> {
-  await Promise.all(maps.map((m) => loadLevel(m.adminAreaLevel, m.uploadedAt)));
+  await Promise.all(maps.map(async (m) => {
+    try {
+      await loadLevel(m.adminAreaLevel, m.uploadedAt);
+    } catch (e) {
+      console.error(`preloadGeoJson: level ${m.adminAreaLevel} failed:`, e);
+    }
+  }));
 }
 
 async function loadLevel(level: number, uploadedAt: string): Promise<void> {

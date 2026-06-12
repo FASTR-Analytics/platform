@@ -1,17 +1,18 @@
-import { getAuth } from "@hono/clerk-auth";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import {
   buildProjectPermissionsFromRow,
+  GlobalUser,
   ProjectSseMessage,
   ProjectUser,
   _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
 } from "lib";
-import type { DBProjectUserRole, DBUser } from "../../db/instance/_main_database_types.ts";
+import { Sql } from "postgres";
+import type { DBProjectUserRole } from "../../db/instance/_main_database_types.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
-import { _BYPASS_AUTH } from "../../exposed_env_vars.ts";
 import { ProjectPk } from "../../server_only_types/mod.ts";
 import { buildProjectState } from "../../task_management/build_project_state.ts";
+import { getGlobalUser } from "../../project_auth.ts";
 
 export const routesProjectSSEV2 = new Hono();
 
@@ -24,14 +25,21 @@ type QueuedMessage = ProjectSseMessage & { projectId: string };
  * condition where messages broadcast during buildProjectState() are dropped.
  *
  * Order:
- * 1. Subscribe to BroadcastChannel (queue messages)
- * 2. Build full ProjectState from DB
- * 3. Send `starting` with full state
- * 4. Drain queued messages
- * 5. Forward subsequent messages
+ * 1. Authenticate — hard-deny unauthenticated clients (no open-access exception)
+ * 2. Subscribe to BroadcastChannel (queue messages)
+ * 3. Build full ProjectState from DB
+ * 4. Send `starting` with full state
+ * 5. Drain queued messages
+ * 6. Forward subsequent messages
  */
 routesProjectSSEV2.get("/project_sse_v2/:project_id", async (c) => {
   const projectId = c.req.param("project_id");
+
+  const globalUser = await getGlobalUser(c);
+  if (globalUser === "NOT_AUTHENTICATED") {
+    c.status(401);
+    return c.json({ success: false, err: "Authentication required", authError: true });
+  }
 
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
@@ -41,8 +49,11 @@ routesProjectSSEV2.get("/project_sse_v2/:project_id", async (c) => {
     projectId,
   };
 
-  // Get project user for thisUserPermissions (optional - undefined if not authenticated)
-  const projectUser = await getProjectUserForSSE(c, mainDb, projectId);
+  const projectUser = await getProjectUserForSSE(globalUser, mainDb, projectId);
+  if (projectUser === undefined) {
+    c.status(403);
+    return c.json({ success: false, err: "User does not have access to this project" });
+  }
 
   return streamSSE(c, async (stream) => {
     // Step 1: Subscribe BEFORE building state (prevents race condition)
@@ -109,69 +120,35 @@ routesProjectSSEV2.get("/project_sse_v2/:project_id", async (c) => {
   });
 });
 
-/**
- * Get project user for SSE connection.
- * Returns undefined if user cannot be authenticated or has no project access.
- * Does not throw - SSE will work with undefined (thisUserPermissions all false).
- */
 async function getProjectUserForSSE(
-  c: any,
-  mainDb: any,
-  projectId: string
+  globalUser: GlobalUser,
+  mainDb: Sql,
+  projectId: string,
 ): Promise<ProjectUser | undefined> {
-  try {
-    if (_BYPASS_AUTH) {
-      return {
-        email: "bypass@example.com",
-        role: "editor" as const,
-        isGlobalAdmin: true,
-        ..._PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-      };
-    }
-
-    const auth = getAuth(c);
-    if (!auth?.userId) {
-      return undefined;
-    }
-
-    const email = auth.sessionClaims?.email as string | undefined;
-    if (!email) {
-      return undefined;
-    }
-
-    // Check if user is a global admin
-    const rawUser = (
-      await mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${email}`
-    ).at(0);
-
-    if (rawUser?.is_admin) {
-      return {
-        email,
-        role: "editor",
-        isGlobalAdmin: true,
-        ..._PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-      };
-    }
-
-    // Look up project-specific permissions
-    const rawProjectUserRole = (
-      await mainDb<DBProjectUserRole[]>`
-        SELECT * FROM project_user_roles
-        WHERE email = ${email} AND project_id = ${projectId}
-      `
-    ).at(0);
-
-    if (!rawProjectUserRole) {
-      return undefined;
-    }
-
+  if (globalUser.isGlobalAdmin) {
     return {
-      email,
-      role: rawProjectUserRole.role === "editor" ? "editor" : "viewer",
-      isGlobalAdmin: false,
-      ...buildProjectPermissionsFromRow(rawProjectUserRole),
+      email: globalUser.email,
+      role: "editor",
+      isGlobalAdmin: true,
+      ..._PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
     };
-  } catch {
+  }
+
+  const rawProjectUserRole = (
+    await mainDb<DBProjectUserRole[]>`
+      SELECT * FROM project_user_roles
+      WHERE email = ${globalUser.email} AND project_id = ${projectId}
+    `
+  ).at(0);
+
+  if (!rawProjectUserRole) {
     return undefined;
   }
+
+  return {
+    email: globalUser.email,
+    role: rawProjectUserRole.role === "editor" ? "editor" : "viewer",
+    isGlobalAdmin: false,
+    ...buildProjectPermissionsFromRow(rawProjectUserRole),
+  };
 }

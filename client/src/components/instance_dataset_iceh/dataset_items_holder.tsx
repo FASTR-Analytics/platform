@@ -1,22 +1,39 @@
-import { ICEH_STRATS, ICEH_STRAT_INFO, t3, type IcehDataDetail } from "lib";
+import { ICEH_STRATS, ICEH_STRAT_INFO, t3, TC, type IcehDataDetail, type IcehDisplayData } from "lib";
 import {
   FrameTop,
   type ListItem,
+  StateHolder,
   StateHolderWrapper,
   TabsNavigation,
-  createQuery,
 } from "panther";
-import { createMemo, createSignal, Show } from "solid-js";
-import { serverActions } from "~/server_actions";
+import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { instanceState } from "~/state/instance/t1_store";
+import { getDatasetIcehDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { DataTab } from "./_data_tab";
 import { StratifiersTab } from "./_stratifiers_tab";
 import { IndicatorsTab } from "./_indicators_tab";
 
 export function DatasetItemsHolder(p: { detail: IcehDataDetail }) {
-  const displayData = createQuery(
-    async () => serverActions.getDatasetIcehDisplayData({}),
-    t3({ en: "Loading...", fr: "Chargement..." }),
-  );
+  const [displayData, setDisplayData] = createSignal<StateHolder<IcehDisplayData>>({
+    status: "loading",
+    msg: t3(TC.fetchingData),
+  });
+
+  createEffect(() => {
+    const cacheHash = instanceState.icehCacheHash;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const res = await getDatasetIcehDisplayInfoFromCacheOrFetch(cacheHash);
+      if (controller.signal.aborted) return;
+      if (res.success) {
+        setDisplayData({ status: "ready", data: res.data });
+      } else {
+        setDisplayData({ status: "error", err: res.err });
+      }
+    }
+    load();
+  });
 
   const [tab, setTab] = createSignal<"data" | "indicators" | "stratifiers">(
     "data",
@@ -34,7 +51,7 @@ export function DatasetItemsHolder(p: { detail: IcehDataDetail }) {
   ];
 
   return (
-    <StateHolderWrapper state={displayData.state()}>
+    <StateHolderWrapper state={displayData()}>
       {(data) => {
         const stratsInData = createMemo(() => {
           const stratSet = new Set(data.dataRows.map((r) => r.strat));

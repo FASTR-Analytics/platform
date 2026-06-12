@@ -1,7 +1,9 @@
 import {
   APIResponseWithData,
+  hashFacilityColumnsConfig,
   ItemsHolderDatasetHmisDisplay,
   type HfaDictionaryForValidation,
+  type IcehDisplayData,
   type IndicatorType,
   type InstanceConfigFacilityColumns,
 } from "lib";
@@ -34,7 +36,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
 >({
   name: "dataset_hmis_display_info",
   uniquenessKeys: (params) => {
-    const fcHash = Object.values(params.facilityColumns).sort().join("_");
+    const fcHash = hashFacilityColumnsConfig(params.facilityColumns);
     return [params.rawOrCommonIndicators, fcHash];
   },
   versionKey: (params, _pds) =>
@@ -126,6 +128,36 @@ export async function getDatasetHfaDisplayInfoFromCacheOrFetch(
     { cacheHash },
     version,
   );
+
+  return await newPromise;
+}
+
+// ============================================================================
+// ICEH Display
+// ============================================================================
+
+const _DATASET_ICEH_DISPLAY_INFO_CACHE = createReactiveCache<
+  { cacheHash: string },
+  IcehDisplayData
+>({
+  name: "dataset_iceh_display_info",
+  uniquenessKeys: () => ["iceh"],
+  versionKey: (params) => params.cacheHash,
+  pdsNotRequired: true,
+});
+
+export async function getDatasetIcehDisplayInfoFromCacheOrFetch(
+  cacheHash: string,
+) {
+  const { data, version } = await _DATASET_ICEH_DISPLAY_INFO_CACHE.get({ cacheHash });
+
+  if (data) {
+    return { success: true, data } as const;
+  }
+
+  const newPromise = serverActions.getDatasetIcehDisplayData({});
+
+  _DATASET_ICEH_DISPLAY_INFO_CACHE.setPromise(newPromise, { cacheHash }, version);
 
   return await newPromise;
 }

@@ -52,7 +52,6 @@ import {
 
 type Props = {
   projectId: string;
-  currentUserEmail: string;
 };
 
 function AIContextSync() {
@@ -91,12 +90,12 @@ function AIContextSync() {
 export default function Project(p: Props) {
   return (
     <ProjectSSEBoundary projectId={p.projectId}>
-      <ProjectInner currentUserEmail={p.currentUserEmail} />
+      <ProjectInner />
     </ProjectSSEBoundary>
   );
 }
 
-function ProjectInner(p: { currentUserEmail: string }) {
+function ProjectInner() {
   const navigate = useNavigate();
 
   const { openEditor: openProjectEditor, EditorWrapper: ProjectEditorWrapper } =
@@ -185,7 +184,7 @@ function ProjectInner(p: { currentUserEmail: string }) {
         iconName: "settings",
       });
     }
-    if (_DEV_USERS.includes(p.currentUserEmail)) {
+    if (_DEV_USERS.includes(instanceState.currentUserEmail)) {
       items.push({
         id: "cache",
         label: t3({ en: "Cache", fr: "Cache" }),

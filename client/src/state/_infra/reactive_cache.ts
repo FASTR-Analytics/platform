@@ -132,8 +132,8 @@ export function createReactiveCache<Params, Data>(
         // console.log(`[ReactiveCache:${config.name}] PDS not ready - cache miss`);
         return { data: undefined, version: "pds_not_ready" };
       }
-      // Cache doesn't need PDS - create a dummy PDS to pass to versionKey
-      // The versionKey function should ignore it anyway
+      // pdsNotRequired: versionKey is called with the live (possibly not-ready) store,
+      // or undefined when no project is open. versionKey must not depend on pds.
     }
 
     const version = config.versionKey(params, pds!);
@@ -187,6 +187,12 @@ export function createReactiveCache<Params, Data>(
     params: Params,
     version: string,
   ): Promise<void> {
+    // Do not cache under sentinel versions - these represent transient not-ready
+    // states and replaying them from IndexedDB on a later load would serve stale data.
+    if (version === "pds_not_ready" || version === "unknown") {
+      return;
+    }
+
     // Use provided version (from get()) rather than reading PDS again
     // This ensures we cache under the same key we checked
 
@@ -287,7 +293,7 @@ export function createReactiveCache<Params, Data>(
 
   /** Clear entries matching a partial key prefix */
   async function clearEntriesWithPrefix(partialKeys: (string | number | undefined)[]): Promise<void> {
-    const prefix = hashKeys(partialKeys);
+    const prefix = hashKeys(partialKeys) + "|";
 
     // Clear from memory
     for (const key of _resolved.keys()) {

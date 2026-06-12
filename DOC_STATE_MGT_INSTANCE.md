@@ -43,8 +43,12 @@ Lightweight metadata. Pushed via SSE on every change. Components read directly f
 | GeoJSON maps         | `geojsonMaps` (full `GeoJsonMapSummary[]`)                                                      | `geojson_maps_updated`       | —                                                  |
 | Structure summary    | `structure` (counts), `structureLastUpdated`                                                    | `structure_updated`          | `structureLastUpdated`                             |
 | Indicator summary    | `indicators` (counts), `indicatorMappingsVersion`, `hfaIndicatorsVersion`                       | `indicators_updated`         | `indicatorMappingsVersion`, `hfaIndicatorsVersion` |
-| HMIS dataset summary | `datasetsWithData`, `datasetVersions.hmis`, `hmisNVersions`                                     | `datasets_updated`           | `datasetVersions.hmis`                             |
+| HMIS dataset summary | `datasetsWithData`, `datasetVersions.hmis`, `hmisNVersions`                                     | `datasets_updated`           | `datasetVersions.hmis` + `maxAdminArea` (both used as cache version key components) |
 | HFA dataset summary  | `datasetsWithData`, `datasetVersions.hfa`, `hfaTimePoints`, `hfaCacheHash`                      | `datasets_updated`           | `hfaCacheHash`                                     |
+| ICEH dataset summary | `icehCacheHash`                                                                                  | `datasets_updated`           | `icehCacheHash`                                    |
+| Calculated indicators | `calculatedIndicatorsVersion`                                                                   | `indicators_updated`         | `calculatedIndicatorsVersion`                      |
+| Admin area labels    | `adminAreaLabels`                                                                               | `config_updated`             | —                                                  |
+| HFA weights          | `hfaWeights`                                                                                    | `datasets_updated`           | —                                                  |
 | Current user         | `currentUserEmail`, `currentUserApproved`, `currentUserIsGlobalAdmin`, `currentUserPermissions` | `users_updated` (re-derived) | —                                                  |
 
 **Why these are on SSE state:** They're small, needed across multiple views (sidebar counts, landing cards, staleness checks, cache version keys), and benefit from real-time multi-user sync.

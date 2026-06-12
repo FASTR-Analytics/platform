@@ -26,7 +26,6 @@ export function VisualizationSettings(
       currentFolderId: string | null;
       folders: VisualizationFolder[];
       mutateFunc: (newLabel: string) => Promise<APIResponseNoData>;
-      silentFetchPoDetail: () => Promise<void>;
     },
     "NEEDS_UPDATE"
   >,
@@ -89,7 +88,6 @@ export function VisualizationSettings(
 
       return { success: true };
     },
-    // p.silentFetchPoDetail,
     () => p.close("NEEDS_UPDATE"),
   );
 

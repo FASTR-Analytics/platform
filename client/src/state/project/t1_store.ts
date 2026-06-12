@@ -4,7 +4,7 @@ import {
   type LastUpdateTableName,
   _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
 } from "lib";
-import { createStore, reconcile } from "solid-js/store";
+import { createStore, reconcile, unwrap } from "solid-js/store";
 
 const EMPTY_PROJECT_STATE: ProjectState = {
   isReady: false,
@@ -98,6 +98,9 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
     case "project_config_updated":
       setProjectState("label", msg.data.label);
       setProjectState("isLocked", msg.data.isLocked);
+      if (msg.data.aiContext !== undefined) {
+        setProjectState("aiContext", msg.data.aiContext);
+      }
       if (msg.data.isCentralReporting !== undefined) {
         setProjectState("isCentralReporting", msg.data.isCentralReporting);
       }
@@ -174,11 +177,11 @@ export function resetProjectState(): void {
 }
 
 export function getProjectStateSnapshot(): ProjectState {
-  return projectState;
+  return unwrap(projectState);
 }
 
 export function getProjectId(): string {
-  return projectState.id;
+  return unwrap(projectState).id;
 }
 
 export function getModuleIdForMetric(metricId: string): string {

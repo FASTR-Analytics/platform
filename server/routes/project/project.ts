@@ -221,8 +221,7 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
-      // V2 notify
-      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked);
+      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked, body.aiContext);
     }
     return c.json(res);
   },
@@ -417,7 +416,7 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
-      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked, res.data.isCentralReporting);
+      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked, undefined, res.data.isCentralReporting);
     }
     return c.json(res);
   },
