@@ -72,7 +72,7 @@ export const reportRouteRegistry = {
 | `isStreaming` | uses the NDJSON stream protocol | Real boolean at runtime |
 | `timeoutMs` | client-side fetch timeout override (default 5 min) | Real number at runtime |
 
-**Critical:** `params`/`body`/`response` are erased at runtime (`{} as T` is `{}`). The registry gives **compile-time** types only — there is **no runtime validation of the request body at the route boundary** (see [What NOT to do](#what-not-to-do) and [Gotchas](#gotchas)). `InferredResponse` resolves to `APIResponseWithData<TResponse>` when `response` is set, else `APIResponseNoData`.
+**Critical:** `params` and `body` are **real Zod schemas validated at the boundary** — `defineRoute` parses every URL param and request body against them and returns `{ success: false, err }` at HTTP **400** on a mismatch (params are also coerced, e.g. `z.coerce.number()`); a handler can therefore trust `params`/`body` match their `z.infer<T>` types. `response` alone stays a **compile-time phantom** (`{} as T`, erased at runtime, never validated — the server is the trusted producer; the only response check is the compile-time `TypedResponse` constraint on the handler return). `InferredResponse` resolves to `APIResponseWithData<TResponse>` when `response` is set, else `APIResponseNoData`.
 
 The registry filenames in `lib/api-routes/` are kebab-case (e.g. `project/presentation-objects.ts`); the server implementation files in `server/routes/` are snake_case (`project/presentation_objects.ts`). They are paired by the registry key, not the filename.
 
@@ -203,7 +203,7 @@ This is the **complete** allowed list. Anything not here must use the registry +
 
 ## What NOT to do
 
-- **Don't trust the request body's type.** The registry `body` is a compile-time phantom; the wire payload is unvalidated at the boundary. If the payload feeds a stored schema, validation happens in the DB layer ([DOC_MIGRATIONS.md](DOC_MIGRATIONS.md)); if it feeds an AI tool, see [DOC_AI_TOOL_SCHEMAS.md](DOC_AI_TOOL_SCHEMAS.md). Per-request HTTP body validation is the current open gap — do not assume `body` is well-formed.
+- **Body/params are validated; `response` and `z.unknown()` fields are not.** `defineRoute` runs the registry Zod schemas on every request body and param (400 on failure), so `body`/`params` can be trusted to match their inferred types. Two deliberate holes remain: `response` is never validated at runtime (compile-time `TypedResponse` only), and fields schema'd as `z.unknown()` — the sentinel-encoded `slide`/`figures` passthroughs — are not checked at the boundary and are validated in the DB layer after decode ([DOC_MIGRATIONS.md](DOC_MIGRATIONS.md)). Don't add new `z.unknown()` body fields to dodge writing a schema.
 - **Don't add raw routes** outside the exception list to "save a registry entry" — you silently break the client codegen and the startup check.
 - **Don't return error strings or throw bare** from a handler expecting the client to parse it — return `{ success: false, err }`. (The global `app.onError` does return an envelope, but at HTTP **200**, which is a known wart, not a pattern to rely on.)
 - **Don't skip `log()`** on mutating routes if you want them audited.
@@ -227,7 +227,7 @@ These are patterns the codebase mostly follows but does not enforce; documenting
 - ~~**Make `validateAllRoutesDefined` fail**~~ — done; it now calls `Deno.exit(1)` on mismatch and checks for duplicate `method + path` pairs and key collisions.
 - **Classify every registered route** as guarded or explicitly-public at startup (overlaps [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md)) so an unguarded route fails loudly.
 - **Envelope lint:** the raw routes drift in response shape (`health.ts` bare objects, `ai_proxy` Anthropic errors). Each is defensible, but the divergence should be a documented exception, not incidental.
-- **Per-request body validation** is unaddressed. Decide whether to wire a Zod schema into the registry/`defineRoute` boundary, or document that body trust is delegated to the DB layer.
+- ~~**Per-request body validation**~~ — done; `params`/`body` are Zod schemas validated centrally in `defineRoute` (400 envelope on failure), with coercion for params and a closed boot check that every `:placeholder` has a matching `z.object` params key. See [Defining a route](#defining-a-route-the-route-helper).
 
 ---
 

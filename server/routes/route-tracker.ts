@@ -74,21 +74,27 @@ export function validateAllRoutesDefined(): void {
     console.error("");
   }
 
-  // Check schema/path placeholder agreement for all routes.
-  // Every params schema must declare exactly the keys that appear as :placeholders.
+  // Check schema/path placeholder agreement for ALL routes (unconditional).
+  // Every route whose path has :placeholders must have a z.object params schema
+  // declaring exactly those keys — a missing schema is itself an error, not a skip.
   const schemaPathMismatches: string[] = [];
   for (const [routeName, entry] of Object.entries(routeRegistry)) {
     const paramsSchema = (entry as any).params;
-    if (paramsSchema instanceof z.ZodType && "shape" in paramsSchema) {
+    const pathKeys = (entry.path.match(/:(\w+)/g) ?? [])
+      .map((p: string) => p.slice(1))
+      .sort();
+    const isZodObject = paramsSchema instanceof z.ZodType && "shape" in paramsSchema;
+    if (isZodObject) {
       const schemaKeys = Object.keys((paramsSchema as z.ZodObject<any>).shape).sort();
-      const pathKeys = (entry.path.match(/:(\w+)/g) ?? [])
-        .map((p: string) => p.slice(1))
-        .sort();
       if (JSON.stringify(schemaKeys) !== JSON.stringify(pathKeys)) {
         schemaPathMismatches.push(
           `${routeName}: path [${pathKeys.join(", ")}] ≠ schema [${schemaKeys.join(", ")}]`
         );
       }
+    } else if (pathKeys.length > 0) {
+      schemaPathMismatches.push(
+        `${routeName}: path [${pathKeys.join(", ")}] has placeholders but no z.object params schema`
+      );
     }
   }
   if (schemaPathMismatches.length > 0) {
