@@ -29,6 +29,19 @@ costs us three ways:
    config at render, while `caption` / labels / sort / data stay frozen. A metric `formatAs` flip can
    render a "percent" style over a frozen "number"-worded caption.
 
+4. **A *second* serialization patch — the undefined sentinel.** Cost 2 is about functions; the stored
+   figure *data* has the same disease with `undefined`. Gap cells in the `values` grid and optional
+   `*Prop` config fields are legitimately `undefined`, and `JSON.stringify` silently drops `undefined`
+   (shifting array indices, losing keys). Slides/reports paper over this with a *second* encode/decode
+   layer — `lib/json_slide_serialize.ts` (`prepareSlideForTransmit`/`restoreSlideAfterReceive` + the
+   report-figures pair) swaps `undefined`↔`"@@__UNDEFINED__@@"` on the client send/receive path; the
+   server stores the sentinel form verbatim (it never decodes). So a figure crosses the wire in **two**
+   patched forms (style-stripped *and* sentinel-encoded). This also forces `PLAN_API_ZOD` batch 6 to
+   keep the slides/reports route bodies at `z.unknown()` — you can't schema the sentinel-encoded shape.
+   A pure-JSON `FigureBundle` (frozen `items` are plain query rows; no transformed `values` grid; no
+   functions) needs **neither** patch — both the strip/hydrate pipeline *and* the sentinel layer go away,
+   and the route bodies can then tighten to `figureBundleSchema`.
+
 ## 2. The core idea
 
 **Stop storing the post-transform `FigureInputs`. Store the upstream inputs (a pure-JSON
@@ -72,6 +85,7 @@ So: a **Visualization** is the live thing; a **Figure** is a frozen capture of o
 | `FigureSource` (`from_data` \| `custom`) | **deleted** — folded into `FigureBundle` |
 | stored `figureInputs` field | **deleted** |
 | `stripFigureInputsForStorage` / `hydrateFigureInputsForRendering*` | **deleted** — subsumed by `buildFigureInputs` |
+| `lib/json_slide_serialize.ts` sentinel layer (`prepare*ForTransmit` / `restore*AfterReceive`) + the client wrappers in `server_actions/index.ts` | **deleted** — bundle is `undefined`-free pure JSON, nothing to patch (see §1 cost 4) |
 | `getFigureInputsFromPresentationObject` | `buildFigureInputs(bundle, env, deckStyle?)` |
 
 The schema home: `figureBundleSchema` (Zod) lives in a new `lib/types/_figure_bundle.ts` (underscore
@@ -260,6 +274,21 @@ timeseries (reverse-transform), 4,261 chart/table/map (in-place), 7 already-empt
 `source.config`.
 
 Other backfill notes:
+- **Decode the undefined-sentinel first — slide/report figures only (§1 cost 4).** This sweep is a
+  **server-side** startup data-transform reading stored rows *verbatim*, and slide/report figures are
+  stored sentinel-encoded — the decode (`restoreSlideAfterReceive`) currently lives **only on the
+  client receive path**, so the server-side blob still holds `"@@__UNDEFINED__@@"` strings. Run
+  `deepRestoreUndefined` (lib/json_slide_serialize.ts) on each slide/report blob *before* reshaping,
+  or sentinel strings get baked into the bundle as literal values (e.g. `config.paneProp =
+  "@@__UNDEFINED__@@"` instead of absent). PO/visualization figures are **not** sentinel-encoded (no
+  transmit wrapper) — only the three snapshot surfaces are, so gate the decode on surface.
+  *Empirical (2026-06-13, 6 local DBs):* the sentinel-bearing rows are all raw-form
+  (`{jsonArray, jsonDataConfig}`) with sentinels only in optional-string `*Prop` fields
+  (`lane/pane/tier/colGroup/rowGroupProp`); **no `values`-grid-cell sentinels exist or can persist** —
+  `zValueCell` rejects the sentinel string, so such a row fails the strict gate and aborts boot (a safe,
+  pre-runtime failure, not silent corruption). Consequence for the reverse-transform: it won't meet a
+  sentinel *inside* the `values` grid, but the `jsonDataConfig` read and the chart/table/map in-place
+  reshape **will** meet sentinel strings in the string props — decode there.
 - **Items volume.** `MAX_ITEMS` (20k) bounds a figure. Timeseries usually *shrinks* (the dense 5-D
   `values` grid is often bigger than the sparse items it derives from). Verify payloads for any
   inline-data surface that survives.
