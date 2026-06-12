@@ -1,3 +1,6 @@
+[TBD] [user] [fixed] - Improved error messages when project backup or restore fails
+[TBD] [admin] [fixed] - Improved error messages when backup or restore operations fail
+[TBD] [admin] [internal] - Renamed internal helper functions across the application
 [1.49.0] [user] [changed] - Indicators can now belong to multiple service categories
 [1.49.0] [user] [added] - Filter HFA data by service categories when adding to a project
 [1.49.0] [user] [added] - HFA data settings panel for configuring service category scope
