@@ -8,6 +8,7 @@ import {
   ALL_DISAGGREGATION_OPTIONS,
 } from "../../types/mod.ts";
 import { ADMIN_LEVELS } from "../../admin_area_rollup.ts";
+import { SQL_IDENTIFIER, SAFE_EXPRESSION } from "../../validate_fetch_config.ts";
 import type {
   DisaggregationOption,
   GenericLongFormFetchConfig,
@@ -27,14 +28,12 @@ import { route } from "../route-utils.ts";
 // po_id is a 3-char nanoid (generateUniquePresentationObjectId), not a UUID
 const poIdParamsSchema = z.object({ po_id: z.string() });
 
-// SQL injection guards: these fields are interpolated into projectDb.unsafe SQL
-// (see validate_fetch_config.ts and query_helpers.ts).
+// SQL injection guards: these fields are interpolated into projectDb.unsafe SQL.
+// SQL_IDENTIFIER / SAFE_EXPRESSION are shared with the imperative validateFetchConfig
+// (the single source of truth) so the boundary schema and the handler guard can't drift.
 // groupBys / filters[].disOpt / replicateBy → closed enum (period options are a subset)
 // values[].prop → bare SQL identifier
 // postAggregationExpression → safe arithmetic charset
-const SQL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const SAFE_EXPRESSION = /^[A-Za-z0-9_ +\-*/().,=]+$/;
-
 const fetchConfigValuesItemSchema = z.object({
   prop: z.string().regex(SQL_IDENTIFIER),
   func: valueFuncStrict,
@@ -63,7 +62,7 @@ export const presentationObjectRouteRegistry = {
       resultsValue: z.unknown(), // ResultsValue is a complex nested type without a boundary schema
       config: presentationObjectConfigSchema,
       makeDefault: z.boolean(),
-      folderId: z.string().uuid().nullable().optional(),
+      folderId: z.uuid().nullable().optional(),
     }),
     response: {} as {
       newPresentationObjectId: string;
@@ -78,7 +77,7 @@ export const presentationObjectRouteRegistry = {
     params: poIdParamsSchema,
     body: z.object({
       label: z.string(),
-      folderId: z.string().uuid().nullable().optional(),
+      folderId: z.uuid().nullable().optional(),
     }),
     response: {} as {
       newPresentationObjectId: string;

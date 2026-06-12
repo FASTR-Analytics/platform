@@ -15,14 +15,16 @@ const DISAGGREGATION_OPTION_SET: ReadonlySet<string> = new Set(
 
 // Value props are R-generated result-table column names (e.g. count_sum,
 // numerator) — always bare SQL identifiers.
-const SQL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export const SQL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 // Post-aggregation expressions are arithmetic over identifiers, e.g.
 // "pct_diff = (count_sum - count_expect_sum)/count_expect_sum" or
 // "value = COALESCE(sum_val, avg_num / avg_weight)". Allow identifiers, the
 // arithmetic/grouping operators, comma, dot, equals and spaces; reject quotes,
 // semicolons, and anything else that could break out of the expression.
-const SAFE_EXPRESSION = /^[A-Za-z0-9_ +\-*/().,=]+$/;
+// NOTE: charset-only — does NOT stop word-char subqueries like "(select ...)";
+// that residual gap is tracked in PLAN_SYSTEMS §6.1 (server-authoritative PAE check).
+export const SAFE_EXPRESSION = /^[A-Za-z0-9_ +\-*/().,=]+$/;
 
 /** True when `disOpt` is a known disaggregation column safe to interpolate. */
 export function isValidDisaggregationOption(disOpt: string): boolean {

@@ -7,7 +7,7 @@ import { route } from "../route-utils.ts";
 const deckIdParamsSchema = z.object({ deck_id: z.string() });
 const folderBodyFields = {
   label: z.string(),
-  folderId: z.string().uuid().nullable().optional(),
+  folderId: z.uuid().nullable().optional(),
 };
 
 export const slideDeckRouteRegistry = {
@@ -56,7 +56,7 @@ export const slideDeckRouteRegistry = {
     path: "/slide-decks/:deck_id/folder",
     method: "PUT",
     params: deckIdParamsSchema,
-    body: z.object({ folderId: z.string().uuid().nullable() }),
+    body: z.object({ folderId: z.uuid().nullable() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
