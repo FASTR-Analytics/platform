@@ -1,6 +1,6 @@
 # Project-Level State Management
 
-> ⚠️ **Before writing state code, read `DOC_STATE_RULES.md`.** It's a short hit-list of rules that have each produced real production bugs (notably around Solid.js reactive tracking, SSE-driven invalidation, when to use `timQuery` vs `createEffect`, and the "don't flash loading on Variant B re-runs" rule specific to project-level per-entity caches).
+> ⚠️ **Before writing state code, read `DOC_STATE_RULES.md`.** It's a short hit-list of rules that have each produced real production bugs (notably around Solid.js reactive tracking, SSE-driven invalidation, when to use `createQuery` vs `createEffect`, and the "don't flash loading on Variant B re-runs" rule specific to project-level per-entity caches).
 
 ## Overview
 
@@ -87,7 +87,7 @@ Most project-level T2 caches are **per-entity** — keyed by an individual entit
 
 The version key for a per-entity cache is `projectState.lastUpdated.{tableName}[entityId]`. When that single entity changes (the user added an item to a dashboard, edited a slide, renamed a deck), only its version key flips. Other entities are unaffected. The data change is usually **incremental** — one item added, one field edited — so the existing rendered view stays mostly correct.
 
-This is a **live read** pattern (see `DOC_STATE_RULES.md` rule #6) — required for any long-lived view of a per-entity record. For short-lived picker modals that fetch the same data, a **snapshot read** via `timQuery` is acceptable; SSE updates during the modal's lifetime aren't consumed.
+This is a **live read** pattern (see `DOC_STATE_RULES.md` rule #6) — required for any long-lived view of a per-entity record. For short-lived picker modals that fetch the same data, a **snapshot read** via `createQuery` is acceptable; SSE updates during the modal's lifetime aren't consumed.
 
 **Rules for consuming per-entity T2 data as a live read:**
 
@@ -133,7 +133,7 @@ This gives:
 
 See `DOC_STATE_MGT_TIERS.md` for the full anti-pattern catalogue. The most common ones in project-level code:
 
-1. **Using `timQuery` (snapshot read) for a long-lived view of per-entity data.** SSE updates will never be reflected; the view goes stale silently. Use a live read (`createEffect` + version key) instead. (Snapshot reads via `timQuery` ARE appropriate for short-lived picker modals — see `DOC_STATE_RULES.md` rule #6 for the distinction.)
+1. **Using `createQuery` (snapshot read) for a long-lived view of per-entity data.** SSE updates will never be reflected; the view goes stale silently. Use a live read (`createEffect` + version key) instead. (Snapshot reads via `createQuery` ARE appropriate for short-lived picker modals — see `DOC_STATE_RULES.md` rule #6 for the distinction.)
 2. **Calling `silentFetch()` or `refresh()` after a mutation.** Duplicates work and races with SSE. Remove the call; let SSE drive invalidation.
 3. **Setting `{ status: "loading" }` on every Variant B effect re-run.** Flashes "Loading..." every time anything changes, even one-character edits to a label.
 

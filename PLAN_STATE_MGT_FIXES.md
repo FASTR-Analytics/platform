@@ -40,7 +40,7 @@ is the better design; update docs to describe it.
 | CLAUDE.md describes deleted provider/hooks system | doc | §5 |
 | `getProjectStateSnapshot`/`getProjectId` not unwrap-based | code | F12 |
 | `createResource` used despite rule 9 ban | code | F7 |
-| ReplicateByOptions timQuery+`.fetch()` hybrid | code | F13 |
+| ReplicateByOptions createQuery+`.fetch()` hybrid | code | F13 |
 | `currentUserEmail` prop-threaded into Project | code | F13 |
 
 ---
@@ -70,7 +70,7 @@ is the better design; update docs to describe it.
         prompt build (makes `buildSystemPromptForContext` async — bigger ripple).
 
 - [ ] **D3 — ICEH display tier.** `icehCacheHash` sits in T1 as a version key,
-      but ICEH display is uncached `timQuery` (no reactivity, silently stale on
+      but ICEH display is uncached `createQuery` (no reactivity, silently stale on
       re-import). Either wire a T2 cache like HMIS/HFA (consistent,
       recommended), or declare ICEH display T3 in the docs and drop/explain the
       half-wired hash.
@@ -85,21 +85,25 @@ is the better design; update docs to describe it.
 
 ## 2. Production-impact server fixes (no decision needed — do first)
 
-- [ ] **F1 — SSE connection leak on client disconnect.**
-      `server/routes/instance/instance-sse.ts`,
-      `server/routes/project/project-sse-v2.ts`.
-      hono 4.6.12 `StreamingApi.write()` swallows errors → `writeSSE` never
-      throws on dead connections → forward loops never exit → `finally` cleanup
-      unreachable → BroadcastChannel listener + closure leak per disconnect;
-      dead connections keep stringifying every subsequent broadcast.
-      Fix: register `stream.onAbort()` in both endpoints to wake/exit the loop
-      (project: resolve the pending `notifyNewMessage` promise + set a `done`
-      flag; instance: cancel/close the inner ReadableStream reader), check
-      `stream.aborted` in the loop condition, close the channel.
-      Consider the DOC enforcement item (one shared connection helper) while
-      here, but the minimal onAbort fix ships first.
-      Verify by execution: connect, kill client, broadcast, assert cleanup runs
-      (temporary log). Server restart needed to test (no --watch).
+- [x] **F1 — SSE connection leak on client disconnect. DONE 2026-06-12.**
+      Both endpoints now register `stream.onAbort()` — project: wakes the
+      parked `notifyNewMessage` promise; instance: closes the ReadableStream
+      controller so `reader.read()` returns done — and check `stream.aborted`
+      after the build and at the top of the forward loop. The loop-top check is
+      load-bearing: it covers abort windows where the promise/controller does
+      not exist yet (during the build or the `starting` write), in which case
+      the onAbort callback has nothing to wake. The instance broadcast listener
+      also early-returns when aborted so it can never enqueue into a closed
+      controller.
+      Verified empirically against locked hono 4.6.12 with a throwaway harness
+      (was `/tmp/sse_abort_check.ts`; recreate if needed) replicating all three
+      loop shapes: the OLD shape provably leaks (cleanup never runs after
+      abort, even with post-abort broadcasts — confirms `write()` swallows
+      errors on this version); both FIXED shapes forward messages normally,
+      then clean up promptly on abort with zero further traffic. `deno task
+      check` green. Not yet exercised in the running app (needs a server
+      restart — no --watch). The shared-connection-helper factoring stays a
+      DOC_SSE_REALTIME enforcement item, not done here.
 
 - [ ] **F2 — implement D1** once decided (small patch either way).
 
@@ -140,8 +144,8 @@ is the better design; update docs to describe it.
       `components/slide_deck/style_editor/StylePreview.tsx:109-126` (4 calls,
       user-facing, sits under the root `<Suspense>` in app.tsx — the exact
       full-page-flash topology the rule bans) → `createEffect` +
-      `createSignal<StateHolder<T>>` (inputs are reactive, so not timQuery).
-      `components/project/project_cache.tsx:20` (dev tab) → same or timQuery.
+      `createSignal<StateHolder<T>>` (inputs are reactive, so not createQuery).
+      `components/project/project_cache.tsx:20` (dev tab) → same or createQuery.
 
 - [ ] **F8 — smaller robustness items** (batch, ~1 line each):
       - `preloadGeoJson` fire-and-forget from t1_sse: catch per-level failures
@@ -183,11 +187,11 @@ is the better design; update docs to describe it.
       but prefer the unwrap.)
 
 - [ ] **F13 — conformance batch (small, no behavior change).**
-      - `components/ReplicateByOptions.tsx:68,148`: timQuery + effect calling
+      - `components/ReplicateByOptions.tsx:68,148`: createQuery + effect calling
         `.fetch()` on tracked input changes → convert to the canonical
         `createEffect` + `createSignal<StateHolder<T>>` shape (rule 6's own
         "convert it" remedy). Watch for the current double-fetch on mount
-        (timQuery auto-run + effect run) disappearing — that's expected.
+        (createQuery auto-run + effect run) disappearing — that's expected.
       - `components/instance/index.tsx:194` / `components/project/index.tsx`:
         stop prop-threading `currentUserEmail` into Project; read
         `instanceState.currentUserEmail` directly in ProjectInner

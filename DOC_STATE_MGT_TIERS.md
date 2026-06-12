@@ -3,7 +3,7 @@
 > ⚠️ **Before writing state code, read `DOC_STATE_RULES.md`.** It's a short
 > hit-list of rules that have each produced real production bugs (notably around
 > Solid.js reactive tracking, SSE-driven invalidation, and when to use
-> `timQuery` vs `createEffect`). This doc explains the architecture; the rules
+> `createQuery` vs `createEffect`). This doc explains the architecture; the rules
 > doc tells you what not to write.
 
 This document defines the 5-tier classification used across all state management
@@ -59,7 +59,7 @@ view lifetime.
   T1 version key. When SSE pushes a new version, the effect re-runs and the
   cache misses, producing fresh data. **Required for long-lived views**
   (editors, lists, thumbnails) that should stay in sync with SSE updates.
-- **Snapshot read** — `timQuery`. Captures state at mount and ignores subsequent
+- **Snapshot read** — `createQuery`. Captures state at mount and ignores subsequent
   changes. **Acceptable only for short-lived consumers** (picker modals,
   dropdowns that close after selection) where SSE updates during the view's
   lifetime aren't consumed.
@@ -172,22 +172,22 @@ These look reasonable but break the SSE-driven model. They are the most common
 mistakes made by people who haven't read this section carefully.
 
 ```tsx
-// ❌ WRONG — snapshot read (timQuery) used in a long-lived editor.
+// ❌ WRONG — snapshot read (createQuery) used in a long-lived editor.
 // The editor stays mounted for minutes; SSE updates will not be reflected.
 // Use a live read here.
-const dataQuery = timQuery(
+const dataQuery = createQuery(
   () => getDashboardDetailFromCacheOrFetch(projectId, dashboardId),
 );
-// (timQuery for the SAME function in a short-lived picker modal is fine — see rule #6.)
+// (createQuery for the SAME function in a short-lived picker modal is fine — see rule #6.)
 ```
 
 ```tsx
-// ❌ WRONG — `timQuery` has no `queryKey`. Unlike TanStack Query /
+// ❌ WRONG — `createQuery` has no `queryKey`. Unlike TanStack Query /
 // React Query, signal reads inside `queryFunc` are NOT tracked.
 // `queryFunc` runs exactly once on mount; `refreshKey()` is dead code
 // and `refresh()` does nothing.
 const [refreshKey, setRefreshKey] = createSignal(0);
-const dataQuery = timQuery(async () => {
+const dataQuery = createQuery(async () => {
   refreshKey();                                // does nothing
   return getDashboardDetailFromCacheOrFetch(...);
 });
@@ -222,17 +222,17 @@ createEffect(async () => {
 });
 ```
 
-### When to use `timQuery` vs `createEffect`
+### When to use `createQuery` vs `createEffect`
 
 | Need                                               | Use                                             | Read mode |
 | -------------------------------------------------- | ----------------------------------------------- | --------- |
 | Long-lived view of T2 data that must react to SSE  | `createSignal<StateHolder<T>>` + `createEffect` | live      |
-| Short-lived picker modal selecting from T2 data    | `timQuery`                                      | snapshot  |
-| Pure T3 (loaded once at modal open; not T2-cached) | `timQuery`                                      | snapshot  |
-| Form submission with validation                    | `timActionForm`                                 | —         |
-| Button action with loading state                   | `timActionButton`                               | —         |
+| Short-lived picker modal selecting from T2 data    | `createQuery`                                      | snapshot  |
+| Pure T3 (loaded once at modal open; not T2-cached) | `createQuery`                                      | snapshot  |
+| Form submission with validation                    | `createFormAction`                                 | —         |
+| Button action with loading state                   | `createButtonAction`                               | —         |
 
-If you ever find yourself wanting to "refresh" a `timQuery` result after a
+If you ever find yourself wanting to "refresh" a `createQuery` result after a
 mutation, that view is long-lived enough that it should be using `createEffect`
 watching a version key — convert it, don't add manual refetches.
 

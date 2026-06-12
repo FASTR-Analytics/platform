@@ -1,6 +1,6 @@
 # Instance-Level State Management
 
-> ⚠️ **Before writing state code, read `DOC_STATE_RULES.md`.** It's a short hit-list of rules that have each produced real production bugs (notably around Solid.js reactive tracking, SSE-driven invalidation, and when to use `timQuery` vs `createEffect`).
+> ⚠️ **Before writing state code, read `DOC_STATE_RULES.md`.** It's a short hit-list of rules that have each produced real production bugs (notably around Solid.js reactive tracking, SSE-driven invalidation, and when to use `createQuery` vs `createEffect`).
 
 ## Overview
 
@@ -181,9 +181,9 @@ createEffect(async () => {
 
 **Cache implementation:** Uses `createReactiveCache` from `client/src/state/_infra/reactive_cache.ts`. All use `pdsNotRequired: true` since they're instance-level.
 
-**Live read vs snapshot read:** This T2 client pattern is a **live read** — `createEffect` subscribes to the version key and refetches on SSE updates. T2 data can also be consumed in **snapshot mode** (via `timQuery`) for short-lived picker modals, where SSE updates during the view's lifetime aren't consumed. See `DOC_STATE_RULES.md` rule #6 for when each is appropriate.
+**Live read vs snapshot read:** This T2 client pattern is a **live read** — `createEffect` subscribes to the version key and refetches on SSE updates. T2 data can also be consumed in **snapshot mode** (via `createQuery`) for short-lived picker modals, where SSE updates during the view's lifetime aren't consumed. See `DOC_STATE_RULES.md` rule #6 for when each is appropriate.
 
-**Common mistakes:** See the "Anti-patterns" section in `DOC_STATE_MGT_TIERS.md`. The two most frequent are (1) using `timQuery` (snapshot read) for a long-lived editor — SSE updates won't be reflected and the view goes silently stale; and (2) manually calling `silentFetch()` or `refresh()` after a mutation — SSE already handles that.
+**Common mistakes:** See the "Anti-patterns" section in `DOC_STATE_MGT_TIERS.md`. The two most frequent are (1) using `createQuery` (snapshot read) for a long-lived editor — SSE updates won't be reflected and the view goes silently stale; and (2) manually calling `silentFetch()` or `refresh()` after a mutation — SSE already handles that.
 
 ---
 

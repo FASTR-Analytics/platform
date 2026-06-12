@@ -39,11 +39,17 @@ Examples to rename (non-exhaustive — confirm by reading the files at change ti
 | `getHfaCacheHash` | `getSnapshotHfaCacheHash` | `instance/t1_store.ts` |
 | `getHfaIndicatorsVersion` | `getSnapshotHfaIndicatorsVersion` | `instance/t1_store.ts` |
 | `getCalculatedIndicatorsVersion` | `getSnapshotCalculatedIndicatorsVersion` | `instance/t1_store.ts` |
-| `getProjectStateSnapshot` | (keep) — already conforms | `project/t1_store.ts` |
+| `getProjectStateSnapshot` | (keep name, BUT see note) | `project/t1_store.ts` |
 | `getProjectId` | `getSnapshotProjectId` | `project/t1_store.ts` |
 | `getModuleIdForMetric` | `getSnapshotModuleIdForMetric` | `project/t1_store.ts` |
 | `getModuleIdForResultsObject` | `getSnapshotModuleIdForResultsObject` | `project/t1_store.ts` |
 | `getFormatAsForMetric` | `getSnapshotFormatAsForMetric` | `project/t1_store.ts` |
+
+**Note on `getProjectStateSnapshot` (ordering dependency):** the name conforms but the
+behavior currently does not — it returns the raw store proxy, not an `unwrap()`ed
+snapshot (PLAN_STATE_MGT_FIXES.md F12 fixes this, with a consumer audit that must come
+first). Do this rename pass only AFTER F12 lands; then optionally rename to
+`getSnapshotProjectState` for prefix-form consistency.
 
 ### Out of scope (do NOT rename)
 

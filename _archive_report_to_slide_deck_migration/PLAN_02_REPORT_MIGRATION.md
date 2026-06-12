@@ -1006,7 +1006,7 @@ import {
   RadioGroup,
   SettingsSection,
   getSelectOptions,
-  timActionButton,
+  createButtonAction,
 } from "panther";
 ```
 

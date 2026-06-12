@@ -44,7 +44,7 @@ Pick the pattern from `DESIGN_SYSTEM.md` that best fits your page:
 
 ```tsx
 // client/src/components/{feature}/index.tsx
-import { Button, FrameTop, HeadingBar, StateHolderWrapper, timQuery } from "panther";
+import { Button, FrameTop, HeadingBar, StateHolderWrapper, createQuery } from "panther";
 import { For, Show } from "solid-js";
 import { t3 } from "~/translation";
 
@@ -54,7 +54,7 @@ type Props = {
 
 export function FeaturePage(p: Props) {
   // 1. Data fetching
-  const data = timQuery(
+  const data = createQuery(
     () => serverActions.getFeatureData(p.id),
     t3({ en: "Loading...", fr: "Chargement..." }),
   );
@@ -215,7 +215,7 @@ Used when a list view needs category filtering.
 ### Modal Form
 
 ```tsx
-import { AlertFormHolder, Input, TextArea, timActionForm } from "panther";
+import { AlertFormHolder, Input, TextArea, createFormAction } from "panther";
 
 type Props = {
   close: (result?: any) => void;
@@ -226,7 +226,7 @@ export function EditItemForm(p: Props) {
   const [name, setName] = createSignal("");
   const [description, setDescription] = createSignal("");
 
-  const save = timActionForm(
+  const save = createFormAction(
     async () => {
       const n = name().trim();
       if (!n) {
@@ -265,7 +265,7 @@ export function EditItemForm(p: Props) {
 
 **Rules:**
 - Use `AlertFormHolder` for modal forms (provides header, save/cancel buttons, error display).
-- Use `timActionForm` for save actions (handles loading state and validation).
+- Use `createFormAction` for save actions (handles loading state and validation).
 - Validate inside the action function, return `{ success: false, err: "..." }`.
 - Fields spaced with `ui-spy-sm`.
 - Use `autoFocus` on the first input.
@@ -319,7 +319,7 @@ import { SettingsSection, Input, Checkbox } from "panther";
 ### Destructive Action
 
 ```tsx
-const deleteAction = timActionDelete(
+const deleteAction = createDeleteAction(
   { text: t3({ en: "Delete this item?", fr: "Supprimer cet élément ?" }), itemList: [item.name] },
   () => serverActions.deleteItem({ id: item.id }),
   silentFetch,
@@ -333,7 +333,7 @@ const deleteAction = timActionDelete(
 ### Async Action Button
 
 ```tsx
-const action = timActionButton(
+const action = createButtonAction(
   () => serverActions.doSomething(params),
   silentFetch,
 );
@@ -355,7 +355,7 @@ const action = timActionButton(
 **Rules:**
 - Primary action: default intent (teal), no `outline`.
 - Secondary action: `intent="neutral"` + `outline`.
-- Destructive action: `intent="danger"` + `outline`. Always use `timActionDelete` with confirmation.
+- Destructive action: `intent="danger"` + `outline`. Always use `createDeleteAction` with confirmation.
 - Async actions: pass `state={action.state()}` to show loading spinner.
 - Button groups: wrap in `div.flex.items-center.ui-gap-sm`.
 
@@ -502,8 +502,8 @@ t3({ en: "English text", fr: "French text" })
 - [ ] All spacing uses `ui-*` utilities or Tailwind scale (no arbitrary values)
 - [ ] All text wrapped in `t3()` with both `en` and `fr`
 - [ ] All text in sentence case
-- [ ] All async actions use `timActionForm`/`timActionButton`/`timActionDelete`
-- [ ] All data loading uses `timQuery` + `StateHolderWrapper`
+- [ ] All async actions use `createFormAction`/`createButtonAction`/`createDeleteAction`
+- [ ] All data loading uses `createQuery` + `StateHolderWrapper`
 - [ ] No conditional returns in components (use `<Show>` instead)
 - [ ] All reactive dependencies accessed before conditionals in effects/memos
 - [ ] Components use `function` declarations with `p` for props

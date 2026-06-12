@@ -24,6 +24,7 @@ routesInstanceSSE.get(
       broadcastReceiver.addEventListener(
         "message",
         (evt: MessageEvent<InstanceSseMessage>) => {
+          if (stream.aborted) return;
           if (controller) {
             controller.enqueue(evt.data);
           } else {
@@ -31,6 +32,23 @@ routesInstanceSSE.get(
           }
         },
       );
+
+      // A write to a disconnected client never throws on this hono version
+      // (StreamingApi.write swallows errors), so the read loop below can only
+      // exit via the abort signal: closing the controller makes reader.read()
+      // return done. Without it the loop parks forever and the
+      // BroadcastChannel subscription leaks. controller may still be null
+      // here (abort during build) — the aborted checks after the build and at
+      // the top of the loop cover that window.
+      stream.onAbort(() => {
+        if (controller) {
+          try {
+            controller.close();
+          } catch {
+            // already closed
+          }
+        }
+      });
 
       try {
         // 1. Build initial state from database (while queuing any concurrent messages)
@@ -47,6 +65,8 @@ routesInstanceSSE.get(
 
         const datasetsSummary = await getInstanceDatasetsSummary(mainDb);
         const indicatorsSummary = await getInstanceIndicatorsSummary(mainDb);
+
+        if (stream.aborted) return;
 
         const users = res.data.users;
         const me = users.find((u) => u.email === globalUser.email);
@@ -118,6 +138,7 @@ routesInstanceSSE.get(
         const reader = rs.getReader();
         try {
           while (true) {
+            if (stream.aborted) break;
             const { done, value } = await reader.read();
             if (done) break;
             await stream.writeSSE({

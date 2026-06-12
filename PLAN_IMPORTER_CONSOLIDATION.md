@@ -58,7 +58,7 @@ Goal: drop the marginal cost of a *new* importer. Honest costs today (verified, 
 
 ## 4. Layer 1 — Client `<ImportWizardShell>`
 
-**Today:** 4 orchestrators (hmis 387, hfa 283, iceh 251, structure 268 = **1,189 LOC**, ~90% identical skeleton: `timQuery` get-attempt → `getStepper` → 2s poll + `onCleanup` (structure has none) → `FrameTop`/`HeaderBarCanGoBack`/`StepperNavigationVisual` → `StateHolderWrapper` cascading `Switch`).
+**Today:** 4 orchestrators (hmis 387, hfa 283, iceh 251, structure 268 = **1,189 LOC**, ~90% identical skeleton: `createQuery` get-attempt → `getStepper` → 2s poll + `onCleanup` (structure has none) → `FrameTop`/`HeaderBarCanGoBack`/`StepperNavigationVisual` → `StateHolderWrapper` cascading `Switch`).
 
 **The descriptor must use render-thunks, not bare component refs** — the review found bare refs can't carry the real variation:
 ```ts
@@ -147,7 +147,7 @@ Panther is UI + viz/figure + doc-generation + fonts + CSV parsing + generic util
 
 | Element | Owner | Status | Note |
 |---|---|---|---|
-| `getStepper`, `StepperNavigationVisual`, `StateHolderWrapper`, `HeaderBarCanGoBack`, `timQuery`, form inputs, tables, progress bar | **panther** | exists | wizards already import these — most of "the shared skeleton" is panther today |
+| `getStepper`, `StepperNavigationVisual`, `StateHolderWrapper`, `HeaderBarCanGoBack`, `createQuery`, form inputs, tables, progress bar | **panther** | exists | wizards already import these — most of "the shared skeleton" is panther today |
 | CSV parsing primitives (`_100_csv` / `_232_csv`) | **panther** | exists | consider consuming instead of wb-fastr's parallel `get_csv_components_streaming_fast.ts` |
 | `<WizardShell>` — stepper + frame + state-holder + slotted step-switch + optional async-state | **panther** | **NEW — promote** | the one genuinely-generic new thing; **no import/upload semantics inside** |
 | `pollUntil` hook | **panther** | NEW (optional) | generic; only if a second consumer appears |
@@ -157,7 +157,7 @@ Panther is UI + viz/figure + doc-generation + fonts + CSV parsing + generic util
 | Layer 3 server ETL helpers (`withBufferedInsert`, `validateForeignKey`, `withTunedTransaction`, merge patterns) | **wb-fastr** | §6 | panther has no Postgres surface |
 | Layer 4 wiring (CRUD helpers, route handler-gen, keyed worker registry, upload-attempt tables) | **wb-fastr** | §7 | panther has no backend-data surface; route work must **conform to** panther's `PROTOCOL_DENO_API` |
 
-- **Already in panther (correctly):** `getStepper` (`_303_components/layout/stepper`), `StateHolderWrapper` (`special_state`), `HeaderBarCanGoBack` (`layout/heading_bar`), `timQuery` (`_302_query`), form inputs, tables, progress bar. The wizards already import these — most of "the shared skeleton" is panther today.
+- **Already in panther (correctly):** `getStepper` (`_303_components/layout/stepper`), `StateHolderWrapper` (`special_state`), `HeaderBarCanGoBack` (`layout/heading_bar`), `createQuery` (`_302_query`), form inputs, tables, progress bar. The wizards already import these — most of "the shared skeleton" is panther today.
 - **Promote to panther (the one genuinely-generic new thing):** a **domain-agnostic `<WizardShell>`** — composes stepper + frame + state-holder + a slotted step-switch + optional async-state. Panther has `getStepper` but no composed shell above it; any multi-step app wants this. **Keep all import semantics OUT of it** (upload-attempt resource, staging/integrating statuses, source_type, polling cadence). wb-fastr's `<ImportWizardShell>` (§4) = panther `<WizardShell>` + the FASTR import wiring. Optionally a generic `pollUntil` hook.
 - **Stays in wb-fastr (domain-specific):** the entire step kit (DHIS2 creds, CSV→facility/indicator/period mapping, admin-area mapping, staging results), `FileUploadSelector` (Uppy/TUS + asset/SSE model).
 - **Stays in wb-fastr (panther has no backend-data surface):** all of Layer 3 (Postgres ETL helpers) and Layer 4 (upload-attempt tables, route factory, worker registry). Putting a `postgres`-dependent toolkit into a UI/viz/docgen lib bolts on a whole new concern + dependency. If these ever need cross-project sharing, that's a *separate* Deno-Postgres util lib, not panther. The route factory must still **conform to** panther's `PROTOCOL_DENO_API`; if it reveals a missing convention, fix the protocol and re-sync.
@@ -223,7 +223,7 @@ Checked against `panther/protocols/*` and the three state docs. Verdicts + any r
 
 | Protocol / doc | Verdict | Adjustment |
 |---|---|---|
-| **DOC_STATE_* + PROTOCOL_UI_STATE** | **conform** (clarify the tier) | Upload attempts are **T3 component-local** (`DOC_STATE_MGT_INSTANCE.md` rule #8 @:246; T3 table @:196–198). The 2s poll + `silentFetch` is the **sanctioned** T3 pattern — `DOC_STATE_MGT_TIERS.md`@:248 lists "Upload workflows (transient per-user state + polling)" as canonical T3. The "no manual refetch" rule is **T2-scoped** (post-mutation cache invalidation) and does **not** apply. Keep the attempt component-local: **no provider, no state file, no Context/hooks/prop-threading-for-state** (rule #5 @:243). Use `timQuery` for the fetch; **never `createResource`** (`DOC_STATE_RULES.md` #9). The panther `<WizardShell>` stays state-agnostic — the `timQuery` + poll live only in wb-fastr's `<ImportWizardShell>`. |
+| **DOC_STATE_* + PROTOCOL_UI_STATE** | **conform** (clarify the tier) | Upload attempts are **T3 component-local** (`DOC_STATE_MGT_INSTANCE.md` rule #8 @:246; T3 table @:196–198). The 2s poll + `silentFetch` is the **sanctioned** T3 pattern — `DOC_STATE_MGT_TIERS.md`@:248 lists "Upload workflows (transient per-user state + polling)" as canonical T3. The "no manual refetch" rule is **T2-scoped** (post-mutation cache invalidation) and does **not** apply. Keep the attempt component-local: **no provider, no state file, no Context/hooks/prop-threading-for-state** (rule #5 @:243). Use `createQuery` for the fetch; **never `createResource`** (`DOC_STATE_RULES.md` #9). The panther `<WizardShell>` stays state-agnostic — the `createQuery` + poll live only in wb-fastr's `<ImportWizardShell>`. |
 | **PROTOCOL_UI_SOLIDJS + DOC_STATE_RULES #1–3** | conform **iff §4 note followed** | Render via control-flow (`<Switch>/<Match>`/`<Dynamic>`); read reactive deps at top; no early returns (use `<Show>`); no new tracking after `await`; props as `p` (not destructured); step thunks pass **accessors**, not snapshots. |
 | **PROTOCOL_ALL_TYPESCRIPT** | gap → **fixed in §4** | Descriptor is now generic `ImportWizardDescriptor<TUA, TReturn>` with `keyof typeof serverActions` action keys + annotated thunk params. No `any`, no bare-string dispatch. |
 | **PROTOCOL_DENO_API** | conform | Layer 4 keeps the typed `defineRoute` registry-as-contract + the `APIResponse` `{success,data}\|{success,err}` envelope; the toolkit generates **handlers**, never bypasses the registry; structure's streaming routes keep the streaming sub-protocol. Boundary validation preserved. |
@@ -233,4 +233,4 @@ Checked against `panther/protocols/*` and the three state docs. Verdicts + any r
 | **PROTOCOL_UI_STYLING** | conform | No custom styling; inherits panther `ui-*` utilities, semantic colors, sentence case. |
 | **PROTOCOL_ALL_SIZING** | n/a | Governs figure/viz/page sizing; importers render no figures. |
 
-**Action helpers (DOC_STATE_RULES quick-ref):** step submit/confirm/delete use `timActionForm` / `timActionButton` / `timActionDelete`; the on-demand attempt fetch uses `timQuery`. These already back the existing wizards, so the shell + kit inherit them.
+**Action helpers (DOC_STATE_RULES quick-ref):** step submit/confirm/delete use `createFormAction` / `createButtonAction` / `createDeleteAction`; the on-demand attempt fetch uses `createQuery`. These already back the existing wizards, so the shell + kit inherit them.

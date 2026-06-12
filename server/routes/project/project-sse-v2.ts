@@ -59,9 +59,19 @@ routesProjectSSEV2.get("/project_sse_v2/:project_id", async (c) => {
 
     broadcastReceiver.addEventListener("message", messageHandler);
 
+    // A write to a disconnected client never throws on this hono version
+    // (StreamingApi.write swallows errors), so the forward loop below can only
+    // exit via the abort signal. Without this wake-up the loop parks on its
+    // promise forever and the BroadcastChannel subscription leaks.
+    stream.onAbort(() => {
+      notifyNewMessage?.();
+    });
+
     try {
       // Step 2: Build full ProjectState
       const result = await buildProjectState(mainDb, ppk, projectUser);
+
+      if (stream.aborted) return;
 
       if (!result.success) {
         const errorMessage: ProjectSseMessage = {
@@ -79,13 +89,14 @@ routesProjectSSEV2.get("/project_sse_v2/:project_id", async (c) => {
       };
       await stream.writeSSE({ data: JSON.stringify(startingMessage) });
 
-      // Step 4+5: Drain queue and forward subsequent messages
+      // Step 4+5: Drain queue and forward subsequent messages until disconnect
       while (true) {
-        while (messageQueue.length > 0) {
+        while (messageQueue.length > 0 && !stream.aborted) {
           const queued = messageQueue.shift()!;
           const { projectId: _pid, ...message } = queued;
           await stream.writeSSE({ data: JSON.stringify(message) });
         }
+        if (stream.aborted) break;
         await new Promise<void>((resolve) => {
           notifyNewMessage = resolve;
         });

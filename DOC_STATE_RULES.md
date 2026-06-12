@@ -84,7 +84,7 @@ the wrong one is the source of most state-management bugs.
 | Mode              | Behavior                                                             | Tools                                                                                                        |
 | ----------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | **Live read**     | Subscribes to changes. View stays in sync with the server.           | Reactive reads in JSX / `createEffect` / `createMemo`; `createEffect` watching a T1 version key for T2 data. |
-| **Snapshot read** | Captures state at a moment in time. View ignores subsequent changes. | Non-reactive getters (`unwrap`-based); `timQuery`; cache `.get()` from async code.                           |
+| **Snapshot read** | Captures state at a moment in time. View ignores subsequent changes. | Non-reactive getters (`unwrap`-based); `createQuery`; cache `.get()` from async code.                           |
 
 **When in doubt, prefer live read.** A view that should have stayed in sync but
 used a snapshot read goes silently stale — the worst failure mode. A view that
@@ -133,7 +133,7 @@ the data:
 - **Live read — use `createEffect` watching the T1 version key.** Required for
   any long-lived view (editors, lists, thumbnails) that should stay in sync with
   SSE updates during its lifetime.
-- **Snapshot read — use `timQuery`.** Acceptable only for short-lived consumers
+- **Snapshot read — use `createQuery`.** Acceptable only for short-lived consumers
   (picker modals, dropdowns that close after selection) where SSE updates during
   the view's lifetime aren't consumed.
 
@@ -150,23 +150,23 @@ createEffect(async () => {
     : { status: "error", err: res.err });
 });
 
-// ✅ SNAPSHOT — picker modal; timQuery is fine.
-const poDetailQuery = timQuery(
+// ✅ SNAPSHOT — picker modal; createQuery is fine.
+const poDetailQuery = createQuery(
   () => getPODetailFromCacheorFetch(projectId, vizId),
 );
 ```
 
 ```tsx
-// ❌ WRONG — timQuery used in a long-lived editor.
+// ❌ WRONG — createQuery used in a long-lived editor.
 // Editor is open for minutes; SSE updates from other users (or this user's
 // own mutations) will not be reflected.
-const dataQuery = timQuery(() => getDashboardDetailFromCacheOrFetch(...));
+const dataQuery = createQuery(() => getDashboardDetailFromCacheOrFetch(...));
 
-// ❌ WRONG — `timQuery` has no `queryKey`. Unlike TanStack Query /
+// ❌ WRONG — `createQuery` has no `queryKey`. Unlike TanStack Query /
 // React Query, signal reads inside `queryFunc` are NOT tracked.
 // `queryFunc` runs exactly once on mount; this `refreshKey()` is dead code.
 const [refreshKey, setRefreshKey] = createSignal(0);
-const q = timQuery(async () => {
+const q = createQuery(async () => {
   refreshKey();                       // does nothing
   return getDashboardDetailFromCacheOrFetch(...);
 });
@@ -233,7 +233,7 @@ loading flash — see `DOC_STATE_MGT_TIERS.md`.
 ### 9. NEVER use `createResource`.
 
 Triggers Suspense boundaries, which can cause full-page re-renders / flash
-reloads. Use `timQuery` (T3) or `createEffect` + `createSignal<StateHolder<T>>`
+reloads. Use `createQuery` (T3) or `createEffect` + `createSignal<StateHolder<T>>`
 (T2).
 
 ---
@@ -243,7 +243,7 @@ reloads. Use `timQuery` (T3) or `createEffect` + `createSignal<StateHolder<T>>`
 | Need                                      | Use                                             |
 | ----------------------------------------- | ----------------------------------------------- |
 | Reactive to SSE (T2)                      | `createSignal<StateHolder<T>>` + `createEffect` |
-| Load once on mount (T3 — modals, editors) | `timQuery`                                      |
-| Form submission with validation           | `timActionForm`                                 |
-| Button action with loading state          | `timActionButton`                               |
-| Delete with confirmation                  | `timActionDelete`                               |
+| Load once on mount (T3 — modals, editors) | `createQuery`                                      |
+| Form submission with validation           | `createFormAction`                                 |
+| Button action with loading state          | `createButtonAction`                               |
+| Delete with confirmation                  | `createDeleteAction`                               |

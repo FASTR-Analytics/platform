@@ -48,7 +48,7 @@ For consistency, prefer this order when convenient:
 
 ```tsx
 import { t, type InstanceDetail } from "lib";
-import { Button, StateHolderWrapper, timQuery } from "panther";
+import { Button, StateHolderWrapper, createQuery } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { EditForm } from "./EditForm";
@@ -66,14 +66,14 @@ import { EditForm } from "./EditForm";
 
 ### Data Fetching Pattern
 
-**Use `timQuery` (from panther) for automatic data fetching:**
+**Use `createQuery` (from panther) for automatic data fetching:**
 
-- `timQuery` automatically fetches data when the component mounts
+- `createQuery` automatically fetches data when the component mounts
 - It handles loading states, errors, and provides refetch capabilities
 - Eliminates the need for manual `onMount` + `stateHolderQuery` patterns
 
 ```tsx
-const dataQuery = timQuery(
+const dataQuery = createQuery(
   () => serverActions.getData(params),
   t("Loading message..."),
 );
@@ -81,15 +81,15 @@ const dataQuery = timQuery(
 
 ### Form Action Patterns
 
-**Preferred: Use `timActionForm` (from panther) for form submissions:**
+**Preferred: Use `createFormAction` (from panther) for form submissions:**
 
-- `timActionForm` wraps your action function and handles all state management
+- `createFormAction` wraps your action function and handles all state management
 - It automatically calls a `silentFetch` function after successful submission
 - Returns an object with `.click()` method and `.state()` accessor
 - Validation happens inside your action function by returning `{ success: false, err: "message" }`
 
 ```tsx
-const save = timActionForm(
+const save = createFormAction(
   async () => {
     const value = input().trim();
     if (!value) {
@@ -105,13 +105,13 @@ const save = timActionForm(
 <Button onClick={save.click} state={save.state()}>
 ```
 
-**For non-silent actions, use `timActionForm` (from panther):**
+**For non-silent actions, use `createFormAction` (from panther):**
 
-- Similar to `timActionForm` but calls a success callback instead of silent fetch
+- Similar to `createFormAction` but calls a success callback instead of silent fetch
 - Use when you need custom success handling rather than data refetching
 
 ```tsx
-const save = timActionForm(
+const save = createFormAction(
   async () => {
     if (!isValid()) {
       return { success: false, err: t("Validation error") };
@@ -122,13 +122,13 @@ const save = timActionForm(
 );
 ```
 
-**For simple button actions, use `timActionButton` (from panther):**
+**For simple button actions, use `createButtonAction` (from panther):**
 
 - Use for actions that don't need form validation (like delete, refresh, etc.)
 - Simpler than form actions since no validation is needed
 
 ```tsx
-const deleteItem = timActionButton(
+const deleteItem = createButtonAction(
   () => serverActions.deleteItem({ id }),
   silentFetch,
 );
@@ -147,7 +147,7 @@ const deleteItem = timActionButton(
 
 - Use `needsSaving` signal to track unsaved changes
 - **Always use panther's `tim*` wrapper functions instead of manual `stateHolder*` patterns**
-- **Always use:** `timActionForm`, `timActionForm`, `timActionButton` from panther
+- **Always use:** `createFormAction`, `createFormAction`, `createButtonAction` from panther
 - Validation and error handling happens automatically inside the wrapper functions
 
 ## Layout & Styling Conventions
@@ -241,7 +241,7 @@ const deleteItem = timActionButton(
 
 ```tsx
 // For async actions with loading states
-const actionHandler = timActionButton(
+const actionHandler = createButtonAction(
   () => serverActions.doSomething(params),
   refreshCallback,
 );
@@ -257,10 +257,10 @@ const actionHandler = timActionButton(
 
 ### Delete Confirmations
 
-**Use `timActionDelete` (from panther) for delete actions with confirmation and silent fetch:**
+**Use `createDeleteAction` (from panther) for delete actions with confirmation and silent fetch:**
 
 ```tsx
-const deleteAction = timActionDelete(
+const deleteAction = createDeleteAction(
   {
     text: t("Confirmation message"),
     itemList: [item.name],
@@ -272,10 +272,10 @@ const deleteAction = timActionDelete(
 await deleteAction.click();
 ```
 
-**For delete actions without silent fetch, use `timActionDelete` (from panther):**
+**For delete actions without silent fetch, use `createDeleteAction` (from panther):**
 
 ```tsx
-const deleteAction = timActionDelete(
+const deleteAction = createDeleteAction(
   t("Are you sure you want to delete this item?"),
   () => serverActions.deleteItem({ id: item.id }),
   onSuccess,
