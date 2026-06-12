@@ -253,7 +253,7 @@ Integer columns (year, month, quarter_id, period_id) use direct numeric comparis
 
 Period filtering — the filter UI, period bounds, and `periodFilterExactBounds` — is always driven by `mostGranularTimePeriodColumnInResultsFile` (the metric's actual physical time column). This means a quarterly timeseries (`timeseriesGrouping: "quarter_id"`) over monthly data (`mostGranularTimePeriodColumnInResultsFile: "period_id"`) still filters by `period_id` and shows monthly filter options.
 
-(This field was historically called `periodOpt`; stored configs are migrated to `timeseriesGrouping` by the startup data-transforms — see [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md).)
+(This field was historically called `periodOpt`; stored configs are migrated to `timeseriesGrouping` by the startup data-transforms — see [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md).)
 
 ### `PeriodFilter` type split
 
@@ -393,7 +393,7 @@ The active calendar is a project-level setting (`INSTANCE_CALENDAR` env var / in
 
 ## Legacy and adaptation
 
-Historical field shapes in stored JSON are normalized **once, at startup**, by the PO-config data-transform — not adapted on every read. (The old read-time `legacy_po_config_adapter.ts` and `DOC_legacy_handling.md` have been removed.) See [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md) for the migration framework.
+Historical field shapes in stored JSON are normalized **once, at startup**, by the PO-config data-transform — not adapted on every read. (The old read-time `legacy_po_config_adapter.ts` and `DOC_legacy_handling.md` have been removed.) See [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) for the migration framework.
 
 ### Period-relevant transforms
 

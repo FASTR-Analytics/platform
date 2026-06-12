@@ -1,4 +1,11 @@
-# Migrations & Validation
+# PROTOCOL — App: Migrations & Stored-Schema Changes
+
+> **App-specific authoring protocol** (not panther's cross-project
+> `PROTOCOL_*`). This is the *recipe* — read it when **building** a migration,
+> schema change, or data transform. It is FASTR-specific, so it lives at repo
+> root, not in `panther/protocols/`. The migration machinery's *ownership* and
+> architecture belong to **S2 (Persistence)** — see `SYSTEM_02_persistence.md`;
+> this file is the how-to.
 
 How database and data changes are handled and how data integrity is enforced.
 
@@ -20,7 +27,7 @@ Two types of migrations:
 
 ## The System
 
-### Schema Changesch
+### Schema Changes
 
 When you change a stored schema (add field, rename field, change structure):
 
@@ -67,7 +74,12 @@ server/db/migrations/
     ├── module_definition.ts
     ├── metric.ts
     ├── slide_deck_config.ts
-    └── slide_config.ts
+    ├── slide_config.ts
+    ├── dashboard_config.ts
+    ├── dashboard_items.ts
+    ├── instance_config.ts
+    ├── reports.ts
+    └── _figure_block.ts   # shared: re-validates stored FigureBlock snapshots
 ```
 
 ### How It Works
@@ -237,7 +249,7 @@ External input is validated at the point it enters the system:
 
 **Note:** Routes don't need separate validation because all writes to stored schemas go through DB functions that validate before INSERT/UPDATE.
 
-**See also:** [DOC_AI_TOOL_VALIDATION.md](DOC_AI_TOOL_VALIDATION.md) for how AI tool inputs are validated before handlers run.
+**See also:** [DOC_AI_TOOL_SCHEMAS.md](DOC_AI_TOOL_SCHEMAS.md) for how AI tool inputs are validated before handlers run.
 
 ---
 
@@ -328,9 +340,11 @@ Non-prefixed type files contain plain TypeScript types that are not stored/valid
 | Viz config (d/s schemas)      | `lib/types/_metric_installed.ts`            | (embedded in above + PO config)     |
 | Slide deck config             | `lib/types/_slide_deck_config.ts`           | `slide_decks.config`                |
 | Slide config                  | `lib/types/_slide_config.ts`                | `slides.config`                     |
-| Instance configs              | `lib/types/instance_config.ts`              | `instance_config.config_json_value` |
+| Dashboard config              | `lib/types/_dashboard_config.ts`            | `dashboards.config`                 |
+| Report config                 | `lib/types/reports.ts`                      | `reports.config`                    |
+| Instance configs              | `lib/types/instance.ts`                     | `instance_config.config_json_value` |
 
-**Note:** `report_items.config` is excluded — reports are deprecated. Legacy adapters remain for the migration tool only.
+(`instance.ts` is the kernel grab-bag — the instance-config Zod schemas live there by symbol, not in a dedicated `_instance_config.ts`.)
 
 ### GitHub-Authored Schemas
 

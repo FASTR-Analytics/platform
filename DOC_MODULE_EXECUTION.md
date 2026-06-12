@@ -2,7 +2,7 @@
 
 How a versioned R module is loaded (registry → GitHub/local → Zod → translate), how its R script is parameterized (marker substitution), executed (Docker in prod / bare `Rscript` in dev), streamed, and ingested back as results tables.
 
-> The decision of *when* to reinstall/rerun on a definition change (the `compare_definitions` matrix) is [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md) — not restated here. The dirty/trigger machine that *causes* a run is [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md); the worker lifecycle around it is [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md). `sql.unsafe` safety is owned by [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md); the GitHub-authored definition schema is in [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md); period helper-column handling is [DOC_period_column_handling.md](DOC_period_column_handling.md).
+> The decision of *when* to reinstall/rerun on a definition change (the `compare_definitions` matrix) is [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md) — not restated here. The dirty/trigger machine that *causes* a run is [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md); the worker lifecycle around it is [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md). `sql.unsafe` safety is owned by [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md); the GitHub-authored definition schema is in [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md); period helper-column handling is [DOC_period_column_handling.md](DOC_period_column_handling.md).
 
 ---
 
@@ -156,7 +156,7 @@ Getting these crossed silently breaks either R execution or the `COPY`.
 
 ## Adding/changing module execution — checklist
 
-- [ ] Definition changes validate against `moduleDefinitionGithubSchema` (update the schema if the shape changes — [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md))
+- [ ] Definition changes validate against `moduleDefinitionGithubSchema` (update the schema if the shape changes — [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md))
 - [ ] New parameter marker handled in the relevant generator, with value escaping/validation
 - [ ] New results object's columns declared in `createTableStatementPossibleColumns` (CSV headers must match)
 - [ ] Both the Docker (prod) and `Rscript` (dev) paths updated equivalently

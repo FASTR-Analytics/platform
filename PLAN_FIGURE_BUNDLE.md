@@ -261,7 +261,7 @@ backfill as a pure-JSON, in-sweep data-transform — no re-query, no `mainDb`, n
   and pre-2026 `string[]` headers (run the existing header-normalization first → `{id:s, label:s}`).
 
 **Why this is the right approach (supersedes re-query + orphan-blank):** reverse-transform needs no
-metric, no project, no DB — so it (a) runs as a standard startup data-transform (DOC_MIGRATIONS-
+metric, no project, no DB — so it (a) runs as a standard startup data-transform (PROTOCOL_APP_MIGRATIONS-
 conformant, one deploy, no offline script); (b) is **faithful** (exact frozen values, no re-query
 drift); and (c) **dissolves the orphan problem** — the ~72 timeseries figures whose metric is
 uninstalled in-project convert *exactly like any other* from their stored grid. **No blank

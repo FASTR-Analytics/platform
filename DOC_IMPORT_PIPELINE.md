@@ -2,7 +2,7 @@
 
 The two-phase ingestion pattern for HMIS / HFA / structure data from CSV and DHIS2: UNLOGGED staging tables, the upload-attempt step state machine, the per-phase validation funnel, the buffered bulk-`INSERT`, and the transactional merge into canonical tables.
 
-> The worker lifecycle (spawn, handshake, teardown) is [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md); this doc owns the *ingestion flow* inside those workers. SQL-safety/escaping rules are owned by [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md). Period (`period_id` = `YYYYMM`) validation is [DOC_period_column_handling.md](DOC_period_column_handling.md). DHIS2 fetching/retry is [DOC_DHIS2_INTEGRATION.md](DOC_DHIS2_INTEGRATION.md). Stored-schema validation/naming is [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md). `population.csv` (a different, module-specific format) is [DOC_POPULATION_CSV.md](DOC_POPULATION_CSV.md).
+> The worker lifecycle (spawn, handshake, teardown) is [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md); this doc owns the *ingestion flow* inside those workers. SQL-safety/escaping rules are owned by [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md). Period (`period_id` = `YYYYMM`) validation is [DOC_period_column_handling.md](DOC_period_column_handling.md). DHIS2 fetching/retry is [DOC_DHIS2_INTEGRATION.md](DOC_DHIS2_INTEGRATION.md). Stored-schema validation/naming is [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md). `population.csv` (a different, module-specific format) is [DOC_POPULATION_CSV.md](DOC_POPULATION_CSV.md).
 
 ---
 

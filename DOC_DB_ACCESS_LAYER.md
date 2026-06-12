@@ -2,7 +2,7 @@
 
 The runtime (non-migration) database layer: the multi-database model and connection strategies, the canonical `Sql`-first `APIResponse` function shape, the error funnel, JSON round-tripping, and the **SQL-safety boundary** (this doc is the normative owner of that rule).
 
-> Schema migrations, JSON data-transforms, and the write-time/read-time *validation* boundary live in [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md) — this doc cross-links rather than restates them. This is the authoritative source for the runtime DB **naming and connection model**. DB functions return `APIResponse` envelopes consumed by routes ([DOC_API_ROUTES.md](DOC_API_ROUTES.md)).
+> Schema migrations, JSON data-transforms, and the write-time/read-time *validation* boundary live in [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) — this doc cross-links rather than restates them. This is the authoritative source for the runtime DB **naming and connection model**. DB functions return `APIResponse` envelopes consumed by routes ([DOC_API_ROUTES.md](DOC_API_ROUTES.md)).
 
 ---
 
@@ -11,7 +11,7 @@ The runtime (non-migration) database layer: the multi-database model and connect
 1. **One database, one connection helper.** Acquire connections through the two sanctioned factories — never `new postgres(...)` ad hoc.
 2. **Every DB function returns an `APIResponse`.** Wrap the body in `tryCatchDatabaseAsync`; return `{ success: false, err }` on failure rather than throwing into the caller.
 3. **Parameterize values; whitelist identifiers.** Tagged-template `${value}` is always safe. Dynamic table/column names go through the `db(identifier)` helper or are trusted-internal constants. Raw `.unsafe()` string interpolation is the exception, not the rule.
-4. **Trust the database after the startup sweep.** Read with `JSON.parse` / domain parsers; validate with Zod only on write and at external boundaries (see [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md)).
+4. **Trust the database after the startup sweep.** Read with `JSON.parse` / domain parsers; validate with Zod only on write and at external boundaries (see [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)).
 
 ---
 
@@ -120,7 +120,7 @@ It returns a `CategorizedError { category, userMessage, technicalMessage, sugges
 | **Write** | `JSON.stringify(schema.parse(value))` **inline in the SQL template** — Zod-validate before write |
 | **Nullable** | `${value ?? null}` ternary |
 
-The validation boundary (which schema, where) is owned by [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md). This doc only documents the mechanical round-trip.
+The validation boundary (which schema, where) is owned by [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md). This doc only documents the mechanical round-trip.
 
 ### Transactions & optimistic concurrency
 
@@ -150,7 +150,7 @@ The validation boundary (which schema, where) is owned by [DOC_MIGRATIONS.md](DO
 ## File & naming conventions
 
 - **`_*.sql`** — base schema files (`_main_database.sql`, `_project_database.sql`), loaded via `db.file(...)`.
-- **`_*_database_types.ts`** — hand-written `DB*` row types (`DBPresentationObject`, `DBUser`, …) describing raw table rows. These are *not* Zod schemas (the `_*.ts` stored-schema convention is in [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md)).
+- **`_*_database_types.ts`** — hand-written `DB*` row types (`DBPresentationObject`, `DBUser`, …) describing raw table rows. These are *not* Zod schemas (the `_*.ts` stored-schema convention is in [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)).
 - **`mod.ts` barrels** — `db/mod.ts`, `db/instance/mod.ts`, `db/project/mod.ts` aggregate and re-export. Routes import from `lib` (cross-package) or `../../db/mod.ts`.
 - **`generateUnique*Id`** (`server/utils/id_generation.ts`) — short nanoid (3-char alphabet `23456789abcdefghjkmnpqrstuvwxyz`), retry-until-unique (10 attempts) against a specific table. There are **6 near-identical copies** (deck/slide/report/presentation-object/dashboard/dashboard-item) differing only by table name. (Projects/folders/tokens use `crypto.randomUUID()` instead.)
 
@@ -170,7 +170,7 @@ The validation boundary (which schema, where) is owned by [DOC_MIGRATIONS.md](DO
 
 - **Don't treat `"READ_ONLY"` as a safety boundary** — it doesn't prevent writes. If you need a true read-only connection, set `default_transaction_read_only` (it isn't, today — see enforcement).
 - **Don't `.unsafe()` a user-influenced string.** If a column/table name comes from config, validate it against a closed set first.
-- **Don't add read-time Zod validation** as a matter of course — trust the DB after startup ([DOC_MIGRATIONS.md](DOC_MIGRATIONS.md)). Validate on write.
+- **Don't add read-time Zod validation** as a matter of course — trust the DB after startup ([PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)). Validate on write.
 - **Don't manually `.end()` a cached connection** mid-request — postgres.js owns that lifecycle.
 - **Don't `JSON.stringify` without `schema.parse`** when writing a stored-schema column.
 
@@ -201,7 +201,7 @@ The validation boundary (which schema, where) is owned by [DOC_MIGRATIONS.md](DO
 - [ ] Signature `(db: Sql, ...args) => Promise<APIResponse…>`, connection passed in
 - [ ] Body wrapped in `tryCatchDatabaseAsync`
 - [ ] Values via tagged template; dynamic identifiers via `db(name)`; no `.unsafe()` on external input
-- [ ] JSON columns: `JSON.parse` on read, `JSON.stringify(schema.parse(x))` on write (schema per [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md))
+- [ ] JSON columns: `JSON.parse` on read, `JSON.stringify(schema.parse(x))` on write (schema per [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md))
 - [ ] Multi-statement writes inside `db.begin`
 - [ ] Bump `last_updated` on mutations (drives SSE + cache invalidation)
 - [ ] Export from the appropriate `mod.ts` barrel

@@ -15,7 +15,7 @@ globs:
   - server/db_startup.ts
 docs_absorbed:
   - DOC_DB_ACCESS_LAYER
-  - DOC_MIGRATIONS
+  - PROTOCOL_APP_MIGRATIONS
   - DOC_ACCESS_DBS
 ---
 # S2 — Persistence Core & Schema Lifecycle
@@ -35,7 +35,7 @@ See `globs:` in the frontmatter above (the manifest — lint-enforced by
 ## Docs absorbed (Phase 2)
 
 - [DOC_DB_ACCESS_LAYER](DOC_DB_ACCESS_LAYER.md)
-- [DOC_MIGRATIONS](DOC_MIGRATIONS.md)
+- [PROTOCOL_APP_MIGRATIONS](PROTOCOL_APP_MIGRATIONS.md)
 - [DOC_ACCESS_DBS](DOC_ACCESS_DBS.md)
 
 ## Open items

@@ -182,7 +182,7 @@ and checkbox can never tell different stories.
   are renamed by po_config Block 24. Because zod's strip mode silently
   swallows unknown keys, every sweep gate consults
   `configNeedsForcedTransform` / `rawJsonNeedsForcedTransform` — see
-  DOC_MIGRATIONS.md "Skip-Gate Gotcha".
+  PROTOCOL_APP_MIGRATIONS.md "Skip-Gate Gotcha".
 - Sweeps skip the write when output equals stored, so forced-scan false
   positives can't churn `last_updated` every boot.
 

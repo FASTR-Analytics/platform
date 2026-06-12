@@ -154,7 +154,7 @@ Cheap part only: in the series color/style resolution, detect the sentinel ids a
 `server/db/migrations/data_transforms/po_config.ts` (+ the sweeps sharing the gate: `dashboard_items.ts`, `reports.ts`, `metric.ts`, `slide_config.ts`):
 
 - Bug: rows whose only drift is the legacy keys `includeNationalForAdminArea2`/`includeNationalPosition` PASS `safeParse` (zod strips unknown keys), so Block 24's rename never runs and runtime parsing silently drops the user's setting.
-- Fix: export a `configDNeedsForcedTransform(d): boolean` from `po_config.ts` checking for the legacy keys; every sweep's skip gate becomes `parses && !configDNeedsForcedTransform(...)`. Transform stays idempotent. Follow DOC_MIGRATIONS.md conventions; verify against `wb-fastr-modules/.validation` expectations if applicable.
+- Fix: export a `configDNeedsForcedTransform(d): boolean` from `po_config.ts` checking for the legacy keys; every sweep's skip gate becomes `parses && !configDNeedsForcedTransform(...)`. Transform stays idempotent. Follow PROTOCOL_APP_MIGRATIONS.md conventions; verify against `wb-fastr-modules/.validation` expectations if applicable.
 - Note Block 24 maps `includeNationalPosition` → `adminAreaRollupPosition`; with 1.6's canonicalization the normalizer will tidy these on next save, but the migration must still preserve the user's intent now.
 
 ## Phase 6 — AI tools

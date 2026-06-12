@@ -47,6 +47,63 @@ panther — out of scope). `PLAN_*.md` files stay as the work backlog; finished
 ones get deleted as today. `CLAUDE.md` keeps its top-level overview but its
 per-area prose gets replaced by a pointer to `SYSTEMS.md`.
 
+New category — `PROTOCOL_APP_*.md` at repo root: app-specific authoring recipes
+(see §1b). `DOC_MIGRATIONS.md` becomes `PROTOCOL_APP_MIGRATIONS.md`; the route /
+worker / AI-tool / help-button recipes split out of their hybrid DOC_* files.
+
+---
+
+## 1b. Document taxonomy (the model this consolidation follows)
+
+Two axes — *construction (HOW)* vs *architecture (WHAT)*, and *cross-project* vs
+*app-specific* — plus a transient change layer. Every doc has one home:
+
+| | **HOW** (how to build) | **WHAT** (what it is / promises) |
+|---|---|---|
+| **cross-project** | `panther/protocols/PROTOCOL_*` (synced, don't edit) | panther's own (not this repo) |
+| **app-specific** | **`PROTOCOL_APP_*`** (authoring recipes) | **`SYSTEM_NN_*`** (architecture + the lint-enforced file boundary) |
+
+`PLAN_*` is the transient "what's changing" layer: a PLAN mutates a SYSTEM (and
+sometimes a PROTOCOL_APP) and is deleted when it lands. `CLAUDE.md` is the index
+pointing at all of it. `CROSS_*` and the §4.3 audit list are the app-specific
+*horizontal* WHAT — still SYSTEM-layer, just not one vertical system.
+
+**Why the HOW×app-specific cell matters:** `DOC_MIGRATIONS.md` is consulted
+*mid-build* (how to author a migration: SQL + data_transform + skip-gate +
+validate-at-boundary), not read to understand architecture. It is a recipe, not
+a system description — and it is app-specific, so it can't live in
+`panther/protocols/`. Folding it into `SYSTEM_02` would bury the citable
+"reference X when building a migration" affordance. So it becomes a standalone
+`PROTOCOL_APP_MIGRATIONS.md`.
+
+**Each type has its own freshness mechanism — that is the operational payoff,
+and why DOC_* rotted (SYSTEM-grade content with no refresh trigger):**
+
+- `PROTOCOL_*` (cross-project): kept fresh by the panther sync (one source).
+- `PROTOCOL_APP_*`: refreshed when the recipe it describes changes (a PLAN that
+  alters migration mechanics updates it in lockstep).
+- `SYSTEM_NN_*`: the **boundary** half is continuously lint-checked
+  (`lint_systems.ts`); the **prose** half is re-verified against code in each
+  review cycle. Describe *verified current* behaviour + the contract — the gap
+  between "is" and "should be" lives in `PLAN_*` / the SYSTEM's open-items, never
+  as aspirational prose (that is exactly how DOC_* drifted).
+- `PLAN_*`: self-deleting when done.
+
+**The port is a 3-way sort, not 2-way.** When porting a hybrid `DOC_*`:
+
+1. architecture / behaviour / contract → its `SYSTEM_NN`
+2. app-specific authoring recipe → a `PROTOCOL_APP_*` (new or existing)
+3. a generic construction rule → **defer to the panther `PROTOCOL_*`; do NOT
+   restate it** (the protocols' own README: rules live there, not duplicated).
+   This *thins* the DOC_* content rather than relocating it wholesale — notably
+   `DOC_STATE_*` vs `PROTOCOL_UI_STATE` and `DOC_DESIGN_SYSTEM`/`DOC_BUILD_INSTRUCTIONS`
+   vs `PROTOCOL_UI_STYLING`/`_STRUCTURE`/`_COMPONENTS`, where the generic tier /
+   styling rules already live in panther.
+
+`PROTOCOL_APP_*` naming parallels panther's `PROTOCOL_<ALL|UI|DENO>_*` with an
+"APP" scope token; living at repo root (not `panther/protocols/`) means `./sync`
+never collides with it.
+
 ---
 
 ## 2. Two phases (don't big-bang the prose)
@@ -81,39 +138,42 @@ than a single fragile 29-file migration.
 
 ---
 
-## 3. DOC_* → SYSTEM mapping
+## 3. DOC_* → target mapping (3-way sort)
 
-From the doc-audit. "Absorbed by" = the SYSTEM file that inlines it in Phase 2.
-"Also informs" = a system/cross-doc that links it but doesn't own it.
+From the doc-audit, applying the §1b sort. "Architecture → " is the SYSTEM /
+CROSS file that inlines the *what*; "Recipe → " is the `PROTOCOL_APP_*` that
+takes the *how-to-build* slice (where the DOC is a hybrid); "Defer" flags a
+generic-rule slice that goes to a panther `PROTOCOL_*` rather than being
+restated. Pure-architecture docs have no Recipe column entry.
 
-| DOC_* | Absorbed by | Also informs |
-|---|---|---|
-| DOC_API_ROUTES | S1 | — |
-| DOC_ACCESS_CONTROL | S1 | S15 |
-| DOC_DB_ACCESS_LAYER | S2 | — |
-| DOC_MIGRATIONS | S2 | §4.3.7 pairing audit (every domain system) |
-| DOC_SSE_REALTIME | S3 | §4.3.1 notify audit |
-| DOC_VALKEY_CACHE | S3 | S9 (key/payload semantics) |
-| DOC_STATE_RULES + DOC_STATE_MGT_TIERS/_INSTANCE/_PROJECT | CROSS_CLIENT_STATE (see §4) | S3 machinery, all client systems |
-| DOC_TASK_EXECUTION_DIRTY_STATE | S8 | — |
-| DOC_WORKER_ROUTINES | S8 | S5 (staging workers) |
-| DOC_MODULE_EXECUTION | S8 | — |
-| DOC_MODULE_UPDATES | S8 | — |
-| DOC_POPULATION_CSV | S8 | S6 |
-| DOC_IMPORT_PIPELINE | S5 | S6 (structure ELT) |
-| DOC_DHIS2_INTEGRATION | S7 | — |
-| DOC_AI_PROXY_AND_USAGE_GOVERNANCE | S13 | — |
-| DOC_AI_TOOL_SCHEMAS | S13 | — |
-| DOC_PRESENTATION_OBJECT_QUERY_PIPELINE | S9 | — |
-| DOC_period_column_handling | S9 | §4.3.5 calendar audit |
-| DOC_DISAGGREGATION_OPTIONS_HANDLING | S9 | S6 |
-| DOC_ROLLUP_ROWS | S9 | — |
-| DOC_SPECIAL_CHART_MODES | S10 | — |
-| DOC_DESIGN_SYSTEM | CROSS_UI_CONVENTIONS (see §4) | S10, S11, S12, S14 |
-| DOC_BUILD_INSTRUCTIONS | CROSS_UI_CONVENTIONS | S14 |
-| DOC_TRANSLATION | S14 | §4.3.6 t3 audit |
-| DOC_HELP_BUTTONS | S14 | — |
-| DOC_ACCESS_DBS | S15 | S2 |
+| DOC_* | Architecture → | Recipe → (PROTOCOL_APP) | Defer to panther |
+|---|---|---|---|
+| DOC_MIGRATIONS | S2 (thin pointer) | **PROTOCOL_APP_MIGRATIONS** ✅ minted 2026-06-12 | — |
+| DOC_API_ROUTES | S1 | PROTOCOL_APP_ROUTES (add-a-route recipe) | — |
+| DOC_ACCESS_CONTROL | S1 | — (also informs S15) | — |
+| DOC_DB_ACCESS_LAYER | S2 | (SQL-safety rule may join PROTOCOL_APP_MIGRATIONS or a DB protocol) | — |
+| DOC_SSE_REALTIME | S3 (also §4.3.1 audit) | — | — |
+| DOC_VALKEY_CACHE | S3 (informs S9) | — | — |
+| DOC_STATE_RULES + 3× DOC_STATE_MGT_* | CROSS_CLIENT_STATE (app field inventory) | — | **PROTOCOL_UI_STATE** (the T1–T5 rules) |
+| DOC_TASK_EXECUTION_DIRTY_STATE | S8 | — | — |
+| DOC_WORKER_ROUTINES | S8 (informs S5) | PROTOCOL_APP_WORKER_ROUTINES (write-a-worker recipe) | — |
+| DOC_MODULE_EXECUTION | S8 | — | — |
+| DOC_MODULE_UPDATES | S8 | — | — |
+| DOC_POPULATION_CSV | S8 (informs S6) | — | — |
+| DOC_IMPORT_PIPELINE | S5 (informs S6) | — | — |
+| DOC_DHIS2_INTEGRATION | S7 | — | — |
+| DOC_AI_PROXY_AND_USAGE_GOVERNANCE | S13 | — | — |
+| DOC_AI_TOOL_SCHEMAS | S13 | PROTOCOL_APP_AI_TOOLS (author-a-tool-schema recipe) | — |
+| DOC_PRESENTATION_OBJECT_QUERY_PIPELINE | S9 | — | — |
+| DOC_period_column_handling | S9 (also §4.3.5 audit) | — | — |
+| DOC_DISAGGREGATION_OPTIONS_HANDLING | S9 (informs S6) | — | — |
+| DOC_ROLLUP_ROWS | S9 | — | — |
+| DOC_SPECIAL_CHART_MODES | S10 | — | — |
+| DOC_DESIGN_SYSTEM | CROSS_UI_CONVENTIONS (app tokens/patterns) | — | **PROTOCOL_UI_STYLING / _COMPONENTS** |
+| DOC_BUILD_INSTRUCTIONS | CROSS_UI_CONVENTIONS | — | **PROTOCOL_UI_STRUCTURE** |
+| DOC_TRANSLATION | S14 (also §4.3.6 audit) | — | **PROTOCOL_ALL_TRANSLATION** |
+| DOC_HELP_BUTTONS | S14 | PROTOCOL_APP_HELP_BUTTONS (add-a-help-button recipe) | — |
+| DOC_ACCESS_DBS | S15 (informs S2) | — | — |
 
 Undocumented systems (no DOC_* to absorb — their SYSTEM file is written fresh
 from code in Phase 2): **S4** (Assets & Upload), **S12** (Documents & Sharing —
@@ -253,3 +313,15 @@ schedule.
    they coexist until Phase 2 finishes? (Recommend: SYSTEMS.md becomes
    canonical immediately; PLAN_SYSTEMS.md gets a "superseded by SYSTEMS.md"
    banner and is deleted when its last unported section is gone.)
+4. **`PROTOCOL_APP_*` naming/scope** (§1b) — confirm the `PROTOCOL_APP_*` token
+   and repo-root location (vs e.g. a `protocols_app/` dir, or `GUIDE_*`).
+   Recommend `PROTOCOL_APP_*` at root: it reads as "construction rules,
+   app-scoped," parallels panther's `PROTOCOL_<ALL|UI|DENO>_*`, and the distinct
+   location keeps `./sync` from ever touching it. `DOC_MIGRATIONS.md` is the
+   first one to mint (it is almost pure recipe and you cite it mid-build today);
+   the route/worker/AI-tool/help-button recipes split out of their hybrid DOCs
+   as those systems' Phase-2 cycles run.
+5. **Pure cross-cutting docs that are neither SYSTEM nor PROTOCOL_APP** — the
+   §4.3 audits live as a list in `SYSTEMS.md`; confirm that is enough, or do any
+   want their own file (most likely candidate: the notify/stamp + version-hash
+   invalidation audit, which is the densest).

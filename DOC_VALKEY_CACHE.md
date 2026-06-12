@@ -2,7 +2,7 @@
 
 The distributed read-model cache (`TimCacheC`): the two-part `uniquenessHash` / `versionHash` key, **implicit** invalidation via `last_updated`/`last_run` bumps (no explicit clear on normal writes), the in-flight dedup + self-verification guards, and degrade-gracefully behavior when Valkey is absent.
 
-> This doc owns the cache contract. The write side that bumps version columns is [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md); the broadcast side is [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md); together they form the `last_updated → SSE → cache` triangle. [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md) mentions in passing that migrations bumping `last_updated` implicitly invalidate the cache — that mechanic is fully documented here. **Not** to be confused with `server/middleware/cache.ts` (`cacheMiddleware`), which sets HTTP `Cache-Control` headers on static assets — a completely different "cache".
+> This doc owns the cache contract. The write side that bumps version columns is [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md); the broadcast side is [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md); together they form the `last_updated → SSE → cache` triangle. [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) mentions in passing that migrations bumping `last_updated` implicitly invalidate the cache — that mechanic is fully documented here. **Not** to be confused with `server/middleware/cache.ts` (`cacheMiddleware`), which sets HTTP `Cache-Control` headers on static assets — a completely different "cache".
 
 ---
 
@@ -91,7 +91,7 @@ Six caches, all `_UPPER_SNAKE` module-level singletons grouped by domain file:
 ## Rules
 
 1. **Every cache is version-gated.** Choose a `versionHash` that is a column/value bumped by *every* write that could change the cached data. If multiple writers can change it, they must all bump the same column.
-2. **Never `clear()` on a normal write.** Bump the version instead. `.clear()` / `.clearAll()` are for migration data-transforms (rows rewritten in place, no version change) — see [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md).
+2. **Never `clear()` on a normal write.** Bump the version instead. `.clear()` / `.clearAll()` are for migration data-transforms (rows rewritten in place, no version change) — see [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md).
 3. **`parseData` must derive the same hashes as the `*FromParams` functions.** They are two computations of the same key; keep them in lockstep (ideally share one builder — see enforcement).
 4. **Don't cache failures.** Return `shouldStore: false` from `parseData` for `success: false` responses (all six caches do).
 5. **Assume the cache may be absent.** Code paths must work with `getValkeyClient() === null` (cache disabled).

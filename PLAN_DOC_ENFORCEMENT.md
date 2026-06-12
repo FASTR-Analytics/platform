@@ -38,7 +38,7 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
   **Files:** `server/routes/route-tracker.ts` (extend the tracker), `main.ts` (run after mounting). **Doc:** [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md).
 
 - [ ] **5. `CHECK` constraint on `modules.dirty`.**
-  Constrain to `('queued','ready','error')`. `getModuleDirtyOrRunning` already throws on any other value, so today a stray write silently breaks a project's dirty-state read. Add an idempotent migration (see [DOC_MIGRATIONS.md](DOC_MIGRATIONS.md) for the `DO $$ … pg_constraint` pattern).
+  Constrain to `('queued','ready','error')`. `getModuleDirtyOrRunning` already throws on any other value, so today a stray write silently breaks a project's dirty-state read. Add an idempotent migration (see [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) for the `DO $$ … pg_constraint` pattern).
   **Files:** `server/db/migrations/project/`, `_project_database.sql`. **Doc:** [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md).
 
 - [ ] **6. One bulk-escape helper; ban hand-built `VALUES`.**
