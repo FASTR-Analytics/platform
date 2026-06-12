@@ -31,6 +31,7 @@ import {
   type HfaIndicator,
   type HfaIndicatorCode,
   type ModuleUpdatePreview,
+  type ModuleId,
 } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { fetchCommits } from "../../github/fetch_module.ts";
@@ -73,7 +74,7 @@ defineRoute(
         return c.json({ success: false as const, err: "This module is not available for this country" });
       }
     }
-    const res = await installModule(c.var.ppk.projectDb, params.module_id);
+    const res = await installModule(c.var.ppk.projectDb, params.module_id as ModuleId);
     if (res.success === false) {
       return c.json(res);
     }
@@ -160,7 +161,7 @@ defineRoute(
   async (c, { params, body }) => {
     const res = await updateModuleDefinition(
       c.var.ppk.projectDb,
-      params.module_id,
+      params.module_id as ModuleId,
       body.reinstall,
       body.rerun,
       body.preserveSettings,

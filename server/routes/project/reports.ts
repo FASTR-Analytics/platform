@@ -153,7 +153,7 @@ defineRoute(
     const res = await updateReportFigures(
       c.var.ppk.projectDb,
       params.report_id,
-      body.figures,
+      body.figures as any,
     );
     if (!res.success) {
       return c.json(res);

@@ -1,5 +1,13 @@
-import { route } from "../route-utils.ts";
+import { z } from "zod";
+import { slideDeckConfigSchema } from "../../types/mod.ts";
 import type { SlideDeckSummary, SlideDeckDetail, SlideDeckConfig } from "../../types/slides.ts";
+import { route } from "../route-utils.ts";
+
+const deckIdParamsSchema = z.object({ deck_id: z.uuid() });
+const folderBodyFields = {
+  label: z.string(),
+  folderId: z.string().uuid().nullable().optional(),
+};
 
 export const slideDeckRouteRegistry = {
   getAllSlideDecks: route({
@@ -12,7 +20,7 @@ export const slideDeckRouteRegistry = {
   getSlideDeckDetail: route({
     path: "/slide-decks/:deck_id",
     method: "GET",
-    params: {} as { deck_id: string },
+    params: deckIdParamsSchema,
     response: {} as SlideDeckDetail,
     requiresProject: true,
   }),
@@ -20,7 +28,7 @@ export const slideDeckRouteRegistry = {
   createSlideDeck: route({
     path: "/slide-decks",
     method: "POST",
-    body: {} as { label: string; folderId?: string | null },
+    body: z.object(folderBodyFields),
     response: {} as { deckId: string; lastUpdated: string },
     requiresProject: true,
   }),
@@ -28,8 +36,8 @@ export const slideDeckRouteRegistry = {
   updateSlideDeckLabel: route({
     path: "/slide-decks/:deck_id/label",
     method: "PUT",
-    params: {} as { deck_id: string },
-    body: {} as { label: string },
+    params: deckIdParamsSchema,
+    body: z.object({ label: z.string() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -37,8 +45,8 @@ export const slideDeckRouteRegistry = {
   updateSlideDeckPlan: route({
     path: "/slide-decks/:deck_id/plan",
     method: "PUT",
-    params: {} as { deck_id: string },
-    body: {} as { plan: string },
+    params: deckIdParamsSchema,
+    body: z.object({ plan: z.string() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -46,8 +54,8 @@ export const slideDeckRouteRegistry = {
   moveSlideDeckToFolder: route({
     path: "/slide-decks/:deck_id/folder",
     method: "PUT",
-    params: {} as { deck_id: string },
-    body: {} as { folderId: string | null },
+    params: deckIdParamsSchema,
+    body: z.object({ folderId: z.string().uuid().nullable() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -55,8 +63,8 @@ export const slideDeckRouteRegistry = {
   updateSlideDeckConfig: route({
     path: "/slide-decks/:deck_id/config",
     method: "PUT",
-    params: {} as { deck_id: string },
-    body: {} as { config: SlideDeckConfig },
+    params: deckIdParamsSchema,
+    body: z.object({ config: slideDeckConfigSchema }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -64,8 +72,8 @@ export const slideDeckRouteRegistry = {
   duplicateSlideDeck: route({
     path: "/slide-decks/:deck_id/duplicate",
     method: "POST",
-    params: {} as { deck_id: string },
-    body: {} as { label: string; folderId?: string | null },
+    params: deckIdParamsSchema,
+    body: z.object(folderBodyFields),
     response: {} as { newDeckId: string; lastUpdated: string },
     requiresProject: true,
   }),
@@ -73,8 +81,8 @@ export const slideDeckRouteRegistry = {
   deleteSlideDeck: route({
     path: "/slide-decks/:deck_id",
     method: "DELETE",
-    params: {} as { deck_id: string },
+    params: deckIdParamsSchema,
     response: {} as never,
     requiresProject: true,
   }),
-};
+} as const;

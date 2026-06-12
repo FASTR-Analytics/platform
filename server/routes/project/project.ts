@@ -22,6 +22,7 @@ import {
   updateProjectUserPermissions,
   updateProjectUserRole,
 } from "../../db/mod.ts";
+import type { ModuleId } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
 import {
   notifyLastUpdated,
@@ -71,7 +72,7 @@ defineRoute(
       c.var.globalUser,
       body.label,
       body.datasetsToEnable,
-      body.modulesToEnable,
+      body.modulesToEnable as ModuleId[],
       body.projectEditors,
       body.projectViewers,
     );

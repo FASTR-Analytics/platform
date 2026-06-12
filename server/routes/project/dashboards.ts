@@ -151,7 +151,7 @@ defineRoute(
     const res = await addDashboardItem(
       c.var.ppk.projectDb,
       params.dashboard_id,
-      body,
+      body as any,
     );
     if (!res.success) {
       return c.json(res);
@@ -191,7 +191,7 @@ defineRoute(
       c.var.ppk.projectDb,
       params.dashboard_id,
       params.item_id,
-      body,
+      body as any,
     );
     if (!res.success) {
       return c.json(res);
@@ -293,7 +293,7 @@ defineRoute(
     const res = await addDashboardItemGroup(
       c.var.ppk.projectDb,
       params.dashboard_id,
-      body,
+      body as any,
     );
     if (!res.success) {
       return c.json(res);
@@ -327,7 +327,7 @@ defineRoute(
       c.var.ppk.projectDb,
       params.dashboard_id,
       params.group_id,
-      body,
+      body as any,
     );
     if (!res.success) {
       return c.json(res);
@@ -388,7 +388,7 @@ defineRoute(
     const res = await replaceDashboardEntry(
       c.var.ppk.projectDb,
       params.dashboard_id,
-      body,
+      body as any,
     );
     if (!res.success) {
       return c.json(res);

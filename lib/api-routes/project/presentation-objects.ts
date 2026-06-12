@@ -1,5 +1,14 @@
-import { route } from "../route-utils.ts";
+import { z } from "zod";
 import {
+  disaggregationOption,
+  periodFilterSchema,
+  periodOption,
+  presentationObjectConfigSchema,
+  valueFuncStrict,
+  ALL_DISAGGREGATION_OPTIONS,
+} from "../../types/mod.ts";
+import { ADMIN_LEVELS } from "../../admin_area_rollup.ts";
+import type {
   DisaggregationOption,
   GenericLongFormFetchConfig,
   ItemsHolderPresentationObject,
@@ -13,18 +22,48 @@ import {
   ResultsValue,
   ResultsValueInfoForPresentationObject,
 } from "../../types/mod.ts";
+import { route } from "../route-utils.ts";
+
+const poIdParamsSchema = z.object({ po_id: z.uuid() });
+
+// SQL injection guards: these fields are interpolated into projectDb.unsafe SQL
+// (see validate_fetch_config.ts and query_helpers.ts).
+// groupBys / filters[].disOpt / replicateBy → closed enum (period options are a subset)
+// values[].prop → bare SQL identifier
+// postAggregationExpression → safe arithmetic charset
+const SQL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const SAFE_EXPRESSION = /^[A-Za-z0-9_ +\-*/().,=]+$/;
+
+const fetchConfigValuesItemSchema = z.object({
+  prop: z.string().regex(SQL_IDENTIFIER),
+  func: valueFuncStrict,
+});
+
+const genericLongFormFetchConfigSchema = z.object({
+  values: z.array(fetchConfigValuesItemSchema),
+  groupBys: z.array(disaggregationOption),
+  filters: z.array(z.object({
+    disOpt: disaggregationOption,
+    values: z.array(z.union([z.string(), z.number()])),
+  })),
+  periodFilter: periodFilterSchema,
+  periodFilterExactBounds: z.object({ min: z.number(), max: z.number() }).optional(),
+  postAggregationExpression: z.string().regex(SAFE_EXPRESSION).optional(),
+  includeAdminAreaRollup: z.boolean().optional(),
+  adminAreaRollupLevel: z.enum(ADMIN_LEVELS).optional(),
+});
 
 export const presentationObjectRouteRegistry = {
   createPresentationObject: route({
     path: "/presentation_objects",
     method: "POST",
-    body: {} as {
-      label: string;
-      resultsValue: ResultsValue;
-      config: PresentationObjectConfig;
-      makeDefault: boolean;
-      folderId?: string | null;
-    },
+    body: z.object({
+      label: z.string(),
+      resultsValue: z.unknown(), // ResultsValue is a complex nested type without a boundary schema
+      config: presentationObjectConfigSchema,
+      makeDefault: z.boolean(),
+      folderId: z.string().uuid().nullable().optional(),
+    }),
     response: {} as {
       newPresentationObjectId: string;
       lastUpdated: string;
@@ -35,11 +74,11 @@ export const presentationObjectRouteRegistry = {
   duplicatePresentationObject: route({
     path: "/duplicate_presentation_object/:po_id",
     method: "POST",
-    params: {} as { po_id: string },
-    body: {} as {
-      label: string;
-      folderId?: string | null;
-    },
+    params: poIdParamsSchema,
+    body: z.object({
+      label: z.string(),
+      folderId: z.string().uuid().nullable().optional(),
+    }),
     response: {} as {
       newPresentationObjectId: string;
       lastUpdated: string;
@@ -57,7 +96,7 @@ export const presentationObjectRouteRegistry = {
   getPresentationObjectDetail: route({
     path: "/presentation_objects/:po_id",
     method: "GET",
-    params: {} as { po_id: string },
+    params: poIdParamsSchema,
     response: {} as PresentationObjectDetail,
     requiresProject: true,
   }),
@@ -65,87 +104,60 @@ export const presentationObjectRouteRegistry = {
   updatePresentationObjectLabel: route({
     path: "/presentation_object_label/:po_id",
     method: "POST",
-    params: {} as { po_id: string },
-    body: {} as {
-      label: string;
-    },
-    response: {} as {
-      lastUpdated: string;
-    },
+    params: poIdParamsSchema,
+    body: z.object({ label: z.string() }),
+    response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
 
   updatePresentationObjectConfig: route({
     path: "/presentation_object_config/:po_id",
     method: "POST",
-    params: {} as { po_id: string },
-    body: {} as {
-      config: PresentationObjectConfig;
-      expectedLastUpdated?: string;
-      overwrite?: boolean;
-    },
-    response: {} as {
-      lastUpdated: string;
-    },
+    params: poIdParamsSchema,
+    body: z.object({
+      config: presentationObjectConfigSchema,
+      expectedLastUpdated: z.string().optional(),
+      overwrite: z.boolean().optional(),
+    }),
+    response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
 
   batchUpdatePresentationObjectsPeriodFilter: route({
     path: "/presentation_objects/batch_period_filter",
     method: "POST",
-    body: {} as {
-      presentationObjectIds: string[];
-      periodFilter: PeriodFilter | undefined;
-    },
-    response: {} as {
-      lastUpdated: string;
-      updatedCount: number;
-    },
+    body: z.object({
+      presentationObjectIds: z.array(z.string()),
+      periodFilter: periodFilterSchema,
+    }),
+    response: {} as { lastUpdated: string; updatedCount: number },
     requiresProject: true,
   }),
 
   deletePresentationObject: route({
     path: "/presentation_objects/:po_id",
     method: "DELETE",
-    params: {} as { po_id: string },
-    response: {} as {
-      lastUpdated: string;
-    },
+    params: poIdParamsSchema,
+    response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
 
   getPresentationObjectItems: route({
     path: "/presentation_object_items",
     method: "POST",
-    body: {} as {
-      resultsObjectId: string;
-      fetchConfig: GenericLongFormFetchConfig;
-      firstPeriodOption: PeriodOption | undefined;
-    },
+    body: z.object({
+      resultsObjectId: z.string(),
+      fetchConfig: genericLongFormFetchConfigSchema,
+      firstPeriodOption: periodOption.optional(),
+    }),
     response: {} as ItemsHolderPresentationObject,
     requiresProject: true,
   }),
 
-  // getResultsObjectVariableInfo: route({
-  //   path: "/results_object_variable_info",
-  //   method: "POST",
-  //   body: {} as {
-  //     resultsObjectId: string;
-  //     firstPeriodOption: PeriodOption | undefined;
-  //     disaggregationOptions: DisaggregationOption[];
-  //     moduleId: string;
-  //     moduleLastRun: string;
-  //   },
-  //   response: {} as ResultsValueInfoForPresentationObject,
-  //   requiresProject: true,
-  // }),
-
   getResultsValueInfoForPresentationObject: route({
     path: "/results_value_info",
     method: "POST",
-    body: {} as {
-      metricId: string;
-    },
+    body: z.object({ metricId: z.string() }),
     response: {} as ResultsValueInfoForPresentationObject,
     requiresProject: true,
   }),
@@ -153,11 +165,11 @@ export const presentationObjectRouteRegistry = {
   getReplicantOptions: route({
     path: "/replicant_options",
     method: "POST",
-    body: {} as {
-      resultsObjectId: string;
-      replicateBy: DisaggregationOption;
-      fetchConfig: GenericLongFormFetchConfig;
-    },
+    body: z.object({
+      resultsObjectId: z.string(),
+      replicateBy: disaggregationOption,
+      fetchConfig: genericLongFormFetchConfigSchema,
+    }),
     response: {} as ReplicantOptionsForPresentationObject,
     requiresProject: true,
   }),

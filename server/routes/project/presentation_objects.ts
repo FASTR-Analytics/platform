@@ -15,7 +15,12 @@ import {
   updatePresentationObjectConfig,
   updatePresentationObjectLabel,
 } from "../../db/mod.ts";
-import { presentationObjectConfigSchema } from "lib";
+import {
+  presentationObjectConfigSchema,
+  GenericLongFormFetchConfig,
+  ResultsValue,
+  PresentationObjectConfig,
+} from "lib";
 import { log } from "../../middleware/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { MAX_REPLICANT_OPTIONS } from "../../server_only_funcs_presentation_objects/consts.ts";
@@ -78,8 +83,8 @@ defineRoute(
       projectDb: c.var.ppk.projectDb,
       projectUser: c.var.projectUser,
       label: body.label,
-      resultsValue: body.resultsValue,
-      config: body.config,
+      resultsValue: body.resultsValue as ResultsValue,
+      config: body.config as PresentationObjectConfig,
       makeDefault: body.makeDefault,
       folderId: body.folderId,
     });
@@ -263,7 +268,7 @@ defineRoute(
     const res = await updatePresentationObjectConfig(
       c.var.ppk.projectDb,
       params.po_id,
-      body.config,
+      body.config as PresentationObjectConfig,
       body.expectedLastUpdated,
       body.overwrite,
     );
@@ -349,7 +354,7 @@ defineRoute(
     console.log(
       `[SERVER] PO Items ${body.resultsObjectId.slice(0, 8)}: REQUEST received`,
     );
-    validateFetchConfig(body.fetchConfig);
+    validateFetchConfig(body.fetchConfig as GenericLongFormFetchConfig);
 
     // Derive moduleId from resultsObjectId via DB lookup
     const roRow = (await c.var.ppk.projectDb<{ module_id: string }[]>`
@@ -380,7 +385,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
       {
         projectId: c.var.ppk.projectId,
         resultsObjectId: body.resultsObjectId,
-        fetchConfig: body.fetchConfig,
+        fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
       },
       { moduleLastRun, datasetsVersion },
     );
@@ -418,7 +423,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         c.var.ppk.projectId,
         c.var.ppk.projectDb,
         body.resultsObjectId,
-        body.fetchConfig,
+        body.fetchConfig as GenericLongFormFetchConfig,
         body.firstPeriodOption,
         moduleLastRun,
         datasetsVersion,
@@ -428,7 +433,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         {
           projectId: c.var.ppk.projectId,
           resultsObjectId: body.resultsObjectId,
-          fetchConfig: body.fetchConfig,
+          fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
         },
         { moduleLastRun, datasetsVersion },
       );
@@ -570,15 +575,16 @@ defineRoute(
   async (c, { body }) => {
     // body is attacker-controllable and flows into projectDb.unsafe SQL via
     // getPossibleValues (replicateBy → column ref) and the fetchConfig filters.
-    validateFetchConfig(body.fetchConfig);
+    const fetchConfig = body.fetchConfig as GenericLongFormFetchConfig;
+    validateFetchConfig(fetchConfig);
     if (!isValidDisaggregationOption(body.replicateBy)) {
       return c.json({ success: false, err: `Invalid replicateBy: ${body.replicateBy}` });
     }
 
     const t0 = performance.now();
     const filterSummary =
-      body.fetchConfig.filters.length > 0
-        ? `${body.fetchConfig.filters.length} filters`
+      fetchConfig.filters.length > 0
+        ? `${fetchConfig.filters.length} filters`
         : "no filters";
 
     // Derive moduleId from resultsObjectId via DB lookup
@@ -618,7 +624,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         projectId: c.var.ppk.projectId,
         resultsObjectId: body.resultsObjectId,
         replicateBy: body.replicateBy,
-        fetchConfig: body.fetchConfig,
+        fetchConfig: fetchConfig,
       },
       { moduleLastRun, datasetsVersion },
     );
@@ -671,12 +677,12 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           body.replicateBy,
           c.var.mainDb,
           labelMap,
-          body.fetchConfig.filters,
-          body.fetchConfig.periodFilter &&
-            periodFilterHasBounds(body.fetchConfig.periodFilter)
+          fetchConfig.filters,
+          fetchConfig.periodFilter &&
+            periodFilterHasBounds(fetchConfig.periodFilter)
             ? {
-                min: body.fetchConfig.periodFilter.min,
-                max: body.fetchConfig.periodFilter.max,
+                min: fetchConfig.periodFilter.min,
+                max: fetchConfig.periodFilter.max,
               }
             : undefined,
         );
@@ -688,7 +694,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               projectId: c.var.ppk.projectId,
               resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
-              fetchConfig: body.fetchConfig,
+              fetchConfig: fetchConfig,
               moduleLastRun,
               datasetsVersion,
               status: "no_values_available" as const,
@@ -705,7 +711,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               projectId: c.var.ppk.projectId,
               resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
-              fetchConfig: body.fetchConfig,
+              fetchConfig: fetchConfig,
               moduleLastRun,
               datasetsVersion,
               status: "too_many_values" as const,
@@ -720,7 +726,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               projectId: c.var.ppk.projectId,
               resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
-              fetchConfig: body.fetchConfig,
+              fetchConfig: fetchConfig,
               moduleLastRun,
               datasetsVersion,
               status: "no_values_available" as const,
@@ -734,7 +740,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
             projectId: c.var.ppk.projectId,
             resultsObjectId: body.resultsObjectId,
             replicateBy: body.replicateBy,
-            fetchConfig: body.fetchConfig,
+            fetchConfig: fetchConfig,
             moduleLastRun,
             datasetsVersion,
             status: "ok" as const,
@@ -749,7 +755,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           projectId: c.var.ppk.projectId,
           resultsObjectId: body.resultsObjectId,
           replicateBy: body.replicateBy,
-          fetchConfig: body.fetchConfig,
+          fetchConfig: fetchConfig,
         },
         { moduleLastRun, datasetsVersion },
       );

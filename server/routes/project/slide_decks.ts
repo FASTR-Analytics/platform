@@ -13,6 +13,7 @@ import {
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectSlideDecksUpdated } from "../../task_management/notify_project_v2.ts";
+import { SlideDeckConfig } from "lib";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesSlideDecks = new Hono();
@@ -142,7 +143,7 @@ defineRoute(
     const res = await updateSlideDeckConfig(
       c.var.ppk.projectDb,
       params.deck_id,
-      body.config,
+      body.config as SlideDeckConfig,
     );
     if (!res.success) {
       return c.json(res);

@@ -1,10 +1,18 @@
-import { route } from "../route-utils.ts";
+import { z } from "zod";
+import { reportConfigSchema, reportImagesSchema } from "../../types/mod.ts";
 import type {
   ReportConfig,
   ReportDetail,
   ReportSummary,
 } from "../../types/reports.ts";
 import type { FigureBlock, ImageBlock } from "../../types/slides.ts";
+import { route } from "../route-utils.ts";
+
+const reportIdParamsSchema = z.object({ report_id: z.uuid() });
+const folderBodyFields = {
+  label: z.string(),
+  folderId: z.string().uuid().nullable().optional(),
+};
 
 export const reportRouteRegistry = {
   getAllReports: route({
@@ -17,7 +25,7 @@ export const reportRouteRegistry = {
   getReportDetail: route({
     path: "/reports/:report_id",
     method: "GET",
-    params: {} as { report_id: string },
+    params: reportIdParamsSchema,
     response: {} as ReportDetail,
     requiresProject: true,
   }),
@@ -25,7 +33,7 @@ export const reportRouteRegistry = {
   createReport: route({
     path: "/reports",
     method: "POST",
-    body: {} as { label: string; folderId?: string | null },
+    body: z.object(folderBodyFields),
     response: {} as { reportId: string; lastUpdated: string },
     requiresProject: true,
   }),
@@ -33,8 +41,8 @@ export const reportRouteRegistry = {
   updateReportLabel: route({
     path: "/reports/:report_id/label",
     method: "PUT",
-    params: {} as { report_id: string },
-    body: {} as { label: string },
+    params: reportIdParamsSchema,
+    body: z.object({ label: z.string() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -42,21 +50,23 @@ export const reportRouteRegistry = {
   updateReportBody: route({
     path: "/reports/:report_id/body",
     method: "PUT",
-    params: {} as { report_id: string },
-    body: {} as {
-      body: string;
-      expectedLastUpdated?: string;
-      overwrite?: boolean;
-    },
+    params: reportIdParamsSchema,
+    body: z.object({
+      body: z.string(),
+      expectedLastUpdated: z.string().optional(),
+      overwrite: z.boolean().optional(),
+    }),
     response: {} as { lastUpdated: string; conflicted: boolean },
     requiresProject: true,
   }),
 
+  // sentinel-encoded: figures cross the wire via prepareReportFiguresForTransmit;
+  // real validation happens in the DB layer after decode (plan decision 4).
   updateReportFigures: route({
     path: "/reports/:report_id/figures",
     method: "PUT",
-    params: {} as { report_id: string },
-    body: {} as { figures: Record<string, FigureBlock> },
+    params: reportIdParamsSchema,
+    body: z.object({ figures: z.unknown() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -64,8 +74,8 @@ export const reportRouteRegistry = {
   updateReportImages: route({
     path: "/reports/:report_id/images",
     method: "PUT",
-    params: {} as { report_id: string },
-    body: {} as { images: Record<string, ImageBlock> },
+    params: reportIdParamsSchema,
+    body: z.object({ images: reportImagesSchema }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -73,8 +83,8 @@ export const reportRouteRegistry = {
   updateReportConfig: route({
     path: "/reports/:report_id/config",
     method: "PUT",
-    params: {} as { report_id: string },
-    body: {} as { config: ReportConfig },
+    params: reportIdParamsSchema,
+    body: z.object({ config: reportConfigSchema }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -82,8 +92,8 @@ export const reportRouteRegistry = {
   moveReportToFolder: route({
     path: "/reports/:report_id/folder",
     method: "PUT",
-    params: {} as { report_id: string },
-    body: {} as { folderId: string | null },
+    params: reportIdParamsSchema,
+    body: z.object({ folderId: z.string().uuid().nullable() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -91,8 +101,8 @@ export const reportRouteRegistry = {
   duplicateReport: route({
     path: "/reports/:report_id/duplicate",
     method: "POST",
-    params: {} as { report_id: string },
-    body: {} as { label: string; folderId?: string | null },
+    params: reportIdParamsSchema,
+    body: z.object(folderBodyFields),
     response: {} as { newReportId: string; lastUpdated: string },
     requiresProject: true,
   }),
@@ -100,8 +110,8 @@ export const reportRouteRegistry = {
   deleteReport: route({
     path: "/reports/:report_id",
     method: "DELETE",
-    params: {} as { report_id: string },
+    params: reportIdParamsSchema,
     response: {} as never,
     requiresProject: true,
   }),
-};
+} as const;

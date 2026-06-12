@@ -1,4 +1,6 @@
-import { route } from "../route-utils.ts";
+import { z } from "zod";
+import { dashboardConfigSchema, dashboardLayoutSchema } from "../../types/_dashboard_config.ts";
+import { figureBlockSchema } from "../../types/_slide_config.ts";
 import type {
   DashboardCreate,
   DashboardDetail,
@@ -6,12 +8,43 @@ import type {
   DashboardUpdate,
   FigureBlock,
 } from "../../types/dashboard.ts";
+import { route } from "../route-utils.ts";
 
 export type DashboardItemPosition =
   | { after: string }
   | { before: string }
   | { toStart: true }
   | { toEnd: true };
+
+const dashboardIdParamsSchema = z.object({ dashboard_id: z.uuid() });
+
+const dashboardItemPositionSchema = z.union([
+  z.object({ after: z.string() }),
+  z.object({ before: z.string() }),
+  z.object({ toStart: z.literal(true) }),
+  z.object({ toEnd: z.literal(true) }),
+]);
+
+const dashboardCreateSchema = z.object({
+  slug: z.string(),
+  title: z.string(),
+  layout: dashboardLayoutSchema.optional(),
+});
+
+const dashboardUpdateSchema = z.object({
+  slug: z.string().optional(),
+  title: z.string().optional(),
+  isPublic: z.boolean().optional(),
+  layout: dashboardLayoutSchema.optional(),
+  config: dashboardConfigSchema.optional(),
+});
+
+const replicantSchema = z.object({ value: z.string(), label: z.string() });
+const groupMemberSchema = z.object({
+  replicantValue: z.string(),
+  label: z.string(),
+  figureBlock: figureBlockSchema,
+});
 
 export const dashboardRouteRegistry = {
   getAllDashboards: route({
@@ -24,7 +57,7 @@ export const dashboardRouteRegistry = {
   getDashboardDetail: route({
     path: "/dashboards/:dashboard_id",
     method: "GET",
-    params: {} as { dashboard_id: string },
+    params: dashboardIdParamsSchema,
     response: {} as DashboardDetail,
     requiresProject: true,
   }),
@@ -32,7 +65,7 @@ export const dashboardRouteRegistry = {
   createDashboard: route({
     path: "/dashboards",
     method: "POST",
-    body: {} as DashboardCreate,
+    body: dashboardCreateSchema,
     response: {} as { dashboardId: string; lastUpdated: string },
     requiresProject: true,
   }),
@@ -40,8 +73,8 @@ export const dashboardRouteRegistry = {
   updateDashboard: route({
     path: "/dashboards/:dashboard_id",
     method: "PUT",
-    params: {} as { dashboard_id: string },
-    body: {} as DashboardUpdate,
+    params: dashboardIdParamsSchema,
+    body: dashboardUpdateSchema,
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -49,7 +82,7 @@ export const dashboardRouteRegistry = {
   deleteDashboard: route({
     path: "/dashboards/:dashboard_id",
     method: "DELETE",
-    params: {} as { dashboard_id: string },
+    params: dashboardIdParamsSchema,
     response: {} as never,
     requiresProject: true,
   }),
@@ -57,8 +90,12 @@ export const dashboardRouteRegistry = {
   addDashboardItem: route({
     path: "/dashboards/:dashboard_id/items",
     method: "POST",
-    params: {} as { dashboard_id: string },
-    body: {} as { label: string; figureBlock: FigureBlock; geoData?: unknown },
+    params: dashboardIdParamsSchema,
+    body: z.object({
+      label: z.string(),
+      figureBlock: figureBlockSchema,
+      geoData: z.unknown().optional(),
+    }),
     response: {} as { itemId: string; lastUpdated: string },
     requiresProject: true,
   }),
@@ -66,8 +103,12 @@ export const dashboardRouteRegistry = {
   updateDashboardItem: route({
     path: "/dashboards/:dashboard_id/items/:item_id",
     method: "PUT",
-    params: {} as { dashboard_id: string; item_id: string },
-    body: {} as { label?: string; figureBlock?: FigureBlock; geoData?: unknown },
+    params: z.object({ dashboard_id: z.uuid(), item_id: z.uuid() }),
+    body: z.object({
+      label: z.string().optional(),
+      figureBlock: figureBlockSchema.optional(),
+      geoData: z.unknown().optional(),
+    }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -75,7 +116,7 @@ export const dashboardRouteRegistry = {
   deleteDashboardItem: route({
     path: "/dashboards/:dashboard_id/items/:item_id",
     method: "DELETE",
-    params: {} as { dashboard_id: string; item_id: string },
+    params: z.object({ dashboard_id: z.uuid(), item_id: z.uuid() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -83,11 +124,11 @@ export const dashboardRouteRegistry = {
   moveDashboardItems: route({
     path: "/dashboards/:dashboard_id/items/move",
     method: "POST",
-    params: {} as { dashboard_id: string },
-    body: {} as {
-      itemIds: string[];
-      position: DashboardItemPosition;
-    },
+    params: dashboardIdParamsSchema,
+    body: z.object({
+      itemIds: z.array(z.string()),
+      position: dashboardItemPositionSchema,
+    }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -95,19 +136,15 @@ export const dashboardRouteRegistry = {
   addDashboardItemGroup: route({
     path: "/dashboards/:dashboard_id/groups",
     method: "POST",
-    params: {} as { dashboard_id: string },
-    body: {} as {
-      label: string;
-      replicateBy: string;
-      defaultReplicantValue?: string;
-      replicants: { value: string; label: string }[];
-      geoData?: unknown;
-      members: {
-        replicantValue: string;
-        label: string;
-        figureBlock: FigureBlock;
-      }[];
-    },
+    params: dashboardIdParamsSchema,
+    body: z.object({
+      label: z.string(),
+      replicateBy: z.string(),
+      defaultReplicantValue: z.string().optional(),
+      replicants: z.array(replicantSchema),
+      geoData: z.unknown().optional(),
+      members: z.array(groupMemberSchema),
+    }),
     response: {} as { groupId: string; lastUpdated: string },
     requiresProject: true,
   }),
@@ -115,14 +152,17 @@ export const dashboardRouteRegistry = {
   updateDashboardItemGroup: route({
     path: "/dashboards/:dashboard_id/groups/:group_id",
     method: "PUT",
-    params: {} as { dashboard_id: string; group_id: string },
-    body: {} as {
-      label?: string;
-      defaultReplicantValue?: string;
-      replicants?: { value: string; label: string }[];
-      geoData?: unknown;
-      members?: { replicantValue: string; figureBlock: FigureBlock }[];
-    },
+    params: z.object({ dashboard_id: z.uuid(), group_id: z.uuid() }),
+    body: z.object({
+      label: z.string().optional(),
+      defaultReplicantValue: z.string().optional(),
+      replicants: z.array(replicantSchema).optional(),
+      geoData: z.unknown().optional(),
+      members: z.array(z.object({
+        replicantValue: z.string(),
+        figureBlock: figureBlockSchema,
+      })).optional(),
+    }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -130,39 +170,39 @@ export const dashboardRouteRegistry = {
   deleteDashboardItemGroup: route({
     path: "/dashboards/:dashboard_id/groups/:group_id",
     method: "DELETE",
-    params: {} as { dashboard_id: string; group_id: string },
+    params: z.object({ dashboard_id: z.uuid(), group_id: z.uuid() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
 
-  // Replace one entry (item OR group) in place with a new entry of EITHER kind,
-  // preserving its sort position — the single primitive behind every structural
-  // reshape (item↔group, group→group with a changed dimension/set).
   replaceDashboardEntry: route({
     path: "/dashboards/:dashboard_id/replace-entry",
     method: "POST",
-    params: {} as { dashboard_id: string },
-    body: {} as {
-      oldEntry:
-        | { kind: "item"; itemId: string }
-        | { kind: "group"; groupId: string };
-      newEntry:
-        | { kind: "item"; label: string; figureBlock: FigureBlock; geoData?: unknown }
-        | {
-            kind: "group";
-            label: string;
-            replicateBy: string;
-            defaultReplicantValue?: string;
-            replicants: { value: string; label: string }[];
-            geoData?: unknown;
-            members: {
-              replicantValue: string;
-              label: string;
-              figureBlock: FigureBlock;
-            }[];
-          };
-    },
+    params: dashboardIdParamsSchema,
+    body: z.object({
+      oldEntry: z.union([
+        z.object({ kind: z.literal("item"), itemId: z.string() }),
+        z.object({ kind: z.literal("group"), groupId: z.string() }),
+      ]),
+      newEntry: z.union([
+        z.object({
+          kind: z.literal("item"),
+          label: z.string(),
+          figureBlock: figureBlockSchema,
+          geoData: z.unknown().optional(),
+        }),
+        z.object({
+          kind: z.literal("group"),
+          label: z.string(),
+          replicateBy: z.string(),
+          defaultReplicantValue: z.string().optional(),
+          replicants: z.array(replicantSchema),
+          geoData: z.unknown().optional(),
+          members: z.array(groupMemberSchema),
+        }),
+      ]),
+    }),
     response: {} as { entryId: string; lastUpdated: string },
     requiresProject: true,
   }),
-};
+} as const;
