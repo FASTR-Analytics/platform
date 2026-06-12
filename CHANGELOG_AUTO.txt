@@ -1,3 +1,19 @@
+[TBD] [user] [fixed] - Visualizations now refresh automatically when underlying data changes
+[TBD] [user] [fixed] - Slide deck updates from other users appear reliably in real time
+[TBD] [user] [fixed] - Replicate-by options now update correctly after data or filter changes
+[TBD] [user] [fixed] - Dashboard editor loads more reliably when switching between projects
+[TBD] [user] [fixed] - ICEH dataset display refreshes properly after data re-imports
+[TBD] [user] [fixed] - Style preview in slide deck editor updates more reliably when changing settings
+[TBD] [user] [fixed] - Connection status indicator for projects updates instantly instead of with a delay
+[TBD] [user] [fixed] - Preset previews now refresh when underlying module data changes
+[TBD] [admin] [fixed] - Slide deck loading is now more reliable with proper caching
+[TBD] [admin] [fixed] - Visualizations and reports now refresh automatically when underlying data changes
+[TBD] [admin] [fixed] - ICEH dataset cache now correctly detects re-imports with corrected values
+[TBD] [admin] [fixed] - SSE project connections now enforce authentication and access permissions
+[TBD] [admin] [fixed] - Replicate-by options update reliably when filters change
+[TBD] [admin] [changed] - AI context updates are now pushed in real time to connected users
+[TBD] [admin] [improved] - Faster reconnection feedback when project connection drops
+[TBD] [admin] [improved] - More consistent caching across dataset, visualization, and dashboard views
 [TBD] [user] [fixed] - Fixed errors when loading or downloading map data for admin areas
 [TBD] [admin] [added] - Server now validates all incoming request data against strict schemas
 [TBD] [admin] [fixed] - Malformed or unexpected API inputs are now rejected with clear error messages
