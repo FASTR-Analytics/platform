@@ -1,3 +1,8 @@
+[TBD] [user] [fixed] - Fixed errors when loading or downloading map data for admin areas
+[TBD] [admin] [added] - Server now validates all incoming request data against strict schemas
+[TBD] [admin] [fixed] - Malformed or unexpected API inputs are now rejected with clear error messages
+[TBD] [admin] [fixed] - GeoJSON map level parameters are now correctly validated as numbers
+[TBD] [admin] [internal] - Startup checks now verify all API route definitions are consistent
 [TBD] [user] [fixed] - Improved error messages when project backup or restore fails
 [TBD] [admin] [fixed] - Improved error messages when backup or restore operations fail
 [TBD] [admin] [internal] - Renamed internal helper functions across the application
