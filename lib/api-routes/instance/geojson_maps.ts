@@ -39,7 +39,7 @@ export const geojsonMapRouteRegistry = {
     path: "/geojson-maps/save",
     method: "POST",
     body: z.object({
-      adminAreaLevel: z.number(),
+      adminAreaLevel: adminAreaLevelSchema,
       assetFileName: z.string(),
       areaMatchProp: z.string(),
       areaMapping: z.record(z.string(), z.string()),
@@ -48,6 +48,9 @@ export const geojsonMapRouteRegistry = {
   deleteGeoJsonMap: route({
     path: "/geojson-maps/delete",
     method: "POST",
+    // adminAreaLevel stays a plain number: the delete handler has no 2|3|4 guard and the
+    // client sources this from `number`-typed map summaries. Tightening belongs with a
+    // GeoJsonMapSummary type change, not here.
     body: z.object({ adminAreaLevel: z.number() }),
   }),
   getAdminAreaNamesForLevel: route({
