@@ -46,7 +46,8 @@ export const visualizationFolderRouteRegistry = {
   updatePresentationObjectFolder: route({
     path: "/presentation-objects/:po_id/folder",
     method: "PUT",
-    params: z.object({ po_id: z.uuid() }),
+    // po_id is a 3-char nanoid (generateUniquePresentationObjectId), not a UUID
+    params: z.object({ po_id: z.string() }),
     body: z.object({ folderId: z.string().nullable() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,

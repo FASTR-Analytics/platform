@@ -61,7 +61,8 @@ export const moduleRouteRegistry = {
   getResultsObjectItems: route({
     path: "/results_object_items/:results_object_id",
     method: "GET",
-    params: z.object({ results_object_id: z.uuid() }),
+    // results_object_id is a module-defined filename (e.g. "M10_hfa_results.csv"), not a UUID
+    params: z.object({ results_object_id: z.string() }),
     response: {} as ItemsHolderResultsObject,
     requiresProject: true,
   }),

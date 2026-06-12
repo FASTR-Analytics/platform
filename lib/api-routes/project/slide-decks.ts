@@ -3,7 +3,8 @@ import { slideDeckConfigSchema } from "../../types/mod.ts";
 import type { SlideDeckSummary, SlideDeckDetail, SlideDeckConfig } from "../../types/slides.ts";
 import { route } from "../route-utils.ts";
 
-const deckIdParamsSchema = z.object({ deck_id: z.uuid() });
+// deck_id is a 3-char nanoid (generateUniqueDeckId), not a UUID
+const deckIdParamsSchema = z.object({ deck_id: z.string() });
 const folderBodyFields = {
   label: z.string(),
   folderId: z.string().uuid().nullable().optional(),

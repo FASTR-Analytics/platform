@@ -8,7 +8,8 @@ import type {
 import type { FigureBlock, ImageBlock } from "../../types/slides.ts";
 import { route } from "../route-utils.ts";
 
-const reportIdParamsSchema = z.object({ report_id: z.uuid() });
+// report_id is a 3-char nanoid (generateUniqueReportId), not a UUID
+const reportIdParamsSchema = z.object({ report_id: z.string() });
 const folderBodyFields = {
   label: z.string(),
   folderId: z.string().uuid().nullable().optional(),

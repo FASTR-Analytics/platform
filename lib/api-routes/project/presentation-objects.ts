@@ -24,7 +24,8 @@ import type {
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-const poIdParamsSchema = z.object({ po_id: z.uuid() });
+// po_id is a 3-char nanoid (generateUniquePresentationObjectId), not a UUID
+const poIdParamsSchema = z.object({ po_id: z.string() });
 
 // SQL injection guards: these fields are interpolated into projectDb.unsafe SQL
 // (see validate_fetch_config.ts and query_helpers.ts).

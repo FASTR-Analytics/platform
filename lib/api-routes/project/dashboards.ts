@@ -16,7 +16,8 @@ export type DashboardItemPosition =
   | { toStart: true }
   | { toEnd: true };
 
-const dashboardIdParamsSchema = z.object({ dashboard_id: z.uuid() });
+// dashboard/item/group ids are 3-char nanoids (generateUniqueDashboard*Id), not UUIDs
+const dashboardIdParamsSchema = z.object({ dashboard_id: z.string() });
 
 const dashboardItemPositionSchema = z.union([
   z.object({ after: z.string() }),
@@ -103,7 +104,7 @@ export const dashboardRouteRegistry = {
   updateDashboardItem: route({
     path: "/dashboards/:dashboard_id/items/:item_id",
     method: "PUT",
-    params: z.object({ dashboard_id: z.uuid(), item_id: z.uuid() }),
+    params: z.object({ dashboard_id: z.string(), item_id: z.string() }),
     body: z.object({
       label: z.string().optional(),
       figureBlock: figureBlockSchema.optional(),
@@ -116,7 +117,7 @@ export const dashboardRouteRegistry = {
   deleteDashboardItem: route({
     path: "/dashboards/:dashboard_id/items/:item_id",
     method: "DELETE",
-    params: z.object({ dashboard_id: z.uuid(), item_id: z.uuid() }),
+    params: z.object({ dashboard_id: z.string(), item_id: z.string() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
@@ -152,7 +153,7 @@ export const dashboardRouteRegistry = {
   updateDashboardItemGroup: route({
     path: "/dashboards/:dashboard_id/groups/:group_id",
     method: "PUT",
-    params: z.object({ dashboard_id: z.uuid(), group_id: z.uuid() }),
+    params: z.object({ dashboard_id: z.string(), group_id: z.string() }),
     body: z.object({
       label: z.string().optional(),
       defaultReplicantValue: z.string().optional(),
@@ -170,7 +171,7 @@ export const dashboardRouteRegistry = {
   deleteDashboardItemGroup: route({
     path: "/dashboards/:dashboard_id/groups/:group_id",
     method: "DELETE",
-    params: z.object({ dashboard_id: z.uuid(), group_id: z.uuid() }),
+    params: z.object({ dashboard_id: z.string(), group_id: z.string() }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
