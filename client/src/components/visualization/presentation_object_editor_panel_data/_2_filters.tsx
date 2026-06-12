@@ -22,7 +22,7 @@ import {
   formatPeriod,
   getPeriodIdFromTime,
   getTimeFromPeriodId,
-  type TimQuery,
+  type Query,
 } from "panther";
 import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";

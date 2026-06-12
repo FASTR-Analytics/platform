@@ -13,7 +13,7 @@ import {
   Select,
   StateHolderFormError,
   getSelectOptions,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { serverActions } from "~/server_actions";
 
@@ -57,7 +57,7 @@ export function Step2_Csv(p: Props) {
     setTempMappings(columnKey, csvCol);
   }
 
-  const save = timActionForm(async () => {
+  const save = createFormAction(async () => {
     const mappings = unwrap(tempMappings);
 
     // Validate all required columns

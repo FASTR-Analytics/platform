@@ -373,7 +373,7 @@ export function PopoverMenuProvider() {
 // =============================================================================
 
 export function createMenuButton(opts: MenuButtonOptions) {
-  return function MenuButton(props: { class?: string }): JSX.Element {
+  return function MenuButton(p: { class?: string }): JSX.Element {
     let buttonRef: HTMLButtonElement | undefined;
 
     function handleClick() {
@@ -390,7 +390,7 @@ export function createMenuButton(opts: MenuButtonOptions) {
         ref={buttonRef}
         onClick={handleClick}
         {...opts.buttonProps}
-        {...props}
+        {...p}
       />
     );
   };
@@ -407,19 +407,17 @@ export type MenuTriggerWrapperProps = {
 };
 
 export function MenuTriggerWrapper(
-  props: MenuTriggerWrapperProps,
+  p: MenuTriggerWrapperProps,
 ): JSX.Element {
   let wrapperRef: HTMLSpanElement | undefined;
 
   function handleClick(e: MouseEvent) {
     e.stopPropagation();
     if (!wrapperRef) return;
-    const items = typeof props.items === "function"
-      ? props.items()
-      : props.items;
+    const items = typeof p.items === "function" ? p.items() : p.items;
     showMenu({
       anchor: wrapperRef.getBoundingClientRect(),
-      position: props.position ?? "bottom-start",
+      position: p.position ?? "bottom-start",
       items,
     });
   }
@@ -430,7 +428,7 @@ export function MenuTriggerWrapper(
       onClick={handleClick}
       style={{ cursor: "pointer" }}
     >
-      {props.children}
+      {p.children}
     </span>
   );
 }
@@ -440,11 +438,11 @@ export function createMenuTriggerWrapper(opts: {
   position?: PopoverPosition;
 }) {
   return function MenuTriggerWrapperInstance(
-    props: { children: JSX.Element },
+    p: { children: JSX.Element },
   ): JSX.Element {
     return (
       <MenuTriggerWrapper items={opts.items} position={opts.position}>
-        {props.children}
+        {p.children}
       </MenuTriggerWrapper>
     );
   };

@@ -5,7 +5,7 @@ import {
   Table,
   type TableColumn,
   getEditorWrapper,
-  timActionDelete,
+  createDeleteAction,
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -56,7 +56,7 @@ export function GeoJsonManager(p: Props) {
       header: "",
       alignH: "right",
       render: (item) => {
-        const deleteAction = timActionDelete(
+        const deleteAction = createDeleteAction(
           {
             text: t3({
               en: `Delete GeoJSON for admin area level ${item.adminAreaLevel}?`,

@@ -17,7 +17,7 @@ import {
   HeadingBar,
   ProgressBar,
   getProgress,
-  timActionButton,
+  createButtonAction,
 } from "panther";
 import {
   Match,
@@ -104,7 +104,7 @@ export function SettingsForProjectDatasetHmis(
 
   const { progressFrom0To100, progressMsg, onProgress } = getProgress();
 
-  const save = timActionButton(
+  const save = createButtonAction(
     async () => {
       const newWindowing = unwrap(tempWindowing);
 

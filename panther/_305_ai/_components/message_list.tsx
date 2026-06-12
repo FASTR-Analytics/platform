@@ -34,9 +34,9 @@ type Props = {
   markdownStyle?: CustomMarkdownStyleOptions;
 };
 
-export const MessageList: Component<Props> = (props) => {
+export function MessageList(p: Props) {
   const renderItem = (item: DisplayItem) => {
-    const registry = props.customRenderers ?? {};
+    const registry = p.customRenderers ?? {};
 
     switch (item.type) {
       case "user_text": {
@@ -44,8 +44,8 @@ export const MessageList: Component<Props> = (props) => {
         return (
           <Renderer
             item={item}
-            messageStyle={props.userMessageStyle}
-            markdownStyle={props.markdownStyle}
+            messageStyle={p.userMessageStyle}
+            markdownStyle={p.markdownStyle}
           />
         );
       }
@@ -55,14 +55,14 @@ export const MessageList: Component<Props> = (props) => {
         return (
           <Renderer
             item={item}
-            messageStyle={props.assistantMessageStyle}
-            markdownStyle={props.markdownStyle}
+            messageStyle={p.assistantMessageStyle}
+            markdownStyle={p.markdownStyle}
           />
         );
       }
       case "tool_in_progress": {
         // Tool-specific inProgressComponent takes priority over global toolLoading renderer
-        const toolWithMetadata = props.toolRegistry.get(item.toolName);
+        const toolWithMetadata = p.toolRegistry.get(item.toolName);
         if (toolWithMetadata?.metadata.inProgressComponent) {
           const InProgressComponent =
             toolWithMetadata.metadata.inProgressComponent;
@@ -80,7 +80,7 @@ export const MessageList: Component<Props> = (props) => {
         return <Renderer item={item} />;
       }
       case "tool_display": {
-        const toolWithMetadata = props.toolRegistry.get(item.toolName);
+        const toolWithMetadata = p.toolRegistry.get(item.toolName);
         if (toolWithMetadata?.metadata.displayComponent) {
           const DisplayComponent = toolWithMetadata.metadata.displayComponent;
           return <DisplayComponent input={item.input} />;
@@ -95,42 +95,42 @@ export const MessageList: Component<Props> = (props) => {
   };
 
   const regularItems = () =>
-    props.displayItems.filter((item) => item.type !== "tool_in_progress");
+    p.displayItems.filter((item) => item.type !== "tool_in_progress");
   const toolInProgressItems = () =>
-    props.displayItems.filter((item) => item.type === "tool_in_progress");
+    p.displayItems.filter((item) => item.type === "tool_in_progress");
 
   return (
     <div class="ui-gap flex flex-col">
       <Show
-        when={props.displayItems.length > 0 || props.isStreaming}
-        fallback={props.fallbackContent ? props.fallbackContent({}) : null}
+        when={p.displayItems.length > 0 || p.isStreaming}
+        fallback={p.fallbackContent ? p.fallbackContent({}) : null}
       >
         <For each={regularItems()}>{(item) => renderItem(item)}</For>
 
         <Switch>
           <Match
-            when={props.isStreaming && props.currentStreamingText !== undefined}
+            when={p.isStreaming && p.currentStreamingText !== undefined}
           >
             {(() => {
-              const Renderer = props.customRenderers?.assistantStreamingText ??
+              const Renderer = p.customRenderers?.assistantStreamingText ??
                 AssistantStreamingTextRenderer;
               return (
                 <Renderer
-                  text={props.currentStreamingText!}
-                  messageStyle={props.assistantMessageStyle}
-                  markdownStyle={props.markdownStyle}
+                  text={p.currentStreamingText!}
+                  messageStyle={p.assistantMessageStyle}
+                  markdownStyle={p.markdownStyle}
                 />
               );
             })()}
           </Match>
-          <Match when={props.serverToolLabel}>
+          <Match when={p.serverToolLabel}>
             <div class="text-sm text-neutral italic">
               <SpinningCursor class="mr-1 inline-block" />
-              {props.serverToolLabel}
+              {p.serverToolLabel}
             </div>
           </Match>
           <Match
-            when={(props.isStreaming || props.isLoading) &&
+            when={(p.isStreaming || p.isLoading) &&
               toolInProgressItems().length === 0}
           >
             <div class="text-sm text-neutral italic">
@@ -144,4 +144,4 @@ export const MessageList: Component<Props> = (props) => {
       </Show>
     </div>
   );
-};
+}

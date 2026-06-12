@@ -6,7 +6,7 @@ import {
   ColorPicker,
   Input,
   Select,
-  timActionForm,
+  createFormAction,
   ProgressBar,
   getProgress,
 } from "panther";
@@ -49,7 +49,7 @@ export function DuplicateReportModal(
     ...p.folders.map((f) => ({ value: f.id, label: f.label })),
   ];
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
 

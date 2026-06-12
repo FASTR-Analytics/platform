@@ -10,9 +10,9 @@ import {
   StateHolderWrapper,
   StepperNavigationVisual,
   getStepper,
-  timActionDelete,
-  timActionButton,
-  timQuery,
+  createDeleteAction,
+  createButtonAction,
+  createQuery,
 } from "panther";
 import { Match, Switch, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -34,7 +34,7 @@ type Props = EditorComponentProps<
 export function DatasetHfaUploadAttemptForm(p: Props) {
   // Query state
 
-  const uploadAttempt = timQuery(async () => {
+  const uploadAttempt = createQuery(async () => {
     const res = await serverActions.getDatasetHfaUpload({});
     if (res.success === true) {
       stepper.setCurrentStep(res.data.step);
@@ -139,7 +139,7 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
   // Actions
 
   async function attemptDeleteUploadAttempt() {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       t3({ en: "Are you sure you want to delete this import?", fr: "Êtes-vous sûr de vouloir supprimer cette importation ?" }),
       () => serverActions.deleteDatasetHfaUploadAttempt({}),
       p.silentFetch,
@@ -149,7 +149,7 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
     await deleteAction.click();
   }
 
-  const deleteSafe = timActionButton(
+  const deleteSafe = createButtonAction(
     () => serverActions.deleteDatasetHfaUploadAttempt({}),
     p.silentFetch,
     () => p.close(undefined),

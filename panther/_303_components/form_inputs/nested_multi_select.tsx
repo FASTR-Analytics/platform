@@ -114,24 +114,32 @@ export function NestedMultiSelect<T extends string>(
     }
   }
 
-  function NodeList(props: {
+  function NodeList(p: {
     nodes: NestedSelectNode<T>[];
     depth: number;
+    intentWhenChecked?: Intent;
   }): JSX.Element {
     return (
-      <For each={props.nodes}>
-        {(node) => <NodeRow node={node} depth={props.depth} />}
+      <For each={p.nodes}>
+        {(node) => (
+          <NodeRow
+            node={node}
+            depth={p.depth}
+            intentWhenChecked={p.intentWhenChecked}
+          />
+        )}
       </For>
     );
   }
 
-  function NodeRow(props: {
+  function NodeRow(p: {
     node: NestedSelectNode<T>;
     depth: number;
+    intentWhenChecked?: Intent;
   }): JSX.Element {
     return (
       <Switch>
-        <Match when={asBranch(props.node)} keyed>
+        <Match when={asBranch(p.node)} keyed>
           {(bn) => {
             const descendantLeaves = createMemo(() =>
               getAllLeafValues(bn.children)
@@ -151,7 +159,7 @@ export function NestedMultiSelect<T extends string>(
               <>
                 <div
                   class="flex items-center gap-1"
-                  style={{ "padding-left": `${props.depth * 1.25}rem` }}
+                  style={{ "padding-left": `${p.depth * 1.25}rem` }}
                 >
                   <Show
                     when={bn.children.length > 0}
@@ -182,17 +190,21 @@ export function NestedMultiSelect<T extends string>(
                   />
                 </div>
                 <Show when={isOpen(bn.key) && bn.children.length > 0}>
-                  <NodeList nodes={bn.children} depth={props.depth + 1} />
+                  <NodeList
+                    nodes={bn.children}
+                    depth={p.depth + 1}
+                    intentWhenChecked={p.intentWhenChecked}
+                  />
                 </Show>
               </>
             );
           }}
         </Match>
-        <Match when={asLeaf(props.node)} keyed>
+        <Match when={asLeaf(p.node)} keyed>
           {(ln) => (
             <div
               class="flex items-center gap-1"
-              style={{ "padding-left": `${props.depth * 1.25}rem` }}
+              style={{ "padding-left": `${p.depth * 1.25}rem` }}
             >
               <div class="h-5 w-5 flex-none" />
               <Checkbox
@@ -243,7 +255,11 @@ export function NestedMultiSelect<T extends string>(
             );
           }}
         </Show>
-        <NodeList nodes={p.nodes} depth={0} />
+        <NodeList
+          nodes={p.nodes}
+          depth={0}
+          intentWhenChecked={p.intentWhenChecked}
+        />
       </div>
     </div>
   );

@@ -17,23 +17,23 @@ type Props = {
   children: JSX.Element;
 };
 
-export const AIChatProvider: Component<Props> = (props) => {
-  const conversationsManager = props.config.scope !== undefined
-    ? createConversationsManager({ scope: props.config.scope })
+export function AIChatProvider(p: Props) {
+  const conversationsManager = p.config.scope !== undefined
+    ? createConversationsManager({ scope: p.config.scope })
     : undefined;
 
   return (
-    <AIChatConfigContext.Provider value={props.config}>
+    <AIChatConfigContext.Provider value={p.config}>
       <Show
         when={conversationsManager}
-        fallback={props.children}
+        fallback={p.children}
       >
         {(manager) => (
           <ConversationsContext.Provider value={manager()}>
-            {props.children}
+            {p.children}
           </ConversationsContext.Provider>
         )}
       </Show>
     </AIChatConfigContext.Provider>
   );
-};
+}

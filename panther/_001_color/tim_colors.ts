@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export const TIM_COLORS = {
+export const PANTHER_COLORS = {
   DarkBlue: "#003f5c",
   Black: "#000000",
   White: "#ffffff",
@@ -14,7 +14,7 @@ export const TIM_COLORS = {
   UWATeal: "#00B2A9",
 };
 
-// chroma.scale([TIM_COLORS.DarkBlue, TIM_COLORS.White]).mode("lch").colors(20);
+// chroma.scale([PANTHER_COLORS.DarkBlue, PANTHER_COLORS.White]).mode("lch").colors(20);
 export const PALETTE_DARKBLUE_TO_WHITE_20 = [
   "#003f5c",
   "#184864",
@@ -38,7 +38,7 @@ export const PALETTE_DARKBLUE_TO_WHITE_20 = [
   "#ffffff",
 ];
 
-// chroma.scale([TIM_COLORS.Black, TIM_COLORS.White]).mode("lch").colors(20);
+// chroma.scale([PANTHER_COLORS.Black, PANTHER_COLORS.White]).mode("lch").colors(20);
 export const PALETTE_BLACK_TO_WHITE_20 = [
   "#000000",
   "#121212",

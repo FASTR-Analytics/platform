@@ -5,7 +5,7 @@
 
 import { For, type JSX, Show } from "solid-js";
 import { t3 } from "../deps.ts";
-import { timActionForm } from "../../_302_query/mod.ts";
+import { createFormAction } from "../../_302_query/mod.ts";
 import type {
   APIResponseNoData,
   APIResponseWithData,
@@ -28,7 +28,7 @@ export function ConfirmDeleteForm<T>(
     "SUCCESS"
   >,
 ) {
-  const confirm = timActionForm(
+  const confirm = createFormAction(
     p.actionFunc as () => Promise<APIResponseWithData<T>>,
     ...((p.onSuccessCallbacks ?? []) as Array<
       (data: T) => void | Promise<void>

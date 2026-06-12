@@ -8,7 +8,7 @@ import {
   openComponent,
   SelectionCircle,
   showMenu,
-  timActionDelete,
+  createDeleteAction,
   type MenuItem,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
@@ -76,7 +76,7 @@ export function ProjectDashboards(p: Props) {
             fr: `Êtes-vous sûr de vouloir supprimer « ${dashboard.title} » ?`,
           });
 
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       confirmText,
       async () => {
         const promises = idsToDelete.map((id) =>

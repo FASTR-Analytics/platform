@@ -7,7 +7,6 @@ import {
   computeBoundsForPath,
   Coordinates,
   type DataLabel,
-  getAdjustedFont,
   getColor,
   type Primitive,
   type TextInfoUnkeyed,
@@ -15,6 +14,7 @@ import {
 } from "../deps.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 import {
+  buildDataLabelTextStyle,
   buildSeriesInfo,
   buildValueInfo,
   type ContentGenerationContext,
@@ -34,12 +34,16 @@ export function generateLinePrimitives(
     pointLabels: Array<{ coordIndex: number; dataLabel: DataLabel }>;
   };
   const lineSeriesData: Map<number, { segments: LineSegment[] }> = new Map();
+  const seriesInfos = Array.from(
+    { length: ctx.nSeries },
+    (_, i) => buildSeriesInfo(ctx, i, mapped),
+  );
 
   for (let i_val = 0; i_val < ctx.nVals; i_val++) {
     for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
       const mappedVal = mapped[i_series][i_val];
 
-      const seriesInfo = buildSeriesInfo(ctx, i_series, mapped);
+      const seriesInfo = seriesInfos[i_series];
       const lineStyle = s.lines.getStyle(seriesInfo);
       if (!lineStyle.show) continue;
 
@@ -90,16 +94,7 @@ export function generateLinePrimitives(
           ? s.lines.textFormatter(valueInfo)
           : String(mappedVal.val);
 
-        const textStyle: TextInfoUnkeyed = {
-          ...ctx.dataLabelsTextStyle,
-          ...(dl.color !== undefined ? { color: getColor(dl.color) } : {}),
-          ...(dl.relFontSize !== undefined
-            ? { fontSize: ctx.dataLabelsTextStyle.fontSize * dl.relFontSize }
-            : {}),
-          ...(dl.font !== undefined
-            ? { font: getAdjustedFont(ctx.dataLabelsTextStyle.font, dl.font) }
-            : {}),
-        };
+        const textStyle = buildDataLabelTextStyle(ctx.dataLabelsTextStyle, dl);
 
         const mText = ctx.rc.mText(labelStr, textStyle, 9999);
         const hasDecoration = dl.backgroundColor !== "none" ||
@@ -153,7 +148,7 @@ export function generateLinePrimitives(
 
   for (const [i_series, lineData] of lineSeriesData.entries()) {
     const seriesInfo = {
-      ...buildSeriesInfo(ctx, i_series, mapped),
+      ...seriesInfos[i_series],
       nVals: lineData.segments.reduce(
         (n: number, seg: LineSegment) => n + seg.coords.length,
         0,

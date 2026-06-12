@@ -7,7 +7,7 @@ import type { PaletteName } from "./palettes.ts";
 import {
   PALETTE_BLACK_TO_WHITE_20,
   PALETTE_DARKBLUE_TO_WHITE_20,
-  TIM_COLORS,
+  PANTHER_COLORS,
 } from "./tim_colors.ts";
 import type { KeyColors } from "./types.ts";
 
@@ -67,9 +67,9 @@ export const KEY_COLOR_THEMES: Record<KeyColorThemeName, KeyColorTheme> = {
       base100: PALETTE_DARKBLUE_TO_WHITE_20[19],
       base200: PALETTE_DARKBLUE_TO_WHITE_20[18],
       base300: PALETTE_DARKBLUE_TO_WHITE_20[17],
-      baseContent: TIM_COLORS.DarkBlue,
+      baseContent: PANTHER_COLORS.DarkBlue,
       primary: "#000C5C",
-      primaryContent: TIM_COLORS.White,
+      primaryContent: PANTHER_COLORS.White,
       neutral: "#6b7280",
       neutralContent: "#ffffff",
       success: "#059669",
@@ -87,9 +87,9 @@ export const KEY_COLOR_THEMES: Record<KeyColorThemeName, KeyColorTheme> = {
       base100: PALETTE_BLACK_TO_WHITE_20[19],
       base200: PALETTE_BLACK_TO_WHITE_20[18],
       base300: PALETTE_BLACK_TO_WHITE_20[17],
-      baseContent: TIM_COLORS.Black,
-      primary: TIM_COLORS.UWABlue,
-      primaryContent: TIM_COLORS.White,
+      baseContent: PANTHER_COLORS.Black,
+      primary: PANTHER_COLORS.UWABlue,
+      primaryContent: PANTHER_COLORS.White,
       neutral: "#6b7280",
       neutralContent: "#ffffff",
       success: "#059669",

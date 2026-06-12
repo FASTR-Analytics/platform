@@ -8,10 +8,10 @@ import { MarkdownPresentation } from "../content/markdown_presentation.tsx";
 import {
   type APIResponseWithData,
   createMarkdownIt,
+  createQuery,
   type CustomStyleOptions,
   downloadPdf,
   markdownToPdfBrowser,
-  timQuery,
 } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
 import { FrameBottom } from "../layout/frames.tsx";
@@ -31,7 +31,7 @@ type Props = {
 };
 
 export function PresentationViewer(p: Props) {
-  const contentQuery = timQuery(() => fetchMarkdown(p.url));
+  const contentQuery = createQuery(() => fetchMarkdown(p.url));
 
   return (
     <StateHolderWrapper state={contentQuery.state()}>

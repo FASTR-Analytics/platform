@@ -10,7 +10,7 @@ import {
   StateHolderFormError,
   getSelectOptions,
   pickFileAsArrayBuffer,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { For, Match, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -190,7 +190,7 @@ function ReconcileStep(p: {
     return [...mapping];
   };
 
-  const doImport = timActionForm(async () => {
+  const doImport = createFormAction(async () => {
     const finalMapping = effectiveMapping();
     const usedTps = new Set(finalMapping.filter(Boolean));
     if (usedTps.size === 0) {

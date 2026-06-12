@@ -7,9 +7,9 @@ import {
   downloadCsv,
   openAlert,
   openComponent,
-  timActionButton,
-  timActionDelete,
-  timQuery,
+  createButtonAction,
+  createDeleteAction,
+  createQuery,
 } from "panther";
 import { Match, Show, Switch, createSignal } from "solid-js";
 import { AddUserForm } from "./add_users";
@@ -27,7 +27,7 @@ type Props = {
 };
 
 export function InstanceUsers(p: Props) {
-  const userLogs = timQuery(() => serverActions.getAllUserLogs({}));
+  const userLogs = createQuery(() => serverActions.getAllUserLogs({}));
 
   const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
     undefined,
@@ -316,14 +316,14 @@ function UserTable(p: {
     },
   ];
 
-  const bulkMakeAdmin = timActionButton(
+  const bulkMakeAdmin = createButtonAction(
     async (selectedUsers: UserTableData[]) => {
       const emails = selectedUsers.map((u) => u.email);
       return serverActions.toggleUserAdmin({ emails, makeAdmin: true });
     },
   );
 
-  const bulkMakeNonAdmin = timActionButton(
+  const bulkMakeNonAdmin = createButtonAction(
     async (selectedUsers: UserTableData[]) => {
       const emails = selectedUsers.map((u) => u.email);
       return serverActions.toggleUserAdmin({ emails, makeAdmin: false });
@@ -338,7 +338,7 @@ function UserTable(p: {
         ? t3({ en: "this user", fr: "cet utilisateur" })
         : t3({ en: "these users", fr: "ces utilisateurs" });
 
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: t3({
           en: `Are you sure you want to remove ${userText}?`,

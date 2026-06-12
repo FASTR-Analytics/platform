@@ -3,7 +3,7 @@ import {
   AlertComponentProps,
   Button,
   ModalContainer,
-  timActionForm,
+  createFormAction,
   StateHolderFormError,
 } from "panther";
 import { createStore } from "solid-js/store";
@@ -34,7 +34,7 @@ export function Dhis2CredentialsForm(
 
   const [saveToSession, setSaveToSession] = createSignal<boolean>(false);
 
-  const saveAction = timActionForm(async () => {
+  const saveAction = createFormAction(async () => {
     // Validate required fields
     if (!tempCredentials.url.trim()) {
       return { success: false, err: t3({ en: "DHIS2 URL is required", fr: "L'URL DHIS2 est requise" }) };

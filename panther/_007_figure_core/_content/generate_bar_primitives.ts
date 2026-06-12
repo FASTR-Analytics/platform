@@ -5,7 +5,6 @@
 
 import {
   type ChartBarPrimitive,
-  getAdjustedFont,
   getColor,
   type Primitive,
   RectCoordsDims,
@@ -14,6 +13,7 @@ import {
 } from "../deps.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 import {
+  buildDataLabelTextStyle,
   buildSeriesInfo,
   buildValueInfo,
   type ContentGenerationContext,
@@ -59,15 +59,18 @@ export function generateBarPrimitives(
   );
   const extendDir = valExtendDir(orientation);
   const baselineFudge = -extendDir * (ctx.gridStrokeWidth / 2);
+  const seriesInfos = Array.from(
+    { length: ctx.nSeries },
+    (_, i) => buildSeriesInfo(ctx, i, mapped),
+  );
 
   for (let i_val = 0; i_val < ctx.nVals; i_val++) {
     for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
       const mappedVal = mapped[i_series][i_val];
       if (mappedVal === undefined) continue;
 
-      const seriesInfo = buildSeriesInfo(ctx, i_series, mapped);
       const valueInfo = buildValueInfo(
-        seriesInfo,
+        seriesInfos[i_series],
         mappedVal.val,
         i_val,
         ctx.valueRange.minVal,
@@ -250,16 +253,7 @@ export function generateBarPrimitives(
           ? s.bars.textFormatter(valueInfo)
           : String(mappedVal.val);
 
-        const textStyle: TextInfoUnkeyed = {
-          ...ctx.dataLabelsTextStyle,
-          ...(dl.color !== undefined ? { color: getColor(dl.color) } : {}),
-          ...(dl.relFontSize !== undefined
-            ? { fontSize: ctx.dataLabelsTextStyle.fontSize * dl.relFontSize }
-            : {}),
-          ...(dl.font !== undefined
-            ? { font: getAdjustedFont(ctx.dataLabelsTextStyle.font, dl.font) }
-            : {}),
-        };
+        const textStyle = buildDataLabelTextStyle(ctx.dataLabelsTextStyle, dl);
         const hasDecoration = dl.backgroundColor !== "none" ||
           dl.borderWidth > 0;
 

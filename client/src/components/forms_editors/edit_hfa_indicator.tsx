@@ -7,7 +7,7 @@ import {
   RadioGroup,
   Select,
   TextArea,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -41,7 +41,7 @@ export function EditHfaIndicator(
     return p.subCategories.filter((sc) => sc.categoryId === catId);
   };
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
 

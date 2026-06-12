@@ -5,6 +5,6 @@
 
 export { Csv } from "./csv.ts";
 export { compareCsvs } from "./compare.ts";
-export { parseCSV, parseCSVToObjects } from "./parse.ts";
+export { parseCsv, parseCsvToObjects } from "./parse.ts";
 export { stringifyCsv, stringifyCsvWithHeaders } from "./stringify.ts";
 export type { CompareResult, CsvOptions } from "./types.ts";

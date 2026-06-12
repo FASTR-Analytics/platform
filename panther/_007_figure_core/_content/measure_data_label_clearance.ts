@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  getAdjustedFont,
   type HeaderItem,
   type MergedContentStyle,
   RectCoordsDims,
@@ -13,6 +12,7 @@ import {
 } from "../deps.ts";
 import { NO_OVERHANG_CLEARANCE, type ValueRange } from "../types.ts";
 import {
+  buildDataLabelTextStyle,
   buildSeriesInfo,
   buildValueInfo,
   type ContentGenerationContext,
@@ -26,21 +26,6 @@ import {
 type MeasurableDataLabel = ReturnType<
   MergedContentStyle["bars"]["getStyle"]
 >["dataLabel"];
-
-function labelTextStyle(
-  base: TextInfoUnkeyed,
-  dl: MeasurableDataLabel,
-): TextInfoUnkeyed {
-  return {
-    ...base,
-    ...(dl.relFontSize !== undefined
-      ? { fontSize: base.fontSize * dl.relFontSize }
-      : {}),
-    ...(dl.font !== undefined
-      ? { font: getAdjustedFont(base.font, dl.font) }
-      : {}),
-  };
-}
 
 function hasDecoration(dl: MeasurableDataLabel): boolean {
   return dl.backgroundColor !== "none" || dl.borderWidth > 0;
@@ -112,6 +97,10 @@ export function measureDataLabelEndClearance(p: {
   };
 
   const labelOwner = resolveDataLabelOwnership(p.seriesVals, ctx);
+  const seriesInfos = Array.from(
+    { length: ctx.nSeries },
+    (_, i) => buildSeriesInfo(ctx, i, p.seriesVals),
+  );
 
   let needed = 0;
   const consider = (anchorVal: number, extent: number) => {
@@ -139,7 +128,7 @@ export function measureDataLabelEndClearance(p: {
         continue;
       }
 
-      const seriesInfo = buildSeriesInfo(ctx, i_series, p.seriesVals);
+      const seriesInfo = seriesInfos[i_series];
       const valueInfo = buildValueInfo(
         seriesInfo,
         val,
@@ -160,7 +149,7 @@ export function measureDataLabelEndClearance(p: {
         }
         const mText = p.rc.mText(
           labelStr,
-          labelTextStyle(p.dataLabelsTextStyle, dl),
+          buildDataLabelTextStyle(p.dataLabelsTextStyle, dl),
           9999,
         );
         const pos = pointStyle.dataLabelPosition;
@@ -192,7 +181,7 @@ export function measureDataLabelEndClearance(p: {
         }
         const mText = p.rc.mText(
           labelStr,
-          labelTextStyle(p.dataLabelsTextStyle, dl),
+          buildDataLabelTextStyle(p.dataLabelsTextStyle, dl),
           9999,
         );
         const extent = isHorizontal
@@ -266,7 +255,7 @@ export function measureDataLabelEndClearance(p: {
       }
       const mText = p.rc.mText(
         labelStr,
-        labelTextStyle(p.dataLabelsTextStyle, dl),
+        buildDataLabelTextStyle(p.dataLabelsTextStyle, dl),
         textMaxWidth,
       );
       const extent = isHorizontal

@@ -21,10 +21,10 @@ import {
   type PositionedSankeyNode,
 } from "./_sankey_primitives/generate_sankey_primitives.ts";
 import type {
-  ExplicitSankeyLink,
-  ExplicitSankeyNode,
   MeasuredSankeyExplicit,
   SankeyExplicitInputs,
+  SankeyExplicitLink,
+  SankeyExplicitNode,
 } from "./types.ts";
 import { getMergedSankeyStyle } from "./style.ts";
 
@@ -38,8 +38,8 @@ type BoundingBox = {
 };
 
 function getInputBoundingBox(
-  nodes: ExplicitSankeyNode[],
-  links: ExplicitSankeyLink[],
+  nodes: SankeyExplicitNode[],
+  links: SankeyExplicitLink[],
 ): BoundingBox {
   let minX = Infinity, maxX = -Infinity;
   let minY = Infinity, maxY = -Infinity;

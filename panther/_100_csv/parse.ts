@@ -5,7 +5,7 @@
 
 import { Papa } from "./deps.ts";
 
-export function parseCSV(csvString: string): string[][] {
+export function parseCsv(csvString: string): string[][] {
   if (!csvString || csvString.trim() === "") {
     throw new Error("CSV string cannot be empty");
   }
@@ -35,7 +35,7 @@ export function parseCSV(csvString: string): string[][] {
   return parseResult.data as string[][];
 }
 
-export function parseCSVToObjects(csvString: string): Record<string, string>[] {
+export function parseCsvToObjects(csvString: string): Record<string, string>[] {
   if (!csvString || csvString.trim() === "") {
     throw new Error("CSV string cannot be empty");
   }

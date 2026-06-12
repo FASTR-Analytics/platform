@@ -5,7 +5,7 @@ import {
   ProgressBar,
   RadioGroup,
   getProgress,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -62,7 +62,7 @@ export function AddDashboardItemConfirmModal(
     });
   }
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
 

@@ -1,5 +1,5 @@
 import { t3, type DatasetDhis2StagingResult } from "lib";
-import { Button, timActionButton } from "panther";
+import { Button, createButtonAction } from "panther";
 import { For, Match, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 
@@ -10,7 +10,7 @@ type Props = {
 };
 
 export function Step4_Dhis2(p: Props) {
-  const save = timActionButton(
+  const save = createButtonAction(
     () => serverActions.finalizeDatasetIntegration({}),
     p.silentFetch,
   );

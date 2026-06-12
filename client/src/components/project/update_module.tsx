@@ -4,8 +4,8 @@ import {
   AlertFormHolder,
   Checkbox,
   StateHolderWrapper,
-  timActionForm,
-  timQuery,
+  createFormAction,
+  createQuery,
 } from "panther";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -20,7 +20,7 @@ export function UpdateModule(
     undefined
   >,
 ) {
-  const preview = timQuery(
+  const preview = createQuery(
     () =>
       serverActions.previewModuleUpdate({
         projectId: p.projectId,
@@ -47,7 +47,7 @@ export function UpdateModule(
 
   const canSubmit = createMemo(() => reinstall() || rerun());
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
       const result = await serverActions.updateModuleDefinition({

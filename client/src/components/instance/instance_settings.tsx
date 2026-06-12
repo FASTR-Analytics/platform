@@ -13,7 +13,7 @@ import {
   RadioGroup,
   SettingsSection,
   getSelectOptions,
-  timActionButton,
+  createButtonAction,
 } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -110,7 +110,7 @@ export function InstanceSettings(p: Props) {
   const [needsSavingAdminLabels, setNeedsSavingAdminLabels] =
     createSignal(false);
 
-  const updateAdminAreaLabels = timActionButton(async () => {
+  const updateAdminAreaLabels = createButtonAction(async () => {
     const newConfig: InstanceConfigAdminAreaLabels = {
       label2: withAdminSuffix(adminLabel2(), 2),
       label3: withAdminSuffix(adminLabel3(), 3),
@@ -123,13 +123,13 @@ export function InstanceSettings(p: Props) {
     return res;
   });
 
-  const updateMaxAdminArea = timActionButton(() =>
+  const updateMaxAdminArea = createButtonAction(() =>
     serverActions.updateMaxAdminArea({
       maxAdminArea: selectedMaxAdminArea(),
     }),
   );
 
-  const updateCountryIso3 = timActionButton(async () => {
+  const updateCountryIso3 = createButtonAction(async () => {
     const res = await serverActions.updateCountryIso3({
       countryIso3: countryIso3(),
     });
@@ -230,7 +230,7 @@ export function InstanceSettings(p: Props) {
     },
   ];
 
-  const updateFacilityColumns = timActionButton(() => {
+  const updateFacilityColumns = createButtonAction(() => {
     const newConfig: InstanceConfigFacilityColumns = {
       includeNames: includeNames(),
       includeTypes: includeTypes(),

@@ -15,6 +15,7 @@ import {
   type PageBackgroundStyle,
   type PatternConfig,
   type SectionStyleOptions,
+  type SplitPlacement,
 } from "./deps.ts";
 import type { ColorPreset } from "./color_presets.ts";
 import {
@@ -71,17 +72,28 @@ function resolveHeroBackground(
   return baseColor;
 }
 
-function resolveCoverStyle(
-  layout: LayoutPreset,
+// Shared hero-page surface resolution (cover + section pages): full-bleed
+// background plus the optional split panel with its adjusted color.
+function resolveHeroSurface(
+  split: { placement: SplitPlacement; sizeAsPct: number } | undefined,
   coverTreatment: CoverTreatment,
   preset: ColorPreset,
   pattern?: Omit<PatternConfig, "baseColor">,
-): CoverStyleOptions {
-  const coverBg = getSlotColor(coverTreatment.background, preset);
-  const hasSplit = !!layout.cover.split;
+): {
+  background: PageBackgroundStyle;
+  split:
+    | {
+      placement: SplitPlacement;
+      sizeAsPct: number;
+      background?: PageBackgroundStyle;
+    }
+    | undefined;
+} {
+  const heroBg = getSlotColor(coverTreatment.background, preset);
+  const hasSplit = !!split;
 
   const splitBackgroundColor = hasSplit
-    ? resolveSplitColor(coverBg, coverTreatment.splitAdjust, preset)
+    ? resolveSplitColor(heroBg, coverTreatment.splitAdjust, preset)
     : undefined;
 
   const splitBackground: PageBackgroundStyle | undefined = splitBackgroundColor
@@ -91,19 +103,38 @@ function resolveCoverStyle(
     : undefined;
 
   return {
-    padding: layout.cover.padding,
     background: resolveHeroBackground(
       coverTreatment.background,
       preset,
       hasSplit ? undefined : pattern,
     ),
-    split: layout.cover.split
+    split: split
       ? {
-        placement: layout.cover.split.placement,
-        sizeAsPct: layout.cover.split.sizeAsPct,
+        placement: split.placement,
+        sizeAsPct: split.sizeAsPct,
         background: splitBackground,
       }
       : undefined,
+  };
+}
+
+function resolveCoverStyle(
+  layout: LayoutPreset,
+  coverTreatment: CoverTreatment,
+  preset: ColorPreset,
+  pattern?: Omit<PatternConfig, "baseColor">,
+): CoverStyleOptions {
+  const surface = resolveHeroSurface(
+    layout.cover.split,
+    coverTreatment,
+    preset,
+    pattern,
+  );
+
+  return {
+    padding: layout.cover.padding,
+    background: surface.background,
+    split: surface.split,
     logosSizing: layout.cover.logosSizing,
     logosPlacement: layout.cover.logosPlacement,
     titleBottomPadding: layout.cover.titleBottomPadding,
@@ -120,33 +151,17 @@ function resolveSectionStyle(
   preset: ColorPreset,
   pattern?: Omit<PatternConfig, "baseColor">,
 ): SectionStyleOptions {
-  const sectionBg = getSlotColor(coverTreatment.background, preset);
-  const hasSplit = !!layout.section.split;
-
-  const splitBackgroundColor = hasSplit
-    ? resolveSplitColor(sectionBg, coverTreatment.splitAdjust, preset)
-    : undefined;
-
-  const splitBackground: PageBackgroundStyle | undefined = splitBackgroundColor
-    ? (pattern
-      ? { ...pattern, baseColor: splitBackgroundColor }
-      : splitBackgroundColor)
-    : undefined;
+  const surface = resolveHeroSurface(
+    layout.section.split,
+    coverTreatment,
+    preset,
+    pattern,
+  );
 
   return {
     padding: layout.section.padding,
-    background: resolveHeroBackground(
-      coverTreatment.background,
-      preset,
-      hasSplit ? undefined : pattern,
-    ),
-    split: layout.section.split
-      ? {
-        placement: layout.section.split.placement,
-        sizeAsPct: layout.section.split.sizeAsPct,
-        background: splitBackground,
-      }
-      : undefined,
+    background: surface.background,
+    split: surface.split,
     sectionTitleBottomPadding: layout.section.sectionTitleBottomPadding,
     alignH: layout.section.alignH,
     alignV: layout.section.alignV,

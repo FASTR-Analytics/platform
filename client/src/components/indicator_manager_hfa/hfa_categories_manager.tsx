@@ -7,7 +7,7 @@ import {
   Button,
   SortableList,
   openComponent,
-  timActionDelete,
+  createDeleteAction,
 } from "panther";
 import { Show, createEffect, createMemo } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
@@ -118,7 +118,7 @@ function CategoriesPane(p: {
   }
 
   async function handleDelete(category: HfaIndicatorCategory) {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: t3({
           en: "Delete this category? Its sub-categories will also be deleted, and any indicators using it will become uncategorized.",
@@ -278,7 +278,7 @@ function SubCategoriesPane(p: {
   }
 
   async function handleDelete(subCategory: HfaIndicatorSubCategory) {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: t3({
           en: "Delete this sub-category? Any indicators using it will have their sub-category cleared.",

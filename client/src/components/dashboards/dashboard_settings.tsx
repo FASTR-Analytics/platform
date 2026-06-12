@@ -20,7 +20,7 @@ import {
   TextArea,
   getSelectOptions,
   openConfirm,
-  timActionButton,
+  createButtonAction,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -65,7 +65,7 @@ export function DashboardSettings(p: Props) {
     }
   }
 
-  const save = timActionButton(
+  const save = createButtonAction(
     async () => {
       if (!title().trim()) {
         return {

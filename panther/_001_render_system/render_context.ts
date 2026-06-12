@@ -49,7 +49,7 @@ export type AreaStyle = {
   fillColorAdjustmentStrategy: ColorAdjustmentStrategy;
 };
 
-export const _POINT_TYPES: PointType[] = [
+export const POINT_TYPES: PointType[] = [
   "circle",
   "crossRot",
   "rectRot",

@@ -355,8 +355,9 @@ export class PdfRenderContext implements RenderContext {
         this._jsPdf.setGState(newGState);
         this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
       }
-      if (coordArray.length === 2) {
-        // Skip rendering for 2 coordinates - cannot form a fillable area
+      if (coordArray.length < 3) {
+        // A fillable area needs at least 3 coordinates (same threshold as the
+        // canvas render context).
         return;
       } else {
         const arr = coordArray.map((co, i_co) => {

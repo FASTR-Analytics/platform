@@ -1,9 +1,9 @@
 import { t3, type IcehUploadAttemptStatus } from "lib";
-import { Button, type TimActionButton } from "panther";
+import { Button, type ButtonAction } from "panther";
 
 type Props = {
   status: Extract<IcehUploadAttemptStatus, { status: "complete" }>;
-  deleteSafe: TimActionButton<[]>;
+  deleteSafe: ButtonAction<[]>;
 };
 
 export function ProgressComplete(p: Props) {

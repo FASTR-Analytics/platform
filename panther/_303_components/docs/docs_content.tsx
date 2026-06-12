@@ -5,10 +5,10 @@
 
 import { createEffect, createSignal } from "./deps.ts";
 import {
+  createQuery,
   fetchGitHubMarkdown,
   MarkdownPresentation,
   StateHolderWrapper,
-  timQuery,
 } from "./deps.ts";
 import type { ParsedGitHubUrl } from "./deps.ts";
 import type { DocsContentProps } from "./types.ts";
@@ -20,7 +20,7 @@ import type { DocsContentProps } from "./types.ts";
 export function DocsContent(p: DocsContentProps) {
   const [currentFetchSlug, setCurrentFetchSlug] = createSignal(p.currentSlug);
 
-  const contentQuery = timQuery(() =>
+  const contentQuery = createQuery(() =>
     p.isGithub && p.parsedGitHubUrl
       ? fetchGitHubMarkdownWrapped(
         currentFetchSlug(),

@@ -3,7 +3,7 @@ import {
   AlertComponentProps,
   AlertFormHolder,
   Input,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -45,7 +45,7 @@ export function AddProjectForm(
 
   // const { progressFrom0To100, progressMsg, onProgress } = getProgress();
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
       const goodLabel = tempLabel().trim();

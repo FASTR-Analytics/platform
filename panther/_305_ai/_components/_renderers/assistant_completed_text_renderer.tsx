@@ -12,21 +12,21 @@ import {
   md,
 } from "./_markdown_utils.ts";
 
-export const AssistantCompletedTextRenderer: Component<{
+export function AssistantCompletedTextRenderer(p: {
   item: Extract<DisplayItem, { type: "assistant_text" }>;
   markdownStyle?: CustomMarkdownStyleOptions;
   messageStyle?: MessageStyle;
-}> = (props) => {
-  const bg = props.messageStyle?.background ?? "bg-primary/10";
-  const text = props.messageStyle?.text ?? "text-primary";
+}) {
+  const bg = p.messageStyle?.background ?? "bg-primary/10";
+  const text = p.messageStyle?.text ?? "text-primary";
 
   return (
     <div class="w-fit max-w-full">
       <div
         class={`py-4 w-fit max-w-full rounded text-sm ${bg} ${text} ${MARKDOWN_BASE_STYLES}`}
-        style={deriveMarkdownCssVars(props.markdownStyle)}
-        innerHTML={md.render(props.item.text)}
+        style={deriveMarkdownCssVars(p.markdownStyle)}
+        innerHTML={md.render(p.item.text)}
       />
     </div>
   );
-};
+}

@@ -3,7 +3,7 @@ import {
   Button,
   ModalContainer,
   StateHolderFormError,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { For } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -31,7 +31,7 @@ export function BulkEditPermissionsForm(
     ) as Record<UserPermission, TriState>,
   );
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
       const permissions: Partial<Record<UserPermission, boolean>> = {};

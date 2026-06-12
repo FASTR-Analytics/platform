@@ -1,5 +1,5 @@
 import { t3 } from "lib";
-import { Button, Select, StateHolderFormError, timActionForm } from "panther";
+import { Button, Select, StateHolderFormError, createFormAction } from "panther";
 import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
@@ -68,7 +68,7 @@ export function Step2(p: Props) {
     }));
   });
 
-  const analyzeAction = timActionForm(
+  const analyzeAction = createFormAction(
     async () => {
       const creds = state.dhis2Credentials();
       const dhis2Level = state.selectedDhis2Level();

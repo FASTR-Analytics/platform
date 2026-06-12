@@ -7,7 +7,7 @@ import {
   FrameRight,
   FrameTop,
   getEditorWrapper,
-  timActionButton,
+  createButtonAction,
   toPct0,
 } from "panther";
 import {
@@ -64,7 +64,7 @@ export function InstanceDatasetHmis(p: Props) {
     }
   });
 
-  const newUploadAttempt = timActionButton(
+  const newUploadAttempt = createButtonAction(
     () => serverActions.createDatasetUploadAttempt({}),
     fetchUploadAttempt,
     openUploadAttempt,

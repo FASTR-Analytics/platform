@@ -7,8 +7,8 @@ import {
   type ListItem,
   MonthSelect,
   StateHolderFormError,
-  timActionDelete,
-  timActionForm,
+  createDeleteAction,
+  createFormAction,
   YearSelect,
 } from "panther";
 import { createSignal, Show } from "solid-js";
@@ -75,7 +75,7 @@ export function HfaTimePointsEditor() {
     setFormMonth(tp.periodId.slice(4, 6));
   }
 
-  const saveForm = timActionForm(async () => {
+  const saveForm = createFormAction(async () => {
     const label = formLabel().trim();
     if (!label) {
       return { success: false, err: t3({ en: "Label cannot be empty", fr: "Le libellé ne peut pas être vide" }) };
@@ -101,7 +101,7 @@ export function HfaTimePointsEditor() {
   async function handleDelete(ids: string[]) {
     const label = ids[0];
     if (!label) return;
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       t3({ en: `Delete time point "${label}", all its data, and its sampling weights?`, fr: `Supprimer le point temporel « ${label} », toutes ses données et ses pondérations d'échantillonnage ?` }),
       () => serverActions.deleteHfaTimePoint({ label }),
       () => {

@@ -14,11 +14,11 @@ export type TooltipProps = {
   disabled?: boolean;
 };
 
-export function Tooltip(props: TooltipProps): JSX.Element {
+export function Tooltip(p: TooltipProps): JSX.Element {
   const [isVisible, setIsVisible] = createSignal(false);
   const [position, setPosition] = createSignal({ x: 0, y: 0 });
   let wrapperRef: HTMLDivElement | undefined;
-  const tooltipPosition = props.position ?? "right";
+  const tooltipPosition = p.position ?? "right";
 
   function updatePosition() {
     if (!wrapperRef) return;
@@ -50,7 +50,7 @@ export function Tooltip(props: TooltipProps): JSX.Element {
   }
 
   function handleMouseEnter() {
-    if (props.disabled) return;
+    if (p.disabled) return;
     updatePosition();
     setIsVisible(true);
   }
@@ -99,7 +99,7 @@ export function Tooltip(props: TooltipProps): JSX.Element {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {props.children}
+      {p.children}
       <Show when={isVisible()}>
         <div
           class="bg-base-content text-base-100 fixed z-50 whitespace-nowrap rounded px-2 py-1 text-sm shadow-lg"
@@ -111,7 +111,7 @@ export function Tooltip(props: TooltipProps): JSX.Element {
             "pointer-events": "none",
           } as JSX.CSSProperties}
         >
-          {props.content}
+          {p.content}
         </div>
       </Show>
     </div>

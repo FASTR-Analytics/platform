@@ -1,5 +1,5 @@
 import { t3 } from "lib";
-import { Button, StateHolderFormError, timActionForm } from "panther";
+import { Button, StateHolderFormError, createFormAction } from "panther";
 import { serverActions } from "~/server_actions";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 import type { WizardState } from "./index";
@@ -11,7 +11,7 @@ type Props = {
 export function Step1File(p: Props) {
   const { state } = p;
 
-  const analyzeAction = timActionForm(
+  const analyzeAction = createFormAction(
     async () => {
       const fileName = state.selectedFileName();
       if (!fileName) {

@@ -13,7 +13,7 @@ import {
   formatPeriod,
   getEditorWrapper,
   openAlert,
-  timActionButton,
+  createButtonAction,
   toNum0,
 } from "panther";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
@@ -119,7 +119,7 @@ export function ProjectData(p: Props) {
                   });
                 }
 
-                const disableDataset = timActionButton(() =>
+                const disableDataset = createButtonAction(() =>
                   serverActions.removeDatasetFromProject({
                     projectId: projectState.id,
                     dataset_type: "hmis",
@@ -465,14 +465,14 @@ export function ProjectData(p: Props) {
 
                 const isStale = () => stalenessCheck().isStale;
 
-                const disableDataset = timActionButton(() =>
+                const disableDataset = createButtonAction(() =>
                   serverActions.removeDatasetFromProject({
                     projectId: projectState.id,
                     dataset_type: "hfa",
                   }),
                 );
 
-                const updateData = timActionButton(() =>
+                const updateData = createButtonAction(() =>
                   serverActions.addDatasetToProject({
                     projectId: projectState.id,
                     datasetType: "hfa",
@@ -635,14 +635,14 @@ export function ProjectData(p: Props) {
 
                 const isStale = () => stalenessCheck().isStale;
 
-                const disableDataset = timActionButton(() =>
+                const disableDataset = createButtonAction(() =>
                   serverActions.removeDatasetFromProject({
                     projectId: projectState.id,
                     dataset_type: "iceh",
                   }),
                 );
 
-                const updateData = timActionButton(() =>
+                const updateData = createButtonAction(() =>
                   serverActions.addDatasetToProject({
                     projectId: projectState.id,
                     datasetType: "iceh",
@@ -721,7 +721,7 @@ export function ProjectData(p: Props) {
             </Match>
             <Match when={true}>
               {(() => {
-                const enableDatasetIceh = timActionButton(async () => {
+                const enableDatasetIceh = createButtonAction(async () => {
                   if (!instanceState.datasetsWithData.includes("iceh")) {
                     return {
                       success: false,

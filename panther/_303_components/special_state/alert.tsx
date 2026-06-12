@@ -377,20 +377,20 @@ type InnerForPromptProps = {
   close: (p: string | undefined) => void;
 };
 
-function InnerForPrompt(props: InnerForPromptProps) {
+function InnerForPrompt(p: InnerForPromptProps) {
   const [promptInput, setPromptInput] = createSignal<string>(
-    props.pst.initialInputText,
+    p.pst.initialInputText,
   );
   return (
     <form
       id="promptForm"
       onSubmit={(evt) => {
         evt.preventDefault();
-        props.close(promptInput());
+        p.close(promptInput());
       }}
     >
       <Input
-        label={props.pst.inputLabel}
+        label={p.pst.inputLabel}
         value={promptInput()}
         onChange={(v) => setPromptInput(v)}
         autoFocus

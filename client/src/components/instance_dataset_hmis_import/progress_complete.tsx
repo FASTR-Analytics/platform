@@ -1,7 +1,7 @@
 import { t3 } from "lib";
-import { Button, type TimActionButton } from "panther";
+import { Button, type ButtonAction } from "panther";
 
-export function ProgressComplete(p: { deleteSafe: TimActionButton<[]> }) {
+export function ProgressComplete(p: { deleteSafe: ButtonAction<[]> }) {
   return (
     <div class="ui-spy ui-pad">
       <div class="">

@@ -12,23 +12,7 @@ import {
   type QueryState,
 } from "./types.ts";
 
-//////////////////////////////////////////////////////////////////////////////////////////
-//  ________  __                       ______                                           //
-// /        |/  |                     /      \                                          //
-// $$$$$$$$/ $$/  _____  ____        /$$$$$$  | __    __   ______    ______   __    __  //
-//    $$ |   /  |/     \/    \       $$ |  $$ |/  |  /  | /      \  /      \ /  |  /  | //
-//    $$ |   $$ |$$$$$$ $$$$  |      $$ |  $$ |$$ |  $$ |/$$$$$$  |/$$$$$$  |$$ |  $$ | //
-//    $$ |   $$ |$$ | $$ | $$ |      $$ |_ $$ |$$ |  $$ |$$    $$ |$$ |  $$/ $$ |  $$ | //
-//    $$ |   $$ |$$ | $$ | $$ |      $$ / \$$ |$$ \__$$ |$$$$$$$$/ $$ |      $$ \__$$ | //
-//    $$ |   $$ |$$ | $$ | $$ |      $$ $$ $$< $$    $$/ $$       |$$ |      $$    $$ | //
-//    $$/    $$/ $$/  $$/  $$/        $$$$$$  | $$$$$$/   $$$$$$$/ $$/        $$$$$$$ | //
-//                                        $$$/                               /  \__$$ | //
-//                                                                           $$    $$/  //
-//                                                                            $$$$$$/   //
-//                                                                                      //
-//////////////////////////////////////////////////////////////////////////////////////////
-
-export type TimQuery<T> = {
+export type Query<T> = {
   state: Accessor<QueryState<T>>;
   fetch: () => Promise<void>;
   silentFetch: () => Promise<void>;
@@ -48,10 +32,10 @@ export type TimQuery<T> = {
  * Race condition protection: if multiple fetch()/silentFetch() calls overlap,
  * only the most recent updates state.
  */
-export function timQuery<T>(
+export function createQuery<T>(
   queryFunc: () => Promise<APIResponseWithData<T>>,
   loadingMsg?: string,
-): TimQuery<T> {
+): Query<T> {
   const [state, setter] = createSignal<QueryState<T>>({
     status: "loading",
   });
@@ -120,22 +104,22 @@ export function timQuery<T>(
 //                                                                                                       //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export type TimActionForm<U extends any[]> = {
+export type FormAction<U extends any[]> = {
   state: Accessor<FormActionState>;
   click: (...args: U) => Promise<void>;
 };
 
 // Overload 1: Action returns data
-export function timActionForm<T, U extends any[]>(
+export function createFormAction<T, U extends any[]>(
   actionFunc: (...args: U) => Promise<APIResponseWithData<T>>,
   ...onSuccessCallbacks: Array<(data: T) => void | Promise<void>>
-): TimActionForm<U>;
+): FormAction<U>;
 
 // Overload 2: Action returns no data
-export function timActionForm<U extends any[]>(
+export function createFormAction<U extends any[]>(
   actionFunc: (...args: U) => Promise<APIResponseNoData>,
   ...onSuccessCallbacks: Array<() => void | Promise<void>>
-): TimActionForm<U>;
+): FormAction<U>;
 
 /**
  * Creates a form action that executes an action and shows inline errors.
@@ -143,14 +127,14 @@ export function timActionForm<U extends any[]>(
  * Race condition protection: If click() is called multiple times before previous
  * actions complete, only the most recent action will update state and execute callbacks.
  */
-export function timActionForm<T, U extends any[]>(
+export function createFormAction<T, U extends any[]>(
   actionFunc: (
     ...args: U
   ) => Promise<APIResponseWithData<T> | APIResponseNoData>,
   ...onSuccessCallbacks: Array<
     ((data: T) => void | Promise<void>) | (() => void | Promise<void>)
   >
-): TimActionForm<U> {
+): FormAction<U> {
   const [state, setter] = createSignal<FormActionState>({
     status: "ready",
   });

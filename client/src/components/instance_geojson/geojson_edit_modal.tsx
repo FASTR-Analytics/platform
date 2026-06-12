@@ -1,5 +1,5 @@
 import { t3 } from "lib";
-import { Button, Select, StateHolderFormError, timActionForm } from "panther";
+import { Button, Select, StateHolderFormError, createFormAction } from "panther";
 import { For, Show, createMemo, createSignal, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 
@@ -131,7 +131,7 @@ export function GeoJsonEditModal(p: Props) {
     return result;
   }
 
-  const saveAction = timActionForm(
+  const saveAction = createFormAction(
     async () => {
       const map = buildRemapping();
       if (Object.keys(map).length === 0) {

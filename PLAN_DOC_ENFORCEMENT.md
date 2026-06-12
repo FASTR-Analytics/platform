@@ -31,9 +31,7 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 ## Tier 2 — Turn a doc into an enforced protocol (each also kills a bug class)
 
 - [ ] **3. `validateAllRoutesDefined` should fail, not warn.**
-  It currently `console.error`s on missing/extra routes and continues, so a registry key with no handler ships as a client action that 404s.
-  **Fix:** throw (or `Deno.exit(1)`) on mismatch, or run it as a CI check. This makes the registry-is-the-contract rule real.
-  **File:** `server/routes/route-tracker.ts`. **Doc:** [DOC_API_ROUTES.md](DOC_API_ROUTES.md).
+  → **Absorbed into [PLAN_API_ROUTES_HARDENING.md](PLAN_API_ROUTES_HARDENING.md) (B2)**, which owns the full route-system hardening pass (2026-06-12 review). Track it there.
 
 - [ ] **4. Startup guard-audit: every registered route is guarded or explicitly public.**
   Classify each route registered via `defineRoute` as having a permission guard or an explicit `/* PUBLIC */` marker; fail boot on an unclassified route. Permanently closes the `health.ts`-style class (item 1) and any future omission.

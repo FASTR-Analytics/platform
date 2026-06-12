@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createEffect } from "solid-js";
+import { createEffect, onCleanup } from "solid-js";
 
 export type ScrollManagerOptions = {
   threshold?: number;
@@ -18,6 +18,8 @@ export function createScrollManager(
   const { threshold = 50, enabled = true } = options;
   let shouldAutoScroll = true;
   let ignoreScrollEvents = false;
+  let ignoreScrollTimeout: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(ignoreScrollTimeout));
 
   const checkScrollPosition = () => {
     if (ignoreScrollEvents) return;
@@ -38,7 +40,8 @@ export function createScrollManager(
     if (force) {
       shouldAutoScroll = true;
       ignoreScrollEvents = true;
-      setTimeout(() => (ignoreScrollEvents = false), 100);
+      clearTimeout(ignoreScrollTimeout);
+      ignoreScrollTimeout = setTimeout(() => (ignoreScrollEvents = false), 100);
     }
 
     if (!shouldAutoScroll) return;

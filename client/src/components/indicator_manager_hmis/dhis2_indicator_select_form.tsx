@@ -11,9 +11,9 @@ import {
   TextArea,
   Button,
   StateHolderFormError,
-  timActionForm,
+  createFormAction,
   type EditorComponentProps,
-  timActionButton,
+  createButtonAction,
 } from "panther";
 import { createSignal, Show, For } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -50,7 +50,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     Set<string>
   >(new Set());
 
-  const search = timActionForm(async () => {
+  const search = createFormAction(async () => {
     const query = tempSearchQuery().trim();
     if (!query) {
       return {
@@ -86,7 +86,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     return response;
   });
 
-  const save = timActionButton(
+  const save = createButtonAction(
     async () => {
       const selectedItems = tempSelectedElements();
       if (selectedItems.length === 0) {

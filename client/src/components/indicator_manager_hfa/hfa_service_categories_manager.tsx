@@ -3,7 +3,7 @@ import {
   Button,
   SortableList,
   openComponent,
-  timActionDelete,
+  createDeleteAction,
 } from "panther";
 import { Show, createEffect } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
@@ -53,7 +53,7 @@ export function HfaServiceCategoriesManager(p: Props) {
   }
 
   async function handleDelete(serviceCategory: HfaIndicatorServiceCategory) {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: t3({
           en: "Delete this service category? Any indicators using it will have their service category cleared.",

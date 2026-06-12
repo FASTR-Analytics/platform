@@ -4,7 +4,7 @@ import {
   Button,
   RadioGroup,
   StateHolderFormError,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { serverActions } from "~/server_actions";
 
@@ -24,7 +24,7 @@ export function Step0(p: Props) {
     setSelectedSourceType(sourceType);
   }
 
-  const save = timActionForm(async () => {
+  const save = createFormAction(async () => {
     const sourceType = selectedSourceType();
 
     if (sourceType !== "csv" && sourceType !== "dhis2") {

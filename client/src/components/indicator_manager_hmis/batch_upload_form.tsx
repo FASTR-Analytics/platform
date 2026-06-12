@@ -7,7 +7,7 @@ import {
   Select,
   StateHolderFormError,
   getSelectOptions,
-  timActionForm,
+  createFormAction,
   type EditorComponentProps,
   FrameTop,
   HeaderBarCanGoBack,
@@ -29,7 +29,7 @@ export function BatchUploadForm(p: Props) {
     setSelectedFileName(fileName);
   }
 
-  const handleBatchUpload = timActionForm(
+  const handleBatchUpload = createFormAction(
     async () => {
       const assetFileName = selectedFileName();
 

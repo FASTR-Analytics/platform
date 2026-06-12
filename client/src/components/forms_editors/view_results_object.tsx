@@ -6,7 +6,7 @@ import {
   FrameTop,
   StateHolderWrapper,
   TableFromCsv,
-  timQuery,
+  createQuery,
 } from "panther";
 import { createMemo, Match, Switch } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions";
@@ -24,7 +24,7 @@ export function ViewResultsObject(
 ) {
   // Query state
 
-  const items = timQuery<ItemsHolderResultsObject>(async () => {
+  const items = createQuery<ItemsHolderResultsObject>(async () => {
     return await serverActions.getResultsObjectItems({
       projectId: p.projectId,
       results_object_id: p.resultsObjectId,

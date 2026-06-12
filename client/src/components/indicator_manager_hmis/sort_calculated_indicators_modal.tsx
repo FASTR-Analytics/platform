@@ -2,7 +2,7 @@ import {
   AlertComponentProps,
   AlertFormHolder,
   SortableList,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { createSignal } from "solid-js";
 import { t3, type CalculatedIndicator } from "lib";
@@ -20,7 +20,7 @@ export function SortCalculatedIndicatorsModal(p: Props) {
       .map((ci) => ({ id: ci.calculated_indicator_id, label: ci.label })),
   );
 
-  const save = timActionForm(
+  const save = createFormAction(
     async () => {
       const order = items().map((i) => i.id);
       const res = await serverActions.reorderCalculatedIndicators({ order });

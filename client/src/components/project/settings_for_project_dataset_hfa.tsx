@@ -9,8 +9,8 @@ import {
   ProgressBar,
   StateHolderWrapper,
   getProgress,
-  timActionButton,
-  timQuery,
+  createButtonAction,
+  createQuery,
 } from "panther";
 import { createSignal, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -25,7 +25,7 @@ export function SettingsForProjectDatasetHfa(
     undefined
   >,
 ) {
-  const serviceCategoriesQuery = timQuery(
+  const serviceCategoriesQuery = createQuery(
     () => serverActions.getHfaIndicatorServiceCategories({}),
     t3({
       en: "Loading service categories...",
@@ -39,7 +39,7 @@ export function SettingsForProjectDatasetHfa(
 
   const { progressFrom0To100, progressMsg, onProgress } = getProgress();
 
-  const save = timActionButton(
+  const save = createButtonAction(
     async () => {
       const scope = includeAll() ? [] : selected();
       if (!includeAll() && scope.length === 0) {

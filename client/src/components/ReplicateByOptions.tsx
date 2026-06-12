@@ -13,7 +13,7 @@ import {
   Select,
   SelectList,
   StateHolderWrapper,
-  timQuery,
+  createQuery,
   getSelectOptionsFromIdLabel,
   selectOptionToListItem,
 } from "panther";
@@ -65,7 +65,7 @@ type ReplicateByOptionsPresentationObjectProps = {
 export function ReplicateByOptionsPresentationObject(
   p: ReplicateByOptionsPresentationObjectProps,
 ) {
-  const replicantOptions = timQuery(() => {
+  const replicantOptions = createQuery(() => {
     const resFetchConfig = getFetchConfigFromPresentationObjectConfig(
       p.poDetail.resultsValue,
       p.config,
@@ -145,7 +145,7 @@ export function ReplicateByOptionsPresentationObject(
 export function ReplicateByOptionsPresentationObjectSelect(
   p: ReplicateByOptionsPresentationObjectProps,
 ) {
-  const replicantOptions = timQuery(() => {
+  const replicantOptions = createQuery(() => {
     const resFetchConfig = getFetchConfigFromPresentationObjectConfig(
       p.poDetail.resultsValue,
       p.config,

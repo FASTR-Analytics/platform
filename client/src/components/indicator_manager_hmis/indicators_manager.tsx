@@ -18,7 +18,7 @@ import {
   TabsNavigation,
   getEditorWrapper,
   openComponent,
-  timActionDelete,
+  createDeleteAction,
   type BulkAction,
   type ListItem,
   type StateHolder,
@@ -299,7 +299,7 @@ function CommonIndicatorsTable(p: {
   }
 
   async function handleDeleteIndicator(indicator: CommonIndicatorWithMappings) {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: t3({
           en: "Are you sure you want to delete this indicator?",
@@ -327,7 +327,7 @@ function CommonIndicatorsTable(p: {
         `${indicator.indicator_common_id} ~ ${indicator.indicator_common_label}`,
     );
     const indicatorCount = indicatorIds.length;
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text:
           indicatorCount === 1
@@ -508,7 +508,7 @@ function RawIndicatorsTable(p: {
   }
 
   async function handleDeleteMapping(indicator: RawIndicatorWithMappings) {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: t3({
           en: "Are you sure you want to delete this indicator?",
@@ -536,7 +536,7 @@ function RawIndicatorsTable(p: {
         `${indicator.raw_indicator_id} ~ ${indicator.raw_indicator_label}`,
     );
     const indicatorCount = indicatorIds.length;
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text:
           indicatorCount === 1

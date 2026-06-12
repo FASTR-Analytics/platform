@@ -8,7 +8,7 @@ import {
   getDefaultSectionSlide,
   getDefaultContentSlide,
 } from "lib";
-import { Button, FrameTop, HeadingBar, Loading, type MenuItem, MenuTriggerWrapper, Slider, timActionDelete } from "panther";
+import { Button, FrameTop, HeadingBar, LoadingIndicator, type MenuItem, MenuTriggerWrapper, Slider, createDeleteAction } from "panther";
 import SortableVendor, { SortableJs } from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -198,7 +198,7 @@ export function SlideList(p: Props) {
       ? t3({ en: `Are you sure you want to delete ${slideIdsToDelete.length} slides?`, fr: `Êtes-vous sûr de vouloir supprimer ${slideIdsToDelete.length} diapositives ?` })
       : t3({ en: "Are you sure you want to delete this slide?", fr: "Êtes-vous sûr de vouloir supprimer cette diapositive ?" });
 
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       confirmText,
       () => serverActions.deleteSlides({
         projectId: p.projectState.id,
@@ -438,7 +438,7 @@ export function SlideList(p: Props) {
         }}
       >
         <Show when={p.isLoading}>
-          <Loading msg={t3({ en: "Loading slides...", fr: "Chargement des diapositives..." })} noPad />
+          <LoadingIndicator msg={t3({ en: "LoadingIndicator slides...", fr: "Chargement des diapositives..." })} noPad />
         </Show>
         <Show when={!p.isLoading && p.slideIds.length === 0}>
           <div class="text-neutral w-full py-16 text-center">

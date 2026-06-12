@@ -17,10 +17,10 @@ import {
   UnlockIcon,
   openAlert,
   openComponent,
-  timActionDelete,
-  timActionButton,
+  createDeleteAction,
+  createButtonAction,
   StateHolderWrapper,
-  timQuery,
+  createQuery,
 } from "panther";
 import { Match, Show, Switch, For, createSignal } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
@@ -164,7 +164,7 @@ export function ProjectSettings(p: Props) {
     });
   }
 
-  const lockProject = timActionButton(
+  const lockProject = createButtonAction(
     () =>
       serverActions.setProjectLockStatus({
         project_id: projectState.id,
@@ -174,7 +174,7 @@ export function ProjectSettings(p: Props) {
     async () => {},
   );
 
-  const unlockProject = timActionButton(
+  const unlockProject = createButtonAction(
     () =>
       serverActions.setProjectLockStatus({
         project_id: projectState.id,
@@ -185,7 +185,7 @@ export function ProjectSettings(p: Props) {
   );
 
   async function attemptDeleteProject() {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: t3({
           en: "Are you sure you want to delete this project?",
@@ -345,7 +345,7 @@ export function ProjectSettings(p: Props) {
 }
 
 function CentralReportingSection() {
-  const setCentralReporting = timActionButton(
+  const setCentralReporting = createButtonAction(
     async () => {
       const res = await serverActions.setProjectCentralReportingStatus({
         project_id: projectState.id,
@@ -546,7 +546,7 @@ function ProjectBackups(props: { projectId: string }) {
     });
   };
 
-  const backupsQuery = timQuery<ProjectBackupInfo[]>(async () => {
+  const backupsQuery = createQuery<ProjectBackupInfo[]>(async () => {
     const token = await clerk.session?.getToken();
     const headers: HeadersInit = {};
     if (token) {

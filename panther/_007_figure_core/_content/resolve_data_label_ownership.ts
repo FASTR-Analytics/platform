@@ -20,6 +20,7 @@ export function resolveDataLabelOwnership(
 
   for (let i_series = 0; i_series < ctx.nSeries; i_series++) {
     const row: DataLabelOwner[] = [];
+    const seriesInfo = buildSeriesInfo(ctx, i_series, seriesVals);
     for (let i_val = 0; i_val < ctx.nVals; i_val++) {
       const val = seriesVals[i_series][i_val];
       if (val === undefined) {
@@ -27,7 +28,6 @@ export function resolveDataLabelOwnership(
         continue;
       }
 
-      const seriesInfo = buildSeriesInfo(ctx, i_series, seriesVals);
       const valueInfo = buildValueInfo(
         seriesInfo,
         val,

@@ -15,7 +15,7 @@ import {
   openAlert,
   openComponent,
   showMenu,
-  timActionButton,
+  createButtonAction,
 } from "panther";
 import { createMemo, createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -515,7 +515,7 @@ type UninstalledModuleProps = {
 };
 
 function UninstalledModulePresentation(p: UninstalledModuleProps) {
-  const enableModule = timActionButton(async () => {
+  const enableModule = createButtonAction(async () => {
     for (const prereq of p.thisUninstalledModulePrerequisiteModules) {
       if (!p.currentModules.some((m) => m.id === prereq)) {
         const missingModLabel =

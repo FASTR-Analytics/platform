@@ -11,8 +11,8 @@ import {
   SettingsSection,
   TextArea,
   getSelectOptions,
-  timActionButton,
-  timActionDelete,
+  createButtonAction,
+  createDeleteAction,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -76,7 +76,7 @@ export function SlideDeckSettings(p: Props) {
     }
   }
 
-  const save = timActionButton(
+  const save = createButtonAction(
     async () => {
       const newConfig = unwrap(tempConfig);
       if (newConfig.colorTheme.type === "custom") {
@@ -100,7 +100,7 @@ export function SlideDeckSettings(p: Props) {
   async function attemptDelete() {
     if (!p.deleteAction) return;
     const da = p.deleteAction;
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: da.confirmText,
         itemList: [da.itemLabel],

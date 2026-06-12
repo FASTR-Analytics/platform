@@ -24,7 +24,7 @@ import {
   openAlert,
   openComponent,
   showMenu,
-  timActionDelete,
+  createDeleteAction,
 } from "panther";
 import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
@@ -382,7 +382,7 @@ export function DashboardEditor(p: Props) {
             en: `Delete "${labelOf.get(entryIds[0]) ?? ""}"?`,
             fr: `Supprimer « ${labelOf.get(entryIds[0]) ?? ""} » ?`,
           });
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       confirmText,
       async () => {
         const results = await Promise.all(

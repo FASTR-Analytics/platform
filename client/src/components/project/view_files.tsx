@@ -5,7 +5,7 @@ import {
   FrameTop,
   HeadingBar,
   StateHolderWrapper,
-  timQuery,
+  createQuery,
 } from "panther";
 import { For } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -24,7 +24,7 @@ export function ViewFiles(
 ) {
   // const rLogs = useRLogs();
 
-  const rLogs = timQuery(
+  const rLogs = createQuery(
     () =>
       serverActions.getLogs({ module_id: p.moduleId, projectId: p.projectId }),
     t3({ en: "Loading file listing...", fr: "Chargement de la liste des fichiers..." }),

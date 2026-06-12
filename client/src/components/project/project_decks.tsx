@@ -17,7 +17,7 @@ import {
   getColor,
   openComponent,
   showMenu,
-  timActionDelete,
+  createDeleteAction,
   type ListItem,
   type MenuItem,
 } from "panther";
@@ -191,7 +191,7 @@ export function ProjectDecks(p: ExtendedProps) {
         ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} slide decks?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} présentations ?` })
         : t3({ en: "Are you sure you want to delete this slide deck?", fr: "Êtes-vous sûr de vouloir supprimer cette présentation ?" });
 
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       confirmText,
       async () => {
         const promises = idsToDelete.map((id) =>
@@ -277,7 +277,7 @@ export function ProjectDecks(p: ExtendedProps) {
         icon: "trash",
         intent: "danger",
         onClick: async () => {
-          const deleteAction = timActionDelete(
+          const deleteAction = createDeleteAction(
             t3({ en: "Are you sure you want to delete this folder? Slide decks will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les présentations seront déplacées dans Général." }),
             () =>
               serverActions.deleteSlideDeckFolder({

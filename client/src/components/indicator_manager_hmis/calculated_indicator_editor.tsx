@@ -5,7 +5,7 @@ import {
   RadioGroup,
   Select,
   getTruncatedString,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { Show, createMemo, createSignal } from "solid-js";
 import {
@@ -123,7 +123,7 @@ export function EditCalculatedIndicatorForm(
     });
   });
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
 

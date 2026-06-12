@@ -2,9 +2,9 @@ import { t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
-  Loading,
+  LoadingIndicator,
   MultiSelect,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { createMemo, createSignal, onMount, Show } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions";
@@ -52,7 +52,7 @@ export function AIDocumentSelectorModal(
     setIsLoading(false);
   });
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
 
@@ -97,7 +97,7 @@ export function AIDocumentSelectorModal(
     >
       <Show when={isLoading()}>
         <div class="flex justify-center py-4">
-          <Loading msg={t3({ en: "Loading assets...", fr: "Chargement des ressources..." })} noPad />
+          <LoadingIndicator msg={t3({ en: "LoadingIndicator assets...", fr: "Chargement des ressources..." })} noPad />
         </div>
       </Show>
 

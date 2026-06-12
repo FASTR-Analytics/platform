@@ -7,8 +7,8 @@ import {
   StateHolderFormError,
   StateHolderWrapper,
   Table,
-  timActionForm,
-  timQuery,
+  createFormAction,
+  createQuery,
   type CalendarType,
   type TableColumn,
 } from "panther";
@@ -118,14 +118,14 @@ export function Step2_Dhis2(p: Props) {
 
   // Get indicators list from server
   // TODO: Replace with actual server action when available
-  // const indicators = timQuery(
+  // const indicators = createQuery(
   //   async () => ({
   //     success: true as const,
   //     data: [] as { id: string; label: string }[],
   //   }),
   //   t("Loading indicators..."),
   // );
-  const indicators = timQuery(
+  const indicators = createQuery(
     () => serverActions.getIndicators({}),
     t3({ en: "Loading indicators...", fr: "Chargement des indicateurs..." }),
   );
@@ -161,7 +161,7 @@ export function Step2_Dhis2(p: Props) {
     setNeedsSaving(true);
   }
 
-  const save = timActionForm(async () => {
+  const save = createFormAction(async () => {
     const params: Dhis2SelectionParams = {
       rawIndicatorIds: tempIndicators(),
       startPeriod: tempStartPeriod(),

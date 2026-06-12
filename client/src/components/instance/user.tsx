@@ -15,8 +15,8 @@ import {
   HeaderBarCanGoBack,
   SettingsSection,
   openComponent,
-  timActionButton,
-  timActionDelete,
+  createButtonAction,
+  createDeleteAction,
 } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -45,13 +45,13 @@ export function User(p: Props) {
   const [originalPermissions, setOriginalPermissions] = createSignal<Record<UserPermission, boolean> | null>(null);
 
   const [unlimitedAi, setUnlimitedAi] = createSignal(p.user.unlimitedAi);
-  const toggleUnlimitedAi = timActionButton(
+  const toggleUnlimitedAi = createButtonAction(
     () => serverActions.setUserUnlimitedAi({ email: p.user.email, unlimited: !unlimitedAi() }),
     () => { setUnlimitedAi((v) => !v); },
   );
 
   const [isContactPerson, setIsContactPerson] = createSignal(p.user.isContactPerson);
-  const toggleContactPerson = timActionButton(
+  const toggleContactPerson = createButtonAction(
     () => serverActions.setUserContactPerson({ email: p.user.email, isContactPerson: !isContactPerson() }),
     () => { setIsContactPerson((v) => !v); },
   );
@@ -81,7 +81,7 @@ export function User(p: Props) {
     setPermissions({ ...current, [key]: !current[key]});
   };
 
-  const savePermissions = timActionButton(
+  const savePermissions = createButtonAction(
     () => {
       const perms = permissions();
       if (!perms) return Promise.resolve({ success: false, err: "No permissions" });
@@ -95,7 +95,7 @@ export function User(p: Props) {
     }
   );
 
-  const attemptMakeAdmin = timActionButton(
+  const attemptMakeAdmin = createButtonAction(
     () =>
       serverActions.toggleUserAdmin({
         emails: [p.user.email],
@@ -103,7 +103,7 @@ export function User(p: Props) {
       }),
     async () => {},
   );
-  const attemptMakeNonAdmin = timActionButton(
+  const attemptMakeNonAdmin = createButtonAction(
     () =>
       serverActions.toggleUserAdmin({
         emails: [p.user.email],
@@ -113,7 +113,7 @@ export function User(p: Props) {
   );
 
   async function attemptDeleteUser() {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: t3({ en: "Are you sure you want to remove this user?", fr: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?" }),
         itemList: [p.user.email],

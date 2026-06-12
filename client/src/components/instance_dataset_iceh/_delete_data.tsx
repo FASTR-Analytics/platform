@@ -4,7 +4,7 @@ import {
   EditorComponentProps,
   FrameTop,
   Input,
-  timActionDelete,
+  createDeleteAction,
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -20,7 +20,7 @@ export function DeleteData(
   const [checkText, setCheckText] = createSignal("");
 
   async function attemptDeleteData() {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       t3({
         en: "Are you very sure you want to delete all ICEH data?",
         fr: "Êtes-vous sûr de vouloir supprimer toutes les données ICEH ?",

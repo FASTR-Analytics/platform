@@ -20,15 +20,13 @@ type Props = {
   compact?: boolean;
 };
 
-export const UsageDisplay: Component<Props> = (props) => {
+export function UsageDisplay(p: Props) {
   return (
-    <Show when={props.usage}>
+    <Show when={p.usage}>
       {(usage) => {
-        const cost = props.showCost
-          ? calculateCost(usage(), props.model)
-          : null;
+        const cost = p.showCost ? calculateCost(usage(), p.model) : null;
 
-        if (props.compact) {
+        if (p.compact) {
           return (
             <div class="text-neutral flex items-center gap-2 text-xs font-mono">
               <span>
@@ -90,4 +88,4 @@ export const UsageDisplay: Component<Props> = (props) => {
       }}
     </Show>
   );
-};
+}

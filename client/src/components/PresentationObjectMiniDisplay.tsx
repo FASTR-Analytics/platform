@@ -1,5 +1,5 @@
 import { ReplicantValueOverride, t3 } from "lib";
-import { FigureInputs, ChartHolder, Loading, StateHolder } from "panther";
+import { FigureInputs, ChartHolder, LoadingIndicator, StateHolder } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
 import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/project/t2_presentation_objects";
@@ -118,7 +118,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
         <Switch>
           <Match when={p.state.status === "loading"}>
             <div class="aspect-video text-xs" onClick={p.onClick}>
-              <Loading msg={(p.state as { msg?: string }).msg} noPad={true} />
+              <LoadingIndicator msg={(p.state as { msg?: string }).msg} noPad={true} />
             </div>
           </Match>
           <Match when={p.state.status === "error"}>

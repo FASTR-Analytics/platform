@@ -6,7 +6,7 @@ import {
   ColorPicker,
   Input,
   Select,
-  timActionForm,
+  createFormAction,
   ProgressBar,
   getProgress,
 } from "panther";
@@ -49,7 +49,7 @@ export function DuplicateVisualization(
 
   // Actions
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
 

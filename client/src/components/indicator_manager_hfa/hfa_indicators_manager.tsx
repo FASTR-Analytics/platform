@@ -21,7 +21,7 @@ import {
   type ListItem,
   openComponent,
   saveAs,
-  timActionDelete,
+  createDeleteAction,
   type BulkAction,
   type StateHolder,
 } from "panther";
@@ -384,7 +384,7 @@ export function HfaIndicatorsManager(p: Props) {
   }
 
   async function handleDelete(indicator: HfaIndicator) {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: t3({
           en: "Are you sure you want to delete this indicator?",
@@ -400,7 +400,7 @@ export function HfaIndicatorsManager(p: Props) {
 
   async function handleBulkDelete(selectedIndicators: HfaIndicator[]) {
     const varNames = selectedIndicators.map((i) => i.varName);
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text:
           varNames.length === 1

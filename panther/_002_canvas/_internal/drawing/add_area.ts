@@ -18,7 +18,9 @@ export function addArea(
   if (s.show === false) {
     return;
   }
-  if (coordArray.length < 2) {
+  // A fillable area needs at least 3 coordinates (same threshold as the PDF
+  // render context).
+  if (coordArray.length < 3) {
     return;
   }
   ctx.fillStyle = getAdjustedColor(s.fillColor, s.fillColorAdjustmentStrategy);

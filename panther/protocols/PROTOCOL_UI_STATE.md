@@ -6,16 +6,17 @@ See `PROTOCOL_UI_SOLIDJS.md` for reactivity rules.
 
 ## Rules
 
-1. **timQuery for one-shot fetches** — Runs queryFunc once on mount; no
+1. **createQuery for one-shot fetches** — Runs queryFunc once on mount; no
    reactivity
 2. **createEffect for reactive fetches** — Long-lived views that must react to
    changing inputs or server updates
-3. **timActionForm for form submissions** — Validation inside, returns
+3. **createFormAction for form submissions** — Validation inside, returns
    success/error
-4. **timActionButton for simple actions** — Delete, refresh, discrete commands
-5. **timActionDelete for deletions** — Confirmation dialog + action + refetch
+4. **createButtonAction for simple actions** — Delete, refresh, discrete
+   commands
+5. **createDeleteAction for deletions** — Confirmation dialog + action + refetch
 6. **StateHolderWrapper for rendering** — Handles loading/error/ready states
-7. **Use `StateHolder` for loading state** — Via `timQuery` (one-shot) or
+7. **Use `StateHolder` for loading state** — Via `createQuery` (one-shot) or
    `createSignal<StateHolder<T>>` + `createEffect` (reactive). Never raw
    `loading`/`error`/`data` signals
 8. **Validation inside actions** — Return `{ success: false, err }` for failures
@@ -27,10 +28,10 @@ See `PROTOCOL_UI_SOLIDJS.md` for reactivity rules.
 Every read of server-derived state is either **live** or **snapshot**. Picking
 the wrong one is the source of most state bugs.
 
-| Mode         | Behavior                                                             | Tools                                                  |
-| ------------ | -------------------------------------------------------------------- | ------------------------------------------------------ |
-| **Live**     | Subscribes to changes. View stays in sync.                           | Reactive reads in JSX / `createEffect` / `createMemo`  |
-| **Snapshot** | Captures state at a moment in time. View ignores subsequent changes. | `timQuery`, `unwrap()`, cache `.get()` from async code |
+| Mode         | Behavior                                                             | Tools                                                     |
+| ------------ | -------------------------------------------------------------------- | --------------------------------------------------------- |
+| **Live**     | Subscribes to changes. View stays in sync.                           | Reactive reads in JSX / `createEffect` / `createMemo`     |
+| **Snapshot** | Captures state at a moment in time. View ignores subsequent changes. | `createQuery`, `unwrap()`, cache `.get()` from async code |
 
 **When in doubt, prefer live.** A view that should have stayed in sync but used
 a snapshot read goes silently stale — the worst failure mode. A live read where
@@ -39,7 +40,7 @@ snapshot would have sufficed has only minor cost.
 Choose by **view lifetime**:
 
 - **Short-lived** (picker modal, dropdown that closes after selection) →
-  `timQuery` is fine
+  `createQuery` is fine
 - **Long-lived** (editor, list, dashboard) → `createEffect` watching a version
   signal
 
@@ -47,12 +48,12 @@ Choose by **view lifetime**:
 
 ### Data Fetching (one-shot)
 
-`timQuery` is a **snapshot read**. `queryFunc` runs once on mount. There is no
-key, no automatic re-running. Use for short-lived views where data captured at
-mount is sufficient.
+`createQuery` is a **snapshot read**. `queryFunc` runs once on mount. There is
+no key, no automatic re-running. Use for short-lived views where data captured
+at mount is sufficient.
 
 ```tsx
-const query = timQuery(
+const query = createQuery(
   () => serverActions.getData(params),
   t("Loading..."),
 );
@@ -139,7 +140,7 @@ createEffect(async () => {
 ### Form Submission
 
 ```tsx
-const save = timActionForm(
+const save = createFormAction(
   async () => {
     const value = input().trim();
     if (!value) {
@@ -159,7 +160,7 @@ const save = timActionForm(
 ### Simple Actions
 
 ```tsx
-const refresh = timActionButton(
+const refresh = createButtonAction(
   () => serverActions.refresh(),
   query.silentFetch,
 );
@@ -172,7 +173,7 @@ const refresh = timActionButton(
 ### Delete with Confirmation
 
 ```tsx
-const deleteItem = timActionDelete(
+const deleteItem = createDeleteAction(
   {
     text: t("Delete this item?"),
     itemList: [item.name],
@@ -241,14 +242,14 @@ async function load() {
 }
 
 // ✅ DO
-const query = timQuery(() => fetch(), "Loading...");
+const query = createQuery(() => fetch(), "Loading...");
 ```
 
 ### Validation
 
 ```tsx
 // ❌ DON'T — validate before calling action
-const save = timActionForm(async () => {
+const save = createFormAction(async () => {
   return serverActions.save(formData);
 }, onSuccess);
 
@@ -261,7 +262,7 @@ function handleSave() {
 }
 
 // ✅ DO — validate inside action
-const save = timActionForm(async () => {
+const save = createFormAction(async () => {
   if (!valid()) {
     return { success: false, err: "Invalid" };
   }
@@ -272,9 +273,9 @@ const save = timActionForm(async () => {
 ### Reactivity in Queries
 
 ```tsx
-// ❌ DON'T — timQuery is one-shot. Signal reads inside queryFunc are NOT tracked.
+// ❌ DON'T — createQuery is one-shot. Signal reads inside queryFunc are NOT tracked.
 // This looks reactive but never re-runs when id() changes.
-const query = timQuery(() => serverActions.getData(id()));
+const query = createQuery(() => serverActions.getData(id()));
 
 // ❌ DON'T — manually calling fetch() to "refresh" suggests you need a live read.
 // If you keep wanting to do this, convert to createEffect.
@@ -292,8 +293,8 @@ createEffect(async () => {
 });
 ```
 
-**Why:** `timQuery` runs `queryFunc` exactly once on mount. There is no key, no
-automatic re-running. For any view that needs to react to changing inputs or
+**Why:** `createQuery` runs `queryFunc` exactly once on mount. There is no key,
+no automatic re-running. For any view that needs to react to changing inputs or
 server updates, use `createEffect`.
 
 ### Stale-While-Revalidate
@@ -321,13 +322,13 @@ new data arrives.
 
 ## Checklist
 
-- [ ] One-shot fetches use `timQuery`
+- [ ] One-shot fetches use `createQuery`
 - [ ] Reactive fetches use `createEffect` + `createSignal<StateHolder<T>>`
-- [ ] No signal reads inside `timQuery`'s `queryFunc` (they are not tracked)
-- [ ] Form submissions use `timActionForm`
-- [ ] Delete actions use `timActionDelete`
+- [ ] No signal reads inside `createQuery`'s `queryFunc` (they are not tracked)
+- [ ] Form submissions use `createFormAction`
+- [ ] Delete actions use `createDeleteAction`
 - [ ] Loading/error states use `StateHolderWrapper`
 - [ ] Validation happens inside action functions
 - [ ] No raw `loading`/`error`/`data` signal trios
-- [ ] Long-lived views don't use `timQuery`
+- [ ] Long-lived views don't use `createQuery`
 - [ ] Incremental refetches don't reset to `{ status: "loading" }`

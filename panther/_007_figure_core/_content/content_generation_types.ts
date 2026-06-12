@@ -6,14 +6,47 @@
 import type {
   ChartSeriesInfo,
   ChartValueInfo,
+  ColorKeyOrString,
   HeaderItem,
   MergedContentStyle,
   RectCoordsDims,
   RenderContext,
   TextInfoUnkeyed,
 } from "../deps.ts";
+import { getAdjustedFont, getColor } from "../deps.ts";
 import type { OverhangClearance } from "../types.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
+
+// One home for deriving a data label's text style from its host's base text
+// style + per-label overrides. Used by every content generator AND by
+// measure_data_label_clearance.ts — measurement and rendering must agree on
+// label dimensions.
+export function buildDataLabelTextStyle(
+  base: TextInfoUnkeyed,
+  dl: {
+    color?: ColorKeyOrString;
+    relFontSize?: number;
+    font?: Parameters<typeof getAdjustedFont>[1];
+  },
+): TextInfoUnkeyed {
+  if (
+    dl.color === undefined &&
+    dl.relFontSize === undefined &&
+    dl.font === undefined
+  ) {
+    return base;
+  }
+  return {
+    ...base,
+    ...(dl.color !== undefined ? { color: getColor(dl.color) } : {}),
+    ...(dl.relFontSize !== undefined
+      ? { fontSize: base.fontSize * dl.relFontSize }
+      : {}),
+    ...(dl.font !== undefined
+      ? { font: getAdjustedFont(base.font, dl.font) }
+      : {}),
+  };
+}
 
 export type ContentGenerationContext = {
   rc: RenderContext;

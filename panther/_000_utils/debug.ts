@@ -18,3 +18,9 @@ function getDebugFlag(): boolean {
 }
 
 export const PANTHER_DEBUG = getDebugFlag();
+
+export function debugLog(...args: unknown[]): void {
+  if (PANTHER_DEBUG) {
+    console.log(...args);
+  }
+}

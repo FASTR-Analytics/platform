@@ -5,7 +5,7 @@ import {
   HeadingBar,
   StateHolderWrapper,
   openAlert,
-  timQuery,
+  createQuery,
 } from "panther";
 import { Setter, Show, createSignal } from "solid-js";
 import { PresentationObjectMiniDisplay } from "~/components/PresentationObjectMiniDisplay";
@@ -116,7 +116,7 @@ type SideProps = {
 };
 
 function Side(p: SideProps) {
-  const poDetail = timQuery(async () => {
+  const poDetail = createQuery(async () => {
     return await getPODetailFromCacheorFetch(p.projectId, p.presObjId);
   }, t3(TC.loading));
 

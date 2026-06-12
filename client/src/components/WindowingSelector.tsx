@@ -19,7 +19,7 @@ import {
   getSelectOptions,
   getTimeFromPeriodId,
   getTimeseriesDataJsonTransformed,
-  timQuery,
+  createQuery,
   toNum0,
   type NestedSelectLeafNode,
   type NestedSelectNode,
@@ -65,7 +65,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
     }
   };
 
-  const itemsHolder = timQuery(
+  const itemsHolder = createQuery(
     () =>
       getDatasetHmisDisplayInfoFromCacheOrFetch(
         p.tempWindowing.indicatorType,

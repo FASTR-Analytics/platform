@@ -8,7 +8,7 @@ import {
   AlertComponentProps,
   AlertFormHolder,
   Input,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -40,7 +40,7 @@ export function CreateDashboardModal(
     setSlugManuallyEdited(true);
   }
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
       if (!title().trim()) {

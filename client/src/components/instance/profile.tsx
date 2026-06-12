@@ -8,8 +8,8 @@ import {
   ModalContainer,
   SettingsSection,
   StateHolderWrapper,
-  timActionButton,
-  timQuery,
+  createButtonAction,
+  createQuery,
   type AlertComponentProps,
 } from "panther";
 import { serverActions } from "~/server_actions";
@@ -23,17 +23,17 @@ export function ProfileForm(
     undefined
   >,
 ) {
-  const userDetails = timQuery(
+  const userDetails = createQuery(
     () => serverActions.getCurrentUser({}),
     t3({ en: "Loading your profile...", fr: "Chargement de votre profil..." }),
   );
 
-  const aiUsage = timQuery(
+  const aiUsage = createQuery(
     () => serverActions.getAiUsage({}),
     t3({ en: "Loading AI usage...", fr: "Chargement de l'utilisation IA..." }),
   );
 
-  const clearCache = timActionButton(
+  const clearCache = createButtonAction(
     async () => {
       await clearDataCache();
       return { success: true };
@@ -41,7 +41,7 @@ export function ProfileForm(
     () => window.location.reload(),
   );
 
-  const clearAiChat = timActionButton(
+  const clearAiChat = createButtonAction(
     async () => {
       await clearAiChatCache();
       return { success: true };
@@ -73,7 +73,7 @@ export function ProfileForm(
 
           const [editingOrganisation, setEditingOrganisation] = createSignal(false);
 
-          const saveOrganisation = timActionButton(async () => {
+          const saveOrganisation = createButtonAction(async () => {
             await clerk.user?.update({
               unsafeMetadata: {
                 ...clerk.user.unsafeMetadata,

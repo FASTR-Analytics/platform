@@ -16,8 +16,8 @@ import {
   TableFromCsv,
   getEditorWrapper,
   getSelectOptions,
-  timActionDelete,
-  timActionForm,
+  createDeleteAction,
+  createFormAction,
   toNum0,
 } from "panther";
 import type { StateHolder } from "panther";
@@ -43,7 +43,7 @@ export function HfaWeights(p: Props) {
   }
 
   async function attemptDeleteAll() {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       t3({
         en: "Delete all facility sampling weights?",
         fr: "Supprimer toutes les pondérations d'échantillonnage ?",
@@ -239,7 +239,7 @@ function HfaWeightsImportForm(_p: { close: (p: unknown) => void }) {
 function UploadStep(p: { onNext: (csv: CsvDetails) => void }) {
   const [fileName, setFileName] = createSignal("");
 
-  const readHeaders = timActionForm(async () => {
+  const readHeaders = createFormAction(async () => {
     if (!fileName()) {
       return { success: false, err: t3({ en: "Select a file", fr: "Sélectionnez un fichier" }) };
     }
@@ -292,7 +292,7 @@ function MapStep(p: {
     timePoint: p.timePointOptions.length === 1 ? p.timePointOptions[0].value : "",
   });
 
-  const runImport = timActionForm(async () => {
+  const runImport = createFormAction(async () => {
     const m = unwrap(mappings);
     if (!m.facilityIdColumn) return { success: false, err: t3({ en: "Select the facility ID column", fr: "Sélectionnez la colonne d'identifiant d'établissement" }) };
     if (!m.weightColumn) return { success: false, err: t3({ en: "Select the weight column", fr: "Sélectionnez la colonne de pondération" }) };

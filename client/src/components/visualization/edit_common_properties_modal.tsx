@@ -5,7 +5,7 @@ import {
   Checkbox,
   RadioGroup,
   Slider,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { createSignal, Match, Show, Switch } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -65,7 +65,7 @@ export function EditCommonPropertiesModal(
     max: p.periodBounds?.max ?? 100,
   });
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
 

@@ -1,6 +1,6 @@
 import { Match, Switch, createSignal } from "solid-js";
 import { t3, type CsvDetails } from "lib";
-import { Button, StateHolderFormError, timActionForm } from "panther";
+import { Button, StateHolderFormError, createFormAction } from "panther";
 import { serverActions } from "~/server_actions";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 
@@ -20,7 +20,7 @@ export function Step1_Csv(p: Props) {
     setSelectedFileName(fileName);
   }
 
-  const save = timActionForm(async () => {
+  const save = createFormAction(async () => {
     const assetFileName = selectedFileName();
     if (!assetFileName) {
       return { success: false, err: t3({ en: "You must select a file", fr: "Vous devez sélectionner un fichier" }) };

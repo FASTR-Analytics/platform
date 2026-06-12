@@ -7,7 +7,7 @@ import {
   Select,
   StateHolderFormError,
   getSelectOptions,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -40,7 +40,7 @@ export function Step2(p: Props) {
         label: `${tp.label} (${tp.periodId.slice(0, 4)}-${tp.periodId.slice(4, 6)})`,
       }));
 
-  const save = timActionForm(async () => {
+  const save = createFormAction(async () => {
     const mappings = unwrap(tempMappings);
     if (!mappings.facilityIdColumn) {
       return {

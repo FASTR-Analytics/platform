@@ -21,22 +21,22 @@ import type { APIResponseNoData, APIResponseWithData } from "./deps.ts";
 //                                                                                                                        //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export type TimActionButton<U extends any[]> = {
+export type ButtonAction<U extends any[]> = {
   state: Accessor<StateHolderButtonAction>;
   click: (...args: U) => Promise<void>;
 };
 
 // Overload 1: Action returns data
-export function timActionButton<T, U extends any[]>(
+export function createButtonAction<T, U extends any[]>(
   actionFunc: (...args: U) => Promise<APIResponseWithData<T>>,
   ...onSuccessCallbacks: Array<(data: T) => void | Promise<void>>
-): TimActionButton<U>;
+): ButtonAction<U>;
 
 // Overload 2: Action returns no data
-export function timActionButton<U extends any[]>(
+export function createButtonAction<U extends any[]>(
   actionFunc: (...args: U) => Promise<APIResponseNoData>,
   ...onSuccessCallbacks: Array<() => void | Promise<void>>
-): TimActionButton<U>;
+): ButtonAction<U>;
 
 /**
  * Creates a button action that executes an action and shows alerts on error.
@@ -44,14 +44,14 @@ export function timActionButton<U extends any[]>(
  * Race condition protection: If click() is called multiple times before previous
  * actions complete, only the most recent action will update state and execute callbacks.
  */
-export function timActionButton<T, U extends any[]>(
+export function createButtonAction<T, U extends any[]>(
   actionFunc: (
     ...args: U
   ) => Promise<APIResponseWithData<T> | APIResponseNoData>,
   ...onSuccessCallbacks: Array<
     ((data: T) => void | Promise<void>) | (() => void | Promise<void>)
   >
-): TimActionButton<U> {
+): ButtonAction<U> {
   const [state, setter] = createSignal<StateHolderButtonAction>({
     status: "ready",
   });
@@ -129,25 +129,25 @@ export function timActionButton<T, U extends any[]>(
 //                                                                                                                    //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export type TimActionDelete<U extends any[]> = {
+export type DeleteAction<U extends any[]> = {
   click: (...args: U) => Promise<void>;
 };
 
 // Overload 1: Action returns data
-export function timActionDelete<T, U extends any[]>(
+export function createDeleteAction<T, U extends any[]>(
   confirmText: string | JSX.Element | { text: string; itemList: string[] },
   actionFunc: (...args: U) => Promise<APIResponseWithData<T>>,
   ...onSuccessCallbacks: Array<(data: T) => void | Promise<void>>
-): TimActionDelete<U>;
+): DeleteAction<U>;
 
 // Overload 2: Action returns no data
-export function timActionDelete<U extends any[]>(
+export function createDeleteAction<U extends any[]>(
   confirmText: string | JSX.Element | { text: string; itemList: string[] },
   actionFunc: (...args: U) => Promise<APIResponseNoData>,
   ...onSuccessCallbacks: Array<() => void | Promise<void>>
-): TimActionDelete<U>;
+): DeleteAction<U>;
 
-export function timActionDelete<T, U extends any[]>(
+export function createDeleteAction<T, U extends any[]>(
   confirmText: string | JSX.Element | { text: string; itemList: string[] },
   actionFunc: (
     ...args: U
@@ -155,7 +155,7 @@ export function timActionDelete<T, U extends any[]>(
   ...onSuccessCallbacks: Array<
     ((data: T) => void | Promise<void>) | (() => void | Promise<void>)
   >
-): TimActionDelete<U> {
+): DeleteAction<U> {
   async function click(...args: U) {
     const isObjectWithItemList = typeof confirmText === "object" &&
       confirmText !== null &&

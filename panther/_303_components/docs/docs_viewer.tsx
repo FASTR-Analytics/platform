@@ -5,11 +5,11 @@
 
 import { createEffect, createSignal } from "./deps.ts";
 import {
+  createQuery,
   fetchGitHubManifest,
   FrameLeftResizable,
   parseGitHubUrl,
   StateHolderWrapper,
-  timQuery,
 } from "./deps.ts";
 import type { DocsManifest, ParsedGitHubUrl } from "./deps.ts";
 import type { DocsViewerProps } from "./types.ts";
@@ -27,7 +27,7 @@ export function DocsViewer(p: DocsViewerProps) {
     ? parseGitHubUrl(p.manifestUrl)
     : undefined;
 
-  const manifestQuery = timQuery(
+  const manifestQuery = createQuery(
     () =>
       p.isGithub && parsedGitHubUrl
         ? fetchGitHubManifestWrapped(parsedGitHubUrl, p.title)

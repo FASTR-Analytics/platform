@@ -1,6 +1,6 @@
 import { t3, type IcehStep1Result } from "lib";
 import { serverActions } from "~/server_actions";
-import { Button, StateHolderFormError, timActionForm } from "panther";
+import { Button, StateHolderFormError, createFormAction } from "panther";
 
 type Props = {
   step1Result: IcehStep1Result;
@@ -8,7 +8,7 @@ type Props = {
 };
 
 export function Step2(p: Props) {
-  const startImport = timActionForm(async () => {
+  const startImport = createFormAction(async () => {
     return await serverActions.updateDatasetIcehUploadAttemptStep2({});
   }, p.silentFetch);
 

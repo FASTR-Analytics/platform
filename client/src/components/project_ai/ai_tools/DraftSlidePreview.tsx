@@ -11,7 +11,7 @@ import {
 import type { AlertComponentProps, PageInputs, StateHolder } from "panther";
 import {
   Button,
-  Loading,
+  LoadingIndicator,
   ModalContainer,
   openComponent,
   PageHolder,
@@ -40,7 +40,7 @@ export function DraftSlidePreview(p: Props) {
 
   const [slideState, setSlideState] = createSignal<StateHolder<SlideState>>({
     status: "loading",
-    msg: t3({ en: "Loading slide...", fr: "Chargement de la diapositive..." }),
+    msg: t3({ en: "LoadingIndicator slide...", fr: "Chargement de la diapositive..." }),
   });
 
   function getDeckConfig(): SlideDeckConfig {
@@ -163,7 +163,7 @@ function SlideStateWrapper(p: SlideStateWrapperProps) {
     <Switch>
       <Match when={p.state.status === "loading"}>
         <div class="aspect-video text-xs">
-          <Loading msg={(p.state as { msg?: string }).msg} noPad />
+          <LoadingIndicator msg={(p.state as { msg?: string }).msg} noPad />
         </div>
       </Match>
       <Match when={p.state.status === "error"}>

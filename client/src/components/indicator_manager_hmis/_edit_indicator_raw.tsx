@@ -8,7 +8,7 @@ import {
   getSelectOptions,
   getTruncatedString,
   getUnique,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { For, createSignal } from "solid-js";
 import {
@@ -56,7 +56,7 @@ export function EditIndicatorRawForm(
     setMappedCommonIds(updated);
   }
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
 

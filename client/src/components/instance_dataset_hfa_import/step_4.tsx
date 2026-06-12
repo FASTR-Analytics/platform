@@ -1,5 +1,5 @@
 import { t3, type DatasetHfaCsvStagingResult } from "lib";
-import { Button, timActionButton, toNum0 } from "panther";
+import { Button, createButtonAction, toNum0 } from "panther";
 import { Match, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 
@@ -10,7 +10,7 @@ type Props = {
 };
 
 export function Step4(p: Props) {
-  const save = timActionButton(
+  const save = createButtonAction(
     () => serverActions.finalizeDatasetHfaIntegration({}),
     p.silentFetch,
   );

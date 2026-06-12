@@ -4,7 +4,7 @@ import {
   Button,
   CollapsibleSection,
   Input,
-  Loading,
+  LoadingIndicator,
   ModalContainer,
   TextArea,
   openComponent,
@@ -39,7 +39,7 @@ export function PromptLibraryModal(
   const [parseResult, setParseResult] = createSignal<ParseResult>({
     categories: [],
     status: "error",
-    message: "Loading...",
+    message: "LoadingIndicator...",
   });
   const [customPrompts, setCustomPrompts] = createSignal<CustomPrompt[]>([]);
   const [searchText, setSearchText] = createSignal("");
@@ -225,9 +225,9 @@ export function PromptLibraryModal(
     >
       <Show when={isLoading()}>
         <div>
-          <Loading
+          <LoadingIndicator
             msg={t3({
-              en: "Loading prompts...",
+              en: "LoadingIndicator prompts...",
               fr: "Chargement des prompts...",
             })}
             noPad

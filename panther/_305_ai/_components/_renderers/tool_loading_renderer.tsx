@@ -8,17 +8,17 @@ import { t3 } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 import { SpinningCursor } from "./spinning_cursor.tsx";
 
-export const ToolLoadingRenderer: Component<{
+export function ToolLoadingRenderer(p: {
   item: Extract<DisplayItem, { type: "tool_in_progress" }>;
-}> = (props) => {
+}) {
   return (
     <div class="text-sm text-neutral italic">
       <SpinningCursor class="mr-1 inline-block" />
-      {props.item.label ??
+      {p.item.label ??
         t3({
-          en: `Processing ${props.item.toolName}...`,
-          fr: `Traitement de ${props.item.toolName}...`,
+          en: `Processing ${p.item.toolName}...`,
+          fr: `Traitement de ${p.item.toolName}...`,
         })}
     </div>
   );
-};
+}

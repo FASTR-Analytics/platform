@@ -1,5 +1,5 @@
 import { t3, type DatasetStagingResult } from "lib";
-import { Button, RadioGroup, timActionButton, toNum0 } from "panther";
+import { Button, RadioGroup, createButtonAction, toNum0 } from "panther";
 import { Match, Switch, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 
@@ -15,7 +15,7 @@ export function Step3(p: Props) {
     "fail-fast" | "continue-on-error"
   >("fail-fast");
 
-  const save = timActionButton(
+  const save = createButtonAction(
     () =>
       serverActions.updateDatasetStaging({
         failFastMode: p.sourceType === "dhis2" ? failFastMode() : undefined,

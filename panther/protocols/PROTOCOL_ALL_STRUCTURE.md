@@ -79,7 +79,7 @@ Preferred order (not strictly enforced):
 
 ```tsx
 import { apiClient } from "lib";
-import { Button, timQuery } from "panther";
+import { Button, createQuery } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { EditForm } from "./EditForm";

@@ -13,13 +13,8 @@ import type {
   PathSegment,
   RenderContext,
 } from "../deps.ts";
-import {
-  Coordinates,
-  getAdjustedFont,
-  getColor,
-  RectCoordsDims,
-  Z_INDEX,
-} from "../deps.ts";
+import { Coordinates, getColor, RectCoordsDims, Z_INDEX } from "../deps.ts";
+import { buildDataLabelTextStyle } from "./content_generation_types.ts";
 
 export function generateCascadeArrowPrimitives(
   barPrimitives: ChartBarPrimitive[],
@@ -272,24 +267,7 @@ function computeCascadeArrow(
       ? arrowStyle.textFormatter(cascadeArrowInfo)
       : String(cascadeArrowInfo.relRetention)
     : undefined;
-  const labelTextInfo =
-    (dl.color !== undefined || dl.relFontSize !== undefined ||
-        dl.font !== undefined)
-      ? {
-        ...arrowStyle.text.labels,
-        ...(dl.color !== undefined ? { color: getColor(dl.color) } : {}),
-        ...(dl.relFontSize !== undefined
-          ? {
-            fontSize: arrowStyle.text.labels.fontSize * dl.relFontSize,
-          }
-          : {}),
-        ...(dl.font !== undefined
-          ? {
-            font: getAdjustedFont(arrowStyle.text.labels.font, dl.font),
-          }
-          : {}),
-      }
-      : arrowStyle.text.labels;
+  const labelTextInfo = buildDataLabelTextStyle(arrowStyle.text.labels, dl);
   const mText = labelText
     ? rc.mText(labelText, labelTextInfo, Infinity)
     : undefined;

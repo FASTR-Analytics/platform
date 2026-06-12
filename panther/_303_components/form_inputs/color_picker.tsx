@@ -263,23 +263,22 @@ function normalizeHex(hex: string): string {
   return h.toLowerCase();
 }
 
-function ColorSwatch(props: {
+function ColorSwatch(p: {
   color: string;
   selected: boolean;
   onClick: (color: string) => void;
 }) {
-  const checkColor = () =>
-    new Color(props.color).isLight() ? "#000000" : "#ffffff";
+  const checkColor = () => new Color(p.color).isLight() ? "#000000" : "#ffffff";
 
   return (
     <button
       type="button"
       class="ui-hoverable relative h-6 w-6 rounded-sm border border-black/10"
-      style={{ "background-color": props.color }}
-      onClick={() => props.onClick(props.color)}
-      title={props.color}
+      style={{ "background-color": p.color }}
+      onClick={() => p.onClick(p.color)}
+      title={p.color}
     >
-      <Show when={props.selected}>
+      <Show when={p.selected}>
         <svg
           class="absolute inset-0 m-auto h-3.5 w-3.5"
           viewBox="0 0 24 24"
@@ -296,7 +295,7 @@ function ColorSwatch(props: {
   );
 }
 
-export function ColorPicker(props: ColorPickerProps) {
+export function ColorPicker(p: ColorPickerProps) {
   const id = createUniqueId();
   const popoverId = `color-picker-${id}`;
   const anchorName = `--color-picker-anchor-${id}`;
@@ -305,59 +304,59 @@ export function ColorPicker(props: ColorPickerProps) {
   const [hexInput, setHexInput] = createSignal<string | null>(null);
 
   function handleColorSelect(color: string) {
-    props.onChange(color);
+    p.onChange(color);
     popoverRef?.hidePopover();
   }
 
   function handleHexInput(value: string) {
     setHexInput(value);
     if (isValidHex(value)) {
-      props.onChange(normalizeHex(value));
+      p.onChange(normalizeHex(value));
     }
   }
 
-  const displayHex = () => hexInput() ?? props.value ?? "";
+  const displayHex = () => hexInput() ?? p.value ?? "";
   const hexIsValid = () => {
     const h = hexInput();
     return h === null || h === "" || isValidHex(h);
   };
 
-  const isTailwind = () => props.colorSet === "tailwind" && !props.colors;
+  const isTailwind = () => p.colorSet === "tailwind" && !p.colors;
   const isSlideBackgrounds = () =>
-    props.colorSet === "slideBackgrounds" && !props.colors;
-  const colors = () => props.colors ?? COLOR_SETS[props.colorSet ?? "standard"];
-  const position = () => props.position ?? "bottom-start";
-  const padClass = () => (props.size === "sm" ? "ui-form-pad-sm" : "p-1.5");
+    p.colorSet === "slideBackgrounds" && !p.colors;
+  const colors = () => p.colors ?? COLOR_SETS[p.colorSet ?? "standard"];
+  const position = () => p.position ?? "bottom-start";
+  const padClass = () => (p.size === "sm" ? "ui-form-pad-sm" : "p-1.5");
   const textSizeClass = () =>
-    props.size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size";
+    p.size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size";
 
   return (
     <div>
-      <Show when={props.label}>
-        <label class="ui-label">{props.label}</label>
+      <Show when={p.label}>
+        <label class="ui-label">{p.label}</label>
       </Show>
       <button
         type="button"
         class={`ui-hoverable border-base-300 rounded border ${padClass()}`}
-        classList={{ "w-full": props.fullWidth, block: !!props.label }}
+        classList={{ "w-full": p.fullWidth, block: !!p.label }}
         style={{
           "anchor-name": anchorName,
           "background-image":
             "repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%)",
           "background-size": "16px 16px",
         } as JSX.CSSProperties}
-        disabled={props.disabled}
-        title={props.value}
+        disabled={p.disabled}
+        title={p.value}
         // @ts-ignore - popovertarget is valid HTML
         popovertarget={popoverId}
       >
         <span
           class={`block rounded ${textSizeClass()}`}
           classList={{
-            "h-[1.25em] w-12": !props.fullWidth,
-            "h-[1.25em]": props.fullWidth,
+            "h-[1.25em] w-12": !p.fullWidth,
+            "h-[1.25em]": p.fullWidth,
           }}
-          style={{ "background-color": props.value }}
+          style={{ "background-color": p.value }}
         />
       </button>
       <div
@@ -378,8 +377,8 @@ export function ColorPicker(props: ColorPickerProps) {
                   {(color) => (
                     <ColorSwatch
                       color={color}
-                      selected={props.value != null &&
-                        color.toLowerCase() === props.value.toLowerCase()}
+                      selected={p.value != null &&
+                        color.toLowerCase() === p.value.toLowerCase()}
                       onClick={handleColorSelect}
                     />
                   )}
@@ -397,8 +396,8 @@ export function ColorPicker(props: ColorPickerProps) {
                       {(color) => (
                         <ColorSwatch
                           color={color}
-                          selected={props.value != null &&
-                            color.toLowerCase() === props.value.toLowerCase()}
+                          selected={p.value != null &&
+                            color.toLowerCase() === p.value.toLowerCase()}
                           onClick={handleColorSelect}
                         />
                       )}
@@ -409,33 +408,33 @@ export function ColorPicker(props: ColorPickerProps) {
               <div class="flex flex-col gap-0.5">
                 <ColorSwatch
                   color="#ffffff"
-                  selected={props.value?.toLowerCase() === "#ffffff"}
+                  selected={p.value?.toLowerCase() === "#ffffff"}
                   onClick={handleColorSelect}
                 />
                 <ColorSwatch
                   color="#000000"
-                  selected={props.value?.toLowerCase() === "#000000"}
+                  selected={p.value?.toLowerCase() === "#000000"}
                   onClick={handleColorSelect}
                 />
               </div>
             </div>
           </Show>
-          <Show when={props.extraColors && props.extraColors.length > 0}>
+          <Show when={p.extraColors && p.extraColors.length > 0}>
             <div class="border-base-300 my-1.5 border-t" />
             <div class="flex gap-1">
-              <For each={props.extraColors}>
+              <For each={p.extraColors}>
                 {(color) => (
                   <ColorSwatch
                     color={color}
-                    selected={props.value != null &&
-                      color.toLowerCase() === props.value.toLowerCase()}
+                    selected={p.value != null &&
+                      color.toLowerCase() === p.value.toLowerCase()}
                     onClick={handleColorSelect}
                   />
                 )}
               </For>
             </div>
           </Show>
-          <Show when={props.allowCustomHex}>
+          <Show when={p.allowCustomHex}>
             <div class="border-base-300 my-1.5 border-t" />
             <input
               type="text"
@@ -444,7 +443,7 @@ export function ColorPicker(props: ColorPickerProps) {
               placeholder="#hex"
               value={displayHex()}
               onInput={(e) => handleHexInput(e.currentTarget.value)}
-              onFocus={() => setHexInput(props.value ?? "")}
+              onFocus={() => setHexInput(p.value ?? "")}
               onBlur={() => setHexInput(null)}
             />
           </Show>

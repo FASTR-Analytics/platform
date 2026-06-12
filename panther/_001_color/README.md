@@ -72,13 +72,13 @@ RECOMMENDED_PALETTES: Record<KeyColorThemeName, { qualitative; sequential; diver
 ### Pre-defined Colors (`tim_colors.ts`)
 
 ```typescript
-TIM_COLORS: Record<string, string>;
+PANTHER_COLORS: Record<string, string>;
 ```
 
 ## Usage Example
 
 ```typescript
-import { Color, getColor, TIM_COLORS } from "@timroberton/panther";
+import { Color, getColor, PANTHER_COLORS } from "@timroberton/panther";
 
 // Create colors
 const red = Color.fromRgb(255, 0, 0);
@@ -89,7 +89,7 @@ const lightBlue = blue.lighten(0.2);
 const transparent = blue.withAlpha(0.5);
 
 // Use pre-defined colors
-const primary = TIM_COLORS.teal;
+const primary = PANTHER_COLORS.teal;
 
 // Use key colors
 const brandColor = getColor("primary");

@@ -11,8 +11,8 @@ import {
   StateHolderWrapper,
   StepperNavigationVisual,
   getStepper,
-  timActionDelete,
-  timQuery,
+  createDeleteAction,
+  createQuery,
 } from "panther";
 import { Match, Switch } from "solid-js";
 import type {
@@ -42,7 +42,7 @@ type Props = EditorComponentProps<
 
 export function StructureUploadAttemptForm(p: Props) {
   // Query state
-  const uploadAttempt = timQuery(async () => {
+  const uploadAttempt = createQuery(async () => {
     const res = await serverActions.getStructureUploadAttempt({});
     if (res.success === true) {
       stepper.setCurrentStep(res.data.step);
@@ -59,7 +59,7 @@ export function StructureUploadAttemptForm(p: Props) {
   }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation..." }));
 
   // Remove unused instanceDetail query
-  // const instanceDetail = timQuery(
+  // const instanceDetail = createQuery(
   //   () => serverActions.getInstanceDetail({}),
   //   t("Loading instance details..."),
   // );
@@ -105,7 +105,7 @@ export function StructureUploadAttemptForm(p: Props) {
 
   // Actions
   async function attemptDeleteStructureUploadAttempt() {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       t3({ en: "Are you sure you want to delete this import?", fr: "Êtes-vous sûr de vouloir supprimer cette importation ?" }),
       () => serverActions.deleteStructureUploadAttempt({}),
       () => p.close({ needsReload: true }),

@@ -3,7 +3,7 @@ import {
   AlertComponentProps,
   AlertFormHolder,
   Input,
-  timActionForm,
+  createFormAction,
   TextArea,
 } from "panther";
 import { Match, Switch, createSignal } from "solid-js";
@@ -26,7 +26,7 @@ export function EditLabelForm(
   const [tempLabel, setTempLabel] = createSignal<string>(p.existingLabel);
 
   const save = p.silentFetch
-    ? timActionForm(
+    ? createFormAction(
         async (e: MouseEvent) => {
           e.preventDefault();
           const goodLabel = tempLabel().trim();
@@ -38,7 +38,7 @@ export function EditLabelForm(
         p.silentFetch,
         () => p.close("NEEDS_UPDATE"),
       )
-    : timActionForm(
+    : createFormAction(
         async (e: MouseEvent) => {
           e.preventDefault();
           const goodLabel = tempLabel().trim();

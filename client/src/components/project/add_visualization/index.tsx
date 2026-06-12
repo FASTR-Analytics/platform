@@ -15,7 +15,7 @@ import {
   AlertComponentProps,
   Button,
   ModalContainer,
-  timActionForm,
+  createFormAction,
   getStepper,
   StepperChipsWithTitles,
 } from "panther";
@@ -104,7 +104,7 @@ export function AddVisualization(
     );
   };
 
-  const save = timActionForm(
+  const save = createFormAction(
     async () => {
       const metric = selectedMetric();
       if (!metric) {

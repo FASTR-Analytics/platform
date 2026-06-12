@@ -5,8 +5,8 @@
 How to use the panther component library in app code. For component
 _declaration_ and reactivity rules see `PROTOCOL_UI_SOLIDJS.md`; for Tailwind
 theme, `ui-*` utilities, sizing utilities, and sentence case see
-`PROTOCOL_UI_STYLING.md`; for `timQuery` / `timAction*` / `StateHolderWrapper`
-see `PROTOCOL_UI_STATE.md`.
+`PROTOCOL_UI_STYLING.md`; for `createQuery` / `createAction*` /
+`StateHolderWrapper` see `PROTOCOL_UI_STATE.md`.
 
 ## Rules
 
@@ -21,8 +21,8 @@ see `PROTOCOL_UI_STATE.md`.
 5. **Modals/editors use the helpers** — Open dialogs via the editor/alert
    helpers (`getEditorWrapper` / `openEditor`, confirm/prompt/alert); never roll
    a custom overlay.
-6. **Delete confirmations via `timActionDelete`** — Don't wire a custom confirm
-   modal for deletes (see `PROTOCOL_UI_STATE.md`).
+6. **Delete confirmations via `createDeleteAction`** — Don't wire a custom
+   confirm modal for deletes (see `PROTOCOL_UI_STATE.md`).
 7. **Size via the `size` prop** — Use `size="sm"` for small variants; resize
    globally with the `ui-form-*` utilities (see `PROTOCOL_UI_STYLING.md`). Never
    restyle a component with ad-hoc classes to change its size.
@@ -104,7 +104,7 @@ bespoke tables re-solve those and diverge.
 // ✅ DO — editor/alert helpers
 const { openEditor, EditorWrapper } = getEditorWrapper();
 await openEditor({ element: EditForm, props: { data, onSave } });
-// and for destructive actions, timActionDelete (see PROTOCOL_UI_STATE.md)
+// and for destructive actions, createDeleteAction (see PROTOCOL_UI_STATE.md)
 ```
 
 **Why:** The helpers centralize focus, dismissal, and lifecycle; custom overlays
@@ -125,7 +125,7 @@ duplicate that and miss edge cases.
 ### Standard data view
 
 ```tsx
-const query = timQuery(
+const query = createQuery(
   () => serverActions.getRows(),
   t3({ en: "Loading…", fr: "Chargement…" }),
 );
@@ -139,7 +139,7 @@ const query = timQuery(
 </FrameTop>;
 ```
 
-(`timQuery` / `StateHolderWrapper` semantics: `PROTOCOL_UI_STATE.md`. Layout
+(`createQuery` / `StateHolderWrapper` semantics: `PROTOCOL_UI_STATE.md`. Layout
 spacing/classes: `PROTOCOL_UI_STYLING.md`. User-facing strings: `t3` /
 `PROTOCOL_ALL_TRANSLATION.md`.)
 
@@ -147,7 +147,7 @@ spacing/classes: `PROTOCOL_UI_STYLING.md`. User-facing strings: `t3` /
 
 - [ ] No hand-rolled equivalents of panther `Button`/`Input`/`Select`/etc.
 - [ ] Data tables use `DisplayTable` with typed `TableColumn<T>[]`
-- [ ] Dialogs use the editor/alert helpers; deletes use `timActionDelete`
+- [ ] Dialogs use the editor/alert helpers; deletes use `createDeleteAction`
 - [ ] Component sizing uses the `size` prop / `ui-form-*`, not ad-hoc classes
 - [ ] Async data rendered through `StateHolderWrapper`
 - [ ] Custom components only where panther has no equivalent, built on panther

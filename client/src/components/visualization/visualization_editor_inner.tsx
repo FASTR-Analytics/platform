@@ -32,8 +32,8 @@ import {
   openComponent,
   saveAs,
   stringifyCsv,
-  timActionButton,
-  timActionDelete,
+  createButtonAction,
+  createDeleteAction,
 } from "panther";
 import {
   Match,
@@ -387,7 +387,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     return { success: true, data: { lastUpdated: res.data.lastUpdated } };
   }
 
-  const saveAndClose = timActionButton(
+  const saveAndClose = createButtonAction(
     () => saveFunc(),
     (data) => {
       if (data.conflictResolutionDecision === "user_chose_cancel") return;
@@ -399,7 +399,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     },
   );
 
-  const save = timActionButton(
+  const save = createButtonAction(
     () => saveFunc(),
     (data) => {
       if (data.conflictResolutionDecision === "user_chose_view_theirs") {
@@ -618,7 +618,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     if (p.poDetail.isDefault) {
       return;
     }
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       t3({
         en: "Are you sure you want to delete this visualization?",
         fr: "Êtes-vous sûr de vouloir supprimer cette visualisation ?",

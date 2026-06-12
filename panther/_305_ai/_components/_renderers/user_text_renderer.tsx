@@ -17,22 +17,22 @@ function stripAIContext(text: string): string {
   return text.replace(/<<<.*?>>>/gs, "").trim();
 }
 
-export const UserTextRenderer: Component<{
+export function UserTextRenderer(p: {
   item: Extract<DisplayItem, { type: "user_text" }>;
   markdownStyle?: CustomMarkdownStyleOptions;
   messageStyle?: MessageStyle;
-}> = (props) => {
-  const bg = props.messageStyle?.background ?? "bg-base-200";
-  const text = props.messageStyle?.text ?? "text-base-content";
-  const displayText = stripAIContext(props.item.text);
+}) {
+  const bg = p.messageStyle?.background ?? "bg-base-200";
+  const text = p.messageStyle?.text ?? "text-base-content";
+  const displayText = stripAIContext(p.item.text);
 
   return (
     <div class="ml-auto max-w-[80%]">
       <div
         class={`rounded py-4 text-left text-sm ${bg} ${text} ${MARKDOWN_BASE_STYLES}`}
-        style={deriveMarkdownCssVars(props.markdownStyle)}
+        style={deriveMarkdownCssVars(p.markdownStyle)}
         innerHTML={md.render(displayText)}
       />
     </div>
   );
-};
+}

@@ -1,5 +1,5 @@
 import { t3, type Slide, type SlideDeckFolder, type SlideDeckSummary } from "lib";
-import { AlertComponentProps, AlertFormHolder, timActionForm } from "panther";
+import { AlertComponentProps, AlertFormHolder, createFormAction } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { DeckSelector } from "./DeckSelector";
@@ -20,7 +20,7 @@ export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
   const [isCreatingNew, setIsCreatingNew] = createSignal(false);
   const [newDeckLabel, setNewDeckLabel] = createSignal("");
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
 

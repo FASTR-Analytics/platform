@@ -5,8 +5,8 @@ import {
   Button,
   Input,
   Select,
-  timActionButton,
-  timActionForm,
+  createButtonAction,
+  createFormAction,
 } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -39,7 +39,7 @@ export function VisualizationSettings(
     ...p.folders.map((f) => ({ value: f.id, label: f.label })),
   ];
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
       const goodLabel = tempLabel().trim();
@@ -63,7 +63,7 @@ export function VisualizationSettings(
     () => p.close("NEEDS_UPDATE"),
   );
 
-  const clearCache = timActionButton(
+  const clearCache = createButtonAction(
     async () => {
       await _PO_DETAIL_CACHE.clearEntry({
         projectId: p.projectId,

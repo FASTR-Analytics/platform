@@ -18,7 +18,7 @@ import {
   openComponent,
   Select,
   StateHolderWrapper,
-  timQuery,
+  createQuery,
 } from "panther";
 import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import {
@@ -53,7 +53,7 @@ function openDownload(
 export default function PublicDashboard() {
   const params = useParams<{ slug: string }>();
 
-  const bundleHolder = timQuery<PublicDashboardBundle>(async () => {
+  const bundleHolder = createQuery<PublicDashboardBundle>(async () => {
     const res = await fetch(`${_SERVER_HOST}/api/d/${params.slug}`, {
       credentials: "include",
     });

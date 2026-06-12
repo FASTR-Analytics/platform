@@ -18,11 +18,11 @@ type Props = {
   height?: string;
 };
 
-export const MessageInput: Component<Props> = (props) => {
+export function MessageInput(p: Props) {
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      props.onSubmit();
+      p.onSubmit();
     }
   };
 
@@ -30,15 +30,15 @@ export const MessageInput: Component<Props> = (props) => {
     <div class="ui-pad ui-gap bg-primary/10 flex w-full flex-none">
       <div class="w-0 flex-1" data-ai-input-wrapper>
         <TextArea
-          value={props.value}
-          onChange={props.onChange}
+          value={p.value}
+          onChange={p.onChange}
           onKeyDown={handleKeyDown}
-          placeholder={props.placeholder ??
+          placeholder={p.placeholder ??
             t3({
               en: "Type your message... (Shift+Enter for new line)",
               fr: "Tapez votre message... (Maj+Entrée pour un saut de ligne)",
             })}
-          height={props.height ?? "100px"}
+          height={p.height ?? "100px"}
           // mono
           fullWidth
         />
@@ -48,18 +48,18 @@ export const MessageInput: Component<Props> = (props) => {
         data-ai-submit-wrapper
       >
         <Button
-          onClick={props.onSubmit}
-          disabled={props.disabled}
+          onClick={p.onSubmit}
+          disabled={p.disabled}
           intent="primary"
         >
-          {props.submitLabel ?? t3({ en: "Submit", fr: "Envoyer" })}
+          {p.submitLabel ?? t3({ en: "Submit", fr: "Envoyer" })}
         </Button>
-        <Show when={props.isGenerating && props.onStop}>
-          <Button onClick={() => props.onStop!()} intent="neutral">
+        <Show when={p.isGenerating && p.onStop}>
+          <Button onClick={() => p.onStop!()} intent="neutral">
             {t3({ en: "Stop", fr: "Arrêter" })}
           </Button>
         </Show>
       </div>
     </div>
   );
-};
+}

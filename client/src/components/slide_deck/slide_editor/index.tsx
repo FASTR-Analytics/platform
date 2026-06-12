@@ -35,7 +35,7 @@ import {
   openAlert,
   openComponent,
   showMenu,
-  timActionButton,
+  createButtonAction,
 } from "panther";
 import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import {
@@ -302,7 +302,7 @@ export function SlideEditor(p: Props) {
     return { success: true, data: { lastUpdated: updateRes.data.lastUpdated } };
   }
 
-  const saveAndClose = timActionButton(
+  const saveAndClose = createButtonAction(
     () => saveFunc(),
     (data) => {
       if (data.conflictResolutionDecision === "user_chose_cancel") return;
@@ -310,7 +310,7 @@ export function SlideEditor(p: Props) {
     },
   );
 
-  const save = timActionButton(
+  const save = createButtonAction(
     () => saveFunc(),
     (data) => {
       if (data.conflictResolutionDecision === "user_chose_view_theirs") p.close(false);

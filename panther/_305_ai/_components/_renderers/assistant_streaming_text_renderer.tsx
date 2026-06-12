@@ -18,18 +18,18 @@ type Props = {
   markdownStyle?: CustomMarkdownStyleOptions;
 };
 
-export const AssistantStreamingTextRenderer: Component<Props> = (props) => {
-  const bg = props.messageStyle?.background ?? "bg-primary/10";
-  const text = props.messageStyle?.text ?? "text-primary";
+export function AssistantStreamingTextRenderer(p: Props) {
+  const bg = p.messageStyle?.background ?? "bg-primary/10";
+  const text = p.messageStyle?.text ?? "text-primary";
   const messageClass = `${bg} ${text}`;
 
   return (
     <div class="w-fit max-w-full">
       <div
         class={`py-4 w-fit max-w-full rounded text-sm ${messageClass} ${MARKDOWN_BASE_STYLES} ui-streaming-cursor`}
-        style={deriveMarkdownCssVars(props.markdownStyle)}
-        innerHTML={md.render(props.text)}
+        style={deriveMarkdownCssVars(p.markdownStyle)}
+        innerHTML={md.render(p.text)}
       />
     </div>
   );
-};
+}

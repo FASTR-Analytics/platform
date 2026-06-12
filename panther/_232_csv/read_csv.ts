@@ -6,6 +6,7 @@
 import {
   assertNotUndefined,
   type Csv,
+  debugLog,
   handleFileError,
   InvalidFileContentError,
   validateFilePath,
@@ -54,11 +55,7 @@ export function getXlsxSheetNames(filePath: string): string[] {
 
   // Check if workbook has any sheets
   if (!wb.SheetNames || wb.SheetNames.length === 0) {
-    // throw new InvalidFileContentError(
-    //   filePath,
-    //   "XLSX file has no worksheets",
-    // );
-    console.log("Error 1");
+    debugLog("XLSX file has no worksheets:", filePath);
     return [];
   }
   return wb.SheetNames;

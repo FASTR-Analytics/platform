@@ -10,8 +10,8 @@ import {
   FrameRight,
   FrameTop,
   getEditorWrapper,
-  timActionButton,
-  timActionDelete,
+  createButtonAction,
+  createDeleteAction,
 } from "panther";
 import { Match, Show, Switch, createSignal, onMount } from "solid-js";
 import { StructureUploadAttemptForm } from "~/components/structure_import";
@@ -57,7 +57,7 @@ export function Facilities(p: Props) {
     fetchUploadAttempt();
   });
 
-  const attemptCreateStructureUA = timActionButton(
+  const attemptCreateStructureUA = createButtonAction(
     () => serverActions.addStructureUploadAttempt({ datasetFamily: p.family }),
     fetchUploadAttempt,
     openUploadAttempt,
@@ -79,7 +79,7 @@ export function Facilities(p: Props) {
   }
 
   async function attemptDeleteItems() {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       p.family === "hmis"
         ? t3({
             en: "Are you sure you want to delete all HMIS facilities?",

@@ -13,9 +13,9 @@ import {
 import type { Component } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 
-export const ToolErrorRenderer: Component<{
+export function ToolErrorRenderer(p: {
   item: Extract<DisplayItem, { type: "tool_error" }>;
-}> = (props) => {
+}) {
   const [expanded, setExpanded] = createSignal(false);
 
   return (
@@ -30,7 +30,7 @@ export const ToolErrorRenderer: Component<{
             ? <ChevronDownIcon class="h-3 w-3" />
             : <ChevronRightIcon class="h-3 w-3" />}
         </div>
-        <span class="font-medium">{props.item.errorMessage}</span>
+        <span class="font-medium">{p.item.errorMessage}</span>
       </button>
 
       <Show when={expanded()}>
@@ -39,16 +39,16 @@ export const ToolErrorRenderer: Component<{
             <div class="mb-1 text-xs font-medium">
               {t3({ en: "Error:", fr: "Erreur :" })}
             </div>
-            <div class="text-xs">{props.item.errorDetails}</div>
+            <div class="text-xs">{p.item.errorDetails}</div>
           </div>
 
-          <Show when={props.item.errorStack}>
+          <Show when={p.item.errorStack}>
             <div class="border-danger/20 border-t pt-2">
               <div class="text-danger/60 mb-1 text-xs font-medium">
                 {t3({ en: "Stack trace:", fr: "Trace de la pile :" })}
               </div>
               <pre class="text-danger/80 bg-danger/5 overflow-x-auto whitespace-pre-wrap rounded p-2 font-mono text-[10px]">
-                {props.item.errorStack}
+                {p.item.errorStack}
               </pre>
             </div>
           </Show>
@@ -56,4 +56,4 @@ export const ToolErrorRenderer: Component<{
       </Show>
     </div>
   );
-};
+}

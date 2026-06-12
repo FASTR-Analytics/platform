@@ -14,7 +14,7 @@ import {
   Checkbox,
   ModalContainer,
   StateHolderFormError,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { For, Show, createSignal, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -62,7 +62,7 @@ export function SelectProjectUserRole(
     setPermissions({ ...current, [key]: !current[key] });
   };
 
-  const save = timActionForm(
+  const save = createFormAction(
     async () => {
       const perms = permissions();
       if (!perms) return { success: true as const };

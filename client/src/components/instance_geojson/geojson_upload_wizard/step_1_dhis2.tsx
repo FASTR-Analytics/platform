@@ -1,5 +1,5 @@
 import { t3, type Dhis2Credentials } from "lib";
-import { Button, StateHolderFormError, timActionForm } from "panther";
+import { Button, StateHolderFormError, createFormAction } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { Dhis2CredentialsEditor } from "~/components/Dhis2CredentialsEditor";
@@ -20,7 +20,7 @@ export function Step1Dhis2(p: Props) {
   const [saveCredentialsToSession, setSaveCredentialsToSession] = createSignal(false);
   const [connected, setConnected] = createSignal(false);
 
-  const connectAction = timActionForm(
+  const connectAction = createFormAction(
     async () => {
       const creds = credentials();
       if (!creds.url || !creds.username || !creds.password) {

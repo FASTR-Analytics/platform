@@ -5,8 +5,8 @@ import {
   StateHolderFormError,
   StateHolderWrapper,
   Table,
-  timActionForm,
-  timQuery,
+  createFormAction,
+  createQuery,
   toNum0,
 } from "panther";
 import { serverActions } from "~/server_actions";
@@ -23,7 +23,7 @@ export function Step2_Dhis2(p: Props) {
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);
 
   // Get organization unit metadata from DHIS2 cache
-  const orgUnitMetadata = timQuery(
+  const orgUnitMetadata = createQuery(
     () => serverActions.structureStep2Dhis2_GetOrgUnitsMetadata({}),
     t3({ en: "Loading organization units...", fr: "Chargement des unités organisationnelles..." }),
   );
@@ -32,7 +32,7 @@ export function Step2_Dhis2(p: Props) {
     setNeedsSaving(true);
   }
 
-  const save = timActionForm(async () => {
+  const save = createFormAction(async () => {
     const selection: StructureDhis2OrgUnitSelection = {
       selectedLevels: Array.from(selectedLevels()).map(Number),
     };

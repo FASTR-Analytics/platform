@@ -1,5 +1,5 @@
 import { t3, type DatasetCsvStagingResult } from "lib";
-import { Button, timActionButton, toNum0 } from "panther";
+import { Button, createButtonAction, toNum0 } from "panther";
 import { Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 
@@ -10,7 +10,7 @@ type Props = {
 };
 
 export function Step4_Csv(p: Props) {
-  const save = timActionButton(
+  const save = createButtonAction(
     () => serverActions.finalizeDatasetIntegration({}),
     p.silentFetch,
   );

@@ -14,7 +14,7 @@ import type { AlertComponentProps, FigureInputs, StateHolder } from "panther";
 import {
   Button,
   ChartHolder,
-  Loading,
+  LoadingIndicator,
   ModalContainer,
   openComponent,
 } from "panther";
@@ -49,7 +49,7 @@ export function DraftVisualizationPreview(p: Props) {
   const [figureState, setFigureState] = createSignal<StateHolder<FigureInputs>>(
     {
       status: "loading",
-      msg: t3({ en: "Loading...", fr: "Chargement..." }),
+      msg: t3({ en: "LoadingIndicator...", fr: "Chargement..." }),
     },
   );
 
@@ -286,7 +286,7 @@ function FigureStateWrapper(p: FigureStateWrapperProps) {
     <Switch>
       <Match when={p.state.status === "loading"}>
         <div class="aspect-video text-xs">
-          <Loading msg={(p.state as { msg?: string }).msg} noPad />
+          <LoadingIndicator msg={(p.state as { msg?: string }).msg} noPad />
         </div>
       </Match>
       <Match when={p.state.status === "error"}>

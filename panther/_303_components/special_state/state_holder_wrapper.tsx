@@ -6,7 +6,7 @@
 import { ErrorBoundary, type JSX, Match, Show, Switch } from "solid-js";
 import { t3 } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
-import { Loading, Spinner } from "../form_inputs/mod.ts";
+import { LoadingIndicator, Spinner } from "../form_inputs/mod.ts";
 import type {
   ButtonActionState,
   FormActionState,
@@ -71,7 +71,10 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
             <Spinner />
           </Match>
           <Match when={!p.spinner}>
-            <Loading msg={(p.state as { msg?: string }).msg} noPad={p.noPad} />
+            <LoadingIndicator
+              msg={(p.state as { msg?: string }).msg}
+              noPad={p.noPad}
+            />
           </Match>
         </Switch>
       </Match>

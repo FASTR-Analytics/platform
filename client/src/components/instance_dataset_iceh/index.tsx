@@ -8,7 +8,7 @@ import {
   FrameRight,
   FrameTop,
   getEditorWrapper,
-  timActionButton,
+  createButtonAction,
   toPct0,
 } from "panther";
 import {
@@ -68,7 +68,7 @@ export function InstanceDatasetIceh(p: Props) {
     }
   });
 
-  const newUploadAttempt = timActionButton(
+  const newUploadAttempt = createButtonAction(
     () => serverActions.createDatasetIcehUploadAttempt({}),
     fetchDetail,
     openUploadAttempt

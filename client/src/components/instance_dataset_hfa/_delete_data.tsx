@@ -5,7 +5,7 @@ import {
   FrameTop,
   Input,
   Select,
-  timActionDelete,
+  createDeleteAction,
 } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -27,7 +27,7 @@ export function DeleteData(
   async function attemptDeleteData() {
     const timePoint =
       deleteMode() === "time_point" ? selectedTimePoint() : undefined;
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       timePoint
         ? `Are you very sure you want to delete all data for time point "${timePoint}"?`
         : "Are you very sure you want to delete all of your data?",

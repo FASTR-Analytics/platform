@@ -1,5 +1,5 @@
 import { t3, type Dhis2Credentials } from "lib";
-import { Button, StateHolderFormError, timActionForm } from "panther";
+import { Button, StateHolderFormError, createFormAction } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { setDhis2SessionCredentials } from "~/state/instance/t4_dhis2_session";
@@ -20,7 +20,7 @@ export function Step1_Dhis2(p: Props) {
     createSignal<boolean>(false);
   const [needsSaving] = createSignal<boolean>(!p.step1Result);
 
-  const save = timActionForm(async () => {
+  const save = createFormAction(async () => {
     const creds = credentials();
     if (!creds.url || !creds.username || !creds.password) {
       return { success: false, err: t3({ en: "All fields are required", fr: "Tous les champs sont requis" }) };

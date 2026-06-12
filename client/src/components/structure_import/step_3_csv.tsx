@@ -4,7 +4,7 @@ import {
   ProgressBar,
   StateHolderFormError,
   getProgress,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -18,7 +18,7 @@ type Props = {
 export function Step3_Csv(p: Props) {
   const { progressFrom0To100, progressMsg, onProgress } = getProgress();
 
-  const executeImport = timActionForm(async () => {
+  const executeImport = createFormAction(async () => {
     const res = await serverActions.structureStep3Csv_StageDataStreaming(
       {},
       onProgress,

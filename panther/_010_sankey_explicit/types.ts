@@ -11,7 +11,7 @@ import type {
   Primitive,
 } from "./deps.ts";
 
-export type ExplicitSankeyNode = {
+export type SankeyExplicitNode = {
   id: string;
   label?: string;
   color: string;
@@ -22,7 +22,7 @@ export type ExplicitSankeyNode = {
   height: number;
 };
 
-export type ExplicitSankeyLink = {
+export type SankeyExplicitLink = {
   from: string;
   to: string;
   fromY: number;
@@ -32,8 +32,8 @@ export type ExplicitSankeyLink = {
 };
 
 export type SankeyExplicitInputs = FigureInputsBase & {
-  nodes: ExplicitSankeyNode[];
-  links: ExplicitSankeyLink[];
+  nodes: SankeyExplicitNode[];
+  links: SankeyExplicitLink[];
 };
 
 export type MeasuredSankeyExplicit = Measured<SankeyExplicitInputs> & {

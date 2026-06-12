@@ -4,7 +4,7 @@ import {
   AlertFormHolder,
   Input,
   Select,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -25,7 +25,7 @@ export function AddDeckForm(
     ...p.folders.map((f) => ({ value: f.id, label: f.label })),
   ];
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
       if (!tempLabel().trim()) {

@@ -11,13 +11,13 @@ import {
   FrameTop,
   HeadingBar,
   StateHolderWrapper,
-  timQuery,
+  createQuery,
 } from "panther";
 import { For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 export function CompareProjects(p: EditorComponentProps<{}, undefined>) {
-  const comparisonData = timQuery(
+  const comparisonData = createQuery(
     () => serverActions.compareProjects({}),
     t3({
       en: "Loading comparison data...",

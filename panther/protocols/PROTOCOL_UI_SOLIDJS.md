@@ -97,7 +97,7 @@ longer set up new tracking dependencies in that effect run.
 const [data] = createResource(() => fetchData());
 
 // ✅ DO
-const query = timQuery(() => fetchData(), "Loading...");
+const query = createQuery(() => fetchData(), "Loading...");
 ```
 
 ### Component Declaration

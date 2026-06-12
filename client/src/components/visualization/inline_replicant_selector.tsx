@@ -1,5 +1,5 @@
 import { DisaggregationOption } from "lib";
-import { StateHolderWrapper, timQuery } from "panther";
+import { StateHolderWrapper, createQuery } from "panther";
 import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
 import { ReplicateByOptionsPresentationObjectSelect } from "~/components/ReplicateByOptions";
 
@@ -12,7 +12,7 @@ type Props = {
 };
 
 export function InlineReplicantSelector(p: Props) {
-  const poDetail = timQuery(async () => {
+  const poDetail = createQuery(async () => {
     return await getPODetailFromCacheorFetch(
       p.projectId,
       p.presentationObjectId,

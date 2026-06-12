@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { debugLog } from "./debug.ts";
 export function sum(arr: number[]): number {
   return arr.reduce((s, v) => s + v, 0);
 }
@@ -25,7 +26,7 @@ export function sumStringsIntoString(
   const summed = arr.reduce((s, v) => {
     const num = Number(v);
     if (isNaN(num)) {
-      console.log(arr);
+      debugLog(arr);
       throw new Error("Cannot read cell as number. Cell is NaN.");
     }
     return s + num;
@@ -43,7 +44,7 @@ export function avgStringsIntoString(
   const avged = arr.length === 0 ? 0 : arr.reduce((s, v) => {
     const num = Number(v);
     if (isNaN(num)) {
-      console.log(arr);
+      debugLog(arr);
       throw new Error("Cannot read cell as number. Cell is NaN.");
     }
     return s + num;

@@ -7,7 +7,7 @@ import {
   Select,
   StateHolderFormError,
   getSelectOptions,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { For, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -52,7 +52,7 @@ export function Step2_Csv(p: Props) {
     setTempMappings(hmisSqlColName, csvCol);
   }
 
-  const save = timActionForm(async () => {
+  const save = createFormAction(async () => {
     const mappings = unwrap(tempMappings);
 
     for (const hmisSqlColName of _HMIS_SQL_COL_NAMES) {

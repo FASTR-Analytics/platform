@@ -4,7 +4,7 @@ import {
   AlertFormHolder,
   ColorPicker,
   Input,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -21,7 +21,7 @@ export function EditDeckFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   const [tempLabel, setTempLabel] = createSignal(p.folder?.label ?? "");
   const [tempColor, setTempColor] = createSignal(p.folder?.color ?? "#3b82f6");
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
       const label = tempLabel().trim();

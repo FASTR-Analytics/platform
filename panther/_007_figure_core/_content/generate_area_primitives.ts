@@ -46,6 +46,11 @@ export function generateAreaPrimitives(
 ): Primitive[] {
   const s = ctx.contentStyle;
 
+  const seriesInfos = Array.from(
+    { length: ctx.nSeries },
+    (_, i) => buildSeriesInfo(ctx, i, mapped),
+  );
+
   const areaSeriesData: Map<
     number,
     {
@@ -60,7 +65,7 @@ export function generateAreaPrimitives(
       const mappedVal = mapped[i_series][i_val];
       if (mappedVal === undefined) continue;
 
-      const seriesInfo = buildSeriesInfo(ctx, i_series, mapped);
+      const seriesInfo = seriesInfos[i_series];
       const areaStyle = s.areas?.getStyle(seriesInfo);
       if (!areaStyle?.show) continue;
 
@@ -84,7 +89,7 @@ export function generateAreaPrimitives(
   if (s.areas && !s.areas.diff.enabled) {
     for (const [i_series, areaData] of areaSeriesData.entries()) {
       const seriesInfo: ChartSeriesInfo = {
-        ...buildSeriesInfo(ctx, i_series, mapped),
+        ...seriesInfos[i_series],
         nVals: areaData.coords.length,
       };
 

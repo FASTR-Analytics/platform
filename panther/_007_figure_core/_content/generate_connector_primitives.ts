@@ -7,6 +7,7 @@ import {
   type Arrowhead,
   type ArrowheadFitFallback,
   type ChartConnectorInfo,
+  type ChartSeriesInfo,
   computeBoundsForPath,
   Coordinates,
   type HeaderItem,
@@ -38,9 +39,13 @@ export function generateConnectorPrimitives(
   const primitives: Primitive[] = [];
   const s = ctx.contentStyle;
   const cs = s.connectors;
+  const seriesInfos = Array.from(
+    { length: ctx.nSeries },
+    (_, i) => buildSeriesInfo(ctx, i, mapped),
+  );
 
   for (let i_val = 0; i_val < ctx.nVals; i_val++) {
-    const endpoints = collectEndpoints(mapped, i_val, ctx);
+    const endpoints = collectEndpoints(mapped, i_val, ctx, seriesInfos);
     if (endpoints.length < 2) continue;
 
     const info = buildConnectorInfo(endpoints, i_val, ctx);
@@ -86,6 +91,7 @@ function collectEndpoints(
   mapped: MappedValueCoordinate[][],
   i_val: number,
   ctx: ContentGenerationContext,
+  seriesInfos: ChartSeriesInfo[],
 ): Endpoint[] {
   const endpoints: Endpoint[] = [];
   const s = ctx.contentStyle;
@@ -97,9 +103,8 @@ function collectEndpoints(
       if (!joinAcrossGaps && endpoints.length > 0) break;
       continue;
     }
-    const seriesInfo = buildSeriesInfo(ctx, i_series, mapped);
     const valueInfo = buildValueInfo(
-      seriesInfo,
+      seriesInfos[i_series],
       m.val,
       i_val,
       ctx.valueRange.minVal,

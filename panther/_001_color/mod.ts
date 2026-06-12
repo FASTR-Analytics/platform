@@ -34,11 +34,11 @@ export {
   type PaletteCategory,
   type PaletteName,
   type PaletteOption,
+  PANTHER_PALETTES,
   type QualitativePaletteName,
   type SequentialPaletteName,
-  TIM_PALETTES,
 } from "./palettes.ts";
-export { TIM_COLORS } from "./tim_colors.ts";
+export { PANTHER_COLORS } from "./tim_colors.ts";
 export type { ColorKeyOrString, KeyColors } from "./types.ts";
 export {
   divergingColorFunc,

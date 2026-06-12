@@ -569,11 +569,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     const queue = queuedMessages();
     const msgs = messages();
 
-    const lastMsg = msgs[msgs.length - 1];
-    const hasUnresolvedTools = msgs.length > 0 &&
-      lastMsg?.role === "assistant" &&
-      Array.isArray(lastMsg.content) &&
-      lastMsg.content.some((block: any) => block.type === "tool_use");
+    const hasUnresolvedTools = lastMessageHasUnresolvedToolUse(msgs);
 
     if (!loading && !processingTools && queue.length > 0) {
       if (hasUnresolvedTools) return;
@@ -636,6 +632,16 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     clearInProgressItems,
     conversationId,
   };
+}
+
+// One home for "the last message is an assistant turn with tool_use blocks
+// still awaiting results" — used to gate queueing and turn-completion.
+export function lastMessageHasUnresolvedToolUse(msgs: MessageParam[]): boolean {
+  const lastMsg = msgs[msgs.length - 1];
+  return msgs.length > 0 &&
+    lastMsg?.role === "assistant" &&
+    Array.isArray(lastMsg.content) &&
+    lastMsg.content.some((block) => block.type === "tool_use");
 }
 
 function getUserFacingErrorMessage(err: unknown): string {

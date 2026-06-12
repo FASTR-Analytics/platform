@@ -7,7 +7,7 @@ import {
   Table,
   getEditorWrapper,
   openComponent,
-  timQuery,
+  createQuery,
   toNum0,
   type TableColumn,
 } from "panther";
@@ -23,7 +23,7 @@ export function PreviousImports(
 ) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const versions = timQuery(
+  const versions = createQuery(
     () => serverActions.getDatasetHmisVersions({}),
     t3({ en: "Loading import information...", fr: "Chargement des informations d'importation..." }),
   );

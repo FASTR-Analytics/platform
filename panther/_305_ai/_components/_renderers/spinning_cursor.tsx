@@ -12,7 +12,7 @@ type Props = {
   class?: string;
 };
 
-export const SpinningCursor: Component<Props> = (props) => {
+export function SpinningCursor(p: Props) {
   const [frame, setFrame] = createSignal(0);
 
   onMount(() => {
@@ -24,8 +24,8 @@ export const SpinningCursor: Component<Props> = (props) => {
   });
 
   return (
-    <span class={`not-italic ml-0.5 inline-block ${props.class ?? ""}`}>
+    <span class={`not-italic ml-0.5 inline-block ${p.class ?? ""}`}>
       {SPINNER_FRAMES[frame()]}
     </span>
   );
-};
+}

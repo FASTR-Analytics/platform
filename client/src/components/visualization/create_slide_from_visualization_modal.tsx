@@ -1,7 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckConfig, SlideDeckFolder, SlideDeckSummary } from "lib";
 import { formatReplicantLabelForDisplay, getStartingConfigForSlideDeck, t3 } from "lib";
-import { AlertComponentProps, AlertFormHolder, RadioGroup, ProgressBar, getProgress, timActionForm } from "panther";
+import { AlertComponentProps, AlertFormHolder, RadioGroup, ProgressBar, getProgress, createFormAction } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -38,7 +38,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
 
   const isBatchMode = () => !isSingleReplicatedMode();
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
 

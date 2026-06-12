@@ -1,5 +1,5 @@
 import { t3 } from "lib";
-import { Button, FrameTop, timActionDelete, toNum0 } from "panther";
+import { Button, FrameTop, createDeleteAction, toNum0 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
@@ -11,7 +11,7 @@ type Props = {
 
 export function AdminAreas(p: Props) {
   async function attemptDeleteAll() {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       t3({
         en: "Are you sure you want to clear ALL admin areas and ALL facilities (HMIS and HFA)?",
         fr: "Êtes-vous sûr de vouloir supprimer TOUTES les unités administratives et TOUS les établissements (SNIS et Enquêtes FOSA) ?",

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { getStage2Sizing, REFERENCE_WIDTH_DU } from "../_000_consts/mod.ts";
+export { getStage2Sizing } from "../_000_consts/mod.ts";
 export type { SizingMode } from "../_000_consts/mod.ts";
 export {
   capitalizeFirstLetter,
@@ -55,5 +55,5 @@ export {
   trackCanvas,
   untrackCanvas,
 } from "../_301_util_funcs/mod.ts";
-export { timQuery } from "../_302_query/mod.ts";
+export { createQuery } from "../_302_query/mod.ts";
 export type { APIResponseWithData } from "../_302_query/mod.ts";

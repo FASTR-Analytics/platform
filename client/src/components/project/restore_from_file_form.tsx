@@ -1,4 +1,4 @@
-import { AlertComponentProps, AlertFormHolder, timActionForm } from "panther";
+import { AlertComponentProps, AlertFormHolder, createFormAction } from "panther";
 import { APIResponseNoData, t3 } from "lib";
 import { createSignal } from "solid-js";
 
@@ -19,7 +19,7 @@ export function CreateRestoreFromFileForm(
         }
     };
 
-    const save = timActionForm(
+    const save = createFormAction(
         async (e: MouseEvent) => {
             e.preventDefault();
             const file = selectedFile();

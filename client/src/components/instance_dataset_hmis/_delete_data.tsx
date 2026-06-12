@@ -11,7 +11,7 @@ import {
   EditorComponentProps,
   FrameTop,
   Input,
-  timActionDelete,
+  createDeleteAction,
 } from "panther";
 import { createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -49,7 +49,7 @@ export function DeleteData(
   async function attemptDeleteData() {
     const windowing = unwrap(tempWindowing);
 
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       "Are you sure you want to delete this data?",
       async () => {
         if (

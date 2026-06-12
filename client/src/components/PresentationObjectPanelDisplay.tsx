@@ -25,7 +25,7 @@ import {
   SelectionCircle,
   SelectList,
   showMenu,
-  timActionDelete,
+  createDeleteAction,
   type ListItem,
   type MenuItem,
 } from "panther";
@@ -320,7 +320,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         icon: "trash",
         intent: "danger",
         onClick: async () => {
-          const deleteAction = timActionDelete(
+          const deleteAction = createDeleteAction(
             t3({
               en: "Are you sure you want to delete this folder? Visualizations will be moved to General.",
               fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les visualisations seront déplacées dans Général.",
@@ -642,7 +642,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
             fr: "Êtes-vous sûr de vouloir supprimer cette visualisation ?",
           });
 
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       confirmText,
       async () => {
         const promises = idsToDelete.map((id) =>

@@ -14,8 +14,8 @@ import {
   Input,
   Select,
   StateHolderWrapper,
-  timActionButton,
-  timQuery,
+  createButtonAction,
+  createQuery,
 } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -42,7 +42,7 @@ export function SettingsForProjectModuleGeneric(
     setNeedsSaving(true);
   }
 
-  const config = timQuery(
+  const config = createQuery(
     async () => {
       const res = await serverActions.getModuleWithConfigSelections({
         projectId: p.projectId,
@@ -63,7 +63,7 @@ export function SettingsForProjectModuleGeneric(
     }),
   );
 
-  const save = timActionButton(
+  const save = createButtonAction(
     async () => {
       const newParameters = unwrap(tempParameters);
       return await serverActions.updateModuleParameters({

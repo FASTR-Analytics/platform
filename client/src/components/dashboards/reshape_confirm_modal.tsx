@@ -4,7 +4,7 @@ import {
   AlertFormHolder,
   ProgressBar,
   getProgress,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { Show } from "solid-js";
 
@@ -23,7 +23,7 @@ type ReturnType = { ok: true };
 export function ReshapeConfirmModal(p: AlertComponentProps<Props, ReturnType>) {
   const progress = getProgress();
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
       const res = await p.run((frac, msg) => progress.onProgress(frac, msg));

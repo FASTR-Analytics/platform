@@ -781,7 +781,7 @@ const PALETTES: Record<PaletteName, BuiltInPalette> = {
   },
 };
 
-export const TIM_PALETTES = {
+export const PANTHER_PALETTES = {
   sequential: {
     blues: "blues" as const,
     bluesRev: "blues:rev" as const,

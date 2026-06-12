@@ -1,5 +1,5 @@
 import { t3 } from "lib";
-import { Button, StateHolderFormError, timActionForm } from "panther";
+import { Button, StateHolderFormError, createFormAction } from "panther";
 import { Show, createMemo } from "solid-js";
 import { serverActions } from "~/server_actions";
 import type { WizardState } from "./index";
@@ -39,7 +39,7 @@ export function Step4(p: Props) {
     return [...valueCounts.entries()].filter(([_, count]) => count > 1).map(([name]) => name);
   });
 
-  const saveAction = timActionForm(
+  const saveAction = createFormAction(
     async () => {
       const mapping = getAreaMappingForSave();
       if (Object.keys(mapping).length === 0) {

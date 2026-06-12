@@ -18,7 +18,7 @@ import {
   getColor,
   openComponent,
   showMenu,
-  timActionDelete,
+  createDeleteAction,
   type ListItem,
   type MenuItem,
 } from "panther";
@@ -210,7 +210,7 @@ export function ProjectReports(p: ExtendedProps) {
         ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} reports?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} rapports ?` })
         : t3({ en: "Are you sure you want to delete this report?", fr: "Êtes-vous sûr de vouloir supprimer ce rapport ?" });
 
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       confirmText,
       async () => {
         const promises = idsToDelete.map((id) =>
@@ -292,7 +292,7 @@ export function ProjectReports(p: ExtendedProps) {
         icon: "trash",
         intent: "danger",
         onClick: async () => {
-          const deleteAction = timActionDelete(
+          const deleteAction = createDeleteAction(
             t3({ en: "Are you sure you want to delete this folder? Reports will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les rapports seront déplacés dans Général." }),
             () =>
               serverActions.deleteReportFolder({

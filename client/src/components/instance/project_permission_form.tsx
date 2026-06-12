@@ -12,7 +12,7 @@ import {
   Button,
   Checkbox,
   ModalContainer,
-  timActionButton,
+  createButtonAction,
 } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -64,7 +64,7 @@ export function ProjectPermissionForm(p: AlertComponentProps<Props, undefined>) 
     setPermissions({ ...current, [key]: !current[key] });
   };
 
-  const save = timActionButton(
+  const save = createButtonAction(
     async () => {
       const perms = permissions();
       if (!perms) return { success: false as const, err: "No permissions" };

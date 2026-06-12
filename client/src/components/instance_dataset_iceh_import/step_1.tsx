@@ -1,7 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { t3, TC, type IcehStep1Result } from "lib";
 import { serverActions } from "~/server_actions";
-import { Button, StateHolderFormError, timActionForm } from "panther";
+import { Button, StateHolderFormError, createFormAction } from "panther";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 
 type Props = {
@@ -20,7 +20,7 @@ export function Step1(p: Props) {
     setSelectedZipFileName(fileName);
   }
 
-  const save = timActionForm(async () => {
+  const save = createFormAction(async () => {
     const zipAssetFileName = selectedZipFileName();
     if (!zipAssetFileName) {
       return {

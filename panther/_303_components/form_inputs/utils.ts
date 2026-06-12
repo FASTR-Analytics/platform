@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { onCleanup } from "solid-js";
 import { capitalizeFirstLetter } from "../deps.ts";
 import type { SelectOption } from "./types.ts";
 
@@ -39,6 +40,7 @@ export function getSelectOptionsFromIdLabel(
 
 export function useAutoFocus(el: HTMLElement, shouldFocus?: boolean) {
   if (shouldFocus) {
-    setTimeout(() => el.focus());
+    const handle = setTimeout(() => el.focus());
+    onCleanup(() => clearTimeout(handle));
   }
 }

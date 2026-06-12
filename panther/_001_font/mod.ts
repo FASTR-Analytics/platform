@@ -8,7 +8,7 @@ export {
   cleanFontFamilyForJsPdf,
   quotedFontFamilyForCanvas,
 } from "./font_family_helpers.ts";
-export { TIM_FONTS } from "./generated/fonts.ts";
+export { PANTHER_FONTS } from "./generated/fonts.ts";
 export { FONT_KERNING } from "./generated/kerning.ts";
 export { FONT_MAP } from "./generated/map.ts";
 export type { FontId } from "./generated/map.ts";

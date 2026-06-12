@@ -5,7 +5,7 @@ import {
   FrameTop,
   HeadingBar,
   StateHolderWrapper,
-  timQuery,
+  createQuery,
 } from "panther";
 import { serverActions } from "~/server_actions";
 
@@ -17,7 +17,7 @@ export function ViewScript(
 ) {
   // const rLogs = useRLogs();
 
-  const rLogs = timQuery(
+  const rLogs = createQuery(
     () =>
       serverActions.getScript({
         module_id: p.moduleId,

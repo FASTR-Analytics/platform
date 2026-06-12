@@ -18,8 +18,8 @@ import {
   Select,
   StateHolderWrapper,
   TextArea,
-  timActionButton,
-  timQuery,
+  createButtonAction,
+  createQuery,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -60,7 +60,7 @@ export function HfaIndicatorCodeEditor(
     undefined
   >,
 ) {
-  const codeQuery = timQuery(
+  const codeQuery = createQuery(
     () => serverActions.getHfaIndicatorCode({ varName: p.indicator.varName }),
     t3({ en: "Loading code...", fr: "Chargement du code..." }),
   );
@@ -71,11 +71,11 @@ export function HfaIndicatorCodeEditor(
   const runSave = () =>
     doSave?.() ?? Promise.resolve({ success: true } as APIResponseNoData);
 
-  const save = timActionButton(runSave, () => {
+  const save = createButtonAction(runSave, () => {
     setNeedsSaving(false);
   });
 
-  const saveAndClose = timActionButton(runSave, () => {
+  const saveAndClose = createButtonAction(runSave, () => {
     p.close(undefined);
   });
 

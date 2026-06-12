@@ -5,7 +5,7 @@
 
 import type { FontInfo } from "../types.ts";
 
-type TimFontOption =
+type PantherFontOption =
   // Cambria
   | "Cambria_400_Italic"
   | "Cambria_400"
@@ -425,7 +425,7 @@ type TimFontOption =
   | "TiemposText_500"
   | "TiemposText_400";
 
-export const TIM_FONTS: Record<TimFontOption, FontInfo> = {
+export const PANTHER_FONTS: Record<PantherFontOption, FontInfo> = {
   // Cambria
   Cambria_400_Italic: {
     fontFamily: "Cambria",

@@ -2,7 +2,7 @@ import {
   AlertComponentProps,
   Button,
   StateHolderFormError,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { For } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -30,7 +30,7 @@ export function BulkEditDefaultProjectPermissionsForm(
     ) as Record<ProjectPermission, TriState>,
   );
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
       const permissions: Partial<Record<ProjectPermission, boolean>> = {};

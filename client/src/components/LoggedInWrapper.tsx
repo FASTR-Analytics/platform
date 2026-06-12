@@ -10,7 +10,7 @@ import {
   LANGUAGE_STORAGE_KEY,
 } from "lib";
 import type { Language } from "panther";
-import { StateHolderWrapper, timQuery } from "panther";
+import { StateHolderWrapper, createQuery } from "panther";
 import { JSX, Show, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 
@@ -91,7 +91,7 @@ export function LoggedInWrapper(p: Props) {
                   ),
                 }),
               }
-            : timQuery(() => serverActions.getCurrentUser({}), t3(TC.loading));
+            : createQuery(() => serverActions.getCurrentUser({}), t3(TC.loading));
 
           onMount(async () => {
             if (bypassAuth) return;
@@ -118,7 +118,7 @@ export function LoggedInWrapper(p: Props) {
           ///////////////////////////////////////////////////////////////////////////////////
 
           async function attemptSignOut(): Promise<void> {
-            // Note: Can't update loggedInInfo loading state with timQuery
+            // Note: Can't update loggedInInfo loading state with createQuery
             // but page will reload anyway
             if (!bypassAuth) {
               await clerk.signOut();

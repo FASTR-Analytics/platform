@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { join } from "@std/path";
 import { Sql } from "postgres";
 import JSZip from "npm:jszip";
-import { parseCSV } from "@timroberton/panther";
+import { parseCsv } from "@timroberton/panther";
 import { _ASSETS_DIR_PATH, _SANDBOX_DIR_PATH } from "../../exposed_env_vars.ts";
 import { readXlsxFileAsSheets } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 import { getCountryIso3Config } from "./config.ts";
@@ -300,7 +300,7 @@ export async function updateDatasetIcehUploadAttemptStep1(
         return { success: false, err: "Sheet 'ICEH Indicators Definition' not found in indicators.xlsx" };
       }
 
-      const rows = parseCSV(csvText);
+      const rows = parseCsv(csvText);
       if (rows.length < 4) {
         return { success: false, err: "CSV has insufficient rows" };
       }
@@ -454,7 +454,7 @@ async function stageAndIntegrateIcehData(
         });
       }
 
-      const rows = parseCSV(csvText);
+      const rows = parseCsv(csvText);
       const headerRow = rows[2];
       const dataRows = rows.slice(3);
 

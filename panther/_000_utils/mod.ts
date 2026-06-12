@@ -5,8 +5,7 @@
 
 export * from "./assert.ts";
 export * from "./translate.ts";
-export { PANTHER_DEBUG } from "./debug.ts";
-export * from "./async_utils.ts";
+export { debugLog, PANTHER_DEBUG } from "./debug.ts";
 export * from "./boolean_reducers.ts";
 export * from "./create_array.ts";
 export * from "./duplicates.ts";

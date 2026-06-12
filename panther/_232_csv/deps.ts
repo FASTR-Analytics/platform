@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { assertNotUndefined } from "../_000_utils/mod.ts";
+export { assertNotUndefined, debugLog } from "../_000_utils/mod.ts";
 export { Csv } from "../_100_csv/mod.ts";
 export {
   handleFileError,

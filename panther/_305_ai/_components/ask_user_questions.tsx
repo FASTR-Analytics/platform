@@ -47,9 +47,9 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
       rejectAnswer = null;
       return formatAnswerForAI(input, answer);
     },
-    inProgressComponent: (props: { input: AskUserQuestionsInput }) => (
+    inProgressComponent: (p: { input: AskUserQuestionsInput }) => (
       <AskUserQuestionsRenderer
-        input={props.input}
+        input={p.input}
         onSubmit={(answer) => resolveAnswer?.(answer)}
         onCancel={() =>
           rejectAnswer?.(new Error("User cancelled the question"))}

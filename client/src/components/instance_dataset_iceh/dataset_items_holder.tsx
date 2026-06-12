@@ -4,7 +4,7 @@ import {
   type ListItem,
   StateHolderWrapper,
   TabsNavigation,
-  timQuery,
+  createQuery,
 } from "panther";
 import { createMemo, createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -13,7 +13,7 @@ import { StratifiersTab } from "./_stratifiers_tab";
 import { IndicatorsTab } from "./_indicators_tab";
 
 export function DatasetItemsHolder(p: { detail: IcehDataDetail }) {
-  const displayData = timQuery(
+  const displayData = createQuery(
     async () => serverActions.getDatasetIcehDisplayData({}),
     t3({ en: "Loading...", fr: "Chargement..." }),
   );

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { parseCSV } from "./parse.ts";
+import { parseCsv } from "./parse.ts";
 import { stringifyCsv } from "./stringify.ts";
 import type { CsvOptions } from "./types.ts";
 
@@ -34,7 +34,7 @@ export class Csv<T> {
   // ================================================================================
 
   static fromString(csvString: string): Csv<string> {
-    const parsed = parseCSV(csvString);
+    const parsed = parseCsv(csvString);
     if (parsed.length === 0) {
       throw new Error("Cannot create Csv from empty CSV string");
     }

@@ -15,7 +15,7 @@ type SpinnerProps = {
   intent?: Intent;
 };
 
-export function Loading(p: Props) {
+export function LoadingIndicator(p: Props) {
   return (
     <div
       class="data-[no-pad=false]:ui-pad h-full w-full"

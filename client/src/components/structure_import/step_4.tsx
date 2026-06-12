@@ -10,7 +10,7 @@ import {
   MultiSelect,
   RadioGroup,
   StateHolderFormError,
-  timActionForm,
+  createFormAction,
   toNum0,
 } from "panther";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
@@ -72,7 +72,7 @@ export function Step4(p: Props) {
     { value: "facility_custom_5", label: t3({ en: "Facility Custom 5", fr: "Formation sanitaire personnalisé 5" }) },
   ];
 
-  const executeImport = timActionForm(
+  const executeImport = createFormAction(
     async () => {
       const currentStrategy = strategyType();
       let finalStrategy: StructureIntegrateStrategy;

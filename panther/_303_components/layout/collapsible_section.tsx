@@ -26,7 +26,7 @@ export interface CollapsibleSectionProps {
   noClickToCollapse?: boolean;
 }
 
-export function CollapsibleSection(props: CollapsibleSectionProps) {
+export function CollapsibleSection(p: CollapsibleSectionProps) {
   const merged = mergeProps(
     {
       defaultOpen: false,
@@ -37,7 +37,7 @@ export function CollapsibleSection(props: CollapsibleSectionProps) {
       padding: "md" as const,
       contentBorder: true,
     },
-    props,
+    p,
   );
   const [local, others] = splitProps(merged, [
     "title",

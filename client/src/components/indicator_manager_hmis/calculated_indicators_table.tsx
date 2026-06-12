@@ -3,7 +3,7 @@ import {
   Table,
   TableColumn,
   openComponent,
-  timActionDelete,
+  createDeleteAction,
   type BulkAction,
 } from "panther";
 import { Show } from "solid-js";
@@ -61,7 +61,7 @@ export function CalculatedIndicatorsTable(p: Props) {
   }
 
   async function handleDelete(indicator: CalculatedIndicator) {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: t3({
           en: "Are you sure you want to delete this calculated indicator?",
@@ -91,7 +91,7 @@ export function CalculatedIndicatorsTable(p: Props) {
     const labels = selected.map(
       (si) => `${si.calculated_indicator_id} ~ ${si.label}`,
     );
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text:
           ids.length === 1

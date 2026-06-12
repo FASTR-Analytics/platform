@@ -6,7 +6,7 @@ import {
   FrameTop,
   HeadingBarMainRibbon,
   Table,
-  timActionDelete,
+  createDeleteAction,
   type BulkAction,
   type TableColumn,
 } from "panther";
@@ -71,7 +71,7 @@ export function InstanceAssets() {
   });
 
   async function attemptDeleteAssetFile(assetFileName: string) {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text: t3({
           en: "Are you sure you want to delete this asset file?",
@@ -256,7 +256,7 @@ function AssetFolder(p: {
 
   async function handleBulkDelete(selected: AssetInfo[]) {
     const assetFileNames = selected.map((a) => a.fileName);
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       {
         text:
           assetFileNames.length === 1

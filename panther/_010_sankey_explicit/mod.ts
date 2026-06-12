@@ -5,8 +5,8 @@
 
 export { SankeyExplicitRenderer } from "./sankey_explicit_renderer.ts";
 export type {
-  ExplicitSankeyLink,
-  ExplicitSankeyNode,
   MeasuredSankeyExplicit,
   SankeyExplicitInputs,
+  SankeyExplicitLink,
+  SankeyExplicitNode,
 } from "./types.ts";

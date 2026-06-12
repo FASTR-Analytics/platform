@@ -2,7 +2,7 @@ import {
   AlertComponentProps,
   AlertFormHolder,
   TextArea,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -26,7 +26,7 @@ export function AddUserForm(
 
   // Actions
 
-  const save = timActionForm(
+  const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
       const goodEmails = goodEmailList().map((str) => str.toLowerCase());

@@ -6,10 +6,10 @@ import {
   StateHolderWrapper,
   StepperNavigationVisual,
   getStepper,
-  timActionButton,
-  timActionDelete,
-  timQuery,
-  type TimActionButton,
+  createButtonAction,
+  createDeleteAction,
+  createQuery,
+  type ButtonAction,
 } from "panther";
 import { type JSX, Switch, Match, createSignal, onCleanup, onMount } from "solid-js";
 
@@ -19,7 +19,7 @@ export type ImportWizardCtx<TStatusLight> = {
   pollingStatus: () => TStatusLight | null;
   silentFetch: () => Promise<void>;
   refetch: () => Promise<void>;
-  deleteSafe: TimActionButton<[]>;
+  deleteSafe: ButtonAction<[]>;
 };
 
 export type ImportWizardStatusArm<TUA, TStatusLight> = {
@@ -61,7 +61,7 @@ export function ImportWizardShell<TUA extends { step: number }, TStatusLight>(p:
   close: () => void;
   silentFetchOuter: () => Promise<void>;
 }) {
-  const uploadAttempt = timQuery(async () => {
+  const uploadAttempt = createQuery(async () => {
     const res = await p.descriptor.getAttempt();
     if (res.success === true && res.data) {
       stepper.setCurrentStep(res.data.step);
@@ -129,7 +129,7 @@ export function ImportWizardShell<TUA extends { step: number }, TStatusLight>(p:
   });
 
   async function attemptDeleteUploadAttempt() {
-    const deleteAction = timActionDelete(
+    const deleteAction = createDeleteAction(
       p.descriptor.confirmDeleteLabel(),
       () => p.descriptor.deleteAttempt(),
       p.silentFetchOuter,
@@ -138,7 +138,7 @@ export function ImportWizardShell<TUA extends { step: number }, TStatusLight>(p:
     await deleteAction.click();
   }
 
-  const deleteSafe = timActionButton(
+  const deleteSafe = createButtonAction(
     () => p.descriptor.deleteAttempt(),
     p.silentFetchOuter,
     () => p.close(),

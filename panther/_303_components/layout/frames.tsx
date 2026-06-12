@@ -7,6 +7,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  For,
   type JSX,
   Match,
   onCleanup,
@@ -607,16 +608,20 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
 
       <Show when={collapsedPanes().length > 0}>
         <div class="border-primary flex w-full border-t">
-          {collapsedPanes().map((pane) => (
-            <div
-              class={`ui-hoverable border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0 ${
-                p.hiddenTabColor ?? "bg-primary/20"
-              }`}
-              onClick={pane.onClick}
-            >
-              <div class="font-700 whitespace-nowrap text-sm">{pane.label}</div>
-            </div>
-          ))}
+          <For each={collapsedPanes()}>
+            {(pane) => (
+              <div
+                class={`ui-hoverable border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0 ${
+                  p.hiddenTabColor ?? "bg-primary/20"
+                }`}
+                onClick={pane.onClick}
+              >
+                <div class="font-700 whitespace-nowrap text-sm">
+                  {pane.label}
+                </div>
+              </div>
+            )}
+          </For>
         </div>
       </Show>
     </div>

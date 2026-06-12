@@ -9,7 +9,7 @@ import {
 } from "lib";
 import {
   ChartHolder,
-  Loading,
+  LoadingIndicator,
   type FigureInputs,
   type StateHolder,
 } from "panther";
@@ -74,7 +74,7 @@ export function PresetPreview(p: Props) {
           <Switch>
             <Match when={state().status === "loading"}>
               <div class="flex h-full items-center justify-center">
-                <Loading noPad />
+                <LoadingIndicator noPad />
               </div>
             </Match>
             <Match when={state().status === "error"}>

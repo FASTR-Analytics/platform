@@ -13,9 +13,9 @@ import {
 import type { Component } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 
-export const ToolSuccessRenderer: Component<{
+export function ToolSuccessRenderer(p: {
   item: Extract<DisplayItem, { type: "tool_success" }>;
-}> = (props) => {
+}) {
   const [expanded, setExpanded] = createSignal(false);
 
   return (
@@ -30,7 +30,7 @@ export const ToolSuccessRenderer: Component<{
             ? <ChevronDownIcon class="h-4 w-4" />
             : <ChevronRightIcon class="h-4 w-4" />}
         </div>
-        <span class="italic">{props.item.message}</span>
+        <span class="italic">{p.item.message}</span>
       </button>
 
       <Show when={expanded()}>
@@ -39,10 +39,10 @@ export const ToolSuccessRenderer: Component<{
             {t3({ en: "Result:", fr: "Résultat :" })}
           </div>
           <div class="text-success/80 bg-success/5 whitespace-pre-wrap rounded p-2 font-mono text-xs">
-            {props.item.result}
+            {p.item.result}
           </div>
         </div>
       </Show>
     </div>
   );
-};
+}

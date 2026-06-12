@@ -2,7 +2,7 @@ import {
   AlertComponentProps,
   AlertFormHolder,
   Input,
-  timActionForm,
+  createFormAction,
 } from "panther";
 import { createSignal } from "solid-js";
 import { t3, APIResponseNoData } from "lib";
@@ -32,7 +32,7 @@ export function CreateBackupForm(
   const [backupName, setBackupName] = createSignal<string>(getTimestamp());
 
   const save = p.silentFetch
-    ? timActionForm(
+    ? createFormAction(
         async (e: MouseEvent) => {
           e.preventDefault();
           const validName = backupName().trim();
@@ -45,7 +45,7 @@ export function CreateBackupForm(
         p.silentFetch,
         () => p.close("NEEDS_UPDATE"),
       )
-    : timActionForm(
+    : createFormAction(
         async (e: MouseEvent) => {
           e.preventDefault();
           const validName = backupName().trim();

@@ -7,7 +7,7 @@ import {
   t3,
   TC,
 } from "lib";
-import { AlertComponentProps, StateHolderWrapper, timQuery } from "panther";
+import { AlertComponentProps, StateHolderWrapper, createQuery } from "panther";
 import { Match, Switch } from "solid-js";
 import {
   getPODetailFromCacheorFetch,
@@ -99,7 +99,7 @@ function VisualizationEditorEdit(p: EditModeProps) {
     resultsValueInfo: ResultsValueInfoForPresentationObject;
   };
 
-  const combinedData = timQuery<CombinedData>(async () => {
+  const combinedData = createQuery<CombinedData>(async () => {
     const [poDetailRes, resultsValueInfoRes] = await Promise.all([
       getPODetailFromCacheorFetch(p.projectId, p.presentationObjectId),
       (async () => {
@@ -134,7 +134,7 @@ function VisualizationEditorEdit(p: EditModeProps) {
   }, t3(TC.loading));
 
   // async function attemptDeleteFromError() {
-  //   const deleteAction = timActionDelete(
+  //   const deleteAction = createDeleteAction(
   //     t2(T.FRENCH_UI_STRINGS.are_you_sure_you_want_to_delet_1),
   //     () =>
   //       serverActions.deletePresentationObject({
@@ -166,7 +166,7 @@ function VisualizationEditorEdit(p: EditModeProps) {
 }
 
 function VisualizationEditorCreate(p: CreateModeProps) {
-  const resultsValueInfo = timQuery(
+  const resultsValueInfo = createQuery(
     () =>
       getResultsValueInfoForPresentationObjectFromCacheOrFetch(
         p.projectId,
@@ -206,7 +206,7 @@ function VisualizationEditorCreate(p: CreateModeProps) {
 }
 
 function VisualizationEditorEphemeral(p: EphemeralModeProps) {
-  const resultsValueInfo = timQuery(
+  const resultsValueInfo = createQuery(
     () =>
       getResultsValueInfoForPresentationObjectFromCacheOrFetch(
         p.projectId,
