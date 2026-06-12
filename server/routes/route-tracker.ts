@@ -74,8 +74,8 @@ export function validateAllRoutesDefined(): void {
     console.error("");
   }
 
-  // Check schema/path placeholder agreement for migrated routes.
-  // Every ZodObject params schema must declare exactly the keys that appear as :placeholders.
+  // Check schema/path placeholder agreement for all routes.
+  // Every params schema must declare exactly the keys that appear as :placeholders.
   const schemaPathMismatches: string[] = [];
   for (const [routeName, entry] of Object.entries(routeRegistry)) {
     const paramsSchema = (entry as any).params;

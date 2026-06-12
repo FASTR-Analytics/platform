@@ -65,9 +65,9 @@ export const reportRouteRegistry = {
 |-------|---------|-----------------|
 | `path` | URL path, `:name` for params | Real value at runtime |
 | `method` | `GET`/`POST`/`PUT`/`DELETE`/`PATCH` | Real value at runtime |
-| `params` | shape of URL params | **Type-only phantom** (`{} as T`) |
-| `body` | shape of request body | **Type-only phantom** (`{} as T`) |
-| `response` | success `data` shape; omit for no-data | type-only (drives `InferredResponse`) |
+| `params` | URL param schema; `z.object({…})` with coercion where needed | Real ZodType at runtime; `z.infer<T>` is the compile-time type |
+| `body` | request body schema; always `z.object({…})` | Real ZodType at runtime; `z.infer<T>` is the compile-time type |
+| `response` | success `data` shape; omit for no-data | Compile-time phantom (`{} as T`) — not validated at runtime |
 | `requiresProject` | needs a project context | Real boolean at runtime |
 | `isStreaming` | uses the NDJSON stream protocol | Real boolean at runtime |
 | `timeoutMs` | client-side fetch timeout override (default 5 min) | Real number at runtime |

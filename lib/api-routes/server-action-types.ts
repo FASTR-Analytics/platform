@@ -4,15 +4,10 @@ import type { APIResponseNoData, ProgressCallback } from "../types/mod.ts";
 // Helper types for extracting route information directly from registry
 export type RouteParams<T> = T extends { params: infer P } ? P : never;
 export type RouteBody<T> = T extends { body: infer B } ? B : never;
-// Extract the response type from the route
-// After B4's fix to route-utils.ts, the registry's `response` field is already resolved
-// to APIResponseNoData or APIResponseWithData<T> — never `never` — so the [R] extends [never]
-// arm is unreachable but kept for safety.
-export type RouteResponse<T> = T extends { response: infer R }
-  ? [R] extends [never]
-    ? APIResponseNoData
-    : R
-  : APIResponseNoData;
+// Extract the response type from the route.
+// route-utils.ts resolves the response field to APIResponseNoData or APIResponseWithData<T>
+// before it reaches the registry, so R is always a concrete envelope type.
+export type RouteResponse<T> = T extends { response: infer R } ? R : APIResponseNoData;
 export type RouteRequiresProject<T> = T extends { requiresProject: true }
   ? true
   : false;

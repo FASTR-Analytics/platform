@@ -7,6 +7,9 @@ import type {
   DatasetHfaUploadAttemptDetail,
   DatasetHfaUploadStatusResponse,
 } from "../../types/dataset_hfa_import.ts";
+import {
+  instanceConfigFacilityColumnsSchema,
+} from "../../types/mod.ts";
 import type {
   DatasetHmisDetail,
   DatasetHmisVersion,
@@ -67,12 +70,12 @@ export const datasetRouteRegistry = {
   getDatasetHmisDisplayInfo: route({
     path: "/datasets/hmis/data",
     method: "POST",
-    body: {} as { // complex type — deferred to batch 5
-      versionId: number;
-      indicatorMappingsVersion: string;
-      rawOrCommonIndicators: IndicatorType;
-      facilityColumns: InstanceConfigFacilityColumns;
-    },
+    body: z.object({
+      versionId: z.number(),
+      indicatorMappingsVersion: z.string(),
+      rawOrCommonIndicators: z.enum(["raw", "common"]),
+      facilityColumns: instanceConfigFacilityColumnsSchema,
+    }),
     response: {} as ItemsHolderDatasetHmisDisplay,
   }),
   deleteAllDatasetHmisData: route({

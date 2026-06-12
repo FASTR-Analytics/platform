@@ -8,6 +8,7 @@ import {
   moveSlides,
   updateSlide,
 } from "../../db/mod.ts";
+import type { Slide } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -49,7 +50,7 @@ defineRoute(
       c.var.ppk.projectDb,
       params.deck_id,
       body.position,
-      body.slide,
+      body.slide as Slide,
     );
     if (!res.success) {
       return c.json(res);
@@ -85,7 +86,7 @@ defineRoute(
     const res = await updateSlide(
       c.var.ppk.projectDb,
       params.slide_id,
-      body.slide,
+      body.slide as Slide,
       body.expectedLastUpdated,
       body.overwrite,
     );

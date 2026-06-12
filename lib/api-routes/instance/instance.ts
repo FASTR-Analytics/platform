@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  instanceConfigAdminAreaLabelsSchema,
+  instanceConfigFacilityColumnsSchema,
+} from "../../types/mod.ts";
 import type {
   InstanceConfigAdminAreaLabels,
   InstanceConfigFacilityColumns,
@@ -32,12 +36,12 @@ export const instanceRouteRegistry = {
   updateFacilityColumnsConfig: route({
     path: "/update_facility_columns_config",
     method: "POST",
-    body: {} as InstanceConfigFacilityColumns, // complex config type — deferred to batch 5
+    body: instanceConfigFacilityColumnsSchema,
   }),
   updateAdminAreaLabelsConfig: route({
     path: "/update_admin_area_labels_config",
     method: "POST",
-    body: {} as InstanceConfigAdminAreaLabels, // complex config type — deferred to batch 5
+    body: instanceConfigAdminAreaLabelsSchema,
   }),
   updateCountryIso3: route({
     path: "/update_country_iso3",
