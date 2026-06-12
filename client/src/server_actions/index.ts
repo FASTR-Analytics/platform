@@ -1,4 +1,4 @@
-import type { APIResponseWithData, ProjectSummary } from "lib";
+import type { ServerActionsType } from "lib";
 import {
   prepareReportFiguresForTransmit,
   prepareSlideForTransmit,
@@ -6,8 +6,6 @@ import {
   restoreSlideAfterReceive,
 } from "lib";
 import { createAllServerActions } from "./create_server_action";
-import { tryCatchServer } from "./try_catch_server";
-
 export const _SERVER_HOST =
   process.env.NODE_ENV === "production" ? "" : "http://localhost:8000";
 
@@ -16,57 +14,51 @@ const baseActions = createAllServerActions();
 export const serverActions = {
   ...baseActions,
 
-  createSlide: async (args: any) => {
-    const preparedArgs = { ...args, slide: prepareSlideForTransmit(args.slide) };
-    return await baseActions.createSlide(preparedArgs);
-  },
+  createSlide: (async (args) => {
+    const preparedArgs = { ...args, slide: prepareSlideForTransmit((args as any).slide) };
+    return await baseActions.createSlide(preparedArgs as any);
+  }) as ServerActionsType["createSlide"],
 
-  updateSlide: async (args: any) => {
-    const preparedArgs = { ...args, slide: prepareSlideForTransmit(args.slide) };
-    return await baseActions.updateSlide(preparedArgs);
-  },
+  updateSlide: (async (args) => {
+    const preparedArgs = { ...args, slide: prepareSlideForTransmit((args as any).slide) };
+    return await baseActions.updateSlide(preparedArgs as any);
+  }) as ServerActionsType["updateSlide"],
 
-  getSlide: async (args: any) => {
+  getSlide: (async (args) => {
     const result = await baseActions.getSlide(args);
-    if (result.success && result.data?.slide) {
-      result.data.slide = restoreSlideAfterReceive(result.data.slide);
+    if (result.success && (result.data as any)?.slide) {
+      (result.data as any).slide = restoreSlideAfterReceive((result.data as any).slide);
     }
     return result;
-  },
+  }) as ServerActionsType["getSlide"],
 
-  getSlides: async (args: any) => {
+  getSlides: (async (args) => {
     const result = await baseActions.getSlides(args);
     if (result.success && Array.isArray(result.data)) {
-      result.data = result.data.map((item: any) => ({
+      (result as any).data = (result.data as any[]).map((item: any) => ({
         ...item,
         slide: restoreSlideAfterReceive(item.slide),
       }));
     }
     return result;
-  },
+  }) as ServerActionsType["getSlides"],
 
   // Report figures carry the same undefined-bearing figureInputs as slides —
   // round-trip them through the sentinel encode/decode (C1).
-  getReportDetail: async (args: any) => {
+  getReportDetail: (async (args) => {
     const result = await baseActions.getReportDetail(args);
-    if (result.success && result.data?.figures) {
-      result.data.figures = restoreReportFiguresAfterReceive(result.data.figures);
+    if (result.success && (result.data as any)?.figures) {
+      (result.data as any).figures = restoreReportFiguresAfterReceive((result.data as any).figures);
     }
     return result;
-  },
+  }) as ServerActionsType["getReportDetail"],
 
-  updateReportFigures: async (args: any) => {
+  updateReportFigures: (async (args) => {
     const preparedArgs = {
       ...args,
-      figures: prepareReportFiguresForTransmit(args.figures),
+      figures: prepareReportFiguresForTransmit((args as any).figures),
     };
-    return await baseActions.updateReportFigures(preparedArgs);
-  },
+    return await baseActions.updateReportFigures(preparedArgs as any);
+  }) as ServerActionsType["updateReportFigures"],
 };
 
-export async function fetchMyProjects(): Promise<APIResponseWithData<ProjectSummary[]>> {
-  return tryCatchServer<APIResponseWithData<ProjectSummary[]>>(
-    `${_SERVER_HOST}/my_projects`,
-    { method: "GET", credentials: "include" }
-  );
-}

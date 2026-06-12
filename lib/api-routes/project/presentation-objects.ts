@@ -86,7 +86,6 @@ export const presentationObjectRouteRegistry = {
     },
     response: {} as {
       lastUpdated: string;
-      reportItemsThatDependOnPresentationObjects: string[];
     },
     requiresProject: true,
   }),
@@ -101,7 +100,6 @@ export const presentationObjectRouteRegistry = {
     response: {} as {
       lastUpdated: string;
       updatedCount: number;
-      reportItemsAffected: string[];
     },
     requiresProject: true,
   }),

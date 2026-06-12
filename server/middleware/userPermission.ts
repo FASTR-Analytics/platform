@@ -54,7 +54,6 @@ export function requireGlobalPermission(
           return c.json({
             success: false,
             err: "Admin access required",
-            authError: true,
           });
         }
         c.set("globalUser", globalUser);
@@ -78,7 +77,6 @@ export function requireGlobalPermission(
           return c.json({
             success: false,
             err: `User does not have ${perm.replaceAll("_", " ")} permission`,
-            authError: true,
           });
         }
       }

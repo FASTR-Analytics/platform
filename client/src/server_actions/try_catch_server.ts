@@ -9,7 +9,7 @@ const _EXTRA_TIME = process.env.NODE_ENV === "development";
 
 export async function tryCatchServer<
   T extends APIResponseNoData | APIResponseWithData<unknown>,
->(input: string | URL | Request, init?: RequestInit | undefined): Promise<T> {
+>(input: string | URL | Request, init?: RequestInit | undefined, timeoutMs?: number): Promise<T> {
   const maxRetries = 2;
   let retries = 0;
   let lastAuthError = false;
@@ -32,16 +32,7 @@ export async function tryCatchServer<
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController();
-      // Use longer timeout for operations that can be slow
-      const isDhis2Staging =
-        typeof input === "string" &&
-        input.includes("/structure/step3_dhis2_stage_data");
-      const isCopyProject =
-        typeof input === "string" &&
-        input.includes("/project/") &&
-        input.includes("/copy");
-      const needsLongTimeout = isDhis2Staging || isCopyProject;
-      const timeout = needsLongTimeout ? 600000 : 300000; // 10 minutes for slow operations, 5 minutes default
+      const timeout = timeoutMs ?? 300000; // use registry-declared timeout, default 5 minutes
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       const res = await fetch(input, {
@@ -125,6 +116,14 @@ export async function tryCatchServer<
       // Handle other non-OK responses
       if (!res.ok) {
         const text = await res.text();
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.success === false && typeof parsed.err === "string") {
+            return parsed as T;
+          }
+        } catch {
+          // not a JSON envelope — fall through to raw text
+        }
         return {
           success: false,
           err: text || `Server error: ${res.status}`,

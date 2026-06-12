@@ -11,7 +11,6 @@ export const log = (routeName: string) =>
             if (contentType.includes("application/json") || contentType === "") {
                 try{
                     body = await c.req.json();
-                    c.set("cachedBody", body);
                 } catch {
                     // No body or invalid json
                 }
@@ -42,7 +41,15 @@ export const log = (routeName: string) =>
                     ([key]) => !["authorization", "cookie"].includes(key.toLowerCase())
                 )
             );
-            const details = JSON.stringify({ params, body, headers, error: error ? String(error) : undefined });
+            const _MAX_DETAILS_BYTES = 65536;
+            let details = JSON.stringify({ params, body, headers, error: error ? String(error) : undefined });
+            if (details.length > _MAX_DETAILS_BYTES) {
+                const truncatedBody = { _truncated: true, bytes: JSON.stringify(body).length };
+                details = JSON.stringify({ params, body: truncatedBody, headers, error: error ? String(error) : undefined });
+            }
+            if (details.length > _MAX_DETAILS_BYTES) {
+                details = JSON.stringify({ _truncated: true, bytes: details.length });
+            }
 
             const projectId = c.var.ppk?.projectId as string | undefined;
             if (c.var.globalUser?.approved !== false) {

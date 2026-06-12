@@ -70,6 +70,7 @@ export const reportRouteRegistry = {
 | `response` | success `data` shape; omit for no-data | type-only (drives `InferredResponse`) |
 | `requiresProject` | needs a project context | Real boolean at runtime |
 | `isStreaming` | uses the NDJSON stream protocol | Real boolean at runtime |
+| `timeoutMs` | client-side fetch timeout override (default 5 min) | Real number at runtime |
 
 **Critical:** `params`/`body`/`response` are erased at runtime (`{} as T` is `{}`). The registry gives **compile-time** types only — there is **no runtime validation of the request body at the route boundary** (see [What NOT to do](#what-not-to-do) and [Gotchas](#gotchas)). `InferredResponse` resolves to `APIResponseWithData<TResponse>` when `response` is set, else `APIResponseNoData`.
 
@@ -98,11 +99,13 @@ defineRoute(
 `defineRoute(router, routeName, ...middlewares, handler)`:
 1. Looks up `routeRegistry[routeName]` for `path` + `method`.
 2. Parses `:param` segments out of `path` into `params`.
-3. For `POST`/`PUT`/`PATCH`/`DELETE`, reads the body as `c.var.cachedBody ?? await c.req.json()` — `cachedBody` is set by the `log()` middleware (see below), avoiding a double-read of the request stream.
+3. For `POST`/`PUT`/`PATCH`/`DELETE`, reads the body as `await c.req.json()`. Hono 4.5 caches internally so `log()` and `defineRoute` can both call `c.req.json()` safely.
 4. Calls `handler(c, { params, body })`.
 5. Registers it on the Hono router with the lowercased method and calls `markRouteDefined(routeName)`.
 
 The thin-handler shape is invariant: **call DB fn → `if (!res.success) return c.json(res)` → `notify*()` on success → `c.json(res)`.** Routes do not build the envelope when the DB function already returns one. See `server/routes/project/reports.ts` for the canonical, fully-consistent example. Side-effects (`notifyLastUpdated`, `notifyProject*Updated`) push state to clients over SSE — see [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md).
+
+**Handler returns are type-enforced against the registry.** Non-streaming handlers must return `Response & TypedResponse<JSONParsed<Envelope>>` — i.e. exactly what `c.json(res)` produces when `res` matches the declared response envelope. The comparison is in **wire-space**: `JSONParsed` maps `Date` → `string` the way JSON serialization does, so DB-layer types carrying `Date` fields pass without casts, while shape drift (wrong/missing fields, data on a no-data route's success arm, a bare payload without the envelope) is a compile error at the `defineRoute` call. `isStreaming` routes are exempt (they return a plain `Response` from `streamResponse`). Do not cast a handler return to `any` to silence this — the error means the registry and the implementation disagree, and one of them is wrong. (Sole sanctioned exception: `downloadBackupFile`'s binary `Response`, commented in place.)
 
 ### Consuming a route (client, generated)
 
@@ -150,11 +153,13 @@ Wire format (`StreamWriter`), one JSON object per line:
 
 `streamResponse` wraps the handler in a try/catch: an uncaught throw is converted to `writer.error(...)`, so the stream always terminates cleanly. The client `consumeStream` mirrors this exactly: `progress === 1` or `=== -1` returns `message.result` (the `APIResponse`); anything else fires `onProgress`. Used today by `project.ts` and `instance/structure.ts`.
 
-### The `log()` middleware (and why `defineRoute` depends on it)
+### The `log()` middleware
 
 `server/middleware/logging.ts` exports `log(routeName)`. Applied per-route (e.g. `log("createProject")` in `server/routes/project/project.ts`), it:
-- reads the JSON body once and stashes it as `c.set("cachedBody", body)` — **`defineRoute` reads `cachedBody` to avoid re-reading the consumed request stream**;
+
+- reads the JSON body via `c.req.json()` (Hono 4.5 caches, so this is safe alongside `defineRoute`'s own read);
 - after the handler, writes a `user_logs` row via `AddLog` (sensitive `authorization`/`cookie` headers stripped), skipping users with `approved === false`;
+- caps the `details` string at 64 KB — large bodies (e.g. base64 file uploads) are replaced with `{ _truncated: true, bytes }`;
 - swallows its own errors so logging never breaks a response, then re-throws any handler error.
 
 `log()` is **not** applied to every route today — audit coverage is therefore uneven (see enforcement).
@@ -165,7 +170,7 @@ Wire format (`StreamWriter`), one JSON object per line:
 - **missing** (in registry, not implemented) → `console.error`
 - **extra** (implemented, not in registry) → `console.error`
 
-It only **warns** — it does not throw or exit. A registry key with no handler ships as a broken client action that 404s at runtime.
+It **throws** (`Deno.exit(1)`) on any mismatch — a missing or extra registry key fails boot immediately. It also checks for duplicate `method + path` pairs and key collisions across feature registries.
 
 ---
 
@@ -178,7 +183,7 @@ These files create a `Hono()` and register handlers directly (`.get`/`.post`) **
 | `routes/instance/instance-sse.ts`, `routes/project/project-sse-v2.ts` | Server-sent events (long-lived stream, not request/response) |
 | `routes/project/ai_proxy.ts`, `routes/project/ai_files.ts` | Anthropic passthrough — deliberately returns Anthropic-shaped bodies, not `APIResponse` (see [DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md](DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md)) |
 | `routes/instance/upload.ts` | Hand-rolled TUS resumable-upload protocol (custom headers/handshake) |
-| `routes/instance/share.ts`, `routes/public/share.ts`, `routes/public/dashboard.ts` | Public/anonymous + token routes mounted before `authMiddleware`; some return bespoke shapes (`{ token, slug }`) |
+| `routes/public/dashboard.ts` | Public/anonymous routes mounted before `authMiddleware` |
 | `routes/instance/health.ts` | Diagnostics; bare JSON objects |
 
 This is the **complete** allowed list. Anything not here must use the registry + `defineRoute`.
@@ -201,15 +206,16 @@ This is the **complete** allowed list. Anything not here must use the registry +
 - **Don't trust the request body's type.** The registry `body` is a compile-time phantom; the wire payload is unvalidated at the boundary. If the payload feeds a stored schema, validation happens in the DB layer ([DOC_MIGRATIONS.md](DOC_MIGRATIONS.md)); if it feeds an AI tool, see [DOC_AI_TOOL_SCHEMAS.md](DOC_AI_TOOL_SCHEMAS.md). Per-request HTTP body validation is the current open gap — do not assume `body` is well-formed.
 - **Don't add raw routes** outside the exception list to "save a registry entry" — you silently break the client codegen and the startup check.
 - **Don't return error strings or throw bare** from a handler expecting the client to parse it — return `{ success: false, err }`. (The global `app.onError` does return an envelope, but at HTTP **200**, which is a known wart, not a pattern to rely on.)
-- **Don't skip `log()`** on mutating routes if you want them audited — but know that `defineRoute`'s body-read also depends on `cachedBody` it sets.
+- **Don't skip `log()`** on mutating routes if you want them audited.
 
 ---
 
 ## Gotchas
 
-- **`validateAllRoutesDefined` only warns.** A typo'd or unimplemented registry key won't fail boot — it surfaces as a 404 when the client calls the generated action.
+- **`validateAllRoutesDefined` throws on mismatch.** A missing or extra registry key causes boot to fail hard (`Deno.exit(1)`) so a broken route can never ship.
 - **`onError` responds 200.** `main.ts`'s `app.onError` returns `{ success: false, err }` with the default 200 status. Clients detect failure by `success: false`, not HTTP status.
-- **`cachedBody` coupling.** A route using `defineRoute` without the `log()` middleware still works (it falls back to `await c.req.json()`), but mixing a manual `c.req.json()` *before* `defineRoute` reads the body will throw "body already consumed".
+- **`defineRoute` reads the body unconditionally** for `POST`/`PUT`/`PATCH`/`DELETE`; a handler can also call `c.req.json()` directly — Hono 4.5 caches the result, so double-reading is safe.
+- **`response: {} as X | undefined` silently becomes `X`.** `route()`'s `response?:` parameter is optional, so TypeScript's generic inference strips `| undefined` from the declared type — the contract then claims `data` is always present. For a sometimes-absent payload declare `X | null` (survives inference, and `null` is wire-honest where `undefined` is dropped by JSON anyway); precedent: `getDatasetIcehUploadAttempt`/`getDatasetIcehUploadStatus`.
 - **Mount order matters for auth.** Public routes are mounted before `app.use("*", authMiddleware)`; everything after is behind Clerk. See [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md).
 
 ---
@@ -218,9 +224,9 @@ This is the **complete** allowed list. Anything not here must use the registry +
 
 These are patterns the codebase mostly follows but does not enforce; documenting them is the first step to enforcing them.
 
-- **Make `validateAllRoutesDefined` fail** (throw / non-zero exit, or a CI check) instead of warning, so a missing handler cannot ship.
+- ~~**Make `validateAllRoutesDefined` fail**~~ — done; it now calls `Deno.exit(1)` on mismatch and checks for duplicate `method + path` pairs and key collisions.
 - **Classify every registered route** as guarded or explicitly-public at startup (overlaps [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md)) so an unguarded route fails loudly.
-- **Envelope lint:** the raw routes drift in response shape (`health.ts` bare objects, `share.ts` `{ token, slug }`, `ai_proxy` Anthropic errors). Each is defensible, but the divergence should be a documented exception, not incidental.
+- **Envelope lint:** the raw routes drift in response shape (`health.ts` bare objects, `ai_proxy` Anthropic errors). Each is defensible, but the divergence should be a documented exception, not incidental.
 - **Per-request body validation** is unaddressed. Decide whether to wire a Zod schema into the registry/`defineRoute` boundary, or document that body trust is delegated to the DB layer.
 
 ---

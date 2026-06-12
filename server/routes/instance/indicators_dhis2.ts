@@ -159,7 +159,7 @@ defineRoute(
       if (!result.success) {
         return c.json({ success: false, err: t3(result.message) });
       }
-      return c.json({ success: true, data: result.details });
+      return c.json({ success: true, data: result.details ?? {} });
     } catch (error) {
       console.error("Error testing DHIS2 connection:", error);
       return c.json({

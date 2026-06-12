@@ -27,6 +27,39 @@ import { emailRouteRegistry } from "./project/emails.ts";
 import { cacheStatusRouteRegistry } from "./project/cache-status.ts";
 import { customPromptRouteRegistry } from "./instance/custom_prompts.ts";
 
+// Total individual route count across all feature registries.
+// Used by validateAllRoutesDefined to detect key collisions (a collision causes
+// the merged count to be less than the individual sum).
+export const routeRegistryIndividualCount =
+  Object.keys(assetRouteRegistry).length +
+  Object.keys(geojsonMapRouteRegistry).length +
+  Object.keys(backupRouteRegistry).length +
+  Object.keys(datasetRouteRegistry).length +
+  Object.keys(hfaIndicatorRouteRegistry).length +
+  Object.keys(hfaTimePointRouteRegistry).length +
+  Object.keys(icehRouteRegistry).length +
+  Object.keys(indicatorRouteRegistry).length +
+  Object.keys(calculatedIndicatorRouteRegistry).length +
+  Object.keys(indicatorsDhis2RouteRegistry).length +
+  Object.keys(instanceRouteRegistry).length +
+  Object.keys(instanceModuleRouteRegistry).length +
+  Object.keys(moduleRouteRegistry).length +
+  Object.keys(structureRouteRegistry).length +
+  Object.keys(userRouteRegistry).length +
+  Object.keys(projectRouteRegistry).length +
+  Object.keys(aiToolsRouteRegistry).length +
+  Object.keys(presentationObjectRouteRegistry).length +
+  Object.keys(slideDeckRouteRegistry).length +
+  Object.keys(slideDeckFolderRouteRegistry).length +
+  Object.keys(reportRouteRegistry).length +
+  Object.keys(reportFolderRouteRegistry).length +
+  Object.keys(slideRouteRegistry).length +
+  Object.keys(dashboardRouteRegistry).length +
+  Object.keys(visualizationFolderRouteRegistry).length +
+  Object.keys(emailRouteRegistry).length +
+  Object.keys(cacheStatusRouteRegistry).length +
+  Object.keys(customPromptRouteRegistry).length;
+
 // Combined route registry
 export const routeRegistry = {
   ...assetRouteRegistry,

@@ -138,21 +138,15 @@ export type StructureDhis2OrgUnitMetadata = {
     displayName: string;
     count: number;
   }>;
-  orgUnitGroups: Array<{
-    id: string;
-    name: string;
-    displayName: string;
-    count: number;
-  }>;
   rootOrgUnits: Array<{
     id: string;
     name: string;
     displayName: string;
+    level: number;
     childrenCount: number;
   }>;
   summary: {
     totalOrgUnits: number;
-    facilityCount: number;
     maxLevel: number;
   };
 };

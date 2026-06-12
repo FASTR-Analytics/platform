@@ -2,7 +2,7 @@ import type { InstanceSseMessage } from "lib";
 import { t3 } from "lib";
 import { Show, on, createEffect, type JSX } from "solid-js";
 import { onMount, onCleanup, createSignal } from "solid-js";
-import { _SERVER_HOST, fetchMyProjects } from "~/server_actions";
+import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { preloadGeoJson } from "~/state/instance/t2_geojson";
 import {
   instanceState,
@@ -139,7 +139,7 @@ export function InstanceSSEBoundary(props: { children: JSX.Element }) {
       const controller = new AbortController();
       onCleanup(() => controller.abort());
 
-      fetchMyProjects().then((res) => {
+      serverActions.getMyProjects({}).then((res) => {
         if (controller.signal.aborted) return;
         if (res.success) {
           updateInstanceProjects(res.data);

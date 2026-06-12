@@ -23,7 +23,6 @@ export const projectRouteRegistry = {
     },
     response: {} as {
       newProjectId: string;
-      projectDb: any; // Internal type
       datasetLastUpdateds: Array<{
         datasetType: DatasetType;
         lastUpdated: string;
@@ -126,7 +125,6 @@ export const projectRouteRegistry = {
   setAllModulesDirty: route({
     path: "/project/dirty-all",
     method: "POST",
-    response: {} as { success: true },
     requiresProject: true,
   }),
 
@@ -137,6 +135,7 @@ export const projectRouteRegistry = {
     body: {} as { newProjectLabel: string },
     response: {} as { newProjectId: string },
     requiresProject: true,
+    timeoutMs: 600000,
   }),
 
   getProjectLogs: route({

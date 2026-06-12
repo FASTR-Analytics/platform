@@ -134,6 +134,7 @@ export const structureRouteRegistry = {
   structureStep3Dhis2_StageData: route({
     path: "/structure/step3_dhis2_stage_data",
     method: "POST",
+    timeoutMs: 600000,
   }),
   // Step 3 DHIS2: Stage DHIS2 Data (Streaming)
   structureStep3Dhis2_StageDataStreaming: route({

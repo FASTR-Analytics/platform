@@ -14,7 +14,7 @@ import { defineRoute } from "../route-helpers.ts";
 
 export const routesInstanceModules = new Hono();
 
-defineRoute(routesInstanceModules, "checkModuleUpdates", async (c) => {
+defineRoute(routesInstanceModules, "checkModuleUpdates", requireGlobalPermission(), async (c) => {
   const results: ModuleLatestCommit[] = [];
   const errors: string[] = [];
 

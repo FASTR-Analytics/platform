@@ -1,6 +1,8 @@
 import { Hono, type Context } from "hono";
+import type { TypedResponse } from "hono";
+import type { JSONParsed } from "hono/utils/types";
 import { routeRegistry } from "lib";
-import { markRouteDefinedEnhanced } from "./route-tracker.ts";
+import { markRouteDefined } from "./route-tracker.ts";
 
 // Extract params type directly from route registry
 type RouteParams<K extends keyof typeof routeRegistry> =
@@ -10,18 +12,25 @@ type RouteParams<K extends keyof typeof routeRegistry> =
 type RouteBody<K extends keyof typeof routeRegistry> =
   (typeof routeRegistry)[K] extends { body: infer B } ? B : {};
 
-// Extract response type directly from route registry
-type RouteResponse<K extends keyof typeof routeRegistry> =
-  (typeof routeRegistry)[K] extends { response: infer R } ? R : never;
+// The full APIResponse envelope type for this route key (already resolved by route-utils.ts).
+export type RouteEnvelope<K extends keyof typeof routeRegistry> =
+  (typeof routeRegistry)[K]["response"];
 
-// Handler function type with proper typing
+// Handler function type with proper typing.
+// Non-streaming handlers must return what c.json(res) produces when res matches the
+// declared registry response type. The constraint compares in wire-space (JSONParsed maps
+// Date → string, matching JSON serialization), so envelopes whose types carry server-side
+// Date fields pass without casts while shape drift and missing envelopes are still
+// rejected. Streaming handlers return a plain Response from streamResponse().
 type RouteHandler<K extends keyof typeof routeRegistry> = (
   c: Context,
   args: {
     params: RouteParams<K>;
     body: RouteBody<K>;
   }
-) => Promise<Response>;
+) => (typeof routeRegistry)[K] extends { isStreaming: true }
+  ? Promise<Response>
+  : Promise<Response & TypedResponse<JSONParsed<RouteEnvelope<K>>>>;
 
 // Define a route using the registry
 export function defineRoute<K extends keyof typeof routeRegistry>(
@@ -50,7 +59,7 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
     const method = route.method as string;
     if (method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE") {
       try {
-        body = c.var.cachedBody ?? await c.req.json();
+        body = await c.req.json();
       } catch {
         // No body or invalid JSON
       }
@@ -72,5 +81,5 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
   (router[method] as any)(route.path, ...middlewares, wrappedHandler);
 
   // Mark this route as defined
-  markRouteDefinedEnhanced(routeName);
+  markRouteDefined(routeName);
 }

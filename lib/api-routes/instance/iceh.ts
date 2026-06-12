@@ -27,7 +27,7 @@ export const icehRouteRegistry = {
   getDatasetIcehUploadAttempt: route({
     method: "GET",
     path: "/iceh/upload-attempt",
-    response: {} as IcehUploadAttemptDetail | undefined,
+    response: {} as IcehUploadAttemptDetail | null,
   }),
   getDatasetIcehUploadStatus: route({
     method: "GET",

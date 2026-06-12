@@ -5,6 +5,7 @@ import type {
   ServerActionsType,
 } from "lib";
 import { routeRegistry } from "lib";
+import { clerk } from "~/components/LoggedInWrapper";
 import { _SERVER_HOST } from "./index";
 import { tryCatchServer } from "./try_catch_server";
 
@@ -16,6 +17,7 @@ export function createAllServerActions(): ServerActionsType {
       route.method as any,
       (route as any).requiresProject,
       (route as any).isStreaming,
+      (route as any).timeoutMs,
     );
   }
   return actions as ServerActionsType;
@@ -26,6 +28,7 @@ function createServerAction(
   method: string,
   requiresProject?: boolean,
   isStreaming?: boolean,
+  timeoutMs?: number,
 ) {
   return async (args: any, onProgress?: ProgressCallback): Promise<any> => {
     const { url, hasBody, bodyData, headers } = buildRequestParams(
@@ -33,15 +36,21 @@ function createServerAction(
       args,
       requiresProject,
     );
+    const methodUpper = method.toUpperCase();
+    const canHaveBody = methodUpper !== "GET" && methodUpper !== "HEAD";
     const init: RequestInit = {
       method,
-      body: hasBody ? JSON.stringify(bodyData) : undefined,
+      body: hasBody && canHaveBody ? JSON.stringify(bodyData) : undefined,
       credentials: "include",
       headers: Object.keys(headers).length > 0 ? headers : undefined,
     };
     if (!isStreaming) {
-      return await tryCatchServer(`${_SERVER_HOST}${url}`, init);
+      return await tryCatchServer(`${_SERVER_HOST}${url}`, init, timeoutMs);
     }
+    // Token refresh before long-running stream — no timeout/retry: an AbortController
+    // timeout would kill legitimately long streams, and replaying a non-idempotent
+    // streaming POST is wrong.
+    await clerk.session?.getToken();
     const response = await fetch(`${_SERVER_HOST}${url}`, init);
     return await consumeStream(response, onProgress);
   };
@@ -62,7 +71,7 @@ function buildRequestParams(
     paramMatches.forEach((param) => {
       const paramName = param.substring(1);
       if (args && paramName in args) {
-        url = url.replace(param, args[paramName]);
+        url = url.replace(param, encodeURIComponent(args[paramName]));
       }
     });
   }
@@ -99,6 +108,14 @@ async function consumeStream<T = void>(
 ): Promise<T extends void ? APIResponseNoData : APIResponseWithData<T>> {
   if (!response.ok) {
     const errorText = await response.text();
+    try {
+      const parsed = JSON.parse(errorText);
+      if (parsed && parsed.success === false && typeof parsed.err === "string") {
+        return parsed as any;
+      }
+    } catch {
+      // not a JSON envelope — fall through to raw text
+    }
     return {
       success: false,
       err: errorText || `HTTP ${response.status}`,
@@ -144,6 +161,21 @@ async function consumeStream<T = void>(
         } catch {
           console.warn("Failed to parse streaming message:", line);
         }
+      }
+    }
+    // Process any remaining data in the buffer (stream ended without trailing newline)
+    if (buffer.trim()) {
+      try {
+        const message: any = JSON.parse(buffer);
+        if (message.progress === -1) {
+          onProgress?.(0, message.message);
+          return message.result || { success: false, err: message.message };
+        } else if (message.progress === 1) {
+          onProgress?.(message.progress, message.message);
+          return message.result || { success: true };
+        }
+      } catch {
+        console.warn("Failed to parse trailing streaming message:", buffer);
       }
     }
     return { success: false, err: "Stream ended unexpectedly" } as any;

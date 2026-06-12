@@ -1,14 +1,14 @@
 # Plan — A Systems Topology for wb-fastr
 
-> **Status: PROPOSAL FOR DISCUSSION** (2026-06-12). Produced from a full review of
-> `server/`, `lib/`, `client/src/` (~666 TS files): 13 empirical area maps, an
-> import-graph analysis (2,216 file-pair edges), a DOC_*/PLAN_* audit, four
-> independently-proposed decompositions (domain-vertical, mechanism-horizontal,
-> data-lifecycle, unconstrained hybrid), and two adversarial stress-tests per
-> scheme. Goal: divide the app into 5–15 "Systems" so that (1) "review system X
-> in detail" is a well-scoped delegable task, and (2) coupling between systems
-> can be reasoned about. Once a scheme is agreed, this can be promoted to
-> `DOC_SYSTEMS.md` as the canonical map.
+> **Status: DECISIONS LOCKED (2026-06-12).** The map below (§3) is settled — 15
+> systems. Produced from a full review of `server/`, `lib/`, `client/src/`
+> (~666 TS files): 13 empirical area maps, an import-graph analysis (2,216
+> file-pair edges), a DOC_*/PLAN_* audit, four independently-proposed
+> decompositions, and two adversarial stress-tests per scheme. Purpose: (1)
+> "review system X in detail" is a well-scoped delegable task, and (2) coupling
+> between systems can be reasoned about and reduced. Next: this gets promoted to
+> a `SYSTEM_NN_*.md` file set (one per system) — see `PLAN_DOC_CONSOLIDATION.md`
+> and §8. §2 (the four candidate schemes) is kept as the exploration record.
 
 ---
 
@@ -68,11 +68,12 @@ must respect them; the four candidate schemes differ mainly in how they do.
 
 ---
 
-## 2. Four candidate schemes
+## 2. Four candidate schemes (exploration record)
 
 All four were generated independently from the same area maps, then
 adversarially stress-tested (coverage, boundary interrogation with real files,
-size sanity, simulated "review system X" tasks). Summary:
+size sanity, simulated "review system X" tasks). The locked map (§3) is Scheme
+D amended per the §8 decisions.
 
 ### Scheme A — Domain-vertical (14 systems)
 
@@ -130,7 +131,7 @@ freshness mesh, persistence platform) and two "riders" (AI, client shell).
   scheme). The "Freshness Mesh" is a convention audit wearing a system costume
   (2/5 as a review unit).
 
-### Scheme D — Unconstrained hybrid (15 systems)
+### Scheme D — Unconstrained hybrid (15 systems) — ADOPTED
 
 Ignores stylistic purity; mixes vertical pipelines with horizontal kernels by
 following the verified seams. Both stress-testers' verdict: **"adopt with
@@ -143,38 +144,21 @@ directories.
   heart inside `db/project/modules.ts`; the shell owns the two index.tsx page
   maps). Documents the two zero-import-edge data couplings as written
   contracts.
-- **Weaknesses:** its Visualization Data Pipeline is still two reviews stapled
-  (~65 files); Dataset Ingestion is over budget (~120–140 files); slide_ai
-  assigned wholesale to AI misleads about the three non-AI consumers; ~14
-  orphan files in `components/project/`; one filename error
-  (`routes/project/projects.ts` → `project.ts`).
-
-### Convergence
-
-The schemes agree far more than they differ. Eight systems appear
-near-identically in all four: **DHIS2 connector, AI copilot, dashboards/public
-sharing, the module system, dataset ingestion, the persistence platform, the
-API contract, and ops**. The genuine open choices are only:
-
-1. How to cut the visualization middle (one engine vs query-pipeline /
-   rendering / authoring).
-2. Whether decks, reports, dashboards are one "documents" system or three.
-3. Whether the realtime/cache mesh is a system or a standing cross-cutting
-   audit.
-4. Where shared infra lands (TUS/assets, valkey machinery, file upload).
+- **Amendments applied (per §8):** the visualization middle split in three
+  along the fetch-config contract; the three document verticals (decks,
+  reports, dashboards) merged into one system; file-upload/assets carved into a
+  standalone system; all orphan files assigned; filename errors fixed; the
+  realtime mesh kept as a (small) system with its convention demoted to a
+  cross-cutting audit.
 
 ---
 
-## 3. Recommended canonical map (Scheme D, amended) — 15 systems
+## 3. The canonical map — 15 systems
 
-The hybrid scheme, with the stress-test amendments applied: the visualization
-middle split in three along the fetch-config contract, decks+reports kept as
-one system with two sub-briefs, dashboards kept separate (most severable), all
-identified orphans assigned, filename errors fixed, and the realtime system
-paired with explicit cross-cutting audits (§4.3).
-
-Sizes are approximate. "Scope" names the honest designation — cross-directory
-where the code demands it; sub-file exceptions are in §4.1.
+Logical order: platform machinery (1–3), data in (4–7), compute (8),
+visualization (9–11), artifacts (12), assist (13), frame (14–15). Sizes are
+approximate. "Scope" names the honest designation — cross-directory where the
+code demands it; sub-file exceptions are in §4.1.
 
 ### S1. API Contract, Transport & Access Control
 
@@ -233,54 +217,49 @@ where the code demands it; sub-file exceptions are in §4.1.
 - **Size:** ~40 files. **Docs:** DOC_SSE_REALTIME, DOC_VALKEY_CACHE,
   DOC_STATE_RULES + DOC_STATE_MGT_*.
 
-### S4. Module System
+### S4. Assets & Upload
 
-- **One line:** versioned R modules end-to-end: GitHub fetch → validate →
-  install/update → dirty-state propagation → Docker/R execution → `ro_*`
-  ingest.
-- **Scope:** `server/module_loader/**`; `server/github/**`; ALL of
-  `db/project/modules.ts` (install heart *and* the read API at lines ~540+) +
-  `db/project/results_objects.ts`; `task_management/{mod,set_module_dirty,get_dependents,trigger_runnable_tasks,running_tasks_map,set_module_clean}.ts`;
-  `worker_routines/run_module/**` + `instantiate_worker_generic.ts`;
-  `server_only_funcs/**` (R-script templating); `server_only_types/mod.ts`
-  task types; `routes/{instance,project}/modules.ts`; lib module types +
-  `module_registry.ts`; client: `project_modules.tsx`, `update_module*.tsx`,
-  `view_{files,logs,script}.tsx`, `project_module_settings/`, `DirtyStatus.tsx`,
-  `compare_projects.tsx`, `metric_details_modal.tsx`. External contract
-  surfaces: wb-fastr-modules repo (vendored `.validation` schema copy), Docker
-  images.
-- **Contract:** definitions zod-validated at every fetch (the runtime
-  enforcement point); compute/presentation git-ref split; dirty closure
-  recomputed per event (no stored edges); self-draining `task_ended` loop with
-  NO boot-time recovery (known gap); outputs `ro_*` + `metrics` +
-  `last_run_at` — the data spine S8 queries and caches on.
-- **Size:** ~50 files. **Docs:** DOC_MODULE_EXECUTION, DOC_MODULE_UPDATES,
-  DOC_TASK_EXECUTION_DIRTY_STATE, DOC_WORKER_ROUTINES, DOC_POPULATION_CSV.
+- **One line:** the file-upload front door — the hand-rolled TUS resumable
+  upload protocol, asset storage and metadata — shared by every feature that
+  ingests a file.
+- **Scope:** server: `routes/instance/upload.ts` (TUS protocol, in-memory
+  upload map, the deliberately-unauthenticated HEAD-via-GET quirk),
+  `routes/instance/assets.ts` (asset list/delete/serve), `db/instance/assets.ts`
+  (asset_metadata); client: `_uppy_file_upload.ts`, `_file_upload_selector.tsx`,
+  `components/instance/instance_assets.tsx`; lib: `types/assets.ts`. (Static
+  serving of `client_dist`/public images lives in S1's `middleware/static.ts`,
+  flagged.)
+- **Contract:** files land in `ASSETS_DIR` via resumable TUS and are referenced
+  by metadata rows; the upload HEAD is intentionally unauthenticated (protocol
+  resume). Consumed by S5 (dataset files), S12 (slide logos / report images),
+  S13 (AI document uploads). Small but a genuine shared boundary with three
+  consumers — isolating it stops "file upload" leaking into a dataset-named
+  system.
+- **Size:** ~12 files. **Docs:** none (TUS currently appears only as a
+  raw-route exception in DOC_API_ROUTES).
 
 ### S5. Dataset Ingestion
 
 - **One line:** the stage→integrate machinery for the HMIS/HFA/ICEH dataset
-  families: wizards, staging workers, upload-attempt state machines, file
-  upload, and per-project dataset attach/snapshot.
+  families: wizards, staging workers, upload-attempt state machines, and
+  per-project dataset attach/snapshot.
 - **Scope:** `db/instance/dataset_{hmis,hfa,iceh}.ts` (orchestrators including
   their worker-lifecycle blocks); `worker_routines/{stage_*,integrate_*}/**` +
   `worker_store.ts`; `server_only_funcs_csvs/**`; `routes/instance/{datasets,iceh}.ts`;
-  TUS upload (`routes/instance/upload.ts`) + assets routes +
-  `db/instance/assets.ts` (file infra also serves slide logos / AI uploads —
-  flagged shared); `db/project/datasets_in_project_*.ts` +
-  `calculated_indicators_snapshot.ts` (snapshot + sandbox CSV export — the
-  seam to S4); lib dataset/import types + `table_structures/**`; client:
-  `instance_dataset_*` + `*_import` wizards, `_import_wizard/`,
-  `_uppy_file_upload.ts`, `_file_upload_selector.tsx`, `PeriodSelector` /
-  `TimeIndexSelector` / `WindowingSelector`, `project_data.tsx` +
-  `settings_for_project_dataset_*.tsx` + `staleness_checks.ts`,
+  `db/project/datasets_in_project_*.ts` + `calculated_indicators_snapshot.ts`
+  (snapshot + sandbox CSV export — the seam to S8); lib dataset/import types +
+  `table_structures/**`; client: `instance_dataset_*` + `*_import` wizards,
+  `_import_wizard/`, `PeriodSelector` / `TimeIndexSelector` / `WindowingSelector`,
+  `project_data.tsx` + `settings_for_project_dataset_*.tsx` + `staleness_checks.ts`,
   `instance_data.tsx` (switchboard, shared with S6), `state/instance/t2_datasets`.
+  File upload itself is S4 (Assets & Upload); this system consumes uploaded
+  files.
 - **Contract:** one concurrent import per family (single-row attempt rows +
   fixed UNLOGGED staging tables + locks); three different execution models
   behind identical UIs (workers / in-process / streaming); progress by
   POLLING, not SSE; completion hands off via `setModulesDirtyForDataset`.
-- **Size:** ~120 files — delegate as sub-briefs per family (HMIS / HFA / ICEH
-  / shared machinery). **Docs:** DOC_IMPORT_PIPELINE (stale — see §6),
+- **Size:** ~110 files — delegate as sub-briefs per family (HMIS / HFA / ICEH
+  / shared machinery). **Docs:** DOC_IMPORT_PIPELINE (stale — see §7),
   DOC_WORKER_ROUTINES; PLAN_IMPORTER_CONSOLIDATION is the active reform plan.
 
 ### S6. Structure & Reference Data
@@ -301,8 +280,8 @@ where the code demands it; sub-file exceptions are in §4.1.
   `state/instance/{t2_structure,t2_indicators,t2_geojson}`.
 - **Contract:** authoritative registries (facility FK backbone with named
   DEFERRABLE constraints; indicator mappings drive staging validation; HFA R
-  code is EXECUTED by S4's module runs; instance config parameterizes S5's ELT
-  and S8's SQL). Snapshots frozen into project DBs at attach time.
+  code is EXECUTED by S8's module runs; instance config parameterizes S5's ELT
+  and S9's SQL). Snapshots frozen into project DBs at attach time.
 - **Size:** ~90 files (client dictionary managers are the bulk).
   **Docs:** DOC_DISAGGREGATION_OPTIONS_HANDLING, parts of DOC_IMPORT_PIPELINE.
 
@@ -321,7 +300,31 @@ where the code demands it; sub-file exceptions are in §4.1.
 - **Size:** ~20 files. The cleanest system — scored 5/5 in every stress test.
   **Docs:** DOC_DHIS2_INTEGRATION.
 
-### S8. Visualization Query & Cache Service
+### S8. Module System
+
+- **One line:** versioned R modules end-to-end: GitHub fetch → validate →
+  install/update → dirty-state propagation → Docker/R execution → `ro_*`
+  ingest.
+- **Scope:** `server/module_loader/**`; `server/github/**`; ALL of
+  `db/project/modules.ts` (install heart *and* the read API at lines ~540+) +
+  `db/project/results_objects.ts`; `task_management/{mod,set_module_dirty,get_dependents,trigger_runnable_tasks,running_tasks_map,set_module_clean}.ts`;
+  `worker_routines/run_module/**` + `instantiate_worker_generic.ts`;
+  `server_only_funcs/**` (R-script templating); `server_only_types/mod.ts`
+  task types; `routes/{instance,project}/modules.ts`; lib module types +
+  `module_registry.ts`; client: `project_modules.tsx`, `update_module*.tsx`,
+  `view_{files,logs,script}.tsx`, `project_module_settings/`, `DirtyStatus.tsx`,
+  `compare_projects.tsx`, `metric_details_modal.tsx`. External contract
+  surfaces: wb-fastr-modules repo (vendored `.validation` schema copy), Docker
+  images.
+- **Contract:** definitions zod-validated at every fetch (the runtime
+  enforcement point); compute/presentation git-ref split; dirty closure
+  recomputed per event (no stored edges); self-draining `task_ended` loop with
+  NO boot-time recovery (known gap); outputs `ro_*` + `metrics` +
+  `last_run_at` — the data spine S9 queries and caches on.
+- **Size:** ~50 files. **Docs:** DOC_MODULE_EXECUTION, DOC_MODULE_UPDATES,
+  DOC_TASK_EXECUTION_DIRTY_STATE, DOC_WORKER_ROUTINES, DOC_POPULATION_CSV.
+
+### S9. Visualization Query & Cache Service
 
 - **One line:** PO config → fetch-config contract → SQL over `ro_*` tables →
   version-hashed cached payloads, on both tiers.
@@ -336,13 +339,14 @@ where the code demands it; sub-file exceptions are in §4.1.
 - **Contract:** `GenericLongFormFetchConfig` is THE client→server query
   contract; `hashFetchConfig` is cache identity on both tiers (field additions
   silently rekey everything); roll-up gates single-sourced in lib; Ethiopian
-  calendar alters both bounds and generated SQL. **Carries the app's top open
-  defect** (§6.1 — the fetch-config SQL-injection surface).
+  calendar alters both bounds and generated SQL. **Carried the app's top
+  security defect** (§7.1 — fetch-config SQL injection; membership classes
+  fixed 2026-06-12, PAE residual open).
 - **Size:** ~40 files, logic-dense. **Docs:**
   DOC_PRESENTATION_OBJECT_QUERY_PIPELINE, DOC_period_column_handling,
   DOC_DISAGGREGATION_OPTIONS_HANDLING, DOC_ROLLUP_ROWS, DOC_VALKEY_CACHE.
 
-### S9. Figure Rendering & Export Engine
+### S10. Figure Rendering & Export Engine
 
 - **One line:** pure transforms from data+config to pixels and files:
   FigureInputs assembly, strip/hydrate snapshots, slide→page rendering,
@@ -352,10 +356,10 @@ where the code demands it; sub-file exceptions are in §4.1.
   GLOBAL_STYLE_OPTIONS consumed at boot); `generate_slide_deck/**`
   (`convertSlideToPageInputs` — the single screen/export chokepoint);
   `client/src/exports/**` (incl. `get_table_export_aoa.ts`); the plain figure
-  resolvers currently in `slide_deck/slide_ai/` (`resolve_figure_from_*` — see
-  §5.2); lib render contracts (`json_slide_serialize.ts`, `brand_presets.ts`,
-  `key_colors.ts`, slide-font types); `font-map.json` + `/fonts`;
-  `state/project/t2_images.ts`.
+  resolvers to be extracted from `slide_deck/slide_ai/` (`resolve_figure_from_*`
+  — see §6.2); lib render contracts (`json_slide_serialize.ts`,
+  `brand_presets.ts`, `key_colors.ts`, slide-font types); `font-map.json` +
+  `/fonts`; `state/project/t2_images.ts`.
 - **Contract:** one renderer per artifact class shared by screen and export;
   stored snapshots are stripped FigureInputs re-hydrated at render; panther
   `zFigureInputs` binds stored figures to panther schema versions (the
@@ -364,7 +368,7 @@ where the code demands it; sub-file exceptions are in §4.1.
 - **Size:** ~55 files, mostly pure functions, undocumented territory.
   **Docs:** DOC_SPECIAL_CHART_MODES, DOC_DESIGN_SYSTEM.
 
-### S10. Visualization Authoring UI
+### S11. Visualization Authoring UI
 
 - **One line:** the live PO editor (edit/create/ephemeral modes), the
   visualization library, and PO CRUD with conflict resolution.
@@ -386,44 +390,34 @@ where the code demands it; sub-file exceptions are in §4.1.
   reactive reads in the refetch effect.
 - **Size:** ~40 files. **Docs:** DOC_DESIGN_SYSTEM, DOC_STATE_RULES.
 
-### S11. Slide Decks & Reports
+### S12. Documents & Sharing
 
-- **One line:** the two document-authoring verticals — WYSIWYG decks and
-  markdown reports with figure registries — and their persistence.
-- **Scope:** `components/slide_deck/**` minus `slide_ai/` (but see §5.2);
-  `layout_editor/`; `components/report/**`; deck/report list pages + modals in
-  `components/project/` (`project_decks.tsx`, `project_reports.tsx`,
-  `add_deck.tsx`, `add_report.tsx`, `duplicate_*`, `edit_*_folder_modal.tsx`,
-  `move_*_to_folder_modal.tsx`); server CRUD
-  (`db/project/{slides,slide_decks,move_slides,slide_deck_folders,reports,report_folders}.ts`
-  + routes), `routes/project/emails.ts`, `server/utils/id_generation.ts`
-  (hardcodes 7 tables across S10–S12 — flagged); lib slide/report types;
-  `state/project/t2_slides.ts`.
-- **Contract:** documents persist stripped FigureBlock snapshots (S9's
-  contract); two deliberate concurrency philosophies (slides: true conflict
-  resolution; reports: last-write-wins + banner); `proposeEdit` is the AI
-  hook. Delegate as two sub-briefs (decks / reports).
-- **Size:** ~85 files; the largest undocumented system. **Docs:** none
-  (PLAN/memory files are the interim baseline).
-
-### S12. Dashboards & Public Sharing
-
-- **One line:** snapshot-based dashboards with replicant groups, the
-  slug-addressed public viewer (the app's only unauthenticated product
-  surface), and dashboard exports.
-- **Scope:** `components/dashboards/**`; `components/public_viewer/**`;
-  dashboard export files in `exports/` (model/pages/pdf/pptx/xlsx);
-  `state/project/t2_dashboards.ts`; `project_dashboards.tsx`; server:
-  `db/project/dashboards.ts`, `db/instance/dashboard_slugs.ts`,
-  `routes/project/dashboards.ts`, `routes/public/dashboard.ts`, the `/d/:slug`
-  SPA-HTML in `main.ts`; lib: `types/dashboard.ts` incl.
-  `buildPublicDashboardBundle` (shared verbatim with the server route by
-  design — the non-divergence invariant).
-- **Contract:** dashboards persist CLIENT-built snapshots — the server never
-  recomputes figures, so public freshness depends on editor resaves; replicant
-  reconcile rules; one global slug namespace; isPublic gate on a real Clerk
-  session. The most severable system.
-- **Size:** ~30 files. **Docs:** none.
+- **One line:** the three figure-snapshot-embedding artifact types — slide
+  decks, markdown reports, and dashboards — plus the public slug-addressed
+  viewer and all PDF/PPTX/XLSX/DOCX/email exports.
+- **Scope:** client: `components/slide_deck/**` minus `slide_ai/` (but see
+  §6.2), `layout_editor/`, `components/report/**`, `components/dashboards/**`,
+  `components/public_viewer/**`; the deck/report/dashboard list pages + modals
+  in `components/project/` (`project_decks.tsx`, `project_reports.tsx`,
+  `project_dashboards.tsx`, `add_deck.tsx`, `add_report.tsx`, `duplicate_*`,
+  `*_folder_modal.tsx`, `move_*_to_folder_modal.tsx`); `state/project/{t2_slides,t2_dashboards}.ts`;
+  server CRUD (`db/project/{slides,slide_decks,move_slides,slide_deck_folders,reports,report_folders,dashboards}.ts`
+  + routes), `db/instance/dashboard_slugs.ts`, `routes/public/dashboard.ts` +
+  the `/d/:slug` SPA-HTML in `main.ts`, `routes/project/emails.ts`,
+  `server/utils/id_generation.ts` (hardcodes 7 tables — flagged); lib slide/
+  report/dashboard types incl. `buildPublicDashboardBundle` (shared verbatim
+  with the public route — the non-divergence invariant).
+- **Contract:** all three persist CLIENT-built stripped FigureBlock snapshots
+  (server never recomputes figures — public freshness depends on editor
+  resaves); shared figure-snapshot lifecycle owned upstream by S10; three
+  concurrency philosophies (slides: true conflict resolution; reports:
+  last-write-wins + banner; dashboards: replicant-group reconcile); the public
+  viewer is the app's only unauthenticated product surface (isPublic gate on a
+  real Clerk session). The public/unauthenticated surface is reviewed as a
+  cross-cutting security audit (§4.3.9), not only here.
+- **Size:** ~115 files; the largest undocumented system — delegate as
+  sub-briefs (decks / reports / dashboards+public). **Docs:** none (PLAN/memory
+  files are the interim baseline).
 
 ### S13. AI Copilot & Usage Governance
 
@@ -434,7 +428,7 @@ where the code demands it; sub-file exceptions are in §4.1.
   `db/instance/{ai_usage_logs,custom_prompts}.ts`,
   `routes/instance/custom_prompts.ts`; client: `components/project_ai/**`,
   the AI-specific half of `slide_deck/slide_ai/` (the plain resolvers move to
-  S9 — §5.2), `state/project/t4_ai_documents.ts`; lib:
+  S10 — §6.2), `state/project/t4_ai_documents.ts`; lib:
   `types/{ai_input,custom_prompts}.ts`.
 - **Contract:** tools execute IN THE BROWSER through the same serverActions/
   caches as the human UI, so AI inherits user permissions for free; editors
@@ -456,9 +450,9 @@ where the code demands it; sub-file exceptions are in §4.1.
   `ConnectionStatus.tsx`, `HelpButton.tsx` + `lib/help/**` +
   `build_help_buttons.ts`, onboarding modals, `components/_shared/**` (generic
   primitives), `lib/translate/**` (the singletons — calendar *semantics* are
-  S8's; see §4.3.5), `FRONTEND_STYLE_GUIDE.md`.
+  S9's; see §4.3.5), `FRONTEND_STYLE_GUIDE.md`.
 - **Contract:** deterministic boot order (panther globals + language/calendar
-  BEFORE first render; GLOBAL_STYLE_OPTIONS deep-imported from S9 is
+  BEFORE first render; GLOBAL_STYLE_OPTIONS deep-imported from S10 is
   load-bearing); only two URL-addressable surfaces (`/d/:slug`, `?p=`); UI
   prefs persist via localStorage and never enter fetch configs or cache
   hashes.
@@ -471,8 +465,8 @@ where the code demands it; sub-file exceptions are in §4.1.
 - **One line:** user/role management, project lifecycle, instance settings UI,
   plus the operational side-channel: health endpoints, backups, disk
   autonomics, emails, central export, scheduled jobs, deploy.
-- **Scope:** client: `components/instance/**` minus index.tsx (users,
-  projects, settings forms, profile, feedback, assets page),
+- **Scope:** client: `components/instance/**` minus index.tsx and
+  instance_assets.tsx (users, projects, settings forms, profile, feedback),
   `project_settings.tsx` + `copy_project.tsx` + `create_backup_form.tsx` +
   `restore_from_file_form.tsx`, role/permission forms_editors; server:
   `routes/project/project.ts` (lifecycle + roles; dataset-attach handlers are
@@ -499,22 +493,23 @@ artifacts attached to every delegated review.
 ### 4.1 Shared-custody files
 
 Files where systems genuinely meet inside one file. Ruling: ONE owner reviews
-the whole file; the others are mandatory readers of their slice.
+the whole file; the others are mandatory readers of their slice. (Several of
+these are split-physically candidates — see §6.3.)
 
 | File | Owner | Mandatory readers | Seam |
 |---|---|---|---|
-| `server/db/project/projects.ts` | S15 | S2 (DB create/drop), S1 (role CRUD), S4 (auto-install) | four systems in 1,108 lines |
-| `server/routes/project/project.ts` | S15 | S5 (dataset attach), S4 (dirty handoff) | 18 routes, three systems |
-| `server/routes/project/presentation_objects.ts` | S8 | S10 (CRUD routes), S3 (cache choreography) | queries vs CRUD vs caching interleaved |
-| `server/routes/caches/visualizations.ts` | S8 | S3 (machinery), S2 (transforms import it) | cache instances + PO_CACHE_VERSION |
-| `client/src/state/project/t2_presentation_objects.ts` | S8 | S9 (FigureInputs assembly), S3 (cache mechanics) | hottest client file, 20 importers |
-| `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts` | S5 | S2 (conventions), S4 (worker machinery) | orchestrator + worker lifecycle + CRUD |
-| `server/db/project/modules.ts` | S4 | S2 (conventions), S8 (metrics reads), S13 (AI list fns) | whole file now owned by S4 |
+| `server/db/project/projects.ts` | S15 | S2 (DB create/drop), S1 (role CRUD), S8 (auto-install) | four systems in 1,108 lines |
+| `server/routes/project/project.ts` | S15 | S5 (dataset attach), S8 (dirty handoff) | 18 routes, three systems |
+| `server/routes/project/presentation_objects.ts` | S9 | S11 (CRUD routes), S3 (cache choreography) | queries vs CRUD vs caching interleaved |
+| `server/routes/caches/visualizations.ts` | S9 | S3 (machinery), S2 (transforms import it) | cache instances + PO_CACHE_VERSION |
+| `client/src/state/project/t2_presentation_objects.ts` | S9 | S10 (FigureInputs assembly), S3 (cache mechanics) | hottest client file, 20 importers |
+| `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts` | S5 | S2 (conventions), S8 (worker machinery) | orchestrator + worker lifecycle + CRUD |
+| `server/db/project/modules.ts` | S8 | S2 (conventions), S9 (metrics reads), S13 (AI list fns) | whole file owned by S8 |
 | `main.ts` | S1 | S2 (boot), S15 (cron), S12 (`/d/:slug`) | composition root |
 | `client/src/components/LoggedInWrapper.tsx` | S1 | S3 (version flush), S14 (boot/sign-in) | Clerk singleton + flush + shell |
 | `server/routes/instance/backups.ts` | S15 | S2 (restore body: DROP/CREATE + re-migrate) | most destructive code path in the app |
-| `lib/translate/t-func.ts` | S14 | S8 (calendar semantics) | 17 lines, two systems |
-| `server/task_management/mod.ts` | S4 | S3 (re-exports notify hub; side-effect listener import) | one barrel, two systems' API |
+| `lib/translate/t-func.ts` | S14 | S9 (calendar semantics) | 17 lines, two systems |
+| `server/task_management/mod.ts` | S8 | S3 (re-exports notify hub; side-effect listener import) | one barrel, two systems' API |
 
 ### 4.2 Kernel — read but don't own
 
@@ -524,12 +519,12 @@ to change them need a cross-system check.
 
 - `lib/mod.ts`, `lib/types/mod.ts` (the mega-barrel — 445 importers)
 - `lib/types/instance.ts` (envelope + config schemas + user types + ItemsHolder
-  — split by symbol across S1/S6/S8/S15)
+  — split by symbol across S1/S6/S9/S15)
 - `lib/consts.ts` (multi-domain constants, split by symbol)
 - `lib/utils.ts`
 - `server/exposed_env_vars.ts` (42 importers; carries import-time
   `setLanguage`/`setCalendar` side effects and parked domain constants for
-  S4/S5/S13)
+  S5/S8/S13)
 
 ### 4.3 Cross-cutting audits (tasks, not systems)
 
@@ -549,8 +544,8 @@ license to read everything.
    input that changes its meaning bumps an ingredient hash; payload-shape
    changes get a key-prefix bump.
 5. **Calendar semantics** — Ethiopian branches agree across lib bounds-builder
-   (S8), server SQL CASE (S8), import-side Gregorian→Ethiopian conversion
-   (S5), and display (S9/S14). Four custodians, no single owner — the
+   (S9), server SQL CASE (S9), import-side Gregorian→Ethiopian conversion
+   (S5), and display (S10/S14). Four custodians, no single owner — the
    likeliest both-reviewers-skip-it invariant in the app.
 6. **t3 literal correctness** — the {en,fr} literals at 2,508 call sites; no
    system reviews the actual French.
@@ -560,19 +555,91 @@ license to read everything.
 8. **Cross-repo lockstep discipline** — panther `./sync` ordering,
    wb-fastr-modules `.validation` byte-sync, wb-fastr-site help ids. The
    dominant historical failure mode per project memory; owned by no system.
+9. **Public / unauthenticated surface** — the `/d/:slug` public dashboard
+   route, its `buildPublicDashboardBundle` payload (leakage), slug enumeration,
+   the isPublic gate, and the BYPASS_AUTH dev nuance — spans S1 (auth),
+   `main.ts`, and S12. The reason Dashboards needn't be its own system.
 
 ### 4.4 Review-brief protocol
 
 When delegating "review system X": ship (a) the verbatim scope text from §3,
 (b) the custody table (§4.1), (c) the kernel rule (§4.2), and (d) which
-cross-cutting audits are explicitly OUT of scope. For S5, S6, S11: delegate
+cross-cutting audits are explicitly OUT of scope. For S5, S6, S12: delegate
 per sub-brief (by dataset family / dictionary / artifact type).
 
 ---
 
-## 5. Coupling observations and decoupling ideas
+## 5. Execution model — how the two workstreams actually run
 
-Ideas to discuss — explicitly NOT plans. Roughly ordered by leverage.
+This map drives two distinct streams of work. They interleave; neither blocks
+on the map being "finished."
+
+**#1 — define & document the systems.** Lock the map (done), build the manifest
++ lint, and write one `SYSTEM_NN_*.md` per system (see PLAN_DOC_CONSOLIDATION).
+The SYSTEM doc for a system is produced *as the artifact* of the deep review
+that understands it — docs and reviews are the same motion, not two passes.
+
+**#2 — change the code.** Two kinds, driven by different things:
+
+- **(a) Fixes** — things that are *wrong* (bugs, security, dead code). Driven
+  by findings, NOT by the map. The §7.1 PAE residual, the three in-flight
+  plans, §7.2 dead code, the PLAN_HARDEN_SECURITY urgent items. The map only
+  *batches and prioritizes* these. They run in parallel to everything.
+- **(b) Refactors toward the map** — making the systems real at the file level
+  (extract the slide_ai resolvers, split the §4.1 custody files, relocate the
+  cache instances, move `h_users` server-side, split `exposed_env_vars`). The
+  §6 decoupling ideas. Driven by the map.
+
+And two moments when code changes:
+
+- **(i) Standalone horizontal plans** — what's running now. The hardening plans
+  are standalone *because they're horizontal* (the contract everywhere, ZOD
+  every route). Genuinely cross-cutting work doesn't fit one system; it gets a
+  plan. This is correct and already underway.
+- **(ii) Inside a per-system cycle** — the engine. A system review is NOT
+  read-only; it is:
+
+  > **review → triage → fix → document**
+
+  Delegate "review S9 in detail" → it produces findings → triage each into
+  bug / decoupling-toward-map / doc-correction → fix the bugs and apply that
+  system's share of the refactor work (its §4.1 custody-file splits are best
+  done here, by whoever's deep in it) → the `SYSTEM_09.md` doc is the artifact.
+  Repeated per system in priority order, this cycle is where the bulk of #2
+  lives.
+
+**Interleave:**
+
+| Phase | #1 (define/document) | #2 (change code) |
+|---|---|---|
+| Now | — | Horizontal fix plans (hardening → state-mgt → zod). Map-independent. |
+| Lock | Map locked (this doc) | — |
+| Bridge | PLAN_DOC_CONSOLIDATION + manifest/lint | Cheap boundary cleanup: extract slide_ai resolvers → S10, relocate cache instances, `h_users` server-side. Low-risk; makes every later review cleaner. |
+| Loop (per system) | each cycle *produces* its SYSTEM_NN.md | review → triage → fix → document; heavy custody-file splits done in-cycle |
+
+**Two timing rules:**
+
+- Split the heavy §4.1 custody files *per-system, as the opening move of that
+  system's cycle* — not upfront in one batch. Cutting `projects.ts` (1,108
+  lines, four systems) is itself design work, best done by the review that
+  understands it. Only the trivially-correct moves go in the bridge pass.
+- Order the system cycles to dovetail with the horizontal plans, not fight
+  them. Don't run the S1 cycle while hardening is mid-flight (the contract's
+  moving); S9 is the natural first pilot (highest value — closes the §7.1 PAE
+  residual properly, and is mostly stable).
+
+**The one risk:** findings scatter. A review surfaces ~15 things; some fixed
+in-cycle, some deferred. Rule: every triaged finding either gets fixed in the
+cycle, gets a one-line entry in that SYSTEM doc's "open items" section, or gets
+its own PLAN_ if big enough (like FigureBundle already is). The SYSTEM doc's
+open-items section is the permanent, scoped successor to ad-hoc PLAN_*_FIXES
+files.
+
+---
+
+## 6. Coupling observations and decoupling ideas
+
+Ideas, not plans (most land via the §5 cycles). Roughly ordered by leverage.
 
 1. **The registry seam is the decoupling story — protect it.** Zero
    client↔server import edges is an unusual and valuable property. The ~30
@@ -584,8 +651,8 @@ Ideas to discuss — explicitly NOT plans. Roughly ordered by leverage.
    `resolve_figure_from_visualization` / `_from_metric` are generic
    snapshot-a-viz-into-FigureBlock machinery consumed by dashboards, reports,
    and the viz modal — non-AI flows depending on AI-labelled files. Moving
-   them to `generate_visualization/` (S9) dissolves the only feature↔feature
-   fusion in the client import graph. Cheap, high clarity.
+   them to `generate_visualization/` (S10) dissolves the only feature↔feature
+   fusion in the client import graph. Cheap, high clarity — a bridge-pass move.
 
 3. **Physically split ~5 of the custody files.** The §4.1 table exists because
    systems meet inside files. A few are cheap, mechanical splits that would
@@ -594,7 +661,7 @@ Ideas to discuss — explicitly NOT plans. Roughly ordered by leverage.
    vs CRUD), `server_only_types/mod.ts` (20 lines, three systems),
    `task_management/` (notify hub vs dirty machine — directory split),
    `backups.ts` (proxy vs restore mechanics). No behavior change, large
-   reduction in review ambiguity.
+   reduction in review ambiguity. Do the heavy ones in-cycle (§5).
 
 4. **Make the notify/stamp convention structural.** The triangle is the app's
    most invariant-dense mechanism and is enforced by hand in ~26 files. Idea:
@@ -604,7 +671,7 @@ Ideas to discuss — explicitly NOT plans. Roughly ordered by leverage.
 
 5. **`lib/h_users.ts` ships access-policy emails in the client bundle.**
    Semantically server-side access-control data. Idea: move server-side
-   (client gets a boolean from the server where needed).
+   (client gets a boolean from the server where needed). A bridge-pass move.
 
 6. **Split `exposed_env_vars.ts`.** A 42-importer nexus carrying five systems'
    constants plus import-time i18n side effects. Idea: per-domain constant
@@ -614,7 +681,7 @@ Ideas to discuss — explicitly NOT plans. Roughly ordered by leverage.
 7. **Relocate the cache instances out of `routes/caches/`.** They're not
    routes, and migrations' data_transforms importing from `routes/` is the
    layering inversion both reviewers flagged. A `server/caches/` home (or
-   beside valkey/) makes the dependency direction honest.
+   beside valkey/) makes the dependency direction honest. A bridge-pass move.
 
 8. **Heal the db→worker inversion semantically or physically.** The dataset
    orchestrators in `server/db/instance/` spawning workers is the biggest
@@ -629,22 +696,22 @@ Ideas to discuss — explicitly NOT plans. Roughly ordered by leverage.
    a `lib/calendar.ts` distinct from translate would name the truth.
 
 10. **The data-spine couplings deserve written contracts more than code
-    changes.** S4→S8 (ro_*/metrics/last_run_at) and S5→S4 (sandbox CSVs +
+    changes.** S8→S9 (ro_*/metrics/last_run_at) and S5→S8 (sandbox CSVs +
     dirty call) have zero import edges by design — that's good decoupling.
     The risk is that nothing *states* the contracts; §3's contract lines are a
     start, and keeping them current is cheaper than any mechanism.
 
 11. **Misc small reliefs:** `try_catch_server.ts` importing the Clerk singleton
     from a UI component (session accessor belongs in `state/`);
-    `id_generation.ts` hardcoding 7 tables across four systems; the two deep
+    `id_generation.ts` hardcoding 7 tables across S11/S12; the two deep
     panther imports bypassing the barrel; the dual CSV parsers (papaparse vs
     panther parseCSV); the split-brained DHIS2 wire types.
 
 ---
 
-## 6. Findings to act on regardless of topology
+## 7. Findings to act on regardless of topology
 
-### 6.1 Fetch-config SQL interpolation (security — verified by three independent agents)
+### 7.1 Fetch-config SQL interpolation (security — verified by three independent agents)
 
 `groupBys`, `filter.disOpt`, `value.prop`, `postAggregationExpression`, and the
 replicant route's `replicateBy` from client-supplied fetch configs are
@@ -673,9 +740,10 @@ fix is server-authoritative: the route already resolves the metric from the DB,
 so it can compare the client's PAE against the metric's stored
 `postAggregationExpression.expression` (or rebuild fetchConfig server-side and
 not trust the client's copy at all — the FigureBundle direction). Tracked as an
-open follow-up; the charset guard is interim defense-in-depth only.
+open follow-up (S9's first cycle); the charset guard is interim
+defense-in-depth only.
 
-### 6.2 Dead code (verified zero importers — deletion candidates)
+### 7.2 Dead code (verified zero importers — deletion candidates)
 
 `client/src/components/PasswordGate.tsx`; `client/src/components/Conflicts.tsx`;
 `client/src/components/forms_editors/confirm_update.tsx`;
@@ -687,7 +755,10 @@ module_loader copy) and `translateIndicatorId` in `lib/translate/common.ts`;
 `server/routes/caches/structure.ts`; `_IMAGE_DIMENSIONS` in `lib/consts.ts`;
 `server/scripts/` (empty dir).
 
-### 6.3 Doc staleness (highest-value corrections)
+### 7.3 Doc staleness (highest-value corrections)
+
+Most of these dissolve when DOC_* is consolidated into SYSTEM_* files
+(PLAN_DOC_CONSOLIDATION); listed here so the consolidation catches them.
 
 - **CLAUDE.md:** `server/ai/` and `server/visualization_definitions/` don't
   exist (AI proxy lives in `routes/project/ai_*.ts`; viz query code is
@@ -702,7 +773,7 @@ module_loader copy) and `translateIndicatorId` in `lib/translate/common.ts`;
   `lib/types/instance_config.ts` (real home: `lib/types/instance.ts`).
 - **DOC_VALKEY_CACHE:** prefix `po_detail` → code is `po_detail_v2`.
 - **DOC_API_ROUTES:** raw-route exception list cites the deleted share.ts
-  routes.
+  routes (PLAN_API_ROUTES_HARDENING C1 fixes this).
 - Minor: DOC_STATE_MGT_PROJECT cites `notify_project_updated.ts` (real:
   `notify_project_v2.ts`); DOC_BUILD_INSTRUCTIONS/DOC_DESIGN_SYSTEM cite
   `panther/FRONTEND_STYLE_GUIDE.md` (real: `client/src/FRONTEND_STYLE_GUIDE.md`);
@@ -711,25 +782,41 @@ module_loader copy) and `translateIndicatorId` in `lib/translate/common.ts`;
 
 ---
 
-## 7. Open questions
+## 8. Resolved decisions & roadmap
 
-1. **Realtime mesh: system or audit?** §3 keeps S3 as a (small) system that
-   owns the machinery, with the convention demoted to audit §4.3.1. The
-   alternative — no S3, machinery folded into S2, everything as audits — is
-   defensible.
-2. **Decks + Reports: one system or two?** Kept as one (shared FigureBlock
-   lifecycle + chokepoint) with two sub-briefs. Splitting them is the next
-   most natural change and costs one extra system slot.
-3. **Where does file-upload/TUS infra live?** Currently inside S5 (its
-   heaviest consumer) with a shared-infra flag; serving slide logos and AI
-   uploads makes a small standalone "Assets & Upload" system arguable.
-4. **Manifest format.** The stress tests insist sub-file custody fails without
-   a machine-readable artifact. Options: (a) this doc's tables are the
-   manifest (lightest); (b) a `SYSTEMS.yaml` mapping globs → system ids that a
-   script can lint against the tree; (c) per-system scope files under
-   `.claude/` for direct use as review-brief inputs. (b) is recommended if the
-   map is adopted — it also detects orphaned new files over time.
-5. **Promotion path.** Once settled: rename to DOC_SYSTEMS.md, link from
-   CLAUDE.md, and tag each DOC_* with its owning system (the doc-audit showed
-   the docs already approximate a server-side system map).
-6. **§6.1** — handle now, fold into PLAN_API_ZOD, or both?
+The six open questions, resolved with Tim (2026-06-12):
+
+1. **Realtime mesh: system or audit?** → **System (S3)** owning the machinery,
+   with the write→stamp→notify convention demoted to cross-cutting audit
+   §4.3.1.
+2. **Decks + Reports + Dashboards: one or three?** → **One** (S12 Documents &
+   Sharing), with three sub-briefs. They are the same kind of artifact
+   (client-built FigureBlock snapshots); their shared contract is owned
+   upstream by S10, so merging is cohesive. The only reason to isolate
+   Dashboards — the public surface — is handled by audit §4.3.9.
+3. **File-upload/TUS infra?** → **Standalone (S4 Assets & Upload).** Small but
+   a clean front door with three consumers (S5/S12/S13).
+4. **Manifest format?** → **Frontmatter in each `SYSTEM_NN_*.md`** (file globs +
+   sub-file custody pointers) + a lint script asserting every tracked file
+   matches exactly one system (flags orphans and double-claims). The docs
+   *become* the manifest; the §4.1 custody table stays prose (line-range,
+   not glob-expressible).
+5. **Promotion path?** → **Archive DOC_* into `SYSTEM_NN_*.md`** (one per
+   system) plus a few cross-cutting docs for the §4.3 audits and an index
+   `SYSTEMS.md`. NOT "keep DOC_* and tag them" — that was the excess.
+   `panther/protocols/PROTOCOL_*` stays separate (cross-project base). See
+   PLAN_DOC_CONSOLIDATION.
+6. **§7.1 injection?** → **Done** (membership classes shipped 2026-06-12); PAE
+   residual is an S9-cycle follow-up.
+
+**Immediate roadmap:**
+
+1. ~~Lock the map~~ (this doc). ✓
+2. **PLAN_DOC_CONSOLIDATION.md** — the DOC_* → SYSTEM_* migration + the
+   frontmatter/lint manifest. Map-independent of the hardening work; can run in
+   parallel.
+3. **Bridge pass** — the trivially-correct §6 moves (slide_ai resolver
+   extraction, cache-instance relocation, `h_users` server-side).
+4. **First system cycle: S9** (review → triage → fix → document) — after
+   hardening + zod settle, so the contract it touches is stable; it also closes
+   the §7.1 PAE residual properly.

@@ -172,11 +172,11 @@ export async function deleteDatasetIcehData(
 
 export async function getDatasetIcehUploadAttempt(
   mainDb: Sql
-): Promise<APIResponseWithData<IcehUploadAttemptDetail | undefined>> {
+): Promise<APIResponseWithData<IcehUploadAttemptDetail | null>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawUA = await getRawUA(mainDb);
     if (!rawUA) {
-      return { success: true, data: undefined };
+      return { success: true, data: null };
     }
     const data: IcehUploadAttemptDetail = {
       id: rawUA.id,

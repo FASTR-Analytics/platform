@@ -1,6 +1,6 @@
 # Plan — Zod at the Route Boundary (params + body validation)
 
-> **Status: NOT STARTED. Blocked on [PLAN_API_ROUTES_HARDENING.md](PLAN_API_ROUTES_HARDENING.md) A1** — this plan introduces HTTP 400 envelope responses, which today would reach the UI as raw JSON text (the 403 bug). Design agreed in the 2026-06-12 route-system review.
+> **Status: NOT STARTED — UNBLOCKED.** The prerequisite hardening pass (PLAN_API_ROUTES_HARDENING, now deleted) landed in full on 2026-06-12: the 4xx-envelope client fix (its A1 — required because this plan introduces HTTP 400 responses), fail-hard boot validation, registry collision checks, `timeoutMs`, and the wire-space `TypedResponse<JSONParsed<…>>` handler-return constraint are all in place (see DOC_API_ROUTES.md). The "hardening A1/B3/B4/B6" references below refer to that landed work. Design agreed in the 2026-06-12 route-system review.
 >
 > Closes the gap DOC_API_ROUTES.md documents under "What NOT to do": *"there is no runtime validation of the request body at the route boundary."* When done, rewrite that section and the `route()` field table (params/body become runtime values).
 
@@ -55,6 +55,7 @@ export function route<
 ## Wire-format gotchas (check per route while migrating)
 
 - **JSON drops `undefined`.** Any field the client may omit or set `undefined` must be `.optional()` — `.nullable()` alone will 400 on an absent key. The existing registry types are honest about `?` vs `| null`; carry that over exactly.
+- **Phantom `response: {} as X | undefined` declarations never existed.** `route()`'s optional `response?:` parameter makes generic inference strip `| undefined`, so any such contract silently became `X` (found and fixed during hardening — `getDatasetIcehUploadAttempt` now uses `| null`). When migrating, treat `| null` as the only sometimes-absent encoding; `z.infer` makes the stripping impossible going forward.
 - **Dates are ISO strings on the wire.** Use `z.string()` (or `z.iso.datetime()` where format matters), never `z.date()`.
 - **Don't tighten semantics while migrating.** The schema's job in this pass is to encode the *current* declared type, not to add new constraints (beyond uuid/number coercion per decision 5). Tightening (enums, ranges) is welcome but do it consciously, route by route, where the handler/DB already enforces it.
 

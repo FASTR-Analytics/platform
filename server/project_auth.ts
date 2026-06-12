@@ -81,7 +81,6 @@ export function requireProjectPermission(
         return c.json({
           success: false,
           err: "Admin access required",
-          authError: true,
         });
       }
 
@@ -96,7 +95,6 @@ export function requireProjectPermission(
             return c.json({
               success: false,
               err: `User does not have ${perm} permissions for this project`,
-              authError: true,
             });
           }
         }
@@ -140,7 +138,6 @@ export function requireProjectPermission(
           return c.json({
             success: false,
             err: error.message.replace("Middleware error: ", ""),
-            authError: true,
           });
         }
       }

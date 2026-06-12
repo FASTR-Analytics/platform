@@ -53,7 +53,6 @@ export const moduleRouteRegistry = {
     path: "/module/:module_id/rerun",
     method: "POST",
     params: {} as { module_id: ModuleId },
-    response: {} as { success: true },
     requiresProject: true,
   }),
   getResultsObjectItems: route({

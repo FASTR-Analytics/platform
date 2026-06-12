@@ -1,6 +1,6 @@
 import { Sql } from "postgres";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
-import { APIResponseNoData } from "lib";
+import { APIResponseNoData, APIResponseWithData } from "lib";
 import type { UserLog } from "lib";
 
 export async function AddLog(
@@ -24,7 +24,7 @@ VALUES
 
 export async function GetLogs(
     mainDb: Sql,
-): Promise<APIResponseNoData & { data: UserLog[] }> {
+): Promise<APIResponseWithData<UserLog[]>> {
     return await tryCatchDatabaseAsync(async () => {
         const logs: UserLog[] = await mainDb`
 SELECT id, user_email, timestamp, endpoint, endpoint_result, details, project_id
@@ -69,7 +69,7 @@ WHERE timestamp < NOW() - INTERVAL '7 days'
 export async function GetLogsByProject(
     mainDb: Sql,
     project_id: string,
-): Promise<APIResponseNoData & { data: UserLog[] }> {
+): Promise<APIResponseWithData<UserLog[]>> {
     return await tryCatchDatabaseAsync(async () => {
         const logs: UserLog[] = await mainDb`
 SELECT id, user_email, timestamp, endpoint, endpoint_result, details, project_id

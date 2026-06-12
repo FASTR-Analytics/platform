@@ -48,14 +48,7 @@ defineRoute(
       const secretKey = _STATUS_API_KEY;
 
       if (!authHeader) {
-        return c.json(
-          {
-            success: false,
-            backups: [],
-            error: "Authorization header required",
-          },
-          401,
-        );
+        return c.json({ success: false, err: "Authorization header required" }, 401);
       }
 
       // Forward the request to the external API with the same auth token
@@ -85,11 +78,7 @@ defineRoute(
     } catch (error) {
       console.error("Error fetching all project backups:", error);
       return c.json(
-        {
-          success: false,
-          backups: [],
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
+        { success: false, err: error instanceof Error ? error.message : "Unknown error" },
         500,
       );
     }
@@ -116,31 +105,18 @@ defineRoute(
         name.startsWith(".") ||
         name.length > 255
       ) {
-        return c.json(
-          {
-            success: false,
-            error: "Invalid backup name",
-          },
-          400,
-        );
+        return c.json({ success: false, err: "Invalid backup name" }, 400);
       }
 
       const authHeader = c.req.header("Authorization");
       const secretKey = _STATUS_API_KEY;
 
       if (!authHeader) {
-        return c.json(
-          {
-            success: false,
-            error: "Authorization header required",
-          },
-          401,
-        );
+        return c.json({ success: false, err: "Authorization header required" }, 401);
       }
 
       // Call the external API to create backup
       const url = `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/backup/${name}`;
-      console.log("Calling backup API:", url, "with name:", name);
 
       const response = await fetch(url, {
         method: "POST",
@@ -152,32 +128,19 @@ defineRoute(
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(
-          `Failed to create backup: ${response.status} ${response.statusText}`,
-          errorText,
-        );
+        console.error(`Failed to create backup: ${response.status} ${response.statusText}`, errorText);
         return c.json(
-          {
-            success: false,
-            error: `Failed to create backup: ${response.status} ${response.statusText}`,
-          },
+          { success: false, err: `Failed to create backup: ${response.status} ${response.statusText}` },
           response.status as 400 | 401 | 403 | 404 | 500 | 502 | 503,
         );
       }
 
       const data = await response.json();
-      console.log("Backup API response:", data);
 
       // Check if the backup script itself failed
       if (!data.success) {
         console.error("Backup script failed:", data.error);
-        return c.json(
-          {
-            success: false,
-            error: data.error || "Backup failed",
-          },
-          500,
-        );
+        return c.json({ success: false, err: data.error || "Backup failed" }, 500);
       }
 
       // Success - backup script ran successfully
@@ -186,8 +149,11 @@ defineRoute(
         logs: data.logs,
       });
     } catch (error) {
-      console.error("Error downloading backup file:", error);
-      return c.json({ error: "File not found" }, 404);
+      console.error("Error creating backup file:", error);
+      return c.json(
+        { success: false, err: error instanceof Error ? error.message : "Unknown error" },
+        500,
+      );
     }
   },
 );
@@ -203,8 +169,6 @@ defineRoute(
       const folder = c.req.param("folder");
       const fileName = c.req.param("file");
 
-      console.log("Download params - folder:", folder, "fileName:", fileName);
-
       // Security: Prevent directory traversal
       if (
         !folder ||
@@ -214,7 +178,7 @@ defineRoute(
         folder.includes("/") ||
         fileName.includes("/")
       ) {
-        return c.json({ error: "Invalid path" }, 400);
+        return c.json({ success: false, err: "Invalid path" }, 400);
       }
 
       // Get the authorization header from the incoming request
@@ -222,13 +186,7 @@ defineRoute(
       const secretKey = _STATUS_API_KEY;
 
       if (!authHeader) {
-        return c.json(
-          {
-            success: false,
-            error: "Authorization header required",
-          },
-          401,
-        );
+        return c.json({ success: false, err: "Authorization header required" }, 401);
       }
 
       // Fetch the file from the external API
@@ -253,19 +211,8 @@ defineRoute(
         );
       }
 
-      // Log response headers for debugging
-      console.log(
-        "Response headers:",
-        Object.fromEntries(response.headers.entries()),
-      );
-      console.log(
-        "Response content-type:",
-        response.headers.get("content-type"),
-      );
-
       // Get the file content
       const fileContent = await response.arrayBuffer();
-      console.log("File content size:", fileContent.byteLength);
 
       // Determine content type
       let contentType = "application/octet-stream";
@@ -279,17 +226,20 @@ defineRoute(
         contentType = "text/plain";
       }
 
-      // Return the file with appropriate headers
+      // Binary download — not a JSON envelope; cast to satisfy RouteHandler return type.
       return new Response(fileContent, {
         headers: {
           "Content-Type": contentType,
           "Content-Disposition": `attachment; filename="${fileName}"`,
           "Content-Length": fileContent.byteLength.toString(),
         },
-      });
+      }) as any;
     } catch (error) {
       console.error("Error downloading backup file:", error);
-      return c.json({ error: "File not found" }, 404);
+      return c.json(
+        { success: false, err: error instanceof Error ? error.message : "File not found" },
+        404,
+      );
     }
   },
 );
@@ -303,29 +253,12 @@ defineRoute(
     "can_restore_backups",
   ),
   log("restoreBackup"),
-  async (c) => {
+  async (c, { body }) => {
     try {
-      // Parse request body as JSON
-      const body = (await c.req.json()) as {
-        folder?: string;
-        fileName?: string;
-        fileData?: string; // base64 encoded file
-        projectId: string;
-      };
-
       const folder = body.folder;
       const fileName = body.fileName;
       const fileData = body.fileData;
       const projectId = c.var.ppk.projectId;
-
-      console.log(
-        "Parsed request - folder:",
-        folder,
-        "fileName:",
-        fileName,
-        "hasFileData:",
-        !!fileData,
-      );
 
       let fileContent;
       if (!fileData) {
@@ -341,7 +274,7 @@ defineRoute(
           return c.json(
             {
               success: false,
-              error: "Invalid path",
+              err: "Invalid path",
             },
             400,
           );
@@ -354,18 +287,11 @@ defineRoute(
           return c.json(
             {
               success: false,
-              error: "Authorization header required",
+              err: "Authorization header required",
             },
             401,
           );
         }
-
-        console.log(
-          "Restoring backup - folder:",
-          folder,
-          "fileName:",
-          fileName,
-        );
 
         // Step 1: Download the pgdump file from external API
         const response = await fetch(
@@ -387,7 +313,7 @@ defineRoute(
           return c.json(
             {
               success: false,
-              error: `Failed to download backup file: ${response.status} ${response.statusText}`,
+              err: `Failed to download backup file: ${response.status} ${response.statusText}`,
             },
             500,
           );
@@ -395,7 +321,6 @@ defineRoute(
 
         // Step 2: Get the file content
         fileContent = await response.arrayBuffer();
-        console.log("Downloaded backup file, size:", fileContent.byteLength);
       } else {
         // Decode base64 file data
         const binaryString = atob(fileData);
@@ -404,25 +329,12 @@ defineRoute(
           bytes[i] = binaryString.charCodeAt(i);
         }
         fileContent = bytes.buffer;
-        console.log(
-          "Received uploaded backup file, size:",
-          fileContent.byteLength,
-        );
       }
       // Step 3: Write to temporary file
       const tempPath = join(_SANDBOX_DIR_PATH, `restore_${Date.now()}.sql.gz`);
       await Deno.writeFile(tempPath, new Uint8Array(fileContent));
-      console.log("Wrote backup to temp file:", tempPath);
 
       try {
-        // Step 5: Log database details for debugging
-        console.log("Database connection details:", {
-          host: _PG_HOST,
-          port: _PG_PORT,
-          user: "postgres",
-          database: projectId,
-        });
-
         // Step 6: Decompress the gzipped SQL file
         const decompressCommand = new Deno.Command("gunzip", {
           args: [tempPath],
@@ -440,7 +352,7 @@ defineRoute(
           return c.json(
             {
               success: false,
-              error: `Failed to decompress backup: ${stderrText}`,
+              err: `Failed to decompress backup: ${stderrText}`,
             },
             500,
           );
@@ -448,13 +360,11 @@ defineRoute(
 
         // After decompression, the file will be without .gz extension
         const decompressedPath = tempPath.replace(/\.gz$/, "");
-        console.log("Decompressed to:", decompressedPath);
 
         // Step 7: Drop and recreate the database for a clean restore
 
         // First, close any cached connections to the project database
         await closePgConnection(projectId);
-        console.log(`Closed cached connections for database: ${projectId}`);
 
         // Terminate all existing connections to ensure clean restore
         const postgresDb = getPgConnection("postgres");
@@ -465,16 +375,12 @@ defineRoute(
             WHERE datname = '${projectId}'
               AND pid <> pg_backend_pid()
           `);
-          console.log(`Terminated all connections to database: ${projectId}`);
 
           // Small delay to ensure connections are fully terminated
           await new Promise((resolve) => setTimeout(resolve, 100));
 
           // Drop and recreate the database for a clean slate
-          console.log(`Dropping database: ${projectId}`);
           await postgresDb.unsafe(`DROP DATABASE IF EXISTS "${projectId}"`);
-
-          console.log(`Creating fresh database: ${projectId}`);
           await postgresDb.unsafe(`CREATE DATABASE "${projectId}"`);
         } finally {
           await postgresDb.end();
@@ -482,10 +388,6 @@ defineRoute(
 
         // Now restore the backup using docker exec to run psql in the postgres container
         // The dump file contains all necessary DROP and CREATE statements
-        console.log(
-          "Restoring SQL file using docker exec psql:",
-          decompressedPath,
-        );
 
         const restoreCommand = new Deno.Command("docker", {
           args: [
@@ -507,12 +409,6 @@ defineRoute(
 
         // Read the SQL file and pipe it to psql's stdin
         const sqlContent = await Deno.readFile(decompressedPath);
-        const sqlText = new TextDecoder().decode(sqlContent);
-        const lineCount = sqlText.split("\n").length;
-        const copyCommands = (sqlText.match(/^COPY /gm) || []).length;
-        console.log(
-          `SQL file stats: ${lineCount} lines, ${copyCommands} COPY commands, ${sqlContent.byteLength} bytes`,
-        );
 
         const writer = restoreProcess.stdin.getWriter();
         await writer.write(sqlContent);
@@ -526,13 +422,6 @@ defineRoute(
 
         const stderrText = new TextDecoder().decode(restoreStderr);
         const stdoutText = new TextDecoder().decode(restoreStdout);
-
-        console.log("psql exit code:", restoreCode);
-        console.log("psql stderr:", stderrText);
-        console.log(
-          "psql stdout (first 500 chars):",
-          stdoutText.substring(0, 500),
-        );
 
         if (restoreCode !== 0) {
           console.error("Restore failed with code:", restoreCode);
@@ -549,14 +438,11 @@ defineRoute(
           return c.json(
             {
               success: false,
-              error: `Failed to restore backup: ${stderrText || stdoutText}`,
+              err: `Failed to restore backup: ${stderrText || stdoutText}`,
             },
             500,
           );
         }
-
-        console.log("Successfully restored backup");
-        console.log("psql output:", stdoutText);
 
         // A restored dump may carry an older schema (e.g. the pre-split
         // facilities table); bring it up to date now instead of waiting for
@@ -567,7 +453,6 @@ defineRoute(
         // Clean up decompressed file
         try {
           await Deno.remove(decompressedPath);
-          console.log("Cleaned up decompressed file:", decompressedPath);
         } catch (err) {
           console.error("Failed to clean up decompressed file:", err);
         }
@@ -579,7 +464,6 @@ defineRoute(
         // Clean up temporary file (gunzip removes the .gz file, so this might not exist)
         try {
           await Deno.remove(tempPath);
-          console.log("Cleaned up temp file:", tempPath);
         } catch (err) {
           // Ignore NotFound errors - gunzip already removed the .gz file
           if (!(err instanceof Deno.errors.NotFound)) {
@@ -592,7 +476,7 @@ defineRoute(
       return c.json(
         {
           success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
+          err: error instanceof Error ? error.message : "Unknown error",
         },
         500,
       );

@@ -572,7 +572,7 @@ function ProjectBackups(props: { projectId: string }) {
     }
 
     if (!data.success) {
-      return { success: false, err: data.error || "Failed to fetch backups" };
+      return { success: false, err: data.err || "Failed to fetch backups" };
     }
 
     const allBackups = data.backups || [];
@@ -707,12 +707,12 @@ function ProjectBackups(props: { projectId: string }) {
 
       if (!response.ok) {
         const data = await response.json();
-        return { success: false, err: data.error || "Failed to restore" };
+        return { success: false, err: data.err || "Failed to restore" };
       }
 
       const data = await response.json();
       if (!data.success) {
-        return { success: false, err: data.error || "Restore failed" };
+        return { success: false, err: data.err || "Restore failed" };
       }
 
       // Force full page reload after successful restore to clear all cached data
@@ -754,7 +754,7 @@ function ProjectBackups(props: { projectId: string }) {
           if (!data.success) {
             return {
               success: false as const,
-              err: data.error || "Backup failed",
+              err: data.err || "Backup failed",
             };
           }
 
@@ -808,7 +808,7 @@ function ProjectBackups(props: { projectId: string }) {
             const data = await response.json();
             return {
               success: false as const,
-              err: data.error || "Failed to restore",
+              err: data.err || "Failed to restore",
             };
           }
 
@@ -816,7 +816,7 @@ function ProjectBackups(props: { projectId: string }) {
           if (!data.success) {
             return {
               success: false as const,
-              err: data.error || "Restore failed",
+              err: data.err || "Restore failed",
             };
           }
 

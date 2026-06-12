@@ -30,8 +30,8 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 
 ## Tier 2 — Turn a doc into an enforced protocol (each also kills a bug class)
 
-- [ ] **3. `validateAllRoutesDefined` should fail, not warn.**
-  → **Absorbed into [PLAN_API_ROUTES_HARDENING.md](PLAN_API_ROUTES_HARDENING.md) (B2)**, which owns the full route-system hardening pass (2026-06-12 review). Track it there.
+- [x] **3. `validateAllRoutesDefined` should fail, not warn.**
+  **DONE 2026-06-12** (via the API-routes hardening pass, plan deleted): boot now `Deno.exit(1)`s on missing/extra routes and additionally checks registry key collisions and duplicate `method+path` pairs. See DOC_API_ROUTES.md §Startup validation.
 
 - [ ] **4. Startup guard-audit: every registered route is guarded or explicitly public.**
   Classify each route registered via `defineRoute` as having a permission guard or an explicit `/* PUBLIC */` marker; fail boot on an unclassified route. Permanently closes the `health.ts`-style class (item 1) and any future omission.

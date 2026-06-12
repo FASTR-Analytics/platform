@@ -1,4 +1,4 @@
-import type { GlobalUser, UserLog, UserPermission, ProjectPermission } from "../../types/mod.ts";
+import type { GlobalUser, OtherUser, ProjectUserRole, UserLog, UserPermission, ProjectPermission } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 // Route registry for users
@@ -12,13 +12,12 @@ export const userRouteRegistry = {
     path: "/user/:email",
     method: "GET",
     params: {} as { email: string },
-    response: {} as GlobalUser,
+    response: {} as { user: OtherUser; projectUserRoles: ProjectUserRole[] },
   }),
   addUsers: route({
     path: "/user",
     method: "POST",
     body: {} as { emails: string[]; isGlobalAdmin: boolean },
-    response: {} as string[],
   }),
   toggleUserAdmin: route({
     path: "/user/toggle-admin",

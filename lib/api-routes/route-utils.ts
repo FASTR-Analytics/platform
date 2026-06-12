@@ -18,6 +18,7 @@ export function route<
   response?: TResponse;
   requiresProject?: TRequiresProject;
   isStreaming?: TIsStreaming;
+  timeoutMs?: number;
 }) {
   // Return only path and method for runtime, but preserve type information
   const result: any = {
@@ -31,12 +32,14 @@ export function route<
   if (config.requiresProject !== undefined)
     result.requiresProject = config.requiresProject;
   if (config.isStreaming !== undefined) result.isStreaming = config.isStreaming;
+  if (config.timeoutMs !== undefined) result.timeoutMs = config.timeoutMs;
 
   // Always add response field to match the type
   result.response = config.response;
 
   // Infer the actual response type based on whether response is provided
-  type InferredResponse = TResponse extends never
+  // Use non-distributive form [T] extends [never] to avoid the distributive-conditional pitfall
+  type InferredResponse = [TResponse] extends [never]
     ? APIResponseNoData
     : APIResponseWithData<TResponse>;
 
@@ -48,6 +51,7 @@ export function route<
     response: InferredResponse;
     requiresProject: TRequiresProject;
     isStreaming: TIsStreaming;
+    timeoutMs: number | undefined;
   };
 }
 

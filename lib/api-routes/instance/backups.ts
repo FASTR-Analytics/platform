@@ -1,31 +1,13 @@
 import { route } from "../route-utils.ts";
 
-interface BackupFileInfo {
-  name: string;
-  size: number;
-  type: "main" | "project" | "metadata" | "log" | "other";
-}
-
-interface ProjectBackupInfo {
-  project_id: string;
-  project_label: string;
-  folder: string;
-  timestamp: string;
-  backup_date: string;
-  size: number;
-  file_count: number;
-  files: BackupFileInfo[];
-}
-
 // Route registry for backups
 export const backupRouteRegistry = {
+  // Note: these routes return non-standard shapes alongside the APIResponse envelope.
+  // The `response` field is omitted so InferredResponse = APIResponseNoData; extra success
+  // properties (backups, logs) are structurally compatible with { success: true }.
   getAllProjectsBackups: route({
     path: "/api/all-projects-backups",
     method: "GET",
-    response: {} as {
-      success: boolean;
-      backups: ProjectBackupInfo[];
-    },
   }),
   createBackupFile: route({
     path: "/api/create-backup/:name",
@@ -33,13 +15,9 @@ export const backupRouteRegistry = {
     params: {} as {
       name: string;
     },
-    response: {} as {
-      success: boolean;
-      logs?: string;
-      error?: string;
-    },
     requiresProject: true,
   }),
+  // downloadBackupFile returns a binary Response on success (not JSON); error paths return JSON.
   downloadBackupFile: route({
     path: "/api/backups/:folder/:file",
     method: "GET",
@@ -55,12 +33,7 @@ export const backupRouteRegistry = {
     body: {} as {
       folder?: string;
       fileName?: string;
-      projectId: string;
-      file?: File;
-    },
-    response: {} as {
-      success: boolean;
-      error?: string;
+      fileData?: string;
     },
     requiresProject: true,
   }),

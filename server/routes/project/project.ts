@@ -476,8 +476,7 @@ defineRoute(
   async (c) => {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
     const res = await GetLogsByProject(mainDb, c.var.ppk.projectId);
-    if (!res.success) return c.json(res, 500);
-    return c.json(res.data);
+    return c.json(res);
   },
 );
 
