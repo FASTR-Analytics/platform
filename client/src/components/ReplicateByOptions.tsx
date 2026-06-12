@@ -10,6 +10,11 @@ import {
 } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import {
+  getModuleIdForResultsObject,
+  moduleDataVersionKey,
+  projectState,
+} from "~/state/project/t1_store";
+import {
   Select,
   SelectList,
   StateHolder,
@@ -86,16 +91,26 @@ export function ReplicateByOptionsPresentationObject(
     const resultsObjectId = p.poDetail.resultsValue.resultsObjectId;
     const replicateBy = p.replicateBy;
     const fetchConfig = resFetchConfig.data;
+    // Tracked version-key read — must precede the first await
+    moduleDataVersionKey(projectState, getModuleIdForResultsObject(resultsObjectId));
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     setReplicantOptions({ status: "loading", msg: t3(TC.loading) });
     async function load() {
-      const res = await getReplicantOptionsFromCacheOrFetch(projectId, resultsObjectId, replicateBy, fetchConfig);
-      if (controller.signal.aborted) return;
-      if (res.success) {
-        setReplicantOptions({ status: "ready", data: res.data });
-      } else {
-        setReplicantOptions({ status: "error", err: res.err });
+      try {
+        const res = await getReplicantOptionsFromCacheOrFetch(projectId, resultsObjectId, replicateBy, fetchConfig);
+        if (controller.signal.aborted) return;
+        if (res.success) {
+          setReplicantOptions({ status: "ready", data: res.data });
+        } else {
+          setReplicantOptions({ status: "error", err: res.err });
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setReplicantOptions({
+          status: "error",
+          err: err instanceof Error ? err.message : String(err),
+        });
       }
     }
     load();
@@ -181,16 +196,26 @@ export function ReplicateByOptionsPresentationObjectSelect(
     const resultsObjectId = p.poDetail.resultsValue.resultsObjectId;
     const replicateBy = p.replicateBy;
     const fetchConfig = resFetchConfig.data;
+    // Tracked version-key read — must precede the first await
+    moduleDataVersionKey(projectState, getModuleIdForResultsObject(resultsObjectId));
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     setReplicantOptions({ status: "loading", msg: t3(TC.loading) });
     async function load() {
-      const res = await getReplicantOptionsFromCacheOrFetch(projectId, resultsObjectId, replicateBy, fetchConfig);
-      if (controller.signal.aborted) return;
-      if (res.success) {
-        setReplicantOptions({ status: "ready", data: res.data });
-      } else {
-        setReplicantOptions({ status: "error", err: res.err });
+      try {
+        const res = await getReplicantOptionsFromCacheOrFetch(projectId, resultsObjectId, replicateBy, fetchConfig);
+        if (controller.signal.aborted) return;
+        if (res.success) {
+          setReplicantOptions({ status: "ready", data: res.data });
+        } else {
+          setReplicantOptions({ status: "error", err: res.err });
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setReplicantOptions({
+          status: "error",
+          err: err instanceof Error ? err.message : String(err),
+        });
       }
     }
     load();

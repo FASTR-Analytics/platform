@@ -46,7 +46,7 @@ There are exactly **two** broadcast channels, each with one SSE endpoint:
 
 ### Connection lifecycle — subscribe-before-build
 
-Both endpoints use Hono's `streamSSE` and follow the same five steps; the project endpoint's doc-comment names this as the fix for the v1 drop race:
+Both endpoints use Hono's `streamSSE` and follow the same six steps; the project endpoint's doc-comment names this as the fix for the v1 drop race:
 
 ```text
 1. Authenticate — hard-deny unauthenticated clients (both endpoints)
@@ -57,7 +57,8 @@ Both endpoints use Hono's `streamSSE` and follow the same five steps; the projec
 6. Forward all subsequent messages until the connection closes
    ↳ Abort: stream.onAbort() wakes the park loop / closes the ReadableStream controller;
      stream.aborted is checked after build and at the top of the forward loop.
-     cleanup in finally (removeEventListener + broadcastReceiver.close()).
+     cleanup in finally (project: removeEventListener + broadcastReceiver.close();
+     instance: broadcastReceiver.close(), which implicitly drops its listener).
 ```
 
 The two implementations diverge mechanically (and shouldn't):
@@ -153,7 +154,7 @@ The load-bearing invariant: **every realtime/cached read model is keyed on a ver
 
 ## Gotchas
 
-- **Project SSE hard-denies unauthenticated clients.** `getGlobalUser` is called before `streamSSE`; a `NOT_AUTHENTICATED` result returns 401 immediately. `getProjectUserForSSE` then checks project access; no project access returns 403. This matches the instance endpoint's `requireGlobalPermission()` guard. Open-access mode does NOT bypass this — anonymous SSE is not supported.
+- **Project SSE hard-denies unauthenticated clients.** `getGlobalUser` is called before `streamSSE`; a `NOT_AUTHENTICATED` result returns 401 immediately. `resolveProjectUserAccess` (the same shared core the route middleware uses — central-reporting gate, admin/H_USERS grant, role row with ≥1 `can_` flag) then checks project access; a deny returns 403, a DB failure 503. Open-access mode does NOT bypass this — anonymous SSE is not supported.
 - **`projectsLastUpdated` is server-stamped `new Date()` in `starting`.** Every SSE reconnect triggers a redundant `/my_projects` refetch on the client, even when the projects list hasn't changed. This is harmless but slightly wasteful; a targeted invalidation or a client-side staleness check would eliminate it.
 - **A failed post-write refetch silently strands clients.** `if (list.success)` means a failed refetch sends *nothing* — clients stay stale until the next mutation. At minimum log it; better, always send `last_updated` so clients self-invalidate.
 - **Channel-name strings are duplicated** between producer (`notify_*` files) and consumer (SSE endpoints). A one-character drift silently breaks delivery with no error. Use a shared constant.

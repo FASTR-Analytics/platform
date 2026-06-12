@@ -17,6 +17,11 @@ import { t3 } from "lib";
 import { LabelHolder } from "panther";
 import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { unwrap } from "solid-js/store";
+import {
+  getModuleIdForResultsObject,
+  moduleDataVersionKey,
+  projectState,
+} from "~/state/project/t1_store";
 import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
@@ -44,6 +49,11 @@ export function PresetPreview(p: Props) {
   createEffect(() => {
     const preset = p.preset;
     const metric = p.metric;
+    // Tracked version-key read — fetchPreview's cache-internal reads are untracked
+    moduleDataVersionKey(
+      projectState,
+      getModuleIdForResultsObject(metric.resultsObjectId),
+    );
     const thisVersion = ++version;
     setState({ status: "loading" });
 

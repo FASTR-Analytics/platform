@@ -46,7 +46,7 @@ Metadata and list data for the project. Pushed via SSE on every change. Componen
 | Metrics | `metrics` | `modules_updated` (derived from modules) | — |
 | Common indicators | `commonIndicators` | `modules_updated` (derived) | — |
 | ICEH indicators | `icehIndicators` | `modules_updated` (derived) | — |
-| HFA taxonomy | `hfaTaxonomy` | `modules_updated` (derived) | — |
+| HFA taxonomy | `hfaTaxonomy` | — (`starting` only; no update event carries it) | — |
 | Visualizations | `visualizations` | `visualizations_updated` | — |
 | Visualization folders | `visualizationFolders` | `visualization_folders_updated` | — |
 | Slide decks | `slideDecks` | `slide_decks_updated` | — |
@@ -59,10 +59,10 @@ Metadata and list data for the project. Pushed via SSE on every change. Componen
 | Module last run | `moduleLastRun`, `moduleLastRunGitRef` | `module_dirty_state` | `moduleLastRun[moduleId]` |
 | Any running | `anyRunning` | `any_running` | — |
 | Per-entity timestamps | `lastUpdated` (tables: `presentation_objects`, `slides`, `slide_decks`, `modules`, `datasets`, `dashboards`, `dashboard_items`, `reports`) | `last_updated` | `lastUpdated[tableName][entityId]` |
-| Current user | `currentUserEmail`, `thisUserPermissions` | `project_users_updated` (re-derived) | — |
+| Current user | `currentUserEmail` (set in `starting` only), `thisUserRole` (deprecated), `thisUserPermissions` (re-derived on `project_users_updated` using `currentUserEmail` as the lookup key) | `project_users_updated` | — |
 | Project timestamp | `projectLastUpdated` | (internal) | — |
 
-**Per-entity `lastUpdated` timestamps:** Unlike instance state, project T2 caches need per-entity versioning. For example, when a single presentation object is edited, only that PO's cache entry should invalidate — not all POs. The `lastUpdated` field is a nested record: `Record<LastUpdateTableName, Record<string, string>>`, where table names include `presentation_objects`, `slides`, `slide_decks`, `modules`, `datasets`.
+**Per-entity `lastUpdated` timestamps:** Unlike instance state, project T2 caches need per-entity versioning. For example, when a single presentation object is edited, only that PO's cache entry should invalidate — not all POs. The `lastUpdated` field is a nested record: `Record<LastUpdateTableName, Record<string, string>>` — the full table-name list is in the row above (source of truth: `LastUpdateTableName` in `lib/types/project_dirty_states.ts`).
 
 **Derived lookup maps:** `t1_store.ts` maintains internal lookup maps (`metricToModule`, `resultsObjectToModule`, `metricToFormatAs`) recomputed from `projectModules`/`metrics` whenever those fields update. Exported via getter functions (`getModuleIdForMetric()`, `getModuleIdForResultsObject()`, `getFormatAsForMetric()`). Used by T2 caches to resolve module-based version keys.
 
@@ -80,9 +80,9 @@ Most project-level T2 caches are **per-entity** — keyed by an individual entit
 | --- | --- | --- | --- | --- |
 | Dashboard detail (with items) | `project/t2_dashboards.ts` | `lastUpdated.dashboards[dashboardId]` | B (per-entity) | Items array can be large (stripped figure inputs) |
 | PO detail (config, metadata) | `project/t2_presentation_objects.ts` | `lastUpdated.presentation_objects[poId]` | B (per-entity) | Full config object per PO |
-| PO items (data rows) | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` (via resultsObjectId lookup) | A (whole-module data) | Potentially thousands of rows |
-| Metric info (results value info) | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` (via metricId lookup) | A | Per-metric results metadata |
-| Replicant options | `project/t2_replicant_options.ts` | `moduleLastRun[moduleId]` (via resultsObjectId lookup) | A | Disaggregation options per fetch config |
+| PO items (data rows) | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` (via resultsObjectId lookup) + `datasetsVersionKey` | A (whole-module data) | Potentially thousands of rows |
+| Metric info (results value info) | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` (via metricId lookup) + `datasetsVersionKey` | A | Per-metric results metadata |
+| Replicant options | `project/t2_replicant_options.ts` | `moduleLastRun[moduleId]` (via resultsObjectId lookup) + `datasetsVersionKey` | A | Disaggregation options per fetch config |
 | Slide content | `project/t2_slides.ts` | `lastUpdated.slides[slideId]` | B (per-entity) | Full slide with blocks and metadata |
 | Slide deck detail | `project/t2_slide_decks.ts` | `lastUpdated.slide_decks[deckId]` | B (per-entity) | Deck label, plan, config, slide order |
 | Image blobs | `project/t2_images.ts` | URL-based (not PDS-keyed) | — | Binary data, IndexedDB + memory |

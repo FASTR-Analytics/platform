@@ -1,6 +1,6 @@
 import { t3 } from "lib";
 import { HeadingBar, StateHolderWrapper, createQuery } from "panther";
-import { createEffect, createSignal, For } from "solid-js";
+import { createEffect, createSignal, For, onCleanup } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { projectState } from "~/state/project/t1_store";
 import { getClientVizCacheStatuses, type ClientVizCacheStatus } from "~/state/clear_caches";
@@ -24,7 +24,17 @@ export function ProjectCache() {
               refreshCount();
               const id = projectState.id;
               const vizs = data.visualizations;
-              async function load() { setClientStatuses(await getClientVizCacheStatuses(id, vizs)); }
+              const controller = new AbortController();
+              onCleanup(() => controller.abort());
+              async function load() {
+                try {
+                  const statuses = await getClientVizCacheStatuses(id, vizs);
+                  if (controller.signal.aborted) return;
+                  setClientStatuses(statuses);
+                } catch (err) {
+                  console.error("getClientVizCacheStatuses failed:", err);
+                }
+              }
               load();
             });
 

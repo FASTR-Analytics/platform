@@ -136,6 +136,11 @@ the data:
 - **Snapshot read — use `createQuery`.** Acceptable only for short-lived consumers
   (picker modals, dropdowns that close after selection) where SSE updates during
   the view's lifetime aren't consumed.
+- **Edit draft — snapshot-at-open with explicit save.** Draft editors (viz
+  editor, report editor) deliberately decouple from SSE for their lifetime so a
+  live update cannot overwrite the user's in-progress work; they are NOT
+  violations of the live-read rule. Contract and canonical markers:
+  `DOC_STATE_MGT_TIERS.md` "Edit-draft read mode".
 
 When in doubt, prefer live read.
 
@@ -157,9 +162,10 @@ const poDetailQuery = createQuery(
 ```
 
 ```tsx
-// ❌ WRONG — createQuery used in a long-lived editor.
-// Editor is open for minutes; SSE updates from other users (or this user's
-// own mutations) will not be reflected.
+// ❌ WRONG — createQuery used for a long-lived LIVE view (dashboard, list,
+// thumbnails): SSE updates from other users (or this user's own mutations)
+// will not be reflected. (A draft editor that intentionally snapshots at open
+// is edit-draft mode, not a live view — see DOC_STATE_MGT_TIERS.md.)
 const dataQuery = createQuery(() => getDashboardDetailFromCacheOrFetch(...));
 
 // ❌ WRONG — `createQuery` has no `queryKey`. Unlike TanStack Query /

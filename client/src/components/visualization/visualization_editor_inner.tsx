@@ -1,5 +1,10 @@
 import { trackStore } from "@solid-primitives/deep";
 import {
+  getModuleIdForResultsObject,
+  moduleDataVersionKey,
+  projectState,
+} from "~/state/project/t1_store";
+import {
   FIGURE_EXPORT_WIDTH_PX,
   ItemsHolderPresentationObject,
   PresentationObjectConfig,
@@ -246,6 +251,12 @@ export function VisualizationEditorInner(p: InnerProps) {
     const _periodFilterMin = _periodFilterBounded?.min;
     const _periodFilterMax = _periodFilterBounded?.max;
     const _valuesFilter = tempConfig.d.valuesFilter?.join("-");
+    // Tracked version-key read so the preview refetches when module output or
+    // dataset integration changes mid-edit (cache-internal reads are untracked).
+    moduleDataVersionKey(
+      projectState,
+      getModuleIdForResultsObject(p.poDetail.resultsValue.resultsObjectId),
+    );
     if (firstRunConfigChange) {
       firstRunConfigChange = false;
       return;

@@ -177,20 +177,4 @@ export class TimCacheD<UniquenessParams, VersionParams, T> {
       throw error;
     }
   }
-
-  // Clear all in-memory caches
-  clearMemory(): void {
-    this._resolved.clear();
-    this._unresolved.clear();
-    this._accessOrder.clear();
-  }
-
-  // Clear a specific entry
-  clearEntry(uniquenessParams: UniquenessParams): void {
-    const uniquenessHash =
-      this._hashFuncs.uniquenessHashFromParams(uniquenessParams);
-    this._resolved.delete(uniquenessHash);
-    this._unresolved.delete(uniquenessHash);
-    this._accessOrder.delete(uniquenessHash);
-  }
 }

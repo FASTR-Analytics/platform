@@ -123,21 +123,21 @@ export function createReactiveCache<Params, Data>(
   async function getCached(
     params: Params,
   ): Promise<{ data: Data | undefined; version: string; isInflight?: boolean }> {
-    // Get non-reactive snapshot from global (works in async contexts)
+    // Non-reactive snapshot (unwrap-based; safe in async contexts). Never
+    // undefined — the t1 store is always initialized; "no project open" is
+    // just the not-ready EMPTY_PROJECT_STATE.
     const pds = getProjectStateSnapshot();
 
-    // If PDS not available or not ready, check if cache requires it
-    if (!pds || !pds.isReady) {
+    if (!pds.isReady) {
       if (!config.pdsNotRequired) {
-        // console.log(`[ReactiveCache:${config.name}] PDS not ready - cache miss`);
         return { data: undefined, version: "pds_not_ready" };
       }
-      // pdsNotRequired: versionKey is called with the live (possibly not-ready) store,
-      // or undefined when no project is open. versionKey must not depend on pds.
+      // pdsNotRequired: versionKey is called with the not-ready store and
+      // must not depend on pds.
     }
 
-    const version = config.versionKey(params, pds!);
-    const cacheKey = getCacheKey(params, pds!);
+    const version = config.versionKey(params, pds);
+    const cacheKey = getCacheKey(params, pds);
 
     // Check memory cache
     const existingInMemory = _resolved.get(cacheKey);
@@ -291,7 +291,9 @@ export function createReactiveCache<Params, Data>(
     }
   }
 
-  /** Clear entries matching a partial key prefix */
+  /** Clear entries matching a partial key prefix. Must be a STRICT prefix of
+   * the uniqueness keys — passing the complete key list matches nothing (full
+   * keys are followed by "::", not "|"); use clearEntry for that. */
   async function clearEntriesWithPrefix(partialKeys: (string | number | undefined)[]): Promise<void> {
     const prefix = hashKeys(partialKeys) + "|";
 

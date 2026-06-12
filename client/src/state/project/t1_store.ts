@@ -180,10 +180,6 @@ export function getProjectStateSnapshot(): ProjectState {
   return unwrap(projectState);
 }
 
-export function getProjectId(): string {
-  return unwrap(projectState).id;
-}
-
 export function getModuleIdForMetric(metricId: string): string {
   return metricToModule[metricId] ?? "unknown";
 }
@@ -206,6 +202,17 @@ export function datasetsVersionKey(pds: ProjectState): string {
     .sort()
     .map((dt) => `${dt}:${pds.lastUpdated.datasets[dt]}`)
     .join(",");
+}
+
+// Composite version for caches keyed on module output (PO items, metric info,
+// replicant options). Consumers inside a createEffect must call this with the
+// live `projectState` proxy before their first await — getProjectStateSnapshot
+// is unwrapped, so cache-internal reads are NOT tracked.
+export function moduleDataVersionKey(
+  pds: ProjectState,
+  moduleId: string,
+): string {
+  return `${pds.moduleLastRun[moduleId] ?? "unknown"}|${datasetsVersionKey(pds)}`;
 }
 
 export { projectState };

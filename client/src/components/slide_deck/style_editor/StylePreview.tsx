@@ -6,7 +6,7 @@ import {
   type PageInputs,
   getBaseText,
 } from "panther";
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { FASTR_LOGO_VALUES } from "~/components/_shared/fastr_logos";
 import { getBackgroundDetail, type BackgroundDetail } from "~/generate_slide_deck/get_overlay_image";
@@ -115,28 +115,57 @@ export function StylePreview(p: StylePreviewProps) {
 
   createEffect(() => {
     const config = p.config;
-    async function load() { setBgDetail(await getBackgroundDetail(config)); }
+    // `config` is the bare store root (untracked) — read getBackgroundDetail's
+    // actual inputs explicitly so the preview re-runs when they change
+    const _overlay = config.overlay;
+    const _colorTheme = JSON.stringify(config.colorTheme);
+    const _treatment = config.coverAndSectionTreatment;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const detail = await getBackgroundDetail(config);
+      if (controller.signal.aborted) return;
+      setBgDetail(detail);
+    }
     load();
   });
 
   createEffect(() => {
     const selected = p.config.logos.cover.selected;
     const custom = availableCustom();
-    async function load() { setCoverLogos(await loadLogos(selected, custom)); }
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const logos = await loadLogos(selected, custom);
+      if (controller.signal.aborted) return;
+      setCoverLogos(logos);
+    }
     load();
   });
 
   createEffect(() => {
     const selected = p.config.logos.header.selected;
     const custom = availableCustom();
-    async function load() { setHeaderLogos(await loadLogos(selected, custom)); }
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const logos = await loadLogos(selected, custom);
+      if (controller.signal.aborted) return;
+      setHeaderLogos(logos);
+    }
     load();
   });
 
   createEffect(() => {
     const selected = p.config.logos.footer.selected;
     const custom = availableCustom();
-    async function load() { setFooterLogos(await loadLogos(selected, custom)); }
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const logos = await loadLogos(selected, custom);
+      if (controller.signal.aborted) return;
+      setFooterLogos(logos);
+    }
     load();
   });
 

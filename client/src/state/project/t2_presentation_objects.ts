@@ -11,7 +11,7 @@ import {
   hashFetchConfig,
   t3,
 } from "lib";
-import { datasetsVersionKey, getModuleIdForMetric, getModuleIdForResultsObject } from "~/state/project/t1_store";
+import { getModuleIdForMetric, getModuleIdForResultsObject, moduleDataVersionKey } from "~/state/project/t1_store";
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { poItemsQueue, resultsValueInfoQueue } from "~/state/_infra/request_queue";
 import { serverActions } from "~/server_actions";
@@ -34,7 +34,7 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
     params.metricId,
   ],
   versionKey: (params, pds) =>
-    `${pds.moduleLastRun[getModuleIdForMetric(params.metricId)] ?? "unknown"}|${datasetsVersionKey(pds)}`,
+    moduleDataVersionKey(pds, getModuleIdForMetric(params.metricId)),
 });
 
 export const _PO_DETAIL_CACHE = createReactiveCache<
@@ -65,7 +65,7 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
     hashFetchConfig(params.fetchConfig),
   ],
   versionKey: (params, pds) =>
-    `${pds.moduleLastRun[getModuleIdForResultsObject(params.resultsObjectId)] ?? "unknown"}|${datasetsVersionKey(pds)}`,
+    moduleDataVersionKey(pds, getModuleIdForResultsObject(params.resultsObjectId)),
 });
 
 export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(

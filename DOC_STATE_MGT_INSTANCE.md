@@ -48,7 +48,7 @@ Lightweight metadata. Pushed via SSE on every change. Components read directly f
 | ICEH dataset summary | `icehCacheHash`                                                                                  | `datasets_updated`           | `icehCacheHash`                                    |
 | Calculated indicators | `calculatedIndicatorsVersion`                                                                   | `indicators_updated`         | `calculatedIndicatorsVersion`                      |
 | Admin area labels    | `adminAreaLabels`                                                                               | `config_updated`             | —                                                  |
-| HFA weights          | `hfaWeights`                                                                                    | `datasets_updated`           | —                                                  |
+| HFA weights          | `hfaWeights`                                                                                    | `structure_updated`          | —                                                  |
 | Current user         | `currentUserEmail`, `currentUserApproved`, `currentUserIsGlobalAdmin`, `currentUserPermissions` | `users_updated` (re-derived) | —                                                  |
 
 **Why these are on SSE state:** They're small, needed across multiple views (sidebar counts, landing cards, staleness checks, cache version keys), and benefit from real-time multi-user sync.
@@ -128,15 +128,17 @@ Handles `onMount` (connect), `onCleanup` (disconnect), and gates rendering on `i
 
 Medium-to-heavy data that is too large for SSE but still needs to be reactive. Cached in memory + IndexedDB. **Reactive** — a `createEffect` watches the version key from T1, so when SSE pushes a new version, the effect fires, the cache misses, and the component automatically re-fetches.
 
-All instance-level T2 caches are **Variant A** (whole-collection): a single version key invalidates the entire collection, and a loading flash on re-run is appropriate. See `DOC_STATE_MGT_TIERS.md` for the Variant A vs Variant B distinction; project-level per-entity caches use Variant B (no loading flash on SSE re-runs).
+Instance-level T2 caches are **Variant A** (whole-collection): a single version key invalidates the entire collection, and a loading flash on re-run is appropriate. Exception: the ICEH display consumer uses the Variant B initialize-once/AbortController pattern (no flash on re-import). See `DOC_STATE_MGT_TIERS.md` for the Variant A vs Variant B distinction; project-level per-entity caches use Variant B (no loading flash on SSE re-runs).
 
 | Data                                       | File                        | Cache version key(s)                                            | Why cached, not on SSE                                    |
 |--------------------------------------------|-----------------------------|-----------------------------------------------------------------|-----------------------------------------------------------|
-| HMIS display items (data rows)             | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `indicatorMappingsVersion`             | Potentially thousands of rows                             |
+| HMIS display items (data rows)             | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `indicatorMappingsVersion` + `maxAdminArea` | Potentially thousands of rows                             |
 | HFA display items (data rows)              | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                  | Potentially thousands of rows                             |
+| ICEH display items (data rows)             | `instance/t2_datasets.ts`   | `icehCacheHash`                                                 | Potentially thousands of rows                             |
 | HFA dictionary (variable metadata)         | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                  | Schema derived from HFA uploads; used for code validation |
 | Indicator full list (with mappings)        | `instance/t2_indicators.ts` | `indicatorMappingsVersion`                                      | Hundreds of objects with nested mapping arrays            |
 | HFA indicator full list                    | `instance/t2_indicators.ts` | `hfaIndicatorsVersion`                                          | Full indicator objects (metadata + sort order)            |
+| Calculated indicators                      | `instance/t2_indicators.ts` | `calculatedIndicatorsVersion`                                   | Full calculated-indicator definitions                     |
 | Structure items (facility/admin area rows) | `instance/t2_structure.ts`  | `structureLastUpdated` + `maxAdminArea` + `facilityColumnsHash` | Potentially thousands of rows                             |
 | GeoJSON map data                           | `instance/t2_geojson.ts`    | `uploadedAt` per admin level                                    | Large GeoJSON feature collections                         |
 

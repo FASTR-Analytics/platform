@@ -12,6 +12,8 @@ type CacheEntry = {
 
 const memoryCache = new Map<number, CacheEntry>();
 
+// Non-reactive: a map figure rendered before preloadGeoJson finishes gets
+// undefined (no boundaries) and will not re-render when the level loads.
 export function getGeoJsonSync(level: number): GeoJSONFeatureCollection | undefined {
   return memoryCache.get(level)?.data;
 }

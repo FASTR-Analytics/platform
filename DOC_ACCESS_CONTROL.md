@@ -148,7 +148,7 @@ Instance permissions: `can_configure_users`, `can_view_users`, `can_view_logs`, 
 ## What NOT to do
 
 - **Don't write a raw, unguarded route** for anything that reads or mutates instance/project data. `health.ts` is the cautionary example — it registers ~12 raw routes (`/user_logs`, `/ai_usage`, `/project_activity`, `/pg_stat_statements`) and a **mutating** `POST /pg_stat_statements_reset` with **no auth check at all** (the handlers reference no `getAuth`/`globalUser`/guard). Behind `clerkMiddleware` that populates-not-rejects, these are effectively reachable by any caller.
-- **Don't reimplement `getGlobalUser`/`getProjectUser`.** `project-sse-v2.ts` has a private `getProjectUserForSSE(c: any, mainDb: any, …)` that duplicates the lookup and **soft-fails** (returns `undefined`, never throws) — diverging from the hard-deny path and weakly typed. The instance SSE route, by contrast, uses `requireGlobalPermission()` and hard-denies. Pin which behavior is intended; don't fork a third.
+- **Don't reimplement `getGlobalUser`/`getProjectUser`.** The project SSE route once forked a private soft-failing `getProjectUserForSSE`; it has been retired in favor of `resolveProjectUserAccess` (exported from `project_auth.ts`) — the shared core of `getProjectUser` that both the route middleware and the SSE endpoint now call, so the two cannot drift. Any new consumer of project access must call that function, not re-query `project_user_roles`.
 - **Don't assume `globalUser` exists in a handler without a guard.** Only a guard populates `c.var.globalUser`/`c.var.ppk`.
 - **Don't drop the `authError` flag** on a `401`/`403` — the client treats its absence as "retryable", which is wrong for an auth failure.
 
@@ -168,8 +168,7 @@ Instance permissions: `can_configure_users`, `can_view_users`, `can_view_logs`, 
 
 - **Startup guard audit:** classify every route registered via `defineRoute` as *guarded* or *explicitly `/* PUBLIC */`*, and fail boot on an unclassified route. This closes the `health.ts`-style gap permanently (overlaps the registry check in [DOC_API_ROUTES.md](DOC_API_ROUTES.md), which owns the registry-exception list).
 - **Lint the IDOR pattern:** flag handlers that read a project id from `body`/`params` for a write while a `Project-Id`-scoped `ppk` is in context.
-- **Unify the two guard implementations** (or extract a shared core) so status codes / messages cannot drift.
-- **Make SSE reuse the canonical lookups** rather than `getProjectUserForSSE`, and decide soft-fail vs hard-deny explicitly.
+- **Unify the two guard implementations** (or extract a shared core) so status codes / messages cannot drift. (Partially done: the project-access core is now shared via `resolveProjectUserAccess`; the global-permission side is still duplicated.)
 - **Audit `H_USERS.includes()` call sites** and document, per site, why `requireAdmin` / a granular permission is insufficient.
 
 ---
@@ -191,10 +190,10 @@ Instance permissions: `can_configure_users`, `can_view_users`, `can_view_logs`, 
 |------|---------|
 | `server/middleware/auth.ts` | `authMiddleware` (Clerk / dev passthrough) |
 | `server/middleware/userPermission.ts` | `requireGlobalPermission` factory |
-| `server/project_auth.ts` | `requireProjectPermission`, `getGlobalUser`, `getProjectUser` |
+| `server/project_auth.ts` | `requireProjectPermission`, `getGlobalUser`, `getProjectUser`, `resolveProjectUserAccess` |
 | `lib/types/permissions.ts` | permission types, key arrays, `build*FromRow`, presets |
 | `lib/h_users.ts` | `H_USERS` hardcoded allowlist |
 | `server/exposed_env_vars.ts` | `_BYPASS_AUTH`, `_OPEN_ACCESS` |
-| `server/routes/project/project-sse-v2.ts` | `getProjectUserForSSE` (the duplicate to retire) |
+| `server/routes/project/project-sse-v2.ts` | project SSE endpoint (hard-denies via `resolveProjectUserAccess`) |
 | `server/routes/instance/health.ts` | the unguarded-routes gap |
 | `main.ts` | mounts `authMiddleware`, public-before-auth ordering |

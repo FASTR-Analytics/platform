@@ -233,18 +233,37 @@ async function getProjectUser(
     };
   }
 
+  if (!globalUser.approved) {
+    throw new Error("Middleware error: User is not approved");
+  }
+
+  const projectId = c.req.header("Project-Id");
+  if (!projectId) {
+    throw new Error("Middleware error: Project id not in header");
+  }
+
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const res = await resolveProjectUserAccess(globalUser, projectId, mainDb);
+  return { projectId, ...res };
+}
+
+/**
+ * The single authoritative project-access check: central-reporting gate,
+ * admin/H_USERS grant, then a role row with >=1 true `can_` flag. Used by both
+ * the route middleware (getProjectUser) and the SSE endpoint so the two cannot
+ * drift. Throws "Middleware error: ..." on deny, "SERVICE_UNAVAILABLE" on DB
+ * failure.
+ */
+export async function resolveProjectUserAccess(
+  globalUser: GlobalUser,
+  projectId: string,
+  mainDb: Sql,
+): Promise<{
+  projectLabel: string;
+  projectUser: ProjectUser;
+  isLocked: boolean;
+}> {
   try {
-    if (!globalUser.approved) {
-      throw new Error("Middleware error: User is not approved");
-    }
-
-    const projectId = c.req.header("Project-Id");
-    if (!projectId) {
-      throw new Error("Middleware error: Project id not in header");
-    }
-
-    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-
     const rawProjectResult = await mainDb<
       { label: string; is_locked: boolean; is_central_reporting: boolean }[]
     >`SELECT label, is_locked, is_central_reporting FROM projects WHERE id = ${projectId}`;
@@ -260,7 +279,6 @@ async function getProjectUser(
 
     if (globalUser.isGlobalAdmin || H_USERS.includes(globalUser.email)) {
       return {
-        projectId,
         projectLabel: rawProject.label,
         isLocked: rawProject.is_locked,
         projectUser: {
@@ -288,7 +306,6 @@ async function getProjectUser(
       );
     }
     return {
-      projectId,
       projectLabel: rawProject.label,
       isLocked: rawProject.is_locked,
       projectUser: {
@@ -305,7 +322,7 @@ async function getProjectUser(
     ) {
       throw error;
     }
-    console.error("Database error in getProjectUser:", error);
+    console.error("Database error in resolveProjectUserAccess:", error);
     throw new Error("SERVICE_UNAVAILABLE");
   }
 }

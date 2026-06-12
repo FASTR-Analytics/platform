@@ -42,16 +42,15 @@ async function getRawUAOrThrow(mainDb: Sql): Promise<DBIcehUploadAttempt> {
   return rawUA;
 }
 
-export function computeIcehCacheHash(
-  indicatorCount: number,
-  dataRowCount: number,
-  years: number[],
-): string {
-  const input = `${indicatorCount}:${dataRowCount}:${years.sort((a, b) => a - b).join(",")}`;
-  return createHash("md5").update(input).digest("hex").slice(0, 12);
-}
-
 export async function getIcehCacheHash(mainDb: Sql): Promise<string> {
+  // Counts/years alone are value-insensitive (a corrected re-import with
+  // identical counts hashes the same), so the upload attempt's date_started +
+  // status_type are included: every (re-)import flips the hash at completion,
+  // and mid-import values can never collide with the post-completion value.
+  const rawUA = await getRawUA(mainDb);
+  const attemptMarker = rawUA
+    ? `${rawUA.date_started}:${rawUA.status_type}`
+    : "no_upload";
   const indicatorCount = (await mainDb<{ count: number }[]>`
     SELECT COUNT(*)::int as count FROM iceh_indicators
   `)[0]?.count ?? 0;
@@ -61,7 +60,8 @@ export async function getIcehCacheHash(mainDb: Sql): Promise<string> {
   const yearsResult = await mainDb<{ year: number }[]>`
     SELECT DISTINCT year FROM iceh_data ORDER BY year
   `;
-  return computeIcehCacheHash(indicatorCount, dataRowCount, yearsResult.map((r) => r.year));
+  const input = `${attemptMarker}|${indicatorCount}:${dataRowCount}:${yearsResult.map((r) => r.year).join(",")}`;
+  return createHash("md5").update(input).digest("hex").slice(0, 12);
 }
 
 function parseUploadAttemptSummary(

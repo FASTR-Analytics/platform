@@ -1,18 +1,14 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import {
-  buildProjectPermissionsFromRow,
-  GlobalUser,
-  ProjectSseMessage,
-  ProjectUser,
-  _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-} from "lib";
-import { Sql } from "postgres";
-import type { DBProjectUserRole } from "../../db/instance/_main_database_types.ts";
+import { createDevProjectUser, ProjectSseMessage, ProjectUser } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
+import { _BYPASS_AUTH } from "../../exposed_env_vars.ts";
 import { ProjectPk } from "../../server_only_types/mod.ts";
 import { buildProjectState } from "../../task_management/build_project_state.ts";
-import { getGlobalUser } from "../../project_auth.ts";
+import {
+  getGlobalUser,
+  resolveProjectUserAccess,
+} from "../../project_auth.ts";
 
 export const routesProjectSSEV2 = new Hono();
 
@@ -25,7 +21,9 @@ type QueuedMessage = ProjectSseMessage & { projectId: string };
  * condition where messages broadcast during buildProjectState() are dropped.
  *
  * Order:
- * 1. Authenticate — hard-deny unauthenticated clients (no open-access exception)
+ * 1. Authenticate + authorize — hard-deny unauthenticated clients (no
+ *    open-access exception) and apply the canonical project-access check
+ *    (resolveProjectUserAccess — same gate as the route middleware)
  * 2. Subscribe to BroadcastChannel (queue messages)
  * 3. Build full ProjectState from DB
  * 4. Send `starting` with full state
@@ -42,18 +40,41 @@ routesProjectSSEV2.get("/project_sse_v2/:project_id", async (c) => {
   }
 
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
 
+  let projectUser: ProjectUser;
+  if (_BYPASS_AUTH) {
+    projectUser = createDevProjectUser();
+  } else {
+    if (!globalUser.approved) {
+      c.status(403);
+      return c.json({ success: false, err: "User is not approved" });
+    }
+    try {
+      const res = await resolveProjectUserAccess(globalUser, projectId, mainDb);
+      projectUser = res.projectUser;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message === "SERVICE_UNAVAILABLE") {
+        c.status(503);
+        return c.json({ success: false, err: "Service temporarily unavailable" });
+      }
+      c.status(403);
+      return c.json({
+        success: false,
+        err: message.startsWith("Middleware error: ")
+          ? message.replace("Middleware error: ", "")
+          : "User does not have access to this project",
+      });
+    }
+  }
+
+  // projectDb only after the permission checks pass (no connection-cache
+  // entries keyed by unauthorized project ids)
+  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
   const ppk: ProjectPk = {
     projectDb,
     projectId,
   };
-
-  const projectUser = await getProjectUserForSSE(globalUser, mainDb, projectId);
-  if (projectUser === undefined) {
-    c.status(403);
-    return c.json({ success: false, err: "User does not have access to this project" });
-  }
 
   return streamSSE(c, async (stream) => {
     // Step 1: Subscribe BEFORE building state (prevents race condition)
@@ -119,36 +140,3 @@ routesProjectSSEV2.get("/project_sse_v2/:project_id", async (c) => {
     }
   });
 });
-
-async function getProjectUserForSSE(
-  globalUser: GlobalUser,
-  mainDb: Sql,
-  projectId: string,
-): Promise<ProjectUser | undefined> {
-  if (globalUser.isGlobalAdmin) {
-    return {
-      email: globalUser.email,
-      role: "editor",
-      isGlobalAdmin: true,
-      ..._PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-    };
-  }
-
-  const rawProjectUserRole = (
-    await mainDb<DBProjectUserRole[]>`
-      SELECT * FROM project_user_roles
-      WHERE email = ${globalUser.email} AND project_id = ${projectId}
-    `
-  ).at(0);
-
-  if (!rawProjectUserRole) {
-    return undefined;
-  }
-
-  return {
-    email: globalUser.email,
-    role: rawProjectUserRole.role === "editor" ? "editor" : "viewer",
-    isGlobalAdmin: false,
-    ...buildProjectPermissionsFromRow(rawProjectUserRole),
-  };
-}

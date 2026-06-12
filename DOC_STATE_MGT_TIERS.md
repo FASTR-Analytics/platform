@@ -141,16 +141,22 @@ const [data, setData] = createSignal<StateHolder<MyDataType>>({
   status: "loading",
 });
 
-createEffect(async () => {
+createEffect(() => {
   const _v = projectState.lastUpdated.dashboards[dashboardId]; // reactive read for tracking only
-  // NOTE: No setData({ status: "loading" }) here.
-  // Stale data stays visible while the refetch is in flight.
-  const res = await getDashboardDetailFromCacheOrFetch(projectId, dashboardId);
-  if (res.success) {
-    setData({ status: "ready", data: res.data });
-  } else {
-    setData({ status: "error", err: res.err });
+  const controller = new AbortController();
+  onCleanup(() => controller.abort());
+  async function load() {
+    // NOTE: No setData({ status: "loading" }) here.
+    // Stale data stays visible while the refetch is in flight.
+    const res = await getDashboardDetailFromCacheOrFetch(projectId, dashboardId);
+    if (controller.signal.aborted) return; // discard if superseded
+    if (res.success) {
+      setData({ status: "ready", data: res.data });
+    } else {
+      setData({ status: "error", err: res.err });
+    }
   }
+  load();
 });
 
 <StateHolderWrapper state={data()}>
@@ -244,7 +250,8 @@ Some editors intentionally decouple from the live SSE feed. The viz editor and r
 This is **edit draft** mode: snapshot-at-open, user edits locally, explicit save (or autosave with optimistic concurrency via `lastUpdated` round-trip). Rule 6 in `DOC_STATE_RULES.md` discusses snapshot vs. live reads; edit draft is a snapshot with a longer intentional lifetime.
 
 **Canonical markers of edit-draft mode:**
-- A `createQuery` loads the entity once on open.
+- The entity is loaded once on open (`createQuery` in the viz editor, an
+  `onMount` fetch in the report editor — either is fine).
 - The component holds its own draft signal/store (not the T2 cache or T1 store).
 - Save sends the draft to the server; the server bumps `lastUpdated`; SSE propagates to other views.
 - The editor itself does not subscribe to `lastUpdated` for that entity.
@@ -274,25 +281,38 @@ createEffect(() => {
 
 ### Reactive cache sentinels
 
-`reactive_cache.ts` returns special version strings for "not ready" states:
+Two special version strings mark "not ready" states:
 
-- `"pds_not_ready"` — `getProjectStateSnapshot()` returned a store that isn't ready yet (no `starting` message received). `setPromise` refuses to persist under this version.
-- `"unknown"` — the entity's `lastUpdated` entry doesn't exist yet (e.g. `pds.lastUpdated.slide_decks[newDeckId]` before the deck has been saved). `setPromise` also refuses this version.
+- `"pds_not_ready"` — produced by `reactive_cache.ts` itself when the project
+  store isn't ready yet (no `starting` message received; the snapshot is the
+  live store, never `undefined`). `setPromise` refuses to persist under this
+  version.
+- `"unknown"` — produced by `versionKey` callbacks (not by `reactive_cache`)
+  when the entity's version input doesn't exist yet, e.g.
+  `pds.lastUpdated.slide_decks[newDeckId] ?? "unknown"` before the deck has
+  been saved. `setPromise` also refuses this version.
 
 Never cache under either sentinel. Effects that receive these versions should treat the result as a cache miss and wait for the next SSE update to provide a real version.
+
+Caveat: the `setPromise` guard is exact-match only. Composite version keys that
+embed the token (e.g. `` `unknown|<datasetsVersionKey>` `` from the PO-items /
+metric-info / replicant-options caches) ARE cached. This is benign — when the
+module later runs, `moduleLastRun` appears and the version flips, so the entry
+is never read again — but a new composite key must keep that self-correcting
+property.
 
 ### Imperative listener side-channel (`addLastUpdatedListener` / `addRScriptListener`)
 
 Some consumers need event notifications without subscribing to the full store. Two imperative side-channels exist in `client/src/state/project/t1_sse.tsx`:
 
-- **`addLastUpdatedListener(fn)`** — called on every `last_updated` SSE event with `(tableName, ids, timestamp)`. Used to invalidate AI document registry when relevant tables change.
+- **`addLastUpdatedListener(fn)`** — called on every `last_updated` SSE event with `(tableName, ids, timestamp)`. Used by `project_ai/index.tsx` to feed entity-change notifications into the AI conversation (`notifyAI`).
 - **`addRScriptListener(fn)`** — called on every `r_script` SSE event with `(moduleId, text)`. Used to stream R execution logs to the module log panel.
 
 Both return a cleanup function (`() => void`). Register in `onMount`, clean up in `onCleanup`. These are the sanctioned ephemeral-events path for consumers that need event notification outside the store model.
 
 ### `moduleLatestCommits` — session-cached server data in a T4-style signal
 
-`client/src/state/project/t4_module_commits.ts` (or equivalent) holds the latest git commits for each module definition. This is server data fetched once per session (not per-project), stored in a module-level signal, and never updated by SSE. It behaves like T4 (persists across navigation, lives in a state file) but originates on the server — a "session-cached server data" variant that doesn't fit cleanly into T1-T5. Treat it as T4 for practical purposes.
+`moduleLatestCommits` in `client/src/state/t4_ui.ts` holds the latest git commits for each module definition. This is server data fetched once per session (not per-project), stored in a module-level signal, and never updated by SSE. It behaves like T4 (persists across navigation, lives in a state file) but originates on the server — a "session-cached server data" variant that doesn't fit cleanly into T1-T5. Treat it as T4 for practical purposes.
 
 ### Heavy entity detail — always a reactive T2 cache
 

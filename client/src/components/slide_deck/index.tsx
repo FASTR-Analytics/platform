@@ -47,36 +47,15 @@ export function ProjectAiSlideDeck(p: Props) {
   const [deckLabel, setDeckLabel] = createSignal(p.reportLabel);
   const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(getStartingConfigForSlideDeck(p.reportLabel));
 
-  // Load deck metadata and set AI context on mount
-  onMount(async () => {
-    const deckRes = await getSlideDeckDetailFromCacheOrFetch(projectId, p.deckId);
-
-    if (deckRes.success) {
-      setSlideIds(deckRes.data.slideIds);
-      setDeckLabel(deckRes.data.label);
-      setDeckConfig(deckRes.data.config);
-    }
-    setIsLoading(false);
-
-    // Set AI context now that deck data is loaded
-    setAIContext({
-      mode: "editing_slide_deck",
-      deckId: p.deckId,
-      deckLabel: deckLabel(),
-      getDeckConfig: () => deckConfig(),
-      getSlideIds: () => slideIds(),
-      getSelectedSlideIds: () => selectedSlideIds(),
-    });
-  });
-
   onCleanup(() => {
     setAIContext(p.returnToContext ?? { mode: "viewing_slide_decks" });
   });
 
-  // SSE handling - watch for deck updates
+  // Single fetch path: first run loads the deck (and then sets the AI
+  // context), subsequent runs are SSE-driven refetches on version flips.
+  let aiContextSet = false;
   createEffect(() => {
-    const deckUpdate = projectState.lastUpdated.slide_decks[p.deckId];
-    if (!deckUpdate) return;
+    const _deckUpdate = projectState.lastUpdated.slide_decks[p.deckId];
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     async function load() {
@@ -86,6 +65,18 @@ export function ProjectAiSlideDeck(p: Props) {
         setSlideIds(res.data.slideIds);
         setDeckLabel(res.data.label);
         setDeckConfig(res.data.config);
+      }
+      setIsLoading(false);
+      if (!aiContextSet) {
+        aiContextSet = true;
+        setAIContext({
+          mode: "editing_slide_deck",
+          deckId: p.deckId,
+          deckLabel: deckLabel(),
+          getDeckConfig: () => deckConfig(),
+          getSlideIds: () => slideIds(),
+          getSelectedSlideIds: () => selectedSlideIds(),
+        });
       }
     }
     load();

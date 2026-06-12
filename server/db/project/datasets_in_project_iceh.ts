@@ -13,7 +13,7 @@ import {
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { removeDatasetFromProject } from "./datasets_in_project_hmis.ts";
-import { computeIcehCacheHash } from "../instance/dataset_iceh.ts";
+import { getIcehCacheHash } from "../instance/dataset_iceh.ts";
 
 type DBIcehIndicator = {
   iceh_indicator: string;
@@ -43,16 +43,6 @@ export async function addDatasetIcehToProject(
     if (dataRowCount === 0) {
       throw new Error("No ICEH data available to add to project");
     }
-
-    const indicatorCountRow = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*) as count FROM iceh_indicators
-    `;
-    const indicatorCount = Number(indicatorCountRow[0].count);
-
-    const yearsRows = await mainDb<{ year: number }[]>`
-      SELECT DISTINCT year FROM iceh_data ORDER BY year
-    `;
-    const years = yearsRows.map((r) => r.year);
 
     const datasetDirPath = join(_SANDBOX_DIR_PATH, projectId, "datasets");
     await ensureDir(datasetDirPath);
@@ -92,7 +82,7 @@ export async function addDatasetIcehToProject(
       ORDER BY sort_order, iceh_indicator
     `;
 
-    const icehCacheHash = computeIcehCacheHash(indicatorCount, dataRowCount, years);
+    const icehCacheHash = await getIcehCacheHash(mainDb);
     const info: DatasetIcehInfoInProject = {
       icehCacheHash,
     };
