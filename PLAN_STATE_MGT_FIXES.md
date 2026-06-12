@@ -3,6 +3,9 @@
 Origin: comprehensive review of DOC_SSE_REALTIME / DOC_STATE_MGT_INSTANCE /
 DOC_STATE_MGT_PROJECT / DOC_STATE_MGT_TIERS / DOC_STATE_RULES against live code.
 
+All file/line claims re-verified against live code 2026-06-12 — ready to
+implement; §3 items are unblocked now, F2/F4/F10/F11 + parts of §5 wait on D1-D4.
+
 Working doc: check off / prune items as they land; delete the file when empty.
 Contract changes are made in the DOC_* files themselves — this plan only tracks
 the work (one authoritative doc per contract; this file restates nothing
@@ -83,7 +86,7 @@ is the better design; update docs to describe it.
 
 ---
 
-## 2. Production-impact server fixes (no decision needed — do first)
+## 2. Production-impact server fixes — do first (F2 waits on D1)
 
 - [x] **F1 — SSE connection leak on client disconnect. DONE 2026-06-12.**
       Both endpoints now register `stream.onAbort()` — project: wakes the
@@ -138,7 +141,9 @@ is the better design; update docs to describe it.
       - `clearEntriesWithPrefix` (line ~289): append a separator boundary so
         prefix `p1` cannot match `p10|…` (`clearEntry` already has `::`).
       - Fix the lying comment: `pdsNotRequired` does NOT build a "dummy PDS";
-        it passes the live (possibly not-ready) store.
+        it passes `pds!`, which is either the live not-ready store or literally
+        `undefined` (no project open) — so `config.versionKey(params, pds!)`
+        can receive `undefined`. Corrected comment must cover both cases.
 
 - [ ] **F7 — remove `createResource` (rule 9).**
       `components/slide_deck/style_editor/StylePreview.tsx:109-126` (4 calls,
