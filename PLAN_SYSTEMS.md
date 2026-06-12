@@ -646,19 +646,34 @@ Ideas to discuss — explicitly NOT plans. Roughly ordered by leverage.
 
 ### 6.1 Fetch-config SQL interpolation (security — verified by three independent agents)
 
-`groupBys`, `filter.disOpt`, and `replicateBy` from client-supplied fetch
-configs are interpolated into SQL executed via `projectDb.unsafe`.
-`validateFetchConfig` is called exactly once
-(`routes/project/presentation_objects.ts:351`, items endpoint only) and checks
-type-shape but NOT membership in `ALL_DISAGGREGATION_OPTIONS`; the
-replicant-options endpoint never validates at all (`body.replicateBy` flows
-into SQL). This is an authenticated SQL-injection surface against the caller's
-own project DB. Neither PLAN_API_ROUTES_HARDENING, PLAN_API_ZOD, nor
-PLAN_HARDEN_SECURITY currently names this path — PLAN_API_ZOD would close it
-only if the fetch-config body schemas use strict enums for these fields (worth
-making explicit there), and an immediate membership check in
-`validateFetchConfig` + a validate call on the replicant route is a small,
-independent fix.
+`groupBys`, `filter.disOpt`, `value.prop`, `postAggregationExpression`, and the
+replicant route's `replicateBy` from client-supplied fetch configs are
+interpolated into SQL executed via `projectDb.unsafe`. The original finding:
+`validateFetchConfig` was called only on the items endpoint
+(`routes/project/presentation_objects.ts:351`) and checked type-shape but NOT
+membership in `ALL_DISAGGREGATION_OPTIONS`; the replicant-options endpoint never
+validated at all. An authenticated SQL-injection surface against the caller's
+own project DB.
+
+**Membership classes FIXED 2026-06-12** (committed independently of the three
+plans): `validateFetchConfig` now enforces `groupBys` and `filters[].disOpt`
+membership via `isValidDisaggregationOption`, `value.prop` as a bare SQL
+identifier, and `postAggregationExpression` against a safe charset; the
+`getReplicantOptions` route now calls `validateFetchConfig` and validates
+`replicateBy`. Verified by execution harness (real configs pass, injection
+attempts rejected) + typecheck. PLAN_API_ZOD batch 5 formalizes these at the
+Zod boundary (note added there).
+
+**Residual — `postAggregationExpression` is NOT fully closed.** It is a freeform
+arithmetic string (e.g. `value = COALESCE(sum_val, avg_num / avg_weight)`)
+interpolated raw, wrapped as `SELECT (${expr}) ... FROM (${query}) AS subq`. The
+charset guard blocks quotes/semicolons/comments but a scalar subquery built from
+word-chars + parens (`(SELECT pg_sleep(5))`) still passes the charset. The real
+fix is server-authoritative: the route already resolves the metric from the DB,
+so it can compare the client's PAE against the metric's stored
+`postAggregationExpression.expression` (or rebuild fetchConfig server-side and
+not trust the client's copy at all — the FigureBundle direction). Tracked as an
+open follow-up; the charset guard is interim defense-in-depth only.
 
 ### 6.2 Dead code (verified zero importers — deletion candidates)
 

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { Sql } from "postgres";
 import {
+  isValidDisaggregationOption,
   periodFilterHasBounds,
   validateFetchConfig,
 } from "lib";
@@ -567,6 +568,13 @@ defineRoute(
   requireProjectPermission("can_view_visualizations"),
   log("getReplicantOptions"),
   async (c, { body }) => {
+    // body is attacker-controllable and flows into projectDb.unsafe SQL via
+    // getPossibleValues (replicateBy → column ref) and the fetchConfig filters.
+    validateFetchConfig(body.fetchConfig);
+    if (!isValidDisaggregationOption(body.replicateBy)) {
+      return c.json({ success: false, err: `Invalid replicateBy: ${body.replicateBy}` });
+    }
+
     const t0 = performance.now();
     const filterSummary =
       body.fetchConfig.filters.length > 0

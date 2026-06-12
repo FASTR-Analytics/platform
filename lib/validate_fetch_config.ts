@@ -1,6 +1,33 @@
 import { isAdminLevel } from "./admin_area_rollup.ts";
+import { ALL_DISAGGREGATION_OPTIONS } from "./types/disaggregation_options.ts";
 import { valueFuncStrict } from "./types/_metric_installed.ts";
 import { GenericLongFormFetchConfig } from "./types/presentation_objects.ts";
+
+// Every field below is interpolated into SQL run via projectDb.unsafe (see
+// server_only_funcs_presentation_objects/query_helpers.ts and
+// get_possible_values.ts). The app client only ever sends closed-vocabulary
+// values, but the route body is attacker-controllable, so these are the SQL
+// injection guards — type-shape alone is NOT enough.
+
+const DISAGGREGATION_OPTION_SET: ReadonlySet<string> = new Set(
+  ALL_DISAGGREGATION_OPTIONS
+);
+
+// Value props are R-generated result-table column names (e.g. count_sum,
+// numerator) — always bare SQL identifiers.
+const SQL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+// Post-aggregation expressions are arithmetic over identifiers, e.g.
+// "pct_diff = (count_sum - count_expect_sum)/count_expect_sum" or
+// "value = COALESCE(sum_val, avg_num / avg_weight)". Allow identifiers, the
+// arithmetic/grouping operators, comma, dot, equals and spaces; reject quotes,
+// semicolons, and anything else that could break out of the expression.
+const SAFE_EXPRESSION = /^[A-Za-z0-9_ +\-*/().,=]+$/;
+
+/** True when `disOpt` is a known disaggregation column safe to interpolate. */
+export function isValidDisaggregationOption(disOpt: string): boolean {
+  return DISAGGREGATION_OPTION_SET.has(disOpt);
+}
 
 export function validateFetchConfig(
   fetchConfig: GenericLongFormFetchConfig
@@ -14,14 +41,35 @@ export function validateFetchConfig(
       throw new Error("Invalid value prop: must be a non-empty string");
     }
 
+    if (!SQL_IDENTIFIER.test(value.prop)) {
+      throw new Error(`Invalid value prop: ${value.prop}`);
+    }
+
     if (!valueFuncStrict.options.includes(value.func)) {
       throw new Error(`Invalid value func: ${value.func}`);
     }
   }
 
+  for (const groupBy of fetchConfig.groupBys) {
+    if (!isValidDisaggregationOption(groupBy)) {
+      throw new Error(`Invalid groupBy: ${groupBy}`);
+    }
+  }
+
+  if (
+    fetchConfig.postAggregationExpression !== undefined &&
+    !SAFE_EXPRESSION.test(fetchConfig.postAggregationExpression)
+  ) {
+    throw new Error("Invalid postAggregationExpression");
+  }
+
   for (const filter of fetchConfig.filters) {
     if (!filter.disOpt || typeof filter.disOpt !== "string") {
       throw new Error("Invalid filter disOpt: must be a non-empty string");
+    }
+
+    if (!isValidDisaggregationOption(filter.disOpt)) {
+      throw new Error(`Invalid filter disOpt: ${filter.disOpt}`);
     }
 
     if (!Array.isArray(filter.values) || filter.values.length === 0) {

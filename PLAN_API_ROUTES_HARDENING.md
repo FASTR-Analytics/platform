@@ -8,7 +8,7 @@
 
 - **A — Fix confirmed bugs** (each independently shippable).
 - **B — Enforce the contract in both directions.** Today the client trusts the registry but nothing checks what handlers return; make handler return shapes typecheck against the registry and make boot validation fail hard.
-- **C — Correct DOC_API_ROUTES.md** where the review proved it wrong (cachedBody gotcha).
+- **C — Correct DOC_API_ROUTES.md** where the review proved it wrong (cachedBody gotcha — B5; plus the stale `share.ts` rows — C1).
 
 ## Decisions (resolved with Tim, 2026-06-12)
 
@@ -139,18 +139,28 @@ Implementation notes:
 
 ---
 
+## Part C — Doc corrections
+
+### C1. Remove the deleted `share.ts` routes from DOC_API_ROUTES.md
+
+**Problem.** The viz-share removal (2026-06-10) deleted `routes/instance/share.ts` and `routes/public/share.ts`, but DOC_API_ROUTES.md still lists them: the raw-route table (`:181`, the `{ token, slug }` row) and the envelope-lint exception bullet (`:223`). A reader auditing raw routes hunts for files that no longer exist.
+
+**Fix.** Drop both share.ts mentions. The remaining raw/public routes there (`public/dashboard.ts`, `health.ts`, `ai_proxy`, TUS `upload.ts`, the two SSE endpoints, `export_central.ts`) are the live set — reconcile the table against the actual off-registry inventory while editing (the systems review enumerated ~30 off-registry endpoints; this table should match). Pairs naturally with B5's doc edit — same file, one pass.
+
+---
+
 ## Deferred (do not bundle)
 
 - **Registry `audit` flag** auto-applying `log()` in `defineRoute` — changes audit coverage (today 16 of 25 route files apply it manually); needs a deliberate pass deciding per-route. Revisit after this branch.
 - **AbortSignal passthrough** for cancellable requests — touches `ServerActionsType` signature; bundle with the Zod migration's signature changes if wanted.
 - **`onError` returns HTTP 200** (`main.ts:105-110`) — documented wart; changing to 500 interacts with rolling deploys and the A1 fix. Leave.
-- Raw-route envelope drift (`health.ts`, `share.ts`) — already tracked as a documented exception in DOC_API_ROUTES.md.
+- Raw-route envelope drift (`health.ts`, `ai_proxy`) — already tracked as a documented exception in DOC_API_ROUTES.md.
 
 ## Order of work
 
 1. A2, B4 (registry/type fixes, zero runtime risk) → typecheck.
 2. A1 + ride-along, A3, A5, A7, A9, A10 (client) → typecheck client.
-3. A4, A6, A8, A11, B5 (server + doc edit) → boot server.
+3. A4, A6, A8, A11, B5 + C1 (server + DOC_API_ROUTES.md edits, one pass) → boot server.
 4. B2, B3 (boot hardening) → boot server, confirm green.
 5. B1 (TypedResponse) last — it's the one that surfaces unknown fallout; fix what it finds.
 6. B6 (timeoutMs) — registry + client together.
