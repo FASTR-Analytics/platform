@@ -1,7 +1,10 @@
+import { z } from "zod";
 import type { GlobalUser, OtherUser, ProjectUserRole, UserLog, UserPermission, ProjectPermission } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-// Route registry for users
+const emailParamsSchema = z.object({ email: z.string() });
+const permissionsRecordSchema = z.record(z.string(), z.boolean());
+
 export const userRouteRegistry = {
   getCurrentUser: route({
     path: "/user",
@@ -11,28 +14,28 @@ export const userRouteRegistry = {
   getOtherUser: route({
     path: "/user/:email",
     method: "GET",
-    params: {} as { email: string },
+    params: emailParamsSchema,
     response: {} as { user: OtherUser; projectUserRoles: ProjectUserRole[] },
   }),
   addUsers: route({
     path: "/user",
     method: "POST",
-    body: {} as { emails: string[]; isGlobalAdmin: boolean },
+    body: z.object({ emails: z.array(z.string()), isGlobalAdmin: z.boolean() }),
   }),
   toggleUserAdmin: route({
     path: "/user/toggle-admin",
     method: "POST",
-    body: {} as { emails: string[]; makeAdmin: boolean },
+    body: z.object({ emails: z.array(z.string()), makeAdmin: z.boolean() }),
   }),
   deleteUser: route({
     path: "/user",
     method: "DELETE",
-    body: {} as { emails: string[] },
+    body: z.object({ emails: z.array(z.string()) }),
   }),
   batchUploadUsers: route({
     path: "/users/batch",
     method: "POST",
-    body: {} as { asset_file_name: string; replace_all_existing: boolean },
+    body: z.object({ asset_file_name: z.string(), replace_all_existing: z.boolean() }),
   }),
   getAllUserLogs: route({
     path: "/all-user-logs",
@@ -42,34 +45,34 @@ export const userRouteRegistry = {
   getUserPermissions: route({
     path: "/user/:email/permissions",
     method: "GET",
-    params: {} as { email: string },
+    params: emailParamsSchema,
     response: {} as { permissions: Record<UserPermission, boolean> },
   }),
   updateUserPermissions: route({
     path: "/user/permissions",
     method: "POST",
-    body: {} as { email: string; permissions: Partial<Record<UserPermission, boolean>> },
+    body: z.object({ email: z.string(), permissions: permissionsRecordSchema }),
   }),
   bulkUpdateUserPermissions: route({
     path: "/user/permissions/bulk",
     method: "POST",
-    body: {} as { emails: string[]; permissions: Partial<Record<UserPermission, boolean>> },
+    body: z.object({ emails: z.array(z.string()), permissions: permissionsRecordSchema }),
   }),
   getUserDefaultProjectPermissions: route({
     path: "/user/:email/default-project-permissions",
     method: "GET",
-    params: {} as { email: string },
+    params: emailParamsSchema,
     response: {} as { permissions: Record<ProjectPermission, boolean> },
   }),
   updateUserDefaultProjectPermissions: route({
     path: "/user/default-project-permissions",
     method: "POST",
-    body: {} as { email: string; permissions: Partial<Record<ProjectPermission, boolean>> },
+    body: z.object({ email: z.string(), permissions: permissionsRecordSchema }),
   }),
   bulkUpdateUserDefaultProjectPermissions: route({
     path: "/user/default-project-permissions/bulk",
     method: "POST",
-    body: {} as { emails: string[]; permissions: Partial<Record<ProjectPermission, boolean>> },
+    body: z.object({ emails: z.array(z.string()), permissions: permissionsRecordSchema }),
   }),
   getAiUsage: route({
     path: "/user/ai-usage",
@@ -79,11 +82,11 @@ export const userRouteRegistry = {
   setUserUnlimitedAi: route({
     path: "/user/unlimited-ai",
     method: "POST",
-    body: {} as { email: string; unlimited: boolean },
+    body: z.object({ email: z.string(), unlimited: z.boolean() }),
   }),
   setUserContactPerson: route({
     path: "/user/contact-person",
     method: "POST",
-    body: {} as { email: string; isContactPerson: boolean },
+    body: z.object({ email: z.string(), isContactPerson: z.boolean() }),
   }),
 } as const;

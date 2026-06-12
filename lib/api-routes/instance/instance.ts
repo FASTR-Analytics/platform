@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type {
   InstanceConfigAdminAreaLabels,
   InstanceConfigFacilityColumns,
@@ -7,7 +8,6 @@ import type {
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-// Route registry for instance
 export const instanceRouteRegistry = {
   getInstanceMeta: route({
     path: "/instance_meta",
@@ -27,22 +27,22 @@ export const instanceRouteRegistry = {
   updateMaxAdminArea: route({
     path: "/update_max_admin_area",
     method: "POST",
-    body: {} as { maxAdminArea: number },
+    body: z.object({ maxAdminArea: z.number() }),
   }),
   updateFacilityColumnsConfig: route({
     path: "/update_facility_columns_config",
     method: "POST",
-    body: {} as InstanceConfigFacilityColumns,
+    body: {} as InstanceConfigFacilityColumns, // complex config type — deferred to batch 5
   }),
   updateAdminAreaLabelsConfig: route({
     path: "/update_admin_area_labels_config",
     method: "POST",
-    body: {} as InstanceConfigAdminAreaLabels,
+    body: {} as InstanceConfigAdminAreaLabels, // complex config type — deferred to batch 5
   }),
   updateCountryIso3: route({
     path: "/update_country_iso3",
     method: "POST",
-    body: {} as { countryIso3: string | undefined },
+    body: z.object({ countryIso3: z.string().optional() }),
   }),
   getDiskSpace: route({
     path: "/disk_space",

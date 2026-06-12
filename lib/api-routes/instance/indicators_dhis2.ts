@@ -1,59 +1,49 @@
-// Note: DHIS2DataElement and DHIS2Indicator types need to be properly exported
-// For now, using any[] until types are available
-type DHIS2DataElement = any;
-type DHIS2Indicator = any;
-import { type Dhis2Credentials } from "../../types/mod.ts";
+import { z } from "zod";
 import { route } from "../route-utils.ts";
 
+const dhis2CredentialsSchema = z.object({
+  url: z.string(),
+  username: z.string(),
+  password: z.string(),
+});
+
 export const indicatorsDhis2RouteRegistry = {
-  // Search DHIS2 indicators
   searchDhis2Indicators: route({
     path: "/indicators-dhis2/search",
     method: "POST",
-    body: {} as {
-      dhis2Credentials: Dhis2Credentials;
-      query: string;
-      searchBy?: "name" | "code";
-    },
-    response: {} as DHIS2Indicator[],
+    body: z.object({
+      dhis2Credentials: dhis2CredentialsSchema,
+      query: z.string(),
+      searchBy: z.enum(["name", "code"]).optional(),
+    }),
+    response: {} as any[],
   }),
-
-  // Search DHIS2 data elements
   searchDhis2DataElements: route({
     path: "/data-elements-dhis2/search",
     method: "POST",
-    body: {} as {
-      dhis2Credentials: Dhis2Credentials;
-      query: string;
-      additionalFilters?: string[];
-    },
-    response: {} as DHIS2DataElement[],
+    body: z.object({
+      dhis2Credentials: dhis2CredentialsSchema,
+      query: z.string(),
+      additionalFilters: z.array(z.string()).optional(),
+    }),
+    response: {} as any[],
   }),
-
-  // Combined search for both indicators and data elements
   searchDhis2All: route({
     path: "/indicators-dhis2/search-all",
     method: "POST",
-    body: {} as {
-      dhis2Credentials: Dhis2Credentials;
-      query: string;
-      searchBy?: "name" | "code";
-      includeDataElements?: boolean;
-      includeIndicators?: boolean;
-    },
-    response: {} as {
-      dataElements: DHIS2DataElement[];
-      indicators: DHIS2Indicator[];
-    },
+    body: z.object({
+      dhis2Credentials: dhis2CredentialsSchema,
+      query: z.string(),
+      searchBy: z.enum(["name", "code"]).optional(),
+      includeDataElements: z.boolean().optional(),
+      includeIndicators: z.boolean().optional(),
+    }),
+    response: {} as { dataElements: any[]; indicators: any[] },
   }),
-
-  // Test DHIS2 connection
   testDhis2IndicatorsConnection: route({
     path: "/indicators-dhis2/test-connection",
     method: "POST",
-    body: {} as {
-      dhis2Credentials: Dhis2Credentials;
-    },
+    body: z.object({ dhis2Credentials: dhis2CredentialsSchema }),
     response: {} as {
       dataElementCount?: number;
       indicatorCount?: number;

@@ -132,14 +132,10 @@ defineRoute(
   requireGlobalPermission(),
   log("getAdminAreaNamesForLevel"),
   async (c, { params }) => {
-    const level = parseInt(params.level);
-    if (isNaN(level) || ![2, 3, 4].includes(level)) {
-      return c.json({
-        success: false,
-        err: "Level must be 2, 3, or 4",
-      });
+    if (![2, 3, 4].includes(params.level)) {
+      return c.json({ success: false, err: "Level must be 2, 3, or 4" });
     }
-    const res = await getAdminAreaNamesForLevel(c.var.mainDb, level);
+    const res = await getAdminAreaNamesForLevel(c.var.mainDb, params.level);
     return c.json(res);
   },
 );
@@ -150,14 +146,10 @@ defineRoute(
   requireGlobalPermission(),
   log("getAdminAreaOptionsForLevel"),
   async (c, { params }) => {
-    const level = parseInt(params.level);
-    if (isNaN(level) || ![2, 3, 4].includes(level)) {
-      return c.json({
-        success: false,
-        err: "Level must be 2, 3, or 4",
-      });
+    if (![2, 3, 4].includes(params.level)) {
+      return c.json({ success: false, err: "Level must be 2, 3, or 4" });
     }
-    const res = await getAdminAreaOptionsForLevel(c.var.mainDb, level);
+    const res = await getAdminAreaOptionsForLevel(c.var.mainDb, params.level);
     return c.json(res);
   },
 );
@@ -168,14 +160,10 @@ defineRoute(
   requireGlobalPermission(),
   log("getGeoJsonForLevel"),
   async (c, { params }) => {
-    const level = parseInt(params.level);
-    if (isNaN(level) || ![2, 3, 4].includes(level)) {
-      return c.json({
-        success: false,
-        err: "Level must be 2, 3, or 4",
-      });
+    if (![2, 3, 4].includes(params.level)) {
+      return c.json({ success: false, err: "Level must be 2, 3, or 4" });
     }
-    const res = await getGeoJsonForLevel(c.var.mainDb, level);
+    const res = await getGeoJsonForLevel(c.var.mainDb, params.level);
     return c.json(res);
   },
 );

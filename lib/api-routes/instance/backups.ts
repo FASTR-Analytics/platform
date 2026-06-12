@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { route } from "../route-utils.ts";
 
 // Route registry for backups
@@ -12,29 +13,24 @@ export const backupRouteRegistry = {
   createBackupFile: route({
     path: "/api/create-backup/:name",
     method: "POST",
-    params: {} as {
-      name: string;
-    },
+    params: z.object({ name: z.string() }),
     requiresProject: true,
   }),
   // downloadBackupFile returns a binary Response on success (not JSON); error paths return JSON.
   downloadBackupFile: route({
     path: "/api/backups/:folder/:file",
     method: "GET",
-    params: {} as {
-      folder: string;
-      file: string;
-    },
+    params: z.object({ folder: z.string(), file: z.string() }),
     requiresProject: true,
   }),
   restoreBackup: route({
     path: "/api/restore-backup",
     method: "POST",
-    body: {} as {
-      folder?: string;
-      fileName?: string;
-      fileData?: string;
-    },
+    body: z.object({
+      folder: z.string().optional(),
+      fileName: z.string().optional(),
+      fileData: z.string().optional(),
+    }),
     requiresProject: true,
   }),
 } as const;

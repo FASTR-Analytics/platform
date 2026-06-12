@@ -29,6 +29,7 @@ import {
   getHfaDictionaryForValidation,
   bulkUpdateHfaIndicatorValidation,
 } from "../../db/mod.ts";
+import type { HfaWorkbookImport, HfaIndicatorCode } from "lib";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceIndicatorsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -40,7 +41,7 @@ defineRoute(
   "importHfaIndicatorsWorkbook",
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
-    const res = await importHfaIndicatorsWorkbook(c.var.mainDb, body);
+    const res = await importHfaIndicatorsWorkbook(c.var.mainDb, body as HfaWorkbookImport);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
     }
@@ -304,7 +305,7 @@ defineRoute(
   "batchUploadHfaIndicators",
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
-    const res = await batchUploadHfaIndicators(c.var.mainDb, body.indicators, body.code, body.replaceAll);
+    const res = await batchUploadHfaIndicators(c.var.mainDb, body.indicators, body.code as HfaIndicatorCode[], body.replaceAll);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
     }
@@ -347,7 +348,7 @@ defineRoute(
   "saveHfaIndicatorFull",
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
-    const res = await saveHfaIndicatorFull(c.var.mainDb, body.oldVarName, body.indicator, body.code, body.hasSyntaxError, body.codeConsistent);
+    const res = await saveHfaIndicatorFull(c.var.mainDb, body.oldVarName, body.indicator, body.code as { timePoint: string; rCode: string; rFilterCode: string | undefined }[], body.hasSyntaxError, body.codeConsistent);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
     }

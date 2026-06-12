@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { routeRegistry, routeRegistryIndividualCount } from "lib";
 
 // Track which routes have been defined
@@ -68,6 +69,32 @@ export function validateAllRoutesDefined(): void {
     hasErrors = true;
     console.error(`❌ Duplicate method+path pairs in registry:`);
     for (const mp of duplicateMethodPaths) {
+      console.error(`   - ${mp}`);
+    }
+    console.error("");
+  }
+
+  // Check schema/path placeholder agreement for migrated routes.
+  // Every ZodObject params schema must declare exactly the keys that appear as :placeholders.
+  const schemaPathMismatches: string[] = [];
+  for (const [routeName, entry] of Object.entries(routeRegistry)) {
+    const paramsSchema = (entry as any).params;
+    if (paramsSchema instanceof z.ZodType && "shape" in paramsSchema) {
+      const schemaKeys = Object.keys((paramsSchema as z.ZodObject<any>).shape).sort();
+      const pathKeys = (entry.path.match(/:(\w+)/g) ?? [])
+        .map((p: string) => p.slice(1))
+        .sort();
+      if (JSON.stringify(schemaKeys) !== JSON.stringify(pathKeys)) {
+        schemaPathMismatches.push(
+          `${routeName}: path [${pathKeys.join(", ")}] ≠ schema [${schemaKeys.join(", ")}]`
+        );
+      }
+    }
+  }
+  if (schemaPathMismatches.length > 0) {
+    hasErrors = true;
+    console.error(`❌ Schema/path placeholder mismatches: ${schemaPathMismatches.length}`);
+    for (const mp of schemaPathMismatches) {
       console.error(`   - ${mp}`);
     }
     console.error("");

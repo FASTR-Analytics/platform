@@ -56,11 +56,12 @@ defineRoute(
   "createCalculatedIndicator",
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
-    const validation = validateCalculatedIndicatorIds(body.indicator);
+    const indicator = body.indicator as CalculatedIndicator;
+    const validation = validateCalculatedIndicatorIds(indicator);
     if (!validation.success) {
       return c.json(validation);
     }
-    const res = await createCalculatedIndicator(c.var.mainDb, body.indicator);
+    const res = await createCalculatedIndicator(c.var.mainDb, indicator);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),
@@ -75,14 +76,15 @@ defineRoute(
   "updateCalculatedIndicator",
   requireGlobalPermission("can_configure_data"),
   async (c, { body }) => {
-    const validation = validateCalculatedIndicatorIds(body.indicator);
+    const indicator = body.indicator as CalculatedIndicator;
+    const validation = validateCalculatedIndicatorIds(indicator);
     if (!validation.success) {
       return c.json(validation);
     }
     const res = await updateCalculatedIndicator(
       c.var.mainDb,
       body.oldCalculatedIndicatorId,
-      body.indicator,
+      indicator,
     );
     if (res.success) {
       notifyInstanceIndicatorsUpdated(

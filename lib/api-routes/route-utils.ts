@@ -1,5 +1,11 @@
 // Utility for creating type-safe route registries
+import { z } from "zod";
 import type { APIResponseNoData, APIResponseWithData } from "../types/mod.ts";
+
+// If T is a ZodType, expose its inferred output type; otherwise pass T through as-is (phantom).
+// This lets route() accept either a Zod schema (runtime validation) or a phantom {} as T
+// (compile-time type only) during the incremental migration.
+type InferIfZod<T> = T extends z.ZodType ? z.infer<T> : T;
 
 // Helper to define a route with type information
 export function route<
@@ -46,8 +52,8 @@ export function route<
   return result as {
     path: TPath;
     method: TMethod;
-    params: TParams;
-    body: TBody;
+    params: InferIfZod<TParams>;
+    body: InferIfZod<TBody>;
     response: InferredResponse;
     requiresProject: TRequiresProject;
     isStreaming: TIsStreaming;

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type {
   IcehDataDetail,
   IcehDisplayData,
@@ -41,7 +42,7 @@ export const icehRouteRegistry = {
   updateDatasetIcehUploadAttemptStep1: route({
     method: "POST",
     path: "/iceh/upload-attempt/step1",
-    body: {} as { zipAssetFileName: string },
+    body: z.object({ zipAssetFileName: z.string() }),
     response: {} as IcehStep1Result,
   }),
   updateDatasetIcehUploadAttemptStep2: route({

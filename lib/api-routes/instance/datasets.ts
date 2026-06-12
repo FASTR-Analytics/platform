@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type {
   DatasetHfaDetail,
   ItemsHolderDatasetHfaDisplay,
@@ -20,7 +21,37 @@ import type {
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-// Route registry for datasets with all type information included
+const dhis2CredentialsSchema = z.object({
+  url: z.string(),
+  username: z.string(),
+  password: z.string(),
+});
+
+const dhis2SelectionParamsSchema = z.object({
+  rawIndicatorIds: z.array(z.string()),
+  startPeriod: z.number(),
+  endPeriod: z.number(),
+});
+
+const datasetHmisWindowingBaseSchema = z.object({
+  start: z.number(),
+  end: z.number(),
+  takeAllIndicators: z.boolean(),
+  takeAllAdminArea2s: z.boolean(),
+  adminArea2sToInclude: z.array(z.string()),
+  takeAllAdminArea3s: z.boolean().optional(),
+  adminArea3sToInclude: z.array(z.string()).optional(),
+  takeAllFacilityOwnerships: z.boolean().optional(),
+  takeAllFacilityTypes: z.boolean().optional(),
+  facilityOwnwershipsToInclude: z.array(z.string()).optional(),
+  facilityTypesToInclude: z.array(z.string()).optional(),
+});
+
+const datasetHmisWindowingRawSchema = datasetHmisWindowingBaseSchema.extend({
+  indicatorType: z.literal("raw"),
+  rawIndicatorsToInclude: z.array(z.string()),
+});
+
 export const datasetRouteRegistry = {
   // Core dataset operations
   getDatasetHmisDetail: route({
@@ -36,7 +67,7 @@ export const datasetRouteRegistry = {
   getDatasetHmisDisplayInfo: route({
     path: "/datasets/hmis/data",
     method: "POST",
-    body: {} as {
+    body: {} as { // complex type — deferred to batch 5
       versionId: number;
       indicatorMappingsVersion: string;
       rawOrCommonIndicators: IndicatorType;
@@ -47,7 +78,7 @@ export const datasetRouteRegistry = {
   deleteAllDatasetHmisData: route({
     path: "/datasets/hmis/data",
     method: "DELETE",
-    body: {} as { windowing: DatasetHmisWindowingRaw },
+    body: z.object({ windowing: datasetHmisWindowingRawSchema }),
   }),
 
   // Upload workflow
@@ -58,7 +89,7 @@ export const datasetRouteRegistry = {
   setDatasetUploadSourceType: route({
     path: "/dataset-uploads/hmis/source-type",
     method: "POST",
-    body: {} as { sourceType: "csv" | "dhis2" },
+    body: z.object({ sourceType: z.enum(["csv", "dhis2"]) }),
   }),
   getDatasetUpload: route({
     path: "/dataset-uploads/hmis",
@@ -74,21 +105,22 @@ export const datasetRouteRegistry = {
     path: "/dataset-uploads/hmis",
     method: "DELETE",
   }),
-  //
   uploadDatasetCsv: route({
     path: "/dataset-uploads/hmis/csv",
     method: "POST",
-    body: {} as { assetFileName: string },
+    body: z.object({ assetFileName: z.string() }),
   }),
   updateDatasetMappings: route({
     path: "/dataset-uploads/hmis/mappings",
     method: "POST",
-    body: {} as { mappings: Record<string, string> },
+    body: z.object({ mappings: z.record(z.string(), z.string()) }),
   }),
   updateDatasetStaging: route({
     path: "/dataset-uploads/hmis/staging",
     method: "POST",
-    body: {} as { failFastMode?: "fail-fast" | "continue-on-error" },
+    body: z.object({
+      failFastMode: z.enum(["fail-fast", "continue-on-error"]).optional(),
+    }),
   }),
   finalizeDatasetIntegration: route({
     path: "/dataset-uploads/hmis/integrate",
@@ -99,19 +131,15 @@ export const datasetRouteRegistry = {
   dhis2ConfirmCredentials: route({
     path: "/dataset-uploads/hmis/dhis2-confirm",
     method: "POST",
-    body: {} as Dhis2Credentials,
+    body: dhis2CredentialsSchema,
   }),
   dhis2SetSelection: route({
     path: "/dataset-uploads/hmis/dhis2-selection",
     method: "POST",
-    body: {} as Dhis2SelectionParams,
+    body: dhis2SelectionParamsSchema,
   }),
 
-  // ============================================================================
   // HFA Dataset Endpoints
-  // ============================================================================
-
-  // Core HFA dataset operations
   getDatasetHfaDetail: route({
     path: "/datasets/hfa",
     method: "GET",
@@ -125,7 +153,7 @@ export const datasetRouteRegistry = {
   deleteDatasetHfaData: route({
     path: "/datasets/hfa/data",
     method: "DELETE",
-    body: {} as { timePoint?: string },
+    body: z.object({ timePoint: z.string().optional() }),
   }),
 
   // HFA Upload workflow
@@ -147,17 +175,18 @@ export const datasetRouteRegistry = {
     path: "/dataset-uploads/hfa",
     method: "DELETE",
   }),
-
-  // HFA CSV workflow steps
   uploadDatasetHfaCsv: route({
     path: "/dataset-uploads/hfa/csv",
     method: "POST",
-    body: {} as { csvAssetFileName: string; xlsFormAssetFileName: string },
+    body: z.object({
+      csvAssetFileName: z.string(),
+      xlsFormAssetFileName: z.string(),
+    }),
   }),
   updateDatasetHfaMappings: route({
     path: "/dataset-uploads/hfa/mappings",
     method: "POST",
-    body: {} as { mappings: Record<string, string> },
+    body: z.object({ mappings: z.record(z.string(), z.string()) }),
   }),
   updateDatasetHfaStaging: route({
     path: "/dataset-uploads/hfa/staging",

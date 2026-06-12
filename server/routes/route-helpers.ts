@@ -1,6 +1,7 @@
 import { Hono, type Context } from "hono";
 import type { TypedResponse } from "hono";
 import type { JSONParsed } from "hono/utils/types";
+import { z } from "zod";
 import { routeRegistry } from "lib";
 import { markRouteDefined } from "./route-tracker.ts";
 
@@ -32,6 +33,13 @@ type RouteHandler<K extends keyof typeof routeRegistry> = (
   ? Promise<Response>
   : Promise<Response & TypedResponse<JSONParsed<RouteEnvelope<K>>>>;
 
+// Format a ZodError into a single readable string for the APIResponse err field.
+function zodErr(error: z.ZodError): string {
+  return error.issues
+    .map(i => (i.path.length > 0 ? i.path.join(".") + ": " : "") + i.message)
+    .join("; ");
+}
+
 // Define a route using the registry
 export function defineRoute<K extends keyof typeof routeRegistry>(
   router: Hono,
@@ -45,23 +53,45 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
   // Wrap the handler to extract params and body
   const wrappedHandler = async (c: Context) => {
     // Extract params from the URL
-    const params: any = {};
+    let params: any = {};
     const paramNames = route.path.match(/:(\w+)/g);
     if (paramNames) {
       for (const paramName of paramNames) {
-        const key = paramName.slice(1); // Remove the :
+        const key = paramName.slice(1);
         params[key] = c.req.param(key);
       }
+    }
+    // Validate + coerce params if a Zod schema is present
+    const paramsSchema = (route as any).params;
+    if (paramsSchema instanceof z.ZodType) {
+      const result = paramsSchema.safeParse(params);
+      if (!result.success) {
+        return c.json({ success: false, err: zodErr(result.error) }, 400);
+      }
+      params = result.data;
     }
 
     // Extract body if it's a method that typically has a body
     let body: any = {};
     const method = route.method as string;
     if (method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE") {
+      // Parse with {} fallback so a missing/invalid-JSON body still goes through the
+      // schema below (and 400s on required fields) instead of bypassing validation.
+      let rawBody: unknown = {};
       try {
-        body = await c.req.json();
+        rawBody = await c.req.json();
       } catch {
-        // No body or invalid JSON
+        // No body or invalid JSON — validate {} like any other input
+      }
+      const bodySchema = (route as any).body;
+      if (bodySchema instanceof z.ZodType) {
+        const result = bodySchema.safeParse(rawBody);
+        if (!result.success) {
+          return c.json({ success: false, err: zodErr(result.error) }, 400);
+        }
+        body = result.data;
+      } else {
+        body = rawBody;
       }
     }
 

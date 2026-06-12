@@ -31,7 +31,7 @@ async function loadLevel(level: number, uploadedAt: string): Promise<void> {
     return;
   }
 
-  const res = await serverActions.getGeoJsonForLevel({ level: String(level) });
+  const res = await serverActions.getGeoJsonForLevel({ level: level });
   if (!res.success) throw new Error(res.err);
 
   const entry: CacheEntry = {

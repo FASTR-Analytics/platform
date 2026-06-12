@@ -24,8 +24,8 @@ export function GeoJsonEditModal(p: Props) {
   onMount(async () => {
     try {
       const [geoRes, optionsRes] = await Promise.all([
-        serverActions.getGeoJsonForLevel({ level: String(p.adminAreaLevel) }),
-        serverActions.getAdminAreaOptionsForLevel({ level: String(p.adminAreaLevel) }),
+        serverActions.getGeoJsonForLevel({ level: p.adminAreaLevel }),
+        serverActions.getAdminAreaOptionsForLevel({ level: p.adminAreaLevel }),
       ]);
 
       if (!geoRes.success) {
@@ -153,7 +153,7 @@ export function GeoJsonEditModal(p: Props) {
   );
 
   function handleDownload() {
-    serverActions.getGeoJsonForLevel({ level: String(p.adminAreaLevel) }).then((res) => {
+    serverActions.getGeoJsonForLevel({ level: p.adminAreaLevel }).then((res) => {
       if (!res.success) return;
       const blob = new Blob([res.data.geojson], { type: "application/json" });
       const url = URL.createObjectURL(blob);

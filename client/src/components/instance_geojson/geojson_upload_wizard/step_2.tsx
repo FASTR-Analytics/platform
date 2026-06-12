@@ -32,7 +32,7 @@ export function Step2(p: Props) {
 
   async function fetchAdminAreas() {
     setAdminAreasLoading(true);
-    const res = await serverActions.getAdminAreaOptionsForLevel({ level: String(state.adminAreaLevel()) });
+    const res = await serverActions.getAdminAreaOptionsForLevel({ level: state.adminAreaLevel() });
     if (res.success) {
       state.setAdminAreaOptions(res.data);
       state.setAdminAreaNames(res.data.map((o) => o.value));
@@ -77,7 +77,7 @@ export function Step2(p: Props) {
       }
 
       // Fetch admin area options
-      const aaRes = await serverActions.getAdminAreaOptionsForLevel({ level: String(state.adminAreaLevel()) });
+      const aaRes = await serverActions.getAdminAreaOptionsForLevel({ level: state.adminAreaLevel() });
       if (!aaRes.success) {
         return { success: false, err: aaRes.err ?? "Failed to fetch admin areas" };
       }

@@ -1,7 +1,7 @@
+import { z } from "zod";
 import type { AssetInfo } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-// Route registry for assets
 export const assetRouteRegistry = {
   getAssets: route({
     path: "/assets",
@@ -11,6 +11,6 @@ export const assetRouteRegistry = {
   deleteAssets: route({
     path: "/assets/delete",
     method: "POST",
-    body: {} as { assetFileNames: string[] },
+    body: z.object({ assetFileNames: z.array(z.string()) }),
   }),
 } as const;
