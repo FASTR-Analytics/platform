@@ -123,6 +123,8 @@ async function main() {
   // List all project databases
   const projectRows = await mainDb<{ project_id: string }[]>`
     SELECT id AS project_id FROM projects
+    WHERE status <> 'pending_deletion'
+    AND deletion_scheduled_at IS NULL
   `;
   console.log(`Found ${projectRows.length} projects.`);
 
@@ -133,6 +135,7 @@ async function main() {
     const projectDb = postgres({
       host: PG_HOST, port: PG_PORT, user: PG_USER, password: PG_PASSWORD,
       database: project_id,
+      connect_timeout: 5,
     });
 
     try {
@@ -198,8 +201,15 @@ async function main() {
           }
         }
       }
+    } catch (projectErr) {
+      const msg = projectErr instanceof Error ? projectErr.message : String(projectErr);
+      if (msg.includes("does not exist") || msg.includes("connect")) {
+        console.log(`  [skip] project ${project_id}: DB not accessible (${msg.slice(0, 80)})`);
+      } else {
+        throw projectErr;
+      }
     } finally {
-      await projectDb.end();
+      await projectDb.end().catch(() => {});
     }
   }
 

@@ -30,7 +30,6 @@ import {
   presentationObjectConfigSchema,
 } from "lib";
 import {
-  getTimeseriesDataTransformed,
   getPeriodIdFromTime,
   type PeriodType,
 } from "@timroberton/panther";
@@ -446,29 +445,101 @@ function reverseTransformTimeseries(
   return { items: rows, jdc };
 }
 
+// Direct-lookup validation: for every non-null value in the stored grid, verify
+// there is a row in the reconstructed items at the matching (pane, tier, lane,
+// series, period) coordinates with the same numeric value.
+//
+// This approach is sort-order-independent (doesn't re-run getTimeseriesDataTransformed
+// with a derived jdc that may differ from the original sort) and sentinel-aware
+// ("@@__UNDEFINED__@@" in stored values is treated as null/skip).
 function validateTimeseriesRoundTrip(
   items: Record<string, string>[],
   jdc: Record<string, unknown>,
   storedTsData: Record<string, unknown>,
 ): void {
-  const result = getTimeseriesDataTransformed(
-    { jsonArray: items, jsonDataConfig: jdc } as Parameters<typeof getTimeseriesDataTransformed>[0],
-    false,
-  );
+  const periodProp = String(jdc.periodProp ?? "year");
+  const valueProps = Array.isArray(jdc.valueProps) ? (jdc.valueProps as string[]) : [];
+  const seriesProp = jdc.seriesProp as string | undefined;
+  const paneProp = jdc.paneProp as string | undefined;
+  const laneProp = jdc.laneProp as string | undefined;
+  const tierProp = jdc.tierProp as string | undefined;
+  const isWideFormat = !seriesProp || seriesProp === "--v";
 
-  const storedNTimePoints = storedTsData.nTimePoints as number | undefined ?? 0;
-  if (result.nTimePoints !== storedNTimePoints) {
-    throw new Error(
-      `nTimePoints mismatch: stored=${storedNTimePoints}, reconstructed=${result.nTimePoints}`,
-    );
+  // Build lookup: "pane|tier|lane|seriesKey|period" → value
+  const lookup = new Map<string, number>();
+  for (const row of items) {
+    const period = row[periodProp] ?? "";
+    const pane = paneProp ? (row[paneProp] ?? "--v") : "--v";
+    const tier = tierProp ? (row[tierProp] ?? "--v") : "--v";
+    const lane = laneProp ? (row[laneProp] ?? "--v") : "--v";
+
+    if (isWideFormat) {
+      for (const vp of valueProps) {
+        const v = row[vp];
+        if (v !== undefined && v !== null && v !== "") {
+          lookup.set(`${pane}|${tier}|${lane}|${vp}|${period}`, Number(v));
+        }
+      }
+    } else {
+      const series = seriesProp ? (row[seriesProp] ?? "--v") : "--v";
+      const v = row[valueProps[0] ?? "--v"];
+      if (v !== undefined && v !== null && v !== "") {
+        lookup.set(`${pane}|${tier}|${lane}|${series}|${period}`, Number(v));
+      }
+    }
   }
 
-  const storedValues = storedTsData.values as unknown;
-  const resultValues = result.values;
-  const storedStr = JSON.stringify(storedValues);
-  const resultStr = JSON.stringify(resultValues);
-  if (storedStr !== resultStr) {
-    throw new Error(`values grid mismatch (stored vs reconstructed, first 300 chars): ${storedStr.slice(0, 300)} != ${resultStr.slice(0, 300)}`);
+  const toHeaders = (arr: unknown): { id: string }[] => {
+    if (!Array.isArray(arr) || arr.length === 0) return [{ id: "--v" }];
+    return arr.map((h) => typeof h === "string" ? { id: h } : (h as { id: string }));
+  };
+  const paneHeaders = toHeaders(storedTsData.paneHeaders);
+  const tierHeaders = toHeaders(storedTsData.tierHeaders);
+  const laneHeaders = toHeaders(storedTsData.laneHeaders);
+  const seriesHeaders = toHeaders(storedTsData.seriesHeaders);
+  const periodType = storedTsData.periodType as PeriodType | undefined ?? "year";
+  const timeMin = storedTsData.timeMin as number | undefined ?? 0;
+  const nTimePoints = storedTsData.nTimePoints as number | undefined ?? 0;
+
+  type V5D = (number | null | undefined | string)[][][][][];
+  const values = storedTsData.values as V5D | undefined;
+  if (!values) return;
+
+  // Single-header axes have id="default" in stored data but "--v" in the lookup
+  // (the reverse-transform omits the column for single-header axes).
+  const paneKey = (iPn: number) => paneHeaders.length === 1 ? "--v" : paneHeaders[iPn].id;
+  const tierKey = (iTr: number) => tierHeaders.length === 1 ? "--v" : tierHeaders[iTr].id;
+  const laneKey = (iLn: number) => laneHeaders.length === 1 ? "--v" : laneHeaders[iLn].id;
+
+  for (let iPn = 0; iPn < paneHeaders.length; iPn++) {
+    for (let iTr = 0; iTr < tierHeaders.length; iTr++) {
+      for (let iLn = 0; iLn < laneHeaders.length; iLn++) {
+        for (let iSr = 0; iSr < seriesHeaders.length; iSr++) {
+          for (let iT = 0; iT < nTimePoints; iT++) {
+            const sv = values[iPn]?.[iTr]?.[iLn]?.[iSr]?.[iT];
+            // Treat sentinels and nulls as absent — not a data-loss case.
+            if (sv === null || sv === undefined || sv === "@@__UNDEFINED__@@") continue;
+            const storedNum = Number(sv);
+            if (isNaN(storedNum)) continue;
+
+            const period = String(getPeriodIdFromTime(timeMin + iT, periodType));
+            const seriesKey = isWideFormat
+              ? (valueProps[iSr] ?? seriesHeaders[iSr].id)
+              : seriesHeaders[iSr].id;
+            const key = `${paneKey(iPn)}|${tierKey(iTr)}|${laneKey(iLn)}|${seriesKey}|${period}`;
+            const reconstructed = lookup.get(key);
+
+            if (reconstructed === undefined || Math.abs(reconstructed - storedNum) > 1e-6) {
+              throw new Error(
+                `value not recoverable at (pane=${paneHeaders[iPn].id}, tier=${tierHeaders[iTr].id}, ` +
+                `lane=${laneHeaders[iLn].id}, series=${seriesKey}, period=${period}): ` +
+                `stored=${storedNum}, reconstructed=${reconstructed ?? "missing"}`,
+              );
+            }
+          }
+        }
+      }
+    }
   }
 }
 
