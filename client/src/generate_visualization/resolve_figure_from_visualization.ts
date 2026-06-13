@@ -1,9 +1,8 @@
-import type { FigureBlock, FigureBundle, PresentationObjectConfig } from "lib";
+import type { FigureBlock, FigureBundle, IndicatorMetadata, ItemsHolderPresentationObject, PeriodBounds, PresentationObjectConfig, ResultsValue } from "lib";
 import { getReplicateByProp } from "lib";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { getInstanceLocalization } from "~/state/instance/t1_store";
-import { figureBundleToBlock } from "./strip_figure_inputs";
 import {
   getPODetailFromCacheorFetch,
   getPresentationObjectItemsFromCacheOrFetch,
@@ -13,10 +12,8 @@ import {
 // `type` is optional for callers that carry the discriminant from the AI input shape.
 export type VisualizationInput = { visualizationId: string; replicant?: string; type?: string };
 
-// Produces a FigureBundle from a visualization (PO). The bundle is self-
-// contained: config, items, localization, and geo are all captured.
-// P1 callers still writing old FigureBlock use figureBundleToBlock;
-// P2 callers store the bundle directly.
+// Produces a FigureBundle from a visualization (PO). The bundle is
+// self-contained: config, items, localization, and geo are all captured.
 export async function resolveFigureBundleFromVisualization(
   projectId: string,
   block: VisualizationInput,
@@ -81,16 +78,44 @@ export async function resolveFigureBundleFromVisualization(
   };
 }
 
-// P1 convenience: resolve and return the old FigureBlock format + extracted geo.
-// Non-AI consumers (dashboards, reports) import this from generate_visualization/mod —
-// NOT from slide_deck/slide_ai — so the dashboard/report → AI coupling is dissolved.
+// P2: non-fetch bundle assembly for callers that already hold fetched PO data
+// (slide_editor, dashboard_editor). Avoids re-fetching when data is in hand.
+export type FetchedPOData = {
+  resultsValue: Pick<ResultsValue, "id" | "formatAs" | "valueProps" | "valueLabelReplacements">;
+  ih: ItemsHolderPresentationObject & { status: "ok"; items: Record<string, string>[]; indicatorMetadata: IndicatorMetadata[]; dateRange: PeriodBounds | undefined };
+  effectiveConfig: PresentationObjectConfig;
+};
+
+export function makeFigureBundleFromFetchedData(data: FetchedPOData): FigureBundle {
+  const { resultsValue, ih, effectiveConfig } = data;
+  const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
+  const geoJson = mapLevel ? getGeoJsonSync(mapLevel) : undefined;
+  return {
+    config: effectiveConfig,
+    items: ih.items,
+    resultsValue: {
+      formatAs: resultsValue.formatAs,
+      valueProps: resultsValue.valueProps,
+      valueLabelReplacements: resultsValue.valueLabelReplacements,
+    },
+    indicatorMetadata: ih.indicatorMetadata,
+    dateRange: ih.dateRange,
+    geo: mapLevel ? (geoJson ? { kind: "data" as const, data: geoJson } : { kind: "level" as const, level: mapLevel }) : undefined,
+    localization: getInstanceLocalization(),
+    metricId: resultsValue.id,
+    snapshotAt: new Date().toISOString(),
+    provenance: { moduleLastRun: ih.moduleLastRun, datasetsVersion: ih.datasetsVersion },
+  };
+}
+
+// Convenience: resolve and return FigureBlock + extracted geo.
 export async function resolveFigureAndGeoFromVisualization(
   projectId: string,
   block: VisualizationInput,
 ): Promise<{ figureBlock: FigureBlock; geoData?: unknown }> {
   const bundle = await resolveFigureBundleFromVisualization(projectId, block);
   return {
-    figureBlock: figureBundleToBlock(bundle),
+    figureBlock: { type: "figure", bundle },
     geoData: bundle.geo?.kind === "data" ? bundle.geo.data : undefined,
   };
 }

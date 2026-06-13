@@ -11,13 +11,14 @@ import {
 import type {
   Slide,
   ContentBlock,
-  FigureSource,
+  FigureBundle,
   AiSlideInput,
   MetricWithStatus,
   SlideDeckConfig,
 } from "lib";
 import { slideConfigSchema, getAllSlideFontVariants, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { buildFigureInputs } from "~/generate_visualization/mod";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
@@ -88,8 +89,8 @@ export async function convertAiInputToSlide(
     }
   }
 
-  // Extract PageContentItems and build ID → source map
-  const sourceMap = new Map<string, FigureSource | undefined>();
+  // Extract PageContentItems and build ID → bundle map
+  const bundleMap = new Map<string, FigureBundle | undefined>();
   const generateId = createIdGeneratorForLayout();
   const itemNodes = resolvedBlocks.map((block) => {
     let pageItem: PageContentItem;
@@ -97,19 +98,22 @@ export async function convertAiInputToSlide(
       pageItem = { markdown: block.markdown };
     } else if (block.type === "image") {
       pageItem = { spacer: true };
-    } else if (block.figureInputs) {
-      pageItem = block.figureInputs;
+    } else if (block.bundle) {
+      try {
+        pageItem = buildFigureInputs(block.bundle) as PageContentItem;
+      } catch {
+        pageItem = { spacer: true };
+      }
     } else {
       pageItem = { spacer: true };
     }
 
     const node = createItemNode(pageItem);
-
     const shortId = generateId();
     const nodeWithShortId = { ...node, id: shortId };
 
     if (block.type === "figure") {
-      sourceMap.set(shortId, block.source);
+      bundleMap.set(shortId, block.bundle);
     }
 
     return nodeWithShortId;
@@ -146,7 +150,7 @@ export async function convertAiInputToSlide(
     getOptimizerConfig(slideInput.layoutPreference, resolvedBlocks.length),
   );
 
-  const layoutWithMeta = restoreMetadata(result.best.layout, sourceMap);
+  const layoutWithMeta = restoreMetadata(result.best.layout, bundleMap);
 
   return slideConfigSchema.parse({
     type: "content",
@@ -155,43 +159,32 @@ export async function convertAiInputToSlide(
   }) as Slide;
 }
 
-type SourceMap = Map<string, FigureSource | undefined>;
+type BundleMap = Map<string, FigureBundle | undefined>;
 
-/**
- * Restore source metadata into layout tree after optimization
- */
 function restoreMetadata(
   node: LayoutNode<PageContentItem>,
-  sourceMap: SourceMap,
+  bundleMap: BundleMap,
 ): LayoutNode<ContentBlock> {
   if (node.type === "item") {
     const pageItem = node.data;
-    const source = sourceMap.get(node.id);
-
-    // Determine if text or figure
     const isText = "markdown" in pageItem;
-
     let contentBlock: ContentBlock;
     if (isText) {
       contentBlock = { type: "text", markdown: pageItem.markdown };
     } else {
-      const { autofit, ...figureInputs } = pageItem as any;
       contentBlock = {
         type: "figure",
-        figureInputs,
-        source,
+        bundle: bundleMap.get(node.id),
       };
     }
-
     return { type: "item", id: node.id, span: node.span, data: contentBlock };
   }
 
-  // Rows/cols - recurse, preserving span
   return {
     type: node.type,
     id: node.id,
     span: node.span,
-    children: node.children.map((child) => restoreMetadata(child, sourceMap)),
+    children: node.children.map((child) => restoreMetadata(child, bundleMap)),
   };
 }
 

@@ -3,82 +3,62 @@
 // =============================================================================
 //
 // Table:    dashboard_items
-// Column:   figure_block (JSON)
-// Schema:   lib/types/_dashboard_config.ts
-//           → dashboardFigureBlockSchema
+// Column:   figure_block (JSON), geo_data (JSON)
+// Schema:   lib/types/_dashboard_config.ts → dashboardFigureBlockSchema
 //
-// Every dashboard item — standalone or replicant-group member — is a
-// dashboard_items row, so this one sweep covers all dashboard figure blocks
-// (dashboard_item_groups holds only group metadata, no figure_block column).
-//
-// TRANSFORM BLOCKS (run in order, each idempotent):
-// 1. Figure-block transforms shared with slides/reports (_figure_block.ts):
-//    source.type "from_metric"→"from_data" + snapshotAt, embedded PO config
-//    transform, figureInputs normalization.
-//
-// NOTE: dashboardFigureBlockSchema validates figureInputs against panther's
-// zFigureInputs (lib/types figureInputsSchema), so the skip gate sees
-// figureInputs drift — old-shape blobs fail the gate and fall through to
-// Block 1's figureInputs normalization.
+// P2: converts old { figureInputs, source } shape → { bundle }. geo_data column
+// value is incorporated into the bundle's geo field for map figures; the column
+// itself is left intact for now (it becomes redundant but is not dropped here).
 //
 // =============================================================================
 
 import { dashboardFigureBlockSchema } from "lib";
 import type { Sql } from "postgres";
-import {
-  type MigrationStats,
-  rawJsonNeedsForcedTransform,
-} from "./po_config.ts";
+import { type MigrationStats } from "./po_config.ts";
 import {
   type FigureBlockMut,
   transformFigureBlock,
-  warnIfFigureInputsStale,
+  transformFigureBlockToBundle,
+  getTransformLocalization,
 } from "./_figure_block.ts";
 
 export async function migrateDashboardItems(
   tx: Sql,
   _projectId: string,
 ): Promise<MigrationStats> {
-  const rows = await tx<{ id: string; figure_block: string }[]>`
-    SELECT id, figure_block FROM dashboard_items
+  // Read countryIso3 for localization once per run.
+  const cfgRows = await tx<{ country_iso3: string | null }[]>`
+    SELECT value->>'countryIso3' AS country_iso3 FROM instance_config LIMIT 1
+  `.catch(() => [] as { country_iso3: string | null }[]);
+  const countryIso3 = cfgRows[0]?.country_iso3 ?? "";
+  const localization = getTransformLocalization(countryIso3);
+
+  const rows = await tx<{ id: string; figure_block: string; geo_data: string | null }[]>`
+    SELECT id, figure_block, geo_data FROM dashboard_items
   `;
   const now = new Date().toISOString();
   let rowsTransformed = 0;
 
   for (const row of rows) {
-    const figureBlock = JSON.parse(row.figure_block);
+    const figureBlock = JSON.parse(row.figure_block) as FigureBlockMut;
 
-    // Already valid? Skip (current-shape) — unless legacy keys (which
-    // safeParse silently strips) still need the embedded-config rename.
-    // figureInputs drift is covered by this same safeParse:
-    // dashboardFigureBlockSchema validates figureInputs against panther's
-    // zFigureInputs (lib/types figureInputsSchema).
-    if (
-      dashboardFigureBlockSchema.safeParse(figureBlock).success &&
-      !rawJsonNeedsForcedTransform(row.figure_block)
-    ) {
+    if (dashboardFigureBlockSchema.safeParse(figureBlock).success) {
       continue;
     }
+
     const storedCanonical = JSON.stringify(figureBlock);
 
-    // Block 1: Shared figure-block transforms.
-    transformFigureBlock(figureBlock as FigureBlockMut);
-    warnIfFigureInputsStale(
-      `dashboard_items.figure_block row ${row.id}`,
-      (figureBlock as FigureBlockMut).figureInputs,
-    );
+    // Step 1: Pre-P2 normalisation (from_metric rename, PO config, header fix).
+    transformFigureBlock(figureBlock);
 
-    // Throws if the row is still invalid after every transform (including
-    // figureInputs drift the upgrader does not fix) — the runner then refuses
-    // to start the server. The warn above names the stale figureInputs.
+    // Step 2: Convert to bundle format.
+    const geoData = row.geo_data ? JSON.parse(row.geo_data) : null;
+    transformFigureBlockToBundle(figureBlock, localization, geoData);
+
     const validated = dashboardFigureBlockSchema.parse(figureBlock);
-
-    // Output identical to stored (e.g. a forced-scan false positive)? Skip the
-    // write so the row doesn't churn last_updated on every boot.
     const out = JSON.stringify(validated);
-    if (out === storedCanonical) {
-      continue;
-    }
+
+    if (out === storedCanonical) continue;
 
     await tx`
       UPDATE dashboard_items

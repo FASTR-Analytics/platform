@@ -602,12 +602,10 @@ export function SlideEditorPanelContent(p: Props) {
                     <Match when={getCurrentBlock()?.type === "figure"}>
                       {(() => {
                         const block = () => getCurrentBlock() as FigureBlock;
-                        const hasFigure = () => !!block().figureInputs;
-                        const hasSource = () =>
-                          block().source?.type === "from_data";
+                        const hasBundle = () => block().bundle !== undefined;
                         return (
                           <div class="ui-gap-sm flex flex-col">
-                            <Show when={hasFigure() && hasSource()}>
+                            <Show when={hasBundle()}>
                               <Button onClick={() => p.onEditVisualization()}>
                                 {t3({
                                   en: "Edit Visualization",
@@ -616,7 +614,7 @@ export function SlideEditorPanelContent(p: Props) {
                               </Button>
                             </Show>
                             <Button onClick={() => p.onSelectVisualization()}>
-                              {hasFigure()
+                              {hasBundle()
                                 ? t3({
                                     en: "Switch Visualization",
                                     fr: "Changer de visualisation",
@@ -632,7 +630,7 @@ export function SlideEditorPanelContent(p: Props) {
                                 fr: "Créer une nouvelle visualisation",
                               })}
                             </Button>
-                            <Show when={hasFigure()}>
+                            <Show when={hasBundle()}>
                               <Button
                                 intent="danger"
                                 outline

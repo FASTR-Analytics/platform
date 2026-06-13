@@ -73,37 +73,27 @@ export async function simplifySlideForAI(projectId: string, slide: Slide, metric
         return { id, summary: `Image: ${block.imgFile}` };
       } else {
         // Figure block
-        if (block.source?.type === "from_data") {
+        if (block.bundle) {
           try {
             const dataOutput = await getDataFromConfig(
               projectId,
-              block.source.metricId,
+              block.bundle.metricId,
               metrics ?? [],
-              block.source.config
+              block.bundle.config,
             );
-
             const header = [
-              `Figure (metric: ${block.source.metricId}, type: ${block.source.config.d.type})`,
+              `Figure (metric: ${block.bundle.metricId}, type: ${block.bundle.config.d.type})`,
               "",
             ].join("\n");
-
-            return {
-              id,
-              summary: header + dataOutput,
-            };
+            return { id, summary: header + dataOutput };
           } catch (err) {
             return {
               id,
-              summary: `Figure (metric: ${block.source.metricId}) - Error loading data: ${err}`,
+              summary: `Figure (metric: ${block.bundle.metricId}) - Error loading data: ${err}`,
             };
           }
-        } else if (block.source?.type === "custom") {
-          return {
-            id,
-            summary: `Figure (custom data${block.source.description ? ` - ${block.source.description}` : ""})`,
-          };
         } else {
-          return { id, summary: "Figure (no source data)" };
+          return { id, summary: "Figure (no data)" };
         }
       }
     })

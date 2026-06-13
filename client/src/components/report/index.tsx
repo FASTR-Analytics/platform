@@ -33,12 +33,9 @@ import { serverActions, _SERVER_HOST } from "~/server_actions";
 import { projectState } from "~/state/project/t1_store";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import {
-  getFigureInputsFromPresentationObject,
-  stripFigureInputsForStorage,
+  makeFigureBundleFromFetchedData,
 } from "~/generate_visualization/mod";
-import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
-import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext, ReportEditProposal } from "../project_ai/types";
 import { SelectVisualizationForSlide } from "../slide_deck/select_visualization_for_slide";
@@ -627,44 +624,13 @@ export function ProjectReport(p: Props) {
       };
     }
     const ih = itemsRes.data.ih;
-    // Use the generator's config (may carry an auto-selected replicant) so
-    // labels and the persisted source config describe the fetched data.
     const effectiveConfig = itemsRes.data.config;
-    let geoJson;
-    const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
-    if (mapLevel) geoJson = getGeoJsonSync(mapLevel);
-    const fi = getFigureInputsFromPresentationObject(
+    const bundle = makeFigureBundleFromFetchedData({
       resultsValue,
-      ih,
+      ih: ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
       effectiveConfig,
-      geoJson,
-    );
-    if (fi.status !== "ready") {
-      return {
-        ok: false,
-        err:
-          fi.status === "error"
-            ? fi.err
-            : t3({
-                en: "Failed to generate visualization",
-                fr: "Échec de la génération de la visualisation",
-              }),
-      };
-    }
-    return {
-      ok: true,
-      figureBlock: {
-        type: "figure",
-        figureInputs: structuredClone(stripFigureInputsForStorage(fi.data)),
-        source: {
-          type: "from_data",
-          metricId: resultsValue.id,
-          config: effectiveConfig,
-          snapshotAt: new Date().toISOString(),
-          indicatorMetadata: ih.indicatorMetadata,
-        },
-      },
-    };
+    });
+    return { ok: true, figureBlock: { type: "figure" as const, bundle } };
   }
 
   // ── toolbar / embed-editor actions ───────────────────────────────────────────
@@ -764,10 +730,10 @@ export function ProjectReport(p: Props) {
   async function handleEdit() {
     const sel = selectedEmbed();
     if (!sel || sel.kind !== "figure") return;
-    const source = figures()[sel.id]?.source;
-    if (!source || source.type !== "from_data") return;
+    const bundle = figures()[sel.id]?.bundle;
+    if (!bundle) return;
     const resultsValue = projectState.metrics.find(
-      (m) => m.id === source.metricId,
+      (m) => m.id === bundle.metricId,
     );
     if (!resultsValue) {
       await openAlert({
@@ -788,7 +754,7 @@ export function ProjectReport(p: Props) {
         ...snapshotForVizEditor({
           projectState,
           resultsValue,
-          config: source.config,
+          config: bundle.config,
         }),
       },
     });

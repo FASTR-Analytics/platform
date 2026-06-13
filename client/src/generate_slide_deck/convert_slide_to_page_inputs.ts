@@ -24,7 +24,6 @@ import type {
   APIResponseWithData,
   ContainerStyleOptions,
   CustomPageStyleOptions,
-  FigureInputs,
   FontInfo,
   ImageInputs,
   LayoutNode,
@@ -35,8 +34,7 @@ import type {
 } from "panther";
 import { getBaseText, resolvePageStyle } from "panther";
 import {
-  figureSourceToHydrationSource,
-  hydrateFigureInputsForRendering,
+  buildFigureInputs,
 } from "~/generate_visualization/mod";
 import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
@@ -550,26 +548,13 @@ async function convertBlockToPageContentItem(
     return imageItem;
   }
 
-  let fi: FigureInputs | undefined = block.figureInputs;
-  if (
-    !fi ||
-    !(
-      "tableData" in fi ||
-      "chartData" in fi ||
-      "chartOHData" in fi ||
-      "timeseriesData" in fi ||
-      "simpleVizData" in fi ||
-      "mapData" in fi
-    )
-  ) {
+  if (!block.bundle) {
     return { spacer: true };
   }
 
-  const hydrationSource =
-    block.source?.type === "from_data"
-      ? figureSourceToHydrationSource(block.source)
-      : undefined;
-  fi = await hydrateFigureInputsForRendering(fi, hydrationSource, deckStyle);
-
-  return fi as PageContentItem;
+  try {
+    return buildFigureInputs(block.bundle, deckStyle) as PageContentItem;
+  } catch {
+    return { spacer: true };
+  }
 }

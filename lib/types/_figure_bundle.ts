@@ -6,8 +6,8 @@
 // items, resultsValue projection, metadata, localization, and provenance. After
 // P2 cutover, slides/dashboards/reports store this instead of FigureInputs.
 //
-// Phase 1: schema defined here; stored schemas unchanged (still FigureInputs).
-// Phase 2: stored schemas swap to the strict FigureBlock below; backfill runs.
+// Phase 2 (current): stored schemas use this bundle shape; boot-time backfill
+// converts old figureInputs/source rows; sentinel layer deleted.
 //
 // =============================================================================
 
@@ -21,14 +21,18 @@ import { presentationObjectConfigSchema } from "./_presentation_object_config.ts
 // Runtime locks: parse a Required<T> so a new field in the source type causes
 // a compile error (Required forces the literal) and a parse failure here.
 
-export const periodBoundsSchema = z.object({
+// P2: z.strictObject — stored shape; unknown keys in a stored sub-object would
+// pass the skip-gate and be silently stripped on read (PROTOCOL_APP_MIGRATIONS
+// skip-gate gotcha). Strict mode catches that drift at boot.
+// geo.data stays z.unknown(): GeoJSON is an external stable spec, low drift risk.
+export const periodBoundsSchema = z.strictObject({
   min: z.number(),
   max: z.number(),
 });
 const _pb: Required<PeriodBounds> = { min: 0, max: 0 };
 periodBoundsSchema.parse(_pb);
 
-export const indicatorMetadataSchema = z.object({
+export const indicatorMetadataSchema = z.strictObject({
   id: z.string(),
   label: z.string(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
@@ -45,7 +49,7 @@ const _im: Required<IndicatorMetadata> = {
 };
 indicatorMetadataSchema.parse(_im);
 
-export const resultsValueForVisualizationSchema = z.object({
+export const resultsValueForVisualizationSchema = z.strictObject({
   formatAs: z.enum(["percent", "number"]),
   valueProps: z.array(z.string()),
   valueLabelReplacements: z.record(z.string(), z.string()).optional(),
@@ -94,11 +98,11 @@ export const figureBundleSchema = z.strictObject({
 
 export type FigureBundle = z.infer<typeof figureBundleSchema>;
 
-// ── Strict FigureBlock (for P2 cutover — not yet wired into stored schemas) ──
+// ── Stored FigureBlock schema ─────────────────────────────────────────────────
 
-export const figureBundleBlockSchema = z.strictObject({
+export const figureBlockSchema = z.strictObject({
   type: z.literal("figure"),
   bundle: figureBundleSchema.optional(),
 });
 
-export type FigureBundleBlock = z.infer<typeof figureBundleBlockSchema>;
+export type FigureBlock = z.infer<typeof figureBlockSchema>;

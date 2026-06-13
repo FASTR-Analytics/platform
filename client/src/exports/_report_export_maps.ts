@@ -1,33 +1,21 @@
 import { type FigureMap, type ImageMap } from "panther";
 import type { FigureBlock, ImageBlock } from "lib";
-import {
-  figureSourceToHydrationSource,
-  hydrateFigureInputsForRendering,
-} from "~/generate_visualization/mod";
+import { buildFigureInputs } from "~/generate_visualization/mod";
 import { _SERVER_HOST } from "~/server_actions";
 
 // Build the FigureMap markdownTo{Pdf,Word}Browser expect: keyed by the literal
-// markdown src ("figure:<id>"), value = HYDRATED FigureInputs (the export
-// rasterizes / vector-renders them; do NOT pre-rasterize). See PLAN_REPORTS.md §5.
+// markdown src ("figure:<id>"), value = HYDRATED FigureInputs.
 export async function buildReportFigureMap(
   figures: Record<string, FigureBlock>,
 ): Promise<FigureMap> {
   const map: FigureMap = new Map();
   for (const [id, block] of Object.entries(figures)) {
-    if (!block.figureInputs) continue;
-    const source = block.source
-      ? figureSourceToHydrationSource(block.source)
-      : undefined;
-    const hydrated = await hydrateFigureInputsForRendering(
-      block.figureInputs,
-      source,
-    );
-    map.set(`figure:${id}`, hydrated);
+    if (!block.bundle) continue;
+    map.set(`figure:${id}`, buildFigureInputs(block.bundle));
   }
   return map;
 }
 
-// Images go in the ImageMap keyed by "image:<id>" → { dataUrl, width, height }.
 export async function buildReportImageMap(
   images: Record<string, ImageBlock>,
 ): Promise<ImageMap> {

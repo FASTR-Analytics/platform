@@ -34,17 +34,12 @@ import {
   getPODetailFromCacheorFetch,
   getPresentationObjectItemsFromCacheOrFetch,
 } from "~/state/project/t2_presentation_objects";
-import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { serverActions } from "~/server_actions";
 import { SelectVisualizationForSlide } from "~/components/slide_deck/select_visualization_for_slide";
 import { VisualizationEditor } from "~/components/visualization";
 import { AddVisualization } from "~/components/project/add_visualization";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
-import {
-  getFigureInputsFromPresentationObject,
-  stripFigureInputsForStorage,
-} from "~/generate_visualization/mod";
-import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
+import { makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
 import { AddDashboardItemConfirmModal } from "./add_dashboard_item_modal";
 import { resolveReplicantStructure } from "./resolve_replicant_structure";
 import { resolveMembersWithProgress } from "./resolve_members_with_progress";
@@ -257,39 +252,16 @@ export function DashboardEditor(p: Props) {
       return { ok: false, err: "Failed to generate visualization" };
     }
     const ih = itemsRes.data.ih;
-    // The generator may auto-select a replicant on a COPY of the config — the
-    // figure (labels, captions) and the persisted source config must use that
-    // copy so they describe the data that was actually fetched.
     const effectiveConfig = itemsRes.data.config;
-    let geoJson;
-    const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
-    if (mapLevel) geoJson = getGeoJsonSync(mapLevel);
-    const fi = getFigureInputsFromPresentationObject(
+    const bundle = makeFigureBundleFromFetchedData({
       resultsValue,
-      ih,
+      ih: ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
       effectiveConfig,
-      geoJson,
-    );
-    if (fi.status !== "ready") {
-      return {
-        ok: false,
-        err: fi.status === "error" ? fi.err : "Failed to generate figure",
-      };
-    }
+    });
     return {
       ok: true,
-      figureBlock: {
-        type: "figure",
-        figureInputs: structuredClone(stripFigureInputsForStorage(fi.data)),
-        source: {
-          type: "from_data",
-          metricId: resultsValue.id,
-          config: effectiveConfig,
-          snapshotAt: new Date().toISOString(),
-          indicatorMetadata: ih.indicatorMetadata,
-        },
-      },
-      geoData: geoJson,
+      figureBlock: { type: "figure" as const, bundle },
+      geoData: bundle.geo?.kind === "data" ? bundle.geo.data : undefined,
     };
   }
 
@@ -482,9 +454,7 @@ export function DashboardEditor(p: Props) {
     if (sel.replicant) {
       after.d.selectedReplicantValue = sel.replicant;
     }
-    const oldSource = it.figureBlock.source;
-    const oldConfig =
-      oldSource?.type === "from_data" ? oldSource.config : undefined;
+    const oldConfig = it.figureBlock.bundle?.config;
     // The switch modal forces a single replicant pick for replicant vizes, so a
     // switch never expands an item — it stays a single item showing the picked
     // replicant. Treat an explicit pick like an existing replicant dimension.
@@ -734,10 +704,10 @@ export function DashboardEditor(p: Props) {
   async function handleEdit() {
     const it = selectedItem();
     if (!it) return;
-    const source = it.figureBlock.source;
-    if (!source || source.type !== "from_data") return;
+    const bundle = it.figureBlock.bundle;
+    if (!bundle) return;
     const resultsValue = projectState.metrics.find(
-      (m) => m.id === source.metricId,
+      (m) => m.id === bundle.metricId,
     );
     if (!resultsValue) {
       await openAlert({ text: "Metric not found in project", intent: "danger" });
@@ -752,7 +722,7 @@ export function DashboardEditor(p: Props) {
         ...snapshotForVizEditor({
           projectState,
           resultsValue,
-          config: source.config,
+          config: bundle.config,
         }),
       },
     });
@@ -761,8 +731,8 @@ export function DashboardEditor(p: Props) {
       it,
       resultsValue,
       result.updated.config,
-      source.config.d.selectedReplicantValue,
-      !!getReplicateByProp(source.config),
+      bundle.config.d.selectedReplicantValue,
+      !!getReplicateByProp(bundle.config),
     );
   }
 
@@ -922,10 +892,10 @@ export function DashboardEditor(p: Props) {
     const g = selectedGroup();
     if (!g) return;
     const member = items().find((i) => i.replicantGroupId === g.id);
-    const source = member?.figureBlock.source;
-    if (!source || source.type !== "from_data") return;
+    const bundle = member?.figureBlock.bundle;
+    if (!bundle) return;
     const resultsValue = projectState.metrics.find(
-      (m) => m.id === source.metricId,
+      (m) => m.id === bundle.metricId,
     );
     if (!resultsValue) {
       await openAlert({ text: "Metric not found in project", intent: "danger" });
@@ -940,7 +910,7 @@ export function DashboardEditor(p: Props) {
         ...snapshotForVizEditor({
           projectState,
           resultsValue,
-          config: source.config,
+          config: bundle.config,
         }),
       },
     });

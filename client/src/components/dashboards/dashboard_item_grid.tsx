@@ -4,7 +4,7 @@ import { SelectionCircle, type SelectionController } from "panther";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import SortableVendor from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { FigureThumbnail } from "~/components/PresentationObjectMiniDisplay";
-import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/strip_figure_inputs";
+import { buildFigureInputs } from "~/generate_visualization/mod";
 
 // One entry in the editor grid: a standalone item or a replicant group (shown as
 // a single "card-set" card). `id` is the selection/reorder key (item id or group
@@ -115,12 +115,13 @@ function EntryCard(props: { entry: DashboardGridEntry; p: Props }) {
   const id = () => props.entry.id;
   const isGroup = () => props.entry.kind === "group";
   const isSelected = () => props.p.selection.isSelected(id());
-  const figureInputs = () =>
-    hydrateFigureInputsForPublicRendering(
-      entry().thumbnail.strippedFigureInputs,
-      entry().thumbnail.source,
-      entry().thumbnail.geoData,
-    );
+  const figureInputs = () => {
+    try {
+      return buildFigureInputs(entry().thumbnail.bundle);
+    } catch {
+      return undefined;
+    }
+  };
 
   return (
     <div class="group row-span-2 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]">
@@ -158,7 +159,9 @@ function EntryCard(props: { entry: DashboardGridEntry; p: Props }) {
               {t3({ en: "replicants", fr: "réplicants" })}
             </div>
           </Show>
-          <FigureThumbnail figureInputs={figureInputs()} />
+          <Show when={figureInputs()}>
+            {(fi) => <FigureThumbnail figureInputs={fi()} />}
+          </Show>
         </div>
       </div>
     </div>

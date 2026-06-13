@@ -4,16 +4,10 @@ import type {
   PublicDashboardEntryGroup,
   PublicDashboardItem,
 } from "lib";
-import { hydrateFigureInputsForPublicRendering } from "~/generate_visualization/strip_figure_inputs";
+import { buildFigureInputs } from "~/generate_visualization/mod";
 
-// Hydrate the stripped, on-screen figure into a full FigureInputs. Identical to
-// what the viewer renders — exporting reads exactly what the user sees.
 export function itemFigureInputs(item: PublicDashboardItem): FigureInputs {
-  return hydrateFigureInputsForPublicRendering(
-    item.strippedFigureInputs,
-    item.source,
-    item.geoData,
-  );
+  return buildFigureInputs(item.bundle);
 }
 
 export function replicantLabel(

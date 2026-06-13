@@ -216,26 +216,8 @@ export type TextBlock = {
   style?: TextBlockStyle;
 };
 
-// Figure source - enables refresh
-export type FigureSource =
-  | {
-      type: "from_data";
-      metricId: string;
-      config: PresentationObjectConfig;
-      snapshotAt: string;
-      indicatorMetadata?: IndicatorMetadata[];
-    }
-  | {
-      type: "custom";
-      description?: string;
-    };
-
-// Figure block - contains rendered data + optional source for refresh
-export type FigureBlock = {
-  type: "figure";
-  figureInputs?: FigureInputs;
-  source?: FigureSource;
-};
+// FigureBlock is owned by _figure_bundle.ts; imported here for ContentBlock only.
+import type { FigureBlock } from "./_figure_bundle.ts";
 
 // Image block styling
 export type ImageBlockStyle = {

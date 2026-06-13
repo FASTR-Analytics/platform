@@ -5,7 +5,8 @@
 // =============================================================================
 
 import { z } from "zod";
-import type { FigureBlock, ImageBlock } from "./slides.ts";
+import type { ImageBlock } from "./slides.ts";
+import type { FigureBlock } from "./_figure_bundle.ts";
 import { figureBlockSchema, imageBlockSchema } from "./_slide_config.ts";
 
 // ── Config (v1: minimal; no per-report styling) ──────────────────────────────

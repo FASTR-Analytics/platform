@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { dashboardConfigSchema, dashboardLayoutSchema } from "../../types/_dashboard_config.ts";
-import { figureBlockSchema } from "../../types/_slide_config.ts";
+import { figureBlockSchema } from "../../types/_figure_bundle.ts";
+import type { FigureBlock } from "../../types/_figure_bundle.ts";
 import type {
   DashboardCreate,
   DashboardDetail,
   DashboardSummary,
   DashboardUpdate,
-  FigureBlock,
 } from "../../types/dashboard.ts";
 import { route } from "../route-utils.ts";
 

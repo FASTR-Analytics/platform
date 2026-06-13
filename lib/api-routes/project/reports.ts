@@ -5,7 +5,8 @@ import type {
   ReportDetail,
   ReportSummary,
 } from "../../types/reports.ts";
-import type { FigureBlock, ImageBlock } from "../../types/slides.ts";
+import type { FigureBlock } from "../../types/_figure_bundle.ts";
+import type { ImageBlock } from "../../types/slides.ts";
 import { route } from "../route-utils.ts";
 
 // report_id is a 3-char nanoid (generateUniqueReportId), not a UUID

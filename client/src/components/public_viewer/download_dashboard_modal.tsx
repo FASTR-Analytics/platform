@@ -60,7 +60,7 @@ export function DownloadDashboardModal(
   // Tables are the only figures the xlsx export can sheet; count them honestly
   // (without hydrating) so the "all" promise isn't silently broken.
   const tableCount = () =>
-    p.bundle.items.filter((i) => "tableData" in i.strippedFigureInputs).length;
+    p.bundle.items.filter((i) => i.bundle.config.d.type === "table").length;
   // The About text is shown as a per-page subHeader in the PDF, so only the
   // short summary is used (a long body would bloat every page header).
   const summaryAvailable = () => p.bundle.about.summary.trim().length > 0;

@@ -35,8 +35,11 @@ import { slideConfigSchema, TEXT_SIZE_KEYS, TEXT_SIZE_REL } from "lib";
 import type { TextSizeKey } from "lib";
 import type { Sql } from "postgres";
 import {
+  type FigureLocalizationForTransform,
   transformFigureBlock,
+  transformFigureBlockToBundle,
   warnIfFigureInputsStale,
+  getTransformLocalization,
 } from "./_figure_block.ts";
 import {
   type MigrationStats,
@@ -105,7 +108,7 @@ function getFigureInputsInConfig(
   return out;
 }
 
-function transformLayoutNode(node: LayoutNode): void {
+function transformLayoutNode(node: LayoutNode, localization: FigureLocalizationForTransform): void {
   // Block 3: Convert span from string → number (or delete if invalid)
   const nodeAny = node as Record<string, unknown>;
   if (typeof nodeAny.span === "string") {
@@ -132,6 +135,7 @@ function transformLayoutNode(node: LayoutNode): void {
     // dashboard/report sweeps via _figure_block.ts.
     if (node.data.type === "figure") {
       transformFigureBlock(node.data);
+      transformFigureBlockToBundle(node.data, localization, null);
     }
     // Block 11: Convert text block style.textSize number → semantic key
     if (node.data.type === "text") {
@@ -144,7 +148,7 @@ function transformLayoutNode(node: LayoutNode): void {
     }
   } else if ((node.type === "rows" || node.type === "cols") && node.children) {
     for (const child of node.children) {
-      transformLayoutNode(child);
+      transformLayoutNode(child, localization);
     }
   }
 }
@@ -153,6 +157,11 @@ export async function migrateSlideConfigs(
   tx: Sql,
   _projectId: string,
 ): Promise<MigrationStats> {
+  const cfgRows = await tx<{ country_iso3: string | null }[]>`
+    SELECT value->>'countryIso3' AS country_iso3 FROM instance_config LIMIT 1
+  `.catch(() => [] as { country_iso3: string | null }[]);
+  const localization = getTransformLocalization(cfgRows[0]?.country_iso3 ?? "");
+
   const rows = await tx<{ id: string; config: string }[]>`
     SELECT id, config FROM slides
   `;
@@ -191,7 +200,7 @@ export async function migrateSlideConfigs(
 
     // Block 3+: Transform embedded PO configs in content slides
     if (config.type === "content" && config.layout) {
-      transformLayoutNode(config.layout as LayoutNode);
+      transformLayoutNode(config.layout as LayoutNode, localization);
     }
 
     // Block 8: Remove per-slide logo fields (now deck-level)
@@ -203,9 +212,7 @@ export async function migrateSlideConfigs(
       delete config.footerLogos;
     }
 
-    for (const fi of getFigureInputsInConfig(config)) {
-      warnIfFigureInputsStale(`slides.config row ${row.id}`, fi);
-    }
+    // P2: figureInputs removed by transformFigureBlockToBundle; nothing to warn.
 
     // Throws if the row is still invalid after every transform (including
     // figureInputs drift the upgrader does not fix) — the runner then refuses

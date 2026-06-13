@@ -26,24 +26,19 @@ import {
 import {
   type FigureBlockMut,
   transformFigureBlock,
-  warnIfFigureInputsStale,
+  transformFigureBlockToBundle,
+  getTransformLocalization,
 } from "./_figure_block.ts";
-
-function getFigureInputsInFigures(
-  figures: unknown,
-): (Record<string, unknown> | undefined)[] {
-  if (!figures || typeof figures !== "object") {
-    return [];
-  }
-  return Object.values(figures).map(
-    (block) => (block as FigureBlockMut).figureInputs,
-  );
-}
 
 export async function migrateReports(
   tx: Sql,
   _projectId: string,
 ): Promise<MigrationStats> {
+  const cfgRows = await tx<{ country_iso3: string | null }[]>`
+    SELECT value->>'countryIso3' AS country_iso3 FROM instance_config LIMIT 1
+  `.catch(() => [] as { country_iso3: string | null }[]);
+  const localization = getTransformLocalization(cfgRows[0]?.country_iso3 ?? "");
+
   const rows = await tx<
     { id: string; config: string | null; figures: string; images: string }[]
   >`
@@ -83,10 +78,8 @@ export async function migrateReports(
     if (figures && typeof figures === "object") {
       for (const block of Object.values(figures)) {
         transformFigureBlock(block as FigureBlockMut);
+        transformFigureBlockToBundle(block as FigureBlockMut, localization, null);
       }
-    }
-    for (const fi of getFigureInputsInFigures(figures)) {
-      warnIfFigureInputsStale(`reports.figures row ${row.id}`, fi);
     }
 
     // Throws if the row is still invalid after every transform (including

@@ -127,12 +127,7 @@ export function ReportEmbedEditor(p: Props) {
                   <Match when={figureBlock()}>
                     {(fb) => (
                       <div class="ui-gap-sm flex flex-col">
-                        <Show
-                          when={
-                            fb().figureInputs &&
-                            fb().source?.type === "from_data"
-                          }
-                        >
+                        <Show when={fb().bundle !== undefined}>
                           <Button onClick={() => p.onEditFigure()}>
                             {t3({
                               en: "Edit visualization",

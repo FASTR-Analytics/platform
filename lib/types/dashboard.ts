@@ -1,7 +1,4 @@
-import type { FigureInputs } from "@timroberton/panther";
-import type { FigureBlock, FigureSource } from "./slides.ts";
-import type { IndicatorMetadata } from "./indicators.ts";
-import type { PresentationObjectConfig } from "./presentation_objects.ts";
+import type { FigureBlock, FigureBundle } from "./_figure_bundle.ts";
 import { formatReplicantLabelForDisplay } from "../format_nigeria_admin_label.ts";
 
 // Re-export schemas from underscore-prefixed file (stored data validation)
@@ -12,8 +9,7 @@ export {
 } from "./_dashboard_config.ts";
 import type { DashboardConfigFromSchema } from "./_dashboard_config.ts";
 
-// Re-export for convenience
-export type { FigureBlock, FigureSource };
+// FigureBlock and FigureBundle are exported from _figure_bundle.ts via mod.ts
 
 // ── Dashboard core types ────────────────────────────────────────────────────
 
@@ -129,14 +125,7 @@ export type PublicDashboardItem = {
   id: string;
   label: string;
   sortOrder: number;
-  strippedFigureInputs: FigureInputs;
-  source: {
-    config: PresentationObjectConfig;
-    metricId: string;
-    formatAs: "percent" | "number";
-    indicatorMetadata?: IndicatorMetadata[];
-  };
-  geoData?: unknown;
+  bundle: FigureBundle;
   // Set for group members — the replicant this item represents.
   replicantValue?: string;
 };
@@ -162,23 +151,20 @@ export function buildPublicDashboardBundle(
 ): PublicDashboardBundle {
   function toPublicItem(
     item: DashboardItem,
-    geoData: unknown,
+    groupGeoData: unknown,
   ): PublicDashboardItem | undefined {
-    const source = item.figureBlock.source;
-    const fi = item.figureBlock.figureInputs;
-    if (!fi || !source || source.type !== "from_data") return undefined;
+    const bundle = item.figureBlock.bundle;
+    if (!bundle) return undefined;
+    // Group members inherit the group's shared geoData into the bundle's geo field
+    // so the public viewer has geo without a separate DB column.
+    const resolvedBundle: FigureBundle = groupGeoData
+      ? { ...bundle, geo: { kind: "data" as const, data: groupGeoData } }
+      : bundle;
     return {
       id: item.id,
       label: item.label,
       sortOrder: item.sortOrder,
-      strippedFigureInputs: fi,
-      source: {
-        config: source.config,
-        metricId: source.metricId,
-        formatAs: "number" as const,
-        indicatorMetadata: source.indicatorMetadata,
-      },
-      geoData,
+      bundle: resolvedBundle,
       replicantValue: item.replicantValue,
     };
   }

@@ -3,16 +3,10 @@
 // =============================================================================
 
 import { z } from "zod";
-import { zFigureInputs } from "@timroberton/panther";
-import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
 import { TEXT_SIZE_KEYS } from "../consts.ts";
+import { figureBlockSchema } from "./_figure_bundle.ts";
 
-// figureInputs is panther-owned; panther's zFigureInputs validates it like any
-// other stored field (data + surrounds validated, style opaque). Stale shapes
-// fail every parse (write paths and the migration skip gates); unknown legacy
-// keys (e.g. pre-2026 chartOHData.sortHeaders) are silently stripped on the
-// next write, like everywhere else in the stored schemas.
-export const figureInputsSchema = zFigureInputs;
+export { figureBlockSchema } from "./_figure_bundle.ts";
 
 // ── Block Styles ────────────────────────────────────────────────────────────
 
@@ -55,34 +49,12 @@ const contentSlideSplitSchema = z.object({
   fill: contentSlideSplitFillSchema,
 });
 
-// ── Figure Source ───────────────────────────────────────────────────────────
-
-export const figureSourceSchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("from_data"),
-    metricId: z.string(),
-    config: presentationObjectConfigSchema,
-    snapshotAt: z.string(),
-    indicatorMetadata: z.array(z.unknown()).optional(),
-  }),
-  z.object({
-    type: z.literal("custom"),
-    description: z.string().optional(),
-  }),
-]);
-
 // ── Content Blocks ──────────────────────────────────────────────────────────
 
 const textBlockSchema = z.object({
   type: z.literal("text"),
   markdown: z.string(),
   style: textBlockStyleSchema.optional(),
-});
-
-export const figureBlockSchema = z.object({
-  type: z.literal("figure"),
-  figureInputs: figureInputsSchema.optional(),
-  source: figureSourceSchema.optional(),
 });
 
 export const imageBlockSchema = z.object({
@@ -290,56 +262,14 @@ slideConfigSchema.parse(
   } satisfies ContentSlide,
 );
 
-// Also validate figure block with both FigureSource variants
-import {
-  DEFAULT_S_CONFIG,
-  DEFAULT_T_CONFIG,
-} from "./presentation_object_defaults.ts";
-
-// FigureSource "custom" variant
+// Validate figure block — empty placeholder (no bundle) and bundle-populated
 slideConfigSchema.parse(
   {
     type: "content",
     layout: {
       type: "item",
       id: "x",
-      data: {
-        type: "figure",
-        source: {
-          type: "custom",
-          description: "",
-        },
-      },
-    },
-  } satisfies ContentSlide,
-);
-
-// FigureSource "from_data" variant
-slideConfigSchema.parse(
-  {
-    type: "content",
-    layout: {
-      type: "item",
-      id: "x",
-      data: {
-        type: "figure",
-        source: {
-          type: "from_data",
-          metricId: "",
-          config: {
-            d: {
-              type: "timeseries",
-              timeseriesGrouping: "year",
-              valuesDisDisplayOpt: "row",
-              disaggregateBy: [],
-              filterBy: [],
-            },
-            s: DEFAULT_S_CONFIG,
-            t: DEFAULT_T_CONFIG,
-          },
-          snapshotAt: "",
-        },
-      },
+      data: { type: "figure" },
     },
   } satisfies ContentSlide,
 );

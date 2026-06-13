@@ -9,7 +9,7 @@ import type {
   SlideDeckConfig,
   SlideType,
 } from "lib";
-import { getSlideTitle, t3, TC, getReplicateByProp, type PresentationObjectConfig, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import { getSlideTitle, t3, TC, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import type {
   DividerDragUpdate,
   LayoutItemSwapUpdate,
@@ -52,15 +52,12 @@ import { useAIProjectContext } from "~/components/project_ai/context";
 import type { AIContext } from "~/components/project_ai/types";
 import { VisualizationEditor } from "~/components/visualization";
 import {
-  getFigureInputsFromPresentationObject,
-  stripFigureInputsForStorage,
+  makeFigureBundleFromFetchedData,
+  resolveFigureBundleFromVisualization,
 } from "~/generate_visualization/mod";
-import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
-import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import {
-  getPODetailFromCacheorFetch,
   getPresentationObjectItemsFromCacheOrFetch,
 } from "~/state/project/t2_presentation_objects";
 import { setShowAi, showAi } from "~/state/t4_ui";
@@ -403,9 +400,9 @@ export function SlideEditor(p: Props) {
       idGenerator,
       getBlockType: (block: ContentBlock) => block.type,
       isFigureWithSource: (block: ContentBlock) =>
-        block.type === "figure" && block.source?.type === "from_data",
+        block.type === "figure" && block.bundle !== undefined,
       isEmptyFigure: (block: ContentBlock) =>
-        block.type === "figure" && !block.figureInputs,
+        block.type === "figure" && block.bundle === undefined,
       onEditVisualization: async (blockId: string) => {
         setSelectedBlockId(blockId);
         await handleEditVisualization();
@@ -451,20 +448,17 @@ export function SlideEditor(p: Props) {
     if (!found || found.node.type !== "item") return;
 
     const block = found.node.data;
-    if (block.type !== "figure" || block.source?.type !== "from_data") return;
+    if (block.type !== "figure" || !block.bundle) return;
 
-    const source = block.source;
+    const { metricId, config: bundleConfig } = block.bundle;
 
     try {
       const resultsValue = p.projectStateSnapshot.metrics.find(
-        (m) => m.id === source.metricId,
+        (m) => m.id === metricId,
       );
 
       if (!resultsValue) {
-        await openAlert({
-          text: "Metric not found in project",
-          intent: "danger",
-        });
+        await openAlert({ text: "Metric not found in project", intent: "danger" });
         return;
       }
 
@@ -478,7 +472,7 @@ export function SlideEditor(p: Props) {
           ...snapshotForVizEditor({
             projectState: p.projectStateSnapshot,
             resultsValue,
-            config: source.config,
+            config: bundleConfig,
           }),
         },
       });
@@ -501,65 +495,23 @@ export function SlideEditor(p: Props) {
           newConfig,
         );
 
-        if (
-          newItemsRes.success === false ||
-          newItemsRes.data.ih.status !== "ok"
-        ) {
-          await openAlert({
-            text: "Failed to regenerate visualization",
-            intent: "danger",
-          });
+        if (newItemsRes.success === false || newItemsRes.data.ih.status !== "ok") {
+          await openAlert({ text: "Failed to regenerate visualization", intent: "danger" });
           return;
         }
 
-        const resultsValueForViz = {
-          formatAs: resultsValue.formatAs,
-          valueProps: resultsValue.valueProps,
-          valueLabelReplacements: resultsValue.valueLabelReplacements,
-        };
+        const newBundle = makeFigureBundleFromFetchedData({
+          resultsValue,
+          ih: newItemsRes.data.ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+          effectiveConfig: newItemsRes.data.config,
+        });
 
-        // The generator may auto-select a replicant on a COPY of the config —
-        // labels and the persisted source config must describe the fetched data.
-        const effectiveConfig = newItemsRes.data.config;
-
-        let geoJson;
-        const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
-        if (mapLevel) {
-          geoJson = getGeoJsonSync(mapLevel);
-        }
-
-        const newFigureInputs = getFigureInputsFromPresentationObject(
-          resultsValueForViz,
-          newItemsRes.data.ih,
-          effectiveConfig,
-          geoJson,
-        );
-
-        if (newFigureInputs.status !== "ready") {
-          await openAlert({
-            text: "Failed to generate figure",
-            intent: "danger",
-          });
-          return;
-        }
-
-        const indicatorMeta = newItemsRes.data.ih.indicatorMetadata;
         const updatedLayout = updateBlockInLayout(
           tempSlide.layout,
           blockId,
           (b: ContentBlock) => {
             if (b.type !== "figure") return b;
-            return {
-              type: "figure",
-              figureInputs: stripFigureInputsForStorage(newFigureInputs.data),
-              source: {
-                type: "from_data",
-                metricId: source.metricId,
-                config: effectiveConfig,
-                snapshotAt: new Date().toISOString(),
-                indicatorMetadata: indicatorMeta,
-              },
-            };
+            return { type: "figure" as const, bundle: newBundle };
           },
         );
 
@@ -569,8 +521,7 @@ export function SlideEditor(p: Props) {
       }
     } catch (err) {
       await openAlert({
-        text:
-          err instanceof Error ? err.message : "Failed to edit visualization",
+        text: err instanceof Error ? err.message : "Failed to edit visualization",
         intent: "danger",
       });
     }
@@ -588,83 +539,15 @@ export function SlideEditor(p: Props) {
     if (!result) return;
 
     try {
-      const poDetailRes = await getPODetailFromCacheorFetch(
-        p.projectId,
-        result.visualizationId,
-      );
-      if (!poDetailRes.success) {
-        await openAlert({ text: poDetailRes.err, intent: "danger" });
-        return;
-      }
-
-      const config: PresentationObjectConfig = structuredClone(poDetailRes.data.config);
-      if (result.replicant) {
-        const replicateBy = getReplicateByProp(config);
-        if (replicateBy) {
-          config.d.selectedReplicantValue = result.replicant;
-        }
-      }
-
-      const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
-        p.projectId,
-        poDetailRes.data,
-        config,
-      );
-      if (!itemsRes.success) {
-        await openAlert({ text: itemsRes.err, intent: "danger" });
-        return;
-      }
-
-      const ih = itemsRes.data.ih;
-      if (ih.status === "too_many_items") {
-        await openAlert({ text: "Too many data points selected", intent: "danger" });
-        return;
-      }
-      if (ih.status === "no_data_available") {
-        await openAlert({ text: "No data available with current selection", intent: "danger" });
-        return;
-      }
-
-      // The generator may auto-select a replicant on a COPY of the config —
-      // labels and the persisted source config must describe the fetched data.
-      const effectiveConfig = itemsRes.data.config;
-
-      let geoJson;
-      const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
-      if (mapLevel) {
-        geoJson = getGeoJsonSync(mapLevel);
-      }
-
-      const figureInputsRes = getFigureInputsFromPresentationObject(
-        poDetailRes.data.resultsValue,
-        ih,
-        effectiveConfig,
-        geoJson,
-      );
-      if (figureInputsRes.status !== "ready") {
-        await openAlert({
-          text: figureInputsRes.status === "error" ? figureInputsRes.err : "Failed to generate figure",
-          intent: "danger",
-        });
-        return;
-      }
+      const bundle = await resolveFigureBundleFromVisualization(p.projectId, {
+        visualizationId: result.visualizationId,
+        replicant: result.replicant,
+      });
 
       const updatedLayout = updateBlockInLayout(
         tempSlide.layout,
         blockId,
-        () => ({
-          type: "figure" as const,
-          figureInputs: structuredClone(
-            stripFigureInputsForStorage(figureInputsRes.data),
-          ),
-          source: {
-            type: "from_data" as const,
-            metricId: poDetailRes.data.resultsValue.id,
-            config: effectiveConfig,
-            snapshotAt: new Date().toISOString(),
-            indicatorMetadata: ih.indicatorMetadata,
-          },
-        }),
+        () => ({ type: "figure" as const, bundle }),
       );
 
       manuallyUpdateTempSlide(
@@ -672,8 +555,7 @@ export function SlideEditor(p: Props) {
       );
     } catch (err) {
       await openAlert({
-        text:
-          err instanceof Error ? err.message : "Failed to select visualization",
+        text: err instanceof Error ? err.message : "Failed to select visualization",
         intent: "danger",
       });
     }
@@ -699,76 +581,25 @@ export function SlideEditor(p: Props) {
 
       const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
         p.projectId,
-        {
-          id: "",
-          projectId: p.projectId,
-          lastUpdated: "",
-          label: "Ephemeral",
-          resultsValue,
-          config,
-          isDefault: false,
-          folderId: null,
-        },
+        { id: "", projectId: p.projectId, lastUpdated: "", label: "Ephemeral", resultsValue, config, isDefault: false, folderId: null },
         config,
       );
 
-      if (
-        newItemsRes.success === false ||
-        newItemsRes.data.ih.status !== "ok"
-      ) {
-        await openAlert({
-          text: "Failed to generate visualization",
-          intent: "danger",
-        });
+      if (newItemsRes.success === false || newItemsRes.data.ih.status !== "ok") {
+        await openAlert({ text: "Failed to generate visualization", intent: "danger" });
         return;
       }
 
-      const resultsValueForViz = {
-        formatAs: resultsValue.formatAs,
-        valueProps: resultsValue.valueProps,
-        valueLabelReplacements: resultsValue.valueLabelReplacements,
-      };
+      const bundle = makeFigureBundleFromFetchedData({
+        resultsValue,
+        ih: newItemsRes.data.ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+        effectiveConfig: newItemsRes.data.config,
+      });
 
-      // The generator may auto-select a replicant on a COPY of the config —
-      // labels and the persisted source config must describe the fetched data.
-      const effectiveConfig2 = newItemsRes.data.config;
-
-      let geoJson2;
-      const mapLevel2 = getAdminAreaLevelFromMapConfig(effectiveConfig2);
-      if (mapLevel2) {
-        geoJson2 = getGeoJsonSync(mapLevel2);
-      }
-
-      const newFigureInputs = getFigureInputsFromPresentationObject(
-        resultsValueForViz,
-        newItemsRes.data.ih,
-        effectiveConfig2,
-        geoJson2,
-      );
-
-      if (newFigureInputs.status !== "ready") {
-        await openAlert({
-          text: "Failed to generate figure",
-          intent: "danger",
-        });
-        return;
-      }
-
-      const indicatorMeta = newItemsRes.data.ih.indicatorMetadata;
       const updatedLayout = updateBlockInLayout(
         tempSlide.layout,
         blockId,
-        () => ({
-          type: "figure" as const,
-          figureInputs: stripFigureInputsForStorage(newFigureInputs.data),
-          source: {
-            type: "from_data" as const,
-            metricId: resultsValue.id,
-            config: effectiveConfig2,
-            snapshotAt: new Date().toISOString(),
-            indicatorMetadata: indicatorMeta,
-          },
-        }),
+        () => ({ type: "figure" as const, bundle }),
       );
 
       manuallyUpdateTempSlide(
@@ -776,8 +607,7 @@ export function SlideEditor(p: Props) {
       );
     } catch (err) {
       await openAlert({
-        text:
-          err instanceof Error ? err.message : "Failed to create visualization",
+        text: err instanceof Error ? err.message : "Failed to create visualization",
         intent: "danger",
       });
     }

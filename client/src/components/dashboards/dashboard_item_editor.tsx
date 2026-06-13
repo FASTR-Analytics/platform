@@ -44,12 +44,7 @@ export function DashboardItemEditor(p: Props) {
                 <Button onClick={() => p.onRename()}>
                   {t3({ en: "Rename", fr: "Renommer" })}
                 </Button>
-                <Show
-                  when={
-                    item().figureBlock.figureInputs &&
-                    item().figureBlock.source?.type === "from_data"
-                  }
-                >
+                <Show when={item().figureBlock.bundle !== undefined}>
                   <Button onClick={() => p.onEdit()}>
                     {t3({
                       en: "Edit Visualization",

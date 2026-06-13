@@ -1,6 +1,6 @@
 import type { AiFigureFromMetric, FigureBlock, MetricWithStatus } from "lib";
 import { getFetchConfigFromPresentationObjectConfig, getReplicateByProp } from "lib";
-import { resolveFigureBundleFromMetric, figureBundleToBlock } from "~/generate_visualization/mod";
+import { resolveFigureBundleFromMetric } from "~/generate_visualization/mod";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
 import { validateMetricInputs } from "~/components/project_ai/ai_tools/validators/content_validators";
 import { buildConfigFromPreset } from "./build_config_from_metric";
@@ -76,5 +76,5 @@ export async function resolveFigureFromMetric(
     config,
   );
 
-  return figureBundleToBlock(bundle);
+  return { type: "figure", bundle };
 }
