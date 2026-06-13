@@ -4,7 +4,6 @@ import {
   getFetchConfigFromPresentationObjectConfig,
   type MetricWithStatus,
   type PresentationObjectConfig,
-  type ResultsValueForVisualization,
   type VizPreset,
 } from "lib";
 import {
@@ -22,11 +21,10 @@ import {
   moduleDataVersionKey,
   projectState,
 } from "~/state/project/t1_store";
-import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
-import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
+import { buildFigureInputs, makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
 import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
-import { getGeoJsonSync } from "~/state/instance/t2_geojson";
+import { getInstanceLocalization } from "~/state/instance/t1_store";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 
 type Props = {
@@ -249,22 +247,14 @@ async function fetchPreview(
     };
   }
 
-  const resultsValueForViz: ResultsValueForVisualization = {
-    formatAs: metric.formatAs,
-    valueProps: metric.valueProps,
-    valueLabelReplacements: metric.valueLabelReplacements,
-  };
-
-  let geoJson;
-  const mapLevel = getAdminAreaLevelFromMapConfig(config);
-  if (mapLevel) {
-    geoJson = getGeoJsonSync(mapLevel);
+  try {
+    const bundle = makeFigureBundleFromFetchedData({
+      resultsValue: metric,
+      ih: itemsHolder as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+      effectiveConfig: config,
+    });
+    return { status: "ready" as const, data: buildFigureInputs(bundle) };
+  } catch (e) {
+    return { status: "error" as const, err: e instanceof Error ? e.message : "Render error" };
   }
-
-  return getFigureInputsFromPresentationObject(
-    resultsValueForViz,
-    itemsHolder,
-    config,
-    geoJson,
-  );
 }

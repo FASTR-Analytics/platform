@@ -55,9 +55,9 @@ import { ReplicateByOptionsPresentationObject } from "~/components/ReplicateByOp
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import { DownloadPresentationObject } from "~/components/forms_editors/download_presentation_object";
 import { ViewResultsObject } from "~/components/forms_editors/view_results_object";
-import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
-import { getTableExportAoa } from "~/exports/get_table_export_aoa";
+import { buildFigureInputs, makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
+import { getTableExportAoa } from "~/exports/get_table_export_aoa";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import type { GeoJSONFeatureCollection } from "panther";
 import { serverActions } from "~/server_actions";
@@ -508,13 +508,15 @@ export function VisualizationEditorInner(p: InnerProps) {
       await openAlert({ text: "Could not get figure", intent: "danger" });
       return;
     }
-    const figureInputsResult = getFigureInputsFromPresentationObject(
-      p.poDetail.resultsValue,
-      ih.data.ih,
-      ih.data.config,
-      ih.data.geoJson,
-    );
-    if (figureInputsResult.status !== "ready") {
+    let figureInputs;
+    try {
+      const bundle = makeFigureBundleFromFetchedData({
+        resultsValue: p.poDetail.resultsValue,
+        ih: ih.data.ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+        effectiveConfig: ih.data.config,
+      });
+      figureInputs = buildFigureInputs(bundle);
+    } catch {
       await openAlert({ text: "Could not get figure", intent: "danger" });
       return;
     }
@@ -523,7 +525,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     // container width. (getFigureAsCanvas fills white, so the "transparent"
     // download option yields white until panther offers a transparent flag.)
     const canvas = getFigureAsCanvas(
-      figureInputsResult.data,
+      figureInputs,
       FIGURE_EXPORT_WIDTH_PX,
     );
     const replicateBy = getReplicateByProp(tempConfig);
@@ -531,7 +533,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       element: DownloadPresentationObject,
       props: {
         isReplicateBy: !!replicateBy,
-        isTable: "tableData" in figureInputsResult.data,
+        isTable: "tableData" in figureInputs,
         poDetail: p.poDetail,
       },
     });
@@ -539,7 +541,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       return;
     }
     if (res.format === "data-table-formatted") {
-      const fi = figureInputsResult.data;
+      const fi = figureInputs;
       if (!("tableData" in fi)) {
         return;
       }
@@ -963,12 +965,16 @@ export function VisualizationEditorInner(p: InnerProps) {
                                   };
                                 }
                               }
-                              return getFigureInputsFromPresentationObject(
-                                p.poDetail.resultsValue,
-                                keyedItemsHolder.ih,
-                                keyedItemsHolder.config,
-                                keyedItemsHolder.geoJson,
-                              );
+                              try {
+                                const bundle = makeFigureBundleFromFetchedData({
+                                  resultsValue: p.poDetail.resultsValue,
+                                  ih: keyedItemsHolder.ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+                                  effectiveConfig: keyedItemsHolder.config,
+                                });
+                                return { status: "ready" as const, data: buildFigureInputs(bundle) };
+                              } catch (e) {
+                                return { status: "error" as const, err: e instanceof Error ? e.message : "Render error" };
+                              }
                             });
 
                             return (

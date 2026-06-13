@@ -1,6 +1,7 @@
 # Plan — FigureBundle Implementation
 
-> **Status: NOT STARTED** (2026-06-12). The executable plan for the vision in
+> **Status: COMPLETE — DRY-RUN CLEAN** (P1 + P2 shipped 2026-06-13, reviewed clean).
+> Dry-run: 36/36 instances, 17,142 figures, 0 FAILs. Ready to deploy. The executable plan for the vision in
 > [PLAN_FIGURE_BUNDLE.md](PLAN_FIGURE_BUNDLE.md) (read it first — this assumes its
 > §1–§12 vocabulary and rationale). Systems touched: **S9** (viz query), **S10**
 > (figure render/export), **S12** (documents), **S2** (migration transform). This

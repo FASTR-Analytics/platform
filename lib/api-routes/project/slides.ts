@@ -13,9 +13,9 @@ const slidePositionSchema = z.union([
   z.object({ toEnd: z.literal(true) }),
 ]);
 
-// slide fields cross the wire sentinel-encoded via prepareSlideForTransmit /
-// restoreSlideAfterReceive — schema as z.unknown(); real validation happens in
-// the DB layer after decode (plan decision 4).
+// Slide body: z.unknown() — SlideFromSchema/Slide type gap (patternType "none"
+// in panther's PatternType not in the Zod schema) blocks a clean schema here.
+// The DB layer still validates via slideConfigSchema.parse(). Follow-on PR.
 
 export const slideRouteRegistry = {
   getSlides: route({

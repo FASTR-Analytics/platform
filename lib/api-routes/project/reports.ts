@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { reportConfigSchema, reportImagesSchema } from "../../types/mod.ts";
+import { reportConfigSchema, reportFiguresSchema, reportImagesSchema } from "../../types/mod.ts";
 import type {
   ReportConfig,
   ReportDetail,
@@ -62,13 +62,11 @@ export const reportRouteRegistry = {
     requiresProject: true,
   }),
 
-  // sentinel-encoded: figures cross the wire via prepareReportFiguresForTransmit;
-  // real validation happens in the DB layer after decode (plan decision 4).
   updateReportFigures: route({
     path: "/reports/:report_id/figures",
     method: "PUT",
     params: reportIdParamsSchema,
-    body: z.object({ figures: z.unknown() }),
+    body: z.object({ figures: reportFiguresSchema }),
     response: {} as { lastUpdated: string },
     requiresProject: true,
   }),
