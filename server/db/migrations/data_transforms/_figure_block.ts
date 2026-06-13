@@ -60,6 +60,28 @@ export type FigureLocalizationForTransform = {
   countryIso3: string;
 };
 
+// Slide-layout walk — shared by the slide_config boot transform and the
+// pre-deploy dry-run (validate_figure_bundle_backfill.ts) so the two traverse
+// slide layouts identically and cannot drift. Containers are "rows"/"cols";
+// figures live on "item" nodes' `.data`.
+export type SlideLayoutNodeLike = {
+  type: string;
+  data?: unknown;
+  children?: SlideLayoutNodeLike[];
+};
+
+export function walkSlideLayoutNodes(
+  node: SlideLayoutNodeLike,
+  visit: (node: SlideLayoutNodeLike) => void,
+): void {
+  visit(node);
+  if ((node.type === "rows" || node.type === "cols") && node.children) {
+    for (const child of node.children) {
+      walkSlideLayoutNodes(child, visit);
+    }
+  }
+}
+
 // ── Pre-P2 normalization (kept for any rows that still need it) ───────────────
 
 // Normalize a figureInputs blob in place. Only acts on transformed chart data.

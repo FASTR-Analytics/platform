@@ -8,6 +8,7 @@ import {
   type InstanceConfigMaxAdminArea,
 } from "lib";
 import { uninstallModule } from "./db/project/modules.ts";
+import { getCountryIso3Config } from "./db/instance/config.ts";
 import {
   runInstanceMigrations,
   runProjectMigrations,
@@ -63,6 +64,15 @@ ${userInserts}
   // Instance data transforms — on main database
   await runInstanceDataTransforms(sqlMain);
 
+  // Instance-level country, read once from the main DB. Threaded into the figure
+  // backfill so backfilled bundles carry the real countryIso3 (drives Nigeria
+  // admin-area relabelling + admin replicant labels). New captures read it from
+  // the live instance store; the backfill cannot, so it gets it here.
+  const countryRes = await getCountryIso3Config(sqlMain);
+  const instanceCountryIso3 = countryRes.success
+    ? (countryRes.data.countryIso3 ?? "")
+    : "";
+
   const projects = await sqlMain<{ id: string }[]>`SELECT id FROM projects`;
   for (const project of projects) {
     const projectDb = getPgConnectionFromCacheOrNew(
@@ -75,7 +85,7 @@ ${userInserts}
     await runProjectMigrations(projectDb);
 
     // Project data transforms — each in its own transaction
-    await runProjectDataTransforms(project.id, projectDb);
+    await runProjectDataTransforms(project.id, projectDb, instanceCountryIso3);
 
     // =========================================================================
     // TEMPORARY: Remove after all ~5 production instances have been updated
@@ -123,7 +133,11 @@ type MigrationResult = {
 };
 
 type InstanceMigrationFn = (tx: Sql) => Promise<MigrationStats>;
-type ProjectMigrationFn = (tx: Sql, projectId: string) => Promise<MigrationStats>;
+type ProjectMigrationFn = (
+  tx: Sql,
+  projectId: string,
+  countryIso3: string,
+) => Promise<MigrationStats>;
 
 const INSTANCE_DATA_TRANSFORMS: { name: string; fn: InstanceMigrationFn }[] = [
   { name: "instance_config", fn: migrateInstanceConfigs },
@@ -174,6 +188,7 @@ async function runInstanceDataTransforms(
 async function runProjectDataTransforms(
   projectId: string,
   projectDb: ReturnType<typeof getPgConnectionFromCacheOrNew>,
+  countryIso3: string,
 ): Promise<void> {
   const results: MigrationResult[] = [];
 
@@ -181,7 +196,7 @@ async function runProjectDataTransforms(
     try {
       let stats: MigrationStats | undefined;
       await projectDb.begin(async (tx) => {
-        stats = await fn(tx, projectId);
+        stats = await fn(tx, projectId, countryIso3);
       });
       results.push({ name, success: true, stats });
     } catch (err) {

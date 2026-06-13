@@ -25,8 +25,9 @@ import {
 export async function migrateDashboardItems(
   tx: Sql,
   _projectId: string,
+  countryIso3: string,
 ): Promise<MigrationStats> {
-  const localization = getTransformLocalization("");
+  const localization = getTransformLocalization(countryIso3);
 
   const rows = await tx<{ id: string; figure_block: string; geo_data: string | null }[]>`
     SELECT id, figure_block, geo_data FROM dashboard_items

@@ -36,10 +36,12 @@ import type { TextSizeKey } from "lib";
 import type { Sql } from "postgres";
 import {
   type FigureLocalizationForTransform,
+  type SlideLayoutNodeLike,
   transformFigureBlock,
   transformFigureBlockToBundle,
   warnIfFigureInputsStale,
   getTransformLocalization,
+  walkSlideLayoutNodes,
 } from "./_figure_block.ts";
 import {
   type MigrationStats,
@@ -109,6 +111,17 @@ function getFigureInputsInConfig(
 }
 
 function transformLayoutNode(node: LayoutNode, localization: FigureLocalizationForTransform): void {
+  // Recursion is shared with the dry-run via walkSlideLayoutNodes so the two
+  // cannot drift; this wrapper only supplies the per-node work.
+  walkSlideLayoutNodes(node as SlideLayoutNodeLike, (n) =>
+    transformOneLayoutNode(n as LayoutNode, localization),
+  );
+}
+
+function transformOneLayoutNode(
+  node: LayoutNode,
+  localization: FigureLocalizationForTransform,
+): void {
   // Block 3: Convert span from string → number (or delete if invalid)
   const nodeAny = node as Record<string, unknown>;
   if (typeof nodeAny.span === "string") {
@@ -146,21 +159,18 @@ function transformLayoutNode(node: LayoutNode, localization: FigureLocalizationF
         style.textSize = relToTextSizeKey(style.textSize);
       }
     }
-  } else if ((node.type === "rows" || node.type === "cols") && node.children) {
-    for (const child of node.children) {
-      transformLayoutNode(child, localization);
-    }
   }
 }
 
 export async function migrateSlideConfigs(
   tx: Sql,
   _projectId: string,
+  countryIso3: string,
 ): Promise<MigrationStats> {
-  // countryIso3 not available in project-DB context; "" is correct for all
-  // non-Nigeria instances. Nigeria render still works: buildFigureInputs reads
-  // localization from the bundle, which captures the real value on new captures.
-  const localization = getTransformLocalization("");
+  // countryIso3 is read once at startup from the main DB (db_startup) and threaded
+  // in, so backfilled figures carry the real value (drives Nigeria admin-area
+  // relabelling + admin replicant labels at render).
+  const localization = getTransformLocalization(countryIso3);
 
   const rows = await tx<{ id: string; config: string }[]>`
     SELECT id, config FROM slides

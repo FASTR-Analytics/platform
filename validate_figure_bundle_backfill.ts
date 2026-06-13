@@ -26,7 +26,9 @@ import {
   transformFigureBlock,
   transformFigureBlockToBundle,
   getTransformLocalization,
+  walkSlideLayoutNodes,
   type FigureBlockMut,
+  type SlideLayoutNodeLike,
 } from "./server/db/migrations/data_transforms/_figure_block.ts";
 import { _INSTANCE_LANGUAGE, _INSTANCE_CALENDAR } from "./server/exposed_env_vars.ts";
 
@@ -108,15 +110,19 @@ async function main() {
     database: PG_DB_MAIN,
   });
 
-  // Get countryIso3 from instance_config
+  // Read countryIso3 the same way db_startup does (config_key='country_iso3'),
+  // so the dry-run uses the exact localization the boot transform will.
   let countryIso3 = "";
   try {
-    const cfgRows = await mainDb<{ v: string | null }[]>`
-      SELECT value->>'countryIso3' AS v FROM instance_config LIMIT 1
+    const cfgRows = await mainDb<{ config_json_value: string }[]>`
+      SELECT config_json_value FROM instance_config WHERE config_key = 'country_iso3'
     `;
-    countryIso3 = cfgRows[0]?.v ?? "";
-  } catch {
-    // instance_config query failed — use ""
+    if (cfgRows.length > 0) {
+      const parsed = JSON.parse(cfgRows[0].config_json_value) as { countryIso3?: string };
+      countryIso3 = parsed.countryIso3 ?? "";
+    }
+  } catch (e) {
+    console.warn(`country_iso3 read failed, using "": ${e instanceof Error ? e.message : String(e)}`);
   }
   const localization = getTransformLocalization(countryIso3);
 
@@ -161,27 +167,19 @@ async function main() {
         const config = JSON.parse(row.config) as Record<string, unknown>;
         if (config.type !== "content") continue;
 
-        function checkNode(node: Record<string, unknown>): void {
-          if (node.type === "item") {
-            const data = node.data as Record<string, unknown> | undefined;
-            if (data?.type === "figure") {
-              const fb = data as FigureBlockMut;
-              const { outcome, failMsg } = dryRunBlock(fb, localization, null);
-              totals[outcome]++;
-              totals.total++;
-              if (outcome === "FAIL") {
-                allFindings.push({ projectId: project_id, surface: "slide", rowId: row.id, outcome, failMsg });
-              }
-            }
-          } else if (node.type === "rows" || node.type === "cols") {
-            const children = node.children as Record<string, unknown>[] | undefined;
-            if (children) {
-              for (const child of children) checkNode(child);
-            }
+        // Same traversal as the boot transform (slide_config.ts) via the shared
+        // walkSlideLayoutNodes, so the dry-run and boot cannot diverge.
+        walkSlideLayoutNodes(config.layout as SlideLayoutNodeLike, (node) => {
+          if (node.type !== "item") return;
+          const data = node.data as Record<string, unknown> | undefined;
+          if (data?.type !== "figure") return;
+          const { outcome, failMsg } = dryRunBlock(data as FigureBlockMut, localization, null);
+          totals[outcome]++;
+          totals.total++;
+          if (outcome === "FAIL") {
+            allFindings.push({ projectId: project_id, surface: "slide", rowId: row.id, outcome, failMsg });
           }
-        }
-
-        checkNode(config.layout as Record<string, unknown>);
+        });
       }
 
       // ── Reports ───────────────────────────────────────────────────────────

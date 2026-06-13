@@ -33,8 +33,9 @@ import {
 export async function migrateReports(
   tx: Sql,
   _projectId: string,
+  countryIso3: string,
 ): Promise<MigrationStats> {
-  const localization = getTransformLocalization("");
+  const localization = getTransformLocalization(countryIso3);
 
   const rows = await tx<
     { id: string; config: string | null; figures: string; images: string }[]
