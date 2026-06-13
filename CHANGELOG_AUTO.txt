@@ -1,3 +1,5 @@
+[TBD] [user] [added] - Support for French language and Ethiopian calendar settings
+[TBD] [admin] [added] - Instances now support language and calendar settings
 [TBD] [user] [fixed] - Visualizations now refresh automatically when underlying data changes
 [TBD] [user] [fixed] - Slide deck updates from other users appear reliably in real time
 [TBD] [user] [fixed] - Replicate-by options now update correctly after data or filter changes
