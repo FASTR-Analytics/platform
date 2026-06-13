@@ -25,6 +25,8 @@
 import {
   figureBundleSchema,
   figureBlockSchema,
+  isRollupActive,
+  ROLLUP_PIN_IDS,
   presentationObjectConfigSchema,
 } from "lib";
 import {
@@ -178,11 +180,12 @@ export function transformFigureBlockToBundle(
     : undefined;
 
   if (!config?.success) {
-    // Config missing or invalid → can't build a bundle; leave as empty placeholder.
-    console.warn(`[bundle-backfill] dropping figure: source.config missing or invalid`);
-    delete (block as Record<string, unknown>).figureInputs;
-    delete (block as Record<string, unknown>).source;
-    return;
+    // source.config missing or invalid — fail-fast so the dry-run surfaces it
+    // (a silent blank would pass figureBlockSchema and be masked as "empty").
+    throw new Error(
+      `[bundle-backfill] source.config missing or invalid for metricId=${source.metricId ?? "?"}: ` +
+      (config ? JSON.stringify(config.error.issues.slice(0, 2)) : "no config"),
+    );
   }
 
   const indicatorMetadata = Array.isArray(source.indicatorMetadata)
@@ -229,6 +232,8 @@ function buildBundleFromFigureInputs(
     metricId,
     snapshotAt,
     indicatorMetadata,
+    // moduleLastRun: best-effort (snapshot time ≠ run time; Phase 4 stale-flag
+    // will be inaccurate for backfilled figures — acceptable for P2).
     provenance: { moduleLastRun: snapshotAt, datasetsVersion: "" },
   };
 
@@ -247,7 +252,7 @@ function buildBundleFromFigureInputs(
       ...base,
       items: jsonArray,
       resultsValue: { formatAs: inferFormatAs(indicatorMetadata), valueProps },
-      dateRange: undefined,
+      dateRange: deriveDateRangeFromItems(jsonArray),
       geo,
     };
   }
@@ -260,13 +265,25 @@ function buildBundleFromFigureInputs(
       const valueProps = Array.isArray(jdc.valueProps) ? (jdc.valueProps as string[]) : [];
       const geo = resolveGeo(config, geoData);
 
+      // Derive dateRange from stored timeMin/nTimePoints before validating,
+      // so any round-trip mismatch is the only reason to throw.
+      const periodType = tsData.periodType as PeriodType | undefined ?? "year";
+      const timeMin = tsData.timeMin as number | undefined ?? 0;
+      const nTimePoints = tsData.nTimePoints as number | undefined ?? 0;
+      const tsDateRange = nTimePoints > 0
+        ? {
+            min: getPeriodIdFromTime(timeMin, periodType),
+            max: getPeriodIdFromTime(timeMin + nTimePoints - 1, periodType),
+          }
+        : undefined;
+
       validateTimeseriesRoundTrip(items, jdc, tsData);
 
       return {
         ...base,
         items,
         resultsValue: { formatAs: inferFormatAs(indicatorMetadata), valueProps },
-        dateRange: undefined,
+        dateRange: tsDateRange,
         geo,
       };
     } catch (err) {
@@ -395,6 +412,16 @@ function reverseTransformTimeseries(
     }
   }
 
+  // Replicate getRollupAwareSort(config): the original capture used this for
+  // all axes, so the round-trip validation must use the same sort. Mismatch
+  // would produce a different header order → different values grid → FAIL.
+  const parsedConfig = presentationObjectConfigSchema.safeParse(sourceConfig);
+  const rollupSort: unknown = parsedConfig.success && isRollupActive(parsedConfig.data)
+    ? parsedConfig.data.d.adminAreaRollupPosition === "top"
+      ? { base: "by-label", first: ROLLUP_PIN_IDS }
+      : { base: "by-label", last: ROLLUP_PIN_IDS }
+    : "by-label";
+
   // Build a minimal jsonDataConfig for self-validation.
   const jdc: Record<string, unknown> = {
     valueProps,
@@ -404,7 +431,7 @@ function reverseTransformTimeseries(
     paneProp,
     laneProp,
     tierProp,
-    sort: { series: "by-label", lane: "by-label", tier: "by-label", pane: "by-label" },
+    sort: { series: rollupSort, lane: rollupSort, tier: rollupSort, pane: rollupSort },
   };
 
   return { items: rows, jdc };
@@ -437,6 +464,29 @@ function validateTimeseriesRoundTrip(
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Scan items for known period columns and return min/max for DATE_RANGE tokens.
+// If no period column is found, returns undefined (captions with DATE_RANGE will
+// render the literal token — acceptable only if no such captions exist).
+function deriveDateRangeFromItems(
+  items: Record<string, string>[],
+): { min: number; max: number } | undefined {
+  const PERIOD_COLS = ["period_id", "year", "quarter_id", "month", "year_of_activity"];
+  for (const col of PERIOD_COLS) {
+    const values: number[] = [];
+    for (const row of items) {
+      const v = row[col];
+      if (v !== undefined && v !== null) {
+        const n = Number(v);
+        if (!isNaN(n)) values.push(n);
+      }
+    }
+    if (values.length > 0) {
+      return { min: Math.min(...values), max: Math.max(...values) };
+    }
+  }
+  return undefined;
+}
 
 function inferFormatAs(
   indicatorMetadata: Record<string, unknown>[],
