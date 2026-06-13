@@ -128,6 +128,12 @@ export function warnIfFigureInputsStale(
   }
 }
 
+// Known IndicatorMetadata fields — any other key is a legacy field to strip.
+const _INDICATOR_METADATA_KEYS = new Set([
+  "id", "label", "format_as", "threshold_direction",
+  "threshold_green", "threshold_yellow", "group_label", "sort_order",
+]);
+
 // Pre-P2 figure-block normalisation — run before bundle conversion.
 export function transformFigureBlock(block: FigureBlockMut): void {
   if (block.type !== "figure") return;
@@ -141,6 +147,22 @@ export function transformFigureBlock(block: FigureBlockMut): void {
 
   if (block.source?.type === "from_data" && block.source.config) {
     block.source.config = transformPOConfigData(block.source.config);
+  }
+
+  // Block: strip legacy fields from source.indicatorMetadata (e.g. "decimal_places"
+  // from older app versions). indicatorMetadataSchema is strict; cleaning happens
+  // here (in the transform layer) so the bundle builder receives clean data.
+  if (block.source?.type === "from_data" && Array.isArray(block.source.indicatorMetadata)) {
+    block.source.indicatorMetadata = block.source.indicatorMetadata.map((m) => {
+      if (m === null || typeof m !== "object") return m;
+      const cleaned: Record<string, unknown> = {};
+      for (const key of _INDICATOR_METADATA_KEYS) {
+        if (key in (m as Record<string, unknown>)) {
+          cleaned[key] = (m as Record<string, unknown>)[key];
+        }
+      }
+      return cleaned;
+    });
   }
 
   if (block.figureInputs) {

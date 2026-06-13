@@ -135,7 +135,6 @@ async function main() {
     const projectDb = postgres({
       host: PG_HOST, port: PG_PORT, user: PG_USER, password: PG_PASSWORD,
       database: project_id,
-      connect_timeout: 5,
     });
 
     try {
