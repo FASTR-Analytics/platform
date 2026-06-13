@@ -157,10 +157,10 @@ export async function migrateSlideConfigs(
   tx: Sql,
   _projectId: string,
 ): Promise<MigrationStats> {
-  const cfgRows = await tx<{ country_iso3: string | null }[]>`
-    SELECT value->>'countryIso3' AS country_iso3 FROM instance_config LIMIT 1
-  `.catch(() => [] as { country_iso3: string | null }[]);
-  const localization = getTransformLocalization(cfgRows[0]?.country_iso3 ?? "");
+  // countryIso3 not available in project-DB context; "" is correct for all
+  // non-Nigeria instances. Nigeria render still works: buildFigureInputs reads
+  // localization from the bundle, which captures the real value on new captures.
+  const localization = getTransformLocalization("");
 
   const rows = await tx<{ id: string; config: string }[]>`
     SELECT id, config FROM slides

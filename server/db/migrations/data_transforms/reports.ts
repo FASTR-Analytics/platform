@@ -34,10 +34,7 @@ export async function migrateReports(
   tx: Sql,
   _projectId: string,
 ): Promise<MigrationStats> {
-  const cfgRows = await tx<{ country_iso3: string | null }[]>`
-    SELECT value->>'countryIso3' AS country_iso3 FROM instance_config LIMIT 1
-  `.catch(() => [] as { country_iso3: string | null }[]);
-  const localization = getTransformLocalization(cfgRows[0]?.country_iso3 ?? "");
+  const localization = getTransformLocalization("");
 
   const rows = await tx<
     { id: string; config: string | null; figures: string; images: string }[]

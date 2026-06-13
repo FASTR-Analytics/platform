@@ -248,9 +248,18 @@ function buildBundleFromFigureInputs(
     const valueProps = Array.isArray(jdc.valueProps) ? (jdc.valueProps as string[]) : [];
     const geo = resolveGeo(config, geoData);
 
+    // Normalize all values to strings — stored jsonArrays may carry numeric
+    // year/value columns (postgres returns integers as JS numbers), but the
+    // bundle schema requires Record<string, string>.
+    const stringItems: Record<string, string>[] = jsonArray.map((row) =>
+      Object.fromEntries(
+        Object.entries(row).map(([k, v]) => [k, v === null || v === undefined ? "" : String(v)]),
+      )
+    );
+
     return {
       ...base,
-      items: jsonArray,
+      items: stringItems,
       resultsValue: { formatAs: inferFormatAs(indicatorMetadata), valueProps },
       dateRange: deriveDateRangeFromItems(jsonArray),
       geo,

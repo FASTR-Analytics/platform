@@ -26,12 +26,7 @@ export async function migrateDashboardItems(
   tx: Sql,
   _projectId: string,
 ): Promise<MigrationStats> {
-  // Read countryIso3 for localization once per run.
-  const cfgRows = await tx<{ country_iso3: string | null }[]>`
-    SELECT value->>'countryIso3' AS country_iso3 FROM instance_config LIMIT 1
-  `.catch(() => [] as { country_iso3: string | null }[]);
-  const countryIso3 = cfgRows[0]?.country_iso3 ?? "";
-  const localization = getTransformLocalization(countryIso3);
+  const localization = getTransformLocalization("");
 
   const rows = await tx<{ id: string; figure_block: string; geo_data: string | null }[]>`
     SELECT id, figure_block, geo_data FROM dashboard_items
