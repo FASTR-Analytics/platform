@@ -19,6 +19,8 @@ import type {
 const [instanceState, setInstanceState] = createStore<InstanceState>({
   isReady: false,
   instanceName: "",
+  instanceLanguage: "en",
+  instanceCalendar: "gregorian",
   maxAdminArea: 0,
   countryIso3: undefined,
   facilityColumns: {
@@ -93,6 +95,11 @@ export function getInstanceMaxAdminArea(): number {
 
 export function getInstanceCountryIso3(): string | undefined {
   return unwrap(instanceState).countryIso3;
+}
+
+export function getInstanceLocalization(): { language: "en" | "fr"; calendar: "gregorian" | "ethiopian"; countryIso3: string | undefined } {
+  const s = unwrap(instanceState);
+  return { language: s.instanceLanguage, calendar: s.instanceCalendar, countryIso3: s.countryIso3 };
 }
 
 export function getInstanceProjects(): ProjectSummary[] {

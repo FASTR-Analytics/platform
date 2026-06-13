@@ -1,9 +1,10 @@
+import type { Language } from "@timroberton/panther";
 import type { AssetInfo } from "./assets.ts";
 import type { HfaTimePoint } from "./dataset_hfa.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
-import type { InstanceConfigAdminAreaLabels, InstanceConfigFacilityColumns, OtherUser } from "./instance.ts";
+import type { InstanceCalendar, InstanceConfigAdminAreaLabels, InstanceConfigFacilityColumns, OtherUser } from "./instance.ts";
 import type { ProjectSummary } from "./projects.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
 
@@ -21,6 +22,8 @@ export type InstanceState = {
   // Immutable (set from env vars at server startup, never changes at runtime,
   // only sent in the `starting` message, no SSE event updates these)
   instanceName: string;
+  instanceLanguage: Language;
+  instanceCalendar: InstanceCalendar;
 
   // Config (rarely changes, updated via `config_updated` event)
   maxAdminArea: number;
