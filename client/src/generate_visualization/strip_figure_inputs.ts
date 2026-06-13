@@ -1,10 +1,14 @@
 import type { FigureInputs } from "panther";
 import type {
   DeckStyleContext,
+  FigureBlock,
+  FigureBundle,
   FigureSource,
   IndicatorMetadata,
   PresentationObjectConfig,
 } from "lib";
+import { getCalendar } from "lib";
+import { buildFigureInputs } from "./build_figure_inputs";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { getStyleFromPresentationObject } from "./get_style_from_po";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
@@ -56,6 +60,7 @@ export function hydrateFigureInputsForRendering(
     const style = getStyleFromPresentationObject(
       source.config,
       formatAs,
+      getCalendar() as "gregorian" | "ethiopian",
       deckStyle,
       source.indicatorMetadata,
     );
@@ -104,10 +109,27 @@ export function hydrateFigureInputsForPublicRendering(
   const style = getStyleFromPresentationObject(
     source.config,
     source.formatAs,
+    getCalendar() as "gregorian" | "ethiopian",
     undefined,
     source.indicatorMetadata,
   );
   hydrated = { ...hydrated, style };
 
   return hydrated;
+}
+
+// Temporary P1 bridge: converts a FigureBundle back to the old FigureBlock
+// format for storage. Deleted in P2 when DB schemas switch to FigureBundle.
+export function figureBundleToBlock(bundle: FigureBundle): FigureBlock {
+  return {
+    type: "figure",
+    figureInputs: stripFigureInputsForStorage(buildFigureInputs(bundle)),
+    source: {
+      type: "from_data",
+      metricId: bundle.metricId,
+      config: bundle.config,
+      snapshotAt: bundle.snapshotAt,
+      indicatorMetadata: bundle.indicatorMetadata,
+    },
+  };
 }

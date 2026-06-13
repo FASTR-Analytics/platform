@@ -4,12 +4,12 @@ import {
   getFormatterFunc,
   type TickLabelFormatterOption,
 } from "panther";
+import { type CalendarType } from "panther";
 import {
   _CF_COMPARISON,
   _CF_GREEN,
   _CF_RED,
   type DeckStyleContext,
-  getCalendar,
   PresentationObjectConfig,
 } from "lib";
 import { getStandardSeriesColorFunc, getTextStyle } from "./_0_common";
@@ -17,6 +17,7 @@ import { getStandardSeriesColorFunc, getTextStyle } from "./_0_common";
 export function buildPercentChangeChartStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  calendar: CalendarType,
   deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   const threshold = config.s.specialBarChartDiffThreshold ?? 0.1;
@@ -26,7 +27,7 @@ export function buildPercentChangeChartStyle(
     seriesColorFunc: getStandardSeriesColorFunc(config),
     text: getTextStyle(config, deckStyle),
     panes: { nCols: config.s.nColsInCellDisplay },
-    xPeriodAxis: { forceSideTicksWhenYear: true, calendar: getCalendar() },
+    xPeriodAxis: { forceSideTicksWhenYear: true, calendar },
     yScaleAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 ? 1 : undefined,

@@ -15,11 +15,11 @@ import { getModuleIdForMetric, getModuleIdForResultsObject, moduleDataVersionKey
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { poItemsQueue, resultsValueInfoQueue } from "~/state/_infra/request_queue";
 import { serverActions } from "~/server_actions";
-import { FigureInputs, getApiResponseFromGenerator, StateHolder, type GeoJSONFeatureCollection } from "panther";
-import { getFigureInputsFromPresentationObject } from "~/generate_visualization/mod";
+import { FigureInputs, getApiResponseFromGenerator, StateHolder } from "panther";
+import { buildFigureInputs } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
-import { getGeoJsonSync } from "../instance/t2_geojson";
 import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
+import { getInstanceLocalization } from "../instance/t1_store";
 
 export const _METRIC_INFO_CACHE = createReactiveCache<
   {
@@ -183,20 +183,35 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
     return;
   }
 
-  let geoJson: GeoJSONFeatureCollection | undefined;
-  const mapLevel = getAdminAreaLevelFromMapConfig(readyPoItems.data.config);
-  if (mapLevel) {
-    geoJson = getGeoJsonSync(mapLevel);
+  const ih = readyPoItems.data.ih;
+  if (ih.status !== "ok") {
+    throw new Error("Should not happen after status checks");
   }
 
+  const mapLevel = getAdminAreaLevelFromMapConfig(readyPoItems.data.config);
+  const { resultsValue } = readyPoDetail.data;
+
   try {
-    const figureInputs = getFigureInputsFromPresentationObject(
-      readyPoDetail.data.resultsValue,
-      readyPoItems.data.ih,
-      readyPoItems.data.config,
-      geoJson,
-    );
-    yield figureInputs;
+    const fi = buildFigureInputs({
+      config: readyPoItems.data.config,
+      items: ih.items,
+      resultsValue: {
+        formatAs: resultsValue.formatAs,
+        valueProps: resultsValue.valueProps,
+        valueLabelReplacements: resultsValue.valueLabelReplacements,
+      },
+      indicatorMetadata: ih.indicatorMetadata,
+      dateRange: ih.dateRange,
+      geo: mapLevel ? { kind: "level", level: mapLevel } : undefined,
+      localization: getInstanceLocalization(),
+      metricId: resultsValue.id,
+      snapshotAt: "",
+      provenance: {
+        moduleLastRun: ih.moduleLastRun,
+        datasetsVersion: ih.datasetsVersion,
+      },
+    });
+    yield { status: "ready" as const, data: fi };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown rendering error";
     console.error("[VIZ] Rendering error:", msg);

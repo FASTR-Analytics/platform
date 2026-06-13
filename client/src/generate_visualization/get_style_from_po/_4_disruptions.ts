@@ -6,11 +6,11 @@ import {
   getFormatterFunc,
   type TickLabelFormatterOption,
 } from "panther";
+import { type CalendarType } from "panther";
 import {
   _CF_GREEN,
   _CF_RED,
   type DeckStyleContext,
-  getCalendar,
   PresentationObjectConfig,
 } from "lib";
 import { getTextStyle } from "./_0_common";
@@ -18,6 +18,7 @@ import { getTextStyle } from "./_0_common";
 export function buildDisruptionsChartStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  calendar: CalendarType,
   deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   const inverted = config.s.diffInverted;
@@ -28,7 +29,7 @@ export function buildDisruptionsChartStyle(
     panes: {
       nCols: config.s.nColsInCellDisplay,
     },
-    xPeriodAxis: { calendar: getCalendar() },
+    xPeriodAxis: { calendar },
     yScaleAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 ? 1 : undefined,

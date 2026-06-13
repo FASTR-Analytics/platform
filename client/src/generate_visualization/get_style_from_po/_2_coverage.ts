@@ -6,19 +6,21 @@ import {
   toPct0,
   type TickLabelFormatterOption,
 } from "panther";
-import { type DeckStyleContext, getCalendar, PresentationObjectConfig } from "lib";
+import { type CalendarType } from "panther";
+import { type DeckStyleContext, PresentationObjectConfig } from "lib";
 import { getTextStyle } from "./_0_common";
 
 export function buildCoverageChartStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  calendar: CalendarType,
   deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   return {
     seriesColorFunc: getCoverageSeriesColorFunc(),
     text: getTextStyle(config, deckStyle),
     panes: { nCols: config.s.nColsInCellDisplay },
-    xPeriodAxis: { calendar: getCalendar() },
+    xPeriodAxis: { calendar },
     yScaleAxis: {
       max: config.s.forceYMax1 ? 1 : undefined,
       min: config.s.forceYMinAuto ? "auto" : undefined,

@@ -1,4 +1,4 @@
-import { CustomFigureStyleOptions } from "panther";
+import { CustomFigureStyleOptions, type CalendarType } from "panther";
 import { type DeckStyleContext, type IndicatorMetadata, PresentationObjectConfig } from "lib";
 import { buildStandardStyle } from "./get_style_from_po/_1_standard";
 import { buildCoverageChartStyle } from "./get_style_from_po/_2_coverage";
@@ -15,6 +15,7 @@ import {
 export function getStyleFromPresentationObject(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  calendar: CalendarType,
   deckStyle?: DeckStyleContext,
   indicatorMetadata?: IndicatorMetadata[],
 ): CustomFigureStyleOptions {
@@ -22,13 +23,13 @@ export function getStyleFromPresentationObject(
     return buildScorecardStyle(config, indicatorMetadata, deckStyle);
   }
   if (isSpecialCoverageChartActive(config)) {
-    return buildCoverageChartStyle(config, formatAs, deckStyle);
+    return buildCoverageChartStyle(config, formatAs, calendar, deckStyle);
   }
   if (isSpecialBarChartActive(config)) {
-    return buildPercentChangeChartStyle(config, formatAs, deckStyle);
+    return buildPercentChangeChartStyle(config, formatAs, calendar, deckStyle);
   }
   if (isSpecialDisruptionsChartActive(config)) {
-    return buildDisruptionsChartStyle(config, formatAs, deckStyle);
+    return buildDisruptionsChartStyle(config, formatAs, calendar, deckStyle);
   }
-  return buildStandardStyle(config, formatAs, deckStyle, indicatorMetadata);
+  return buildStandardStyle(config, formatAs, calendar, deckStyle, indicatorMetadata);
 }

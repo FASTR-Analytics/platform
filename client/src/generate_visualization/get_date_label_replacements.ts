@@ -1,6 +1,5 @@
 import { formatPeriod } from "panther";
-import type { JsonArrayItem } from "panther";
-import { getCalendar } from "lib";
+import type { CalendarType, JsonArrayItem } from "panther";
 
 type DatePropType = "month" | "quarter_id" | "period_id";
 
@@ -10,8 +9,7 @@ const DATE_PROPS: Set<DatePropType> = new Set([
   "period_id",
 ]);
 
-function getMonthName(monthNum: number): string {
-  const calendar = getCalendar();
+function getMonthName(monthNum: number, calendar: CalendarType): string {
   if (calendar === "ethiopian") {
     const ETHIOPIAN_MONTHS = ["Mes", "Tik", "Hid", "Tah", "Tir", "Yek", "Meg", "Mia", "Gin", "Sen", "Ham", "Neh"];
     return ETHIOPIAN_MONTHS[monthNum - 1] ?? "?";
@@ -23,6 +21,7 @@ function getMonthName(monthNum: number): string {
 export function getDateLabelReplacements(
   jsonArray: JsonArrayItem[],
   props: (string | undefined | null)[],
+  calendar: CalendarType,
 ): Record<string, string> {
   const replacements: Record<string, string> = {};
 
@@ -56,12 +55,12 @@ export function getDateLabelReplacements(
       // Handle month prop (values are 1-12)
       const monthNum = parseInt(value, 10);
       if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
-        replacements[value] = getMonthName(monthNum);
+        replacements[value] = getMonthName(monthNum, calendar);
       }
     } else {
       // Handle period_id and quarter_id (YYYYMM format)
       const periodType = getPeriodTypeFromProp(prop);
-      const formatted = formatDateValue(value, periodType);
+      const formatted = formatDateValue(value, periodType, calendar);
       if (formatted !== value) {
         replacements[value] = formatted;
       }
@@ -87,6 +86,7 @@ function getPeriodTypeFromProp(
 function formatDateValue(
   value: string,
   periodType: "year-month" | "year-quarter",
+  calendar: CalendarType,
 ): string {
-  return formatPeriod(value, periodType, getCalendar());
+  return formatPeriod(value, periodType, calendar);
 }

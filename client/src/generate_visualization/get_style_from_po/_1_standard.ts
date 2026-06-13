@@ -2,12 +2,12 @@ import {
   ChartValueInfo,
   CustomFigureStyleOptions,
   getFormatterFunc,
+  type CalendarType,
   type TickLabelFormatterOption,
 } from "panther";
 import {
   type DeckStyleContext,
   type IndicatorMetadata,
-  getCalendar,
   PresentationObjectConfig,
   selectCf,
 } from "lib";
@@ -24,6 +24,7 @@ import { getAdminAreaLevelFromMapConfig } from "../get_admin_area_level_from_con
 export function buildStandardStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  calendar: CalendarType,
   deckStyle?: DeckStyleContext,
   indicatorMetadata?: IndicatorMetadata[],
 ): CustomFigureStyleOptions {
@@ -59,7 +60,7 @@ export function buildStandardStyle(
     },
     xPeriodAxis: {
       forceSideTicksWhenYear: config.s.content === "bars",
-      calendar: getCalendar(),
+      calendar,
     },
     yScaleAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,

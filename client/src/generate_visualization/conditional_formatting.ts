@@ -8,8 +8,8 @@ import {
   PeriodOption,
   PresentationObjectConfig,
   selectCf,
-  t3,
   TranslatableString,
+  type FigureLocalization,
 } from "lib";
 import { compileCfToLegend } from "./conditional_formatting/compile";
 import {
@@ -19,14 +19,19 @@ import {
   isSpecialScorecardTableActive,
 } from "./special_chart_checks";
 
+function pickLang(language: "en" | "fr", s: { en: string; fr: string }): string {
+  return language === "fr" ? s.fr : s.en;
+}
+
 function getPeriodChangeLabels(
   timeseriesGrouping: PeriodOption,
   _inverted: boolean,
+  language: "en" | "fr",
 ): { increase: string; decrease: string } {
   const labels = getPeriodChangeTranslatableStrings(timeseriesGrouping);
   return {
-    increase: t3(labels.increase),
-    decrease: t3(labels.decrease),
+    increase: pickLang(language, labels.increase),
+    decrease: pickLang(language, labels.decrease),
   };
 }
 
@@ -76,37 +81,30 @@ function getPeriodChangeTranslatableStrings(
 export function getLegendFromConfig(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  localization: Pick<FigureLocalization, "language">,
 ): LegendInput | undefined {
+  const { language } = localization;
   if (isSpecialScorecardTableActive(config)) {
     return [
-      { label: t3({ en: "On track", fr: "En bonne voie" }), color: _CF_LIGHTER_GREEN },
-      { label: t3({ en: "Progress needed", fr: "Progrès nécessaire" }), color: _CF_LIGHTER_YELLOW },
-      { label: t3({ en: "Not on track", fr: "Pas en bonne voie" }), color: _CF_LIGHTER_RED },
+      { label: pickLang(language, { en: "On track", fr: "En bonne voie" }), color: _CF_LIGHTER_GREEN },
+      { label: pickLang(language, { en: "Progress needed", fr: "Progrès nécessaire" }), color: _CF_LIGHTER_YELLOW },
+      { label: pickLang(language, { en: "Not on track", fr: "Pas en bonne voie" }), color: _CF_LIGHTER_RED },
     ];
   }
   if (isSpecialCoverageChartActive(config)) {
     return [
       {
-        label: t3({
-          en: "Administrative data",
-          fr: "Données administratives",
-        }),
+        label: pickLang(language, { en: "Administrative data", fr: "Données administratives" }),
         color: "#CED4DB",
         pointStyle: "as-line",
       },
       {
-        label: t3({
-          en: "Survey-based estimate",
-          fr: "Estimation basée sur des enquêtes",
-        }),
+        label: pickLang(language, { en: "Survey-based estimate", fr: "Estimation basée sur des enquêtes" }),
         color: "#000000",
         pointStyle: "as-line",
       },
       {
-        label: t3({
-          en: "Projected estimate",
-          fr: "Estimation projetée",
-        }),
+        label: pickLang(language, { en: "Projected estimate", fr: "Estimation projetée" }),
         color: "#F04D44",
         pointStyle: "as-line",
       },
@@ -117,6 +115,7 @@ export function getLegendFromConfig(
     const labels = getPeriodChangeLabels(
       config.d.timeseriesGrouping,
       config.s.specialBarChartInverted,
+      language,
     );
     if (config.s.specialBarChartInverted) {
       return [
@@ -132,29 +131,29 @@ export function getLegendFromConfig(
   if (isSpecialDisruptionsChartActive(config)) {
     if (config.s.diffInverted) {
       return [
-        { label: t3({ en: "Actual", fr: "Réel" }), color: "#000000", pointStyle: "as-line" },
+        { label: pickLang(language, { en: "Actual", fr: "Réel" }), color: "#000000", pointStyle: "as-line" },
         {
-          label: t3({ en: "Expected", fr: "Attendu" }),
+          label: pickLang(language, { en: "Expected", fr: "Attendu" }),
           color: "#000000",
           pointStyle: "as-line",
           lineDash: "dashed",
           lineStrokeWidthScaleFactor: 0.5,
         },
-        { label: t3({ en: "Excess", fr: "Excès" }), color: _CF_RED },
-        { label: t3({ en: "Reduction", fr: "Réduction" }), color: _CF_GREEN },
+        { label: pickLang(language, { en: "Excess", fr: "Excès" }), color: _CF_RED },
+        { label: pickLang(language, { en: "Reduction", fr: "Réduction" }), color: _CF_GREEN },
       ];
     }
     return [
-      { label: t3({ en: "Actual", fr: "Réel" }), color: "#000000", pointStyle: "as-line" },
+      { label: pickLang(language, { en: "Actual", fr: "Réel" }), color: "#000000", pointStyle: "as-line" },
       {
-        label: t3({ en: "Expected", fr: "Attendu" }),
+        label: pickLang(language, { en: "Expected", fr: "Attendu" }),
         color: "#000000",
         pointStyle: "as-line",
         lineDash: "dashed",
         lineStrokeWidthScaleFactor: 0.5,
       },
-      { label: t3({ en: "Surplus", fr: "Excédent" }), color: _CF_GREEN },
-      { label: t3({ en: "Disruption", fr: "Perturbation" }), color: _CF_RED },
+      { label: pickLang(language, { en: "Surplus", fr: "Excédent" }), color: _CF_GREEN },
+      { label: pickLang(language, { en: "Disruption", fr: "Perturbation" }), color: _CF_RED },
     ];
   }
   const cf = selectCf(config.s);

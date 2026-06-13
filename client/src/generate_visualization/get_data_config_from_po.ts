@@ -7,6 +7,7 @@ import {
 } from "panther";
 import {
   CountryCodes,
+  FigureLocalization,
   LEGACY_ROLLUP_SENTINEL,
   PresentationObjectConfig,
   ResultsValueForVisualization,
@@ -19,10 +20,8 @@ import {
   periodOptionToPeriodType,
   ROLLUP_PIN_IDS,
   ROLLUP_SENTINEL,
-  t3,
   TC,
 } from "lib";
-import { instanceState } from "../state/instance/t1_store";
 import { getDateLabelReplacements } from "./get_date_label_replacements";
 import { getNigeriaAdminAreaLabelReplacements } from "./format_admin_area_labels";
 
@@ -30,8 +29,8 @@ function includesIndicatorDisaggregation(config: PresentationObjectConfig): bool
   return config.d.disaggregateBy.some((d) => d.disOpt === "indicator_common_id");
 }
 
-function getNigeriaLabelReplacements(jsonArray?: any[]): Record<string, string> {
-  if (instanceState.countryIso3 === CountryCodes.Nigeria && jsonArray) {
+function getNigeriaLabelReplacements(countryIso3: string | undefined, jsonArray?: any[]): Record<string, string> {
+  if (countryIso3 === CountryCodes.Nigeria && jsonArray) {
     return getNigeriaAdminAreaLabelReplacements(jsonArray);
   }
   return {};
@@ -50,18 +49,19 @@ function buildLabelReplacements(
   config: PresentationObjectConfig,
   indicatorLabelReplacements: Record<string, string>,
   dateLabelReplacements: Record<string, string>,
+  localization: Pick<FigureLocalization, "language" | "countryIso3">,
   jsonArray?: any[],
 ): Record<string, string> {
   const base = {
     ...(resultsValue.valueLabelReplacements ?? {}),
     ...indicatorLabelReplacements,
     ...dateLabelReplacements,
-    ...getNigeriaLabelReplacements(jsonArray),
+    ...getNigeriaLabelReplacements(localization.countryIso3, jsonArray),
   };
   if (!isRollupActive(config)) {
     return base;
   }
-  const rollupLabel = getRollupRowLabel(config);
+  const rollupLabel = getRollupRowLabel(config, localization.language, localization.countryIso3);
   return {
     ...base,
     [ROLLUP_SENTINEL]: rollupLabel,
@@ -74,22 +74,26 @@ function buildLabelReplacements(
 // the row can be an AVG or a recomputed ratio): "National", "{Area} — All
 // areas" for a pinned parent, "All selected areas" when admin filters subset
 // the geography.
-function getRollupRowLabel(config: PresentationObjectConfig): string {
+function pickLang(language: "en" | "fr", s: { en: string; fr: string }): string {
+  return language === "fr" ? s.fr : s.en;
+}
+
+function getRollupRowLabel(config: PresentationObjectConfig, language: "en" | "fr", countryIso3: string | undefined): string {
   const ctx = getRollupLabelContext(config);
   if (ctx?.kind === "subset") {
-    return t3({ en: "All selected areas", fr: "Toutes les zones sélectionnées" });
+    return pickLang(language, { en: "All selected areas", fr: "Toutes les zones sélectionnées" });
   }
   if (ctx?.kind === "pinned" && ctx.value) {
-    return `${resolveAdminAreaLabel(ctx.value)} — ${t3({ en: "All areas", fr: "Toutes les zones" })}`;
+    return `${resolveAdminAreaLabel(ctx.value, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
   }
-  return t3(TC.national);
+  return pickLang(language, TC.national);
 }
 
 // Display label for a raw admin-area value. Nigeria has a dedicated cleaner; every
 // other country uses the raw value as-is (the existing replacement maps don't carry
 // admin_area_2 names).
-function resolveAdminAreaLabel(value: string): string {
-  return instanceState.countryIso3 === CountryCodes.Nigeria
+function resolveAdminAreaLabel(value: string, countryIso3: string | undefined): string {
+  return countryIso3 === CountryCodes.Nigeria
     ? formatNigeriaAdminAreaLabel(value)
     : value;
 }
@@ -130,6 +134,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  localization: Pick<FigureLocalization, "language" | "countryIso3">,
   jsonArray?: any[],
 ): TimeseriesJsonDataConfig {
   if (config.d.type !== "timeseries") {
@@ -161,6 +166,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
       config,
       indicatorLabelReplacements,
       {},
+      localization,
       jsonArray,
     ),
   };
@@ -171,6 +177,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  localization: FigureLocalization,
   jsonArray?: any[],
   customSortHeaders?: string[],
 ): TableJsonDataConfig {
@@ -185,7 +192,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   const rowGroupProp = getDisaggregatorDisplayProp(resultsValue, config, ["rowGroup"], effectiveValueProps);
 
   const dateLabelReplacements = jsonArray
-    ? getDateLabelReplacements(jsonArray, [colProp, rowProp, colGroupProp, rowGroupProp])
+    ? getDateLabelReplacements(jsonArray, [colProp, rowProp, colGroupProp, rowGroupProp], localization.calendar)
     : {};
 
   const tableSort: HeaderSortConfig = customSortHeaders
@@ -224,6 +231,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
       config,
       indicatorLabelReplacements,
       dateLabelReplacements,
+      localization,
       jsonArray,
     ),
   };
@@ -251,6 +259,7 @@ function getChartJsonDataConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  localization: FigureLocalization,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
   if (config.d.type !== "chart") {
@@ -265,7 +274,7 @@ function getChartJsonDataConfig(
   const tierProp = getDisaggregatorDisplayProp(resultsValue, config, ["row", "rowGroup"], effectiveValueProps);
 
   const dateLabelReplacements = jsonArray
-    ? getDateLabelReplacements(jsonArray, [indicatorProp, seriesProp, paneProp, laneProp, tierProp])
+    ? getDateLabelReplacements(jsonArray, [indicatorProp, seriesProp, paneProp, laneProp, tierProp], localization.calendar)
     : {};
 
   // The indicator ("Bars") axis: panther applies sort.indicator only when
@@ -307,6 +316,7 @@ function getChartJsonDataConfig(
       config,
       indicatorLabelReplacements,
       dateLabelReplacements,
+      localization,
       jsonArray,
     ),
   };
@@ -317,9 +327,10 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  localization: FigureLocalization,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
-  return getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, jsonArray);
+  return getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray);
 }
 
 export function getChartOHJsonDataConfigFromPresentationObjectConfig(
@@ -327,7 +338,8 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  localization: FigureLocalization,
   jsonArray?: any[],
 ): ChartOHJsonDataConfig {
-  return getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, jsonArray);
+  return getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray);
 }

@@ -4,10 +4,10 @@ import {
   formatPeriod,
   getPeriodTypeFromValue,
   getTimeseriesDataTransformed,
-  t3,
   type GeoJSONFeatureCollection,
 } from "panther";
 import {
+  type FigureLocalization,
   type IndicatorMetadata,
   ItemsHolderPresentationObject,
   PeriodBounds,
@@ -15,6 +15,7 @@ import {
   ResultsValueForVisualization,
   getCalendar,
   getEffectivePOConfig,
+  getLanguage,
   indicatorMetadataToLabelMap,
   selectCf,
   withReplicant,
@@ -105,6 +106,14 @@ export function getFigureInputsFromPresentationObject(
     throw new Error("getFigureInputsFromPresentationObject called with non-ok status");
   }
 
+  // Build localization from ambient reads — this preserves existing behavior.
+  // buildFigureInputs (the new path) passes localization from the bundle instead.
+  const localization: FigureLocalization = {
+    language: getLanguage() as "en" | "fr",
+    calendar: getCalendar() as "gregorian" | "ethiopian",
+    countryIso3: instanceState.countryIso3,
+  };
+
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(ih.indicatorMetadata);
 
   const effectiveFormatAs: "percent" | "number" = displayedIndicatorsAllPercent(
@@ -127,6 +136,7 @@ export function getFigureInputsFromPresentationObject(
         effectiveConfig,
         effectiveValueProps,
         indicatorLabelReplacements,
+        localization,
         ih.items,
       );
       const d = getTimeseriesDataTransformed(
@@ -141,34 +151,22 @@ export function getFigureInputsFromPresentationObject(
         data: {
           timeseriesData: d,
           caption: withDateRange(
-            withReplicant(
-              config.t.caption,
-              config,
-              indicatorLabelReplacements,
-              instanceState.countryIso3,
-            ),
+            withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3),
             ih.dateRange,
+            localization,
           ),
           subCaption: withDateRange(
-            withReplicant(
-              config.t.subCaption,
-              config,
-              indicatorLabelReplacements,
-              instanceState.countryIso3,
-            ),
+            withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3),
             ih.dateRange,
+            localization,
           ),
           footnote: withDateRange(
-            withReplicant(
-              config.t.footnote,
-              config,
-              indicatorLabelReplacements,
-              instanceState.countryIso3,
-            ),
+            withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3),
             ih.dateRange,
+            localization,
           ),
-          style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
-          legend: getLegendFromConfig(config, effectiveFormatAs),
+          style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, undefined, ih.indicatorMetadata),
+          legend: getLegendFromConfig(config, effectiveFormatAs, localization),
         },
       };
     }
@@ -187,39 +185,28 @@ export function getFigureInputsFromPresentationObject(
               effectiveConfig,
               effectiveValueProps,
               indicatorLabelReplacements,
+              localization,
               ih.items,
               customSortHeaders,
             ),
           },
           caption: withDateRange(
-            withReplicant(
-              config.t.caption,
-              config,
-              indicatorLabelReplacements,
-              instanceState.countryIso3,
-            ),
+            withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3),
             ih.dateRange,
+            localization,
           ),
           subCaption: withDateRange(
-            withReplicant(
-              config.t.subCaption,
-              config,
-              indicatorLabelReplacements,
-              instanceState.countryIso3,
-            ),
+            withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3),
             ih.dateRange,
+            localization,
           ),
           footnote: withDateRange(
-            withReplicant(
-              config.t.footnote,
-              config,
-              indicatorLabelReplacements,
-              instanceState.countryIso3,
-            ),
+            withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3),
             ih.dateRange,
+            localization,
           ),
-          style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
-          legend: getLegendFromConfig(config, effectiveFormatAs),
+          style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, undefined, ih.indicatorMetadata),
+          legend: getLegendFromConfig(config, effectiveFormatAs, localization),
         },
       };
     }
@@ -227,34 +214,22 @@ export function getFigureInputsFromPresentationObject(
     if (effectiveConfig.d.type === "chart") {
       const commonSurrounds = {
         caption: withDateRange(
-          withReplicant(
-            config.t.caption,
-            config,
-            indicatorLabelReplacements,
-            instanceState.countryIso3,
-          ),
+          withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3),
           ih.dateRange,
+          localization,
         ),
         subCaption: withDateRange(
-          withReplicant(
-            config.t.subCaption,
-            config,
-            indicatorLabelReplacements,
-            instanceState.countryIso3,
-          ),
+          withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3),
           ih.dateRange,
+          localization,
         ),
         footnote: withDateRange(
-          withReplicant(
-            config.t.footnote,
-            config,
-            indicatorLabelReplacements,
-            instanceState.countryIso3,
-          ),
+          withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3),
           ih.dateRange,
+          localization,
         ),
-        style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
-        legend: getLegendFromConfig(config, effectiveFormatAs),
+        style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, undefined, ih.indicatorMetadata),
+        legend: getLegendFromConfig(config, effectiveFormatAs, localization),
       };
 
       if (effectiveConfig.s.horizontal) {
@@ -263,14 +238,14 @@ export function getFigureInputsFromPresentationObject(
           data: {
             chartOHData: {
               jsonArray: ih.items,
-              jsonDataConfig:
-                getChartOHJsonDataConfigFromPresentationObjectConfig(
-                  resultsValue,
-                  effectiveConfig,
-                  effectiveValueProps,
-                  indicatorLabelReplacements,
-                  ih.items,
-                ),
+              jsonDataConfig: getChartOHJsonDataConfigFromPresentationObjectConfig(
+                resultsValue,
+                effectiveConfig,
+                effectiveValueProps,
+                indicatorLabelReplacements,
+                localization,
+                ih.items,
+              ),
             },
             ...commonSurrounds,
           },
@@ -282,14 +257,14 @@ export function getFigureInputsFromPresentationObject(
         data: {
           chartData: {
             jsonArray: ih.items,
-            jsonDataConfig:
-              getChartOVJsonDataConfigFromPresentationObjectConfig(
-                resultsValue,
-                effectiveConfig,
-                effectiveValueProps,
-                indicatorLabelReplacements,
-                ih.items,
-              ),
+            jsonDataConfig: getChartOVJsonDataConfigFromPresentationObjectConfig(
+              resultsValue,
+              effectiveConfig,
+              effectiveValueProps,
+              indicatorLabelReplacements,
+              localization,
+              ih.items,
+            ),
           },
           ...commonSurrounds,
         },
@@ -308,12 +283,12 @@ export function getFigureInputsFromPresentationObject(
         indicatorLabelReplacements,
       );
 
-      const mapItems = ih.items.map((row: any) => {
+      const mapItems = ih.items.map((row: Record<string, string>) => {
         const raw = row[mapDataConfig.valueProp];
-        if (raw !== undefined && raw !== null && typeof raw === "string") {
+        if (raw !== undefined && raw !== null) {
           const num = Number(raw);
           if (!isNaN(num)) {
-            return { ...row, [mapDataConfig.valueProp]: num };
+            return { ...row, [mapDataConfig.valueProp]: num as unknown as string };
           }
         }
         return row;
@@ -328,34 +303,22 @@ export function getFigureInputsFromPresentationObject(
             jsonDataConfig: mapDataConfig,
           },
           caption: withDateRange(
-            withReplicant(
-              config.t.caption,
-              config,
-              indicatorLabelReplacements,
-              instanceState.countryIso3,
-            ),
+            withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3),
             ih.dateRange,
+            localization,
           ),
           subCaption: withDateRange(
-            withReplicant(
-              config.t.subCaption,
-              config,
-              indicatorLabelReplacements,
-              instanceState.countryIso3,
-            ),
+            withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3),
             ih.dateRange,
+            localization,
           ),
           footnote: withDateRange(
-            withReplicant(
-              config.t.footnote,
-              config,
-              indicatorLabelReplacements,
-              instanceState.countryIso3,
-            ),
+            withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3),
             ih.dateRange,
+            localization,
           ),
-          style: getStyleFromPresentationObject(config, effectiveFormatAs, undefined, ih.indicatorMetadata),
-          legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormatAs),
+          style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, undefined, ih.indicatorMetadata),
+          legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormatAs, localization),
         },
       };
     }
@@ -379,16 +342,17 @@ export function getFigureInputsFromPresentationObject(
 function buildMapAutoLegend(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  localization: Pick<FigureLocalization, "language">,
 ) {
   const cf = selectCf(config.s);
 
   if (cf.type === "thresholds") {
-    return getLegendFromConfig(config, formatAs);
+    return getLegendFromConfig(config, formatAs, localization);
   }
 
   const noData = {
     color: "#f0f0f0",
-    label: t3({ en: "No data", fr: "Aucune donnée" }),
+    label: localization.language === "fr" ? "Aucune donnée" : "No data",
   };
   const domain =
     cf.type === "scale" && cf.domain.kind === "fixed"
@@ -416,6 +380,7 @@ function buildMapAutoLegend(
 function withDateRange(
   str: string,
   dateRange: PeriodBounds | undefined,
+  localization: Pick<FigureLocalization, "calendar" | "language">,
 ): string {
   if (!str.includes("DATE_RANGE") && !str.includes("PLAGE_DE_DATES")) {
     return str;
@@ -423,15 +388,16 @@ function withDateRange(
   if (!dateRange) {
     return str;
   }
-  const calendar = getCalendar();
+  const { calendar, language } = localization;
   const periodType: PeriodType = getPeriodTypeFromValue(dateRange.min) ?? "year";
   if (dateRange.min === dateRange.max) {
     const d = formatPeriod(dateRange.min, periodType, calendar);
     return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d);
   }
+  const separator = language === "fr" ? " à " : " to ";
   const d =
     formatPeriod(dateRange.min, periodType, calendar) +
-    t3({ en: " to ", fr: " à " }) +
+    separator +
     formatPeriod(dateRange.max, periodType, calendar);
   return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d);
 }

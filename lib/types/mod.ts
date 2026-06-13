@@ -28,6 +28,7 @@ export {
 export * from "./_module_definition_installed.ts";
 export * from "./module_registry.ts";
 export * from "./modules.ts";
+export * from "./_figure_bundle.ts";
 export * from "./_presentation_object_config.ts";
 export * from "./presentation_object_defaults.ts";
 export * from "./presentation_objects.ts";
