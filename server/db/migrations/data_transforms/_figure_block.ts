@@ -394,10 +394,13 @@ function reverseTransformTimeseries(
   const tierProp = tierDisOpt;
 
   // valueProps: in wide format, each series header id IS a valueProp.
-  // In single-valueProp format, use the first disaggregation value column.
+  // In non-wide format, the original valueProp name (e.g. "Number of services…")
+  // is not stored and cannot be derived from the config. Use a synthetic key
+  // "__v__" to avoid colliding with any disaggregation axis column.
+  const NON_WIDE_VALUE_PROP = "__v__";
   const valueProps = isWideFormat
     ? seriesHeaders.map((h) => h.id)
-    : [disaggregateBy.find((d) => d.disDisplayOpt === "series" || d.disDisplayOpt === "col")?.disOpt ?? "--v"];
+    : [NON_WIDE_VALUE_PROP];
 
   const rows: Record<string, string>[] = [];
 
@@ -504,7 +507,8 @@ function validateTimeseriesRoundTrip(
       }
     } else {
       const series = seriesProp ? (row[seriesProp] ?? "--v") : "--v";
-      const v = row[valueProps[0] ?? "--v"];
+      // Non-wide: value is stored under NON_WIDE_VALUE_PROP ("__v__")
+      const v = row["__v__"];
       if (v !== undefined && v !== null && v !== "") {
         lookup.set(`${pane}|${tier}|${lane}|${series}|${period}`, Number(v));
       }
