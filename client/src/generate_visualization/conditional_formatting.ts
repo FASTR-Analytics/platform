@@ -7,6 +7,7 @@ import {
   _CF_RED,
   PeriodOption,
   PresentationObjectConfig,
+  pickLang,
   selectCf,
   TranslatableString,
   type FigureLocalization,
@@ -18,10 +19,6 @@ import {
   isSpecialDisruptionsChartActive,
   isSpecialScorecardTableActive,
 } from "./special_chart_checks";
-
-function pickLang(language: "en" | "fr", s: { en: string; fr: string }): string {
-  return language === "fr" ? s.fr : s.en;
-}
 
 function getPeriodChangeLabels(
   timeseriesGrouping: PeriodOption,

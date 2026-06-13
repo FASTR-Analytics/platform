@@ -184,6 +184,21 @@ deleted. Lands as a single deploy after the dry-run (below) is clean on every in
   replace the `figureInputs?`/`source?` FigureBlock with the strict `{type, bundle?}`.
 - Drop `figureInputsSchema = z.unknown()` and the `FigureSource` union (delete `custom`,
   fold its fields into the bundle — vision §5).
+- **Carry-forward from P1 review (finding #4) — harden the bundle's inner sub-schemas
+  now that the bundle becomes the *stored* shape and the migration skip-gate validates
+  against it.** In `lib/types/_figure_bundle.ts`, `periodBoundsSchema`,
+  `indicatorMetadataSchema`, and `resultsValueForVisualizationSchema` are currently
+  `z.object` (strip) and hand-redefined: (a) change them to `z.strictObject` — strip mode
+  lets a drifted/legacy key *inside* an `indicatorMetadata` item or `resultsValue` pass
+  the skip-gate (transform skipped) and then be silently dropped on read (the
+  PROTOCOL_APP_MIGRATIONS skip-gate gotcha; harmless in P1 because the bundle is never
+  persisted, a trap once it is); (b) tie each to its source type (`IndicatorMetadata` in
+  `lib/types/indicators.ts`, `ResultsValueForVisualization` in `lib/types/modules.ts`,
+  `PeriodBounds`) via `satisfies z.ZodType<…>` or by inferring the type from the schema, so
+  they can't silently diverge. Also **decide** `geo`'s `data: z.unknown()` arm — the one
+  remaining un-validated surface (same blind spot as the old stored `figureInputs`); accept
+  + document (GeoJSON is an external stable spec, low drift risk) or validate the shape
+  minimally.
 
 ### 2b. Capture-to-bundle on write
 - Slides (`server/db/project/slides.ts` write path + the client capture in

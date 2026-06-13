@@ -97,9 +97,9 @@ export function getInstanceCountryIso3(): string | undefined {
   return unwrap(instanceState).countryIso3;
 }
 
-export function getInstanceLocalization(): { language: "en" | "fr"; calendar: "gregorian" | "ethiopian"; countryIso3: string | undefined } {
+export function getInstanceLocalization(): { language: "en" | "fr"; calendar: "gregorian" | "ethiopian"; countryIso3: string } {
   const s = unwrap(instanceState);
-  return { language: s.instanceLanguage, calendar: s.instanceCalendar, countryIso3: s.countryIso3 };
+  return { language: s.instanceLanguage, calendar: s.instanceCalendar, countryIso3: s.countryIso3 ?? "" };
 }
 
 export function getInstanceProjects(): ProjectSummary[] {

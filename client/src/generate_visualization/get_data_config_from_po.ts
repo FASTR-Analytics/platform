@@ -9,6 +9,7 @@ import {
   CountryCodes,
   FigureLocalization,
   LEGACY_ROLLUP_SENTINEL,
+  pickLang,
   PresentationObjectConfig,
   ResultsValueForVisualization,
   formatNigeriaAdminAreaLabel,
@@ -74,10 +75,6 @@ function buildLabelReplacements(
 // the row can be an AVG or a recomputed ratio): "National", "{Area} — All
 // areas" for a pinned parent, "All selected areas" when admin filters subset
 // the geography.
-function pickLang(language: "en" | "fr", s: { en: string; fr: string }): string {
-  return language === "fr" ? s.fr : s.en;
-}
-
 function getRollupRowLabel(config: PresentationObjectConfig, language: "en" | "fr", countryIso3: string | undefined): string {
   const ctx = getRollupLabelContext(config);
   if (ctx?.kind === "subset") {

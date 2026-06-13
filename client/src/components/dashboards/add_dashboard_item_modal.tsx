@@ -10,7 +10,7 @@ import {
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { resolveFigureAndGeoFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
+import { resolveFigureAndGeoFromVisualization } from "~/generate_visualization/mod";
 import { resolveMembersWithProgress } from "./resolve_members_with_progress";
 
 type Props = {

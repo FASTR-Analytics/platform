@@ -42,7 +42,7 @@ import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext, ReportEditProposal } from "../project_ai/types";
 import { SelectVisualizationForSlide } from "../slide_deck/select_visualization_for_slide";
-import { resolveFigureAndGeoFromVisualization } from "../slide_deck/slide_ai/resolve_figure_from_visualization";
+import { resolveFigureAndGeoFromVisualization } from "~/generate_visualization/mod";
 import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "../project/add_visualization";
 import { snapshotForVizEditor } from "../_editor_snapshot";

@@ -17,6 +17,7 @@ import {
   getEffectivePOConfig,
   getLanguage,
   indicatorMetadataToLabelMap,
+  pickLang,
   selectCf,
   withReplicant,
 } from "lib";
@@ -111,7 +112,7 @@ export function getFigureInputsFromPresentationObject(
   const localization: FigureLocalization = {
     language: getLanguage() as "en" | "fr",
     calendar: getCalendar() as "gregorian" | "ethiopian",
-    countryIso3: instanceState.countryIso3,
+    countryIso3: instanceState.countryIso3 ?? "",
   };
 
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(ih.indicatorMetadata);
@@ -352,7 +353,7 @@ function buildMapAutoLegend(
 
   const noData = {
     color: "#f0f0f0",
-    label: localization.language === "fr" ? "Aucune donnée" : "No data",
+    label: pickLang(localization.language, { en: "No data", fr: "Aucune donnée" }),
   };
   const domain =
     cf.type === "scale" && cf.domain.kind === "fixed"
@@ -394,7 +395,7 @@ function withDateRange(
     const d = formatPeriod(dateRange.min, periodType, calendar);
     return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d);
   }
-  const separator = language === "fr" ? " à " : " to ";
+  const separator = pickLang(language, { en: " to ", fr: " à " });
   const d =
     formatPeriod(dateRange.min, periodType, calendar) +
     separator +

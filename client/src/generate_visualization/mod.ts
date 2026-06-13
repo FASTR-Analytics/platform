@@ -1,5 +1,6 @@
 export { buildFigureInputs } from "./build_figure_inputs";
-export { resolveFigureBundleFromVisualization } from "./resolve_figure_from_visualization";
+export { resolveFigureBundleFromVisualization, resolveFigureAndGeoFromVisualization } from "./resolve_figure_from_visualization";
+export type { VisualizationInput } from "./resolve_figure_from_visualization";
 export { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
 export type { MetricInputsForBundle } from "./resolve_figure_from_metric";
 export { getFigureInputsFromPresentationObject } from "./get_figure_inputs_from_po";

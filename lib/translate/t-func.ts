@@ -14,3 +14,7 @@ export function setCalendar(cal: InstanceCalendar) {
 export function getCalendar(): CalendarType {
   return _CALENDAR.cal;
 }
+
+export function pickLang(language: "en" | "fr", s: { en: string; fr: string }): string {
+  return language === "fr" ? s.fr : s.en;
+}

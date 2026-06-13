@@ -214,10 +214,12 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
     yield { status: "ready" as const, data: fi };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown rendering error";
-    console.error("[VIZ] Rendering error:", msg);
+    if (!msg.startsWith("[INFO]")) {
+      console.error("[VIZ] Rendering error:", msg);
+    }
     yield {
       status: "error" as const,
-      err: `[INFO] ${msg}`,
+      err: msg.startsWith("[INFO]") ? msg : `[INFO] ${msg}`,
     };
   }
 }

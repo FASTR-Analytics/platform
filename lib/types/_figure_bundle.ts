@@ -12,14 +12,21 @@
 // =============================================================================
 
 import { z } from "zod";
+import type { IndicatorMetadata } from "./indicators.ts";
+import type { PeriodBounds } from "./presentation_objects.ts";
+import type { ResultsValueForVisualization } from "./modules.ts";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
 
 // ── Sub-schemas (matching existing lib types exactly) ────────────────────────
+// Runtime locks: parse a Required<T> so a new field in the source type causes
+// a compile error (Required forces the literal) and a parse failure here.
 
 export const periodBoundsSchema = z.object({
   min: z.number(),
   max: z.number(),
 });
+const _pb: Required<PeriodBounds> = { min: 0, max: 0 };
+periodBoundsSchema.parse(_pb);
 
 export const indicatorMetadataSchema = z.object({
   id: z.string(),
@@ -31,12 +38,22 @@ export const indicatorMetadataSchema = z.object({
   group_label: z.string().optional(),
   sort_order: z.number().optional(),
 });
+const _im: Required<IndicatorMetadata> = {
+  id: "", label: "", format_as: "number",
+  threshold_direction: "higher_is_better", threshold_green: 0, threshold_yellow: 0,
+  group_label: "", sort_order: 0,
+};
+indicatorMetadataSchema.parse(_im);
 
 export const resultsValueForVisualizationSchema = z.object({
   formatAs: z.enum(["percent", "number"]),
   valueProps: z.array(z.string()),
   valueLabelReplacements: z.record(z.string(), z.string()).optional(),
 });
+const _rv: Required<ResultsValueForVisualization> = {
+  formatAs: "number", valueProps: [], valueLabelReplacements: {},
+};
+resultsValueForVisualizationSchema.parse(_rv);
 
 // Discriminated union: live editor passes level (derives GeoJSON from sync
 // cache); stored bundles (dashboards/slides/reports) embed the full GeoJSON.
@@ -46,11 +63,13 @@ export const geoRefSchema = z.discriminatedUnion("kind", [
 ]);
 
 // ── Localization (extracted so callers can type function params) ─────────────
+// countryIso3 is required (use "" when the instance has no country set) so
+// a stored bundle always carries a definite string — no silent omission.
 
 export const figureLocalizationSchema = z.strictObject({
   language: z.enum(["en", "fr"]),
   calendar: z.enum(["gregorian", "ethiopian"]),
-  countryIso3: z.string().optional(),
+  countryIso3: z.string(),
 });
 
 export type FigureLocalization = z.infer<typeof figureLocalizationSchema>;

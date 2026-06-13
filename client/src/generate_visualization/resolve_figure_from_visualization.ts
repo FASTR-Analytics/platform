@@ -1,20 +1,25 @@
-import type { AiFigureFromVisualization, FigureBundle, PresentationObjectConfig } from "lib";
+import type { FigureBlock, FigureBundle, PresentationObjectConfig } from "lib";
 import { getReplicateByProp } from "lib";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { getInstanceLocalization } from "~/state/instance/t1_store";
+import { figureBundleToBlock } from "./strip_figure_inputs";
 import {
   getPODetailFromCacheorFetch,
   getPresentationObjectItemsFromCacheOrFetch,
 } from "~/state/project/t2_presentation_objects";
 
+// Plain input type — no AI imports needed.
+// `type` is optional for callers that carry the discriminant from the AI input shape.
+export type VisualizationInput = { visualizationId: string; replicant?: string; type?: string };
+
 // Produces a FigureBundle from a visualization (PO). The bundle is self-
 // contained: config, items, localization, and geo are all captured.
-// P1 callers still writing old FigureBlock use figureBundleToBlock (strip_figure_inputs);
+// P1 callers still writing old FigureBlock use figureBundleToBlock;
 // P2 callers store the bundle directly.
 export async function resolveFigureBundleFromVisualization(
   projectId: string,
-  block: AiFigureFromVisualization,
+  block: VisualizationInput,
 ): Promise<FigureBundle> {
   const poDetailRes = await getPODetailFromCacheorFetch(projectId, block.visualizationId);
   if (!poDetailRes.success) {
@@ -73,5 +78,19 @@ export async function resolveFigureBundleFromVisualization(
       moduleLastRun: ih.moduleLastRun,
       datasetsVersion: ih.datasetsVersion,
     },
+  };
+}
+
+// P1 convenience: resolve and return the old FigureBlock format + extracted geo.
+// Non-AI consumers (dashboards, reports) import this from generate_visualization/mod —
+// NOT from slide_deck/slide_ai — so the dashboard/report → AI coupling is dissolved.
+export async function resolveFigureAndGeoFromVisualization(
+  projectId: string,
+  block: VisualizationInput,
+): Promise<{ figureBlock: FigureBlock; geoData?: unknown }> {
+  const bundle = await resolveFigureBundleFromVisualization(projectId, block);
+  return {
+    figureBlock: figureBundleToBlock(bundle),
+    geoData: bundle.geo?.kind === "data" ? bundle.geo.data : undefined,
   };
 }

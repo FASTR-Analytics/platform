@@ -5,6 +5,7 @@ import {
   getPeriodTypeFromValue,
   getTimeseriesDataTransformed,
   type GeoJSONFeatureCollection,
+  type JsonArrayItem,
 } from "panther";
 import {
   FigureBundle,
@@ -14,6 +15,7 @@ import {
   ResultsValueForVisualization,
   getEffectivePOConfig,
   indicatorMetadataToLabelMap,
+  pickLang,
   selectCf,
   withReplicant,
   type DeckStyleContext,
@@ -156,12 +158,14 @@ export function buildFigureInputs(
       effectiveValueProps,
       indicatorLabelReplacements,
     );
-    const mapItems = items.map((row) => {
+    // panther expects numeric values for the color scale; items are string-typed
+    // in the bundle, so parse numeric strings to numbers here.
+    const mapItems: JsonArrayItem[] = items.map((row) => {
       const raw = row[mapDataConfig.valueProp];
       if (raw !== undefined && raw !== null) {
         const num = Number(raw);
         if (!isNaN(num)) {
-          return { ...row, [mapDataConfig.valueProp]: num as unknown as string };
+          return { ...row, [mapDataConfig.valueProp]: num };
         }
       }
       return row;
@@ -208,7 +212,7 @@ function buildMapAutoLegend(
   }
   const noData = {
     color: "#f0f0f0",
-    label: localization.language === "fr" ? "Aucune donnée" : "No data",
+    label: pickLang(localization.language, { en: "No data", fr: "Aucune donnée" }),
   };
   const domain =
     cf.type === "scale" && cf.domain.kind === "fixed"
@@ -234,7 +238,7 @@ function withDateRange(
     const d = formatPeriod(dateRange.min, periodType, calendar);
     return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d);
   }
-  const separator = language === "fr" ? " à " : " to ";
+  const separator = pickLang(language, { en: " to ", fr: " à " });
   const d = formatPeriod(dateRange.min, periodType, calendar) + separator + formatPeriod(dateRange.max, periodType, calendar);
   return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d);
 }
