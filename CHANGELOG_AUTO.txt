@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Fixed validation of custom calculation formulas for stronger safety checks
+[TBD] [admin] [changed] - Stricter validation for post-aggregation expressions in presentation objects
 [TBD] [admin] [internal] - Removed legacy visualization rendering code path
 [TBD] [admin] [changed] - Visualizations now store all rendering data as a self-contained bundle
 [TBD] [admin] [changed] - Dashboards, reports, and slides use a unified figure storage format
