@@ -22,9 +22,60 @@ export const SQL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // "value = COALESCE(sum_val, avg_num / avg_weight)". Allow identifiers, the
 // arithmetic/grouping operators, comma, dot, equals and spaces; reject quotes,
 // semicolons, and anything else that could break out of the expression.
-// NOTE: charset-only — does NOT stop word-char subqueries like "(select ...)";
-// that residual gap is tracked in PLAN_SYSTEMS §6.1 (server-authoritative PAE check).
+// Charset alone is NOT sufficient — it still permits word-char subqueries
+// ("(select x from t)") and arbitrary function calls ("pg_sleep(60)", a DoS
+// vector). isSafePostAggregationExpression adds the structural rules below; use
+// it (not the bare charset) to validate a PAE.
 export const SAFE_EXPRESSION = /^[A-Za-z0-9_ +\-*/().,=]+$/;
+
+// The only SQL functions a PAE may call. NULLIF is injected by
+// applyPostAggregationExpression; ABS/COALESCE are used by authored metrics.
+const PAE_ALLOWED_FUNCS: ReadonlySet<string> = new Set([
+  "abs",
+  "coalesce",
+  "nullif",
+]);
+
+/**
+ * Validates a post-aggregation expression before it is interpolated into
+ * projectDb.unsafe SQL. The charset (SAFE_EXPRESSION) can't tell `numerator /
+ * denominator` from `(select secret from t)` or `pg_sleep(60)`, so on top of it
+ * we enforce two structural invariants that every legitimate (arithmetic) PAE
+ * holds but injections break:
+ *   1. No two adjacent value tokens (identifier/number). Arithmetic always has
+ *      an operator between operands, so this kills "select col", "from t", and
+ *      every other subquery shape.
+ *   2. Any identifier directly before "(" must be a whitelisted function — this
+ *      blocks arbitrary calls like pg_sleep(...) while allowing ABS/COALESCE.
+ */
+export function isSafePostAggregationExpression(expr: string): boolean {
+  if (!SAFE_EXPRESSION.test(expr)) {
+    return false;
+  }
+  const tokens = expr.match(
+    /[A-Za-z_][A-Za-z0-9_]*|[0-9]+(?:\.[0-9]+)?|[+\-*/(),=]/g
+  );
+  // Every non-whitespace character must belong to exactly one token; a leftover
+  // (e.g. a bare "." used to qualify table.column) means reject.
+  if (!tokens || tokens.join("") !== expr.replace(/\s+/g, "")) {
+    return false;
+  }
+  const isValueToken = (t: string): boolean => /^[A-Za-z0-9_]/.test(t);
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    if (
+      /^[A-Za-z_]/.test(tok) &&
+      tokens[i + 1] === "(" &&
+      !PAE_ALLOWED_FUNCS.has(tok.toLowerCase())
+    ) {
+      return false;
+    }
+    if (i > 0 && isValueToken(tok) && isValueToken(tokens[i - 1])) {
+      return false;
+    }
+  }
+  return true;
+}
 
 /** True when `disOpt` is a known disaggregation column safe to interpolate. */
 export function isValidDisaggregationOption(disOpt: string): boolean {
@@ -60,7 +111,7 @@ export function validateFetchConfig(
 
   if (
     fetchConfig.postAggregationExpression !== undefined &&
-    !SAFE_EXPRESSION.test(fetchConfig.postAggregationExpression)
+    !isSafePostAggregationExpression(fetchConfig.postAggregationExpression)
   ) {
     throw new Error("Invalid postAggregationExpression");
   }

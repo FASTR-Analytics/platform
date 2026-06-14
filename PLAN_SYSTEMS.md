@@ -341,7 +341,8 @@ code demands it; sub-file exceptions are in §4.1.
   silently rekey everything); roll-up gates single-sourced in lib; Ethiopian
   calendar alters both bounds and generated SQL. **Carried the app's top
   security defect** (§7.1 — fetch-config SQL injection; membership classes
-  fixed 2026-06-12, PAE residual open).
+  fixed 2026-06-12, PAE residual closed 2026-06-14 — fetch-config boundary now
+  fully validated).
 - **Size:** ~40 files, logic-dense. **Docs:**
   DOC_PRESENTATION_OBJECT_QUERY_PIPELINE, DOC_period_column_handling,
   DOC_DISAGGREGATION_OPTIONS_HANDLING, DOC_ROLLUP_ROWS, DOC_VALKEY_CACHE.
@@ -582,7 +583,7 @@ that understands it — docs and reviews are the same motion, not two passes.
 **#2 — change the code.** Two kinds, driven by different things:
 
 - **(a) Fixes** — things that are *wrong* (bugs, security, dead code). Driven
-  by findings, NOT by the map. The §7.1 PAE residual, the three in-flight
+  by findings, NOT by the map. The three in-flight
   plans, §7.2 dead code, the PLAN_HARDEN_SECURITY urgent items. The map only
   *batches and prioritizes* these. They run in parallel to everything.
 - **(b) Refactors toward the map** — making the systems real at the file level
@@ -625,8 +626,7 @@ And two moments when code changes:
   understands it. Only the trivially-correct moves go in the bridge pass.
 - Order the system cycles to dovetail with the horizontal plans, not fight
   them. Don't run the S1 cycle while hardening is mid-flight (the contract's
-  moving); S9 is the natural first pilot (highest value — closes the §7.1 PAE
-  residual properly, and is mostly stable).
+  moving); S9 is the natural first pilot (highest value, and is mostly stable).
 
 **The one risk:** findings scatter. A review surfaces ~15 things; some fixed
 in-cycle, some deferred. Rule: every triaged finding either gets fixed in the
@@ -731,17 +731,25 @@ identifier, and `postAggregationExpression` against a safe charset; the
 attempts rejected) + typecheck. PLAN_API_ZOD batch 5 formalizes these at the
 Zod boundary (note added there).
 
-**Residual — `postAggregationExpression` is NOT fully closed.** It is a freeform
+**Residual — `postAggregationExpression` CLOSED 2026-06-14.** It is a freeform
 arithmetic string (e.g. `value = COALESCE(sum_val, avg_num / avg_weight)`)
 interpolated raw, wrapped as `SELECT (${expr}) ... FROM (${query}) AS subq`. The
-charset guard blocks quotes/semicolons/comments but a scalar subquery built from
-word-chars + parens (`(SELECT pg_sleep(5))`) still passes the charset. The real
-fix is server-authoritative: the route already resolves the metric from the DB,
-so it can compare the client's PAE against the metric's stored
-`postAggregationExpression.expression` (or rebuild fetchConfig server-side and
-not trust the client's copy at all — the FigureBundle direction). Tracked as an
-open follow-up (S9's first cycle); the charset guard is interim
-defense-in-depth only.
+charset guard alone blocked quotes/semicolons/comments but a scalar subquery
+built from word-chars + parens (`(SELECT pg_sleep(5))`) — and bare function calls
+like `pg_sleep(60)` (an authenticated DB-connection-exhaustion DoS) — still
+passed the charset. Now closed with a structural validator
+(`isSafePostAggregationExpression` in `lib/validate_fetch_config.ts`) layered on
+top of the charset: (1) no two adjacent value tokens — kills `select col`/`from
+t` and every subquery shape, since arithmetic always has an operator between
+operands; (2) any identifier directly before `(` must be a whitelisted function
+(`abs`/`coalesce`/`nullif`). Wired into both the imperative `validateFetchConfig`
+and the Zod boundary (`presentation-objects.ts` `.refine`), single source of
+truth. Verified by execution harness (all real authored PAEs pass; subquery,
+`pg_sleep`, `current_setting`, `t.col`, adjacent-identifier rejected) + typecheck.
+The server-authoritative direction (compare against the metric's stored
+`postAggregationExpression.expression`, or rebuild fetchConfig server-side per
+the FigureBundle plan) remains the eventual end-state but is no longer needed for
+security.
 
 ### 7.2 Dead code (verified zero importers — deletion candidates)
 
@@ -806,8 +814,8 @@ The six open questions, resolved with Tim (2026-06-12):
    `SYSTEMS.md`. NOT "keep DOC_* and tag them" — that was the excess.
    `panther/protocols/PROTOCOL_*` stays separate (cross-project base). See
    PLAN_DOC_CONSOLIDATION.
-6. **§7.1 injection?** → **Done** (membership classes shipped 2026-06-12); PAE
-   residual is an S9-cycle follow-up.
+6. **§7.1 injection?** → **Done** (membership classes shipped 2026-06-12; PAE
+   residual closed 2026-06-14 — structural validator on top of the charset).
 
 **Immediate roadmap:**
 
@@ -818,5 +826,4 @@ The six open questions, resolved with Tim (2026-06-12):
 3. **Bridge pass** — the trivially-correct §6 moves (slide_ai resolver
    extraction, cache-instance relocation, `h_users` server-side).
 4. **First system cycle: S9** (review → triage → fix → document) — after
-   hardening + zod settle, so the contract it touches is stable; it also closes
-   the §7.1 PAE residual properly.
+   hardening + zod settle, so the contract it touches is stable.

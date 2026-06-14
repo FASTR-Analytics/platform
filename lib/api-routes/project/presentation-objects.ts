@@ -8,7 +8,10 @@ import {
   ALL_DISAGGREGATION_OPTIONS,
 } from "../../types/mod.ts";
 import { ADMIN_LEVELS } from "../../admin_area_rollup.ts";
-import { SQL_IDENTIFIER, SAFE_EXPRESSION } from "../../validate_fetch_config.ts";
+import {
+  SQL_IDENTIFIER,
+  isSafePostAggregationExpression,
+} from "../../validate_fetch_config.ts";
 import type {
   DisaggregationOption,
   GenericLongFormFetchConfig,
@@ -33,7 +36,7 @@ const poIdParamsSchema = z.object({ po_id: z.string() });
 // (the single source of truth) so the boundary schema and the handler guard can't drift.
 // groupBys / filters[].disOpt / replicateBy → closed enum (period options are a subset)
 // values[].prop → bare SQL identifier
-// postAggregationExpression → safe arithmetic charset
+// postAggregationExpression → safe arithmetic (charset + structural rules)
 const fetchConfigValuesItemSchema = z.object({
   prop: z.string().regex(SQL_IDENTIFIER),
   func: valueFuncStrict,
@@ -48,7 +51,10 @@ const genericLongFormFetchConfigSchema = z.object({
   })),
   periodFilter: periodFilterSchema,
   periodFilterExactBounds: z.object({ min: z.number(), max: z.number() }).optional(),
-  postAggregationExpression: z.string().regex(SAFE_EXPRESSION).optional(),
+  postAggregationExpression: z
+    .string()
+    .refine(isSafePostAggregationExpression)
+    .optional(),
   includeAdminAreaRollup: z.boolean().optional(),
   adminAreaRollupLevel: z.enum(ADMIN_LEVELS).optional(),
 });
