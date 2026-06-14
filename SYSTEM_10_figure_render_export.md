@@ -7,7 +7,6 @@ globs:
   - client/src/generate_visualization/**
   - client/src/state/project/t2_images.ts
   - lib/brand_presets.ts
-  - lib/json_slide_serialize.ts
   - lib/key_colors.ts
   - lib/types/_figure_bundle.ts
   - lib/types/_slide_fonts.ts

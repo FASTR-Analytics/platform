@@ -11,7 +11,6 @@ export * from "./get_fetch_config_from_po.ts";
 export * from "./group_metrics.ts";
 export * from "./h_users.ts";
 export * from "./help/mod.ts";
-// json_slide_serialize.ts deleted in P2 (sentinel layer removed).
 export * from "./key_colors.ts";
 export * from "./brand_presets.ts";
 export * from "./legacy_cf_presets.ts";

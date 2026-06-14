@@ -5,8 +5,8 @@
 > docs — primary: [SYSTEM_10](SYSTEM_10_figure_render_export.md) §FigureBundle;
 > slices in [S9](SYSTEM_09_viz_query_cache.md), [S12](SYSTEM_12_documents_sharing.md),
 > [S2](SYSTEM_02_persistence.md). This file holds only the **deferred** work that
-> was explicitly out of scope, plus small residual cleanups the shipped-state audit
-> turned up. Fold each item into the owning system's next review cycle.
+> was explicitly out of scope (Phase 4, Phase 5), plus the one open follow-on the
+> shipped-state audit surfaced. Fold each into the owning system's next review cycle.
 
 ## Phase 4 (additive) — provenance wiring + the stale-badge / "Update data" UI
 
@@ -51,30 +51,9 @@ files that use those names. No behavior change — a large mechanical sweep, so 
 own focused PR (like the snapshot-naming pass), never bundled with feature work.
 The FigureBundle refactor deliberately kept the PO names to stay separable.
 
-## Residual cleanups (small — from the 2026-06-13 shipped-state audit)
+## Slide write-route body validation → its own plan
 
-These are leftovers where the cutover landed the new path but did not finish
-removing the old one. None is load-bearing; each is a safe tidy.
-
-1. **Delete the dead old build path.** `getFigureInputsFromPresentationObject`
-   ([client/src/generate_visualization/get_figure_inputs_from_po.ts](client/src/generate_visualization/get_figure_inputs_from_po.ts))
-   is the pre-bundle ambient-localization builder — superseded by
-   `buildFigureInputs`, now **zero importers** and not exported from `mod.ts`. Safe
-   to delete the file. (Owner: S10.)
-2. **Tighten the now-schemable route bodies.** With the sentinel layer gone, the
-   slide/report write bodies that PLAN_API_ZOD batch 6 left at `z.unknown()` can
-   validate against `figureBlockSchema`. (Owner: S1/S12 — a ZOD follow-up.)
-3. ~~**Fix a stale comment** in `lib/types/reports.ts`.~~ Done 2026-06-13 — the
-   pre-bundle "figureInputs validated as unknown" wording now describes the strict
-   `figureBlockSchema`.
-4. **The `json_slide_serialize.ts` tombstone.** Now a two-line comment after the
-   sentinel layer was deleted. Either remove the file entirely or keep it as an
-   intentional breadcrumb — trivial either way. It is still claimed by the S10
-   manifest, so deleting it means dropping that glob line. (Owner: S10.)
-
-## Explicitly NOT closed by FigureBundle (do not conflate)
-
-The §7.1 fetch-config SQL-injection / membership residual is a **separate S9
-item**. The membership-validation fix already shipped; FigureBundle does not close
-the rest, because the re-query path still derives `fetchConfig` the same way. Track
-it under S9 (see [project_systems_topology] / PLAN_SYSTEMS §6.1), not here.
+The shipped-state audit found `createSlide`/`updateSlide` still use
+`slide: z.unknown()` — a real ZOD/panther type reconciliation (not the trivial
+sentinel tidy first assumed; reports already validate via `reportFiguresSchema`).
+Tracked separately: [PLAN_SLIDE_BODY_SCHEMA.md](PLAN_SLIDE_BODY_SCHEMA.md).
