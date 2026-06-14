@@ -1,3 +1,4 @@
+[TBD] [admin] [internal] - Removed legacy visualization rendering code path
 [TBD] [admin] [changed] - Visualizations now store all rendering data as a self-contained bundle
 [TBD] [admin] [changed] - Dashboards, reports, and slides use a unified figure storage format
 [TBD] [admin] [internal] - Removed intermediate encode/decode layer for transmitting figure data
