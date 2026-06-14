@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -32,7 +32,15 @@ export const itemMeasurer: ItemHeightMeasurer<
   }
 
   if (FigureRenderer.isType(item)) {
-    return FigureRenderer.getIdealHeight(src.rc, width, item);
+    const hc = FigureRenderer.getIdealHeight(src.rc, width, item);
+    // Stretch beyond ideal is a page policy, not a figure property. A figure
+    // that resists stretching reports a finite maxH (= its ideal); the page
+    // grants it up to figureMaxStretch × ideal to fill space. A figure that
+    // fills freely reports Infinity and is left uncapped.
+    const maxH = Number.isFinite(hc.maxH)
+      ? hc.idealH * src.s.content.figureMaxStretch
+      : hc.maxH;
+    return { ...hc, maxH };
   }
 
   if (ImageRenderer.isType(item)) {

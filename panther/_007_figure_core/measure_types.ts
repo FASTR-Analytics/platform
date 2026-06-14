@@ -1,10 +1,11 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
   CustomFigureStyle,
+  FigureFitReport,
   HeaderItem,
   MeasuredText,
   MergedChartStyleBase,
@@ -17,6 +18,17 @@ import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
 import type { XAxisConfig, YAxisConfig } from "./_axes/axis_configs.ts";
 
 export type { MeasuredSurrounds };
+
+// Geometry produced by measurePane for one pane — used by getIdealHeight to
+// invert the decomposition H = overhead(width) + nGRows×nTiers×subChartAreaH.
+export type PaneLayout = {
+  subChartAreaHeight: number;
+  subChartAreaWidth: number;
+  topHeightForLaneHeaders: number;
+  tierHeaderAndLabelGapHeight: number;
+  yAxisWidth: number; // widthIncludingYAxisStrokeWidth — real value for min-width calc
+  paneContentWidth: number; // pane content width — the y-text axis label wrap basis
+};
 
 export interface SimplifiedChartConfig<
   TInputs,
@@ -76,6 +88,10 @@ export interface MeasuredChartBase<TInputs, TData, TStyle> {
   footnote?: string | string[];
   legend?: LegendInput;
   primitives: Primitive[];
+  // Per-pane geometry from measurePane — used by getIdealHeight decomposition.
+  paneLayouts: PaneLayout[];
   // shrink-to-fit shrank to the legibility floor and content still overflows.
   cramped?: boolean;
+  // Post-measure fit metrics. Undefined when autofit was disabled.
+  fitReport?: FigureFitReport;
 }

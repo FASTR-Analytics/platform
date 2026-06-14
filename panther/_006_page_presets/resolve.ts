@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -329,7 +329,18 @@ export function resolvePageStyle(
     freeform: resolveFreeformStyle(layout, freeformTreatment, preset),
   };
 
-  const palette = getKeyColorsFromPrimaryColor(preset.primary);
+  // Mirror the preset's actually-applied colors; only the semantic colors
+  // (neutral/success/warning/danger) that the preset doesn't define are taken
+  // from the generated palette.
+  const palette = {
+    ...getKeyColorsFromPrimaryColor(preset.primary),
+    base100: preset.base100,
+    base200: preset.base200,
+    base300: preset.base300,
+    baseContent: preset.baseContent,
+    primary: preset.primary,
+    primaryContent: preset.primaryContent,
+  };
 
   return { style, palette, preset };
 }

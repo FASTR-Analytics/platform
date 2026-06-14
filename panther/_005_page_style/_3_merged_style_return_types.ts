@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -43,6 +43,10 @@ export type MergedFreeformContentStyle = {
   background: PageBackgroundStyle;
   gapX: number;
   gapY: number;
+  // Layout stretch ceiling for figures: maxH = idealH × this. Owns the
+  // stretch-beyond-ideal policy (figures own ideal height; fill-figures —
+  // sankey/simpleviz/map/image — report Infinity and are left uncapped).
+  figureMaxStretch: number;
 };
 
 export type MergedFreeformLayoutContainersStyle = {

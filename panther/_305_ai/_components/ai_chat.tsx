@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -7,6 +7,7 @@ import {
   type Component,
   createSignal,
   type JSX,
+  onMount,
   Show,
   useContext,
 } from "solid-js";
@@ -76,9 +77,11 @@ export function AIChat(p: Props) {
     { enabled: p.autoScroll ?? true },
   );
 
-  if (p.onScrollReady) {
-    p.onScrollReady(scrollToBottom);
-  }
+  onMount(() => {
+    if (p.onScrollReady) {
+      p.onScrollReady(scrollToBottom);
+    }
+  });
 
   const handleSubmit = async () => {
     let message = inputValue().trim();

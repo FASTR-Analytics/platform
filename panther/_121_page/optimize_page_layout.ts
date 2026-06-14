@@ -1,9 +1,10 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  createCachedMeasurer,
   CustomPageStyle,
   type CustomPageStyleOptions,
   generateCandidates,
@@ -49,13 +50,14 @@ export function optimizePageLayout(
     alreadyScaledValue: s.alreadyScaledValue,
   };
 
+  const cachedMeasurer = createCachedMeasurer(itemMeasurer);
   const candidates = generateCandidates(itemNodes, config);
   const scored = scoreLayouts(
     { rc, s },
     candidates,
     contentBounds,
     layoutStyle,
-    itemMeasurer,
+    cachedMeasurer,
   );
   const best = pickBestLayout(scored);
   return { best, candidates, scored };

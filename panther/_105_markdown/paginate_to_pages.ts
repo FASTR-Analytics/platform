@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -6,6 +6,7 @@
 import {
   createItemNode,
   type CustomMarkdownStyleOptions,
+  debugLog,
   FigureRenderer,
   type ImageMap,
   ImageRenderer,
@@ -19,6 +20,7 @@ import {
   type ContentGroup,
   contentGroupToPageContentItem,
   type ConvertedPageContent,
+  docElementToMarkdown,
   groupDocElementsByContentType,
 } from "./convert_to_page_content.ts";
 import type { FigureMap, ParsedMarkdownItem } from "./types.ts";
@@ -120,7 +122,7 @@ export function paginateMarkdown(
       }
 
       const splitItems = splitContentToFit(
-        item,
+        group.elements,
         effectiveFirstChunkHeight,
         config.contentHeight,
         rc,
@@ -291,7 +293,7 @@ function measureContentHeight(
 }
 
 function splitContentToFit(
-  item: ConvertedPageContent,
+  elements: ParsedMarkdownItem[],
   firstChunkMaxHeight: number,
   subsequentMaxHeight: number,
   rc: RenderContext,
@@ -299,18 +301,18 @@ function splitContentToFit(
   style?: CustomMarkdownStyleOptions,
   preventOrphanHeadings?: boolean,
 ): ConvertedPageContent[] {
-  if (!("markdown" in item)) {
-    return [item];
-  }
-
-  const paragraphs = item.markdown.split(/\n\n+/);
+  // Split at parsed-element boundaries. Each element (paragraph, heading, code
+  // block, …) is an atomic block, never split internally. Serializing the whole
+  // group to a string and splitting on blank lines (the previous approach) shred
+  // fenced code and math blocks, whose bodies legitimately contain blank lines.
+  const blocks = elements.map((el) => docElementToMarkdown(el));
   const splits: ConvertedPageContent[] = [];
   let currentChunk: string[] = [];
   let isFirstChunk = true;
 
-  for (const para of paragraphs) {
+  for (const block of blocks) {
     const maxHeight = isFirstChunk ? firstChunkMaxHeight : subsequentMaxHeight;
-    const testChunk = [...currentChunk, para];
+    const testChunk = [...currentChunk, block];
     const testMarkdown = testChunk.join("\n\n");
     const testHeight = measureContentHeight(
       rc,
@@ -320,19 +322,19 @@ function splitContentToFit(
     );
 
     if (testHeight <= maxHeight) {
-      currentChunk.push(para);
+      currentChunk.push(block);
     } else {
       // Before finalizing chunk, check for orphan headings
       if (preventOrphanHeadings && currentChunk.length > 0) {
-        const lastPara = currentChunk[currentChunk.length - 1];
-        if (isHeading(lastPara)) {
+        const lastBlock = currentChunk[currentChunk.length - 1];
+        if (isHeading(lastBlock)) {
           // Move heading to next chunk
           currentChunk.pop();
           if (currentChunk.length > 0) {
             splits.push({ markdown: currentChunk.join("\n\n"), style });
             isFirstChunk = false;
           }
-          currentChunk = [lastPara, para];
+          currentChunk = [lastBlock, block];
           continue;
         }
       }
@@ -340,7 +342,24 @@ function splitContentToFit(
         splits.push({ markdown: currentChunk.join("\n\n"), style });
         isFirstChunk = false;
       }
-      currentChunk = [para];
+      currentChunk = [block];
+      // C13: an atomic block taller than a full page can't be split — it will
+      // overflow as a unit rather than be silently shredded. Surface it (gated
+      // by PANTHER_DEBUG).
+      const blockHeight = measureContentHeight(
+        rc,
+        { markdown: block },
+        width,
+        style,
+      );
+      if (blockHeight > subsequentMaxHeight) {
+        debugLog(
+          "[markdown pagination] atomic block exceeds page height " +
+            `(${Math.round(blockHeight)}du > ${
+              Math.round(subsequentMaxHeight)
+            }du); it will overflow rather than split.`,
+        );
+      }
     }
   }
 
@@ -348,7 +367,9 @@ function splitContentToFit(
     splits.push({ markdown: currentChunk.join("\n\n"), style });
   }
 
-  return splits.length > 0 ? splits : [item];
+  return splits.length > 0
+    ? splits
+    : [{ markdown: blocks.join("\n\n"), style }];
 }
 
 function isHeading(text: string): boolean {

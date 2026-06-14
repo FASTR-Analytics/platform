@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -349,6 +349,12 @@ export class CustomPageStyle {
           c.freeform?.content?.gapY,
           g.freeform?.content?.gapY,
           d.freeform.content.gapY,
+        ),
+        // Unitless multiplier — merged with m() (not scaled by sf).
+        figureMaxStretch: m(
+          c.freeform?.content?.figureMaxStretch,
+          g.freeform?.content?.figureMaxStretch,
+          d.freeform.content.figureMaxStretch,
         ),
       },
       layoutContainers: {

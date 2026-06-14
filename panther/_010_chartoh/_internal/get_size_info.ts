@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -14,11 +14,21 @@ import {
   resolveDefaultLegend,
 } from "../deps.ts";
 import { getChartOHDataTransformed } from "../get_chartoh_data.ts";
-import type { ChartOHInputs } from "../types.ts";
+import type { ChartOHDataTransformed, ChartOHInputs } from "../types.ts";
+
+export function getChartOHSizingData(
+  inputs: ChartOHInputs,
+): ChartOHDataTransformed {
+  const stacked =
+    new CustomFigureStyle(inputs.style).getMergedChartOHStyle().content.bars
+      .stacking === "stacked";
+  return getChartOHDataTransformed(inputs.chartOHData, stacked);
+}
 
 export function getChartOHComponentSizes(
   rc: RenderContext,
   inputs: ChartOHInputs,
+  data: ChartOHDataTransformed,
   scale?: number,
 ): ChartComponentSizes {
   const cs = new CustomFigureStyle(
@@ -27,10 +37,6 @@ export function getChartOHComponentSizes(
     inputs.autofitSurrounds,
   );
   const ms = cs.getMergedChartOHStyle();
-  const data = getChartOHDataTransformed(
-    inputs.chartOHData,
-    ms.content.bars.stacking === "stacked",
-  );
 
   // X-scale axis height (self-contained, sample tick label).
   const xAxisHeight = estimateMinXAxisHeightForScale(

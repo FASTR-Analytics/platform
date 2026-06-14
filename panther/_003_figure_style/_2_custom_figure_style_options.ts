@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -212,7 +212,6 @@ export type CustomFigureStyleOptions = {
   //////////////////////////////////////////////////////////
   yTextAxis?: {
     tickPosition?: "sides" | "center";
-    colHeight?: number;
     paddingTop?: number;
     paddingBottom?: number;
     labelGap?: number;
@@ -457,6 +456,25 @@ export type CustomFigureStyleOptions = {
       maxCentroidDisplacement?: number;
       maxIterations?: number;
     };
+  };
+
+  // Natural-size policy for chart figures: how tall a figure wants to be,
+  // absent any container constraint. Distinct from layout stretch — how far a
+  // figure may grow BEYOND ideal to fill page space — which is the page/layout's
+  // concern (page style content.figureMaxStretch). Resolution: custom → global
+  // → default.
+  idealHeight?: {
+    // Scale-axis charts (ChartOV, Timeseries): natural per-subchart plot
+    // height (DU) as a function of vertically-stacked subchart rows
+    // (nPaneRows × nTiers). Decays so stacked grids stay bounded. Clamped to
+    // >= the legibility floor. Ignored by ChartOH and Table.
+    idealPlotHeight?: (nSubchartRows: number) => number;
+
+    // ChartOH: natural per-bar-row thickness (DU) as a function of the figure's
+    // total bar rows (nPaneRows × nTiers × nIndicators × (stacked ? 1 : nSeries)).
+    // Decays so dense category charts thin their bars instead of growing
+    // without bound. Ignored by ChartOV, Timeseries, and Table.
+    idealRowThickness?: (nTotalBarRows: number) => number;
   };
 };
 

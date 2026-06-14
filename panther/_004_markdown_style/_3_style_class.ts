@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -23,12 +23,51 @@ import {
   m,
   type TextInfo,
 } from "./deps.ts";
-import {
-  mergeListLevelEm,
-  mergeListMarginEm,
-  mergeMarginEm,
-} from "./helpers.ts";
 import { MARKDOWN_TEXT_STYLE_KEYS } from "./text_style_keys.ts";
+
+// The resolved markdown style, expressed in em (font-relative units). This is
+// the single source of truth for the custom→global→default cascade of every
+// font-relative metric. Both consumers derive from it:
+//   - getEmValues()           → the em projection (HTML hands em to CSS)
+//   - getMergedMarkdownStyle() → the px projection (em × fontSize, eager for
+//                                Canvas/PDF/Word) plus the absolute properties.
+// Keeping one cascade makes Canvas/HTML divergence structurally impossible.
+type EmMargin = { top: number; bottom: number };
+type EmListMargin = EmMargin & { gap: number };
+type EmListLevel = { markerIndentEm: number; textIndentEm: number };
+
+type ResolvedMarkdownMetricsEm = {
+  margins: {
+    paragraph: EmMargin;
+    h1: EmMargin;
+    h2: EmMargin;
+    h3: EmMargin;
+    h4: EmMargin;
+    h5: EmMargin;
+    h6: EmMargin;
+    list: EmListMargin;
+    image: EmMargin;
+    table: EmMargin;
+    blockquote: EmMargin; // block spacing — distinct from `blockquote` paddings
+    horizontalRule: EmMargin;
+    code: EmMargin;
+  };
+  blockquote: {
+    paddingTop: number;
+    paddingBottom: number;
+    paddingLeft: number;
+    paddingRight: number;
+    paragraphGap: number;
+  };
+  code: { paddingH: number; paddingV: number };
+  table: { cellPaddingH: number; cellPaddingV: number };
+  bulletList: { level0: EmListLevel; level1: EmListLevel; level2: EmListLevel };
+  numberedList: {
+    level0: EmListLevel;
+    level1: EmListLevel;
+    level2: EmListLevel;
+  };
+};
 
 export class CustomMarkdownStyle {
   private _d: DefaultMarkdownStyle;
@@ -54,12 +93,181 @@ export class CustomMarkdownStyle {
     );
   }
 
+  // Single cascade walk → all font-relative metrics, in em.
+  private resolveEmMetrics(): ResolvedMarkdownMetricsEm {
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+
+    const margin = (
+      cc: { top?: number; bottom?: number } | undefined,
+      gg: { top?: number; bottom?: number } | undefined,
+      dd: { top: number; bottom: number },
+    ): EmMargin => ({
+      top: m(cc?.top, gg?.top, dd.top),
+      bottom: m(cc?.bottom, gg?.bottom, dd.bottom),
+    });
+
+    const level = (
+      cc: { markerIndentEm?: number; textIndentEm?: number } | undefined,
+      gg: { markerIndentEm?: number; textIndentEm?: number } | undefined,
+      dd: { markerIndentEm: number; textIndentEm: number },
+    ): EmListLevel => ({
+      markerIndentEm: m(
+        cc?.markerIndentEm,
+        gg?.markerIndentEm,
+        dd.markerIndentEm,
+      ),
+      textIndentEm: m(cc?.textIndentEm, gg?.textIndentEm, dd.textIndentEm),
+    });
+
+    return {
+      margins: {
+        paragraph: margin(
+          c.marginsEm?.paragraph,
+          g.marginsEm?.paragraph,
+          d.marginsEm.paragraph,
+        ),
+        h1: margin(c.marginsEm?.h1, g.marginsEm?.h1, d.marginsEm.h1),
+        h2: margin(c.marginsEm?.h2, g.marginsEm?.h2, d.marginsEm.h2),
+        h3: margin(c.marginsEm?.h3, g.marginsEm?.h3, d.marginsEm.h3),
+        h4: margin(c.marginsEm?.h4, g.marginsEm?.h4, d.marginsEm.h4),
+        h5: margin(c.marginsEm?.h5, g.marginsEm?.h5, d.marginsEm.h5),
+        h6: margin(c.marginsEm?.h6, g.marginsEm?.h6, d.marginsEm.h6),
+        list: {
+          top: m(
+            c.marginsEm?.list?.top,
+            g.marginsEm?.list?.top,
+            d.marginsEm.list.top,
+          ),
+          bottom: m(
+            c.marginsEm?.list?.bottom,
+            g.marginsEm?.list?.bottom,
+            d.marginsEm.list.bottom,
+          ),
+          gap: m(
+            c.marginsEm?.list?.gap,
+            g.marginsEm?.list?.gap,
+            d.marginsEm.list.gap,
+          ),
+        },
+        image: margin(
+          c.marginsEm?.image,
+          g.marginsEm?.image,
+          d.marginsEm.image,
+        ),
+        table: margin(
+          c.marginsEm?.table,
+          g.marginsEm?.table,
+          d.marginsEm.table,
+        ),
+        blockquote: margin(
+          c.marginsEm?.blockquote,
+          g.marginsEm?.blockquote,
+          d.marginsEm.blockquote,
+        ),
+        horizontalRule: margin(
+          c.marginsEm?.horizontalRule,
+          g.marginsEm?.horizontalRule,
+          d.marginsEm.horizontalRule,
+        ),
+        code: margin(c.marginsEm?.code, g.marginsEm?.code, d.marginsEm.code),
+      },
+      blockquote: {
+        paddingTop: m(
+          c.blockquote?.paddingEm?.top,
+          g.blockquote?.paddingEm?.top,
+          d.blockquote.paddingEm.top,
+        ),
+        paddingBottom: m(
+          c.blockquote?.paddingEm?.bottom,
+          g.blockquote?.paddingEm?.bottom,
+          d.blockquote.paddingEm.bottom,
+        ),
+        paddingLeft: m(
+          c.blockquote?.paddingEm?.left,
+          g.blockquote?.paddingEm?.left,
+          d.blockquote.paddingEm.left,
+        ),
+        paddingRight: m(
+          c.blockquote?.paddingEm?.right,
+          g.blockquote?.paddingEm?.right,
+          d.blockquote.paddingEm.right,
+        ),
+        paragraphGap: m(
+          c.blockquote?.paragraphGapEm,
+          g.blockquote?.paragraphGapEm,
+          d.blockquote.paragraphGapEm,
+        ),
+      },
+      code: {
+        paddingH: m(
+          c.code?.paddingEm?.horizontal,
+          g.code?.paddingEm?.horizontal,
+          d.code.paddingEm.horizontal,
+        ),
+        paddingV: m(
+          c.code?.paddingEm?.vertical,
+          g.code?.paddingEm?.vertical,
+          d.code.paddingEm.vertical,
+        ),
+      },
+      table: {
+        cellPaddingH: m(
+          c.table?.cellPaddingEm?.horizontal,
+          g.table?.cellPaddingEm?.horizontal,
+          d.table.cellPaddingEm.horizontal,
+        ),
+        cellPaddingV: m(
+          c.table?.cellPaddingEm?.vertical,
+          g.table?.cellPaddingEm?.vertical,
+          d.table.cellPaddingEm.vertical,
+        ),
+      },
+      bulletList: {
+        level0: level(
+          c.bulletList?.level0,
+          g.bulletList?.level0,
+          d.bulletList.level0,
+        ),
+        level1: level(
+          c.bulletList?.level1,
+          g.bulletList?.level1,
+          d.bulletList.level1,
+        ),
+        level2: level(
+          c.bulletList?.level2,
+          g.bulletList?.level2,
+          d.bulletList.level2,
+        ),
+      },
+      numberedList: {
+        level0: level(
+          c.numberedList?.level0,
+          g.numberedList?.level0,
+          d.numberedList.level0,
+        ),
+        level1: level(
+          c.numberedList?.level1,
+          g.numberedList?.level1,
+          d.numberedList.level1,
+        ),
+        level2: level(
+          c.numberedList?.level2,
+          g.numberedList?.level2,
+          d.numberedList.level2,
+        ),
+      },
+    };
+  }
+
   getMergedMarkdownStyle(): MergedMarkdownStyle {
     const sf = this._sf;
     const c = this._c;
     const g = this._g;
     const d = this._d;
     const baseText = this._baseText;
+    const em = this.resolveEmMetrics();
 
     // Resolve all text styles first (these include scale factor in fontSize)
     const paragraphText = getTextInfo(
@@ -96,6 +304,24 @@ export class CustomMarkdownStyle {
     );
     const codeText = getTextInfo(c.text?.code, g.text?.code, baseText);
 
+    // Project an em margin to px against a given element fontSize.
+    const px = (mar: EmMargin, fontSize: number) => ({
+      top: mar.top * fontSize,
+      bottom: mar.bottom * fontSize,
+    });
+
+    // List markers are absolutes (strings); indents are em metrics × list size.
+    const mergeLevel = (
+      cc: { marker?: string } | undefined,
+      gg: { marker?: string } | undefined,
+      dd: { marker: string },
+      lvl: EmListLevel,
+    ) => ({
+      marker: m(cc?.marker, gg?.marker, dd.marker),
+      markerIndent: lvl.markerIndentEm * listText.fontSize,
+      textIndent: lvl.textIndentEm * listText.fontSize,
+    });
+
     return {
       alreadyScaledValue: sf,
       alignH: m(c.alignH, g.alignH, d.alignH),
@@ -112,123 +338,62 @@ export class CustomMarkdownStyle {
         code: codeText,
       },
       margins: {
-        paragraph: mergeMarginEm(
-          c.marginsEm?.paragraph,
-          g.marginsEm?.paragraph,
-          d.marginsEm.paragraph,
-          paragraphText.fontSize,
-        ),
-        h1: mergeMarginEm(
-          c.marginsEm?.h1,
-          g.marginsEm?.h1,
-          d.marginsEm.h1,
-          h1Text.fontSize,
-        ),
-        h2: mergeMarginEm(
-          c.marginsEm?.h2,
-          g.marginsEm?.h2,
-          d.marginsEm.h2,
-          h2Text.fontSize,
-        ),
-        h3: mergeMarginEm(
-          c.marginsEm?.h3,
-          g.marginsEm?.h3,
-          d.marginsEm.h3,
-          h3Text.fontSize,
-        ),
-        h4: mergeMarginEm(
-          c.marginsEm?.h4,
-          g.marginsEm?.h4,
-          d.marginsEm.h4,
-          h4Text.fontSize,
-        ),
-        h5: mergeMarginEm(
-          c.marginsEm?.h5,
-          g.marginsEm?.h5,
-          d.marginsEm.h5,
-          h5Text.fontSize,
-        ),
-        h6: mergeMarginEm(
-          c.marginsEm?.h6,
-          g.marginsEm?.h6,
-          d.marginsEm.h6,
-          h6Text.fontSize,
-        ),
-        list: mergeListMarginEm(
-          c.marginsEm?.list,
-          g.marginsEm?.list,
-          d.marginsEm.list,
-          listText.fontSize,
-        ),
-        image: mergeMarginEm(
-          c.marginsEm?.image,
-          g.marginsEm?.image,
-          d.marginsEm.image,
-          baseText.fontSize,
-        ),
-        table: mergeMarginEm(
-          c.marginsEm?.table,
-          g.marginsEm?.table,
-          d.marginsEm.table,
-          baseText.fontSize,
-        ),
-        blockquote: mergeMarginEm(
-          c.marginsEm?.blockquote,
-          g.marginsEm?.blockquote,
-          d.marginsEm.blockquote,
-          blockquoteText.fontSize,
-        ),
-        horizontalRule: mergeMarginEm(
-          c.marginsEm?.horizontalRule,
-          g.marginsEm?.horizontalRule,
-          d.marginsEm.horizontalRule,
-          baseText.fontSize,
-        ),
-        code: mergeMarginEm(
-          c.marginsEm?.code,
-          g.marginsEm?.code,
-          d.marginsEm.code,
-          codeText.fontSize,
-        ),
+        paragraph: px(em.margins.paragraph, paragraphText.fontSize),
+        h1: px(em.margins.h1, h1Text.fontSize),
+        h2: px(em.margins.h2, h2Text.fontSize),
+        h3: px(em.margins.h3, h3Text.fontSize),
+        h4: px(em.margins.h4, h4Text.fontSize),
+        h5: px(em.margins.h5, h5Text.fontSize),
+        h6: px(em.margins.h6, h6Text.fontSize),
+        list: {
+          top: em.margins.list.top * listText.fontSize,
+          bottom: em.margins.list.bottom * listText.fontSize,
+          gap: em.margins.list.gap * listText.fontSize,
+        },
+        image: px(em.margins.image, baseText.fontSize),
+        table: px(em.margins.table, baseText.fontSize),
+        blockquote: px(em.margins.blockquote, blockquoteText.fontSize),
+        horizontalRule: px(em.margins.horizontalRule, baseText.fontSize),
+        code: px(em.margins.code, codeText.fontSize),
       },
       bulletList: {
-        level0: mergeListLevelEm(
+        level0: mergeLevel(
           c.bulletList?.level0,
           g.bulletList?.level0,
           d.bulletList.level0,
-          listText.fontSize,
+          em.bulletList.level0,
         ),
-        level1: mergeListLevelEm(
+        level1: mergeLevel(
           c.bulletList?.level1,
           g.bulletList?.level1,
           d.bulletList.level1,
-          listText.fontSize,
+          em.bulletList.level1,
         ),
-        level2: mergeListLevelEm(
+        level2: mergeLevel(
           c.bulletList?.level2,
           g.bulletList?.level2,
           d.bulletList.level2,
-          listText.fontSize,
+          em.bulletList.level2,
         ),
       },
       numberedList: {
-        level0: mergeListLevelEm(
+        level0: mergeLevel(
           c.numberedList?.level0,
           g.numberedList?.level0,
           d.numberedList.level0,
-          listText.fontSize,
+          em.numberedList.level0,
         ),
-        level1: mergeListLevelEm(
+        level1: mergeLevel(
           c.numberedList?.level1,
           g.numberedList?.level1,
           d.numberedList.level1,
-          listText.fontSize,
+          em.numberedList.level1,
         ),
-        level2: mergeListLevelEm(
+        level2: mergeLevel(
           c.numberedList?.level2,
           g.numberedList?.level2,
           d.numberedList.level2,
-          listText.fontSize,
+          em.numberedList.level2,
         ),
       },
       blockquote: {
@@ -244,31 +409,11 @@ export class CustomMarkdownStyle {
             d.blockquote.leftBorderColor,
           ),
         ),
-        paddingTop: m(
-          c.blockquote?.paddingEm?.top,
-          g.blockquote?.paddingEm?.top,
-          d.blockquote.paddingEm.top,
-        ) * blockquoteText.fontSize,
-        paddingBottom: m(
-          c.blockquote?.paddingEm?.bottom,
-          g.blockquote?.paddingEm?.bottom,
-          d.blockquote.paddingEm.bottom,
-        ) * blockquoteText.fontSize,
-        paddingLeft: m(
-          c.blockquote?.paddingEm?.left,
-          g.blockquote?.paddingEm?.left,
-          d.blockquote.paddingEm.left,
-        ) * blockquoteText.fontSize,
-        paddingRight: m(
-          c.blockquote?.paddingEm?.right,
-          g.blockquote?.paddingEm?.right,
-          d.blockquote.paddingEm.right,
-        ) * blockquoteText.fontSize,
-        paragraphGap: m(
-          c.blockquote?.paragraphGapEm,
-          g.blockquote?.paragraphGapEm,
-          d.blockquote.paragraphGapEm,
-        ) * blockquoteText.fontSize,
+        paddingTop: em.blockquote.paddingTop * blockquoteText.fontSize,
+        paddingBottom: em.blockquote.paddingBottom * blockquoteText.fontSize,
+        paddingLeft: em.blockquote.paddingLeft * blockquoteText.fontSize,
+        paddingRight: em.blockquote.paddingRight * blockquoteText.fontSize,
+        paragraphGap: em.blockquote.paragraphGap * blockquoteText.fontSize,
         alignH: m(
           c.blockquote?.alignH,
           g.blockquote?.alignH,
@@ -290,16 +435,8 @@ export class CustomMarkdownStyle {
             d.code.backgroundColor,
           ),
         ),
-        paddingHorizontal: m(
-          c.code?.paddingEm?.horizontal,
-          g.code?.paddingEm?.horizontal,
-          d.code.paddingEm.horizontal,
-        ) * codeText.fontSize,
-        paddingVertical: m(
-          c.code?.paddingEm?.vertical,
-          g.code?.paddingEm?.vertical,
-          d.code.paddingEm.vertical,
-        ) * codeText.fontSize,
+        paddingHorizontal: em.code.paddingH * codeText.fontSize,
+        paddingVertical: em.code.paddingV * codeText.fontSize,
       },
       horizontalRule: {
         strokeWidth: m(
@@ -344,16 +481,8 @@ export class CustomMarkdownStyle {
           g.table?.border?.style,
           d.table.border.style,
         ),
-        cellPaddingHorizontal: m(
-          c.table?.cellPaddingEm?.horizontal,
-          g.table?.cellPaddingEm?.horizontal,
-          d.table.cellPaddingEm.horizontal,
-        ) * baseText.fontSize,
-        cellPaddingVertical: m(
-          c.table?.cellPaddingEm?.vertical,
-          g.table?.cellPaddingEm?.vertical,
-          d.table.cellPaddingEm.vertical,
-        ) * baseText.fontSize,
+        cellPaddingHorizontal: em.table.cellPaddingH * baseText.fontSize,
+        cellPaddingVertical: em.table.cellPaddingV * baseText.fontSize,
         headerShadingColor: getColor(
           m(
             c.table?.headerShading?.color,
@@ -417,262 +546,53 @@ export class CustomMarkdownStyle {
     hr: { my: number };
     table: { cellPaddingH: number; cellPaddingV: number };
   } {
-    const c = this._c;
-    const g = this._g;
-    const d = this._d;
-
+    // Pure em projection of the resolved metrics — the same cascade the px
+    // projection (getMergedMarkdownStyle) uses, just left in em for CSS.
+    const em = this.resolveEmMetrics();
     return {
       margins: {
-        paragraph: {
-          top: m(
-            c.marginsEm?.paragraph?.top,
-            g.marginsEm?.paragraph?.top,
-            d.marginsEm.paragraph.top,
-          ),
-          bottom: m(
-            c.marginsEm?.paragraph?.bottom,
-            g.marginsEm?.paragraph?.bottom,
-            d.marginsEm.paragraph.bottom,
-          ),
-        },
-        h1: {
-          top: m(
-            c.marginsEm?.h1?.top,
-            g.marginsEm?.h1?.top,
-            d.marginsEm.h1.top,
-          ),
-          bottom: m(
-            c.marginsEm?.h1?.bottom,
-            g.marginsEm?.h1?.bottom,
-            d.marginsEm.h1.bottom,
-          ),
-        },
-        h2: {
-          top: m(
-            c.marginsEm?.h2?.top,
-            g.marginsEm?.h2?.top,
-            d.marginsEm.h2.top,
-          ),
-          bottom: m(
-            c.marginsEm?.h2?.bottom,
-            g.marginsEm?.h2?.bottom,
-            d.marginsEm.h2.bottom,
-          ),
-        },
-        h3: {
-          top: m(
-            c.marginsEm?.h3?.top,
-            g.marginsEm?.h3?.top,
-            d.marginsEm.h3.top,
-          ),
-          bottom: m(
-            c.marginsEm?.h3?.bottom,
-            g.marginsEm?.h3?.bottom,
-            d.marginsEm.h3.bottom,
-          ),
-        },
-        h4: {
-          top: m(
-            c.marginsEm?.h4?.top,
-            g.marginsEm?.h4?.top,
-            d.marginsEm.h4.top,
-          ),
-          bottom: m(
-            c.marginsEm?.h4?.bottom,
-            g.marginsEm?.h4?.bottom,
-            d.marginsEm.h4.bottom,
-          ),
-        },
-        h5: {
-          top: m(
-            c.marginsEm?.h5?.top,
-            g.marginsEm?.h5?.top,
-            d.marginsEm.h5.top,
-          ),
-          bottom: m(
-            c.marginsEm?.h5?.bottom,
-            g.marginsEm?.h5?.bottom,
-            d.marginsEm.h5.bottom,
-          ),
-        },
-        h6: {
-          top: m(
-            c.marginsEm?.h6?.top,
-            g.marginsEm?.h6?.top,
-            d.marginsEm.h6.top,
-          ),
-          bottom: m(
-            c.marginsEm?.h6?.bottom,
-            g.marginsEm?.h6?.bottom,
-            d.marginsEm.h6.bottom,
-          ),
-        },
-        list: {
-          top: m(
-            c.marginsEm?.list?.top,
-            g.marginsEm?.list?.top,
-            d.marginsEm.list.top,
-          ),
-          bottom: m(
-            c.marginsEm?.list?.bottom,
-            g.marginsEm?.list?.bottom,
-            d.marginsEm.list.bottom,
-          ),
-          gap: m(
-            c.marginsEm?.list?.gap,
-            g.marginsEm?.list?.gap,
-            d.marginsEm.list.gap,
-          ),
-        },
-        blockquote: {
-          top: m(
-            c.marginsEm?.blockquote?.top,
-            g.marginsEm?.blockquote?.top,
-            d.marginsEm.blockquote.top,
-          ),
-          bottom: m(
-            c.marginsEm?.blockquote?.bottom,
-            g.marginsEm?.blockquote?.bottom,
-            d.marginsEm.blockquote.bottom,
-          ),
-        },
-        horizontalRule: {
-          top: m(
-            c.marginsEm?.horizontalRule?.top,
-            g.marginsEm?.horizontalRule?.top,
-            d.marginsEm.horizontalRule.top,
-          ),
-          bottom: m(
-            c.marginsEm?.horizontalRule?.bottom,
-            g.marginsEm?.horizontalRule?.bottom,
-            d.marginsEm.horizontalRule.bottom,
-          ),
-        },
-        code: {
-          top: m(
-            c.marginsEm?.code?.top,
-            g.marginsEm?.code?.top,
-            d.marginsEm.code.top,
-          ),
-          bottom: m(
-            c.marginsEm?.code?.bottom,
-            g.marginsEm?.code?.bottom,
-            d.marginsEm.code.bottom,
-          ),
-        },
-        image: {
-          top: m(
-            c.marginsEm?.image?.top,
-            g.marginsEm?.image?.top,
-            d.marginsEm.image.top,
-          ),
-          bottom: m(
-            c.marginsEm?.image?.bottom,
-            g.marginsEm?.image?.bottom,
-            d.marginsEm.image.bottom,
-          ),
-        },
-        table: {
-          top: m(
-            c.marginsEm?.table?.top,
-            g.marginsEm?.table?.top,
-            d.marginsEm.table.top,
-          ),
-          bottom: m(
-            c.marginsEm?.table?.bottom,
-            g.marginsEm?.table?.bottom,
-            d.marginsEm.table.bottom,
-          ),
-        },
+        paragraph: em.margins.paragraph,
+        h1: em.margins.h1,
+        h2: em.margins.h2,
+        h3: em.margins.h3,
+        h4: em.margins.h4,
+        h5: em.margins.h5,
+        h6: em.margins.h6,
+        list: em.margins.list,
+        image: em.margins.image,
+        table: em.margins.table,
+        blockquote: em.margins.blockquote,
+        horizontalRule: em.margins.horizontalRule,
+        code: em.margins.code,
       },
       list: {
         bullet: {
-          indent: m(
-            c.bulletList?.level0?.textIndentEm,
-            g.bulletList?.level0?.textIndentEm,
-            d.bulletList.level0.textIndentEm,
-          ),
-          gap: m(
-            c.marginsEm?.list?.gap,
-            g.marginsEm?.list?.gap,
-            d.marginsEm.list.gap,
-          ),
+          indent: em.bulletList.level0.textIndentEm,
+          gap: em.margins.list.gap,
         },
         numbered: {
-          indent: m(
-            c.numberedList?.level0?.textIndentEm,
-            g.numberedList?.level0?.textIndentEm,
-            d.numberedList.level0.textIndentEm,
-          ),
-          gap: m(
-            c.marginsEm?.list?.gap,
-            g.marginsEm?.list?.gap,
-            d.marginsEm.list.gap,
-          ),
+          indent: em.numberedList.level0.textIndentEm,
+          gap: em.margins.list.gap,
         },
       },
       blockquote: {
-        paddingTop: m(
-          c.blockquote?.paddingEm?.top,
-          g.blockquote?.paddingEm?.top,
-          d.blockquote.paddingEm.top,
-        ),
-        paddingBottom: m(
-          c.blockquote?.paddingEm?.bottom,
-          g.blockquote?.paddingEm?.bottom,
-          d.blockquote.paddingEm.bottom,
-        ),
-        paddingLeft: m(
-          c.blockquote?.paddingEm?.left,
-          g.blockquote?.paddingEm?.left,
-          d.blockquote.paddingEm.left,
-        ),
-        paddingRight: m(
-          c.blockquote?.paddingEm?.right,
-          g.blockquote?.paddingEm?.right,
-          d.blockquote.paddingEm.right,
-        ),
-        paragraphGap: m(
-          c.blockquote?.paragraphGapEm,
-          g.blockquote?.paragraphGapEm,
-          d.blockquote.paragraphGapEm,
-        ),
+        paddingTop: em.blockquote.paddingTop,
+        paddingBottom: em.blockquote.paddingBottom,
+        paddingLeft: em.blockquote.paddingLeft,
+        paddingRight: em.blockquote.paddingRight,
+        paragraphGap: em.blockquote.paragraphGap,
       },
       code: {
-        my: m(
-          c.marginsEm?.code?.top,
-          g.marginsEm?.code?.top,
-          d.marginsEm.code.top,
-        ),
-        paddingH: m(
-          c.code?.paddingEm?.horizontal,
-          g.code?.paddingEm?.horizontal,
-          d.code.paddingEm.horizontal,
-        ),
-        paddingV: m(
-          c.code?.paddingEm?.vertical,
-          g.code?.paddingEm?.vertical,
-          d.code.paddingEm.vertical,
-        ),
+        my: em.margins.code.top,
+        paddingH: em.code.paddingH,
+        paddingV: em.code.paddingV,
       },
       hr: {
-        my: m(
-          c.marginsEm?.horizontalRule?.top,
-          g.marginsEm?.horizontalRule?.top,
-          d.marginsEm.horizontalRule.top,
-        ),
+        my: em.margins.horizontalRule.top,
       },
       table: {
-        cellPaddingH: m(
-          c.table?.cellPaddingEm?.horizontal,
-          g.table?.cellPaddingEm?.horizontal,
-          d.table.cellPaddingEm.horizontal,
-        ),
-        cellPaddingV: m(
-          c.table?.cellPaddingEm?.vertical,
-          g.table?.cellPaddingEm?.vertical,
-          d.table.cellPaddingEm.vertical,
-        ),
+        cellPaddingH: em.table.cellPaddingH,
+        cellPaddingV: em.table.cellPaddingV,
       },
     };
   }

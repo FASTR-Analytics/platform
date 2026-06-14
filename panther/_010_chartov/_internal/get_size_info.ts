@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -13,11 +13,21 @@ import {
   resolveDefaultLegend,
 } from "../deps.ts";
 import { getChartOVDataTransformed } from "../get_chartov_data.ts";
-import type { ChartOVInputs } from "../types.ts";
+import type { ChartOVDataTransformed, ChartOVInputs } from "../types.ts";
+
+export function getChartOVSizingData(
+  inputs: ChartOVInputs,
+): ChartOVDataTransformed {
+  const stacked =
+    new CustomFigureStyle(inputs.style).getMergedChartOVStyle().content.bars
+      .stacking === "stacked";
+  return getChartOVDataTransformed(inputs.chartData, stacked);
+}
 
 export function getChartOVComponentSizes(
   rc: RenderContext,
   inputs: ChartOVInputs,
+  data: ChartOVDataTransformed,
   scale?: number,
 ): ChartComponentSizes {
   const cs = new CustomFigureStyle(
@@ -26,10 +36,6 @@ export function getChartOVComponentSizes(
     inputs.autofitSurrounds,
   );
   const ms = cs.getMergedChartOVStyle();
-  const data = getChartOVDataTransformed(
-    inputs.chartData,
-    ms.content.bars.stacking === "stacked",
-  );
 
   const xAxisTickH = rc
     .mText("Category", ms.xTextAxis.text.xTextAxisTickLabels, Infinity)

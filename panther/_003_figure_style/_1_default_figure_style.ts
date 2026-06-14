@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -159,7 +159,6 @@ const _DS = {
   // Y Axis
   yTextAxis: {
     tickPosition: typed<"sides" | "center">("sides"),
-    colHeight: 30,
     paddingTop: 0,
     paddingBottom: 0,
     labelGap: 10,
@@ -179,7 +178,18 @@ const _DS = {
     exactAxisX: typed<"none" | number>("none"),
     allowIndividualTierLimits: false,
   },
-  // Content
+  // Natural ideal-height policy, same decay family T × (a + (1−a) × k^(n−1)) for both:
+  // - idealPlotHeight (ChartOV/Timeseries plot height): anchor 450 DU at one
+  //   subchart row, asymptote 180 (0.4×), steep k=0.5 — row counts are small.
+  // - idealRowThickness (ChartOH bar thickness): anchor 40 DU at one bar row,
+  //   asymptote 6 (0.15×), gentle k=0.97 — bar counts run into the hundreds, so
+  //   the decay must span a much wider range than the plot-height curve.
+  // Both are tunable starting points.
+  idealHeight: {
+    idealPlotHeight: (n: number) => 300 * (0.4 + 0.6 * 0.5 ** (n - 1)),
+    idealRowThickness: (n: number) => 40 * (0.15 + 0.85 * 0.97 ** (n - 1)),
+  },
+  // Content`
   content: {
     dataLabel: typed<GenericDataLabelStyle>({
       show: false,

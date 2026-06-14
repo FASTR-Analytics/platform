@@ -1,11 +1,11 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { type Accessor, createSignal, type JSX } from "solid-js";
 import { ConfirmDeleteForm, openAlert, openComponent } from "./deps.ts";
-import type { StateHolderButtonAction } from "./deps.ts";
+import type { ButtonActionState } from "./deps.ts";
 import type { APIResponseNoData, APIResponseWithData } from "./deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -22,7 +22,7 @@ import type { APIResponseNoData, APIResponseWithData } from "./deps.ts";
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export type ButtonAction<U extends any[]> = {
-  state: Accessor<StateHolderButtonAction>;
+  state: Accessor<ButtonActionState>;
   click: (...args: U) => Promise<void>;
 };
 
@@ -52,7 +52,7 @@ export function createButtonAction<T, U extends any[]>(
     ((data: T) => void | Promise<void>) | (() => void | Promise<void>)
   >
 ): ButtonAction<U> {
-  const [state, setter] = createSignal<StateHolderButtonAction>({
+  const [state, setter] = createSignal<ButtonActionState>({
     status: "ready",
   });
 

@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -39,7 +39,10 @@ export function buildMarkdownPageContents(
   rc: RenderContext,
 ): LayoutNode<ConvertedPageContent>[][] {
   if (config.asSlides) {
-    return markdown.split(/\n---\n/).map((slideMarkdown) => {
+    // A slide separator is a line that is exactly "---". The previous
+    // `/\n---\n/` required a newline on both sides, so a leading separator (or
+    // one without surrounding blank lines) was missed.
+    return markdown.split(/^---$/m).map((slideMarkdown) => {
       const parsed = parseMarkdown(slideMarkdown);
       const groups = groupDocElementsByContentType(parsed.items);
       const items = groups

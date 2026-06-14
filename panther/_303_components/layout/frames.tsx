@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -152,7 +152,12 @@ export function FrameBottom(p: FrameProps) {
   );
 }
 
-export function FrameLeftResizable(p: ResizableFrameProps) {
+// Shared resizable-panel logic for FrameLeftResizable / FrameRightResizable.
+// The two frames are identical except for the drag direction and the JSX
+// order/handle side, so the signals, ResizeObserver, drag handlers and cleanup
+// live here once. Kept internal — the exported components and their props are
+// unchanged.
+function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
   const minWidth = p.minWidth ?? 100;
   const maxWidth = p.maxWidth ?? 600;
   const [actualWidth, setActualWidth] = createSignal(
@@ -164,7 +169,7 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
   const [targetPercentage, setTargetPercentage] = createSignal<number>(0);
   const [containerWidth, setContainerWidth] = createSignal<number>(0);
 
-  let containerRef!: HTMLDivElement;
+  let containerRef: HTMLDivElement | undefined;
   let isDragging = false;
   let handleMouseMove: ((e: MouseEvent) => void) | undefined;
   let handleMouseUp: (() => void) | undefined;
@@ -203,7 +208,8 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
     handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
 
-      const deltaX = e.clientX - startX;
+      // Right panel drag is reversed relative to the left panel.
+      const deltaX = side === "left" ? e.clientX - startX : startX - e.clientX;
       const newWidth = clamp(startWidth + deltaX, minWidth, maxWidth);
       setActualWidth(newWidth);
 
@@ -240,12 +246,25 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
     }
   });
 
+  return {
+    setContainerRef: (el: HTMLDivElement) => {
+      containerRef = el;
+    },
+    displayWidth,
+    handleMouseDown,
+  };
+}
+
+export function FrameLeftResizable(p: ResizableFrameProps) {
+  const { setContainerRef, displayWidth, handleMouseDown } =
+    createResizablePanel(p, "left");
+
   return (
     <Show
       when={p.panelChildren}
       fallback={<div class="h-full w-full overflow-auto">{p.children}</div>}
     >
-      <div ref={containerRef} class="flex h-full w-full">
+      <div ref={setContainerRef} class="flex h-full w-full">
         <div
           class="relative h-full flex-none"
           style={{ width: `${displayWidth()}px` }}
@@ -272,99 +291,15 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
 }
 
 export function FrameRightResizable(p: ResizableFrameProps) {
-  const minWidth = p.minWidth ?? 100;
-  const maxWidth = p.maxWidth ?? 600;
-  const [actualWidth, setActualWidth] = createSignal(
-    clamp(p.startingWidth, minWidth, maxWidth),
-  );
-  const displayWidth = createMemo(() =>
-    p.isShown === false ? 0 : actualWidth()
-  );
-  const [targetPercentage, setTargetPercentage] = createSignal<number>(0);
-  const [containerWidth, setContainerWidth] = createSignal<number>(0);
-
-  let containerRef!: HTMLDivElement;
-  let isDragging = false;
-  let handleMouseMove: ((e: MouseEvent) => void) | undefined;
-  let handleMouseUp: (() => void) | undefined;
-  let resizeObserver: ResizeObserver | undefined;
-
-  onMount(() => {
-    if (!p.preventPanelResizeOnParentResize && containerRef) {
-      const initialWidth = containerRef.offsetWidth;
-      setContainerWidth(initialWidth);
-      setTargetPercentage(actualWidth() / initialWidth);
-
-      resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const newContainerWidth = entry.contentRect.width;
-          setContainerWidth(newContainerWidth);
-          const newWidth = clamp(
-            targetPercentage() * newContainerWidth,
-            minWidth,
-            maxWidth,
-          );
-          setActualWidth(newWidth);
-        }
-      });
-
-      resizeObserver.observe(containerRef);
-    }
-  });
-
-  const handleMouseDown = (e: MouseEvent) => {
-    isDragging = true;
-    e.preventDefault();
-
-    const startX = e.clientX;
-    const startWidth = actualWidth();
-
-    handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-
-      const deltaX = startX - e.clientX; // Reversed for right panel
-      const newWidth = clamp(startWidth + deltaX, minWidth, maxWidth);
-      setActualWidth(newWidth);
-
-      if (!p.preventPanelResizeOnParentResize && containerWidth() > 0) {
-        setTargetPercentage(newWidth / containerWidth());
-      }
-    };
-
-    handleMouseUp = () => {
-      isDragging = false;
-      if (handleMouseMove) {
-        document.removeEventListener("mousemove", handleMouseMove);
-        handleMouseMove = undefined;
-      }
-      if (handleMouseUp) {
-        document.removeEventListener("mouseup", handleMouseUp);
-        handleMouseUp = undefined;
-      }
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-  };
-
-  onCleanup(() => {
-    if (handleMouseMove) {
-      document.removeEventListener("mousemove", handleMouseMove);
-    }
-    if (handleMouseUp) {
-      document.removeEventListener("mouseup", handleMouseUp);
-    }
-    if (resizeObserver) {
-      resizeObserver.disconnect();
-    }
-  });
+  const { setContainerRef, displayWidth, handleMouseDown } =
+    createResizablePanel(p, "right");
 
   return (
     <Show
       when={p.panelChildren}
       fallback={<div class="h-full w-full overflow-auto">{p.children}</div>}
     >
-      <div ref={containerRef} class="flex h-full w-full">
+      <div ref={setContainerRef} class="flex h-full w-full">
         <div class="h-full w-0 flex-1 overflow-auto">{p.children}</div>
         <div
           class="relative h-full flex-none"

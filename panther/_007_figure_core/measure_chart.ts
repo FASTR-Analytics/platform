@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -19,6 +19,7 @@ import { resolveDefaultLegend } from "./_legend/utils.ts";
 import { measurePane } from "./measure_pane.ts";
 import type {
   MeasuredChartBase,
+  PaneLayout,
   SimplifiedChartConfig,
 } from "./measure_types.ts";
 import type { FigureInputsBase } from "./types.ts";
@@ -33,6 +34,8 @@ export function measureChart<
   inputs: TInputs,
   config: SimplifiedChartConfig<TInputs, TData, TStyle>,
   fitScale?: number,
+  // Skip content-primitive generation; see measurePane. Probe-only.
+  layoutOnly?: boolean,
 ): MeasuredChartBase<TInputs, TData, TStyle> {
   const { caption, subCaption, footnote } = inputs;
 
@@ -96,6 +99,7 @@ export function measureChart<
   }
 
   const panePrimitives: Primitive[] = [];
+  const paneLayouts: PaneLayout[] = [];
 
   for (let i_pane_row = 0; i_pane_row < nGRows; i_pane_row++) {
     for (let i_pane_col = 0; i_pane_col < nGCols; i_pane_col++) {
@@ -123,26 +127,26 @@ export function measureChart<
         paneHeight - (panePadding.totalPy() + maxColHeaderHeightAndHeaderGap),
       ]);
 
-      panePrimitives.push(
-        ...measurePane(rc, {
-          indices: {
-            pane: i_pane,
-            row: i_pane_row,
-            col: i_pane_col,
-          },
-          geometry: {
-            outerRcd: paneOuterRcd,
-            contentRcd: paneContentRcd,
-          },
-          paneHeader: mCellHeaders.at(i_pane),
-          dataProps,
-          data: transformedData,
-          baseStyle: mergedStyle,
-          xAxisConfig: config.xAxisConfig,
-          yAxisConfig: config.yAxisConfig,
-          orientation: config.orientation,
-        }),
-      );
+      const { primitives: panePrimList, layout } = measurePane(rc, {
+        indices: {
+          pane: i_pane,
+          row: i_pane_row,
+          col: i_pane_col,
+        },
+        geometry: {
+          outerRcd: paneOuterRcd,
+          contentRcd: paneContentRcd,
+        },
+        paneHeader: mCellHeaders.at(i_pane),
+        dataProps,
+        data: transformedData,
+        baseStyle: mergedStyle,
+        xAxisConfig: config.xAxisConfig,
+        yAxisConfig: config.yAxisConfig,
+        orientation: config.orientation,
+      }, layoutOnly);
+      panePrimitives.push(...panePrimList);
+      paneLayouts.push(layout);
     }
   }
 
@@ -164,5 +168,6 @@ export function measureChart<
     footnote,
     legend,
     primitives,
+    paneLayouts,
   };
 }

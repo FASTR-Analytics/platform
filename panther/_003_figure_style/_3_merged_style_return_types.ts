@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -126,8 +126,21 @@ export type MergedScaleLegendStyle = {
 //                                                                         //
 /////////////////////////////////////////////////////////////////////////////
 
+export type MergedIdealHeightStyle = {
+  // Natural per-subchart plot height (DU) for scale-axis charts (ChartOV,
+  // Timeseries), as a function of the number of vertically-stacked subchart
+  // rows (nPaneRows × nTiers). Decays so stacked grids stay bounded. Ignored by
+  // ChartOH (category-driven) and Table (deterministic).
+  idealPlotHeight: (nSubchartRows: number) => number;
+  // Natural per-bar-row thickness (DU) for ChartOH, as a function of the
+  // figure's total bar rows. Decays so dense category charts thin their bars.
+  // Ignored by ChartOV, Timeseries, and Table.
+  idealRowThickness: (nTotalBarRows: number) => number;
+};
+
 export type MergedChartStyleBase = {
   alreadyScaledValue: number;
+  idealHeight: MergedIdealHeightStyle;
   panes: MergedPaneStyle;
   grid: MergedGridStyle;
   content: MergedContentStyle;
@@ -204,8 +217,6 @@ export type MergedYTextAxisStyle = {
   tickLabelGap: number;
   labelGap: number;
   tickPosition: "sides" | "center";
-  // Scaffold for future col-group support; ignored in v1 measurement/primitives.
-  colHeight: number;
   paddingTop: number;
   paddingBottom: number;
   logicTickLabelWidth: "auto" | "fixed";

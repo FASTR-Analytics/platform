@@ -1,10 +1,11 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
   calculateMinSubChartHeight,
+  calculateTimeseriesMinSubChartWidth,
   type ChartComponentSizes,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
@@ -13,11 +14,21 @@ import {
   resolveDefaultLegend,
 } from "../deps.ts";
 import { getTimeseriesDataTransformed } from "../get_timeseries_data.ts";
-import type { TimeseriesInputs } from "../types.ts";
+import type { TimeseriesDataTransformed, TimeseriesInputs } from "../types.ts";
+
+export function getTimeseriesSizingData(
+  inputs: TimeseriesInputs,
+): TimeseriesDataTransformed {
+  const stacked =
+    new CustomFigureStyle(inputs.style).getMergedTimeseriesStyle().content.bars
+      .stacking === "stacked";
+  return getTimeseriesDataTransformed(inputs.timeseriesData, stacked);
+}
 
 export function getTimeseriesComponentSizes(
   rc: RenderContext,
   inputs: TimeseriesInputs,
+  data: TimeseriesDataTransformed,
   scale?: number,
 ): ChartComponentSizes {
   const cs = new CustomFigureStyle(
@@ -26,10 +37,6 @@ export function getTimeseriesComponentSizes(
     inputs.autofitSurrounds,
   );
   const ms = cs.getMergedTimeseriesStyle();
-  const data = getTimeseriesDataTransformed(
-    inputs.timeseriesData,
-    ms.content.bars.stacking === "stacked",
-  );
 
   const xAxisTickH = rc
     .mText("2024", ms.xPeriodAxis.text.xPeriodAxisTickLabels, Infinity)
@@ -42,17 +49,10 @@ export function getTimeseriesComponentSizes(
     .mText("Region 001", ms.text.paneHeaders, 400)
     .dims.h();
 
-  const tickLabelHeight = rc
-    .mText("2024", ms.xPeriodAxis.text.xPeriodAxisTickLabels, Infinity)
-    .dims.h();
-
-  const minSubChartWidth = data.nTimePoints > 30
-    ? data.nTimePoints * tickLabelHeight * 0.1
-    : data.nTimePoints > 20
-    ? data.nTimePoints * tickLabelHeight * 0.2
-    : data.nTimePoints > 5
-    ? data.nTimePoints * tickLabelHeight * 0.5
-    : data.nTimePoints * tickLabelHeight;
+  const minSubChartWidth = calculateTimeseriesMinSubChartWidth(
+    data.nTimePoints,
+    xAxisTickH,
+  );
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,

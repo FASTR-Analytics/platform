@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -30,6 +30,16 @@ import {
   type TextInfoUnkeyed,
 } from "./deps.ts";
 
+// jsPDF ships these at runtime, but its published types don't expose them: the
+// GState constructor (fill/stroke/text opacity) and the even-odd path-painting
+// operators ("f*" / "B*").
+type JsPdfGStateOpacity = { opacity?: number; "stroke-opacity"?: number };
+type JsPdfUntyped = {
+  GState: new (parameters: JsPdfGStateOpacity) => unknown;
+  fill: (style: string) => void;
+  fillStroke: (style: string) => void;
+};
+
 export class PdfRenderContext implements RenderContext {
   _jsPdf: jsPDF;
   _crc: CanvasRenderContext;
@@ -43,6 +53,50 @@ export class PdfRenderContext implements RenderContext {
     this._jsPdf = pdf;
     this._crc = new CanvasRenderContext(ctx);
     this._createCanvas = createCanvas;
+  }
+
+  private get _ext(): JsPdfUntyped {
+    return this._jsPdf as unknown as JsPdfUntyped;
+  }
+
+  private setGStateOpacity(opts: JsPdfGStateOpacity): void {
+    this._jsPdf.setGState(new this._ext.GState(opts));
+  }
+
+  // Fill colour + matching alpha via GState (hex → opaque, rgba → its alpha).
+  private applyFill(color: string): void {
+    if (color.at(0) === "#") {
+      this.setGStateOpacity({ opacity: 1 });
+      this._jsPdf.setFillColor(color);
+    } else {
+      const rgba = new Color(color).rgba();
+      this.setGStateOpacity({ opacity: rgba.a });
+      this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
+    }
+  }
+
+  // Stroke colour + matching alpha via the GState stroke-opacity channel.
+  private applyStroke(color: string): void {
+    if (color.at(0) === "#") {
+      this.setGStateOpacity({ "stroke-opacity": 1 });
+      this._jsPdf.setDrawColor(color);
+    } else {
+      const rgba = new Color(color).rgba();
+      this.setGStateOpacity({ "stroke-opacity": rgba.a });
+      this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
+    }
+  }
+
+  // Text colour + matching alpha via GState opacity.
+  private applyTextColor(color: string): void {
+    if (color.at(0) === "#") {
+      this.setGStateOpacity({ opacity: 1 });
+      this._jsPdf.setTextColor(color);
+    } else {
+      const rgba = new Color(color).rgba();
+      this.setGStateOpacity({ opacity: rgba.a });
+      this._jsPdf.setTextColor(rgba.r, rgba.g, rgba.b);
+    }
   }
 
   mText(
@@ -110,18 +164,7 @@ export class PdfRenderContext implements RenderContext {
 
       // Only set color if it's not "none" (matching Canvas behavior)
       if (mText.ti.color !== "none") {
-        if (mText.ti.color.at(0) === "#") {
-          //@ts-ignore
-          const newGState = new this._jsPdf.GState({ opacity: 1 });
-          this._jsPdf.setGState(newGState);
-          this._jsPdf.setTextColor(mText.ti.color);
-        } else {
-          const rgba = new Color(mText.ti.color).rgba();
-          //@ts-ignore
-          const newGState = new this._jsPdf.GState({ opacity: rgba.a });
-          this._jsPdf.setGState(newGState);
-          this._jsPdf.setTextColor(rgba.r, rgba.g, rgba.b);
-        }
+        this.applyTextColor(mText.ti.color);
       }
 
       // Handle letter spacing - only "0px" and "-0.02em" are supported values
@@ -189,18 +232,7 @@ export class PdfRenderContext implements RenderContext {
 
     // Only set color if it's not "none" (matching Canvas behavior)
     if (mText.ti.color !== "none") {
-      if (mText.ti.color.at(0) === "#") {
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: 1 });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setTextColor(mText.ti.color);
-      } else {
-        const rgba = new Color(mText.ti.color).rgba();
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: rgba.a });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setTextColor(rgba.r, rgba.g, rgba.b);
-      }
+      this.applyTextColor(mText.ti.color);
     }
 
     // Handle letter spacing - only "0px" and "-0.02em" are supported values
@@ -290,18 +322,7 @@ export class PdfRenderContext implements RenderContext {
         return;
       }
       const f = getColor(s.strokeColor);
-      if (f.at(0) === "#") {
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ "stroke-opacity": 1 });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setDrawColor(f);
-      } else {
-        const rgba = new Color(f).rgba();
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ "stroke-opacity": rgba.a });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
-      }
+      this.applyStroke(f);
       this._jsPdf.setLineWidth(s.strokeWidth);
       this._jsPdf.setLineJoin("round");
       if (s.lineDash === "dashed") {
@@ -343,18 +364,7 @@ export class PdfRenderContext implements RenderContext {
         return;
       }
       const f = getAdjustedColor(s.fillColor, s.fillColorAdjustmentStrategy);
-      if (f.at(0) === "#") {
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: 1 });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setFillColor(f);
-      } else {
-        const rgba = new Color(f).rgba();
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: rgba.a });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
-      }
+      this.applyFill(f);
       if (coordArray.length < 3) {
         // A fillable area needs at least 3 coordinates (same threshold as the
         // canvas render context).
@@ -393,18 +403,7 @@ export class PdfRenderContext implements RenderContext {
 
       // Set up fill color
       if (hasFill) {
-        if (f.at(0) === "#") {
-          //@ts-ignore
-          const newGState = new this._jsPdf.GState({ opacity: 1 });
-          this._jsPdf.setGState(newGState);
-          this._jsPdf.setFillColor(f);
-        } else {
-          const rgba = new Color(f).rgba();
-          //@ts-ignore
-          const newGState = new this._jsPdf.GState({ opacity: rgba.a });
-          this._jsPdf.setGState(newGState);
-          this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
-        }
+        this.applyFill(f);
       }
 
       // Set up stroke color and width
@@ -442,18 +441,7 @@ export class PdfRenderContext implements RenderContext {
       const strokeColor = getColor(s.color);
 
       // Set up fill color
-      if (fillColor.at(0) === "#") {
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: 1 });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setFillColor(fillColor);
-      } else {
-        const rgba = new Color(fillColor).rgba();
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ opacity: rgba.a });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
-      }
+      this.applyFill(fillColor);
 
       // Constants for shape calculations (matching Canvas implementation)
       const COSINE_45 = 0.7071067811865476;
@@ -512,18 +500,7 @@ export class PdfRenderContext implements RenderContext {
       }
 
       // Set up stroke color
-      if (strokeColor.at(0) === "#") {
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ "stroke-opacity": 1 });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setDrawColor(strokeColor);
-      } else {
-        const rgba = new Color(strokeColor).rgba();
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({ "stroke-opacity": rgba.a });
-        this._jsPdf.setGState(newGState);
-        this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
-      }
+      this.applyStroke(strokeColor);
       this._jsPdf.setLineWidth(s.strokeWidth);
 
       // Draw stroke
@@ -722,19 +699,13 @@ export class PdfRenderContext implements RenderContext {
     if (hasFill && style.fill) {
       const fillColor = getColor(style.fill.color);
       if (fillColor.at(0) === "#") {
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({
-          opacity: style.fill.opacity ?? 1,
-        });
-        this._jsPdf.setGState(newGState);
+        this.setGStateOpacity({ opacity: style.fill.opacity ?? 1 });
         this._jsPdf.setFillColor(fillColor);
       } else {
         const rgba = new Color(fillColor).rgba();
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({
+        this.setGStateOpacity({
           opacity: (style.fill.opacity ?? 1) * rgba.a,
         });
-        this._jsPdf.setGState(newGState);
         this._jsPdf.setFillColor(rgba.r, rgba.g, rgba.b);
       }
     }
@@ -742,19 +713,13 @@ export class PdfRenderContext implements RenderContext {
     if (hasStroke && style.stroke) {
       const strokeColor = getColor(style.stroke.color);
       if (strokeColor.at(0) === "#") {
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({
-          opacity: style.stroke.opacity ?? 1,
-        });
-        this._jsPdf.setGState(newGState);
+        this.setGStateOpacity({ opacity: style.stroke.opacity ?? 1 });
         this._jsPdf.setDrawColor(strokeColor);
       } else {
         const rgba = new Color(strokeColor).rgba();
-        //@ts-ignore
-        const newGState = new this._jsPdf.GState({
+        this.setGStateOpacity({
           opacity: (style.stroke.opacity ?? 1) * rgba.a,
         });
-        this._jsPdf.setGState(newGState);
         this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
       }
       this._jsPdf.setLineWidth(style.stroke.width);
@@ -762,15 +727,13 @@ export class PdfRenderContext implements RenderContext {
 
     if (hasFill && hasStroke) {
       if (style.fill!.fillRule === "evenodd") {
-        //@ts-ignore — jsPDF types don't expose evenodd but PDF spec supports B* operator
-        this._jsPdf.fillStroke("B*");
+        this._ext.fillStroke("B*");
       } else {
         this._jsPdf.fillStroke();
       }
     } else if (hasFill) {
       if (style.fill!.fillRule === "evenodd") {
-        //@ts-ignore — jsPDF types don't expose evenodd but PDF spec supports f* operator
-        this._jsPdf.fill("f*");
+        this._ext.fill("f*");
       } else {
         this._jsPdf.fill();
       }
@@ -783,7 +746,6 @@ export class PdfRenderContext implements RenderContext {
     const r = new RectCoordsDims(bounds);
     this._jsPdf.saveGraphicsState();
     this._jsPdf.rect(r.x(), r.y(), r.w(), r.h());
-    //@ts-ignore — clip not in jsPDF types but exists
     this._jsPdf.clip();
     this._jsPdf.discardPath();
     fn();

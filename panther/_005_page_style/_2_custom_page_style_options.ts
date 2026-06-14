@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -64,6 +64,11 @@ export type ContentStyleOptions = {
   background?: PageBackgroundStyle;
   gapX?: number;
   gapY?: number;
+  // Layout stretch ceiling: how far a figure may grow beyond its ideal height
+  // to fill page space (maxH = idealH × this). A page/layout policy — figures
+  // own their ideal height, the page owns how much they stretch past it.
+  // Figures that fill freely (sankey, simpleviz, map, image) ignore this.
+  figureMaxStretch?: number;
 };
 
 export type LayoutContainersStyleOptions = {

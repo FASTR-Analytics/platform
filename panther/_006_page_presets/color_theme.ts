@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -45,6 +45,11 @@ export function validateBrandColor(hex: string): BrandColorValidation {
 
 function buildPresetFromCustomColor(primary: string): ColorPreset {
   const { h } = new Color(primary).hsl();
+  const baseContent = hsl(h, 30, 15);
+  const baseContentMuted = hsl(h, 15, 45);
+  // Contrast-aware on-primary colors (same rule as getKeyColorsFromPrimaryColor):
+  // a light primary needs dark text, otherwise white.
+  const primaryIsLight = new Color(primary).isLight();
   return {
     id: "custom",
     name: "Custom",
@@ -53,11 +58,11 @@ function buildPresetFromCustomColor(primary: string): ColorPreset {
     base100: "#ffffff",
     base200: hsl(h, 25, 95),
     base300: hsl(h, 30, 90),
-    baseContent: hsl(h, 30, 15),
-    baseContentMuted: hsl(h, 15, 45),
+    baseContent,
+    baseContentMuted,
     primary: primary,
-    primaryContent: "#ffffff",
-    primaryContentMuted: hsl(h, 20, 80),
+    primaryContent: primaryIsLight ? baseContent : "#ffffff",
+    primaryContentMuted: primaryIsLight ? baseContentMuted : hsl(h, 20, 80),
   };
 }
 

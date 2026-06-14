@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -18,6 +18,7 @@ import type {
   MergedChartStyleBase,
   MergedContentStyle,
   MergedGridStyle,
+  MergedIdealHeightStyle,
   MergedLegendStyle,
   MergedMapStyle,
   MergedPaneStyle,
@@ -469,9 +470,25 @@ export class CustomFigureStyle {
           d.tiers.headerGap,
         ),
       },
+      idealHeight: this.getMergedIdealHeightStyle(),
       content: this.getMergedContentStyle(),
       grid: this.getMergedGridStyle(),
       panes: this.getMergedPaneStyle(),
+    };
+  }
+
+  private getMergedIdealHeightStyle(): MergedIdealHeightStyle {
+    return {
+      idealPlotHeight: m(
+        this._c.idealHeight?.idealPlotHeight,
+        this._g.idealHeight?.idealPlotHeight,
+        this._d.idealHeight.idealPlotHeight,
+      ),
+      idealRowThickness: m(
+        this._c.idealHeight?.idealRowThickness,
+        this._g.idealHeight?.idealRowThickness,
+        this._d.idealHeight.idealRowThickness,
+      ),
     };
   }
 
@@ -991,12 +1008,6 @@ export class CustomFigureStyle {
         c.yTextAxis?.tickPosition,
         g.yTextAxis?.tickPosition,
         d.yTextAxis.tickPosition,
-      ),
-      colHeight: ms(
-        sf,
-        c.yTextAxis?.colHeight,
-        g.yTextAxis?.colHeight,
-        d.yTextAxis.colHeight,
       ),
       paddingTop: ms(
         sf,

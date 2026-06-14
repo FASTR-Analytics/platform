@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -23,13 +23,18 @@ export function measureChartOH(
   rcdWithSurrounds: RectCoordsDims,
   inputs: ChartOHInputs,
   fitScale?: number,
+  data?: ChartOHDataTransformed,
+  // Skip content-primitive generation (probe-only); see measurePane.
+  layoutOnly?: boolean,
 ): MeasuredChartOH {
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
     fitScale,
   );
   const mergedStyle = customFigureStyle.getMergedChartOHStyle();
-  const transformedData = getChartOHDataTransformed(
+  // stacking is scale-independent, so pre-transformed data from the renderer
+  // entry point is identical to transforming here.
+  const transformedData = data ?? getChartOHDataTransformed(
     inputs.chartOHData,
     mergedStyle.content.bars.stacking === "stacked",
   );
@@ -62,5 +67,12 @@ export function measureChartOH(
     orientation: "horizontal",
   };
 
-  return measureChart(rc, rcdWithSurrounds, inputs, config, fitScale);
+  return measureChart(
+    rc,
+    rcdWithSurrounds,
+    inputs,
+    config,
+    fitScale,
+    layoutOnly,
+  );
 }

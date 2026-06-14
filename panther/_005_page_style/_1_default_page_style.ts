@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -91,6 +91,7 @@ const _DS = {
       background: { key: "base100" } as PageBackgroundStyle,
       gapX: 20,
       gapY: 20,
+      figureMaxStretch: 1.5,
     },
     layoutContainers: {
       padding: 0 as PaddingOptions,

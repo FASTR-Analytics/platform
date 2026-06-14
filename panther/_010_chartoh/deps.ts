@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -23,13 +23,14 @@ export type { MergedChartOHStyle } from "../_003_figure_style/mod.ts";
 export {
   calculateChartScaleLimits,
   calculateMinSubChartWidth,
+  calculatePaneGrid,
   checkValuePropsAssignment,
   collectHeaders,
   estimateMinSurroundsWidth,
   estimateMinXAxisHeightForScale,
   estimateMinYTextAxisWidth,
   fillValuesWithDuplicateCheck,
-  getChartHeightConstraints,
+  getChartHeightConstraintsByMeasure,
   getHeaderIndex,
   isRowBasedUncertainty,
   measureChart,
@@ -47,7 +48,9 @@ export type {
   JsonArray,
   LegendInput,
   MeasuredSurrounds,
+  PaneLayout,
   ProcessedHeaders,
+  ResolveTargetPlotH,
   SimplifiedChartConfig,
   UncertaintyConfig,
 } from "../_007_figure_core/mod.ts";

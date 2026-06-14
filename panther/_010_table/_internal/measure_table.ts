@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -7,6 +7,7 @@ import {
   CustomFigureStyle,
   generateSurroundsPrimitives,
   getAdjustedColor,
+  type HeaderItem,
   measureSurrounds,
   type RectCoordsDims,
   type RenderContext,
@@ -136,26 +137,10 @@ export function measureTable(
   // excluded id can sit on the row itself OR on its row GROUP (when the
   // excluded dimension is displayed as row groups, every row in the group is
   // the excluded dimension's data).
-  const excludedRowIndices = new Set<number>();
-  if (d.liveDomainExcludeIds?.length) {
-    const excludeIds = d.liveDomainExcludeIds;
-    for (const rhi of rowHeaderInfos) {
-      if (
-        typeof rhi.index === "number" &&
-        rhi.id !== undefined &&
-        excludeIds.includes(rhi.id)
-      ) {
-        excludedRowIndices.add(rhi.index);
-      }
-    }
-    for (const rowGroup of d.rowGroups) {
-      if (rowGroup.id !== undefined && excludeIds.includes(rowGroup.id)) {
-        for (const row of rowGroup.rows) {
-          excludedRowIndices.add(row.index);
-        }
-      }
-    }
-  }
+  const excludedRowIndices = buildExcludedRowIndices(
+    d.rowGroups,
+    d.liveDomainExcludeIds,
+  );
   const columnMinMax = computeColumnMinMax(
     d.aoa,
     nRows,
@@ -173,20 +158,16 @@ export function measureTable(
       d.colGroups.forEach((colGroup) => {
         colGroup.cols.forEach((col) => {
           const val = d.aoa[rowIndex][col.index];
-          const valAsNum = Number(val);
-          const mm = columnMinMax.get(col.index);
-          const cellInfo: TableCellInfo = {
-            value: val,
-            valueAsNumber: isNaN(valAsNum) ? undefined : valAsNum,
-            valueMin: mm?.min ?? 0,
-            valueMax: mm?.max ?? 0,
-            i_row: rowIndex,
-            i_col: col.index,
+          const cellInfo = buildTableCellInfo(
+            val,
+            rowIndex,
+            col.index,
             nRows,
             nCols,
-            rowHeader: toHeaderItem(rhi.id, rhi.label),
-            colHeader: toHeaderItem(col.id, col.label),
-          };
+            toHeaderItem(rhi.id, rhi.label),
+            toHeaderItem(col.id, col.label),
+            columnMinMax,
+          );
           const textFormatter = s.tableCells.textFormatter;
           const cellStr = textFormatter === "none" ||
               cellInfo.valueAsNumber === undefined
@@ -303,7 +284,62 @@ export function measureTable(
   return mTable;
 }
 
-function computeColumnMinMax(
+// Pure helper: derive excluded row indices from liveDomainExcludeIds without
+// needing rc or text measurement. Used by both measureTable and
+// getMinComfortableWidth so the two paths stay in sync.
+export function buildExcludedRowIndices(
+  rowGroups: { id?: string; rows: { index: number; id?: string }[] }[],
+  liveDomainExcludeIds: string[] | undefined,
+): Set<number> {
+  const result = new Set<number>();
+  if (!liveDomainExcludeIds?.length) return result;
+  for (const rowGroup of rowGroups) {
+    if (
+      rowGroup.id !== undefined && liveDomainExcludeIds.includes(rowGroup.id)
+    ) {
+      for (const row of rowGroup.rows) {
+        result.add(row.index);
+      }
+    }
+    for (const row of rowGroup.rows) {
+      if (row.id !== undefined && liveDomainExcludeIds.includes(row.id)) {
+        result.add(row.index);
+      }
+    }
+  }
+  return result;
+}
+
+// Shared cell-info builder so measureTable and getMinComfortableWidth derive
+// valueAsNumber / valueMin / valueMax identically. The autofit min-width path
+// must match the real measure exactly, or autofit silently corrupts.
+export function buildTableCellInfo(
+  value: string | number,
+  i_row: number,
+  i_col: number,
+  nRows: number,
+  nCols: number,
+  rowHeader: HeaderItem | undefined,
+  colHeader: HeaderItem | undefined,
+  columnMinMax: Map<number, { min: number; max: number }>,
+): TableCellInfo {
+  const valueAsNumber = Number(value);
+  const mm = columnMinMax.get(i_col);
+  return {
+    value,
+    valueAsNumber: isNaN(valueAsNumber) ? undefined : valueAsNumber,
+    valueMin: mm?.min ?? 0,
+    valueMax: mm?.max ?? 0,
+    i_row,
+    i_col,
+    nRows,
+    nCols,
+    rowHeader,
+    colHeader,
+  };
+}
+
+export function computeColumnMinMax(
   aoa: (string | number)[][],
   nRows: number,
   colIndices: number[],

@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -23,13 +23,18 @@ export function measureChartOV(
   rcdWithSurrounds: RectCoordsDims,
   inputs: ChartOVInputs,
   fitScale?: number,
+  data?: ChartOVDataTransformed,
+  // Skip content-primitive generation (probe-only); see measurePane.
+  layoutOnly?: boolean,
 ): MeasuredChartOV {
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
     fitScale,
   );
   const mergedStyle = customFigureStyle.getMergedChartOVStyle();
-  const transformedData = getChartOVDataTransformed(
+  // stacking is scale-independent, so pre-transformed data from the renderer
+  // entry point is identical to transforming here.
+  const transformedData = data ?? getChartOVDataTransformed(
     inputs.chartData,
     mergedStyle.content.bars.stacking === "stacked",
   );
@@ -62,5 +67,12 @@ export function measureChartOV(
     orientation: "vertical",
   };
 
-  return measureChart(rc, rcdWithSurrounds, inputs, config, fitScale);
+  return measureChart(
+    rc,
+    rcdWithSurrounds,
+    inputs,
+    config,
+    fitScale,
+    layoutOnly,
+  );
 }

@@ -1,23 +1,29 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { measureTable } from "./_internal/measure_table.ts";
+import {
+  buildExcludedRowIndices,
+  buildTableCellInfo,
+  computeColumnMinMax,
+  measureTable,
+} from "./_internal/measure_table.ts";
 import { renderTable } from "./_internal/render_table.ts";
 import {
+  buildFitReport,
   computeFloorScale,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   findFitScaleWithFloor,
   type HeaderItem,
   type HeightConstraints,
+  memoizeByScale,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
   resolveFigureAutofitOptions,
   sum,
-  type TableCellInfo,
   toHeaderItem,
 } from "./deps.ts";
 import { getTableDataTransformed } from "./get_table_data.ts";
@@ -71,7 +77,7 @@ function getMinComfortableWidth(
     }
   }
 
-  // Compute column min/max for TableCellInfo
+  // Shared helpers — same logic used by measureTable.
   const nRows = d.aoa.length;
   const allColIndices: number[] = [];
   for (const colGroup of d.colGroups) {
@@ -79,27 +85,16 @@ function getMinComfortableWidth(
       allColIndices.push(col.index);
     }
   }
-  const columnMinMax = new Map<number, { min: number; max: number }>();
-  for (const colIdx of allColIndices) {
-    let min = 0;
-    let max = 0;
-    let hasNumeric = false;
-    for (let r = 0; r < nRows; r++) {
-      const val = d.aoa[r][colIdx];
-      const num = Number(val);
-      if (!isNaN(num)) {
-        if (!hasNumeric) {
-          min = num;
-          max = num;
-          hasNumeric = true;
-        } else {
-          if (num < min) min = num;
-          if (num > max) max = num;
-        }
-      }
-    }
-    columnMinMax.set(colIdx, { min, max });
-  }
+  const excludedRowIndices = buildExcludedRowIndices(
+    d.rowGroups,
+    d.liveDomainExcludeIds,
+  );
+  const columnMinMax = computeColumnMinMax(
+    d.aoa,
+    nRows,
+    allColIndices,
+    excludedRowIndices,
+  );
 
   // Build row header lookup for TableCellInfo
   const rowHeaderItems: (HeaderItem | undefined)[] = [];
@@ -122,22 +117,18 @@ function getMinComfortableWidth(
         getWidestWord(rc, col.label, s.text.colHeaders),
       );
       // Check cell values for this column
-      const mm = columnMinMax.get(col.index);
       for (let rowIndex = 0; rowIndex < nRows; rowIndex++) {
         const val = d.aoa[rowIndex][col.index];
-        const valAsNum = Number(val);
-        const cellInfo: TableCellInfo = {
-          value: val,
-          valueAsNumber: isNaN(valAsNum) ? undefined : valAsNum,
-          valueMin: mm?.min ?? 0,
-          valueMax: mm?.max ?? 0,
-          i_row: rowIndex,
-          i_col: col.index,
+        const cellInfo = buildTableCellInfo(
+          val,
+          rowIndex,
+          col.index,
           nRows,
           nCols,
-          rowHeader: rowHeaderItems[rowIndex],
-          colHeader: toHeaderItem(col.id, col.label),
-        };
+          rowHeaderItems[rowIndex],
+          toHeaderItem(col.id, col.label),
+          columnMinMax,
+        );
         const textFormatter = s.tableCells.textFormatter;
         const valStr = textFormatter === "none" ||
             cellInfo.valueAsNumber === undefined
@@ -202,7 +193,11 @@ function measureWithAutofit(
 
   // shrink-to-fit for BOTH width and height, with a legibility floor + cramped.
   const baseFontSizeDu = new CustomFigureStyle(item.style).baseFontSize;
-  const { fitScale, cramped } = findFitScaleWithFloor(
+  const getSizeAtScale = memoizeByScale((scale: number) => ({
+    minWidth: getMinComfortableWidth(rc, item, scale),
+    idealHeight: getIdealHeightAtScale(rc, bounds.w(), item, scale),
+  }));
+  const { fitScale, floorScale, cramped } = findFitScaleWithFloor(
     bounds.w(),
     bounds.h(),
     {
@@ -211,14 +206,17 @@ function measureWithAutofit(
       baseFontSizeDu,
       minFontSizeDu: autofitOpts.minFontSizeDu,
     },
-    (scale) => ({
-      minWidth: getMinComfortableWidth(rc, item, scale),
-      idealHeight: getIdealHeightAtScale(rc, bounds.w(), item, scale),
-    }),
+    getSizeAtScale,
   );
 
   const measured = measureTable(rc, bounds, item, fitScale);
   measured.cramped = cramped;
+  measured.fitReport = buildFitReport(
+    fitScale,
+    floorScale,
+    cramped,
+    getSizeAtScale,
+  );
   return measured;
 }
 
@@ -321,12 +319,18 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
       ? 1.0
       : width / minComfortableWidth;
 
+    const cs = new CustomFigureStyle(item.style);
+    // maxH = idealH signals "I resist stretching past ideal"; the page layouter
+    // owns how far it may actually stretch (content.figureMaxStretch).
+    const maxH = idealH;
+
     if (!autofitOpts) {
       return {
         minH: idealH,
         idealH,
-        maxH: Infinity,
+        maxH,
         neededScalingToFitWidth,
+        minComfortableWidth,
       };
     }
 
@@ -334,11 +338,17 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     const floorScale = computeFloorScale({
       minScale: autofitOpts.minScale,
       maxScale: autofitOpts.maxScale,
-      baseFontSizeDu: new CustomFigureStyle(item.style).baseFontSize,
+      baseFontSizeDu: cs.baseFontSize,
       minFontSizeDu: autofitOpts.minFontSizeDu,
     });
     const minH = getIdealHeightAtScale(rc, width, item, floorScale);
 
-    return { minH, idealH, maxH: Infinity, neededScalingToFitWidth };
+    return {
+      minH,
+      idealH,
+      maxH,
+      neededScalingToFitWidth,
+      minComfortableWidth,
+    };
   },
 };

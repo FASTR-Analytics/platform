@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -23,13 +23,18 @@ export function measureTimeseries(
   rcdWithSurrounds: RectCoordsDims,
   inputs: TimeseriesInputs,
   fitScale?: number,
+  data?: TimeseriesDataTransformed,
+  // Skip content-primitive generation (probe-only); see measurePane.
+  layoutOnly?: boolean,
 ): MeasuredTimeseries {
   const customFigureStyle = new CustomFigureStyle(
     inputs.style,
     fitScale,
   );
   const mergedStyle = customFigureStyle.getMergedTimeseriesStyle();
-  const transformedData = getTimeseriesDataTransformed(
+  // stacking is scale-independent, so pre-transformed data from the renderer
+  // entry point is identical to transforming here.
+  const transformedData = data ?? getTimeseriesDataTransformed(
     inputs.timeseriesData,
     mergedStyle.content.bars.stacking === "stacked",
   );
@@ -63,5 +68,12 @@ export function measureTimeseries(
     orientation: "vertical",
   };
 
-  return measureChart(rc, rcdWithSurrounds, inputs, config, fitScale);
+  return measureChart(
+    rc,
+    rcdWithSurrounds,
+    inputs,
+    config,
+    fitScale,
+    layoutOnly,
+  );
 }

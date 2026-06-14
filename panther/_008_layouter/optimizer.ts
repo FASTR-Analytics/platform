@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -69,7 +69,10 @@ const DEFAULT_WEIGHTS: Required<LayoutScoreWeights> = {
   stretchPenalty: 5,
   scalePenalty: 8,
   heightImbalance: 2,
-  wastedSpace: 0,
+  // Phase D: now meaningful since figure idealH is natural (Phase B2) and
+  // maxH is finite (idealH × 1.5) — unused space at the bottom of a page
+  // is a real layout quality signal, not a phantom from floor == ideal.
+  wastedSpace: 1,
 };
 
 // =============================================================================

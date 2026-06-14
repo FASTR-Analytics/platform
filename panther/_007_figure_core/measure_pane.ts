@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -18,13 +18,18 @@ import type {
   TextInfoUnkeyed,
 } from "./deps.ts";
 import { Padding, RectCoordsDims, Z_INDEX } from "./deps.ts";
-import type { MeasurePaneConfig } from "./measure_types.ts";
+import type { MeasurePaneConfig, PaneLayout } from "./measure_types.ts";
 import { generatePaneContentPrimitives } from "./generate_pane_content_primitives.ts";
 
+// layoutOnly skips content-primitive generation (bars/points/lines/labels) —
+// the expensive part of a measure. Used by getIdealHeight/fitReport probes,
+// which only consume the returned layout geometry. Header/axis text is still
+// measured (it determines the layout); only the plot contents are skipped.
 export function measurePane<TData>(
   rc: RenderContext,
   config: MeasurePaneConfig<TData>,
-): Primitive[] {
+  layoutOnly?: boolean,
+): { primitives: Primitive[]; layout: PaneLayout } {
   const i_pane = config.indices.pane;
   const baseStyle = config.baseStyle;
   const tierHeaders = config.dataProps.tierHeaders;
@@ -196,10 +201,20 @@ export function measurePane<TData>(
     ),
   );
 
-  return [
-    ...labelPrimitives,
-    ...generatePaneContentPrimitives(rc, config, measured),
-  ];
+  return {
+    primitives: layoutOnly ? [] : [
+      ...labelPrimitives,
+      ...generatePaneContentPrimitives(rc, config, measured),
+    ],
+    layout: {
+      subChartAreaHeight: measured.subChartAreaHeight,
+      subChartAreaWidth: measured.subChartAreaWidth,
+      topHeightForLaneHeaders: measured.topHeightForLaneHeaders,
+      tierHeaderAndLabelGapHeight: measured.tierHeaderAndLabelGapHeight,
+      yAxisWidth: measured.yAxisWidthInfo.widthIncludingYAxisStrokeWidth,
+      paneContentWidth: config.geometry.contentRcd.w(),
+    },
+  };
 }
 
 function measureTierHeaders(

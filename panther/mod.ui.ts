@@ -1,4 +1,4 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
@@ -55,7 +55,7 @@ export * from "./_150_figure_schema/mod.ts";
 export * from "./_301_util_funcs/mod.ts";
 export * from "./_302_query/mod.ts";
 export * from "./_303_components/mod.ts";
-export * from "./_304_query/mod.ts";
+export * from "./_304_actions/mod.ts";
 export * from "./_305_ai/mod.ts";
 export * from "./_306_text_editor/mod.ts";
 

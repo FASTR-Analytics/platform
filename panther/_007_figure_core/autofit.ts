@@ -1,9 +1,9 @@
-// Copyright 2023-2025, Tim Roberton, All rights reserved.
+// Copyright 2023-2026, Tim Roberton, All rights reserved.
 //
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { MIN_FONT_SIZE_DU } from "./deps.ts";
+import { type FigureFitReport, MIN_FONT_SIZE_DU } from "./deps.ts";
 import type { FigureAutofitOptions } from "./types.ts";
 
 const DEFAULT_FIGURE_MIN_SCALE = 0.5;
@@ -131,6 +131,23 @@ export function findOptimalScaleForBounds(
   return bestScale;
 }
 
+// Per-call memoizer for scale-keyed computations. Constructed per call — not
+// at module level — so the cache is correctly scoped and never leaks stale
+// results across calls. Scale keys are exact (the discrete-scale ladder rounds
+// its values, and floorScale comes from one computation), so Map equality holds.
+export function memoizeByScale<T>(
+  fn: (scale: number) => T,
+): (scale: number) => T {
+  const cache = new Map<number, T>();
+  return (scale: number): T => {
+    const cached = cache.get(scale);
+    if (cached !== undefined) return cached;
+    const result = fn(scale);
+    cache.set(scale, result);
+    return result;
+  };
+}
+
 // Resolves the shrink-to-fit factor with a legibility floor and reports
 // `cramped`. The factor is never below the floor; if the content still does not
 // fit at the floor, it is rendered at the floor and flagged `cramped`.
@@ -144,7 +161,7 @@ export function findFitScaleWithFloor(
     minFontSizeDu: number;
   },
   getSizeAtScale: (scale: number) => { minWidth: number; idealHeight: number },
-): { fitScale: number; cramped: boolean } {
+): { fitScale: number; floorScale: number; cramped: boolean } {
   const floorScale = computeFloorScale(opts);
   const fitScale = findOptimalScaleForBounds(
     availableWidth,
@@ -156,5 +173,28 @@ export function findFitScaleWithFloor(
   // 0.5px tolerance so sub-pixel rounding does not produce a false `cramped`.
   const cramped = availableWidth + 0.5 < size.minWidth ||
     availableHeight + 0.5 < size.idealHeight;
-  return { fitScale, cramped };
+  return { fitScale, floorScale, cramped };
+}
+
+// Single chokepoint for assembling the fit report — shared by the chart and
+// table autofit paths so the two can never drift. minW/minH are at the APPLIED
+// fitScale (how snug is this render); naturalH is the ideal height at scale 1.
+// Pass a memoized getSizeAtScale: every scale used here was already probed by
+// the fit search, so report assembly costs nothing extra.
+export function buildFitReport(
+  fitScale: number,
+  floorScale: number,
+  cramped: boolean,
+  getSizeAtScale: (scale: number) => { minWidth: number; idealHeight: number },
+  naturalHOverride?: number,
+): FigureFitReport {
+  const atFit = getSizeAtScale(fitScale);
+  return {
+    fitScale,
+    floorScale,
+    minW: atFit.minWidth,
+    minH: atFit.idealHeight,
+    naturalH: naturalHOverride ?? getSizeAtScale(1.0).idealHeight,
+    cramped,
+  };
 }
