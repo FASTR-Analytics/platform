@@ -10,7 +10,7 @@ The SQL-assembly layer that turns a `GenericLongFormFetchConfig` into executed S
 
 1. **All CTEs go through `CTEManager`.** It is the single sanctioned way to build the `WITH` clause so that `UNION ALL` (the admin-area roll-up row) and post-aggregation wrapping stay syntactically valid and CTE names don't collide.
 2. **Build, don't execute, in the helpers.** `buildCombinedQuery` returns a SQL string; the orchestrator runs it once via `projectDb.unsafe(...)`.
-3. **Values are escaped; identifiers/expressions are trusted-internal.** Filter values go through escaping; column names, group-bys, value props, and the post-aggregation expression are interpolated raw because they come from closed unions or the module definition.
+3. **Values are escaped; identifiers/expressions are validated then raw-interpolated.** Filter values go through escaping; column names, group-bys, value props, and the post-aggregation expression are interpolated raw — but the whole fetch config arrives in the client request body, so they are *not* trusted by source. They are made safe by boundary validation (`validateFetchConfig` + the Zod route schema): closed-union membership for `groupBys`/`disOpt`, SQL-identifier shape for `prop`, and a structural validator for the PAE.
 4. **Result size is a status, not an error.** Too-many-items / no-data are normal `status` values on a successful response, detected with an `N+1` limit probe.
 
 ---
@@ -55,7 +55,7 @@ The SQL-assembly layer that turns a `GenericLongFormFetchConfig` into executed S
 
 ### Post-aggregation (`applyPostAggregationExpression`)
 
-If `postAggregationExpression` contains `=`, split into `value = expression`, guard division with `/<col>` → `/ NULLIF(<col>, 0)`, and wrap: `SELECT <groupBys>, (<safeExpression>) as <value> FROM (<query>) AS subq`. The expression comes from the module definition (trusted).
+If `postAggregationExpression` contains `=`, split into `value = expression`, guard division with `/<col>` → `/ NULLIF(<col>, 0)`, and wrap: `SELECT <groupBys>, (<safeExpression>) as <value> FROM (<query>) AS subq`. The expression originates from the module definition but arrives in the client fetch config, so it is validated before this point by `isSafePostAggregationExpression` (`lib/validate_fetch_config.ts`) — charset plus structural rules that reject subqueries and non-whitelisted function calls.
 
 ### WHERE clause (`buildWhereClause`) — the escaping boundary
 
@@ -68,14 +68,16 @@ This is where filter *values* are made safe:
 
 ### The trusted-vs-escaped boundary (applied from [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md))
 
-| Interpolated into `.unsafe()` SQL | Source | Handling |
-|-----------------------------------|--------|----------|
+Every field below except the server constant arrives in the client request body, so "Source" is the *expected* origin, not a trust basis — the Handling column is what actually makes each safe.
+
+| Interpolated into `.unsafe()` SQL | Expected source | Handling |
+|-----------------------------------|-----------------|----------|
 | filter **values** | user/AI input | **escaped** (`buildWhereClause`: numeric coercion or `UPPER`+`''`-doubling) |
-| `disOpt` / column names | `DisaggregationOption` closed union | trusted (not user free-text) |
-| `groupBys`, period options | closed unions | trusted |
-| value `prop` / `func` | module definition | trusted |
-| `postAggregationExpression` | module definition | trusted (only NULLIF-rewritten) |
-| roll-up sentinel code | server constant (`ROLLUP_SENTINEL`) | trusted |
+| `disOpt` / column names | `DisaggregationOption` closed union | **validated** — closed-union membership (`isValidDisaggregationOption`) |
+| `groupBys`, period options | closed unions | **validated** — closed-union membership |
+| value `prop` / `func` | module definition | **validated** — `prop` against `SQL_IDENTIFIER`, `func` against `valueFuncStrict` |
+| `postAggregationExpression` | module definition | **validated** — `isSafePostAggregationExpression` (charset + structural), then NULLIF-rewritten |
+| roll-up sentinel code | server constant (`ROLLUP_SENTINEL`) | trusted (genuinely server-side) |
 
 The **rule** (which fields may be raw, which must be escaped) is owned by [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md); this table is its application to this pipeline.
 
@@ -90,7 +92,7 @@ The **rule** (which fields may be raw, which must be escaped) is owned by [DOC_D
 1. **Build CTEs through `CTEManager`.** Don't hand-write `WITH period_data AS (...)` / `facility_subset AS (...)` strings — register them so names and definitions can't conflict across the `UNION ALL`.
 2. **Assemble full queries via `buildCombinedQuery`.** Main + roll-up + post-aggregation + `WITH` + `LIMIT` ordering is load-bearing (CTEs must stay at the top level even after post-aggregation wrapping).
 3. **Escape filter values via `buildWhereClause`.** All user/AI-supplied filter values route through it; never interpolate a filter value elsewhere.
-4. **Keep raw-interpolated fields trusted-internal.** `disOpt`/column/`prop`/`postAggregationExpression` may be raw *only* because they're closed unions or module-definition-sourced — see [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md).
+4. **Validate raw-interpolated fields at the boundary.** `disOpt`/column/`prop`/`postAggregationExpression` arrive in the client fetch config; they may be raw *only* because `validateFetchConfig` + the Zod route schema reject anything outside their closed union / identifier shape / safe-PAE structure — see [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md).
 5. **Return a status, not a throw, for size states.** `too_many_items` / `no_data_available` are `status` values.
 
 ---
@@ -99,7 +101,7 @@ The **rule** (which fields may be raw, which must be escaped) is owned by [DOC_D
 
 - **Don't hand-write CTEs outside `CTEManager`.** `get_possible_values` and `get_period_bounds` currently build their own `WITH period_data` / `facility_subset` strings (and always derive all three period columns regardless of need), duplicating the CTE names and join shape — which breaks on `quarter_id`-only tables. New CTE construction must go through `CTEManager`.
 - **Don't interpolate a filter value without `buildWhereClause`** — that's the only escaping path.
-- **Don't assume `postAggregationExpression` is safe to interpolate from anywhere but the module definition** — its trust rests on its source.
+- **Don't assume `postAggregationExpression` is safe because it "comes from the module definition"** — it arrives in the client fetch config and is attacker-controllable; its safety rests on `isSafePostAggregationExpression`, not its nominal source.
 - **Don't surface a size state as an `err`** — the client distinguishes `too_many_items`/`no_data_available`/`ok`.
 
 ---
@@ -117,7 +119,7 @@ The **rule** (which fields may be raw, which must be escaped) is owned by [DOC_D
 ## Enforcement opportunities
 
 - **Route all CTE construction through `CTEManager`** — migrate `get_possible_values` and `get_period_bounds` off their hand-written `WITH` strings (fixes the `quarter_id`-only-table drift).
-- **State + ideally validate the trusted-input invariant** for raw-interpolated identifiers/expressions (`validateFetchConfig` checks shapes/enums but not that `prop`/`postAggregationExpression` are safe identifiers). Delegate the rule to [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md).
+- ~~**State + ideally validate the trusted-input invariant** for raw-interpolated identifiers/expressions~~ — done: `validateFetchConfig` + the Zod route schema now enforce closed-union membership, `SQL_IDENTIFIER` for `prop`, and `isSafePostAggregationExpression` for the PAE. Rule owned by [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md).
 - **One canonical resolution path** `resultsObjectId → module_id → moduleLastRun`; remove the duplicate round-trips.
 - **Uniform error/status contract for the possible-values resolvers** — the same missing-column failure becomes `{ success: false }` in one caller, a silently-skipped `disOpt` in another, and `no_values_available` in a third.
 - **Drop the dead "identical to v1" vocabulary** and the commented-out backward-compat function (no v1 exists) — declare the V2 builders authoritative.
@@ -128,7 +130,7 @@ The **rule** (which fields may be raw, which must be escaped) is owned by [DOC_D
 
 - [ ] New derived columns / joins → register a CTE via `CTEManager.fromQueryConfig` (or `register`), never a hand-written `WITH`
 - [ ] Filter values flow through `buildWhereClause`
-- [ ] Raw-interpolated fields are closed unions or module-definition-sourced (else escape them)
+- [ ] Raw-interpolated fields (`disOpt`/`prop`/`postAggregationExpression`) are validated at the boundary (`validateFetchConfig` + Zod route schema), not merely assumed module-sourced
 - [ ] Full assembly goes through `buildCombinedQueryV2` (preserve CTE/post-aggregation/`LIMIT` ordering)
 - [ ] Size/empty outcomes returned as `status`, wrapped in `tryCatchDatabaseAsync`
 - [ ] Period/disaggregation specifics deferred to their owning docs
