@@ -29,7 +29,7 @@ S9 surface: `SYSTEM_09_viz_query_cache.md` frontmatter (lint-enforced manifest).
 | F8b | HMIS version hash `undefined_undefined` | **REFUTED** | — | dropped (cosmetic only) |
 | F8c | HFA `VersionParams.hash` vs payload `cacheHash` | **CONFIRMED** | LOW | fix wording DANGEROUS — constrained below |
 | F9 | Doc drift (DOC_VALKEY_CACHE version source) | confirmed doc-only | — | + see N1: code is *also* under-complete |
-| N1 | Facility-columns config absent from 4 PO cache version keys | **CONFIRMED** | HIGH | flags-only hash, server+client lockstep |
+| N1 | Facility-columns config absent from 4 PO cache version keys | **CONFIRMED** | HIGH | **PENDING → PLAN_PROJECT_SNAPSHOT** (project self-containment) |
 | N2 | `col IN (NaN)` from non-numeric integer-column filter | **CONFIRMED** | LOW (downgraded from MED) | validator + Zod superRefine; coordinate w/ F1/F3 |
 | N3 | ReplicateByOptions effect under-tracks periodFilter | **CONFIRMED** | LOW | track nested periodFilter fields |
 | N4 | hashFetchConfig values-array unstable sort | **CONFIRMED** | LOW | fragmentation only; fix optional |
@@ -282,6 +282,16 @@ Surfaced by the 3-lens completeness critics, then put through a refute-first rou
 (2 independent skeptics on N1/N2, harnesses throughout). Verdicts:
 
 ### N1 — Facility-columns config absent from all 4 PO cache version keys — CONFIRMED [HIGH]
+**Status: closed here, deferred to `PLAN_PROJECT_SNAPSHOT.md`.** N1 is the canonical
+instance of the cross-level drift class: facility config is instance-only and the
+project caches can't version on it. The decided fix is *not* a cross-DB version-fold
+patch but to make the project self-contained — snapshot the config into the project
+(matching the datasets pattern) and version the PO caches off the project-local stamp.
+That's the project-snapshot plan's job. **The cache-versioning half still applies after
+the snapshot**: the 4 PO caches must fold the project-local facility-columns version
+stamp (a flags-only token — labels are display-only), or they drift just the same.
+Detail below retained as the evidence record.
+
 Both skeptics confirmed (certain). An admin with `can_configure_settings` saves
 facility columns → `updateFacilityColumnsConfig` ([config.ts:152-167](server/db/instance/config.ts#L152-L167)) does a bare UPSERT on `instance_config` only + a `config_updated` SSE; it bumps **no** module/dataset/PO version and clears **no** Valkey cache. The four viz caches version only on `presentationObjectLastUpdated` (`_PO_DETAIL`) or `PO_CACHE_VERSION|moduleLastRun|datasetsVersion` (items/metric/replicant) — **none fold facility config**. Yet `getEnabledOptionalFacilityColumns(facilityConfig)` gates `needsFacilityJoin` + the facility/non-facility filter split ([get_query_context.ts:34-89](server/server_only_funcs_presentation_objects/get_query_context.ts#L34-L89)) **and** which `facility_*` disaggregation options exist ([metric_enricher.ts:121-148](server/db/project/metric_enricher.ts#L121-L148)). So after a toggle: `_PO_ITEMS` serves a **stale figure**, `_METRIC_INFO` a **stale option list**, until `moduleLastRun`/`datasetsVersion` next changes. Client mirrors it (`moduleDataVersionKey`, no facility fold). The dataset & structure caches *do* fold a facility hash — the PO caches are the inconsistent outlier. Harness proved the version hash is byte-identical across a toggle while the enabled-set flips.
 
@@ -343,10 +353,12 @@ the validator); the replicant auto-select copy-not-mutate; the
 
 ## Implementation order (CONFIRMED findings only; awaiting your per-finding go-ahead)
 
+**Tier 0 — deferred to PLAN_PROJECT_SNAPSHOT.md:**
+0. **N1** — closed here; folded into the project-snapshot plan (snapshot facility config to project + version the PO caches off the project-local stamp). Do NOT implement the interim cross-DB version-fold; the snapshot plan supersedes it.
+
 **Tier 1 — highest value / lowest risk:**
-1. **N1** — facility-columns flags-hash into the 4 viz cache keys (server+client lockstep). The biggest correctness win (silent stale data); cross-cutting, so worth a dedicated fix-design+critique pass before coding (see below).
-2. **F5** — one-line validator guard (`=`-count `!= 1`). Lowest risk; builds on code we just shipped.
-3. **F1** — `getPeriodBounds` via the extracted `buildPeriodCTE` helper (preserve per-branch SELECT exprs; prove `dateRange`-value-equivalence on the working paths).
+1. **F5** — one-line validator guard (`=`-count `!= 1`). Lowest risk; builds on code we just shipped.
+2. **F1** — `getPeriodBounds` via the extracted `buildPeriodCTE` helper (preserve per-branch SELECT exprs; prove `dateRange`-value-equivalence on the working paths).
 
 **Tier 2 — contained:**
 4. **F3** — replicant-options `excludeReplicantFilter` (decide: `t2` only vs all 4 call sites).
@@ -364,11 +376,9 @@ not urgent). F9 doc-fix folds into the SYSTEM-doc Phase-2 inlining.
 
 Each lands as its own focused commit, verified before the next.
 
-**Before implementing N1 (the one cross-cutting fix):** run a dedicated fix-design +
-adversarial-critique pass — the version-key fold touches 4 caches across server+client
-and must keep the two sides byte-identical; the verification rounds proved the *bug* and
-the fix *shape*, not a concrete diff. Everything else is contained enough to implement
-directly under per-finding go-ahead.
+**N1 is deferred to `PLAN_PROJECT_SNAPSHOT.md`** (project self-containment — snapshot
+instance data to project, version caches off project-local stamps). Everything else
+above is contained enough to implement directly under per-finding go-ahead.
 
 ## Hard rules (from CLAUDE.md — restated; this is delicate code)
 - **Verify by executing, not reading** — every claim got a harness or a code-trace; keep that bar for the fixes.
