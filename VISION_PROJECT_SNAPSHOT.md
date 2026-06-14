@@ -81,6 +81,32 @@ It is an extension of patterns the codebase already uses, not a green-field idea
 The work remaining is to bring the **stragglers** — instance inputs still read live by
 project artifacts — under the same pattern, and then to make the resulting unit portable.
 
+## Production & distribution: generate at instance, ingest at project (eventual)
+
+Today layer 2 is produced **implicitly and per-project** — the dataset-add export builds
+the snapshot *inside* each project. The end-state inverts this: layer 2 becomes a
+first-class artifact **generated and catalogued at the instance level**, and a project
+**ingests (attaches) a unit from an instance-level listing**.
+
+- Instance hosts a layer-2 **factory + catalogue** UI: define/generate a unit, version it,
+  list it, retire it. (Instance level then hosts both layer-1 raw data *and* the layer-2
+  catalogue — the layers are about data *containment*, not physical location; the hard rule
+  is untouched.)
+- A project **attaches** a unit from the listing, and can **detach/swap**. One unit may be
+  attachable to many projects.
+- This is *why* the invariants matter, not a separate effort: a centrally-generated unit
+  attached to arbitrary projects **must** be self-contained and identity-independent
+  (snapshot-local ids) or it won't resolve on attach. This distribution model is the
+  motivation for Steps B/C, not an addition to them.
+
+**Open design question (Step C): scoping/windowing.** Today each project gets a *windowed*
+subset (facility window, admin-area scope). Either the instance generates **pre-scoped**
+units (a unit = one specific scoped snapshot, listed as such — fits "pick from a listing"
+most naturally) or it generates a full unit and the project applies a view/scope on attach.
+
+**Trajectory:** implicit per-project snapshot (today) → explicit, instance-generated,
+catalogued, ingestable unit (end-state).
+
 ## The path (vision altitude — detail in the plan)
 
 - **Step A** — close render/query-time drift: consume the input snapshots that already
