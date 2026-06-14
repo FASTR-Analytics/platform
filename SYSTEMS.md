@@ -28,7 +28,7 @@ artifacts (12), assist (13), frame (14–15).
 | [S7](SYSTEM_07_dhis2.md) | DHIS2 Connector | self-contained typed adapter for external DHIS2 (retry, paging, analytics, geojson) |
 | [S8](SYSTEM_08_module_system.md) | Module System | versioned R modules: fetch → validate → install → dirty-state → Docker run → ro_* |
 | [S9](SYSTEM_09_viz_query_cache.md) | Visualization Query & Cache Service | PO config → fetch-config → SQL over ro_* → version-hashed cached payloads |
-| [S10](SYSTEM_10_figure_render_export.md) | Figure Rendering & Export Engine | FigureInputs assembly, strip/hydrate, slide→page render, PDF/PPTX/XLSX/DOCX |
+| [S10](SYSTEM_10_figure_render_export.md) | Figure Rendering & Export Engine | stored FigureBundle → `buildFigureInputs` → panther, slide→page render, PDF/PPTX/XLSX/DOCX |
 | [S11](SYSTEM_11_viz_authoring.md) | Visualization Authoring UI | the live PO editor (edit/create/ephemeral) + library + PO CRUD |
 | [S12](SYSTEM_12_documents_sharing.md) | Documents & Sharing | slide decks + reports + dashboards + public viewer + exports |
 | [S13](SYSTEM_13_ai_copilot.md) | AI Copilot & Usage Governance | Anthropic proxy + governance + ~40 browser tools via the AIContext contract |

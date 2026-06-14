@@ -30,6 +30,38 @@ docs_absorbed:
 
 _PO config -> fetch-config contract -> SQL over ro_* tables -> version-hashed cached payloads, on both tiers_
 
+## FigureBundle — the capture side (shipped 2026-06-13)
+
+This is S9's slice of the FigureBundle refactor; the full architecture (bundle
+shape, `buildFigureInputs`, the invariants, localization) lives in
+[SYSTEM_10](SYSTEM_10_figure_render_export.md). S9 owns the *upstream* the bundle
+freezes.
+
+- **The live Visualization is already the upstream model** — `presentation_objects`
+  stores only `config` + `metric_id` and re-queries each render. There is nothing
+  to "bundle" at the storage level: a Visualization *is* a config plus a live
+  query. So visualizations are left **unchanged** by this refactor.
+- **A FigureBundle is exactly "a Visualization render, frozen"** =
+  `config` + the live-queried `items` (post replicant-resolution) + the metric
+  projection. The live FigureInputs memo
+  ([t2_presentation_objects.ts](client/src/state/project/t2_presentation_objects.ts),
+  ~:195) builds a **transient** bundle each tick from the `ItemsHolder` and calls
+  the shared `buildFigureInputs` — so the live path and every stored figure run
+  identical code.
+- **The `resultsValue` projection is an S9 type.** The bundle stores
+  `ResultsValueForVisualization` (`lib/types/modules.ts`,
+  `server/db/project/results_value_resolver.ts`) **verbatim** — `{formatAs,
+  valueProps, valueLabelReplacements?}`. The build is type-proven to read no
+  fourth metric field (see the gate in S10), so capturing this projection is
+  sufficient; no full metric info is frozen.
+- **Provenance is free.** `moduleLastRun` and `datasetsVersion` are already
+  produced by the `ItemsHolder`, so the bundle's `provenance` block captures them
+  at zero extra cost — the basis for the future stale-flag (Phase 4) without any
+  per-figure re-query.
+
+Custody note: `t2_presentation_objects.ts` is S9-owned with **S10 as a mandatory
+reader** (the live build path) — see SYSTEMS.md §4.1.
+
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by

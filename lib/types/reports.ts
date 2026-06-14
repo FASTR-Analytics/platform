@@ -28,8 +28,8 @@ export function getStartingConfigForReport(): ReportConfig {
 
 // ── Embed registry write-validation ──────────────────────────────────────────
 // Reuses the slide figure/image block schemas verbatim — report figures/images
-// ARE slides' FigureBlock / ImageBlock (figureInputs validated as unknown there,
-// same as slides).
+// ARE slides' FigureBlock / ImageBlock (the strict figureBlockSchema — the bundle
+// is validated, not z.unknown — same as slides).
 
 export const reportFiguresSchema = z.record(z.string(), figureBlockSchema);
 export const reportImagesSchema = z.record(z.string(), imageBlockSchema);

@@ -26,6 +26,7 @@ globs:
   - client/src/components/slide_deck/slide_transforms/**
   - client/src/components/slide_deck/style_editor/**
   - client/src/state/project/t2_dashboards.ts
+  - client/src/state/project/t2_slide_decks.ts
   - client/src/state/project/t2_slides.ts
   - lib/types/_dashboard_config.ts
   - lib/types/_slide_config.ts
@@ -60,6 +61,47 @@ docs_absorbed:
 > deleted then.
 
 _the three figure-snapshot-embedding artifact types — slide decks, markdown reports, dashboards — plus the public viewer and all exports_
+
+## FigureBundle — the three storage surfaces (shipped 2026-06-13)
+
+This is S12's slice of the FigureBundle refactor; the full architecture (bundle
+shape, `buildFigureInputs`, the invariants, localization) lives in
+[SYSTEM_10](SYSTEM_10_figure_render_export.md). S12 owns the three surfaces that
+**store** bundles and the public/export paths that **render** them.
+
+- **What is stored.** All three surfaces embed the strict
+  `FigureBlock = { type: "figure", bundle?: FigureBundle }`
+  ([lib/types/_figure_bundle.ts](lib/types/_figure_bundle.ts)) — replacing the old
+  `{ type, figureInputs?, source? }`. Slides carry it inside the layout tree
+  ([_slide_config.ts](lib/types/_slide_config.ts)); dashboards in the
+  `figure_block` column ([_dashboard_config.ts](lib/types/_dashboard_config.ts));
+  reports in the `figures` registry ([reports.ts](lib/types/reports.ts), which
+  imports `figureBlockSchema` from `_slide_config.ts` — one shared block schema
+  across all three). The strict schema is what lets the migration skip-gate catch
+  legacy blocks (S2) and what made deleting the old force-run safe.
+- **Capture-on-write.** Each surface assembles a bundle from the live build
+  inputs: `config` + frozen `items` + the `resultsValue` projection +
+  `indicatorMetadata` + `dateRange` + `geo` + **`localization` = the instance
+  locale** (NOT the session toggle) + `metricId`/`snapshotAt` + free `provenance`.
+  The bundle is undefined-free pure JSON, so it persists with no stripping.
+- **Build-on-render — every surface.** On-screen render, exports
+  ([exports/\*\*](client/src/exports/), e.g. `_dashboard_export_model.ts`,
+  `_report_export_maps.ts`), and the public viewer
+  ([public_viewer/\*\*](client/src/components/public_viewer/) +
+  [routes/public/dashboard.ts](server/routes/public/dashboard.ts)) all call
+  `buildFigureInputs(bundle, deckStyle?)`. The public/export path "just works"
+  because the bundle carries its own `localization` — the old
+  `hydrateFigureInputsForPublicRendering` special-casing was deleted.
+- **The sentinel layer is gone.** Because bundles carry no `undefined` values,
+  the `@@__UNDEFINED__@@` encode/decode wrappers that slides/reports needed on the
+  wire were deleted ([lib/json_slide_serialize.ts](lib/json_slide_serialize.ts) is
+  now a tombstone). Follow-on: the slide/report route bodies that PLAN_API_ZOD left
+  at `z.unknown()` can now tighten to `figureBlockSchema` — see
+  [PLAN_FIGURE_BUNDLE_FOLLOWUPS.md](PLAN_FIGURE_BUNDLE_FOLLOWUPS.md).
+
+(One stale breadcrumb: the comment at [reports.ts](lib/types/reports.ts) ~:30
+still says "figureInputs validated as unknown there" — pre-bundle wording; the
+code now uses the strict `figureBlockSchema`. Listed in the followups doc.)
 
 ## Scope
 

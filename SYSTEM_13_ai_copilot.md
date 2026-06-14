@@ -9,6 +9,8 @@ globs:
   - client/src/components/slide_deck/slide_ai/get_deck_summary.ts
   - client/src/components/slide_deck/slide_ai/get_slide_with_updated_blocks.ts
   - client/src/components/slide_deck/slide_ai/layout_spec_helpers.ts
+  - client/src/components/slide_deck/slide_ai/resolve_figure_from_metric.ts
+  - client/src/components/slide_deck/slide_ai/resolve_figure_from_visualization.ts
   - client/src/state/project/t4_ai_documents.ts
   - lib/types/ai_input.ts
   - lib/types/custom_prompts.ts
