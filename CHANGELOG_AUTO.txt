@@ -1,3 +1,8 @@
+[TBD] [admin] [changed] - Visualizations now store all rendering data as a self-contained bundle
+[TBD] [admin] [changed] - Dashboards, reports, and slides use a unified figure storage format
+[TBD] [admin] [internal] - Removed intermediate encode/decode layer for transmitting figure data
+[TBD] [admin] [internal] - Localization for figures is now captured at save time rather than render time
+[TBD] [admin] [internal] - Consolidated duplicate figure-generation logic across dashboards, reports, and slides
 [TBD] [user] [added] - Support for French language and Ethiopian calendar settings
 [TBD] [admin] [added] - Instances now support language and calendar settings
 [TBD] [user] [fixed] - Visualizations now refresh automatically when underlying data changes
