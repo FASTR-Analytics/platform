@@ -60,13 +60,28 @@ function toGB(bytes: number): number {
   return Math.round((bytes / 1024 ** 3) * 10) / 10;
 }
 
+// A resize is requested at most once per this window, regardless of how many
+// disk checks fire. Module runs hit the checks constantly, so without this the
+// status-api gets hammered and the SendGrid notification below is sent on every
+// check while the disk sits >=90% (the "resize spam" symptom).
+const RESIZE_REQUEST_COOLDOWN_MS = 10 * 60 * 1000;
+let lastResizeRequestAt = 0;
+
 function maybeRequestVolumeResize(stats: DiskStats): boolean {
   const usedBytes = stats.totalBytes - stats.availBytes;
   if (usedBytes / stats.totalBytes < 0.90) return false;
-  const targetSizeGB = Math.ceil(usedBytes / 0.80 / 1024 ** 3);
   const key = _STATUS_API_KEY;
   const volume = _VOLUME_NAME;
   if (!key || !volume) return false;
+
+  // Within the cooldown window a resize has already been requested and is
+  // assumed in flight, so report it as triggered without re-firing or re-emailing.
+  const now = Date.now();
+  if (now - lastResizeRequestAt < RESIZE_REQUEST_COOLDOWN_MS) return true;
+  lastResizeRequestAt = now;
+
+  const targetSizeGB = Math.ceil(usedBytes / 0.80 / 1024 ** 3);
+  console.log(`[disk_space] requesting volume resize: volume=${volume} target=${targetSizeGB}GB`);
   fetch("https://status-api.fastr-analytics.org/api/volumes/resize", {
     method: "POST",
     headers: {
@@ -74,7 +89,16 @@ function maybeRequestVolumeResize(stats: DiskStats): boolean {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ volume, targetSizeGB }),
-  }).catch(() => {});
+  })
+    .then(async (res) => {
+      const text = await res.text().catch(() => "");
+      if (res.ok) {
+        console.log(`[disk_space] resize request accepted: ${text}`);
+      } else {
+        console.error(`[disk_space] resize request failed: HTTP ${res.status} ${text}`);
+      }
+    })
+    .catch((e) => console.error(`[disk_space] resize request error: ${e}`));
   if (_SEND_GRID_API) {
     const usedGB = toGB(usedBytes);
     const totalGB = toGB(stats.totalBytes);
@@ -92,7 +116,7 @@ function maybeRequestVolumeResize(stats: DiskStats): boolean {
           subject,
           content: [{ type: "text/plain", value: body }, { type: "text/html", value: html }],
         }),
-      }).catch(() => {});
+      }).catch((e) => console.error(`[disk_space] resize email to ${to} failed: ${e}`));
     }
   }
   return true;
