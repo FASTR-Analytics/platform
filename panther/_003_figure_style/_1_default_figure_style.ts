@@ -165,7 +165,7 @@ const _DS = {
     tickWidth: 10,
     tickLabelGap: 10,
     logicTickLabelWidth: typed<"auto" | "fixed">("auto"),
-    maxTickLabelWidthAsPctOfChart: 0.3,
+    maxTickLabelWidthAsPctOfChart: 0.5,
   },
   yScaleAxis: {
     max: typed<number | "auto" | ((i_series: number) => number)>("auto"),

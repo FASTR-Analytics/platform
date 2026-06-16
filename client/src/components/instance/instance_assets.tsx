@@ -1,31 +1,33 @@
 import {
   Button,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  FolderIcon,
   FrameTop,
   HeadingBarMainRibbon,
   Table,
+  TabsNavigation,
   createDeleteAction,
   type BulkAction,
+  type ListItem,
   type TableColumn,
 } from "panther";
-import { For, Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions";
-import { createUppyInstance, cleanupUppy } from "~/components/_uppy_file_upload";
+import {
+  createUppyInstance,
+  cleanupUppy,
+} from "~/components/_uppy_file_upload";
 import type Uppy from "@uppy/core";
 import { instanceState, updateInstanceAssets } from "~/state/instance/t1_store";
 
 type FileType = "csv" | "excel" | "image" | "zip" | "other";
 
 const FILE_TYPE_LABELS: Record<FileType, { en: string; fr: string }> = {
-  csv: { en: "CSV Files", fr: "Fichiers CSV" },
-  excel: { en: "Excel Files", fr: "Fichiers Excel" },
+  csv: { en: "CSV files", fr: "Fichiers CSV" },
+  excel: { en: "Excel files", fr: "Fichiers Excel" },
   image: { en: "Images", fr: "Images" },
-  zip: { en: "ZIP Files", fr: "Fichiers ZIP" },
-  other: { en: "Other Files", fr: "Autres fichiers" },
+  zip: { en: "ZIP files", fr: "Fichiers ZIP" },
+  other: { en: "Other files", fr: "Autres fichiers" },
 };
 
 const FILE_TYPE_ORDER: FileType[] = ["csv", "excel", "image", "zip", "other"];
@@ -96,14 +98,12 @@ export function InstanceAssets() {
         </HeadingBarMainRibbon>
       }
     >
-      <div class="ui-pad h-full w-full overflow-y-auto">
-        <AssetFileSystem
-          assets={instanceState.assets}
-          currentUserEmail={instanceState.currentUserEmail}
-          isAdmin={instanceState.currentUserIsGlobalAdmin}
-          onDelete={attemptDeleteAssetFile}
-        />
-      </div>
+      <AssetFileSystem
+        assets={instanceState.assets}
+        currentUserEmail={instanceState.currentUserEmail}
+        isAdmin={instanceState.currentUserIsGlobalAdmin}
+        onDelete={attemptDeleteAssetFile}
+      />
     </FrameTop>
   );
 }
@@ -114,15 +114,7 @@ function AssetFileSystem(p: {
   isAdmin: boolean;
   onDelete: (fileName: string) => void;
 }) {
-  const [expandedFolders, setExpandedFolders] = createSignal(new Set<string>());
-
-  function toggleFolder(key: string) {
-    setExpandedFolders((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  }
+  const [selectedType, setSelectedType] = createSignal<FileType>("csv");
 
   const grouped = createMemo(() => {
     const map = new Map<FileType, AssetInfo[]>();
@@ -136,47 +128,61 @@ function AssetFileSystem(p: {
   });
 
   const nonEmptyTypes = createMemo(() =>
-    FILE_TYPE_ORDER.filter((t) => (grouped().get(t)?.length ?? 0) > 0)
+    FILE_TYPE_ORDER.filter((t) => (grouped().get(t)?.length ?? 0) > 0),
+  );
+
+  const activeType = createMemo<FileType | undefined>(() => {
+    const types = nonEmptyTypes();
+    return types.includes(selectedType()) ? selectedType() : types[0];
+  });
+
+  const tabItems = createMemo<ListItem<FileType>[]>(() =>
+    nonEmptyTypes().map((type) => ({
+      id: type,
+      label: t3(FILE_TYPE_LABELS[type]),
+      iconName: "folder",
+      badge: grouped().get(type)?.length ?? 0,
+    })),
   );
 
   return (
     <Show
-      when={p.assets.length > 0}
+      when={activeType()}
       fallback={
-        <p class="text-sm text-neutral pl-2">
-          {t3({ en: "No assets uploaded yet", fr: "Aucune ressource téléversée" })}
+        <p class="text-neutral ui-pad text-sm">
+          {t3({
+            en: "No assets uploaded yet",
+            fr: "Aucune ressource téléversée",
+          })}
         </p>
       }
     >
-      <div class="flex flex-col gap-1 border border-white/10 rounded-lg overflow-hidden">
-        <For each={nonEmptyTypes()}>
-          {(fileType) => {
-            const files = () => grouped().get(fileType) ?? [];
-            const folderKey = fileType;
-            const isExpanded = () => expandedFolders().has(folderKey);
-            return (
-              <AssetFolder
-                label={t3(FILE_TYPE_LABELS[fileType])}
-                files={files()}
-                isExpanded={isExpanded()}
-                onToggle={() => toggleFolder(folderKey)}
-                currentUserEmail={p.currentUserEmail}
-                isAdmin={p.isAdmin}
-                onDelete={p.onDelete}
-              />
-            );
-          }}
-        </For>
-      </div>
+      {(active) => (
+        <FrameTop
+          panelChildren={
+            <TabsNavigation
+              items={tabItems()}
+              value={active()}
+              onChange={setSelectedType}
+            />
+          }
+        >
+          <div class="ui-pad h-full w-full overflow-auto">
+            <AssetTable
+              files={grouped().get(active()) ?? []}
+              currentUserEmail={p.currentUserEmail}
+              isAdmin={p.isAdmin}
+              onDelete={p.onDelete}
+            />
+          </div>
+        </FrameTop>
+      )}
     </Show>
   );
 }
 
-function AssetFolder(p: {
-  label: string;
+function AssetTable(p: {
   files: AssetInfo[];
-  isExpanded: boolean;
-  onToggle: () => void;
   currentUserEmail: string;
   isAdmin: boolean;
   onDelete: (fileName: string) => void;
@@ -203,7 +209,9 @@ function AssetFolder(p: {
       header: t3({ en: "Modified", fr: "Modifié" }),
       sortable: true,
       render: (asset) => (
-        <span class="text-neutral text-sm">{formatDate(asset.lastModified)}</span>
+        <span class="text-neutral text-sm">
+          {formatDate(asset.lastModified)}
+        </span>
       ),
     },
     {
@@ -214,7 +222,7 @@ function AssetFolder(p: {
         <Show
           when={asset.uploaderEmail}
           fallback={
-            <span class="text-neutral/50 italic text-sm">
+            <span class="text-neutral/50 text-sm italic">
               {t3({ en: "system", fr: "système" })}
             </span>
           }
@@ -290,37 +298,14 @@ function AssetFolder(p: {
   });
 
   return (
-    <div class="border-b border-white/10 last:border-b-0">
-      <button
-        class="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
-        onClick={p.onToggle}
-      >
-        <Show
-          when={p.isExpanded}
-          fallback={<ChevronRightIcon class="w-3.5 h-3.5 text-neutral shrink-0" />}
-        >
-          <ChevronDownIcon class="w-3.5 h-3.5 text-neutral shrink-0" />
-        </Show>
-        <FolderIcon class="w-4 h-4 text-primary shrink-0" />
-        <span class="text-sm font-medium text-base-content flex-1">
-          {p.label}
-        </span>
-        <span class="text-xs text-neutral bg-white/10 rounded-full px-2 py-0.5">
-          {p.files.length}
-        </span>
-      </button>
-
-      <Show when={p.isExpanded}>
-        <Table
-          data={p.files}
-          columns={columns()}
-          keyField="fileName"
-          defaultSort={{ key: "fileName", direction: "asc" }}
-          noRowsMessage={t3({ en: "No assets", fr: "Aucune ressource" })}
-          bulkActions={bulkActions()}
-          selectionLabel={t3({ en: "asset", fr: "ressource" })}
-        />
-      </Show>
-    </div>
+    <Table
+      data={p.files}
+      columns={columns()}
+      keyField="fileName"
+      defaultSort={{ key: "fileName", direction: "asc" }}
+      noRowsMessage={t3({ en: "No assets", fr: "Aucune ressource" })}
+      bulkActions={bulkActions()}
+      selectionLabel={t3({ en: "asset", fr: "ressource" })}
+    />
   );
 }
