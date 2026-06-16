@@ -1,9 +1,9 @@
-[TBD] [user] [fixed] - Disruptions chart now shows a clear error when missing a data value
-[TBD] [user] [fixed] - Permission changes dialog now closes properly after saving
-[TBD] [user] [fixed] - Permission form now displays error messages when saving fails
-[TBD] [admin] [fixed] - Project permission form now closes properly after saving
-[TBD] [admin] [fixed] - Project permission form now displays errors clearly
-[TBD] [admin] [fixed] - Disruptions chart shows a clear error when missing a data value
+[1.53.1] [user] [fixed] - Disruptions chart now shows a clear error when missing a data value
+[1.53.1] [user] [fixed] - Permission changes dialog now closes properly after saving
+[1.53.1] [user] [fixed] - Permission form now displays error messages when saving fails
+[1.53.1] [admin] [fixed] - Project permission form now closes properly after saving
+[1.53.1] [admin] [fixed] - Project permission form now displays errors clearly
+[1.53.1] [admin] [fixed] - Disruptions chart shows a clear error when missing a data value
 [1.53.0] [user] [fixed] - Fixed incorrect values sometimes appearing in charts and tables
 [1.53.0] [admin] [fixed] - Project user role and permission updates now work reliably
 [1.53.0] [admin] [internal] - Data values now preserve their original types (text, numbers, nulls)
