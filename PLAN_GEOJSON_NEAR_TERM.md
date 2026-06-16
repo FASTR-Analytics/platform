@@ -1,0 +1,164 @@
+# PLAN: GeoJSON — Near-Term Fixes (ship now, independent of the snapshot architecture)
+
+Status: DRAFT for review. No implementation yet. Report-only until per-step go-ahead.
+
+This is **one of two geojson plans**. This one covers the **near-term, layer-1 / orthogonal** work that can ship immediately and closes the reported production bug. The **bigger architectural work** (making geojson a portable project snapshot) is the companion doc **PLAN_GEOJSON_SNAPSHOT.md**. Read order: this plan first, then PLAN_GEOJSON_SNAPSHOT.md.
+
+A cold reviewer needs no other docs to understand this plan, though PLAN_GEOJSON_SNAPSHOT.md explains why one item here (WS2) is built the way it is.
+
+---
+
+## 0. Context: the bug that started this
+
+A user (Angelica, R4D) reported: *"the platform freezes with the direct import of GeoJSON files at the admin-3 level"* for the **Cameroon** and **DRC** DHIS2 instances; *"we have 100% match in all levels AA2–AA4, but the platform can't pull this much data at once."* She flagged it **not urgent**. Credentials were provided to test.
+
+**Root cause, measured against the live Cameroon DHIS2 (dhis2 level 3 = AA3):**
+- **200** district features (not thousands) — so it is *not* a feature-count problem and *not* (at this level) a client-render problem.
+- **20.4 MB** payload for those 200 polygons (~100 KB each — full-resolution boundaries).
+- **~43 seconds** just to fetch from DHIS2.
+
+The server fetches that 20 MB inside a **60 s** budget ([server/dhis2/goal4_geojson/fetch_geojson.ts:5](server/dhis2/goal4_geojson/fetch_geojson.ts#L5)) and then, *in the same request*, parses it and runs `buildDhis2Context` (more DHIS2 calls). Total exceeds the budget → timeout/freeze. AA4 (more units) is worse; DHIS2 latency is variable. **It is a geometry-payload cliff in the analyze step.**
+
+**Key insight that drives WS1:** the analyze/matching step needs only feature **properties** (names), never the polygon geometry. Geometry is only needed at **save**.
+
+---
+
+## 1. How the import works today (so the fixes make sense)
+
+A 5-step SolidJS wizard ([client/src/components/instance_geojson/geojson_upload_wizard/](client/src/components/instance_geojson/geojson_upload_wizard/)), two source paths (file upload, DHIS2 direct):
+
+- **Step 2** (`step_2.tsx`): pick admin level + dhis2 level → **"Fetch & analyze"** calls `dhis2AnalyzeGeoJson`. ← the freeze. The server fetches the full geojson, builds parent-name context, caches the whole FeatureCollection ([session_cache.ts](server/dhis2/goal4_geojson/session_cache.ts), keyed `url|user|password|level`, 15-min TTL, 10 entries), derives `properties`/`sampleValues` from feature properties, returns `{ properties, sampleValues, featureCount, nullGeometryCount, dhis2Features }`.
+- **Step 3** (`step_3.tsx`): a per-value `<Select>` row maps each geojson property value → an admin area (un-virtualized `For` in a fixed-height box).
+- **Step 4** (`step_4.tsx`): **"Save"** calls `dhis2SaveGeoJsonMap` → reuses the cached FeatureCollection (or re-fetches on expiry) → `processGeoJsonFromDhis2` strips each feature to `{ geometry, properties: { area_id, source_name } }` → upserts one TEXT row per admin level into `geojson_maps`.
+
+Server routes live in [server/routes/instance/geojson_maps.ts](server/routes/instance/geojson_maps.ts); processing in [server/geojson/process_geojson.ts](server/geojson/process_geojson.ts); the contract in [lib/api-routes/instance/geojson_maps.ts](lib/api-routes/instance/geojson_maps.ts). `buildDhis2Context` ([build_dhis2_context.ts](server/dhis2/goal4_geojson/build_dhis2_context.ts)) reads only `uid/name/code/parent` from properties — never geometry.
+
+---
+
+## 2. Scope
+
+**In this plan (all layer-1 / orthogonal; none depends on the snapshot architecture):**
+- **WS1 — Import-freeze fix** (the bug).
+- **WS2 — Match observability** (trust layer; built key-model-agnostic so it survives the Plan 2 key change).
+- **WS3 — Export-resilience gap verification** (mostly already shipped).
+- **WS7 — Upload-edge hardening** (security/robustness).
+
+**Deliberately NOT here → PLAN_GEOJSON_SNAPSHOT.md:** the project-level geojson snapshot, the snapshot-local match-key model (the real cure for silently-wrong maps), dedup of the duplicated processors/matchers/types, lifecycle/versioning/drift-repair, and snapshot-store efficiency/simplification.
+
+---
+
+## 3. WS1 — Import-freeze fix  ·  priority P0  ·  effort M
+
+**Goal:** the matching UI is instant at any level/country, and **AA3** import completes instead of freezing.
+
+**Scope correction (after review):** Angelica's email covered AA2–AA4. WS1 fully fixes **AA3** (the ~200-row case — server payload *and* client render are both fine). **AA4 is NOT closed by WS1 alone** — it strains on two axes: the save payload (facility boundaries can far exceed 20 MB → background worker, Plan 2) and the client render (thousands of `step_3` rows → virtualization, item 9). So WS1's definition of done = **AA3 works end-to-end**, and the comms note to Angelica **must** state that AA4 follows in Plan 2. Do not let "closes the bug" gloss the AA4 gap.
+
+### Core change: split metadata-analyze from geometry-save
+- **Analyze** (`dhis2AnalyzeGeoJson`): replace the 20 MB geojson fetch with a geometry-less metadata fetch: `GET /api/organisationUnits.json?level=N&fields=id,name,code,parent[id],featureType&paging=false`. Build `properties`/`sampleValues`/`featureCount`/context from that. Cache the **light** result (drop the ~20 MB-per-entry heavy cache). The analyze **response shape stays identical**, so `step_2/3/4` need no changes to consume it.
+- **Save** (`dhis2SaveGeoJsonMap`): move the full `/organisationUnits.geojson?level=N` fetch here, with a generous timeout and a progress message. `processGeoJsonFromDhis2` → store, unchanged.
+
+### Hardening the split must include (from adversarial review — these are required, not optional):
+1. **Do not let `withRetry` wrap the heavy save fetch.** `fetchFromDHIS2` ([base_fetcher.ts:138](server/dhis2/common/base_fetcher.ts#L138)) always applies `withRetry` (default `maxAttempts: 5`), and `fetchOrgUnitsGeoJsonForLevel` ([fetch_geojson.ts:7](server/dhis2/goal4_geojson/fetch_geojson.ts#L7)) passes no retry options — so a transient failure re-downloads 20 MB up to 5×. Concrete fix: add a `retryOptions` param to `fetchOrgUnitsGeoJsonForLevel` and pass `{ maxAttempts: 1 }` from the save route.
+2. **Guard or delete the dead `dhis2DetectLevelMapping` route** ([geojson_maps.ts](server/routes/instance/geojson_maps.ts), ~`:412`). It loops `fetchOrgUnitsGeoJsonForLevel` (the full geojson) for **every** level — a worse freeze than analyze — and is **registered but never called from `client/src`** (dead code). Either remove it or re-point it at metadata + `featureType`.
+3. **Match-property existence check at save (silent-data-loss guard).** The match prop is chosen at analyze from the `.json` fields but applied at save against the `.geojson` `feature.properties`. `processGeoJsonFromDhis2` ([process_geojson.ts:107](server/geojson/process_geojson.ts#L107)) does `if (matchValue == null) continue` — so if the key is absent/differently-named in the geojson, **every** feature is dropped and an empty map is saved with no error. Two guards: (a) before processing, verify `areaMatchProp` exists on a sample geojson feature and **error** if not; (b) after processing, if `processedFeatures.length === 0`, **error** rather than store an empty map. Default to matching on `name` — but **do not assume `name` is a geojson property key**; `.json` and `.geojson` can differ, so confirm empirically (§9).
+4. **`featureType` fallback.** The metadata fetch infers "has geometry" from `featureType != NONE`. If it proves unreliable for these instances, fall back to the heavy fetch's null-geometry count at save. Verify against a sample before trusting it.
+5. **`parent[id]` shape normalization.** The geojson nests `parent` as a uid string; the `.json` fetch returns `parent` as an object. Normalize both to a `parentUid` string so `buildDhis2Context` is consistent (it currently does `typeof props.parent === "string"`).
+6. **Explicit timeouts.** Thread an explicit timeout into the save fetch (e.g. `fetchOrgUnitsGeoJsonForLevel(creds, level, timeoutMs=180000)`) rather than bumping the global `FETCH_TIMEOUT` constant. Add an explicit `timeoutMs` on the `dhis2SaveGeoJsonMap` route (client default is 5 min — adequate, but make it explicit). Keep analyze on a short timeout (it's tiny now).
+7. **Cache: separate namespaces for light vs heavy, then staleness.** Analyze and save share one cache via `getCacheKey(url, user, password, level)` ([session_cache.ts](server/dhis2/goal4_geojson/session_cache.ts)). The split stores two *different* payloads (light metadata, heavy geojson) — they **must use distinct key prefixes/TTLs** or they collide under the same key. Concrete: a metadata cache (short TTL) + a heavy-geojson cache (1–2 entries; item 8). Staleness: since the metadata fetch is now tiny, **re-fetch metadata at save** and compare to the cached set rather than trusting a 15-min-old snapshot. (The existing key also hashes the **plaintext password** with a weak 32-bit hash — fix under WS7.)
+8. **Keep a small heavy-geojson cache (1–2 entries)** so a re-save after fixing a mapping isn't another 43 s fetch. (Today's behaviour reused the cache; don't regress the re-save case.)
+9. **AA4 enablement — `step_3` virtualization (NOT needed for AA3; required for AA4).** At AA4 a country can have thousands of facilities, each an un-virtualized `<Select>` row in `step_3.tsx` (and the edit modal). Even with a fast analyze, the browser freezes rendering thousands of rows. This is one of the **two** things AA4 needs (the other is the background-worker save, Plan 2). It is **not** needed for AA3. Decision: ship WS1 as AA3-complete and leave AA4 (virtualization + worker) to Plan 2 — OR pull both into WS1 if AA4 must ship now. Recommended: **AA3 now, AA4 in Plan 2**, and say so to Angelica.
+
+### Phasing within WS1
+- **Phase 0 (optional interim, can ship in an afternoon):** raise the analyze fetch timeout 60 s → 180 s. The 43 s Cameroon AA3 fetch then likely *completes* during analyze. Cheap unblock; fragile for AA4 / slow days; not the real fix.
+- **Phase 1:** the metadata/geometry split above. The real fix.
+
+### Honest scope limit
+Phase 1 reliably fixes **AA3** end-to-end. **AA4** is not solved by WS1 alone — it strains on *two* axes: the save payload (facility boundaries can far exceed 20 MB → needs the background worker + SSE progress in PLAN_GEOJSON_SNAPSHOT.md) and the client render (thousands of `step_3` rows → needs item 9's virtualization). Do not claim AA4 is closed by WS1; the comms note to Angelica must defer AA4 to Plan 2.
+
+---
+
+## 4. WS2 — Match observability (the trust layer)  ·  priority P0  ·  effort M
+
+**Goal:** make a wrong/partial map impossible to miss. Today unmatched features get `area_id=''` (kept, not "excluded" as step 4 claims), unmatched data rows render invisibly, and **nothing counts coverage** — a user cannot tell a correct map from a half-broken one. (Likely mechanism behind the reported Haiti "only one department" and Cameroun map errors.)
+
+**Two halves with different key-model coupling** (a review correction — the earlier "fully key-agnostic" claim was only half true):
+
+**Half A — coverage counting (key-model-agnostic; ships now, survives Plan 2 unchanged):**
+- **At save:** report *"N of M features matched a chosen admin area; K unmatched"* — pure counting over the mapping the user built, independent of what `area_id` *is*.
+- **At render:** surface *"N of M data areas have a boundary; N boundaries have no data."* **Correction:** panther `get_map_data` does **not** expose these counts — it builds the value maps but returns no coverage tally. WS2 must **compute the counts app-side** after the transform (or add a small count to panther `_010_maps`). Don't assume panther "already holds" them.
+- **Threshold/policy (was undefined):** do **not** hard-block on "majority unmatched" — a country mid-rollout legitimately has partial coverage. Rule: **error only on 0 matched** (nothing would render); **warn-but-allow** otherwise, showing the coverage number (a prominent warning below ~70% matched is fine, but allow the save).
+
+**Half B — `area_id` validity (interim name-based; tightens after Plan 2 WS-KEY):**
+- **At save:** validate each chosen `area_id` resolves to a real admin area by joining `admin_areas_N`. **Correction:** that table is **name-keyed today**, so this join is **name-based in the interim** and gets re-pointed to the snapshot-local id once Plan 2's WS-KEY lands. Build it so the *interface* (matched/unmatched lists) stays stable while the *join key* changes.
+
+**Cross-cutting:**
+- **Typed sentinel:** replace the `[INFO] `-string `Error` used as control flow with a **typed result/enum**. Verified consumers (3 files): the throw in [build_figure_inputs.ts](client/src/generate_visualization/build_figure_inputs.ts); the normalize/check in [t2_presentation_objects.ts:217-222](client/src/state/project/t2_presentation_objects.ts#L217); the display check in [PresentationObjectMiniDisplay.tsx:127](client/src/components/PresentationObjectMiniDisplay.tsx#L127). Note: the dashboard export's `prepareFigures` currently **swallows** the throw to `null` (loses the reason), so threading a type also means updating `prepareFigures` to propagate it. ~3 files + the export guard — not a one-line swap.
+- **Manager UI:** per-level coverage/health indicator (matched %, last-validated) instead of only level + `uploadedAt`.
+
+**Why WS2 is here, not in Plan 2:** Half A is the user-facing trust win *and* the measurement tool Plan 2's WS-KEY backfill needs (verify no rows lost). Only Half B's join key changes with WS-KEY (see §7).
+
+---
+
+## 5. WS3 — Export-resilience: one real gap  ·  priority P0  ·  effort S
+
+**Goal:** one map figure that can't resolve geometry must never abort an entire export.
+
+**Status: largely shipped and deployed** (commit `d3743456`, live in 1.52.0): report and slide-deck exports degrade a failed figure to a placeholder; dashboard *render* already has `prepareFigures` try/catch ([_dashboard_pages.ts:30](client/src/exports/_dashboard_pages.ts#L30)).
+
+**Corrections after verification (my earlier scope was wrong):**
+- There is **no PNG export** in the codebase — drop it from scope.
+- **XLSX export only touches table figures** ([export_dashboard_as_xlsx.ts:48](client/src/exports/export_dashboard_as_xlsx.ts#L48) `if ("tableData" in fi)`) — a map figure never reaches it, so nothing to harden there.
+
+**The one genuine remaining gap:** the dashboard **build** step is unguarded. `itemFigureInputs` ([_dashboard_export_model.ts:9](client/src/exports/_dashboard_export_model.ts#L9)) calls `buildFigureInputs(item.bundle)` directly, invoked while constructing the export model ([:85, :98, :105](client/src/exports/_dashboard_export_model.ts#L85)) — **before** `prepareFigures`' try/catch runs. A map figure that throws (missing geometry → the `[INFO]` throw) therefore aborts the whole dashboard export at model-build, which `prepareFigures` never gets to catch. Fix: guard `itemFigureInputs` / the model build so a throwing figure becomes a null/placeholder, same as the render step.
+
+Re-key the placeholder decision off WS2's **typed sentinel** rather than the `[INFO]` string. Small patch, not net-new design.
+
+---
+
+## 6. WS7 — Upload-edge hardening  ·  priority: path-traversal = P1; rest = P2  ·  effort M
+
+**Goal:** close the OOM/DoS and path-traversal surface on the authenticated upload path. Today the upload edge is essentially unguarded. **Priority correction after review:** the blanket "P2" undersold the **filename path-traversal** — treat that one-liner as **P1, pull it forward**; the rest (size caps, deeper validation, credential handling, temp cleanup) stays P2.
+
+**Scope (all evidence-backed weaknesses found in the survey):**
+- **Size/type caps:** enforce a max `Upload-Length` and `allowedFileTypes`/`maxFileSize` in **both** Uppy ([_uppy_file_upload.ts](client/src/components/_uppy_file_upload.ts), currently only `maxNumberOfFiles`) and server-side ([server/routes/instance/upload.ts](server/routes/instance/upload.ts), currently no MIME/size check).
+- **Filename sanitization (P1 — pull forward):** `upload.ts` renames the completed file to the **unsanitized client-supplied filename** — an authenticated user can overwrite arbitrary files via `../`. Reject `../`/absolute paths, normalize, before `Deno.rename`. One-liner; do this independent of the rest of WS7.
+- **Parse guard:** add a feature-count/byte-size guard *before* `readTextFile` + `JSON.parse` in analyze/save — currently an unbounded parse → trivial OOM for any authenticated configure-data user.
+- **Deeper geojson validation:** beyond the one-line type check — verify lon/lat order/range (WGS84), geometry types are polygonal, warn on non-unique match-property values.
+- **Credential handling:** stop persisting the DHIS2 **plaintext password** to client session storage; replace the **32-bit, plaintext-concatenated** cache-key hash ([session_cache.ts](server/dhis2/goal4_geojson/session_cache.ts)) with a non-credential key or a proper KDF.
+- **Temp-file cleanup:** reliably clean orphaned TUS temp files (current cleanup only walks the in-memory Map and only on a new POST).
+
+---
+
+## 7. Cross-plan dependency (the one coupling to Plan 2)
+
+PLAN_GEOJSON_SNAPSHOT.md's match-key migration (WS-KEY) **backfills** existing geojson and needs a way to measure backfill correctness. **That measurement is WS2 Half A** (coverage counting). So:
+
+- WS2 **Half A** (counting) ships in this plan, is key-model-agnostic, and is the tool Plan 2's backfill uses to confirm no rows were lost.
+- WS2 **Half B** (the `area_id`-validity join) is name-based in the interim and gets **re-pointed to the snapshot-local id** when Plan 2's WS-KEY lands — its interface stays stable, only the join key changes.
+- Plan 2's backfill must not start until WS2 Half A exists.
+
+WS1, WS3, WS7 are otherwise independent of Plan 2.
+
+---
+
+## 8. Implementation order (within this plan)
+
+1. **WS7 filename-sanitization one-liner (P1)** — pull this single path-traversal fix forward; independent, cheap.
+2. **WS1** — fixes the bug for **AA3** (optionally land Phase 0 timeout-bump first as an interim). AA4 explicitly deferred to Plan 2.
+3. **WS2** — the trust layer. Half A (coverage counting) ships now and is the measurement Plan 2 needs; Half B's join key tightens after Plan 2's WS-KEY.
+4. **WS3** — the single build-step guard.
+5. **WS7 (rest)** — size caps, deeper validation, credential handling, temp cleanup.
+
+WS1 + WS2 Half A are the P0 pair. WS3 is near-free. The WS7 path-traversal fix is P1; the rest is P2 but shouldn't be deferred indefinitely.
+
+**Shipping note:** "closing Angelica's email" = WS1 (**AA3**) implemented + **deployed** + a comms note that is **honest that AA4 follows in Plan 2**. Deploy state is currently clean (prod 1.52.0); the earlier logo/export fix is already live in 1.52.0.
+
+---
+
+## 9. Hard rules / verification
+
+- **DHIS2 API verification is a hard GATE — do not write WS1 code until these are confirmed against the live Cameroon/DRC instances** (creds available): (a) does `featureType != NONE` reliably mean a feature has stored geometry; (b) is `name` present in **both** the `.json` *and* `.geojson` property sets (the default match key depends on it); (c) does the `parent[id]` projection work, and what shape is `parent` in each response (object vs string — `buildDhis2Context` must normalize both). **Every WS1 silent-data-loss guard above rests on these answers.**
+- **Verify by executing**, not by reading.
+- **Report-only until per-step go-ahead.**
+- No payload-shape change without a cache-prefix bump (CLAUDE.md) — relevant if WS2's typed sentinel changes any cached shape.
+- Stage app changes before any panther resync (WS2's render-count change touches the panther map join, `_010_maps`).

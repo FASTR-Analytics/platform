@@ -24,7 +24,7 @@ docs_absorbed:
   - DOC_AI_PROXY_AND_USAGE_GOVERNANCE
   - DOC_AI_TOOL_SCHEMAS
 ---
-# S13 — AI Copilot & Usage Governance
+# S13 — AI Assistant & Usage Governance
 
 > **Phase 1 stub** (manifest only). Full scope/contract/size: PLAN_SYSTEMS.md §3 (S13).
 > Prose is ported here in this system's first review cycle (Phase 2,
