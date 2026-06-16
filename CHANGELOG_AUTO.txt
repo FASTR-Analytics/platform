@@ -1,40 +1,42 @@
-[TBD] [user] [fixed] - Fixed repeated notification emails about disk space
-[TBD] [admin] [fixed] - Disk resize requests no longer repeat every few seconds
-[TBD] [admin] [added] - Disk resize and alert errors now logged for troubleshooting
-[TBD] [user] [fixed] - Fixed validation of custom calculation formulas for stronger safety checks
-[TBD] [admin] [changed] - Stricter validation for post-aggregation expressions in presentation objects
-[TBD] [admin] [internal] - Removed legacy visualization rendering code path
-[TBD] [admin] [changed] - Visualizations now store all rendering data as a self-contained bundle
-[TBD] [admin] [changed] - Dashboards, reports, and slides use a unified figure storage format
-[TBD] [admin] [internal] - Removed intermediate encode/decode layer for transmitting figure data
-[TBD] [admin] [internal] - Localization for figures is now captured at save time rather than render time
-[TBD] [admin] [internal] - Consolidated duplicate figure-generation logic across dashboards, reports, and slides
-[TBD] [user] [added] - Support for French language and Ethiopian calendar settings
-[TBD] [admin] [added] - Instances now support language and calendar settings
-[TBD] [user] [fixed] - Visualizations now refresh automatically when underlying data changes
-[TBD] [user] [fixed] - Slide deck updates from other users appear reliably in real time
-[TBD] [user] [fixed] - Replicate-by options now update correctly after data or filter changes
-[TBD] [user] [fixed] - Dashboard editor loads more reliably when switching between projects
-[TBD] [user] [fixed] - ICEH dataset display refreshes properly after data re-imports
-[TBD] [user] [fixed] - Style preview in slide deck editor updates more reliably when changing settings
-[TBD] [user] [fixed] - Connection status indicator for projects updates instantly instead of with a delay
-[TBD] [user] [fixed] - Preset previews now refresh when underlying module data changes
-[TBD] [admin] [fixed] - Slide deck loading is now more reliable with proper caching
-[TBD] [admin] [fixed] - Visualizations and reports now refresh automatically when underlying data changes
-[TBD] [admin] [fixed] - ICEH dataset cache now correctly detects re-imports with corrected values
-[TBD] [admin] [fixed] - SSE project connections now enforce authentication and access permissions
-[TBD] [admin] [fixed] - Replicate-by options update reliably when filters change
-[TBD] [admin] [changed] - AI context updates are now pushed in real time to connected users
-[TBD] [admin] [improved] - Faster reconnection feedback when project connection drops
-[TBD] [admin] [improved] - More consistent caching across dataset, visualization, and dashboard views
-[TBD] [user] [fixed] - Fixed errors when loading or downloading map data for admin areas
-[TBD] [admin] [added] - Server now validates all incoming request data against strict schemas
-[TBD] [admin] [fixed] - Malformed or unexpected API inputs are now rejected with clear error messages
-[TBD] [admin] [fixed] - GeoJSON map level parameters are now correctly validated as numbers
-[TBD] [admin] [internal] - Startup checks now verify all API route definitions are consistent
-[TBD] [user] [fixed] - Improved error messages when project backup or restore fails
-[TBD] [admin] [fixed] - Improved error messages when backup or restore operations fail
-[TBD] [admin] [internal] - Renamed internal helper functions across the application
+[1.50.0] [user] [added] - Formatting guide now appears in slide and report editors
+[1.50.0] [admin] [added] - Markdown formatting guide shown in report and slide editors
+[1.50.0] [user] [fixed] - Fixed repeated notification emails about disk space
+[1.50.0] [admin] [fixed] - Disk resize requests no longer repeat every few seconds
+[1.50.0] [admin] [added] - Disk resize and alert errors now logged for troubleshooting
+[1.50.0] [user] [fixed] - Fixed validation of custom calculation formulas for stronger safety checks
+[1.50.0] [admin] [changed] - Stricter validation for post-aggregation expressions in presentation objects
+[1.50.0] [admin] [internal] - Removed legacy visualization rendering code path
+[1.50.0] [admin] [changed] - Visualizations now store all rendering data as a self-contained bundle
+[1.50.0] [admin] [changed] - Dashboards, reports, and slides use a unified figure storage format
+[1.50.0] [admin] [internal] - Removed intermediate encode/decode layer for transmitting figure data
+[1.50.0] [admin] [internal] - Localization for figures is now captured at save time rather than render time
+[1.50.0] [admin] [internal] - Consolidated duplicate figure-generation logic across dashboards, reports, and slides
+[1.50.0] [user] [added] - Support for French language and Ethiopian calendar settings
+[1.50.0] [admin] [added] - Instances now support language and calendar settings
+[1.50.0] [user] [fixed] - Visualizations now refresh automatically when underlying data changes
+[1.50.0] [user] [fixed] - Slide deck updates from other users appear reliably in real time
+[1.50.0] [user] [fixed] - Replicate-by options now update correctly after data or filter changes
+[1.50.0] [user] [fixed] - Dashboard editor loads more reliably when switching between projects
+[1.50.0] [user] [fixed] - ICEH dataset display refreshes properly after data re-imports
+[1.50.0] [user] [fixed] - Style preview in slide deck editor updates more reliably when changing settings
+[1.50.0] [user] [fixed] - Connection status indicator for projects updates instantly instead of with a delay
+[1.50.0] [user] [fixed] - Preset previews now refresh when underlying module data changes
+[1.50.0] [admin] [fixed] - Slide deck loading is now more reliable with proper caching
+[1.50.0] [admin] [fixed] - Visualizations and reports now refresh automatically when underlying data changes
+[1.50.0] [admin] [fixed] - ICEH dataset cache now correctly detects re-imports with corrected values
+[1.50.0] [admin] [fixed] - SSE project connections now enforce authentication and access permissions
+[1.50.0] [admin] [fixed] - Replicate-by options update reliably when filters change
+[1.50.0] [admin] [changed] - AI context updates are now pushed in real time to connected users
+[1.50.0] [admin] [improved] - Faster reconnection feedback when project connection drops
+[1.50.0] [admin] [improved] - More consistent caching across dataset, visualization, and dashboard views
+[1.50.0] [user] [fixed] - Fixed errors when loading or downloading map data for admin areas
+[1.50.0] [admin] [added] - Server now validates all incoming request data against strict schemas
+[1.50.0] [admin] [fixed] - Malformed or unexpected API inputs are now rejected with clear error messages
+[1.50.0] [admin] [fixed] - GeoJSON map level parameters are now correctly validated as numbers
+[1.50.0] [admin] [internal] - Startup checks now verify all API route definitions are consistent
+[1.50.0] [user] [fixed] - Improved error messages when project backup or restore fails
+[1.50.0] [admin] [fixed] - Improved error messages when backup or restore operations fail
+[1.50.0] [admin] [internal] - Renamed internal helper functions across the application
 [1.49.0] [user] [changed] - Indicators can now belong to multiple service categories
 [1.49.0] [user] [added] - Filter HFA data by service categories when adding to a project
 [1.49.0] [user] [added] - HFA data settings panel for configuring service category scope
