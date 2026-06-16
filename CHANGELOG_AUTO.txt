@@ -1,3 +1,7 @@
+[TBD] [user] [changed] - Large data exports now download faster with compression
+[TBD] [user] [changed] - Improved performance when exporting very large result sets
+[TBD] [admin] [changed] - Large data exports now compress automatically, improving transfer speed
+[TBD] [admin] [changed] - Export streaming batch size increased for better throughput
 [1.51.0] [user] [fixed] - Large data exports no longer skip or duplicate rows
 [1.51.0] [user] [changed] - Exporting large datasets is now faster and more reliable
 [1.51.0] [admin] [changed] - Large data exports now stream instead of loading page by page
