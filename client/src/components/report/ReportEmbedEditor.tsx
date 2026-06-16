@@ -11,6 +11,7 @@ import {
   Switch,
 } from "solid-js";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
+import { MarkdownGuide } from "~/components/_markdown_guide";
 
 // The currently-selected report embed (report-specific — no Dashboard naming).
 export type SelectedReportEmbed =
@@ -170,8 +171,7 @@ export function ReportEmbedEditor(p: Props) {
                         <Input
                           label={t3({
                             en: "Alt text for screen readers (optional)",
-                            fr:
-                              "Texte alternatif pour lecteurs d'écran (facultatif)",
+                            fr: "Texte alternatif pour lecteurs d'écran (facultatif)",
                           })}
                           value={captionDraft()}
                           onChange={onCaptionInput}
@@ -185,9 +185,9 @@ export function ReportEmbedEditor(p: Props) {
                   <Button intent="danger" outline onClick={() => p.onDelete()}>
                     {embed().kind === "figure"
                       ? t3({
-                        en: "Delete visualization",
-                        fr: "Supprimer la visualisation",
-                      })
+                          en: "Delete visualization",
+                          fr: "Supprimer la visualisation",
+                        })
                       : t3({ en: "Delete image", fr: "Supprimer l'image" })}
                   </Button>
                 </div>
@@ -195,6 +195,11 @@ export function ReportEmbedEditor(p: Props) {
             </div>
           );
         }}
+      </Show>
+      <Show when={p.canConfigure}>
+        <div class="ui-pad mt-auto border-t">
+          <MarkdownGuide />
+        </div>
       </Show>
     </div>
   );

@@ -27,6 +27,7 @@ import { createSignal, Match, Setter, Show, Switch } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
 import { SetStoreFunction } from "solid-js/store";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
+import { MarkdownGuide } from "~/components/_markdown_guide";
 
 type Props = {
   projectId: string;
@@ -463,7 +464,7 @@ export function SlideEditorPanelContent(p: Props) {
                         }
                         fullWidth
                         height="300px"
-                      />{" "}
+                      />
                       <Select
                         label={t3({
                           en: "Text background",
@@ -509,6 +510,9 @@ export function SlideEditorPanelContent(p: Props) {
                         }
                         fullWidth
                       />
+
+                      <MarkdownGuide />
+
                       {/* <>
                         {(() => {
                           const TICK_LABEL_KEYS = new Set<TextSizeKey>([
