@@ -78,11 +78,22 @@ export const figureLocalizationSchema = z.strictObject({
 
 export type FigureLocalization = z.infer<typeof figureLocalizationSchema>;
 
+// ── Item grid ────────────────────────────────────────────────────────────────
+// One query-result row. A cell is whatever SQL returns for that column: text →
+// string, period_id/count → number, missing aggregate → null. Mirrors panther's
+// JsonArrayItem (undefined isn't representable in stored JSON). Renderers coerce
+// at use (Number()/String()), so we store the natural value and validate its
+// shape here rather than forcing string.
+export const jsonArrayItemSchema = z.record(
+  z.string(),
+  z.union([z.string(), z.number(), z.null()]),
+);
+
 // ── Bundle schema ────────────────────────────────────────────────────────────
 
 export const figureBundleSchema = z.strictObject({
   config: presentationObjectConfigSchema,
-  items: z.array(z.record(z.string(), z.string())),
+  items: z.array(jsonArrayItemSchema),
   resultsValue: resultsValueForVisualizationSchema,
   indicatorMetadata: z.array(indicatorMetadataSchema),
   dateRange: periodBoundsSchema.optional(),

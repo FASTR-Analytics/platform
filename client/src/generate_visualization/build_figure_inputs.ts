@@ -251,7 +251,7 @@ function buildIndicatorSortOrder(metadata: IndicatorMetadata[]): string[] {
 }
 
 function displayedIndicatorsAllPercent(
-  items: Record<string, string>[],
+  items: FigureBundle["items"],
   metadata: IndicatorMetadata[],
   config: PresentationObjectConfig,
 ): boolean {
@@ -265,8 +265,8 @@ function displayedIndicatorsAllPercent(
   const cols = config.d.disaggregateBy.map((d) => d.disOpt);
   let sawIndicator = false;
 
-  const inspect = (value: string | undefined): boolean => {
-    const format = value === undefined ? undefined : formatById.get(value);
+  const inspect = (value: string | number | null | undefined): boolean => {
+    const format = typeof value === "string" ? formatById.get(value) : undefined;
     if (format === undefined) return true;
     sawIndicator = true;
     return format === "percent";
