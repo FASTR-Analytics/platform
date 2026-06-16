@@ -12,7 +12,8 @@ import {
   Button,
   Checkbox,
   ModalContainer,
-  createButtonAction,
+  StateHolderFormError,
+  createFormAction,
 } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -64,7 +65,7 @@ export function ProjectPermissionForm(p: AlertComponentProps<Props, undefined>) 
     setPermissions({ ...current, [key]: !current[key] });
   };
 
-  const save = createButtonAction(
+  const save = createFormAction(
     async () => {
       const perms = permissions();
       if (!perms) return { success: false as const, err: "No permissions" };
@@ -95,9 +96,7 @@ export function ProjectPermissionForm(p: AlertComponentProps<Props, undefined>) 
         return res;
       }
     },
-    async () => {
-      setOriginalPermissions(permissions());
-    },
+    () => p.close(undefined),
   );
 
   return (
@@ -162,6 +161,7 @@ export function ProjectPermissionForm(p: AlertComponentProps<Props, undefined>) 
           </div>
         )}
       </Show>
+      <StateHolderFormError state={save.state()} />
     </ModalContainer>
   );
 }

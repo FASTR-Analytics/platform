@@ -181,7 +181,10 @@ export function generateAreaPrimitives(
         });
       }
     }
-  } else if (s.areas && s.areas.diff.enabled) {
+  } else if (s.areas && s.areas.diff.enabled && mapped.length >= 2) {
+    // The diff shades the area between two series (mapped[0] vs mapped[1]); with
+    // only one series there's nothing to diff, so skip it (degrade) rather than
+    // dereferencing the absent mapped[1].
     const areas: {
       order: "over" | "under";
       coords: Coordinates[];

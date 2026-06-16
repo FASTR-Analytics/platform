@@ -31,7 +31,10 @@ import {
 import { getStyleFromPresentationObject } from "./get_style_from_po";
 import { getMapJsonDataConfigFromPresentationObjectConfig } from "./get_data_config_for_map";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
-import { isSpecialScorecardTableActive } from "./special_chart_checks";
+import {
+  isSpecialDisruptionsChartActive,
+  isSpecialScorecardTableActive,
+} from "./special_chart_checks";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 
 // Builds FigureInputs from a FigureBundle. All locale reads come from
@@ -58,6 +61,15 @@ export function buildFigureInputs(
     dateRange,
     valueProps: resultsValue.valueProps,
   });
+
+  // The disruptions chart compares two data values (actual vs expected) as two
+  // series and shades the diff between them — a single data value has nothing to
+  // compare. Fail with a clear message rather than a cryptic render crash.
+  if (isSpecialDisruptionsChartActive(config) && effectiveValueProps.length < 2) {
+    throw new Error(
+      "Disruptions chart needs both data values (actual and expected). Add the second data value, or turn off disruptions mode.",
+    );
+  }
 
   if (effectiveConfig.d.type === "timeseries") {
     const j = getTimeseriesJsonDataConfigFromPresentationObjectConfig(
