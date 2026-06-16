@@ -1,3 +1,6 @@
+[1.50.1] [user] [changed] - Asset files now use tabs instead of collapsible folders
+[1.50.1] [user] [changed] - Upload form buttons are grouped side by side
+[1.50.1] [admin] [changed] - Assets page now uses tabs instead of expandable folders
 [1.50.0] [user] [added] - Formatting guide now appears in slide and report editors
 [1.50.0] [admin] [added] - Markdown formatting guide shown in report and slide editors
 [1.50.0] [user] [fixed] - Fixed repeated notification emails about disk space
