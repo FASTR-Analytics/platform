@@ -1,3 +1,7 @@
+[1.50.2] [user] [fixed] - Exports no longer fail completely when a figure or image can't load
+[1.50.2] [user] [changed] - Missing figures or images now show a clear placeholder note instead of disappearing silently
+[1.50.2] [admin] [fixed] - Exports no longer fail entirely when a figure or image cannot load
+[1.50.2] [admin] [changed] - Unavailable figures and images now show a placeholder note instead of being silently removed
 [1.51.1] [user] [changed] - Large data exports now download faster with compression
 [1.51.1] [user] [changed] - Improved performance when exporting very large result sets
 [1.51.1] [admin] [changed] - Large data exports now compress automatically, improving transfer speed
