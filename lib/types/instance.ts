@@ -5,6 +5,7 @@ import type { DatasetType } from "./datasets.ts";
 import type { IndicatorMetadata, IndicatorType } from "./indicators.ts";
 import type { ProjectUserPermissions, UserPermissions } from "./permissions.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
+import type { JsonArrayItem } from "./_figure_bundle.ts";
 import {
   GenericLongFormFetchConfig,
   PeriodBounds,
@@ -424,7 +425,7 @@ export type ItemsHolderResultsObject =
   | {
       status: "ok";
       totalCount: number;
-      items: Record<string, string>[];
+      items: JsonArrayItem[];
     }
   | {
       status: "no_data_available";
@@ -444,7 +445,7 @@ export type ItemsHolderPresentationObject = {
 } & (
   | {
       status: "ok";
-      items: Record<string, string>[];
+      items: JsonArrayItem[];
       indicatorMetadata: IndicatorMetadata[];
     }
   | {

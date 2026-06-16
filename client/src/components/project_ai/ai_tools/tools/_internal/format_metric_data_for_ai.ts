@@ -1,6 +1,7 @@
 import {
   type AiMetricQuery,
   type IndicatorMetadata,
+  type JsonArrayItem,
   type MetricAIDescription,
   type MetricWithStatus,
   type PresentationObjectConfig,
@@ -333,7 +334,7 @@ function formatItemsAsMarkdown(
 }
 
 function getDimensionStats(
-  items: Record<string, string>[],
+  items: JsonArrayItem[],
   columns: string[],
 ): Record<string, { uniqueCount: number; uniqueValues: string[] }> {
   const stats: Record<string, { uniqueCount: number; uniqueValues: string[] }> =
@@ -357,7 +358,7 @@ function getDimensionStats(
 }
 
 function pivotAndFormatAsCSV(
-  items: Record<string, string>[],
+  items: JsonArrayItem[],
   columns: string[],
   disaggregations: DisaggregationOption[],
   formatAs: "percent" | "number",
@@ -377,7 +378,7 @@ function pivotAndFormatAsCSV(
       (d) => d !== "indicator_common_id",
     );
     const indicators = [
-      ...new Set(items.map((item) => item.indicator_common_id)),
+      ...new Set(items.map((item) => String(item.indicator_common_id))),
     ].sort();
 
     return pivotToWide(
@@ -398,7 +399,7 @@ function pivotAndFormatAsCSV(
   if (timeDimension) {
     const rowDimensions = disaggregations.filter((d) => d !== timeDimension);
     const timePeriods = [
-      ...new Set(items.map((item) => item[timeDimension])),
+      ...new Set(items.map((item) => String(item[timeDimension]))),
     ].sort();
 
     return pivotToWide(
@@ -416,7 +417,7 @@ function pivotAndFormatAsCSV(
 }
 
 function pivotToWide(
-  items: Record<string, string>[],
+  items: JsonArrayItem[],
   rowDimensions: DisaggregationOption[],
   pivotDimension: string,
   pivotValues: string[],
@@ -443,7 +444,7 @@ function pivotToWide(
   lines.push(headerCols.join(","));
 
   // Group items by row dimensions
-  const grouped = new Map<string, Record<string, string>[]>();
+  const grouped = new Map<string, JsonArrayItem[]>();
 
   for (const item of items) {
     const rowKey = rowDimensions.map((dim) => item[dim] || "").join("|");
@@ -461,7 +462,7 @@ function pivotToWide(
     for (const pivotVal of pivotValues) {
       // Find item matching this pivot value
       const matchingItem = rowItems.find(
-        (item) => item[pivotDimension] === pivotVal,
+        (item) => String(item[pivotDimension]) === pivotVal,
       );
 
       if (matchingItem) {
@@ -486,7 +487,7 @@ function pivotToWide(
 }
 
 function formatLongCSV(
-  items: Record<string, string>[],
+  items: JsonArrayItem[],
   columns: string[],
   decimalPlaces: number,
 ): string {

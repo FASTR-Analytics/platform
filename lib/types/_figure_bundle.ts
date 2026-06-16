@@ -89,6 +89,8 @@ export const jsonArrayItemSchema = z.record(
   z.union([z.string(), z.number(), z.null()]),
 );
 
+export type JsonArrayItem = z.infer<typeof jsonArrayItemSchema>;
+
 // ── Bundle schema ────────────────────────────────────────────────────────────
 
 export const figureBundleSchema = z.strictObject({
