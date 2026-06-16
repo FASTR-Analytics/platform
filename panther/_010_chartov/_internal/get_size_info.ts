@@ -53,20 +53,38 @@ export function getChartOVComponentSizes(
   const indicatorHeaders = data.indicatorHeaders;
   const nIndicators = indicatorHeaders.length;
 
-  let maxWordWidth = 0;
-  for (const header of indicatorHeaders) {
-    const words = header.label.split(/\s+/);
-    for (const word of words) {
-      if (word.length === 0) continue;
-      const mText = rc.mText(word, textStyle, Infinity);
-      maxWordWidth = Math.max(maxWordWidth, mText.dims.w());
+  // Per-column width floor for the x-text axis. The renderer draws the labels
+  // differently depending on rotation, so the floor must too (see the sizing
+  // invariant in DOC_SIZING_MODEL.md):
+  //   - vertical (rotated) labels run UP the column, so a column only needs the
+  //     label's horizontal footprint — one line-height — not the word width.
+  //   - horizontal labels wrap at the column width, so a column must be at least
+  //     as wide as the widest single word or that word overflows/clips.
+  // (Symmetric known limitation, like the horizontal branch ignoring soft-wrap
+  // beyond the widest word: a vertical label long enough to wrap past the height
+  // cap has a taller footprint than one line; that rare short-chart case is not
+  // floored here.)
+  let perColumnWidth = 0;
+  if (ms.xTextAxis.verticalTickLabels) {
+    for (const header of indicatorHeaders) {
+      const lineH = rc.mText(header.label, textStyle, Infinity).dims.h();
+      perColumnWidth = Math.max(perColumnWidth, lineH);
+    }
+  } else {
+    for (const header of indicatorHeaders) {
+      const words = header.label.split(/\s+/);
+      for (const word of words) {
+        if (word.length === 0) continue;
+        const mText = rc.mText(word, textStyle, Infinity);
+        perColumnWidth = Math.max(perColumnWidth, mText.dims.w());
+      }
     }
   }
 
   const gridStrokeWidth = ms.grid.gridStrokeWidth;
   const minSubChartWidth = ms.xTextAxis.tickPosition === "center"
-    ? nIndicators * maxWordWidth
-    : nIndicators * maxWordWidth + gridStrokeWidth * (nIndicators + 1);
+    ? nIndicators * perColumnWidth
+    : nIndicators * perColumnWidth + gridStrokeWidth * (nIndicators + 1);
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,

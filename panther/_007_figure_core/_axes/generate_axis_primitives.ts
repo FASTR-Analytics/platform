@@ -108,7 +108,7 @@ export function generateXTextAxisPrimitive(
       indicatorHeaders[i_indicator].label,
       sx.text.xTextAxisTickLabels,
       sx.verticalTickLabels
-        ? Number.POSITIVE_INFINITY
+        ? mx.verticalTickLabelMaxHeight
         : mx.indicatorAreaInnerWidth,
       { rotation: sx.verticalTickLabels ? "anticlockwise" : undefined },
     );

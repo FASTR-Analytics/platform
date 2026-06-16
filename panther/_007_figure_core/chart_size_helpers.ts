@@ -49,6 +49,18 @@ export type ResolveTargetPlotH = (
   probeLayouts: PaneLayout[],
 ) => number;
 
+// Per-renderer legibility-FLOOR plot height: the minimum per-sub-chart height
+// at which the renderer's content draws WITHOUT OVERLAP (text wrapped at the
+// real wrap width; rotation/caps applied). Same shape as ResolveTargetPlotH but
+// a different policy — the floor omits comfort terms (e.g. ideal bar thickness)
+// that the natural target reserves. Consumed by the shrink-to-fit decision so it
+// reacts to wrapped tick labels. Scale-axis charts don't supply one: their floor
+// (minSubChartHeight) is layout-independent and already exact.
+export type ResolveFloorPlotH = (
+  info: ChartComponentSizes,
+  probeLayouts: PaneLayout[],
+) => number;
+
 // Natural plot-height resolver for scale-axis charts (ChartOV, Timeseries):
 // the idealHeight.idealPlotHeight policy evaluated at the vertically-stacked
 // subchart-row count (nPaneRows × nTiers). Layout-independent — probeLayouts
@@ -62,6 +74,19 @@ export function resolveScaleAxisPlotHeight(
     info.mergedStyle.panes.nCols,
   );
   return info.mergedStyle.idealHeight.idealPlotHeight(nGRows * info.nTiers);
+}
+
+// Legibility-FLOOR resolver for scale-axis charts (ChartOV, Timeseries): the
+// per-sub-chart plot floor is the scale-axis minimum, which is layout- and
+// scale-independent (no wrapped text in the run direction). Supplying it routes
+// the chart through the probe-based fit decision, which makes the OVERHEAD —
+// notably the real x-text axis height including rotated/capped tick labels —
+// accurate, fixing the unrotated `"Category"`/`"2024"` sample's blind spot.
+export function resolveScaleAxisFloorPlotH(
+  info: ChartComponentSizes,
+  _probeLayouts: PaneLayout[],
+): number {
+  return info.minSubChartHeight;
 }
 
 // Single clamp + finite guard for any ResolveTargetPlotH result. Keeps the
@@ -174,6 +199,10 @@ export function measureChartWithAutofit<
   // When provided alongside probeMeasure, resolves the natural target for
   // naturalH in the fitReport so it matches getIdealHeight().idealH.
   resolveTargetForReport?: ResolveTargetPlotH,
+  // When provided alongside probeMeasure (ChartOH), the shrink-to-fit decision
+  // measures the height floor and min-width from real probe layouts instead of
+  // the unwrapped/sample estimates, so it reacts to wrapped tick labels.
+  resolveFloor?: ResolveFloorPlotH,
 ): TMeasured {
   const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
   if (!autofitOpts) {
@@ -184,16 +213,62 @@ export function measureChartWithAutofit<
   const getSizes = memoizeByScale(getChartComponentSizes);
   const info1 = getSizes(1.0);
   const baseFontSizeDu = info1.customFigureStyle.baseFontSize;
+  const { nGCols, nGRows } = calculatePaneGrid(
+    info1.paneHeaders.length,
+    info1.mergedStyle.panes.nCols,
+  );
+  const nTiers = info1.nTiers;
 
-  // The autofit probe checks the LEGIBILITY FLOOR (minH semantics), not the
-  // natural idealH. This decoupling is Phase B1: once idealH becomes natural
-  // (~3× larger), checking idealHeight here would shrink fonts in flex slots
-  // that are smaller than natural but still perfectly legible.
+  // Per-scale memoized probe closures, cached across scales. Only built when the
+  // probe-based floor path is active (ChartOH).
+  const probeByScale = new Map<number, (probeH: number) => PaneLayout[]>();
+  function getMemoProbeAtScale(
+    scale: number,
+  ): (probeH: number) => PaneLayout[] {
+    let p = probeByScale.get(scale);
+    if (p === undefined) {
+      p = memoizeByScale((probeH: number) => probeMeasure!(probeH, scale));
+      probeByScale.set(scale, p);
+    }
+    return p;
+  }
+
+  // The autofit decision checks the LEGIBILITY FLOOR (minH semantics), not the
+  // natural idealH. This decoupling is Phase B1: a figure may be smaller than
+  // natural without shrinking fonts. When the renderer supplies a probe + floor
+  // resolver (ChartOH), the floor and min-width are measured from real probe
+  // layouts so the decision sees the renderer's true wrapped/real extent (the
+  // floor is the no-overlap minimum, not a comfort target). Otherwise
+  // (scale-axis charts) the layout-independent estimate is exact.
   const getSizeAtScale = memoizeByScale((scale: number) => {
     const info = getSizes(scale);
+    if (!probeMeasure || !resolveFloor) {
+      return {
+        minWidth: calculateChartMinWidth(info),
+        idealHeight: calculateChartIdealHeight(rc, bounds.w(), info, inputs),
+      };
+    }
+    const memoProbe = getMemoProbeAtScale(scale);
+    const est = calculateChartIdealHeight(rc, bounds.w(), info, inputs);
+    const layouts = memoProbe(est);
+    const maxRealYAxisWidth = Math.max(...layouts.map((l) => l.yAxisWidth));
+    const floorTarget = finalizeTargetPlotH(
+      info.minSubChartHeight,
+      resolveFloor(info, layouts),
+    );
     return {
-      minWidth: calculateChartMinWidth(info),
-      idealHeight: calculateChartIdealHeight(rc, bounds.w(), info, inputs),
+      minWidth: calculateChartMinWidthWithRealYAxis(
+        info,
+        nGCols,
+        maxRealYAxisWidth,
+      ),
+      idealHeight: computeChartIdealHeightByMeasure(
+        nGRows,
+        nTiers,
+        floorTarget,
+        memoProbe,
+        est,
+      ),
     };
   });
 
@@ -214,10 +289,6 @@ export function measureChartWithAutofit<
   let naturalHOverride: number | undefined;
   if (probeMeasure) {
     const memoProbe = memoizeByScale((h: number) => probeMeasure(h));
-    const { nGRows: pgRows } = calculatePaneGrid(
-      info1.paneHeaders.length,
-      info1.mergedStyle.panes.nCols,
-    );
     const estH1 = calculateChartIdealHeight(rc, bounds.w(), info1, inputs);
     let naturalTargetPlotH = info1.minSubChartHeight;
     if (resolveTargetForReport) {
@@ -228,8 +299,8 @@ export function measureChartWithAutofit<
       );
     }
     naturalHOverride = computeChartIdealHeightByMeasure(
-      pgRows,
-      info1.nTiers,
+      nGRows,
+      nTiers,
       naturalTargetPlotH,
       memoProbe,
       estH1,
@@ -312,6 +383,9 @@ export function getChartHeightConstraintsByMeasure<
   getChartComponentSizes: (scale: number) => ChartComponentSizes,
   probeMeasure: (probeH: number, scale?: number) => PaneLayout[],
   resolveTarget: ResolveTargetPlotH,
+  // When supplied (ChartOH), minH uses the real wrapped-label floor, matching
+  // the live fit decision's no-overlap floor instead of the unwrapped estimate.
+  resolveFloor?: ResolveFloorPlotH,
 ): HeightConstraints {
   const autofitOpts = resolveFigureAutofitOptions(inputs.autofit);
   const getSizes = memoizeByScale(getChartComponentSizes);
@@ -385,13 +459,20 @@ export function getChartHeightConstraintsByMeasure<
     minFontSizeDu: autofitOpts.minFontSizeDu,
   });
   const infoFloor = getSizes(floorScale);
-  // minH always uses the legibility floor regardless of the hook — it's the
-  // minimum renderable size, not the natural size.
-  const targetPlotHFloor = infoFloor.minSubChartHeight;
   const estMinH = calculateChartIdealHeight(rc, width, infoFloor, inputs);
   const memoProbeFloor = memoizeByScale((probeH: number) =>
     probeMeasure(probeH, floorScale)
   );
+  // minH uses the legibility floor — the minimum renderable size, not the
+  // natural size. When a floor resolver is supplied (ChartOH) it reflects the
+  // real wrapped-label height, matching the live fit decision; otherwise the
+  // layout-independent minSubChartHeight estimate is exact.
+  const targetPlotHFloor = resolveFloor
+    ? finalizeTargetPlotH(
+      infoFloor.minSubChartHeight,
+      resolveFloor(infoFloor, memoProbeFloor(estMinH)),
+    )
+    : infoFloor.minSubChartHeight;
   const minH = computeChartIdealHeightByMeasure(
     nGRows,
     nTiers,

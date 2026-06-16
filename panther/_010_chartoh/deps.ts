@@ -50,6 +50,7 @@ export type {
   MeasuredSurrounds,
   PaneLayout,
   ProcessedHeaders,
+  ResolveFloorPlotH,
   ResolveTargetPlotH,
   SimplifiedChartConfig,
   UncertaintyConfig,

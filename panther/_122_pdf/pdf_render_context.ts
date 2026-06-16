@@ -40,6 +40,17 @@ type JsPdfUntyped = {
   fillStroke: (style: string) => void;
 };
 
+// jsPDF picks its image decoder by SNIFFING the bytes; the format arg is only a
+// fallback used when sniffing fails. Derive it from the data-URL MIME so a JPEG
+// data URL never falls back to the PNG decoder ("wrong PNG signature").
+function imageFormatFromDataUrl(dataUrl: string): "PNG" | "JPEG" | "WEBP" {
+  const m = /^data:image\/(\w+)/i.exec(dataUrl);
+  const fmt = m?.[1]?.toLowerCase();
+  if (fmt === "jpeg" || fmt === "jpg") return "JPEG";
+  if (fmt === "webp") return "WEBP";
+  return "PNG";
+}
+
 export class PdfRenderContext implements RenderContext {
   _jsPdf: jsPDF;
   _crc: CanvasRenderContext;
@@ -596,9 +607,17 @@ export class PdfRenderContext implements RenderContext {
         // 5-parameter version: drawImage(image, dx, dy, dw, dh)
         const [dx, dy, dw, dh] = args;
 
-        // Handle data URL strings
+        // Handle data URL strings — pass the real format, not a guessed "PNG"
+        // (a JPEG data URL fed to the PNG decoder throws "wrong PNG signature").
         if (typeof image === "string") {
-          this._jsPdf.addImage(image, "PNG", dx, dy, dw, dh);
+          this._jsPdf.addImage(
+            image,
+            imageFormatFromDataUrl(image),
+            dx,
+            dy,
+            dw,
+            dh,
+          );
           return;
         }
 
@@ -612,7 +631,14 @@ export class PdfRenderContext implements RenderContext {
           const wrapper = image as any;
           if (wrapper.src && typeof wrapper.src === "string") {
             // Use the pre-computed data URL directly
-            this._jsPdf.addImage(wrapper.src, "PNG", dx, dy, dw, dh);
+            this._jsPdf.addImage(
+              wrapper.src,
+              imageFormatFromDataUrl(wrapper.src),
+              dx,
+              dy,
+              dw,
+              dh,
+            );
           } else {
             // Fallback to canvas-based approach
             const gfxImage = wrapper._gfxCanvasImage;
@@ -625,8 +651,35 @@ export class PdfRenderContext implements RenderContext {
             const dataUrl = tempCanvas.toDataURL("png");
             this._jsPdf.addImage(dataUrl, "PNG", dx, dy, dw, dh);
           }
+        } else if (
+          typeof HTMLImageElement !== "undefined" &&
+          image instanceof HTMLImageElement
+        ) {
+          // jsPDF re-reads a non-data <img> src (our images are blob: URLs) with
+          // an unreliable synchronous XHR; on failure it applies the "PNG" hint
+          // to non-PNG bytes → fast-png "wrong PNG signature". Rasterize the
+          // already-decoded element to deterministic PNG bytes at native size.
+          const sw = image.naturalWidth || image.width;
+          const sh = image.naturalHeight || image.height;
+          const tempCanvas = this._createCanvas(
+            Math.max(1, sw),
+            Math.max(1, sh),
+          );
+          const tempCtx = tempCanvas.getContext("2d");
+          if (!tempCtx) {
+            throw new Error("Failed to create temporary canvas context");
+          }
+          tempCtx.drawImage(image, 0, 0, sw, sh);
+          this._jsPdf.addImage(
+            tempCanvas.toDataURL("png"),
+            "PNG",
+            dx,
+            dy,
+            dw,
+            dh,
+          );
         } else {
-          // Regular HTMLImageElement or HTMLCanvasElement
+          // HTMLCanvasElement — jsPDF reads it via toDataURL; format honored.
           this._jsPdf.addImage(image, "PNG", dx, dy, dw, dh);
         }
       } else if (args.length === 8) {

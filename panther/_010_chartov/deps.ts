@@ -37,6 +37,7 @@ export {
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
+  resolveScaleAxisFloorPlotH,
   resolveScaleAxisPlotHeight,
   validateDataInput,
   validateUncertaintyConfig,

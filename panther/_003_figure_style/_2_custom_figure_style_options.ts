@@ -179,6 +179,7 @@ export type CustomFigureStyleOptions = {
     tickPosition?: "sides" | "center";
     tickHeight?: number;
     tickLabelGap?: number;
+    maxTickLabelHeightAsPctOfChart?: number;
   };
   xScaleAxis?: {
     max?: number | "auto" | ((i_pane: number) => number);

@@ -11,6 +11,7 @@ import {
 } from "./_internal/get_size_info.ts";
 import {
   calculatePaneGrid,
+  type ChartComponentSizes,
   getChartHeightConstraintsByMeasure,
   type HeightConstraints,
   measureChartWithAutofit,
@@ -18,6 +19,7 @@ import {
   RectCoordsDims,
   type RenderContext,
   type Renderer,
+  type ResolveFloorPlotH,
   type ResolveTargetPlotH,
 } from "./deps.ts";
 import type { MergedChartOHStyle } from "./deps.ts";
@@ -27,8 +29,50 @@ import type {
   MeasuredChartOH,
 } from "./types.ts";
 
+// Real category-label height at the y-text axis wrap width. The real axis wraps
+// at pane content width × pct (measureYTextAxisWidthInfo), so use the probe's
+// most-constrained paneContentWidth — matching what the renderer actually draws.
+function maxWrappedCategoryLabelH(
+  rc: RenderContext,
+  ohStyle: MergedChartOHStyle,
+  data: ChartOHDataTransformed,
+  probeLayouts: PaneLayout[],
+): number {
+  const minPaneContentW = Math.min(
+    ...probeLayouts.map((l) => l.paneContentWidth),
+  );
+  const wrapW = minPaneContentW *
+    ohStyle.yTextAxis.maxTickLabelWidthAsPctOfChart;
+  let maxWrappedH = 0;
+  for (const h of data.indicatorHeaders) {
+    const mh = rc
+      .mText(h.label, ohStyle.yTextAxis.text.yTextAxisTickLabels, wrapW)
+      .dims.h();
+    if (mh > maxWrappedH) maxWrappedH = mh;
+  }
+  return maxWrappedH;
+}
+
+// Per-sub-chart plot height for a given per-indicator row height. Mirrors
+// minSubChartHeight (get_size_info.ts): the sub-chart height must include the
+// inter-row grid strokes (sides mode) so each row's slot is >= its (wrapped)
+// label height — without the stroke term, rows are ~stroke/n too short and the
+// labels overlap. Floor and natural target share this so they differ only by
+// the bar-comfort term.
+function ohPerSubChartPlotH(
+  info: ChartComponentSizes,
+  nIndicators: number,
+  perIndicatorH: number,
+): number {
+  const ohStyle = info.mergedStyle as MergedChartOHStyle;
+  const gridStrokeWidth = info.mergedStyle.grid.gridStrokeWidth;
+  return ohStyle.yTextAxis.tickPosition === "center"
+    ? nIndicators * perIndicatorH
+    : nIndicators * perIndicatorH + gridStrokeWidth * (nIndicators + 1);
+}
+
 // ChartOH subchart height is category-driven (not a scale-axis plot height):
-//   nIndicators × max(wrappedLabelH, nBarsPerIndicator × rowThickness)
+//   nIndicators × max(wrappedLabelH, nBarsPerIndicator × rowThickness) (+ strokes)
 // Bar thickness comes from idealHeight.idealRowThickness, which decays with the
 // figure's TOTAL bar rows (across all stacked subcharts) — so dense category
 // charts thin their bars rather than growing without bound, and thickness
@@ -54,26 +98,39 @@ function buildOHResolveTarget(
     const rowThickness = info.mergedStyle.idealHeight.idealRowThickness(
       nTotalBarRows,
     );
-    // maxWrappedCategoryLabelH: real label height at the y-text axis wrap
-    // width. The real axis wraps at pane content width × pct
-    // (measureYTextAxisWidthInfo), so use the probe's paneContentWidth.
-    const minPaneContentW = Math.min(
-      ...probeLayouts.map((l) => l.paneContentWidth),
+    const maxWrappedH = maxWrappedCategoryLabelH(
+      rc,
+      ohStyle,
+      data,
+      probeLayouts,
     );
-    const wrapW = minPaneContentW *
-      ohStyle.yTextAxis.maxTickLabelWidthAsPctOfChart;
-    let maxWrappedH = 0;
-    for (const h of data.indicatorHeaders) {
-      const mh = rc
-        .mText(h.label, ohStyle.yTextAxis.text.yTextAxisTickLabels, wrapW)
-        .dims.h();
-      if (mh > maxWrappedH) maxWrappedH = mh;
-    }
     const perIndicatorH = Math.max(
       maxWrappedH,
       nBarsPerIndicator * rowThickness,
     );
-    return nIndicators * perIndicatorH;
+    return ohPerSubChartPlotH(info, nIndicators, perIndicatorH);
+  };
+}
+
+// Legibility FLOOR: the minimum per-sub-chart height at which the category
+// labels render without overlapping their neighbours — text only (bars have no
+// legibility floor; they may be 1px thin). Differs from the natural target only
+// by dropping the bar-comfort term, so floor < natural still holds.
+function buildOHResolveFloor(
+  rc: RenderContext,
+  data: ChartOHDataTransformed,
+): ResolveFloorPlotH {
+  return (info, probeLayouts) => {
+    const nIndicators = data.indicatorHeaders.length;
+    if (nIndicators === 0) return info.minSubChartHeight;
+    const ohStyle = info.mergedStyle as MergedChartOHStyle;
+    const maxWrappedH = maxWrappedCategoryLabelH(
+      rc,
+      ohStyle,
+      data,
+      probeLayouts,
+    );
+    return ohPerSubChartPlotH(info, nIndicators, maxWrappedH);
   };
 }
 
@@ -111,6 +168,7 @@ function measureOH(
     (rc2, b, inp, fitScale) => measureChartOH(rc2, b, inp, fitScale, data),
     buildOHProbe(rc, w, item, data),
     buildOHResolveTarget(rc, data),
+    buildOHResolveFloor(rc, data),
   );
 }
 
@@ -152,6 +210,7 @@ export const ChartOHRenderer: Renderer<ChartOHInputs, MeasuredChartOH> = {
       (scale) => getChartOHComponentSizes(rc, item, data, scale),
       buildOHProbe(rc, width, item, data),
       buildOHResolveTarget(rc, data),
+      buildOHResolveFloor(rc, data),
     );
   },
 };

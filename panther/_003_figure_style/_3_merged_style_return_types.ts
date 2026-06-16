@@ -474,6 +474,7 @@ export type MergedXTextAxisStyle = {
   tickHeight: number;
   tickPosition: "sides" | "center";
   tickLabelGap: number;
+  maxTickLabelHeightAsPctOfChart: number;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

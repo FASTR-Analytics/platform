@@ -35,6 +35,14 @@ export function measureXTextAxis(
       gridStyle.gridStrokeWidth * (indicatorHeaders.length + 1)) /
       indicatorHeaders.length;
 
+  // Cap the vertical extent of rotated (vertical) tick labels so a long label
+  // can't grow the axis without bound. This mirrors yTextAxis.maxTickLabelW,
+  // which caps the horizontal extent of horizontal tick labels. For rotated
+  // text the mText "maxWidth" arg is the reading-direction (pre-rotation)
+  // length, which becomes the label's vertical extent after rotation.
+  const verticalTickLabelMaxHeight = contentRcd.h() *
+    sx.maxTickLabelHeightAsPctOfChart;
+
   let maxIndicatorTickLabelHeight = 0;
 
   for (const indicatorHeader of indicatorHeaders) {
@@ -42,7 +50,7 @@ export function measureXTextAxis(
       indicatorHeader.label,
       sx.text.xTextAxisTickLabels,
       sx.verticalTickLabels
-        ? Number.POSITIVE_INFINITY
+        ? verticalTickLabelMaxHeight
         : indicatorAreaInnerWidth,
       { rotation: sx.verticalTickLabels ? "anticlockwise" : undefined },
     );
@@ -69,6 +77,7 @@ export function measureXTextAxis(
   return {
     subChartAreaWidth,
     indicatorAreaInnerWidth,
+    verticalTickLabelMaxHeight,
     xAxisRcd,
   };
 }

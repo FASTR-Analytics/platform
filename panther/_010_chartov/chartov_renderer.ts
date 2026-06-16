@@ -17,6 +17,7 @@ import {
   RectCoordsDims,
   type RenderContext,
   type Renderer,
+  resolveScaleAxisFloorPlotH,
   resolveScaleAxisPlotHeight,
 } from "./deps.ts";
 import type {
@@ -59,6 +60,7 @@ function measureOV(
     (rc2, b, inp, fitScale) => measureChartOV(rc2, b, inp, fitScale, data),
     buildOVProbe(rc, w, item, data),
     resolveScaleAxisPlotHeight,
+    resolveScaleAxisFloorPlotH,
   );
 }
 
@@ -100,6 +102,7 @@ export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
       (scale) => getChartOVComponentSizes(rc, item, data, scale),
       buildOVProbe(rc, width, item, data),
       resolveScaleAxisPlotHeight,
+      resolveScaleAxisFloorPlotH,
     );
   },
 };

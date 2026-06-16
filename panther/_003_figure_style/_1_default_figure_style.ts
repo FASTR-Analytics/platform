@@ -137,6 +137,7 @@ const _DS = {
     tickPosition: typed<"sides" | "center">("sides"),
     tickHeight: 10,
     tickLabelGap: 10,
+    maxTickLabelHeightAsPctOfChart: 0.5,
   },
   xScaleAxis: {
     max: typed<number | "auto" | ((i_pane: number) => number)>("auto"),

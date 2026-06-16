@@ -841,6 +841,11 @@ export class CustomFigureStyle {
         g.xTextAxis?.tickLabelGap,
         d.xTextAxis.tickLabelGap,
       ),
+      maxTickLabelHeightAsPctOfChart: m(
+        c.xTextAxis?.maxTickLabelHeightAsPctOfChart,
+        g.xTextAxis?.maxTickLabelHeightAsPctOfChart,
+        d.xTextAxis.maxTickLabelHeightAsPctOfChart,
+      ),
     };
   }
 

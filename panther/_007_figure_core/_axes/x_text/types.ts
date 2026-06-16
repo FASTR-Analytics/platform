@@ -8,5 +8,9 @@ import type { RectCoordsDims } from "../../deps.ts";
 export type XTextAxisMeasuredInfo = {
   subChartAreaWidth: number;
   indicatorAreaInnerWidth: number;
+  // Reading-direction cap for vertical tick labels (the rotated label's
+  // vertical extent, i.e. axis thickness). Only meaningful when
+  // verticalTickLabels is true; mirrors yTextAxis.maxTickLabelW.
+  verticalTickLabelMaxHeight: number;
   xAxisRcd: RectCoordsDims;
 };
