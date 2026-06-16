@@ -1,7 +1,8 @@
 import { Hono } from "hono";
+import { stream as ndjsonStream } from "hono/streaming";
 import { H_USERS, type GlobalUser } from "lib";
 import type { Sql } from "postgres";
-import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
+import { getPgConnectionFromCacheOrNew, createWorkerReadConnection } from "../../db/mod.ts";
 import { getResultsObjectTableName } from "../../db/utils.ts";
 import { _CENTRAL_SERVER_SECRET, _INSTANCE_ID, _INSTANCE_NAME } from "../../exposed_env_vars.ts";
 import { requireGlobalPermission, authMiddleware } from "../../middleware/mod.ts";
@@ -172,33 +173,72 @@ routesExportCentral.get(
   },
 );
 
-const ROWS_PAGE_SIZE = 20000;
+const ROWS_STREAM_BATCH = 5000;
+
+// Postgres "undefined_table" — a results object can have metadata but no backing
+// table (module never run / empty). We treat that as a clean empty result.
+function isMissingTableError(err: unknown): boolean {
+  const code = (err as { code?: string } | null)?.code;
+  if (code === "42P01") return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return /does not exist/i.test(msg);
+}
 
 routesExportCentral.get(
   "/export_central/:project_id/rows",
-  async (c) => {
+  (c) => {
     if (!_CENTRAL_SERVER_SECRET || c.req.header("X-Central-Secret") !== _CENTRAL_SERVER_SECRET) {
       return c.json({ success: false, err: "Authentication required", authError: true }, 401);
     }
 
     const projectId = c.req.param("project_id");
     const roId = c.req.query("ro_id") ?? "";
-    const offset = parseInt(c.req.query("offset") ?? "0");
     if (!roId) return c.json({ success: false, err: "ro_id required" }, 400);
 
-    const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
     const tableName = getResultsObjectTableName(roId);
 
-    let rows: Record<string, unknown>[] = [];
-    try {
-      rows = await projectDb<Record<string, unknown>[]>`
-        SELECT * FROM ${projectDb(tableName)}
-        LIMIT ${ROWS_PAGE_SIZE} OFFSET ${offset}
-      `;
-    } catch {
-      // Table may not exist
-    }
-
-    return c.json({ success: true, data: { rows, hasMore: rows.length === ROWS_PAGE_SIZE } });
+    // Stream every row of the results object as newline-delimited JSON, driven by a
+    // server-side cursor. This is O(N) (no OFFSET re-scan), reads a single
+    // consistent snapshot (so pages can't skip/duplicate rows), and bounds memory
+    // on both ends. A dedicated read connection is used deliberately: it has no
+    // statement_timeout, and the stream is paced by the consumer's inserts so it can
+    // outlast the 5-minute pooled-connection limit.
+    //
+    // Hono's stream() is used (not a raw ReadableStream) because `await s.write()`
+    // honours backpressure — the cursor only advances as fast as the consumer reads,
+    // so the source never buffers the whole table in memory.
+    //
+    // Protocol (one JSON object per line):
+    //   {"rows":[...]}                  — a batch of rows
+    //   {"done":true,"nRowsTotal":N}    — terminal success
+    //   {"error":"..."}                 — terminal failure (status is already 200)
+    c.header("Content-Type", "application/x-ndjson");
+    return ndjsonStream(c, async (s) => {
+      const w = (obj: unknown) => s.write(JSON.stringify(obj) + "\n");
+      const db = createWorkerReadConnection(projectId);
+      let nRowsTotal = 0;
+      try {
+        for await (
+          const batch of db<Record<string, unknown>[]>`
+            SELECT * FROM ${db(tableName)}
+          `.cursor(ROWS_STREAM_BATCH)
+        ) {
+          if (s.aborted) break;
+          await w({ rows: batch });
+          nRowsTotal += batch.length;
+        }
+        if (!s.aborted) await w({ done: true, nRowsTotal });
+      } catch (err) {
+        if (s.aborted) {
+          // Consumer disconnected mid-stream — nothing to report.
+        } else if (nRowsTotal === 0 && isMissingTableError(err)) {
+          await w({ done: true, nRowsTotal: 0 }).catch(() => {});
+        } else {
+          await w({ error: err instanceof Error ? err.message : String(err) }).catch(() => {});
+        }
+      } finally {
+        await db.end().catch(() => {});
+      }
+    });
   },
 );
