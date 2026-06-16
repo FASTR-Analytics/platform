@@ -798,7 +798,9 @@ export class PdfRenderContext implements RenderContext {
   withClip(bounds: RectCoordsDimsOptions, fn: () => void): void {
     const r = new RectCoordsDims(bounds);
     this._jsPdf.saveGraphicsState();
-    this._jsPdf.rect(r.x(), r.y(), r.w(), r.h());
+    // Pass null style: without it jsPDF strokes the rect (and ends the path)
+    // BEFORE clip() runs, so no clip path is set and a stray outline is drawn.
+    this._jsPdf.rect(r.x(), r.y(), r.w(), r.h(), null);
     this._jsPdf.clip();
     this._jsPdf.discardPath();
     fn();
