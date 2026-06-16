@@ -1,8 +1,8 @@
-[TBD] [user] [fixed] - Large data exports no longer skip or duplicate rows
-[TBD] [user] [changed] - Exporting large datasets is now faster and more reliable
-[TBD] [admin] [changed] - Large data exports now stream instead of loading page by page
-[TBD] [admin] [improved] - Export performance improved for large result sets, reducing memory usage
-[TBD] [admin] [fixed] - Exports no longer skip or duplicate rows during large transfers
+[1.51.0] [user] [fixed] - Large data exports no longer skip or duplicate rows
+[1.51.0] [user] [changed] - Exporting large datasets is now faster and more reliable
+[1.51.0] [admin] [changed] - Large data exports now stream instead of loading page by page
+[1.51.0] [admin] [improved] - Export performance improved for large result sets, reducing memory usage
+[1.51.0] [admin] [fixed] - Exports no longer skip or duplicate rows during large transfers
 [1.50.1] [user] [changed] - Asset files now use tabs instead of collapsible folders
 [1.50.1] [user] [changed] - Upload form buttons are grouped side by side
 [1.50.1] [admin] [changed] - Assets page now uses tabs instead of expandable folders
