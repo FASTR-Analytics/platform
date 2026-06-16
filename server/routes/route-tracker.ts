@@ -106,6 +106,37 @@ export function validateAllRoutesDefined(): void {
     console.error("");
   }
 
+  // Body schemas must not declare a key that the client transport carries in a
+  // different channel — otherwise the client strips it from the body (see
+  // buildRequestParams) while the server's Zod body validator still requires it,
+  // producing a "field: expected ..., received undefined" 400. A body key is
+  // carried elsewhere if it is a path placeholder (→ URL) or "projectId" on a
+  // requiresProject route (→ Project-Id header).
+  const bodyTransportConflicts: string[] = [];
+  for (const [routeName, entry] of Object.entries(routeRegistry)) {
+    const bodySchema = (entry as any).body;
+    if (!(bodySchema instanceof z.ZodType) || !("shape" in bodySchema)) continue;
+    const pathKeys = new Set(
+      (entry.path.match(/:(\w+)/g) ?? []).map((p: string) => p.slice(1)),
+    );
+    const requiresProject = (entry as any).requiresProject === true;
+    for (const key of Object.keys((bodySchema as z.ZodObject<any>).shape)) {
+      if (pathKeys.has(key)) {
+        bodyTransportConflicts.push(`${routeName}: body key "${key}" is also a path placeholder (stripped from body)`);
+      } else if (key === "projectId" && requiresProject) {
+        bodyTransportConflicts.push(`${routeName}: body key "projectId" is carried by the Project-Id header on a requiresProject route (stripped from body)`);
+      }
+    }
+  }
+  if (bodyTransportConflicts.length > 0) {
+    hasErrors = true;
+    console.error(`❌ Body/transport conflicts: ${bodyTransportConflicts.length}`);
+    for (const c of bodyTransportConflicts) {
+      console.error(`   - ${c}`);
+    }
+    console.error("");
+  }
+
   if (hasErrors) {
     console.error("💥 Route validation failed — fix the above errors before shipping.\n");
     Deno.exit(1);

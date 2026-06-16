@@ -112,7 +112,6 @@ export const projectRouteRegistry = {
     path: "/project_user_role",
     method: "POST",
     body: z.object({
-      projectId: z.string(),
       emails: z.array(z.string()),
       role: z.enum(["none", "viewer", "editor"]),
     }),
@@ -174,7 +173,6 @@ export const projectRouteRegistry = {
     path: "/update_project_user_permissions",
     method: "POST",
     body: z.object({
-      projectId: z.string(),
       emails: z.array(z.string()),
       permissions: projectPermissionsRequiredSchema,
     }),
@@ -192,7 +190,7 @@ export const projectRouteRegistry = {
   addProjectUserRole: route({
     path: "/add_project_user_role",
     method: "POST",
-    body: z.object({ projectId: z.string(), email: z.string() }),
+    body: z.object({ email: z.string() }),
     requiresProject: true,
   }),
 
@@ -200,7 +198,6 @@ export const projectRouteRegistry = {
     path: "/bulk_update_project_user_permissions",
     method: "POST",
     body: z.object({
-      projectId: z.string(),
       emails: z.array(z.string()),
       permissions: projectPermissionsPartialSchema,
     }),

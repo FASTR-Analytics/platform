@@ -124,8 +124,6 @@ defineRoute(
   ),
   log("updateProjectUserRole"),
   async (c, { body }) => {
-    console.log("updateProjectUserRole body:", JSON.stringify(body));
-    console.log("projectId:", body.projectId, "type:", typeof body.projectId);
     const res = await updateProjectUserRole(
       c.var.mainDb,
       c.var.ppk.projectId,
