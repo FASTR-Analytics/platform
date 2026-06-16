@@ -1,9 +1,9 @@
 import { type FigureInputs, getFigureAsCanvas } from "panther";
-import { t3 } from "lib";
 import {
   type DashboardExportModel,
   figureInputsForDownload,
 } from "./_dashboard_export_model";
+import { unavailableItemMarkdown } from "./_media_placeholder";
 
 // Small render used only to detect a figure that throws (bad data / missing
 // geoData) so the exporters can substitute a placeholder instead of aborting.
@@ -42,10 +42,7 @@ export async function prepareFigures(
 }
 
 export function placeholderMarkdown(): string {
-  return t3({
-    en: "_This figure could not be rendered._",
-    fr: "_Cette figure n'a pas pu être affichée._",
-  });
+  return unavailableItemMarkdown();
 }
 
 // Filename basis: a single-figure export uses that figure's label; a collection

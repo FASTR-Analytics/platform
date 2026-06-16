@@ -3,6 +3,7 @@ import { Packer } from "docx";
 import type { APIResponseNoData } from "lib";
 import { serverActions } from "~/server_actions";
 import { buildReportFigureMap, buildReportImageMap } from "./_report_export_maps";
+import { replaceUnavailableMediaTokens } from "./_media_placeholder";
 import { REPORT_MARKDOWN_STYLE } from "~/components/report/report_markdown_style";
 
 export async function exportReportAsWord(
@@ -28,7 +29,8 @@ export async function exportReportAsWord(
 
     // markdownToWordBrowser rasterizes figures internally (FigureMap of
     // FigureInputs); we pass hydrated inputs + the image map.
-    const doc = await markdownToWordBrowser(res.data.body, {
+    const body = replaceUnavailableMediaTokens(res.data.body, figures, images);
+    const doc = await markdownToWordBrowser(body, {
       figures,
       images,
       style: REPORT_MARKDOWN_STYLE,

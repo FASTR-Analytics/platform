@@ -3,6 +3,7 @@ import type { APIResponseNoData } from "lib";
 import { serverActions } from "~/server_actions";
 import fontMap from "~/font-map.json";
 import { buildReportFigureMap, buildReportImageMap } from "./_report_export_maps";
+import { replaceUnavailableMediaTokens } from "./_media_placeholder";
 import { REPORT_MARKDOWN_STYLE } from "~/components/report/report_markdown_style";
 
 // A4 portrait DU frame (1000 wide × ~1.414 → 1414). Fixed minimal style for v1
@@ -31,7 +32,8 @@ export async function exportReportAsPdf(
     const images = await buildReportImageMap(res.data.images);
     progress(0.7);
 
-    const pdf = await markdownToPdfBrowser(res.data.body, {
+    const body = replaceUnavailableMediaTokens(res.data.body, figures, images);
+    const pdf = await markdownToPdfBrowser(body, {
       figures,
       images,
       fontPaths: { basePath: "/fonts", fontMap: fontMap.ttf },

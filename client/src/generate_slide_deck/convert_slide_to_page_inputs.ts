@@ -39,6 +39,7 @@ import {
 import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
 import { FASTR_LOGO_VALUES } from "~/components/_shared/fastr_logos";
+import { unavailableItemMarkdown } from "~/exports/_media_placeholder";
 import { getBackgroundDetail } from "./get_overlay_image";
 
 const MARKDOWN_TEXT_SIZE_SCALE = 1.6;
@@ -507,6 +508,24 @@ async function convertLayoutNode(
   };
 }
 
+function makePlaceholderTextItem(
+  textColor: string | undefined,
+  deckStyle: DeckStyleContext,
+): PageContentItem {
+  return {
+    markdown: unavailableItemMarkdown(),
+    style: {
+      text: {
+        base: {
+          font: getSlideFontInfo(deckStyle.fontFamily, false, false),
+          fontSize: getBaseText().fontSize * MARKDOWN_TEXT_SIZE_SCALE,
+          ...(textColor ? { color: textColor } : {}),
+        },
+      },
+    },
+  };
+}
+
 async function convertBlockToPageContentItem(
   block: ContentBlock,
   textColor: string | undefined,
@@ -538,7 +557,7 @@ async function convertBlockToPageContentItem(
       `${_SERVER_HOST}/${block.imgFile}`,
     );
     if (!resImg.success) {
-      return { spacer: true };
+      return makePlaceholderTextItem(textColor, deckStyle);
     }
     const imageItem: ImageInputs = {
       image: resImg.data,
@@ -555,6 +574,6 @@ async function convertBlockToPageContentItem(
   try {
     return buildFigureInputs(block.bundle, deckStyle) as PageContentItem;
   } catch {
-    return { spacer: true };
+    return makePlaceholderTextItem(textColor, deckStyle);
   }
 }

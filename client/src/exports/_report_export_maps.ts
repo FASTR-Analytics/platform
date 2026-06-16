@@ -11,7 +11,12 @@ export async function buildReportFigureMap(
   const map: FigureMap = new Map();
   for (const [id, block] of Object.entries(figures)) {
     if (!block.bundle) continue;
-    map.set(`figure:${id}`, buildFigureInputs(block.bundle));
+    try {
+      map.set(`figure:${id}`, buildFigureInputs(block.bundle));
+    } catch {
+      // Skip a figure that fails to build; the exporter swaps its token for a
+      // visible placeholder rather than aborting the whole report.
+    }
   }
   return map;
 }
@@ -31,23 +36,30 @@ export async function buildReportImageMap(
 async function loadImageEntry(
   url: string,
 ): Promise<{ dataUrl: string; width: number; height: number } | undefined> {
-  const resp = await fetch(url);
-  if (!resp.ok) return undefined;
-  const blob = await resp.blob();
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("Failed to read image"));
-    reader.readAsDataURL(blob);
-  });
-  const dims = await new Promise<{ width: number; height: number }>(
-    (resolve, reject) => {
-      const img = new Image();
-      img.onload = () =>
-        resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      img.onerror = () => reject(new Error("Failed to load image"));
-      img.src = dataUrl;
-    },
-  );
-  return { dataUrl, ...dims };
+  // Any failure (fetch, read, decode) returns undefined so the image is simply
+  // absent from the map; the exporter then renders a placeholder in its place
+  // instead of aborting the whole report.
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return undefined;
+    const blob = await resp.blob();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Failed to read image"));
+      reader.readAsDataURL(blob);
+    });
+    const dims = await new Promise<{ width: number; height: number }>(
+      (resolve, reject) => {
+        const img = new Image();
+        img.onload = () =>
+          resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => reject(new Error("Failed to load image"));
+        img.src = dataUrl;
+      },
+    );
+    return { dataUrl, ...dims };
+  } catch {
+    return undefined;
+  }
 }
