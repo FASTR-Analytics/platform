@@ -1,7 +1,7 @@
-[TBD] [user] [fixed] - Fixed incorrect values sometimes appearing in charts and tables
-[TBD] [admin] [fixed] - Project user role and permission updates now work reliably
-[TBD] [admin] [internal] - Data values now preserve their original types (text, numbers, nulls)
-[TBD] [admin] [internal] - Server startup validates route configurations more thoroughly
+[1.53.0] [user] [fixed] - Fixed incorrect values sometimes appearing in charts and tables
+[1.53.0] [admin] [fixed] - Project user role and permission updates now work reliably
+[1.53.0] [admin] [internal] - Data values now preserve their original types (text, numbers, nulls)
+[1.53.0] [admin] [internal] - Server startup validates route configurations more thoroughly
 [1.50.2] [user] [fixed] - Exports no longer fail completely when a figure or image can't load
 [1.50.2] [user] [changed] - Missing figures or images now show a clear placeholder note instead of disappearing silently
 [1.50.2] [admin] [fixed] - Exports no longer fail entirely when a figure or image cannot load
