@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { stream as ndjsonStream } from "hono/streaming";
 import { H_USERS, type GlobalUser } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnectionFromCacheOrNew, createWorkerReadConnection } from "../../db/mod.ts";
@@ -173,7 +172,7 @@ routesExportCentral.get(
   },
 );
 
-const ROWS_STREAM_BATCH = 5000;
+const ROWS_STREAM_BATCH = 20000;
 
 // Postgres "undefined_table" — a results object can have metadata but no backing
 // table (module never run / empty). We treat that as a clean empty result.
@@ -196,49 +195,74 @@ routesExportCentral.get(
     if (!roId) return c.json({ success: false, err: "ro_id required" }, 400);
 
     const tableName = getResultsObjectTableName(roId);
+    const acceptsGzip = (c.req.header("Accept-Encoding") ?? "").includes("gzip");
 
     // Stream every row of the results object as newline-delimited JSON, driven by a
-    // server-side cursor. This is O(N) (no OFFSET re-scan), reads a single
-    // consistent snapshot (so pages can't skip/duplicate rows), and bounds memory
-    // on both ends. A dedicated read connection is used deliberately: it has no
-    // statement_timeout, and the stream is paced by the consumer's inserts so it can
-    // outlast the 5-minute pooled-connection limit.
-    //
-    // Hono's stream() is used (not a raw ReadableStream) because `await s.write()`
-    // honours backpressure — the cursor only advances as fast as the consumer reads,
-    // so the source never buffers the whole table in memory.
+    // server-side cursor: O(N) (no OFFSET re-scan), one consistent snapshot (so pages
+    // can't skip/duplicate rows), bounded memory on both ends. A pull-based
+    // ReadableStream gives natural backpressure (pull only runs when the consumer
+    // reads) AND composes with CompressionStream, so the body is gzipped when the
+    // client accepts it (row JSON compresses heavily over the WAN). A dedicated read
+    // connection is used because it has no statement_timeout — the stream is paced by
+    // the consumer's inserts and can outlast the 5-minute pooled-connection limit.
     //
     // Protocol (one JSON object per line):
     //   {"rows":[...]}                  — a batch of rows
     //   {"done":true,"nRowsTotal":N}    — terminal success
     //   {"error":"..."}                 — terminal failure (status is already 200)
-    c.header("Content-Type", "application/x-ndjson");
-    return ndjsonStream(c, async (s) => {
-      const w = (obj: unknown) => s.write(JSON.stringify(obj) + "\n");
-      const db = createWorkerReadConnection(projectId);
-      let nRowsTotal = 0;
+    const enc = new TextEncoder();
+    const db = createWorkerReadConnection(projectId);
+    const it = db<Record<string, unknown>[]>`
+      SELECT * FROM ${db(tableName)}
+    `.cursor(ROWS_STREAM_BATCH)[Symbol.asyncIterator]();
+    let nRowsTotal = 0;
+    let cleanedUp = false;
+    const startedAt = Date.now();
+    const cleanup = async () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
       try {
-        for await (
-          const batch of db<Record<string, unknown>[]>`
-            SELECT * FROM ${db(tableName)}
-          `.cursor(ROWS_STREAM_BATCH)
-        ) {
-          if (s.aborted) break;
-          await w({ rows: batch });
-          nRowsTotal += batch.length;
-        }
-        if (!s.aborted) await w({ done: true, nRowsTotal });
-      } catch (err) {
-        if (s.aborted) {
-          // Consumer disconnected mid-stream — nothing to report.
-        } else if (nRowsTotal === 0 && isMissingTableError(err)) {
-          await w({ done: true, nRowsTotal: 0 }).catch(() => {});
-        } else {
-          await w({ error: err instanceof Error ? err.message : String(err) }).catch(() => {});
-        }
-      } finally {
-        await db.end().catch(() => {});
+        await it.return?.();
+      } catch {
+        // ignore — cursor may already be closed
       }
+      await db.end().catch(() => {});
+    };
+
+    const base = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        try {
+          const { value, done } = await it.next();
+          if (done) {
+            controller.enqueue(enc.encode(JSON.stringify({ done: true, nRowsTotal }) + "\n"));
+            controller.close();
+            console.log(`[export_central] ${tableName}: streamed ${nRowsTotal} rows in ${Date.now() - startedAt}ms`);
+            await cleanup();
+            return;
+          }
+          nRowsTotal += value.length;
+          controller.enqueue(enc.encode(JSON.stringify({ rows: value }) + "\n"));
+        } catch (err) {
+          if (nRowsTotal === 0 && isMissingTableError(err)) {
+            controller.enqueue(enc.encode(JSON.stringify({ done: true, nRowsTotal: 0 }) + "\n"));
+          } else {
+            controller.enqueue(enc.encode(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }) + "\n"));
+          }
+          controller.close();
+          await cleanup();
+        }
+      },
+      async cancel() {
+        await cleanup();
+      },
     });
+
+    // Cast: CompressionStream's lib type declares `writable: WritableStream<BufferSource>`,
+    // which TS won't unify with our Uint8Array stream though it's compatible at runtime.
+    const gzip = new CompressionStream("gzip") as unknown as TransformStream<Uint8Array, Uint8Array>;
+    const body = acceptsGzip ? base.pipeThrough(gzip) : base;
+    const headers: Record<string, string> = { "Content-Type": "application/x-ndjson" };
+    if (acceptsGzip) headers["Content-Encoding"] = "gzip";
+    return new Response(body, { headers });
   },
 );
