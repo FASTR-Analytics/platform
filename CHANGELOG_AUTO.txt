@@ -1,18 +1,18 @@
-[TBD] [user] [fixed] - Filtered dropdown options now correctly reflect applied filters
-[TBD] [user] [fixed] - AI-generated figures now show correct dropdown options for filtered data
-[TBD] [admin] [fixed] - Replicant dropdowns now correctly show only filtered subsets
-[TBD] [admin] [fixed] - AI slide builder now validates replicant options accurately
-[TBD] [admin] [internal] - Replicant options cache cleared to reflect filtering improvements
-[TBD] [user] [fixed] - Central data exports now complete dramatically faster
-[TBD] [admin] [fixed] - Central export is now dramatically faster, resolving multi-hour imports
-[TBD] [admin] [internal] - Reorganized internal text styling configuration structure
-[TBD] [user] [fixed] - Preset previews no longer incorrectly show "No data available"
-[TBD] [user] [fixed] - Changing filters or disaggregation options no longer resets your selected comparison value
-[TBD] [user] [fixed] - Opening a visualization no longer incorrectly prompts you to save unsaved changes
-[TBD] [admin] [fixed] - Preset previews no longer falsely show "No data available"
-[TBD] [admin] [fixed] - Opening a visualization no longer triggers a false unsaved-changes prompt
-[TBD] [admin] [changed] - Replicant selections auto-resolve to the first valid option when unset
-[TBD] [admin] [fixed] - Changing filters or disaggregation no longer clears the replicant selection
+[1.53.3] [user] [fixed] - Filtered dropdown options now correctly reflect applied filters
+[1.53.3] [user] [fixed] - AI-generated figures now show correct dropdown options for filtered data
+[1.53.3] [admin] [fixed] - Replicant dropdowns now correctly show only filtered subsets
+[1.53.3] [admin] [fixed] - AI slide builder now validates replicant options accurately
+[1.53.3] [admin] [internal] - Replicant options cache cleared to reflect filtering improvements
+[1.53.3] [user] [fixed] - Central data exports now complete dramatically faster
+[1.53.3] [admin] [fixed] - Central export is now dramatically faster, resolving multi-hour imports
+[1.53.3] [admin] [internal] - Reorganized internal text styling configuration structure
+[1.53.3] [user] [fixed] - Preset previews no longer incorrectly show "No data available"
+[1.53.3] [user] [fixed] - Changing filters or disaggregation options no longer resets your selected comparison value
+[1.53.3] [user] [fixed] - Opening a visualization no longer incorrectly prompts you to save unsaved changes
+[1.53.3] [admin] [fixed] - Preset previews no longer falsely show "No data available"
+[1.53.3] [admin] [fixed] - Opening a visualization no longer triggers a false unsaved-changes prompt
+[1.53.3] [admin] [changed] - Replicant selections auto-resolve to the first valid option when unset
+[1.53.3] [admin] [fixed] - Changing filters or disaggregation no longer clears the replicant selection
 [1.53.1] [user] [fixed] - Disruptions chart now shows a clear error when missing a data value
 [1.53.1] [user] [fixed] - Permission changes dialog now closes properly after saving
 [1.53.1] [user] [fixed] - Permission form now displays error messages when saving fails
