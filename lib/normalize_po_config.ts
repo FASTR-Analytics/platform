@@ -2,8 +2,8 @@ import type { RollupEligibilityInputs } from "./admin_area_rollup.ts";
 import {
   getEffectiveRollupLevel,
   getFilteredValueProps,
-  hasOnlyOneFilteredValue,
 } from "./get_fetch_config_from_po.ts";
+import { hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
 import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import { inferPeriodFormatFromValue } from "./types/_metric_installed.ts";

@@ -16,7 +16,9 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // once, then the caches resume hitting normally.
 // "2": quarter_id format YYYY0Q → YYYYQ — pre-cutover results held 6-digit
 // quarters that the new renderer (panther) rejects.
-const PO_CACHE_VERSION = "2";
+// "3": replicant-options now honor the self-column subset filter (get_possible_values
+// no longer self-strips), so previously-cached full-value-set payloads are stale.
+const PO_CACHE_VERSION = "3";
 
 export const _PO_DETAIL_CACHE = new TimCacheC<
   {

@@ -36,13 +36,15 @@ export async function resolveReplicantStructure(
   );
   if (!resInfo.success) throw new Error(resInfo.err);
 
-  // Enumerate the FULL replicant set — clear selectedReplicantValue so the
-  // currently-previewed replicant doesn't narrow the options.
-  const enumConfig = structuredClone(config);
-  enumConfig.d.selectedReplicantValue = undefined;
+  // Enumerate the in-scope replicant options. excludeReplicantFilter drops the
+  // auto-pin (the currently-previewed value) but KEEPS the user's filterBy — so a
+  // replicant filtered to a subset returns exactly that subset. The server now
+  // honors the self-column filter (get_possible_values no longer self-strips), so
+  // this MUST exclude the pin or the "UNSELECTED" sentinel would empty the list.
   const fcRes = getFetchConfigFromPresentationObjectConfig(
     resultsValue,
-    enumConfig,
+    config,
+    { excludeReplicantFilter: true },
   );
   if (!fcRes.success) throw new Error(fcRes.err);
 

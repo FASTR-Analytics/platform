@@ -316,11 +316,12 @@ export async function resolveDefaultReplicant(
   if (!replicateBy) {
     return { ok: true, config, fetchConfig: baseFetchConfig };
   }
-  // Fetch the valid replicant values with the replicant filter EXCLUDED, the same
-  // way the selector (ReplicateByOptions) queries them — so both share the single
+  // Fetch the valid replicant values with the auto-pin EXCLUDED, the same way the
+  // selector (ReplicateByOptions) queries them — so both share the single
   // replicant-options cache entry instead of issuing two identical server queries.
-  // The server strips the replicant-column filter regardless, so the value set is
-  // identical either way; this only aligns the cache key.
+  // excludeReplicantFilter drops only the appended pin (the current
+  // selectedReplicantValue), KEEPING the user's filterBy; the server honors that
+  // filter, so a replicant filtered to a subset returns exactly that subset.
   const optionsFetchConfig = getFetchConfigFromPresentationObjectConfig(
     resultsValue,
     config,

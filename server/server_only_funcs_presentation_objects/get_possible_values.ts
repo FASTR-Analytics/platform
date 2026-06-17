@@ -41,9 +41,12 @@ export async function getPossibleValues(
   return await tryCatchDatabaseAsync(async () => {
     const tableName = getResultsObjectTableName(resultsObjectId);
 
-    // Filter out the current disaggregation option from filters
-    const filteredFilters =
-      filters?.filter((f) => f.disOpt !== disaggregationOption) ?? [];
+    // Honor ALL filterBy entries, INCLUDING one on the queried column itself — so
+    // a replicant filtered to a subset returns exactly that subset. (The
+    // filter-value-checkbox path passes no filters, so it is unaffected; the only
+    // caller that passes filters is the replicant-options route, which sends the
+    // user's filterBy with the auto-pin already excluded.)
+    const filteredFilters = filters ?? [];
 
     // Build minimal fetchConfig to leverage buildQueryContext
     const fetchConfig = {

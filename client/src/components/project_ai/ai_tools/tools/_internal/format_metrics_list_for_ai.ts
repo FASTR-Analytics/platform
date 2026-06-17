@@ -1,4 +1,4 @@
-import { ICEH_STRAT_INFO, type HfaTaxonomyForAI, type MetricWithStatus } from "lib";
+import { ICEH_STRAT_INFO, getReplicateByProp, type HfaTaxonomyForAI, type MetricWithStatus } from "lib";
 
 type IcehIndicator = { id: string; label: string; category: string };
 
@@ -99,7 +99,7 @@ export function formatMetricsListForAI(
         const filterNote = preset.allowedFilters && preset.allowedFilters.length > 0
           ? ` — filters: ${preset.allowedFilters.join(", ")}`
           : "";
-        const hasReplicant = preset.config.d.disaggregateBy.some(d => d.disDisplayOpt === "replicant");
+        const hasReplicant = getReplicateByProp(preset.config) !== undefined;
         const replicantNote = hasReplicant ? " ** REQUIRES selectedReplicant **" : "";
         lines.push(`    - ${preset.id}: ${preset.label.en} (${dateFormat})${filterNote}${replicantNote}`);
         if (preset.importantNotes) {

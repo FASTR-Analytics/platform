@@ -33,11 +33,22 @@ export async function resolveFigureFromMetric(
 
   const replicateBy = getReplicateByProp(config);
   if (replicateBy) {
+    // The options query needs the auto-pin EXCLUDED (so it returns all in-scope
+    // values to validate against); the items fetch below keeps the pinned
+    // `fetchConfig`. Mirror resolveDefaultReplicant — do NOT reuse one config.
+    const optionsFetchConfig = getFetchConfigFromPresentationObjectConfig(
+      resultsValue,
+      config,
+      { excludeReplicantFilter: true },
+    );
+    if (!optionsFetchConfig.success) {
+      throw new Error(optionsFetchConfig.err);
+    }
     const replicantRes = await getReplicantOptionsFromCacheOrFetch(
       projectId,
       resultsValue.resultsObjectId,
       replicateBy,
-      fetchConfig,
+      optionsFetchConfig.data,
     );
     if (replicantRes.success && replicantRes.data.status === "ok") {
       const validValues = replicantRes.data.possibleValues;

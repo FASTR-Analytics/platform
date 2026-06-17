@@ -11,7 +11,7 @@ import {
   isRollupEligibleResultsValue,
   type RollupEligibilityInputs,
 } from "./admin_area_rollup.ts";
-import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
+import { getReplicateByProp, hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
 import {
   periodFilterHasBounds,
   type DisaggregationOption,
@@ -292,14 +292,6 @@ export function getFilteredValueProps(
   });
 }
 
-export function hasOnlyOneFilteredValue(
-  config: PresentationObjectConfig,
-  disOpt: DisaggregationOption,
-) {
-  return (
-    config.d.filterBy.find((fil) => fil.disOpt === disOpt)?.values.length === 1
-  );
-}
 
 // The single admin level the roll-up collapses, or undefined if the roll-up isn't
 // applicable. There must be EXACTLY ONE admin level that is grouped, NOT displayed
