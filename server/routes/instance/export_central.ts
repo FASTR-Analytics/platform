@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import zlib from "node:zlib";
 import { H_USERS, type GlobalUser } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnectionFromCacheOrNew, createWorkerReadConnection } from "../../db/mod.ts";
@@ -201,7 +202,7 @@ routesExportCentral.get(
     // server-side cursor: O(N) (no OFFSET re-scan), one consistent snapshot (so pages
     // can't skip/duplicate rows), bounded memory on both ends. A pull-based
     // ReadableStream gives natural backpressure (pull only runs when the consumer
-    // reads) AND composes with CompressionStream, so the body is gzipped when the
+    // reads) AND composes with a gzip transform, so the body is gzipped when the
     // client accepts it (row JSON compresses heavily over the WAN). A dedicated read
     // connection is used because it has no statement_timeout — the stream is paced by
     // the consumer's inserts and can outlast the 5-minute pooled-connection limit.
@@ -257,9 +258,18 @@ routesExportCentral.get(
       },
     });
 
-    // Cast: CompressionStream's lib type declares `writable: WritableStream<BufferSource>`,
-    // which TS won't unify with our Uint8Array stream though it's compatible at runtime.
-    const gzip = new CompressionStream("gzip") as unknown as TransformStream<Uint8Array, Uint8Array>;
+    // Gzip via node:zlib on the main thread, NOT CompressionStream. Deno's
+    // CompressionStream offloads to a blocking thread pool that this long-running app keeps
+    // contended (postgres.js/Valkey/SSE), which throttled this export ~12x (measured 5.7k
+    // vs 67k rows/s on a live, idle instance — the cause of the multi-hour central imports).
+    // gzipSync is main-thread, so it's immune to that contention. Each chunk becomes its own
+    // gzip member; the consumer's fetch() decodes the concatenated multi-member stream
+    // transparently (verified). Level 1: most of the size win for a fraction of the CPU.
+    const gzip = new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        controller.enqueue(zlib.gzipSync(chunk, { level: 1 }));
+      },
+    });
     const body = acceptsGzip ? base.pipeThrough(gzip) : base;
     const headers: Record<string, string> = { "Content-Type": "application/x-ndjson" };
     if (acceptsGzip) headers["Content-Encoding"] = "gzip";
