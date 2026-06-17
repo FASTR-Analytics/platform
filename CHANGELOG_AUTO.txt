@@ -1,3 +1,10 @@
+[TBD] [user] [fixed] - Preset previews no longer incorrectly show "No data available"
+[TBD] [user] [fixed] - Changing filters or disaggregation options no longer resets your selected comparison value
+[TBD] [user] [fixed] - Opening a visualization no longer incorrectly prompts you to save unsaved changes
+[TBD] [admin] [fixed] - Preset previews no longer falsely show "No data available"
+[TBD] [admin] [fixed] - Opening a visualization no longer triggers a false unsaved-changes prompt
+[TBD] [admin] [changed] - Replicant selections auto-resolve to the first valid option when unset
+[TBD] [admin] [fixed] - Changing filters or disaggregation no longer clears the replicant selection
 [1.53.1] [user] [fixed] - Disruptions chart now shows a clear error when missing a data value
 [1.53.1] [user] [fixed] - Permission changes dialog now closes properly after saving
 [1.53.1] [user] [fixed] - Permission form now displays error messages when saving fails
