@@ -1,3 +1,4 @@
+[TBD] [admin] [internal] - Reorganized internal text styling configuration structure
 [TBD] [user] [fixed] - Preset previews no longer incorrectly show "No data available"
 [TBD] [user] [fixed] - Changing filters or disaggregation options no longer resets your selected comparison value
 [TBD] [user] [fixed] - Opening a visualization no longer incorrectly prompts you to save unsaved changes
