@@ -1,3 +1,8 @@
+[TBD] [user] [fixed] - Filtered dropdown options now correctly reflect applied filters
+[TBD] [user] [fixed] - AI-generated figures now show correct dropdown options for filtered data
+[TBD] [admin] [fixed] - Replicant dropdowns now correctly show only filtered subsets
+[TBD] [admin] [fixed] - AI slide builder now validates replicant options accurately
+[TBD] [admin] [internal] - Replicant options cache cleared to reflect filtering improvements
 [TBD] [user] [fixed] - Central data exports now complete dramatically faster
 [TBD] [admin] [fixed] - Central export is now dramatically faster, resolving multi-hour imports
 [TBD] [admin] [internal] - Reorganized internal text styling configuration structure
