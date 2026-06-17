@@ -7,11 +7,9 @@ export {
   MarkdownPresentation,
   MarkdownPresentationJsx,
 } from "../_303_components/mod.ts";
-export type {
-  CustomMarkdownStyleOptions,
-  ImageMap,
-  MarkdownImageRenderer,
-} from "../_303_components/mod.ts";
+export type { MarkdownImageRenderer } from "../_303_components/mod.ts";
+export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
+export type { ImageMap } from "../_105_markdown/mod.ts";
 export { markdown } from "@codemirror/lang-markdown";
 export { EditorState } from "@codemirror/state";
 export { basicSetup, EditorView } from "codemirror";

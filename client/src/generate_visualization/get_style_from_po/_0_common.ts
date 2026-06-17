@@ -2,7 +2,8 @@ import {
   ChartSeriesInfo,
   Color,
   ColorKeyOrString,
-  type CustomStyleOptions,
+  type GlobalStyleOptions,
+  type TextInfoOptions,
   type FontInfo,
   MapRegionInfo,
   TableCellInfo,
@@ -32,11 +33,12 @@ const _InternationalInter_800: FontInfo = {
   italic: false,
 };
 
-export const GLOBAL_STYLE_OPTIONS: CustomStyleOptions = {
-  baseText: {
-    font: { fontFamily: "International Inter", weight: 400, italic: false },
-    lineHeight: 1.4,
-  },
+export const BASE_TEXT_OPTIONS: TextInfoOptions = {
+  font: { fontFamily: "International Inter", weight: 400, italic: false },
+  lineHeight: 1.4,
+};
+
+export const GLOBAL_STYLE_OPTIONS: GlobalStyleOptions = {
   figure: {
     text: {
       caption: { font: _InternationalInter_800 },

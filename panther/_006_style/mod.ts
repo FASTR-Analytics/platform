@@ -3,7 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export type { CustomStyleOptions } from "./custom_style_options.ts";
+export type {
+  CustomStyleOptions,
+  GlobalStyleOptions,
+} from "./custom_style_options.ts";
 export { setGlobalStyle } from "./global_style.ts";
 export { CustomStyle } from "./custom_style.ts";
 

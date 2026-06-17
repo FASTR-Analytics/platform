@@ -10,7 +10,7 @@ import type {
   TableGroup,
 } from "./types.ts";
 
-export function compareValues(a: any, b: any): number {
+export function compareValues(a: unknown, b: unknown): number {
   if (a === undefined || a === null) return 1;
   if (b === undefined || b === null) return -1;
 

@@ -10,12 +10,16 @@ import type {
   TextInfoOptions,
 } from "./deps.ts";
 
-export type CustomStyleOptions = {
-  // SHARED: Applied to all three style domains
-  baseText?: TextInfoOptions;
-
-  // NAMESPACED: Domain-specific options
+// Domain style options only. The foundations (key colors, base text) are set
+// separately via setKeyColors() / setBaseText(). This is what setGlobalStyle takes.
+export type GlobalStyleOptions = {
   figure?: CustomFigureStyleOptions;
   markdown?: CustomMarkdownStyleOptions;
   page?: CustomPageStyleOptions;
+};
+
+// Per-call custom style: domain options plus a baseText override applied to all
+// three domains for this one render (CustomStyle / markdown-to-pdf / docs).
+export type CustomStyleOptions = GlobalStyleOptions & {
+  baseText?: TextInfoOptions;
 };

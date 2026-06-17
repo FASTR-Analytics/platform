@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type ColorKeyOrString, getColor } from "./deps.ts";
+import { assert, type ColorKeyOrString, getColor } from "./deps.ts";
 
 const OFFICIAL_BASE_TEXT: TextInfo = {
   font: { fontFamily: "Inter", weight: 400, italic: false },
@@ -20,7 +20,13 @@ export function getBaseText(): TextInfo {
   return _baseText;
 }
 
+let _baseTextHasBeenSet = false;
+
+// Foundation setter: call once at init (a partial merges over the defaults).
+// Per-render overrides go through CustomStyle, not this.
 export function setBaseText(options: TextInfoOptions): void {
+  assert(!_baseTextHasBeenSet, "Base text has already been set");
+  _baseTextHasBeenSet = true;
   _baseText = {
     font: options.font
       ? { ..._baseText.font, ...options.font }

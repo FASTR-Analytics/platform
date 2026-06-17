@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { assert } from "./deps.ts";
 import { Color, type ColorOptions, type ColorRgb } from "./color_class.ts";
 import {
   KEY_COLOR_THEMES,
@@ -29,7 +30,13 @@ const _KEY_COLORS = new Map<KeyColorsKey, string>([
   ["dangerContent", _defaultTheme.dangerContent],
 ]);
 
+let _keyColorsHaveBeenSet = false;
+
+// Foundation setter: call once at init (a partial merges over the defaults).
+// Per-render overrides go through CustomStyle, not this.
 export function setKeyColors(kc: Partial<KeyColors> | KeyColorThemeName) {
+  assert(!_keyColorsHaveBeenSet, "Key colors have already been set");
+  _keyColorsHaveBeenSet = true;
   const colors = typeof kc === "string" ? KEY_COLOR_THEMES[kc].colors : kc;
   for (
     const [key, value] of Object.entries(colors) as [KeyColorsKey, string][]

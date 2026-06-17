@@ -5,6 +5,7 @@
 
 export { t3 } from "../_000_utils/mod.ts";
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
+export { createMarkdownIt } from "../_105_markdown/mod.ts";
 export {
   BETA_HEADERS,
   BUILTIN_TOOL_TYPES,
@@ -30,7 +31,6 @@ export {
   Button,
   ChevronDownIcon,
   ChevronRightIcon,
-  createMarkdownIt,
   deriveMarkdownCssVars,
   MARKDOWN_BASE_STYLES,
   ModalContainer,

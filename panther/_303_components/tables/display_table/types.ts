@@ -13,7 +13,7 @@ export type TableColumn<T> = {
   key: string;
   header: string;
   sortable?: boolean;
-  sortValue?: (item: T) => any;
+  sortValue?: (item: T) => unknown;
   render?: (item: T) => JSX.Element;
   width?: string;
   alignH?: "left" | "center" | "right";
@@ -42,10 +42,10 @@ export type BulkAction<T> = {
 
 export type TablePadding = "compact" | "normal" | "comfortable";
 
-export type TableProps<T> = {
+export type TableProps<T, K extends keyof T = keyof T> = {
   data: T[];
   columns: TableColumn<T>[];
-  keyField: keyof T;
+  keyField: K;
   onRowClick?: (item: T) => void;
   groups?: TableGroup<T>[];
   currentGroup?: string;
@@ -56,8 +56,8 @@ export type TableProps<T> = {
   fitTableToAvailableHeight?: boolean; // enables overflow-y: auto for scrollable table
   defaultSort?: SortConfig; // initial sort configuration
   onSortChange?: (config: SortConfig | null) => void; // callback when sort changes
-  selectedKeys?: Accessor<Set<any>>; // controlled selection state
-  setSelectedKeys?: (keys: Set<any>) => void; // controlled selection setter
+  selectedKeys?: Accessor<Set<T[K]>>; // controlled selection state
+  setSelectedKeys?: (keys: Set<T[K]>) => void; // controlled selection setter
   paddingX?: TablePadding; // horizontal padding (default: "normal")
   paddingY?: TablePadding; // vertical padding (default: "normal")
 };

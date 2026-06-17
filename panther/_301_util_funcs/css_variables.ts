@@ -45,6 +45,9 @@ export function setCSSVariable(variableName: string, value: string): void {
   document.documentElement.style.setProperty(varName, value);
 }
 
+// Alternate entry to setKeyColors that reads CSS custom properties. Routes
+// through setKeyColors, so it shares the same once-only guard: call this OR
+// setKeyColors, once — not both.
 export function setKeyColorsFromCss() {
   setKeyColors({
     base100: getCSSColor("base-100"),

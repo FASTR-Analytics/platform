@@ -5,7 +5,6 @@
 
 import {
   batch,
-  Component,
   createMemo,
   createSignal,
   For,
@@ -33,12 +32,15 @@ import { Button, Checkbox } from "../../form_inputs/mod.ts";
 // Main Table Component
 // ============================================================================
 
-export function Table<T extends Record<string, any>>(p: TableProps<T>) {
+export function Table<
+  T extends Record<string, any>,
+  K extends keyof T = keyof T,
+>(p: TableProps<T, K>) {
   const [sortConfig, setSortConfig] = createSignal<SortConfig | null>(
     p.defaultSort || null,
   );
   const [internalSelectedKeys, setInternalSelectedKeys] = createSignal<
-    Set<any>
+    Set<T[K]>
   >(new Set());
 
   // Use controlled state if provided, otherwise use internal state
@@ -93,7 +95,7 @@ export function Table<T extends Record<string, any>>(p: TableProps<T>) {
   };
 
   // Handle selection
-  const toggleSelection = (key: any) => {
+  const toggleSelection = (key: T[K]) => {
     const prev = selectedKeys();
     const newSet = new Set(prev);
     if (newSet.has(key)) {
@@ -323,18 +325,20 @@ const SortIcon = <T,>(p: SortIconProps<T>) => {
   );
 };
 
-type TableRowProps<T> = {
+type TableRowProps<T, K extends keyof T = keyof T> = {
   item: T;
   columns: TableColumn<T>[];
-  keyField: keyof T;
+  keyField: K;
   enableSelection: boolean;
-  selectedKeys: Set<any>;
-  onToggleSelection: (key: any) => void;
+  selectedKeys: Set<T[K]>;
+  onToggleSelection: (key: T[K]) => void;
   onRowClick?: (item: T) => void;
   padding: { px: string; py: string };
 };
 
-const TableRow: Component<TableRowProps<any>> = (p) => {
+const TableRow = <T extends Record<string, any>, K extends keyof T = keyof T>(
+  p: TableRowProps<T, K>,
+) => {
   const key = () => p.item[p.keyField];
 
   const rowClasses = () => {
@@ -391,18 +395,23 @@ const TableRow: Component<TableRowProps<any>> = (p) => {
   );
 };
 
-type GroupedRowsProps<T> = {
+type GroupedRowsProps<T, K extends keyof T = keyof T> = {
   processedData: ProcessedData<T>;
   columns: TableColumn<T>[];
-  keyField: keyof T;
+  keyField: K;
   enableSelection: boolean;
-  selectedKeys: Set<any>;
-  onToggleSelection: (key: any) => void;
+  selectedKeys: Set<T[K]>;
+  onToggleSelection: (key: T[K]) => void;
   onRowClick?: (item: T) => void;
   padding: { px: string; py: string };
 };
 
-const GroupedRows: Component<GroupedRowsProps<any>> = (p) => {
+const GroupedRows = <
+  T extends Record<string, any>,
+  K extends keyof T = keyof T,
+>(
+  p: GroupedRowsProps<T, K>,
+) => {
   return (
     <Show when={p.processedData.isGrouped}>
       <For each={p.processedData.groups}>

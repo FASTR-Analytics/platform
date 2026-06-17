@@ -7,7 +7,6 @@ export { assert } from "../_000_utils/mod.ts";
 export {
   deduplicateFonts,
   getAdjustedBaseTextOptions,
-  setBaseText,
 } from "../_001_font/mod.ts";
 export type { FontInfo, TextInfoOptions } from "../_001_font/mod.ts";
 export {
