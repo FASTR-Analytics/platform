@@ -388,6 +388,17 @@ export function getReplicateByProp(config): DisaggregationOption | undefined {
 
 Single-replicant-per-viz is enforced by the UI (toggling another replicant clears the previous) not by the type or schema. See [Known inconsistencies](#known-inconsistencies).
 
+### Resolving `selectedReplicantValue`
+
+The replicant value is **resolved, not blindly trusted**, because the set of valid values is config-dependent: filters can reduce which replicant values have data. [`resolveDefaultReplicant`](client/src/state/project/t2_presentation_objects.ts) is the single source of truth:
+
+- It fetches the valid values for the **current** config. The server's `getPossibleValues` strips the filter on the replicant column itself ([get_possible_values.ts](server/server_only_funcs_presentation_objects/get_possible_values.ts)), so the full set is returned even when the current pick is stale — and the helper queries with `excludeReplicantFilter: true` so it shares the selector's `replicant_options` cache entry.
+- **Keep-if-valid, else first:** a `selectedReplicantValue` that is still valid is kept; an unset or now-invalid one defaults to the first valid value. It returns a fresh config copy and **never mutates the input** (the editor passes the unwrapped live store).
+
+It is shared by the PO-items generator (`getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator`) and the preset-preview thumbnail. The viz editor additionally **commits the resolved value back into its draft** after each fetch (so the replicant selector and the saved config match the rendered figure — guarded against a re-fetch loop, and excluded from the `needsSave` flag since it is not a user edit), and does **not** blind-reset `selectedReplicantValue` on filter/disaggregation edits. `resolveDefaultReplicant` re-validates on every config change, so a still-valid pick survives an unrelated edit instead of being discarded.
+
+The AI-slide path is deliberately different: [`resolve_figure_from_metric.ts`](client/src/components/slide_deck/slide_ai/resolve_figure_from_metric.ts) **throws** on an unset/invalid replicant rather than defaulting — the AI must pass an explicit value.
+
 **Required disaggregations** (from `metric.disaggregationOptions[].isRequired = true`) cannot be unchecked in `_3_disaggregation.tsx`. They are always in `disaggregateBy`. But the user still chooses the `disDisplayOpt` for each.
 
 ---

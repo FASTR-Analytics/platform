@@ -1,10 +1,12 @@
 import {
   APIResponseWithData,
+  DisaggregationOption,
   GenericLongFormFetchConfig,
   ItemsHolderPresentationObject,
   PresentationObjectConfig,
   PresentationObjectDetail,
   ReplicantValueOverride,
+  ResultsValue,
   ResultsValueInfoForPresentationObject,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
@@ -292,6 +294,73 @@ export async function getPODetailFromCacheorFetch(
   );
 }
 
+export type ResolveDefaultReplicantResult =
+  | { ok: true; config: PresentationObjectConfig; fetchConfig: GenericLongFormFetchConfig }
+  | { ok: false; noValuesFor: DisaggregationOption };
+
+// Resolve the replicant value to actually fetch with. Replicant presets ship with
+// `selectedReplicantValue: undefined` (the user picks the category after creation);
+// left unresolved, the fetch config filters on the "UNSELECTED" sentinel and returns
+// no rows. This defaults an unset/invalid value to the first valid option — matching
+// the interactive viz, and deliberately NOT the AI-slide path, which throws on an
+// unset value (see slide_ai/resolve_figure_from_metric.ts). Returns a FRESH config
+// copy when it changes the value and never mutates the input (the generator passes
+// the unwrapped live editor store — see the caller comment below).
+export async function resolveDefaultReplicant(
+  projectId: string,
+  resultsValue: ResultsValue,
+  config: PresentationObjectConfig,
+  baseFetchConfig: GenericLongFormFetchConfig,
+): Promise<ResolveDefaultReplicantResult> {
+  const replicateBy = getReplicateByProp(config);
+  if (!replicateBy) {
+    return { ok: true, config, fetchConfig: baseFetchConfig };
+  }
+  // Fetch the valid replicant values with the replicant filter EXCLUDED, the same
+  // way the selector (ReplicateByOptions) queries them — so both share the single
+  // replicant-options cache entry instead of issuing two identical server queries.
+  // The server strips the replicant-column filter regardless, so the value set is
+  // identical either way; this only aligns the cache key.
+  const optionsFetchConfig = getFetchConfigFromPresentationObjectConfig(
+    resultsValue,
+    config,
+    { excludeReplicantFilter: true },
+  );
+  if (!optionsFetchConfig.success) {
+    return { ok: true, config, fetchConfig: baseFetchConfig };
+  }
+  const replicantRes = await getReplicantOptionsFromCacheOrFetch(
+    projectId,
+    resultsValue.resultsObjectId,
+    replicateBy,
+    optionsFetchConfig.data,
+  );
+  if (!replicantRes.success || replicantRes.data.status !== "ok") {
+    return { ok: true, config, fetchConfig: baseFetchConfig };
+  }
+  const validValues = replicantRes.data.possibleValues;
+  const selected = config.d.selectedReplicantValue;
+  if (selected && validValues.some((v) => v.id === selected)) {
+    return { ok: true, config, fetchConfig: baseFetchConfig };
+  }
+  if (validValues.length === 0) {
+    return { ok: false, noValuesFor: replicateBy };
+  }
+  const effectiveConfig: PresentationObjectConfig = {
+    ...config,
+    d: { ...config.d, selectedReplicantValue: validValues[0].id },
+  };
+  const newFetchConfig = getFetchConfigFromPresentationObjectConfig(
+    resultsValue,
+    effectiveConfig,
+  );
+  return {
+    ok: true,
+    config: effectiveConfig,
+    fetchConfig: newFetchConfig.success ? newFetchConfig.data : baseFetchConfig,
+  };
+}
+
 export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
   projectId: string,
   poDetail: PresentationObjectDetail,
@@ -326,48 +395,29 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     return;
   }
 
-  const replicateBy = getReplicateByProp(config);
-  let finalFetchConfig = resFetchConfig.data;
   // The auto-selected replicant lives on a COPY yielded to the caller — never
   // mutate the passed-in config: in the editor it is the unwrapped live store,
   // and a raw write would bypass notification and make the user's next click on
-  // that same value a no-op (Solid's setter equality guard).
-  let effectiveConfig = config;
-  if (replicateBy) {
-    const replicantRes = await getReplicantOptionsFromCacheOrFetch(
-      projectId,
-      poDetail.resultsValue.resultsObjectId,
-      replicateBy,
-      resFetchConfig.data,
-    );
-    if (replicantRes.success && replicantRes.data.status === "ok") {
-      const validValues = replicantRes.data.possibleValues;
-      const selected = config.d.selectedReplicantValue;
-      if (!selected || !validValues.some(v => v.id === selected)) {
-        if (validValues.length === 0) {
-          yield {
-            status: "error",
-            err: t3({
-              en: `[INFO] No values available for "${replicateBy}"`,
-              fr: `[INFO] Aucune valeur disponible pour "${replicateBy}"`,
-            }),
-          };
-          return;
-        }
-        effectiveConfig = {
-          ...config,
-          d: { ...config.d, selectedReplicantValue: validValues[0].id },
-        };
-        const newFetchConfig = getFetchConfigFromPresentationObjectConfig(
-          poDetail.resultsValue,
-          effectiveConfig,
-        );
-        if (newFetchConfig.success) {
-          finalFetchConfig = newFetchConfig.data;
-        }
-      }
-    }
+  // that same value a no-op (Solid's setter equality guard). resolveDefaultReplicant
+  // returns a fresh copy when it defaults the value (see its doc comment).
+  const resolvedReplicant = await resolveDefaultReplicant(
+    projectId,
+    poDetail.resultsValue,
+    config,
+    resFetchConfig.data,
+  );
+  if (!resolvedReplicant.ok) {
+    yield {
+      status: "error",
+      err: t3({
+        en: `[INFO] No values available for "${resolvedReplicant.noValuesFor}"`,
+        fr: `[INFO] Aucune valeur disponible pour "${resolvedReplicant.noValuesFor}"`,
+      }),
+    };
+    return;
   }
+  const effectiveConfig = resolvedReplicant.config;
+  const finalFetchConfig = resolvedReplicant.fetchConfig;
 
   const { data, version, isInflight } = await _PO_ITEMS_CACHE.get({
     projectId,

@@ -189,12 +189,10 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
                   ...prev,
                   { disOpt: p.disOpt.value, disDisplayOpt },
                 ]);
-                p.setTempConfig("d", "selectedReplicantValue", undefined);
               } else {
                 p.setTempConfig("d", "disaggregateBy", (prev) =>
                   prev.filter((d) => d.disOpt !== p.disOpt.value),
                 );
-                p.setTempConfig("d", "selectedReplicantValue", undefined);
               }
             }}
           />
@@ -294,7 +292,6 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
             "disDisplayOpt",
             v as DisaggregationDisplayOption,
           );
-          p.setTempConfig("d", "selectedReplicantValue", undefined);
         }}
         fullWidth
       />

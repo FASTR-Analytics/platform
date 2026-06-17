@@ -23,7 +23,7 @@ import {
 } from "~/state/project/t1_store";
 import { buildFigureInputs, makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
-import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
+import { _PO_ITEMS_CACHE, resolveDefaultReplicant } from "~/state/project/t2_presentation_objects";
 import { getInstanceLocalization } from "~/state/instance/t1_store";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 
@@ -201,10 +201,28 @@ async function fetchPreview(
     return { status: "error", err: resFetchConfig.err };
   }
 
+  // Replicant presets ship with no selected value; resolve to the first valid
+  // option (same as the interactive viz) so the preview isn't querying the
+  // "UNSELECTED" sentinel and rendering a false "No data available".
+  const resolvedReplicant = await resolveDefaultReplicant(
+    projectId,
+    metric,
+    config,
+    resFetchConfig.data,
+  );
+  if (!resolvedReplicant.ok) {
+    return {
+      status: "error",
+      err: t3({ en: "No data available", fr: "Aucune donnée disponible" }),
+    };
+  }
+  const fetchConfig = resolvedReplicant.fetchConfig;
+  const effectiveConfig = resolvedReplicant.config;
+
   const { data, version } = await _PO_ITEMS_CACHE.get({
     projectId,
     resultsObjectId: metric.resultsObjectId,
-    fetchConfig: resFetchConfig.data,
+    fetchConfig,
   });
 
   let itemsHolder;
@@ -215,7 +233,7 @@ async function fetchPreview(
       serverActions.getPresentationObjectItems({
         projectId,
         resultsObjectId: metric.resultsObjectId,
-        fetchConfig: resFetchConfig.data,
+        fetchConfig,
         firstPeriodOption: metric.mostGranularTimePeriodColumnInResultsFile,
       }),
     );
@@ -225,7 +243,7 @@ async function fetchPreview(
       {
         projectId,
         resultsObjectId: metric.resultsObjectId,
-        fetchConfig: resFetchConfig.data,
+        fetchConfig,
       },
       version,
     );
@@ -251,7 +269,7 @@ async function fetchPreview(
     const bundle = makeFigureBundleFromFetchedData({
       resultsValue: metric,
       ih: itemsHolder as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
-      effectiveConfig: config,
+      effectiveConfig,
     });
     return { status: "ready" as const, data: buildFigureInputs(bundle) };
   } catch (e) {

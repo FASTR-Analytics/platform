@@ -422,12 +422,10 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
               ...prev.filter((d) => d.disOpt !== p.disOpt.value),
               { disOpt: p.disOpt.value, values: [] },
             ]);
-            p.setTempConfig("d", "selectedReplicantValue", undefined);
           } else {
             p.setTempConfig("d", "filterBy", (prev) =>
               prev.filter((d) => d.disOpt !== p.disOpt.value),
             );
-            p.setTempConfig("d", "selectedReplicantValue", undefined);
           }
         }}
       />
@@ -452,7 +450,6 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                 return [...(prev ?? []), id];
               },
             );
-            p.setTempConfig("d", "selectedReplicantValue", undefined);
           }
           return (
             <div class="pb-4">

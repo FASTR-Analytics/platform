@@ -144,6 +144,11 @@ export function VisualizationEditorInner(p: InnerProps) {
   // (e.g. a roll-up sentinel row rendering raw when the flag was re-toggled
   // off before the slower roll-up query resolved).
   let itemsFetchRunId = 0;
+  // Set true only around the replicant auto-resolution commit-back below, so the
+  // needsSave effect can tell that programmatic write apart from a real user edit
+  // and not mark an untouched viz dirty (which would otherwise block
+  // download/duplicate/rename and surface a spurious save prompt).
+  let isAutoResolvingReplicant = false;
   async function attemptGetPresentationObjectItems(
     config: PresentationObjectConfig,
   ) {
@@ -169,6 +174,21 @@ export function VisualizationEditorInner(p: InnerProps) {
         return;
       }
       if (lastState.status === "ready") {
+        // Commit the auto-resolved replicant back into the draft so the selector
+        // and the saved config match the rendered figure. resolveDefaultReplicant
+        // (run inside the fetch) already validated the pick against the current
+        // filters — keep-if-still-valid, else fall back to the first option — so we
+        // only reflect its result here. Guarded on inequality so it settles in one
+        // extra (cache-hit) fetch and never loops. Raw setTempConfig (not the
+        // manuallyUpdate wrapper): this is an auto-resolution, not a user edit.
+        const resolvedReplicant = lastState.data.config.d.selectedReplicantValue;
+        if (
+          resolvedReplicant !== undefined &&
+          resolvedReplicant !== tempConfig.d.selectedReplicantValue
+        ) {
+          isAutoResolvingReplicant = true;
+          setTempConfig("d", "selectedReplicantValue", resolvedReplicant);
+        }
         const mapLevel = getAdminAreaLevelFromMapConfig(lastState.data.config);
         if (mapLevel) {
           const geoJson = getGeoJsonSync(mapLevel);
@@ -276,6 +296,12 @@ export function VisualizationEditorInner(p: InnerProps) {
 
     if (firstRunNeedsSave) {
       firstRunNeedsSave = false;
+      return;
+    }
+    // The replicant auto-resolution commits a value into tempConfig
+    // programmatically; that is not a user edit, so it must not mark the viz dirty.
+    if (isAutoResolvingReplicant) {
+      isAutoResolvingReplicant = false;
       return;
     }
     setNeedsSave(true);
