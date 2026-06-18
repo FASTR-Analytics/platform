@@ -170,6 +170,19 @@ export async function deleteDatasetIcehData(
   });
 }
 
+export async function deleteDatasetIcehIndicators(
+  mainDb: Sql,
+  indicatorCodes: string[],
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    if (indicatorCodes.length > 0) {
+      // ON DELETE CASCADE removes each indicator's iceh_data rows too.
+      await mainDb`DELETE FROM iceh_indicators WHERE iceh_indicator = ANY(${indicatorCodes})`;
+    }
+    return { success: true };
+  });
+}
+
 export async function getDatasetIcehUploadAttempt(
   mainDb: Sql
 ): Promise<APIResponseWithData<IcehUploadAttemptDetail | null>> {
@@ -336,7 +349,7 @@ export async function updateDatasetIcehUploadAttemptStep1(
 
       const step1Result: IcehStep1Result = {
         zipFileName: zipAssetFileName,
-        indicatorCount: indicatorRows.length - 1,
+        indicatorCount: indicatorCodes.size,
         dataRowCount: dataRows.length,
         countryIso,
         countryName,
@@ -555,10 +568,14 @@ async function stageAndIntegrateIcehData(
 
       const indicatorsWithData = indicators.filter((ind) => indicatorCodesInData.has(ind.code));
       const indicatorCodesInDb = new Set(indicatorsWithData.map((i) => i.code));
+      const uploadedCodes = indicatorsWithData.map((i) => i.code);
 
       await mainDb.begin(async (sql) => {
-        await sql`DELETE FROM iceh_data`;
-        await sql`DELETE FROM iceh_indicators`;
+        // Cumulative import: replace only the indicators in THIS upload, keeping
+        // all others. (The Retriever caps exports at 12 indicators, so a full
+        // 36+ dataset is built up across several uploads.) Deleting an indicator
+        // cascades to its iceh_data rows via the FK ON DELETE CASCADE.
+        await sql`DELETE FROM iceh_indicators WHERE iceh_indicator = ANY(${uploadedCodes})`;
 
         for (const ind of indicatorsWithData) {
           await sql`

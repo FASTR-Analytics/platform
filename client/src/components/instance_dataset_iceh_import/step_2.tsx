@@ -52,8 +52,8 @@ export function Step2(p: Props) {
 
       <p class="text-warning">
         {t3({
-          en: "This will replace all existing ICEH data. This action cannot be undone.",
-          fr: "Cela remplacera toutes les données ICEH existantes. Cette action ne peut pas être annulée.",
+          en: "This imports the indicators in this file, replacing any existing data for those same indicators and keeping all other indicators. Imports are cumulative. This cannot be undone.",
+          fr: "Cela importe les indicateurs de ce fichier, en remplaçant les données existantes pour ces mêmes indicateurs et en conservant tous les autres indicateurs. Les importations sont cumulatives. Cette action ne peut pas être annulée.",
         })}
       </p>
 

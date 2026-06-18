@@ -57,4 +57,9 @@ export const icehRouteRegistry = {
     method: "DELETE",
     path: "/iceh/data",
   }),
+  deleteDatasetIcehIndicators: route({
+    method: "POST",
+    path: "/iceh/data/delete-indicators",
+    body: z.object({ indicatorCodes: z.array(z.string()) }),
+  }),
 };

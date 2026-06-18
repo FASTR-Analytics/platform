@@ -10,6 +10,7 @@ import {
   updateDatasetIcehUploadAttemptStep2,
   updateDatasetIcehUploadAttemptStep3,
   deleteDatasetIcehData,
+  deleteDatasetIcehIndicators,
 } from "../../db/instance/dataset_iceh.ts";
 import { getInstanceDatasetsSummary } from "../../db/instance/instance.ts";
 import { log } from "../../middleware/logging.ts";
@@ -134,6 +135,21 @@ defineRoute(
   log("deleteDatasetIcehData"),
   async (c) => {
     const res = await deleteDatasetIcehData(c.var.mainDb);
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+    }
+    return c.json(res);
+  }
+);
+
+defineRoute(
+  routesIceh,
+  "deleteDatasetIcehIndicators",
+  requireGlobalPermission("can_configure_data"),
+  log("deleteDatasetIcehIndicators"),
+  async (c) => {
+    const body = await c.req.json<{ indicatorCodes: string[] }>();
+    const res = await deleteDatasetIcehIndicators(c.var.mainDb, body.indicatorCodes);
     if (res.success) {
       notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
     }
