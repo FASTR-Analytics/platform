@@ -1,12 +1,12 @@
-[TBD] [user] [added] - AI assistant can now load reference documentation on demand
-[TBD] [user] [fixed] - Inequality measures no longer incorrectly displayed as percentages
-[TBD] [user] [fixed] - Charts with negative values no longer clip below zero
-[TBD] [admin] [added] - AI assistant can now load reference documentation on demand
-[TBD] [admin] [added] - ICEH data and equity profile guides available as AI reference topics
-[TBD] [admin] [fixed] - Inequality measures no longer display as incorrectly formatted percentages
-[TBD] [admin] [fixed] - Charts with negative values no longer clip below zero
-[TBD] [user] [added] - Points charts can now display connectors between data points
-[TBD] [admin] [added] - Charts now support a "points with connectors" display option
+[1.53.7] [user] [added] - AI assistant can now load reference documentation on demand
+[1.53.7] [user] [fixed] - Inequality measures no longer incorrectly displayed as percentages
+[1.53.7] [user] [fixed] - Charts with negative values no longer clip below zero
+[1.53.7] [admin] [added] - AI assistant can now load reference documentation on demand
+[1.53.7] [admin] [added] - ICEH data and equity profile guides available as AI reference topics
+[1.53.7] [admin] [fixed] - Inequality measures no longer display as incorrectly formatted percentages
+[1.53.7] [admin] [fixed] - Charts with negative values no longer clip below zero
+[1.53.7] [user] [added] - Points charts can now display connectors between data points
+[1.53.7] [admin] [added] - Charts now support a "points with connectors" display option
 [1.53.6] [user] [fixed] - Large data exports no longer fail due to memory issues
 [1.53.6] [admin] [fixed] - Large data exports no longer crash instances due to memory exhaustion
 [1.53.6] [admin] [changed] - Data export streaming now uses bounded memory regardless of table size
