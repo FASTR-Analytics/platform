@@ -1,239 +1,205 @@
 # PLAN — ICEH derived indices (OPTION 5 — FINAL / CHOSEN)
 
-> Status: PLAN — **CHOSEN PATH** (not yet implemented). This is the final,
-> selected plan. It adopts `OPTION_4` (the value-columns synthesis) wholesale and
-> folds in two refinements from `OPTION_3` (see *Refinements over OPTION_4*). It
-> supersedes OPTIONS 1–4, which are retained only for lineage.
+> Status: PLAN — **CHOSEN PATH** (not yet implemented). Revised 2026-06-18 after a
+> pre-flight against the code, the live dev DB, the Cameroon profile oracle, a **real
+> ICEH Retriever extract** (`_iceh_background_docs/compiled_CSV_data_*.zip`), and a
+> spike of ICEH's own R package. The pre-flight overturned this plan's original
+> central decision (see §2): **CCI is not computed by FASTR — it is ingested
+> precomputed from the Retriever.** The sole quantity FASTR must compute is the
+> **wealth-inequality measures** (Ratio, Difference, CIX, SII), because the Retriever
+> does not export those. So the implementation collapses to a single build phase: the
+> indicator-agnostic inequality engine in the m009 R script, surfaced through the
+> existing query/viz pipeline.
 >
-> Scope: compute the *calculated numbers* in a Countdown/ICEH equity profile — the
-> Composite Coverage Index (CCI) and the wealth-inequality measures (Ratio,
-> Difference, CIX, SII) — inside the m009 R script, and surface them through the
-> existing query/viz pipeline. Rendering polish, new stratifiers, and the designed
-> multi-page layout are downstream (see §10).
+> Lineage: adopts OPTION_4's value-columns synthesis + OPTION_3 refinements; OPTIONS
+> 1–4 are retained only for history. The CCI-compute path earlier OPTIONS (and earlier
+> drafts of this one) carried is **dropped** — see §2 and §7.
 
-## Why OPTION 5 = OPTION 4 (decision record)
+## Why the CCI-compute path is gone (decision record)
 
-Chosen over OPTION_3 after verifying both plans' load-bearing claims against the
-codebase (not by reading the plans — by reading the code):
+Verified empirically, not assumed:
 
-- **OPTION_4's enabler is real and first-class.** Multiple `valueProps` already
-  render as a display axis: `getDisaggregatorDisplayProp`
-  (`lib/get_disaggregator_display_prop.ts:34`) returns the `"--v"` sentinel when
-  `effectiveValueProps.length > 1` and `valuesDisDisplayOpt` lands on that axis;
-  the table/chart/timeseries data-config builders all pass
-  `valueProps: effectiveValueProps`. So "rows = indicator, cols =
-  {ratio,difference,cix,sii}" renders the equity table with **zero app change**.
-- **OPTION_3's cost was understated.** Its `measure` dimension is not "one small
-  lib touch": `ALL_DISAGGREGATION_OPTIONS` is a closed `as const` union with
-  three parallel sources of truth (TS union, runtime array, Zod enum —
-  `DOC_DISAGGREGATION_OPTIONS_HANDLING.md` "Known inconsistencies" #6); it needs a
-  `getDisaggregationLabel` case; AND a `measure` column would stay invisible until
-  added to the server enricher's hardcoded probe list (`metric_enricher.ts:90`
-  `physicalColumnsToCheck`). That is a 4–5-site closed-union extension plus a
-  cache-prefix bump — exactly the cross-cutting class CLAUDE.md warns against —
-  for an end-state OPTION_4 reaches with none of it.
-- **Correctness tie-breaker.** OPTION_4 computes CCI *before* the inequality pass
-  and runs inequality over `coverage = iceh + composites`, so the CCI row itself
-  gets Ratio/Diff/CIX/SII — which the published profile shows. OPTION_3 computed
-  inequality from `raw` first, omitting CCI's own equity measures.
+- **`cci` is a first-class Retriever indicator.** The Retriever dictionary
+  (`indicators.xlsx` → "ICEH Indicators Definition", 217 indicators) defines `cci`
+  (category "Composite indicators", with the 8-component formula in its description),
+  and the data export (`results_csv.csv`) ships `cci` as ordinary data rows **fully
+  disaggregated** by every stratifier on the 0–100 scale (Burkina 2021 DHS: `cci`
+  Q1–Q5 = 67.9 → 77.2, complete for all 5 survey years).
+- **The import ingests it with zero special-casing.** `server/db/instance/dataset_iceh.ts`
+  maps `Indicator Code → iceh_indicator`, normalises `Strat` via `normalizeIcehStrat`,
+  inserts every dictionary indicator that has data rows into `iceh_indicators`
+  (carrying label + category), stores estimates 0–100. `cci` lands in `iceh_indicators`
+  + `iceh_data`, then flows through the **existing** m009 passthrough (÷100) into
+  `ro_m9_iceh_data_csv` like any other indicator. **No "cci" grep hit in server/ or
+  lib/** — there is nothing to add.
+- **The 8 components are typically absent when `cci` is present.** The Burkina extract
+  carries `cci` but **not** FP-modern/ANC4/measles/ORS/pneumonia; the Nigeria dev
+  extracts carry some components but **no** `cci`. A compute-from-components path would
+  rarely have inputs and is redundant when it does (the user just selects `cci`).
+- **Therefore:** computing CCI in FASTR solves a problem the data source already solved.
+  Dropped (YAGNI). The inequality engine runs over **all** ingested indicators including
+  any ingested `cci`, so CCI receives its equity measures with no CCI computation. If an
+  extract ever ships components-but-no-`cci`, computing it is a clean future add (§7) —
+  not built now.
 
-## Refinements over OPTION_4 (folded in from OPTION_3)
+## Refinements folded in
 
-1. **SE/CI escape hatch made explicit (§5 trade-off, §10).** v1 stores `NA` for
-   uncertainty. The wide value-columns layout must **not** grow per-measure
-   `*_se` / `*_ci_low` / `*_ci_high` columns; if/when uncertainty lands, add a
-   **long companion results object** rather than overloading
-   `M9_iceh_inequality.csv`.
-2. **Single-source-of-truth for level ordering (§6, §9).** Poorest→richest
-   ordering lives canonically in `ICEH_STRAT_INFO` (lib/TS), but the R script
-   cannot import lib. Do **not** silently duplicate it: prefer injecting the
-   ordering via the module's template mechanism (same path as `PROJECT_DATA_ICEH`),
-   or keep one typed constant in the module that the build verifies against
-   `ICEH_STRAT_INFO`. Decide in Phase 0.
+1. **SE/CI escape hatch (§5, §10).** v1 stores `NA` for uncertainty. The wide layout
+   must **not** grow per-measure `*_se`/`*_ci_*` columns; if uncertainty lands, add a
+   **long companion results object**.
+2. **Single-source level ordering (§6, §9).** Poorest→richest ordering lives canonically
+   in `ICEH_STRAT_INFO` (lib/TS); the R script can't import lib. Verified the live codes
+   match the literal the script needs (`Q1..Q5`, `D01..D10`). Keep one typed constant in
+   the module; ideally have the build verify it against `ICEH_STRAT_INFO`.
 
 ---
 
 ## 0. Background & purpose
 
 **What an ICEH equity profile is.** The International Center for Equity in Health
-(ICEH, Federal University of Pelotas), as part of Countdown to 2030, publishes
-one-country **equity profiles** of reproductive, maternal, newborn and child
-health (RMNCH). Built from nationally-representative household surveys (DHS,
-MICS), they show not just *how high* coverage is but *how unequally* it is
-distributed across population subgroups. The reference example is the Cameroon
-DHS 2018 profile in `_iceh_background_docs/`. A profile is a fixed set of
-elements: a choropleth map of a composite coverage index; equiplots (indicators
-as rows, a coloured dot per subgroup on a 0–100% scale); detailed tables of
-coverage by every stratifier with inequality summary measures; "zero-care"
-indicators; and narrative.
+(ICEH, Pelotas), as part of Countdown to 2030, publishes one-country **equity profiles**
+of RMNCH from DHS/MICS surveys, showing not just *how high* coverage is but *how
+unequally* it is distributed across population subgroups. The reference example is the
+Cameroon DHS 2018 profile in `_iceh_background_docs/`. A profile is a fixed set of
+elements: a CCI choropleth map; equiplots; detailed tables of coverage by every
+stratifier **with inequality summary measures**; "zero-care" indicators; narrative.
 
-**Why FASTR wants this.** FASTR is being extended so a user can recreate a
-profile like this inside the **reports feature**, from their own ingested survey
-data, instead of commissioning a bespoke design. FASTR already has the *data*
-foundation — an ICEH dataset type, instance tables (`iceh_data`), an import
-wizard, the m009 module that makes survey estimates queryable, and an
-`iceh-equiplot` viz preset. What it does **not** yet have is the **calculated
-layer**: the composite indices and inequality measures the profile is largely
-*about*. Every headline number — the CCI on the map, the Q5/Q1 ratios, CIX, SII —
-is a derived quantity that nothing in FASTR computes today.
-
-**Why these numbers first.** They are the one thing the platform cannot produce,
-and they are what every downstream visual *displays*. They are also the most
-tractable piece: computable inside the existing module R script, flowing through
-the existing pipeline with no new architecture. Getting them right unblocks
-everything visual that follows.
+**Why FASTR wants this.** FASTR is being extended so a user can recreate a profile
+inside the **reports feature**, from their own ingested Retriever data. FASTR already
+has the data foundation — an ICEH dataset type, instance tables, an import wizard, the
+m009 module, an `iceh-equiplot` preset — and it already **ingests the CCI** itself (a
+Retriever indicator). What it lacks is the **inequality layer**: the Ratio/Difference/
+CIX/SII the profile tables display. Those are the only computed quantity on the critical
+path the platform cannot otherwise produce — confirmed: the 217-indicator dictionary
+contains **no CIX/SII/ratio indicator** (the strings "ratio"/"inequality" appear only in
+methodology blurbs and the ORS/CCI descriptions, never as an indicator).
 
 ---
 
-## 1. The architectural framing (the key idea)
+## 1. Architectural framing (the key idea)
 
-**A profile is a composition of independent figures, so the data model should be
-a set of independent, semantically-pure results objects — one per figure shape —
-not one monolithic table.**
+**A profile is a composition of independent figures, so the data model is a set of
+independent, semantically-pure results objects — one per figure shape — not one
+monolithic table.**
 
-Two verified facts make this both necessary and clean:
+- A **module may declare many results objects** (`_results_objects.ts` is an array);
+  each becomes its own `ro_<…>` table.
+- A **single PO reads exactly one results object** (`lib/types/presentation_objects.ts`,
+  `lib/types/_metric_installed.ts:305`); the query/replicant pipeline keys off one
+  `resultsObjectId`, no cross-object join.
 
-- A **module may declare many results objects** (`_results_objects.ts` is an
-  array); each becomes its own `ro_<…>` table.
-- A **single presentation object reads exactly one results object** — verified:
-  `PresentationObjectDetail` carries one `metricId` / one `resultsValue` /
-  one `resultsObjectId` (`lib/types/presentation_objects.ts:53-58`,
-  `lib/types/_metric_installed.ts:305`); the query/replicant pipeline keys off
-  that single id, with no cross-object join.
-
-These are not in tension: **many objects, but any one figure reads one of them.**
-The report's only seemingly-monolithic element — the P2 table (coverage *and*
-equity measures in one grid) — is really a set of **row-aligned blocks**, each a
-natural single-object PO. Making those blocks *look* like one continuous grid is
-a **layout** concern (deferred, §10), not a data-model concern. So:
-
-> We make as many results objects and metrics as there are distinct figure
-> shapes. "One PO = one object" is not a constraint to design around — it just
-> means separate visualizations, which is what the profile is anyway.
-
-This dissolves the only real argument for cramming everything into one table, and
-lets the storage decisions be made purely on **semantic honesty**.
+The report's only seemingly-monolithic element — the P2 table — is a set of row-aligned
+single-object blocks; making them *look* like one grid is a **layout** concern (§10),
+not a data-model concern.
 
 ---
 
 ## 2. Decisions already settled (don't re-litigate)
 
-1. **Compute in m009 (extend), not a new module.** Derived rows must be queryable
-   exactly like coverage estimates, through the same pipeline.
-2. **Compute, don't ingest** — for everything computable from the imported
-   stratum estimates (CCI, ratio, difference, CIX, SII). Zero-MNH is the
-   exception (microdata-only — §10).
-3. **Single-country instances.** Every index here is a within-country
-   aggregation; no cross-country pooling, and wealth quintiles aren't comparable
-   across countries. Cross-country benchmarking is a separate, deferred feature.
-4. **Agnostic engine + declarative recipes.** Inequality is an indicator-agnostic
-   transformation (loop over every indicator × ordered strat). Composites are a
-   declarative recipe list that self-skips when components are absent. This
-   answers "import specific indicators first?" → **no**; build both decoupled
-   from the data.
-5. **A measure is not a stratum.** Inequality measures are *quantities*, not
-   levels of a population subgroup — so they are modelled as value columns, never
-   as a synthetic stratifier (this rejects OPTION_2's `strat =
-   "inequality_wealth_quintiles"` / `level = "cix"` overload). See §4.
+1. **Compute in m009 (extend), not a new module.**
+2. **Ingest CCI, compute inequality.** CCI (and `cciold`) arrive precomputed from the
+   Retriever and need **no** FASTR computation. The inequality measures are **not** in
+   the Retriever output, so FASTR must compute them. This reverses the earlier
+   "compute, don't ingest — CCI" decision (false premise about the data source).
+3. **Single-country instances.** A Retriever extract is single-country (the Burkina file
+   is 100% Burkina Faso).
+4. **Agnostic engine.** Inequality loops over every indicator × ordered strat. It runs
+   over whatever the extract ships — including any ingested `cci`/`cciold` — and simply
+   produces nothing for an indicator/strat that isn't a complete ordered set. No
+   per-indicator special-casing.
+5. **A measure is not a stratum.** Inequality measures are value columns, never a
+   synthetic stratifier and never a new `measure` disaggregation dimension (§4).
+6. **Hand-roll the inequality math; do not depend on `ICEHmeasures`.** Settled by spike
+   (§6). The lib's grouped CIX is byte-identical to the hand-rolled formula and its
+   grouped logistic SII is not reliably closer to the published numbers, while it drags
+   `car`/`survey`/`lme4`/`pbkrtest`/`doBy` into the R container. The R script documents
+   exactly how to swap it in if ever wanted (§9).
 
 ---
 
 ## 3. Verified current state (the spine we extend)
 
 ```text
-instance.iceh_data            raw, 0–100 scale:
+Retriever ZIP (results_csv.csv + indicators.xlsx)
+       │  import: dataset_iceh.ts (normalizeIcehStrat; 0–100; cci ingested as-is)
+       ▼
+instance.iceh_indicators (defs incl. cci label+category)
+instance.iceh_data        raw, 0–100 scale:
   (iceh_indicator, year, source, strat, level, estimate, standard_error, sample_size)
        │  m009 dataSource { datasetType:"iceh", replacementString:"PROJECT_DATA_ICEH" }
        ▼
-  wb-fastr-modules/m009/script.R    ← currently only: estimate = estimate/100
+  wb-fastr-modules/m009/script.R    ← currently only: estimate/100, standard_error/100
        ▼
-  ro_m9_iceh_data_csv           per-project results table, SAME columns
+  ro_m9_iceh_data_csv           per-project results table, SAME columns (incl. cci rows)
        │  (strat/level/iceh_indicator are free-text TEXT — no CHECK on the ro_ table)
        ▼
   query pipeline → presentation objects → panther figures
 ```
 
-Facts that shape the design (all confirmed against the running dev DB / code):
+Facts that shape the design (confirmed against code / live dev DB / Retriever extract):
 
-- **Results-object columns are free text.** The instance-side CHECK in
-  `037_iceh_tables.sql` gates *raw import only*; the module can emit any
-  `iceh_indicator` / `strat` / `level` into its results tables — so derived rows
-  need **no instance migration**.
-- **Disaggregation options are derived from results-object columns**, so new
-  indicator values are automatically selectable in viz with no schema change.
-  The `iceh-equiplot` preset already exposes `allowedFilters: ["iceh_indicator",
-  "strat", "level", "year"]`.
-- **`DisaggregationOption` is a CLOSED app-side union**
-  (`lib/types/disaggregation_options.ts`) — `iceh_indicator`, `strat`, `level`,
-  but **no `measure`**. Adding a new dimension is an app change; reusing
-  `iceh_indicator`/`strat` + value-props is not.
-- **Multiple `valueProps` render as columns.** Verified: metrics like m3/m4/m6
-  declare >1 valueProp, and the value-set is a display dimension
-  (`getDisaggregatorDisplayProp(resultsValue, config, ["col"…],
-  effectiveValueProps)` in `get_data_config_from_po.ts`). With
-  `valuesDisDisplayOpt: "col"`, a metric with `valueProps:[ratio,difference,cix,
-  sii]` renders those four as table columns.
-- **Labels are display-only and fall back to the raw code.** Indicator labels ←
-  `iceh_indicators_snapshot` (from the upload's indicators list); strat/level
-  labels ← `ICEH_STRAT_INFO` (`lib/types/iceh_strats.ts`). A value with no entry
-  still works — it just renders its raw code. Render path:
-  `build_figure_inputs.ts:50` (client) via the server indicator-metadata funcs.
-- **Dev DB caveat:** loaded data is **Nigeria** (DHS+MICS, 1999–2024), 22
-  indicators (vaccination / breastfeeding / delivery / nutrition). It has
-  `vzdpt` (zero-dose) but only **3 of the 8 standard CCI components** (SBA, BCG,
-  DPT3). So the inequality pass is fully validatable today; full CCI is not (use
-  the Cameroon profile as the oracle once a complete extract is ingested).
+- **Results-object columns are free text.** The instance CHECK in `037_iceh_tables.sql`
+  gates *raw import only* — derived rows need **no instance migration**.
+- **Disaggregation options derive from results-object columns**, so new indicator values
+  are auto-selectable. `iceh-equiplot` exposes
+  `allowedFilters: ["iceh_indicator","strat","level","year"]`.
+- **`DisaggregationOption` is a CLOSED app-side union** (`lib/types/disaggregation_options.ts`)
+  — `iceh_indicator`, `strat`, `level`, **no `measure`**. We do not touch it.
+- **Multiple `valueProps` render as columns.** `getDisaggregatorDisplayProp` returns the
+  `"--v"` sentinel when `effectiveValueProps.length > 1`
+  (`lib/get_disaggregator_display_prop.ts:34`); the builders pass
+  `valueProps: effectiveValueProps`. With `valuesDisDisplayOpt: "col"`, a metric with
+  `valueProps:[ratio,difference,cix,sii]` renders four table columns.
+- **CCI labelling is automatic.** `cci`'s label + category arrive via `indicators.xlsx`,
+  are inserted into `iceh_indicators`, snapshotted into `iceh_indicators_snapshot` at
+  import (`datasets_in_project_iceh.ts:98`), resolved by `get_indicator_metadata.ts:137`.
+  No app-side `cci` label injection (resolves the old Open-Q4).
+- **Level codes match the script literal.** `ICEH_STRAT_INFO` and the live DB both use
+  `Q1..Q5` / `D01..D10`. The Retriever ships `Strat="wealth quintiles"` → normalised to
+  `wealth_quintiles`; `Level` stored as-is.
+- **Dev-DB caveat.** Loaded dev projects are **Nigeria** (no `cci`). The Burkina
+  **Retriever extract** carries `cci`, complete across all 5 quintiles for all 5 years —
+  load it to validate the engine on `cci` directly. For general inequality validation
+  use **`44ca5454-…`** / **`87a57a48-…`** (22-indicator Nigeria); the plan's old psql
+  command pointed at `6ee65e81-…` (16 indicators) — use a richer one.
 
 ---
 
 ## 4. Data model: one results object per figure shape
 
-| Results object                                   | Grain / shape                                                             | Holds                                                                        | Feeds                                                            |
-|--------------------------------------------------|---------------------------------------------------------------------------|------------------------------------------------------------------------------|------------------------------------------------------------------|
-| **RO-1 `M9_iceh_data.csv`** (existing, extended) | long: `iceh_indicator × year × source × strat × level` → `estimate` (0–1) | coverage estimates **+ synthetic `cci` rows** (+ later `zero_mnh`)           | equiplots, coverage-by-region/wealth/area tables, CCI choropleth |
-| **RO-2 `M9_iceh_inequality.csv`** (new)          | **wide**: one row per `iceh_indicator × year × source × strat`            | columns `ratio, difference, cix, sii`                                        | the equity-measures table block; per-indicator inequality charts |
-| RO-3 (deferred, §10)                             | wide, denormalized to P2's exact columns                                  | only if a true single P2 grid is ever required *and* layout can't compose it | the P2 single-grid table                                         |
+| Results object                                    | Grain / shape                                                            | Holds                                                            | Feeds                                                            |
+|---------------------------------------------------|--------------------------------------------------------------------------|-----------------------------------------------------------------|------------------------------------------------------------------|
+| **RO-1 `M9_iceh_data.csv`** (existing, unchanged) | long: `iceh_indicator × year × source × strat × level` → `estimate` (0–1)| coverage estimates **+ ingested `cci`/`cciold`** (pass-through)  | equiplots, coverage-by-region/wealth/area tables, CCI choropleth |
+| **RO-2 `M9_iceh_inequality.csv`** (new)           | **wide**: one row per `iceh_indicator × year × source × strat`          | columns `ratio, difference, cix, sii`                           | the equity-measures table block; per-indicator inequality charts |
+| RO-3 (deferred, §10)                              | wide, denormalized to P2's exact columns                                 | only if a true single P2 grid is required and layout can't compose it | the P2 single-grid table                                    |
 
-**Why RO-2 is wide value-columns** (not a synthetic strat, not a new `measure`
-dimension):
+RO-1 is **not modified** — `cci` reaches it through the existing pass-through. The only
+new object is RO-2.
 
-- **Semantically honest** — a measure is a quantity, not a stratum (§2.5).
-- **No scale-mixing** in a shared `estimate` column; **no fake stratifier**
-  leaking into the strat picker; **no way** to drop `cix` onto a 0–100 coverage
-  axis.
-- **No app change** — measures are `valueProps`, reusing the existing
-  values-as-display-dimension mechanism; the closed `DisaggregationOption` union
-  is untouched. (This is the cleanliness win over OPTION_2, which had to add
-  synthetic strats to `ICEH_STRAT_INFO`.)
-- **Renders the equity block as one table** via multi-valueProp + `"col"`
-  (§3, verified).
-- **Trade-off (accepted):** adding `standard_error`/`ci_low`/`ci_high` later
-  makes the wide layout grow per-measure columns. Deferred (§10); if it becomes
-  real, add a long companion object rather than overloading RO-2.
-
-**CCI lives in RO-1 (a synthetic `iceh_indicator = "cci"` row)** so it appears in
-the *same* equiplot/table as the measured indicators — matching the profile,
-where CCI is the bottom row of the same equiplot. Labelled via a `cci` entry in
-the imported indicators list (data convention; the `iceh_data → iceh_indicators`
-FK permits an indicator definition with no *uploaded* rows, since the module
-computes the values). Until that entry exists it renders as raw `cci`.
+**Why RO-2 is wide value-columns** (not a synthetic strat, not a `measure` dimension):
+semantically honest (a measure is a quantity, not a stratum); no scale-mixing in a
+shared `estimate` column; no fake stratifier in the picker; no app change (measures are
+`valueProps`); renders as one table via multi-valueProp + `"col"`. Trade-off: adding SE/CI
+later would grow the layout → deferred (§10), use a long companion object instead.
 
 ---
 
 ## 5. Scale & units conventions (these cause bugs — be explicit)
 
-Compute CCI on the **0–1** coverage scale; compute inequality from that same 0–1
-coverage (so CCI is included), then scale outputs to match the profile's plain
-numbers. The profile prints all four measures as **unitless numbers, 1 dp** (no
-% sign), so one `formatAs:"number"` metric covers them.
+Compute inequality from the same 0–1 coverage the existing pass-through produces (so any
+ingested `cci` is included), then scale outputs to the profile's plain numbers (unitless,
+1 dp, no %). One `formatAs:"number"` metric covers all four.
 
 | Quantity                | Computed on | Stored           | Renders as                |
 |-------------------------|-------------|------------------|---------------------------|
-| coverage estimate, CCI  | 0–1         | 0–1              | percent (existing metric) |
-| ratio (top/bottom)      | scale-free  | as-is (e.g. 4.0) | number, 1 dp              |
-| difference (top−bottom) | 0–1         | ×100 (e.g. 33.5) | number, 1 dp (pp)         |
+| coverage estimate, CCI  | (ingested)  | 0–1              | percent (existing metric) |
+| ratio (Q5/Q1)           | scale-free  | as-is (e.g. 4.0) | number, 1 dp              |
+| difference (Q5−Q1)      | 0–1         | ×100 (e.g. 33.5) | number, 1 dp (pp)         |
 | CIX                     | scale-free  | ×100 (e.g. 16.7) | number, 1 dp (index)      |
 | SII (slope)             | 0–1         | ×100 (e.g. 32.4) | number, 1 dp (pp)         |
+
+CCI is ingested (not computed) and rendered by the existing percent metric exactly like
+coverage; it is merely *included* in the inequality pass.
 
 ---
 
@@ -242,274 +208,290 @@ numbers. The profile prints all four measures as **unitless numbers, 1 dp** (no
 `wᵢ` = population share of level *i*; `yᵢ` = level estimate (0–1); levels ordered
 poorest→richest.
 
-- **Ratio** = `y_top / y_bottom`. **Difference** = `y_top − y_bottom`.
-- **CIX** (Kakwani convenient form): with `μ = Σ wᵢyᵢ` and fractional-rank
-  midpoints `Rᵢ`, `CIX = (2/μ)·Σ wᵢyᵢRᵢ − 1`. Positive ⇒ concentrated among the
-  rich; `|CIX·100| > 30` ≈ high inequality.
-- **SII** = slope of the weighted regression of `yᵢ` on `Rᵢ`.
+- **Ratio** = `y_top / y_bottom` (Q5/Q1). **Difference** = `y_top − y_bottom` (Q5−Q1).
+  Both **exact** from the ingested top/bottom levels.
+- **CIX** (Kakwani convenient form): with `μ = Σ wᵢyᵢ` and rank midpoints `Rᵢ`,
+  `CIX = (2/μ)·Σ wᵢyᵢRᵢ − 1`. Positive ⇒ concentrated among the rich; `|CIX·100| > 30`
+  ≈ high inequality.
+- **SII** = slope of the weighted regression of `yᵢ` on `Rᵢ` (linear, v1).
 
-**Weighting (important).** Wealth **quintiles/deciles are equal-sized by
-construction** (a quintile *is* 20% of the population), so `wᵢ = 1/n` and the
-rank midpoints are fixed constants (quintiles: .1 .3 .5 .7 .9). CIX/SII therefore
-need **no external population data** for wealth — prefer this over weighting by
-`sample_size` (which reflects survey response counts, not population shares).
-Non-equal stratifiers (education, area) would need ingested population shares —
-out of scope for Phase 1 (§9 Q3); the profile itself only does inequality by
-wealth.
+**Weighting.** Wealth quintiles/deciles are equal-sized by construction, so `wᵢ = 1/n`
+and rank midpoints are fixed (quintiles: .1 .3 .5 .7 .9) — no external population data
+needed. Non-equal stratifiers (education/area) would need ingested population shares —
+out of scope; the profile only does inequality by wealth.
 
-**SII fidelity.** Ship **linear** SII first (tractable point estimate). The
-Countdown profile uses a **logistic** SII; flag the `glm(…, binomial)` +
-marginal-prediction version as a fast-follow to match exactly (§9 Q2).
+**Fidelity (v1 — accepted, must be flagged).** The Cameroon oracle's published CIX/SII
+are computed from **microdata** (logistic SII, covariance CIX). FASTR ingests
+pre-aggregated stratum estimates and never has microdata, so it can only **approximate**
+CIX/SII from grouped marginals. Empirically (spike, see decision record below):
 
-**Missing-data policy.** Suppressed/low-n rows are dropped at import, so
-"missing" == "row absent". Emit inequality only when the **full** ordered set is
-present (all 5 quintiles / 10 deciles); emit a composite only in cells where
-**all** its components are present. `standard_error`/`sample_size` on derived
-rows = `NA` in Phase 1.
+- **Ratio/Difference reproduce the profile exactly** (verified DPT3 1.7/35.5, SBA
+  3.2/67.4, CCI 2.2/37.7, FPS 4.0/33.5).
+- **CIX is close, not exact** (DPT3 8.9 vs 9.4; SBA 18.1 vs 19.9).
+- **SII does not match** (DPT3 linear 41.0 vs published 38.4).
+
+This applies to **every** indicator including ingested `cci` — only `cci`'s Ratio/Diff are
+exact; its CIX/SII are the same v1 approximations as everything else.
+
+**Decision record — why hand-rolled, not `ICEHmeasures` (spike 2026-06-18).** ICEH
+publishes `ICEHmeasures` on CRAN (`cixr`, `siilogit` = logistic SII, `mad`, `equiplot`).
+Its `cixr`/`siilogit` are **designed for individual-level microdata** (their examples use
+`example_data`: per-child rows with survey weight, PSU, continuous wealth score; `mad` is
+the only function ICEH demos on grouped Retriever data). Fed FASTR's grouped quintile rows
+(rank midpoints + 1/n weights), the spike found: `cixr` output is **byte-identical** to the
+hand-rolled CIX (8.9, 14.2, 18.1, 19.0 — no gain); `siilogit`'s grouped-logistic SII is
+**not reliably closer** to the published numbers than the hand-rolled linear SII (closer
+for CCI/FPS, *further* for DPT3/SBA), because the dominant error is grouped-vs-microdata,
+which no method crosses without microdata. Using the lib adds heavy compiled container
+deps (`car`/`survey`/`lme4`/`pbkrtest`/`doBy`) for zero accuracy. ⇒ hand-roll v1; §9
+documents the exact grouped-mode swap-in if ICEH-package provenance is ever wanted for
+credibility (an accepted non-goal for accuracy).
+
+**Missing-data policy.** Suppressed/low-n rows are dropped at import → "missing" == "row
+absent". Emit inequality only when the full ordered set is present (all 5 quintiles / 10
+deciles). `standard_error`/`sample_size` on derived rows = `NA` in v1.
 
 ---
 
-## 7. CCI recipe
+## 7. CCI (reference only — not implemented)
+
+CCI is **ingested**, not computed; this section only documents the Retriever's methodology
+and specs the *future* compute-fallback if an extract ever ships components-but-no-`cci`.
 
 Countdown CCI — 8 components in 4 equally-weighted groups (DPT3 double-weighted):
 
 ```text
-CCI = (1/4) · [ FPS
-              + (SBA + ANC4)/2
-              + (BCG + 2·DPT3 + Measles)/4
-              + (ORS + CPNM)/2 ]
+CCI = (1/4) · [ FPS + (SBA + ANC4)/2 + (BCG + 2·DPT3 + Measles)/4 + (ORS + CPNM)/2 ]
 ```
 
-Component → ICEH code mapping (**confirm in Phase 0**; only SBA/BCG/DPT3 exist in
-the Nigeria dev data):
-
-| Slot    | Component                        | Candidate code  | Note            |
-|---------|----------------------------------|-----------------|-----------------|
-| FPS     | Demand for FP satisfied (modern) | *(tbc)*         | confirm code    |
-| SBA     | Skilled birth attendant          | `sba2` / `sba3` | pick variant    |
-| ANC4    | Antenatal care 4+                | *(tbc)*         | confirm code    |
-| BCG     | BCG                              | `vbcg`          | confirm cohort  |
-| DPT3    | DPT 3 doses                      | `vdpt`          | double-weighted |
-| Measles | ≥1 measles dose                  | *(tbc)*         | confirm code    |
-| ORS     | ORS for diarrhoea                | *(tbc)*         | confirm code    |
-| CPNM    | Careseeking for pneumonia        | *(tbc)*         | confirm code    |
-
-The recipe is the single edit point; codes/weights are confirmed against the
-Countdown definition before validating (§9 Q1).
+This weighting is **confirmed** — it reproduces the published Cameroon national CCI = 49.5
+from the table's component values (BCG ≈ 88). If a compute-fallback is ever built, this is
+the recipe; note its open question (how Countdown forms a per-stratum CCI when a component
+is suppressed at that stratum — Cameroon shows per-quintile CCI despite careseeking-
+pneumonia being suppressed for all quintiles, so a naive "all components present" rule
+emits nothing there). **None of this is on the critical path** because `cci` is ingested.
 
 ---
 
-## 8. Phased plan (most tractable / systemic first)
+## 8. Phased plan
 
 ### Phase 0 — Lock design + local R harness (S)
 
-- Ratify §2/§4/§5 decisions and the §7 recipe codes.
-- Stand up a throwaway Rscript loop (verify by executing, not deploying): dump a
-  project's ICEH input to CSV and point `PROJECT_DATA_ICEH` at it.
+- Ratify §2/§4/§5/§6.
+- Throwaway Rscript loop (verify by executing): load the **Burkina Retriever extract**
+  into a dev project (it carries `cci`), dump that project's ICEH input to CSV, point
+  `PROJECT_DATA_ICEH` at it.
 
 ```bash
+# pg_connect = psql -h 0.0.0.0 -U postgres -d main -p 7001  (password: timssecret)
 PGPASSWORD=timssecret /opt/homebrew/opt/libpq/bin/psql -h 0.0.0.0 -U postgres -p 7001 \
-  -d 6ee65e81-b1fc-45a4-9951-dfd0f6a369c0 \
+  -d <project-uuid-with-cci> \
   -c "\copy (SELECT iceh_indicator,year,source,strat,level,estimate*100 AS estimate, \
       standard_error*100 AS standard_error,sample_size FROM ro_m9_iceh_data_csv) \
       TO '/tmp/iceh_in.csv' CSV HEADER"
 # then run a local copy of script.R with PROJECT_DATA_ICEH <- "/tmp/iceh_in.csv"
 ```
 
-- Confirm the indicator picker/metadata cleanly accepts a **computed-only**
-  indicator (the `cci` label check). If yes, CCI labelling is pure data
-  convention.
+- Decide the level-ordering single-source mechanism (Refinement #2).
 
-### Phase 1 — Inequality engine, indicator-agnostic (S–M) ← start here
+### Phase 1 — Inequality engine, indicator-agnostic (S–M) ← the only build phase
 
-- Pure modules-repo: extend `m009/script.R` with the agnostic inequality pass
-  over `wealth_quintiles` and `wealth_deciles`, writing **RO-2** (wide).
-- Add metric **`m9-02-01` "ICEH inequality measure"** (`resultsObjectId:
-  "M9_iceh_inequality.csv"`, `valueProps:["ratio","difference","cix","sii"]`,
-  `valueFunc:"identity"`, `formatAs:"number"`, `decimalPlaces:1`).
+- Pure modules-repo: extend `m009/script.R` with the agnostic inequality pass over
+  `wealth_quintiles` and `wealth_deciles`, writing **RO-2** (wide). Keep the existing
+  pass-through untouched.
+- Add `m009/_results_objects.ts` entry **RO-2 `M9_iceh_inequality.csv`** with columns
+  `iceh_indicator/year/source/strat` + `ratio/difference/cix/sii` (all `NUMERIC`).
+- Add metric **`m9-02-01` "ICEH inequality measure"** — full strict-schema object:
+  `resultsObjectId:"M9_iceh_inequality.csv"`, `valueProps:["ratio","difference","cix",
+  "sii"]`, `valueFunc:"identity"`, `formatAs:"number"`,
+  `requiredDisaggregationOptions:["iceh_indicator","strat","year"]` (no `level`),
+  `valueLabelReplacements:{ratio:"Ratio (Q5/Q1)",difference:"Difference (Q5−Q1)",
+  cix:"CIX",sii:"SII"}`, all other fields set (`variantLabel:null`,
+  `postAggregationExpression:null`, `aiDescription:null`, `importantNotes:null`,
+  `hide:false`, `vizPresets:[]` for now). **`decimalPlaces` is a vizPreset `config.s`
+  field, not a metric field** — it goes on the Phase-3 table preset.
 - `deno task build` → reinstall/run m009 in a dev project → inspect
   `ro_m9_iceh_inequality_csv`.
-- **Validate on Nigeria immediately** (all 22 indicators get measures over
-  quintiles); sanity-check signs (positive indicator → positive CIX; `vzdpt` →
-  negative CIX). Cheapest possible computation proves the whole "derived object
-  flows through the pipeline" mechanism end-to-end.
+- **Validate immediately**: on the Burkina extract confirm `cci` gets Ratio/Difference
+  (exact, from Q1/Q5) plus CIX/SII (v1); on Nigeria confirm signs (positive indicator →
+  positive CIX; `vzdpt` → negative CIX/Diff).
 
-### Phase 2 — CCI composite, recipe-driven (M)
+### Phase 2 — Labels, formatting, lockstep (M)
 
-- Add the recipe-driven composite pass; append `iceh_indicator="cci"` rows to
-  **RO-1**. **Compute CCI before the inequality pass** so CCI itself gets equity
-  measures (the profile's CCI row has them).
-- On Nigeria: emits nothing (incomplete components) — exercise the engine with a
-  reduced `cci_demo` recipe; keep the real `cci` recipe faithful to Countdown.
-- Validate full CCI against the Cameroon profile once a complete extract exists.
+- `cci` labelling needs **no work** (arrives from the Retriever dictionary).
+- No `ICEH_STRAT_INFO` change (value-columns, not synthetic strats).
+- Cross-cutting: bump the PO cache prefix (payload gains a new metric/results object);
+  add a force-run block if stored figureInputs/slide_config snapshots freeze the
+  indicator/strat list.
 
-### Phase 3 — Labels, metric, formatting (M, lockstep)
+### Phase 3 — vizPresets (S–M each)
 
-- Give `cci` an indicator label: **(1)** a `cci` row in the imported indicators
-  dictionary (data-side, cleanest — carries category + sort), or **(2)** a small
-  addition in the server indicator-metadata func. Recommend (1).
-- No `ICEH_STRAT_INFO` change is needed (we chose value-columns, not synthetic
-  strats — cleaner than OPTION_2).
-- Cross-cutting rules: bump the PO cache prefix; add a force-run block if stored
-  figureInputs/slide_config snapshots freeze the indicator/strat list.
+- Update `iceh-equiplot` to draw the connecting line. Prefer the preset route: `s.content`
+  `"points"` → `"lines-points"` (a valid `content` enum value). Avoid un-commenting the
+  global `connectors` block in `client/src/generate_visualization/get_style_from_po/_0_common.ts`
+  (~L63) — it would affect **all** point charts.
+- New "ICEH coverage table by region" (P3): `type:"table"`, rows = `iceh_indicator`,
+  cols = `level`, filter `strat = subnational_unit`. (Row/col via
+  `disaggregateBy[].disDisplayOpt`, not separate `rows`/`cols` fields.)
+- New "ICEH equity-measures table": `type:"table"` on `m9-02-01`, rows = `iceh_indicator`,
+  the four valueProps as columns (`valuesDisDisplayOpt:"col"`, `decimalPlaces:1` in
+  `config.s`).
 
-### Phase 4 — vizPresets (S–M each)
-
-- Update `iceh-equiplot` to draw the connecting line: `s.content` `"points"` →
-  `"lines-points"`, and enable the connector style currently commented in
-  `client/src/generate_visualization/get_style_from_po/_0_common.ts` (~L61).
-- New "ICEH coverage table by region" (P3): `type:"table"`, rows =
-  `iceh_indicator`, cols = `level`, filter `strat = subnational_unit`.
-- New "ICEH equity-measures table": `type:"table"` on `m9-02-01`, rows =
-  `iceh_indicator`, the four valueProps as columns (`valuesDisDisplayOpt:"col"`).
-
-### Phase 5 — downstream (pointers only, §10)
+### Phase 4 — downstream (pointers only, §10)
 
 ---
 
 ## 9. R script (for `m009/script.R`)
 
-Pseudo-final; exact dplyr idioms settled at implementation. Computes CCI on 0–1,
-then inequality over coverage+CCI, scales outputs (§5), writes two CSVs.
+Pseudo-final; exact dplyr idioms settled at implementation. Keeps the existing
+pass-through, then adds **only** the inequality pass over the ingested coverage (incl. any
+`cci`). No composite computation.
 
 ```r
 library(readr); library(dplyr); library(tidyr); library(purrr)
 
 raw <- read_csv(PROJECT_DATA_ICEH, show_col_types = FALSE)        # 0–100
-iceh <- raw %>% mutate(estimate = estimate/100,
-                       standard_error = standard_error/100)        # 0–1 (existing)
+coverage <- raw %>% mutate(estimate = estimate/100,
+                           standard_error = standard_error/100)    # 0–1 (existing pass-through)
 
-# ── 1. Composites (RECIPE-driven) — compute BEFORE inequality ────────────────
-COMPOSITES <- list(
-  cci = list(label = "Composite Coverage Index", groups = list(
-    c(fpsm = 1), c(anc4 = 1, sba3 = 1),
-    c(vdpt = 2, vbcg = 1, vmsl = 1), c(ors = 1, cspneum = 1))))
-
-compute_composite <- function(d, out_code, groups) {
-  comps <- unique(unlist(lapply(groups, names)))
-  wide <- d %>% select(year, source, strat, level, iceh_indicator, estimate) %>%
-    filter(iceh_indicator %in% comps) %>%
-    pivot_wider(names_from = iceh_indicator, values_from = estimate)
-  if (!all(comps %in% names(wide))) return(tibble())              # recipe absent → skip
-  grp_mean <- function(row, g) sum(g * unlist(row[names(g)])) / sum(g)
-  wide %>% filter(if_all(all_of(comps), ~ !is.na(.))) %>%         # all components present
-    rowwise() %>%
-    mutate(estimate = mean(vapply(groups, function(g) grp_mean(pick(everything()), g),
-                                  numeric(1)))) %>% ungroup() %>%
-    transmute(iceh_indicator = out_code, year, source, strat, level,
-              estimate, standard_error = NA_real_, sample_size = NA_integer_)
-}
-composites <- imap_dfr(COMPOSITES, ~ compute_composite(iceh, .y, .x$groups))
-coverage   <- bind_rows(iceh, composites)                         # RO-1 input (incl. cci)
-
-# ── 2. Inequality (indicator-AGNOSTIC, wide) over coverage+CCI ───────────────
-# NB: poorest→richest ordering is single-sourced from ICEH_STRAT_INFO — do not
-#     hand-maintain this literal independently (Refinements #2 / §6). Inject it
-#     via the module template, or have the build verify it against the lib.
+# Poorest→richest level ordering. Single-sourced from ICEH_STRAT_INFO (lib/TS); the R
+# script can't import lib, so keep this literal verified against it (Refinement #2 / §6).
 ORDERED <- list(wealth_quintiles = c("Q1","Q2","Q3","Q4","Q5"),
                 wealth_deciles   = sprintf("D%02d", 1:10))
 
-cix1 <- function(y, w, r) { mu <- sum(w*y); if (mu == 0) NA_real_ else (2/mu)*sum(w*y*r) - 1 }
+# ── Inequality measures — HAND-ROLLED v1 (grouped approximations) ─────────────────────
+# Per ordered strat: y = level estimates (0–1, poorest→richest); w = population shares
+# (= 1/n for equal-sized wealth groups); r = fractional-rank midpoints (= (i-0.5)/n).
+# Ratio/Difference are EXACT. CIX/SII are APPROXIMATE: the published profile computes them
+# from per-person MICRODATA (logistic SII, covariance CIX) that FASTR never has — it
+# ingests pre-aggregated Retriever stratum estimates. Grouped approximations are the
+# fidelity ceiling here (see the §6 decision record / spike).
+cix1    <- function(y, w, r) { mu <- sum(w*y); if (mu == 0) NA_real_ else (2/mu)*sum(w*y*r) - 1 }
 sii_lin <- function(y, w, r) unname(coef(lm(y ~ r, weights = w))[["r"]])
-# NOTE: profile uses a logistic SII; swap glm(binomial)+marginal pred to match (Q2).
+
+# ── OPTIONAL: swap in ICEH's official package `ICEHmeasures` (deliberately NOT used) ───
+# Spike 2026-06-18 verdict (§6): do NOT depend on it for v1. Why:
+#   • cixr() on grouped rows is BYTE-IDENTICAL to cix1() above — no accuracy gain.
+#   • siilogit() (grouped logistic SII) is NOT reliably closer to the published numbers
+#     than sii_lin() — sometimes worse (DPT3: lib 43.9 vs published 38.4 vs linear 41.0) —
+#     because the error is grouped-vs-microdata, not linear-vs-logistic. Neither matches
+#     the profile, which is computed upstream on microdata.
+#   • cixr/siilogit are DESIGNED for microdata (ICEH's own examples use per-person rows
+#     with survey weight + PSU + a continuous wealth score); feeding them 5 grouped rows
+#     is off-label, and cluster_var survey SEs are meaningless on grouped data.
+#   • It pulls car + survey + lme4 + pbkrtest + doBy into the R container (heavy, compiled).
+# The ONLY reason to adopt it is provenance/credibility ("computed by ICEH's own package"),
+# which is an accepted NON-goal for accuracy. If you ever want that, add `ICEHmeasures` to
+# the R container and replace cix1/sii_lin with these grouped-mode wrappers — same call
+# sites in ineq_for(), nothing else changes:
+#
+#   library(ICEHmeasures)
+#   # Build a per-(indicator×year×source) grouped frame: one row per ordered level, with
+#   # rank = fractional-rank midpoints (.1 .3 .5 .7 .9 for quintiles), outcome = y (0–1,
+#   # poorest→richest), wt = 1/n (equal wealth-group shares).
+#   cix_lib <- function(y, w, r) {
+#     df <- tibble::tibble(rank = r, outcome = y, wt = w)
+#     as.numeric(ICEHmeasures::cixr(df, rank, outcome, weight_var = wt)$cix[1])     # on 0–1 CI scale → ×100 in summarise()
+#   }
+#   sii_lib <- function(y, w, r) {
+#     df <- tibble::tibble(rank = r, outcome = y, wt = w)
+#     as.numeric(ICEHmeasures::siilogit(df, rank, outcome, weight_var = wt)$sii[1]) # logistic SII (0–1 → ×100)
+#   }
+#   # then call cix_lib / sii_lib instead of cix1 / sii_lin below.
+#   # Leave cluster_var = NULL (no PSU in grouped data). siilogit fits glm(binomial) on a
+#   # proportion response — accepted in the spike, but re-verify in the Phase-0 harness on a
+#   # real extract before trusting it (warnings on non-integer successes are possible).
 
 ineq_for <- function(d, dim, lvls) {
   n <- length(lvls); r <- (seq_len(n) - 0.5)/n; w <- rep(1/n, n)  # equal strata ⇒ known w
   d %>% filter(strat == dim, level %in% lvls) %>%
     group_by(iceh_indicator, year, source) %>%
-    filter(n() == n, !any(is.na(estimate))) %>%                   # complete sets only
+    filter(n() == n, !any(is.na(estimate))) %>%                   # complete ordered sets only
     arrange(match(level, lvls), .by_group = TRUE) %>%
     summarise(strat = dim,
               ratio      = last(estimate) / first(estimate),
               difference = 100 * (last(estimate) - first(estimate)),
-              cix        = 100 * cix1(estimate, w, r),
-              sii        = 100 * sii_lin(estimate, w, r),
+              cix        = 100 * cix1(estimate, w, r),            # swap → cix_lib to use ICEHmeasures
+              sii        = 100 * sii_lin(estimate, w, r),         # swap → sii_lib to use ICEHmeasures
               .groups = "drop")
 }
 inequality <- imap_dfr(ORDERED, ~ ineq_for(coverage, .y, .x))     # RO-2 (wide)
 
-# ── 3. Write both results objects ───────────────────────────────────────────
-write_csv(coverage,   "M9_iceh_data.csv")        # RO-1: coverage + cci
+# ── Write both results objects ───────────────────────────────────────────────────────
+write_csv(coverage,   "M9_iceh_data.csv")        # RO-1: coverage + ingested cci (unchanged)
 write_csv(inequality, "M9_iceh_inequality.csv")  # RO-2: indicator × strat × {ratio,diff,cix,sii}
 ```
-
-Notes: component codes (`fpsm`, `anc4`, `sba3`, `vmsl`, `ors`, `cspneum`) are
-placeholders pending the real ICEH Retriever codes/variants (§7, §9 Q1).
 
 ---
 
 ## 10. Out of scope / downstream (deferred — boundary kept honest)
 
-- **Designed multi-page layout** — the profile is A4-*landscape*, multi-column,
-  branded; reports are single-column portrait markdown. Recreating *content* ≠
-  recreating layout. The single-grid look of P2 lives here (compose row-aligned
-  blocks; only build RO-3 if layout genuinely can't). Slides may be the closer
-  vehicle — decide separately.
-- **New stratifiers** — ethnicity, religion, women's empowerment, intersectional
-  (wealth×area). Blocked by the `strat` CHECK + `ICEH_STRATS`.
-- **CCI choropleth** — needs `subnational_unit ↔ geojson` reconciliation.
-- **Inequality by non-equal strata** (education/area) — needs ingested
-  population shares.
-- **Logistic SII**, **sentinel cell states** (stop dropping NA + a sentinel
-  column).
-- **SE/CI propagation** on derived rows — deferred (`NA` in v1). When tackled, add
-  a **long companion results object** for uncertainty (one row per
-  `indicator × strat × measure` with `value/se/ci_low/ci_high`) rather than
-  growing per-measure `*_se`/`*_ci_*` columns onto the wide `M9_iceh_inequality.csv`
-  (Refinements #1). Keeps the wide object's "four clean value columns" property.
-- **Zero-MNH** — NOT computable from marginals (needs the joint per-woman
-  distribution); ingest-only, like `vzdpt` already is. Data-supply, not
-  engineering.
+- **CCI compute-fallback** — only if an extract ever ships components-but-no-`cci` (the §7
+  recipe). YAGNI; the Retriever ships `cci` directly.
+- **Logistic-microdata CIX/SII fidelity** — structurally unreachable without microdata
+  (FASTR never has it). The grouped approximations are the ceiling; not a "fast-follow we
+  can hit". `ICEHmeasures` in grouped mode does not change this (§6 spike).
+- **Designed multi-page layout** — landscape/branded vs portrait markdown; the single-grid
+  look of P2 lives here (compose row-aligned blocks; build RO-3 only if layout can't).
+- **CCI choropleth map** (page 1) — needs `subnational_unit ↔ geojson`. The `cci`-by-region
+  *data* is already ingested; only map rendering is missing.
+- **Ethnicity / religion / women's empowerment stratifiers** — on the published profile
+  (page 4) but **not** exported by the Retriever (its disaggregators are exactly FASTR's 10
+  `ICEH_STRATS`; the Burkina extract carries none). Not reproducible from Retriever data by
+  anyone — a data-availability reality, not a FASTR gap. The `037_iceh_tables.sql` CHECK and
+  `ICEH_STRATS` are correctly sized.
+- **Inequality by non-equal strata** (education/area) — needs ingested population shares.
+- **SE/CI propagation** on derived rows — `NA` in v1; add a long companion object later
+  (Refinement #1), not `*_se`/`*_ci_*` columns on the wide object.
+- **Zero-MNH / zero-dose** — already ingest-only Retriever indicators where present.
 - **Cross-country benchmarking** — needs a country dimension + reference dataset.
 
 ---
 
 ## 11. Validation
 
-- **Phase 1 sanity (Nigeria):** for `vdpt` 2024 DHS confirm Ratio/Diff/CIX/SII
-  by hand from the quintile rows already in the DB; confirm `vzdpt` flips the
-  CIX/Diff sign. Run via the §8 Phase 0 Rscript harness before any build.
-- **CCI:** validate against published Cameroon-profile numbers once a full
-  8-component extract is ingested; until then exercise the engine with a reduced
-  `cci_demo` recipe.
+- **Inequality engine (Burkina extract, has `cci`):** for `cci` 2021 DHS confirm
+  Ratio = 77.2/67.9 and Difference = 77.2−67.9 by hand from the ingested quintile rows;
+  confirm CIX/SII are produced (v1 values — not expected to match published microdata/
+  logistic figures). For a positive indicator confirm CIX > 0; for `vzdpt` confirm
+  CIX/Difference flip negative. Run via the §8 Phase 0 harness before any build.
+- **Profile cross-check (scope it honestly):** the Cameroon profile is an oracle for
+  **Ratio/Difference** (exact) and the **ingested CCI value** (a pass-through, not
+  computed). It is **not** a validation target for our v1 CIX (approximate) or SII (linear
+  ≠ logistic). The supplied extract is **Burkina, not Cameroon** — confirm a Cameroon
+  Retriever extract also ships `cci` before relying on it as the CCI-value oracle
+  (near-certain given the dictionary + published profile, but unverified against a Cameroon
+  CSV).
 
 ---
 
-## 12. Lockstep / risk checklist (Phase 3+)
+## 12. Lockstep / risk checklist
 
-- [ ] `m009/definition.json` regenerated via `deno task build` after any
-      `script.R` / `_metrics` / `_results_objects` edit; pushed in lockstep.
-- [ ] PO cache prefix bumped (payload gains new indicators/objects).
-- [ ] Stored figureInputs / slide_config snapshots referencing ICEH may need a
-      force-run block if they freeze the indicator/strat list.
-- [ ] No instance migration for derived rows — confirm `037_iceh_tables.sql`'s
-      CHECK was **not** touched (results-object columns are free-text).
-- [ ] No `DisaggregationOption` union change (we used value-columns, not a
-      `measure` dimension).
-- [ ] Parallel-workstream check: `git status` for files outside this plan's
-      scope before staging (a similar effort runs concurrently).
+- [ ] `m009/definition.json` regenerated via `deno task build` after any `script.R` /
+      `_metrics` / `_results_objects` edit; pushed in lockstep.
+- [ ] PO cache prefix bumped (payload gains a new metric/results object).
+- [ ] Stored figureInputs / slide_config snapshots referencing ICEH may need a force-run
+      block if they freeze the indicator/strat list.
+- [ ] No instance migration for derived rows — confirm `037_iceh_tables.sql`'s CHECK was
+      **not** touched (results-object columns are free-text).
+- [ ] No `DisaggregationOption` union change (value-columns, not a `measure` dimension).
+- [ ] No `cci` special-casing added anywhere (it ingests as a normal indicator).
+- [ ] No new R-container dependency (`ICEHmeasures` deliberately not added — §6).
+- [ ] `decimalPlaces` lives on the Phase-3 vizPreset `config.s`, never on the metric.
+- [ ] Parallel-workstream check: `git status` for files outside this plan's scope before
+      staging (a similar effort runs concurrently).
 
 ---
 
 ## 13. Open questions for Tim
 
-1. **CCI formula & component codes** — confirm the 4-stage/DPT3-double weighting
-   and the exact ICEH Retriever codes/variants for the 8 components.
-2. **SII fidelity** — linear first, logistic fast-follow? (Recommend yes.)
-3. **Non-equal-strata inequality** — limit Phase 1 to wealth (as the profile
-   does), or ingest population shares now to cover education/area?
-4. **`cci` indicator metadata source** — **RESOLVED (Phase 0, verified in code).**
-   Labels for an ICEH `iceh_indicator` value resolve **only** from
-   `iceh_indicators_snapshot` (`get_indicator_metadata.ts:137`); a value with no
-   entry renders as its raw code. `valueLabelReplacements` relabels value-*props*,
-   **not** dimension values, so it cannot label `cci` (this rejects OPTION_3's
-   claim). The `iceh_data → iceh_indicators` FK runs data→definition
-   (`037_iceh_tables.sql:16`), so a **data-less `cci` definition is permitted**.
-   ⇒ Ship a `cci` row in the **imported indicators list** so it lands in the
-   instance `iceh_indicators` table and is snapshotted into
-   `iceh_indicators_snapshot` (rebuilt at import, `datasets_in_project_iceh.ts:98`).
-   Implication to confirm with the data team: the snapshot is import-time, so the
-   `cci`/`zero_mnh` definitions must be present in the indicators upload (or seeded
-   into `iceh_indicators` before the snapshot) — there is no app-side injection.
-5. **SE/CI on derived rows** — leave `NA` now, or propagate uncertainty (and, if
-   so, accept a long companion inequality object for the CI columns)?
+1. **Non-equal-strata inequality** — limit to wealth (as the profile does), or ingest
+   population shares to cover education/area later?
+2. **SE/CI on derived rows** — leave `NA` now, or propagate uncertainty (and accept a long
+   companion inequality object for the CI columns)?
+3. **Cameroon extract check** — confirm a Cameroon Retriever export ships `cci` data rows
+   (not just the dictionary definition), to lock the CCI-value oracle.
+
+> Resolved by the pre-flight (no longer open): CCI is ingested, not computed; `cci`
+> metadata comes from the Retriever dictionary; **SII fidelity / `ICEHmeasures`** — spiked
+> and settled (hand-roll v1; lib gives no accuracy gain; §6).
