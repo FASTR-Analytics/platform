@@ -28,7 +28,9 @@ export function ChartStyleControls(p: Props) {
               p.tempConfig.s.content === "lines-points" ||
               p.tempConfig.s.content === "lines-area"
                 ? "lines"
-                : p.tempConfig.s.content
+                : p.tempConfig.s.content === "points-connectors"
+                  ? "points"
+                  : p.tempConfig.s.content
             }
             onChange={(v) =>
               p.setTempConfig(
@@ -45,6 +47,26 @@ export function ChartStyleControls(p: Props) {
                 label={t3({ en: "Stacked bars", fr: "Histogramme empilé" })}
                 checked={p.tempConfig.s.barsStacked}
                 onChange={(v) => p.setTempConfig("s", "barsStacked", v)}
+              />
+            </StyleRevealGroup>
+          </Show>
+          <Show
+            when={
+              p.tempConfig.s.content === "points" ||
+              p.tempConfig.s.content === "points-connectors"
+            }
+          >
+            <StyleRevealGroup>
+              <Checkbox
+                label={t3({ en: "Add connectors", fr: "Ajouter des connecteurs" })}
+                checked={p.tempConfig.s.content === "points-connectors"}
+                onChange={(v) =>
+                  p.setTempConfig(
+                    "s",
+                    "content",
+                    v ? "points-connectors" : "points",
+                  )
+                }
               />
             </StyleRevealGroup>
           </Show>

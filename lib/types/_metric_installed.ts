@@ -180,7 +180,14 @@ export const configDStrict = z
 
 export const configSStrict = z
   .object({
-    content: z.enum(["bars", "lines", "points", "lines-area", "lines-points"]),
+    content: z.enum([
+      "bars",
+      "lines",
+      "points",
+      "lines-area",
+      "lines-points",
+      "points-connectors",
+    ]),
     allowIndividualRowLimits: z.boolean(),
     colorScale: z.enum([
       "pastel-discrete",

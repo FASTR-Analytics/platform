@@ -183,7 +183,8 @@ export function ChartLikeControls(p: Props) {
           <Show
             when={
               p.tempConfig.s.content === "bars" ||
-              p.tempConfig.s.content === "points"
+              p.tempConfig.s.content === "points" ||
+              p.tempConfig.s.content === "points-connectors"
             }
           >
             <Checkbox

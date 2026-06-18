@@ -32,9 +32,11 @@ export function buildStandardStyle(
   const cf = selectCf(config.s);
   const cfOn = cf.type !== "none";
   const c = config.s.content;
-  const showPoints = c === "points" || c === "lines-points";
+  const showPoints =
+    c === "points" || c === "lines-points" || c === "points-connectors";
   const showLines = c === "lines" || c === "lines-area" || c === "lines-points";
   const showAreas = c === "lines-area";
+  const showConnectors = c === "points-connectors";
 
   return {
     seriesColorFunc: getStandardSeriesColorFunc(config),
@@ -53,10 +55,12 @@ export function buildStandardStyle(
     },
     xTextAxis: {
       verticalTickLabels: config.s.verticalTickLabels,
-      tickPosition: config.s.content === "points" ? "center" : undefined,
+      tickPosition:
+        c === "points" || c === "points-connectors" ? "center" : undefined,
     },
     yTextAxis: {
-      tickPosition: config.s.content === "points" ? "center" : undefined,
+      tickPosition:
+        c === "points" || c === "points-connectors" ? "center" : undefined,
     },
     xPeriodAxis: {
       forceSideTicksWhenYear: config.s.content === "bars",
@@ -112,6 +116,9 @@ export function buildStandardStyle(
       },
       areas: {
         func: { show: showAreas },
+      },
+      connectors: {
+        func: { show: showConnectors },
       },
       tableCells: getTableCellsContent(config, formatAs, indicatorMetadata),
       mapRegions: getMapRegionsContent(config, formatAs),
