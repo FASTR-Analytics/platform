@@ -544,8 +544,12 @@ PGPASSWORD=timssecret /opt/homebrew/opt/libpq/bin/psql -h 0.0.0.0 -U postgres -p
   Recreating content ≠ recreating layout. Slide decks (designed grid, landscape
   PDF/PPTX, but hard-wired 16:9) are the likelier vehicle — decide separately.
 - **CCI choropleth** — needs `subnational_unit ↔ geojson` reconciliation.
-- **P2 multi-strat equity table** — needs module-side flattening of several
-  strats + the equity columns into one wide column set.
+- **P2 multi-strat equity table** — its own dedicated **wide, denormalized
+  results object** (`M9_iceh_p2_table.csv`, a 3rd `ro_`), read by one table PO,
+  because one figure reads one object (§5 topology). A presentation-shaped
+  read-model — it duplicates numbers already in the long objects (safe: all
+  regenerate from one R pass, no drift; but couples data to a fixed layout).
+  Build when P2 is tackled; does not affect the inequality-storage decision.
 - **zero-MNH math** — ingest-only (§Phase 5); not engineering.
 - **Cross-country benchmarking** — would need a country dimension + reference set.
 
