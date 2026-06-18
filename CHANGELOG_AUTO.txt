@@ -1,3 +1,9 @@
+[TBD] [user] [added] - Delete specific ICEH indicators instead of only all data
+[TBD] [user] [changed] - Importing ICEH data now keeps indicators from previous imports
+[TBD] [user] [changed] - Import warning now explains that imports are cumulative
+[TBD] [admin] [added] - Delete specific ICEH indicators instead of only all data
+[TBD] [admin] [changed] - ICEH imports are now cumulative, keeping other indicators
+[TBD] [admin] [changed] - Import warning updated to reflect cumulative behavior
 [1.53.7] [user] [added] - AI assistant can now load reference documentation on demand
 [1.53.7] [user] [fixed] - Inequality measures no longer incorrectly displayed as percentages
 [1.53.7] [user] [fixed] - Charts with negative values no longer clip below zero
