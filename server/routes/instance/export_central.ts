@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import zlib from "node:zlib";
+import { Readable } from "node:stream";
 import { H_USERS, type GlobalUser } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnectionFromCacheOrNew, createWorkerReadConnection } from "../../db/mod.ts";
@@ -173,20 +173,9 @@ routesExportCentral.get(
   },
 );
 
-const ROWS_STREAM_BATCH = 20000;
-
-// Postgres "undefined_table" — a results object can have metadata but no backing
-// table (module never run / empty). We treat that as a clean empty result.
-function isMissingTableError(err: unknown): boolean {
-  const code = (err as { code?: string } | null)?.code;
-  if (code === "42P01") return true;
-  const msg = err instanceof Error ? err.message : String(err);
-  return /does not exist/i.test(msg);
-}
-
 routesExportCentral.get(
   "/export_central/:project_id/rows",
-  (c) => {
+  async (c) => {
     if (!_CENTRAL_SERVER_SECRET || c.req.header("X-Central-Secret") !== _CENTRAL_SERVER_SECRET) {
       return c.json({ success: false, err: "Authentication required", authError: true }, 401);
     }
@@ -196,83 +185,50 @@ routesExportCentral.get(
     if (!roId) return c.json({ success: false, err: "ro_id required" }, 400);
 
     const tableName = getResultsObjectTableName(roId);
-    const acceptsGzip = (c.req.header("Accept-Encoding") ?? "").includes("gzip");
-
-    // Stream every row of the results object as newline-delimited JSON, driven by a
-    // server-side cursor: O(N) (no OFFSET re-scan), one consistent snapshot (so pages
-    // can't skip/duplicate rows), bounded memory on both ends. A pull-based
-    // ReadableStream gives natural backpressure (pull only runs when the consumer
-    // reads) AND composes with a gzip transform, so the body is gzipped when the
-    // client accepts it (row JSON compresses heavily over the WAN). A dedicated read
-    // connection is used because it has no statement_timeout — the stream is paced by
-    // the consumer's inserts and can outlast the 5-minute pooled-connection limit.
-    //
-    // Protocol (one JSON object per line):
-    //   {"rows":[...]}                  — a batch of rows
-    //   {"done":true,"nRowsTotal":N}    — terminal success
-    //   {"error":"..."}                 — terminal failure (status is already 200)
-    const enc = new TextEncoder();
     const db = createWorkerReadConnection(projectId);
-    const it = db<Record<string, unknown>[]>`
-      SELECT * FROM ${db(tableName)}
-    `.cursor(ROWS_STREAM_BATCH)[Symbol.asyncIterator]();
-    let nRowsTotal = 0;
-    let cleanedUp = false;
-    const startedAt = Date.now();
-    const cleanup = async () => {
-      if (cleanedUp) return;
-      cleanedUp = true;
-      try {
-        await it.return?.();
-      } catch {
-        // ignore — cursor may already be closed
+
+    // COPY passthrough: stream this results object as raw Postgres COPY TEXT for exactly the
+    // columns central asked for (`cols`), with this instance's id as source_server_id. Postgres
+    // emits the COPY format in C and central pipes it straight into `COPY ... FROM STDIN`, so
+    // there is zero per-row JS on either side and the whole object streams as one continuous
+    // COPY — the fix for the multi-hour imports (the old cursor+JSON.stringify+gzip path was
+    // starved on this single event loop). A dedicated no-statement-timeout read connection is
+    // used; the stream is paced by the consumer, so memory stays bounded.
+    try {
+      const colRows = await db.unsafe(
+        `SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
+        [tableName],
+      ) as { column_name: string }[];
+      const actual = new Set(colRows.map((r) => r.column_name));
+
+      // No backing table (module never run / empty) → empty body; central COPYs zero rows.
+      if (actual.size === 0) {
+        await db.end().catch(() => {});
+        return new Response(new Uint8Array(), { headers: { "Content-Type": "application/octet-stream" } });
       }
+
+      // Only safe identifiers. A requested column the table lacks becomes NULL so the column
+      // order central will COPY into still lines up.
+      const requested = (c.req.query("cols") ?? "")
+        .split(",").map((s) => s.trim()).filter((s) => /^[A-Za-z0-9_]+$/.test(s));
+      const sourceLiteral = `'${_INSTANCE_ID.replace(/'/g, "''")}'::text AS source_server_id`;
+      const colExprs = requested.map((col) => actual.has(col) ? `"${col}"` : `NULL AS "${col}"`);
+      const selectList = [sourceLiteral, ...colExprs].join(", ");
+      const copySql = `COPY (SELECT ${selectList} FROM "${tableName}") TO STDOUT`;
+
+      const startedAt = Date.now();
+      const readable = await db.unsafe(copySql).readable();
+      const endDb = () => { db.end().catch(() => {}); };
+      readable.on("end", () => console.log(`[export_central] ${tableName}: streamed in ${Date.now() - startedAt}ms`));
+      readable.on("close", endDb);
+      readable.on("error", endDb);
+
+      return new Response(Readable.toWeb(readable) as unknown as ReadableStream<Uint8Array>, {
+        headers: { "Content-Type": "application/octet-stream" },
+      });
+    } catch (err) {
       await db.end().catch(() => {});
-    };
-
-    const base = new ReadableStream<Uint8Array>({
-      async pull(controller) {
-        try {
-          const { value, done } = await it.next();
-          if (done) {
-            controller.enqueue(enc.encode(JSON.stringify({ done: true, nRowsTotal }) + "\n"));
-            controller.close();
-            console.log(`[export_central] ${tableName}: streamed ${nRowsTotal} rows in ${Date.now() - startedAt}ms`);
-            await cleanup();
-            return;
-          }
-          nRowsTotal += value.length;
-          controller.enqueue(enc.encode(JSON.stringify({ rows: value }) + "\n"));
-        } catch (err) {
-          if (nRowsTotal === 0 && isMissingTableError(err)) {
-            controller.enqueue(enc.encode(JSON.stringify({ done: true, nRowsTotal: 0 }) + "\n"));
-          } else {
-            controller.enqueue(enc.encode(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }) + "\n"));
-          }
-          controller.close();
-          await cleanup();
-        }
-      },
-      async cancel() {
-        await cleanup();
-      },
-    });
-
-    // Gzip via node:zlib on the main thread, NOT CompressionStream. Deno's
-    // CompressionStream offloads to a blocking thread pool that this long-running app keeps
-    // contended (postgres.js/Valkey/SSE), which throttled this export ~12x (measured 5.7k
-    // vs 67k rows/s on a live, idle instance — the cause of the multi-hour central imports).
-    // gzipSync is main-thread, so it's immune to that contention. Each chunk becomes its own
-    // gzip member; the consumer's fetch() decodes the concatenated multi-member stream
-    // transparently (verified). Level 1: most of the size win for a fraction of the CPU.
-    const gzip = new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        controller.enqueue(zlib.gzipSync(chunk, { level: 1 }));
-      },
-    });
-    const body = acceptsGzip ? base.pipeThrough(gzip) : base;
-    const headers: Record<string, string> = { "Content-Type": "application/x-ndjson" };
-    if (acceptsGzip) headers["Content-Encoding"] = "gzip";
-    return new Response(body, { headers });
+      return c.json({ success: false, err: err instanceof Error ? err.message : String(err) }, 500);
+    }
   },
 );
