@@ -11,7 +11,7 @@ import type { XPeriodAxisMeasuredInfo } from "./types.ts";
 // NOTE: This function needs data from TimeseriesDataTransformed
 // We pass the needed data as parameters to avoid importing from higher-numbered modules
 export function calculateVerticalGridLinesForLaneXPeriod(
-  i_lane: number,
+  _i_lane: number,
   plotAreaRcd: RectCoordsDims,
   xPeriodAxisMeasuredInfo: XPeriodAxisMeasuredInfo,
   periodType: PeriodType,

@@ -9,7 +9,6 @@ import type {
   HeaderSortConfig,
   JsonArray,
   LegendInput,
-  LegendItem,
   Measured,
   MeasuredSurrounds,
   MeasuredText,

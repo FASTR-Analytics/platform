@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { t3 } from "../deps.ts";
-import { Intent } from "../types.ts";
+import type { Intent } from "../types.ts";
 
 type Props = {
   msg?: string;

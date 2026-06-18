@@ -3,10 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createMemo, For, JSX, Show } from "solid-js";
+import { createMemo, For, type JSX, Show } from "solid-js";
 import { t3 } from "../deps.ts";
 import type { Intent } from "../types.ts";
-import { SelectOption } from "./types.ts";
+import type { SelectOption } from "./types.ts";
 import { Checkbox } from "./checkbox.tsx";
 
 type MultiSelectProps<T extends string> = {

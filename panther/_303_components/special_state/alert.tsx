@@ -3,12 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createSignal, JSX, Match, Show, Switch } from "solid-js";
+import { createSignal, type JSX, Match, Show, Switch } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { t3 } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
 import { Input } from "../form_inputs/input.tsx";
-import { Intent } from "../types.ts";
+import type { Intent } from "../types.ts";
 import { ModalContainer } from "./modal_container.tsx";
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -74,7 +74,7 @@ function isACPState(
     | AlertStateType
     | ConfirmStateType
     | PromptStateType
-    | ComponentStateType<any, any>
+    | AnyComponentStateType
     | undefined,
 ): alertState is ACPStateType {
   return alertState?.stateType !== "component";
@@ -85,7 +85,7 @@ function isAlertState(
     | AlertStateType
     | ConfirmStateType
     | PromptStateType
-    | ComponentStateType<any, any>
+    | AnyComponentStateType
     | undefined,
 ): alertState is AlertStateType {
   return alertState?.stateType === "alert";
@@ -96,7 +96,7 @@ function isConfirmState(
     | AlertStateType
     | ConfirmStateType
     | PromptStateType
-    | ComponentStateType<any, any>
+    | AnyComponentStateType
     | undefined,
 ): alertState is ConfirmStateType {
   return alertState?.stateType === "confirm";
@@ -107,7 +107,7 @@ function isPromptState(
     | AlertStateType
     | ConfirmStateType
     | PromptStateType
-    | ComponentStateType<any, any>
+    | AnyComponentStateType
     | undefined,
 ): alertState is PromptStateType {
   return alertState?.stateType === "prompt";
@@ -118,9 +118,9 @@ function isComponentState(
     | AlertStateType
     | ConfirmStateType
     | PromptStateType
-    | ComponentStateType<any, any>
+    | AnyComponentStateType
     | undefined,
-): alertState is ComponentStateType<any, any> {
+): alertState is AnyComponentStateType {
   return alertState?.stateType === "component";
 }
 
@@ -134,16 +134,19 @@ type ComponentStateType<TProps, TReturn> =
     componentResolver(v: TReturn | undefined): void;
   };
 
+// deno-lint-ignore no-explicit-any -- heterogeneous component props/return; per-instance generics can't be expressed in a shared union without `any`
+type AnyComponentStateType = ComponentStateType<any, any>;
+
 const [alertState, setAlertState] = createSignal<
   | AlertStateType
   | ConfirmStateType
   | PromptStateType
-  | ComponentStateType<any, any>
+  | AnyComponentStateType
   | undefined
 >(undefined);
 
-export async function openAlert(v: OpenAlertInput): Promise<void> {
-  return new Promise((resolve: () => void, reject) => {
+export function openAlert(v: OpenAlertInput): Promise<void> {
+  return new Promise((resolve: () => void) => {
     setAlertState({
       ...v,
       stateType: "alert",
@@ -152,8 +155,8 @@ export async function openAlert(v: OpenAlertInput): Promise<void> {
   });
 }
 
-export async function openConfirm(v: OpenConfirmInput): Promise<boolean> {
-  return new Promise<boolean>((resolve: (p: boolean) => void, reject) => {
+export function openConfirm(v: OpenConfirmInput): Promise<boolean> {
+  return new Promise<boolean>((resolve: (p: boolean) => void) => {
     setAlertState({
       ...v,
       stateType: "confirm",
@@ -162,11 +165,11 @@ export async function openConfirm(v: OpenConfirmInput): Promise<boolean> {
   });
 }
 
-export async function openPrompt(
+export function openPrompt(
   v: OpenPromptInput,
 ): Promise<string | undefined> {
   return new Promise<string | undefined>(
-    (resolve: (p: string | undefined) => void, reject) => {
+    (resolve: (p: string | undefined) => void) => {
       setAlertState({
         ...v,
         stateType: "prompt",
@@ -176,11 +179,11 @@ export async function openPrompt(
   );
 }
 
-export async function openComponent<TProps, TReturn>(
+export function openComponent<TProps, TReturn>(
   v: OpenComponentInput<TProps, TReturn>,
 ): Promise<TReturn | undefined> {
   return new Promise<TReturn | undefined>(
-    (resolve: (p: TReturn | undefined) => void, reject) => {
+    (resolve: (p: TReturn | undefined) => void) => {
       setAlertState({
         ...v,
         stateType: "component",
@@ -191,6 +194,7 @@ export async function openComponent<TProps, TReturn>(
 }
 
 export default function AlertProvider() {
+  // deno-lint-ignore no-unused-vars -- staged for F1 modal a11y (Escape-to-dismiss); see PLAN_303_HTML_A11Y.md
   function cancelAny() {
     const ass = alertState();
     if (isAlertState(ass)) {
@@ -329,7 +333,7 @@ export default function AlertProvider() {
                                   <Match when={typeof keyedText === "string"}>
                                     <p>{keyedText}</p>
                                   </Match>
-                                  <Match when={true}>{keyedText}</Match>
+                                  <Match when>{keyedText}</Match>
                                 </Switch>
                               )}
                             </Show>

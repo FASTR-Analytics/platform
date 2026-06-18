@@ -46,7 +46,7 @@ export function measureHeader(
   let totalInnerHeaderHeight = 0;
   let lastExtraToChop = 0;
   let yOffsetHeader = 0;
-  let yOffsetRightPlacementLogos = 0;
+  const yOffsetRightPlacementLogos = 0;
 
   // Measure logos if present
   const hasLogos = inputs.headerLogos && inputs.headerLogos.length > 0;

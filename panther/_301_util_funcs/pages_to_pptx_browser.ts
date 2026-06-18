@@ -13,8 +13,9 @@ import {
   RectCoordsDims,
 } from "./deps.ts";
 
-// deno-lint-ignore no-explicit-any
-const PptxGenJSConstructor = PptxGenJS as any;
+const PptxGenJSConstructor = PptxGenJS as unknown as {
+  new (): PptxGenJSInstance;
+};
 
 export function pagesToPptxBrowser(
   pages: PageInputs[],

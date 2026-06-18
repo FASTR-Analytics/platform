@@ -25,7 +25,6 @@ import { getProjectionFn } from "./projections.ts";
 import {
   computeGeoCentroid,
   computeScreenBBox,
-  findExtremeBoundaryVertex,
   projectCentroid,
 } from "./centroid.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";

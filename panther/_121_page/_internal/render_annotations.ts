@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { RectCoordsDims, type RenderContext } from "../deps.ts";
+import type { RectCoordsDims, RenderContext } from "../deps.ts";
 import { isRectAnnotation, type PageAnnotation } from "../types.ts";
 
 function parseToken(token: string, reference: number): number {

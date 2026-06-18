@@ -3,7 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { Component } from "solid-js";
 import { Show } from "solid-js";
 import { t3 } from "../deps.ts";
 import {

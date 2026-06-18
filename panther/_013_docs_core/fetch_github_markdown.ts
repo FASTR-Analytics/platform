@@ -49,7 +49,7 @@ function rewriteImagePaths(
   // Rewrite relative paths: ![alt](./image.png) or ![alt](image.png)
   result = result.replace(
     /!\[([^\]]*)\]\((?!https?:\/\/|\/\/)([^)]+)\)/g,
-    (match, alt, path) => {
+    (_match, alt, path) => {
       if (path.startsWith("/")) {
         // Absolute path from repo root: /docs/image.png -> baseUrl/docs/image.png
         return `![${alt}](${baseUrl}${path})`;

@@ -42,7 +42,9 @@ export function createCanvasRenderContext(
       throw new CanvasCreationError("Failed to get 2D context from canvas");
     }
 
-    const rc = new CanvasRenderContext(ctx as any);
+    const rc = new CanvasRenderContext(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
     const rcd = new RectCoordsDims([0, 0, roundedW, roundedH]);
     return { canvas, rc, rcd };
   } catch (error) {

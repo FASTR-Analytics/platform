@@ -59,7 +59,6 @@ export function AIChat(p: Props) {
     toolRegistry,
     enqueueMessage,
     clearQueue,
-    queuedMessages,
     clearInProgressItems,
   } = createAIChat();
   const [inputValue, setInputValue] = createSignal("");
@@ -83,7 +82,7 @@ export function AIChat(p: Props) {
     }
   });
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     let message = inputValue().trim();
     if (!message) return;
 
@@ -144,7 +143,7 @@ export function AIChat(p: Props) {
             usage={usage()}
             model={p.model!}
             showCost={p.showCost}
-            compact={true}
+            compact
           />
         </div>
       </Show>

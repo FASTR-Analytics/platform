@@ -62,6 +62,7 @@ export function buildWordDocument(
 
   const paragraphs: (Paragraph | Table)[] = parsedDoc.items.map(
     (element, index) => {
+      const prev = parsedDoc.items[index - 1];
       const isNumberedListItem = element.type === "list-item" &&
         element.listType === "numbered";
       const isBulletListItem = element.type === "list-item" &&
@@ -70,8 +71,8 @@ export function buildWordDocument(
       if (
         isNumberedListItem &&
         (index === 0 ||
-          parsedDoc.items[index - 1]?.type !== "list-item" ||
-          (parsedDoc.items[index - 1] as any).listType !== "numbered")
+          prev?.type !== "list-item" ||
+          prev.listType !== "numbered")
       ) {
         currentNumberingInstance++;
       }
@@ -79,8 +80,8 @@ export function buildWordDocument(
       if (
         isBulletListItem &&
         (index === 0 ||
-          parsedDoc.items[index - 1]?.type !== "list-item" ||
-          (parsedDoc.items[index - 1] as any).listType !== "bullet")
+          prev?.type !== "list-item" ||
+          prev.listType !== "bullet")
       ) {
         currentBulletInstance++;
       }
@@ -690,9 +691,9 @@ function buildInlineContent(
 function buildWordTable(
   element: ParsedMarkdownItem & { type: "table" },
   merged: MergedMarkdownStyle,
-  wordConfig: WordSpecificConfig,
-  spacingBefore: number,
-  spacingAfter: number,
+  _wordConfig: WordSpecificConfig,
+  _spacingBefore: number,
+  _spacingAfter: number,
 ): Table {
   const rows: TableRow[] = [];
 

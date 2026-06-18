@@ -11,16 +11,13 @@ import type {
   HeaderSortConfig,
   JsonArray,
   LegendInput,
-  LegendItem,
   Measured,
   MeasuredSurrounds,
   MergedTimeseriesStyle,
   PaneLayout,
   PeriodType,
   Primitive,
-  RectCoordsDims,
   UncertaintyConfig,
-  XPeriodAxisMeasuredInfo,
 } from "./deps.ts";
 
 export type TimeseriesInputs = FigureInputsBase & {

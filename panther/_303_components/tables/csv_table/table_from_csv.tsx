@@ -4,7 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, Show } from "solid-js";
-import { createArray, Csv, getSortedAlphabetical, toNum0 } from "../../deps.ts";
+import {
+  createArray,
+  type Csv,
+  getSortedAlphabetical,
+  toNum0,
+} from "../../deps.ts";
 
 type Props = {
   csv: Csv<string>;

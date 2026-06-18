@@ -12,7 +12,6 @@ import type {
   Primitive,
   RectCoordsDims,
 } from "./deps.ts";
-import type { LegendItem } from "./_legend/types.ts";
 import type { LegendInput } from "./_legend/scale_legend_types.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
 import type { XAxisConfig, YAxisConfig } from "./_axes/axis_configs.ts";

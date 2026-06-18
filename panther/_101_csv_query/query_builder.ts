@@ -310,7 +310,7 @@ export class CsvQueryBuilder<T> {
               );
             }
             return String(Math.max(...numericValues));
-          case "MEDIAN":
+          case "MEDIAN": {
             if (numericValues.length === 0) {
               throw new Error(
                 `Cannot compute MEDIAN on empty set for column "${spec.col}"`,
@@ -322,6 +322,7 @@ export class CsvQueryBuilder<T> {
               ? (sorted[mid - 1] + sorted[mid]) / 2
               : sorted[mid];
             return String(median);
+          }
         }
       });
 

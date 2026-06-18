@@ -8,7 +8,7 @@ import {
   computeBoundsForPath,
   Coordinates,
   type Primitive,
-  RectCoordsDims,
+  type RectCoordsDims,
   Z_INDEX,
 } from "../deps.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";

@@ -25,8 +25,9 @@ export function setCtxFont(
     ctx.fillStyle = ti.color;
   }
   try {
-    // @ts-ignore - letterSpacing not in all CanvasRenderingContext2D type versions
-    ctx.letterSpacing = ti.letterSpacing;
+    // letterSpacing isn't in every CanvasRenderingContext2D lib version
+    (ctx as CanvasRenderingContext2D & { letterSpacing?: string })
+      .letterSpacing = ti.letterSpacing;
   } catch {
     if (ti.letterSpacing !== "0px") {
       console.warn("This renderer does not support letterSpacing");

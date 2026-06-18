@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { JSX, Show } from "solid-js";
+import { type JSX, Show } from "solid-js";
 
 type Props = {
   header: string;

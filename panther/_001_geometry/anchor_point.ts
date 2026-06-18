@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Coordinates } from "./coordinates.ts";
+import type { Coordinates } from "./coordinates.ts";
 import type { RectCoordsDims } from "./rect_coords_dims.ts";
 
 export type AnchorPoint =

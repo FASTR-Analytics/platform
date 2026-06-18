@@ -10,7 +10,7 @@ import {
   getBackgroundBaseColor,
   getColor,
   isPatternConfig,
-  Padding,
+  type Padding,
 } from "./deps.ts";
 import type {
   MeasuredSectionPage,

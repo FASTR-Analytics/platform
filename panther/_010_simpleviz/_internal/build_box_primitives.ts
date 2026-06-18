@@ -15,11 +15,7 @@ import {
   Z_INDEX,
 } from "../deps.ts";
 import type { SimpleVizData } from "../types.ts";
-import {
-  anchorToTopLeft,
-  type BoxDimensions,
-  calculateBoxDimensions,
-} from "./box_dimensions.ts";
+import { anchorToTopLeft } from "./box_dimensions.ts";
 import { calculateXCoordinatesWithAlignment } from "./box_layout_with_alignment.ts";
 import { getTextInfoWithBoxOverride, mergeBoxStyle } from "./style.ts";
 

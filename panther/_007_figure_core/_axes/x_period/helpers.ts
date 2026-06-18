@@ -164,7 +164,7 @@ export function getPeriodAxisInfo(
   axisStyle: MergedXPeriodAxisStyle,
   gridStyle: MergedGridStyle,
   periodIncrementWidth: number,
-  showEveryNthTick: number,
+  _showEveryNthTick: number,
 ): PeriodAxisInfo {
   const smallLabelH = rc
     .mText(

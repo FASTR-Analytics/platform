@@ -7,7 +7,7 @@ import {
   createMemo,
   createSignal,
   For,
-  JSX,
+  type JSX,
   Match,
   Show,
   Switch,

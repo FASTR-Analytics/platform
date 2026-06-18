@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { RectCoordsDims } from "./deps.ts";
+import type { RectCoordsDims } from "./deps.ts";
 import type { LogosSizing, RenderContext } from "./deps.ts";
 import type { LogosInput, MeasuredLogo, MeasuredLogos } from "./types.ts";
 

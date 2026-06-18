@@ -12,7 +12,7 @@ import {
   type LineStyle,
   type MergedSimpleVizStyle,
   type Primitive,
-  RectCoordsDims,
+  type RectCoordsDims,
   Z_INDEX,
 } from "../deps.ts";
 import type { RawArrow, RawBox } from "../types.ts";

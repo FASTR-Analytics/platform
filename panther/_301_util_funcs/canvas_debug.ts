@@ -22,7 +22,8 @@ class CanvasDebugger {
 
   constructor() {
     if (typeof window !== "undefined") {
-      (window as any).__canvasDebugger = this;
+      (window as unknown as { __canvasDebugger?: unknown }).__canvasDebugger =
+        this;
     }
   }
 

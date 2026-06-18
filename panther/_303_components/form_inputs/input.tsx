@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Match, Show, Switch } from "solid-js";
-import { Intent } from "../types.ts";
+import type { Intent } from "../types.ts";
 import { SearchIcon } from "../icons/mod.ts";
 import { useAutoFocus } from "./utils.ts";
 
@@ -71,7 +71,7 @@ export function Input(p: Props) {
                 {p.label}
               </label>
             </Match>
-            <Match when={true}>
+            <Match when>
               <label
                 class="ui-form-text ui-form-pad bg-base-200 border-base-300 flex items-center rounded-l border-y border-l"
                 data-intent={p.intent}

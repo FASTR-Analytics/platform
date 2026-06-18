@@ -347,7 +347,6 @@ export function ColorPicker(p: ColorPickerProps) {
         } as JSX.CSSProperties}
         disabled={p.disabled}
         title={p.value}
-        // @ts-ignore - popovertarget is valid HTML
         popovertarget={popoverId}
       >
         <span
@@ -362,7 +361,6 @@ export function ColorPicker(p: ColorPickerProps) {
       <div
         ref={popoverRef}
         id={popoverId}
-        // @ts-ignore - popover is valid HTML
         popover
         class="ui-popover"
         data-position={position()}

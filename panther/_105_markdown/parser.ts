@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { MarkdownIt, markdownItKatex } from "./deps.ts";
+import { MarkdownIt } from "./deps.ts";
 import type {
   MarkdownInline,
   MarkdownItToken,

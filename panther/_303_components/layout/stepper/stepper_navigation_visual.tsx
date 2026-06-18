@@ -73,6 +73,7 @@ export function StepperNavigationVisual(p: StepperNavigationVisualProps) {
           {(step, index) => (
             <>
               <button
+                type="button"
                 class={getStepClasses(step)}
                 onClick={() => handleStepClick(step)}
                 disabled={p.stepper.getStepStatus(step) === "locked"}

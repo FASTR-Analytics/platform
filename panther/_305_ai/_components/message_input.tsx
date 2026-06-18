@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type Component, Show } from "solid-js";
+import { Show } from "solid-js";
 import { Button, t3, TextArea } from "../deps.ts";
 
 type Props = {

@@ -22,7 +22,7 @@ import {
   type ResolveFloorPlotH,
   type ResolveTargetPlotH,
 } from "./deps.ts";
-import type { MergedChartOHStyle } from "./deps.ts";
+import type { HeaderItem, MergedChartOHStyle } from "./deps.ts";
 import type {
   ChartOHDataTransformed,
   ChartOHInputs,
@@ -71,6 +71,52 @@ function ohPerSubChartPlotH(
     : nIndicators * perIndicatorH + gridStrokeWidth * (nIndicators + 1);
 }
 
+// Do series occupy separate vertical sub-rows? Only for GROUPED bars: the
+// renderer splits each indicator band nSeries ways when bars.stacking === "none".
+// Stacked/imposed/diff bars overlay, and points/lines/areas overlay — all one
+// row. There's no boolean mark flag (marks are per-value getStyle funcs), so we
+// sample the bar style per series the way the renderer does: if any series draws
+// grouped bars, the band is partitioned.
+function shouldConsiderNSeries(
+  ohStyle: MergedChartOHStyle,
+  data: ChartOHDataTransformed,
+): boolean {
+  if (ohStyle.content.bars.stacking !== "none") return false;
+  const nSeries = data.seriesHeaders.length;
+  const nVals = data.indicatorHeaders.length;
+  const seriesValArrays = data.values[0]?.[0]?.[0] ?? [];
+  const fb: HeaderItem = { id: "", label: "" };
+  for (let i_series = 0; i_series < nSeries; i_series++) {
+    const shown = ohStyle.content.bars.getStyle({
+      i_series,
+      isFirstSeries: i_series === 0,
+      isLastSeries: i_series === nSeries - 1,
+      seriesHeader: data.seriesHeaders[i_series] ?? fb,
+      nSerieses: nSeries,
+      seriesValArrays,
+      nVals,
+      i_pane: 0,
+      nPanes: data.paneHeaders.length,
+      paneHeader: data.paneHeaders[0] ?? fb,
+      i_tier: 0,
+      nTiers: data.tierHeaders.length,
+      tierHeader: data.tierHeaders[0] ?? fb,
+      i_lane: 0,
+      nLanes: data.laneHeaders.length,
+      laneHeader: data.laneHeaders[0] ?? fb,
+      val: seriesValArrays[i_series]?.[0],
+      i_val: 0,
+      isFirstVal: true,
+      isLastVal: nVals === 1,
+      valueMin: 0,
+      valueMax: 0,
+      indicatorHeader: data.indicatorHeaders[0] ?? fb,
+    }).show;
+    if (shown) return true;
+  }
+  return false;
+}
+
 // ChartOH subchart height is category-driven (not a scale-axis plot height):
 //   nIndicators × max(wrappedLabelH, nBarsPerIndicator × rowThickness) (+ strokes)
 // Bar thickness comes from idealHeight.idealRowThickness, which decays with the
@@ -87,8 +133,9 @@ function buildOHResolveTarget(
     if (nIndicators === 0) return info.minSubChartHeight;
     const ohStyle = info.mergedStyle as MergedChartOHStyle;
     const nSeries = data.seriesHeaders.length;
-    const stacked = info.mergedStyle.content.bars.stacking === "stacked";
-    const nBarsPerIndicator = stacked ? 1 : nSeries;
+    const nBarsPerIndicator = shouldConsiderNSeries(ohStyle, data)
+      ? nSeries
+      : 1;
     const { nGRows } = calculatePaneGrid(
       info.paneHeaders.length,
       info.mergedStyle.panes.nCols,

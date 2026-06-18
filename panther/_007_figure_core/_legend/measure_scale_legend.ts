@@ -5,7 +5,6 @@
 
 import {
   Dimensions,
-  getColor,
   type MeasuredText,
   type MergedScaleLegendStyle,
   type RenderContext,

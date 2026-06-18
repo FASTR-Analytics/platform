@@ -617,7 +617,7 @@ export function PageHolder(p: Props) {
               </div>
             </div>
           </Match>
-          <Match when={true}>
+          <Match when>
             <div class="ui-pad absolute left-0 top-0">
               <div class="ui-pad ui-spy-sm bg-danger text-base-100 pointer-events-none text-xs">
                 <Show when={err()}>

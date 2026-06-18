@@ -12,7 +12,7 @@ import type {
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
-import { Padding } from "../../deps.ts";
+import type { Padding } from "../../deps.ts";
 import type {
   MeasuredSectionPage,
   PagePrimitive,

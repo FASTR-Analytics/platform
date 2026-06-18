@@ -90,7 +90,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
     if (isIOS) {
       const range = document.createRange();
       range.selectNodeContents(textarea);
-      const selection = window.getSelection();
+      const selection = globalThis.getSelection();
       if (selection) {
         selection.removeAllRanges();
         selection.addRange(range);

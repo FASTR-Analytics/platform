@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Accessor, createSignal, Setter } from "solid-js";
+import { type Accessor, createSignal, type Setter } from "solid-js";
 
 export interface StepValidation {
   canGoPrev: boolean;

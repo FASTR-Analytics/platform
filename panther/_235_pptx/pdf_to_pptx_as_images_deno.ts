@@ -67,8 +67,7 @@ export async function pdfToPptxAsImagesDeno(
   }
   imageFiles.sort((a, b) => a.order - b.order);
 
-  // deno-lint-ignore no-explicit-any
-  const pptx = new (PptxGenJS as any)() as PptxGenJSInstance;
+  const pptx = new (PptxGenJS as unknown as { new (): PptxGenJSInstance })();
 
   pptx.defineLayout({
     name: "CUSTOM",

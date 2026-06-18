@@ -27,7 +27,7 @@ export type {
   RectStyle,
   RenderContext,
 } from "../_001_render_system/mod.ts";
-export { CanvasRenderContext } from "../_002_canvas/mod.ts";
+export { CanvasRenderContext, isGfxCanvasImage } from "../_002_canvas/mod.ts";
 export { PageRenderer } from "../_121_page/mod.ts";
 export type { PageInputs } from "../_121_page/mod.ts";
 export type { jsPDF } from "jspdf";

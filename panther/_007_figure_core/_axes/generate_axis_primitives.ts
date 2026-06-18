@@ -7,7 +7,6 @@ import type {
   ChartAxisPrimitive,
   HeaderItem,
   LineStyle,
-  MeasuredText,
   MergedGridStyle,
   MergedXPeriodAxisStyle,
   MergedXScaleAxisStyle,
@@ -29,7 +28,6 @@ import {
   getLargePeriodLabel,
   getSmallPeriodLabelIfAny,
   getYearDigits,
-  isLargePeriod,
   shouldShowYearBoundary,
 } from "./x_period/helpers.ts";
 

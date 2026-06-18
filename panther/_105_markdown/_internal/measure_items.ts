@@ -71,12 +71,10 @@ export function measureMarkdownItems(
 
     if (_debug) {
       let extra = "";
-      if (parsedItem.type === "paragraph" || parsedItem.type === "heading") {
-        const mft = (item as any).mFormattedText;
-        if (mft) {
-          extra =
-            `, lines=${mft.lines.length}, fontSize=${mft.baseStyle.fontSize}, lineH=${mft.baseStyle.lineHeight}`;
-        }
+      if (item.type === "paragraph" || item.type === "heading") {
+        const mft = item.mFormattedText;
+        extra =
+          `, lines=${mft.lines.length}, fontSize=${mft.baseStyle.fontSize}, lineH=${mft.baseStyle.lineHeight}`;
       }
       console.log(
         `    MD item[${i}]: type=${parsedItem.type}, gap=${gap.toFixed(1)}, h=${
@@ -123,9 +121,6 @@ function getItemMargins(
       return { marginTop: m.top, marginBottom: m.bottom };
     }
     case "list-item": {
-      const listConfig = item.listType === "bullet"
-        ? style.bulletList
-        : style.numberedList;
       const listMargins = style.margins.list;
 
       return {

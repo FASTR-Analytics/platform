@@ -12,8 +12,8 @@ export function useSmartNavigate() {
     url: string,
     forceRefreshIfSameKeys: "force-refresh-if-same-keys" | undefined,
   ) => {
-    const currentParams = new URLSearchParams(window.location.search);
-    const newUrl = new URL(url, window.location.origin);
+    const currentParams = new URLSearchParams(globalThis.location.search);
+    const newUrl = new URL(url, globalThis.location.origin);
     const newParams = new URLSearchParams(newUrl.search);
 
     // Get sorted keys from both
@@ -26,7 +26,7 @@ export function useSmartNavigate() {
       currentKeys.length === newKeys.length &&
       currentKeys.every((key, i) => key === newKeys[i])
     ) {
-      window.location.href = url;
+      globalThis.location.href = url;
     } else {
       // Otherwise use client-side navigation
       navigate(url);

@@ -21,14 +21,14 @@ export function downloadText(text: string, filename?: string) {
 }
 
 export function downloadJson(
-  json: Object,
+  json: object,
   filename?: string,
   keepUndefined?: "keep-undefined",
 ) {
   const str = keepUndefined === "keep-undefined"
     ? JSON.stringify(
       json,
-      function (k, v) {
+      function (_k, v) {
         return v === undefined ? null : v;
       },
       2,

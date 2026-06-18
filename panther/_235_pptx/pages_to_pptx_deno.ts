@@ -11,8 +11,9 @@ import {
   type PptxGenJSInstance,
 } from "./deps.ts";
 
-// deno-lint-ignore no-explicit-any
-const PptxGenJSConstructor = PptxGenJS as any;
+const PptxGenJSConstructor = PptxGenJS as unknown as {
+  new (): PptxGenJSInstance;
+};
 
 export function pagesToPptxDeno(
   pages: PageInputs[],

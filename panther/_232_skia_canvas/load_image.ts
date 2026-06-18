@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Image } from "./deps.ts";
+import { type GfxCanvasImage, Image } from "./deps.ts";
 
 /**
  * Load an image from a file path and return it as an HTMLImageElement-compatible object
@@ -28,12 +28,14 @@ export async function loadImage(
 
     // Create a wrapper object that provides the necessary properties
     // This ensures compatibility with Canvas, PDF, and PPTX contexts
-    const imageWrapper = {
+    const imageWrapper: GfxCanvasImage = {
       width: img.width,
       height: img.height,
       src: dataUrl, // For PPTX which uses image.src
-      _gfxCanvasImage: img, // Store the original image for Canvas
-      _isGfxCanvas: true, // Flag to identify this type
+      // skia Image isn't a DOM CanvasImageSource nominally, but the skia ctx
+      // draws it at runtime; this is the one bridging cast for the wrapper.
+      _gfxCanvasImage: img as unknown as CanvasImageSource,
+      _isGfxCanvas: true,
     };
 
     // Return as HTMLImageElement type for API compatibility

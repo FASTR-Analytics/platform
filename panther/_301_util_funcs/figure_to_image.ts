@@ -65,14 +65,14 @@ export function getFigureAsBase64(
   return canvas.toDataURL("image/png");
 }
 
-export async function getFigureAsDataUrlBrowser(
+export function getFigureAsDataUrlBrowser(
   figureInputs: FigureInputs,
   outputWidthPx: number,
 ): Promise<{ dataUrl: string; width: number; height: number }> {
   const canvas = getFigureAsCanvas(figureInputs, outputWidthPx);
-  return {
+  return Promise.resolve({
     dataUrl: canvas.toDataURL("image/png"),
     width: canvas.width,
     height: canvas.height,
-  };
+  });
 }

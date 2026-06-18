@@ -37,6 +37,10 @@ export async function createPdfRenderContextWithFontsDeno(
 
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
-  const rc = new PdfRenderContext(pdf, ctx as any, createCanvas);
+  const rc = new PdfRenderContext(
+    pdf,
+    ctx as unknown as CanvasRenderingContext2D,
+    createCanvas,
+  );
   return { pdf, rc };
 }

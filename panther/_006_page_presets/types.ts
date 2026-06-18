@@ -11,7 +11,6 @@ import type {
   LogosPlacementOptions,
   LogosSizingOptions,
   PaddingOptions,
-  PatternConfig,
   SplitPlacement,
 } from "./deps.ts";
 import type { ColorPreset } from "./color_presets.ts";

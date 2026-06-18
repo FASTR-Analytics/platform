@@ -10,7 +10,6 @@ import {
   Show,
   t3,
 } from "../../deps.ts";
-import type { Component } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 
 export function ToolErrorRenderer(p: {

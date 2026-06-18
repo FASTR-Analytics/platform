@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { del, get, set } from "../deps.ts";
+import { get, set } from "../deps.ts";
 import { clearConversationPersistence } from "./persistence.ts";
 
 const CONVERSATION_LIST_KEY = "ai-conv-list";

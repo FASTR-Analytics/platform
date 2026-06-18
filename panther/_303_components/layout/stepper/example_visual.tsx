@@ -12,7 +12,7 @@ import {
 
 // Example showing visual stepper with steps 1-5 (internally 0-4)
 export function ExampleVisualStepper() {
-  const [data, setData] = createSignal({
+  const [data, _setData] = createSignal({
     step1Complete: false,
     step2Complete: false,
     step3Complete: false,

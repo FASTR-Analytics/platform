@@ -5,3 +5,4 @@
 
 export { CanvasRenderContext } from "./canvas_render_context.ts";
 export { addPoint } from "./_internal/drawing/add_point.ts";
+export { type GfxCanvasImage, isGfxCanvasImage } from "./gfx_canvas_image.ts";

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { JSX } from "solid-js";
+import type { JSX } from "solid-js";
 
 export type SelectOption<T extends string> = {
   value: T;

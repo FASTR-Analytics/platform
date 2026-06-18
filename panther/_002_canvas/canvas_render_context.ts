@@ -7,6 +7,7 @@ import { addArea } from "./_internal/drawing/add_area.ts";
 import { addLine } from "./_internal/drawing/add_line.ts";
 import { addPoint } from "./_internal/drawing/add_point.ts";
 import { addRect } from "./_internal/drawing/add_rect.ts";
+import { isGfxCanvasImage } from "./gfx_canvas_image.ts";
 import {
   type AlignH,
   type AlignV,
@@ -134,13 +135,9 @@ export class CanvasRenderContext implements RenderContext {
     }
 
     // Check if this is our custom @gfx/canvas wrapper
-    let actualImage = image;
-    if (
-      image &&
-      typeof image === "object" &&
-      "_isGfxCanvas" in (image as any)
-    ) {
-      actualImage = (image as any)._gfxCanvasImage;
+    let actualImage: CanvasImageSource = image;
+    if (isGfxCanvasImage(image)) {
+      actualImage = image._gfxCanvasImage;
     }
 
     if (args.length === 4) {

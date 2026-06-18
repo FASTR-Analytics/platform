@@ -3,17 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  batch,
-  createMemo,
-  createSignal,
-  For,
-  Match,
-  Show,
-  Switch,
-} from "solid-js";
+import { createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
 import { t3 } from "../../deps.ts";
 import type {
+  AnyRow,
   BulkAction,
   ProcessedData,
   SortConfig,
@@ -33,7 +26,7 @@ import { Button, Checkbox } from "../../form_inputs/mod.ts";
 // ============================================================================
 
 export function Table<
-  T extends Record<string, any>,
+  T extends AnyRow,
   K extends keyof T = keyof T,
 >(p: TableProps<T, K>) {
   const [sortConfig, setSortConfig] = createSignal<SortConfig | null>(
@@ -336,7 +329,7 @@ type TableRowProps<T, K extends keyof T = keyof T> = {
   padding: { px: string; py: string };
 };
 
-const TableRow = <T extends Record<string, any>, K extends keyof T = keyof T>(
+const TableRow = <T extends AnyRow, K extends keyof T = keyof T>(
   p: TableRowProps<T, K>,
 ) => {
   const key = () => p.item[p.keyField];
@@ -407,7 +400,7 @@ type GroupedRowsProps<T, K extends keyof T = keyof T> = {
 };
 
 const GroupedRows = <
-  T extends Record<string, any>,
+  T extends AnyRow,
   K extends keyof T = keyof T,
 >(
   p: GroupedRowsProps<T, K>,

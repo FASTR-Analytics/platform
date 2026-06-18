@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Show } from "solid-js";
-import { Intent } from "../types.ts";
+import type { Intent } from "../types.ts";
 import { useAutoFocus } from "./utils.ts";
 
 // TextArea classes composed from utility classes and component classes

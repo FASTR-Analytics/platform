@@ -132,7 +132,7 @@ export type ChartDataPointPrimitive = BasePrimitive & {
   style: PointStyle;
   dataLabel?: DataLabel;
   // Optional metadata
-  sourceData?: any;
+  sourceData?: unknown;
 };
 
 export type ChartLineSeriesPrimitive = BasePrimitive & {
@@ -153,7 +153,7 @@ export type ChartLineSeriesPrimitive = BasePrimitive & {
     dataLabel: DataLabel;
   }>;
   // Optional metadata
-  sourceData?: any;
+  sourceData?: unknown;
 };
 
 export type ChartAreaSeriesPrimitive = BasePrimitive & {
@@ -166,7 +166,7 @@ export type ChartAreaSeriesPrimitive = BasePrimitive & {
   coords: Coordinates[];
   style: AreaStyle;
   // Optional metadata
-  sourceData?: any;
+  sourceData?: unknown;
 };
 
 export type ChartConnectorPrimitive = BasePrimitive & {
@@ -183,7 +183,7 @@ export type ChartConnectorPrimitive = BasePrimitive & {
     end?: Arrowhead;
   };
   // Optional metadata
-  sourceData?: any;
+  sourceData?: unknown;
 };
 
 export type ChartBarPrimitive = BasePrimitive & {
@@ -202,7 +202,7 @@ export type ChartBarPrimitive = BasePrimitive & {
   style: RectStyle;
   dataLabel?: DataLabel;
   // Optional metadata
-  sourceData?: any;
+  sourceData?: unknown;
 };
 
 export type ChartErrorBarPrimitive =
@@ -216,7 +216,7 @@ export type ChartErrorBarPrimitive =
     strokeWidth: number;
     capWidth: number;
     // Optional metadata
-    sourceData?: any;
+    sourceData?: unknown;
   }
   & (
     | { orientation: "vertical"; centerX: number; ubY: number; lbY: number }

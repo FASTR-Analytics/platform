@@ -104,19 +104,19 @@ export function createQuery<T>(
 //                                                                                                       //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export type FormAction<U extends any[]> = {
+export type FormAction<U extends unknown[]> = {
   state: Accessor<FormActionState>;
   click: (...args: U) => Promise<void>;
 };
 
 // Overload 1: Action returns data
-export function createFormAction<T, U extends any[]>(
+export function createFormAction<T, U extends unknown[]>(
   actionFunc: (...args: U) => Promise<APIResponseWithData<T>>,
   ...onSuccessCallbacks: Array<(data: T) => void | Promise<void>>
 ): FormAction<U>;
 
 // Overload 2: Action returns no data
-export function createFormAction<U extends any[]>(
+export function createFormAction<U extends unknown[]>(
   actionFunc: (...args: U) => Promise<APIResponseNoData>,
   ...onSuccessCallbacks: Array<() => void | Promise<void>>
 ): FormAction<U>;
@@ -127,7 +127,7 @@ export function createFormAction<U extends any[]>(
  * Race condition protection: If click() is called multiple times before previous
  * actions complete, only the most recent action will update state and execute callbacks.
  */
-export function createFormAction<T, U extends any[]>(
+export function createFormAction<T, U extends unknown[]>(
   actionFunc: (
     ...args: U
   ) => Promise<APIResponseWithData<T> | APIResponseNoData>,

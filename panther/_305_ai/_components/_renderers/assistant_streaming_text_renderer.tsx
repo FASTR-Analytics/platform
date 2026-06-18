@@ -3,7 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { Component } from "solid-js";
 import type { CustomMarkdownStyleOptions } from "../../deps.ts";
 import type { MessageStyle } from "../../_core/types.ts";
 import {

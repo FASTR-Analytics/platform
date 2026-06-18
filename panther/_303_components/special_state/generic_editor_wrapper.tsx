@@ -27,6 +27,7 @@ type EditorWrapperProps = {
 
 export function getEditorWrapper() {
   const [editorState, setEditorState] = createSignal<
+    // deno-lint-ignore no-explicit-any -- heterogeneous editor props/return; per-instance generics can't be expressed without `any`
     EditorState<any, any> | undefined
   >();
   function openEditor<TProps, TReturn>(v: OpenEditorProps<TProps, TReturn>) {

@@ -282,7 +282,6 @@ function addHorizontalRuleToSlide(
 function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
   const runs: TextRun[] = [];
   const baseStyle = mFormattedText.baseStyle;
-  const baseFontFamily = baseStyle.font.fontFamily;
   const baseFontSize = pixelsToPoints(baseStyle.fontSize);
   const baseColor = baseStyle.color;
   const baseCharSpacing = getCharSpacingPts(

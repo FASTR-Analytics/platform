@@ -4,14 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  type ColorKeyOrString,
   Coordinates,
   type Primitive,
   RectCoordsDims,
   sum,
-  type TableBorderPrimitive,
-  type TableGridPrimitive,
-  type TableHeaderAxisPrimitive,
   Z_INDEX,
 } from "../deps.ts";
 import type { MeasuredTable } from "../types.ts";

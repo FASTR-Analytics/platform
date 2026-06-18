@@ -21,19 +21,19 @@ import type { APIResponseNoData, APIResponseWithData } from "./deps.ts";
 //                                                                                                                        //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export type ButtonAction<U extends any[]> = {
+export type ButtonAction<U extends unknown[]> = {
   state: Accessor<ButtonActionState>;
   click: (...args: U) => Promise<void>;
 };
 
 // Overload 1: Action returns data
-export function createButtonAction<T, U extends any[]>(
+export function createButtonAction<T, U extends unknown[]>(
   actionFunc: (...args: U) => Promise<APIResponseWithData<T>>,
   ...onSuccessCallbacks: Array<(data: T) => void | Promise<void>>
 ): ButtonAction<U>;
 
 // Overload 2: Action returns no data
-export function createButtonAction<U extends any[]>(
+export function createButtonAction<U extends unknown[]>(
   actionFunc: (...args: U) => Promise<APIResponseNoData>,
   ...onSuccessCallbacks: Array<() => void | Promise<void>>
 ): ButtonAction<U>;
@@ -44,7 +44,7 @@ export function createButtonAction<U extends any[]>(
  * Race condition protection: If click() is called multiple times before previous
  * actions complete, only the most recent action will update state and execute callbacks.
  */
-export function createButtonAction<T, U extends any[]>(
+export function createButtonAction<T, U extends unknown[]>(
   actionFunc: (
     ...args: U
   ) => Promise<APIResponseWithData<T> | APIResponseNoData>,
@@ -129,25 +129,25 @@ export function createButtonAction<T, U extends any[]>(
 //                                                                                                                    //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export type DeleteAction<U extends any[]> = {
+export type DeleteAction<U extends unknown[]> = {
   click: (...args: U) => Promise<void>;
 };
 
 // Overload 1: Action returns data
-export function createDeleteAction<T, U extends any[]>(
+export function createDeleteAction<T, U extends unknown[]>(
   confirmText: string | JSX.Element | { text: string; itemList: string[] },
   actionFunc: (...args: U) => Promise<APIResponseWithData<T>>,
   ...onSuccessCallbacks: Array<(data: T) => void | Promise<void>>
 ): DeleteAction<U>;
 
 // Overload 2: Action returns no data
-export function createDeleteAction<U extends any[]>(
+export function createDeleteAction<U extends unknown[]>(
   confirmText: string | JSX.Element | { text: string; itemList: string[] },
   actionFunc: (...args: U) => Promise<APIResponseNoData>,
   ...onSuccessCallbacks: Array<() => void | Promise<void>>
 ): DeleteAction<U>;
 
-export function createDeleteAction<T, U extends any[]>(
+export function createDeleteAction<T, U extends unknown[]>(
   confirmText: string | JSX.Element | { text: string; itemList: string[] },
   actionFunc: (
     ...args: U

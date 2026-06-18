@@ -23,6 +23,7 @@ import {
   getAdjustedColor,
   getColor,
   getRectAlignmentCoords,
+  isGfxCanvasImage,
   type MeasuredText,
   RectCoordsDims,
   type RectCoordsDimsOptions,
@@ -54,11 +55,13 @@ function imageFormatFromDataUrl(dataUrl: string): "PNG" | "JPEG" | "WEBP" {
 export class PdfRenderContext implements RenderContext {
   _jsPdf: jsPDF;
   _crc: CanvasRenderContext;
+  // deno-lint-ignore no-explicit-any -- cross-env canvas factory (skia Canvas or DOM HTMLCanvasElement)
   _createCanvas: (width: number, height: number) => any;
 
   constructor(
     pdf: jsPDF,
     ctx: CanvasRenderingContext2D,
+    // deno-lint-ignore no-explicit-any -- cross-env canvas factory (skia Canvas or DOM HTMLCanvasElement)
     createCanvas: (width: number, height: number) => any,
   ) {
     this._jsPdf = pdf;
@@ -622,13 +625,9 @@ export class PdfRenderContext implements RenderContext {
         }
 
         // Handle our custom image wrapper from @gfx/canvas
-        if (
-          image &&
-          typeof image === "object" &&
-          "_isGfxCanvas" in (image as any)
-        ) {
+        if (isGfxCanvasImage(image)) {
           // This is our wrapped @gfx/canvas Image - use the src data URL if available
-          const wrapper = image as any;
+          const wrapper = image;
           if (wrapper.src && typeof wrapper.src === "string") {
             // Use the pre-computed data URL directly
             this._jsPdf.addImage(
@@ -700,17 +699,13 @@ export class PdfRenderContext implements RenderContext {
         }
 
         // Get the actual image to draw
-        let actualImage = image;
-        if (
-          image &&
-          typeof image === "object" &&
-          "_isGfxCanvas" in (image as any)
-        ) {
-          actualImage = (image as any)._gfxCanvasImage;
+        let actualImage: CanvasImageSource = image;
+        if (isGfxCanvasImage(image)) {
+          actualImage = image._gfxCanvasImage;
         }
 
         // Draw the cropped portion of the source image
-        tempCtx.drawImage(actualImage as any, sx, sy, sw, sh, 0, 0, dw, dh);
+        tempCtx.drawImage(actualImage, sx, sy, sw, sh, 0, 0, dw, dh);
 
         // Convert temp canvas to data URL for jspdf
         const dataUrl = tempCanvas.toDataURL("png");

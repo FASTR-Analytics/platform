@@ -3,9 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { For, JSX, Match, Show, Switch } from "solid-js";
+import { For, type JSX, Match, Show, Switch } from "solid-js";
 import { Select } from "./select.tsx";
-import { SelectOption } from "./types.ts";
+import type { SelectOption } from "./types.ts";
 
 type RadioGroupProps<T extends string> = {
   value: T | undefined;
@@ -63,7 +63,7 @@ export function RadioGroup<T extends string>(p: RadioGroupProps<T>) {
                           {opt.label}
                         </span>
                       </Match>
-                      <Match when={true}>{opt.label}</Match>
+                      <Match when>{opt.label}</Match>
                     </Switch>
                   </label>
                 );

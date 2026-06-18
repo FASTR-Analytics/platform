@@ -21,7 +21,7 @@ export function getPixelsFromPctClientWidth(
   }
 
   const clamped = clamp(percentage, 0, 100);
-  return Math.round((window.innerWidth * clamped) / 100);
+  return Math.round((globalThis.innerWidth * clamped) / 100);
 }
 
 export function getPixelsFromPctClientHeight(
@@ -40,5 +40,5 @@ export function getPixelsFromPctClientHeight(
   }
 
   const clamped = clamp(percentage, 0, 100);
-  return Math.round((window.innerHeight * clamped) / 100);
+  return Math.round((globalThis.innerHeight * clamped) / 100);
 }

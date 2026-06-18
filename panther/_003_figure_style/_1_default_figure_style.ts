@@ -8,7 +8,6 @@ import {
   type CalendarType,
   type CascadeArrowInfo,
   type CascadeArrowInfoFunc,
-  type ChartConnectorInfoFunc,
   type ChartSeriesInfoFunc,
   type ChartValueInfoFunc,
   Color,

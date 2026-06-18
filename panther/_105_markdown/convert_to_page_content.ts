@@ -3,14 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  type CustomMarkdownStyleOptions,
-  type FigureInputs,
-  type ImageInputs,
-  type ImageMap,
-  type MarkdownRendererInput,
-  type TableData,
-  type TableInputs,
+import type {
+  CustomMarkdownStyleOptions,
+  FigureInputs,
+  ImageInputs,
+  ImageMap,
+  MarkdownRendererInput,
+  TableData,
+  TableInputs,
 } from "./deps.ts";
 import type { FigureMap, MarkdownInline, ParsedMarkdownItem } from "./types.ts";
 
@@ -109,7 +109,7 @@ export function contentGroupToPageContentItem(
 
 export function docElementToPageContentItem(
   element: ParsedMarkdownItem,
-  images?: ImageMap,
+  _images?: ImageMap,
 ): ConvertedPageContent | undefined {
   if (element.type === "table") {
     const tableData = convertMarkdownTableToTableData(element);

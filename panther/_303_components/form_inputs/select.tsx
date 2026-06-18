@@ -3,10 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { For, JSX, Show } from "solid-js";
-import { Intent } from "../types.ts";
+import { For, type JSX, Show } from "solid-js";
+import type { Intent } from "../types.ts";
 import { SelectorIcon } from "../icons/mod.ts";
-import { SelectOption } from "./types.ts";
+import type { SelectOption } from "./types.ts";
 import { useAutoFocus } from "./utils.ts";
 
 // Select classes composed from utility classes and component classes

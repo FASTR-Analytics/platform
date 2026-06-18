@@ -9,7 +9,7 @@ import {
   getColor,
   measureSurrounds,
   type Primitive,
-  RectCoordsDims,
+  type RectCoordsDims,
   type RenderContext,
 } from "../deps.ts";
 import {

@@ -9,7 +9,6 @@ import {
   getColor,
   type Primitive,
   RectCoordsDims,
-  type TextInfoUnkeyed,
   Z_INDEX,
 } from "../deps.ts";
 import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";

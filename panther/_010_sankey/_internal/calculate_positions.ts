@@ -221,12 +221,11 @@ function calculateTieredPositions(
     const x = bounds.x() + node.column * (style.nodeWidth + columnGap);
 
     let y: number;
-    let height: number;
     let rowStart: number | undefined;
     let rowEnd: number | undefined;
 
     // Node height is ALWAYS based on flow value (fundamental Sankey rule)
-    height = value * scaleFactor;
+    const height = value * scaleFactor;
 
     if (rowInfo.spanRows !== undefined) {
       // Spanning node: position at start of first row
@@ -382,7 +381,7 @@ function calculateFlowLinkPositions(
 function calculateTieredLinkPositions(
   links: SankeyLink[],
   nodePositionMap: Map<string, PositionedNode>,
-  rowPositions: Map<number, { y: number; height: number }>,
+  _rowPositions: Map<number, { y: number; height: number }>,
   linkColorResolver: (fromId: string, toId: string) => string,
 ): PositionedLink[] {
   // Group links by destination row for ordering

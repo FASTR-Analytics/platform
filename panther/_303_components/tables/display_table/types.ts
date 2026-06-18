@@ -3,11 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type Accessor, JSX } from "solid-js";
+import type { Accessor, JSX } from "solid-js";
 import type {
   StateHolderButtonAction,
   StateHolderFormAction,
 } from "../../special_state/mod.ts";
+
+// deno-lint-ignore no-explicit-any -- row objects are structurally open; `unknown` would reject consumer row types lacking an index signature
+export type AnyRow = Record<string, any>;
 
 export type TableColumn<T> = {
   key: string;

@@ -4,12 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Coordinates, RectCoordsDims, Z_INDEX } from "../deps.ts";
-import type {
-  ChartLegendPrimitive,
-  LineStyle,
-  PointStyle,
-  RectStyle,
-} from "../deps.ts";
+import type { ChartLegendPrimitive } from "../deps.ts";
 import type { MeasuredLegend } from "./measure_legend.ts";
 
 ////////////////////////////////////////////////////////////////////////////////

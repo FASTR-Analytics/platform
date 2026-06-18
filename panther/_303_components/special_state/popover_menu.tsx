@@ -3,7 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createSignal, For, JSX, onCleanup, onMount, Show } from "solid-js";
+import {
+  createSignal,
+  For,
+  type JSX,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { Button } from "../form_inputs/button.tsx";
 import type { IconName } from "../icons/mod.ts";
 import { IconRenderer } from "../form_inputs/icon_renderer.tsx";

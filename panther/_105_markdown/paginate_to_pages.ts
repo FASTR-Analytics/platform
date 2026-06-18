@@ -61,7 +61,6 @@ export function paginateMarkdown(
   const pages: LayoutNode<ConvertedPageContent>[][] = [];
   let currentPage: LayoutNode<ConvertedPageContent>[] = [];
   let currentHeight = 0;
-  let previousGroupType: "text" | "table" | "image" | undefined;
 
   const gapY = config.gapY ?? 40;
 
@@ -71,7 +70,6 @@ export function paginateMarkdown(
         pages.push(currentPage);
         currentPage = [];
         currentHeight = 0;
-        previousGroupType = undefined;
       }
     }
 
@@ -97,7 +95,6 @@ export function paginateMarkdown(
     if (currentHeight + heightWithGap <= config.contentHeight) {
       currentPage.push(createItemNode(item));
       currentHeight += heightWithGap;
-      previousGroupType = group.type;
       continue;
     }
 
@@ -118,7 +115,6 @@ export function paginateMarkdown(
         pages.push(currentPage);
         currentPage = [];
         currentHeight = 0;
-        previousGroupType = undefined;
       }
 
       const splitItems = splitContentToFit(
@@ -147,7 +143,6 @@ export function paginateMarkdown(
         if (currentHeight + splitHeightWithGap <= config.contentHeight) {
           currentPage.push(createItemNode(splitItem));
           currentHeight += splitHeightWithGap;
-          previousGroupType = group.type;
         } else {
           if (currentPage.length > 0) {
             // Check for orphan heading before finalizing page
@@ -164,11 +159,9 @@ export function paginateMarkdown(
                 config.style,
               )
               : 0;
-            previousGroupType = orphanHeading ? "text" : undefined;
           }
           currentPage.push(createItemNode(splitItem));
           currentHeight += splitHeight;
-          previousGroupType = group.type;
         }
       }
     } else {
@@ -188,7 +181,6 @@ export function paginateMarkdown(
             config.style,
           )
           : 0;
-        previousGroupType = orphanHeading ? "text" : undefined;
       }
 
       // Add gap if there's already content (e.g., orphan heading moved here)
@@ -198,7 +190,6 @@ export function paginateMarkdown(
         : itemHeight;
       currentPage.push(createItemNode(item));
       currentHeight += newPageItemHeight;
-      previousGroupType = group.type;
     }
   }
 

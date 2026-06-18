@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AnyRow,
   ProcessedData,
   SortConfig,
   TableColumn,
@@ -29,7 +30,7 @@ export function compareValues(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b));
 }
 
-export function sortData<T extends Record<string, any>>(
+export function sortData<T extends AnyRow>(
   data: T[],
   sortConfig: SortConfig | null,
   columns?: TableColumn<T>[],
@@ -48,7 +49,7 @@ export function sortData<T extends Record<string, any>>(
   return sorted;
 }
 
-export function groupData<T extends Record<string, any>>(
+export function groupData<T extends AnyRow>(
   data: T[],
   group: TableGroup<T>,
   sortConfig: SortConfig | null,

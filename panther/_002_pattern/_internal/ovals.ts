@@ -11,7 +11,7 @@ export function renderOvals(
   rc: RenderContext,
   bounds: RectCoordsDims,
   baseHex: string,
-  scale: number,
+  _scale: number,
   contrast: number,
   random: () => number,
 ): void {

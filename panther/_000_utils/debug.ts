@@ -6,8 +6,9 @@
 // Set PANTHER_DEBUG=true to enable debug output
 function getDebugFlag(): boolean {
   try {
-    // deno-lint-ignore no-explicit-any
-    const d = (globalThis as any).Deno;
+    const d = (globalThis as {
+      Deno?: { env: { get(key: string): string | undefined } };
+    }).Deno;
     if (d) {
       return d.env.get("PANTHER_DEBUG") === "true";
     }

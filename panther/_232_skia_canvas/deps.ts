@@ -11,6 +11,7 @@ export { getFontInfoId } from "../_001_font/mod.ts";
 export type { FontInfo } from "../_001_font/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export { CanvasRenderContext } from "../_002_canvas/mod.ts";
+export type { GfxCanvasImage } from "../_002_canvas/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export { CustomPageStyle } from "../_005_page_style/mod.ts";
 export { CustomStyle } from "../_006_style/mod.ts";

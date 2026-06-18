@@ -36,6 +36,7 @@ export function injectKerningIntoJsPdf(
   }
 
   // Access the internal font that jsPDF just registered
+  // deno-lint-ignore no-explicit-any -- jsPDF private internals (no public types)
   const internalFont = (pdf as any).internal.getFont(
     fontFamily,
     fontStyle,
@@ -66,6 +67,7 @@ export function injectKerningIntoJsPdf(
  * Call this once before using the pdf instance for text rendering.
  */
 export function patchJsPdfForKerning(pdf: jsPDF): void {
+  // deno-lint-ignore no-explicit-any -- jsPDF private internals (no public types)
   const pdfAny = pdf as any;
 
   if (pdfAny.__kerningPatched) {
@@ -79,6 +81,7 @@ export function patchJsPdfForKerning(pdf: jsPDF): void {
     text: string | string[],
     x: number,
     y: number,
+    // deno-lint-ignore no-explicit-any -- jsPDF text() options passthrough
     options?: any,
   ) {
     const font = pdfAny.internal.getFont();
@@ -256,6 +259,7 @@ function hpf(n: number): string {
  * @deprecated Use patchJsPdfForKerning instead
  */
 export function patchJsPdfForKerningCharByChar(pdf: jsPDF): void {
+  // deno-lint-ignore no-explicit-any -- jsPDF private internals (no public types)
   const pdfAny = pdf as any;
 
   if (pdfAny.__kerningPatched) {
@@ -269,6 +273,7 @@ export function patchJsPdfForKerningCharByChar(pdf: jsPDF): void {
     text: string | string[],
     x: number,
     y: number,
+    // deno-lint-ignore no-explicit-any -- jsPDF text() options passthrough
     options?: any,
   ) {
     const font = pdfAny.internal.getFont();

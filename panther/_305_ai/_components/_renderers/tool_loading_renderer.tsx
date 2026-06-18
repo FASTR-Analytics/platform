@@ -3,7 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { Component } from "solid-js";
 import { t3 } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 import { SpinningCursor } from "./spinning_cursor.tsx";

@@ -307,7 +307,9 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
 
     default: {
       const _exhaustive: never = primitive;
-      throw new Error(`Unknown primitive type: ${(primitive as any).type}`);
+      throw new Error(
+        `Unknown primitive type: ${(primitive as { type: string }).type}`,
+      );
     }
   }
 }

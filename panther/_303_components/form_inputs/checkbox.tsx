@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { JSX, Match, Show, Switch } from "solid-js";
+import { type JSX, Match, Show, Switch } from "solid-js";
 import type { Intent } from "../types.ts";
 
 type CheckboxProps = {
@@ -75,7 +75,7 @@ export function Checkbox(p: CheckboxProps) {
         <Match when={typeof p.label === "string"}>
           <span class="select-none">{p.label}</span>
         </Match>
-        <Match when={true}>{p.label}</Match>
+        <Match when>{p.label}</Match>
       </Switch>
     </label>
   );
