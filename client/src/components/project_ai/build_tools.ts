@@ -8,6 +8,7 @@ import type {
 } from "lib";
 import { createAskUserQuestionsTool } from "panther";
 import { getToolsForDrafts } from "./ai_tools/tools/drafts";
+import { getToolsForInfo } from "./ai_tools/tools/info";
 import { getToolsForMethodologyDocs } from "./ai_tools/tools/methodology_docs";
 import { getToolsForMetrics } from "./ai_tools/tools/metrics";
 import { getToolsForModules } from "./ai_tools/tools/modules";
@@ -45,6 +46,7 @@ export function buildToolsForContext(params: BuildToolsParams) {
     ...getToolsForSlideDecks(slideDecks),
     ...getToolsForReports(projectId, reports),
     ...getToolsForMethodologyDocs(),
+    ...getToolsForInfo(),
 
     // Mode-specific tools - check mode in handler
     ...getToolsForSlides(projectId, aiContext, metrics),
