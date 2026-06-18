@@ -1,3 +1,10 @@
+[TBD] [user] [added] - AI assistant can now load reference documentation on demand
+[TBD] [user] [fixed] - Inequality measures no longer incorrectly displayed as percentages
+[TBD] [user] [fixed] - Charts with negative values no longer clip below zero
+[TBD] [admin] [added] - AI assistant can now load reference documentation on demand
+[TBD] [admin] [added] - ICEH data and equity profile guides available as AI reference topics
+[TBD] [admin] [fixed] - Inequality measures no longer display as incorrectly formatted percentages
+[TBD] [admin] [fixed] - Charts with negative values no longer clip below zero
 [TBD] [user] [added] - Points charts can now display connectors between data points
 [TBD] [admin] [added] - Charts now support a "points with connectors" display option
 [1.53.6] [user] [fixed] - Large data exports no longer fail due to memory issues
