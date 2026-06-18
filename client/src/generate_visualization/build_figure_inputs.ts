@@ -34,6 +34,7 @@ import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_conf
 import {
   isSpecialDisruptionsChartActive,
   isSpecialScorecardTableActive,
+  metricAlwaysObeysFormatAs,
 } from "./special_chart_checks";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 
@@ -49,13 +50,11 @@ export function buildFigureInputs(
 
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(indicatorMetadata);
 
-  const effectiveFormatAs: "percent" | "number" = displayedIndicatorsAllPercent(
-    items,
-    indicatorMetadata,
-    config,
-  )
-    ? "percent"
-    : resultsValue.formatAs;
+  const effectiveFormatAs: "percent" | "number" =
+    !metricAlwaysObeysFormatAs(bundle.metricId) &&
+    displayedIndicatorsAllPercent(items, indicatorMetadata, config)
+      ? "percent"
+      : resultsValue.formatAs;
 
   const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(config, {
     dateRange,

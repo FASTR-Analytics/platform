@@ -19,6 +19,16 @@ export const SPECIAL_DISRUPTIONS_CHART_METRICS = [
 
 export const SPECIAL_SCORECARD_TABLE_METRICS = ["m8-01-01"];
 
+// Metrics whose displayed values are DERIVED measures (not the indicator's own
+// quantity), so the metric's own formatAs must win over the displayed-indicators'
+// format. Without this, e.g. m9-02-01's CIX/SII numbers computed over percent
+// coverage indicators get wrongly rendered as percent (50 -> "5000%").
+export const ALWAYS_OBEY_METRIC_FORMAT_METRICS = ["m9-02-01"];
+
+export function metricAlwaysObeysFormatAs(metricId: string): boolean {
+  return ALWAYS_OBEY_METRIC_FORMAT_METRICS.includes(metricId);
+}
+
 // "Can this metric use X mode?" — controls whether toggle is shown in editor
 export function canUseSpecialCoverageChart(metricId: string): boolean {
   return SPECIAL_COVERAGE_CHART_METRICS.includes(metricId);
