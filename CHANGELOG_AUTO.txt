@@ -1,3 +1,5 @@
+[1.53.5] [user] [fixed] - Large data exports no longer fail due to memory issues
+[1.53.5] [admin] [fixed] - Large table exports no longer cause out-of-memory crashes
 [1.53.4] [user] [fixed] - Large data exports to central now complete much faster
 [1.53.4] [admin] [fixed] - Dramatically faster data exports to central server
 [1.53.4] [admin] [changed] - Export streaming now uses a more efficient database-native transfer method
