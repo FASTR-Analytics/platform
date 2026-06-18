@@ -1,3 +1,5 @@
+[TBD] [user] [added] - Points charts can now display connectors between data points
+[TBD] [admin] [added] - Charts now support a "points with connectors" display option
 [1.53.6] [user] [fixed] - Large data exports no longer fail due to memory issues
 [1.53.6] [admin] [fixed] - Large data exports no longer crash instances due to memory exhaustion
 [1.53.6] [admin] [changed] - Data export streaming now uses bounded memory regardless of table size
