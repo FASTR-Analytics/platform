@@ -1,14 +1,15 @@
-# Prompt — Recreate the ICEH / Countdown equity profile as a report
+# ICEH equity profile — report recipe
 
-Paste this prompt to the project AI assistant. It works for **any country**: it
-reads whatever ICEH (Retriever) survey data has been imported into the current
-project and builds the closest achievable version of the standard ICEH equity
-profile (the Cameroon DHS 2018 / Countdown-to-2030 profile is the reference) as
-an in-app **report** — a markdown narrative with embedded live figures.
+Load this (via `get_info`) when a user asks to create an ICEH / Countdown equity
+profile. It is the recipe for building one as an in-app **report** — a markdown
+narrative with embedded live figures — and works for **any country**: it reads
+whatever ICEH (Retriever) survey data has been imported into the current project
+and reproduces the closest achievable version of the standard profile (the Cameroon
+DHS 2018 / Countdown-to-2030 profile is the reference).
 
 ---
 
-## Your task
+## The task
 
 Create a report titled **"Equity profile — [country] ([most recent survey year])"** that
 reproduces the structure and content of an ICEH/Countdown RMNCH equity profile,
@@ -18,9 +19,9 @@ then write the narrative around the figures. Skip any element whose data is
 missing rather than inventing it.
 
 > For authoritative definitions, indicator codes, stratifiers, the CCI and the
-> inequality-measure methods and caveats, load the **ICEH info reference**
-> (`info/iceh.md`) via the info tool. This prompt summarises only what you need to
-> drive the build; the info file is the source of truth for the domain facts.
+> inequality-measure methods and caveats, also load the **`iceh`** topic with
+> `get_info`. This recipe summarises only what you need to drive the build; the
+> `iceh` reference is the source of truth for the domain facts.
 
 ## What an ICEH equity profile is
 

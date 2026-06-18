@@ -1,21 +1,12 @@
 import { createAITool } from "panther";
 import { z } from "zod";
+import { INFO_TOPICS } from "../../info_catalog";
 
-// On-demand reference docs shipped as static assets under client/public/info/.
-// index.json is the catalog; each topic maps to client/public/info/<topic>.md.
-// Matching a requested topic against the catalog also whitelists the fetch path
-// (no path traversal possible).
-type InfoTopic = { topic: string; title: string; description: string };
-
-async function loadInfoIndex(): Promise<InfoTopic[]> {
-  const response = await fetch("/info/index.json", { cache: "no-cache" });
-  if (!response.ok) {
-    throw new Error(`Could not load info index (${response.status})`);
-  }
-  const data = (await response.json()) as { topics: InfoTopic[] };
-  return data.topics;
-}
-
+// On-demand reference docs. The catalog (INFO_TOPICS) is a compile-time const so
+// the system prompt and this tool share one source of truth with no fetch; only
+// the markdown CONTENT is fetched on demand from client/public/info/<topic>.md
+// when a topic is actually requested. Matching against INFO_TOPICS also whitelists
+// the fetch path (no traversal, never serves the SPA fallback).
 export function getToolsForInfo() {
   return [
     createAITool({
@@ -31,16 +22,15 @@ export function getToolsForInfo() {
           ),
       }),
       handler: async (input) => {
-        const topics = await loadInfoIndex();
         if (!input.topic) {
-          return { availableTopics: topics };
+          return { availableTopics: INFO_TOPICS };
         }
-        const match = topics.find((t) => t.topic === input.topic);
+        const match = INFO_TOPICS.find((t) => t.topic === input.topic);
         if (!match) {
           throw new Error(
-            `Unknown info topic "${input.topic}". Available: ${topics
-              .map((t) => t.topic)
-              .join(", ")}.`,
+            `Unknown info topic "${input.topic}". Available: ${INFO_TOPICS.map(
+              (t) => t.topic,
+            ).join(", ")}.`,
           );
         }
         const response = await fetch(`/info/${match.topic}.md`, {

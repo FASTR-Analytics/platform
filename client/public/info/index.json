@@ -1,9 +1,0 @@
-{
-  "topics": [
-    {
-      "topic": "iceh",
-      "title": "ICEH data & analyses",
-      "description": "ICEH/Countdown survey data: data model, stratifiers, the CCI, and the wealth-inequality measures (definitions, methods, fidelity caveats). Load before building an ICEH equity profile."
-    }
-  ]
-}

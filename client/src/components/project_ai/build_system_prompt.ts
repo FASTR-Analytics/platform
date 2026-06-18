@@ -7,6 +7,7 @@ import {
   type ProjectState,
 } from "lib";
 import type { AIContext } from "./types";
+import { INFO_TOPICS } from "./info_catalog";
 
 // ── Entry point ──
 
@@ -19,10 +20,29 @@ export function buildSystemPromptForContext(
   const dateHeader = `**CURRENT DATE: ${currentDate}**\n\n---\n\n`;
 
   const contextSection = buildAISystemContext(instance, projectState);
+  const referenceDocsSection = buildReferenceDocsSection();
   const baseInstructions = getBaseInstructions();
   const modeInstructions = getModeInstructions(aiContext);
 
-  return `${dateHeader}${contextSection}${baseInstructions}\n\n${modeInstructions}`;
+  return `${dateHeader}${contextSection}${referenceDocsSection}${baseInstructions}\n\n${modeInstructions}`;
+}
+
+// ── Reference documentation catalog ──
+
+function buildReferenceDocsSection(): string {
+  if (INFO_TOPICS.length === 0) return "";
+  const sections: string[] = [];
+  sections.push("# Reference documentation");
+  sections.push("");
+  sections.push(
+    "Authoritative reference docs you can load on demand with the **get_info** tool. When a task relates to one of these topics (for example, building an ICEH equity profile report), call get_info for that topic FIRST and follow it.",
+  );
+  sections.push("");
+  for (const t of INFO_TOPICS) {
+    sections.push(`- **${t.topic}** — ${t.title}: ${t.description}`);
+  }
+  sections.push("");
+  return sections.join("\n");
 }
 
 // ── Project context ──
