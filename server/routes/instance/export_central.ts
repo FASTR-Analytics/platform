@@ -172,6 +172,16 @@ routesExportCentral.get(
   },
 );
 
+const ROWS_STREAM_BATCH = 20000;
+
+// Encode one value as a Postgres COPY TEXT field (NULL → \N; backslash/tab/newline/CR escaped)
+// so the consumer pipes the stream straight into `COPY ... FROM STDIN`.
+function encodeCopyField(v: unknown): string {
+  if (v === null || v === undefined) return "\\N";
+  const s = typeof v === "object" ? JSON.stringify(v) : String(v);
+  return s.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+}
+
 routesExportCentral.get(
   "/export_central/:project_id/rows",
   async (c) => {
@@ -186,13 +196,14 @@ routesExportCentral.get(
     const tableName = getResultsObjectTableName(roId);
     const db = createWorkerReadConnection(projectId);
 
-    // COPY passthrough: stream this results object as raw Postgres COPY TEXT for exactly the
-    // columns central asked for (`cols`), with this instance's id as source_server_id. Postgres
-    // emits the COPY format in C and central pipes it straight into `COPY ... FROM STDIN`, so
-    // there is zero per-row JS on either side and the whole object streams as one continuous
-    // COPY — the fix for the multi-hour imports (the old cursor+JSON.stringify+gzip path was
-    // starved on this single event loop). A dedicated no-statement-timeout read connection is
-    // used; the stream is paced by the consumer, so memory stays bounded.
+    // Stream this results object as Postgres COPY TEXT for exactly the columns central asked
+    // for (`cols`), with this instance's id as source_server_id, so central pipes it straight
+    // into `COPY ... FROM STDIN` (zero per-row JS on central; COPY-speed writes). The source
+    // reads via a server-side cursor and formats COPY TEXT per batch through a pull-based
+    // ReadableStream — the cursor only advances when the consumer reads, so source memory is
+    // bounded to one batch regardless of table size. (postgres.js's COPY-TO-STDOUT `.readable()`
+    // buffers the whole result internally and OOMs the source on large tables — it does not
+    // honor consumer backpressure.) A dedicated no-statement-timeout read connection is used.
     try {
       const colRows = await db.unsafe(
         `SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
@@ -210,36 +221,49 @@ routesExportCentral.get(
       // order central will COPY into still lines up.
       const requested = (c.req.query("cols") ?? "")
         .split(",").map((s) => s.trim()).filter((s) => /^[A-Za-z0-9_]+$/.test(s));
-      const sourceLiteral = `'${_INSTANCE_ID.replace(/'/g, "''")}'::text AS source_server_id`;
-      const colExprs = requested.map((col) => actual.has(col) ? `"${col}"` : `NULL AS "${col}"`);
-      const selectList = [sourceLiteral, ...colExprs].join(", ");
-      const copySql = `COPY (SELECT ${selectList} FROM "${tableName}") TO STDOUT`;
-
+      // SELECT only the columns the source actually has; absent requested columns are emitted
+      // as \N below so the column order central COPYs into still lines up.
+      const presentCols = requested.filter((col) => actual.has(col));
+      const selectExpr = presentCols.length ? presentCols.map((col) => `"${col}"`).join(", ") : "1";
+      const enc = new TextEncoder();
+      const srcField = encodeCopyField(_INSTANCE_ID);
       const startedAt = Date.now();
-      const readable = await db.unsafe(copySql).readable();
-
-      // Bridge the Postgres COPY readable to a Web stream WITH backpressure: pause the
-      // readable when the consumer falls behind and resume on pull. `Readable.toWeb` does
-      // not propagate backpressure here — it drains Postgres into the response queue and the
-      // source heap OOMs on large tables. Bound the buffer (~4 MB) so memory stays flat.
+      const it = db.unsafe(`SELECT ${selectExpr} FROM "${tableName}"`)
+        .cursor(ROWS_STREAM_BATCH)[Symbol.asyncIterator]();
       let cleanedUp = false;
-      const cleanup = () => { if (cleanedUp) return; cleanedUp = true; db.end().catch(() => {}); };
+      const cleanup = async () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
+        try { await it.return?.(); } catch { /* cursor already closed */ }
+        await db.end().catch(() => {});
+      };
+
+      // Pull-based: the cursor advances one batch per read, so memory stays bounded to one
+      // batch and the source is paced by the consumer (no OOM regardless of table size).
       const body = new ReadableStream<Uint8Array>({
-        start(controller) {
-          readable.on("data", (chunk: Uint8Array) => {
-            controller.enqueue(chunk);
-            if ((controller.desiredSize ?? 1) <= 0) readable.pause();
-          });
-          readable.on("end", () => {
-            console.log(`[export_central] ${tableName}: streamed in ${Date.now() - startedAt}ms`);
-            controller.close();
-            cleanup();
-          });
-          readable.on("error", (err: Error) => { controller.error(err); cleanup(); });
+        async pull(controller) {
+          try {
+            const { value, done } = await it.next();
+            if (done) {
+              console.log(`[export_central] ${tableName}: streamed in ${Date.now() - startedAt}ms`);
+              controller.close();
+              await cleanup();
+              return;
+            }
+            let payload = "";
+            for (const row of value as Record<string, unknown>[]) {
+              payload += srcField;
+              for (const col of requested) payload += "\t" + (actual.has(col) ? encodeCopyField(row[col]) : "\\N");
+              payload += "\n";
+            }
+            controller.enqueue(enc.encode(payload));
+          } catch (err) {
+            controller.error(err);
+            await cleanup();
+          }
         },
-        pull() { readable.resume(); },
-        cancel() { readable.destroy(); cleanup(); },
-      }, new ByteLengthQueuingStrategy({ highWaterMark: 4 * 1024 * 1024 }));
+        async cancel() { await cleanup(); },
+      });
 
       return new Response(body, { headers: { "Content-Type": "application/octet-stream" } });
     } catch (err) {
