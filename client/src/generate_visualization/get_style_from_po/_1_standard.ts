@@ -27,7 +27,12 @@ export function buildStandardStyle(
   calendar: CalendarType,
   deckStyle?: DeckStyleContext,
   indicatorMetadata?: IndicatorMetadata[],
+  allowNegativeScale = false,
 ): CustomFigureStyleOptions {
+  // Signed metrics (e.g. inequality measures) must let the value axis fit below 0
+  // rather than flooring at 0, which clips negative bars.
+  const scaleMin: "auto" | undefined =
+    config.s.forceYMinAuto || allowNegativeScale ? "auto" : undefined;
   const dataFormat = formatAs;
   const cf = selectCf(config.s);
   const cfOn = cf.type !== "none";
@@ -69,7 +74,7 @@ export function buildStandardStyle(
     yScaleAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 ? 1 : undefined,
-      min: config.s.forceYMinAuto ? "auto" : undefined,
+      min: scaleMin,
       tickLabelFormatter: (dataFormat === "percent"
         ? "auto-percent"
         : "auto-number") as TickLabelFormatterOption,
@@ -77,7 +82,7 @@ export function buildStandardStyle(
     xScaleAxis: {
       allowIndividualLaneLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 ? 1 : undefined,
-      min: config.s.forceYMinAuto ? "auto" : undefined,
+      min: scaleMin,
       tickLabelFormatter: (dataFormat === "percent"
         ? "auto-percent"
         : "auto-number") as TickLabelFormatterOption,

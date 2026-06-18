@@ -18,6 +18,7 @@ export function getStyleFromPresentationObject(
   calendar: CalendarType,
   deckStyle?: DeckStyleContext,
   indicatorMetadata?: IndicatorMetadata[],
+  allowNegativeScale = false,
 ): CustomFigureStyleOptions {
   if (isSpecialScorecardTableActive(config) && indicatorMetadata) {
     return buildScorecardStyle(config, indicatorMetadata, deckStyle);
@@ -31,5 +32,12 @@ export function getStyleFromPresentationObject(
   if (isSpecialDisruptionsChartActive(config)) {
     return buildDisruptionsChartStyle(config, formatAs, calendar, deckStyle);
   }
-  return buildStandardStyle(config, formatAs, calendar, deckStyle, indicatorMetadata);
+  return buildStandardStyle(
+    config,
+    formatAs,
+    calendar,
+    deckStyle,
+    indicatorMetadata,
+    allowNegativeScale,
+  );
 }

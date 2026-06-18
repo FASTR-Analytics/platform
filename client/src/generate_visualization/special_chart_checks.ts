@@ -29,6 +29,16 @@ export function metricAlwaysObeysFormatAs(metricId: string): boolean {
   return ALWAYS_OBEY_METRIC_FORMAT_METRICS.includes(metricId);
 }
 
+// Metrics whose values can be legitimately NEGATIVE (e.g. m9-02-01's CIX / SII /
+// difference for pro-poor indicators). For these the value axis must allow a
+// negative minimum (min: "auto") instead of flooring at 0, which clips the
+// negative bars.
+export const ALLOW_NEGATIVE_SCALE_VALUES_METRICS = ["m9-02-01"];
+
+export function metricAllowsNegativeScale(metricId: string): boolean {
+  return ALLOW_NEGATIVE_SCALE_VALUES_METRICS.includes(metricId);
+}
+
 // "Can this metric use X mode?" — controls whether toggle is shown in editor
 export function canUseSpecialCoverageChart(metricId: string): boolean {
   return SPECIAL_COVERAGE_CHART_METRICS.includes(metricId);
