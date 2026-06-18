@@ -1,0 +1,38 @@
+#!/bin/sh
+
+# Build the R module-execution image consumed by
+# server/worker_routines/run_module/run_module_iterator.ts
+#
+#   prod (linux/amd64):  timroberton/comb:wb-hmis-r-linux
+#   dev  (host arch):    timroberton/comb:wb-hmis-r-local
+#
+#   ./build         -> build both (local + linux), push linux
+#   ./build local   -> build only the dev image
+#   ./build linux   -> build + push only the prod image
+
+set -e
+
+cd "$(dirname "$0")"
+
+TARGET="${1:-all}"
+
+build_local() {
+  # The rocker/tidyverse base is amd64-only, so on Apple Silicon (arm64) the
+  # local image must also be built for linux/amd64 (runs under emulation).
+  echo "Building timroberton/comb:wb-hmis-r-local (linux/amd64)..."
+  docker build --platform linux/amd64 -t timroberton/comb:wb-hmis-r-local -f Dockerfile .
+}
+
+build_linux() {
+  echo "Building timroberton/comb:wb-hmis-r-linux (linux/amd64)..."
+  docker build --platform linux/amd64 -t timroberton/comb:wb-hmis-r-linux -f Dockerfile .
+  echo "Pushing timroberton/comb:wb-hmis-r-linux..."
+  docker push timroberton/comb:wb-hmis-r-linux
+}
+
+case "$TARGET" in
+  local) build_local ;;
+  linux) build_linux ;;
+  all)   build_local; build_linux ;;
+  *) echo "Unknown target: $TARGET (use: local | linux | all)" >&2; exit 1 ;;
+esac
