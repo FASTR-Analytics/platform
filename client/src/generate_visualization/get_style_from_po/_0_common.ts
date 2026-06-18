@@ -134,7 +134,8 @@ export function getTableLayoutStyle(config: PresentationObjectConfig) {
 export function getTableCellsContent(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
-  indicatorMetadata?: IndicatorMetadata[],
+  indicatorMetadata: IndicatorMetadata[] | undefined,
+  obeyMetricFormat: boolean,
 ) {
   const cfOn = selectCf(config.s).type !== "none";
   const metadataById = indicatorMetadata
@@ -152,7 +153,7 @@ export function getTableCellsContent(
         }
       : undefined,
     textFormatter: (info: TableCellInfo) => {
-      if (metadataById && info.valueAsNumber !== undefined) {
+      if (!obeyMetricFormat && metadataById && info.valueAsNumber !== undefined) {
         const meta =
           metadataById.get(info.colHeader?.id ?? "") ??
           metadataById.get(info.rowHeader?.id ?? "");

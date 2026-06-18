@@ -25,9 +25,10 @@ export function buildStandardStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
   calendar: CalendarType,
-  deckStyle?: DeckStyleContext,
-  indicatorMetadata?: IndicatorMetadata[],
-  allowNegativeScale = false,
+  deckStyle: DeckStyleContext | undefined,
+  indicatorMetadata: IndicatorMetadata[] | undefined,
+  allowNegativeScale: boolean,
+  obeyMetricFormat: boolean,
 ): CustomFigureStyleOptions {
   // Signed metrics (e.g. inequality measures) must let the value axis fit below 0
   // rather than flooring at 0, which clips negative bars.
@@ -125,7 +126,12 @@ export function buildStandardStyle(
       connectors: {
         func: { show: showConnectors },
       },
-      tableCells: getTableCellsContent(config, formatAs, indicatorMetadata),
+      tableCells: getTableCellsContent(
+        config,
+        formatAs,
+        indicatorMetadata,
+        obeyMetricFormat,
+      ),
       mapRegions: getMapRegionsContent(config, formatAs),
     },
     table: getTableLayoutStyle(config),

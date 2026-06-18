@@ -16,9 +16,10 @@ export function getStyleFromPresentationObject(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
   calendar: CalendarType,
-  deckStyle?: DeckStyleContext,
-  indicatorMetadata?: IndicatorMetadata[],
-  allowNegativeScale = false,
+  deckStyle: DeckStyleContext | undefined,
+  indicatorMetadata: IndicatorMetadata[] | undefined,
+  allowNegativeScale: boolean,
+  obeyMetricFormat: boolean,
 ): CustomFigureStyleOptions {
   if (isSpecialScorecardTableActive(config) && indicatorMetadata) {
     return buildScorecardStyle(config, indicatorMetadata, deckStyle);
@@ -39,5 +40,6 @@ export function getStyleFromPresentationObject(
     deckStyle,
     indicatorMetadata,
     allowNegativeScale,
+    obeyMetricFormat,
   );
 }
