@@ -1,6 +1,6 @@
-[TBD] [user] [fixed] - Large data exports to central now complete much faster
-[TBD] [admin] [fixed] - Dramatically faster data exports to central server
-[TBD] [admin] [changed] - Export streaming now uses a more efficient database-native transfer method
+[1.53.4] [user] [fixed] - Large data exports to central now complete much faster
+[1.53.4] [admin] [fixed] - Dramatically faster data exports to central server
+[1.53.4] [admin] [changed] - Export streaming now uses a more efficient database-native transfer method
 [1.53.3] [user] [fixed] - Filtered dropdown options now correctly reflect applied filters
 [1.53.3] [user] [fixed] - AI-generated figures now show correct dropdown options for filtered data
 [1.53.3] [admin] [fixed] - Replicant dropdowns now correctly show only filtered subsets
