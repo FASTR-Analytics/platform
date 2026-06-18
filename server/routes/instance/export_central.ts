@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { Readable } from "node:stream";
 import { H_USERS, type GlobalUser } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnectionFromCacheOrNew, createWorkerReadConnection } from "../../db/mod.ts";
@@ -218,14 +217,31 @@ routesExportCentral.get(
 
       const startedAt = Date.now();
       const readable = await db.unsafe(copySql).readable();
-      const endDb = () => { db.end().catch(() => {}); };
-      readable.on("end", () => console.log(`[export_central] ${tableName}: streamed in ${Date.now() - startedAt}ms`));
-      readable.on("close", endDb);
-      readable.on("error", endDb);
 
-      return new Response(Readable.toWeb(readable) as unknown as ReadableStream<Uint8Array>, {
-        headers: { "Content-Type": "application/octet-stream" },
-      });
+      // Bridge the Postgres COPY readable to a Web stream WITH backpressure: pause the
+      // readable when the consumer falls behind and resume on pull. `Readable.toWeb` does
+      // not propagate backpressure here — it drains Postgres into the response queue and the
+      // source heap OOMs on large tables. Bound the buffer (~4 MB) so memory stays flat.
+      let cleanedUp = false;
+      const cleanup = () => { if (cleanedUp) return; cleanedUp = true; db.end().catch(() => {}); };
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          readable.on("data", (chunk: Uint8Array) => {
+            controller.enqueue(chunk);
+            if ((controller.desiredSize ?? 1) <= 0) readable.pause();
+          });
+          readable.on("end", () => {
+            console.log(`[export_central] ${tableName}: streamed in ${Date.now() - startedAt}ms`);
+            controller.close();
+            cleanup();
+          });
+          readable.on("error", (err: Error) => { controller.error(err); cleanup(); });
+        },
+        pull() { readable.resume(); },
+        cancel() { readable.destroy(); cleanup(); },
+      }, new ByteLengthQueuingStrategy({ highWaterMark: 4 * 1024 * 1024 }));
+
+      return new Response(body, { headers: { "Content-Type": "application/octet-stream" } });
     } catch (err) {
       await db.end().catch(() => {});
       return c.json({ success: false, err: err instanceof Error ? err.message : String(err) }, 500);
