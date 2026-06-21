@@ -87,7 +87,7 @@ Each dimension is either **available** (column exists, config enables it) or **n
 - A **disaggregation** (`config.d.disaggregateBy`) — splits visualization along this dimension  
 - **Both simultaneously** — filter to a subset, then split across remaining values
 
-**One dimension is special**: the dimension with `disDisplayOpt === "replicant"` isn't drawn inside one figure — it produces *separate* figures, one per value.
+**One dimension is special**: the dimension with `disDisplayOpt === "replicant"` isn't drawn inside one figure — it produces *separate* figures, one per value (unless it is filtered to a single value, which collapses it back to one plain-filtered figure — see [Filter vs disaggregate vs replicant](#filter-vs-disaggregate-vs-replicant)).
 
 ---
 
@@ -355,7 +355,7 @@ Three query shapes, depending on the disOpt type:
 
 **LIMIT 51 (`MAX_REPLICANT_OPTIONS + 1`)**: if the query returns more than 50 distinct values, the status becomes `too_many_values` and the UI treats the disOpt as a freeform filter rather than checkbox list. The +1 is just to detect overflow without fetching the full set.
 
-**Filter context**: when computing possible values for disOpt X, any existing `config.d.filterBy` filters on *other* disOpts are included in the WHERE clause (the current disOpt is excluded). This lets a user's admin-area-2 choice shrink the list of admin-area-3 options accordingly.
+**Filter context**: when computing possible values for disOpt X, the server honors **all** `config.d.filterBy` entries it is passed — *including* a filter on X itself. A user's admin-area-2 choice shrinks the admin-area-3 list, and a filter on X subsets X's own list (e.g. a replicant filtered to 2 categories returns exactly those 2). The server does **not** special-case the queried column. The only caller that passes filters is the replicant-options route; it sends the user's `filterBy` with the **auto-pin excluded** (`excludeReplicantFilter: true`), so the currently-selected value doesn't collapse the list to itself. The filter-value-checkbox path (`getResultsValueInfo`) passes **no** filters, so it always sees the full per-column value set. (Historically the server stripped the filter on the queried column itself; that self-strip was removed so a self-column filter narrows the list like any other — fixing the bug where a replicant filtered to a subset still showed all values.)
 
 **Empty/null filtering**: raw `null` and empty-string rows are filtered out of the returned list.
 
@@ -375,16 +375,27 @@ The three ways a disOpt participates in a visualization, each stored separately 
 
 A single disOpt can appear in **both** `disaggregateBy` and `filterBy` — filter to a subset of values, then split across the remaining ones.
 
-The replicant logic is encoded in [lib/get_disaggregator_display_prop.ts](lib/get_disaggregator_display_prop.ts):
+The replicant logic is encoded in [lib/get_disaggregator_display_prop.ts](lib/get_disaggregator_display_prop.ts). `getReplicateByProp` is **filter-aware**: it returns the replicant disOpt only when that dimension is displayed as `"replicant"` AND is *not* filtered to a single value. A replicant filtered to one value is degenerate — one figure, no list — so it returns `undefined` and the lone value renders as a plain `filterBy` entry:
 
 ```ts
 export function getReplicateByProp(config): DisaggregationOption | undefined {
   for (const dis of config.d.disaggregateBy) {
-    if (dis.disDisplayOpt === "replicant") return dis.disOpt;
+    if (
+      dis.disDisplayOpt === "replicant" &&
+      !hasOnlyOneFilteredValue(config, dis.disOpt)
+    ) {
+      return dis.disOpt;
+    }
   }
   return undefined;
 }
 ```
+
+(`hasOnlyOneFilteredValue`, defined in the same file, is the context-free degeneracy check — `filterBy` has exactly one value for that disOpt.)
+
+This is the **single source of truth** for "is there an active replicant" across editors, selectors, previews, render guards, the fetch pin (`getFiltersWithReplicant`), and the server-side PO summary. Because it reads only `disaggregateBy` + `filterBy` (a replicant is never a time column, so no date range is involved), it is *context-free*: `getReplicateByProp(rawConfig) === getReplicateByProp(effectiveConfig)`. That equality is what lets ~20 call sites pass raw config and still agree on replicant effectiveness without threading an effective config through them — fixing the bug class where a replicant filtered to one value was treated as active in some places (the list/fetch) but inert in others (the disaggregation panel). It does **not** account for temporal degeneracy (single-period / single-year); that is a render-time concern of `getEffectivePOConfig` — see [Single-value stripping](#single-value-stripping).
+
+> The three sibling functions in the same file (`getDisaggregatorDisplayProp`, `hasDuplicateDisaggregatorDisplayOptions`, `getNextAvailableDisaggregationDisplayOption`) are deliberately **not** filter-aware: the first two are already handed an effective config by their callers (adding the check would double-strip); the third is filter-agnostic by nature (it only picks the next free display slot).
 
 Single-replicant-per-viz is enforced by the UI (toggling another replicant clears the previous) not by the type or schema. See [Known inconsistencies](#known-inconsistencies).
 
@@ -392,8 +403,10 @@ Single-replicant-per-viz is enforced by the UI (toggling another replicant clear
 
 The replicant value is **resolved, not blindly trusted**, because the set of valid values is config-dependent: filters can reduce which replicant values have data. [`resolveDefaultReplicant`](client/src/state/project/t2_presentation_objects.ts) is the single source of truth:
 
-- It fetches the valid values for the **current** config. The server's `getPossibleValues` strips the filter on the replicant column itself ([get_possible_values.ts](server/server_only_funcs_presentation_objects/get_possible_values.ts)), so the full set is returned even when the current pick is stale — and the helper queries with `excludeReplicantFilter: true` so it shares the selector's `replicant_options` cache entry.
+- It fetches the valid values for the **current** config via the replicant-options query. That query's fetch-config is built with `excludeReplicantFilter: true`, which drops **only the auto-pin** (the appended `selectedReplicantValue`) while **keeping the user's `filterBy`** — including any filter on the replicant column itself. The server honors that filter (it no longer self-strips — see [Possible values](#possible-values-what-values-can-this-disagg-take)), so a replicant filtered to a *subset* returns exactly that subset, and a replicant filtered to *one* value never reaches this path at all (`getReplicateByProp` already returned `undefined`, so there is no list). Every options caller builds the fetch-config the same way, so they share one `replicant_options` cache entry.
 - **Keep-if-valid, else first:** a `selectedReplicantValue` that is still valid is kept; an unset or now-invalid one defaults to the first valid value. It returns a fresh config copy and **never mutates the input** (the editor passes the unwrapped live store).
+
+> **Options query vs items fetch — keep them split.** The options query must EXCLUDE the auto-pin (it asks "what values exist?"); the items fetch must KEEP it (it asks "give me the pinned pane's data"). Code paths that need both — `resolveDefaultReplicant`, the dashboard's `resolveReplicantStructure`, and the AI slide's `resolveFigureFromMetric` — build **two** fetch-configs rather than reusing one. Reusing a single pin-excluded config for the items fetch would merge *all* replicant values into one figure.
 
 It is shared by the PO-items generator (`getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator`) and the preset-preview thumbnail. The viz editor additionally **commits the resolved value back into its draft** after each fetch (so the replicant selector and the saved config match the rendered figure — guarded against a re-fetch loop, and excluded from the `needsSave` flag since it is not a user edit), and does **not** blind-reset `selectedReplicantValue` on filter/disaggregation edits. `resolveDefaultReplicant` re-validates on every config change, so a still-valid pick survives an unrelated edit instead of being discarded.
 
@@ -490,6 +503,13 @@ All merged into `labelReplacementsAfterSorting` so sort order is based on raw va
 ## Single-value stripping
 
 A disaggregation that resolves to exactly one value is display-noise: it can't actually split anything.
+
+### Two classes of degeneracy
+
+A disaggregator can be degenerate for two different reasons, which need different context:
+
+- **Class A — structural:** a disaggregator (including a replicant) filtered to exactly one value. **Context-free** — reads only `filterBy`, so it can be answered identically pre-fetch, server-side, or in a JSX memo. `getReplicateByProp` implements exactly this check for the replicant dimension, which is what makes it a safe single source of truth for the replicant boolean (see [Filter vs disaggregate vs replicant](#filter-vs-disaggregate-vs-replicant)); the full stripped config comes from `getEffectivePOConfig`.
+- **Class B — temporal:** a time disaggregator over a single period or single year. Needs the `dateRange`, which is only known *after* the data is fetched, so it is applied **at render time** by `getEffectivePOConfig`'s consumers (below). There is no pre-fetch temporal stripping today.
 
 ### Unified stripping (via `getEffectivePOConfig`)
 

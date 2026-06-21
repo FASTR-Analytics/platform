@@ -448,10 +448,10 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
       );
       const tableName = getResultsObjectTableName(row.results_object_id);
 
-      // Find replicateBy dimension (disaggregation with disDisplayOpt === "replicant")
-      const replicantDis = config.d.disaggregateBy.find(
-        (d) => d.disDisplayOpt === "replicant",
-      );
+      // Active replicant dimension — filter-aware (a replicant filtered to one
+      // value is degenerate and must NOT be advertised to the AI as embeddable,
+      // since the resolver ignores it). Mirrors configToSummary.
+      const replicateBy = getReplicateByProp(config);
 
       return {
         id: row.id,
@@ -471,7 +471,7 @@ ORDER BY po.is_default_visualization DESC, LOWER(po.label)
         })),
         isAvailable: tableNamesSet.has(tableName),
         // Replicant info for AI
-        replicateBy: replicantDis?.disOpt,
+        replicateBy,
         selectedReplicantValue: config.d.selectedReplicantValue,
         // Edit permissions
         isDefault: row.is_default_visualization,
