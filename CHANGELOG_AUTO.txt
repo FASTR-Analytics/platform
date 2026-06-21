@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - AI suggestions now correctly account for active filters on replicated charts
+[TBD] [admin] [fixed] - AI no longer suggests embedding options for filtered-out dimensions
 [1.53.8] [user] [added] - Delete specific ICEH indicators instead of only all data
 [1.53.8] [user] [changed] - Importing ICEH data now keeps indicators from previous imports
 [1.53.8] [user] [changed] - Import warning now explains that imports are cumulative
