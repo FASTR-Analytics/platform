@@ -20,8 +20,8 @@ import { createSignal, Show } from "solid-js";
 import {
   buildDashboardExportModel,
   figureInputsForDownload,
-  itemFigureInputs,
   sanitizeFilename,
+  tryItemFigureInputs,
 } from "~/exports/_dashboard_export_model";
 import { exportDashboardAsPdf } from "~/exports/export_dashboard_as_pdf";
 import { exportDashboardAsPptx } from "~/exports/export_dashboard_as_pptx";
@@ -124,8 +124,19 @@ export function DownloadDashboardModal(
         setPct(0);
         return;
       }
+      const built = tryItemFigureInputs(item);
+      if (built === null) {
+        setErr(
+          t3({
+            en: "This figure could not be rendered (its map data may be missing).",
+            fr: "Cette figure n'a pas pu être générée (ses données cartographiques sont peut-être manquantes).",
+          }),
+        );
+        setPct(0);
+        return;
+      }
       const fi = figureInputsForDownload(
-        itemFigureInputs(item),
+        built,
         background() === "transparent",
         margin() === "padding",
       );

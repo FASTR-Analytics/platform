@@ -27,12 +27,16 @@ export async function prepareFigures(
   for (let i = 0; i < n; i++) {
     const fig = model.figures[i];
     let figureInputs: FigureInputs | null = null;
-    try {
-      getFigureAsCanvas(fig.figureInputs, VALIDATION_WIDTH_PX);
-      // White background, no baked margin — page padding controls the spacing.
-      figureInputs = figureInputsForDownload(fig.figureInputs, false, false);
-    } catch {
-      figureInputs = null;
+    // fig.figureInputs is null when the figure already failed to build at
+    // model-build time — leave it null (placeholder); otherwise render-validate.
+    if (fig.figureInputs !== null) {
+      try {
+        getFigureAsCanvas(fig.figureInputs, VALIDATION_WIDTH_PX);
+        // White background, no baked margin — page padding controls the spacing.
+        figureInputs = figureInputsForDownload(fig.figureInputs, false, false);
+      } catch {
+        figureInputs = null;
+      }
     }
     out.push({ label: fig.label, figureInputs });
     onProgress?.((i + 1) / n);

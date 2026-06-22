@@ -10,6 +10,19 @@ export function itemFigureInputs(item: PublicDashboardItem): FigureInputs {
   return buildFigureInputs(item.bundle);
 }
 
+// Export-time variant: a figure that can't build (e.g. a map whose geometry was
+// never uploaded — buildFigureInputs throws) must degrade to a placeholder, not
+// abort the whole export at model-build. The render-time prepareFigures already
+// degrades a throwing figure; this closes the same gap one step earlier, before
+// prepareFigures runs. Mirrors that bare-catch behaviour.
+export function tryItemFigureInputs(item: PublicDashboardItem): FigureInputs | null {
+  try {
+    return buildFigureInputs(item.bundle);
+  } catch {
+    return null;
+  }
+}
+
 export function replicantLabel(
   group: PublicDashboardEntryGroup,
   member: PublicDashboardItem,
@@ -45,7 +58,9 @@ export function figureInputsForDownload(
 export type DashboardExportFigure = {
   id: string;
   label: string;
-  figureInputs: FigureInputs;
+  // null when the figure failed to build (e.g. missing map geometry); downstream
+  // renderers substitute a placeholder rather than aborting the export.
+  figureInputs: FigureInputs | null;
 };
 
 export type DashboardExportModel = {
@@ -82,7 +97,7 @@ export function buildDashboardExportModel(
             {
               id: item.id,
               label: item.label,
-              figureInputs: itemFigureInputs(item),
+              figureInputs: tryItemFigureInputs(item),
             },
           ]
         : [],
@@ -95,14 +110,14 @@ export function buildDashboardExportModel(
       figures.push({
         id: entry.item.id,
         label: entry.item.label,
-        figureInputs: itemFigureInputs(entry.item),
+        figureInputs: tryItemFigureInputs(entry.item),
       });
     } else {
       for (const member of entry.members) {
         figures.push({
           id: member.id,
           label: `${entry.group.label} — ${replicantLabel(entry.group, member)}`,
-          figureInputs: itemFigureInputs(member),
+          figureInputs: tryItemFigureInputs(member),
         });
       }
     }

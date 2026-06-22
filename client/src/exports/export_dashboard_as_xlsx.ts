@@ -45,7 +45,7 @@ export async function exportDashboardAsXlsx(
 
     for (let i = 0; i < figures.length; i++) {
       const fi = figures[i].figureInputs;
-      if ("tableData" in fi) {
+      if (fi !== null && "tableData" in fi) {
         try {
           const aoa = getTableExportAoa(fi);
           utils.book_append_sheet(

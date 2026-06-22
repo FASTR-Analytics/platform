@@ -1,6 +1,17 @@
 # PLAN: GeoJSON — Near-Term Fixes (ship now, independent of the snapshot architecture)
 
-Status: DRAFT for review. No implementation yet. Report-only until per-step go-ahead.
+Status: PARTIALLY IMPLEMENTED (working tree, uncommitted) as of 2026-06-23. Per-workstream status is marked inline below; remaining work is report-only until per-step go-ahead.
+
+## Implementation status (2026-06-23, verified against code)
+
+| WS | Scope | Status |
+|----|-------|--------|
+| WS1 | Import-freeze fix (metadata/geometry split + save-time guards) | **NOT STARTED** — `fetch_geojson.ts` still fetches full geometry at analyze; no metadata split; no empty-map guards |
+| WS2 | Match observability (coverage counting + typed sentinel) | **NOT STARTED** — no coverage tally; control flow still uses the `[INFO]`-string sentinel |
+| WS3 | Export-resilience | **DONE** — split across commit `d3743456` (report/slide-deck/dashboard-render degradation, deployed in 1.52.0) **plus** the dashboard model-build gap now closed in the **working tree (uncommitted)**. `deno task typecheck` green both tiers |
+| WS7 | Upload-edge hardening | **PARTIAL** — **P1 filename-sanitization DONE** (working tree, uncommitted). All P2 items (size/type caps, parse guard, deeper geojson validation, credential handling, temp-file cleanup) **NOT STARTED** |
+
+Uncommitted files carrying the done work: `server/routes/instance/upload.ts` (WS7 P1), `client/src/exports/_dashboard_export_model.ts`, `client/src/exports/_dashboard_pages.ts`, `client/src/exports/export_dashboard_as_xlsx.ts`, `client/src/components/public_viewer/download_dashboard_modal.tsx` (WS3 gap).
 
 This is **one of two geojson plans**. This one covers the **near-term, layer-1 / orthogonal** work that can ship immediately and closes the reported production bug. The **bigger architectural work** (making geojson a portable project snapshot) is the companion doc **PLAN_GEOJSON_SNAPSHOT.md**. Read order: this plan first, then PLAN_GEOJSON_SNAPSHOT.md.
 
@@ -38,16 +49,16 @@ Server routes live in [server/routes/instance/geojson_maps.ts](server/routes/ins
 ## 2. Scope
 
 **In this plan (all layer-1 / orthogonal; none depends on the snapshot architecture):**
-- **WS1 — Import-freeze fix** (the bug).
-- **WS2 — Match observability** (trust layer; built key-model-agnostic so it survives the Plan 2 key change).
-- **WS3 — Export-resilience gap verification** (mostly already shipped).
-- **WS7 — Upload-edge hardening** (security/robustness).
+- **WS1 — Import-freeze fix** (the bug). — **NOT STARTED**
+- **WS2 — Match observability** (trust layer; built key-model-agnostic so it survives the Plan 2 key change). — **NOT STARTED**
+- **WS3 — Export-resilience gap verification** (mostly already shipped). — **DONE** (remaining gap closed in working tree)
+- **WS7 — Upload-edge hardening** (security/robustness). — **PARTIAL** (P1 filename-sanitization done; P2 not started)
 
 **Deliberately NOT here → PLAN_GEOJSON_SNAPSHOT.md:** the project-level geojson snapshot, the snapshot-local match-key model (the real cure for silently-wrong maps), dedup of the duplicated processors/matchers/types, lifecycle/versioning/drift-repair, and snapshot-store efficiency/simplification.
 
 ---
 
-## 3. WS1 — Import-freeze fix  ·  priority P0  ·  effort M
+## 3. WS1 — Import-freeze fix  ·  priority P0  ·  effort M  ·  STATUS: NOT STARTED
 
 **Goal:** the matching UI is instant at any level/country, and **AA3** import completes instead of freezing.
 
@@ -77,7 +88,9 @@ Phase 1 reliably fixes **AA3** end-to-end. **AA4** is not solved by WS1 alone �
 
 ---
 
-## 4. WS2 — Match observability (the trust layer)  ·  priority P0  ·  effort M
+## 4. WS2 — Match observability (the trust layer)  ·  priority P0  ·  effort M  ·  STATUS: NOT STARTED
+
+> **Verified 2026-06-23:** not implemented. No coverage tally exists at save or render; the `[INFO]`-string `Error` is still used as control flow (no typed sentinel). Note WS3 (done) currently degrades export figures via a **bare `catch`**, not this typed sentinel — the re-key below is still outstanding and is the WS2 hook into WS3.
 
 **Goal:** make a wrong/partial map impossible to miss. Today unmatched features get `area_id=''` (kept, not "excluded" as step 4 claims), unmatched data rows render invisibly, and **nothing counts coverage** — a user cannot tell a correct map from a half-broken one. (Likely mechanism behind the reported Haiti "only one department" and Cameroun map errors.)
 
@@ -99,29 +112,39 @@ Phase 1 reliably fixes **AA3** end-to-end. **AA4** is not solved by WS1 alone �
 
 ---
 
-## 5. WS3 — Export-resilience: one real gap  ·  priority P0  ·  effort S
+## 5. WS3 — Export-resilience: one real gap  ·  priority P0  ·  effort S  ·  STATUS: DONE
 
 **Goal:** one map figure that can't resolve geometry must never abort an entire export.
 
-**Status: largely shipped and deployed** (commit `d3743456`, live in 1.52.0): report and slide-deck exports degrade a failed figure to a placeholder; dashboard *render* already has `prepareFigures` try/catch ([_dashboard_pages.ts:30](client/src/exports/_dashboard_pages.ts#L30)).
+**STATUS: DONE (2026-06-23), split across two changes.** (1) The earlier slice shipped + deployed (commit `d3743456`, live in 1.52.0): report and slide-deck exports degrade a failed figure to a placeholder; dashboard *render* already had `prepareFigures` try/catch ([_dashboard_pages.ts:30](client/src/exports/_dashboard_pages.ts#L30)). (2) The remaining model-build gap (below) is now closed in the **working tree (uncommitted)**. `deno task typecheck` passes both tiers.
 
 **Corrections after verification (my earlier scope was wrong):**
 - There is **no PNG export** in the codebase — drop it from scope.
 - **XLSX export only touches table figures** ([export_dashboard_as_xlsx.ts:48](client/src/exports/export_dashboard_as_xlsx.ts#L48) `if ("tableData" in fi)`) — a map figure never reaches it, so nothing to harden there.
 
-**The one genuine remaining gap:** the dashboard **build** step is unguarded. `itemFigureInputs` ([_dashboard_export_model.ts:9](client/src/exports/_dashboard_export_model.ts#L9)) calls `buildFigureInputs(item.bundle)` directly, invoked while constructing the export model ([:85, :98, :105](client/src/exports/_dashboard_export_model.ts#L85)) — **before** `prepareFigures`' try/catch runs. A map figure that throws (missing geometry → the `[INFO]` throw) therefore aborts the whole dashboard export at model-build, which `prepareFigures` never gets to catch. Fix: guard `itemFigureInputs` / the model build so a throwing figure becomes a null/placeholder, same as the render step.
+**The one genuine remaining gap — NOW FIXED (working tree, uncommitted):** the dashboard **build** step was unguarded. `itemFigureInputs` called `buildFigureInputs(item.bundle)` directly while constructing the export model — **before** `prepareFigures`' try/catch — so a throwing figure aborted the whole dashboard export at model-build.
 
-Re-key the placeholder decision off WS2's **typed sentinel** rather than the `[INFO]` string. Small patch, not net-new design.
+**What was done (verified):**
+- Added `tryItemFigureInputs` ([_dashboard_export_model.ts:18](client/src/exports/_dashboard_export_model.ts#L18)) — try/catch → `null`; `DashboardExportFigure.figureInputs` widened to `FigureInputs | null`. All three model-build sites repointed to it ([:100, :113, :121](client/src/exports/_dashboard_export_model.ts#L100)).
+- `prepareFigures` ([_dashboard_pages.ts:32](client/src/exports/_dashboard_pages.ts#L32)) leaves an already-null figure as null (placeholder), only render-validating non-null ones.
+- PDF ([export_dashboard_as_pdf.ts:78](client/src/exports/export_dashboard_as_pdf.ts#L78)) and PPTX ([export_dashboard_as_pptx.ts:40](client/src/exports/export_dashboard_as_pptx.ts#L40)) renderers substitute `placeholderMarkdown()` on null; PDF page-height falls back to `PDF_PLACEHOLDER_CONTENT_HEIGHT`.
+- XLSX null-guarded ([export_dashboard_as_xlsx.ts:47](client/src/exports/export_dashboard_as_xlsx.ts#L47) `fi !== null && "tableData" in fi`) — required, not cosmetic (`"tableData" in null` would throw).
+- Single-figure download modal ([download_dashboard_modal.tsx](client/src/components/public_viewer/download_dashboard_modal.tsx)) uses `tryItemFigureInputs` and surfaces a localized error if null (a one-figure download can't be placeholdered).
+- The non-try `itemFigureInputs` remains only at the **live on-screen** render ([dashboard.tsx:372](client/src/components/public_viewer/dashboard.tsx#L372)) — correctly out of export scope.
+
+**STILL OUTSTANDING (tracked under WS2):** the degrade is keyed off a **bare `catch`**, not WS2's typed sentinel. This is the documented interim (WS2 not built yet), but it means **any** figure-build failure — not just missing geometry — silently becomes a placeholder in exports, masking a real regression. Re-key off WS2's typed sentinel when it lands.
 
 ---
 
-## 6. WS7 — Upload-edge hardening  ·  priority: path-traversal = P1; rest = P2  ·  effort M
+## 6. WS7 — Upload-edge hardening  ·  priority: path-traversal = P1; rest = P2  ·  effort M  ·  STATUS: P1 DONE; rest NOT STARTED
+
+> **Verified 2026-06-23:** the P1 filename path-traversal fix is **DONE** (working tree, uncommitted) — see the bullet below. Every P2 item (size/type caps, parse guard, deeper geojson validation, credential handling, temp-file cleanup) is **NOT STARTED**.
 
 **Goal:** close the OOM/DoS and path-traversal surface on the authenticated upload path. Today the upload edge is essentially unguarded. **Priority correction after review:** the blanket "P2" undersold the **filename path-traversal** — treat that one-liner as **P1, pull it forward**; the rest (size caps, deeper validation, credential handling, temp cleanup) stays P2.
 
 **Scope (all evidence-backed weaknesses found in the survey):**
 - **Size/type caps:** enforce a max `Upload-Length` and `allowedFileTypes`/`maxFileSize` in **both** Uppy ([_uppy_file_upload.ts](client/src/components/_uppy_file_upload.ts), currently only `maxNumberOfFiles`) and server-side ([server/routes/instance/upload.ts](server/routes/instance/upload.ts), currently no MIME/size check).
-- **Filename sanitization (P1 — pull forward):** `upload.ts` renames the completed file to the **unsanitized client-supplied filename** — an authenticated user can overwrite arbitrary files via `../`. Reject `../`/absolute paths, normalize, before `Deno.rename`. One-liner; do this independent of the rest of WS7.
+- **Filename sanitization (P1 — pull forward) — DONE (working tree, uncommitted):** `sanitizeUploadFilename` ([upload.ts:97](server/routes/instance/upload.ts#L97)) `basename`s the metadata filename, normalizes Windows separators (`replaceAll("\\","/")`), and rejects `""`/`.`/`..` → `upload-${Date.now()}` fallback. Applied once at create ([:130](server/routes/instance/upload.ts#L130)) and the same sanitized value flows to the actual `Deno.rename` ([:282](server/routes/instance/upload.ts#L282)) and `createAssetMetadata` — so `../`, absolute, and Windows-separator traversal are all closed at the place that matters. Minor residue (non-blocking): dotfiles like `.env` still pass (land harmlessly in the assets dir; no traversal); same-name uploads overwrite (pre-existing behaviour, not a regression).
 - **Parse guard:** add a feature-count/byte-size guard *before* `readTextFile` + `JSON.parse` in analyze/save — currently an unbounded parse → trivial OOM for any authenticated configure-data user.
 - **Deeper geojson validation:** beyond the one-line type check — verify lon/lat order/range (WGS84), geometry types are polygonal, warn on non-unique match-property values.
 - **Credential handling:** stop persisting the DHIS2 **plaintext password** to client session storage; replace the **32-bit, plaintext-concatenated** cache-key hash ([session_cache.ts](server/dhis2/goal4_geojson/session_cache.ts)) with a non-credential key or a proper KDF.
@@ -143,11 +166,11 @@ WS1, WS3, WS7 are otherwise independent of Plan 2.
 
 ## 8. Implementation order (within this plan)
 
-1. **WS7 filename-sanitization one-liner (P1)** — pull this single path-traversal fix forward; independent, cheap.
-2. **WS1** — fixes the bug for **AA3** (optionally land Phase 0 timeout-bump first as an interim). AA4 explicitly deferred to Plan 2.
-3. **WS2** — the trust layer. Half A (coverage counting) ships now and is the measurement Plan 2 needs; Half B's join key tightens after Plan 2's WS-KEY.
-4. **WS3** — the single build-step guard.
-5. **WS7 (rest)** — size caps, deeper validation, credential handling, temp cleanup.
+1. ~~**WS7 filename-sanitization one-liner (P1)**~~ — **DONE** (working tree, uncommitted).
+2. **WS1** — fixes the bug for **AA3** (optionally land Phase 0 timeout-bump first as an interim). AA4 explicitly deferred to Plan 2. — **NOT STARTED** (next up)
+3. **WS2** — the trust layer. Half A (coverage counting) ships now and is the measurement Plan 2 needs; Half B's join key tightens after Plan 2's WS-KEY. — **NOT STARTED**
+4. ~~**WS3** — the single build-step guard.~~ — **DONE** (working tree, uncommitted).
+5. **WS7 (rest)** — size caps, deeper validation, credential handling, temp cleanup. — **NOT STARTED**
 
 WS1 + WS2 Half A are the P0 pair. WS3 is near-free. The WS7 path-traversal fix is P1; the rest is P2 but shouldn't be deferred indefinitely.
 

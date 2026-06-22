@@ -1,5 +1,5 @@
 import { ensureDir } from "@std/fs";
-import { join } from "@std/path";
+import { basename, join } from "@std/path";
 import { Hono } from "hono";
 import { createAssetMetadata, getAssetsForInstance } from "../../db/mod.ts";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
@@ -90,6 +90,18 @@ function parseMetadata(metadataHeader: string | null): Record<string, string> {
   return metadata;
 }
 
+// The TUS Upload-Metadata filename is attacker-controllable and is later joined
+// onto _ASSETS_DIR_PATH and renamed into place. Strip every path component (and
+// Windows separators) so it cannot escape the assets dir via "../" or an absolute
+// path; fall back to a generated name if nothing usable remains.
+function sanitizeUploadFilename(raw: string): string {
+  const base = basename(raw.replaceAll("\\", "/")).trim();
+  if (base === "" || base === "." || base === "..") {
+    return `upload-${Date.now()}`;
+  }
+  return base;
+}
+
 // POST /upload - Create new upload
 routesUpload.post(
   "/upload",
@@ -115,7 +127,9 @@ routesUpload.post(
 
     // Parse metadata to get filename
     const metadata = parseMetadata(uploadMetadata);
-    const filename = metadata.filename || `upload-${Date.now()}`;
+    const filename = sanitizeUploadFilename(
+      metadata.filename || `upload-${Date.now()}`,
+    );
 
     // Create upload record
     const uploadId = generateUploadId();
