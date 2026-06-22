@@ -1,3 +1,9 @@
+[TBD] [user] [fixed] - Dashboards with missing map data no longer fail to download
+[TBD] [user] [fixed] - Clear error message shown when a figure's map data is missing
+[TBD] [user] [fixed] - Exporting dashboards as Excel no longer fails on broken figures
+[TBD] [admin] [fixed] - Dashboard exports no longer fail when a figure has missing map data
+[TBD] [admin] [fixed] - Figures with missing data show a placeholder instead of blocking the entire export
+[TBD] [admin] [fixed] - Security fix: uploaded filenames can no longer escape the assets directory
 [TBD] [user] [fixed] - AI suggestions now correctly account for active filters on replicated charts
 [TBD] [admin] [fixed] - AI no longer suggests embedding options for filtered-out dimensions
 [1.53.8] [user] [added] - Delete specific ICEH indicators instead of only all data
