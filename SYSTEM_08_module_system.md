@@ -41,7 +41,7 @@ docs_absorbed:
 ---
 # S8 — Module System
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: PLAN_SYSTEMS.md §3 (S8).
+> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S8).
 > Prose is ported here in this system's first review cycle (Phase 2,
 > PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
 > deleted then.
@@ -51,7 +51,7 @@ _versioned R modules end-to-end: GitHub fetch -> validate -> install/update -> d
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in PLAN_SYSTEMS.md §3 (S8).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S8).
 
 ## Docs absorbed (Phase 2)
 
@@ -63,5 +63,14 @@ See `globs:` in the frontmatter above (the manifest — lint-enforced by
 
 ## Open items
 
-_Populated during this system's review cycle (review -> triage -> fix ->
-document, PLAN_SYSTEMS §5)._
+> Seeded from the systems review (the now-deleted PLAN_SYSTEMS §6 decoupling
+> ideas / §7.2 dead code); plus whatever this system's review cycle adds.
+
+- **Decoupling — split two custody files.** `server/server_only_types/mod.ts`
+  (20 lines, three systems) and `server/task_management/` as a directory (the
+  notify hub, owned by S3, vs the dirty machine, owned here).
+- **Decoupling — write down the data-spine contracts.** S8→S9 (`ro_*` /
+  `metrics` / `last_run_at`) and S5→S8 (sandbox CSVs + the `setModulesDirtyForDataset`
+  call) carry zero import edges by design; nothing _states_ the contracts.
+- **Dead code (zero importers):** `fetchRawScript` in
+  `server/github/fetch_module.ts`.

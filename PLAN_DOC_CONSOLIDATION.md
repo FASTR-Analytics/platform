@@ -14,12 +14,11 @@
 >
 > ---
 >
-> Depends on the locked map in
-> [PLAN_SYSTEMS.md](PLAN_SYSTEMS.md) §3 (15 systems). Goal: retire the 29
-> scattered `DOC_*.md` files in favour of one `SYSTEM_NN_*.md` per system, so
-> the canonical topology and its documentation are the same artifact, and a
-> delegated "review system X" task opens exactly one file. Resolves
-> PLAN_SYSTEMS §8 decisions 4 (manifest) and 5 (promotion path). Independent of
+> Builds on the locked map, now canonical in [SYSTEMS.md](SYSTEMS.md) (the
+> spent PLAN_SYSTEMS was deleted once its durable content landed there). Goal:
+> retire the 29 scattered `DOC_*.md` files in favour of one `SYSTEM_NN_*.md` per
+> system, so the canonical topology and its documentation are the same artifact,
+> and a delegated "review system X" task opens exactly one file. Independent of
 > the in-flight hardening work — can run in parallel.
 
 ---
@@ -27,10 +26,11 @@
 ## 1. End state
 
 ```
-SYSTEMS.md                     # index: the map, §4.1 custody table, §4.2 kernel
-                               #   rule, §4.3 cross-cutting audits, §5 execution
-                               #   model. (Absorbs the durable parts of
-                               #   PLAN_SYSTEMS.md once that plan is spent.)
+SYSTEMS.md                     # index: the map, per-system scope/contract,
+                               #   §4.1 custody table, §4.2 kernel rule, §4.3
+                               #   cross-cutting audits, §5 execution model.
+                               #   (Absorbed the durable parts of the now-deleted
+                               #   PLAN_SYSTEMS.md.)
 SYSTEM_01_api_contract.md      # one per system; frontmatter = the manifest
 SYSTEM_02_persistence.md
 ...                            #   (15 files, S1..S15)
@@ -108,16 +108,16 @@ never collides with it.
 
 ## 2. Two phases (don't big-bang the prose)
 
-Porting 29 docs — several stale (PLAN_SYSTEMS §7.3) — in one shot is risky and
-wastes the verification. Split it:
+Porting 29 docs — several stale (see **Doc staleness to fix during the port**,
+§3a) — in one shot is risky and wastes the verification. Split it:
 
 **Phase 1 — scaffold (do now, ~half a day).** Map-independent of hardening.
 
 1. Create `SYSTEM_NN_*.md` (×15) as stubs: each has the **frontmatter manifest**
-   (§5), the system's **scope/contract/size** lifted verbatim from PLAN_SYSTEMS
-   §3, and a `docs_absorbed:` list that *links* (does not yet inline) the
+   (§5), points at the system's **scope/contract/size** in `SYSTEMS.md` (System
+   details), and a `docs_absorbed:` list that *links* (does not yet inline) the
    DOC_* files mapped to it (§3 table). No prose porting yet.
-2. Create `SYSTEMS.md` from PLAN_SYSTEMS §3 intro + §4 + §5.
+2. Create `SYSTEMS.md` (the map + System details + §4 + §5).
 3. Write `lint_systems.ts` (§6) and get it green (every file claimed once).
 4. Decide the `CROSS_*` set (§4).
 
@@ -127,7 +127,7 @@ owning SYSTEM file.
 
 **Phase 2 — prose port (incremental, inside each system's review cycle).**
 
-When a system's review cycle runs (PLAN_SYSTEMS §5), porting its DOC_* prose
+When a system's review cycle runs (SYSTEMS.md §5), porting its DOC_* prose
 into the SYSTEM file IS part of the review — you're verifying the doc against
 code anyway, so staleness gets fixed in the same motion. On completing a
 system's port: inline the content, fix the §7.3 staleness items for that
@@ -178,6 +178,31 @@ restated. Pure-architecture docs have no Recipe column entry.
 Undocumented systems (no DOC_* to absorb — their SYSTEM file is written fresh
 from code in Phase 2): **S4** (Assets & Upload), **S12** (Documents & Sharing —
 the largest doc gap). S6 and S11 are only partially covered.
+
+## 3a. Doc staleness to fix during the port
+
+Known-stale items found in the systems review (carried over from the deleted
+PLAN_SYSTEMS §7.3). Most dissolve when the owning DOC_* is consulted and inlined
+during its system's Phase-2 cycle — listed here so the port catches them.
+
+- **CLAUDE.md:** `server/ai/` and `server/visualization_definitions/` don't exist
+  (AI proxy lives in `routes/project/ai_*.ts`; viz query code is
+  `server_only_funcs_presentation_objects/`); `client/src/export_report` is now
+  `client/src/exports/`; dataset-import progress is POLLED, not SSE; "i18n built
+  from XLSX" is wrong per DOC_TRANSLATION; `state/ui.ts` and
+  `components/project_runner/provider.tsx` are phantoms (real: `state/t4_ui.ts`,
+  `components/project/index.tsx` area).
+- **DOC_IMPORT_PIPELINE:** pre-facilities-split; no ICEH; no wizard shell.
+- **DOC_MIGRATIONS:** lists 5 of 10 transforms; "reports are deprecated" is
+  wrong; links nonexistent DOC_AI_TOOL_VALIDATION.md; cites
+  `lib/types/instance_config.ts` (real home: `lib/types/instance.ts`).
+- **DOC_VALKEY_CACHE:** prefix `po_detail` → code is `po_detail_v2`.
+- **DOC_API_ROUTES:** raw-route exception list cites the deleted share.ts routes.
+- Minor: DOC_STATE_MGT_PROJECT cites `notify_project_updated.ts` (real:
+  `notify_project_v2.ts`); DOC_BUILD_INSTRUCTIONS/DOC_DESIGN_SYSTEM cite
+  `panther/FRONTEND_STYLE_GUIDE.md` (real: `client/src/FRONTEND_STYLE_GUIDE.md`);
+  DOC_MODULE_UPDATES uses spec-style `:projectId` paths; DOC_ACCESS_DBS cites a
+  deleted diagnostic script.
 
 ---
 
@@ -245,7 +270,7 @@ Rules:
   whole dir belongs to one system; enumerate individual files where a dir is
   split (e.g. `components/project/*` is split across S5/S8/S10/S11/S12/S15 — list
   the files).
-- The kernel files (PLAN_SYSTEMS §4.2: `lib/mod.ts`, `lib/types/instance.ts`,
+- The kernel files (SYSTEMS.md §4.2: `lib/mod.ts`, `lib/types/instance.ts`,
   `lib/consts.ts`, `lib/utils.ts`, `exposed_env_vars.ts`) are claimed by a
   synthetic `SYSTEM_00_kernel` entry (or an explicit `kernel:` allowlist in the
   lint) so they don't read as orphans — they are read-but-don't-own, not
@@ -283,13 +308,13 @@ written carefully.
 2. Author the 15 SYSTEM stub files' frontmatter `globs`, iterating against the
    lint until orphans = only the genuine kernel set and double-claims = 0.
 3. Add the kernel allowlist → orphans = 0.
-4. Lift scope/contract/size prose from PLAN_SYSTEMS §3 into each stub body;
-   add `docs_absorbed` links.
-5. Write `SYSTEMS.md` (index + §4 + §5 from PLAN_SYSTEMS).
+4. Put the scope/contract/size prose in `SYSTEMS.md` (System details); each stub
+   body points there. Add `docs_absorbed` links.
+5. Write `SYSTEMS.md` (index + System details + §4 + §5).
 6. Decide + create the CROSS_* files (§4) as stubs.
 7. Point `CLAUDE.md`'s per-area prose at `SYSTEMS.md`.
 
-Phase 2 then rides each system's review cycle (PLAN_SYSTEMS §5) — no separate
+Phase 2 then rides each system's review cycle (SYSTEMS.md §5) — no separate
 schedule.
 
 ## 8. Verification
@@ -298,9 +323,9 @@ schedule.
 - Every DOC_* appears in exactly one `docs_absorbed` (or is explicitly listed
   as retired) — no doc orphaned by the mapping.
 - Spot-check: pick 3 random tracked files, confirm the system the lint assigns
-  matches the §3 scope text.
+  matches the SYSTEMS.md System-details scope text.
 - Phase 2 per system: the absorbed DOC_* content is in the SYSTEM file, the
-  §7.3 staleness items for that system are fixed, and the old DOC_* files are
+  §3a staleness items for that system are fixed, and the old DOC_* files are
   deleted/archived in the same commit.
 
 ## 9. Open decisions for Tim
@@ -309,10 +334,9 @@ schedule.
    into S14/S3? (Recommend the 2.)
 2. **Archive vs delete** absorbed DOC_* — `git rm` (history keeps them) or move
    to `_archive_docs/`? (Recommend `git rm`; history suffices.)
-3. **Does `SYSTEMS.md` supersede PLAN_SYSTEMS.md** once Phase 1 lands, or do
-   they coexist until Phase 2 finishes? (Recommend: SYSTEMS.md becomes
-   canonical immediately; PLAN_SYSTEMS.md gets a "superseded by SYSTEMS.md"
-   banner and is deleted when its last unported section is gone.)
+3. ~~**Does `SYSTEMS.md` supersede PLAN_SYSTEMS.md**~~ **RESOLVED** — SYSTEMS.md
+   is canonical; PLAN_SYSTEMS.md was deleted once its durable content (§3 System
+   details, §6/§7.2 → SYSTEM Open items, §7.3 → §3a above) landed.
 4. **`PROTOCOL_APP_*` naming/scope** (§1b) — confirm the `PROTOCOL_APP_*` token
    and repo-root location (vs e.g. a `protocols_app/` dir, or `GUIDE_*`).
    Recommend `PROTOCOL_APP_*` at root: it reads as "construction rules,

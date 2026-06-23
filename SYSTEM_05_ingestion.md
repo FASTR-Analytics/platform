@@ -49,7 +49,7 @@ docs_absorbed:
 ---
 # S5 — Dataset Ingestion
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: PLAN_SYSTEMS.md §3 (S5).
+> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S5).
 > Prose is ported here in this system's first review cycle (Phase 2,
 > PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
 > deleted then.
@@ -59,7 +59,7 @@ _the stage->integrate machinery for the HMIS/HFA/ICEH dataset families: wizards,
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in PLAN_SYSTEMS.md §3 (S5).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S5).
 
 ## Docs absorbed (Phase 2)
 
@@ -67,5 +67,14 @@ See `globs:` in the frontmatter above (the manifest — lint-enforced by
 
 ## Open items
 
-_Populated during this system's review cycle (review -> triage -> fix ->
-document, PLAN_SYSTEMS §5)._
+> Seeded from the systems review (the now-deleted PLAN_SYSTEMS §6 decoupling
+> ideas / §7.2 dead code); plus whatever this system's review cycle adds.
+
+- **Decoupling — heal the db→worker inversion.** The dataset orchestrators in
+  `server/db/instance/` spawn and manage Web Workers (the biggest directory
+  lie). [PLAN_IMPORTER_CONSOLIDATION.md](PLAN_IMPORTER_CONSOLIDATION.md) is the
+  natural vehicle if a physical move is wanted.
+- **Decoupling — dual CSV parsers.** papaparse vs panther `parseCSV` — a parallel
+  implementation. Evaluate consuming panther's `_100_csv`/`_232_csv`
+  (PLAN_IMPORTER_CONSOLIDATION §8).
+- **Dead code (zero importers):** `client/src/components/Conflicts.tsx`.

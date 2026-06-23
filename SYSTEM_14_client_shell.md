@@ -21,7 +21,7 @@ docs_absorbed:
 ---
 # S14 — Client Shell & Session
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: PLAN_SYSTEMS.md §3 (S14).
+> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S14).
 > Prose is ported here in this system's first review cycle (Phase 2,
 > PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
 > deleted then.
@@ -31,7 +31,7 @@ _SPA boot, the signal-based page maps, language/calendar singleton lifecycle, UI
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in PLAN_SYSTEMS.md §3 (S14).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S14).
 
 ## Docs absorbed (Phase 2)
 
@@ -40,5 +40,9 @@ See `globs:` in the frontmatter above (the manifest — lint-enforced by
 
 ## Open items
 
-_Populated during this system's review cycle (review -> triage -> fix ->
-document, PLAN_SYSTEMS §5)._
+> Seeded from the systems review (the now-deleted PLAN_SYSTEMS §7.2 dead code);
+> plus whatever this system's review cycle adds.
+
+- **Dead code (zero importers):** `lib/translate/language_map_content.ts` (dead
+  twin of the live module_loader copy); `translateIndicatorId` in
+  `lib/translate/common.ts`.

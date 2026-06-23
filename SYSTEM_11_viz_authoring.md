@@ -49,7 +49,7 @@ docs_absorbed:
 ---
 # S11 — Visualization Authoring UI
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: PLAN_SYSTEMS.md §3 (S11).
+> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S11).
 > Prose is ported here in this system's first review cycle (Phase 2,
 > PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
 > deleted then.
@@ -59,7 +59,7 @@ _the live PO editor (edit/create/ephemeral modes), the visualization library, an
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in PLAN_SYSTEMS.md §3 (S11).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S11).
 
 ## Docs absorbed (Phase 2)
 
@@ -67,5 +67,8 @@ _None — written fresh from code in Phase 2._
 
 ## Open items
 
-_Populated during this system's review cycle (review -> triage -> fix ->
-document, PLAN_SYSTEMS §5)._
+> Seeded from the systems review (the now-deleted PLAN_SYSTEMS §7.2 dead code);
+> plus whatever this system's review cycle adds.
+
+- **Dead code (zero importers):** `client/src/components/forms_editors/confirm_update.tsx`;
+  `lib/types/dimension_definitions.ts`.

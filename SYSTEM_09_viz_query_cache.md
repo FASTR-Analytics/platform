@@ -23,7 +23,7 @@ docs_absorbed:
 ---
 # S9 — Visualization Query & Cache Service
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: PLAN_SYSTEMS.md §3 (S9).
+> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S9).
 > Prose is ported here in this system's first review cycle (Phase 2,
 > PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
 > deleted then.
@@ -65,7 +65,7 @@ reader** (the live build path) — see SYSTEMS.md §4.1.
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in PLAN_SYSTEMS.md §3 (S9).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S9).
 
 ## Docs absorbed (Phase 2)
 
@@ -76,5 +76,17 @@ See `globs:` in the frontmatter above (the manifest — lint-enforced by
 
 ## Open items
 
-_Populated during this system's review cycle (review -> triage -> fix ->
-document, PLAN_SYSTEMS §5)._
+> Seeded from the systems review (the now-deleted PLAN_SYSTEMS §6 decoupling
+> ideas / §7.2 dead code); plus whatever this system's review cycle adds.
+
+- **Decoupling — split the `presentation_objects.ts` route** (query endpoints vs
+  CRUD; see the §4.1 custody table).
+- **Decoupling — relocate the cache instances out of `routes/caches/`.** They are
+  not routes, and migrations' `data_transforms` importing from `routes/` is a
+  layering inversion. A `server/caches/` home makes the dependency direction
+  honest.
+- **Decoupling — separate display-language from data-calendar.** The calendar
+  singleton is data semantics (it changes generated SQL and stored period_ids)
+  living in an i18n file with four part-owners. A `lib/calendar.ts` distinct from
+  `translate` would name the truth (at minimum, audit §4.3.5).
+- **Dead code (zero importers):** `lib/cache_class_B_in_memory_map.ts`.

@@ -29,7 +29,7 @@ docs_absorbed:
 ---
 # S3 — Realtime Sync & Cache Invalidation
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: PLAN_SYSTEMS.md §3 (S3).
+> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S3).
 > Prose is ported here in this system's first review cycle (Phase 2,
 > PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
 > deleted then.
@@ -39,7 +39,7 @@ _the last_updated -> SSE -> version-hash triangle: notify hub, SSE bridges, Valk
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in PLAN_SYSTEMS.md §3 (S3).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S3).
 
 ## Docs absorbed (Phase 2)
 
@@ -48,5 +48,10 @@ See `globs:` in the frontmatter above (the manifest — lint-enforced by
 
 ## Open items
 
-_Populated during this system's review cycle (review -> triage -> fix ->
-document, PLAN_SYSTEMS §5)._
+> Seeded from the systems review (the now-deleted PLAN_SYSTEMS §6 decoupling
+> ideas / §7.2 dead code); plus whatever this system's review cycle adds.
+
+- **Decoupling — make the notify/stamp convention structural.** The
+  `last_updated → notify` triangle is enforced by hand in ~26 files. A
+  write-helper that does mutate + stamp + notify together (or a dev assertion
+  flagging mutations without a notify) would make audit §4.3.1 mechanical.

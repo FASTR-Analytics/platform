@@ -55,7 +55,7 @@ docs_absorbed:
 ---
 # S12 — Documents & Sharing
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: PLAN_SYSTEMS.md §3 (S12).
+> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S12).
 > Prose is ported here in this system's first review cycle (Phase 2,
 > PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
 > deleted then.
@@ -106,7 +106,7 @@ code now uses the strict `figureBlockSchema`. Listed in the followups doc.)
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in PLAN_SYSTEMS.md §3 (S12).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S12).
 
 ## Docs absorbed (Phase 2)
 
@@ -114,5 +114,10 @@ _None — written fresh from code in Phase 2._
 
 ## Open items
 
-_Populated during this system's review cycle (review -> triage -> fix ->
-document, PLAN_SYSTEMS §5)._
+> Seeded from the systems review (the now-deleted PLAN_SYSTEMS §6 decoupling
+> ideas / §7.2 dead code); plus whatever this system's review cycle adds.
+
+- **Decoupling — `server/utils/id_generation.ts` hardcodes 7 tables** (across
+  S11/S12). Generalize to `generateUniqueId(db, tableName)` (also
+  [PLAN_DOC_ENFORCEMENT.md](PLAN_DOC_ENFORCEMENT.md) #16).
+- **Dead code (zero importers):** `client/src/components/PasswordGate.tsx`.

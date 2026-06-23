@@ -20,7 +20,7 @@ docs_absorbed:
 ---
 # S2 — Persistence Core & Schema Lifecycle
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: PLAN_SYSTEMS.md §3 (S2).
+> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S2).
 > Prose is ported here in this system's first review cycle (Phase 2,
 > PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
 > deleted then.
@@ -85,7 +85,7 @@ instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in PLAN_SYSTEMS.md §3 (S2).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S2).
 
 ## Docs absorbed (Phase 2)
 
@@ -96,4 +96,4 @@ See `globs:` in the frontmatter above (the manifest — lint-enforced by
 ## Open items
 
 _Populated during this system's review cycle (review -> triage -> fix ->
-document, PLAN_SYSTEMS §5)._
+document, SYSTEMS.md §5)._

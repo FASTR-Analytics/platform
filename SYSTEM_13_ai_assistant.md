@@ -26,7 +26,7 @@ docs_absorbed:
 ---
 # S13 — AI Assistant & Usage Governance
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: PLAN_SYSTEMS.md §3 (S13).
+> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S13).
 > Prose is ported here in this system's first review cycle (Phase 2,
 > PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
 > deleted then.
@@ -36,7 +36,7 @@ _the Anthropic proxy with token-limit governance, plus the browser-side copilot:
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in PLAN_SYSTEMS.md §3 (S13).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S13).
 
 ## Docs absorbed (Phase 2)
 
@@ -46,4 +46,4 @@ See `globs:` in the frontmatter above (the manifest — lint-enforced by
 ## Open items
 
 _Populated during this system's review cycle (review -> triage -> fix ->
-document, PLAN_SYSTEMS §5)._
+document, SYSTEMS.md §5)._

@@ -16,10 +16,10 @@ docs_absorbed:
 # S10 — Figure Rendering & Export Engine
 
 > **Phase 1 stub for most of the system** — full scope/contract/size in
-> PLAN_SYSTEMS.md §3 (S10); the `docs_absorbed` file is still to be inlined
+> SYSTEMS.md "System details" (S10); the `docs_absorbed` file is still to be inlined
 > (Phase 2, PLAN_DOC_CONSOLIDATION §2). **Exception:** the **FigureBundle
 > architecture** below is the first prose landed from this system's review cycle
-> (PLAN_SYSTEMS §5) — it is the durable, authoritative record of the bundle
+> (SYSTEMS.md §5) — it is the durable, authoritative record of the bundle
 > refactor and supersedes the two now-deleted planning docs.
 
 _pure transforms from data+config to pixels and files: a stored **FigureBundle** rebuilt to panther `FigureInputs` by one `buildFigureInputs` transform, slide->page rendering, PDF/PPTX/XLSX/DOCX export_
@@ -217,7 +217,7 @@ under `slide_deck/slide_ai/` are thin S13 AI adapters that delegate to them.)
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in PLAN_SYSTEMS.md §3 (S10).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S10).
 
 ## Docs absorbed (Phase 2)
 
@@ -237,3 +237,12 @@ prose landed so far). The remaining review-cycle work:
   scorecard style modes (`get_style_from_po/_{1..5}`), which are core S10.
 - Document the **export engine** — `client/src/exports/**` (PDF/PPTX/XLSX/DOCX) and
   `generate_slide_deck/` slide→page rendering — not yet covered here.
+
+From the systems review (the now-deleted PLAN_SYSTEMS §6):
+
+- **Decoupling — extract the plain figure resolvers from `slide_deck/slide_ai/`.**
+  `resolve_figure_from_visualization` / `_from_metric` are generic
+  snapshot-a-viz-into-FigureBlock machinery consumed by dashboards, reports, and
+  the viz modal — non-AI flows depending on AI-labelled files. Moving them into
+  `generate_visualization/` dissolves the only feature↔feature fusion in the
+  client import graph. Bridge-pass move.

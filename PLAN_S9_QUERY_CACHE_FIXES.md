@@ -2,7 +2,7 @@
 
 ## Status: REVIEW COMPLETE — two adversarial rounds done; no implementation yet
 
-Output of the S9 review cycle (review → triage → fix → document, PLAN_SYSTEMS §5),
+Output of the S9 review cycle (review → triage → fix → document, SYSTEMS.md §5),
 **after two adversarial hardening passes**: round 1 (21 agents — refute-first
 verification + fix critique on F1–F9 + a 3-lens completeness sweep), round 2 (7 agents
 — refute-first verification of the completeness-sweep findings N1–N5, 2 independent
@@ -206,7 +206,7 @@ low-risk hardening. No persistence crossing (transient signal state).
 1. delete [lib/cache_class_B_in_memory_map.ts](lib/cache_class_B_in_memory_map.ts);
 2. delete the [lib/mod.ts:3](lib/mod.ts#L3) re-export;
 3. delete the dead glob at `SYSTEM_09_viz_query_cache.md:8` (the lint-enforced S9 manifest — leaving it makes the manifest reference a non-existent file);
-4. tick the entry off `PLAN_SYSTEMS.md:759`.
+4. tick the dead-code entry off `SYSTEM_09_viz_query_cache.md` Open items.
 
 Run `lint_systems.ts` + `deno task typecheck` to confirm green. No persistence crossing
 (never instantiated → never produced a stored value).

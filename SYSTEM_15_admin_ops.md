@@ -37,7 +37,7 @@ docs_absorbed:
 ---
 # S15 — Instance Administration & Ops
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: PLAN_SYSTEMS.md §3 (S15).
+> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S15).
 > Prose is ported here in this system's first review cycle (Phase 2,
 > PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
 > deleted then.
@@ -47,7 +47,7 @@ _user/role management, project lifecycle, instance settings UI, plus the operati
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in PLAN_SYSTEMS.md §3 (S15).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S15).
 
 ## Docs absorbed (Phase 2)
 
@@ -56,5 +56,11 @@ See `globs:` in the frontmatter above (the manifest — lint-enforced by
 
 ## Open items
 
-_Populated during this system's review cycle (review -> triage -> fix ->
-document, PLAN_SYSTEMS §5)._
+> Seeded from the systems review (the now-deleted PLAN_SYSTEMS §6 decoupling
+> ideas / §7.2 dead code); plus whatever this system's review cycle adds.
+
+- **Decoupling — split two custody files.** `server/db/project/projects.ts`
+  (mainDb registry/roles vs project-DB lifecycle) and
+  `server/routes/instance/backups.ts` (proxy vs restore mechanics).
+- **Dead code (zero importers):** `client/src/components/project/project_logs.tsx`;
+  `server/scripts/` (empty dir).
