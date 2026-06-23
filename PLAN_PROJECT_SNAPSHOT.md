@@ -1,6 +1,6 @@
 # Plan: Project Self-Containment — Snapshot Instance Inputs into the Project
 
-## Status: DRAFT (review/thinking) — grounded in a verified enumeration sweep; no implementation
+## Status: NOT IMPLEMENTED. Step A change-set 1 was built + runtime-verified, then **reverted** (2026-06-23) — the per-dataset capture mechanism is incoherent; Step A is to be re-planned around a single canonical whole-project snapshot. Steps B/C are draft/thinking
 
 > Vision / end-state: [VISION_PROJECT_SNAPSHOT.md](VISION_PROJECT_SNAPSHOT.md). This plan is
 > Step A toward it.
@@ -27,7 +27,9 @@ the portable unit. N1 (from PLAN_S9_QUERY_CACHE_FIXES.md) is folded in here.
 > Inventory below is from a 5-agent read-only enumeration sweep (server query path,
 > structure/indicators, reports/decks/dashboards/AI, client `instanceState`, DB-schema
 > baseline), harness/grep-cited. It is single-pass (not adversarially verified like the S9
-> findings); items needing confirmation are marked.
+> findings); items needing confirmation are marked. **Step A (S1/S3/S4) was code-verified
+> 2026-06-23** — the S1 row and refinement 1 below carry the corrected premise (the config
+> is *not* a pure "consume the existing snapshot"; HFA/ICEH lack it → project-level capture).
 
 ---
 
@@ -70,9 +72,9 @@ FigureBundle localization + `geo.data` for **stored** artifacts. Dashboard `geo_
 ### Stragglers — drift, in scope
 | # | Item | Instance source | Read at | Fix shape | Cost |
 |---|------|-----------------|---------|-----------|------|
-| S1 | **Facility-columns config** (= N1) | `instance_config` `facility_columns`; **already mirrored in `datasets.info.facilityColumnsConfig`** | PO query/detail/results-value (server, **live mainDb**) | **Consume the existing `datasets.info` snapshot, not live config** + fold a facility-flags version into the 4 PO cache keys (server+client) | small (no new storage) |
+| S1 | **Facility-columns config** (= N1) | `instance_config` `facility_columns`; mirrored in `datasets.info.facilityColumnsConfig` **only for HMIS** — **HFA stores just a hash, ICEH nothing** (verified 2026-06-23) | PO query/detail/results-value **+ AI metric list** (4 sites, server, **live mainDb**) | **Capture a project-level config snapshot** (one per project, at integration) → repoint the 4 reads to it → fold `datasetsVersion` into `_PO_DETAIL` (the other 3 PO caches already fold it) | small (one project-level snapshot) |
 | S2 | **GeoJSON maps (viz/deck/report figures)** | `geojson_maps` (main DB) → client `instanceState` `t2_geojson` | `build_figure_inputs.ts:175` at figure build (live) | force `geo.kind:'data'` capture (await preload) + project-geojson snapshot for the non-dashboard path + drift-repair sweep for stored `kind:'level'` bundles | **large** |
-| S3 | **admin_area_labels config** | `instance_config` `admin_area_labels`; **no snapshot anywhere** | module load + AI metric list; **render-path usage UNCONFIRMED** | confirm render usage first; if used, add to `datasets.info` (or tiny project config) + cache-fold | small |
+| S3 | **admin_area_labels config** | `instance_config` `admin_area_labels`; no snapshot | **module load + AI metric list + client editor display labels ONLY — NOT the query/render path (verified 2026-06-23)** | **none for Step A** — display-only label, not in any cache key | n/a |
 | S4 | **countryIso3** (public dashboard label cleaning) | `getCountryIso3Config(mainDb)` per public request | `routes/public/dashboard.ts:57` | read from the bundle's own `localization.countryIso3` (already captured) — eliminates the live read | tiny |
 | S5 | **Image-asset binaries** (slide/dashboard/report images & logos) | shared instance assets dir; only `imgFile` *name* stored project-side | export/render (live URL fetch) | per-project asset snapshot + re-point URL builder; or defer | **large (binaries)** |
 | S6 | **projects.ai_context** | main DB `projects.ai_context` | AI prompt build | borderline — only matters if AI artifacts become *stored*; AI is ephemeral today | small |
@@ -87,23 +89,39 @@ FigureBundle localization + `geo.data` for **stored** artifacts. Dashboard `geo_
 
 ## The key refinements the sweep produced
 
-1. **N1/S1 is "consume the snapshot," not "build one."** The facility-columns config is *already* in `datasets.info.facilityColumnsConfig` (frozen at export, matching the physically-exported facility columns). The PO query pipeline ([get_query_context.ts:34](server/server_only_funcs_presentation_objects/get_query_context.ts#L34), [get_results_value_info.ts:32](server/server_only_funcs_presentation_objects/get_results_value_info.ts#L32), [presentation_objects.ts:186](server/db/project/presentation_objects.ts#L186)) instead re-reads **live mainDb** config. Reading the snapshot is **more correct** (it matches the frozen data; live config can reference columns the snapshot doesn't have) *and* makes the cache coherent.
+1. **N1/S1 is "capture once at the project level," not the pure "consume the existing snapshot" the original sweep assumed (corrected 2026-06-23).** The config is mirrored in `datasets.info.facilityColumnsConfig` **only for HMIS datasets**; **HFA stores just a `facilityColumnsHash`** (can't reconstruct the config) and **ICEH stores nothing** — yet HFA *does* use the optional facility columns ([datasets_in_project_hfa.ts:90](server/db/project/datasets_in_project_hfa.ts#L90) exports them; [metric_enricher.ts:121-148](server/db/project/metric_enricher.ts#L121-L148) gates disagg options on them). So an HFA/ICEH-only project has nothing to read back, and a multi-dataset project's per-row blobs can disagree (a coherence regression the single live read never had). **Decision (Tim): capture a single project-level facility-config snapshot** — one row per project, written in the integration txn (the datasets pattern, but project-scoped, not per-dataset-row) — read by **all four** live sites: [get_query_context.ts:34](server/server_only_funcs_presentation_objects/get_query_context.ts#L34), [get_results_value_info.ts:32](server/server_only_funcs_presentation_objects/get_results_value_info.ts#L32), [presentation_objects.ts:186](server/db/project/presentation_objects.ts#L186), and the AI path [modules.ts:724](server/db/project/modules.ts#L724) `getMetricsListForAI`. This is more correct (matches frozen data) and dissolves the HFA/ICEH gap **and** multi-dataset divergence in one move. `projectDb` is already in scope at every site.
 
 2. **The pinning question is forced and has a clean answer.** A facility-columns config change today does **not** re-export datasets, so the snapshot pins to last integration. Treat facility config as a **results-input**: a config change should trigger re-export/re-integration (refreshing columns + `datasets.info` + `last_updated`), which auto-invalidates the cache. Reading the snapshot (not live) keeps query-vs-data coherence in the interim.
 
 3. **Layer 3 is mostly done already** via FigureBundle — the remaining artifact-render leak is essentially just geojson (S2). Localization/countryIso3 are baked in; the public-dashboard `countryIso3` read (S4) is the one server-side artifact leak and is cheap to remove.
 
-4. **The general cache rule (CLAUDE.md):** every input newly *consumed at render/query time* must be folded into the project cache version key, **server + client byte-identical**. Export-time-only inputs are already covered by `datasets.last_updated`.
+4. **The general cache rule (CLAUDE.md), and why S1's cache work is tiny (corrected 2026-06-23):** every input newly *consumed at render/query time* must be folded into the project cache version key, **server + client byte-identical**. **But the project-level config snapshot changes only at integration**, so `datasetsVersion` *is* its version stamp — and `_PO_ITEMS`/`_METRIC_INFO`/`_REPLICANT_OPTIONS` **already fold `datasetsVersion`**, so they go coherent the instant the reads repoint. The **only** cache to touch is **`_PO_DETAIL`** ([visualizations.ts:39](server/routes/caches/visualizations.ts#L39)), which versions on PO `last_updated` alone yet carries a facility-config-derived payload — fold `datasetsVersion` into it (server + client; already byte-identical on both sides → **no separate facility-flags token, no `instanceState` cross-read**). The earlier S9-N1 "fold a facility-flags hash into all 4 keys, byte-identical" was for the *keep-live-reads* patch and is unnecessary once reads point at the project snapshot.
 
 ---
 
 ## Sequencing
 
-### Step A — close render/query-time drift (near-term, cheap, this is where N1 lands)
-- **S1/N1:** repoint the PO pipeline to read `datasets.info.facilityColumnsConfig`; fold a facility-flags version stamp into the 4 PO cache keys (server `caches/visualizations.ts` + client `moduleDataVersionKey`); decide the propagation trigger (a facility-config change → re-export). Closes the confirmed HIGH drift.
-- **S4:** public-dashboard label cleaning reads `bundle.localization.countryIso3` instead of `getCountryIso3Config(mainDb)`.
-- **S3:** confirm admin_area_labels render-path usage; snapshot + cache-fold only if used at render.
-- **Constraint:** do not bake instance FKs into any new project-side field (Step B/C need snapshot-local ids).
+### Step A — close render/query-time drift (near-term, this is where N1 lands)
+
+**S1/N1** was approached as three change-sets (storage+capture+backfill → repoint reads →
+cache fold). **⚠️ Change-set 1 is REVERTED and its per-dataset capture mechanism is
+superseded** (see Status). The change-sets below are kept **only as a record**: the
+read-repoint (2) and cache-fold (3) analysis stays valid for the canonical re-plan, but the
+change-set-1 storage shape does not. **Nothing is in the tree.**
+
+- **Change-set 1 — storage + capture + backfill — ⛔ REVERTED (2026-06-23).** Built and
+  runtime-verified, then reverted: capturing config on *every* dataset integration means
+  importing one dataset re-snapshots the config governing *all* the project's data —
+  incoherent. To be replaced by one canonical whole-project snapshot. What was built and
+  reverted (recoverable from git history if needed): the `project_config` table (migration
+  `029` + base schema), capture inside each `addDataset{Hmis,Hfa,Iceh}ToProject` txn, a
+  startup backfill from each project's frozen HMIS config, and a
+  `getFacilityColumnsConfigSnapshot` reader.
+- **Change-set 2 — repoint the reads — PENDING.** Repoint the **4** live `getFacilityColumnsConfig(mainDb)` reads to `getFacilityColumnsConfigSnapshot(projectDb)`: [get_query_context.ts:34](server/server_only_funcs_presentation_objects/get_query_context.ts#L34) (thread `projectDb` into `buildQueryContext`), [get_results_value_info.ts:32](server/server_only_funcs_presentation_objects/get_results_value_info.ts#L32), [presentation_objects.ts:186](server/db/project/presentation_objects.ts#L186), [modules.ts:724](server/db/project/modules.ts#L724) (`getMetricsListForAI`). Decide the snapshot-absent behaviour (loud error vs empty) — should not happen post-backfill.
+- **Change-set 3 — cache fold — PENDING (lands with 2).** Fold `datasetsVersion` into `_PO_DETAIL` only ([visualizations.ts:39](server/routes/caches/visualizations.ts#L39) server + [t2_presentation_objects.ts:51](client/src/state/project/t2_presentation_objects.ts#L51) client); the other 3 PO caches already fold `datasetsVersion`, so they go coherent once the reads repoint. Version-KEY change only — one-time invalidation, no payload-shape change, no migration, no stored-FigureInputs sweep.
+- **S4 — PENDING (independent of S1):** public-dashboard label cleaning reads `bundle.localization.countryIso3` (first non-null item bundle, `""` fallback) instead of `getCountryIso3Config(mainDb)`.
+- **S3 — out of scope:** verified module-load/AI/editor-display only, not on the query/render path or in any cache key.
+- **Constraint:** the `project_config` field holds plain config values — **no instance FK** (Step B/C need snapshot-local ids; holds trivially, no id is baked).
 
 ### Step B — structure self-containment + the large snapshots (portability enabler)
 - **S2 geojson:** force `geo.kind:'data'` capture for stored bundles; add a project-geojson snapshot (per-level table or per-figure embed, see open question) for the viz/deck/report path to reach dashboard parity; drift-repair sweep for stored `kind:'level'` bundles.
@@ -119,12 +137,13 @@ FigureBundle localization + `geo.data` for **stored** artifacts. Dashboard `geo_
 1. **Geojson storage (S2):** per-figure embed (`geo.data`, the dashboard pattern — heavy duplication) **vs** a single project-level `geojson_by_level` snapshot table + stamp (DRY, but new structure). Recommend the project-level table.
 2. **Image binaries (S5):** in scope for Step B, or deferred? Large, and most are static FASTR logos (no drift); only user-uploaded images genuinely drift.
 3. **ai_context (S6):** in scope? Only matters if AI interpretations become stored artifacts (none today).
-4. **S1 propagation:** should a facility-columns config change auto-trigger re-export for all projects (live propagation), or is "pinned to last integration" acceptable (the pinning model the datasets pattern already implies)?
-5. **admin_area_labels (S3):** needs a render-path-usage confirmation pass before deciding.
+4. **S1 propagation — RESOLVED (pinned):** a facility-config change does **not** auto-trigger re-export; it applies on the next integration (mirrors the dataset model). Once the project-level snapshot is read and `_PO_DETAIL` folds `datasetsVersion`, pinned has **no correctness gap** — only a freshness lag identical to datasets. Live-propagation (auto re-export all projects) is deferred (worker queueing, not Step-A-shaped).
+5. **admin_area_labels (S3) — RESOLVED (out of scope):** verified not on the query/render path (module-load + AI + client editor display labels only). No Step A work.
+6. **S1 snapshot home:** a dedicated project-level config table vs a general `project_config(config_key, config_json_value, last_updated)` key/value row. Recommend the general one (reusable; matches the project-snapshot framing). **Backfill source:** each project's own frozen `datasets.info.facilityColumnsConfig` (HMIS), falling back to live instance config only for HFA/ICEH-only projects that never stored a full config — **not** blanket-live (config drifts over time; live ≠ the frozen data, and seeding from live re-creates the drift this removes).
 
 ## Hard rules
 - **Reuse the datasets pattern** (export-txn + `datasets.info`/mirror table + `last_updated` stamp + cache fold). Don't invent parallel machinery.
 - **Render/query-time inputs must be folded into the project cache version key** (server+client identical) — snapshotting alone doesn't fix caching.
 - **No instance FKs in layer-2 fields** — Step B/C portability needs snapshot-local stable ids; don't bake them in during Step A.
-- **No payload-SHAPE change without a cache-prefix bump** (CLAUDE.md); the S1 facility-flags fold is a version-KEY change (one-time invalidation), not a shape change.
+- **No payload-SHAPE change without a cache-prefix bump** (CLAUDE.md); the S1 change (fold `datasetsVersion` into `_PO_DETAIL`) is a version-KEY change (one-time invalidation), not a shape change.
 - **Verify by executing**, and **report-only until per-step go-ahead** — this is a plan.

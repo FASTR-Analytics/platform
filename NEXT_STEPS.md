@@ -38,29 +38,35 @@ paths).
 
 ## Track A — keystone + live bug (start here, in parallel)
 
-### 1. PLAN_PROJECT_SNAPSHOT — Step A only · KEYSTONE
+### 1. PLAN_PROJECT_SNAPSHOT — Step A · KEYSTONE · being re-planned
 [PLAN_PROJECT_SNAPSHOT.md](PLAN_PROJECT_SNAPSHOT.md)
 
-The single highest-leverage item. Repoint the 3 PO query/render reads from live
-`getFacilityColumnsConfig(mainDb)` → the snapshot already sitting in
-`datasets.info.facilityColumnsConfig`; fold a facility-flags version into the 4 PO
-cache keys (server + client byte-identical); fix S4 countryIso3 to read from bundle
-localization. Confirm S3 admin_area_labels render-path usage before scoping it in.
+The single highest-leverage item: stop the PO query/render pipeline reading instance-level
+config live, closing N1 (the confirmed HIGH silent-wrong-data bug) and unblocking the
+snapshot cluster.
 
-- **Closes N1** — the confirmed HIGH silent-wrong-data bug (worst class).
-- **No new storage** — the snapshot already exists; this is "consume the snapshot,"
-  not "build one." Both halves (repoint reads + fold cache key) are doable today.
-- **Unblocks the whole snapshot cluster.**
-- Effort: **M** · Risk: **low** · Deps: **none**
+**Status (2026-06-23):** the first attempt — a per-dataset facility-config capture
+(change-set 1) — was built, runtime-verified, then **reverted**. Capturing config on every
+dataset integration means importing one dataset re-snapshots the config governing *all* the
+project's data: incoherent. Step A is being **re-planned around one canonical whole-project
+snapshot** (capture all inputs — structure, admin areas, facilities, all datasets, all
+config — locked and hashed at one point in time). **Nothing is in the tree.**
+
+The repoint + cache-fold analysis below stays valid for the re-plan; only the storage
+mechanism changes:
+- **Repoint the 4 live reads** `getFacilityColumnsConfig(mainDb)` →
+  [get_query_context.ts:34](server/server_only_funcs_presentation_objects/get_query_context.ts#L34),
+  [get_results_value_info.ts:32](server/server_only_funcs_presentation_objects/get_results_value_info.ts#L32),
+  [presentation_objects.ts:186](server/db/project/presentation_objects.ts#L186),
+  [modules.ts:724](server/db/project/modules.ts#L724).
+- **Cache fold:** `datasetsVersion` into `_PO_DETAIL` only (the other 3 PO caches already fold it).
+- **S4 — independent, pending:** countryIso3 from bundle localization.
+- S3 — out of scope (verified not render-path).
+
+- Effort remaining: **S–M** · Risk: **low** · Deps: **none**
 - **N1 lives here** — do NOT fix N1 standalone (per
   [PLAN_S9_QUERY_CACHE_FIXES.md](PLAN_S9_QUERY_CACHE_FIXES.md) Tier 0) or you
   re-cement the instance coupling the snapshot work removes.
-
-Touch points:
-[get_query_context.ts:34](server/server_only_funcs_presentation_objects/get_query_context.ts#L34),
-[get_results_value_info.ts:32](server/server_only_funcs_presentation_objects/get_results_value_info.ts#L32),
-[presentation_objects.ts:186](server/db/project/presentation_objects.ts#L186),
-`caches/visualizations.ts`, client `moduleDataVersionKey`.
 
 ### 2. PLAN_GEOJSON_NEAR_TERM · highest user urgency
 [PLAN_GEOJSON_NEAR_TERM.md](PLAN_GEOJSON_NEAR_TERM.md)
