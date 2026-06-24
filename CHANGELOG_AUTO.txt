@@ -1,3 +1,5 @@
+[1.53.9] [user] [added] - Edit figures directly from the deck view without opening the slide editor
+[1.53.9] [admin] [added] - AI can now update figures directly from the deck level
 [1.53.10] [user] [fixed] - AI-generated figures now correctly require a valid subgroup selection instead of silently defaulting
 [1.53.10] [admin] [fixed] - AI-generated figures now validate replicant selections instead of silently defaulting
 [1.53.9] [user] [fixed] - AI assistant now edits existing figures in place instead of accidentally rebuilding them
