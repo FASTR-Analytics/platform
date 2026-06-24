@@ -21,7 +21,10 @@ import type { CustomPrompt } from "lib";
 import { parsePromptsMarkdown } from "./parse_prompts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { SaveToPromptLibraryModal, type SaveToPromptLibraryResult } from "./SaveToPromptLibraryModal";
+import {
+  SaveToPromptLibraryModal,
+  type SaveToPromptLibraryResult,
+} from "./SaveToPromptLibraryModal";
 
 type Props = {};
 
@@ -39,7 +42,7 @@ export function PromptLibraryModal(
   const [parseResult, setParseResult] = createSignal<ParseResult>({
     categories: [],
     status: "error",
-    message: "LoadingIndicator...",
+    message: "Loading...",
   });
   const [customPrompts, setCustomPrompts] = createSignal<CustomPrompt[]>([]);
   const [searchText, setSearchText] = createSignal("");
@@ -107,11 +110,15 @@ export function PromptLibraryModal(
         try {
           let markdown: string | undefined;
           if (isFrench()) {
-            const frRes = await fetch(`${base}/prompts_fr.md${cacheBust}`, { cache: "no-store" });
+            const frRes = await fetch(`${base}/prompts_fr.md${cacheBust}`, {
+              cache: "no-store",
+            });
             if (frRes.ok) markdown = await frRes.text();
           }
           if (!markdown) {
-            const enRes = await fetch(`${base}/prompts.md${cacheBust}`, { cache: "no-store" });
+            const enRes = await fetch(`${base}/prompts.md${cacheBust}`, {
+              cache: "no-store",
+            });
             if (!enRes.ok) throw new Error("Failed to load prompts");
             markdown = await enRes.text();
           }
@@ -136,7 +143,12 @@ export function PromptLibraryModal(
   };
 
   const handleSelectCustomPrompt = (prompt: CustomPrompt) => {
-    setSelectedPrompt({ id: prompt.id, title: prompt.name, content: prompt.content, category: prompt.category });
+    setSelectedPrompt({
+      id: prompt.id,
+      title: prompt.name,
+      content: prompt.content,
+      category: prompt.category,
+    });
     setEditedContent(prompt.content);
   };
 
@@ -154,7 +166,10 @@ export function PromptLibraryModal(
   };
 
   const handleSaveToLibrary = async () => {
-    const result = await openComponent<{ initialContent: string }, SaveToPromptLibraryResult>({
+    const result = await openComponent<
+      { initialContent: string },
+      SaveToPromptLibraryResult
+    >({
       element: SaveToPromptLibraryModal,
       props: { initialContent: editedContent() },
     });
@@ -164,7 +179,10 @@ export function PromptLibraryModal(
   };
 
   const handleNewCustomPrompt = async () => {
-    const result = await openComponent<{ initialContent: string }, SaveToPromptLibraryResult>({
+    const result = await openComponent<
+      { initialContent: string },
+      SaveToPromptLibraryResult
+    >({
       element: SaveToPromptLibraryModal,
       props: { initialContent: "" },
     });
@@ -174,7 +192,10 @@ export function PromptLibraryModal(
   };
 
   const handleEditCustomPrompt = async (prompt: CustomPrompt) => {
-    const result = await openComponent<{ initialContent: string; existingPrompt: CustomPrompt }, SaveToPromptLibraryResult>({
+    const result = await openComponent<
+      { initialContent: string; existingPrompt: CustomPrompt },
+      SaveToPromptLibraryResult
+    >({
       element: SaveToPromptLibraryModal,
       props: { initialContent: prompt.content, existingPrompt: prompt },
     });
@@ -216,8 +237,15 @@ export function PromptLibraryModal(
               <Button onClick={() => p.close(undefined)} intent="neutral">
                 {t3({ en: "Cancel", fr: "Annuler" })}
               </Button>,
-              <Button onClick={handleNewCustomPrompt} intent="primary" iconName="plus">
-                {t3({ en: "Create custom prompt", fr: "Créer un prompt personnalisé" })}
+              <Button
+                onClick={handleNewCustomPrompt}
+                intent="primary"
+                iconName="plus"
+              >
+                {t3({
+                  en: "Create custom prompt",
+                  fr: "Créer un prompt personnalisé",
+                })}
               </Button>,
             ]
           : undefined
@@ -227,7 +255,7 @@ export function PromptLibraryModal(
         <div>
           <LoadingIndicator
             msg={t3({
-              en: "LoadingIndicator prompts...",
+              en: "Loading prompts...",
               fr: "Chargement des prompts...",
             })}
             noPad
@@ -339,7 +367,9 @@ function BrowsePhase(p: BrowsePhaseProps) {
             <CollapsibleSection
               title={
                 <div class="flex items-center gap-2">
-                  <span>{t3({ en: "Country prompts", fr: "Prompts pays" })}</span>
+                  <span>
+                    {t3({ en: "Country prompts", fr: "Prompts pays" })}
+                  </span>
                   <span class="text-base-content/50 text-xs">
                     ({p.countryCustomPrompts.length})
                   </span>
@@ -369,7 +399,8 @@ function BrowsePhase(p: BrowsePhaseProps) {
           <Show
             when={p.filteredCategories.length > 0}
             fallback={
-              p.myCustomPrompts.length === 0 && p.countryCustomPrompts.length === 0 ? (
+              p.myCustomPrompts.length === 0 &&
+              p.countryCustomPrompts.length === 0 ? (
                 <div class="text-base-content/60 py-8 text-center">
                   {t3({
                     en: "No prompts found matching your search.",
@@ -417,7 +448,13 @@ function BrowsePhase(p: BrowsePhaseProps) {
           </Show>
         </div>
 
-        <Show when={p.filteredCategories.length === 0 && p.myCustomPrompts.length === 0 && p.countryCustomPrompts.length === 0}>
+        <Show
+          when={
+            p.filteredCategories.length === 0 &&
+            p.myCustomPrompts.length === 0 &&
+            p.countryCustomPrompts.length === 0
+          }
+        >
           <div class="text-base-content/60 mt-4">
             <div class="text-xs">{p.parseResult.message}</div>
           </div>
@@ -454,10 +491,23 @@ function CustomPromptItem(p: {
           <button
             type="button"
             title={t3({ en: "Edit", fr: "Modifier" })}
-            onClick={(e) => { e.stopPropagation(); p.onEdit(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              p.onEdit();
+            }}
             class="text-base-content/50 hover:text-base-content rounded p-1"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
@@ -465,10 +515,23 @@ function CustomPromptItem(p: {
           <button
             type="button"
             title={t3({ en: "Delete", fr: "Supprimer" })}
-            onClick={(e) => { e.stopPropagation(); p.onDelete(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              p.onDelete();
+            }}
             class="text-base-content/50 hover:text-danger rounded p-1"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <polyline points="3 6 5 6 21 6" />
               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
               <path d="M10 11v6M14 11v6" />
@@ -507,7 +570,10 @@ function EditPhase(p: EditPhaseProps) {
           {t3({ en: "Back", fr: "Retour" })}
         </Button>
         <Button outline iconName="save" onClick={p.onSaveToLibrary}>
-          {t3({ en: "Save to library", fr: "Sauvegarder dans la bibliothèque" })}
+          {t3({
+            en: "Save to library",
+            fr: "Sauvegarder dans la bibliothèque",
+          })}
         </Button>
         <div class="flex-1"></div>
         <Button onClick={p.onRunCurrent} intent="primary">

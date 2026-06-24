@@ -16,7 +16,14 @@ import {
   openComponent,
   PageHolder,
 } from "panther";
-import { createSignal, ErrorBoundary, Match, onMount, Show, Switch } from "solid-js";
+import {
+  createSignal,
+  ErrorBoundary,
+  Match,
+  onMount,
+  Show,
+  Switch,
+} from "solid-js";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { useAIProjectContext } from "~/components/project_ai/context";
@@ -40,7 +47,7 @@ export function DraftSlidePreview(p: Props) {
 
   const [slideState, setSlideState] = createSignal<StateHolder<SlideState>>({
     status: "loading",
-    msg: t3({ en: "LoadingIndicator slide...", fr: "Chargement de la diapositive..." }),
+    msg: t3({ en: "Loading slide...", fr: "Chargement de la diapositive..." }),
   });
 
   function getDeckConfig(): SlideDeckConfig {
@@ -123,33 +130,31 @@ export function DraftSlidePreview(p: Props) {
 
   return (
     <ErrorBoundary fallback={<></>}>
-    <Show when={slideState().status !== "error"}>
-      <div class="border-base-300 bg-base-100 max-w-[400px] rounded border">
-        <div
-          class="cursor-pointer p-1.5 transition-opacity hover:opacity-80"
-          onClick={openExpandedView}
-        >
-          <div class="pointer-events-none">
-            <SlideStateWrapper
-              state={slideState()}
+      <Show when={slideState().status !== "error"}>
+        <div class="border-base-300 bg-base-100 max-w-[400px] rounded border">
+          <div
+            class="cursor-pointer p-1.5 transition-opacity hover:opacity-80"
+            onClick={openExpandedView}
+          >
+            <div class="pointer-events-none">
+              <SlideStateWrapper state={slideState()} />
+            </div>
+          </div>
+          <div class="border-base-300 flex gap-1.5 border-t p-1.5">
+            <Button
+              size="sm"
+              outline
+              iconName="maximize"
+              onClick={openExpandedView}
             />
+            <Button size="sm" outline onClick={handleAddToDeck}>
+              {aiContext().mode === "editing_slide_deck"
+                ? t3({ en: "Add to this deck", fr: "Ajouter au deck" })
+                : t3({ en: "Add to slide deck", fr: "Ajouter à un deck" })}
+            </Button>
           </div>
         </div>
-        <div class="border-base-300 flex gap-1.5 border-t p-1.5">
-          <Button
-            size="sm"
-            outline
-            iconName="maximize"
-            onClick={openExpandedView}
-          />
-          <Button size="sm" outline onClick={handleAddToDeck}>
-            {aiContext().mode === "editing_slide_deck"
-              ? t3({ en: "Add to this deck", fr: "Ajouter au deck" })
-              : t3({ en: "Add to slide deck", fr: "Ajouter à un deck" })}
-          </Button>
-        </div>
-      </div>
-    </Show>
+      </Show>
     </ErrorBoundary>
   );
 }
@@ -208,7 +213,9 @@ function ExpandedSlideModal(
           >
             {p.addToDeckLabel}
           </Button>,
-          <Button onClick={() => p.close(undefined)}>{t3({ en: "Close", fr: "Fermer" })}</Button>,
+          <Button onClick={() => p.close(undefined)}>
+            {t3({ en: "Close", fr: "Fermer" })}
+          </Button>,
         ]
       }
     >

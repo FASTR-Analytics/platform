@@ -8,8 +8,19 @@ import {
   getDefaultSectionSlide,
   getDefaultContentSlide,
 } from "lib";
-import { Button, FrameTop, HeadingBar, LoadingIndicator, type MenuItem, MenuTriggerWrapper, Slider, createDeleteAction } from "panther";
-import SortableVendor, { SortableJs } from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
+import {
+  Button,
+  FrameTop,
+  HeadingBar,
+  LoadingIndicator,
+  type MenuItem,
+  MenuTriggerWrapper,
+  Slider,
+  createDeleteAction,
+} from "panther";
+import SortableVendor, {
+  SortableJs,
+} from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { SlideCard } from "./slide_card";
@@ -35,7 +46,9 @@ export function SlideList(p: Props) {
   const { notifyAI } = useAIProjectContext();
 
   const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
-  const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(null);
+  const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(
+    null,
+  );
   const [slideSize, setSlideSize] = createSignal(400);
   const [isFillWidth, setIsFillWidth] = createSignal(false);
 
@@ -50,39 +63,49 @@ export function SlideList(p: Props) {
     setLastSelectedIndex(null);
     p.setSelectedSlideIds([]);
     notifyAI({ type: "selected_slides", slideIds: [] });
-    document.querySelectorAll('.sortable-selected').forEach(el => {
+    document.querySelectorAll(".sortable-selected").forEach((el) => {
       SortableJs.utils.deselect(el);
     });
   }
 
   // Local copy of slide order for optimistic drag-and-drop updates
-  const [sortableSlideItems, setSortableSlideItems] = createSignal<{ id: string }[]>(
-    p.slideIds.map(id => ({ id }))
-  );
+  const [sortableSlideItems, setSortableSlideItems] = createSignal<
+    { id: string }[]
+  >(p.slideIds.map((id) => ({ id })));
 
   // Sync local state when props change (from SSE or parent updates)
-  createEffect(on(
-    () => p.slideIds,
-    (slideIds) => {
-      const currentItems = sortableSlideItems();
-      const currentIds = new Set(currentItems.map(i => i.id));
-      const newIds = new Set(slideIds);
+  createEffect(
+    on(
+      () => p.slideIds,
+      (slideIds) => {
+        const currentItems = sortableSlideItems();
+        const currentIds = new Set(currentItems.map((i) => i.id));
+        const newIds = new Set(slideIds);
 
-      // Sync if items were added/removed (set of IDs changed)
-      const setChanged = currentIds.size !== newIds.size ||
-        !slideIds.every(id => currentIds.has(id));
+        // Sync if items were added/removed (set of IDs changed)
+        const setChanged =
+          currentIds.size !== newIds.size ||
+          !slideIds.every((id) => currentIds.has(id));
 
-      // Sync if order changed (from AI or other external sources)
-      // PDS timestamp checking ensures we only see latest state
-      const orderChanged = !currentItems.every((item, i) => item.id === slideIds[i]);
+        // Sync if order changed (from AI or other external sources)
+        // PDS timestamp checking ensures we only see latest state
+        const orderChanged = !currentItems.every(
+          (item, i) => item.id === slideIds[i],
+        );
 
-      if (setChanged || orderChanged) {
-        setSortableSlideItems(slideIds.map(id => ({ id })));
-      }
-    }
-  ));
+        if (setChanged || orderChanged) {
+          setSortableSlideItems(slideIds.map((id) => ({ id })));
+        }
+      },
+    ),
+  );
 
-  function handleSlideClick(index: number, slideId: string, event: MouseEvent, isCircleClick: boolean) {
+  function handleSlideClick(
+    index: number,
+    slideId: string,
+    event: MouseEvent,
+    isCircleClick: boolean,
+  ) {
     if (isCircleClick) {
       event.stopPropagation();
 
@@ -169,7 +192,7 @@ export function SlideList(p: Props) {
 
   function syncSelectionWithSortableJS(selectedSet: Set<string>) {
     // Sync our selection state with SortableJS by manipulating the DOM
-    document.querySelectorAll('.slide-card-wrapper').forEach(el => {
+    document.querySelectorAll(".slide-card-wrapper").forEach((el) => {
       const parent = el.parentElement;
       if (!parent) return;
 
@@ -177,12 +200,12 @@ export function SlideList(p: Props) {
       if (!slideId) return;
 
       if (selectedSet.has(slideId)) {
-        if (!parent.classList.contains('sortable-selected')) {
-          parent.classList.add('sortable-selected');
+        if (!parent.classList.contains("sortable-selected")) {
+          parent.classList.add("sortable-selected");
         }
       } else {
-        if (parent.classList.contains('sortable-selected')) {
-          parent.classList.remove('sortable-selected');
+        if (parent.classList.contains("sortable-selected")) {
+          parent.classList.remove("sortable-selected");
         }
       }
     });
@@ -193,21 +216,33 @@ export function SlideList(p: Props) {
     const isSlideSelected = selected.has(slideId);
     const shouldDeleteMultiple = isSlideSelected && selected.size > 1;
 
-    const slideIdsToDelete = shouldDeleteMultiple ? Array.from(selected) : [slideId];
-    const confirmText = slideIdsToDelete.length > 1
-      ? t3({ en: `Are you sure you want to delete ${slideIdsToDelete.length} slides?`, fr: `Êtes-vous sûr de vouloir supprimer ${slideIdsToDelete.length} diapositives ?` })
-      : t3({ en: "Are you sure you want to delete this slide?", fr: "Êtes-vous sûr de vouloir supprimer cette diapositive ?" });
+    const slideIdsToDelete = shouldDeleteMultiple
+      ? Array.from(selected)
+      : [slideId];
+    const confirmText =
+      slideIdsToDelete.length > 1
+        ? t3({
+            en: `Are you sure you want to delete ${slideIdsToDelete.length} slides?`,
+            fr: `Êtes-vous sûr de vouloir supprimer ${slideIdsToDelete.length} diapositives ?`,
+          })
+        : t3({
+            en: "Are you sure you want to delete this slide?",
+            fr: "Êtes-vous sûr de vouloir supprimer cette diapositive ?",
+          });
 
     const deleteAction = createDeleteAction(
       confirmText,
-      () => serverActions.deleteSlides({
-        projectId: p.projectState.id,
-        deck_id: p.deckId,
-        slideIds: slideIdsToDelete,
-      }),
+      () =>
+        serverActions.deleteSlides({
+          projectId: p.projectState.id,
+          deck_id: p.deckId,
+          slideIds: slideIdsToDelete,
+        }),
       () => {
         // Remove from local state immediately
-        setSortableSlideItems(items => items.filter(i => !slideIdsToDelete.includes(i.id)));
+        setSortableSlideItems((items) =>
+          items.filter((i) => !slideIdsToDelete.includes(i.id)),
+        );
         clearSelection();
       },
     );
@@ -219,7 +254,9 @@ export function SlideList(p: Props) {
     const isSlideSelected = selected.has(slideId);
     const shouldDuplicateMultiple = isSlideSelected && selected.size > 1;
 
-    const slideIdsToDuplicate = shouldDuplicateMultiple ? Array.from(selected) : [slideId];
+    const slideIdsToDuplicate = shouldDuplicateMultiple
+      ? Array.from(selected)
+      : [slideId];
 
     const res = await serverActions.duplicateSlides({
       projectId: p.projectState.id,
@@ -229,19 +266,19 @@ export function SlideList(p: Props) {
 
     if (res.success) {
       // Optimistic: insert all duplicates after the last original
-      setSortableSlideItems(currentItems => {
+      setSortableSlideItems((currentItems) => {
         const newItems = [...currentItems];
         // Find the last original's index
         let lastOriginalIndex = -1;
         for (const originalId of slideIdsToDuplicate) {
-          const idx = newItems.findIndex(item => item.id === originalId);
+          const idx = newItems.findIndex((item) => item.id === originalId);
           if (idx > lastOriginalIndex) {
             lastOriginalIndex = idx;
           }
         }
         // Insert all duplicates after the last original
         if (lastOriginalIndex !== -1) {
-          const newSlideItems = res.data.newSlideIds.map(id => ({ id }));
+          const newSlideItems = res.data.newSlideIds.map((id) => ({ id }));
           newItems.splice(lastOriginalIndex + 1, 0, ...newSlideItems);
         }
         return newItems;
@@ -254,7 +291,12 @@ export function SlideList(p: Props) {
     if (newSlideIds.every((id, i) => id === oldSlideIds[i])) return;
 
     const movedIds: string[] = [];
-    let targetPosition: { after: string } | { before: string } | { toStart: true } | { toEnd: true } | null = null;
+    let targetPosition:
+      | { after: string }
+      | { before: string }
+      | { toStart: true }
+      | { toEnd: true }
+      | null = null;
 
     for (let i = 0; i < newSlideIds.length; i++) {
       const slideAtNewPos = newSlideIds[i];
@@ -264,7 +306,10 @@ export function SlideList(p: Props) {
         const oldIndex = oldSlideIds.indexOf(slideAtNewPos);
         if (oldIndex !== i) {
           let j = i;
-          while (j < newSlideIds.length && oldSlideIds.indexOf(newSlideIds[j]) !== j) {
+          while (
+            j < newSlideIds.length &&
+            oldSlideIds.indexOf(newSlideIds[j]) !== j
+          ) {
             movedIds.push(newSlideIds[j]);
             j++;
           }
@@ -296,7 +341,7 @@ export function SlideList(p: Props) {
       let maxIndex = -1;
       let afterSlideId = "";
       for (const id of selected) {
-        const idx = items.findIndex(i => i.id === id);
+        const idx = items.findIndex((i) => i.id === id);
         if (idx > maxIndex) {
           maxIndex = idx;
           afterSlideId = id;
@@ -319,11 +364,11 @@ export function SlideList(p: Props) {
     });
 
     if (res.success) {
-      setSortableSlideItems(currentItems => {
+      setSortableSlideItems((currentItems) => {
         if (afterSlideId === null) {
           return [...currentItems, { id: res.data.slideId }];
         }
-        const afterIndex = currentItems.findIndex(i => i.id === afterSlideId);
+        const afterIndex = currentItems.findIndex((i) => i.id === afterSlideId);
         if (afterIndex === -1) {
           return [...currentItems, { id: res.data.slideId }];
         }
@@ -362,7 +407,7 @@ export function SlideList(p: Props) {
       label: t3({ en: "Share", fr: "Partager" }),
       icon: "arrowRight",
       onClick: () => p.share(),
-    }
+    },
     // { type: "divider" },
     // {
     //   label: "Batch edit visualizations",
@@ -380,7 +425,7 @@ export function SlideList(p: Props) {
             <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
           }
         >
-          <div class="flex items-center ui-gap-sm">
+          <div class="ui-gap-sm flex items-center">
             <Show when={p.slideIds.length > 0}>
               <div class="w-32">
                 <Slider
@@ -399,17 +444,19 @@ export function SlideList(p: Props) {
                 onClick={() => setIsFillWidth(!isFillWidth())}
               />
             </Show>
-            <MenuTriggerWrapper
-              position="bottom-end"
-              items={addSlideMenuItems}
-            >
-              <Button iconName="plus">{t3({ en: "Add slide", fr: "Ajouter une diapositive" })}</Button>
+            <MenuTriggerWrapper position="bottom-end" items={addSlideMenuItems}>
+              <Button iconName="plus">
+                {t3({ en: "Add slide", fr: "Ajouter une diapositive" })}
+              </Button>
             </MenuTriggerWrapper>
-            <Button iconName="settings" outline onClick={() => p.handleOpenSettings()}>{t3(TC.settings)}</Button>
-            <MenuTriggerWrapper
-              position="bottom-end"
-              items={menuItems}
+            <Button
+              iconName="settings"
+              outline
+              onClick={() => p.handleOpenSettings()}
             >
+              {t3(TC.settings)}
+            </Button>
+            <MenuTriggerWrapper position="bottom-end" items={menuItems}>
               <Button iconName="moreVertical" outline />
             </MenuTriggerWrapper>
             <Show when={!showAi()}>
@@ -425,24 +472,32 @@ export function SlideList(p: Props) {
         </HeadingBar>
       }
     >
-
       <div
-        class="h-full w-full overflow-auto ui-pad bg-base-200"
+        class="ui-pad bg-base-200 h-full w-full overflow-auto"
         onClick={(e) => {
           // Clear selection when clicking outside slide cards
           const target = e.target as HTMLElement;
-          const clickedOnSlide = target.closest('.slide-card-wrapper');
+          const clickedOnSlide = target.closest(".slide-card-wrapper");
           if (!clickedOnSlide) {
             clearSelection();
           }
         }}
       >
         <Show when={p.isLoading}>
-          <LoadingIndicator msg={t3({ en: "LoadingIndicator slides...", fr: "Chargement des diapositives..." })} noPad />
+          <LoadingIndicator
+            msg={t3({
+              en: "Loading slides...",
+              fr: "Chargement des diapositives...",
+            })}
+            noPad
+          />
         </Show>
         <Show when={!p.isLoading && p.slideIds.length === 0}>
           <div class="text-neutral w-full py-16 text-center">
-            {t3({ en: "No slides yet. Ask the AI to create some slides, or click \"+ Add slide\" to create your own", fr: "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même" })}
+            {t3({
+              en: 'No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own',
+              fr: "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même",
+            })}
           </div>
         </Show>
         <Show when={!p.isLoading && p.slideIds.length > 0}>
@@ -452,7 +507,10 @@ export function SlideList(p: Props) {
             setItems={(newItems: { id: string }[]) => {
               const oldItems = sortableSlideItems();
               setSortableSlideItems(newItems);
-              handleReorder(oldItems.map(i => i.id), newItems.map(i => i.id));
+              handleReorder(
+                oldItems.map((i) => i.id),
+                newItems.map((i) => i.id),
+              );
             }}
             class="flex flex-wrap justify-center gap-4"
             multiDrag
@@ -465,7 +523,8 @@ export function SlideList(p: Props) {
             fallbackTolerance={3}
           >
             {(item: { id: string }) => {
-              const index = () => sortableSlideItems().findIndex(i => i.id === item.id);
+              const index = () =>
+                sortableSlideItems().findIndex((i) => i.id === item.id);
               return (
                 <SlideCard
                   projectId={p.projectState.id}
@@ -476,7 +535,9 @@ export function SlideList(p: Props) {
                   selectedCount={selectedIds().size}
                   slideSize={slideSize()}
                   fillWidth={isFillWidth()}
-                  onCardClick={(e, isCircleClick) => handleSlideClick(index(), item.id, e, isCircleClick)}
+                  onCardClick={(e, isCircleClick) =>
+                    handleSlideClick(index(), item.id, e, isCircleClick)
+                  }
                   onEdit={() => {
                     clearSelection();
                     p.onEditSlide(item.id);
@@ -490,6 +551,6 @@ export function SlideList(p: Props) {
           </SortableVendor>
         </Show>
       </div>
-    </FrameTop >
+    </FrameTop>
   );
 }

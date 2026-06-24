@@ -23,22 +23,22 @@ type Props = {
 type ReturnType = ProjectDocument[] | undefined;
 
 export function AIDocumentSelectorModal(
-  p: AlertComponentProps<Props, ReturnType>
+  p: AlertComponentProps<Props, ReturnType>,
 ) {
   const [isLoading, setIsLoading] = createSignal(true);
   const [selectedFiles, setSelectedFiles] = createSignal<string[]>([]);
-  const [existingDocs, setExistingDocs] = createSignal<ProjectDocument[]>(
-    []
-  );
+  const [existingDocs, setExistingDocs] = createSignal<ProjectDocument[]>([]);
 
   const pdfAssets = () =>
-    instanceState.assets.filter((a) => a.fileName.toLowerCase().endsWith(".pdf"));
+    instanceState.assets.filter((a) =>
+      a.fileName.toLowerCase().endsWith(".pdf"),
+    );
 
   const pdfOptions = createMemo(() =>
     pdfAssets().map((asset) => ({
       value: asset.fileName,
       label: asset.fileName,
-    }))
+    })),
   );
 
   onMount(async () => {
@@ -83,21 +83,33 @@ export function AIDocumentSelectorModal(
     },
     (data) => {
       p.close(data);
-    }
+    },
   );
 
   return (
     <AlertFormHolder
       formId="ai-document-selector"
-      header={t3({ en: "Include PDF documents for the AI to consider", fr: "Inclure des documents PDF pour l'IA" })}
+      header={t3({
+        en: "Include PDF documents for the AI to consider",
+        fr: "Inclure des documents PDF pour l'IA",
+      })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
-      saveButtonText={t3({ en: "Include selected", fr: "Inclure la sélection" })}
+      saveButtonText={t3({
+        en: "Include selected",
+        fr: "Inclure la sélection",
+      })}
     >
       <Show when={isLoading()}>
         <div class="flex justify-center py-4">
-          <LoadingIndicator msg={t3({ en: "LoadingIndicator assets...", fr: "Chargement des ressources..." })} noPad />
+          <LoadingIndicator
+            msg={t3({
+              en: "Loading assets...",
+              fr: "Chargement des ressources...",
+            })}
+            noPad
+          />
         </div>
       </Show>
 
@@ -105,10 +117,16 @@ export function AIDocumentSelectorModal(
         <Show
           when={pdfAssets().length > 0}
           fallback={
-            <div class="py-4 text-center text-base-content/60">
-              {t3({ en: "No PDF files found in assets.", fr: "Aucun fichier PDF trouvé dans les ressources." })}
+            <div class="text-base-content/60 py-4 text-center">
+              {t3({
+                en: "No PDF files found in assets.",
+                fr: "Aucun fichier PDF trouvé dans les ressources.",
+              })}
               <br />
-              {t3({ en: "Upload PDFs to the assets folder first.", fr: "Téléversez d'abord des PDF dans le dossier des ressources." })}
+              {t3({
+                en: "Upload PDFs to the assets folder first.",
+                fr: "Téléversez d'abord des PDF dans le dossier des ressources.",
+              })}
             </div>
           }
         >
@@ -130,7 +148,9 @@ export function AIDocumentSelectorModal(
 async function uploadAssetToAnthropic(
   projectId: string,
   assetFilename: string,
-): Promise<{ success: true; file_id: string } | { success: false; error: string }> {
+): Promise<
+  { success: true; file_id: string } | { success: false; error: string }
+> {
   try {
     const response = await fetch(`${_SERVER_HOST}/ai/files`, {
       method: "POST",
@@ -157,4 +177,3 @@ async function uploadAssetToAnthropic(
     };
   }
 }
-
