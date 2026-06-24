@@ -149,7 +149,7 @@ export function getToolsForSlides(
     createAITool({
       name: "replace_slide",
       description:
-        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor layout changes on existing content, prefer modify_slide_layout which preserves existing blocks. For content updates, prefer update_slide_content (preserves layout).\n\nIMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
+        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor layout changes on existing content, prefer modify_slide_layout which preserves existing blocks. For content updates, prefer update_slide_content (preserves layout).\n\nIMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use a from_metric block with a table-type preset (vizPresetId) instead.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         slide: z
@@ -199,7 +199,7 @@ export function getToolsForSlides(
     createAITool({
       name: "update_slide_content",
       description:
-        "Update specific content blocks within a slide while preserving the layout structure. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. Use block IDs from get_slide to target specific text or figure blocks for replacement. To add/remove blocks or change layout arrangement, use modify_slide_layout instead. IMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use from_metric with chartType='table' instead.",
+        "Update specific content blocks within a slide while preserving the layout structure. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. Use block IDs from get_slide to target specific text or figure blocks for replacement. NOTE: this REPLACES a block with new content (rebuilding a figure from scratch); to merely tweak an existing figure's config (replicant, filters, captions), edit it in the slide editor with update_figure instead. To add/remove blocks or change layout arrangement, use modify_slide_layout instead. IMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use a from_metric block with a table-type preset (vizPresetId) instead.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         updates: z.array(z.object({

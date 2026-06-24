@@ -130,7 +130,7 @@ export function getToolsForSlideEditor(
           )
           .optional()
           .describe(
-            `Content slide: update specific blocks by ID. Max ${MAX_CONTENT_BLOCKS} blocks. No markdown tables - use from_metric with chartType='table' instead. Mutually exclusive with layoutChange.`,
+            `Content slide: REPLACE specific blocks by ID with new content. Max ${MAX_CONTENT_BLOCKS} blocks. Use this to swap a block for a DIFFERENT figure (different metric/viz, or a different chart type) or to change a text block. To merely TWEAK an existing figure (e.g. its replicant, filters, captions), use update_figure instead — replacing a figure block here REBUILDS it from scratch and DISCARDS any prior edits, and a from_visualization replacement silently resets the replicant to the saved viz's default rather than to a value you choose. No markdown tables - use a from_metric block with a table-type preset (vizPresetId) instead. Mutually exclusive with layoutChange.`,
           ),
         layoutChange: z
           .object({
@@ -349,7 +349,7 @@ export function getToolsForSlideEditor(
     createAITool({
       name: "update_figure",
       description:
-        "Change the configuration of an existing FIGURE block on this slide — works regardless of how the figure was created (from_metric, from_visualization, or hand-built). Provide the figure's blockId (from get_slide_editor) and only the config fields you want to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption). The figure's chart type cannot be changed here. The figure's data is re-queried automatically. Changes are LOCAL (preview only) until the user clicks Save.",
+        "Edit an existing FIGURE block in place — THE tool for changing anything about a figure already on the slide (the replicant, filters, disaggregation, period, captions), regardless of how it was created. Provide the figure's blockId (from get_slide_editor) and only the fields to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption); everything else is preserved and the data is re-queried automatically. To CHANGE A REPLICANT, always use this — it validates the value against the available options and errors clearly. The figure's chart type cannot be changed here (recreate via a from_metric/from_visualization block to change type). Changes are LOCAL (preview only) until the user clicks Save.",
       inputSchema: z.object({
         blockId: z.string().describe("Figure block ID from get_slide_editor."),
         patch: AiFigureConfigPatchSchema,

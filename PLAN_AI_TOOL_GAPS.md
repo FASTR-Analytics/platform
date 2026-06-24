@@ -131,7 +131,7 @@ Same root cause as figures, different fields. A coherent follow-on plan.
   "with `chartType='table'`" → "with a table-type preset (`vizPresetId`)" in
   [slides.tsx:152](client/src/components/project_ai/ai_tools/tools/slides.tsx#L152),
   [slides.tsx:202](client/src/components/project_ai/ai_tools/tools/slides.tsx#L202),
-  [slide_editor.tsx:133](client/src/components/project_ai/ai_tools/tools/slide_editor.tsx#L133). [LOW] **(flagged 2026-06-24, follow-up)**
+  [slide_editor.tsx:133](client/src/components/project_ai/ai_tools/tools/slide_editor.tsx#L133). [LOW] **(FIXED 2026-06-24, all 3 spots → "table-type preset (vizPresetId)")**
 
 ---
 
