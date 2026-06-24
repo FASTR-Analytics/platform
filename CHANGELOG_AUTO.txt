@@ -1,3 +1,13 @@
+[TBD] [user] [added] - Edit existing figures directly without recreating them
+[TBD] [user] [added] - Change a figure's filters, date range, disaggregation, or captions in place
+[TBD] [user] [added] - Switch which replicant value a figure displays via the AI assistant
+[TBD] [user] [fixed] - AI edits no longer lose custom text styling on slides
+[TBD] [user] [fixed] - AI edits no longer lose per-cell layout settings like alignment and sizing
+[TBD] [user] [fixed] - Figure data now correctly reflects the selected replicant filter
+[TBD] [admin] [added] - AI can now edit existing figures directly without recreating them
+[TBD] [admin] [fixed] - AI no longer loses text styling when editing slide content
+[TBD] [admin] [fixed] - AI figure data previews now correctly reflect active replicant filters
+[TBD] [admin] [fixed] - Slide layout cell overrides preserved during AI edits
 [TBD] [user] [fixed] - Fixed loading messages displaying incorrectly as "LoadingIndicator"
 [TBD] [admin] [fixed] - Loading messages no longer show internal component names
 [TBD] [user] [fixed] - Dashboards with missing map data no longer fail to download
