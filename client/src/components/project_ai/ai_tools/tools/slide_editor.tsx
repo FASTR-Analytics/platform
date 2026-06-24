@@ -39,6 +39,7 @@ import {
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
+import { serverActions } from "~/server_actions";
 
 // Replace the bundle of one figure block in a content slide's layout, in place
 // (same blockId). Returns a fresh slide — never mutates the input.
