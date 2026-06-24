@@ -1,23 +1,25 @@
-[TBD] [user] [added] - Edit existing figures directly without recreating them
-[TBD] [user] [added] - Change a figure's filters, date range, disaggregation, or captions in place
-[TBD] [user] [added] - Switch which replicant value a figure displays via the AI assistant
-[TBD] [user] [fixed] - AI edits no longer lose custom text styling on slides
-[TBD] [user] [fixed] - AI edits no longer lose per-cell layout settings like alignment and sizing
-[TBD] [user] [fixed] - Figure data now correctly reflects the selected replicant filter
-[TBD] [admin] [added] - AI can now edit existing figures directly without recreating them
-[TBD] [admin] [fixed] - AI no longer loses text styling when editing slide content
-[TBD] [admin] [fixed] - AI figure data previews now correctly reflect active replicant filters
-[TBD] [admin] [fixed] - Slide layout cell overrides preserved during AI edits
-[TBD] [user] [fixed] - Fixed loading messages displaying incorrectly as "LoadingIndicator"
-[TBD] [admin] [fixed] - Loading messages no longer show internal component names
-[TBD] [user] [fixed] - Dashboards with missing map data no longer fail to download
-[TBD] [user] [fixed] - Clear error message shown when a figure's map data is missing
-[TBD] [user] [fixed] - Exporting dashboards as Excel no longer fails on broken figures
-[TBD] [admin] [fixed] - Dashboard exports no longer fail when a figure has missing map data
-[TBD] [admin] [fixed] - Figures with missing data show a placeholder instead of blocking the entire export
-[TBD] [admin] [fixed] - Security fix: uploaded filenames can no longer escape the assets directory
-[TBD] [user] [fixed] - AI suggestions now correctly account for active filters on replicated charts
-[TBD] [admin] [fixed] - AI no longer suggests embedding options for filtered-out dimensions
+[1.53.9] [user] [fixed] - AI assistant now edits existing figures in place instead of accidentally rebuilding them
+[1.53.9] [admin] [changed] - AI assistant now edits existing slide figures more reliably instead of rebuilding them
+[1.53.9] [user] [added] - Edit existing figures directly without recreating them
+[1.53.9] [user] [added] - Change a figure's filters, date range, disaggregation, or captions in place
+[1.53.9] [user] [added] - Switch which replicant value a figure displays via the AI assistant
+[1.53.9] [user] [fixed] - AI edits no longer lose custom text styling on slides
+[1.53.9] [user] [fixed] - AI edits no longer lose per-cell layout settings like alignment and sizing
+[1.53.9] [user] [fixed] - Figure data now correctly reflects the selected replicant filter
+[1.53.9] [admin] [added] - AI can now edit existing figures directly without recreating them
+[1.53.9] [admin] [fixed] - AI no longer loses text styling when editing slide content
+[1.53.9] [admin] [fixed] - AI figure data previews now correctly reflect active replicant filters
+[1.53.9] [admin] [fixed] - Slide layout cell overrides preserved during AI edits
+[1.53.9] [user] [fixed] - Fixed loading messages displaying incorrectly as "LoadingIndicator"
+[1.53.9] [admin] [fixed] - Loading messages no longer show internal component names
+[1.53.9] [user] [fixed] - Dashboards with missing map data no longer fail to download
+[1.53.9] [user] [fixed] - Clear error message shown when a figure's map data is missing
+[1.53.9] [user] [fixed] - Exporting dashboards as Excel no longer fails on broken figures
+[1.53.9] [admin] [fixed] - Dashboard exports no longer fail when a figure has missing map data
+[1.53.9] [admin] [fixed] - Figures with missing data show a placeholder instead of blocking the entire export
+[1.53.9] [admin] [fixed] - Security fix: uploaded filenames can no longer escape the assets directory
+[1.53.9] [user] [fixed] - AI suggestions now correctly account for active filters on replicated charts
+[1.53.9] [admin] [fixed] - AI no longer suggests embedding options for filtered-out dimensions
 [1.53.8] [user] [added] - Delete specific ICEH indicators instead of only all data
 [1.53.8] [user] [changed] - Importing ICEH data now keeps indicators from previous imports
 [1.53.8] [user] [changed] - Import warning now explains that imports are cumulative
