@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - AI-generated figures now correctly require a valid subgroup selection instead of silently defaulting
+[TBD] [admin] [fixed] - AI-generated figures now validate replicant selections instead of silently defaulting
 [1.53.9] [user] [fixed] - AI assistant now edits existing figures in place instead of accidentally rebuilding them
 [1.53.9] [admin] [changed] - AI assistant now edits existing slide figures more reliably instead of rebuilding them
 [1.53.9] [user] [added] - Edit existing figures directly without recreating them
