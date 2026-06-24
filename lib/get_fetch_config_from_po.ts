@@ -408,7 +408,7 @@ function getFiltersWithoutReplicant(config: PresentationObjectConfig): {
   return config.d.filterBy.filter((filter) => filter.values.length > 0);
 }
 
-function getFiltersWithReplicant(config: PresentationObjectConfig): {
+export function getFiltersWithReplicant(config: PresentationObjectConfig): {
   disOpt: DisaggregationOption;
   values: (string | number)[];
 }[] {

@@ -1,7 +1,52 @@
 # PLAN — Config-centric figure editing for slide decks & reports
 
-Status: DRAFT (report-only; no code yet). Author handoff doc — written to be
-mechanical to implement.
+Status: **IMPLEMENTED (narrowed scope), slide decks only — BROWSER-VERIFIED 2026-06-24, uncommitted.**
+
+> ## CURRENT STATUS (2026-06-24) — READ THIS FIRST
+>
+> The detailed body below is the original mechanical spec and **predates the scope
+> cut**. Where it conflicts with this box, this box is authoritative.
+>
+> **Shipped (slide decks):** an `update_figure` AI tool that edits an existing slide
+> figure's config in place, plus full read visibility (`get_slide_editor` now shows
+> each figure's config, the active replicant, and the available replicant values).
+> Implemented, typechecks (server + client), passed a clean multi-agent review.
+> **NOT yet committed.**
+>
+> **Editable fields:** replicant dimension + value, filters, disaggregation
+> arrangement, values filter/slot, admin-area rollup, period, captions.
+>
+> **Deliberately CUT from the original plan: chart `type` editing.** Letting the AI
+> change a figure's chart type (chart↔table↔timeseries↔map) was the repeated source
+> of validation bugs across several review rounds, so it was removed from the
+> schema, applier, and validators. To change a figure's type, recreate it via
+> `from_metric` / `from_visualization`. **Consequently the `convertVisualizationType`
+> routing and the `timeseriesGrouping`/`type` validation described in the body below
+> DO NOT EXIST in the shipped code.**
+>
+> **Why validation is small (and why it churned):** slide edits are a LOCAL preview
+> the user must click Save to persist, so the human reviewing the preview is the real
+> safety gate. The shipped code keeps only (a) value-validity — `validateMetricInputs`
+> (filters/period exist in the data) + the replicant-options check, the same checks
+> the editor and `from_metric` already use; and (b) the one authoritative structural
+> guard, `assertNoSlotCollision` (post-resolve, using the renderer's own
+> `hasDuplicateDisaggregatorDisplayOptions` + the real `dateRange`). The heavier
+> *predictive* structural validation that caused the churn was removed.
+>
+> **Also shipped (standalone fix):** G1 — text-block `style` is no longer dropped on
+> an AI edit ([get_slide_with_updated_blocks.ts](client/src/components/slide_deck/slide_ai/get_slide_with_updated_blocks.ts)).
+>
+> **Next steps:**
+> 1. ~~Browser-verify~~ — DONE 2026-06-24. Drove the AI through the full test
+>    catalogue in the running app: read-back surfaces the replicant + available
+>    values; `update_slide_editor` and `update_figure` both change the replicant and
+>    the data updates. 10/11 trials pass; the 11th (read-back can't label a figure
+>    as from_metric vs from_visualization, and shows no source viz id) is **by
+>    design** — the bundle is a detached snapshot with no stored provenance, and
+>    `update_figure` is origin-agnostic so the distinction doesn't change behaviour.
+> 2. ~~Commit~~ — committed 2026-06-24.
+> 3. **Reports = Phase 3 (Appendix A), still deferred.**
+> 4. Follow-ups tracked in [PLAN_AI_TOOL_GAPS.md](PLAN_AI_TOOL_GAPS.md).
 
 ## 1. Problem
 
@@ -76,10 +121,17 @@ Three pieces, built in two phases.
 
 The shared core — `AiFigureConfigPatchSchema`, `applyFigureConfigPatch`,
 `resolveBundleFromMetricAndConfig`, `formatFigureConfigForAI` — **must take plain
-inputs (metric + config + bundle) and know nothing about slides**: no `tempSlide`,
+inputs (metric + config + bundle) and know nothing about SLIDES**: no `tempSlide`,
 no layout types, no slide context. The ONLY slide-specific code is the thin
 wrapper that locates a block and writes it back. Hold this boundary and Phase 3
 (reports) is just a second wrapper around the same core, not a refactor.
+
+The guarantee is **slide-agnostic, not pure/framework-free.** The core legitimately
+reads client *instance* state (e.g. `formatFigureConfigForAI` needs
+`instanceState` for disaggregation labels — see §7.1) and project T2 caches (the
+replicant-options fetch). Those are shared by reports too, so they don't break
+Phase-3 reuse. The line to hold is specifically: no slide/layout/`tempSlide`
+coupling.
 
 ### Scope boundaries (decisions baked in)
 
@@ -101,7 +153,12 @@ wrapper that locates a block and writes it back. Hold this boundary and Phase 3
 field from the storage schema so types stay locked to `configDStrict`
 ([lib/types/_metric_installed.ts:151-173](lib/types/_metric_installed.ts#L151-L173))
 and the caption fields from `presentationObjectConfigTStrict`
-([lib/types/_presentation_object_config.ts:89-95](lib/types/_presentation_object_config.ts#L89-L95)).
+([lib/types/_presentation_object_config.ts:89-96](lib/types/_presentation_object_config.ts#L89-L96)).
+
+> **Import to add:** `ai_input.ts` currently imports only `configDStrict`
+> ([ai_input.ts:7](lib/types/ai_input.ts#L7)). Add
+> `import { presentationObjectConfigTStrict } from "./_presentation_object_config.ts";`
+> for the caption fields below.
 
 ```ts
 export const AiFigureConfigPatchSchema = z.object({
@@ -146,6 +203,12 @@ export type AiFigureConfigPatch = z.infer<typeof AiFigureConfigPatchSchema>;
 > Note: this is derived from the **storage schema** (`configDStrict`), not copied
 > from any existing tool. The field set is intentionally the data-shape subset a
 > figure needs; `s`/style is excluded by design.
+>
+> The near-identical `vizConfigUpdateSchema`
+> ([visualization_editor.tsx:23-67](client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx#L23-L67))
+> overlaps heavily but diverges deliberately (its `periodFilter.min/max` are
+> optional; ours requires both per §3). Keep them **separate** — do not try to
+> share one schema; the divergence is intentional, not duplication to DRY away.
 
 ---
 
@@ -154,11 +217,21 @@ export type AiFigureConfigPatch = z.infer<typeof AiFigureConfigPatchSchema>;
 **New file:** `client/src/generate_visualization/apply_figure_config_patch.ts`
 (pure; no fetches). Maps a patch onto an existing config, returning a fresh copy.
 
+> **Relocate `convertPeriodValue` to `lib` in Phase 1 (do this first).** It
+> currently lives in the slide-located `build_config_from_metric.ts`
+> ([:103-145](client/src/components/slide_deck/slide_ai/build_config_from_metric.ts#L103-L145))
+> but is a pure, calendar-agnostic function. Importing it from there into the
+> "slide-agnostic" core would couple the core to a slide file — the one thing §3
+> forbids. Move it to `lib` (e.g. `lib/convert_period_value.ts`, re-exported via
+> the barrel), update the one existing importer
+> (`build_config_from_metric.ts`), and import it from `lib` below. Trivial, and it
+> keeps the core clean from the first commit instead of carrying a slide import
+> into Phase 3.
+
 ```ts
-import type { PresentationObjectConfig } from "lib";
+import type { PresentationObjectConfig, PeriodOption } from "lib";
 import type { AiFigureConfigPatch } from "lib";
-import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
-import type { PeriodOption } from "lib";
+import { convertPeriodValue } from "lib"; // relocated from slide_ai (see note above)
 
 export function applyFigureConfigPatch(
   config: PresentationObjectConfig,
@@ -284,6 +357,13 @@ to: `buildConfigFromPreset(block, metrics)` → `validateMetricInputs` (keep) �
 now-duplicated inline replicant block. Net behavior identical for existing
 `from_metric` calls.
 
+> **Provably behavior-preserving** (review-confirmed): today
+> `buildConfigFromPreset` builds `resultsValueForViz` from exactly
+> `resultsValue.formatAs` / `valueProps` / `valueLabelReplacements`
+> ([build_config_from_metric.ts:53-57](client/src/components/slide_deck/slide_ai/build_config_from_metric.ts#L53-L57))
+> — identical to what the new core reconstructs from `metric.*`. So the
+> unification carries no behavior risk.
+
 > `MetricWithStatus` carries `id`, `resultsObjectId`,
 > `mostGranularTimePeriodColumnInResultsFile`, `formatAs`, `valueProps`,
 > `valueLabelReplacements`, `disaggregationOptions`, `postAggregationExpression`,
@@ -323,11 +403,24 @@ Emits (in order):
      `no_values_available` / fetch-fail, print the status instead of a list.
 5. `Values filter:` (or "showing all"), `Period filter:` (decoded), captions.
 6. **Available options** (so a patch isn't blind):
-   - `Available dimensions: <metric.disaggregationOptions[].value + label>`
+   - `Available dimensions:` — one line per `metric.disaggregationOptions`:
+     `- <opt.value>: <label>` + ` (required)` when `opt.isRequired`. **`opt` has
+     NO `.label` field** (its shape is `{ value, isRequired, allowedPresentationOptions? }`
+     — [modules.ts:42-46](lib/types/modules.ts#L42-L46)). Resolve the label the
+     same way the sibling formatter does
+     ([format_viz_editor_for_ai.ts:114-121](client/src/components/project_ai/ai_tools/tools/_internal/format_viz_editor_for_ai.ts#L114-L121)):
+     `getDisaggregationLabel(opt.value, { adminAreaLabels: instanceState.adminAreaLabels, facilityColumns: instanceState.facilityColumns }).en`.
    - `Valid display slots for <type>: <VALID_DIS_DISPLAY[type]>`
 
-This is the slide/report counterpart of the existing metric-data formatter and
-deliberately **does not** depend on the viz editor.
+> **Instance-state dependency (don't miss this).** Because of the label lookup,
+> `formatFigureConfigForAI` must `import { instanceState } from "~/state/instance/t1_store"`
+> and `getDisaggregationLabel` from lib — exactly like `format_viz_editor_for_ai.ts`.
+> It is therefore **not a pure function**; that's fine and does not break the §3
+> guarantee (instance state is shared by reports; the constraint is no *slide*
+> coupling, not purity).
+
+This is the slide/report counterpart of the existing metric-data formatter, built
+directly from the figure's config.
 
 ### 7.2 Wire into `get_slide_editor`
 
@@ -416,8 +509,9 @@ createAITool({
       bundle.config, input.patch, metric.mostGranularTimePeriodColumnInResultsFile,
     );
 
-    // 3. per-type display-slot validation (shared VALID_DIS_DISPLAY / VALID_VALUES_DISPLAY)
-    validateDisplaySlots(newConfig); // throws with a clear message on invalid slot/type combo
+    // 3. per-type display-slot validation (needs the METRIC for dim-availability
+    //    + the rollup gate — see helper note below)
+    validateDisplaySlots(newConfig, metric); // throws with a clear message on invalid combo
 
     // 4. re-resolve → new bundle (throws on bad replicant / no-data / too-many)
     const newBundle = await resolveBundleFromMetricAndConfig(projectId, metric, newConfig);
@@ -438,9 +532,13 @@ Helpers:
   swaps `node.data = { type: "figure", bundle }` at the matching item id. Model
   it on `updateLayoutNode` in
   [get_slide_with_updated_blocks.ts](client/src/components/slide_deck/slide_ai/get_slide_with_updated_blocks.ts).
-- `validateDisplaySlots(config)` — uses the shared `VALID_DIS_DISPLAY` /
-  `VALID_VALUES_DISPLAY` maps; throw "nothing changed" style errors BEFORE the
-  re-resolve (the re-resolve is the irreversible/expensive step).
+- `validateDisplaySlots(config, metric)` — **takes the metric**, not just the
+  config: dimension-availability (`disOpt ∈ metric.disaggregationOptions`) and the
+  `includeAdminAreaRollup` gate (`getEffectiveRollupLevel(metric, config)`) both
+  need it ([visualization_editor.tsx:143,167](client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx#L143)).
+  Uses the shared `VALID_DIS_DISPLAY` / `VALID_VALUES_DISPLAY` maps; throws
+  "nothing changed" style errors BEFORE the re-resolve (the re-resolve is the
+  irreversible/expensive step).
 
 **Error contract:** every throw must mean "no change applied." Validate (steps
 1–3) before any mutation; only `setTempSlide` after a successful re-resolve.
@@ -491,15 +589,22 @@ Phase 1 — SLIDE DECKS ONLY. The first six items are the **reports-agnostic cor
 (reused verbatim in Phase 3); the last three are the slide-specific wrapper +
 system prompt. No `report_editor.ts` changes in this phase.
 
-Core (reports-agnostic — no slide imports):
+Core (slide-agnostic — no slide imports):
 
-- [ ] `lib/types/ai_input.ts` — add `AiFigureConfigPatchSchema` + type (§4).
+- [ ] **Relocate `convertPeriodValue`** from `slide_ai/build_config_from_metric.ts`
+      to `lib` (re-export via barrel); update its one existing importer (§5).
+- [ ] `lib/types/ai_input.ts` — add `AiFigureConfigPatchSchema` + type; **add the
+      `presentationObjectConfigTStrict` import** (§4).
 - [ ] Extract `VALID_DIS_DISPLAY` / `VALID_VALUES_DISPLAY` from
-      `visualization_editor.tsx` into a shared module; add `validateDisplaySlots`.
+      `visualization_editor.tsx` into a shared module; add
+      `validateDisplaySlots(config, metric)` (§8.1).
 - [ ] `client/src/generate_visualization/apply_figure_config_patch.ts` — new (§5).
 - [ ] `client/src/generate_visualization/resolve_bundle_from_metric_and_config.ts` — new (§6).
+- [ ] **`client/src/generate_visualization/mod.ts`** — add export lines for the two
+      new files above (the slide adapter imports the core through this barrel).
 - [ ] Refactor `slide_ai/resolve_figure_from_metric.ts` to use the core (§6).
-- [ ] `_internal/format_figure_config_for_ai.ts` — new (§7.1).
+- [ ] `_internal/format_figure_config_for_ai.ts` — new; reads `instanceState` +
+      `getDisaggregationLabel` for dim labels (§7.1).
 - [ ] `_internal/format_metric_data_for_ai.ts` — `getDataFromConfig` folds
       `getFiltersWithReplicant` (§7.3); export `getFiltersWithReplicant` from lib.
 

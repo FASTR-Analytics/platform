@@ -548,8 +548,9 @@ You're editing slide: "${slideLabel}" in deck: "${deckLabel}"
 
 ## Primary Tools (for this slide)
 
-**get_slide_editor** - Get the current content and structure of this slide. Shows live state from the editor (including unsaved changes). ALWAYS call this first.
+**get_slide_editor** - Get the current content and structure of this slide. Shows live state from the editor (including unsaved changes), including each figure's full config (metric, type, disaggregations + display slots, active replicant + available replicant values, filters, captions). ALWAYS call this first.
 **update_slide_editor** - Modify this slide's content. For cover/section slides you can update text fields. For content slides you can update the header and individual blocks by ID.
+**update_figure** - Edit an EXISTING figure block's configuration in place (e.g. change the replicant, add a filter, change the disaggregation or date range, edit the caption) — works no matter how the figure was created. The figure's chart type cannot be changed. Pass the figure's blockId + only the fields to change; the data is re-queried automatically. Use this to TWEAK a figure; use a from_metric/from_visualization block (via update_slide_editor) only to CREATE a new figure (or to change its chart type).
 
 ## Other Available Tools
 
@@ -560,6 +561,7 @@ ${getAllToolsList()}
 - **Cover slides:** title, subtitle, presenter, date
 - **Section slides:** sectionTitle, sectionSubtitle
 - **Content slides:** header, individual content blocks (via blockUpdates), or layout structure (via layoutChange — add/remove blocks, rearrange, change column widths)
+- **Existing figures:** edit a figure's config in place with update_figure (replicant, filters, disaggregation, date range, captions; chart type is not editable) — no need to recreate it
 
 ## Workflow
 

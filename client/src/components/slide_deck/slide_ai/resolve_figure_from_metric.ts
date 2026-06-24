@@ -1,12 +1,11 @@
 import type { AiFigureFromMetric, FigureBlock, MetricWithStatus } from "lib";
-import { getFetchConfigFromPresentationObjectConfig, getReplicateByProp } from "lib";
-import { resolveFigureBundleFromMetric } from "~/generate_visualization/mod";
-import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
+import { resolveBundleFromMetricAndConfig } from "~/generate_visualization/mod";
 import { validateMetricInputs } from "~/components/project_ai/ai_tools/validators/content_validators";
 import { buildConfigFromPreset } from "./build_config_from_metric";
 
-// AI adapter: handles AI-specific validation and config building, then
-// delegates to the plain-inputs resolver in generate_visualization/.
+// AI adapter: builds the config from the preset + AI overrides, runs AI-specific
+// input validation, then delegates to the shared core (which validates the
+// replicant strictly and re-resolves the bundle).
 export async function resolveFigureFromMetric(
   projectId: string,
   block: AiFigureFromMetric,
@@ -18,55 +17,7 @@ export async function resolveFigureFromMetric(
   if (!buildResult.success) {
     throw new Error(buildResult.error);
   }
-
-  const { resultsValue, resultsValueForViz, config } = buildResult;
-
-  if (resultsValue.status !== "ready") {
-    throw new Error(`Metric "${metricId}" is not ready (status: ${resultsValue.status})`);
-  }
-
-  const resFetchConfig = getFetchConfigFromPresentationObjectConfig(resultsValue, config);
-  if (!resFetchConfig.success) {
-    throw new Error(resFetchConfig.err);
-  }
-  const fetchConfig = resFetchConfig.data;
-
-  const replicateBy = getReplicateByProp(config);
-  if (replicateBy) {
-    // The options query needs the auto-pin EXCLUDED (so it returns all in-scope
-    // values to validate against); the items fetch below keeps the pinned
-    // `fetchConfig`. Mirror resolveDefaultReplicant — do NOT reuse one config.
-    const optionsFetchConfig = getFetchConfigFromPresentationObjectConfig(
-      resultsValue,
-      config,
-      { excludeReplicantFilter: true },
-    );
-    if (!optionsFetchConfig.success) {
-      throw new Error(optionsFetchConfig.err);
-    }
-    const replicantRes = await getReplicantOptionsFromCacheOrFetch(
-      projectId,
-      resultsValue.resultsObjectId,
-      replicateBy,
-      optionsFetchConfig.data,
-    );
-    if (replicantRes.success && replicantRes.data.status === "ok") {
-      const validValues = replicantRes.data.possibleValues;
-      const selected = config.d.selectedReplicantValue;
-      if (selected && !validValues.some((v) => v.id === selected)) {
-        throw new Error(
-          `Invalid replicant value "${selected}" for metric "${metricId}". ` +
-          `Valid values: ${validValues.map((v) => v.label).join(", ")}`,
-        );
-      }
-      if (!selected) {
-        throw new Error(
-          `This preset requires a selectedReplicant value. ` +
-          `Valid values: ${validValues.map((v) => v.label).join(", ")}`,
-        );
-      }
-    }
-  }
+  const { resultsValue, config } = buildResult;
 
   const filters = config.d.filterBy.length > 0 ? config.d.filterBy : undefined;
   const periodFilter = config.d.periodFilter?.filterType === "custom"
@@ -74,18 +25,6 @@ export async function resolveFigureFromMetric(
     : undefined;
   await validateMetricInputs(projectId, metricId, filters, periodFilter);
 
-  const bundle = await resolveFigureBundleFromMetric(
-    projectId,
-    {
-      metricId,
-      resultsObjectId: resultsValue.resultsObjectId,
-      mostGranularTimePeriodColumnInResultsFile: resultsValue.mostGranularTimePeriodColumnInResultsFile,
-      moduleLastRun: "",
-      resultsValueForViz,
-      fetchConfig,
-    },
-    config,
-  );
-
+  const bundle = await resolveBundleFromMetricAndConfig(projectId, resultsValue, config);
   return { type: "figure", bundle };
 }

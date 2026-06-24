@@ -5,6 +5,7 @@ import {
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "../consts.ts";
 import { configDStrict } from "./_metric_installed.ts";
+import { presentationObjectConfigTStrict } from "./_presentation_object_config.ts";
 
 // ============================================================================
 // Shared filter schema - DERIVED from storage schema (configDStrict.filterBy)
@@ -138,6 +139,57 @@ export const AiFigureFromMetricSchema = z.object({
       "Optional: End of time range. Must be used together with startDate.",
     ),
 });
+
+// ============================================================================
+// Figure config PATCH schema — DERIVED from the storage schema (configDStrict +
+// caption fields). Used to EDIT an existing figure's config (update_figure) and,
+// in a later phase, to author arbitrary figures. The data-shape subset a figure
+// needs; style (`config.s`) is excluded by design. Distinct from
+// vizConfigUpdateSchema (viz editor) — that one's periodFilter is optional; here
+// both min/max are required. Keep them separate.
+// ============================================================================
+
+export const AiFigureConfigPatchSchema = z.object({
+  // ── config.d (data spec) ──
+  // NOTE: chart `type` is intentionally NOT editable — the figure keeps its type.
+  valuesDisDisplayOpt: configDStrict.shape.valuesDisDisplayOpt.optional()
+    .describe("Display slot for the values dimension. Valid slots depend on the figure's type."),
+  valuesFilter: z.union([configDStrict.shape.valuesFilter, z.null()]).optional()
+    .describe("Which value properties to show, or null to show all."),
+  disaggregateBy: configDStrict.shape.disaggregateBy.optional()
+    .describe(
+      "Replaces ALL disaggregations. Each is { disOpt, disDisplayOpt }; set a "
+      + "dimension's disDisplayOpt to 'replicant' to replicate by it.",
+    ),
+  filterBy: configDStrict.shape.filterBy.optional()
+    .describe("Replaces ALL data filters. Empty array clears."),
+  selectedReplicantValue: z.union([z.string(), z.null()]).optional()
+    .describe(
+      "Which replicant value to show (e.g. 'opd'); null to clear. Only "
+      + "meaningful when a disaggregation is displayed as 'replicant'.",
+    ),
+  includeAdminAreaRollup: configDStrict.shape.includeAdminAreaRollup
+    .describe("Add an admin-area total row — true to add (constraints apply; error if unavailable), false to remove."),
+  adminAreaRollupPosition: configDStrict.shape.adminAreaRollupPosition
+    .describe("'top' or 'bottom'; defaults to bottom."),
+  periodFilter: z.union([
+    z.object({
+      min: z.number().describe("Start period (YYYY / YYYYQ / YYYYMM)."),
+      max: z.number().describe("End period (same format)."),
+    }),
+    z.null(),
+  ]).optional().describe("Time range filter, or null to clear."),
+
+  // ── config.t (captions) ──
+  caption: presentationObjectConfigTStrict.shape.caption.optional()
+    .describe("Main chart/table title."),
+  subCaption: presentationObjectConfigTStrict.shape.subCaption.optional()
+    .describe("Subtitle text."),
+  footnote: presentationObjectConfigTStrict.shape.footnote.optional()
+    .describe("Footnote text."),
+});
+
+export type AiFigureConfigPatch = z.infer<typeof AiFigureConfigPatchSchema>;
 
 // Union schemas
 

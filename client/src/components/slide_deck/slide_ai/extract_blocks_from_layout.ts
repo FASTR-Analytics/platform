@@ -1,6 +1,7 @@
 import type { ContentBlock, MetricWithStatus, Slide } from "lib";
 import type { LayoutNode } from "panther";
 import { getDataFromConfig } from "~/components/project_ai/ai_tools/tools/_internal/format_metric_data_for_ai";
+import { formatFigureConfigForAI } from "~/components/project_ai/ai_tools/tools/_internal/format_figure_config_for_ai";
 import { layoutNodeToStructure, type LayoutStructure } from "./layout_spec_helpers";
 
 export type BlockWithId = {
@@ -74,24 +75,26 @@ export async function simplifySlideForAI(projectId: string, slide: Slide, metric
       } else {
         // Figure block
         if (block.bundle) {
+          const bundle = block.bundle;
+          const metric = (metrics ?? []).find((m) => m.id === bundle.metricId);
+          let cfg: string;
           try {
-            const dataOutput = await getDataFromConfig(
-              projectId,
-              block.bundle.metricId,
-              metrics ?? [],
-              block.bundle.config,
-            );
-            const header = [
-              `Figure (metric: ${block.bundle.metricId}, type: ${block.bundle.config.d.type})`,
-              "",
-            ].join("\n");
-            return { id, summary: header + dataOutput };
+            cfg = await formatFigureConfigForAI(projectId, metric, bundle.config);
           } catch (err) {
-            return {
-              id,
-              summary: `Figure (metric: ${block.bundle.metricId}) - Error loading data: ${err}`,
-            };
+            cfg = `Figure (metric: ${bundle.metricId}, type: ${bundle.config.d.type}) — config unavailable: ${err}`;
           }
+          let data: string;
+          try {
+            data = await getDataFromConfig(
+              projectId,
+              bundle.metricId,
+              metrics ?? [],
+              bundle.config,
+            );
+          } catch (err) {
+            data = `(data unavailable: ${err})`;
+          }
+          return { id, summary: `Figure\n${cfg}\n\n${data}` };
         } else {
           return { id, summary: "Figure (no data)" };
         }

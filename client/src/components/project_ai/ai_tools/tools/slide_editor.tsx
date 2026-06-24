@@ -1,18 +1,29 @@
 import {
   AiContentBlockInputSchema,
+  AiFigureConfigPatchSchema,
   LayoutSpecSchema,
   MAX_CONTENT_BLOCKS,
   type AiContentBlockInput,
   type ContentBlock,
+  type FigureBundle,
   type MetricWithStatus,
+  type Slide,
 } from "lib";
 import { createAITool } from "panther";
+import type { LayoutNode } from "panther";
+import {
+  applyFigureConfigPatch,
+  assertNoSlotCollision,
+  resolveBundleFromMetricAndConfig,
+  validateDisplaySlots,
+} from "~/generate_visualization/mod";
 import { reconcile } from "solid-js/store";
 import { unwrap } from "solid-js/store";
 import { z } from "zod";
 import type { AIContext } from "~/components/project_ai/types";
 import {
   validateMaxContentBlocks,
+  validateMetricInputs,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../validators/content_validators";
@@ -28,6 +39,25 @@ import {
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
+
+// Replace the bundle of one figure block in a content slide's layout, in place
+// (same blockId). Returns a fresh slide — never mutates the input.
+function replaceFigureBundleInLayout(
+  slide: Extract<Slide, { type: "content" }>,
+  blockId: string,
+  bundle: FigureBundle,
+): Slide {
+  function walk(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> {
+    if (node.type === "item") {
+      // Spread-and-override: preserve node-level fields (style, alignV, minH,
+      // maxH) — only swap the block data. Reconstructing from a fixed field list
+      // would silently drop the user's per-cell overrides on Save.
+      return node.id === blockId ? { ...node, data: { type: "figure", bundle } } : node;
+    }
+    return { ...node, children: node.children.map(walk) };
+  }
+  return { ...slide, layout: walk(slide.layout) };
+}
 
 export function getToolsForSlideEditor(
   projectId: string,
@@ -315,6 +345,73 @@ export function getToolsForSlideEditor(
         ).length;
         return `Updated ${changeCount} field(s)`;
       },
+    }),
+    createAITool({
+      name: "update_figure",
+      description:
+        "Change the configuration of an existing FIGURE block on this slide — works regardless of how the figure was created (from_metric, from_visualization, or hand-built). Provide the figure's blockId (from get_slide_editor) and only the config fields you want to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption). The figure's chart type cannot be changed here. The figure's data is re-queried automatically. Changes are LOCAL (preview only) until the user clicks Save.",
+      inputSchema: z.object({
+        blockId: z.string().describe("Figure block ID from get_slide_editor."),
+        patch: AiFigureConfigPatchSchema,
+      }),
+      handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "editing_slide") {
+          throw new Error("This tool is only available when editing a slide");
+        }
+
+        const slide = unwrap(ctx.getTempSlide());
+        if (slide.type !== "content") {
+          throw new Error("Figures only exist on content slides");
+        }
+
+        const found = extractBlocksFromLayout(slide.layout).find(
+          (b) => b.id === input.blockId,
+        );
+        if (!found) {
+          const ids = extractBlocksFromLayout(slide.layout).map((b) => b.id).join(", ");
+          throw new Error(
+            `Figure block "${input.blockId}" not found. Block IDs: ${ids}. Use get_slide_editor to see current block IDs.`,
+          );
+        }
+        if (found.block.type !== "figure" || !found.block.bundle) {
+          throw new Error(`Block "${input.blockId}" is not a figure.`);
+        }
+        const bundle = found.block.bundle;
+
+        const metric = metrics.find((m) => m.id === bundle.metricId);
+        if (!metric) {
+          throw new Error(`Metric "${bundle.metricId}" not found in this project.`);
+        }
+
+        // Build + validate the patched config UP FRONT (a throw must mean
+        // "nothing changed"); only re-resolve + commit once it's valid.
+        const newConfig = applyFigureConfigPatch(
+          bundle.config,
+          input.patch,
+          metric.mostGranularTimePeriodColumnInResultsFile,
+        );
+        validateDisplaySlots(newConfig, metric, input.patch);
+
+        // Same value-validity check the editor + from_metric use: filter values
+        // and the period range must exist in the data.
+        const filters = newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;
+        const periodFilter = newConfig.d.periodFilter?.filterType === "custom"
+          ? { min: newConfig.d.periodFilter.min, max: newConfig.d.periodFilter.max }
+          : undefined;
+        await validateMetricInputs(projectId, bundle.metricId, filters, periodFilter);
+
+        const newBundle = await resolveBundleFromMetricAndConfig(projectId, metric, newConfig);
+
+        // Slot-collision check needs the data's real dateRange (degeneracy) so it
+        // matches the renderer exactly — run it post-resolve, still before commit.
+        assertNoSlotCollision(newConfig, metric, newBundle.dateRange);
+
+        ctx.setTempSlide(reconcile(replaceFigureBundleInLayout(slide, input.blockId, newBundle)));
+        return `Updated figure ${input.blockId}. The preview will update automatically. User must click "Save" to persist changes.`;
+      },
+      inProgressLabel: "Updating figure...",
+      completionMessage: "Updated figure",
     }),
   ];
 }

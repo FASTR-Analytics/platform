@@ -10,6 +10,7 @@ import {
   GenericLongFormFetchConfig,
   ICEH_STRAT_INFO,
   ItemsHolderPresentationObject,
+  getFiltersWithReplicant,
   inferPeriodFormatFromValue,
   periodFilterHasBounds,
 } from "lib";
@@ -540,7 +541,14 @@ export async function getDataFromConfig(
     disaggregations.push(config.d.timeseriesGrouping);
   }
 
-  const filters = config.d.filterBy;
+  // Fold in the replicant pin so the excerpt matches what the figure renders
+  // (the figure's items are filtered to selectedReplicantValue). Only when a
+  // value is actually selected — otherwise getFiltersWithReplicant would pin the
+  // "UNSELECTED" sentinel and return no rows (the viz editor's live config may
+  // leave the replicant unresolved).
+  const filters = config.d.selectedReplicantValue
+    ? getFiltersWithReplicant(config)
+    : config.d.filterBy;
 
   const boundedFilter =
     config.d.periodFilter && periodFilterHasBounds(config.d.periodFilter)

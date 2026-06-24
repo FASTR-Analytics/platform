@@ -7,7 +7,8 @@ import {
 import { createAITool } from "panther";
 import { z } from "zod";
 import type { AIContext } from "~/components/project_ai/types";
-import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
+import { convertPeriodValue } from "lib";
+import { VALID_DIS_DISPLAY, VALID_VALUES_DISPLAY } from "~/generate_visualization/validate_display_slots";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
 import { formatVizEditorForAI } from "./_internal/format_viz_editor_for_ai";
@@ -66,20 +67,8 @@ const vizConfigUpdateSchema = z.object({
   footnote: presentationObjectConfigTStrict.shape.footnote.optional().describe("Footnote text"),
 });
 
-// Keep these for runtime validation that depends on current type
-const VALID_DIS_DISPLAY: Record<string, string[]> = {
-  timeseries: ["series", "cell", "row", "col", "replicant"],
-  table: ["row", "col", "rowGroup", "colGroup", "replicant"],
-  chart: ["indicator", "series", "cell", "row", "col", "replicant"],
-  map: ["mapArea", "cell", "row", "col", "replicant"],
-};
-
-const VALID_VALUES_DISPLAY: Record<string, string[]> = {
-  timeseries: ["series", "cell", "row", "col"],
-  table: ["row", "col", "rowGroup", "colGroup"],
-  chart: ["indicator", "series", "cell", "row", "col"],
-  map: ["cell", "row", "col"],
-};
+// VALID_DIS_DISPLAY / VALID_VALUES_DISPLAY are imported from the shared
+// validate_display_slots module (single source of truth).
 
 export function getToolsForVizEditor(
   projectId: string,

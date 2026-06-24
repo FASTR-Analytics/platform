@@ -24,12 +24,31 @@ export async function getSlideWithUpdatedBlocks(
     throw new Error(`Block ID(s) not found in slide: ${unknownIds.join(", ")}. Available block IDs: ${layoutIds.join(", ")}. Use get_slide to see current block IDs.`);
   }
 
+  // Existing blocks by id, so an edit preserves fields the AI's input schema
+  // cannot express — e.g. a text block's user-set style. Without this, the
+  // whole-block replace below silently drops textSize/textBackground on every
+  // text edit.
+  const existingById = new Map<string, ContentBlock>();
+  function collectBlocks(node: LayoutNode<ContentBlock>): void {
+    if (node.type === "item") {
+      existingById.set(node.id, node.data);
+      return;
+    }
+    node.children.forEach(collectBlocks);
+  }
+  collectBlocks(currentSlide.layout);
+
   // Build update map with resolved content
   const updateMap = new Map<string, ContentBlock>();
 
   for (const update of updates) {
     if (update.newContent.type === "text") {
-      updateMap.set(update.blockId, update.newContent);
+      const existing = existingById.get(update.blockId);
+      const style = existing?.type === "text" ? existing.style : undefined;
+      updateMap.set(
+        update.blockId,
+        style ? { ...update.newContent, style } : update.newContent,
+      );
     } else if (update.newContent.type === "from_visualization") {
       try {
         const figureBlock = await resolveFigureFromVisualization(projectId, update.newContent);
@@ -57,25 +76,15 @@ export async function getSlideWithUpdatedBlocks(
     }
   }
 
-  // Walk layout tree and apply updates
+  // Walk layout tree and apply updates. Spread-and-override so node-level
+  // overrides (style, alignV, minH, maxH) survive — reconstructing from a fixed
+  // field list would silently drop them.
   function updateLayoutNode(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> {
     if (node.type === "item") {
       const updatedBlock = updateMap.get(node.id);
-      return {
-        type: "item",
-        id: node.id,
-        span: node.span,
-        data: updatedBlock || node.data,
-      };
+      return updatedBlock ? { ...node, data: updatedBlock } : node;
     }
-
-    // Rows/cols - recurse
-    return {
-      type: node.type,
-      id: node.id,
-      span: node.span,
-      children: node.children.map(updateLayoutNode),
-    };
+    return { ...node, children: node.children.map(updateLayoutNode) };
   }
 
   return {

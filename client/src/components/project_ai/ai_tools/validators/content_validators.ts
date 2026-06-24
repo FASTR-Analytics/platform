@@ -2,12 +2,12 @@ import {
   MAX_CONTENT_BLOCKS,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
+  convertPeriodValue,
   inferPeriodFormatFromValue,
   type AiMetricQuery,
   type DisaggregationOption,
   type MetricWithStatus,
 } from "lib";
-import { convertPeriodValue } from "~/components/slide_deck/slide_ai/build_config_from_metric";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 
 const MARKDOWN_TABLE_PATTERNS = [
