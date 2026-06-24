@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Fixed loading messages displaying incorrectly as "LoadingIndicator"
+[TBD] [admin] [fixed] - Loading messages no longer show internal component names
 [TBD] [user] [fixed] - Dashboards with missing map data no longer fail to download
 [TBD] [user] [fixed] - Clear error message shown when a figure's map data is missing
 [TBD] [user] [fixed] - Exporting dashboards as Excel no longer fails on broken figures
