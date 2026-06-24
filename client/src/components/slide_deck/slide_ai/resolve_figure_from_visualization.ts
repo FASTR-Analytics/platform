@@ -1,7 +1,14 @@
-// AI layer: thin wrapper over the S10 resolver.
-// Non-AI consumers (dashboards, reports) import from ~/generate_visualization/mod directly.
+// AI layer: compose the shared resolver pieces with strict replicant validation
+// in the middle — the same authoring policy as the from_metric / update_figure
+// paths (resolveBundleFromMetricAndConfig). Non-AI consumers (dashboards, reports,
+// interactive editor) compose without the validation step and keep the lenient
+// auto-default.
 import type { AiFigureFromVisualization, FigureBlock } from "lib";
-import { resolveFigureBundleFromVisualization } from "~/generate_visualization/mod";
+import {
+  assertReplicantValid,
+  getConfigForVisualization,
+  resolveFigureBundleFromVizConfig,
+} from "~/generate_visualization/mod";
 
 export { resolveFigureAndGeoFromVisualization } from "~/generate_visualization/mod";
 
@@ -9,6 +16,8 @@ export async function resolveFigureFromVisualization(
   projectId: string,
   block: AiFigureFromVisualization,
 ): Promise<FigureBlock> {
-  const bundle = await resolveFigureBundleFromVisualization(projectId, block);
+  const { poDetail, config } = await getConfigForVisualization(projectId, block);
+  await assertReplicantValid(projectId, poDetail.resultsValue, config);
+  const bundle = await resolveFigureBundleFromVizConfig(projectId, poDetail, config);
   return { type: "figure", bundle };
 }

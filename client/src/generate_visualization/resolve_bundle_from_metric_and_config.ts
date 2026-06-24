@@ -1,6 +1,6 @@
 import type { FigureBundle, MetricWithStatus, PresentationObjectConfig } from "lib";
-import { getFetchConfigFromPresentationObjectConfig, getReplicateByProp } from "lib";
-import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
+import { getFetchConfigFromPresentationObjectConfig } from "lib";
+import { assertReplicantValid } from "./assert_replicant_valid";
 import { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
 
 // Unified figure resolver: given a metric + a full config, validate the
@@ -22,39 +22,8 @@ export async function resolveBundleFromMetricAndConfig(
     throw new Error(resFetch.err);
   }
 
-  const replicateBy = getReplicateByProp(config);
-  if (replicateBy) {
-    // Options query needs the auto-pin EXCLUDED so it returns all in-scope
-    // values to validate against; the items fetch keeps the pinned config.
-    const resOptions = getFetchConfigFromPresentationObjectConfig(metric, config, {
-      excludeReplicantFilter: true,
-    });
-    if (!resOptions.success) {
-      throw new Error(resOptions.err);
-    }
-    const optRes = await getReplicantOptionsFromCacheOrFetch(
-      projectId,
-      metric.resultsObjectId,
-      replicateBy,
-      resOptions.data,
-    );
-    if (optRes.success && optRes.data.status === "ok") {
-      const valid = optRes.data.possibleValues;
-      const selected = config.d.selectedReplicantValue;
-      if (!selected) {
-        throw new Error(
-          `This figure replicates by "${replicateBy}" and needs a selectedReplicantValue. `
-          + `Valid values: ${valid.map((v) => v.label).join(", ")}`,
-        );
-      }
-      if (!valid.some((v) => v.id === selected)) {
-        throw new Error(
-          `Invalid replicant value "${selected}" for metric "${metric.id}". `
-          + `Valid values: ${valid.map((v) => v.label).join(", ")}`,
-        );
-      }
-    }
-  }
+  // Strict replicant validation (shared with the from_visualization AI path).
+  await assertReplicantValid(projectId, metric, config);
 
   return resolveFigureBundleFromMetric(
     projectId,

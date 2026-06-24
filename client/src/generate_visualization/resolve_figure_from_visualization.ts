@@ -1,4 +1,4 @@
-import type { FigureBlock, FigureBundle, IndicatorMetadata, ItemsHolderPresentationObject, PeriodBounds, PresentationObjectConfig, ResultsValue } from "lib";
+import type { FigureBlock, FigureBundle, IndicatorMetadata, ItemsHolderPresentationObject, PeriodBounds, PresentationObjectConfig, PresentationObjectDetail, ResultsValue } from "lib";
 import { getReplicateByProp } from "lib";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
@@ -12,12 +12,14 @@ import {
 // `type` is optional for callers that carry the discriminant from the AI input shape.
 export type VisualizationInput = { visualizationId: string; replicant?: string; type?: string };
 
-// Produces a FigureBundle from a visualization (PO). The bundle is
-// self-contained: config, items, localization, and geo are all captured.
-export async function resolveFigureBundleFromVisualization(
+// Step 1 of resolving a figure from a saved visualization: fetch the PO and build
+// the config to resolve from (clone the stored config + apply the replicant
+// override). Shared by the render path and the AI authoring path — the AI path
+// runs assertReplicantValid on this config BEFORE step 2.
+export async function getConfigForVisualization(
   projectId: string,
   block: VisualizationInput,
-): Promise<FigureBundle> {
+): Promise<{ poDetail: PresentationObjectDetail; config: PresentationObjectConfig }> {
   const poDetailRes = await getPODetailFromCacheorFetch(projectId, block.visualizationId);
   if (!poDetailRes.success) {
     throw new Error(`Failed to fetch visualization: ${poDetailRes.err}`);
@@ -32,7 +34,19 @@ export async function resolveFigureBundleFromVisualization(
     }
   }
 
-  const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(projectId, poDetailRes.data, config);
+  return { poDetail: poDetailRes.data, config };
+}
+
+// Step 2: resolve a self-contained FigureBundle from a PO detail + config — fetch
+// items (the items fetch auto-defaults an unset replicant so a figure always
+// renders), capture geo, assemble. No replicant validation here; authoring paths
+// run assertReplicantValid on the config before calling this.
+export async function resolveFigureBundleFromVizConfig(
+  projectId: string,
+  poDetail: PresentationObjectDetail,
+  config: PresentationObjectConfig,
+): Promise<FigureBundle> {
+  const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(projectId, poDetail, config);
   if (!itemsRes.success) {
     throw new Error(`Failed to fetch items: ${itemsRes.err}`);
   }
@@ -46,7 +60,7 @@ export async function resolveFigureBundleFromVisualization(
   }
 
   const effectiveConfig = itemsRes.data.config;
-  const { resultsValue } = poDetailRes.data;
+  const { resultsValue } = poDetail;
   const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
 
   // Capture geo as data for storage (public dashboards need it; slides re-derive
@@ -76,6 +90,18 @@ export async function resolveFigureBundleFromVisualization(
       datasetsVersion: ih.datasetsVersion,
     },
   };
+}
+
+// Render / interactive path: build the config from the viz, then resolve. Lenient
+// by composition — an unset replicant auto-defaults so a figure always shows. The
+// AI authoring path instead composes getConfigForVisualization → assertReplicantValid
+// → resolveFigureBundleFromVizConfig.
+export async function resolveFigureBundleFromVisualization(
+  projectId: string,
+  block: VisualizationInput,
+): Promise<FigureBundle> {
+  const { poDetail, config } = await getConfigForVisualization(projectId, block);
+  return resolveFigureBundleFromVizConfig(projectId, poDetail, config);
 }
 
 // P2: non-fetch bundle assembly for callers that already hold fetched PO data
@@ -108,7 +134,7 @@ export function makeFigureBundleFromFetchedData(data: FetchedPOData): FigureBund
   };
 }
 
-// Convenience: resolve and return FigureBlock + extracted geo.
+// Convenience: resolve and return FigureBlock + extracted geo (render/interactive path).
 export async function resolveFigureAndGeoFromVisualization(
   projectId: string,
   block: VisualizationInput,

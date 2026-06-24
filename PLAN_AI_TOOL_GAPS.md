@@ -135,6 +135,30 @@ Same root cause as figures, different fields. A coherent follow-on plan.
 
 ---
 
+## Architecture follow-up — unify the figure-resolution cores
+
+The AI figure create/edit paths now share replicant validation (`assertReplicantValid`,
+applied uniformly by `resolveBundleFromMetricAndConfig` and the from_visualization
+AI adapter — no flags). Done 2026-06-24.
+
+**Still split: the bundle-RESOLUTION core.** Two functions do "config → fetch items
+→ capture geo → assemble FigureBundle" with different item-fetch mechanics:
+- `resolveFigureBundleFromMetric` (metric source; caller precomputes the fetchConfig)
+- `resolveFigureBundleFromVizConfig` (PO source; items fetch auto-defaults the replicant)
+
+Plus a third assembler, `makeFigureBundleFromFetchedData` (for callers that already
+hold fetched data). **Goal:** one `resolveFigureBundle(source, config)` core used by
+every create/edit/render path, with the metric vs PO difference reduced to how the
+`source` (resultsObjectId + resultsValueForViz + fetch mechanics) is produced.
+
+Friction to design around: the metric path fetches items via `_PO_ITEMS_CACHE` with
+a precomputed fetchConfig; the PO path goes through `getPresentationObjectItemsFromCacheOrFetch`
+(which runs `resolveDefaultReplicant`). Reconciling those two item-fetch routes is the
+real work. **Higher blast radius** (dashboards/public/reports render through the PO
+core) → own scoped refactor + review pass, not improvised. [MED — reuse/quality, not a bug]
+
+---
+
 ## Sequencing
 
 These do **not** block or alter the figure plan — proceed with decks → reports

@@ -1,6 +1,7 @@
 export { buildFigureInputs } from "./build_figure_inputs";
-export { resolveFigureBundleFromVisualization, resolveFigureAndGeoFromVisualization, makeFigureBundleFromFetchedData } from "./resolve_figure_from_visualization";
+export { resolveFigureBundleFromVisualization, resolveFigureAndGeoFromVisualization, makeFigureBundleFromFetchedData, getConfigForVisualization, resolveFigureBundleFromVizConfig } from "./resolve_figure_from_visualization";
 export type { VisualizationInput, FetchedPOData } from "./resolve_figure_from_visualization";
+export { assertReplicantValid } from "./assert_replicant_valid";
 export { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
 export type { MetricInputsForBundle } from "./resolve_figure_from_metric";
 export { resolveBundleFromMetricAndConfig } from "./resolve_bundle_from_metric_and_config";
