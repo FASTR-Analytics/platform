@@ -22,7 +22,7 @@ export async function IncrementInstanceWeeklyTokenUsage(mainDb: Sql, tokens: num
 export async function AddAiUsageLog(
     mainDb: Sql,
     user_email: string,
-    project_id: string,
+    project_id: string | null,
     model: string,
     input_tokens: number,
     output_tokens: number,

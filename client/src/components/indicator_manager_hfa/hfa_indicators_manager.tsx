@@ -41,6 +41,7 @@ import {
   HfaUnusedVariablesModal,
   type UnusedVariablesByTimePoint,
 } from "./hfa_unused_variables_modal";
+import { HfaIndicatorAiWrapper } from "./ai";
 
 type Props = {
   backToInstance: () => void;
@@ -48,6 +49,7 @@ type Props = {
 
 export function HfaIndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
+  const [showAi, setShowAi] = createSignal(false);
 
   const [indicators, setIndicators] = createSignal<StateHolder<HfaIndicator[]>>(
     {
@@ -707,6 +709,7 @@ export function HfaIndicatorsManager(p: Props) {
 
   return (
     <EditorWrapper>
+      <HfaIndicatorAiWrapper show={showAi} onClose={() => setShowAi(false)}>
       <FrameTop
         panelChildren={
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
@@ -714,6 +717,15 @@ export function HfaIndicatorsManager(p: Props) {
             <div class="font-700 flex-1 truncate text-xl">
               {t3({ en: "HFA INDICATORS", fr: "INDICATEURS HFA" })}
             </div>
+            <Show when={instanceState.currentUserIsGlobalAdmin}>
+              <Button
+                iconName="sparkles"
+                outline
+                onClick={() => setShowAi((v) => !v)}
+              >
+                {t3({ en: "AI", fr: "IA" })}
+              </Button>
+            </Show>
           </div>
         }
       >
@@ -826,6 +838,7 @@ export function HfaIndicatorsManager(p: Props) {
           </div>
         </FrameTop>
       </FrameTop>
+      </HfaIndicatorAiWrapper>
     </EditorWrapper>
   );
 }
