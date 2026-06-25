@@ -8,7 +8,9 @@ import {
 } from "../../exposed_env_vars.ts";
 import {
   APIResponseWithData,
+  composeHfaIndicatorLabel,
   DatasetHfaInfoInProject,
+  getHfaIndicatorMeasure,
   getEnabledOptionalFacilityColumns,
   hashFacilityColumnsConfig,
   throwIfErrNoData,
@@ -416,7 +418,8 @@ export async function getHfaTaxonomyForAI(
     })),
     indicators: indicators.map((i) => ({
       id: i.varName,
-      label: i.shortLabel || i.definition,
+      label: composeHfaIndicatorLabel(i, "full"),
+      measure: getHfaIndicatorMeasure(i.type, i.aggregation).label.en,
       categoryId: i.categoryId,
       subCategoryId: i.subCategoryId,
       serviceCategoryIds: i.serviceCategoryIds,

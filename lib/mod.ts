@@ -5,6 +5,7 @@ export * from "./consts.ts";
 export * from "./convert_period_value.ts";
 export * from "./convert_visualization_type.ts";
 export * from "./disaggregation_labels.ts";
+export * from "./hfa_indicator_labels.ts";
 export * from "./format_nigeria_admin_label.ts";
 export * from "./normalize_po_config.ts";
 export * from "./get_disaggregator_display_prop.ts";

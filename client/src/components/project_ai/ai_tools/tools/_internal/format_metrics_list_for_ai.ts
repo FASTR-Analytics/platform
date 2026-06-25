@@ -188,7 +188,7 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
       ind.serviceCategoryIds.length > 0
         ? `  [service categories: ${ind.serviceCategoryIds.join(", ")}]`
         : "";
-    lines.push(`      - ${ind.id}: ${ind.label}${svcStr}`);
+    lines.push(`      - ${ind.id}: ${ind.label} [${ind.measure}]${svcStr}`);
   }
   lines.push("");
 

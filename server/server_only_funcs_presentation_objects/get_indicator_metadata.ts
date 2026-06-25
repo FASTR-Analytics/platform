@@ -5,7 +5,15 @@ import {
   getAllCalculatedIndicatorsFromSnapshot,
   getAllIcehIndicatorsFromSnapshot,
 } from "../db/mod.ts";
-import { ICEH_STRAT_INFO, IndicatorMetadata, type DatasetType } from "lib";
+import {
+  composeHfaIndicatorLabel,
+  getHfaIndicatorMeasure,
+  ICEH_STRAT_INFO,
+  IndicatorMetadata,
+  type DatasetType,
+  type HfaIndicatorAggregation,
+  type HfaIndicatorType,
+} from "lib";
 
 type ModuleDataSource = {
   sourceType: string;
@@ -85,11 +93,16 @@ export async function getIndicatorMetadata(
       ORDER BY sort_order, var_name
     `;
     for (const row of hfaIndicators) {
-      const format_as = row.type === "binary" && row.aggregation === "avg" ? "percent" : "number";
       metadata.push({
         id: row.var_name,
-        label: row.short_label || row.definition,
-        format_as,
+        label: composeHfaIndicatorLabel(
+          { shortLabel: row.short_label, definition: row.definition },
+          "compact",
+        ),
+        format_as: getHfaIndicatorMeasure(
+          row.type as HfaIndicatorType,
+          row.aggregation as HfaIndicatorAggregation,
+        ).kind,
         sort_order: row.sort_order,
       });
     }
