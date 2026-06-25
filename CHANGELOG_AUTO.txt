@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Setup prompts now appear only after account is approved
+[TBD] [admin] [fixed] - Post-login prompts now wait until user is approved before showing
 [1.53.9] [user] [added] - Edit figures directly from the deck view without opening the slide editor
 [1.53.9] [admin] [added] - AI can now update figures directly from the deck level
 [1.53.10] [user] [fixed] - AI-generated figures now correctly require a valid subgroup selection instead of silently defaulting
