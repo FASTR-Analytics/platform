@@ -1,3 +1,12 @@
+[TBD] [user] [added] - AI assistant for cleaning up and organising HFA indicators
+[TBD] [user] [added] - AI can rename indicator labels in batch with confirmation
+[TBD] [user] [added] - AI can assign categories and sub-categories to indicators in batch
+[TBD] [user] [added] - Manage multiple AI conversations in the HFA Indicator Manager
+[TBD] [user] [added] - AI button available to global admins in the HFA Indicators toolbar
+[TBD] [admin] [added] - AI assistant for managing HFA indicators (labels and categories)
+[TBD] [admin] [added] - AI panel accessible to global admins in HFA Indicator Manager
+[TBD] [admin] [changed] - AI usage logs now support instance-level usage without a project
+[TBD] [admin] [added] - AI token limits enforced for HFA indicator assistant same as project AI
 [TBD] [user] [changed] - AI assistant now sees measurement units for health facility indicators
 [TBD] [admin] [changed] - AI assistant now sees measurement units for health facility indicators
 [TBD] [admin] [changed] - Indicator labels in AI and reports now use consistent formatting
