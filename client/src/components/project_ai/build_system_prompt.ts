@@ -535,7 +535,8 @@ When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a
    - **Change layout** (add/remove blocks, rearrange, resize) → modify_slide_layout
    - **Change header only** → update_slide_header
    - **Rebuild from scratch or change slide type** → replace_slide (last resort)
-4. Call get_metric_data before creating from_metric blocks to check available data`;
+4. Call get_metric_data before creating from_metric blocks to check available data
+5. Before writing any statistics into a text block that accompanies a figure, always call get_slide_editor to read back the figure's active period filter. Ensure the time period referenced in the text matches the period filter actually applied to the figure. Never derive statistics from a get_metric_data query if the figure has a more restrictive period filter applied. When describing data in text, always explicitly state the time period being discussed (e.g. "Between January 2022 and December 2023, ..." or "In Q3 2024, ...") so the reader knows exactly which period the statistics refer to.`;
 }
 
 function getEditingSlideInstructions(
@@ -569,6 +570,7 @@ ${getAllToolsList()}
 2. Suggest changes based on what would improve the slide
 3. Use update_slide_editor to apply changes
 4. Changes are LOCAL until the user saves - remind them to save if satisfied
+5. Before writing any statistics into a text block that accompanies a figure, always call get_slide_editor to read back the figure's active period filter. Ensure the time period referenced in the text matches the period filter actually applied to the figure. Never derive statistics from a get_metric_data query if the figure has a more restrictive period filter applied. When describing data in text, always explicitly state the time period being discussed (e.g. "Between January 2022 and December 2023, ..." or "In Q3 2024, ...") so the reader knows exactly which period the statistics refer to.
 
 ## Text Length Guidelines
 
