@@ -52,7 +52,9 @@ export function buildConfigFromPreset(
   const resultsValueForViz: ResultsValueForVisualization = {
     formatAs: resultsValue.formatAs,
     valueProps: resultsValue.valueProps,
-    valueLabelReplacements: resultsValue.valueLabelReplacements,
+    valueLabelReplacements: resultsValue.valueLabelReplacements
+      ? { ...resultsValue.valueLabelReplacements }
+      : undefined,
   };
 
   const config: PresentationObjectConfig = {

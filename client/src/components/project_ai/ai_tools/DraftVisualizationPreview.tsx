@@ -16,6 +16,7 @@ import {
   ChartHolder,
   LoadingIndicator,
   ModalContainer,
+  openAlert,
   openComponent,
 } from "panther";
 import { createSignal, ErrorBoundary, Match, onMount, Show, Switch } from "solid-js";
@@ -160,33 +161,41 @@ export function DraftVisualizationPreview(p: Props) {
   }
 
   async function handleAddToDeck() {
-    const slideInput: AiContentSlideInput = {
-      type: "content",
-      header: p.title,
-      blocks: [p.figure],
-    };
-    const ctx = aiContext();
-    const deckConfig: SlideDeckConfig =
-      ctx.mode === "editing_slide_deck"
-        ? ctx.getDeckConfig()
-        : getStartingConfigForSlideDeck("Draft");
-    const slide: Slide = await convertAiInputToSlide(
-      p.projectId,
-      slideInput,
-      p.metrics,
-      deckConfig,
-    );
-    if (ctx.mode === "editing_slide_deck") {
-      await addSlideDirectlyToDeck(p.projectId, slide, ctx);
-    } else {
-      await openComponent({
-        element: AddToDeckModal,
-        props: {
-          projectId: p.projectId,
-          slide,
-          slideDecks: projectState.slideDecks,
-          slideDeckFolders: projectState.slideDeckFolders,
-        },
+    try {
+      const slideInput: AiContentSlideInput = {
+        type: "content",
+        header: p.title,
+        blocks: [p.figure],
+      };
+      const ctx = aiContext();
+      const deckConfig: SlideDeckConfig =
+        ctx.mode === "editing_slide_deck"
+          ? ctx.getDeckConfig()
+          : getStartingConfigForSlideDeck("Draft");
+      const slide: Slide = await convertAiInputToSlide(
+        p.projectId,
+        slideInput,
+        p.metrics,
+        deckConfig,
+      );
+      if (ctx.mode === "editing_slide_deck") {
+        await addSlideDirectlyToDeck(p.projectId, slide, ctx);
+      } else {
+        await openComponent({
+          element: AddToDeckModal,
+          props: {
+            projectId: p.projectId,
+            slide,
+            slideDecks: projectState.slideDecks,
+            slideDeckFolders: projectState.slideDeckFolders,
+          },
+        });
+      }
+    } catch (err) {
+      console.error("Failed to add to slide deck:", err);
+      await openAlert({
+        text: t3({ en: "Failed to add to slide deck", fr: "Échec de l'ajout à la présentation" }),
+        intent: "danger",
       });
     }
   }
