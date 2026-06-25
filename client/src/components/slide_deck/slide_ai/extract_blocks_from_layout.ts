@@ -1,4 +1,4 @@
-import type { ContentBlock, MetricWithStatus, Slide } from "lib";
+import { periodFilterHasBounds, inferPeriodFormatFromValue, type ContentBlock, type MetricWithStatus, type Slide } from "lib";
 import type { LayoutNode } from "panther";
 import { getDataFromConfig } from "~/components/project_ai/ai_tools/tools/_internal/format_metric_data_for_ai";
 import { formatFigureConfigForAI } from "~/components/project_ai/ai_tools/tools/_internal/format_figure_config_for_ai";
@@ -94,7 +94,13 @@ export async function simplifySlideForAI(projectId: string, slide: Slide, metric
           } catch (err) {
             data = `(data unavailable: ${err})`;
           }
-          return { id, summary: `Figure\n${cfg}\n\n${data}` };
+          let periodBanner = "";
+          const pf = bundle.config.d.periodFilter;
+          if (pf && periodFilterHasBounds(pf)) {
+            const fmt = inferPeriodFormatFromValue(pf.min) ?? "unknown";
+            periodBanner = `⚠️ THIS FIGURE IS FILTERED TO ${fmt} FROM ${pf.min} TO ${pf.max}. Any text describing this figure MUST reference this exact period — not a broader range from get_metric_data.\n\n`;
+          }
+          return { id, summary: `${periodBanner}Figure\n${cfg}\n\n${data}` };
         } else {
           return { id, summary: "Figure (no data)" };
         }

@@ -526,6 +526,10 @@ Keep text concise and focused. Slides with charts/visualizations should have les
 
 When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a3k', 't2n') — these are meaningless to the user. Instead, refer to slides by their position (e.g. "slide 3"), title (e.g. "the ANC Coverage slide"), or type (e.g. "the cover slide"). Refer to blocks by their content (e.g. "the bar chart showing immunization rates", "the text block on the left"). Use IDs only in tool calls, never in your messages to the user.
 
+## CRITICAL: Period filter accuracy
+
+Before writing ANY statistics into a text block that accompanies a figure, you MUST check the figure's active period filter (shown in the figure config from get_slide or get_slide_editor). The text MUST reference the exact period the figure is filtered to — never a broader range from a separate get_metric_data call. Always explicitly state the time period (e.g. "Between January 2022 and December 2023, ..." or "In Q3 2024, ..."). If the figure has a period filter, only use data within that range.
+
 ## Workflow
 
 1. Call get_deck FIRST to understand current structure
@@ -535,8 +539,7 @@ When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a
    - **Change layout** (add/remove blocks, rearrange, resize) → modify_slide_layout
    - **Change header only** → update_slide_header
    - **Rebuild from scratch or change slide type** → replace_slide (last resort)
-4. Call get_metric_data before creating from_metric blocks to check available data
-5. Before writing any statistics into a text block that accompanies a figure, always call get_slide_editor to read back the figure's active period filter. Ensure the time period referenced in the text matches the period filter actually applied to the figure. Never derive statistics from a get_metric_data query if the figure has a more restrictive period filter applied. When describing data in text, always explicitly state the time period being discussed (e.g. "Between January 2022 and December 2023, ..." or "In Q3 2024, ...") so the reader knows exactly which period the statistics refer to.`;
+4. Call get_metric_data before creating from_metric blocks to check available data`;
 }
 
 function getEditingSlideInstructions(
@@ -564,13 +567,16 @@ ${getAllToolsList()}
 - **Content slides:** header, individual content blocks (via blockUpdates), or layout structure (via layoutChange — add/remove blocks, rearrange, change column widths)
 - **Existing figures:** edit a figure's config in place with update_figure (replicant, filters, disaggregation, date range, captions; chart type is not editable) — no need to recreate it
 
+## CRITICAL: Period filter accuracy
+
+Before writing ANY statistics into a text block that accompanies a figure, you MUST check the figure's active period filter (shown in the figure config from get_slide_editor). The text MUST reference the exact period the figure is filtered to — never a broader range from a separate get_metric_data call. Always explicitly state the time period (e.g. "Between January 2022 and December 2023, ..." or "In Q3 2024, ..."). If the figure has a period filter, only use data within that range.
+
 ## Workflow
 
 1. Call get_slide_editor FIRST to see current content and block IDs
 2. Suggest changes based on what would improve the slide
 3. Use update_slide_editor to apply changes
 4. Changes are LOCAL until the user saves - remind them to save if satisfied
-5. Before writing any statistics into a text block that accompanies a figure, always call get_slide_editor to read back the figure's active period filter. Ensure the time period referenced in the text matches the period filter actually applied to the figure. Never derive statistics from a get_metric_data query if the figure has a more restrictive period filter applied. When describing data in text, always explicitly state the time period being discussed (e.g. "Between January 2022 and December 2023, ..." or "In Q3 2024, ...") so the reader knows exactly which period the statistics refer to.
 
 ## Text Length Guidelines
 
