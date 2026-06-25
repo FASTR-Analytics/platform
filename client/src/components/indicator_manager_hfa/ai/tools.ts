@@ -4,8 +4,9 @@ import {
   openConfirm,
 } from "panther";
 import { z } from "zod";
-import type { HfaIndicator } from "lib";
+import type { HfaDictionaryForValidation, HfaIndicator, HfaIndicatorCode } from "lib";
 import { serverActions } from "~/server_actions";
+import { checkRCodeResultType, validateRCode } from "../hfa_r_code_validator";
 
 // ---------------------------------------------------------------------------
 // Loaders — always read fresh so the AI acts on current state, and so writes
@@ -33,19 +34,108 @@ async function loadTaxonomy() {
 // Apply a set of fully-merged indicators (read-modify-write — updateHfaIndicator
 // takes the whole object). Stops and reports on the first failure.
 async function applyIndicatorUpdates(merged: HfaIndicator[]): Promise<void> {
-  for (const indicator of merged) {
+  for (let i = 0; i < merged.length; i++) {
+    const indicator = merged[i];
     const res = await serverActions.updateHfaIndicator({
       oldVarName: indicator.varName,
       indicator,
     });
     if (!res.success) {
-      throw new Error(`Failed to update "${indicator.varName}".`);
+      throw new Error(
+        `Applied ${i} of ${merged.length}; failed on "${indicator.varName}". Earlier updates were already saved (re-applying them is harmless) — retry the remainder.`,
+      );
     }
+  }
+}
+
+// panther's openConfirm drives a single global dialog. The chat engine can run a
+// turn's tool calls concurrently (Promise.all), so two confirms in flight would
+// clobber each other's resolver and hang the turn. Serialise them so each runs,
+// and resolves, before the next opens.
+let confirmChain: Promise<void> = Promise.resolve();
+async function confirmGate(
+  opts: Parameters<typeof openConfirm>[0],
+): Promise<boolean> {
+  const prev = confirmChain;
+  let release!: () => void;
+  confirmChain = new Promise<void>((r) => (release = r));
+  await prev;
+  try {
+    return await openConfirm(opts);
+  } finally {
+    release();
   }
 }
 
 function trunc(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+async function loadDictionary(): Promise<HfaDictionaryForValidation> {
+  const res = await serverActions.getHfaDictionaryForValidation({});
+  if (!res.success) throw new Error("Could not load the survey variable dictionary.");
+  return res.data;
+}
+
+async function loadAllCode(): Promise<HfaIndicatorCode[]> {
+  const res = await serverActions.getAllHfaIndicatorCode({});
+  if (!res.success) throw new Error("Could not load indicator code.");
+  return res.data;
+}
+
+type CodeRound = { timePoint: string; rCode: string; rFilterCode?: string };
+
+// Mirrors the manager's "Revalidate all" computation (syntax + variable
+// existence → hasSyntaxError; identical non-empty rounds → codeConsistent), plus
+// two additions: an unknown time point also counts as a syntax error, and a
+// result-type check (binary vs numeric) is surfaced in `issues` ONLY — it is
+// advisory and never flips hasSyntaxError, so the stored status stays consistent
+// with the editor for everything the editor itself checks.
+function computeIndicatorValidation(
+  code: CodeRound[],
+  dict: HfaDictionaryForValidation,
+  otherVarNames: Set<string>,
+  expectedType: "binary" | "numeric",
+): { hasSyntaxError: boolean; codeConsistent: boolean; issues: string[] } {
+  const issues: string[] = [];
+  let hasSyntaxError = false;
+  for (const c of code) {
+    const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
+    if (!tp) {
+      issues.push(`Time point "${c.timePoint}" is not in the dataset.`);
+      hasSyntaxError = true;
+      continue;
+    }
+    const availableVars = new Set(tp.vars.map((v) => v.varName));
+    const fields: [string, string][] = [
+      ["rCode", c.rCode],
+      ["rFilterCode", c.rFilterCode ?? ""],
+    ];
+    for (const [field, codeStr] of fields) {
+      if (!codeStr.trim()) continue;
+      const r = validateRCode(codeStr, availableVars, otherVarNames);
+      if (r.syntaxErrors.length > 0 || r.warnings.length > 0) {
+        hasSyntaxError = true;
+        for (const e of r.syntaxErrors) issues.push(`${c.timePoint} ${field}: ${e}`);
+        for (const w of r.warnings) issues.push(`${c.timePoint} ${field}: ${w}`);
+      }
+    }
+    // Result-type only applies to the main rCode (the filter is always boolean).
+    for (const w of checkRCodeResultType(c.rCode, expectedType)) {
+      issues.push(`${c.timePoint} rCode: ${w}`);
+    }
+  }
+  const nonEmpty = code.filter((c) => c.rCode.trim() || (c.rFilterCode ?? "").trim());
+  let codeConsistent = true;
+  if (nonEmpty.length > 1) {
+    const first = nonEmpty[0];
+    codeConsistent = nonEmpty.every(
+      (c) =>
+        c.rCode.trim() === first.rCode.trim() &&
+        (c.rFilterCode?.trim() ?? "") === (first.rFilterCode?.trim() ?? ""),
+    );
+  }
+  return { hasSyntaxError, codeConsistent, issues };
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +229,7 @@ export function buildHfaIndicatorTools() {
           merged.push(next);
         }
         if (lines.length === 0) return { applied: false, reason: "No changes — provided values match the current labels." };
-        const confirmed = await openConfirm({
+        const confirmed = await confirmGate({
           title: "Apply label changes",
           text: `Apply these label changes to ${merged.length} indicator(s)?\n\n${lines.join("\n")}`,
           confirmButtonLabel: "Apply",
@@ -204,6 +294,16 @@ export function buildHfaIndicatorTools() {
             next.serviceCategoryIds = u.serviceCategoryIds;
           }
 
+          // Match the editor's invariant: a sub-category must belong to the
+          // indicator's category. If the category changed and the kept
+          // sub-category no longer fits, clear it rather than persist an orphan.
+          if (next.subCategoryId !== null) {
+            const sub = subById.get(next.subCategoryId);
+            if (!sub || sub.categoryId !== next.categoryId) {
+              next.subCategoryId = null;
+            }
+          }
+
           const changed =
             next.categoryId !== cur.categoryId ||
             next.subCategoryId !== cur.subCategoryId ||
@@ -214,7 +314,7 @@ export function buildHfaIndicatorTools() {
           }
         }
         if (merged.length === 0) return { applied: false, reason: "No changes — provided assignments match the current state." };
-        const confirmed = await openConfirm({
+        const confirmed = await confirmGate({
           title: "Apply category changes",
           text: `Apply these category assignments to ${merged.length} indicator(s)?\n\n${lines.join("\n")}`,
           confirmButtonLabel: "Apply",
@@ -225,6 +325,320 @@ export function buildHfaIndicatorTools() {
       },
       inProgressLabel: () => "Proposing category changes...",
       completionMessage: (input) => `Category changes for ${input.updates.length} indicator(s)`,
+    }),
+
+    createAITool({
+      name: "get_hfa_variable_dictionary",
+      description:
+        "List the survey variables in the dataset — name, human label, and data type — per round (time point). Compact by default. To see a variable's coded response options, missingness and the values actually present, use inspect_hfa_variable.",
+      inputSchema: z.object({
+        timePoint: z.string().optional().describe("Restrict to one round / time point."),
+        search: z.string().optional().describe("Only variables whose name or label contains this text (case-insensitive)."),
+      }),
+      handler: async (input) => {
+        const dict = await loadDictionary();
+        const search = input.search?.toLowerCase();
+        const tps = input.timePoint
+          ? dict.timePoints.filter((t) => t.timePoint === input.timePoint)
+          : dict.timePoints;
+        return {
+          timePoints: tps.map((tp) => {
+            let vars = tp.vars;
+            if (search) {
+              vars = vars.filter(
+                (v) =>
+                  v.varName.toLowerCase().includes(search) ||
+                  v.varLabel.toLowerCase().includes(search),
+              );
+            }
+            return {
+              timePoint: tp.timePoint,
+              variableCount: vars.length,
+              variables: vars.map((v) => ({ varName: v.varName, label: v.varLabel, dataType: v.varType })),
+            };
+          }),
+        };
+      },
+      inProgressLabel: () => "Reading the dataset dictionary...",
+      completionMessage: "Read variable dictionary",
+    }),
+
+    createAITool({
+      name: "inspect_hfa_variable",
+      description:
+        "Inspect one or more survey variables in depth: per round, the coded response options (value → label), how many facilities answered vs are missing, and the distinct values actually present in the data. Use this before writing r-code that compares against a variable's codes.",
+      inputSchema: z.object({
+        varNames: z.array(z.string()).min(1).describe("The survey variable name(s) to inspect."),
+        timePoint: z.string().optional().describe("Restrict to one round / time point."),
+      }),
+      handler: async (input) => {
+        const res = await serverActions.getDatasetHfaDisplayInfo({});
+        if (!res.success) throw new Error("Could not load the dataset variable details.");
+        const wanted = new Set(input.varNames);
+        let rows = res.data.rows.filter((r) => wanted.has(r.varName));
+        if (input.timePoint) rows = rows.filter((r) => r.timePoint === input.timePoint);
+        const found = new Set(rows.map((r) => r.varName));
+        const missing = input.varNames.filter((v) => !found.has(v));
+        return {
+          variables: rows.map((r) => ({
+            varName: r.varName,
+            label: r.varLabel,
+            dataType: r.varType,
+            timePoint: r.timePoint,
+            answered: r.count,
+            missing: r.missing,
+            responseOptions: r.questionnaireValues || "(not a coded variable)",
+            valuesPresentInData: r.dataValues,
+          })),
+          notFound: missing.length > 0 ? missing : undefined,
+        };
+      },
+      inProgressLabel: (input) => `Inspecting ${input.varNames.join(", ")}...`,
+      completionMessage: "Inspected variable(s)",
+    }),
+
+    createAITool({
+      name: "get_hfa_indicator_code",
+      description: "Read the per-round r-code (rCode and optional rFilterCode) of existing indicators.",
+      inputSchema: z.object({
+        varNames: z.array(z.string()).optional().describe("Restrict to these indicators; omit for all."),
+        timePoint: z.string().optional().describe("Restrict to one round / time point."),
+      }),
+      handler: async (input) => {
+        let code = await loadAllCode();
+        if (input.varNames) {
+          const s = new Set(input.varNames);
+          code = code.filter((c) => s.has(c.varName));
+        }
+        if (input.timePoint) code = code.filter((c) => c.timePoint === input.timePoint);
+        return {
+          count: code.length,
+          code: code.map((c) => ({ varName: c.varName, timePoint: c.timePoint, rCode: c.rCode, rFilterCode: c.rFilterCode ?? null })),
+        };
+      },
+      inProgressLabel: () => "Reading indicator code...",
+      completionMessage: "Read indicator code",
+    }),
+
+    createAITool({
+      name: "validate_hfa_indicators",
+      description:
+        "Validate indicators' r-code against the survey dictionary and persist the result (the manager's ready/error status). Returns, per checked indicator, whether it has syntax / unknown-variable / result-type issues, whether its code is consistent across rounds, and the specific issues. Run it after creating or editing code, and to find indicators that need fixing.",
+      inputSchema: z.object({
+        varNames: z.array(z.string()).optional().describe("Indicators to validate; omit to validate all."),
+      }),
+      handler: async (input) => {
+        const indicators = await loadIndicators();
+        const allCode = await loadAllCode();
+        const dict = await loadDictionary();
+        const allNames = new Set(indicators.map((i) => i.varName));
+        const codeByVar = new Map<string, CodeRound[]>();
+        for (const c of allCode) {
+          const arr = codeByVar.get(c.varName) ?? [];
+          arr.push({ timePoint: c.timePoint, rCode: c.rCode, rFilterCode: c.rFilterCode });
+          codeByVar.set(c.varName, arr);
+        }
+        const target = input.varNames
+          ? indicators.filter((i) => input.varNames!.includes(i.varName))
+          : indicators;
+        const results = target.map((ind) => {
+          const other = new Set(allNames);
+          other.delete(ind.varName);
+          const v = computeIndicatorValidation(codeByVar.get(ind.varName) ?? [], dict, other, ind.type);
+          return { varName: ind.varName, hasSyntaxError: v.hasSyntaxError, codeConsistent: v.codeConsistent, issues: v.issues };
+        });
+        const persistRes = await serverActions.bulkUpdateHfaIndicatorValidation({
+          updates: results.map((r) => ({ varName: r.varName, hasSyntaxError: r.hasSyntaxError, codeConsistent: r.codeConsistent })),
+        });
+        if (!persistRes.success) throw new Error("Validation was computed but could not be saved.");
+        return { validated: results.length, withIssues: results.filter((r) => r.hasSyntaxError || !r.codeConsistent || r.issues.length > 0) };
+      },
+      inProgressLabel: () => "Validating r-code...",
+      completionMessage: (input) => (input.varNames ? `Validated ${input.varNames.length} indicator(s)` : "Validated all indicators"),
+    }),
+
+    createAITool({
+      name: "create_hfa_indicators",
+      description:
+        "Create new HFA indicators from the survey dataset, in a batch. For each: a unique varName, a long label (definition), type + aggregation (usually binary+avg for \"% of facilities\" — see the modelling guidance), optional category/sub-category/service categories (must already exist), and per-round r-code. Ids and time points are validated; r-code is validated against the dictionary (including a result-type check). Fails if a varName already exists.",
+      inputSchema: z.object({
+        indicators: z.array(z.object({
+          varName: z.string(),
+          definition: z.string().describe("Long label / full descriptive text."),
+          shortLabel: z.string().optional(),
+          type: z.enum(["binary", "numeric"]),
+          aggregation: z.enum(["sum", "avg"]),
+          categoryId: z.string().nullable().optional(),
+          subCategoryId: z.string().nullable().optional(),
+          serviceCategoryIds: z.array(z.string()).optional(),
+          code: z.array(z.object({
+            timePoint: z.string(),
+            rCode: z.string(),
+            rFilterCode: z.string().optional(),
+          })).optional().describe("Per-round r-code. Keep identical across rounds unless the survey changed."),
+        })).min(1),
+      }),
+      handler: async (input) => {
+        const existing = await loadIndicators();
+        const existingNames = new Set(existing.map((i) => i.varName));
+        const { categories, subCategories, serviceCategories } = await loadTaxonomy();
+        const dict = await loadDictionary();
+        const catIds = new Set(categories.map((c) => c.id));
+        const subById = new Map(subCategories.map((s) => [s.id, s]));
+        const svcIds = new Set(serviceCategories.map((s) => s.id));
+        const validTimePoints = new Set(dict.timePoints.map((t) => t.timePoint));
+
+        const newNames = input.indicators.map((i) => i.varName);
+        const dupInBatch = newNames.filter((n, i) => newNames.indexOf(n) !== i);
+        if (dupInBatch.length > 0) throw new Error(`Duplicate varNames in this batch: ${[...new Set(dupInBatch)].join(", ")}.`);
+        const allNamesAfter = new Set([...existingNames, ...newNames]);
+
+        const indicatorsToCreate: HfaIndicator[] = [];
+        const codeToCreate: HfaIndicatorCode[] = [];
+        const summaries: string[] = [];
+        for (const ind of input.indicators) {
+          if (existingNames.has(ind.varName)) throw new Error(`Indicator "${ind.varName}" already exists. Pick a new varName, or edit it with set_hfa_indicator_code / the update tools.`);
+          if (ind.categoryId != null && !catIds.has(ind.categoryId)) throw new Error(`Category "${ind.categoryId}" does not exist. Valid: ${[...catIds].join(", ") || "(none)"}.`);
+          if (ind.subCategoryId != null) {
+            const sub = subById.get(ind.subCategoryId);
+            if (!sub) throw new Error(`Sub-category "${ind.subCategoryId}" does not exist.`);
+            if (sub.categoryId !== (ind.categoryId ?? null)) throw new Error(`Sub-category "${ind.subCategoryId}" belongs to category "${sub.categoryId}", not "${ind.categoryId ?? "(none)"}".`);
+          }
+          const svc = ind.serviceCategoryIds ?? [];
+          const badSvc = svc.filter((id) => !svcIds.has(id));
+          if (badSvc.length > 0) throw new Error(`Service categories do not exist: ${badSvc.join(", ")}.`);
+          const code = ind.code ?? [];
+          for (const c of code) {
+            if (!validTimePoints.has(c.timePoint)) throw new Error(`Time point "${c.timePoint}" is not in the dataset. Valid: ${[...validTimePoints].join(", ")}.`);
+          }
+          const other = new Set(allNamesAfter);
+          other.delete(ind.varName);
+          const v = computeIndicatorValidation(code, dict, other, ind.type);
+          indicatorsToCreate.push({
+            varName: ind.varName,
+            categoryId: ind.categoryId ?? null,
+            subCategoryId: ind.subCategoryId ?? null,
+            serviceCategoryIds: svc,
+            shortLabel: ind.shortLabel ?? "",
+            definition: ind.definition,
+            type: ind.type,
+            aggregation: ind.aggregation,
+            sortOrder: 0,
+            hasSyntaxError: v.hasSyntaxError,
+            codeConsistent: v.codeConsistent,
+          });
+          for (const c of code) codeToCreate.push({ varName: ind.varName, timePoint: c.timePoint, rCode: c.rCode, rFilterCode: c.rFilterCode });
+          summaries.push(`${ind.varName} (${ind.type}/${ind.aggregation})${v.issues.length ? "  ⚠\n   " + v.issues.join("\n   ") : ""}`);
+        }
+
+        const confirmed = await confirmGate({
+          title: "Create indicators",
+          text: `Create ${indicatorsToCreate.length} new indicator(s)?\n\n${summaries.join("\n")}`,
+          confirmButtonLabel: "Create",
+        });
+        if (!confirmed) return { applied: false, reason: "User cancelled — nothing created." };
+        const res = await serverActions.batchUploadHfaIndicators({ indicators: indicatorsToCreate, code: codeToCreate, replaceAll: false });
+        if (!res.success) throw new Error("Failed to create indicators.");
+        return {
+          applied: true,
+          created: indicatorsToCreate.length,
+          withValidationIssues: indicatorsToCreate.filter((i) => i.hasSyntaxError).map((i) => i.varName),
+        };
+      },
+      inProgressLabel: () => "Proposing new indicators...",
+      completionMessage: (input) => `Create ${input.indicators.length} indicator(s)`,
+    }),
+
+    createAITool({
+      name: "set_hfa_indicator_code",
+      description:
+        "Set the per-round r-code of EXISTING indicators (to fix or change how they are computed). Each entry replaces that indicator+round's rCode/rFilterCode; other rounds are kept. Validation (including the result-type check) is recomputed automatically.",
+      inputSchema: z.object({
+        updates: z.array(z.object({
+          varName: z.string(),
+          timePoint: z.string(),
+          rCode: z.string(),
+          rFilterCode: z.string().optional(),
+        })).min(1),
+      }),
+      handler: async (input) => {
+        const indicators = await loadIndicators();
+        const byVar = new Map(indicators.map((i) => [i.varName, i]));
+        const allCode = await loadAllCode();
+        const dict = await loadDictionary();
+        const allNames = new Set(indicators.map((i) => i.varName));
+        const validTimePoints = new Set(dict.timePoints.map((t) => t.timePoint));
+
+        const codeByVar = new Map<string, CodeRound[]>();
+        for (const c of allCode) {
+          const arr = codeByVar.get(c.varName) ?? [];
+          arr.push({ timePoint: c.timePoint, rCode: c.rCode, rFilterCode: c.rFilterCode });
+          codeByVar.set(c.varName, arr);
+        }
+        const affected = new Set<string>();
+        for (const u of input.updates) {
+          if (!byVar.has(u.varName)) throw new Error(`Unknown indicator "${u.varName}".`);
+          if (!validTimePoints.has(u.timePoint)) throw new Error(`Time point "${u.timePoint}" is not in the dataset. Valid: ${[...validTimePoints].join(", ")}.`);
+          const arr = codeByVar.get(u.varName) ?? [];
+          const idx = arr.findIndex((c) => c.timePoint === u.timePoint);
+          const round = { timePoint: u.timePoint, rCode: u.rCode, rFilterCode: u.rFilterCode };
+          if (idx >= 0) arr[idx] = round;
+          else arr.push(round);
+          codeByVar.set(u.varName, arr);
+          affected.add(u.varName);
+        }
+        const summaries = [...affected].map((vn) => `${vn}: rounds ${input.updates.filter((u) => u.varName === vn).map((u) => u.timePoint).join(", ")}`);
+        const confirmed = await confirmGate({
+          title: "Update indicator code",
+          text: `Update r-code for ${affected.size} indicator(s)?\n\n${summaries.join("\n")}`,
+          confirmButtonLabel: "Apply",
+        });
+        if (!confirmed) return { applied: false, reason: "User cancelled — no changes made." };
+
+        const results: { varName: string; hasSyntaxError: boolean; codeConsistent: boolean; issues: string[] }[] = [];
+        for (const vn of affected) {
+          const indicator = byVar.get(vn)!;
+          const code = codeByVar.get(vn) ?? [];
+          const other = new Set(allNames);
+          other.delete(vn);
+          const v = computeIndicatorValidation(code, dict, other, indicator.type);
+          const res = await serverActions.saveHfaIndicatorFull({
+            oldVarName: vn,
+            indicator: { ...indicator, hasSyntaxError: v.hasSyntaxError, codeConsistent: v.codeConsistent },
+            code: code.map((c) => ({ timePoint: c.timePoint, rCode: c.rCode, rFilterCode: c.rFilterCode })),
+            hasSyntaxError: v.hasSyntaxError,
+            codeConsistent: v.codeConsistent,
+          });
+          if (!res.success) throw new Error(`Failed to update code for "${vn}".`);
+          results.push({ varName: vn, hasSyntaxError: v.hasSyntaxError, codeConsistent: v.codeConsistent, issues: v.issues });
+        }
+        return { applied: true, updated: results.length, withValidationIssues: results.filter((r) => r.hasSyntaxError || !r.codeConsistent || r.issues.length > 0) };
+      },
+      inProgressLabel: () => "Proposing code changes...",
+      completionMessage: (input) => `Code changes for ${input.updates.length} round(s)`,
+    }),
+
+    createAITool({
+      name: "delete_hfa_indicators",
+      description: "Permanently delete indicators by varName (and their r-code). Use with care.",
+      inputSchema: z.object({ varNames: z.array(z.string()).min(1) }),
+      handler: async (input) => {
+        const existing = new Set((await loadIndicators()).map((i) => i.varName));
+        const unknown = input.varNames.filter((v) => !existing.has(v));
+        if (unknown.length > 0) throw new Error(`Unknown indicator(s): ${unknown.join(", ")}.`);
+        const confirmed = await confirmGate({
+          title: "Delete indicators",
+          text: `Permanently delete ${input.varNames.length} indicator(s)?\n\n${input.varNames.join(", ")}`,
+          intent: "danger",
+          confirmButtonLabel: "Delete",
+        });
+        if (!confirmed) return { applied: false, reason: "User cancelled — nothing deleted." };
+        const res = await serverActions.deleteHfaIndicators({ varNames: input.varNames });
+        if (!res.success) throw new Error("Failed to delete indicators.");
+        return { applied: true, deleted: input.varNames.length };
+      },
+      inProgressLabel: () => "Proposing deletion...",
+      completionMessage: (input) => `Delete ${input.varNames.length} indicator(s)`,
     }),
 
     createAskUserQuestionsTool(),
