@@ -3,28 +3,34 @@
 ## Status: IMPLEMENTED
 
 ## Problem
-When the AI creates a viz from a preset (e.g. `completeness-table`), the preset may have a baked-in period filter like `last_n_months: 12`. But the AI didn't know this — `get_available_metrics` didn't expose the preset's period filter, and `show_draft_visualization_to_user` / `create_slide` didn't report the actual period used. So the AI described data using the full range from `get_metric_data` instead of the figure's actual filtered range.
+When the AI creates a viz from a preset with a relative period filter (e.g. `last_n_months: 12`), the data returned to the AI via `get_slide`/`get_slide_editor` was unfiltered — it showed all-time aggregated data instead of the last 12 months. The chart rendered correctly (the server resolves relative filters), but the CSV data the AI read was wrong.
+
+**Root cause:** `getDataFromConfig` in `format_metric_data_for_ai.ts` only passed bounded period filters (`custom`, `from_month`) to the data query. Relative filters like `last_n_months` were silently dropped, causing the query to return all data.
 
 ## Changes made
 
-### 1. Surface preset period filter in `get_available_metrics`
+### Core fix: Pass relative period filters through to data queries
+**File:** `client/src/components/project_ai/ai_tools/tools/_internal/format_metric_data_for_ai.ts`
+- `getDataFromConfig` now passes `config.d.periodFilter` directly (including relative filters) instead of only extracting bounded min/max
+- Added `periodFilterOverride` parameter to `getMetricDataForAI`
+- Updated `formatItemsAsMarkdown` to accept and display all period filter types
+
+### Surface preset period filter in `get_available_metrics`
 **File:** `client/src/components/project_ai/ai_tools/tools/_internal/format_metrics_list_for_ai.ts`
+- Preset listings now show e.g. `(YYYYMM, default period: last 12 months)`
 - Added `describePeriodFilter()` helper
-- Preset listings now show e.g. `(YYYYMM, default period: last 12 months)` instead of just `(YYYYMM)`
 
-### 2. Return actual period in `create_slide` / `replace_slide` responses
+### Return actual period in tool responses
 **File:** `client/src/components/project_ai/ai_tools/tools/slides.tsx`
+- `create_slide` and `replace_slide` responses now include period filter warnings
 - Added `describeSlidePeriodFilters()` helper
-- Both tools now append period filter warnings to their responses
 
-### 3. Return actual period in `show_draft_visualization_to_user` response
 **File:** `client/src/components/project_ai/ai_tools/tools/drafts.tsx`
-- Response now includes period filter info instead of just "Visualization preview displayed to user."
+- `show_draft_visualization_to_user` response now includes period filter info
 
-### 4. System prompt "CRITICAL: Data accuracy" sections
+### System prompt + data banner reinforcement
 **File:** `client/src/components/project_ai/build_system_prompt.ts`
-- Both deck-level and slide-level editing instructions have a "CRITICAL: Data accuracy in text blocks" section instructing the AI to use only data from `get_slide`/`get_slide_editor`
+- "CRITICAL: Data accuracy in text blocks" sections in both deck and slide editing modes
 
-### 5. Period filter banner in figure summaries
 **File:** `client/src/components/slide_deck/slide_ai/extract_blocks_from_layout.ts`
-- `simplifySlideForAI` prepends a `⚠️ THIS FIGURE IS FILTERED TO...` banner to each figure block that has a period filter
+- Period filter warning banner prepended to figure block summaries in `simplifySlideForAI`

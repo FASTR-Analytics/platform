@@ -33,6 +33,7 @@ export async function getMetricDataForAI(
   metrics: MetricWithStatus[],
   valuesFilter?: string[],
   aiDescription?: MetricAIDescription,
+  periodFilterOverride?: GenericLongFormFetchConfig["periodFilter"],
 ): Promise<string> {
   const {
     metricId,
@@ -47,7 +48,7 @@ export async function getMetricDataForAI(
     disOpt: DisaggregationOption;
     values: (string | number)[];
   }[];
-  const periodFilter = inferPeriodFilter(startDate, endDate);
+  const periodFilter = periodFilterOverride ?? inferPeriodFilter(startDate, endDate);
 
   const metric = metrics.find((m) => m.id === metricId);
   if (!metric) throw new Error(`Metric "${metricId}" not found`);
@@ -157,7 +158,7 @@ function formatItemsAsMarkdown(
   metric: MetricWithStatus,
   disaggregations: DisaggregationOption[],
   filters?: { disOpt: DisaggregationOption; values: (string | number)[] }[],
-  periodFilter?: { filterType: "custom"; min: number; max: number },
+  periodFilter?: GenericLongFormFetchConfig["periodFilter"],
   aiDescription?: MetricAIDescription,
   indicatorMetadata?: IndicatorMetadata[],
 ): string {
@@ -235,9 +236,21 @@ function formatItemsAsMarkdown(
   }
 
   if (periodFilter) {
-    lines.push(
-      `**Period filter:** ${inferPeriodFormatFromValue(periodFilter.min) ?? "unknown"} from ${periodFilter.min} to ${periodFilter.max}`,
-    );
+    if (periodFilterHasBounds(periodFilter)) {
+      lines.push(
+        `**Period filter:** ${inferPeriodFormatFromValue(periodFilter.min) ?? "unknown"} from ${periodFilter.min} to ${periodFilter.max}`,
+      );
+    } else if (periodFilter.filterType === "last_n_months") {
+      lines.push(`**Period filter:** last ${periodFilter.nMonths} months`);
+    } else if (periodFilter.filterType === "last_calendar_year") {
+      lines.push(`**Period filter:** last calendar year`);
+    } else if (periodFilter.filterType === "last_n_calendar_years") {
+      lines.push(`**Period filter:** last ${periodFilter.nYears} calendar years`);
+    } else if (periodFilter.filterType === "last_calendar_quarter") {
+      lines.push(`**Period filter:** last calendar quarter`);
+    } else if (periodFilter.filterType === "last_n_calendar_quarters") {
+      lines.push(`**Period filter:** last ${periodFilter.nQuarters} calendar quarters`);
+    }
     lines.push("");
   }
 
@@ -550,16 +563,10 @@ export async function getDataFromConfig(
     ? getFiltersWithReplicant(config)
     : config.d.filterBy;
 
-  const boundedFilter =
-    config.d.periodFilter && periodFilterHasBounds(config.d.periodFilter)
-      ? config.d.periodFilter
-      : undefined;
   const query: AiMetricQuery = {
     metricId,
     disaggregations,
     filters,
-    startDate: boundedFilter?.min,
-    endDate: boundedFilter?.max,
   };
-  return await getMetricDataForAI(projectId, query, metrics, config.d.valuesFilter, aiDescription);
+  return await getMetricDataForAI(projectId, query, metrics, config.d.valuesFilter, aiDescription, config.d.periodFilter);
 }
