@@ -1,3 +1,19 @@
+[TBD] [user] [added] - AI assistant can now create new indicators from survey data
+[TBD] [user] [added] - AI assistant can now edit indicator formulas and calculations
+[TBD] [user] [added] - AI assistant can now delete indicators
+[TBD] [user] [added] - AI assistant can browse and inspect survey variables
+[TBD] [user] [added] - AI assistant automatically validates indicator formulas after changes
+[TBD] [user] [fixed] - AI assistant no longer assigns sub-categories that don't match the parent category
+[TBD] [admin] [added] - AI assistant can now create new HFA indicators from survey data
+[TBD] [admin] [added] - AI assistant can now delete HFA indicators
+[TBD] [admin] [added] - AI assistant can now view and edit indicator R code
+[TBD] [admin] [added] - AI assistant can browse the survey variable dictionary
+[TBD] [admin] [added] - AI assistant can inspect variable details like response options and missingness
+[TBD] [admin] [added] - AI assistant validates indicator code automatically after creating or editing
+[TBD] [admin] [added] - AI assistant checks that code result type matches the indicator type
+[TBD] [admin] [fixed] - Sub-category assignments are now cleared automatically when they no longer match the category
+[TBD] [admin] [fixed] - Multiple AI confirmation dialogs no longer conflict when triggered simultaneously
+[TBD] [admin] [changed] - Batch update errors now report which indicators were already saved and which remain
 [TBD] [user] [added] - AI assistant for cleaning up and organising HFA indicators
 [TBD] [user] [added] - AI can rename indicator labels in batch with confirmation
 [TBD] [user] [added] - AI can assign categories and sub-categories to indicators in batch
