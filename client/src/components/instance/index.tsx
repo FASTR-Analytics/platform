@@ -13,7 +13,7 @@ import {
   type ListItem,
   type MenuItem,
 } from "panther";
-import { Match, Show, Switch, createSignal, onMount } from "solid-js";
+import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { EmailOptInModal } from "~/components/email_opt_in_modal";
 import { OrganisationModal } from "~/components/organisation_modal";
@@ -147,21 +147,18 @@ export default function Instance(p: Props) {
     return t;
   };
 
-  // post-login modals
-  onMount(async () => {
-    if (!clerk.user) return; // skips dev bypass mode naturally
-    if (!clerk.user.unsafeMetadata?.emailOptInAsked) {
-      await openComponent({
-        element: EmailOptInModal,
-        props: undefined,
-      });
-    }
-    if (!clerk.user.unsafeMetadata?.organisation) {
-      await openComponent({
-        element: OrganisationModal,
-        props: undefined,
-      });
-    }
+  // post-login modals — wait until user is approved
+  createEffect(() => {
+    if (!instanceState.currentUserApproved) return;
+    if (!clerk.user) return;
+    (async () => {
+      if (!clerk.user!.unsafeMetadata?.emailOptInAsked) {
+        await openComponent({ element: EmailOptInModal, props: undefined });
+      }
+      if (!clerk.user!.unsafeMetadata?.organisation) {
+        await openComponent({ element: OrganisationModal, props: undefined });
+      }
+    })();
   });
 
   async function openProfile() {
