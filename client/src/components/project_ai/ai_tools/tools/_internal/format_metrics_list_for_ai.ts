@@ -1,4 +1,4 @@
-import { ICEH_STRAT_INFO, getReplicateByProp, periodFilterHasBounds, inferPeriodFormatFromValue, type HfaTaxonomyForAI, type MetricWithStatus, type RelativePeriodFilter, type BoundedPeriodFilter } from "lib";
+import { ICEH_STRAT_INFO, getReplicateByProp, type HfaTaxonomyForAI, type MetricWithStatus } from "lib";
 
 type IcehIndicator = { id: string; label: string; category: string };
 
@@ -101,8 +101,7 @@ export function formatMetricsListForAI(
           : "";
         const hasReplicant = getReplicateByProp(preset.config) !== undefined;
         const replicantNote = hasReplicant ? " ** REQUIRES selectedReplicant **" : "";
-        const periodNote = describePeriodFilter(preset.config.d.periodFilter);
-        lines.push(`    - ${preset.id}: ${preset.label.en} (${dateFormat}${periodNote})${filterNote}${replicantNote}`);
+        lines.push(`    - ${preset.id}: ${preset.label.en} (${dateFormat})${filterNote}${replicantNote}`);
         if (preset.importantNotes) {
           lines.push(`      NOTE: ${getAIStr(preset.importantNotes)}`);
         }
@@ -118,22 +117,6 @@ export function formatMetricsListForAI(
 function getAIStr(val: string | { en: string; fr?: string }): string {
   if (typeof val === "string") return val;
   return val.en;
-}
-
-function describePeriodFilter(pf: RelativePeriodFilter | BoundedPeriodFilter | undefined): string {
-  if (!pf) return "";
-  if (periodFilterHasBounds(pf)) {
-    const fmt = inferPeriodFormatFromValue(pf.min) ?? "unknown";
-    return `, default period: ${fmt} ${pf.min}–${pf.max}`;
-  }
-  switch (pf.filterType) {
-    case "last_n_months": return `, default period: last ${pf.nMonths} months`;
-    case "last_calendar_year": return `, default period: last calendar year`;
-    case "last_calendar_quarter": return `, default period: last calendar quarter`;
-    case "last_n_calendar_years": return `, default period: last ${pf.nYears} calendar years`;
-    case "last_n_calendar_quarters": return `, default period: last ${pf.nQuarters} calendar quarters`;
-    default: return "";
-  }
 }
 
 function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
