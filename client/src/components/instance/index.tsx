@@ -5,9 +5,9 @@ import {
   Button,
   ButtonGroup,
   FrameTop,
+  Icon,
   MenuTriggerWrapper,
   PopoverMenuProvider,
-  UserCircleIcon,
   getFirstString,
   openComponent,
   type ListItem,
@@ -270,7 +270,7 @@ export default function Instance(p: Props) {
                     onClick={openProfile}
                   >
                     <span class="text-primary inline-block w-5">
-                      <UserCircleIcon />
+                      <Icon iconName="userCircle" />
                     </span>
                   </div>
                 </div>

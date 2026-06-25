@@ -9,7 +9,7 @@ import {
   StateHolderFormError,
 } from "./state_holder_wrapper.tsx";
 import { Button } from "../form_inputs/button.tsx";
-import type { IconName } from "../icons/icons.tsx";
+import type { IconName } from "../icons/mod.ts";
 import {
   ModalContainer,
   type ModalContainerWidth,

@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createSignal, type JSX, mergeProps, Show, splitProps } from "solid-js";
-import { ChevronDownIcon, ChevronRightIcon } from "../icons/icons.tsx";
+import { Icon } from "../icons/mod.ts";
 
 export interface CollapsibleSectionProps {
   title: string | JSX.Element;
@@ -120,8 +120,12 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
         </Show>
         <Show when={!local.hideChevron} keyed>
           <div class="h-[1.25em] w-[1.25em]">
-            <Show when={isOpen()} fallback={<ChevronRightIcon />} keyed>
-              <ChevronDownIcon />
+            <Show
+              when={isOpen()}
+              fallback={<Icon iconName="chevronRight" />}
+              keyed
+            >
+              <Icon iconName="chevronDown" />
             </Show>
           </div>
         </Show>

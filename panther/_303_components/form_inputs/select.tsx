@@ -5,7 +5,7 @@
 
 import { For, type JSX, Show } from "solid-js";
 import type { Intent } from "../types.ts";
-import { SelectorIcon } from "../icons/mod.ts";
+import { Icon } from "../icons/mod.ts";
 import type { SelectOption } from "./types.ts";
 import { useAutoFocus } from "./utils.ts";
 
@@ -89,7 +89,7 @@ export function Select<T extends string>(p: Props<T>) {
           </For>
         </select>
         <div class="text-base-content pointer-events-none absolute bottom-0 right-[0.5em] top-0 my-auto flex h-[1.5em] w-[1.5em] items-center justify-center">
-          <SelectorIcon />
+          <Icon iconName="selector" />
         </div>
       </div>
       <Show when={p.invalidMsg}>

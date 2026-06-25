@@ -3,4 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export * from "./icons.tsx";
+export * from "./icon_types.ts";
+export * from "./icons_tabler.tsx";
+export { _ICON_MAP_PHOSPHOR } from "./icons_phosphor.tsx";
+export * from "./icon_set.tsx";

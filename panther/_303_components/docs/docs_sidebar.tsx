@@ -5,12 +5,11 @@
 
 import type { NavItem } from "./deps.ts";
 import {
-  ChevronDownIcon,
-  ChevronRightIcon,
   CollapsibleSection,
   createEffect,
   createSignal,
   For,
+  Icon,
   Show,
 } from "./deps.ts";
 import type { DocsSidebarProps } from "./types.ts";
@@ -211,8 +210,12 @@ function NavItemComponent(p: {
             aria-label={p.isExpanded ? "Collapse" : "Expand"}
             aria-expanded={p.isExpanded}
           >
-            <Show when={p.isExpanded} fallback={<ChevronRightIcon />} keyed>
-              <ChevronDownIcon />
+            <Show
+              when={p.isExpanded}
+              fallback={<Icon iconName="chevronRight" />}
+              keyed
+            >
+              <Icon iconName="chevronDown" />
             </Show>
           </button>
         </Show>

@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { type JSX, Show } from "solid-js";
-import { GripVerticalIcon } from "../icons/icons.tsx";
+import { Icon } from "../icons/mod.ts";
 import { Reorderable } from "./_internal/reorderable.tsx";
 
 // The bare reorder primitive (formerly TimSortableVertical): a drag-reorder list
@@ -38,7 +38,7 @@ export function SortableList<T extends { id: string }>(p: {
         >
           <Show when={showHandle() && handlePos() === "left"}>
             <div class="sl-handle text-neutral flex h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing">
-              <GripVerticalIcon />
+              <Icon iconName="gripVertical" />
             </div>
           </Show>
 
@@ -46,7 +46,7 @@ export function SortableList<T extends { id: string }>(p: {
 
           <Show when={showHandle() && handlePos() === "right"}>
             <div class="sl-handle text-neutral flex h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing">
-              <GripVerticalIcon />
+              <Icon iconName="gripVertical" />
             </div>
           </Show>
         </div>

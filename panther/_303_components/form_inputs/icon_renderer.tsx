@@ -4,7 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Show } from "solid-js";
-import { _ICON_MAP, type IconName } from "../icons/mod.ts";
+import { Dynamic } from "solid-js/web";
+import { type IconName, iconOrFallback } from "../icons/mod.ts";
 
 type IconRendererProps = {
   iconName?: IconName;
@@ -22,8 +23,8 @@ export function IconRenderer(p: IconRendererProps) {
     : "ui-icon-only-correction";
 
   return (
-    <Show when={p.iconName && _ICON_MAP[p.iconName]} keyed>
-      {(KeyedIcon) => {
+    <Show when={p.iconName} keyed>
+      {(iconName) => {
         return (
           <span
             class={[
@@ -33,7 +34,7 @@ export function IconRenderer(p: IconRendererProps) {
               p.invisible && "invisible",
             ].filter(Boolean).join(" ")}
           >
-            <KeyedIcon />
+            <Dynamic component={iconOrFallback(iconName)} />
           </span>
         );
       }}

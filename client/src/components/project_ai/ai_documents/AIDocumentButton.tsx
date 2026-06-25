@@ -1,4 +1,4 @@
-import { Button, FileIcon, XIcon } from "panther";
+import { Button, Icon } from "panther";
 import { Show, For } from "solid-js";
 import type { ProjectDocument } from "~/state/project/t4_ai_documents";
 
@@ -36,14 +36,14 @@ export function AIDocumentList(p: {
         <For each={p.documents}>
           {(doc) => (
             <div class="flex items-center gap-1 bg-base-200 rounded px-2 py-1 text-xs">
-              <FileIcon class="w-3 h-3 text-primary" />
+              <Icon iconName="file" class="w-3 h-3 text-primary" />
               <span class="max-w-[150px] truncate">{doc.assetFilename}</span>
               <button
                 type="button"
                 class="cursor-pointer"
                 onClick={() => p.onRemove(doc.assetFilename)}
               >
-                <XIcon class="w-3 h-3" />
+                <Icon iconName="x" class="w-3 h-3" />
               </button>
             </div>
           )}

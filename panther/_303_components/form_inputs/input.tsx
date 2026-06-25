@@ -5,7 +5,7 @@
 
 import { Match, Show, Switch } from "solid-js";
 import type { Intent } from "../types.ts";
-import { SearchIcon } from "../icons/mod.ts";
+import { Icon } from "../icons/mod.ts";
 import { useAutoFocus } from "./utils.ts";
 
 // Input classes composed from utility classes and component classes
@@ -78,7 +78,7 @@ export function Input(p: Props) {
                 data-left={!!p.searchIcon}
               >
                 <span class="text-neutral h-[1.25em] w-[1.25em] flex-none">
-                  <SearchIcon />
+                  <Icon iconName="search" />
                 </span>
                 {/* <span class="ml-2">{p.label}</span> */}
               </label>

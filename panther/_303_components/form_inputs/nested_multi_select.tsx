@@ -14,7 +14,7 @@ import {
 } from "solid-js";
 import { t3 } from "../deps.ts";
 import { Checkbox } from "./checkbox.tsx";
-import { ChevronDownIcon, ChevronRightIcon } from "../icons/mod.ts";
+import { Icon } from "../icons/mod.ts";
 import type { Intent } from "../types.ts";
 import type {
   NestedSelectBranchNode,
@@ -174,10 +174,10 @@ export function NestedMultiSelect<T extends string>(
                     >
                       <Show
                         when={isOpen(bn.key)}
-                        fallback={<ChevronRightIcon />}
+                        fallback={<Icon iconName="chevronRight" />}
                         keyed
                       >
-                        <ChevronDownIcon />
+                        <Icon iconName="chevronDown" />
                       </Show>
                     </button>
                   </Show>

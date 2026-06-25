@@ -3,13 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  createSignal,
-  Show,
-  t3,
-} from "../../deps.ts";
+import { createSignal, Icon, Show, t3 } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 
 export function ToolErrorRenderer(p: {
@@ -26,8 +20,8 @@ export function ToolErrorRenderer(p: {
       >
         <div class="mt-0.5">
           {expanded()
-            ? <ChevronDownIcon class="h-3 w-3" />
-            : <ChevronRightIcon class="h-3 w-3" />}
+            ? <Icon iconName="chevronDown" class="h-3 w-3" />
+            : <Icon iconName="chevronRight" class="h-3 w-3" />}
         </div>
         <span class="font-medium">{p.item.errorMessage}</span>
       </button>

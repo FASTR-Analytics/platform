@@ -6,8 +6,7 @@
 import { For, type JSX, Show } from "solid-js";
 import { t3 } from "../deps.ts";
 import type { Intent } from "../types.ts";
-import type { IconName } from "../icons/mod.ts";
-import { GripVerticalIcon } from "../icons/icons.tsx";
+import { Icon, type IconName } from "../icons/mod.ts";
 import { Button } from "../form_inputs/button.tsx";
 import { IconRenderer } from "../form_inputs/icon_renderer.tsx";
 import type { ListItem } from "./list_item_types.ts";
@@ -125,7 +124,7 @@ export function EditableList<T extends string, M = never>(
       >
         <Show when={withHandle}>
           <div class="el-drag text-neutral flex h-6 w-6 flex-none cursor-grab items-center justify-center active:cursor-grabbing">
-            <GripVerticalIcon />
+            <Icon iconName="gripVertical" />
           </div>
         </Show>
         <div

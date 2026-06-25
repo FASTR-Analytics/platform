@@ -8,13 +8,10 @@ import {
 } from "lib";
 import {
   Button,
-  ChevronDownIcon,
-  ChevronRightIcon,
   FrameTop,
   HeadingBar,
-  LockIcon,
+  Icon,
   SettingsSection,
-  UnlockIcon,
   openAlert,
   openComponent,
   createDeleteAction,
@@ -288,7 +285,7 @@ export function ProjectSettings(p: Props) {
                   })}
                 </span>
                 <span class="relative inline-flex h-[1.25em] w-[1.25em]">
-                  <LockIcon />
+                  <Icon iconName="lock" />
                 </span>
               </div>
             </SettingsSection>
@@ -313,7 +310,7 @@ export function ProjectSettings(p: Props) {
                   })}
                 </span>
                 <span class="relative inline-flex h-[1.25em] w-[1.25em]">
-                  <UnlockIcon />
+                  <Icon iconName="unlock" />
                 </span>
               </div>
             </SettingsSection>
@@ -890,9 +887,9 @@ function ProjectBackups(props: { projectId: string }) {
                             <div class="flex items-center gap-2">
                               <Show
                                 when={isExpanded()}
-                                fallback={<ChevronRightIcon />}
+                                fallback={<Icon iconName="chevronRight" />}
                               >
-                                <ChevronDownIcon />
+                                <Icon iconName="chevronDown" />
                               </Show>
                               <span class="font-medium">
                                 {group.isCustom

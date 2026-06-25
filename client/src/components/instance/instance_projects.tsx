@@ -4,7 +4,7 @@ import {
   Button,
   FrameTop,
   HeadingBarMainRibbon,
-  LockIcon,
+  Icon,
   getEditorWrapper,
   openAlert,
   openComponent,
@@ -144,7 +144,7 @@ export function InstanceProjects(p: Props) {
                     <Show when={project.isLocked}>
                       <div class="ui-gap-sm text-primary flex text-sm">
                         <span class="relative inline-flex h-[1.25em] w-[1.25em]">
-                          <LockIcon />
+                          <Icon iconName="lock" />
                         </span>
                         {t3({
                           en: "Project locked",

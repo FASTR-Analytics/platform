@@ -7,7 +7,7 @@ export type { CustomStyleOptions } from "../../_006_style/mod.ts";
 export { FrameLeftResizable } from "../layout/frames.tsx";
 export { CollapsibleSection } from "../layout/collapsible_section.tsx";
 export { MarkdownPresentation } from "../content/markdown_presentation.tsx";
-export { ChevronDownIcon, ChevronRightIcon } from "../icons/mod.ts";
+export { Icon } from "../icons/mod.ts";
 export { createQuery } from "../../_302_query/mod.ts";
 export { StateHolderWrapper } from "../special_state/mod.ts";
 export type {

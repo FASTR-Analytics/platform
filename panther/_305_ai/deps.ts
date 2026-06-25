@@ -29,9 +29,8 @@ export type {
 } from "../_110_ai_types/mod.ts";
 export {
   Button,
-  ChevronDownIcon,
-  ChevronRightIcon,
   deriveMarkdownCssVars,
+  Icon,
   MARKDOWN_BASE_STYLES,
   ModalContainer,
   Select,
