@@ -7,6 +7,8 @@ import {
   AiSectionSlideSchema,
   AiContentSlideSchema,
   getStartingConfigForSlideDeck,
+  periodFilterHasBounds,
+  inferPeriodFormatFromValue,
   MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
 } from "lib";
@@ -45,12 +47,37 @@ export function getToolsForDrafts(
       }),
       handler: async (input) => {
         const fig = input.figure;
+        let periodNote = "";
         if (fig.type === "from_metric") {
+          let resolved;
           try {
-            await resolveFigureFromMetric(projectId, fig, metrics);
+            resolved = await resolveFigureFromMetric(projectId, fig, metrics);
           } catch (err) {
             const errMsg = err instanceof Error ? err.message : String(err);
             throw new Error(`Failed to create visualization from metric "${fig.metricId}" with preset "${fig.vizPresetId}": ${errMsg}`);
+          }
+          if (resolved.bundle) {
+            const pf = resolved.bundle.config.d.periodFilter;
+            const dr = resolved.bundle.dateRange;
+            if (pf && periodFilterHasBounds(pf)) {
+              const fmt = inferPeriodFormatFromValue(pf.min) ?? "";
+              periodNote = ` ⚠️ This figure is filtered to ${fmt} ${pf.min}–${pf.max}. Use this period when describing its data.`;
+            } else if (pf?.filterType === "last_n_months") {
+              const range = dr ? ` (${dr.min}–${dr.max})` : "";
+              periodNote = ` ⚠️ This figure is filtered to last ${pf.nMonths} months${range}. Use this period when describing its data.`;
+            } else if (pf?.filterType === "last_calendar_year") {
+              const range = dr ? ` (${dr.min}–${dr.max})` : "";
+              periodNote = ` ⚠️ This figure is filtered to last calendar year${range}. Use this period when describing its data.`;
+            } else if (pf?.filterType === "last_n_calendar_years") {
+              const range = dr ? ` (${dr.min}–${dr.max})` : "";
+              periodNote = ` ⚠️ This figure is filtered to last ${pf.nYears} calendar years${range}. Use this period when describing its data.`;
+            } else if (pf?.filterType === "last_calendar_quarter") {
+              const range = dr ? ` (${dr.min}–${dr.max})` : "";
+              periodNote = ` ⚠️ This figure is filtered to last calendar quarter${range}. Use this period when describing its data.`;
+            } else if (pf?.filterType === "last_n_calendar_quarters") {
+              const range = dr ? ` (${dr.min}–${dr.max})` : "";
+              periodNote = ` ⚠️ This figure is filtered to last ${pf.nQuarters} calendar quarters${range}. Use this period when describing its data.`;
+            }
           }
         } else {
           const res = await getPODetailFromCacheorFetch(projectId, fig.visualizationId);
@@ -58,7 +85,7 @@ export function getToolsForDrafts(
             throw new Error(`Failed to load visualization "${fig.visualizationId}": ${res.err}`);
           }
         }
-        return "Visualization preview displayed to user.";
+        return `Visualization preview displayed to user.${periodNote}`;
       },
       displayComponent: (props: {
         input: { title: string; figure: z.infer<typeof AiFigureFromVisualizationSchema> | z.infer<typeof AiFigureFromMetricSchema> };

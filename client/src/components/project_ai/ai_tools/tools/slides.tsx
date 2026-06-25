@@ -9,6 +9,8 @@ import {
   LayoutSpecSchema,
   MAX_CONTENT_BLOCKS,
   getSlideTitle,
+  periodFilterHasBounds,
+  inferPeriodFormatFromValue,
   type Slide,
   type ContentBlock,
   type MetricWithStatus,
@@ -44,6 +46,40 @@ function requireDeckContext(ctx: AIContext) {
     throw new Error("This tool is only available when working with a slide deck");
   }
   return ctx;
+}
+
+function describeSlidePeriodFilters(slide: Slide): string {
+  if (slide.type !== "content") return "";
+  const blocks = extractBlocksFromLayout(slide.layout);
+  const notes: string[] = [];
+  for (const { block } of blocks) {
+    if (block.type !== "figure" || !block.bundle) continue;
+    const pf = block.bundle.config.d.periodFilter;
+    if (!pf) continue;
+    const dr = block.bundle.dateRange;
+    const caption = block.bundle.config.t.caption || block.bundle.metricId;
+    if (periodFilterHasBounds(pf)) {
+      const fmt = inferPeriodFormatFromValue(pf.min) ?? "";
+      notes.push(`Figure "${caption}" is filtered to ${fmt} ${pf.min}–${pf.max}.`);
+    } else if (pf.filterType === "last_n_months") {
+      const range = dr ? ` (${dr.min}–${dr.max})` : "";
+      notes.push(`Figure "${caption}" is filtered to last ${pf.nMonths} months${range}.`);
+    } else if (pf.filterType === "last_calendar_year") {
+      const range = dr ? ` (${dr.min}–${dr.max})` : "";
+      notes.push(`Figure "${caption}" is filtered to last calendar year${range}.`);
+    } else if (pf.filterType === "last_n_calendar_years") {
+      const range = dr ? ` (${dr.min}–${dr.max})` : "";
+      notes.push(`Figure "${caption}" is filtered to last ${pf.nYears} calendar years${range}.`);
+    } else if (pf.filterType === "last_calendar_quarter") {
+      const range = dr ? ` (${dr.min}–${dr.max})` : "";
+      notes.push(`Figure "${caption}" is filtered to last calendar quarter${range}.`);
+    } else if (pf.filterType === "last_n_calendar_quarters") {
+      const range = dr ? ` (${dr.min}–${dr.max})` : "";
+      notes.push(`Figure "${caption}" is filtered to last ${pf.nQuarters} calendar quarters${range}.`);
+    }
+  }
+  if (notes.length === 0) return "";
+  return "\n⚠️ PERIOD FILTERS: " + notes.join(" ") + " Use these exact periods when describing the data — not the full range from get_metric_data.";
 }
 
 export function getToolsForSlides(
@@ -138,7 +174,8 @@ export function getToolsForSlides(
         if (!res.success) throw new Error(res.err);
 
 
-        return `Created slide ${res.data.slideId}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.`;
+        const periodInfo = describeSlidePeriodFilters(convertedSlide);
+        return `Created slide ${res.data.slideId}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.${periodInfo}`;
       },
       inProgressLabel: (input) =>
         `Creating ${input.slide.type} slide...`,
@@ -189,7 +226,8 @@ export function getToolsForSlides(
         if (!res.success) throw new Error(res.err);
 
 
-        return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`;
+        const periodInfo = describeSlidePeriodFilters(convertedSlide);
+        return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"${periodInfo}`;
       },
       inProgressLabel: (input) => `Replacing slide ${input.slideId}...`,
       completionMessage: (input) =>
