@@ -57,9 +57,7 @@ import {
 } from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
-import {
-  getPresentationObjectItemsFromCacheOrFetch,
-} from "~/state/project/t2_presentation_objects";
+import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
@@ -111,7 +109,9 @@ export function SlideEditor(p: Props) {
   const normalizedSlide = p.slide;
 
   const [needsSave, setNeedsSave] = createSignal(false);
-  const [lastKnownServerTimestamp, setLastKnownServerTimestamp] = createSignal(p.lastUpdated);
+  const [lastKnownServerTimestamp, setLastKnownServerTimestamp] = createSignal(
+    p.lastUpdated,
+  );
   const [tempSlide, setTempSlide] = createStore<Slide>(
     structuredClone(normalizedSlide),
   );
@@ -188,7 +188,7 @@ export function SlideEditor(p: Props) {
           ratio_backing_over_display: +(c.width / r.width).toFixed(2),
           undersized: c.width < Math.round(r.width * dpr),
         });
-      }, ms)
+      }, ms),
     );
     attemptGetPageInputs(unwrap(tempSlide));
     setAIContext({
@@ -224,7 +224,10 @@ export function SlideEditor(p: Props) {
     overwriteIfConflict?: boolean,
   ): Promise<APIResponseWithData<SaveFuncData>> {
     if (!needsSave()) {
-      return { success: true, data: { lastUpdated: lastKnownServerTimestamp() } };
+      return {
+        success: true,
+        data: { lastUpdated: lastKnownServerTimestamp() },
+      };
     }
 
     const updateRes = await serverActions.updateSlide({
@@ -246,7 +249,10 @@ export function SlideEditor(p: Props) {
       if (userChoice === "view_theirs") {
         return {
           success: true,
-          data: { lastUpdated: lastKnownServerTimestamp(), conflictResolutionDecision: "user_chose_view_theirs" },
+          data: {
+            lastUpdated: lastKnownServerTimestamp(),
+            conflictResolutionDecision: "user_chose_view_theirs",
+          },
         };
       }
 
@@ -268,13 +274,19 @@ export function SlideEditor(p: Props) {
 
         return {
           success: true,
-          data: { lastUpdated: createRes.data.lastUpdated, conflictResolutionDecision: "user_chose_save_as_new" },
+          data: {
+            lastUpdated: createRes.data.lastUpdated,
+            conflictResolutionDecision: "user_chose_save_as_new",
+          },
         };
       }
 
       return {
         success: true,
-        data: { lastUpdated: lastKnownServerTimestamp(), conflictResolutionDecision: "user_chose_cancel" },
+        data: {
+          lastUpdated: lastKnownServerTimestamp(),
+          conflictResolutionDecision: "user_chose_cancel",
+        },
       };
     }
 
@@ -303,14 +315,19 @@ export function SlideEditor(p: Props) {
     () => saveFunc(),
     (data) => {
       if (data.conflictResolutionDecision === "user_chose_cancel") return;
-      p.close(data.conflictResolutionDecision === "user_chose_view_theirs" ? false : true);
+      p.close(
+        data.conflictResolutionDecision === "user_chose_view_theirs"
+          ? false
+          : true,
+      );
     },
   );
 
   const save = createButtonAction(
     () => saveFunc(),
     (data) => {
-      if (data.conflictResolutionDecision === "user_chose_view_theirs") p.close(false);
+      if (data.conflictResolutionDecision === "user_chose_view_theirs")
+        p.close(false);
     },
   );
 
@@ -458,7 +475,10 @@ export function SlideEditor(p: Props) {
       );
 
       if (!resultsValue) {
-        await openAlert({ text: "Metric not found in project", intent: "danger" });
+        await openAlert({
+          text: "Metric not found in project",
+          intent: "danger",
+        });
         return;
       }
 
@@ -495,14 +515,22 @@ export function SlideEditor(p: Props) {
           newConfig,
         );
 
-        if (newItemsRes.success === false || newItemsRes.data.ih.status !== "ok") {
-          await openAlert({ text: "Failed to regenerate visualization", intent: "danger" });
+        if (
+          newItemsRes.success === false ||
+          newItemsRes.data.ih.status !== "ok"
+        ) {
+          await openAlert({
+            text: "Failed to regenerate visualization",
+            intent: "danger",
+          });
           return;
         }
 
         const newBundle = makeFigureBundleFromFetchedData({
           resultsValue,
-          ih: newItemsRes.data.ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+          ih: newItemsRes.data.ih as Parameters<
+            typeof makeFigureBundleFromFetchedData
+          >[0]["ih"],
           effectiveConfig: newItemsRes.data.config,
         });
 
@@ -521,7 +549,8 @@ export function SlideEditor(p: Props) {
       }
     } catch (err) {
       await openAlert({
-        text: err instanceof Error ? err.message : "Failed to edit visualization",
+        text:
+          err instanceof Error ? err.message : "Failed to edit visualization",
         intent: "danger",
       });
     }
@@ -555,7 +584,8 @@ export function SlideEditor(p: Props) {
       );
     } catch (err) {
       await openAlert({
-        text: err instanceof Error ? err.message : "Failed to select visualization",
+        text:
+          err instanceof Error ? err.message : "Failed to select visualization",
         intent: "danger",
       });
     }
@@ -581,18 +611,35 @@ export function SlideEditor(p: Props) {
 
       const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
         p.projectId,
-        { id: "", projectId: p.projectId, lastUpdated: "", label: "Ephemeral", resultsValue, config, isDefault: false, folderId: null },
+        {
+          id: "",
+          projectId: p.projectId,
+          lastUpdated: "",
+          label: "Ephemeral",
+          resultsValue,
+          config,
+          isDefault: false,
+          folderId: null,
+        },
         config,
       );
 
-      if (newItemsRes.success === false || newItemsRes.data.ih.status !== "ok") {
-        await openAlert({ text: "Failed to generate visualization", intent: "danger" });
+      if (
+        newItemsRes.success === false ||
+        newItemsRes.data.ih.status !== "ok"
+      ) {
+        await openAlert({
+          text: "Failed to generate visualization",
+          intent: "danger",
+        });
         return;
       }
 
       const bundle = makeFigureBundleFromFetchedData({
         resultsValue,
-        ih: newItemsRes.data.ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+        ih: newItemsRes.data.ih as Parameters<
+          typeof makeFigureBundleFromFetchedData
+        >[0]["ih"],
         effectiveConfig: newItemsRes.data.config,
       });
 
@@ -607,7 +654,8 @@ export function SlideEditor(p: Props) {
       );
     } catch (err) {
       await openAlert({
-        text: err instanceof Error ? err.message : "Failed to create visualization",
+        text:
+          err instanceof Error ? err.message : "Failed to create visualization",
         intent: "danger",
       });
     }
@@ -618,7 +666,11 @@ export function SlideEditor(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar
-            heading={t3({ en: "Edit Slide", fr: "Modifier la diapositive", pt: "Editar diapositivo" })}
+            heading={t3({
+              en: "Edit Slide",
+              fr: "Modifier la diapositive",
+              pt: "Editar diapositivo",
+            })}
             leftChildren={
               <Show
                 when={needsSave()}
@@ -633,7 +685,11 @@ export function SlideEditor(p: Props) {
                     state={saveAndClose.state()}
                     iconName="save"
                   >
-                    {t3({ en: "Save and close", fr: "Sauvegarder et quitter", pt: "Guardar e fechar" })}
+                    {t3({
+                      en: "Save and close",
+                      fr: "Sauvegarder et quitter",
+                      pt: "Guardar e fechar",
+                    })}
                   </Button>
                   <Button
                     intent="success"
@@ -703,14 +759,22 @@ export function SlideEditor(p: Props) {
               onEditVisualization={handleEditVisualization}
               onSelectVisualization={() => handleSelectVisualization()}
               onCreateVisualization={handleCreateVisualization}
-              showCoverLogosByDefault={p.deckConfigSnapshot.logos.cover.showByDefault}
-              showHeaderLogosByDefault={p.deckConfigSnapshot.logos.header.showByDefault}
-              showFooterLogosByDefault={p.deckConfigSnapshot.logos.footer.showByDefault}
-              hasGlobalFooterText={p.deckConfigSnapshot.globalFooterText !== undefined}
+              showCoverLogosByDefault={
+                p.deckConfigSnapshot.logos.cover.showByDefault
+              }
+              showHeaderLogosByDefault={
+                p.deckConfigSnapshot.logos.header.showByDefault
+              }
+              showFooterLogosByDefault={
+                p.deckConfigSnapshot.logos.footer.showByDefault
+              }
+              hasGlobalFooterText={
+                p.deckConfigSnapshot.globalFooterText !== undefined
+              }
             />
           }
         >
-          <div class="ui-pad bg-base-200 h-full w-full overflow-auto">
+          <div class="bg-base-200 h-full w-full overflow-auto">
             <Show when={pageInputs().status === "loading"}>
               <div class="flex h-full items-center justify-center">
                 <div class="text-base-content/70">
@@ -736,7 +800,7 @@ export function SlideEditor(p: Props) {
               keyed
             >
               {(keyedPageInputs) => (
-                <div class="ui-pad bg-base-200 h-full w-full overflow-auto">
+                <div class="ui-pad-lg bg-base-200 h-full w-full overflow-auto">
                   <PageHolder
                     pageInputs={keyedPageInputs}
                     canvasElementId="SLIDE_EDITOR_CANVAS"
@@ -783,9 +847,9 @@ export function SlideEditor(p: Props) {
                           displayH: Math.round(r.height),
                           dpr,
                           shouldBeBackingW: Math.round(r.width * dpr),
-                          ratio_backing_over_display: +(c.width / r.width).toFixed(
-                            2,
-                          ),
+                          ratio_backing_over_display: +(
+                            c.width / r.width
+                          ).toFixed(2),
                           undersized: c.width < Math.round(r.width * dpr),
                         });
                       }
@@ -884,7 +948,15 @@ export function SlideEditor(p: Props) {
                           },
                         },
                       );
-                      showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
+                      showMenu({
+                        anchor: {
+                          x: e.clientX,
+                          y: e.clientY,
+                          width: 0,
+                          height: 0,
+                        },
+                        items,
+                      });
                     }}
                   />
                 </div>

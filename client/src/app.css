@@ -332,6 +332,10 @@
     /* font-feature-settings: "liga" 0;
     font-variant-ligatures: no-common-ligatures; */
   }
+
+  #SLIDE_EDITOR_CANVAS {
+    @apply border-base-300 border;
+  }
 }
 
 @utility ui-running {
