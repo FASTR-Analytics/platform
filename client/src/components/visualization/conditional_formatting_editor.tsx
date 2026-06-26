@@ -58,11 +58,11 @@ export function ConditionalFormattingEditor(p: Props) {
     <div class="ui-spy-sm">
       <ButtonGroup<Mode>
         items={[
-          { id: "none", label: t3({ en: "Off", fr: "Désactivé" }) },
-          { id: "scale", label: t3({ en: "Scale", fr: "Échelle" }) },
+          { id: "none", label: t3({ en: "Off", fr: "Désactivé", pt: "Desativado" }) },
+          { id: "scale", label: t3({ en: "Scale", fr: "Échelle", pt: "Escala" }) },
           {
             id: "thresholds",
-            label: t3({ en: "Thresholds", fr: "Seuils" }),
+            label: t3({ en: "Thresholds", fr: "Seuils", pt: "Limiares" }),
           },
         ]}
         value={cf().type}
@@ -136,7 +136,7 @@ function ScalePanel(p: {
   return (
     <StyleRevealGroup>
       <Select
-        label={t3({ en: "Palette", fr: "Palette" })}
+        label={t3({ en: "Palette", fr: "Palette", pt: "Paleta" })}
         value={
           state().mode === "custom"
             ? CUSTOM_PALETTE
@@ -146,7 +146,7 @@ function ScalePanel(p: {
           ...PALETTE_OPTIONS,
           {
             value: CUSTOM_PALETTE,
-            label: t3({ en: "Custom", fr: "Personnalisé" }),
+            label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
           },
         ]}
         onChange={(v) => {
@@ -166,45 +166,45 @@ function ScalePanel(p: {
       <Show when={state().mode === "custom"}>
         <div class="flex flex-wrap items-end gap-3">
           <ColorPicker
-            label={t3({ en: "From", fr: "Départ" })}
+            label={t3({ en: "From", fr: "Départ", pt: "De" })}
             value={colorToString(state().from ?? "#fee0d2")}
             onChange={(v) => updateScale({ from: v })}
             colorSet="standard"
           />
           <Show when={hasMid()}>
             <ColorPicker
-              label={t3({ en: "Mid", fr: "Milieu" })}
+              label={t3({ en: "Mid", fr: "Milieu", pt: "Meio" })}
               value={colorToString(state().mid ?? "#ffffff")}
               onChange={(v) => updateScale({ mid: v })}
               colorSet="standard"
             />
           </Show>
           <ColorPicker
-            label={t3({ en: "To", fr: "Arrivée" })}
+            label={t3({ en: "To", fr: "Arrivée", pt: "Para" })}
             value={colorToString(state().to ?? "#de2d26")}
             onChange={(v) => updateScale({ to: v })}
             colorSet="standard"
           />
           <Checkbox
-            label={t3({ en: "Diverging (mid)", fr: "Divergent (milieu)" })}
+            label={t3({ en: "Diverging (mid)", fr: "Divergent (milieu)", pt: "Divergente (meio)" })}
             checked={hasMid()}
             onChange={(v) => updateScale({ mid: v ? "#ffffff" : undefined })}
           />
         </div>
       </Show>
       <Checkbox
-        label={t3({ en: "Reverse", fr: "Inverser" })}
+        label={t3({ en: "Reverse", fr: "Inverser", pt: "Inverter" })}
         checked={state().reverse}
         onChange={(v) => updateScale({ reverse: v })}
       />
       <RadioGroup<"continuous" | "discrete">
-        label={t3({ en: "Scale type", fr: "Type d'échelle" })}
+        label={t3({ en: "Scale type", fr: "Type d'échelle", pt: "Tipo de escala" })}
         options={[
           {
             value: "continuous",
-            label: t3({ en: "Continuous", fr: "Continue" }),
+            label: t3({ en: "Continuous", fr: "Continue", pt: "Contínua" }),
           },
-          { value: "discrete", label: t3({ en: "Discrete", fr: "Discrète" }) },
+          { value: "discrete", label: t3({ en: "Discrete", fr: "Discrète", pt: "Discreta" }) },
         ]}
         value={isDiscrete() ? "discrete" : "continuous"}
         onChange={(v) =>
@@ -214,7 +214,7 @@ function ScalePanel(p: {
       />
       <Show when={isDiscrete()}>
         <Slider
-          label={t3({ en: "Number of steps", fr: "Nombre de paliers" })}
+          label={t3({ en: "Number of steps", fr: "Nombre de paliers", pt: "Número de passos" })}
           min={2}
           max={10}
           step={1}
@@ -226,7 +226,7 @@ function ScalePanel(p: {
       </Show>
       <div class="ui-spy-sm">
         <Checkbox
-          label={t3({ en: "Fix value range", fr: "Fixer la plage de valeurs" })}
+          label={t3({ en: "Fix value range", fr: "Fixer la plage de valeurs", pt: "Fixar intervalo de valores" })}
           checked={isFixed()}
           onChange={(v) =>
             update({
@@ -246,7 +246,7 @@ function ScalePanel(p: {
               <div class="flex items-center gap-3">
                 {p.formatAs === "percent" ? (
                   <PercentSelect
-                    label={t3({ en: "Min", fr: "Min" })}
+                    label={t3({ en: "Min", fr: "Min", pt: "Mín" })}
                     value={domain.min}
                     onChange={(v) => update({ domain: { ...domain, min: v } })}
                     max={domain.max}
@@ -255,7 +255,7 @@ function ScalePanel(p: {
                   />
                 ) : (
                   <NumberInput
-                    label={t3({ en: "Min", fr: "Min" })}
+                    label={t3({ en: "Min", fr: "Min", pt: "Mín" })}
                     value={domain.min}
                     onChange={(v) => update({ domain: { ...domain, min: v } })}
                     max={domain.max}
@@ -263,7 +263,7 @@ function ScalePanel(p: {
                 )}
                 {p.formatAs === "percent" ? (
                   <PercentSelect
-                    label={t3({ en: "Max", fr: "Max" })}
+                    label={t3({ en: "Max", fr: "Max", pt: "Máx" })}
                     value={domain.max}
                     onChange={(v) => update({ domain: { ...domain, max: v } })}
                     min={domain.min}
@@ -272,7 +272,7 @@ function ScalePanel(p: {
                   />
                 ) : (
                   <NumberInput
-                    label={t3({ en: "Max", fr: "Max" })}
+                    label={t3({ en: "Max", fr: "Max", pt: "Máx" })}
                     value={domain.max}
                     onChange={(v) => update({ domain: { ...domain, max: v } })}
                     min={domain.min}
@@ -316,7 +316,7 @@ function ThresholdsPanel(p: {
     if (!matched) {
       items.push({
         value: CUSTOM_PRESET_VALUE,
-        label: t3({ en: "Custom", fr: "Personnalisé" }),
+        label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
       });
     }
     return items;
@@ -381,22 +381,22 @@ function ThresholdsPanel(p: {
   return (
     <StyleRevealGroup>
       <Select
-        label={t3({ en: "Preset", fr: "Préréglage" })}
+        label={t3({ en: "Preset", fr: "Préréglage", pt: "Predefinição" })}
         value={matchedPreset() ?? CUSTOM_PRESET_VALUE}
         options={presetOptions()}
         onChange={applyPreset}
         fullWidth
       />
       <RadioGroup<"higher-is-better" | "lower-is-better">
-        label={t3({ en: "Direction", fr: "Direction" })}
+        label={t3({ en: "Direction", fr: "Direction", pt: "Direção" })}
         options={[
           {
             value: "higher-is-better",
-            label: t3({ en: "Higher is better", fr: "Plus élevé = meilleur" }),
+            label: t3({ en: "Higher is better", fr: "Plus élevé = meilleur", pt: "Mais alto é melhor" }),
           },
           {
             value: "lower-is-better",
-            label: t3({ en: "Lower is better", fr: "Plus bas = meilleur" }),
+            label: t3({ en: "Lower is better", fr: "Plus bas = meilleur", pt: "Mais baixo é melhor" }),
           },
         ]}
         value={direction()}
@@ -467,7 +467,7 @@ function ThresholdsPanel(p: {
           class="ui-hoverable text-base-content/70 hover:text-base-content self-start text-xs underline"
           onClick={addRow}
         >
-          {t3({ en: "+ Add cutoff", fr: "+ Ajouter un seuil" })}
+          {t3({ en: "+ Add cutoff", fr: "+ Ajouter un seuil", pt: "+ Adicionar limiar" })}
         </button>
       </div>
     </StyleRevealGroup>

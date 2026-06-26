@@ -1,24 +1,27 @@
 import {
+  type APIResponseWithData,
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
-  MODULE_REGISTRY,
-  moduleDefinitionGithubSchema,
-  resolveTS,
-  type APIResponseWithData,
   type DefaultPresentationObject,
   type Language,
   type Metric,
   type MetricDefinitionGithub,
+  MODULE_REGISTRY,
   type ModuleDefinitionDetail,
   type ModuleDefinitionGithub,
+  moduleDefinitionGithubSchema,
   type ModuleId,
+  resolveTS,
   type ResultsObjectDefinition,
   type ResultsObjectDefinitionGithub,
 } from "lib";
 import { stripFrontmatter } from "../github/fetch_module.ts";
-import { getTranslateFunc } from "./translation_utils.ts";
 
-import { _GITHUB_TOKEN, _IS_PRODUCTION, _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
+import {
+  _GITHUB_TOKEN,
+  _IS_PRODUCTION,
+  _MODULES_LOCAL_DIR,
+} from "../exposed_env_vars.ts";
 
 const MODULE_SOURCE: "local" | "github" = _IS_PRODUCTION ? "github" : "local";
 
@@ -42,12 +45,21 @@ export function deriveDefaultPresentationObjects(
           d: { ...preset.config.d },
           s: { ...DEFAULT_S_CONFIG, ...preset.config.s },
           t: {
-            caption: preset.config.t.caption ? resolveTS(preset.config.t.caption, language) : DEFAULT_T_CONFIG.caption,
-            captionRelFontSize: preset.config.t.captionRelFontSize ?? DEFAULT_T_CONFIG.captionRelFontSize,
-            subCaption: preset.config.t.subCaption ? resolveTS(preset.config.t.subCaption, language) : DEFAULT_T_CONFIG.subCaption,
-            subCaptionRelFontSize: preset.config.t.subCaptionRelFontSize ?? DEFAULT_T_CONFIG.subCaptionRelFontSize,
-            footnote: preset.config.t.footnote ? resolveTS(preset.config.t.footnote, language) : DEFAULT_T_CONFIG.footnote,
-            footnoteRelFontSize: preset.config.t.footnoteRelFontSize ?? DEFAULT_T_CONFIG.footnoteRelFontSize,
+            caption: preset.config.t.caption
+              ? resolveTS(preset.config.t.caption, language)
+              : DEFAULT_T_CONFIG.caption,
+            captionRelFontSize: preset.config.t.captionRelFontSize ??
+              DEFAULT_T_CONFIG.captionRelFontSize,
+            subCaption: preset.config.t.subCaption
+              ? resolveTS(preset.config.t.subCaption, language)
+              : DEFAULT_T_CONFIG.subCaption,
+            subCaptionRelFontSize: preset.config.t.subCaptionRelFontSize ??
+              DEFAULT_T_CONFIG.subCaptionRelFontSize,
+            footnote: preset.config.t.footnote
+              ? resolveTS(preset.config.t.footnote, language)
+              : DEFAULT_T_CONFIG.footnote,
+            footnoteRelFontSize: preset.config.t.footnoteRelFontSize ??
+              DEFAULT_T_CONFIG.footnoteRelFontSize,
           },
         },
       });
@@ -58,7 +70,9 @@ export function deriveDefaultPresentationObjects(
 
 export async function fetchModuleFiles(
   moduleId: string,
-): Promise<{ definition: ModuleDefinitionGithub; script: string; gitRef?: string }> {
+): Promise<
+  { definition: ModuleDefinitionGithub; script: string; gitRef?: string }
+> {
   const registryEntry = MODULE_REGISTRY.find((m) => m.id === moduleId);
   if (!registryEntry) {
     throw new Error(`Module "${moduleId}" not found in registry`);
@@ -66,12 +80,18 @@ export async function fetchModuleFiles(
 
   if (MODULE_SOURCE === "local") {
     const basePath = `${_MODULES_LOCAL_DIR}/${registryEntry.github.path}`;
-    const definitionText = await Deno.readTextFile(`${basePath}/definition.json`);
+    const definitionText = await Deno.readTextFile(
+      `${basePath}/definition.json`,
+    );
     const rawScript = await Deno.readTextFile(`${basePath}/script.R`);
     const rawDefinition = JSON.parse(definitionText);
     const definition = validateDefinition(rawDefinition, moduleId);
     const localRef = `loc-${crypto.randomUUID().slice(0, 8)}`;
-    return { definition, script: stripFrontmatter(rawScript), gitRef: localRef };
+    return {
+      definition,
+      script: stripFrontmatter(rawScript),
+      gitRef: localRef,
+    };
   }
 
   const { owner, repo, path } = registryEntry.github;
@@ -100,7 +120,8 @@ export async function fetchModuleFiles(
 
   // Use commit SHA if available to avoid GitHub's raw content cache (~5min)
   const ref = gitRef ?? "main";
-  const baseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
+  const baseUrl =
+    `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
 
   const [defRes, scriptRes] = await Promise.all([
     fetch(`${baseUrl}/definition.json`, { headers }),
@@ -108,10 +129,14 @@ export async function fetchModuleFiles(
   ]);
 
   if (!defRes.ok) {
-    throw new Error(`Failed to fetch definition.json for ${moduleId}: ${defRes.status} ${defRes.statusText}`);
+    throw new Error(
+      `Failed to fetch definition.json for ${moduleId}: ${defRes.status} ${defRes.statusText}`,
+    );
   }
   if (!scriptRes.ok) {
-    throw new Error(`Failed to fetch script.R for ${moduleId}: ${scriptRes.status} ${scriptRes.statusText}`);
+    throw new Error(
+      `Failed to fetch script.R for ${moduleId}: ${scriptRes.status} ${scriptRes.statusText}`,
+    );
   }
 
   const rawDefinition = await defRes.json();
@@ -121,10 +146,15 @@ export async function fetchModuleFiles(
   return { definition, script: stripFrontmatter(rawScript), gitRef };
 }
 
-function validateDefinition(definition: unknown, moduleId: string): ModuleDefinitionGithub {
+function validateDefinition(
+  definition: unknown,
+  moduleId: string,
+): ModuleDefinitionGithub {
   const result = moduleDefinitionGithubSchema.safeParse(definition);
   if (!result.success) {
-    const issues = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    const issues = result.error.issues.map((i) =>
+      `${i.path.join(".")}: ${i.message}`
+    ).join("; ");
     throw new Error(`Invalid definition for module "${moduleId}": ${issues}`);
   }
   return result.data as ModuleDefinitionGithub;
@@ -132,23 +162,19 @@ function validateDefinition(definition: unknown, moduleId: string): ModuleDefini
 
 function translateMetrics(
   metrics: MetricDefinitionGithub[],
-  tc: (v: string) => string,
   language: Language,
 ): Metric[] {
   return metrics.map((m) => ({
     ...m,
     label: resolveTS(m.label, language),
     variantLabel: m.variantLabel ? resolveTS(m.variantLabel, language) : null,
-    importantNotes: m.importantNotes ? resolveTS(m.importantNotes, language) : null,
+    importantNotes: m.importantNotes
+      ? resolveTS(m.importantNotes, language)
+      : null,
     postAggregationExpression: m.postAggregationExpression ?? null,
     aiDescription: m.aiDescription ?? null,
     valueLabelReplacements: Object.keys(m.valueLabelReplacements).length > 0
-      ? Object.fromEntries(
-          Object.entries(m.valueLabelReplacements).map(([key, value]) => [
-            key,
-            tc(value),
-          ])
-        )
+      ? m.valueLabelReplacements
       : null,
   }));
 }
@@ -172,16 +198,15 @@ export async function getModuleDefinitionDetail(
   try {
     const { definition, script, gitRef } = await fetchModuleFiles(id);
 
-    const tc = getTranslateFunc(language);
-
-    const resultsObjectsWithModuleId: ResultsObjectDefinition[] =
-      definition.resultsObjects.map((ro: ResultsObjectDefinitionGithub) => ({
+    const resultsObjectsWithModuleId: ResultsObjectDefinition[] = definition
+      .resultsObjects.map((ro: ResultsObjectDefinitionGithub) => ({
         id: ro.id,
         moduleId: id,
-        createTableStatementPossibleColumns: ro.createTableStatementPossibleColumns,
+        createTableStatementPossibleColumns:
+          ro.createTableStatementPossibleColumns,
       }));
 
-    const translatedMetrics = translateMetrics(definition.metrics, tc, language);
+    const translatedMetrics = translateMetrics(definition.metrics, language);
 
     const translatedModule: ModuleDefinitionDetail = {
       id,
@@ -190,7 +215,10 @@ export async function getModuleDefinitionDetail(
       lastScriptUpdate: new Date().toISOString(),
       dataSources: definition.dataSources,
       scriptGenerationType: definition.scriptGenerationType,
-      configRequirements: translateConfigRequirements(definition.configRequirements, language),
+      configRequirements: translateConfigRequirements(
+        definition.configRequirements,
+        language,
+      ),
       script,
       assetsToImport: definition.assetsToImport,
       resultsObjects: resultsObjectsWithModuleId,

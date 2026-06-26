@@ -1,4 +1,9 @@
-import { type LegendInput, type LegendItem, type ColorKeyOrString } from "panther";
+import {
+  type ColorKeyOrString,
+  type Language,
+  type LegendInput,
+  type LegendItem,
+} from "panther";
 import {
   _CF_GREEN,
   _CF_LIGHTER_GREEN,
@@ -23,7 +28,7 @@ import {
 function getPeriodChangeLabels(
   timeseriesGrouping: PeriodOption,
   _inverted: boolean,
-  language: "en" | "fr",
+  language: Language,
 ): { increase: string; decrease: string } {
   const labels = getPeriodChangeTranslatableStrings(timeseriesGrouping);
   return {

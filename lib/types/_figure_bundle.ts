@@ -36,16 +36,22 @@ export const indicatorMetadataSchema = z.strictObject({
   id: z.string(),
   label: z.string(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
-  threshold_direction: z.enum(["higher_is_better", "lower_is_better"]).optional(),
+  threshold_direction: z.enum(["higher_is_better", "lower_is_better"])
+    .optional(),
   threshold_green: z.number().optional(),
   threshold_yellow: z.number().optional(),
   group_label: z.string().optional(),
   sort_order: z.number().optional(),
 });
 const _im: Required<IndicatorMetadata> = {
-  id: "", label: "", format_as: "number",
-  threshold_direction: "higher_is_better", threshold_green: 0, threshold_yellow: 0,
-  group_label: "", sort_order: 0,
+  id: "",
+  label: "",
+  format_as: "number",
+  threshold_direction: "higher_is_better",
+  threshold_green: 0,
+  threshold_yellow: 0,
+  group_label: "",
+  sort_order: 0,
 };
 indicatorMetadataSchema.parse(_im);
 
@@ -55,7 +61,9 @@ export const resultsValueForVisualizationSchema = z.strictObject({
   valueLabelReplacements: z.record(z.string(), z.string()).optional(),
 });
 const _rv: Required<ResultsValueForVisualization> = {
-  formatAs: "number", valueProps: [], valueLabelReplacements: {},
+  formatAs: "number",
+  valueProps: [],
+  valueLabelReplacements: {},
 };
 resultsValueForVisualizationSchema.parse(_rv);
 
@@ -71,7 +79,7 @@ export const geoRefSchema = z.discriminatedUnion("kind", [
 // a stored bundle always carries a definite string — no silent omission.
 
 export const figureLocalizationSchema = z.strictObject({
-  language: z.enum(["en", "fr"]),
+  language: z.enum(["en", "fr", "pt"]),
   calendar: z.enum(["gregorian", "ethiopian"]),
   countryIso3: z.string(),
 });

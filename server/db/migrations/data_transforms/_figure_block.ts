@@ -23,19 +23,20 @@
 // =============================================================================
 
 import {
-  figureBundleSchema,
   figureBlockSchema,
+  figureBundleSchema,
   isRollupActive,
-  ROLLUP_PIN_IDS,
   presentationObjectConfigSchema,
+  ROLLUP_PIN_IDS,
 } from "lib";
 import {
   getPeriodIdFromTime,
+  type Language,
   type PeriodType,
 } from "@timroberton/panther";
 import {
-  _INSTANCE_LANGUAGE,
   _INSTANCE_CALENDAR,
+  _INSTANCE_LANGUAGE,
 } from "../../../exposed_env_vars.ts";
 import { transformPOConfigData } from "./po_config.ts";
 
@@ -55,7 +56,7 @@ export type FigureBlockMut = {
 };
 
 export type FigureLocalizationForTransform = {
-  language: "en" | "fr";
+  language: Language;
   calendar: "gregorian" | "ethiopian";
   countryIso3: string;
 };
@@ -91,20 +92,31 @@ export function transformFigureInputs(fi: Record<string, unknown>): void {
     if (!d || d.isTransformed !== true) continue;
 
     // Block 9: Migrate yScaleAxisData → scaleAxisLimits + tierHeaders
-    const yScaleAxisData = d.yScaleAxisData as Record<string, unknown> | undefined;
+    const yScaleAxisData = d.yScaleAxisData as
+      | Record<string, unknown>
+      | undefined;
     if (!d.tierHeaders) {
-      const oldTierHeaders = yScaleAxisData?.tierHeaders as string[] | undefined;
+      const oldTierHeaders = yScaleAxisData?.tierHeaders as
+        | string[]
+        | undefined;
       d.tierHeaders = oldTierHeaders ?? ["default"];
     }
     if (!d.scaleAxisLimits && yScaleAxisData) {
       const oldPaneLimits = yScaleAxisData.paneLimits as Array<{
-        valueMin: number; valueMax: number; tierLimits: Array<{ valueMin: number; valueMax: number }>;
+        valueMin: number;
+        valueMax: number;
+        tierLimits: Array<{ valueMin: number; valueMax: number }>;
       }>;
       const laneCount = (d.laneHeaders as string[] | undefined)?.length ?? 1;
       d.scaleAxisLimits = {
         paneLimits: oldPaneLimits.map((p) => ({
-          valueMin: p.valueMin, valueMax: p.valueMax, tierLimits: p.tierLimits,
-          laneLimits: Array.from({ length: laneCount }, () => ({ valueMin: p.valueMin, valueMax: p.valueMax })),
+          valueMin: p.valueMin,
+          valueMax: p.valueMax,
+          tierLimits: p.tierLimits,
+          laneLimits: Array.from(
+            { length: laneCount },
+            () => ({ valueMin: p.valueMin, valueMax: p.valueMax }),
+          ),
         })),
       };
       d.yScaleAxisLabel = yScaleAxisData.yScaleAxisLabel;
@@ -116,22 +128,39 @@ export function transformFigureInputs(fi: Record<string, unknown>): void {
       const paneCount = (d.paneHeaders as unknown[] | undefined)?.length ?? 1;
       const tierCount = (d.tierHeaders as unknown[] | undefined)?.length ?? 1;
       const laneCount = (d.laneHeaders as unknown[] | undefined)?.length ?? 1;
-      const paneLimits = (d.scaleAxisLimits as { paneLimits?: { tierLimits?: unknown[]; laneLimits?: unknown[] }[] } | undefined)?.paneLimits;
+      const paneLimits = (d.scaleAxisLimits as {
+        paneLimits?: { tierLimits?: unknown[]; laneLimits?: unknown[] }[];
+      } | undefined)?.paneLimits;
       const malformed = !paneLimits || paneLimits.length !== paneCount ||
-        paneLimits.some((p) => (p.tierLimits?.length ?? 0) !== tierCount || (p.laneLimits?.length ?? 0) !== laneCount);
+        paneLimits.some((p) =>
+          (p.tierLimits?.length ?? 0) !== tierCount ||
+          (p.laneLimits?.length ?? 0) !== laneCount
+        );
       if (malformed) {
         d.scaleAxisLimits = recomputeScaleAxisLimits(
           d.values as (number | undefined)[][][][][],
-          paneCount, tierCount, laneCount,
+          paneCount,
+          tierCount,
+          laneCount,
         );
       }
     }
 
     // Block 12: Normalize string[] headers → HeaderItem[]
-    for (const headerKey of ["seriesHeaders", "laneHeaders", "tierHeaders", "paneHeaders", "indicatorHeaders"]) {
+    for (
+      const headerKey of [
+        "seriesHeaders",
+        "laneHeaders",
+        "tierHeaders",
+        "paneHeaders",
+        "indicatorHeaders",
+      ]
+    ) {
       const arr = d[headerKey];
       if (Array.isArray(arr)) {
-        d[headerKey] = arr.map((h) => typeof h === "string" ? { id: h, label: h } : h);
+        d[headerKey] = arr.map((h) =>
+          typeof h === "string" ? { id: h, label: h } : h
+        );
       }
     }
   }
@@ -146,14 +175,22 @@ export function warnIfFigureInputsStale(
   // since the bundle conversion handles all rows; old figureInputs that remain
   // after transformFigureBlockToBundle would indicate a conversion failure.
   if (fi !== undefined) {
-    console.warn(`[data_transforms] ${context}: figureInputs still present after bundle conversion`);
+    console.warn(
+      `[data_transforms] ${context}: figureInputs still present after bundle conversion`,
+    );
   }
 }
 
 // Known IndicatorMetadata fields — any other key is a legacy field to strip.
 const _INDICATOR_METADATA_KEYS = new Set([
-  "id", "label", "format_as", "threshold_direction",
-  "threshold_green", "threshold_yellow", "group_label", "sort_order",
+  "id",
+  "label",
+  "format_as",
+  "threshold_direction",
+  "threshold_green",
+  "threshold_yellow",
+  "group_label",
+  "sort_order",
 ]);
 
 // Pre-P2 figure-block normalisation — run before bundle conversion.
@@ -174,7 +211,10 @@ export function transformFigureBlock(block: FigureBlockMut): void {
   // Block: strip legacy fields from source.indicatorMetadata (e.g. "decimal_places"
   // from older app versions). indicatorMetadataSchema is strict; cleaning happens
   // here (in the transform layer) so the bundle builder receives clean data.
-  if (block.source?.type === "from_data" && Array.isArray(block.source.indicatorMetadata)) {
+  if (
+    block.source?.type === "from_data" &&
+    Array.isArray(block.source.indicatorMetadata)
+  ) {
     block.source.indicatorMetadata = block.source.indicatorMetadata.map((m) => {
       if (m === null || typeof m !== "object") return m;
       const cleaned: Record<string, unknown> = {};
@@ -226,15 +266,19 @@ export function transformFigureBlockToBundle(
     // source.config missing or invalid — fail-fast so the dry-run surfaces it
     // (a silent blank would pass figureBlockSchema and be masked as "empty").
     throw new Error(
-      `[bundle-backfill] source.config missing or invalid for metricId=${source.metricId ?? "?"}: ` +
-      (config ? JSON.stringify(config.error.issues.slice(0, 2)) : "no config"),
+      `[bundle-backfill] source.config missing or invalid for metricId=${
+        source.metricId ?? "?"
+      }: ` +
+        (config
+          ? JSON.stringify(config.error.issues.slice(0, 2))
+          : "no config"),
     );
   }
 
   const indicatorMetadata = Array.isArray(source.indicatorMetadata)
     ? (source.indicatorMetadata as unknown[]).filter(
-        (m): m is Record<string, unknown> => m !== null && typeof m === "object",
-      )
+      (m): m is Record<string, unknown> => m !== null && typeof m === "object",
+    )
     : [];
 
   let bundle: Record<string, unknown> | undefined;
@@ -281,14 +325,23 @@ function buildBundleFromFigureInputs(
   };
 
   // chart/table/map: extract items from jsonArray
-  for (const dataKey of ["chartData", "chartOHData", "tableData", "mapData"] as const) {
+  for (
+    const dataKey of [
+      "chartData",
+      "chartOHData",
+      "tableData",
+      "mapData",
+    ] as const
+  ) {
     const d = fi[dataKey] as Record<string, unknown> | undefined;
     if (!d) continue;
     const jsonArray = d.jsonArray as Record<string, string>[] | undefined;
     const jdc = d.jsonDataConfig as Record<string, unknown> | undefined;
     if (!Array.isArray(jsonArray) || !jdc) continue;
 
-    const valueProps = Array.isArray(jdc.valueProps) ? (jdc.valueProps as string[]) : [];
+    const valueProps = Array.isArray(jdc.valueProps)
+      ? (jdc.valueProps as string[])
+      : [];
     const geo = resolveGeo(config, geoData);
 
     // Normalize all values to strings — stored jsonArrays may carry numeric
@@ -296,7 +349,9 @@ function buildBundleFromFigureInputs(
     // bundle schema requires Record<string, string>.
     const stringItems: Record<string, string>[] = jsonArray.map((row) =>
       Object.fromEntries(
-        Object.entries(row).map(([k, v]) => [k, v === null || v === undefined ? "" : String(v)]),
+        Object.entries(row).map((
+          [k, v],
+        ) => [k, v === null || v === undefined ? "" : String(v)]),
       )
     );
 
@@ -313,8 +368,13 @@ function buildBundleFromFigureInputs(
   const tsData = fi.timeseriesData as Record<string, unknown> | undefined;
   if (tsData && tsData.isTransformed === true) {
     try {
-      const { items, jdc } = reverseTransformTimeseries(tsData, config as unknown as Record<string, unknown>);
-      const valueProps = Array.isArray(jdc.valueProps) ? (jdc.valueProps as string[]) : [];
+      const { items, jdc } = reverseTransformTimeseries(
+        tsData,
+        config as unknown as Record<string, unknown>,
+      );
+      const valueProps = Array.isArray(jdc.valueProps)
+        ? (jdc.valueProps as string[])
+        : [];
       const geo = resolveGeo(config, geoData);
 
       // Derive dateRange from stored timeMin/nTimePoints before validating,
@@ -324,9 +384,9 @@ function buildBundleFromFigureInputs(
       const nTimePoints = tsData.nTimePoints as number | undefined ?? 0;
       const tsDateRange = nTimePoints > 0
         ? {
-            min: getPeriodIdFromTime(timeMin, periodType),
-            max: getPeriodIdFromTime(timeMin + nTimePoints - 1, periodType),
-          }
+          min: getPeriodIdFromTime(timeMin, periodType),
+          max: getPeriodIdFromTime(timeMin + nTimePoints - 1, periodType),
+        }
         : undefined;
 
       validateTimeseriesRoundTrip(items, jdc, tsData);
@@ -334,13 +394,18 @@ function buildBundleFromFigureInputs(
       return {
         ...base,
         items,
-        resultsValue: { formatAs: inferFormatAs(indicatorMetadata), valueProps },
+        resultsValue: {
+          formatAs: inferFormatAs(indicatorMetadata),
+          valueProps,
+        },
         dateRange: tsDateRange,
         geo,
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`[bundle-backfill] timeseries round-trip FAIL for metric=${metricId}: ${msg}`);
+      throw new Error(
+        `[bundle-backfill] timeseries round-trip FAIL for metric=${metricId}: ${msg}`,
+      );
     }
   }
 
@@ -373,9 +438,13 @@ function reverseTransformTimeseries(
   }
 
   const toHeaders = (arr: unknown): { id: string; label: string }[] => {
-    if (!Array.isArray(arr) || arr.length === 0) return [{ id: "--v", label: "--v" }];
+    if (!Array.isArray(arr) || arr.length === 0) {
+      return [{ id: "--v", label: "--v" }];
+    }
     return arr.map((h) =>
-      typeof h === "string" ? { id: h, label: h } : (h as { id: string; label: string }),
+      typeof h === "string"
+        ? { id: h, label: h }
+        : (h as { id: string; label: string })
     );
   };
 
@@ -390,24 +459,33 @@ function reverseTransformTimeseries(
   if (!values) throw new Error("missing values array");
 
   // Derive periodProp from periodType
-  const periodProp = periodType === "year" ? "year"
-    : periodType === "year-month" ? "period_id"
+  const periodProp = periodType === "year"
+    ? "year"
+    : periodType === "year-month"
+    ? "period_id"
     : "quarter_id";
 
   // Detect wide format (--v): first seriesHeader.id is a known valueProp name.
   // In wide format, seriesProp is "--v" and each series header maps to a valueProp.
   const configD = sourceConfig.d as Record<string, unknown> | undefined;
-  const timeseriesGrouping = configD?.timeseriesGrouping as string | undefined ?? periodProp;
+  const timeseriesGrouping =
+    configD?.timeseriesGrouping as string | undefined ?? periodProp;
   const disaggregateBy = Array.isArray(configD?.disaggregateBy)
     ? (configD!.disaggregateBy as { disOpt: string; disDisplayOpt?: string }[])
     : [];
 
   // Reconstruct which columns map to which display axis.
   // seriesProp is the disaggregation option with disDisplayOpt "series", or "--v" if none.
-  const seriesDisOpt = disaggregateBy.find((d) => d.disDisplayOpt === "series")?.disOpt;
-  const panePanelDisOpt = disaggregateBy.find((d) => d.disDisplayOpt === "cell")?.disOpt;
-  const laneDisOpt = disaggregateBy.find((d) => d.disDisplayOpt === "col" || d.disDisplayOpt === "colGroup")?.disOpt;
-  const tierDisOpt = disaggregateBy.find((d) => d.disDisplayOpt === "row" || d.disDisplayOpt === "rowGroup")?.disOpt;
+  const seriesDisOpt = disaggregateBy.find((d) => d.disDisplayOpt === "series")
+    ?.disOpt;
+  const panePanelDisOpt = disaggregateBy.find((d) => d.disDisplayOpt === "cell")
+    ?.disOpt;
+  const laneDisOpt = disaggregateBy.find((d) =>
+    d.disDisplayOpt === "col" || d.disDisplayOpt === "colGroup"
+  )?.disOpt;
+  const tierDisOpt = disaggregateBy.find((d) =>
+    d.disDisplayOpt === "row" || d.disDisplayOpt === "rowGroup"
+  )?.disOpt;
 
   const isWideFormat = !seriesDisOpt;
   const seriesProp = seriesDisOpt ?? "--v";
@@ -431,10 +509,18 @@ function reverseTransformTimeseries(
       for (let iLn = 0; iLn < laneHeaders.length; iLn++) {
         if (isWideFormat) {
           for (let iT = 0; iT < nTimePoints; iT++) {
-            const row: Record<string, string> = { [timeseriesGrouping]: timeLabels[iT] };
-            if (paneProp && paneHeaders.length > 1) row[paneProp] = paneHeaders[iPn].id;
-            if (tierProp && tierHeaders.length > 1) row[tierProp] = tierHeaders[iTr].id;
-            if (laneProp && laneHeaders.length > 1) row[laneProp] = laneHeaders[iLn].id;
+            const row: Record<string, string> = {
+              [timeseriesGrouping]: timeLabels[iT],
+            };
+            if (paneProp && paneHeaders.length > 1) {
+              row[paneProp] = paneHeaders[iPn].id;
+            }
+            if (tierProp && tierHeaders.length > 1) {
+              row[tierProp] = tierHeaders[iTr].id;
+            }
+            if (laneProp && laneHeaders.length > 1) {
+              row[laneProp] = laneHeaders[iLn].id;
+            }
             let hasAnyValue = false;
             for (let iSr = 0; iSr < seriesHeaders.length; iSr++) {
               const v = values[iPn]?.[iTr]?.[iLn]?.[iSr]?.[iT];
@@ -455,9 +541,15 @@ function reverseTransformTimeseries(
                 [timeseriesGrouping]: timeLabels[iT],
                 [valueProp]: String(v),
               };
-              if (paneProp && paneHeaders.length > 1) row[paneProp] = paneHeaders[iPn].id;
-              if (tierProp && tierHeaders.length > 1) row[tierProp] = tierHeaders[iTr].id;
-              if (laneProp && laneHeaders.length > 1) row[laneProp] = laneHeaders[iLn].id;
+              if (paneProp && paneHeaders.length > 1) {
+                row[paneProp] = paneHeaders[iPn].id;
+              }
+              if (tierProp && tierHeaders.length > 1) {
+                row[tierProp] = tierHeaders[iTr].id;
+              }
+              if (laneProp && laneHeaders.length > 1) {
+                row[laneProp] = laneHeaders[iLn].id;
+              }
               if (seriesProp !== "--v") row[seriesProp] = seriesHeaders[iSr].id;
               rows.push(row);
             }
@@ -471,11 +563,12 @@ function reverseTransformTimeseries(
   // all axes, so the round-trip validation must use the same sort. Mismatch
   // would produce a different header order → different values grid → FAIL.
   const parsedConfig = presentationObjectConfigSchema.safeParse(sourceConfig);
-  const rollupSort: unknown = parsedConfig.success && isRollupActive(parsedConfig.data)
-    ? parsedConfig.data.d.adminAreaRollupPosition === "top"
-      ? { base: "by-label", first: ROLLUP_PIN_IDS }
-      : { base: "by-label", last: ROLLUP_PIN_IDS }
-    : "by-label";
+  const rollupSort: unknown =
+    parsedConfig.success && isRollupActive(parsedConfig.data)
+      ? parsedConfig.data.d.adminAreaRollupPosition === "top"
+        ? { base: "by-label", first: ROLLUP_PIN_IDS }
+        : { base: "by-label", last: ROLLUP_PIN_IDS }
+      : "by-label";
 
   // Build a minimal jsonDataConfig for self-validation.
   const jdc: Record<string, unknown> = {
@@ -486,7 +579,12 @@ function reverseTransformTimeseries(
     paneProp,
     laneProp,
     tierProp,
-    sort: { series: rollupSort, lane: rollupSort, tier: rollupSort, pane: rollupSort },
+    sort: {
+      series: rollupSort,
+      lane: rollupSort,
+      tier: rollupSort,
+      pane: rollupSort,
+    },
   };
 
   return { items: rows, jdc };
@@ -505,7 +603,9 @@ function validateTimeseriesRoundTrip(
   storedTsData: Record<string, unknown>,
 ): void {
   const periodProp = String(jdc.periodProp ?? "year");
-  const valueProps = Array.isArray(jdc.valueProps) ? (jdc.valueProps as string[]) : [];
+  const valueProps = Array.isArray(jdc.valueProps)
+    ? (jdc.valueProps as string[])
+    : [];
   const seriesProp = jdc.seriesProp as string | undefined;
   const paneProp = jdc.paneProp as string | undefined;
   const laneProp = jdc.laneProp as string | undefined;
@@ -539,13 +639,16 @@ function validateTimeseriesRoundTrip(
 
   const toHeaders = (arr: unknown): { id: string }[] => {
     if (!Array.isArray(arr) || arr.length === 0) return [{ id: "--v" }];
-    return arr.map((h) => typeof h === "string" ? { id: h } : (h as { id: string }));
+    return arr.map((h) =>
+      typeof h === "string" ? { id: h } : (h as { id: string })
+    );
   };
   const paneHeaders = toHeaders(storedTsData.paneHeaders);
   const tierHeaders = toHeaders(storedTsData.tierHeaders);
   const laneHeaders = toHeaders(storedTsData.laneHeaders);
   const seriesHeaders = toHeaders(storedTsData.seriesHeaders);
-  const periodType = storedTsData.periodType as PeriodType | undefined ?? "year";
+  const periodType = storedTsData.periodType as PeriodType | undefined ??
+    "year";
   const timeMin = storedTsData.timeMin as number | undefined ?? 0;
   const nTimePoints = storedTsData.nTimePoints as number | undefined ?? 0;
 
@@ -555,9 +658,12 @@ function validateTimeseriesRoundTrip(
 
   // Single-header axes have id="default" in stored data but "--v" in the lookup
   // (the reverse-transform omits the column for single-header axes).
-  const paneKey = (iPn: number) => paneHeaders.length === 1 ? "--v" : paneHeaders[iPn].id;
-  const tierKey = (iTr: number) => tierHeaders.length === 1 ? "--v" : tierHeaders[iTr].id;
-  const laneKey = (iLn: number) => laneHeaders.length === 1 ? "--v" : laneHeaders[iLn].id;
+  const paneKey = (iPn: number) =>
+    paneHeaders.length === 1 ? "--v" : paneHeaders[iPn].id;
+  const tierKey = (iTr: number) =>
+    tierHeaders.length === 1 ? "--v" : tierHeaders[iTr].id;
+  const laneKey = (iLn: number) =>
+    laneHeaders.length === 1 ? "--v" : laneHeaders[iLn].id;
 
   for (let iPn = 0; iPn < paneHeaders.length; iPn++) {
     for (let iTr = 0; iTr < tierHeaders.length; iTr++) {
@@ -566,22 +672,37 @@ function validateTimeseriesRoundTrip(
           for (let iT = 0; iT < nTimePoints; iT++) {
             const sv = values[iPn]?.[iTr]?.[iLn]?.[iSr]?.[iT];
             // Treat sentinels and nulls as absent — not a data-loss case.
-            if (sv === null || sv === undefined || sv === "@@__UNDEFINED__@@") continue;
+            if (sv === null || sv === undefined || sv === "@@__UNDEFINED__@@") {
+              continue;
+            }
             const storedNum = Number(sv);
             if (isNaN(storedNum)) continue;
 
-            const period = String(getPeriodIdFromTime(timeMin + iT, periodType));
+            const period = String(
+              getPeriodIdFromTime(timeMin + iT, periodType),
+            );
             const seriesKey = isWideFormat
               ? (valueProps[iSr] ?? seriesHeaders[iSr].id)
               : seriesHeaders[iSr].id;
-            const key = `${paneKey(iPn)}|${tierKey(iTr)}|${laneKey(iLn)}|${seriesKey}|${period}`;
+            const key = `${paneKey(iPn)}|${tierKey(iTr)}|${
+              laneKey(iLn)
+            }|${seriesKey}|${period}`;
             const reconstructed = lookup.get(key);
 
-            if (reconstructed === undefined || Math.abs(reconstructed - storedNum) > 1e-6) {
+            if (
+              reconstructed === undefined ||
+              Math.abs(reconstructed - storedNum) > 1e-6
+            ) {
               throw new Error(
-                `value not recoverable at (pane=${paneHeaders[iPn].id}, tier=${tierHeaders[iTr].id}, ` +
-                `lane=${laneHeaders[iLn].id}, series=${seriesKey}, period=${period}): ` +
-                `stored=${storedNum}, reconstructed=${reconstructed ?? "missing"}`,
+                `value not recoverable at (pane=${paneHeaders[iPn].id}, tier=${
+                  tierHeaders[iTr].id
+                }, ` +
+                  `lane=${
+                    laneHeaders[iLn].id
+                  }, series=${seriesKey}, period=${period}): ` +
+                  `stored=${storedNum}, reconstructed=${
+                    reconstructed ?? "missing"
+                  }`,
               );
             }
           }
@@ -599,7 +720,13 @@ function validateTimeseriesRoundTrip(
 function deriveDateRangeFromItems(
   items: Record<string, string>[],
 ): { min: number; max: number } | undefined {
-  const PERIOD_COLS = ["period_id", "year", "quarter_id", "month", "year_of_activity"];
+  const PERIOD_COLS = [
+    "period_id",
+    "year",
+    "quarter_id",
+    "month",
+    "year_of_activity",
+  ];
   for (const col of PERIOD_COLS) {
     const values: number[] = [];
     for (const row of items) {
@@ -629,7 +756,10 @@ function inferFormatAs(
 function resolveGeo(
   config: ReturnType<typeof presentationObjectConfigSchema.parse>,
   geoData: unknown,
-): { kind: "data"; data: unknown } | { kind: "level"; level: number } | undefined {
+):
+  | { kind: "data"; data: unknown }
+  | { kind: "level"; level: number }
+  | undefined {
   if (config.d.type !== "map") return undefined;
 
   // If caller provided stored geoData (dashboard geo_data column), use it.
@@ -653,11 +783,33 @@ function recomputeScaleAxisLimits(
   paneCount: number,
   tierCount: number,
   laneCount: number,
-): { paneLimits: Array<{ valueMin: number; valueMax: number; tierLimits: Array<{ valueMin: number; valueMax: number }>; laneLimits: Array<{ valueMin: number; valueMax: number }> }> } {
+): {
+  paneLimits: Array<
+    {
+      valueMin: number;
+      valueMax: number;
+      tierLimits: Array<{ valueMin: number; valueMax: number }>;
+      laneLimits: Array<{ valueMin: number; valueMax: number }>;
+    }
+  >;
+} {
   const paneLimits = Array.from({ length: paneCount }, () => ({
-    valueMin: Number.POSITIVE_INFINITY, valueMax: Number.NEGATIVE_INFINITY,
-    tierLimits: Array.from({ length: tierCount }, () => ({ valueMin: Number.POSITIVE_INFINITY, valueMax: Number.NEGATIVE_INFINITY })),
-    laneLimits: Array.from({ length: laneCount }, () => ({ valueMin: Number.POSITIVE_INFINITY, valueMax: Number.NEGATIVE_INFINITY })),
+    valueMin: Number.POSITIVE_INFINITY,
+    valueMax: Number.NEGATIVE_INFINITY,
+    tierLimits: Array.from(
+      { length: tierCount },
+      () => ({
+        valueMin: Number.POSITIVE_INFINITY,
+        valueMax: Number.NEGATIVE_INFINITY,
+      }),
+    ),
+    laneLimits: Array.from(
+      { length: laneCount },
+      () => ({
+        valueMin: Number.POSITIVE_INFINITY,
+        valueMax: Number.NEGATIVE_INFINITY,
+      }),
+    ),
   }));
 
   for (let iPn = 0; iPn < paneCount; iPn++) {
@@ -672,10 +824,22 @@ function recomputeScaleAxisLimits(
             const p = paneLimits[iPn];
             p.valueMin = Math.min(p.valueMin, value);
             p.valueMax = Math.max(p.valueMax, value);
-            p.tierLimits[iTr].valueMin = Math.min(p.tierLimits[iTr].valueMin, value);
-            p.tierLimits[iTr].valueMax = Math.max(p.tierLimits[iTr].valueMax, value);
-            p.laneLimits[iLn].valueMin = Math.min(p.laneLimits[iLn].valueMin, value);
-            p.laneLimits[iLn].valueMax = Math.max(p.laneLimits[iLn].valueMax, value);
+            p.tierLimits[iTr].valueMin = Math.min(
+              p.tierLimits[iTr].valueMin,
+              value,
+            );
+            p.tierLimits[iTr].valueMax = Math.max(
+              p.tierLimits[iTr].valueMax,
+              value,
+            );
+            p.laneLimits[iLn].valueMin = Math.min(
+              p.laneLimits[iLn].valueMin,
+              value,
+            );
+            p.laneLimits[iLn].valueMax = Math.max(
+              p.laneLimits[iLn].valueMax,
+              value,
+            );
           }
         }
       }
@@ -704,7 +868,7 @@ export function getTransformLocalization(
   countryIso3: string,
 ): FigureLocalizationForTransform {
   return {
-    language: _INSTANCE_LANGUAGE as "en" | "fr",
+    language: _INSTANCE_LANGUAGE as Language,
     calendar: _INSTANCE_CALENDAR as "gregorian" | "ethiopian",
     countryIso3,
   };

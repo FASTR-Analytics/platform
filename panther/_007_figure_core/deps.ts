@@ -9,13 +9,13 @@ export {
   buildAutoFormatter,
   createArray,
   decodePeriod,
+  getLanguage,
   getPeriodIdFromTime,
   getValidNumberOrUndefined,
-  isFrench,
   isUnique,
   sum,
 } from "../_000_utils/mod.ts";
-export type { CalendarType, PeriodType } from "../_000_utils/mod.ts";
+export type { CalendarType, Language, PeriodType } from "../_000_utils/mod.ts";
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString, ValuesColorFunc } from "../_001_color/mod.ts";
 export { getAdjustedFont } from "../_001_font/mod.ts";

@@ -210,9 +210,12 @@ export function getToolsForReportEditor(
           newBody: input.markdown,
           summary: "Rewrite entire report",
         });
-        return accepted
-          ? "The user ACCEPTED the rewrite; it is now applied to the report."
-          : "The user REJECTED the rewrite; the report is unchanged. Do not retry unless asked.";
+        if (!accepted) {
+          throw new Error(
+            "The user REJECTED the rewrite; the report is unchanged. Do not retry unless asked.",
+          );
+        }
+        return "The user ACCEPTED the rewrite; it is now applied to the report.";
       },
       inProgressLabel: "Proposing rewrite...",
       completionMessage: "Proposed rewrite (awaiting accept/reject)",
@@ -251,9 +254,12 @@ export function getToolsForReportEditor(
           newBody: result.newBody,
           summary: `Rewrite section "${input.sectionHeading}"`,
         });
-        return accepted
-          ? `The user ACCEPTED the rewrite of section "${input.sectionHeading}"; it is now applied.`
-          : `The user REJECTED the rewrite of section "${input.sectionHeading}"; the report is unchanged. Do not retry unless asked.`;
+        if (!accepted) {
+          throw new Error(
+            `The user REJECTED the rewrite of section "${input.sectionHeading}"; the report is unchanged. Do not retry unless asked.`,
+          );
+        }
+        return `The user ACCEPTED the rewrite of section "${input.sectionHeading}"; it is now applied.`;
       },
       inProgressLabel: "Proposing section rewrite...",
       completionMessage: "Proposed section rewrite (awaiting accept/reject)",
@@ -292,9 +298,12 @@ export function getToolsForReportEditor(
           newBody: result.newBody,
           summary: "Replace text",
         });
-        return accepted
-          ? "The user ACCEPTED the edit; it is now applied to the report."
-          : "The user REJECTED the edit; the report is unchanged. Do not retry unless asked.";
+        if (!accepted) {
+          throw new Error(
+            "The user REJECTED the edit; the report is unchanged. Do not retry unless asked.",
+          );
+        }
+        return "The user ACCEPTED the edit; it is now applied to the report.";
       },
       inProgressLabel: "Proposing edit...",
       completionMessage: "Proposed edit (awaiting accept/reject)",
@@ -330,9 +339,12 @@ export function getToolsForReportEditor(
           addFigures: { [id]: figureBlock },
           summary: caption ? `Insert figure: ${caption}` : "Insert figure",
         });
-        return accepted
-          ? `The user ACCEPTED the figure insert (id ${id}); it is now in the report.`
-          : `The user REJECTED the figure insert; the report is unchanged. Do not retry unless asked.`;
+        if (!accepted) {
+          throw new Error(
+            `The user REJECTED the figure insert; the report is unchanged. Do not retry unless asked.`,
+          );
+        }
+        return `The user ACCEPTED the figure insert (id ${id}); it is now in the report.`;
       },
       inProgressLabel: "Preparing figure...",
       completionMessage: "Proposed figure insert (awaiting accept/reject)",
@@ -394,9 +406,12 @@ export function getToolsForReportEditor(
           addFigures: { [newId]: figureBlock },
           summary: "Replace figure",
         });
-        return accepted
-          ? `The user ACCEPTED the figure replacement (new id ${newId}); it is now in the report.`
-          : `The user REJECTED the figure replacement; the report is unchanged. Do not retry unless asked.`;
+        if (!accepted) {
+          throw new Error(
+            `The user REJECTED the figure replacement; the report is unchanged. Do not retry unless asked.`,
+          );
+        }
+        return `The user ACCEPTED the figure replacement (new id ${newId}); it is now in the report.`;
       },
       inProgressLabel: "Preparing figure...",
       completionMessage: "Proposed figure replacement (awaiting accept/reject)",

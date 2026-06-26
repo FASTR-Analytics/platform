@@ -143,8 +143,8 @@ export function DuplicateVisualization(
   );
 
   const header = p.poDetails.length > 1
-    ? t3({ en: `Duplicate ${p.poDetails.length} visualizations`, fr: `Dupliquer ${p.poDetails.length} visualisations` })
-    : t3({ en: "Duplicate visualization", fr: "Dupliquer la visualisation" });
+    ? t3({ en: `Duplicate ${p.poDetails.length} visualizations`, fr: `Dupliquer ${p.poDetails.length} visualisations`, pt: `Duplicar ${p.poDetails.length} visualizações` })
+    : t3({ en: "Duplicate visualization", fr: "Dupliquer la visualisation", pt: "Duplicar visualização" });
 
   return (
     <AlertFormHolder
@@ -172,7 +172,7 @@ export function DuplicateVisualization(
         {/* Label input: only for single viz */}
         <Show when={!isBatchMode()}>
           <Input
-            label={t3({ en: "New visualization name", fr: "Nom de la nouvelle visualisation" })}
+            label={t3({ en: "New visualization name", fr: "Nom de la nouvelle visualisation", pt: "Nome da nova visualização" })}
             value={tempLabel()}
             onChange={setTempLabel}
             fullWidth
@@ -187,14 +187,14 @@ export function DuplicateVisualization(
             <div class="space-y-4">
               <div class="flex ui-gap">
                 <Input
-                  label={t3({ en: "Folder name", fr: "Nom du dossier" })}
+                  label={t3({ en: "Folder name", fr: "Nom du dossier", pt: "Nome da pasta" })}
                   value={newFolderLabel()}
                   onChange={setNewFolderLabel}
                   autoFocus
                   fullWidth
                 />
                 <ColorPicker
-                  label={t3({ en: "Color", fr: "Couleur" })}
+                  label={t3({ en: "Color", fr: "Couleur", pt: "Cor" })}
                   value={newFolderColor()}
                   onChange={(c) => setNewFolderColor(c)}
                   position="right"
@@ -205,7 +205,7 @@ export function DuplicateVisualization(
                 outline
                 onClick={() => setIsCreatingFolder(false)}
               >
-                {t3({ en: "Back to folder list", fr: "Retour à la liste des dossiers" })}
+                {t3({ en: "Back to folder list", fr: "Retour à la liste des dossiers", pt: "Voltar à lista de pastas" })}
               </Button>
             </div>
           }
@@ -224,7 +224,7 @@ export function DuplicateVisualization(
               iconName="plus"
               onClick={() => setIsCreatingFolder(true)}
             >
-              {t3({ en: "Create new folder", fr: "Créer un nouveau dossier" })}
+              {t3({ en: "Create new folder", fr: "Créer un nouveau dossier", pt: "Criar nova pasta" })}
             </Button>
           </div>
         </Show>

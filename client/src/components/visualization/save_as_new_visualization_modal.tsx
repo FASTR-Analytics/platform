@@ -76,14 +76,14 @@ export function SaveAsNewVisualizationModal(
   return (
     <AlertFormHolder
       formId="create-visualization"
-      header={t3({ en: "Create visualization", fr: "Créer une visualisation" })}
+      header={t3({ en: "Create visualization", fr: "Créer une visualisation", pt: "Criar visualização" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
     >
       <div class="ui-spy">
         <Input
-          label={t3({ en: "Visualization name", fr: "Nom de la visualisation" })}
+          label={t3({ en: "Visualization name", fr: "Nom de la visualisation", pt: "Nome da visualização" })}
           value={tempLabel()}
           onChange={setTempLabel}
           fullWidth

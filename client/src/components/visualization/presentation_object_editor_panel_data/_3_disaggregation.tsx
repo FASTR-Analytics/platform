@@ -35,7 +35,7 @@ export function DisaggregationSection(p: DisaggregationSectionProps) {
   return (
     <div class="ui-spy-sm">
       <div class="text-md font-700">
-        {t3({ en: "Display (disaggregate)", fr: "Affichage (désagréger)" })}
+        {t3({ en: "Display (disaggregate)", fr: "Affichage (désagréger)", pt: "Apresentação (desagregar)" })}
       </div>
 
       <Show when={p.poDetail.resultsValue.valueProps.length > 1}>
@@ -44,7 +44,7 @@ export function DisaggregationSection(p: DisaggregationSectionProps) {
           fallback={
             <div class="pb-4">
               <Checkbox
-                label={t3({ en: "Data values", fr: "Valeurs des données" })}
+                label={t3({ en: "Data values", fr: "Valeurs des données", pt: "Valores dos dados" })}
                 checked={true}
                 disabled={true}
                 onChange={() => {}}
@@ -93,13 +93,14 @@ function DataValuesDisaggregation(p: DataValuesDisaggregationProps) {
           <>
             <div class="flex flex-wrap items-center gap-x-1">
               <span class="">
-                {t3({ en: "Data values", fr: "Valeurs des données" })}
+                {t3({ en: "Data values", fr: "Valeurs des données", pt: "Valores dos dados" })}
               </span>
               <span class="text-xs">
                 (
                 {t3({
                   en: "Required for this visualization",
                   fr: "Nécessaire pour cette visualisation",
+                  pt: "Necessário para esta visualização",
                 })}
                 )
               </span>
@@ -229,6 +230,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
                   {t3({
                     en: "Required for this visualization",
                     fr: "Nécessaire pour cette visualisation",
+                    pt: "Necessário para esta visualização",
                   })}
                   )
                 </span>
@@ -247,6 +249,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
                 {t3({
                   en: "Error with required disaggregator",
                   fr: "Erreur avec le désagrégateur requis",
+                  pt: "Erro com o desagregador necessário",
                 })}
               </div>
             }
@@ -309,6 +312,7 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
                 label={t3({
                   en: "Include National results",
                   fr: "Inclure les résultats nationaux",
+                  pt: "Incluir resultados nacionais",
                 })}
                 checked={false}
                 disabled={true}
@@ -318,6 +322,7 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
                 {t3({
                   en: "Not available for this metric (values cannot be aggregated across areas)",
                   fr: "Non disponible pour cette mesure (les valeurs ne peuvent pas être agrégées entre les zones)",
+                  pt: "Não disponível para esta métrica (os valores não podem ser agregados entre zonas)",
                 })}
               </div>
             </div>
@@ -349,6 +354,7 @@ function AdminAreaOptions(p: AdminAreaOptionsProps) {
       return t3({
         en: "Include results for all selected areas",
         fr: "Inclure les résultats de toutes les zones sélectionnées",
+        pt: "Incluir resultados de todas as zonas selecionadas",
       });
     }
     if (ctx?.kind === "pinned") {
@@ -356,11 +362,13 @@ function AdminAreaOptions(p: AdminAreaOptionsProps) {
       return t3({
         en: `Include ${name} results`,
         fr: `Inclure les résultats : ${name}`,
+        pt: `Incluir resultados de ${name}`,
       });
     }
     return t3({
       en: "Include National results",
       fr: "Inclure les résultats nationaux",
+      pt: "Incluir resultados nacionais",
     });
   };
   return (
@@ -380,8 +388,8 @@ function AdminAreaOptions(p: AdminAreaOptionsProps) {
           <RadioGroup
             value={p.tempConfig.d.adminAreaRollupPosition ?? "bottom"}
             options={[
-              { value: "top", label: t3({ en: "Top", fr: "Haut" }) },
-              { value: "bottom", label: t3({ en: "Bottom", fr: "Bas" }) },
+              { value: "top", label: t3({ en: "Top", fr: "Haut", pt: "Cima" }) },
+              { value: "bottom", label: t3({ en: "Bottom", fr: "Bas", pt: "Baixo" }) },
             ]}
             horizontal
             onChange={(v) =>

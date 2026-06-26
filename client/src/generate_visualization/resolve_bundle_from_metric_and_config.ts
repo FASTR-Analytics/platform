@@ -35,7 +35,8 @@ export async function resolveBundleFromMetricAndConfig(
       resultsValueForViz: {
         formatAs: metric.formatAs,
         valueProps: metric.valueProps,
-        valueLabelReplacements: metric.valueLabelReplacements,
+        // metric's field is nullable; the bundle schema rejects null (optional, not nullish) — coerce
+        valueLabelReplacements: metric.valueLabelReplacements ?? undefined,
       },
       fetchConfig: resFetch.data,
     },

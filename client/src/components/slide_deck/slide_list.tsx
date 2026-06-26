@@ -224,10 +224,12 @@ export function SlideList(p: Props) {
         ? t3({
             en: `Are you sure you want to delete ${slideIdsToDelete.length} slides?`,
             fr: `Êtes-vous sûr de vouloir supprimer ${slideIdsToDelete.length} diapositives ?`,
+            pt: `Tem a certeza de que pretende eliminar ${slideIdsToDelete.length} diapositivos?`,
           })
         : t3({
             en: "Are you sure you want to delete this slide?",
             fr: "Êtes-vous sûr de vouloir supprimer cette diapositive ?",
+            pt: "Tem a certeza de que pretende eliminar este diapositivo?",
           });
 
     const deleteAction = createDeleteAction(
@@ -381,17 +383,17 @@ export function SlideList(p: Props) {
 
   const addSlideMenuItems = (): MenuItem[] => [
     {
-      label: t3({ en: "Cover slide", fr: "Diapositive de couverture" }),
+      label: t3({ en: "Cover slide", fr: "Diapositive de couverture", pt: "Diapositivo de capa" }),
       icon: "plus",
       onClick: () => addSlide(getDefaultCoverSlide()),
     },
     {
-      label: t3({ en: "Section slide", fr: "Diapositive de section" }),
+      label: t3({ en: "Section slide", fr: "Diapositive de section", pt: "Diapositivo de secção" }),
       icon: "plus",
       onClick: () => addSlide(getDefaultSectionSlide()),
     },
     {
-      label: t3({ en: "Content slide", fr: "Diapositive de contenu" }),
+      label: t3({ en: "Content slide", fr: "Diapositive de contenu", pt: "Diapositivo de conteúdo" }),
       icon: "plus",
       onClick: () => addSlide(getDefaultContentSlide()),
     },
@@ -404,7 +406,7 @@ export function SlideList(p: Props) {
       onClick: () => p.download(),
     },
     {
-      label: t3({ en: "Share", fr: "Partager" }),
+      label: t3({ en: "Share", fr: "Partager", pt: "Partilhar" }),
       icon: "arrowRight",
       onClick: () => p.share(),
     },
@@ -446,7 +448,7 @@ export function SlideList(p: Props) {
             </Show>
             <MenuTriggerWrapper position="bottom-end" items={addSlideMenuItems}>
               <Button iconName="plus">
-                {t3({ en: "Add slide", fr: "Ajouter une diapositive" })}
+                {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
               </Button>
             </MenuTriggerWrapper>
             <Button
@@ -465,7 +467,7 @@ export function SlideList(p: Props) {
                 iconName="chevronLeft"
                 outline
               >
-                {t3({ en: "AI", fr: "IA" })}
+                {t3({ en: "AI", fr: "IA", pt: "IA" })}
               </Button>
             </Show>
           </div>
@@ -488,6 +490,7 @@ export function SlideList(p: Props) {
             msg={t3({
               en: "Loading slides...",
               fr: "Chargement des diapositives...",
+              pt: "A carregar diapositivos...",
             })}
             noPad
           />
@@ -497,6 +500,7 @@ export function SlideList(p: Props) {
             {t3({
               en: 'No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own',
               fr: "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même",
+              pt: 'Ainda não há diapositivos. Peça à IA para criar alguns diapositivos ou clique em "+ Adicionar diapositivo" para criar os seus',
             })}
           </div>
         </Show>

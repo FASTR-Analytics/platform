@@ -124,10 +124,6 @@ export function ProjectReport(p: Props) {
     "saved" | "unsaved" | "saving" | "error"
   >("saved");
   const [lastSavedAt, setLastSavedAt] = createSignal<string>("");
-  // A staged AI edit awaiting the user's accept/reject (PLAN_REPORTS.md §4).
-  const [pendingProposal, setPendingProposal] = createSignal<
-    ReportEditProposal | undefined
-  >();
   // The embed whose editor is shown in the ever-present left panel.
   const [selectedEmbed, setSelectedEmbed] = createSignal<
     EmbedSelection | undefined
@@ -220,9 +216,6 @@ export function ProjectReport(p: Props) {
 
   let editorApi: ReportEditorApi | undefined;
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
-  // Resolver for the in-flight AI proposal — settled when the user accepts or
-  // rejects, so the proposing tool call learns the outcome (see proposeEdit).
-  let proposalResolve: ((r: { accepted: boolean }) => void) | undefined;
   // Suppresses the "user edited" AI notification while we apply an AI-accepted
   // edit through the editor (setBody also fires the CM change listener).
   let applyingProgrammaticEdit = false;
@@ -330,13 +323,6 @@ export function ProjectReport(p: Props) {
       else editorApi?.scrollToLine(targetLine);
       requestAnimationFrame(() => (syncing = false));
     }
-  }
-
-  // Settle any in-flight proposal (used when one is superseded or the editor
-  // closes), so an awaiting AI tool never hangs.
-  function settleProposal(accepted: boolean) {
-    proposalResolve?.({ accepted });
-    proposalResolve = undefined;
   }
 
   const canConfigure = () =>
@@ -461,13 +447,20 @@ export function ProjectReport(p: Props) {
       getFigures: () => figures(),
       getImages: () => images(),
       getSelection: () => editorApi?.getSelection(),
-      proposeEdit: (proposal) => {
-        // Supersede any unresolved proposal (treat as rejected) before staging.
-        settleProposal(false);
-        setPendingProposal(proposal);
-        return new Promise<{ accepted: boolean }>((resolve) => {
-          proposalResolve = resolve;
+      proposeEdit: async (proposal) => {
+        // Shown as a locking modal (openComponent backdrop) so the user can't do
+        // other work without first acting on the proposal. Resolves true/false.
+        const accepted = await openComponent({
+          element: ReportMarkdownDiff,
+          props: {
+            oldText: body(),
+            newText: proposal.newBody,
+            summary: proposal.summary,
+          },
         });
+        if (!accepted) return { accepted: false };
+        await applyProposal(proposal);
+        return { accepted: true };
       },
     });
   });
@@ -483,9 +476,8 @@ export function ProjectReport(p: Props) {
     return Promise.resolve();
   }
 
-  async function acceptProposal() {
-    const prop = pendingProposal();
-    if (!prop) return;
+  // Apply an accepted AI proposal to the editor and persist it.
+  async function applyProposal(prop: ReportEditProposal) {
     if (prop.addFigures) {
       const next = { ...figures(), ...prop.addFigures };
       setFigures(next);
@@ -499,20 +491,11 @@ export function ProjectReport(p: Props) {
       saveTimer = undefined;
     }
     await persistBody(prop.newBody);
-    setPendingProposal(undefined);
-    settleProposal(true);
-    editorApi?.refresh();
-  }
-
-  function rejectProposal() {
-    setPendingProposal(undefined);
-    settleProposal(false);
     editorApi?.refresh();
   }
 
   onCleanup(() => {
     void flushBodySave();
-    settleProposal(false);
     setAIContext(p.returnToContext ?? { mode: "viewing_reports" });
   });
 
@@ -905,13 +888,10 @@ export function ProjectReport(p: Props) {
       </Show>
       <Show when={!isLoading()}>
         {/* Editor + preview row. The CM editor stays mounted in every mode (AI
-            accept applies via its imperative setBody); it's hidden in View and
-            while a proposal is under review. In Split, editor (left) and preview
-            (right) sit side by side. */}
-        <div
-          class="flex min-h-0 flex-1"
-          classList={{ hidden: !!pendingProposal() }}
-        >
+            accept applies via its imperative setBody). In Split, editor (left)
+            and preview (right) sit side by side. A staged AI edit is reviewed in
+            a locking modal (see proposeEdit), so nothing here is hidden for it. */}
+        <div class="flex min-h-0 flex-1">
           {/* In Split, cap the editor pane to the editor's max content width
               (column + gutter) so it doesn't stretch to half — the preview takes
               the leftover. flex-1 still fills it in Edit and shrinks if narrow. */}
@@ -946,20 +926,6 @@ export function ProjectReport(p: Props) {
             <ReportPreviewPane />
           </Show>
         </div>
-        {/* keyed so a *new* proposal rebuilds the diff (M1). */}
-        <Show when={pendingProposal()} keyed>
-          {(prop) => (
-            <div class="bg-base-100 min-h-0 flex-1">
-              <ReportMarkdownDiff
-                oldText={body()}
-                newText={prop.newBody}
-                summary={prop.summary}
-                onAccept={acceptProposal}
-                onReject={rejectProposal}
-              />
-            </div>
-          )}
-        </Show>
       </Show>
     </div>
   );

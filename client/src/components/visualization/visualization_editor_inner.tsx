@@ -134,6 +134,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     msg: t3({
       en: "Fetching data to be visualized...",
       fr: "Récupération des données à visualiser...",
+      pt: "A obter dados para visualizar...",
     }),
   });
 
@@ -451,6 +452,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         text: t3({
           en: "You must save before editing the visualization name",
           fr: "Vous devez sauvegarder avant de modifier le nom de la visualisation",
+          pt: "Tem de guardar antes de editar o nome da visualização",
         }),
       });
       return;
@@ -486,6 +488,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         text: t3({
           en: "In order to be duplicated, visualizations cannot have any unsaved changes",
           fr: "Pour être dupliquées, les visualisations ne doivent pas avoir de modifications non sauvegardées",
+          pt: "Para serem duplicadas, as visualizações não podem ter alterações por guardar",
         }),
       });
       return;
@@ -514,6 +517,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       text: t3({
         en: "Visualization duplicated. Opening new visualization...",
         fr: "Visualisation dupliquée. Ouverture de la nouvelle visualisation...",
+        pt: "Visualização duplicada. A abrir a nova visualização...",
       }),
       intent: "success",
     });
@@ -525,6 +529,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         text: t3({
           en: "You must save before downloading figures",
           fr: "Sauvegarde nécessaire avant téléchargement des figures",
+          pt: "Tem de guardar antes de transferir figuras",
         }),
       });
       return;
@@ -660,6 +665,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       t3({
         en: "Are you sure you want to delete this visualization?",
         fr: "Êtes-vous sûr de vouloir supprimer cette visualisation ?",
+        pt: "Tem a certeza de que pretende eliminar esta visualização?",
       }),
       () =>
         serverActions.deletePresentationObject({
@@ -712,7 +718,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                       }
                       iconName="check"
                     >
-                      {t3({ en: "Apply", fr: "Appliquer" })}
+                      {t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" })}
                     </Button>
                     <Button
                       outline
@@ -740,6 +746,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                         {t3({
                           en: "Save as new visualization",
                           fr: "Sauver comme nouvelle viz.",
+                          pt: "Guardar como nova visualização",
                         })}
                       </Button>
                     </Match>
@@ -754,6 +761,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                           {t3({
                             en: "Save and close",
                             fr: "Sauvegarder et quitter",
+                            pt: "Guardar e fechar",
                           })}
                         </Button>
                         <Button
@@ -772,6 +780,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                           {t3({
                             en: "Save as new",
                             fr: "Enregistrer comme nouveau",
+                            pt: "Guardar como novo",
                           })}
                         </Button>
                       </>
@@ -797,7 +806,7 @@ export function VisualizationEditorInner(p: InnerProps) {
               <span class="font-400">{p.poDetail.label}</span>
               <Show when={p.poDetail.isDefault}>
                 <span class="border-primary bg-base-100 font-400 text-primary ml-4 truncate rounded border px-2 py-1 text-xs">
-                  {t3({ en: "Default", fr: "Par défaut" })}
+                  {t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" })}
                 </span>
               </Show>
             </div>
@@ -835,7 +844,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                   iconName="chevronLeft"
                   outline
                 >
-                  {t3({ en: "AI", fr: "IA" })}
+                  {t3({ en: "AI", fr: "IA", pt: "IA" })}
                 </Button>
               </Show>
             </div>
@@ -893,6 +902,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                   {t3({
                     en: "You have two disaggregators with the same display option",
                     fr: "Vous disposez de deux désagrégateurs avec la même option d'affichage",
+                    pt: "Tem dois desagregadores com a mesma opção de apresentação",
                   })}
                 </div>
               }
@@ -907,6 +917,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                     {t3({
                       en: "You must select a replicant",
                       fr: "Un réplicant doit être sélectionné",
+                      pt: "Tem de selecionar um replicante",
                     })}
                   </div>
                 }
@@ -922,6 +933,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                             {t3({
                               en: "Too many data points selected. Please add filters or reduce disaggregation options to view fewer than 20,000 data points.",
                               fr: "Trop de points de données sélectionnés. Veuillez ajouter des filtres ou réduire les options de désagrégation pour afficher moins de 20 000 points de données.",
+                              pt: "Demasiados pontos de dados selecionados. Adicione filtros ou reduza as opções de desagregação para ver menos de 20.000 pontos de dados.",
                             })}
                           </div>
                         </Match>
@@ -934,6 +946,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                             {t3({
                               en: "No data available with current filter selection.",
                               fr: "Aucune donnée disponible avec la sélection de filtre actuelle.",
+                              pt: "Não há dados disponíveis com a seleção de filtros atual.",
                             })}
                           </div>
                         </Match>
@@ -952,6 +965,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                                   err: t3({
                                     en: "No rows returned from database for this filter configuration",
                                     fr: "Aucune ligne retournée de la base de données pour cette configuration de filtre",
+                                    pt: "Nenhuma linha devolvida da base de dados para esta configuração de filtro",
                                   }),
                                 };
                               }
@@ -987,6 +1001,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                                     msg: t3({
                                       en: "Re-fetching data...",
                                       fr: "Récupération des données...",
+                                      pt: "A obter dados novamente...",
                                     }),
                                   };
                                 }

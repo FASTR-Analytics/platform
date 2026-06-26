@@ -165,7 +165,7 @@ export function SlideDeckSettings(p: Props) {
       }
     >
       <div class="ui-pad ui-spy">
-        <SettingsSection header={t3({ en: "Style", fr: "Style" })}>
+        <SettingsSection header={t3({ en: "Style", fr: "Style", pt: "Estilo" })}>
           <div class="ui-spy">
             <StylePreview config={tempConfig} />
             <ColorThemePicker
@@ -194,11 +194,11 @@ export function SlideDeckSettings(p: Props) {
             />
           </div>
         </SettingsSection>
-        <SettingsSection header={t3({ en: "Logos", fr: "Logos" })}>
+        <SettingsSection header={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}>
           <div class="grid grid-cols-4 gap-6">
             <div class="ui-spy-sm">
               <div class="text-base-content/70 font-700 mb-2 text-sm">
-                {t3({ en: "Custom logos", fr: "Logos personnalisés" })}
+                {t3({ en: "Custom logos", fr: "Logos personnalisés", pt: "Logótipos personalizados" })}
               </div>
               <For each={tempConfig.logos.availableCustom}>
                 {(logo, i_logo) => (
@@ -225,17 +225,17 @@ export function SlideDeckSettings(p: Props) {
                 )}
               </For>
               <Button onClick={addCustomLogo} iconName="plus" size="sm">
-                {t3({ en: "Add", fr: "Ajouter" })}
+                {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
               </Button>
             </div>
             <LogoSectionEditor
-              title={t3({ en: "Cover", fr: "Couverture" })}
+              title={t3({ en: "Cover", fr: "Couverture", pt: "Capa" })}
               config={tempConfig.logos.cover}
               customLogos={tempConfig.logos.availableCustom.filter(Boolean)}
               onChange={(c) => setTempConfig("logos", "cover", c)}
             />
             <LogoSectionEditor
-              title={t3({ en: "Content header", fr: "En-tête de contenu" })}
+              title={t3({ en: "Content header", fr: "En-tête de contenu", pt: "Cabeçalho de conteúdo" })}
               config={tempConfig.logos.header}
               customLogos={tempConfig.logos.availableCustom.filter(Boolean)}
               onChange={(c) => setTempConfig("logos", "header", c)}
@@ -244,6 +244,7 @@ export function SlideDeckSettings(p: Props) {
               title={t3({
                 en: "Content footer",
                 fr: "Pied de page de contenu",
+                pt: "Rodapé de conteúdo",
               })}
               config={tempConfig.logos.footer}
               customLogos={tempConfig.logos.availableCustom.filter(Boolean)}
@@ -255,6 +256,7 @@ export function SlideDeckSettings(p: Props) {
           header={t3({
             en: "Footer & page numbers",
             fr: "Pied de page et numéros",
+            pt: "Rodapé e números de página",
           })}
         >
           <div class="ui-spy-sm">
@@ -262,6 +264,7 @@ export function SlideDeckSettings(p: Props) {
               label={t3({
                 en: "Set global footer text for all content slides",
                 fr: "Définir un texte de pied de page global pour toutes les diapositives de contenu",
+                pt: "Definir um texto de rodapé global para todos os diapositivos de conteúdo",
               })}
               checked={tempConfig.globalFooterText !== undefined}
               onChange={(v) => {
@@ -274,7 +277,7 @@ export function SlideDeckSettings(p: Props) {
             />
             <Show when={tempConfig.globalFooterText !== undefined}>
               <TextArea
-                label={t3({ en: "Footer text", fr: "Texte du pied de page" })}
+                label={t3({ en: "Footer text", fr: "Texte du pied de page", pt: "Texto do rodapé" })}
                 value={tempConfig.globalFooterText!}
                 onChange={(v: string) => setTempConfig("globalFooterText", v)}
                 fullWidth
@@ -282,7 +285,7 @@ export function SlideDeckSettings(p: Props) {
               />
             </Show>
             <Checkbox
-              label={`${t3({ en: "Show page numbers", fr: "Afficher les numéros de page" })}${p.showPageNumbersSuffix ? ` ${p.showPageNumbersSuffix}` : ""}`}
+              label={`${t3({ en: "Show page numbers", fr: "Afficher les numéros de page", pt: "Mostrar números de página" })}${p.showPageNumbersSuffix ? ` ${p.showPageNumbersSuffix}` : ""}`}
               checked={tempConfig.showPageNumbers}
               onChange={(v) => setTempConfig("showPageNumbers", v)}
             />

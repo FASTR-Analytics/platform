@@ -19,36 +19,51 @@ const ICON_SETS: Record<IconSetName, Record<IconName, IconComponent>> = {
 const CSS_VAR = "--panther-icon-set";
 const DEFAULT_SET: IconSetName = "tabler";
 
-const [iconSet, setIconSetSignal] = createSignal<IconSetName>(DEFAULT_SET);
-
-export function setIconSet(name: IconSetName): void {
-  setIconSetSignal(name);
-}
-
-export function getIconSet(): IconSetName {
-  return iconSet();
-}
-
-// Reads `--panther-icon-set` from :root once and applies it. CSS-var changes do
-// not notify JS, so apps call this (or setIconSet) once at startup, before the
-// first render, to avoid a tabler->phosphor flash. Safe to call without a DOM.
-export function initIconSetFromCss(): void {
+// Reads `--panther-icon-set` off :root. Returns the default when there is no DOM
+// (SSR) or the var is absent/unrecognized.
+function readIconSetFromCss(): IconSetName {
   if (typeof document === "undefined") {
-    return;
+    return DEFAULT_SET;
   }
   const raw = getComputedStyle(document.documentElement)
     .getPropertyValue(CSS_VAR)
     .trim();
-  if (raw === "tabler" || raw === "phosphor") {
-    setIconSetSignal(raw);
+  return raw === "tabler" || raw === "phosphor" ? raw : DEFAULT_SET;
+}
+
+// The active set is a signal whose initial value is read from the CSS var on
+// first access. First access is the first icon render, by which point the app
+// stylesheet is applied -- so `--panther-icon-set` drives the icons on its own,
+// with no bootstrap call, and the first paint is already correct (no flash).
+let store: ReturnType<typeof createSignal<IconSetName>> | undefined;
+function signal(): ReturnType<typeof createSignal<IconSetName>> {
+  if (store === undefined) {
+    store = createSignal<IconSetName>(readIconSetFromCss());
   }
+  return store;
+}
+
+export function getIconSet(): IconSetName {
+  return signal()[0]();
+}
+
+// Imperative override (tests, runtime toggle, or apps that prefer JS to the CSS
+// var). Takes precedence for the rest of the session.
+export function setIconSet(name: IconSetName): void {
+  signal()[1](name);
+}
+
+// Re-read the CSS var now. Only needed if an app changes `--panther-icon-set` at
+// runtime; the initial value is already read automatically on first render.
+export function initIconSetFromCss(): void {
+  signal()[1](readIconSetFromCss());
 }
 
 // Resolves a key against the active set, falling back to the tabler glyph for
 // any key the active set lacks. Returns undefined only for a key present in
 // neither set (i.e. an invalid, non-IconName value reaching here at runtime).
 export function resolveIcon(name: IconName): IconComponent | undefined {
-  return ICON_SETS[iconSet()][name] ?? _ICON_MAP_TABLER[name];
+  return ICON_SETS[getIconSet()][name] ?? _ICON_MAP_TABLER[name];
 }
 
 // Visible placeholder so an unresolved key is obvious, never a silent gap.

@@ -94,7 +94,7 @@ export function EditCommonPropertiesModal(
     }
   );
 
-  const header = t3({ en: `Edit common properties for ${p.visualizationIds.length} visualizations`, fr: `Modifier les propriétés communes de ${p.visualizationIds.length} visualisations` });
+  const header = t3({ en: `Edit common properties for ${p.visualizationIds.length} visualizations`, fr: `Modifier les propriétés communes de ${p.visualizationIds.length} visualisations`, pt: `Editar propriedades comuns de ${p.visualizationIds.length} visualizações` });
 
   return (
     <AlertFormHolder
@@ -107,12 +107,12 @@ export function EditCommonPropertiesModal(
     >
       <div class="space-y-4">
         <div class="text-sm text-neutral">
-          {t3({ en: `Changes will be applied to all ${p.visualizationIds.length} selected visualizations.`, fr: `Les modifications seront appliquées aux ${p.visualizationIds.length} visualisations sélectionnées.` })}
+          {t3({ en: `Changes will be applied to all ${p.visualizationIds.length} selected visualizations.`, fr: `Les modifications seront appliquées aux ${p.visualizationIds.length} visualisations sélectionnées.`, pt: `As alterações serão aplicadas a todas as ${p.visualizationIds.length} visualizações selecionadas.` })}
         </div>
 
         <div class="ui-spy-sm">
           <Checkbox
-            label={t3({ en: "Update period filter", fr: "Mettre à jour le filtre de période" })}
+            label={t3({ en: "Update period filter", fr: "Mettre à jour le filtre de période", pt: "Atualizar filtro de período" })}
             checked={enablePeriodFilter()}
             onChange={(checked) => {
               setEnablePeriodFilter(checked);
@@ -145,48 +145,48 @@ export function EditCommonPropertiesModal(
                         ? [
                           {
                             value: "last_n_months",
-                            label: t3({ en: "Last year", fr: "Dernière année" }),
+                            label: t3({ en: "Last year", fr: "Dernière année", pt: "Último ano" }),
                           },
                           {
                             value: "custom",
-                            label: t3({ en: "Custom", fr: "Personnalisé" }),
+                            label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
                           },
                         ]
                         : periodOption === "quarter_id"
                           ? [
                             {
                               value: "last_n_months",
-                              label: t3({ en: "Last N quarters", fr: "Derniers N trimestres" }),
+                              label: t3({ en: "Last N quarters", fr: "Derniers N trimestres", pt: "Últimos N trimestres" }),
                             },
                             {
                               value: "from_month",
-                              label: t3({ en: "From specific quarter", fr: "À partir d'un trimestre spécifique" }),
+                              label: t3({ en: "From specific quarter", fr: "À partir d'un trimestre spécifique", pt: "A partir de um trimestre específico" }),
                             },
                             {
                               value: "custom",
-                              label: t3({ en: "Custom", fr: "Personnalisé" }),
+                              label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
                             },
                           ]
                           : [
                             {
                               value: "last_n_months",
-                              label: t3({ en: "Last N months", fr: "Derniers N mois" }),
+                              label: t3({ en: "Last N months", fr: "Derniers N mois", pt: "Últimos N meses" }),
                             },
                             {
                               value: "from_month",
-                              label: t3({ en: "From specific month to present", fr: "À partir d'un mois spécifique jusqu'à aujourd'hui" }),
+                              label: t3({ en: "From specific month to present", fr: "À partir d'un mois spécifique jusqu'à aujourd'hui", pt: "A partir de um mês específico até ao presente" }),
                             },
                             {
                               value: "last_n_calendar_years",
-                              label: t3({ en: "Last N full calendar years", fr: "Dernières N années civiles complètes" }),
+                              label: t3({ en: "Last N full calendar years", fr: "Dernières N années civiles complètes", pt: "Últimos N anos civis completos" }),
                             },
                             {
                               value: "last_n_calendar_quarters",
-                              label: t3({ en: "Last N full calendar quarters", fr: "Derniers N trimestres civils complets" }),
+                              label: t3({ en: "Last N full calendar quarters", fr: "Derniers N trimestres civils complets", pt: "Últimos N trimestres civis completos" }),
                             },
                             {
                               value: "custom",
-                              label: t3({ en: "Custom", fr: "Personnalisé" }),
+                              label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
                             },
                           ]
                     }
@@ -203,7 +203,7 @@ export function EditCommonPropertiesModal(
                     }
                   >
                     <div class="ui-gap-sm ui-pad border-base-300 rounded border">
-                      <label class="text-sm">{t3({ en: "Number of quarters", fr: "Nombre de trimestres" })}: {tempPeriodFilter.nQuarters ?? 4}</label>
+                      <label class="text-sm">{t3({ en: "Number of quarters", fr: "Nombre de trimestres", pt: "Número de trimestres" })}: {tempPeriodFilter.nQuarters ?? 4}</label>
                       <Slider
                         value={tempPeriodFilter.nQuarters ?? 4}
                         onChange={(nQuarters) => {
@@ -222,7 +222,7 @@ export function EditCommonPropertiesModal(
                     }
                   >
                     <div class="ui-gap-sm ui-pad border-base-300 rounded border">
-                      <label class="text-sm">{t3({ en: "Number of months", fr: "Nombre de mois" })}: {tempPeriodFilter.nMonths ?? 12}</label>
+                      <label class="text-sm">{t3({ en: "Number of months", fr: "Nombre de mois", pt: "Número de meses" })}: {tempPeriodFilter.nMonths ?? 12}</label>
                       <Slider
                         value={tempPeriodFilter.nMonths ?? 12}
                         onChange={(nMonths) => {
@@ -241,7 +241,7 @@ export function EditCommonPropertiesModal(
                     }
                   >
                     <div class="ui-gap-sm ui-pad border-base-300 rounded border">
-                      <label class="text-sm">{t3({ en: "Number of years", fr: "Nombre d'années" })}: {tempPeriodFilter.nYears ?? 1}</label>
+                      <label class="text-sm">{t3({ en: "Number of years", fr: "Nombre d'années", pt: "Número de anos" })}: {tempPeriodFilter.nYears ?? 1}</label>
                       <Slider
                         value={tempPeriodFilter.nYears ?? 1}
                         onChange={(nYears) => {
@@ -261,7 +261,7 @@ export function EditCommonPropertiesModal(
                     }
                   >
                     <div class="ui-gap-sm ui-pad border-base-300 rounded border">
-                      <label class="text-sm">{t3({ en: "Number of quarters", fr: "Nombre de trimestres" })}: {tempPeriodFilter.nQuarters ?? 1}</label>
+                      <label class="text-sm">{t3({ en: "Number of quarters", fr: "Nombre de trimestres", pt: "Número de trimestres" })}: {tempPeriodFilter.nQuarters ?? 1}</label>
                       <Slider
                         value={tempPeriodFilter.nQuarters ?? 1}
                         onChange={(nQuarters) => {
@@ -278,7 +278,7 @@ export function EditCommonPropertiesModal(
                     when={tempPeriodFilter?.filterType === "from_month"}
                   >
                     <div class="ui-gap-sm ui-pad border-base-300 rounded border">
-                      <label class="text-sm">{t3({ en: "Starting period", fr: "Période de début" })}: {tempPeriodFilter.min}</label>
+                      <label class="text-sm">{t3({ en: "Starting period", fr: "Période de début", pt: "Período inicial" })}: {tempPeriodFilter.min}</label>
                       <Slider
                         value={tempPeriodFilter.min}
                         onChange={(min) => {
@@ -298,7 +298,7 @@ export function EditCommonPropertiesModal(
                       }
                     >
                       <div class="ui-gap-sm ui-pad border-base-300 rounded border">
-                        <label class="text-sm">{t3({ en: "Start period", fr: "Période de début" })}: {tempPeriodFilter.min}</label>
+                        <label class="text-sm">{t3({ en: "Start period", fr: "Période de début", pt: "Período de início" })}: {tempPeriodFilter.min}</label>
                         <Slider
                           value={tempPeriodFilter.min}
                           onChange={(min) => {
@@ -308,7 +308,7 @@ export function EditCommonPropertiesModal(
                           max={tempPeriodFilter.max}
                           step={1}
                         />
-                        <label class="text-sm">{t3({ en: "End period", fr: "Période de fin" })}: {tempPeriodFilter.max}</label>
+                        <label class="text-sm">{t3({ en: "End period", fr: "Période de fin", pt: "Período de fim" })}: {tempPeriodFilter.max}</label>
                         <Slider
                           value={tempPeriodFilter.max}
                           onChange={(max) => {
@@ -327,7 +327,7 @@ export function EditCommonPropertiesModal(
                       }
                     >
                       <div class="ui-gap-sm ui-pad border-base-300 rounded border">
-                        <label class="text-sm">{t3({ en: "Start year", fr: "Année de début" })}: {tempPeriodFilter.min}</label>
+                        <label class="text-sm">{t3({ en: "Start year", fr: "Année de début", pt: "Ano de início" })}: {tempPeriodFilter.min}</label>
                         <Slider
                           value={tempPeriodFilter.min}
                           onChange={(min) => {
@@ -337,7 +337,7 @@ export function EditCommonPropertiesModal(
                           max={tempPeriodFilter.max}
                           step={1}
                         />
-                        <label class="text-sm">{t3({ en: "End year", fr: "Année de fin" })}: {tempPeriodFilter.max}</label>
+                        <label class="text-sm">{t3({ en: "End year", fr: "Année de fin", pt: "Ano de fim" })}: {tempPeriodFilter.max}</label>
                         <Slider
                           value={tempPeriodFilter.max}
                           onChange={(max) => {

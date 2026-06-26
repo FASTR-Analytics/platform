@@ -26,9 +26,14 @@ import { ALL_DISAGGREGATION_OPTIONS } from "./disaggregation_options.ts";
 const translatableStringGithub = z.object({
   en: z.string(),
   fr: z.string(),
+  pt: z.string().optional(),
 });
 
-const scriptGenerationTypeGithub = z.enum(["template", "hfa", "calculated_indicators"]);
+const scriptGenerationTypeGithub = z.enum([
+  "template",
+  "hfa",
+  "calculated_indicators",
+]);
 
 const dataSourceDatasetGithub = z.object({
   sourceType: z.literal("dataset"),
@@ -73,7 +78,14 @@ const configRequirementsGithub = z.object({
   parameters: z.array(moduleParameterGithub),
 });
 
-const valueFuncGithub = z.enum(["SUM", "AVG", "COUNT", "MIN", "MAX", "identity"]);
+const valueFuncGithub = z.enum([
+  "SUM",
+  "AVG",
+  "COUNT",
+  "MIN",
+  "MAX",
+  "identity",
+]);
 const periodOptionGithub = z.enum(["period_id", "quarter_id", "year"]);
 const disaggregationOptionGithub = z.enum(ALL_DISAGGREGATION_OPTIONS);
 
@@ -87,7 +99,12 @@ const postAggregationExpressionGithub = z.object({
   expression: z.string(),
 });
 
-const presentationOptionGithub = z.enum(["timeseries", "table", "chart", "map"]);
+const presentationOptionGithub = z.enum([
+  "timeseries",
+  "table",
+  "chart",
+  "map",
+]);
 const disaggregationDisplayOptionGithub = z.enum([
   "row",
   "rowGroup",
@@ -162,7 +179,7 @@ const configDGithubStrict = z
     includeAdminAreaRollup: z.boolean().optional(),
     adminAreaRollupPosition: z.enum(["bottom", "top"]).optional(),
   });
-  // Note: Duplicate disDisplayOpt/disOpt entries are allowed — UI handles gracefully.
+// Note: Duplicate disDisplayOpt/disOpt entries are allowed — UI handles gracefully.
 
 // configS for github vizPresets: every field optional via .partial(). Github
 // authors don't need to repeat all the cf* defaults — they just override what
@@ -226,7 +243,8 @@ const configSGithubStrict = z
     formatAdminArea3Labels: z.boolean().optional(),
     mapProjection: z.enum(["equirectangular", "mercator", "naturalEarth1"]),
     mapShowRegionLabels: z.boolean().optional(),
-    mapDataLabelMode: z.enum(["none", "centroid", "callout", "auto"]).optional(),
+    mapDataLabelMode: z.enum(["none", "centroid", "callout", "auto"])
+      .optional(),
   })
   .merge(cfStorageSchema)
   .partial();
@@ -327,7 +345,8 @@ export const moduleDefinitionGithubSchema = z
       if (!resultsObjectIds.has(metric.resultsObjectId)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Metric "${metric.id}" references unknown resultsObjectId "${metric.resultsObjectId}"`,
+          message:
+            `Metric "${metric.id}" references unknown resultsObjectId "${metric.resultsObjectId}"`,
           path: ["metrics"],
         });
       }
@@ -356,7 +375,10 @@ export const moduleDefinitionGithubSchema = z
         if (missingVariant.length > 0) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: `Metrics with label "${label}" have ${metricsWithLabel.length} entries but ${missingVariant.length} are missing variantLabel: ${missingVariant.map((m) => m.id).join(", ")}`,
+            message:
+              `Metrics with label "${label}" have ${metricsWithLabel.length} entries but ${missingVariant.length} are missing variantLabel: ${
+                missingVariant.map((m) => m.id).join(", ")
+              }`,
             path: ["metrics"],
           });
         }
@@ -366,9 +388,13 @@ export const moduleDefinitionGithubSchema = z
 
 // ── Derived types ───────────────────────────────────────────────────
 
-export type ModuleDefinitionGithub = z.infer<typeof moduleDefinitionGithubSchema>;
+export type ModuleDefinitionGithub = z.infer<
+  typeof moduleDefinitionGithubSchema
+>;
 export type MetricDefinitionGithub = z.infer<typeof metricDefinitionGithub>;
-export type ResultsObjectDefinitionGithub = z.infer<typeof resultsObjectDefinitionGithub>;
+export type ResultsObjectDefinitionGithub = z.infer<
+  typeof resultsObjectDefinitionGithub
+>;
 
 // ── Alias types (for wb-fastr-modules compatibility) ────────────────
 
@@ -376,18 +402,28 @@ export type TranslatableString = z.infer<typeof translatableStringGithub>;
 export type ScriptGenerationType = z.infer<typeof scriptGenerationTypeGithub>;
 export type DataSource = z.infer<typeof dataSourceGithub>;
 export type DataSourceDataset = z.infer<typeof dataSourceDatasetGithub>;
-export type DataSourceResultsObject = z.infer<typeof dataSourceResultsObjectGithub>;
+export type DataSourceResultsObject = z.infer<
+  typeof dataSourceResultsObjectGithub
+>;
 export type ModuleParameter = z.infer<typeof moduleParameterGithub>;
 export type ModuleConfigRequirements = z.infer<typeof configRequirementsGithub>;
 export type ValueFunc = z.infer<typeof valueFuncGithub>;
 export type PeriodOption = z.infer<typeof periodOptionGithub>;
 export type DisaggregationOption = z.infer<typeof disaggregationOptionGithub>;
-export type PostAggregationExpression = z.infer<typeof postAggregationExpressionGithub>;
-export type VizPresetTextConfig = z.infer<typeof vizPresetTextConfigGithubStrict>;
+export type PostAggregationExpression = z.infer<
+  typeof postAggregationExpressionGithub
+>;
+export type VizPresetTextConfig = z.infer<
+  typeof vizPresetTextConfigGithubStrict
+>;
 export type VizPreset = z.infer<typeof vizPresetGithub>;
 export type MetricAIDescription = z.infer<typeof metricAIDescriptionGithub>;
 export type ModuleDefinitionCore = Pick<
   ModuleDefinitionGithub,
-  "label" | "prerequisites" | "scriptGenerationType" | "dataSources" | "assetsToImport"
+  | "label"
+  | "prerequisites"
+  | "scriptGenerationType"
+  | "dataSources"
+  | "assetsToImport"
 >;
 export { moduleDefinitionGithubSchema as ModuleDefinitionJSONSchema };

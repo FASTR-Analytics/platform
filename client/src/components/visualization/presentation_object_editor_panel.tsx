@@ -46,21 +46,21 @@ export function PresentationObjectEditorPanel(p: Props) {
           onClick={() => setTab("data")}
           data-selected={tab() === "data"}
         >
-          {t3({ en: "Data", fr: "Données" })}
+          {t3({ en: "Data", fr: "Données", pt: "Dados" })}
         </div>
         <div
           class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 truncate border-r px-2 py-2 text-center"
           onClick={() => setTab("style")}
           data-selected={tab() === "style"}
         >
-          {t3({ en: "Presentation", fr: "Présentation" })}
+          {t3({ en: "Presentation", fr: "Présentation", pt: "Apresentação" })}
         </div>
         <div
           class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 truncate px-2 py-2 text-center"
           onClick={() => setTab("text")}
           data-selected={tab() === "text"}
         >
-          {t3({ en: "Text", fr: "Texte" })}
+          {t3({ en: "Text", fr: "Texte", pt: "Texto" })}
         </div>
       </div>
       <div class="h-0 w-full flex-1">

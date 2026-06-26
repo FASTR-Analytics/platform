@@ -68,6 +68,7 @@ export function ShareSlideDeck(
         t3({
           en: "Select at least one recipient",
           fr: "Sélectionnez au moins un destinataire",
+          pt: "Selecione pelo menos um destinatário",
         }),
       );
       return;
@@ -113,6 +114,7 @@ export function ShareSlideDeck(
         t3({
           en: `Failed to send${failedList ? ` to: ${failedList}` : ""}`,
           fr: `Échec de l'envoi${failedList ? ` à : ${failedList}` : ""}`,
+          pt: `Falha ao enviar${failedList ? ` para: ${failedList}` : ""}`,
         }),
       );
       setPct(0);
@@ -121,7 +123,7 @@ export function ShareSlideDeck(
 
   return (
     <ModalContainer
-      title={t3({ en: "Share slide deck", fr: "Partager la présentation" })}
+      title={t3({ en: "Share slide deck", fr: "Partager la présentation", pt: "Partilhar apresentação" })}
       width="md"
       leftButtons={
         sent()
@@ -144,7 +146,7 @@ export function ShareSlideDeck(
                   intent="success"
                   iconName="arrowRight"
                 >
-                  {t3({ en: "Send", fr: "Envoyer" })} ({allRecipients().length})
+                  {t3({ en: "Send", fr: "Envoyer", pt: "Enviar" })} ({allRecipients().length})
                 </Button>,
                 <Button
                   onClick={() => p.close(undefined)}
@@ -161,6 +163,7 @@ export function ShareSlideDeck(
           {t3({
             en: "Email sent successfully!",
             fr: "Email envoyé avec succès !",
+            pt: "Email enviado com sucesso!",
           })}
         </div>
       </Show>
@@ -174,10 +177,10 @@ export function ShareSlideDeck(
             columns={columns}
             keyField="email"
             defaultSort={{ key: "email", direction: "asc" }}
-            noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur" })}
+            noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur", pt: "Sem utilizadores" })}
             selectedKeys={selectedKeys}
             setSelectedKeys={setSelectedKeys}
-            selectionLabel={t3({ en: "user", fr: "utilisateur" })}
+            selectionLabel={t3({ en: "user", fr: "utilisateur", pt: "utilizador" })}
             paddingY="compact"
             fitTableToAvailableHeight
           />
@@ -188,12 +191,14 @@ export function ShareSlideDeck(
           label={t3({
             en: "Additional emails",
             fr: "Emails supplémentaires",
+            pt: "Emails adicionais",
           })}
           value={additionalEmails()}
           onChange={setAdditionalEmails}
           placeholder={t3({
             en: "Add emails separated by comma, semicolon, or line break",
             fr: "Ajouter des emails séparés par virgule, point-virgule ou saut de ligne",
+            pt: "Adicione emails separados por vírgula, ponto e vírgula ou quebra de linha",
           })}
           fullWidth
           height="80px"
@@ -201,7 +206,7 @@ export function ShareSlideDeck(
         <Show when={allRecipients().length > 0}>
           <div class="">
             <label class="ui-label">
-              {t3({ en: "Recipients", fr: "Destinataires" })} (
+              {t3({ en: "Recipients", fr: "Destinataires", pt: "Destinatários" })} (
               {allRecipients().length})
             </label>
             <div class="pt-1 text-xs">
@@ -210,12 +215,13 @@ export function ShareSlideDeck(
           </div>
         </Show>
         <TextArea
-          label={t3({ en: "Message", fr: "Message" })}
+          label={t3({ en: "Message", fr: "Message", pt: "Mensagem" })}
           value={message()}
           onChange={setMessage}
           placeholder={t3({
             en: "Optional message to include in the email",
             fr: "Message facultatif à inclure dans l'email",
+            pt: "Mensagem opcional a incluir no email",
           })}
           fullWidth
           height="80px"

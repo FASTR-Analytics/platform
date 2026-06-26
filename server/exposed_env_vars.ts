@@ -1,8 +1,4 @@
-import {
-  InstanceCalendar,
-  setCalendar,
-  setLanguage,
-} from "lib";
+import { InstanceCalendar, setCalendar, setLanguage } from "lib";
 import type { Language } from "@timroberton/panther";
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -11,9 +7,11 @@ import type { Language } from "@timroberton/panther";
 
 export const _IS_PRODUCTION = !!Deno.env.get("IS_PRODUCTION");
 
-export const _CENTRAL_SERVER_SECRET = Deno.env.get("CENTRAL_SERVER_SECRET") ?? "";
+export const _CENTRAL_SERVER_SECRET = Deno.env.get("CENTRAL_SERVER_SECRET") ??
+  "";
 
-export const _MODULES_LOCAL_DIR = Deno.env.get("FASTR_MODULES_LOCAL_DIR") ?? "./modules";
+export const _MODULES_LOCAL_DIR = Deno.env.get("FASTR_MODULES_LOCAL_DIR") ??
+  "./modules";
 
 ///////////////////////////////////////////////////////////////////////////////
 // Instance Configuration
@@ -32,25 +30,22 @@ if (_INSTANCE_ID === undefined) {
   throw new Error("Could not get INSTANCE_ID env variable");
 }
 
-
-export const _INSTANCE_LANGUAGE =
-  (Deno.env
-    .get("INSTANCE_LANGUAGE")
-    ?.replaceAll("'", "")
-    .replaceAll(`"`, "") as Language) ?? "en";
+export const _INSTANCE_LANGUAGE = (Deno.env
+  .get("INSTANCE_LANGUAGE")
+  ?.replaceAll("'", "")
+  .replaceAll(`"`, "") as Language) ?? "en";
 if (
   _INSTANCE_LANGUAGE === undefined ||
-  !["en", "fr"].includes(_INSTANCE_LANGUAGE)
+  !["en", "fr", "pt"].includes(_INSTANCE_LANGUAGE)
 ) {
   throw new Error("Could not get INSTANCE_LANGUAGE env variable");
 }
 setLanguage(_INSTANCE_LANGUAGE);
 
-export const _INSTANCE_CALENDAR =
-  (Deno.env
-    .get("INSTANCE_CALENDAR")
-    ?.replaceAll("'", "")
-    .replaceAll(`"`, "") as InstanceCalendar) ?? "gregorian";
+export const _INSTANCE_CALENDAR = (Deno.env
+  .get("INSTANCE_CALENDAR")
+  ?.replaceAll("'", "")
+  .replaceAll(`"`, "") as InstanceCalendar) ?? "gregorian";
 if (
   _INSTANCE_CALENDAR === undefined ||
   !["gregorian", "ethiopian"].includes(_INSTANCE_CALENDAR)
@@ -140,13 +135,15 @@ export const _GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
 
 export const _VOLUME_NAME = Deno.env.get("VOLUME_NAME");
 
-export const _DAILY_TOKEN_LIMIT: number | null = Deno.env.get("DAILY_TOKEN_LIMIT")
-  ? parseInt(Deno.env.get("DAILY_TOKEN_LIMIT")!)
-  : null;
+export const _DAILY_TOKEN_LIMIT: number | null =
+  Deno.env.get("DAILY_TOKEN_LIMIT")
+    ? parseInt(Deno.env.get("DAILY_TOKEN_LIMIT")!)
+    : null;
 
-export const _WEEKLY_TOKEN_LIMIT: number | null = Deno.env.get("WEEKLY_TOKEN_LIMIT")
-  ? parseInt(Deno.env.get("WEEKLY_TOKEN_LIMIT")!)
-  : null;
+export const _WEEKLY_TOKEN_LIMIT: number | null =
+  Deno.env.get("WEEKLY_TOKEN_LIMIT")
+    ? parseInt(Deno.env.get("WEEKLY_TOKEN_LIMIT")!)
+    : null;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Authentication (Optional)

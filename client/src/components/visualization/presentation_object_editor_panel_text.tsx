@@ -14,14 +14,14 @@ export function PresentationObjectEditorPanelText(p: Props) {
     <div class="ui-pad ui-spy h-full w-full overflow-auto">
       <div class="ui-spy-sm">
         <TextArea
-          label={t3({ en: "Caption", fr: "Titre" })}
+          label={t3({ en: "Caption", fr: "Titre", pt: "Legenda" })}
           value={p.tempConfig.t.caption}
           onChange={(v) => p.setTempConfig("t", "caption", v)}
           fullWidth
           height="80px"
         />
         {/* <Slider
-          label={t3({ en: "Caption font size", fr: "Taille de la police des légendes" })}
+          label={t3({ en: "Caption font size", fr: "Taille de la police des légendes", pt: "Tamanho do tipo de letra da legenda" })}
           min={0.5}
           max={3}
           step={0.1}
@@ -33,14 +33,14 @@ export function PresentationObjectEditorPanelText(p: Props) {
       </div>
       <div class="ui-spy-sm">
         <TextArea
-          label={t3({ en: "Sub-caption", fr: "Sous-titre" })}
+          label={t3({ en: "Sub-caption", fr: "Sous-titre", pt: "Sublegenda" })}
           value={p.tempConfig.t.subCaption}
           onChange={(v) => p.setTempConfig("t", "subCaption", v)}
           fullWidth
           height="80px"
         />
         {/* <Slider
-          label={t3({ en: "Sub-caption font size", fr: "Taille de la police des sous-titres" })}
+          label={t3({ en: "Sub-caption font size", fr: "Taille de la police des sous-titres", pt: "Tamanho do tipo de letra da sublegenda" })}
           min={0.5}
           max={3}
           step={0.1}
@@ -52,14 +52,14 @@ export function PresentationObjectEditorPanelText(p: Props) {
       </div>
       <div class="ui-spy-sm">
         <TextArea
-          label={t3({ en: "Footnote", fr: "Note de bas de page" })}
+          label={t3({ en: "Footnote", fr: "Note de bas de page", pt: "Nota de rodapé" })}
           value={p.tempConfig.t.footnote}
           onChange={(v) => p.setTempConfig("t", "footnote", v)}
           fullWidth
           height="200px"
         />
         {/* <Slider
-          label={t3({ en: "Footnote font size", fr: "Taille de la police des notes de bas de page" })}
+          label={t3({ en: "Footnote font size", fr: "Taille de la police des notes de bas de page", pt: "Tamanho do tipo de letra da nota de rodapé" })}
           min={0.1}
           max={3}
           step={0.1}
@@ -74,29 +74,35 @@ export function PresentationObjectEditorPanelText(p: Props) {
           {t3({
             en: "In the above fields, you can use some special words to dynamically insert text.",
             fr: "Dans les champs ci-dessus, vous pouvez utiliser des mots spécifiques pour insérer du texte dynamiquement.",
+            pt: "Nos campos acima, pode utilizar algumas palavras especiais para inserir texto dinamicamente.",
           })}
         </div>
         <div class="">
-          {t3({ en: "Use", fr: "Utilisez" })}{" "}
-          <span class="font-700">DATE_RANGE</span> {t3({ en: "or", fr: "ou" })}{" "}
-          <span class="font-700">PLAGE_DE_DATES</span>{" "}
+          {t3({ en: "Use", fr: "Utilisez", pt: "Utilize" })}{" "}
+          <span class="font-700">DATE_RANGE</span>,{" "}
+          <span class="font-700">PLAGE_DE_DATES</span>,{" "}
+          {t3({ en: "or", fr: "ou", pt: "ou" })}{" "}
+          <span class="font-700">INTERVALO_DE_DATAS</span>{" "}
           {t3({
             en: "to insert the date range of the data shown in the figure. (Note that this currently only works for timeseries visualizations.)",
             fr: "pour insérer la plage de dates des données affichées dans la figure. (Notez que cela ne fonctionne actuellement que pour les visualisations de séries chronologiques.)",
+            pt: "para inserir o intervalo de datas dos dados apresentados na figura. (Note que atualmente isto só funciona para visualizações de séries temporais.)",
           })}
         </div>
         <div class="">
-          {t3({ en: "Use", fr: "Utilisez" })}{" "}
+          {t3({ en: "Use", fr: "Utilisez", pt: "Utilize" })}{" "}
           <span class="font-700">REPLICANT</span>{" "}
           {t3({
             en: "to insert the full replicant name (e.g. an indicator, or an admin area). (Note that this only works if you have a disaggregator set for different charts.)",
             fr: "pour insérer le nom complet du réplicant (par exemple, un indicateur ou une zone d'administration). (Notez que cela ne fonctionne que si vous avez configuré un désagrégateur pour différents graphiques.)",
+            pt: "para inserir o nome completo do replicante (por exemplo, um indicador ou uma zona administrativa). (Note que isto só funciona se tiver um desagregador definido para diferentes gráficos.)",
           })}
         </div>
         <div class="">
           {t3({
             en: "You must spell these special words exactly correctly for them to work, including using capital letters and underscores, as above.",
             fr: "Vous devez orthographier ces mots spécifiques correctement pour qu'ils fonctionnent, y compris en utilisant des majuscules et des traits de soulignement, comme indiqué ci-dessus.",
+            pt: "Deve escrever estas palavras especiais exatamente de forma correta para que funcionem, incluindo a utilização de letras maiúsculas e sublinhados, como acima.",
           })}
         </div>
       </div>

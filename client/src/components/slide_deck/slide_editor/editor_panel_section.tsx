@@ -13,7 +13,7 @@ export function SlideEditorPanelSection(p: Props) {
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
         <TextArea
-          label={t3({ en: "Section Title", fr: "Titre de section" })}
+          label={t3({ en: "Section Title", fr: "Titre de section", pt: "Título da secção" })}
           value={p.tempSlide.sectionTitle}
           onChange={(v: string) => p.setTempSlide("sectionTitle", v)}
           fullWidth
@@ -40,7 +40,7 @@ export function SlideEditorPanelSection(p: Props) {
       </div>
       <div class="ui-spy-sm">
         <TextArea
-          label={t3({ en: "Section Subtitle", fr: "Sous-titre de section" })}
+          label={t3({ en: "Section Subtitle", fr: "Sous-titre de section", pt: "Subtítulo da secção" })}
           value={p.tempSlide.sectionSubtitle ?? ""}
           onChange={(v: string) =>
             p.setTempSlide("sectionSubtitle", v || undefined)

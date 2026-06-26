@@ -119,9 +119,9 @@ function ProjectAiSlideDeckInner(p: {
       props: {
         projectId: p.projectState.id,
         config: p.deckConfig,
-        heading: t3({ en: "Slide deck settings", fr: "Paramètres de la présentation" }),
-        nameLabel: t3({ en: "Slide deck name", fr: "Nom de la présentation" }),
-        showPageNumbersSuffix: t3({ en: "(except on cover and section slides)", fr: "(sauf sur les diapositives de couverture et de section)" }),
+        heading: t3({ en: "Slide deck settings", fr: "Paramètres de la présentation", pt: "Definições da apresentação" }),
+        nameLabel: t3({ en: "Slide deck name", fr: "Nom de la présentation", pt: "Nome da apresentação" }),
+        showPageNumbersSuffix: t3({ en: "(except on cover and section slides)", fr: "(sauf sur les diapositives de couverture et de section)", pt: "(exceto nos diapositivos de capa e de secção)" }),
         saveConfig: (config) =>
           serverActions.updateSlideDeckConfig({
             projectId: p.projectState.id,

@@ -1,5 +1,5 @@
 import { useSearchParams } from "@solidjs/router";
-import { TC, isFrench, t3, LANGUAGE_STORAGE_KEY } from "lib";
+import { TC, getLanguage, t3, LANGUAGE_STORAGE_KEY } from "lib";
 import {
   AlertProvider,
   Button,
@@ -221,7 +221,7 @@ export default function Instance(p: Props) {
                       value={tab()}
                       onChange={setTab}
                       items={wideNavItems()}
-                      itemWidth={isFrench() ? "140px" : "115px"}
+                      itemWidth={getLanguage() === "en" ? "115px" : "140px"}
                     />
                   </div>
                 </Show>
@@ -233,7 +233,7 @@ export default function Instance(p: Props) {
                           label: "English",
                           onClick: () => {
                             localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
-                            if (!isFrench()) return;
+                            if (getLanguage() === "en") return;
                             window.location.reload();
                           },
                         },
@@ -241,7 +241,15 @@ export default function Instance(p: Props) {
                           label: "Français",
                           onClick: () => {
                             localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
-                            if (isFrench()) return;
+                            if (getLanguage() === "fr") return;
+                            window.location.reload();
+                          },
+                        },
+                        {
+                          label: "Português",
+                          onClick: () => {
+                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
+                            if (getLanguage() === "pt") return;
                             window.location.reload();
                           },
                         },
@@ -250,7 +258,7 @@ export default function Instance(p: Props) {
                     position="bottom-end"
                   >
                     <Button intent="base-100">
-                      {isFrench() ? "FR" : "EN"}
+                      {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
                     </Button>
                   </MenuTriggerWrapper>
                   <Show when={instanceState.currentUserApproved}>

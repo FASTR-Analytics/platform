@@ -87,7 +87,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
       >
         <div class="bg-base-100 w-64 rounded-md border p-3 shadow-lg select-none">
           <Slider
-            label={t3({ en: "Size", fr: "Taille" })}
+            label={t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}
             min={sizeMin()}
             max={sizeMax()}
             step={1}
@@ -107,7 +107,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
               }}
               onClick={() => p.onBoldChange(!p.bold)}
             >
-              {t3({ en: "Bold", fr: "Gras" })}
+              {t3({ en: "Bold", fr: "Gras", pt: "Negrito" })}
             </button>
             <button
               type="button"
@@ -119,7 +119,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
               }}
               onClick={() => p.onItalicChange(!p.italic)}
             >
-              {t3({ en: "Italic", fr: "Italique" })}
+              {t3({ en: "Italic", fr: "Italique", pt: "Itálico" })}
             </button>
           </div>
           <Show when={p.defaults && p.onReset}>
@@ -128,7 +128,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
               class="bg-base-100 text-base-content border-base-300 hover:bg-base-200 mt-3 w-full cursor-pointer rounded border py-1.5 text-sm"
               onClick={() => p.onReset?.()}
             >
-              {t3({ en: "Reset to default", fr: "Réinitialiser" })}
+              {t3({ en: "Reset to default", fr: "Réinitialiser", pt: "Repor predefinição" })}
             </button>
           </Show>
         </div>

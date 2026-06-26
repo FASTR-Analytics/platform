@@ -245,17 +245,24 @@ function withDateRange(
   dateRange: PeriodBounds | undefined,
   localization: Pick<FigureLocalization, "calendar" | "language">,
 ): string {
-  if (!str.includes("DATE_RANGE") && !str.includes("PLAGE_DE_DATES")) return str;
+  if (
+    !str.includes("DATE_RANGE") && !str.includes("PLAGE_DE_DATES") &&
+    !str.includes("INTERVALO_DE_DATAS")
+  ) {
+    return str;
+  }
   if (!dateRange) return str;
   const { calendar, language } = localization;
   const periodType: PeriodType = getPeriodTypeFromValue(dateRange.min) ?? "year";
   if (dateRange.min === dateRange.max) {
     const d = formatPeriod(dateRange.min, periodType, calendar);
-    return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d);
+    return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d)
+      .replaceAll("INTERVALO_DE_DATAS", d);
   }
-  const separator = pickLang(language, { en: " to ", fr: " à " });
+  const separator = pickLang(language, { en: " to ", fr: " à ", pt: " a " });
   const d = formatPeriod(dateRange.min, periodType, calendar) + separator + formatPeriod(dateRange.max, periodType, calendar);
-  return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d);
+  return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d)
+    .replaceAll("INTERVALO_DE_DATAS", d);
 }
 
 function buildIndicatorSortOrder(metadata: IndicatorMetadata[]): string[] {

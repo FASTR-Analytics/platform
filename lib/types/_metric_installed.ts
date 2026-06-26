@@ -26,6 +26,7 @@ import { ALL_DISAGGREGATION_OPTIONS } from "./disaggregation_options.ts";
 export const translatableString = z.object({
   en: z.string(),
   fr: z.string(),
+  pt: z.string().optional(),
 });
 
 export const periodOption = z.enum(["period_id", "quarter_id", "year"]);
@@ -35,7 +36,12 @@ export const disaggregationOption = z.enum(ALL_DISAGGREGATION_OPTIONS);
 // ConfigD Schema (visualization data config)
 // ============================================================================
 
-export const presentationOptionSchema = z.enum(["timeseries", "table", "chart", "map"]);
+export const presentationOptionSchema = z.enum([
+  "timeseries",
+  "table",
+  "chart",
+  "map",
+]);
 export const disaggregationDisplayOptionSchema = z.enum([
   "row",
   "rowGroup",
@@ -133,7 +139,9 @@ const periodFilterUnion = z.discriminatedUnion("filterType", [
 export const periodFilterSchema = periodFilterUnion
   .refine(
     (filter) => {
-      if (filter.filterType !== "custom" && filter.filterType !== "from_month") {
+      if (
+        filter.filterType !== "custom" && filter.filterType !== "from_month"
+      ) {
         return true;
       }
       // Both bounds must self-identify the same format, and be ordered.
@@ -143,7 +151,8 @@ export const periodFilterSchema = periodFilterUnion
       );
     },
     {
-      message: "Invalid period bounds: check min/max format and ensure min <= max",
+      message:
+        "Invalid period bounds: check min/max format and ensure min <= max",
     },
   )
   .optional();
@@ -171,8 +180,8 @@ export const configDStrict = z
     includeAdminAreaRollup: z.boolean().optional(),
     adminAreaRollupPosition: z.enum(["bottom", "top"]).optional(),
   });
-  // Note: Duplicate disDisplayOpt/disOpt entries are allowed in stored data.
-  // The UI shows a warning and blocks rendering until user fixes it.
+// Note: Duplicate disDisplayOpt/disOpt entries are allowed in stored data.
+// The UI shows a warning and blocks rendering until user fixes it.
 
 // ============================================================================
 // ConfigS Schema (visualization style config)
@@ -235,7 +244,8 @@ export const configSStrict = z
     formatAdminArea3Labels: z.boolean().optional(),
     mapProjection: z.enum(["equirectangular", "mercator", "naturalEarth1"]),
     mapShowRegionLabels: z.boolean().optional(),
-    mapDataLabelMode: z.enum(["none", "centroid", "callout", "auto"]).optional(),
+    mapDataLabelMode: z.enum(["none", "centroid", "callout", "auto"])
+      .optional(),
   })
   .merge(cfStorageSchema)
   .partial();
@@ -292,10 +302,19 @@ export const vizPresetInstalled = vizPresetInstalledStrict;
 // Full Metric Schema (metrics table row)
 // ============================================================================
 
-export const valueFuncStrict = z.enum(["SUM", "AVG", "COUNT", "MIN", "MAX", "identity"]);
+export const valueFuncStrict = z.enum([
+  "SUM",
+  "AVG",
+  "COUNT",
+  "MIN",
+  "MAX",
+  "identity",
+]);
 
 export const postAggregationExpressionStrict = z.object({
-  ingredientValues: z.array(z.object({ prop: z.string(), func: z.enum(["SUM", "AVG"]) })),
+  ingredientValues: z.array(
+    z.object({ prop: z.string(), func: z.enum(["SUM", "AVG"]) }),
+  ),
   expression: z.string(),
 });
 
@@ -322,16 +341,27 @@ export const metricStrict = z.object({
 
 export type PeriodOption = z.infer<typeof periodOption>;
 export type PresentationOption = z.infer<typeof presentationOptionSchema>;
-export type DisaggregationDisplayOption = z.infer<typeof disaggregationDisplayOptionSchema>;
+export type DisaggregationDisplayOption = z.infer<
+  typeof disaggregationDisplayOptionSchema
+>;
 export type PeriodFilter = z.infer<typeof periodFilterSchema>;
 export type BoundedPeriodFilter = Extract<
   NonNullable<PeriodFilter>,
   { filterType: "custom" | "from_month" }
 >;
-export type RelativePeriodFilter = Exclude<NonNullable<PeriodFilter>, BoundedPeriodFilter>;
+export type RelativePeriodFilter = Exclude<
+  NonNullable<PeriodFilter>,
+  BoundedPeriodFilter
+>;
 export type ValueFunc = z.infer<typeof valueFuncStrict>;
-export type PostAggregationExpression = z.infer<typeof postAggregationExpressionStrict>;
-export type VizPresetTextConfig = z.infer<typeof vizPresetTextConfigInstalledStrict>;
+export type PostAggregationExpression = z.infer<
+  typeof postAggregationExpressionStrict
+>;
+export type VizPresetTextConfig = z.infer<
+  typeof vizPresetTextConfigInstalledStrict
+>;
 export type VizPreset = z.infer<typeof vizPresetInstalledStrict>;
-export type MetricAIDescription = z.infer<typeof metricAIDescriptionInstalledStrict>;
+export type MetricAIDescription = z.infer<
+  typeof metricAIDescriptionInstalledStrict
+>;
 export type Metric = z.infer<typeof metricStrict>;

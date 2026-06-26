@@ -96,16 +96,16 @@ export function VisualizationSettings(
   return (
     <AlertFormHolder
       formId="visualization-settings"
-      header={t3({ en: "Visualization settings", fr: "Paramètres de la visualisation" })}
+      header={t3({ en: "Visualization settings", fr: "Paramètres de la visualisation", pt: "Definições da visualização" })}
       savingState={p.isDefault ? undefined : save.state()}
       saveFunc={p.isDefault ? undefined : save.click}
       cancelFunc={closeButton}
-      cancelButtonText={p.isDefault ? t3({ en: "Close", fr: "Fermer" }) : t3(TC.cancel)}
+      cancelButtonText={p.isDefault ? t3({ en: "Close", fr: "Fermer", pt: "Fechar" }) : t3(TC.cancel)}
     >
       <div class="ui-spy">
         <Show when={!p.isDefault}>
           <Input
-            label={t3({ en: "Visualization name", fr: "Nom de la visualisation" })}
+            label={t3({ en: "Visualization name", fr: "Nom de la visualisation", pt: "Nome da visualização" })}
             value={tempLabel()}
             onChange={setTempLabel}
             fullWidth
@@ -122,7 +122,7 @@ export function VisualizationSettings(
 
         <div class="border-base-300 rounded border ui-pad ui-spy-sm">
           <div class="text-xs text-base-content/70">
-            {t3({ en: "Clear cached data for this visualization. Use this if the visualization is showing stale data.", fr: "Effacer les données mises en cache pour cette visualisation. Utilisez cette option si la visualisation affiche des données obsolètes." })}
+            {t3({ en: "Clear cached data for this visualization. Use this if the visualization is showing stale data.", fr: "Effacer les données mises en cache pour cette visualisation. Utilisez cette option si la visualisation affiche des données obsolètes.", pt: "Limpar os dados em cache desta visualização. Utilize esta opção se a visualização estiver a mostrar dados desatualizados." })}
           </div>
           <div class="">
 
@@ -133,7 +133,7 @@ export function VisualizationSettings(
               outline
               type="button"
             >
-              {t3({ en: "Clear cache", fr: "Vider le cache" })}
+              {t3({ en: "Clear cache", fr: "Vider le cache", pt: "Limpar cache" })}
             </Button>
           </div>
         </div>

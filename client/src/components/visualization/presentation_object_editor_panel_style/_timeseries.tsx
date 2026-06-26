@@ -78,7 +78,7 @@ export function TimeseriesStyleControls(p: Props) {
 
   const modeOptions = () => {
     const opts: { value: string; label: string }[] = [
-      { value: "standard", label: t3({ en: "Standard", fr: "Standard" }) },
+      { value: "standard", label: t3({ en: "Standard", fr: "Standard", pt: "Padrão" }) },
     ];
     if (p.showCoverageMode || mode() === "coverage") {
       opts.push({
@@ -86,6 +86,7 @@ export function TimeseriesStyleControls(p: Props) {
         label: t3({
           en: "Special coverage chart",
           fr: "Graphique de couverture spéciale",
+          pt: "Gráfico de cobertura especial",
         }),
       });
     }
@@ -95,6 +96,7 @@ export function TimeseriesStyleControls(p: Props) {
         label: t3({
           en: "Special percent change chart",
           fr: "Graphique de variation spéciale en pourcentage",
+          pt: "Gráfico de variação percentual especial",
         }),
       });
     }
@@ -104,6 +106,7 @@ export function TimeseriesStyleControls(p: Props) {
         label: t3({
           en: "Special disruptions chart",
           fr: "Graphique de perturbations spécial",
+          pt: "Gráfico de perturbações especial",
         }),
       });
     }
@@ -115,7 +118,7 @@ export function TimeseriesStyleControls(p: Props) {
       <Show when={modeOptions().length > 1}>
         <div class="ui-pad bg-base-200 border-base-300 rounded border">
           <RadioGroup
-            label={t3({ en: "Chart mode", fr: "Mode de graphique" })}
+            label={t3({ en: "Chart mode", fr: "Mode de graphique", pt: "Modo de gráfico" })}
             options={modeOptions()}
             value={mode()}
             onChange={(v) => setMode(v as TimeseriesMode)}
@@ -124,13 +127,14 @@ export function TimeseriesStyleControls(p: Props) {
       </Show>
       <Switch>
         <Match when={mode() === "coverage"}>
-          <StyleSection label={t3({ en: "Axis", fr: "Axe" })}>
+          <StyleSection label={t3({ en: "Axis", fr: "Axe", pt: "Eixo" })}>
             <>
               <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
                 <Checkbox
                   label={t3({
                     en: "Force y-axis max of 100%",
                     fr: "Forcer le maximum de l'axe Y à 100 %",
+                    pt: "Forçar máximo do eixo Y de 100%",
                   })}
                   checked={p.tempConfig.s.forceYMax1}
                   onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
@@ -140,6 +144,7 @@ export function TimeseriesStyleControls(p: Props) {
                 label={t3({
                   en: "Allow auto y-axis min",
                   fr: "Autoriser le minimum automatique de l'axe Y",
+                  pt: "Permitir mínimo automático do eixo Y",
                 })}
                 checked={p.tempConfig.s.forceYMinAuto}
                 onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
@@ -148,9 +153,9 @@ export function TimeseriesStyleControls(p: Props) {
           </StyleSection>
         </Match>
         <Match when={mode() === "percent-change"}>
-          <StyleSection label={t3({ en: "Display", fr: "Affichage" })}>
+          <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
             <RadioGroup
-              label={t3({ en: "Period", fr: "Période" })}
+              label={t3({ en: "Period", fr: "Période", pt: "Período" })}
               options={periodRadioOptions()}
               value={p.tempConfig.d.timeseriesGrouping}
               onChange={(v) =>
@@ -158,10 +163,10 @@ export function TimeseriesStyleControls(p: Props) {
               }
             />
           </StyleSection>
-          <StyleSection label={t3({ en: "Threshold", fr: "Seuil" })}>
+          <StyleSection label={t3({ en: "Threshold", fr: "Seuil", pt: "Limiar" })}>
             <>
               <Slider
-                label={t3({ en: "Threshold value", fr: "Valeur du seuil" })}
+                label={t3({ en: "Threshold value", fr: "Valeur du seuil", pt: "Valor do limiar" })}
                 value={p.tempConfig.s.specialBarChartDiffThreshold ?? 0.1}
                 onChange={(v) =>
                   p.setTempConfig("s", "specialBarChartDiffThreshold", v)
@@ -177,6 +182,7 @@ export function TimeseriesStyleControls(p: Props) {
                 label={t3({
                   en: "Invert red/green for higher/lower",
                   fr: "Inverser rouge/vert pour plus élevé/plus bas",
+                  pt: "Inverter vermelho/verde para superior/inferior",
                 })}
                 checked={p.tempConfig.s.specialBarChartInverted}
                 onChange={(v) =>
@@ -185,7 +191,7 @@ export function TimeseriesStyleControls(p: Props) {
               />
             </>
           </StyleSection>
-          <StyleSection label={t3({ en: "Labels", fr: "Étiquettes" })}>
+          <StyleSection label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}>
             <>
               <Checkbox
                 checked={p.tempConfig.s.showDataLabels}
@@ -193,12 +199,13 @@ export function TimeseriesStyleControls(p: Props) {
                 label={t3({
                   en: "Show data labels",
                   fr: "Afficher les étiquettes de données",
+                  pt: "Mostrar rótulos de dados",
                 })}
               />
               <Show when={p.tempConfig.s.showDataLabels}>
                 <StyleRevealGroup>
                   <RadioGroup
-                    label={t3({ en: "Decimal places", fr: "Décimales" })}
+                    label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
                     options={getSelectOptions(["0", "1", "2", "3"])}
                     value={String(p.tempConfig.s.decimalPlaces)}
                     onChange={(v) =>
@@ -214,6 +221,7 @@ export function TimeseriesStyleControls(p: Props) {
                     label={t3({
                       en: "Only show data labels on bars exceeding threshold",
                       fr: "Afficher seulement les étiquettes de données sur les barres dépassant le seuil",
+                      pt: "Mostrar apenas rótulos de dados nas barras que excedem o limiar",
                     })}
                     checked={
                       p.tempConfig.s.specialBarChartDataLabels === undefined ||
@@ -232,13 +240,14 @@ export function TimeseriesStyleControls(p: Props) {
               </Show>
             </>
           </StyleSection>
-          <StyleSection label={t3({ en: "Axis", fr: "Axe" })}>
+          <StyleSection label={t3({ en: "Axis", fr: "Axe", pt: "Eixo" })}>
             <>
               <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
                 <Checkbox
                   label={t3({
                     en: "Force y-axis max of 100%",
                     fr: "Forcer le maximum de l'axe Y à 100 %",
+                    pt: "Forçar máximo do eixo Y de 100%",
                   })}
                   checked={p.tempConfig.s.forceYMax1}
                   onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
@@ -248,6 +257,7 @@ export function TimeseriesStyleControls(p: Props) {
                 label={t3({
                   en: "Allow auto y-axis min",
                   fr: "Autoriser le minimum automatique de l'axe Y",
+                  pt: "Permitir mínimo automático do eixo Y",
                 })}
                 checked={p.tempConfig.s.forceYMinAuto}
                 onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
@@ -256,6 +266,7 @@ export function TimeseriesStyleControls(p: Props) {
                 label={t3({
                   en: "Allow individual row limits",
                   fr: "Autoriser des limites par ligne",
+                  pt: "Permitir limites por linha",
                 })}
                 checked={p.tempConfig.s.allowIndividualRowLimits}
                 onChange={(v) =>
@@ -266,10 +277,10 @@ export function TimeseriesStyleControls(p: Props) {
           </StyleSection>
         </Match>
         <Match when={mode() === "disruptions"}>
-          <StyleSection label={t3({ en: "Display", fr: "Affichage" })}>
+          <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
             <>
               <RadioGroup
-                label={t3({ en: "Period", fr: "Période" })}
+                label={t3({ en: "Period", fr: "Période", pt: "Período" })}
                 options={periodRadioOptions()}
                 value={p.tempConfig.d.timeseriesGrouping}
                 onChange={(v) =>
@@ -280,13 +291,14 @@ export function TimeseriesStyleControls(p: Props) {
                 label={t3({
                   en: "Invert red/green for surplus/disruptions",
                   fr: "Inverser rouge/vert pour excédents/perturbations",
+                  pt: "Inverter vermelho/verde para excedentes/perturbações",
                 })}
                 checked={p.tempConfig.s.diffInverted}
                 onChange={(v) => p.setTempConfig("s", "diffInverted", v)}
               />
             </>
           </StyleSection>
-          <StyleSection label={t3({ en: "Labels", fr: "Étiquettes" })}>
+          <StyleSection label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}>
             <>
               <Checkbox
                 checked={p.tempConfig.s.showDataLabelsLineCharts}
@@ -296,12 +308,13 @@ export function TimeseriesStyleControls(p: Props) {
                 label={t3({
                   en: "Show data labels",
                   fr: "Afficher les étiquettes de données",
+                  pt: "Mostrar rótulos de dados",
                 })}
               />
               <Show when={p.tempConfig.s.showDataLabelsLineCharts}>
                 <StyleRevealGroup>
                   <RadioGroup
-                    label={t3({ en: "Decimal places", fr: "Décimales" })}
+                    label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
                     options={getSelectOptions(["0", "1", "2", "3"])}
                     value={String(p.tempConfig.s.decimalPlaces)}
                     onChange={(v) =>
@@ -317,13 +330,14 @@ export function TimeseriesStyleControls(p: Props) {
               </Show>
             </>
           </StyleSection>
-          <StyleSection label={t3({ en: "Axis", fr: "Axe" })}>
+          <StyleSection label={t3({ en: "Axis", fr: "Axe", pt: "Eixo" })}>
             <>
               <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
                 <Checkbox
                   label={t3({
                     en: "Force y-axis max of 100%",
                     fr: "Forcer le maximum de l'axe Y à 100 %",
+                    pt: "Forçar máximo do eixo Y de 100%",
                   })}
                   checked={p.tempConfig.s.forceYMax1}
                   onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
@@ -333,6 +347,7 @@ export function TimeseriesStyleControls(p: Props) {
                 label={t3({
                   en: "Allow auto y-axis min",
                   fr: "Autoriser le minimum automatique de l'axe Y",
+                  pt: "Permitir mínimo automático do eixo Y",
                 })}
                 checked={p.tempConfig.s.forceYMinAuto}
                 onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
@@ -341,6 +356,7 @@ export function TimeseriesStyleControls(p: Props) {
                 label={t3({
                   en: "Allow individual row limits",
                   fr: "Autoriser des limites par ligne",
+                  pt: "Permitir limites por linha",
                 })}
                 checked={p.tempConfig.s.allowIndividualRowLimits}
                 onChange={(v) =>
@@ -351,10 +367,10 @@ export function TimeseriesStyleControls(p: Props) {
           </StyleSection>
         </Match>
         <Match when={mode() === "standard"}>
-          <StyleSection label={t3({ en: "Display", fr: "Affichage" })}>
+          <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
             <>
               <RadioGroup
-                label={t3({ en: "Period", fr: "Période" })}
+                label={t3({ en: "Period", fr: "Période", pt: "Período" })}
                 options={periodRadioOptions()}
                 value={p.tempConfig.d.timeseriesGrouping}
                 onChange={(v) =>
@@ -364,10 +380,10 @@ export function TimeseriesStyleControls(p: Props) {
               />
               <div class="pt-0.5"></div>
               <RadioGroup
-                label={t3({ en: "Display format", fr: "Format d'affichage" })}
+                label={t3({ en: "Display format", fr: "Format d'affichage", pt: "Formato de exibição" })}
                 options={[
-                  { value: "lines", label: t3({ en: "Lines", fr: "Lignes" }) },
-                  { value: "bars", label: t3({ en: "Bars", fr: "Barres" }) },
+                  { value: "lines", label: t3({ en: "Lines", fr: "Lignes", pt: "Linhas" }) },
+                  { value: "bars", label: t3({ en: "Bars", fr: "Barres", pt: "Barras" }) },
                 ]}
                 value={
                   p.tempConfig.s.content === "lines-points" ||
@@ -383,7 +399,7 @@ export function TimeseriesStyleControls(p: Props) {
               <Show when={p.tempConfig.s.content === "bars"}>
                 <StyleRevealGroup>
                   <Checkbox
-                    label={t3({ en: "Stacked bars", fr: "Histogramme empilé" })}
+                    label={t3({ en: "Stacked bars", fr: "Histogramme empilé", pt: "Barras empilhadas" })}
                     checked={p.tempConfig.s.barsStacked}
                     onChange={(v) => p.setTempConfig("s", "barsStacked", v)}
                   />
@@ -398,7 +414,7 @@ export function TimeseriesStyleControls(p: Props) {
               >
                 <StyleRevealGroup>
                   <Checkbox
-                    label={t3({ en: "Add points", fr: "Ajouter des points" })}
+                    label={t3({ en: "Add points", fr: "Ajouter des points", pt: "Adicionar pontos" })}
                     checked={p.tempConfig.s.content === "lines-points"}
                     onChange={(v) =>
                       p.setTempConfig(
@@ -409,7 +425,7 @@ export function TimeseriesStyleControls(p: Props) {
                     }
                   />
                   <Checkbox
-                    label={t3({ en: "Fill area", fr: "Remplir la zone" })}
+                    label={t3({ en: "Fill area", fr: "Remplir la zone", pt: "Preencher a área" })}
                     checked={p.tempConfig.s.content === "lines-area"}
                     onChange={(v) =>
                       p.setTempConfig(
@@ -423,7 +439,7 @@ export function TimeseriesStyleControls(p: Props) {
               </Show>
               <div class="pt-0.5"></div>
               <RadioGroup
-                label={t3({ en: "Decimal places", fr: "Décimales" })}
+                label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
                 options={getSelectOptions(["0", "1", "2", "3"])}
                 value={String(p.tempConfig.s.decimalPlaces)}
                 onChange={(v) =>
@@ -439,7 +455,7 @@ export function TimeseriesStyleControls(p: Props) {
               <Checkbox
                 checked={p.tempConfig.s.hideLegend}
                 onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
-                label={t3({ en: "Hide legend", fr: "Masquer la légende" })}
+                label={t3({ en: "Hide legend", fr: "Masquer la légende", pt: "Ocultar legenda" })}
               />
             </>
           </StyleSection>

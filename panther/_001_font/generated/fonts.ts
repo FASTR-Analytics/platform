@@ -111,6 +111,52 @@ type PantherFontOption =
   | "FiraSansCondensed_500_Italic"
   | "FiraSansCondensed_900"
   | "FiraSansCondensed_900_Italic"
+  // Founders Grotesk
+  | "FoundersGrotesk_400"
+  | "FoundersGrotesk_500_Italic"
+  | "FoundersGrotesk_300_Italic"
+  | "FoundersGrotesk_300"
+  | "FoundersGrotesk_600_Italic"
+  | "FoundersGrotesk_700_Italic"
+  | "FoundersGrotesk_700"
+  | "FoundersGrotesk_600"
+  | "FoundersGrotesk_400_Italic"
+  | "FoundersGrotesk_500"
+  // Founders Grotesk Cnd
+  | "FoundersGroteskCnd_500"
+  | "FoundersGroteskCnd_300"
+  // Founders Grotesk Cnd SmB
+  | "FoundersGroteskCndSmB_600"
+  // Founders Grotesk Condensed
+  | "FoundersGroteskCondensed_400"
+  | "FoundersGroteskCondensed_700"
+  // Founders Grotesk Mn
+  | "FoundersGroteskMn_600"
+  | "FoundersGroteskMn_300"
+  | "FoundersGroteskMn_500"
+  // Founders Grotesk Mono
+  | "FoundersGroteskMono_400"
+  | "FoundersGroteskMono_700"
+  // Founders Grotesk Text
+  | "FoundersGroteskText_700_Italic"
+  | "FoundersGroteskText_400"
+  | "FoundersGroteskText_700"
+  | "FoundersGroteskText_500"
+  | "FoundersGroteskText_300_Italic"
+  | "FoundersGroteskText_400_Italic"
+  | "FoundersGroteskText_500_Italic"
+  | "FoundersGroteskText_300"
+  // Founders Grotesk Text SemiBd
+  | "FoundersGroteskTextSemiBd_600_Italic"
+  | "FoundersGroteskTextSemiBd_600"
+  // Founders Grotesk X-Cnd
+  | "FoundersGroteskX-Cnd_300"
+  | "FoundersGroteskX-Cnd_500"
+  // Founders Grotesk X-Cnd SmB
+  | "FoundersGroteskX-CndSmB_600"
+  // Founders Grotesk X-Condensed
+  | "FoundersGroteskX-Condensed_400"
+  | "FoundersGroteskX-Condensed_700"
   // Gibson
   | "Gibson_800"
   | "Gibson_600_Italic"
@@ -398,10 +444,10 @@ type PantherFontOption =
   | "Söhne_300_Italic"
   | "Söhne_500"
   | "Söhne_300"
-  | "Söhne_700"
   | "Söhne_400"
   | "Söhne_500_Italic"
   | "Söhne_700_Italic"
+  | "Söhne_700"
   // Tiempos Headline
   | "TiemposHeadline_500_Italic"
   | "TiemposHeadline_600"
@@ -925,6 +971,203 @@ export const PANTHER_FONTS: Record<PantherFontOption, FontInfo> = {
     fontFamily: "Fira Sans Condensed",
     weight: 900,
     italic: true,
+  },
+
+  // Founders Grotesk
+  FoundersGrotesk_400: {
+    fontFamily: "Founders Grotesk",
+    weight: 400,
+    italic: false,
+  },
+  FoundersGrotesk_500_Italic: {
+    fontFamily: "Founders Grotesk",
+    weight: 500,
+    italic: true,
+  },
+  FoundersGrotesk_300_Italic: {
+    fontFamily: "Founders Grotesk",
+    weight: 300,
+    italic: true,
+  },
+  FoundersGrotesk_300: {
+    fontFamily: "Founders Grotesk",
+    weight: 300,
+    italic: false,
+  },
+  FoundersGrotesk_600_Italic: {
+    fontFamily: "Founders Grotesk",
+    weight: 600,
+    italic: true,
+  },
+  FoundersGrotesk_700_Italic: {
+    fontFamily: "Founders Grotesk",
+    weight: 700,
+    italic: true,
+  },
+  FoundersGrotesk_700: {
+    fontFamily: "Founders Grotesk",
+    weight: 700,
+    italic: false,
+  },
+  FoundersGrotesk_600: {
+    fontFamily: "Founders Grotesk",
+    weight: 600,
+    italic: false,
+  },
+  FoundersGrotesk_400_Italic: {
+    fontFamily: "Founders Grotesk",
+    weight: 400,
+    italic: true,
+  },
+  FoundersGrotesk_500: {
+    fontFamily: "Founders Grotesk",
+    weight: 500,
+    italic: false,
+  },
+
+  // Founders Grotesk Cnd
+  FoundersGroteskCnd_500: {
+    fontFamily: "Founders Grotesk Cnd",
+    weight: 500,
+    italic: false,
+  },
+  FoundersGroteskCnd_300: {
+    fontFamily: "Founders Grotesk Cnd",
+    weight: 300,
+    italic: false,
+  },
+
+  // Founders Grotesk Cnd SmB
+  FoundersGroteskCndSmB_600: {
+    fontFamily: "Founders Grotesk Cnd SmB",
+    weight: 600,
+    italic: false,
+  },
+
+  // Founders Grotesk Condensed
+  FoundersGroteskCondensed_400: {
+    fontFamily: "Founders Grotesk Condensed",
+    weight: 400,
+    italic: false,
+  },
+  FoundersGroteskCondensed_700: {
+    fontFamily: "Founders Grotesk Condensed",
+    weight: 700,
+    italic: false,
+  },
+
+  // Founders Grotesk Mn
+  FoundersGroteskMn_600: {
+    fontFamily: "Founders Grotesk Mn",
+    weight: 600,
+    italic: false,
+  },
+  FoundersGroteskMn_300: {
+    fontFamily: "Founders Grotesk Mn",
+    weight: 300,
+    italic: false,
+  },
+  FoundersGroteskMn_500: {
+    fontFamily: "Founders Grotesk Mn",
+    weight: 500,
+    italic: false,
+  },
+
+  // Founders Grotesk Mono
+  FoundersGroteskMono_400: {
+    fontFamily: "Founders Grotesk Mono",
+    weight: 400,
+    italic: false,
+  },
+  FoundersGroteskMono_700: {
+    fontFamily: "Founders Grotesk Mono",
+    weight: 700,
+    italic: false,
+  },
+
+  // Founders Grotesk Text
+  FoundersGroteskText_700_Italic: {
+    fontFamily: "Founders Grotesk Text",
+    weight: 700,
+    italic: true,
+  },
+  FoundersGroteskText_400: {
+    fontFamily: "Founders Grotesk Text",
+    weight: 400,
+    italic: false,
+  },
+  FoundersGroteskText_700: {
+    fontFamily: "Founders Grotesk Text",
+    weight: 700,
+    italic: false,
+  },
+  FoundersGroteskText_500: {
+    fontFamily: "Founders Grotesk Text",
+    weight: 500,
+    italic: false,
+  },
+  FoundersGroteskText_300_Italic: {
+    fontFamily: "Founders Grotesk Text",
+    weight: 300,
+    italic: true,
+  },
+  FoundersGroteskText_400_Italic: {
+    fontFamily: "Founders Grotesk Text",
+    weight: 400,
+    italic: true,
+  },
+  FoundersGroteskText_500_Italic: {
+    fontFamily: "Founders Grotesk Text",
+    weight: 500,
+    italic: true,
+  },
+  FoundersGroteskText_300: {
+    fontFamily: "Founders Grotesk Text",
+    weight: 300,
+    italic: false,
+  },
+
+  // Founders Grotesk Text SemiBd
+  FoundersGroteskTextSemiBd_600_Italic: {
+    fontFamily: "Founders Grotesk Text SemiBd",
+    weight: 600,
+    italic: true,
+  },
+  FoundersGroteskTextSemiBd_600: {
+    fontFamily: "Founders Grotesk Text SemiBd",
+    weight: 600,
+    italic: false,
+  },
+
+  // Founders Grotesk X-Cnd
+  "FoundersGroteskX-Cnd_300": {
+    fontFamily: "Founders Grotesk X-Cnd",
+    weight: 300,
+    italic: false,
+  },
+  "FoundersGroteskX-Cnd_500": {
+    fontFamily: "Founders Grotesk X-Cnd",
+    weight: 500,
+    italic: false,
+  },
+
+  // Founders Grotesk X-Cnd SmB
+  "FoundersGroteskX-CndSmB_600": {
+    fontFamily: "Founders Grotesk X-Cnd SmB",
+    weight: 600,
+    italic: false,
+  },
+
+  // Founders Grotesk X-Condensed
+  "FoundersGroteskX-Condensed_400": {
+    fontFamily: "Founders Grotesk X-Condensed",
+    weight: 400,
+    italic: false,
+  },
+  "FoundersGroteskX-Condensed_700": {
+    fontFamily: "Founders Grotesk X-Condensed",
+    weight: 700,
+    italic: false,
   },
 
   // Gibson
@@ -2257,45 +2500,45 @@ export const PANTHER_FONTS: Record<PantherFontOption, FontInfo> = {
   },
 
   // Söhne
-  Söhne_400_Italic: {
+  "Söhne_400_Italic": {
     fontFamily: "Söhne",
     weight: 400,
     italic: true,
   },
-  Söhne_300_Italic: {
+  "Söhne_300_Italic": {
     fontFamily: "Söhne",
     weight: 300,
     italic: true,
   },
-  Söhne_500: {
+  "Söhne_500": {
     fontFamily: "Söhne",
     weight: 500,
     italic: false,
   },
-  Söhne_300: {
+  "Söhne_300": {
     fontFamily: "Söhne",
     weight: 300,
     italic: false,
   },
-  Söhne_700: {
-    fontFamily: "Söhne",
-    weight: 700,
-    italic: false,
-  },
-  Söhne_400: {
+  "Söhne_400": {
     fontFamily: "Söhne",
     weight: 400,
     italic: false,
   },
-  Söhne_500_Italic: {
+  "Söhne_500_Italic": {
     fontFamily: "Söhne",
     weight: 500,
     italic: true,
   },
-  Söhne_700_Italic: {
+  "Söhne_700_Italic": {
     fontFamily: "Söhne",
     weight: 700,
     italic: true,
+  },
+  "Söhne_700": {
+    fontFamily: "Söhne",
+    weight: 700,
+    italic: false,
   },
 
   // Tiempos Headline

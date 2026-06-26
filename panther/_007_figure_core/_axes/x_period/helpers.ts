@@ -3,9 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { decodePeriod, isFrench } from "../../deps.ts";
+import { decodePeriod, getLanguage } from "../../deps.ts";
 import type {
   CalendarType,
+  Language,
   MergedGridStyle,
   MergedXPeriodAxisStyle,
   PeriodType,
@@ -18,6 +19,51 @@ import type { PeriodAxisType } from "./types.ts";
 //                          Period Label Functions                            //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
+
+const MONTHS_THREE_CHARS_BY_LANG: Record<Language, string[]> = {
+  en: [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ],
+  fr: [
+    "Janv",
+    "Févr",
+    "Mars",
+    "Avr",
+    "Mai",
+    "Juin",
+    "Juil",
+    "Août",
+    "Sept",
+    "Oct",
+    "Nov",
+    "Déc",
+  ],
+  pt: [
+    "Jan",
+    "Fev",
+    "Mar",
+    "Abr",
+    "Mai",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Set",
+    "Out",
+    "Nov",
+    "Dez",
+  ],
+};
 
 export function get_MONTHS_THREE_CHARS(calendar?: CalendarType) {
   if (calendar === "ethiopian") {
@@ -36,36 +82,7 @@ export function get_MONTHS_THREE_CHARS(calendar?: CalendarType) {
       "Neh",
     ];
   }
-  if (isFrench()) {
-    return [
-      "Janv",
-      "Févr",
-      "Mars",
-      "Avr",
-      "Mai",
-      "Juin",
-      "Juil",
-      "Août",
-      "Sept",
-      "Oct",
-      "Nov",
-      "Déc",
-    ];
-  }
-  return [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
+  return MONTHS_THREE_CHARS_BY_LANG[getLanguage()];
 }
 
 export function get_MONTHS_ONE_CHARS(calendar?: CalendarType) {
@@ -75,11 +92,14 @@ export function get_MONTHS_ONE_CHARS(calendar?: CalendarType) {
   return ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 }
 
+const QUARTERS_TWO_CHARS_BY_LANG: Record<Language, string[]> = {
+  en: ["Q1", "Q2", "Q3", "Q4"],
+  fr: ["T1", "T2", "T3", "T4"],
+  pt: ["T1", "T2", "T3", "T4"],
+};
+
 export function get_QUARTERS_TWO_CHARS() {
-  if (isFrench()) {
-    return ["T1", "T2", "T3", "T4"];
-  }
-  return ["Q1", "Q2", "Q3", "Q4"];
+  return QUARTERS_TWO_CHARS_BY_LANG[getLanguage()];
 }
 
 export const _QUARTERS_ONE_CHARS = ["1", "2", "3", "4"];

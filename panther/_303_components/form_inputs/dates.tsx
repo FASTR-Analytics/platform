@@ -4,7 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createSignal } from "solid-js";
-import { isFrench } from "../deps.ts";
+import { getLanguage } from "../deps.ts";
+import type { Language } from "../deps.ts";
 import type { Intent } from "../types.ts";
 import { Select } from "./select.tsx";
 import type { SelectOption } from "./types.ts";
@@ -13,38 +14,53 @@ import type { SelectOption } from "./types.ts";
 // MonthSelect
 ////////////////////////////////////////////////////////////////////////////////
 
-const MONTHS_EN = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const MONTHS_FR = [
-  "Janvier",
-  "Février",
-  "Mars",
-  "Avril",
-  "Mai",
-  "Juin",
-  "Juillet",
-  "Août",
-  "Septembre",
-  "Octobre",
-  "Novembre",
-  "Décembre",
-];
+const MONTHS_BY_LANG: Record<Language, string[]> = {
+  en: [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ],
+  fr: [
+    "Janvier",
+    "Février",
+    "Mars",
+    "Avril",
+    "Mai",
+    "Juin",
+    "Juillet",
+    "Août",
+    "Septembre",
+    "Octobre",
+    "Novembre",
+    "Décembre",
+  ],
+  pt: [
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
+  ],
+};
 
 function getMonthOptions(): SelectOption<string>[] {
-  const months = isFrench() ? MONTHS_FR : MONTHS_EN;
+  const months = MONTHS_BY_LANG[getLanguage()];
   return months.map((label, i) => ({
     value: String(i + 1).padStart(2, "0"),
     label,

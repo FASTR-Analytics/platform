@@ -21,25 +21,26 @@ type Props = {
 export function MapStyleControls(p: Props) {
   return (
     <>
-      <StyleSection label={t3({ en: "Display", fr: "Affichage" })}>
+      <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
         <>
           <RadioGroup
             label={t3({
               en: "Map projection",
               fr: "Projection cartographique",
+              pt: "Projeção cartográfica",
             })}
             options={[
               {
                 value: "equirectangular",
-                label: t3({ en: "Equirectangular", fr: "Équirectangulaire" }),
+                label: t3({ en: "Equirectangular", fr: "Équirectangulaire", pt: "Equirretangular" }),
               },
               {
                 value: "mercator",
-                label: t3({ en: "Mercator", fr: "Mercator" }),
+                label: t3({ en: "Mercator", fr: "Mercator", pt: "Mercator" }),
               },
               {
                 value: "naturalEarth1",
-                label: t3({ en: "Natural Earth", fr: "Natural Earth" }),
+                label: t3({ en: "Natural Earth", fr: "Natural Earth", pt: "Natural Earth" }),
               },
             ]}
             value={p.tempConfig.s.mapProjection}
@@ -55,7 +56,7 @@ export function MapStyleControls(p: Props) {
           <Checkbox
             checked={p.tempConfig.s.hideLegend}
             onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
-            label={t3({ en: "Hide legend", fr: "Masquer la légende" })}
+            label={t3({ en: "Hide legend", fr: "Masquer la légende", pt: "Ocultar legenda" })}
           />
         </>
       </StyleSection>
@@ -63,6 +64,7 @@ export function MapStyleControls(p: Props) {
         label={t3({
           en: "Conditional formatting",
           fr: "Mise en forme conditionnelle",
+          pt: "Formatação condicional",
         })}
       >
         <ConditionalFormattingEditor
@@ -73,7 +75,7 @@ export function MapStyleControls(p: Props) {
           allowNegative={METRICS_WITH_NEGATIVE_PCT_VALUES.includes(p.poDetail.resultsValue.id)}
         />
       </StyleSection>
-      <StyleSection label={t3({ en: "Labels", fr: "Étiquettes" })}>
+      <StyleSection label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}>
         <>
           <Checkbox
             checked={p.tempConfig.s.mapShowRegionLabels ?? false}
@@ -81,6 +83,7 @@ export function MapStyleControls(p: Props) {
             label={t3({
               en: "Show region labels",
               fr: "Afficher les noms de région",
+              pt: "Mostrar rótulos de região",
             })}
           />
           <Checkbox
@@ -89,6 +92,7 @@ export function MapStyleControls(p: Props) {
             label={t3({
               en: "Show data labels",
               fr: "Afficher les étiquettes de données",
+              pt: "Mostrar rótulos de dados",
             })}
           />
           <Show
@@ -101,19 +105,20 @@ export function MapStyleControls(p: Props) {
                 label={t3({
                   en: "Label placement",
                   fr: "Placement des étiquettes",
+                  pt: "Posicionamento dos rótulos",
                 })}
                 options={[
                   {
                     value: "centroid",
-                    label: t3({ en: "Center", fr: "Centre" }),
+                    label: t3({ en: "Center", fr: "Centre", pt: "Centro" }),
                   },
                   {
                     value: "callout",
-                    label: t3({ en: "Callout", fr: "Légende" }),
+                    label: t3({ en: "Callout", fr: "Légende", pt: "Chamada" }),
                   },
                   {
                     value: "auto",
-                    label: t3({ en: "Auto", fr: "Auto" }),
+                    label: t3({ en: "Auto", fr: "Auto", pt: "Automático" }),
                   },
                 ]}
                 value={p.tempConfig.s.mapDataLabelMode ?? "centroid"}
@@ -130,7 +135,7 @@ export function MapStyleControls(p: Props) {
           <Show when={p.tempConfig.s.showDataLabels}>
             <StyleRevealGroup>
               <RadioGroup
-                label={t3({ en: "Decimal places", fr: "Décimales" })}
+                label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
                 options={getSelectOptions(["0", "1", "2", "3"])}
                 value={String(p.tempConfig.s.decimalPlaces)}
                 onChange={(v) =>

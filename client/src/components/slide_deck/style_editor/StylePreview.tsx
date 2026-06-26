@@ -43,8 +43,8 @@ function getCoverPageInputs(
   const style = buildStyleForSlide({ type: "cover", title: "" }, config, bgDetail.pattern);
   return {
     type: "cover",
-    title: t3({ en: "Title", fr: "Titre" }),
-    subTitle: t3({ en: "Subtitle", fr: "Sous-titre" }),
+    title: t3({ en: "Title", fr: "Titre", pt: "Título" }),
+    subTitle: t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
     style,
     overlay: bgDetail.overlay,
     titleLogos: logos,
@@ -58,7 +58,7 @@ function getSectionPageInputs(
   const style = buildStyleForSlide({ type: "section", sectionTitle: "" }, config, bgDetail.pattern);
   return {
     type: "section",
-    sectionTitle: t3({ en: "Section", fr: "Section" }),
+    sectionTitle: t3({ en: "Section", fr: "Section", pt: "Secção" }),
     style,
     overlay: bgDetail.overlay,
   };
@@ -83,8 +83,8 @@ function getContentPageInputs(
   );
   return {
     type: "freeform",
-    header: t3({ en: "Header", fr: "En-tête" }),
-    footer: config.globalFooterText || t3({ en: "Footer", fr: "Pied de page" }),
+    header: t3({ en: "Header", fr: "En-tête", pt: "Cabeçalho" }),
+    footer: config.globalFooterText || t3({ en: "Footer", fr: "Pied de page", pt: "Rodapé" }),
     headerLogos,
     footerLogos,
     content: {
@@ -176,7 +176,7 @@ export function StylePreview(p: StylePreviewProps) {
   return (
     <div>
       <div class="ui-label">
-        {t3({ en: "Preview", fr: "Aperçu" })}
+        {t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" })}
       </div>
       <Show when={colorError()}>
         <div class="border border-danger rounded bg-danger/10 flex items-center justify-center py-8">
@@ -187,7 +187,7 @@ export function StylePreview(p: StylePreviewProps) {
         <div class="flex gap-4" style={{ "max-width": "1600px" }}>
           <div class="flex-1">
             <div class="text-xs text-neutral mb-1">
-              {t3({ en: "Cover", fr: "Couverture" })}
+              {t3({ en: "Cover", fr: "Couverture", pt: "Capa" })}
             </div>
             <div class="border border-base-300 rounded overflow-hidden">
               <PageHolder
@@ -199,7 +199,7 @@ export function StylePreview(p: StylePreviewProps) {
           </div>
           <div class="flex-1">
             <div class="text-xs text-neutral mb-1">
-              {t3({ en: "Section", fr: "Section" })}
+              {t3({ en: "Section", fr: "Section", pt: "Secção" })}
             </div>
             <div class="border border-base-300 rounded overflow-hidden">
               <PageHolder
@@ -211,7 +211,7 @@ export function StylePreview(p: StylePreviewProps) {
           </div>
           <div class="flex-1">
             <div class="text-xs text-neutral mb-1">
-              {t3({ en: "Content", fr: "Contenu" })}
+              {t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" })}
             </div>
             <div class="border border-base-300 rounded overflow-hidden">
               <PageHolder

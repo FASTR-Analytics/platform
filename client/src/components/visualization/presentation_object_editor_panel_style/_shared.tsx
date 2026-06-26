@@ -19,11 +19,12 @@ export function SharedControlsTop(p: SharedTopProps) {
           label={t3({
             en: "Number of grid columns",
             fr: "Nombre de colonnes de grille",
+            pt: "Número de colunas da grelha",
           })}
         >
           <div class="ui-spy-sm">
             <Checkbox
-              label={t3({ en: "Auto", fr: "Auto" })}
+              label={t3({ en: "Auto", fr: "Auto", pt: "Auto" })}
               checked={p.tempConfig.s.nColsInCellDisplay === "auto"}
               onChange={(v) => {
                 if (v) {
@@ -36,7 +37,7 @@ export function SharedControlsTop(p: SharedTopProps) {
             <Show when={p.tempConfig.s.nColsInCellDisplay !== "auto"}>
               <StyleRevealGroup>
                 <Slider
-                  label={t3({ en: "Columns", fr: "Colonnes" })}
+                  label={t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" })}
                   min={1}
                   max={10}
                   step={1}

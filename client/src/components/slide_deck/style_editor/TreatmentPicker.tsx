@@ -61,7 +61,7 @@ export function CoverTreatmentPicker(p: CoverTreatmentPickerProps) {
   return (
     <div>
       <div class="ui-label">
-        {t3({ en: "Cover & Section", fr: "Couverture et section" })}
+        {t3({ en: "Cover & Section", fr: "Couverture et section", pt: "Capa e secção" })}
       </div>
       <div class="ui-gap-sm flex flex-wrap">
         <For each={presets}>
@@ -142,7 +142,7 @@ export function FreeformTreatmentPicker(p: FreeformTreatmentPickerProps) {
   return (
     <div>
       <div class="ui-label">
-        {t3({ en: "Content Pages", fr: "Pages de contenu" })}
+        {t3({ en: "Content Pages", fr: "Pages de contenu", pt: "Páginas de conteúdo" })}
       </div>
       <div class="ui-gap-sm flex flex-wrap">
         <For each={presets}>

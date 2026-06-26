@@ -35,13 +35,13 @@
     "jsr:@std/streams@^1.0.8": "1.0.8",
     "jsr:@std/yaml@1.0.5": "1.0.5",
     "jsr:@zip-js/zip-js@*": "2.8.26",
-    "npm:@anthropic-ai/sdk@0.71": "0.71.2_zod@3.25.76",
+    "npm:@anthropic-ai/sdk@0.71": "0.71.2_zod@4.1.13",
     "npm:@clerk/backend@^1.25.2": "1.34.0",
     "npm:@codemirror/lang-markdown@6": "6.5.0",
     "npm:@codemirror/merge@6": "6.11.2",
     "npm:@codemirror/state@6": "6.5.2",
     "npm:@hono/clerk-auth@2": "2.0.1_@clerk+backend@1.34.0_hono@4.8.10",
-    "npm:@solidjs/router@0.15": "0.15.4_solid-js@1.9.10__seroval@1.3.2",
+    "npm:@solidjs/router@0.15": "0.15.4_solid-js@1.9.3__seroval@1.3.2",
     "npm:@types/node@*": "24.6.2",
     "npm:@types/papaparse@^5.3.15": "5.3.15",
     "npm:@vscode/markdown-it-katex@^1.1.2": "1.1.2",
@@ -61,7 +61,8 @@
     "npm:postgres@^3.4.5": "3.4.5",
     "npm:pptxgenjs@^4.0.1": "4.0.1",
     "npm:redis@^4.7.0": "4.7.1_@redis+client@1.6.1",
-    "npm:solid-js@^1.9.0": "1.9.10_seroval@1.3.2",
+    "npm:solid-js@1.9.3": "1.9.3_seroval@1.3.2",
+    "npm:solid-js@^1.9.0": "1.9.3_seroval@1.3.2",
     "npm:sortablejs@^1.15.0": "1.15.6",
     "npm:xlsx@0.18.5": "0.18.5",
     "npm:zod@*": "4.1.13",
@@ -191,14 +192,14 @@
     }
   },
   "npm": {
-    "@anthropic-ai/sdk@0.71.2_zod@3.25.76": {
+    "@anthropic-ai/sdk@0.71.2_zod@4.1.13": {
       "integrity": "sha512-TGNDEUuEstk/DKu0/TflXAEt+p+p/WhTlFzEnoosvbaDU2LTjm42igSdlL0VijrKpWejtOKxX0b8A7uc+XiSAQ==",
       "dependencies": [
         "json-schema-to-ts",
-        "zod@3.25.76"
+        "zod"
       ],
       "optionalPeers": [
-        "zod@3.25.76"
+        "zod"
       ],
       "bin": true
     },
@@ -446,7 +447,7 @@
         "@redis/client"
       ]
     },
-    "@solidjs/router@0.15.4_solid-js@1.9.10__seroval@1.3.2": {
+    "@solidjs/router@0.15.4_solid-js@1.9.3__seroval@1.3.2": {
       "integrity": "sha512-WOpgg9a9T638cR+5FGbFi/IV4l2FpmBs1GpIMSPa0Ce9vyJN7Wts+X2PqMf9IYn0zUj2MlSJtm1gp7/HI/n5TQ==",
       "dependencies": [
         "solid-js"
@@ -862,8 +863,8 @@
         "type-fest"
       ]
     },
-    "solid-js@1.9.10_seroval@1.3.2": {
-      "integrity": "sha512-Coz956cos/EPDlhs6+jsdTxKuJDPT7B5SVIWgABwROyxjY7Xbr8wkzD68Et+NxnV7DLJ3nJdAC2r9InuV/4Jew==",
+    "solid-js@1.9.3_seroval@1.3.2": {
+      "integrity": "sha512-5ba3taPoZGt9GY3YlsCB24kCg0Lv/rie/HTD4kG6h4daZZz7+yK02xn8Vx8dLYBc9i6Ps5JwAbEiqjmKaLB3Ag==",
       "dependencies": [
         "csstype",
         "seroval",
@@ -984,9 +985,6 @@
     },
     "yallist@4.0.0": {
       "integrity": "sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A=="
-    },
-    "zod@3.25.76": {
-      "integrity": "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="
     },
     "zod@4.1.13": {
       "integrity": "sha512-AvvthqfqrAhNH9dnfmrfKzX5upOdjUVJYFqNSlkmGf64gRaTzlPwz99IHYnVs28qYAybvAlBV+H7pn0saFY4Ig=="

@@ -1,7 +1,11 @@
-import { type CalendarType } from "@timroberton/panther";
+import {
+  type CalendarType,
+  type Language,
+  type TranslatableString,
+} from "@timroberton/panther";
 import { InstanceCalendar } from "../types/mod.ts";
 
-export { isFrench, setLanguage, getLanguage, t3 } from "@timroberton/panther";
+export { getLanguage, setLanguage, t3 } from "@timroberton/panther";
 
 export const LANGUAGE_STORAGE_KEY = "fastrLanguage";
 
@@ -15,6 +19,9 @@ export function getCalendar(): CalendarType {
   return _CALENDAR.cal;
 }
 
-export function pickLang(language: "en" | "fr", s: { en: string; fr: string }): string {
+export function pickLang(language: Language, s: TranslatableString): string {
+  if (language === "pt") {
+    return s.pt || s.en;
+  }
   return language === "fr" ? s.fr : s.en;
 }

@@ -56,7 +56,7 @@ export function Filters(p: FiltersProps) {
 
   return (
     <div class="ui-spy-sm">
-      <div class="text-md font-700">{t3({ en: "Filter (subset)", fr: "Filtre (sous-ensemble)" })}</div>
+      <div class="text-md font-700">{t3({ en: "Filter (subset)", fr: "Filtre (sous-ensemble)", pt: "Filtro (subconjunto)" })}</div>
 
       <div class="ui-spy-sm">
         <Show when={p.poDetail.resultsValue.valueProps.length > 1}>
@@ -115,7 +115,7 @@ function DataValuesFilter(p: DataValuesFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t3({ en: "Data values", fr: "Valeurs des données" })}
+        label={t3({ en: "Data values", fr: "Valeurs des données", pt: "Valores dos dados" })}
         checked={!!p.tempConfig.d.valuesFilter}
         onChange={(checked) => {
           if (checked) {
@@ -171,7 +171,7 @@ function PeriodFilter(p: PeriodFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t3({ en: "Time period", fr: "Période" })}
+        label={t3({ en: "Time period", fr: "Période", pt: "Período" })}
         checked={!!p.tempConfig.d.periodFilter}
         onChange={(checked) => {
           if (checked) {
@@ -206,48 +206,48 @@ function PeriodFilter(p: PeriodFilterProps) {
                     ? [
                       {
                         value: "last_n_months",
-                        label: t3({ en: "Last year", fr: "Dernière année" }),
+                        label: t3({ en: "Last year", fr: "Dernière année", pt: "Último ano" }),
                       },
                       {
                         value: "custom",
-                        label: t3({ en: "Custom", fr: "Personnalisé" }),
+                        label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
                       },
                     ]
                     : periodOption === "quarter_id"
                       ? [
                         {
                           value: "last_n_calendar_quarters",
-                          label: t3({ en: "Last N calendar quarters", fr: "Derniers N trimestres civils" }),
+                          label: t3({ en: "Last N calendar quarters", fr: "Derniers N trimestres civils", pt: "Últimos N trimestres civis" }),
                         },
                         {
                           value: "from_month",
-                          label: t3({ en: "From specific quarter", fr: "À partir d'un trimestre spécifique" }),
+                          label: t3({ en: "From specific quarter", fr: "À partir d'un trimestre spécifique", pt: "A partir de um trimestre específico" }),
                         },
                         {
                           value: "custom",
-                          label: t3({ en: "Custom", fr: "Personnalisé" }),
+                          label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
                         },
                       ]
                       : [
                         {
                           value: "last_n_months",
-                          label: t3({ en: "Last N months", fr: "Derniers N mois" }),
+                          label: t3({ en: "Last N months", fr: "Derniers N mois", pt: "Últimos N meses" }),
                         },
                         {
                           value: "from_month",
-                          label: t3({ en: "From specific month to present", fr: "À partir d'un mois spécifique jusqu'à aujourd'hui" }),
+                          label: t3({ en: "From specific month to present", fr: "À partir d'un mois spécifique jusqu'à aujourd'hui", pt: "De um mês específico até ao presente" }),
                         },
                         {
                           value: "last_n_calendar_years",
-                          label: t3({ en: "Last N full calendar years", fr: "Dernières N années civiles complètes" }),
+                          label: t3({ en: "Last N full calendar years", fr: "Dernières N années civiles complètes", pt: "Últimos N anos civis completos" }),
                         },
                         {
                           value: "last_n_calendar_quarters",
-                          label: t3({ en: "Last N full calendar quarters", fr: "Derniers N trimestres civils complets" }),
+                          label: t3({ en: "Last N full calendar quarters", fr: "Derniers N trimestres civils complets", pt: "Últimos N trimestres civis completos" }),
                         },
                         {
                           value: "custom",
-                          label: t3({ en: "Custom", fr: "Personnalisé" }),
+                          label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
                         },
                       ]
                 }
@@ -456,17 +456,17 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
               <Switch>
                 <Match when={p.keyedStatus.status === "too_many_values"}>
                   <div class="ui-pad text-sm text-warning">
-                    {t3({ en: "Too many values (over 500) to display as filter options.", fr: "Trop de valeurs (plus de 500) pour les afficher comme options de filtre." })}
+                    {t3({ en: "Too many values (over 500) to display as filter options.", fr: "Trop de valeurs (plus de 500) pour les afficher comme options de filtre.", pt: "Demasiados valores (mais de 500) para apresentar como opções de filtro." })}
                   </div>
                 </Match>
                 <Match when={p.keyedStatus.status === "no_values_available"}>
                   <div class="ui-pad text-sm text-info">
-                    {t3({ en: "No data available for this dimension.", fr: "Aucune donnée disponible pour cette dimension." })}
+                    {t3({ en: "No data available for this dimension.", fr: "Aucune donnée disponible pour cette dimension.", pt: "Nenhum dado disponível para esta dimensão." })}
                   </div>
                 </Match>
                 <Match when={p.keyedStatus.status === "error"}>
                   <div class="ui-pad text-sm text-danger">
-                    {t3({ en: "Error loading values: ", fr: "Erreur lors du chargement des valeurs : " })}
+                    {t3({ en: "Error loading values: ", fr: "Erreur lors du chargement des valeurs : ", pt: "Erro ao carregar os valores: " })}
                     {(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "error" }>).message}
                   </div>
                 </Match>
@@ -552,7 +552,7 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
             p.periodType,
             getCalendar(),
           )}{" "}
-          {t3({ en: "to", fr: "à" })}{" "}
+          {t3({ en: "to", fr: "à", pt: "a" })}{" "}
           {formatPeriod(
             getPeriodIdFromTime(tempMaxTime(), p.periodType),
             p.periodType,
@@ -610,7 +610,7 @@ export function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
       />
       <div class="ui-gap-sm flex pt-1 text-sm">
         <div class="flex-1 truncate">
-          {t3({ en: "From:", fr: "De :" })}{" "}
+          {t3({ en: "From:", fr: "De :", pt: "De:" })}{" "}
           {formatPeriod(
             getPeriodIdFromTime(tempTime(), p.periodType),
             p.periodType,
@@ -651,7 +651,7 @@ export function NMonthsSelector(p: NMonthsSelectorProps) {
   return (
     <div class="ui-gap-sm ui-pad border-base-300 rounded border">
       <Slider
-        label={p.label ?? t3({ en: "Number of months", fr: "Nombre de mois" })}
+        label={p.label ?? t3({ en: "Number of months", fr: "Nombre de mois", pt: "Número de meses" })}
         showValueInLabel
         valueInLabelFormatter={v => String(v)}
         value={tempNMonths()}
@@ -695,7 +695,7 @@ export function NYearsSelector(p: NYearsSelectorProps) {
   return (
     <div class="ui-gap-sm ui-pad border-base-300 rounded border">
       <Slider
-        label={t3({ en: "Number of years", fr: "Nombre d'années" })}
+        label={t3({ en: "Number of years", fr: "Nombre d'années", pt: "Número de anos" })}
         showValueInLabel
         valueInLabelFormatter={v => String(v)}
         value={tempNYears()}
@@ -739,7 +739,7 @@ export function NQuartersSelector(p: NQuartersSelectorProps) {
   return (
     <div class="ui-gap-sm ui-pad border-base-300 rounded border">
       <Slider
-        label={t3({ en: "Number of quarters", fr: "Nombre de trimestres" })}
+        label={t3({ en: "Number of quarters", fr: "Nombre de trimestres", pt: "Número de trimestres" })}
         showValueInLabel
         valueInLabelFormatter={v => String(v)}
         value={tempNQuarters()}
@@ -806,7 +806,7 @@ export function PeriodFilterYear(p: PeriodFilterPropsYear) {
       />
       <div class="ui-gap-sm flex pt-3">
         <div class="flex-1 truncate">
-          {tempMinTime().toFixed(0)} {t3({ en: "to", fr: "à" })} {tempMaxTime().toFixed(0)}
+          {tempMinTime().toFixed(0)} {t3({ en: "to", fr: "à", pt: "a" })} {tempMaxTime().toFixed(0)}
         </div>
         <Show when={needsSave()}>
           <div class="">

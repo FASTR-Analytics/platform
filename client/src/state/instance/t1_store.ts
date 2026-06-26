@@ -1,4 +1,5 @@
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import type { Language } from "panther";
 import type {
   InstanceConfig,
   InstanceDatasetsSummary,
@@ -97,7 +98,7 @@ export function getInstanceCountryIso3(): string | undefined {
   return unwrap(instanceState).countryIso3;
 }
 
-export function getInstanceLocalization(): { language: "en" | "fr"; calendar: "gregorian" | "ethiopian"; countryIso3: string } {
+export function getInstanceLocalization(): { language: Language; calendar: "gregorian" | "ethiopian"; countryIso3: string } {
   const s = unwrap(instanceState);
   return { language: s.instanceLanguage, calendar: s.instanceCalendar, countryIso3: s.countryIso3 ?? "" };
 }

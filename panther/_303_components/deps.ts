@@ -9,14 +9,15 @@ export {
   capitalizeFirstLetter,
   clamp,
   createArray,
+  getLanguage,
   getSortedAlphabetical,
-  isFrench,
   normalizeTo01,
   t3,
   to100Pct0,
   toNum0,
   toPct3,
 } from "../_000_utils/mod.ts";
+export type { Language } from "../_000_utils/mod.ts";
 export { Color } from "../_001_color/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export { CanvasRenderContext } from "../_002_canvas/mod.ts";

@@ -2,6 +2,7 @@ import {
   ChartOHJsonDataConfig,
   ChartOVJsonDataConfig,
   HeaderSortConfig,
+  type Language,
   TableJsonDataConfig,
   TimeseriesJsonDataConfig,
 } from "panther";
@@ -75,7 +76,7 @@ function buildLabelReplacements(
 // the row can be an AVG or a recomputed ratio): "National", "{Area} — All
 // areas" for a pinned parent, "All selected areas" when admin filters subset
 // the geography.
-function getRollupRowLabel(config: PresentationObjectConfig, language: "en" | "fr", countryIso3: string | undefined): string {
+function getRollupRowLabel(config: PresentationObjectConfig, language: Language, countryIso3: string | undefined): string {
   const ctx = getRollupLabelContext(config);
   if (ctx?.kind === "subset") {
     return pickLang(language, { en: "All selected areas", fr: "Toutes les zones sélectionnées" });

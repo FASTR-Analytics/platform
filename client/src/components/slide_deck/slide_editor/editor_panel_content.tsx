@@ -56,10 +56,11 @@ function getLogoVisibilityOptions(showByDefault: boolean) {
       label: t3({
         en: showByDefault ? "Default (show)" : "Default (hide)",
         fr: showByDefault ? "Défaut (afficher)" : "Défaut (masquer)",
+        pt: showByDefault ? "Predefinição (mostrar)" : "Predefinição (ocultar)",
       }),
     },
-    { value: "show", label: t3({ en: "Show", fr: "Afficher" }) },
-    { value: "hide", label: t3({ en: "Hide", fr: "Masquer" }) },
+    { value: "show", label: t3({ en: "Show", fr: "Afficher", pt: "Mostrar" }) },
+    { value: "hide", label: t3({ en: "Hide", fr: "Masquer", pt: "Ocultar" }) },
   ];
 }
 
@@ -127,14 +128,18 @@ export function SlideEditorPanelContent(p: Props) {
           onClick={() => p.setContentTab("slide")}
           data-selected={p.contentTab === "slide"}
         >
-          {t3({ en: "Header / Footer", fr: "En-tête / Pied de page" })}
+          {t3({
+            en: "Header / Footer",
+            fr: "En-tête / Pied de page",
+            pt: "Cabeçalho / Rodapé",
+          })}
         </div>
         <div
           class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 py-2 text-center"
           onClick={() => p.setContentTab("block")}
           data-selected={p.contentTab === "block"}
         >
-          {t3({ en: "Content", fr: "Contenu" })}
+          {t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" })}
         </div>
       </div>
 
@@ -144,7 +149,7 @@ export function SlideEditorPanelContent(p: Props) {
             <div class="h-full overflow-auto">
               <div class="ui-pad ui-spy-sm">
                 <TextArea
-                  label={t3({ en: "Header", fr: "En-tête" })}
+                  label={t3({ en: "Header", fr: "En-tête", pt: "Cabeçalho" })}
                   value={p.tempSlide.header ?? ""}
                   onChange={(v: string) =>
                     p.setTempSlide("header", v || undefined)
@@ -153,7 +158,11 @@ export function SlideEditorPanelContent(p: Props) {
                   height="60px"
                 />
                 <TextArea
-                  label={t3({ en: "Sub Header", fr: "Sous-en-tête" })}
+                  label={t3({
+                    en: "Sub Header",
+                    fr: "Sous-en-tête",
+                    pt: "Subcabeçalho",
+                  })}
                   value={p.tempSlide.subHeader ?? ""}
                   onChange={(v: string) =>
                     p.setTempSlide("subHeader", v || undefined)
@@ -162,7 +171,7 @@ export function SlideEditorPanelContent(p: Props) {
                   height="40px"
                 />
                 <TextArea
-                  label={t3({ en: "Date", fr: "Date" })}
+                  label={t3({ en: "Date", fr: "Date", pt: "Data" })}
                   value={p.tempSlide.date ?? ""}
                   onChange={(v: string) =>
                     p.setTempSlide("date", v || undefined)
@@ -171,7 +180,11 @@ export function SlideEditorPanelContent(p: Props) {
                   height="40px"
                 />
                 <Select
-                  label={t3({ en: "Header logos", fr: "Logos d'en-tête" })}
+                  label={t3({
+                    en: "Header logos",
+                    fr: "Logos d'en-tête",
+                    pt: "Logótipos do cabeçalho",
+                  })}
                   value={p.tempSlide.showHeaderLogos ?? "inherit"}
                   options={getLogoVisibilityOptions(p.showHeaderLogosByDefault)}
                   onChange={(v) =>
@@ -191,6 +204,7 @@ export function SlideEditorPanelContent(p: Props) {
                       {t3({
                         en: "Footer text is set at the deck level",
                         fr: "Le texte de pied de page est défini au niveau du diaporama",
+                        pt: "O texto do rodapé é definido ao nível da apresentação",
                       })}
                     </div>
                   }
@@ -199,6 +213,7 @@ export function SlideEditorPanelContent(p: Props) {
                     label={t3({
                       en: "Footer text",
                       fr: "Texte de pied de page",
+                      pt: "Texto do rodapé",
                     })}
                     value={p.tempSlide.footer ?? ""}
                     onChange={(v: string) =>
@@ -212,6 +227,7 @@ export function SlideEditorPanelContent(p: Props) {
                   label={t3({
                     en: "Footer logos",
                     fr: "Logos de pied de page",
+                    pt: "Logótipos do rodapé",
                   })}
                   value={p.tempSlide.showFooterLogos ?? "inherit"}
                   options={getLogoVisibilityOptions(p.showFooterLogosByDefault)}
@@ -229,6 +245,7 @@ export function SlideEditorPanelContent(p: Props) {
                   label={t3({
                     en: "Add split panel",
                     fr: "Ajouter panneau divisé",
+                    pt: "Adicionar painel dividido",
                   })}
                   checked={!!p.tempSlide.split}
                   onChange={(checked) => {
@@ -245,16 +262,16 @@ export function SlideEditorPanelContent(p: Props) {
                 />
                 <Show when={p.tempSlide.split}>
                   <Select
-                    label={t3({ en: "Placement", fr: "Placement" })}
+                    label={t3({ en: "Placement", fr: "Placement", pt: "Posicionamento" })}
                     value={p.tempSlide.split!.placement}
                     options={[
                       {
                         value: "left",
-                        label: t3({ en: "Left", fr: "Gauche" }),
+                        label: t3({ en: "Left", fr: "Gauche", pt: "Esquerda" }),
                       },
                       {
                         value: "right",
-                        label: t3({ en: "Right", fr: "Droite" }),
+                        label: t3({ en: "Right", fr: "Droite", pt: "Direita" }),
                       },
                     ]}
                     onChange={(v) =>
@@ -267,7 +284,7 @@ export function SlideEditorPanelContent(p: Props) {
                     fullWidth
                   />
                   <Select
-                    label={t3({ en: "Size", fr: "Taille" })}
+                    label={t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}
                     value={String(p.tempSlide.split!.sizeAsPct)}
                     options={[
                       { value: "5", label: "5%" },
@@ -287,17 +304,17 @@ export function SlideEditorPanelContent(p: Props) {
                     fullWidth
                   />
                   <Select
-                    label={t3({ en: "Fill", fr: "Remplissage" })}
+                    label={t3({ en: "Fill", fr: "Remplissage", pt: "Preenchimento" })}
                     value={p.tempSlide.split!.fill.type}
                     options={[
-                      { value: "plain", label: t3({ en: "Plain", fr: "Uni" }) },
+                      { value: "plain", label: t3({ en: "Plain", fr: "Uni", pt: "Liso" }) },
                       {
                         value: "pattern",
-                        label: t3({ en: "Pattern", fr: "Motif" }),
+                        label: t3({ en: "Pattern", fr: "Motif", pt: "Padrão" }),
                       },
                       {
                         value: "image",
-                        label: t3({ en: "Image", fr: "Image" }),
+                        label: t3({ en: "Image", fr: "Image", pt: "Imagem" }),
                       },
                     ]}
                     onChange={(v) => {
@@ -319,7 +336,7 @@ export function SlideEditorPanelContent(p: Props) {
                   />
                   <Show when={p.tempSlide.split!.fill.type === "pattern"}>
                     <Select
-                      label={t3({ en: "Pattern", fr: "Motif" })}
+                      label={t3({ en: "Pattern", fr: "Motif", pt: "Padrão" })}
                       value={
                         (
                           p.tempSlide.split!.fill as {
@@ -331,35 +348,35 @@ export function SlideEditorPanelContent(p: Props) {
                       options={[
                         {
                           value: "ovals",
-                          label: t3({ en: "Ovals", fr: "Ovales" }),
+                          label: t3({ en: "Ovals", fr: "Ovales", pt: "Ovais" }),
                         },
                         {
                           value: "circles",
-                          label: t3({ en: "Circles", fr: "Cercles" }),
+                          label: t3({ en: "Circles", fr: "Cercles", pt: "Círculos" }),
                         },
                         {
                           value: "dots",
-                          label: t3({ en: "Dots", fr: "Points" }),
+                          label: t3({ en: "Dots", fr: "Points", pt: "Pontos" }),
                         },
                         {
                           value: "lines",
-                          label: t3({ en: "Lines", fr: "Lignes" }),
+                          label: t3({ en: "Lines", fr: "Lignes", pt: "Linhas" }),
                         },
                         {
                           value: "grid",
-                          label: t3({ en: "Grid", fr: "Grille" }),
+                          label: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
                         },
                         {
                           value: "chevrons",
-                          label: t3({ en: "Chevrons", fr: "Chevrons" }),
+                          label: t3({ en: "Chevrons", fr: "Chevrons", pt: "Galões" }),
                         },
                         {
                           value: "waves",
-                          label: t3({ en: "Waves", fr: "Vagues" }),
+                          label: t3({ en: "Waves", fr: "Vagues", pt: "Ondas" }),
                         },
                         {
                           value: "noise",
-                          label: t3({ en: "Noise", fr: "Bruit" }),
+                          label: t3({ en: "Noise", fr: "Bruit", pt: "Ruído" }),
                         },
                       ]}
                       onChange={(v) =>
@@ -373,7 +390,7 @@ export function SlideEditorPanelContent(p: Props) {
                   </Show>
                   <Show when={p.tempSlide.split!.fill.type === "image"}>
                     <Select
-                      label={t3({ en: "Image", fr: "Image" })}
+                      label={t3({ en: "Image", fr: "Image", pt: "Imagem" })}
                       options={getSelectOptions(
                         instanceState.assets
                           .filter((f) => f.isImage)
@@ -410,6 +427,7 @@ export function SlideEditorPanelContent(p: Props) {
                     {t3({
                       en: "Click a block on the canvas to edit it",
                       fr: "Cliquez sur un bloc du canevas pour le modifier",
+                      pt: "Clique num bloco na área de edição para o editar",
                     })}
                   </div>
                 }
@@ -417,22 +435,23 @@ export function SlideEditorPanelContent(p: Props) {
                 <div class="ui-pad ui-spy">
                   <div class="ui-gap-sm flex items-end">
                     <Select
-                      label={t3({ en: "Content type", fr: "Type de contenu" })}
+                      label={t3({ en: "Content type", fr: "Type de contenu", pt: "Tipo de conteúdo" })}
                       options={[
                         {
                           value: "text",
-                          label: t3({ en: "Text", fr: "Texte" }),
+                          label: t3({ en: "Text", fr: "Texte", pt: "Texto" }),
                         },
                         {
                           value: "figure",
                           label: t3({
                             en: "Visualization",
                             fr: "Visualisation",
+                            pt: "Visualização",
                           }),
                         },
                         {
                           value: "image",
-                          label: t3({ en: "Image", fr: "Image" }),
+                          label: t3({ en: "Image", fr: "Image", pt: "Imagem" }),
                         },
                       ]}
                       value={getCurrentBlock()?.type}
@@ -448,13 +467,13 @@ export function SlideEditorPanelContent(p: Props) {
                         p.onShowLayoutMenu(rect.left, rect.bottom);
                       }}
                     >
-                      {t3({ en: "Layout", fr: "Mise en page" })}
+                      {t3({ en: "Layout", fr: "Mise en page", pt: "Disposição" })}
                     </Button>
                   </div>
                   <Switch>
                     <Match when={getCurrentBlock()?.type === "text"}>
                       <TextArea
-                        label={t3({ en: "Text", fr: "Texte" })}
+                        label={t3({ en: "Text", fr: "Texte", pt: "Texto" })}
                         value={(getCurrentBlock() as TextBlock).markdown}
                         onChange={(v: string) =>
                           updateSelectedBlock((b: any) => ({
@@ -469,30 +488,32 @@ export function SlideEditorPanelContent(p: Props) {
                         label={t3({
                           en: "Text background",
                           fr: "Arrière-plan du texte",
+                          pt: "Fundo do texto",
                         })}
                         options={[
                           {
                             value: "none",
-                            label: t3({ en: "None", fr: "Aucun" }),
+                            label: t3({ en: "None", fr: "Aucun", pt: "Nenhum" }),
                           },
                           {
                             value: "primary",
                             label: t3({
                               en: "Theme color",
                               fr: "Couleur du thème",
+                              pt: "Cor do tema",
                             }),
                           },
                           {
                             value: "grey",
-                            label: t3({ en: "Light grey", fr: "Gris clair" }),
+                            label: t3({ en: "Light grey", fr: "Gris clair", pt: "Cinzento claro" }),
                           },
                           {
                             value: "success",
-                            label: t3({ en: "Green", fr: "Vert" }),
+                            label: t3({ en: "Green", fr: "Vert", pt: "Verde" }),
                           },
                           {
                             value: "danger",
-                            label: t3({ en: "Red", fr: "Rouge" }),
+                            label: t3({ en: "Red", fr: "Rouge", pt: "Vermelho" }),
                           },
                         ]}
                         value={
@@ -548,6 +569,7 @@ export function SlideEditorPanelContent(p: Props) {
                                 label={t3({
                                   en: "Text size",
                                   fr: "Taille du texte",
+                                  pt: "Tamanho do texto",
                                 })}
                                 value={displayIndex()}
                                 onChange={(i) => setDragIndex(i)}
@@ -614,6 +636,7 @@ export function SlideEditorPanelContent(p: Props) {
                                 {t3({
                                   en: "Edit Visualization",
                                   fr: "Modifier la visualisation",
+                                  pt: "Editar visualização",
                                 })}
                               </Button>
                             </Show>
@@ -622,16 +645,19 @@ export function SlideEditorPanelContent(p: Props) {
                                 ? t3({
                                     en: "Switch Visualization",
                                     fr: "Changer de visualisation",
+                                    pt: "Trocar visualização",
                                   })
                                 : t3({
                                     en: "Select Visualization",
                                     fr: "Sélectionner la visualisation",
+                                    pt: "Selecionar visualização",
                                   })}
                             </Button>
                             <Button onClick={() => p.onCreateVisualization()}>
                               {t3({
                                 en: "Create New Visualization",
                                 fr: "Créer une nouvelle visualisation",
+                                pt: "Criar nova visualização",
                               })}
                             </Button>
                             <Show when={hasBundle()}>
@@ -647,6 +673,7 @@ export function SlideEditorPanelContent(p: Props) {
                                 {t3({
                                   en: "Remove Visualization",
                                   fr: "Supprimer la visualisation",
+                                  pt: "Remover visualização",
                                 })}
                               </Button>
                             </Show>
@@ -678,7 +705,7 @@ function ImageBlockEditor(p: {
   return (
     <div class="ui-spy">
       <Select
-        label={t3({ en: "Image file", fr: "Fichier image" })}
+        label={t3({ en: "Image file", fr: "Fichier image", pt: "Ficheiro de imagem" })}
         options={getSelectOptions(
           instanceState.assets.filter((f) => f.isImage).map((f) => f.fileName),
         )}
@@ -690,7 +717,7 @@ function ImageBlockEditor(p: {
       />
       <Show when={p.block().imgFile}>
         <RadioGroup
-          label={t3({ en: "Image fit", fr: "Ajustement de l'image" })}
+          label={t3({ en: "Image fit", fr: "Ajustement de l'image", pt: "Ajuste da imagem" })}
           value={p.block().style?.imgFit ?? "contain"}
           options={[
             {
@@ -698,6 +725,7 @@ function ImageBlockEditor(p: {
               label: t3({
                 en: "Cover whole area",
                 fr: "Couvrir toute la zone",
+                pt: "Cobrir toda a área",
               }),
             },
             {
@@ -705,6 +733,7 @@ function ImageBlockEditor(p: {
               label: t3({
                 en: "Fit inside area",
                 fr: "Adapter à l'intérieur de la zone",
+                pt: "Ajustar dentro da área",
               }),
             },
           ]}
@@ -720,13 +749,13 @@ function ImageBlockEditor(p: {
         />
         <Show when={(p.block().style?.imgFit ?? "contain") === "contain"}>
           <Select
-            label={t3({ en: "Alignment", fr: "Alignement" })}
+            label={t3({ en: "Alignment", fr: "Alignement", pt: "Alinhamento" })}
             options={[
-              { value: "center", label: t3({ en: "Center", fr: "Centre" }) },
-              { value: "top", label: t3({ en: "Top", fr: "Haut" }) },
-              { value: "bottom", label: t3({ en: "Bottom", fr: "Bas" }) },
-              { value: "left", label: t3({ en: "Left", fr: "Gauche" }) },
-              { value: "right", label: t3({ en: "Right", fr: "Droite" }) },
+              { value: "center", label: t3({ en: "Center", fr: "Centre", pt: "Centro" }) },
+              { value: "top", label: t3({ en: "Top", fr: "Haut", pt: "Cima" }) },
+              { value: "bottom", label: t3({ en: "Bottom", fr: "Bas", pt: "Baixo" }) },
+              { value: "left", label: t3({ en: "Left", fr: "Gauche", pt: "Esquerda" }) },
+              { value: "right", label: t3({ en: "Right", fr: "Droite", pt: "Direita" }) },
             ]}
             value={p.block().style?.imgAlign ?? "center"}
             onChange={(v: string) =>

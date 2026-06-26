@@ -57,7 +57,7 @@ export function DownloadSlideDeck(
 
   return (
     <ModalContainer
-      title={t3({ en: "Download slide deck", fr: "Télécharger la présentation" })}
+      title={t3({ en: "Download slide deck", fr: "Télécharger la présentation", pt: "Transferir apresentação" })}
       width="sm"
       leftButtons={
         pct() > 0
@@ -84,7 +84,7 @@ export function DownloadSlideDeck(
       <div class="ui-spy-sm">
         <div class="">PDF</div>
         <RadioGroup
-          options={[{ value: "vector", label: t3({ en: "Native PDF (Recommended)", fr: "PDF natif (recommandé)" }) }]}
+          options={[{ value: "vector", label: t3({ en: "Native PDF (Recommended)", fr: "PDF natif (recommandé)", pt: "PDF nativo (recomendado)" }) }]}
           value={exportFormat()}
           onChange={setExportFormat}
         />
@@ -93,7 +93,7 @@ export function DownloadSlideDeck(
         <div class="">PPTX</div>
         <RadioGroup
           options={[
-            { value: "pptx", label: t3({ en: "Native PPTX with raster figures", fr: "PPTX natif avec figures matricielles" }) },
+            { value: "pptx", label: t3({ en: "Native PPTX with raster figures", fr: "PPTX natif avec figures matricielles", pt: "PPTX nativo com figuras rasterizadas" }) },
           ]}
           value={exportFormat()}
           onChange={setExportFormat}

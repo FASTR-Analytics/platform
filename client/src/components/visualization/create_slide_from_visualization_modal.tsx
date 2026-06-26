@@ -223,8 +223,8 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
   );
 
   const header = p.visualizationIds.length > 1
-    ? t3({ en: `Create ${p.visualizationIds.length} slides`, fr: `Créer ${p.visualizationIds.length} diapositives` })
-    : t3({ en: "Create Slide", fr: "Créer une diapositive" });
+    ? t3({ en: `Create ${p.visualizationIds.length} slides`, fr: `Créer ${p.visualizationIds.length} diapositives`, pt: `Criar ${p.visualizationIds.length} diapositivos` })
+    : t3({ en: "Create Slide", fr: "Créer une diapositive", pt: "Criar diapositivo" });
 
   return (
     <AlertFormHolder
@@ -245,11 +245,11 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
           {(replicateBy) => (
             <>
               <RadioGroup
-                label={t3({ en: "Create slides for", fr: "Créer des diapositives pour" })}
+                label={t3({ en: "Create slides for", fr: "Créer des diapositives pour", pt: "Criar diapositivos para" })}
                 value={creationMode()}
                 options={[
-                  { value: "single", label: t3({ en: "Selected replicant", fr: "Réplicant sélectionné" }) },
-                  { value: "all", label: t3({ en: `All replicants (${replicantOptions().length})`, fr: `Tous les réplicants (${replicantOptions().length})` }) }
+                  { value: "single", label: t3({ en: "Selected replicant", fr: "Réplicant sélectionné", pt: "Replicante selecionado" }) },
+                  { value: "all", label: t3({ en: `All replicants (${replicantOptions().length})`, fr: `Tous les réplicants (${replicantOptions().length})`, pt: `Todos os replicantes (${replicantOptions().length})` }) }
                 ]}
                 onChange={(v) => setCreationMode(v as "single" | "all")}
               />

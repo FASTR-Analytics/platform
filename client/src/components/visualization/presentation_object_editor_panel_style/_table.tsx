@@ -33,12 +33,12 @@ export function TableStyleControls(p: Props) {
 
   const modeOptions = () => {
     const opts: { value: string; label: string }[] = [
-      { value: "standard", label: t3({ en: "Standard", fr: "Standard" }) },
+      { value: "standard", label: t3({ en: "Standard", fr: "Standard", pt: "Padrão" }) },
     ];
     if (p.showScorecardMode || mode() === "scorecard") {
       opts.push({
         value: "scorecard",
-        label: t3({ en: "Scorecard table", fr: "Tableau de bord" }),
+        label: t3({ en: "Scorecard table", fr: "Tableau de bord", pt: "Tabela de pontuação" }),
       });
     }
     return opts;
@@ -49,19 +49,20 @@ export function TableStyleControls(p: Props) {
       <Show when={modeOptions().length > 1}>
         <div class="ui-pad bg-base-200 border-base-300 rounded border">
           <RadioGroup
-            label={t3({ en: "Table mode", fr: "Mode de tableau" })}
+            label={t3({ en: "Table mode", fr: "Mode de tableau", pt: "Modo de tabela" })}
             options={modeOptions()}
             value={mode()}
             onChange={(v) => setMode(v as TableMode)}
           />
         </div>
       </Show>
-      <StyleSection label={t3({ en: "Display", fr: "Affichage" })}>
+      <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Apresentação" })}>
         <>
           <Checkbox
             label={t3({
               en: "Allow vertical column headers",
               fr: "Autoriser les en-têtes de colonnes verticales",
+              pt: "Permitir cabeçalhos de coluna verticais",
             })}
             checked={p.tempConfig.s.allowVerticalColHeaders}
             onChange={(v) => p.setTempConfig("s", "allowVerticalColHeaders", v)}
@@ -69,7 +70,7 @@ export function TableStyleControls(p: Props) {
           <Show when={!p.tempConfig.s.specialScorecardTable}>
             <div class="pt-0.5"></div>
             <RadioGroup
-              label={t3({ en: "Decimal places", fr: "Décimales" })}
+              label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
               options={getSelectOptions(["0", "1", "2", "3"])}
               value={String(p.tempConfig.s.decimalPlaces)}
               onChange={(v) =>
@@ -87,7 +88,7 @@ export function TableStyleControls(p: Props) {
             <Checkbox
               checked={p.tempConfig.s.hideLegend}
               onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
-              label={t3({ en: "Hide legend", fr: "Masquer la légende" })}
+              label={t3({ en: "Hide legend", fr: "Masquer la légende", pt: "Ocultar legenda" })}
             />
           </Show>
         </>
@@ -97,6 +98,7 @@ export function TableStyleControls(p: Props) {
           label={t3({
             en: "Conditional formatting",
             fr: "Mise en forme conditionnelle",
+            pt: "Formatação condicional",
           })}
         >
           <ConditionalFormattingEditor

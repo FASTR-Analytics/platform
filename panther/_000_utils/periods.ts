@@ -4,7 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { assert } from "./assert.ts";
-import { isFrench } from "./translate.ts";
+import { getLanguage } from "./translate.ts";
+import type { Language } from "./translate.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -208,6 +209,57 @@ export function getPeriodTypeFromValue(
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+const QUARTER_PREFIX_BY_LANG: Record<Language, string> = {
+  en: "Q",
+  fr: "T",
+  pt: "T",
+};
+
+const MONTHS_THREE_CHARS_BY_LANG: Record<Language, string[]> = {
+  en: [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ],
+  fr: [
+    "Janv",
+    "Févr",
+    "Mars",
+    "Avr",
+    "Mai",
+    "Juin",
+    "Juil",
+    "Août",
+    "Sept",
+    "Oct",
+    "Nov",
+    "Déc",
+  ],
+  pt: [
+    "Jan",
+    "Fev",
+    "Mar",
+    "Abr",
+    "Mai",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Set",
+    "Out",
+    "Nov",
+    "Dez",
+  ],
+};
+
 function get_MONTHS_THREE_CHARS(calendar?: CalendarType) {
   if (calendar === "ethiopian") {
     return [
@@ -225,36 +277,7 @@ function get_MONTHS_THREE_CHARS(calendar?: CalendarType) {
       "Neh",
     ];
   }
-  if (isFrench()) {
-    return [
-      "Janv",
-      "Févr",
-      "Mars",
-      "Avr",
-      "Mai",
-      "Juin",
-      "Juil",
-      "Août",
-      "Sept",
-      "Oct",
-      "Nov",
-      "Déc",
-    ];
-  }
-  return [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
+  return MONTHS_THREE_CHARS_BY_LANG[getLanguage()];
 }
 
 export function formatPeriod(
@@ -273,7 +296,7 @@ export function formatPeriod(
   }
   if (periodType === "year-quarter") {
     const { year, subPeriod } = decodePeriod(v, "year-quarter");
-    const prefix = isFrench() ? "T" : "Q";
+    const prefix = QUARTER_PREFIX_BY_LANG[getLanguage()];
     return String(year) + " / " + prefix + subPeriod;
   }
   return String(v);

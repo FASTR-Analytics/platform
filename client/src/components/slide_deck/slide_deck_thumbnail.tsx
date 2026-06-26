@@ -18,7 +18,7 @@ type Props = {
 export function SlideDeckThumbnail(p: Props) {
   const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
-    msg: t3({ en: "Loading...", fr: "Chargement..." }),
+    msg: t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." }),
   });
 
   createEffect(async () => {
@@ -46,7 +46,7 @@ export function SlideDeckThumbnail(p: Props) {
           class="bg-base-200 flex items-center justify-center"
           style={{ "aspect-ratio": "16/9" }}
         >
-          <div class="text-neutral text-xs">{t3({ en: "Loading...", fr: "Chargement..." })}</div>
+          <div class="text-neutral text-xs">{t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}</div>
         </div>
       </Show>
       <Show when={pageInputs().status === "error"}>

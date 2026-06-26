@@ -38,7 +38,7 @@ export function SelectVisualizationForSlide(
   async function save() {
     const presObjSummary = selectedPresObj();
     if (presObjSummary === undefined) {
-      await openAlert({ text: t3({ en: "You must select a visualization in order to save", fr: "Vous devez sélectionner une visualisation pour sauvegarder" }) });
+      await openAlert({ text: t3({ en: "You must select a visualization in order to save", fr: "Vous devez sélectionner une visualisation pour sauvegarder", pt: "Tem de selecionar uma visualização para guardar" }) });
       return;
     }
     const resPoDetail = await getPODetailFromCacheorFetch(p.projectState.id, presObjSummary.id);
@@ -49,7 +49,7 @@ export function SelectVisualizationForSlide(
     const replicateBy = getReplicateByProp(resPoDetail.data.config);
     const goodSelectedReplicant = selectedReplicant();
     if (replicateBy && !goodSelectedReplicant) {
-      await openAlert({ text: t3({ en: "You must select a replicant", fr: "Un réplicant doit être sélectionné" }), intent: "danger" });
+      await openAlert({ text: t3({ en: "You must select a replicant", fr: "Un réplicant doit être sélectionné", pt: "Tem de selecionar um replicante" }), intent: "danger" });
       return;
     }
     p.close({
@@ -62,13 +62,13 @@ export function SelectVisualizationForSlide(
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={t3({ en: "Select visualization", fr: "Sélectionner la visualisation" })}
+          heading={t3({ en: "Select visualization", fr: "Sélectionner la visualisation", pt: "Selecionar visualização" })}
           searchText={searchText()}
           setSearchText={setSearchText}
         >
           <div class="ui-gap-sm flex">
             <Button onClick={save} intent="success" disabled={!selectedPresObj()} iconName="check">
-              {t3({ en: "Select", fr: "Sélectionner" })}
+              {t3({ en: "Select", fr: "Sélectionner", pt: "Selecionar" })}
             </Button>
             <Button onClick={() => p.close(undefined)} intent="neutral" iconName="x">
               {t3(TC.cancel)}
@@ -88,7 +88,7 @@ export function SelectVisualizationForSlide(
         <div class="ui-pad bg-primary w-1/3 overflow-auto">
           <Show
             when={selectedPresObj()}
-            fallback={<div class="text-base-100">{t3({ en: "Select a visualization", fr: "Sélectionner une visualisation" })}</div>}
+            fallback={<div class="text-base-100">{t3({ en: "Select a visualization", fr: "Sélectionner une visualisation", pt: "Selecionar uma visualização" })}</div>}
             keyed
           >
             {(kP) => (
@@ -136,7 +136,7 @@ function Side(p: SideProps) {
           <Show when={getReplicateByProp(keyedPoDetail.config)} keyed>
             {(keyedReplicateBy) => (
               <div>
-                <div class="pb-1">{t3({ en: "Replicant", fr: "Réplicant" })}</div>
+                <div class="pb-1">{t3({ en: "Replicant", fr: "Réplicant", pt: "Replicante" })}</div>
                 <ReplicateByOptionsPresentationObjectSelect
                   replicateBy={keyedReplicateBy}
                   config={keyedPoDetail.config}

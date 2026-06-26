@@ -17,10 +17,11 @@ function getLogoVisibilityOptions(showByDefault: boolean) {
       label: t3({
         en: showByDefault ? "Default (show)" : "Default (hide)",
         fr: showByDefault ? "Défaut (afficher)" : "Défaut (masquer)",
+        pt: showByDefault ? "Predefinição (mostrar)" : "Predefinição (ocultar)",
       }),
     },
-    { value: "show", label: t3({ en: "Show", fr: "Afficher" }) },
-    { value: "hide", label: t3({ en: "Hide", fr: "Masquer" }) },
+    { value: "show", label: t3({ en: "Show", fr: "Afficher", pt: "Mostrar" }) },
+    { value: "hide", label: t3({ en: "Hide", fr: "Masquer", pt: "Ocultar" }) },
   ];
 }
 
@@ -28,7 +29,7 @@ export function SlideEditorPanelCover(p: Props) {
   return (
     <div class="ui-pad ui-spy">
       <Select
-        label={t3({ en: "Cover logos", fr: "Logos de couverture" })}
+        label={t3({ en: "Cover logos", fr: "Logos de couverture", pt: "Logótipos da capa" })}
         value={p.tempSlide.showLogos ?? "inherit"}
         options={getLogoVisibilityOptions(p.showLogosByDefault)}
         onChange={(v) =>
@@ -41,7 +42,7 @@ export function SlideEditorPanelCover(p: Props) {
       <div class="ui-spy">
         <div class="ui-spy-sm">
           <TextArea
-            label={t3({ en: "Title", fr: "Titre" })}
+            label={t3({ en: "Title", fr: "Titre", pt: "Título" })}
             value={p.tempSlide.title}
             onChange={(v: string) => p.setTempSlide("title", v)}
             fullWidth
@@ -68,7 +69,7 @@ export function SlideEditorPanelCover(p: Props) {
         </div>
         <div class="ui-spy-sm">
           <TextArea
-            label={t3({ en: "Subtitle", fr: "Sous-titre" })}
+            label={t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" })}
             value={p.tempSlide.subtitle ?? ""}
             onChange={(v: string) => p.setTempSlide("subtitle", v || undefined)}
             fullWidth
@@ -95,7 +96,7 @@ export function SlideEditorPanelCover(p: Props) {
         </div>
         <div class="ui-spy-sm">
           <TextArea
-            label={t3({ en: "Presenter", fr: "Présentateur" })}
+            label={t3({ en: "Presenter", fr: "Présentateur", pt: "Apresentador" })}
             value={p.tempSlide.presenter ?? ""}
             onChange={(v: string) =>
               p.setTempSlide("presenter", v || undefined)
@@ -126,7 +127,7 @@ export function SlideEditorPanelCover(p: Props) {
         </div>
         <div class="ui-spy-sm">
           <TextArea
-            label={t3({ en: "Date", fr: "Date" })}
+            label={t3({ en: "Date", fr: "Date", pt: "Data" })}
             value={p.tempSlide.date ?? ""}
             onChange={(v: string) => p.setTempSlide("date", v || undefined)}
             fullWidth

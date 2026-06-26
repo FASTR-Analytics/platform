@@ -10,7 +10,7 @@ import {
   openComponent,
   openConfirm,
 } from "panther";
-import { isFrench, t3, TC } from "lib";
+import { getLanguage, t3, TC } from "lib";
 import type {
   PromptCategory,
   PromptItem,
@@ -109,7 +109,7 @@ export function PromptLibraryModal(
       (async () => {
         try {
           let markdown: string | undefined;
-          if (isFrench()) {
+          if (getLanguage() === "fr") {
             const frRes = await fetch(`${base}/prompts_fr.md${cacheBust}`, {
               cache: "no-store",
             });

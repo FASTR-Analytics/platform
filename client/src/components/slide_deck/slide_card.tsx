@@ -25,7 +25,7 @@ type Props = {
 export function SlideCard(p: Props) {
   const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
-    msg: t3({ en: "Loading...", fr: "Chargement..." }),
+    msg: t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." }),
   });
 
   // Fetch slide from cache, reactive to state updates
@@ -49,16 +49,16 @@ export function SlideCard(p: Props) {
     e.preventDefault();
 
     const deleteLabel = p.isSelected && p.selectedCount > 1
-      ? t3({ en: `Delete ${p.selectedCount} slides`, fr: `Supprimer ${p.selectedCount} diapositives` })
-      : t3({ en: "Delete slide", fr: "Supprimer la diapositive" });
+      ? t3({ en: `Delete ${p.selectedCount} slides`, fr: `Supprimer ${p.selectedCount} diapositives`, pt: `Eliminar ${p.selectedCount} diapositivos` })
+      : t3({ en: "Delete slide", fr: "Supprimer la diapositive", pt: "Eliminar diapositivo" });
 
     const duplicateLabel = p.isSelected && p.selectedCount > 1
-      ? t3({ en: `Duplicate ${p.selectedCount} slides`, fr: `Dupliquer ${p.selectedCount} diapositives` })
-      : t3({ en: "Duplicate slide", fr: "Dupliquer la diapositive" });
+      ? t3({ en: `Duplicate ${p.selectedCount} slides`, fr: `Dupliquer ${p.selectedCount} diapositives`, pt: `Duplicar ${p.selectedCount} diapositivos` })
+      : t3({ en: "Duplicate slide", fr: "Dupliquer la diapositive", pt: "Duplicar diapositivo" });
 
     const items: MenuItem[] = [
       {
-        label: t3({ en: "Edit slide", fr: "Modifier la diapositive" }),
+        label: t3({ en: "Edit slide", fr: "Modifier la diapositive", pt: "Editar diapositivo" }),
         icon: "pencil",
         onClick: p.onEdit,
       },
@@ -118,7 +118,7 @@ export function SlideCard(p: Props) {
             class="bg-base-200 flex items-center justify-center"
             style={{ "aspect-ratio": "16/9" }}
           >
-            <div class="text-sm">{t3({ en: "Loading...", fr: "Chargement..." })}</div>
+            <div class="text-sm">{t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}</div>
           </div>
         </Show>
         <Show when={pageInputs().status === "error"}>

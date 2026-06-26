@@ -618,7 +618,7 @@ export function SlideEditor(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar
-            heading={t3({ en: "Edit Slide", fr: "Modifier la diapositive" })}
+            heading={t3({ en: "Edit Slide", fr: "Modifier la diapositive", pt: "Editar diapositivo" })}
             leftChildren={
               <Show
                 when={needsSave()}
@@ -633,7 +633,7 @@ export function SlideEditor(p: Props) {
                     state={saveAndClose.state()}
                     iconName="save"
                   >
-                    {t3({ en: "Save and close", fr: "Sauvegarder et quitter" })}
+                    {t3({ en: "Save and close", fr: "Sauvegarder et quitter", pt: "Guardar e fechar" })}
                   </Button>
                   <Button
                     intent="success"
@@ -655,15 +655,15 @@ export function SlideEditor(p: Props) {
                 options={[
                   {
                     value: "cover",
-                    label: t3({ en: "Cover", fr: "Couverture" }),
+                    label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }),
                   },
                   {
                     value: "section",
-                    label: t3({ en: "Section", fr: "Section" }),
+                    label: t3({ en: "Section", fr: "Section", pt: "Secção" }),
                   },
                   {
                     value: "content",
-                    label: t3({ en: "Content", fr: "Contenu" }),
+                    label: t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" }),
                   },
                 ]}
                 value={tempSlide.type}
@@ -677,7 +677,7 @@ export function SlideEditor(p: Props) {
                   iconName="chevronLeft"
                   outline
                 >
-                  {t3({ en: "AI", fr: "IA" })}
+                  {t3({ en: "AI", fr: "IA", pt: "IA" })}
                 </Button>
               </Show>
             </div>
@@ -717,6 +717,7 @@ export function SlideEditor(p: Props) {
                   {t3({
                     en: "Rendering slide...",
                     fr: "Rendu de la diapositive...",
+                    pt: "A renderizar diapositivo...",
                   })}
                 </div>
               </div>
