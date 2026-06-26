@@ -190,6 +190,7 @@ export function getToolsForSlides(
 
 
         return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`;
+
       },
       inProgressLabel: (input) => `Replacing slide ${input.slideId}...`,
       completionMessage: (input) =>
