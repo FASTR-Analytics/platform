@@ -1,3 +1,11 @@
+[TBD] [user] [added] - Portuguese language option now available throughout the platform
+[TBD] [user] [changed] - AI report edit proposals now appear in a focused pop-up modal
+[TBD] [user] [fixed] - Adding a visualization to slides while editing a single slide now shows a helpful message instead of failing
+[TBD] [user] [fixed] - Rejecting an AI-suggested report edit no longer causes the AI to retry unexpectedly
+[TBD] [admin] [added] - Portuguese language support added across the platform
+[TBD] [admin] [changed] - AI report edit proposals now appear as a blocking modal dialog
+[TBD] [admin] [fixed] - Adding a visualization to a slide deck while editing a single slide now shows a helpful message instead of failing
+[TBD] [admin] [fixed] - AI report editor properly signals rejection so the AI stops retrying
 [TBD] [user] [fixed] - Error message now shown when adding a visualization to a slide deck fails
 [TBD] [user] [fixed] - AI now correctly applies all time period filter types when analyzing data
 [TBD] [user] [fixed] - Fixed potential display issues with label replacements in visualizations
