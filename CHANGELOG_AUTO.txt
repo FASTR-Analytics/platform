@@ -1,3 +1,9 @@
+[TBD] [user] [fixed] - Error message now shown when adding a visualization to a slide deck fails
+[TBD] [user] [fixed] - AI now correctly applies all time period filter types when analyzing data
+[TBD] [user] [fixed] - Fixed potential display issues with label replacements in visualizations
+[TBD] [admin] [fixed] - Error message now shown when adding AI visualization to slide deck fails
+[TBD] [admin] [fixed] - AI now correctly applies relative period filters like "last 6 months"
+[TBD] [admin] [fixed] - Fixed potential issue with label replacements in AI-generated visualizations
 [TBD] [user] [added] - AI assistant can now create new indicators from survey data
 [TBD] [user] [added] - AI assistant can now edit indicator formulas and calculations
 [TBD] [user] [added] - AI assistant can now delete indicators
