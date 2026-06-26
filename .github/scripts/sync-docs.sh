@@ -491,7 +491,7 @@ html_body = (
 )
 
 payload = {
-    "personalizations": [{"to": [{"email": "nick@usefuldata.com.au"}]}],
+    "personalizations": [{"to": [{"email": "nick@usefuldata.com.au"}, {"email": "meghanpaul00@gmail.com"}]}],
     "from": {"email": sendgrid_from},
     "subject": "FASTR docs updated — screenshots need retaking",
     "content": [
