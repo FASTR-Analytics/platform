@@ -52,8 +52,7 @@ export function buildConfigFromPreset(
   const resultsValueForViz: ResultsValueForVisualization = {
     formatAs: resultsValue.formatAs,
     valueProps: resultsValue.valueProps,
-    // metric's field is nullable; the bundle schema rejects null (optional, not nullish) — coerce
-    valueLabelReplacements: resultsValue.valueLabelReplacements ?? undefined,
+    valueLabelReplacements: resultsValue.valueLabelReplacements,
   };
 
   const config: PresentationObjectConfig = {

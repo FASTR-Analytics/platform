@@ -14,25 +14,25 @@ export function ReportImagePicker(p: AlertComponentProps<object, PickedImage>) {
   return (
     <ModalContainer
       width="md"
-      title={t3({ en: "Insert image", fr: "Insérer une image" })}
+      title={t3({ en: "Insert image", fr: "Insérer une image", pt: "Inserir imagem" })}
       rightButtons={
         <>
           <Button outline onClick={() => p.close(undefined)}>
-            {t3({ en: "Cancel", fr: "Annuler" })}
+            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
           </Button>
           <Button
             disabled={!imgFile()}
             onClick={() => p.close({ imgFile: imgFile(), alt: alt().trim() })}
           >
-            {t3({ en: "Insert", fr: "Insérer" })}
+            {t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
           </Button>
         </>
       }
     >
       <div class="ui-spy">
         <FileUploadSelector
-          buttonLabel={t3({ en: "Upload image", fr: "Téléverser une image" })}
-          selectLabel={t3({ en: "Image file", fr: "Fichier image" })}
+          buttonLabel={t3({ en: "Upload image", fr: "Téléverser une image", pt: "Carregar imagem" })}
+          selectLabel={t3({ en: "Image file", fr: "Fichier image", pt: "Ficheiro de imagem" })}
           filter={(a) => a.isImage}
           value={imgFile()}
           onChange={setImgFile}
@@ -42,6 +42,7 @@ export function ReportImagePicker(p: AlertComponentProps<object, PickedImage>) {
           label={t3({
             en: "Alt text for screen readers (optional)",
             fr: "Texte alternatif pour lecteurs d'écran (facultatif)",
+            pt: "Texto alternativo para leitores de ecrã (opcional)",
           })}
           value={alt()}
           onChange={setAlt}

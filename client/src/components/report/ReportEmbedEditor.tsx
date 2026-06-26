@@ -83,6 +83,7 @@ export function ReportEmbedEditor(p: Props) {
                 {t3({
                   en: "Click a visualization or image to edit it.",
                   fr: "Cliquez sur une visualisation ou une image pour la modifier.",
+                  pt: "Clique numa visualização ou imagem para a editar.",
                 })}
               </div>
             }
@@ -97,6 +98,7 @@ export function ReportEmbedEditor(p: Props) {
                 {t3({
                   en: "Insert visualization",
                   fr: "Insérer une visualisation",
+                  pt: "Inserir visualização",
                 })}
               </Button>
               <Button
@@ -105,7 +107,7 @@ export function ReportEmbedEditor(p: Props) {
                 fullWidth
                 onClick={() => p.onInsertImage()}
               >
-                {t3({ en: "Insert image", fr: "Insérer une image" })}
+                {t3({ en: "Insert image", fr: "Insérer une image", pt: "Inserir imagem" })}
               </Button>
             </div>
           </Show>
@@ -133,6 +135,7 @@ export function ReportEmbedEditor(p: Props) {
                             {t3({
                               en: "Edit visualization",
                               fr: "Modifier la visualisation",
+                              pt: "Editar visualização",
                             })}
                           </Button>
                         </Show>
@@ -140,12 +143,14 @@ export function ReportEmbedEditor(p: Props) {
                           {t3({
                             en: "Switch visualization",
                             fr: "Changer de visualisation",
+                            pt: "Mudar de visualização",
                           })}
                         </Button>
                         <Button onClick={() => p.onCreateFigure()}>
                           {t3({
                             en: "New visualization",
                             fr: "Nouvelle visualisation",
+                            pt: "Nova visualização",
                           })}
                         </Button>
                       </div>
@@ -158,10 +163,12 @@ export function ReportEmbedEditor(p: Props) {
                           buttonLabel={t3({
                             en: "Upload image",
                             fr: "Téléverser une image",
+                            pt: "Carregar imagem",
                           })}
                           selectLabel={t3({
                             en: "Image file",
                             fr: "Fichier image",
+                            pt: "Ficheiro de imagem",
                           })}
                           filter={(a) => a.isImage}
                           value={ib().imgFile}
@@ -172,6 +179,7 @@ export function ReportEmbedEditor(p: Props) {
                           label={t3({
                             en: "Alt text for screen readers (optional)",
                             fr: "Texte alternatif pour lecteurs d'écran (facultatif)",
+                            pt: "Texto alternativo para leitores de ecrã (opcional)",
                           })}
                           value={captionDraft()}
                           onChange={onCaptionInput}
@@ -187,8 +195,9 @@ export function ReportEmbedEditor(p: Props) {
                       ? t3({
                           en: "Delete visualization",
                           fr: "Supprimer la visualisation",
+                          pt: "Eliminar visualização",
                         })
-                      : t3({ en: "Delete image", fr: "Supprimer l'image" })}
+                      : t3({ en: "Delete image", fr: "Supprimer l'image", pt: "Eliminar imagem" })}
                   </Button>
                 </div>
               </Show>

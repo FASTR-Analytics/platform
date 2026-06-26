@@ -43,21 +43,37 @@ export function ReportMarkdownDiff(p: Props) {
 
   return (
     <ModalContainer
-      width="2xl"
+      width="4xl"
       noContentPadding
-      title={p.summary ?? t3({ en: "Proposed change", fr: "Modification proposée" })}
+      title={
+        p.summary ??
+        t3({
+          en: "Proposed change",
+          fr: "Modification proposée",
+          pt: "Alteração proposta",
+        })
+      }
       rightButtons={
         <>
-          <Button intent="danger" outline iconName="x" onClick={() => p.close(false)}>
-            {t3({ en: "Reject", fr: "Rejeter" })}
+          <Button
+            intent="danger"
+            outline
+            iconName="x"
+            onClick={() => p.close(false)}
+          >
+            {t3({ en: "Reject", fr: "Rejeter", pt: "Rejeitar" })}
           </Button>
-          <Button intent="success" iconName="check" onClick={() => p.close(true)}>
-            {t3({ en: "Accept", fr: "Accepter" })}
+          <Button
+            intent="success"
+            iconName="check"
+            onClick={() => p.close(true)}
+          >
+            {t3({ en: "Accept", fr: "Accepter", pt: "Aceitar" })}
           </Button>
         </>
       }
     >
-      <div ref={parent} class="h-[60vh] overflow-auto" />
+      <div ref={parent} />
     </ModalContainer>
   );
 }

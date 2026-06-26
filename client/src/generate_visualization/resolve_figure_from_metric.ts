@@ -5,6 +5,7 @@ import type {
   PresentationObjectConfig,
   ResultsValueForVisualization,
 } from "lib";
+import { figureBundleSchema } from "lib";
 import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
@@ -73,7 +74,7 @@ export async function resolveFigureBundleFromMetric(
     geo = geoJson ? { kind: "data", data: geoJson } : { kind: "level", level: mapLevel };
   }
 
-  return {
+  const bundle: FigureBundle = {
     config,
     items: itemsHolder.items,
     resultsValue: resultsValueForViz,
@@ -88,4 +89,18 @@ export async function resolveFigureBundleFromMetric(
       datasetsVersion: itemsHolder.datasetsVersion,
     },
   };
+
+  // Validate at construction so the render (buildFigureInputs) and save
+  // (slideConfigSchema.parse) paths can never disagree: a schema-invalid bundle
+  // fails here, with the exact field named, instead of rendering in the preview
+  // and throwing an opaque error only on add-to-deck. Return the original object
+  // (not the parsed copy) — pure validation, no clone/strip.
+  const validation = figureBundleSchema.safeParse(bundle);
+  if (!validation.success) {
+    const issue = validation.error.issues[0];
+    throw new Error(
+      `Invalid figure bundle at "${issue.path.join(".")}": ${issue.message}`,
+    );
+  }
+  return bundle;
 }

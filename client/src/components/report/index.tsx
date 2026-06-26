@@ -190,6 +190,7 @@ export function ProjectReport(p: Props) {
           {t3({
             en: "Missing visualization:",
             fr: "Visualisation manquante :",
+            pt: "Visualização em falta:",
           })}{" "}
           {fig[1]}
         </div>
@@ -207,7 +208,7 @@ export function ProjectReport(p: Props) {
         />
       ) : (
         <div class="text-danger text-xs" data-line={line}>
-          {t3({ en: "Missing image:", fr: "Image manquante :" })} {img[1]}
+          {t3({ en: "Missing image:", fr: "Image manquante :", pt: "Imagem em falta:" })} {img[1]}
         </div>
       );
     }
@@ -342,7 +343,7 @@ export function ProjectReport(p: Props) {
     switch (saveStatus()) {
       case "saving":
         return {
-          text: t3({ en: "Saving…", fr: "Enregistrement…" }),
+          text: t3({ en: "Saving…", fr: "Enregistrement…", pt: "A guardar…" }),
           dot: "bg-warning",
         };
       case "unsaved":
@@ -350,12 +351,13 @@ export function ProjectReport(p: Props) {
           text: t3({
             en: "Unsaved changes",
             fr: "Modifications non enregistrées",
+            pt: "Alterações não guardadas",
           }),
           dot: "bg-base-300",
         };
       case "error":
         return {
-          text: t3({ en: "Save failed", fr: "Échec de l'enregistrement" }),
+          text: t3({ en: "Save failed", fr: "Échec de l'enregistrement", pt: "Falha ao guardar" }),
           dot: "bg-danger",
         };
       case "saved":
@@ -365,8 +367,9 @@ export function ProjectReport(p: Props) {
             ? t3({
                 en: `Saved ${lastSavedAt()}`,
                 fr: `Enregistré ${lastSavedAt()}`,
+                pt: `Guardado ${lastSavedAt()}`,
               })
-            : t3({ en: "Saved", fr: "Enregistré" }),
+            : t3({ en: "Saved", fr: "Enregistré", pt: "Guardado" }),
           dot: "bg-success",
         };
     }
@@ -603,6 +606,7 @@ export function ProjectReport(p: Props) {
         err: t3({
           en: "Failed to generate visualization",
           fr: "Échec de la génération de la visualisation",
+          pt: "Falha ao gerar a visualização",
         }),
       };
     }
@@ -639,6 +643,7 @@ export function ProjectReport(p: Props) {
             : t3({
                 en: "Failed to add visualization",
                 fr: "Échec de l'ajout de la visualisation",
+                pt: "Falha ao adicionar a visualização",
               }),
         intent: "danger",
       });
@@ -704,6 +709,7 @@ export function ProjectReport(p: Props) {
             : t3({
                 en: "Failed to switch visualization",
                 fr: "Échec du changement de visualisation",
+                pt: "Falha ao trocar a visualização",
               }),
         intent: "danger",
       });
@@ -723,6 +729,7 @@ export function ProjectReport(p: Props) {
         text: t3({
           en: "Metric not found in project",
           fr: "Indicateur introuvable dans le projet",
+          pt: "Métrica não encontrada no projeto",
         }),
         intent: "danger",
       });
@@ -872,6 +879,7 @@ export function ProjectReport(p: Props) {
             {t3({
               en: "Someone else may be editing this report — your changes were saved over theirs.",
               fr: "Quelqu'un d'autre modifie peut-être ce rapport — vos modifications ont été enregistrées par-dessus les siennes.",
+              pt: "Outra pessoa poderá estar a editar este relatório — as suas alterações foram guardadas por cima das dela.",
             })}
           </span>
           <Button
@@ -879,7 +887,7 @@ export function ProjectReport(p: Props) {
             outline
             onClick={() => setShowConflictBanner(false)}
           >
-            {t3({ en: "Dismiss", fr: "Ignorer" })}
+            {t3({ en: "Dismiss", fr: "Ignorer", pt: "Dispensar" })}
           </Button>
         </div>
       </Show>
@@ -946,9 +954,9 @@ export function ProjectReport(p: Props) {
             centerChildren={
               <ButtonGroup<ReportMode>
                 items={[
-                  { id: "edit", label: t3({ en: "Edit", fr: "Édition" }) },
-                  { id: "split", label: t3({ en: "Split", fr: "Divisé" }) },
-                  { id: "view", label: t3({ en: "View", fr: "Aperçu" }) },
+                  { id: "edit", label: t3({ en: "Edit", fr: "Édition", pt: "Editar" }) },
+                  { id: "split", label: t3({ en: "Split", fr: "Divisé", pt: "Dividido" }) },
+                  { id: "view", label: t3({ en: "View", fr: "Aperçu", pt: "Ver" }) },
                 ]}
                 value={mode()}
                 onChange={(v) => v && setMode(v)}
@@ -967,7 +975,7 @@ export function ProjectReport(p: Props) {
                 <span>{saveIndicator().text}</span>
               </div>
               <Button outline iconName="download" onClick={download}>
-                {t3({ en: "Download", fr: "Télécharger" })}
+                {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
               </Button>
               <Show when={!showAi()}>
                 <Button
@@ -975,7 +983,7 @@ export function ProjectReport(p: Props) {
                   iconName="chevronLeft"
                   onClick={() => setShowAi(true)}
                 >
-                  {t3({ en: "AI", fr: "IA" })}
+                  {t3({ en: "AI", fr: "IA", pt: "IA" })}
                 </Button>
               </Show>
             </div>

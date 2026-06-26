@@ -58,14 +58,3 @@ export const TC = {
     pt: "Desativado (ano único)",
   },
 } as const satisfies Record<string, TranslatableString>;
-
-const _INDICATOR_ID_LABELS = new Map<string, string>([
-  ["anc1", "cpn1"],
-  ["anc4", "cpn4"],
-  ["delivery", "accouchements"],
-  ["opd", "consultations"],
-]);
-
-export function translateIndicatorId(id: string): string {
-  return _INDICATOR_ID_LABELS.get(id) ?? id;
-}

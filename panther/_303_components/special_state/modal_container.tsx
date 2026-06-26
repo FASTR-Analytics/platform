@@ -5,7 +5,14 @@
 
 import { type JSX, Show } from "solid-js";
 
-export type ModalContainerWidth = "sm" | "md" | "lg" | "xl" | "2xl";
+export type ModalContainerWidth =
+  | "sm"
+  | "md"
+  | "lg"
+  | "xl"
+  | "2xl"
+  | "3xl"
+  | "4xl";
 export type ModalContainerScroll = "content" | "page";
 
 type ModalContainerProps = {
@@ -25,6 +32,8 @@ const WIDTH_CLASSES: Record<ModalContainerWidth, string> = {
   lg: "w-[min(800px,calc(100vw-6rem))]",
   xl: "w-[min(1000px,calc(100vw-6rem))]",
   "2xl": "w-[min(1200px,calc(100vw-6rem))]",
+  "3xl": "w-[min(1400px,calc(100vw-6rem))]",
+  "4xl": "w-[min(1600px,calc(100vw-6rem))]",
 };
 
 export function ModalContainer(p: ModalContainerProps) {

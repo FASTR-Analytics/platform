@@ -83,6 +83,7 @@ class EmbedWidget extends WidgetType {
                     {t3({
                       en: "Missing visualization:",
                       fr: "Visualisation manquante :",
+                      pt: "Visualização em falta:",
                     })}{" "}
                     {this.id}
                   </div>
@@ -101,7 +102,7 @@ class EmbedWidget extends WidgetType {
                 when={this.resolver.getImage(this.id)}
                 fallback={
                   <div class="text-danger text-xs">
-                    {t3({ en: "Missing image:", fr: "Image manquante :" })}{" "}
+                    {t3({ en: "Missing image:", fr: "Image manquante :", pt: "Imagem em falta:" })}{" "}
                     {this.id}
                   </div>
                 }

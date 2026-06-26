@@ -49,7 +49,7 @@ export function DownloadReport(
 
   return (
     <ModalContainer
-      title={t3({ en: "Download report", fr: "Télécharger le rapport" })}
+      title={t3({ en: "Download report", fr: "Télécharger le rapport", pt: "Transferir relatório" })}
       width="sm"
       leftButtons={
         pct() > 0
@@ -76,8 +76,8 @@ export function DownloadReport(
       <div class="ui-spy-sm">
         <RadioGroup
           options={[
-            { value: "pdf", label: t3({ en: "PDF", fr: "PDF" }) },
-            { value: "word", label: t3({ en: "Word (.docx)", fr: "Word (.docx)" }) },
+            { value: "pdf", label: t3({ en: "PDF", fr: "PDF", pt: "PDF" }) },
+            { value: "word", label: t3({ en: "Word (.docx)", fr: "Word (.docx)", pt: "Word (.docx)" }) },
           ]}
           value={exportFormat()}
           onChange={setExportFormat}

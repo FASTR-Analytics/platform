@@ -74,6 +74,10 @@ export function DraftVisualizationPreview(p: Props) {
       }
       setFigureState({ status: "ready", data: buildFigureInputs(figureBlock.bundle) });
     } catch (err) {
+      // Log + render the error (the card is no longer hidden on from_metric
+      // errors) so a schema-invalid bundle surfaces its named field here,
+      // rather than vanishing silently before the user reaches add-to-deck.
+      console.error("Failed to build metric figure preview:", err);
       setFigureState({
         status: "error",
         err: err instanceof Error ? err.message : "Failed to load",
@@ -203,8 +207,9 @@ export function DraftVisualizationPreview(p: Props) {
       }
     } catch (err) {
       console.error("Failed to add to slide deck:", err);
+      const errMsg = err instanceof Error ? err.message : String(err);
       await openAlert({
-        text: t3({ en: "Failed to add to slide deck", fr: "Échec de l'ajout à la présentation" }),
+        text: `${t3({ en: "Failed to add to slide deck", fr: "Échec de l'ajout à la présentation" })}: ${errMsg}`,
         intent: "danger",
       });
     }
@@ -212,11 +217,6 @@ export function DraftVisualizationPreview(p: Props) {
 
   return (
     <ErrorBoundary fallback={<></>}>
-    <Show
-      when={
-        p.figure.type !== "from_metric" || figureState().status !== "error"
-      }
-    >
       <div class="border-base-300 bg-base-100 max-w-[400px] rounded border">
         <div class="p-1.5">
           <Show
@@ -280,7 +280,6 @@ export function DraftVisualizationPreview(p: Props) {
           </Button>
         </div>
       </div>
-    </Show>
     </ErrorBoundary>
   );
 }
