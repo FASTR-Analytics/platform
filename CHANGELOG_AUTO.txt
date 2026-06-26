@@ -1,3 +1,11 @@
+[TBD] [user] [added] - Portuguese language support throughout the platform
+[TBD] [user] [added] - AI can now edit report figures in place without replacing them
+[TBD] [user] [added] - AI can inspect full configuration of individual report figures
+[TBD] [user] [changed] - Improved visual styling of report change comparison view
+[TBD] [user] [changed] - Wider change markers in report diff view for better readability
+[TBD] [admin] [added] - Portuguese language support across the AI interface
+[TBD] [admin] [added] - AI can now view and edit individual report figures in place
+[TBD] [admin] [changed] - Report diff viewer has improved visual styling for change markers
 [TBD] [user] [added] - Portuguese language support across reports and visualizations
 [TBD] [user] [fixed] - Visualization preview errors now shown instead of silently hidden
 [TBD] [user] [fixed] - Error details now displayed when adding a visualization to a slide deck fails
