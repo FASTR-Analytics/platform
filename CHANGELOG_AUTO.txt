@@ -1,65 +1,67 @@
-[TBD] [user] [added] - Portuguese language support throughout the platform
-[TBD] [user] [added] - AI can now edit report figures in place without replacing them
-[TBD] [user] [added] - AI can inspect full configuration of individual report figures
-[TBD] [user] [changed] - Improved visual styling of report change comparison view
-[TBD] [user] [changed] - Wider change markers in report diff view for better readability
-[TBD] [admin] [added] - Portuguese language support across the AI interface
-[TBD] [admin] [added] - AI can now view and edit individual report figures in place
-[TBD] [admin] [changed] - Report diff viewer has improved visual styling for change markers
-[TBD] [user] [added] - Portuguese language support across reports and visualizations
-[TBD] [user] [fixed] - Visualization preview errors now shown instead of silently hidden
-[TBD] [user] [fixed] - Error details now displayed when adding a visualization to a slide deck fails
-[TBD] [user] [fixed] - Invalid visualizations caught early with clear error messages before saving
-[TBD] [user] [changed] - Proposed changes dialog is now wider for easier review
-[TBD] [admin] [added] - Portuguese language support for reports and related features
-[TBD] [admin] [fixed] - AI visualization errors now shown instead of silently hidden
-[TBD] [admin] [fixed] - Detailed error messages when adding visualizations to slide decks
-[TBD] [admin] [fixed] - Invalid visualizations caught early with clear field-level errors
-[TBD] [admin] [changed] - Proposed change diff dialog is now wider for easier review
-[TBD] [user] [added] - Portuguese language option now available throughout the platform
-[TBD] [user] [changed] - AI report edit proposals now appear in a focused pop-up modal
-[TBD] [user] [fixed] - Adding a visualization to slides while editing a single slide now shows a helpful message instead of failing
-[TBD] [user] [fixed] - Rejecting an AI-suggested report edit no longer causes the AI to retry unexpectedly
-[TBD] [admin] [added] - Portuguese language support added across the platform
-[TBD] [admin] [changed] - AI report edit proposals now appear as a blocking modal dialog
-[TBD] [admin] [fixed] - Adding a visualization to a slide deck while editing a single slide now shows a helpful message instead of failing
-[TBD] [admin] [fixed] - AI report editor properly signals rejection so the AI stops retrying
-[TBD] [user] [fixed] - Error message now shown when adding a visualization to a slide deck fails
-[TBD] [user] [fixed] - AI now correctly applies all time period filter types when analyzing data
-[TBD] [user] [fixed] - Fixed potential display issues with label replacements in visualizations
-[TBD] [admin] [fixed] - Error message now shown when adding AI visualization to slide deck fails
-[TBD] [admin] [fixed] - AI now correctly applies relative period filters like "last 6 months"
-[TBD] [admin] [fixed] - Fixed potential issue with label replacements in AI-generated visualizations
-[TBD] [user] [added] - AI assistant can now create new indicators from survey data
-[TBD] [user] [added] - AI assistant can now edit indicator formulas and calculations
-[TBD] [user] [added] - AI assistant can now delete indicators
-[TBD] [user] [added] - AI assistant can browse and inspect survey variables
-[TBD] [user] [added] - AI assistant automatically validates indicator formulas after changes
-[TBD] [user] [fixed] - AI assistant no longer assigns sub-categories that don't match the parent category
-[TBD] [admin] [added] - AI assistant can now create new HFA indicators from survey data
-[TBD] [admin] [added] - AI assistant can now delete HFA indicators
-[TBD] [admin] [added] - AI assistant can now view and edit indicator R code
-[TBD] [admin] [added] - AI assistant can browse the survey variable dictionary
-[TBD] [admin] [added] - AI assistant can inspect variable details like response options and missingness
-[TBD] [admin] [added] - AI assistant validates indicator code automatically after creating or editing
-[TBD] [admin] [added] - AI assistant checks that code result type matches the indicator type
-[TBD] [admin] [fixed] - Sub-category assignments are now cleared automatically when they no longer match the category
-[TBD] [admin] [fixed] - Multiple AI confirmation dialogs no longer conflict when triggered simultaneously
-[TBD] [admin] [changed] - Batch update errors now report which indicators were already saved and which remain
-[TBD] [user] [added] - AI assistant for cleaning up and organising HFA indicators
-[TBD] [user] [added] - AI can rename indicator labels in batch with confirmation
-[TBD] [user] [added] - AI can assign categories and sub-categories to indicators in batch
-[TBD] [user] [added] - Manage multiple AI conversations in the HFA Indicator Manager
-[TBD] [user] [added] - AI button available to global admins in the HFA Indicators toolbar
-[TBD] [admin] [added] - AI assistant for managing HFA indicators (labels and categories)
-[TBD] [admin] [added] - AI panel accessible to global admins in HFA Indicator Manager
-[TBD] [admin] [changed] - AI usage logs now support instance-level usage without a project
-[TBD] [admin] [added] - AI token limits enforced for HFA indicator assistant same as project AI
-[TBD] [user] [changed] - AI assistant now sees measurement units for health facility indicators
-[TBD] [admin] [changed] - AI assistant now sees measurement units for health facility indicators
-[TBD] [admin] [changed] - Indicator labels in AI and reports now use consistent formatting
-[TBD] [user] [fixed] - Setup prompts now appear only after account is approved
-[TBD] [admin] [fixed] - Post-login prompts now wait until user is approved before showing
+[1.53.10] [user] [added] - Portuguese language support added across the entire platform
+[1.53.10] [admin] [added] - Portuguese language support added across the entire platform
+[1.53.10] [user] [added] - Portuguese language support throughout the platform
+[1.53.10] [user] [added] - AI can now edit report figures in place without replacing them
+[1.53.10] [user] [added] - AI can inspect full configuration of individual report figures
+[1.53.10] [user] [changed] - Improved visual styling of report change comparison view
+[1.53.10] [user] [changed] - Wider change markers in report diff view for better readability
+[1.53.10] [admin] [added] - Portuguese language support across the AI interface
+[1.53.10] [admin] [added] - AI can now view and edit individual report figures in place
+[1.53.10] [admin] [changed] - Report diff viewer has improved visual styling for change markers
+[1.53.10] [user] [added] - Portuguese language support across reports and visualizations
+[1.53.10] [user] [fixed] - Visualization preview errors now shown instead of silently hidden
+[1.53.10] [user] [fixed] - Error details now displayed when adding a visualization to a slide deck fails
+[1.53.10] [user] [fixed] - Invalid visualizations caught early with clear error messages before saving
+[1.53.10] [user] [changed] - Proposed changes dialog is now wider for easier review
+[1.53.10] [admin] [added] - Portuguese language support for reports and related features
+[1.53.10] [admin] [fixed] - AI visualization errors now shown instead of silently hidden
+[1.53.10] [admin] [fixed] - Detailed error messages when adding visualizations to slide decks
+[1.53.10] [admin] [fixed] - Invalid visualizations caught early with clear field-level errors
+[1.53.10] [admin] [changed] - Proposed change diff dialog is now wider for easier review
+[1.53.10] [user] [added] - Portuguese language option now available throughout the platform
+[1.53.10] [user] [changed] - AI report edit proposals now appear in a focused pop-up modal
+[1.53.10] [user] [fixed] - Adding a visualization to slides while editing a single slide now shows a helpful message instead of failing
+[1.53.10] [user] [fixed] - Rejecting an AI-suggested report edit no longer causes the AI to retry unexpectedly
+[1.53.10] [admin] [added] - Portuguese language support added across the platform
+[1.53.10] [admin] [changed] - AI report edit proposals now appear as a blocking modal dialog
+[1.53.10] [admin] [fixed] - Adding a visualization to a slide deck while editing a single slide now shows a helpful message instead of failing
+[1.53.10] [admin] [fixed] - AI report editor properly signals rejection so the AI stops retrying
+[1.53.10] [user] [fixed] - Error message now shown when adding a visualization to a slide deck fails
+[1.53.10] [user] [fixed] - AI now correctly applies all time period filter types when analyzing data
+[1.53.10] [user] [fixed] - Fixed potential display issues with label replacements in visualizations
+[1.53.10] [admin] [fixed] - Error message now shown when adding AI visualization to slide deck fails
+[1.53.10] [admin] [fixed] - AI now correctly applies relative period filters like "last 6 months"
+[1.53.10] [admin] [fixed] - Fixed potential issue with label replacements in AI-generated visualizations
+[1.53.10] [user] [added] - AI assistant can now create new indicators from survey data
+[1.53.10] [user] [added] - AI assistant can now edit indicator formulas and calculations
+[1.53.10] [user] [added] - AI assistant can now delete indicators
+[1.53.10] [user] [added] - AI assistant can browse and inspect survey variables
+[1.53.10] [user] [added] - AI assistant automatically validates indicator formulas after changes
+[1.53.10] [user] [fixed] - AI assistant no longer assigns sub-categories that don't match the parent category
+[1.53.10] [admin] [added] - AI assistant can now create new HFA indicators from survey data
+[1.53.10] [admin] [added] - AI assistant can now delete HFA indicators
+[1.53.10] [admin] [added] - AI assistant can now view and edit indicator R code
+[1.53.10] [admin] [added] - AI assistant can browse the survey variable dictionary
+[1.53.10] [admin] [added] - AI assistant can inspect variable details like response options and missingness
+[1.53.10] [admin] [added] - AI assistant validates indicator code automatically after creating or editing
+[1.53.10] [admin] [added] - AI assistant checks that code result type matches the indicator type
+[1.53.10] [admin] [fixed] - Sub-category assignments are now cleared automatically when they no longer match the category
+[1.53.10] [admin] [fixed] - Multiple AI confirmation dialogs no longer conflict when triggered simultaneously
+[1.53.10] [admin] [changed] - Batch update errors now report which indicators were already saved and which remain
+[1.53.10] [user] [added] - AI assistant for cleaning up and organising HFA indicators
+[1.53.10] [user] [added] - AI can rename indicator labels in batch with confirmation
+[1.53.10] [user] [added] - AI can assign categories and sub-categories to indicators in batch
+[1.53.10] [user] [added] - Manage multiple AI conversations in the HFA Indicator Manager
+[1.53.10] [user] [added] - AI button available to global admins in the HFA Indicators toolbar
+[1.53.10] [admin] [added] - AI assistant for managing HFA indicators (labels and categories)
+[1.53.10] [admin] [added] - AI panel accessible to global admins in HFA Indicator Manager
+[1.53.10] [admin] [changed] - AI usage logs now support instance-level usage without a project
+[1.53.10] [admin] [added] - AI token limits enforced for HFA indicator assistant same as project AI
+[1.53.10] [user] [changed] - AI assistant now sees measurement units for health facility indicators
+[1.53.10] [admin] [changed] - AI assistant now sees measurement units for health facility indicators
+[1.53.10] [admin] [changed] - Indicator labels in AI and reports now use consistent formatting
+[1.53.10] [user] [fixed] - Setup prompts now appear only after account is approved
+[1.53.10] [admin] [fixed] - Post-login prompts now wait until user is approved before showing
 [1.53.9] [user] [added] - Edit figures directly from the deck view without opening the slide editor
 [1.53.9] [admin] [added] - AI can now update figures directly from the deck level
 [1.53.10] [user] [fixed] - AI-generated figures now correctly require a valid subgroup selection instead of silently defaulting
