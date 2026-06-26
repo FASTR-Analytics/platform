@@ -161,13 +161,23 @@ export function DraftVisualizationPreview(p: Props) {
   }
 
   async function handleAddToDeck() {
+    const ctx = aiContext();
+    if (ctx.mode === "editing_slide") {
+      await openAlert({
+        text: t3({
+          en: "Switch back to the full slide deck viewer to add this as a slide.",
+          fr: "Revenez à la vue complète de la présentation pour l'ajouter comme diapositive.",
+        }),
+        intent: "neutral",
+      });
+      return;
+    }
     try {
       const slideInput: AiContentSlideInput = {
         type: "content",
         header: p.title,
         blocks: [p.figure],
       };
-      const ctx = aiContext();
       const deckConfig: SlideDeckConfig =
         ctx.mode === "editing_slide_deck"
           ? ctx.getDeckConfig()
