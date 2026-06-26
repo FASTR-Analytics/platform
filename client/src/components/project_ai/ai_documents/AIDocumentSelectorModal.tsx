@@ -92,6 +92,7 @@ export function AIDocumentSelectorModal(
       header={t3({
         en: "Include PDF documents for the AI to consider",
         fr: "Inclure des documents PDF pour l'IA",
+        pt: "Incluir documentos PDF para a IA considerar",
       })}
       savingState={save.state()}
       saveFunc={save.click}
@@ -99,6 +100,7 @@ export function AIDocumentSelectorModal(
       saveButtonText={t3({
         en: "Include selected",
         fr: "Inclure la sélection",
+        pt: "Incluir selecionados",
       })}
     >
       <Show when={isLoading()}>
@@ -107,6 +109,7 @@ export function AIDocumentSelectorModal(
             msg={t3({
               en: "Loading assets...",
               fr: "Chargement des ressources...",
+              pt: "A carregar recursos...",
             })}
             noPad
           />
@@ -121,11 +124,13 @@ export function AIDocumentSelectorModal(
               {t3({
                 en: "No PDF files found in assets.",
                 fr: "Aucun fichier PDF trouvé dans les ressources.",
+                pt: "Nenhum ficheiro PDF encontrado nos recursos.",
               })}
               <br />
               {t3({
                 en: "Upload PDFs to the assets folder first.",
                 fr: "Téléversez d'abord des PDF dans le dossier des ressources.",
+                pt: "Carregue primeiro PDFs para a pasta de recursos.",
               })}
             </div>
           }

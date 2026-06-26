@@ -206,10 +206,11 @@ export function PromptLibraryModal(
 
   const handleDeleteCustomPrompt = async (prompt: CustomPrompt) => {
     const confirmed = await openConfirm({
-      title: t3({ en: "Delete prompt", fr: "Supprimer le prompt" }),
+      title: t3({ en: "Delete prompt", fr: "Supprimer le prompt", pt: "Eliminar prompt" }),
       text: t3({
         en: `Are you sure you want to delete "${prompt.name}"?`,
         fr: `Êtes-vous sûr de vouloir supprimer « ${prompt.name} » ?`,
+        pt: `Tem a certeza de que pretende eliminar "${prompt.name}"?`,
       }),
       intent: "danger",
       confirmButtonLabel: t3(TC.delete),
@@ -225,8 +226,8 @@ export function PromptLibraryModal(
     <ModalContainer
       title={
         selectedPrompt()
-          ? t3({ en: "Edit prompt", fr: "Modifier le prompt" })
-          : t3({ en: "Prompt library", fr: "Bibliothèque de prompts" })
+          ? t3({ en: "Edit prompt", fr: "Modifier le prompt", pt: "Editar prompt" })
+          : t3({ en: "Prompt library", fr: "Bibliothèque de prompts", pt: "Biblioteca de prompts" })
       }
       width="xl"
       scroll="content"
@@ -235,7 +236,7 @@ export function PromptLibraryModal(
           ? // eslint-disable-next-line jsx-key
             [
               <Button onClick={() => p.close(undefined)} intent="neutral">
-                {t3({ en: "Cancel", fr: "Annuler" })}
+                {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
               </Button>,
               <Button
                 onClick={handleNewCustomPrompt}
@@ -245,6 +246,7 @@ export function PromptLibraryModal(
                 {t3({
                   en: "Create custom prompt",
                   fr: "Créer un prompt personnalisé",
+                  pt: "Criar prompt personalizado",
                 })}
               </Button>,
             ]
@@ -257,6 +259,7 @@ export function PromptLibraryModal(
             msg={t3({
               en: "Loading prompts...",
               fr: "Chargement des prompts...",
+              pt: "A carregar prompts...",
             })}
             noPad
           />
@@ -325,6 +328,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
         placeholder={t3({
           en: "Search prompts...",
           fr: "Rechercher des prompts...",
+          pt: "Pesquisar prompts...",
         })}
         autoFocus
         fullWidth
@@ -336,7 +340,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
             <CollapsibleSection
               title={
                 <div class="flex items-center gap-2">
-                  <span>{t3({ en: "My prompts", fr: "Mes prompts" })}</span>
+                  <span>{t3({ en: "My prompts", fr: "Mes prompts", pt: "Os meus prompts" })}</span>
                   <span class="text-base-content/50 text-xs">
                     ({p.myCustomPrompts.length})
                   </span>
@@ -368,7 +372,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
               title={
                 <div class="flex items-center gap-2">
                   <span>
-                    {t3({ en: "Country prompts", fr: "Prompts pays" })}
+                    {t3({ en: "Country prompts", fr: "Prompts pays", pt: "Prompts do país" })}
                   </span>
                   <span class="text-base-content/50 text-xs">
                     ({p.countryCustomPrompts.length})
@@ -405,6 +409,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
                   {t3({
                     en: "No prompts found matching your search.",
                     fr: "Aucun prompt correspondant à votre recherche.",
+                    pt: "Nenhum prompt encontrado para a sua pesquisa.",
                   })}
                 </div>
               ) : null
@@ -490,7 +495,7 @@ function CustomPromptItem(p: {
         <div class="ml-2 flex shrink-0 gap-1 opacity-0 group-hover:opacity-100">
           <button
             type="button"
-            title={t3({ en: "Edit", fr: "Modifier" })}
+            title={t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
             onClick={(e) => {
               e.stopPropagation();
               p.onEdit();
@@ -514,7 +519,7 @@ function CustomPromptItem(p: {
           </button>
           <button
             type="button"
-            title={t3({ en: "Delete", fr: "Supprimer" })}
+            title={t3({ en: "Delete", fr: "Supprimer", pt: "Eliminar" })}
             onClick={(e) => {
               e.stopPropagation();
               p.onDelete();
@@ -567,12 +572,13 @@ function EditPhase(p: EditPhaseProps) {
       />
       <div class="mt-4 flex gap-2">
         <Button outline iconName="chevronLeft" onClick={p.onBack}>
-          {t3({ en: "Back", fr: "Retour" })}
+          {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
         </Button>
         <Button outline iconName="save" onClick={p.onSaveToLibrary}>
           {t3({
             en: "Save to library",
             fr: "Sauvegarder dans la bibliothèque",
+            pt: "Guardar na biblioteca",
           })}
         </Button>
         <div class="flex-1"></div>
@@ -580,13 +586,14 @@ function EditPhase(p: EditPhaseProps) {
           {t3({
             en: "Run in current chat",
             fr: "Exécuter dans le chat actuel",
+            pt: "Executar na conversa atual",
           })}
         </Button>
         <Button onClick={p.onRunNew} intent="success">
-          {t3({ en: "Run as new chat", fr: "Exécuter dans un nouveau chat" })}
+          {t3({ en: "Run as new chat", fr: "Exécuter dans un nouveau chat", pt: "Executar como nova conversa" })}
         </Button>
         <Button onClick={p.onCancel} intent="neutral">
-          {t3({ en: "Cancel", fr: "Annuler" })}
+          {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
         </Button>
       </div>
     </div>

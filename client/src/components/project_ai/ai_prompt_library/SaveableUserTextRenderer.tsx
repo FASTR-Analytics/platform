@@ -25,7 +25,7 @@ export const SaveableUserTextRenderer: Component<{ item: UserTextItem }> = (prop
     <div class="group ml-auto flex max-w-[80%] items-start gap-1">
       <button
         type="button"
-        title={t3({ en: "Save to prompt library", fr: "Enregistrer dans la bibliothèque" })}
+        title={t3({ en: "Save to prompt library", fr: "Enregistrer dans la bibliothèque", pt: "Guardar na biblioteca de prompts" })}
         onClick={handleSave}
         class="bg-base-100 border-base-300 text-base-content/60 hover:text-base-content mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded border opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
       >

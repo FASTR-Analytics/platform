@@ -47,7 +47,7 @@ export function DraftSlidePreview(p: Props) {
 
   const [slideState, setSlideState] = createSignal<StateHolder<SlideState>>({
     status: "loading",
-    msg: t3({ en: "Loading slide...", fr: "Chargement de la diapositive..." }),
+    msg: t3({ en: "Loading slide...", fr: "Chargement de la diapositive...", pt: "A carregar diapositivo..." }),
   });
 
   function getDeckConfig(): SlideDeckConfig {
@@ -103,8 +103,8 @@ export function DraftSlidePreview(p: Props) {
         onAddToDeck: handleAddToDeck,
         addToDeckLabel:
           aiContext().mode === "editing_slide_deck"
-            ? t3({ en: "Add to this deck", fr: "Ajouter au deck" })
-            : t3({ en: "Add to slide deck", fr: "Ajouter à un deck" }),
+            ? t3({ en: "Add to this deck", fr: "Ajouter au deck", pt: "Adicionar a esta apresentação" })
+            : t3({ en: "Add to slide deck", fr: "Ajouter à un deck", pt: "Adicionar a uma apresentação" }),
       },
     });
   }
@@ -149,8 +149,8 @@ export function DraftSlidePreview(p: Props) {
             />
             <Button size="sm" outline onClick={handleAddToDeck}>
               {aiContext().mode === "editing_slide_deck"
-                ? t3({ en: "Add to this deck", fr: "Ajouter au deck" })
-                : t3({ en: "Add to slide deck", fr: "Ajouter à un deck" })}
+                ? t3({ en: "Add to this deck", fr: "Ajouter au deck", pt: "Adicionar a esta apresentação" })
+                : t3({ en: "Add to slide deck", fr: "Ajouter à un deck", pt: "Adicionar a uma apresentação" })}
             </Button>
           </div>
         </div>
@@ -214,7 +214,7 @@ function ExpandedSlideModal(
             {p.addToDeckLabel}
           </Button>,
           <Button onClick={() => p.close(undefined)}>
-            {t3({ en: "Close", fr: "Fermer" })}
+            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
           </Button>,
         ]
       }

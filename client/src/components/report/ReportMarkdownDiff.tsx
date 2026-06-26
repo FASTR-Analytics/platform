@@ -24,15 +24,32 @@ export function ReportMarkdownDiff(p: Props) {
   let merge: MergeView | undefined;
 
   onMount(() => {
-    const readOnly = [
+    const base = [
       EditorView.editable.of(false),
       EditorState.readOnly.of(true),
       markdown(),
       EditorView.lineWrapping,
+      EditorView.theme({
+        ".cm-content": { padding: "8px 12px" },
+        // Widen the merge change marker (default 3px) so it reads as a deliberate
+        // change bar rather than a stray border. Red on the a/deletions pane,
+        // green on the b/insertions pane (merge base theme colors).
+        ".cm-changeGutter": { width: "6px", paddingLeft: "0" },
+        // Drop the base-theme gutter divider on both panes; the pane divider
+        // lives on the right pane's left edge instead (see bPane).
+        ".cm-gutters": { border: "none" },
+      }),
+    ];
+    // Right pane only: a single left border is the divider between the two panes.
+    const bPane = [
+      ...base,
+      EditorView.theme({
+        "&": { borderLeft: "1px solid var(--color-base-300)" },
+      }),
     ];
     merge = new MergeView({
-      a: { doc: p.oldText, extensions: readOnly },
-      b: { doc: p.newText, extensions: readOnly },
+      a: { doc: p.oldText, extensions: base },
+      b: { doc: p.newText, extensions: bPane },
       parent,
       gutter: true,
       highlightChanges: true,

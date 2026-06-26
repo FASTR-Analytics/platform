@@ -62,9 +62,13 @@ export function AIChatConversationSelector(
         minute: "2-digit",
       });
     } else if (diffDays === 1) {
-      return t3({ en: "Yesterday", fr: "Hier" });
+      return t3({ en: "Yesterday", fr: "Hier", pt: "Ontem" });
     } else if (diffDays < 7) {
-      return t3({ en: `${diffDays} days ago`, fr: `Il y a ${diffDays} jours` });
+      return t3({
+        en: `${diffDays} days ago`,
+        fr: `Il y a ${diffDays} jours`,
+        pt: `Há ${diffDays} dias`,
+      });
     } else {
       return date.toLocaleDateString([], {
         month: "short",
@@ -106,6 +110,7 @@ export function AIChatConversationSelector(
         label: t3({
           en: "Switch to Conversation",
           fr: "Changer de conversation",
+          pt: "Mudar de conversa",
         }),
         intent: "primary",
         onClick: handleBulkSwitch,
@@ -113,7 +118,11 @@ export function AIChatConversationSelector(
     }
 
     actions.push({
-      label: t3({ en: "Delete Selected", fr: "Supprimer la sélection" }),
+      label: t3({
+        en: "Delete Selected",
+        fr: "Supprimer la sélection",
+        pt: "Eliminar selecionados",
+      }),
       intent: "danger",
       outline: true,
       onClick: handleBulkDelete,
@@ -125,7 +134,7 @@ export function AIChatConversationSelector(
   const columns: TableColumn<ConversationMetadata>[] = [
     {
       key: "title",
-      header: t3({ en: "Conversation", fr: "Conversation" }),
+      header: t3({ en: "Conversation", fr: "Conversation", pt: "Conversa" }),
       sortable: true,
       render: (conv) => (
         <div class="flex min-w-0 items-center gap-2">
@@ -146,7 +155,11 @@ export function AIChatConversationSelector(
     },
     {
       key: "lastMessageAt",
-      header: t3({ en: "Last Active", fr: "Dernière activité" }),
+      header: t3({
+        en: "Last Active",
+        fr: "Dernière activité",
+        pt: "Última atividade",
+      }),
       sortable: true,
       render: (conv) => (
         <span class="text-neutral text-sm">
@@ -178,14 +191,18 @@ export function AIChatConversationSelector(
 
   return (
     <ModalContainer
-      title={t3({ en: "Conversations", fr: "Conversations" })}
+      title={t3({ en: "Conversations", fr: "Conversations", pt: "Conversas" })}
       width="lg"
       leftButtons={[
         <Button intent="primary" onClick={handleNew} iconName="plus">
-          {t3({ en: "New Conversation", fr: "Nouvelle conversation" })}
+          {t3({
+            en: "New Conversation",
+            fr: "Nouvelle conversation",
+            pt: "Nova conversa",
+          })}
         </Button>,
         <Button intent="neutral" onClick={() => p.close(undefined)}>
-          {t3({ en: "Close", fr: "Fermer" })}
+          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
         </Button>,
       ]}
     >
@@ -196,6 +213,7 @@ export function AIChatConversationSelector(
             {t3({
               en: "No conversations yet",
               fr: "Aucune conversation pour le moment",
+              pt: "Ainda não há conversas",
             })}
           </div>
         }
@@ -207,7 +225,11 @@ export function AIChatConversationSelector(
           defaultSort={{ key: "lastMessageAt", direction: "desc" }}
           onRowClick={handleSelect}
           bulkActions={bulkActions()}
-          selectionLabel={t3({ en: "conversation", fr: "conversation" })}
+          selectionLabel={t3({
+            en: "conversation",
+            fr: "conversation",
+            pt: "conversa",
+          })}
           selectedKeys={selectedKeys}
           setSelectedKeys={setSelectedKeys}
           paddingY="comfortable"

@@ -19,8 +19,8 @@ type DebugView = "metrics" | "visualizations";
 
 function getDebugViewOptions(): SelectOption<DebugView>[] {
   return [
-    { value: "metrics", label: t3({ en: "Available metrics (get_available_metrics)", fr: "Métriques disponibles (get_available_metrics)" }) },
-    { value: "visualizations", label: t3({ en: "Available visualizations (get_available_visualizations)", fr: "Visualisations disponibles (get_available_visualizations)" }) },
+    { value: "metrics", label: t3({ en: "Available metrics (get_available_metrics)", fr: "Métriques disponibles (get_available_metrics)", pt: "Métricas disponíveis (get_available_metrics)" }) },
+    { value: "visualizations", label: t3({ en: "Available visualizations (get_available_visualizations)", fr: "Visualisations disponibles (get_available_visualizations)", pt: "Visualizações disponíveis (get_available_visualizations)" }) },
   ];
 }
 
@@ -47,12 +47,12 @@ export function AIDebugPanel(p: Props) {
 
   return (
     <ModalContainer
-      title={t3({ en: "AI debug — tool output preview", fr: "Débogage IA — aperçu de la sortie des outils" })}
+      title={t3({ en: "AI debug — tool output preview", fr: "Débogage IA — aperçu de la sortie des outils", pt: "Depuração da IA — pré-visualização da saída das ferramentas" })}
       width="lg"
       scroll="content"
       rightButtons={
         <Button intent="neutral" onClick={() => p.close(undefined)}>
-          {t3({ en: "Close", fr: "Fermer" })}
+          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
         </Button>
       }
     >

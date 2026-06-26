@@ -58,7 +58,11 @@ export function AIChatSettingsPanel(p: Props) {
 
   return (
     <ModalContainer
-      title={t3({ en: "AI settings", fr: "Paramètres IA" })}
+      title={t3({
+        en: "AI settings",
+        fr: "Paramètres IA",
+        pt: "Definições de IA",
+      })}
       width="sm"
       leftButtons={
         // eslint-disable-next-line jsx-key
@@ -72,17 +76,17 @@ export function AIChatSettingsPanel(p: Props) {
                 max_tokens: maxTokens(),
               })}
           >
-            {t3({ en: "Apply", fr: "Appliquer" })}
+            {t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" })}
           </Button>,
           <Button intent="neutral" onClick={() => p.close(undefined)}>
-            {t3({ en: "Cancel", fr: "Annuler" })}
+            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
           </Button>,
         ]
       }
     >
       <Show when={fields.has("model")}>
         <Select
-          label={t3({ en: "Model", fr: "Modèle" })}
+          label={t3({ en: "Model", fr: "Modèle", pt: "Modelo" })}
           value={model()}
           options={modelOptions}
           onChange={setModel}
@@ -91,7 +95,11 @@ export function AIChatSettingsPanel(p: Props) {
       </Show>
       <Show when={fields.has("temperature")}>
         <Slider
-          label={t3({ en: "Temperature", fr: "Température" })}
+          label={t3({
+            en: "Temperature",
+            fr: "Température",
+            pt: "Temperatura",
+          })}
           value={temperature()}
           onChange={setTemperature}
           min={0}
@@ -103,7 +111,11 @@ export function AIChatSettingsPanel(p: Props) {
       </Show>
       <Show when={fields.has("max_tokens")}>
         <Slider
-          label={t3({ en: "Max tokens", fr: "Tokens maximum" })}
+          label={t3({
+            en: "Max tokens",
+            fr: "Tokens maximum",
+            pt: "Tokens máximos",
+          })}
           value={maxTokens()}
           onChange={(v) => setMaxTokens(Math.round(v))}
           min={MAX_OUTPUT_TOKENS.MIN}

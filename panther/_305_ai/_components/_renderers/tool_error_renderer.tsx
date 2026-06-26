@@ -30,7 +30,7 @@ export function ToolErrorRenderer(p: {
         <div class="ml-5 mt-1 space-y-2">
           <div>
             <div class="mb-1 text-xs font-medium">
-              {t3({ en: "Error:", fr: "Erreur :" })}
+              {t3({ en: "Error:", fr: "Erreur :", pt: "Erro:" })}
             </div>
             <div class="text-xs">{p.item.errorDetails}</div>
           </div>
@@ -38,7 +38,11 @@ export function ToolErrorRenderer(p: {
           <Show when={p.item.errorStack}>
             <div class="border-danger/20 border-t pt-2">
               <div class="text-danger/60 mb-1 text-xs font-medium">
-                {t3({ en: "Stack trace:", fr: "Trace de la pile :" })}
+                {t3({
+                  en: "Stack trace:",
+                  fr: "Trace de la pile :",
+                  pt: "Rastreio da pilha:",
+                })}
               </div>
               <pre class="text-danger/80 bg-danger/5 overflow-x-auto whitespace-pre-wrap rounded p-2 font-mono text-[10px]">
                 {p.item.errorStack}

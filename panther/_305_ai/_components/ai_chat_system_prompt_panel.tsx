@@ -23,12 +23,16 @@ export function AIChatSystemPromptPanel(p: Props) {
 
   return (
     <ModalContainer
-      title={t3({ en: "System prompt", fr: "Prompt système" })}
+      title={t3({
+        en: "System prompt",
+        fr: "Prompt système",
+        pt: "Prompt do sistema",
+      })}
       width="lg"
       scroll="content"
       rightButtons={
         <Button intent="neutral" onClick={() => p.close(undefined)}>
-          {t3({ en: "Close", fr: "Fermer" })}
+          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
         </Button>
       }
     >

@@ -465,6 +465,7 @@ export function ProjectReport(p: Props) {
         await applyProposal(proposal);
         return { accepted: true };
       },
+      applyFigureUpdate: (figureId, block) => updateFigure(figureId, block),
     });
   });
 

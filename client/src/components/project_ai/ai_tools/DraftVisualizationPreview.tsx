@@ -1,6 +1,5 @@
 import {
   t3,
-  
   getStartingConfigForSlideDeck,
   type AiFigureFromVisualization,
   type AiFigureFromMetric,
@@ -19,7 +18,14 @@ import {
   openAlert,
   openComponent,
 } from "panther";
-import { createSignal, ErrorBoundary, Match, onMount, Show, Switch } from "solid-js";
+import {
+  createSignal,
+  ErrorBoundary,
+  Match,
+  onMount,
+  Show,
+  Switch,
+} from "solid-js";
 import {
   getPOFigureInputsFromCacheOrFetch_AsyncGenerator,
   getPODetailFromCacheorFetch,
@@ -50,7 +56,7 @@ export function DraftVisualizationPreview(p: Props) {
   const [figureState, setFigureState] = createSignal<StateHolder<FigureInputs>>(
     {
       status: "loading",
-      msg: t3({ en: "LoadingIndicator...", fr: "Chargement..." }),
+      msg: t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." }),
     },
   );
 
@@ -72,7 +78,10 @@ export function DraftVisualizationPreview(p: Props) {
         setFigureState({ status: "error", err: "No figure data" });
         return;
       }
-      setFigureState({ status: "ready", data: buildFigureInputs(figureBlock.bundle) });
+      setFigureState({
+        status: "ready",
+        data: buildFigureInputs(figureBlock.bundle),
+      });
     } catch (err) {
       // Log + render the error (the card is no longer hidden on from_metric
       // errors) so a schema-invalid bundle surfaces its named field here,
@@ -94,8 +103,16 @@ export function DraftVisualizationPreview(p: Props) {
         onAddToDeck: handleAddToDeck,
         addToDeckLabel:
           aiContext().mode === "editing_slide_deck"
-            ? t3({ en: "Add to this deck", fr: "Ajouter au deck" })
-            : t3({ en: "Add to slide deck", fr: "Ajouter à un deck" }),
+            ? t3({
+                en: "Add to this deck",
+                fr: "Ajouter au deck",
+                pt: "Adicionar a esta apresentação",
+              })
+            : t3({
+                en: "Add to slide deck",
+                fr: "Ajouter à un deck",
+                pt: "Adicionar a uma apresentação",
+              }),
       },
     });
   }
@@ -155,7 +172,13 @@ export function DraftVisualizationPreview(p: Props) {
         element: SaveAsNewVisualizationModal,
         props: {
           projectId: p.projectId,
-          existingLabel: p.title || t3({ en: "New Visualization", fr: "Nouvelle visualisation" }),
+          existingLabel:
+            p.title ||
+            t3({
+              en: "New Visualization",
+              fr: "Nouvelle visualisation",
+              pt: "Nova visualização",
+            }),
           resultsValue,
           config,
           folders: projectState.visualizationFolders,
@@ -171,6 +194,7 @@ export function DraftVisualizationPreview(p: Props) {
         text: t3({
           en: "Switch back to the full slide deck viewer to add this as a slide.",
           fr: "Revenez à la vue complète de la présentation pour l'ajouter comme diapositive.",
+          pt: "Volte ao visualizador completo da apresentação para adicionar isto como diapositivo.",
         }),
         intent: "neutral",
       });
@@ -209,7 +233,7 @@ export function DraftVisualizationPreview(p: Props) {
       console.error("Failed to add to slide deck:", err);
       const errMsg = err instanceof Error ? err.message : String(err);
       await openAlert({
-        text: `${t3({ en: "Failed to add to slide deck", fr: "Échec de l'ajout à la présentation" })}: ${errMsg}`,
+        text: `${t3({ en: "Failed to add to slide deck", fr: "Échec de l'ajout à la présentation", pt: "Falha ao adicionar à apresentação" })}: ${errMsg}`,
         intent: "danger",
       });
     }
@@ -252,9 +276,7 @@ export function DraftVisualizationPreview(p: Props) {
               onClick={openExpandedViewForMetric}
             >
               <div class="pointer-events-none">
-                <FigureStateWrapper
-                  state={figureState()}
-                />
+                <FigureStateWrapper state={figureState()} />
               </div>
             </div>
           </Show>
@@ -271,12 +293,24 @@ export function DraftVisualizationPreview(p: Props) {
             }}
           />
           <Button size="sm" outline onClick={handleSave}>
-            {t3({ en: "Save as new visualization", fr: "Sauver comme nouvelle viz." })}
+            {t3({
+              en: "Save as new visualization",
+              fr: "Sauver comme nouvelle viz.",
+              pt: "Guardar como nova visualização",
+            })}
           </Button>
           <Button size="sm" outline onClick={handleAddToDeck}>
             {aiContext().mode === "editing_slide_deck"
-              ? t3({ en: "Add to this deck", fr: "Ajouter au deck" })
-              : t3({ en: "Add to slide deck", fr: "Ajouter à un deck" })}
+              ? t3({
+                  en: "Add to this deck",
+                  fr: "Ajouter au deck",
+                  pt: "Adicionar a esta apresentação",
+                })
+              : t3({
+                  en: "Add to slide deck",
+                  fr: "Ajouter à un deck",
+                  pt: "Adicionar a uma apresentação",
+                })}
           </Button>
         </div>
       </div>
@@ -308,14 +342,17 @@ function FigureStateWrapper(p: FigureStateWrapperProps) {
         keyed
       >
         {(keyedFigureInputs) => {
-          const h1 = "tableData" in keyedFigureInputs ? "ideal" as const : "flex" as const;
+          const h1 =
+            "tableData" in keyedFigureInputs
+              ? ("ideal" as const)
+              : ("flex" as const);
           return (
             <div class="aspect-video overflow-hidden">
               <ChartHolder
                 chartInputs={keyedFigureInputs}
                 height={h1}
                 sizing="zoom"
-                />
+              />
             </div>
           );
         }}
@@ -345,7 +382,11 @@ function ExpandedVizModal(p: AlertComponentProps<ExpandedVizModalProps, void>) {
               p.onEditSave();
             }}
           >
-            {t3({ en: "Save as new visualization", fr: "Sauver comme nouvelle viz." })}
+            {t3({
+              en: "Save as new visualization",
+              fr: "Sauver comme nouvelle viz.",
+              pt: "Guardar como nova visualização",
+            })}
           </Button>,
           <Button
             outline
@@ -356,7 +397,9 @@ function ExpandedVizModal(p: AlertComponentProps<ExpandedVizModalProps, void>) {
           >
             {p.addToDeckLabel}
           </Button>,
-          <Button onClick={() => p.close(undefined)}>{t3({ en: "Close", fr: "Fermer" })}</Button>,
+          <Button onClick={() => p.close(undefined)}>
+            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+          </Button>,
         ]
       }
     >

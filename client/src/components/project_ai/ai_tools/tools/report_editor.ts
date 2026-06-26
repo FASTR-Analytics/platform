@@ -1,9 +1,23 @@
 import { createAITool } from "panther";
 import { z } from "zod";
-import { AiFigureBlockInputSchema, type MetricWithStatus } from "lib";
+import {
+  AiFigureBlockInputSchema,
+  AiFigureConfigPatchSchema,
+  getReplicateByProp,
+  type FigureBlock,
+  type MetricWithStatus,
+} from "lib";
+import {
+  applyFigureConfigPatch,
+  assertNoSlotCollision,
+  resolveBundleFromMetricAndConfig,
+  validateDisplaySlots,
+} from "~/generate_visualization/mod";
 import type { AIContext } from "~/components/project_ai/types";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
+import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
+import { validateMetricInputs } from "../validators/content_validators";
 import {
   validateReportBodyLength,
   validateReportTokensResolve,
@@ -149,6 +163,19 @@ function insertFigureToken(
   return `${trimmed}\n\n${token}\n`;
 }
 
+// One cheap index line per figure for get_report_editor — pure, no fetch.
+function formatFigureIndexLine(id: string, fig: FigureBlock): string {
+  if (!fig.bundle) return `- figure:${id} — (no data)`;
+  const cfg = fig.bundle.config;
+  const parts = [`figure:${id}`, fig.bundle.metricId, cfg.d.type];
+  if (cfg.t.caption) parts.push(`"${cfg.t.caption}"`);
+  const replicateBy = getReplicateByProp(cfg);
+  if (replicateBy) {
+    parts.push(`replicant ${replicateBy}=${cfg.d.selectedReplicantValue ?? "(unset)"}`);
+  }
+  return `- ${parts.join(" · ")}`;
+}
+
 export function getToolsForReportEditor(
   projectId: string,
   getAIContext: () => AIContext,
@@ -165,7 +192,8 @@ export function getToolsForReportEditor(
         if (ctx.mode !== "editing_report") {
           throw new Error("This tool is only available when editing a report");
         }
-        const figIds = Object.keys(ctx.getFigures());
+        const figs = ctx.getFigures();
+        const figureIds = Object.keys(figs);
         const imgIds = Object.keys(ctx.getImages());
         const sel = ctx.getSelection();
         const selectionSection = sel && !sel.empty
@@ -175,19 +203,112 @@ export function getToolsForReportEditor(
             sel.text,
           ]
           : [`## User's current selection: none (cursor at line ${sel?.fromLine ?? 1})`];
+        const figureSection = figureIds.length
+          ? [
+            `## Figures (call get_report_figure for full config; update_report_figure to edit in place):`,
+            ...figureIds.map((id) => formatFigureIndexLine(id, figs[id])),
+          ]
+          : [`## Figures: none`];
         return [
           `# REPORT EDITOR: ${ctx.reportLabel}`,
           ``,
           `## Current body (markdown)`,
           ctx.getBody(),
           ``,
-          `## Figures: ${figIds.length ? figIds.map((id) => `figure:${id}`).join(", ") : "none"}`,
+          ...figureSection,
           `## Images: ${imgIds.length ? imgIds.map((id) => `image:${id}`).join(", ") : "none"}`,
           ...selectionSection,
         ].join("\n");
       },
       inProgressLabel: "Reading report editor...",
       completionMessage: "Read report editor",
+    }),
+
+    createAITool({
+      name: "get_report_figure",
+      description:
+        "Get the FULL configuration of one report figure: its metric, type, "
+        + "disaggregations, filters, the active replicant and the AVAILABLE "
+        + "replicant values, display slots, captions, and the metric's available "
+        + "dimensions. Call this before update_report_figure to see what a figure "
+        + "shows and which replicant/filter values are valid. figureId is the id "
+        + "after 'figure:' in get_report_editor.",
+      inputSchema: z.object({
+        figureId: z.string().describe("Figure id from get_report_editor (the part after 'figure:')."),
+      }),
+      handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "editing_report") {
+          throw new Error("This tool is only available when editing a report");
+        }
+        const fig = ctx.getFigures()[input.figureId];
+        if (!fig?.bundle) {
+          const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
+          throw new Error(`No figure with id "${input.figureId}". Figure ids: ${ids}.`);
+        }
+        const bundle = fig.bundle;
+        const metric = metrics.find((m) => m.id === bundle.metricId);
+        return await formatFigureConfigForAI(projectId, metric, bundle.config);
+      },
+      inProgressLabel: "Reading figure...",
+      completionMessage: "Read figure",
+    }),
+
+    createAITool({
+      name: "update_report_figure",
+      description:
+        "Edit an existing report FIGURE in place — THE tool for changing anything "
+        + "about a figure already embedded in the report (the replicant, filters, "
+        + "disaggregation, period, captions), regardless of how it was created. "
+        + "Provide the figureId (from get_report_editor) and only the fields to "
+        + "change; everything else is preserved and the data is re-queried "
+        + "automatically. To CHANGE A REPLICANT, use this — it validates the value "
+        + "against the available options and errors clearly. The chart TYPE cannot "
+        + "be changed here (use replace_figure to swap in a different chart). The "
+        + "change is applied to the live preview and saved immediately; the "
+        + "figure's body token is unchanged (no accept/reject diff).",
+      inputSchema: z.object({
+        figureId: z.string().describe("Figure id from get_report_editor (the part after 'figure:')."),
+        patch: AiFigureConfigPatchSchema,
+      }),
+      handler: async (input) => {
+        const ctx = getAIContext();
+        if (ctx.mode !== "editing_report") {
+          throw new Error("This tool is only available when editing a report");
+        }
+        const fig = ctx.getFigures()[input.figureId];
+        if (!fig?.bundle) {
+          const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
+          throw new Error(`No figure with id "${input.figureId}". Figure ids: ${ids}.`);
+        }
+        const bundle = fig.bundle;
+        const metric = metrics.find((m) => m.id === bundle.metricId);
+        if (!metric) {
+          throw new Error(`Metric "${bundle.metricId}" not found in this project.`);
+        }
+
+        // Validate UP FRONT (a throw must mean "nothing changed"); commit once valid.
+        const newConfig = applyFigureConfigPatch(
+          bundle.config,
+          input.patch,
+          metric.mostGranularTimePeriodColumnInResultsFile,
+        );
+        validateDisplaySlots(newConfig, metric, input.patch);
+
+        const filters = newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;
+        const periodFilter = newConfig.d.periodFilter?.filterType === "custom"
+          ? { min: newConfig.d.periodFilter.min, max: newConfig.d.periodFilter.max }
+          : undefined;
+        await validateMetricInputs(projectId, bundle.metricId, filters, periodFilter);
+
+        const newBundle = await resolveBundleFromMetricAndConfig(projectId, metric, newConfig);
+        assertNoSlotCollision(newConfig, metric, newBundle.dateRange);
+
+        await ctx.applyFigureUpdate(input.figureId, { type: "figure", bundle: newBundle });
+        return `Updated figure ${input.figureId}. The preview is updated and saved.`;
+      },
+      inProgressLabel: "Updating figure...",
+      completionMessage: "Updated figure",
     }),
 
     createAITool({
@@ -353,7 +474,7 @@ export function getToolsForReportEditor(
     createAITool({
       name: "replace_figure",
       description:
-        "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same slide-style union as insert_figure (from_visualization to clone a saved viz, or from_metric to build a new chart). The caption is kept unless you pass a new `caption`. The token is swapped in place, so the user reviews a diff and accepts or rejects.",
+        "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same slide-style union as insert_figure (from_visualization to clone a saved viz, or from_metric to build a new chart). The caption is kept unless you pass a new `caption`. The token is swapped in place, so the user reviews a diff and accepts or rejects. To merely TWEAK an existing figure (its replicant, filters, disaggregation, period, or captions) WITHOUT changing the underlying chart, use update_report_figure instead — replacing here rebuilds the figure and resets settings like the replicant.",
       inputSchema: z.object({
         figureId: z.string(),
         figure: AiFigureBlockInputSchema,

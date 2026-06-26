@@ -34,13 +34,13 @@ function RateLimitErrorBox(props: { item: { errorDetails: string } }) {
     <div class="border-base-300 bg-base-100 my-1 max-w-sm rounded border p-3">
       <div class="text-warning text-sm font-medium">
         {isWeekly()
-          ? t3({ en: "Country AI usage limit reached", fr: "Limite IA du pays atteinte" })
-          : t3({ en: "Daily AI usage limit reached", fr: "Limite IA journalière atteinte" })}
+          ? t3({ en: "Country AI usage limit reached", fr: "Limite IA du pays atteinte", pt: "Limite de utilização da IA do país atingido" })
+          : t3({ en: "Daily AI usage limit reached", fr: "Limite IA journalière atteinte", pt: "Limite diário de utilização da IA atingido" })}
       </div>
       <Show when={resetTime()}>
         {(time) => (
           <div class="text-neutral mt-1 text-xs">
-            {t3({ en: "Usage will reset at", fr: "L'utilisation se réinitialisera à" })} {time()}
+            {t3({ en: "Usage will reset at", fr: "L'utilisation se réinitialisera à", pt: "A utilização será reposta às" })} {time()}
           </div>
         )}
       </Show>
@@ -134,10 +134,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   const handleDeleteConversation = async () => {
     const confirmed = await openConfirm({
-      title: t3({ en: "Delete conversation", fr: "Supprimer la conversation" }),
+      title: t3({ en: "Delete conversation", fr: "Supprimer la conversation", pt: "Eliminar conversa" }),
       text: t3({
         en: "Are you sure you want to delete this conversation? This action cannot be undone.",
         fr: "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.",
+        pt: "Tem a certeza de que pretende eliminar esta conversa? Esta ação não pode ser anulada.",
       }),
       intent: "danger",
       confirmButtonLabel: t3(TC.delete),
@@ -149,13 +150,13 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   const menuItems = (): MenuItem[] => [
     {
-      label: t3({ en: "New conversation", fr: "Nouvelle conversation" }),
+      label: t3({ en: "New conversation", fr: "Nouvelle conversation", pt: "Nova conversa" }),
       icon: "plus",
       onClick: () => conversations.createConversation(),
       disabled: isLoading(),
     },
     {
-      label: t3({ en: "Switch conversation", fr: "Changer de conversation" }),
+      label: t3({ en: "Switch conversation", fr: "Changer de conversation", pt: "Mudar de conversa" }),
       icon: "versions",
       onClick: openConversationSelector,
       disabled: isLoading(),
@@ -164,13 +165,13 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       type: "divider",
     },
     {
-      label: t3({ en: "Prompt library", fr: "Bibliothèque de prompts" }),
+      label: t3({ en: "Prompt library", fr: "Bibliothèque de prompts", pt: "Biblioteca de prompts" }),
       icon: "sparkles",
       onClick: openPromptLibrary,
       disabled: isLoading(),
     },
     {
-      label: t3({ en: "Include file", fr: "Inclure un fichier" }),
+      label: t3({ en: "Include file", fr: "Inclure un fichier", pt: "Incluir ficheiro" }),
       icon: "document",
       onClick: p.aiDocs.openSelector,
       disabled: isLoading(),
@@ -179,12 +180,12 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       type: "divider",
     },
     {
-      label: t3({ en: "AI settings", fr: "Paramètres IA" }),
+      label: t3({ en: "AI settings", fr: "Paramètres IA", pt: "Definições da IA" }),
       icon: "settings",
       onClick: openSettings,
     },
     {
-      label: t3({ en: "View system prompt", fr: "Voir le prompt système" }),
+      label: t3({ en: "View system prompt", fr: "Voir le prompt système", pt: "Ver prompt do sistema" }),
       icon: "code",
       onClick: () =>
         openComponent<AIChatSystemPromptPanelProps, void>({
@@ -196,6 +197,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       label: t3({
         en: "View AI tool output",
         fr: "Voir la sortie des outils IA",
+        pt: "Ver resultado das ferramentas de IA",
       }),
       icon: "search",
       onClick: () =>
@@ -213,7 +215,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       type: "divider",
     },
     {
-      label: t3({ en: "Delete conversation", fr: "Supprimer la conversation" }),
+      label: t3({ en: "Delete conversation", fr: "Supprimer la conversation", pt: "Eliminar conversa" }),
       icon: "trash",
       intent: "danger",
       onClick: handleDeleteConversation,
@@ -228,19 +230,22 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         return t3({
           en: "Ask about this slide deck...",
           fr: "Posez une question sur cette présentation...",
+          pt: "Faça uma pergunta sobre esta apresentação...",
         });
       case "editing_slide":
         return t3({
           en: "Ask about this slide...",
           fr: "Posez une question sur cette diapositive...",
+          pt: "Faça uma pergunta sobre este diapositivo...",
         });
       case "editing_visualization":
         return t3({
           en: "Ask about this visualization...",
           fr: "Posez une question sur cette visualisation...",
+          pt: "Faça uma pergunta sobre esta visualização...",
         });
       case "editing_report":
-        return t3({ en: "Ask about this report...", fr: "Posez une question sur ce rapport..." });
+        return t3({ en: "Ask about this report...", fr: "Posez une question sur ce rapport...", pt: "Faça uma pergunta sobre este relatório..." });
       case "viewing_visualizations":
       case "viewing_slide_decks":
       case "viewing_reports":
@@ -251,6 +256,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         return t3({
           en: "Explore your data...",
           fr: "Explorez vos données...",
+          pt: "Explore os seus dados...",
         });
       default: {
         const _exhaustive: never = ctx;
@@ -271,17 +277,17 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       case "editing_report":
         return ctx.reportLabel;
       case "viewing_visualizations":
-        return t3({ en: "Visualizations", fr: "Visualisations" });
+        return t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" });
       case "viewing_slide_decks":
-        return t3({ en: "Slide Decks", fr: "Présentations" });
+        return t3({ en: "Slide Decks", fr: "Présentations", pt: "Apresentações" });
       case "viewing_reports":
-        return t3({ en: "Reports", fr: "Rapports" });
+        return t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" });
       case "viewing_data":
-        return t3({ en: "Data", fr: "Données" });
+        return t3({ en: "Data", fr: "Données", pt: "Dados" });
       case "viewing_metrics":
-        return t3({ en: "Metrics", fr: "Métriques" });
+        return t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" });
       case "viewing_modules":
-        return t3({ en: "Modules", fr: "Modules" });
+        return t3({ en: "Modules", fr: "Modules", pt: "Módulos" });
       case "viewing_settings":
         return t3(TC.settings);
       default: {
@@ -326,7 +332,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     <div class="flex h-full w-full flex-col border-l">
       <div class="ui-pad ui-gap border-base-content bg-primary flex items-center justify-between border-b text-white">
         <h3 class="flex items-baseline gap-2 truncate text-base">
-          <span class="font-700">{t3({ en: "AI", fr: "IA" })}</span>
+          <span class="font-700">{t3({ en: "AI", fr: "IA", pt: "IA" })}</span>
           <span class="font-400 text-sm opacity-70">{titleSubtext()}</span>
         </h3>
         <div class="ui-gap-sm flex items-center">

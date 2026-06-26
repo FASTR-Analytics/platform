@@ -81,6 +81,7 @@ export function AskUserQuestionsRenderer(p: Props) {
           {t3({
             en: "Select all that apply",
             fr: "Sélectionnez toutes les réponses applicables",
+            pt: "Selecione todas as opções aplicáveis",
           })}
         </div>
       </Show>
@@ -121,14 +122,14 @@ export function AskUserQuestionsRenderer(p: Props) {
             disabled={!allAnswered()}
             onClick={handleSubmit}
           >
-            {t3({ en: "Submit", fr: "Envoyer" })}
+            {t3({ en: "Submit", fr: "Envoyer", pt: "Enviar" })}
           </Button>
           <button
             type="button"
             onClick={handleCancel}
             class="text-neutral hover:text-base-content cursor-pointer text-xs"
           >
-            {t3({ en: "Cancel", fr: "Annuler" })}
+            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
           </button>
         </div>
       </Show>

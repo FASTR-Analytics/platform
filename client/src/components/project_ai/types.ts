@@ -108,6 +108,10 @@ export type AIContextEditingReport = {
   // the calling AI tool learns the outcome (mirrors panther's ask_user_questions
   // await-resolve pattern). Resolves { accepted: false } if superseded/closed.
   proposeEdit: (proposal: ReportEditProposal) => Promise<{ accepted: boolean }>;
+  // Apply a stable-id figure edit straight to the live registry + persist (no
+  // body diff — the figure's body token is unchanged). Mirrors the interactive
+  // figure-widget editor; used by the update_report_figure AI tool.
+  applyFigureUpdate: (figureId: string, block: FigureBlock) => Promise<void>;
 };
 
 export type AIContext =

@@ -30,9 +30,9 @@ export function UsageDisplay(p: Props) {
             <div class="text-neutral flex items-center gap-2 text-xs font-mono">
               <span>
                 {formatTokenCount(usage().input_tokens)}{" "}
-                {t3({ en: "in", fr: "entrée" })} /{" "}
+                {t3({ en: "in", fr: "entrée", pt: "entrada" })} /{" "}
                 {formatTokenCount(usage().output_tokens)}{" "}
-                {t3({ en: "out", fr: "sortie" })}
+                {t3({ en: "out", fr: "sortie", pt: "saída" })}
               </span>
               <Show when={cost}>
                 <span>• {formatCost(cost!.totalCost)}</span>
@@ -44,25 +44,29 @@ export function UsageDisplay(p: Props) {
         return (
           <div class="ui-pad bg-base-200 rounded text-xs font-mono">
             <div class="mb-1 font-bold">
-              {t3({ en: "Usage", fr: "Utilisation" })}
+              {t3({ en: "Usage", fr: "Utilisation", pt: "Utilização" })}
             </div>
             <div class="ui-gap-sm flex flex-wrap">
               <div>
                 <span class="text-neutral">
-                  {t3({ en: "Input:", fr: "Entrée :" })}
+                  {t3({ en: "Input:", fr: "Entrée :", pt: "Entrada:" })}
                 </span>{" "}
                 {formatTokenCount(usage().input_tokens)}
               </div>
               <div>
                 <span class="text-neutral">
-                  {t3({ en: "Output:", fr: "Sortie :" })}
+                  {t3({ en: "Output:", fr: "Sortie :", pt: "Saída:" })}
                 </span>{" "}
                 {formatTokenCount(usage().output_tokens)}
               </div>
               <Show when={usage().cache_creation_input_tokens}>
                 <div>
                   <span class="text-neutral">
-                    {t3({ en: "Cache write:", fr: "Écriture cache :" })}
+                    {t3({
+                      en: "Cache write:",
+                      fr: "Écriture cache :",
+                      pt: "Escrita de cache:",
+                    })}
                   </span>{" "}
                   {formatTokenCount(usage().cache_creation_input_tokens!)}
                 </div>
@@ -70,7 +74,11 @@ export function UsageDisplay(p: Props) {
               <Show when={usage().cache_read_input_tokens}>
                 <div>
                   <span class="text-neutral">
-                    {t3({ en: "Cache read:", fr: "Lecture cache :" })}
+                    {t3({
+                      en: "Cache read:",
+                      fr: "Lecture cache :",
+                      pt: "Leitura de cache:",
+                    })}
                   </span>{" "}
                   {formatTokenCount(usage().cache_read_input_tokens!)}
                 </div>
@@ -78,7 +86,7 @@ export function UsageDisplay(p: Props) {
             </div>
             <Show when={cost}>
               <div class="text-primary mt-2 font-bold">
-                {t3({ en: "Cost:", fr: "Coût :" })}{" "}
+                {t3({ en: "Cost:", fr: "Coût :", pt: "Custo:" })}{" "}
                 {formatCost(cost!.totalCost)}
               </div>
             </Show>

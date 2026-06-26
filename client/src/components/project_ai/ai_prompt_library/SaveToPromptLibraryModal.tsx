@@ -47,11 +47,11 @@ export function SaveToPromptLibraryModal(
 
   const handleSave = async () => {
     if (!name().trim()) {
-      setError(t3({ en: "Name is required", fr: "Le nom est requis" }));
+      setError(t3({ en: "Name is required", fr: "Le nom est requis", pt: "O nome é obrigatório" }));
       return;
     }
     if (!content().trim()) {
-      setError(t3({ en: "Prompt content is required", fr: "Le contenu du prompt est requis" }));
+      setError(t3({ en: "Prompt content is required", fr: "Le contenu du prompt est requis", pt: "O conteúdo do prompt é obrigatório" }));
       return;
     }
     setIsSaving(true);
@@ -66,7 +66,7 @@ export function SaveToPromptLibraryModal(
           scope: scope(),
         });
         if (!res.success) {
-          setError(res.err ?? t3({ en: "Failed to save", fr: "Échec de l'enregistrement" }));
+          setError(res.err ?? t3({ en: "Failed to save", fr: "Échec de l'enregistrement", pt: "Falha ao guardar" }));
           return;
         }
       } else {
@@ -77,7 +77,7 @@ export function SaveToPromptLibraryModal(
           scope: scope(),
         });
         if (!res.success) {
-          setError(res.err ?? t3({ en: "Failed to save", fr: "Échec de l'enregistrement" }));
+          setError(res.err ?? t3({ en: "Failed to save", fr: "Échec de l'enregistrement", pt: "Falha ao guardar" }));
           return;
         }
       }
@@ -91,37 +91,37 @@ export function SaveToPromptLibraryModal(
     <ModalContainer
       title={
         isEdit()
-          ? t3({ en: "Edit prompt", fr: "Modifier le prompt" })
-          : t3({ en: "Save to prompt library", fr: "Enregistrer dans la bibliothèque" })
+          ? t3({ en: "Edit prompt", fr: "Modifier le prompt", pt: "Editar prompt" })
+          : t3({ en: "Save to prompt library", fr: "Enregistrer dans la bibliothèque", pt: "Guardar na biblioteca de prompts" })
       }
       width="lg"
       scroll="content"
       rightButtons={[
         <Button onClick={() => p.close(undefined)} intent="neutral">
-          {t3({ en: "Cancel", fr: "Annuler" })}
+          {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
         </Button>,
         <Button onClick={handleSave} intent="primary" disabled={isSaving()}>
           {isSaving()
-            ? t3({ en: "Saving...", fr: "Enregistrement..." })
-            : t3({ en: "Save", fr: "Enregistrer" })}
+            ? t3({ en: "Saving...", fr: "Enregistrement...", pt: "A guardar..." })
+            : t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
         </Button>,
       ]}
     >
       <div class="flex flex-col gap-4">
         <Input
-          label={t3({ en: "Name", fr: "Nom" })}
+          label={t3({ en: "Name", fr: "Nom", pt: "Nome" })}
           value={name()}
           onChange={setName}
-          placeholder={t3({ en: "e.g. Summarise key findings", fr: "ex. Résumer les points clés" })}
+          placeholder={t3({ en: "e.g. Summarise key findings", fr: "ex. Résumer les points clés", pt: "ex. Resumir as principais conclusões" })}
           fullWidth
           autoFocus
         />
         <div>
           <Input
-            label={t3({ en: "Category", fr: "Catégorie" })}
+            label={t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}
             value={category()}
             onChange={setCategory}
-            placeholder={t3({ en: "e.g. Analysis, Reporting...", fr: "ex. Analyse, Rapport..." })}
+            placeholder={t3({ en: "e.g. Analysis, Reporting...", fr: "ex. Analyse, Rapport...", pt: "ex. Análise, Relatórios..." })}
             fullWidth
           />
           <datalist id="prompt-categories">
@@ -131,25 +131,25 @@ export function SaveToPromptLibraryModal(
           </datalist>
         </div>
         <TextArea
-          label={t3({ en: "Prompt", fr: "Prompt" })}
+          label={t3({ en: "Prompt", fr: "Prompt", pt: "Prompt" })}
           value={content()}
           onChange={setContent}
           fullWidth
           height="200px"
         />
         <RadioGroup
-          label={t3({ en: "Visibility", fr: "Visibilité" })}
+          label={t3({ en: "Visibility", fr: "Visibilité", pt: "Visibilidade" })}
           value={scope()}
           onChange={(v) => setScope(v as "user" | "country")}
           horizontal
           options={[
             {
               value: "user",
-              label: t3({ en: "My prompts (private)", fr: "Mes prompts (privé)" }),
+              label: t3({ en: "My prompts (private)", fr: "Mes prompts (privé)", pt: "Os meus prompts (privado)" }),
             },
             {
               value: "country",
-              label: t3({ en: "Country prompts (shared)", fr: "Prompts pays (partagé)" }),
+              label: t3({ en: "Country prompts (shared)", fr: "Prompts pays (partagé)", pt: "Prompts do país (partilhado)" }),
             },
           ]}
         />

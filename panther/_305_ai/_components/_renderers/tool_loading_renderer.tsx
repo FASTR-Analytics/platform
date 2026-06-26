@@ -17,6 +17,7 @@ export function ToolLoadingRenderer(p: {
         t3({
           en: `Processing ${p.item.toolName}...`,
           fr: `Traitement de ${p.item.toolName}...`,
+          pt: `A processar ${p.item.toolName}...`,
         })}
     </div>
   );

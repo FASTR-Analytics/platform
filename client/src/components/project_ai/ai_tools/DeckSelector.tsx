@@ -19,7 +19,7 @@ export function DeckSelector(p: Props) {
   const folderOptions = createMemo((): SelectOption<string>[] => {
     if (p.folders.length === 0) return [];
     return [
-      { value: "_all", label: t3({ en: "All folders", fr: "Tous les dossiers" }) },
+      { value: "_all", label: t3({ en: "All folders", fr: "Tous les dossiers", pt: "Todas as pastas" }) },
       { value: "_unfiled", label: t3(TC.general) },
       ...p.folders.map((f) => ({ value: f.id, label: f.label })),
     ];
@@ -42,10 +42,10 @@ export function DeckSelector(p: Props) {
       fallback={
         <div class="ui-spy">
           <Input
-            label={t3({ en: "New deck name", fr: "Nom de la nouvelle présentation" })}
+            label={t3({ en: "New deck name", fr: "Nom de la nouvelle présentation", pt: "Nome da nova apresentação" })}
             value={p.newDeckLabel}
             onChange={p.onSetNewDeckLabel}
-            placeholder={t3({ en: "Deck name...", fr: "Nom de la présentation..." })}
+            placeholder={t3({ en: "Deck name...", fr: "Nom de la présentation...", pt: "Nome da apresentação..." })}
             autoFocus
             fullWidth
           />
@@ -54,7 +54,7 @@ export function DeckSelector(p: Props) {
             outline
             onClick={() => p.onSetCreatingNew(false)}
           >
-            {t3({ en: "Back to deck list", fr: "Retour à la liste" })}
+            {t3({ en: "Back to deck list", fr: "Retour à la liste", pt: "Voltar à lista de apresentações" })}
           </Button>
         </div>
       }
@@ -62,7 +62,7 @@ export function DeckSelector(p: Props) {
       <div class="ui-spy-sm">
         <Show when={folderOptions().length > 0}>
           <Select
-            label={t3({ en: "Slide deck folder", fr: "Dossier de présentation" })}
+            label={t3({ en: "Slide deck folder", fr: "Dossier de présentation", pt: "Pasta da apresentação" })}
             value={selectedFolderId()}
             options={folderOptions()}
             onChange={setSelectedFolderId}
@@ -70,7 +70,7 @@ export function DeckSelector(p: Props) {
           />
         </Show>
         <RadioGroup
-          label={t3({ en: "Slide deck", fr: "Présentation" })}
+          label={t3({ en: "Slide deck", fr: "Présentation", pt: "Apresentação" })}
           value={p.selectedDeckId}
           options={filteredDecks()}
           onChange={p.onSelectDeck}
@@ -83,7 +83,7 @@ export function DeckSelector(p: Props) {
           iconName="plus"
           onClick={() => p.onSetCreatingNew(true)}
         >
-          {t3({ en: "Create new deck", fr: "Créer une nouvelle présentation" })}
+          {t3({ en: "Create new deck", fr: "Créer une nouvelle présentation", pt: "Criar nova apresentação" })}
         </Button>
       </div>
     </Show>

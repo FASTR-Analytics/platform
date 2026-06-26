@@ -64,7 +64,7 @@ export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
   return (
     <AlertFormHolder
       formId="add-to-deck"
-      header={t3({ en: "Add to Slide Deck", fr: "Ajouter à une présentation" })}
+      header={t3({ en: "Add to Slide Deck", fr: "Ajouter à une présentation", pt: "Adicionar à apresentação" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}

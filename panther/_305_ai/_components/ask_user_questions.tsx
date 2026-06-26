@@ -58,10 +58,12 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
     inProgressLabel: t3({
       en: "Waiting for your response...",
       fr: "En attente de votre réponse...",
+      pt: "A aguardar a sua resposta...",
     }),
     successMessage: t3({
       en: "User responded to question",
       fr: "L'utilisateur a répondu à la question",
+      pt: "O utilizador respondeu à pergunta",
     }),
   });
 }
