@@ -35,9 +35,7 @@ export async function resolveBundleFromMetricAndConfig(
       resultsValueForViz: {
         formatAs: metric.formatAs,
         valueProps: metric.valueProps,
-        valueLabelReplacements: metric.valueLabelReplacements
-          ? { ...metric.valueLabelReplacements }
-          : undefined,
+        valueLabelReplacements: metric.valueLabelReplacements,
       },
       fetchConfig: resFetch.data,
     },
