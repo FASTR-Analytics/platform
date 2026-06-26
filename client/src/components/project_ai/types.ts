@@ -110,8 +110,10 @@ export type AIContextEditingReport = {
   proposeEdit: (proposal: ReportEditProposal) => Promise<{ accepted: boolean }>;
   // Apply a stable-id figure edit straight to the live registry + persist (no
   // body diff — the figure's body token is unchanged). Mirrors the interactive
-  // figure-widget editor; used by the update_report_figure AI tool.
-  applyFigureUpdate: (figureId: string, block: FigureBlock) => Promise<void>;
+  // figure-widget editor; used by the update_report_figure AI tool. Resolves
+  // true on a successful server save, false if the persist failed (so the tool
+  // can report honestly instead of a false "saved").
+  applyFigureUpdate: (figureId: string, block: FigureBlock) => Promise<boolean>;
 };
 
 export type AIContext =

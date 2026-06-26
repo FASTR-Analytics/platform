@@ -53,11 +53,11 @@ function getGroupingOptions(): {
   label: string;
 }[] {
   return [
-    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier" }) },
-    { value: "module", label: t3({ en: "By module", fr: "Par module" }) },
-    { value: "metric", label: t3({ en: "By metric", fr: "Par métrique" }) },
-    // { value: "ownership", label: t3({ en: "By ownership", fr: "Par propriétaire" }) },
-    { value: "flat", label: t3({ en: "Flat list", fr: "Liste plate" }) },
+    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier", pt: "Por pasta" }) },
+    { value: "module", label: t3({ en: "By module", fr: "Par module", pt: "Por módulo" }) },
+    { value: "metric", label: t3({ en: "By metric", fr: "Par métrique", pt: "Por métrica" }) },
+    // { value: "ownership", label: t3({ en: "By ownership", fr: "Par propriétaire", pt: "Por proprietário" }) },
+    { value: "flat", label: t3({ en: "Flat list", fr: "Liste plate", pt: "Lista simples" }) },
   ];
 }
 
@@ -118,7 +118,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         const groups: GroupOption[] = [
           {
             value: "_defaults",
-            label: t3({ en: "Defaults", fr: "Par défaut" }),
+            label: t3({ en: "Defaults", fr: "Par défaut", pt: "Predefinições" }),
             count: defaults.length,
           },
           { value: "_unfiled", label: t3(TC.general), count: generalCount },
@@ -185,6 +185,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
             label: t3({
               en: "All Visualizations",
               fr: "Toutes les visualisations",
+              pt: "Todas as visualizações",
             }),
             count: vizs.length,
           },
@@ -303,6 +304,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         label: t3({
           en: "Rename / Change color...",
           fr: "Renommer / Changer la couleur...",
+          pt: "Mudar o nome / Alterar a cor...",
         }),
         icon: "pencil",
         onClick: async () => {
@@ -316,7 +318,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         },
       },
       {
-        label: t3({ en: "Delete folder", fr: "Supprimer le dossier" }),
+        label: t3({ en: "Delete folder", fr: "Supprimer le dossier", pt: "Eliminar pasta" }),
         icon: "trash",
         intent: "danger",
         onClick: async () => {
@@ -324,6 +326,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
             t3({
               en: "Are you sure you want to delete this folder? Visualizations will be moved to General.",
               fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les visualisations seront déplacées dans Général.",
+              pt: "Tem a certeza de que pretende eliminar esta pasta? As visualizações serão movidas para Geral.",
             }),
             () =>
               serverActions.deleteVisualizationFolder({
@@ -398,6 +401,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
               label={t3({
                 en: "Hide unavailable",
                 fr: "Masquer les indisponibles",
+                pt: "Ocultar indisponíveis",
               })}
               checked={hideUnreadyVisualizations()}
               onChange={setHideUnreadyVisualizations}
@@ -427,7 +431,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
                     });
                   }}
                 >
-                  {t3({ en: "New folder", fr: "Nouveau dossier" })}
+                  {t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" })}
                 </Button>
               </div>
             </Show>
@@ -578,10 +582,12 @@ function VisualizationGrid(p: VisualizationGridProps) {
         title: t3({
           en: "Cannot batch create slides",
           fr: "Création de diapositives en lot impossible",
+          pt: "Não é possível criar diapositivos em lote",
         }),
         text: t3({
           en: "Batch slide creation is only supported for non-replicated visualizations. Please deselect replicated visualizations or create them individually.",
           fr: "La création de diapositives en lot n'est possible que pour les visualisations non répliquées. Veuillez désélectionner les visualisations répliquées ou les créer individuellement.",
+          pt: "A criação de diapositivos em lote só é suportada para visualizações não replicadas. Desselecione as visualizações replicadas ou crie-as individualmente.",
         }),
         intent: "danger",
       });
@@ -636,10 +642,12 @@ function VisualizationGrid(p: VisualizationGridProps) {
         ? t3({
             en: `Are you sure you want to delete ${idsToDelete.length} visualizations?`,
             fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} visualisations ?`,
+            pt: `Tem a certeza de que pretende eliminar ${idsToDelete.length} visualizações?`,
           })
         : t3({
             en: "Are you sure you want to delete this visualization?",
             fr: "Êtes-vous sûr de vouloir supprimer cette visualisation ?",
+            pt: "Tem a certeza de que pretende eliminar esta visualização?",
           });
 
     const deleteAction = createDeleteAction(
@@ -696,8 +704,9 @@ function VisualizationGrid(p: VisualizationGridProps) {
         ? t3({
             en: "No matching visualizations",
             fr: "Aucune visualisation correspondante",
+            pt: "Nenhuma visualização correspondente",
           })
-        : t3({ en: "No visualizations", fr: "Aucune visualisation" })}
+        : t3({ en: "No visualizations", fr: "Aucune visualisation", pt: "Nenhuma visualização" })}
     </div>
   );
 
@@ -815,6 +824,7 @@ function VisualizationCard(p: VisualizationCardProps) {
       ? t3({
           en: `Delete ${p.selectedCount} visualizations`,
           fr: `Supprimer ${p.selectedCount} visualisations`,
+          pt: `Eliminar ${p.selectedCount} visualizações`,
         })
       : t3(TC.delete);
 
@@ -822,22 +832,25 @@ function VisualizationCard(p: VisualizationCardProps) {
       ? t3({
           en: `Create ${p.selectedCount} slides...`,
           fr: `Créer ${p.selectedCount} diapositives...`,
+          pt: `Criar ${p.selectedCount} diapositivos...`,
         })
-      : t3({ en: "Create slide...", fr: "Créer une diapositive..." });
+      : t3({ en: "Create slide...", fr: "Créer une diapositive...", pt: "Criar diapositivo..." });
 
     const moveToFolderLabel = isMultiSelect
       ? t3({
           en: `Move ${p.selectedCount} visualizations to folder...`,
           fr: `Déplacer ${p.selectedCount} visualisations vers un dossier...`,
+          pt: `Mover ${p.selectedCount} visualizações para uma pasta...`,
         })
-      : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier..." });
+      : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier...", pt: "Mover para uma pasta..." });
 
     const duplicateLabel = isMultiSelect
       ? t3({
           en: `Duplicate ${p.selectedCount} visualizations...`,
           fr: `Dupliquer ${p.selectedCount} visualisations...`,
+          pt: `Duplicar ${p.selectedCount} visualizações...`,
         })
-      : t3({ en: "Duplicate...", fr: "Dupliquer..." });
+      : t3({ en: "Duplicate...", fr: "Dupliquer...", pt: "Duplicar..." });
 
     const items: MenuItem[] = [];
 
@@ -846,6 +859,7 @@ function VisualizationCard(p: VisualizationCardProps) {
         label: t3({
           en: "Edit common properties...",
           fr: "Modifier les propriétés communes...",
+          pt: "Editar propriedades comuns...",
         }),
         icon: "pencil",
         onClick: p.onEditCommonProperties,
@@ -855,6 +869,7 @@ function VisualizationCard(p: VisualizationCardProps) {
         label: t3({
           en: "Edit visualization",
           fr: "Modifier la visualisation",
+          pt: "Editar visualização",
         }),
         icon: "pencil",
         onClick: p.onOpen,
@@ -931,7 +946,7 @@ function VisualizationCard(p: VisualizationCardProps) {
       <div class="ui-gap-sm flex items-start justify-end pt-1 select-none">
         <Show when={p.po.replicateBy && !p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t3({ en: "REPLICATED", fr: "RÉPLIQUÉ" })}:{" "}
+            {t3({ en: "REPLICATED", fr: "RÉPLIQUÉ", pt: "REPLICADO" })}:{" "}
             {p.po.replicateBy === "admin_area_2"
               ? "AA2"
               : p.po.replicateBy === "admin_area_3"
@@ -941,12 +956,12 @@ function VisualizationCard(p: VisualizationCardProps) {
         </Show>
         <Show when={!p.po.replicateBy && p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t3({ en: "FILTERED", fr: "FILTRÉ" })}
+            {t3({ en: "FILTERED", fr: "FILTRÉ", pt: "FILTRADO" })}
           </div>
         </Show>
         <Show when={p.po.replicateBy && p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t3({ en: "REPL. & FILT.", fr: "REMPL. & FILT." })}
+            {t3({ en: "REPL. & FILT.", fr: "REMPL. & FILT.", pt: "REPL. & FILT." })}
           </div>
         </Show>
         <Show when={p.po.createdByAI}>
@@ -956,7 +971,7 @@ function VisualizationCard(p: VisualizationCardProps) {
         </Show>
         <Show when={!p.po.createdByAI && p.po.isDefault}>
           <div class="bg-success font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t3({ en: "Default", fr: "Par défaut" })}
+            {t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" })}
           </div>
         </Show>
       </div>

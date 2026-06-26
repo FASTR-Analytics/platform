@@ -81,13 +81,14 @@ export function InstanceData(p: Props) {
           {t3({
             en: "No display component for this dataset",
             fr: "Aucun composant d'affichage pour ce jeu de données",
+            pt: "Nenhum componente de exibição para este conjunto de dados",
           })}
         </div>
       </Match>
       <Match when={true}>
         <FrameTop
           panelChildren={
-            <HeadingBarMainRibbon heading={t3({ en: "Data", fr: "Données" })} />
+            <HeadingBarMainRibbon heading={t3({ en: "Data", fr: "Données", pt: "Dados" })} />
           }
         >
           <div class="ui-pad overflow-auto">
@@ -96,7 +97,7 @@ export function InstanceData(p: Props) {
               <div class="flex gap-6">
                 <div class="w-44 shrink-0 pt-3">
                   <div class="font-700 text-base">
-                    {t3({ en: "Structure & maps", fr: "Structure et cartes" })}
+                    {t3({ en: "Structure & maps", fr: "Structure et cartes", pt: "Estrutura e mapas" })}
                   </div>
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
@@ -108,6 +109,7 @@ export function InstanceData(p: Props) {
                       {t3({
                         en: "Admin areas",
                         fr: "Unités administratives",
+                        pt: "Zonas administrativas",
                       })}
                     </div>
                     <Show
@@ -117,6 +119,7 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No admin areas (created by facility imports)",
                             fr: "Aucune unité administrative (créées par l'importation d'établissements)",
+                            pt: "Nenhuma zona administrativa (criadas pela importação de estabelecimentos de saúde)",
                           })}
                         </div>
                       }
@@ -155,7 +158,7 @@ export function InstanceData(p: Props) {
                     onClick={() => setSelecteDatasource("geojson")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON" })}
+                      {t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON", pt: "Mapas GeoJSON" })}
                     </div>
                     <Show
                       when={instanceState.geojsonMaps.length > 0}
@@ -164,6 +167,7 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No GeoJSON maps uploaded",
                             fr: "Aucune carte GeoJSON téléchargée",
+                            pt: "Nenhum mapa GeoJSON carregado",
                           })}
                         </div>
                       }
@@ -172,6 +176,7 @@ export function InstanceData(p: Props) {
                         {t3({
                           en: "Levels configured",
                           fr: "Niveaux configurés",
+                          pt: "Níveis configurados",
                         })}
                         :{" "}
                         {instanceState.geojsonMaps
@@ -187,7 +192,7 @@ export function InstanceData(p: Props) {
               <div class="flex gap-6">
                 <div class="w-44 shrink-0 pt-3">
                   <div class="font-700 text-base">
-                    {t3({ en: "HMIS", fr: "SNIS" })}
+                    {t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })}
                   </div>
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
@@ -196,7 +201,7 @@ export function InstanceData(p: Props) {
                     onClick={() => setSelecteDatasource("facilities_hmis")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Facilities", fr: "Établissements" })}
+                      {t3({ en: "Facilities", fr: "Établissements", pt: "Estabelecimentos de saúde" })}
                     </div>
                     <Show
                       when={
@@ -208,6 +213,7 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No facilities imported",
                             fr: "Aucun établissement importé",
+                            pt: "Nenhum estabelecimento de saúde importado",
                           })}
                         </div>
                       }
@@ -216,7 +222,7 @@ export function InstanceData(p: Props) {
                       {(keyedCount) => (
                         <div class="text-success ui-gap flex justify-between text-xs">
                           <span>
-                            {t3({ en: "Facilities", fr: "Établissements" })}:
+                            {t3({ en: "Facilities", fr: "Établissements", pt: "Estabelecimentos de saúde" })}:
                           </span>
                           <span class="font-mono">{toNum0(keyedCount)}</span>
                         </div>
@@ -228,7 +234,7 @@ export function InstanceData(p: Props) {
                     onClick={() => setSelecteDatasource("hmis")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Data", fr: "Données" })}
+                      {t3({ en: "Data", fr: "Données", pt: "Dados" })}
                     </div>
                     <Show
                       when={instanceState.datasetsWithData.includes("hmis")}
@@ -237,12 +243,13 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No data added",
                             fr: "Aucune donnée ajoutée",
+                            pt: "Nenhum dado adicionado",
                           })}
                         </div>
                       }
                     >
                       <div class="text-success text-xs">
-                        {t3({ en: "Has data", fr: "Contient des données" })}
+                        {t3({ en: "Has data", fr: "Contient des données", pt: "Contém dados" })}
                       </div>
                     </Show>
                   </div>
@@ -251,7 +258,7 @@ export function InstanceData(p: Props) {
                     onClick={() => setSelecteDatasource("indicators")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Indicators", fr: "Indicateurs" })}
+                      {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
                     </div>
                     <Show
                       when={
@@ -263,6 +270,7 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No common indicators",
                             fr: "Aucun indicateur commun",
+                            pt: "Nenhum indicador comum",
                           })}
                         </div>
                       }
@@ -275,6 +283,7 @@ export function InstanceData(p: Props) {
                               {t3({
                                 en: "Common indicators",
                                 fr: "Indicateurs communs",
+                                pt: "Indicadores comuns",
                               })}
                               :
                             </span>
@@ -293,6 +302,7 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No DHIS2 indicators",
                             fr: "Aucun indicateur DHIS2",
+                            pt: "Nenhum indicador DHIS2",
                           })}
                         </div>
                       }
@@ -305,6 +315,7 @@ export function InstanceData(p: Props) {
                               {t3({
                                 en: "DHIS2 indicators",
                                 fr: "Indicateurs DHIS2",
+                                pt: "Indicadores DHIS2",
                               })}
                               :
                             </span>
@@ -327,6 +338,7 @@ export function InstanceData(p: Props) {
                               {t3({
                                 en: "Calculated indicators",
                                 fr: "Indicateurs calculés",
+                                pt: "Indicadores calculados",
                               })}
                               :
                             </span>
@@ -343,7 +355,7 @@ export function InstanceData(p: Props) {
               <div class="flex gap-6">
                 <div class="w-44 shrink-0 pt-3">
                   <div class="font-700 text-base">
-                    {t3({ en: "HFA", fr: "Enquêtes FOSA" })}
+                    {t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "HFA" })}
                   </div>
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
@@ -352,7 +364,7 @@ export function InstanceData(p: Props) {
                     onClick={() => setSelecteDatasource("facilities_hfa")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Facilities", fr: "Établissements" })}
+                      {t3({ en: "Facilities", fr: "Établissements", pt: "Estabelecimentos de saúde" })}
                     </div>
                     <Show
                       when={
@@ -364,6 +376,7 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No facilities imported",
                             fr: "Aucun établissement importé",
+                            pt: "Nenhum estabelecimento de saúde importado",
                           })}
                         </div>
                       }
@@ -372,7 +385,7 @@ export function InstanceData(p: Props) {
                       {(keyedCount) => (
                         <div class="text-success ui-gap flex justify-between text-xs">
                           <span>
-                            {t3({ en: "Facilities", fr: "Établissements" })}:
+                            {t3({ en: "Facilities", fr: "Établissements", pt: "Estabelecimentos de saúde" })}:
                           </span>
                           <span class="font-mono">{toNum0(keyedCount)}</span>
                         </div>
@@ -384,7 +397,7 @@ export function InstanceData(p: Props) {
                     onClick={() => setSelecteDatasource("hfa_time_points")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Time points", fr: "Points temporels" })}
+                      {t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" })}
                     </div>
                     <Show
                       when={instanceState.hfaTimePoints.length > 0}
@@ -393,6 +406,7 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No time points (import data to create)",
                             fr: "Aucun point temporel (importer des données pour créer)",
+                            pt: "Nenhum ponto temporal (importar dados para criar)",
                           })}
                         </div>
                       }
@@ -403,6 +417,7 @@ export function InstanceData(p: Props) {
                             {t3({
                               en: "Time points",
                               fr: "Points temporels",
+                              pt: "Pontos temporais",
                             })}
                             :
                           </span>
@@ -421,6 +436,7 @@ export function InstanceData(p: Props) {
                       {t3({
                         en: "Sampling weights",
                         fr: "Pondérations d'échantillonnage",
+                        pt: "Pesos de amostragem",
                       })}
                     </div>
                     <Show
@@ -432,6 +448,7 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No weights imported",
                             fr: "Aucune pondération importée",
+                            pt: "Nenhum peso importado",
                           })}
                         </div>
                       }
@@ -463,7 +480,7 @@ export function InstanceData(p: Props) {
                     onClick={() => setSelecteDatasource("hfa")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Data", fr: "Données" })}
+                      {t3({ en: "Data", fr: "Données", pt: "Dados" })}
                     </div>
                     <Show
                       when={instanceState.datasetsWithData.includes("hfa")}
@@ -472,12 +489,13 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No data added",
                             fr: "Aucune donnée ajoutée",
+                            pt: "Nenhum dado adicionado",
                           })}
                         </div>
                       }
                     >
                       <div class="text-success text-xs">
-                        {t3({ en: "Has data", fr: "Contient des données" })}
+                        {t3({ en: "Has data", fr: "Contient des données", pt: "Contém dados" })}
                       </div>
                     </Show>
                   </div>
@@ -486,7 +504,7 @@ export function InstanceData(p: Props) {
                     onClick={() => setSelecteDatasource("hfa_indicators")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Indicators", fr: "Indicateurs" })}
+                      {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
                     </div>
                     <Show
                       when={
@@ -498,6 +516,7 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No HFA indicators configured",
                             fr: "Aucun indicateur HFA configuré",
+                            pt: "Nenhum indicador HFA configurado",
                           })}
                         </div>
                       }
@@ -510,6 +529,7 @@ export function InstanceData(p: Props) {
                               {t3({
                                 en: "HFA indicators",
                                 fr: "Indicateurs Enquetes FOSA",
+                                pt: "Indicadores HFA",
                               })}
                               :
                             </span>
@@ -526,7 +546,7 @@ export function InstanceData(p: Props) {
               <div class="flex gap-6">
                 <div class="w-44 shrink-0 pt-3">
                   <div class="font-700 text-base">
-                    {t3({ en: "ICEH", fr: "ICEH" })}
+                    {t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" })}
                   </div>
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
@@ -535,7 +555,7 @@ export function InstanceData(p: Props) {
                     onClick={() => setSelecteDatasource("iceh")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Equity data", fr: "Données d'équité" })}
+                      {t3({ en: "Equity data", fr: "Données d'équité", pt: "Dados de equidade" })}
                     </div>
                     <Show
                       when={instanceState.datasetsWithData.includes("iceh")}
@@ -544,12 +564,13 @@ export function InstanceData(p: Props) {
                           {t3({
                             en: "No data added",
                             fr: "Aucune donnée ajoutée",
+                            pt: "Nenhum dado adicionado",
                           })}
                         </div>
                       }
                     >
                       <div class="text-success text-xs">
-                        {t3({ en: "Has data", fr: "Contient des données" })}
+                        {t3({ en: "Has data", fr: "Contient des données", pt: "Contém dados" })}
                       </div>
                     </Show>
                   </div>

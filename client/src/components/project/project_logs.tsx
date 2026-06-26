@@ -20,7 +20,7 @@ export function ProjectLogs(p: Props) {
     const columns: TableColumn<UserLog>[] = [
     {
         key: "timestamp",
-        header: t3({ en: "Timestamp", fr: "Horodatage" }),
+        header: t3({ en: "Timestamp", fr: "Horodatage", pt: "Data e hora" }),
         sortable: true,
         render: (log) => (
         <span class="text-sm">
@@ -30,7 +30,7 @@ export function ProjectLogs(p: Props) {
     },
     {
         key: "user_email",
-        header: t3({ en: "User", fr: "Utilisateur" }),
+        header: t3({ en: "User", fr: "Utilisateur", pt: "Utilizador" }),
         sortable: true,
         render: (log) => (
         <button
@@ -46,17 +46,17 @@ export function ProjectLogs(p: Props) {
     },
     {
         key: "endpoint",
-        header: t3({ en: "Endpoint Accessed", fr: "Point d'accès" }),
+        header: t3({ en: "Endpoint Accessed", fr: "Point d'accès", pt: "Ponto de acesso utilizado" }),
         sortable: true,
     },
     {
         key: "endpoint_result",
-        header: t3({ en: "Status", fr: "Statut" }),
+        header: t3({ en: "Status", fr: "Statut", pt: "Estado" }),
         sortable: true,
     },
     {
         key: "details",
-        header: t3({ en: "Details", fr: "Détails" }),
+        header: t3({ en: "Details", fr: "Détails", pt: "Detalhes" }),
         render: (log) => (
         <Show when={log.details}>
             <Button
@@ -65,7 +65,7 @@ export function ProjectLogs(p: Props) {
             onClick={(e) => {
                 e.stopPropagation();
                 openAlert({
-                title: t3({ en: "Request Details", fr: "Détails de la requête" }),
+                title: t3({ en: "Request Details", fr: "Détails de la requête", pt: "Detalhes do pedido" }),
                 text: (
                     <div class="whitespace-pre-wrap font-mono text-sm max-h-96 overflow-auto">
                     {formatJsonDetails(log.details!)}
@@ -74,7 +74,7 @@ export function ProjectLogs(p: Props) {
                 });
             }}
             >
-            {t3({ en: "View", fr: "Voir" })}
+            {t3({ en: "View", fr: "Voir", pt: "Ver" })}
             </Button>
         </Show>
         )
@@ -85,7 +85,7 @@ export function ProjectLogs(p: Props) {
     <div class="flex flex-col h-full">
         <Show when={p.filterByUser}>
         <div class="flex items-center gap-2 mb-2 text-sm">
-            <span class="text-neutral">{t3({ en: "Filtering by", fr: "Filtré par" })}:</span>
+            <span class="text-neutral">{t3({ en: "Filtering by", fr: "Filtré par", pt: "A filtrar por" })}:</span>
             <span class="font-medium">{p.filterByUser}</span>
             <Button
             size="sm"
@@ -100,7 +100,7 @@ export function ProjectLogs(p: Props) {
         columns={columns}
         defaultSort={{ key: "timestamp", direction: "desc" }}
         keyField="id"
-        noRowsMessage={t3({ en: "No logs", fr: "Aucun journal" })}
+        noRowsMessage={t3({ en: "No logs", fr: "Aucun journal", pt: "Sem registos" })}
         fitTableToAvailableHeight
         />
     </div>

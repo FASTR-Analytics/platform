@@ -64,7 +64,7 @@ export function ProjectMetrics(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={t3({ en: "Metrics", fr: "Métriques" })}
+        <HeadingBar heading={t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" })}
           class="border-base-300"
           ensureHeightAsIfButton></HeadingBar>
       }
@@ -161,7 +161,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         </Show>
         <Show when={hasVariants}>
           <div class="text-neutral mt-1 text-xs">
-            {p.metricGroup.variants.length} {t3({ en: "variants", fr: "variantes" })}
+            {p.metricGroup.variants.length} {t3({ en: "variants", fr: "variantes", pt: "variantes" })}
           </div>
         </Show>
       </div>
@@ -171,10 +171,10 @@ function MetricGroupCard(p: MetricGroupCardProps) {
             {firstMetric.formatAs}
           </div>
           <div class="text-neutral text-xs">
-            {t3({ en: "Period", fr: "Période" })}: {firstMetric.mostGranularTimePeriodColumnInResultsFile ?? t3({ en: "none", fr: "aucune" })}
+            {t3({ en: "Period", fr: "Période", pt: "Período" })}: {firstMetric.mostGranularTimePeriodColumnInResultsFile ?? t3({ en: "none", fr: "aucune", pt: "nenhum" })}
           </div>
           <div class="text-neutral text-xs">
-            {firstMetric.disaggregationOptions.length} {t3({ en: firstMetric.disaggregationOptions.length !== 1 ? "disaggs" : "disagg", fr: firstMetric.disaggregationOptions.length !== 1 ? "désagrég." : "désagrég." })}
+            {firstMetric.disaggregationOptions.length} {t3({ en: firstMetric.disaggregationOptions.length !== 1 ? "disaggs" : "disagg", fr: firstMetric.disaggregationOptions.length !== 1 ? "désagrég." : "désagrég.", pt: firstMetric.disaggregationOptions.length !== 1 ? "desagreg." : "desagreg." })}
           </div>
         </div>
         <Show when={hasVariants}>
@@ -184,7 +184,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
                 <div class="border-base-300 ui-pad-sm ui-gap-sm flex items-start justify-between rounded border">
                   <div class="flex-1">
                     <div class="font-700 text-sm">
-                      {variant.variantLabel || t3({ en: "Default", fr: "Par défaut" })}
+                      {variant.variantLabel || t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" })}
                     </div>
                     <div class="font-mono text-neutral text-xs">{variant.id}</div>
                   </div>
@@ -193,7 +193,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
                       onClick={() => visualize(variant)}
                       size="sm"
                       outline
-                    >{t3({ en: "Visualize", fr: "Visualiser" })}</Button>
+                    >{t3({ en: "Visualize", fr: "Visualiser", pt: "Visualizar" })}</Button>
                     <Button
                       onClick={() => showDetails(variant)}
                       size="sm"

@@ -45,7 +45,7 @@ export function MoveReportToFolderModal(
       if (isCreatingFolder()) {
         const label = newFolderLabel().trim();
         if (!label) {
-          return { success: false, err: t3({ en: "Folder name is required", fr: "Le nom du dossier est requis" }) };
+          return { success: false, err: t3({ en: "Folder name is required", fr: "Le nom du dossier est requis", pt: "O nome da pasta é obrigatório" }) };
         }
 
         const createRes = await serverActions.createReportFolder({
@@ -102,8 +102,8 @@ export function MoveReportToFolderModal(
 
   const header =
     p.reportIds.length > 1
-      ? `${t3({ en: "Move", fr: "Déplacer" })} ${p.reportIds.length} ${t3({ en: "reports to folder", fr: "rapports vers le dossier" })}`
-      : t3({ en: "Move to folder", fr: "Déplacer vers le dossier" });
+      ? `${t3({ en: "Move", fr: "Déplacer", pt: "Mover" })} ${p.reportIds.length} ${t3({ en: "reports to folder", fr: "rapports vers le dossier", pt: "relatórios para a pasta" })}`
+      : t3({ en: "Move to folder", fr: "Déplacer vers le dossier", pt: "Mover para a pasta" });
 
   return (
     <AlertFormHolder
@@ -120,14 +120,14 @@ export function MoveReportToFolderModal(
           <div class="space-y-4">
             <div class="flex ui-gap">
               <Input
-                label={t3({ en: "Folder name", fr: "Nom du dossier" })}
+                label={t3({ en: "Folder name", fr: "Nom du dossier", pt: "Nome da pasta" })}
                 value={newFolderLabel()}
                 onChange={setNewFolderLabel}
                 autoFocus
                 fullWidth
               />
               <ColorPicker
-                label={t3({ en: "Color", fr: "Couleur" })}
+                label={t3({ en: "Color", fr: "Couleur", pt: "Cor" })}
                 value={newFolderColor()}
                 onChange={(c) => setNewFolderColor(c)}
                 position="right"
@@ -138,14 +138,14 @@ export function MoveReportToFolderModal(
               outline
               onClick={() => setIsCreatingFolder(false)}
             >
-              {t3({ en: "Back to folder list", fr: "Retour à la liste des dossiers" })}
+              {t3({ en: "Back to folder list", fr: "Retour à la liste des dossiers", pt: "Voltar à lista de pastas" })}
             </Button>
           </div>
         }
       >
         <div class="space-y-4">
           <RadioGroup
-            label={t3({ en: "Select folder", fr: "Sélectionner le dossier" })}
+            label={t3({ en: "Select folder", fr: "Sélectionner le dossier", pt: "Selecionar a pasta" })}
             options={folderOptions()}
             value={selectedFolderId() ?? "_none"}
             onChange={(v) => setSelectedFolderId(v === "_none" ? null : v)}
@@ -158,7 +158,7 @@ export function MoveReportToFolderModal(
             iconName="plus"
             onClick={() => setIsCreatingFolder(true)}
           >
-            {t3({ en: "Create new folder", fr: "Créer un nouveau dossier" })}
+            {t3({ en: "Create new folder", fr: "Créer un nouveau dossier", pt: "Criar nova pasta" })}
           </Button>
         </div>
       </Show>

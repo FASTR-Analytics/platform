@@ -85,7 +85,7 @@ export function UpdateAllModules(
 
   return (
     <ModalContainer
-      title={t3({ en: "Update all modules", fr: "Mettre à jour tous les modules" })}
+      title={t3({ en: "Update all modules", fr: "Mettre à jour tous les modules", pt: "Atualizar todos os módulos" })}
       rightButtons={
         <Show
           when={done()}
@@ -93,35 +93,35 @@ export function UpdateAllModules(
             <>
               <Show when={updateCount() > 0 && !running()}>
                 <Button onClick={start}>
-                  {t3({ en: "Update", fr: "Mettre à jour" })} {updateCount()} {t3({ en: "modules", fr: "modules" })}
+                  {t3({ en: "Update", fr: "Mettre à jour", pt: "Atualizar" })} {updateCount()} {t3({ en: "modules", fr: "modules", pt: "módulos" })}
                 </Button>
               </Show>
               <Show when={running()}>
                 <Button disabled>
-                  {t3({ en: "Updating...", fr: "Mise à jour..." })}
+                  {t3({ en: "Updating...", fr: "Mise à jour...", pt: "A atualizar..." })}
                 </Button>
               </Show>
               <Show when={!running()}>
                 <Button onClick={() => p.close(undefined)} intent="neutral" outline>
-                  {t3({ en: "Cancel", fr: "Annuler" })}
+                  {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
                 </Button>
               </Show>
             </>
           }
         >
-          <Button onClick={() => p.close(undefined)}>{t3({ en: "Close", fr: "Fermer" })}</Button>
+          <Button onClick={() => p.close(undefined)}>{t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}</Button>
         </Show>
       }
     >
       <div class="ui-spy">
         <Show when={updateCount() === 0 && !running() && !done()}>
           <div class="text-neutral text-sm">
-            {t3({ en: "All modules are up to date.", fr: "Tous les modules sont à jour." })}
+            {t3({ en: "All modules are up to date.", fr: "Tous les modules sont à jour.", pt: "Todos os módulos estão atualizados." })}
           </div>
         </Show>
         <Show when={!running() && !done() && updateCount() > 0}>
           <Checkbox
-            label={t3({ en: "Preserve settings", fr: "Conserver les paramètres" })}
+            label={t3({ en: "Preserve settings", fr: "Conserver les paramètres", pt: "Preservar as definições" })}
             checked={preserveSettings()}
             onChange={setPreserveSettings}
           />
@@ -130,7 +130,7 @@ export function UpdateAllModules(
           <ProgressBar
             progressFrom0To100={progressFrom0To100()}
             small
-            progressMsg={`${completedCount()} / ${updateCount()} ${t3({ en: "modules", fr: "modules" })}`}
+            progressMsg={`${completedCount()} / ${updateCount()} ${t3({ en: "modules", fr: "modules", pt: "módulos" })}`}
           />
         </Show>
         <div class="flex flex-col gap-1">
@@ -145,12 +145,12 @@ export function UpdateAllModules(
                 </div>
                 <Show when={!hasUpdate(mod) && !running() && !done()}>
                   <span class="text-neutral text-xs">
-                    {t3({ en: "Up to date", fr: "À jour" })}
+                    {t3({ en: "Up to date", fr: "À jour", pt: "Atualizado" })}
                   </span>
                 </Show>
                 <Show when={hasUpdate(mod) && !running() && !done()}>
                   <span class="text-warning text-xs font-500">
-                    {t3({ en: "Update available", fr: "Mise à jour disponible" })}
+                    {t3({ en: "Update available", fr: "Mise à jour disponible", pt: "Atualização disponível" })}
                   </span>
                 </Show>
               </div>

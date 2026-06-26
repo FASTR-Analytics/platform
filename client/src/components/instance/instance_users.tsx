@@ -55,6 +55,7 @@ export function InstanceUsers(p: Props) {
       text: t3({
         en: "This functionality is coming soon. For now, click on the 'edit' button for individual users.",
         fr: "Cette fonctionnalité sera bientôt disponible. Pour l'instant, cliquez sur le bouton « modifier » pour chaque utilisateur.",
+        pt: "Esta funcionalidade estará disponível em breve. Por agora, clique no botão 'editar' para cada utilizador.",
       }),
     });
     return true;
@@ -99,7 +100,7 @@ export function InstanceUsers(p: Props) {
         <FrameTop
           panelChildren={
             <HeadingBarMainRibbon
-              heading={t3({ en: "Users", fr: "Utilisateurs" })}
+              heading={t3({ en: "Users", fr: "Utilisateurs", pt: "Utilizadores" })}
             >
               <div class="ui-gap-sm flex items-center">
                 <Show when={currentUserIsHUser()}>
@@ -109,14 +110,15 @@ export function InstanceUsers(p: Props) {
                     intent="base-100"
                   >
                     {showHUsers()
-                      ? t3({ en: "Hide system users", fr: "Masquer les utilisateurs système" })
-                      : t3({ en: "Show system users", fr: "Afficher les utilisateurs système" })}
+                      ? t3({ en: "Hide system users", fr: "Masquer les utilisateurs système", pt: "Ocultar utilizadores do sistema" })
+                      : t3({ en: "Show system users", fr: "Afficher les utilisateurs système", pt: "Mostrar utilizadores do sistema" })}
                   </Button>
                 </Show>
                 <Button onClick={downloadUsersCSV} iconName="download">
                   {t3({
                     en: "Download users",
                     fr: "Télécharger les utilisateurs",
+                    pt: "Transferir utilizadores",
                   })}
                 </Button>
                 <Button
@@ -126,12 +128,14 @@ export function InstanceUsers(p: Props) {
                   {t3({
                     en: "Batch import from CSV",
                     fr: "Importation groupée depuis CSV",
+                    pt: "Importação em lote a partir de CSV",
                   })}
                 </Button>
                 <Button onClick={attemptAddUser} iconName="plus">
                   {t3({
                     en: "Add users",
                     fr: "Ajouter des utilisateurs",
+                    pt: "Adicionar utilizadores",
                   })}
                 </Button>
               </div>
@@ -170,13 +174,13 @@ function hasGlobalPermissions(user: UserData): boolean {
 function getGlobalPermissionSummary(user: UserData): string {
   const active = USER_PERMISSIONS.filter((k) => user[k]);
   if (active.length === 0)
-    return t3({ en: "No special permissions", fr: "Aucune permission spéciale" });
+    return t3({ en: "No special permissions", fr: "Aucune permission spéciale", pt: "Sem permissões especiais" });
   const shown = active
     .slice(0, 5)
     .map((k) => t3(INSTANCE_PERMISSION_LABELS[k]))
     .join(", ");
   if (active.length > 5)
-    return `${shown}, +${active.length - 5} ${t3({ en: "more", fr: "de plus" })}`;
+    return `${shown}, +${active.length - 5} ${t3({ en: "more", fr: "de plus", pt: "mais" })}`;
   return shown;
 }
 
@@ -186,7 +190,7 @@ type UserTableData = UserData & {
 
 function formatTimeAgo(date: Date): string {
   if (!date || isNaN(date.getTime())) {
-    return t3({ en: "Unknown", fr: "Inconnu" });
+    return t3({ en: "Unknown", fr: "Inconnu", pt: "Desconhecido" });
   }
 
   const now = new Date();
@@ -195,13 +199,13 @@ function formatTimeAgo(date: Date): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return t3({ en: "Just now", fr: "À l'instant" });
+  if (diffMins < 1) return t3({ en: "Just now", fr: "À l'instant", pt: "Agora mesmo" });
   if (diffMins < 60)
-    return t3({ en: `${diffMins}m ago`, fr: `il y a ${diffMins}m` });
+    return t3({ en: `${diffMins}m ago`, fr: `il y a ${diffMins}m`, pt: `há ${diffMins}m` });
   if (diffHours < 24)
-    return t3({ en: `${diffHours}h ago`, fr: `il y a ${diffHours}h` });
+    return t3({ en: `${diffHours}h ago`, fr: `il y a ${diffHours}h`, pt: `há ${diffHours}h` });
   if (diffDays < 30)
-    return t3({ en: `${diffDays}d ago`, fr: `il y a ${diffDays}j` });
+    return t3({ en: `${diffDays}d ago`, fr: `il y a ${diffDays}j`, pt: `há ${diffDays}d` });
   return date.toLocaleDateString();
 }
 
@@ -238,7 +242,7 @@ function UserTable(p: {
   const columns: TableColumn<UserTableData>[] = [
     {
       key: "firstName",
-      header: t3({ en: "Name", fr: "Nom" }),
+      header: t3({ en: "Name", fr: "Nom", pt: "Nome" }),
       sortable: true,
       render: (user) => {
         const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
@@ -254,13 +258,13 @@ function UserTable(p: {
     },
     {
       key: "lastActiveTs",
-      header: t3({ en: "Last active", fr: "Dernière activité" }),
+      header: t3({ en: "Last active", fr: "Dernière activité", pt: "Última atividade" }),
       sortable: true,
       render: (user) => {
         if (user.lastActiveTs === -1) {
           return (
             <span class="text-neutral text-sm">
-              {p.logs === undefined ? "..." : t3({ en: "Never", fr: "Jamais" })}
+              {p.logs === undefined ? "..." : t3({ en: "Never", fr: "Jamais", pt: "Nunca" })}
             </span>
           );
         }
@@ -273,20 +277,20 @@ function UserTable(p: {
     },
     {
       key: "isGlobalAdmin",
-      header: t3({ en: "Status", fr: "Statut" }),
+      header: t3({ en: "Status", fr: "Statut", pt: "Estado" }),
       sortable: true,
       render: (user) => {
         if (user.isContactPerson) {
           return (
             <span class="text-primary text-sm">
-              {t3({ en: "Contact person", fr: "Personne de contact" })}
+              {t3({ en: "Contact person", fr: "Personne de contact", pt: "Pessoa de contacto" })}
             </span>
           );
         }
         if (user.isGlobalAdmin) {
           return (
             <span class="text-primary text-sm">
-              {t3({ en: "Instance administrator", fr: "Administrateur d'instance" })}
+              {t3({ en: "Instance administrator", fr: "Administrateur d'instance", pt: "Administrador da instância" })}
             </span>
           );
         }
@@ -335,14 +339,15 @@ function UserTable(p: {
     const userCount = emails.length;
     const userText =
       userCount === 1
-        ? t3({ en: "this user", fr: "cet utilisateur" })
-        : t3({ en: "these users", fr: "ces utilisateurs" });
+        ? t3({ en: "this user", fr: "cet utilisateur", pt: "este utilizador" })
+        : t3({ en: "these users", fr: "ces utilisateurs", pt: "estes utilizadores" });
 
     const deleteAction = createDeleteAction(
       {
         text: t3({
           en: `Are you sure you want to remove ${userText}?`,
           fr: `Êtes-vous sûr de vouloir supprimer ${userText} ?`,
+          pt: `Tem a certeza de que pretende remover ${userText}?`,
         }),
         itemList: emails,
       },
@@ -390,7 +395,7 @@ function UserTable(p: {
   const bulkActions: BulkAction<UserTableData>[] = [
     ...(canConfigureUsers ? [
       {
-        label: t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur" }),
+        label: t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur", pt: "Tornar administrador" }),
         intent: "primary" as const,
         onClick: bulkMakeAdmin.click,
         state: bulkMakeAdmin.state,
@@ -400,6 +405,7 @@ function UserTable(p: {
         label: t3({
           en: "Make non-admin",
           fr: "Retirer le rôle d'administrateur",
+          pt: "Remover administrador",
         }),
         intent: "primary" as const,
         onClick: bulkMakeNonAdmin.click,
@@ -407,7 +413,7 @@ function UserTable(p: {
         outline: true,
       },
       {
-        label: t3({ en: "Edit permissions", fr: "Modifier les droits d'accès" }),
+        label: t3({ en: "Edit permissions", fr: "Modifier les droits d'accès", pt: "Editar permissões" }),
         intent: "primary" as const,
         outline: true,
         onClick: handleBulkEditPermissions,
@@ -416,6 +422,7 @@ function UserTable(p: {
         label: t3({
           en: "Edit default project permissions",
           fr: "Modifier les permissions de projet par défaut",
+          pt: "Editar permissões de projeto predefinidas",
         }),
         intent: "primary" as const,
         outline: true,
@@ -423,14 +430,14 @@ function UserTable(p: {
       },
     ] : []),
     {
-      label: t3({ en: "Download users", fr: "Télécharger les utilisateurs" }),
+      label: t3({ en: "Download users", fr: "Télécharger les utilisateurs", pt: "Transferir utilizadores" }),
       intent: "primary",
       outline: true,
       onClick: handleBulkDownloadCSV,
     },
     ...(canConfigureUsers ? [
       {
-        label: t3({ en: "Remove", fr: "Supprimer" }),
+        label: t3({ en: "Remove", fr: "Supprimer", pt: "Remover" }),
         intent: "danger" as const,
         outline: true,
         onClick: handleBulkRemoveUsers,
@@ -444,9 +451,9 @@ function UserTable(p: {
       columns={columns}
       defaultSort={{ key: "lastActiveTs", direction: "desc" }}
       keyField="email"
-      noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur" })}
+      noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur", pt: "Sem utilizadores" })}
       bulkActions={bulkActions}
-      selectionLabel={t3({ en: "user", fr: "utilisateur" })}
+      selectionLabel={t3({ en: "user", fr: "utilisateur", pt: "utilizador" })}
       fitTableToAvailableHeight
     />
   );

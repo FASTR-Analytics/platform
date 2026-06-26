@@ -161,16 +161,16 @@ export function PresetSelector(p: PresetSelectorProps) {
         <div class="p-2">
           <div class="bg-base-200 flex aspect-video items-center justify-center rounded">
             <span class="text-neutral text-sm">
-              {t3({ en: "Custom", fr: "Personnalisé" })}
+              {t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" })}
             </span>
           </div>
         </div>
         <div class="px-2 pb-2">
           <div class="font-700 text-xs">
-            {t3({ en: "Custom", fr: "Personnalisé" })}
+            {t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" })}
           </div>
           <div class="text-neutral text-xs">
-            {t3({ en: "Configure manually", fr: "Configurer manuellement" })}
+            {t3({ en: "Configure manually", fr: "Configurer manuellement", pt: "Configurar manualmente" })}
           </div>
         </div>
       </div>
@@ -213,7 +213,7 @@ async function fetchPreview(
   if (!resolvedReplicant.ok) {
     return {
       status: "error",
-      err: t3({ en: "No data available", fr: "Aucune donnée disponible" }),
+      err: t3({ en: "No data available", fr: "Aucune donnée disponible", pt: "Nenhum dado disponível" }),
     };
   }
   const fetchConfig = resolvedReplicant.fetchConfig;
@@ -260,8 +260,8 @@ async function fetchPreview(
       status: "error",
       err:
         itemsHolder.status === "too_many_items"
-          ? t3({ en: "Too many data points", fr: "Trop de points de données" })
-          : t3({ en: "No data available", fr: "Aucune donnée disponible" }),
+          ? t3({ en: "Too many data points", fr: "Trop de points de données", pt: "Demasiados pontos de dados" })
+          : t3({ en: "No data available", fr: "Aucune donnée disponible", pt: "Nenhum dado disponível" }),
     };
   }
 

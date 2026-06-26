@@ -29,7 +29,7 @@ export function AddReportForm(
     async (e: MouseEvent) => {
       e.preventDefault();
       if (!tempLabel().trim()) {
-        return { success: false, err: t3({ en: "You must enter a label", fr: "Vous devez saisir un libellé" }) };
+        return { success: false, err: t3({ en: "You must enter a label", fr: "Vous devez saisir un libellé", pt: "Tem de introduzir um rótulo" }) };
       }
       const folderId = tempFolderId() === "_none" ? null : tempFolderId();
       return await serverActions.createReport({
@@ -44,14 +44,14 @@ export function AddReportForm(
   return (
     <AlertFormHolder
       formId="add-report"
-      header={t3({ en: "Create report", fr: "Créer un rapport" })}
+      header={t3({ en: "Create report", fr: "Créer un rapport", pt: "Criar relatório" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
     >
       <div class="ui-spy">
         <Input
-          label={t3({ en: "Report name", fr: "Nom du rapport" })}
+          label={t3({ en: "Report name", fr: "Nom du rapport", pt: "Nome do relatório" })}
           value={tempLabel()}
           onChange={setTempLabel}
           fullWidth

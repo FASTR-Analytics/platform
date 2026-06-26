@@ -38,7 +38,7 @@ export function CreateBackupForm(
           const validName = backupName().trim();
 
           if (!validName) {
-            return { success: false, err: t3({ en: "You must enter a backup name", fr: "Vous devez saisir un nom de sauvegarde" }) };
+            return { success: false, err: t3({ en: "You must enter a backup name", fr: "Vous devez saisir un nom de sauvegarde", pt: "Tem de introduzir um nome para a cópia de segurança" }) };
           }
           return p.createBackupFunc(validName);
         },
@@ -51,7 +51,7 @@ export function CreateBackupForm(
           const validName = backupName().trim();
 
           if (!validName) {
-            return { success: false, err: t3({ en: "You must enter a backup name", fr: "Vous devez saisir un nom de sauvegarde" }) };
+            return { success: false, err: t3({ en: "You must enter a backup name", fr: "Vous devez saisir un nom de sauvegarde", pt: "Tem de introduzir um nome para a cópia de segurança" }) };
           }
           return p.createBackupFunc(validName);
         },
@@ -61,13 +61,13 @@ export function CreateBackupForm(
   return (
     <AlertFormHolder
       formId="create-backup"
-      header={t3({ en: "Create Backup", fr: "Créer une sauvegarde" })}
+      header={t3({ en: "Create Backup", fr: "Créer une sauvegarde", pt: "Criar cópia de segurança" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
     >
       <Input
-        label={t3({ en: "Backup name", fr: "Nom de la sauvegarde" })}
+        label={t3({ en: "Backup name", fr: "Nom de la sauvegarde", pt: "Nome da cópia de segurança" })}
         value={backupName()}
         onChange={setBackupName}
         fullWidth

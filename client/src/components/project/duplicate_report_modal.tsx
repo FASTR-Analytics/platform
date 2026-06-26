@@ -58,7 +58,7 @@ export function DuplicateReportModal(
       if (isCreatingFolder()) {
         const label = newFolderLabel().trim();
         if (!label) {
-          return { success: false, err: t3({ en: "Folder name is required", fr: "Le nom du dossier est requis" }) };
+          return { success: false, err: t3({ en: "Folder name is required", fr: "Le nom du dossier est requis", pt: "O nome da pasta é obrigatório" }) };
         }
 
         const createRes = await serverActions.createReportFolder({
@@ -143,8 +143,8 @@ export function DuplicateReportModal(
 
   const header =
     p.reportDetails.length > 1
-      ? `${t3({ en: "Duplicate", fr: "Dupliquer" })} ${p.reportDetails.length} ${t3({ en: "reports", fr: "rapports" })}`
-      : t3({ en: "Duplicate report", fr: "Dupliquer le rapport" });
+      ? `${t3({ en: "Duplicate", fr: "Dupliquer", pt: "Duplicar" })} ${p.reportDetails.length} ${t3({ en: "reports", fr: "rapports", pt: "relatórios" })}`
+      : t3({ en: "Duplicate report", fr: "Dupliquer le rapport", pt: "Duplicar relatório" });
 
   return (
     <AlertFormHolder
@@ -170,7 +170,7 @@ export function DuplicateReportModal(
 
         <Show when={!isBatchMode()}>
           <Input
-            label={t3({ en: "New report name", fr: "Nom du nouveau rapport" })}
+            label={t3({ en: "New report name", fr: "Nom du nouveau rapport", pt: "Nome do novo relatório" })}
             value={tempLabel()}
             onChange={setTempLabel}
             fullWidth
@@ -184,14 +184,14 @@ export function DuplicateReportModal(
             <div class="space-y-4">
               <div class="flex ui-gap">
                 <Input
-                  label={t3({ en: "Folder name", fr: "Nom du dossier" })}
+                  label={t3({ en: "Folder name", fr: "Nom du dossier", pt: "Nome da pasta" })}
                   value={newFolderLabel()}
                   onChange={setNewFolderLabel}
                   autoFocus
                   fullWidth
                 />
                 <ColorPicker
-                  label={t3({ en: "Color", fr: "Couleur" })}
+                  label={t3({ en: "Color", fr: "Couleur", pt: "Cor" })}
                   value={newFolderColor()}
                   onChange={(c) => setNewFolderColor(c)}
                   position="right"
@@ -202,7 +202,7 @@ export function DuplicateReportModal(
                 outline
                 onClick={() => setIsCreatingFolder(false)}
               >
-                {t3({ en: "Back to folder list", fr: "Retour à la liste des dossiers" })}
+                {t3({ en: "Back to folder list", fr: "Retour à la liste des dossiers", pt: "Voltar à lista de pastas" })}
               </Button>
             </div>
           }
@@ -221,7 +221,7 @@ export function DuplicateReportModal(
               iconName="plus"
               onClick={() => setIsCreatingFolder(true)}
             >
-              {t3({ en: "Create new folder", fr: "Créer un nouveau dossier" })}
+              {t3({ en: "Create new folder", fr: "Créer un nouveau dossier", pt: "Criar nova pasta" })}
             </Button>
           </div>
         </Show>

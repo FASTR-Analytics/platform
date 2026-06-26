@@ -185,7 +185,7 @@ export function getToolsForReportEditor(
     createAITool({
       name: "get_report_editor",
       description:
-        "Get the current markdown body and embedded figure/image ids of the report being edited (live editor state, including unsaved changes). ALWAYS call this first before proposing edits.",
+        "Get the report's current markdown body, a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (available replicant values, slots, filters) call get_report_figure.",
       inputSchema: z.object({}),
       handler: async () => {
         const ctx = getAIContext();
@@ -242,9 +242,12 @@ export function getToolsForReportEditor(
           throw new Error("This tool is only available when editing a report");
         }
         const fig = ctx.getFigures()[input.figureId];
-        if (!fig?.bundle) {
+        if (!fig) {
           const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
           throw new Error(`No figure with id "${input.figureId}". Figure ids: ${ids}.`);
+        }
+        if (!fig.bundle) {
+          throw new Error(`Figure "${input.figureId}" has no resolved data yet and can't be read.`);
         }
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
@@ -257,16 +260,17 @@ export function getToolsForReportEditor(
     createAITool({
       name: "update_report_figure",
       description:
-        "Edit an existing report FIGURE in place — THE tool for changing anything "
-        + "about a figure already embedded in the report (the replicant, filters, "
-        + "disaggregation, period, captions), regardless of how it was created. "
+        "Edit an existing report FIGURE's CONFIGURATION in place — the tool for "
+        + "changing the replicant, filters, disaggregation, period, or captions of a "
+        + "figure already embedded in the report, regardless of how it was created. "
         + "Provide the figureId (from get_report_editor) and only the fields to "
         + "change; everything else is preserved and the data is re-queried "
         + "automatically. To CHANGE A REPLICANT, use this — it validates the value "
-        + "against the available options and errors clearly. The chart TYPE cannot "
-        + "be changed here (use replace_figure to swap in a different chart). The "
-        + "change is applied to the live preview and saved immediately; the "
-        + "figure's body token is unchanged (no accept/reject diff).",
+        + "against the available options and errors clearly. It CANNOT change the "
+        + "figure's metric/indicator or chart TYPE — to show a different indicator "
+        + "or a different chart, use replace_figure instead. The change is applied "
+        + "to the live preview and saved immediately; the figure's body token is "
+        + "unchanged (no accept/reject diff).",
       inputSchema: z.object({
         figureId: z.string().describe("Figure id from get_report_editor (the part after 'figure:')."),
         patch: AiFigureConfigPatchSchema,
@@ -277,9 +281,28 @@ export function getToolsForReportEditor(
           throw new Error("This tool is only available when editing a report");
         }
         const fig = ctx.getFigures()[input.figureId];
-        if (!fig?.bundle) {
+        if (!fig) {
           const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
           throw new Error(`No figure with id "${input.figureId}". Figure ids: ${ids}.`);
+        }
+        if (!fig.bundle) {
+          throw new Error(`Figure "${input.figureId}" has no resolved data yet and can't be edited.`);
+        }
+        if (!ctx.getBody().includes(`](figure:${input.figureId})`)) {
+          throw new Error(
+            `Figure "${input.figureId}" is registered but its token isn't in the report body. Call get_report_editor.`,
+          );
+        }
+        // metricId/type are not in the patch schema (silently stripped), so an
+        // all-unsupported patch arrives empty — reject it instead of re-resolving
+        // the figure unchanged and falsely reporting success.
+        if (Object.keys(input.patch).length === 0) {
+          throw new Error(
+            "No editable fields were provided. update_report_figure changes a "
+            + "figure's config (replicant, filters, disaggregation, period, "
+            + "captions); it cannot change the metric/indicator or chart type. To "
+            + "show a different indicator or chart, use replace_figure.",
+          );
         }
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
@@ -304,7 +327,14 @@ export function getToolsForReportEditor(
         const newBundle = await resolveBundleFromMetricAndConfig(projectId, metric, newConfig);
         assertNoSlotCollision(newConfig, metric, newBundle.dateRange);
 
-        await ctx.applyFigureUpdate(input.figureId, { type: "figure", bundle: newBundle });
+        const saved = await ctx.applyFigureUpdate(input.figureId, { type: "figure", bundle: newBundle });
+        if (!saved) {
+          throw new Error(
+            `Figure ${input.figureId} was updated in the live preview but SAVING TO `
+            + `THE SERVER FAILED; the change may be lost on reload. Tell the user to `
+            + `check their connection and try again.`,
+          );
+        }
         return `Updated figure ${input.figureId}. The preview is updated and saved.`;
       },
       inProgressLabel: "Updating figure...",

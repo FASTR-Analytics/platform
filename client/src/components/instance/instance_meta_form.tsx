@@ -14,7 +14,7 @@ export function InstanceMetaForm(
 ) {
   const instanceMeta = createQuery(
     () => serverActions.getInstanceMeta({}),
-    t3({ en: "Loading instance information...", fr: "Chargement des informations de l'instance..." }),
+    t3({ en: "Loading instance information...", fr: "Chargement des informations de l'instance...", pt: "A carregar informações da instância..." }),
   );
 
   function formatUptime(uptimeMs: number): string {
@@ -34,7 +34,7 @@ export function InstanceMetaForm(
 
   return (
     <ModalContainer
-      title={t3({ en: "Instance Information", fr: "Informations de l'instance" })}
+      title={t3({ en: "Instance Information", fr: "Informations de l'instance", pt: "Informações da instância" })}
       width="lg"
       leftButtons={
         // eslint-disable-next-line jsx-key
@@ -51,37 +51,37 @@ export function InstanceMetaForm(
             <>
               <div class="ui-gap flex text-sm">
                 <div class="flex-1">
-                  <SettingsSection header={t3({ en: "Instance Configuration", fr: "Configuration de l'instance" })}>
+                  <SettingsSection header={t3({ en: "Instance Configuration", fr: "Configuration de l'instance", pt: "Configuração da instância" })}>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Instance Name", fr: "Nom de l'instance" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Instance Name", fr: "Nom de l'instance", pt: "Nome da instância" })}:</div>
                       <div class="flex-1">{keyedMeta.instanceName}</div>
                     </div>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Language", fr: "Langue" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Language", fr: "Langue", pt: "Idioma" })}:</div>
                       <div class="flex-1">{keyedMeta.instanceLanguage}</div>
                     </div>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Calendar", fr: "Calendrier" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Calendar", fr: "Calendrier", pt: "Calendário" })}:</div>
                       <div class="flex-1">{keyedMeta.instanceCalendar}</div>
                     </div>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Open Access", fr: "Accès libre" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Open Access", fr: "Accès libre", pt: "Acesso livre" })}:</div>
                       <div class="flex-1">
                         <span class={keyedMeta.openAccess ? "text-success" : "text-base-content"}>
-                          {keyedMeta.openAccess ? t3({ en: "Yes", fr: "Oui" }) : t3({ en: "No", fr: "Non" })}
+                          {keyedMeta.openAccess ? t3({ en: "Yes", fr: "Oui", pt: "Sim" }) : t3({ en: "No", fr: "Non", pt: "Não" })}
                         </span>
                       </div>
                     </div>
                   </SettingsSection>
                 </div>
                 <div class="flex-1">
-                  <SettingsSection header={t3({ en: "Version Information", fr: "Informations de version" })}>
+                  <SettingsSection header={t3({ en: "Version Information", fr: "Informations de version", pt: "Informações de versão" })}>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Server Version", fr: "Version du serveur" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Server Version", fr: "Version du serveur", pt: "Versão do servidor" })}:</div>
                       <div class="flex-1">{keyedMeta.serverVersion}</div>
                     </div>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Admin Version", fr: "Version admin" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Admin Version", fr: "Version admin", pt: "Versão de administração" })}:</div>
                       <div class="flex-1">{keyedMeta.adminVersion}</div>
                     </div>
                   </SettingsSection>
@@ -90,37 +90,37 @@ export function InstanceMetaForm(
 
               <div class="ui-gap flex text-sm">
                 <div class="flex-1">
-                  <SettingsSection header={t3({ en: "System Status", fr: "État du système" })}>
+                  <SettingsSection header={t3({ en: "System Status", fr: "État du système", pt: "Estado do sistema" })}>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Environment", fr: "Environnement" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Environment", fr: "Environnement", pt: "Ambiente" })}:</div>
                       <div class="flex-1">{keyedMeta.environment}</div>
                     </div>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Database Folder", fr: "Dossier de base de données" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Database Folder", fr: "Dossier de base de données", pt: "Pasta da base de dados" })}:</div>
                       <div class="flex-1">{keyedMeta.databaseFolder}</div>
                     </div>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Health Status", fr: "État de santé" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Health Status", fr: "État de santé", pt: "Estado de funcionamento" })}:</div>
                       <div class="flex-1">
                         <span class={keyedMeta.isHealthy ? "text-success" : "text-danger"}>
-                          {keyedMeta.isHealthy ? t3({ en: "Healthy", fr: "Opérationnel" }) : t3({ en: "Unhealthy", fr: "Non opérationnel" })}
+                          {keyedMeta.isHealthy ? t3({ en: "Healthy", fr: "Opérationnel", pt: "Operacional" }) : t3({ en: "Unhealthy", fr: "Non opérationnel", pt: "Não operacional" })}
                         </span>
                       </div>
                     </div>
                   </SettingsSection>
                 </div>
                 <div class="flex-1">
-                  <SettingsSection header={t3({ en: "Runtime Information", fr: "Informations d'exécution" })}>
+                  <SettingsSection header={t3({ en: "Runtime Information", fr: "Informations d'exécution", pt: "Informações de execução" })}>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Start Time", fr: "Heure de démarrage" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Start Time", fr: "Heure de démarrage", pt: "Hora de início" })}:</div>
                       <div class="flex-1">{new Date(keyedMeta.startTime).toLocaleString()}</div>
                     </div>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Current Time", fr: "Heure actuelle" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Current Time", fr: "Heure actuelle", pt: "Hora atual" })}:</div>
                       <div class="flex-1">{new Date(keyedMeta.currentTime).toLocaleString()}</div>
                     </div>
                     <div class="flex">
-                      <div class="w-36 flex-none">{t3({ en: "Uptime", fr: "Temps de fonctionnement" })}:</div>
+                      <div class="w-36 flex-none">{t3({ en: "Uptime", fr: "Temps de fonctionnement", pt: "Tempo de funcionamento" })}:</div>
                       <div class="flex-1">{formatUptime(keyedMeta.uptimeMs)}</div>
                     </div>
                   </SettingsSection>

@@ -130,26 +130,26 @@ function ProjectInner() {
     if (perms.can_view_reports) {
       items.push({
         id: "reports",
-        label: t3({ en: "Reports", fr: "Rapports" }),
+        label: t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" }),
         iconName: "report",
       });
     }
     if (perms.can_view_slide_decks) {
       items.push({
         id: "decks",
-        label: t3({ en: "Slide decks", fr: "Présentations" }),
+        label: t3({ en: "Slide decks", fr: "Présentations", pt: "Apresentações" }),
         iconName: "presentation",
       });
       items.push({
         id: "dashboards",
-        label: t3({ en: "Dashboards", fr: "Tableaux de bord" }),
+        label: t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" }),
         iconName: "layoutDashboard",
       });
     }
     if (perms.can_view_visualizations) {
       items.push({
         id: "visualizations",
-        label: t3({ en: "Visualizations", fr: "Visualisations" }),
+        label: t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" }),
         iconName: "chart",
       });
     }
@@ -160,7 +160,7 @@ function ProjectInner() {
     ) {
       items.push({
         id: "modules",
-        label: t3({ en: "Modules", fr: "Modules" }),
+        label: t3({ en: "Modules", fr: "Modules", pt: "Módulos" }),
         iconName: "code",
         dot: modulesHaveError()
           ? "danger"
@@ -172,7 +172,7 @@ function ProjectInner() {
     if (perms.can_view_data) {
       items.push({
         id: "data",
-        label: t3({ en: "Data", fr: "Données" }),
+        label: t3({ en: "Data", fr: "Données", pt: "Dados" }),
         iconName: "database",
         dot: dataNeedsUpdate() ? "warning" : undefined,
       });
@@ -187,7 +187,7 @@ function ProjectInner() {
     if (_DEV_USERS.includes(instanceState.currentUserEmail)) {
       items.push({
         id: "cache",
-        label: t3({ en: "Cache", fr: "Cache" }),
+        label: t3({ en: "Cache", fr: "Cache", pt: "Cache" }),
         iconName: "database",
       });
     }
@@ -205,6 +205,7 @@ function ProjectInner() {
               {t3({
                 en: "No accessible tabs for this project.",
                 fr: "Aucun onglet accessible pour ce projet.",
+                pt: "Nenhum separador acessível para este projeto.",
               })}
             </div>
           }
@@ -232,6 +233,7 @@ function ProjectInner() {
                     {t3({
                       en: "Send feedback",
                       fr: "Envoyer un commentaire",
+                      pt: "Enviar comentários",
                     })}
                   </Button>
                   <Show when={!showAi()}>
@@ -241,7 +243,7 @@ function ProjectInner() {
                       intent="base-100"
                       outline
                     >
-                      {t3({ en: "AI", fr: "IA" })}
+                      {t3({ en: "AI", fr: "IA", pt: "IA" })}
                     </Button>
                   </Show>
                   <ProjectRunStatus />

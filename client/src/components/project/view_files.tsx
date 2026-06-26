@@ -27,13 +27,13 @@ export function ViewFiles(
   const rLogs = createQuery(
     () =>
       serverActions.getLogs({ module_id: p.moduleId, projectId: p.projectId }),
-    t3({ en: "Loading file listing...", fr: "Chargement de la liste des fichiers..." }),
+    t3({ en: "Loading file listing...", fr: "Chargement de la liste des fichiers...", pt: "A carregar a lista de ficheiros..." }),
   );
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`${t3({ en: "Files for", fr: "Fichiers pour" })} ${p.moduleLabel}`}>
+        <HeadingBar heading={`${t3({ en: "Files for", fr: "Fichiers pour", pt: "Ficheiros para" })} ${p.moduleLabel}`}>
           <div class="ui-gap-sm flex">
             <Button
               onClick={() => p.close(undefined)}

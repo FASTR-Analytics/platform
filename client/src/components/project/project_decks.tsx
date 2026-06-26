@@ -40,8 +40,8 @@ import { serverActions } from "~/server_actions";
 
 function getGroupingOptions(): { value: SlideDeckGroupingMode; label: string }[] {
   return [
-    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier" }) },
-    { value: "flat", label: t3({ en: "Flat list", fr: "Liste simple" }) },
+    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier", pt: "Por pasta" }) },
+    { value: "flat", label: t3({ en: "Flat list", fr: "Liste simple", pt: "Lista simples" }) },
   ];
 }
 
@@ -104,7 +104,7 @@ export function ProjectDecks(p: ExtendedProps) {
       }
       case "flat":
         return [
-          { value: "_all", label: t3({ en: "All slide decks", fr: "Toutes les présentations" }), count: decks.length },
+          { value: "_all", label: t3({ en: "All slide decks", fr: "Toutes les présentations", pt: "Todas as apresentações" }), count: decks.length },
         ];
       default:
         return [];
@@ -188,8 +188,8 @@ export function ProjectDecks(p: ExtendedProps) {
 
     const confirmText =
       idsToDelete.length > 1
-        ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} slide decks?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} présentations ?` })
-        : t3({ en: "Are you sure you want to delete this slide deck?", fr: "Êtes-vous sûr de vouloir supprimer cette présentation ?" });
+        ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} slide decks?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} présentations ?`, pt: `Tem a certeza de que pretende eliminar ${idsToDelete.length} apresentações?` })
+        : t3({ en: "Are you sure you want to delete this slide deck?", fr: "Êtes-vous sûr de vouloir supprimer cette présentation ?", pt: "Tem a certeza de que pretende eliminar esta apresentação?" });
 
     const deleteAction = createDeleteAction(
       confirmText,
@@ -224,21 +224,21 @@ export function ProjectDecks(p: ExtendedProps) {
     const items: MenuItem[] = [
       {
         label: isMultiSelect
-          ? t3({ en: `Move ${count} decks to folder...`, fr: `Déplacer ${count} présentations vers un dossier...` })
-          : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier..." }),
+          ? t3({ en: `Move ${count} decks to folder...`, fr: `Déplacer ${count} présentations vers un dossier...`, pt: `Mover ${count} apresentações para uma pasta...` })
+          : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier...", pt: "Mover para uma pasta..." }),
         icon: "folder",
         onClick: () => handleMoveToFolder(deck),
       },
       {
         label: isMultiSelect
-          ? t3({ en: `Duplicate ${count} decks...`, fr: `Dupliquer ${count} présentations...` })
-          : t3({ en: "Duplicate...", fr: "Dupliquer..." }),
+          ? t3({ en: `Duplicate ${count} decks...`, fr: `Dupliquer ${count} présentations...`, pt: `Duplicar ${count} apresentações...` })
+          : t3({ en: "Duplicate...", fr: "Dupliquer...", pt: "Duplicar..." }),
         icon: "copy",
         onClick: () => handleDuplicate(deck),
       },
       {
         label: isMultiSelect
-          ? t3({ en: `Delete ${count} decks`, fr: `Supprimer ${count} présentations` })
+          ? t3({ en: `Delete ${count} decks`, fr: `Supprimer ${count} présentations`, pt: `Eliminar ${count} apresentações` })
           : t3(TC.delete),
         icon: "trash",
         intent: "danger",
@@ -260,7 +260,7 @@ export function ProjectDecks(p: ExtendedProps) {
 
     const items: MenuItem[] = [
       {
-        label: t3({ en: "Rename / Change color...", fr: "Renommer / Changer la couleur..." }),
+        label: t3({ en: "Rename / Change color...", fr: "Renommer / Changer la couleur...", pt: "Mudar o nome / Alterar a cor..." }),
         icon: "pencil",
         onClick: async () => {
           await openComponent({
@@ -273,12 +273,12 @@ export function ProjectDecks(p: ExtendedProps) {
         },
       },
       {
-        label: t3({ en: "Delete folder", fr: "Supprimer le dossier" }),
+        label: t3({ en: "Delete folder", fr: "Supprimer le dossier", pt: "Eliminar pasta" }),
         icon: "trash",
         intent: "danger",
         onClick: async () => {
           const deleteAction = createDeleteAction(
-            t3({ en: "Are you sure you want to delete this folder? Slide decks will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les présentations seront déplacées dans Général." }),
+            t3({ en: "Are you sure you want to delete this folder? Slide decks will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les présentations seront déplacées dans Général.", pt: "Tem a certeza de que pretende eliminar esta pasta? As apresentações serão movidas para Geral." }),
             () =>
               serverActions.deleteSlideDeckFolder({
                 projectId: projectState.id,
@@ -346,14 +346,14 @@ export function ProjectDecks(p: ExtendedProps) {
       return;
     }
     const deck = projectState.slideDecks.find((d) => d.id === res.newDeckId);
-    await openDeck(res.newDeckId, deck?.label || t3({ en: "Slide deck", fr: "Présentation" }));
+    await openDeck(res.newDeckId, deck?.label || t3({ en: "Slide deck", fr: "Présentation", pt: "Apresentação" }));
   }
 
   return (
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={t3({ en: "Slide decks", fr: "Présentations" })}
+          heading={t3({ en: "Slide decks", fr: "Présentations", pt: "Apresentações" })}
           searchText={searchText()}
           setSearchText={setSearchText}
           class="border-base-300"
@@ -365,7 +365,7 @@ export function ProjectDecks(p: ExtendedProps) {
             }
           >
             <Button onClick={attemptAddDeck} iconName="plus">
-              {t3({ en: "Create slide deck", fr: "Créer une présentation" })}
+              {t3({ en: "Create slide deck", fr: "Créer une présentation", pt: "Criar apresentação" })}
             </Button>
           </Show>
         </HeadingBar>
@@ -375,7 +375,7 @@ export function ProjectDecks(p: ExtendedProps) {
         when={projectState.projectModules.length > 0}
         fallback={
           <div class="ui-pad text-neutral text-sm">
-            {t3({ en: "You need to enable at least one module to create slide decks", fr: "Vous devez activer au moins un module pour créer des présentations" })}
+            {t3({ en: "You need to enable at least one module to create slide decks", fr: "Vous devez activer au moins un module pour créer des présentations", pt: "Tem de ativar pelo menos um módulo para criar apresentações" })}
           </div>
         }
       >
@@ -420,7 +420,7 @@ export function ProjectDecks(p: ExtendedProps) {
                         });
                       }}
                     >
-                      {t3({ en: "New folder", fr: "Nouveau dossier" })}
+                      {t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" })}
                     </Button>
                   </div>
                 </Show>
@@ -437,8 +437,8 @@ export function ProjectDecks(p: ExtendedProps) {
               fallback={
                 <div class="text-neutral text-sm">
                   {searchText().length >= 3
-                    ? t3({ en: "No matching decks", fr: "Aucune présentation correspondante" })
-                    : t3({ en: "No slide decks yet", fr: "Aucune présentation pour le moment" })}
+                    ? t3({ en: "No matching decks", fr: "Aucune présentation correspondante", pt: "Nenhuma apresentação correspondente" })
+                    : t3({ en: "No slide decks yet", fr: "Aucune présentation pour le moment", pt: "Ainda não há apresentações" })}
                 </div>
               }
             >
@@ -475,7 +475,7 @@ export function ProjectDecks(p: ExtendedProps) {
                             class="bg-base-200 flex items-center justify-center"
                             style={{ "aspect-ratio": "16/9" }}
                           >
-                            <span class="text-neutral text-xs">{t3({ en: "No slides", fr: "Aucune diapositive" })}</span>
+                            <span class="text-neutral text-xs">{t3({ en: "No slides", fr: "Aucune diapositive", pt: "Sem diapositivos" })}</span>
                           </div>
                         }
                       >

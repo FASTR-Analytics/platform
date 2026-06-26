@@ -38,6 +38,7 @@ export function ProjectVisualizations(p: Props) {
           text: t3({
             en: "Failed to load visualization",
             fr: "Échec du chargement de la visualisation",
+            pt: "Falha ao carregar a visualização",
           }),
           intent: "danger",
         });
@@ -49,7 +50,7 @@ export function ProjectVisualizations(p: Props) {
         props: {
           mode: "create" as const,
           projectId: projectState.id,
-          label: `${t3({ en: "Copy of", fr: "Copie de" })} ${poDetailRes.data.label}`,
+          label: `${t3({ en: "Copy of", fr: "Copie de", pt: "Cópia de" })} ${poDetailRes.data.label}`,
           returnToContext: aiContext(),
           ...snapshotForVizEditor({
             projectState,
@@ -165,7 +166,7 @@ export function ProjectVisualizations(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={t3({ en: "Visualizations", fr: "Visualisations" })}
+          heading={t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" })}
           searchText={searchText()}
           setSearchText={setSearchText}
           class="border-base-300"
@@ -183,6 +184,7 @@ export function ProjectVisualizations(p: Props) {
                 {t3({
                   en: "Create visualization",
                   fr: "Créer une visualisation",
+                  pt: "Criar visualização",
                 })}
               </Button>
             </div>
@@ -197,6 +199,7 @@ export function ProjectVisualizations(p: Props) {
             {t3({
               en: "You need to enable at least one module to create visualizations",
               fr: "Vous devez activer au moins un module pour créer des visualisations",
+              pt: "Tem de ativar pelo menos um módulo para criar visualizações",
             })}
           </div>
         }

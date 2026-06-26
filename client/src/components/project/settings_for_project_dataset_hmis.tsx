@@ -78,7 +78,7 @@ export function SettingsForProjectDatasetHmis(
         setHmisVersionId(versionId);
         setNeedsSave(false);
       } else {
-        setFetchError(t3({ en: "No HMIS version available", fr: "Aucune version HMIS disponible" }));
+        setFetchError(t3({ en: "No HMIS version available", fr: "Aucune version HMIS disponible", pt: "Nenhuma versão HMIS disponível" }));
       }
     }
 
@@ -114,7 +114,7 @@ export function SettingsForProjectDatasetHmis(
       ) {
         return {
           success: false,
-          err: t3({ en: "You must select at least one indicator", fr: "Vous devez sélectionner au moins un indicateur" }),
+          err: t3({ en: "You must select at least one indicator", fr: "Vous devez sélectionner au moins un indicateur", pt: "Tem de selecionar pelo menos um indicador" }),
         };
       }
 
@@ -124,7 +124,7 @@ export function SettingsForProjectDatasetHmis(
         if (aa3Items.length === 0) {
           return {
             success: false,
-            err: t3({ en: "You must select at least one admin area", fr: "Vous devez sélectionner au moins une zone administrative" }),
+            err: t3({ en: "You must select at least one admin area", fr: "Vous devez sélectionner au moins une zone administrative", pt: "Tem de selecionar pelo menos uma zona administrativa" }),
           };
         }
       } else if (
@@ -133,7 +133,7 @@ export function SettingsForProjectDatasetHmis(
       ) {
         return {
           success: false,
-          err: t3({ en: "You must select at least one admin area", fr: "Vous devez sélectionner au moins une zone administrative" }),
+          err: t3({ en: "You must select at least one admin area", fr: "Vous devez sélectionner au moins une zone administrative", pt: "Tem de selecionar pelo menos uma zona administrativa" }),
         };
       }
 
@@ -145,7 +145,7 @@ export function SettingsForProjectDatasetHmis(
       ) {
         return {
           success: false,
-          err: t3({ en: "You must select at least one facility ownership category", fr: "Vous devez sélectionner au moins une catégorie de propriété d'établissement" }),
+          err: t3({ en: "You must select at least one facility ownership category", fr: "Vous devez sélectionner au moins une catégorie de propriété d'établissement", pt: "Tem de selecionar pelo menos uma categoria de propriedade de estabelecimento de saúde" }),
         };
       }
 
@@ -157,7 +157,7 @@ export function SettingsForProjectDatasetHmis(
       ) {
         return {
           success: false,
-          err: t3({ en: "You must select at least one facility ownership category", fr: "Vous devez sélectionner au moins une catégorie de propriété d'établissement" }),
+          err: t3({ en: "You must select at least one facility ownership category", fr: "Vous devez sélectionner au moins une catégorie de propriété d'établissement", pt: "Tem de selecionar pelo menos uma categoria de propriedade de estabelecimento de saúde" }),
         };
       }
 
@@ -199,7 +199,7 @@ export function SettingsForProjectDatasetHmis(
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={t3({ en: "HMIS data settings", fr: "Paramètres des données HMIS" })}>
+        <HeadingBar heading={t3({ en: "HMIS data settings", fr: "Paramètres des données HMIS", pt: "Definições de dados HMIS" })}>
           <div class="ui-gap-sm flex">
             <Button
               onClick={save.click}
@@ -210,7 +210,7 @@ export function SettingsForProjectDatasetHmis(
             >
               {(needsSave() || p.hmisInfo === undefined)
                 ? t3(TC.save)
-                : t3({ en: "Re-window with current settings", fr: "Re-fenêtrer avec les paramètres actuels" })}
+                : t3({ en: "Re-window with current settings", fr: "Re-fenêtrer avec les paramètres actuels", pt: "Refazer janela com as definições atuais" })}
             </Button>
             <Button
               onClick={() => p.close(undefined)}
@@ -232,7 +232,7 @@ export function SettingsForProjectDatasetHmis(
             />
           </Match>
           <Match when={isLoadingVersion()}>
-            <div class="">{t3({ en: "Loading HMIS version...", fr: "Chargement de la version HMIS..." })}</div>
+            <div class="">{t3({ en: "Loading HMIS version...", fr: "Chargement de la version HMIS...", pt: "A carregar versão HMIS..." })}</div>
           </Match>
           <Match when={fetchError()}>
             <div class="text-danger">{fetchError()}</div>
@@ -249,7 +249,7 @@ export function SettingsForProjectDatasetHmis(
             <Show when={p.hmisInfo}>
               <div class="pt-4 border-t mt-4">
                 <Checkbox
-                  label={t3({ en: "Don't re-run modules on data update", fr: "Ne pas réexécuter les modules lors de la mise à jour des données" })}
+                  label={t3({ en: "Don't re-run modules on data update", fr: "Ne pas réexécuter les modules lors de la mise à jour des données", pt: "Não reexecutar os módulos ao atualizar os dados" })}
                   checked={skipModuleRerun()}
                   onChange={setSkipModuleRerun}
                 />

@@ -20,13 +20,13 @@ export function ViewLogs(
   const rLogs = createQuery(
     () =>
       serverActions.getLogs({ module_id: p.moduleId, projectId: p.projectId }),
-    t3({ en: "Loading logs...", fr: "Chargement des journaux..." }),
+    t3({ en: "Loading logs...", fr: "Chargement des journaux...", pt: "A carregar registos..." }),
   );
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`${t3({ en: "Logs for", fr: "Journaux pour" })} ${p.moduleLabel}`}>
+        <HeadingBar heading={`${t3({ en: "Logs for", fr: "Journaux pour", pt: "Registos de" })} ${p.moduleLabel}`}>
           <div class="ui-gap-sm flex">
             <Button
               onClick={() => p.close(undefined)}

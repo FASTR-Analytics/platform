@@ -50,7 +50,7 @@ export function AddProjectForm(
       e.preventDefault();
       const goodLabel = tempLabel().trim();
       if (!goodLabel) {
-        return { success: false, err: t3({ en: "You must enter a project name", fr: "Vous devez saisir un nom de projet" }) };
+        return { success: false, err: t3({ en: "You must enter a project name", fr: "Vous devez saisir un nom de projet", pt: "Tem de introduzir um nome de projeto" }) };
       }
 
       // const users = structuredClone(
@@ -75,7 +75,7 @@ export function AddProjectForm(
   return (
     <AlertFormHolder
       formId="add-project"
-      header={t3({ en: "Create project", fr: "Créer un projet" })}
+      header={t3({ en: "Create project", fr: "Créer un projet", pt: "Criar projeto" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
@@ -91,7 +91,7 @@ export function AddProjectForm(
         <Match when={true}> */}
       <div class="ui-spy">
         <Input
-          label={t3({ en: "Project name", fr: "Nom du projet" })}
+          label={t3({ en: "Project name", fr: "Nom du projet", pt: "Nome do projeto" })}
           value={tempLabel()}
           onChange={setTempLabel}
           fullWidth

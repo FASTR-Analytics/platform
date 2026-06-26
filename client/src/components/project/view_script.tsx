@@ -23,13 +23,13 @@ export function ViewScript(
         module_id: p.moduleId,
         projectId: p.projectId,
       }),
-    t3({ en: "Loading script...", fr: "Chargement du script..." }),
+    t3({ en: "Loading script...", fr: "Chargement du script...", pt: "A carregar o script..." }),
   );
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`${t3({ en: "Script for", fr: "Script pour" })} ${p.moduleLabel}`}>
+        <HeadingBar heading={`${t3({ en: "Script for", fr: "Script pour", pt: "Script para" })} ${p.moduleLabel}`}>
           <div class="ui-gap-sm flex">
             <Button
               onClick={() => p.close(undefined)}

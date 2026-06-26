@@ -25,17 +25,17 @@ function ForceDeleteModal(p: AlertComponentProps<{ projectId: string; projectLab
       width="sm"
       topPanel={
         <div class="font-700 text-base-content text-xl">
-          {t3({ en: "Permanently delete project?", fr: "Supprimer définitivement le projet ?" })}
+          {t3({ en: "Permanently delete project?", fr: "Supprimer définitivement le projet ?", pt: "Eliminar permanentemente o projeto?" })}
         </div>
       }
       leftButtons={[
         <Button onClick={() => p.close(undefined)} intent="neutral" disabled={loading()}>
-          {t3({ en: "Cancel", fr: "Annuler" })}
+          {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
         </Button>,
       ]}
       rightButtons={[
         <Button onClick={handleConfirm} intent="danger" disabled={loading()}>
-          {t3({ en: "Delete permanently", fr: "Supprimer définitivement" })}
+          {t3({ en: "Delete permanently", fr: "Supprimer définitivement", pt: "Eliminar permanentemente" })}
         </Button>,
       ]}
     >
@@ -44,12 +44,14 @@ function ForceDeleteModal(p: AlertComponentProps<{ projectId: string; projectLab
           {t3({
             en: `Are you sure you want to permanently delete "${p.projectLabel}"? This cannot be undone.`,
             fr: `Êtes-vous sûr de vouloir supprimer définitivement « ${p.projectLabel} » ? Cette action est irréversible.`,
+            pt: `Tem a certeza de que pretende eliminar permanentemente "${p.projectLabel}"? Esta ação não pode ser anulada.`,
           })}
         </p>
         <p class="text-error text-sm font-semibold">
           {t3({
             en: "All project data, visualizations, and reports will be lost forever.",
             fr: "Toutes les données, visualisations et rapports du projet seront perdus pour toujours.",
+            pt: "Todos os dados, visualizações e relatórios do projeto serão perdidos para sempre.",
           })}
         </p>
       </div>
@@ -82,7 +84,7 @@ export function PendingDeletions(p: EditorComponentProps<{}, undefined>) {
         <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
           <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
           <div class="font-700 flex-1 truncate text-xl">
-            {t3({ en: "Pending deletions", fr: "Suppressions en attente" })}
+            {t3({ en: "Pending deletions", fr: "Suppressions en attente", pt: "Eliminações pendentes" })}
           </div>
         </div>
       }
@@ -95,6 +97,7 @@ export function PendingDeletions(p: EditorComponentProps<{}, undefined>) {
               {t3({
                 en: "No projects pending deletion",
                 fr: "Aucun projet en attente de suppression",
+                pt: "Nenhum projeto com eliminação pendente",
               })}
             </div>
           }
@@ -108,6 +111,7 @@ export function PendingDeletions(p: EditorComponentProps<{}, undefined>) {
                     ? t3({
                         en: `Scheduled for deletion on ${new Date(project.deletionScheduledAt).toLocaleDateString()}`,
                         fr: `Suppression prévue le ${new Date(project.deletionScheduledAt).toLocaleDateString()}`,
+                        pt: `Eliminação agendada para ${new Date(project.deletionScheduledAt).toLocaleDateString()}`,
                       })
                     : null}
                 </div>
@@ -118,10 +122,10 @@ export function PendingDeletions(p: EditorComponentProps<{}, undefined>) {
                   intent="danger"
                   outline
                 >
-                  {t3({ en: "Delete now", fr: "Supprimer maintenant" })}
+                  {t3({ en: "Delete now", fr: "Supprimer maintenant", pt: "Eliminar agora" })}
                 </Button>
                 <Button onClick={() => handleRestore(project.id)} outline>
-                  {t3({ en: "Restore", fr: "Restaurer" })}
+                  {t3({ en: "Restore", fr: "Restaurer", pt: "Restaurar" })}
                 </Button>
               </div>
             </div>

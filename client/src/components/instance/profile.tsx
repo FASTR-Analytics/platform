@@ -25,12 +25,12 @@ export function ProfileForm(
 ) {
   const userDetails = createQuery(
     () => serverActions.getCurrentUser({}),
-    t3({ en: "Loading your profile...", fr: "Chargement de votre profil..." }),
+    t3({ en: "Loading your profile...", fr: "Chargement de votre profil...", pt: "A carregar o seu perfil..." }),
   );
 
   const aiUsage = createQuery(
     () => serverActions.getAiUsage({}),
-    t3({ en: "Loading AI usage...", fr: "Chargement de l'utilisation IA..." }),
+    t3({ en: "Loading AI usage...", fr: "Chargement de l'utilisation IA...", pt: "A carregar a utilização de IA..." }),
   );
 
   const clearCache = createButtonAction(
@@ -51,7 +51,7 @@ export function ProfileForm(
 
   return (
     <ModalContainer
-      title={t3({ en: "Your profile", fr: "Votre profil" })}
+      title={t3({ en: "Your profile", fr: "Votre profil", pt: "O seu perfil" })}
       width="lg"
       leftButtons={
         // eslint-disable-next-line jsx-key
@@ -60,7 +60,7 @@ export function ProfileForm(
             {t3(TC.done)}
           </Button>,
           <Button onClick={p.attemptSignOut} outline iconName="arrowLeft">
-            {t3({ en: "Sign out", fr: "Se déconnecter" })}
+            {t3({ en: "Sign out", fr: "Se déconnecter", pt: "Terminar sessão" })}
           </Button>,
         ]
       }
@@ -108,7 +108,7 @@ export function ProfileForm(
                     type="button"
                     class="hover:ring-primary cursor-pointer rounded-full ring-2 ring-transparent transition"
                     onClick={() => clerk.openUserProfile()}
-                    title={t3({ en: "Manage account", fr: "Gérer le compte" })}
+                    title={t3({ en: "Manage account", fr: "Gérer le compte", pt: "Gerir a conta" })}
                   >
                     <img
                       src={clerk.user.imageUrl}
@@ -129,24 +129,24 @@ export function ProfileForm(
                     class="text-primary mt-1 cursor-pointer text-xs hover:underline"
                     onClick={() => clerk.openUserProfile()}
                   >
-                    {t3({ en: "Manage account", fr: "Gérer le compte" })}
+                    {t3({ en: "Manage account", fr: "Gérer le compte", pt: "Gerir a conta" })}
                   </button>
                 </div>
               </div>
 
               {/* Organisation */}
               <SettingsSection
-                header={t3({ en: "Organisation", fr: "Organisation" })}
+                header={t3({ en: "Organisation", fr: "Organisation", pt: "Organização" })}
               >
                 <Show
                   when={editingOrganisation()}
                   fallback={
                     <div class="flex items-center gap-2">
                       <span class="text-base-content/80 text-sm flex-1">
-                        {organisation() || <span class="text-base-content/40">{t3({ en: "Not set", fr: "Non défini" })}</span>}
+                        {organisation() || <span class="text-base-content/40">{t3({ en: "Not set", fr: "Non défini", pt: "Não definido" })}</span>}
                       </span>
                       <Button onClick={() => setEditingOrganisation(true)} outline size="sm" iconName="pencil">
-                        {t3({ en: "Edit", fr: "Modifier" })}
+                        {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
                       </Button>
                     </div>
                   }
@@ -155,7 +155,7 @@ export function ProfileForm(
                     <TextArea
                       value={organisation()}
                       onChange={setOrganisation}
-                      placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
+                      placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation", pt: "Nome da organização" })}
                       fullWidth
                       rows={1}
                       size="sm"
@@ -167,10 +167,10 @@ export function ProfileForm(
                       intent="primary"
                       outline
                     >
-                      {t3({ en: "Save", fr: "Enregistrer" })}
+                      {t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
                     </Button>
                     <Button onClick={() => setEditingOrganisation(false)} intent="neutral" outline>
-                      {t3({ en: "Cancel", fr: "Annuler" })}
+                      {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
                     </Button>
                   </div>
                 </Show>
@@ -178,7 +178,7 @@ export function ProfileForm(
 
               {/* AI usage */}
               <SettingsSection
-                header={t3({ en: "AI usage today", fr: "Utilisation IA aujourd'hui" })}
+                header={t3({ en: "AI usage today", fr: "Utilisation IA aujourd'hui", pt: "Utilização de IA hoje" })}
               >
                 <StateHolderWrapper state={aiUsage.state()} noPad>
                   {(usage) => {
@@ -197,12 +197,12 @@ export function ProfileForm(
                         )}
                         <div class="text-neutral text-sm">
                           {usage.isUnlimited
-                            ? t3({ en: "Unlimited", fr: "Illimité" })
+                            ? t3({ en: "Unlimited", fr: "Illimité", pt: "Ilimitado" })
                             : <>
                                 {usage.tokensUsedToday.toLocaleString()}{" "}
                                 {usage.dailyTokenLimit !== null
-                                  ? `/ ${usage.dailyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens" })} (${pct}%)`
-                                  : t3({ en: "tokens used today · Unlimited", fr: "tokens utilisés aujourd'hui · Illimité" })}
+                                  ? `/ ${usage.dailyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens", pt: "tokens" })} (${pct}%)`
+                                  : t3({ en: "tokens used today · Unlimited", fr: "tokens utilisés aujourd'hui · Illimité", pt: "tokens utilizados hoje · Ilimitado" })}
                               </>
                           }
                         </div>
@@ -214,7 +214,7 @@ export function ProfileForm(
 
               {/* AI usage this week */}
               <SettingsSection
-                header={t3({ en: "AI usage this week (country)", fr: "Utilisation IA cette semaine (pays)" })}
+                header={t3({ en: "AI usage this week (country)", fr: "Utilisation IA cette semaine (pays)", pt: "Utilização de IA esta semana (país)" })}
               >
                 <StateHolderWrapper state={aiUsage.state()} noPad>
                   {(usage) => {
@@ -234,8 +234,8 @@ export function ProfileForm(
                         <div class="text-neutral text-sm">
                           {usage.tokensUsedThisWeek.toLocaleString()}{" "}
                           {usage.weeklyTokenLimit !== null
-                            ? `/ ${usage.weeklyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens" })} (${pct}%)`
-                            : t3({ en: "tokens used this week · Unlimited", fr: "tokens utilisés cette semaine · Illimité" })}
+                            ? `/ ${usage.weeklyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens", pt: "tokens" })} (${pct}%)`
+                            : t3({ en: "tokens used this week · Unlimited", fr: "tokens utilisés cette semaine · Illimité", pt: "tokens utilizados esta semana · Ilimitado" })}
                         </div>
                       </div>
                     );
@@ -245,7 +245,7 @@ export function ProfileForm(
 
               {/* Mailing list */}
               <SettingsSection
-                header={t3({ en: "Mailing list", fr: "Liste de diffusion" })}
+                header={t3({ en: "Mailing list", fr: "Liste de diffusion", pt: "Lista de distribuição" })}
               >
                 <Checkbox
                   checked={optedIn()}
@@ -253,13 +253,14 @@ export function ProfileForm(
                   label={t3({
                     en: "Receive email updates and announcements",
                     fr: "Recevoir des mises à jour et annonces par email",
+                    pt: "Receber atualizações e anúncios por email",
                   })}
                 />
               </SettingsSection>
 
               {/* Cache management */}
               <SettingsSection
-                header={t3({ en: "Cache management", fr: "Gestion du cache" })}
+                header={t3({ en: "Cache management", fr: "Gestion du cache", pt: "Gestão da cache" })}
                 rightChildren={
                   <div class="ui-gap-sm flex">
                     <Button
@@ -271,6 +272,7 @@ export function ProfileForm(
                       {t3({
                         en: "Clear data cache",
                         fr: "Vider le cache de données",
+                        pt: "Limpar a cache de dados",
                       })}
                     </Button>
                     <Button
@@ -282,6 +284,7 @@ export function ProfileForm(
                       {t3({
                         en: "Clear AI chat history",
                         fr: "Vider l'historique IA",
+                        pt: "Limpar o histórico de conversas de IA",
                       })}
                     </Button>
                   </div>

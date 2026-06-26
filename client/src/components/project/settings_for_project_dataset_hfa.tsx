@@ -30,6 +30,7 @@ export function SettingsForProjectDatasetHfa(
     t3({
       en: "Loading service categories...",
       fr: "Chargement des catégories de service...",
+      pt: "A carregar categorias de serviço...",
     }),
   );
 
@@ -48,6 +49,7 @@ export function SettingsForProjectDatasetHfa(
           err: t3({
             en: "Select at least one service category, or choose Include all.",
             fr: "Sélectionnez au moins une catégorie de service, ou choisissez Tout inclure.",
+            pt: "Selecione pelo menos uma categoria de serviço, ou escolha Incluir tudo.",
           }),
         };
       }
@@ -69,7 +71,7 @@ export function SettingsForProjectDatasetHfa(
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={t3({ en: "HFA data settings", fr: "Paramètres des données FOSA" })}
+          heading={t3({ en: "HFA data settings", fr: "Paramètres des données FOSA", pt: "Definições de dados HFA" })}
         >
           <div class="ui-gap-sm flex">
             <Button
@@ -108,12 +110,14 @@ export function SettingsForProjectDatasetHfa(
                     {t3({
                       en: "Choose which service categories to include in this project. Only indicators tagged with a selected category are imported. Changes take effect when the data is (re)added.",
                       fr: "Choisissez les catégories de service à inclure dans ce projet. Seuls les indicateurs associés à une catégorie sélectionnée sont importés. Les modifications prennent effet lors du (ré)ajout des données.",
+                      pt: "Escolha as categorias de serviço a incluir neste projeto. Apenas os indicadores associados a uma categoria selecionada são importados. As alterações entram em vigor quando os dados são (re)adicionados.",
                     })}
                   </div>
                   <Checkbox
                     label={t3({
                       en: "Include all service categories",
                       fr: "Inclure toutes les catégories de service",
+                      pt: "Incluir todas as categorias de serviço",
                     })}
                     checked={includeAll()}
                     onChange={setIncludeAll}

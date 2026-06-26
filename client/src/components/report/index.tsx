@@ -542,7 +542,9 @@ export function ProjectReport(p: Props) {
     saveTimer = setTimeout(() => void persistBody(nextBody), AUTOSAVE_MS);
   }
 
-  async function persistFigures(next: Record<string, FigureBlock>) {
+  async function persistFigures(
+    next: Record<string, FigureBlock>,
+  ): Promise<boolean> {
     setSaveStatus("saving");
     const res = await serverActions.updateReportFigures({
       projectId,
@@ -552,10 +554,11 @@ export function ProjectReport(p: Props) {
     if (res.success) {
       bumpLastUpdated(res.data.lastUpdated);
       markSaved();
-    } else {
-      setSaveError(res.err);
-      setSaveStatus("error");
+      return true;
     }
+    setSaveError(res.err);
+    setSaveStatus("error");
+    return false;
   }
 
   async function persistImages(next: Record<string, ImageBlock>) {
@@ -574,10 +577,13 @@ export function ProjectReport(p: Props) {
     }
   }
 
-  async function updateFigure(id: string, figureBlock: FigureBlock) {
+  async function updateFigure(
+    id: string,
+    figureBlock: FigureBlock,
+  ): Promise<boolean> {
     const next = { ...figures(), [id]: figureBlock };
     setFigures(next);
-    await persistFigures(next);
+    return await persistFigures(next);
   }
 
   // Regenerate a FigureBlock from a results value + config (same as dashboards).

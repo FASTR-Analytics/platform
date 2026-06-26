@@ -27,10 +27,10 @@ function formatTimeAgo(isoString: string): string {
   const diffMins = Math.floor(diffMs / 60_000);
   const diffHours = Math.floor(diffMs / 3_600_000);
   const diffDays = Math.floor(diffMs / 86_400_000);
-  if (diffMins < 1) return t3({ en: "Just now", fr: "À l'instant" });
-  if (diffMins < 60) return t3({ en: `${diffMins}m ago`, fr: `Il y a ${diffMins}m` });
-  if (diffHours < 24) return t3({ en: `${diffHours}h ago`, fr: `Il y a ${diffHours}h` });
-  if (diffDays < 30) return t3({ en: `${diffDays}d ago`, fr: `Il y a ${diffDays}j` });
+  if (diffMins < 1) return t3({ en: "Just now", fr: "À l'instant", pt: "Agora mesmo" });
+  if (diffMins < 60) return t3({ en: `${diffMins}m ago`, fr: `Il y a ${diffMins}m`, pt: `há ${diffMins}m` });
+  if (diffHours < 24) return t3({ en: `${diffHours}h ago`, fr: `Il y a ${diffHours}h`, pt: `há ${diffHours}h` });
+  if (diffDays < 30) return t3({ en: `${diffDays}d ago`, fr: `Il y a ${diffDays}j`, pt: `há ${diffDays}d` });
   return date.toLocaleDateString();
 }
 
@@ -64,6 +64,7 @@ export function InstanceProjects(p: Props) {
         text: t3({
           en: `Not enough disk space to create a project. Only ${spaceRes.data.availableGB} GB available.`,
           fr: `Espace disque insuffisant pour créer un projet. Seulement ${spaceRes.data.availableGB} Go disponible.`,
+          pt: `Espaço em disco insuficiente para criar um projeto. Apenas ${spaceRes.data.availableGB} GB disponíveis.`,
         }),
         intent: "danger",
       });
@@ -85,11 +86,11 @@ export function InstanceProjects(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBarMainRibbon heading={t3({ en: "Projects", fr: "Projets" })}>
+          <HeadingBarMainRibbon heading={t3({ en: "Projects", fr: "Projets", pt: "Projetos" })}>
             <div class="ui-gap-sm flex items-center">
               <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <Button onClick={compareProjects} outline intent="base-100">
-                  {t3({ en: "Compare projects", fr: "Comparer les projets" })}
+                  {t3({ en: "Compare projects", fr: "Comparer les projets", pt: "Comparar projetos" })}
                 </Button>
               </Show>
               <Show when={instanceState.currentUserIsGlobalAdmin && pendingDeletionCount() > 0}>
@@ -97,12 +98,13 @@ export function InstanceProjects(p: Props) {
                   {t3({
                     en: `Pending deletions (${pendingDeletionCount()})`,
                     fr: `Suppressions en attente (${pendingDeletionCount()})`,
+                    pt: `Eliminações pendentes (${pendingDeletionCount()})`,
                   })}
                 </Button>
               </Show>
               <Show when={instanceState.currentUserIsGlobalAdmin || p.canCreateProjects}>
                 <Button onClick={attemptAddProject} iconName="plus">
-                  {t3({ en: "Create project", fr: "Créer un projet" })}
+                  {t3({ en: "Create project", fr: "Créer un projet", pt: "Criar projeto" })}
                 </Button>
               </Show>
             </div>
@@ -114,7 +116,7 @@ export function InstanceProjects(p: Props) {
             each={instanceState.projects.filter((proj) => proj.status !== "pending_deletion")}
             fallback={
               <div class="text-neutral text-sm">
-                {t3({ en: "No projects", fr: "Aucun projet" })}
+                {t3({ en: "No projects", fr: "Aucun projet", pt: "Sem projetos" })}
               </div>
             }
           >
@@ -128,6 +130,7 @@ export function InstanceProjects(p: Props) {
                         {t3({
                           en: "Copying...",
                           fr: "Copie en cours...",
+                          pt: "A copiar...",
                         })}
                       </div>
                     </div>
@@ -149,6 +152,7 @@ export function InstanceProjects(p: Props) {
                         {t3({
                           en: "Project locked",
                           fr: "Projet verrouillé",
+                          pt: "Projeto bloqueado",
                         })}
                       </div>
                     </Show>

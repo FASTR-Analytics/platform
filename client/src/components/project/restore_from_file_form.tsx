@@ -25,11 +25,11 @@ export function CreateRestoreFromFileForm(
             const file = selectedFile();
 
             if (!file) {
-                return { success: false, err: t3({ en: "You must select a .sql.gz file", fr: "Vous devez sélectionner un fichier .sql.gz" }) };
+                return { success: false, err: t3({ en: "You must select a .sql.gz file", fr: "Vous devez sélectionner un fichier .sql.gz", pt: "Tem de selecionar um ficheiro .sql.gz" }) };
             }
 
             if (!file.name.endsWith('.sql.gz')) {
-                return { success: false, err: t3({ en: "Only .sql.gz files are allowed", fr: "Seuls les fichiers .sql.gz sont autorisés" }) };
+                return { success: false, err: t3({ en: "Only .sql.gz files are allowed", fr: "Seuls les fichiers .sql.gz sont autorisés", pt: "Apenas são permitidos ficheiros .sql.gz" }) };
             }
 
             return p.restoreBackupFunc(file);
@@ -40,14 +40,14 @@ export function CreateRestoreFromFileForm(
     return (
         <AlertFormHolder
             formId="restore-from-file"
-            header={t3({ en: "Restore from file", fr: "Restaurer depuis un fichier" })}
+            header={t3({ en: "Restore from file", fr: "Restaurer depuis un fichier", pt: "Restaurar a partir de ficheiro" })}
             savingState={save.state()}
             saveFunc={save.click}
             cancelFunc={() => p.close(undefined)}
         >
             <div class="flex flex-col gap-2">
                 <label class="text-sm font-medium">
-                    {t3({ en: "Select gzipped SQL file (.sql.gz)", fr: "Sélectionner un fichier SQL compressé (.sql.gz)" })}
+                    {t3({ en: "Select gzipped SQL file (.sql.gz)", fr: "Sélectionner un fichier SQL compressé (.sql.gz)", pt: "Selecionar ficheiro SQL comprimido com gzip (.sql.gz)" })}
                 </label>
                 <input
                     type="file"
@@ -57,7 +57,7 @@ export function CreateRestoreFromFileForm(
                 />
                 {selectedFile() && (
                     <div class="text-sm text-neutral">
-                        {t3({ en: "Selected:", fr: "Sélectionné :" })} {selectedFile()!.name}
+                        {t3({ en: "Selected:", fr: "Sélectionné :", pt: "Selecionado:" })} {selectedFile()!.name}
                     </div>
                 )}
             </div>

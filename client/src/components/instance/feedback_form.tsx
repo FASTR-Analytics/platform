@@ -51,6 +51,7 @@ export function FeedbackForm(
         t3({
           en: "Please select a feedback type",
           fr: "Veuillez sélectionner un type de retour",
+          pt: "Selecione um tipo de comentário",
         }),
       );
       return;
@@ -60,6 +61,7 @@ export function FeedbackForm(
         t3({
           en: "Please enter a description",
           fr: "Veuillez entrer une description",
+          pt: "Introduza uma descrição",
         }),
       );
       return;
@@ -82,7 +84,7 @@ export function FeedbackForm(
 
   return (
     <ModalContainer
-      title={t3({ en: "Feedback", fr: "Retour" })}
+      title={t3({ en: "Feedback", fr: "Retour", pt: "Comentários" })}
       width="md"
       leftButtons={
         sent()
@@ -104,7 +106,7 @@ export function FeedbackForm(
                 iconName="arrowRight"
                 disabled={sending()}
               >
-                {t3({ en: "Send", fr: "Envoyer" })}
+                {t3({ en: "Send", fr: "Envoyer", pt: "Enviar" })}
               </Button>,
               // eslint-disable-next-line jsx-key
               <Button
@@ -122,6 +124,7 @@ export function FeedbackForm(
           {t3({
             en: "Thank you for your feedback!",
             fr: "Merci pour votre retour !",
+            pt: "Obrigado pelos seus comentários!",
           })}
         </div>
       </Show>
@@ -130,39 +133,42 @@ export function FeedbackForm(
           {t3({
             en: "Let us know about any bugs or suggestions.",
             fr: "Faites-nous part de vos bugs ou suggestions.",
+            pt: "Comunique-nos quaisquer erros ou sugestões.",
           })}
         </div>
         <Select
-          label={t3({ en: "Feedback type", fr: "Type de retour" })}
+          label={t3({ en: "Feedback type", fr: "Type de retour", pt: "Tipo de comentário" })}
           value={feedbackType()}
           options={[
-            { value: "bug", label: t3({ en: "Bug", fr: "Bug" }) },
+            { value: "bug", label: t3({ en: "Bug", fr: "Bug", pt: "Erro" }) },
             {
               value: "suggestion",
-              label: t3({ en: "Suggestion", fr: "Suggestion" }),
+              label: t3({ en: "Suggestion", fr: "Suggestion", pt: "Sugestão" }),
             },
           ]}
           onChange={(v: string) => setFeedbackType(v as FeedbackType)}
           placeholder={t3({
             en: "Select a type...",
             fr: "Sélectionner un type...",
+            pt: "Selecionar um tipo...",
           })}
           fullWidth
         />
         <TextArea
-          label={t3({ en: "Description", fr: "Description" })}
+          label={t3({ en: "Description", fr: "Description", pt: "Descrição" })}
           value={description()}
           onChange={setDescription}
           placeholder={t3({
             en: "Describe the bug or suggestion...",
             fr: "Décrivez le bug ou la suggestion...",
+            pt: "Descreva o erro ou a sugestão...",
           })}
           fullWidth
           height="140px"
         />
         <div>
           <div class="text-base-content pb-1 text-sm font-medium">
-            {t3({ en: "Images (optional)", fr: "Images (optionnel)" })}
+            {t3({ en: "Images (optional)", fr: "Images (optionnel)", pt: "Imagens (opcional)" })}
           </div>
           <input
             ref={fileInputRef}
@@ -179,7 +185,7 @@ export function FeedbackForm(
               iconName="plus"
               size="sm"
             >
-              {t3({ en: "Add image", fr: "Ajouter une image" })}
+              {t3({ en: "Add image", fr: "Ajouter une image", pt: "Adicionar imagem" })}
             </Button>
             <For each={images()}>
               {(img, i) => (

@@ -115,7 +115,7 @@ export function User(p: Props) {
   async function attemptDeleteUser() {
     const deleteAction = createDeleteAction(
       {
-        text: t3({ en: "Are you sure you want to remove this user?", fr: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?" }),
+        text: t3({ en: "Are you sure you want to remove this user?", fr: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?", pt: "Tem a certeza de que pretende remover este utilizador?" }),
         itemList: [p.user.email],
       },
       () => serverActions.deleteUser({ emails: [p.user.email] }),
@@ -138,12 +138,12 @@ export function User(p: Props) {
       panelChildren={
         <HeaderBarCanGoBack
           back={p.close}
-          heading={`${t3({ en: "User profile for", fr: "Profil utilisateur de" })} ${p.user.email}`}
+          heading={`${t3({ en: "User profile for", fr: "Profil utilisateur de", pt: "Perfil de utilizador de" })} ${p.user.email}`}
         />
       }
     >
       <div class="ui-pad ui-spy">
-        <SettingsSection header={t3({ en: "Login details", fr: "Identifiants" })}>
+        <SettingsSection header={t3({ en: "Login details", fr: "Identifiants", pt: "Dados de início de sessão" })}>
           <div class="flex">
             <div class="w-48 flex-none">{t3(TC.email)}:</div>
             <div class="flex-1">{p.user.email}</div>
@@ -151,7 +151,7 @@ export function User(p: Props) {
         </SettingsSection>
         <Show when={instanceState.currentUserIsGlobalAdmin || instanceState.currentUserPermissions.can_configure_users}>
           <SettingsSection
-            header={t3({ en: "Instance permissions", fr: "Droits d'accès à l'instance" })}
+            header={t3({ en: "Instance permissions", fr: "Droits d'accès à l'instance", pt: "Permissões da instância" })}
             rightChildren={
               <div class="ui-gap-sm flex">
                 <Switch>
@@ -161,7 +161,7 @@ export function User(p: Props) {
                       state={attemptMakeNonAdmin.state()}
                       outline
                     >
-                      {t3({ en: "Make non-admin", fr: "Retirer le rôle d'administrateur" })}
+                      {t3({ en: "Make non-admin", fr: "Retirer le rôle d'administrateur", pt: "Remover administrador" })}
                     </Button>
                   </Match>
                   <Match when={true}>
@@ -170,7 +170,7 @@ export function User(p: Props) {
                       state={attemptMakeAdmin.state()}
                       outline
                     >
-                      {t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur" })}
+                      {t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur", pt: "Tornar administrador" })}
                     </Button>
                   </Match>
                 </Switch>
@@ -178,21 +178,21 @@ export function User(p: Props) {
             }
           >
             <div class="flex">
-              <div class="w-48 flex-none">{t3({ en: "Instance admin", fr: "Administrateur de l'instance" })}:</div>
+              <div class="w-48 flex-none">{t3({ en: "Instance admin", fr: "Administrateur de l'instance", pt: "Administrador da instância" })}:</div>
               <div class="flex-1">
-                {p.user.isGlobalAdmin ? t3({ en: "Yes", fr: "Oui" }) : t3({ en: "No", fr: "Non" })}
+                {p.user.isGlobalAdmin ? t3({ en: "Yes", fr: "Oui", pt: "Sim" }) : t3({ en: "No", fr: "Non", pt: "Não" })}
               </div>
             </div>
           </SettingsSection>
           <Show when={p.user.isGlobalAdmin === false}>
             <SettingsSection
-              header={t3({ en: "User Permissions", fr: "Droits d'accès de l'utilisateur" })}
+              header={t3({ en: "User Permissions", fr: "Droits d'accès de l'utilisateur", pt: "Permissões do utilizador" })}
               rightChildren={
                 <Show when={hasChanges()}>
                   <Button
                     onClick={savePermissions.click}
                     state={savePermissions.state()}>
-                    {t3({ en: "Save Changes", fr: "Sauvegarder les modifications" })}
+                    {t3({ en: "Save Changes", fr: "Sauvegarder les modifications", pt: "Guardar alterações" })}
                   </Button>
                 </Show>
               }
@@ -216,7 +216,7 @@ export function User(p: Props) {
           </Show>
           <Show when={p.user.isGlobalAdmin === false}>
             <SettingsSection
-              header={t3({ en: "Project permissions", fr: "Permissions par projet" })}
+              header={t3({ en: "Project permissions", fr: "Permissions par projet", pt: "Permissões do projeto" })}
             >
               <div class="grid grid-cols-3 gap-2">
                 {p.projects.map((project) => (
@@ -231,24 +231,24 @@ export function User(p: Props) {
                 <button
                   type="button"
                   class="ui-pad ui-hoverable border-base-300 col-span-full min-h-[40px] rounded border text-left text-sm italic text-neutral"
-                  onClick={() => openProjectPermissions(null, t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)" }))}
+                  onClick={() => openProjectPermissions(null, t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)", pt: "Novos projetos (predefinição)" }))}
                 >
-                  {t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)" })}
+                  {t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)", pt: "Novos projetos (predefinição)" })}
                 </button>
               </div>
             </SettingsSection>
           </Show>
           <Show when={currentUserIsHUser()}>
-            <SettingsSection header={t3({ en: "AI usage", fr: "Utilisation IA" })}>
+            <SettingsSection header={t3({ en: "AI usage", fr: "Utilisation IA", pt: "Utilização de IA" })}>
               <Checkbox
-                label={t3({ en: "Unlimited AI token usage", fr: "Utilisation IA illimitée" })}
+                label={t3({ en: "Unlimited AI token usage", fr: "Utilisation IA illimitée", pt: "Utilização ilimitada de tokens de IA" })}
                 checked={unlimitedAi()}
                 onChange={toggleUnlimitedAi.click}
               />
             </SettingsSection>
-            <SettingsSection header={t3({ en: "Contact person", fr: "Personne de contact" })}>
+            <SettingsSection header={t3({ en: "Contact person", fr: "Personne de contact", pt: "Pessoa de contacto" })}>
               <Checkbox
-                label={t3({ en: "Contact person", fr: "Personne de contact" })}
+                label={t3({ en: "Contact person", fr: "Personne de contact", pt: "Pessoa de contacto" })}
                 checked={isContactPerson()}
                 onChange={toggleContactPerson.click}
               />
@@ -260,7 +260,7 @@ export function User(p: Props) {
             outline
             iconName="trash"
           >
-            {t3({ en: "Remove this user", fr: "Supprimer cet utilisateur" })}
+            {t3({ en: "Remove this user", fr: "Supprimer cet utilisateur", pt: "Remover este utilizador" })}
           </Button>
         </Show>
       </div>

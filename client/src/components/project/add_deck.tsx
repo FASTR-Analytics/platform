@@ -29,7 +29,7 @@ export function AddDeckForm(
     async (e: MouseEvent) => {
       e.preventDefault();
       if (!tempLabel().trim()) {
-        return { success: false, err: t3({ en: "You must enter a label", fr: "Vous devez saisir un libellé" }) };
+        return { success: false, err: t3({ en: "You must enter a label", fr: "Vous devez saisir un libellé", pt: "Tem de introduzir um rótulo" }) };
       }
       const folderId = tempFolderId() === "_none" ? null : tempFolderId();
       return await serverActions.createSlideDeck({
@@ -44,14 +44,14 @@ export function AddDeckForm(
   return (
     <AlertFormHolder
       formId="add-deck"
-      header={t3({ en: "Create slide deck", fr: "Créer une présentation" })}
+      header={t3({ en: "Create slide deck", fr: "Créer une présentation", pt: "Criar apresentação" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
     >
       <div class="ui-spy">
         <Input
-          label={t3({ en: "Deck name", fr: "Nom de la présentation" })}
+          label={t3({ en: "Deck name", fr: "Nom de la présentation", pt: "Nome da apresentação" })}
           value={tempLabel()}
           onChange={setTempLabel}
           fullWidth

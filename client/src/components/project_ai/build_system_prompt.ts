@@ -385,6 +385,7 @@ The user is editing a long-form report (markdown body + embedded live figures).
 **rewrite_report** - Propose a full-body rewrite (user reviews a diff, accepts/rejects).
 **rewrite_section** - Propose rewriting one heading-bounded section.
 **insert_figure** - Propose inserting a live figure from a saved visualization.
+**replace_figure** - Swap the chart behind an existing figure for a different metric/visualization or chart type (staged as a diff). Use this — not update_report_figure — to change which indicator a figure shows.
 
 ## Other Available Tools
 

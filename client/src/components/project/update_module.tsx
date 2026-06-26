@@ -26,7 +26,7 @@ export function UpdateModule(
         projectId: p.projectId,
         module_id: p.moduleId,
       }),
-    t3({ en: "Loading update preview...", fr: "Chargement de l'aperçu..." }),
+    t3({ en: "Loading update preview...", fr: "Chargement de l'aperçu...", pt: "A carregar a pré-visualização da atualização..." }),
   );
 
   // Signals for user choices
@@ -74,7 +74,7 @@ export function UpdateModule(
   return (
     <AlertFormHolder
       formId="update-module"
-      header={t3({ en: "Update module", fr: "Mettre à jour le module" })}
+      header={t3({ en: "Update module", fr: "Mettre à jour le module", pt: "Atualizar módulo" })}
       savingState={save.state()}
       saveFunc={canSubmit() ? save.click : undefined}
       saveButtonText={t3(TC.update)}
@@ -92,6 +92,7 @@ export function UpdateModule(
                     {t3({
                       en: "Module is up to date",
                       fr: "Le module est à jour",
+                      pt: "O módulo está atualizado",
                     })}
                     <Show when={data.currentGitRef}>
                       <span class="text-neutral ml-2 font-mono text-xs">
@@ -102,7 +103,7 @@ export function UpdateModule(
                 }
               >
                 <div class="bg-warning/10 text-warning font-500 rounded px-3 py-2 text-sm">
-                  {t3({ en: "Update available", fr: "Mise à jour disponible" })}
+                  {t3({ en: "Update available", fr: "Mise à jour disponible", pt: "Atualização disponível" })}
                   <span class="text-neutral ml-2 font-mono text-xs">
                     {data.currentGitRef?.slice(0, 7) ?? "?"} →{" "}
                     {data.incomingGitRef.slice(0, 7)}
@@ -125,6 +126,7 @@ export function UpdateModule(
                   {t3({
                     en: "May change results",
                     fr: "Peut modifier les résultats",
+                    pt: "Pode alterar os resultados",
                   })}
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -160,6 +162,7 @@ export function UpdateModule(
                   {t3({
                     en: "Visualization changes only",
                     fr: "Modifications d'affichage uniquement",
+                    pt: "Apenas alterações de visualização",
                   })}
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -189,6 +192,7 @@ export function UpdateModule(
                   {t3({
                     en: "Commits since installed",
                     fr: "Commits depuis l'installation",
+                    pt: "Commits desde a instalação",
                   })}
                 </div>
                 <div class="border-base-300 max-h-32 overflow-y-auto rounded border">
@@ -215,12 +219,14 @@ export function UpdateModule(
                       {t3({
                         en: "Reinstall definition",
                         fr: "Réinstaller la définition",
+                        pt: "Reinstalar definição",
                       })}
                     </div>
                     <div class="text-neutral text-xs font-normal">
                       {t3({
                         en: "Update metrics, presets, and presentation objects from latest source",
                         fr: "Mettre à jour les métriques, préréglages et objets de présentation",
+                        pt: "Atualizar métricas, predefinições e objetos de apresentação a partir da fonte mais recente",
                       })}
                     </div>
                   </div>
@@ -238,12 +244,14 @@ export function UpdateModule(
                           {t3({
                             en: "Preserve settings",
                             fr: "Conserver les paramètres",
+                            pt: "Preservar definições",
                           })}
                         </div>
                         <div class="text-neutral text-xs font-normal">
                           {t3({
                             en: "Keep your current parameter values where possible",
                             fr: "Conserver vos valeurs de paramètres actuelles si possible",
+                            pt: "Manter os valores atuais dos parâmetros sempre que possível",
                           })}
                         </div>
                       </div>
@@ -258,12 +266,13 @@ export function UpdateModule(
                 label={
                   <div>
                     <div>
-                      {t3({ en: "Rerun module", fr: "Réexécuter le module" })}
+                      {t3({ en: "Rerun module", fr: "Réexécuter le module", pt: "Reexecutar módulo" })}
                     </div>
                     <div class="text-neutral text-xs font-normal">
                       {t3({
                         en: "Execute R script and recompute all results",
                         fr: "Exécuter le script R et recalculer tous les résultats",
+                        pt: "Executar o script R e recalcular todos os resultados",
                       })}
                     </div>
                   </div>
@@ -279,6 +288,7 @@ export function UpdateModule(
                 {t3({
                   en: "Compute-affecting changes detected. Rerun recommended.",
                   fr: "Changements affectant le calcul détectés. Réexécution recommandée.",
+                  pt: "Detetadas alterações que afetam o cálculo. Recomenda-se reexecutar.",
                 })}
               </div>
             </Show>
@@ -288,6 +298,7 @@ export function UpdateModule(
                 {t3({
                   en: "Select at least one action to apply.",
                   fr: "Sélectionnez au moins une action à appliquer.",
+                  pt: "Selecione pelo menos uma ação a aplicar.",
                 })}
               </div>
             </Show>

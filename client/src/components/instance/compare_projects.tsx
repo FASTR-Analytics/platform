@@ -22,6 +22,7 @@ export function CompareProjects(p: EditorComponentProps<{}, undefined>) {
     t3({
       en: "Loading comparison data...",
       fr: "Chargement des données de comparaison...",
+      pt: "A carregar dados de comparação...",
     }),
   );
 
@@ -31,7 +32,7 @@ export function CompareProjects(p: EditorComponentProps<{}, undefined>) {
         <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
           <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
           <div class="font-700 flex-1 truncate text-xl">
-            {t3({ en: "Compare projects", fr: "Comparer les projets" })}
+            {t3({ en: "Compare projects", fr: "Comparer les projets", pt: "Comparar projetos" })}
           </div>
           <div class="ui-gap-sm flex items-center">
             {/* <Button iconName="refresh" onClick={datasetDetail.fetch} /> */}
@@ -178,7 +179,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                           (m) => m.computeDefGitRef,
                         )}
                       >
-                        {t3({ en: "Compute SHA", fr: "SHA calcul" })}
+                        {t3({ en: "Compute SHA", fr: "SHA calcul", pt: "SHA de cálculo" })}
                       </td>
                       <For each={projects()}>
                         {(_, i) => {
@@ -206,7 +207,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                           (m) => m.presentationDefGitRef,
                         )}
                       >
-                        {t3({ en: "Presentation SHA", fr: "SHA présentation" })}
+                        {t3({ en: "Presentation SHA", fr: "SHA présentation", pt: "SHA de apresentação" })}
                       </td>
                       <For each={projects()}>
                         {(_, i) => {
@@ -232,6 +233,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                         {t3({
                           en: "Presentation updated",
                           fr: "Présentation mise à jour",
+                          pt: "Apresentação atualizada",
                         })}
                       </td>
                       <For each={projects()}>
@@ -261,6 +263,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                         {t3({
                           en: "Last run SHA",
                           fr: "SHA dernière exécution",
+                          pt: "SHA da última execução",
                         })}
                       </td>
                       <For each={projects()}>
@@ -284,7 +287,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                     </tr>
                     <tr class="border-base-300 border-b">
                       <td class="text-neutral ui-pad-sm bg-base-100 sticky left-0 pl-6 text-xs">
-                        {t3({ en: "Last run at", fr: "Dernière exécution le" })}
+                        {t3({ en: "Last run at", fr: "Dernière exécution le", pt: "Última execução em" })}
                       </td>
                       <For each={projects()}>
                         {(_, i) => {

@@ -373,7 +373,7 @@ export function getToolsForSlideEditor(
           if (!slideRes.success) throw new Error(slideRes.err);
           slide = slideRes.data.slide;
         } else {
-          throw new Error("update_figure is only available when editing a slide or a slide deck");
+          throw new Error("update_figure is only available when editing a slide or a slide deck. If you are editing a report, use update_report_figure instead.");
         }
 
         if (slide.type !== "content") {

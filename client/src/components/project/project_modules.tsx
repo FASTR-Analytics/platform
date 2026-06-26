@@ -98,7 +98,7 @@ export function ProjectModules(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar
-            heading={t3({ en: "Modules", fr: "Modules" })}
+            heading={t3({ en: "Modules", fr: "Modules", pt: "Módulos" })}
             class="border-base-300"
             ensureHeightAsIfButton
           >
@@ -114,6 +114,7 @@ export function ProjectModules(p: Props) {
                   {t3({
                     en: "updates available",
                     fr: "mises à jour disponibles",
+                    pt: "atualizações disponíveis",
                   })}
                 </span>
               </Show>
@@ -126,6 +127,7 @@ export function ProjectModules(p: Props) {
                 {t3({
                   en: "Check for updates",
                   fr: "Vérifier les mises à jour",
+                  pt: "Verificar atualizações",
                 })}
               </Button>
               <Show
@@ -136,7 +138,7 @@ export function ProjectModules(p: Props) {
                 }
               >
                 <Button onClick={updateAllModules} iconName="refresh" outline>
-                  {t3({ en: "Update all", fr: "Tout mettre à jour" })}
+                  {t3({ en: "Update all", fr: "Tout mettre à jour", pt: "Atualizar tudo" })}
                 </Button>
               </Show>
             </div>
@@ -237,6 +239,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
         text: t3({
           en: "There are no settings for this module!",
           fr: "Ce module n'a aucun paramètre !",
+          pt: "Não existem definições para este módulo!",
         }),
       });
       return;
@@ -258,7 +261,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
       if (otherMod.prerequisiteModules.includes(p.thisInstalledModule.id)) {
         if (p.allInstalledModules.some((m) => m.id === otherMod.id)) {
           await openAlert({
-            text: `${t3({ en: "In order to disable this module you must first disable the modules that depend on it, including", fr: "Pour désactiver ce module, les modules qui en dépendent doivent d'abord être désactivés, y compris :" })} ${otherMod.label}`,
+            text: `${t3({ en: "In order to disable this module you must first disable the modules that depend on it, including", fr: "Pour désactiver ce module, les modules qui en dépendent doivent d'abord être désactivés, y compris :", pt: "Para desativar este módulo, deve primeiro desativar os módulos que dependem dele, incluindo" })} ${otherMod.label}`,
           });
           return;
         }
@@ -341,22 +344,22 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
     const items: MenuItem[] = [];
 
     if (isReadyOrError && canViewScript) {
-      items.push({ label: t3({ en: "Script", fr: "Script" }), icon: "code", onClick: () => showScript() });
+      items.push({ label: t3({ en: "Script", fr: "Script", pt: "Script" }), icon: "code", onClick: () => showScript() });
     }
     if (isReadyOrError) {
-      items.push({ label: t3({ en: "Logs", fr: "Journaux des données" }), icon: "file", onClick: () => showLogs() });
+      items.push({ label: t3({ en: "Logs", fr: "Journaux des données", pt: "Registos" }), icon: "file", onClick: () => showLogs() });
     }
     if (isReady) {
-      items.push({ label: t3({ en: "Files", fr: "Fichiers" }), icon: "folder", onClick: () => showFiles() });
+      items.push({ label: t3({ en: "Files", fr: "Fichiers", pt: "Ficheiros" }), icon: "folder", onClick: () => showFiles() });
     }
     if (isReadyOrError && canRun) {
-      items.push({ label: t3({ en: "Re-run", fr: "Relancer" }), icon: "refresh", onClick: () => rerunModule() });
+      items.push({ label: t3({ en: "Re-run", fr: "Relancer", pt: "Reexecutar" }), icon: "refresh", onClick: () => rerunModule() });
     }
     if (canConfigure) {
       if (items.length > 0) {
         items.push({ type: "divider" });
       }
-      items.push({ label: t3({ en: "Disable", fr: "Désactiver" }), icon: "minus", intent: "danger", onClick: () => disableModule() });
+      items.push({ label: t3({ en: "Disable", fr: "Désactiver", pt: "Desativar" }), icon: "minus", intent: "danger", onClick: () => disableModule() });
     }
 
     if (items.length > 0) {
@@ -375,7 +378,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
           />
           <Show when={hasUpdateAvailable()}>
             <span class="bg-warning/15 text-warning font-500 ml-2 rounded px-2 py-0.5 text-xs">
-              {t3({ en: "Update available", fr: "Mise à jour disponible" })}
+              {t3({ en: "Update available", fr: "Mise à jour disponible", pt: "Atualização disponível" })}
             </span>
           </Show>
         </div>
@@ -403,6 +406,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
             {t3({
               en: "Waiting for data or upstream modules",
               fr: "En attente des données ou des modules en amont",
+              pt: "A aguardar dados ou módulos a montante",
             })}
           </div>
         }
@@ -425,7 +429,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                   <div class="text-neutral flex flex-col gap-1 text-xs">
                     <div class="flex items-center gap-2">
                       <span>
-                        {t3({ en: "Compute definitions", fr: "Définitions de calcul" })}:{" "}
+                        {t3({ en: "Compute definitions", fr: "Définitions de calcul", pt: "Definições de cálculo" })}:{" "}
                         {computeUpdatedAt ? new Date(computeUpdatedAt).toLocaleString() : "—"}
                       </span>
                       <Show when={p.thisInstalledModule.computeDefGitRef}>
@@ -436,7 +440,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                     </div>
                     <div class="flex items-center gap-2">
                       <span>
-                        {t3({ en: "Presentation definitions", fr: "Définitions de présentation" })}:{" "}
+                        {t3({ en: "Presentation definitions", fr: "Définitions de présentation", pt: "Definições de apresentação" })}:{" "}
                         {definitionUpdatedAt ? new Date(definitionUpdatedAt).toLocaleString() : "—"}
                       </span>
                       <Show when={p.thisInstalledModule.presentationDefGitRef}>
@@ -449,7 +453,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                       class={`flex items-center gap-2 ${resultsStale ? "text-danger" : ""}`}
                     >
                       <span>
-                        {t3({ en: "Last run", fr: "Dernière exécution" })}:{" "}
+                        {t3({ en: "Last run", fr: "Dernière exécution", pt: "Última execução" })}:{" "}
                         {lastRunDate.toLocaleString()}
                       </span>
                       <Show when={projectState.moduleLastRunGitRef[p.thisInstalledModule.id]}>
@@ -462,6 +466,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                           {t3({
                             en: "— results outdated",
                             fr: "— résultats obsolètes",
+                            pt: "— resultados desatualizados",
                           })}
                         </span>
                       </Show>
@@ -486,6 +491,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                 {t3({
                   en: "View logs to determine the error",
                   fr: "Consultez les journaux pour déterminer l'erreur",
+                  pt: "Consulte os registos para determinar o erro",
                 })}
               </div>
             </Match>
@@ -522,7 +528,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
           getPossibleModules(getInstanceCountryIso3()).find((m) => m.id === prereq)?.label ?? prereq;
         return {
           success: false,
-          err: `${t3({ en: "In order to install this module you must first install the module", fr: "Pour installer ce module, vous devez d'abord installer le module" })} ${missingModLabel}`,
+          err: `${t3({ en: "In order to install this module you must first install the module", fr: "Pour installer ce module, vous devez d'abord installer le module", pt: "Para instalar este módulo, deve primeiro instalar o módulo" })} ${missingModLabel}`,
         };
       }
     }
@@ -542,7 +548,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
         }
         fallback={
           <div class="font-400 text-neutral text-sm">
-            {t3({ en: "Deactivated", fr: "Désactivé" })}
+            {t3({ en: "Deactivated", fr: "Désactivé", pt: "Desativado" })}
           </div>
         }
       >
@@ -552,7 +558,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
             state={enableModule.state()}
             outline
           >
-            {t3({ en: "Enable", fr: "Activer" })}
+            {t3({ en: "Enable", fr: "Activer", pt: "Ativar" })}
           </Button>
         </div>
       </Show>

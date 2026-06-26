@@ -35,7 +35,7 @@ export function BatchUploadUsersForm(p: Props) {
       const assetFileName = selectedFileName();
 
       if (!assetFileName) {
-        return { success: false, err: t3({ en: "You must select a CSV file", fr: "Vous devez sélectionner un fichier CSV" }) };
+        return { success: false, err: t3({ en: "You must select a CSV file", fr: "Vous devez sélectionner un fichier CSV", pt: "Tem de selecionar um ficheiro CSV" }) };
       }
 
       return serverActions.batchUploadUsers({
@@ -70,30 +70,30 @@ export function BatchUploadUsersForm(p: Props) {
     <FrameTop
       panelChildren={
         <HeaderBarCanGoBack
-          heading={t3({ en: "Batch import users", fr: "Importation groupée d'utilisateurs" })}
+          heading={t3({ en: "Batch import users", fr: "Importation groupée d'utilisateurs", pt: "Importação em lote de utilizadores" })}
           back={() => p.close(undefined)}
         />
       }
     >
       <div class="ui-pad ui-spy">
         <div class="text-sm">
-          {t3({ en: "Upload a CSV file with the following headers:", fr: "Téléversez un fichier CSV avec les en-têtes suivants :" })}
+          {t3({ en: "Upload a CSV file with the following headers:", fr: "Téléversez un fichier CSV avec les en-têtes suivants :", pt: "Carregue um ficheiro CSV com os seguintes cabeçalhos:" })}
           <span class="font-700 ml-3 font-mono">email, is_global_admin</span>
         </div>
 
         <div class="text-sm text-gray-600">
-          {t3({ en: "Example:", fr: "Exemple :" })} <span class="font-mono">user@example.com,false</span>
+          {t3({ en: "Example:", fr: "Exemple :", pt: "Exemplo:" })} <span class="font-mono">user@example.com,false</span>
         </div>
 
         <div class="">
           <Button id="select-csv-file-button" iconName="upload">
-            {t3({ en: "Upload new CSV file", fr: "Téléverser un nouveau fichier CSV" })}
+            {t3({ en: "Upload new CSV file", fr: "Téléverser un nouveau fichier CSV", pt: "Carregar novo ficheiro CSV" })}
           </Button>
         </div>
 
         <div class="w-96">
           <Select
-            label={t3({ en: "Or select existing CSV file", fr: "Ou sélectionner un fichier CSV existant" })}
+            label={t3({ en: "Or select existing CSV file", fr: "Ou sélectionner un fichier CSV existant", pt: "Ou selecionar um ficheiro CSV existente" })}
             options={getSelectOptions(
               instanceState.assets.filter((a) => a.isCsv).map((a) => a.fileName),
             )}
@@ -105,7 +105,7 @@ export function BatchUploadUsersForm(p: Props) {
 
         <div class="">
           <Checkbox
-            label={t3({ en: "Replace all existing users (DANGEROUS)", fr: "Remplacer tous les utilisateurs existants (DANGEREUX)" })}
+            label={t3({ en: "Replace all existing users (DANGEROUS)", fr: "Remplacer tous les utilisateurs existants (DANGEREUX)", pt: "Substituir todos os utilizadores existentes (PERIGOSO)" })}
             checked={replaceAllExisting()}
             onChange={setReplaceAllExisting}
           />
@@ -121,7 +121,7 @@ export function BatchUploadUsersForm(p: Props) {
             disabled={!selectedFileName()}
             iconName="upload"
           >
-            {t3({ en: "Process CSV", fr: "Traiter le CSV" })}
+            {t3({ en: "Process CSV", fr: "Traiter le CSV", pt: "Processar CSV" })}
           </Button>
           <Button onClick={() => p.close(undefined)} intent="neutral">
             {t3(TC.cancel)}

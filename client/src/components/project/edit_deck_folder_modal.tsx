@@ -26,7 +26,7 @@ export function EditDeckFolderModal(p: AlertComponentProps<Props, ReturnType>) {
       e.preventDefault();
       const label = tempLabel().trim();
       if (!label) {
-        return { success: false, err: t3({ en: "Folder name is required", fr: "Le nom du dossier est requis" }) };
+        return { success: false, err: t3({ en: "Folder name is required", fr: "Le nom du dossier est requis", pt: "O nome da pasta é obrigatório" }) };
       }
       if (isCreate) {
         return serverActions.createSlideDeckFolder({
@@ -50,21 +50,21 @@ export function EditDeckFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   return (
     <AlertFormHolder
       formId="edit-deck-folder"
-      header={isCreate ? t3({ en: "New folder", fr: "Nouveau dossier" }) : t3({ en: "Edit folder", fr: "Modifier le dossier" })}
+      header={isCreate ? t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" }) : t3({ en: "Edit folder", fr: "Modifier le dossier", pt: "Editar pasta" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
     >
       <div class="flex ui-gap">
         <Input
-          label={t3({ en: "Folder name", fr: "Nom du dossier" })}
+          label={t3({ en: "Folder name", fr: "Nom du dossier", pt: "Nome da pasta" })}
           value={tempLabel()}
           onChange={setTempLabel}
           autoFocus
           fullWidth
         />
         <ColorPicker
-          label={t3({ en: "Color", fr: "Couleur" })}
+          label={t3({ en: "Color", fr: "Couleur", pt: "Cor" })}
           value={tempColor()}
           onChange={(c) => setTempColor(c)}
           position="right"

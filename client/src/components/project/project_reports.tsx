@@ -45,6 +45,7 @@ function previewCounts(preview: ReportPreview): string {
       t3({
         en: `${preview.figureCount} ${preview.figureCount === 1 ? "figure" : "figures"}`,
         fr: `${preview.figureCount} figure${preview.figureCount === 1 ? "" : "s"}`,
+        pt: `${preview.figureCount} figura${preview.figureCount === 1 ? "" : "s"}`,
       }),
     );
   }
@@ -53,6 +54,7 @@ function previewCounts(preview: ReportPreview): string {
       t3({
         en: `${preview.imageCount} ${preview.imageCount === 1 ? "image" : "images"}`,
         fr: `${preview.imageCount} image${preview.imageCount === 1 ? "" : "s"}`,
+        pt: `${preview.imageCount} imagem${preview.imageCount === 1 ? "" : "ns"}`,
       }),
     );
   }
@@ -61,8 +63,8 @@ function previewCounts(preview: ReportPreview): string {
 
 function getGroupingOptions(): { value: ReportGroupingMode; label: string }[] {
   return [
-    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier" }) },
-    { value: "flat", label: t3({ en: "Flat list", fr: "Liste simple" }) },
+    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier", pt: "Por pasta" }) },
+    { value: "flat", label: t3({ en: "Flat list", fr: "Liste simple", pt: "Lista simples" }) },
   ];
 }
 
@@ -125,7 +127,7 @@ export function ProjectReports(p: ExtendedProps) {
       }
       case "flat":
         return [
-          { value: "_all", label: t3({ en: "All reports", fr: "Tous les rapports" }), count: reports.length },
+          { value: "_all", label: t3({ en: "All reports", fr: "Tous les rapports", pt: "Todos os relatórios" }), count: reports.length },
         ];
       default:
         return [];
@@ -207,8 +209,8 @@ export function ProjectReports(p: ExtendedProps) {
 
     const confirmText =
       idsToDelete.length > 1
-        ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} reports?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} rapports ?` })
-        : t3({ en: "Are you sure you want to delete this report?", fr: "Êtes-vous sûr de vouloir supprimer ce rapport ?" });
+        ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} reports?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} rapports ?`, pt: `Tem a certeza de que pretende eliminar ${idsToDelete.length} relatórios?` })
+        : t3({ en: "Are you sure you want to delete this report?", fr: "Êtes-vous sûr de vouloir supprimer ce rapport ?", pt: "Tem a certeza de que pretende eliminar este relatório?" });
 
     const deleteAction = createDeleteAction(
       confirmText,
@@ -243,21 +245,21 @@ export function ProjectReports(p: ExtendedProps) {
     const items: MenuItem[] = [
       {
         label: isMultiSelect
-          ? t3({ en: `Move ${count} reports to folder...`, fr: `Déplacer ${count} rapports vers un dossier...` })
-          : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier..." }),
+          ? t3({ en: `Move ${count} reports to folder...`, fr: `Déplacer ${count} rapports vers un dossier...`, pt: `Mover ${count} relatórios para uma pasta...` })
+          : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier...", pt: "Mover para uma pasta..." }),
         icon: "folder",
         onClick: () => handleMoveToFolder(report),
       },
       {
         label: isMultiSelect
-          ? t3({ en: `Duplicate ${count} reports...`, fr: `Dupliquer ${count} rapports...` })
-          : t3({ en: "Duplicate...", fr: "Dupliquer..." }),
+          ? t3({ en: `Duplicate ${count} reports...`, fr: `Dupliquer ${count} rapports...`, pt: `Duplicar ${count} relatórios...` })
+          : t3({ en: "Duplicate...", fr: "Dupliquer...", pt: "Duplicar..." }),
         icon: "copy",
         onClick: () => handleDuplicate(report),
       },
       {
         label: isMultiSelect
-          ? t3({ en: `Delete ${count} reports`, fr: `Supprimer ${count} rapports` })
+          ? t3({ en: `Delete ${count} reports`, fr: `Supprimer ${count} rapports`, pt: `Eliminar ${count} relatórios` })
           : t3(TC.delete),
         icon: "trash",
         intent: "danger",
@@ -275,7 +277,7 @@ export function ProjectReports(p: ExtendedProps) {
 
     const items: MenuItem[] = [
       {
-        label: t3({ en: "Rename / Change color...", fr: "Renommer / Changer la couleur..." }),
+        label: t3({ en: "Rename / Change color...", fr: "Renommer / Changer la couleur...", pt: "Mudar o nome / Mudar a cor..." }),
         icon: "pencil",
         onClick: async () => {
           await openComponent({
@@ -288,12 +290,12 @@ export function ProjectReports(p: ExtendedProps) {
         },
       },
       {
-        label: t3({ en: "Delete folder", fr: "Supprimer le dossier" }),
+        label: t3({ en: "Delete folder", fr: "Supprimer le dossier", pt: "Eliminar pasta" }),
         icon: "trash",
         intent: "danger",
         onClick: async () => {
           const deleteAction = createDeleteAction(
-            t3({ en: "Are you sure you want to delete this folder? Reports will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les rapports seront déplacés dans Général." }),
+            t3({ en: "Are you sure you want to delete this folder? Reports will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les rapports seront déplacés dans Général.", pt: "Tem a certeza de que pretende eliminar esta pasta? Os relatórios serão movidos para Geral." }),
             () =>
               serverActions.deleteReportFolder({
                 projectId: projectState.id,
@@ -361,21 +363,21 @@ export function ProjectReports(p: ExtendedProps) {
       return;
     }
     const report = projectState.reports.find((r) => r.id === res.newReportId);
-    await openReport(res.newReportId, report?.label || t3({ en: "Report", fr: "Rapport" }));
+    await openReport(res.newReportId, report?.label || t3({ en: "Report", fr: "Rapport", pt: "Relatório" }));
   }
 
   return (
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={t3({ en: "Reports", fr: "Rapports" })}
+          heading={t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" })}
           searchText={searchText()}
           setSearchText={setSearchText}
           class="border-base-300"
         >
           <Show when={!projectState.isLocked}>
             <Button onClick={attemptAddReport} iconName="plus">
-              {t3({ en: "Create report", fr: "Créer un rapport" })}
+              {t3({ en: "Create report", fr: "Créer un rapport", pt: "Criar relatório" })}
             </Button>
           </Show>
         </HeadingBar>
@@ -420,7 +422,7 @@ export function ProjectReports(p: ExtendedProps) {
                       });
                     }}
                   >
-                    {t3({ en: "New folder", fr: "Nouveau dossier" })}
+                    {t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" })}
                   </Button>
                 </div>
               </Show>
@@ -437,8 +439,8 @@ export function ProjectReports(p: ExtendedProps) {
             fallback={
               <div class="text-neutral text-sm">
                 {searchText().length >= 3
-                  ? t3({ en: "No matching reports", fr: "Aucun rapport correspondant" })
-                  : t3({ en: "No reports yet", fr: "Aucun rapport pour le moment" })}
+                  ? t3({ en: "No matching reports", fr: "Aucun rapport correspondant", pt: "Nenhum relatório correspondente" })
+                  : t3({ en: "No reports yet", fr: "Aucun rapport pour le moment", pt: "Ainda não há relatórios" })}
               </div>
             }
           >
@@ -476,7 +478,7 @@ export function ProjectReports(p: ExtendedProps) {
                         when={report.preview.lines.length > 0}
                         fallback={
                           <div class="text-neutral text-xs italic">
-                            {t3({ en: "Empty report", fr: "Rapport vide" })}
+                            {t3({ en: "Empty report", fr: "Rapport vide", pt: "Relatório vazio" })}
                           </div>
                         }
                       >

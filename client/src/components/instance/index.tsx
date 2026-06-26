@@ -35,19 +35,19 @@ function compactNavItems(): ListItem<InstanceTab>[] {
     {
       id: "projects",
       label: "",
-      labelText: t3({ en: "Projects", fr: "Projets" }),
+      labelText: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
       iconName: "folder",
     },
     {
       id: "data",
       label: "",
-      labelText: t3({ en: "Data", fr: "Données" }),
+      labelText: t3({ en: "Data", fr: "Données", pt: "Dados" }),
       iconName: "database",
     },
     {
       id: "assets",
       label: "",
-      labelText: t3({ en: "Assets", fr: "Ressources" }),
+      labelText: t3({ en: "Assets", fr: "Ressources", pt: "Recursos" }),
       iconName: "package",
     },
   ];
@@ -59,7 +59,7 @@ function compactNavItems(): ListItem<InstanceTab>[] {
     items.push({
       id: "users",
       label: "",
-      labelText: t3({ en: "Users", fr: "Utilisateurs" }),
+      labelText: t3({ en: "Users", fr: "Utilisateurs", pt: "Utilizadores" }),
       iconName: "users",
     });
   }
@@ -78,7 +78,7 @@ function wideNavItems(): ListItem<InstanceTab>[] {
   const items: ListItem<InstanceTab>[] = [
     {
       id: "projects",
-      label: t3({ en: "Projects", fr: "Projets" }),
+      label: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
       iconName: "folder",
     },
   ];
@@ -89,13 +89,13 @@ function wideNavItems(): ListItem<InstanceTab>[] {
   ) {
     items.push({
       id: "data",
-      label: t3({ en: "Data", fr: "Données" }),
+      label: t3({ en: "Data", fr: "Données", pt: "Dados" }),
       iconName: "database",
     });
   }
   items.push({
     id: "assets",
-    label: t3({ en: "Assets", fr: "Ressources" }),
+    label: t3({ en: "Assets", fr: "Ressources", pt: "Recursos" }),
     iconName: "package",
   });
   if (
@@ -105,7 +105,7 @@ function wideNavItems(): ListItem<InstanceTab>[] {
   ) {
     items.push({
       id: "users",
-      label: t3({ en: "Users", fr: "Utilisateurs" }),
+      label: t3({ en: "Users", fr: "Utilisateurs", pt: "Utilizadores" }),
       iconName: "users",
     });
   }
@@ -292,6 +292,7 @@ export default function Instance(p: Props) {
                   {t3({
                     en: "You are not yet approved. Wait for an administrator to add you to the platform.",
                     fr: "Vous n'êtes pas encore approuvé. Veuillez attendre qu'un administrateur vous ajoute à la plateforme.",
+                    pt: "Ainda não foi aprovado. Aguarde que um administrador o adicione à plataforma.",
                   })}
                 </div>
               }

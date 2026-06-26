@@ -31,7 +31,7 @@ export function AddUserForm(
       e.preventDefault();
       const goodEmails = goodEmailList().map((str) => str.toLowerCase());
       if (goodEmails.length === 0) {
-        return { success: false, err: t3({ en: "You must enter at least one email", fr: "Vous devez saisir au moins un e-mail" }) };
+        return { success: false, err: t3({ en: "You must enter at least one email", fr: "Vous devez saisir au moins un e-mail", pt: "Tem de introduzir pelo menos um e-mail" }) };
       }
       return serverActions.addUsers({
         emails: goodEmails,
@@ -45,7 +45,7 @@ export function AddUserForm(
   return (
     <AlertFormHolder
       formId="add-user"
-      header={t3({ en: "Add new user", fr: "Ajouter un utilisateur" })}
+      header={t3({ en: "Add new user", fr: "Ajouter un utilisateur", pt: "Adicionar novo utilizador" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
@@ -59,7 +59,7 @@ export function AddUserForm(
         height="150px"
       />
       <div class="text-xs">
-        {t3({ en: "Add multiple emails, separated by a comma, semicolon, or line break.", fr: "Ajouter plusieurs e-mails (séparés par virgule, point-virgule ou saut de ligne)" })}
+        {t3({ en: "Add multiple emails, separated by a comma, semicolon, or line break.", fr: "Ajouter plusieurs e-mails (séparés par virgule, point-virgule ou saut de ligne)", pt: "Adicione vários e-mails, separados por vírgula, ponto e vírgula ou quebra de linha." })}
       </div>
       <Show when={goodEmailList().length > 0}>
         <div class="">

@@ -26,7 +26,7 @@ export function CopyProjectForm(
       e.preventDefault();
       const goodLabel = tempLabel().trim();
       if (!goodLabel) {
-        return { success: false, err: t3({ en: "You must enter a project name", fr: "Vous devez saisir un nom de projet" }) };
+        return { success: false, err: t3({ en: "You must enter a project name", fr: "Vous devez saisir un nom de projet", pt: "Tem de introduzir um nome de projeto" }) };
       }
       return await serverActions.copyProject({
         project_id: p.projectId,
@@ -41,14 +41,14 @@ export function CopyProjectForm(
   return (
     <AlertFormHolder
       formId="add-project"
-      header={t3({ en: "Copy project", fr: "Copier le projet" })}
+      header={t3({ en: "Copy project", fr: "Copier le projet", pt: "Copiar projeto" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
     >
       <div class="ui-spy">
         <Input
-          label={t3({ en: "New project name", fr: "Nouveau nom du projet" })}
+          label={t3({ en: "New project name", fr: "Nouveau nom du projet", pt: "Novo nome do projeto" })}
           value={tempLabel()}
           onChange={setTempLabel}
           fullWidth

@@ -70,10 +70,12 @@ export function ProjectDashboards(p: Props) {
         ? t3({
             en: `Are you sure you want to delete ${idsToDelete.length} dashboards?`,
             fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} tableaux de bord ?`,
+            pt: `Tem a certeza de que pretende eliminar ${idsToDelete.length} painéis?`,
           })
         : t3({
             en: `Are you sure you want to delete "${dashboard.title}"?`,
             fr: `Êtes-vous sûr de vouloir supprimer « ${dashboard.title} » ?`,
+            pt: `Tem a certeza de que pretende eliminar "${dashboard.title}"?`,
           });
 
     const deleteAction = createDeleteAction(
@@ -112,6 +114,7 @@ export function ProjectDashboards(p: Props) {
           ? t3({
               en: `Delete ${count} dashboards`,
               fr: `Supprimer ${count} tableaux de bord`,
+              pt: `Eliminar ${count} painéis`,
             })
           : t3(TC.delete),
         icon: "trash",
@@ -133,14 +136,14 @@ export function ProjectDashboards(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={t3({ en: "Dashboards", fr: "Tableaux de bord" })}
+          heading={t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" })}
           searchText={searchText()}
           setSearchText={setSearchText}
           class="border-base-300"
         >
           <Show when={canConfigure()}>
             <Button onClick={attemptCreate} iconName="plus">
-              {t3({ en: "Create dashboard", fr: "Créer un tableau de bord" })}
+              {t3({ en: "Create dashboard", fr: "Créer un tableau de bord", pt: "Criar painel" })}
             </Button>
           </Show>
         </HeadingBar>
@@ -158,10 +161,12 @@ export function ProjectDashboards(p: Props) {
                 ? t3({
                     en: "No matching dashboards",
                     fr: "Aucun tableau de bord correspondant",
+                    pt: "Nenhum painel correspondente",
                   })
                 : t3({
                     en: "No dashboards yet",
                     fr: "Aucun tableau de bord pour le moment",
+                    pt: "Ainda não existem painéis",
                   })}
             </div>
           }
@@ -193,7 +198,7 @@ export function ProjectDashboards(p: Props) {
                 </div>
                 <div class="text-neutral flex items-center justify-between text-xs">
                   <span>
-                    {dashboard.itemCount} {t3({ en: "items", fr: "éléments" })}
+                    {dashboard.itemCount} {t3({ en: "items", fr: "éléments", pt: "elementos" })}
                   </span>
                   <span
                     class={
@@ -203,10 +208,11 @@ export function ProjectDashboards(p: Props) {
                     }
                   >
                     {dashboard.isPublic
-                      ? t3({ en: "Public", fr: "Public" })
+                      ? t3({ en: "Public", fr: "Public", pt: "Público" })
                       : t3({
                           en: "Auth required",
                           fr: "Authentification requise",
+                          pt: "Autenticação necessária",
                         })}
                   </span>
                 </div>

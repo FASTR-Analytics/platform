@@ -22,12 +22,12 @@ import { instanceState, updateInstanceAssets } from "~/state/instance/t1_store";
 
 type FileType = "csv" | "excel" | "image" | "zip" | "other";
 
-const FILE_TYPE_LABELS: Record<FileType, { en: string; fr: string }> = {
-  csv: { en: "CSV files", fr: "Fichiers CSV" },
-  excel: { en: "Excel files", fr: "Fichiers Excel" },
-  image: { en: "Images", fr: "Images" },
-  zip: { en: "ZIP files", fr: "Fichiers ZIP" },
-  other: { en: "Other files", fr: "Autres fichiers" },
+const FILE_TYPE_LABELS: Record<FileType, { en: string; fr: string; pt: string }> = {
+  csv: { en: "CSV files", fr: "Fichiers CSV", pt: "Ficheiros CSV" },
+  excel: { en: "Excel files", fr: "Fichiers Excel", pt: "Ficheiros Excel" },
+  image: { en: "Images", fr: "Images", pt: "Imagens" },
+  zip: { en: "ZIP files", fr: "Fichiers ZIP", pt: "Ficheiros ZIP" },
+  other: { en: "Other files", fr: "Autres fichiers", pt: "Outros ficheiros" },
 };
 
 const FILE_TYPE_ORDER: FileType[] = ["csv", "excel", "image", "zip", "other"];
@@ -78,6 +78,7 @@ export function InstanceAssets() {
         text: t3({
           en: "Are you sure you want to delete this asset file?",
           fr: "Êtes-vous sûr de vouloir supprimer ce fichier ressource ?",
+          pt: "Tem a certeza de que pretende eliminar este ficheiro de recurso?",
         }),
         itemList: [assetFileName],
       },
@@ -91,9 +92,9 @@ export function InstanceAssets() {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBarMainRibbon heading={t3({ en: "Assets", fr: "Ressources" })}>
+        <HeadingBarMainRibbon heading={t3({ en: "Assets", fr: "Ressources", pt: "Recursos" })}>
           <Button id="select-file-button" iconName="upload">
-            {t3({ en: "Upload", fr: "Téléverser" })}
+            {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
           </Button>
         </HeadingBarMainRibbon>
       }
@@ -153,6 +154,7 @@ function AssetFileSystem(p: {
           {t3({
             en: "No assets uploaded yet",
             fr: "Aucune ressource téléversée",
+            pt: "Ainda não foram carregados recursos",
           })}
         </p>
       }
@@ -190,7 +192,7 @@ function AssetTable(p: {
   const columns = createMemo((): TableColumn<AssetInfo>[] => [
     {
       key: "fileName",
-      header: t3({ en: "File Name", fr: "Nom du fichier" }),
+      header: t3({ en: "File Name", fr: "Nom du fichier", pt: "Nome do ficheiro" }),
       sortable: true,
       render: (asset) => (
         <span class="font-mono text-sm">{asset.fileName}</span>
@@ -198,7 +200,7 @@ function AssetTable(p: {
     },
     {
       key: "size",
-      header: t3({ en: "Size", fr: "Taille" }),
+      header: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
       sortable: true,
       render: (asset) => (
         <span class="text-neutral text-sm">{formatFileSize(asset.size)}</span>
@@ -206,7 +208,7 @@ function AssetTable(p: {
     },
     {
       key: "lastModified",
-      header: t3({ en: "Modified", fr: "Modifié" }),
+      header: t3({ en: "Modified", fr: "Modifié", pt: "Modificado" }),
       sortable: true,
       render: (asset) => (
         <span class="text-neutral text-sm">
@@ -216,14 +218,14 @@ function AssetTable(p: {
     },
     {
       key: "uploaderEmail",
-      header: t3({ en: "Owner", fr: "Propriétaire" }),
+      header: t3({ en: "Owner", fr: "Propriétaire", pt: "Proprietário" }),
       sortable: true,
       render: (asset) => (
         <Show
           when={asset.uploaderEmail}
           fallback={
             <span class="text-neutral/50 text-sm italic">
-              {t3({ en: "system", fr: "système" })}
+              {t3({ en: "system", fr: "système", pt: "sistema" })}
             </span>
           }
         >
@@ -271,10 +273,12 @@ function AssetTable(p: {
             ? t3({
                 en: "Are you sure you want to delete this asset file?",
                 fr: "Êtes-vous sûr de vouloir supprimer ce fichier ressource ?",
+                pt: "Tem a certeza de que pretende eliminar este ficheiro de recurso?",
               })
             : t3({
                 en: "Are you sure you want to delete these asset files?",
                 fr: "Êtes-vous sûr de vouloir supprimer ces fichiers ressources ?",
+                pt: "Tem a certeza de que pretende eliminar estes ficheiros de recurso?",
               }),
         itemList: assetFileNames,
       },
@@ -303,9 +307,9 @@ function AssetTable(p: {
       columns={columns()}
       keyField="fileName"
       defaultSort={{ key: "fileName", direction: "asc" }}
-      noRowsMessage={t3({ en: "No assets", fr: "Aucune ressource" })}
+      noRowsMessage={t3({ en: "No assets", fr: "Aucune ressource", pt: "Sem recursos" })}
       bulkActions={bulkActions()}
-      selectionLabel={t3({ en: "asset", fr: "ressource" })}
+      selectionLabel={t3({ en: "asset", fr: "ressource", pt: "recurso" })}
     />
   );
 }

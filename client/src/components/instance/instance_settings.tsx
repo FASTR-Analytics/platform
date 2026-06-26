@@ -163,7 +163,7 @@ export function InstanceSettings(p: Props) {
   const facilityColumnOptions = [
     {
       key: "facility_name",
-      label: t3({ en: "Facility Names", fr: "Noms des établissements" }),
+      label: t3({ en: "Facility Names", fr: "Noms des établissements", pt: "Nomes dos estabelecimentos de saúde" }),
       checked: includeNames,
       setChecked: setIncludeNames,
       labelValue: labelNames,
@@ -171,7 +171,7 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_type",
-      label: t3({ en: "Facility Types", fr: "Types d'établissements" }),
+      label: t3({ en: "Facility Types", fr: "Types d'établissements", pt: "Tipos de estabelecimentos de saúde" }),
       checked: includeTypes,
       setChecked: setIncludeTypes,
       labelValue: labelTypes,
@@ -182,6 +182,7 @@ export function InstanceSettings(p: Props) {
       label: t3({
         en: "Facility Ownership",
         fr: "Propriété des établissements",
+        pt: "Propriedade dos estabelecimentos de saúde",
       }),
       checked: includeOwnership,
       setChecked: setIncludeOwnership,
@@ -190,7 +191,7 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_custom_1",
-      label: t3({ en: "Custom Field 1", fr: "Champ personnalisé 1" }),
+      label: t3({ en: "Custom Field 1", fr: "Champ personnalisé 1", pt: "Campo personalizado 1" }),
       checked: includeCustom1,
       setChecked: setIncludeCustom1,
       labelValue: labelCustom1,
@@ -198,7 +199,7 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_custom_2",
-      label: t3({ en: "Custom Field 2", fr: "Champ personnalisé 2" }),
+      label: t3({ en: "Custom Field 2", fr: "Champ personnalisé 2", pt: "Campo personalizado 2" }),
       checked: includeCustom2,
       setChecked: setIncludeCustom2,
       labelValue: labelCustom2,
@@ -206,7 +207,7 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_custom_3",
-      label: t3({ en: "Custom Field 3", fr: "Champ personnalisé 3" }),
+      label: t3({ en: "Custom Field 3", fr: "Champ personnalisé 3", pt: "Campo personalizado 3" }),
       checked: includeCustom3,
       setChecked: setIncludeCustom3,
       labelValue: labelCustom3,
@@ -214,7 +215,7 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_custom_4",
-      label: t3({ en: "Custom Field 4", fr: "Champ personnalisé 4" }),
+      label: t3({ en: "Custom Field 4", fr: "Champ personnalisé 4", pt: "Campo personalizado 4" }),
       checked: includeCustom4,
       setChecked: setIncludeCustom4,
       labelValue: labelCustom4,
@@ -222,7 +223,7 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_custom_5",
-      label: t3({ en: "Custom Field 5", fr: "Champ personnalisé 5" }),
+      label: t3({ en: "Custom Field 5", fr: "Champ personnalisé 5", pt: "Campo personalizado 5" }),
       checked: includeCustom5,
       setChecked: setIncludeCustom5,
       labelValue: labelCustom5,
@@ -260,7 +261,7 @@ export function InstanceSettings(p: Props) {
     >
       <div class="ui-pad ui-spy h-full w-full">
         <SettingsSection
-          header={t3({ en: "Country", fr: "Pays" })}
+          header={t3({ en: "Country", fr: "Pays", pt: "País" })}
           rightChildren={
             <Show when={needsSavingCountryIso3()}>
               <Button
@@ -271,6 +272,7 @@ export function InstanceSettings(p: Props) {
                 {t3({
                   en: "Update country ISO3 code",
                   fr: "Mettre à jour le code ISO3 du pays",
+                  pt: "Atualizar o código ISO3 do país",
                 })}
               </Button>
             </Show>
@@ -283,6 +285,7 @@ export function InstanceSettings(p: Props) {
           header={t3({
             en: "Max admin area level",
             fr: "Niveau maximal d'unité administrative",
+            pt: "Nível máximo de zona administrativa",
           })}
           rightChildren={
             <Show when={needsSavingMaxAdminArea()}>
@@ -294,6 +297,7 @@ export function InstanceSettings(p: Props) {
                 {t3({
                   en: "Update max admin area level",
                   fr: "Mettre à jour le niveau maximal d'unité administrative",
+                  pt: "Atualizar o nível máximo de zona administrativa",
                 })}
               </Button>
             </Show>
@@ -313,6 +317,7 @@ export function InstanceSettings(p: Props) {
           header={t3({
             en: "Admin area labels",
             fr: "Libellés des unités administratives",
+            pt: "Rótulos das zonas administrativas",
           })}
           rightChildren={
             <Show when={needsSavingAdminLabels()}>
@@ -324,6 +329,7 @@ export function InstanceSettings(p: Props) {
                 {t3({
                   en: "Update admin area labels",
                   fr: "Mettre à jour les libellés",
+                  pt: "Atualizar os rótulos das zonas administrativas",
                 })}
               </Button>
             </Show>
@@ -334,6 +340,7 @@ export function InstanceSettings(p: Props) {
               {t3({
                 en: 'Enter the singular form (e.g. "District" not "Districts"). Leave blank to use the default.',
                 fr: "Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",
+                pt: 'Introduza a forma singular (por ex. "Distrito" e não "Distritos"). Deixe em branco para utilizar a predefinição.',
               })}
             </div>
             <For
@@ -367,6 +374,7 @@ export function InstanceSettings(p: Props) {
                     {t3({
                       en: `Admin area ${row.level}`,
                       fr: `Unité administrative ${row.level}`,
+                      pt: `Zona administrativa ${row.level}`,
                     })}
                   </div>
                   <div class="w-96">
@@ -379,6 +387,7 @@ export function InstanceSettings(p: Props) {
                       placeholder={t3({
                         en: `e.g. ${row.exampleEn}`,
                         fr: `ex. ${row.exampleFr}`,
+                        pt: `por ex. ${row.exampleEn}`,
                       })}
                       fullWidth
                     />
@@ -393,6 +402,7 @@ export function InstanceSettings(p: Props) {
           header={t3({
             en: "Facility columns",
             fr: "Colonnes des établissements",
+            pt: "Colunas dos estabelecimentos de saúde",
           })}
           rightChildren={
             <Show when={needsSavingFacilityCols()}>
@@ -404,6 +414,7 @@ export function InstanceSettings(p: Props) {
                 {t3({
                   en: "Update facility columns",
                   fr: "Mettre à jour les colonnes des établissements",
+                  pt: "Atualizar as colunas dos estabelecimentos de saúde",
                 })}
               </Button>
             </Show>
@@ -433,6 +444,7 @@ export function InstanceSettings(p: Props) {
                         placeholder={t3({
                           en: `Custom label for ${option.label.toLowerCase()}`,
                           fr: `Libellé personnalisé pour ${option.label.toLowerCase()}`,
+                          pt: `Rótulo personalizado para ${option.label.toLowerCase()}`,
                         })}
                         fullWidth
                       />

@@ -55,7 +55,7 @@ export function BulkEditPermissionsForm(
   return (
     <ModalContainer
       width="sm"
-      title={t3({ en: `Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`, fr: `Modifier les permissions pour ${userCount} utilisateur${userCount === 1 ? "" : "s"}` })}
+      title={t3({ en: `Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`, fr: `Modifier les permissions pour ${userCount} utilisateur${userCount === 1 ? "" : "s"}`, pt: `Editar permissões para ${userCount} utilizador${userCount === 1 ? "" : "es"}` })}
       leftButtons={[
         <Button
           onClick={save.click}
@@ -77,7 +77,7 @@ export function BulkEditPermissionsForm(
     >
       <div class="space-y-1">
         <div class="text-xs text-neutral mb-2">
-          {t3({ en: "Click to cycle: unchanged \u2192 true \u2192 false", fr: "Cliquer pour alterner : inchangé \u2192 vrai \u2192 faux" })}
+          {t3({ en: "Click to cycle: unchanged \u2192 true \u2192 false", fr: "Cliquer pour alterner : inchangé \u2192 vrai \u2192 faux", pt: "Clique para alternar: inalterado \u2192 verdadeiro \u2192 falso" })}
         </div>
         <For each={USER_PERMISSIONS}>
           {(key: UserPermission) => (
