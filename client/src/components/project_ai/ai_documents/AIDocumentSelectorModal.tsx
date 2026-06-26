@@ -143,7 +143,7 @@ export function AIDocumentSelectorModal(
 
       <Show when={!isLoading()}>
         <div class="mb-3 flex justify-end">
-          <Button id="upload-pdf-button" size="sm" outline>
+          <Button id="upload-pdf-button" size="sm" outline type="button">
             {t3({
               en: "Upload PDF from device",
               fr: "Importer un PDF depuis l'appareil",
