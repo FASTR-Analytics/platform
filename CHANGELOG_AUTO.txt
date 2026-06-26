@@ -1,3 +1,5 @@
+[TBD] [user] [changed] - Adjusted spacing around the slide editor preview area
+[TBD] [admin] [changed] - Adjusted spacing around the slide editor preview area
 [1.53.10] [user] [added] - Portuguese language support added across the entire platform
 [1.53.10] [admin] [added] - Portuguese language support added across the entire platform
 [1.53.10] [user] [added] - Portuguese language support throughout the platform
