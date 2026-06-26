@@ -2,11 +2,17 @@ import { t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
+  Button,
   LoadingIndicator,
   MultiSelect,
   createFormAction,
 } from "panther";
-import { createMemo, createSignal, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
+import {
+  createUppyInstance,
+  cleanupUppy,
+} from "~/components/_uppy_file_upload";
+import type Uppy from "@uppy/core";
 import { _SERVER_HOST } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import {
@@ -29,6 +35,8 @@ export function AIDocumentSelectorModal(
   const [selectedFiles, setSelectedFiles] = createSignal<string[]>([]);
   const [existingDocs, setExistingDocs] = createSignal<ProjectDocument[]>([]);
 
+  let uppy: Uppy | undefined;
+
   const pdfAssets = () =>
     instanceState.assets.filter((a) =>
       a.fileName.toLowerCase().endsWith(".pdf"),
@@ -50,6 +58,26 @@ export function AIDocumentSelectorModal(
     setSelectedFiles(alreadySelected);
 
     setIsLoading(false);
+  });
+
+  createEffect(() => {
+    if (!isLoading() && !uppy) {
+      uppy = createUppyInstance({
+        triggerId: "#upload-pdf-button",
+        maxNumberOfFiles: 5,
+        allowedFileTypes: [".pdf"],
+      });
+      uppy.on("upload-success", (file: any) => {
+        const fileName = file?.name;
+        if (fileName) {
+          setSelectedFiles((prev) => [...new Set([...prev, fileName])]);
+        }
+      });
+    }
+  });
+
+  onCleanup(() => {
+    cleanupUppy(uppy);
   });
 
   const save = createFormAction(
@@ -114,18 +142,22 @@ export function AIDocumentSelectorModal(
       </Show>
 
       <Show when={!isLoading()}>
+        <div class="mb-3 flex justify-end">
+          <Button id="upload-pdf-button" size="sm" outline>
+            {t3({
+              en: "Upload PDF from device",
+              fr: "Importer un PDF depuis l'appareil",
+            })}
+          </Button>
+        </div>
+
         <Show
           when={pdfAssets().length > 0}
           fallback={
             <div class="text-base-content/60 py-4 text-center">
               {t3({
-                en: "No PDF files found in assets.",
-                fr: "Aucun fichier PDF trouvé dans les ressources.",
-              })}
-              <br />
-              {t3({
-                en: "Upload PDFs to the assets folder first.",
-                fr: "Téléversez d'abord des PDF dans le dossier des ressources.",
+                en: "No PDF files found in assets. Use the button above to upload a PDF.",
+                fr: "Aucun fichier PDF trouvé. Utilisez le bouton ci-dessus pour importer un PDF.",
               })}
             </div>
           }
