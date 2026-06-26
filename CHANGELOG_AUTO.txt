@@ -1,3 +1,13 @@
+[TBD] [user] [added] - Portuguese language support across reports and visualizations
+[TBD] [user] [fixed] - Visualization preview errors now shown instead of silently hidden
+[TBD] [user] [fixed] - Error details now displayed when adding a visualization to a slide deck fails
+[TBD] [user] [fixed] - Invalid visualizations caught early with clear error messages before saving
+[TBD] [user] [changed] - Proposed changes dialog is now wider for easier review
+[TBD] [admin] [added] - Portuguese language support for reports and related features
+[TBD] [admin] [fixed] - AI visualization errors now shown instead of silently hidden
+[TBD] [admin] [fixed] - Detailed error messages when adding visualizations to slide decks
+[TBD] [admin] [fixed] - Invalid visualizations caught early with clear field-level errors
+[TBD] [admin] [changed] - Proposed change diff dialog is now wider for easier review
 [TBD] [user] [added] - Portuguese language option now available throughout the platform
 [TBD] [user] [changed] - AI report edit proposals now appear in a focused pop-up modal
 [TBD] [user] [fixed] - Adding a visualization to slides while editing a single slide now shows a helpful message instead of failing
