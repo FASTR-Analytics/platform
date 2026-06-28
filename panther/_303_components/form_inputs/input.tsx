@@ -9,7 +9,7 @@ import { Icon } from "../icons/mod.ts";
 import { useAutoFocus } from "./utils.ts";
 
 // Input classes composed from utility classes and component classes
-function getInputClasses(size?: "sm") {
+function getInputClasses(size: "sm" | undefined, outline: boolean) {
   return [
     // Component classes (defined in CSS)
     "ui-focusable",
@@ -18,11 +18,11 @@ function getInputClasses(size?: "sm") {
     size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
     size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
     "font-400",
-    "text-base-content",
 
-    // Appearance
-    "border-base-300",
-    "bg-base-100",
+    // Appearance: Button-identical intent outline, or neutral box
+    ...(outline
+      ? ["ui-intent-fill", "ui-intent-outline"]
+      : ["text-base-content", "border-base-300", "bg-base-100"]),
     "rounded",
     "border",
 
@@ -54,6 +54,7 @@ type Props = {
   mono?: boolean;
   disabled?: boolean;
   size?: "sm";
+  outline?: boolean;
 };
 
 export function Input(p: Props) {
@@ -88,8 +89,9 @@ export function Input(p: Props) {
         <input
           ref={(el) =>
             useAutoFocus(el, p.autoFocus)}
-          class={getInputClasses(p.size)}
+          class={getInputClasses(p.size, !!p.outline)}
           data-intent={p.intent}
+          data-outline={!!p.outline}
           data-mono={p.mono}
           autofocus={p.autoFocus}
           type={p.type}

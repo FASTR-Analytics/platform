@@ -272,7 +272,11 @@ export default function AlertProvider() {
                                     intent={ass.intent}
                                   >
                                     {ass.closeButtonLabel ??
-                                      t3({ en: "Close", fr: "Fermer" })}
+                                      t3({
+                                        en: "Close",
+                                        fr: "Fermer",
+                                        pt: "Fechar",
+                                      })}
                                   </Button>,
                                 ];
                               }
@@ -287,7 +291,11 @@ export default function AlertProvider() {
                                     intent={ass.intent}
                                   >
                                     {ass.confirmButtonLabel ??
-                                      t3({ en: "Confirm", fr: "Confirmer" })}
+                                      t3({
+                                        en: "Confirm",
+                                        fr: "Confirmer",
+                                        pt: "Confirmar",
+                                      })}
                                   </Button>,
                                   <Button
                                     onClick={() => {
@@ -297,7 +305,11 @@ export default function AlertProvider() {
                                     intent="neutral"
                                     autofocus
                                   >
-                                    {t3({ en: "Cancel", fr: "Annuler" })}
+                                    {t3({
+                                      en: "Cancel",
+                                      fr: "Annuler",
+                                      pt: "Cancelar",
+                                    })}
                                   </Button>,
                                 ];
                               }
@@ -310,7 +322,11 @@ export default function AlertProvider() {
                                     intent={ass.intent}
                                   >
                                     {ass.saveButtonLabel ??
-                                      t3({ en: "Confirm", fr: "Confirmer" })}
+                                      t3({
+                                        en: "Confirm",
+                                        fr: "Confirmer",
+                                        pt: "Confirmar",
+                                      })}
                                   </Button>,
                                   <Button
                                     type="button"
@@ -320,7 +336,11 @@ export default function AlertProvider() {
                                     }}
                                     intent="neutral"
                                   >
-                                    {t3({ en: "Cancel", fr: "Annuler" })}
+                                    {t3({
+                                      en: "Cancel",
+                                      fr: "Annuler",
+                                      pt: "Cancelar",
+                                    })}
                                   </Button>,
                                 ];
                               }

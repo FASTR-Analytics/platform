@@ -10,7 +10,7 @@ import type { SelectOption } from "./types.ts";
 import { useAutoFocus } from "./utils.ts";
 
 // Select classes composed from utility classes and component classes
-function getSelectClasses(size?: "sm") {
+function getSelectClasses(size: "sm" | undefined, outline: boolean) {
   return [
     // Component classes (defined in CSS)
     "ui-focusable",
@@ -20,11 +20,11 @@ function getSelectClasses(size?: "sm") {
     size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
     size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
     "font-400",
-    "text-base-content",
 
-    // Appearance
-    "border-base-300",
-    "bg-base-100",
+    // Appearance: Button-identical intent outline, or neutral box
+    ...(outline
+      ? ["ui-intent-fill", "ui-intent-outline"]
+      : ["text-base-content", "border-base-300", "bg-base-100"]),
     "rounded",
     "border",
 
@@ -55,6 +55,7 @@ type Props<T extends string> = {
   invalidMsg?: string;
   mono?: boolean;
   size?: "sm";
+  outline?: boolean;
 };
 
 export function Select<T extends string>(p: Props<T>) {
@@ -72,7 +73,9 @@ export function Select<T extends string>(p: Props<T>) {
           value={p.value ?? ""}
           onChange={(e) =>
             p.onChange(e.currentTarget.value as T)}
-          class={getSelectClasses(p.size)}
+          class={getSelectClasses(p.size, !!p.outline)}
+          data-intent={p.intent}
+          data-outline={!!p.outline}
           data-mono={p.mono}
           data-placeholder={p.placeholder && !p.value}
           autofocus={p.autoFocus}
@@ -88,7 +91,15 @@ export function Select<T extends string>(p: Props<T>) {
             }}
           </For>
         </select>
-        <div class="text-base-content pointer-events-none absolute bottom-0 right-[0.5em] top-0 my-auto flex h-[1.5em] w-[1.5em] items-center justify-center">
+        <div
+          class="pointer-events-none absolute bottom-0 right-[0.5em] top-0 my-auto flex h-[1.5em] w-[1.5em] items-center justify-center"
+          classList={{
+            "text-base-content": !p.outline,
+            "ui-intent-outline": !!p.outline,
+          }}
+          data-intent={p.intent}
+          data-outline={!!p.outline}
+        >
           <Icon iconName="selector" />
         </div>
       </div>

@@ -41,7 +41,7 @@ export function ConfirmDeleteForm<T>(
       width="md"
       topPanel={
         <div class="font-700 text-danger text-lg leading-none">
-          {t3({ en: "Warning", fr: "Avertissement" })}
+          {t3({ en: "Warning", fr: "Avertissement", pt: "Aviso" })}
         </div>
       }
       leftButtons={
@@ -52,10 +52,10 @@ export function ConfirmDeleteForm<T>(
             intent="danger"
             state={confirm.state()}
           >
-            {t3({ en: "Confirm", fr: "Confirmer" })}
+            {t3({ en: "Confirm", fr: "Confirmer", pt: "Confirmar" })}
           </Button>,
           <Button onClick={() => p.close(undefined)} intent="neutral" autofocus>
-            {t3({ en: "Cancel", fr: "Annuler" })}
+            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
           </Button>,
         ]
       }

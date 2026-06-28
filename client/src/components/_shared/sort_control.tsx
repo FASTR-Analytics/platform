@@ -32,6 +32,7 @@ export function sortBySortMode<T>(
 type Props = {
   value: SortMode;
   onChange: (mode: SortMode) => void;
+  outlineAndBase100?: boolean;
 };
 
 export function SortControl(p: Props) {
@@ -50,6 +51,8 @@ export function SortControl(p: Props) {
         },
       ]}
       onChange={(v) => p.onChange(v as SortMode)}
+      outline={p.outlineAndBase100}
+      intent={p.outlineAndBase100 ? "base-100" : undefined}
     />
   );
 }

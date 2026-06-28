@@ -141,11 +141,11 @@ export function Table<
         <div class="ui-pad ui-gap bg-base-100 border-base-300 mb-4 flex items-center rounded border">
           <span class="font-700 flex-none text-sm">
             {selectedItems().length}{" "}
-            {p.selectionLabel || t3({ en: "item", fr: "élément" })}
+            {p.selectionLabel || t3({ en: "item", fr: "élément", pt: "item" })}
             {selectedItems().length !== 1 ? "s" : ""}{" "}
             {selectedItems().length !== 1
-              ? t3({ en: "selected", fr: "sélectionnés" })
-              : t3({ en: "selected", fr: "sélectionné" })}
+              ? t3({ en: "selected", fr: "sélectionnés", pt: "selecionados" })
+              : t3({ en: "selected", fr: "sélectionné", pt: "selecionado" })}
           </span>
           <div class="flex items-center gap-2">
             <For each={p.bulkActions}>
@@ -167,7 +167,11 @@ export function Table<
               intent="neutral"
               outline
             >
-              {t3({ en: "Clear selection", fr: "Effacer la sélection" })}
+              {t3({
+                en: "Clear selection",
+                fr: "Effacer la sélection",
+                pt: "Limpar seleção",
+              })}
             </Button>
           </div>
         </div>
@@ -249,6 +253,7 @@ export function Table<
                         t3({
                           en: "No data available",
                           fr: "Aucune donnée disponible",
+                          pt: "Sem dados disponíveis",
                         })}
                     </td>
                   </tr>

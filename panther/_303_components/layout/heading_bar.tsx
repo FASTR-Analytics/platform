@@ -41,7 +41,7 @@ export function HeadingBar(p: Props) {
               onChange={p.setSearchText}
               value={p.searchText ?? ""}
               fullWidth
-              label={t3({ en: "Search", fr: "Recherche" })}
+              label={t3({ en: "Search", fr: "Recherche", pt: "Pesquisar" })}
               searchIcon
             />
             <Show when={p.searchText}>

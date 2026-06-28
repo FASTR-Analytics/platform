@@ -21,7 +21,8 @@ export function LoadingIndicator(p: Props) {
       class="data-[no-pad=false]:ui-pad h-full w-full"
       data-no-pad={!!p.noPad}
     >
-      {p.msg ?? t3({ en: "Loading...", fr: "Chargement..." })}
+      {p.msg ??
+        t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}
     </div>
   );
 }

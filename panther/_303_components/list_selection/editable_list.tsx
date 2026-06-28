@@ -199,7 +199,7 @@ export function EditableList<T extends string, M = never>(
               intent="primary"
               size="sm"
             >
-              {p.addLabel ?? t3({ en: "Add", fr: "Ajouter" })}
+              {p.addLabel ?? t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
             </Button>
           </Show>
         </div>
@@ -210,7 +210,11 @@ export function EditableList<T extends string, M = never>(
         fallback={
           <div class="text-neutral text-sm">
             {p.emptyMessage ??
-              t3({ en: "Nothing here yet", fr: "Rien pour le moment" })}
+              t3({
+                en: "Nothing here yet",
+                fr: "Rien pour le moment",
+                pt: "Ainda não há nada aqui",
+              })}
           </div>
         }
       >

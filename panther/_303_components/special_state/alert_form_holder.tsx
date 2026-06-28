@@ -45,13 +45,15 @@ export function AlertFormHolder(p: AlertFormHolderProps) {
           state={p.savingState}
           disabled={p.disableSaveButton}
         >
-          {p.saveButtonText ?? t3({ en: "Save", fr: "Sauvegarder" })}
+          {p.saveButtonText ??
+            t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" })}
         </Button>,
       );
     }
     buttons.push(
       <Button onClick={p.cancelFunc} intent="neutral" iconName="x" outline>
-        {p.cancelButtonText ?? t3({ en: "Cancel", fr: "Annuler" })}
+        {p.cancelButtonText ??
+          t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
       </Button>,
     );
     return buttons;
