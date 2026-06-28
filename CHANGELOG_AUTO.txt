@@ -1,3 +1,6 @@
+[TBD] [user] [added] - Sort projects, visualizations, dashboards, reports, and decks by name or recently updated
+[TBD] [admin] [added] - Sort projects, visualizations, dashboards, reports, and decks by name or recently updated
+[TBD] [admin] [added] - Sort preference is remembered per list across sessions
 [TBD] [user] [changed] - Adjusted spacing around the slide editor preview area
 [TBD] [admin] [changed] - Adjusted spacing around the slide editor preview area
 [1.53.10] [user] [added] - Portuguese language support added across the entire platform
