@@ -1,8 +1,33 @@
-[TBD] [user] [added] - Sort projects, visualizations, dashboards, reports, and decks by name or recently updated
-[TBD] [admin] [added] - Sort projects, visualizations, dashboards, reports, and decks by name or recently updated
-[TBD] [admin] [added] - Sort preference is remembered per list across sessions
-[TBD] [user] [changed] - Adjusted spacing around the slide editor preview area
-[TBD] [admin] [changed] - Adjusted spacing around the slide editor preview area
+[1.54.0] [user] [added] - Import HMIS and HFA facility lists simultaneously without blocking each other
+[1.54.0] [user] [added] - Choose which columns to include when importing facilities from a CSV file
+[1.54.0] [user] [added] - Administrative area columns can now be toggled on or off during import
+[1.54.0] [user] [added] - Optional facility columns can be individually toggled during CSV column mapping
+[1.54.0] [user] [added] - Import summary now shows how many facilities were added, updated, or deleted
+[1.54.0] [user] [added] - Preview showing how many facilities in your file already exist before importing
+[1.54.0] [user] [added] - Warning when no facilities match existing records, suggesting possible column mismatch
+[1.54.0] [user] [changed] - Import mode options simplified to three clear choices: Replace all, Add and update, or Update existing only
+[1.54.0] [user] [changed] - Column mapping screen now shows friendly column names instead of technical identifiers
+[1.54.0] [user] [changed] - Import confirmation screen now shows detailed consequences of your chosen import mode
+[1.54.0] [user] [changed] - You must explicitly choose an import mode before finalizing instead of a default being preselected
+[1.54.0] [user] [fixed] - Importing into one facility registry no longer blocks importing into the other registry
+[1.54.0] [user] [added] - Portuguese language support added throughout the facility import workflow
+[1.54.0] [admin] [added] - HMIS and HFA facility imports can now run simultaneously
+[1.54.0] [admin] [added] - Column mapping step now lets you toggle admin areas and metadata columns on or off
+[1.54.0] [admin] [added] - Import preview now shows how many facilities already exist vs. are new
+[1.54.0] [admin] [added] - Post-import confirmation screen shows counts of added, updated, and deleted facilities
+[1.54.0] [admin] [changed] - Facility import modes simplified to three clear options: Replace all, Add and update, or Update existing only
+[1.54.0] [admin] [changed] - You must explicitly choose an import mode before finalizing — no default is pre-selected
+[1.54.0] [admin] [changed] - Replace all mode now blocked if datasets or sampling weights still reference the facilities
+[1.54.0] [admin] [changed] - Update existing only mode now rejects the import if any facility IDs are not already in the backbone
+[1.54.0] [admin] [changed] - Admin area columns are now optional — you can import metadata-only updates without remapping admin areas
+[1.54.0] [admin] [changed] - Only mapped columns are written during import — unmapped columns are left unchanged
+[1.54.0] [admin] [fixed] - Importing into one facility registry no longer blocks imports into the other registry
+[1.54.0] [admin] [fixed] - Country label for Admin Area 1 now displays correctly when sub-level labels are configured
+[1.54.0] [user] [added] - Sort projects, visualizations, dashboards, reports, and decks by name or recently updated
+[1.54.0] [admin] [added] - Sort projects, visualizations, dashboards, reports, and decks by name or recently updated
+[1.54.0] [admin] [added] - Sort preference is remembered per list across sessions
+[1.54.0] [user] [changed] - Adjusted spacing around the slide editor preview area
+[1.54.0] [admin] [changed] - Adjusted spacing around the slide editor preview area
 [1.53.10] [user] [added] - Portuguese language support added across the entire platform
 [1.53.10] [admin] [added] - Portuguese language support added across the entire platform
 [1.53.10] [user] [added] - Portuguese language support throughout the platform
