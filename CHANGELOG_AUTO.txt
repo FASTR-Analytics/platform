@@ -1,3 +1,5 @@
+[1.54.1] [user] [changed] - Sort control styling updated on the Projects page
+[1.54.1] [admin] [changed] - Sort control styling updated on Projects page
 [1.54.0] [user] [added] - Import HMIS and HFA facility lists simultaneously without blocking each other
 [1.54.0] [user] [added] - Choose which columns to include when importing facilities from a CSV file
 [1.54.0] [user] [added] - Administrative area columns can now be toggled on or off during import
