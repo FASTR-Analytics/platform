@@ -323,6 +323,7 @@ export type SlideDeckSummary = {
   folderId: string | null;
   firstSlideId: string | null;
   config: SlideDeckConfig;
+  lastUpdated: string;
 };
 
 // Slide deck detail (for rendering)

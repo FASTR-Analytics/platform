@@ -40,6 +40,7 @@ export type PresentationObjectSummary = {
   createdByAI: boolean;
   folderId: string | null;
   sortOrder: number;
+  lastUpdated: string;
 };
 
 export type PresentationObjectInReportInfo = {

@@ -37,6 +37,7 @@ export * from "./project_sse.ts";
 export * from "./projects.ts";
 export * from "./reports.ts";
 export * from "./slides.ts";
+export * from "./sort.ts";
 export * from "./ai_input.ts";
 export * from "./streaming.ts";
 export * from "./structure.ts";

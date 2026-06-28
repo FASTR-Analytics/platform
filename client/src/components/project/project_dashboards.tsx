@@ -13,6 +13,8 @@ import {
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
+import { dashboardSortMode, setDashboardSortMode } from "~/state/t4_ui";
+import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
 import { CreateDashboardModal } from "../dashboards/create_dashboard_modal";
 import { DashboardEditor } from "../dashboards/dashboard_editor";
@@ -28,11 +30,20 @@ export function ProjectDashboards(p: Props) {
 
   const filtered = (): DashboardSummary[] => {
     const dashboards = projectState.dashboards;
-    if (searchText().length < 3) return dashboards;
     const q = searchText().toLowerCase();
-    return dashboards.filter(
-      (d) =>
-        d.title.toLowerCase().includes(q) || d.slug.toLowerCase().includes(q),
+    const matched =
+      searchText().length < 3
+        ? dashboards
+        : dashboards.filter(
+            (d) =>
+              d.title.toLowerCase().includes(q) ||
+              d.slug.toLowerCase().includes(q),
+          );
+    return sortBySortMode(
+      matched,
+      dashboardSortMode(),
+      (d) => d.title,
+      (d) => d.updatedAt,
     );
   };
 
@@ -140,6 +151,12 @@ export function ProjectDashboards(p: Props) {
           searchText={searchText()}
           setSearchText={setSearchText}
           class="border-base-300"
+          centerChildren={
+            <SortControl
+              value={dashboardSortMode()}
+              onChange={setDashboardSortMode}
+            />
+          }
         >
           <Show when={canConfigure()}>
             <Button onClick={attemptCreate} iconName="plus">

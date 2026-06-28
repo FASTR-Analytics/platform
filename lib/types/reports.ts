@@ -64,6 +64,7 @@ export type ReportSummary = {
   folderId: string | null;
   config: ReportConfig;
   preview: ReportPreview;
+  lastUpdated: string;
 };
 
 function stripInlineMarkdown(s: string): string {

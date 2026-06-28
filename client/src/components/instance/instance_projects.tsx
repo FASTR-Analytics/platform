@@ -15,6 +15,8 @@ import { AddProjectForm } from "./add_project";
 import { CompareProjects } from "./compare_projects";
 import { PendingDeletions } from "./pending_deletions";
 import { instanceState } from "~/state/instance/t1_store";
+import { projectsSortMode, setProjectsSortMode } from "~/state/t4_ui";
+import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 
 type Props = {
   canCreateProjects: boolean;
@@ -41,6 +43,15 @@ export function InstanceProjects(p: Props) {
 
   const pendingDeletionCount = createMemo(
     () => instanceState.projects.filter((proj) => proj.status === "pending_deletion").length,
+  );
+
+  const sortedProjects = createMemo(() =>
+    sortBySortMode(
+      instanceState.projects.filter((proj) => proj.status !== "pending_deletion"),
+      projectsSortMode(),
+      (proj) => proj.label,
+      (proj) => proj.lastActivityAt,
+    ),
   );
 
   async function compareProjects() {
@@ -88,6 +99,10 @@ export function InstanceProjects(p: Props) {
         panelChildren={
           <HeadingBarMainRibbon heading={t3({ en: "Projects", fr: "Projets", pt: "Projetos" })}>
             <div class="ui-gap-sm flex items-center">
+              <SortControl
+                value={projectsSortMode()}
+                onChange={setProjectsSortMode}
+              />
               <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <Button onClick={compareProjects} outline intent="base-100">
                   {t3({ en: "Compare projects", fr: "Comparer les projets", pt: "Comparar projetos" })}
@@ -113,7 +128,7 @@ export function InstanceProjects(p: Props) {
       >
         <div class="ui-pad ui-gap grid h-full w-full flex-1 grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start overflow-auto">
           <For
-            each={instanceState.projects.filter((proj) => proj.status !== "pending_deletion")}
+            each={sortedProjects()}
             fallback={
               <div class="text-neutral text-sm">
                 {t3({ en: "No projects", fr: "Aucun projet", pt: "Sem projetos" })}

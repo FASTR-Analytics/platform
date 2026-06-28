@@ -29,6 +29,7 @@ export async function getAllSlideDecks(
         folderId: d.folder_id,
         firstSlideId: d.first_slide_id,
         config: parseDeckConfig(d),
+        lastUpdated: d.last_updated,
       })),
     };
   });

@@ -31,7 +31,7 @@ function parseReportConfig(report: Pick<DBReport, "config">): ReportConfig {
 // list load and every `reports_updated` re-broadcast.
 type DBReportSummaryRow = Pick<
   DBReport,
-  "id" | "label" | "folder_id" | "config" | "body"
+  "id" | "label" | "folder_id" | "config" | "body" | "last_updated"
 >;
 
 export async function getAllReports(
@@ -39,7 +39,7 @@ export async function getAllReports(
 ): Promise<APIResponseWithData<ReportSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const reports = await projectDb<DBReportSummaryRow[]>`
-      SELECT id, label, folder_id, config, body FROM reports ORDER BY last_updated DESC
+      SELECT id, label, folder_id, config, body, last_updated FROM reports ORDER BY last_updated DESC
     `;
 
     return {
@@ -50,6 +50,7 @@ export async function getAllReports(
         folderId: r.folder_id,
         config: parseReportConfig(r),
         preview: buildReportPreview(r.body),
+        lastUpdated: r.last_updated,
       })),
     };
   });

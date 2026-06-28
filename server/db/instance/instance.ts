@@ -268,7 +268,7 @@ export async function getProjectsForUser(
 ): Promise<ProjectSummary[]> {
   if (globalUser.isGlobalAdmin || H_USERS.includes(globalUser.email)) {
     return (
-      await mainDb<(DBProject & { last_activity_at: string | null })[]>`
+      await mainDb<(DBProject & { last_activity_at: Date | null })[]>`
         SELECT p.*, la.last_activity_at
         FROM projects p
         LEFT JOIN (
@@ -286,13 +286,13 @@ export async function getProjectsForUser(
       isLocked: p.is_locked,
       isCentralReporting: p.is_central_reporting,
       status: p.status as ProjectSummary["status"],
-      lastActivityAt: p.last_activity_at ?? undefined,
+      lastActivityAt: p.last_activity_at?.toISOString() ?? undefined,
       deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
     }));
   }
 
   return (
-    await mainDb<(DBProject & DBProjectUserRole & { last_activity_at: string | null })[]>`
+    await mainDb<(DBProject & DBProjectUserRole & { last_activity_at: Date | null })[]>`
       SELECT pur.*, p.*, la.last_activity_at
       FROM project_user_roles pur
       JOIN projects p ON pur.project_id = p.id
@@ -321,7 +321,7 @@ export async function getProjectsForUser(
     isLocked: p.is_locked,
     isCentralReporting: false,
     status: p.status as ProjectSummary["status"],
-    lastActivityAt: p.last_activity_at ?? undefined,
+    lastActivityAt: p.last_activity_at?.toISOString() ?? undefined,
     deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
   }));
 }

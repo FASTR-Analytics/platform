@@ -37,7 +37,9 @@ import {
   setVizSelectedGroup,
   hideUnreadyVisualizations,
   setHideUnreadyVisualizations,
+  vizSortMode,
 } from "~/state/t4_ui";
+import { sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
 import { PresentationObjectMiniDisplay } from "./PresentationObjectMiniDisplay";
 import { NotAvailableBox } from "./NotAvailableBox";
@@ -203,36 +205,49 @@ export function PresentationObjectPanelDisplay(p: Props) {
 
     if (!group) return [];
 
+    let selected: PresentationObjectSummary[];
     switch (mode) {
       case "folders":
         if (group === "_defaults") {
-          return vizs.filter((v) => v.isDefault && !v.createdByAI);
-        }
-        if (group === "_unfiled") {
-          return vizs.filter(
+          selected = vizs.filter((v) => v.isDefault && !v.createdByAI);
+        } else if (group === "_unfiled") {
+          selected = vizs.filter(
             (v) => v.folderId === null && !v.isDefault && !v.createdByAI,
           );
+        } else {
+          selected = vizs.filter((v) => v.folderId === group && !v.isDefault);
         }
-        return vizs.filter((v) => v.folderId === group && !v.isDefault);
+        break;
 
       case "module":
-        return vizs.filter((v) => metricModuleMap().get(v.metricId) === group);
+        selected = vizs.filter(
+          (v) => metricModuleMap().get(v.metricId) === group,
+        );
+        break;
 
       case "metric": {
         // group is the metric label, find all metric IDs with that label
         const metricGroups = groupMetricsByLabel(p.projectState.metrics);
         const metricGroup = metricGroups.find((g) => g.label === group);
-        if (!metricGroup) return [];
-        const metricIds = new Set(metricGroup.variants.map((m) => m.id));
-        return vizs.filter((v) => metricIds.has(v.metricId));
+        if (!metricGroup) {
+          selected = [];
+        } else {
+          const metricIds = new Set(metricGroup.variants.map((m) => m.id));
+          selected = vizs.filter((v) => metricIds.has(v.metricId));
+        }
+        break;
       }
 
-      case "flat":
-        return [...vizs].sort((a, b) => a.label.localeCompare(b.label));
-
       default:
-        return vizs;
+        selected = vizs;
     }
+
+    return sortBySortMode(
+      selected,
+      vizSortMode(),
+      (po) => po.label,
+      (po) => po.lastUpdated,
+    );
   };
 
   const subGroupConfig = (): SubGroupConfig | null => {

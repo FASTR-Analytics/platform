@@ -35,7 +35,10 @@ import {
   setDeckGroupingMode,
   deckSelectedGroup,
   setDeckSelectedGroup,
+  deckSortMode,
+  setDeckSortMode,
 } from "~/state/t4_ui";
+import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
 
 function getGroupingOptions(): { value: SlideDeckGroupingMode; label: string }[] {
@@ -118,17 +121,25 @@ export function ProjectDecks(p: ExtendedProps) {
 
     if (!group) return [];
 
+    let selected: SlideDeckSummary[];
     switch (mode) {
       case "folders":
         if (group === "_unfiled") {
-          return decks.filter((d) => d.folderId === null);
+          selected = decks.filter((d) => d.folderId === null);
+        } else {
+          selected = decks.filter((d) => d.folderId === group);
         }
-        return decks.filter((d) => d.folderId === group);
-      case "flat":
-        return [...decks].sort((a, b) => a.label.localeCompare(b.label));
+        break;
       default:
-        return decks;
+        selected = decks;
     }
+
+    return sortBySortMode(
+      selected,
+      deckSortMode(),
+      (d) => d.label,
+      (d) => d.lastUpdated,
+    );
   };
 
   createEffect(() => {
@@ -357,6 +368,9 @@ export function ProjectDecks(p: ExtendedProps) {
           searchText={searchText()}
           setSearchText={setSearchText}
           class="border-base-300"
+          centerChildren={
+            <SortControl value={deckSortMode()} onChange={setDeckSortMode} />
+          }
         >
           <Show
             when={

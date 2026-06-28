@@ -3,6 +3,7 @@ import type {
   ModuleLatestCommit,
   ReportGroupingMode,
   SlideDeckGroupingMode,
+  SortMode,
   VisualizationGroupingMode,
 } from "lib";
 
@@ -43,6 +44,47 @@ export const [navCollapsed, setNavCollapsedInternal] = createSignal<boolean>(
 export function setNavCollapsed(collapsed: boolean) {
   localStorage.setItem("navCollapsed", String(collapsed));
   setNavCollapsedInternal(collapsed);
+}
+
+// List sort modes (defaults chosen to match each list's current server order)
+const storedProjectsSortMode = localStorage.getItem("projectsSortMode") as SortMode | null;
+export const [projectsSortMode, setProjectsSortModeInternal] =
+  createSignal<SortMode>(storedProjectsSortMode ?? "name");
+export function setProjectsSortMode(mode: SortMode) {
+  localStorage.setItem("projectsSortMode", mode);
+  setProjectsSortModeInternal(mode);
+}
+
+const storedVizSortMode = localStorage.getItem("vizSortMode") as SortMode | null;
+export const [vizSortMode, setVizSortModeInternal] =
+  createSignal<SortMode>(storedVizSortMode ?? "name");
+export function setVizSortMode(mode: SortMode) {
+  localStorage.setItem("vizSortMode", mode);
+  setVizSortModeInternal(mode);
+}
+
+const storedDeckSortMode = localStorage.getItem("deckSortMode") as SortMode | null;
+export const [deckSortMode, setDeckSortModeInternal] =
+  createSignal<SortMode>(storedDeckSortMode ?? "recent");
+export function setDeckSortMode(mode: SortMode) {
+  localStorage.setItem("deckSortMode", mode);
+  setDeckSortModeInternal(mode);
+}
+
+const storedReportSortMode = localStorage.getItem("reportSortMode") as SortMode | null;
+export const [reportSortMode, setReportSortModeInternal] =
+  createSignal<SortMode>(storedReportSortMode ?? "recent");
+export function setReportSortMode(mode: SortMode) {
+  localStorage.setItem("reportSortMode", mode);
+  setReportSortModeInternal(mode);
+}
+
+const storedDashboardSortMode = localStorage.getItem("dashboardSortMode") as SortMode | null;
+export const [dashboardSortMode, setDashboardSortModeInternal] =
+  createSignal<SortMode>(storedDashboardSortMode ?? "recent");
+export function setDashboardSortMode(mode: SortMode) {
+  localStorage.setItem("dashboardSortMode", mode);
+  setDashboardSortModeInternal(mode);
 }
 
 // Visualization grouping/filtering

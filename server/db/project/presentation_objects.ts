@@ -125,6 +125,7 @@ function configToSummary(row: DBPresentationObject, config: PresentationObjectCo
     createdByAI: row.created_by_ai,
     folderId: row.folder_id,
     sortOrder: row.sort_order,
+    lastUpdated: row.last_updated,
   };
 }
 

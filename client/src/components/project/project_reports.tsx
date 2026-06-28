@@ -35,7 +35,10 @@ import {
   setReportGroupingMode,
   reportSelectedGroup,
   setReportSelectedGroup,
+  reportSortMode,
+  setReportSortMode,
 } from "~/state/t4_ui";
+import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
 
 function previewCounts(preview: ReportPreview): string {
@@ -141,17 +144,25 @@ export function ProjectReports(p: ExtendedProps) {
 
     if (!group) return [];
 
+    let selected: ReportSummary[];
     switch (mode) {
       case "folders":
         if (group === "_unfiled") {
-          return reports.filter((r) => r.folderId === null);
+          selected = reports.filter((r) => r.folderId === null);
+        } else {
+          selected = reports.filter((r) => r.folderId === group);
         }
-        return reports.filter((r) => r.folderId === group);
-      case "flat":
-        return [...reports].sort((a, b) => a.label.localeCompare(b.label));
+        break;
       default:
-        return reports;
+        selected = reports;
     }
+
+    return sortBySortMode(
+      selected,
+      reportSortMode(),
+      (r) => r.label,
+      (r) => r.lastUpdated,
+    );
   };
 
   createEffect(() => {
@@ -374,6 +385,9 @@ export function ProjectReports(p: ExtendedProps) {
           searchText={searchText()}
           setSearchText={setSearchText}
           class="border-base-300"
+          centerChildren={
+            <SortControl value={reportSortMode()} onChange={setReportSortMode} />
+          }
         >
           <Show when={!projectState.isLocked}>
             <Button onClick={attemptAddReport} iconName="plus">

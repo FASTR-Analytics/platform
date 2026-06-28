@@ -10,6 +10,8 @@ import {
 import { Setter, Show, createSignal } from "solid-js";
 import { PresentationObjectMiniDisplay } from "~/components/PresentationObjectMiniDisplay";
 import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectPanelDisplay";
+import { SortControl } from "~/components/_shared/sort_control";
+import { vizSortMode, setVizSortMode } from "~/state/t4_ui";
 import { ReplicateByOptionsPresentationObjectSelect } from "~/components/ReplicateByOptions";
 import {
   PresentationObjectSummary,
@@ -65,6 +67,9 @@ export function SelectVisualizationForSlide(
           heading={t3({ en: "Select visualization", fr: "Sélectionner la visualisation", pt: "Selecionar visualização" })}
           searchText={searchText()}
           setSearchText={setSearchText}
+          centerChildren={
+            <SortControl value={vizSortMode()} onChange={setVizSortMode} />
+          }
         >
           <div class="ui-gap-sm flex">
             <Button onClick={save} intent="success" disabled={!selectedPresObj()} iconName="check">

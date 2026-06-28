@@ -12,7 +12,8 @@ import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectP
 import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "./add_visualization";
 import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
-import { updateProjectView } from "~/state/t4_ui";
+import { updateProjectView, vizSortMode, setVizSortMode } from "~/state/t4_ui";
+import { SortControl } from "~/components/_shared/sort_control";
 import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
@@ -170,6 +171,9 @@ export function ProjectVisualizations(p: Props) {
           searchText={searchText()}
           setSearchText={setSearchText}
           class="border-base-300"
+          centerChildren={
+            <SortControl value={vizSortMode()} onChange={setVizSortMode} />
+          }
         >
           <Show
             when={
