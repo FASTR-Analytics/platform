@@ -5,6 +5,7 @@ import {
   StructureStagingResult,
   getEnabledOptionalFacilityColumns,
   throwIfErrWithData,
+  type FacilityFamily,
 } from "lib";
 import {
   getCsvColumnIndex,
@@ -17,12 +18,17 @@ import {
 
 export async function stageStructureFromCsv(
   mainDb: Sql,
+  family: FacilityFamily,
   csvFilePath: string,
   columnMappings: StructureColumnMappings,
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<StructureStagingResult>> {
-  // Temporary staging table names
-  const stagingTableName = "temp_structure_staging";
+  // Per-family staging table so HMIS and HFA imports can run concurrently
+  // without clobbering each other's staging data. Same-family double-staging is
+  // gated by the status_type='importing' check in the step-3 wrapper; the
+  // staging table is family-scoped so the residual race is benign (same attempt,
+  // same mappings → same result, deduped at integration).
+  const stagingTableName = `temp_structure_staging_${family}`;
 
   try {
     // ==================================================
@@ -90,6 +96,9 @@ export async function stageStructureFromCsv(
         adminIndexes.push({ level: i, index });
       }
     }
+    // Admin areas are optional as a group (all levels or none). A tag-only
+    // update file may omit them; only facility_id is always required.
+    const hasAdminMapped = adminIndexes.length > 0;
 
     // Get indexes for optional columns (only if enabled and mapped)
     const enabledOptionalColumns =
@@ -116,15 +125,20 @@ export async function stageStructureFromCsv(
     // Drop any existing staging table
     await mainDb.unsafe(`DROP TABLE IF EXISTS ${stagingTableName}`);
 
-    // Create staging table with all 4 admin columns plus optional columns
+    // Staging columns: facility_id, admin areas (only if mapped), then the
+    // mapped optional columns.
     const stagingColumns: string[] = [
       "rowid SERIAL PRIMARY KEY", // Add rowid for deduplication ordering
       "facility_id TEXT NOT NULL",
-      "admin_area_1 TEXT NOT NULL",
-      "admin_area_2 TEXT NOT NULL",
-      "admin_area_3 TEXT NOT NULL",
-      "admin_area_4 TEXT NOT NULL",
     ];
+    if (hasAdminMapped) {
+      stagingColumns.push(
+        "admin_area_1 TEXT NOT NULL",
+        "admin_area_2 TEXT NOT NULL",
+        "admin_area_3 TEXT NOT NULL",
+        "admin_area_4 TEXT NOT NULL"
+      );
+    }
 
     // Add optional columns to staging table
     for (const opt of optionalIndexes) {
@@ -152,10 +166,9 @@ export async function stageStructureFromCsv(
 
       const allColumns = [
         "facility_id",
-        "admin_area_1",
-        "admin_area_2",
-        "admin_area_3",
-        "admin_area_4",
+        ...(hasAdminMapped
+          ? ["admin_area_1", "admin_area_2", "admin_area_3", "admin_area_4"]
+          : []),
         ...optionalIndexes.map((opt) => opt.column),
       ];
 
@@ -183,34 +196,32 @@ export async function stageStructureFromCsv(
           await onProgress(progress, `Processed ${rowsProcessed.toLocaleString()} rows...`);
         }
 
-        // Extract and validate all required fields
+        // Extract and validate facility_id (always required)
         const facilityId = row[facilityIndex]?.trim() ?? "";
         if (!facilityId) {
           invalidRows++;
           return;
         }
 
-        // Extract admin areas and validate all are present (up to maxAdminArea)
-        const adminValues: string[] = [];
-        for (const ai of adminIndexes) {
-          const value = row[ai.index]?.trim() ?? "";
-          if (!value) {
-            invalidRows++;
-            return;
-          }
-          adminValues.push(value);
-        }
-
-        // Pad admin values to always have 4 levels
-        // If maxAdminArea < 4, duplicate the highest level value
+        // Extract admin areas (only when mapped) and pad to 4 levels. Rows
+        // missing a mapped admin value are dropped, as before.
         const allAdminValues: string[] = [];
-        for (let i = 1; i <= 4; i++) {
-          if (i <= maxAdminArea) {
-            // Use the actual value from CSV
-            allAdminValues.push(adminValues[i - 1]);
-          } else {
-            // Duplicate the highest admin level we have
-            allAdminValues.push(adminValues[adminValues.length - 1]);
+        if (hasAdminMapped) {
+          const adminValues: string[] = [];
+          for (const ai of adminIndexes) {
+            const value = row[ai.index]?.trim() ?? "";
+            if (!value) {
+              invalidRows++;
+              return;
+            }
+            adminValues.push(value);
+          }
+          for (let i = 1; i <= 4; i++) {
+            if (i <= maxAdminArea) {
+              allAdminValues.push(adminValues[i - 1]);
+            } else {
+              allAdminValues.push(adminValues[adminValues.length - 1]);
+            }
           }
         }
 
@@ -266,15 +277,19 @@ export async function stageStructureFromCsv(
       return { success: false, err: "No valid data rows found in CSV" };
     }
 
-    // Create index on staging table for better performance
+    // Create index on staging table for better performance. Index names are
+    // schema-global, so base them on the per-family table name to avoid a
+    // collision when HMIS and HFA stage concurrently.
     await mainDb.unsafe(
-      `CREATE INDEX idx_staging_facility ON ${stagingTableName} (facility_id)`
+      `CREATE INDEX ${stagingTableName}_facility_idx ON ${stagingTableName} (facility_id)`
     );
-    // Always create indexes for all 4 admin levels
-    for (let i = 1; i <= 4; i++) {
-      await mainDb.unsafe(
-        `CREATE INDEX idx_staging_admin_${i} ON ${stagingTableName} (admin_area_${i})`
-      );
+    // Admin indexes only when admin was staged
+    if (hasAdminMapped) {
+      for (let i = 1; i <= 4; i++) {
+        await mainDb.unsafe(
+          `CREATE INDEX ${stagingTableName}_admin_${i}_idx ON ${stagingTableName} (admin_area_${i})`
+        );
+      }
     }
 
     // ==================================================
@@ -285,20 +300,22 @@ export async function stageStructureFromCsv(
 
     console.log("Generating preview counts...");
 
-    // Get admin area counts at each level
-    const adminPreviewQueries = await Promise.all([
-      mainDb.unsafe(`SELECT COUNT(DISTINCT admin_area_1) as count FROM ${stagingTableName}`),
-      mainDb.unsafe(`SELECT COUNT(DISTINCT (admin_area_1, admin_area_2)) as count FROM ${stagingTableName}`),
-      mainDb.unsafe(`SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3)) as count FROM ${stagingTableName}`),
-      mainDb.unsafe(`SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3, admin_area_4)) as count FROM ${stagingTableName}`)
-    ]);
-
-    const adminAreasPreview = {
-      level1: adminPreviewQueries[0][0]?.count || 0,
-      level2: adminPreviewQueries[1][0]?.count || 0,
-      level3: adminPreviewQueries[2][0]?.count || 0,
-      level4: adminPreviewQueries[3][0]?.count || 0,
-    };
+    // Get admin area counts at each level (only when admin was staged)
+    let adminAreasPreview = { level1: 0, level2: 0, level3: 0, level4: 0 };
+    if (hasAdminMapped) {
+      const adminPreviewQueries = await Promise.all([
+        mainDb.unsafe(`SELECT COUNT(DISTINCT admin_area_1) as count FROM ${stagingTableName}`),
+        mainDb.unsafe(`SELECT COUNT(DISTINCT (admin_area_1, admin_area_2)) as count FROM ${stagingTableName}`),
+        mainDb.unsafe(`SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3)) as count FROM ${stagingTableName}`),
+        mainDb.unsafe(`SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3, admin_area_4)) as count FROM ${stagingTableName}`)
+      ]);
+      adminAreasPreview = {
+        level1: adminPreviewQueries[0][0]?.count || 0,
+        level2: adminPreviewQueries[1][0]?.count || 0,
+        level3: adminPreviewQueries[2][0]?.count || 0,
+        level4: adminPreviewQueries[3][0]?.count || 0,
+      };
+    }
 
     const facilitiesPreview = totalRows;
 
@@ -311,6 +328,8 @@ export async function stageStructureFromCsv(
       adminAreasPreview,
       facilitiesPreview,
       validationWarnings: [],
+      stagedOptionalColumns: optionalIndexes.map((opt) => opt.column),
+      stagedAdminAreas: hasAdminMapped,
     };
 
     if (onProgress) await onProgress(1, `Successfully staged ${totalRows.toLocaleString()} rows`);

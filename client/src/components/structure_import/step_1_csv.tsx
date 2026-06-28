@@ -1,11 +1,12 @@
 import { Match, Switch, createSignal } from "solid-js";
-import { t3, type CsvDetails } from "lib";
+import { t3, type CsvDetails, type FacilityFamily } from "lib";
 import { Button, StateHolderFormError, createFormAction } from "panther";
 import { serverActions } from "~/server_actions";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 
 type Props = {
   step1Result: CsvDetails | undefined;
+  family: FacilityFamily;
   silentFetch: () => Promise<void>;
 };
 
@@ -26,6 +27,7 @@ export function Step1_Csv(p: Props) {
       return { success: false, err: t3({ en: "You must select a file", fr: "Vous devez sélectionner un fichier" }) };
     }
     return serverActions.structureStep1Csv_UploadFile({
+      family: p.family,
       assetFileName: assetFileName,
     });
   }, p.silentFetch);

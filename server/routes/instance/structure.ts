@@ -224,8 +224,8 @@ defineRoute(
   "getStructureUploadAttempt",
   requireGlobalPermission("can_configure_data"),
   log("getStructureUploadAttempt"),
-  async (c) => {
-    const res = await getStructureUploadAttempt(c.var.mainDb);
+  async (c, { params }) => {
+    const res = await getStructureUploadAttempt(c.var.mainDb, params.family);
     return c.json(res);
   },
 );
@@ -235,8 +235,8 @@ defineRoute(
   "deleteStructureUploadAttempt",
   requireGlobalPermission("can_configure_data"),
   log("deleteStructureUploadAttempt"),
-  async (c) => {
-    const res = await deleteStructureUploadAttempt(c.var.mainDb);
+  async (c, { params }) => {
+    const res = await deleteStructureUploadAttempt(c.var.mainDb, params.family);
     return c.json(res);
   },
 );
@@ -252,9 +252,10 @@ defineRoute(
   "structureStep1Csv_UploadFile",
   requireGlobalPermission("can_configure_data"),
   log("structureStep1Csv_UploadFile"),
-  async (c, { body }) => {
+  async (c, { params, body }) => {
     const res = await structureStep1Csv_UploadFile(
       c.var.mainDb,
+      params.family,
       body.assetFileName,
     );
     return c.json(res);
@@ -266,9 +267,10 @@ defineRoute(
   "structureStep2Csv_SetColumnMappings",
   requireGlobalPermission("can_configure_data"),
   log("structureStep2Csv_SetColumnMappings"),
-  async (c, { body }) => {
+  async (c, { params, body }) => {
     const res = await structureStep2Csv_SetColumnMappings(
       c.var.mainDb,
+      params.family,
       body.columnMappings,
     );
     return c.json(res);
@@ -280,8 +282,8 @@ defineRoute(
   "structureStep3Csv_StageData",
   requireGlobalPermission("can_configure_data"),
   log("structureStep3Csv_StageData"),
-  async (c) => {
-    const res = await structureStep3Csv_StageData(c.var.mainDb);
+  async (c, { params }) => {
+    const res = await structureStep3Csv_StageData(c.var.mainDb, params.family);
     return c.json(res);
   },
 );
@@ -291,13 +293,14 @@ defineRoute(
   "structureStep3Csv_StageDataStreaming",
   requireGlobalPermission("can_configure_data"),
   log("structureStep3Csv_StageDataStreaming"),
-  (c) => {
+  (c, { params }) => {
     return streamResponse(c, async (writer) => {
       await writer.progress(0, "Starting CSV staging...");
 
       // Call the streaming version with progress callback
       const res = await structureStep3Csv_StageDataStreaming(
         c.var.mainDb,
+        params.family,
         writer.progress.bind(writer),
       );
 
@@ -320,8 +323,8 @@ defineRoute(
   "structureStep3Dhis2_StageData",
   requireGlobalPermission("can_configure_data"),
   log("structureStep3Dhis2_StageData"),
-  async (c) => {
-    const res = await structureStep3Dhis2_StageData(c.var.mainDb);
+  async (c, { params }) => {
+    const res = await structureStep3Dhis2_StageData(c.var.mainDb, params.family);
     return c.json(res);
   },
 );
@@ -331,13 +334,14 @@ defineRoute(
   "structureStep3Dhis2_StageDataStreaming",
   requireGlobalPermission("can_configure_data"),
   log("structureStep3Dhis2_StageDataStreaming"),
-  (c) => {
+  (c, { params }) => {
     return streamResponse(c, async (writer) => {
       await writer.progress(0, "Starting DHIS2 staging...");
 
       // Call the function with progress callback
       const res = await structureStep3Dhis2_StageData(
         c.var.mainDb,
+        params.family,
         writer.progress.bind(writer),
       );
 
@@ -360,8 +364,12 @@ defineRoute(
   "structureStep4_ImportData",
   requireGlobalPermission("can_configure_data"),
   log("structureStep4_ImportData"),
-  async (c, { body }) => {
-    const res = await structureStep4_ImportData(c.var.mainDb, body.strategy);
+  async (c, { params, body }) => {
+    const res = await structureStep4_ImportData(
+      c.var.mainDb,
+      params.family,
+      body.strategy,
+    );
     if (res.success) {
       notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
     }
@@ -374,9 +382,10 @@ defineRoute(
   "structureStep0_SetSourceType",
   requireGlobalPermission("can_configure_data"),
   log("structureStep0_SetSourceType"),
-  async (c, { body }) => {
+  async (c, { params, body }) => {
     const res = await structureStep0_SetSourceType(
       c.var.mainDb,
+      params.family,
       body.sourceType,
     );
     return c.json(res);
@@ -388,7 +397,7 @@ defineRoute(
   "structureStep1Dhis2_SetCredentials",
   requireGlobalPermission("can_configure_data"),
   log("structureStep1Dhis2_SetCredentials"),
-  async (c, { body }) => {
+  async (c, { params, body }) => {
     // Validate credentials with DHIS2 first
     const fetchOptions = { dhis2Credentials: body };
     const connectionTest = await testDHIS2Connection(fetchOptions);
@@ -398,7 +407,11 @@ defineRoute(
     }
 
     // Update database with credentials
-    const res = await structureStep1Dhis2_SetCredentials(c.var.mainDb, body);
+    const res = await structureStep1Dhis2_SetCredentials(
+      c.var.mainDb,
+      params.family,
+      body,
+    );
 
     // No caching needed in v2 - metadata will be fetched on demand
 
@@ -411,9 +424,10 @@ defineRoute(
   "structureStep2Dhis2_SetOrgUnitSelection",
   requireGlobalPermission("can_configure_data"),
   log("structureStep2Dhis2_SetOrgUnitSelection"),
-  async (c, { body }) => {
+  async (c, { params, body }) => {
     const res = await structureStep2Dhis2_SetOrgUnitSelection(
       c.var.mainDb,
+      params.family,
       body,
     );
     return c.json(res);
@@ -425,8 +439,8 @@ defineRoute(
   "getStructureUploadStatus",
   requireGlobalPermission("can_configure_data"),
   log("getStructureUploadStatus"),
-  async (c) => {
-    const res = await getStructureUploadStatus(c.var.mainDb);
+  async (c, { params }) => {
+    const res = await getStructureUploadStatus(c.var.mainDb, params.family);
     return c.json(res);
   },
 );
@@ -436,9 +450,12 @@ defineRoute(
   "structureStep2Dhis2_GetOrgUnitsMetadata",
   requireGlobalPermission("can_configure_data"),
   log("structureStep2Dhis2_GetOrgUnitsMetadata"),
-  async (c) => {
+  async (c, { params }) => {
     // Get the current upload attempt
-    const attemptRes = await getStructureUploadAttempt(c.var.mainDb);
+    const attemptRes = await getStructureUploadAttempt(
+      c.var.mainDb,
+      params.family,
+    );
     if (!attemptRes.success) {
       return c.json({
         success: false,

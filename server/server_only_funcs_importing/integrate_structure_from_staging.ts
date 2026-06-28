@@ -1,19 +1,15 @@
 import { Sql } from "postgres";
 import {
   StructureIntegrateStrategy,
-  OptionalFacilityColumn,
+  _OPTIONAL_FACILITY_COLUMNS,
   type FacilityFamily,
 } from "lib";
 
 export interface IntegrateStructureResult {
   success: boolean;
-  adminAreasProcessed: {
-    level1: number;
-    level2: number;
-    level3: number;
-    level4: number;
-  };
-  facilitiesProcessed: number;
+  inserted: number;
+  updated: number;
+  deleted: number;
   error?: string;
 }
 
@@ -25,352 +21,132 @@ interface AdminAreaCounts {
 }
 
 /**
- * Integrates structure data from a staging table into the main admin_areas and facilities tables.
- * This is the common integration logic used by both CSV and DHIS2 import workflows.
+ * Integrates structure data from a staging table into the main admin_areas and
+ * facilities tables. Common logic for both CSV and DHIS2 import workflows.
  *
- * @param mainDb - Database connection
- * @param stagingTableName - Name of the staging table containing the data to integrate
- * @param optionalColumns - Array of optional facility column names to include in the integration
- * @returns Result object with counts of processed records
+ * Column scope is the staging table's own columns (= what was mapped at step 2),
+ * discovered here — never the instance's enabled-columns config. Admin areas are
+ * just mapped columns: present in staging iff mapped. See
+ * PLAN_FACILITY_UPDATE_MODES.md.
  */
 export async function integrateStructureFromStaging(
   mainDb: Sql,
   stagingTableName: string,
   strategy: StructureIntegrateStrategy,
-  family: FacilityFamily,
-  optionalColumns: OptionalFacilityColumn[] = []
+  family: FacilityFamily
 ): Promise<IntegrateStructureResult> {
   const facilitiesTable =
     family === "hmis" ? "facilities_hmis" : "facilities_hfa";
   try {
-    // Validate strategy if it has selectedColumns
-    if (strategy.type === "only_update_selected_cols_by_existing_facility_id") {
-      if (strategy.selectedColumns.length === 0) {
-        throw new Error(
-          "At least one column must be selected for selective update strategy"
-        );
-      }
+    // Source of truth for column scope: the columns the file actually staged.
+    const stagedColumns = await getStagedColumns(mainDb, stagingTableName);
+    const stagedAdminAreas = stagedColumns.includes("admin_area_1");
+    const stagedOptionalColumns = _OPTIONAL_FACILITY_COLUMNS.filter((col) =>
+      stagedColumns.includes(col)
+    );
 
-      // Validate that optional facility columns are actually enabled
-      const requestedOptionalColumns = strategy.selectedColumns.filter(
-        (col) => col !== "all_admin_areas"
+    // Insert-capable intents need admin areas to place new facilities (the
+    // facilities table requires them NOT NULL). The UI blocks this; guard anyway.
+    const isInsertIntent =
+      strategy.type === "replace_all" || strategy.type === "add_and_update";
+    if (isInsertIntent && !stagedAdminAreas) {
+      throw new Error(
+        'Admin areas must be mapped to add facilities. Map the admin area columns, or choose "Update existing facilities only".'
       );
-      const invalidOptionalColumns = requestedOptionalColumns.filter(
-        (col) => !optionalColumns.includes(col as OptionalFacilityColumn)
-      );
-
-      if (invalidOptionalColumns.length > 0) {
-        throw new Error(
-          `Optional facility columns not enabled: ${invalidOptionalColumns.join(
-            ", "
-          )}. Enable them in instance configuration first.`
-        );
-      }
     }
 
-    // Track counts for reporting
-    const adminAreasProcessed = {
-      level1: 0,
-      level2: 0,
-      level3: 0,
-      level4: 0,
-    };
-    let facilitiesProcessed = 0;
+    // Replace deletes the whole family first — refuse with a clear message if
+    // anything still references these facilities (a dataset, or HFA weights),
+    // instead of failing at COMMIT with a raw FK error.
+    if (strategy.type === "replace_all") {
+      await assertNoBlockingReferencesForReplace(mainDb, family);
+    }
 
-    // Start transaction for the actual import
+    // Update-only: every staged facility_id must already exist, or its data is
+    // silently dropped. Fail loudly before mutating anything.
+    if (strategy.type === "update_existing_only") {
+      await assertAllStagedFacilitiesExist(
+        mainDb,
+        stagingTableName,
+        facilitiesTable,
+        family
+      );
+    }
+
+    // The columns this file governs: admin placement (if mapped) + mapped metadata.
+    const adminColumns = stagedAdminAreas
+      ? ["admin_area_1", "admin_area_2", "admin_area_3", "admin_area_4"]
+      : [];
+    const writeColumns = [...adminColumns, ...stagedOptionalColumns];
+
+    let inserted = 0;
+    let updated = 0;
+    let deleted = 0;
+
     await mainDb.begin(async (sql) => {
-      // ==================================================
-      // Process Admin Areas with Multi-Step Approach
-      // ==================================================
-
-      // Determine admin area processing steps
-      const adminSteps = getAdminAreaSteps(strategy);
-      let needsCleanup = false;
-
-      // Execute admin area steps
-      for (const step of adminSteps) {
-        switch (step) {
-          case "delete_family_facilities": {
-            // Admin areas are shared across families — never wholesale-delete
-            // them here; orphans are removed by cleanupUnusedAdminAreas below.
-            await deleteFamilyFacilitiesDeferred(sql, family);
-            break;
-          }
-          case "insert_do_nothing": {
-            const counts = await insertAdminAreasFromStaging(
-              sql,
-              stagingTableName
-            );
-            adminAreasProcessed.level1 = counts.level1;
-            adminAreasProcessed.level2 = counts.level2;
-            adminAreasProcessed.level3 = counts.level3;
-            adminAreasProcessed.level4 = counts.level4;
-            break;
-          }
-        }
-      }
-
-      // Check if we need cleanup after facility processing
-      if (strategy.type === "first_delete_all_then_add_all") {
-        needsCleanup = true; // Removed facilities can orphan admin areas
-      } else if (strategy.type === "add_all_and_update_all_as_needed") {
-        needsCleanup = true; // Updates can change facility admin areas, leaving orphans
-      } else if (
-        strategy.type === "only_update_selected_cols_by_existing_facility_id"
-      ) {
-        const hasAdminCols = strategy.selectedColumns.includes("all_admin_areas");
-        needsCleanup = hasAdminCols;
-      }
-
-      // ==================================================
-      // Process Facilities
-      // ==================================================
-
-      // Build column lists for facilities
-      const facilityColumns = [
-        "facility_id",
-        "admin_area_1",
-        "admin_area_2",
-        "admin_area_3",
-        "admin_area_4",
-        ...optionalColumns,
-      ];
-
       switch (strategy.type) {
-        case "first_delete_all_then_add_all": {
-          console.log(
-            "Processing facilities from staging (after delete all)..."
+        case "replace_all": {
+          deleted = await deleteAllFamilyFacilities(sql, family);
+          await insertAdminAreasFromStaging(sql, stagingTableName);
+          inserted = await insertAllFacilities(
+            sql,
+            facilitiesTable,
+            stagingTableName,
+            writeColumns
           );
+          await cleanupUnusedAdminAreas(sql);
+          break;
+        }
 
-          // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          const facilityResult = await sql.unsafe(`
-            INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
-            SELECT ${facilityColumns.join(", ")}
-            FROM (
-              SELECT ${facilityColumns.join(", ")},
-                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-              FROM ${stagingTableName}
-            ) t
-            WHERE rn = 1
-            RETURNING facility_id
-          `);
+        case "add_and_update": {
+          await insertAdminAreasFromStaging(sql, stagingTableName);
+          const result = await upsertFacilities(
+            sql,
+            facilitiesTable,
+            stagingTableName,
+            writeColumns
+          );
+          inserted = result.inserted;
+          updated = result.updated;
+          // Updates can re-place existing facilities, leaving orphan admin areas.
+          await cleanupUnusedAdminAreas(sql);
+          break;
+        }
 
-          if (family === "hfa") {
-            await restoreStashedHfaWeights(sql);
+        case "update_existing_only": {
+          // Moving a facility to a new admin tuple needs the target admin rows
+          // to exist first (FK), and may orphan the vacated ones afterward.
+          if (stagedAdminAreas) {
+            await insertAdminAreasFromStaging(sql, stagingTableName);
           }
-
-          facilitiesProcessed = facilityResult.length;
-          console.log(`Processed ${facilitiesProcessed} facilities`);
-          break;
-        }
-
-        case "add_all_and_update_all_as_needed": {
-          console.log(
-            "Processing facilities from staging (insert with update on conflict)..."
-          );
-
-          // Build update clause for all columns except facility_id
-          const updateColumns = facilityColumns.slice(1);
-          const updateSetClause = updateColumns
-            .map((col) => `${col} = EXCLUDED.${col}`)
-            .join(",\n            ");
-
-          // Insert with ON CONFLICT UPDATE for facilities
-          // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          const facilityResult = await sql.unsafe(`
-            INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
-            SELECT ${facilityColumns.join(", ")}
-            FROM (
-              SELECT ${facilityColumns.join(", ")},
-                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-              FROM ${stagingTableName}
-            ) t
-            WHERE rn = 1
-            ON CONFLICT (facility_id)
-            DO UPDATE SET
-              ${updateSetClause}
-            RETURNING facility_id
-          `);
-
-          facilitiesProcessed = facilityResult.length;
-          console.log(`Processed ${facilitiesProcessed} facilities`);
-          break;
-        }
-
-        case "add_all_new_rows_and_ignore_conflicts": {
-          console.log(
-            "Processing facilities from staging (insert new only, ignore conflicts)..."
-          );
-
-          // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          const facilityResult = await sql.unsafe(`
-            INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
-            SELECT ${facilityColumns.join(", ")}
-            FROM (
-              SELECT ${facilityColumns.join(", ")},
-                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-              FROM ${stagingTableName}
-            ) t
-            WHERE rn = 1
-            ON CONFLICT (facility_id) DO NOTHING
-            RETURNING facility_id
-          `);
-
-          facilitiesProcessed = facilityResult.length;
-          console.log(`Processed ${facilitiesProcessed} facilities`);
-          break;
-        }
-
-        case "add_all_new_rows_and_error_if_any_conflicts": {
-          console.log(
-            "Processing facilities from staging (insert new only, error on conflicts)..."
-          );
-
-          // Use ROW_NUMBER() to deduplicate by facility_id, keeping the first occurrence
-          const facilityResult = await sql.unsafe(`
-            INSERT INTO ${facilitiesTable} (${facilityColumns.join(", ")})
-            SELECT ${facilityColumns.join(", ")}
-            FROM (
-              SELECT ${facilityColumns.join(", ")},
-                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-              FROM ${stagingTableName}
-            ) t
-            WHERE rn = 1
-            RETURNING facility_id
-          `);
-
-          facilitiesProcessed = facilityResult.length;
-          console.log(`Processed ${facilitiesProcessed} facilities`);
-          break;
-        }
-
-        case "only_update_optional_facility_cols_by_existing_facility_id": {
-          console.log(
-            "Processing facilities from staging (update optional columns only)..."
-          );
-
-          if (optionalColumns.length === 0) {
-            console.log(
-              "No optional columns specified, skipping facility updates"
-            );
-            facilitiesProcessed = 0;
-          } else {
-            // Build update clause for optional columns only
-            const updateSetClause = optionalColumns
-              .map((col) => `${col} = s.${col}`)
-              .join(",\n              ");
-
-            // Update only optional columns for existing facilities
-            const facilityResult = await sql.unsafe(`
-              UPDATE ${facilitiesTable}
-              SET ${updateSetClause}
-              FROM (
-                SELECT facility_id, ${optionalColumns.join(", ")},
-                       ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-                FROM ${stagingTableName}
-              ) s
-              WHERE ${facilitiesTable}.facility_id = s.facility_id
-                AND s.rn = 1
-              RETURNING ${facilitiesTable}.facility_id
-            `);
-
-            facilitiesProcessed = facilityResult.length;
-            console.log(
-              `Updated ${facilitiesProcessed} existing facilities with optional columns`
+          if (writeColumns.length > 0) {
+            updated = await updateExistingFacilities(
+              sql,
+              facilitiesTable,
+              stagingTableName,
+              writeColumns
             );
           }
+          if (stagedAdminAreas) {
+            await cleanupUnusedAdminAreas(sql);
+          }
           break;
         }
-
-        case "only_update_selected_cols_by_existing_facility_id": {
-          console.log(
-            "Processing facilities from staging (update selected columns only)..."
-          );
-
-          if (
-            strategy.type !==
-            "only_update_selected_cols_by_existing_facility_id"
-          ) {
-            throw new Error("Invalid strategy type");
-          }
-
-          // Build column list for update, expanding "all_admin_areas" if needed
-          const actualColumns: string[] = [];
-          for (const col of strategy.selectedColumns) {
-            if (col === "all_admin_areas") {
-              actualColumns.push("admin_area_1", "admin_area_2", "admin_area_3", "admin_area_4");
-            } else {
-              actualColumns.push(col);
-            }
-          }
-
-          // Build update clause for selected columns only
-          const updateSetClause = actualColumns
-            .map((col: string) => `${col} = s.${col}`)
-            .join(",\n              ");
-
-          // Update only selected columns for existing facilities
-          const facilityResult = await sql.unsafe(`
-            UPDATE ${facilitiesTable}
-            SET ${updateSetClause}
-            FROM (
-              SELECT facility_id, ${actualColumns.join(", ")},
-                     ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
-              FROM ${stagingTableName}
-            ) s
-            WHERE ${facilitiesTable}.facility_id = s.facility_id
-              AND s.rn = 1
-            RETURNING ${facilitiesTable}.facility_id
-          `);
-
-          facilitiesProcessed = facilityResult.length;
-          console.log(
-            `Updated ${facilitiesProcessed} existing facilities with selected columns: ${actualColumns.join(
-              ", "
-            )}`
-          );
-          break;
-        }
-
-        default: {
-          const strategyType =
-            typeof strategy === "object" && strategy !== null
-              ? (strategy as { type: string }).type
-              : String(strategy);
-          throw new Error(
-            `Unknown structure integrate strategy: ${strategyType}`
-          );
-        }
-      }
-
-      // ==================================================
-      // Post-Processing Cleanup
-      // ==================================================
-
-      // Clean up unused admin areas if needed
-      if (needsCleanup) {
-        await cleanupUnusedAdminAreas(sql);
       }
     });
 
-    console.log("Structure integration completed successfully");
+    console.log(
+      `Structure integration complete: ${inserted} inserted, ${updated} updated, ${deleted} deleted`
+    );
 
-    return {
-      success: true,
-      adminAreasProcessed,
-      facilitiesProcessed,
-    };
+    return { success: true, inserted, updated, deleted };
   } catch (error) {
     console.error("Error during structure integration:", error);
     return {
       success: false,
-      adminAreasProcessed: {
-        level1: 0,
-        level2: 0,
-        level3: 0,
-        level4: 0,
-      },
-      facilitiesProcessed: 0,
+      inserted: 0,
+      updated: 0,
+      deleted: 0,
       error:
         error instanceof Error
           ? error.message
@@ -384,48 +160,196 @@ export async function integrateStructureFromStaging(
 // ============================================================================
 
 /**
- * Deletes one family's facilities with its dataset FK deferred, so the
- * replace-all strategy can re-insert within the same transaction; integrity
- * is enforced at commit. Admin areas are shared and never deleted here.
- *
- * HFA sampling weights cascade with the facility delete (CASCADE fires at
- * statement time, even for facility IDs the replace re-inserts), so they are
- * stashed first and restored for surviving facilities after the re-insert.
+ * The real column scope: the columns physically present in the staging table,
+ * which the stager built from what the user mapped (CSV) or what the source
+ * supplies (DHIS2). This is the authoritative source — not the enabled-columns
+ * config, which staging may not have materialized.
  */
-async function deleteFamilyFacilitiesDeferred(
+async function getStagedColumns(
+  sql: Sql,
+  stagingTableName: string
+): Promise<string[]> {
+  const rows = await sql<{ column_name: string }[]>`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = ${stagingTableName}
+  `;
+  return rows.map((r) => r.column_name);
+}
+
+/**
+ * "Update existing facilities only" matches staged rows to existing facilities
+ * by facility_id. A staged facility_id with no match would be silently dropped,
+ * so the import can "succeed" while updating nothing. Reference-validate every
+ * staged id against the target table and fail with the unmatched count + sample
+ * ids, mirroring the HMIS integration's orphan check.
+ */
+async function assertAllStagedFacilitiesExist(
+  sql: Sql,
+  stagingTableName: string,
+  facilitiesTable: string,
+  family: FacilityFamily
+): Promise<void> {
+  const unmatched = await sql.unsafe(`
+    SELECT s.facility_id, COUNT(*) OVER () AS total_unmatched
+    FROM (SELECT DISTINCT facility_id FROM ${stagingTableName}) s
+    LEFT JOIN ${facilitiesTable} f ON s.facility_id = f.facility_id
+    WHERE f.facility_id IS NULL
+    ORDER BY s.facility_id
+    LIMIT 5
+  `);
+  if (unmatched.length === 0) {
+    return;
+  }
+  const totalUnmatched = Number(unmatched[0].total_unmatched);
+  const sample = unmatched.map((r) => r.facility_id).join(", ");
+  const more =
+    totalUnmatched > unmatched.length ? `, … (${totalUnmatched} total)` : "";
+  const familyLabel = family === "hmis" ? "HMIS" : "HFA";
+  throw new Error(
+    `${totalUnmatched} facility ID(s) in your file do not match any existing ${familyLabel} facility in the backbone, so their data would not be imported. Examples: ${sample}${more}. Check that the facility ID column is mapped to the column that holds the backbone's facility IDs, and that you are importing into the correct dataset (HMIS vs HFA).`
+  );
+}
+
+/**
+ * Replace deletes the whole family's facilities. If a dataset (or, for HFA,
+ * sampling weights) still references them, the delete fails at COMMIT with a raw
+ * FK error. Pre-check and refuse with a clear instruction to delete those first.
+ */
+async function assertNoBlockingReferencesForReplace(
   sql: Sql,
   family: FacilityFamily
 ): Promise<void> {
-  console.log(`Deleting all existing ${family} facilities...`);
-
   if (family === "hmis") {
-    await sql.unsafe(`
-      SET CONSTRAINTS dataset_hmis_facility_id_fkey DEFERRED;
-      DELETE FROM facilities_hmis;
-    `);
-  } else {
-    await sql.unsafe(`
-      CREATE TEMP TABLE _hfa_weights_stash ON COMMIT DROP AS
-        SELECT facility_id, time_point, weight FROM hfa_facility_weights;
-      SET CONSTRAINTS hfa_data_facility_id_fkey DEFERRED;
-      DELETE FROM facilities_hfa;
-    `);
+    const ds = await sql<
+      { n: number }[]
+    >`SELECT COUNT(*)::int AS n FROM dataset_hmis`;
+    if ((ds[0]?.n ?? 0) > 0) {
+      throw new Error(
+        "Cannot replace all HMIS facilities: an HMIS dataset still references them. Delete the HMIS dataset first, then replace the facilities."
+      );
+    }
+    return;
+  }
+  const ds = await sql<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM hfa_data`;
+  if ((ds[0]?.n ?? 0) > 0) {
+    throw new Error(
+      "Cannot replace all HFA facilities: an HFA dataset still references them. Delete the HFA dataset first, then replace the facilities."
+    );
+  }
+  const weights = await sql<
+    { n: number }[]
+  >`SELECT COUNT(*)::int AS n FROM hfa_facility_weights`;
+  if ((weights[0]?.n ?? 0) > 0) {
+    throw new Error(
+      "Cannot replace all HFA facilities: sampling weights still reference them. Delete the HFA sampling weights first, then replace the facilities."
+    );
   }
 }
 
-async function restoreStashedHfaWeights(sql: Sql): Promise<void> {
-  const restored = await sql.unsafe(`
-    INSERT INTO hfa_facility_weights (facility_id, time_point, weight)
-    SELECT s.facility_id, s.time_point, s.weight
-    FROM _hfa_weights_stash s
-    WHERE EXISTS (
-      SELECT 1 FROM facilities_hfa f WHERE f.facility_id = s.facility_id
-    )
-    RETURNING facility_id
+/**
+ * Insert all staged facilities (dedup by facility_id, first occurrence wins).
+ * Used by replace_all after the wipe. Returns rows inserted.
+ */
+async function insertAllFacilities(
+  sql: Sql,
+  facilitiesTable: string,
+  stagingTableName: string,
+  writeColumns: string[]
+): Promise<number> {
+  const cols = ["facility_id", ...writeColumns];
+  const result = await sql.unsafe(`
+    INSERT INTO ${facilitiesTable} (${cols.join(", ")})
+    SELECT ${cols.join(", ")}
+    FROM (
+      SELECT ${cols.join(", ")},
+             ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+      FROM ${stagingTableName}
+    ) t
+    WHERE rn = 1
   `);
-  console.log(
-    `Restored ${restored.length} sampling weights for surviving facilities`
-  );
+  return result.count ?? 0;
+}
+
+/**
+ * Insert new facilities, update existing ones (mapped columns only). Splits the
+ * affected rows into inserted vs updated by pre-counting existing matches.
+ * writeColumns is always non-empty here (insert intents require admin areas).
+ */
+async function upsertFacilities(
+  sql: Sql,
+  facilitiesTable: string,
+  stagingTableName: string,
+  writeColumns: string[]
+): Promise<{ inserted: number; updated: number }> {
+  const cols = ["facility_id", ...writeColumns];
+  const beforeRows = await sql.unsafe(`
+    SELECT COUNT(*)::int AS matched
+    FROM (SELECT DISTINCT facility_id FROM ${stagingTableName}) s
+    JOIN ${facilitiesTable} f ON f.facility_id = s.facility_id
+  `);
+  const updated = beforeRows[0]?.matched ?? 0;
+  const setClause = writeColumns
+    .map((col) => `${col} = EXCLUDED.${col}`)
+    .join(",\n      ");
+  const result = await sql.unsafe(`
+    INSERT INTO ${facilitiesTable} (${cols.join(", ")})
+    SELECT ${cols.join(", ")}
+    FROM (
+      SELECT ${cols.join(", ")},
+             ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+      FROM ${stagingTableName}
+    ) t
+    WHERE rn = 1
+    ON CONFLICT (facility_id) DO UPDATE SET
+      ${setClause}
+  `);
+  const total = result.count ?? 0;
+  return { inserted: Math.max(0, total - updated), updated };
+}
+
+/**
+ * Update mapped columns on existing facilities matched by facility_id (dedup by
+ * first occurrence). Returns rows updated.
+ */
+async function updateExistingFacilities(
+  sql: Sql,
+  facilitiesTable: string,
+  stagingTableName: string,
+  writeColumns: string[]
+): Promise<number> {
+  const setClause = writeColumns
+    .map((col) => `${col} = s.${col}`)
+    .join(",\n      ");
+  const result = await sql.unsafe(`
+    UPDATE ${facilitiesTable}
+    SET ${setClause}
+    FROM (
+      SELECT facility_id, ${writeColumns.join(", ")},
+             ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+      FROM ${stagingTableName}
+    ) s
+    WHERE ${facilitiesTable}.facility_id = s.facility_id
+      AND s.rn = 1
+  `);
+  return result.count ?? 0;
+}
+
+/**
+ * Deletes all of a family's facilities. replace_all's pre-check
+ * (assertNoBlockingReferencesForReplace) already guarantees nothing references
+ * them — no dataset rows, and no HFA sampling weights — so a plain delete is
+ * safe: no deferred FK and no weight stash/restore are needed. Returns rows
+ * deleted. Admin areas are shared and never deleted here.
+ */
+async function deleteAllFamilyFacilities(
+  sql: Sql,
+  family: FacilityFamily
+): Promise<number> {
+  const facilitiesTable =
+    family === "hmis" ? "facilities_hmis" : "facilities_hfa";
+  console.log(`Deleting all existing ${family} facilities...`);
+  const result = await sql.unsafe(`DELETE FROM ${facilitiesTable}`);
+  return result.count ?? 0;
 }
 
 /**
@@ -542,36 +466,4 @@ export async function cleanupUnusedAdminAreas(sql: Sql): Promise<void> {
       deleted4.count + deleted3.count + deleted2.count + deleted1.count
     } unused admin area records`
   );
-}
-
-/**
- * Determine the admin area processing steps for a given strategy
- */
-function getAdminAreaSteps(strategy: StructureIntegrateStrategy): string[] {
-  switch (strategy.type) {
-    case "first_delete_all_then_add_all":
-      // Other families' admin areas persist, so conflicts are expected
-      return ["delete_family_facilities", "insert_do_nothing"];
-
-    case "add_all_and_update_all_as_needed":
-    case "add_all_new_rows_and_ignore_conflicts":
-      return ["insert_do_nothing"];
-
-    case "add_all_new_rows_and_error_if_any_conflicts":
-      // Conflict-erroring applies to FACILITIES only (the plain INSERT below
-      // throws on duplicates). Admin areas are shared across families and may
-      // legitimately already exist from the other family's imports.
-      return ["insert_do_nothing"];
-
-    case "only_update_optional_facility_cols_by_existing_facility_id":
-      return []; // Skip all admin area processing
-
-    case "only_update_selected_cols_by_existing_facility_id": {
-      const hasAdminCols = strategy.selectedColumns.includes("all_admin_areas");
-      return hasAdminCols ? ["insert_do_nothing"] : [];
-    }
-
-    default:
-      return [];
-  }
 }

@@ -43,7 +43,9 @@ type Props = EditorComponentProps<
 export function StructureUploadAttemptForm(p: Props) {
   // Query state
   const uploadAttempt = createQuery(async () => {
-    const res = await serverActions.getStructureUploadAttempt({});
+    const res = await serverActions.getStructureUploadAttempt({
+      family: p.family,
+    });
     if (res.success === true) {
       stepper.setCurrentStep(res.data.step);
     }
@@ -107,7 +109,7 @@ export function StructureUploadAttemptForm(p: Props) {
   async function attemptDeleteStructureUploadAttempt() {
     const deleteAction = createDeleteAction(
       t3({ en: "Are you sure you want to delete this import?", fr: "Êtes-vous sûr de vouloir supprimer cette importation ?" }),
-      () => serverActions.deleteStructureUploadAttempt({}),
+      () => serverActions.deleteStructureUploadAttempt({ family: p.family }),
       () => p.close({ needsReload: true }),
     );
 
@@ -164,14 +166,6 @@ export function StructureUploadAttemptForm(p: Props) {
                 </div>
               }
             >
-              <Match when={keyedUploadAttempt.datasetFamily !== p.family}>
-                <div class="ui-pad text-danger">
-                  {t3({
-                    en: "This import attempt targets the other facility registry. Finish or discard it there.",
-                    fr: "Cette tentative d'importation cible l'autre registre d'établissements. Terminez-la ou annulez-la là-bas.",
-                  })}
-                </div>
-              </Match>
               <Match
                 when={
                   keyedUploadAttempt.status.status === "error" &&
@@ -196,6 +190,8 @@ export function StructureUploadAttemptForm(p: Props) {
               >
                 <Step4
                   step3Result={keyedUploadAttempt.step3Result as any}
+                  family={p.family}
+                  facilityColumns={p.facilityColumns}
                   close={() => p.close({ needsReload: true })}
                   silentRefresUploadAttempt={uploadAttempt.silentFetch}
                   silentRefreshInstance={p.silentRefreshInstance}
@@ -212,6 +208,7 @@ export function StructureUploadAttemptForm(p: Props) {
                 <Switch>
                   <Match when={keyedUploadAttempt.sourceType === "csv"}>
                     <Step3_Csv
+                      family={p.family}
                       close={() => p.close({ needsReload: true })}
                       silentRefresUploadAttempt={uploadAttempt.silentFetch}
                       silentRefreshInstance={p.silentRefreshInstance}
@@ -219,6 +216,7 @@ export function StructureUploadAttemptForm(p: Props) {
                   </Match>
                   <Match when={keyedUploadAttempt.sourceType === "dhis2"}>
                     <Step3_Dhis2
+                      family={p.family}
                       close={() => p.close({ needsReload: true })}
                       silentRefresUploadAttempt={uploadAttempt.silentFetch}
                       silentRefreshInstance={p.silentRefreshInstance}
@@ -238,6 +236,7 @@ export function StructureUploadAttemptForm(p: Props) {
                     <Step2_Csv
                       step1Result={keyedUploadAttempt.step1Result as any}
                       step2Result={keyedUploadAttempt.step2Result as any}
+                      family={p.family}
                       maxAdminArea={p.maxAdminArea}
                       facilityColumns={p.facilityColumns}
                       silentFetch={uploadAttempt.silentFetch}
@@ -250,6 +249,7 @@ export function StructureUploadAttemptForm(p: Props) {
                           | StructureDhis2OrgUnitSelection
                           | undefined
                       }
+                      family={p.family}
                       silentFetch={uploadAttempt.silentFetch}
                     />
                   </Match>
@@ -264,6 +264,7 @@ export function StructureUploadAttemptForm(p: Props) {
                   <Match when={keyedUploadAttempt.sourceType === "csv"}>
                     <Step1_Csv
                       step1Result={keyedUploadAttempt.step1Result as any}
+                      family={p.family}
                       silentFetch={uploadAttempt.silentFetch}
                     />
                   </Match>
@@ -274,6 +275,7 @@ export function StructureUploadAttemptForm(p: Props) {
                           | Dhis2Credentials
                           | undefined
                       }
+                      family={p.family}
                       silentFetch={uploadAttempt.silentFetch}
                     />
                   </Match>
@@ -282,6 +284,7 @@ export function StructureUploadAttemptForm(p: Props) {
               <Match when={stepper.currentStep() === 0}>
                 <Step0
                   sourceType={keyedUploadAttempt.sourceType}
+                  family={p.family}
                   silentFetch={uploadAttempt.silentFetch}
                 />
               </Match>

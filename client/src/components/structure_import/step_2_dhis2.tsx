@@ -1,5 +1,9 @@
 import { createSignal } from "solid-js";
-import { t3, type StructureDhis2OrgUnitSelection } from "lib";
+import {
+  t3,
+  type StructureDhis2OrgUnitSelection,
+  type FacilityFamily,
+} from "lib";
 import {
   Button,
   StateHolderFormError,
@@ -13,6 +17,7 @@ import { serverActions } from "~/server_actions";
 
 type Props = {
   step2Result: StructureDhis2OrgUnitSelection | undefined;
+  family: FacilityFamily;
   silentFetch: () => Promise<void>;
 };
 
@@ -24,7 +29,10 @@ export function Step2_Dhis2(p: Props) {
 
   // Get organization unit metadata from DHIS2 cache
   const orgUnitMetadata = createQuery(
-    () => serverActions.structureStep2Dhis2_GetOrgUnitsMetadata({}),
+    () =>
+      serverActions.structureStep2Dhis2_GetOrgUnitsMetadata({
+        family: p.family,
+      }),
     t3({ en: "Loading organization units...", fr: "Chargement des unités organisationnelles..." }),
   );
 
@@ -44,7 +52,10 @@ export function Step2_Dhis2(p: Props) {
       };
     }
 
-    return serverActions.structureStep2Dhis2_SetOrgUnitSelection(selection);
+    return serverActions.structureStep2Dhis2_SetOrgUnitSelection({
+      family: p.family,
+      selectedLevels: selection.selectedLevels,
+    });
   }, p.silentFetch);
 
   return (

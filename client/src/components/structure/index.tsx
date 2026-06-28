@@ -42,7 +42,9 @@ export function Facilities(p: Props) {
 
   async function fetchUploadAttempt() {
     try {
-      const res = await serverActions.getStructureUploadAttempt({});
+      const res = await serverActions.getStructureUploadAttempt({
+        family: p.family,
+      });
       if (res.success) {
         setUploadAttempt(res.data);
       } else {
@@ -96,22 +98,9 @@ export function Facilities(p: Props) {
   }
 
   const resumableAttempt = () => {
-    const ua = uploadAttempt();
-    return ua && ua.datasetFamily === p.family ? ua : undefined;
+    // Fetched per family, so any returned attempt is this family's.
+    return uploadAttempt();
   };
-  const blockingAttempt = () => {
-    const ua = uploadAttempt();
-    return ua && ua.datasetFamily !== p.family ? ua : undefined;
-  };
-
-  const BlockingAttemptNotice = () => (
-    <div class="text-xs">
-      {t3({
-        en: "Another facility import is in progress. Finish or discard it before importing here.",
-        fr: "Une autre importation d'établissements est en cours. Terminez-la ou annulez-la avant d'importer ici.",
-      })}
-    </div>
-  );
 
   const facilityCount = () =>
     (p.family === "hmis"
@@ -147,9 +136,6 @@ export function Facilities(p: Props) {
                   {t3({ en: "Imports", fr: "Importations" })}
                 </div>
                 <Switch>
-                  <Match when={blockingAttempt()}>
-                    <BlockingAttemptNotice />
-                  </Match>
                   <Match when={resumableAttempt()}>
                     <Button onClick={openUploadAttempt} iconName="upload" fullWidth>
                       {t3({ en: "Resume importing", fr: "Reprendre l'importation" })}

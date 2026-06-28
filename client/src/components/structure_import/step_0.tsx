@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { t3 } from "lib";
+import { t3, type FacilityFamily } from "lib";
 import {
   Button,
   RadioGroup,
@@ -10,6 +10,7 @@ import { serverActions } from "~/server_actions";
 
 type Props = {
   sourceType: "csv" | "dhis2" | undefined;
+  family: FacilityFamily;
   silentFetch: () => Promise<void>;
 };
 
@@ -31,6 +32,7 @@ export function Step0(p: Props) {
       return { success: false, err: t3({ en: "You must select an import method", fr: "Vous devez sélectionner une méthode d'importation" }) };
     }
     return serverActions.structureStep0_SetSourceType({
+      family: p.family,
       sourceType,
     });
   }, p.silentFetch);

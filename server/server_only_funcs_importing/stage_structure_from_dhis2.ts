@@ -6,6 +6,7 @@ import {
   StructureStagingResult,
   throwIfErrWithData,
   getEnabledOptionalFacilityColumns,
+  type FacilityFamily,
 } from "lib";
 import { type DHIS2OrgUnit } from "../dhis2/goal1_org_units_v2/mod.ts";
 import { getDHIS2 } from "../dhis2/common/base_fetcher.ts";
@@ -19,7 +20,7 @@ async function processBatch(
   batch: DHIS2OrgUnit[],
   globalLookup: Map<string, DHIS2OrgUnit>,
   maxAdminArea: number,
-  enabledOptionalColumns: string[],
+  optionalColumns: string[],
   rowBuffer: string[],
   _mainDb: Sql,
   _stagingTableName: string,
@@ -111,7 +112,7 @@ async function processBatch(
 
     // Extract optional facility metadata
     const optionalValues: string[] = [];
-    for (const column of enabledOptionalColumns) {
+    for (const column of optionalColumns) {
       if (column === "facility_name") {
         optionalValues.push(orgUnit.displayName || orgUnit.name);
       } else {
@@ -148,13 +149,18 @@ async function processBatch(
 
 export async function stageStructureFromDhis2V2(
   mainDb: Sql,
+  family: FacilityFamily,
   credentials: Dhis2Credentials,
   selection: StructureDhis2OrgUnitSelection,
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<StructureStagingResult>> {
-  // Check if another staging process is already running
-  const lockResult = await mainDb.unsafe(`SELECT pg_try_advisory_lock(12345, 67890) as acquired`);
-  
+  // Per-family advisory lock so an HMIS and an HFA DHIS2 import don't block each
+  // other, but the same family can't double-stage into its own staging table.
+  const lockKey = family === "hmis" ? 67890 : 67891;
+  const lockResult = await mainDb.unsafe(
+    `SELECT pg_try_advisory_lock(12345, ${lockKey}) as acquired`
+  );
+
   if (!lockResult[0]?.acquired) {
     return {
       success: false,
@@ -162,8 +168,8 @@ export async function stageStructureFromDhis2V2(
     };
   }
 
-  // Temporary staging table name
-  const stagingTableName = "temp_structure_staging";
+  // Per-family staging table (concurrent HMIS/HFA imports stay isolated)
+  const stagingTableName = `temp_structure_staging_${family}`;
 
   try {
     // ==================================================
@@ -182,6 +188,12 @@ export async function stageStructureFromDhis2V2(
     const facilityConfig = resFacilityConfig.data;
     const enabledOptionalColumns =
       getEnabledOptionalFacilityColumns(facilityConfig);
+    // DHIS2 only supplies facility_name (from displayName). Never stage the other
+    // metadata columns — integration writes exactly the staged columns, and a
+    // blank facility_type/ownership would wipe existing values.
+    const dhis2OptionalColumns = enabledOptionalColumns.filter(
+      (c) => c === "facility_name"
+    );
 
     // ==================================================
     // PHASE 2: Setup Staging Table
@@ -203,7 +215,7 @@ export async function stageStructureFromDhis2V2(
     ];
 
     // Add optional columns to staging table
-    for (const column of enabledOptionalColumns) {
+    for (const column of dhis2OptionalColumns) {
       stagingColumns.push(`${column} TEXT`);
     }
 
@@ -314,7 +326,7 @@ export async function stageStructureFromDhis2V2(
         "admin_area_2",
         "admin_area_3",
         "admin_area_4",
-        ...enabledOptionalColumns,
+        ...dhis2OptionalColumns,
       ];
 
       await mainDb.unsafe(
@@ -383,7 +395,7 @@ export async function stageStructureFromDhis2V2(
           batch,
           globalLookup,
           maxAdminArea,
-          enabledOptionalColumns,
+          dhis2OptionalColumns,
           rowBuffer,
           mainDb,
           stagingTableName,
@@ -430,13 +442,15 @@ export async function stageStructureFromDhis2V2(
       };
     }
 
-    // Create indexes on staging table for better performance
+    // Create indexes on staging table for better performance. Index names are
+    // schema-global, so base them on the per-family table name to avoid a
+    // collision when HMIS and HFA stage concurrently.
     await mainDb.unsafe(
-      `CREATE INDEX idx_staging_facility_dhis2 ON ${stagingTableName} (facility_id)`
+      `CREATE INDEX ${stagingTableName}_facility_idx ON ${stagingTableName} (facility_id)`
     );
     for (let i = 1; i <= 4; i++) {
       await mainDb.unsafe(
-        `CREATE INDEX idx_staging_admin_${i}_dhis2 ON ${stagingTableName} (admin_area_${i})`
+        `CREATE INDEX ${stagingTableName}_admin_${i}_idx ON ${stagingTableName} (admin_area_${i})`
       );
     }
 
@@ -480,6 +494,8 @@ export async function stageStructureFromDhis2V2(
       adminAreasPreview,
       facilitiesPreview: facilitiesFound.count,
       validationWarnings: [],
+      stagedOptionalColumns: dhis2OptionalColumns,
+      stagedAdminAreas: true,
     };
 
     return { success: true, data: stagingResult };
@@ -500,7 +516,7 @@ export async function stageStructureFromDhis2V2(
   } finally {
     // Always release the advisory lock
     try {
-      await mainDb.unsafe(`SELECT pg_advisory_unlock(12345, 67890)`);
+      await mainDb.unsafe(`SELECT pg_advisory_unlock(12345, ${lockKey})`);
     } catch {
       // Ignore unlock errors
     }

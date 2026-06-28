@@ -1,4 +1,4 @@
-import { t3, type Dhis2Credentials } from "lib";
+import { t3, type Dhis2Credentials, type FacilityFamily } from "lib";
 import { Button, StateHolderFormError, createFormAction } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -7,6 +7,7 @@ import { Dhis2CredentialsEditor } from "../Dhis2CredentialsEditor";
 
 type Props = {
   step1Result: Dhis2Credentials | undefined;
+  family: FacilityFamily;
   silentFetch: () => Promise<void>;
 };
 
@@ -31,6 +32,7 @@ export function Step1_Dhis2(p: Props) {
     }
 
     return serverActions.structureStep1Dhis2_SetCredentials({
+      family: p.family,
       url: creds.url,
       username: creds.username,
       password: creds.password,

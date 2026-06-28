@@ -273,16 +273,17 @@ CREATE INDEX idx_indicator_mappings_raw_common ON indicator_mappings(indicator_r
 -- ============================================================================
 
 CREATE TABLE structure_upload_attempts (
-  id text PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
+  dataset_family text NOT NULL,  -- 'hmis' or 'hfa': one resumable import per registry
   date_started text NOT NULL,
   step integer NOT NULL,
   status text NOT NULL,  -- JSON: full status object
   status_type text NOT NULL,  -- Simple status: configuring, importing, complete, error
-  dataset_family text NOT NULL,  -- 'hmis' or 'hfa': which facility registry this import targets
   source_type text,  -- csv or dhis2 (nullable until step 0 is completed)
   step_1_result text,  -- CSV details OR DHIS2 credentials
   step_2_result text,  -- Column mappings OR DHIS2 org unit selection
-  step_3_result text   -- Staging result (table name, counts, validation info)
+  step_3_result text,  -- Staging result (table name, counts, validation info)
+  CONSTRAINT structure_upload_attempts_pkey PRIMARY KEY (dataset_family),
+  CONSTRAINT structure_upload_attempts_family_check CHECK (dataset_family IN ('hmis', 'hfa'))
 );
 
 -- ============================================================================
@@ -305,9 +306,10 @@ CREATE TABLE dataset_hmis (
   count integer NOT NULL CHECK (count >= 0),
   version_id integer NOT NULL,
   PRIMARY KEY (facility_id, indicator_raw_id, period_id),
-  -- NO ACTION (default), not RESTRICT: RESTRICT's delete-side check can never be
-  -- deferred, and the replace-all facility import relies on deferral. Constraint
-  -- name is load-bearing: SET CONSTRAINTS in integrate_structure_from_staging.ts
+  -- NO ACTION (default), not RESTRICT (RESTRICT's delete-side check can't defer).
+  -- replace_all now refuses (via assertNoBlockingReferencesForReplace) when a
+  -- dataset still references these facilities, so the old deferred SET CONSTRAINTS
+  -- delete is gone; the FK is left DEFERRABLE but its name is no longer used by code.
   CONSTRAINT dataset_hmis_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hmis(facility_id) DEFERRABLE,
   FOREIGN KEY (indicator_raw_id) REFERENCES indicators_raw(indicator_raw_id) ON DELETE RESTRICT DEFERRABLE,
   FOREIGN KEY (version_id) REFERENCES dataset_hmis_versions(id) ON DELETE RESTRICT
@@ -383,9 +385,10 @@ CREATE TABLE hfa_data (
   var_name TEXT NOT NULL,
   value TEXT NOT NULL,
   PRIMARY KEY (facility_id, time_point, var_name),
-  -- NO ACTION (default), not RESTRICT: RESTRICT's delete-side check can never be
-  -- deferred, and the replace-all facility import relies on deferral. Constraint
-  -- name is load-bearing: SET CONSTRAINTS in integrate_structure_from_staging.ts
+  -- NO ACTION (default), not RESTRICT (RESTRICT's delete-side check can't defer).
+  -- replace_all now refuses (via assertNoBlockingReferencesForReplace) when a
+  -- dataset still references these facilities, so the old deferred SET CONSTRAINTS
+  -- delete is gone; the FK is left DEFERRABLE but its name is no longer used by code.
   CONSTRAINT hfa_data_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hfa(facility_id) DEFERRABLE,
   FOREIGN KEY (time_point) REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
   FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE

@@ -16,6 +16,7 @@ import {
   Dhis2Credentials,
   type FacilityFamily,
   type StructureIntegrateStrategy,
+  type StructureIntegrateSummary,
 } from "lib";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { stageStructureFromCsv } from "../../server_only_funcs_importing/stage_structure_from_csv.ts";
@@ -30,17 +31,21 @@ import { getMaxAdminAreaConfig, getFacilityColumnsConfig } from "./config.ts";
 import { toNum0 } from "@timroberton/panther";
 
 async function getRawUA(
-  mainDb: Sql
+  mainDb: Sql,
+  family: FacilityFamily
 ): Promise<DBStructureUploadAttempt | undefined> {
   return (
     await mainDb<DBStructureUploadAttempt[]>`
-      SELECT * FROM structure_upload_attempts
+      SELECT * FROM structure_upload_attempts WHERE dataset_family = ${family}
     `
   ).at(0);
 }
 
-async function getRawUAOrThrow(mainDb: Sql): Promise<DBStructureUploadAttempt> {
-  const rawUA = await getRawUA(mainDb);
+async function getRawUAOrThrow(
+  mainDb: Sql,
+  family: FacilityFamily
+): Promise<DBStructureUploadAttempt> {
+  const rawUA = await getRawUA(mainDb, family);
   if (!rawUA) {
     throw new Error("No upload attempt exists");
   }
@@ -230,22 +235,15 @@ export async function addStructureUploadAttempt(
   datasetFamily: FacilityFamily
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const existing = await getRawUA(mainDb);
+    const existing = await getRawUA(mainDb, datasetFamily);
     const currentTime = new Date().toISOString();
 
-    // The UI hides the entry points in these states, but the single-row
-    // invariant must be enforced here: a blind reset would clobber the other
-    // family's (or a mid-import) attempt.
+    // Only this family's own in-progress import blocks a restart; the other
+    // registry's import is a separate row and is never touched.
     if (existing && existing.status_type === "importing") {
       return {
         success: false,
-        err: "A facility import is currently running. Wait for it to finish before starting another.",
-      };
-    }
-    if (existing && existing.dataset_family !== datasetFamily) {
-      return {
-        success: false,
-        err: "Another facility import is in progress for the other registry. Finish or discard it first.",
+        err: "A facility import is currently running for this registry. Wait for it to finish before starting another.",
       };
     }
 
@@ -260,13 +258,13 @@ export async function addStructureUploadAttempt(
         SET
           date_started = ${currentTime},
           step = ${initialStep},
-          dataset_family = ${datasetFamily},
           source_type = ${initialSourceType},
           step_1_result = NULL,
           step_2_result = NULL,
           step_3_result = NULL,
           status = ${JSON.stringify({ status: "configuring" })},
           status_type = 'configuring'
+        WHERE dataset_family = ${datasetFamily}
       `;
     } else {
       await mainDb`
@@ -293,12 +291,13 @@ export async function addStructureUploadAttempt(
 }
 
 export async function getStructureUploadAttempt(
-  mainDb: Sql
+  mainDb: Sql,
+  family: FacilityFamily
 ): Promise<APIResponseWithData<StructureUploadAttemptDetail>> {
   return await tryCatchDatabaseAsync(async () => {
-    const rawUA = await getRawUAOrThrow(mainDb);
+    const rawUA = await getRawUAOrThrow(mainDb, family);
     const baseData = {
-      id: "single_row",
+      id: family,
       dateStarted: rawUA.date_started,
       status: JSON.parse(rawUA.status) as StructureUploadAttemptStatus,
       datasetFamily: rawUA.dataset_family,
@@ -361,10 +360,11 @@ export async function getStructureUploadAttempt(
 }
 
 export async function deleteStructureUploadAttempt(
-  mainDb: Sql
+  mainDb: Sql,
+  family: FacilityFamily
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`DELETE FROM structure_upload_attempts`;
+    await mainDb`DELETE FROM structure_upload_attempts WHERE dataset_family = ${family}`;
     return { success: true };
   });
 }
@@ -387,10 +387,11 @@ export async function deleteStructureUploadAttempt(
 
 export async function structureStep0_SetSourceType(
   mainDb: Sql,
+  family: FacilityFamily,
   sourceType: "csv" | "dhis2"
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const rawUA = await getRawUAOrThrow(mainDb);
+    const rawUA = await getRawUAOrThrow(mainDb, family);
     if (rawUA.dataset_family === "hfa" && sourceType === "dhis2") {
       return {
         success: false,
@@ -406,6 +407,7 @@ export async function structureStep0_SetSourceType(
         step_2_result = NULL,
         status = ${JSON.stringify({ status: "configuring" })},
         status_type = 'configuring'
+      WHERE dataset_family = ${family}
     `;
     return { success: true };
   });
@@ -413,10 +415,11 @@ export async function structureStep0_SetSourceType(
 
 export async function structureStep1Dhis2_SetCredentials(
   mainDb: Sql,
+  family: FacilityFamily,
   credentials: Dhis2Credentials
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const rawUA = await getRawUAOrThrow(mainDb);
+    const rawUA = await getRawUAOrThrow(mainDb, family);
     if (!rawUA.source_type) {
       throw new Error("Not yet ready for this step");
     }
@@ -428,6 +431,7 @@ export async function structureStep1Dhis2_SetCredentials(
         step_2_result = NULL,
         status = ${JSON.stringify({ status: "configuring" })},
         status_type = 'configuring'
+      WHERE dataset_family = ${family}
     `;
     return { success: true };
   });
@@ -435,10 +439,11 @@ export async function structureStep1Dhis2_SetCredentials(
 
 export async function structureStep2Dhis2_SetOrgUnitSelection(
   mainDb: Sql,
+  family: FacilityFamily,
   selection: StructureDhis2OrgUnitSelection
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const rawUA = await getRawUAOrThrow(mainDb);
+    const rawUA = await getRawUAOrThrow(mainDb, family);
     if (!rawUA.source_type || !rawUA.step_1_result) {
       throw new Error("Not yet ready for this step");
     }
@@ -449,6 +454,7 @@ export async function structureStep2Dhis2_SetOrgUnitSelection(
         step_2_result = ${JSON.stringify(selection)},
         status = ${JSON.stringify({ status: "configuring" })},
         status_type = 'configuring'
+      WHERE dataset_family = ${family}
     `;
     return { success: true };
   });
@@ -456,10 +462,11 @@ export async function structureStep2Dhis2_SetOrgUnitSelection(
 
 export async function structureStep1Csv_UploadFile(
   mainDb: Sql,
+  family: FacilityFamily,
   assetFileName: string
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const rawUA = await getRawUAOrThrow(mainDb);
+    const rawUA = await getRawUAOrThrow(mainDb, family);
     if (!rawUA.source_type) {
       throw new Error("Not yet ready for this step");
     }
@@ -469,12 +476,13 @@ export async function structureStep1Csv_UploadFile(
 
     await mainDb`
       UPDATE structure_upload_attempts
-      SET 
-        step = 2, 
-        step_1_result = ${JSON.stringify(resCsvDetails.data)}, 
+      SET
+        step = 2,
+        step_1_result = ${JSON.stringify(resCsvDetails.data)},
         step_2_result = NULL,
         status = ${JSON.stringify({ status: "configuring" })},
         status_type = 'configuring'
+      WHERE dataset_family = ${family}
     `;
     return { success: true };
   });
@@ -482,10 +490,11 @@ export async function structureStep1Csv_UploadFile(
 
 export async function structureStep2Csv_SetColumnMappings(
   mainDb: Sql,
+  family: FacilityFamily,
   columnMappings: StructureColumnMappings
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const rawUA = await getRawUAOrThrow(mainDb);
+    const rawUA = await getRawUAOrThrow(mainDb, family);
     if (!rawUA.source_type || !rawUA.step_1_result) {
       throw new Error("Not yet ready for this step");
     }
@@ -497,22 +506,37 @@ export async function structureStep2Csv_SetColumnMappings(
     }
     const maxAdminArea = maxAdminAreaResult.data.maxAdminArea;
 
-    // Validate that all required admin area mappings are provided
+    // facility_id is the only always-required column. Admin areas are optional
+    // as a group: map all levels (to place facilities) or none (a tag-only
+    // update). Each intent's requirements are enforced at step 4.
+    if (!columnMappings.facility_id) {
+      throw new Error("Facility ID mapping is required");
+    }
+    const mappedAdminLevels: number[] = [];
     for (let i = 1; i <= maxAdminArea; i++) {
       const key = `admin_area_${i}` as keyof StructureColumnMappings;
-      if (!columnMappings[key]) {
-        throw new Error(`Missing mapping for admin_area_${i}`);
+      if (columnMappings[key]) {
+        mappedAdminLevels.push(i);
       }
+    }
+    if (
+      mappedAdminLevels.length > 0 &&
+      mappedAdminLevels.length < maxAdminArea
+    ) {
+      throw new Error(
+        "Map all administrative area levels, or leave them all unmapped."
+      );
     }
 
     // Store the mappings and advance to step 3
     await mainDb`
       UPDATE structure_upload_attempts
-      SET 
+      SET
         step = 3,
         step_2_result = ${JSON.stringify(columnMappings)},
         status = ${JSON.stringify({ status: "configuring" })},
         status_type = 'configuring'
+      WHERE dataset_family = ${family}
     `;
 
     return { success: true };
@@ -521,38 +545,61 @@ export async function structureStep2Csv_SetColumnMappings(
 
 async function handleStagingSuccess(
   mainDb: Sql,
-  stagingData: StructureStagingResult
+  stagingData: StructureStagingResult,
+  family: FacilityFamily
 ): Promise<APIResponseNoData> {
+  // Pre-commit match preview against the target family's backbone: how many of
+  // the file's distinct facility_ids already exist. Shown at step 4 so an
+  // ID-system mismatch (0 existing) is visible before committing.
+  const facilitiesTable = facilitiesTableForFacilityFamily(family);
+  const matchRows = await mainDb.unsafe(`
+    SELECT
+      COUNT(*)::int AS total_staged,
+      COUNT(f.facility_id)::int AS existing
+    FROM (SELECT DISTINCT facility_id FROM ${stagingData.stagingTableName}) s
+    LEFT JOIN ${facilitiesTable} f ON f.facility_id = s.facility_id
+  `);
+  const totalStaged = matchRows[0]?.total_staged ?? 0;
+  const existing = matchRows[0]?.existing ?? 0;
+  const stagingWithMatch: StructureStagingResult = {
+    ...stagingData,
+    facilityMatch: { totalStaged, existing, newCount: totalStaged - existing },
+  };
+
   // Store staging result and advance to step 4
   await mainDb`
     UPDATE structure_upload_attempts
-    SET 
+    SET
       step = 4,
-      step_3_result = ${JSON.stringify(stagingData)},
+      step_3_result = ${JSON.stringify(stagingWithMatch)},
       status = ${JSON.stringify({ status: "configuring" })},
       status_type = 'configuring'
+    WHERE dataset_family = ${family}
   `;
   return { success: true };
 }
 
 async function handleStagingError(
   mainDb: Sql,
+  family: FacilityFamily,
   error: string
 ): Promise<APIResponseNoData> {
   await mainDb`
     UPDATE structure_upload_attempts
-    SET 
+    SET
       status = ${JSON.stringify({ status: "error", error })},
       status_type = 'error'
+    WHERE dataset_family = ${family}
   `;
   return { success: false, err: error };
 }
 
 export async function structureStep3Csv_StageData(
-  mainDb: Sql
+  mainDb: Sql,
+  family: FacilityFamily
 ): Promise<APIResponseNoData> {
   try {
-    const rawUA = await getRawUAOrThrow(mainDb);
+    const rawUA = await getRawUAOrThrow(mainDb, family);
     if (
       rawUA.source_type !== "csv" ||
       !rawUA.step_1_result ||
@@ -561,12 +608,19 @@ export async function structureStep3Csv_StageData(
       throw new Error("CSV upload and configuration steps not completed");
     }
 
+    if (rawUA.status_type === "importing") {
+      throw new Error(
+        "A structure import for this registry is already in progress."
+      );
+    }
+
     // Update status to staging
     await mainDb`
       UPDATE structure_upload_attempts
-      SET 
+      SET
         status = ${JSON.stringify({ status: "importing" })},
         status_type = 'importing'
+      WHERE dataset_family = ${family}
     `;
 
     // Parse CSV data
@@ -578,30 +632,36 @@ export async function structureStep3Csv_StageData(
     // Run CSV staging
     const resStaging = await stageStructureFromCsv(
       mainDb,
+      family,
       csvDetails.filePath,
       columnMappings
     );
 
     if (!resStaging.success) {
-      return await handleStagingError(mainDb, resStaging.err);
+      return await handleStagingError(mainDb, family, resStaging.err);
     }
 
-    return await handleStagingSuccess(mainDb, resStaging.data);
+    return await handleStagingSuccess(
+      mainDb,
+      resStaging.data,
+      rawUA.dataset_family
+    );
   } catch (error) {
     const errorMessage =
       error instanceof Error
         ? error.message
         : "Unknown error during CSV staging";
-    return await handleStagingError(mainDb, errorMessage);
+    return await handleStagingError(mainDb, family, errorMessage);
   }
 }
 
 export async function structureStep3Csv_StageDataStreaming(
   mainDb: Sql,
+  family: FacilityFamily,
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseNoData> {
   try {
-    const rawUA = await getRawUAOrThrow(mainDb);
+    const rawUA = await getRawUAOrThrow(mainDb, family);
     if (
       rawUA.source_type !== "csv" ||
       !rawUA.step_1_result ||
@@ -610,12 +670,19 @@ export async function structureStep3Csv_StageDataStreaming(
       throw new Error("CSV upload and configuration steps not completed");
     }
 
+    if (rawUA.status_type === "importing") {
+      throw new Error(
+        "A structure import for this registry is already in progress."
+      );
+    }
+
     // Update status to staging
     await mainDb`
       UPDATE structure_upload_attempts
-      SET 
+      SET
         status = ${JSON.stringify({ status: "importing" })},
         status_type = 'importing'
+      WHERE dataset_family = ${family}
     `;
 
     // Parse CSV data
@@ -627,31 +694,37 @@ export async function structureStep3Csv_StageDataStreaming(
     // Run CSV staging with progress callback
     const resStaging = await stageStructureFromCsv(
       mainDb,
+      family,
       csvDetails.filePath,
       columnMappings,
       onProgress
     );
 
     if (!resStaging.success) {
-      return await handleStagingError(mainDb, resStaging.err);
+      return await handleStagingError(mainDb, family, resStaging.err);
     }
 
-    return await handleStagingSuccess(mainDb, resStaging.data);
+    return await handleStagingSuccess(
+      mainDb,
+      resStaging.data,
+      rawUA.dataset_family
+    );
   } catch (error) {
     const errorMessage =
       error instanceof Error
         ? error.message
         : "Unknown error during CSV staging";
-    return await handleStagingError(mainDb, errorMessage);
+    return await handleStagingError(mainDb, family, errorMessage);
   }
 }
 
 export async function structureStep3Dhis2_StageData(
   mainDb: Sql,
+  family: FacilityFamily,
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseNoData> {
   try {
-    const rawUA = await getRawUAOrThrow(mainDb);
+    const rawUA = await getRawUAOrThrow(mainDb, family);
     if (
       rawUA.source_type !== "dhis2" ||
       !rawUA.step_1_result ||
@@ -673,6 +746,7 @@ export async function structureStep3Dhis2_StageData(
       SET
         status = ${JSON.stringify({ status: "importing_dhis2" })},
         status_type = 'importing'
+      WHERE dataset_family = ${family}
     `;
 
     // Parse DHIS2 data
@@ -684,6 +758,7 @@ export async function structureStep3Dhis2_StageData(
     // Run DHIS2 staging
     const resStaging = await stageStructureFromDhis2V2(
       mainDb,
+      family,
       credentials,
       selection,
       onProgress
@@ -694,22 +769,27 @@ export async function structureStep3Dhis2_StageData(
       // return await handleStagingError(mainDb, resStaging.err);
     }
 
-    return await handleStagingSuccess(mainDb, resStaging.data);
+    return await handleStagingSuccess(
+      mainDb,
+      resStaging.data,
+      rawUA.dataset_family
+    );
   } catch (error) {
     const errorMessage =
       error instanceof Error
         ? error.message
         : "Unknown error during DHIS2 staging";
-    return await handleStagingError(mainDb, errorMessage);
+    return await handleStagingError(mainDb, family, errorMessage);
   }
 }
 
 export async function structureStep4_ImportData(
   mainDb: Sql,
+  family: FacilityFamily,
   strategy: StructureIntegrateStrategy
-): Promise<APIResponseNoData> {
+): Promise<APIResponseWithData<StructureIntegrateSummary>> {
   try {
-    const rawUA = await getRawUAOrThrow(mainDb);
+    const rawUA = await getRawUAOrThrow(mainDb, family);
     if (!rawUA.step_3_result) {
       throw new Error("Staging step not completed");
     }
@@ -721,37 +801,32 @@ export async function structureStep4_ImportData(
     // Update status to integrating
     await mainDb`
       UPDATE structure_upload_attempts
-      SET 
+      SET
         status = ${JSON.stringify({ status: "importing" })},
         status_type = 'importing'
+      WHERE dataset_family = ${family}
     `;
 
-    // Get enabled optional columns for integration
-    const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-    throwIfErrWithData(resFacilityConfig);
-    const enabledOptionalColumns = getEnabledOptionalFacilityColumns(
-      resFacilityConfig.data
-    );
-
-    // Integrate the staged data
+    // Integrate the staged data. Column scope is the staging table's own
+    // columns (= what was mapped), discovered inside the integration.
     const integrationResult = await integrateStructureFromStaging(
       mainDb,
       stagingResult.stagingTableName,
       strategy,
-      rawUA.dataset_family,
-      enabledOptionalColumns
+      rawUA.dataset_family
     );
 
     if (!integrationResult.success) {
       // Update status with error
       await mainDb`
         UPDATE structure_upload_attempts
-        SET 
+        SET
           status = ${JSON.stringify({
             status: "error",
             error: integrationResult.error || "Integration failed",
           })},
           status_type = 'error'
+        WHERE dataset_family = ${family}
       `;
       return {
         success: false,
@@ -776,10 +851,17 @@ export async function structureStep4_ImportData(
       DO UPDATE SET config_json_value = EXCLUDED.config_json_value
     `;
 
-    // Delete upload attempt on success
-    await mainDb`DELETE FROM structure_upload_attempts`;
+    // Delete this family's upload attempt on success
+    await mainDb`DELETE FROM structure_upload_attempts WHERE dataset_family = ${family}`;
 
-    return { success: true };
+    return {
+      success: true,
+      data: {
+        inserted: integrationResult.inserted,
+        updated: integrationResult.updated,
+        deleted: integrationResult.deleted,
+      },
+    };
   } catch (error) {
     // Update status with error
     const errorMessage =
@@ -789,9 +871,10 @@ export async function structureStep4_ImportData(
     try {
       await mainDb`
         UPDATE structure_upload_attempts
-        SET 
+        SET
           status = ${JSON.stringify({ status: "error", error: errorMessage })},
           status_type = 'error'
+        WHERE dataset_family = ${family}
       `;
     } catch {
       // Ignore errors updating status
@@ -800,14 +883,17 @@ export async function structureStep4_ImportData(
   }
 }
 
-export async function getStructureUploadStatus(mainDb: Sql): Promise<
+export async function getStructureUploadStatus(
+  mainDb: Sql,
+  family: FacilityFamily
+): Promise<
   APIResponseWithData<{
     isActive: boolean;
     status: StructureUploadAttemptStatus;
   }>
 > {
   return await tryCatchDatabaseAsync(async () => {
-    const rawUA = await getRawUA(mainDb);
+    const rawUA = await getRawUA(mainDb, family);
     if (!rawUA) {
       return {
         success: true,

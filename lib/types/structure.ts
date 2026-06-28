@@ -1,4 +1,4 @@
-import { CsvDetails, OptionalFacilityColumn } from "./instance.ts";
+import { CsvDetails } from "./instance.ts";
 import { Dhis2Credentials } from "./dataset_hmis_import.ts";
 
 // Which facility registry an import targets. Admin areas are shared; each
@@ -8,6 +8,16 @@ export type FacilityFamily = "hmis" | "hfa";
 // ============================================================================
 // Structure Staging Result Types
 // ============================================================================
+
+// Pre-commit safety signal computed at staging: how many of the file's distinct
+// facility_ids already exist in the target family's backbone. Optional so an
+// upload attempt staged before this field existed still loads. The step-4 UI
+// shows it so an ID-system mismatch (0 existing) is visible before committing.
+export type StructureFacilityMatch = {
+  totalStaged: number;
+  existing: number;
+  newCount: number;
+};
 
 export type StructureStagingResult = {
   stagingTableName: string;
@@ -21,6 +31,11 @@ export type StructureStagingResult = {
   };
   facilitiesPreview: number;
   validationWarnings?: string[];
+  // The columns the file actually staged (= what was mapped). Drive the step-4
+  // "these columns will be written" notice. Optional for pre-existing attempts.
+  stagedOptionalColumns?: string[];
+  stagedAdminAreas?: boolean;
+  facilityMatch?: StructureFacilityMatch;
 };
 
 // ============================================================================
@@ -181,16 +196,21 @@ export type HfaFacilityWeightsImportResult = {
   timePointsCovered: string[];
 };
 
-// Column type for selective updates
-export type SelectableColumn = "all_admin_areas" | OptionalFacilityColumn;
-
+// The three facility-import intents. facility_id is always the match key; the
+// columns written are exactly those mapped at step 2 (= the staging table's
+// columns), admin areas included. See PLAN_FACILITY_UPDATE_MODES.md.
+//   - replace_all:          delete this family's facilities, then add all from the file
+//   - add_and_update:       add facilities with new IDs, update existing ones
+//   - update_existing_only: update existing facilities only; reject any unknown ID
 export type StructureIntegrateStrategy =
-  | { type: "first_delete_all_then_add_all" }
-  | { type: "add_all_and_update_all_as_needed" }
-  | { type: "add_all_new_rows_and_ignore_conflicts" }
-  | { type: "add_all_new_rows_and_error_if_any_conflicts" }
-  | { type: "only_update_optional_facility_cols_by_existing_facility_id" }
-  | {
-      type: "only_update_selected_cols_by_existing_facility_id";
-      selectedColumns: SelectableColumn[];
-    };
+  | { type: "replace_all" }
+  | { type: "add_and_update" }
+  | { type: "update_existing_only" };
+
+// Returned to the client after a successful import so step 4 can confirm what
+// actually happened (vs. the pre-commit preview).
+export type StructureIntegrateSummary = {
+  inserted: number;
+  updated: number;
+  deleted: number;
+};
