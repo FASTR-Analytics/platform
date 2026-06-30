@@ -27,6 +27,11 @@ export default defineConfig({
       jspdf: path.resolve(__dirname, "node_modules/jspdf"),
       papaparse: path.resolve(__dirname, "node_modules/papaparse"),
       zod: path.resolve(__dirname, "node_modules/zod"),
+      yjs: path.resolve(__dirname, "node_modules/yjs"),
+      "fractional-indexing": path.resolve(
+        __dirname,
+        "node_modules/fractional-indexing",
+      ),
       "idb-keyval": path.resolve(__dirname, "node_modules/idb-keyval"),
       "@anthropic-ai/sdk": path.resolve(__dirname, "node_modules/@anthropic-ai/sdk"),
       pptxgenjs: path.resolve(__dirname, "node_modules/pptxgenjs"),
