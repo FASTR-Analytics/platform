@@ -39,6 +39,7 @@ type Props = {
   handleOpenSettings: () => Promise<void>;
   download: () => Promise<void>;
   share: () => Promise<void>;
+  present: () => Promise<void>;
   deckConfig: SlideDeckConfig;
 };
 
@@ -443,6 +444,9 @@ export function SlideList(p: Props) {
                 outline
                 onClick={() => setIsFillWidth(!isFillWidth())}
               />
+              <Button iconName="presentation" onClick={() => p.present()}>
+                {t3({ en: "Present", fr: "Présenter" })}
+              </Button>
             </Show>
             <MenuTriggerWrapper position="bottom-end" items={addSlideMenuItems}>
               <Button iconName="plus">
