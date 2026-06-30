@@ -157,6 +157,18 @@ export function SlideEditor(p: Props) {
   // effect doesn't ship it straight back (syncSlideToDoc is also idempotent, a
   // belt-and-suspenders backstop against echo loops).
   let skipNextPush = false;
+  // Count of sub-editors/modals (e.g. the visualization editor) currently open
+  // over the slide canvas. While > 0 the peer-selection overlay is suppressed so
+  // its body-portaled boxes don't float on top of that modal.
+  const [subEditorOpen, setSubEditorOpen] = createSignal(0);
+  async function withCanvasCovered<T>(opening: Promise<T>): Promise<T> {
+    setSubEditorOpen((n) => n + 1);
+    try {
+      return await opening;
+    } finally {
+      setSubEditorOpen((n) => n - 1);
+    }
+  }
 
   // Render slide preview
   async function attemptGetPageInputs(slide: Slide) {
@@ -544,7 +556,7 @@ export function SlideEditor(p: Props) {
         return;
       }
 
-      const result = await openEditor({
+      const result = await withCanvasCovered(openEditor({
         element: VisualizationEditor,
         props: {
           mode: "ephemeral" as const,
@@ -557,7 +569,7 @@ export function SlideEditor(p: Props) {
             config: bundleConfig,
           }),
         },
-      });
+      }));
 
       if (result?.updated) {
         const newConfig = result.updated.config;
@@ -622,10 +634,10 @@ export function SlideEditor(p: Props) {
     const blockId = blockIdOverride ?? selectedBlockId();
     if (!blockId || tempSlide.type !== "content") return;
 
-    const result = await openEditor({
+    const result = await withCanvasCovered(openEditor({
       element: SelectVisualizationForSlide,
       props: { projectState: p.projectStateSnapshot },
-    });
+    }));
 
     if (!result) return;
 
@@ -657,14 +669,14 @@ export function SlideEditor(p: Props) {
     const blockId = selectedBlockId();
     if (!blockId || tempSlide.type !== "content") return;
 
-    const result = await openComponent({
+    const result = await withCanvasCovered(openComponent({
       element: AddVisualization,
       props: {
         projectId: p.projectId,
         metrics: p.projectStateSnapshot.metrics,
         modules: p.projectStateSnapshot.projectModules,
       },
-    });
+    }));
 
     if (!result) return;
 
@@ -978,6 +990,7 @@ export function SlideEditor(p: Props) {
                   <PeerSelectionOverlay
                     measured={measuredPage()}
                     slideId={p.slideId}
+                    suppressed={subEditorOpen() > 0}
                   />
                 </div>
               )}
@@ -1040,6 +1053,7 @@ function buildIdRectMap(
 function PeerSelectionOverlay(p: {
   measured: MeasuredPage | undefined;
   slideId: string;
+  suppressed: boolean;
 }) {
   const [tick, setTick] = createSignal(0);
   const bump = () => setTick((t) => t + 1);
@@ -1055,6 +1069,7 @@ function PeerSelectionOverlay(p: {
 
   const boxes = () => {
     tick(); // recompute when the canvas moves (resize/scroll)
+    if (p.suppressed) return []; // a sub-editor/modal is open over the canvas
     const m = p.measured;
     if (!m || m.type !== "freeform") return [];
     const peers = otherPeers().filter(
@@ -1065,6 +1080,13 @@ function PeerSelectionOverlay(p: {
     if (!canvas) return [];
     const r = canvas.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) return [];
+    // Backstop for any other covering modal: if the slide canvas isn't the
+    // topmost element at its own center, something is over it — suppress.
+    const topEl = document.elementFromPoint(
+      r.left + r.width / 2,
+      r.top + r.height / 2,
+    );
+    if (topEl && topEl !== canvas && !topEl.contains(canvas)) return [];
     const sx = r.width / PAGE_WIDTH_DU;
     const sy = r.height / PAGE_HEIGHT_DU;
     const rects = buildIdRectMap(
