@@ -1,3 +1,5 @@
+[1.54.3] [user] [fixed] - Structure imports now show proper error messages instead of failing silently
+[1.54.3] [admin] [fixed] - Structure import errors are now handled gracefully instead of failing silently
 [1.54.2] [user] [fixed] - Fixed data import lock not releasing properly after completion
 [1.54.2] [admin] [fixed] - DHIS2 structure imports no longer leak database locks
 [1.54.1] [user] [changed] - Sort control styling updated on the Projects page
