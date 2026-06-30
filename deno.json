@@ -34,7 +34,8 @@
     "xlsx": "npm:xlsx@0.18.5",
     "redis": "npm:redis@^4.7.0",
     "zod": "npm:zod@^4.0.0",
-    "yjs": "npm:yjs@^13.6.20"
+    "yjs": "npm:yjs@^13.6.20",
+    "fractional-indexing": "npm:fractional-indexing@^3.2.0"
   },
   "compilerOptions": {
     "jsx": "precompile",
