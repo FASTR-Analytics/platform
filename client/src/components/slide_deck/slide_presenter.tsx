@@ -110,12 +110,31 @@ export function SlidePresenter(p: Props) {
       // ignore
     }
   }
+  // Set when the user exits fullscreen via the minimize toggle, so the
+  // fullscreenchange handler keeps the (windowed) presenter open instead of
+  // treating it as an Escape-style "back out completely".
+  let toggledFullscreenOff = false;
   function toggleFullscreen() {
-    if (document.fullscreenElement) exitFullscreenIfNeeded();
-    else enterFullscreen();
+    if (document.fullscreenElement) {
+      toggledFullscreenOff = true;
+      exitFullscreenIfNeeded();
+    } else {
+      enterFullscreen();
+    }
   }
   function handleFullscreenChange() {
-    setIsFullscreen(!!document.fullscreenElement);
+    const fs = !!document.fullscreenElement;
+    setIsFullscreen(fs);
+    if (!fs) {
+      // Exited fullscreen. If the user did it via Escape (or browser chrome),
+      // that's a request to leave the presentation entirely — close it. Only a
+      // deliberate minimize-toggle keeps us open in windowed mode.
+      if (toggledFullscreenOff) {
+        toggledFullscreenOff = false;
+      } else {
+        close();
+      }
+    }
   }
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -142,12 +161,11 @@ export function SlidePresenter(p: Props) {
         setCurrentIndex(total - 1);
         break;
       case "Escape":
-        // In real fullscreen the browser consumes the first Escape to exit it,
-        // leaving the overlay; a subsequent Escape (no fullscreen) closes us.
-        if (!document.fullscreenElement) {
-          e.preventDefault();
-          close();
-        }
+        // Back out completely on the first press. If we're in real fullscreen,
+        // the browser also exits it; close() -> onCleanup handles that, and the
+        // fullscreenchange handler closes us in the case the keydown never fires.
+        e.preventDefault();
+        close();
         break;
     }
     pokeControls();
