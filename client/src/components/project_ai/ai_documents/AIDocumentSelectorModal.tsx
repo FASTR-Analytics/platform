@@ -142,13 +142,19 @@ export function AIDocumentSelectorModal(
       </Show>
 
       <Show when={!isLoading()}>
-        <div class="mb-3 flex justify-end">
+        <div class="mb-3 flex items-center gap-3">
           <Button id="upload-pdf-button" size="sm" outline type="button">
             {t3({
               en: "Upload PDF from device",
               fr: "Importer un PDF depuis l'appareil",
             })}
           </Button>
+          <span class="text-base-content/60">
+            {t3({
+              en: "OR",
+              fr: "OU",
+            })}
+          </span>
         </div>
 
         <Show
@@ -162,6 +168,12 @@ export function AIDocumentSelectorModal(
             </div>
           }
         >
+          <div class="mb-2 font-medium">
+            {t3({
+              en: "Select from uploaded assets",
+              fr: "Sélectionner parmi les ressources importées",
+            })}
+          </div>
           <div class="max-h-[400px] overflow-y-auto">
             <MultiSelect
               values={selectedFiles()}
