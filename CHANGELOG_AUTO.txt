@@ -1,3 +1,5 @@
+[1.54.2] [user] [fixed] - Fixed data import lock not releasing properly after completion
+[1.54.2] [admin] [fixed] - DHIS2 structure imports no longer leak database locks
 [1.54.1] [user] [changed] - Sort control styling updated on the Projects page
 [1.54.1] [admin] [changed] - Sort control styling updated on Projects page
 [1.54.0] [user] [added] - Import HMIS and HFA facility lists simultaneously without blocking each other
