@@ -765,8 +765,7 @@ export async function structureStep3Dhis2_StageData(
     );
 
     if (!resStaging.success) {
-      return resStaging;
-      // return await handleStagingError(mainDb, resStaging.err);
+      return await handleStagingError(mainDb, family, resStaging.err);
     }
 
     return await handleStagingSuccess(

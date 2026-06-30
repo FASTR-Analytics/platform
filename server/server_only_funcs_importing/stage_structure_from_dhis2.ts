@@ -154,15 +154,13 @@ export async function stageStructureFromDhis2V2(
   selection: StructureDhis2OrgUnitSelection,
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<StructureStagingResult>> {
-  // Concurrency is guarded upstream by the structure_upload_attempts
-  // status_type === 'importing' check (a DB column, leak-proof and self-healing
-  // via resetWedgedUploadAttempts). Same-family double-staging is benign here:
-  // each family stages into its own temp_structure_staging_${family} table, so
-  // there's no cross-family clobber to prevent. (No advisory lock — a pooled
-  // connection acquires it but the finally unlock runs on a different pooled
-  // connection, leaking the lock until the postgres connection closes.)
-
-  // Per-family staging table (concurrent HMIS/HFA imports stay isolated)
+  // Per-family staging table so HMIS and HFA imports can run concurrently
+  // without clobbering each other's staging data. Same-family double-staging is
+  // gated by the status_type='importing' check in the step-3 wrapper; the
+  // staging table is family-scoped so the residual race is benign (same attempt,
+  // same mappings → same result, deduped at integration). No advisory lock — the
+  // old pg_advisory_lock leaked because acquire and the finally-unlock ran on
+  // different pooled mainDb connections, wedging the lock until restart.
   const stagingTableName = `temp_structure_staging_${family}`;
 
   try {
