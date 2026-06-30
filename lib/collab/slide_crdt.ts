@@ -35,7 +35,7 @@
 //       "children": Y.Map ( childId -> child node Y.Map )
 
 import * as Y from "yjs";
-import { generateNKeysBetween } from "fractional-indexing";
+import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 import type { LayoutNode } from "@timroberton/panther";
 import type { ContentBlock, Slide } from "../types/slides.ts";
 
@@ -230,4 +230,197 @@ export function findNodeMap(
     return undefined;
   }
   return walk(layout);
+}
+
+// ── Reconcile: apply a target Slide onto an existing Y.Doc (minimal ops) ──────
+//
+// The editor keeps mutating its working `tempSlide` (existing code path); this
+// diffs that target onto the shared doc so local edits become granular,
+// mergeable Yjs ops: text -> Y.Text deltas (so concurrent typing merges),
+// scalar/opaque fields -> LWW sets, structure -> add/remove + fractional-index
+// reorder. Idempotent — a no-op when the doc already matches the target.
+
+type SlideItemNode = Extract<SlideNode, { type: "item" }>;
+
+function canonicalJson(v: unknown): string {
+  return JSON.stringify(v, (_k, val) =>
+    val && typeof val === "object" && !Array.isArray(val)
+      ? Object.keys(val as object).sort().reduce(
+        (a: Record<string, unknown>, k) => {
+          a[k] = (val as Record<string, unknown>)[k];
+          return a;
+        },
+        {},
+      )
+      : val
+  );
+}
+
+function setScalar(m: Y.Map<unknown>, key: string, value: unknown): void {
+  if (value === undefined) {
+    if (m.has(key)) m.delete(key);
+  } else if (m.get(key) !== value) {
+    m.set(key, value);
+  }
+}
+
+function setOpaque(m: Y.Map<unknown>, key: string, value: unknown): void {
+  if (value === undefined) {
+    if (m.has(key)) m.delete(key);
+  } else if (!m.has(key) || canonicalJson(m.get(key)) !== canonicalJson(value)) {
+    m.set(key, value);
+  }
+}
+
+/** Apply the minimal single-region edit to turn `yText` into `next`. */
+function syncText(yText: Y.Text, next: string): void {
+  const cur = yText.toString();
+  if (cur === next) return;
+  const maxPre = Math.min(cur.length, next.length);
+  let p = 0;
+  while (p < maxPre && cur[p] === next[p]) p++;
+  let s = 0;
+  while (s < maxPre - p && cur[cur.length - 1 - s] === next[next.length - 1 - s]) {
+    s++;
+  }
+  const delLen = cur.length - p - s;
+  if (delLen > 0) yText.delete(p, delLen);
+  const ins = next.slice(p, next.length - s);
+  if (ins.length > 0) yText.insert(p, ins);
+}
+
+function syncItemContent(m: Y.Map<unknown>, node: SlideItemNode): void {
+  const block = node.data;
+  if (m.get("blockType") !== block.type) {
+    for (const k of ["markdown", "imgFile", "bundle", "blockStyle"]) {
+      if (m.has(k)) m.delete(k);
+    }
+    m.set("blockType", block.type);
+  }
+  if (block.type === "text") {
+    let t = m.get("markdown");
+    if (!(t instanceof Y.Text)) {
+      t = new Y.Text();
+      m.set("markdown", t);
+    }
+    syncText(t as Y.Text, block.markdown ?? "");
+    setOpaque(m, "blockStyle", block.style);
+  } else if (block.type === "image") {
+    setScalar(m, "imgFile", block.imgFile);
+    setOpaque(m, "blockStyle", block.style);
+  } else {
+    setOpaque(m, "bundle", block.bundle);
+  }
+  setOpaque(m, "itemStyle", node.style);
+  setScalar(m, "alignV", node.alignV);
+}
+
+function rebuildNodeInPlace(m: Y.Map<unknown>, node: SlideNode): void {
+  for (const k of [...m.keys()]) {
+    if (k !== "id" && k !== "fracIndex") m.delete(k);
+  }
+  m.set("type", node.type);
+  setScalar(m, "minH", node.minH);
+  setScalar(m, "maxH", node.maxH);
+  setScalar(m, "span", node.span);
+  if (node.type === "item") {
+    m.set("blockType", node.data.type);
+    syncItemContent(m, node);
+  } else {
+    m.set("children", new Y.Map<unknown>());
+    syncChildren(m, node.children);
+  }
+}
+
+function syncNode(m: Y.Map<unknown>, node: SlideNode): void {
+  if (m.get("type") !== node.type) {
+    rebuildNodeInPlace(m, node);
+    return;
+  }
+  setScalar(m, "minH", node.minH);
+  setScalar(m, "maxH", node.maxH);
+  setScalar(m, "span", node.span);
+  if (node.type === "item") {
+    syncItemContent(m, node);
+  } else {
+    syncChildren(m, node.children);
+  }
+}
+
+function syncChildren(parentMap: Y.Map<unknown>, target: SlideNode[]): void {
+  let childrenMap = parentMap.get("children") as Y.Map<unknown> | undefined;
+  if (!childrenMap) {
+    childrenMap = new Y.Map<unknown>();
+    parentMap.set("children", childrenMap);
+  }
+  const targetIds = new Set(target.map((c) => c.id));
+  for (const id of [...childrenMap.keys()]) {
+    if (!targetIds.has(id)) childrenMap.delete(id);
+  }
+  for (const child of target) {
+    const existing = childrenMap.get(child.id) as Y.Map<unknown> | undefined;
+    if (existing) {
+      syncNode(existing, child);
+    } else {
+      childrenMap.set(child.id, buildNode(child, null));
+    }
+  }
+  // Reorder: ensure fracIndex is strictly increasing in target order,
+  // reassigning ONLY nodes that are out of order (or newly added) — so a local
+  // reorder doesn't churn every sibling's key and clobber a concurrent move.
+  let prevKey: string | null = null;
+  target.forEach((child, i) => {
+    const cm = childrenMap!.get(child.id) as Y.Map<unknown>;
+    const k = cm.get("fracIndex") as string | undefined;
+    if (k !== undefined && k !== "" && (prevKey === null || k > prevKey)) {
+      prevKey = k;
+      return;
+    }
+    // Find the next already-keyed sibling after this one to anchor against.
+    let nextKey: string | null = null;
+    for (let j = i + 1; j < target.length; j++) {
+      const nm = childrenMap!.get(target[j].id) as Y.Map<unknown>;
+      const nk = nm.get("fracIndex") as string | undefined;
+      if (nk !== undefined && nk !== "" && (prevKey === null || nk > prevKey)) {
+        nextKey = nk;
+        break;
+      }
+    }
+    const newKey = generateKeyBetween(prevKey, nextKey);
+    cm.set("fracIndex", newKey);
+    prevKey = newKey;
+  });
+}
+
+/** Diff `target` onto the doc, applying minimal mergeable ops. */
+export function syncSlideToDoc(doc: Y.Doc, target: Slide): void {
+  const root = doc.getMap<unknown>(ROOT_KEY);
+
+  if (root.get("type") !== target.type) {
+    for (const k of [...root.keys()]) root.delete(k);
+    seedSlideDoc(doc, target);
+    return;
+  }
+
+  if (target.type === "content") {
+    const rec = target as unknown as Record<string, unknown>;
+    for (const f of CONTENT_SCALAR_FIELDS) setScalar(root, f, rec[f]);
+    setOpaque(root, "split", target.split);
+    const layout = root.get("layout") as Y.Map<unknown> | undefined;
+    if (!layout) {
+      root.set("layout", buildNode(target.layout, null));
+    } else {
+      syncNode(layout, target.layout);
+    }
+  } else {
+    const rec = target as unknown as Record<string, unknown>;
+    const targetKeys = new Set(Object.keys(rec));
+    for (const k of [...root.keys()]) {
+      if (k !== "type" && !targetKeys.has(k)) root.delete(k);
+    }
+    for (const [k, v] of Object.entries(rec)) {
+      if (k === "type") continue;
+      setScalar(root, k, v);
+    }
+  }
 }
