@@ -608,20 +608,20 @@ export async function structureStep3Csv_StageData(
       throw new Error("CSV upload and configuration steps not completed");
     }
 
-    if (rawUA.status_type === "importing") {
-      throw new Error(
-        "A structure import for this registry is already in progress."
-      );
-    }
-
-    // Update status to staging
-    await mainDb`
+    // Atomically claim the import slot: the conditional UPDATE + rowcount check
+    // is race-free, unlike a separate read-then-write guard.
+    const claimed = await mainDb`
       UPDATE structure_upload_attempts
       SET
         status = ${JSON.stringify({ status: "importing" })},
         status_type = 'importing'
-      WHERE dataset_family = ${family}
+      WHERE dataset_family = ${family} AND status_type <> 'importing'
     `;
+    if (claimed.count === 0) {
+      throw new Error(
+        "A structure import for this registry is already in progress."
+      );
+    }
 
     // Parse CSV data
     const csvDetails = JSON.parse(rawUA.step_1_result) as CsvDetails;
@@ -670,20 +670,20 @@ export async function structureStep3Csv_StageDataStreaming(
       throw new Error("CSV upload and configuration steps not completed");
     }
 
-    if (rawUA.status_type === "importing") {
-      throw new Error(
-        "A structure import for this registry is already in progress."
-      );
-    }
-
-    // Update status to staging
-    await mainDb`
+    // Atomically claim the import slot: the conditional UPDATE + rowcount check
+    // is race-free, unlike a separate read-then-write guard.
+    const claimed = await mainDb`
       UPDATE structure_upload_attempts
       SET
         status = ${JSON.stringify({ status: "importing" })},
         status_type = 'importing'
-      WHERE dataset_family = ${family}
+      WHERE dataset_family = ${family} AND status_type <> 'importing'
     `;
+    if (claimed.count === 0) {
+      throw new Error(
+        "A structure import for this registry is already in progress."
+      );
+    }
 
     // Parse CSV data
     const csvDetails = JSON.parse(rawUA.step_1_result) as CsvDetails;
@@ -733,21 +733,20 @@ export async function structureStep3Dhis2_StageData(
       throw new Error("DHIS2 credentials and selection steps not completed");
     }
 
-    // Check if an import is already in progress
-    if (rawUA.status_type === "importing") {
-      throw new Error("DHIS2 structure staging is already in progress");
-    }
-
-    if (onProgress) await onProgress(0.05, "Connecting to DHIS2 server...");
-
-    // Update status to staging
-    await mainDb`
+    // Atomically claim the import slot: the conditional UPDATE + rowcount check
+    // is race-free, unlike a separate read-then-write guard.
+    const claimed = await mainDb`
       UPDATE structure_upload_attempts
       SET
         status = ${JSON.stringify({ status: "importing_dhis2" })},
         status_type = 'importing'
-      WHERE dataset_family = ${family}
+      WHERE dataset_family = ${family} AND status_type <> 'importing'
     `;
+    if (claimed.count === 0) {
+      throw new Error("DHIS2 structure staging is already in progress");
+    }
+
+    if (onProgress) await onProgress(0.05, "Connecting to DHIS2 server...");
 
     // Parse DHIS2 data
     const credentials = JSON.parse(rawUA.step_1_result) as Dhis2Credentials;
