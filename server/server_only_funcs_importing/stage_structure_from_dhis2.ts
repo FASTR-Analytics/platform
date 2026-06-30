@@ -154,19 +154,13 @@ export async function stageStructureFromDhis2V2(
   selection: StructureDhis2OrgUnitSelection,
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<StructureStagingResult>> {
-  // Per-family advisory lock so an HMIS and an HFA DHIS2 import don't block each
-  // other, but the same family can't double-stage into its own staging table.
-  const lockKey = family === "hmis" ? 67890 : 67891;
-  const lockResult = await mainDb.unsafe(
-    `SELECT pg_try_advisory_lock(12345, ${lockKey}) as acquired`
-  );
-
-  if (!lockResult[0]?.acquired) {
-    return {
-      success: false,
-      err: "DHIS2 structure staging is already in progress. Please wait for it to complete."
-    };
-  }
+  // Concurrency is guarded upstream by the structure_upload_attempts
+  // status_type === 'importing' check (a DB column, leak-proof and self-healing
+  // via resetWedgedUploadAttempts). Same-family double-staging is benign here:
+  // each family stages into its own temp_structure_staging_${family} table, so
+  // there's no cross-family clobber to prevent. (No advisory lock — a pooled
+  // connection acquires it but the finally unlock runs on a different pooled
+  // connection, leaking the lock until the postgres connection closes.)
 
   // Per-family staging table (concurrent HMIS/HFA imports stay isolated)
   const stagingTableName = `temp_structure_staging_${family}`;
@@ -513,12 +507,5 @@ export async function stageStructureFromDhis2V2(
         : "Unknown error during DHIS2 streaming import";
     console.error("DHIS2 v2 structure import error:", error);
     return { success: false, err: errorMessage };
-  } finally {
-    // Always release the advisory lock
-    try {
-      await mainDb.unsafe(`SELECT pg_advisory_unlock(12345, ${lockKey})`);
-    } catch {
-      // Ignore unlock errors
-    }
   }
 }
