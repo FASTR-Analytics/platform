@@ -14,6 +14,7 @@ import type {
   DividerDragUpdate,
   LayoutItemSwapUpdate,
   LayoutNode,
+  MeasuredPage,
 } from "panther";
 import {
   AlertComponentProps,
@@ -37,7 +38,8 @@ import {
   showMenu,
   createButtonAction,
 } from "panther";
-import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { For, Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { Portal } from "solid-js/web";
 import {
   createStore,
   produce,
@@ -59,7 +61,7 @@ import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import { setCollabView } from "~/state/project/collab";
+import { otherPeers, setCollabView } from "~/state/project/collab";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
@@ -136,6 +138,7 @@ export function SlideEditor(p: Props) {
     string | undefined
   >();
   const [contentTab, setContentTab] = createSignal<"slide" | "block">("slide");
+  const [measuredPage, setMeasuredPage] = createSignal<MeasuredPage>();
 
   // Render slide preview
   async function attemptGetPageInputs(slide: Slide) {
@@ -799,6 +802,7 @@ export function SlideEditor(p: Props) {
                     pageWidthDu={PAGE_WIDTH_DU}
                     pageHeightDu={PAGE_HEIGHT_DU}
                     fitWithin={true}
+                    onMeasured={(m) => setMeasuredPage(m)}
                     hoverStyle={{
                       fillColor: "rgba(0, 112, 243, 0.1)",
                       strokeColor: "rgba(0, 112, 243, 0.8)",
@@ -904,6 +908,10 @@ export function SlideEditor(p: Props) {
                       });
                     }}
                   />
+                  <PeerSelectionOverlay
+                    measured={measuredPage()}
+                    slideId={p.slideId}
+                  />
                 </div>
               )}
             </Show>
@@ -911,5 +919,140 @@ export function SlideEditor(p: Props) {
         </FrameLeftResizable>
       </FrameTop>
     </EditorWrapper>
+  );
+}
+
+type MeasuredNodeLike = {
+  type: "item" | "rows" | "cols";
+  id: string;
+  rpd: { x(): number; y(): number; w(): number; h(): number };
+  children?: MeasuredNodeLike[];
+};
+
+// Map each block's layout-node id to its rectangle in page (DU) coordinates.
+// Mirrors panther's collectItemHitRegions (cols children take the parent column
+// height) so highlight boxes line up exactly with the canvas hit regions.
+function buildIdRectMap(
+  root: MeasuredNodeLike,
+): Map<string, { x: number; y: number; w: number; h: number }> {
+  const map = new Map<string, { x: number; y: number; w: number; h: number }>();
+  function walk(node: MeasuredNodeLike) {
+    if (node.type === "item") {
+      map.set(node.id, {
+        x: node.rpd.x(),
+        y: node.rpd.y(),
+        w: node.rpd.w(),
+        h: node.rpd.h(),
+      });
+    } else if (node.type === "cols") {
+      for (const child of node.children ?? []) {
+        if (child.type === "item") {
+          map.set(child.id, {
+            x: child.rpd.x(),
+            y: child.rpd.y(),
+            w: child.rpd.w(),
+            h: node.rpd.h(),
+          });
+        } else {
+          walk(child);
+        }
+      }
+    } else {
+      for (const child of node.children ?? []) walk(child);
+    }
+  }
+  walk(root);
+  return map;
+}
+
+// Draws a colored border around the block each remote peer has selected on the
+// slide currently being edited. A DOM overlay is required because panther's
+// canvas (PageHolder) is unmodifiable and exposes no highlight-by-id API. The
+// boxes are positioned in viewport coordinates inside a Portal so a transformed
+// modal ancestor cannot offset them, and recompute on resize/scroll.
+function PeerSelectionOverlay(p: {
+  measured: MeasuredPage | undefined;
+  slideId: string;
+}) {
+  const [tick, setTick] = createSignal(0);
+  const bump = () => setTick((t) => t + 1);
+
+  onMount(() => {
+    window.addEventListener("resize", bump);
+    window.addEventListener("scroll", bump, true);
+  });
+  onCleanup(() => {
+    window.removeEventListener("resize", bump);
+    window.removeEventListener("scroll", bump, true);
+  });
+
+  const boxes = () => {
+    tick(); // recompute when the canvas moves (resize/scroll)
+    const m = p.measured;
+    if (!m || m.type !== "freeform") return [];
+    const peers = otherPeers().filter(
+      (peer) => peer.slideId === p.slideId && peer.selectedBlockId,
+    );
+    if (peers.length === 0) return [];
+    const canvas = document.getElementById("SLIDE_EDITOR_CANVAS");
+    if (!canvas) return [];
+    const r = canvas.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return [];
+    const sx = r.width / PAGE_WIDTH_DU;
+    const sy = r.height / PAGE_HEIGHT_DU;
+    const rects = buildIdRectMap(
+      (m as unknown as { mLayout: MeasuredNodeLike }).mLayout,
+    );
+    const out: {
+      key: string;
+      color: string;
+      name: string;
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+    }[] = [];
+    for (const peer of peers) {
+      const rcd = rects.get(peer.selectedBlockId!);
+      if (!rcd) continue;
+      out.push({
+        key: peer.connectionId,
+        color: peer.color,
+        name: peer.name,
+        left: r.left + rcd.x * sx,
+        top: r.top + rcd.y * sy,
+        width: rcd.w * sx,
+        height: rcd.h * sy,
+      });
+    }
+    return out;
+  };
+
+  return (
+    <Portal mount={document.body}>
+      <div class="pointer-events-none fixed inset-0 z-[80]">
+        <For each={boxes()}>
+          {(b) => (
+            <div
+              class="pointer-events-none absolute rounded-sm"
+              style={{
+                left: `${b.left}px`,
+                top: `${b.top}px`,
+                width: `${b.width}px`,
+                height: `${b.height}px`,
+                border: `2px solid ${b.color}`,
+              }}
+            >
+              <div
+                class="absolute -top-[18px] left-0 whitespace-nowrap rounded px-1 text-[10px] font-semibold text-white"
+                style={{ "background-color": b.color }}
+              >
+                {b.name}
+              </div>
+            </div>
+          )}
+        </For>
+      </div>
+    </Portal>
   );
 }

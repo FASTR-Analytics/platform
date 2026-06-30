@@ -28,6 +28,8 @@ import { MoveDeckToFolderModal } from "./move_deck_to_folder_modal";
 import { DuplicateDeckModal } from "./duplicate_deck_modal";
 import { ProjectAiSlideDeck } from "../slide_deck";
 import { SlideDeckThumbnail } from "../slide_deck/slide_deck_thumbnail";
+import { PresenceAvatars } from "../slide_deck/presence_avatars";
+import { otherPeers } from "~/state/project/collab";
 import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import {
@@ -482,6 +484,14 @@ export function ProjectDecks(p: ExtendedProps) {
                         isSelected={isSelected()}
                         onClick={(e) => selection.handleClick(deck.id, e)}
                       />
+                      <div class="pointer-events-none absolute right-1 top-1 z-10">
+                        <PresenceAvatars
+                          peers={otherPeers().filter(
+                            (peer) => peer.deckId === deck.id,
+                          )}
+                          size="sm"
+                        />
+                      </div>
                       <Show
                         when={deck.firstSlideId}
                         fallback={
