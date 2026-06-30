@@ -36,11 +36,13 @@ export type RoomConn = {
 };
 
 export type SlideRoomDeps = {
-  /** Load the slide's current persisted state to seed the doc. */
-  loadSlide: () => Promise<{ slide: Slide; lastUpdated: string } | null>;
-  /** Persist the materialized slide (collab is authoritative, so overwrite);
-   *  fire SSE notifications; return the new lastUpdated, or null on failure. */
-  saveSlide: (slide: Slide, expectedLastUpdated: string) => Promise<string | null>;
+  /** Load the slide. `crdtState` is the base64 Yjs state to restore the doc
+   *  from (present only when current); when null the room seeds from `slide`. */
+  loadSlide: () => Promise<{ slide: Slide; crdtState: string | null } | null>;
+  /** Persist the materialized slide config + Yjs state (collab is
+   *  authoritative, so this overwrites) and fire SSE notifications. Returns
+   *  whether the save succeeded. */
+  saveSlide: (slide: Slide, crdtState: string) => Promise<boolean>;
 };
 
 type Room = {
@@ -49,7 +51,6 @@ type Room = {
   doc: Y.Doc;
   conns: Map<string, RoomConn>;
   deps: SlideRoomDeps;
-  expectedLastUpdated: string;
   dirty: boolean;
   checkpointTimer: ReturnType<typeof setTimeout> | null;
 };
@@ -96,10 +97,9 @@ async function checkpoint(room: Room): Promise<void> {
   if (!room.dirty) return;
   room.dirty = false;
   const slide = materializeSlide(room.doc);
-  const newLastUpdated = await room.deps.saveSlide(slide, room.expectedLastUpdated);
-  if (newLastUpdated) {
-    room.expectedLastUpdated = newLastUpdated;
-  } else {
+  const crdtState = bytesToBase64(Y.encodeStateAsUpdate(room.doc));
+  const ok = await room.deps.saveSlide(slide, crdtState);
+  if (!ok) {
     // Save failed — keep dirty so the next change (or finalize) retries.
     room.dirty = true;
   }
@@ -126,14 +126,19 @@ export async function subscribeSlide(
         return;
       }
       const doc = new Y.Doc();
-      seedSlideDoc(doc, loaded.slide);
+      if (loaded.crdtState) {
+        // Restore the exact prior Yjs doc (survives server restart cleanly).
+        Y.applyUpdate(doc, base64ToBytes(loaded.crdtState));
+      } else {
+        // First-ever open (or stale CRDT state): seed from the slide config.
+        seedSlideDoc(doc, loaded.slide);
+      }
       room = {
         key,
         slideId,
         doc,
         conns: new Map(),
         deps,
-        expectedLastUpdated: loaded.lastUpdated,
         dirty: false,
         checkpointTimer: null,
       };

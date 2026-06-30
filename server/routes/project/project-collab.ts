@@ -16,7 +16,11 @@ import {
   removeConnection,
   updateConnectionPresence,
 } from "../../task_management/presence_registry.ts";
-import { getSlide, updateSlide } from "../../db/project/slides.ts";
+import {
+  getSlide,
+  getSlideCrdtState,
+  saveSlideCheckpoint,
+} from "../../db/project/slides.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import {
   applySlideUpdate,
@@ -124,17 +128,19 @@ routesProjectCollab.get(
           const res = await getSlide(projectDb, slideId);
           if (!res.success) return null;
           deckId = res.data.deckId;
-          return { slide: res.data.slide, lastUpdated: res.data.lastUpdated };
+          const crdtRes = await getSlideCrdtState(projectDb, slideId);
+          const crdtState = crdtRes.success ? crdtRes.data.state : null;
+          return { slide: res.data.slide, crdtState };
         },
-        saveSlide: async (slide, expectedLastUpdated) => {
-          // Collab is authoritative → overwrite (never raise the conflict modal).
-          const res = await updateSlide(projectDb, slideId, slide, expectedLastUpdated, true);
-          if (!res.success) return null;
+        saveSlide: async (slide, crdtState) => {
+          // Collab is authoritative → checkpoint overwrites config + CRDT state.
+          const res = await saveSlideCheckpoint(projectDb, slideId, slide, crdtState);
+          if (!res.success) return false;
           notifyLastUpdated(projectId, "slides", [slideId], res.data.lastUpdated);
           if (deckId) {
             notifyLastUpdated(projectId, "slide_decks", [deckId], res.data.lastUpdated);
           }
-          return res.data.lastUpdated;
+          return true;
         },
       };
     }

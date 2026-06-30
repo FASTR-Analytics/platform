@@ -261,6 +261,8 @@ CREATE TABLE slides (
   sort_order integer NOT NULL,
   config text NOT NULL,
   last_updated text NOT NULL,
+  crdt_state text,
+  crdt_state_last_updated text,
   FOREIGN KEY (slide_deck_id) REFERENCES slide_decks(id) ON DELETE CASCADE
 );
 

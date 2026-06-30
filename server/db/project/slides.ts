@@ -201,6 +201,81 @@ export async function updateSlide(
   });
 }
 
+// Read the persisted Yjs CRDT state for a slide (collab rooms). Returns the
+// base64 state only if it is CURRENT — i.e. crdt_state_last_updated matches the
+// slide's last_updated; otherwise the slide was edited outside collab since the
+// state was saved, so the room must re-seed from config instead.
+export async function getSlideCrdtState(
+  projectDb: Sql,
+  slideId: string
+): Promise<APIResponseWithData<{ state: string | null }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await projectDb<
+        {
+          crdt_state: string | null;
+          crdt_state_last_updated: string | null;
+          last_updated: string;
+        }[]
+      >`
+        SELECT crdt_state, crdt_state_last_updated, last_updated
+        FROM slides WHERE id = ${slideId}
+      `
+    ).at(0);
+
+    if (!row) {
+      throw new Error("No slide with this id");
+    }
+
+    const isCurrent = row.crdt_state !== null &&
+      row.crdt_state_last_updated === row.last_updated;
+
+    return { success: true, data: { state: isCurrent ? row.crdt_state : null } };
+  });
+}
+
+// Collab checkpoint: persist the materialized slide config AND the Yjs CRDT
+// state atomically (collab is authoritative, so this always overwrites — no
+// conflict check). crdt_state_last_updated is stamped equal to last_updated so
+// the state reads back as current until a non-collab edit bumps last_updated.
+export async function saveSlideCheckpoint(
+  projectDb: Sql,
+  slideId: string,
+  slide: Slide,
+  crdtState: string
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const existing = (
+      await projectDb<{ slide_deck_id: string }[]>`
+        SELECT slide_deck_id FROM slides WHERE id = ${slideId}
+      `
+    ).at(0);
+
+    if (!existing) {
+      throw new Error("Slide not found");
+    }
+
+    const lastUpdated = new Date().toISOString();
+
+    await projectDb.begin((sql) => [
+      sql`
+        UPDATE slides
+        SET config = ${JSON.stringify(slideConfigSchema.parse(slide))},
+            crdt_state = ${crdtState},
+            crdt_state_last_updated = ${lastUpdated},
+            last_updated = ${lastUpdated}
+        WHERE id = ${slideId}
+      `,
+      sql`
+        UPDATE slide_decks SET last_updated = ${lastUpdated}
+        WHERE id = ${existing.slide_deck_id}
+      `,
+    ]);
+
+    return { success: true, data: { lastUpdated } };
+  });
+}
+
 // Delete slides
 export async function deleteSlides(
   projectDb: Sql,
