@@ -1,10 +1,15 @@
 import {
+  base64ToBytes,
+  bytesToBase64,
   type CollabClientMessage,
   type CollabServerMessage,
   parseJsonOrThrow,
   type PresenceEntry,
   type PresenceView,
+  type Slide,
+  syncSlideToDoc,
 } from "lib";
+import * as Y from "yjs";
 import { createStore } from "solid-js/store";
 import { _SERVER_HOST } from "~/server_actions";
 
@@ -46,6 +51,118 @@ let intentionalClose = false;
 let avatarUrl: string | undefined;
 let view: { deckId?: string; slideId?: string; selectedBlockId?: string } = {};
 
+// ── Slide CRDT sessions (Milestone 3) ───────────────────────────────────────
+// Each open slide editor gets a client Y.Doc synced to the server's
+// authoritative room over this same WebSocket. Updates applied from the server
+// carry SLIDE_REMOTE_ORIGIN so the doc's update handler doesn't echo them back.
+
+const SLIDE_REMOTE_ORIGIN = "remote-server";
+
+type InternalSlideSession = {
+  slideId: string;
+  doc: Y.Doc;
+  ready: boolean;
+  onRemote: () => void;
+  onError?: (message: string) => void;
+};
+
+const slideSessions = new Map<string, InternalSlideSession>();
+
+/** Handle to a live slide document, returned by openSlideSession. */
+export type SlideSession = {
+  doc: Y.Doc;
+  isReady: () => boolean;
+  /** Diff the editor's working slide onto the shared doc (mergeable ops). */
+  pushLocal: (slide: Slide) => void;
+  close: () => void;
+};
+
+function sendCollab(msg: CollabClientMessage): boolean {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  ws.send(JSON.stringify(msg));
+  return true;
+}
+
+function subscribeSlideOnSocket(s: InternalSlideSession): void {
+  sendCollab({
+    type: "slide_subscribe",
+    data: { slideId: s.slideId, stateVector: bytesToBase64(Y.encodeStateVector(s.doc)) },
+  });
+}
+
+function destroySlideSession(s: InternalSlideSession): void {
+  slideSessions.delete(s.slideId);
+  try {
+    s.doc.destroy();
+  } catch {
+    // ignore
+  }
+}
+
+export function openSlideSession(
+  slideId: string,
+  onRemote: () => void,
+  onError?: (message: string) => void,
+): SlideSession {
+  const prior = slideSessions.get(slideId);
+  if (prior) destroySlideSession(prior);
+
+  const doc = new Y.Doc();
+  const s: InternalSlideSession = { slideId, doc, ready: false, onRemote, onError };
+  slideSessions.set(slideId, s);
+
+  doc.on("update", (update: Uint8Array, origin: unknown) => {
+    // Updates applied from the server must not be shipped back.
+    if (origin === SLIDE_REMOTE_ORIGIN) return;
+    sendCollab({ type: "slide_update", data: { slideId, update: bytesToBase64(update) } });
+  });
+
+  // Subscribe now if connected; otherwise socket.onopen re-subscribes all.
+  subscribeSlideOnSocket(s);
+
+  return {
+    doc,
+    isReady: () => s.ready,
+    pushLocal: (slide: Slide) => {
+      if (!s.ready) return;
+      doc.transact(() => syncSlideToDoc(doc, slide));
+    },
+    close: () => closeSlideSession(slideId),
+  };
+}
+
+export function closeSlideSession(slideId: string): void {
+  const s = slideSessions.get(slideId);
+  if (!s) return;
+  sendCollab({ type: "slide_unsubscribe", data: { slideId } });
+  destroySlideSession(s);
+}
+
+function handleSlideServerMessage(msg: CollabServerMessage): boolean {
+  if (msg.type === "slide_sync") {
+    const s = slideSessions.get(msg.data.slideId);
+    if (s) {
+      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
+      s.ready = true;
+      s.onRemote();
+    }
+    return true;
+  }
+  if (msg.type === "slide_update") {
+    const s = slideSessions.get(msg.data.slideId);
+    if (s) {
+      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
+      s.onRemote();
+    }
+    return true;
+  }
+  if (msg.type === "slide_error") {
+    slideSessions.get(msg.data.slideId)?.onError?.(msg.data.message);
+    return true;
+  }
+  return false;
+}
+
 function collabWsUrl(projectId: string): string {
   // _SERVER_HOST is "" in production (same origin) and an http URL in dev.
   const origin = _SERVER_HOST || globalThis.location.origin;
@@ -69,6 +186,9 @@ function openSocket(projectId: string): void {
   socket.onopen = () => {
     attempts = 0;
     sendPresence();
+    // Re-subscribe any open slide sessions (covers first connect + reconnect:
+    // the server sends only what each doc's state vector is missing).
+    for (const s of slideSessions.values()) subscribeSlideOnSocket(s);
   };
 
   socket.onmessage = (event) => {
@@ -82,6 +202,8 @@ function openSocket(projectId: string): void {
       setCollabStore("connectionId", msg.data.connectionId);
     } else if (msg.type === "presence_state") {
       setCollabStore("peers", msg.data.peers);
+    } else {
+      handleSlideServerMessage(msg);
     }
   };
 
@@ -134,6 +256,7 @@ export function connectCollab(projectId: string): void {
 
 export function disconnectCollab(): void {
   hardClose();
+  for (const s of [...slideSessions.values()]) destroySlideSession(s);
   currentProjectId = null;
   attempts = 0;
   avatarUrl = undefined;

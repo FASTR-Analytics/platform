@@ -264,12 +264,28 @@ function setScalar(m: Y.Map<unknown>, key: string, value: unknown): void {
   }
 }
 
+// Remembers the last object reference written per (node map, key) so an
+// unchanged opaque value (e.g. a large figure bundle, kept by reference via the
+// editor's structural sharing) is a cheap reference check rather than a
+// re-serialization on every keystroke.
+const lastOpaqueRef = new WeakMap<Y.Map<unknown>, Map<string, unknown>>();
+
 function setOpaque(m: Y.Map<unknown>, key: string, value: unknown): void {
+  let cache = lastOpaqueRef.get(m);
+  if (!cache) {
+    cache = new Map();
+    lastOpaqueRef.set(m, cache);
+  }
   if (value === undefined) {
     if (m.has(key)) m.delete(key);
-  } else if (!m.has(key) || canonicalJson(m.get(key)) !== canonicalJson(value)) {
+    cache.delete(key);
+    return;
+  }
+  if (cache.get(key) === value) return; // same reference -> unchanged
+  if (!m.has(key) || canonicalJson(m.get(key)) !== canonicalJson(value)) {
     m.set(key, value);
   }
+  cache.set(key, value);
 }
 
 /** Apply the minimal single-region edit to turn `yText` into `next`. */

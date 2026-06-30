@@ -9,7 +9,7 @@ import type {
   SlideDeckConfig,
   SlideType,
 } from "lib";
-import { getSlideTitle, t3, TC, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import { getSlideTitle, materializeSlide, t3, TC, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import type {
   DividerDragUpdate,
   LayoutItemSwapUpdate,
@@ -61,7 +61,13 @@ import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import { otherPeers, setCollabView } from "~/state/project/collab";
+import {
+  openSlideSession,
+  otherPeers,
+  setCollabView,
+  type SlideSession,
+} from "~/state/project/collab";
+import { addLastUpdatedListener } from "~/state/project/t1_sse";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
@@ -140,6 +146,18 @@ export function SlideEditor(p: Props) {
   const [contentTab, setContentTab] = createSignal<"slide" | "block">("slide");
   const [measuredPage, setMeasuredPage] = createSignal<MeasuredPage>();
 
+  // Live co-editing (Milestone 3). The editor keeps mutating `tempSlide`; a
+  // bridge syncs it to a shared CRDT doc. Degrades gracefully: if the collab
+  // socket/room is unavailable, the session never becomes ready, pushLocal is a
+  // no-op, and editing behaves exactly as before (tempSlide + explicit Save).
+  const [collabReady, setCollabReady] = createSignal(false);
+  let session: SlideSession | null = null;
+  let removeLastUpdatedListener: (() => void) | null = null;
+  // Set when a remote update drove the next tempSlide change, so the tracking
+  // effect doesn't ship it straight back (syncSlideToDoc is also idempotent, a
+  // belt-and-suspenders backstop against echo loops).
+  let skipNextPush = false;
+
   // Render slide preview
   async function attemptGetPageInputs(slide: Slide) {
     const res = await convertSlideToPageInputs(
@@ -162,12 +180,21 @@ export function SlideEditor(p: Props) {
       return;
     }
 
-    setNeedsSave(true);
+    const fromRemote = skipNextPush;
+    skipNextPush = false;
 
+    if (!fromRemote) {
+      // Local edit: mark dirty (for the explicit Save fallback) and push the
+      // change onto the shared doc as mergeable ops (no-op until the session
+      // is ready).
+      setNeedsSave(true);
+      session?.pushLocal(unwrap(tempSlide));
+    }
+
+    // Re-render the preview for both local and remote changes.
     if (renderTimeout) {
       clearTimeout(renderTimeout);
     }
-
     renderTimeout = setTimeout(() => {
       attemptGetPageInputs(unwrap(tempSlide));
     }, 100);
@@ -184,6 +211,41 @@ export function SlideEditor(p: Props) {
       deckLabel: p.deckLabel,
       getTempSlide: () => tempSlide,
       setTempSlide,
+    });
+
+    // Bind this slide to a shared CRDT document for live co-editing.
+    session = openSlideSession(
+      p.slideId,
+      () => {
+        const docSlide = materializeSlide(session!.doc) as Slide;
+        if (!collabReady()) {
+          setCollabReady(true);
+          // Local edits made before the first sync arrived: merge them into the
+          // doc rather than discarding them by adopting the server state.
+          if (needsSave()) {
+            session!.pushLocal(unwrap(tempSlide));
+            return;
+          }
+        }
+        // Adopt the doc state only when it actually differs, so skipNextPush is
+        // armed exactly when a store change will fire the tracking effect (a
+        // no-op reconcile would otherwise leave the flag stuck and swallow the
+        // next local edit).
+        if (JSON.stringify(docSlide) !== JSON.stringify(unwrap(tempSlide))) {
+          skipNextPush = true;
+          setTempSlide(reconcile(docSlide));
+        }
+      },
+      (errMsg) => console.warn("Slide collab error:", errMsg),
+    );
+
+    // Keep the optimistic-save timestamp fresh as server-side checkpoints (or
+    // other users' saves) bump last_updated, so the explicit Save fallback
+    // won't raise a spurious conflict while co-editing.
+    removeLastUpdatedListener = addLastUpdatedListener((tableName, ids, ts) => {
+      if (tableName === "slides" && ids.includes(p.slideId)) {
+        setLastKnownServerTimestamp(ts);
+      }
     });
   });
 
@@ -205,6 +267,11 @@ export function SlideEditor(p: Props) {
     }
     // Revert presence to deck-level (no slide) when the editor closes.
     setCollabView({ deckId: p.deckId });
+    // Tear down the collab session for this slide.
+    session?.close();
+    session = null;
+    removeLastUpdatedListener?.();
+    removeLastUpdatedListener = null;
   });
 
   type SaveFuncData = {
