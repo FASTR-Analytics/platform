@@ -24,6 +24,8 @@ import SortableVendor, {
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { SlideCard } from "./slide_card";
+import { PresenceAvatars } from "./presence_avatars";
+import { otherPeers } from "~/state/project/collab";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import { useAIProjectContext } from "~/components/project_ai";
 
@@ -428,6 +430,9 @@ export function SlideList(p: Props) {
           }
         >
           <div class="ui-gap-sm flex items-center">
+            <PresenceAvatars
+              peers={otherPeers().filter((pe) => pe.deckId === p.deckId)}
+            />
             <Show when={p.slideIds.length > 0}>
               <div class="w-32">
                 <Slider
@@ -549,6 +554,7 @@ export function SlideList(p: Props) {
                   onDelete={() => handleDelete(item.id)}
                   onDuplicate={() => handleDuplicate(item.id)}
                   deckConfig={p.deckConfig}
+                  viewers={otherPeers().filter((pe) => pe.slideId === item.id)}
                 />
               );
             }}

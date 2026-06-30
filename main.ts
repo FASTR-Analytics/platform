@@ -35,6 +35,7 @@ import { routesInstanceSSE } from "./server/routes/instance/instance-sse.ts";
 // Project routes
 import { routesProject } from "./server/routes/project/project.ts";
 import { routesProjectSSEV2 } from "./server/routes/project/project-sse-v2.ts";
+import { routesProjectCollab } from "./server/routes/project/project-collab.ts";
 import { routesModules } from "./server/routes/project/modules.ts";
 import { routesPresentationObjects } from "./server/routes/project/presentation_objects.ts";
 import { routesSlideDecks } from "./server/routes/project/slide_decks.ts";
@@ -118,6 +119,7 @@ app.route("/", routesInstanceSSE);
 app.route("/", routesUsers);
 app.route("/", routesProject);
 app.route("/", routesProjectSSEV2);
+app.route("/", routesProjectCollab);
 app.route("/", routesStructure);
 app.route("/", routesBackups);
 app.route("/", routesAssets);

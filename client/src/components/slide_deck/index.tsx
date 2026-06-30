@@ -19,6 +19,13 @@ import { SlideDeckSettings, type SlideDeckSettingsProps } from "./slide_deck_set
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext } from "../project_ai/types";
 import { snapshotForSlideEditor } from "~/components/_editor_snapshot";
+import {
+  connectCollab,
+  disconnectCollab,
+  setCollabAvatar,
+  setCollabView,
+} from "~/state/project/collab";
+import { clerk } from "~/components/LoggedInWrapper";
 
 type SlideDeckModalReturn = undefined;
 
@@ -47,8 +54,17 @@ export function ProjectAiSlideDeck(p: Props) {
   const [deckLabel, setDeckLabel] = createSignal(p.reportLabel);
   const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(getStartingConfigForSlideDeck(p.reportLabel));
 
+  // Join the project's collaboration channel for the lifetime of this deck
+  // view; advertise that this user is currently in this deck.
+  onMount(() => {
+    connectCollab(projectId);
+    setCollabAvatar(clerk.user?.imageUrl);
+    setCollabView({ deckId: p.deckId });
+  });
+
   onCleanup(() => {
     setAIContext(p.returnToContext ?? { mode: "viewing_slide_decks" });
+    disconnectCollab();
   });
 
   // Single fetch path: first run loads the deck (and then sets the AI

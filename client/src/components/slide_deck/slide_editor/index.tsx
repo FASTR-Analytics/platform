@@ -59,6 +59,7 @@ import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { setShowAi, showAi } from "~/state/t4_ui";
+import { setCollabView } from "~/state/project/collab";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
@@ -170,26 +171,6 @@ export function SlideEditor(p: Props) {
   });
 
   onMount(() => {
-    // FUZZ DEBUG: read the settled canvas backing vs displayed size a few times,
-    // since onMeasured won't re-fire when the canvas resizes itself.
-    [200, 600, 1500, 3000].forEach((ms) =>
-      setTimeout(() => {
-        const c = document.getElementById(
-          "SLIDE_EDITOR_CANVAS",
-        ) as HTMLCanvasElement | null;
-        if (!c) return;
-        const r = c.getBoundingClientRect();
-        const dpr = globalThis.devicePixelRatio || 1;
-        console.log(`=== SLIDE FUZZ DEBUG @${ms}ms ===`, {
-          backingW: c.width,
-          displayW: Math.round(r.width),
-          dpr,
-          shouldBeBackingW: Math.round(r.width * dpr),
-          ratio_backing_over_display: +(c.width / r.width).toFixed(2),
-          undersized: c.width < Math.round(r.width * dpr),
-        });
-      }, ms),
-    );
     attemptGetPageInputs(unwrap(tempSlide));
     setAIContext({
       mode: "editing_slide",
@@ -203,6 +184,15 @@ export function SlideEditor(p: Props) {
     });
   });
 
+  // Advertise which slide/block this user is editing so collaborators see it.
+  createEffect(() => {
+    setCollabView({
+      deckId: p.deckId,
+      slideId: p.slideId,
+      selectedBlockId: selectedBlockId(),
+    });
+  });
+
   onCleanup(() => {
     if (renderTimeout) {
       clearTimeout(renderTimeout);
@@ -210,6 +200,8 @@ export function SlideEditor(p: Props) {
     if (p.returnToContext) {
       setAIContext(p.returnToContext);
     }
+    // Revert presence to deck-level (no slide) when the editor closes.
+    setCollabView({ deckId: p.deckId });
   });
 
   type SaveFuncData = {
@@ -831,53 +823,6 @@ export function SlideEditor(p: Props) {
                       ) {
                         setSelectedBlockId(undefined);
                         setContentTab("slide");
-                      }
-                    }}
-                    onMeasured={(mPage) => {
-                      const c = document.getElementById(
-                        "SLIDE_EDITOR_CANVAS",
-                      ) as HTMLCanvasElement | null;
-                      if (c) {
-                        const r = c.getBoundingClientRect();
-                        const dpr = globalThis.devicePixelRatio || 1;
-                        console.log("=== SLIDE FUZZ DEBUG ===", {
-                          backingW: c.width,
-                          backingH: c.height,
-                          displayW: Math.round(r.width),
-                          displayH: Math.round(r.height),
-                          dpr,
-                          shouldBeBackingW: Math.round(r.width * dpr),
-                          ratio_backing_over_display: +(
-                            c.width / r.width
-                          ).toFixed(2),
-                          undersized: c.width < Math.round(r.width * dpr),
-                        });
-                      }
-                      const mLayout = (mPage as any).mLayout;
-                      if (!mLayout) return;
-                      console.log("=== LAYOUT TREE ===");
-                      const printNode = (node: any, depth = 0) => {
-                        const indent = "  ".repeat(depth);
-                        console.log(
-                          `${indent}${node.type} id=${node.id} absCol=${node.absoluteStartColumn} span=${node.span ?? "none"}`,
-                        );
-                        if (node.children) {
-                          node.children.forEach((child: any) =>
-                            printNode(child, depth + 1),
-                          );
-                        }
-                      };
-                      printNode(mLayout);
-
-                      const dividerGaps =
-                        (mPage as any).gaps?.filter(
-                          (g: any) => g.type === "col-divider",
-                        ) || [];
-                      if (dividerGaps.length > 0) {
-                        console.log("=== COL DIVIDER GAPS ===");
-                        dividerGaps.forEach((gap: any, i: number) => {
-                          console.log(`Divider ${i}:`, gap);
-                        });
                       }
                     }}
                     onDividerDrag={handleDividerDrag}
