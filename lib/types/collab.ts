@@ -40,13 +40,22 @@ export type PresenceView = {
 /** Client → server messages. */
 export type CollabClientMessage =
   | { type: "presence_update"; data: PresenceView }
-  | { type: "heartbeat" };
+  | { type: "heartbeat" }
+  // CRDT document sync (Milestone 2). `update`/`stateVector` are base64-encoded
+  // Yjs binary payloads (see bytesToBase64/base64ToBytes in lib/collab).
+  | { type: "slide_subscribe"; data: { slideId: string; stateVector: string } }
+  | { type: "slide_update"; data: { slideId: string; update: string } }
+  | { type: "slide_unsubscribe"; data: { slideId: string } };
 
 /** Server → client messages. */
 export type CollabServerMessage =
   | { type: "hello"; data: { connectionId: string } }
   | { type: "presence_state"; data: { peers: PresenceEntry[] } }
-  | { type: "error"; data: { message: string } };
+  | { type: "error"; data: { message: string } }
+  // CRDT document sync (Milestone 2).
+  | { type: "slide_sync"; data: { slideId: string; update: string } }
+  | { type: "slide_update"; data: { slideId: string; update: string } }
+  | { type: "slide_error"; data: { slideId: string; message: string } };
 
 const PRESENCE_PALETTE = [
   "#ef4444",

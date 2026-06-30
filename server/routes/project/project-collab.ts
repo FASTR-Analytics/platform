@@ -16,8 +16,23 @@ import {
   removeConnection,
   updateConnectionPresence,
 } from "../../task_management/presence_registry.ts";
+import { getSlide, updateSlide } from "../../db/project/slides.ts";
+import { notifyLastUpdated } from "../../task_management/mod.ts";
+import {
+  applySlideUpdate,
+  handleConnGone,
+  type RoomConn,
+  type SlideRoomDeps,
+  subscribeSlide,
+  unsubscribeSlide,
+} from "../../collab/slide_rooms.ts";
 
-type CollabAuth = { email: string; name: string; color: string };
+type CollabAuth = {
+  email: string;
+  name: string;
+  color: string;
+  canEdit: boolean;
+};
 
 export const routesProjectCollab = new Hono<
   { Variables: { collabAuth: CollabAuth } }
@@ -89,6 +104,7 @@ routesProjectCollab.get(
       email: globalUser.email,
       name,
       color: presenceColorForKey(globalUser.email),
+      canEdit: projectUser.can_configure_slide_decks,
     });
     await next();
   },
@@ -96,8 +112,40 @@ routesProjectCollab.get(
     const projectId = c.req.param("project_id");
     const auth = c.get("collabAuth") as CollabAuth;
     const connectionId = crypto.randomUUID();
+    let roomConn: RoomConn | null = null;
+
+    // DB-backed room dependencies for one slide. deckId is captured on load so
+    // the checkpoint can also notify the deck (refreshes thumbnails / list).
+    function depsForSlide(slideId: string): SlideRoomDeps {
+      const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
+      let deckId = "";
+      return {
+        loadSlide: async () => {
+          const res = await getSlide(projectDb, slideId);
+          if (!res.success) return null;
+          deckId = res.data.deckId;
+          return { slide: res.data.slide, lastUpdated: res.data.lastUpdated };
+        },
+        saveSlide: async (slide, expectedLastUpdated) => {
+          // Collab is authoritative → overwrite (never raise the conflict modal).
+          const res = await updateSlide(projectDb, slideId, slide, expectedLastUpdated, true);
+          if (!res.success) return null;
+          notifyLastUpdated(projectId, "slides", [slideId], res.data.lastUpdated);
+          if (deckId) {
+            notifyLastUpdated(projectId, "slide_decks", [deckId], res.data.lastUpdated);
+          }
+          return res.data.lastUpdated;
+        },
+      };
+    }
+
     return {
       onOpen: (_evt, ws) => {
+        roomConn = {
+          connectionId,
+          canEdit: auth.canEdit,
+          send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
+        };
         addConnection(projectId, connectionId, auth, ws);
         const hello: CollabServerMessage = {
           type: "hello",
@@ -114,18 +162,43 @@ routesProjectCollab.get(
         } catch {
           return;
         }
-        if (msg.type === "presence_update") {
-          updateConnectionPresence(projectId, connectionId, msg.data);
-          broadcastPresence(projectId);
+        switch (msg.type) {
+          case "presence_update":
+            updateConnectionPresence(projectId, connectionId, msg.data);
+            broadcastPresence(projectId);
+            break;
+          case "slide_subscribe":
+            if (roomConn) {
+              void subscribeSlide(
+                projectId,
+                msg.data.slideId,
+                roomConn,
+                msg.data.stateVector,
+                depsForSlide(msg.data.slideId),
+              );
+            }
+            break;
+          case "slide_update":
+            if (roomConn) {
+              applySlideUpdate(projectId, msg.data.slideId, roomConn, msg.data.update);
+            }
+            break;
+          case "slide_unsubscribe":
+            if (roomConn) {
+              unsubscribeSlide(projectId, msg.data.slideId, roomConn);
+            }
+            break;
         }
       },
       onClose: () => {
         removeConnection(projectId, connectionId);
         broadcastPresence(projectId);
+        handleConnGone(connectionId);
       },
       onError: () => {
         removeConnection(projectId, connectionId);
         broadcastPresence(projectId);
+        handleConnGone(connectionId);
       },
     };
   }),

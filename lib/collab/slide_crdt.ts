@@ -39,6 +39,26 @@ import { generateNKeysBetween } from "fractional-indexing";
 import type { LayoutNode } from "@timroberton/panther";
 import type { ContentBlock, Slide } from "../types/slides.ts";
 
+// ── Binary <-> base64 (for shipping Yjs updates over the JSON WS protocol) ───
+// btoa/atob exist in both Deno and the browser. Chunked to avoid a call-stack
+// overflow on large updates.
+
+export function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(bin);
+}
+
+export function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 const ROOT_KEY = "slide";
 
 const CONTENT_SCALAR_FIELDS = [
