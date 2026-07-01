@@ -186,6 +186,22 @@ export function applySlideUpdate(
   Y.applyUpdate(room.doc, bytes, conn);
 }
 
+/** Relay a Yjs awareness (cursor/selection) update to the other room members.
+ *  Awareness is ephemeral — not applied to the server doc and not persisted. */
+export function relayAwareness(
+  projectId: string,
+  slideId: string,
+  sender: RoomConn,
+  updateB64: string,
+): void {
+  const room = rooms.get(roomKey(projectId, slideId));
+  if (!room) return;
+  for (const conn of room.conns.values()) {
+    if (conn.connectionId === sender.connectionId) continue;
+    conn.send({ type: "awareness", data: { slideId, update: updateB64 } });
+  }
+}
+
 export function unsubscribeSlide(projectId: string, slideId: string, conn: RoomConn): void {
   const key = roomKey(projectId, slideId);
   const room = rooms.get(key);

@@ -7,6 +7,10 @@ import path from "path";
 export default defineConfig({
   plugins: [solidPlugin(), tsconfigPaths(), tailwindcss()],
   resolve: {
+    // Single-copy the Yjs family so `instanceof` checks (yjs "already imported"
+    // guard, y-protocols Awareness) work; the yjs alias below also collapses
+    // lib/'s copy into the client's.
+    dedupe: ["yjs", "y-protocols", "y-codemirror.next", "lib0"],
     alias: {
       "@timroberton/panther": path.resolve(__dirname, "../panther/mod.ui.ts"),
       codemirror: path.resolve(__dirname, "node_modules/codemirror"),

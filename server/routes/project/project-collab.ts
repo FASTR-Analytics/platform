@@ -25,6 +25,7 @@ import { notifyLastUpdated } from "../../task_management/mod.ts";
 import {
   applySlideUpdate,
   handleConnGone,
+  relayAwareness,
   type RoomConn,
   type SlideRoomDeps,
   subscribeSlide,
@@ -192,6 +193,11 @@ routesProjectCollab.get(
           case "slide_unsubscribe":
             if (roomConn) {
               unsubscribeSlide(projectId, msg.data.slideId, roomConn);
+            }
+            break;
+          case "awareness_update":
+            if (roomConn) {
+              relayAwareness(projectId, msg.data.slideId, roomConn, msg.data.update);
             }
             break;
         }

@@ -5,6 +5,7 @@ import { SetStoreFunction } from "solid-js/store";
 import { SlideEditorPanelCover } from "./editor_panel_cover";
 import { SlideEditorPanelSection } from "./editor_panel_section";
 import { SlideEditorPanelContent } from "./editor_panel_content";
+import type { SlideSession } from "~/state/project/collab";
 
 type Props = {
   projectId: string;
@@ -12,6 +13,8 @@ type Props = {
   setTempSlide: SetStoreFunction<Slide>;
   selectedBlockId: string | undefined;
   setSelectedBlockId: Setter<string | undefined>;
+  session: SlideSession | null;
+  collabReady: boolean;
   openEditor: <TProps, TReturn>(v: OpenEditorProps<TProps, TReturn>) => Promise<TReturn | undefined>;
   contentTab: "slide" | "block";
   setContentTab: Setter<"slide" | "block">;
@@ -49,6 +52,8 @@ export function SlideEditorPanel(p: Props) {
             setTempSlide={p.setTempSlide}
             selectedBlockId={p.selectedBlockId}
             setSelectedBlockId={p.setSelectedBlockId}
+            session={p.session}
+            collabReady={p.collabReady}
             openEditor={p.openEditor}
             contentTab={p.contentTab}
             setContentTab={p.setContentTab}

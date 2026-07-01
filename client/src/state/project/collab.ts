@@ -10,6 +10,12 @@ import {
   syncSlideToDoc,
 } from "lib";
 import * as Y from "yjs";
+import {
+  applyAwarenessUpdate,
+  Awareness,
+  encodeAwarenessUpdate,
+  removeAwarenessStates,
+} from "y-protocols/awareness";
 import { createStore } from "solid-js/store";
 import { _SERVER_HOST } from "~/server_actions";
 
@@ -57,10 +63,12 @@ let view: { deckId?: string; slideId?: string; selectedBlockId?: string } = {};
 // carry SLIDE_REMOTE_ORIGIN so the doc's update handler doesn't echo them back.
 
 const SLIDE_REMOTE_ORIGIN = "remote-server";
+const AWARENESS_REMOTE_ORIGIN = "awareness-remote";
 
 type InternalSlideSession = {
   slideId: string;
   doc: Y.Doc;
+  awareness: Awareness;
   ready: boolean;
   onRemote: () => void;
   onError?: (message: string) => void;
@@ -71,11 +79,32 @@ const slideSessions = new Map<string, InternalSlideSession>();
 /** Handle to a live slide document, returned by openSlideSession. */
 export type SlideSession = {
   doc: Y.Doc;
+  /** Yjs awareness for this slide — carries local + remote cursor/selection. */
+  awareness: Awareness;
   isReady: () => boolean;
   /** Diff the editor's working slide onto the shared doc (mergeable ops). */
   pushLocal: (slide: Slide) => void;
   close: () => void;
 };
+
+/** This client's server-stamped identity, from its own presence entry. */
+function selfIdentity(): { name: string; color: string } | null {
+  const self = collabStore.peers.find(
+    (p) => p.connectionId === collabStore.connectionId,
+  );
+  return self ? { name: self.name, color: self.color } : null;
+}
+
+function applySessionUser(awareness: Awareness): void {
+  const id = selfIdentity();
+  if (id) {
+    awareness.setLocalStateField("user", {
+      name: id.name,
+      color: id.color,
+      colorLight: id.color,
+    });
+  }
+}
 
 function sendCollab(msg: CollabClientMessage): boolean {
   if (!ws || ws.readyState !== WebSocket.OPEN) return false;
@@ -93,6 +122,12 @@ function subscribeSlideOnSocket(s: InternalSlideSession): void {
 function destroySlideSession(s: InternalSlideSession): void {
   slideSessions.delete(s.slideId);
   try {
+    removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
+    s.awareness.destroy();
+  } catch {
+    // ignore
+  }
+  try {
     s.doc.destroy();
   } catch {
     // ignore
@@ -108,7 +143,16 @@ export function openSlideSession(
   if (prior) destroySlideSession(prior);
 
   const doc = new Y.Doc();
-  const s: InternalSlideSession = { slideId, doc, ready: false, onRemote, onError };
+  const awareness = new Awareness(doc);
+  applySessionUser(awareness);
+  const s: InternalSlideSession = {
+    slideId,
+    doc,
+    awareness,
+    ready: false,
+    onRemote,
+    onError,
+  };
   slideSessions.set(slideId, s);
 
   doc.on("update", (update: Uint8Array, origin: unknown) => {
@@ -117,11 +161,33 @@ export function openSlideSession(
     sendCollab({ type: "slide_update", data: { slideId, update: bytesToBase64(update) } });
   });
 
+  awareness.on(
+    "update",
+    (
+      changes: { added: number[]; updated: number[]; removed: number[] },
+      origin: unknown,
+    ) => {
+      // Don't re-ship awareness that was just applied from the server.
+      if (origin === AWARENESS_REMOTE_ORIGIN) return;
+      const changed = [
+        ...changes.added,
+        ...changes.updated,
+        ...changes.removed,
+      ];
+      const update = encodeAwarenessUpdate(awareness, changed);
+      sendCollab({
+        type: "awareness_update",
+        data: { slideId, update: bytesToBase64(update) },
+      });
+    },
+  );
+
   // Subscribe now if connected; otherwise socket.onopen re-subscribes all.
   subscribeSlideOnSocket(s);
 
   return {
     doc,
+    awareness,
     isReady: () => s.ready,
     pushLocal: (slide: Slide) => {
       if (!s.ready) return;
@@ -158,6 +224,17 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
   }
   if (msg.type === "slide_error") {
     slideSessions.get(msg.data.slideId)?.onError?.(msg.data.message);
+    return true;
+  }
+  if (msg.type === "awareness") {
+    const s = slideSessions.get(msg.data.slideId);
+    if (s) {
+      applyAwarenessUpdate(
+        s.awareness,
+        base64ToBytes(msg.data.update),
+        AWARENESS_REMOTE_ORIGIN,
+      );
+    }
     return true;
   }
   return false;
@@ -202,6 +279,9 @@ function openSocket(projectId: string): void {
       setCollabStore("connectionId", msg.data.connectionId);
     } else if (msg.type === "presence_state") {
       setCollabStore("peers", msg.data.peers);
+      // Our identity (name/color) may have just arrived — stamp it on any open
+      // session's awareness so remote peers see a labelled cursor.
+      for (const s of slideSessions.values()) applySessionUser(s.awareness);
     } else {
       handleSlideServerMessage(msg);
     }

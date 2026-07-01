@@ -45,7 +45,9 @@ export type CollabClientMessage =
   // Yjs binary payloads (see bytesToBase64/base64ToBytes in lib/collab).
   | { type: "slide_subscribe"; data: { slideId: string; stateVector: string } }
   | { type: "slide_update"; data: { slideId: string; update: string } }
-  | { type: "slide_unsubscribe"; data: { slideId: string } };
+  | { type: "slide_unsubscribe"; data: { slideId: string } }
+  // Yjs awareness (cursor/selection positions) — ephemeral, relayed not persisted.
+  | { type: "awareness_update"; data: { slideId: string; update: string } };
 
 /** Server → client messages. */
 export type CollabServerMessage =
@@ -55,7 +57,9 @@ export type CollabServerMessage =
   // CRDT document sync (Milestone 2).
   | { type: "slide_sync"; data: { slideId: string; update: string } }
   | { type: "slide_update"; data: { slideId: string; update: string } }
-  | { type: "slide_error"; data: { slideId: string; message: string } };
+  | { type: "slide_error"; data: { slideId: string; message: string } }
+  // Yjs awareness relayed from another client in the room.
+  | { type: "awareness"; data: { slideId: string; update: string } };
 
 const PRESENCE_PALETTE = [
   "#ef4444",

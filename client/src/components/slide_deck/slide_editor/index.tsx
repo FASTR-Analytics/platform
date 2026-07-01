@@ -151,7 +151,9 @@ export function SlideEditor(p: Props) {
   // socket/room is unavailable, the session never becomes ready, pushLocal is a
   // no-op, and editing behaves exactly as before (tempSlide + explicit Save).
   const [collabReady, setCollabReady] = createSignal(false);
-  let session: SlideSession | null = null;
+  // Signal (not a bare let) so the panel reactively picks up the session once it
+  // opens — needed to bind the CodeMirror text editor to the block's Y.Text.
+  const [session, setSession] = createSignal<SlideSession | null>(null);
   let removeLastUpdatedListener: (() => void) | null = null;
   // Set when a remote update drove the next tempSlide change, so the tracking
   // effect doesn't ship it straight back (syncSlideToDoc is also idempotent, a
@@ -200,7 +202,7 @@ export function SlideEditor(p: Props) {
       // change onto the shared doc as mergeable ops (no-op until the session
       // is ready).
       setNeedsSave(true);
-      session?.pushLocal(unwrap(tempSlide));
+      session()?.pushLocal(unwrap(tempSlide));
     }
 
     // Re-render the preview for both local and remote changes.
@@ -226,16 +228,16 @@ export function SlideEditor(p: Props) {
     });
 
     // Bind this slide to a shared CRDT document for live co-editing.
-    session = openSlideSession(
+    const s = openSlideSession(
       p.slideId,
       () => {
-        const docSlide = materializeSlide(session!.doc) as Slide;
+        const docSlide = materializeSlide(s.doc) as Slide;
         if (!collabReady()) {
           setCollabReady(true);
           // Local edits made before the first sync arrived: merge them into the
           // doc rather than discarding them by adopting the server state.
           if (needsSave()) {
-            session!.pushLocal(unwrap(tempSlide));
+            s.pushLocal(unwrap(tempSlide));
             return;
           }
         }
@@ -250,6 +252,7 @@ export function SlideEditor(p: Props) {
       },
       (errMsg) => console.warn("Slide collab error:", errMsg),
     );
+    setSession(s);
 
     // Keep the optimistic-save timestamp fresh as server-side checkpoints (or
     // other users' saves) bump last_updated, so the explicit Save fallback
@@ -280,8 +283,8 @@ export function SlideEditor(p: Props) {
     // Revert presence to deck-level (no slide) when the editor closes.
     setCollabView({ deckId: p.deckId });
     // Tear down the collab session for this slide.
-    session?.close();
-    session = null;
+    session()?.close();
+    setSession(null);
     removeLastUpdatedListener?.();
     removeLastUpdatedListener = null;
   });
@@ -826,6 +829,8 @@ export function SlideEditor(p: Props) {
               setTempSlide={manuallyUpdateTempSlide}
               selectedBlockId={selectedBlockId()}
               setSelectedBlockId={setSelectedBlockId}
+              session={session()}
+              collabReady={collabReady()}
               openEditor={openEditor}
               contentTab={contentTab()}
               setContentTab={setContentTab}
