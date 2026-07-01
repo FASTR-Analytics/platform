@@ -93,9 +93,9 @@ This distinction is reliable in the current code, verified end-to-end:
   [stage_hmis_data_dhis2/worker.ts:624-632](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L624-L632)).
 - In `fetchIndicatorPeriod`, the whole facility-batch loop is inside one
   `try/catch`; any throw from any batch returns `{ success: false }`
-  ([worker.ts:537-911](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L537-L911)).
+  ([worker.ts:506-856](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L506-L856)).
   The oversized-URL guard also throws *before* fetching
-  ([worker.ts:607-615](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L607-L615)).
+  ([worker.ts:576-584](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L576-L584)).
 
 **Therefore `result.success === true` ⟺ every facility batch for that
 `(indicator, period)` returned HTTP 200.** A 200 with `rows: []` is a genuine
@@ -109,15 +109,30 @@ at least one value is staged
 so a *successful-but-empty* work item leaves **no trace** today. That empty case
 is the entire point of the fix, so we must record successes explicitly (Step 2).
 
+**Verified exhaustively (2026-07-01):** every transport-failure class — DNS /
+connection / TLS errors, timeouts (including a stalled body read, since
+`AbortController`'s signal covers the whole fetch lifecycle, not just connection
+setup), any non-2xx status, retry exhaustion, and a malformed/non-JSON response
+body — is traced through **exactly one** `try/catch` in `fetchIndicatorPeriod`
+([worker.ts:506-856](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L506-L856))
+with **no** inner `try/catch` that could swallow an error, and becomes
+`success: false`. Exactly **one** gap exists: a response that is valid JSON and
+HTTP 200 but is missing the `rows` field entirely (a shape violation, not a
+network failure) is currently silently treated as "zero data" rather than
+"untrustworthy," at the guard in
+[worker.ts:658](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L658)
+(`if (response.rows && response.rows.length > 0)`). Step 2 closes this — the only
+change needed to make the transport-error guarantee complete.
+
 ## Mechanical implementation
 
-### Step 1 — Add an explicit succeeded-scope field to the staging result type
+### Step 1 — Add explicit succeeded-scope and fetched-facility-scope fields to the staging result type
 
 File: [lib/types/dataset_hmis_import.ts](lib/types/dataset_hmis_import.ts), in
 `DatasetDhis2StagingResult` (currently lines 210-232).
 
-Add an **optional** field (optional = backward compatible with attempts staged by
-old code; see Step 5 fallback):
+Add two **optional** fields (optional = backward compatible with attempts staged
+by old code; see Step 5 fallback):
 
 ```ts
 export type DatasetDhis2StagingResult = {
@@ -134,10 +149,16 @@ export type DatasetDhis2StagingResult = {
   finalStagingRowCount: number;
   missingOrgUnits?: string[];
   // NEW: every (indicator, period) work item that fetched cleanly — including
-  // those that returned zero rows. This is the authoritative delete scope for
-  // integration. Absent (undefined) ⇒ staged by pre-fix code ⇒ fall back to
-  // the legacy merge (no scoped delete).
+  // those that returned zero rows. Paired with fetchedFacilityIds below, this
+  // is the authoritative delete scope for integration. Absent (undefined) ⇒
+  // staged by pre-fix code ⇒ fall back to the legacy merge (no scoped delete).
   succeededWorkItems?: Array<{ indicatorRawId: string; periodId: number }>;
+  // NEW: the exact facility_id set queried against DHIS2 at staging time (one
+  // list, reused for every work item — see Step 2). Integration deletes against
+  // this literal snapshot rather than re-deriving "which facilities count" from
+  // a regex at a later point in time, so delete-scope == fetch-scope by
+  // construction — no separate correctness argument needed.
+  fetchedFacilityIds?: string[];
   workItemHistory: Array<{
     indicatorId: string;
     periodId: number;
@@ -151,22 +172,26 @@ export type DatasetDhis2StagingResult = {
 ```
 
 No zod schema or migration is needed: `step_3_result` is plain `text`
-([_main_database.sql:259](server/db/instance/_main_database.sql#L259)) and
+([_main_database.sql:334](server/db/instance/_main_database.sql#L334)) and
 `DatasetDhis2StagingResult` is a plain TS type with no validator.
 
-### Step 2 — Record successes (incl. empties) in the staging worker
+Size note: `fetchedFacilityIds` is a few thousand ~11-character strings (tens of
+KB as JSON) — comparable to other fields already stored in this text column and
+copied into `dataset_hmis_versions.staging_result`; no special handling needed.
+
+### Step 2 — Record successes, snapshot the facility scope, and close the one response-shape gap
 
 File: [stage_hmis_data_dhis2/worker.ts](server/worker_routines/stage_hmis_data_dhis2/worker.ts).
 
 1. Declare an accumulator alongside the other run-level state (near lines
-   207-214):
+   176-183):
 
    ```ts
    const succeededWorkItems: Array<{ indicatorRawId: string; periodId: number }> = [];
    ```
 
 2. In the `pooledMap` callback, in the **success** branch (currently lines
-   304-316, where `completedWorkItems++` runs and `item` is in scope), push
+   273-285, where `completedWorkItems++` runs and `item` is in scope), push
    **unconditionally** (do *not* cap at 20 like `completedWorkItemHistory` —
    we need the complete set):
 
@@ -185,21 +210,46 @@ File: [stage_hmis_data_dhis2/worker.ts](server/worker_routines/stage_hmis_data_d
    single-threaded between `await`s; the existing code already mutates shared
    counters/arrays this way.
 
-3. Include it in the `stagingResult` object written to `step_3_result`
-   (currently lines 397-410):
+3. Include both `succeededWorkItems` and the facility snapshot in the
+   `stagingResult` object written to `step_3_result` (currently lines 366-379).
+   `facilityIds` is already computed once, at the top of the run, to drive the
+   fetch itself ([worker.ts:137](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L137))
+   — just include the same variable, no new query:
 
    ```ts
    const stagingResult: DatasetDhis2StagingResult = {
      // ...existing fields...
      succeededWorkItems,
+     fetchedFacilityIds: facilityIds,
    };
    ```
 
-That is the succeeded-scope recording. `success` is already the trustworthy
-signal (see the guarantee above); we are only *persisting* it. The staging worker
-has one other small change — the facility fetch (lines 132-135) binds the shared
-`DHIS2_UID_REGEX` constant instead of an inline literal, so the fetch and the
-integration DELETE share one definition (see Step 3).
+4. **Close the transport-guarantee gap.** At
+   [worker.ts:658](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L658),
+   `response.rows && response.rows.length > 0` silently treats a missing `rows`
+   field as "zero data" rather than "don't trust this response." Change it to
+   fail loud:
+
+   ```ts
+   // Before:
+   if (response.rows && response.rows.length > 0) {
+
+   // After:
+   if (!response.rows) {
+     throw new Error(
+       `DHIS2 analytics response for ${rawIndicatorId}, period ${period} is ` +
+       `missing "rows" — treating as a failed fetch, not empty data.`
+     );
+   }
+   if (response.rows.length > 0) {
+   ```
+
+   This throw lands inside `fetchIndicatorPeriod`'s single `try/catch`
+   ([worker.ts:506-856](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L506-L856)),
+   so it becomes `{ success: false }` exactly like every other transport
+   failure — no separate handling needed.
+
+That is the entire staging-side change.
 
 ### Step 3 — Branch integration on source type and do scoped delete-then-insert
 
@@ -208,46 +258,26 @@ File: [integrate_hmis_data/worker.ts](server/worker_routines/integrate_hmis_data
 The worker already parses the staging result as the discriminated union
 `DatasetStagingResult` (line 55), so `stagingResultRaw.sourceType` is available.
 Keep **Phase 1/2/3** (validation, version id, version-record insert) unchanged.
-Replace **Phase 4** (the UPDATE → delete-matched → INSERT block, lines 164-219)
+Replace **Phase 4** (the UPDATE → delete-matched → INSERT block, lines 165-217)
 with a source-type branch.
 
-**DHIS2 branch** (when `stagingResultRaw.sourceType === "dhis2"` **and**
-`succeededWorkItems` is present):
-
-The DELETE must be scoped to the **same facility set the fetch covered** —
-DHIS2-UID-shaped facilities only — so a DHIS2 import never removes CSV-origin
-(non-UID) rows it never queried. The staging fetch already filters to that shape
-([stage_hmis_data_dhis2/worker.ts:132-135](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L132-L135));
-the DELETE applies the **same** filter. To keep the two from drifting, the shape
-lives in one constant, bound as a parameter into both queries:
-
-```ts
-// lib/consts.ts (NEW) — single source for the DHIS2 org-unit UID shape
-// (11 chars: a letter, then 10 alphanumerics).
-export const DHIS2_UID_REGEX = "^[a-zA-Z][a-zA-Z0-9]{10}$";
-```
-
-```ts
-// stage_hmis_data_dhis2/worker.ts — change the existing inline literal to the constant
-const facilities = await mainDb<{ facility_id: string }[]>`
-  SELECT facility_id FROM facilities_hmis
-  WHERE facility_id ~ ${DHIS2_UID_REGEX}
-`;
-```
-
-Integration then reuses the same constant:
+**DHIS2 branch** (when `stagingResultRaw.sourceType === "dhis2"` **and both**
+`succeededWorkItems` and `fetchedFacilityIds` are present):
 
 ```ts
 const succeeded = stagingResultRaw.succeededWorkItems ?? [];
+const fetchedFacilityIds = stagingResultRaw.fetchedFacilityIds ?? [];
 
-// Two parallel arrays, same order, for a set-based UNNEST join.
+// Two parallel arrays, same order, for a set-based UNNEST join. Always
+// equal-length by construction — both are built from one .map() over `succeeded`.
 const scopeIndicatorIds = succeeded.map((w) => w.indicatorRawId);
 const scopePeriodIds = succeeded.map((w) => w.periodId);
 
-// 1) Remove existing rows in the successfully-fetched scope — for the same
-//    DHIS2-UID facility set the fetch covered (non-UID/CSV rows are left alone).
-//    Pair-wise (indicator, period) match — NOT a cross product — so a pair that
-//    failed to fetch is never deleted.
+// 1) Remove existing rows in the successfully-fetched scope, for exactly the
+//    facilities that were queried at staging time (a snapshot, not re-derived —
+//    a facility never queried is never touched, whatever its id looks like).
+//    Pair-wise (indicator, period) match — NOT a cross product — so a pair
+//    that failed to fetch is never deleted.
 const deleteResult = await sql`
   DELETE FROM ${sql(datasetTableName)} dt
   USING UNNEST(
@@ -256,19 +286,25 @@ const deleteResult = await sql`
   ) AS s(indicator_raw_id, period_id)
   WHERE dt.indicator_raw_id = s.indicator_raw_id
     AND dt.period_id = s.period_id
-    AND dt.facility_id ~ ${DHIS2_UID_REGEX}
+    AND dt.facility_id = ANY(${fetchedFacilityIds}::text[])
 `;
 const rowsDeleted = deleteResult.count;
 
-// 2) Insert exactly what DHIS2 returned. All staged rows belong to a succeeded
-//    pair (failed work items stage nothing), and their scope was just cleared,
-//    so no PK conflicts are possible. ON CONFLICT DO UPDATE is belt-and-braces
-//    against DHIS2 returning the same org unit twice across batches.
+// 2) Insert exactly what DHIS2 returned. DISTINCT ON guards against DHIS2
+//    returning the same org unit twice across facility batches — without it, a
+//    duplicate (facility_id, indicator_raw_id, period_id) in the source aborts
+//    the whole INSERT ("ON CONFLICT DO UPDATE command cannot affect row a
+//    second time" — Postgres only dedupes against the TARGET table, never
+//    within the inserted batch). After dedup, the delete just cleared this
+//    exact scope, so ON CONFLICT should never fire in practice; it's kept as a
+//    defensive backstop, not the primary duplicate-handling mechanism.
 const insertResult = await sql`
   INSERT INTO ${sql(datasetTableName)}
     (facility_id, indicator_raw_id, period_id, count, version_id)
-  SELECT facility_id, indicator_raw_id, period_id, count, ${newVersionId}::INTEGER
+  SELECT DISTINCT ON (facility_id, indicator_raw_id, period_id)
+    facility_id, indicator_raw_id, period_id, count, ${newVersionId}::INTEGER
   FROM ${sql(aggregatedTableName)}
+  ORDER BY facility_id, indicator_raw_id, period_id
   ON CONFLICT (facility_id, indicator_raw_id, period_id)
   DO UPDATE SET count = EXCLUDED.count, version_id = EXCLUDED.version_id
 `;
@@ -277,35 +313,38 @@ const rowsInserted = insertResult.count;
 
 Notes on the SQL:
 
-- The `UNNEST(${arr}::text[], ${arr}::int[])` form binds each JS array as one
-  Postgres array parameter (porsager `postgres`), giving a clean set-based join
-  with no temp table and no row-count ceiling. Verify the array binding compiles
-  (`deno task typecheck`) and, if the driver objects to inline casts, fall back
-  to a `CREATE TEMP TABLE … ON COMMIT DROP` + insert + `DELETE … USING`.
-- If `succeeded` is empty (every fetch failed), both `UNNEST` arrays are empty →
-  the DELETE matches nothing and the INSERT inserts nothing (staging is empty
-  too). Safe no-op.
-- The delete covers **every DHIS2-UID facility** for each succeeded pair (not
-  just the ones that returned data) — that is what makes DHIS2 authoritative and
-  removes the phantom cells. It deliberately excludes non-UID (CSV-origin)
-  facilities, matching the fetch scope.
+- `UNNEST(${arr}::text[], ${arr}::int[])` binds each JS array as one Postgres
+  array parameter (porsager `postgres`), giving a clean set-based join for the
+  `(indicator, period)` pairing — `ANY()` can't express this pairwise match (it
+  would cross-product). Verify the array binding compiles
+  (`deno task typecheck`).
+- `facility_id = ANY(${fetchedFacilityIds}::text[])` uses the codebase's
+  existing array-binding idiom (`= ANY(...)`, used elsewhere for facility-id
+  lists) rather than a second `UNNEST` — simpler than re-deriving the facility
+  scope, and needs no shared regex constant, since there's now only one place
+  that decides "which facilities": the snapshot captured at staging time.
+- If `succeeded` is empty (every fetch failed), the `UNNEST` arrays are empty →
+  the DELETE matches nothing. If `fetchedFacilityIds` is empty (shouldn't
+  happen — see Step 2 — but defensively), `ANY(...)` also matches nothing. Both
+  are safe no-ops.
+- The delete covers **every facility in the snapshot** for each succeeded pair
+  (not just the ones that returned data) — that is what makes DHIS2
+  authoritative and removes the phantom cells.
 
-**Correctness rests on the `dataset_hmis → facilities_hmis` foreign key.**
-Re-applying the regex at integration time is equivalent to the exact set of
-facilities the fetch queried, *because* the FK
-([_main_database.sql:313](server/db/instance/_main_database.sql#L313)) is
-`NO ACTION` (not `CASCADE`): a facility can't be removed from `facilities_hmis`
-while it still has `dataset_hmis` rows, so every row that exists belongs to a
-facility that was in `facilities_hmis` and — if UID-shaped — was fetched. The
-two scopes can only differ by facilities with zero rows, which a DELETE ignores.
-If anyone ever loosens this FK to `ON DELETE CASCADE`, this delete's safety must
-be re-derived (it would no longer be true that a row implies the facility was in
-scope).
+**No separate correctness argument is needed for the delete scope.** An earlier
+version of this plan re-derived "which facilities count" via a regex against
+`facilities_hmis` at integration time, and had to argue — via the
+`dataset_hmis → facilities_hmis` foreign key — that this matched the fetch
+scope from earlier. The snapshot removes that argument entirely: the delete
+scope *is*, literally, the list that was queried, captured at the moment it was
+queried. There is nothing to prove equivalent to anything else, and a facility
+added to `facilities_hmis` between staging and integration is never in the
+snapshot, so it's protected regardless.
 
-**CSV branch** (`sourceType === "csv"`, or DHIS2 with `succeededWorkItems`
-undefined — see Step 5): keep the **existing** UPDATE → delete-matched → INSERT
-block verbatim. CSV semantics ("absent = keep prior value") are intended and must
-not change.
+**CSV branch** (`sourceType === "csv"`, or DHIS2 with `succeededWorkItems` or
+`fetchedFacilityIds` undefined — see Step 5): keep the **existing**
+UPDATE → delete-matched → INSERT block verbatim. CSV semantics ("absent = keep
+prior value") are intended and must not change.
 
 ### Step 4 — Version-record counts
 
@@ -320,100 +359,60 @@ reporting-only decision; pick the mapping and note it in a comment.
 
 ### Step 5 — Backward-compatible fallback
 
-An upload attempt staged by **old** code (no `succeededWorkItems`) could be
-integrated by **new** code (e.g. a half-finished import across a deploy). Guard:
+An upload attempt staged by **old** code (no `succeededWorkItems` /
+`fetchedFacilityIds`) could be integrated by **new** code (e.g. a half-finished
+import across a deploy). Guard:
 
 ```ts
 const useScopedDelete =
   stagingResultRaw.sourceType === "dhis2" &&
-  Array.isArray(stagingResultRaw.succeededWorkItems);
+  Array.isArray(stagingResultRaw.succeededWorkItems) &&
+  Array.isArray(stagingResultRaw.fetchedFacilityIds);
 ```
 
 If `useScopedDelete` is false, run the **legacy merge** path. This degrades
 *safely* (no deletes) rather than risking a wrongful wipe from missing scope
 data.
 
-## Completeness signal: DHIS2 total reconciliation (advisory)
+### Step 6 — Show a deletion-count confirm before integrate
 
-The scoped delete is destructive, so its real danger is a **DHIS2 200 that isn't
-actually complete** — a partial response, or stale analytics — where dropped
-cells look identical to "no data" and get deleted. The per-pair `success` flag
-(the load-bearing guarantee above) catches *errors*, but not a 200 carrying
-short data. This section adds a human-in-the-loop check for that case.
+The scoped delete is destructive, so the preview should say, in plain numbers,
+what it will *remove* — not just what it will insert (which the preview already
+shows).
 
-### Why this is advisory, not an automatic gate
+Run the exact same predicate as the eventual DELETE, as a read-only grouped
+`COUNT`, at preview time — not an approximation or a proxy signal, the literal
+set of rows the DELETE will remove, computed before anything destructive
+happens:
 
-An automatic "does our total match DHIS2's total" gate is **not** achievable,
-because the platform deliberately tracks a *subset* of DHIS2's org-unit tree
-(the DHIS2-UID facilities in `facilities_hmis`). A DHIS2 total scoped to *our*
-facility list would require re-sending the full facility list as a `filter=ou:`
-aggregate — URL-limited to ~100/batch, so ~2× the analytics calls — and even
-then it can't distinguish a partial response from genuinely-stale analytics
-(both calls read the same underlying tables and would agree on a wrong number).
-A total scoped to a *parent* OU over-counts (includes facilities we don't
-track), so a fixed threshold false-positives on essentially every import.
+```sql
+SELECT indicator_raw_id, period_id, COUNT(*) AS n
+FROM dataset_hmis dt
+WHERE (dt.indicator_raw_id, dt.period_id) IN (/* succeeded pairs */)
+  AND dt.facility_id = ANY(${fetchedFacilityIds}::text[])
+GROUP BY indicator_raw_id, period_id
+```
 
-The subset context that resolves this lives in the user's head, not the code.
-So we surface the numbers and let the user decide — making the signal
-*interpretable* rather than trying to automate an undecidable comparison.
+(Or the equivalent `UNNEST` pairwise-join form, matching Step 3's DELETE
+structure exactly — same shape, same scope, `SELECT COUNT(*)` instead of
+`DELETE`.)
 
-### Step 6 — Fetch a DHIS2 reference total per `(indicator, period)`
+Surface it at the staging→integrate preview (the component that already renders
+`periodIndicatorStats`, e.g. `step_4_dhis2.tsx`): per `(indicator, period)` row,
+show "N existing rows will be removed" alongside the existing staged-row count;
+plus a total summary line ("This import will remove N existing cells and write M
+cells"). Require an explicit confirm (e.g. a checkbox) before the integrate
+action is enabled.
 
-In `stage_hmis_data_dhis2/worker.ts`, alongside the per-facility fetch, query
-DHIS2's **aggregate total over the root org unit** (the "without specifying
-facilities" total):
-
-- `dimension=dx:…&dimension=pe:…&filter=ou:<ROOT>` returns ~1 row per
-  `(indicator, period)`, summed by DHIS2 across the whole subtree. Pass
-  **multiple** `dx`/`pe` per call (URL-limited), so the entire reference grid is
-  a handful of requests, not one-per-pair — cheap relative to the disaggregated
-  fetch already running.
-- The root OU is available from the DHIS2 structure selection
-  (`StructureDhis2OrgUnitSelection.rootOrgUnits`, [lib/types/structure.ts](lib/types/structure.ts)),
-  or fetch the top-level OU once via `/api/organisationUnits?level=1`.
-- This is an independent read, so wrap it in the same throw-on-error path; a
-  failed reference fetch is **non-fatal** — record the total as unknown and skip
-  the comparison for that pair (never block staging on it).
-
-### Step 7 — Store the reference total per version (for the baseline)
-
-Add `dhis2Total?: number` to `PeriodIndicatorRawStat` (the per-pair stat already
-carries `totalCount` = the staged sum). It flows into `step_3_result` and, at
-integration, into `dataset_hmis_versions.staging_result` — so each version
-records both the staged sum and the DHIS2 reference total. That history is what
-makes the period-over-period deltas in Step 8 possible.
-
-`PeriodIndicatorRawStat` is a plain TS type (no validator), so the field is
-additive and backward-compatible; absent ⇒ no reference captured ⇒ comparison
-omitted.
-
-### Step 8 — Surface at the staging→integrate preview (client)
-
-The preview already shows the staged total per `(indicator, period)`. Add, per
-row:
-
-- **DHIS2 reference total** and **coverage ratio** = staged ÷ DHIS2 total. The
-  absolute gap is expected (subset) and is *not* the signal.
-- **Period-over-period deltas vs the previous version**: the change in (a) the
-  staged sum, (b) the DHIS2 reference total, and (c) the coverage ratio. The
-  interpretable red flags:
-  - ratio **drops** sharply (e.g. 85% → 60%) ⇒ our disaggregated fetch likely
-    dropped facilities that have data (partial 200);
-  - DHIS2 reference total **drops** vs last import while you expected it stable
-    ⇒ DHIS2 analytics may be stale.
-  A human reading three deltas can tell these apart; a fixed threshold cannot.
-- **Highlight anomalous rows** and require an **explicit confirm** when any
-  ratio moves beyond a configurable bound — loud, but **non-blocking**.
-
-### Honest tradeoff
-
-This is **advisory**: a user who confirms without looking still eats the data
-loss. Given the subset problem that is the correct ceiling — the decision can't
-be safely automated, so the goal is to put good, comparable numbers in front of
-the human at the one moment they're reviewing before a destructive integrate.
-It catches partial-response truncation (ratio delta) *and* stale analytics
-(reference-total delta), which neither the `success` flag nor a facility-scoped
-auto-gate can do together.
+This replaces an earlier design considered and dropped for this plan — a DHIS2
+reference-total reconciliation with a coverage ratio. That design needed a DHIS2
+API call the analytics client doesn't support as written, compared numbers
+computed by two different aggregation methods (making the ratio unsound), and —
+the decisive point — **could not detect the failure mode that matters most**
+(stale DHIS2 analytics), because a reference total would read the same stale
+tables the primary fetch does. The deletion-count confirm needs no new DHIS2
+call, no reference total, and no ratio math: it tells the user exactly what the
+destructive step will do, using data we already have with certainty.
 
 ## Edge cases
 
@@ -423,39 +422,55 @@ auto-gate can do together.
 | Cell value 100 → 60 in DHIS2 | Row returned → deleted then re-inserted as 60 | ✅ |
 | New cell (0 → 50) | Row returned → inserted | ✅ |
 | Fetch for an `(indicator, period)` fails | Not in `succeededWorkItems` → **not** deleted, **not** inserted → prior value kept | ✅ no data loss |
+| HTTP 200 with valid JSON but missing `rows` | Step 2's fix throws → not a success → not deleted (closes the one identified transport-guarantee gap) | ✅ |
 | All fetches fail | Empty scope → no-op | ✅ |
-| DHIS2 returns same OU twice across batches | `ON CONFLICT DO UPDATE` keeps last | ✅ defensive |
-| Non-UID (CSV-origin) facility, same indicator+period as a DHIS2 import | Excluded by the `facility_id ~ DHIS2_UID_REGEX` predicate → **not** deleted | ✅ preserved |
-| CSV facility whose `facility_id` happens to be UID-shaped, same indicator+period | Matches the predicate → deleted by the DHIS2 import | ⚠️ see below |
+| DHIS2 returns same OU twice across batches | `SELECT DISTINCT ON` dedupes before insert; `ON CONFLICT DO UPDATE` is a defensive backstop, not the primary handling | ✅ (previously: would crash the transaction — fixed) |
+| Non-UID (CSV-origin) facility, same indicator+period as a DHIS2 import | Never in `fetchedFacilityIds` (never queried) → **not** deleted | ✅ preserved |
+| Facility added to `facilities_hmis` after staging, before integrate | Not in the `fetchedFacilityIds` snapshot (captured at staging time) → **not** deleted, regardless of shape | ✅ preserved by construction |
 
 ## Behavioural caveat (call out before merge)
 
-Scoped delete makes a DHIS2 import **authoritative over the DHIS2-UID facilities
-in each `indicator × period` it fetched** — it removes prior rows for every such
-facility, regardless of which source originally wrote them. The shape predicate
-protects non-UID (CSV-origin) facilities. The **irreducible residual** is a CSV
-facility whose `facility_id` happens to be UID-shaped (11 alphanumerics,
-letter-first): the code has only `facility_id` and no source column, so it
-genuinely cannot tell that row apart from a DHIS2 facility, and a DHIS2 import of
-the same indicator+period would delete it. This is a much smaller surface than
-"all CSV rows," but it cannot be closed without a per-row source marker.
+Scoped delete makes a DHIS2 import **authoritative over every facility it
+actually queried**, for each indicator × period it fetched — it removes prior
+rows for those facilities regardless of which source originally wrote them. The
+snapshot (`fetchedFacilityIds`) means this is exactly the facility set queried,
+nothing broader and nothing narrower. The one residual: at staging time, the
+facility query itself is still shape-filtered to DHIS2-UID-looking ids
+([stage_hmis_data_dhis2/worker.ts:132-135](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L132-L135))
+— a CSV-imported facility whose `facility_id` happens to be UID-shaped (11
+alphanumerics, letter-first) is queried, ends up in the snapshot, and would be
+deleted by a DHIS2 import of the same indicator+period. The code has only
+`facility_id` and no source column, so it genuinely cannot tell that row apart
+from a DHIS2 facility. This is a narrow surface (an accidental shape collision)
+and cannot be closed without a per-row source marker.
 
 ## Residual risks (and why they're acceptable / how to harden)
 
-1. **HTTP 200 with a malformed body lacking `rows`.** Treated as a successful
-   empty → would delete. Extremely unlikely (DHIS2 always returns a `rows`
-   array). *Hardening (do it):* in `fetchIndicatorPeriod`, treat a missing
-   `rows`/`headers` field as a failure rather than empty — one line, removes a
-   footgun.
-2. **Silent org-unit truncation inside a 200 response.** If DHIS2 silently drops
-   some requested OUs that had data, those cells get deleted and not re-inserted.
-   This is the **core risk** the advisory DHIS2-total reconciliation above
-   addresses (a partial response shows up as a coverage-ratio drop at the
-   preview). Structurally bounded today by `FACILITY_BATCH_SIZE = 100` and the
-   hard 2048-char URL guard ([worker.ts:576-584](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L576-L584)).
-   Note: the existing `suspiciousBatches` block is **dead code** — its guard
-   `urlLength > 2048` already threw 175 lines earlier — so it is not a safeguard;
-   **delete it** to avoid the false impression that it is one.
+1. **Silent org-unit truncation inside a 200 response** (DHIS2 drops some
+   requested OUs that had data, but the response still has a valid, non-empty
+   `rows` array — not the missing-`rows`-field case, which Step 2 now catches).
+   Structurally bounded by `FACILITY_BATCH_SIZE = 100` and the hard 2048-char
+   URL guard ([worker.ts:576-584](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L576-L584)).
+   The Step 6 deletion-count confirm gives the user visibility into an
+   unusually large deletion if this happens, though it is advisory, not a
+   technical guarantee. Note: the existing `suspiciousBatches` block is **dead
+   code** — its guard `urlLength > 2048` already threw 175 lines earlier
+   ([worker.ts:576](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L576))
+   — so it is not a safeguard; **delete it** to avoid the false impression that
+   it is one.
+2. **DHIS2 analytics staleness** (data was changed in DHIS2 but the analytics
+   tables haven't regenerated yet — a 200 that is complete relative to DHIS2's
+   current *analytics* state, but that state is behind DHIS2's *live* data).
+   This is a genuine, structural limit: no HTTP-layer check can distinguish
+   "genuinely no data" from "not yet reflected in analytics," because both
+   produce an identical response — the request/transport layer is airtight (see
+   the exhaustiveness note above and Step 2's gap closure), but that guarantee
+   is about transport, not about DHIS2's internal data freshness. A time-based
+   cool-down (skip the scoped delete for very recent periods) was considered and
+   **rejected**: the recency threshold has no principled value, and the decision
+   was to trust DHIS2's own contract — what analytics returns is treated as
+   ground truth — rather than second-guess it with an arbitrary heuristic.
+   Accepted as out of scope for this plan.
 3. **`_SKIP_META = true`** disables missing-OU detection
    ([worker.ts:65](server/worker_routines/stage_hmis_data_dhis2/worker.ts#L65)).
    This does **not** affect the delete approach: an OU absent from DHIS2 and an
@@ -467,27 +482,37 @@ the same indicator+period would delete it. This is a much smaller surface than
 > Server has no `--watch`; worker/lib changes require a manual server restart
 > before they take effect.
 
-1. `deno task typecheck` (covers both server and client; confirms the type change
-   and the `UNNEST` array binding compile).
+1. `deno task typecheck` (covers both server and client; confirms the type
+   change and the `UNNEST` / `ANY` array bindings compile).
 2. **Empirical, on a disposable instance** (query real rows, don't theorise):
    - Import an `(indicator, period)` with non-zero values for several facilities.
      Confirm rows in `dataset_hmis`.
    - In DHIS2, set one facility's value to 0 / delete it. Re-import the same
      scope.
    - **Expect:** that facility's row is **gone** from `dataset_hmis`; others
-     updated to current values; the staged sum drops by that facility's old value.
-     (The platform total equals the DHIS2 total only for the *tracked* facility
-     subset, not necessarily DHIS2's national total — see the advisory check.)
+     updated to current values; the staged sum drops by that facility's old
+     value.
    - **Failure-path check:** point at an unreachable DHIS2 (or a period known to
      500) so a work item fails; confirm that pair's existing rows are **retained**
      (not deleted) and `failedFetches` is populated.
-3. **Completeness signal:** confirm the preview shows a DHIS2 reference total and
-   coverage ratio per pair, and that a second import with an artificially short
-   facility fetch (simulate a partial 200) surfaces a **ratio drop** vs the prior
-   version and triggers the confirm prompt — without blocking.
-4. **CSV regression:** run a CSV import that omits a previously-present cell;
+3. **Response-shape gap closure:** simulate (or force) a 200 response with valid
+   JSON but no `rows` field; confirm the work item now **fails**
+   (`success: false`, appears in `failedFetches`) rather than silently staging as
+   empty.
+4. **Duplicate-OU handling:** stage a source with two rows for the same
+   `(facility_id, indicator_raw_id, period_id)`; confirm integration **succeeds**
+   (no "cannot affect row a second time" error) and the surviving row is
+   deterministic.
+5. **Deletion-count confirm:** confirm the preview shows a per-pair "will remove
+   N" count that matches an independent `SELECT COUNT(*)` against `dataset_hmis`
+   using the same scope, and that the integrate action requires the explicit
+   confirm.
+6. **Facility-added-mid-review:** stage, then — before integrating — add a new
+   UID-shaped facility with pre-existing `dataset_hmis` rows for a succeeded
+   pair; confirm those rows **survive** integration (not in the snapshot).
+7. **CSV regression:** run a CSV import that omits a previously-present cell;
    confirm the old value is **kept** (merge unchanged).
-5. Sanity-check `dataset_hmis_versions` counts (`n_rows_inserted`,
+8. Sanity-check `dataset_hmis_versions` counts (`n_rows_inserted`,
    `n_rows_updated`/deleted) against the actual delta.
 
 ## Out of scope (observed, not fixed here)
@@ -506,16 +531,15 @@ the same indicator+period would delete it. This is a much smaller surface than
 ## Rollback
 
 Single-commit revert. No schema migration, no data backfill. Attempts staged
-with `succeededWorkItems` / `dhis2Total` simply have unused fields; integration
-falls back to the legacy merge and the preview drops the advisory columns once
-reverted. The advisory check stores no state the rollback can't ignore.
+with `succeededWorkItems` / `fetchedFacilityIds` simply have unused fields;
+integration falls back to the legacy merge, and the preview drops the
+deletion-count column, once reverted.
 
 ## File-change summary
 
 | File | Change |
 | --- | --- |
-| [lib/consts.ts](lib/consts.ts) | Add `DHIS2_UID_REGEX` — single source for the org-unit UID shape |
-| [lib/types/dataset_hmis_import.ts](lib/types/dataset_hmis_import.ts) | Add optional `succeededWorkItems` to `DatasetDhis2StagingResult`; add optional `dhis2Total` to `PeriodIndicatorRawStat` |
-| [stage_hmis_data_dhis2/worker.ts](server/worker_routines/stage_hmis_data_dhis2/worker.ts) | Accumulate succeeded `(indicator, period)` pairs (incl. empties); write to `step_3_result`; bind `DHIS2_UID_REGEX` in the facility fetch; fetch the root-OU reference total per pair into `dhis2Total`; treat malformed 200 (no `rows`/`headers`) as failure; **delete dead `suspiciousBatches` block** |
-| [integrate_hmis_data/worker.ts](server/worker_routines/integrate_hmis_data/worker.ts) | Branch on `sourceType`; DHIS2 → scoped delete-then-insert, DELETE filtered by `DHIS2_UID_REGEX`; CSV → unchanged; fallback when scope absent; version-count mapping |
-| staging→integrate preview (client) | Show DHIS2 reference total, coverage ratio, and period-over-period deltas per `(indicator, period)`; highlight + explicit confirm on anomalous ratio move (non-blocking) |
+| [lib/types/dataset_hmis_import.ts](lib/types/dataset_hmis_import.ts) | Add optional `succeededWorkItems` and `fetchedFacilityIds` to `DatasetDhis2StagingResult` |
+| [stage_hmis_data_dhis2/worker.ts](server/worker_routines/stage_hmis_data_dhis2/worker.ts) | Accumulate succeeded `(indicator, period)` pairs (incl. empties); snapshot the queried `facilityIds` into `step_3_result`; fix the `response.rows` shape guard to fail loud instead of silently treating missing `rows` as empty; **delete dead `suspiciousBatches` block** |
+| [integrate_hmis_data/worker.ts](server/worker_routines/integrate_hmis_data/worker.ts) | Branch on `sourceType`; DHIS2 → scoped delete-then-insert against the `fetchedFacilityIds` snapshot (`= ANY(...)`), `DISTINCT ON` dedupe before `INSERT ... ON CONFLICT`; CSV → unchanged; fallback when scope absent; version-count mapping |
+| staging→integrate preview (client) | Per-pair "N existing rows will be removed" (exact, from the same predicate as the DELETE) + total summary; explicit confirm required before integrate |
