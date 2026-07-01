@@ -15,6 +15,7 @@ type Props = {
   setSelectedBlockId: Setter<string | undefined>;
   session: SlideSession | null;
   collabReady: boolean;
+  onSelectTextTarget: (targetId: string | undefined) => void;
   openEditor: <TProps, TReturn>(v: OpenEditorProps<TProps, TReturn>) => Promise<TReturn | undefined>;
   contentTab: "slide" | "block";
   setContentTab: Setter<"slide" | "block">;
@@ -39,6 +40,7 @@ export function SlideEditorPanel(p: Props) {
             showLogosByDefault={p.showCoverLogosByDefault}
             session={p.session}
             collabReady={p.collabReady}
+            onSelectTextTarget={p.onSelectTextTarget}
           />
         </Match>
         <Match when={p.tempSlide.type === "section"}>
@@ -47,6 +49,7 @@ export function SlideEditorPanel(p: Props) {
             setTempSlide={p.setTempSlide}
             session={p.session}
             collabReady={p.collabReady}
+            onSelectTextTarget={p.onSelectTextTarget}
           />
         </Match>
         <Match when={p.tempSlide.type === "content"}>
@@ -58,6 +61,7 @@ export function SlideEditorPanel(p: Props) {
             setSelectedBlockId={p.setSelectedBlockId}
             session={p.session}
             collabReady={p.collabReady}
+            onSelectTextTarget={p.onSelectTextTarget}
             openEditor={p.openEditor}
             contentTab={p.contentTab}
             setContentTab={p.setContentTab}

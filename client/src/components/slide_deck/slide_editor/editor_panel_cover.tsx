@@ -12,6 +12,7 @@ type Props = {
   showLogosByDefault: boolean;
   session: SlideSession | null;
   collabReady: boolean;
+  onSelectTextTarget: (targetId: string | undefined) => void;
 };
 
 function getLogoVisibilityOptions(showByDefault: boolean) {
@@ -49,6 +50,8 @@ export function SlideEditorPanelCover(p: Props) {
             session={p.session}
             collabReady={p.collabReady}
             fieldKey="title"
+            targetId="coverTitle"
+            onSelectTarget={p.onSelectTextTarget}
             label={t3({ en: "Title", fr: "Titre", pt: "Título" })}
             value={p.tempSlide.title}
             onChange={(v: string) => p.setTempSlide("title", v)}
@@ -78,6 +81,8 @@ export function SlideEditorPanelCover(p: Props) {
             session={p.session}
             collabReady={p.collabReady}
             fieldKey="subtitle"
+            targetId="coverSubTitle"
+            onSelectTarget={p.onSelectTextTarget}
             label={t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" })}
             value={p.tempSlide.subtitle ?? ""}
             onChange={(v: string) => p.setTempSlide("subtitle", v || undefined)}
@@ -107,6 +112,8 @@ export function SlideEditorPanelCover(p: Props) {
             session={p.session}
             collabReady={p.collabReady}
             fieldKey="presenter"
+            targetId="coverAuthor"
+            onSelectTarget={p.onSelectTextTarget}
             label={t3({ en: "Presenter", fr: "Présentateur", pt: "Apresentador" })}
             value={p.tempSlide.presenter ?? ""}
             onChange={(v: string) =>
@@ -140,6 +147,8 @@ export function SlideEditorPanelCover(p: Props) {
             session={p.session}
             collabReady={p.collabReady}
             fieldKey="date"
+            targetId="coverDate"
+            onSelectTarget={p.onSelectTextTarget}
             label={t3({ en: "Date", fr: "Date", pt: "Data" })}
             value={p.tempSlide.date ?? ""}
             onChange={(v: string) => p.setTempSlide("date", v || undefined)}

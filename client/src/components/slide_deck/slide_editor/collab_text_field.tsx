@@ -17,6 +17,13 @@ export function CollabTextField(p: {
   onChange: (v: string) => void;
   label?: string;
   height?: string;
+  /**
+   * Panther text-primitive id for this field (e.g. "coverTitle", "headerText").
+   * When focused, we broadcast it so collaborators see which title field this
+   * user is editing (mirrors the block-selection highlight for body blocks).
+   */
+  targetId?: string;
+  onSelectTarget?: (targetId: string | undefined) => void;
 }) {
   const yText = () =>
     p.collabReady && p.session
@@ -24,6 +31,7 @@ export function CollabTextField(p: {
       : undefined;
 
   return (
+    <div onFocusIn={() => p.onSelectTarget?.(p.targetId)}>
     <Show
       when={yText()}
       keyed
@@ -52,5 +60,6 @@ export function CollabTextField(p: {
         </div>
       )}
     </Show>
+    </div>
   );
 }

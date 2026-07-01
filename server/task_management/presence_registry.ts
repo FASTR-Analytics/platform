@@ -51,6 +51,7 @@ export function updateConnectionPresence(
     deckId: view.deckId,
     slideId: view.slideId,
     selectedBlockId: view.selectedBlockId,
+    selectedTextTarget: view.selectedTextTarget,
   };
 }
 

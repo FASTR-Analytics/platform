@@ -41,6 +41,7 @@ type Props = {
   setSelectedBlockId: Setter<string | undefined>;
   session: SlideSession | null;
   collabReady: boolean;
+  onSelectTextTarget: (targetId: string | undefined) => void;
   openEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -168,6 +169,8 @@ export function SlideEditorPanelContent(p: Props) {
                   session={p.session}
                   collabReady={p.collabReady}
                   fieldKey="header"
+                  targetId="headerText"
+                  onSelectTarget={p.onSelectTextTarget}
                   label={t3({ en: "Header", fr: "En-tête", pt: "Cabeçalho" })}
                   value={p.tempSlide.header ?? ""}
                   onChange={(v: string) =>
@@ -179,6 +182,8 @@ export function SlideEditorPanelContent(p: Props) {
                   session={p.session}
                   collabReady={p.collabReady}
                   fieldKey="subHeader"
+                  targetId="subHeaderText"
+                  onSelectTarget={p.onSelectTextTarget}
                   label={t3({
                     en: "Sub Header",
                     fr: "Sous-en-tête",
@@ -194,6 +199,8 @@ export function SlideEditorPanelContent(p: Props) {
                   session={p.session}
                   collabReady={p.collabReady}
                   fieldKey="date"
+                  targetId="dateText"
+                  onSelectTarget={p.onSelectTextTarget}
                   label={t3({ en: "Date", fr: "Date", pt: "Data" })}
                   value={p.tempSlide.date ?? ""}
                   onChange={(v: string) =>
@@ -235,6 +242,8 @@ export function SlideEditorPanelContent(p: Props) {
                     session={p.session}
                     collabReady={p.collabReady}
                     fieldKey="footer"
+                    targetId="footerText"
+                    onSelectTarget={p.onSelectTextTarget}
                     label={t3({
                       en: "Footer text",
                       fr: "Texte de pied de page",

@@ -55,7 +55,12 @@ let intentionalClose = false;
 
 // Local presence, re-sent on every (re)connect.
 let avatarUrl: string | undefined;
-let view: { deckId?: string; slideId?: string; selectedBlockId?: string } = {};
+let view: {
+  deckId?: string;
+  slideId?: string;
+  selectedBlockId?: string;
+  selectedTextTarget?: string;
+} = {};
 
 // ── Slide CRDT sessions (Milestone 3) ───────────────────────────────────────
 // Each open slide editor gets a client Y.Doc synced to the server's
@@ -355,6 +360,7 @@ export function setCollabView(next: {
   deckId?: string;
   slideId?: string;
   selectedBlockId?: string;
+  selectedTextTarget?: string;
 }): void {
   view = next;
   sendPresence();

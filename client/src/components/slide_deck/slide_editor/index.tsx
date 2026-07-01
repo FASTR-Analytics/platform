@@ -26,6 +26,7 @@ import {
   HeadingBar,
   PageHolder,
   PageInputs,
+  buildHitRegions,
   Select,
   StateHolder,
   applyDividerDragUpdate,
@@ -142,6 +143,21 @@ export function SlideEditor(p: Props) {
   const [selectedBlockId, setSelectedBlockId] = createSignal<
     string | undefined
   >();
+  // The root title/header text field this user is editing (a panther text-
+  // primitive id, e.g. "coverTitle"). Mutually exclusive with selectedBlockId;
+  // broadcast so collaborators get an "editing" highlight on title fields too.
+  const [selectedTextTarget, setSelectedTextTarget] = createSignal<
+    string | undefined
+  >();
+  // Selecting a body block and editing a title field are mutually exclusive.
+  function selectTextTarget(targetId: string | undefined) {
+    if (targetId) setSelectedBlockId(undefined);
+    setSelectedTextTarget(targetId);
+  }
+  function selectBlock(id: string | undefined) {
+    if (id) setSelectedTextTarget(undefined);
+    setSelectedBlockId(id);
+  }
   const [contentTab, setContentTab] = createSignal<"slide" | "block">("slide");
   const [measuredPage, setMeasuredPage] = createSignal<MeasuredPage>();
 
@@ -263,12 +279,16 @@ export function SlideEditor(p: Props) {
     });
   });
 
-  // Advertise which slide/block this user is editing so collaborators see it.
+  // Advertise which slide/block/title-field this user is editing so
+  // collaborators see it. A selected body block takes precedence over a title
+  // field (they are set mutually exclusively, but guard here too).
   createEffect(() => {
+    const block = selectedBlockId();
     setCollabView({
       deckId: p.deckId,
       slideId: p.slideId,
-      selectedBlockId: selectedBlockId(),
+      selectedBlockId: block,
+      selectedTextTarget: block ? undefined : selectedTextTarget(),
     });
   });
 
@@ -467,7 +487,7 @@ export function SlideEditor(p: Props) {
           reconcile({ ...unwrap(tempSlide), layout: newLayout }),
         );
       },
-      onSelectionChange: setSelectedBlockId,
+      onSelectionChange: selectBlock,
       createNewBlock: () =>
         createItemNode<ContentBlock>(
           { type: "text", markdown: "" },
@@ -783,6 +803,7 @@ export function SlideEditor(p: Props) {
               setSelectedBlockId={setSelectedBlockId}
               session={session()}
               collabReady={collabReady()}
+              onSelectTextTarget={selectTextTarget}
               openEditor={openEditor}
               contentTab={contentTab()}
               setContentTab={setContentTab}
@@ -847,7 +868,7 @@ export function SlideEditor(p: Props) {
                     }}
                     onClick={(target) => {
                       if (target.type === "layoutItem") {
-                        setSelectedBlockId(target.node.id);
+                        selectBlock(target.node.id);
                         setContentTab("block");
                       } else if (
                         target.type === "headerText" ||
@@ -861,7 +882,9 @@ export function SlideEditor(p: Props) {
                         target.type === "sectionTitle" ||
                         target.type === "sectionSubTitle"
                       ) {
-                        setSelectedBlockId(undefined);
+                        // Clicking a title target on the canvas both switches to
+                        // the slide tab and highlights it for collaborators.
+                        selectTextTarget(target.type);
                         setContentTab("slide");
                       }
                     }}
@@ -1028,9 +1051,11 @@ function PeerSelectionOverlay(p: {
     tick(); // recompute when the canvas moves (resize/scroll)
     if (p.suppressed) return []; // a sub-editor/modal is open over the canvas
     const m = p.measured;
-    if (!m || m.type !== "freeform") return [];
+    if (!m) return [];
     const peers = otherPeers().filter(
-      (peer) => peer.slideId === p.slideId && peer.selectedBlockId,
+      (peer) =>
+        peer.slideId === p.slideId &&
+        (peer.selectedBlockId || peer.selectedTextTarget),
     );
     if (peers.length === 0) return [];
     const canvas = document.getElementById("SLIDE_EDITOR_CANVAS");
@@ -1046,9 +1071,27 @@ function PeerSelectionOverlay(p: {
     if (topEl && topEl !== canvas && !topEl.contains(canvas)) return [];
     const sx = r.width / PAGE_WIDTH_DU;
     const sy = r.height / PAGE_HEIGHT_DU;
-    const rects = buildIdRectMap(
-      (m as unknown as { mLayout: MeasuredNodeLike }).mLayout,
-    );
+    // Body blocks (freeform layout items) keyed by node id.
+    const blockRects =
+      m.type === "freeform"
+        ? buildIdRectMap((m as unknown as { mLayout: MeasuredNodeLike }).mLayout)
+        : new Map<string, { x: number; y: number; w: number; h: number }>();
+    // Root title/header text fields keyed by their panther text-primitive id
+    // ("coverTitle", "headerText", …). Rects come straight from panther's hit
+    // regions so they line up exactly with the rendered text on the canvas.
+    const textRects = new Map<
+      string,
+      { x: number; y: number; w: number; h: number }
+    >();
+    for (const region of buildHitRegions(m)) {
+      const rcd = region.rcd;
+      textRects.set(region.type, {
+        x: rcd.x(),
+        y: rcd.y(),
+        w: rcd.w(),
+        h: rcd.h(),
+      });
+    }
     const out: {
       key: string;
       color: string;
@@ -1059,7 +1102,11 @@ function PeerSelectionOverlay(p: {
       height: number;
     }[] = [];
     for (const peer of peers) {
-      const rcd = rects.get(peer.selectedBlockId!);
+      const rcd = peer.selectedBlockId
+        ? blockRects.get(peer.selectedBlockId)
+        : peer.selectedTextTarget
+        ? textRects.get(peer.selectedTextTarget)
+        : undefined;
       if (!rcd) continue;
       out.push({
         key: peer.connectionId,

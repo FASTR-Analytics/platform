@@ -14,9 +14,12 @@
  * Identity (`email`, `name`, `color`) is stamped server-side from the
  * authenticated user and cannot be spoofed. `avatarUrl` is self-reported by the
  * client (the server has no avatar URL) and is therefore advisory only.
- * `deckId`/`slideId`/`selectedBlockId` describe what the peer is currently
- * looking at; they are replaced wholesale on every presence update so a peer
- * can clear them by omitting them.
+ * `deckId`/`slideId`/`selectedBlockId`/`selectedTextTarget` describe what the
+ * peer is currently looking at; they are replaced wholesale on every presence
+ * update so a peer can clear them by omitting them. `selectedBlockId` is a
+ * layout-block node id; `selectedTextTarget` is a panther text-primitive id
+ * (e.g. "coverTitle", "headerText") for the root title/header fields — the two
+ * are mutually exclusive (a peer is editing a block OR a title field).
  */
 export type PresenceEntry = {
   connectionId: string;
@@ -27,6 +30,7 @@ export type PresenceEntry = {
   deckId?: string;
   slideId?: string;
   selectedBlockId?: string;
+  selectedTextTarget?: string;
 };
 
 /** The presence fields a client controls about itself. */
@@ -35,6 +39,7 @@ export type PresenceView = {
   deckId?: string;
   slideId?: string;
   selectedBlockId?: string;
+  selectedTextTarget?: string;
 };
 
 /** Client → server messages. */

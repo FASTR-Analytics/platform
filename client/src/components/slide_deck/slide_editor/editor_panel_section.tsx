@@ -9,6 +9,7 @@ type Props = {
   setTempSlide: SetStoreFunction<any>;
   session: SlideSession | null;
   collabReady: boolean;
+  onSelectTextTarget: (targetId: string | undefined) => void;
 };
 
 export function SlideEditorPanelSection(p: Props) {
@@ -19,6 +20,8 @@ export function SlideEditorPanelSection(p: Props) {
           session={p.session}
           collabReady={p.collabReady}
           fieldKey="sectionTitle"
+          targetId="sectionTitle"
+          onSelectTarget={p.onSelectTextTarget}
           label={t3({ en: "Section Title", fr: "Titre de section", pt: "Título da secção" })}
           value={p.tempSlide.sectionTitle}
           onChange={(v: string) => p.setTempSlide("sectionTitle", v)}
@@ -48,6 +51,8 @@ export function SlideEditorPanelSection(p: Props) {
           session={p.session}
           collabReady={p.collabReady}
           fieldKey="sectionSubtitle"
+          targetId="sectionSubTitle"
+          onSelectTarget={p.onSelectTextTarget}
           label={t3({ en: "Section Subtitle", fr: "Sous-titre de section", pt: "Subtítulo da secção" })}
           value={p.tempSlide.sectionSubtitle ?? ""}
           onChange={(v: string) =>
