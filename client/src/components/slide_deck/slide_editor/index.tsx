@@ -623,13 +623,8 @@ export function SlideEditor(p: Props) {
           },
         );
 
-        // Path-set (not reconcile): the changed figure block must be a fresh
-        // object. reconcile mutates the bundle in place, leaving its reference
-        // unchanged, so setOpaque drops the CRDT write and the viz edit is lost
-        // — neither saved nor synced. See lib/collab/slide_crdt.ts setOpaque.
-        (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
-          "layout",
-          updatedLayout,
+        manuallyUpdateTempSlide(
+          reconcile({ ...unwrap(tempSlide), layout: updatedLayout }),
         );
       }
     } catch (err) {
@@ -664,13 +659,8 @@ export function SlideEditor(p: Props) {
         () => ({ type: "figure" as const, bundle }),
       );
 
-      // Path-set (not reconcile): the changed figure block must be a fresh
-      // object. reconcile mutates the bundle in place, leaving its reference
-      // unchanged, so setOpaque drops the CRDT write and the viz edit is lost
-      // — neither saved nor synced. See lib/collab/slide_crdt.ts setOpaque.
-      (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
-        "layout",
-        updatedLayout,
+      manuallyUpdateTempSlide(
+        reconcile({ ...unwrap(tempSlide), layout: updatedLayout }),
       );
     } catch (err) {
       await openAlert({
@@ -739,13 +729,8 @@ export function SlideEditor(p: Props) {
         () => ({ type: "figure" as const, bundle }),
       );
 
-      // Path-set (not reconcile): the changed figure block must be a fresh
-      // object. reconcile mutates the bundle in place, leaving its reference
-      // unchanged, so setOpaque drops the CRDT write and the viz edit is lost
-      // — neither saved nor synced. See lib/collab/slide_crdt.ts setOpaque.
-      (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
-        "layout",
-        updatedLayout,
+      manuallyUpdateTempSlide(
+        reconcile({ ...unwrap(tempSlide), layout: updatedLayout }),
       );
     } catch (err) {
       await openAlert({
