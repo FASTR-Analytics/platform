@@ -27,6 +27,7 @@ import {
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../validators/content_validators";
+import { assertSlidesNotBusy } from "../validators/presence_guard";
 import {
   extractBlocksFromLayout,
   simplifySlideForAI,
@@ -147,6 +148,7 @@ export function getToolsForSlideEditor(
         if (ctx.mode !== "editing_slide") {
           throw new Error("This tool is only available when editing a slide");
         }
+        assertSlidesNotBusy([ctx.slideId]);
 
         if (input.blockUpdates && input.layoutChange) {
           throw new Error(
@@ -375,6 +377,10 @@ export function getToolsForSlideEditor(
         } else {
           throw new Error("update_figure is only available when editing a slide or a slide deck. If you are editing a report, use update_report_figure instead.");
         }
+
+        assertSlidesNotBusy([
+          ctx.mode === "editing_slide" ? ctx.slideId : input.slideId!,
+        ]);
 
         if (slide.type !== "content") {
           throw new Error("Figures only exist on content slides");
