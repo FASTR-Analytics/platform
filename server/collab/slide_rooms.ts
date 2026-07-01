@@ -160,7 +160,17 @@ export async function subscribeSlide(
     }
   }
   const sync = Y.encodeStateAsUpdate(room.doc, sv);
-  conn.send({ type: "slide_sync", data: { slideId, update: bytesToBase64(sync) } });
+  // Also send the room's state vector so the client can push back anything the
+  // server is missing (e.g. a local edit whose update was lost before reconnect).
+  const stateVector = Y.encodeStateVector(room.doc);
+  conn.send({
+    type: "slide_sync",
+    data: {
+      slideId,
+      update: bytesToBase64(sync),
+      stateVector: bytesToBase64(stateVector),
+    },
+  });
 }
 
 /** Apply a client's update to the authoritative doc (which relays + checkpoints). */

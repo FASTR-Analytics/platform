@@ -215,6 +215,17 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
     if (s) {
       Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
       s.ready = true;
+      // Two-way sync: push anything the server is missing — e.g. a local edit
+      // whose slide_update was lost before this (re)connect (a switched viz that
+      // updated locally but never reached the server). The diff carries just the
+      // missing ops, not the whole doc; skip it when already in sync.
+      const diff = Y.encodeStateAsUpdate(s.doc, base64ToBytes(msg.data.stateVector));
+      if (diff.length > 2) {
+        sendCollab({
+          type: "slide_update",
+          data: { slideId: msg.data.slideId, update: bytesToBase64(diff) },
+        });
+      }
       s.onRemote();
     }
     return true;

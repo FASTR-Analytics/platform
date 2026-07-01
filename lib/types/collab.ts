@@ -59,8 +59,13 @@ export type CollabServerMessage =
   | { type: "hello"; data: { connectionId: string } }
   | { type: "presence_state"; data: { peers: PresenceEntry[] } }
   | { type: "error"; data: { message: string } }
-  // CRDT document sync (Milestone 2).
-  | { type: "slide_sync"; data: { slideId: string; update: string } }
+  // CRDT document sync (Milestone 2). `stateVector` is the server room's current
+  // state vector, so the client can reply with any updates the server is missing
+  // (local edits whose slide_update failed to send before a reconnect).
+  | {
+    type: "slide_sync";
+    data: { slideId: string; update: string; stateVector: string };
+  }
   | { type: "slide_update"; data: { slideId: string; update: string } }
   | { type: "slide_error"; data: { slideId: string; message: string } }
   // Yjs awareness relayed from another client in the room.
