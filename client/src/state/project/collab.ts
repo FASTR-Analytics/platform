@@ -163,7 +163,9 @@ export function openSlideSession(
   doc.on("update", (update: Uint8Array, origin: unknown) => {
     // Updates applied from the server must not be shipped back.
     if (origin === SLIDE_REMOTE_ORIGIN) return;
-    sendCollab({ type: "slide_update", data: { slideId, update: bytesToBase64(update) } });
+    const sent = sendCollab({ type: "slide_update", data: { slideId, update: bytesToBase64(update) } });
+    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
+    console.log("[VIZSYNC] send slide_update", { slideId, bytes: update.length, sent, ws: ws?.readyState });
   });
 
   awareness.on(
@@ -220,6 +222,8 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
       // updated locally but never reached the server). The diff carries just the
       // missing ops, not the whole doc; skip it when already in sync.
       const diff = Y.encodeStateAsUpdate(s.doc, base64ToBytes(msg.data.stateVector));
+      // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
+      console.log("[VIZSYNC] slide_sync: server-missing diff", { slideId: msg.data.slideId, diffBytes: diff.length });
       if (diff.length > 2) {
         sendCollab({
           type: "slide_update",
@@ -278,6 +282,8 @@ function openSocket(projectId: string): void {
 
   socket.onopen = () => {
     attempts = 0;
+    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
+    console.log("[VIZSYNC] WS open (re)subscribing", { sessions: slideSessions.size });
     sendPresence();
     // Re-subscribe any open slide sessions (covers first connect + reconnect:
     // the server sends only what each doc's state vector is missing).
@@ -303,7 +309,9 @@ function openSocket(projectId: string): void {
     }
   };
 
-  socket.onclose = () => {
+  socket.onclose = (e) => {
+    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
+    console.log("[VIZSYNC] WS closed", { code: e.code, reason: e.reason, intentional: intentionalClose });
     if (ws === socket) ws = null;
     if (!intentionalClose) scheduleReconnect();
   };

@@ -323,9 +323,18 @@ function setOpaque(m: Y.Map<unknown>, key: string, value: unknown): void {
     cache.delete(key);
     return;
   }
-  if (cache.get(key) === value) return; // same reference -> unchanged
+  if (cache.get(key) === value) {
+    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
+    if (key === "bundle") console.log("[VIZSYNC] setOpaque bundle SKIP (same ref)");
+    return; // same reference -> unchanged
+  }
   if (!m.has(key) || canonicalJson(m.get(key)) !== canonicalJson(value)) {
     m.set(key, value);
+    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
+    if (key === "bundle") console.log("[VIZSYNC] setOpaque bundle WRITE");
+  } else if (key === "bundle") {
+    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
+    console.log("[VIZSYNC] setOpaque bundle SKIP (same content)");
   }
   cache.set(key, value);
 }

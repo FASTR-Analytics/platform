@@ -616,8 +616,14 @@ export function SlideEditor(p: Props) {
           },
         );
 
-        manuallyUpdateTempSlide(
-          reconcile({ ...unwrap(tempSlide), layout: updatedLayout }),
+        // Path set (not reconcile): guarantees a FRESH bundle object reference so
+        // syncSlideToDoc's setOpaque always writes it. reconcile can merge the new
+        // bundle into the old object in place (same ref) for some shapes, which
+        // setOpaque's reference cache then skips — the edit updates locally but
+        // never reaches the doc (not synced, not saved). See lib/collab/slide_crdt.ts.
+        (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
+          "layout",
+          updatedLayout,
         );
       }
     } catch (err) {
@@ -652,8 +658,11 @@ export function SlideEditor(p: Props) {
         () => ({ type: "figure" as const, bundle }),
       );
 
-      manuallyUpdateTempSlide(
-        reconcile({ ...unwrap(tempSlide), layout: updatedLayout }),
+      // Path set (fresh bundle ref) so setOpaque always writes it — see the
+      // note in handleEditVisualization.
+      (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
+        "layout",
+        updatedLayout,
       );
     } catch (err) {
       await openAlert({
@@ -722,8 +731,11 @@ export function SlideEditor(p: Props) {
         () => ({ type: "figure" as const, bundle }),
       );
 
-      manuallyUpdateTempSlide(
-        reconcile({ ...unwrap(tempSlide), layout: updatedLayout }),
+      // Path set (fresh bundle ref) so setOpaque always writes it — see the
+      // note in handleEditVisualization.
+      (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
+        "layout",
+        updatedLayout,
       );
     } catch (err) {
       await openAlert({
