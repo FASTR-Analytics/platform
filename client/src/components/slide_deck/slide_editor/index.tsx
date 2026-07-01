@@ -9,7 +9,7 @@ import type {
   SlideDeckConfig,
   SlideType,
 } from "lib";
-import { getSlideTitle, materializeSlide, t3, TC, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import { getSlideTitle, materializeSlide, t3, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import type {
   DividerDragUpdate,
   LayoutItemSwapUpdate,
@@ -36,7 +36,6 @@ import {
   openAlert,
   openComponent,
   showMenu,
-  createButtonAction,
 } from "panther";
 import { For, Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
@@ -388,27 +387,11 @@ export function SlideEditor(p: Props) {
     return { success: true, data: { lastUpdated: updateRes.data.lastUpdated } };
   }
 
-  const saveAndClose = createButtonAction(
-    () => saveFunc(),
-    (data) => {
-      if (data.conflictResolutionDecision === "user_chose_cancel") return;
-      p.close(
-        data.conflictResolutionDecision === "user_chose_view_theirs"
-          ? false
-          : true,
-      );
-    },
-  );
-
-  const save = createButtonAction(
-    () => saveFunc(),
-    (data) => {
-      if (data.conflictResolutionDecision === "user_chose_view_theirs")
-        p.close(false);
-    },
-  );
-
-  function handleCancel() {
+  async function handleCancel() {
+    // Edits autosave via the collab checkpoint; only flush explicitly when
+    // collab isn't the one saving (WS down / before first sync) so closing in
+    // that fallback state doesn't lose work.
+    if (needsSave() && !collabReady()) await saveFunc();
     p.close(false);
   }
 
@@ -749,38 +732,7 @@ export function SlideEditor(p: Props) {
               pt: "Editar diapositivo",
             })}
             leftChildren={
-              <Show
-                when={needsSave()}
-                fallback={
-                  <Button iconName="chevronLeft" onClick={handleCancel} />
-                }
-              >
-                <div class="ui-gap-sm flex items-center">
-                  <Button
-                    intent="success"
-                    onClick={saveAndClose.click}
-                    state={saveAndClose.state()}
-                    iconName="save"
-                  >
-                    {t3({
-                      en: "Save and close",
-                      fr: "Sauvegarder et quitter",
-                      pt: "Guardar e fechar",
-                    })}
-                  </Button>
-                  <Button
-                    intent="success"
-                    onClick={save.click}
-                    state={save.state()}
-                    iconName="save"
-                  >
-                    {t3(TC.save)}
-                  </Button>
-                  <Button outline onClick={handleCancel} iconName="x">
-                    {t3(TC.cancel)}
-                  </Button>
-                </div>
-              </Show>
+              <Button iconName="chevronLeft" onClick={handleCancel} />
             }
           >
             <div class="ui-gap-sm flex items-center">
