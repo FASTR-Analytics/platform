@@ -168,8 +168,7 @@ export type PeriodIndicatorRawStat = {
 };
 
 // Per-(indicator, period) row count that a DHIS2 scoped delete-then-insert
-// integration would remove, computed read-only before integration runs. See
-// PLAN_DHIS2_SCOPED_DELETE.md Step 6.
+// integration would remove, computed read-only before integration runs.
 export type Dhis2ScopedDeletionPreviewItem = {
   indicatorRawId: string;
   periodId: number;

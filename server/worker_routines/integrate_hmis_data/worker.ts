@@ -179,7 +179,10 @@ async function run(std: { rawDUA: DBDatasetHmisUploadAttempt }) {
       // ==================================================
 
       if (scopedDelete) {
-        // DHIS2 branch: scoped delete-then-insert. See PLAN_DHIS2_SCOPED_DELETE.md.
+        // DHIS2 branch: scoped delete-then-insert. DHIS2 analytics omits
+        // zeroed/deleted/never-reported cells, so a merge can never remove
+        // them — DHIS2 is authoritative over every (indicator, period) pair
+        // that fetched successfully, for exactly the facilities queried.
         const succeeded = scopedDelete.succeededWorkItems;
         const fetchedFacilityIds = scopedDelete.fetchedFacilityIds;
 
