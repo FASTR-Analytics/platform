@@ -484,7 +484,7 @@ export function ProjectDecks(p: ExtendedProps) {
                         isSelected={isSelected()}
                         onClick={(e) => selection.handleClick(deck.id, e)}
                       />
-                      <div class="pointer-events-none absolute right-1 top-1 z-10">
+                      <div class="pointer-events-none absolute bottom-1 left-1 z-10">
                         <PresenceAvatars
                           peers={otherPeers().filter(
                             (peer) => peer.deckId === deck.id,
