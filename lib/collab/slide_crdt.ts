@@ -310,6 +310,13 @@ function setScalar(m: Y.Map<unknown>, key: string, value: unknown): void {
 // unchanged opaque value (e.g. a large figure bundle, kept by reference via the
 // editor's structural sharing) is a cheap reference check rather than a
 // re-serialization on every keystroke.
+//
+// INVARIANT: callers must pass structurally-shared opaque values — a changed
+// value must be a NEW object. If an edit mutates the value in place (keeping the
+// same reference), the reference check below skips the write and the change is
+// silently dropped. In the slide editor this means using a path set
+// (setTempSlide("layout", ...)) for figure/style edits, NOT reconcile(), which
+// merges into the existing object in place.
 const lastOpaqueRef = new WeakMap<Y.Map<unknown>, Map<string, unknown>>();
 
 function setOpaque(m: Y.Map<unknown>, key: string, value: unknown): void {
