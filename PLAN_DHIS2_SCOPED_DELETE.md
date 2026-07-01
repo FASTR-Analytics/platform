@@ -159,6 +159,13 @@ export type DatasetDhis2StagingResult = {
   // a regex at a later point in time, so delete-scope == fetch-scope by
   // construction — no separate correctness argument needed.
   fetchedFacilityIds?: string[];
+  // NEW: populated only at INTEGRATION time (Step 4), never by the staging
+  // worker — undefined here, always. Integration rewrites this field's stored
+  // copy after Phase 4 to (a) record how many rows the scoped delete removed,
+  // for accurate UI reporting, and (b) drop fetchedFacilityIds from what's
+  // persisted (needed only to drive Phase 4, not to be kept in version
+  // history — see Step 4).
+  dhis2RowsDeleted?: number;
   workItemHistory: Array<{
     indicatorId: string;
     periodId: number;
@@ -257,9 +264,14 @@ File: [integrate_hmis_data/worker.ts](server/worker_routines/integrate_hmis_data
 
 The worker already parses the staging result as the discriminated union
 `DatasetStagingResult` (line 55), so `stagingResultRaw.sourceType` is available.
-Keep **Phase 1/2/3** (validation, version id, version-record insert) unchanged.
-Replace **Phase 4** (the UPDATE → delete-matched → INSERT block, lines 165-217)
-with a source-type branch.
+Keep **Phase 1/2/3** (validation, version id, version-record insert) unchanged —
+Phase 3 still writes `JSON.stringify(stagingResultRaw)` as-is, `fetchedFacilityIds`
+included, because Phase 4 below reads it from the in-memory `stagingResultRaw`
+object (Phase 3 doesn't need to read it back from the DB). **Phase 5** (the
+existing post-integration `UPDATE dataset_hmis_versions ... SET n_rows_*`) gets
+one addition for the DHIS2 branch — see Step 4. Replace **Phase 4** (the
+UPDATE → delete-matched → INSERT block, lines 165-217) with a source-type
+branch.
 
 **DHIS2 branch** (when `stagingResultRaw.sourceType === "dhis2"` **and both**
 `succeededWorkItems` and `fetchedFacilityIds` are present):
@@ -348,14 +360,78 @@ prior value") are intended and must not change.
 
 ### Step 4 — Version-record counts
 
-The version record currently stores `n_rows_inserted` / `n_rows_updated` (updated
-at lines 233-240). For the DHIS2 branch there is no "updated" count; map it as:
+The version record has three fixed integer columns —`n_rows_inserted`,
+`n_rows_updated`, `n_rows_total_imported` — rendered under literal labels on two
+real screens: "New Rows Inserted" / "Old rows updated" / "Total Rows Inserted or
+Updated" in
+[_previous_imports.tsx:65-84](client/src/components/instance_dataset_hmis/_previous_imports.tsx#L65-L84),
+and "Rows inserted" / "Rows updated" / "Total rows imported" in
+[_import_information.tsx:69-77](client/src/components/instance_dataset_hmis/_import_information.tsx#L69-L77).
+The DHIS2 branch has no "updated" concept (nothing is changed in place — a row
+is either deleted or freshly inserted) and a `rowsDeleted` count that doesn't fit
+any existing column. Mapping `rowsDeleted` onto `n_rows_updated` (as an earlier
+draft of this plan did) makes those labels lie — "Old rows updated: 4,000" for
+an import that deleted 4,000 rows. The mapping is:
 
-- `n_rows_inserted = rowsInserted`
-- `n_rows_updated = rowsDeleted` (documented as "rows replaced/removed" for DHIS2)
+- `n_rows_inserted = rowsInserted` — unchanged, honest.
+- `n_rows_updated = 0` — honest: the DHIS2 branch performs no in-place updates.
+- `n_rows_total_imported = rowsInserted` — **not** `rowsDeleted + rowsInserted`.
+  This column means "rows now present because of this import"; deleted rows
+  aren't imported, so they don't belong in this total.
 
-Keep the CSV branch's existing `rowsUpdated` / `rowsInserted` semantics. This is a
-reporting-only decision; pick the mapping and note it in a comment.
+The deleted count itself is real, useful information — it goes into the JSON
+blob, not the fixed columns, so no migration is needed. Extend Phase 5's
+existing `UPDATE dataset_hmis_versions ... WHERE id = ${newVersionId}` (the
+statement that already writes final `n_rows_*` counts once Phase 4's real
+numbers are known) to also rewrite `staging_result` for the DHIS2 branch:
+
+```ts
+// Phase 5, DHIS2 branch only — after n_rows_* are set:
+const versionStagingResult: DatasetDhis2StagingResult = {
+  ...stagingResultRaw,
+  fetchedFacilityIds: undefined, // drop the snapshot; not needed past Phase 4
+  dhis2RowsDeleted: rowsDeleted,
+};
+await sql`
+  UPDATE dataset_hmis_versions
+  SET staging_result = ${JSON.stringify(versionStagingResult)}
+  WHERE id = ${newVersionId}
+`;
+```
+
+(One UPDATE, one extra assignment — this can be folded into Phase 5's existing
+statement rather than a second round-trip.) This also closes the earlier
+`fetchedFacilityIds`-exposure finding: once Phase 5 runs, the stored version
+record never carries the facility-id array — `_import_information.tsx`'s raw
+JSON dump ([:166-170](client/src/components/instance_dataset_hmis/_import_information.tsx#L166-L170))
+and `getVersionsForDatasetHmis`'s unpaginated full-history fetch
+([dataset_hmis.ts:115-138](server/db/instance/dataset_hmis.ts#L115-L138)) never
+see it. CSV versions are unaffected — Phase 5's existing statement runs as today.
+
+**Client — surface the deleted count instead of a mislabeled "updated" count:**
+
+- [_previous_imports.tsx](client/src/components/instance_dataset_hmis/_previous_imports.tsx):
+  the "Old rows updated" column's `render` already has `item.stagingResult` in
+  scope (the "DHIS2 Failures" column already narrows on
+  `item.stagingResult?.sourceType === "dhis2"`, same pattern). Change its render
+  to show the deleted count for DHIS2 rows instead of the now-always-zero
+  `nRowsUpdated`:
+
+  ```ts
+  render: (item) =>
+    item.stagingResult?.sourceType === "dhis2"
+      ? `${toNum0(item.stagingResult.dhis2RowsDeleted ?? 0)} ${t3({ en: "removed", fr: "supprimées" })}`
+      : (item.nRowsUpdated?.toLocaleString() ?? t3({ en: "Unknown", fr: "Inconnu" })),
+  ```
+
+- [_import_information.tsx](client/src/components/instance_dataset_hmis/_import_information.tsx):
+  same idea — where `p.version.nRowsUpdated` is rendered (line 73), branch on
+  `p.version.stagingResult?.sourceType === "dhis2"` and show
+  `p.version.stagingResult.dhis2RowsDeleted` under a "Rows removed" /
+  "Lignes supprimées" label instead.
+
+Keep the CSV branch's existing Phase 4/5 code — `rowsUpdated`/`rowsInserted`
+semantics and the version-record UPDATE — verbatim, untouched.
 
 ### Step 5 — Backward-compatible fallback
 
@@ -378,31 +454,102 @@ data.
 
 The scoped delete is destructive, so the preview should say, in plain numbers,
 what it will *remove* — not just what it will insert (which the preview already
-shows).
+shows). This needs a new DB function, a new route, and client changes to an
+existing gate — not just a client-side display tweak.
 
-Run the exact same predicate as the eventual DELETE, as a read-only grouped
-`COUNT`, at preview time — not an approximation or a proxy signal, the literal
-set of rows the DELETE will remove, computed before anything destructive
-happens:
+**6a. DB function** — new export in
+[server/db/instance/dataset_hmis.ts](server/db/instance/dataset_hmis.ts),
+alongside the other `dataset_hmis` read functions. Runs the exact same predicate
+as Step 3's DELETE — not an approximation, the literal set of rows the DELETE
+will remove, computed read-only before anything destructive happens:
 
-```sql
-SELECT indicator_raw_id, period_id, COUNT(*) AS n
-FROM dataset_hmis dt
-WHERE (dt.indicator_raw_id, dt.period_id) IN (/* succeeded pairs */)
-  AND dt.facility_id = ANY(${fetchedFacilityIds}::text[])
-GROUP BY indicator_raw_id, period_id
+```ts
+export async function getDhis2ScopedDeletionPreview(
+  mainDb: Sql,
+  succeededWorkItems: Array<{ indicatorRawId: string; periodId: number }>,
+  fetchedFacilityIds: string[]
+): Promise<Array<{ indicatorRawId: string; periodId: number; rowsToRemove: number }>> {
+  if (succeededWorkItems.length === 0 || fetchedFacilityIds.length === 0) return [];
+
+  const scopeIndicatorIds = succeededWorkItems.map((w) => w.indicatorRawId);
+  const scopePeriodIds = succeededWorkItems.map((w) => w.periodId);
+
+  const rows = await mainDb<
+    { indicator_raw_id: string; period_id: number; n: number }[]
+  >`
+    SELECT dt.indicator_raw_id, dt.period_id, COUNT(*)::INTEGER AS n
+    FROM dataset_hmis dt
+    JOIN UNNEST(
+      ${scopeIndicatorIds}::text[],
+      ${scopePeriodIds}::int[]
+    ) AS s(indicator_raw_id, period_id)
+      ON dt.indicator_raw_id = s.indicator_raw_id AND dt.period_id = s.period_id
+    WHERE dt.facility_id = ANY(${fetchedFacilityIds}::text[])
+    GROUP BY dt.indicator_raw_id, dt.period_id
+  `;
+
+  return rows.map((r) => ({
+    indicatorRawId: r.indicator_raw_id,
+    periodId: r.period_id,
+    rowsToRemove: r.n,
+  }));
+}
 ```
 
-(Or the equivalent `UNNEST` pairwise-join form, matching Step 3's DELETE
-structure exactly — same shape, same scope, `SELECT COUNT(*)` instead of
-`DELETE`.)
+Same `UNNEST` + `ANY` shape as Step 3's DELETE, `SELECT COUNT(*)` instead of
+`DELETE` — this is intentional duplication of the predicate (a preview must
+match the real operation exactly), not a shared-code opportunity worth
+abstracting for one call site.
 
-Surface it at the staging→integrate preview (the component that already renders
-`periodIndicatorStats`, e.g. `step_4_dhis2.tsx`): per `(indicator, period)` row,
-show "N existing rows will be removed" alongside the existing staged-row count;
-plus a total summary line ("This import will remove N existing cells and write M
-cells"). Require an explicit confirm (e.g. a checkbox) before the integrate
-action is enabled.
+**6b. Route** — register following the existing DHIS2 route pattern (e.g.
+`dhis2SetSelection` in
+[server/routes/instance/datasets.ts:296-308](server/routes/instance/datasets.ts#L296-L308)):
+add to
+[server/routes/route-tracker.ts](server/routes/route-tracker.ts) and to
+`datasets.ts`, same permission guard as the sibling DHIS2 routes
+(`requireGlobalPermission("can_configure_data")`), body = `{ succeededWorkItems, fetchedFacilityIds }`,
+handler calls `getDhis2ScopedDeletionPreview` and returns `c.json(res)`. This
+makes `serverActions.getDhis2ScopedDeletionPreview(...)` available client-side
+with matching types, the same way `finalizeDatasetIntegration` already is.
+
+**6c. Client** — [step_4_dhis2.tsx](client/src/components/instance_dataset_hmis_import/step_4_dhis2.tsx):
+
+- Fetch the preview only when both `succeededWorkItems` and `fetchedFacilityIds`
+  are present on `step3Result` (same presence check as Step 5's
+  `useScopedDelete` — an old-format staging result has nothing to preview,
+  falls through to today's behavior unchanged).
+- **Fix the existing blocking gate.** Line 183 today is
+  `<Match when={p.step3Result.finalStagingRowCount > 0}>`, else the button is
+  replaced entirely by a "there are no rows to import" warning with no way to
+  proceed. A DHIS2 import where every fetch succeeds but returns zero rows
+  everywhere (the exact "phantom cells all deleted" case this plan exists for)
+  has `finalStagingRowCount === 0` and would be blocked by this gate today.
+  Change the condition to
+  `p.step3Result.finalStagingRowCount > 0 || totalRowsToRemove() > 0`, where
+  `totalRowsToRemove()` sums the preview's `rowsToRemove` values.
+- **Use the established destructive-action pattern**, not a bare checkbox — the
+  same `createDeleteAction` used for "Discard import" in the same wizard
+  ([index.tsx:159-168](client/src/components/instance_dataset_hmis_import/index.tsx#L159-L168)).
+  Replace the current plain `createButtonAction(() => serverActions.finalizeDatasetIntegration({}), p.silentFetch)`
+  with:
+
+  ```ts
+  const integrate = createDeleteAction(
+    {
+      text: t3({ en: "This will remove existing rows DHIS2 no longer returns, and write the newly fetched values.", fr: "…" }),
+      itemList: preview().map(
+        (r) => `${r.indicatorRawId} / ${r.periodId}: ${t3({ en: "remove", fr: "supprimer" })} ${r.rowsToRemove}`
+      ),
+    },
+    () => serverActions.finalizeDatasetIntegration({}),
+    p.silentFetch,
+  );
+  ```
+
+  and swap `<Button onClick={save.click} ...>` for `<Button onClick={() => integrate.click()} ...>`.
+- CSV import ([step_4_csv.tsx](client/src/components/instance_dataset_hmis_import/step_4_csv.tsx))
+  is a **separate file, not touched** — it keeps its current plain
+  `createButtonAction`, since the CSV path has nothing new to delete.
 
 This replaces an earlier design considered and dropped for this plan — a DHIS2
 reference-total reconciliation with a coverage ratio. That design needed a DHIS2
@@ -413,6 +560,15 @@ the decisive point — **could not detect the failure mode that matters most**
 tables the primary fetch does. The deletion-count confirm needs no new DHIS2
 call, no reference total, and no ratio math: it tells the user exactly what the
 destructive step will do, using data we already have with certainty.
+
+**Before implementing:** check whether the `friendly-sutherland` worktree's
+change to the facility query in `stage_hmis_data_dhis2/worker.ts` (unfiltered
+`SELECT facility_id FROM facilities` in place of the UID-shape-filtered query
+against `facilities_hmis`) has landed on `main`. If it has, Step 2's
+`fetchedFacilityIds` snapshot — and therefore this step's preview and Step 3's
+DELETE — would silently widen to every facility, which is exactly the
+scope-widening the Behavioural caveat above warns about. Resolve which facility
+query is authoritative before writing Step 2.
 
 ## Edge cases
 
@@ -501,19 +657,30 @@ and cannot be closed without a per-row source marker.
    empty.
 4. **Duplicate-OU handling:** stage a source with two rows for the same
    `(facility_id, indicator_raw_id, period_id)`; confirm integration **succeeds**
-   (no "cannot affect row a second time" error) and the surviving row is
-   deterministic.
-5. **Deletion-count confirm:** confirm the preview shows a per-pair "will remove
-   N" count that matches an independent `SELECT COUNT(*)` against `dataset_hmis`
-   using the same scope, and that the integrate action requires the explicit
-   confirm.
+   (no "cannot affect row a second time" error) and exactly one row survives.
+   Postgres doesn't contractually guarantee *which* of two duplicates wins
+   (the `ORDER BY` in Step 3 has no tiebreaker beyond the `DISTINCT ON`
+   columns) — confirm one survives cleanly, don't assert which.
+5. **Deletion-count confirm and the gate fix:** confirm the preview shows a
+   per-pair "will remove N" count that matches an independent
+   `SELECT COUNT(*)` against `dataset_hmis` using the same scope; confirm the
+   integrate action requires the modal confirm (not a silent click); and
+   specifically test an import where every fetch succeeds but returns zero
+   rows everywhere (`finalStagingRowCount === 0`, deletion count > 0) — confirm
+   the integrate button is **not** blocked by the old "no rows to import" gate.
 6. **Facility-added-mid-review:** stage, then — before integrating — add a new
    UID-shaped facility with pre-existing `dataset_hmis` rows for a succeeded
    pair; confirm those rows **survive** integration (not in the snapshot).
-7. **CSV regression:** run a CSV import that omits a previously-present cell;
-   confirm the old value is **kept** (merge unchanged).
-8. Sanity-check `dataset_hmis_versions` counts (`n_rows_inserted`,
-   `n_rows_updated`/deleted) against the actual delta.
+7. **Version-record labels:** confirm a DHIS2 import with both inserts and
+   deletes shows `n_rows_updated = 0`, `n_rows_total_imported = rowsInserted`
+   (not `rowsDeleted + rowsInserted`), and the "Rows removed" figure on
+   `_previous_imports.tsx`/`_import_information.tsx` matches `rowsDeleted`
+   exactly. Confirm the "Raw import metadata" panel no longer shows
+   `fetchedFacilityIds` after Phase 5 runs.
+8. **CSV regression:** run a CSV import that omits a previously-present cell;
+   confirm the old value is **kept** (merge unchanged), and confirm
+   `step_4_csv.tsx`'s integrate button is untouched (still a plain action, no
+   modal).
 
 ## Out of scope (observed, not fixed here)
 
@@ -530,16 +697,21 @@ and cannot be closed without a per-row source marker.
 
 ## Rollback
 
-Single-commit revert. No schema migration, no data backfill. Attempts staged
+Single-commit revert. No schema migration, no data backfill — `dhis2RowsDeleted`
+lives in the flexible `staging_result` JSON, not a new column. Attempts staged
 with `succeededWorkItems` / `fetchedFacilityIds` simply have unused fields;
-integration falls back to the legacy merge, and the preview drops the
-deletion-count column, once reverted.
+integration falls back to the legacy merge; the new route/DB function
+(`getDhis2ScopedDeletionPreview`) and the preview's deletion-count UI go unused
+but harmless once reverted.
 
 ## File-change summary
 
 | File | Change |
 | --- | --- |
-| [lib/types/dataset_hmis_import.ts](lib/types/dataset_hmis_import.ts) | Add optional `succeededWorkItems` and `fetchedFacilityIds` to `DatasetDhis2StagingResult` |
+| [lib/types/dataset_hmis_import.ts](lib/types/dataset_hmis_import.ts) | Add optional `succeededWorkItems`, `fetchedFacilityIds`, and `dhis2RowsDeleted` to `DatasetDhis2StagingResult` |
 | [stage_hmis_data_dhis2/worker.ts](server/worker_routines/stage_hmis_data_dhis2/worker.ts) | Accumulate succeeded `(indicator, period)` pairs (incl. empties); snapshot the queried `facilityIds` into `step_3_result`; fix the `response.rows` shape guard to fail loud instead of silently treating missing `rows` as empty; **delete dead `suspiciousBatches` block** |
-| [integrate_hmis_data/worker.ts](server/worker_routines/integrate_hmis_data/worker.ts) | Branch on `sourceType`; DHIS2 → scoped delete-then-insert against the `fetchedFacilityIds` snapshot (`= ANY(...)`), `DISTINCT ON` dedupe before `INSERT ... ON CONFLICT`; CSV → unchanged; fallback when scope absent; version-count mapping |
-| staging→integrate preview (client) | Per-pair "N existing rows will be removed" (exact, from the same predicate as the DELETE) + total summary; explicit confirm required before integrate |
+| [integrate_hmis_data/worker.ts](server/worker_routines/integrate_hmis_data/worker.ts) | Branch on `sourceType`; DHIS2 → scoped delete-then-insert against the `fetchedFacilityIds` snapshot (`= ANY(...)`), `DISTINCT ON` dedupe before `INSERT ... ON CONFLICT`; CSV → unchanged; fallback when scope absent; Phase 5 gains `n_rows_updated = 0`, `n_rows_total_imported = rowsInserted`, and a `staging_result` rewrite stamping `dhis2RowsDeleted` while stripping `fetchedFacilityIds` |
+| [server/db/instance/dataset_hmis.ts](server/db/instance/dataset_hmis.ts) | New `getDhis2ScopedDeletionPreview` — read-only grouped `COUNT` mirroring Step 3's DELETE predicate |
+| [server/routes/instance/datasets.ts](server/routes/instance/datasets.ts) + [route-tracker.ts](server/routes/route-tracker.ts) | New route exposing `getDhis2ScopedDeletionPreview`, same permission guard as sibling DHIS2 routes |
+| [step_4_dhis2.tsx](client/src/components/instance_dataset_hmis_import/step_4_dhis2.tsx) | Fetch the deletion preview; fix the `finalStagingRowCount > 0` gate to also allow proceeding on a nonzero deletion count; swap the plain integrate button for `createDeleteAction` (modal, per-pair breakdown) — matches the existing "Discard import" pattern. `step_4_csv.tsx` is a separate file and is **not** touched. |
+| [_previous_imports.tsx](client/src/components/instance_dataset_hmis/_previous_imports.tsx) / [_import_information.tsx](client/src/components/instance_dataset_hmis/_import_information.tsx) | For `sourceType === "dhis2"` rows, show `dhis2RowsDeleted` under a "Rows removed" label instead of the now-always-zero `nRowsUpdated` |
