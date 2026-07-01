@@ -163,15 +163,7 @@ export function openSlideSession(
   doc.on("update", (update: Uint8Array, origin: unknown) => {
     // Updates applied from the server must not be shipped back.
     if (origin === SLIDE_REMOTE_ORIGIN) return;
-    const b64 = bytesToBase64(update);
-    const sent = sendCollab({ type: "slide_update", data: { slideId, update: b64 } });
-    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-    console.log("[VIZSYNC] send slide_update", {
-      slideId,
-      updateBytes: update.length,
-      sent,
-      ws: ws?.readyState,
-    });
+    sendCollab({ type: "slide_update", data: { slideId, update: bytesToBase64(update) } });
   });
 
   awareness.on(
@@ -203,15 +195,7 @@ export function openSlideSession(
     awareness,
     isReady: () => s.ready,
     pushLocal: (slide: Slide) => {
-      // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-      if (!s.ready) {
-        console.log("[VIZSYNC] pushLocal SKIPPED — session not ready", { slideId });
-        return;
-      }
-      console.log("[VIZSYNC] pushLocal called", {
-        slideId,
-        type: (slide as { type?: string }).type,
-      });
+      if (!s.ready) return;
       doc.transact(() => syncSlideToDoc(doc, slide));
     },
     close: () => closeSlideSession(slideId),

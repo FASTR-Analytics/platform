@@ -99,8 +99,6 @@ async function checkpoint(room: Room): Promise<void> {
   const slide = materializeSlide(room.doc);
   const crdtState = bytesToBase64(Y.encodeStateAsUpdate(room.doc));
   const ok = await room.deps.saveSlide(slide, crdtState);
-  // [VIZSYNC-SRV] temporary diagnostic — remove after debugging viz-sync.
-  console.log("[VIZSYNC-SRV] checkpoint", { slideId: room.slideId, saved: ok });
   if (!ok) {
     // Save failed — keep dirty so the next change (or finalize) retries.
     room.dirty = true;

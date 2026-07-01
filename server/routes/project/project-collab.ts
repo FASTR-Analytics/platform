@@ -186,13 +186,6 @@ routesProjectCollab.get(
             }
             break;
           case "slide_update":
-            // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-            console.log("[VIZSYNC-SRV] recv slide_update", {
-              slideId: msg.data.slideId,
-              b64Len: msg.data.update?.length ?? 0,
-              hasRoomConn: !!roomConn,
-              canEdit: roomConn?.canEdit,
-            });
             if (roomConn) {
               applySlideUpdate(projectId, msg.data.slideId, roomConn, msg.data.update);
             }

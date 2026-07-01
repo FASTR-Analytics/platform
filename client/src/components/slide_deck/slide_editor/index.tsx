@@ -170,10 +170,6 @@ export function SlideEditor(p: Props) {
   // opens — needed to bind the CodeMirror text editor to the block's Y.Text.
   const [session, setSession] = createSignal<SlideSession | null>(null);
   let removeLastUpdatedListener: (() => void) | null = null;
-  // Set when a remote update drove the next tempSlide change, so the tracking
-  // effect doesn't ship it straight back (syncSlideToDoc is also idempotent, a
-  // belt-and-suspenders backstop against echo loops).
-  let skipNextPush = false;
   // Count of sub-editors/modals (e.g. the visualization editor) currently open
   // over the slide canvas. While > 0 the peer-selection overlay is suppressed so
   // its body-portaled boxes don't float on top of that modal.
@@ -209,16 +205,15 @@ export function SlideEditor(p: Props) {
       return;
     }
 
-    const fromRemote = skipNextPush;
-    skipNextPush = false;
-
-    if (!fromRemote) {
-      // Local edit: mark dirty (for the explicit Save fallback) and push the
-      // change onto the shared doc as mergeable ops (no-op until the session
-      // is ready).
-      setNeedsSave(true);
-      session()?.pushLocal(unwrap(tempSlide));
-    }
+    // Push every change onto the shared doc. A remote change reconciled into
+    // tempSlide pushes back a NO-OP here (syncSlideToDoc is idempotent — the doc
+    // already matches, so no update is emitted and nothing echoes); a genuine
+    // local edit emits an update. We deliberately do NOT gate this on a
+    // "was this remote?" flag: that flag (skipNextPush) could get stuck true
+    // when a remote reconcile made no tracked change, silently swallowing the
+    // NEXT local edit — the cause of visualization edits not saving/syncing.
+    setNeedsSave(true);
+    session()?.pushLocal(unwrap(tempSlide));
 
     // Re-render the preview for both local and remote changes.
     if (renderTimeout) {
@@ -256,12 +251,10 @@ export function SlideEditor(p: Props) {
             return;
           }
         }
-        // Adopt the doc state only when it actually differs, so skipNextPush is
-        // armed exactly when a store change will fire the tracking effect (a
-        // no-op reconcile would otherwise leave the flag stuck and swallow the
-        // next local edit).
+        // Adopt the doc state only when it actually differs (avoids a needless
+        // reconcile). The push it triggers via the tracking effect is a
+        // harmless no-op (syncSlideToDoc is idempotent), so no echo results.
         if (JSON.stringify(docSlide) !== JSON.stringify(unwrap(tempSlide))) {
-          skipNextPush = true;
           setTempSlide(reconcile(docSlide));
         }
       },
