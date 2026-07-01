@@ -16,6 +16,7 @@ import {
   getDatasetHmisItemsForDisplay,
   getDatasetHmisUploadAttemptDetail,
   getDatasetHmisUploadStatus,
+  getDhis2ScopedDeletionPreview,
   getVersionsForDatasetHmis,
   updateDatasetHfaUploadAttempt_Step1CsvUpload,
   updateDatasetHfaUploadAttempt_Step2Mappings,
@@ -303,6 +304,17 @@ defineRoute(
       c.var.mainDb,
       body,
     );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "getDhis2ScopedDeletionPreview",
+  requireGlobalPermission("can_configure_data"),
+  log("getDhis2ScopedDeletionPreview"),
+  async (c) => {
+    const res = await getDhis2ScopedDeletionPreview(c.var.mainDb);
     return c.json(res);
   },
 );

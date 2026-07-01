@@ -1,5 +1,5 @@
-import { t3, type DatasetDhis2StagingResult } from "lib";
-import { Button, createButtonAction } from "panther";
+import { t3, type DatasetDhis2StagingResult, type Dhis2ScopedDeletionPreviewItem } from "lib";
+import { Button, createDeleteAction, createQuery } from "panther";
 import { For, Match, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 
@@ -10,10 +10,88 @@ type Props = {
 };
 
 export function Step4_Dhis2(p: Props) {
-  const save = createButtonAction(
-    () => serverActions.finalizeDatasetIntegration({}),
-    p.silentFetch,
-  );
+  const hasDeletionScope =
+    Array.isArray(p.step3Result.succeededWorkItems) &&
+    Array.isArray(p.step3Result.fetchedFacilityIds);
+
+  // Only fetch a preview when there's a scope to preview — an old-format
+  // staging result (no succeededWorkItems/fetchedFacilityIds) has nothing to
+  // scope-delete, so integration falls back to the legacy merge and there's
+  // nothing destructive to warn about here.
+  const deletionPreview = hasDeletionScope
+    ? createQuery(
+        () => serverActions.getDhis2ScopedDeletionPreview({}),
+        t3({ en: "Checking existing data...", fr: "Vérification des données existantes..." }),
+      )
+    : undefined;
+
+  // "loading"/"error" are distinct from a genuinely-empty ready result — both
+  // mean "we don't know," not "nothing to remove," and must never be silently
+  // treated as the latter (that would show a confirm dialog implying nothing
+  // will happen when rows may in fact be removed).
+  const previewStatus = (): "loading" | "ready" | "error" | undefined =>
+    deletionPreview?.state().status;
+
+  const preview = (): Dhis2ScopedDeletionPreviewItem[] => {
+    const s = deletionPreview?.state();
+    return s?.status === "ready" ? s.data : [];
+  };
+
+  const totalRowsToRemove = () =>
+    preview().reduce((sum, r) => sum + r.rowsToRemove, 0);
+
+  // Fixes the pre-existing gate that blocked exactly the case this plan
+  // exists for: every DHIS2 fetch succeeds but returns zero rows everywhere
+  // (all phantom cells legitimately gone) — finalStagingRowCount is then 0,
+  // but there is real, nonzero work to do (the scoped delete).
+  const canProceed = () =>
+    p.step3Result.finalStagingRowCount > 0 || totalRowsToRemove() > 0;
+
+  // Built fresh per click (not once at setup) so the confirm dialog's
+  // itemList reflects the latest resolved preview — confirmText is a plain
+  // value, evaluated once whenever createDeleteAction is called, not a
+  // reactive accessor, so a version built once at component setup would
+  // freeze on the pre-fetch (empty) preview. Mirrors the same-wizard pattern
+  // in index.tsx's attemptDeleteUploadAttempt.
+  async function attemptIntegrate() {
+    // If the check is merely still in flight, wait for it instead of showing
+    // a "could not check" caveat for a check that hasn't failed. silentFetch
+    // re-runs the query; the in-flight request is superseded (requestId).
+    if (deletionPreview && deletionPreview.state().status === "loading") {
+      await deletionPreview.silentFetch();
+    }
+
+    const items = preview().map(
+      (r) => `${r.indicatorRawId} / ${r.periodId}: ${t3({ en: "remove", fr: "supprimer" })} ${r.rowsToRemove}`,
+    );
+
+    // Say so plainly rather than showing an empty list that implies nothing
+    // will be removed — the scoped delete still runs correctly regardless of
+    // whether this preview loaded, so silence here would be misleading, not
+    // just incomplete.
+    if (hasDeletionScope && previewStatus() !== "ready") {
+      items.unshift(
+        t3({
+          en: "Could not check how many existing rows will be removed. Proceeding will still correctly remove any rows DHIS2 no longer returns for the fetched scope.",
+          fr: "Impossible de vérifier combien de lignes existantes seront supprimées. La poursuite supprimera quand même correctement toutes les lignes que DHIS2 ne renvoie plus pour la portée récupérée.",
+        }),
+      );
+    }
+
+    const integrate = createDeleteAction(
+      {
+        text: t3({
+          en: "This will remove existing rows DHIS2 no longer returns, and write the newly fetched values.",
+          fr: "Cela supprimera les lignes existantes que DHIS2 ne renvoie plus, et écrira les nouvelles valeurs récupérées.",
+        }),
+        itemList: items,
+      },
+      () => serverActions.finalizeDatasetIntegration({}),
+      p.silentFetch,
+    );
+
+    await integrate.click();
+  }
 
   return (
     <div class="ui-spy ui-pad flex flex-col">
@@ -178,17 +256,42 @@ export function Step4_Dhis2(p: Props) {
         </div>
       )}
 
-      <div class="ui-gap-sm flex">
+      <div class="ui-gap-sm flex flex-col">
         <Switch>
-          <Match when={p.step3Result.finalStagingRowCount > 0}>
+          <Match when={canProceed()}>
             <Button
-              onClick={save.click}
+              onClick={attemptIntegrate}
               intent="success"
-              state={save.state()}
               iconName="save"
             >
               {t3({ en: "Integrate and finalize", fr: "Intégrer et finaliser" })}
             </Button>
+          </Match>
+          <Match when={previewStatus() === "loading"}>
+            {/* finalStagingRowCount is 0 here and the preview hasn't resolved
+                yet — don't show "no rows to import" until we actually know
+                that; it may turn out there IS work to do (a scoped delete). */}
+            <div class="bg-base-100 border-base-300 rounded border p-3 text-sm">
+              {t3({ en: "Checking for existing data to remove...", fr: "Vérification des données existantes à supprimer..." })}
+            </div>
+          </Match>
+          <Match when={previewStatus() === "error"}>
+            {/* Same reasoning as above, but the check failed rather than
+                being in flight — don't claim there's nothing to import; let
+                the user proceed deliberately instead, same as the common-case
+                error handling in attemptIntegrate(). */}
+            <div class="ui-spy-sm flex flex-col">
+              <div class="bg-warning-50 border-warning-300 rounded border p-3 text-sm">
+                {t3({ en: "Could not check whether there is existing data to remove.", fr: "Impossible de vérifier s'il existe des données existantes à supprimer." })}
+              </div>
+              <Button
+                onClick={attemptIntegrate}
+                intent="danger"
+                iconName="save"
+              >
+                {t3({ en: "Integrate and finalize", fr: "Intégrer et finaliser" })}
+              </Button>
+            </div>
           </Match>
           <Match when={true}>
             <div class="bg-warning-50 border-warning-300 rounded border p-3 text-sm">

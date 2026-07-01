@@ -17,6 +17,7 @@ import type {
   DatasetUploadAttemptDetail,
   DatasetUploadStatusResponse,
   Dhis2Credentials,
+  Dhis2ScopedDeletionPreviewItem,
   Dhis2SelectionParams,
   IndicatorType,
   InstanceConfigFacilityColumns,
@@ -140,6 +141,11 @@ export const datasetRouteRegistry = {
     path: "/dataset-uploads/hmis/dhis2-selection",
     method: "POST",
     body: dhis2SelectionParamsSchema,
+  }),
+  getDhis2ScopedDeletionPreview: route({
+    path: "/dataset-uploads/hmis/dhis2-deletion-preview",
+    method: "GET",
+    response: {} as Dhis2ScopedDeletionPreviewItem[],
   }),
 
   // HFA Dataset Endpoints

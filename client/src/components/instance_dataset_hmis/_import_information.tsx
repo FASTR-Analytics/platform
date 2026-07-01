@@ -24,6 +24,10 @@ export function ImportInformation(
     p.version.stagingResult?.sourceType === "dhis2"
       ? (p.version.stagingResult as DatasetDhis2StagingResult)
       : null;
+  // Only present for versions integrated via the scoped delete-then-insert
+  // path — legacy DHIS2 versions (merge-integrated) have real nRowsUpdated
+  // counts instead, and must keep displaying them.
+  const dhis2RowsDeleted = () => dhis2Result()?.dhis2RowsDeleted;
 
   return (
     <FrameTop
@@ -69,8 +73,14 @@ export function ImportInformation(
                 <div class="flex-1">{toNum0(p.version.nRowsInserted ?? 0)}</div>
               </div>
               <div class="flex items-center">
-                <div class="w-56 flex-none">{t3({ en: "Rows updated", fr: "Lignes mises à jour" })}</div>
-                <div class="flex-1">{toNum0(p.version.nRowsUpdated ?? 0)}</div>
+                <div class="w-56 flex-none">
+                  {dhis2RowsDeleted() !== undefined
+                    ? t3({ en: "Rows removed", fr: "Lignes supprimées" })
+                    : t3({ en: "Rows updated", fr: "Lignes mises à jour" })}
+                </div>
+                <div class="flex-1">
+                  {toNum0(dhis2RowsDeleted() ?? p.version.nRowsUpdated ?? 0)}
+                </div>
               </div>
               <div class="flex items-center">
                 <div class="w-56 flex-none">{t3({ en: "Total rows imported", fr: "Total de lignes importées" })}</div>

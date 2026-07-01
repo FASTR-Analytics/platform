@@ -179,6 +179,7 @@ async function run(std: {
 
     const activeWorkItems = new Map<string, WorkItemProgress>();
     const completedWorkItemHistory: CompletedWorkItem[] = [];
+    const succeededWorkItems: Array<{ indicatorRawId: string; periodId: number }> = [];
     let completedWorkItems = 0;
     let failedWorkItems = 0;
 
@@ -272,6 +273,10 @@ async function run(std: {
 
       if (result.success) {
         completedWorkItems++;
+        succeededWorkItems.push({
+          indicatorRawId: item.rawIndicatorId,
+          periodId: item.periodId,
+        });
         if (completedWorkItemHistory.length < 20) {
           completedWorkItemHistory.push({
             indicatorId: item.rawIndicatorId,
@@ -375,6 +380,8 @@ async function run(std: {
         allMissingOrgUnits.size > 0
           ? Array.from(allMissingOrgUnits)
           : undefined,
+      succeededWorkItems,
+      fetchedFacilityIds: facilityIds,
       workItemHistory: completedWorkItemHistory,
     };
 
@@ -537,13 +544,6 @@ async function fetchIndicatorPeriod(
       totalUrlLength: 0,
       facilitiesRequested: 0,
       facilitiesWithData: 0,
-      suspiciousBatches: [] as Array<{
-        batchSize: number;
-        urlLength: number;
-        facilitiesRequested: number;
-        facilitiesWithData: number;
-        dataLossPercentage: number;
-      }>,
     };
 
     // Batch facilities to avoid DHIS2 URL length limits
@@ -655,7 +655,13 @@ async function fetchIndicatorPeriod(
       // Track which facilities returned data for this batch
       const facilitiesWithDataInBatch = new Set<string>();
 
-      if (response.rows && response.rows.length > 0) {
+      if (!response.rows) {
+        throw new Error(
+          `DHIS2 analytics response for ${rawIndicatorId}, period ${period} is ` +
+          `missing "rows" — treating as a failed fetch, not empty data.`
+        );
+      }
+      if (response.rows.length > 0) {
         const orgUnitIndex = response.headers.findIndex(
           (h) => h.name === "ou" || h.name === "Organisation unit"
         );
@@ -738,26 +744,6 @@ async function fetchIndicatorPeriod(
       const facilitiesWithData = facilitiesWithDataInBatch.size;
       urlAnalysis.facilitiesWithData += facilitiesWithData;
 
-      // Check for suspicious data loss (considering that not all facilities may have data)
-      // We're looking for cases where URL length correlates with unexpectedly low facility coverage
-      const dataLossPercentage =
-        facilitiesWithData > 0
-          ? ((facilityBatch.length - facilitiesWithData) /
-              facilityBatch.length) *
-            100
-          : 100;
-
-      // Flag as suspicious if URL is long AND we have significant data loss
-      if (urlLength > 2048 && dataLossPercentage > 50) {
-        urlAnalysis.suspiciousBatches.push({
-          batchSize: facilityBatch.length,
-          urlLength,
-          facilitiesRequested: facilityBatch.length,
-          facilitiesWithData,
-          dataLossPercentage,
-        });
-      }
-
       if (onFacilityBatchComplete) {
         await onFacilityBatchComplete(batchIndex);
       }
@@ -788,19 +774,8 @@ async function fetchIndicatorPeriod(
         `  ⚠️  ${urlAnalysis.longUrls} out of ${urlAnalysis.totalBatches} batches exceed 2048 characters`
       );
       console.log(`  🔍 This may cause silent data loss or request failures`);
-
-      if (urlAnalysis.suspiciousBatches.length > 0) {
-        console.log(`  📋 Examples of problematic batches:`);
-        for (const example of urlAnalysis.suspiciousBatches) {
-          console.log(
-            `    Batch with ${example.facilitiesRequested} facilities → ${
-              example.urlLength
-            } chars (${example.dataLossPercentage.toFixed(1)}% data loss)`
-          );
-        }
-      }
       console.log(
-        `  💡 Consider reducing FACILITY_BATCH_SIZE from 140 to a smaller value`
+        `  💡 Consider reducing FACILITY_BATCH_SIZE from ${FACILITY_BATCH_SIZE} to a smaller value`
       );
     } else {
       console.log(`  ✅ All URLs within safe length limits`);

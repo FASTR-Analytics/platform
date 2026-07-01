@@ -15,6 +15,7 @@ import {
   DatasetHmisDetail,
   DatasetStagingResult,
   DatasetUploadAttemptDetail,
+  type Dhis2ScopedDeletionPreviewItem,
   DatasetUploadAttemptStatus,
   DatasetUploadAttemptStatusLight,
   DatasetUploadAttemptSummary,
@@ -902,6 +903,62 @@ SET
   step_3_result = NULL
 `;
     return { success: true };
+  });
+}
+
+export async function getDhis2ScopedDeletionPreview(
+  mainDb: Sql
+): Promise<APIResponseWithData<Dhis2ScopedDeletionPreviewItem[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    // Derive the scope from the active attempt's step_3_result server-side —
+    // the same source integration reads — rather than trusting a client echo.
+    const rawDUA = await getRawUAOrThrow(mainDb);
+    const stagingResult = parseJsonOrUndefined<DatasetStagingResult>(
+      rawDUA.step_3_result
+    );
+
+    if (
+      !stagingResult ||
+      stagingResult.sourceType !== "dhis2" ||
+      !Array.isArray(stagingResult.succeededWorkItems) ||
+      !Array.isArray(stagingResult.fetchedFacilityIds)
+    ) {
+      return { success: true, data: [] };
+    }
+
+    const succeededWorkItems = stagingResult.succeededWorkItems;
+    const fetchedFacilityIds = stagingResult.fetchedFacilityIds;
+    if (succeededWorkItems.length === 0 || fetchedFacilityIds.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    const scopeIndicatorIds = succeededWorkItems.map((w) => w.indicatorRawId);
+    const scopePeriodIds = succeededWorkItems.map((w) => w.periodId);
+
+    // Read-only — mirrors the DHIS2 scoped DELETE predicate in
+    // integrate_hmis_data/worker.ts exactly, so this is the literal set of
+    // rows that DELETE will remove, not an approximation.
+    const rows = await mainDb<
+      { indicator_raw_id: string; period_id: number; n: number }[]
+    >`
+      SELECT dt.indicator_raw_id, dt.period_id, COUNT(*)::INTEGER AS n
+      FROM dataset_hmis dt
+      JOIN UNNEST(
+        ${scopeIndicatorIds}::text[],
+        ${scopePeriodIds}::int[]
+      ) AS s(indicator_raw_id, period_id)
+        ON dt.indicator_raw_id = s.indicator_raw_id AND dt.period_id = s.period_id
+      WHERE dt.facility_id = ANY(${fetchedFacilityIds}::text[])
+      GROUP BY dt.indicator_raw_id, dt.period_id
+    `;
+
+    const data: Dhis2ScopedDeletionPreviewItem[] = rows.map((r) => ({
+      indicatorRawId: r.indicator_raw_id,
+      periodId: r.period_id,
+      rowsToRemove: r.n,
+    }));
+
+    return { success: true, data };
   });
 }
 

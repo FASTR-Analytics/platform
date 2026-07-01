@@ -28,6 +28,15 @@ export function PreviousImports(
     t3({ en: "Loading import information...", fr: "Chargement des informations d'importation..." }),
   );
 
+  // Only present for versions integrated via the scoped delete-then-insert
+  // path — legacy DHIS2 versions (merge-integrated) have real nRowsUpdated
+  // counts instead, and must keep displaying them.
+  function dhis2RowsDeleted(item: DatasetHmisVersion): number | undefined {
+    return item.stagingResult?.sourceType === "dhis2"
+      ? item.stagingResult.dhis2RowsDeleted
+      : undefined;
+  }
+
   const columns: TableColumn<DatasetHmisVersion>[] = [
     {
       key: "id",
@@ -63,21 +72,27 @@ export function PreviousImports(
           : "",
     },
     {
-      key: "nNewRowsAdded",
+      key: "nRowsInserted",
       header: t3({ en: "New Rows Inserted", fr: "Nouvelles lignes insérées" }),
       sortable: true,
       alignH: "right",
       render: (item) => item.nRowsInserted?.toLocaleString() ?? t3({ en: "Unknown", fr: "Inconnu" }),
     },
     {
-      key: "nNewRowsAdded",
-      header: t3({ en: "Old rows updated", fr: "Lignes précédentes modifiées" }),
+      key: "nRowsUpdated",
+      header: t3({ en: "Rows Updated / Removed", fr: "Lignes mises à jour / supprimées" }),
       sortable: true,
       alignH: "right",
-      render: (item) => item.nRowsUpdated?.toLocaleString() ?? t3({ en: "Unknown", fr: "Inconnu" }),
+      sortValue: (item) => dhis2RowsDeleted(item) ?? item.nRowsUpdated ?? 0,
+      render: (item) => {
+        const removed = dhis2RowsDeleted(item);
+        return removed !== undefined
+          ? `${toNum0(removed)} ${t3({ en: "removed", fr: "supprimées" })}`
+          : (item.nRowsUpdated?.toLocaleString() ?? t3({ en: "Unknown", fr: "Inconnu" }));
+      },
     },
     {
-      key: "nNewRowsAdded",
+      key: "nRowsTotalImported",
       header: t3({ en: "Total Rows Inserted or Updated", fr: "Total de lignes insérées ou mises à jour" }),
       sortable: true,
       alignH: "right",

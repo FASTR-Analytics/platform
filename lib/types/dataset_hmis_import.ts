@@ -167,6 +167,15 @@ export type PeriodIndicatorRawStat = {
   totalCount: number;
 };
 
+// Per-(indicator, period) row count that a DHIS2 scoped delete-then-insert
+// integration would remove, computed read-only before integration runs. See
+// PLAN_DHIS2_SCOPED_DELETE.md Step 6.
+export type Dhis2ScopedDeletionPreviewItem = {
+  indicatorRawId: string;
+  periodId: number;
+  rowsToRemove: number;
+};
+
 export type DatasetCsvStagingResult = {
   sourceType: "csv";
   dateImported: string;
@@ -220,6 +229,24 @@ export type DatasetDhis2StagingResult = {
   periodIndicatorStats: PeriodIndicatorRawStat[];
   finalStagingRowCount: number;
   missingOrgUnits?: string[];
+  // NEW: every (indicator, period) work item that fetched cleanly — including
+  // those that returned zero rows. Paired with fetchedFacilityIds below, this
+  // is the authoritative delete scope for integration. Absent (undefined) ⇒
+  // staged by pre-fix code ⇒ fall back to the legacy merge (no scoped delete).
+  succeededWorkItems?: Array<{ indicatorRawId: string; periodId: number }>;
+  // NEW: the exact facility_id set queried against DHIS2 at staging time (one
+  // list, reused for every work item — see Step 2). Integration deletes against
+  // this literal snapshot rather than re-deriving "which facilities count" from
+  // a regex at a later point in time, so delete-scope == fetch-scope by
+  // construction — no separate correctness argument needed.
+  fetchedFacilityIds?: string[];
+  // NEW: populated only at INTEGRATION time (Step 4), never by the staging
+  // worker — undefined here, always. Integration rewrites this field's stored
+  // copy after Phase 4 to (a) record how many rows the scoped delete removed,
+  // for accurate UI reporting, and (b) drop fetchedFacilityIds from what's
+  // persisted (needed only to drive Phase 4, not to be kept in version
+  // history — see Step 4).
+  dhis2RowsDeleted?: number;
   workItemHistory: Array<{
     indicatorId: string;
     periodId: number;
