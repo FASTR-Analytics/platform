@@ -29,6 +29,7 @@ import { SetStoreFunction } from "solid-js/store";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
 import { MarkdownGuide } from "~/components/_markdown_guide";
 import { CollabMarkdownEditor } from "./collab_markdown_editor";
+import { CollabTextField } from "./collab_text_field";
 import type { SlideSession } from "~/state/project/collab";
 import type * as Y from "yjs";
 
@@ -163,16 +164,21 @@ export function SlideEditorPanelContent(p: Props) {
           <Match when={p.contentTab === "slide"}>
             <div class="h-full overflow-auto">
               <div class="ui-pad ui-spy-sm">
-                <TextArea
+                <CollabTextField
+                  session={p.session}
+                  collabReady={p.collabReady}
+                  fieldKey="header"
                   label={t3({ en: "Header", fr: "En-tête", pt: "Cabeçalho" })}
                   value={p.tempSlide.header ?? ""}
                   onChange={(v: string) =>
                     p.setTempSlide("header", v || undefined)
                   }
-                  fullWidth
                   height="60px"
                 />
-                <TextArea
+                <CollabTextField
+                  session={p.session}
+                  collabReady={p.collabReady}
+                  fieldKey="subHeader"
                   label={t3({
                     en: "Sub Header",
                     fr: "Sous-en-tête",
@@ -182,16 +188,17 @@ export function SlideEditorPanelContent(p: Props) {
                   onChange={(v: string) =>
                     p.setTempSlide("subHeader", v || undefined)
                   }
-                  fullWidth
                   height="40px"
                 />
-                <TextArea
+                <CollabTextField
+                  session={p.session}
+                  collabReady={p.collabReady}
+                  fieldKey="date"
                   label={t3({ en: "Date", fr: "Date", pt: "Data" })}
                   value={p.tempSlide.date ?? ""}
                   onChange={(v: string) =>
                     p.setTempSlide("date", v || undefined)
                   }
-                  fullWidth
                   height="40px"
                 />
                 <Select
@@ -224,7 +231,10 @@ export function SlideEditorPanelContent(p: Props) {
                     </div>
                   }
                 >
-                  <TextArea
+                  <CollabTextField
+                    session={p.session}
+                    collabReady={p.collabReady}
+                    fieldKey="footer"
                     label={t3({
                       en: "Footer text",
                       fr: "Texte de pied de page",
@@ -234,7 +244,6 @@ export function SlideEditorPanelContent(p: Props) {
                     onChange={(v: string) =>
                       p.setTempSlide("footer", v || undefined)
                     }
-                    fullWidth
                     height="40px"
                   />
                 </Show>

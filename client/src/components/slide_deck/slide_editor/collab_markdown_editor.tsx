@@ -12,12 +12,17 @@ import { createEffect, onCleanup } from "solid-js";
 // edits — things a plain <textarea> can't do. It replaces panther's TextArea for
 // the text-block body only while live collab is active (see editor_panel_content).
 
-function buildExtensions(yText: Y.Text, awareness: Awareness, height: string) {
+function buildExtensions(
+  yText: Y.Text,
+  awareness: Awareness,
+  height: string,
+  plain: boolean,
+) {
   return [
     // yCollab's per-user undo takes precedence over the base keymap.
     keymap.of([...yUndoManagerKeymap]),
     minimalSetup,
-    markdown(),
+    ...(plain ? [] : [markdown()]),
     EditorView.lineWrapping,
     EditorView.theme({
       "&": {
@@ -40,6 +45,8 @@ export function CollabMarkdownEditor(p: {
   /** Mirror the text into tempSlide so the slide canvas re-renders as you type. */
   onTextChange: (markdown: string) => void;
   height?: string;
+  /** Plain text (no markdown highlighting) — used for title/header fields. */
+  plain?: boolean;
 }) {
   let parent!: HTMLDivElement;
   let view: EditorView | undefined;
@@ -51,7 +58,7 @@ export function CollabMarkdownEditor(p: {
     view = new EditorView({
       parent,
       doc: yText.toString(),
-      extensions: buildExtensions(yText, p.awareness, p.height ?? "300px"),
+      extensions: buildExtensions(yText, p.awareness, p.height ?? "300px", !!p.plain),
     });
     const observer = () => p.onTextChange(yText.toString());
     yText.observe(observer);

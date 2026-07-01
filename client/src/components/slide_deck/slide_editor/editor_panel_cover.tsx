@@ -1,13 +1,17 @@
 import type { CoverSlide, LogoVisibility } from "lib";
 import { t3 } from "lib";
-import { Select, TextArea } from "panther";
+import { Select } from "panther";
 import { SetStoreFunction } from "solid-js/store";
+import type { SlideSession } from "~/state/project/collab";
+import { CollabTextField } from "./collab_text_field";
 import { TextStylePopover } from "./TextStylePopover.tsx";
 
 type Props = {
   tempSlide: CoverSlide;
   setTempSlide: SetStoreFunction<any>;
   showLogosByDefault: boolean;
+  session: SlideSession | null;
+  collabReady: boolean;
 };
 
 function getLogoVisibilityOptions(showByDefault: boolean) {
@@ -41,11 +45,13 @@ export function SlideEditorPanelCover(p: Props) {
       />
       <div class="ui-spy">
         <div class="ui-spy-sm">
-          <TextArea
+          <CollabTextField
+            session={p.session}
+            collabReady={p.collabReady}
+            fieldKey="title"
             label={t3({ en: "Title", fr: "Titre", pt: "Título" })}
             value={p.tempSlide.title}
             onChange={(v: string) => p.setTempSlide("title", v)}
-            fullWidth
             height="80px"
           />
           <div class="flex w-full justify-end">
@@ -68,11 +74,13 @@ export function SlideEditorPanelCover(p: Props) {
           </div>
         </div>
         <div class="ui-spy-sm">
-          <TextArea
+          <CollabTextField
+            session={p.session}
+            collabReady={p.collabReady}
+            fieldKey="subtitle"
             label={t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" })}
             value={p.tempSlide.subtitle ?? ""}
             onChange={(v: string) => p.setTempSlide("subtitle", v || undefined)}
-            fullWidth
             height="60px"
           />
           <div class="flex w-full justify-end">
@@ -95,13 +103,15 @@ export function SlideEditorPanelCover(p: Props) {
           </div>
         </div>
         <div class="ui-spy-sm">
-          <TextArea
+          <CollabTextField
+            session={p.session}
+            collabReady={p.collabReady}
+            fieldKey="presenter"
             label={t3({ en: "Presenter", fr: "Présentateur", pt: "Apresentador" })}
             value={p.tempSlide.presenter ?? ""}
             onChange={(v: string) =>
               p.setTempSlide("presenter", v || undefined)
             }
-            fullWidth
             height="80px"
           />
           <div class="flex w-full justify-end">
@@ -126,11 +136,13 @@ export function SlideEditorPanelCover(p: Props) {
           </div>
         </div>
         <div class="ui-spy-sm">
-          <TextArea
+          <CollabTextField
+            session={p.session}
+            collabReady={p.collabReady}
+            fieldKey="date"
             label={t3({ en: "Date", fr: "Date", pt: "Data" })}
             value={p.tempSlide.date ?? ""}
             onChange={(v: string) => p.setTempSlide("date", v || undefined)}
-            fullWidth
             height="60px"
           />
           <div class="flex w-full justify-end">

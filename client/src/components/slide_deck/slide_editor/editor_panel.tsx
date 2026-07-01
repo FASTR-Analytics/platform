@@ -37,12 +37,16 @@ export function SlideEditorPanel(p: Props) {
             tempSlide={p.tempSlide as CoverSlide}
             setTempSlide={p.setTempSlide}
             showLogosByDefault={p.showCoverLogosByDefault}
+            session={p.session}
+            collabReady={p.collabReady}
           />
         </Match>
         <Match when={p.tempSlide.type === "section"}>
           <SlideEditorPanelSection
             tempSlide={p.tempSlide as SectionSlide}
             setTempSlide={p.setTempSlide}
+            session={p.session}
+            collabReady={p.collabReady}
           />
         </Match>
         <Match when={p.tempSlide.type === "content"}>

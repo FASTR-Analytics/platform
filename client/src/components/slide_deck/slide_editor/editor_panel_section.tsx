@@ -1,22 +1,27 @@
 import { SectionSlide, t3 } from "lib";
-import { TextArea } from "panther";
 import { SetStoreFunction } from "solid-js/store";
+import type { SlideSession } from "~/state/project/collab";
+import { CollabTextField } from "./collab_text_field";
 import { TextStylePopover } from "./TextStylePopover.tsx";
 
 type Props = {
   tempSlide: SectionSlide;
   setTempSlide: SetStoreFunction<any>;
+  session: SlideSession | null;
+  collabReady: boolean;
 };
 
 export function SlideEditorPanelSection(p: Props) {
   return (
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
-        <TextArea
+        <CollabTextField
+          session={p.session}
+          collabReady={p.collabReady}
+          fieldKey="sectionTitle"
           label={t3({ en: "Section Title", fr: "Titre de section", pt: "Título da secção" })}
           value={p.tempSlide.sectionTitle}
           onChange={(v: string) => p.setTempSlide("sectionTitle", v)}
-          fullWidth
           height="80px"
         />
         <div class="flex w-full justify-end">
@@ -39,13 +44,15 @@ export function SlideEditorPanelSection(p: Props) {
         </div>
       </div>
       <div class="ui-spy-sm">
-        <TextArea
+        <CollabTextField
+          session={p.session}
+          collabReady={p.collabReady}
+          fieldKey="sectionSubtitle"
           label={t3({ en: "Section Subtitle", fr: "Sous-titre de section", pt: "Subtítulo da secção" })}
           value={p.tempSlide.sectionSubtitle ?? ""}
           onChange={(v: string) =>
             p.setTempSlide("sectionSubtitle", v || undefined)
           }
-          fullWidth
           height="60px"
         />
         <div class="flex w-full justify-end">

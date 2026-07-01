@@ -61,16 +61,31 @@ export function base64ToBytes(b64: string): Uint8Array {
 
 const ROOT_KEY = "slide";
 
-const CONTENT_SCALAR_FIELDS = [
-  "header",
-  "subHeader",
-  "date",
-  "footer",
-  "showHeaderLogos",
-  "showFooterLogos",
-] as const;
+// Root-level TEXT fields per slide type. These are stored as Y.Text (not scalar
+// strings) so they support character-level co-editing + remote cursors, exactly
+// like a text block's body. Everything else on the slide root (booleans,
+// numbers, enums like showHeaderLogos) stays a scalar.
+const TEXT_FIELDS_BY_TYPE: Record<Slide["type"], readonly string[]> = {
+  content: ["header", "subHeader", "date", "footer"],
+  cover: ["title", "subtitle", "presenter", "date"],
+  section: ["sectionTitle", "sectionSubtitle"],
+};
+
+// Text fields that are required (never omitted, even when empty). Optional text
+// fields are omitted from the materialized config when empty (matching the
+// editor's `value || undefined` convention).
+const REQUIRED_TEXT_FIELDS = new Set(["title", "sectionTitle"]);
+
+// Non-text scalar fields on a content slide root.
+const CONTENT_SCALAR_FIELDS = ["showHeaderLogos", "showFooterLogos"] as const;
 
 type SlideNode = LayoutNode<ContentBlock>;
+
+function newYText(value: unknown): Y.Text {
+  const t = new Y.Text();
+  if (typeof value === "string" && value.length > 0) t.insert(0, value);
+  return t;
+}
 
 // ── Build: Slide -> Y.Doc ────────────────────────────────────────────────────
 
@@ -115,16 +130,24 @@ export function seedSlideDoc(doc: Y.Doc, slide: Slide): void {
   const root = doc.getMap<unknown>(ROOT_KEY);
   root.set("type", slide.type);
 
+  const rec = slide as unknown as Record<string, unknown>;
+  const textFields = TEXT_FIELDS_BY_TYPE[slide.type];
+  // Text fields become Y.Text — always created (even when empty) so the editor
+  // can bind a CodeMirror to it and a peer can type into an empty title.
+  for (const f of textFields) {
+    root.set(f, newYText(rec[f]));
+  }
+
   if (slide.type === "content") {
-    const rec = slide as unknown as Record<string, unknown>;
     for (const f of CONTENT_SCALAR_FIELDS) {
       if (rec[f] !== undefined) root.set(f, rec[f]);
     }
     if (slide.split !== undefined) root.set("split", slide.split);
     root.set("layout", buildNode(slide.layout, null));
   } else {
-    for (const [k, v] of Object.entries(slide)) {
-      if (k === "type") continue;
+    const textSet = new Set(textFields);
+    for (const [k, v] of Object.entries(rec)) {
+      if (k === "type" || textSet.has(k)) continue;
       if (v !== undefined) root.set(k, v);
     }
   }
@@ -188,6 +211,14 @@ export function materializeSlide(doc: Y.Doc): Slide {
   const root = doc.getMap<unknown>(ROOT_KEY);
   const type = root.get("type") as Slide["type"];
   const out: Record<string, unknown> = { type };
+  const textFields = TEXT_FIELDS_BY_TYPE[type];
+
+  // Text fields: read the Y.Text; omit optional ones when empty.
+  for (const f of textFields) {
+    const v = root.get(f);
+    const s = v instanceof Y.Text ? v.toString() : typeof v === "string" ? v : "";
+    if (REQUIRED_TEXT_FIELDS.has(f) || s.length > 0) out[f] = s;
+  }
 
   if (type === "content") {
     for (const f of CONTENT_SCALAR_FIELDS) {
@@ -196,12 +227,23 @@ export function materializeSlide(doc: Y.Doc): Slide {
     if (root.get("split") !== undefined) out.split = root.get("split");
     out.layout = materializeNode(root.get("layout") as Y.Map<unknown>);
   } else {
+    const textSet = new Set(textFields);
     for (const k of root.keys()) {
-      if (k === "type") continue;
+      if (k === "type" || textSet.has(k)) continue;
       out[k] = root.get(k);
     }
   }
   return out as unknown as Slide;
+}
+
+/** Get a root-level text field's Y.Text (for binding a CodeMirror to a title/
+ *  header field), or undefined if absent. */
+export function findRootTextField(
+  doc: Y.Doc,
+  fieldKey: string,
+): Y.Text | undefined {
+  const v = doc.getMap<unknown>(ROOT_KEY).get(fieldKey);
+  return v instanceof Y.Text ? v : undefined;
 }
 
 // ── Navigation helper (for the editor / relay) ───────────────────────────────
@@ -418,8 +460,22 @@ export function syncSlideToDoc(doc: Y.Doc, target: Slide): void {
     return;
   }
 
+  const rec = target as unknown as Record<string, unknown>;
+  const textFields = TEXT_FIELDS_BY_TYPE[target.type];
+  const textSet = new Set(textFields);
+  // Text fields -> minimal Y.Text diff (idempotent, so a CodeMirror binding that
+  // owns the Y.Text and mirrors into tempSlide won't fight this path).
+  for (const f of textFields) {
+    let t = root.get(f);
+    if (!(t instanceof Y.Text)) {
+      t = newYText(rec[f]);
+      root.set(f, t);
+    } else {
+      syncText(t, typeof rec[f] === "string" ? (rec[f] as string) : "");
+    }
+  }
+
   if (target.type === "content") {
-    const rec = target as unknown as Record<string, unknown>;
     for (const f of CONTENT_SCALAR_FIELDS) setScalar(root, f, rec[f]);
     setOpaque(root, "split", target.split);
     const layout = root.get("layout") as Y.Map<unknown> | undefined;
@@ -429,13 +485,13 @@ export function syncSlideToDoc(doc: Y.Doc, target: Slide): void {
       syncNode(layout, target.layout);
     }
   } else {
-    const rec = target as unknown as Record<string, unknown>;
     const targetKeys = new Set(Object.keys(rec));
     for (const k of [...root.keys()]) {
-      if (k !== "type" && !targetKeys.has(k)) root.delete(k);
+      if (k === "type" || textSet.has(k)) continue;
+      if (!targetKeys.has(k)) root.delete(k);
     }
     for (const [k, v] of Object.entries(rec)) {
-      if (k === "type") continue;
+      if (k === "type" || textSet.has(k)) continue;
       setScalar(root, k, v);
     }
   }
