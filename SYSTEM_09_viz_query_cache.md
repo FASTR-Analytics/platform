@@ -6,6 +6,7 @@ globs:
   - client/src/state/project/t2_replicant_options.ts
   - lib/admin_area_rollup.ts
   - lib/cache_class_B_in_memory_map.ts
+  - lib/convert_period_value.ts
   - lib/get_fetch_config_from_po.ts
   - lib/validate_fetch_config.ts
   - server/db/project/metric_enricher.ts
