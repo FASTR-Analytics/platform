@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Fixed rare issue where cancelling a data upload could interfere with a new upload
+[TBD] [admin] [fixed] - Resolved rare issue where cancelling a data import could interfere with a newly started one
 [TBD] [admin] [internal] - Background import tasks now use a shared management system
 [TBD] [user] [added] - DHIS2 connection can now be changed after confirming
 [TBD] [user] [added] - Warning shown when imported data has unrecognized disaggregations
