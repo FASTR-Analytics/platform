@@ -1,3 +1,27 @@
+[TBD] [user] [added] - DHIS2 imports now show which existing rows will be removed before finalizing
+[TBD] [user] [added] - Confirmation dialog before finalizing DHIS2 imports shows affected indicators and periods
+[TBD] [user] [added] - Equity (ICEH) data staleness detection when viewing projects
+[TBD] [user] [changed] - Import history table now shows "Rows Removed" instead of "Rows Updated" for DHIS2 imports
+[TBD] [user] [changed] - Import detail view shows "Rows removed" count for DHIS2 imports
+[TBD] [user] [fixed] - DHIS2 imports now correctly remove data that no longer exists in DHIS2
+[TBD] [user] [fixed] - Fixed HFA import wizard showing an extra phantom step circle
+[TBD] [user] [fixed] - Fixed ICEH import wizard showing an extra phantom step circle
+[TBD] [user] [fixed] - Prevented concurrent imports from running simultaneously and corrupting data
+[TBD] [user] [fixed] - Prevented data deletion while an import is in progress
+[TBD] [user] [fixed] - Fixed rare issue where special characters in CSV files could be corrupted during import
+[TBD] [user] [fixed] - Legacy HFA exports are now correctly flagged as needing re-export
+[TBD] [admin] [added] - DHIS2 imports now detect and remove rows no longer returned by DHIS2
+[TBD] [admin] [added] - Confirmation dialog shows which rows will be removed before finalizing DHIS2 imports
+[TBD] [admin] [added] - ICEH data staleness detection for projects (re-export prompt when instance data changes)
+[TBD] [admin] [fixed] - Prevented concurrent import operations from running simultaneously and corrupting data
+[TBD] [admin] [fixed] - Prevented data deletion while an import is in progress
+[TBD] [admin] [fixed] - Fixed HFA and ICEH import wizard showing a phantom extra step
+[TBD] [admin] [fixed] - Fixed rare issue where multi-byte characters in CSV files could be corrupted during import
+[TBD] [admin] [fixed] - Project data export no longer briefly detaches dataset if validation fails
+[TBD] [admin] [changed] - Previous imports table now shows "Rows Removed" instead of "Rows Updated" for DHIS2 imports
+[TBD] [admin] [changed] - Legacy HFA exports without staleness tracking now always prompt for re-export
+[TBD] [admin] [internal] - Removed unused conflicts display component
+[TBD] [admin] [internal] - Cleaned up redundant logging and commented-out code throughout import workflows
 [TBD] [user] [fixed] - Fixed rare issue where duplicate data imports could run simultaneously
 [TBD] [admin] [fixed] - Prevented rare duplicate structure imports from running simultaneously
 [1.54.3] [user] [fixed] - Structure imports now show proper error messages instead of failing silently
