@@ -20,12 +20,31 @@ docs_absorbed:
 ---
 # S2 — Persistence Core & Schema Lifecycle
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S2).
-> Prose is ported here in this system's first review cycle (Phase 2,
-> PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
+Postgres connection machinery for the multi-DB model, migrations + JSON data
+transforms, fail-stop boot, backup/restore mechanics.
+
+> Stub — full prose lands in this system's first review cycle
+> (PLAN_DOC_CONSOLIDATION); the `docs_absorbed` files are inlined and
 > deleted then.
 
-_Postgres connection machinery for the multi-DB model, migrations + JSON data transforms, fail-stop boot, backup/restore mechanics_
+## Scope
+
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+`server/db/postgres/**`, `db/utils.ts`, `db/error_classifier.ts`, db barrels,
+`db/migrations/**` (runner + SQL + transforms — transform *mechanics* owned
+here, each transform's *schema knowledge* co-reviewed by its domain system),
+base schemas + `_main_database_types.ts` / `_project_database_types.ts`,
+`db_startup.ts`, root `validate_migrations`, the restore body of
+`routes/instance/backups.ts`, project-DB create/drop in
+`db/project/projects.ts`, `lib/types/errors.ts`.
+
+## Contract
+
+Project DBs named by bare UUID; pooled cached connections (READ_ONLY flag is
+*nominal* — never enforced); one error funnel; boot is fail-stop; stored-JSON
+evolution via transforms with skip-gates. Trap: boot success is bound to
+panther schema versions via `_figure_block.ts`.
 
 ## FigureBundle backfill — the boot-time cutover (shipped 2026-06-13)
 
@@ -81,11 +100,6 @@ instance's DBs before the cutover: per-outcome counts (in-place ok / timeseries
 round-trip ok / FAIL / already-bundle / empty) and the identity of every failure.
 The cutover deploys only when it is clean (zero round-trip failures) on all
 instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
-
-## Scope
-
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S2).
 
 ## Docs absorbed (Phase 2)
 

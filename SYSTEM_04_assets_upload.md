@@ -13,17 +13,27 @@ docs_absorbed:
 ---
 # S4 — Assets & Upload
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S4).
-> Prose is ported here in this system's first review cycle (Phase 2,
-> PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
-> deleted then.
+The file-upload front door — the hand-rolled TUS resumable upload protocol,
+asset storage and metadata — shared by every feature that ingests a file.
 
-_the file-upload front door — TUS resumable upload, asset storage and metadata — shared by every feature that ingests a file_
+> Stub — full prose lands in this system's first review cycle
+> (PLAN_DOC_CONSOLIDATION); written fresh from code (no docs to absorb).
 
 ## Scope
 
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S4).
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+Server: `routes/instance/upload.ts` (TUS protocol, in-memory upload map, the
+deliberately-unauthenticated HEAD-via-GET quirk), `routes/instance/assets.ts`,
+`db/instance/assets.ts`; client: `_uppy_file_upload.ts`,
+`_file_upload_selector.tsx`, `components/instance/instance_assets.tsx`;
+lib: `types/assets.ts`.
+
+## Contract
+
+Files land in `ASSETS_DIR` via resumable TUS and are referenced by metadata
+rows; the upload HEAD is intentionally unauthenticated (protocol resume).
+Consumed by S6, S12, S13.
 
 ## Docs absorbed (Phase 2)
 

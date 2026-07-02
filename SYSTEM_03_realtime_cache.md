@@ -29,17 +29,30 @@ docs_absorbed:
 ---
 # S3 — Realtime Sync & Cache Invalidation
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S3).
-> Prose is ported here in this system's first review cycle (Phase 2,
-> PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
-> deleted then.
+The `last_updated → BroadcastChannel/SSE → version-hash` triangle: notify
+hub, SSE bridges, Valkey machinery, client store/cache infrastructure.
 
-_the last_updated -> SSE -> version-hash triangle: notify hub, SSE bridges, Valkey machinery, client store/cache infrastructure_
+> Stub — full prose lands in this system's first review cycle
+> (PLAN_DOC_CONSOLIDATION); the `docs_absorbed` files are inlined and
+> deleted then.
 
 ## Scope
 
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S3).
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+`server/task_management/{notify_*,build_project_state,get_project_dirty_states}.ts`;
+the two SSE endpoints; `server/valkey/**` (generic machinery);
+`server/utils/request_queue.ts`; client `state/_infra/**` (serves all eight
+t2 caches), `state/*/t1_store.ts` + `t1_sse.tsx`, `clear_caches.ts`, the
+version flush in LoggedInWrapper;
+`lib/types/{project_sse,instance_sse,project_dirty_states}.ts`;
+`components/project/project_cache.tsx`.
+
+## Contract
+
+Every mutation must stamp `last_updated` and notify — but that obligation
+lives in ~26 files owned by other systems. This system's *machinery* is
+reviewed here; its *convention* is a standing audit (SYSTEMS.md §4.3.1).
 
 ## Docs absorbed (Phase 2)
 

@@ -22,17 +22,30 @@ docs_absorbed:
 ---
 # S14 — Client Shell & Session
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S14).
-> Prose is ported here in this system's first review cycle (Phase 2,
-> PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
-> deleted then.
+SPA boot, the signal-based page maps (almost no URL routing),
+language/calendar singleton lifecycle, UI preferences, connection and help
+chrome. Plus the 237-file `t3` call-site surface.
 
-_SPA boot, the signal-based page maps, language/calendar singleton lifecycle, UI preferences, connection and help chrome_
+> Stub — full prose lands in this system's first review cycle
+> (PLAN_DOC_CONSOLIDATION); the `docs_absorbed` files are inlined and
+> deleted then.
 
 ## Scope
 
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S14).
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+`client/src/{index.tsx,app.tsx,app.css}`, `routes/index.tsx`,
+`components/instance/index.tsx` + `components/project/index.tsx` (the page
+maps), `state/{t4_ui,t4_connection_monitor}.ts`, `ConnectionStatus.tsx`,
+`HelpButton.tsx` + `lib/help/**` + `build_help_buttons.ts`, onboarding modals,
+`components/_shared/**`, `lib/translate/**` (the singletons), `FRONTEND_STYLE_GUIDE.md`.
+
+## Contract
+
+Deterministic boot order (panther globals + language/calendar BEFORE first
+render; GLOBAL_STYLE_OPTIONS deep-imported from S10 is load-bearing); only
+two URL-addressable surfaces (`/d/:slug`, `?p=`); UI prefs persist via
+localStorage and never enter fetch configs or cache hashes.
 
 ## Docs absorbed (Phase 2)
 

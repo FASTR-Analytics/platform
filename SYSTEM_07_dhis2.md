@@ -11,17 +11,26 @@ docs_absorbed:
 ---
 # S7 — DHIS2 Connector
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S7).
-> Prose is ported here in this system's first review cycle (Phase 2,
-> PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
-> deleted then.
+The self-contained typed HTTP adapter for external DHIS2 instances: auth,
+retry, paging, analytics, geojson, credentials UX. The cleanest system.
 
-_the self-contained typed HTTP adapter for external DHIS2 instances: auth, retry, paging, analytics, geojson, credentials UX_
+> Stub — full prose lands in this system's first review cycle
+> (PLAN_DOC_CONSOLIDATION); the `docs_absorbed` files are inlined and
+> deleted then.
 
 ## Scope
 
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S7).
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+`server/dhis2/**`; `routes/instance/indicators_dhis2.ts`; client
+`Dhis2CredentialsEditor.tsx` + `state/instance/t4_dhis2_session.ts`. Known
+wart: `stage_structure_from_dhis2.ts` re-implements org-unit paging inline.
+
+## Contract
+
+Every call funnels through `fetchFromDHIS2 → withRetry` (5 attempts,
+backoff+jitter); never-throw boundary; two-phase connection validation; no DB
+writes. Consumed by S6, S5.
 
 ## Docs absorbed (Phase 2)
 

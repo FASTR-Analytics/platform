@@ -15,14 +15,33 @@ docs_absorbed:
 ---
 # S10 — Figure Rendering & Export Engine
 
-> **Phase 1 stub for most of the system** — full scope/contract/size in
-> SYSTEMS.md "System details" (S10); the `docs_absorbed` file is still to be inlined
-> (Phase 2, PLAN_DOC_CONSOLIDATION §2). **Exception:** the **FigureBundle
-> architecture** below is the first prose landed from this system's review cycle
-> (SYSTEMS.md §5) — it is the durable, authoritative record of the bundle
-> refactor and supersedes the two now-deleted planning docs.
+Pure transforms from data+config to pixels and files: a stored
+**FigureBundle** rebuilt to panther `FigureInputs` by one `buildFigureInputs`
+transform, slide→page rendering, PDF/PPTX/XLSX/DOCX export.
 
-_pure transforms from data+config to pixels and files: a stored **FigureBundle** rebuilt to panther `FigureInputs` by one `buildFigureInputs` transform, slide->page rendering, PDF/PPTX/XLSX/DOCX export_
+> Stub for most of the system — full prose lands in its review cycle
+> (PLAN_DOC_CONSOLIDATION). **Exception:** the **FigureBundle architecture**
+> below is the first prose landed (SYSTEMS.md §5) — the durable, authoritative
+> record of the bundle refactor, superseding the two now-deleted planning docs.
+
+## Scope
+
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+`client/src/generate_visualization/**` (incl. strip/hydrate, special chart
+modes, GLOBAL_STYLE_OPTIONS); `generate_slide_deck/**`
+(`convertSlideToPageInputs`); `client/src/exports/**` (incl.
+`get_table_export_aoa.ts`); the plain figure resolvers to extract from
+`slide_deck/slide_ai/`; lib render contracts (`json_slide_serialize.ts`,
+`brand_presets.ts`, `key_colors.ts`, slide-font types); `font-map.json` +
+`/fonts`; `state/project/t2_images.ts`.
+
+## Contract
+
+One renderer per artifact class shared by screen and export; stored snapshots
+are stripped FigureInputs re-hydrated at render; panther `zFigureInputs`
+binds stored figures to panther schema versions (repair arm is S2's
+`_figure_block.ts` transform — co-reviewed).
 
 ## FigureBundle architecture (shipped 2026-06-13)
 
@@ -213,11 +232,6 @@ tracked in the followups doc. (Its twin `resolve_figure_from_*` files are *not*
 residual: `generate_visualization/resolve_figure_from_{metric,visualization}.ts`
 are the live plain-inputs resolvers that produce bundles; the same-named files
 under `slide_deck/slide_ai/` are thin S13 AI adapters that delegate to them.)
-
-## Scope
-
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S10).
 
 ## Docs absorbed (Phase 2)
 

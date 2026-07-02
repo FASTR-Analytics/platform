@@ -49,17 +49,33 @@ docs_absorbed:
 ---
 # S11 — Visualization Authoring UI
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S11).
-> Prose is ported here in this system's first review cycle (Phase 2,
-> PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
-> deleted then.
+The live PO editor (edit/create/ephemeral modes), the visualization library,
+and PO CRUD with conflict resolution.
 
-_the live PO editor (edit/create/ephemeral modes), the visualization library, and PO CRUD with conflict resolution_
+> Stub — full prose lands in this system's first review cycle
+> (PLAN_DOC_CONSOLIDATION); written fresh from code (no docs to absorb).
 
 ## Scope
 
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S11).
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+`components/visualization/**`; `PresentationObjectPanelDisplay` /
+`MiniDisplay` / `ReplicateByOptions` / `NotAvailableBox` /
+`_editor_snapshot.ts`; `components/project/add_visualization/**` +
+`preset_preview.tsx` + `project_visualizations.tsx` + `project_metrics.tsx`
++ `edit_folder_modal.tsx` + `move_to_folder_modal.tsx`; forms_editors viz
+modals; the FigureInputs assembly half of `t2_presentation_objects.ts`;
+server PO/folder CRUD (`db/project/{presentation_objects,visualization_folders}.ts`
++ both route files); lib: `normalize_po_config.ts`, `convert_visualization_type.ts`,
+PO config type families, `lib/utils.ts` (withReplicant).
+
+## Contract
+
+The three-mode editor (notably *ephemeral* mode) is the authoring surface
+dashboards/slides/reports/AI plug into; save path normalizes + enforces
+`expectedLastUpdated` conflict protocol; registers live mutators into
+AIContext. Known fragility: the manually-enumerated reactive reads in the
+refetch effect.
 
 ## Docs absorbed (Phase 2)
 

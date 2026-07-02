@@ -37,17 +37,36 @@ docs_absorbed:
 ---
 # S15 — Instance Administration & Ops
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S15).
-> Prose is ported here in this system's first review cycle (Phase 2,
-> PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
-> deleted then.
+User/role management, project lifecycle, instance settings UI, plus the
+operational side-channel: health endpoints, backups, disk autonomics, emails,
+central export, scheduled jobs, deploy. Small server surface, highest
+privilege.
 
-_user/role management, project lifecycle, instance settings UI, plus the operational side-channel: health, backups, disk autonomics, emails, central export, deploy_
+> Stub — full prose lands in this system's first review cycle
+> (PLAN_DOC_CONSOLIDATION); the `docs_absorbed` files are inlined and
+> deleted then.
 
 ## Scope
 
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S15).
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+Client: `components/instance/**` minus index.tsx and instance_assets.tsx,
+`project_settings.tsx` + `copy_project.tsx` + `create_backup_form.tsx` +
+`restore_from_file_form.tsx`, role/permission forms_editors; server:
+`routes/project/project.ts` (lifecycle + roles),
+`routes/instance/{instance,health,backups,export_central}.ts` (backups
+*proxy* here, restore *mechanics* S2), `db/project/projects.ts` (registry +
+roles halves), `db/instance/user_logs.ts`, `server/utils/disk_space.ts`,
+`exposed_env_vars.ts`, cron jobs in `main.ts`; repo: `./run`, `./deploy`,
+Dockerfile. External: status-api, SendGrid, the ~40-instance production
+topology.
+
+## Contract
+
+Writes the permission rows S1 evaluates; sole creator/destroyer of project
+DBs; health is deliberately unauthenticated (exposure inventory must stay
+deliberate — PLAN_HARDEN_SECURITY); out-of-band side effects invisible to
+the route registry.
 
 ## Docs absorbed (Phase 2)
 

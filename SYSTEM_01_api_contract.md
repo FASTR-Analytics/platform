@@ -23,17 +23,32 @@ docs_absorbed:
 ---
 # S1 — API Contract, Transport & Access Control
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S1).
-> Prose is ported here in this system's first review cycle (Phase 2,
-> PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
-> deleted then.
+The typed RPC registry both tiers are generated from, plus the two
+permission guards that scope every request.
 
-_the typed RPC registry both tiers are generated from, plus the two permission guards that scope every request_
+> Stub — full prose lands in this system's first review cycle
+> (PLAN_DOC_CONSOLIDATION); the `docs_absorbed` files are inlined and
+> deleted then.
 
 ## Scope
 
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S1).
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+`lib/api-routes/**`; `server/routes/{route-helpers,route-tracker,streaming}.ts`;
+`server/middleware/**`; `server/project_auth.ts`; `main.ts` (composition
+root: mounting, onError envelope); `client/src/server_actions/**`;
+`lib/types/{permissions,permission_labels,streaming}.ts`; `lib/h_users.ts`;
+the APIResponse envelope symbols in `lib/types/instance.ts`;
+`server/db/instance/users.ts` + `routes/instance/users.ts` (the rows the
+guards evaluate); client session: `LoggedInWrapper.tsx` (Clerk singleton).
+
+## Contract
+
+~255 registry routes, zero direct client↔server imports; errors as HTTP 200 +
+`{success:false}` (only guards emit real 4xx/5xx); `Project-Id` header mints
+the per-project DB handle. Owns the inventory of ~30 off-registry endpoints
+(health, TUS, SSE, AI proxy, public dashboard, export_central, CSV exports) —
+each owned by its home system.
 
 ## Docs absorbed (Phase 2)
 

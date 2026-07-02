@@ -41,17 +41,33 @@ docs_absorbed:
 ---
 # S8 — Module System
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S8).
-> Prose is ported here in this system's first review cycle (Phase 2,
-> PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
-> deleted then.
+Versioned R modules end-to-end: GitHub fetch → validate → install/update →
+dirty-state propagation → Docker/R execution → `ro_*` ingest.
 
-_versioned R modules end-to-end: GitHub fetch -> validate -> install/update -> dirty-state propagation -> Docker/R execution -> ro_* ingest_
+> Stub — full prose lands in this system's first review cycle
+> (PLAN_DOC_CONSOLIDATION); the `docs_absorbed` files are inlined and
+> deleted then.
 
 ## Scope
 
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S8).
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+`server/module_loader/**`; `server/github/**`; ALL of
+`db/project/modules.ts` (install heart *and* the read API) +
+`db/project/results_objects.ts`; `task_management/{mod,set_module_dirty,get_dependents,trigger_runnable_tasks,running_tasks_map,set_module_clean}.ts`;
+`worker_routines/run_module/**` + `instantiate_worker_generic.ts`;
+`server_only_funcs/**` (R-script templating); `server_only_types/mod.ts`;
+`routes/{instance,project}/modules.ts`; lib module types + `module_registry.ts`;
+client: `project_modules.tsx`, `update_module*.tsx`, `view_{files,logs,script}.tsx`,
+`project_module_settings/`, `DirtyStatus.tsx`, `compare_projects.tsx`,
+`metric_details_modal.tsx`. External: wb-fastr-modules repo, Docker images.
+
+## Contract
+
+Definitions zod-validated at every fetch; compute/presentation git-ref split;
+dirty closure recomputed per event (no stored edges); self-draining
+`task_ended` loop with NO boot-time recovery (known gap); outputs `ro_*` +
+`metrics` + `last_run_at` — the data spine S9 queries.
 
 ## Docs absorbed (Phase 2)
 

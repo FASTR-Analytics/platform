@@ -56,12 +56,34 @@ docs_absorbed:
 ---
 # S12 — Documents & Sharing
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S12).
-> Prose is ported here in this system's first review cycle (Phase 2,
-> PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
-> deleted then.
+The three figure-snapshot-embedding artifact types — slide decks, markdown
+reports, and dashboards — plus the public slug-addressed viewer and all
+PDF/PPTX/XLSX/DOCX/email exports. The largest undocumented system.
 
-_the three figure-snapshot-embedding artifact types — slide decks, markdown reports, dashboards — plus the public viewer and all exports_
+> Stub — full prose lands in this system's first review cycle
+> (PLAN_DOC_CONSOLIDATION); written fresh from code (no docs to absorb).
+
+## Scope
+
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+Client: `components/slide_deck/**` minus `slide_ai/`, `layout_editor/`,
+`components/report/**`, `components/dashboards/**`,
+`components/public_viewer/**`; the deck/report/dashboard list pages + modals
+in `components/project/`; `state/project/{t2_slides,t2_dashboards}.ts`;
+server CRUD (`db/project/{slides,slide_decks,move_slides,slide_deck_folders,reports,report_folders,dashboards}.ts`
++ routes), `db/instance/dashboard_slugs.ts`, `routes/public/dashboard.ts` +
+the `/d/:slug` SPA-HTML in `main.ts`, `routes/project/emails.ts`,
+`server/utils/id_generation.ts` (hardcodes 7 tables — flagged); lib slide/
+report/dashboard types incl. `buildPublicDashboardBundle`.
+
+## Contract
+
+All three persist CLIENT-built stripped FigureBlock snapshots (server never
+recomputes figures); shared figure-snapshot lifecycle owned upstream by S10;
+three concurrency philosophies; the public viewer is the app's only
+unauthenticated product surface (reviewed as cross-cutting audit
+SYSTEMS.md §4.3.9).
 
 ## FigureBundle — the three storage surfaces (shipped 2026-06-13)
 
@@ -103,11 +125,6 @@ shape, `buildFigureInputs`, the invariants, localization) lives in
 (One stale breadcrumb: the comment at [reports.ts](lib/types/reports.ts) ~:30
 still says "figureInputs validated as unknown there" — pre-bundle wording; the
 code now uses the strict `figureBlockSchema`. Listed in the followups doc.)
-
-## Scope
-
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S12).
 
 ## Docs absorbed (Phase 2)
 

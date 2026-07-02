@@ -24,12 +24,30 @@ docs_absorbed:
 ---
 # S9 — Visualization Query & Cache Service
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S9).
-> Prose is ported here in this system's first review cycle (Phase 2,
-> PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
+PO config → fetch-config contract → SQL over `ro_*` tables → version-hashed
+cached payloads, on both tiers. Logic-dense.
+
+> Stub — full prose lands in this system's first review cycle
+> (PLAN_DOC_CONSOLIDATION); the `docs_absorbed` files are inlined and
 > deleted then.
 
-_PO config -> fetch-config contract -> SQL over ro_* tables -> version-hashed cached payloads, on both tiers_
+## Scope
+
+The `globs:` frontmatter above is the lint-enforced manifest
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
+Lib contract: `get_fetch_config_from_po.ts`, `validate_fetch_config.ts`,
+`admin_area_rollup.ts`, ItemsHolder types; server:
+`server_only_funcs_presentation_objects/**`, the query endpoints + cache
+choreography + `getDatasetsVersion` in `routes/project/presentation_objects.ts`,
+`routes/caches/{visualizations,dataset}.ts` (instances + PO_CACHE_VERSION),
+`routes/project/cache_status.ts`, `db/project/{metric_enricher,results_value_resolver}.ts`;
+client: the cache/query halves of `state/project/{t2_presentation_objects,t2_replicant_options}.ts`.
+
+## Contract
+
+`GenericLongFormFetchConfig` is THE client→server query contract;
+`hashFetchConfig` is cache identity on both tiers; roll-up gates
+single-sourced in lib; Ethiopian calendar alters both bounds and generated SQL.
 
 ## FigureBundle — the capture side (shipped 2026-06-13)
 
@@ -62,11 +80,6 @@ freezes.
 
 Custody note: `t2_presentation_objects.ts` is S9-owned with **S10 as a mandatory
 reader** (the live build path) — see SYSTEMS.md §4.1.
-
-## Scope
-
-See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S9).
 
 ## Docs absorbed (Phase 2)
 
