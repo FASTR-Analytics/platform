@@ -2,7 +2,28 @@ import { createMiddleware } from "hono/factory";
 import { AddLog } from "../db/instance/user_logs.ts";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 
-export const log = (routeName: string) =>  
+// Credential fields must never reach user_logs (rows are retained indefinitely
+// and readable via the logs UI with only can_view_logs).
+const _REDACTED_BODY_KEYS = ["password", "secret", "token", "apikey"];
+
+function redactSensitiveFields(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value.map(redactSensitiveFields);
+    }
+    if (value !== null && typeof value === "object") {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, v]) => [
+                key,
+                _REDACTED_BODY_KEYS.includes(key.toLowerCase())
+                    ? "[REDACTED]"
+                    : redactSensitiveFields(v),
+            ])
+        );
+    }
+    return value;
+}
+
+export const log = (routeName: string) =>
     createMiddleware(async (c, next) => {
         let body: unknown = {};
         const method = c.req.method;
@@ -10,7 +31,7 @@ export const log = (routeName: string) =>
             const contentType = c.req.header("Content-Type") ?? "";
             if (contentType.includes("application/json") || contentType === "") {
                 try{
-                    body = await c.req.json();
+                    body = redactSensitiveFields(await c.req.json());
                 } catch {
                     // No body or invalid json
                 }

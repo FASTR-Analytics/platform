@@ -14,6 +14,23 @@ type AssetMetadataRow = {
   uploader_email: string;
 };
 
+// Read-side twin of upload.ts's sanitizeUploadFilename: stored asset names are
+// always bare basenames, so a separator or ".." in a client-supplied name is a
+// path-traversal attempt, not a real asset. Every join of a client-supplied
+// name onto _ASSETS_DIR_PATH must go through here.
+export function resolveAssetFilePath(assetFileName: string): string {
+  const normalized = assetFileName.replaceAll("\\", "/");
+  if (
+    normalized === "" ||
+    normalized === "." ||
+    normalized === ".." ||
+    normalized.includes("/")
+  ) {
+    throw new Error(`Invalid asset file name: ${assetFileName}`);
+  }
+  return join(_ASSETS_DIR_PATH, assetFileName);
+}
+
 export async function getAssetsForInstance(
   mainDb: Sql,
 ): Promise<APIResponseWithData<AssetInfo[]>> {
@@ -93,7 +110,12 @@ export async function deleteAssets(
   }
 
   for (const assetFileName of assetFileNames) {
-    const assetFilePath = join(_ASSETS_DIR_PATH, assetFileName);
+    let assetFilePath: string;
+    try {
+      assetFilePath = resolveAssetFilePath(assetFileName);
+    } catch {
+      continue;
+    }
     try {
       await Deno.remove(assetFilePath);
     } catch {

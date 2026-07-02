@@ -1,5 +1,4 @@
 import { Sql } from "postgres";
-import { join } from "@std/path";
 import {
   APIResponseNoData,
   APIResponseWithData,
@@ -13,7 +12,7 @@ import {
   PROJECT_PERMISSIONS,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
-import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
+import { resolveAssetFilePath } from "./assets.ts";
 import { readCsvFile } from "@timroberton/panther";
 import {
   type DBProject,
@@ -329,7 +328,7 @@ export async function batchUploadUsers(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     // Read and parse the CSV file
-    const filePath = join(_ASSETS_DIR_PATH, assetFileName);
+    const filePath = resolveAssetFilePath(assetFileName);
     let csvData: Record<string, string>[];
     try {
       csvData = (

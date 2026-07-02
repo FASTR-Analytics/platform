@@ -1,6 +1,5 @@
-import { join } from "@std/path";
 import { Sql } from "postgres";
-import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
+import { resolveAssetFilePath } from "./assets.ts";
 import {
   APIResponseNoData,
   APIResponseWithData,
@@ -450,10 +449,10 @@ export async function updateDatasetHfaUploadAttempt_Step1CsvUpload(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await getRawUAOrThrow(mainDb);
-    const csvAssetFilePath = join(_ASSETS_DIR_PATH, csvAssetFileName);
+    const csvAssetFilePath = resolveAssetFilePath(csvAssetFileName);
     const resCsvDetails = await getCsvDetails(csvAssetFilePath, csvAssetFileName);
     throwIfErrWithData(resCsvDetails);
-    const xlsFormFilePath = join(_ASSETS_DIR_PATH, xlsFormAssetFileName);
+    const xlsFormFilePath = resolveAssetFilePath(xlsFormAssetFileName);
     const sheetNames = getXlsxSheetNamesRaw(xlsFormFilePath);
     if (!sheetNames.includes("survey") || !sheetNames.includes("choices")) {
       throw new Error(

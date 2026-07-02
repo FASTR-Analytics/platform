@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { join } from "@std/path";
 import {
   getGeoJsonMapSummaries,
   getGeoJsonForLevel,
@@ -10,7 +9,7 @@ import {
   getMaxAdminAreaConfig,
 } from "../../db/mod.ts";
 import { throwIfErrWithData } from "lib";
-import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
+import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceGeoJsonMapsUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -34,7 +33,7 @@ import {
 export const routesGeoJsonMaps = new Hono();
 
 async function readAssetFile(assetFileName: string): Promise<string> {
-  const filePath = join(_ASSETS_DIR_PATH, assetFileName);
+  const filePath = resolveAssetFilePath(assetFileName);
   return await Deno.readTextFile(filePath);
 }
 

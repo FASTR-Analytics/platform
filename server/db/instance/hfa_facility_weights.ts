@@ -1,4 +1,3 @@
-import { join } from "@std/path";
 import { Sql } from "postgres";
 import {
   APIResponseNoData,
@@ -7,7 +6,7 @@ import {
   HfaFacilityWeightsSummary,
   HfaWeightsCoverage,
 } from "lib";
-import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
+import { resolveAssetFilePath } from "./assets.ts";
 import {
   getCsvColumnIndex,
   getCsvStreamComponents,
@@ -149,7 +148,7 @@ export async function importHfaFacilityWeights(
       return { success: false, err: `Time point "${timePoint}" does not exist.` };
     }
 
-    const assetFilePath = join(_ASSETS_DIR_PATH, assetFileName);
+    const assetFilePath = resolveAssetFilePath(assetFileName);
     const resCsv = await getCsvStreamComponents(assetFilePath);
     if (!resCsv.success) {
       return resCsv;

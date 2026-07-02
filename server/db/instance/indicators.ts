@@ -1,5 +1,4 @@
 import { Sql } from "postgres";
-import { join } from "@std/path";
 import {
   APIResponseNoData,
   APIResponseWithData,
@@ -7,7 +6,7 @@ import {
   type InstanceIndicatorDetails,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
-import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
+import { resolveAssetFilePath } from "./assets.ts";
 import { readCsvFile } from "@timroberton/panther";
 
 // =============================================================================
@@ -100,8 +99,6 @@ export async function createIndicatorsCommon(
   APIResponseWithData<{ created: number; failed: number; errors: string[] }>
 > {
   return await tryCatchDatabaseAsync(async () => {
-    const results = { created: 0, failed: 0, errors: [] as string[] };
-
     // Check for duplicate indicator_common_ids in the request
     const ids = indicators.map((i) => i.indicator_common_id);
     const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
@@ -114,8 +111,8 @@ export async function createIndicatorsCommon(
 
     // Check if any indicators already exist
     const existingIds = await mainDb`
-      SELECT indicator_common_id 
-      FROM indicators 
+      SELECT indicator_common_id
+      FROM indicators
       WHERE indicator_common_id = ANY(${ids})
     `;
 
@@ -127,27 +124,44 @@ export async function createIndicatorsCommon(
       };
     }
 
+    // Check that all mapped raw ids exist (friendlier than the FK error)
+    const allRawIds = [...new Set(indicators.flatMap((i) => i.mapped_raw_ids))];
+    if (allRawIds.length > 0) {
+      const existingRaw = await mainDb<{ indicator_raw_id: string }[]>`
+        SELECT indicator_raw_id FROM indicators_raw
+        WHERE indicator_raw_id = ANY(${allRawIds})
+      `;
+      const existingRawSet = new Set(
+        existingRaw.map((r) => r.indicator_raw_id),
+      );
+      const missingRaw = allRawIds.filter((id) => !existingRawSet.has(id));
+      if (missingRaw.length > 0) {
+        return {
+          success: false,
+          err: `Mapped raw indicators do not exist: ${missingRaw.join(", ")}`,
+        };
+      }
+    }
+
+    // All-or-nothing: one failed item aborts the whole Postgres transaction
+    // (every later statement fails with "transaction is aborted"), so
+    // per-item catch-and-continue can never deliver partial success. The
+    // rethrow decorates the error with the item that caused it.
     await mainDb.begin(async (sql) => {
       for (const indicator of indicators) {
         try {
-          // Create the common indicator
           await sql`
             INSERT INTO indicators (indicator_common_id, indicator_common_label, is_default, updated_at)
             VALUES (${indicator.indicator_common_id}, ${indicator.indicator_common_label}, FALSE, CURRENT_TIMESTAMP)
           `;
-
-          // Create mappings
           for (const rawId of indicator.mapped_raw_ids) {
             await sql`
               INSERT INTO indicator_mappings (indicator_raw_id, indicator_common_id, updated_at)
               VALUES (${rawId}, ${indicator.indicator_common_id}, CURRENT_TIMESTAMP)
             `;
           }
-
-          results.created++;
         } catch (error) {
-          results.failed++;
-          results.errors.push(
+          throw new Error(
             `${indicator.indicator_common_id}: ${
               error instanceof Error ? error.message : "Unknown error"
             }`,
@@ -156,7 +170,10 @@ export async function createIndicatorsCommon(
       }
     });
 
-    return { success: true, data: results };
+    return {
+      success: true,
+      data: { created: indicators.length, failed: 0, errors: [] },
+    };
   });
 }
 
@@ -293,35 +310,56 @@ export async function createIndicatorsRaw(
   APIResponseWithData<{ created: number; failed: number; errors: string[] }>
 > {
   return await tryCatchDatabaseAsync(async () => {
-    const results = { created: 0, failed: 0, errors: [] as string[] };
+    // Check that all mapped common ids exist (friendlier than the FK error)
+    const allCommonIds = [
+      ...new Set(indicators.flatMap((i) => i.mapped_common_ids)),
+    ];
+    if (allCommonIds.length > 0) {
+      const existingCommon = await mainDb<{ indicator_common_id: string }[]>`
+        SELECT indicator_common_id FROM indicators
+        WHERE indicator_common_id = ANY(${allCommonIds})
+      `;
+      const existingCommonSet = new Set(
+        existingCommon.map((r) => r.indicator_common_id),
+      );
+      const missingCommon = allCommonIds.filter(
+        (id) => !existingCommonSet.has(id),
+      );
+      if (missingCommon.length > 0) {
+        return {
+          success: false,
+          err: `Mapped common indicators do not exist: ${
+            missingCommon.join(", ")
+          }`,
+        };
+      }
+    }
 
+    // All-or-nothing: one failed item aborts the whole Postgres transaction
+    // (every later statement fails with "transaction is aborted"), so
+    // per-item catch-and-continue can never deliver partial success. The
+    // rethrow decorates the error with the item that caused it.
     await mainDb.begin(async (sql) => {
       for (const indicator of indicators) {
         try {
-          // Create the raw indicator
           await sql`
             INSERT INTO indicators_raw (indicator_raw_id, indicator_raw_label, updated_at)
             VALUES (${indicator.indicator_raw_id}, ${indicator.indicator_raw_label}, CURRENT_TIMESTAMP)
-            ON CONFLICT (indicator_raw_id) 
-            DO UPDATE SET 
+            ON CONFLICT (indicator_raw_id)
+            DO UPDATE SET
               indicator_raw_label = EXCLUDED.indicator_raw_label,
               updated_at = CURRENT_TIMESTAMP
           `;
-
-          // Create mappings
           for (const commonId of indicator.mapped_common_ids) {
             await sql`
               INSERT INTO indicator_mappings (indicator_raw_id, indicator_common_id, updated_at)
               VALUES (${indicator.indicator_raw_id}, ${commonId}, CURRENT_TIMESTAMP)
-              ON CONFLICT (indicator_raw_id, indicator_common_id) 
+              ON CONFLICT (indicator_raw_id, indicator_common_id)
               DO UPDATE SET updated_at = CURRENT_TIMESTAMP
             `;
           }
-
-          results.created++;
         } catch (error) {
-          results.failed++;
-          results.errors.push(
+          throw new Error(
             `${indicator.indicator_raw_id}: ${
               error instanceof Error ? error.message : "Unknown error"
             }`,
@@ -330,7 +368,10 @@ export async function createIndicatorsRaw(
       }
     });
 
-    return { success: true, data: results };
+    return {
+      success: true,
+      data: { created: indicators.length, failed: 0, errors: [] },
+    };
   });
 }
 
@@ -367,25 +408,27 @@ export async function updateIndicatorRaw(
   mappedCommonIds: string[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb.begin(async (sql) => {
-      // If changing the ID, check if it's used in dataset_hmis
-      if (oldIndicatorRawId !== newIndicatorRawId) {
-        const usageCheck = await sql<{ count: number }[]>`
-          SELECT COUNT(*) as count 
-          FROM dataset_hmis 
-          WHERE indicator_raw_id = ${oldIndicatorRawId}
-        `;
-        if ((usageCheck[0]?.count ?? 0) > 0) {
-          return {
-            success: false,
-            err:
-              `Cannot change indicator_raw_id for ${oldIndicatorRawId}: It has ${
-                usageCheck[0].count
-              } records in dataset_hmis`,
-          };
-        }
+    // If changing the ID, check if it's used in dataset_hmis. This must run
+    // OUTSIDE begin(): a return value from inside the callback is swallowed
+    // by begin() and the function would report success for a blocked rename.
+    if (oldIndicatorRawId !== newIndicatorRawId) {
+      const usageCheck = await mainDb<{ count: number }[]>`
+        SELECT COUNT(*) as count
+        FROM dataset_hmis
+        WHERE indicator_raw_id = ${oldIndicatorRawId}
+      `;
+      if ((usageCheck[0]?.count ?? 0) > 0) {
+        return {
+          success: false,
+          err:
+            `Cannot change indicator_raw_id for ${oldIndicatorRawId}: It has ${
+              usageCheck[0].count
+            } records in dataset_hmis`,
+        };
       }
+    }
 
+    await mainDb.begin(async (sql) => {
       // Update the raw indicator
       await sql`
         UPDATE indicators_raw 
@@ -508,7 +551,7 @@ export async function batchUploadRawIndicators(
   replaceAllExisting = false,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const filePath = join(_ASSETS_DIR_PATH, assetFileName);
+    const filePath = resolveAssetFilePath(assetFileName);
     let csvData: Record<string, string>[];
     try {
       csvData = (
@@ -568,7 +611,7 @@ export async function batchUploadIndicators(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     // Read and parse the CSV file
-    const filePath = join(_ASSETS_DIR_PATH, assetFileName);
+    const filePath = resolveAssetFilePath(assetFileName);
     let csvData: Record<string, string>[];
     try {
       csvData = (

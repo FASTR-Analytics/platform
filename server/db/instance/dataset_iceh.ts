@@ -5,6 +5,7 @@ import JSZip from "npm:jszip";
 import { parseCsv } from "@timroberton/panther";
 import { _ASSETS_DIR_PATH, _SANDBOX_DIR_PATH } from "../../exposed_env_vars.ts";
 import { readXlsxFileAsSheets } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
+import { resolveAssetFilePath } from "./assets.ts";
 import { getCountryIso3Config } from "./config.ts";
 import {
   APIResponseNoData,
@@ -294,7 +295,7 @@ export async function updateDatasetIcehUploadAttemptStep1(
   zipAssetFileName: string
 ): Promise<APIResponseWithData<IcehStep1Result>> {
   return await tryCatchDatabaseAsync(async () => {
-    const zipPath = join(_ASSETS_DIR_PATH, zipAssetFileName);
+    const zipPath = resolveAssetFilePath(zipAssetFileName);
     const zipData = await Deno.readFile(zipPath);
     const zip = await JSZip.loadAsync(zipData);
 

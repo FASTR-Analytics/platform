@@ -1,10 +1,9 @@
-import { join } from "@std/path";
 import {
   _GLOBAL_MAX_YEAR_FOR_PERIODS,
   _GLOBAL_MIN_YEAR_FOR_PERIODS,
 } from "@timroberton/panther";
 import { Sql } from "postgres";
-import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
+import { resolveAssetFilePath } from "./assets.ts";
 import type {
   DatasetHmisWindowingRaw,
   InstanceConfigFacilityColumns,
@@ -717,7 +716,7 @@ export async function updateDatasetUploadAttempt_Step1CsvUpload(
     if (!rawDUA.source_type) {
       throw new Error("Not yet ready for this step");
     }
-    const assetFilePath = join(_ASSETS_DIR_PATH, assetFileName);
+    const assetFilePath = resolveAssetFilePath(assetFileName);
     const resCsvDetails = await getCsvDetails(assetFilePath, assetFileName);
     throwIfErrWithData(resCsvDetails);
     const updated = await mainDb`

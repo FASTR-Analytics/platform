@@ -1,6 +1,5 @@
-import { join } from "@std/path";
 import { Hono } from "hono";
-import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
+import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 
 export const routesAiFiles = new Hono();
@@ -22,13 +21,13 @@ routesAiFiles.post("/files", requireProjectPermission(), async (c) => {
     return c.json({ error: { message: "assetFilename is required" } }, 400);
   }
 
-  // Validate filename doesn't contain path traversal
-  if (assetFilename.includes("..") || assetFilename.includes("/")) {
+  // Read file from assets
+  let filePath: string;
+  try {
+    filePath = resolveAssetFilePath(assetFilename);
+  } catch {
     return c.json({ error: { message: "Invalid filename" } }, 400);
   }
-
-  // Read file from assets
-  const filePath = join(_ASSETS_DIR_PATH, assetFilename);
   let fileData: Uint8Array;
   try {
     fileData = await Deno.readFile(filePath);

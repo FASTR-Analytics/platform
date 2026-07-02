@@ -34,8 +34,7 @@ import {
   getOrgUnitMetadata,
   testDHIS2Connection,
 } from "../../dhis2/goal1_org_units_v2/mod.ts";
-import { join } from "@std/path";
-import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
+import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
@@ -136,7 +135,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("readWeightsCsvHeaders"),
   async (c, { body }) => {
-    const filePath = join(_ASSETS_DIR_PATH, body.assetFileName);
+    const filePath = resolveAssetFilePath(body.assetFileName);
     const res = await getCsvDetails(filePath, body.assetFileName);
     return c.json(res);
   },
