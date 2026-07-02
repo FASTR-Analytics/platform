@@ -50,6 +50,7 @@ async function run(std: {
       successOrError: "error",
     };
     broadcastTaskEnded.postMessage(etd);
+    await projectDb.end();
     await mainDb.end();
     return;
   }

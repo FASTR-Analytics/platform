@@ -34,7 +34,7 @@ How a versioned R module is loaded (registry → GitHub/local → Zod → transl
     → open ___logs___.txt
     → getScriptWithParameters(...) → write ___script___.R
     → copy assets
-    → prod: docker run -v <sandbox_external>:/home/docker -w …/<module> <image> Rscript ___script___.R
+    → prod: docker run --name fastr-run-<module>-<runToken> -v <sandbox_external>:/home/docker -w …/<module> <image> Rscript ___script___.R
       dev:  Rscript ___script___.R  (cwd = sandbox_external/<project>/<module>)
     → merge stdout(r-output)/stderr(r-error) → yield RunStreamMsg → SSE (notifyProjectRScript)
     → await exit; sleep 2000ms (let R flush CSVs)
@@ -82,7 +82,7 @@ Sandbox lifecycle, in order:
 1. `checkSpaceForModuleRun()` — disk-space guard (may trigger a volume resize).
 2. `emptyDir(sandbox/<project>/<module>)` and `DROP TABLE IF EXISTS ro_<resultsObjectId>` for each results object.
 3. open the log file (`_MODULE_LOG_FILE_NAME`), write `getScriptWithParameters(...)` to `_MODULE_SCRIPT_FILE_NAME`, copy each `assetsToImport` from `_ASSETS_DIR_PATH`.
-4. spawn R — **prod:** `docker run -it --rm -v <external sandbox>:/home/docker -w /home/docker/<moduleId> <image> Rscript <script>`; **dev:** `Rscript <script>` with `cwd` = external sandbox. Image: `timroberton/comb:wb-hmis-r-linux` (prod) / `…-r-local` (dev).
+4. spawn R — **prod:** `docker run -it --rm --name fastr-run-<moduleId>-<runToken> -v <external sandbox>:/home/docker -w /home/docker/<moduleId> <image> Rscript <script>`; **dev:** `Rscript <script>` with `cwd` = external sandbox. Image: `timroberton/comb:wb-hmis-r-linux` (prod) / `…-r-local` (dev). The name (single source: `container_name.ts`) is what lets the host `docker rm -f` the container when it terminates a run — killing the docker CLI client alone doesn't stop the container.
 5. merge `stdout`→`r-output` / `stderr`→`r-error` (strip VT control chars), write to log, yield each (the worker forwards to clients via `notifyProjectRScript` → SSE).
 6. await exit, then **`sleep(2000)`** — R may still be flushing CSVs (longer under Docker) before they can be `COPY`-ed.
 7. verify every declared results CSV exists (`throw` → `bad-close` if missing).

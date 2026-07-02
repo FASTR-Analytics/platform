@@ -94,7 +94,10 @@ holding `step` (HMIS 0–4, HFA 1–4, ICEH 1–3), `step_N_result` JSON blobs,
   `step = 4` + `step_3_result` only on success.
 - **All step-config writes are conditional on no active worker phase**
   (same WHERE), so a mappings/selection/credentials edit cannot race a
-  running worker into marking data staged under a different config.
+  running worker into marking data staged under a different config. The
+  worker payload is re-read from the row **after** the claim UPDATE, so a
+  config write landing between the initial read and the claim cannot run
+  the worker on a pre-claim snapshot.
 - Earlier-step writes null all downstream `step_N_result`s; the integrate
   gate requires steps 1–3 results present.
 - Crash/deploy recovery: `resetWedgedUploadAttempts` (db_startup) flips
