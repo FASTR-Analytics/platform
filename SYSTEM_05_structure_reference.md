@@ -1,5 +1,5 @@
 ---
-system: 6
+system: 5
 name: Structure & Reference Data
 globs:
   - client/src/components/forms_editors/dhis2_credentials_form.tsx
@@ -40,9 +40,9 @@ globs:
   - server/server_only_funcs_importing/**
 docs_absorbed:
 ---
-# S6 — Structure & Reference Data
+# S5 — Structure & Reference Data
 
-> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S6).
+> **Phase 1 stub** (manifest only). Full scope/contract/size: SYSTEMS.md "System details" (S5).
 > Prose is ported here in this system's first review cycle (Phase 2,
 > PLAN_DOC_CONSOLIDATION §2); the `docs_absorbed` files are inlined and
 > deleted then.
@@ -52,7 +52,7 @@ _the instance-wide reference world everything joins against: facilities, admin a
 ## Scope
 
 See `globs:` in the frontmatter above (the manifest — lint-enforced by
-`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S6).
+`lint_systems.ts`) and the full scope text in SYSTEMS.md "System details" (S5).
 
 ## Docs absorbed (Phase 2)
 

@@ -1,5 +1,5 @@
 ---
-system: 5
+system: 6
 name: Dataset Ingestion
 globs:
   - client/src/components/PeriodSelector.tsx
@@ -44,7 +44,7 @@ globs:
   - server/worker_routines/stage_hmis_data_dhis2/**
   - server/worker_routines/worker_store.ts
 ---
-# S5 — Dataset Ingestion
+# S6 — Dataset Ingestion
 
 The stage→integrate machinery for the three dataset families — HMIS
 (CSV + DHIS2), HFA (CSV + XLSForm), ICEH (zip) — plus their wizards, the
@@ -52,9 +52,9 @@ upload-attempt state machines, and the per-project attach/snapshot seam.
 Reviewed against code 2026-07-02 (first review cycle; fixes landed in
 commits `80a9996e`, `958132fd`, `b012ad3d`).
 
-Structure/facility ELT (`server_only_funcs_importing/**`) is **S6** — its
+Structure/facility ELT (`server_only_funcs_importing/**`) is **S5** — its
 execution model (synchronous streamed, 100 MB cap, per-family staging
-tables, integrate strategies) is documented in S6's cycle, not here. The
+tables, integrate strategies) is documented in S5's cycle, not here. The
 worker lifecycle (spawn, READY handshake, teardown) is S8's
 DOC_WORKER_ROUTINES. DHIS2 fetching/retry is S7.
 
@@ -79,7 +79,7 @@ holding `step` (HMIS 0–4, HFA 1–4, ICEH 1–3), `step_N_result` JSON blobs,
 `status` and `status_type` together.
 
 - `status_type` values: `configuring`, `staging`, `integrating` (the two
-  lock states), `staged`, `complete`, `error`. Structure (S6) uses
+  lock states), `staged`, `complete`, `error`. Structure (S5) uses
   `importing`. The HMIS status JSON additionally has `staging_dhis2`
   (work-item progress), which is a lock state for polling purposes.
 - **All claims are race-free conditional UPDATEs + rowcount checks**
@@ -185,7 +185,7 @@ staging. No merge → **no phantom-value hazard** within a time point; other
 time points untouched (rounds). **No version records** — staleness
 identity is a hash over `hfa_time_points` (label, sort_order,
 imported_at). Weights (`hfa_facility_weights`) are populated by the
-structure import (S6), never here; HFA data deletion preserves time
+structure import (S5), never here; HFA data deletion preserves time
 points, weights, and indicator code.
 
 **ICEH — cumulative per-indicator replace**: only indicators present in

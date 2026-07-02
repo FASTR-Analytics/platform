@@ -23,8 +23,8 @@ artifacts (12), assist (13), frame (14–15).
 | [S2](SYSTEM_02_persistence.md)           | Persistence Core & Schema Lifecycle      | multi-DB Postgres, migrations + data transforms, fail-stop boot, backup/restore            |
 | [S3](SYSTEM_03_realtime_cache.md)        | Realtime Sync & Cache Invalidation       | the last_updated → SSE → version-hash triangle (notify hub, Valkey, client stores)         |
 | [S4](SYSTEM_04_assets_upload.md)         | Assets & Upload                          | the TUS file-upload front door + asset storage/metadata                                    |
-| [S5](SYSTEM_05_ingestion.md)             | Dataset Ingestion                        | stage→integrate for HMIS/HFA/ICEH: wizards, staging workers, attach/snapshot               |
-| [S6](SYSTEM_06_structure_reference.md)   | Structure & Reference Data               | facilities, admin areas, weights, geojson, indicator dictionaries, instance config         |
+| [S5](SYSTEM_05_structure_reference.md)   | Structure & Reference Data               | facilities, admin areas, weights, geojson, indicator dictionaries, instance config         |
+| [S6](SYSTEM_06_ingestion.md)             | Dataset Ingestion                        | stage→integrate for HMIS/HFA/ICEH: wizards, staging workers, attach/snapshot               |
 | [S7](SYSTEM_07_dhis2.md)                 | DHIS2 Connector                          | self-contained typed adapter for external DHIS2 (retry, paging, analytics, geojson)        |
 | [S8](SYSTEM_08_module_system.md)         | Module System                            | versioned R modules: fetch → validate → install → dirty-state → Docker run → ro_*          |
 | [S9](SYSTEM_09_viz_query_cache.md)       | Visualization Query & Cache Service      | PO config → fetch-config → SQL over ro_* → version-hashed cached payloads                  |
@@ -111,33 +111,10 @@ custody exceptions are in §4.1.
   `components/instance/instance_assets.tsx`; lib: `types/assets.ts`.
 - **Contract:** files land in `ASSETS_DIR` via resumable TUS and are referenced
   by metadata rows; the upload HEAD is intentionally unauthenticated (protocol
-  resume). Consumed by S5, S12, S13.
+  resume). Consumed by S6, S12, S13.
 - **Size:** ~12 files. **Docs:** none.
 
-### S5. Dataset Ingestion
-
-- **One line:** the stage→integrate machinery for the HMIS/HFA/ICEH dataset
-  families: wizards, staging workers, upload-attempt state machines, and
-  per-project dataset attach/snapshot.
-- **Scope:** `db/instance/dataset_{hmis,hfa,iceh}.ts` (orchestrators incl.
-  their worker-lifecycle blocks); `worker_routines/{stage_*,integrate_*}/**` +
-  `worker_store.ts`; `server_only_funcs_csvs/**`; `routes/instance/{datasets,iceh}.ts`;
-  `db/project/datasets_in_project_*.ts` + `calculated_indicators_snapshot.ts`
-  (the seam to S8); lib dataset/import types + `table_structures/**`; client:
-  `instance_dataset_*` + `*_import` wizards, `_import_wizard/`,
-  `PeriodSelector` / `TimeIndexSelector` / `WindowingSelector`,
-  `project_data.tsx` + `settings_for_project_dataset_*.tsx` + `staleness_checks.ts`,
-  `instance_data.tsx` (switchboard, shared with S6), `state/instance/t2_datasets`.
-- **Contract:** one concurrent import per family (single-row attempt rows,
-  race-free conditional-UPDATE claims, fixed UNLOGGED staging tables); three
-  execution models behind similar UIs (HMIS/HFA workers, ICEH in-process);
-  progress by POLLING, not SSE; module dirtying is pull-model (project
-  attach/refresh calls `setModulesDirtyForDataset`, not integration).
-- **Size:** ~110 files — delegate per family. **Docs:** SYSTEM_05 (prose
-  ported + reviewed 2026-07-02), DOC_WORKER_ROUTINES;
-  PLAN_IMPORTER_CONSOLIDATION is the active reform.
-
-### S6. Structure & Reference Data
+### S5. Structure & Reference Data
 
 - **One line:** the instance-wide reference world everything joins against:
   facilities, admin areas, weights, geojson boundaries, indicator dictionaries
@@ -152,13 +129,36 @@ custody exceptions are in §4.1.
   `state/instance/{t2_structure,t2_indicators,t2_geojson}`.
 - **Contract:** authoritative registries (facility FK backbone with named
   DEFERRABLE constraints; indicator mappings drive staging validation; HFA R
-  code is EXECUTED by S8's module runs; instance config parameterizes S5's ELT
+  code is EXECUTED by S8's module runs; instance config parameterizes S6's ELT
   and S9's SQL). Snapshots frozen into project DBs at attach time.
 - **Size:** ~90 files. **Docs:** DOC_DISAGGREGATION_OPTIONS_HANDLING. The
   structure-ELT mechanics (synchronous streamed model, 100 MB cap, per-family
   staging tables, atomic claim, integrate strategies, 4-level admin-area
   model) were part of the retired DOC_IMPORT_PIPELINE — document them fresh
-  in S6's first review cycle.
+  in S5's first review cycle.
+
+### S6. Dataset Ingestion
+
+- **One line:** the stage→integrate machinery for the HMIS/HFA/ICEH dataset
+  families: wizards, staging workers, upload-attempt state machines, and
+  per-project dataset attach/snapshot.
+- **Scope:** `db/instance/dataset_{hmis,hfa,iceh}.ts` (orchestrators incl.
+  their worker-lifecycle blocks); `worker_routines/{stage_*,integrate_*}/**` +
+  `worker_store.ts`; `server_only_funcs_csvs/**`; `routes/instance/{datasets,iceh}.ts`;
+  `db/project/datasets_in_project_*.ts` + `calculated_indicators_snapshot.ts`
+  (the seam to S8); lib dataset/import types + `table_structures/**`; client:
+  `instance_dataset_*` + `*_import` wizards, `_import_wizard/`,
+  `PeriodSelector` / `TimeIndexSelector` / `WindowingSelector`,
+  `project_data.tsx` + `settings_for_project_dataset_*.tsx` + `staleness_checks.ts`,
+  `instance_data.tsx` (switchboard, shared with S5), `state/instance/t2_datasets`.
+- **Contract:** one concurrent import per family (single-row attempt rows,
+  race-free conditional-UPDATE claims, fixed UNLOGGED staging tables); three
+  execution models behind similar UIs (HMIS/HFA workers, ICEH in-process);
+  progress by POLLING, not SSE; module dirtying is pull-model (project
+  attach/refresh calls `setModulesDirtyForDataset`, not integration).
+- **Size:** ~110 files — delegate per family. **Docs:** SYSTEM_06 (prose
+  ported + reviewed 2026-07-02), DOC_WORKER_ROUTINES;
+  PLAN_IMPORTER_CONSOLIDATION is the active reform.
 
 ### S7. DHIS2 Connector
 
@@ -169,7 +169,7 @@ custody exceptions are in §4.1.
   wart: `stage_structure_from_dhis2.ts` re-implements org-unit paging inline.
 - **Contract:** every call funnels through `fetchFromDHIS2 → withRetry`
   (5 attempts, backoff+jitter); never-throw boundary; two-phase connection
-  validation; no DB writes. Consumed by S5, S6.
+  validation; no DB writes. Consumed by S6, S5.
 - **Size:** ~20 files. The cleanest system. **Docs:** DOC_DHIS2_INTEGRATION.
 
 ### S8. Module System
@@ -336,11 +336,11 @@ list.)
 | File                                                                    | Owner | Mandatory readers | Seam                                                  |
 |-------------------------------------------------------------------------|-------|-------------------|-------------------------------------------------------|
 | `server/db/project/projects.ts`                                         | S15   | S2, S1, S8        | four systems in 1,108 lines                           |
-| `server/routes/project/project.ts`                                      | S15   | S5, S8            | 18 routes, three systems                              |
+| `server/routes/project/project.ts`                                      | S15   | S6, S8            | 18 routes, three systems                              |
 | `server/routes/project/presentation_objects.ts`                         | S9    | S11, S3           | queries / CRUD / cache interleaved                    |
 | `server/routes/caches/visualizations.ts`                                | S9    | S3, S2            | cache instances + PO_CACHE_VERSION                    |
 | `client/src/state/project/t2_presentation_objects.ts`                   | S9    | S10, S3           | hottest client file (20 importers)                    |
-| `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S5    | S2, S8            | orchestrator + worker lifecycle + CRUD                |
+| `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                |
 | `server/db/project/modules.ts`                                          | S8    | S2, S9, S13       | install heart + read API (~540+)                      |
 | `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / `/d/:slug`)           |
 | `client/src/components/LoggedInWrapper.tsx`                             | S1    | S3, S14           | Clerk singleton + version flush + shell               |
@@ -349,12 +349,12 @@ list.)
 | `server/task_management/mod.ts`                                         | S8    | S3                | barrel re-exports the notify hub                      |
 | `server/routes/instance/users.ts` · `server/db/instance/users.ts`       | S1    | S15, S13          | guard rows + admin handlers + token governance        |
 | `server/server_only_types/mod.ts`                                       | S8    | S1, S3, S9        | 20 lines, three systems — physical-split candidate    |
-| `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S6    | S15, S5           | config routes + meta/projects/disk + dataset versions |
-| `_file_upload_selector.tsx` · `_uppy_file_upload.ts`                    | S4    | S5, S6, S12, S15  | shared upload primitives                              |
+| `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/projects/disk + dataset versions |
+| `_file_upload_selector.tsx` · `_uppy_file_upload.ts`                    | S4    | S6, S5, S12, S15  | shared upload primitives                              |
 | `server/db/project/results_objects.ts`                                  | S8    | S9                | `ro_*` read = the S8→S9 data spine                    |
-| `client/src/components/project/staleness_checks.ts`                     | S5    | S8                | also exports `checkModulesNeedUpdate`                 |
-| `client/src/components/instance/instance_data.tsx`                      | S5    | S6                | data-tab switchboard mounting S6 managers             |
-| `server/db/instance/config.ts`                                          | S6    | S5, S9            | instance config parameterizes ELT + generated SQL     |
+| `client/src/components/project/staleness_checks.ts`                     | S6    | S8                | also exports `checkModulesNeedUpdate`                 |
+| `client/src/components/instance/instance_data.tsx`                      | S6    | S5                | data-tab switchboard mounting S5 managers             |
+| `server/db/instance/config.ts`                                          | S5    | S6, S9            | instance config parameterizes ELT + generated SQL     |
 | `lib/types/project_dirty_states.ts`                                     | S3    | S8                | `DirtyOrRunStatus` drives the dirty machine           |
 
 ## §4.2 Kernel — read but don't own

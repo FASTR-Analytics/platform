@@ -70,7 +70,7 @@ See `globs:` in the frontmatter above (the manifest — lint-enforced by
   (20 lines, three systems) and `server/task_management/` as a directory (the
   notify hub, owned by S3, vs the dirty machine, owned here).
 - **Decoupling — write down the data-spine contracts.** S8→S9 (`ro_*` /
-  `metrics` / `last_run_at`) and S5→S8 (sandbox CSVs + the `setModulesDirtyForDataset`
+  `metrics` / `last_run_at`) and S6→S8 (sandbox CSVs + the `setModulesDirtyForDataset`
   call) carry zero import edges by design; nothing _states_ the contracts.
 - **Dead code (zero importers):** `fetchRawScript` in
   `server/github/fetch_module.ts`.

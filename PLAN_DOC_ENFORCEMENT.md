@@ -44,7 +44,7 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 - [ ] **6. One bulk-escape helper; ban hand-built `VALUES`.**
   The import pipeline escapes bulk `VALUES` three different ways on user data: structure uses `cleanValStrForSql` **and** `''`-doubling; HFA uses `cleanValStrForSql` only (no doubling); HMIS facility id uses `''`-doubling without `cleanValStrForSql`. Correctness + injection risk.
   **Fix:** one `sqlBulkLiteral(value)` helper, route all three pipelines through it, and lint/grep-ban manual tuple escaping.
-  **Files:** `server/server_only_funcs_importing/stage_structure_from_csv.ts`, `server/worker_routines/stage_{hmis,hfa}_data_csv/worker.ts`, a shared util. **Docs:** [SYSTEM_05_ingestion.md](SYSTEM_05_ingestion.md), [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md) (owns the SQL-safety rule).
+  **Files:** `server/server_only_funcs_importing/stage_structure_from_csv.ts`, `server/worker_routines/stage_{hmis,hfa}_data_csv/worker.ts`, a shared util. **Docs:** [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md), [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md) (owns the SQL-safety rule).
 
 - [ ] **7. Harden R-source interpolation.**
   The default and HFA script generators interpolate config `text`/`select`/`number` values and `COUNTRY_ISO3` with bare `'…'` wrapping and no escaping; only the calculated-indicators generator validates identifiers. These strings execute as real R in a container.

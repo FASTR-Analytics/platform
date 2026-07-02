@@ -156,17 +156,17 @@ restated. Pure-architecture docs have no Recipe column entry.
 | DOC_VALKEY_CACHE | S3 (informs S9) | — | — |
 | DOC_STATE_RULES + 3× DOC_STATE_MGT_* | CROSS_CLIENT_STATE (app field inventory) | — | **PROTOCOL_UI_STATE** (the T1–T5 rules) |
 | DOC_TASK_EXECUTION_DIRTY_STATE | S8 | — | — |
-| DOC_WORKER_ROUTINES | S8 (informs S5) | PROTOCOL_APP_WORKER_ROUTINES (write-a-worker recipe) | — |
+| DOC_WORKER_ROUTINES | S8 (informs S6) | PROTOCOL_APP_WORKER_ROUTINES (write-a-worker recipe) | — |
 | DOC_MODULE_EXECUTION | S8 | — | — |
 | DOC_MODULE_UPDATES | S8 | — | — |
-| DOC_POPULATION_CSV | S8 (informs S6) | — | — |
-| DOC_IMPORT_PIPELINE | S5 ✅ ported + deleted 2026-07-02 (structure sections flagged for S6's cycle) | — | — |
+| DOC_POPULATION_CSV | S8 (informs S5) | — | — |
+| DOC_IMPORT_PIPELINE | S6 ✅ ported + deleted 2026-07-02 (structure sections flagged for S5's cycle) | — | — |
 | DOC_DHIS2_INTEGRATION | S7 | — | — |
 | DOC_AI_PROXY_AND_USAGE_GOVERNANCE | S13 | — | — |
 | DOC_AI_TOOL_SCHEMAS | S13 | PROTOCOL_APP_AI_TOOLS (author-a-tool-schema recipe) | — |
 | DOC_PRESENTATION_OBJECT_QUERY_PIPELINE | S9 | — | — |
 | DOC_period_column_handling | S9 (also §4.3.5 audit) | — | — |
-| DOC_DISAGGREGATION_OPTIONS_HANDLING | S9 (informs S6) | — | — |
+| DOC_DISAGGREGATION_OPTIONS_HANDLING | S9 (informs S5) | — | — |
 | DOC_ROLLUP_ROWS | S9 | — | — |
 | DOC_SPECIAL_CHART_MODES | S10 | — | — |
 | DOC_DESIGN_SYSTEM | CROSS_UI_CONVENTIONS (app tokens/patterns) | — | **PROTOCOL_UI_STYLING / _COMPONENTS** |
@@ -177,7 +177,7 @@ restated. Pure-architecture docs have no Recipe column entry.
 
 Undocumented systems (no DOC_* to absorb — their SYSTEM file is written fresh
 from code in Phase 2): **S4** (Assets & Upload), **S12** (Documents & Sharing —
-the largest doc gap). S6 and S11 are only partially covered.
+the largest doc gap). S5 and S11 are only partially covered.
 
 ## 3a. Doc staleness to fix during the port
 
@@ -192,7 +192,7 @@ during its system's Phase-2 cycle — listed here so the port catches them.
   from XLSX" is wrong per DOC_TRANSLATION; `state/ui.ts` and
   `components/project_runner/provider.tsx` are phantoms (real: `state/t4_ui.ts`,
   `components/project/index.tsx` area).
-- ~~**DOC_IMPORT_PIPELINE:** pre-facilities-split; no ICEH; no wizard shell.~~ Resolved 2026-07-02: SYSTEM_05 written fresh from a verified review; doc deleted.
+- ~~**DOC_IMPORT_PIPELINE:** pre-facilities-split; no ICEH; no wizard shell.~~ Resolved 2026-07-02: SYSTEM_06 written fresh from a verified review; doc deleted.
 - **DOC_MIGRATIONS:** lists 5 of 10 transforms; "reports are deprecated" is
   wrong; links nonexistent DOC_AI_TOOL_VALIDATION.md; cites
   `lib/types/instance_config.ts` (real home: `lib/types/instance.ts`).
@@ -268,7 +268,7 @@ Rules:
   splits are prose in SYSTEMS.md §4.1, not globs.
 - Globs are repo-root-relative; `**` supported. Prefer directory globs where a
   whole dir belongs to one system; enumerate individual files where a dir is
-  split (e.g. `components/project/*` is split across S5/S8/S10/S11/S12/S15 — list
+  split (e.g. `components/project/*` is split across S6/S8/S10/S11/S12/S15 — list
   the files).
 - The kernel files (SYSTEMS.md §4.2: `lib/mod.ts`, `lib/types/instance.ts`,
   `lib/consts.ts`, `lib/utils.ts`, `exposed_env_vars.ts`) are claimed by a

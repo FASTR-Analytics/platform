@@ -19,7 +19,7 @@ The bundle already reserves room: `provenance` carries `moduleLastRun` and
   - `projectDataAddedAt` — when the dataset version was brought into the project.
   The metric → source-datasets → import-time path is a multi-hop join not yet
   traced; may need a column, not just a read (verify `datasets_in_project_*` is even
-  timestamped). Owners: S6/S5 (timestamps) + S9 (capture them onto the bundle).
+  timestamped). Owners: S5/S6 (timestamps) + S9 (capture them onto the bundle).
 - **Stale-badge — no re-query.** "Needs update?" = compare the bundle's captured
   `(moduleLastRun, datasetsVersion)` against the current values the client already
   holds cheaply (module summaries carry `lastRunAt`; `datasetsVersion` is instance
@@ -40,7 +40,7 @@ The bundle already reserves room: `provenance` carries `moduleLastRun` and
   run time + datasets version (free), instance/project import times (the two above,
   need wiring). Three of five already free.
 
-Owner: S12 (the UI) + S9 (re-query/reassemble) + S6/S5 (import timestamps).
+Owner: S12 (the UI) + S9 (re-query/reassemble) + S5/S6 (import timestamps).
 
 ## Phase 5 (optional, separate mechanical PR) — the Visualization rename
 
