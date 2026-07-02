@@ -37,8 +37,8 @@ import { instantiateIntegrateUploadedDataWorker } from "../../worker_routines/in
 import { instantiateStageHmisDataCsvWorker } from "../../worker_routines/stage_hmis_data_csv/instantiate_worker.ts";
 import { instantiateStageHmisDataDhis2Worker } from "../../worker_routines/stage_hmis_data_dhis2/instantiate_worker.ts";
 import {
-  getHmisWorker,
-  setHmisWorker,
+  getWorker,
+  setWorker,
 } from "../../worker_routines/worker_store.ts";
 import { escapeSqlString, tryCatchDatabaseAsync } from "../utils.ts";
 import type {
@@ -673,11 +673,11 @@ export async function deleteDatasetHmisUploadAttempt(
     }
 
     // Terminate any running HMIS worker
-    const hmisWorker = getHmisWorker();
+    const hmisWorker = getWorker("hmis");
 
     if (hmisWorker) {
       hmisWorker.terminate();
-      setHmisWorker(null);
+      setWorker("hmis",null);
     }
 
     await mainDb`DELETE FROM dataset_hmis_upload_attempts`;
@@ -802,7 +802,7 @@ export async function updateDatasetUploadAttempt_Step3Staging(
     }
 
     // Check if an HMIS worker is already running
-    const existingWorker = getHmisWorker();
+    const existingWorker = getWorker("hmis");
     if (existingWorker) {
       throw new Error(
         "An HMIS operation is already in progress. Please wait for it to complete."
@@ -840,7 +840,7 @@ export async function updateDatasetUploadAttempt_Step3Staging(
     }
 
     // Store the worker reference globally
-    setHmisWorker(worker);
+    setWorker("hmis",worker);
 
     // Handle worker crash - clear reference when done
     worker.addEventListener("error", async (e) => {
@@ -859,13 +859,13 @@ export async function updateDatasetUploadAttempt_Step3Staging(
       } catch (dbError) {
         console.error("Failed to update database after worker crash:", dbError);
       }
-      setHmisWorker(null);
+      setWorker("hmis",null);
     });
 
     // Handle successful completion
     worker.addEventListener("message", (e) => {
       if (e.data === "COMPLETED") {
-        setHmisWorker(null);
+        setWorker("hmis",null);
       }
     });
 
@@ -1015,7 +1015,7 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
     }
 
     // Check if an HMIS worker is already running
-    const existingWorker = getHmisWorker();
+    const existingWorker = getWorker("hmis");
     if (existingWorker) {
       throw new Error(
         "An HMIS operation is already in progress. Please wait for it to complete."
@@ -1043,7 +1043,7 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
     const worker = instantiateIntegrateUploadedDataWorker(rawDUA);
 
     // Store the worker reference globally
-    setHmisWorker(worker);
+    setWorker("hmis",worker);
 
     // Handle worker crash
     worker.addEventListener("error", async (e) => {
@@ -1062,13 +1062,13 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
       } catch (dbError) {
         console.error("Failed to update database after worker crash:", dbError);
       }
-      setHmisWorker(null);
+      setWorker("hmis",null);
     });
 
     // Handle successful completion
     worker.addEventListener("message", async (e) => {
       if (e.data === "COMPLETED") {
-        setHmisWorker(null);
+        setWorker("hmis",null);
         try {
           await onComplete?.();
         } catch (err) {

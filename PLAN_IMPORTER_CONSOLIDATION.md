@@ -1,14 +1,15 @@
 # Plan — Importer Consolidation Toolkit
 
-> **Status: implementation plan (v3, 2026-07-02).** Standalone effort. **Goal: make building the *next* dataset importer cheap** — via shared UI patterns, server helpers, and a thin wiring scaffold.
+> **Status: dormant by design (v3, 2026-07-02).** Everything here is gated on
+> a real second importer being in flight (e.g. the population importer) — see
+> §1. **Goal: make building the *next* dataset importer cheap** — via shared
+> UI patterns, server helpers, and a thin wiring scaffold.
 >
 > **This is deliberately NOT a monolithic generic engine** (that idea, from the now-deleted `PLAN_DATA_IMPORT_ARCHITECTURE.md`, was rejected on code evidence 2026-06-10 — see `PLAN_FACILITIES_SPLIT.md`), and it is independent of the facilities split. It consolidates *building blocks* while every importer stays its own readable file.
->
-> v2's "Part A" bundled two live bugs with this plan; both were fixed in the 2026-07 review cycles (startup reset of wedged attempts = `resetWedgedUploadAttempts` in db_startup; the lossy `cleanValStrForSql` escaper no longer exists). What remains here is one small do-now item and the on-demand toolkit.
 
 ---
 
-## 1. Economics first — what's justified now vs. on spec
+## 1. Economics first — why this waits for a customer
 
 Be honest about demand before building abstractions:
 
@@ -16,24 +17,18 @@ Be honest about demand before building abstractions:
 - Exactly **one** new dataset family has ever been added (ICEH, 2026-05-19) → cadence ≈ **one new dataset per ~6 months**.
 - Revealed preference: ICEH's author knew the codebase well enough to deliberately skip the worker machinery, yet still hand-cloned the wizard + state-machine boilerplate rather than build a shared helper. That's weak evidence the boilerplate is *annoying but cheap*.
 
-**Conclusion:** the toolkit's payback is measured in **years**. So:
-
-- **Do now:** the one genuine blocker (§2, ~15 LOC).
-- **Build on demand:** everything else (§3–§7). Build it **when there's a real second customer in flight** (e.g. the population importer), so that customer *justifies* each abstraction instead of it being built on spec. At that point you'll have 4–5 real importers to design against.
-
----
-
-## 2. Do now — keyed worker registry (the only hard blocker)
-
-[worker_store.ts:4](server/worker_routines/worker_store.ts#L4) has two named singletons (`hmisWorker`, `hfaWorker`). **You cannot add a 5th worker-based importer without editing this file**, and there's no generic slot.
-
-- **Fix (~15 LOC):** replace with `Map<string, Worker>` + `setWorker(key, w|null)` / `getWorker(key)`. Behavior-preserving; removes the ceiling. Keep thin typed aliases for the existing two during transition.
+**Conclusion:** the toolkit's payback is measured in **years**. Build it
+**when there's a real second customer in flight**, so that customer
+*justifies* each abstraction instead of it being built on spec. At that point
+you'll have 4–5 real importers to design against. (There is no do-now work
+left in this plan: the worker registry is keyed — `worker_store.ts` is
+`Map<string, Worker>` — so a new worker-based importer has a generic slot.)
 
 ---
 
-## 3. The consolidation toolkit (build on demand)
+## 2. The consolidation toolkit (build on demand)
 
-Goal: drop the marginal cost of a *new* importer. Honest costs (verified 2026-06, pre-review-cycle — see §11 caveat):
+Goal: drop the marginal cost of a *new* importer. Honest costs (verified 2026-06, pre-review-cycle — see §10 caveat):
 
 | Layer | Per-importer cost today | Realistic reduction |
 |---|---|---|
@@ -46,7 +41,7 @@ Goal: drop the marginal cost of a *new* importer. Honest costs (verified 2026-06
 
 ---
 
-## 4. Layer 1 — Client `<ImportWizardShell>`
+## 3. Layer 1 — Client `<ImportWizardShell>`
 
 **Today:** 4 orchestrators (hmis 387, hfa 283, iceh 251, structure 268 = **1,189 LOC**, ~90% identical skeleton: `createQuery` get-attempt → `getStepper` → 2s poll + `onCleanup` → `FrameTop`/`HeaderBarCanGoBack`/`StepperNavigationVisual` → `StateHolderWrapper` cascading `Switch`).
 
@@ -69,7 +64,7 @@ type ImportWizardDescriptor<TUA, TReturn> = {
 };
 ```
 
-**Build:** `client/src/components/_import_wizard/import_wizard_shell.tsx` (~180–200 LOC; component exported as `ImportWizardShell`) + a per-importer descriptor. **Render steps through Solid control-flow** — invoke `descriptor.steps[n]` inside `<Switch>/<Match>` (or `<Dynamic>`), not by imperative dispatch; read `currentStep()` + reactive deps at the top; step thunks obey `DOC_STATE_RULES` #1–3 (no early return — use `<Show>`; read reactive deps before any conditional/`await`; pass **accessors**, not snapshot values). See §10.
+**Build:** `client/src/components/_import_wizard/import_wizard_shell.tsx` (~180–200 LOC; component exported as `ImportWizardShell`) + a per-importer descriptor. **Render steps through Solid control-flow** — invoke `descriptor.steps[n]` inside `<Switch>/<Match>` (or `<Dynamic>`), not by imperative dispatch; read `currentStep()` + reactive deps at the top; step thunks obey `DOC_STATE_RULES` #1–3 (no early return — use `<Show>`; read reactive deps before any conditional/`await`; pass **accessors**, not snapshot values). See §9.
 
 **Realistic impact:** 1,189 → **~530–570 LOC (~50%)** — descriptors aren't uniformly ~80 LOC (HMIS branching + 5 progress thunks ≈ 110–130; structure server-driven step-4 + extra props ≈ 110–130). **The honest win is marginal:** a *new simple* importer's orchestrator = a ~50-LOC descriptor.
 
@@ -77,7 +72,7 @@ type ImportWizardDescriptor<TUA, TReturn> = {
 
 ---
 
-## 5. Layer 2 — Client step kit (trim hard, don't unify)
+## 4. Layer 2 — Client step kit (trim hard, don't unify)
 
 **Reuse as-is (already shared):** [FileUploadSelector](client/src/components/_file_upload_selector.tsx), [Dhis2CredentialsEditor](client/src/components/Dhis2CredentialsEditor.tsx), [PeriodSelector](client/src/components/PeriodSelector.tsx).
 
@@ -93,7 +88,7 @@ type ImportWizardDescriptor<TUA, TReturn> = {
 
 ---
 
-## 6. Layer 3 — Server building-blocks library
+## 5. Layer 3 — Server building-blocks library
 
 Extract under `server/server_only_funcs_importing/_toolkit/`, adopt in new code, refactor existing opportunistically **gated on a row-for-row output diff** vs. the legacy path:
 ```ts
@@ -110,67 +105,63 @@ Already-generic, keep: [instantiate_worker_generic.ts](server/worker_routines/in
 
 ---
 
-## 7. Layer 4 — Wiring scaffold
+## 6. Layer 4 — Wiring scaffold
 
 **KEEP ONE TABLE PER IMPORTER.** The v1 "single merged `upload_attempts` keyed by `table_type`" idea is **cut.** Reasons (code-grounded): ~50 bare `UPDATE …_upload_attempts SET …`/`DELETE FROM …` sites with **no `WHERE`** rely on the single-row-per-table invariant (across DB modules *and* workers); the concurrency guard is table-scoped with no importer filter. Merging means threading a `table_type` predicate through all ~50 sites in un-watched workers, losing the DB-enforced "HFA `source_type NOT NULL`", to unlock cross-dataset concurrency **nobody requested**.
 
-**7a — Table-name-parameterized CRUD helpers** (the real, safe saving):
+**6a — Table-name-parameterized CRUD helpers** (the real, safe saving):
 ```ts
 getRawUA(db, attemptTable) ; addUploadAttempt(db, attemptTable, init) ; getUploadAttemptDetail(db, attemptTable)
 getUploadStatus(db, attemptTable) ; deleteUploadAttempt(db, attemptTable, { workerKey }) ; updateStepResult(db, attemptTable, n, result, {...})
 ```
 Each importer keeps its own table + its step-transition bodies (importer-specific claim/launch logic stays put — the conditional-UPDATE claim pattern is the contract, see SYSTEM_05/06). Saves the generic CRUD (~120–180 LOC/importer), not the whole module.
 
-**7b — Route *handler* generator, NOT a registry factory.** The typed registry (`lib/api-routes/instance/*.ts`) is **irreducible**: `defineRoute` is keyed by compile-time literal route names, and the auto-generated server actions derive their `body`/`response` types from those literals. A runtime factory can't emit typed literals → the registry stays hand-written per importer (~50–170 LOC). The factory can generate the standard *handlers* — but those are already ~6 LOC each, so the win is ~40–50 LOC/importer. Bespoke routes stay explicit and are a large fraction.
-
-**7c — keyed worker registry:** §2, done first.
+**6b — Route *handler* generator, NOT a registry factory.** The typed registry (`lib/api-routes/instance/*.ts`) is **irreducible**: `defineRoute` is keyed by compile-time literal route names, and the auto-generated server actions derive their `body`/`response` types from those literals. A runtime factory can't emit typed literals → the registry stays hand-written per importer (~50–170 LOC). The factory can generate the standard *handlers* — but those are already ~6 LOC each, so the win is ~40–50 LOC/importer. Bespoke routes stay explicit and are a large fraction.
 
 **Server actions remain auto-generated** ([create_server_action.ts](client/src/server_actions/create_server_action.ts)) — zero per-importer client API code. **Realistic impact:** 760–1,190 → **~350–500 LOC/importer (~40–55%)**. The defensible headline is **"<500 LOC total for a new importer."**
 
 ---
 
-## 8. What goes in panther (and what doesn't)
+## 7. What goes in panther (and what doesn't)
 
 Panther is UI + viz/figure + doc-generation + fonts + CSV parsing + generic utils — grepping panther for Postgres / `UNLOGGED` / workers / Hono routing returns **nothing**. That boundary decides it. (Edit panther in the **source** repo `~/projects/panther/timroberton-panther` and re-sync; never edit `panther/` here. Panther edits require explicit sign-off from Tim first.)
 
 **The boundary, simply: panther = generic UI frame + CSV/file primitives, no DB/workers/routes. The *frame* of the wizard goes to panther; the *meaning* of each step and everything server-side stays in wb-fastr.**
 
 - **Already in panther (correctly):** `getStepper`, `StateHolderWrapper`, `HeaderBarCanGoBack`, `createQuery`, form inputs, tables, progress bar — most of "the shared skeleton" is panther today.
-- **Promote to panther (the one genuinely-generic new thing):** a **domain-agnostic `<WizardShell>`** — composes stepper + frame + state-holder + a slotted step-switch + optional async-state. **Keep all import semantics OUT of it** (upload-attempt resource, staging/integrating statuses, source_type, polling cadence). wb-fastr's `<ImportWizardShell>` (§4) = panther `<WizardShell>` + the FASTR import wiring. Optionally a generic `pollUntil` hook.
+- **Promote to panther (the one genuinely-generic new thing):** a **domain-agnostic `<WizardShell>`** — composes stepper + frame + state-holder + a slotted step-switch + optional async-state. **Keep all import semantics OUT of it** (upload-attempt resource, staging/integrating statuses, source_type, polling cadence). wb-fastr's `<ImportWizardShell>` (§3) = panther `<WizardShell>` + the FASTR import wiring. Optionally a generic `pollUntil` hook.
 - **Stays in wb-fastr:** the entire step kit (DHIS2 creds, CSV mapping, admin-area mapping, staging results), `FileUploadSelector` (Uppy/TUS + asset/SSE model), all of Layer 3 (Postgres ETL helpers) and Layer 4 (upload-attempt tables, handler generator, worker registry). If the server helpers ever need cross-project sharing, that's a *separate* Deno-Postgres util lib, not panther. Route work must **conform to** panther's `PROTOCOL_DENO_API`; if it reveals a missing convention, fix the protocol and re-sync.
 
 **Net: only `<WizardShell>` is worth newly promoting.** Everything that knows about datasets, DHIS2, Postgres, workers, or routes stays app-side.
 
 ---
 
-## 9. Sequencing & milestones
+## 8. Sequencing & milestones
 
-1. **M1 — keyed worker registry (§2).** Do now; ~15 LOC; wb-fastr only.
+**All milestones run only when a real second importer is in flight (e.g. population):**
 
-**Everything below only when a real second importer is in flight (e.g. population):**
-
-2. **M2 — Wizard shell (Layer 1), a cross-repo sequence:**
-   - **M2a — `<WizardShell>` in panther** *(panther repo — requires Tim's sign-off)*. Build the domain-agnostic shell under `_303_components/layout/`, composing the stepper it already owns + frame + state-holder + a slotted step-switch. **No upload/staging/`source_type`/poll semantics.** Export from `mod.ui.ts`; **re-sync** into wb-fastr's `panther/`.
-   - **M2b — `<ImportWizardShell>`** *(wb-fastr)*. Compose the synced `WizardShell` + the §4 render-thunk descriptor + the import wiring. Build it against the new importer in M3.
-   - **M2c — port the existing four** *(wb-fastr)* opportunistically: ICEH → HFA → HMIS → structure. Behavior-preserving; delete each old `index.tsx` only after end-to-end verification. Never a big-bang.
-3. **M3 — first real customer on the toolkit** *(wb-fastr)*. Build the next needed importer using the CRUD helpers (7a), the handler generator (7b), the step atoms (§5), and the server helpers (Layer 3). **Success metric: <500 LOC total** (excl. genuinely-unique transform/preview).
-4. **M4 (optional) — back-fill** existing importers onto the toolkit when touched. Never a big-bang cutover.
+1. **M1 — Wizard shell (Layer 1), a cross-repo sequence:**
+   - **M1a — `<WizardShell>` in panther** *(panther repo — requires Tim's sign-off)*. Build the domain-agnostic shell under `_303_components/layout/`, composing the stepper it already owns + frame + state-holder + a slotted step-switch. **No upload/staging/`source_type`/poll semantics.** Export from `mod.ui.ts`; **re-sync** into wb-fastr's `panther/`.
+   - **M1b — `<ImportWizardShell>`** *(wb-fastr)*. Compose the synced `WizardShell` + the §3 render-thunk descriptor + the import wiring. Build it against the new importer in M2.
+   - **M1c — port the existing four** *(wb-fastr)* opportunistically: ICEH → HFA → HMIS → structure. Behavior-preserving; delete each old `index.tsx` only after end-to-end verification. Never a big-bang.
+2. **M2 — first real customer on the toolkit** *(wb-fastr)*. Build the next needed importer using the CRUD helpers (6a), the handler generator (6b), the step atoms (§4), and the server helpers (Layer 3). **Success metric: <500 LOC total** (excl. genuinely-unique transform/preview).
+3. **M3 (optional) — back-fill** existing importers onto the toolkit when touched. Never a big-bang cutover.
 
 ---
 
-## 10. Risks
+## 9. Risks
 
 | # | Risk | Mitigation |
 |---|---|---|
 | R1 | Insert-path swaps (Layer 3) change stored bytes | Row-for-row diff per pipeline before deleting legacy; never swap blind |
-| R2 | Shell descriptor under-models variation (progress thunks, error accessor, nav-vs-render step, `TReturn`) | Use the render-thunk descriptor in §4; port structure last as the stress test |
-| R3 | Over-extracting the step kit creates leaky abstractions the 5th importer fights | §5: extract only multi-consumer atoms; HFA stays bespoke; demote the rest to on-demand |
+| R2 | Shell descriptor under-models variation (progress thunks, error accessor, nav-vs-render step, `TReturn`) | Use the render-thunk descriptor in §3; port structure last as the stress test |
+| R3 | Over-extracting the step kit creates leaky abstractions the 5th importer fights | §4: extract only multi-consumer atoms; HFA stays bespoke; demote the rest to on-demand |
 | R4 | No server `--watch` — slow inner loop on Layer 3/4 | Budget for manual restarts |
-| R5 | Building the toolkit on spec before a real customer | Gate everything after M1 on M3 having an actual importer to justify each abstraction |
+| R5 | Building the toolkit on spec before a real customer | Gate everything on M2 having an actual importer to justify each abstraction |
 
 ---
 
-## 11. Verified inventory (appendix)
+## 10. Verified inventory (appendix)
 
 > Measured 2026-06 (v2 fact-check, 48 claims: 46 confirmed / 2 partial / 0 refuted). The 2026-07 review cycles changed several of these files (structure ELT claims, ODK label resolution, wizard error/in-progress states), so treat LOC and line refs as approximate until re-measured; the *shape* conclusions (shared skeleton, similarity percentages, single-row invariant) still hold.
 
@@ -182,21 +173,21 @@ Wiring: 4 upload-attempt tables, `CHECK (id='single_row')`; HFA `source_type NOT
 
 ---
 
-## 12. Relationship to other plans
+## 11. Relationship to other plans
 
 - `PLAN_FACILITIES_SPLIT.md` — the facilities split + HFA weights + viz family-threading program. Independent of this plan, except: do not port the structure wizard the same night the split changes structure-import server behavior.
 - Population table — future, independent; the natural **first real customer** that would justify the toolkit.
 
 ---
 
-## 13. Protocol & state-management conformance
+## 12. Protocol & state-management conformance
 
 Checked against `panther/protocols/*` and the three state docs. Verdicts + any required adjustment:
 
 | Protocol / doc | Verdict | Adjustment |
 |---|---|---|
 | **DOC_STATE_* + PROTOCOL_UI_STATE** | **conform** (clarify the tier) | Upload attempts are **T3 component-local** (`DOC_STATE_MGT_INSTANCE.md` rule #8; T3 table). The 2s poll + `silentFetch` is the **sanctioned** T3 pattern — `DOC_STATE_MGT_TIERS.md` lists "Upload workflows (transient per-user state + polling)" as canonical T3. The "no manual refetch" rule is **T2-scoped** and does **not** apply. Keep the attempt component-local: **no provider, no state file, no Context/hooks/prop-threading-for-state**. Use `createQuery` for the fetch; **never `createResource`** (`DOC_STATE_RULES.md` #9). The panther `<WizardShell>` stays state-agnostic — the `createQuery` + poll live only in wb-fastr's `<ImportWizardShell>`. |
-| **PROTOCOL_UI_SOLIDJS + DOC_STATE_RULES #1–3** | conform **iff §4 note followed** | Render via control-flow (`<Switch>/<Match>`/`<Dynamic>`); read reactive deps at top; no early returns (use `<Show>`); no new tracking after `await`; props as `p` (not destructured); step thunks pass **accessors**, not snapshots. |
+| **PROTOCOL_UI_SOLIDJS + DOC_STATE_RULES #1–3** | conform **iff §3 note followed** | Render via control-flow (`<Switch>/<Match>`/`<Dynamic>`); read reactive deps at top; no early returns (use `<Show>`); no new tracking after `await`; props as `p` (not destructured); step thunks pass **accessors**, not snapshots. |
 | **PROTOCOL_ALL_TYPESCRIPT** | conform | Descriptor is generic `ImportWizardDescriptor<TUA, TReturn>` with `keyof typeof serverActions` action keys + annotated thunk params. No `any`, no bare-string dispatch. |
 | **PROTOCOL_DENO_API** | conform | Layer 4 keeps the typed `defineRoute` registry-as-contract + the `APIResponse` envelope; the toolkit generates **handlers**, never bypasses the registry; structure's streaming routes keep the streaming sub-protocol. Boundary validation preserved. |
 | **PROTOCOL_ALL_STRUCTURE / PROTOCOL_UI_STRUCTURE** | conform (naming) | Shared shell + kit under `_import_wizard/`; server helpers under `_toolkit/`; snake_case filenames, components PascalCase; feature dirs keep the `index.tsx` entry convention. |

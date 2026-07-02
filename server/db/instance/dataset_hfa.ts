@@ -27,8 +27,8 @@ import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw
 import { instantiateIntegrateHfaDataWorker } from "../../worker_routines/integrate_hfa_data/instantiate_worker.ts";
 import { instantiateStageHfaDataCsvWorker } from "../../worker_routines/stage_hfa_data_csv/instantiate_worker.ts";
 import {
-  getHfaWorker,
-  setHfaWorker,
+  getWorker,
+  setWorker,
 } from "../../worker_routines/worker_store.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import type {
@@ -420,11 +420,11 @@ export async function deleteDatasetHfaUploadAttempt(
     }
 
     // Terminate any running HFA worker
-    const hfaWorker = getHfaWorker();
+    const hfaWorker = getWorker("hfa");
 
     if (hfaWorker) {
       hfaWorker.terminate();
-      setHfaWorker(null);
+      setWorker("hfa",null);
     }
 
     await mainDb`DELETE FROM hfa_upload_attempts`;
@@ -563,7 +563,7 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
     }
 
     // Check if an HFA worker is already running
-    const existingWorker = getHfaWorker();
+    const existingWorker = getWorker("hfa");
     if (existingWorker) {
       throw new Error(
         "An HFA operation is already in progress. Please wait for it to complete."
@@ -595,7 +595,7 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
     const worker = instantiateStageHfaDataCsvWorker(rawDUA);
 
     // Store the worker reference globally
-    setHfaWorker(worker);
+    setWorker("hfa",worker);
 
     // Handle worker crash - clear reference when done
     worker.addEventListener("error", async (e) => {
@@ -614,13 +614,13 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
       } catch (dbError) {
         console.error("Failed to update database after worker crash:", dbError);
       }
-      setHfaWorker(null);
+      setWorker("hfa",null);
     });
 
     // Handle successful completion
     worker.addEventListener("message", (e) => {
       if (e.data === "COMPLETED") {
-        setHfaWorker(null);
+        setWorker("hfa",null);
       }
     });
 
@@ -656,7 +656,7 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
     }
 
     // Check if an HFA worker is already running
-    const existingWorker = getHfaWorker();
+    const existingWorker = getWorker("hfa");
     if (existingWorker) {
       throw new Error(
         "An HFA operation is already in progress. Please wait for it to complete."
@@ -684,7 +684,7 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
     const worker = instantiateIntegrateHfaDataWorker(rawDUA);
 
     // Store the worker reference globally
-    setHfaWorker(worker);
+    setWorker("hfa",worker);
 
     // Handle worker crash
     worker.addEventListener("error", async (e) => {
@@ -703,13 +703,13 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
       } catch (dbError) {
         console.error("Failed to update database after worker crash:", dbError);
       }
-      setHfaWorker(null);
+      setWorker("hfa",null);
     });
 
     // Handle successful completion
     worker.addEventListener("message", async (e) => {
       if (e.data === "COMPLETED") {
-        setHfaWorker(null);
+        setWorker("hfa",null);
         try {
           await onComplete?.();
         } catch (err) {

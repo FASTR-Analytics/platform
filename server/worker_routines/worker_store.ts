@@ -1,23 +1,15 @@
-// Global storage for active worker references
-// Separate workers for HMIS and HFA datasets
+// Active worker per import family (one concurrent import each): set at
+// spawn, cleared (null) on completion, crash, or cancel.
+const workers = new Map<string, Worker>();
 
-let hmisWorker: Worker | null = null;
-let hfaWorker: Worker | null = null;
-
-// HMIS worker functions
-export function setHmisWorker(worker: Worker | null): void {
-  hmisWorker = worker;
+export function setWorker(key: string, worker: Worker | null): void {
+  if (worker === null) {
+    workers.delete(key);
+  } else {
+    workers.set(key, worker);
+  }
 }
 
-export function getHmisWorker(): Worker | null {
-  return hmisWorker;
-}
-
-// HFA worker functions
-export function setHfaWorker(worker: Worker | null): void {
-  hfaWorker = worker;
-}
-
-export function getHfaWorker(): Worker | null {
-  return hfaWorker;
+export function getWorker(key: string): Worker | null {
+  return workers.get(key) ?? null;
 }
