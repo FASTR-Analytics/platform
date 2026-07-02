@@ -1,3 +1,4 @@
+[TBD] [admin] [internal] - Background import tasks now use a shared management system
 [TBD] [user] [added] - DHIS2 connection can now be changed after confirming
 [TBD] [user] [added] - Warning shown when imported data has unrecognized disaggregations
 [TBD] [user] [added] - Alert shown when map boundaries no longer match admin areas after import
