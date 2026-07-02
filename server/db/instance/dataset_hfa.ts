@@ -27,6 +27,7 @@ import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw
 import { instantiateIntegrateHfaDataWorker } from "../../worker_routines/integrate_hfa_data/instantiate_worker.ts";
 import { instantiateStageHfaDataCsvWorker } from "../../worker_routines/stage_hfa_data_csv/instantiate_worker.ts";
 import {
+  clearWorker,
   getWorker,
   setWorker,
 } from "../../worker_routines/worker_store.ts";
@@ -424,7 +425,7 @@ export async function deleteDatasetHfaUploadAttempt(
 
     if (hfaWorker) {
       hfaWorker.terminate();
-      setWorker("hfa",null);
+      clearWorker("hfa", hfaWorker);
     }
 
     await mainDb`DELETE FROM hfa_upload_attempts`;
@@ -595,7 +596,7 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
     const worker = instantiateStageHfaDataCsvWorker(rawDUA);
 
     // Store the worker reference globally
-    setWorker("hfa",worker);
+    setWorker("hfa", worker);
 
     // Handle worker crash - clear reference when done
     worker.addEventListener("error", async (e) => {
@@ -614,13 +615,13 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
       } catch (dbError) {
         console.error("Failed to update database after worker crash:", dbError);
       }
-      setWorker("hfa",null);
+      clearWorker("hfa", worker);
     });
 
     // Handle successful completion
     worker.addEventListener("message", (e) => {
       if (e.data === "COMPLETED") {
-        setWorker("hfa",null);
+        clearWorker("hfa", worker);
       }
     });
 
@@ -684,7 +685,7 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
     const worker = instantiateIntegrateHfaDataWorker(rawDUA);
 
     // Store the worker reference globally
-    setWorker("hfa",worker);
+    setWorker("hfa", worker);
 
     // Handle worker crash
     worker.addEventListener("error", async (e) => {
@@ -703,13 +704,13 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
       } catch (dbError) {
         console.error("Failed to update database after worker crash:", dbError);
       }
-      setWorker("hfa",null);
+      clearWorker("hfa", worker);
     });
 
     // Handle successful completion
     worker.addEventListener("message", async (e) => {
       if (e.data === "COMPLETED") {
-        setWorker("hfa",null);
+        clearWorker("hfa", worker);
         try {
           await onComplete?.();
         } catch (err) {

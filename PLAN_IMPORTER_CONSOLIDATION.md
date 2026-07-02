@@ -169,7 +169,7 @@ Client orchestrators: hmis 387, hfa 283, iceh 251, structure 268 = **1,189 LOC**
 
 Server stagers/integrators ≈ **4,752 LOC** (stage_hmis_csv 787, stage_hmis_dhis2 911, stage_hfa_csv 481, integrate_hmis 334, integrate_hfa 224, stage_structure_csv 334, stage_structure_dhis2 508, integrate_structure 550, dataset_iceh 623). `SET LOCAL` block char-identical (integrate_hmis, integrate_hfa). FK-check `LEFT JOIN…WHERE IS NULL` in three sites. Buffered-insert identical-in-logic for HMIS (10k) + HFA (100k) only.
 
-Wiring: 4 upload-attempt tables, `CHECK (id='single_row')`; HFA `source_type NOT NULL`, ICEH no `source_type`. Routes: datasets.ts 26 handlers, iceh.ts 10, structure.ts 17 `defineRoute` (+1 raw CSV export). Server actions auto-generated. worker_store.ts = 2 named singletons. ICEH is fire-and-forget async (`updateStep2` calls `stageAndIntegrateIcehData` without `await`); structure streams progress (`streamResponse`) instead of polling during staging. Per-importer total ≈ **760–1,190 LOC wiring + UI**.
+Wiring: 4 upload-attempt tables, `CHECK (id='single_row')`; HFA `source_type NOT NULL`, ICEH no `source_type`. Routes: datasets.ts 26 handlers, iceh.ts 10, structure.ts 17 `defineRoute` (+1 raw CSV export). Server actions auto-generated. worker_store.ts = keyed `Map<WorkerKey, Worker>`. ICEH is fire-and-forget async (`updateStep2` calls `stageAndIntegrateIcehData` without `await`); structure streams progress (`streamResponse`) instead of polling during staging. Per-importer total ≈ **760–1,190 LOC wiring + UI**.
 
 ---
 

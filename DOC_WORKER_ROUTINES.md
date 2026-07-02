@@ -102,18 +102,26 @@ Workers **must not** use the request connection cache (it's not shared across wo
 **(B) Dataset jobs → `postMessage("COMPLETED")` + status row (caller-attached listener).** The worker writes progress/terminal state into the `dataset_*_upload_attempts` row (`status` JSON + denormalized `status_type` enum: `staging`/`integrating`/`complete`/`error`) for SSE-driven client polling, and finishes with `self.postMessage("COMPLETED")`. The caller (`db/instance/dataset_hmis.ts` / `dataset_hfa.ts`) attaches the listeners:
 
 ```ts
-setHmisWorker(worker);                               // single-worker lock
+setWorker("hmis", worker);                           // per-family worker slot
 worker.addEventListener("error", async (e) => {
   e.preventDefault();                                // don't crash the server
   await mainDb`UPDATE …upload_attempts SET status_type='error', status=…`;
-  setHmisWorker(null);
+  clearWorker("hmis", worker);                       // compare-and-delete
 });
-worker.addEventListener("message", (e) => { if (e.data === "COMPLETED") setHmisWorker(null); });
+worker.addEventListener("message", (e) => { if (e.data === "COMPLETED") clearWorker("hmis", worker); });
 ```
 
 ### Single-worker locking
 
-- **`worker_store.ts`** holds at most one HMIS worker and one HFA worker (`getHmisWorker`/`setHmisWorker`, `getHfaWorker`/`setHfaWorker`). The caller checks `getHmisWorker()` before starting and refuses if one is in flight ("operation already in progress"), and claims the lock by setting `status_type='staging'` immediately.
+- **`worker_store.ts`** holds at most one live worker per import family in a
+  `Map<WorkerKey, Worker>` (`WorkerKey = "hmis" | "hfa"` — extend the union
+  when adding a family): `setWorker(key, worker)` / `getWorker(key)` /
+  `clearWorker(key, worker)`. `clearWorker` is compare-and-delete (deletes
+  only if the stored worker IS this worker), so a stale worker's late
+  error/COMPLETED event cannot clobber a successor stored under the same key.
+  The caller checks `getWorker(key)` before starting and refuses if one is in
+  flight ("operation already in progress"), and claims the lock by setting
+  `status_type='staging'` immediately.
 - **The running-tasks map** (module runs) is keyed by `projectId` + `moduleId`, allowing concurrency across modules/projects — owned by [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md).
 
 ---
@@ -174,7 +182,7 @@ worker.addEventListener("message", (e) => { if (e.data === "COMPLETED") setHmisW
 | File | Purpose |
 |------|---------|
 | `server/worker_routines/instantiate_worker_generic.ts` | `instantiateWorker` + READY handshake |
-| `server/worker_routines/worker_store.ts` | single-worker HMIS/HFA locks |
+| `server/worker_routines/worker_store.ts` | keyed per-family worker slots |
 | `server/worker_routines/run_module/worker.ts` | module-run worker (task_ended model) |
 | `server/worker_routines/run_module/instantiate_worker.ts` | `instantiateRunModuleWorker` |
 | `server/worker_routines/integrate_hmis_data/worker.ts` | bulk-integration worker (COMPLETED model) |

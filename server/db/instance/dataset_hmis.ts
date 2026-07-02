@@ -37,6 +37,7 @@ import { instantiateIntegrateUploadedDataWorker } from "../../worker_routines/in
 import { instantiateStageHmisDataCsvWorker } from "../../worker_routines/stage_hmis_data_csv/instantiate_worker.ts";
 import { instantiateStageHmisDataDhis2Worker } from "../../worker_routines/stage_hmis_data_dhis2/instantiate_worker.ts";
 import {
+  clearWorker,
   getWorker,
   setWorker,
 } from "../../worker_routines/worker_store.ts";
@@ -677,7 +678,7 @@ export async function deleteDatasetHmisUploadAttempt(
 
     if (hmisWorker) {
       hmisWorker.terminate();
-      setWorker("hmis",null);
+      clearWorker("hmis", hmisWorker);
     }
 
     await mainDb`DELETE FROM dataset_hmis_upload_attempts`;
@@ -840,7 +841,7 @@ export async function updateDatasetUploadAttempt_Step3Staging(
     }
 
     // Store the worker reference globally
-    setWorker("hmis",worker);
+    setWorker("hmis", worker);
 
     // Handle worker crash - clear reference when done
     worker.addEventListener("error", async (e) => {
@@ -859,13 +860,13 @@ export async function updateDatasetUploadAttempt_Step3Staging(
       } catch (dbError) {
         console.error("Failed to update database after worker crash:", dbError);
       }
-      setWorker("hmis",null);
+      clearWorker("hmis", worker);
     });
 
     // Handle successful completion
     worker.addEventListener("message", (e) => {
       if (e.data === "COMPLETED") {
-        setWorker("hmis",null);
+        clearWorker("hmis", worker);
       }
     });
 
@@ -1043,7 +1044,7 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
     const worker = instantiateIntegrateUploadedDataWorker(rawDUA);
 
     // Store the worker reference globally
-    setWorker("hmis",worker);
+    setWorker("hmis", worker);
 
     // Handle worker crash
     worker.addEventListener("error", async (e) => {
@@ -1062,13 +1063,13 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
       } catch (dbError) {
         console.error("Failed to update database after worker crash:", dbError);
       }
-      setWorker("hmis",null);
+      clearWorker("hmis", worker);
     });
 
     // Handle successful completion
     worker.addEventListener("message", async (e) => {
       if (e.data === "COMPLETED") {
-        setWorker("hmis",null);
+        clearWorker("hmis", worker);
         try {
           await onComplete?.();
         } catch (err) {
