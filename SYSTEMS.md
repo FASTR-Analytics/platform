@@ -119,7 +119,7 @@ custody exceptions are in §4.1.
 - **One line:** the instance-wide reference world everything joins against:
   facilities, admin areas, weights, geojson boundaries, indicator dictionaries
   (HMIS/HFA/calculated/ICEH), time points, instance config.
-- **Scope:** `server_only_funcs_importing/**` (structure ELT, 6 integrate
+- **Scope:** `server_only_funcs_importing/**` (structure ELT, 3 integrate
   strategies); `db/instance/{structure,hfa_facility_weights,indicators,calculated_indicators,hfa_indicators,hfa_time_points,geojson_maps,config,instance}.ts`;
   `server/geojson/process_geojson.ts`; `routes/instance/{structure,indicators,calculated_indicators,hfa_indicators,hfa_time_points,geojson_maps}.ts`
   + config-mutation routes in `routes/instance/instance.ts`; lib types; client:
@@ -131,11 +131,9 @@ custody exceptions are in §4.1.
   DEFERRABLE constraints; indicator mappings drive staging validation; HFA R
   code is EXECUTED by S8's module runs; instance config parameterizes S6's ELT
   and S9's SQL). Snapshots frozen into project DBs at attach time.
-- **Size:** ~90 files. **Docs:** DOC_DISAGGREGATION_OPTIONS_HANDLING. The
-  structure-ELT mechanics (synchronous streamed model, 100 MB cap, per-family
-  staging tables, atomic claim, integrate strategies, 4-level admin-area
-  model) were part of the retired DOC_IMPORT_PIPELINE — document them fresh
-  in S5's first review cycle.
+- **Size:** ~80 files. **Docs:** SYSTEM_05 (prose ported + reviewed
+  2026-07-02, incl. the structure-ELT mechanics from the retired
+  DOC_IMPORT_PIPELINE), DOC_DISAGGREGATION_OPTIONS_HANDLING.
 
 ### S6. Dataset Ingestion
 
