@@ -1,29 +1,90 @@
-[TBD] [user] [added] - DHIS2 imports now show which existing rows will be removed before finalizing
-[TBD] [user] [added] - Confirmation dialog before finalizing DHIS2 imports shows affected indicators and periods
-[TBD] [user] [added] - Equity (ICEH) data staleness detection when viewing projects
-[TBD] [user] [changed] - Import history table now shows "Rows Removed" instead of "Rows Updated" for DHIS2 imports
-[TBD] [user] [changed] - Import detail view shows "Rows removed" count for DHIS2 imports
-[TBD] [user] [fixed] - DHIS2 imports now correctly remove data that no longer exists in DHIS2
-[TBD] [user] [fixed] - Fixed HFA import wizard showing an extra phantom step circle
-[TBD] [user] [fixed] - Fixed ICEH import wizard showing an extra phantom step circle
-[TBD] [user] [fixed] - Prevented concurrent imports from running simultaneously and corrupting data
-[TBD] [user] [fixed] - Prevented data deletion while an import is in progress
-[TBD] [user] [fixed] - Fixed rare issue where special characters in CSV files could be corrupted during import
-[TBD] [user] [fixed] - Legacy HFA exports are now correctly flagged as needing re-export
-[TBD] [admin] [added] - DHIS2 imports now detect and remove rows no longer returned by DHIS2
-[TBD] [admin] [added] - Confirmation dialog shows which rows will be removed before finalizing DHIS2 imports
-[TBD] [admin] [added] - ICEH data staleness detection for projects (re-export prompt when instance data changes)
-[TBD] [admin] [fixed] - Prevented concurrent import operations from running simultaneously and corrupting data
-[TBD] [admin] [fixed] - Prevented data deletion while an import is in progress
-[TBD] [admin] [fixed] - Fixed HFA and ICEH import wizard showing a phantom extra step
-[TBD] [admin] [fixed] - Fixed rare issue where multi-byte characters in CSV files could be corrupted during import
-[TBD] [admin] [fixed] - Project data export no longer briefly detaches dataset if validation fails
-[TBD] [admin] [changed] - Previous imports table now shows "Rows Removed" instead of "Rows Updated" for DHIS2 imports
-[TBD] [admin] [changed] - Legacy HFA exports without staleness tracking now always prompt for re-export
-[TBD] [admin] [internal] - Removed unused conflicts display component
-[TBD] [admin] [internal] - Cleaned up redundant logging and commented-out code throughout import workflows
-[TBD] [user] [fixed] - Fixed rare issue where duplicate data imports could run simultaneously
-[TBD] [admin] [fixed] - Prevented rare duplicate structure imports from running simultaneously
+[1.55.0] [user] [changed] - Indicator variable names cannot be renamed after creation
+[1.55.0] [user] [added] - Variable name format validation when creating HFA indicators
+[1.55.0] [user] [added] - Warning when an HFA indicator name conflicts with a survey variable
+[1.55.0] [user] [added] - Warnings now display in yellow instead of red in the code editor
+[1.55.0] [user] [added] - Unknown variable errors shown separately from warnings in code editor
+[1.55.0] [user] [added] - Warning count shown alongside ready and error counts for indicators
+[1.55.0] [user] [added] - Delete confirmation now lists other indicators whose code references the deleted ones
+[1.55.0] [user] [added] - Filter-only code without main R code now shows a clear error message
+[1.55.0] [user] [added] - Replace mode in Excel import now requires typing a confirmation phrase
+[1.55.0] [user] [added] - Duplicate time point mapping detection during Excel import
+[1.55.0] [user] [added] - Import summary shows which existing indicators were skipped in add mode
+[1.55.0] [user] [added] - Progress indicator shown while a structure import is running
+[1.55.0] [user] [added] - Error banner with guidance displayed when an import step fails
+[1.55.0] [user] [changed] - Unmapped GeoJSON features message now says they can be mapped later
+[1.55.0] [user] [fixed] - Settings page now correctly reflects saved state after saving admin area or facility column changes
+[1.55.0] [user] [fixed] - Country code field now auto-converts to uppercase and validates format
+[1.55.0] [user] [changed] - Indicator IDs for common and raw indicators are locked after creation
+[1.55.0] [user] [added] - Validation prevents commas, semicolons, and colons in new indicator IDs
+[1.55.0] [user] [added] - Friendly error when deleting common indicators used by calculated indicators
+[1.55.0] [user] [added] - Duplicate label and ID errors shown clearly when creating calculated indicators
+[1.55.0] [user] [fixed] - Duplicated calculated indicator now gets correct sort order
+[1.55.0] [user] [changed] - HFA time points page title changed from all caps to normal case
+[1.55.0] [user] [fixed] - Sampling weights page shows a message instead of an error when no weights exist
+[1.55.0] [user] [fixed] - GeoJSON boundary unmapping now works correctly in the edit modal
+[1.55.0] [user] [changed] - Lowering max admin area is blocked when GeoJSON boundaries exist above the new level
+[1.55.0] [user] [added] - Replace-all import mode now explains which columns will be written on new facilities
+[1.55.0] [user] [changed] - HFA code editing and validation tools disabled with a message until HFA data is imported
+[1.55.0] [user] [added] - Calculated indicator editor warns when a referenced indicator ID has unusable characters
+[1.55.0] [admin] [changed] - HFA indicator variable names are locked after creation
+[1.55.0] [admin] [added] - HFA variable names validated against naming rules on creation
+[1.55.0] [admin] [added] - Warning when HFA indicator name would shadow a survey variable
+[1.55.0] [admin] [added] - Delete confirmation shows which other indicators reference deleted ones
+[1.55.0] [admin] [added] - Excel import warns about duplicate time point mappings
+[1.55.0] [admin] [added] - Excel replace mode requires typing confirmation phrase before import
+[1.55.0] [admin] [added] - Excel add-mode import reports which existing indicators were skipped
+[1.55.0] [admin] [added] - Filter-only code (filter without R code) now blocked with clear error
+[1.55.0] [admin] [changed] - Unknown variable warnings upgraded to errors; lone-equals shown as warnings
+[1.55.0] [admin] [changed] - Validation warnings now shown in orange instead of red
+[1.55.0] [admin] [added] - Warning count shown separately from errors in indicator status summary
+[1.55.0] [admin] [changed] - HFA tools disabled with message when no HFA data has been imported
+[1.55.0] [admin] [added] - Metadata editing still available for indicators when no HFA data imported
+[1.55.0] [admin] [added] - Structure import shows live progress screen while running
+[1.55.0] [admin] [added] - Structure import error banner with guidance on how to recover
+[1.55.0] [admin] [fixed] - Saving max admin area setting now correctly clears unsaved indicator
+[1.55.0] [admin] [fixed] - Saving facility columns setting now correctly clears unsaved indicator
+[1.55.0] [admin] [changed] - Country ISO3 code input auto-uppercased and validated as 3 letters
+[1.55.0] [admin] [added] - Cannot lower max admin area while GeoJSON boundaries exist above new level
+[1.55.0] [admin] [changed] - GeoJSON unmapped features kept for later mapping instead of excluded
+[1.55.0] [admin] [fixed] - GeoJSON cache cleaned up when boundary levels are deleted
+[1.55.0] [admin] [fixed] - GeoJSON edit modal now allows explicitly unmapping a feature
+[1.55.0] [admin] [changed] - HMIS indicator IDs locked after creation and validated for forbidden characters
+[1.55.0] [admin] [changed] - Calculated indicator IDs validated when selecting numerator or denominator
+[1.55.0] [admin] [added] - Duplicate calculated indicator ID or label now shows friendly error
+[1.55.0] [admin] [added] - Deleting common indicators blocked with message if used by calculated indicators
+[1.55.0] [admin] [changed] - DHIS2 credentials password no longer sent back to the browser
+[1.55.0] [admin] [fixed] - HFA revalidation no longer marks datasets as stale for projects
+[1.55.0] [admin] [changed] - HFA time points page title changed from all-caps to normal case
+[1.55.0] [admin] [fixed] - HFA weights page shows friendly message when no weights imported yet
+[1.55.0] [admin] [fixed] - Structure page shows translated message instead of raw "No rows" error
+[1.55.0] [admin] [internal] - Removed unused API endpoints for cleaner server surface
+[1.55.0] [admin] [internal] - File path safety checks added for uploaded asset handling
+[1.55.0] [user] [added] - DHIS2 imports now show which existing rows will be removed before finalizing
+[1.55.0] [user] [added] - Confirmation dialog before finalizing DHIS2 imports shows affected indicators and periods
+[1.55.0] [user] [added] - Equity (ICEH) data staleness detection when viewing projects
+[1.55.0] [user] [changed] - Import history table now shows "Rows Removed" instead of "Rows Updated" for DHIS2 imports
+[1.55.0] [user] [changed] - Import detail view shows "Rows removed" count for DHIS2 imports
+[1.55.0] [user] [fixed] - DHIS2 imports now correctly remove data that no longer exists in DHIS2
+[1.55.0] [user] [fixed] - Fixed HFA import wizard showing an extra phantom step circle
+[1.55.0] [user] [fixed] - Fixed ICEH import wizard showing an extra phantom step circle
+[1.55.0] [user] [fixed] - Prevented concurrent imports from running simultaneously and corrupting data
+[1.55.0] [user] [fixed] - Prevented data deletion while an import is in progress
+[1.55.0] [user] [fixed] - Fixed rare issue where special characters in CSV files could be corrupted during import
+[1.55.0] [user] [fixed] - Legacy HFA exports are now correctly flagged as needing re-export
+[1.55.0] [admin] [added] - DHIS2 imports now detect and remove rows no longer returned by DHIS2
+[1.55.0] [admin] [added] - Confirmation dialog shows which rows will be removed before finalizing DHIS2 imports
+[1.55.0] [admin] [added] - ICEH data staleness detection for projects (re-export prompt when instance data changes)
+[1.55.0] [admin] [fixed] - Prevented concurrent import operations from running simultaneously and corrupting data
+[1.55.0] [admin] [fixed] - Prevented data deletion while an import is in progress
+[1.55.0] [admin] [fixed] - Fixed HFA and ICEH import wizard showing a phantom extra step
+[1.55.0] [admin] [fixed] - Fixed rare issue where multi-byte characters in CSV files could be corrupted during import
+[1.55.0] [admin] [fixed] - Project data export no longer briefly detaches dataset if validation fails
+[1.55.0] [admin] [changed] - Previous imports table now shows "Rows Removed" instead of "Rows Updated" for DHIS2 imports
+[1.55.0] [admin] [changed] - Legacy HFA exports without staleness tracking now always prompt for re-export
+[1.55.0] [admin] [internal] - Removed unused conflicts display component
+[1.55.0] [admin] [internal] - Cleaned up redundant logging and commented-out code throughout import workflows
+[1.55.0] [user] [fixed] - Fixed rare issue where duplicate data imports could run simultaneously
+[1.55.0] [admin] [fixed] - Prevented rare duplicate structure imports from running simultaneously
 [1.54.3] [user] [fixed] - Structure imports now show proper error messages instead of failing silently
 [1.54.3] [admin] [fixed] - Structure import errors are now handled gracefully instead of failing silently
 [1.54.2] [user] [fixed] - Fixed data import lock not releasing properly after completion
