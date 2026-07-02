@@ -119,7 +119,6 @@ worker error, and on cancel; staging also pre-drops stale tables at start.
   hard 2048-char URL guard that throws rather than risk truncation).
 - Escaping is uniform: `''`-doubling only (HFA via the shared
   `escapeSqlString` in `server/db/utils.ts`, HMIS/structure inline).
-  There is no `cleanValStrForSql` — it no longer exists.
 - Row-level validation counts and samples drops (persisted in
   `step_3_result`); reference validation (facility exists) runs at staging
   AND again at integration (facilities can be deleted between phases;
