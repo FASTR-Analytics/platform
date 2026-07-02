@@ -2,7 +2,7 @@
 
 The Deno Web Worker background-job pattern: the `instantiate_worker` / `worker` folder pairing, the `"READY"` handshake, the mandatory worker-entry preamble, dedicated DB connections, and the two report-back mechanisms (`task_ended` broadcast vs `postMessage("COMPLETED")` + status row).
 
-> This doc owns the **worker lifecycle** (spawn → handshake → run → teardown). The dirty-state semantics and the running-tasks-map cleanup *invariant* are owned by [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md) (this doc cites it). Worker DB connections are [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md). What the dataset workers actually *do* (stage→integrate, bulk insert) is [DOC_IMPORT_PIPELINE.md](DOC_IMPORT_PIPELINE.md); what the module worker does is [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md). Workers reach the main thread's SSE via [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md).
+> This doc owns the **worker lifecycle** (spawn → handshake → run → teardown). The dirty-state semantics and the running-tasks-map cleanup *invariant* are owned by [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md) (this doc cites it). Worker DB connections are [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md). What the dataset workers actually *do* (stage→integrate, bulk insert) is [SYSTEM_05_ingestion.md](SYSTEM_05_ingestion.md); what the module worker does is [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md). Workers reach the main thread's SSE via [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md).
 
 ---
 

@@ -62,7 +62,7 @@ Catalogue of the HFA module/data features the FASTR team wants, ordered **easies
 - Versioning: does a delete create a new dataset version (cache key advance, history) — almost certainly yes, mirror the integrate path.
 - Re-validation/weights recompute trigger after deletion.
 
-**Key files.** [DOC_IMPORT_PIPELINE.md](DOC_IMPORT_PIPELINE.md), `server/worker_routines/integrate_hfa_data/`, `server/db/instance/dataset_hfa.ts`, dataset-version handling + Valkey cache invalidation.
+**Key files.** [SYSTEM_05_ingestion.md](SYSTEM_05_ingestion.md), `server/worker_routines/integrate_hfa_data/`, `server/db/instance/dataset_hfa.ts`, dataset-version handling + Valkey cache invalidation.
 
 ---
 
@@ -159,7 +159,7 @@ Catalogue of the HFA module/data features the FASTR team wants, ordered **easies
 
 ## Parked (not in active scope)
 
-- **Upload bugs** (admin areas / facilities / weights). The import doc flags real latent issues — three divergent SQL-escaping paths, fixed staging-table names with no concurrency lock, escaping on user data ([DOC_IMPORT_PIPELINE.md](DOC_IMPORT_PIPELINE.md) "What NOT to do"). Revisit once specific reproductions are in hand.
+- **Upload bugs** (admin areas / facilities / weights). The 2026-07-02 S5 review resolved or triaged the old import-doc warnings (escaping is uniform now; claims are race-free conditional UPDATEs); the remaining latent issues are [SYSTEM_05_ingestion.md](SYSTEM_05_ingestion.md) "Open items". Revisit once specific reproductions are in hand.
 - **"Other" coding with AI** — future/exploratory; revisit after Tier C proves the indicator-authoring loop.
 
 ---

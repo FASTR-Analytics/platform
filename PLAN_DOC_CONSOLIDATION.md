@@ -160,7 +160,7 @@ restated. Pure-architecture docs have no Recipe column entry.
 | DOC_MODULE_EXECUTION | S8 | — | — |
 | DOC_MODULE_UPDATES | S8 | — | — |
 | DOC_POPULATION_CSV | S8 (informs S6) | — | — |
-| DOC_IMPORT_PIPELINE | S5 (informs S6) | — | — |
+| DOC_IMPORT_PIPELINE | S5 ✅ ported + deleted 2026-07-02 (structure sections flagged for S6's cycle) | — | — |
 | DOC_DHIS2_INTEGRATION | S7 | — | — |
 | DOC_AI_PROXY_AND_USAGE_GOVERNANCE | S13 | — | — |
 | DOC_AI_TOOL_SCHEMAS | S13 | PROTOCOL_APP_AI_TOOLS (author-a-tool-schema recipe) | — |
@@ -192,7 +192,7 @@ during its system's Phase-2 cycle — listed here so the port catches them.
   from XLSX" is wrong per DOC_TRANSLATION; `state/ui.ts` and
   `components/project_runner/provider.tsx` are phantoms (real: `state/t4_ui.ts`,
   `components/project/index.tsx` area).
-- **DOC_IMPORT_PIPELINE:** pre-facilities-split; no ICEH; no wizard shell.
+- ~~**DOC_IMPORT_PIPELINE:** pre-facilities-split; no ICEH; no wizard shell.~~ Resolved 2026-07-02: SYSTEM_05 written fresh from a verified review; doc deleted.
 - **DOC_MIGRATIONS:** lists 5 of 10 transforms; "reports are deprecated" is
   wrong; links nonexistent DOC_AI_TOOL_VALIDATION.md; cites
   `lib/types/instance_config.ts` (real home: `lib/types/instance.ts`).

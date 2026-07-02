@@ -128,12 +128,14 @@ custody exceptions are in §4.1.
   `PeriodSelector` / `TimeIndexSelector` / `WindowingSelector`,
   `project_data.tsx` + `settings_for_project_dataset_*.tsx` + `staleness_checks.ts`,
   `instance_data.tsx` (switchboard, shared with S6), `state/instance/t2_datasets`.
-- **Contract:** one concurrent import per family (single-row attempt rows +
-  fixed UNLOGGED staging tables + locks); three execution models behind
-  identical UIs; progress by POLLING, not SSE; completion hands off via
-  `setModulesDirtyForDataset`.
-- **Size:** ~110 files — delegate per family. **Docs:** DOC_IMPORT_PIPELINE
-  (stale), DOC_WORKER_ROUTINES; PLAN_IMPORTER_CONSOLIDATION is the active reform.
+- **Contract:** one concurrent import per family (single-row attempt rows,
+  race-free conditional-UPDATE claims, fixed UNLOGGED staging tables); three
+  execution models behind similar UIs (HMIS/HFA workers, ICEH in-process);
+  progress by POLLING, not SSE; module dirtying is pull-model (project
+  attach/refresh calls `setModulesDirtyForDataset`, not integration).
+- **Size:** ~110 files — delegate per family. **Docs:** SYSTEM_05 (prose
+  ported + reviewed 2026-07-02), DOC_WORKER_ROUTINES;
+  PLAN_IMPORTER_CONSOLIDATION is the active reform.
 
 ### S6. Structure & Reference Data
 
@@ -152,8 +154,11 @@ custody exceptions are in §4.1.
   DEFERRABLE constraints; indicator mappings drive staging validation; HFA R
   code is EXECUTED by S8's module runs; instance config parameterizes S5's ELT
   and S9's SQL). Snapshots frozen into project DBs at attach time.
-- **Size:** ~90 files. **Docs:** DOC_DISAGGREGATION_OPTIONS_HANDLING, parts of
-  DOC_IMPORT_PIPELINE.
+- **Size:** ~90 files. **Docs:** DOC_DISAGGREGATION_OPTIONS_HANDLING. The
+  structure-ELT mechanics (synchronous streamed model, 100 MB cap, per-family
+  staging tables, atomic claim, integrate strategies, 4-level admin-area
+  model) were part of the retired DOC_IMPORT_PIPELINE — document them fresh
+  in S6's first review cycle.
 
 ### S7. DHIS2 Connector
 
