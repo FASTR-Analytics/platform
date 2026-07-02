@@ -365,6 +365,7 @@ export function getToolsForSlideEditor(
 
         // Load the target slide: the live editor slide, or a saved deck slide by id.
         let slide: Slide;
+        let expectedLastUpdated: string | undefined;
         if (ctx.mode === "editing_slide") {
           slide = unwrap(ctx.getTempSlide());
         } else if (ctx.mode === "editing_slide_deck") {
@@ -374,6 +375,7 @@ export function getToolsForSlideEditor(
           const slideRes = await serverActions.getSlide({ projectId, slide_id: input.slideId });
           if (!slideRes.success) throw new Error(slideRes.err);
           slide = slideRes.data.slide;
+          expectedLastUpdated = slideRes.data.lastUpdated;
         } else {
           throw new Error("update_figure is only available when editing a slide or a slide deck. If you are editing a report, use update_report_figure instead.");
         }
@@ -439,8 +441,15 @@ export function getToolsForSlideEditor(
           projectId,
           slide_id: input.slideId!,
           slide: updatedSlide,
+          expectedLastUpdated,
         });
-        if (!saveRes.success) throw new Error(saveRes.err);
+        if (!saveRes.success) {
+          throw new Error(
+            saveRes.err === "CONFLICT"
+              ? "The slide changed while this edit was being prepared (another user or a live editing session saved it). Re-read the slide with get_slide and retry."
+              : saveRes.err,
+          );
+        }
         return `Updated figure ${input.blockId} in slide ${input.slideId}.`;
       },
       inProgressLabel: "Updating figure...",

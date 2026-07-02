@@ -47,6 +47,14 @@ function requireDeckContext(ctx: AIContext) {
   return ctx;
 }
 
+function throwSlideUpdateError(err: string): never {
+  throw new Error(
+    err === "CONFLICT"
+      ? "The slide changed while this edit was being prepared (another user or a live editing session saved it). Re-read the slide with get_slide and retry."
+      : err,
+  );
+}
+
 export function getToolsForSlides(
   projectId: string,
   getAIContext: () => AIContext,
@@ -183,12 +191,21 @@ export function getToolsForSlides(
 
         const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics, ctx.getDeckConfig());
 
+        // Optimistic concurrency: read the slide's current version so a save
+        // that raced another user's edit fails loudly instead of overwriting.
+        const currentRes = await serverActions.getSlide({
+          projectId,
+          slide_id: input.slideId,
+        });
+        if (!currentRes.success) throw new Error(currentRes.err);
+
         const res = await serverActions.updateSlide({
           projectId,
           slide_id: input.slideId,
           slide: convertedSlide,
+          expectedLastUpdated: currentRes.data.lastUpdated,
         });
-        if (!res.success) throw new Error(res.err);
+        if (!res.success) throwSlideUpdateError(res.err);
 
 
         return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`;
@@ -245,8 +262,9 @@ export function getToolsForSlides(
           projectId,
           slide_id: input.slideId,
           slide: updatedSlide,
+          expectedLastUpdated: currentRes.data.lastUpdated,
         });
-        if (!res.success) throw new Error(res.err);
+        if (!res.success) throwSlideUpdateError(res.err);
 
 
         const blockIds = input.updates.map(u => u.blockId).join(", ");
@@ -288,8 +306,9 @@ export function getToolsForSlides(
           projectId,
           slide_id: input.slideId,
           slide: updatedSlide,
+          expectedLastUpdated: currentRes.data.lastUpdated,
         });
-        if (!res.success) throw new Error(res.err);
+        if (!res.success) throwSlideUpdateError(res.err);
 
 
         return `Updated header for slide ${input.slideId}: "${input.newHeader}"`;
@@ -440,8 +459,9 @@ export function getToolsForSlides(
           projectId,
           slide_id: input.slideId,
           slide: updatedSlide,
+          expectedLastUpdated: currentRes.data.lastUpdated,
         });
-        if (!res.success) throw new Error(res.err);
+        if (!res.success) throwSlideUpdateError(res.err);
 
         const parts = [`Modified layout for slide ${input.slideId}.`];
         if (removedBlocks.length > 0) {
