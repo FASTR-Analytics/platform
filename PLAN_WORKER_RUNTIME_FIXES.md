@@ -1,5 +1,11 @@
 # PLAN: Worker Runtime Fixes
 
+> **Status: IMPLEMENTED 2026-07-02** — all five batches landed (commits
+> ac2d020a A, 9e29af7c B, a3ad1c3c C, 61c6f059 D, 420d079a E). Decision
+> points resolved as recommended: targeted race fixes (no mutex), host-owns-
+> termination contract, F9 server guard included. Behavioral testing on a
+> live instance pending.
+
 Source: full worker-runtime review (2026-07-02), 13 confirmed findings across
 `server/worker_routines/` + `server/task_management/`. Finding 1 (module-worker
 crash) empirically re-verified on Deno 2.6.4 (dev) and 2.5.3 (prod), including
