@@ -60,8 +60,8 @@ mechanism changes:
   [presentation_objects.ts:186](server/db/project/presentation_objects.ts#L186),
   [modules.ts:724](server/db/project/modules.ts#L724).
 - **Cache fold:** `datasetsVersion` into `_PO_DETAIL` only (the other 3 PO caches already fold it).
-- **S4 — independent, pending:** countryIso3 from bundle localization.
-- S3 — out of scope (verified not render-path).
+- **SNAP-4 — independent, pending:** countryIso3 from bundle localization.
+- SNAP-3 — out of scope (verified not render-path).
 
 - Effort remaining: **S–M** · Risk: **low** · Deps: **none**
 - **N1 lives here** — do NOT fix N1 standalone (per
@@ -139,7 +139,7 @@ the rename mechanically regardless.
 - **Phase 5** (PO → Visualization rename, ~222 files) — isolated mechanical
   housekeeping; do last.
 - Quick check: Phase 4's `instanceDataImportedAt`/`projectDataAddedAt` timestamps
-  don't duplicate the snapshot plan's S5/S6 work.
+  don't duplicate the snapshot plan's SNAP-5/SNAP-6 work.
 - Effort: **L** · Risk: **low** (additive) · Deps: soft on item 4 for Phase 5 only.
 
 ---
@@ -167,7 +167,7 @@ WS-LIFECYCLE → WS-EFFICIENCY.
 **Before item 1 (PROJECT_SNAPSHOT Step A):**
 - Facility-config propagation: does a config change auto re-export all projects, or
   stay "pinned to last integration"?
-- Confirm `admin_area_labels` (S3) is actually used on the render path.
+- Confirm `admin_area_labels` (SNAP-3) is actually used on the render path.
 
 **Before item 2 (GEOJSON_NEAR_TERM):**
 - The 5 DHIS2 verification gates against live Cameroon/DRC: featureType↔geometry
