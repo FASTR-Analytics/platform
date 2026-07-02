@@ -1,4 +1,5 @@
 import { capitalizeFirstLetter } from "@timroberton/panther";
+import type { TranslatableString } from "../translate/types.ts";
 
 // ============================================================================
 // Indicator Types
@@ -77,13 +78,31 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 // ============================================================================
 
 export const POPULATION_TYPES = [
-  { id: "total_population", label: "Total population" },
-  { id: "u5", label: "Under 5 population" },
-  { id: "u1", label: "Under 1 population" },
-  { id: "wra", label: "Women of reproductive age (15-49)" },
-  { id: "births", label: "Expected births" },
-  { id: "pregnancies", label: "Expected pregnancies" },
-] as const;
+  {
+    id: "total_population",
+    label: { en: "Total population", fr: "Population totale" },
+  },
+  {
+    id: "u5",
+    label: { en: "Under 5 population", fr: "Population des moins de 5 ans" },
+  },
+  {
+    id: "u1",
+    label: { en: "Under 1 population", fr: "Population des moins de 1 an" },
+  },
+  {
+    id: "wra",
+    label: {
+      en: "Women of reproductive age (15-49)",
+      fr: "Femmes en âge de procréer (15-49)",
+    },
+  },
+  { id: "births", label: { en: "Expected births", fr: "Naissances attendues" } },
+  {
+    id: "pregnancies",
+    label: { en: "Expected pregnancies", fr: "Grossesses attendues" },
+  },
+] as const satisfies readonly { id: string; label: TranslatableString }[];
 
 export type PopulationType = (typeof POPULATION_TYPES)[number]["id"];
 

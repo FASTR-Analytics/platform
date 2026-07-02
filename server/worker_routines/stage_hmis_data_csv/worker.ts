@@ -238,71 +238,22 @@ CREATE UNLOGGED TABLE ${tempTableName} (
 
     // Validate we imported data to temp table
     const tempCount = await importDb<{ count: number }[]>`
-      SELECT COUNT(*) as count FROM ${importDb(tempTableName)}
+      SELECT COUNT(*)::int as count FROM ${importDb(tempTableName)}
     `;
 
     const rowsAfterCsvValidation = tempCount[0]?.count || 0;
     console.log(`Staged ${rowsAfterCsvValidation} raw rows to staging table`);
 
     if (rowsAfterCsvValidation === 0) {
-      console.log(
-        "No valid data rows were imported from CSV - all rows failed initial validation"
+      // No staging table content exists, so this must fail the staging (the
+      // error path drops the temp tables) rather than mark the attempt staged.
+      throw new Error(
+        `No valid data rows were found in the CSV (${rowsProcessed} rows processed): ` +
+          `${missingFieldsCount} with missing required fields, ` +
+          `${invalidPeriodCount} with invalid period format, ` +
+          `${invalidCountCount} with invalid count values. ` +
+          `Check the column mappings and re-run staging.`
       );
-
-      // Clean up temp table
-      await importDb.unsafe(`DROP TABLE ${tempTableName}`);
-
-      // Return result showing where validation stopped
-      const stagingResult: DatasetCsvStagingResult = {
-        sourceType: "csv",
-        dateImported,
-        assetFileName: assetFilePath.split("/").pop() || assetFilePath,
-        periodIndicatorStats: [],
-        rawCsvRowCount: rowsProcessed,
-        validCsvRowCount: 0,
-        dedupedRowCount: 0,
-        finalStagingRowCount: 0,
-        validation: {
-          invalidPeriods: {
-            rowsDropped: invalidPeriodCount,
-          },
-          invalidCounts: {
-            rowsDropped: invalidCountCount,
-          },
-          missingRequiredFields: {
-            rowsDropped: missingFieldsCount,
-          },
-          invalidFacilities: {
-            total: 0,
-            sample: [],
-            rowsDropped: 0,
-          },
-          unmappedIndicators: {
-            total: 0,
-            sample: [],
-            rowsDropped: 0,
-          },
-        },
-      };
-
-      await mainDb`
-        UPDATE dataset_hmis_upload_attempts
-        SET 
-          step = 4,
-          step_3_result = ${JSON.stringify(stagingResult)},
-          status = ${JSON.stringify({ status: "staged" })},
-          status_type = 'staged'
-      `;
-
-      console.log("Staging completed with no valid data");
-
-      // Close connections properly
-      await importDb.end();
-      await mainDb.end();
-
-      // Signal successful completion (even though no data)
-      self.postMessage("COMPLETED");
-      return;
     }
 
     // Create index on staging table for better join performance
@@ -333,7 +284,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
 
       // Count how many duplicates were removed
       dedupCount = await importDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM ${importDb(dedupTableName)}
+        SELECT COUNT(*)::int as count FROM ${importDb(dedupTableName)}
       `;
 
       const duplicateRowsRemoved = rowsAfterCsvValidation - dedupCount[0].count;
@@ -433,7 +384,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
 
       // Check if any rows remain after facility validation
       const validFacilityCount = await importDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM ${importDb(tempValidFacilitiesTable)}
+        SELECT COUNT(*)::int as count FROM ${importDb(tempValidFacilitiesTable)}
       `;
 
       rowsAfterFacilityValidation = validFacilityCount[0]?.count || 0;
@@ -561,7 +512,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
 
       // Check if any rows remain after indicator validation
       finalStagingCount = await importDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM ${importDb(stagingTableName)}
+        SELECT COUNT(*)::int as count FROM ${importDb(stagingTableName)}
       `;
 
       const finalRowCount = finalStagingCount[0]?.count || 0;
@@ -610,26 +561,27 @@ CREATE UNLOGGED TABLE ${tempTableName} (
           period_id: number;
           indicator_raw_id: string;
           n_records: number;
-          total_count: number;
+          total_count: string | number;
         }[]
       >`
-  SELECT 
+  SELECT
     period_id,
     indicator_raw_id,
-    COUNT(*) as n_records,
+    COUNT(*)::int as n_records,
     SUM(count) as total_count
   FROM ${importDb(stagingTableName)}
   GROUP BY period_id, indicator_raw_id
   ORDER BY period_id, indicator_raw_id
   `;
 
-      // Map database field names to TypeScript property names
+      // Map database field names to TypeScript property names.
+      // SUM() comes back as a bigint string on this connection.
       periodIndicatorStats = periodIndicatorStatsRaw.map<PeriodIndicatorRawStat>(
         (stat) => ({
           periodId: stat.period_id,
           indicatorRawId: stat.indicator_raw_id,
           nRecords: stat.n_records,
-          totalCount: stat.total_count,
+          totalCount: Number(stat.total_count),
         })
       );
 

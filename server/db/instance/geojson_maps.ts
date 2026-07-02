@@ -1,5 +1,10 @@
 import { Sql } from "postgres";
-import type { APIResponseNoData, APIResponseWithData, GeoJsonMapSummary } from "lib";
+import type {
+  APIResponseNoData,
+  APIResponseWithData,
+  GeoJsonMapSummary,
+  GeojsonOrphanedAreaIds,
+} from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 
 export async function getGeoJsonMapSummaries(
@@ -53,6 +58,41 @@ export async function deleteGeoJsonMap(
     await mainDb`DELETE FROM geojson_maps WHERE admin_area_level = ${level}`;
     return { success: true };
   });
+}
+
+export async function countOrphanedGeoJsonAreaIds(
+  mainDb: Sql,
+): Promise<GeojsonOrphanedAreaIds[]> {
+  const rows = await mainDb<{ admin_area_level: number; geojson: string }[]>`
+    SELECT admin_area_level, geojson FROM geojson_maps ORDER BY admin_area_level`;
+  const results: GeojsonOrphanedAreaIds[] = [];
+  for (const row of rows) {
+    const parsed = JSON.parse(row.geojson) as {
+      features: Array<{ properties?: Record<string, unknown> }>;
+    };
+    const areaIds = new Set<string>();
+    for (const feature of parsed.features) {
+      const areaId = feature.properties?.area_id;
+      if (typeof areaId === "string" && areaId !== "") {
+        areaIds.add(areaId);
+      }
+    }
+    if (areaIds.size === 0) {
+      continue;
+    }
+    const level = row.admin_area_level;
+    const existingRows = await mainDb<{ name: string }[]>`
+      SELECT ${mainDb(`admin_area_${level}`)} as name
+      FROM ${mainDb(`admin_areas_${level}`)}`;
+    const existingNames = new Set(existingRows.map((r) => r.name));
+    const orphanedCount = Array.from(areaIds).filter(
+      (id) => !existingNames.has(id),
+    ).length;
+    if (orphanedCount > 0) {
+      results.push({ adminAreaLevel: level, orphanedCount });
+    }
+  }
+  return results;
 }
 
 export type AdminAreaOption = { value: string; label: string };

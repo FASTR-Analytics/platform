@@ -114,8 +114,8 @@ function PickStep(p: {
     <>
       <div class="text-sm">
         {t3({
-          en: "Upload an Excel workbook (.xlsx) with three sheets:",
-          fr: "Téléversez un classeur Excel (.xlsx) comportant trois feuilles :",
+          en: "Upload an Excel workbook (.xlsx) with four sheets:",
+          fr: "Téléversez un classeur Excel (.xlsx) comportant quatre feuilles :",
         })}
         <ul class="mt-2 ml-5 list-disc space-y-1">
           <li>

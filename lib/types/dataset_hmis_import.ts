@@ -1,4 +1,5 @@
 import { CsvDetails, TableColumn } from "./instance.ts";
+import { Dhis2CredentialsRedacted } from "./structure.ts";
 
 // ============================================================================
 // Upload Attempt Status Types
@@ -136,8 +137,9 @@ export type DatasetUploadAttemptDetailDhis2 = {
   step: 1 | 2 | 3 | 4;
   status: DatasetUploadAttemptStatus;
   sourceType: "dhis2";
-  // Step 1: DHIS2 confirmation
-  step1Result: Dhis2Credentials | undefined;
+  // Step 1: DHIS2 confirmation. Redacted — the password never leaves the
+  // server; the full credentials stay in the DB row for the staging worker.
+  step1Result: Dhis2CredentialsRedacted | undefined;
   // Step 2: DHIS2 selection parameters
   step2Result: Dhis2SelectionParams | undefined;
   // Step 3: DHIS2 staging result

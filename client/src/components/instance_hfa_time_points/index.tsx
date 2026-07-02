@@ -9,6 +9,7 @@ import {
   StateHolderFormError,
   createDeleteAction,
   createFormAction,
+  openAlert,
   YearSelect,
 } from "panther";
 import { createSignal, Show } from "solid-js";
@@ -48,8 +49,14 @@ export function HfaTimePointsEditor() {
   const sortedTimePoints = () =>
     [...instanceState.hfaTimePoints].sort((a, b) => a.sortOrder - b.sortOrder);
 
-  const items = (): ListItem<string>[] =>
-    sortedTimePoints().map((tp) => ({
+  // Bumped on a failed reorder to force the list back to the store's order
+  // (the reorderable list holds an optimistic local order; a failed save
+  // changes nothing in the store, so nothing would otherwise re-sync it).
+  const [listResyncKey, setListResyncKey] = createSignal(0);
+
+  const items = (): ListItem<string>[] => {
+    listResyncKey();
+    return sortedTimePoints().map((tp) => ({
       id: tp.label,
       label: tp.label,
       sublabel: `${tp.periodId.slice(0, 4)}-${tp.periodId.slice(4, 6)}${
@@ -58,6 +65,7 @@ export function HfaTimePointsEditor() {
           : ""
       }`,
     }));
+  };
 
   function openAdd() {
     setEditing("");
@@ -114,7 +122,17 @@ export function HfaTimePointsEditor() {
   }
 
   async function handleReorder(orderedIds: string[]) {
-    await serverActions.reorderHfaTimePoints({ order: orderedIds });
+    const res = await serverActions.reorderHfaTimePoints({ order: orderedIds });
+    if (!res.success) {
+      setListResyncKey((k) => k + 1);
+      await openAlert({
+        text: t3({
+          en: "Could not save the new order",
+          fr: "Impossible d'enregistrer le nouvel ordre",
+        }),
+        intent: "danger",
+      });
+    }
   }
 
   return (

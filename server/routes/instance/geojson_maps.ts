@@ -62,6 +62,10 @@ defineRoute(
       const result = analyzeGeoJson(rawGeoJson);
       return c.json({ success: true, data: result });
     } catch (e) {
+      // JSON.parse SyntaxErrors embed a snippet of the file — never echo them
+      if (e instanceof SyntaxError) {
+        return c.json({ success: false, err: "File is not valid JSON/GeoJSON" });
+      }
       return c.json({
         success: false,
         err: e instanceof Error ? e.message : "Failed to analyze GeoJSON",

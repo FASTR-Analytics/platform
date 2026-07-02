@@ -128,6 +128,27 @@ async function run(std: {
     // │ PHASE 3: PREPARE WORK ITEMS & FETCH FACILITIES                          │
     // └─────────────────────────────────────────────────────────────────────────┘
 
+    // Fail fast on indicators deleted since step 2 — integration inserts
+    // against an indicators_raw FK, so a stale selection would otherwise
+    // only surface as a raw FK error after all fetch work.
+    const existingIndicators = await mainDb<{ indicator_raw_id: string }[]>`
+      SELECT indicator_raw_id FROM indicators_raw
+      WHERE indicator_raw_id = ANY(${selection.rawIndicatorIds})
+    `;
+    const existingIndicatorIds = new Set(
+      existingIndicators.map((r) => r.indicator_raw_id)
+    );
+    const missingIndicatorIds = selection.rawIndicatorIds.filter(
+      (id) => !existingIndicatorIds.has(id)
+    );
+    if (missingIndicatorIds.length > 0) {
+      throw new Error(
+        `Cannot stage: the following selected raw indicators no longer exist: ` +
+          `${missingIndicatorIds.join(", ")}. ` +
+          `Update the selection in step 2 and try again.`
+      );
+    }
+
     const facilities = await mainDb<{ facility_id: string }[]>`
       SELECT facility_id FROM facilities_hmis
       WHERE facility_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}$'
@@ -205,11 +226,15 @@ async function run(std: {
         completedWorkItemHistory,
       };
 
+      // Progress-only write: the status_type guard stops straggling
+      // in-flight work items from stomping a terminal status (error/staged)
+      // written after a fail-fast abort.
       await mainDb`
         UPDATE dataset_hmis_upload_attempts
         SET
           status = ${JSON.stringify(status)},
           status_type = 'staging'
+        WHERE status_type = 'staging'
       `;
     };
 
@@ -456,11 +481,13 @@ async function updateImportProgress(
     status: "staging",
     progress: Math.round(progress),
   };
+  // Progress-only write: never overwrite a terminal status.
   await mainDb`
     UPDATE dataset_hmis_upload_attempts
     SET
       status = ${JSON.stringify(status)},
       status_type = 'staging'
+    WHERE status_type = 'staging'
   `;
 }
 

@@ -262,7 +262,12 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       if (primitive.backgroundColor !== "none") {
         rc.rRect(primitive.bounds, { fillColor: primitive.backgroundColor });
       }
-      rc.rText(primitive.mText, primitive.textPosition, primitive.textAlignH);
+      rc.rText(
+        primitive.mText,
+        primitive.textPosition,
+        primitive.textAlignH,
+        primitive.textAlignV,
+      );
       break;
 
     case "table-col-header":

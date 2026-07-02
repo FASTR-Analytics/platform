@@ -15,7 +15,6 @@ export function createWorkerConnection(
     maxConnections?: number;
     idleTimeout?: number; // in seconds
     statementTimeout?: number; // in milliseconds
-    readonly?: boolean;
   }
 ): Sql {
   const config: any = {
@@ -64,12 +63,11 @@ export function createBulkImportConnection(databaseId: string): Sql {
 }
 
 /**
- * Create a connection for read-only worker operations
+ * Create a lightweight connection for worker status/metadata operations
  */
 export function createWorkerReadConnection(databaseId: string): Sql {
   return createWorkerConnection(databaseId, {
     maxConnections: 2,
     idleTimeout: 120, // 2 minutes
-    readonly: true,
   });
 }

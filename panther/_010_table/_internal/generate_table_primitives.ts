@@ -87,41 +87,51 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
   if (m.hasColHeaders) {
     let currentX = m.firstCellX;
     m.colHeaderInfos.forEach((chi) => {
+      const colWidth = m.colInnerWidths[chi.index];
       const bgH = m.colHeaderMaxHeight +
         s.colHeaderPadding.pt() +
         s.colHeaderPadding.pb() +
         extraTop +
         extraBottom;
 
-      const colHeaderContentWidth = m.colInnerWidth -
+      const colHeaderContentWidth = colWidth -
         s.colHeaderPadding.totalPx();
 
-      let textPosition: Coordinates | undefined;
+      let textPosition: Coordinates | RectCoordsDims | undefined;
+      let textAlignH: "left" | "center" | "right" = "center";
       let textAlignV: "top" | "middle" | "bottom" = "top";
       if (chi.mText) {
         const isRotated = chi.mText.rotation !== "horizontal";
-        const yOffset = isRotated
-          ? m.colHeaderMaxHeight
-          : m.colHeaderMaxHeight - chi.mText.dims.h();
-        textPosition = new Coordinates([
-          currentX + s.colHeaderPadding.pl() + colHeaderContentWidth / 2,
-          m.colHeadersInnerY +
-          s.colHeaderPadding.pt() +
-          extraTop +
-          yOffset,
-        ]);
-        textAlignV = isRotated ? "bottom" : "top";
+        if (isRotated) {
+          // Rotated headers keep forced placement — alignment of
+          // sideways-rendered text is not supported.
+          textPosition = new Coordinates([
+            currentX + s.colHeaderPadding.pl() + colHeaderContentWidth / 2,
+            m.colHeadersInnerY +
+            s.colHeaderPadding.pt() +
+            extraTop +
+            m.colHeaderMaxHeight,
+          ]);
+          textAlignV = "bottom";
+        } else {
+          textPosition = new RectCoordsDims({
+            x: currentX + s.colHeaderPadding.pl(),
+            y: m.colHeadersInnerY + s.colHeaderPadding.pt() + extraTop,
+            w: colHeaderContentWidth,
+            h: m.colHeaderMaxHeight,
+          });
+          textAlignH = chi.headerStyle.alignH;
+          textAlignV = chi.headerStyle.alignV;
+        }
       }
 
       primitives.push({
         type: "table-col-header",
-        key: chi.index !== undefined
-          ? `table-col-header-${chi.index}`
-          : `table-col-header-x-${currentX}`,
+        key: `table-col-header-${chi.index}`,
         bounds: new RectCoordsDims({
           x: currentX,
           y: m.colHeadersInnerY,
-          w: m.colInnerWidth,
+          w: colWidth,
           h: bgH,
         }),
         zIndex: Z_INDEX.TABLE_HEADER_BG,
@@ -133,11 +143,11 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
         backgroundColor: chi.headerStyle.backgroundColor,
         mText: chi.mText,
         textPosition,
-        textAlignH: "center",
+        textAlignH,
         textAlignV,
       });
 
-      currentX += m.colInnerWidth + s.gridLineWidth;
+      currentX += colWidth + s.gridLineWidth;
     });
   }
 
@@ -182,11 +192,17 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
         },
         backgroundColor: rhi.headerStyle.backgroundColor,
         mText: rhi.mText,
-        textPosition: new Coordinates([
-          m.rowHeadersInnerX + s.rowHeaderPadding.pl() + indent,
-          currentY + m.rowCellPaddingT + extraTop,
-        ]),
-        textAlignH: "left",
+        // Content box: from the padded-indented left edge to the padded edge
+        // before the header/body divider, spanning the row's content band.
+        textPosition: new RectCoordsDims({
+          x: m.rowHeadersInnerX + s.rowHeaderPadding.pl() + indent,
+          y: currentY + m.rowCellPaddingT + extraTop,
+          w: m.firstCellX - s.headerBorderWidth - s.rowHeaderPadding.pr() -
+            (m.rowHeadersInnerX + s.rowHeaderPadding.pl() + indent),
+          h: mr.rowContentHeight,
+        }),
+        textAlignH: rhi.headerStyle.alignH,
+        textAlignV: rhi.headerStyle.alignV,
       });
     }
 
@@ -197,17 +213,9 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
     if (rhi.index !== "group-header") {
       let currentX = m.firstCellX;
       mr.cells.forEach((cell) => {
-        const cellTextHeight = cell.mText.dims.h();
-        const availableHeight = mr.rowContentHeight;
-        const yOffset = s.alignV === "middle"
-          ? (availableHeight - cellTextHeight) / 2
-          : s.alignV === "bottom"
-          ? availableHeight - cellTextHeight
-          : 0;
-        const cellContentWidth = m.colInnerWidth - s.cellPadding.pl() -
+        const colWidth = m.colInnerWidths[cell.cellInfo.i_col];
+        const cellContentWidth = colWidth - s.cellPadding.pl() -
           s.cellPadding.pr();
-        const cellContentCenterX = currentX + s.cellPadding.pl() +
-          cellContentWidth / 2;
 
         primitives.push({
           type: "table-cell",
@@ -215,7 +223,7 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
           bounds: new RectCoordsDims({
             x: currentX,
             y: currentY,
-            w: m.colInnerWidth,
+            w: colWidth,
             h: rowHeight,
           }),
           zIndex: Z_INDEX.TABLE_CELL_BG,
@@ -228,15 +236,17 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
           annotationGroup: cell.cellStyle.annotationGroup,
           backgroundColor: cell.cellStyle.backgroundColor,
           mText: cell.mText,
-          textPosition: new Coordinates([
-            cellContentCenterX,
-            currentY + m.rowCellPaddingT + extraTop + yOffset,
-          ]),
-          textAlignH: "center",
-          textAlignV: "top",
+          textPosition: new RectCoordsDims({
+            x: currentX + s.cellPadding.pl(),
+            y: currentY + m.rowCellPaddingT + extraTop,
+            w: cellContentWidth,
+            h: mr.rowContentHeight,
+          }),
+          textAlignH: cell.cellStyle.alignH,
+          textAlignV: cell.cellStyle.alignV,
         });
 
-        currentX += m.colInnerWidth + s.gridLineWidth;
+        currentX += colWidth + s.gridLineWidth;
       });
     }
 
@@ -280,8 +290,8 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
     let colIndex = 0;
     d.colGroups.forEach((colGroup) => {
       const nColsThisGroup = colGroup.cols.length;
-      colGroup.cols.forEach((_, i_col) => {
-        vX += m.colInnerWidth;
+      colGroup.cols.forEach((col, i_col) => {
+        vX += m.colInnerWidths[col.index];
         colIndex++;
         const isRightBorder = colIndex === totalCols;
         const lineWidth = isRightBorder ? s.borderWidth : s.gridLineWidth;

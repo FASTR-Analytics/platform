@@ -151,6 +151,12 @@ const figureInputsBaseFields = {
 export const zTableInputs = z.object({
   ...figureInputsBaseFields,
   tableData: zTableData,
+  columnWidths: z
+    .union([
+      z.literal("equal"),
+      z.array(z.union([z.number().nonnegative(), z.literal("auto")])),
+    ])
+    .optional(),
 });
 const _zTableInputsConforms: Conforms<
   z.infer<typeof zTableInputs>,

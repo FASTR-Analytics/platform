@@ -1,5 +1,9 @@
 import { Sql } from "postgres";
-import { UPLOADED_HFA_DATA_STAGING_TABLE_NAME } from "../../exposed_env_vars.ts";
+import {
+  UPLOADED_HFA_DATA_STAGING_TABLE_NAME,
+  UPLOADED_HFA_DICT_VALUES_STAGING_TABLE_NAME,
+  UPLOADED_HFA_DICT_VARS_STAGING_TABLE_NAME,
+} from "../../exposed_env_vars.ts";
 import {
   DBDatasetHfaUploadAttempt,
   createBulkImportConnection,
@@ -38,8 +42,8 @@ import {
 
 let alreadyRunning = false;
 
-const DICT_VARS_STAGING_TABLE = "uploaded_hfa_dictionary_vars_staging";
-const DICT_VALUES_STAGING_TABLE = "uploaded_hfa_dictionary_values_staging";
+const DICT_VARS_STAGING_TABLE = UPLOADED_HFA_DICT_VARS_STAGING_TABLE_NAME;
+const DICT_VALUES_STAGING_TABLE = UPLOADED_HFA_DICT_VALUES_STAGING_TABLE_NAME;
 
 async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
   if (alreadyRunning) {
@@ -420,12 +424,12 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
     // Get statistics
     const validRowCount = (
       await importDb<{ count: number }[]>`
-SELECT COUNT(*) as count FROM ${importDb.unsafe(stagingTableName)}`
+SELECT COUNT(*)::int as count FROM ${importDb.unsafe(stagingTableName)}`
     )[0].count;
 
     const invalidFacilityNotFoundCount = (
       await importDb<{ count: number }[]>`
-SELECT COUNT(DISTINCT facility_id) as count
+SELECT COUNT(DISTINCT facility_id)::int as count
 FROM ${importDb.unsafe(tempTableName)}
 WHERE NOT EXISTS (
   SELECT 1 FROM ${importDb.unsafe(tempValidFacilitiesTable)} vf
@@ -484,6 +488,18 @@ SET
 `;
     } catch (dbError) {
       console.error("Failed to update error status:", dbError);
+    }
+
+    try {
+      await importDb.unsafe(`DROP TABLE IF EXISTS ${tempTableName}`);
+      await importDb.unsafe(`DROP TABLE IF EXISTS ${tempValidFacilitiesTable}`);
+      await importDb.unsafe(`DROP TABLE IF EXISTS ${stagingTableName}`);
+      await importDb.unsafe(`DROP TABLE IF EXISTS ${DICT_VARS_STAGING_TABLE}`);
+      await importDb.unsafe(
+        `DROP TABLE IF EXISTS ${DICT_VALUES_STAGING_TABLE}`,
+      );
+    } catch (cleanupError) {
+      console.error("Failed to clean up staging tables:", cleanupError);
     }
 
     throw error;

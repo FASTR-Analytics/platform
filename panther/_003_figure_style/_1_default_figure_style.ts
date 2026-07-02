@@ -336,10 +336,14 @@ const _DS = {
       }),
       textFormatter: typed<MapRegionInfoFunc<string> | "none">("none"),
     },
+    // alignV for cells and row headers is deliberately absent here — its
+    // default is the table-wide `table.alignV` (resolved as a fallback
+    // cascade in the style builders, like colHeaderBackgroundColor).
     tableCells: {
       func: typed<GenericTableCellStyle>({
         backgroundColor: "none",
         textColorStrategy: "none",
+        alignH: "center",
       }),
       textFormatter: typed<TableCellInfoFunc<string> | "none">("none"),
     },
@@ -347,11 +351,14 @@ const _DS = {
       func: typed<GenericTableHeaderStyle>({
         backgroundColor: "none",
         textColorStrategy: "none",
+        alignH: "left",
       }),
     },
     tableColHeaders: {
       func: typed<GenericTableHeaderStyleOptions>({
         textColorStrategy: "none",
+        alignH: "center",
+        alignV: "bottom",
       }),
     },
   },

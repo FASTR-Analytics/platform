@@ -15,6 +15,7 @@ import {
   getEnabledOptionalFacilityColumns,
   Dhis2Credentials,
   type FacilityFamily,
+  type StructureFacilityMatch,
   type StructureIntegrateStrategy,
   type StructureIntegrateSummary,
 } from "lib";
@@ -359,6 +360,8 @@ export async function getStructureUploadAttempt(
       };
     }
 
+    const step3Result = await getStep3ResultWithFreshMatch(mainDb, rawUA);
+
     if (rawUA.source_type === "dhis2") {
       const rawCredentials = parseJsonOrUndefined(rawUA.step_1_result) as
         | Dhis2Credentials
@@ -379,9 +382,7 @@ export async function getStructureUploadAttempt(
           step2Result: parseJsonOrUndefined(rawUA.step_2_result) as
             | StructureDhis2OrgUnitSelection
             | undefined,
-          step3Result: parseJsonOrUndefined(rawUA.step_3_result) as
-            | StructureStagingResult
-            | undefined,
+          step3Result,
         },
       };
     } else {
@@ -398,9 +399,7 @@ export async function getStructureUploadAttempt(
           step2Result: parseJsonOrUndefined(rawUA.step_2_result) as
             | StructureColumnMappings
             | undefined,
-          step3Result: parseJsonOrUndefined(rawUA.step_3_result) as
-            | StructureStagingResult
-            | undefined,
+          step3Result,
         },
       };
     }
@@ -685,27 +684,69 @@ async function claimImportSlot(
 
 // Both handlers write conditionally on still holding the claim, so a run whose
 // attempt was deleted mid-flight cannot resurrect or overwrite anything.
-async function handleStagingSuccess(
+// Pre-commit match preview against the target family's backbone: how many of
+// the staged distinct facility_ids already exist. Shown at step 4 so an
+// ID-system mismatch (0 existing) is visible before committing.
+async function computeFacilityMatch(
   mainDb: Sql,
-  stagingData: StructureStagingResult,
+  stagingTableName: string,
   family: FacilityFamily
-): Promise<APIResponseNoData> {
-  // Pre-commit match preview against the target family's backbone: how many of
-  // the file's distinct facility_ids already exist. Shown at step 4 so an
-  // ID-system mismatch (0 existing) is visible before committing.
+): Promise<StructureFacilityMatch> {
   const facilitiesTable = facilitiesTableForFacilityFamily(family);
   const matchRows = await mainDb.unsafe(`
     SELECT
       COUNT(*)::int AS total_staged,
       COUNT(f.facility_id)::int AS existing
-    FROM (SELECT DISTINCT facility_id FROM ${stagingData.stagingTableName}) s
+    FROM (SELECT DISTINCT facility_id FROM ${stagingTableName}) s
     LEFT JOIN ${facilitiesTable} f ON f.facility_id = s.facility_id
   `);
   const totalStaged = matchRows[0]?.total_staged ?? 0;
   const existing = matchRows[0]?.existing ?? 0;
+  return { totalStaged, existing, newCount: totalStaged - existing };
+}
+
+// facilityMatch is computed once at staging success, but facilities can change
+// between staging and finalize. For step-4 attempts whose staging table still
+// exists, recompute against the live backbone at read time (never written
+// back); if the table is gone, fall back to the stored value.
+async function getStep3ResultWithFreshMatch(
+  mainDb: Sql,
+  rawUA: DBStructureUploadAttempt
+): Promise<StructureStagingResult | undefined> {
+  const stored = parseJsonOrUndefined(rawUA.step_3_result) as
+    | StructureStagingResult
+    | undefined;
+  if (rawUA.step !== 4 || !stored?.stagingTableName) {
+    return stored;
+  }
+  const reg = await mainDb<{ reg: string | null }[]>`
+    SELECT to_regclass(${stored.stagingTableName})::text AS reg
+  `;
+  if (!reg[0]?.reg) {
+    return stored;
+  }
+  return {
+    ...stored,
+    facilityMatch: await computeFacilityMatch(
+      mainDb,
+      stored.stagingTableName,
+      rawUA.dataset_family
+    ),
+  };
+}
+
+async function handleStagingSuccess(
+  mainDb: Sql,
+  stagingData: StructureStagingResult,
+  family: FacilityFamily
+): Promise<APIResponseNoData> {
   const stagingWithMatch: StructureStagingResult = {
     ...stagingData,
-    facilityMatch: { totalStaged, existing, newCount: totalStaged - existing },
+    facilityMatch: await computeFacilityMatch(
+      mainDb,
+      stagingData.stagingTableName,
+      family
+    ),
   };
 
   // Store staging result and advance to step 4
@@ -929,7 +970,9 @@ export async function structureStep4_ImportData(
       };
     }
 
-    // Clean up staging table
+    // Clean up staging table. The structure_last_updated stamp is written
+    // inside the integrate transaction, so a crash from here on only leaves
+    // idempotent cleanup undone (recovered by the startup wedge reset).
     try {
       await mainDb.unsafe(
         `DROP TABLE IF EXISTS ${stagingResult.stagingTableName}`
@@ -937,14 +980,6 @@ export async function structureStep4_ImportData(
     } catch {
       // Ignore cleanup errors
     }
-
-    // Store timestamp of structure completion
-    await mainDb`
-      INSERT INTO instance_config (config_key, config_json_value)
-      VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
-      ON CONFLICT (config_key)
-      DO UPDATE SET config_json_value = EXCLUDED.config_json_value
-    `;
 
     // Delete this family's upload attempt on success
     await mainDb`DELETE FROM structure_upload_attempts WHERE dataset_family = ${family}`;

@@ -84,17 +84,33 @@ export function IndicatorsManager(p: Props) {
     },
   ];
 
+  let indicatorsRequestId = 0;
   createEffect(async () => {
     const version = instanceState.indicatorMappingsVersion;
-    if (!version) return;
+    if (!version) {
+      return;
+    }
+    const requestId = ++indicatorsRequestId;
+    setIndicators({ status: "loading" });
     const res = await getIndicatorsFromCacheOrFetch(version);
+    if (requestId !== indicatorsRequestId) {
+      return;
+    }
     setIndicators(getQueryStateFromApiResponse(res));
   });
 
+  let calculatedIndicatorsRequestId = 0;
   createEffect(async () => {
     const version = instanceState.calculatedIndicatorsVersion;
-    if (!version) return;
+    if (!version) {
+      return;
+    }
+    const requestId = ++calculatedIndicatorsRequestId;
+    setCalculatedIndicators({ status: "loading" });
     const res = await getCalculatedIndicatorsFromCacheOrFetch(version);
+    if (requestId !== calculatedIndicatorsRequestId) {
+      return;
+    }
     setCalculatedIndicators(getQueryStateFromApiResponse(res));
   });
 

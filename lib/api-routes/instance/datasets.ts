@@ -37,6 +37,11 @@ const dhis2SelectionParamsSchema = z.object({
   endPeriod: z.number(),
 });
 
+const hfaCsvMappingParamsSchema = z.object({
+  facilityIdColumn: z.string(),
+  timePoint: z.string(),
+});
+
 const datasetHmisWindowingBaseSchema = z.object({
   start: z.number(),
   end: z.number(),
@@ -195,7 +200,7 @@ export const datasetRouteRegistry = {
   updateDatasetHfaMappings: route({
     path: "/dataset-uploads/hfa/mappings",
     method: "POST",
-    body: z.object({ mappings: z.record(z.string(), z.string()) }),
+    body: z.object({ mappings: hfaCsvMappingParamsSchema }),
   }),
   updateDatasetHfaStaging: route({
     path: "/dataset-uploads/hfa/staging",

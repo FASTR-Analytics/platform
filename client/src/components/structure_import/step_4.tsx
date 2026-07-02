@@ -246,6 +246,27 @@ export function Step4(p: Props) {
                 </div>
               </Show>
             </div>
+            <Show
+              when={
+                summary.orphanedGeojsonAreaIds &&
+                summary.orphanedGeojsonAreaIds.length > 0
+                  ? summary.orphanedGeojsonAreaIds
+                  : undefined
+              }
+              keyed
+            >
+              {(orphans) => (
+                <div class="border-danger bg-danger/10 rounded border p-4">
+                  <div class="text-danger text-sm">
+                    {t3({
+                      en: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} map boundaries no longer match an admin area — repair them in the map boundaries editor.`,
+                      fr: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} limites de carte ne correspondent plus à aucune unité administrative — corrigez-les dans l'éditeur de limites de carte.`,
+                      pt: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} limites de mapa já não correspondem a nenhuma zona administrativa — corrija-as no editor de limites de mapa.`,
+                    })}
+                  </div>
+                </div>
+              )}
+            </Show>
             <div>
               <Button onClick={() => p.close()} intent="primary" iconName="check">
                 {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}

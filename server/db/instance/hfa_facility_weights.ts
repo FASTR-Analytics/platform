@@ -198,39 +198,43 @@ export async function importHfaFacilityWeights(
       };
     }
 
-    const knownFacilities = new Set(
-      (await mainDb<{ facility_id: string }[]>`SELECT facility_id FROM facilities_hfa`)
-        .map((r) => r.facility_id)
-    );
-    const unknownFacilities = [...new Set(
-      rows.filter((r) => !knownFacilities.has(r.facility_id)).map((r) => r.facility_id)
-    )];
-    if (unknownFacilities.length > 0) {
-      return {
-        success: false,
-        err: `${unknownFacilities.length} facility ID(s) not in the HFA registry. First: ${unknownFacilities.slice(0, 10).join(", ")}`,
-      };
-    }
+    return await mainDb.begin(
+      async (sql: Sql): Promise<APIResponseWithData<HfaFacilityWeightsImportResult>> => {
+        // Existence check inside the write transaction, so a facility deleted
+        // between check and insert surfaces as this rejection, not a raw FK error
+        const knownFacilities = new Set(
+          (await sql<{ facility_id: string }[]>`SELECT facility_id FROM facilities_hfa`)
+            .map((r) => r.facility_id)
+        );
+        const unknownFacilities = [...new Set(
+          rows.filter((r) => !knownFacilities.has(r.facility_id)).map((r) => r.facility_id)
+        )];
+        if (unknownFacilities.length > 0) {
+          return {
+            success: false,
+            err: `${unknownFacilities.length} facility ID(s) not in the HFA registry. First: ${unknownFacilities.slice(0, 10).join(", ")}`,
+          };
+        }
 
-    await mainDb.begin(async (sql: Sql) => {
-      // Replace all weights for this time point
-      await sql`DELETE FROM hfa_facility_weights WHERE time_point = ${timePoint}`;
-      for (let i = 0; i < rows.length; i += UPSERT_BATCH_SIZE) {
-        const batch = rows.slice(i, i + UPSERT_BATCH_SIZE);
-        await sql`INSERT INTO hfa_facility_weights ${sql(batch, "facility_id", "time_point", "weight")}`;
+        // Replace all weights for this time point
+        await sql`DELETE FROM hfa_facility_weights WHERE time_point = ${timePoint}`;
+        for (let i = 0; i < rows.length; i += UPSERT_BATCH_SIZE) {
+          const batch = rows.slice(i, i + UPSERT_BATCH_SIZE);
+          await sql`INSERT INTO hfa_facility_weights ${sql(batch, "facility_id", "time_point", "weight")}`;
+        }
+        await sql`
+          INSERT INTO instance_config (config_key, config_json_value)
+          VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+          ON CONFLICT (config_key)
+          DO UPDATE SET config_json_value = EXCLUDED.config_json_value
+        `;
+
+        return {
+          success: true,
+          data: { rowsImported: rows.length, rowsSkippedNoWeight, timePointsCovered: [timePoint] },
+        };
       }
-      await sql`
-        INSERT INTO instance_config (config_key, config_json_value)
-        VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
-        ON CONFLICT (config_key)
-        DO UPDATE SET config_json_value = EXCLUDED.config_json_value
-      `;
-    });
-
-    return {
-      success: true,
-      data: { rowsImported: rows.length, rowsSkippedNoWeight, timePointsCovered: [timePoint] },
-    };
+    );
   });
 }
 

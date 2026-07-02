@@ -41,6 +41,16 @@ export function ProgressStaging(p: Props) {
               <strong>{t3({ en: "Skipped (missing estimate):", fr: "Ignorées (estimation manquante) :" })}</strong>{" "}
               {p.staged!.nRowsSkippedMissingEstimate.toLocaleString()}
             </p>
+            <Show when={(p.staged!.nRowsSkippedUnknownStrat ?? 0) > 0}>
+              <p>
+                <strong>{t3({ en: "Skipped (unknown disaggregation):", fr: "Ignorées (désagrégation inconnue) :" })}</strong>{" "}
+                {p.staged!.nRowsSkippedUnknownStrat!.toLocaleString()}
+                <Show when={p.staged!.skippedUnknownStratSamples?.length}>
+                  {" "}({t3({ en: "e.g.", fr: "p. ex." })}{" "}
+                  {p.staged!.skippedUnknownStratSamples!.join(", ")})
+                </Show>
+              </p>
+            </Show>
             <p>
               <strong>{t3({ en: "Indicators:", fr: "Indicateurs :" })}</strong>{" "}
               {p.staged!.nIndicators}

@@ -23,6 +23,12 @@ import type {
 export type TableInputs = FigureInputsBase & {
   // tableType: "table"; // Keep for backward compatibility
   tableData: TableData;
+  // "equal" (or omitted) divides available width evenly across columns,
+  // exactly as before this field existed. A number is an absolute width in
+  // DU, scaled by fitScale like any other authored size. "auto" measures
+  // content to size the column. Positional, in final (post-sort) column
+  // order.
+  columnWidths?: "equal" | (number | "auto")[];
 };
 
 // Backward compatibility alias
@@ -179,7 +185,7 @@ export type ColGroupHeaderInfo = {
 
 export type ColHeaderInfo = {
   mText: MeasuredText | undefined;
-  index: number | undefined;
+  index: number;
   headerStyle: TableHeaderStyle;
 };
 
@@ -197,7 +203,7 @@ export type TableMeasuredInfo = {
   colGroupHeadersInnerY: number;
   firstCellX: number;
   colHeaderMaxHeight: number;
-  colInnerWidth: number;
+  colInnerWidths: number[];
   colHeadersInnerY: number;
   firstCellY: number;
   firstCellYUnadjusted: number;

@@ -1,4 +1,9 @@
 import { Sql } from "postgres";
+import {
+  UPLOADED_HFA_DATA_STAGING_TABLE_NAME,
+  UPLOADED_HFA_DICT_VALUES_STAGING_TABLE_NAME,
+  UPLOADED_HFA_DICT_VARS_STAGING_TABLE_NAME,
+} from "../../exposed_env_vars.ts";
 import { resolveAssetFilePath } from "./assets.ts";
 import {
   APIResponseNoData,
@@ -15,6 +20,7 @@ import {
   DatasetHfaUploadAttemptStatusLight,
   DatasetHfaUploadAttemptSummary,
   DatasetHfaUploadStatusResponse,
+  HfaCsvMappingParams,
 } from "lib";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
@@ -422,6 +428,17 @@ export async function deleteDatasetHfaUploadAttempt(
     }
 
     await mainDb`DELETE FROM hfa_upload_attempts`;
+    // A terminated worker never reaches its own cleanup, and a staged
+    // attempt's tables would otherwise outlive the attempt row.
+    await mainDb.unsafe(
+      `DROP TABLE IF EXISTS ${UPLOADED_HFA_DATA_STAGING_TABLE_NAME}`
+    );
+    await mainDb.unsafe(
+      `DROP TABLE IF EXISTS ${UPLOADED_HFA_DICT_VARS_STAGING_TABLE_NAME}`
+    );
+    await mainDb.unsafe(
+      `DROP TABLE IF EXISTS ${UPLOADED_HFA_DICT_VALUES_STAGING_TABLE_NAME}`
+    );
     return { success: true };
   });
 }
@@ -485,18 +502,36 @@ export async function updateDatasetHfaUploadAttempt_Step1CsvUpload(
 
 export async function updateDatasetHfaUploadAttempt_Step2Mappings(
   mainDb: Sql,
-  mappings: Record<string, string>
+  mappings: HfaCsvMappingParams
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawDUA = await getRawUAOrThrow(mainDb);
     if (!rawDUA.step_1_result) {
       throw new Error("Not yet ready for this step");
     }
+    // Stored trimmed so it matches the trimmed value the staging worker
+    // writes into the staged rows.
+    const timePoint = mappings.timePoint.trim();
+    if (!timePoint) {
+      throw new Error("A time point is required");
+    }
+    const timePointExists = await mainDb`
+      SELECT 1 FROM hfa_time_points WHERE label = ${timePoint}
+    `;
+    if (timePointExists.length === 0) {
+      throw new Error(
+        `Time point "${timePoint}" does not exist. Create it on the HFA time points page before importing data.`
+      );
+    }
+    const cleanedMappings: HfaCsvMappingParams = {
+      facilityIdColumn: mappings.facilityIdColumn,
+      timePoint,
+    };
     const updated = await mainDb`
 UPDATE hfa_upload_attempts
 SET
   step = 3,
-  step_2_result = ${JSON.stringify(mappings)},
+  step_2_result = ${JSON.stringify(cleanedMappings)},
   step_3_result = NULL
 WHERE status_type NOT IN ('staging', 'integrating')
 `;
@@ -516,8 +551,8 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
 
     // Check if this upload is already being processed
     const activeOperations = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*) as count 
-      FROM hfa_upload_attempts 
+      SELECT COUNT(*)::int as count
+      FROM hfa_upload_attempts
       WHERE status_type IN ('staging', 'integrating')
     `;
 
@@ -609,8 +644,8 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
 
     // Check if this upload is already being processed
     const activeOperations = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*) as count 
-      FROM hfa_upload_attempts 
+      SELECT COUNT(*)::int as count
+      FROM hfa_upload_attempts
       WHERE status_type IN ('staging', 'integrating')
     `;
 

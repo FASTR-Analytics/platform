@@ -9,7 +9,6 @@ import type {
   ImageInputs,
   ImageMap,
   MarkdownRendererInput,
-  TableData,
   TableInputs,
 } from "./deps.ts";
 import type { FigureMap, MarkdownInline, ParsedMarkdownItem } from "./types.ts";
@@ -66,7 +65,8 @@ export function contentGroupToPageContentItem(
       return undefined;
     }
     const tableData = convertMarkdownTableToTableData(element);
-    return { tableData };
+    const nCols = tableData.colGroups[0].cols.length;
+    return { tableData, columnWidths: Array(nCols).fill("auto") };
   }
 
   if (group.type === "image") {
@@ -113,7 +113,8 @@ export function docElementToPageContentItem(
 ): ConvertedPageContent | undefined {
   if (element.type === "table") {
     const tableData = convertMarkdownTableToTableData(element);
-    return { tableData };
+    const nCols = tableData.colGroups[0].cols.length;
+    return { tableData, columnWidths: Array(nCols).fill("auto") };
   }
 
   if (element.type === "image" && element.src) {
@@ -125,9 +126,12 @@ export function docElementToPageContentItem(
   };
 }
 
+// Return type is inferred (not annotated as the public `TableData` union) so
+// callers in this file can read `.colGroups` directly without a runtime type
+// guard -- this always constructs the transformed shape, never the JSON one.
 function convertMarkdownTableToTableData(
   element: ParsedMarkdownItem & { type: "table" },
-): TableData {
+) {
   const headers = element.header?.[0] || [];
   const rows = element.rows || [];
 
@@ -136,8 +140,8 @@ function convertMarkdownTableToTableData(
     row.map((cell) => inlineContentToPlainText(cell))
   );
 
-  const tableData: TableData = {
-    isTransformed: true,
+  const tableData = {
+    isTransformed: true as const,
     colGroups: [{
       id: undefined,
       label: undefined,
@@ -145,7 +149,6 @@ function convertMarkdownTableToTableData(
         id: header,
         label: header,
         index,
-        width: undefined,
       })),
     }],
     rowGroups: [{

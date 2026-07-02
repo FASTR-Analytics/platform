@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getAdjustedColor } from "../deps.ts";
+import { getAdjustedColor, sum } from "../deps.ts";
 import type {
   MergedTableStyle,
   RenderContext,
@@ -16,9 +16,14 @@ import type {
   TableDataTransformed,
 } from "../types.ts";
 
+// Style for headers with no label: mText is undefined, so no text is ever
+// rendered and the alignment values here are inert — present only to satisfy
+// the resolved TableHeaderStyle shape.
 const DEFAULT_NONE_STYLE = {
   backgroundColor: "none" as const,
   textColorStrategy: "none" as const,
+  alignH: "center" as const,
+  alignV: "top" as const,
 };
 
 export function getRowHeaderInfos(
@@ -112,12 +117,18 @@ export function getColGroupHeaderInfos(
   rc: RenderContext,
   d: TableDataTransformed,
   s: MergedTableStyle,
-  colInnerWidth: number,
+  colInnerWidths: number[],
 ): ColGroupHeaderInfo[] {
-  const nCols = d.colGroups.reduce((sum, cg) => sum + cg.cols.length, 0);
+  const nCols = d.colGroups.reduce((total, cg) => total + cg.cols.length, 0);
   return d.colGroups.map<ColGroupHeaderInfo>((colGroup) => {
     const nColsInGroup = colGroup.cols.length;
-    const colGroupInnerWidth = nColsInGroup * colInnerWidth +
+    // colInnerWidths is indexed by col.index (how every cell consumes it),
+    // not by display position — a positional slice mis-attributes widths
+    // when a hand-authored table's display order differs from index order.
+    const widthsThisGroup = colGroup.cols.map((col) =>
+      colInnerWidths[col.index]
+    );
+    const colGroupInnerWidth = sum(widthsThisGroup) +
       (nColsInGroup - 1) * s.gridLineWidth;
     const colGroupContentWidth = colGroupInnerWidth - s.colHeaderPadding.pl() -
       s.colHeaderPadding.pr();
@@ -160,14 +171,14 @@ export function getColHeaderInfos(
   rc: RenderContext,
   d: TableDataTransformed,
   s: MergedTableStyle,
-  colInnerWidth: number,
+  colInnerWidths: number[],
 ): ColHeaderInfo[] {
   const nCols = d.colGroups.reduce((sum, cg) => sum + cg.cols.length, 0);
 
   function buildColHeaderInfo(
     id: string | undefined,
     label: string | undefined,
-    index: number | undefined,
+    index: number,
     maxWidth: number,
     rotationOpts?: { rotation: "anticlockwise" },
   ): ColHeaderInfo {
@@ -200,11 +211,11 @@ export function getColHeaderInfos(
   }
 
   if (s.verticalColHeaders === "never") {
-    const colHeaderContentWidth = colInnerWidth - s.colHeaderPadding.pl() -
-      s.colHeaderPadding.pr();
     const colHeaderInfos: ColHeaderInfo[] = [];
     for (const colGroup of d.colGroups) {
       for (const col of colGroup.cols) {
+        const colHeaderContentWidth = colInnerWidths[col.index] -
+          s.colHeaderPadding.pl() - s.colHeaderPadding.pr();
         colHeaderInfos.push(
           buildColHeaderInfo(
             col.id,
@@ -221,10 +232,10 @@ export function getColHeaderInfos(
   if (s.verticalColHeaders === "auto") {
     let hasOverflow = false;
     const colHeaderInfos: ColHeaderInfo[] = [];
-    const colHeaderContentWidth = colInnerWidth - s.colHeaderPadding.pl() -
-      s.colHeaderPadding.pr();
     for (const colGroup of d.colGroups) {
       for (const col of colGroup.cols) {
+        const colHeaderContentWidth = colInnerWidths[col.index] -
+          s.colHeaderPadding.pl() - s.colHeaderPadding.pr();
         const chi = buildColHeaderInfo(
           col.id,
           col.label,
@@ -269,7 +280,7 @@ export function getColHeaderInfos(
             rotation: "anticlockwise",
           },
         );
-        if (chi.mText && chi.mText.dims.w() > colInnerWidth) {
+        if (chi.mText && chi.mText.dims.w() > colInnerWidths[col.index]) {
           hasOverflow = true;
           break;
         }

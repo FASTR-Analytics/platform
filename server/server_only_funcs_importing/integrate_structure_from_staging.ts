@@ -132,6 +132,17 @@ export async function integrateStructureFromStaging(
           break;
         }
       }
+
+      // Stamped inside the transaction: S6's staleness gates and the client
+      // structure caches key on this, so it must commit atomically with the
+      // integrated data — a crash before any post-commit bookkeeping must not
+      // leave an integrated structure unstamped.
+      await sql`
+        INSERT INTO instance_config (config_key, config_json_value)
+        VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+        ON CONFLICT (config_key)
+        DO UPDATE SET config_json_value = EXCLUDED.config_json_value
+      `;
     });
 
     console.log(

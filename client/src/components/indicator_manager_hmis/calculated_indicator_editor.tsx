@@ -131,10 +131,11 @@ export function EditCalculatedIndicatorForm(
       return `${(previewRawValue * 100).toFixed(0)}%`;
     }
     if (fmt === "rate_per_10k") {
-      return `${(previewRawValue * 10000).toLocaleString(undefined, {
+      const value = (previewRawValue * 10000).toLocaleString(undefined, {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
-      })} per 10k`;
+      });
+      return `${value} ${t3({ en: "per 10k", fr: "pour 10k" })}`;
     }
     return previewRawValue.toLocaleString(undefined, {
       minimumFractionDigits: 0,
@@ -422,7 +423,7 @@ export function EditCalculatedIndicatorForm(
               onChange={(v) => setDenomPopulationType(v as PopulationType)}
               options={POPULATION_TYPES.map((pt) => ({
                 value: pt.id,
-                label: pt.label,
+                label: t3(pt.label),
               }))}
               fullWidth
             />

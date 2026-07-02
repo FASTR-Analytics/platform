@@ -1,5 +1,6 @@
 import { t3, type IcehUploadAttemptStatus } from "lib";
 import { Button, type ButtonAction } from "panther";
+import { Show } from "solid-js";
 
 type Props = {
   status: Extract<IcehUploadAttemptStatus, { status: "complete" }>;
@@ -7,6 +8,10 @@ type Props = {
 };
 
 export function ProgressComplete(p: Props) {
+  const samplesSuffix = () =>
+    p.status.skippedUnknownStratSamples?.length
+      ? ` (${t3({ en: "e.g.", fr: "p. ex." })} ${p.status.skippedUnknownStratSamples.join(", ")})`
+      : "";
   return (
     <div class="ui-pad ui-spy">
       <div class="">
@@ -15,6 +20,14 @@ export function ProgressComplete(p: Props) {
           fr: `Importation terminée ! ${p.status.nRowsIntegrated.toLocaleString()} lignes intégrées.`,
         })}
       </div>
+      <Show when={(p.status.nRowsSkippedUnknownStrat ?? 0) > 0}>
+        <div class="text-warning">
+          {t3({
+            en: `${p.status.nRowsSkippedUnknownStrat!.toLocaleString()} rows were skipped because their disaggregation ("Strat") was not recognized${samplesSuffix()}.`,
+            fr: `${p.status.nRowsSkippedUnknownStrat!.toLocaleString()} lignes ont été ignorées car leur désagrégation (« Strat ») n'a pas été reconnue${samplesSuffix()}.`,
+          })}
+        </div>
+      </Show>
       <div class="">
         {t3({
           en: "You should now remove the upload form.",

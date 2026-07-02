@@ -295,7 +295,6 @@ export type MergedTableStyle = {
   colHeaderPadding: Padding;
   rowHeaderPadding: Padding;
   cellPadding: Padding;
-  alignV: "top" | "middle" | "bottom";
   colHeaderBackgroundColor: string | "none";
   colGroupHeaderBackgroundColor: string | "none";
   headerBorderWidth: number;

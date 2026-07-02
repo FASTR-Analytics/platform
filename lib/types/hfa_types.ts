@@ -35,7 +35,7 @@ export type HfaIndicatorCode = {
   varName: string;
   timePoint: string;
   rCode: string;
-  rFilterCode: string | undefined;
+  rFilterCode?: string | undefined;
 };
 
 // Full HFA indicator taxonomy surfaced to the AI (get_available_metrics).

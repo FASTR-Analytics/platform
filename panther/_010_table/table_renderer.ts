@@ -5,9 +5,13 @@
 
 import {
   buildExcludedRowIndices,
-  buildTableCellInfo,
+  computeAutoColumnMins,
   computeColumnMinMax,
+  createPerScaleMeasureCache,
+  getPerColumnMinWordWidthsCached,
   measureTable,
+  type PerScaleMeasureCache,
+  resolveColumnWidthEntries,
 } from "./_internal/measure_table.ts";
 import { renderTable } from "./_internal/render_table.ts";
 import {
@@ -16,7 +20,6 @@ import {
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   findFitScaleWithFloor,
-  type HeaderItem,
   type HeightConstraints,
   memoizeByScale,
   RectCoordsDims,
@@ -24,32 +27,17 @@ import {
   type Renderer,
   resolveFigureAutofitOptions,
   sum,
-  toHeaderItem,
 } from "./deps.ts";
 import { getTableDataTransformed } from "./get_table_data.ts";
 import type { TableInputs } from "./mod.ts";
 import type { MeasuredTable } from "./types.ts";
 
-function getWidestWord(
-  rc: RenderContext,
-  text: string | undefined,
-  textStyle: Parameters<typeof rc.mText>[1],
-): number {
-  if (!text) return 0;
-  const words = text.split(/\s+/);
-  let maxWidth = 0;
-  for (const word of words) {
-    if (word.length === 0) continue;
-    const mText = rc.mText(word, textStyle, Infinity);
-    maxWidth = Math.max(maxWidth, mText.dims.w());
-  }
-  return maxWidth;
-}
-
 function getMinComfortableWidth(
   rc: RenderContext,
   item: TableInputs,
+  availableW: number,
   fitScale?: number,
+  cache?: PerScaleMeasureCache,
 ): number {
   const customFigureStyle = new CustomFigureStyle(
     item.style,
@@ -62,18 +50,41 @@ function getMinComfortableWidth(
   const nCols = sum(d.colGroups.map((cg) => cg.cols.length));
   const hasRowGroupHeaders = d.rowGroups.some((rg) => rg.label);
 
-  // Calculate minimum row header width (widest word)
+  // Calculate surrounds minimum width first (mainly right-positioned
+  // legends) — it also feeds the row-header cap below.
+  const surroundsMinWidth = estimateMinSurroundsWidth(
+    rc,
+    customFigureStyle,
+    item.legend,
+  );
+
+  // Model the row header exactly as measureTable lays it out: each label
+  // wrapped at the same 50%-of-content cap, taking the widest resulting
+  // line. A multi-word label that fits on one line claims its full phrase
+  // width — modeling it as its widest WORD under-reserved and let cells
+  // overflow at a fitScale the search called comfortable.
+  const approxContentW = Math.max(0, availableW - surroundsMinWidth);
+  const maxPossibleRowHeader = 0.5 * approxContentW -
+    (s.rowHeaderPadding.totalPx() +
+      (hasRowGroupHeaders ? s.rowHeaderIndentIfRowGroups : 0));
   let minRowHeaderWidth = 0;
   for (const rowGroup of d.rowGroups) {
-    minRowHeaderWidth = Math.max(
-      minRowHeaderWidth,
-      getWidestWord(rc, rowGroup.label, s.text.rowGroupHeaders),
-    );
-    for (const row of rowGroup.rows) {
+    if (rowGroup.label !== undefined) {
       minRowHeaderWidth = Math.max(
         minRowHeaderWidth,
-        getWidestWord(rc, row.label, s.text.rowHeaders),
+        rc.mText(rowGroup.label, s.text.rowGroupHeaders, maxPossibleRowHeader)
+          .dims.w(),
       );
+    }
+    for (const row of rowGroup.rows) {
+      if (row.label !== undefined) {
+        const indent = hasRowGroupHeaders ? s.rowHeaderIndentIfRowGroups : 0;
+        minRowHeaderWidth = Math.max(
+          minRowHeaderWidth,
+          rc.mText(row.label, s.text.rowHeaders, maxPossibleRowHeader)
+            .dims.w() + indent,
+        );
+      }
     }
   }
 
@@ -96,71 +107,76 @@ function getMinComfortableWidth(
     excludedRowIndices,
   );
 
-  // Build row header lookup for TableCellInfo
-  const rowHeaderItems: (HeaderItem | undefined)[] = [];
-  for (const rowGroup of d.rowGroups) {
-    for (const row of rowGroup.rows) {
-      rowHeaderItems[row.index] = toHeaderItem(row.id, row.label);
-    }
-  }
+  // Per-column widest words — the SAME measurement resolveColumnWidths uses
+  // for its per-column minimums, so the fit search and the actual width
+  // distribution can never disagree about what "fits" means.
+  const minWordWidths = getPerColumnMinWordWidthsCached(
+    rc,
+    d,
+    s,
+    nRows,
+    nCols,
+    columnMinMax,
+    fitScale ?? 1,
+    cache,
+  );
+  const { minColWidthByIndex, colGroupHeaderMaxWidth } = minWordWidths;
 
-  // Calculate minimum column width (widest word in header or cells)
-  let minColWidth = 0;
-  for (const colGroup of d.colGroups) {
-    minColWidth = Math.max(
-      minColWidth,
-      getWidestWord(rc, colGroup.label, s.text.colGroupHeaders),
-    );
-    for (const col of colGroup.cols) {
-      minColWidth = Math.max(
-        minColWidth,
-        getWidestWord(rc, col.label, s.text.colHeaders),
-      );
-      // Check cell values for this column
-      for (let rowIndex = 0; rowIndex < nRows; rowIndex++) {
-        const val = d.aoa[rowIndex][col.index];
-        const cellInfo = buildTableCellInfo(
-          val,
-          rowIndex,
-          col.index,
-          nRows,
-          nCols,
-          rowHeaderItems[rowIndex],
-          toHeaderItem(col.id, col.label),
-          columnMinMax,
-        );
-        const textFormatter = s.tableCells.textFormatter;
-        const valStr = textFormatter === "none" ||
-            cellInfo.valueAsNumber === undefined
-          ? ""
-          : (textFormatter(cellInfo) ?? "");
-        minColWidth = Math.max(
-          minColWidth,
-          getWidestWord(rc, valStr, s.text.cells),
-        );
-      }
-    }
-  }
-
-  // Build minimum width
+  // Build minimum width (indent is folded into minRowHeaderWidth above,
+  // mirroring measureTable's rowHeaderMaxWidth)
   const rowHeaderTotalWidth = minRowHeaderWidth > 0
     ? s.rowHeaderPadding.totalPx() +
       minRowHeaderWidth +
-      (hasRowGroupHeaders ? s.rowHeaderIndentIfRowGroups : 0) +
       s.headerBorderWidth
     : 0;
 
-  const colsTotalWidth = nCols *
-      (Math.max(s.cellPadding.totalPx(), s.colHeaderPadding.totalPx()) +
-        minColWidth) +
-    (nCols - 1) * s.gridLineWidth;
-
-  // Calculate surrounds minimum width (mainly for right-positioned legends)
-  const surroundsMinWidth = estimateMinSurroundsWidth(
-    rc,
-    customFigureStyle,
-    item.legend,
+  const perColumnPadding = Math.max(
+    s.cellPadding.totalPx(),
+    s.colHeaderPadding.totalPx(),
   );
+
+  // The floor must model the ACTUAL width distribution, or the fit search's
+  // promise ("at minWidth, nothing overflows") breaks.
+  let colsTotalWidth: number;
+  if (item.columnWidths === undefined || item.columnWidths === "equal") {
+    // Equal division gives every column the same width, so the table is
+    // only comfortable when EVERY column can hold the single widest word
+    // found anywhere (incl. group labels): nCols x the global max — the
+    // original formula, byte-identical for tables that never set
+    // columnWidths.
+    const globalMaxWord = Math.max(
+      colGroupHeaderMaxWidth,
+      ...allColIndices.map((i) => minColWidthByIndex.get(i) ?? 0),
+      0,
+    );
+    colsTotalWidth = nCols * (perColumnPadding + globalMaxWord) +
+      (nCols - 1) * s.gridLineWidth;
+  } else {
+    // Mirrors resolveColumnWidths exactly: a fixed column contributes its
+    // authored width (its content is exempt from the floor — the authored
+    // width and the text shrink together under autofit, so no scale can
+    // make a too-narrow fixed column comfortable); an auto column
+    // contributes the per-column minimum the distribution guarantees it,
+    // INCLUDING per-group label reservations (computeAutoColumnMins is the
+    // single source for both sides).
+    const sf = fitScale ?? 1;
+    const entries = resolveColumnWidthEntries(item.columnWidths, nCols, sf);
+    const minsByColIndex = computeAutoColumnMins(
+      d,
+      entries,
+      minWordWidths,
+      perColumnPadding,
+      sf,
+    );
+    const perColumn = entries.map((entry, i) =>
+      typeof entry === "number" ? entry : minsByColIndex.get(allColIndices[i])!
+    );
+    colsTotalWidth = Math.max(
+      sum(perColumn),
+      perColumnPadding + colGroupHeaderMaxWidth,
+    ) + (nCols - 1) * s.gridLineWidth;
+  }
+
   return (
     rowHeaderTotalWidth +
     colsTotalWidth +
@@ -174,9 +190,10 @@ function getIdealHeightAtScale(
   width: number,
   item: TableInputs,
   scale: number,
+  cache?: PerScaleMeasureCache,
 ): number {
   const dummyRcd = new RectCoordsDims({ x: 0, y: 0, w: width, h: 9999 });
-  const mTable = measureTable(rc, dummyRcd, item, scale);
+  const mTable = measureTable(rc, dummyRcd, item, scale, cache);
   return mTable.measuredInfo!.finalContentH + mTable.extraHeightDueToSurrounds!;
 }
 
@@ -193,9 +210,13 @@ function measureWithAutofit(
 
   // shrink-to-fit for BOTH width and height, with a legibility floor + cramped.
   const baseFontSizeDu = new CustomFigureStyle(item.style).baseFontSize;
+  // One cache per autofit run: the expensive word/natural width measurements
+  // are needed by the floor, the ideal-height measure, and the final measure
+  // -- identical at a given scale, so measured once per scale.
+  const cache = createPerScaleMeasureCache();
   const getSizeAtScale = memoizeByScale((scale: number) => ({
-    minWidth: getMinComfortableWidth(rc, item, scale),
-    idealHeight: getIdealHeightAtScale(rc, bounds.w(), item, scale),
+    minWidth: getMinComfortableWidth(rc, item, bounds.w(), scale, cache),
+    idealHeight: getIdealHeightAtScale(rc, bounds.w(), item, scale, cache),
   }));
   const { fitScale, floorScale, cramped } = findFitScaleWithFloor(
     bounds.w(),
@@ -209,7 +230,7 @@ function measureWithAutofit(
     getSizeAtScale,
   );
 
-  const measured = measureTable(rc, bounds, item, fitScale);
+  const measured = measureTable(rc, bounds, item, fitScale, cache);
   measured.cramped = cramped;
   measured.fitReport = buildFitReport(
     fitScale,
@@ -311,10 +332,17 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
   ): HeightConstraints {
     const autofitOpts = resolveFigureAutofitOptions(item.autofit);
 
-    const idealH = getIdealHeightAtScale(rc, width, item, 1.0);
+    const cache = createPerScaleMeasureCache();
+    const idealH = getIdealHeightAtScale(rc, width, item, 1.0, cache);
 
     // Width-based scaling for optimizer scoring
-    const minComfortableWidth = getMinComfortableWidth(rc, item, 1.0);
+    const minComfortableWidth = getMinComfortableWidth(
+      rc,
+      item,
+      width,
+      1.0,
+      cache,
+    );
     const neededScalingToFitWidth = width >= minComfortableWidth
       ? 1.0
       : width / minComfortableWidth;
@@ -341,7 +369,7 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
       baseFontSizeDu: cs.baseFontSize,
       minFontSizeDu: autofitOpts.minFontSizeDu,
     });
-    const minH = getIdealHeightAtScale(rc, width, item, floorScale);
+    const minH = getIdealHeightAtScale(rc, width, item, floorScale, cache);
 
     return {
       minH,

@@ -659,11 +659,6 @@ export class CustomFigureStyle {
         g.table?.cellPadding,
         d.table.cellPadding,
       ),
-      alignV: m(
-        c.table?.alignV,
-        g.table?.alignV,
-        d.table.alignV,
-      ),
       colHeaderBackgroundColor: getColor(
         m(
           c.table?.colHeaderBackgroundColor,

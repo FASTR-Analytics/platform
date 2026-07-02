@@ -546,7 +546,11 @@ export type TableCellPrimitive = BasePrimitive & {
   };
   backgroundColor: ColorKeyOrString | "none";
   mText: MeasuredText;
-  textPosition: Coordinates;
+  // A RectCoordsDims textPosition is the padding-adjusted content box; rText
+  // resolves the anchor from it per textAlignH/textAlignV (same mechanism as
+  // ChartCaptionPrimitive/ChartLabelPrimitive bounds). A plain Coordinates is
+  // a pre-computed anchor point.
+  textPosition: Coordinates | RectCoordsDims;
   textAlignH: "left" | "center" | "right";
   textAlignV: "top" | "middle" | "bottom";
 };
@@ -560,8 +564,9 @@ export type TableRowHeaderPrimitive = BasePrimitive & {
   };
   backgroundColor: ColorKeyOrString | "none";
   mText: MeasuredText;
-  textPosition: Coordinates;
+  textPosition: Coordinates | RectCoordsDims;
   textAlignH: "left" | "center" | "right";
+  textAlignV: "top" | "middle" | "bottom";
 };
 
 export type TableColHeaderPrimitive = BasePrimitive & {
@@ -574,7 +579,7 @@ export type TableColHeaderPrimitive = BasePrimitive & {
   };
   backgroundColor: ColorKeyOrString | "none";
   mText?: MeasuredText;
-  textPosition?: Coordinates;
+  textPosition?: Coordinates | RectCoordsDims;
   textAlignH: "left" | "center" | "right";
   textAlignV: "top" | "middle" | "bottom";
 };

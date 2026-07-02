@@ -17,16 +17,19 @@ import type {
 } from "./deps.ts";
 import {
   BorderStyle,
+  convertInchesToTwip,
   CustomMarkdownStyle,
   Document,
   ExternalHyperlink,
   HeadingLevel,
   ImageRun,
+  PageOrientation,
   Paragraph,
   parseEmailsInText,
   ShadingType,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
   TextRun,
   WidthType,
@@ -688,10 +691,78 @@ function buildInlineContent(
   return result;
 }
 
+// docx sectionPageSizeDefaults (A4, twips); landscape swaps width/height
+const DEFAULT_PAGE_WIDTH_TWIPS = 11906;
+const DEFAULT_PAGE_HEIGHT_TWIPS = 16838;
+const COLUMN_SCORE_MIN_CHARS = 4;
+const COLUMN_SCORE_MAX_CHARS = 60;
+
+function getInlineMaxLineCharCount(content: MarkdownInline[]): number {
+  const lines: string[] = [""];
+  for (const item of content) {
+    if (item.type === "break") {
+      lines.push("");
+    } else {
+      const text = item.type === "math-inline" ? item.latex : item.text;
+      lines[lines.length - 1] += text;
+    }
+  }
+  return Math.max(...lines.map((line) => line.length));
+}
+
+function computeColumnWidthsTwips(
+  element: ParsedMarkdownItem & { type: "table" },
+  wordConfig: WordSpecificConfig,
+): number[] {
+  const allRows = [...(element.header ?? []), ...(element.rows ?? [])];
+  const nCols = Math.max(0, ...allRows.map((row) => row.length));
+  if (nCols === 0) {
+    return [];
+  }
+
+  const scores: number[] = [];
+  for (let iCol = 0; iCol < nCols; iCol++) {
+    let maxChars = 0;
+    for (const row of allRows) {
+      const cell = row[iCol];
+      if (cell) {
+        maxChars = Math.max(maxChars, getInlineMaxLineCharCount(cell));
+      }
+    }
+    scores.push(
+      Math.min(
+        COLUMN_SCORE_MAX_CHARS,
+        Math.max(COLUMN_SCORE_MIN_CHARS, maxChars),
+      ),
+    );
+  }
+
+  const orientation = wordConfig.page?.orientation ??
+    DEFAULT_WORD_SPECIFIC_CONFIG.page!.orientation!;
+  const pageWidthTwips = orientation === PageOrientation.LANDSCAPE
+    ? DEFAULT_PAGE_HEIGHT_TWIPS
+    : DEFAULT_PAGE_WIDTH_TWIPS;
+  const marginLeft = wordConfig.page?.margins?.left ??
+    DEFAULT_WORD_SPECIFIC_CONFIG.page!.margins!.left!;
+  const marginRight = wordConfig.page?.margins?.right ??
+    DEFAULT_WORD_SPECIFIC_CONFIG.page!.margins!.right!;
+  const contentWidthTwips = pageWidthTwips -
+    convertInchesToTwip(marginLeft) -
+    convertInchesToTwip(marginRight);
+
+  const totalScore = scores.reduce((a, b) => a + b, 0);
+  const widths = scores.map((score) =>
+    Math.floor((score / totalScore) * contentWidthTwips)
+  );
+  const used = widths.reduce((a, b) => a + b, 0);
+  widths[widths.length - 1] += contentWidthTwips - used;
+  return widths;
+}
+
 function buildWordTable(
   element: ParsedMarkdownItem & { type: "table" },
   merged: MergedMarkdownStyle,
-  _wordConfig: WordSpecificConfig,
+  wordConfig: WordSpecificConfig,
   _spacingBefore: number,
   _spacingAfter: number,
 ): Table {
@@ -756,6 +827,8 @@ function buildWordTable(
 
   return new Table({
     rows,
+    columnWidths: computeColumnWidthsTwips(element, wordConfig),
+    layout: TableLayoutType.FIXED,
     width: {
       size: 100,
       type: WidthType.PERCENTAGE,

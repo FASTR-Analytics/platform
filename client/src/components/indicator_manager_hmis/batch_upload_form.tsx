@@ -115,6 +115,7 @@ export function BatchUploadForm(p: Props) {
         <div class="w-96">
           <Select
             label={t3({ en: "Or select existing CSV file", fr: "Ou sélectionner un fichier CSV existant" })}
+            placeholder={t3({ en: "Select a file...", fr: "Sélectionner un fichier..." })}
             options={getSelectOptions(
               instanceState.assets.filter((a) => a.isCsv).map((a) => a.fileName),
             )}

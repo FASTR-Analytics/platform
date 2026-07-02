@@ -7,7 +7,13 @@ export type IcehUploadAttemptStatus =
   | { status: "staging"; progress: number }
   | { status: "staged"; result: IcehStagingResult }
   | { status: "integrating"; progress: number }
-  | { status: "complete"; nRowsIntegrated: number }
+  | {
+      status: "complete";
+      nRowsIntegrated: number;
+      // Optional: attempts completed before these fields existed lack them.
+      nRowsSkippedUnknownStrat?: number;
+      skippedUnknownStratSamples?: string[];
+    }
   | { status: "error"; err: string };
 
 export type IcehUploadAttemptStatusLight =
@@ -46,6 +52,9 @@ export type IcehStagingResult = {
   nRowsTotal: number;
   nRowsValid: number;
   nRowsSkippedMissingEstimate: number;
+  // Optional: results stored before these fields existed lack them.
+  nRowsSkippedUnknownStrat?: number;
+  skippedUnknownStratSamples?: string[];
   nIndicators: number;
   nDisaggregators: number;
   years: number[];

@@ -9,7 +9,11 @@ import {
   DatasetHfaCsvStagingResult,
   DatasetHfaUploadAttemptStatus,
 } from "lib";
-import { UPLOADED_HFA_DATA_STAGING_TABLE_NAME } from "../../exposed_env_vars.ts";
+import {
+  UPLOADED_HFA_DATA_STAGING_TABLE_NAME,
+  UPLOADED_HFA_DICT_VALUES_STAGING_TABLE_NAME,
+  UPLOADED_HFA_DICT_VARS_STAGING_TABLE_NAME,
+} from "../../exposed_env_vars.ts";
 
 (self as unknown as Worker).onmessage = (e) => {
   run(e.data).catch((error) => {
@@ -189,6 +193,18 @@ async function run(std: {
       `;
     } catch (dbError) {
       console.error("Failed to update error status:", dbError);
+    }
+
+    try {
+      await importDb.unsafe(`DROP TABLE IF EXISTS ${stagingTableName}`);
+      await importDb.unsafe(
+        `DROP TABLE IF EXISTS ${UPLOADED_HFA_DICT_VARS_STAGING_TABLE_NAME}`,
+      );
+      await importDb.unsafe(
+        `DROP TABLE IF EXISTS ${UPLOADED_HFA_DICT_VALUES_STAGING_TABLE_NAME}`,
+      );
+    } catch (cleanupError) {
+      console.error("Failed to clean up staging tables:", cleanupError);
     }
 
     throw error;

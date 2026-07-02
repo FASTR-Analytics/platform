@@ -22,6 +22,7 @@ import {
   structureStep3Csv_StageDataStreaming,
   structureStep3Dhis2_StageData,
   structureStep4_ImportData,
+  countOrphanedGeoJsonAreaIds,
 } from "../../db/mod.ts";
 import {
   getOrgUnitMetadata,
@@ -316,6 +317,18 @@ defineRoute(
       body.strategy,
     );
     if (res.success) {
+      // Best-effort: the integrate has already committed, so a failure here
+      // must not turn the response into an error
+      try {
+        const orphans = await countOrphanedGeoJsonAreaIds(c.var.mainDb);
+        if (orphans.length > 0) {
+          res.data = { ...res.data, orphanedGeojsonAreaIds: orphans };
+        }
+      } catch (e) {
+        console.error(
+          `countOrphanedGeoJsonAreaIds failed: ${e instanceof Error ? e.message : e}`,
+        );
+      }
       notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
     }
     return c.json(res);

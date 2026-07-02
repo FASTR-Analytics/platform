@@ -27,7 +27,8 @@ async function processBatch(
   BUFFER_SIZE: number,
   flushBuffer: () => Promise<void>,
   facilitiesFound: { count: number },
-  totalRows: { count: number }
+  totalRows: { count: number },
+  invalidRows: { count: number }
 ): Promise<void> {
   console.log(`Processing batch of ${batch.length} org units...`);
 
@@ -39,8 +40,6 @@ async function processBatch(
 
   // Process each org unit in the batch
   for (const orgUnit of batch) {
-    facilitiesFound.count++;
-
     // Parse path - remove empty elements and extract IDs
     const pathParts = orgUnit.path.split("/").filter((p) => p !== "");
 
@@ -110,6 +109,14 @@ async function processBatch(
       }
     }
 
+    // A root-level org unit (no parents) yields empty admin values; the staging
+    // columns are NOT NULL and integration would create '' admin areas. Drop
+    // the row and count it, mirroring the CSV path's invalid-row handling.
+    if (allAdminValues.some((v) => v.trim() === "")) {
+      invalidRows.count++;
+      continue;
+    }
+
     // Extract optional facility metadata
     const optionalValues: string[] = [];
     for (const column of optionalColumns) {
@@ -138,6 +145,7 @@ async function processBatch(
 
     const valuesTuple = `(${allValues.join(",")})`;
     rowBuffer.push(valuesTuple);
+    facilitiesFound.count++;
     totalRows.count++;
 
     // Flush buffer when it reaches size limit
@@ -305,6 +313,7 @@ export async function stageStructureFromDhis2V2(
     let totalProcessed = 0;
     const facilitiesFound = { count: 0 };
     const totalRows = { count: 0 };
+    const invalidRows = { count: 0 };
 
     // Helper to flush buffer to database
     const flushBuffer = async () => {
@@ -394,7 +403,8 @@ export async function stageStructureFromDhis2V2(
           BUFFER_SIZE,
           flushBuffer,
           facilitiesFound,
-          totalRows
+          totalRows,
+          invalidRows
         );
 
         levelProcessed += batch.length;
@@ -423,7 +433,7 @@ export async function stageStructureFromDhis2V2(
     if (onProgress) await onProgress(0.9, "Finalizing import...");
 
     console.log(
-      `Streaming complete: processed ${totalProcessed} org units, found ${facilitiesFound.count} facilities, staged ${totalRows.count} rows`
+      `Streaming complete: processed ${totalProcessed} org units, found ${facilitiesFound.count} facilities, staged ${totalRows.count} rows (${invalidRows.count} invalid rows skipped)`
     );
 
     if (totalRows.count === 0) {
@@ -482,7 +492,7 @@ export async function stageStructureFromDhis2V2(
     const stagingResult: StructureStagingResult = {
       stagingTableName,
       totalRowsStaged: totalRows.count,
-      invalidRowsSkipped: 0, // DHIS2 doesn't have invalid rows in the same way
+      invalidRowsSkipped: invalidRows.count,
       adminAreasPreview,
       facilitiesPreview: facilitiesFound.count,
       validationWarnings: [],

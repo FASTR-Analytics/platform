@@ -511,6 +511,7 @@ async function stageAndIntegrateIcehData(
 
       let nRowsSkippedMissingEstimate = 0;
       let nRowsSkippedUnknownStrat = 0;
+      const skippedUnknownStratSamples: string[] = [];
       const years = new Set<number>();
       const stratsInData = new Set<IcehStrat>();
 
@@ -520,6 +521,13 @@ async function stageAndIntegrateIcehData(
 
         if (!strat) {
           nRowsSkippedUnknownStrat++;
+          if (
+            rawStrat &&
+            skippedUnknownStratSamples.length < 5 &&
+            !skippedUnknownStratSamples.includes(rawStrat)
+          ) {
+            skippedUnknownStratSamples.push(rawStrat);
+          }
           continue;
         }
 
@@ -564,6 +572,8 @@ async function stageAndIntegrateIcehData(
         nRowsTotal: dataRows.length,
         nRowsValid: validDataRows.length,
         nRowsSkippedMissingEstimate,
+        nRowsSkippedUnknownStrat,
+        skippedUnknownStratSamples,
         nIndicators: indicatorCodesInData.size,
         nDisaggregators: stratsInData.size,
         years: Array.from(years).sort((a, b) => a - b),
@@ -620,11 +630,20 @@ async function stageAndIntegrateIcehData(
         (r) => indicatorCodesInDb.has(r.indicatorCode)
       ).length;
 
-      status = { status: "complete", nRowsIntegrated };
+      status = {
+        status: "complete",
+        nRowsIntegrated,
+        nRowsSkippedUnknownStrat,
+        skippedUnknownStratSamples,
+      };
       await mainDb`
         UPDATE iceh_upload_attempts
         SET status = ${JSON.stringify(status)}, status_type = 'complete',
-            step_3_result = ${JSON.stringify({ nRowsIntegrated })}
+            step_3_result = ${JSON.stringify({
+              nRowsIntegrated,
+              nRowsSkippedUnknownStrat,
+              skippedUnknownStratSamples,
+            })}
         WHERE id = 'single_row'
       `;
 

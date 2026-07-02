@@ -413,6 +413,33 @@ export async function updateHfaIndicator(
   });
 }
 
+export async function updateHfaIndicatorsBulk(
+  mainDb: Sql,
+  updates: { oldVarName: string; indicator: HfaIndicator }[],
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb.begin(async (sql) => {
+      for (const { oldVarName, indicator } of updates) {
+        await sql`
+          UPDATE hfa_indicators
+          SET var_name = ${indicator.varName},
+              category_id = ${indicator.categoryId},
+              sub_category_id = ${indicator.subCategoryId},
+              service_category_ids = ${JSON.stringify(indicator.serviceCategoryIds)},
+              short_label = ${indicator.shortLabel},
+              definition = ${indicator.definition},
+              type = ${indicator.type},
+              aggregation = ${indicator.aggregation},
+              sort_order = ${indicator.sortOrder},
+              updated_at = CURRENT_TIMESTAMP
+          WHERE var_name = ${oldVarName}
+        `;
+      }
+    });
+    return { success: true };
+  });
+}
+
 export async function deleteHfaIndicators(
   mainDb: Sql,
   varNames: string[],
@@ -661,7 +688,7 @@ export async function saveHfaIndicatorFull(
   mainDb: Sql,
   oldVarName: string,
   indicator: HfaIndicator,
-  code: { timePoint: string; rCode: string; rFilterCode: string | undefined }[],
+  code: { timePoint: string; rCode: string; rFilterCode?: string | undefined }[],
   hasSyntaxError: boolean,
   codeConsistent: boolean,
 ): Promise<APIResponseNoData> {

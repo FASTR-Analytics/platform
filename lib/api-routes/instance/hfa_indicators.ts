@@ -172,6 +172,15 @@ export const hfaIndicatorRouteRegistry = {
     method: "POST",
     body: z.object({ oldVarName: z.string(), indicator: hfaIndicatorSchema }),
   }),
+  updateHfaIndicatorsBulk: route({
+    path: "/hfa-indicators/update-bulk",
+    method: "POST",
+    body: z.object({
+      updates: z.array(
+        z.object({ oldVarName: z.string(), indicator: hfaIndicatorSchema }),
+      ).min(1),
+    }),
+  }),
   deleteHfaIndicators: route({
     path: "/hfa-indicators/delete",
     method: "POST",

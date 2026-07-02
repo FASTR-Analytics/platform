@@ -202,9 +202,18 @@ function applyDataLabelOverrides(
   };
 }
 
+// alignH/alignV are optional on the Generic (authoring) shapes — the resolved
+// styles below always carry them. Vertical defaults: cells and row headers
+// fall back to the table-wide `table.alignV` (legacy uniform knob, same
+// fallback pattern as colHeaderBackgroundColor); col headers default to
+// "bottom" (they sit on the header axis). Col-GROUP headers and rotated col
+// headers ignore alignment entirely (forced center — a multi-column span has
+// no principled single edge, and sideways text has no meaningful alignH).
 export type GenericTableCellStyle = {
   backgroundColor: ColorKeyOrString | typeof VALUES_COLOR_SENTINEL | "none";
   textColorStrategy: ColorAdjustmentStrategy | "none";
+  alignH?: "left" | "center" | "right";
+  alignV?: "top" | "middle" | "bottom";
 };
 
 export type GenericTableCellStyleOptions =
@@ -214,17 +223,24 @@ export type GenericTableCellStyleOptions =
 export type TableCellStyle = {
   backgroundColor: ColorKeyOrString | "none";
   textColorStrategy: ColorAdjustmentStrategy | "none";
+  alignH: "left" | "center" | "right";
+  alignV: "top" | "middle" | "bottom";
   annotationGroup?: string;
 };
 
 export type GenericTableHeaderStyle = {
   backgroundColor: ColorKeyOrString | "none";
   textColorStrategy: ColorAdjustmentStrategy | "none";
+  alignH?: "left" | "center" | "right";
+  alignV?: "top" | "middle" | "bottom";
 };
 
 export type GenericTableHeaderStyleOptions = Partial<GenericTableHeaderStyle>;
 
-export type TableHeaderStyle = GenericTableHeaderStyle;
+export type TableHeaderStyle = GenericTableHeaderStyle & {
+  alignH: "left" | "center" | "right";
+  alignV: "top" | "middle" | "bottom";
+};
 
 export function getTableRowHeaderStyleFunc(
   _sf: number,
@@ -249,6 +265,14 @@ export function getTableRowHeaderStyleFunc(
     g?.textColorStrategy,
     d.textColorStrategy,
   );
+  const dAlignH = m(c?.alignH, g?.alignH, d.alignH) ?? "left";
+  // Row headers follow the table-wide alignV so their text lines up
+  // vertically with the cells in the same row.
+  const dAlignV = m(
+    c?.alignV,
+    g?.alignV,
+    m(_c.table?.alignV, _g.table?.alignV, _d.table.alignV),
+  );
   return (info: TableHeaderInfo): TableHeaderStyle => {
     const oc = cf?.(info);
     const og = gf?.(info);
@@ -257,6 +281,8 @@ export function getTableRowHeaderStyleFunc(
         dBackgroundColor,
       textColorStrategy: oc?.textColorStrategy ?? og?.textColorStrategy ??
         dTextColorStrategy,
+      alignH: oc?.alignH ?? og?.alignH ?? dAlignH,
+      alignV: oc?.alignV ?? og?.alignV ?? dAlignV,
     };
   };
 }
@@ -291,6 +317,8 @@ export function getTableColHeaderStyleFunc(
     _g.table?.colGroupHeaderBackgroundColor,
     _d.table.colGroupHeaderBackgroundColor,
   );
+  const dAlignH = m(c?.alignH, g?.alignH, d.alignH) ?? "center";
+  const dAlignV = m(c?.alignV, g?.alignV, d.alignV) ?? "bottom";
   return (info: TableHeaderInfo): TableHeaderStyle => {
     const oc = cf?.(info);
     const og = gf?.(info);
@@ -301,6 +329,8 @@ export function getTableColHeaderStyleFunc(
       backgroundColor: backgroundColor as ColorKeyOrString | "none",
       textColorStrategy: oc?.textColorStrategy ?? og?.textColorStrategy ??
         dTextColorStrategy,
+      alignH: oc?.alignH ?? og?.alignH ?? dAlignH,
+      alignV: oc?.alignV ?? og?.alignV ?? dAlignV,
     };
   };
 }
@@ -333,6 +363,12 @@ export function getTableCellStyleFunc(
     g?.textColorStrategy,
     d.textColorStrategy,
   );
+  const dAlignH = m(c?.alignH, g?.alignH, d.alignH) ?? "center";
+  const dAlignV = m(
+    c?.alignV,
+    g?.alignV,
+    m(_c.table?.alignV, _g.table?.alignV, _d.table.alignV),
+  );
 
   return (info: TableCellInfo): TableCellStyle => {
     const oc = cf?.(info);
@@ -348,6 +384,8 @@ export function getTableCellStyleFunc(
         : backgroundColor,
       textColorStrategy: oc?.textColorStrategy ?? og?.textColorStrategy ??
         dTextColorStrategy,
+      alignH: oc?.alignH ?? og?.alignH ?? dAlignH,
+      alignV: oc?.alignV ?? og?.alignV ?? dAlignV,
       annotationGroup: oc?.annotationGroup ?? og?.annotationGroup,
     };
   };

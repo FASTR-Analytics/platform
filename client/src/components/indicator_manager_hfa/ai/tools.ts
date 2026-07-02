@@ -31,20 +31,19 @@ async function loadTaxonomy() {
   return { categories: cats.data, subCategories: subs.data, serviceCategories: svcs.data };
 }
 
-// Apply a set of fully-merged indicators (read-modify-write — updateHfaIndicator
-// takes the whole object). Stops and reports on the first failure.
+// Apply a set of fully-merged indicators (read-modify-write — the bulk route
+// takes whole objects). Transactional server-side: all applied or none.
 async function applyIndicatorUpdates(merged: HfaIndicator[]): Promise<void> {
-  for (let i = 0; i < merged.length; i++) {
-    const indicator = merged[i];
-    const res = await serverActions.updateHfaIndicator({
+  const res = await serverActions.updateHfaIndicatorsBulk({
+    updates: merged.map((indicator) => ({
       oldVarName: indicator.varName,
       indicator,
-    });
-    if (!res.success) {
-      throw new Error(
-        `Applied ${i} of ${merged.length}; failed on "${indicator.varName}". Earlier updates were already saved (re-applying them is harmless) — retry the remainder.`,
-      );
-    }
+    })),
+  });
+  if (!res.success) {
+    throw new Error(
+      `Failed to apply the ${merged.length} update(s) — nothing was saved. Retry the batch.`,
+    );
   }
 }
 

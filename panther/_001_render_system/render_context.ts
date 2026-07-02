@@ -112,22 +112,16 @@ export type RenderContext = {
     },
   ) => MeasuredText;
 
-  rText: {
-    (
-      mText: MeasuredText,
-      bounds: RectCoordsDimsOptions,
-      alignH: AlignH,
-      alignV?: AlignV,
-      link?: string,
-    ): void;
-    (
-      mText: MeasuredText,
-      coords: CoordinatesOptions,
-      alignH: AlignH,
-      alignV?: AlignV,
-      link?: string,
-    ): void;
-  };
+  // A RectCoordsDimsOptions position is a box: the anchor is resolved from it
+  // per alignH/alignV (getRectAlignmentCoords). A CoordinatesOptions position
+  // is a pre-computed anchor point used as-is.
+  rText: (
+    mText: MeasuredText,
+    coordsOrBounds: CoordinatesOptions | RectCoordsDimsOptions,
+    alignH: AlignH,
+    alignV?: AlignV,
+    link?: string,
+  ) => void;
 
   rLine: (coordArray: CoordinatesOptions[], s: LineStyle) => void;
 

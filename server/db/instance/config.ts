@@ -27,64 +27,65 @@ export async function updateMaxAdminArea(
       };
     }
 
-    // Check if any data exists in facilities or admin_areas tables
-    const facilitiesCount = await mainDb<{ count: number }[]>`
-      SELECT
-        (SELECT COUNT(*) FROM facilities_hmis) +
-        (SELECT COUNT(*) FROM facilities_hfa) as count
-    `;
-
-    if (facilitiesCount[0].count > 0) {
-      return {
-        success: false,
-        err: "Cannot change maxAdminArea: facilities table contains data",
-      };
-    }
-
-    // Check all admin_areas tables
-    for (let i = 1; i <= 4; i++) {
-      const tableName = `admin_areas_${i}`;
-      const result = await mainDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM ${mainDb(tableName)}
+    // Emptiness checks and the config write share one transaction so a
+    // concurrent structure import can't land rows between check and write.
+    return await mainDb.begin(async (sql): Promise<APIResponseNoData> => {
+      const facilitiesCount = await sql<{ count: number }[]>`
+        SELECT
+          (SELECT COUNT(*) FROM facilities_hmis) +
+          (SELECT COUNT(*) FROM facilities_hfa) as count
       `;
 
-      if (result[0].count > 0) {
+      if (facilitiesCount[0].count > 0) {
         return {
           success: false,
-          err: `Cannot change maxAdminArea: ${tableName} table contains data`,
+          err: "Cannot change maxAdminArea: facilities table contains data",
         };
       }
-    }
 
-    // Check no geojson boundaries exist above the new max level
-    const geojsonLevels = await mainDb<{ admin_area_level: number }[]>`
-      SELECT admin_area_level FROM geojson_maps
-      WHERE admin_area_level > ${newMaxAdminArea}
-      ORDER BY admin_area_level
-    `;
-    if (geojsonLevels.length > 0) {
-      const levels = geojsonLevels.map((r) => r.admin_area_level).join(", ");
-      return {
-        success: false,
-        err: `Cannot lower maxAdminArea: GeoJSON boundaries exist above the new level. Delete the level-${levels} boundaries first.`,
+      for (let i = 1; i <= 4; i++) {
+        const tableName = `admin_areas_${i}`;
+        const result = await sql<{ count: number }[]>`
+          SELECT COUNT(*) as count FROM ${sql(tableName)}
+        `;
+
+        if (result[0].count > 0) {
+          return {
+            success: false,
+            err: `Cannot change maxAdminArea: ${tableName} table contains data`,
+          };
+        }
+      }
+
+      // Check no geojson boundaries exist above the new max level
+      const geojsonLevels = await sql<{ admin_area_level: number }[]>`
+        SELECT admin_area_level FROM geojson_maps
+        WHERE admin_area_level > ${newMaxAdminArea}
+        ORDER BY admin_area_level
+      `;
+      if (geojsonLevels.length > 0) {
+        const levels = geojsonLevels.map((r) => r.admin_area_level).join(", ");
+        return {
+          success: false,
+          err: `Cannot lower maxAdminArea: GeoJSON boundaries exist above the new level. Delete the level-${levels} boundaries first.`,
+        };
+      }
+
+      const configValue: InstanceConfigMaxAdminArea = {
+        maxAdminArea: newMaxAdminArea,
       };
-    }
+      const validated = instanceConfigMaxAdminAreaSchema.parse(configValue);
 
-    // Update the config
-    const configValue: InstanceConfigMaxAdminArea = {
-      maxAdminArea: newMaxAdminArea,
-    };
-    const validated = instanceConfigMaxAdminAreaSchema.parse(configValue);
+      await sql`
+        UPDATE instance_config
+        SET config_json_value = ${JSON.stringify(validated)}
+        WHERE config_key = 'max_admin_area'
+      `;
 
-    await mainDb`
-      UPDATE instance_config
-      SET config_json_value = ${JSON.stringify(validated)}
-      WHERE config_key = 'max_admin_area'
-    `;
-
-    return {
-      success: true,
-    };
+      return {
+        success: true,
+      };
+    });
   });
 }
 

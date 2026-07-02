@@ -1,24 +1,24 @@
 import { Show, createSignal } from "solid-js";
-import { t3, type Dhis2Credentials } from "lib";
+import { t3, type Dhis2Credentials, type Dhis2CredentialsRedacted } from "lib";
 import { serverActions } from "~/server_actions";
 import { Button, StateHolderFormError, createFormAction } from "panther";
 import { Dhis2CredentialsEditor } from "../Dhis2CredentialsEditor";
 import { setDhis2SessionCredentials } from "~/state/instance/t4_dhis2_session";
 
 type Props = {
-  step1Result: Dhis2Credentials | undefined;
+  step1Result: Dhis2CredentialsRedacted | undefined;
   silentFetch: () => Promise<void>;
 };
 
 export function Step1_Dhis2(p: Props) {
   const [credentials, setCredentials] = createSignal<Dhis2Credentials>({
-    url: p.step1Result?.url ?? "",
-    username: p.step1Result?.username ?? "",
-    password: p.step1Result?.password ?? "",
+    url: "",
+    username: "",
+    password: "",
   });
   const [saveCredentialsToSession, setSaveCredentialsToSession] =
     createSignal<boolean>(false);
-  const [needsSaving] = createSignal<boolean>(!p.step1Result);
+  const [editing, setEditing] = createSignal<boolean>(!p.step1Result);
 
   const save = createFormAction(async () => {
     const creds = credentials();
@@ -26,15 +26,17 @@ export function Step1_Dhis2(p: Props) {
       return { success: false, err: t3({ en: "All fields are required", fr: "Tous les champs sont requis" }) };
     }
 
-    if (saveCredentialsToSession()) {
-      setDhis2SessionCredentials(creds);
-    }
-
-    return serverActions.dhis2ConfirmCredentials({
+    const res = await serverActions.dhis2ConfirmCredentials({
       url: creds.url,
       username: creds.username,
       password: creds.password,
     });
+
+    if (res.success && saveCredentialsToSession()) {
+      setDhis2SessionCredentials(creds);
+    }
+
+    return res;
   }, p.silentFetch);
 
   return (
@@ -46,7 +48,7 @@ export function Step1_Dhis2(p: Props) {
             <div class="">
               {t3({ en: "Enter your DHIS2 connection details to import data.", fr: "Saisissez vos informations de connexion DHIS2 pour importer les données." })}
             </div>
-            <Show when={!p.step1Result}>
+            <Show when={editing()}>
               <Dhis2CredentialsEditor
                 credentials={credentials}
                 setCredentials={setCredentials}
@@ -54,7 +56,7 @@ export function Step1_Dhis2(p: Props) {
                 setSaveToSession={setSaveCredentialsToSession}
               />
             </Show>
-            <Show when={p.step1Result}>
+            <Show when={!editing()}>
               <div class="text-success flex items-center gap-2">
                 <span>✓</span>
                 <span>{t3({ en: "DHIS2 connection confirmed", fr: "Connexion DHIS2 confirmée" })}</span>
@@ -62,6 +64,9 @@ export function Step1_Dhis2(p: Props) {
               <div class="text-base-content/70 mt-2 text-sm">
                 {t3({ en: "Connected to", fr: "Connecté à" })}: {p.step1Result?.url}
               </div>
+              <Button onClick={() => setEditing(true)} iconName="pencil">
+                {t3({ en: "Change connection", fr: "Modifier la connexion" })}
+              </Button>
             </Show>
           </div>
         </div>
@@ -72,7 +77,7 @@ export function Step1_Dhis2(p: Props) {
           onClick={save.click}
           intent="success"
           state={save.state()}
-          disabled={!needsSaving()}
+          disabled={!editing()}
           iconName="save"
         >
           {t3({ en: "Confirm and continue", fr: "Confirmer et continuer" })}

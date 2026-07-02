@@ -78,6 +78,14 @@ defineRoute(
     // also bump the structure stamp and fire the structure notify
     const isRename = Boolean(newLabel) && newLabel !== body.oldLabel;
     const res = await tryCatchDatabaseAsync(async () => {
+      if (isRename && newLabel) {
+        const existing = await mainDb<{ label: string }[]>`
+          SELECT label FROM hfa_time_points WHERE label = ${newLabel}
+        `;
+        if (existing.length > 0) {
+          throw new Error(`Time point "${newLabel}" already exists`);
+        }
+      }
       await mainDb.begin(async (sql: Sql) => {
         if (newLabel && newLabel !== body.oldLabel) {
           await sql`
@@ -122,13 +130,15 @@ defineRoute(
   async (c, { body }) => {
     const mainDb = c.var.mainDb;
     const res = await tryCatchDatabaseAsync(async () => {
-      for (let i = 0; i < body.order.length; i++) {
-        await mainDb`
-          UPDATE hfa_time_points
-          SET sort_order = ${i + 1}
-          WHERE label = ${body.order[i]}
-        `;
-      }
+      await mainDb.begin(async (sql: Sql) => {
+        for (let i = 0; i < body.order.length; i++) {
+          await sql`
+            UPDATE hfa_time_points
+            SET sort_order = ${i + 1}
+            WHERE label = ${body.order[i]}
+          `;
+        }
+      });
       return { success: true };
     });
     if (res.success) {

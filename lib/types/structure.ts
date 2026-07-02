@@ -214,10 +214,20 @@ export type StructureIntegrateStrategy =
   | { type: "add_and_update" }
   | { type: "update_existing_only" };
 
+// Per admin-area level: how many stored geojson feature area_ids no longer
+// match any admin_areas_N row (an import that renamed areas orphans them;
+// repairable in the map boundaries editor).
+export type GeojsonOrphanedAreaIds = {
+  adminAreaLevel: number;
+  orphanedCount: number;
+};
+
 // Returned to the client after a successful import so step 4 can confirm what
-// actually happened (vs. the pre-commit preview).
+// actually happened (vs. the pre-commit preview). orphanedGeojsonAreaIds is
+// computed after the integrate commits; only levels with orphans are listed.
 export type StructureIntegrateSummary = {
   inserted: number;
   updated: number;
   deleted: number;
+  orphanedGeojsonAreaIds?: GeojsonOrphanedAreaIds[];
 };

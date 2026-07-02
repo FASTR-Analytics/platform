@@ -18,7 +18,13 @@ export function createMarkdownIt(options?: { html?: boolean }): MarkdownIt {
     // rendering to innerHTML must opt in explicitly for trusted content only.
     html: options?.html ?? false,
     linkify: false,
+    // Curly (typographic) quotes and apostrophes. We keep ONLY the smart-quote
+    // substitutions; the line below disables markdown-it's other typographer
+    // replacements (en/em dashes, ellipsis, (c)/(tm), and so on), so prose is
+    // untouched apart from straight quotes becoming curly.
+    typographer: true,
   });
+  md.disable("replacements", true);
   // TODO: Fix katex plugin loading issue
   // md.use(markdownItKatex);
   return md;

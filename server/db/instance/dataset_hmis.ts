@@ -3,6 +3,7 @@ import {
   _GLOBAL_MIN_YEAR_FOR_PERIODS,
 } from "@timroberton/panther";
 import { Sql } from "postgres";
+import { UPLOADED_HMIS_DATA_STAGING_TABLE_NAME } from "../../exposed_env_vars.ts";
 import { resolveAssetFilePath } from "./assets.ts";
 import type {
   DatasetHmisWindowingRaw,
@@ -27,6 +28,7 @@ import {
   throwIfErrWithData,
   type DatasetHmisVersion,
   type Dhis2Credentials,
+  type Dhis2CredentialsRedacted,
   type IndicatorType,
   type ItemsHolderDatasetHmisDisplay,
 } from "lib";
@@ -589,13 +591,29 @@ export async function getDatasetHmisUploadAttemptDetail(
       status: parseJsonOrThrow<DatasetUploadAttemptStatus>(rawDUA.status),
     };
 
+    const sourceType =
+      (rawDUA.source_type as "csv" | "dhis2" | null) ?? undefined;
+
+    let step1Result = parseJsonOrUndefined<unknown>(rawDUA.step_1_result);
+    if (sourceType === "dhis2" && step1Result) {
+      // The password never leaves the server; the staging worker reads the
+      // full credentials from the raw row.
+      const credentials = step1Result as Dhis2Credentials;
+      const redacted: Dhis2CredentialsRedacted = {
+        url: credentials.url,
+        username: credentials.username,
+        hasPassword: true,
+      };
+      step1Result = redacted;
+    }
+
     const uaDetail = {
       ...baseDetails,
       step: rawDUA.step as 0 | 1 | 2 | 3 | 4,
-      sourceType: (rawDUA.source_type as "csv" | "dhis2" | null) ?? undefined,
-      step1Result: parseJsonOrUndefined<any>(rawDUA.step_1_result),
-      step2Result: parseJsonOrUndefined<any>(rawDUA.step_2_result),
-      step3Result: parseJsonOrUndefined<any>(rawDUA.step_3_result),
+      sourceType,
+      step1Result,
+      step2Result: parseJsonOrUndefined<unknown>(rawDUA.step_2_result),
+      step3Result: parseJsonOrUndefined<unknown>(rawDUA.step_3_result),
     } as DatasetUploadAttemptDetail;
 
     return { success: true, data: uaDetail };
@@ -663,6 +681,11 @@ export async function deleteDatasetHmisUploadAttempt(
     }
 
     await mainDb`DELETE FROM dataset_hmis_upload_attempts`;
+    // A terminated worker never reaches its own cleanup, and a staged
+    // attempt's table would otherwise outlive the attempt row.
+    await mainDb.unsafe(
+      `DROP TABLE IF EXISTS ${UPLOADED_HMIS_DATA_STAGING_TABLE_NAME}`
+    );
     return { success: true };
   });
 }
@@ -767,8 +790,8 @@ export async function updateDatasetUploadAttempt_Step3Staging(
 
     // Check if this upload is already being processed
     const activeOperations = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*) as count 
-      FROM dataset_hmis_upload_attempts 
+      SELECT COUNT(*)::int as count
+      FROM dataset_hmis_upload_attempts
       WHERE status_type IN ('staging', 'integrating')
     `;
 
@@ -882,6 +905,18 @@ export async function updateDatasetUploadAttempt_Step2Dhis2Selection(
     if (!rawDUA.source_type || !rawDUA.step_1_result) {
       throw new Error("Not yet ready for this step");
     }
+    // The staging worker enumerates every month from startPeriod to
+    // endPeriod, so an unbounded endPeriod would spin it on far-future
+    // periods with no way to finish.
+    const maxPeriodId = _GLOBAL_MAX_YEAR_FOR_PERIODS * 100 + 12;
+    if (selection.endPeriod > maxPeriodId) {
+      throw new Error(
+        `End period ${selection.endPeriod} is beyond the maximum supported period ${maxPeriodId}`
+      );
+    }
+    if (selection.startPeriod > selection.endPeriod) {
+      throw new Error("Start period must not be after end period");
+    }
     const updated = await mainDb`
 UPDATE dataset_hmis_upload_attempts
 SET
@@ -968,8 +1003,8 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
 
     // Check if this upload is already being processed
     const activeOperations = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*) as count 
-      FROM dataset_hmis_upload_attempts 
+      SELECT COUNT(*)::int as count
+      FROM dataset_hmis_upload_attempts
       WHERE status_type IN ('staging', 'integrating')
     `;
 

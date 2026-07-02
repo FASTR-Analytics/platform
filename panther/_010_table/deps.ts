@@ -29,6 +29,7 @@ export type {
   Renderer,
   TableBorderPrimitive,
   TableCellInfo,
+  TableCellInfoFunc,
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
   TableHeaderInfo,
