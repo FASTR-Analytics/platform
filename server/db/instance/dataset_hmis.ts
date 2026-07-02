@@ -66,6 +66,14 @@ async function getRawUAOrThrow(
   return rawUA;
 }
 
+function throwIfNoRowsUpdatedBecauseActive(count: number) {
+  if (count === 0) {
+    throw new Error(
+      "An operation is currently running on this upload attempt. Please wait for it to complete."
+    );
+  }
+}
+
 //////////////////////////////////////////////////////
 //  _______               __                __  __  //
 // /       \             /  |              /  |/  | //
@@ -145,6 +153,20 @@ export async function deleteAllDatasetHmisData(
   windowing: DatasetHmisWindowingRaw
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    // A delete minting a version id while an integration is mid-transaction
+    // can collide with the integration's MAX(id)+1 and roll back the whole
+    // merge at the end — refuse while an import operation is running.
+    const activeOperations = await mainDb<{ count: string | number }[]>`
+      SELECT COUNT(*) as count
+      FROM dataset_hmis_upload_attempts
+      WHERE status_type IN ('staging', 'integrating')
+    `;
+    if (Number(activeOperations[0].count) > 0) {
+      throw new Error(
+        "An import operation is in progress. Please wait for it to complete before deleting data."
+      );
+    }
+
     // Build WHERE conditions based on windowing
     const conditions = [];
 
@@ -184,76 +206,54 @@ export async function deleteAllDatasetHmisData(
       facilitySubquery = `SELECT facility_id FROM facilities_hmis WHERE admin_area_2 IN (${adminAreaList})`;
     }
 
-    // Count rows that will be deleted
-    let countQuery;
-    if (facilitySubquery) {
-      countQuery = mainDb.unsafe(`
-        SELECT COUNT(*) as count
-        FROM dataset_hmis
-        WHERE facility_id IN (${facilitySubquery})
-        AND ${conditions.join(" AND ")}
-      `);
-    } else {
-      countQuery = mainDb.unsafe(`
-        SELECT COUNT(*) as count
-        FROM dataset_hmis
-        WHERE ${conditions.join(" AND ")}
-      `);
-    }
+    // Delete and version-record insert in one transaction: the recorded
+    // count is the actual DELETE rowcount (not a separate pre-count that can
+    // drift), and no deletion can land without its version record.
+    const whereClause = facilitySubquery
+      ? `facility_id IN (${facilitySubquery}) AND ${conditions.join(" AND ")}`
+      : conditions.join(" AND ");
 
-    const rowsToDelete = await countQuery;
-    const deleteCount = Number(rowsToDelete[0].count);
-
-    // Only proceed if there are rows to delete
-    if (deleteCount === 0) {
-      return { success: true };
-    }
-
-    // Execute delete
-    let deleteQuery;
-    if (facilitySubquery) {
-      deleteQuery = mainDb.unsafe(`
+    await mainDb.begin(async (sql) => {
+      const deleteResult = await sql.unsafe(`
         DELETE FROM dataset_hmis
-        WHERE facility_id IN (${facilitySubquery})
-        AND ${conditions.join(" AND ")}
+        WHERE ${whereClause}
       `);
-    } else {
-      deleteQuery = mainDb.unsafe(`
-        DELETE FROM dataset_hmis
-        WHERE ${conditions.join(" AND ")}
-      `);
-    }
+      const deleteCount = deleteResult.count;
 
-    await deleteQuery;
+      if (deleteCount === 0) {
+        return;
+      }
 
-    // Create a new version record to track this deletion
-    const currentMaxVersionId = await getCurrentDatasetHmisMaxVersionId(mainDb);
-    const newVersionId = (currentMaxVersionId ?? 0) + 1;
+      const currentMaxVersionId = await sql<{ max: number | null }[]>`
+        SELECT MAX(id) as max FROM dataset_hmis_versions
+      `;
+      const newVersionId = (currentMaxVersionId[0].max ?? 0) + 1;
 
-    // Create version record with negative counts to indicate deletion
-    await mainDb`
-      INSERT INTO dataset_hmis_versions
-      (
-        id, 
-        n_rows_total_imported,
-        n_rows_inserted,
-        n_rows_updated,
-        staging_result
-      )
-      VALUES
-      (
-        ${newVersionId}, 
-        ${-deleteCount},  -- Negative to indicate deletion
-        ${-deleteCount},  -- All were "inserted" as deletions
-        0,                -- No updates, just deletions
-        ${JSON.stringify({
-          sourceType: "deletion",
-          windowing: windowing,
-          rowsDeleted: deleteCount,
-          dateImported: new Date().toISOString(),
-        })}
-      )
-    `;
+      // Negative counts indicate deletion
+      await sql`
+        INSERT INTO dataset_hmis_versions
+        (
+          id,
+          n_rows_total_imported,
+          n_rows_inserted,
+          n_rows_updated,
+          staging_result
+        )
+        VALUES
+        (
+          ${newVersionId},
+          ${-deleteCount},
+          ${-deleteCount},
+          0,
+          ${JSON.stringify({
+            sourceType: "deletion",
+            windowing: windowing,
+            rowsDeleted: deleteCount,
+            dateImported: new Date().toISOString(),
+          })}
+        )
+      `;
+    });
 
     return { success: true };
   });
@@ -690,7 +690,10 @@ export async function updateDatasetUploadAttempt_Step0SourceType(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await getRawUAOrThrow(mainDb); // Verify exists
-    await mainDb`
+    // All step-config writes are conditional on no worker phase being active:
+    // an unconditional write racing a running worker would let the worker's
+    // completion mark data staged under a config it wasn't staged from.
+    const updated = await mainDb`
   UPDATE dataset_hmis_upload_attempts
   SET
     step = 1,
@@ -698,7 +701,9 @@ export async function updateDatasetUploadAttempt_Step0SourceType(
     step_1_result = NULL,
     step_2_result = NULL,
     step_3_result = NULL
+  WHERE status_type NOT IN ('staging', 'integrating')
     `;
+    throwIfNoRowsUpdatedBecauseActive(updated.count);
     return { success: true };
   });
 }
@@ -715,14 +720,16 @@ export async function updateDatasetUploadAttempt_Step1CsvUpload(
     const assetFilePath = join(_ASSETS_DIR_PATH, assetFileName);
     const resCsvDetails = await getCsvDetails(assetFilePath, assetFileName);
     throwIfErrWithData(resCsvDetails);
-    await mainDb`
+    const updated = await mainDb`
   UPDATE dataset_hmis_upload_attempts
   SET
     step = 2,
     step_1_result = ${JSON.stringify(resCsvDetails.data)},
     step_2_result = NULL,
     step_3_result = NULL
+  WHERE status_type NOT IN ('staging', 'integrating')
     `;
+    throwIfNoRowsUpdatedBecauseActive(updated.count);
     return { success: true };
   });
 }
@@ -736,13 +743,15 @@ export async function updateDatasetUploadAttempt_Step2Mappings(
     if (!rawDUA.source_type || !rawDUA.step_1_result) {
       throw new Error("Not yet ready for this step");
     }
-    await mainDb`
+    const updated = await mainDb`
 UPDATE dataset_hmis_upload_attempts
 SET
-  step = 3, 
+  step = 3,
   step_2_result = ${JSON.stringify(mappings)},
   step_3_result = NULL
+WHERE status_type NOT IN ('staging', 'integrating')
 `;
+    throwIfNoRowsUpdatedBecauseActive(updated.count);
     return { success: true };
   });
 }
@@ -851,14 +860,16 @@ export async function updateDatasetUploadAttempt_Step1Dhis2Confirm(
     if (!rawDUA.source_type) {
       throw new Error("Not yet ready for this step");
     }
-    await mainDb`
+    const updated = await mainDb`
   UPDATE dataset_hmis_upload_attempts
   SET
     step = 2,
     step_1_result = ${JSON.stringify(credentials)},
     step_2_result = NULL,
     step_3_result = NULL
+  WHERE status_type NOT IN ('staging', 'integrating')
     `;
+    throwIfNoRowsUpdatedBecauseActive(updated.count);
     return { success: true };
   });
 }
@@ -872,13 +883,15 @@ export async function updateDatasetUploadAttempt_Step2Dhis2Selection(
     if (!rawDUA.source_type || !rawDUA.step_1_result) {
       throw new Error("Not yet ready for this step");
     }
-    await mainDb`
+    const updated = await mainDb`
 UPDATE dataset_hmis_upload_attempts
 SET
-  step = 3, 
+  step = 3,
   step_2_result = ${JSON.stringify(selection)},
   step_3_result = NULL
+WHERE status_type NOT IN ('staging', 'integrating')
 `;
+    throwIfNoRowsUpdatedBecauseActive(updated.count);
     return { success: true };
   });
 }

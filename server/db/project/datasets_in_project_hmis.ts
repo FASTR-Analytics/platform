@@ -40,22 +40,13 @@ export async function addDatasetHmisToProject(
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    if (onProgress) await onProgress(0.1, "Removing existing dataset...");
-    const res = await removeDatasetFromProject(projectDb, projectId, "hmis");
-    throwIfErrNoData(res);
-
-    if (onProgress) await onProgress(0.2, "Validating configuration...");
+    // Validate BEFORE removing the existing attachment — a validation
+    // failure after the remove would leave the project detached with
+    // modules still clean and clients unnotified. The version is also the
+    // staleness marker, so it must be captured before the export.
+    if (onProgress) await onProgress(0.1, "Validating configuration...");
     const version = await getCurrentDatasetHmisVersion(mainDb);
     assertNotUndefined(version, "Cannot get hmis version");
-
-    const datasetDirPath = getDatasetDirPath(projectId);
-    await ensureDir(datasetDirPath);
-    await Deno.chmod(datasetDirPath, 0o777);
-
-    const datasetFilePathForPostgres = getDatasetFilePathForPostgres(
-      projectId,
-      "hmis"
-    );
 
     const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
     throwIfErrWithData(resMaxAdminArea);
@@ -68,9 +59,9 @@ export async function addDatasetHmisToProject(
     const periodRange = await mainDb<
       { min_period: number; max_period: number }[]
     >`
-      SELECT 
-        MIN(period_id) as min_period, 
-        MAX(period_id) as max_period 
+      SELECT
+        MIN(period_id) as min_period,
+        MAX(period_id) as max_period
       FROM ${mainDb(datasetTableName)}
     `;
 
@@ -95,6 +86,19 @@ export async function addDatasetHmisToProject(
         `Invalid maximum period format: ${maxPeriod}. Expected YYYYMM format.`
       );
     }
+
+    if (onProgress) await onProgress(0.2, "Removing existing dataset...");
+    const res = await removeDatasetFromProject(projectDb, projectId, "hmis");
+    throwIfErrNoData(res);
+
+    const datasetDirPath = getDatasetDirPath(projectId);
+    await ensureDir(datasetDirPath);
+    await Deno.chmod(datasetDirPath, 0o777);
+
+    const datasetFilePathForPostgres = getDatasetFilePathForPostgres(
+      projectId,
+      "hmis"
+    );
 
     const startingWindowing: DatasetHmisWindowingCommon = windowing ?? {
       start: minPeriod,

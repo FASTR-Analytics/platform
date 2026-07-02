@@ -50,11 +50,12 @@ export async function addDatasetHfaToProject(
   serviceCategoryScope: string[] = [],
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    if (onProgress) await onProgress(0.1, "Removing existing dataset...");
-    const res = await removeDatasetFromProject(projectDb, projectId, "hfa");
-    throwIfErrNoData(res);
-
-    if (onProgress) await onProgress(0.2, "Validating configuration...");
+    // Validate and capture staleness metadata BEFORE removing the existing
+    // attachment: a failure after the remove leaves the project detached
+    // with modules still clean and clients unnotified, and a hash captured
+    // after the export can mask a concurrent instance import (new hash
+    // stored against pre-import CSV data).
+    if (onProgress) await onProgress(0.1, "Validating configuration...");
     const hasData = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM hfa_data LIMIT 1`)[0].count > 0;
     if (!hasData) {
       throw new Error("No HFA data available to add to project");
@@ -70,6 +71,68 @@ export async function addDatasetHfaToProject(
     // Get max admin area configuration
     const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
     throwIfErrWithData(resMaxAdminArea);
+
+    // Fetch HFA indicator definitions + per-time-point R code from the instance
+    // DB for the project-level snapshot. The module runner reads from the
+    // snapshot so indicators and data stay in sync for this project.
+    // Project scoping: when a scope is set, only indicators whose service
+    // categories overlap it are brought into the project.
+    const scopeFilter =
+      serviceCategoryScope.length > 0
+        ? mainDb`WHERE jsonb_exists_any(service_category_ids::jsonb, ${serviceCategoryScope})`
+        : mainDb``;
+    const hfaIndicatorRowsForSnapshot = await mainDb<DBHfaIndicator[]>`
+      SELECT * FROM hfa_indicators ${scopeFilter} ORDER BY sort_order, var_name
+    `;
+    if (
+      serviceCategoryScope.length > 0 &&
+      hfaIndicatorRowsForSnapshot.length === 0
+    ) {
+      throw new Error("No HFA indicators match the selected service categories.");
+    }
+    const scopedVarNames = new Set(
+      hfaIndicatorRowsForSnapshot.map((ind) => ind.var_name),
+    );
+    const hfaIndicatorCodeRowsForSnapshot = (
+      await mainDb<
+        {
+          var_name: string;
+          time_point: string;
+          r_code: string;
+          r_filter_code: string | null;
+        }[]
+      >`
+      SELECT var_name, time_point, r_code, r_filter_code
+      FROM hfa_indicator_code
+      ORDER BY var_name, time_point
+    `
+    ).filter((c) => scopedVarNames.has(c.var_name));
+
+    // Staleness metadata — stored in datasets.info so the client can detect
+    // when the project's export is behind the instance.
+    const hfaTimePointRowsForHash = await mainDb<
+      { label: string; sort_order: number; imported_at: string | null }[]
+    >`
+      SELECT label, sort_order, imported_at
+      FROM hfa_time_points
+      ORDER BY sort_order
+    `;
+    const hfaCacheHash = computeHfaCacheHash(hfaTimePointRowsForHash);
+    const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
+    const structureLastUpdatedRow = (
+      await mainDb<{ config_json_value: string }[]>`
+        SELECT config_json_value
+        FROM instance_config
+        WHERE config_key = 'structure_last_updated'
+      `
+    ).at(0);
+    const structureLastUpdated = structureLastUpdatedRow
+      ? JSON.parse(structureLastUpdatedRow.config_json_value)
+      : undefined;
+
+    if (onProgress) await onProgress(0.3, "Removing existing dataset...");
+    const res = await removeDatasetFromProject(projectDb, projectId, "hfa");
+    throwIfErrNoData(res);
 
     const datasetDirPath = getDatasetDirPath(projectId);
     await ensureDir(datasetDirPath);
@@ -131,63 +194,6 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
       SELECT id, label, sort_order FROM hfa_indicator_service_categories ORDER BY sort_order, label
     `;
 
-    // Fetch HFA indicator definitions + per-time-point R code from the instance
-    // DB for the project-level snapshot. The module runner reads from the
-    // snapshot so indicators and data stay in sync for this project.
-    // Project scoping: when a scope is set, only indicators whose service
-    // categories overlap it are brought into the project.
-    const scopeFilter =
-      serviceCategoryScope.length > 0
-        ? mainDb`WHERE jsonb_exists_any(service_category_ids::jsonb, ${serviceCategoryScope})`
-        : mainDb``;
-    const hfaIndicatorRowsForSnapshot = await mainDb<DBHfaIndicator[]>`
-      SELECT * FROM hfa_indicators ${scopeFilter} ORDER BY sort_order, var_name
-    `;
-    if (
-      serviceCategoryScope.length > 0 &&
-      hfaIndicatorRowsForSnapshot.length === 0
-    ) {
-      throw new Error("No HFA indicators match the selected service categories.");
-    }
-    const scopedVarNames = new Set(
-      hfaIndicatorRowsForSnapshot.map((ind) => ind.var_name),
-    );
-    const hfaIndicatorCodeRowsForSnapshot = (
-      await mainDb<
-        {
-          var_name: string;
-          time_point: string;
-          r_code: string;
-          r_filter_code: string | null;
-        }[]
-      >`
-      SELECT var_name, time_point, r_code, r_filter_code
-      FROM hfa_indicator_code
-      ORDER BY var_name, time_point
-    `
-    ).filter((c) => scopedVarNames.has(c.var_name));
-
-    // Staleness metadata — stored in datasets.info so the client can detect
-    // when the project's export is behind the instance.
-    const hfaTimePointRowsForHash = await mainDb<
-      { label: string; sort_order: number; imported_at: string | null }[]
-    >`
-      SELECT label, sort_order, imported_at
-      FROM hfa_time_points
-      ORDER BY sort_order
-    `;
-    const hfaCacheHash = computeHfaCacheHash(hfaTimePointRowsForHash);
-    const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
-    const structureLastUpdatedRow = (
-      await mainDb<{ config_json_value: string }[]>`
-        SELECT config_json_value
-        FROM instance_config
-        WHERE config_key = 'structure_last_updated'
-      `
-    ).at(0);
-    const structureLastUpdated = structureLastUpdatedRow
-      ? JSON.parse(structureLastUpdatedRow.config_json_value)
-      : undefined;
     const info: DatasetHfaInfoInProject = {
       hfaCacheHash,
       hfaIndicatorsVersion,

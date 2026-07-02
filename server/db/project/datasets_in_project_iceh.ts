@@ -31,11 +31,10 @@ export async function addDatasetIcehToProject(
   onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    if (onProgress) await onProgress(0.1, "Removing existing dataset...");
-    const res = await removeDatasetFromProject(projectDb, projectId, "iceh");
-    throwIfErrNoData(res);
-
-    if (onProgress) await onProgress(0.2, "Validating data...");
+    // Validate BEFORE removing the existing attachment — a validation
+    // failure after the remove would leave the project detached with
+    // modules still clean and clients unnotified.
+    if (onProgress) await onProgress(0.1, "Validating data...");
     const dataCountRow = await mainDb<{ count: number }[]>`
       SELECT COUNT(*) as count FROM iceh_data
     `;
@@ -43,6 +42,15 @@ export async function addDatasetIcehToProject(
     if (dataRowCount === 0) {
       throw new Error("No ICEH data available to add to project");
     }
+
+    // Capture the staleness hash BEFORE exporting: hash-after-export can
+    // store the new hash against pre-import CSV data if an instance import
+    // commits in between, masking the staleness forever.
+    const icehCacheHash = await getIcehCacheHash(mainDb);
+
+    if (onProgress) await onProgress(0.2, "Removing existing dataset...");
+    const res = await removeDatasetFromProject(projectDb, projectId, "iceh");
+    throwIfErrNoData(res);
 
     const datasetDirPath = join(_SANDBOX_DIR_PATH, projectId, "datasets");
     await ensureDir(datasetDirPath);
@@ -82,7 +90,6 @@ export async function addDatasetIcehToProject(
       ORDER BY sort_order, iceh_indicator
     `;
 
-    const icehCacheHash = await getIcehCacheHash(mainDb);
     const info: DatasetIcehInfoInProject = {
       icehCacheHash,
     };

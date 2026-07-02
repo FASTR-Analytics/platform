@@ -58,6 +58,14 @@ async function getRawUAOrThrow(
   return rawUA;
 }
 
+function throwIfNoRowsUpdatedBecauseActive(count: number) {
+  if (count === 0) {
+    throw new Error(
+      "An operation is currently running on this upload attempt. Please wait for it to complete."
+    );
+  }
+}
+
 //////////////////////////////////////////////////////
 //  _______               __                __  __  //
 // /       \             /  |              /  |/  | //
@@ -459,14 +467,19 @@ export async function updateDatasetHfaUploadAttempt_Step1CsvUpload(
         filePath: xlsFormFilePath,
       },
     };
-    await mainDb`
+    // Conditional on no worker phase being active — an unconditional write
+    // racing a running worker would let the worker's completion mark data
+    // staged under a config it wasn't staged from.
+    const updated = await mainDb`
   UPDATE hfa_upload_attempts
   SET
     step = 2,
     step_1_result = ${JSON.stringify(step1Result)},
     step_2_result = NULL,
     step_3_result = NULL
+  WHERE status_type NOT IN ('staging', 'integrating')
     `;
+    throwIfNoRowsUpdatedBecauseActive(updated.count);
     return { success: true };
   });
 }
@@ -480,13 +493,15 @@ export async function updateDatasetHfaUploadAttempt_Step2Mappings(
     if (!rawDUA.step_1_result) {
       throw new Error("Not yet ready for this step");
     }
-    await mainDb`
+    const updated = await mainDb`
 UPDATE hfa_upload_attempts
 SET
-  step = 3, 
+  step = 3,
   step_2_result = ${JSON.stringify(mappings)},
   step_3_result = NULL
+WHERE status_type NOT IN ('staging', 'integrating')
 `;
+    throwIfNoRowsUpdatedBecauseActive(updated.count);
     return { success: true };
   });
 }

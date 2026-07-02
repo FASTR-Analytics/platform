@@ -121,14 +121,8 @@ async function run(std: { rawDUA: DBDatasetHmisUploadAttempt }) {
     await updateIntegrationProgress(mainDb, 10);
 
     // ==================================================
-    // PHASE 2: Get Version ID and Begin Transaction
+    // PHASE 2: Begin Transaction
     // ==================================================
-
-    // Get the version ID fresh at integration time to avoid conflicts
-    const currentMaxVersionId = await getCurrentDatasetHmisMaxVersionId(mainDb);
-    const newVersionId = (currentMaxVersionId ?? 0) + 1;
-
-    console.log(`Creating new version ${newVersionId} for dataset hmis`);
 
     // Update table statistics for optimal query planning
     await importDb`ANALYZE ${importDb(aggregatedTableName)}`;
@@ -151,6 +145,13 @@ async function run(std: { rawDUA: DBDatasetHmisUploadAttempt }) {
       // ==================================================
       // PHASE 3: Insert Version Record (needed for FK constraint)
       // ==================================================
+
+      // Version id minted inside the transaction, right before its INSERT —
+      // minimizes the window against the other version-id writer (windowed
+      // delete, itself guarded against running during an active import).
+      const currentMaxVersionId = await getCurrentDatasetHmisMaxVersionId(sql);
+      const newVersionId = (currentMaxVersionId ?? 0) + 1;
+      console.log(`Creating new version ${newVersionId} for dataset hmis`);
 
       await sql`
         INSERT INTO dataset_hmis_versions

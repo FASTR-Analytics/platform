@@ -237,8 +237,12 @@ export async function createDatasetIcehUploadAttempt(
   mainDb: Sql
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    // The conditional DO UPDATE (+ rowcount check) refuses to reset an
+    // attempt whose ingest is still running — the ingest is an un-awaited
+    // in-process task that cannot be cancelled, so resetting the row out
+    // from under it would let a second ingest run concurrently.
     const status: IcehUploadAttemptStatus = { status: "configuring" };
-    await mainDb`
+    const upserted = await mainDb`
       INSERT INTO iceh_upload_attempts (id, date_started, step, status, status_type)
       VALUES ('single_row', ${new Date().toISOString()}, 1, ${JSON.stringify(status)}, 'configuring')
       ON CONFLICT (id) DO UPDATE SET
@@ -249,7 +253,14 @@ export async function createDatasetIcehUploadAttempt(
         step_1_result = NULL,
         step_2_result = NULL,
         step_3_result = NULL
+      WHERE iceh_upload_attempts.status_type NOT IN ('staging', 'integrating')
     `;
+    if (upserted.count === 0) {
+      return {
+        success: false,
+        err: "An ICEH import is already in progress. Please wait for it to complete.",
+      };
+    }
     return { success: true };
   });
 }
@@ -258,7 +269,22 @@ export async function deleteDatasetIcehUploadAttempt(
   mainDb: Sql
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`DELETE FROM iceh_upload_attempts`;
+    // Refuse to delete the attempt row while the (uncancellable) in-process
+    // ingest is running: deleting it would leave the ingest's status writes
+    // hitting zero rows while the UI offers a fresh concurrent import.
+    const deleted = await mainDb`
+      DELETE FROM iceh_upload_attempts
+      WHERE status_type NOT IN ('staging', 'integrating')
+    `;
+    if (deleted.count === 0) {
+      const remaining = await mainDb`SELECT 1 FROM iceh_upload_attempts`;
+      if (remaining.length > 0) {
+        return {
+          success: false,
+          err: "An ICEH import is currently running and cannot be discarded. Please wait for it to complete.",
+        };
+      }
+    }
     return { success: true };
   });
 }
@@ -379,12 +405,24 @@ export async function updateDatasetIcehUploadAttemptStep2(
       };
     }
 
+    // Atomically claim the import slot (race-free conditional UPDATE +
+    // rowcount check). The ingest below is an un-awaited in-process task
+    // that cannot be cancelled, so this claim — together with the guards on
+    // attempt delete/create — is what prevents two ingests from interleaving
+    // their delete-then-insert transactions over the same indicators.
     const status: IcehUploadAttemptStatus = { status: "staging", progress: 0 };
-    await mainDb`
+    const claimed = await mainDb`
       UPDATE iceh_upload_attempts
       SET step = 3, status = ${JSON.stringify(status)}, status_type = 'staging'
       WHERE id = 'single_row'
+        AND status_type NOT IN ('staging', 'integrating')
     `;
+    if (claimed.count === 0) {
+      return {
+        success: false,
+        err: "An ICEH import is already in progress. Please wait for it to complete.",
+      };
+    }
 
     stageAndIntegrateIcehData(mainDb, step1Result, onComplete);
 
