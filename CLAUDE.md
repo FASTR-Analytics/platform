@@ -273,6 +273,7 @@ Prescriptive protocols for how this app is built (distinct from the `panther/pro
 - [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md) — Clerk, the two permission guards, `Project-Id` scoping, special modes
 - [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md) — connections, DB-function shape, error funnel, **SQL-safety rule** (authoritative for the multi-DB naming/connection model)
 - [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md) — BroadcastChannel→SSE, notify catalog, the `last_updated → SSE → cache` triangle
+- [DOC_SLIDE_COLLAB.md](DOC_SLIDE_COLLAB.md) — real-time slide co-editing: WS transport, presence, Yjs CRDT model, server rooms/checkpoints, editor bridge ([DOC_SLIDE_COLLAB_FEATURES.md](DOC_SLIDE_COLLAB_FEATURES.md) = user-facing feature catalog)
 - [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md) — `TimCacheC`, version-hash keying, implicit invalidation
 - [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md) — dirty state machine, dependency propagation, `task_ended` loop
 - [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md) — Web Worker pattern, READY handshake, report-back mechanisms
