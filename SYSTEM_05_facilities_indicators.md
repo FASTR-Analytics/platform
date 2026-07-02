@@ -398,8 +398,7 @@ Every config mutation re-reads all configs and pushes one consolidated
 - HMIS manager: the two version-effects don't reset to loading on re-run
   and lack a stale-response guard (Variant A drift); the batch-upload
   "select existing CSV" Select renders the first option while state is
-  empty; concurrent edits are last-write-wins everywhere (accepted,
-  app-wide).
+  empty.
 - HFA manager: AI batch label/category updates fire one route call + SSE
   notify per indicator (N racing refetches — a bulk endpoint would fix
   both); the XLSX upload help text says "three sheets" then lists four;
@@ -413,16 +412,15 @@ Every config mutation re-reads all configs and pushes one consolidated
 - Geojson: `updateMaxAdminArea` is check-then-write without a transaction;
   a structure re-import that renames admin areas silently orphans stored
   `area_id`s (maps render "no data"; repairable in the edit modal, but
-  nothing tells the admin); duplicate admin-area names are unresolvable by
-  design (name = join key); no size cap anywhere on the pipeline (analyze
+  nothing tells the admin); no size cap anywhere on the pipeline (analyze
   parses the whole file in memory, `sampleValues` returns ALL distinct
-  values, the payload is served whole and double-encoded); the analyze
-  route echoes JSON.parse error snippets of real assets; the DHIS2 session
-  cache key is a 32-bit non-crypto hash (collision ≈ serving another
-  admin's cached org units — theoretical at 10 entries/15 min).
-- Weights import buffers all rows in memory with no size cap (files are
-  small in practice), and its facility-existence check is outside the
-  write transaction (TOCTOU → raw FK error, funneled).
+  values, the payload is served whole and double-encoded — WS7-P2 scope in
+  PLAN_GEOJSON_NEAR_TERM); the analyze route echoes JSON.parse error
+  snippets of real assets; the DHIS2 session cache key is a 32-bit
+  non-crypto hash (collision ≈ serving another admin's cached org units —
+  theoretical at 10 entries/15 min).
+- Weights import: the facility-existence check runs outside the write
+  transaction (TOCTOU → raw FK error, funneled).
 - Instance-level DHIS2 credentials remain plaintext in
   `structure_upload_attempts.step_1_result` at rest (the API projection is
   now redacted; at-rest encryption would be a separate decision — S6 has
