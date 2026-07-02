@@ -1,4 +1,9 @@
-import { t3, type Dhis2Credentials, type FacilityFamily } from "lib";
+import {
+  t3,
+  type Dhis2Credentials,
+  type Dhis2CredentialsRedacted,
+  type FacilityFamily,
+} from "lib";
 import { Button, StateHolderFormError, createFormAction } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -6,16 +11,16 @@ import { setDhis2SessionCredentials } from "~/state/instance/t4_dhis2_session";
 import { Dhis2CredentialsEditor } from "../Dhis2CredentialsEditor";
 
 type Props = {
-  step1Result: Dhis2Credentials | undefined;
+  step1Result: Dhis2CredentialsRedacted | undefined;
   family: FacilityFamily;
   silentFetch: () => Promise<void>;
 };
 
 export function Step1_Dhis2(p: Props) {
   const [credentials, setCredentials] = createSignal<Dhis2Credentials>({
-    url: p.step1Result?.url ?? "",
-    username: p.step1Result?.username ?? "",
-    password: p.step1Result?.password ?? "",
+    url: "",
+    username: "",
+    password: "",
   });
   const [saveCredentialsToSession, setSaveCredentialsToSession] =
     createSignal<boolean>(false);
@@ -27,16 +32,18 @@ export function Step1_Dhis2(p: Props) {
       return { success: false, err: t3({ en: "All fields are required", fr: "Tous les champs sont requis" }) };
     }
 
-    if (saveCredentialsToSession()) {
-      setDhis2SessionCredentials(creds);
-    }
-
-    return serverActions.structureStep1Dhis2_SetCredentials({
+    const res = await serverActions.structureStep1Dhis2_SetCredentials({
       family: p.family,
       url: creds.url,
       username: creds.username,
       password: creds.password,
     });
+
+    if (res.success && saveCredentialsToSession()) {
+      setDhis2SessionCredentials(creds);
+    }
+
+    return res;
   }, p.silentFetch);
 
   return (

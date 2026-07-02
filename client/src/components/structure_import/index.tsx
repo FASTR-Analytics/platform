@@ -8,16 +8,18 @@ import {
   EditorComponentProps,
   FrameTop,
   HeaderBarCanGoBack,
+  Spinner,
   StateHolderWrapper,
   StepperNavigationVisual,
   getStepper,
   createDeleteAction,
   createQuery,
 } from "panther";
-import { Match, Switch } from "solid-js";
+import { Match, Show, Switch, createSignal, onCleanup, onMount } from "solid-js";
 import type {
   StructureUploadAttemptDetail,
-  Dhis2Credentials,
+  StructureUploadAttemptStatus,
+  Dhis2CredentialsRedacted,
   StructureDhis2OrgUnitSelection,
 } from "lib";
 import { Step0 } from "./step_0";
@@ -29,6 +31,8 @@ import { Step2_Dhis2 } from "./step_2_dhis2";
 import { Step3_Dhis2 } from "./step_3_dhis2";
 import { serverActions } from "~/server_actions";
 import { Step4 } from "./step_4";
+
+const _STATUS_POLL_INTERVAL_MS = 2000;
 
 type Props = EditorComponentProps<
   {
@@ -60,11 +64,9 @@ export function StructureUploadAttemptForm(p: Props) {
         };
   }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation..." }));
 
-  // Remove unused instanceDetail query
-  // const instanceDetail = createQuery(
-  //   () => serverActions.getInstanceDetail({}),
-  //   t("Loading instance details..."),
-  // );
+  const [dismissedError, setDismissedError] = createSignal<string | undefined>(
+    undefined,
+  );
 
   // HFA facilities only come from CSV, so the source-type step is skipped
   const minStep = p.family === "hfa" ? 1 : 0;
@@ -159,25 +161,57 @@ export function StructureUploadAttemptForm(p: Props) {
       >
         {(keyedUploadAttempt) => {
           return (
-            <Switch
-              fallback={
-                <div class="ui-pad text-danger">
-                  {t3({ en: "Something went wrong: Bad step in structure upload attempt", fr: "Une erreur est survenue : étape incorrecte lors de la tentative d'importation de structure" })}
-                </div>
-              }
-            >
-              <Match
+            <>
+              <Show
                 when={
                   keyedUploadAttempt.status.status === "error" &&
                   keyedUploadAttempt.status.error
                 }
                 keyed
               >
-                {(errorMsg) => {
-                  return (
-                    <div class="ui-pad text-danger">{t3({ en: "ERROR!", fr: "ERREUR !" })} {errorMsg}</div>
-                  );
-                }}
+                {(errorMsg) => (
+                  <Show when={dismissedError() !== errorMsg}>
+                    <div class="border-danger bg-danger/10 ui-spy-sm m-4 rounded border p-4">
+                      <div class="ui-gap flex items-start">
+                        <div class="ui-spy-sm flex-1">
+                          <div class="text-danger font-700">
+                            {t3({ en: "The last import step failed", fr: "La dernière étape d'importation a échoué" })}
+                          </div>
+                          <div class="text-danger text-sm">{errorMsg}</div>
+                          <div class="text-sm">
+                            {t3({
+                              en: "Fix the configuration in the steps below and re-save, or discard the upload. If the final step was rejected, you can also choose a different import mode and run it again.",
+                              fr: "Corrigez la configuration dans les étapes ci-dessous et enregistrez de nouveau, ou annulez le téléversement. Si la dernière étape a été rejetée, vous pouvez aussi choisir un autre mode d'importation et relancer.",
+                            })}
+                          </div>
+                        </div>
+                        <Button
+                          iconName="x"
+                          onClick={() => setDismissedError(errorMsg)}
+                        />
+                      </div>
+                    </div>
+                  </Show>
+                )}
+              </Show>
+              <Switch
+                fallback={
+                  <div class="ui-pad text-danger">
+                    {t3({ en: "Something went wrong: Bad step in structure upload attempt", fr: "Une erreur est survenue : étape incorrecte lors de la tentative d'importation de structure" })}
+                  </div>
+                }
+              >
+              <Match
+                when={
+                  keyedUploadAttempt.status.status === "importing" ||
+                  keyedUploadAttempt.status.status === "importing_dhis2"
+                }
+              >
+                <ImportInProgress
+                  family={p.family}
+                  initialStatus={keyedUploadAttempt.status}
+                  silentRefreshAttempt={uploadAttempt.silentFetch}
+                />
               </Match>
               <Match
                 when={
@@ -272,7 +306,7 @@ export function StructureUploadAttemptForm(p: Props) {
                     <Step1_Dhis2
                       step1Result={
                         keyedUploadAttempt.step1Result as
-                          | Dhis2Credentials
+                          | Dhis2CredentialsRedacted
                           | undefined
                       }
                       family={p.family}
@@ -288,10 +322,103 @@ export function StructureUploadAttemptForm(p: Props) {
                   silentFetch={uploadAttempt.silentFetch}
                 />
               </Match>
-            </Switch>
+              </Switch>
+            </>
           );
         }}
       </StateHolderWrapper>
     </FrameTop>
+  );
+}
+
+type ImportInProgressProps = {
+  family: FacilityFamily;
+  initialStatus: StructureUploadAttemptStatus;
+  silentRefreshAttempt: () => Promise<void>;
+};
+
+function ImportInProgress(p: ImportInProgressProps) {
+  const [status, setStatus] = createSignal<StructureUploadAttemptStatus>(
+    p.initialStatus,
+  );
+
+  onMount(() => {
+    let pollInFlight = false;
+    const intervalId = setInterval(async () => {
+      if (pollInFlight) {
+        return;
+      }
+      pollInFlight = true;
+      const res = await serverActions.getStructureUploadStatus({
+        family: p.family,
+      });
+      pollInFlight = false;
+      if (!res.success) {
+        return;
+      }
+      if (res.data.isActive) {
+        setStatus(res.data.status);
+      } else {
+        clearInterval(intervalId);
+        await p.silentRefreshAttempt();
+      }
+    }, _STATUS_POLL_INTERVAL_MS);
+    onCleanup(() => clearInterval(intervalId));
+  });
+
+  const progressPercent = () => {
+    const s = status();
+    if (s.status !== "importing" && s.status !== "importing_dhis2") {
+      return undefined;
+    }
+    return s.progress === undefined ? undefined : Math.round(s.progress * 100);
+  };
+
+  const orgUnitProgress = () => {
+    const s = status();
+    if (
+      s.status === "importing_dhis2" &&
+      s.processedOrgUnits !== undefined &&
+      s.totalOrgUnits !== undefined
+    ) {
+      return `${s.processedOrgUnits} / ${s.totalOrgUnits}`;
+    }
+    return undefined;
+  };
+
+  return (
+    <div class="ui-pad ui-spy">
+      <div class="ui-gap-sm flex items-center">
+        <div class="h-6 w-6 flex-none">
+          <Spinner intent="primary" />
+        </div>
+        <div class="font-700 text-lg">
+          {t3({
+            en: "A structure import is running...",
+            fr: "Une importation de structure est en cours...",
+          })}
+        </div>
+      </div>
+      <Show when={progressPercent() !== undefined}>
+        <div class="text-sm">{progressPercent()}%</div>
+      </Show>
+      <Show when={orgUnitProgress()} keyed>
+        {(msg) => (
+          <div class="text-sm">
+            {t3({
+              en: "Organisation units processed",
+              fr: "Unités organisationnelles traitées",
+            })}
+            : {msg}
+          </div>
+        )}
+      </Show>
+      <div class="text-base-content/70 text-sm">
+        {t3({
+          en: "This screen will update automatically when the import finishes. It is safe to leave and come back.",
+          fr: "Cet écran se mettra à jour automatiquement à la fin de l'importation. Vous pouvez quitter cette page et revenir plus tard.",
+        })}
+      </div>
+    </div>
   );
 }

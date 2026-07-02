@@ -25,6 +25,7 @@ import { createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
+  hasRCodeErrors,
   validateRCode,
   type RCodeValidationResult,
 } from "./hfa_r_code_validator";
@@ -36,7 +37,6 @@ type TempCodeEntry = {
 };
 
 type TempState = {
-  varName: string;
   categoryId: string | null;
   subCategoryId: string | null;
   serviceCategoryIds: string[];
@@ -163,7 +163,6 @@ function EditorInner(p: {
   });
 
   const [state, setState] = createStore<TempState>({
-    varName: p.indicator.varName,
     categoryId: p.indicator.categoryId,
     subCategoryId: p.indicator.subCategoryId,
     serviceCategoryIds: p.indicator.serviceCategoryIds,
@@ -233,9 +232,16 @@ function EditorInner(p: {
     return new Set(dict.vars.map((v) => v.varName));
   };
 
+  const emptyValidation: RCodeValidationResult = {
+    syntaxErrors: [],
+    unknownVariableErrors: [],
+    warnings: [],
+    referencedVars: [],
+  };
+
   const currentRCodeValidation = (): RCodeValidationResult => {
     const idx = currentTpIndex();
-    if (idx < 0) return { warnings: [], syntaxErrors: [], referencedVars: [] };
+    if (idx < 0) return emptyValidation;
     return validateRCode(
       state.code[idx].rCode,
       availableVarNames(),
@@ -245,7 +251,7 @@ function EditorInner(p: {
 
   const currentFilterValidation = (): RCodeValidationResult => {
     const idx = currentTpIndex();
-    if (idx < 0) return { warnings: [], syntaxErrors: [], referencedVars: [] };
+    if (idx < 0) return emptyValidation;
     return validateRCode(
       state.code[idx].rFilterCode,
       availableVarNames(),
@@ -254,13 +260,15 @@ function EditorInner(p: {
   };
 
   p.registerSave(async () => {
-    const trimmedVarName = state.varName.trim();
-    if (!trimmedVarName) {
+    const filterOnly = state.code.find(
+      (c) => c.rFilterCode.trim() && !c.rCode.trim(),
+    );
+    if (filterOnly) {
       return {
         success: false,
         err: t3({
-          en: "Variable name is required",
-          fr: "Le nom de variable est requis",
+          en: `Filter code requires R code for time point "${filterOnly.timePoint}"`,
+          fr: `Le code filtre nécessite un code R pour le point temporel « ${filterOnly.timePoint} »`,
         }),
       };
     }
@@ -281,7 +289,7 @@ function EditorInner(p: {
           availableVars,
           otherIndicatorVarNames,
         );
-        if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
+        if (hasRCodeErrors(result)) {
           hasSyntaxError = true;
           break;
         }
@@ -292,7 +300,7 @@ function EditorInner(p: {
           availableVars,
           otherIndicatorVarNames,
         );
-        if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
+        if (hasRCodeErrors(result)) {
           hasSyntaxError = true;
           break;
         }
@@ -304,7 +312,7 @@ function EditorInner(p: {
     return await serverActions.saveHfaIndicatorFull({
       oldVarName: p.indicator.varName,
       indicator: {
-        varName: trimmedVarName,
+        varName: p.indicator.varName,
         categoryId: state.categoryId,
         subCategoryId: state.subCategoryId,
         serviceCategoryIds: state.serviceCategoryIds,
@@ -335,15 +343,14 @@ function EditorInner(p: {
       <div class="border-base-300 flex-none border-b">
         <div class="ui-pad ui-spy-sm">
           <div class="flex items-end gap-4">
-            <Input
-              label={t3({ en: "Variable name", fr: "Nom de variable" })}
-              value={state.varName}
-              onChange={(v) => {
-                setState("varName", v);
-                markDirty();
-              }}
-              mono
-            />
+            <div>
+              <div class="ui-label">
+                {t3({ en: "Variable name", fr: "Nom de variable" })}
+              </div>
+              <div class="ui-form-pad ui-form-text-size font-mono">
+                {p.indicator.varName}
+              </div>
+            </div>
             <Select
               label={t3({ en: "Category", fr: "Catégorie" })}
               value={state.categoryId ?? ""}
@@ -496,6 +503,8 @@ function EditorInner(p: {
                     when={
                       currentRCodeValidation().referencedVars.length > 0 ||
                       currentRCodeValidation().warnings.length > 0 ||
+                      currentRCodeValidation().unknownVariableErrors.length >
+                        0 ||
                       currentRCodeValidation().syntaxErrors.length > 0
                     }
                   >
@@ -507,6 +516,9 @@ function EditorInner(p: {
                             {e}
                           </div>
                         )}
+                      </For>
+                      <For each={currentRCodeValidation().unknownVariableErrors}>
+                        {(e) => <div class="text-danger text-xs">{e}</div>}
                       </For>
                       <For each={currentRCodeValidation().referencedVars}>
                         {(varName) => {
@@ -532,7 +544,7 @@ function EditorInner(p: {
                         }}
                       </For>
                       <For each={currentRCodeValidation().warnings}>
-                        {(w) => <div class="text-danger text-xs">{w}</div>}
+                        {(w) => <div class="text-warning text-xs">{w}</div>}
                       </For>
                     </div>
                   </Show>
@@ -555,8 +567,23 @@ function EditorInner(p: {
                   />
                   <Show
                     when={
+                      state.code[currentTpIndex()].rFilterCode.trim() &&
+                      !state.code[currentTpIndex()].rCode.trim()
+                    }
+                  >
+                    <div class="text-danger font-700 mt-1 text-xs">
+                      {t3({
+                        en: "Filter code requires R code for this time point",
+                        fr: "Le code filtre nécessite un code R pour ce point temporel",
+                      })}
+                    </div>
+                  </Show>
+                  <Show
+                    when={
                       currentFilterValidation().referencedVars.length > 0 ||
                       currentFilterValidation().warnings.length > 0 ||
+                      currentFilterValidation().unknownVariableErrors.length >
+                        0 ||
                       currentFilterValidation().syntaxErrors.length > 0
                     }
                   >
@@ -568,6 +595,9 @@ function EditorInner(p: {
                             {e}
                           </div>
                         )}
+                      </For>
+                      <For each={currentFilterValidation().unknownVariableErrors}>
+                        {(e) => <div class="text-danger text-xs">{e}</div>}
                       </For>
                       <For each={currentFilterValidation().referencedVars}>
                         {(varName) => {
@@ -593,7 +623,7 @@ function EditorInner(p: {
                         }}
                       </For>
                       <For each={currentFilterValidation().warnings}>
-                        {(w) => <div class="text-danger text-xs">{w}</div>}
+                        {(w) => <div class="text-warning text-xs">{w}</div>}
                       </For>
                     </div>
                   </Show>

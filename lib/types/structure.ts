@@ -1,9 +1,16 @@
 import { CsvDetails } from "./instance.ts";
-import { Dhis2Credentials } from "./dataset_hmis_import.ts";
 
 // Which facility registry an import targets. Admin areas are shared; each
 // family has its own facilities table and its own import flow.
 export type FacilityFamily = "hmis" | "hfa";
+
+// What the client sees of stored DHIS2 credentials: the password never leaves
+// the server. The full credentials stay in the DB row for staging.
+export type Dhis2CredentialsRedacted = {
+  url: string;
+  username: string;
+  hasPassword: true;
+};
 
 // ============================================================================
 // Structure Staging Result Types
@@ -108,8 +115,8 @@ export type StructureUploadAttemptDetailDhis2 = {
   status: StructureUploadAttemptStatus;
   datasetFamily: FacilityFamily;
   sourceType: "dhis2";
-  // Step 1: DHIS2 credentials (reused from dataset_hmis_import)
-  step1Result: Dhis2Credentials | undefined;
+  // Step 1: DHIS2 credentials, password redacted
+  step1Result: Dhis2CredentialsRedacted | undefined;
   // Step 2: DHIS2 org unit selection
   step2Result: StructureDhis2OrgUnitSelection | undefined;
   // Step 3: Staging result

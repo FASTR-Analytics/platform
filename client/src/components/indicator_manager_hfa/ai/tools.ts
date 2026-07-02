@@ -4,9 +4,9 @@ import {
   openConfirm,
 } from "panther";
 import { z } from "zod";
-import type { HfaDictionaryForValidation, HfaIndicator, HfaIndicatorCode } from "lib";
+import { extractRIdentifiers, type HfaDictionaryForValidation, type HfaIndicator, type HfaIndicatorCode } from "lib";
 import { serverActions } from "~/server_actions";
-import { checkRCodeResultType, validateRCode } from "../hfa_r_code_validator";
+import { checkRCodeResultType, hasRCodeErrors, validateRCode } from "../hfa_r_code_validator";
 
 // ---------------------------------------------------------------------------
 // Loaders — always read fresh so the AI acts on current state, and so writes
@@ -87,10 +87,11 @@ type CodeRound = { timePoint: string; rCode: string; rFilterCode?: string };
 
 // Mirrors the manager's "Revalidate all" computation (syntax + variable
 // existence → hasSyntaxError; identical non-empty rounds → codeConsistent), plus
-// two additions: an unknown time point also counts as a syntax error, and a
-// result-type check (binary vs numeric) is surfaced in `issues` ONLY — it is
-// advisory and never flips hasSyntaxError, so the stored status stays consistent
-// with the editor for everything the editor itself checks.
+// two additions: an unknown time point also counts as a syntax error, and
+// advisory findings (lone-`=` warnings, the binary/numeric result-type check)
+// are surfaced in `issues` ONLY — they never flip hasSyntaxError, so the stored
+// status stays consistent with the editor for everything the editor itself
+// treats as an error.
 function computeIndicatorValidation(
   code: CodeRound[],
   dict: HfaDictionaryForValidation,
@@ -114,11 +115,12 @@ function computeIndicatorValidation(
     for (const [field, codeStr] of fields) {
       if (!codeStr.trim()) continue;
       const r = validateRCode(codeStr, availableVars, otherVarNames);
-      if (r.syntaxErrors.length > 0 || r.warnings.length > 0) {
+      if (hasRCodeErrors(r)) {
         hasSyntaxError = true;
-        for (const e of r.syntaxErrors) issues.push(`${c.timePoint} ${field}: ${e}`);
-        for (const w of r.warnings) issues.push(`${c.timePoint} ${field}: ${w}`);
       }
+      for (const e of r.syntaxErrors) issues.push(`${c.timePoint} ${field}: ${e}`);
+      for (const e of r.unknownVariableErrors) issues.push(`${c.timePoint} ${field}: ${e}`);
+      for (const w of r.warnings) issues.push(`${c.timePoint} ${field}: WARNING: ${w}`);
     }
     // Result-type only applies to the main rCode (the filter is always boolean).
     for (const w of checkRCodeResultType(c.rCode, expectedType)) {
@@ -626,16 +628,34 @@ export function buildHfaIndicatorTools() {
         const existing = new Set((await loadIndicators()).map((i) => i.varName));
         const unknown = input.varNames.filter((v) => !existing.has(v));
         if (unknown.length > 0) throw new Error(`Unknown indicator(s): ${unknown.join(", ")}.`);
+        const allCode = await loadAllCode();
+        const deleted = new Set(input.varNames);
+        const referencing = new Set<string>();
+        for (const c of allCode) {
+          if (deleted.has(c.varName)) continue;
+          const identifiers = [
+            ...extractRIdentifiers(c.rCode),
+            ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
+          ];
+          if (identifiers.some((id) => deleted.has(id))) referencing.add(c.varName);
+        }
+        const referencedByNote = referencing.size > 0
+          ? `\n\nReferenced by: ${[...referencing].sort().join(", ")} — their code will fail validation.`
+          : "";
         const confirmed = await confirmGate({
           title: "Delete indicators",
-          text: `Permanently delete ${input.varNames.length} indicator(s)?\n\n${input.varNames.join(", ")}`,
+          text: `Permanently delete ${input.varNames.length} indicator(s)?\n\n${input.varNames.join(", ")}${referencedByNote}`,
           intent: "danger",
           confirmButtonLabel: "Delete",
         });
         if (!confirmed) return { applied: false, reason: "User cancelled — nothing deleted." };
         const res = await serverActions.deleteHfaIndicators({ varNames: input.varNames });
         if (!res.success) throw new Error("Failed to delete indicators.");
-        return { applied: true, deleted: input.varNames.length };
+        return {
+          applied: true,
+          deleted: input.varNames.length,
+          stillReferencedBy: referencing.size > 0 ? [...referencing].sort() : undefined,
+        };
       },
       inProgressLabel: () => "Proposing deletion...",
       completionMessage: (input) => `Delete ${input.varNames.length} indicator(s)`,

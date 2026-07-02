@@ -28,7 +28,10 @@ export function StructureWithCsv(p: Props) {
       return;
     }
     if (res.data.items.length === 0) {
-      seStructureItems({ status: "error", err: "No rows" });
+      seStructureItems({
+        status: "error",
+        err: t3({ en: "No rows", fr: "Aucune ligne" }),
+      });
       return;
     }
     seStructureItems({
@@ -42,7 +45,10 @@ export function StructureWithCsv(p: Props) {
     const maxAA = instanceState.maxAdminArea;
     const fcHash = hashFacilityColumnsConfig(instanceState.facilityColumns);
     if (!lastUpdated) {
-      seStructureItems({ status: "error", err: "No structure data" });
+      seStructureItems({
+        status: "error",
+        err: t3({ en: "No structure data", fr: "Aucune donnée de structure" }),
+      });
       return;
     }
     attemptGetStructureItems(lastUpdated, maxAA, fcHash);

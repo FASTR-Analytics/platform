@@ -1,6 +1,6 @@
 type GeoJsonFeature = {
   type: "Feature";
-  geometry: Record<string, unknown> | null;
+  geometry: Record<string, unknown> | null | undefined;
   properties: Record<string, unknown>;
   id?: string | number;
 };
@@ -23,9 +23,16 @@ export function analyzeGeoJson(rawGeoJsonStr: string): GeoJsonAnalysisResult {
   }
 
   const propValues: Record<string, Set<string>> = {};
+  let featureCount = 0;
 
   for (const feature of parsed.features) {
-    if (!feature.properties) continue;
+    if (feature.geometry === null || feature.geometry === undefined) {
+      continue;
+    }
+    featureCount++;
+    if (!feature.properties) {
+      continue;
+    }
     for (const [key, val] of Object.entries(feature.properties)) {
       if (val == null) continue;
       if (!propValues[key]) {
@@ -45,7 +52,7 @@ export function analyzeGeoJson(rawGeoJsonStr: string): GeoJsonAnalysisResult {
   return {
     properties,
     sampleValues,
-    featureCount: parsed.features.length,
+    featureCount,
   };
 }
 
@@ -59,18 +66,15 @@ export function processGeoJson(
     throw new Error("Invalid GeoJSON: expected a FeatureCollection");
   }
 
-  const reverseMapping: Record<string, string> = {};
-  for (const [adminAreaName, geoJsonValue] of Object.entries(areaMapping)) {
-    reverseMapping[geoJsonValue] = adminAreaName;
-  }
-
   const processedFeatures: GeoJsonFeature[] = [];
   for (const feature of parsed.features) {
-    if (feature.geometry === null) continue;
+    if (feature.geometry === null || feature.geometry === undefined) {
+      continue;
+    }
     const matchValue = feature.properties?.[areaMatchProp];
     if (matchValue == null) continue;
     const sourceName = String(matchValue);
-    const adminAreaName = reverseMapping[sourceName] ?? "";
+    const adminAreaName = areaMapping[sourceName] ?? "";
 
     processedFeatures.push({
       type: "Feature",
@@ -95,19 +99,16 @@ export function processGeoJsonFromDhis2(
   areaMatchProp: string,
   areaMapping: Record<string, string>,
 ): string {
-  const reverseMapping: Record<string, string> = {};
-  for (const [adminAreaName, geoJsonValue] of Object.entries(areaMapping)) {
-    reverseMapping[geoJsonValue] = adminAreaName;
-  }
-
   const processedFeatures: GeoJsonFeature[] = [];
   for (const feature of featureCollection.features) {
-    if (feature.geometry === null) continue;
+    if (feature.geometry === null || feature.geometry === undefined) {
+      continue;
+    }
 
     const matchValue = feature.properties?.[areaMatchProp];
     if (matchValue == null) continue;
     const sourceName = String(matchValue);
-    const adminAreaName = reverseMapping[sourceName] ?? "";
+    const adminAreaName = areaMapping[sourceName] ?? "";
 
     processedFeatures.push({
       type: "Feature",

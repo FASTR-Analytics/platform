@@ -56,6 +56,20 @@ export async function updateMaxAdminArea(
       }
     }
 
+    // Check no geojson boundaries exist above the new max level
+    const geojsonLevels = await mainDb<{ admin_area_level: number }[]>`
+      SELECT admin_area_level FROM geojson_maps
+      WHERE admin_area_level > ${newMaxAdminArea}
+      ORDER BY admin_area_level
+    `;
+    if (geojsonLevels.length > 0) {
+      const levels = geojsonLevels.map((r) => r.admin_area_level).join(", ");
+      return {
+        success: false,
+        err: `Cannot lower maxAdminArea: GeoJSON boundaries exist above the new level. Delete the level-${levels} boundaries first.`,
+      };
+    }
+
     // Update the config
     const configValue: InstanceConfigMaxAdminArea = {
       maxAdminArea: newMaxAdminArea,
@@ -199,7 +213,17 @@ export async function updateCountryIso3Config(
   countryIso3: string | undefined
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const configValue: InstanceConfigCountryIso3 = { countryIso3 };
+    // Interpolated into generated R scripts as "${countryIso3}" — must be a clean token
+    const normalized = (countryIso3 ?? "").trim().toUpperCase();
+    if (normalized !== "" && !/^[A-Z]{3}$/.test(normalized)) {
+      return {
+        success: false,
+        err: "Country code must be exactly 3 letters (ISO3), e.g. KEN.",
+      };
+    }
+    const configValue: InstanceConfigCountryIso3 = {
+      countryIso3: normalized === "" ? undefined : normalized,
+    };
     const validated = instanceConfigCountryIso3Schema.parse(configValue);
 
     await mainDb`

@@ -30,6 +30,48 @@ export type BatchIndicator = {
   mapped_raw_indicator_ids: string; // This will be comma-separated or semicolon-separated raw_indicator_ids
 };
 
+export const INDICATOR_ID_MAX_LENGTH = 128;
+
+export type NewIndicatorIdIssue =
+  | "empty"
+  | "untrimmed"
+  | "forbidden_chars"
+  | "too_long";
+
+// Applies to NEWLY created ids only (never to existing stored ids). Commas,
+// semicolons, and colons corrupt the STRING_AGG/split round-trip and the CSV
+// import re-split. Dots stay legal (DHIS2 operand ids contain them).
+export function getNewIndicatorIdIssue(
+  id: string,
+): NewIndicatorIdIssue | undefined {
+  if (id.length === 0) {
+    return "empty";
+  }
+  if (id.trim() !== id) {
+    return "untrimmed";
+  }
+  if (/[,;:]/.test(id)) {
+    return "forbidden_chars";
+  }
+  if (id.length > INDICATOR_ID_MAX_LENGTH) {
+    return "too_long";
+  }
+  return undefined;
+}
+
+export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string {
+  switch (issue) {
+    case "empty":
+      return "must not be empty";
+    case "untrimmed":
+      return "must not have leading or trailing whitespace";
+    case "forbidden_chars":
+      return "must not contain commas, semicolons, or colons";
+    case "too_long":
+      return `must be at most ${INDICATOR_ID_MAX_LENGTH} characters`;
+  }
+}
+
 // ============================================================================
 // Calculated indicators
 // ============================================================================

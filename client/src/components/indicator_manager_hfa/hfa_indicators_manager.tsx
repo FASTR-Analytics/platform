@@ -1,4 +1,5 @@
 import {
+  extractRIdentifiers,
   t3,
   TC,
   type HfaDictionaryForValidation,
@@ -36,7 +37,7 @@ import { HfaIndicatorsXlsxUploadForm } from "./hfa_indicators_xlsx_upload_form";
 import { HfaCategoriesManager } from "./hfa_categories_manager";
 import { HfaServiceCategoriesManager } from "./hfa_service_categories_manager";
 import { buildHfaWorkbookBlob } from "./_xlsx_workbook";
-import { extractRIdentifiers, validateRCode } from "./hfa_r_code_validator";
+import { hasRCodeErrors, validateRCode } from "./hfa_r_code_validator";
 import {
   HfaUnusedVariablesModal,
   type UnusedVariablesByTimePoint,
@@ -148,10 +149,29 @@ export function HfaIndicatorsManager(p: Props) {
     setAllCode(getQueryStateFromApiResponse(res));
   });
 
+  const hfaDataAvailable = () => !!instanceState.hfaCacheHash;
+
+  const noHfaDataMsg = () =>
+    t3({
+      en: "No HFA data has been imported yet. Import HFA data to enable code editing and validation.",
+      fr: "Aucune donnée HFA n'a encore été importée. Importez des données HFA pour activer l'édition du code et la validation.",
+    });
+
+  const surveyVarNames = createMemo(() => {
+    const dictSt = dictionary();
+    if (dictSt.status !== "ready") return [];
+    const names = new Set<string>();
+    for (const tp of dictSt.data.timePoints) {
+      for (const v of tp.vars) names.add(v.varName);
+    }
+    return [...names];
+  });
+
   type IndicatorCodeStats = {
     withCode: number;
     total: number;
     ready: number;
+    warning: number;
     error: number;
     consistent: boolean;
   };
@@ -187,6 +207,7 @@ export function HfaIndicatorsManager(p: Props) {
 
       const withCodeEntries = indCode.filter((c) => c.rCode.trim());
       let ready = 0;
+      let warning = 0;
       let error = 0;
       for (const c of withCodeEntries) {
         const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
@@ -194,16 +215,17 @@ export function HfaIndicatorsManager(p: Props) {
           ? new Set(tp.vars.map((v) => v.varName))
           : new Set<string>();
         let hasErr = false;
+        let hasWarn = false;
         const rCodeResult = validateRCode(
           c.rCode,
           availableVars,
           otherVarNames,
         );
-        if (
-          rCodeResult.syntaxErrors.length > 0 ||
-          rCodeResult.warnings.length > 0
-        ) {
+        if (hasRCodeErrors(rCodeResult)) {
           hasErr = true;
+        }
+        if (rCodeResult.warnings.length > 0) {
+          hasWarn = true;
         }
         if (c.rFilterCode?.trim()) {
           const rFilterResult = validateRCode(
@@ -211,14 +233,15 @@ export function HfaIndicatorsManager(p: Props) {
             availableVars,
             otherVarNames,
           );
-          if (
-            rFilterResult.syntaxErrors.length > 0 ||
-            rFilterResult.warnings.length > 0
-          ) {
+          if (hasRCodeErrors(rFilterResult)) {
             hasErr = true;
+          }
+          if (rFilterResult.warnings.length > 0) {
+            hasWarn = true;
           }
         }
         if (hasErr) error++;
+        else if (hasWarn) warning++;
         else ready++;
       }
 
@@ -239,6 +262,7 @@ export function HfaIndicatorsManager(p: Props) {
         withCode: withCodeEntries.length,
         total,
         ready,
+        warning,
         error,
         consistent,
       });
@@ -296,7 +320,7 @@ export function HfaIndicatorsManager(p: Props) {
           : new Set<string>();
         if (c.rCode.trim()) {
           const result = validateRCode(c.rCode, availableVars, otherVarNames);
-          if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
+          if (hasRCodeErrors(result)) {
             hasSyntaxError = true;
           }
         }
@@ -306,7 +330,7 @@ export function HfaIndicatorsManager(p: Props) {
             availableVars,
             otherVarNames,
           );
-          if (result.syntaxErrors.length > 0 || result.warnings.length > 0) {
+          if (hasRCodeErrors(result)) {
             hasSyntaxError = true;
           }
         }
@@ -352,6 +376,30 @@ export function HfaIndicatorsManager(p: Props) {
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
+        surveyVarNames: surveyVarNames(),
+      },
+    });
+  }
+
+  async function handleOpenMetadataEditor(indicator: HfaIndicator) {
+    const catSt = categories();
+    const subCatSt = subCategories();
+    const svcCatSt = serviceCategories();
+    if (
+      catSt.status !== "ready" ||
+      subCatSt.status !== "ready" ||
+      svcCatSt.status !== "ready"
+    )
+      return;
+    await openComponent({
+      element: EditHfaIndicator,
+      props: {
+        existingIndicator: indicator,
+        sortOrder: indicator.sortOrder,
+        categories: catSt.data,
+        subCategories: subCatSt.data,
+        serviceCategories: svcCatSt.data,
+        surveyVarNames: surveyVarNames(),
       },
     });
   }
@@ -360,6 +408,12 @@ export function HfaIndicatorsManager(p: Props) {
     indicator: HfaIndicator,
     allIndicators: HfaIndicator[],
   ) {
+    // The code editor needs the survey dictionary; with no HFA data imported,
+    // fall back to the metadata-only modal so labels/categories stay editable.
+    if (!hfaDataAvailable()) {
+      await handleOpenMetadataEditor(indicator);
+      return;
+    }
     const dictState = dictionary();
     const catSt = categories();
     const subCatSt = subCategories();
@@ -385,13 +439,49 @@ export function HfaIndicatorsManager(p: Props) {
     });
   }
 
+  function findReferencingIndicators(deletedVarNames: string[]): string[] {
+    const codeSt = allCode();
+    if (codeSt.status !== "ready") return [];
+    const deleted = new Set(deletedVarNames);
+    const referencing = new Set<string>();
+    for (const c of codeSt.data) {
+      if (deleted.has(c.varName)) continue;
+      const identifiers = [
+        ...extractRIdentifiers(c.rCode),
+        ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
+      ];
+      if (identifiers.some((id) => deleted.has(id))) {
+        referencing.add(c.varName);
+      }
+    }
+    return [...referencing].sort();
+  }
+
+  function deleteConfirmText(varNames: string[]): string {
+    const base =
+      varNames.length === 1
+        ? t3({
+            en: "Are you sure you want to delete this indicator?",
+            fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+          })
+        : t3({
+            en: "Are you sure you want to delete these indicators?",
+            fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
+          });
+    const referencing = findReferencingIndicators(varNames);
+    if (referencing.length === 0) {
+      return base;
+    }
+    return `${base} ${t3({
+      en: `Referenced by: ${referencing.join(", ")} — their code will fail validation.`,
+      fr: `Référencé par : ${referencing.join(", ")} — leur code échouera à la validation.`,
+    })}`;
+  }
+
   async function handleDelete(indicator: HfaIndicator) {
     const deleteAction = createDeleteAction(
       {
-        text: t3({
-          en: "Are you sure you want to delete this indicator?",
-          fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
-        }),
+        text: deleteConfirmText([indicator.varName]),
         itemList: [indicator.varName],
       },
       () =>
@@ -404,16 +494,7 @@ export function HfaIndicatorsManager(p: Props) {
     const varNames = selectedIndicators.map((i) => i.varName);
     const deleteAction = createDeleteAction(
       {
-        text:
-          varNames.length === 1
-            ? t3({
-                en: "Are you sure you want to delete this indicator?",
-                fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
-              })
-            : t3({
-                en: "Are you sure you want to delete these indicators?",
-                fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
-              }),
+        text: deleteConfirmText(varNames),
         itemList: varNames,
       },
       () => serverActions.deleteHfaIndicators({ varNames }),
@@ -469,7 +550,7 @@ export function HfaIndicatorsManager(p: Props) {
     if (timePoints === undefined) return;
     await openEditor({
       element: HfaIndicatorsXlsxUploadForm,
-      props: { timePoints },
+      props: { timePoints, surveyVarNames: surveyVarNames() },
     });
   }
 
@@ -626,8 +707,19 @@ export function HfaIndicatorsManager(p: Props) {
                 {t3({ en: `${stats.ready} ready`, fr: `${stats.ready} prêt` })}
               </span>
             </Show>
-            <Show when={stats.error > 0}>
+            <Show when={stats.warning > 0}>
               <Show when={stats.ready > 0}>
+                <span>, </span>
+              </Show>
+              <span class="text-warning font-700">
+                {t3({
+                  en: `${stats.warning} warning`,
+                  fr: `${stats.warning} avertissement`,
+                })}
+              </span>
+            </Show>
+            <Show when={stats.error > 0}>
+              <Show when={stats.ready > 0 || stats.warning > 0}>
                 <span>, </span>
               </Show>
               <span class="text-danger font-700">
@@ -745,41 +837,50 @@ export function HfaIndicatorsManager(p: Props) {
                         {keyedIndicators.length})
                       </div>
                       <Show when={instanceState.currentUserIsGlobalAdmin}>
-                        <Button
-                          iconName="refresh"
-                          onClick={handleRevalidateAll}
-                          loading={revalidating()}
-                          outline
+                        <div
+                          class="ui-gap-sm flex items-center"
+                          title={hfaDataAvailable() ? "" : noHfaDataMsg()}
                         >
-                          {t3({ en: "Revalidate all", fr: "Revalider tout" })}
-                        </Button>
-                        <Button
-                          iconName="search"
-                          onClick={handleCheckUnusedVariables}
-                          outline
-                        >
-                          {t3({
-                            en: "Check unused variables",
-                            fr: "Vérifier les variables inutilisées",
-                          })}
-                        </Button>
-                        <Button
-                          iconName="download"
-                          onClick={handleDownloadXlsx}
-                          outline
-                        >
-                          {t3({
-                            en: "Download Excel",
-                            fr: "Télécharger Excel",
-                          })}
-                        </Button>
-                        <Button
-                          iconName="upload"
-                          onClick={handleXlsxUpload}
-                          outline
-                        >
-                          {t3({ en: "Import Excel", fr: "Importer Excel" })}
-                        </Button>
+                          <Button
+                            iconName="refresh"
+                            onClick={handleRevalidateAll}
+                            loading={revalidating()}
+                            disabled={!hfaDataAvailable()}
+                            outline
+                          >
+                            {t3({ en: "Revalidate all", fr: "Revalider tout" })}
+                          </Button>
+                          <Button
+                            iconName="search"
+                            onClick={handleCheckUnusedVariables}
+                            disabled={!hfaDataAvailable()}
+                            outline
+                          >
+                            {t3({
+                              en: "Check unused variables",
+                              fr: "Vérifier les variables inutilisées",
+                            })}
+                          </Button>
+                          <Button
+                            iconName="download"
+                            onClick={handleDownloadXlsx}
+                            disabled={!hfaDataAvailable()}
+                            outline
+                          >
+                            {t3({
+                              en: "Download Excel",
+                              fr: "Télécharger Excel",
+                            })}
+                          </Button>
+                          <Button
+                            iconName="upload"
+                            onClick={handleXlsxUpload}
+                            disabled={!hfaDataAvailable()}
+                            outline
+                          >
+                            {t3({ en: "Import Excel", fr: "Importer Excel" })}
+                          </Button>
+                        </div>
                         <Button
                           iconName="plus"
                           intent="primary"
@@ -789,6 +890,11 @@ export function HfaIndicatorsManager(p: Props) {
                         </Button>
                       </Show>
                     </div>
+                    <Show when={!hfaDataAvailable()}>
+                      <div class="bg-warning/10 text-warning mb-4 flex-none rounded px-3 py-2 text-sm">
+                        {noHfaDataMsg()}
+                      </div>
+                    </Show>
                     <div class="h-0 w-full flex-1">
                       <Table
                         data={keyedIndicators}

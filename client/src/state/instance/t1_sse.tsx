@@ -3,7 +3,7 @@ import { t3 } from "lib";
 import { Show, on, createEffect, type JSX } from "solid-js";
 import { onMount, onCleanup, createSignal } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
-import { preloadGeoJson } from "~/state/instance/t2_geojson";
+import { evictDeletedGeoJsonLevels, preloadGeoJson } from "~/state/instance/t2_geojson";
 import {
   instanceState,
   initInstanceState,
@@ -76,6 +76,7 @@ export function connectInstanceSSE(): void {
         break;
       case "geojson_maps_updated":
         updateInstanceGeoJsonMaps(msg.data);
+        evictDeletedGeoJsonLevels(msg.data);
         preloadGeoJson(msg.data);
         break;
       case "structure_updated":

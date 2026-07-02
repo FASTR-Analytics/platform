@@ -3,6 +3,8 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   type BatchIndicator,
+  describeNewIndicatorIdIssue,
+  getNewIndicatorIdIssue,
   type InstanceIndicatorDetails,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -99,6 +101,18 @@ export async function createIndicatorsCommon(
   APIResponseWithData<{ created: number; failed: number; errors: string[] }>
 > {
   return await tryCatchDatabaseAsync(async () => {
+    for (const indicator of indicators) {
+      const idIssue = getNewIndicatorIdIssue(indicator.indicator_common_id);
+      if (idIssue) {
+        return {
+          success: false,
+          err: `Invalid indicator ID ${
+            JSON.stringify(indicator.indicator_common_id)
+          }: ${describeNewIndicatorIdIssue(idIssue)}`,
+        };
+      }
+    }
+
     // Check for duplicate indicator_common_ids in the request
     const ids = indicators.map((i) => i.indicator_common_id);
     const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
@@ -212,11 +226,19 @@ export async function updateIndicatorCommon(
   mappedRawIds: string[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    if (oldIndicatorCommonId !== newIndicatorCommonId) {
+      return {
+        success: false,
+        err:
+          "Indicator IDs cannot be changed after creation. Create a new indicator instead.",
+      };
+    }
+
     await mainDb.begin(async (sql) => {
       // Update the common indicator
       await sql`
-        UPDATE indicators 
-        SET 
+        UPDATE indicators
+        SET
           indicator_common_id = ${newIndicatorCommonId},
           indicator_common_label = ${indicatorCommonLabel},
           updated_at = CURRENT_TIMESTAMP
@@ -252,7 +274,6 @@ export async function deleteIndicatorCommon(
       return { success: true };
     }
 
-    // Filter out default indicators and non-existent indicators
     const allIndicators = await mainDb<
       { indicator_common_id: string; is_default: boolean }[]
     >`
@@ -261,33 +282,66 @@ export async function deleteIndicatorCommon(
       WHERE indicator_common_id = ANY(${indicatorCommonIds})
     `;
 
-    // Check for error conditions
-    const defaultIndicators = allIndicators.filter((row) => row.is_default);
-    const nonDefaultIndicators = allIndicators.filter((row) => !row.is_default);
-
-    // Error: if only one indicator and it's default, or all indicators are default
-    if (indicatorCommonIds.length === 1 && defaultIndicators.length === 1) {
-      return { success: false, err: "Cannot delete default indicator" };
-    }
-    if (
-      defaultIndicators.length === allIndicators.length &&
-      allIndicators.length > 0
-    ) {
-      return { success: false, err: "Cannot delete default indicators" };
-    }
-
-    const indicatorsToDelete = nonDefaultIndicators.map(
-      (row) => row.indicator_common_id,
+    const foundIds = new Set(
+      allIndicators.map((row) => row.indicator_common_id),
     );
+    const notFoundIds = indicatorCommonIds.filter((id) => !foundIds.has(id));
+    if (notFoundIds.length > 0) {
+      return {
+        success: false,
+        err: `Common indicators not found: ${notFoundIds.join(", ")}`,
+      };
+    }
 
-    if (indicatorsToDelete.length === 0) {
-      return { success: true };
+    const defaultIds = allIndicators
+      .filter((row) => row.is_default)
+      .map((row) => row.indicator_common_id);
+    if (defaultIds.length > 0) {
+      return {
+        success: false,
+        err: `Cannot delete default indicators: ${defaultIds.join(", ")}`,
+      };
+    }
+
+    // Friendlier than the ON DELETE RESTRICT foreign-key error
+    const blockingCalculated = await mainDb<
+      {
+        calculated_indicator_id: string;
+        num_indicator_id: string;
+        denom_indicator_id: string | null;
+      }[]
+    >`
+      SELECT calculated_indicator_id, num_indicator_id, denom_indicator_id
+      FROM calculated_indicators
+      WHERE num_indicator_id = ANY(${indicatorCommonIds})
+         OR denom_indicator_id = ANY(${indicatorCommonIds})
+      ORDER BY calculated_indicator_id
+    `;
+    if (blockingCalculated.length > 0) {
+      const requestedIds = new Set(indicatorCommonIds);
+      const details = blockingCalculated.map((row) => {
+        const usedIds = [
+          ...new Set(
+            [row.num_indicator_id, row.denom_indicator_id].filter(
+              (id): id is string => id !== null && requestedIds.has(id),
+            ),
+          ),
+        ];
+        return `${row.calculated_indicator_id} (uses ${usedIds.join(", ")})`;
+      });
+      return {
+        success: false,
+        err:
+          `Cannot delete common indicators referenced by calculated indicators: ${
+            details.join("; ")
+          }`,
+      };
     }
 
     // CASCADE foreign key will automatically delete mappings
     await mainDb`
-      DELETE FROM indicators 
-      WHERE indicator_common_id = ANY(${indicatorsToDelete})
+      DELETE FROM indicators
+      WHERE indicator_common_id = ANY(${indicatorCommonIds})
     `;
 
     return { success: true };
@@ -310,6 +364,18 @@ export async function createIndicatorsRaw(
   APIResponseWithData<{ created: number; failed: number; errors: string[] }>
 > {
   return await tryCatchDatabaseAsync(async () => {
+    for (const indicator of indicators) {
+      const idIssue = getNewIndicatorIdIssue(indicator.indicator_raw_id);
+      if (idIssue) {
+        return {
+          success: false,
+          err: `Invalid indicator ID ${
+            JSON.stringify(indicator.indicator_raw_id)
+          }: ${describeNewIndicatorIdIssue(idIssue)}`,
+        };
+      }
+    }
+
     // Check that all mapped common ids exist (friendlier than the FK error)
     const allCommonIds = [
       ...new Set(indicators.flatMap((i) => i.mapped_common_ids)),
@@ -408,24 +474,12 @@ export async function updateIndicatorRaw(
   mappedCommonIds: string[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    // If changing the ID, check if it's used in dataset_hmis. This must run
-    // OUTSIDE begin(): a return value from inside the callback is swallowed
-    // by begin() and the function would report success for a blocked rename.
     if (oldIndicatorRawId !== newIndicatorRawId) {
-      const usageCheck = await mainDb<{ count: number }[]>`
-        SELECT COUNT(*) as count
-        FROM dataset_hmis
-        WHERE indicator_raw_id = ${oldIndicatorRawId}
-      `;
-      if ((usageCheck[0]?.count ?? 0) > 0) {
-        return {
-          success: false,
-          err:
-            `Cannot change indicator_raw_id for ${oldIndicatorRawId}: It has ${
-              usageCheck[0].count
-            } records in dataset_hmis`,
-        };
-      }
+      return {
+        success: false,
+        err:
+          "Indicator IDs cannot be changed after creation. Create a new indicator instead.",
+      };
     }
 
     await mainDb.begin(async (sql) => {
@@ -548,7 +602,7 @@ export async function deleteAllIndicators(
 export async function batchUploadRawIndicators(
   mainDb: Sql,
   assetFileName: string,
-  replaceAllExisting = false,
+  replaceAllExisting: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const filePath = resolveAssetFilePath(assetFileName);
@@ -582,6 +636,24 @@ export async function batchUploadRawIndicators(
       }
     }
 
+    // Row numbers are 1-based and count the CSV header row
+    const invalidIdRows = batchIndicators.flatMap((batch, index) => {
+      const idIssue = getNewIndicatorIdIssue(batch.raw_indicator_id);
+      return idIssue
+        ? [
+          `row ${index + 2} (${batch.raw_indicator_id}): ${
+            describeNewIndicatorIdIssue(idIssue)
+          }`,
+        ]
+        : [];
+    });
+    if (invalidIdRows.length > 0) {
+      return {
+        success: false,
+        err: `Invalid indicator IDs in CSV: ${invalidIdRows.join("; ")}`,
+      };
+    }
+
     await mainDb.begin(async (sql) => {
       if (replaceAllExisting) {
         await sql`DELETE FROM indicators_raw`;
@@ -607,7 +679,7 @@ export async function batchUploadRawIndicators(
 export async function batchUploadIndicators(
   mainDb: Sql,
   assetFileName: string,
-  replaceAllExisting = false,
+  replaceAllExisting: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     // Read and parse the CSV file
@@ -648,6 +720,45 @@ export async function batchUploadIndicators(
       }
     }
 
+    // Parse the mapped_raw_indicator_ids (comma, colon, or semicolon separated)
+    const parsedBatchIndicators = batchIndicators.map((batch) => ({
+      ...batch,
+      rawIds: batch.mapped_raw_indicator_ids
+        .split(/[,:;]/)
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0),
+    }));
+
+    // Row numbers are 1-based and count the CSV header row
+    const invalidIdRows = parsedBatchIndicators.flatMap((batch, index) => {
+      const rowErrors: string[] = [];
+      const commonIdIssue = getNewIndicatorIdIssue(batch.indicator_common_id);
+      if (commonIdIssue) {
+        rowErrors.push(
+          `row ${index + 2} (${batch.indicator_common_id}): ${
+            describeNewIndicatorIdIssue(commonIdIssue)
+          }`,
+        );
+      }
+      for (const rawId of batch.rawIds) {
+        const rawIdIssue = getNewIndicatorIdIssue(rawId);
+        if (rawIdIssue) {
+          rowErrors.push(
+            `row ${index + 2} (${rawId}): ${
+              describeNewIndicatorIdIssue(rawIdIssue)
+            }`,
+          );
+        }
+      }
+      return rowErrors;
+    });
+    if (invalidIdRows.length > 0) {
+      return {
+        success: false,
+        err: `Invalid indicator IDs in CSV: ${invalidIdRows.join("; ")}`,
+      };
+    }
+
     // Process the batch indicators in a transaction
     await mainDb.begin(async (sql) => {
       // If replaceAllExisting is true, delete all existing indicators and mappings first
@@ -669,12 +780,8 @@ export async function batchUploadIndicators(
         `;
       }
 
-      for (const batch of batchIndicators) {
-        // Parse the mapped_raw_indicator_ids (comma, colon, or semicolon separated)
-        const rawIds = batch.mapped_raw_indicator_ids
-          .split(/[,:;]/)
-          .map((id) => id.trim())
-          .filter((id) => id.length > 0);
+      for (const batch of parsedBatchIndicators) {
+        const rawIds = batch.rawIds;
 
         // Insert or update the common indicator
         await sql`

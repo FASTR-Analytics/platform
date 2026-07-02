@@ -200,10 +200,11 @@ defineRoute(
         const currentAreaId = feature.properties?.area_id;
         const sourceName = feature.properties?.source_name;
 
-        // For unmatched features (empty area_id), check if source_name has a mapping
-        if (currentAreaId === "" && typeof sourceName === "string" && remapping[`__source__${sourceName}`]) {
+        // For unmatched features (empty area_id), check if source_name has a mapping.
+        // "" is a valid target: it explicitly unmaps the feature.
+        if (currentAreaId === "" && typeof sourceName === "string" && remapping[`__source__${sourceName}`] !== undefined) {
           feature.properties.area_id = remapping[`__source__${sourceName}`];
-        } else if (typeof currentAreaId === "string" && remapping[currentAreaId]) {
+        } else if (typeof currentAreaId === "string" && remapping[currentAreaId] !== undefined) {
           feature.properties.area_id = remapping[currentAreaId];
         }
       }
@@ -299,7 +300,7 @@ defineRoute(
       let nullGeometryCount = 0;
 
       for (const feature of featureCollection.features) {
-        if (feature.geometry === null) {
+        if (feature.geometry === null || feature.geometry === undefined) {
           nullGeometryCount++;
           continue;
         }
@@ -437,7 +438,7 @@ defineRoute(
         if (level.count === 0) continue;
         try {
           const geojson = await fetchOrgUnitsGeoJsonForLevel(body, level.level);
-          const withGeometry = geojson.features.filter((f) => f.geometry !== null).length;
+          const withGeometry = geojson.features.filter((f) => f.geometry !== null && f.geometry !== undefined).length;
           geometryCounts.set(level.level, withGeometry);
         } catch {
           geometryCounts.set(level.level, 0);

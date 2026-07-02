@@ -1,68 +1,4 @@
-import type { HfaIndicator, HfaIndicatorCode } from "lib";
-
-const R_KEYWORDS = new Set([
-  "TRUE",
-  "FALSE",
-  "NA",
-  "NA_real_",
-  "NA_integer_",
-  "NA_character_",
-  "NULL",
-  "Inf",
-  "NaN",
-  "if",
-  "else",
-  "for",
-  "while",
-  "repeat",
-  "function",
-  "break",
-  "next",
-  "return",
-  "in",
-]);
-
-const R_COMMON_FUNCTIONS = new Set([
-  "c",
-  "case_when",
-  "across",
-  "rowSums",
-  "rowMeans",
-  "str_detect",
-  "as",
-  "as.numeric",
-  "as.character",
-  "as.integer",
-  "as.logical",
-  "is",
-  "is.na",
-  "is.null",
-  "ifelse",
-  "sum",
-  "mean",
-  "min",
-  "max",
-  "abs",
-  "sqrt",
-  "log",
-  "exp",
-]);
-
-export function extractVariablesFromRCode(rCode: string): string[] {
-  let cleaned = rCode;
-
-  cleaned = cleaned.replace(/"[^"]*"/g, "");
-  cleaned = cleaned.replace(/'[^']*'/g, "");
-
-  const identifierPattern = /\b[a-zA-Z_][a-zA-Z0-9._]*\b/g;
-  const matches = [...cleaned.matchAll(identifierPattern)];
-
-  const variables = matches
-    .map((m) => m[0])
-    .filter((v) => !R_KEYWORDS.has(v) && !R_COMMON_FUNCTIONS.has(v));
-
-  return [...new Set(variables)].sort();
-}
+import { extractRIdentifiers, type HfaIndicator, type HfaIndicatorCode } from "lib";
 
 export type ExtractedDependencies = {
   qids: string[];
@@ -80,14 +16,12 @@ export function extractDependenciesFromCode(
 
   const rCodeTrimmed = rCode.trim();
   if (rCodeTrimmed) {
-    extractVariablesFromRCode(rCodeTrimmed).forEach((v) => allVariables.add(v));
+    extractRIdentifiers(rCodeTrimmed).forEach((v) => allVariables.add(v));
   }
 
   const rFilterTrimmed = rFilterCode?.trim() ?? "";
   if (rFilterTrimmed) {
-    extractVariablesFromRCode(rFilterTrimmed).forEach((v) =>
-      allVariables.add(v)
-    );
+    extractRIdentifiers(rFilterTrimmed).forEach((v) => allVariables.add(v));
   }
 
   const qids: string[] = [];

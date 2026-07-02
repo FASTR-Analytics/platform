@@ -348,15 +348,22 @@ export async function getStructureUploadAttempt(
     }
 
     if (rawUA.source_type === "dhis2") {
+      const rawCredentials = parseJsonOrUndefined(rawUA.step_1_result) as
+        | Dhis2Credentials
+        | undefined;
       return {
         success: true,
         data: {
           ...baseData,
           step: rawUA.step as 1 | 2 | 3 | 4,
           sourceType: "dhis2",
-          step1Result: parseJsonOrUndefined(rawUA.step_1_result) as
-            | Dhis2Credentials
-            | undefined,
+          step1Result: rawCredentials
+            ? {
+                url: rawCredentials.url,
+                username: rawCredentials.username,
+                hasPassword: true as const,
+              }
+            : undefined,
           step2Result: parseJsonOrUndefined(rawUA.step_2_result) as
             | StructureDhis2OrgUnitSelection
             | undefined,
@@ -385,6 +392,27 @@ export async function getStructureUploadAttempt(
         },
       };
     }
+  });
+}
+
+// Server-side only: the unredacted credentials for talking to DHIS2. Never
+// return these through a route response.
+export async function getStructureDhis2Credentials(
+  mainDb: Sql,
+  family: FacilityFamily
+): Promise<APIResponseWithData<Dhis2Credentials>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rawUA = await getRawUAOrThrow(mainDb, family);
+    if (rawUA.source_type !== "dhis2" || !rawUA.step_1_result) {
+      return {
+        success: false,
+        err: "No DHIS2 credentials found. Please confirm credentials first.",
+      };
+    }
+    return {
+      success: true,
+      data: JSON.parse(rawUA.step_1_result) as Dhis2Credentials,
+    };
   });
 }
 

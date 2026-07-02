@@ -98,46 +98,74 @@ export async function getCalculatedIndicators(
   });
 }
 
+function uniqueViolationError(e: unknown): string | undefined {
+  if (!(e instanceof Error)) {
+    return undefined;
+  }
+  const pgError = e as Error & { code?: unknown; constraint_name?: unknown };
+  if (pgError.code !== "23505") {
+    return undefined;
+  }
+  const constraintName = typeof pgError.constraint_name === "string"
+    ? pgError.constraint_name
+    : "";
+  if (constraintName.includes("label")) {
+    return "Another calculated indicator already uses this label.";
+  }
+  if (constraintName.includes("pkey")) {
+    return "A calculated indicator with this ID already exists.";
+  }
+  return undefined;
+}
+
 export async function createCalculatedIndicator(
   mainDb: Sql,
   indicator: CalculatedIndicator,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const d = denomFieldsFromCalculatedIndicator(indicator);
-    await mainDb`
-      INSERT INTO calculated_indicators (
-        calculated_indicator_id,
-        label,
-        group_label,
-        sort_order,
-        num_indicator_id,
-        denom_kind,
-        denom_indicator_id,
-        denom_population_type,
-        denom_population_multiplier,
-        format_as,
-        threshold_direction,
-        threshold_green,
-        threshold_yellow,
-        updated_at
-      )
-      VALUES (
-        ${indicator.calculated_indicator_id},
-        ${indicator.label},
-        ${indicator.group_label},
-        ${indicator.sort_order},
-        ${indicator.num_indicator_id},
-        ${d.denom_kind},
-        ${d.denom_indicator_id},
-        ${d.denom_population_type},
-        ${d.denom_population_multiplier},
-        ${indicator.format_as},
-        ${indicator.threshold_direction},
-        ${indicator.threshold_green},
-        ${indicator.threshold_yellow},
-        CURRENT_TIMESTAMP
-      )
-    `;
+    try {
+      await mainDb`
+        INSERT INTO calculated_indicators (
+          calculated_indicator_id,
+          label,
+          group_label,
+          sort_order,
+          num_indicator_id,
+          denom_kind,
+          denom_indicator_id,
+          denom_population_type,
+          denom_population_multiplier,
+          format_as,
+          threshold_direction,
+          threshold_green,
+          threshold_yellow,
+          updated_at
+        )
+        VALUES (
+          ${indicator.calculated_indicator_id},
+          ${indicator.label},
+          ${indicator.group_label},
+          ${indicator.sort_order},
+          ${indicator.num_indicator_id},
+          ${d.denom_kind},
+          ${d.denom_indicator_id},
+          ${d.denom_population_type},
+          ${d.denom_population_multiplier},
+          ${indicator.format_as},
+          ${indicator.threshold_direction},
+          ${indicator.threshold_green},
+          ${indicator.threshold_yellow},
+          CURRENT_TIMESTAMP
+        )
+      `;
+    } catch (e) {
+      const friendlyErr = uniqueViolationError(e);
+      if (friendlyErr) {
+        return { success: false, err: friendlyErr };
+      }
+      throw e;
+    }
     return { success: true };
   });
 }
@@ -149,24 +177,32 @@ export async function updateCalculatedIndicator(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const d = denomFieldsFromCalculatedIndicator(indicator);
-    await mainDb`
-      UPDATE calculated_indicators
-      SET calculated_indicator_id       = ${indicator.calculated_indicator_id},
-          label                        = ${indicator.label},
-          group_label                  = ${indicator.group_label},
-          sort_order                   = ${indicator.sort_order},
-          num_indicator_id             = ${indicator.num_indicator_id},
-          denom_kind                   = ${d.denom_kind},
-          denom_indicator_id           = ${d.denom_indicator_id},
-          denom_population_type        = ${d.denom_population_type},
-          denom_population_multiplier  = ${d.denom_population_multiplier},
-          format_as                    = ${indicator.format_as},
-          threshold_direction          = ${indicator.threshold_direction},
-          threshold_green              = ${indicator.threshold_green},
-          threshold_yellow             = ${indicator.threshold_yellow},
-          updated_at                   = CURRENT_TIMESTAMP
-      WHERE calculated_indicator_id = ${oldCalculatedIndicatorId}
-    `;
+    try {
+      await mainDb`
+        UPDATE calculated_indicators
+        SET calculated_indicator_id       = ${indicator.calculated_indicator_id},
+            label                        = ${indicator.label},
+            group_label                  = ${indicator.group_label},
+            sort_order                   = ${indicator.sort_order},
+            num_indicator_id             = ${indicator.num_indicator_id},
+            denom_kind                   = ${d.denom_kind},
+            denom_indicator_id           = ${d.denom_indicator_id},
+            denom_population_type        = ${d.denom_population_type},
+            denom_population_multiplier  = ${d.denom_population_multiplier},
+            format_as                    = ${indicator.format_as},
+            threshold_direction          = ${indicator.threshold_direction},
+            threshold_green              = ${indicator.threshold_green},
+            threshold_yellow             = ${indicator.threshold_yellow},
+            updated_at                   = CURRENT_TIMESTAMP
+        WHERE calculated_indicator_id = ${oldCalculatedIndicatorId}
+      `;
+    } catch (e) {
+      const friendlyErr = uniqueViolationError(e);
+      if (friendlyErr) {
+        return { success: false, err: friendlyErr };
+      }
+      throw e;
+    }
     return { success: true };
   });
 }

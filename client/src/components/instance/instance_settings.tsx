@@ -123,11 +123,15 @@ export function InstanceSettings(p: Props) {
     return res;
   });
 
-  const updateMaxAdminArea = createButtonAction(() =>
-    serverActions.updateMaxAdminArea({
+  const updateMaxAdminArea = createButtonAction(async () => {
+    const res = await serverActions.updateMaxAdminArea({
       maxAdminArea: selectedMaxAdminArea(),
-    }),
-  );
+    });
+    if (res.success) {
+      setNeedsSavingMaxAdminArea(false);
+    }
+    return res;
+  });
 
   const updateCountryIso3 = createButtonAction(async () => {
     const res = await serverActions.updateCountryIso3({
@@ -148,7 +152,7 @@ export function InstanceSettings(p: Props) {
   };
 
   const handleIso3Change = (value: string) => {
-    setCountryIso3(value);
+    setCountryIso3(value.toUpperCase());
     setNeedsSavingCountryIso3(true);
   };
 
@@ -231,7 +235,7 @@ export function InstanceSettings(p: Props) {
     },
   ];
 
-  const updateFacilityColumns = createButtonAction(() => {
+  const updateFacilityColumns = createButtonAction(async () => {
     const newConfig: InstanceConfigFacilityColumns = {
       includeNames: includeNames(),
       includeTypes: includeTypes(),
@@ -250,7 +254,11 @@ export function InstanceSettings(p: Props) {
       labelCustom4: labelCustom4() || undefined,
       labelCustom5: labelCustom5() || undefined,
     };
-    return serverActions.updateFacilityColumnsConfig(newConfig);
+    const res = await serverActions.updateFacilityColumnsConfig(newConfig);
+    if (res.success) {
+      setNeedsSavingFacilityCols(false);
+    }
+    return res;
   });
 
   return (

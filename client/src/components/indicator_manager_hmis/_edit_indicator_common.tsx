@@ -13,6 +13,7 @@ import { For, createSignal } from "solid-js";
 import {
   t3,
   TC,
+  getNewIndicatorIdIssue,
   type CommonIndicatorWithMappings,
   type RawIndicatorWithMappings,
 } from "lib";
@@ -66,6 +67,16 @@ export function EditIndicatorCommonForm(
         return { success: false, err: t3({ en: "Indicator ID is required", fr: "L'identifiant de l'indicateur est requis" }) };
       }
 
+      if (mode === "create" && getNewIndicatorIdIssue(commonId)) {
+        return {
+          success: false,
+          err: t3({
+            en: "Indicator ID must not contain commas, semicolons, or colons, and must be at most 128 characters",
+            fr: "L'identifiant de l'indicateur ne doit pas contenir de virgules, de points-virgules ou de deux-points, et doit comporter au maximum 128 caractères",
+          }),
+        };
+      }
+
       if (!label) {
         return { success: false, err: t3({ en: "Indicator label is required", fr: "Le libellé de l'indicateur est requis" }) };
       }
@@ -114,9 +125,9 @@ export function EditIndicatorCommonForm(
         value={indicatorCommonId()}
         onChange={setIndicatorCommonId}
         fullWidth
-        autoFocus
+        autoFocus={mode === "create"}
         mono
-        disabled={!!p.existingCommonIndicator?.is_default}
+        disabled={mode === "update"}
       />
       <Input
         label={t3(TC.label)}

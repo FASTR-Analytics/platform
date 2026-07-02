@@ -21,15 +21,6 @@ export function Step4(p: Props) {
   const mappedCount = createMemo(() => Object.keys(state.geoToAdmin()).length);
   const unmappedCount = createMemo(() => geoJsonValues().length - mappedCount());
 
-  function getAreaMappingForSave(): Record<string, string> {
-    const g2a = state.geoToAdmin();
-    const result: Record<string, string> = {};
-    for (const [geoVal, adminName] of Object.entries(g2a)) {
-      result[adminName] = geoVal;
-    }
-    return result;
-  }
-
   const duplicateNames = createMemo(() => {
     const options = state.adminAreaOptions();
     const valueCounts = new Map<string, number>();
@@ -41,7 +32,7 @@ export function Step4(p: Props) {
 
   const saveAction = createFormAction(
     async () => {
-      const mapping = getAreaMappingForSave();
+      const mapping = state.geoToAdmin();
       if (Object.keys(mapping).length === 0) {
         return { success: false, err: t3({ en: "No mappings defined", fr: "Aucun mappage défini" }) };
       }
@@ -110,7 +101,7 @@ export function Step4(p: Props) {
         <div>{t3({ en: "Mapped features", fr: "Entités mappées" })}: {mappedCount()}/{geoJsonValues().length}</div>
         <Show when={unmappedCount() > 0}>
           <div class="text-warning">
-            {unmappedCount()} {t3({ en: "features will be excluded", fr: "entités seront exclues" })}
+            {unmappedCount()} {t3({ en: "features will be kept unmapped (they can be mapped later)", fr: "entités resteront non mappées (elles pourront être mappées plus tard)" })}
           </div>
         </Show>
       </div>

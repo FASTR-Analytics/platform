@@ -152,7 +152,7 @@ export function Step4(p: Props) {
     });
   }
 
-  function columnsNotice(): string {
+  function columnsNotice(intent: IntentType): string {
     const cols = (p.step3Result.stagedOptionalColumns ?? []).map((c) =>
       getStructureColumnLabel(c, p.facilityColumns)
     );
@@ -170,6 +170,13 @@ export function Step4(p: Props) {
         en: "Only the facility ID is mapped — no other columns will be written.",
         fr: "Seul l'identifiant d'établissement est associé — aucune autre colonne ne sera écrite.",
         pt: "Apenas o identificador do estabelecimento está associado — nenhuma outra coluna será escrita.",
+      });
+    }
+    if (intent === "replace_all") {
+      return t3({
+        en: `These columns will be written on the new facilities: ${cols.join(", ")}. Columns you did not map will be empty in the new registry.`,
+        fr: `Ces colonnes seront écrites sur les nouveaux établissements : ${cols.join(", ")}. Les colonnes non associées seront vides dans le nouveau registre.`,
+        pt: `Estas colunas serão escritas nos novos estabelecimentos: ${cols.join(", ")}. As colunas que não associou ficarão vazias no novo registo.`,
       });
     }
     return t3({
@@ -327,7 +334,7 @@ export function Step4(p: Props) {
                         </div>
                       )}
                     </Show>
-                    <div class="text-base-content text-sm">{columnsNotice()}</div>
+                    <div class="text-base-content text-sm">{columnsNotice(t)}</div>
                   </div>
                 )}
               </Show>

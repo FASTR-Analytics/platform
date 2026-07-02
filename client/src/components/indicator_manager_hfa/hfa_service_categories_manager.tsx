@@ -26,7 +26,14 @@ export function HfaServiceCategoriesManager(p: Props) {
   });
 
   async function handleReorder(orderedIds: string[]) {
-    const reordered = orderedIds.map((id) => items.find((c) => c.id === id)!);
+    const reordered: HfaIndicatorServiceCategory[] = [];
+    for (const id of orderedIds) {
+      const item = items.find((c) => c.id === id);
+      if (!item) {
+        return;
+      }
+      reordered.push(item);
+    }
     setItems(reconcile(reordered));
     await serverActions.reorderHfaIndicatorServiceCategories({ orderedIds });
   }

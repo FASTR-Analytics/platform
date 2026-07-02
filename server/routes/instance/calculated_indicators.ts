@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import {
   assertValidCalculatedIndicatorIdentifier,
+  assertValidPopulationType,
   type CalculatedIndicator,
 } from "lib";
 import {
@@ -31,6 +32,12 @@ function validateCalculatedIndicatorIds(indicator: CalculatedIndicator): {
       assertValidCalculatedIndicatorIdentifier(
         indicator.denom.indicator_id,
         "denom_indicator_id",
+      );
+    }
+    if (indicator.denom.kind === "population") {
+      assertValidPopulationType(
+        indicator.denom.population_type,
+        "denom_population_type",
       );
     }
     return { success: true };

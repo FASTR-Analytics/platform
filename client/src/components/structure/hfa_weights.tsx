@@ -127,10 +127,6 @@ function WeightsWithCsv(p: { onCsvReady?: (csv: Csv<any>) => void }) {
       setState({ status: "error", err: res.err });
       return;
     }
-    if (res.data.items.length === 0) {
-      setState({ status: "error", err: "No rows" });
-      return;
-    }
     setState({ status: "ready", data: res.data });
   }
 
@@ -142,23 +138,39 @@ function WeightsWithCsv(p: { onCsvReady?: (csv: Csv<any>) => void }) {
   return (
     <StateHolderWrapper state={state()}>
       {(keyedData) => {
-        const csv = createMemo(() => {
-          const aoa = keyedData.items.map((row) =>
-            keyedData.headers.map((h) => row[h] ?? "")
-          );
-          const c = new Csv({ aoa, colHeaders: keyedData.headers });
-          p.onCsvReady?.(c);
-          return c;
-        });
         return (
-          <TableFromCsv
-            csv={csv()}
-            knownTotalCount={keyedData.totalCount}
-            cellFormatter={(str) =>
-              str === "null" || str === "undefined" || str === "" ? "." : str
+          <Show
+            when={keyedData.items.length > 0}
+            fallback={
+              <div class="ui-pad">
+                {t3({
+                  en: "No sampling weights imported yet",
+                  fr: "Aucune pondération d'échantillonnage importée pour le moment",
+                })}
+              </div>
             }
-            alignText="left"
-          />
+          >
+            {(_) => {
+              const csv = createMemo(() => {
+                const aoa = keyedData.items.map((row) =>
+                  keyedData.headers.map((h) => row[h] ?? "")
+                );
+                const c = new Csv({ aoa, colHeaders: keyedData.headers });
+                p.onCsvReady?.(c);
+                return c;
+              });
+              return (
+                <TableFromCsv
+                  csv={csv()}
+                  knownTotalCount={keyedData.totalCount}
+                  cellFormatter={(str) =>
+                    str === "null" || str === "undefined" || str === "" ? "." : str
+                  }
+                  alignText="left"
+                />
+              );
+            }}
+          </Show>
         );
       }}
     </StateHolderWrapper>

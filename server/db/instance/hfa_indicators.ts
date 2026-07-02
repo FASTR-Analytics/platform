@@ -9,6 +9,7 @@ import {
   type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
   type HfaWorkbookImport,
+  type HfaWorkbookImportResult,
   type HfaDictionaryForValidation,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -491,8 +492,10 @@ export async function batchUploadHfaIndicators(
 export async function importHfaIndicatorsWorkbook(
   mainDb: Sql,
   data: HfaWorkbookImport,
-): Promise<APIResponseNoData> {
+): Promise<APIResponseWithData<HfaWorkbookImportResult>> {
   return await tryCatchDatabaseAsync(async () => {
+    const skippedExisting: string[] = [];
+    let imported = 0;
     await mainDb.begin(async (sql) => {
       const { categories, subCategories, serviceCategories, indicators, code, replaceAll } = data;
 
@@ -625,6 +628,7 @@ export async function importHfaIndicatorsWorkbook(
       for (let i = 0; i < indicators.length; i++) {
         const ind = indicators[i];
         if (!replaceAll && existingVarNames.has(ind.varName)) {
+          skippedExisting.push(ind.varName);
           continue;
         }
         const sortOrder = replaceAll ? i : nextSortOrder++;
@@ -635,6 +639,7 @@ export async function importHfaIndicatorsWorkbook(
         `;
         insertedVarNames.add(ind.varName);
       }
+      imported = insertedVarNames.size;
 
       for (const varName of insertedVarNames) {
         await sql`DELETE FROM hfa_indicator_code WHERE var_name = ${varName}`;
@@ -648,7 +653,7 @@ export async function importHfaIndicatorsWorkbook(
         `;
       }
     });
-    return { success: true };
+    return { success: true, data: { imported, skippedExisting } };
   });
 }
 
@@ -661,6 +666,15 @@ export async function saveHfaIndicatorFull(
   codeConsistent: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    const filterOnly = code.find(
+      (c) => (c.rFilterCode?.trim() ?? "") !== "" && !c.rCode.trim(),
+    );
+    if (filterOnly) {
+      return {
+        success: false,
+        err: `Filter code requires R code for time point "${filterOnly.timePoint}"`,
+      };
+    }
     await mainDb.begin(async (sql) => {
       await sql`
         UPDATE hfa_indicators
@@ -698,11 +712,13 @@ export async function bulkUpdateHfaIndicatorValidation(
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
       for (const u of updates) {
+        // Deliberately no updated_at bump: these flags are display-only editor
+        // metadata (never copied into project snapshots), and bumping would
+        // spuriously flag every project's HFA dataset as stale.
         await sql`
           UPDATE hfa_indicators
           SET has_syntax_error = ${u.hasSyntaxError},
-              code_consistent = ${u.codeConsistent},
-              updated_at = CURRENT_TIMESTAMP
+              code_consistent = ${u.codeConsistent}
           WHERE var_name = ${u.varName}
         `;
       }

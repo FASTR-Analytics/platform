@@ -113,13 +113,13 @@ export function GeoJsonEditModal(p: Props) {
     }));
   }
 
-  // Build remapping for save: only include changed mappings
+  // Build remapping for save: only include changed mappings ("" = explicit unmap)
   function buildRemapping(): Record<string, string> {
     const current = currentMappings();
     const result: Record<string, string> = {};
     for (const group of featureGroups()) {
       const newAreaId = current[group.key];
-      if (newAreaId && newAreaId !== group.areaId) {
+      if (newAreaId !== undefined && newAreaId !== group.areaId) {
         // For unmatched features, use __source__ prefix so server can match by source_name
         if (group.areaId === "" && group.sourceName) {
           result[`__source__${group.sourceName}`] = newAreaId;

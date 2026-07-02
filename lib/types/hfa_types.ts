@@ -83,6 +83,13 @@ export type HfaWorkbookImport = {
   replaceAll: boolean;
 };
 
+export type HfaWorkbookImportResult = {
+  imported: number;
+  // Add mode only: varNames present in the workbook that already exist on the
+  // platform and were therefore left untouched.
+  skippedExisting: string[];
+};
+
 export type HfaDictionaryForValidation = {
   timePoints: {
     timePoint: string;

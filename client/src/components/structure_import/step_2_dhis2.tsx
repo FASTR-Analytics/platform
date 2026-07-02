@@ -22,8 +22,8 @@ type Props = {
 };
 
 export function Step2_Dhis2(p: Props) {
-  const [selectedLevels, setSelectedLevels] = createSignal<Set<any>>(
-    new Set(p.step2Result?.selectedLevels?.map(String) ?? []),
+  const [selectedLevels, setSelectedLevels] = createSignal<Set<number>>(
+    new Set(p.step2Result?.selectedLevels ?? []),
   );
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);
 
@@ -42,7 +42,7 @@ export function Step2_Dhis2(p: Props) {
 
   const save = createFormAction(async () => {
     const selection: StructureDhis2OrgUnitSelection = {
-      selectedLevels: Array.from(selectedLevels()).map(Number),
+      selectedLevels: Array.from(selectedLevels()),
     };
 
     if (selection.selectedLevels.length === 0) {

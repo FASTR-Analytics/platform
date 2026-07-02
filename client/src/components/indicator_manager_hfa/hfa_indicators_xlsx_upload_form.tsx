@@ -5,10 +5,12 @@ import {
   type EditorComponentProps,
   FrameTop,
   HeaderBarCanGoBack,
+  Input,
   RadioGroup,
   Select,
   StateHolderFormError,
   getSelectOptions,
+  openAlert,
   pickFileAsArrayBuffer,
   createFormAction,
 } from "panther";
@@ -21,7 +23,10 @@ import {
   type WorkbookShape,
 } from "./_xlsx_workbook";
 
-type Props = EditorComponentProps<{ timePoints: string[] }, undefined>;
+type Props = EditorComponentProps<
+  { timePoints: string[]; surveyVarNames: string[] },
+  undefined
+>;
 
 type Step =
   | { name: "pick" }
@@ -83,6 +88,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
                   buf={s.buf}
                   uploadMode={uploadMode()}
                   timePoints={p.timePoints}
+                  surveyVarNames={p.surveyVarNames}
                   onBack={() => setStep({ name: "pick" })}
                   onDone={() => p.close(undefined)}
                 />
@@ -198,6 +204,7 @@ function ReconcileStep(p: {
   buf: ArrayBuffer;
   uploadMode: "replace" | "add";
   timePoints: string[]; // platform time points in sort order
+  surveyVarNames: string[];
   onBack: () => void;
   onDone: () => void;
 }) {
@@ -243,28 +250,107 @@ function ReconcileStep(p: {
     return [...mapping];
   };
 
-  const doImport = createFormAction(async () => {
-    const finalMapping = effectiveMapping();
-    const usedTps = new Set(finalMapping.filter(Boolean));
-    if (usedTps.size === 0) {
-      return {
-        success: false,
-        err: t3({
-          en: "Select at least one time point to import into",
-          fr: "Sélectionnez au moins un point temporel dans lequel importer",
-        }),
-      };
-    }
-    const code = applyTimePointMapping(p.shape, finalMapping);
-    return await serverActions.importHfaIndicatorsWorkbook({
-      categories: p.shape.categories,
-      subCategories: p.shape.subCategories,
-      serviceCategories: p.shape.serviceCategories,
-      indicators: p.shape.indicators,
-      code,
-      replaceAll: p.uploadMode === "replace",
-    });
-  }, p.onDone);
+  const [replaceCheckText, setReplaceCheckText] = createSignal("");
+  const replaceConfirmed = () =>
+    p.uploadMode !== "replace" || replaceCheckText() === "yes please delete";
+
+  const doImport = createFormAction(
+    async () => {
+      const finalMapping = effectiveMapping();
+      const usedTps = new Set(finalMapping.filter(Boolean));
+      if (usedTps.size === 0) {
+        return {
+          success: false,
+          err: t3({
+            en: "Select at least one time point to import into",
+            fr: "Sélectionnez au moins un point temporel dans lequel importer",
+          }),
+        };
+      }
+
+      const mappedTps = finalMapping.filter((tp): tp is string => !!tp);
+      const duplicateTp = mappedTps.find(
+        (tp, i) => mappedTps.indexOf(tp) !== i,
+      );
+      if (duplicateTp) {
+        return {
+          success: false,
+          err: t3({
+            en: `Two workbook columns are mapped to the same time point ("${duplicateTp}"). Each platform time point can receive at most one column.`,
+            fr: `Deux colonnes du classeur sont mappées au même point temporel (« ${duplicateTp} »). Chaque point temporel de la plateforme ne peut recevoir qu'une seule colonne.`,
+          }),
+        };
+      }
+
+      if (p.uploadMode === "add") {
+        const shadowing = p.shape.indicators
+          .map((ind) => ind.varName)
+          .filter((v) => p.surveyVarNames.includes(v));
+        if (shadowing.length > 0) {
+          return {
+            success: false,
+            err: t3({
+              en: `These varNames are survey variable names and would shadow the dataset columns in other indicators' code: ${shadowing.join(", ")}. Rename them in the workbook.`,
+              fr: `Ces noms de variables sont des noms de variables d'enquête et masqueraient les colonnes du jeu de données dans le code des autres indicateurs : ${shadowing.join(", ")}. Renommez-les dans le classeur.`,
+            }),
+          };
+        }
+      }
+
+      const code = applyTimePointMapping(p.shape, finalMapping);
+
+      const seenKeys = new Set<string>();
+      const duplicateKeys = new Set<string>();
+      for (const c of code) {
+        const key = `${c.varName} / ${c.timePoint}`;
+        if (seenKeys.has(key)) duplicateKeys.add(key);
+        seenKeys.add(key);
+      }
+      if (duplicateKeys.size > 0) {
+        return {
+          success: false,
+          err: t3({
+            en: `The workbook produces duplicate code rows for: ${[...duplicateKeys].join("; ")}. Each indicator can have only one code entry per time point.`,
+            fr: `Le classeur produit des lignes de code en double pour : ${[...duplicateKeys].join("; ")}. Chaque indicateur ne peut avoir qu'une seule entrée de code par point temporel.`,
+          }),
+        };
+      }
+
+      const filterOnly = code.filter(
+        (c) => !c.rCode.trim() && (c.rFilterCode ?? "").trim(),
+      );
+      if (filterOnly.length > 0) {
+        return {
+          success: false,
+          err: t3({
+            en: `Filter code requires R code. Rows with filter code but no R code: ${filterOnly.map((c) => `${c.varName} / ${c.timePoint}`).join("; ")}.`,
+            fr: `Le code filtre nécessite un code R. Lignes avec un code filtre mais sans code R : ${filterOnly.map((c) => `${c.varName} / ${c.timePoint}`).join("; ")}.`,
+          }),
+        };
+      }
+
+      return await serverActions.importHfaIndicatorsWorkbook({
+        categories: p.shape.categories,
+        subCategories: p.shape.subCategories,
+        serviceCategories: p.shape.serviceCategories,
+        indicators: p.shape.indicators,
+        code,
+        replaceAll: p.uploadMode === "replace",
+      });
+    },
+    async (data) => {
+      if (data.skippedExisting.length > 0) {
+        await openAlert({
+          title: t3({ en: "Import complete", fr: "Importation terminée" }),
+          text: t3({
+            en: `Imported ${data.imported} new indicator(s); ${data.skippedExisting.length} existing were skipped (add mode does not modify existing indicators): ${data.skippedExisting.join(", ")}`,
+            fr: `${data.imported} nouveau(x) indicateur(s) importé(s) ; ${data.skippedExisting.length} existant(s) ont été ignoré(s) (le mode ajout ne modifie pas les indicateurs existants) : ${data.skippedExisting.join(", ")}`,
+          }),
+        });
+      }
+      p.onDone();
+    },
+  );
 
   return (
     <>
@@ -362,6 +448,22 @@ function ReconcileStep(p: {
         </div>
       </Show>
 
+      <Show when={p.uploadMode === "replace"}>
+        <div class="text-danger font-700 text-sm">
+          {t3({
+            en: "Replace mode permanently deletes ALL existing indicators, categories, sub-categories, and service categories before importing.",
+            fr: "Le mode remplacement supprime définitivement TOUS les indicateurs, catégories, sous-catégories et catégories de service existants avant l'importation.",
+          })}
+        </div>
+        <div class="text-sm">
+          {t3({ en: "To confirm, write", fr: "Pour confirmer, écrivez" })}{" "}
+          <span class="font-700">yes please delete</span>{" "}
+          {t3({ en: "in the input box", fr: "dans le champ de saisie" })}
+        </div>
+        <div class="w-96">
+          <Input value={replaceCheckText()} onChange={setReplaceCheckText} />
+        </div>
+      </Show>
       <StateHolderFormError state={doImport.state()} />
       <div class="ui-gap-sm flex">
         <Button
@@ -369,6 +471,7 @@ function ReconcileStep(p: {
           state={doImport.state()}
           intent="primary"
           iconName="upload"
+          disabled={!replaceConfirmed()}
         >
           {t3({ en: "Import", fr: "Importer" })}
         </Button>

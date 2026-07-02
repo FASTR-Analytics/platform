@@ -1,11 +1,6 @@
 import { stringifyCsvWithHeaders } from "@timroberton/panther";
 import { Hono } from "hono";
-import {
-  _DATASET_LIMIT,
-  t3,
-  type Dhis2Credentials,
-  type FacilityFamily,
-} from "lib";
+import { _DATASET_LIMIT, t3, type FacilityFamily } from "lib";
 import {
   addStructureUploadAttempt,
   deleteAllHfaFacilityWeights,
@@ -17,6 +12,7 @@ import {
   getInstanceStructureSummary,
   importHfaFacilityWeights,
   deleteStructureUploadAttempt,
+  getStructureDhis2Credentials,
   getStructureItems,
   getStructureUploadAttempt,
   getStructureUploadStatus,
@@ -450,30 +446,17 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("structureStep2Dhis2_GetOrgUnitsMetadata"),
   async (c, { params }) => {
-    // Get the current upload attempt
-    const attemptRes = await getStructureUploadAttempt(
+    const credentialsRes = await getStructureDhis2Credentials(
       c.var.mainDb,
       params.family,
     );
-    if (!attemptRes.success) {
-      return c.json({
-        success: false,
-        err: "No structure upload attempt found",
-      });
-    }
-
-    const attempt = attemptRes.data;
-    if (!attempt.step1Result) {
-      return c.json({
-        success: false,
-        err: "No DHIS2 credentials found. Please confirm credentials first.",
-      });
+    if (!credentialsRes.success) {
+      return c.json(credentialsRes);
     }
 
     // Fetch metadata only (no caching, no full org unit data)
     try {
-      const credentials = attempt.step1Result as Dhis2Credentials;
-      const fetchOptions = { dhis2Credentials: credentials };
+      const fetchOptions = { dhis2Credentials: credentialsRes.data };
 
       const metadata = await getOrgUnitMetadata(fetchOptions);
 
@@ -495,7 +478,7 @@ defineRoute(
 // Weights CSV export — wide format: facility_id + one column per time point
 routesStructure.get(
   "/structure/hfa_facility_weights/export/csv",
-  requireGlobalPermission("can_configure_data"),
+  requireGlobalPermission("can_view_data"),
   log("exportHfaFacilityWeightsCsv"),
   async (c) => {
     const res = await getHfaFacilityWeightsItems(c.var.mainDb);
@@ -517,7 +500,7 @@ routesStructure.get(
 // CSV export endpoint - uses getStructureItems without limit for all rows
 routesStructure.get(
   "/structure/facilities/export/csv/:family",
-  requireGlobalPermission("can_configure_data"),
+  requireGlobalPermission("can_view_data"),
   log("exportStructureItemsCsv"),
   async (c) => {
     const family = parseFacilityFamily(c.req.param("family"));

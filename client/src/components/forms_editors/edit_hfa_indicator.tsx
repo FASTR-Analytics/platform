@@ -1,4 +1,4 @@
-import { type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorServiceCategory, type HfaIndicatorSubCategory, t3 } from "lib";
+import { HFA_VAR_NAME_REGEX, type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorServiceCategory, type HfaIndicatorSubCategory, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -9,7 +9,7 @@ import {
   TextArea,
   createFormAction,
 } from "panther";
-import { createSignal } from "solid-js";
+import { createSignal, Match, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 export function EditHfaIndicator(
@@ -20,6 +20,7 @@ export function EditHfaIndicator(
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
       serviceCategories: HfaIndicatorServiceCategory[];
+      surveyVarNames: string[];
     },
     undefined
   >,
@@ -45,9 +46,32 @@ export function EditHfaIndicator(
     async (e: MouseEvent) => {
       e.preventDefault();
 
-      const trimmedVarName = varName().trim();
+      // varName is immutable once created: hfa_indicator_code references it via
+      // a non-cascading FK, so a rename would fail whenever code exists.
+      const trimmedVarName =
+        mode === "create" ? varName().trim() : p.existingIndicator!.varName;
       if (!trimmedVarName) {
         return { success: false, err: t3({ en: "Variable name is required", fr: "Le nom de la variable est requis" }) };
+      }
+      if (mode === "create") {
+        if (!HFA_VAR_NAME_REGEX.test(trimmedVarName)) {
+          return {
+            success: false,
+            err: t3({
+              en: "Variable name must start with a letter and contain only letters, digits, and underscores (max 64 characters)",
+              fr: "Le nom de la variable doit commencer par une lettre et ne contenir que des lettres, des chiffres et des tirets bas (max 64 caractères)",
+            }),
+          };
+        }
+        if (p.surveyVarNames.includes(trimmedVarName)) {
+          return {
+            success: false,
+            err: t3({
+              en: `"${trimmedVarName}" is a survey variable name — using it would shadow the dataset column in other indicators' code. Choose a different name.`,
+              fr: `« ${trimmedVarName} » est le nom d'une variable d'enquête — l'utiliser masquerait la colonne du jeu de données dans le code des autres indicateurs. Choisissez un autre nom.`,
+            }),
+          };
+        }
       }
 
       const indicator: HfaIndicator = {
@@ -60,8 +84,8 @@ export function EditHfaIndicator(
         type: type(),
         aggregation: aggregation(),
         sortOrder: p.sortOrder,
-        hasSyntaxError: false,
-        codeConsistent: true,
+        hasSyntaxError: p.existingIndicator?.hasSyntaxError ?? false,
+        codeConsistent: p.existingIndicator?.codeConsistent ?? true,
       };
 
       if (mode === "create") {
@@ -91,14 +115,28 @@ export function EditHfaIndicator(
       cancelFunc={() => p.close(undefined)}
     >
       <div class="ui-spy">
-        <Input
-          label={t3({ en: "Variable name", fr: "Nom de la variable" })}
-          value={varName()}
-          onChange={setVarName}
-          fullWidth
-          autoFocus
-          mono
-        />
+        <Switch>
+          <Match when={mode === "create"}>
+            <Input
+              label={t3({ en: "Variable name", fr: "Nom de la variable" })}
+              value={varName()}
+              onChange={setVarName}
+              fullWidth
+              autoFocus
+              mono
+            />
+          </Match>
+          <Match when={mode === "update"}>
+            <div>
+              <div class="ui-label">
+                {t3({ en: "Variable name", fr: "Nom de la variable" })}
+              </div>
+              <div class="ui-form-pad ui-form-text-size font-mono">
+                {varName()}
+              </div>
+            </div>
+          </Match>
+        </Switch>
         <Select
           label={t3({ en: "Category", fr: "Catégorie" })}
           value={categoryId() ?? ""}

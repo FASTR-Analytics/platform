@@ -1,11 +1,12 @@
 import { read, utils, write } from "xlsx";
-import type {
-  HfaIndicator,
-  HfaIndicatorCategory,
-  HfaIndicatorCode,
-  HfaIndicatorServiceCategory,
-  HfaIndicatorSubCategory,
-  HfaWorkbookImport,
+import {
+  HFA_VAR_NAME_REGEX,
+  type HfaIndicator,
+  type HfaIndicatorCategory,
+  type HfaIndicatorCode,
+  type HfaIndicatorServiceCategory,
+  type HfaIndicatorSubCategory,
+  type HfaWorkbookImport,
 } from "lib";
 
 const SHEET_CATEGORIES = "Categories";
@@ -266,6 +267,9 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
       while (usedVarNames.has(`ind${String(autoVarCounter).padStart(3, "0")}`)) autoVarCounter++;
       varName = `ind${String(autoVarCounter).padStart(3, "0")}`;
       autoVarCounter++;
+    }
+    if (!HFA_VAR_NAME_REGEX.test(varName)) {
+      return { ok: false, err: `Indicators sheet, row ${i + 2}: varName "${varName}" must start with a letter and contain only letters, digits, and underscores (max 64 characters).` };
     }
     if (usedVarNames.has(varName)) return { ok: false, err: `Indicators sheet, row ${i + 2}: duplicate varName "${varName}".` };
     usedVarNames.add(varName);

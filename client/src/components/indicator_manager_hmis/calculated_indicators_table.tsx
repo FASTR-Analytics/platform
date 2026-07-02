@@ -51,7 +51,7 @@ export function CalculatedIndicatorsTable(p: Props) {
       props: {
         commonIndicators: p.commonIndicators,
         existingCalculatedIndicators: p.calculatedIndicators,
-        existing: {
+        prefill: {
           ...indicator,
           calculated_indicator_id: `${indicator.calculated_indicator_id}_copy`,
           label: `${indicator.label} (copy)`,

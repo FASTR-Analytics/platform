@@ -6,8 +6,9 @@ import type {
   HfaIndicatorCategory,
   HfaIndicatorServiceCategory,
   HfaIndicatorSubCategory,
-  HfaWorkbookImport,
+  HfaWorkbookImportResult,
 } from "../../types/mod.ts";
+import { HFA_VAR_NAME_REGEX } from "../../hfa_r_code_analysis.ts";
 import { route } from "../route-utils.ts";
 
 const hfaIndicatorCategorySchema = z.object({
@@ -29,8 +30,13 @@ const hfaIndicatorServiceCategorySchema = z.object({
   sortOrder: z.number(),
 });
 
+const hfaVarNameSchema = z.string().regex(
+  HFA_VAR_NAME_REGEX,
+  "varName must start with a letter and contain only letters, digits, and underscores (max 64 characters)",
+);
+
 const hfaIndicatorSchema = z.object({
-  varName: z.string(),
+  varName: hfaVarNameSchema,
   categoryId: z.string().nullable(),
   subCategoryId: z.string().nullable(),
   serviceCategoryIds: z.array(z.string()),
@@ -55,7 +61,7 @@ const hfaWorkbookImportSchema = z.object({
   subCategories: z.array(z.object({ id: z.string(), categoryId: z.string(), label: z.string() })),
   serviceCategories: z.array(z.object({ id: z.string(), label: z.string() })),
   indicators: z.array(z.object({
-    varName: z.string(),
+    varName: hfaVarNameSchema,
     categoryId: z.string().nullable(),
     subCategoryId: z.string().nullable(),
     serviceCategoryIds: z.array(z.string()),
@@ -184,6 +190,7 @@ export const hfaIndicatorRouteRegistry = {
     path: "/hfa-indicators/import-workbook",
     method: "POST",
     body: hfaWorkbookImportSchema,
+    response: {} as HfaWorkbookImportResult,
   }),
   getHfaIndicatorCode: route({
     path: "/hfa-indicators/code",

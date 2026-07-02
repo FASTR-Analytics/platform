@@ -50,6 +50,28 @@ async function loadLevel(level: number, uploadedAt: string): Promise<void> {
   await set(idbKey, entry);
 }
 
+export async function evictDeletedGeoJsonLevels(maps: GeoJsonMapSummary[]): Promise<void> {
+  const keepLevels = new Set(maps.map((m) => m.adminAreaLevel));
+  for (const level of [...memoryCache.keys()]) {
+    if (!keepLevels.has(level)) {
+      memoryCache.delete(level);
+    }
+  }
+  try {
+    const allKeys = await keys();
+    for (const key of allKeys) {
+      if (typeof key === "string" && key.startsWith(IDB_PREFIX)) {
+        const level = Number(key.slice(IDB_PREFIX.length));
+        if (!keepLevels.has(level)) {
+          await del(key);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("evictDeletedGeoJsonLevels: IDB cleanup failed:", e);
+  }
+}
+
 export function clearGeoJsonMemoryCache(): void {
   memoryCache.clear();
 }

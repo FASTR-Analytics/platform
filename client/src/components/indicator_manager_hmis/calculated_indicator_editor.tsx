@@ -28,54 +28,56 @@ export function EditCalculatedIndicatorForm(
       commonIndicators: CommonIndicatorWithMappings[];
       existingCalculatedIndicators: CalculatedIndicator[];
       existing?: CalculatedIndicator;
+      prefill?: CalculatedIndicator;
     },
     undefined
   >,
 ) {
   const mode = p.existing ? "update" : "create";
+  const initial = p.existing ?? p.prefill;
 
   const [calculatedIndicatorId, setCalculatedIndicatorId] = createSignal(
-    p.existing?.calculated_indicator_id ?? "",
+    initial?.calculated_indicator_id ?? "",
   );
-  const [label, setLabel] = createSignal(p.existing?.label ?? "");
+  const [label, setLabel] = createSignal(initial?.label ?? "");
   const [groupLabel, setGroupLabel] = createSignal(
-    p.existing?.group_label ?? "",
+    initial?.group_label ?? "",
   );
 
   const [numIndicatorId, setNumIndicatorId] = createSignal(
-    p.existing?.num_indicator_id ?? "",
+    initial?.num_indicator_id ?? "",
   );
   const [denomKind, setDenomKind] = createSignal<"none" | "indicator" | "population">(
-    p.existing?.denom.kind ?? "none",
+    initial?.denom.kind ?? "none",
   );
   const [denomIndicatorId, setDenomIndicatorId] = createSignal(
-    p.existing?.denom.kind === "indicator" ? p.existing.denom.indicator_id : "",
+    initial?.denom.kind === "indicator" ? initial.denom.indicator_id : "",
   );
   const [denomPopulationType, setDenomPopulationType] =
     createSignal<PopulationType>(
-      p.existing?.denom.kind === "population"
-        ? p.existing.denom.population_type
+      initial?.denom.kind === "population"
+        ? initial.denom.population_type
         : "total_population",
     );
   const [denomPopulationMultiplier, setDenomPopulationMultiplier] =
     createSignal(
-      p.existing?.denom.kind === "population"
-        ? String(p.existing.denom.multiplier)
+      initial?.denom.kind === "population"
+        ? String(initial.denom.multiplier)
         : "1",
     );
 
   const [formatAs, setFormatAs] = createSignal<FormatAs>(
-    p.existing?.format_as ?? "percent",
+    initial?.format_as ?? "percent",
   );
   const [thresholdDirection, setThresholdDirection] =
     createSignal<ThresholdDirection>(
-      p.existing?.threshold_direction ?? "higher_is_better",
+      initial?.threshold_direction ?? "higher_is_better",
     );
   const [thresholdGreen, setThresholdGreen] = createSignal(
-    String(p.existing?.threshold_green ?? 80),
+    String(initial?.threshold_green ?? 80),
   );
   const [thresholdYellow, setThresholdYellow] = createSignal(
-    String(p.existing?.threshold_yellow ?? 70),
+    String(initial?.threshold_yellow ?? 70),
   );
 
   const idValidationError = createMemo(() => {
@@ -88,6 +90,23 @@ export function EditCalculatedIndicatorForm(
       });
     }
     return null;
+  });
+
+  const numIdError = createMemo(() => {
+    const id = numIndicatorId();
+    if (!id || isValidCalculatedIndicatorIdentifier(id)) {
+      return undefined;
+    }
+    return unusableCommonIdMessage();
+  });
+
+  const denomIdError = createMemo(() => {
+    const kind = denomKind();
+    const id = denomIndicatorId();
+    if (kind !== "indicator" || !id || isValidCalculatedIndicatorIdentifier(id)) {
+      return undefined;
+    }
+    return unusableCommonIdMessage();
   });
 
   const commonIndicatorOptions = () => [
@@ -192,6 +211,10 @@ export function EditCalculatedIndicatorForm(
           }),
         };
       }
+      const numErr = numIdError();
+      if (numErr) {
+        return { success: false, err: numErr };
+      }
 
       let denom: CalculatedIndicator["denom"];
       if (denomKind() === "none") {
@@ -218,6 +241,10 @@ export function EditCalculatedIndicatorForm(
               fr: "Le dénominateur doit référencer un indicateur commun existant",
             }),
           };
+        }
+        const denomErr = denomIdError();
+        if (denomErr) {
+          return { success: false, err: denomErr };
         }
         denom = { kind: "indicator", indicator_id: denomId };
       } else {
@@ -254,7 +281,12 @@ export function EditCalculatedIndicatorForm(
         calculated_indicator_id: id,
         label: lbl,
         group_label: groupLabel().trim(),
-        sort_order: p.existing?.sort_order ?? 0,
+        sort_order: p.existing
+          ? p.existing.sort_order
+          : p.existingCalculatedIndicators.reduce(
+              (max, si) => Math.max(max, si.sort_order),
+              0,
+            ) + 1,
         num_indicator_id: numIndicatorId(),
         denom,
         format_as: formatAs(),
@@ -334,6 +366,9 @@ export function EditCalculatedIndicatorForm(
             options={commonIndicatorOptions()}
             fullWidth
           />
+          <Show when={numIdError()}>
+            <div class="text-error -mt-1 text-xs">{numIdError()}</div>
+          </Show>
         </div>
 
         <div class="ui-spy-sm">
@@ -379,6 +414,9 @@ export function EditCalculatedIndicatorForm(
               options={commonIndicatorOptions()}
               fullWidth
             />
+            <Show when={denomIdError()}>
+              <div class="text-error -mt-1 text-xs">{denomIdError()}</div>
+            </Show>
           </Show>
           <Show when={denomKind() === "population"}>
             <Select
@@ -481,4 +519,11 @@ export function EditCalculatedIndicatorForm(
       </div>
     </AlertFormHolder>
   );
+}
+
+function unusableCommonIdMessage(): string {
+  return t3({
+    en: "This indicator's ID contains characters that cannot be used in calculations. Only IDs starting with a lowercase letter and containing only lowercase letters, numbers, and underscores can be used.",
+    fr: "L'ID de cet indicateur contient des caractères qui ne peuvent pas être utilisés dans les calculs. Seuls les ID commençant par une lettre minuscule et ne contenant que des lettres minuscules, des chiffres et des tirets bas peuvent être utilisés.",
+  });
 }

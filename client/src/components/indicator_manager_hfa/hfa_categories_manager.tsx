@@ -91,7 +91,14 @@ function CategoriesPane(p: {
   });
 
   async function handleReorder(orderedIds: string[]) {
-    const reordered = orderedIds.map((id) => items.find((c) => c.id === id)!);
+    const reordered: HfaIndicatorCategory[] = [];
+    for (const id of orderedIds) {
+      const item = items.find((c) => c.id === id);
+      if (!item) {
+        return;
+      }
+      reordered.push(item);
+    }
     setItems(reconcile(reordered));
     await serverActions.reorderHfaIndicatorCategories({ orderedIds });
   }
@@ -246,7 +253,14 @@ function SubCategoriesPane(p: {
   });
 
   async function handleReorder(orderedIds: string[]) {
-    const reordered = orderedIds.map((id) => items.find((sc) => sc.id === id)!);
+    const reordered: HfaIndicatorSubCategory[] = [];
+    for (const id of orderedIds) {
+      const item = items.find((sc) => sc.id === id);
+      if (!item) {
+        return;
+      }
+      reordered.push(item);
+    }
     setItems(reconcile(reordered));
     await serverActions.reorderHfaIndicatorSubCategories({
       categoryId: p.category.id,
