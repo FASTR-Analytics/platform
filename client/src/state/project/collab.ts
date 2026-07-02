@@ -118,7 +118,11 @@ function applySessionUser(awareness: Awareness): void {
     awareness.setLocalStateField("user", {
       name: id.name,
       color: id.color,
-      colorLight: id.color,
+      // Selection-highlight color: y-codemirror paints the peer's selected
+      // RANGE with this as the background, so it must be translucent — the
+      // opaque presence color would black out the selected text. "33" = ~20%
+      // alpha on the hex color, matching the library's own fallback.
+      colorLight: id.color + "33",
     });
   }
 }
