@@ -25,6 +25,7 @@ import {
   materializeSlide,
   seedSlideDoc,
   type Slide,
+  syncSlideToDoc,
 } from "lib";
 
 const CHECKPOINT_DEBOUNCE_MS = 1500;
@@ -41,8 +42,8 @@ export type SlideRoomDeps = {
   loadSlide: () => Promise<{ slide: Slide; crdtState: string | null } | null>;
   /** Persist the materialized slide config + Yjs state (collab is
    *  authoritative, so this overwrites) and fire SSE notifications. Returns
-   *  whether the save succeeded. */
-  saveSlide: (slide: Slide, crdtState: string) => Promise<boolean>;
+   *  the new last_updated, or null when the save failed. */
+  saveSlide: (slide: Slide, crdtState: string) => Promise<string | null>;
 };
 
 type Room = {
@@ -93,18 +94,19 @@ function scheduleCheckpoint(room: Room): void {
   }, CHECKPOINT_DEBOUNCE_MS);
 }
 
-async function checkpoint(room: Room): Promise<void> {
-  if (!room.dirty) return;
+async function checkpoint(room: Room): Promise<string | null> {
+  if (!room.dirty) return null;
   room.dirty = false;
   const slide = materializeSlide(room.doc);
   const crdtState = bytesToBase64(Y.encodeStateAsUpdate(room.doc));
-  const ok = await room.deps.saveSlide(slide, crdtState);
+  const lastUpdated = await room.deps.saveSlide(slide, crdtState);
   // [VIZSYNC-SRV] temporary diagnostic — remove after debugging viz-sync.
-  console.log("[VIZSYNC-SRV] checkpoint", { slideId: room.slideId, saved: ok });
-  if (!ok) {
+  console.log("[VIZSYNC-SRV] checkpoint", { slideId: room.slideId, saved: lastUpdated !== null });
+  if (lastUpdated === null) {
     // Save failed — keep dirty so the next change (or finalize) retries.
     room.dirty = true;
   }
+  return lastUpdated;
 }
 
 /** A client opens a slide for (read-only or editing) collaboration. */
@@ -242,6 +244,40 @@ async function finalizeRoom(room: Room): Promise<void> {
     room.checkpointTimer = null;
   }
   await checkpoint(room);
+  // A client may have subscribed while the final checkpoint was in flight —
+  // the room is still registered during the await, so it must stay alive for
+  // them (destroying it would silently drop all their future updates).
+  if (room.conns.size > 0) return;
+  if (rooms.get(room.key) === room) rooms.delete(room.key);
   room.doc.destroy();
-  rooms.delete(room.key);
+}
+
+/**
+ * Route a non-collab slide save (plain updateSlide: AI deck-level edits,
+ * conflict-resolution saves) through a live room, if one exists. The external
+ * slide is applied onto the authoritative doc — relaying the change live to
+ * connected editors — and checkpointed immediately so the caller gets
+ * read-your-write semantics. Without this, a direct DB write would be silently
+ * clobbered by the room's next checkpoint.
+ *
+ * Returns the new last_updated when a room handled the save, or null when no
+ * room is live (caller should write to the DB directly).
+ */
+export async function applySlideToLiveRoom(
+  projectId: string,
+  slideId: string,
+  slide: Slide,
+): Promise<string | null> {
+  const room = rooms.get(roomKey(projectId, slideId));
+  if (!room) return null;
+  // No origin conn: the update handler relays this to every connected client.
+  room.doc.transact(() => syncSlideToDoc(room.doc, slide));
+  if (room.checkpointTimer) {
+    clearTimeout(room.checkpointTimer);
+    room.checkpointTimer = null;
+  }
+  // Force the write even when the doc already matched the payload, so the
+  // caller always gets a fresh last_updated for its response.
+  room.dirty = true;
+  return await checkpoint(room);
 }

@@ -136,12 +136,12 @@ routesProjectCollab.get(
         saveSlide: async (slide, crdtState) => {
           // Collab is authoritative → checkpoint overwrites config + CRDT state.
           const res = await saveSlideCheckpoint(projectDb, slideId, slide, crdtState);
-          if (!res.success) return false;
+          if (!res.success) return null;
           notifyLastUpdated(projectId, "slides", [slideId], res.data.lastUpdated);
           if (deckId) {
             notifyLastUpdated(projectId, "slide_decks", [deckId], res.data.lastUpdated);
           }
-          return true;
+          return res.data.lastUpdated;
         },
       };
     }

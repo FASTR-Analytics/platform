@@ -9,6 +9,7 @@ import {
   updateSlide,
 } from "../../db/mod.ts";
 import type { Slide } from "lib";
+import { applySlideToLiveRoom } from "../../collab/slide_rooms.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -83,6 +84,26 @@ defineRoute(
     "can_configure_slide_decks",
   ),
   async (c, { params, body }) => {
+    // While a collab room is live for this slide, the room's doc is
+    // authoritative: a direct DB write would be silently overwritten by the
+    // room's next checkpoint. Route the save through the room instead — the
+    // change merges into the shared doc (relayed live to connected editors)
+    // and the room checkpoints it immediately. The expectedLastUpdated
+    // conflict check doesn't apply on this path: merging into the live doc IS
+    // the conflict resolution. (The room's checkpoint fires its own SSE
+    // notifications.)
+    const roomLastUpdated = await applySlideToLiveRoom(
+      c.var.ppk.projectId,
+      params.slide_id,
+      body.slide as Slide,
+    );
+    if (roomLastUpdated !== null) {
+      return c.json({
+        success: true as const,
+        data: { lastUpdated: roomLastUpdated },
+      });
+    }
+
     const res = await updateSlide(
       c.var.ppk.projectDb,
       params.slide_id,
