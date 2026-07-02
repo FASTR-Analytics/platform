@@ -27,7 +27,17 @@ export function isValidPeriodId(periodId: string): boolean {
     return false;
   }
 
-  // Extract month (year is validated separately with min/max checks)
+  // Must be within the same bounds PERIOD_ID_CHECK_CONSTRAINT enforces on the
+  // staging table — a row that passes here but violates the CHECK aborts the
+  // whole staging batch instead of being counted as an invalid row
+  if (
+    periodIdNumber < DEFAULT_PERIOD_START ||
+    periodIdNumber > DEFAULT_PERIOD_END
+  ) {
+    return false;
+  }
+
+  // Extract month
   const month = periodIdNumber % 100;
 
   // Validate month is 01-12
@@ -43,28 +53,14 @@ export function isValidPeriodId(periodId: string): boolean {
  * @returns true if valid, false otherwise
  */
 export function isValidCount(countVal: string): boolean {
-  if (countVal === "") {
+  // Digits only, within int4 range — the staging column is INTEGER, and
+  // Number() alone accepts hex/scientific/overflow forms whose SQL literal
+  // aborts the whole staging batch instead of being counted as an invalid row
+  const trimmed = countVal.trim();
+  if (!/^\d+$/.test(trimmed)) {
     return false;
   }
-
-  const countNumber = Number(countVal);
-
-  // Must be a valid number
-  if (isNaN(countNumber)) {
-    return false;
-  }
-
-  // Must be non-negative
-  if (countNumber < 0) {
-    return false;
-  }
-
-  // Must be an integer
-  if (!Number.isInteger(countNumber)) {
-    return false;
-  }
-
-  return true;
+  return Number(trimmed) <= 2147483647;
 }
 
 /**

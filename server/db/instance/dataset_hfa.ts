@@ -592,8 +592,13 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
       );
     }
 
+    // Re-read after the claim: a concurrent step-2 config write can land
+    // between the initial read and the claim, and the worker must stage from
+    // the row the claim actually locked in — not the pre-claim snapshot.
+    const claimedDUA = await getRawUAOrThrow(mainDb);
+
     // Use CSV staging worker for HFA
-    const worker = instantiateStageHfaDataCsvWorker(rawDUA);
+    const worker = instantiateStageHfaDataCsvWorker(claimedDUA);
 
     // Store the worker reference globally
     setWorker("hfa", worker);
@@ -684,7 +689,11 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
       );
     }
 
-    const worker = instantiateIntegrateHfaDataWorker(rawDUA);
+    // Re-read after the claim: a concurrent config write can land between the
+    // initial read and the claim; the worker must run from the claimed row.
+    const claimedDUA = await getRawUAOrThrow(mainDb);
+
+    const worker = instantiateIntegrateHfaDataWorker(claimedDUA);
 
     // Store the worker reference globally
     setWorker("hfa", worker);

@@ -831,13 +831,18 @@ export async function updateDatasetUploadAttempt_Step3Staging(
       );
     }
 
+    // Re-read after the claim: a concurrent step-2 config write can land
+    // between the initial read and the claim, and the worker must stage from
+    // the row the claim actually locked in — not the pre-claim snapshot.
+    const claimedDUA = await getRawUAOrThrow(mainDb);
+
     // Route to appropriate worker based on source type
     let worker: Worker;
-    if (rawDUA.source_type === "dhis2") {
-      worker = instantiateStageHmisDataDhis2Worker(rawDUA, failFastMode);
+    if (claimedDUA.source_type === "dhis2") {
+      worker = instantiateStageHmisDataDhis2Worker(claimedDUA, failFastMode);
     } else {
       // Default to CSV staging
-      worker = instantiateStageHmisDataCsvWorker(rawDUA);
+      worker = instantiateStageHmisDataCsvWorker(claimedDUA);
     }
 
     // Store the worker reference globally
@@ -1043,7 +1048,11 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
       );
     }
 
-    const worker = instantiateIntegrateUploadedDataWorker(rawDUA);
+    // Re-read after the claim: a concurrent config write can land between the
+    // initial read and the claim; the worker must run from the claimed row.
+    const claimedDUA = await getRawUAOrThrow(mainDb);
+
+    const worker = instantiateIntegrateUploadedDataWorker(claimedDUA);
 
     // Store the worker reference globally
     setWorker("hmis", worker);
