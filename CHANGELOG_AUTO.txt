@@ -1,22 +1,22 @@
-[TBD] [user] [added] - Upload an ODK questionnaire to auto-replace codes with labels during facility import
-[TBD] [user] [added] - Summary of ODK codes replaced with labels shown before finalizing import
-[TBD] [user] [fixed] - AI report figures now show a clear error when a heading is not found
-[TBD] [user] [fixed] - AI report edits that change nothing now return a helpful error instead of a blank dialog
-[TBD] [user] [fixed] - Report diff viewer now collapses unchanged sections so edits are always visible
-[TBD] [user] [fixed] - After accepting an AI report edit, the view scrolls to the changed section
-[TBD] [user] [fixed] - Deleting a figure from a report now supports undo without showing "Missing visualization"
-[TBD] [user] [fixed] - AI-inserted figures no longer break if saving to the server fails
-[TBD] [user] [fixed] - CSV files with quoted fields spanning multiple lines now import correctly
-[TBD] [admin] [added] - Structure CSV import now supports optional ODK XLSForm questionnaire
-[TBD] [admin] [added] - ODK select_one codes automatically replaced with human-readable labels during import
-[TBD] [admin] [added] - Import review shows summary of ODK codes resolved and any unresolved values
-[TBD] [admin] [fixed] - CSV imports with quoted fields spanning multiple lines no longer break mid-row
-[TBD] [admin] [fixed] - AI report figures are preserved on undo after deletion
-[TBD] [admin] [fixed] - AI report edits now scroll both editor and preview to the changed section
-[TBD] [admin] [fixed] - AI report diff view collapses unchanged sections so changes are always visible
-[TBD] [admin] [fixed] - AI insert-figure fails clearly when target heading not found instead of silently appending
-[TBD] [admin] [fixed] - AI no-op report edits now return a clear error instead of showing an empty diff
-[TBD] [admin] [fixed] - AI figure edits roll back cleanly if saving to server fails after user accepts
+[1.55.1] [user] [added] - Upload an ODK questionnaire to auto-replace codes with labels during facility import
+[1.55.1] [user] [added] - Summary of ODK codes replaced with labels shown before finalizing import
+[1.55.1] [user] [fixed] - AI report figures now show a clear error when a heading is not found
+[1.55.1] [user] [fixed] - AI report edits that change nothing now return a helpful error instead of a blank dialog
+[1.55.1] [user] [fixed] - Report diff viewer now collapses unchanged sections so edits are always visible
+[1.55.1] [user] [fixed] - After accepting an AI report edit, the view scrolls to the changed section
+[1.55.1] [user] [fixed] - Deleting a figure from a report now supports undo without showing "Missing visualization"
+[1.55.1] [user] [fixed] - AI-inserted figures no longer break if saving to the server fails
+[1.55.1] [user] [fixed] - CSV files with quoted fields spanning multiple lines now import correctly
+[1.55.1] [admin] [added] - Structure CSV import now supports optional ODK XLSForm questionnaire
+[1.55.1] [admin] [added] - ODK select_one codes automatically replaced with human-readable labels during import
+[1.55.1] [admin] [added] - Import review shows summary of ODK codes resolved and any unresolved values
+[1.55.1] [admin] [fixed] - CSV imports with quoted fields spanning multiple lines no longer break mid-row
+[1.55.1] [admin] [fixed] - AI report figures are preserved on undo after deletion
+[1.55.1] [admin] [fixed] - AI report edits now scroll both editor and preview to the changed section
+[1.55.1] [admin] [fixed] - AI report diff view collapses unchanged sections so changes are always visible
+[1.55.1] [admin] [fixed] - AI insert-figure fails clearly when target heading not found instead of silently appending
+[1.55.1] [admin] [fixed] - AI no-op report edits now return a clear error instead of showing an empty diff
+[1.55.1] [admin] [fixed] - AI figure edits roll back cleanly if saving to server fails after user accepts
 [1.55.0] [user] [changed] - Indicator variable names cannot be renamed after creation
 [1.55.0] [user] [added] - Variable name format validation when creating HFA indicators
 [1.55.0] [user] [added] - Warning when an HFA indicator name conflicts with a survey variable
