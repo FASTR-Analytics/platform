@@ -1,3 +1,40 @@
+[TBD] [user] [added] - DHIS2 connection can now be changed after confirming
+[TBD] [user] [added] - Warning shown when imported data has unrecognized disaggregations
+[TBD] [user] [added] - Alert shown when map boundaries no longer match admin areas after import
+[TBD] [user] [added] - Placeholder text added to CSV file selector dropdown
+[TBD] [user] [added] - Cancel button when editing an existing DHIS2 connection
+[TBD] [user] [added] - Warning message when changing DHIS2 connection will reset later steps
+[TBD] [user] [changed] - Population type labels now appear in French when using French
+[TBD] [user] [changed] - Rate format label "per 10k" now translated to French
+[TBD] [user] [changed] - HFA Excel upload instructions now reference four sheets instead of three
+[TBD] [user] [changed] - AI-assisted indicator updates now save all at once or not at all
+[TBD] [user] [fixed] - Reordering time points now shows an error if saving fails and reverts the list
+[TBD] [user] [fixed] - DHIS2 passwords are no longer sent back to the browser
+[TBD] [user] [fixed] - Duplicate time point names are now prevented when renaming
+[TBD] [user] [fixed] - CSV staging with zero valid rows now shows a clear error message
+[TBD] [admin] [added] - AI-assisted HFA indicator updates are now applied as a single all-or-nothing batch
+[TBD] [admin] [added] - DHIS2 connection step now shows a "Change connection" button after confirming credentials
+[TBD] [admin] [added] - Structure import warns when saved map boundaries no longer match admin areas after import
+[TBD] [admin] [added] - iCEH import now reports rows skipped due to unrecognized disaggregation values
+[TBD] [admin] [added] - HFA data upload instructions updated to reference four sheets instead of three
+[TBD] [admin] [added] - HFA data CSV import now requires a time point and facility ID column mapping
+[TBD] [admin] [added] - Duplicate time point names are now rejected when renaming HFA time points
+[TBD] [admin] [changed] - DHIS2 credentials are no longer sent back to the browser after being saved
+[TBD] [admin] [changed] - Population type labels in calculated indicator editor are now translated into French
+[TBD] [admin] [changed] - "Rate per 10k" label in calculated indicator preview is now translatable
+[TBD] [admin] [changed] - CSV file selector in HMIS batch upload now shows a placeholder prompt
+[TBD] [admin] [changed] - Structure import from DHIS2 now skips root-level org units with no admin hierarchy
+[TBD] [admin] [fixed] - Reordering HFA time points now reverts the list if saving fails
+[TBD] [admin] [fixed] - HMIS indicator list now shows a loading state and handles rapid version changes correctly
+[TBD] [admin] [fixed] - Changing the max admin area level is now protected against concurrent structure imports
+[TBD] [admin] [fixed] - HFA facility weight import is now fully transactional, preventing partial writes
+[TBD] [admin] [fixed] - Deleting an upload attempt now cleans up leftover staging tables from interrupted workers
+[TBD] [admin] [fixed] - HMIS CSV staging with zero valid rows now reports an error instead of silently succeeding
+[TBD] [admin] [fixed] - DHIS2 data import now validates that end period is not beyond the supported maximum
+[TBD] [admin] [fixed] - DHIS2 data import now checks selected indicators still exist before fetching
+[TBD] [admin] [fixed] - GeoJSON upload no longer echoes file contents in error messages for invalid files
+[TBD] [admin] [fixed] - Structure import facility match counts now refresh when revisiting the finalize step
+[TBD] [admin] [internal] - Added server-side logging for all HFA indicator management operations
 [1.55.1] [user] [added] - Upload an ODK questionnaire to auto-replace codes with labels during facility import
 [1.55.1] [user] [added] - Summary of ODK codes replaced with labels shown before finalizing import
 [1.55.1] [user] [fixed] - AI report figures now show a clear error when a heading is not found
