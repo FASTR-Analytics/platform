@@ -50,8 +50,13 @@ Positional, in **final (post-sort) column order**. Missing trailing entries are
 The floor considers every column's header label and every cell's **rendered**
 string (formatted or raw — the same `?? String(value)` fallback the measure
 itself uses), so an unbreakable token (URL, identifier, long number) always
-triggers shrink instead of silently overlapping its neighbor. Guarded by the
-committed `tests/table_autofit_floor_test.ts`.
+triggers shrink instead of silently overlapping its neighbor. "Unbreakable"
+matches the renderer's real wrap points — newline and ASCII space only, so
+NBSP/narrow-NBSP-joined locale numbers count as one token. A labelled col-group
+additionally reserves its label's widest word within **its own group's** auto
+columns, and row headers are modeled at their wrapped-phrase width (what layout
+actually grants them), not their widest word. Guarded by the committed
+`tests/table_autofit_floor_test.ts`.
 
 Markdown tables default to all-`"auto"` (`_105_markdown`).
 
