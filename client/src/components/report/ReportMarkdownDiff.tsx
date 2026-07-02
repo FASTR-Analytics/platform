@@ -53,6 +53,10 @@ export function ReportMarkdownDiff(p: Props) {
       parent,
       gutter: true,
       highlightChanges: true,
+      // Fold unchanged stretches behind a clickable expander so the change is
+      // always on screen — without this, an edit below the fold of a long
+      // report shows as an apparently empty diff.
+      collapseUnchanged: {},
     });
   });
 

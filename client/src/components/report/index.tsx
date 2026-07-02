@@ -451,6 +451,11 @@ export function ProjectReport(p: Props) {
       getImages: () => images(),
       getSelection: () => editorApi?.getSelection(),
       proposeEdit: async (proposal) => {
+        if (proposal.newBody === body()) {
+          throw new Error(
+            "The proposed body is IDENTICAL to the current body — nothing to review, so no accept/reject dialog was shown. Re-read with get_report_editor and propose an actual change.",
+          );
+        }
         // Shown as a locking modal (openComponent backdrop) so the user can't do
         // other work without first acting on the proposal. Resolves true/false.
         const accepted = await openComponent({
@@ -480,13 +485,33 @@ export function ProjectReport(p: Props) {
     return Promise.resolve();
   }
 
+  // First line (0-based) where the two bodies differ — accept scrolls there.
+  function firstChangedLine(a: string, b: string): number {
+    const al = a.split("\n");
+    const bl = b.split("\n");
+    const n = Math.min(al.length, bl.length);
+    for (let i = 0; i < n; i++) {
+      if (al[i] !== bl[i]) return i;
+    }
+    return n;
+  }
+
   // Apply an accepted AI proposal to the editor and persist it.
   async function applyProposal(prop: ReportEditProposal) {
     if (prop.addFigures) {
-      const next = { ...figures(), ...prop.addFigures };
+      const prev = figures();
+      const next = { ...prev, ...prop.addFigures };
       setFigures(next);
-      await persistFigures(next);
+      if (!(await persistFigures(next))) {
+        // Don't apply a body whose tokens reference figures the server never
+        // got — that would surface as "Missing visualization" after reload.
+        setFigures(prev);
+        throw new Error(
+          "The user ACCEPTED the edit, but saving its figure(s) to the server FAILED, so the edit was NOT applied. Tell the user to check their connection and try again.",
+        );
+      }
     }
+    const changedLine = firstChangedLine(body(), prop.newBody);
     applyingProgrammaticEdit = true;
     editorApi?.setBody(prop.newBody);
     applyingProgrammaticEdit = false;
@@ -496,6 +521,19 @@ export function ProjectReport(p: Props) {
     }
     await persistBody(prop.newBody);
     editorApi?.refresh();
+    // Align both panes to the change so the accepted edit lands on screen
+    // (same defer pattern as the mode-switch effect: let layout settle first).
+    targetLine = changedLine;
+    targetAtBottom = false;
+    queueMicrotask(() =>
+      requestAnimationFrame(() => {
+        editorApi?.scrollToLine(changedLine);
+        if (previewEl) {
+          previewEl.scrollTop = lineToPreviewTop(previewEl, changedLine);
+          armFigureSettle();
+        }
+      }),
+    );
   }
 
   onCleanup(() => {
@@ -792,21 +830,13 @@ export function ProjectReport(p: Props) {
     await persistImages(next);
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     const sel = selectedEmbed();
     if (!sel) return;
+    // Remove only the body token; keep the registry entry for the session so
+    // Ctrl+Z restores a working embed (not "Missing visualization"). Orphaned
+    // entries are pruned at next load (see onMount).
     editorApi?.removeEmbedToken(sel.kind, sel.id);
-    if (sel.kind === "figure") {
-      const next = { ...figures() };
-      delete next[sel.id];
-      setFigures(next);
-      await persistFigures(next);
-    } else {
-      const next = { ...images() };
-      delete next[sel.id];
-      setImages(next);
-      await persistImages(next);
-    }
     setSelectedEmbed(undefined);
   }
 

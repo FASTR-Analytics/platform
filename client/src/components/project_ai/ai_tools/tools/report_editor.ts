@@ -141,7 +141,7 @@ function insertFigureToken(
   body: string,
   token: string,
   afterHeading: string | undefined,
-): string {
+): { newBody: string } | { error: string } {
   if (afterHeading) {
     const lines = body.split("\n");
     for (let i = 0; i < lines.length; i++) {
@@ -154,13 +154,16 @@ function insertFigureToken(
           "",
           ...lines.slice(i + 1),
         ];
-        return newLines.join("\n");
+        return { newBody: newLines.join("\n") };
       }
     }
-    // Heading not found — fall through to append at end.
+    return {
+      error:
+        `No section with heading "${afterHeading}" found. Call get_report_editor to see exact headings, or omit afterHeading to append at the end.`,
+    };
   }
   const trimmed = body.replace(/\n+$/, "");
-  return `${trimmed}\n\n${token}\n`;
+  return { newBody: `${trimmed}\n\n${token}\n` };
 }
 
 // One cheap index line per figure for get_report_editor — pure, no fetch.
@@ -463,7 +466,7 @@ export function getToolsForReportEditor(
     createAITool({
       name: "insert_figure",
       description:
-        "Propose inserting a live data figure. The `figure` is either a `from_visualization` block (clone a saved visualization by id — get ids from get_available_visualizations) or a `from_metric` block (build a NEW chart from a metric + preset — get metricIds/presets from get_available_metrics), exactly like slide figures. Optionally place it after a heading (afterHeading) and give a caption. The user reviews a diff; on accept the figure is added to the report and its token inserted.",
+        "Propose inserting a live data figure. The `figure` is either a `from_visualization` block (clone a saved visualization by id — get ids from get_available_visualizations) or a `from_metric` block (build a NEW chart from a metric + preset — get metricIds/presets from get_available_metrics), exactly like slide figures. Optionally place it after a heading (afterHeading — must match an existing heading's text, or the call errors; omit to append at the end) and give a caption. The user reviews a diff; on accept the figure is added to the report and its token inserted.",
       inputSchema: z.object({
         figure: AiFigureBlockInputSchema,
         caption: z.string().optional(),
@@ -480,13 +483,16 @@ export function getToolsForReportEditor(
         const id = crypto.randomUUID();
         const caption = sanitizeCaption(input.caption ?? "");
         const token = `![${caption}](figure:${id})`;
-        const newBody = insertFigureToken(
+        const result = insertFigureToken(
           ctx.getBody(),
           token,
           input.afterHeading,
         );
+        if ("error" in result) {
+          throw new Error(result.error);
+        }
         const { accepted } = await ctx.proposeEdit({
-          newBody,
+          newBody: result.newBody,
           addFigures: { [id]: figureBlock },
           summary: caption ? `Insert figure: ${caption}` : "Insert figure",
         });
