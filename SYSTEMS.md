@@ -387,6 +387,27 @@ that SYSTEM file's **Open items** section, or — if big enough — gets its own
 `PLAN_*` file. The Open items sections are the permanent, scoped successor to
 ad-hoc `PLAN_*_FIXES` files.
 
+## §6 Documentation model
+
+Every doc has one home along two axes — construction (HOW) vs architecture
+(WHAT), cross-project vs app-specific:
+
+- `panther/protocols/PROTOCOL_*` — cross-project HOW. Synced from the panther
+  repo; never edited here; kept fresh by the sync.
+- `PROTOCOL_APP_*` (repo root) — app-specific authoring recipes (e.g.
+  PROTOCOL_APP_MIGRATIONS), updated in lockstep with the mechanics they
+  describe.
+- `SYSTEM_NN_*` — app-specific WHAT. **Prose describes verified current
+  behavior and the contract — never aspirations, never history. Deliberate
+  limitations are stated as facts in the prose, once. Open items hold only
+  real pending work: fixes, decisions-to-be-made, and pointers into reform
+  plans. A resolved item is deleted, not annotated — a decision log is
+  cruft.** The boundary half (`globs:`) is lint-enforced continuously; the
+  prose half is re-verified against code in each review cycle.
+- `PLAN_*` — the transient "what's changing" layer. A plan mutates a SYSTEM
+  (or a PROTOCOL_APP) and is deleted when its work lands.
+- `CLAUDE.md` — the index pointing at all of it.
+
 ## Running the lint
 
 ```
