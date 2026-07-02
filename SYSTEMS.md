@@ -23,7 +23,7 @@ artifacts (12), assist (13), frame (14–15).
 | [S2](SYSTEM_02_persistence.md)           | Persistence Core & Schema Lifecycle      | multi-DB Postgres, migrations + data transforms, fail-stop boot, backup/restore            |
 | [S3](SYSTEM_03_realtime_cache.md)        | Realtime Sync & Cache Invalidation       | the last_updated → SSE → version-hash triangle (notify hub, Valkey, client stores)         |
 | [S4](SYSTEM_04_assets_upload.md)         | Assets & Upload                          | the TUS file-upload front door + asset storage/metadata                                    |
-| [S5](SYSTEM_05_structure_reference.md)   | Structure & Reference Data               | facilities, admin areas, weights, geojson, indicator dictionaries, instance config         |
+| [S5](SYSTEM_05_facilities_indicators.md) | Facilities & Indicators                  | facilities, admin areas, weights, geojson, indicator dictionaries, instance config        |
 | [S6](SYSTEM_06_ingestion.md)             | Dataset Ingestion                        | stage→integrate for HMIS/HFA/ICEH: wizards, staging workers, attach/snapshot               |
 | [S7](SYSTEM_07_dhis2.md)                 | DHIS2 Connector                          | self-contained typed adapter for external DHIS2 (retry, paging, analytics, geojson)        |
 | [S8](SYSTEM_08_module_system.md)         | Module System                            | versioned R modules: fetch → validate → install → dirty-state → Docker run → ro_*          |
@@ -114,7 +114,7 @@ custody exceptions are in §4.1.
   resume). Consumed by S6, S12, S13.
 - **Size:** ~12 files. **Docs:** none.
 
-### S5. Structure & Reference Data
+### S5. Facilities & Indicators
 
 - **One line:** the instance-wide reference world everything joins against:
   facilities, admin areas, weights, geojson boundaries, indicator dictionaries

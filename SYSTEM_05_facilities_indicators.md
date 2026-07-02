@@ -1,6 +1,6 @@
 ---
 system: 5
-name: Structure & Reference Data
+name: Facilities & Indicators
 globs:
   - client/src/components/forms_editors/dhis2_credentials_form.tsx
   - client/src/components/forms_editors/edit_hfa_indicator.tsx
@@ -41,7 +41,7 @@ globs:
   - server/server_only_funcs_importing/**
 docs_absorbed:
 ---
-# S5 — Structure & Reference Data
+# S5 — Facilities & Indicators
 
 The instance-wide reference world everything joins against: facilities,
 admin areas, HFA sampling weights, geojson boundaries, the four indicator
