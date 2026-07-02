@@ -375,6 +375,11 @@ Every config mutation re-reads all configs and pushes one consolidated
 
 ## Open items
 
+- The startup reset of wedged upload attempts (`resetWedgedUploadAttempts`
+  in db_startup) covers the hmis/hfa/iceh attempt tables but not
+  `structure_upload_attempts` — a server restart mid-structure-import
+  leaves the attempt at `importing` until the user deletes it. Add the
+  fourth UPDATE (status_type `importing` → `error`).
 - Post-integration bookkeeping (staging-table drop, stamp bump, attempt
   delete) runs after the integrate transaction commits — a crash in
   between leaves S6's staleness gates unaware and the attempt wedged at
