@@ -378,7 +378,6 @@ export async function getDatasetHfaUploadStatus(
     );
     const step = rawDUA.step as 1 | 2 | 3 | 4;
 
-    // Convert full status to lightweight version
     const statusLight: DatasetHfaUploadAttemptStatusLight =
       status as DatasetHfaUploadAttemptStatusLight;
 
@@ -386,45 +385,15 @@ export async function getDatasetHfaUploadStatus(
     const isActive =
       status.status === "staging" || status.status === "integrating";
 
-    if (isActive) {
-      // Return lightweight status for active operations
-      return {
-        success: true,
-        data: {
-          id: "hfa",
-          step,
-          status: statusLight,
-          isActive: true as const,
-        },
-      };
-    } else {
-      // Return full details for stable states
-      const baseDetails = {
+    return {
+      success: true,
+      data: {
         id: "hfa",
-        dateStarted: rawDUA.date_started,
-        status: parseJsonOrThrow<DatasetHfaUploadAttemptStatus>(rawDUA.status),
-      };
-
-      const fullDetail = {
-        ...baseDetails,
         step,
-        sourceType: "csv" as const,
-        step1Result: parseJsonOrUndefined<any>(rawDUA.step_1_result),
-        step2Result: parseJsonOrUndefined<any>(rawDUA.step_2_result),
-        step3Result: parseJsonOrUndefined<any>(rawDUA.step_3_result),
-      } as DatasetHfaUploadAttemptDetail;
-
-      return {
-        success: true,
-        data: {
-          id: "hfa",
-          step,
-          status: statusLight,
-          isActive: false as const,
-          fullDetail,
-        },
-      };
-    }
+        status: statusLight,
+        isActive,
+      },
+    };
   });
 }
 
@@ -523,8 +492,7 @@ SET
 }
 
 export async function updateDatasetHfaUploadAttempt_Step3Staging(
-  mainDb: Sql,
-  _signal?: AbortSignal
+  mainDb: Sql
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawDUA = await getRawUAOrThrow(mainDb);

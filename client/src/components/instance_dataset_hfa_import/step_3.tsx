@@ -6,7 +6,6 @@ import { serverActions } from "~/server_actions";
 type Props = {
   step3Result: DatasetHfaCsvStagingResult | undefined;
   silentFetch: () => Promise<void>;
-  close: () => void;
 };
 
 export function Step3(p: Props) {

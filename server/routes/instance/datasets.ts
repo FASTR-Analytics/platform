@@ -251,7 +251,6 @@ defineRoute(
     const res = await updateDatasetUploadAttempt_Step3Staging(
       c.var.mainDb,
       body.failFastMode,
-      c.req.raw.signal,
     );
     return c.json(res);
   },
@@ -493,7 +492,6 @@ defineRoute(
   async (c) => {
     const res = await updateDatasetHfaUploadAttempt_Step3Staging(
       c.var.mainDb,
-      c.req.raw.signal,
     );
     return c.json(res);
   },

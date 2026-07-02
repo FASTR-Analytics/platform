@@ -264,7 +264,6 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
                       { status: "integrating" }
                     >
                   }
-                  sourceType={keyedUploadAttempt.sourceType!}
                 />
               </Match>
               <Match
@@ -279,7 +278,6 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
                 <Switch>
                   <Match when={keyedUploadAttempt.sourceType === "csv"}>
                     <Step4_Csv
-                      close={() => p.close(undefined)}
                       silentFetch={uploadAttempt.silentFetch}
                       step3Result={
                         (keyedUploadAttempt as DatasetUploadAttemptDetailCsv)
@@ -289,7 +287,6 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
                   </Match>
                   <Match when={true}>
                     <Step4_Dhis2
-                      close={() => p.close(undefined)}
                       silentFetch={uploadAttempt.silentFetch}
                       step3Result={
                         (keyedUploadAttempt as DatasetUploadAttemptDetailDhis2)
@@ -308,7 +305,6 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
                 }
               >
                 <Step3
-                  close={() => p.close(undefined)}
                   silentFetch={uploadAttempt.silentFetch}
                   step3Result={keyedUploadAttempt.step3Result}
                   sourceType={keyedUploadAttempt.sourceType!}

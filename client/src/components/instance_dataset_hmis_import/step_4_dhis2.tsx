@@ -6,7 +6,6 @@ import { serverActions } from "~/server_actions";
 type Props = {
   step3Result: DatasetDhis2StagingResult;
   silentFetch: () => Promise<void>;
-  close: () => void;
 };
 
 export function Step4_Dhis2(p: Props) {

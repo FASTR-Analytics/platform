@@ -51,17 +51,9 @@ export type IcehStagingResult = {
   years: number[];
 };
 
-export type IcehUploadStatusResponse =
-  | {
-      id: string;
-      step: number;
-      status: IcehUploadAttemptStatusLight;
-      isActive: true;
-    }
-  | {
-      id: string;
-      step: number;
-      status: IcehUploadAttemptStatusLight;
-      isActive: false;
-      fullDetail: IcehUploadAttemptDetail;
-    };
+export type IcehUploadStatusResponse = {
+  id: string;
+  step: number;
+  status: IcehUploadAttemptStatusLight;
+  isActive: boolean; // false = stop polling
+};

@@ -294,11 +294,6 @@ export async function getDatasetHmisItemsForDisplay(
   facilityColumns: InstanceConfigFacilityColumns
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Get facility columns configuration
-    // const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-    // throwIfErrWithData(resFacilityConfig);
-    // const facilityConfig = resFacilityConfig.data;
-
     // Query common data used by both raw and common functions
     const adminArea2s = (
       await mainDb<
@@ -639,45 +634,15 @@ export async function getDatasetHmisUploadStatus(
       status.status === "staging_dhis2" ||
       status.status === "integrating";
 
-    if (isActive) {
-      // Return lightweight status for active operations
-      return {
-        success: true,
-        data: {
-          id: "hmis",
-          step,
-          status: statusLight,
-          isActive: true as const,
-        },
-      };
-    } else {
-      // Return full details for stable states
-      const baseDetails = {
+    return {
+      success: true,
+      data: {
         id: "hmis",
-        dateStarted: rawDUA.date_started,
-        status: parseJsonOrThrow<DatasetUploadAttemptStatus>(rawDUA.status),
-      };
-
-      const fullDetail = {
-        ...baseDetails,
         step,
-        sourceType: (rawDUA.source_type as "csv" | "dhis2" | null) ?? undefined,
-        step1Result: parseJsonOrUndefined<any>(rawDUA.step_1_result),
-        step2Result: parseJsonOrUndefined<any>(rawDUA.step_2_result),
-        step3Result: parseJsonOrUndefined<any>(rawDUA.step_3_result),
-      } as DatasetUploadAttemptDetail;
-
-      return {
-        success: true,
-        data: {
-          id: "hmis",
-          step,
-          status: statusLight,
-          isActive: false as const,
-          fullDetail,
-        },
-      };
-    }
+        status: statusLight,
+        isActive,
+      },
+    };
   });
 }
 
@@ -784,8 +749,7 @@ SET
 
 export async function updateDatasetUploadAttempt_Step3Staging(
   mainDb: Sql,
-  failFastMode?: "fail-fast" | "continue-on-error",
-  _signal?: AbortSignal
+  failFastMode?: "fail-fast" | "continue-on-error"
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawDUA = await getRawUAOrThrow(mainDb);

@@ -7,7 +7,6 @@ type Props = {
   step3Result: DatasetStagingResult | undefined;
   sourceType: "csv" | "dhis2";
   silentFetch: () => Promise<void>;
-  close: () => void;
 };
 
 export function Step3(p: Props) {

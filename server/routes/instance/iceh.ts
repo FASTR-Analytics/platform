@@ -8,7 +8,6 @@ import {
   deleteDatasetIcehUploadAttempt,
   updateDatasetIcehUploadAttemptStep1,
   updateDatasetIcehUploadAttemptStep2,
-  updateDatasetIcehUploadAttemptStep3,
   deleteDatasetIcehData,
   deleteDatasetIcehIndicators,
 } from "../../db/instance/dataset_iceh.ts";
@@ -91,8 +90,7 @@ defineRoute(
   "updateDatasetIcehUploadAttemptStep1",
   requireGlobalPermission("can_configure_data"),
   log("updateDatasetIcehUploadAttemptStep1"),
-  async (c) => {
-    const body = await c.req.json<{ zipAssetFileName: string }>();
+  async (c, { body }) => {
     const res = await updateDatasetIcehUploadAttemptStep1(
       c.var.mainDb,
       body.zipAssetFileName
@@ -119,17 +117,6 @@ defineRoute(
 
 defineRoute(
   routesIceh,
-  "updateDatasetIcehUploadAttemptStep3",
-  requireGlobalPermission("can_configure_data"),
-  log("updateDatasetIcehUploadAttemptStep3"),
-  async (c) => {
-    const res = await updateDatasetIcehUploadAttemptStep3(c.var.mainDb);
-    return c.json(res);
-  }
-);
-
-defineRoute(
-  routesIceh,
   "deleteDatasetIcehData",
   requireGlobalPermission("can_configure_data"),
   log("deleteDatasetIcehData"),
@@ -147,8 +134,7 @@ defineRoute(
   "deleteDatasetIcehIndicators",
   requireGlobalPermission("can_configure_data"),
   log("deleteDatasetIcehIndicators"),
-  async (c) => {
-    const body = await c.req.json<{ indicatorCodes: string[] }>();
+  async (c, { body }) => {
     const res = await deleteDatasetIcehIndicators(c.var.mainDb, body.indicatorCodes);
     if (res.success) {
       notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));

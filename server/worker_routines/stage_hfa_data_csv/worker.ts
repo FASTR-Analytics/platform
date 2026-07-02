@@ -449,7 +449,6 @@ WHERE NOT EXISTS (
       nRowsInvalidFacilityNotFound: invalidFacilityNotFoundCount,
       nRowsDuplicated: duplicateRowsCount,
       nRowsTotal: validRowCount,
-      byVariable: [],
       timePoint,
       nDictionaryVars: dictVarRows.length,
       nDictionaryValues: dictValueRows.length,

@@ -80,7 +80,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
   return (
     <StateHolderWrapper state={itemsHolder.state()} noPad>
       {(keyedItemsHolder) => {
-        // console.log(keyedItemsHolder);
         const isDelete = p.includeOrDelete === "delete";
 
         const adminAreaTree = createMemo(() => {

@@ -116,10 +116,6 @@ async function run(std: { rawDUA: DBDatasetHmisUploadAttempt }) {
     await importDb.unsafe(`DROP TABLE IF EXISTS ${tempValidFacilitiesTable}`);
     await importDb.unsafe(`DROP TABLE IF EXISTS ${stagingTableName}`);
 
-    // Also drop any old hardcoded indexes from previous code versions
-    await importDb.unsafe(`DROP INDEX IF EXISTS idx_temp_raw_ind`);
-    await importDb.unsafe(`DROP INDEX IF EXISTS idx_temp_agg_comp`);
-
     // Update progress: 1% - Starting staging
     await updateImportProgress(mainDb, 1);
 

@@ -262,7 +262,7 @@ export function InstanceDatasetIceh(p: Props) {
                 </div>
               }
             >
-              <DatasetItemsHolder detail={detail()!} />
+              <DatasetItemsHolder />
             </Show>
           </div>
         </FrameRight>

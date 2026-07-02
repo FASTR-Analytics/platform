@@ -221,34 +221,13 @@ export async function getDatasetIcehUploadStatus(
     const isActive =
       status.status === "staging" || status.status === "integrating";
 
-    if (isActive) {
-      return {
-        success: true,
-        data: {
-          id: rawUA.id,
-          step: rawUA.step,
-          status: statusLight,
-          isActive: true,
-        },
-      };
-    }
-
-    const fullDetail: IcehUploadAttemptDetail = {
-      id: rawUA.id,
-      dateStarted: rawUA.date_started,
-      step: rawUA.step,
-      status,
-      step1Result: parseJsonOrUndefined<IcehStep1Result>(rawUA.step_1_result ?? ""),
-    };
-
     return {
       success: true,
       data: {
         id: rawUA.id,
         step: rawUA.step,
         status: statusLight,
-        isActive: false,
-        fullDetail,
+        isActive,
       },
     };
   });
@@ -631,10 +610,4 @@ async function stageAndIntegrateIcehData(
       WHERE id = 'single_row'
     `;
   }
-}
-
-export async function updateDatasetIcehUploadAttemptStep3(
-  mainDb: Sql
-): Promise<APIResponseNoData> {
-  return { success: true };
 }

@@ -153,13 +153,6 @@ export type DatasetUploadAttemptDetail =
 // Staging Result Types
 // ============================================================================
 
-export type PeriodIndicatorStat = {
-  periodId: number;
-  indicatorCommonId: string;
-  nRecords: number;
-  totalCount: number;
-};
-
 export type PeriodIndicatorRawStat = {
   periodId: number;
   indicatorRawId: string;
@@ -227,7 +220,6 @@ export type DatasetDhis2StagingResult = {
   }>;
   periodIndicatorStats: PeriodIndicatorRawStat[];
   finalStagingRowCount: number;
-  missingOrgUnits?: string[];
   // NEW: every (indicator, period) work item that fetched cleanly — including
   // those that returned zero rows. Paired with fetchedFacilityIds below, this
   // is the authoritative delete scope for integration. Absent (undefined) ⇒
@@ -281,17 +273,9 @@ export type Dhis2SelectionParams = {
 // API Response Types
 // ============================================================================
 
-export type DatasetUploadStatusResponse =
-  | {
-      id: string;
-      step: number;
-      status: DatasetUploadAttemptStatusLight;
-      isActive: true; // Continue polling
-    }
-  | {
-      id: string;
-      step: number;
-      status: DatasetUploadAttemptStatusLight;
-      isActive: false; // Stop polling
-      fullDetail: DatasetUploadAttemptDetail; // Full data for UI transition
-    };
+export type DatasetUploadStatusResponse = {
+  id: string;
+  step: number;
+  status: DatasetUploadAttemptStatusLight;
+  isActive: boolean; // false = stop polling
+};

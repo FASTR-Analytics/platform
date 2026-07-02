@@ -4,7 +4,6 @@ import { ProgressBar } from "panther";
 
 export function ProgressIntegrating(p: {
   status: Extract<DatasetUploadAttemptStatus, { status: "integrating" }>;
-  sourceType: "csv" | "dhis2";
 }) {
   return (
     <div class="ui-pad ui-spy">

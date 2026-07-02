@@ -1,10 +1,9 @@
-import { type DatasetUploadAttemptStatus, t3 } from "lib";
+import { type DatasetHfaUploadAttemptStatus, t3 } from "lib";
 import { to100Pct0 } from "panther";
 import { ProgressBar } from "panther";
 
 export function ProgressIntegrating(p: {
-  status: Extract<DatasetUploadAttemptStatus, { status: "integrating" }>;
-  sourceType: "csv" | "dhis2";
+  status: Extract<DatasetHfaUploadAttemptStatus, { status: "integrating" }>;
 }) {
   return (
     <div class="ui-pad ui-spy">

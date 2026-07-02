@@ -108,15 +108,10 @@ export async function getCsvStreamComponents(
       ): Promise<void> => {
         const localFile = await Deno.open(assetFilePath, { read: true });
 
-        // OPTIMIZATION 1: Much larger chunk size for better I/O efficiency
-        const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB chunks (32x larger than original)
-
-        // OPTIMIZATION 2: Much larger queue to minimize pause/resume cycles
-        const MAX_QUEUE_SIZE = 50000; // 50x larger queue (can hold 50k rows)
-        const RESUME_THRESHOLD = 10000; // Resume when queue drops below 10k
-
-        // OPTIMIZATION 3: Larger batch processing
-        const BATCH_SIZE = 1000; // Process rows in larger batches
+        const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB chunks
+        const MAX_QUEUE_SIZE = 50000; // pause reading when queue holds 50k rows
+        const RESUME_THRESHOLD = 10000; // resume when queue drops below 10k
+        const BATCH_SIZE = 1000; // rows handed to the consumer per batch
 
         if (!_IS_PRODUCTION) {
           console.log(
@@ -136,7 +131,6 @@ export async function getCsvStreamComponents(
           let totalBytesRead = 0;
           let rowsProcessed = 0;
 
-          // OPTIMIZATION 4: Batch queue processor
           const processQueue = async () => {
             while (rowQueue.length > 0 || !parsingComplete) {
               if (processingError) {
@@ -144,7 +138,6 @@ export async function getCsvStreamComponents(
               }
 
               if (rowQueue.length === 0) {
-                // OPTIMIZATION 5: Shorter wait time
                 await new Promise((resolve) => setTimeout(resolve, 1));
                 continue;
               }
@@ -216,7 +209,6 @@ export async function getCsvStreamComponents(
                     );
                   }
 
-                  // OPTIMIZATION 7: Parse all remaining rows at once
                   Papa.parse<string[]>(leftoverBuffer, {
                     skipEmptyLines: true,
                     dynamicTyping: false,
@@ -303,7 +295,6 @@ export async function getCsvStreamComponents(
                 leftoverBuffer = dataToProcess.slice(lastNewline + 1);
               }
 
-              // OPTIMIZATION 8: Parse complete chunk at once
               Papa.parse<string[]>(completeData, {
                 skipEmptyLines: true,
                 dynamicTyping: false,

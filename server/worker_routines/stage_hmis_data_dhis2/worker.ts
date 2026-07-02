@@ -62,7 +62,6 @@ type CompletedWorkItem = {
 // SECTION 3: MAIN ORCHESTRATION
 // ============================================================================
 
-const _SKIP_META = true;
 const FACILITY_BATCH_SIZE = 100;
 let alreadyRunning = false;
 
@@ -134,7 +133,7 @@ async function run(std: {
       WHERE facility_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}$'
     `;
 
-    const facilityIds = facilities.map((f) => f.facility_id).filter(Boolean);
+    const facilityIds = facilities.map((f) => f.facility_id);
     console.log(`Fetched ${facilityIds.length} DHIS2-shaped facility IDs`);
 
     const periods: string[] = [];
@@ -175,7 +174,6 @@ async function run(std: {
 
     let totalRowsStaged = 0;
     const periodIndicatorStatsMap = new Map<string, PeriodIndicatorRawStat>();
-    const allMissingOrgUnits = new Set<string>();
 
     const activeWorkItems = new Map<string, WorkItemProgress>();
     const completedWorkItemHistory: CompletedWorkItem[] = [];
@@ -253,8 +251,7 @@ async function run(std: {
         item,
         facilityIds,
         onFacilityBatchComplete,
-        credentials,
-        _SKIP_META
+        credentials
       );
 
       // Check for failure and abort if failFast enabled
@@ -319,12 +316,6 @@ async function run(std: {
           totalRowsStaged += result.rowCount || 0;
         }
 
-        if (!_SKIP_META && result.missingOUs) {
-          for (const ouId of result.missingOUs) {
-            allMissingOrgUnits.add(ouId);
-          }
-        }
-
         if (result.stats) {
           for (const [statsKey, stat] of result.stats) {
             if (!periodIndicatorStatsMap.has(statsKey)) {
@@ -376,10 +367,6 @@ async function run(std: {
       failedFetches: failedFetches.slice(0, 100),
       periodIndicatorStats,
       finalStagingRowCount: totalRowsStaged,
-      missingOrgUnits:
-        allMissingOrgUnits.size > 0
-          ? Array.from(allMissingOrgUnits)
-          : undefined,
       succeededWorkItems,
       fetchedFacilityIds: facilityIds,
       workItemHistory: completedWorkItemHistory,
@@ -402,19 +389,6 @@ async function run(std: {
     if (failedFetches.length > 0) {
       console.log(`${failedFetches.length} fetch operations failed`);
     }
-    if (!_SKIP_META && allMissingOrgUnits.size > 0) {
-      console.warn(
-        `\n⚠️  Found ${allMissingOrgUnits.size} organizational units that don't exist in DHIS2:`
-      );
-      const missingArray = Array.from(allMissingOrgUnits);
-      console.warn(
-        missingArray.slice(0, 20).join(", "),
-        missingArray.length > 20
-          ? `... and ${missingArray.length - 20} more`
-          : ""
-      );
-    }
-
     await importDb.end();
     await mainDb.end();
 
@@ -494,14 +468,12 @@ async function fetchIndicatorPeriod(
   item: WorkItem,
   facilityIds: string[],
   onFacilityBatchComplete?: (batchIndex: number) => Promise<void>,
-  credentials?: Dhis2Credentials,
-  skipMeta?: boolean
+  credentials?: Dhis2Credentials
 ): Promise<{
   success: boolean;
   valueRows?: string[];
   rowCount?: number;
   stats?: Map<string, { nRecords: number; totalCount: number }>;
-  missingOUs?: string[];
   error?: {
     indicatorRawId: string;
     periodId: number;
@@ -517,7 +489,6 @@ async function fetchIndicatorPeriod(
       string,
       { nRecords: number; totalCount: number }
     >();
-    const allMissingOUs: string[] = [];
 
     // Value analysis tracking
     const valueAnalysis = {
@@ -564,9 +535,7 @@ async function fetchIndicatorPeriod(
       searchParams.set("dimension", `dx:${rawIndicatorId}`);
       searchParams.set("dimension", `pe:${period}`);
       searchParams.set("dimension", `ou:${facilityBatch.join(";")}`);
-      if (skipMeta) {
-        searchParams.set("skipMeta", "true");
-      }
+      searchParams.set("skipMeta", "true");
       const testUrl = `/api/analytics.json?${searchParams.toString()}`;
       const urlLength = testUrl.length;
 
@@ -588,7 +557,7 @@ async function fetchIndicatorPeriod(
           dataElements: [rawIndicatorId],
           orgUnits: facilityBatch,
           periods: [period],
-          skipMeta: skipMeta,
+          skipMeta: true,
         },
         {
           retryOptions: {
@@ -599,58 +568,6 @@ async function fetchIndicatorPeriod(
           dhis2Credentials: credentials,
         }
       );
-
-      if (!skipMeta) {
-        if (response.rows.length === 0) {
-          console.log(
-            `No data returned for ${rawIndicatorId}, period ${period}, batch with ${facilityBatch.length} OUs`
-          );
-
-          if (!response.metaData) {
-            console.warn(
-              `  ⚠️ No metaData in response - cannot determine if OUs exist`
-            );
-          } else if (!response.metaData.items) {
-            console.warn(
-              `  ⚠️ No items in metaData - cannot determine if OUs exist`
-            );
-          } else {
-            const ouIdsInMetadata = Object.keys(response.metaData.items).filter(
-              (key) => facilityBatch.includes(key)
-            );
-            console.log(
-              `  📊 Found ${ouIdsInMetadata.length}/${facilityBatch.length} OUs in metadata`
-            );
-
-            if (ouIdsInMetadata.length < facilityBatch.length) {
-              const missingInThisBatch = facilityBatch.filter(
-                (ou) => !response.metaData.items[ou]
-              );
-              console.warn(`  ❌ Missing OUs:`, missingInThisBatch.slice(0, 5));
-            }
-          }
-        }
-
-        const missingOUs: string[] = [];
-        if (response.metaData && response.metaData.items) {
-          for (const ouId of facilityBatch) {
-            if (!response.metaData.items[ouId]) {
-              missingOUs.push(ouId);
-            }
-          }
-        }
-
-        if (missingOUs.length > 0) {
-          console.warn(
-            `Missing OUs in DHIS2 for ${rawIndicatorId}, period ${period}:`,
-            missingOUs.slice(0, 10),
-            missingOUs.length > 10
-              ? `... and ${missingOUs.length - 10} more`
-              : ""
-          );
-          allMissingOUs.push(...missingOUs);
-        }
-      }
 
       // Track which facilities returned data for this batch
       const facilitiesWithDataInBatch = new Set<string>();
@@ -764,22 +681,9 @@ async function fetchIndicatorPeriod(
     console.log(`  Total batches: ${urlAnalysis.totalBatches}`);
     console.log(`  Max URL length: ${urlAnalysis.maxUrlLength} chars`);
     console.log(`  Avg URL length: ${urlAnalysis.avgUrlLength} chars`);
-    console.log(
-      `  URLs > 2048 chars: ${urlAnalysis.longUrls}/${urlAnalysis.totalBatches}`
-    );
-
-    if (urlAnalysis.longUrls > 0) {
-      console.log(`  🚨 EXCESSIVE URL LENGTH DETECTED!`);
-      console.log(
-        `  ⚠️  ${urlAnalysis.longUrls} out of ${urlAnalysis.totalBatches} batches exceed 2048 characters`
-      );
-      console.log(`  🔍 This may cause silent data loss or request failures`);
-      console.log(
-        `  💡 Consider reducing FACILITY_BATCH_SIZE from ${FACILITY_BATCH_SIZE} to a smaller value`
-      );
-    } else {
-      console.log(`  ✅ All URLs within safe length limits`);
-    }
+    // The >2048 guard above throws on the first long URL, so reaching this
+    // summary means every URL was within limits.
+    console.log(`  ✅ All URLs within safe length limits`);
 
     // Log work item summary - ALWAYS log this
     console.log(`\n📊 WORK ITEM SUMMARY for ${rawIndicatorId}, period ${period}:`);
@@ -826,7 +730,6 @@ async function fetchIndicatorPeriod(
       valueRows,
       rowCount: localRowCount,
       stats: localStats,
-      missingOUs: allMissingOUs.length > 0 ? allMissingOUs : undefined,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

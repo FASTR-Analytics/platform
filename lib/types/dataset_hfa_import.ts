@@ -106,7 +106,6 @@ export type DatasetHfaCsvStagingResult = {
   nRowsInvalidFacilityNotFound: number;
   nRowsDuplicated: number;
   nRowsTotal: number;
-  byVariable: [];
   timePoint: string;
   nDictionaryVars: number;
   nDictionaryValues: number;
@@ -119,17 +118,9 @@ export type DatasetHfaCsvStagingResult = {
 // API Response Types
 // ============================================================================
 
-export type DatasetHfaUploadStatusResponse =
-  | {
-      id: string;
-      step: number;
-      status: DatasetHfaUploadAttemptStatusLight;
-      isActive: true;
-    }
-  | {
-      id: string;
-      step: number;
-      status: DatasetHfaUploadAttemptStatusLight;
-      isActive: false;
-      fullDetail: DatasetHfaUploadAttemptDetail;
-    };
+export type DatasetHfaUploadStatusResponse = {
+  id: string;
+  step: number;
+  status: DatasetHfaUploadAttemptStatusLight;
+  isActive: boolean; // false = stop polling
+};

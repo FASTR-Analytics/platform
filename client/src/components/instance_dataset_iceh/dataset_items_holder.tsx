@@ -1,4 +1,4 @@
-import { ICEH_STRATS, ICEH_STRAT_INFO, t3, TC, type IcehDataDetail, type IcehDisplayData } from "lib";
+import { ICEH_STRATS, ICEH_STRAT_INFO, t3, TC, type IcehDisplayData } from "lib";
 import {
   FrameTop,
   type ListItem,
@@ -13,7 +13,7 @@ import { DataTab } from "./_data_tab";
 import { StratifiersTab } from "./_stratifiers_tab";
 import { IndicatorsTab } from "./_indicators_tab";
 
-export function DatasetItemsHolder(p: { detail: IcehDataDetail }) {
+export function DatasetItemsHolder() {
   const [displayData, setDisplayData] = createSignal<StateHolder<IcehDisplayData>>({
     status: "loading",
     msg: t3(TC.fetchingData),

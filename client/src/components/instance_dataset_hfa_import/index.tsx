@@ -173,7 +173,7 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
           <div class="ui-gap-sm flex flex-none items-center">
             <StepperNavigationVisual
               stepper={stepper}
-              stepLabelFormatter={(step) => `${step + 1}`}
+              stepLabelFormatter={(step) => `${step}`}
             />
             <Button iconName="refresh" onClick={uploadAttempt.fetch} />
             <Button
@@ -230,7 +230,6 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
                       { status: "integrating" }
                     >
                   }
-                  sourceType={keyedUploadAttempt.sourceType!}
                 />
               </Match>
               <Match
@@ -242,7 +241,6 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
                 }
               >
                 <Step4
-                  close={() => p.close(undefined)}
                   silentFetch={uploadAttempt.silentFetch}
                   step3Result={keyedUploadAttempt.step3Result!}
                 />
@@ -255,7 +253,6 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
                 }
               >
                 <Step3
-                  close={() => p.close(undefined)}
                   silentFetch={uploadAttempt.silentFetch}
                   step3Result={keyedUploadAttempt.step3Result}
                 />

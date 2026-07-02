@@ -9,7 +9,6 @@ import {
 import {
   FigureInputs,
   ChartHolder,
-  FrameLeft,
   FrameLeftResizable,
   MultiSelect,
   RadioGroup,
@@ -17,7 +16,6 @@ import {
   StateHolderWrapper,
   getSelectOptionsWithFirstCapital,
   toNum0,
-  type APIResponseWithData,
   type CustomFigureStyleOptions,
 } from "panther";
 import {
@@ -39,7 +37,6 @@ type Props = {
 
 export function DatasetItemsHolder(p: Props) {
   const [rawOrCommon, setRawOrCommon] = createSignal<IndicatorType>("common");
-  // console.log(p.versionId);
 
   const [itemsHolder, setItemsHolder] = createSignal<
     StateHolder<ItemsHolderDatasetHmisDisplay>

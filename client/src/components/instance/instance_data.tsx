@@ -17,63 +17,63 @@ import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 type Props = {};
 
 export function InstanceData(p: Props) {
-  const [selectedDataSource, setSelecteDatasource] = createSignal<
+  const [selectedDataSource, setSelectedDatasource] = createSignal<
     string | undefined
   >(undefined);
 
   return (
     <Switch>
       <Match when={selectedDataSource() === "admin_areas"}>
-        <AdminAreas backToInstance={() => setSelecteDatasource(undefined)} />
+        <AdminAreas backToInstance={() => setSelectedDatasource(undefined)} />
       </Match>
       <Match when={selectedDataSource() === "facilities_hmis"}>
         <Facilities
           family="hmis"
-          backToInstance={() => setSelecteDatasource(undefined)}
+          backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource() === "facilities_hfa"}>
         <Facilities
           family="hfa"
-          backToInstance={() => setSelecteDatasource(undefined)}
+          backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource() === "hfa_weights"}>
-        <HfaWeights backToInstance={() => setSelecteDatasource(undefined)} />
+        <HfaWeights backToInstance={() => setSelectedDatasource(undefined)} />
       </Match>
       <Match when={selectedDataSource() === "hfa_indicators"}>
         <HfaIndicatorsManager
-          backToInstance={() => setSelecteDatasource(undefined)}
+          backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource() === "indicators"}>
         <IndicatorsManager
-          backToInstance={() => setSelecteDatasource(undefined)}
+          backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource() === "hmis"} keyed>
         <InstanceDatasetHmis
-          backToInstance={() => setSelecteDatasource(undefined)}
+          backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource() === "hfa"} keyed>
         <InstanceDatasetHfa
-          backToInstance={() => setSelecteDatasource(undefined)}
+          backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource() === "iceh"} keyed>
         <InstanceDatasetIceh
-          backToInstance={() => setSelecteDatasource(undefined)}
+          backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource() === "hfa_time_points"}>
         <InstanceHfaTimePoints
-          backToInstance={() => setSelecteDatasource(undefined)}
+          backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource() === "geojson"}>
         <GeoJsonManager
-          backToInstance={() => setSelecteDatasource(undefined)}
+          backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
       <Match when={selectedDataSource()} keyed>
@@ -103,7 +103,7 @@ export function InstanceData(p: Props) {
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("admin_areas")}
+                    onClick={() => setSelectedDatasource("admin_areas")}
                   >
                     <div class="font-700 pb-2">
                       {t3({
@@ -155,7 +155,7 @@ export function InstanceData(p: Props) {
                   </div>
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("geojson")}
+                    onClick={() => setSelectedDatasource("geojson")}
                   >
                     <div class="font-700 pb-2">
                       {t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON", pt: "Mapas GeoJSON" })}
@@ -198,7 +198,7 @@ export function InstanceData(p: Props) {
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("facilities_hmis")}
+                    onClick={() => setSelectedDatasource("facilities_hmis")}
                   >
                     <div class="font-700 pb-2">
                       {t3({ en: "Facilities", fr: "Établissements", pt: "Estabelecimentos de saúde" })}
@@ -231,7 +231,7 @@ export function InstanceData(p: Props) {
                   </div>
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("hmis")}
+                    onClick={() => setSelectedDatasource("hmis")}
                   >
                     <div class="font-700 pb-2">
                       {t3({ en: "Data", fr: "Données", pt: "Dados" })}
@@ -255,7 +255,7 @@ export function InstanceData(p: Props) {
                   </div>
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("indicators")}
+                    onClick={() => setSelectedDatasource("indicators")}
                   >
                     <div class="font-700 pb-2">
                       {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
@@ -361,7 +361,7 @@ export function InstanceData(p: Props) {
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("facilities_hfa")}
+                    onClick={() => setSelectedDatasource("facilities_hfa")}
                   >
                     <div class="font-700 pb-2">
                       {t3({ en: "Facilities", fr: "Établissements", pt: "Estabelecimentos de saúde" })}
@@ -394,7 +394,7 @@ export function InstanceData(p: Props) {
                   </div>
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("hfa_time_points")}
+                    onClick={() => setSelectedDatasource("hfa_time_points")}
                   >
                     <div class="font-700 pb-2">
                       {t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" })}
@@ -430,7 +430,7 @@ export function InstanceData(p: Props) {
                   </div>
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("hfa_weights")}
+                    onClick={() => setSelectedDatasource("hfa_weights")}
                   >
                     <div class="font-700 pb-2">
                       {t3({
@@ -477,7 +477,7 @@ export function InstanceData(p: Props) {
                   </div>
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("hfa")}
+                    onClick={() => setSelectedDatasource("hfa")}
                   >
                     <div class="font-700 pb-2">
                       {t3({ en: "Data", fr: "Données", pt: "Dados" })}
@@ -501,7 +501,7 @@ export function InstanceData(p: Props) {
                   </div>
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("hfa_indicators")}
+                    onClick={() => setSelectedDatasource("hfa_indicators")}
                   >
                     <div class="font-700 pb-2">
                       {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
@@ -552,7 +552,7 @@ export function InstanceData(p: Props) {
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
                     class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelecteDatasource("iceh")}
+                    onClick={() => setSelectedDatasource("iceh")}
                   >
                     <div class="font-700 pb-2">
                       {t3({ en: "Equity data", fr: "Données d'équité", pt: "Dados de equidade" })}

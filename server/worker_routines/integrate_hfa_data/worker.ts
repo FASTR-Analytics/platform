@@ -40,19 +40,17 @@ async function run(std: {
   const importDb = createBulkImportConnection("main");
   const mainDb = createWorkerReadConnection("main");
 
-  async function updateIntegrationProgress(
-    progress: number,
-    result?: { versionId: number; nRowsIntegrated: number },
-  ) {
-    const status: DatasetHfaUploadAttemptStatus = result
-      ? { status: "complete", ...result }
-      : { status: "integrating", progress };
+  async function updateIntegrationProgress(progress: number) {
+    const status: DatasetHfaUploadAttemptStatus = {
+      status: "integrating",
+      progress,
+    };
 
     await mainDb`
       UPDATE hfa_upload_attempts
       SET
         status = ${JSON.stringify(status)},
-        status_type = ${result ? "complete" : "integrating"}
+        status_type = 'integrating'
     `;
   }
 

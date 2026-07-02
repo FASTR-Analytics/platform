@@ -40,8 +40,6 @@ export async function addDatasetHmisToProject(
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    console.log(windowing);
-
     if (onProgress) await onProgress(0.1, "Removing existing dataset...");
     const res = await removeDatasetFromProject(projectDb, projectId, "hmis");
     throwIfErrNoData(res);
@@ -59,11 +57,6 @@ export async function addDatasetHmisToProject(
       "hmis"
     );
 
-    // const facilitiesLinkingLevel = await getStructureLevel(
-    //   mainDb,
-    //   "facilities"
-    // );
-    // assertNotUndefined(facilitiesLinkingLevel, "Bad facilities linking level");
     const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
     throwIfErrWithData(resMaxAdminArea);
 

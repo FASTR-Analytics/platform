@@ -51,6 +51,9 @@ export function DatasetIcehUploadAttemptForm(p: Props) {
     // no arm matches (dead-end error screen).
     navMinStep: 1,
     navMaxStep: 2,
+    // Steps are server step numbers (1-based); the shell default of step+1
+    // is for zero-based wizards.
+    stepLabelFormatter: (step) => `${step}`,
     getAttempt: async () => {
       const res = await serverActions.getDatasetIcehUploadAttempt({});
       return res as

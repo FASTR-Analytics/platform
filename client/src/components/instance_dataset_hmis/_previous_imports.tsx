@@ -100,15 +100,11 @@ export function PreviousImports(
     },
   ];
 
-  async function viewImportInformation(
-    version: DatasetHmisVersion,
-    isCurrentVersion: boolean,
-  ) {
+  async function viewImportInformation(version: DatasetHmisVersion) {
     await openEditor({
       element: ImportInformation,
       props: {
         version,
-        isCurrentVersion,
       },
     });
   }
@@ -137,9 +133,7 @@ export function PreviousImports(
                   columns={columns}
                   keyField="id"
                   noRowsMessage={t3({ en: "No previous imports found", fr: "Aucune importation précédente trouvée" })}
-                  onRowClick={(version) =>
-                    viewImportInformation(version, false)
-                  }
+                  onRowClick={(version) => viewImportInformation(version)}
                   fitTableToAvailableHeight
                 />
               </div>

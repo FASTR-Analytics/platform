@@ -9,7 +9,6 @@ export function ImportInformation(
   p: EditorComponentProps<
     {
       version: DatasetHmisVersion;
-      isCurrentVersion: boolean;
     },
     undefined
   >,
@@ -37,9 +36,6 @@ export function ImportInformation(
           <div class="font-700 flex-1 truncate text-xl">
             {t3({ en: "Import information", fr: "Informations sur l'importation" })}
           </div>
-          {/* <div class="ui-gap-sm flex items-center">
-            <Button iconName="refresh" onClick={versions.fetch} />
-          </div> */}
         </div>
       }
     >

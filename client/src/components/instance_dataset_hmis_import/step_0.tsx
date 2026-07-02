@@ -5,7 +5,6 @@ import {
   Button,
   RadioGroup,
   StateHolderFormError,
-  getSelectOptions,
   createFormAction,
 } from "panther";
 

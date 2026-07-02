@@ -49,10 +49,6 @@ export const icehRouteRegistry = {
     method: "POST",
     path: "/iceh/upload-attempt/step2",
   }),
-  updateDatasetIcehUploadAttemptStep3: route({
-    method: "POST",
-    path: "/iceh/upload-attempt/step3",
-  }),
   deleteDatasetIcehData: route({
     method: "DELETE",
     path: "/iceh/data",

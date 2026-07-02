@@ -116,15 +116,6 @@ export function Step2_Dhis2(p: Props) {
 
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);
 
-  // Get indicators list from server
-  // TODO: Replace with actual server action when available
-  // const indicators = createQuery(
-  //   async () => ({
-  //     success: true as const,
-  //     data: [] as { id: string; label: string }[],
-  //   }),
-  //   t("Loading indicators..."),
-  // );
   const indicators = createQuery(
     () => serverActions.getIndicators({}),
     t3({ en: "Loading indicators...", fr: "Chargement des indicateurs..." }),
