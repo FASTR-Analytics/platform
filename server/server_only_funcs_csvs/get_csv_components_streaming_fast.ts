@@ -184,6 +184,16 @@ export async function getCsvStreamComponents(
           const buffer = new Uint8Array(CHUNK_SIZE);
           const decoder = new TextDecoder();
 
+          // A chunk boundary must never split a quoted field: Papa parses
+          // each slice independently, so cutting at a newline inside quotes
+          // (routine in ODK exports) mis-frames every row after it. Track
+          // quote parity across chunks and cut only at newlines outside
+          // quotes — RFC4180 "" escapes toggle twice with no newline
+          // possible between the two quote chars, so parity is exact.
+          // leftoverBuffer never contains a safe newline by construction,
+          // so only the newly decoded chunk needs scanning.
+          let inQuotes = false;
+
           try {
             while (true) {
               // Wait if queue is full
@@ -281,19 +291,27 @@ export async function getCsvStreamComponents(
               const chunk = decoder.decode(buffer.slice(0, bytesRead), {
                 stream: true,
               });
+
+              let lastSafeNewline = -1;
+              for (let i = 0; i < chunk.length; i++) {
+                const code = chunk.charCodeAt(i);
+                if (code === 34) {
+                  inQuotes = !inQuotes;
+                } else if (code === 10 && !inQuotes) {
+                  lastSafeNewline = i;
+                }
+              }
+
               const dataToProcess = leftoverBuffer + chunk;
 
-              // Find the last complete line
-              const lastNewline = dataToProcess.lastIndexOf("\n");
-              let completeData: string;
-
-              if (lastNewline === -1) {
+              if (lastSafeNewline === -1) {
                 leftoverBuffer = dataToProcess;
                 continue;
-              } else {
-                completeData = dataToProcess.slice(0, lastNewline);
-                leftoverBuffer = dataToProcess.slice(lastNewline + 1);
               }
+
+              const boundary = leftoverBuffer.length + lastSafeNewline;
+              const completeData = dataToProcess.slice(0, boundary);
+              leftoverBuffer = dataToProcess.slice(boundary + 1);
 
               Papa.parse<string[]>(completeData, {
                 skipEmptyLines: true,
