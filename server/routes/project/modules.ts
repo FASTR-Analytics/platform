@@ -45,6 +45,11 @@ import {
   notifyProjectModulesUpdated,
   notifyProjectVisualizationsUpdated,
 } from "../../task_management/notify_project_v2.ts";
+import { addOtherModulesThatDependOnModule } from "../../task_management/get_dependents.ts";
+import {
+  hasRunningModule,
+  removeRunningModule,
+} from "../../task_management/running_tasks_map.ts";
 import { getAllPresentationObjectsForProject } from "../../db/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
@@ -125,6 +130,24 @@ defineRoute(
   ),
   log("uninstallModule"),
   async (c, { params }) => {
+    // The client blocks this too; enforce server-side so direct API calls or
+    // stale-client races cannot uninstall a producer other installed modules
+    // depend on (the readiness gate treats an absent producer as ready).
+    const dependents: string[] = [];
+    await addOtherModulesThatDependOnModule(
+      c.var.ppk.projectDb,
+      params.module_id,
+      dependents,
+    );
+    if (dependents.length > 0) {
+      return c.json({
+        success: false as const,
+        err: `Cannot uninstall this module: ${dependents.join(", ")} depend(s) on its results. Uninstall those first.`,
+      });
+    }
+    if (hasRunningModule(c.var.ppk.projectId, params.module_id)) {
+      removeRunningModule(c.var.ppk.projectId, params.module_id);
+    }
     const res = await uninstallModule(c.var.ppk.projectDb, params.module_id);
     if (res.success === false) {
       return c.json(res);

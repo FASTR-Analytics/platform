@@ -45,6 +45,7 @@ export async function* runModuleIterator(
   moduleDetail: ModuleDetailForRunningScript,
   facilityColumns: InstanceConfigFacilityColumns,
   countryIso3: string | undefined,
+  containerName: string,
 ) {
   let logFile: Deno.FsFile | undefined;
   let logFileClosed = false;
@@ -191,6 +192,8 @@ export async function* runModuleIterator(
             "run",
             "-it", // Must be interactive so that the command waits!!!!!!!
             "--rm",
+            "--name",
+            containerName,
             "-v",
             `${projectDirPath_EXTERNAL}:/home/docker`,
             "-w",

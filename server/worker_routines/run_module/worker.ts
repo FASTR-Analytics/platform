@@ -7,6 +7,7 @@ import {
 import { throwIfErrWithData } from "lib";
 import { EndingTaskData } from "../../server_only_types/mod.ts";
 import { notifyProjectRScript } from "../../task_management/notify_project_v2.ts";
+import { getModuleRunContainerName } from "./container_name.ts";
 import { runModuleIterator } from "./run_module_iterator.ts";
 
 const broadcastTaskEnded = new BroadcastChannel("task_ended");
@@ -67,7 +68,8 @@ async function run(std: {
     mainDb,
     resModuleDetail.data,
     resFacilityColumns.data,
-    resCountryIso3.data.countryIso3
+    resCountryIso3.data.countryIso3,
+    getModuleRunContainerName(std.moduleId, std.runToken)
   );
 
   let anyErrors = false;

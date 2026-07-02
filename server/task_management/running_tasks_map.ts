@@ -1,4 +1,6 @@
 import { DirtyOrRunStatus } from "lib";
+import { _IS_PRODUCTION } from "../exposed_env_vars.ts";
+import { getModuleRunContainerName } from "../worker_routines/run_module/container_name.ts";
 import { notifyProjectAnyRunning } from "./notify_project_v2.ts";
 
 export type RunningModuleEntry = {
@@ -55,6 +57,7 @@ export function attachRunningModuleWorker(
   const entry = rt.get(moduleId);
   if (entry === undefined || entry.runToken !== runToken) {
     worker.terminate();
+    killModuleRunContainer(moduleId, runToken);
     return false;
   }
   entry.worker = worker;
@@ -85,9 +88,29 @@ export function removeRunningModule(projectId: string, moduleId: string) {
   const entry = rt.get(moduleId);
   if (entry?.worker) {
     entry.worker.terminate();
+    // Terminating the worker only kills the `docker run` CLI client — the
+    // container itself is owned by the daemon and keeps executing (and keeps
+    // writing into the module's sandbox dir, corrupting a respawned run).
+    killModuleRunContainer(moduleId, entry.runToken);
   }
   rt.delete(moduleId);
   maybeNotifyStopped(projectId, rt);
+}
+
+function killModuleRunContainer(moduleId: string, runToken: string) {
+  if (!_IS_PRODUCTION) {
+    return;
+  }
+  const name = getModuleRunContainerName(moduleId, runToken);
+  new Deno.Command("docker", {
+    args: ["rm", "-f", name],
+    stdout: "null",
+    stderr: "null",
+  })
+    .output()
+    .catch((error) => {
+      console.error("Failed to remove module run container:", error);
+    });
 }
 
 function maybeNotifyStopped(
