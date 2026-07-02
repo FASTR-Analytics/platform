@@ -1131,31 +1131,47 @@ function PeerSelectionOverlay(p: {
         h: rcd.h(),
       });
     }
+    // One box per TARGET ELEMENT (not per peer): when several people edit the
+    // same block/title, their name tags must sit side by side above it, not
+    // overlap at the same spot.
     const out: {
       key: string;
-      color: string;
-      name: string;
       left: number;
       top: number;
       width: number;
       height: number;
+      editors: { name: string; color: string }[];
     }[] = [];
+    const byTarget = new Map<string, (typeof out)[number]>();
     for (const peer of peers) {
+      const targetKey = peer.selectedBlockId
+        ? `block:${peer.selectedBlockId}`
+        : `text:${peer.selectedTextTarget}`;
       const rcd = peer.selectedBlockId
         ? blockRects.get(peer.selectedBlockId)
-        : peer.selectedTextTarget
-        ? textRects.get(peer.selectedTextTarget)
-        : undefined;
+        : textRects.get(peer.selectedTextTarget!);
       if (!rcd) continue;
-      out.push({
-        key: peer.connectionId,
-        color: peer.color,
-        name: peer.name,
-        left: r.left + rcd.x * sx,
-        top: r.top + rcd.y * sy,
-        width: rcd.w * sx,
-        height: rcd.h * sy,
-      });
+      let entry = byTarget.get(targetKey);
+      if (!entry) {
+        entry = {
+          key: targetKey,
+          left: r.left + rcd.x * sx,
+          top: r.top + rcd.y * sy,
+          width: rcd.w * sx,
+          height: rcd.h * sy,
+          editors: [],
+        };
+        byTarget.set(targetKey, entry);
+        out.push(entry);
+      }
+      // Same user in two tabs = two connections; show their name once.
+      if (!entry.editors.some((e) => e.name === peer.name)) {
+        entry.editors.push({ name: peer.name, color: peer.color });
+      }
+    }
+    // Stable label order so tags don't swap places between presence updates.
+    for (const entry of out) {
+      entry.editors.sort((a, b) => a.name.localeCompare(b.name));
     }
     return out;
   };
@@ -1172,14 +1188,33 @@ function PeerSelectionOverlay(p: {
                 top: `${b.top}px`,
                 width: `${b.width}px`,
                 height: `${b.height}px`,
-                border: `2px solid ${b.color}`,
+                border: `2px solid ${b.editors[0].color}`,
               }}
             >
-              <div
-                class="absolute -top-[18px] left-0 whitespace-nowrap rounded px-1 text-[10px] font-semibold text-white"
-                style={{ "background-color": b.color }}
-              >
-                {b.name}
+              {/* Additional co-editors get concentric inset borders so every
+                  editor's color stays visible on the shared element. */}
+              <For each={b.editors.slice(1)}>
+                {(e, i) => (
+                  <div
+                    class="pointer-events-none absolute rounded-sm"
+                    style={{
+                      inset: `${(i() + 1) * 2}px`,
+                      border: `2px solid ${e.color}`,
+                    }}
+                  />
+                )}
+              </For>
+              <div class="absolute -top-[18px] left-0 flex gap-1">
+                <For each={b.editors}>
+                  {(e) => (
+                    <div
+                      class="whitespace-nowrap rounded px-1 text-[10px] font-semibold text-white"
+                      style={{ "background-color": e.color }}
+                    >
+                      {e.name}
+                    </div>
+                  )}
+                </For>
               </div>
             </div>
           )}
