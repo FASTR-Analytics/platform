@@ -9,9 +9,9 @@ Status: PARTIALLY IMPLEMENTED (working tree, uncommitted) as of 2026-06-23. Per-
 | WS1 | Import-freeze fix (metadata/geometry split + save-time guards) | **NOT STARTED** — `fetch_geojson.ts` still fetches full geometry at analyze; no metadata split; no empty-map guards |
 | WS2 | Match observability (coverage counting + typed sentinel) | **NOT STARTED** — no coverage tally; control flow still uses the `[INFO]`-string sentinel |
 | WS3 | Export-resilience | **DONE** — split across commit `d3743456` (report/slide-deck/dashboard-render degradation, deployed in 1.52.0) **plus** the dashboard model-build gap now closed in the **working tree (uncommitted)**. `deno task typecheck` green both tiers |
-| WS7 | Upload-edge hardening | **PARTIAL** — **P1 filename-sanitization DONE** (working tree, uncommitted). All P2 items (size/type caps, parse guard, deeper geojson validation, credential handling, temp-file cleanup) **NOT STARTED** |
+| WS7 | Upload-edge hardening | **PARTIAL** — **P1 filename-sanitization DONE** (committed, `a36121e2`). All P2 items (size/type caps, parse guard, deeper geojson validation, credential handling, temp-file cleanup) **NOT STARTED** (see 2026-07-02 note in §6 for adjacent S5-cycle work) |
 
-Uncommitted files carrying the done work: `server/routes/instance/upload.ts` (WS7 P1), `client/src/exports/_dashboard_export_model.ts`, `client/src/exports/_dashboard_pages.ts`, `client/src/exports/export_dashboard_as_xlsx.ts`, `client/src/components/public_viewer/download_dashboard_modal.tsx` (WS3 gap).
+The done work (WS7 P1 in `server/routes/instance/upload.ts`; the WS3 gap in the dashboard export files) has since been committed (`a36121e2`).
 
 This is **one of two geojson plans**. This one covers the **near-term, layer-1 / orthogonal** work that can ship immediately and closes the reported production bug. The **bigger architectural work** (making geojson a portable project snapshot) is the companion doc **PLAN_GEOJSON_SNAPSHOT.md**. Read order: this plan first, then PLAN_GEOJSON_SNAPSHOT.md.
 
@@ -138,7 +138,9 @@ Phase 1 reliably fixes **AA3** end-to-end. **AA4** is not solved by WS1 alone �
 
 ## 6. WS7 — Upload-edge hardening  ·  priority: path-traversal = P1; rest = P2  ·  effort M  ·  STATUS: P1 DONE; rest NOT STARTED
 
-> **Verified 2026-06-23:** the P1 filename path-traversal fix is **DONE** (working tree, uncommitted) — see the bullet below. Every P2 item (size/type caps, parse guard, deeper geojson validation, credential handling, temp-file cleanup) is **NOT STARTED**.
+> **Verified 2026-06-23:** the P1 filename path-traversal fix is **DONE** (since committed, `a36121e2`) — see the bullet below. Every P2 item (size/type caps, parse guard, deeper geojson validation, credential handling, temp-file cleanup) is **NOT STARTED**.
+>
+> **Update 2026-07-02 (S5 review cycle):** adjacent ground shipped separately — read-side asset-path traversal closed repo-wide (`resolveAssetFilePath`, `599dacc9`), DHIS2 passwords redacted from `user_logs` request-body logging, and analyze/save geometry-count parity fixed (`a9cab9ae`). The P2 items listed here (size caps, parse OOM guard, deeper geometry validation, sessionStorage password persistence, 32-bit cache-key hash, temp cleanup) all still stand.
 
 **Goal:** close the OOM/DoS and path-traversal surface on the authenticated upload path. Today the upload edge is essentially unguarded. **Priority correction after review:** the blanket "P2" undersold the **filename path-traversal** — treat that one-liner as **P1, pull it forward**; the rest (size caps, deeper validation, credential handling, temp cleanup) stays P2.
 

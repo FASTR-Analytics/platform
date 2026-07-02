@@ -276,6 +276,7 @@ Prescriptive protocols for how this app is built (distinct from the `panther/pro
 - [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md) — `TimCacheC`, version-hash keying, implicit invalidation
 - [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md) — dirty state machine, dependency propagation, `task_ended` loop
 - [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md) — Web Worker pattern, READY handshake, report-back mechanisms
+- [SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md) — facilities/admin structure ELT, indicator dictionaries, geojson, time points, instance config
 - [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md) — stage→integrate ingestion (HMIS/HFA/ICEH dataset families)
 - [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md) — module load + R-script parameterize/execute/ingest
 - [DOC_DHIS2_INTEGRATION.md](DOC_DHIS2_INTEGRATION.md) — DHIS2 API client: base fetcher, retry, goals

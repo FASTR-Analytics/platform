@@ -125,8 +125,9 @@ tables at start; integration drops on success and on error.
   `dataset_hmis.facility_id` / `hfa_data.facility_id` FKs are RESTRICT).
 - CSV parsing goes through `getCsvStreamComponents`
   (`get_csv_components_streaming_fast.ts`) — streaming, 2 MB chunks, one
-  persistent `TextDecoder` in stream mode. Known hole: chunks split at
-  `lastIndexOf("\n")` without quote-awareness (Open items).
+  persistent `TextDecoder` in stream mode, quote-parity-aware chunk
+  boundaries (cut only at newlines outside quotes, so quoted fields with
+  embedded newlines survive chunking; fixed `cb95ecac`).
 - HMIS-DHIS2 semantics: values `parseInt`-truncated, negatives silently
   dropped; a 200 response missing `rows` is a **failed fetch**, not empty
   data; `succeededWorkItems` records every cleanly-fetched
@@ -264,11 +265,6 @@ Attach concurrency is an in-memory `_datasetLocks` set keyed
 
 Deferred findings from the 2026-07-02 review cycle, plus standing reform:
 
-- **Quote-aware CSV chunk splitting** (HIGH): the streamer cuts chunks at
-  `lastIndexOf("\n")` ignoring quoting — a quoted field with an embedded
-  newline (routine in ODK exports) can silently blank a facility's
-  trailing HFA variables (fewer-columns tolerance accepts the short row);
-  affects HMIS CSV too.
 - **COUNT-string fallout**: the CSV zero-valid-rows early-return in
   `stage_hmis_data_csv` is unreachable (`=== 0` against a string) — and
   if a bigint parser is ever added it becomes live and marks step 4
@@ -303,8 +299,8 @@ Deferred findings from the 2026-07-02 review cycle, plus standing reform:
 - ICEH: progress is written once as 0 and never updated (the percentage
   UI and the `staged` status arm are dead weight); rows skipped for
   unknown strat are counted but never surfaced; step_2/3_result columns
-  written but never read; `zipAssetFileName` is joined into the assets
-  path unconstrained (shared pattern across families, admin-only).
+  written but never read. (The unconstrained assets-path join was closed
+  repo-wide by `resolveAssetFilePath`, `599dacc9`.)
 - `getCsvDetails` (HFA/HMIS step 1) reads the whole file into memory for
   headers; the streaming variant's header read is one 64 KB `file.read()`
   (wide XLSForm exports / short reads → confusing failure).
