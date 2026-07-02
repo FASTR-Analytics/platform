@@ -719,13 +719,6 @@ async function handleStagingError(
 // never reach handleStagingError, which would release the claim a concurrent
 // staging run is holding.
 
-export async function structureStep3Csv_StageData(
-  mainDb: Sql,
-  family: FacilityFamily
-): Promise<APIResponseNoData> {
-  return await structureStep3Csv_StageDataStreaming(mainDb, family);
-}
-
 export async function structureStep3Csv_StageDataStreaming(
   mainDb: Sql,
   family: FacilityFamily,

@@ -26,7 +26,7 @@ export function InstanceHfaTimePoints(p: Props) {
         <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
           <Button iconName="chevronLeft" onClick={p.backToInstance} />
           <div class="font-700 flex-1 truncate text-xl">
-            {t3({ en: "HFA TIME POINTS", fr: "POINTS TEMPORELS HFA" })}
+            {t3({ en: "HFA time points", fr: "Points temporels HFA" })}
           </div>
         </div>
       }

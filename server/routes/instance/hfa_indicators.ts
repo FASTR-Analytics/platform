@@ -24,7 +24,6 @@ import {
   batchUploadHfaIndicators,
   getHfaIndicatorCode,
   getAllHfaIndicatorCode,
-  updateHfaIndicatorCode,
   saveHfaIndicatorFull,
   getHfaDictionaryForValidation,
   bulkUpdateHfaIndicatorValidation,
@@ -330,16 +329,6 @@ defineRoute(
   async (c) => {
     const data = await getAllHfaIndicatorCode(c.var.mainDb);
     return c.json({ success: true, data });
-  },
-);
-
-defineRoute(
-  routesHfaIndicators,
-  "updateHfaIndicatorCode",
-  requireGlobalPermission("can_configure_data"),
-  async (c, { body }) => {
-    const res = await updateHfaIndicatorCode(c.var.mainDb, body.varName, body.timePoint, body.rCode, body.rFilterCode);
-    return c.json(res);
   },
 );
 

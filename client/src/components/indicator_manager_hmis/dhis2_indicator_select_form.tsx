@@ -371,7 +371,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                                     <span class="bg-info/10 text-info font-400 inline-block flex-none rounded px-2 py-1 text-xs">
                                       {t3({ en: "COC", fr: "COC" })}
                                     </span>
-                                    <span class="font-500 flex-1 truncate">
+                                    <span class="font-400 flex-1 truncate">
                                       {coc.displayName || coc.name}
                                     </span>
                                     <span class="text-base-content flex-none font-mono text-xs">

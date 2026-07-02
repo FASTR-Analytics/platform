@@ -191,32 +191,6 @@ export async function createIndicatorsCommon(
   });
 }
 
-// // Create a single common indicator (backwards compatibility)
-// export async function createIndicator(
-//   mainDb: Sql,
-//   indicatorCommonId: string,
-//   indicatorCommonLabel: string,
-//   mappedRawIds: string[]
-// ): Promise<APIResponseNoData> {
-//   const result = await createIndicators(mainDb, [
-//     {
-//       indicator_common_id: indicatorCommonId,
-//       indicator_common_label: indicatorCommonLabel,
-//       mapped_raw_ids: mappedRawIds,
-//     },
-//   ]);
-
-//   if (!result.success) {
-//     return { success: false, err: result.err };
-//   }
-
-//   if (result.data.failed > 0) {
-//     return { success: false, err: result.data.errors[0] };
-//   }
-
-//   return { success: true };
-// }
-
 // Update a common indicator and replace its raw indicator mappings
 export async function updateIndicatorCommon(
   mainDb: Sql,
@@ -441,30 +415,6 @@ export async function createIndicatorsRaw(
   });
 }
 
-// // Create a single raw indicator (backwards compatibility)
-// export async function createIndicatorRaw(
-//   mainDb: Sql,
-//   indicatorRawId: string,
-//   indicatorRawLabel: string,
-//   mappedCommonIds: string[]
-// ): Promise<APIResponseNoData> {
-//   const result = await createIndicatorsRaw(mainDb, [{
-//     indicator_raw_id: indicatorRawId,
-//     indicator_raw_label: indicatorRawLabel,
-//     mapped_common_ids: mappedCommonIds
-//   }]);
-
-//   if (!result.success) {
-//     return { success: false, err: result.err };
-//   }
-
-//   if (result.data.failed > 0) {
-//     return { success: false, err: result.data.errors[0] };
-//   }
-
-//   return { success: true };
-// }
-
 // Update a raw indicator and replace its common indicator mappings
 export async function updateIndicatorRaw(
   mainDb: Sql,
@@ -575,28 +525,6 @@ export async function deleteIndicatorRaw(
 // =============================================================================
 // BULK OPERATIONS
 // =============================================================================
-
-// Delete all non-default indicators and raw indicators (automatically cascades to mappings)
-export async function deleteAllIndicators(
-  mainDb: Sql,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    await mainDb.begin(async (sql) => {
-      // Delete all raw indicators (CASCADE will delete their mappings)
-      await sql`
-        DELETE FROM indicators_raw
-      `;
-
-      // Delete all non-default common indicators (CASCADE will delete remaining mappings)
-      await sql`
-        DELETE FROM indicators
-        WHERE is_default = FALSE
-      `;
-    });
-
-    return { success: true };
-  });
-}
 
 // Batch upload raw indicators from CSV file (ID and label only, no mappings)
 export async function batchUploadRawIndicators(

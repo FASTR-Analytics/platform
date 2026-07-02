@@ -4,7 +4,6 @@ import {
   batchUploadRawIndicators,
   createIndicatorsCommon,
   createIndicatorsRaw,
-  deleteAllIndicators,
   deleteIndicatorCommon,
   deleteIndicatorRaw,
   getIndicatorsWithMappings,
@@ -316,23 +315,6 @@ defineRoute(
       body.asset_file_name,
       body.replace_all_existing,
     );
-    if (res.success) {
-      notifyInstanceIndicatorsUpdated(
-        await getInstanceIndicatorsSummary(c.var.mainDb),
-      );
-    }
-    return c.json(res);
-  },
-);
-
-// DELETE /indicators/all - Delete all non-default indicators and their mappings
-defineRoute(
-  routesIndicators,
-  "deleteAllIndicators",
-  requireGlobalPermission("can_configure_data"),
-  log("deleteAllIndicators"),
-  async (c) => {
-    const res = await deleteAllIndicators(c.var.mainDb);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),

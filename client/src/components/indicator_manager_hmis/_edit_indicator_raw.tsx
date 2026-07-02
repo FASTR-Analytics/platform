@@ -5,7 +5,6 @@ import {
   Button,
   Input,
   Select,
-  getSelectOptions,
   getTruncatedString,
   getUnique,
   createFormAction,
@@ -41,16 +40,16 @@ export function EditIndicatorRawForm(
     p.existingRawIndicator?.indicator_common_ids ?? [],
   );
 
-  function addMappedRawId() {
+  function addMappedCommonId() {
     setMappedCommonIds([...mappedCommonIds(), ""]);
   }
 
-  function removeMappedRawId(index: number) {
+  function removeMappedCommonId(index: number) {
     const current = mappedCommonIds();
     setMappedCommonIds(current.filter((_, i) => i !== index));
   }
 
-  function updateMappedRawId(index: number, value: string) {
+  function updateMappedCommonId(index: number, value: string) {
     const current = mappedCommonIds();
     const updated = [...current];
     updated[index] = value;
@@ -140,16 +139,16 @@ export function EditIndicatorRawForm(
           {t3({ en: "Mapped Common Indicators", fr: "Indicateurs communs associés" })}
         </div>
         <For each={mappedCommonIds()}>
-          {(rawId, index) => (
+          {(commonId, index) => (
             <div class="ui-gap-sm flex items-center">
               <Select
-                value={rawId}
-                onChange={(value) => updateMappedRawId(index(), value)}
+                value={commonId}
+                onChange={(value) => updateMappedCommonId(index(), value)}
                 options={[
                   { value: "", label: t3({ en: "Select common indicator...", fr: "Sélectionner un indicateur commun..." }) },
-                  ...p.commonIndicators.map((raw) => ({
-                    value: raw.indicator_common_id,
-                    label: `${raw.indicator_common_id} ~ ${getTruncatedString(raw.indicator_common_label, 30)}`,
+                  ...p.commonIndicators.map((common) => ({
+                    value: common.indicator_common_id,
+                    label: `${common.indicator_common_id} ~ ${getTruncatedString(common.indicator_common_label, 30)}`,
                   })),
                 ]}
                 fullWidth
@@ -158,7 +157,7 @@ export function EditIndicatorRawForm(
                 intent="danger"
                 onClick={(e) => {
                   e.preventDefault();
-                  removeMappedRawId(index());
+                  removeMappedCommonId(index());
                 }}
                 iconName="trash"
                 outline
@@ -171,7 +170,7 @@ export function EditIndicatorRawForm(
             intent="success"
             onClick={(e) => {
               e.preventDefault();
-              addMappedRawId();
+              addMappedCommonId();
             }}
             iconName="plus"
             outline

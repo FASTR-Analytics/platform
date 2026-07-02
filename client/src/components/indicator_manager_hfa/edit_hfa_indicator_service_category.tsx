@@ -7,14 +7,7 @@ import {
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-
-function slugify(label: string): string {
-  return label
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_")
-    .replace(/[^a-z0-9_]/g, "");
-}
+import { slugify } from "./_shared";
 
 export function EditHfaIndicatorServiceCategory(
   p: AlertComponentProps<

@@ -347,12 +347,6 @@ export function EditCalculatedIndicatorForm(
             onChange={setLabel}
             fullWidth
           />
-          {/* <Input
-            label={t3({ en: "Group label", fr: "Libellé du groupe" })}
-            value={groupLabel()}
-            onChange={setGroupLabel}
-            fullWidth
-          /> */}
         </div>
 
         <div class="ui-spy-sm">

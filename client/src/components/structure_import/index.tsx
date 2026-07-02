@@ -17,10 +17,12 @@ import {
 } from "panther";
 import { Match, Show, Switch, createSignal, onCleanup, onMount } from "solid-js";
 import type {
-  StructureUploadAttemptDetail,
+  CsvDetails,
   StructureUploadAttemptStatus,
   Dhis2CredentialsRedacted,
+  StructureColumnMappings,
   StructureDhis2OrgUnitSelection,
+  StructureStagingResult,
 } from "lib";
 import { Step0 } from "./step_0";
 import { Step1_Csv } from "./step_1_csv";
@@ -53,15 +55,7 @@ export function StructureUploadAttemptForm(p: Props) {
     if (res.success === true) {
       stepper.setCurrentStep(res.data.step);
     }
-    return res as
-      | {
-          success: false;
-          err: string;
-        }
-      | {
-          success: true;
-          data: StructureUploadAttemptDetail;
-        };
+    return res;
   }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation..." }));
 
   const [dismissedError, setDismissedError] = createSignal<string | undefined>(
@@ -223,7 +217,7 @@ export function StructureUploadAttemptForm(p: Props) {
                 }
               >
                 <Step4
-                  step3Result={keyedUploadAttempt.step3Result as any}
+                  step3Result={keyedUploadAttempt.step3Result as StructureStagingResult}
                   family={p.family}
                   facilityColumns={p.facilityColumns}
                   close={() => p.close({ needsReload: true })}
@@ -243,7 +237,6 @@ export function StructureUploadAttemptForm(p: Props) {
                   <Match when={keyedUploadAttempt.sourceType === "csv"}>
                     <Step3_Csv
                       family={p.family}
-                      close={() => p.close({ needsReload: true })}
                       silentRefresUploadAttempt={uploadAttempt.silentFetch}
                       silentRefreshInstance={p.silentRefreshInstance}
                     />
@@ -251,7 +244,6 @@ export function StructureUploadAttemptForm(p: Props) {
                   <Match when={keyedUploadAttempt.sourceType === "dhis2"}>
                     <Step3_Dhis2
                       family={p.family}
-                      close={() => p.close({ needsReload: true })}
                       silentRefresUploadAttempt={uploadAttempt.silentFetch}
                       silentRefreshInstance={p.silentRefreshInstance}
                     />
@@ -268,8 +260,12 @@ export function StructureUploadAttemptForm(p: Props) {
                 <Switch>
                   <Match when={keyedUploadAttempt.sourceType === "csv"}>
                     <Step2_Csv
-                      step1Result={keyedUploadAttempt.step1Result as any}
-                      step2Result={keyedUploadAttempt.step2Result as any}
+                      step1Result={keyedUploadAttempt.step1Result as CsvDetails}
+                      step2Result={
+                        keyedUploadAttempt.step2Result as
+                          | StructureColumnMappings
+                          | undefined
+                      }
                       family={p.family}
                       maxAdminArea={p.maxAdminArea}
                       facilityColumns={p.facilityColumns}
@@ -297,7 +293,9 @@ export function StructureUploadAttemptForm(p: Props) {
                 <Switch>
                   <Match when={keyedUploadAttempt.sourceType === "csv"}>
                     <Step1_Csv
-                      step1Result={keyedUploadAttempt.step1Result as any}
+                      step1Result={
+                        keyedUploadAttempt.step1Result as CsvDetails | undefined
+                      }
                       family={p.family}
                       silentFetch={uploadAttempt.silentFetch}
                     />

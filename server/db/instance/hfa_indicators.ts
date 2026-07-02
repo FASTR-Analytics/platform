@@ -752,26 +752,6 @@ export async function getAllHfaIndicatorCode(
   return rows.map(dbRowToHfaIndicatorCode);
 }
 
-export async function updateHfaIndicatorCode(
-  mainDb: Sql,
-  varName: string,
-  timePoint: string,
-  rCode: string,
-  rFilterCode: string | undefined,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    await mainDb`
-      INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
-      VALUES (${varName}, ${timePoint}, ${rCode}, ${rFilterCode ?? null})
-      ON CONFLICT (var_name, time_point)
-      DO UPDATE SET
-        r_code = EXCLUDED.r_code,
-        r_filter_code = EXCLUDED.r_filter_code
-    `;
-    return { success: true };
-  });
-}
-
 // ============================================================================
 // Dictionary for Validation
 // ============================================================================

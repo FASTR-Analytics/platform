@@ -26,8 +26,7 @@ interface AdminAreaCounts {
  *
  * Column scope is the staging table's own columns (= what was mapped at step 2),
  * discovered here — never the instance's enabled-columns config. Admin areas are
- * just mapped columns: present in staging iff mapped. See
- * PLAN_FACILITY_UPDATE_MODES.md.
+ * just mapped columns: present in staging iff mapped.
  */
 export async function integrateStructureFromStaging(
   mainDb: Sql,

@@ -64,9 +64,6 @@ export type StructureUploadAttemptStatus =
       processedOrgUnits?: number;
     }
   | {
-      status: "complete";
-    }
-  | {
       status: "error";
       error: string;
     };
@@ -74,12 +71,6 @@ export type StructureUploadAttemptStatus =
 // ============================================================================
 // Structure Upload Detail Types
 // ============================================================================
-
-export type StructureUploadAttemptSummary = {
-  id: string;
-  dateStarted: string;
-  status: StructureUploadAttemptStatus;
-};
 
 export type StructureUploadAttemptDetailInitial = {
   id: string;
@@ -177,7 +168,12 @@ export type StructureDhis2OrgUnitMetadata = {
 // HFA Facility Sampling Weights
 // ============================================================================
 
-// CSV format: facility_id, time_point, weight (one row per facility per time point)
+// Import CSV is LONG format: two user-mapped columns (facility_id, weight),
+// one row per facility. The time point is chosen in the UI — one time point
+// per import. A blank weight cell = facility not in that round's sample;
+// skipped rather than stored (decided 2026-06-11: no surveyed-but-excluded
+// case exists, so no 0/NULL weights are ever stored). The EXPORT is wide:
+// facility_id, then one column per time point label.
 // Coverage is measured against facilities WITH DATA in the round — those are
 // the ones that enter the analysis (not-sampled facilities have no data rows
 // and need no weight). Partial coverage is the footgun to show.
@@ -188,15 +184,6 @@ export type HfaWeightsCoverage = {
   facilitiesWithDataAndWeight: number;
 };
 
-export type HfaFacilityWeightsSummary = {
-  totalCount: number;
-  perTimePoint: HfaWeightsCoverage[];
-};
-
-// Import CSV is WIDE: facility_id, then one column per time point label.
-// A blank cell = facility not in that round's sample; skipped rather than
-// stored (decided 2026-06-11: no surveyed-but-excluded case exists, so no
-// 0/NULL weights are ever stored). Counts below are of weight CELLS.
 export type HfaFacilityWeightsImportResult = {
   rowsImported: number;
   rowsSkippedNoWeight: number;
@@ -205,7 +192,7 @@ export type HfaFacilityWeightsImportResult = {
 
 // The three facility-import intents. facility_id is always the match key; the
 // columns written are exactly those mapped at step 2 (= the staging table's
-// columns), admin areas included. See PLAN_FACILITY_UPDATE_MODES.md.
+// columns), admin areas included.
 //   - replace_all:          delete this family's facilities, then add all from the file
 //   - add_and_update:       add facilities with new IDs, update existing ones
 //   - update_existing_only: update existing facilities only; reject any unknown ID

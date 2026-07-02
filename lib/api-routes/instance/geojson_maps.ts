@@ -53,12 +53,6 @@ export const geojsonMapRouteRegistry = {
     // GeoJsonMapSummary type change, not here.
     body: z.object({ adminAreaLevel: z.number() }),
   }),
-  getAdminAreaNamesForLevel: route({
-    path: "/geojson-maps/admin-areas/:level",
-    method: "GET",
-    params: levelParamsSchema,
-    response: {} as string[],
-  }),
   getAdminAreaOptionsForLevel: route({
     path: "/geojson-maps/admin-area-options/:level",
     method: "GET",
@@ -85,23 +79,6 @@ export const geojsonMapRouteRegistry = {
     body: dhis2CredentialsSchema,
     response: {} as {
       levels: Array<{ level: number; name: string; orgUnitCount: number }>;
-    },
-  }),
-  dhis2DetectLevelMapping: route({
-    path: "/geojson-maps/dhis2/detect-mapping",
-    method: "POST",
-    body: dhis2CredentialsSchema,
-    response: {} as {
-      mappings: Array<{
-        adminAreaLevel: 2 | 3 | 4;
-        adminAreaCount: number;
-        dhis2Level: number | null;
-        dhis2LevelName: string | null;
-        dhis2Count: number | null;
-        geometryCount: number | null;
-        matchedNames: number;
-        confidence: "high" | "medium" | "low" | "none";
-      }>;
     },
   }),
   dhis2AnalyzeGeoJson: route({

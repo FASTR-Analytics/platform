@@ -4,11 +4,9 @@ import { _DATASET_LIMIT, t3, type FacilityFamily } from "lib";
 import {
   addStructureUploadAttempt,
   deleteAllHfaFacilityWeights,
-  deleteHfaFacilityWeightsForTimePoint,
   deleteAllStructureData,
   deleteFamilyFacilities,
   getHfaFacilityWeightsItems,
-  getHfaFacilityWeightsSummary,
   getInstanceStructureSummary,
   importHfaFacilityWeights,
   deleteStructureUploadAttempt,
@@ -21,7 +19,6 @@ import {
   structureStep1Dhis2_SetCredentials,
   structureStep2Csv_SetColumnMappings,
   structureStep2Dhis2_SetOrgUnitSelection,
-  structureStep3Csv_StageData,
   structureStep3Csv_StageDataStreaming,
   structureStep3Dhis2_StageData,
   structureStep4_ImportData,
@@ -105,17 +102,6 @@ defineRoute(
 
 defineRoute(
   routesStructure,
-  "getHfaFacilityWeightsSummary",
-  requireGlobalPermission("can_view_data"),
-  log("getHfaFacilityWeightsSummary"),
-  async (c) => {
-    const res = await getHfaFacilityWeightsSummary(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesStructure,
   "getHfaFacilityWeightsItems",
   requireGlobalPermission("can_view_data"),
   log("getHfaFacilityWeightsItems"),
@@ -157,21 +143,6 @@ defineRoute(
       body.weightColumn,
       body.timePoint,
     );
-    if (res.success) {
-      notifyInstanceStructureUpdated(await getInstanceStructureSummary(mainDb));
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesStructure,
-  "deleteHfaFacilityWeightsForTimePoint",
-  requireGlobalPermission("can_configure_data"),
-  log("deleteHfaFacilityWeightsForTimePoint"),
-  async (c, { body }) => {
-    const mainDb = c.var.mainDb;
-    const res = await deleteHfaFacilityWeightsForTimePoint(mainDb, body.timePoint);
     if (res.success) {
       notifyInstanceStructureUpdated(await getInstanceStructureSummary(mainDb));
     }
@@ -274,17 +245,6 @@ defineRoute(
 
 defineRoute(
   routesStructure,
-  "structureStep3Csv_StageData",
-  requireGlobalPermission("can_configure_data"),
-  log("structureStep3Csv_StageData"),
-  async (c, { params }) => {
-    const res = await structureStep3Csv_StageData(c.var.mainDb, params.family);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesStructure,
   "structureStep3Csv_StageDataStreaming",
   requireGlobalPermission("can_configure_data"),
   log("structureStep3Csv_StageDataStreaming"),
@@ -310,17 +270,6 @@ defineRoute(
         await writer.error(res.err);
       }
     });
-  },
-);
-
-defineRoute(
-  routesStructure,
-  "structureStep3Dhis2_StageData",
-  requireGlobalPermission("can_configure_data"),
-  log("structureStep3Dhis2_StageData"),
-  async (c, { params }) => {
-    const res = await structureStep3Dhis2_StageData(c.var.mainDb, params.family);
-    return c.json(res);
   },
 );
 

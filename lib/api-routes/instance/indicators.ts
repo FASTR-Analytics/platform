@@ -75,8 +75,4 @@ export const indicatorRouteRegistry = {
     method: "POST",
     body: batchUploadBodySchema,
   }),
-  deleteAllIndicators: route({
-    path: "/indicators/all",
-    method: "DELETE",
-  }),
 } as const;

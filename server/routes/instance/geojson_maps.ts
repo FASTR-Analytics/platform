@@ -2,13 +2,10 @@ import { Hono } from "hono";
 import {
   getGeoJsonMapSummaries,
   getGeoJsonForLevel,
-  getAdminAreaNamesForLevel,
   getAdminAreaOptionsForLevel,
   saveGeoJsonMap,
   deleteGeoJsonMap,
-  getMaxAdminAreaConfig,
 } from "../../db/mod.ts";
-import { throwIfErrWithData } from "lib";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -121,20 +118,6 @@ defineRoute(
     if (res.success) {
       notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
     }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesGeoJsonMaps,
-  "getAdminAreaNamesForLevel",
-  requireGlobalPermission(),
-  log("getAdminAreaNamesForLevel"),
-  async (c, { params }) => {
-    if (![2, 3, 4].includes(params.level)) {
-      return c.json({ success: false, err: "Level must be 2, 3, or 4" });
-    }
-    const res = await getAdminAreaNamesForLevel(c.var.mainDb, params.level);
     return c.json(res);
   },
 );
@@ -404,122 +387,6 @@ defineRoute(
       return c.json({
         success: false,
         err: e instanceof Error ? e.message : "Failed to save GeoJSON from DHIS2",
-      });
-    }
-  },
-);
-
-defineRoute(
-  routesGeoJsonMaps,
-  "dhis2DetectLevelMapping",
-  requireGlobalPermission("can_configure_data"),
-  log("dhis2DetectLevelMapping"),
-  async (c, { body }) => {
-    const { url, username, password } = body;
-    if (!url || !username || !password) {
-      return c.json({ success: false, err: "DHIS2 credentials are required" });
-    }
-
-    const validation = await validateDhis2Connection({ url, username, password });
-    if (!validation.valid) {
-      return c.json({ success: false, err: validation.message.en });
-    }
-
-    try {
-      const maxAdminAreaRes = await getMaxAdminAreaConfig(c.var.mainDb);
-      throwIfErrWithData(maxAdminAreaRes);
-      const maxAdminArea = maxAdminAreaRes.data.maxAdminArea;
-
-      const metadata = await getOrgUnitMetadata({ dhis2Credentials: body });
-
-      // Pre-fetch geometry counts for each level we might match
-      const geometryCounts = new Map<number, number>();
-      for (const level of metadata.levels) {
-        if (level.count === 0) continue;
-        try {
-          const geojson = await fetchOrgUnitsGeoJsonForLevel(body, level.level);
-          const withGeometry = geojson.features.filter((f) => f.geometry !== null && f.geometry !== undefined).length;
-          geometryCounts.set(level.level, withGeometry);
-        } catch {
-          geometryCounts.set(level.level, 0);
-        }
-      }
-
-      const mappings: Array<{
-        adminAreaLevel: 2 | 3 | 4;
-        adminAreaCount: number;
-        dhis2Level: number | null;
-        dhis2LevelName: string | null;
-        dhis2Count: number | null;
-        geometryCount: number | null;
-        matchedNames: number;
-        confidence: "high" | "medium" | "low" | "none";
-      }> = [];
-
-      for (let aaLevel = 2; aaLevel <= maxAdminArea; aaLevel++) {
-        const aaNamesRes = await getAdminAreaNamesForLevel(c.var.mainDb, aaLevel);
-        if (!aaNamesRes.success) continue;
-
-        const aaNames = aaNamesRes.data;
-        const aaCount = aaNames.length;
-
-        let bestMatch: {
-          dhis2Level: number;
-          dhis2LevelName: string;
-          dhis2Count: number;
-          geometryCount: number;
-          matchedNames: number;
-          confidence: "high" | "medium" | "low" | "none";
-        } | null = null;
-
-        for (const level of metadata.levels) {
-          if (level.count === 0) continue;
-
-          const geoCount = geometryCounts.get(level.level) ?? 0;
-          // Skip levels with no geometry
-          if (geoCount === 0) continue;
-
-          const countMatch = level.count === aaCount;
-          const countRatio = Math.min(level.count, aaCount) / Math.max(level.count, aaCount);
-
-          let confidence: "high" | "medium" | "low" | "none" = "none";
-          if (countMatch) {
-            confidence = "high";
-          } else if (countRatio > 0.9) {
-            confidence = "medium";
-          } else if (countRatio > 0.7) {
-            confidence = "low";
-          }
-
-          if (confidence !== "none" && (!bestMatch || confidence === "high" || (confidence === "medium" && bestMatch.confidence !== "high"))) {
-            bestMatch = {
-              dhis2Level: level.level,
-              dhis2LevelName: level.displayName || level.name,
-              dhis2Count: level.count,
-              geometryCount: geoCount,
-              matchedNames: 0,
-              confidence,
-            };
-          }
-        }
-
-        mappings.push({
-          adminAreaLevel: aaLevel as 2 | 3 | 4,
-          adminAreaCount: aaCount,
-          dhis2Level: bestMatch?.dhis2Level ?? null,
-          dhis2LevelName: bestMatch?.dhis2LevelName ?? null,
-          dhis2Count: bestMatch?.dhis2Count ?? null,
-          geometryCount: bestMatch?.geometryCount ?? null,
-          matchedNames: bestMatch?.matchedNames ?? 0,
-          confidence: bestMatch?.confidence ?? "none",
-        });
-      }
-
-      return c.json({ success: true, data: { mappings } });
-    } catch (e) {
-      return c.json({
-        success: false,
-        err: e instanceof Error ? e.message : "Failed to detect level mapping",
       });
     }
   },

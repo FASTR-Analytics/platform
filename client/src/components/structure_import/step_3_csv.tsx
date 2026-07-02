@@ -6,12 +6,10 @@ import {
   getProgress,
   createFormAction,
 } from "panther";
-import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 type Props = {
   family: FacilityFamily;
-  close: () => void;
   silentRefresUploadAttempt: () => Promise<void>;
   silentRefreshInstance: () => Promise<void>;
 };

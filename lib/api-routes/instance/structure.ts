@@ -3,7 +3,6 @@ import type {
   CsvDetails,
   FacilityFamily,
   HfaFacilityWeightsImportResult,
-  HfaFacilityWeightsSummary,
   StructureUploadAttemptDetail,
   StructureUploadAttemptStatus,
   StructureDhis2OrgUnitMetadata,
@@ -60,11 +59,6 @@ export const structureRouteRegistry = {
     params: z.object({ family: facilityFamilySchema }),
   }),
   // HFA facility sampling weights
-  getHfaFacilityWeightsSummary: route({
-    path: "/structure/hfa_facility_weights",
-    method: "GET",
-    response: {} as HfaFacilityWeightsSummary,
-  }),
   getHfaFacilityWeightsItems: route({
     path: "/structure/hfa_facility_weights/items",
     method: "GET",
@@ -86,11 +80,6 @@ export const structureRouteRegistry = {
       timePoint: z.string(),
     }),
     response: {} as HfaFacilityWeightsImportResult,
-  }),
-  deleteHfaFacilityWeightsForTimePoint: route({
-    path: "/structure/hfa_facility_weights/time_point",
-    method: "DELETE",
-    body: z.object({ timePoint: z.string() }),
   }),
   deleteAllHfaFacilityWeights: route({
     path: "/structure/hfa_facility_weights",
@@ -152,22 +141,11 @@ export const structureRouteRegistry = {
     body: z.object({ selectedLevels: z.array(z.number()) }),
   }),
   // Step 3
-  structureStep3Csv_StageData: route({
-    path: "/structure/step3_csv_stage_data/:family",
-    method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
-  }),
   structureStep3Csv_StageDataStreaming: route({
     path: "/structure/step3_csv_stage_data_streaming/:family",
     method: "POST",
     params: z.object({ family: facilityFamilySchema }),
     isStreaming: true,
-  }),
-  structureStep3Dhis2_StageData: route({
-    path: "/structure/step3_dhis2_stage_data/:family",
-    method: "POST",
-    params: z.object({ family: facilityFamilySchema }),
-    timeoutMs: 600000,
   }),
   structureStep3Dhis2_StageDataStreaming: route({
     path: "/structure/step3_dhis2_stage_data_streaming/:family",

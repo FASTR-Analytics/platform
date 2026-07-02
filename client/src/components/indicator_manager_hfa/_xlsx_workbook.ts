@@ -334,23 +334,3 @@ export function applyTimePointMapping(
   }
   return code;
 }
-
-// ============================================================================
-// Legacy single-step API (kept for backward compat)
-// ============================================================================
-
-type ParseResult =
-  | { ok: true; data: Omit<HfaWorkbookImport, "replaceAll"> }
-  | { ok: false; err: string };
-
-export function parseHfaWorkbook(
-  arrayBuffer: ArrayBuffer,
-  timePoints: string[],
-): ParseResult {
-  const detected = detectHfaWorkbookShape(arrayBuffer);
-  if (!detected.ok) return detected;
-  const { shape } = detected;
-  const mapping = timePoints.map((tp, k) => (k < shape.xlsxCount ? tp : null));
-  const code = applyTimePointMapping(shape, mapping);
-  return { ok: true, data: { categories: shape.categories, subCategories: shape.subCategories, serviceCategories: shape.serviceCategories, indicators: shape.indicators, code } };
-}

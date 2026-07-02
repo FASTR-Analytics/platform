@@ -203,16 +203,6 @@ export const hfaIndicatorRouteRegistry = {
     method: "GET",
     response: {} as HfaIndicatorCode[],
   }),
-  updateHfaIndicatorCode: route({
-    path: "/hfa-indicators/code/update",
-    method: "POST",
-    body: z.object({
-      varName: z.string(),
-      timePoint: z.string(),
-      rCode: z.string(),
-      rFilterCode: z.string().optional(),
-    }),
-  }),
   saveHfaIndicatorFull: route({
     path: "/hfa-indicators/save-full",
     method: "POST",

@@ -10,7 +10,7 @@ type Props = {
 };
 
 export function StructureWithCsv(p: Props) {
-  const [structureItems, seStructureItems] = createSignal<
+  const [structureItems, setStructureItems] = createSignal<
     StateHolder<ItemsHolderStructure>
   >({
     status: "loading",
@@ -18,23 +18,23 @@ export function StructureWithCsv(p: Props) {
   });
 
   async function attemptGetStructureItems(lastUpdated: string, maxAA: number, fcHash: string) {
-    seStructureItems({
+    setStructureItems({
       status: "loading",
       msg: t3(TC.fetchingData),
     });
     const res = await getStructureItemsFromCacheOrFetch(p.family, lastUpdated, maxAA, fcHash);
     if (res.success === false) {
-      seStructureItems({ status: "error", err: res.err });
+      setStructureItems({ status: "error", err: res.err });
       return;
     }
     if (res.data.items.length === 0) {
-      seStructureItems({
+      setStructureItems({
         status: "error",
         err: t3({ en: "No rows", fr: "Aucune ligne" }),
       });
       return;
     }
-    seStructureItems({
+    setStructureItems({
       status: "ready",
       data: res.data,
     });
@@ -45,7 +45,7 @@ export function StructureWithCsv(p: Props) {
     const maxAA = instanceState.maxAdminArea;
     const fcHash = hashFacilityColumnsConfig(instanceState.facilityColumns);
     if (!lastUpdated) {
-      seStructureItems({
+      setStructureItems({
         status: "error",
         err: t3({ en: "No structure data", fr: "Aucune donnée de structure" }),
       });

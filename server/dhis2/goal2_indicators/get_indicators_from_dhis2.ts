@@ -79,7 +79,7 @@ export async function getDataElementsFromDHIS2(
   }
 
   const response = await getDHIS2<
-    DHIS2PagedResponse<DHIS2DataElement> & { dataElements: DHIS2DataElement[] }
+    DHIS2PagedResponse & { dataElements: DHIS2DataElement[] }
   >("/api/dataElements.json", options, params);
 
   return response.dataElements || [];
@@ -185,7 +185,7 @@ export async function getIndicatorsFromDHIS2(
   }
 
   const response = await getDHIS2<
-    DHIS2PagedResponse<DHIS2Indicator> & { indicators: DHIS2Indicator[] }
+    DHIS2PagedResponse & { indicators: DHIS2Indicator[] }
   >("/api/indicators.json", options, params);
 
   return response.indicators || [];
@@ -343,7 +343,7 @@ export async function testIndicatorsConnection(options: FetchOptions): Promise<{
     deParams.set("pageSize", "1");
     deParams.set("paging", "true");
 
-    const dataElements = await getDHIS2<DHIS2PagedResponse<DHIS2DataElement>>(
+    const dataElements = await getDHIS2<DHIS2PagedResponse>(
       "/api/dataElements.json",
       options,
       deParams
@@ -355,7 +355,7 @@ export async function testIndicatorsConnection(options: FetchOptions): Promise<{
     indParams.set("pageSize", "1");
     indParams.set("paging", "true");
 
-    const indicators = await getDHIS2<DHIS2PagedResponse<DHIS2Indicator>>(
+    const indicators = await getDHIS2<DHIS2PagedResponse>(
       "/api/indicators.json",
       options,
       indParams

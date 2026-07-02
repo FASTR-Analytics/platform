@@ -45,25 +45,6 @@ export async function saveGeoJsonMap(
   });
 }
 
-export async function getAdminAreaNamesForLevel(
-  mainDb: Sql,
-  level: number,
-): Promise<APIResponseWithData<string[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    let rows: { name: string }[];
-    if (level === 2) {
-      rows = await mainDb<{ name: string }[]>`SELECT DISTINCT admin_area_2 as name, LOWER(admin_area_2) as sort_key FROM admin_areas_2 ORDER BY sort_key`;
-    } else if (level === 3) {
-      rows = await mainDb<{ name: string }[]>`SELECT DISTINCT admin_area_3 as name, LOWER(admin_area_3) as sort_key FROM admin_areas_3 ORDER BY sort_key`;
-    } else if (level === 4) {
-      rows = await mainDb<{ name: string }[]>`SELECT DISTINCT admin_area_4 as name, LOWER(admin_area_4) as sort_key FROM admin_areas_4 ORDER BY sort_key`;
-    } else {
-      return { success: false, err: "Level must be 2, 3, or 4" };
-    }
-    return { success: true, data: rows.map((r) => r.name) };
-  });
-}
-
 export async function deleteGeoJsonMap(
   mainDb: Sql,
   level: number,

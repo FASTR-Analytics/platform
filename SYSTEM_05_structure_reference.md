@@ -15,6 +15,7 @@ globs:
   - client/src/state/instance/t2_indicators.ts
   - client/src/state/instance/t2_structure.ts
   - lib/hfa_indicator_labels.ts
+  - lib/hfa_r_code_analysis.ts
   - lib/types/calculated_indicator_id.ts
   - lib/types/geojson_maps.ts
   - lib/types/hfa_types.ts
@@ -30,7 +31,6 @@ globs:
   - server/db/instance/instance.ts
   - server/db/instance/structure.ts
   - server/geojson/**
-  - server/routes/caches/structure.ts
   - server/routes/instance/calculated_indicators.ts
   - server/routes/instance/geojson_maps.ts
   - server/routes/instance/hfa_indicators.ts
@@ -64,4 +64,16 @@ _None — written fresh from code in Phase 2._
 > Seeded from the systems review (the now-deleted PLAN_SYSTEMS §7.2 dead code);
 > plus whatever this system's review cycle adds.
 
-- **Dead code (zero importers):** `server/routes/caches/structure.ts`.
+- **ODK label resolution for structure import (Tim, 2026-07-02 — decided,
+  not yet implemented):** structure columns like `facility_type` typically
+  originate as ODK select_one codes; today they arrive verbatim and raw codes
+  flow into charts, filters, AI context, and exports. Decision: mirror the
+  HFA ingestion pattern — step 1 (CSV path) accepts an optional ODK
+  questionnaire (XLSForm), and select_one codes are resolved to labels once
+  at staging via the existing `parse_xlsform.ts` (group-prefix stripping to
+  match mapped CSV headers). **Store the labels themselves in the facility
+  columns — no value dictionary, codes are discarded.** Unresolved codes stay
+  raw with a warning count in the staging result. No migration, no
+  cache-shape change; ~7 files (step-1 result type gains optional xlsForm,
+  route body, step-1 store, staging substitution, wizard step 1 second file
+  selector + resolution summary in steps 3/4).

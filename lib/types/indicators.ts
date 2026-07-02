@@ -198,7 +198,7 @@ export interface DHIS2CategoryCombo {
   }>;
 }
 
-export interface DHIS2PagedResponse<T> {
+export interface DHIS2PagedResponse {
   pager?: {
     page: number;
     pageCount: number;

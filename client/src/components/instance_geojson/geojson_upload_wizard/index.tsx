@@ -89,11 +89,7 @@ export function GeoJsonUploadWizard(p: Props) {
   const [dhis2Features, setDhis2Features] = createSignal<Dhis2FeatureContext[]>([]);
 
   function setGeoToAdmin(mapping: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) {
-    if (typeof mapping === "function") {
-      setGeoToAdminRaw(mapping);
-    } else {
-      setGeoToAdminRaw(mapping);
-    }
+    setGeoToAdminRaw(mapping);
   }
 
   const state: WizardState = {

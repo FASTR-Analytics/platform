@@ -3,7 +3,6 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   HfaFacilityWeightsImportResult,
-  HfaFacilityWeightsSummary,
   HfaWeightsCoverage,
 } from "lib";
 import { resolveAssetFilePath } from "./assets.ts";
@@ -60,21 +59,6 @@ export async function getHfaWeightsCoverage(
     facilitiesWithData: r.facilities_with_data,
     facilitiesWithDataAndWeight: r.facilities_with_data_and_weight,
   }));
-}
-
-export async function getHfaFacilityWeightsSummary(
-  mainDb: Sql
-): Promise<APIResponseWithData<HfaFacilityWeightsSummary>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const perTimePoint = await getHfaWeightsCoverage(mainDb);
-    return {
-      success: true,
-      data: {
-        totalCount: perTimePoint.reduce((sum, r) => sum + r.weightCount, 0),
-        perTimePoint,
-      },
-    };
-  });
 }
 
 export async function getHfaFacilityWeightsItems(
@@ -247,24 +231,6 @@ export async function importHfaFacilityWeights(
       success: true,
       data: { rowsImported: rows.length, rowsSkippedNoWeight, timePointsCovered: [timePoint] },
     };
-  });
-}
-
-export async function deleteHfaFacilityWeightsForTimePoint(
-  mainDb: Sql,
-  timePoint: string,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    await mainDb.begin(async (sql: Sql) => {
-      await sql`DELETE FROM hfa_facility_weights WHERE time_point = ${timePoint}`;
-      await sql`
-        INSERT INTO instance_config (config_key, config_json_value)
-        VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
-        ON CONFLICT (config_key)
-        DO UPDATE SET config_json_value = EXCLUDED.config_json_value
-      `;
-    });
-    return { success: true };
   });
 }
 

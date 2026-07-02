@@ -15,8 +15,7 @@ import {
 } from "panther";
 import { Match, Show, Switch, createSignal, onMount } from "solid-js";
 import { StructureUploadAttemptForm } from "~/components/structure_import";
-import { serverActions } from "~/server_actions";
-import { _SERVER_HOST } from "~/server_actions";
+import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { StructureWithCsv } from "./with_csv";
 
@@ -97,11 +96,6 @@ export function Facilities(p: Props) {
     await deleteAction.click();
   }
 
-  const resumableAttempt = () => {
-    // Fetched per family, so any returned attempt is this family's.
-    return uploadAttempt();
-  };
-
   const facilityCount = () =>
     (p.family === "hmis"
       ? instanceState.structure?.facilitiesHmis
@@ -136,7 +130,8 @@ export function Facilities(p: Props) {
                   {t3({ en: "Imports", fr: "Importations" })}
                 </div>
                 <Switch>
-                  <Match when={resumableAttempt()}>
+                  {/* Fetched per family, so any returned attempt is this family's. */}
+                  <Match when={uploadAttempt()}>
                     <Button onClick={openUploadAttempt} iconName="upload" fullWidth>
                       {t3({ en: "Resume importing", fr: "Reprendre l'importation" })}
                     </Button>
