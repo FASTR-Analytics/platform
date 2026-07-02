@@ -616,12 +616,14 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
         console.error("Failed to update database after worker crash:", dbError);
       }
       clearWorker("hfa", worker);
+      worker.terminate();
     });
 
     // Handle successful completion
     worker.addEventListener("message", (e) => {
       if (e.data === "COMPLETED") {
         clearWorker("hfa", worker);
+        worker.terminate();
       }
     });
 
@@ -705,12 +707,14 @@ export async function updateDatasetHfaUploadAttempt_Step4Integrate(
         console.error("Failed to update database after worker crash:", dbError);
       }
       clearWorker("hfa", worker);
+      worker.terminate();
     });
 
     // Handle successful completion
     worker.addEventListener("message", async (e) => {
       if (e.data === "COMPLETED") {
         clearWorker("hfa", worker);
+        worker.terminate();
         try {
           await onComplete?.();
         } catch (err) {

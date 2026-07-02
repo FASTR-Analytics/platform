@@ -24,10 +24,8 @@ import {
 (self as unknown as Worker).onmessage = (e) => {
   run(e.data).catch((error) => {
     console.error("Worker error:", error);
-    // This will trigger the error event listener in datasets.ts
+    // Surfaces to the host's error listener, which terminates this worker.
     self.reportError(error);
-    // Ensure the worker terminates after reporting the error
-    self.close();
   });
 };
 

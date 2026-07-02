@@ -2,7 +2,12 @@ import { ProjectPk, StartingTaskData } from "../server_only_types/mod.ts";
 import { instantiateRunModuleWorker } from "../worker_routines/run_module/mod.ts";
 import { areUpstreamDependenciesOfModuleAllReady } from "./get_dependents.ts";
 import { notifyProjectModuleDirtyState } from "./notify_project_v2.ts";
-import { addRunningModule, hasRunningModule } from "./running_tasks_map.ts";
+import { handleModuleTaskEnded } from "./set_module_clean.ts";
+import {
+  addRunningModule,
+  getRunningModuleOrUndefined,
+  hasRunningModule,
+} from "./running_tasks_map.ts";
 
 export async function triggerRunnableModules(ppk: ProjectPk) {
   const modulesToRun = await getNextRunnableModules(ppk);
@@ -15,6 +20,19 @@ export async function triggerRunnableModules(ppk: ProjectPk) {
       moduleId,
     };
     const worker = instantiateRunModuleWorker(std);
+    worker.addEventListener("error", (e) => {
+      e.preventDefault(); // Prevent the error from propagating and crashing the server
+      if (getRunningModuleOrUndefined(ppk.projectId, moduleId) !== worker) {
+        return;
+      }
+      handleModuleTaskEnded({
+        projectId: ppk.projectId,
+        moduleId,
+        successOrError: "error",
+      }).catch((error) => {
+        console.error("Error handling module worker error:", error);
+      });
+    });
     addRunningModule(ppk.projectId, moduleId, worker);
   }
   notifyProjectModuleDirtyState(ppk.projectId, modulesToRun, "running");

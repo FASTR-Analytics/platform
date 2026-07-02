@@ -23,8 +23,8 @@ import { getAnalyticsFromDHIS2 } from "../../dhis2/goal3_analytics/mod.ts";
 (self as unknown as Worker).onmessage = (e) => {
   run(e.data).catch((error) => {
     console.error("DHIS2 staging worker error:", error);
+    // Surfaces to the host's error listener, which terminates this worker.
     self.reportError(error);
-    self.close();
   });
 };
 

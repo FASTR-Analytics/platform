@@ -33,8 +33,8 @@ import {
 (self as unknown as Worker).onmessage = (e) => {
   run(e.data).catch((error) => {
     console.error("Worker error:", error);
+    // Surfaces to the host's error listener, which terminates this worker.
     self.reportError(error);
-    self.close();
   });
 };
 
@@ -504,9 +504,11 @@ SET
 
     throw error;
   } finally {
+    // Connection teardown only — never self.close() here: closing before the
+    // rethrown error reaches the preamble's reportError discards it, so the
+    // host's error listener never fires and the worker slot is stranded.
     await importDb.end();
     await mainDb.end();
-    self.close();
   }
 }
 

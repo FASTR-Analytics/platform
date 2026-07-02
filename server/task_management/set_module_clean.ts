@@ -16,8 +16,13 @@ import {
 
 const broadcastTaskEnded = new BroadcastChannel("task_ended");
 
-broadcastTaskEnded.addEventListener("message", async (evt) => {
-  const etd: EndingTaskData = evt.data;
+broadcastTaskEnded.addEventListener("message", (evt) => {
+  handleModuleTaskEnded(evt.data).catch((error) => {
+    console.error("Error handling task_ended:", error);
+  });
+});
+
+export async function handleModuleTaskEnded(etd: EndingTaskData) {
   if (!hasRunningModule(etd.projectId, etd.moduleId)) {
     return;
   }
@@ -25,10 +30,23 @@ broadcastTaskEnded.addEventListener("message", async (evt) => {
     etd.projectId,
     "READ_AND_WRITE",
   );
-  removeRunningModule(etd.projectId, etd.moduleId);
-  await setModuleClean(projectDb, etd);
-  triggerRunnableModules({ projectDb, projectId: etd.projectId });
-});
+  try {
+    // Write the DB state while the module is still in the running map, so a
+    // concurrent trigger cannot re-select it in the completion window. On
+    // failure the module stays 'queued' and out of the map after the finally,
+    // so the next trigger re-runs it instead of stranding it.
+    await setModuleClean(projectDb, etd);
+  } catch (error) {
+    console.error("Error completing module task:", error);
+  } finally {
+    removeRunningModule(etd.projectId, etd.moduleId);
+    triggerRunnableModules({ projectDb, projectId: etd.projectId }).catch(
+      (error) => {
+        console.error("Error triggering runnable modules:", error);
+      },
+    );
+  }
+}
 
 async function setModuleClean(projectDb: Sql, etd: EndingTaskData) {
   /////////////////

@@ -861,12 +861,14 @@ export async function updateDatasetUploadAttempt_Step3Staging(
         console.error("Failed to update database after worker crash:", dbError);
       }
       clearWorker("hmis", worker);
+      worker.terminate();
     });
 
     // Handle successful completion
     worker.addEventListener("message", (e) => {
       if (e.data === "COMPLETED") {
         clearWorker("hmis", worker);
+        worker.terminate();
       }
     });
 
@@ -1064,12 +1066,14 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
         console.error("Failed to update database after worker crash:", dbError);
       }
       clearWorker("hmis", worker);
+      worker.terminate();
     });
 
     // Handle successful completion
     worker.addEventListener("message", async (e) => {
       if (e.data === "COMPLETED") {
         clearWorker("hmis", worker);
+        worker.terminate();
         try {
           await onComplete?.();
         } catch (err) {

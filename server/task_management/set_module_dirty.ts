@@ -46,5 +46,7 @@ UPDATE modules SET dirty = 'queued' WHERE id = ${moduleId}
   }
   notifyProjectModuleDirtyState(ppk.projectId, moduleIds, "queued");
 
-  triggerRunnableModules(ppk);
+  triggerRunnableModules(ppk).catch((error) => {
+    console.error("Error triggering runnable modules:", error);
+  });
 }

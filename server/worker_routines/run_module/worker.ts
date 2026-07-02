@@ -14,16 +14,10 @@ const broadcastTaskEnded = new BroadcastChannel("task_ended");
 (self as unknown as Worker).onmessage = (e) => {
   run(e.data).catch((error) => {
     console.error("Module worker error:", error);
-    const etd: EndingTaskData = {
-      projectId: e.data.projectId,
-      moduleId: e.data.moduleId,
-      successOrError: "error",
-    };
-    broadcastTaskEnded.postMessage(etd);
-    // This will trigger the error event listener
+    // Surfaces to the host's error listener (trigger_runnable_tasks.ts), which
+    // records the error completion and terminates this worker. Never self.close()
+    // here — closing discards pending report-backs.
     self.reportError(error);
-    // Ensure the worker terminates after reporting the error
-    self.close();
   });
 };
 
