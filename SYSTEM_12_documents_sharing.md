@@ -3,6 +3,7 @@ system: 12
 name: Documents & Sharing
 globs:
   - client/src/components/PasswordGate.tsx
+  - client/src/components/_markdown_guide.tsx
   - client/src/components/_shared/**
   - client/src/components/dashboards/**
   - client/src/components/forms_editors/edit_label.tsx

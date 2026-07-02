@@ -14,6 +14,7 @@ globs:
   - client/src/state/instance/t2_geojson.ts
   - client/src/state/instance/t2_indicators.ts
   - client/src/state/instance/t2_structure.ts
+  - lib/hfa_indicator_labels.ts
   - lib/types/calculated_indicator_id.ts
   - lib/types/geojson_maps.ts
   - lib/types/hfa_types.ts

@@ -14,6 +14,7 @@ globs:
   - client/src/state/t4_connection_monitor.ts
   - client/src/state/t4_ui.ts
   - lib/help/**
+  - lib/types/sort.ts
   - lib/translate/**
 docs_absorbed:
   - DOC_TRANSLATION

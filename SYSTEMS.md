@@ -392,9 +392,11 @@ ad-hoc `PLAN_*_FIXES` files.
 ## Running the lint
 
 ```
-deno run --allow-read --allow-run lint_systems.ts
+deno task lint:systems
 ```
 
 Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/`
 (+ `main.ts`) is claimed by exactly one system. Add a new file → it shows as an
-ORPHAN until a SYSTEM file's `globs:` claims it.
+ORPHAN until a SYSTEM file's `globs:` claims it. The lint is chained into
+`deno task typecheck` (which the deploy script gates on), so an unclaimed
+file blocks deploy rather than accumulating silently.
