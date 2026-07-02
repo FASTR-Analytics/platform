@@ -68,6 +68,19 @@ command -v npm >/dev/null 2>&1 || { echo "ERROR: npm not found!"; exit 1; }
 command -v docker >/dev/null 2>&1 || { echo "ERROR: docker not found!"; exit 1; }
 command -v git >/dev/null 2>&1 || { echo "ERROR: git not found!"; exit 1; }
 
+# Find crane (used to push from the WSL distro's network instead of the
+# Docker Desktop VM, whose upload path is throttled ~5x — measured 0.5 MB/s
+# vs 2.4 MB/s on 2026-07-02, turning a ~30s push into ~10 min)
+CRANE=$(command -v crane 2>/dev/null || true)
+if [ -z "$CRANE" ] && [ -x "$HOME/.local/bin/crane" ]; then
+    CRANE="$HOME/.local/bin/crane"
+fi
+if [ -z "$CRANE" ]; then
+    echo "WARNING: crane not found — falling back to 'docker push', which is"
+    echo "slow on machines where Docker Desktop throttles VM upload."
+    echo "Install: https://github.com/google/go-containerregistry/releases"
+fi
+
 # Check if docker is running and logged in
 if ! docker info >/dev/null 2>&1; then
     echo "ERROR: Docker is not running!"
@@ -177,11 +190,31 @@ fi
 echo "Docker build completed successfully"
 echo "Pushing versioned tag to Docker Hub..."
 
-# Push single versioned tag
-echo "Pushing timroberton/comb:wb-fastr-server-v$VERSION..."
-if ! docker push "timroberton/comb:wb-fastr-server-v$VERSION"; then
-    echo "ERROR: Failed to push timroberton/comb:wb-fastr-server-v$VERSION"
-    exit 1
+IMAGE_TAG="timroberton/comb:wb-fastr-server-v$VERSION"
+
+if [ -n "$CRANE" ]; then
+    # Export from the daemon and push with crane so the upload bypasses the
+    # Docker Desktop VM. crane skips layers already on the registry.
+    SAVE_TAR=$(mktemp /tmp/wb-fastr-deploy-XXXXXX.tar)
+    echo "Exporting image from Docker daemon..."
+    if ! docker save -o "$SAVE_TAR" "$IMAGE_TAG"; then
+        rm -f "$SAVE_TAR"
+        echo "ERROR: docker save failed for $IMAGE_TAG"
+        exit 1
+    fi
+    echo "Pushing $IMAGE_TAG with crane..."
+    if ! "$CRANE" push "$SAVE_TAR" "$IMAGE_TAG"; then
+        rm -f "$SAVE_TAR"
+        echo "ERROR: Failed to push $IMAGE_TAG"
+        exit 1
+    fi
+    rm -f "$SAVE_TAR"
+else
+    echo "Pushing $IMAGE_TAG..."
+    if ! docker push "$IMAGE_TAG"; then
+        echo "ERROR: Failed to push $IMAGE_TAG"
+        exit 1
+    fi
 fi
 
 echo "Docker image pushed successfully"
