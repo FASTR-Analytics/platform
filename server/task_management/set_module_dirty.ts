@@ -5,10 +5,7 @@ import {
   addOtherModulesThatDependOnModule,
 } from "./get_dependents.ts";
 import { notifyProjectModuleDirtyState } from "./notify_project_v2.ts";
-import {
-  getRunningModuleOrUndefined,
-  removeRunningModule,
-} from "./running_tasks_map.ts";
+import { hasRunningModule, removeRunningModule } from "./running_tasks_map.ts";
 import { triggerRunnableModules } from "./trigger_runnable_tasks.ts";
 
 export async function setModulesDirtyForDataset(
@@ -35,9 +32,7 @@ export async function setAllModulesDirty(ppk: ProjectPk) {
 
 async function setDirtyInner(ppk: ProjectPk, moduleIds: string[]) {
   for (const moduleId of moduleIds) {
-    const runningWorker = getRunningModuleOrUndefined(ppk.projectId, moduleId);
-    if (runningWorker) {
-      runningWorker.terminate();
+    if (hasRunningModule(ppk.projectId, moduleId)) {
       removeRunningModule(ppk.projectId, moduleId);
     }
     await ppk.projectDb`

@@ -1,24 +1,74 @@
 import { DirtyOrRunStatus } from "lib";
 import { notifyProjectAnyRunning } from "./notify_project_v2.ts";
 
-const RUNNING_MODULES_ALL_PROJECTS = new Map<string, Map<string, Worker>>();
+export type RunningModuleEntry = {
+  // null while the slot is claimed but the worker not yet spawned
+  worker: Worker | null;
+  runToken: string;
+};
 
-export function addRunningModule(
+const RUNNING_MODULES_ALL_PROJECTS = new Map<
+  string,
+  Map<string, RunningModuleEntry>
+>();
+
+// Tracks projects we have notified anyRunning=true for, so claim/release
+// cycles that never attach a worker produce no SSE noise.
+const NOTIFIED_RUNNING = new Set<string>();
+
+// Claim the slot for a run. Must be called in the same synchronous segment as
+// the hasRunningModule check (no await between them), so concurrent trigger
+// invocations cannot both start the same module.
+export function claimRunningModule(
   projectId: string,
   moduleId: string,
-  worker: Worker
+  runToken: string,
 ) {
-  const rt = getRunningModulesForProject(projectId);
-  if (rt.size === 0) {
-    notifyProjectAnyRunning(projectId, true);
-  }
-  rt.set(moduleId, worker);
+  getRunningModulesForProject(projectId).set(moduleId, {
+    worker: null,
+    runToken,
+  });
 }
 
-export function getRunningModuleOrUndefined(
+export function releaseClaimedModule(
   projectId: string,
-  moduleId: string
+  moduleId: string,
+  runToken: string,
 ) {
+  const rt = getRunningModulesForProject(projectId);
+  const entry = rt.get(moduleId);
+  if (entry && entry.runToken === runToken && entry.worker === null) {
+    rt.delete(moduleId);
+  }
+  maybeNotifyStopped(projectId, rt);
+}
+
+// Returns false if the claim was superseded between claim and spawn (the
+// spawned worker is terminated in that case).
+export function attachRunningModuleWorker(
+  projectId: string,
+  moduleId: string,
+  runToken: string,
+  worker: Worker,
+): boolean {
+  const rt = getRunningModulesForProject(projectId);
+  const entry = rt.get(moduleId);
+  if (entry === undefined || entry.runToken !== runToken) {
+    worker.terminate();
+    return false;
+  }
+  entry.worker = worker;
+  if (!NOTIFIED_RUNNING.has(projectId)) {
+    NOTIFIED_RUNNING.add(projectId);
+    notifyProjectAnyRunning(projectId, true);
+  }
+  return true;
+}
+
+export function getRunningModuleEntry(
+  projectId: string,
+  moduleId: string,
+): RunningModuleEntry | undefined {
   return RUNNING_MODULES_ALL_PROJECTS.get(projectId)?.get(moduleId);
 }
 
@@ -32,21 +82,28 @@ export function getAnyRunningModules(projectId: string): boolean {
 
 export function removeRunningModule(projectId: string, moduleId: string) {
   const rt = getRunningModulesForProject(projectId);
-  const prevSize = rt.size;
-  const worker = rt.get(moduleId);
-  if (worker) {
-    worker.terminate();
+  const entry = rt.get(moduleId);
+  if (entry?.worker) {
+    entry.worker.terminate();
   }
   rt.delete(moduleId);
-  const currentSize = rt.size;
-  if (prevSize > 0 && currentSize === 0) {
-    setTimeout(() => {
-      if (rt.size > 0) {
-        return;
-      }
-      notifyProjectAnyRunning(projectId, false);
-    }, 200);
+  maybeNotifyStopped(projectId, rt);
+}
+
+function maybeNotifyStopped(
+  projectId: string,
+  rt: Map<string, RunningModuleEntry>,
+) {
+  if (rt.size > 0 || !NOTIFIED_RUNNING.has(projectId)) {
+    return;
   }
+  setTimeout(() => {
+    if (rt.size > 0 || !NOTIFIED_RUNNING.has(projectId)) {
+      return;
+    }
+    NOTIFIED_RUNNING.delete(projectId);
+    notifyProjectAnyRunning(projectId, false);
+  }, 200);
 }
 
 function getRunningModulesForProject(projectId: string) {
@@ -54,7 +111,7 @@ function getRunningModulesForProject(projectId: string) {
   if (rt) {
     return rt;
   }
-  const newRt = new Map<string, Worker>();
+  const newRt = new Map<string, RunningModuleEntry>();
   RUNNING_MODULES_ALL_PROJECTS.set(projectId, newRt);
   return newRt;
 }
@@ -62,7 +119,7 @@ function getRunningModulesForProject(projectId: string) {
 export function getModuleDirtyOrRunning(
   projectId: string,
   moduleId: string,
-  dirtyStatus: string
+  dirtyStatus: string,
 ): DirtyOrRunStatus {
   if (dirtyStatus === "queued") {
     if (RUNNING_MODULES_ALL_PROJECTS.get(projectId)?.has(moduleId)) {

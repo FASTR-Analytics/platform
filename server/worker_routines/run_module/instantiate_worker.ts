@@ -8,6 +8,7 @@ export function instantiateRunModuleWorker(std: StartingTaskData): Worker {
     {
       projectId: std.projectId,
       moduleId: std.moduleId,
+      runToken: std.runToken,
     }
   );
 }

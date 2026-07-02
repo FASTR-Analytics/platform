@@ -5,7 +5,10 @@ import {
   getPgConnectionFromCacheOrNew,
 } from "../db/mod.ts";
 import { EndingTaskData } from "../server_only_types/mod.ts";
-import { hasRunningModule, removeRunningModule } from "./running_tasks_map.ts";
+import {
+  getRunningModuleEntry,
+  removeRunningModule,
+} from "./running_tasks_map.ts";
 import { triggerRunnableModules } from "./trigger_runnable_tasks.ts";
 import { getPresentationObjectsThatDependOnModule } from "./get_dependents.ts";
 import { notifyLastUpdated } from "./notify_last_updated.ts";
@@ -23,7 +26,10 @@ broadcastTaskEnded.addEventListener("message", (evt) => {
 });
 
 export async function handleModuleTaskEnded(etd: EndingTaskData) {
-  if (!hasRunningModule(etd.projectId, etd.moduleId)) {
+  const entry = getRunningModuleEntry(etd.projectId, etd.moduleId);
+  if (entry === undefined || entry.runToken !== etd.runToken) {
+    // Stale completion from a terminated or superseded run — a newer run (or
+    // none) owns this module slot now.
     return;
   }
   const projectDb = getPgConnectionFromCacheOrNew(

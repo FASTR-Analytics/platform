@@ -4,57 +4,62 @@ import { areUpstreamDependenciesOfModuleAllReady } from "./get_dependents.ts";
 import { notifyProjectModuleDirtyState } from "./notify_project_v2.ts";
 import { handleModuleTaskEnded } from "./set_module_clean.ts";
 import {
-  addRunningModule,
-  getRunningModuleOrUndefined,
+  attachRunningModuleWorker,
+  claimRunningModule,
   hasRunningModule,
+  releaseClaimedModule,
 } from "./running_tasks_map.ts";
 
 export async function triggerRunnableModules(ppk: ProjectPk) {
-  const modulesToRun = await getNextRunnableModules(ppk);
-  if (modulesToRun.length === 0) {
-    return;
-  }
-  for (const moduleId of modulesToRun) {
+  const rawModules = await ppk.projectDb<{ id: string }[]>`
+SELECT id FROM modules WHERE dirty = 'queued'
+`;
+  const startedModuleIds: string[] = [];
+  for (const rawModule of rawModules) {
+    const moduleId = rawModule.id;
+    if (hasRunningModule(ppk.projectId, moduleId)) {
+      continue;
+    }
+    // Claim the slot in the same synchronous segment as the check above, so a
+    // concurrent trigger invocation cannot also start this module.
+    const runToken = crypto.randomUUID();
+    claimRunningModule(ppk.projectId, moduleId, runToken);
+    let dependenciesAllReady: boolean;
+    try {
+      dependenciesAllReady = await areUpstreamDependenciesOfModuleAllReady(
+        ppk.projectDb,
+        moduleId,
+      );
+    } catch (error) {
+      releaseClaimedModule(ppk.projectId, moduleId, runToken);
+      throw error;
+    }
+    if (!dependenciesAllReady) {
+      releaseClaimedModule(ppk.projectId, moduleId, runToken);
+      continue;
+    }
     const std: StartingTaskData = {
       projectId: ppk.projectId,
       moduleId,
+      runToken,
     };
     const worker = instantiateRunModuleWorker(std);
     worker.addEventListener("error", (e) => {
       e.preventDefault(); // Prevent the error from propagating and crashing the server
-      if (getRunningModuleOrUndefined(ppk.projectId, moduleId) !== worker) {
-        return;
-      }
       handleModuleTaskEnded({
         projectId: ppk.projectId,
         moduleId,
+        runToken,
         successOrError: "error",
       }).catch((error) => {
         console.error("Error handling module worker error:", error);
       });
     });
-    addRunningModule(ppk.projectId, moduleId, worker);
-  }
-  notifyProjectModuleDirtyState(ppk.projectId, modulesToRun, "running");
-}
-
-async function getNextRunnableModules(ppk: ProjectPk): Promise<string[]> {
-  const runnableModules: string[] = [];
-  const rawModules = await ppk.projectDb<{ id: string }[]>`
-SELECT id FROM modules WHERE dirty = 'queued'
-`;
-  for (const rawModule of rawModules) {
-    if (hasRunningModule(ppk.projectId, rawModule.id)) {
-      continue;
+    if (attachRunningModuleWorker(ppk.projectId, moduleId, runToken, worker)) {
+      startedModuleIds.push(moduleId);
     }
-    const dependenciesAllReady = await areUpstreamDependenciesOfModuleAllReady(
-      ppk.projectDb,
-      rawModule.id
-    );
-    if (!dependenciesAllReady) {
-      continue;
-    }
-    runnableModules.push(rawModule.id);
   }
-  return runnableModules;
+  if (startedModuleIds.length > 0) {
+    notifyProjectModuleDirtyState(ppk.projectId, startedModuleIds, "running");
+  }
 }

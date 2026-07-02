@@ -10,10 +10,12 @@ export type ProjectPk = {
 export type StartingTaskData = {
   projectId: string;
   moduleId: string;
+  runToken: string;
 };
 
 export type EndingTaskData = {
   projectId: string;
   moduleId: string;
+  runToken: string;
   successOrError: "success" | "error";
 };

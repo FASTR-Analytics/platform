@@ -25,7 +25,11 @@ const broadcastTaskEnded = new BroadcastChannel("task_ended");
 
 let alreadyRunning = false;
 
-async function run(std: { projectId: string; moduleId: string }) {
+async function run(std: {
+  projectId: string;
+  moduleId: string;
+  runToken: string;
+}) {
   if (alreadyRunning) {
     self.close();
     return;
@@ -41,6 +45,7 @@ async function run(std: { projectId: string; moduleId: string }) {
     const etd: EndingTaskData = {
       projectId: std.projectId,
       moduleId: std.moduleId,
+      runToken: std.runToken,
       successOrError: "error",
     };
     broadcastTaskEnded.postMessage(etd);
@@ -83,6 +88,7 @@ async function run(std: { projectId: string; moduleId: string }) {
   const etd: EndingTaskData = {
     projectId: std.projectId,
     moduleId: std.moduleId,
+    runToken: std.runToken,
     successOrError: anyErrors ? "error" : "success",
   };
   broadcastTaskEnded.postMessage(etd);
