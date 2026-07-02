@@ -99,7 +99,8 @@ reset/delete. `handleStagingSuccess` computes the **facilityMatch preview**
 (distinct staged ids LEFT JOINed against the target family's backbone →
 `{totalStaged, existing, newCount}`) into `step_3_result`; step 4 renders
 it and flags `existing === 0` as the Ghana-style ID-system-mismatch tell.
-The preview describes staging time, not finalize time (Open items).
+Attempt reads at step 4 recompute the match live while the staging table
+still exists, so the numbers reflect finalize time, not staging time.
 
 **ODK label resolution (CSV path).** Step 1 optionally accepts an ODK
 questionnaire (XLSForm) alongside the CSV, mirroring HFA ingestion's
@@ -341,9 +342,12 @@ Every config mutation re-reads all configs and pushes one consolidated
   polling `getStructureUploadStatus` every 2 s — covering resumed and
   second-tab sessions. The DHIS2 attempt payload is **redacted**
   (`Dhis2CredentialsRedacted` — url/username/hasPassword); full
-  credentials stay server-side (`getStructureDhis2Credentials`), and the
+  credentials stay server-side (`getStructureDhis2Credentials`), the
   client persists them to sessionStorage only after a successful
-  connection test.
+  connection test, and the connection can be changed in place ("Change
+  connection" re-opens the editor; saving resets steps 2–3). A successful
+  integrate also reports geojson `area_id`s orphaned by the import in the
+  step-4 summary.
 - Permissions: reads are `can_view_data` (incl. the CSV exports);
   mutations `can_configure_data`; config mutations
   `can_configure_settings`. Several manager UIs still gate their write
@@ -375,58 +379,20 @@ Every config mutation re-reads all configs and pushes one consolidated
 
 ## Open items
 
-- The startup reset of wedged upload attempts (`resetWedgedUploadAttempts`
-  in db_startup) covers the hmis/hfa/iceh attempt tables but not
-  `structure_upload_attempts` — a server restart mid-structure-import
-  leaves the attempt at `importing` until the user deletes it. Add the
-  fourth UPDATE (status_type `importing` → `error`).
-- Post-integration bookkeeping (staging-table drop, stamp bump, attempt
-  delete) runs after the integrate transaction commits — a crash in
-  between leaves S6's staleness gates unaware and the attempt wedged at
-  `importing` (recoverable via delete-attempt).
-- DHIS2 staging admits empty-string admin areas (a root-level org unit
-  selected as a facility level yields `''` rows in `admin_areas_1..4`);
-  the CSV path drops such rows as invalid.
-- facilityMatch preview can be stale at finalize (computed once at
-  staging; facilities can change in between). `update_existing_only`
-  re-validates server-side; the other two proceed on stale numbers.
-  Cheap fix: recompute at step-4 load.
-- The DHIS2 step-1 connection cannot be changed without discarding the
-  attempt (the editor hides once step1Result exists).
-- UI write-gates use `currentUserIsGlobalAdmin` while the server gates on
-  `can_configure_data` in four slices (HMIS manager, HFA manager, geojson
-  manager, weights import) — decide which contract wins and align.
+- **Decision needed:** UI write-gates use `currentUserIsGlobalAdmin` while
+  the server gates on `can_configure_data` in four slices (HMIS manager,
+  HFA manager, geojson manager, weights import) — decide which contract
+  wins and align.
+- **Decision needed:** instance-level DHIS2 credentials remain plaintext
+  at rest in the attempt rows (structure and datasets; both API
+  projections are redacted) — at-rest encryption is a separate decision.
 - Server-produced wizard/staging/integration error strings are
-  English-only and rendered verbatim by the client; `pt` is missing across
-  most of the system's t3 literals (part of the PT rollout batch list);
-  `POPULATION_TYPES` labels and the "... per 10k" preview are EN-only.
-- HMIS manager: the two version-effects don't reset to loading on re-run
-  and lack a stale-response guard (Variant A drift); the batch-upload
-  "select existing CSV" Select renders the first option while state is
-  empty.
-- HFA manager: AI batch label/category updates fire one route call + SSE
-  notify per indicator (N racing refetches — a bulk endpoint would fix
-  both); the XLSX upload help text says "three sheets" then lists four;
-  `routes/instance/hfa_indicators.ts` has no `log()` middleware on any
-  route (inconsistent with HMIS); the `as HfaIndicatorCode[]` casts there
-  are load-bearing because the zod schema infers optional keys while the
-  lib type requires present-`undefined` keys — aligning schema and type is
-  a small contract change.
-- Time points: reorder failures are silently swallowed client-side;
-  renaming to a duplicate label surfaces a raw unique-violation.
-- Geojson: `updateMaxAdminArea` is check-then-write without a transaction;
-  a structure re-import that renames admin areas silently orphans stored
-  `area_id`s (maps render "no data"; repairable in the edit modal, but
-  nothing tells the admin); no size cap anywhere on the pipeline (analyze
-  parses the whole file in memory, `sampleValues` returns ALL distinct
-  values, the payload is served whole and double-encoded — WS7-P2 scope in
-  PLAN_GEOJSON_NEAR_TERM); the analyze route echoes JSON.parse error
-  snippets of real assets; the DHIS2 session cache key is a 32-bit
-  non-crypto hash (collision ≈ serving another admin's cached org units —
-  theoretical at 10 entries/15 min).
-- Weights import: the facility-existence check runs outside the write
-  transaction (TOCTOU → raw FK error, funneled).
-- Instance-level DHIS2 credentials remain plaintext in
-  `structure_upload_attempts.step_1_result` at rest (the API projection is
-  now redacted; at-rest encryption would be a separate decision — S6 has
-  the same pattern for dataset imports, still unredacted there).
+  English-only and rendered verbatim by the client — needs a mechanism
+  (error codes or translatable errs), not per-string patching.
+- Geojson: no size cap anywhere on the pipeline (unbounded analyze parse,
+  `sampleValues` returns ALL distinct values, payload served whole and
+  double-encoded) and the 32-bit non-crypto DHIS2 session-cache key —
+  WS7-P2 scope in PLAN_GEOJSON_NEAR_TERM.
+- `pt` is missing across most of this system's t3 literals (indicator
+  managers, structure viewers, wizards) — part of the batch-by-batch PT
+  rollout.

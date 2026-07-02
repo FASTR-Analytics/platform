@@ -101,8 +101,9 @@ holding `step` (HMIS 0–4, HFA 1–4, ICEH 1–3), `step_N_result` JSON blobs,
   `staging`/`integrating` → `error` at boot. **`staged` survives a
   restart** — which is why HMIS integration re-verifies the staging table
   (below). Cancel (`deleteDataset*UploadAttempt`) hard-terminates the
-  HMIS/HFA worker and deletes the row; on worker crash the error status is
-  written twice by design (worker catch + parent error listener).
+  HMIS/HFA worker, deletes the row, and drops the staging tables; on
+  worker crash the error status is written twice by design (worker catch +
+  parent error listener).
 
 ## Staging (phase 1)
 
@@ -110,8 +111,8 @@ Rows stream into fixed-name UNLOGGED staging tables
 (`UPLOADED_{HMIS,HFA}_DATA_STAGING_TABLE_NAME` — hardcoded constants in
 `exposed_env_vars.ts`, not env vars) via buffered `VALUES` inserts.
 UNLOGGED = no WAL = fast, but **truncated by a Postgres crash** (they
-survive clean restarts) and never auto-dropped — staging pre-drops stale
-tables at start; integration drops on success and on error.
+survive clean restarts). Dropped on integration success/error, on staging
+worker error, and on cancel; staging also pre-drops stale tables at start.
 
 - Buffer sizes are per-pipeline: HMIS CSV 10 000, HFA CSV 100 000;
   HMIS-DHIS2 inserts per response batch (`FACILITY_BATCH_SIZE = 100`,
@@ -250,9 +251,6 @@ Attach concurrency is an in-memory `_datasetLocks` set keyed
   int8 parser configured) — always `Number()` it. Older staging results
   persisted `finalStagingRowCount` etc. as JSON strings; comparisons must
   coerce.
-- `createWorkerReadConnection`'s `readonly: true` option is accepted but
-  never applied — "read" connections execute writes throughout this
-  system.
 - The staging-table name constants live in `exposed_env_vars.ts` but are
   not env-configurable.
 - The DHIS2 URL-length guard measures a URL missing two dimensions
@@ -265,11 +263,6 @@ Attach concurrency is an in-memory `_datasetLocks` set keyed
 
 Deferred findings from the 2026-07-02 review cycle, plus standing reform:
 
-- **COUNT-string fallout**: the CSV zero-valid-rows early-return in
-  `stage_hmis_data_csv` is unreachable (`=== 0` against a string) — and
-  if a bigint parser is ever added it becomes live and marks step 4
-  `staged` *without creating a staging table*. Fix the comparison and the
-  branch together; migrate stored string counts or keep coercing.
 - **select_multiple missingness**: an unanswered cell expands to explicit
   `"0"` for every choice — indistinguishable from "none of the above";
   missing counts for expanded vars are always 0. Needs a semantics ruling.
@@ -281,39 +274,23 @@ Deferred findings from the 2026-07-02 review cycle, plus standing reform:
   (drifted hand-rolled copies; every poll fix currently lands 3×). Also
   replace the copy-pasted `@ts-ignore` progress casts with keyed
   narrowing.
-- DHIS2 credentials (password) stored plaintext in `step_1_result` and
-  echoed to any `can_configure_data` client; confirmed credentials cannot
-  be edited without discarding the import.
-- Staging/temp tables leak on cancel and on staging error (reclaimed only
-  by the next same-family staging run).
-- Unbounded `endPeriod` in the DHIS2 selection body can spin the staging
-  worker (attempt locked in `staging` until cancel/restart).
-- DHIS2 pre-validates facilities but not indicator ids (deleted indicator
-  → raw FK error after all fetch work).
-- HFA: mappings body schema is `z.record(z.string(), z.string())`, not
-  `HfaCsvMappingParams` (missing `timePoint` dies later with a TypeError);
-  time-point existence checked only at integration; `timePoint` trimmed
-  for staged rows but stored raw in the result; final staging table is
-  LOGGED while dict tables are UNLOGGED (mixed crash durability);
-  duplicate CSV columns die on a cryptic PK error.
+- DHIS2 credentials (password) remain plaintext at rest in
+  `step_1_result` (API projection is redacted; at-rest encryption is a
+  pending ruling — same item in SYSTEM_05).
+- HFA: the final staging table is LOGGED while the dict tables are
+  UNLOGGED (mixed crash durability); duplicate CSV columns die on a
+  cryptic PK error.
 - ICEH: progress is written once as 0 and never updated (the percentage
-  UI and the `staged` status arm are dead weight); rows skipped for
-  unknown strat are counted but never surfaced; step_2/3_result columns
-  written but never read. (The unconstrained assets-path join was closed
-  repo-wide by `resolveAssetFilePath`, `ad6bd996`.)
+  UI and the `staged` status arm are dead weight); step_2/3_result
+  columns written but never read.
 - `getCsvDetails` (HFA/HMIS step 1) reads the whole file into memory for
   headers; the streaming variant's header read is one 64 KB `file.read()`
   (wide XLSForm exports / short reads → confusing failure).
-- Fail-fast DHIS2 stragglers can briefly stomp the error status with
-  `staging` progress writes (parent listener usually rewrites; ordering
-  not guaranteed).
 - Ethiopian-calendar period math in `step_2_dhis2.tsx` assumes 12 months
   (no Pagume); untranslated strings in the delete flows and
   Period/TimeIndex selectors.
 - `facilityOwnwershipsToInclude` typo is the persisted canonical field
   (fixing it = stored-JSON migration).
-- `createWorkerReadConnection`: implement or remove the `readonly`
-  option; rename or stop using it for writes.
 - **Decoupling — heal the db→worker inversion.** The dataset orchestrators
   in `server/db/instance/` spawn and manage Web Workers (the biggest
   directory lie). [PLAN_IMPORTER_CONSOLIDATION.md](PLAN_IMPORTER_CONSOLIDATION.md)
