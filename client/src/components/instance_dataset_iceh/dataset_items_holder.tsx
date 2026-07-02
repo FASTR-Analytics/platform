@@ -39,14 +39,14 @@ export function DatasetItemsHolder() {
     "data",
   );
   const tabItems: ListItem<"data" | "indicators" | "stratifiers">[] = [
-    { id: "data", label: t3({ en: "Data", fr: "Données" }) },
+    { id: "data", label: t3({ en: "Data", fr: "Données", pt: "Dados" }) },
     {
       id: "indicators",
-      label: t3({ en: "Indicators", fr: "Indicateurs" }),
+      label: t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }),
     },
     {
       id: "stratifiers",
-      label: t3({ en: "Stratifiers", fr: "Stratificateurs" }),
+      label: t3({ en: "Stratifiers", fr: "Stratificateurs", pt: "Estratificadores" }),
     },
   ];
 

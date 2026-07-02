@@ -55,7 +55,7 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
           success: true;
           data: DatasetUploadAttemptDetail;
         };
-  }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation..." }));
+  }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation...", pt: "A carregar as informações de importação..." }));
 
   // Temp state
 
@@ -158,7 +158,7 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
 
   async function attemptDeleteUploadAttempt() {
     const deleteAction = createDeleteAction(
-      t3({ en: "Are you sure you want to delete this import?", fr: "Voulez-vous vraiment supprimer cette importation ?" }),
+      t3({ en: "Are you sure you want to delete this import?", fr: "Voulez-vous vraiment supprimer cette importation ?", pt: "Tem a certeza de que pretende eliminar esta importação?" }),
       () => serverActions.deleteDatasetUploadAttempt({}),
       p.silentFetch,
       () => p.close(undefined),
@@ -180,8 +180,8 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
           back={() => p.close(undefined)}
           heading={
             <>
-              {t3({ en: "IMPORT IN PROGRESS", fr: "IMPORTATION EN COURS" })}
-              <span class="font-400 ml-4">{t3({ en: "HMIS Data", fr: "Données HMIS" })}</span>
+              {t3({ en: "IMPORT IN PROGRESS", fr: "IMPORTATION EN COURS", pt: "IMPORTAÇÃO EM CURSO" })}
+              <span class="font-400 ml-4">{t3({ en: "HMIS Data", fr: "Données HMIS", pt: "Dados HMIS" })}</span>
             </>
           }
         >
@@ -196,7 +196,7 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
               intent="danger"
               iconName="trash"
             >
-              {t3({ en: "Discard import", fr: "Annuler l'importation" })}
+              {t3({ en: "Discard import", fr: "Annuler l'importation", pt: "Descartar a importação" })}
             </Button>
           </div>
         </HeaderBarCanGoBack>
@@ -205,7 +205,7 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
       <StateHolderWrapper
         state={uploadAttempt.state()}
         onErrorButton={{
-          label: t3({ en: "Back to dataset", fr: "Retour au jeu de données" }),
+          label: t3({ en: "Back to dataset", fr: "Retour au jeu de données", pt: "Voltar ao conjunto de dados" }),
           onClick: () => p.close(undefined),
         }}
       >
@@ -214,7 +214,7 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
             <Switch
               fallback={
                 <div class="ui-pad text-danger">
-                  {t3({ en: "Something went wrong: Bad step in dataset upload attempt", fr: "Une erreur est survenue : étape incorrecte dans la tentative d'importation" })}
+                  {t3({ en: "Something went wrong: Bad step in dataset upload attempt", fr: "Une erreur est survenue : étape incorrecte dans la tentative d'importation", pt: "Ocorreu um erro: etapa inválida na tentativa de carregamento do conjunto de dados" })}
                 </div>
               }
             >

@@ -43,6 +43,7 @@ export function DeleteData(
       t3({
         en: "Are you very sure you want to delete all ICEH data?",
         fr: "Êtes-vous sûr de vouloir supprimer toutes les données ICEH ?",
+        pt: "Tem mesmo a certeza de que pretende eliminar todos os dados ICEH?",
       }),
       () => serverActions.deleteDatasetIcehData({}),
       async () => {
@@ -59,6 +60,7 @@ export function DeleteData(
       t3({
         en: `Delete the ${codes.length} selected indicator(s)? Other indicators are kept.`,
         fr: `Supprimer les ${codes.length} indicateur(s) sélectionné(s) ? Les autres indicateurs sont conservés.`,
+        pt: `Eliminar o(s) ${codes.length} indicador(es) selecionado(s)? Os outros indicadores são conservados.`,
       }),
       () => serverActions.deleteDatasetIcehIndicators({ indicatorCodes: codes }),
       async () => {
@@ -85,6 +87,7 @@ export function DeleteData(
           label={t3({
             en: "Delete ALL ICEH data",
             fr: "Supprimer TOUTES les données ICEH",
+            pt: "Eliminar TODOS os dados ICEH",
           })}
           checked={deleteAll()}
           onChange={setDeleteAll}
@@ -98,6 +101,7 @@ export function DeleteData(
                 {t3({
                   en: "Select the indicators to delete. All other indicators are kept.",
                   fr: "Sélectionnez les indicateurs à supprimer. Tous les autres indicateurs sont conservés.",
+                  pt: "Selecione os indicadores a eliminar. Todos os outros indicadores são conservados.",
                 })}
               </div>
               <div class="w-96">
@@ -105,7 +109,7 @@ export function DeleteData(
                   values={selectedCodes()}
                   options={options()}
                   onChange={setSelectedCodes}
-                  label={t3({ en: "Indicators", fr: "Indicateurs" })}
+                  label={t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
                 />
               </div>
               <div class="">
@@ -123,11 +127,11 @@ export function DeleteData(
         >
           <div class="ui-spy">
             <div class="">
-              {t3({ en: "If you want to delete", fr: "Pour supprimer" })}{" "}
-              {t3({ en: "all the ICEH data", fr: "toutes les données ICEH" })},{" "}
-              {t3({ en: "write", fr: "écrivez" })}{" "}
+              {t3({ en: "If you want to delete", fr: "Pour supprimer", pt: "Para eliminar" })}{" "}
+              {t3({ en: "all the ICEH data", fr: "toutes les données ICEH", pt: "todos os dados ICEH" })},{" "}
+              {t3({ en: "write", fr: "écrivez", pt: "escreva" })}{" "}
               <span class="font-700">yes please delete</span>{" "}
-              {t3({ en: "in the input box", fr: "dans le champ de saisie" })}
+              {t3({ en: "in the input box", fr: "dans le champ de saisie", pt: "no campo de introdução" })}
             </div>
             <div class="w-96">
               <Input value={checkText()} onChange={setCheckText} />

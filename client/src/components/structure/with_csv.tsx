@@ -30,7 +30,7 @@ export function StructureWithCsv(p: Props) {
     if (res.data.items.length === 0) {
       setStructureItems({
         status: "error",
-        err: t3({ en: "No rows", fr: "Aucune ligne" }),
+        err: t3({ en: "No rows", fr: "Aucune ligne", pt: "Nenhuma linha" }),
       });
       return;
     }
@@ -47,7 +47,7 @@ export function StructureWithCsv(p: Props) {
     if (!lastUpdated) {
       setStructureItems({
         status: "error",
-        err: t3({ en: "No structure data", fr: "Aucune donnée de structure" }),
+        err: t3({ en: "No structure data", fr: "Aucune donnée de structure", pt: "Nenhum dado de estrutura" }),
       });
       return;
     }

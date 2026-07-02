@@ -51,7 +51,7 @@ export function EditHfaIndicator(
       const trimmedVarName =
         mode === "create" ? varName().trim() : p.existingIndicator!.varName;
       if (!trimmedVarName) {
-        return { success: false, err: t3({ en: "Variable name is required", fr: "Le nom de la variable est requis" }) };
+        return { success: false, err: t3({ en: "Variable name is required", fr: "Le nom de la variable est requis", pt: "O nome da variável é obrigatório" }) };
       }
       if (mode === "create") {
         if (!HFA_VAR_NAME_REGEX.test(trimmedVarName)) {
@@ -60,6 +60,7 @@ export function EditHfaIndicator(
             err: t3({
               en: "Variable name must start with a letter and contain only letters, digits, and underscores (max 64 characters)",
               fr: "Le nom de la variable doit commencer par une lettre et ne contenir que des lettres, des chiffres et des tirets bas (max 64 caractères)",
+              pt: "O nome da variável deve começar por uma letra e conter apenas letras, dígitos e sublinhados (máx. 64 caracteres)",
             }),
           };
         }
@@ -69,6 +70,7 @@ export function EditHfaIndicator(
             err: t3({
               en: `"${trimmedVarName}" is a survey variable name — using it would shadow the dataset column in other indicators' code. Choose a different name.`,
               fr: `« ${trimmedVarName} » est le nom d'une variable d'enquête — l'utiliser masquerait la colonne du jeu de données dans le code des autres indicateurs. Choisissez un autre nom.`,
+              pt: `"${trimmedVarName}" é o nome de uma variável de inquérito — utilizá-lo ocultaria a coluna do conjunto de dados no código dos outros indicadores. Escolha um nome diferente.`,
             }),
           };
         }
@@ -107,8 +109,8 @@ export function EditHfaIndicator(
       formId="hfa-indicator-form"
       header={
         mode === "create"
-          ? t3({ en: "Add HFA indicator", fr: "Ajouter un indicateur HFA" })
-          : t3({ en: "Update HFA indicator", fr: "Mettre à jour l'indicateur HFA" })
+          ? t3({ en: "Add HFA indicator", fr: "Ajouter un indicateur HFA", pt: "Adicionar indicador HFA" })
+          : t3({ en: "Update HFA indicator", fr: "Mettre à jour l'indicateur HFA", pt: "Atualizar indicador HFA" })
       }
       savingState={save.state()}
       saveFunc={save.click}
@@ -118,7 +120,7 @@ export function EditHfaIndicator(
         <Switch>
           <Match when={mode === "create"}>
             <Input
-              label={t3({ en: "Variable name", fr: "Nom de la variable" })}
+              label={t3({ en: "Variable name", fr: "Nom de la variable", pt: "Nome da variável" })}
               value={varName()}
               onChange={setVarName}
               fullWidth
@@ -129,7 +131,7 @@ export function EditHfaIndicator(
           <Match when={mode === "update"}>
             <div>
               <div class="ui-label">
-                {t3({ en: "Variable name", fr: "Nom de la variable" })}
+                {t3({ en: "Variable name", fr: "Nom de la variable", pt: "Nome da variável" })}
               </div>
               <div class="ui-form-pad ui-form-text-size font-mono">
                 {varName()}
@@ -138,67 +140,67 @@ export function EditHfaIndicator(
           </Match>
         </Switch>
         <Select
-          label={t3({ en: "Category", fr: "Catégorie" })}
+          label={t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}
           value={categoryId() ?? ""}
           onChange={(v) => {
             setCategoryId(v || null);
             setSubCategoryId(null);
           }}
           options={[
-            { value: "", label: t3({ en: "— None —", fr: "— Aucune —" }) },
+            { value: "", label: t3({ en: "— None —", fr: "— Aucune —", pt: "— Nenhuma —" }) },
             ...p.categories.map((c) => ({ value: c.id, label: c.label })),
           ]}
           fullWidth
         />
         <Select
-          label={t3({ en: "Sub-category", fr: "Sous-catégorie" })}
+          label={t3({ en: "Sub-category", fr: "Sous-catégorie", pt: "Subcategoria" })}
           value={subCategoryId() ?? ""}
           onChange={(v) => setSubCategoryId(v || null)}
           options={
             categoryId()
               ? [
-                  { value: "", label: t3({ en: "— None —", fr: "— Aucune —" }) },
+                  { value: "", label: t3({ en: "— None —", fr: "— Aucune —", pt: "— Nenhuma —" }) },
                   ...filteredSubCategories().map((sc) => ({ value: sc.id, label: sc.label })),
                 ]
-              : [{ value: "", label: t3({ en: "— Select category first —", fr: "— Sélectionnez d'abord une catégorie —" }) }]
+              : [{ value: "", label: t3({ en: "— Select category first —", fr: "— Sélectionnez d'abord une catégorie —", pt: "— Selecione primeiro uma categoria —" }) }]
           }
           fullWidth
         />
         <MultiSelect
-          label={t3({ en: "Service categories", fr: "Catégories de service" })}
+          label={t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" })}
           values={serviceCategoryIds()}
           onChange={setServiceCategoryIds}
           options={p.serviceCategories.map((sc) => ({ value: sc.id, label: sc.label }))}
         />
         <Input
-          label={t3({ en: "Short label", fr: "Libellé court" })}
+          label={t3({ en: "Short label", fr: "Libellé court", pt: "Etiqueta curta" })}
           value={shortLabel()}
           onChange={setShortLabel}
           fullWidth
         />
         <TextArea
-          label={t3({ en: "Long label", fr: "Libellé long" })}
+          label={t3({ en: "Long label", fr: "Libellé long", pt: "Etiqueta longa" })}
           value={definition()}
           onChange={setDefinition}
           fullWidth
           height="160px"
         />
         <RadioGroup
-          label={t3({ en: "Type", fr: "Type" })}
+          label={t3({ en: "Type", fr: "Type", pt: "Tipo" })}
           value={type()}
           onChange={(v) => setType(v as "binary" | "numeric")}
           options={[
-            { value: "binary", label: t3({ en: "Boolean (for percentages)", fr: "Booléen (pour les pourcentages)" }) },
-            { value: "numeric", label: t3({ en: "Numeric (for averages/sums)", fr: "Numérique (pour les moyennes/sommes)" }) },
+            { value: "binary", label: t3({ en: "Boolean (for percentages)", fr: "Booléen (pour les pourcentages)", pt: "Booleano (para percentagens)" }) },
+            { value: "numeric", label: t3({ en: "Numeric (for averages/sums)", fr: "Numérique (pour les moyennes/sommes)", pt: "Numérico (para médias/somas)" }) },
           ]}
         />
         <RadioGroup
-          label={t3({ en: "Aggregation", fr: "Agrégation" })}
+          label={t3({ en: "Aggregation", fr: "Agrégation", pt: "Agregação" })}
           value={aggregation()}
           onChange={(v) => setAggregation(v as "sum" | "avg")}
           options={[
-            { value: "sum", label: t3({ en: "Sum", fr: "Somme" }) },
-            { value: "avg", label: t3({ en: "Average", fr: "Moyenne" }) },
+            { value: "sum", label: t3({ en: "Sum", fr: "Somme", pt: "Soma" }) },
+            { value: "avg", label: t3({ en: "Average", fr: "Moyenne", pt: "Média" }) },
           ]}
         />
       </div>

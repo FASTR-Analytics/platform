@@ -54,7 +54,7 @@ export function CustomSeriesStyles(
 
   return (
     <ModalContainer
-      title={t3({ en: "Custom series colors", fr: "Couleurs de séries personnalisées" })}
+      title={t3({ en: "Custom series colors", fr: "Couleurs de séries personnalisées", pt: "Cores de séries personalizadas" })}
       width="md"
       leftButtons={
         // eslint-disable-next-line jsx-key
@@ -102,7 +102,7 @@ export function CustomSeriesStyles(
             outline
             intent="success"
           >
-            {t3({ en: "Add", fr: "Ajouter" })}
+            {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
         </div>
       </div>

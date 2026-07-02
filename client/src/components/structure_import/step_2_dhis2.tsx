@@ -33,7 +33,7 @@ export function Step2_Dhis2(p: Props) {
       serverActions.structureStep2Dhis2_GetOrgUnitsMetadata({
         family: p.family,
       }),
-    t3({ en: "Loading organization units...", fr: "Chargement des unités organisationnelles..." }),
+    t3({ en: "Loading organization units...", fr: "Chargement des unités organisationnelles...", pt: "A carregar unidades organizacionais..." }),
   );
 
   function updateSelection() {
@@ -48,7 +48,7 @@ export function Step2_Dhis2(p: Props) {
     if (selection.selectedLevels.length === 0) {
       return {
         success: false,
-        err: t3({ en: "Please select at least one level", fr: "Veuillez sélectionner au moins un niveau" }),
+        err: t3({ en: "Please select at least one level", fr: "Veuillez sélectionner au moins un niveau", pt: "Selecione pelo menos um nível" }),
       };
     }
 
@@ -62,7 +62,7 @@ export function Step2_Dhis2(p: Props) {
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
         <div class="font-700 pb-4 text-lg">
-          {t3({ en: "Select Organization Unit Levels to Import", fr: "Sélectionner les niveaux d'unités organisationnelles à importer" })}
+          {t3({ en: "Select Organization Unit Levels to Import", fr: "Sélectionner les niveaux d'unités organisationnelles à importer", pt: "Selecionar os níveis de unidades organizacionais a importar" })}
         </div>
 
         <StateHolderWrapper state={orgUnitMetadata.state()} noPad>
@@ -81,17 +81,17 @@ export function Step2_Dhis2(p: Props) {
                   data={metadata.levels.sort((a, b) => a.level - b.level)}
                   columns={[
                     {
-                      header: t3({ en: "Level Name", fr: "Nom du niveau" }),
+                      header: t3({ en: "Level Name", fr: "Nom du niveau", pt: "Nome do nível" }),
                       key: "displayName",
                       render: (level) => level.displayName || level.name,
                     },
                     {
-                      header: t3({ en: "Level", fr: "Niveau" }),
+                      header: t3({ en: "Level", fr: "Niveau", pt: "Nível" }),
                       key: "level",
                       render: (level) => String(level.level),
                     },
                     {
-                      header: t3({ en: "Units", fr: "Unités" }),
+                      header: t3({ en: "Units", fr: "Unités", pt: "Unidades" }),
                       key: "count",
                       render: (level) => toNum0(level.count),
                     },
@@ -109,10 +109,10 @@ export function Step2_Dhis2(p: Props) {
                 <div class="border-base-300 rounded border p-3 text-sm">
                   <div class="ui-spy-sm">
                     <div class="text-base-content">
-                      <strong>{t3({ en: "Selection Summary", fr: "Résumé de la sélection" })}:</strong>
+                      <strong>{t3({ en: "Selection Summary", fr: "Résumé de la sélection", pt: "Resumo da seleção" })}:</strong>
                     </div>
                     <div class="text-base-content/80">
-                      {selectedLevels().size} {t3({ en: "levels selected", fr: "niveaux sélectionnés" })}
+                      {selectedLevels().size} {t3({ en: "levels selected", fr: "niveaux sélectionnés", pt: "níveis selecionados" })}
                     </div>
                     {/* <div class="text-base-content/60 mt-2 text-xs">
                       {t("Total organization units available")}:{" "}
@@ -137,7 +137,7 @@ export function Step2_Dhis2(p: Props) {
           disabled={!needsSaving() || selectedLevels().size === 0}
           iconName="save"
         >
-          {t3({ en: "Save selection", fr: "Sauvegarder la sélection" })}
+          {t3({ en: "Save selection", fr: "Sauvegarder la sélection", pt: "Guardar seleção" })}
         </Button>
       </div>
     </div>

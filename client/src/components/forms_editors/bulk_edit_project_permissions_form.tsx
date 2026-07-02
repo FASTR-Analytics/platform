@@ -55,16 +55,16 @@ export function BulkEditProjectPermissionsForm(
     <div class="ui-pad ui-spy w-[600px]">
       <div class="space-y-3">
         <div class="font-700 text-lg leading-6">
-          {t3({ en: `Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`, fr: `Modifier les permissions pour ${userCount} utilisateur${userCount === 1 ? "" : "s"}` })}
+          {t3({ en: `Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`, fr: `Modifier les permissions pour ${userCount} utilisateur${userCount === 1 ? "" : "s"}`, pt: `Editar permissões para ${userCount} utilizador${userCount === 1 ? "" : "es"}` })}
         </div>
         <div class="font-700 text-sm">
           {p.emails.join(", ")}
         </div>
         <div class="text-xs text-neutral">
-          {t3({ en: "Click to cycle: unchanged → true → false", fr: "Cliquez pour alterner : inchangé → vrai → faux" })}
+          {t3({ en: "Click to cycle: unchanged → true → false", fr: "Cliquez pour alterner : inchangé → vrai → faux", pt: "Clique para alternar: inalterado → verdadeiro → falso" })}
         </div>
         <div>
-          <div class="font-600 text-sm">{t3({ en: "Permission presets", fr: "Préréglages de permissions" })}</div>
+          <div class="font-600 text-sm">{t3({ en: "Permission presets", fr: "Préréglages de permissions", pt: "Predefinições de permissões" })}</div>
           <div class="flex gap-2">
             <For each={PERMISSION_PRESETS}>
               {(preset) => (

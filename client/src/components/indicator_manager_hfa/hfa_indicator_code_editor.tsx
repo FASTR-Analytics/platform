@@ -62,7 +62,7 @@ export function HfaIndicatorCodeEditor(
 ) {
   const codeQuery = createQuery(
     () => serverActions.getHfaIndicatorCode({ varName: p.indicator.varName }),
-    t3({ en: "Loading code...", fr: "Chargement du code..." }),
+    t3({ en: "Loading code...", fr: "Chargement du code...", pt: "A carregar o código..." }),
   );
 
   const [needsSaving, setNeedsSaving] = createSignal(false);
@@ -98,7 +98,7 @@ export function HfaIndicatorCodeEditor(
               intent="success"
               iconName="save"
             >
-              {t3({ en: "Save and close", fr: "Sauvegarder et quitter" })}
+              {t3({ en: "Save and close", fr: "Sauvegarder et quitter", pt: "Guardar e fechar" })}
             </Button>
             <Button
               intent="success"
@@ -106,10 +106,10 @@ export function HfaIndicatorCodeEditor(
               onClick={save.click}
               state={save.state()}
             >
-              {t3({ en: "Save", fr: "Sauvegarder" })}
+              {t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" })}
             </Button>
             <Button intent="neutral" onClick={() => p.close(undefined)}>
-              {t3({ en: "Cancel", fr: "Annuler" })}
+              {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
             </Button>
           </Show>
           <div class="font-700 flex-1 truncate text-xl">
@@ -269,6 +269,7 @@ function EditorInner(p: {
         err: t3({
           en: `Filter code requires R code for time point "${filterOnly.timePoint}"`,
           fr: `Le code filtre nécessite un code R pour le point temporel « ${filterOnly.timePoint} »`,
+          pt: `O código de filtro requer código R para o ponto temporal "${filterOnly.timePoint}"`,
         }),
       };
     }
@@ -345,14 +346,14 @@ function EditorInner(p: {
           <div class="flex items-end gap-4">
             <div>
               <div class="ui-label">
-                {t3({ en: "Variable name", fr: "Nom de variable" })}
+                {t3({ en: "Variable name", fr: "Nom de variable", pt: "Nome da variável" })}
               </div>
               <div class="ui-form-pad ui-form-text-size font-mono">
                 {p.indicator.varName}
               </div>
             </div>
             <Select
-              label={t3({ en: "Category", fr: "Catégorie" })}
+              label={t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}
               value={state.categoryId ?? ""}
               onChange={(v) => {
                 setState("categoryId", v || null);
@@ -360,12 +361,12 @@ function EditorInner(p: {
                 markDirty();
               }}
               options={[
-                { value: "", label: t3({ en: "— None —", fr: "— Aucune —" }) },
+                { value: "", label: t3({ en: "— None —", fr: "— Aucune —", pt: "— Nenhuma —" }) },
                 ...p.categories.map((c) => ({ value: c.id, label: c.label })),
               ]}
             />
             <Select
-              label={t3({ en: "Sub-category", fr: "Sous-catégorie" })}
+              label={t3({ en: "Sub-category", fr: "Sous-catégorie", pt: "Subcategoria" })}
               value={state.subCategoryId ?? ""}
               onChange={(v) => {
                 setState("subCategoryId", v || null);
@@ -374,14 +375,14 @@ function EditorInner(p: {
               options={
                 state.categoryId
                   ? [
-                      { value: "", label: t3({ en: "— None —", fr: "— Aucune —" }) },
+                      { value: "", label: t3({ en: "— None —", fr: "— Aucune —", pt: "— Nenhuma —" }) },
                       ...filteredSubCategories().map((sc) => ({ value: sc.id, label: sc.label })),
                     ]
-                  : [{ value: "", label: t3({ en: "— Select category first —", fr: "— Sélectionnez d'abord une catégorie —" }) }]
+                  : [{ value: "", label: t3({ en: "— Select category first —", fr: "— Sélectionnez d'abord une catégorie —", pt: "— Selecione primeiro uma categoria —" }) }]
               }
             />
             <MultiSelect
-              label={t3({ en: "Service categories", fr: "Catégories de service" })}
+              label={t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" })}
               values={state.serviceCategoryIds}
               onChange={(v) => {
                 setState("serviceCategoryIds", v);
@@ -390,7 +391,7 @@ function EditorInner(p: {
               options={p.serviceCategories.map((sc) => ({ value: sc.id, label: sc.label }))}
             />
             <RadioGroup
-              label={t3({ en: "Type", fr: "Type" })}
+              label={t3({ en: "Type", fr: "Type", pt: "Tipo" })}
               value={state.type}
               onChange={(v) => {
                 setState("type", v as "binary" | "numeric");
@@ -399,29 +400,29 @@ function EditorInner(p: {
               options={[
                 {
                   value: "binary",
-                  label: t3({ en: "Boolean", fr: "Booléen" }),
+                  label: t3({ en: "Boolean", fr: "Booléen", pt: "Booleano" }),
                 },
                 {
                   value: "numeric",
-                  label: t3({ en: "Numeric", fr: "Numérique" }),
+                  label: t3({ en: "Numeric", fr: "Numérique", pt: "Numérico" }),
                 },
               ]}
             />
             <RadioGroup
-              label={t3({ en: "Aggregation", fr: "Agrégation" })}
+              label={t3({ en: "Aggregation", fr: "Agrégation", pt: "Agregação" })}
               value={state.aggregation}
               onChange={(v) => {
                 setState("aggregation", v as "sum" | "avg");
                 markDirty();
               }}
               options={[
-                { value: "sum", label: t3({ en: "Sum", fr: "Somme" }) },
-                { value: "avg", label: t3({ en: "Average", fr: "Moyenne" }) },
+                { value: "sum", label: t3({ en: "Sum", fr: "Somme", pt: "Soma" }) },
+                { value: "avg", label: t3({ en: "Average", fr: "Moyenne", pt: "Média" }) },
               ]}
             />
           </div>
           <Input
-            label={t3({ en: "Short label", fr: "Libellé court" })}
+            label={t3({ en: "Short label", fr: "Libellé court", pt: "Etiqueta curta" })}
             value={state.shortLabel}
             onChange={(v) => {
               setState("shortLabel", v);
@@ -430,7 +431,7 @@ function EditorInner(p: {
             fullWidth
           />
           <Input
-            label={t3({ en: "Long label", fr: "Libellé long" })}
+            label={t3({ en: "Long label", fr: "Libellé long", pt: "Etiqueta longa" })}
             value={state.definition}
             onChange={(v) => {
               setState("definition", v);
@@ -444,7 +445,7 @@ function EditorInner(p: {
       <div class="flex min-h-0 flex-1">
         <div class="border-base-300 flex h-full w-48 flex-none flex-col overflow-auto border-r">
           <div class="ui-pad-sm font-700 text-sm">
-            {t3({ en: "Time points", fr: "Points temporels" })}
+            {t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" })}
           </div>
           <For each={p.dictionary.timePoints}>
             {(tp) => {
@@ -462,7 +463,7 @@ function EditorInner(p: {
                 >
                   <div>{tp.timePoint}</div>
                   <div class="text-base-content/50 text-xs">
-                    {hasCode() ? "" : t3({ en: "no code", fr: "aucun code" })}
+                    {hasCode() ? "" : t3({ en: "no code", fr: "aucun code", pt: "sem código" })}
                   </div>
                 </button>
               );
@@ -478,6 +479,7 @@ function EditorInner(p: {
                 {t3({
                   en: "Select a time point",
                   fr: "Sélectionner un point temporel",
+                  pt: "Selecionar um ponto temporal",
                 })}
               </div>
             }
@@ -489,6 +491,7 @@ function EditorInner(p: {
                     label={t3({
                       en: `R code (${state.type === "binary" ? "should evaluate to TRUE/FALSE" : "should evaluate to numeric"})`,
                       fr: `Code R (${state.type === "binary" ? "doit évaluer à TRUE/FALSE" : "doit évaluer à numérique"})`,
+                      pt: `Código R (${state.type === "binary" ? "deve avaliar para TRUE/FALSE" : "deve avaliar para numérico"})`,
                     })}
                     value={state.code[currentTpIndex()].rCode}
                     onChange={(v) => {
@@ -512,7 +515,7 @@ function EditorInner(p: {
                       <For each={currentRCodeValidation().syntaxErrors}>
                         {(e) => (
                           <div class="text-danger font-700 text-xs">
-                            {t3({ en: "Syntax: ", fr: "Syntaxe : " })}
+                            {t3({ en: "Syntax: ", fr: "Syntaxe : ", pt: "Sintaxe: " })}
                             {e}
                           </div>
                         )}
@@ -555,6 +558,7 @@ function EditorInner(p: {
                     label={t3({
                       en: "Filter code (optional, should evaluate to TRUE/FALSE)",
                       fr: "Code filtre (optionnel, doit évaluer à TRUE/FALSE)",
+                      pt: "Código de filtro (opcional, deve avaliar para TRUE/FALSE)",
                     })}
                     value={state.code[currentTpIndex()].rFilterCode}
                     onChange={(v) => {
@@ -575,6 +579,7 @@ function EditorInner(p: {
                       {t3({
                         en: "Filter code requires R code for this time point",
                         fr: "Le code filtre nécessite un code R pour ce point temporel",
+                        pt: "O código de filtro requer código R para este ponto temporal",
                       })}
                     </div>
                   </Show>
@@ -591,7 +596,7 @@ function EditorInner(p: {
                       <For each={currentFilterValidation().syntaxErrors}>
                         {(e) => (
                           <div class="text-danger font-700 text-xs">
-                            {t3({ en: "Syntax: ", fr: "Syntaxe : " })}
+                            {t3({ en: "Syntax: ", fr: "Syntaxe : ", pt: "Sintaxe: " })}
                             {e}
                           </div>
                         )}
@@ -638,6 +643,7 @@ function EditorInner(p: {
                     {t3({
                       en: "Apply to other rounds",
                       fr: "Appliquer aux autres rounds",
+                      pt: "Aplicar às outras rondas",
                     })}
                   </Button>
                   <div class="text-xs">
@@ -646,6 +652,7 @@ function EditorInner(p: {
                         {t3({
                           en: "All rounds identical",
                           fr: "Tous les rounds identiques",
+                          pt: "Todas as rondas idênticas",
                         })}
                       </span>
                     </Show>
@@ -654,6 +661,7 @@ function EditorInner(p: {
                         {t3({
                           en: "Rounds differ",
                           fr: "Les rounds diffèrent",
+                          pt: "As rondas diferem",
                         })}
                       </span>
                     </Show>
@@ -666,6 +674,7 @@ function EditorInner(p: {
                     {t3({
                       en: "Available variables",
                       fr: "Variables disponibles",
+                      pt: "Variáveis disponíveis",
                     })}
                   </div>
                   <Input
@@ -674,6 +683,7 @@ function EditorInner(p: {
                     placeholder={t3({
                       en: "Search variables...",
                       fr: "Rechercher des variables...",
+                      pt: "Pesquisar variáveis...",
                     })}
                     searchIcon
                     fullWidth

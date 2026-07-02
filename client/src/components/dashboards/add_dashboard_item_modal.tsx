@@ -131,7 +131,7 @@ export function AddDashboardItemConfirmModal(
   return (
     <AlertFormHolder
       formId="confirm-add-dashboard-item"
-      header={t3({ en: "Add to dashboard", fr: "Ajouter au tableau de bord" })}
+      header={t3({ en: "Add to dashboard", fr: "Ajouter au tableau de bord", pt: "Adicionar ao painel" })}
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
@@ -142,7 +142,7 @@ export function AddDashboardItemConfirmModal(
         </div>
         <Show when={hasReplicants}>
           <RadioGroup
-            label={t3({ en: "Add", fr: "Ajouter" })}
+            label={t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
             value={creationMode()}
             options={[
               {
@@ -151,10 +151,12 @@ export function AddDashboardItemConfirmModal(
                   ? t3({
                       en: `Selected replicant only (${selectedReplicantLabel})`,
                       fr: `Seulement le réplicant sélectionné (${selectedReplicantLabel})`,
+                      pt: `Apenas o replicante selecionado (${selectedReplicantLabel})`,
                     })
                   : t3({
                       en: "Selected replicant only",
                       fr: "Seulement le réplicant sélectionné",
+                      pt: "Apenas o replicante selecionado",
                     }),
               },
               {
@@ -162,6 +164,7 @@ export function AddDashboardItemConfirmModal(
                 label: t3({
                   en: `All replicants as a group (${p.allReplicants.length})`,
                   fr: `Tous les réplicants en groupe (${p.allReplicants.length})`,
+                  pt: `Todos os replicantes em grupo (${p.allReplicants.length})`,
                 }),
               },
             ]}

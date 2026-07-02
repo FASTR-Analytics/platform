@@ -54,7 +54,7 @@ export function ProgressModal(p: AlertComponentProps<Props, ReturnType>) {
             intent="neutral"
             iconName="x"
           >
-            {t3({ en: "Close", fr: "Fermer" })}
+            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
           </Button>
         </div>
       </Show>

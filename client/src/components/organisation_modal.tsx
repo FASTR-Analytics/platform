@@ -29,7 +29,7 @@ export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
       width="sm"
       topPanel={
         <div class="font-700 text-base-content text-xl">
-          {t3({ en: "Your organisation", fr: "Votre organisation" })}
+          {t3({ en: "Your organisation", fr: "Votre organisation", pt: "A sua organização" })}
         </div>
       }
       leftButtons={
@@ -40,7 +40,7 @@ export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
             intent="neutral"
             disabled={loading()}
           >
-            {t3({ en: "Skip for now", fr: "Passer pour l'instant" })}
+            {t3({ en: "Skip for now", fr: "Passer pour l'instant", pt: "Ignorar por agora" })}
           </Button>,
         ]
       }
@@ -52,7 +52,7 @@ export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
             intent="primary"
             disabled={loading() || !organisation().trim()}
           >
-            {t3({ en: "Save", fr: "Enregistrer" })}
+            {t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
           </Button>,
         ]
       }
@@ -62,12 +62,13 @@ export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
           {t3({
             en: "Which organisation are you a part of?",
             fr: "À quelle organisation appartenez-vous ?",
+            pt: "De que organização faz parte?",
           })}
         </p>
         <TextArea
           value={organisation()}
           onChange={setOrganisation}
-          placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation" })}
+          placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation", pt: "Nome da organização" })}
           fullWidth
           rows={1}
           disabled={loading()}

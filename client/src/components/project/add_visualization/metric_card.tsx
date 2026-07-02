@@ -11,11 +11,11 @@ type Props = {
 function getStatusTooltip(status: MetricWithStatus["status"]): string {
   switch (status) {
     case "module_not_installed":
-      return t3({ en: "Module not installed", fr: "Module non installé" });
+      return t3({ en: "Module not installed", fr: "Module non installé", pt: "Módulo não instalado" });
     case "results_not_ready":
-      return t3({ en: "Module not yet run", fr: "Module pas encore exécuté" });
+      return t3({ en: "Module not yet run", fr: "Module pas encore exécuté", pt: "Módulo ainda não executado" });
     case "error":
-      return t3({ en: "Module has errors", fr: "Le module a des erreurs" });
+      return t3({ en: "Module has errors", fr: "Le module a des erreurs", pt: "O módulo tem erros" });
     default:
       return "";
   }
@@ -75,15 +75,15 @@ export function MetricCard(p: Props) {
           <div class="text-primary text-xs">
             {firstMetric().vizPresets!.length}{" "}
             {firstMetric().vizPresets!.length === 1
-              ? t3({ en: "preset", fr: "préréglage" })
-              : t3({ en: "presets", fr: "préréglages" })}
+              ? t3({ en: "preset", fr: "préréglage", pt: "predefinição" })
+              : t3({ en: "presets", fr: "préréglages", pt: "predefinições" })}
           </div>
         </Show>
 
         <Show when={hasVariants()}>
           <div class="border-base-300 border-t pt-2">
             <div class="text-neutral mb-1 text-xs">
-              {t3({ en: "Select geographic level:", fr: "Sélectionnez le niveau géographique :" })}
+              {t3({ en: "Select geographic level:", fr: "Sélectionnez le niveau géographique :", pt: "Selecione o nível geográfico:" })}
             </div>
             <div class="flex flex-wrap gap-1">
             <For each={p.metricGroup.variants.filter((v) => v.status === "ready")}>
@@ -122,7 +122,7 @@ function VariantRow(p: VariantRowProps) {
         p.onSelect();
       }}
     >
-      {p.variant.variantLabel || t3({ en: "Default", fr: "Par défaut" })}
+      {p.variant.variantLabel || t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" })}
     </div>
   );
 }

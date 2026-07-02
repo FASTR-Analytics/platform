@@ -171,11 +171,11 @@ export const PERMISSION_PRESETS: {
   permissions: Record<ProjectPermission, boolean>;
 }[] = [
   {
-    label: { en: "No access", fr: "Aucun accès" },
+    label: { en: "No access", fr: "Aucun accès", pt: "Sem acesso" },
     permissions: _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
   },
   {
-    label: { en: "Viewer", fr: "Lecteur" },
+    label: { en: "Viewer", fr: "Lecteur", pt: "Leitor" },
     permissions: {
       can_configure_settings: false,
       can_create_backups: false,
@@ -197,7 +197,7 @@ export const PERMISSION_PRESETS: {
     },
   },
   {
-    label: { en: "Editor", fr: "Éditeur" },
+    label: { en: "Editor", fr: "Éditeur", pt: "Editor" },
     permissions: {
       can_configure_settings: false,
       can_create_backups: false,
@@ -219,7 +219,7 @@ export const PERMISSION_PRESETS: {
     },
   },
   {
-    label: { en: "Admin", fr: "Administrateur" },
+    label: { en: "Admin", fr: "Administrateur", pt: "Administrador" },
     permissions: _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
   },
 ];

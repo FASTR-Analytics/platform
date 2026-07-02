@@ -59,6 +59,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
           heading={t3({
             en: "Import HFA Indicators from Excel",
             fr: "Importer des indicateurs HFA depuis Excel",
+            pt: "Importar indicadores HFA a partir do Excel",
           })}
           back={() => p.close(undefined)}
         />
@@ -116,6 +117,7 @@ function PickStep(p: {
         {t3({
           en: "Upload an Excel workbook (.xlsx) with four sheets:",
           fr: "Téléversez un classeur Excel (.xlsx) comportant quatre feuilles :",
+          pt: "Carregue um livro do Excel (.xlsx) com quatro folhas:",
         })}
         <ul class="mt-2 ml-5 list-disc space-y-1">
           <li>
@@ -127,7 +129,7 @@ function PickStep(p: {
           </li>
           <li>
             <span class="font-700 font-mono">Service categories</span>: id,
-            label ({t3({ en: "optional", fr: "facultatif" })})
+            label ({t3({ en: "optional", fr: "facultatif", pt: "opcional" })})
           </li>
           <li>
             <span class="font-700 font-mono">Indicators</span>: varName,
@@ -135,6 +137,7 @@ function PickStep(p: {
             {t3({
               en: "pipe-separated for multiple",
               fr: "séparés par | pour plusieurs",
+              pt: "separados por | para vários",
             })}
             ), shortLabel, definition, type, aggregation, r_code__&lt;time
             point&gt;, r_filter_code__&lt;time point&gt;, …
@@ -142,17 +145,18 @@ function PickStep(p: {
         </ul>
       </div>
       <RadioGroup
-        label={t3({ en: "Import Mode", fr: "Mode d'importation" })}
+        label={t3({ en: "Import Mode", fr: "Mode d'importation", pt: "Modo de importação" })}
         options={[
           {
             value: "add",
-            label: t3({ en: "Add to existing", fr: "Ajouter aux existants" }),
+            label: t3({ en: "Add to existing", fr: "Ajouter aux existants", pt: "Adicionar aos existentes" }),
           },
           {
             value: "replace",
             label: t3({
               en: "Replace all existing",
               fr: "Remplacer tous les existants",
+              pt: "Substituir todos os existentes",
             }),
           },
         ]}
@@ -164,7 +168,7 @@ function PickStep(p: {
       </Show>
       <div class="ui-gap-sm flex">
         <Button onClick={p.onPickFile} iconName="upload">
-          {t3({ en: "Select XLSX file", fr: "Sélectionner un fichier XLSX" })}
+          {t3({ en: "Select XLSX file", fr: "Sélectionner un fichier XLSX", pt: "Selecionar ficheiro XLSX" })}
         </Button>
         <Button onClick={p.onCancel} intent="neutral">
           {t3(TC.cancel)}
@@ -232,13 +236,13 @@ function ReconcileStep(p: {
     createStore<Array<string | null>>(defaultMapping);
 
   const platformOptions = () => [
-    { value: "", label: t3({ en: "— skip —", fr: "— ignorer —" }) },
+    { value: "", label: t3({ en: "— skip —", fr: "— ignorer —", pt: "— ignorar —" }) },
     ...getSelectOptions(p.timePoints),
   ];
 
   const xlsxPositionLabel = (k: number) => {
     const embedded = p.shape.xlsxLabels[k];
-    return embedded ?? t3({ en: `Position ${k + 1}`, fr: `Position ${k + 1}` });
+    return embedded ?? t3({ en: `Position ${k + 1}`, fr: `Position ${k + 1}`, pt: `Posição ${k + 1}` });
   };
 
   const effectiveMapping = (): Array<string | null> => {
@@ -264,6 +268,7 @@ function ReconcileStep(p: {
           err: t3({
             en: "Select at least one time point to import into",
             fr: "Sélectionnez au moins un point temporel dans lequel importer",
+            pt: "Selecione pelo menos um ponto temporal para a importação",
           }),
         };
       }
@@ -278,6 +283,7 @@ function ReconcileStep(p: {
           err: t3({
             en: `Two workbook columns are mapped to the same time point ("${duplicateTp}"). Each platform time point can receive at most one column.`,
             fr: `Deux colonnes du classeur sont mappées au même point temporel (« ${duplicateTp} »). Chaque point temporel de la plateforme ne peut recevoir qu'une seule colonne.`,
+            pt: `Duas colunas do livro estão associadas ao mesmo ponto temporal ("${duplicateTp}"). Cada ponto temporal da plataforma pode receber no máximo uma coluna.`,
           }),
         };
       }
@@ -292,6 +298,7 @@ function ReconcileStep(p: {
             err: t3({
               en: `These varNames are survey variable names and would shadow the dataset columns in other indicators' code: ${shadowing.join(", ")}. Rename them in the workbook.`,
               fr: `Ces noms de variables sont des noms de variables d'enquête et masqueraient les colonnes du jeu de données dans le code des autres indicateurs : ${shadowing.join(", ")}. Renommez-les dans le classeur.`,
+              pt: `Estes varNames são nomes de variáveis de inquérito e ocultariam as colunas do conjunto de dados no código dos outros indicadores: ${shadowing.join(", ")}. Renomeie-os no livro.`,
             }),
           };
         }
@@ -312,6 +319,7 @@ function ReconcileStep(p: {
           err: t3({
             en: `The workbook produces duplicate code rows for: ${[...duplicateKeys].join("; ")}. Each indicator can have only one code entry per time point.`,
             fr: `Le classeur produit des lignes de code en double pour : ${[...duplicateKeys].join("; ")}. Chaque indicateur ne peut avoir qu'une seule entrée de code par point temporel.`,
+            pt: `O livro produz linhas de código duplicadas para: ${[...duplicateKeys].join("; ")}. Cada indicador só pode ter uma entrada de código por ponto temporal.`,
           }),
         };
       }
@@ -325,6 +333,7 @@ function ReconcileStep(p: {
           err: t3({
             en: `Filter code requires R code. Rows with filter code but no R code: ${filterOnly.map((c) => `${c.varName} / ${c.timePoint}`).join("; ")}.`,
             fr: `Le code filtre nécessite un code R. Lignes avec un code filtre mais sans code R : ${filterOnly.map((c) => `${c.varName} / ${c.timePoint}`).join("; ")}.`,
+            pt: `O código de filtro requer código R. Linhas com código de filtro mas sem código R: ${filterOnly.map((c) => `${c.varName} / ${c.timePoint}`).join("; ")}.`,
           }),
         };
       }
@@ -341,10 +350,11 @@ function ReconcileStep(p: {
     async (data) => {
       if (data.skippedExisting.length > 0) {
         await openAlert({
-          title: t3({ en: "Import complete", fr: "Importation terminée" }),
+          title: t3({ en: "Import complete", fr: "Importation terminée", pt: "Importação concluída" }),
           text: t3({
             en: `Imported ${data.imported} new indicator(s); ${data.skippedExisting.length} existing were skipped (add mode does not modify existing indicators): ${data.skippedExisting.join(", ")}`,
             fr: `${data.imported} nouveau(x) indicateur(s) importé(s) ; ${data.skippedExisting.length} existant(s) ont été ignoré(s) (le mode ajout ne modifie pas les indicateurs existants) : ${data.skippedExisting.join(", ")}`,
+            pt: `${data.imported} novo(s) indicador(es) importado(s); ${data.skippedExisting.length} existente(s) foram ignorado(s) (o modo adicionar não modifica os indicadores existentes): ${data.skippedExisting.join(", ")}`,
           }),
         });
       }
@@ -355,12 +365,13 @@ function ReconcileStep(p: {
   return (
     <>
       <div class="font-700 text-base">
-        {t3({ en: "Map time points", fr: "Mapper les points temporels" })}
+        {t3({ en: "Map time points", fr: "Mapper les points temporels", pt: "Mapear pontos temporais" })}
       </div>
       <div class="text-neutral text-sm">
         {t3({
           en: `XLSX has ${N} code column(s). Platform has ${M} time point(s).`,
           fr: `Le classeur contient ${N} colonne(s) de code. La plateforme a ${M} point(s) temporel(s).`,
+          pt: `O XLSX tem ${N} coluna(s) de código. A plataforma tem ${M} ponto(s) temporal(is).`,
         })}
       </div>
 
@@ -369,6 +380,7 @@ function ReconcileStep(p: {
           {t3({
             en: `Auto-mapped: the single code column will be imported into "${p.timePoints[0]}".`,
             fr: `Mappage automatique : la colonne de code unique sera importée dans « ${p.timePoints[0]} ».`,
+            pt: `Mapeamento automático: a única coluna de código será importada para "${p.timePoints[0]}".`,
           })}
         </div>
       </Show>
@@ -378,6 +390,7 @@ function ReconcileStep(p: {
           label={t3({
             en: "How to apply the single code column:",
             fr: "Comment appliquer la colonne de code unique :",
+            pt: "Como aplicar a única coluna de código:",
           })}
           options={[
             {
@@ -385,6 +398,7 @@ function ReconcileStep(p: {
               label: t3({
                 en: `Apply to all ${M} time points`,
                 fr: `Appliquer aux ${M} points temporels`,
+                pt: `Aplicar a todos os ${M} pontos temporais`,
               }),
             },
             {
@@ -392,6 +406,7 @@ function ReconcileStep(p: {
               label: t3({
                 en: "Apply to one specific time point:",
                 fr: "Appliquer à un point temporel spécifique :",
+                pt: "Aplicar a um ponto temporal específico:",
               }),
             },
           ]}
@@ -416,6 +431,7 @@ function ReconcileStep(p: {
             {t3({
               en: "Time point labels are embedded in the file. Verify the mapping below.",
               fr: "Les libellés des points temporels sont intégrés dans le fichier. Vérifiez le mappage ci-dessous.",
+              pt: "As etiquetas dos pontos temporais estão incorporadas no ficheiro. Verifique o mapeamento abaixo.",
             })}
           </div>
         </Show>
@@ -424,6 +440,7 @@ function ReconcileStep(p: {
             {t3({
               en: "The number of code columns in the XLSX does not match the number of platform time points. Map each XLSX column to a platform time point, or skip it.",
               fr: "Le nombre de colonnes de code dans le XLSX ne correspond pas au nombre de points temporels de la plateforme. Mappez chaque colonne XLSX à un point temporel ou ignorez-la.",
+              pt: "O número de colunas de código no XLSX não corresponde ao número de pontos temporais da plataforma. Associe cada coluna do XLSX a um ponto temporal ou ignore-a.",
             })}
           </div>
         </Show>
@@ -453,12 +470,13 @@ function ReconcileStep(p: {
           {t3({
             en: "Replace mode permanently deletes ALL existing indicators, categories, sub-categories, and service categories before importing.",
             fr: "Le mode remplacement supprime définitivement TOUS les indicateurs, catégories, sous-catégories et catégories de service existants avant l'importation.",
+            pt: "O modo de substituição elimina definitivamente TODOS os indicadores, categorias, subcategorias e categorias de serviço existentes antes da importação.",
           })}
         </div>
         <div class="text-sm">
-          {t3({ en: "To confirm, write", fr: "Pour confirmer, écrivez" })}{" "}
+          {t3({ en: "To confirm, write", fr: "Pour confirmer, écrivez", pt: "Para confirmar, escreva" })}{" "}
           <span class="font-700">yes please delete</span>{" "}
-          {t3({ en: "in the input box", fr: "dans le champ de saisie" })}
+          {t3({ en: "in the input box", fr: "dans le champ de saisie", pt: "no campo de introdução" })}
         </div>
         <div class="w-96">
           <Input value={replaceCheckText()} onChange={setReplaceCheckText} />
@@ -473,10 +491,10 @@ function ReconcileStep(p: {
           iconName="upload"
           disabled={!replaceConfirmed()}
         >
-          {t3({ en: "Import", fr: "Importer" })}
+          {t3({ en: "Import", fr: "Importer", pt: "Importar" })}
         </Button>
         <Button onClick={p.onBack} intent="neutral" iconName="chevronLeft">
-          {t3({ en: "Back", fr: "Retour" })}
+          {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
         </Button>
       </div>
     </>

@@ -50,7 +50,7 @@ export function Step3(p: Props) {
 
   const adminAreaOptions = createMemo(() => {
     return [
-      { value: "", label: t3({ en: "— Not mapped —", fr: "— Non mappé —" }) },
+      { value: "", label: t3({ en: "— Not mapped —", fr: "— Non mappé —", pt: "— Não associado —" }) },
       ...state.adminAreaOptions(),
     ];
   });
@@ -75,29 +75,29 @@ export function Step3(p: Props) {
     <div class="ui-spy">
       <div class="ui-spy-sm">
         <div class="font-600">
-          {t3({ en: "Step 3: Map GeoJSON features to admin areas", fr: "Étape 3 : Associer les entités GeoJSON aux unités administratives" })}
+          {t3({ en: "Step 3: Map GeoJSON features to admin areas", fr: "Étape 3 : Associer les entités GeoJSON aux unités administratives", pt: "Passo 3: Associar as entidades GeoJSON às zonas administrativas" })}
           {" "}AA{state.adminAreaLevel()}
         </div>
         <div class="text-base-500 text-sm">
-          {mappedCount()}/{geoJsonValues().length} {t3({ en: "mapped", fr: "mappés" })}
+          {mappedCount()}/{geoJsonValues().length} {t3({ en: "mapped", fr: "mappés", pt: "associados" })}
           <Show when={unmappedGeoCount() > 0}>
             {" "}
             <span class="text-warning">
-              ({unmappedGeoCount()} {t3({ en: "unmapped", fr: "non mappés" })})
+              ({unmappedGeoCount()} {t3({ en: "unmapped", fr: "non mappés", pt: "não associados" })})
             </span>
           </Show>
         </div>
         <Show when={hasDhis2Ambiguity()}>
           <div class="text-warning text-sm">
-            {t3({ en: "Some DHIS2 org units share the same name. Use the UID and parent info to select the correct one.", fr: "Certaines unités d'organisation DHIS2 partagent le même nom. Utilisez l'UID et les informations sur le parent pour sélectionner la bonne." })}
+            {t3({ en: "Some DHIS2 org units share the same name. Use the UID and parent info to select the correct one.", fr: "Certaines unités d'organisation DHIS2 partagent le même nom. Utilisez l'UID et les informations sur le parent pour sélectionner la bonne.", pt: "Algumas unidades organizacionais DHIS2 partilham o mesmo nome. Utilize o UID e as informações da unidade-mãe para selecionar a correta." })}
           </div>
         </Show>
       </div>
 
       <div class="border-base-300 max-h-96 overflow-auto rounded border">
         <div class="bg-base-100 border-base-300 flex border-b px-3 py-2 text-sm font-semibold">
-          <div class="w-1/2">{t3({ en: "GeoJSON value", fr: "Valeur GeoJSON" })}</div>
-          <div class="w-1/2">{t3({ en: "Admin area", fr: "Unité administrative" })}</div>
+          <div class="w-1/2">{t3({ en: "GeoJSON value", fr: "Valeur GeoJSON", pt: "Valor GeoJSON" })}</div>
+          <div class="w-1/2">{t3({ en: "Admin area", fr: "Unité administrative", pt: "Zona administrativa" })}</div>
         </div>
         <For each={groupedByMatchProp()}>
           {(group) => (
@@ -149,10 +149,10 @@ export function Step3(p: Props) {
 
       <div class="ui-gap-sm flex">
         <Button onClick={() => state.setStep(4)} disabled={mappedCount() === 0} intent="primary">
-          {t3({ en: "Review & save", fr: "Vérifier et enregistrer" })}
+          {t3({ en: "Review & save", fr: "Vérifier et enregistrer", pt: "Rever e guardar" })}
         </Button>
         <Button intent="neutral" onClick={() => state.setStep(2)}>
-          {t3({ en: "Back", fr: "Retour" })}
+          {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
         </Button>
       </div>
     </div>

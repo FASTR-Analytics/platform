@@ -34,7 +34,7 @@ export function Step4(p: Props) {
     async () => {
       const mapping = state.geoToAdmin();
       if (Object.keys(mapping).length === 0) {
-        return { success: false, err: t3({ en: "No mappings defined", fr: "Aucun mappage défini" }) };
+        return { success: false, err: t3({ en: "No mappings defined", fr: "Aucun mappage défini", pt: "Nenhuma associação definida" }) };
       }
 
       const adminAreaLevel = state.adminAreaLevel() as 2 | 3 | 4;
@@ -85,23 +85,23 @@ export function Step4(p: Props) {
   return (
     <div class="ui-spy">
       <div class="ui-spy-sm">
-        <div class="font-600">{t3({ en: "Step 4: Confirm and save", fr: "Étape 4 : Confirmer et enregistrer" })}</div>
+        <div class="font-600">{t3({ en: "Step 4: Confirm and save", fr: "Étape 4 : Confirmer et enregistrer", pt: "Passo 4: Confirmar e guardar" })}</div>
       </div>
 
       <div class="text-base-500 ui-spy-sm text-sm">
         <Show when={state.source() === "file"}>
-          <div>{t3({ en: "Source", fr: "Source" })}: {state.selectedFileName()}</div>
+          <div>{t3({ en: "Source", fr: "Source", pt: "Fonte" })}: {state.selectedFileName()}</div>
         </Show>
         <Show when={state.source() === "dhis2"}>
-          <div>{t3({ en: "Source", fr: "Source" })}: DHIS2 ({state.dhis2Credentials()?.url})</div>
-          <div>{t3({ en: "DHIS2 level", fr: "Niveau DHIS2" })}: {dhis2LevelName()}</div>
+          <div>{t3({ en: "Source", fr: "Source", pt: "Fonte" })}: DHIS2 ({state.dhis2Credentials()?.url})</div>
+          <div>{t3({ en: "DHIS2 level", fr: "Niveau DHIS2", pt: "Nível DHIS2" })}: {dhis2LevelName()}</div>
         </Show>
-        <div>{t3({ en: "Admin area level", fr: "Niveau administratif" })}: AA{state.adminAreaLevel()}</div>
-        <div>{t3({ en: "Match property", fr: "Propriété de correspondance" })}: {state.selectedProp()}</div>
-        <div>{t3({ en: "Mapped features", fr: "Entités mappées" })}: {mappedCount()}/{geoJsonValues().length}</div>
+        <div>{t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" })}: AA{state.adminAreaLevel()}</div>
+        <div>{t3({ en: "Match property", fr: "Propriété de correspondance", pt: "Propriedade de correspondência" })}: {state.selectedProp()}</div>
+        <div>{t3({ en: "Mapped features", fr: "Entités mappées", pt: "Entidades associadas" })}: {mappedCount()}/{geoJsonValues().length}</div>
         <Show when={unmappedCount() > 0}>
           <div class="text-warning">
-            {unmappedCount()} {t3({ en: "features will be kept unmapped (they can be mapped later)", fr: "entités resteront non mappées (elles pourront être mappées plus tard)" })}
+            {unmappedCount()} {t3({ en: "features will be kept unmapped (they can be mapped later)", fr: "entités resteront non mappées (elles pourront être mappées plus tard)", pt: "entidades ficarão por associar (podem ser associadas mais tarde)" })}
           </div>
         </Show>
       </div>
@@ -109,12 +109,13 @@ export function Step4(p: Props) {
       <Show when={duplicateNames().length > 0}>
         <div class="bg-warning/10 border-warning text-warning rounded border p-3 text-sm">
           <div class="font-600 mb-1">
-            {t3({ en: "Warning: Duplicate admin area names", fr: "Attention : Noms de zones administratives en double" })}
+            {t3({ en: "Warning: Duplicate admin area names", fr: "Attention : Noms de zones administratives en double", pt: "Atenção: nomes de zonas administrativas duplicados" })}
           </div>
           <div>
             {t3({
               en: `${duplicateNames().length} admin areas share the same name (in different parent regions). Map visualizations may show incorrect data for these areas:`,
               fr: `${duplicateNames().length} zones administratives partagent le même nom (dans des régions parentes différentes). Les visualisations de cartes peuvent afficher des données incorrectes pour ces zones :`,
+              pt: `${duplicateNames().length} zonas administrativas partilham o mesmo nome (em regiões-mãe diferentes). As visualizações de mapas podem apresentar dados incorretos para estas zonas:`,
             })}
           </div>
           <div class="mt-1 font-mono text-xs">
@@ -132,10 +133,10 @@ export function Step4(p: Props) {
           state={saveAction.state()}
           intent="success"
         >
-          {t3({ en: "Save", fr: "Enregistrer" })}
+          {t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
         </Button>
         <Button intent="neutral" onClick={() => state.setStep(3)}>
-          {t3({ en: "Back", fr: "Retour" })}
+          {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
         </Button>
       </div>
     </div>

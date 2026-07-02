@@ -56,6 +56,7 @@ export function HfaCategoriesManager(p: Props) {
               {t3({
                 en: "Select a category to manage its sub-categories.",
                 fr: "Sélectionnez une catégorie pour gérer ses sous-catégories.",
+                pt: "Selecione uma categoria para gerir as suas subcategorias.",
               })}
             </div>
           }
@@ -130,6 +131,7 @@ function CategoriesPane(p: {
         text: t3({
           en: "Delete this category? Its sub-categories will also be deleted, and any indicators using it will become uncategorized.",
           fr: "Supprimer cette catégorie ? Ses sous-catégories seront également supprimées, et les indicateurs qui l'utilisent deviendront non catégorisés.",
+          pt: "Eliminar esta categoria? As suas subcategorias também serão eliminadas, e os indicadores que a utilizam ficarão sem categoria.",
         }),
         itemList: [`${category.label} (${category.id})`],
       },
@@ -142,11 +144,11 @@ function CategoriesPane(p: {
     <>
       <div class="ui-gap-sm flex flex-none items-center pb-4">
         <div class="font-700 flex-1 text-xl">
-          {t3({ en: "Categories", fr: "Catégories" })} ({items.length})
+          {t3({ en: "Categories", fr: "Catégories", pt: "Categorias" })} ({items.length})
         </div>
         <Show when={isAdmin}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
-            {t3({ en: "Add", fr: "Ajouter" })}
+            {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
         </Show>
       </div>
@@ -155,7 +157,7 @@ function CategoriesPane(p: {
           when={items.length > 0}
           fallback={
             <div class="text-neutral text-sm">
-              {t3({ en: "No categories", fr: "Aucune catégorie" })}
+              {t3({ en: "No categories", fr: "Aucune catégorie", pt: "Nenhuma categoria" })}
             </div>
           }
         >
@@ -297,6 +299,7 @@ function SubCategoriesPane(p: {
         text: t3({
           en: "Delete this sub-category? Any indicators using it will have their sub-category cleared.",
           fr: "Supprimer cette sous-catégorie ? Les indicateurs qui l'utilisent verront leur sous-catégorie effacée.",
+          pt: "Eliminar esta subcategoria? Os indicadores que a utilizam ficarão sem subcategoria.",
         }),
         itemList: [`${subCategory.label} (${subCategory.id})`],
       },
@@ -309,11 +312,11 @@ function SubCategoriesPane(p: {
     <>
       <div class="ui-gap-sm flex flex-none items-center pb-4">
         <div class="font-700 min-w-0 flex-1 truncate text-xl">
-          {t3({ en: "Sub-categories", fr: "Sous-catégories" })} ({items.length})
+          {t3({ en: "Sub-categories", fr: "Sous-catégories", pt: "Subcategorias" })} ({items.length})
         </div>
         <Show when={isAdmin}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
-            {t3({ en: "Add", fr: "Ajouter" })}
+            {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
         </Show>
       </div>
@@ -325,6 +328,7 @@ function SubCategoriesPane(p: {
               {t3({
                 en: "No sub-categories in this category",
                 fr: "Aucune sous-catégorie dans cette catégorie",
+                pt: "Nenhuma subcategoria nesta categoria",
               })}
             </div>
           }

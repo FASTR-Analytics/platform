@@ -24,7 +24,7 @@ export function Step1Dhis2(p: Props) {
     async () => {
       const creds = credentials();
       if (!creds.url || !creds.username || !creds.password) {
-        return { success: false, err: t3({ en: "All credential fields are required", fr: "Tous les champs sont requis" }) };
+        return { success: false, err: t3({ en: "All credential fields are required", fr: "Tous les champs sont requis", pt: "Todos os campos de credenciais são obrigatórios" }) };
       }
 
       if (saveCredentialsToSession()) {
@@ -48,7 +48,7 @@ export function Step1Dhis2(p: Props) {
 
   return (
     <div class="ui-spy">
-      <div class="font-600">{t3({ en: "Step 1: Connect to DHIS2", fr: "Étape 1 : Se connecter à DHIS2" })}</div>
+      <div class="font-600">{t3({ en: "Step 1: Connect to DHIS2", fr: "Étape 1 : Se connecter à DHIS2", pt: "Passo 1: Ligar ao DHIS2" })}</div>
 
       <Show when={!connected()}>
         <Dhis2CredentialsEditor
@@ -66,27 +66,27 @@ export function Step1Dhis2(p: Props) {
             disabled={!credentials().url || !credentials().username || !credentials().password}
             intent="primary"
           >
-            {t3({ en: "Connect", fr: "Se connecter" })}
+            {t3({ en: "Connect", fr: "Se connecter", pt: "Ligar" })}
           </Button>
           <Button intent="neutral" onClick={() => state.setStep(0)}>
-            {t3({ en: "Back", fr: "Retour" })}
+            {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
           </Button>
         </div>
       </Show>
 
       <Show when={connected()}>
         <div class="ui-spy-sm">
-          <div class="font-600 text-sm">{t3({ en: "Available DHIS2 levels", fr: "Niveaux DHIS2 disponibles" })}</div>
+          <div class="font-600 text-sm">{t3({ en: "Available DHIS2 levels", fr: "Niveaux DHIS2 disponibles", pt: "Níveis DHIS2 disponíveis" })}</div>
           <div class="text-base-500 text-sm">
-            {t3({ en: "Connected to", fr: "Connecté à" })} {state.dhis2Credentials()?.url}
+            {t3({ en: "Connected to", fr: "Connecté à", pt: "Ligado a" })} {state.dhis2Credentials()?.url}
           </div>
         </div>
 
         <div class="border-base-300 rounded border">
           <div class="bg-base-100 border-base-300 flex border-b px-3 py-2 text-sm font-semibold">
-            <div class="w-1/4">{t3({ en: "Level", fr: "Niveau" })}</div>
-            <div class="w-1/2">{t3({ en: "Name", fr: "Nom" })}</div>
-            <div class="w-1/4">{t3({ en: "Org units", fr: "Unités" })}</div>
+            <div class="w-1/4">{t3({ en: "Level", fr: "Niveau", pt: "Nível" })}</div>
+            <div class="w-1/2">{t3({ en: "Name", fr: "Nom", pt: "Nome" })}</div>
+            <div class="w-1/4">{t3({ en: "Org units", fr: "Unités", pt: "Unidades" })}</div>
           </div>
           <For each={state.dhis2Levels()}>
             {(level) => (
@@ -101,13 +101,13 @@ export function Step1Dhis2(p: Props) {
 
         <div class="ui-gap-sm flex">
           <Button onClick={handleContinue} intent="primary">
-            {t3({ en: "Continue", fr: "Continuer" })}
+            {t3({ en: "Continue", fr: "Continuer", pt: "Continuar" })}
           </Button>
           <Button intent="neutral" onClick={() => { setConnected(false); }}>
-            {t3({ en: "Change credentials", fr: "Modifier les identifiants" })}
+            {t3({ en: "Change credentials", fr: "Modifier les identifiants", pt: "Alterar as credenciais" })}
           </Button>
           <Button intent="neutral" onClick={() => state.setStep(0)}>
-            {t3({ en: "Back", fr: "Retour" })}
+            {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
           </Button>
         </div>
       </Show>

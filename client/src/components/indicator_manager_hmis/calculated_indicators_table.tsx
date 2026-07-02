@@ -66,6 +66,7 @@ export function CalculatedIndicatorsTable(p: Props) {
         text: t3({
           en: "Are you sure you want to delete this calculated indicator?",
           fr: "Êtes-vous sûr de vouloir supprimer cet indicateur calculé ?",
+          pt: "Tem a certeza de que pretende eliminar este indicador calculado?",
         }),
         itemList: [indicator.calculated_indicator_id],
       },
@@ -98,10 +99,12 @@ export function CalculatedIndicatorsTable(p: Props) {
             ? t3({
                 en: "Are you sure you want to delete this calculated indicator?",
                 fr: "Êtes-vous sûr de vouloir supprimer cet indicateur calculé ?",
+                pt: "Tem a certeza de que pretende eliminar este indicador calculado?",
               })
             : t3({
                 en: "Are you sure you want to delete these calculated indicators?",
                 fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs calculés ?",
+                pt: "Tem a certeza de que pretende eliminar estes indicadores calculados?",
               }),
         itemList: labels,
       },
@@ -126,7 +129,7 @@ export function CalculatedIndicatorsTable(p: Props) {
   const columns: TableColumn<CalculatedIndicator>[] = [
     {
       key: "calculated_indicator_id",
-      header: t3({ en: "ID", fr: "ID" }),
+      header: t3({ en: "ID", fr: "ID", pt: "ID" }),
       sortable: true,
       render: (si) => (
         <span class="font-mono">{si.calculated_indicator_id}</span>
@@ -140,28 +143,28 @@ export function CalculatedIndicatorsTable(p: Props) {
     },
     {
       key: "group_label",
-      header: t3({ en: "Group", fr: "Groupe" }),
+      header: t3({ en: "Group", fr: "Groupe", pt: "Grupo" }),
       sortable: true,
     },
     {
       key: "num_indicator_id",
-      header: t3({ en: "Numerator", fr: "Numérateur" }),
+      header: t3({ en: "Numerator", fr: "Numérateur", pt: "Numerador" }),
       sortable: true,
       render: (si) => <span class="font-mono">{si.num_indicator_id}</span>,
     },
     {
       key: "denom",
-      header: t3({ en: "Denominator", fr: "Dénominateur" }),
+      header: t3({ en: "Denominator", fr: "Dénominateur", pt: "Denominador" }),
       render: (si) => <span class="font-mono">{denomText(si)}</span>,
     },
     {
       key: "format_as",
-      header: t3({ en: "Format", fr: "Format" }),
+      header: t3({ en: "Format", fr: "Format", pt: "Formato" }),
       sortable: true,
     },
     {
       key: "thresholds",
-      header: t3({ en: "Thresholds", fr: "Seuils" }),
+      header: t3({ en: "Thresholds", fr: "Seuils", pt: "Limiares" }),
       render: (si) => (
         <span class="font-mono text-xs">
           {si.threshold_direction === "higher_is_better" ? "↑" : "↓"}{" "}
@@ -222,16 +225,17 @@ export function CalculatedIndicatorsTable(p: Props) {
     <div class="flex h-full flex-col">
       <div class="ui-gap-sm flex items-center pb-4">
         <div class="font-700 flex-1 text-xl">
-          {t3({ en: "Calculated indicators", fr: "Indicateurs calculés" })}
+          {t3({ en: "Calculated indicators", fr: "Indicateurs calculés", pt: "Indicadores calculados" })}
         </div>
         <Show when={instanceState.currentUserIsGlobalAdmin}>
           <Button onClick={handleSort} iconName="gripVertical" outline>
-            {t3({ en: "Sort indicators", fr: "Trier les indicateurs" })}
+            {t3({ en: "Sort indicators", fr: "Trier les indicateurs", pt: "Ordenar indicadores" })}
           </Button>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
             {t3({
               en: "Create Calculated indicator",
               fr: "Créer un indicateur calculé",
+              pt: "Criar indicador calculado",
             })}
           </Button>
         </Show>
@@ -244,9 +248,10 @@ export function CalculatedIndicatorsTable(p: Props) {
           noRowsMessage={t3({
             en: "No calculated indicators",
             fr: "Aucun indicateur calculé",
+            pt: "Nenhum indicador calculado",
           })}
           bulkActions={bulkActions}
-          selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
+          selectionLabel={t3({ en: "indicator", fr: "indicateur", pt: "indicador" })}
           fitTableToAvailableHeight
         />
       </div>

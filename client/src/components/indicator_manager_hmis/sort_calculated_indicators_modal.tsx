@@ -38,6 +38,7 @@ export function SortCalculatedIndicatorsModal(p: Props) {
       header={t3({
         en: "Sort calculated indicators",
         fr: "Trier les indicateurs calculés",
+        pt: "Ordenar os indicadores calculados",
       })}
       savingState={save.state()}
       saveFunc={save.click}

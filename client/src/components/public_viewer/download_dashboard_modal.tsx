@@ -66,8 +66,8 @@ export function DownloadDashboardModal(
   const summaryAvailable = () => p.bundle.about.summary.trim().length > 0;
 
   // PNG has no "all" form; without a current item only PDF/PPTX/Excel make sense.
-  const pptxLabel = t3({ en: "PowerPoint (.pptx)", fr: "PowerPoint (.pptx)" });
-  const xlsxLabel = t3({ en: "Excel (.xlsx)", fr: "Excel (.xlsx)" });
+  const pptxLabel = t3({ en: "PowerPoint (.pptx)", fr: "PowerPoint (.pptx)", pt: "PowerPoint (.pptx)" });
+  const xlsxLabel = t3({ en: "Excel (.xlsx)", fr: "Excel (.xlsx)", pt: "Excel (.xlsx)" });
   const formatOptions = (): { value: Format; label: string }[] =>
     hasCurrent()
       ? [
@@ -85,11 +85,11 @@ export function DownloadDashboardModal(
   const scopeOptions = (): { value: Scope; label: string }[] => [
     {
       value: "current",
-      label: t3({ en: "This figure", fr: "Cette figure" }),
+      label: t3({ en: "This figure", fr: "Cette figure", pt: "Esta figura" }),
     },
     {
       value: "all",
-      label: t3({ en: "All figures", fr: "Toutes les figures" }),
+      label: t3({ en: "All figures", fr: "Toutes les figures", pt: "Todas as figuras" }),
     },
   ];
 
@@ -119,7 +119,7 @@ export function DownloadDashboardModal(
       const item = p.bundle.items.find((i) => i.id === p.currentItemId);
       if (!item) {
         setErr(
-          t3({ en: "No figure selected", fr: "Aucune figure sélectionnée" }),
+          t3({ en: "No figure selected", fr: "Aucune figure sélectionnée", pt: "Nenhuma figura selecionada" }),
         );
         setPct(0);
         return;
@@ -130,6 +130,7 @@ export function DownloadDashboardModal(
           t3({
             en: "This figure could not be rendered (its map data may be missing).",
             fr: "Cette figure n'a pas pu être générée (ses données cartographiques sont peut-être manquantes).",
+            pt: "Não foi possível gerar esta figura (os seus dados cartográficos podem estar em falta).",
           }),
         );
         setPct(0);
@@ -197,7 +198,7 @@ export function DownloadDashboardModal(
     >
       <div class="ui-spy">
         <RadioGroup
-          label={t3({ en: "Format", fr: "Format" })}
+          label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
           options={formatOptions()}
           value={format()}
           onChange={setFormat}
@@ -206,7 +207,7 @@ export function DownloadDashboardModal(
 
         <Show when={showScope()}>
           <RadioGroup
-            label={t3({ en: "Include", fr: "Inclure" })}
+            label={t3({ en: "Include", fr: "Inclure", pt: "Incluir" })}
             options={scopeOptions()}
             value={scope()}
             onChange={setScope}
@@ -217,27 +218,27 @@ export function DownloadDashboardModal(
         <Show when={isImageExport()}>
           <div class="ui-gap flex">
             <RadioGroup
-              label={t3({ en: "Background", fr: "Arrière-plan" })}
+              label={t3({ en: "Background", fr: "Arrière-plan", pt: "Fundo" })}
               options={[
-                { value: "white", label: t3({ en: "White", fr: "Blanc" }) },
+                { value: "white", label: t3({ en: "White", fr: "Blanc", pt: "Branco" }) },
                 {
                   value: "transparent",
-                  label: t3({ en: "Transparent", fr: "Transparent" }),
+                  label: t3({ en: "Transparent", fr: "Transparent", pt: "Transparente" }),
                 },
               ]}
               value={background()}
               onChange={setBackground}
             />
             <RadioGroup
-              label={t3({ en: "Margin", fr: "Marge" })}
+              label={t3({ en: "Margin", fr: "Marge", pt: "Margem" })}
               options={[
                 {
                   value: "padding",
-                  label: t3({ en: "With margins", fr: "Avec marges" }),
+                  label: t3({ en: "With margins", fr: "Avec marges", pt: "Com margens" }),
                 },
                 {
                   value: "no-padding",
-                  label: t3({ en: "No margins", fr: "Sans marges" }),
+                  label: t3({ en: "No margins", fr: "Sans marges", pt: "Sem margens" }),
                 },
               ]}
               value={margin()}
@@ -253,6 +254,7 @@ export function DownloadDashboardModal(
             label={t3({
               en: "Include About text",
               fr: "Inclure le texte À propos",
+              pt: "Incluir o texto Acerca de",
             })}
           />
         </Show>
@@ -262,6 +264,7 @@ export function DownloadDashboardModal(
             {t3({
               en: `This will export ${allCount()} figures.`,
               fr: `Ceci exportera ${allCount()} figures.`,
+              pt: `Isto exportará ${allCount()} figuras.`,
             })}
           </div>
         </Show>
@@ -272,10 +275,12 @@ export function DownloadDashboardModal(
               ? t3({
                   en: "No table figures to export.",
                   fr: "Aucun tableau à exporter.",
+                  pt: "Nenhuma tabela para exportar.",
                 })
               : t3({
                   en: `Exports ${tableCount()} of ${allCount()} figures (tables only).`,
                   fr: `Exporte ${tableCount()} sur ${allCount()} figures (tableaux uniquement).`,
+                  pt: `Exporta ${tableCount()} de ${allCount()} figuras (apenas tabelas).`,
                 })}
           </div>
         </Show>
@@ -288,6 +293,7 @@ export function DownloadDashboardModal(
             label={t3({
               en: `Yes, export all ${allCount()} figures (this may be slow).`,
               fr: `Oui, exporter les ${allCount()} figures (cela peut être lent).`,
+              pt: `Sim, exportar as ${allCount()} figuras (pode ser lento).`,
             })}
           />
         </Show>

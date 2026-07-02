@@ -352,10 +352,12 @@ export function DashboardEditor(p: Props) {
         ? t3({
             en: `Delete ${entryIds.length} items?`,
             fr: `Supprimer ${entryIds.length} éléments ?`,
+            pt: `Eliminar ${entryIds.length} elementos?`,
           })
         : t3({
             en: `Delete "${labelOf.get(entryIds[0]) ?? ""}"?`,
             fr: `Supprimer « ${labelOf.get(entryIds[0]) ?? ""} » ?`,
+            pt: `Eliminar "${labelOf.get(entryIds[0]) ?? ""}"?`,
           });
     const deleteAction = createDeleteAction(
       confirmText,
@@ -420,8 +422,8 @@ export function DashboardEditor(p: Props) {
     await openComponent({
       element: EditLabelForm,
       props: {
-        headerText: t3({ en: "Rename item", fr: "Renommer l'élément" }),
-        fieldLabel: t3({ en: "Label", fr: "Étiquette" }),
+        headerText: t3({ en: "Rename item", fr: "Renommer l'élément", pt: "Renomear elemento" }),
+        fieldLabel: t3({ en: "Label", fr: "Étiquette", pt: "Etiqueta" }),
         existingLabel: it.label,
         mutateFunc: (label: string) =>
           serverActions.updateDashboardItem({
@@ -547,7 +549,7 @@ export function DashboardEditor(p: Props) {
     await openComponent({
       element: ProgressModal,
       props: {
-        title: t3({ en: "Updating group…", fr: "Mise à jour du groupe…" }),
+        title: t3({ en: "Updating group…", fr: "Mise à jour du groupe…", pt: "A atualizar o grupo…" }),
         run: async (report) => {
           let resolved;
           try {
@@ -689,6 +691,7 @@ export function DashboardEditor(p: Props) {
       message: t3({
         en: `This will expand "${it.label}" into ${structure.replicants.length} replicant figures.`,
         fr: `Cela créera ${structure.replicants.length} figures de réplicants à partir de « ${it.label} ».`,
+        pt: `Isto expandirá "${it.label}" em ${structure.replicants.length} figuras de replicantes.`,
       }),
       run: groupRun({
         oldEntry: { kind: "item", itemId: it.id },
@@ -765,8 +768,8 @@ export function DashboardEditor(p: Props) {
     await openComponent({
       element: EditLabelForm,
       props: {
-        headerText: t3({ en: "Rename group", fr: "Renommer le groupe" }),
-        fieldLabel: t3({ en: "Group label", fr: "Étiquette du groupe" }),
+        headerText: t3({ en: "Rename group", fr: "Renommer le groupe", pt: "Renomear grupo" }),
+        fieldLabel: t3({ en: "Group label", fr: "Étiquette du groupe", pt: "Etiqueta do grupo" }),
         existingLabel: g.label,
         mutateFunc: (label: string) =>
           serverActions.updateDashboardItemGroup({
@@ -827,6 +830,7 @@ export function DashboardEditor(p: Props) {
         message: t3({
           en: `This will collapse "${g.label}" into a single figure.`,
           fr: `Cela regroupera « ${g.label} » en une seule figure.`,
+          pt: `Isto agrupará "${g.label}" numa única figura.`,
         }),
         run: collapseRun(g.id, g.label, resultsValue, after),
       });
@@ -876,6 +880,7 @@ export function DashboardEditor(p: Props) {
       message: t3({
         en: `This will rebuild "${g.label}" as ${structure.replicants.length} replicant figures.`,
         fr: `Cela reconstruira « ${g.label} » en ${structure.replicants.length} figures de réplicants.`,
+        pt: `Isto reconstruirá "${g.label}" como ${structure.replicants.length} figuras de replicantes.`,
       }),
       run: groupRun({
         oldEntry: { kind: "group", groupId: g.id },
@@ -929,8 +934,9 @@ export function DashboardEditor(p: Props) {
             ? t3({
                 en: `Delete ${ids.length} items`,
                 fr: `Supprimer ${ids.length} éléments`,
+                pt: `Eliminar ${ids.length} elementos`,
               })
-            : t3({ en: "Delete", fr: "Supprimer" }),
+            : t3({ en: "Delete", fr: "Supprimer", pt: "Eliminar" }),
         icon: "trash",
         intent: "danger",
         onClick: () => deleteEntries(ids),
@@ -982,13 +988,13 @@ export function DashboardEditor(p: Props) {
                       iconName="eye"
                       outline
                     >
-                      {t3({ en: "Preview", fr: "Aperçu" })}
+                      {t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" })}
                     </Button>
                     <CopyToClipboardButton
                       text={publicUrl(dashboard.slug)}
                       outline
                     >
-                      {t3({ en: "Copy link", fr: "Copier le lien" })}
+                      {t3({ en: "Copy link", fr: "Copier le lien", pt: "Copiar ligação" })}
                     </CopyToClipboardButton>
                     <Show when={canConfigure()}>
                       <Button
@@ -996,10 +1002,10 @@ export function DashboardEditor(p: Props) {
                         iconName="settings"
                         outline
                       >
-                        {t3({ en: "Settings", fr: "Paramètres" })}
+                        {t3({ en: "Settings", fr: "Paramètres", pt: "Definições" })}
                       </Button>
                       <Button onClick={attemptAddItem} iconName="plus">
-                        {t3({ en: "Add item", fr: "Ajouter un élément" })}
+                        {t3({ en: "Add item", fr: "Ajouter un élément", pt: "Adicionar elemento" })}
                       </Button>
                     </Show>
                     <Show when={!showAi()}>
@@ -1008,7 +1014,7 @@ export function DashboardEditor(p: Props) {
                         iconName="chevronLeft"
                         outline
                       >
-                        {t3({ en: "AI", fr: "IA" })}
+                        {t3({ en: "AI", fr: "IA", pt: "IA" })}
                       </Button>
                     </Show>
                   </div>

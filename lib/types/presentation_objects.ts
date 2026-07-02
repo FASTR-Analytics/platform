@@ -233,44 +233,44 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
     Record<DisaggregationDisplayOption, string>
   > = {
     timeseries: {
-      series: t3({ en: "Lines", fr: "Lignes" }),
-      cell: t3({ en: "Grid", fr: "Grille" }),
-      row: t3({ en: "Rows", fr: "Rangées" }),
-      col: t3({ en: "Columns", fr: "Colonnes" }),
-      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)" }),
+      series: t3({ en: "Lines", fr: "Lignes", pt: "Linhas" }),
+      cell: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
+      row: t3({ en: "Rows", fr: "Rangées", pt: "Linhas" }),
+      col: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
+      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)", pt: "Gráficos diferentes (replicantes)" }),
       rowGroup: "",
       colGroup: "",
       indicator: "",
       mapArea: "",
     },
     table: {
-      row: t3({ en: "Rows", fr: "Rangées" }),
-      col: t3({ en: "Columns", fr: "Colonnes" }),
-      rowGroup: t3({ en: "Row groups", fr: "Catégories de rangées" }),
-      colGroup: t3({ en: "Column groups", fr: "Groupes de colonnes" }),
-      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)" }),
+      row: t3({ en: "Rows", fr: "Rangées", pt: "Linhas" }),
+      col: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
+      rowGroup: t3({ en: "Row groups", fr: "Catégories de rangées", pt: "Grupos de linhas" }),
+      colGroup: t3({ en: "Column groups", fr: "Groupes de colonnes", pt: "Grupos de colunas" }),
+      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)", pt: "Gráficos diferentes (replicantes)" }),
       series: "",
       cell: "",
       indicator: "",
       mapArea: "",
     },
     chart: {
-      indicator: t3({ en: "Bars", fr: "Barres" }),
-      series: t3({ en: "Series (sub-bars)", fr: "Series (sub-bars)" }),
-      cell: t3({ en: "Grid", fr: "Grille" }),
-      row: t3({ en: "Rows", fr: "Rangées" }),
-      col: t3({ en: "Columns", fr: "Colonnes" }),
-      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)" }),
+      indicator: t3({ en: "Bars", fr: "Barres", pt: "Barras" }),
+      series: t3({ en: "Series (sub-bars)", fr: "Series (sub-bars)", pt: "Séries (sub-barras)" }),
+      cell: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
+      row: t3({ en: "Rows", fr: "Rangées", pt: "Linhas" }),
+      col: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
+      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)", pt: "Gráficos diferentes (replicantes)" }),
       rowGroup: "",
       colGroup: "",
       mapArea: "",
     },
     map: {
-      mapArea: t3({ en: "Map regions", fr: "Régions de la carte" }),
-      cell: t3({ en: "Grid", fr: "Grille" }),
-      row: t3({ en: "Rows", fr: "Rangées" }),
-      col: t3({ en: "Columns", fr: "Colonnes" }),
-      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)" }),
+      mapArea: t3({ en: "Map regions", fr: "Régions de la carte", pt: "Regiões do mapa" }),
+      cell: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
+      row: t3({ en: "Rows", fr: "Rangées", pt: "Linhas" }),
+      col: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
+      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)", pt: "Gráficos diferentes (replicantes)" }),
       series: "",
       indicator: "",
       rowGroup: "",
@@ -320,10 +320,10 @@ export function get_PRESENTATION_SELECT_OPTIONS(
   label: string;
 }[] {
   const all = [
-    { value: "table" as const, label: t3({ en: "Table", fr: "Tableau" }) },
-    { value: "timeseries" as const, label: t3({ en: "Timeseries", fr: "Série chronologique" }) },
-    { value: "chart" as const, label: t3({ en: "Bar chart", fr: "Graphique à barres" }) },
-    { value: "map" as const, label: t3({ en: "Map", fr: "Carte" }) },
+    { value: "table" as const, label: t3({ en: "Table", fr: "Tableau", pt: "Tabela" }) },
+    { value: "timeseries" as const, label: t3({ en: "Timeseries", fr: "Série chronologique", pt: "Série temporal" }) },
+    { value: "chart" as const, label: t3({ en: "Bar chart", fr: "Graphique à barres", pt: "Gráfico de barras" }) },
+    { value: "map" as const, label: t3({ en: "Map", fr: "Carte", pt: "Mapa" }) },
   ];
   if (!disaggregationOptions) return all;
   const disOpts = disaggregationOptions.map((d) => d.value);
@@ -341,10 +341,10 @@ export function get_PRESENTATION_OPTIONS_MAP(): Record<
   string
 > {
   return {
-    table: t3({ en: "Table", fr: "Tableau" }),
-    timeseries: t3({ en: "Timeseries", fr: "Série chronologique" }),
-    chart: t3({ en: "Bar chart", fr: "Graphique à barres" }),
-    map: t3({ en: "Map", fr: "Carte" }),
+    table: t3({ en: "Table", fr: "Tableau", pt: "Tabela" }),
+    timeseries: t3({ en: "Timeseries", fr: "Série chronologique", pt: "Série temporal" }),
+    chart: t3({ en: "Bar chart", fr: "Graphique à barres", pt: "Gráfico de barras" }),
+    map: t3({ en: "Map", fr: "Carte", pt: "Mapa" }),
   };
 }
 

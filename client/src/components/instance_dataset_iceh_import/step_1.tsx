@@ -28,6 +28,7 @@ export function Step1(p: Props) {
         err: t3({
           en: "You must select a zip file",
           fr: "Vous devez sélectionner un fichier zip",
+          pt: "Tem de selecionar um ficheiro zip",
         }),
       };
     }
@@ -39,12 +40,13 @@ export function Step1(p: Props) {
   return (
     <div class="ui-pad ui-spy">
       <h3 class="font-700 text-lg">
-        {t3({ en: "ICEH Zip File", fr: "Fichier Zip ICEH" })}
+        {t3({ en: "ICEH Zip File", fr: "Fichier Zip ICEH", pt: "Ficheiro Zip ICEH" })}
       </h3>
       <p class="text-neutral">
         {t3({
           en: "Upload a zip file downloaded from the ICEH Retriever (equidade.org/retriever). The zip should contain results_csv.csv and indicators.xlsx.",
           fr: "Téléversez un fichier zip téléchargé depuis le Retriever ICEH (equidade.org/retriever). Le zip doit contenir results_csv.csv et indicators.xlsx.",
+          pt: "Carregue um ficheiro zip transferido do Retriever ICEH (equidade.org/retriever). O zip deve conter results_csv.csv e indicators.xlsx.",
         })}
       </p>
 
@@ -52,10 +54,12 @@ export function Step1(p: Props) {
         buttonLabel={t3({
           en: "Upload new zip file to use",
           fr: "Téléverser un nouveau fichier zip à utiliser",
+          pt: "Carregar um novo ficheiro zip a utilizar",
         })}
         selectLabel={t3({
           en: "Existing zip file to use",
           fr: "Fichier zip existant à utiliser",
+          pt: "Ficheiro zip existente a utilizar",
         })}
         filter={(a) => a.isZip}
         value={selectedZipFileName()}
@@ -79,30 +83,30 @@ export function Step1(p: Props) {
         {(result) => (
           <div class="rounded border p-4">
             <h4 class="font-700 mb-2">
-              {t3({ en: "Zip Contents", fr: "Contenu du zip" })}
+              {t3({ en: "Zip Contents", fr: "Contenu du zip", pt: "Conteúdo do zip" })}
             </h4>
             <div class="text-sm">
               <p>
-                <strong>{t3({ en: "Country:", fr: "Pays :" })}</strong>{" "}
+                <strong>{t3({ en: "Country:", fr: "Pays :", pt: "País:" })}</strong>{" "}
                 {result().countryName} ({result().countryIso})
               </p>
               <p>
-                <strong>{t3({ en: "Indicators:", fr: "Indicateurs :" })}</strong>{" "}
+                <strong>{t3({ en: "Indicators:", fr: "Indicateurs :", pt: "Indicadores:" })}</strong>{" "}
                 {result().indicatorCount}
               </p>
               <p>
                 <strong>
-                  {t3({ en: "Data rows:", fr: "Lignes de données :" })}
+                  {t3({ en: "Data rows:", fr: "Lignes de données :", pt: "Linhas de dados:" })}
                 </strong>{" "}
                 {result().dataRowCount.toLocaleString()}
               </p>
               <p>
-                <strong>{t3({ en: "Years:", fr: "Années :" })}</strong>{" "}
+                <strong>{t3({ en: "Years:", fr: "Années :", pt: "Anos:" })}</strong>{" "}
                 {result().years.join(", ")}
               </p>
               <p>
                 <strong>
-                  {t3({ en: "Disaggregators:", fr: "Désagrégateurs :" })}
+                  {t3({ en: "Disaggregators:", fr: "Désagrégateurs :", pt: "Desagregadores:" })}
                 </strong>{" "}
                 {result().strats.join(", ")}
               </p>

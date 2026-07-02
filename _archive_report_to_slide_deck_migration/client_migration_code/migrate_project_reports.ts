@@ -54,6 +54,7 @@ export async function migrateProjectReports(
     label: t3({
       en: `Old reports (migrated ${timestamp})`,
       fr: `Anciens rapports (migré ${timestamp})`,
+      pt: `Relatórios antigos (migrados ${timestamp})`,
     }),
   });
   if (!folderRes.success) {

@@ -118,23 +118,23 @@ export function Step2_Dhis2(p: Props) {
 
   const indicators = createQuery(
     () => serverActions.getIndicators({}),
-    t3({ en: "Loading indicators...", fr: "Chargement des indicateurs..." }),
+    t3({ en: "Loading indicators...", fr: "Chargement des indicateurs...", pt: "A carregar os indicadores..." }),
   );
 
   const tableColumns: TableColumn<RawIndicatorWithMappings>[] = [
     {
       key: "raw_indicator_id",
-      header: t3({ en: "Indicator ID", fr: "ID indicateur" }),
+      header: t3({ en: "Indicator ID", fr: "ID indicateur", pt: "ID do indicador" }),
       sortable: true,
     },
     {
       key: "raw_indicator_label",
-      header: t3({ en: "Label", fr: "Libellé" }),
+      header: t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" }),
       sortable: true,
     },
     {
       key: "indicator_common_ids",
-      header: t3({ en: "Common IDs", fr: "ID communs" }),
+      header: t3({ en: "Common IDs", fr: "ID communs", pt: "ID comuns" }),
       render: (item) => item.indicator_common_ids.join(", "),
     },
   ];
@@ -162,14 +162,14 @@ export function Step2_Dhis2(p: Props) {
     if (params.rawIndicatorIds.length === 0) {
       return {
         success: false,
-        err: t3({ en: "Please select at least one indicator", fr: "Veuillez sélectionner au moins un indicateur" }),
+        err: t3({ en: "Please select at least one indicator", fr: "Veuillez sélectionner au moins un indicateur", pt: "Selecione pelo menos um indicador" }),
       };
     }
 
     if (params.startPeriod > params.endPeriod) {
       return {
         success: false,
-        err: t3({ en: "Start period must be before end period", fr: "La période de début doit précéder la période de fin" }),
+        err: t3({ en: "Start period must be before end period", fr: "La période de début doit précéder la période de fin", pt: "O período de início deve ser anterior ao período de fim" }),
       };
     }
 
@@ -179,11 +179,11 @@ export function Step2_Dhis2(p: Props) {
   return (
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
-        <div class="font-700 pb-4 text-lg">{t3({ en: "DHIS2 Data Selection", fr: "Sélection des données DHIS2" })}</div>
+        <div class="font-700 pb-4 text-lg">{t3({ en: "DHIS2 Data Selection", fr: "Sélection des données DHIS2", pt: "Seleção de dados DHIS2" })}</div>
         <div class="ui-gap flex">
           <div class="flex-1">
             <label class="font-700 mb-4 block text-base">
-              {t3({ en: "Select indicators to import", fr: "Sélectionner les indicateurs à importer" })}
+              {t3({ en: "Select indicators to import", fr: "Sélectionner les indicateurs à importer", pt: "Selecionar os indicadores a importar" })}
             </label>
             <StateHolderWrapper state={indicators.state()} noPad>
               {(keyedIndicators) => (
@@ -193,9 +193,9 @@ export function Step2_Dhis2(p: Props) {
                   keyField="raw_indicator_id"
                   selectedKeys={selectedKeysSet}
                   setSelectedKeys={updateSelectedKeys}
-                  selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
+                  selectionLabel={t3({ en: "indicator", fr: "indicateur", pt: "indicador" })}
                   tableContentMaxHeight="500px"
-                  noRowsMessage={t3({ en: "No indicators available", fr: "Aucun indicateur disponible" })}
+                  noRowsMessage={t3({ en: "No indicators available", fr: "Aucun indicateur disponible", pt: "Nenhum indicador disponível" })}
                 />
               )}
             </StateHolderWrapper>
@@ -203,7 +203,7 @@ export function Step2_Dhis2(p: Props) {
 
           <div class="flex-1">
             <label class="font-700 mb-4 block text-base">
-              {t3({ en: "Select Period Range", fr: "Sélectionner la plage de périodes" })}
+              {t3({ en: "Select Period Range", fr: "Sélectionner la plage de périodes", pt: "Selecionar o intervalo de períodos" })}
             </label>
             <PeriodSelector
               minPeriodId={periods.min}
@@ -225,11 +225,11 @@ export function Step2_Dhis2(p: Props) {
 
         <div class="border-base-300 mt-12 rounded border p-3 text-sm">
           <div class="text-base-content">
-            {t3({ en: "Selected", fr: "Sélectionné" })}: {tempIndicators().length} {t3({ en: "indicators", fr: "indicateurs" })} ×{" "}
-            {getNMonths(tempStartPeriod(), tempEndPeriod())} {t3({ en: "periods", fr: "périodes" })} ={" "}
+            {t3({ en: "Selected", fr: "Sélectionné", pt: "Selecionado" })}: {tempIndicators().length} {t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" })} ×{" "}
+            {getNMonths(tempStartPeriod(), tempEndPeriod())} {t3({ en: "periods", fr: "périodes", pt: "períodos" })} ={" "}
             {tempIndicators().length *
               getNMonths(tempStartPeriod(), tempEndPeriod())}{" "}
-            {t3({ en: "data points to fetch", fr: "points de données à récupérer" })}
+            {t3({ en: "data points to fetch", fr: "points de données à récupérer", pt: "pontos de dados a obter" })}
           </div>
         </div>
       </div>
@@ -243,7 +243,7 @@ export function Step2_Dhis2(p: Props) {
           disabled={!needsSaving()}
           iconName="save"
         >
-          {t3({ en: "Save selection", fr: "Sauvegarder la sélection" })}
+          {t3({ en: "Save selection", fr: "Sauvegarder la sélection", pt: "Guardar a seleção" })}
         </Button>
       </div>
     </div>

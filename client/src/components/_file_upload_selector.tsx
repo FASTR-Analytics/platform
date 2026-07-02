@@ -101,6 +101,7 @@ export function FileUploadSelector(p: Props) {
             {t3({
               en: "Processing upload...",
               fr: "Traitement du téléversement...",
+              pt: "A processar o carregamento...",
             })}
           </div>
         }

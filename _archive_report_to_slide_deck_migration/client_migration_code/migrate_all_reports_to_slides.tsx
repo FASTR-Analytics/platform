@@ -100,22 +100,23 @@ export function MigrateAllReportsToSlides(
       title={t3({
         en: "Migrate all reports to slides",
         fr: "Migrer tous les rapports vers les diapositives",
+        pt: "Migrar todos os relatórios para diapositivos",
       })}
       width="md"
       leftButtons={
         phase() === "done"
           ? [
               <Button onClick={() => p.close(undefined)} intent="primary">
-                {t3({ en: "Done", fr: "Termine" })}
+                {t3({ en: "Done", fr: "Termine", pt: "Concluído" })}
               </Button>,
             ]
           : phase() === "ready"
             ? [
                 <Button onClick={runMigration} intent="success">
-                  {t3({ en: "Start migration", fr: "Demarrer la migration" })}
+                  {t3({ en: "Start migration", fr: "Demarrer la migration", pt: "Iniciar migração" })}
                 </Button>,
                 <Button onClick={() => p.close(undefined)} intent="neutral" iconName="x">
-                  {t3({ en: "Cancel", fr: "Annuler" })}
+                  {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
                 </Button>,
               ]
             : undefined
@@ -127,6 +128,7 @@ export function MigrateAllReportsToSlides(
             {t3({
               en: `This will migrate all slide_deck reports across ${instanceState.projects.length} projects to the new slides system.`,
               fr: `Ceci migrera tous les rapports de type presentation sur ${instanceState.projects.length} projets vers le nouveau systeme de diapositives.`,
+              pt: `Isto migrará todos os relatórios do tipo slide_deck em ${instanceState.projects.length} projetos para o novo sistema de diapositivos.`,
             })}
           </div>
         </Show>
@@ -134,7 +136,7 @@ export function MigrateAllReportsToSlides(
         <Show when={phase() === "running"}>
           <div class="ui-spy-sm">
             <div class="font-600">
-              {t3({ en: "Project", fr: "Projet" })}: {currentProject()} ({projectProgress().current}/{projectProgress().total})
+              {t3({ en: "Project", fr: "Projet", pt: "Projeto" })}: {currentProject()} ({projectProgress().current}/{projectProgress().total})
             </div>
             <div class="bg-base-300 h-4 w-full rounded">
               <div
@@ -144,7 +146,7 @@ export function MigrateAllReportsToSlides(
             </div>
             <Show when={itemProgress().total > 0}>
               <div class="text-neutral text-sm">
-                {t3({ en: "Item", fr: "Element" })}: {itemProgress().current}/{itemProgress().total}
+                {t3({ en: "Item", fr: "Element", pt: "Item" })}: {itemProgress().current}/{itemProgress().total}
               </div>
             </Show>
           </div>

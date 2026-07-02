@@ -33,18 +33,18 @@ export function EditHfaIndicatorServiceCategory(
 
       const trimmedLabel = label().trim();
       if (!trimmedLabel) {
-        return { success: false, err: t3({ en: "Label is required", fr: "Le libellé est requis" }) };
+        return { success: false, err: t3({ en: "Label is required", fr: "Le libellé est requis", pt: "A etiqueta é obrigatória" }) };
       }
 
       if (mode === "create") {
         const newId = derivedId();
         if (!newId) {
-          return { success: false, err: t3({ en: "ID is required", fr: "L'identifiant est requis" }) };
+          return { success: false, err: t3({ en: "ID is required", fr: "L'identifiant est requis", pt: "O ID é obrigatório" }) };
         }
         if (p.existingIds.includes(newId)) {
           return {
             success: false,
-            err: t3({ en: `ID "${newId}" already exists`, fr: `L'identifiant "${newId}" existe déjà` }),
+            err: t3({ en: `ID "${newId}" already exists`, fr: `L'identifiant "${newId}" existe déjà`, pt: `O ID "${newId}" já existe` }),
           };
         }
         return await serverActions.createHfaIndicatorServiceCategory({
@@ -65,8 +65,8 @@ export function EditHfaIndicatorServiceCategory(
       formId="hfa-service-category-form"
       header={
         mode === "create"
-          ? t3({ en: "Add service category", fr: "Ajouter une catégorie de service" })
-          : t3({ en: "Update service category", fr: "Mettre à jour la catégorie de service" })
+          ? t3({ en: "Add service category", fr: "Ajouter une catégorie de service", pt: "Adicionar categoria de serviço" })
+          : t3({ en: "Update service category", fr: "Mettre à jour la catégorie de service", pt: "Atualizar categoria de serviço" })
       }
       savingState={save.state()}
       saveFunc={save.click}
@@ -74,7 +74,7 @@ export function EditHfaIndicatorServiceCategory(
     >
       <div class="ui-spy">
         <Input
-          label={t3({ en: "Label", fr: "Libellé" })}
+          label={t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })}
           value={label()}
           onChange={setLabel}
           fullWidth
@@ -82,7 +82,7 @@ export function EditHfaIndicatorServiceCategory(
         />
         {mode === "create" ? (
           <Input
-            label={t3({ en: "ID", fr: "Identifiant" })}
+            label={t3({ en: "ID", fr: "Identifiant", pt: "ID" })}
             value={derivedId()}
             onChange={(v) => {
               setIdEdited(true);
@@ -93,7 +93,7 @@ export function EditHfaIndicatorServiceCategory(
           />
         ) : (
           <div class="ui-spy-sm">
-            <div class="text-neutral text-xs">{t3({ en: "ID", fr: "Identifiant" })}</div>
+            <div class="text-neutral text-xs">{t3({ en: "ID", fr: "Identifiant", pt: "ID" })}</div>
             <div class="font-mono text-sm">{p.existing!.id}</div>
           </div>
         )}

@@ -13,7 +13,7 @@ export function HelpButton(p: { id: HelpId }) {
       intent="neutral"
       outline
       size="sm"
-      ariaLabel={t3({ en: "Help", fr: "Aide" })}
+      ariaLabel={t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
       onClick={() => openComponent({ element: HelpModal, props: { id: p.id } })}
     />
   );
@@ -31,7 +31,7 @@ function HelpModal(p: AlertComponentProps<{ id: HelpId }, void>) {
         // eslint-disable-next-line jsx-key
         [
           <Button intent="neutral" onClick={() => p.close(undefined)}>
-            {t3({ en: "Close", fr: "Fermer" })}
+            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
           </Button>,
         ]
       }
@@ -39,7 +39,7 @@ function HelpModal(p: AlertComponentProps<{ id: HelpId }, void>) {
         // eslint-disable-next-line jsx-key
         [
           <Button intent="primary" href={getHelpUrl(target)} newTab>
-            {t3({ en: "Read more…", fr: "En savoir plus…" })}
+            {t3({ en: "Read more…", fr: "En savoir plus…", pt: "Ler mais…" })}
           </Button>,
         ]
       }

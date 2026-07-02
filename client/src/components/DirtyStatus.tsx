@@ -13,7 +13,7 @@ export function ProjectRunStatus() {
         data-border={false}
         data-running={projectState.anyRunning}
       >
-        {t3({ en: "Running", fr: "En cours d'exécution" })}
+        {t3({ en: "Running", fr: "En cours d'exécution", pt: "Em execução" })}
       </div>
     </Show>
   );
@@ -55,19 +55,19 @@ export function getDirtyOrRunStatus(
 ): string {
   const s = moduleDirtyStates[id];
   if (!s) {
-    return t3({ en: "Bad status", fr: "Statut invalide" });
+    return t3({ en: "Bad status", fr: "Statut invalide", pt: "Estado inválido" });
   }
   if (s === "queued") {
-    return t3({ en: "Pending", fr: "En attente" });
+    return t3({ en: "Pending", fr: "En attente", pt: "Pendente" });
   }
   if (s === "ready") {
-    return t3({ en: "Ready", fr: "Prêt" });
+    return t3({ en: "Ready", fr: "Prêt", pt: "Pronto" });
   }
   if (s === "running") {
-    return t3({ en: "Running", fr: "En cours d'exécution" });
+    return t3({ en: "Running", fr: "En cours d'exécution", pt: "Em execução" });
   }
   if (s === "error") {
-    return t3({ en: "Error", fr: "Erreur" });
+    return t3({ en: "Error", fr: "Erreur", pt: "Erro" });
   }
   return capitalizeFirstLetter(s);
 }

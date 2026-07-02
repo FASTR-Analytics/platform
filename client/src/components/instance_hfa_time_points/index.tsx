@@ -27,7 +27,7 @@ export function InstanceHfaTimePoints(p: Props) {
         <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
           <Button iconName="chevronLeft" onClick={p.backToInstance} />
           <div class="font-700 flex-1 truncate text-xl">
-            {t3({ en: "HFA time points", fr: "Points temporels HFA" })}
+            {t3({ en: "HFA time points", fr: "Points temporels HFA", pt: "Pontos temporais HFA" })}
           </div>
         </div>
       }
@@ -86,10 +86,10 @@ export function HfaTimePointsEditor() {
   const saveForm = createFormAction(async () => {
     const label = formLabel().trim();
     if (!label) {
-      return { success: false, err: t3({ en: "Label cannot be empty", fr: "Le libellé ne peut pas être vide" }) };
+      return { success: false, err: t3({ en: "Label cannot be empty", fr: "Le libellé ne peut pas être vide", pt: "A etiqueta não pode estar vazia" }) };
     }
     if (!formYear() || !formMonth()) {
-      return { success: false, err: t3({ en: "You must select a year and month", fr: "Vous devez sélectionner une année et un mois" }) };
+      return { success: false, err: t3({ en: "You must select a year and month", fr: "Vous devez sélectionner une année et un mois", pt: "Tem de selecionar um ano e um mês" }) };
     }
     const periodId = `${formYear()}${formMonth()}`;
     const oldLabel = editing();
@@ -110,7 +110,7 @@ export function HfaTimePointsEditor() {
     const label = ids[0];
     if (!label) return;
     const deleteAction = createDeleteAction(
-      t3({ en: `Delete time point "${label}", all its data, and its sampling weights?`, fr: `Supprimer le point temporel « ${label} », toutes ses données et ses pondérations d'échantillonnage ?` }),
+      t3({ en: `Delete time point "${label}", all its data, and its sampling weights?`, fr: `Supprimer le point temporel « ${label} », toutes ses données et ses pondérations d'échantillonnage ?`, pt: `Eliminar o ponto temporal "${label}", todos os seus dados e as suas ponderações de amostragem?` }),
       () => serverActions.deleteHfaTimePoint({ label }),
       () => {
         if (editing() === label) {
@@ -141,25 +141,25 @@ export function HfaTimePointsEditor() {
         <div class="border-base-300 ui-spy rounded border p-4">
           <div class="font-700">
             {editing() === ""
-              ? t3({ en: "Add time point", fr: "Ajouter un point temporel" })
-              : t3({ en: "Edit time point", fr: "Modifier le point temporel" })}
+              ? t3({ en: "Add time point", fr: "Ajouter un point temporel", pt: "Adicionar ponto temporal" })
+              : t3({ en: "Edit time point", fr: "Modifier le point temporel", pt: "Editar ponto temporal" })}
           </div>
           <div class="flex items-end gap-4">
             <div class="w-64">
               <Input
-                label={t3({ en: "Label", fr: "Libellé" })}
+                label={t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })}
                 value={formLabel()}
                 onChange={setFormLabel}
                 fullWidth
               />
             </div>
             <YearSelect
-              label={t3({ en: "Year", fr: "Année" })}
+              label={t3({ en: "Year", fr: "Année", pt: "Ano" })}
               value={formYear()}
               onChange={setFormYear}
             />
             <MonthSelect
-              label={t3({ en: "Month", fr: "Mois" })}
+              label={t3({ en: "Month", fr: "Mois", pt: "Mês" })}
               value={formMonth()}
               onChange={setFormMonth}
             />
@@ -182,10 +182,10 @@ export function HfaTimePointsEditor() {
       </Show>
       <EditableList
         items={items()}
-        title={t3({ en: "Time points", fr: "Points temporels" })}
+        title={t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" })}
         showCount
         onAdd={openAdd}
-        addLabel={t3({ en: "Add time point", fr: "Ajouter un point temporel" })}
+        addLabel={t3({ en: "Add time point", fr: "Ajouter un point temporel", pt: "Adicionar ponto temporal" })}
         onEdit={openEdit}
         onDelete={handleDelete}
         onReorder={handleReorder}
@@ -193,6 +193,7 @@ export function HfaTimePointsEditor() {
         emptyMessage={t3({
           en: "No time points. Add a time point before importing HFA data or weights.",
           fr: "Aucun point temporel. Ajoutez un point temporel avant d'importer des données HFA ou des pondérations.",
+          pt: "Nenhum ponto temporal. Adicione um ponto temporal antes de importar dados HFA ou ponderações.",
         })}
         renderItem={(item) => (
           <div class="border-base-300 min-w-0 flex-1 rounded border px-3 py-2">

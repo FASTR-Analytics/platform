@@ -367,7 +367,7 @@ export async function testIndicatorsConnection(options: FetchOptions): Promise<{
 
     return {
       success: true,
-      message: { en: "Successfully connected to DHIS2 indicators API", fr: "Connexion à l'API des indicateurs DHIS2 réussie" },
+      message: { en: "Successfully connected to DHIS2 indicators API", fr: "Connexion à l'API des indicateurs DHIS2 réussie", pt: "Ligação à API de indicadores DHIS2 estabelecida com sucesso" },
       details: {
         dataElementCount: dataElements.pager?.total,
         indicatorCount: indicators.pager?.total,
@@ -382,6 +382,7 @@ export async function testIndicatorsConnection(options: FetchOptions): Promise<{
       message: {
         en: `Failed to connect to DHIS2 indicators API: ${detail}`,
         fr: `Échec de la connexion à l'API des indicateurs DHIS2 : ${detail}`,
+        pt: `Falha na ligação à API de indicadores DHIS2: ${detail}`,
       },
     };
   }

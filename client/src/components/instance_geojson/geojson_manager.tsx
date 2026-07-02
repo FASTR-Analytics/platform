@@ -39,13 +39,13 @@ export function GeoJsonManager(p: Props) {
   const columns: TableColumn<GeoJsonMapSummary>[] = [
     {
       key: "adminAreaLevel",
-      header: t3({ en: "Admin area level", fr: "Niveau administratif" }),
+      header: t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" }),
       sortable: true,
       render: (item) => <span class="font-mono">{item.adminAreaLevel}</span>,
     },
     {
       key: "uploadedAt",
-      header: t3({ en: "Uploaded", fr: "Téléchargé" }),
+      header: t3({ en: "Uploaded", fr: "Téléchargé", pt: "Carregado" }),
       sortable: true,
       render: (item) => (
         <span>{new Date(item.uploadedAt).toLocaleDateString()}</span>
@@ -61,6 +61,7 @@ export function GeoJsonManager(p: Props) {
             text: t3({
               en: `Delete GeoJSON for admin area level ${item.adminAreaLevel}?`,
               fr: `Supprimer le GeoJSON pour le niveau administratif ${item.adminAreaLevel} ?`,
+              pt: `Eliminar o GeoJSON para o nível de zona administrativa ${item.adminAreaLevel}?`,
             }),
             itemList: [`Level ${item.adminAreaLevel}`],
           },
@@ -98,12 +99,12 @@ export function GeoJsonManager(p: Props) {
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={p.backToInstance} />
             <div class="font-700 text-lg">
-              {t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON" })}
+              {t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON", pt: "Mapas GeoJSON" })}
             </div>
             <div class="flex-1" />
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <Button iconName="plus" onClick={handleUpload}>
-                {t3({ en: "Upload GeoJSON", fr: "Télécharger GeoJSON" })}
+                {t3({ en: "Upload GeoJSON", fr: "Télécharger GeoJSON", pt: "Carregar GeoJSON" })}
               </Button>
             </Show>
           </div>
@@ -117,6 +118,7 @@ export function GeoJsonManager(p: Props) {
                 {t3({
                   en: "No GeoJSON maps uploaded yet. Upload a GeoJSON file to enable map visualizations.",
                   fr: "Aucune carte GeoJSON téléchargée. Téléchargez un fichier GeoJSON pour activer les visualisations cartographiques.",
+                  pt: "Ainda não foi carregado nenhum mapa GeoJSON. Carregue um ficheiro GeoJSON para ativar as visualizações de mapas.",
                 })}
               </div>
             }
@@ -128,6 +130,7 @@ export function GeoJsonManager(p: Props) {
               noRowsMessage={t3({
                 en: "No GeoJSON maps",
                 fr: "Aucune carte GeoJSON",
+                pt: "Nenhum mapa GeoJSON",
               })}
             />
           </Show>

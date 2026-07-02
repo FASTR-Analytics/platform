@@ -4,22 +4,22 @@ import { For } from "solid-js";
 const ROWS: { syntax: string; label: () => string; labelClass: string }[] = [
   {
     syntax: "# Heading",
-    label: () => t3({ en: "Heading", fr: "Titre" }),
+    label: () => t3({ en: "Heading", fr: "Titre", pt: "Título" }),
     labelClass: "font-700 text-sm text-base-content",
   },
   {
     syntax: "## Subheading",
-    label: () => t3({ en: "Subheading", fr: "Sous-titre" }),
+    label: () => t3({ en: "Subheading", fr: "Sous-titre", pt: "Subtítulo" }),
     labelClass: "font-700 text-base-content",
   },
   {
     syntax: "**bold**",
-    label: () => t3({ en: "Bold text", fr: "Texte en gras" }),
+    label: () => t3({ en: "Bold text", fr: "Texte en gras", pt: "Texto em negrito" }),
     labelClass: "font-700 text-base-content",
   },
   {
     syntax: "*italic*",
-    label: () => t3({ en: "Italic text", fr: "Texte en italique" }),
+    label: () => t3({ en: "Italic text", fr: "Texte en italique", pt: "Texto em itálico" }),
     labelClass: "italic text-base-content/70",
   },
   {
@@ -29,17 +29,17 @@ const ROWS: { syntax: string; label: () => string; labelClass: string }[] = [
   },
   {
     syntax: "1. item",
-    label: () => t3({ en: "Numbered list", fr: "Liste numérotée" }),
+    label: () => t3({ en: "Numbered list", fr: "Liste numérotée", pt: "Lista numerada" }),
     labelClass: "list-item list-decimal list-inside text-base-content/70",
   },
   {
     syntax: "> quote",
-    label: () => t3({ en: "Quote", fr: "Citation" }),
+    label: () => t3({ en: "Quote", fr: "Citation", pt: "Citação" }),
     labelClass: "border-base-300 border-l-2 pl-2 italic text-base-content/60",
   },
   {
     syntax: "[text](https://…)",
-    label: () => t3({ en: "Link", fr: "Lien" }),
+    label: () => t3({ en: "Link", fr: "Lien", pt: "Ligação" }),
     labelClass: "text-primary underline",
   },
 ];
@@ -54,6 +54,7 @@ export function MarkdownGuide() {
         {t3({
           en: "Formatting instructions",
           fr: "Instructions de mise en forme",
+          pt: "Instruções de formatação",
         })}
       </div>
       <For each={ROWS}>
@@ -70,6 +71,7 @@ export function MarkdownGuide() {
         {t3({
           en: "Leave a blank line between paragraphs.",
           fr: "Laissez une ligne vide entre les paragraphes.",
+          pt: "Deixe uma linha em branco entre os parágrafos.",
         })}
       </div>
     </div>

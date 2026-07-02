@@ -47,7 +47,7 @@ export function Dhis2CredentialsEditor(p: Props) {
       data-fullWidth={!!p.fullWidth}
     >
       <Input
-        label={t3({ en: "DHIS2 URL", fr: "URL DHIS2" })}
+        label={t3({ en: "DHIS2 URL", fr: "URL DHIS2", pt: "URL DHIS2" })}
         value={p.credentials().url}
         onChange={(v) => handleCredentialChange("url", v)}
         placeholder="https://example.dhis2.org"
@@ -55,7 +55,7 @@ export function Dhis2CredentialsEditor(p: Props) {
         disabled={p.disabled}
       />
       <Input
-        label={t3({ en: "DHIS2 Username", fr: "Nom d'utilisateur DHIS2" })}
+        label={t3({ en: "DHIS2 Username", fr: "Nom d'utilisateur DHIS2", pt: "Nome de utilizador DHIS2" })}
         type={showCredentials() ? "text" : "password"}
         value={p.credentials().username}
         onChange={(v) => handleCredentialChange("username", v)}
@@ -64,7 +64,7 @@ export function Dhis2CredentialsEditor(p: Props) {
         disabled={p.disabled}
       />
       <Input
-        label={t3({ en: "DHIS2 Password", fr: "Mot de passe DHIS2" })}
+        label={t3({ en: "DHIS2 Password", fr: "Mot de passe DHIS2", pt: "Palavra-passe DHIS2" })}
         type={showCredentials() ? "text" : "password"}
         value={p.credentials().password}
         onChange={(v) => handleCredentialChange("password", v)}
@@ -80,8 +80,8 @@ export function Dhis2CredentialsEditor(p: Props) {
         size="sm"
       >
         {showCredentials()
-          ? t3({ en: "Hide credentials", fr: "Masquer les identifiants" })
-          : t3({ en: "Show credentials", fr: "Afficher les identifiants" })}
+          ? t3({ en: "Hide credentials", fr: "Masquer les identifiants", pt: "Ocultar credenciais" })
+          : t3({ en: "Show credentials", fr: "Afficher les identifiants", pt: "Mostrar credenciais" })}
       </Button>
 
       <Show when={showSaveOption() && p.saveToSession && p.setSaveToSession}>
@@ -89,7 +89,7 @@ export function Dhis2CredentialsEditor(p: Props) {
           <Checkbox
             checked={!!p.saveToSession?.()}
             onChange={(v) => p.setSaveToSession?.(v)}
-            label={t3({ en: "Save credentials for this session", fr: "Enregistrer les identifiants pour cette session" })}
+            label={t3({ en: "Save credentials for this session", fr: "Enregistrer les identifiants pour cette session", pt: "Guardar as credenciais para esta sessão" })}
             disabled={p.disabled}
           />
         </div>

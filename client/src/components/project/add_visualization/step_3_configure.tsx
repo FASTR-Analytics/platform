@@ -30,11 +30,11 @@ export function Step3Configure(p: Props) {
 
     switch (type) {
       case "timeseries":
-        return t3({ en: "Requires period disaggregation", fr: "Nécessite une désagrégation par période" });
+        return t3({ en: "Requires period disaggregation", fr: "Nécessite une désagrégation par période", pt: "Requer desagregação por período" });
       case "map":
-        return t3({ en: "Requires area disaggregation", fr: "Nécessite une désagrégation par zone" });
+        return t3({ en: "Requires area disaggregation", fr: "Nécessite une désagrégation par zone", pt: "Requer desagregação por zona" });
       default:
-        return t3({ en: "Not available for this metric", fr: "Non disponible pour cette métrique" });
+        return t3({ en: "Not available for this metric", fr: "Non disponible pour cette métrique", pt: "Não disponível para esta métrica" });
     }
   };
 
@@ -52,7 +52,7 @@ export function Step3Configure(p: Props) {
     <div class="ui-pad ui-spy">
       <div>
         <div class="font-700 mb-3">
-          {t3({ en: "Visualization type", fr: "Type de visualisation" })}
+          {t3({ en: "Visualization type", fr: "Type de visualisation", pt: "Tipo de visualização" })}
         </div>
         <div class="ui-gap-sm grid grid-cols-4">
           <For each={allTypes}>
@@ -72,7 +72,7 @@ export function Step3Configure(p: Props) {
       <Show when={p.selectedType}>
         <div>
           <div class="font-700 mb-3">
-            {t3({ en: "Disaggregate by", fr: "Désagréger par" })}
+            {t3({ en: "Disaggregate by", fr: "Désagréger par", pt: "Desagregar por" })}
           </div>
 
           <Show
@@ -82,6 +82,7 @@ export function Step3Configure(p: Props) {
                 {t3({
                   en: "No disaggregation options available for this visualization type",
                   fr: "Aucune option de désagrégation disponible pour ce type de visualisation",
+                  pt: "Nenhuma opção de desagregação disponível para este tipo de visualização",
                 })}
               </div>
             }
@@ -99,7 +100,7 @@ export function Step3Configure(p: Props) {
                           {t3(getDisplayDisaggregationLabel(disOpt.value))}
                           <Show when={isRequired}>
                             <span class="text-neutral ml-2 text-xs">
-                              ({t3({ en: "required", fr: "requis" })})
+                              ({t3({ en: "required", fr: "requis", pt: "obrigatório" })})
                             </span>
                           </Show>
                         </>

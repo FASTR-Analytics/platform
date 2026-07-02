@@ -36,12 +36,12 @@ export function HfaUnusedVariablesModal(
 
   return (
     <ModalContainer
-      title={t3({ en: "Unused variables", fr: "Variables inutilisées" })}
+      title={t3({ en: "Unused variables", fr: "Variables inutilisées", pt: "Variáveis não utilizadas" })}
       width="lg"
       leftButtons={[
         // eslint-disable-next-line jsx-key
         <Button onClick={() => p.close(undefined)} intent="neutral" iconName="x">
-          {t3({ en: "Close", fr: "Fermer" })}
+          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
         </Button>,
       ]}
     >
@@ -49,7 +49,7 @@ export function HfaUnusedVariablesModal(
         when={p.timePoints.length > 0}
         fallback={
           <div class="text-neutral">
-            {t3({ en: "No time points", fr: "Aucun point temporel" })}
+            {t3({ en: "No time points", fr: "Aucun point temporel", pt: "Nenhum ponto temporal" })}
           </div>
         }
       >
@@ -62,6 +62,7 @@ export function HfaUnusedVariablesModal(
                 {t3({
                   en: "No unused variables for this time point",
                   fr: "Aucune variable inutilisée pour ce point temporel",
+                  pt: "Nenhuma variável não utilizada para este ponto temporal",
                 })}
               </div>
             }

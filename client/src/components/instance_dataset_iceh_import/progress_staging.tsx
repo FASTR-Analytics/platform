@@ -10,7 +10,7 @@ export function ProgressStaging(p: Props) {
   return (
     <div class="ui-pad">
       <h3 class="font-700 text-lg mb-4">
-        {t3({ en: "Staging Data", fr: "Préparation des données" })}
+        {t3({ en: "Staging Data", fr: "Préparation des données", pt: "Preparação dos dados" })}
       </h3>
 
       <div class="mb-4">
@@ -26,19 +26,19 @@ export function ProgressStaging(p: Props) {
       <Show when={p.staged}>
         <div class="rounded border p-4">
           <h4 class="font-700 mb-2">
-            {t3({ en: "Staging Results", fr: "Résultats de préparation" })}
+            {t3({ en: "Staging Results", fr: "Résultats de préparation", pt: "Resultados de preparação" })}
           </h4>
           <div class="text-sm">
             <p>
-              <strong>{t3({ en: "Total rows:", fr: "Total des lignes :" })}</strong>{" "}
+              <strong>{t3({ en: "Total rows:", fr: "Total des lignes :", pt: "Total de linhas:" })}</strong>{" "}
               {p.staged!.nRowsTotal.toLocaleString()}
             </p>
             <p>
-              <strong>{t3({ en: "Valid rows:", fr: "Lignes valides :" })}</strong>{" "}
+              <strong>{t3({ en: "Valid rows:", fr: "Lignes valides :", pt: "Linhas válidas:" })}</strong>{" "}
               {p.staged!.nRowsValid.toLocaleString()}
             </p>
             <p>
-              <strong>{t3({ en: "Skipped (missing estimate):", fr: "Ignorées (estimation manquante) :" })}</strong>{" "}
+              <strong>{t3({ en: "Skipped (missing estimate):", fr: "Ignorées (estimation manquante) :", pt: "Ignoradas (estimativa em falta):" })}</strong>{" "}
               {p.staged!.nRowsSkippedMissingEstimate.toLocaleString()}
             </p>
             <Show when={(p.staged!.nRowsSkippedUnknownStrat ?? 0) > 0}>
@@ -52,11 +52,11 @@ export function ProgressStaging(p: Props) {
               </p>
             </Show>
             <p>
-              <strong>{t3({ en: "Indicators:", fr: "Indicateurs :" })}</strong>{" "}
+              <strong>{t3({ en: "Indicators:", fr: "Indicateurs :", pt: "Indicadores:" })}</strong>{" "}
               {p.staged!.nIndicators}
             </p>
             <p>
-              <strong>{t3({ en: "Disaggregators:", fr: "Désagrégateurs :" })}</strong>{" "}
+              <strong>{t3({ en: "Disaggregators:", fr: "Désagrégateurs :", pt: "Desagregadores:" })}</strong>{" "}
               {p.staged!.nDisaggregators}
             </p>
           </div>
@@ -67,6 +67,7 @@ export function ProgressStaging(p: Props) {
         {t3({
           en: "Processing data... Please wait.",
           fr: "Traitement des données... Veuillez patienter.",
+          pt: "A processar os dados... Aguarde, por favor.",
         })}
       </p>
     </div>

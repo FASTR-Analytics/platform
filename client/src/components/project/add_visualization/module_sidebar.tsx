@@ -15,7 +15,7 @@ export function ModuleSidebar(p: Props) {
   const items = createMemo((): ModuleItem[] => {
     const allItem: ModuleItem = {
       id: "all",
-      label: t3({ en: "All modules", fr: "Tous les modules" }),
+      label: t3({ en: "All modules", fr: "Tous les modules", pt: "Todos os módulos" }),
       meta: p.totalMetricCount,
     };
 

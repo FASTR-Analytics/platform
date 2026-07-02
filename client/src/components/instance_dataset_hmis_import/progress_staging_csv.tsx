@@ -8,7 +8,7 @@ export function ProgressStaging_Csv(p: {
   return (
     <div class="ui-pad ui-spy">
       <div class="">
-        {t3({ en: "Staging data...", fr: "Préparation des données..." })} {to100Pct0(p.status.progress)}
+        {t3({ en: "Staging data...", fr: "Préparation des données...", pt: "A preparar os dados..." })} {to100Pct0(p.status.progress)}
       </div>
       <ProgressBar progressFrom0To100={p.status.progress} />
     </div>

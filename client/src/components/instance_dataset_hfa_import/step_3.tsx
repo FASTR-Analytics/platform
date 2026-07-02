@@ -19,12 +19,12 @@ export function Step3(p: Props) {
   return (
     <div class="ui-spy ui-pad">
       <div class="ui-spy-sm">
-        <div class="font-700 text-lg">{t3({ en: "Data Staging", fr: "Préparation des données" })}</div>
+        <div class="font-700 text-lg">{t3({ en: "Data Staging", fr: "Préparation des données", pt: "Preparação dos dados" })}</div>
         <Switch>
           <Match when={!p.step3Result}>
             <div class="border-base-300 rounded border p-4">
               <div class="">
-                {t3({ en: "Ready to stage CSV data. This will validate and prepare the data for import.", fr: "Prêt à préparer les données CSV. Cela validera et préparera les données pour l'importation." })}
+                {t3({ en: "Ready to stage CSV data. This will validate and prepare the data for import.", fr: "Prêt à préparer les données CSV. Cela validera et préparera les données pour l'importation.", pt: "Pronto para preparar os dados CSV. Isto irá validar e preparar os dados para importação." })}
               </div>
             </div>
           </Match>
@@ -32,10 +32,10 @@ export function Step3(p: Props) {
             <div class="bg-success-50 border-success-300 rounded border p-4">
               <div class="text-success-700 flex items-center gap-2">
                 <span>✓</span>
-                <span>{t3({ en: "CSV data staged successfully", fr: "Données CSV préparées avec succès" })}</span>
+                <span>{t3({ en: "CSV data staged successfully", fr: "Données CSV préparées avec succès", pt: "Dados CSV preparados com sucesso" })}</span>
               </div>
               <div class="text-success mt-2 text-sm">
-                {t3({ en: "Total rows staged", fr: "Total de lignes préparées" })}: {toNum0(p.step3Result!.nRowsTotal)}
+                {t3({ en: "Total rows staged", fr: "Total de lignes préparées", pt: "Total de linhas preparadas" })}: {toNum0(p.step3Result!.nRowsTotal)}
               </div>
             </div>
           </Match>
@@ -49,7 +49,7 @@ export function Step3(p: Props) {
           disabled={!needsSaving()}
           iconName="database"
         >
-          {t3({ en: "Start staging", fr: "Lancer la préparation" })}
+          {t3({ en: "Start staging", fr: "Lancer la préparation", pt: "Iniciar a preparação" })}
         </Button>
       </div>
     </div>

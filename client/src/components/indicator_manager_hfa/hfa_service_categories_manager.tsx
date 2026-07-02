@@ -65,6 +65,7 @@ export function HfaServiceCategoriesManager(p: Props) {
         text: t3({
           en: "Delete this service category? Any indicators using it will have their service category cleared.",
           fr: "Supprimer cette catégorie de service ? Les indicateurs qui l'utilisent verront leur catégorie de service effacée.",
+          pt: "Eliminar esta categoria de serviço? Os indicadores que a utilizam ficarão sem categoria de serviço.",
         }),
         itemList: [`${serviceCategory.label} (${serviceCategory.id})`],
       },
@@ -80,12 +81,12 @@ export function HfaServiceCategoriesManager(p: Props) {
     <div class="flex h-full w-1/2 flex-col">
       <div class="ui-gap-sm flex flex-none items-center pb-4">
         <div class="font-700 flex-1 text-xl">
-          {t3({ en: "Service categories", fr: "Catégories de service" })} (
+          {t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" })} (
           {items.length})
         </div>
         <Show when={isAdmin}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
-            {t3({ en: "Add", fr: "Ajouter" })}
+            {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
         </Show>
       </div>
@@ -97,6 +98,7 @@ export function HfaServiceCategoriesManager(p: Props) {
               {t3({
                 en: "No service categories",
                 fr: "Aucune catégorie de service",
+                pt: "Nenhuma categoria de serviço",
               })}
             </div>
           }

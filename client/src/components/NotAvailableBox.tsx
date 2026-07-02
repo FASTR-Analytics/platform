@@ -16,10 +16,10 @@ export function NotAvailableBox(p: Props) {
           onClick={p.onClick}
         >
           <span class="text-neutral text-xs">
-            {t3({ en: "Not available", fr: "Non disponible" })}
+            {t3({ en: "Not available", fr: "Non disponible", pt: "Não disponível" })}
           </span>
           <span class="text-neutral mt-1 text-[10px] opacity-60">
-            {p.err ?? t3({ en: "Results not computed for this metric", fr: "Résultats non calculés pour cette métrique" })}
+            {p.err ?? t3({ en: "Results not computed for this metric", fr: "Résultats non calculés pour cette métrique", pt: "Resultados não calculados para esta métrica" })}
           </span>
         </div>
       </Match>
@@ -29,7 +29,7 @@ export function NotAvailableBox(p: Props) {
           onClick={p.onClick}
         >
           <span class="text-neutral text-xs">
-            {t3({ en: "Error", fr: "Erreur" })}
+            {t3({ en: "Error", fr: "Erreur", pt: "Erro" })}
           </span>
           <Show when={p.err}>
             <span class="text-neutral mt-1 text-[10px] opacity-60">

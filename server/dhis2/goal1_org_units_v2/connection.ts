@@ -46,7 +46,7 @@ export async function testDHIS2Connection(
 
     return {
       success: true,
-      message: { en: "Successfully connected to DHIS2", fr: "Connexion à DHIS2 réussie" },
+      message: { en: "Successfully connected to DHIS2", fr: "Connexion à DHIS2 réussie", pt: "Ligação ao DHIS2 estabelecida com sucesso" },
       details: {
         orgUnitCount: testOrgUnits.pager?.total,
         levels: levels.length,
@@ -60,6 +60,7 @@ export async function testDHIS2Connection(
       message: {
         en: `Failed to connect to DHIS2: ${detail}`,
         fr: `Échec de la connexion à DHIS2 : ${detail}`,
+        pt: `Falha na ligação ao DHIS2: ${detail}`,
       },
     };
   }

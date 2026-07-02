@@ -29,7 +29,7 @@ export function ViewResultsObject(
       projectId: p.projectId,
       results_object_id: p.resultsObjectId,
     });
-  }, t3({ en: "Loading results file...", fr: "Chargement du fichier de résultats..." }));
+  }, t3({ en: "Loading results file...", fr: "Chargement du fichier de résultats...", pt: "A carregar o ficheiro de resultados..." }));
 
   return (
     <FrameTop
@@ -37,7 +37,7 @@ export function ViewResultsObject(
         <div class="ui-pad ui-gap flex h-full w-full items-center border-b bg-base-200">
           <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
           <div class="flex-1 truncate text-xl font-700">
-            {t3({ en: "RESULTS FILE", fr: "FICHIER DE RÉSULTATS" })}
+            {t3({ en: "RESULTS FILE", fr: "FICHIER DE RÉSULTATS", pt: "FICHEIRO DE RESULTADOS" })}
             <span class="ml-4 font-400">{p.resultsObjectId}</span>
           </div>
           <div class="ui-gap-sm flex items-center">
@@ -58,13 +58,13 @@ export function ViewResultsObject(
         state={items.state()}
         onErrorButton={{
           onClick: () => p.close(undefined),
-          label: t3({ en: "Back to module", fr: "Retour au module" }),
+          label: t3({ en: "Back to module", fr: "Retour au module", pt: "Voltar ao módulo" }),
         }}
       >
         {(keyedItems) => (
           <Switch>
             <Match when={keyedItems.status === "no_data_available"}>
-              <div class="ui-pad">{t3({ en: "No data available", fr: "Aucune donnée disponible" })}</div>
+              <div class="ui-pad">{t3({ en: "No data available", fr: "Aucune donnée disponible", pt: "Não há dados disponíveis" })}</div>
             </Match>
             <Match when={keyedItems.status === "ok"}>
               {(() => {

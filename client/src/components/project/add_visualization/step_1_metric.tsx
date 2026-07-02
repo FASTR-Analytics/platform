@@ -64,6 +64,7 @@ export function Step1Metric(p: Props) {
                 {t3({
                   en: "No metrics available",
                   fr: "Aucune métrique disponible",
+                  pt: "Nenhuma métrica disponível",
                 })}
               </div>
             }

@@ -227,7 +227,7 @@ function buildMapAutoLegend(
   }
   const noData = {
     color: "#f0f0f0",
-    label: pickLang(localization.language, { en: "No data", fr: "Aucune donnée" }),
+    label: pickLang(localization.language, { en: "No data", fr: "Aucune donnée", pt: "Sem dados" }),
   };
   const domain =
     cf.type === "scale" && cf.domain.kind === "fixed"

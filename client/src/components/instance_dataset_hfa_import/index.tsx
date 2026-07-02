@@ -48,7 +48,7 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
           success: true;
           data: DatasetHfaUploadAttemptDetail;
         };
-  }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation..." }));
+  }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation...", pt: "A carregar as informações de importação..." }));
 
   // Temp state
 
@@ -143,7 +143,7 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
 
   async function attemptDeleteUploadAttempt() {
     const deleteAction = createDeleteAction(
-      t3({ en: "Are you sure you want to delete this import?", fr: "Êtes-vous sûr de vouloir supprimer cette importation ?" }),
+      t3({ en: "Are you sure you want to delete this import?", fr: "Êtes-vous sûr de vouloir supprimer cette importation ?", pt: "Tem a certeza de que pretende eliminar esta importação?" }),
       () => serverActions.deleteDatasetHfaUploadAttempt({}),
       p.silentFetch,
       () => p.close(undefined),
@@ -165,8 +165,8 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
           back={() => p.close(undefined)}
           heading={
             <>
-              {t3({ en: "IMPORT IN PROGRESS", fr: "IMPORTATION EN COURS" })}
-              <span class="font-400 ml-4">{t3({ en: "Health Facility Assessment Data", fr: "Données d'évaluation des établissements de santé" })}</span>
+              {t3({ en: "IMPORT IN PROGRESS", fr: "IMPORTATION EN COURS", pt: "IMPORTAÇÃO EM CURSO" })}
+              <span class="font-400 ml-4">{t3({ en: "Health Facility Assessment Data", fr: "Données d'évaluation des établissements de santé", pt: "Dados de avaliação dos estabelecimentos de saúde" })}</span>
             </>
           }
         >
@@ -181,7 +181,7 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
               intent="danger"
               iconName="trash"
             >
-              {t3({ en: "Discard import", fr: "Annuler l'importation" })}
+              {t3({ en: "Discard import", fr: "Annuler l'importation", pt: "Descartar a importação" })}
             </Button>
           </div>
         </HeaderBarCanGoBack>
@@ -190,7 +190,7 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
       <StateHolderWrapper
         state={uploadAttempt.state()}
         onErrorButton={{
-          label: t3({ en: "Back to dataset", fr: "Retour au jeu de données" }),
+          label: t3({ en: "Back to dataset", fr: "Retour au jeu de données", pt: "Voltar ao conjunto de dados" }),
           onClick: () => p.close(undefined),
         }}
       >
@@ -199,13 +199,13 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
             <Switch
               fallback={
                 <div class="ui-pad text-danger">
-                  {t3({ en: "Something went wrong: Bad step in dataset upload attempt", fr: "Une erreur s'est produite : étape incorrecte dans la tentative de téléversement" })}
+                  {t3({ en: "Something went wrong: Bad step in dataset upload attempt", fr: "Une erreur s'est produite : étape incorrecte dans la tentative de téléversement", pt: "Ocorreu um erro: etapa inválida na tentativa de carregamento do conjunto de dados" })}
                 </div>
               }
             >
               <Match when={keyedUploadAttempt.status.status === "error"}>
                 <div class="ui-pad text-danger">
-                  {t3({ en: "ERROR!", fr: "ERREUR !" })} {JSON.stringify(keyedUploadAttempt.status)}...
+                  {t3({ en: "ERROR!", fr: "ERREUR !", pt: "ERRO!" })} {JSON.stringify(keyedUploadAttempt.status)}...
                 </div>
               </Match>
               <Match when={keyedUploadAttempt.status.status === "complete"}>

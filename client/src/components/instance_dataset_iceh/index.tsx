@@ -99,9 +99,9 @@ export function InstanceDatasetIceh(p: Props) {
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={p.backToInstance} />
             <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES" })}
+              {t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
               <span class="font-400 ml-4">
-                {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH" })}
+                {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH", pt: "Dados de equidade ICEH" })}
               </span>
             </div>
           </div>
@@ -112,7 +112,7 @@ export function InstanceDatasetIceh(p: Props) {
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
                 <div class="font-700 text-lg">
-                  {t3({ en: "Imports", fr: "Importations" })}
+                  {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
                 <Switch>
                   <Match when={!uploadAttempt()}>
@@ -126,6 +126,7 @@ export function InstanceDatasetIceh(p: Props) {
                         {t3({
                           en: "Start new import",
                           fr: "Nouvelle importation",
+                          pt: "Iniciar nova importação",
                         })}
                       </Button>
                     </div>
@@ -147,6 +148,7 @@ export function InstanceDatasetIceh(p: Props) {
                                 {t3({
                                   en: "Import is complete! Click to view and remove.",
                                   fr: "Importation terminée ! Cliquez pour consulter et supprimer.",
+                                  pt: "Importação concluída! Clique para ver e remover.",
                                 })}
                               </div>
                             </Match>
@@ -159,6 +161,7 @@ export function InstanceDatasetIceh(p: Props) {
                                 {t3({
                                   en: "Error with upload. Click to view.",
                                   fr: "Erreur lors du téléversement. Cliquez pour consulter.",
+                                  pt: "Erro no carregamento. Clique para ver.",
                                 })}
                               </div>
                             </Match>
@@ -173,6 +176,7 @@ export function InstanceDatasetIceh(p: Props) {
                                   {t3({
                                     en: "Staging underway",
                                     fr: "Préparation en cours",
+                                    pt: "Preparação em curso",
                                   })}
                                 </div>
                                 <div class="font-700 text-lg">
@@ -185,6 +189,7 @@ export function InstanceDatasetIceh(p: Props) {
                                   {t3({
                                     en: "This number will automatically update. No need to refresh.",
                                     fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.",
+                                    pt: "Este número atualiza-se automaticamente. Não é necessário atualizar a página.",
                                   })}
                                 </div>
                               </div>
@@ -201,6 +206,7 @@ export function InstanceDatasetIceh(p: Props) {
                                   {t3({
                                     en: "Integrating underway",
                                     fr: "Intégration en cours",
+                                    pt: "Integração em curso",
                                   })}
                                 </div>
                                 <div class="font-700 text-lg">
@@ -213,6 +219,7 @@ export function InstanceDatasetIceh(p: Props) {
                                   {t3({
                                     en: "This number will automatically update. No need to refresh.",
                                     fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.",
+                                    pt: "Este número atualiza-se automaticamente. Não é necessário atualizar a página.",
                                   })}
                                 </div>
                               </div>
@@ -222,6 +229,7 @@ export function InstanceDatasetIceh(p: Props) {
                                 {t3({
                                   en: "Import in draft stage. Click to continue.",
                                   fr: "Importation en cours de préparation. Cliquez pour continuer.",
+                                  pt: "Importação em fase de rascunho. Clique para continuar.",
                                 })}
                               </div>
                             </Match>
@@ -244,6 +252,7 @@ export function InstanceDatasetIceh(p: Props) {
                         {t3({
                           en: "Delete data",
                           fr: "Supprimer les données",
+                          pt: "Eliminar os dados",
                         })}
                       </Button>
                     </div>
@@ -258,7 +267,7 @@ export function InstanceDatasetIceh(p: Props) {
               when={detail() && detail()!.dataRows > 0}
               fallback={
                 <div class="ui-pad">
-                  {t3({ en: "No data", fr: "Aucune donnée" })}
+                  {t3({ en: "No data", fr: "Aucune donnée", pt: "Sem dados" })}
                 </div>
               }
             >

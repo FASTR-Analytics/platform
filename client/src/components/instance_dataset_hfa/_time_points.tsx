@@ -16,7 +16,7 @@ export function TimePointsView(
         <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
           <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
           <div class="font-700 flex-1 truncate text-xl">
-            {t3({ en: "Time Points", fr: "Points temporels" })}
+            {t3({ en: "Time Points", fr: "Points temporels", pt: "Pontos temporais" })}
           </div>
         </div>
       }

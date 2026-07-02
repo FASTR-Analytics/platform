@@ -34,7 +34,7 @@ export function BatchUploadForm(p: Props) {
       const assetFileName = selectedFileName();
 
       if (!assetFileName) {
-        return { success: false, err: t3({ en: "You must select a CSV file", fr: "Vous devez sélectionner un fichier CSV" }) };
+        return { success: false, err: t3({ en: "You must select a CSV file", fr: "Vous devez sélectionner un fichier CSV", pt: "Tem de selecionar um ficheiro CSV" }) };
       }
 
       if (uploadType() === "common") {
@@ -74,14 +74,14 @@ export function BatchUploadForm(p: Props) {
     <FrameTop
       panelChildren={
         <HeaderBarCanGoBack
-          heading={t3({ en: "Batch import indicators", fr: "Importation groupée d'indicateurs" })}
+          heading={t3({ en: "Batch import indicators", fr: "Importation groupée d'indicateurs", pt: "Importação em lote de indicadores" })}
           back={() => p.close(undefined)}
         />
       }
     >
       <div class="ui-pad ui-spy">
         <RadioGroup
-          label={t3({ en: "Indicator Type", fr: "Type d'indicateur" })}
+          label={t3({ en: "Indicator Type", fr: "Type d'indicateur", pt: "Tipo de indicador" })}
           options={getSelectOptions(["common", "raw"])}
           value={uploadType()}
           onChange={(val) => setUploadType(val as "common" | "raw")}
@@ -90,7 +90,7 @@ export function BatchUploadForm(p: Props) {
         <div class="text-sm">
           {uploadType() === "common" ? (
             <>
-              {t3({ en: "Upload a CSV file with the following headers:", fr: "Téléversez un fichier CSV avec les en-têtes suivants :" })}
+              {t3({ en: "Upload a CSV file with the following headers:", fr: "Téléversez un fichier CSV avec les en-têtes suivants :", pt: "Carregue um ficheiro CSV com os seguintes cabeçalhos:" })}
               <span class="font-700 ml-3 font-mono">
                 indicator_common_id, indicator_common_label,
                 mapped_raw_indicator_ids
@@ -98,7 +98,7 @@ export function BatchUploadForm(p: Props) {
             </>
           ) : (
             <>
-              {t3({ en: "Upload a CSV file with the following headers:", fr: "Téléversez un fichier CSV avec les en-têtes suivants :" })}
+              {t3({ en: "Upload a CSV file with the following headers:", fr: "Téléversez un fichier CSV avec les en-têtes suivants :", pt: "Carregue um ficheiro CSV com os seguintes cabeçalhos:" })}
               <span class="font-700 ml-3 font-mono">
                 raw_indicator_id, raw_indicator_label
               </span>
@@ -108,14 +108,14 @@ export function BatchUploadForm(p: Props) {
 
         <div class="">
           <Button id="select-csv-file-button" iconName="upload">
-            {t3({ en: "Upload new CSV file", fr: "Téléverser un nouveau fichier CSV" })}
+            {t3({ en: "Upload new CSV file", fr: "Téléverser un nouveau fichier CSV", pt: "Carregar um novo ficheiro CSV" })}
           </Button>
         </div>
 
         <div class="w-96">
           <Select
-            label={t3({ en: "Or select existing CSV file", fr: "Ou sélectionner un fichier CSV existant" })}
-            placeholder={t3({ en: "Select a file...", fr: "Sélectionner un fichier..." })}
+            label={t3({ en: "Or select existing CSV file", fr: "Ou sélectionner un fichier CSV existant", pt: "Ou selecionar um ficheiro CSV existente" })}
+            placeholder={t3({ en: "Select a file...", fr: "Sélectionner un fichier...", pt: "Selecione um ficheiro..." })}
             options={getSelectOptions(
               instanceState.assets.filter((a) => a.isCsv).map((a) => a.fileName),
             )}
@@ -127,7 +127,7 @@ export function BatchUploadForm(p: Props) {
 
         <div class="">
           <Checkbox
-            label={t3({ en: "Replace all existing indicators and mappings", fr: "Remplacer tous les indicateurs et associations existants" })}
+            label={t3({ en: "Replace all existing indicators and mappings", fr: "Remplacer tous les indicateurs et associations existants", pt: "Substituir todos os indicadores e associações existentes" })}
             checked={replaceAllExisting()}
             onChange={setReplaceAllExisting}
           />
@@ -143,7 +143,7 @@ export function BatchUploadForm(p: Props) {
             disabled={!selectedFileName()}
             iconName="upload"
           >
-            {t3({ en: "Process CSV", fr: "Traiter le CSV" })}
+            {t3({ en: "Process CSV", fr: "Traiter le CSV", pt: "Processar o CSV" })}
           </Button>
           <Button onClick={() => p.close(undefined)} intent="neutral">
             {t3(TC.cancel)}

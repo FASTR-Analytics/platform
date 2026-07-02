@@ -105,9 +105,9 @@ export function DeleteData(
         </div>
         <div class="ui-spy-sm">
           <div class="">
-            {t3({ en: "If you want to delete this data, write", fr: "Pour supprimer ces données, écrivez" })}{" "}
+            {t3({ en: "If you want to delete this data, write", fr: "Pour supprimer ces données, écrivez", pt: "Se pretende eliminar estes dados, escreva" })}{" "}
             <span class="font-700">yes please delete</span>{" "}
-            {t3({ en: "in the input box", fr: "dans le champ de saisie" })}
+            {t3({ en: "in the input box", fr: "dans le champ de saisie", pt: "na caixa de introdução" })}
           </div>
           <div class="w-96">
             <Input value={checkText()} onChange={setCheckText} />

@@ -47,6 +47,7 @@ export function HfaWeights(p: Props) {
       t3({
         en: "Delete all facility sampling weights?",
         fr: "Supprimer toutes les pondérations d'échantillonnage ?",
+        pt: "Eliminar todas as ponderações de amostragem?",
       }),
       () => serverActions.deleteAllHfaFacilityWeights({}),
     );
@@ -63,6 +64,7 @@ export function HfaWeights(p: Props) {
               {t3({
                 en: "HFA facility sampling weights",
                 fr: "Pondérations d'échantillonnage des établissements Enquêtes FOSA",
+                pt: "Ponderações de amostragem dos estabelecimentos FOSA",
               })}
             </div>
             <Show when={csvDataIsReady()}>
@@ -82,10 +84,10 @@ export function HfaWeights(p: Props) {
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
                 <div class="font-700 text-lg">
-                  {t3({ en: "Imports", fr: "Importations" })}
+                  {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
                 <Button onClick={openImportWizard} iconName="upload" fullWidth>
-                  {t3({ en: "Import weights", fr: "Importer des pondérations" })}
+                  {t3({ en: "Import weights", fr: "Importer des pondérations", pt: "Importar ponderações" })}
                 </Button>
                 <Show when={hasWeights()}>
                   <Button
@@ -95,7 +97,7 @@ export function HfaWeights(p: Props) {
                     iconName="trash"
                     fullWidth
                   >
-                    {t3({ en: "Delete all weights", fr: "Supprimer toutes les pondérations" })}
+                    {t3({ en: "Delete all weights", fr: "Supprimer toutes les pondérations", pt: "Eliminar todas as ponderações" })}
                   </Button>
                 </Show>
               </div>
@@ -146,6 +148,7 @@ function WeightsWithCsv(p: { onCsvReady?: (csv: Csv<any>) => void }) {
                 {t3({
                   en: "No sampling weights imported yet",
                   fr: "Aucune pondération d'échantillonnage importée pour le moment",
+                  pt: "Ainda não foi importada nenhuma ponderação de amostragem",
                 })}
               </div>
             }
@@ -205,15 +208,15 @@ function HfaWeightsImportForm(_p: { close: (p: unknown) => void }) {
             when={wizard().step !== "upload"}
             fallback={
               <div class="font-700 text-xl">
-                {t3({ en: "Import weights", fr: "Importer des pondérations" })}
+                {t3({ en: "Import weights", fr: "Importer des pondérations", pt: "Importar ponderações" })}
               </div>
             }
           >
             <Button iconName="chevronLeft" onClick={() => setWizard({ step: "upload" })} />
             <div class="font-700 flex-1 truncate text-xl">
               {wizard().step === "map"
-                ? t3({ en: "Map columns", fr: "Mapper les colonnes" })
-                : t3({ en: "Import complete", fr: "Importation terminée" })}
+                ? t3({ en: "Map columns", fr: "Mapper les colonnes", pt: "Associar as colunas" })
+                : t3({ en: "Import complete", fr: "Importation terminée", pt: "Importação concluída" })}
             </div>
           </Show>
         </div>
@@ -253,7 +256,7 @@ function UploadStep(p: { onNext: (csv: CsvDetails) => void }) {
 
   const readHeaders = createFormAction(async () => {
     if (!fileName()) {
-      return { success: false, err: t3({ en: "Select a file", fr: "Sélectionnez un fichier" }) };
+      return { success: false, err: t3({ en: "Select a file", fr: "Sélectionnez un fichier", pt: "Selecione um ficheiro" }) };
     }
     const res = await serverActions.readWeightsCsvHeaders({ assetFileName: fileName() });
     if (res.success) p.onNext(res.data);
@@ -266,11 +269,12 @@ function UploadStep(p: { onNext: (csv: CsvDetails) => void }) {
         {t3({
           en: "Upload a CSV with a facility ID column and a weight column. You will choose which columns to use in the next step. Each import covers one time point.",
           fr: "Téléversez un CSV avec une colonne d'identifiant d'établissement et une colonne de pondération. Vous choisirez les colonnes à utiliser à l'étape suivante. Chaque importation couvre un point temporel.",
+          pt: "Carregue um CSV com uma coluna de ID do estabelecimento e uma coluna de ponderação. Escolherá as colunas a utilizar no passo seguinte. Cada importação cobre um ponto temporal.",
         })}
       </div>
       <FileUploadSelector
-        buttonLabel={t3({ en: "Upload CSV", fr: "Téléverser un CSV" })}
-        selectLabel={t3({ en: "Existing CSV file", fr: "Fichier CSV existant" })}
+        buttonLabel={t3({ en: "Upload CSV", fr: "Téléverser un CSV", pt: "Carregar um CSV" })}
+        selectLabel={t3({ en: "Existing CSV file", fr: "Fichier CSV existant", pt: "Ficheiro CSV existente" })}
         filter={(a) => a.isCsv}
         value={fileName()}
         onChange={setFileName}
@@ -284,7 +288,7 @@ function UploadStep(p: { onNext: (csv: CsvDetails) => void }) {
         intent="success"
         iconName="arrowRight"
       >
-        {t3({ en: "Next", fr: "Suivant" })}
+        {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
       </Button>
     </div>
   );
@@ -306,9 +310,9 @@ function MapStep(p: {
 
   const runImport = createFormAction(async () => {
     const m = unwrap(mappings);
-    if (!m.facilityIdColumn) return { success: false, err: t3({ en: "Select the facility ID column", fr: "Sélectionnez la colonne d'identifiant d'établissement" }) };
-    if (!m.weightColumn) return { success: false, err: t3({ en: "Select the weight column", fr: "Sélectionnez la colonne de pondération" }) };
-    if (!m.timePoint) return { success: false, err: t3({ en: "Select a time point", fr: "Sélectionnez un point temporel" }) };
+    if (!m.facilityIdColumn) return { success: false, err: t3({ en: "Select the facility ID column", fr: "Sélectionnez la colonne d'identifiant d'établissement", pt: "Selecione a coluna de ID do estabelecimento" }) };
+    if (!m.weightColumn) return { success: false, err: t3({ en: "Select the weight column", fr: "Sélectionnez la colonne de pondération", pt: "Selecione a coluna de ponderação" }) };
+    if (!m.timePoint) return { success: false, err: t3({ en: "Select a time point", fr: "Sélectionnez un point temporel", pt: "Selecione um ponto temporal" }) };
     const res = await serverActions.importHfaFacilityWeights({
       assetFileName: p.csvDetails.fileName,
       facilityIdColumn: m.facilityIdColumn,
@@ -325,8 +329,8 @@ function MapStep(p: {
       <div class="ui-spy-sm">
         <For
           each={[
-            { key: "facilityIdColumn" as const, label: t3({ en: "Facility ID column", fr: "Colonne ID établissement" }) },
-            { key: "weightColumn" as const, label: t3({ en: "Weight column", fr: "Colonne de pondération" }) },
+            { key: "facilityIdColumn" as const, label: t3({ en: "Facility ID column", fr: "Colonne ID établissement", pt: "Coluna do ID do estabelecimento" }) },
+            { key: "weightColumn" as const, label: t3({ en: "Weight column", fr: "Colonne de pondération", pt: "Coluna de ponderação" }) },
           ]}
         >
           {(row) => (
@@ -345,7 +349,7 @@ function MapStep(p: {
         </For>
         <div class="flex items-center gap-4">
           <div class="w-48 flex-none text-sm">
-            {t3({ en: "Time point", fr: "Point temporel" })}
+            {t3({ en: "Time point", fr: "Point temporel", pt: "Ponto temporal" })}
           </div>
           <div class="flex-1">
             <Select
@@ -359,7 +363,7 @@ function MapStep(p: {
       </div>
       <StateHolderFormError state={runImport.state()} />
       <Button onClick={runImport.click} state={runImport.state()} intent="success" iconName="upload">
-        {t3({ en: "Import", fr: "Importer" })}
+        {t3({ en: "Import", fr: "Importer", pt: "Importar" })}
       </Button>
     </div>
   );
@@ -372,6 +376,7 @@ function DoneStep(p: { result: HfaFacilityWeightsImportResult; onAgain: () => vo
         {t3({
           en: `Imported ${toNum0(p.result.rowsImported)} weights for "${p.result.timePointsCovered[0]}"`,
           fr: `${toNum0(p.result.rowsImported)} pondérations importées pour « ${p.result.timePointsCovered[0]} »`,
+          pt: `${toNum0(p.result.rowsImported)} ponderações importadas para "${p.result.timePointsCovered[0]}"`,
         })}
       </div>
       <Show when={p.result.rowsSkippedNoWeight > 0}>
@@ -379,15 +384,16 @@ function DoneStep(p: { result: HfaFacilityWeightsImportResult; onAgain: () => vo
           {t3({
             en: `${toNum0(p.result.rowsSkippedNoWeight)} blank cell(s) — not in sample`,
             fr: `${toNum0(p.result.rowsSkippedNoWeight)} cellule(s) vide(s) — hors échantillon`,
+            pt: `${toNum0(p.result.rowsSkippedNoWeight)} célula(s) vazia(s) — fora da amostra`,
           })}
         </div>
       </Show>
       <div class="ui-gap-sm flex">
         <Button onClick={p.onClose} intent="success">
-          {t3({ en: "Done", fr: "Terminé" })}
+          {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
         </Button>
         <Button onClick={p.onAgain} iconName="upload">
-          {t3({ en: "Import another round", fr: "Importer un autre tour" })}
+          {t3({ en: "Import another round", fr: "Importer un autre tour", pt: "Importar outra ronda" })}
         </Button>
       </div>
     </div>

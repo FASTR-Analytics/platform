@@ -413,6 +413,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
       err: t3({
         en: `[INFO] No values available for "${resolvedReplicant.noValuesFor}"`,
         fr: `[INFO] Aucune valeur disponible pour "${resolvedReplicant.noValuesFor}"`,
+        pt: `[INFO] Nenhum valor disponível para "${resolvedReplicant.noValuesFor}"`,
       }),
     };
     return;

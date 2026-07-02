@@ -40,7 +40,7 @@ export function DisplayProjectUserRole(
       topPanel={
         <div class="space-y-3">
           <div class="font-700 text-lg leading-6">
-              {t3({ en: "Permissions", fr: "Permissions" })}
+              {t3({ en: "Permissions", fr: "Permissions", pt: "Permissões" })}
             </div>
             <div class="font-700 text-sm">
               {p.user.email}
@@ -86,7 +86,7 @@ export function DisplayProjectUserRole(
     >
       <Show
         when={userRoleExists()}
-        fallback={<div>{t3({ en: "This user does not have access to this project", fr: "Cet utilisateur n'a pas accès à ce projet" })}</div>}
+        fallback={<div>{t3({ en: "This user does not have access to this project", fr: "Cet utilisateur n'a pas accès à ce projet", pt: "Este utilizador não tem acesso a este projeto" })}</div>}
       >
         <Show when={permissions()} fallback={<div>{t3(TC.loading)}</div>}>
           <div class="grid grid-cols-2 gap-4">

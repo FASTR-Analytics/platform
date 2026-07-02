@@ -20,7 +20,7 @@ export function PresentationObjectMiniDisplay(p: Props) {
     StateHolder<FigureInputs>
   >({
     status: "loading",
-    msg: t3({ en: "Fetching data...", fr: "Récupération des données..." }),
+    msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
   });
 
   async function attemptGetFigureInputs() {
@@ -101,17 +101,18 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
           {t3({
             en: "Module running...",
             fr: "Module en cours d'exécution...",
+            pt: "Módulo em execução...",
           })}
         </div>
       </Match>
       <Match when={moduleDirtyStatus() === "error"}>
         <div class="text-danger aspect-video text-xs" onClick={p.onClick}>
-          {t3({ en: "Module error", fr: "Erreur du module" })}
+          {t3({ en: "Module error", fr: "Erreur du module", pt: "Erro do módulo" })}
         </div>
       </Match>
       <Match when={moduleDirtyStatus() === "queued"}>
         <div class="text-warning aspect-video text-xs" onClick={p.onClick}>
-          {t3({ en: "Pending...", fr: "En attente..." })}
+          {t3({ en: "Pending...", fr: "En attente...", pt: "Pendente..." })}
         </div>
       </Match>
       <Match when={true}>
@@ -135,7 +136,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                   class="text-danger aspect-video text-xs"
                   onClick={p.onClick}
                 >
-                  {err || t3({ en: "Error", fr: "Erreur" })}
+                  {err || t3({ en: "Error", fr: "Erreur", pt: "Erro" })}
                 </div>
               );
             })()}

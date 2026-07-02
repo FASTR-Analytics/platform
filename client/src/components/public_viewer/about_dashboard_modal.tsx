@@ -21,6 +21,7 @@ export function AboutDashboardModal(
       title={t3({
         en: "About this dashboard",
         fr: "À propos de ce tableau de bord",
+        pt: "Acerca deste painel",
       })}
       width="lg"
       leftButtons={[
@@ -30,7 +31,7 @@ export function AboutDashboardModal(
           intent="neutral"
           iconName="x"
         >
-          {t3({ en: "Close", fr: "Fermer" })}
+          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
         </Button>,
       ]}
     >

@@ -31,12 +31,12 @@ export function Step1(p: Props) {
     const csvAssetFileName = selectedCsvFileName();
     const xlsFormAssetFileName = selectedXlsFormFileName();
     if (!csvAssetFileName) {
-      return { success: false, err: t3({ en: "You must select a CSV data file", fr: "Vous devez sélectionner un fichier de données CSV" }) };
+      return { success: false, err: t3({ en: "You must select a CSV data file", fr: "Vous devez sélectionner un fichier de données CSV", pt: "Tem de selecionar um ficheiro de dados CSV" }) };
     }
     if (!xlsFormAssetFileName) {
       return {
         success: false,
-        err: t3({ en: "You must select an XLSForm questionnaire file", fr: "Vous devez sélectionner un fichier questionnaire XLSForm" }),
+        err: t3({ en: "You must select an XLSForm questionnaire file", fr: "Vous devez sélectionner un fichier questionnaire XLSForm", pt: "Tem de selecionar um ficheiro de questionário XLSForm" }),
       };
     }
     return serverActions.uploadDatasetHfaCsv({
@@ -47,19 +47,19 @@ export function Step1(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <h3 class="font-700 text-lg">{t3({ en: "CSV Data File", fr: "Fichier de données CSV" })}</h3>
+      <h3 class="font-700 text-lg">{t3({ en: "CSV Data File", fr: "Fichier de données CSV", pt: "Ficheiro de dados CSV" })}</h3>
       <FileUploadSelector
-        buttonLabel={t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser" })}
-        selectLabel={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
+        buttonLabel={t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser", pt: "Carregar um novo ficheiro CSV a utilizar" })}
+        selectLabel={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser", pt: "Ficheiro CSV existente a utilizar" })}
         filter={(a) => a.isCsv}
         value={selectedCsvFileName()}
         onChange={updateSelectedCsvFileName}
       />
 
-      <h3 class="font-700 text-lg">{t3({ en: "XLSForm Questionnaire File", fr: "Fichier questionnaire XLSForm" })}</h3>
+      <h3 class="font-700 text-lg">{t3({ en: "XLSForm Questionnaire File", fr: "Fichier questionnaire XLSForm", pt: "Ficheiro de questionário XLSForm" })}</h3>
       <FileUploadSelector
-        buttonLabel={t3({ en: "Upload new XLSForm file", fr: "Téléverser un nouveau fichier XLSForm" })}
-        selectLabel={t3({ en: "Existing XLSForm file to use", fr: "Fichier XLSForm existant à utiliser" })}
+        buttonLabel={t3({ en: "Upload new XLSForm file", fr: "Téléverser un nouveau fichier XLSForm", pt: "Carregar um novo ficheiro XLSForm" })}
+        selectLabel={t3({ en: "Existing XLSForm file to use", fr: "Fichier XLSForm existant à utiliser", pt: "Ficheiro XLSForm existente a utilizar" })}
         filter={(a) => a.isXlsx}
         value={selectedXlsFormFileName()}
         onChange={updateSelectedXlsFormFileName}

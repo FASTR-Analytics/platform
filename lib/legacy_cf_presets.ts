@@ -99,32 +99,32 @@ function divergingSevenBucket(
 export const LEGACY_CF_PRESETS: Record<LegacyCfPresetId, LegacyCfPreset> = {
   "fmt-80-70": {
     id: "fmt-80-70",
-    label: { en: "80% / 70% cutoffs", fr: "Seuils 80 % / 70 %" },
+    label: { en: "80% / 70% cutoffs", fr: "Seuils 80 % / 70 %", pt: "Limiares 80% / 70%" },
     value: threeTier(0.8, 0.7),
   },
   "fmt-90-80": {
     id: "fmt-90-80",
-    label: { en: "90% / 80% cutoffs", fr: "Seuils 90 % / 80 %" },
+    label: { en: "90% / 80% cutoffs", fr: "Seuils 90 % / 80 %", pt: "Limiares 90% / 80%" },
     value: threeTier(0.9, 0.8),
   },
   "fmt-10-20": {
     id: "fmt-10-20",
-    label: { en: "10% / 20% cutoffs (reverse)", fr: "Seuils 10 % / 20 % (inverse)" },
+    label: { en: "10% / 20% cutoffs (reverse)", fr: "Seuils 10 % / 20 % (inverse)", pt: "Limiares 10% / 20% (inverso)" },
     value: reverseThreeTier(0.1, 0.2),
   },
   "fmt-05-10": {
     id: "fmt-05-10",
-    label: { en: "5% / 10% cutoffs (reverse)", fr: "Seuils 5 % / 10 % (inverse)" },
+    label: { en: "5% / 10% cutoffs (reverse)", fr: "Seuils 5 % / 10 % (inverse)", pt: "Limiares 5% / 10% (inverso)" },
     value: reverseThreeTier(0.05, 0.1),
   },
   "fmt-01-03": {
     id: "fmt-01-03",
-    label: { en: "1% / 3% cutoffs (reverse)", fr: "Seuils 1 % / 3 % (inverse)" },
+    label: { en: "1% / 3% cutoffs (reverse)", fr: "Seuils 1 % / 3 % (inverse)", pt: "Limiares 1% / 3% (inverso)" },
     value: reverseThreeTier(0.01, 0.03),
   },
   "fmt-neg10-pos10": {
     id: "fmt-neg10-pos10",
-    label: { en: "±10% deviation", fr: "Écart de ±10 %" },
+    label: { en: "±10% deviation", fr: "Écart de ±10 %", pt: "Desvio de ±10%" },
     value: {
       type: "thresholds",
       cutoffs: [-0.1, 0.1],
@@ -138,17 +138,17 @@ export const LEGACY_CF_PRESETS: Record<LegacyCfPresetId, LegacyCfPreset> = {
   },
   "fmt-thresholds-1-2-5": {
     id: "fmt-thresholds-1-2-5",
-    label: { en: "Diverging ±1% / ±2% / ±5%", fr: "Divergent ±1 % / ±2 % / ±5 %" },
+    label: { en: "Diverging ±1% / ±2% / ±5%", fr: "Divergent ±1 % / ±2 % / ±5 %", pt: "Divergente ±1% / ±2% / ±5%" },
     value: divergingSevenBucket(0.01, 0.02, 0.05),
   },
   "fmt-thresholds-2-5-10": {
     id: "fmt-thresholds-2-5-10",
-    label: { en: "Diverging ±2% / ±5% / ±10%", fr: "Divergent ±2 % / ±5 % / ±10 %" },
+    label: { en: "Diverging ±2% / ±5% / ±10%", fr: "Divergent ±2 % / ±5 % / ±10 %", pt: "Divergente ±2% / ±5% / ±10%" },
     value: divergingSevenBucket(0.02, 0.05, 0.1),
   },
   "fmt-thresholds-5-10-20": {
     id: "fmt-thresholds-5-10-20",
-    label: { en: "Diverging ±5% / ±10% / ±20%", fr: "Divergent ±5 % / ±10 % / ±20 %" },
+    label: { en: "Diverging ±5% / ±10% / ±20%", fr: "Divergent ±5 % / ±10 % / ±20 %", pt: "Divergente ±5% / ±10% / ±20%" },
     value: divergingSevenBucket(0.05, 0.1, 0.2),
   },
 };

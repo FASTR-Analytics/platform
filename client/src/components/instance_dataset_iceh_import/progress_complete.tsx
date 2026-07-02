@@ -18,6 +18,7 @@ export function ProgressComplete(p: Props) {
         {t3({
           en: `Import complete! ${p.status.nRowsIntegrated.toLocaleString()} rows integrated.`,
           fr: `Importation terminée ! ${p.status.nRowsIntegrated.toLocaleString()} lignes intégrées.`,
+          pt: `Importação concluída! ${p.status.nRowsIntegrated.toLocaleString()} linhas integradas.`,
         })}
       </div>
       <Show when={(p.status.nRowsSkippedUnknownStrat ?? 0) > 0}>
@@ -32,6 +33,7 @@ export function ProgressComplete(p: Props) {
         {t3({
           en: "You should now remove the upload form.",
           fr: "Vous devez maintenant supprimer le formulaire de téléversement.",
+          pt: "Deve agora remover o formulário de carregamento.",
         })}
       </div>
       <Button
@@ -43,6 +45,7 @@ export function ProgressComplete(p: Props) {
         {t3({
           en: "Remove completed upload form",
           fr: "Supprimer le formulaire de téléversement terminé",
+          pt: "Remover o formulário de carregamento concluído",
         })}
       </Button>
     </div>

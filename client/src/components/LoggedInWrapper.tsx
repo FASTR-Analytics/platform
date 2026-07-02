@@ -137,6 +137,7 @@ export function LoggedInWrapper(p: Props) {
                         {t3({
                           en: "Not yet approved for this instance",
                           fr: "Pas encore approuvé pour cette instance",
+                          pt: "Ainda não aprovado para esta instância",
                         })}
                       </div>
                     }
@@ -208,6 +209,7 @@ function ClerkNewLogin() {
                   {t3({
                     en: "Analytics platform",
                     fr: "Plateforme analytique",
+                    pt: "Plataforma de análise",
                   })}
                 </div>
               </div>
@@ -217,6 +219,7 @@ function ClerkNewLogin() {
             {t3({
               en: "Powered by FASTR",
               fr: "Propulsé par FASTR",
+              pt: "Desenvolvido com FASTR",
             })}
           </div>
         </div>
@@ -234,6 +237,7 @@ function ClerkNewLogin() {
                   {t3({
                     en: "Analytics platform",
                     fr: "Plateforme analytique",
+                    pt: "Plataforma de análise",
                   })}
                 </div>
               </div>

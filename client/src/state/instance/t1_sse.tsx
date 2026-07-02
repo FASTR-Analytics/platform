@@ -159,7 +159,7 @@ export function InstanceSSEBoundary(props: { children: JSX.Element }) {
         <Show
           when={connectionFailed()}
           fallback={
-            <div class="ui-pad">{t3({ en: "Loading...", fr: "Chargement..." })}</div>
+            <div class="ui-pad">{t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}</div>
           }
         >
           <div class="flex h-full w-full items-center justify-center">
@@ -167,6 +167,7 @@ export function InstanceSSEBoundary(props: { children: JSX.Element }) {
               {t3({
                 en: "Failed to connect to server. Please refresh the page.",
                 fr: "Échec de la connexion au serveur. Veuillez actualiser la page.",
+                pt: "Falha na ligação ao servidor. Atualize a página, por favor.",
               })}
             </div>
           </div>

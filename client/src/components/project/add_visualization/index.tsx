@@ -73,9 +73,9 @@ export function AddVisualization(
   });
 
   const stepLabels = [
-    t3({ en: "Metric", fr: "Métrique" }),
-    t3({ en: "Presets", fr: "Préréglages" }),
-    t3({ en: "Configure", fr: "Configurer" }),
+    t3({ en: "Metric", fr: "Métrique", pt: "Métrica" }),
+    t3({ en: "Presets", fr: "Préréglages", pt: "Predefinições" }),
+    t3({ en: "Configure", fr: "Configurer", pt: "Configurar" }),
   ];
 
   const handleMetricSelect = (metricId: string) => {
@@ -108,7 +108,7 @@ export function AddVisualization(
     async () => {
       const metric = selectedMetric();
       if (!metric) {
-        return { success: false, err: t3({ en: "You must select a metric", fr: "Vous devez sélectionner une métrique" }) };
+        return { success: false, err: t3({ en: "You must select a metric", fr: "Vous devez sélectionner une métrique", pt: "Tem de selecionar uma métrica" }) };
       }
 
       const presetId = selectedPresetId();
@@ -143,7 +143,7 @@ export function AddVisualization(
 
       const type = selectedType();
       if (!type) {
-        return { success: false, err: t3({ en: "You must select a visualization type", fr: "Vous devez sélectionner un type de visualisation" }) };
+        return { success: false, err: t3({ en: "You must select a visualization type", fr: "Vous devez sélectionner un type de visualisation", pt: "Tem de selecionar um tipo de visualização" }) };
       }
 
       const disaggregations = metric.disaggregationOptions
@@ -200,7 +200,7 @@ export function AddVisualization(
       topPanel={
         <div class="flex items-center justify-between">
           <div class="font-700 text-lg">
-            {t3({ en: "Create visualization", fr: "Créer une visualisation" })}
+            {t3({ en: "Create visualization", fr: "Créer une visualisation", pt: "Criar visualização" })}
           </div>
           <StepperChipsWithTitles
             stepper={stepper}
@@ -212,20 +212,20 @@ export function AddVisualization(
       leftButtons={
         <Show when={stepper.currentStep() > 0}>
           <Button onClick={stepper.goPrev} outline>
-            {t3({ en: "Back", fr: "Retour" })}
+            {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
           </Button>
         </Show>
       }
       rightButtons={
         <>
           <Button onClick={() => p.close(undefined)} outline>
-            {t3({ en: "Cancel", fr: "Annuler" })}
+            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
           </Button>
           <Show
             when={isLastStep()}
             fallback={
               <Button onClick={handleNext} disabled={!stepper.canGoNext()}>
-                {t3({ en: "Next", fr: "Suivant" })}
+                {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
               </Button>
             }
           >
@@ -234,7 +234,7 @@ export function AddVisualization(
               disabled={!stepper.canGoNext()}
               loading={save.state().status === "loading"}
             >
-              {t3({ en: "Create", fr: "Créer" })}
+              {t3({ en: "Create", fr: "Créer", pt: "Criar" })}
             </Button>
           </Show>
         </>

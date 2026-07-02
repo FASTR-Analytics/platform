@@ -8,7 +8,7 @@ export function ProgressIntegrating(p: Props) {
   return (
     <div class="ui-pad">
       <h3 class="font-700 text-lg mb-4">
-        {t3({ en: "Integrating Data", fr: "Intégration des données" })}
+        {t3({ en: "Integrating Data", fr: "Intégration des données", pt: "Integração dos dados" })}
       </h3>
 
       <div class="mb-4">
@@ -25,6 +25,7 @@ export function ProgressIntegrating(p: Props) {
         {t3({
           en: "Writing data to database... Please wait.",
           fr: "Écriture des données dans la base... Veuillez patienter.",
+          pt: "A escrever os dados na base de dados... Aguarde, por favor.",
         })}
       </p>
     </div>

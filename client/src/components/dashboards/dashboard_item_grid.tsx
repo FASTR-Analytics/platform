@@ -64,6 +64,7 @@ export function DashboardItemGrid(p: Props) {
       {t3({
         en: "No items yet. Click 'Add item' to start.",
         fr: "Aucun élément. Cliquez sur « Ajouter un élément ».",
+        pt: "Ainda não há elementos. Clique em 'Adicionar elemento' para começar.",
       })}
     </div>
   );
@@ -156,7 +157,7 @@ function EntryCard(props: { entry: DashboardGridEntry; p: Props }) {
           <Show when={isGroup()}>
             <div class="bg-primary text-primary-content absolute top-2 left-2 z-10 rounded px-1 py-0.5 text-xs font-medium">
               {entry().count}{" "}
-              {t3({ en: "replicants", fr: "réplicants" })}
+              {t3({ en: "replicants", fr: "réplicants", pt: "replicantes" })}
             </div>
           </Show>
           <Show when={figureInputs()}>

@@ -166,9 +166,9 @@ export function ProjectSSEBoundary(props: ProjectSSEBoundaryProps) {
       when={connectionAttempts() <= MAX_CONNECTION_ATTEMPTS}
       fallback={
         <div class="ui-pad ui-spy-sm">
-          <div>{t3({ en: "Cannot connect to project.", fr: "Impossible de se connecter au projet." })}</div>
+          <div>{t3({ en: "Cannot connect to project.", fr: "Impossible de se connecter au projet.", pt: "Não é possível ligar ao projeto." })}</div>
           <div>
-            <Button href="/">{t3({ en: "Go home", fr: "Retour à l'accueil" })}</Button>
+            <Button href="/">{t3({ en: "Go home", fr: "Retour à l'accueil", pt: "Voltar ao início" })}</Button>
           </div>
         </div>
       }
@@ -177,7 +177,7 @@ export function ProjectSSEBoundary(props: ProjectSSEBoundaryProps) {
         when={projectState.isReady}
         fallback={
           <div class="ui-pad">
-            {t3({ en: "Connecting to project", fr: "Connexion au projet" })}
+            {t3({ en: "Connecting to project", fr: "Connexion au projet", pt: "A ligar ao projeto" })}
             {connectionAttempts() > 1
               ? ` (${t3({ en: "retrying", fr: "réessayer" })} ${connectionAttempts() - 1})`
               : ""}

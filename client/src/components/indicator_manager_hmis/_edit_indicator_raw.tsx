@@ -64,7 +64,7 @@ export function EditIndicatorRawForm(
       const label = indicatorLabel().trim();
 
       if (mode === "create" && !rawId) {
-        return { success: false, err: t3({ en: "Indicator Raw ID is required", fr: "L'identifiant brut de l'indicateur est requis" }) };
+        return { success: false, err: t3({ en: "Indicator Raw ID is required", fr: "L'identifiant brut de l'indicateur est requis", pt: "O ID bruto do indicador é obrigatório" }) };
       }
 
       if (mode === "create" && getNewIndicatorIdIssue(rawId)) {
@@ -73,12 +73,13 @@ export function EditIndicatorRawForm(
           err: t3({
             en: "Indicator ID must not contain commas, semicolons, or colons, and must be at most 128 characters",
             fr: "L'identifiant de l'indicateur ne doit pas contenir de virgules, de points-virgules ou de deux-points, et doit comporter au maximum 128 caractères",
+            pt: "O ID do indicador não pode conter vírgulas, pontos e vírgulas ou dois pontos, e deve ter no máximo 128 caracteres",
           }),
         };
       }
 
       if (!label) {
-        return { success: false, err: t3({ en: "Indicator label is required", fr: "Le libellé de l'indicateur est requis" }) };
+        return { success: false, err: t3({ en: "Indicator label is required", fr: "Le libellé de l'indicateur est requis", pt: "A etiqueta do indicador é obrigatória" }) };
       }
 
       const filteredMappedCommonIds = getUnique(
@@ -112,15 +113,15 @@ export function EditIndicatorRawForm(
       formId="indicator-form"
       header={
         mode === "create"
-          ? t3({ en: "Add DHIS2 Indicator", fr: "Ajouter un indicateur DHIS2" })
-          : t3({ en: "Update DHIS2 Indicator", fr: "Mettre à jour l'indicateur DHIS2" })
+          ? t3({ en: "Add DHIS2 Indicator", fr: "Ajouter un indicateur DHIS2", pt: "Adicionar indicador DHIS2" })
+          : t3({ en: "Update DHIS2 Indicator", fr: "Mettre à jour l'indicateur DHIS2", pt: "Atualizar indicador DHIS2" })
       }
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
     >
       <Input
-        label={t3({ en: "DHIS2 Indicator ID (JSON ID)", fr: "ID de l'indicateur DHIS2 (ID JSON)" })}
+        label={t3({ en: "DHIS2 Indicator ID (JSON ID)", fr: "ID de l'indicateur DHIS2 (ID JSON)", pt: "ID do indicador DHIS2 (ID JSON)" })}
         value={indicatorRawId()}
         onChange={setIndicatorRawId}
         fullWidth
@@ -136,7 +137,7 @@ export function EditIndicatorRawForm(
       />
       <div class="ui-spy-sm">
         <div class="font-700 text-base-content text-sm">
-          {t3({ en: "Mapped Common Indicators", fr: "Indicateurs communs associés" })}
+          {t3({ en: "Mapped Common Indicators", fr: "Indicateurs communs associés", pt: "Indicadores comuns associados" })}
         </div>
         <For each={mappedCommonIds()}>
           {(commonId, index) => (
@@ -145,7 +146,7 @@ export function EditIndicatorRawForm(
                 value={commonId}
                 onChange={(value) => updateMappedCommonId(index(), value)}
                 options={[
-                  { value: "", label: t3({ en: "Select common indicator...", fr: "Sélectionner un indicateur commun..." }) },
+                  { value: "", label: t3({ en: "Select common indicator...", fr: "Sélectionner un indicateur commun...", pt: "Selecionar um indicador comum..." }) },
                   ...p.commonIndicators.map((common) => ({
                     value: common.indicator_common_id,
                     label: `${common.indicator_common_id} ~ ${getTruncatedString(common.indicator_common_label, 30)}`,

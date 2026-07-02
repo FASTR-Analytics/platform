@@ -9,6 +9,7 @@ export function unavailableItemMarkdown(): string {
   return t3({
     en: "_This item could not be displayed._",
     fr: "_Cet élément n'a pas pu être affiché._",
+    pt: "_Não foi possível apresentar este elemento._",
   });
 }
 

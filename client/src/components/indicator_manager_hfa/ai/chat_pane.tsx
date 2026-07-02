@@ -32,10 +32,11 @@ export function HfaIndicatorChatPane(p: Props) {
 
   const handleDeleteConversation = async () => {
     const confirmed = await openConfirm({
-      title: t3({ en: "Delete conversation", fr: "Supprimer la conversation" }),
+      title: t3({ en: "Delete conversation", fr: "Supprimer la conversation", pt: "Eliminar conversa" }),
       text: t3({
         en: "Are you sure you want to delete this conversation? This action cannot be undone.",
         fr: "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.",
+        pt: "Tem a certeza de que pretende eliminar esta conversa? Esta ação não pode ser anulada.",
       }),
       intent: "danger",
       confirmButtonLabel: t3(TC.delete),
@@ -47,20 +48,20 @@ export function HfaIndicatorChatPane(p: Props) {
 
   const menuItems = (): MenuItem[] => [
     {
-      label: t3({ en: "New conversation", fr: "Nouvelle conversation" }),
+      label: t3({ en: "New conversation", fr: "Nouvelle conversation", pt: "Nova conversa" }),
       icon: "plus",
       onClick: () => conversations.createConversation(),
       disabled: isLoading(),
     },
     {
-      label: t3({ en: "Switch conversation", fr: "Changer de conversation" }),
+      label: t3({ en: "Switch conversation", fr: "Changer de conversation", pt: "Mudar de conversa" }),
       icon: "versions",
       onClick: openConversationSelector,
       disabled: isLoading(),
     },
     { type: "divider" },
     {
-      label: t3({ en: "View system prompt", fr: "Voir le prompt système" }),
+      label: t3({ en: "View system prompt", fr: "Voir le prompt système", pt: "Ver o prompt do sistema" }),
       icon: "code",
       onClick: () =>
         openComponent<AIChatSystemPromptPanelProps, void>({
@@ -70,7 +71,7 @@ export function HfaIndicatorChatPane(p: Props) {
     },
     { type: "divider" },
     {
-      label: t3({ en: "Delete conversation", fr: "Supprimer la conversation" }),
+      label: t3({ en: "Delete conversation", fr: "Supprimer la conversation", pt: "Eliminar conversa" }),
       icon: "trash",
       intent: "danger",
       onClick: handleDeleteConversation,
@@ -83,7 +84,7 @@ export function HfaIndicatorChatPane(p: Props) {
       <div class="ui-pad ui-gap border-base-content bg-primary flex items-center justify-between border-b text-white">
         <h3 class="flex items-baseline gap-2 truncate text-base">
           <span class="font-700">
-            {t3({ en: "Indicator AI", fr: "IA Indicateurs" })}
+            {t3({ en: "Indicator AI", fr: "IA Indicateurs", pt: "IA de Indicadores" })}
           </span>
         </h3>
         <div class="ui-gap-sm flex items-center">
@@ -105,6 +106,7 @@ export function HfaIndicatorChatPane(p: Props) {
           placeholder={t3({
             en: "Ask me to clean up labels or organise indicators...",
             fr: "Demandez-moi d'améliorer les libellés ou d'organiser les indicateurs...",
+            pt: "Peça-me para melhorar as etiquetas ou organizar os indicadores...",
           })}
         />
       </div>

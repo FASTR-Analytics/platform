@@ -26,8 +26,8 @@ type Props = {
 
 function familyLabel(family: FacilityFamily) {
   return family === "hmis"
-    ? t3({ en: "HMIS facilities", fr: "Établissements SNIS" })
-    : t3({ en: "HFA facilities", fr: "Établissements Enquêtes FOSA" });
+    ? t3({ en: "HMIS facilities", fr: "Établissements SNIS", pt: "Estabelecimentos SNIS" })
+    : t3({ en: "HFA facilities", fr: "Établissements Enquêtes FOSA", pt: "Estabelecimentos FOSA" });
 }
 
 export function Facilities(p: Props) {
@@ -85,10 +85,12 @@ export function Facilities(p: Props) {
         ? t3({
             en: "Are you sure you want to delete all HMIS facilities?",
             fr: "Êtes-vous sûr de vouloir supprimer tous les établissements SNIS ?",
+            pt: "Tem a certeza de que pretende eliminar todos os estabelecimentos SNIS?",
           })
         : t3({
             en: "Are you sure you want to delete all HFA facilities?",
             fr: "Êtes-vous sûr de vouloir supprimer tous les établissements Enquêtes FOSA ?",
+            pt: "Tem a certeza de que pretende eliminar todos os estabelecimentos FOSA?",
           }),
       () => serverActions.deleteFamilyFacilities({ family: p.family }),
       fetchUploadAttempt,
@@ -127,13 +129,13 @@ export function Facilities(p: Props) {
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
                 <div class="font-700 text-lg">
-                  {t3({ en: "Imports", fr: "Importations" })}
+                  {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
                 <Switch>
                   {/* Fetched per family, so any returned attempt is this family's. */}
                   <Match when={uploadAttempt()}>
                     <Button onClick={openUploadAttempt} iconName="upload" fullWidth>
-                      {t3({ en: "Resume importing", fr: "Reprendre l'importation" })}
+                      {t3({ en: "Resume importing", fr: "Reprendre l'importation", pt: "Retomar a importação" })}
                     </Button>
                   </Match>
                   <Match when={true}>
@@ -143,7 +145,7 @@ export function Facilities(p: Props) {
                       iconName="upload"
                       fullWidth
                     >
-                      {t3({ en: "Import facilities", fr: "Importer des établissements" })}
+                      {t3({ en: "Import facilities", fr: "Importer des établissements", pt: "Importar estabelecimentos" })}
                     </Button>
                   </Match>
                 </Switch>
@@ -155,7 +157,7 @@ export function Facilities(p: Props) {
                     iconName="trash"
                     fullWidth
                   >
-                    {t3({ en: "Delete facilities", fr: "Supprimer les établissements" })}
+                    {t3({ en: "Delete facilities", fr: "Supprimer les établissements", pt: "Eliminar estabelecimentos" })}
                   </Button>
                 </Show>
               </div>
@@ -167,7 +169,7 @@ export function Facilities(p: Props) {
               when={facilityCount() > 0}
               fallback={
                 <div class="ui-pad">
-                  {t3({ en: "No facilities imported", fr: "Aucun établissement importé" })}
+                  {t3({ en: "No facilities imported", fr: "Aucun établissement importé", pt: "Nenhum estabelecimento importado" })}
                 </div>
               }
             >

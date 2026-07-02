@@ -39,6 +39,7 @@ export function ReshapeConfirmModal(p: AlertComponentProps<Props, ReturnType>) {
       header={t3({
         en: "Update dashboard item",
         fr: "Mettre à jour l'élément",
+        pt: "Atualizar elemento do painel",
       })}
       savingState={save.state()}
       saveFunc={save.click}

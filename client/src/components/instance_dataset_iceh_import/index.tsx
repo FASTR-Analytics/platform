@@ -30,9 +30,9 @@ export function DatasetIcehUploadAttemptForm(p: Props) {
   > = {
     heading: () => (
       <>
-        {t3({ en: "IMPORT IN PROGRESS", fr: "IMPORTATION EN COURS" })}
+        {t3({ en: "IMPORT IN PROGRESS", fr: "IMPORTATION EN COURS", pt: "IMPORTAÇÃO EM CURSO" })}
         <span class="font-400 ml-4">
-          {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH" })}
+          {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH", pt: "Dados de equidade ICEH" })}
         </span>
       </>
     ),
@@ -40,11 +40,13 @@ export function DatasetIcehUploadAttemptForm(p: Props) {
       t3({
         en: "Loading import info...",
         fr: "Chargement des informations d'importation...",
+        pt: "A carregar as informações de importação...",
       }),
     confirmDeleteLabel: () =>
       t3({
         en: "Are you sure you want to delete this import?",
         fr: "Êtes-vous sûr de vouloir supprimer cette importation ?",
+        pt: "Tem a certeza de que pretende eliminar esta importação?",
       }),
     // ICEH attempts start at server step 1 — there is no step 0. A lower
     // minStep renders a phantom step-0 circle and enables Back into a step
@@ -68,7 +70,7 @@ export function DatasetIcehUploadAttemptForm(p: Props) {
         match: (ua) => ua.status.status === "error",
         render: (ua) => (
           <div class="ui-pad text-danger">
-            {t3({ en: "ERROR!", fr: "ERREUR !" })} {JSON.stringify(ua.status)}
+            {t3({ en: "ERROR!", fr: "ERREUR !", pt: "ERRO!" })} {JSON.stringify(ua.status)}
             ...
           </div>
         ),

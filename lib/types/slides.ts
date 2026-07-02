@@ -176,22 +176,22 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
 export function getDefaultCoverSlide(): CoverSlide {
   return {
     type: "cover",
-    title: t3({ en: "Title", fr: "Titre" }),
-    subtitle: t3({ en: "Subtitle", fr: "Sous-titre" }),
+    title: t3({ en: "Title", fr: "Titre", pt: "Título" }),
+    subtitle: t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
   };
 }
 
 export function getDefaultSectionSlide(): SectionSlide {
   return {
     type: "section",
-    sectionTitle: t3({ en: "Section", fr: "Section" }),
+    sectionTitle: t3({ en: "Section", fr: "Section", pt: "Secção" }),
   };
 }
 
 export function getDefaultContentSlide(): ContentSlide {
   return {
     type: "content",
-    header: t3({ en: "New slide", fr: "Nouvelle diapositive" }),
+    header: t3({ en: "New slide", fr: "Nouvelle diapositive", pt: "Novo diapositivo" }),
     layout: {
       type: "item",
       id: "a1a",

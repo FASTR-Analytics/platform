@@ -35,7 +35,7 @@ export function LogoSelector(p: Props) {
       <Show when={p.values.length > 1}>
         <div class="pt-2">
           <div class="text-neutral mb-1 text-xs">
-            {t3({ en: "Order", fr: "Ordre" })}
+            {t3({ en: "Order", fr: "Ordre", pt: "Ordem" })}
           </div>
           <SortableList
             items={p.values.map((v) => ({ id: v }))}

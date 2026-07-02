@@ -123,6 +123,7 @@ function DashboardViewer(p: DashboardViewerProps) {
                 {t3({
                   en: "About this dashboard",
                   fr: "À propos de ce tableau de bord",
+                  pt: "Acerca deste painel",
                 })}
               </Button>
             </Show>
@@ -136,7 +137,7 @@ function DashboardViewer(p: DashboardViewerProps) {
                 iconName="download"
                 outline
               >
-                {t3({ en: "Download", fr: "Télécharger" })}
+                {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
               </Button>
             </Show>
             <Show when={hasLogos() && logoPlacement() === "right"}>
@@ -228,6 +229,7 @@ function SidebarLayout(p: SidebarLayoutProps) {
               {t3({
                 en: "No items in this dashboard",
                 fr: "Aucun élément dans ce tableau de bord",
+                pt: "Nenhum elemento neste painel",
               })}
             </div>
           }
@@ -362,7 +364,7 @@ function TileHeader(p: {
         intent="neutral"
         outline
         size="sm"
-        ariaLabel={t3({ en: "Download", fr: "Télécharger" })}
+        ariaLabel={t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
       />
     </div>
   );

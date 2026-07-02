@@ -201,8 +201,8 @@ export type CompareProjectsData = {
 
 export function get_PERIOD_OPTION_MAP(): Record<PeriodOption, string> {
   return {
-    period_id: t3({ en: "Monthly", fr: "Mensuel" }),
-    quarter_id: t3({ en: "Quarterly", fr: "Trimestriel" }),
-    year: t3({ en: "Yearly", fr: "Annuellement" }),
+    period_id: t3({ en: "Monthly", fr: "Mensuel", pt: "Mensal" }),
+    quarter_id: t3({ en: "Quarterly", fr: "Trimestriel", pt: "Trimestral" }),
+    year: t3({ en: "Yearly", fr: "Annuellement", pt: "Anual" }),
   };
 }

@@ -8,7 +8,7 @@ export function ProgressIntegrating(p: {
   return (
     <div class="ui-pad ui-spy">
       <div class="">
-        {t3({ en: "Integrating data...", fr: "Intégration des données..." })} {to100Pct0(p.status.progress)}
+        {t3({ en: "Integrating data...", fr: "Intégration des données...", pt: "A integrar os dados..." })} {to100Pct0(p.status.progress)}
       </div>
       <ProgressBar progressFrom0To100={p.status.progress} />
     </div>

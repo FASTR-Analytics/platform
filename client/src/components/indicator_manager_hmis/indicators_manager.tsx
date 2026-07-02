@@ -55,6 +55,7 @@ export function IndicatorsManager(p: Props) {
     msg: t3({
       en: "Loading indicators...",
       fr: "Chargement des indicateurs...",
+      pt: "A carregar os indicadores...",
     }),
   });
 
@@ -65,6 +66,7 @@ export function IndicatorsManager(p: Props) {
     msg: t3({
       en: "Loading calculated indicators...",
       fr: "Chargement des indicateurs calculés...",
+      pt: "A carregar os indicadores calculados...",
     }),
   });
 
@@ -72,15 +74,15 @@ export function IndicatorsManager(p: Props) {
   const tabItems: ListItem<"common" | "raw" | "calculated">[] = [
     {
       id: "common",
-      label: t3({ en: "Common Indicators", fr: "Indicateurs communs" }),
+      label: t3({ en: "Common Indicators", fr: "Indicateurs communs", pt: "Indicadores comuns" }),
     },
     {
       id: "raw",
-      label: t3({ en: "Raw DHIS2 Indicators", fr: "Indicateurs DHIS2" }),
+      label: t3({ en: "Raw DHIS2 Indicators", fr: "Indicateurs DHIS2", pt: "Indicadores DHIS2" }),
     },
     {
       id: "calculated",
-      label: t3({ en: "Calculated indicators", fr: "Indicateurs calculés" }),
+      label: t3({ en: "Calculated indicators", fr: "Indicateurs calculés", pt: "Indicadores calculados" }),
     },
   ];
 
@@ -206,7 +208,7 @@ export function IndicatorsManager(p: Props) {
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={p.backToInstance} />
             <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "HMIS INDICATORS", fr: "INDICATEURS" })}
+              {t3({ en: "HMIS INDICATORS", fr: "INDICATEURS", pt: "INDICADORES" })}
             </div>
             <div class="ui-gap-sm flex items-center">
               <Show when={instanceState.currentUserIsGlobalAdmin}>
@@ -214,6 +216,7 @@ export function IndicatorsManager(p: Props) {
                   {t3({
                     en: "Batch import from CSV",
                     fr: "Importation groupée depuis CSV",
+                    pt: "Importação em lote a partir de CSV",
                   })}
                 </Button>
               </Show>
@@ -320,6 +323,7 @@ function CommonIndicatorsTable(p: {
         text: t3({
           en: "Are you sure you want to delete this indicator?",
           fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+          pt: "Tem a certeza de que pretende eliminar este indicador?",
         }),
         itemList: [indicator.indicator_common_id],
       },
@@ -350,10 +354,12 @@ function CommonIndicatorsTable(p: {
             ? t3({
                 en: "Are you sure you want to delete this indicator?",
                 fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+                pt: "Tem a certeza de que pretende eliminar este indicador?",
               })
             : t3({
                 en: "Are you sure you want to delete these indicators?",
                 fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
+                pt: "Tem a certeza de que pretende eliminar estes indicadores?",
               }),
         itemList: indicatorLabels,
       },
@@ -372,6 +378,7 @@ function CommonIndicatorsTable(p: {
       header: t3({
         en: "Common Indicator ID",
         fr: "ID de l'indicateur commun",
+        pt: "ID do indicador comum",
       }),
       sortable: true,
       render: (indicator) => (
@@ -385,7 +392,7 @@ function CommonIndicatorsTable(p: {
     },
     {
       key: "is_default",
-      header: t3({ en: "Default", fr: "Par défaut" }),
+      header: t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" }),
       sortable: true,
       render: (indicator) => (
         <span class="">{indicator.is_default ? "✓" : ""}</span>
@@ -393,7 +400,7 @@ function CommonIndicatorsTable(p: {
     },
     {
       key: "raw_indicator_ids",
-      header: t3({ en: "Mapped To", fr: "Associé à" }),
+      header: t3({ en: "Mapped To", fr: "Associé à", pt: "Associado a" }),
       sortable: true,
       render: (indicator) => (
         <div class="font-mono">{indicator.raw_indicator_ids.join(", ")}</div>
@@ -445,7 +452,7 @@ function CommonIndicatorsTable(p: {
     <div class="flex h-full flex-col">
       <div class="ui-gap-sm flex items-center pb-4">
         <div class="font-700 flex-1 text-xl">
-          {t3({ en: "Common Indicators", fr: "Indicateurs communs" })}
+          {t3({ en: "Common Indicators", fr: "Indicateurs communs", pt: "Indicadores comuns" })}
         </div>
         <Show when={instanceState.currentUserIsGlobalAdmin}>
           <Button
@@ -453,7 +460,7 @@ function CommonIndicatorsTable(p: {
             iconName="download"
             intent="neutral"
           >
-            {t3({ en: "Download CSV", fr: "Télécharger le CSV" })}
+            {t3({ en: "Download CSV", fr: "Télécharger le CSV", pt: "Transferir o CSV" })}
           </Button>
           <Button
             onClick={handleCreateIndicator}
@@ -463,6 +470,7 @@ function CommonIndicatorsTable(p: {
             {t3({
               en: "Create Common Indicator",
               fr: "Créer un indicateur commun",
+              pt: "Criar indicador comum",
             })}
           </Button>
         </Show>
@@ -475,9 +483,10 @@ function CommonIndicatorsTable(p: {
           noRowsMessage={t3({
             en: "No common indicators",
             fr: "Aucun indicateur commun",
+            pt: "Nenhum indicador comum",
           })}
           bulkActions={bulkActions}
-          selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
+          selectionLabel={t3({ en: "indicator", fr: "indicateur", pt: "indicador" })}
           fitTableToAvailableHeight
         />
       </div>
@@ -529,6 +538,7 @@ function RawIndicatorsTable(p: {
         text: t3({
           en: "Are you sure you want to delete this indicator?",
           fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+          pt: "Tem a certeza de que pretende eliminar este indicador?",
         }),
         itemList: [indicator.raw_indicator_id],
       },
@@ -559,10 +569,12 @@ function RawIndicatorsTable(p: {
             ? t3({
                 en: "Are you sure you want to delete this indicator?",
                 fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+                pt: "Tem a certeza de que pretende eliminar este indicador?",
               })
             : t3({
                 en: "Are you sure you want to delete these indicators?",
                 fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
+                pt: "Tem a certeza de que pretende eliminar estes indicadores?",
               }),
         itemList: indicatorLabels,
       },
@@ -576,7 +588,7 @@ function RawIndicatorsTable(p: {
   const columns: TableColumn<RawIndicatorWithMappings>[] = [
     {
       key: "raw_indicator_id",
-      header: t3({ en: "DHIS2 Indicator ID", fr: "ID de l'indicateur DHIS2" }),
+      header: t3({ en: "DHIS2 Indicator ID", fr: "ID de l'indicateur DHIS2", pt: "ID do indicador DHIS2" }),
       sortable: true,
       render: (mapping) => (
         <span class="font-mono">{mapping.raw_indicator_id}</span>
@@ -589,7 +601,7 @@ function RawIndicatorsTable(p: {
     },
     {
       key: "indicator_common_ids",
-      header: t3({ en: "Mapped To", fr: "Associé à" }),
+      header: t3({ en: "Mapped To", fr: "Associé à", pt: "Associado a" }),
       sortable: true,
       render: (mapping) => (
         <span class="font-mono">{mapping.indicator_common_ids.join(", ")}</span>
@@ -646,6 +658,7 @@ function RawIndicatorsTable(p: {
           {t3({
             en: "DHIS2 Indicators (JSON IDs)",
             fr: "Indicateurs DHIS2 (ID JSON)",
+            pt: "Indicadores DHIS2 (ID JSON)",
           })}
         </div>
         <Show when={instanceState.currentUserIsGlobalAdmin}>
@@ -654,12 +667,13 @@ function RawIndicatorsTable(p: {
             iconName="download"
             intent="neutral"
           >
-            {t3({ en: "Download CSV", fr: "Télécharger le CSV" })}
+            {t3({ en: "Download CSV", fr: "Télécharger le CSV", pt: "Transferir o CSV" })}
           </Button>
           <Button iconName="import" onClick={p.handleDhis2IndicatorSelect}>
             {t3({
               en: "Import DHIS2 indicator",
               fr: "Importer un indicateur DHIS2",
+              pt: "Importar um indicador DHIS2",
             })}
           </Button>
           <Button
@@ -670,6 +684,7 @@ function RawIndicatorsTable(p: {
             {t3({
               en: "Create DHIS2 Indicator",
               fr: "Créer un indicateur DHIS2",
+              pt: "Criar indicador DHIS2",
             })}
           </Button>
         </Show>
@@ -682,9 +697,10 @@ function RawIndicatorsTable(p: {
           noRowsMessage={t3({
             en: "No DHIS2 indicators",
             fr: "Aucun indicateur DHIS2",
+            pt: "Nenhum indicador DHIS2",
           })}
           bulkActions={bulkActions}
-          selectionLabel={t3({ en: "indicator", fr: "indicateur" })}
+          selectionLabel={t3({ en: "indicator", fr: "indicateur", pt: "indicador" })}
           fitTableToAvailableHeight
         />
       </div>

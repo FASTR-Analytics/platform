@@ -263,31 +263,31 @@ function symmetricBucketLabels(
   for (let i = 0; i < n; i++) {
     if (i === middleIdx) {
       const mag = fmt(cutoffs[middleIdx]); // smallest positive cutoff
-      out.push(t3({ en: `Within ${mag}`, fr: `À ${mag} près` }));
+      out.push(t3({ en: `Within ${mag}`, fr: `À ${mag} près`, pt: `Dentro de ${mag}` }));
     } else if (i < middleIdx) {
       if (i === 0) {
         const mag = fmt(-cutoffs[0]);
         out.push(
-          t3({ en: `More than ${mag} below`, fr: `Plus de ${mag} en dessous` }),
+          t3({ en: `More than ${mag} below`, fr: `Plus de ${mag} en dessous`, pt: `Mais de ${mag} abaixo` }),
         );
       } else {
         const lo = fmt(-cutoffs[i]);
         const hi = fmt(-cutoffs[i - 1]);
         out.push(
-          t3({ en: `${lo} – ${hi} below`, fr: `${lo} – ${hi} en dessous` }),
+          t3({ en: `${lo} – ${hi} below`, fr: `${lo} – ${hi} en dessous`, pt: `${lo} – ${hi} abaixo` }),
         );
       }
     } else {
       if (i === n - 1) {
         const mag = fmt(cutoffs[cutoffs.length - 1]);
         out.push(
-          t3({ en: `More than ${mag} above`, fr: `Plus de ${mag} au-dessus` }),
+          t3({ en: `More than ${mag} above`, fr: `Plus de ${mag} au-dessus`, pt: `Mais de ${mag} acima` }),
         );
       } else {
         const lo = fmt(cutoffs[i - 1]);
         const hi = fmt(cutoffs[i]);
         out.push(
-          t3({ en: `${lo} – ${hi} above`, fr: `${lo} – ${hi} au-dessus` }),
+          t3({ en: `${lo} – ${hi} above`, fr: `${lo} – ${hi} au-dessus`, pt: `${lo} – ${hi} acima` }),
         );
       }
     }

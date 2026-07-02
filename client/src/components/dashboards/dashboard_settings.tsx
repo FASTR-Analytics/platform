@@ -70,7 +70,7 @@ export function DashboardSettings(p: Props) {
       if (!title().trim()) {
         return {
           success: false as const,
-          err: t3({ en: "Title is required", fr: "Le titre est requis" }),
+          err: t3({ en: "Title is required", fr: "Le titre est requis", pt: "O título é obrigatório" }),
         };
       }
       if (!isValidDashboardSlug(slug())) {
@@ -79,6 +79,7 @@ export function DashboardSettings(p: Props) {
           err: t3({
             en: `Slug must be ${DASHBOARD_SLUG_MIN_LENGTH}-${DASHBOARD_SLUG_MAX_LENGTH} lowercase letters/numbers/hyphens`,
             fr: `Le slug doit comporter ${DASHBOARD_SLUG_MIN_LENGTH} à ${DASHBOARD_SLUG_MAX_LENGTH} caractères (lettres minuscules, chiffres ou traits d'union)`,
+            pt: `O slug deve ter ${DASHBOARD_SLUG_MIN_LENGTH} a ${DASHBOARD_SLUG_MAX_LENGTH} caracteres (letras minúsculas, números ou hífenes)`,
           }),
         };
       }
@@ -88,13 +89,14 @@ export function DashboardSettings(p: Props) {
           text: t3({
             en: "Require authentication for this dashboard? The public URL will stop working.",
             fr: "Exiger l'authentification pour ce tableau de bord ? L'URL publique cessera de fonctionner.",
+            pt: "Exigir autenticação para este painel? O URL público deixará de funcionar.",
           }),
           intent: "warning",
         });
         if (!confirmed) {
           return {
             success: false as const,
-            err: t3({ en: "Cancelled", fr: "Annulé" }),
+            err: t3({ en: "Cancelled", fr: "Annulé", pt: "Cancelado" }),
           };
         }
       }
@@ -129,6 +131,7 @@ export function DashboardSettings(p: Props) {
           heading={t3({
             en: "Dashboard settings",
             fr: "Paramètres du tableau de bord",
+            pt: "Definições do painel",
           })}
         >
           <div class="ui-gap-sm flex">
@@ -153,16 +156,16 @@ export function DashboardSettings(p: Props) {
       }
     >
       <div class="ui-pad ui-gap grid overflow-auto lg:grid-cols-2 lg:items-start">
-        <SettingsSection header={t3({ en: "General", fr: "Général" })}>
+        <SettingsSection header={t3({ en: "General", fr: "Général", pt: "Geral" })}>
           <div class="ui-spy">
             <Input
-              label={t3({ en: "Title", fr: "Titre" })}
+              label={t3({ en: "Title", fr: "Titre", pt: "Título" })}
               value={title()}
               onChange={setTitle}
               fullWidth
             />
             <Input
-              label={t3({ en: "URL slug", fr: "Slug URL" })}
+              label={t3({ en: "URL slug", fr: "Slug URL", pt: "Slug do URL" })}
               value={slug()}
               onChange={setSlug}
               fullWidth
@@ -173,16 +176,17 @@ export function DashboardSettings(p: Props) {
               label={t3({
                 en: "Require authentication",
                 fr: "Exiger l'authentification",
+                pt: "Exigir autenticação",
               })}
             />
             <Select
-              label={t3({ en: "Layout", fr: "Disposition" })}
+              label={t3({ en: "Layout", fr: "Disposition", pt: "Disposição" })}
               options={[
                 {
                   value: "sidebar",
-                  label: t3({ en: "Sidebar", fr: "Barre latérale" }),
+                  label: t3({ en: "Sidebar", fr: "Barre latérale", pt: "Barra lateral" }),
                 },
-                { value: "grid", label: t3({ en: "Grid", fr: "Grille" }) },
+                { value: "grid", label: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }) },
               ]}
               value={layoutType()}
               onChange={(v) => setLayoutType(v as "sidebar" | "grid")}
@@ -191,13 +195,14 @@ export function DashboardSettings(p: Props) {
           </div>
         </SettingsSection>
 
-        <SettingsSection header={t3({ en: "Logos", fr: "Logos" })}>
+        <SettingsSection header={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}>
           <div class="ui-spy">
             <div class="ui-spy-sm">
               <div class="text-base-content/70 font-700 text-sm">
                 {t3({
                   en: "Custom logos (uploaded image assets)",
                   fr: "Logos personnalisés (images téléversées)",
+                  pt: "Logótipos personalizados (imagens carregadas)",
                 })}
               </div>
               <For each={config.logos.availableCustom}>
@@ -225,7 +230,7 @@ export function DashboardSettings(p: Props) {
                 )}
               </For>
               <Button onClick={addCustomLogo} iconName="plus" size="sm">
-                {t3({ en: "Add", fr: "Ajouter" })}
+                {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
               </Button>
             </div>
 
@@ -233,6 +238,7 @@ export function DashboardSettings(p: Props) {
               title={t3({
                 en: "Show on dashboard",
                 fr: "Afficher sur le tableau de bord",
+                pt: "Mostrar no painel",
               })}
               dontShowSizing
               config={{ selected: config.logos.selected, showByDefault: true }}
@@ -242,13 +248,14 @@ export function DashboardSettings(p: Props) {
 
             <Show when={config.logos.selected.length > 0}>
               <Select
-                label={t3({ en: "Placement", fr: "Emplacement" })}
+                label={t3({ en: "Placement", fr: "Emplacement", pt: "Posicionamento" })}
                 options={[
                   {
                     value: "left",
                     label: t3({
                       en: "Far left (left of title)",
                       fr: "Tout à gauche (à gauche du titre)",
+                      pt: "Extrema esquerda (à esquerda do título)",
                     }),
                   },
                   {
@@ -256,6 +263,7 @@ export function DashboardSettings(p: Props) {
                     label: t3({
                       en: "Far right (right of buttons)",
                       fr: "Tout à droite (à droite des boutons)",
+                      pt: "Extrema direita (à direita dos botões)",
                     }),
                   },
                 ]}
@@ -268,12 +276,13 @@ export function DashboardSettings(p: Props) {
           </div>
         </SettingsSection>
 
-        <SettingsSection header={t3({ en: "About", fr: "À propos" })}>
+        <SettingsSection header={t3({ en: "About", fr: "À propos", pt: "Acerca de" })}>
           <div class="ui-spy">
             <TextArea
               label={t3({
                 en: "Summary (shown under the title) — markdown",
                 fr: "Résumé (affiché sous le titre) — markdown",
+                pt: "Resumo (apresentado sob o título) — markdown",
               })}
               value={config.about.summary}
               onChange={(v) => setConfig("about", "summary", v)}
@@ -284,6 +293,7 @@ export function DashboardSettings(p: Props) {
               label={t3({
                 en: "About this dashboard (shown in a dialog) — markdown",
                 fr: "À propos de ce tableau de bord (affiché dans une boîte de dialogue) — markdown",
+                pt: "Acerca deste painel (apresentado numa caixa de diálogo) — markdown",
               })}
               value={config.about.body}
               onChange={(v) => setConfig("about", "body", v)}

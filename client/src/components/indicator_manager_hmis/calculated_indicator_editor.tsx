@@ -87,6 +87,7 @@ export function EditCalculatedIndicatorForm(
       return t3({
         en: "Must start with lowercase letter, only a-z, 0-9, _ allowed",
         fr: "Doit commencer par une lettre minuscule, seuls a-z, 0-9, _ sont autorisés",
+        pt: "Deve começar por uma letra minúscula; apenas a-z, 0-9 e _ são permitidos",
       });
     }
     return null;
@@ -115,6 +116,7 @@ export function EditCalculatedIndicatorForm(
       label: t3({
         en: "Select an indicator...",
         fr: "Sélectionner un indicateur...",
+        pt: "Selecionar um indicador...",
       }),
     },
     ...p.commonIndicators.map((ci) => ({
@@ -156,6 +158,7 @@ export function EditCalculatedIndicatorForm(
           err: t3({
             en: "Calculated indicator ID is required",
             fr: "L'identifiant est requis",
+            pt: "O ID do indicador calculado é obrigatório",
           }),
         };
       }
@@ -165,13 +168,14 @@ export function EditCalculatedIndicatorForm(
           err: t3({
             en: "ID must start with a lowercase letter and contain only lowercase letters, numbers, and underscores (max 64 chars)",
             fr: "L'ID doit commencer par une lettre minuscule et ne contenir que des lettres minuscules, des chiffres et des tirets bas (max 64 caractères)",
+            pt: "O ID deve começar por uma letra minúscula e conter apenas letras minúsculas, números e sublinhados (máx. 64 caracteres)",
           }),
         };
       }
       if (!lbl) {
         return {
           success: false,
-          err: t3({ en: "Label is required", fr: "Le libellé est requis" }),
+          err: t3({ en: "Label is required", fr: "Le libellé est requis", pt: "A etiqueta é obrigatória" }),
         };
       }
 
@@ -187,6 +191,7 @@ export function EditCalculatedIndicatorForm(
           err: t3({
             en: "Another calculated indicator already uses this label",
             fr: "Un autre indicateur calculé utilise déjà ce libellé",
+            pt: "Outro indicador calculado já utiliza esta etiqueta",
           }),
         };
       }
@@ -197,6 +202,7 @@ export function EditCalculatedIndicatorForm(
           err: t3({
             en: "Numerator indicator is required",
             fr: "L'indicateur du numérateur est requis",
+            pt: "O indicador do numerador é obrigatório",
           }),
         };
       }
@@ -209,6 +215,7 @@ export function EditCalculatedIndicatorForm(
           err: t3({
             en: "Numerator must reference an existing common indicator",
             fr: "Le numérateur doit référencer un indicateur commun existant",
+            pt: "O numerador deve referenciar um indicador comum existente",
           }),
         };
       }
@@ -228,6 +235,7 @@ export function EditCalculatedIndicatorForm(
             err: t3({
               en: "Denominator indicator is required",
               fr: "L'indicateur du dénominateur est requis",
+              pt: "O indicador do denominador é obrigatório",
             }),
           };
         }
@@ -240,6 +248,7 @@ export function EditCalculatedIndicatorForm(
             err: t3({
               en: "Denominator must reference an existing common indicator",
               fr: "Le dénominateur doit référencer un indicateur commun existant",
+              pt: "O denominador deve referenciar um indicador comum existente",
             }),
           };
         }
@@ -256,6 +265,7 @@ export function EditCalculatedIndicatorForm(
             err: t3({
               en: "Population multiplier must be a positive number",
               fr: "Le multiplicateur de population doit être un nombre positif",
+              pt: "O multiplicador de população deve ser um número positivo",
             }),
           };
         }
@@ -274,6 +284,7 @@ export function EditCalculatedIndicatorForm(
           err: t3({
             en: "Threshold cutoffs must be numbers",
             fr: "Les seuils doivent être des nombres",
+            pt: "Os limiares devem ser números",
           }),
         };
       }
@@ -315,10 +326,12 @@ export function EditCalculatedIndicatorForm(
           ? t3({
               en: "Add Calculated indicator",
               fr: "Ajouter un indicateur calculé",
+              pt: "Adicionar indicador calculado",
             })
           : t3({
               en: "Update Calculated indicator",
               fr: "Mettre à jour l'indicateur calculé",
+              pt: "Atualizar indicador calculado",
             })
       }
       savingState={save.state()}
@@ -331,6 +344,7 @@ export function EditCalculatedIndicatorForm(
             label={t3({
               en: "Calculated indicator ID",
               fr: "ID de l'indicateur",
+              pt: "ID do indicador calculado",
             })}
             value={calculatedIndicatorId()}
             onChange={setCalculatedIndicatorId}
@@ -352,10 +366,10 @@ export function EditCalculatedIndicatorForm(
 
         <div class="ui-spy-sm">
           <div class="font-700 text-sm">
-            {t3({ en: "Numerator", fr: "Numérateur" })}
+            {t3({ en: "Numerator", fr: "Numérateur", pt: "Numerador" })}
           </div>
           <Select
-            label={t3({ en: "Indicator", fr: "Indicateur" })}
+            label={t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" })}
             value={numIndicatorId()}
             onChange={setNumIndicatorId}
             options={commonIndicatorOptions()}
@@ -368,10 +382,10 @@ export function EditCalculatedIndicatorForm(
 
         <div class="ui-spy-sm">
           <div class="font-700 text-sm">
-            {t3({ en: "Denominator", fr: "Dénominateur" })}
+            {t3({ en: "Denominator", fr: "Dénominateur", pt: "Denominador" })}
           </div>
           <RadioGroup<"none" | "indicator" | "population">
-            label={t3({ en: "Denominator kind", fr: "Type de dénominateur" })}
+            label={t3({ en: "Denominator kind", fr: "Type de dénominateur", pt: "Tipo de denominador" })}
             value={denomKind()}
             onChange={(v) => setDenomKind(v as "none" | "indicator" | "population")}
             options={[
@@ -380,6 +394,7 @@ export function EditCalculatedIndicatorForm(
                 label: t3({
                   en: "None (raw count)",
                   fr: "Aucun (compte brut)",
+                  pt: "Nenhum (contagem bruta)",
                 }),
               },
               {
@@ -387,6 +402,7 @@ export function EditCalculatedIndicatorForm(
                 label: t3({
                   en: "Another indicator",
                   fr: "Un autre indicateur",
+                  pt: "Outro indicador",
                 }),
               },
               {
@@ -394,6 +410,7 @@ export function EditCalculatedIndicatorForm(
                 label: t3({
                   en: "Population-based",
                   fr: "Basé sur la population",
+                  pt: "Baseado na população",
                 }),
               },
             ]}
@@ -403,6 +420,7 @@ export function EditCalculatedIndicatorForm(
               label={t3({
                 en: "Denominator indicator",
                 fr: "Indicateur du dénominateur",
+                pt: "Indicador do denominador",
               })}
               value={denomIndicatorId()}
               onChange={setDenomIndicatorId}
@@ -418,6 +436,7 @@ export function EditCalculatedIndicatorForm(
               label={t3({
                 en: "Population type",
                 fr: "Type de population",
+                pt: "Tipo de população",
               })}
               value={denomPopulationType()}
               onChange={(v) => setDenomPopulationType(v as PopulationType)}
@@ -431,6 +450,7 @@ export function EditCalculatedIndicatorForm(
               label={t3({
                 en: "Multiplier (usually 1). Module applies period scaling.",
                 fr: "Multiplicateur (généralement 1). Le module applique la mise à l'échelle de la période.",
+                pt: "Multiplicador (geralmente 1). O módulo aplica o ajuste de escala do período.",
               })}
               value={denomPopulationMultiplier()}
               onChange={setDenomPopulationMultiplier}
@@ -441,37 +461,37 @@ export function EditCalculatedIndicatorForm(
 
         <div class="ui-spy-sm">
           <div class="font-700 text-sm">
-            {t3({ en: "Formatting", fr: "Format" })}
+            {t3({ en: "Formatting", fr: "Format", pt: "Formatação" })}
           </div>
           <Select
-            label={t3({ en: "Format", fr: "Format" })}
+            label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
             value={formatAs()}
             onChange={(v) => setFormatAs(v as FormatAs)}
             options={[
               {
                 value: "percent",
-                label: t3({ en: "Percent", fr: "Pourcentage" }),
+                label: t3({ en: "Percent", fr: "Pourcentage", pt: "Percentagem" }),
               },
-              { value: "number", label: t3({ en: "Number", fr: "Nombre" }) },
+              { value: "number", label: t3({ en: "Number", fr: "Nombre", pt: "Número" }) },
               {
                 value: "rate_per_10k",
-                label: t3({ en: "Rate per 10,000", fr: "Taux pour 10 000" }),
+                label: t3({ en: "Rate per 10,000", fr: "Taux pour 10 000", pt: "Taxa por 10 000" }),
               },
             ]}
             fullWidth
           />
           <div class="text-base-content/70 ui-form-text">
-            {t3({ en: "Preview", fr: "Aperçu" })}:{" "}
+            {t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" })}:{" "}
             <span class="font-mono">{previewFormatted()}</span>
           </div>
         </div>
 
         <div class="ui-spy-sm">
           <div class="font-700 text-sm">
-            {t3({ en: "Thresholds", fr: "Seuils" })}
+            {t3({ en: "Thresholds", fr: "Seuils", pt: "Limiares" })}
           </div>
           <RadioGroup<ThresholdDirection>
-            label={t3({ en: "Direction", fr: "Direction" })}
+            label={t3({ en: "Direction", fr: "Direction", pt: "Direção" })}
             value={thresholdDirection()}
             onChange={(v) => setThresholdDirection(v as ThresholdDirection)}
             options={[
@@ -480,6 +500,7 @@ export function EditCalculatedIndicatorForm(
                 label: t3({
                   en: "Higher is better",
                   fr: "Plus haut est meilleur",
+                  pt: "Mais alto é melhor",
                 }),
               },
               {
@@ -487,6 +508,7 @@ export function EditCalculatedIndicatorForm(
                 label: t3({
                   en: "Lower is better",
                   fr: "Plus bas est meilleur",
+                  pt: "Mais baixo é melhor",
                 }),
               },
             ]}
@@ -496,6 +518,7 @@ export function EditCalculatedIndicatorForm(
             label={t3({
               en: "Green cutoff (in displayed scale)",
               fr: "Seuil vert (en échelle affichée)",
+              pt: "Limiar verde (na escala apresentada)",
             })}
             value={thresholdGreen()}
             onChange={setThresholdGreen}
@@ -505,6 +528,7 @@ export function EditCalculatedIndicatorForm(
             label={t3({
               en: "Yellow cutoff (in displayed scale)",
               fr: "Seuil jaune (en échelle affichée)",
+              pt: "Limiar amarelo (na escala apresentada)",
             })}
             value={thresholdYellow()}
             onChange={setThresholdYellow}
@@ -520,5 +544,6 @@ function unusableCommonIdMessage(): string {
   return t3({
     en: "This indicator's ID contains characters that cannot be used in calculations. Only IDs starting with a lowercase letter and containing only lowercase letters, numbers, and underscores can be used.",
     fr: "L'ID de cet indicateur contient des caractères qui ne peuvent pas être utilisés dans les calculs. Seuls les ID commençant par une lettre minuscule et ne contenant que des lettres minuscules, des chiffres et des tirets bas peuvent être utilisés.",
+    pt: "O ID deste indicador contém caracteres que não podem ser utilizados em cálculos. Apenas os ID que começam por uma letra minúscula e contêm apenas letras minúsculas, números e sublinhados podem ser utilizados.",
   });
 }

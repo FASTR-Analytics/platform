@@ -12,7 +12,7 @@ export function IndicatorsTab(p: { indicators: IcehIndicator[] }) {
   const columns: TableColumn<DisplayRow>[] = [
     {
       key: "indicatorCode",
-      header: t3({ en: "Code", fr: "Code" }),
+      header: t3({ en: "Code", fr: "Code", pt: "Código" }),
       sortable: true,
       render: (item) => (
         <span class="font-mono text-xs">{item.indicatorCode}</span>
@@ -20,23 +20,23 @@ export function IndicatorsTab(p: { indicators: IcehIndicator[] }) {
     },
     {
       key: "indicatorName",
-      header: t3({ en: "Name", fr: "Nom" }),
+      header: t3({ en: "Name", fr: "Nom", pt: "Nome" }),
       sortable: true,
     },
     {
       key: "category",
-      header: t3({ en: "Category", fr: "Catégorie" }),
+      header: t3({ en: "Category", fr: "Catégorie", pt: "Categoria" }),
       sortable: true,
     },
     {
       key: "numerator",
-      header: t3({ en: "Numerator", fr: "Numérateur" }),
+      header: t3({ en: "Numerator", fr: "Numérateur", pt: "Numerador" }),
       sortable: false,
       render: (item) => <span class="text-xs">{item.numerator}</span>,
     },
     {
       key: "denominator",
-      header: t3({ en: "Denominator", fr: "Dénominateur" }),
+      header: t3({ en: "Denominator", fr: "Dénominateur", pt: "Denominador" }),
       sortable: false,
       render: (item) => <span class="text-xs">{item.denominator}</span>,
     },
@@ -51,6 +51,7 @@ export function IndicatorsTab(p: { indicators: IcehIndicator[] }) {
         noRowsMessage={t3({
           en: "No indicators found",
           fr: "Aucun indicateur trouvé",
+          pt: "Nenhum indicador encontrado",
         })}
         fitTableToAvailableHeight
         paddingY="compact"

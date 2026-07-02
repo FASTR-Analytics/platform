@@ -15,7 +15,7 @@ export function Step1File(p: Props) {
     async () => {
       const fileName = state.selectedFileName();
       if (!fileName) {
-        return { success: false, err: t3({ en: "Please select a file", fr: "Veuillez sélectionner un fichier" }) };
+        return { success: false, err: t3({ en: "Please select a file", fr: "Veuillez sélectionner un fichier", pt: "Selecione um ficheiro" }) };
       }
       const res = await serverActions.analyzeGeoJsonUpload({ assetFileName: fileName });
       if (res.success) {
@@ -32,11 +32,11 @@ export function Step1File(p: Props) {
 
   return (
     <div class="ui-spy">
-      <div class="font-600">{t3({ en: "Step 1: Select GeoJSON file", fr: "Étape 1 : Sélectionner le fichier GeoJSON" })}</div>
+      <div class="font-600">{t3({ en: "Step 1: Select GeoJSON file", fr: "Étape 1 : Sélectionner le fichier GeoJSON", pt: "Passo 1: Selecionar o ficheiro GeoJSON" })}</div>
 
       <FileUploadSelector
-        buttonLabel={t3({ en: "Upload new GeoJSON file", fr: "Téléverser un nouveau fichier GeoJSON" })}
-        selectLabel={t3({ en: "Or select existing file", fr: "Ou sélectionner un fichier existant" })}
+        buttonLabel={t3({ en: "Upload new GeoJSON file", fr: "Téléverser un nouveau fichier GeoJSON", pt: "Carregar um novo ficheiro GeoJSON" })}
+        selectLabel={t3({ en: "Or select existing file", fr: "Ou sélectionner un fichier existant", pt: "Ou selecionar um ficheiro existente" })}
         filter={(a) => a.fileName.endsWith(".geojson") || a.fileName.endsWith(".json")}
         value={state.selectedFileName()}
         onChange={state.setSelectedFileName}
@@ -51,10 +51,10 @@ export function Step1File(p: Props) {
           disabled={!state.selectedFileName()}
           intent="primary"
         >
-          {t3({ en: "Analyze", fr: "Analyser" })}
+          {t3({ en: "Analyze", fr: "Analyser", pt: "Analisar" })}
         </Button>
         <Button intent="neutral" onClick={() => state.setStep(0)}>
-          {t3({ en: "Back", fr: "Retour" })}
+          {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
         </Button>
       </div>
     </div>

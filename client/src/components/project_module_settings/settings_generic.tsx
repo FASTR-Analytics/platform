@@ -60,6 +60,7 @@ export function SettingsForProjectModuleGeneric(
     t3({
       en: "Loading module config selections...",
       fr: "Chargement des configurations du module...",
+      pt: "A carregar configurações do módulo...",
     }),
   );
 
@@ -79,7 +80,7 @@ export function SettingsForProjectModuleGeneric(
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={`${p.installedModuleLabel} ${t3({ en: "settings", fr: "paramètres" })}`}
+          heading={`${p.installedModuleLabel} ${t3({ en: "settings", fr: "paramètres", pt: "definições" })}`}
         >
           <div class="ui-gap-sm flex">
             <Show when={!p.projectIsLocked}>
@@ -115,6 +116,7 @@ export function SettingsForProjectModuleGeneric(
                     {t3({
                       en: "No parameters for this module",
                       fr: "Aucun paramètre pour ce module",
+                      pt: "Nenhum parâmetro para este módulo",
                     })}
                   </div>
                 }
@@ -130,6 +132,7 @@ export function SettingsForProjectModuleGeneric(
                           fallback={t3({
                             en: "Bad input type",
                             fr: "Type de saisie incorrect",
+                            pt: "Tipo de entrada inválido",
                           })}
                         >
                           <Match
@@ -158,6 +161,7 @@ export function SettingsForProjectModuleGeneric(
                                   ? t3({
                                       en: "Not a number",
                                       fr: "Pas un nombre",
+                                      pt: "Não é um número",
                                     })
                                   : undefined
                               }
@@ -184,7 +188,7 @@ export function SettingsForProjectModuleGeneric(
                                 !tempParameters[
                                   inputParameter.replacementString
                                 ]
-                                  ? t3({ en: "No text", fr: "Aucun texte" })
+                                  ? t3({ en: "No text", fr: "Aucun texte", pt: "Sem texto" })
                                   : undefined
                               }
                               fullWidth
@@ -219,6 +223,7 @@ export function SettingsForProjectModuleGeneric(
                                       ? t3({
                                           en: "Unselected",
                                           fr: "Non sélectionné",
+                                          pt: "Não selecionado",
                                         })
                                       : undefined
                                   }
@@ -231,7 +236,7 @@ export function SettingsForProjectModuleGeneric(
                             when={inputParameter.input.inputType === "boolean"}
                           >
                             <Checkbox
-                              label={t3({ en: "Yes / No", fr: "Oui / Non" })}
+                              label={t3({ en: "Yes / No", fr: "Oui / Non", pt: "Sim / Não" })}
                               checked={
                                 tempParameters[
                                   inputParameter.replacementString

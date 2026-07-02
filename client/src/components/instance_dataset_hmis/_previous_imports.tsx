@@ -25,7 +25,7 @@ export function PreviousImports(
 
   const versions = createQuery(
     () => serverActions.getDatasetHmisVersions({}),
-    t3({ en: "Loading import information...", fr: "Chargement des informations d'importation..." }),
+    t3({ en: "Loading import information...", fr: "Chargement des informations d'importation...", pt: "A carregar as informações de importação..." }),
   );
 
   // Only present for versions integrated via the scoped delete-then-insert
@@ -40,13 +40,13 @@ export function PreviousImports(
   const columns: TableColumn<DatasetHmisVersion>[] = [
     {
       key: "id",
-      header: t3({ en: "Version ID", fr: "ID de version" }),
+      header: t3({ en: "Version ID", fr: "ID de version", pt: "ID da versão" }),
       sortable: true,
       // width: "100px",
     },
     {
       key: "sourceType",
-      header: t3({ en: "Source Type", fr: "Type de source" }),
+      header: t3({ en: "Source Type", fr: "Type de source", pt: "Tipo de fonte" }),
       sortable: true,
       render: (item) =>
         item.stagingResult?.sourceType
@@ -55,7 +55,7 @@ export function PreviousImports(
     },
     {
       key: "workItems",
-      header: t3({ en: "DHIS2 Failures", fr: "Échecs DHIS2" }),
+      header: t3({ en: "DHIS2 Failures", fr: "Échecs DHIS2", pt: "Falhas DHIS2" }),
       sortable: true,
       render: (item) =>
         item.stagingResult?.sourceType === "dhis2"
@@ -64,7 +64,7 @@ export function PreviousImports(
     },
     {
       key: "dateImported",
-      header: t3({ en: "Date Data was Imported", fr: "Date d'importation des données" }),
+      header: t3({ en: "Date Data was Imported", fr: "Date d'importation des données", pt: "Data de importação dos dados" }),
       sortable: true,
       render: (item) =>
         item.stagingResult?.dateImported
@@ -73,14 +73,14 @@ export function PreviousImports(
     },
     {
       key: "nRowsInserted",
-      header: t3({ en: "New Rows Inserted", fr: "Nouvelles lignes insérées" }),
+      header: t3({ en: "New Rows Inserted", fr: "Nouvelles lignes insérées", pt: "Novas linhas inseridas" }),
       sortable: true,
       alignH: "right",
-      render: (item) => item.nRowsInserted?.toLocaleString() ?? t3({ en: "Unknown", fr: "Inconnu" }),
+      render: (item) => item.nRowsInserted?.toLocaleString() ?? t3({ en: "Unknown", fr: "Inconnu", pt: "Desconhecido" }),
     },
     {
       key: "nRowsUpdated",
-      header: t3({ en: "Rows Updated / Removed", fr: "Lignes mises à jour / supprimées" }),
+      header: t3({ en: "Rows Updated / Removed", fr: "Lignes mises à jour / supprimées", pt: "Linhas atualizadas / removidas" }),
       sortable: true,
       alignH: "right",
       sortValue: (item) => dhis2RowsDeleted(item) ?? item.nRowsUpdated ?? 0,
@@ -88,12 +88,12 @@ export function PreviousImports(
         const removed = dhis2RowsDeleted(item);
         return removed !== undefined
           ? `${toNum0(removed)} ${t3({ en: "removed", fr: "supprimées" })}`
-          : (item.nRowsUpdated?.toLocaleString() ?? t3({ en: "Unknown", fr: "Inconnu" }));
+          : (item.nRowsUpdated?.toLocaleString() ?? t3({ en: "Unknown", fr: "Inconnu", pt: "Desconhecido" }));
       },
     },
     {
       key: "nRowsTotalImported",
-      header: t3({ en: "Total Rows Inserted or Updated", fr: "Total de lignes insérées ou mises à jour" }),
+      header: t3({ en: "Total Rows Inserted or Updated", fr: "Total de lignes insérées ou mises à jour", pt: "Total de linhas inseridas ou atualizadas" }),
       sortable: true,
       alignH: "right",
       render: (item) => item.nRowsTotalImported.toLocaleString(),
@@ -116,7 +116,7 @@ export function PreviousImports(
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
             <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "Previous imports", fr: "Importations précédentes" })}
+              {t3({ en: "Previous imports", fr: "Importations précédentes", pt: "Importações anteriores" })}
             </div>
             <div class="ui-gap-sm flex items-center">
               <Button iconName="refresh" onClick={versions.fetch} />
@@ -132,7 +132,7 @@ export function PreviousImports(
                   data={keyedVersions}
                   columns={columns}
                   keyField="id"
-                  noRowsMessage={t3({ en: "No previous imports found", fr: "Aucune importation précédente trouvée" })}
+                  noRowsMessage={t3({ en: "No previous imports found", fr: "Aucune importation précédente trouvée", pt: "Nenhuma importação anterior encontrada" })}
                   onRowClick={(version) => viewImportInformation(version)}
                   fitTableToAvailableHeight
                 />

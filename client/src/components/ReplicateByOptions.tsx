@@ -127,6 +127,7 @@ export function ReplicateByOptionsPresentationObject(
                   {t3({
                     en: "Too many replicant values (over 500). Use filter options to narrow down.",
                     fr: "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner.",
+                    pt: "Demasiados valores de replicante (mais de 500). Utilize as opções de filtro para restringir.",
                   })}
                 </div>
               </Match>
@@ -137,6 +138,7 @@ export function ReplicateByOptionsPresentationObject(
                   {t3({
                     en: "No data available with current filter selection.",
                     fr: "Aucune donnée disponible avec la sélection de filtre actuelle.",
+                    pt: "Não há dados disponíveis com a seleção de filtros atual.",
                   })}
                 </div>
               </Match>
@@ -160,6 +162,7 @@ export function ReplicateByOptionsPresentationObject(
                       emptyMessage={t3({
                         en: "No replicant options",
                         fr: "Aucune option de réplicant",
+                        pt: "Nenhuma opção de replicante",
                       })}
                     />
                   );
@@ -241,6 +244,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
                 {t3({
                   en: "Too many replicant values (over 500). Use filter options to narrow down.",
                   fr: "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner.",
+                  pt: "Demasiados valores de replicante (mais de 500). Utilize as opções de filtro para restringir.",
                 })}
               </div>
             </Match>
@@ -251,6 +255,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
                 {t3({
                   en: "No data available with current filter selection.",
                   fr: "Aucune donnée disponible avec la sélection de filtre actuelle.",
+                  pt: "Não há dados disponíveis com a seleção de filtros atual.",
                 })}
               </div>
             </Match>
@@ -275,6 +280,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
                     placeholder={t3({
                       en: "Needs selection",
                       fr: "Nécessite une sélection",
+                      pt: "Requer seleção",
                     })}
                   />
                 );

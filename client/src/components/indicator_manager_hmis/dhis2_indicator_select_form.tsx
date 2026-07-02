@@ -58,6 +58,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
         err: t3({
           en: "Search query is required",
           fr: "La requête de recherche est requise",
+          pt: "O termo de pesquisa é obrigatório",
         }),
       };
     }
@@ -74,7 +75,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
         success: false,
         err:
           response.err ||
-          t3({ en: "Search failed", fr: "Échec de la recherche" }),
+          t3({ en: "Search failed", fr: "Échec de la recherche", pt: "Falha na pesquisa" }),
       };
     }
 
@@ -92,7 +93,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
       if (selectedItems.length === 0) {
         return {
           success: false,
-          err: t3({ en: "No items selected", fr: "Aucun élément sélectionné" }),
+          err: t3({ en: "No items selected", fr: "Aucun élément sélectionné", pt: "Nenhum elemento selecionado" }),
         };
       }
 
@@ -170,6 +171,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
           heading={t3({
             en: "DHIS2 Indicator Selection",
             fr: "Sélection d'indicateurs DHIS2",
+            pt: "Seleção de indicadores DHIS2",
           })}
           back={() => p.close(undefined)}
         >
@@ -180,7 +182,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
             intent="success"
             disabled={tempSelectedElements().length === 0}
           >
-            {t3({ en: "Save Selected", fr: "Enregistrer la sélection" })} (
+            {t3({ en: "Save Selected", fr: "Enregistrer la sélection", pt: "Guardar seleção" })} (
             {tempSelectedElements().length})
           </Button>
         </HeaderBarCanGoBack>
@@ -194,6 +196,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
               {t3({
                 en: "Search Indicators & Data Elements",
                 fr: "Rechercher des indicateurs et éléments de données",
+                pt: "Pesquisar indicadores e elementos de dados",
               })}
             </div>
             <form
@@ -210,10 +213,12 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                   placeholder={t3({
                     en: 'e.g. Antenatal care (searches for "Antenatal care" as one term)\ne.g. BFeLG7TNOvq, CKCRDq0NBHy (searches for two IDs and combines results)\n\nUse commas, semicolons, or new lines to search multiple terms at once.',
                     fr: "ex. Soins prénatals (recherche « Soins prénatals » comme un seul terme)\nex. BFeLG7TNOvq, CKCRDq0NBHy (recherche deux ID et combine les résultats)\n\nUtilisez des virgules, points-virgules ou retours à la ligne pour rechercher plusieurs termes.",
+                    pt: "p. ex. Cuidados pré-natais (pesquisa «Cuidados pré-natais» como um único termo)\np. ex. BFeLG7TNOvq, CKCRDq0NBHy (pesquisa dois IDs e combina os resultados)\n\nUtilize vírgulas, pontos e vírgulas ou novas linhas para pesquisar vários termos de uma só vez.",
                   })}
                   label={t3({
                     en: "Search by name, code, or ID",
                     fr: "Rechercher par nom, code ou ID",
+                    pt: "Pesquisar por nome, código ou ID",
                   })}
                   rows={5}
                   fullWidth
@@ -226,7 +231,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                   iconName="search"
                   intent="primary"
                 >
-                  {t3({ en: "Search", fr: "Recherche" })}
+                  {t3({ en: "Search", fr: "Recherche", pt: "Pesquisar" })}
                 </Button>
                 <Show when={tempSearchQuery().trim().length > 0}>
                   <Button
@@ -235,7 +240,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                     intent="neutral"
                     outline
                   >
-                    {t3({ en: "Clear", fr: "Effacer" })}
+                    {t3({ en: "Clear", fr: "Effacer", pt: "Limpar" })}
                   </Button>
                 </Show>
               </div>
@@ -248,9 +253,9 @@ export function Dhis2IndicatorSelectForm(p: Props) {
             <Show when={search.state().status === "ready"}>
               <div class="border-success bg-success/10 ui-pad-sm w-full flex-none rounded border">
                 <div class="text-success font-700">
-                  {t3({ en: "Search completed:", fr: "Recherche terminée :" })}{" "}
+                  {t3({ en: "Search completed:", fr: "Recherche terminée :", pt: "Pesquisa concluída:" })}{" "}
                   {totalResultCount()}{" "}
-                  {t3({ en: "results found", fr: "résultats trouvés" })}
+                  {t3({ en: "results found", fr: "résultats trouvés", pt: "resultados encontrados" })}
                 </div>
               </div>
             </Show>
@@ -262,6 +267,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                     {t3({
                       en: "No results found. Try a different search term.",
                       fr: "Aucun résultat trouvé. Essayez un autre terme de recherche.",
+                      pt: "Nenhum resultado encontrado. Experimente outro termo de pesquisa.",
                     })}
                   </div>
                 </div>
@@ -274,7 +280,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                     {(indicator) => (
                       <div class="border-base-300 ui-pad-sm flex items-center gap-2 rounded border">
                         <span class="bg-primary/10 text-primary font-400 inline-block flex-none rounded px-2 py-1 text-xs">
-                          {t3({ en: "Indicator", fr: "Indicateur" })}
+                          {t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" })}
                         </span>
                         <span class="font-700 flex-1 truncate">
                           {indicator.name}
@@ -295,8 +301,8 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                           disabled={isItemSelected(indicator.id)}
                         >
                           {isItemSelected(indicator.id)
-                            ? t3({ en: "Added", fr: "Ajouté" })
-                            : t3({ en: "Add", fr: "Ajouter" })}
+                            ? t3({ en: "Added", fr: "Ajouté", pt: "Adicionado" })
+                            : t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
                         </Button>
                       </div>
                     )}
@@ -324,6 +330,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                             {t3({
                               en: "Data Element",
                               fr: "Élément de données",
+                              pt: "Elemento de dados",
                             })}
                           </span>
                           <span class="font-700 flex-1 truncate">
@@ -335,6 +342,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                               {t3({
                                 en: "COCs",
                                 fr: "COCs",
+                                pt: "COCs",
                               })}
                             </span>
                           </Show>
@@ -354,8 +362,8 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                             disabled={isItemSelected(de.id)}
                           >
                             {isItemSelected(de.id)
-                              ? t3({ en: "Added", fr: "Ajouté" })
-                              : t3({ en: "Add", fr: "Ajouter" })}
+                              ? t3({ en: "Added", fr: "Ajouté", pt: "Adicionado" })
+                              : t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
                           </Button>
                         </div>
 
@@ -369,7 +377,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                                 return (
                                   <div class="border-base-200 ui-pad-sm flex items-center gap-2 border-b pl-10 last:border-b-0">
                                     <span class="bg-info/10 text-info font-400 inline-block flex-none rounded px-2 py-1 text-xs">
-                                      {t3({ en: "COC", fr: "COC" })}
+                                      {t3({ en: "COC", fr: "COC", pt: "COC" })}
                                     </span>
                                     <span class="font-400 flex-1 truncate">
                                       {coc.displayName || coc.name}
@@ -390,8 +398,8 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                                       disabled={isItemSelected(operandId)}
                                     >
                                       {isItemSelected(operandId)
-                                        ? t3({ en: "Added", fr: "Ajouté" })
-                                        : t3({ en: "Add", fr: "Ajouter" })}
+                                        ? t3({ en: "Added", fr: "Ajouté", pt: "Adicionado" })
+                                        : t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
                                     </Button>
                                   </div>
                                 );
@@ -412,12 +420,12 @@ export function Dhis2IndicatorSelectForm(p: Props) {
         <div class="ui-pad border-base-300 h-full w-0 flex-1 overflow-auto border-l">
           <div class="mb-4">
             <div class="font-700 text-lg">
-              {t3({ en: "Selected Items", fr: "Éléments sélectionnés" })}
+              {t3({ en: "Selected Items", fr: "Éléments sélectionnés", pt: "Elementos selecionados" })}
             </div>
             <Show when={tempSelectedElements().length > 0}>
               <div class="text-base-content text-sm">
                 {tempSelectedElements().length}{" "}
-                {t3({ en: "items selected", fr: "éléments sélectionnés" })}
+                {t3({ en: "items selected", fr: "éléments sélectionnés", pt: "elementos selecionados" })}
               </div>
             </Show>
           </div>
@@ -428,6 +436,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                 {t3({
                   en: "No items selected. Search for items and click 'Add' from search results.",
                   fr: "Aucun élément sélectionné. Recherchez des éléments et cliquez sur « Ajouter » dans les résultats.",
+                  pt: "Nenhum elemento selecionado. Pesquise elementos e clique em «Adicionar» nos resultados.",
                 })}
               </div>
             }
@@ -449,12 +458,13 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                           }`}
                         >
                           {item.type === "indicator"
-                            ? t3({ en: "Indicator", fr: "Indicateur" })
+                            ? t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" })
                             : item.type === "dataElementOperand"
-                              ? t3({ en: "Operand", fr: "Opérande" })
+                              ? t3({ en: "Operand", fr: "Opérande", pt: "Operando" })
                               : t3({
                                   en: "Data Element",
                                   fr: "Élément de données",
+                                  pt: "Elemento de dados",
                                 })}
                         </span>
                         <span class="font-mono text-xs">{item.id}</span>
@@ -466,7 +476,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                       intent="danger"
                       outline
                     >
-                      {t3({ en: "Remove", fr: "Retirer" })}
+                      {t3({ en: "Remove", fr: "Retirer", pt: "Remover" })}
                     </Button>
                   </div>
                 )}

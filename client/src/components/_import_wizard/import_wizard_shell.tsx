@@ -171,7 +171,7 @@ export function ImportWizardShell<TUA extends { step: number }, TStatusLight>(p:
               intent="danger"
               iconName="trash"
             >
-              {t3({ en: "Discard import", fr: "Annuler l'importation" })}
+              {t3({ en: "Discard import", fr: "Annuler l'importation", pt: "Descartar a importação" })}
             </Button>
           </div>
         </HeaderBarCanGoBack>
@@ -180,7 +180,7 @@ export function ImportWizardShell<TUA extends { step: number }, TStatusLight>(p:
       <StateHolderWrapper
         state={uploadAttempt.state()}
         onErrorButton={{
-          label: t3({ en: "Back to dataset", fr: "Retour au jeu de données" }),
+          label: t3({ en: "Back to dataset", fr: "Retour au jeu de données", pt: "Voltar ao conjunto de dados" }),
           onClick: () => p.close(),
         }}
       >
@@ -192,6 +192,7 @@ export function ImportWizardShell<TUA extends { step: number }, TStatusLight>(p:
                   {t3({
                     en: "Something went wrong: Bad step in dataset upload attempt",
                     fr: "Une erreur s'est produite : étape incorrecte dans la tentative de téléversement",
+                    pt: "Ocorreu um erro: etapa inválida na tentativa de carregamento do conjunto de dados",
                   })}
                 </div>
               }

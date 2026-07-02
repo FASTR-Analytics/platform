@@ -221,6 +221,7 @@ export async function validateDhis2Connection(
         message: {
           en: "This URL does not point to a valid DHIS2 instance. Please check the base URL (e.g. https://dhis2.example.org).",
           fr: "Cette URL ne pointe pas vers une instance DHIS2 valide. Veuillez vérifier l'URL de base (ex. https://dhis2.example.org).",
+          pt: "Este URL não aponta para uma instância DHIS2 válida. Verifique o URL de base (ex.: https://dhis2.example.org).",
         },
       };
     }
@@ -231,6 +232,7 @@ export async function validateDhis2Connection(
       message: {
         en: "Could not connect to a DHIS2 server at this URL. Check that the URL is correct and that the DHIS2 instance is running.",
         fr: "Impossible de se connecter à un serveur DHIS2 à cette URL. Vérifiez que l'URL est correcte et que l'instance DHIS2 est en cours d'exécution.",
+        pt: "Não foi possível ligar a um servidor DHIS2 neste URL. Verifique se o URL está correto e se a instância DHIS2 está em execução.",
       },
     };
   } finally {
@@ -261,6 +263,7 @@ export async function validateDhis2Connection(
         message: {
           en: "A DHIS2 server was found and is online, but authentication failed. Check your username and password, and verify that the URL is correct.",
           fr: "Un serveur DHIS2 a été trouvé et est en ligne, mais l'authentification a échoué. Vérifiez votre nom d'utilisateur et votre mot de passe, et confirmez que l'URL est correcte.",
+          pt: "Foi encontrado um servidor DHIS2 online, mas a autenticação falhou. Verifique o seu nome de utilizador e a sua palavra-passe, e confirme que o URL está correto.",
         },
       };
     }
@@ -271,6 +274,7 @@ export async function validateDhis2Connection(
         message: {
           en: `The DHIS2 server was reached but returned an unexpected error (status ${response.status}). Please try again.`,
           fr: `Le serveur DHIS2 a été atteint mais a renvoyé une erreur inattendue (statut ${response.status}). Veuillez réessayer.`,
+          pt: `O servidor DHIS2 foi contactado mas devolveu um erro inesperado (estado ${response.status}). Tente novamente, por favor.`,
         },
       };
     }
@@ -282,6 +286,7 @@ export async function validateDhis2Connection(
       message: {
         en: "Connection to DHIS2 failed during authentication. Please try again.",
         fr: "La connexion à DHIS2 a échoué lors de l'authentification. Veuillez réessayer.",
+        pt: "A ligação ao DHIS2 falhou durante a autenticação. Tente novamente, por favor.",
       },
     };
   } finally {

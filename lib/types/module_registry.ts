@@ -7,6 +7,7 @@ export const MODULE_REGISTRY = [
     label: {
       en: "M1. Data quality assessment",
       fr: "M1. Évaluation de la qualité des données",
+      pt: "M1. Avaliação da qualidade dos dados",
     },
     prerequisites: [],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m001" },
@@ -16,6 +17,7 @@ export const MODULE_REGISTRY = [
     label: {
       en: "M2. Data quality adjustments",
       fr: "M2. Ajustements de la qualité des données",
+      pt: "M2. Ajustes da qualidade dos dados",
     },
     prerequisites: ["m001"],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m002" },
@@ -25,6 +27,7 @@ export const MODULE_REGISTRY = [
     label: {
       en: "M3. Service utilization",
       fr: "M3. Utilisation des services",
+      pt: "M3. Utilização dos serviços",
     },
     prerequisites: ["m001", "m002"],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m003" },
@@ -34,6 +37,7 @@ export const MODULE_REGISTRY = [
     label: {
       en: "M4. Coverage estimates",
       fr: "M4. Estimations de couverture",
+      pt: "M4. Estimativas de cobertura",
     },
     prerequisites: ["m002"],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m004" },
@@ -43,6 +47,7 @@ export const MODULE_REGISTRY = [
     label: {
       en: "M5. Coverage estimates ~ new, part 1",
       fr: "M5. Estimations de couverture ~ nouveau, partie 1",
+      pt: "M5. Estimativas de cobertura ~ novo, parte 1",
     },
     prerequisites: ["m002"],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m005" },
@@ -52,6 +57,7 @@ export const MODULE_REGISTRY = [
     label: {
       en: "M6. Coverage estimates ~ new, part 2",
       fr: "M6. Estimations de couverture ~ nouveau, partie 2",
+      pt: "M6. Estimativas de cobertura ~ novo, parte 2",
     },
     prerequisites: ["m005"],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m006" },
@@ -61,6 +67,7 @@ export const MODULE_REGISTRY = [
     label: {
       en: "M7. Scorecard",
       fr: "M7. Scorecard",
+      pt: "M7. Scorecard",
     },
     prerequisites: ["m002"],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m007" },
@@ -71,6 +78,7 @@ export const MODULE_REGISTRY = [
     label: {
       en: "M8. Scorecard (Catalog-Driven)",
       fr: "M8. Scorecard (piloté par catalogue)",
+      pt: "M8. Scorecard (orientado por catálogo)",
     },
     prerequisites: ["m002"],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m008" },
@@ -80,6 +88,7 @@ export const MODULE_REGISTRY = [
     label: {
       en: "M9. ICEH Survey Data Analysis",
       fr: "M9. Analyse des données d'enquête ICEH",
+      pt: "M9. Análise de dados de inquérito ICEH",
     },
     prerequisites: [],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m009" },
@@ -89,6 +98,7 @@ export const MODULE_REGISTRY = [
     label: {
       en: "M10. Health facility assessment",
       fr: "M10. Évaluation des établissements de santé",
+      pt: "M10. Avaliação dos estabelecimentos de saúde",
     },
     prerequisites: [],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m010" },

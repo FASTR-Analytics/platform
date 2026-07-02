@@ -20,7 +20,7 @@ export function Step4_Dhis2(p: Props) {
   const deletionPreview = hasDeletionScope
     ? createQuery(
         () => serverActions.getDhis2ScopedDeletionPreview({}),
-        t3({ en: "Checking existing data...", fr: "Vérification des données existantes..." }),
+        t3({ en: "Checking existing data...", fr: "Vérification des données existantes...", pt: "A verificar os dados existentes..." }),
       )
     : undefined;
 
@@ -73,6 +73,7 @@ export function Step4_Dhis2(p: Props) {
         t3({
           en: "Could not check how many existing rows will be removed. Proceeding will still correctly remove any rows DHIS2 no longer returns for the fetched scope.",
           fr: "Impossible de vérifier combien de lignes existantes seront supprimées. La poursuite supprimera quand même correctement toutes les lignes que DHIS2 ne renvoie plus pour la portée récupérée.",
+          pt: "Não foi possível verificar quantas linhas existentes serão removidas. Ao prosseguir, as linhas que o DHIS2 já não devolve para o âmbito obtido serão corretamente removidas na mesma.",
         }),
       );
     }
@@ -82,6 +83,7 @@ export function Step4_Dhis2(p: Props) {
         text: t3({
           en: "This will remove existing rows DHIS2 no longer returns, and write the newly fetched values.",
           fr: "Cela supprimera les lignes existantes que DHIS2 ne renvoie plus, et écrira les nouvelles valeurs récupérées.",
+          pt: "Isto removerá as linhas existentes que o DHIS2 já não devolve e escreverá os novos valores obtidos.",
         }),
         itemList: items,
       },
@@ -95,26 +97,26 @@ export function Step4_Dhis2(p: Props) {
   return (
     <div class="ui-spy ui-pad flex flex-col">
       <div class="ui-pad border-base-300 rounded border">
-        <h2 class="font-700 mb-4 text-lg">{t3({ en: "Import Summary", fr: "Résumé de l'importation" })}</h2>
+        <h2 class="font-700 mb-4 text-lg">{t3({ en: "Import Summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}</h2>
 
         <div class="ui-gap grid grid-cols-12">
           <div class="col-span-12">
             <div class="flex flex-col gap-2">
               <div class="flex items-center justify-between">
-                <span class="text-base-content text-sm">{t3({ en: "Source Type:", fr: "Type de source :" })}</span>
+                <span class="text-base-content text-sm">{t3({ en: "Source Type:", fr: "Type de source :", pt: "Tipo de fonte:" })}</span>
                 <span class="font-mono text-sm">
                   {p.step3Result.sourceType}
                 </span>
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-base-content text-sm">{t3({ en: "Date Imported:", fr: "Date d'importation :" })}</span>
+                <span class="text-base-content text-sm">{t3({ en: "Date Imported:", fr: "Date d'importation :", pt: "Data de importação:" })}</span>
                 <span class="font-mono text-sm">
                   {new Date(p.step3Result.dateImported).toLocaleString()}
                 </span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-base-content text-sm">
-                  {t3({ en: "Total Indicator-Period Combos:", fr: "Total combinaisons indicateur-période :" })}
+                  {t3({ en: "Total Indicator-Period Combos:", fr: "Total combinaisons indicateur-période :", pt: "Total de combinações indicador-período:" })}
                 </span>
                 <span class="font-mono text-sm">
                   {p.step3Result.totalIndicatorPeriodCombos}
@@ -122,14 +124,14 @@ export function Step4_Dhis2(p: Props) {
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-base-content text-sm">
-                  {t3({ en: "Successful Fetches:", fr: "Récupérations réussies :" })}
+                  {t3({ en: "Successful Fetches:", fr: "Récupérations réussies :", pt: "Obtenções bem-sucedidas:" })}
                 </span>
                 <span class="font-mono text-sm" data-intent="success">
                   {p.step3Result.successfulFetches}
                 </span>
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-base-content text-sm">{t3({ en: "Failed Fetches:", fr: "Récupérations échouées :" })}</span>
+                <span class="text-base-content text-sm">{t3({ en: "Failed Fetches:", fr: "Récupérations échouées :", pt: "Obtenções falhadas:" })}</span>
                 <span
                   class="font-mono text-sm"
                   data-intent={
@@ -143,7 +145,7 @@ export function Step4_Dhis2(p: Props) {
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-base-content text-sm">
-                  {t3({ en: "Final Staging Row Count:", fr: "Total de lignes préparées :" })}
+                  {t3({ en: "Final Staging Row Count:", fr: "Total de lignes préparées :", pt: "Total de linhas preparadas:" })}
                 </span>
                 <span class="font-700 font-mono text-sm">
                   {p.step3Result.finalStagingRowCount}
@@ -156,14 +158,14 @@ export function Step4_Dhis2(p: Props) {
 
       {p.step3Result.failedFetches.length > 0 && (
         <div class="ui-pad border-base-300 rounded border">
-          <h3 class="font-700 text-danger mb-3 text-base">{t3({ en: "Failed Fetches", fr: "Récupérations échouées" })}</h3>
+          <h3 class="font-700 text-danger mb-3 text-base">{t3({ en: "Failed Fetches", fr: "Récupérations échouées", pt: "Obtenções falhadas" })}</h3>
           <div class="max-h-48 overflow-y-auto">
             <table class="w-full text-sm">
               <thead>
                 <tr class="border-base-300 border-b">
-                  <th class="font-700 p-2 text-left">{t3({ en: "Indicator ID", fr: "ID indicateur" })}</th>
-                  <th class="font-700 p-2 text-left">{t3({ en: "Period ID", fr: "ID période" })}</th>
-                  <th class="font-700 p-2 text-left">{t3({ en: "Error", fr: "Erreur" })}</th>
+                  <th class="font-700 p-2 text-left">{t3({ en: "Indicator ID", fr: "ID indicateur", pt: "ID do indicador" })}</th>
+                  <th class="font-700 p-2 text-left">{t3({ en: "Period ID", fr: "ID période", pt: "ID do período" })}</th>
+                  <th class="font-700 p-2 text-left">{t3({ en: "Error", fr: "Erreur", pt: "Erro" })}</th>
                 </tr>
               </thead>
               <tbody>
@@ -186,15 +188,15 @@ export function Step4_Dhis2(p: Props) {
 
       {p.step3Result.periodIndicatorStats.length > 0 && (
         <div class="ui-pad border-base-300 rounded border">
-          <h3 class="font-700 mb-3 text-base">{t3({ en: "Period-Indicator Statistics", fr: "Statistiques période-indicateur" })}</h3>
+          <h3 class="font-700 mb-3 text-base">{t3({ en: "Period-Indicator Statistics", fr: "Statistiques période-indicateur", pt: "Estatísticas período-indicador" })}</h3>
           <div class="max-h-64 overflow-y-auto">
             <table class="w-full text-sm">
               <thead>
                 <tr class="border-base-300 border-b">
-                  <th class="font-700 p-2 text-left">{t3({ en: "Period ID", fr: "ID période" })}</th>
-                  <th class="font-700 p-2 text-left">{t3({ en: "Indicator ID", fr: "ID indicateur" })}</th>
-                  <th class="font-700 p-2 text-right">{t3({ en: "Records", fr: "Enregistrements" })}</th>
-                  <th class="font-700 p-2 text-right">{t3({ en: "Total Count", fr: "Total" })}</th>
+                  <th class="font-700 p-2 text-left">{t3({ en: "Period ID", fr: "ID période", pt: "ID do período" })}</th>
+                  <th class="font-700 p-2 text-left">{t3({ en: "Indicator ID", fr: "ID indicateur", pt: "ID do indicador" })}</th>
+                  <th class="font-700 p-2 text-right">{t3({ en: "Records", fr: "Enregistrements", pt: "Registos" })}</th>
+                  <th class="font-700 p-2 text-right">{t3({ en: "Total Count", fr: "Total", pt: "Total" })}</th>
                 </tr>
               </thead>
               <tbody>
@@ -222,14 +224,14 @@ export function Step4_Dhis2(p: Props) {
 
       {p.step3Result.workItemHistory.length > 0 && (
         <div class="ui-pad border-base-300 rounded border">
-          <h3 class="font-700 mb-3 text-base">{t3({ en: "Work Item History", fr: "Historique des tâches" })}</h3>
+          <h3 class="font-700 mb-3 text-base">{t3({ en: "Work Item History", fr: "Historique des tâches", pt: "Histórico de tarefas" })}</h3>
           <div class="max-h-48 overflow-y-auto">
             <table class="w-full text-sm">
               <thead>
                 <tr class="border-base-300 border-b">
-                  <th class="font-700 p-2 text-left">{t3({ en: "Indicator ID", fr: "ID indicateur" })}</th>
-                  <th class="font-700 p-2 text-left">{t3({ en: "Period ID", fr: "ID période" })}</th>
-                  <th class="font-700 p-2 text-center">{t3({ en: "Status", fr: "Statut" })}</th>
+                  <th class="font-700 p-2 text-left">{t3({ en: "Indicator ID", fr: "ID indicateur", pt: "ID do indicador" })}</th>
+                  <th class="font-700 p-2 text-left">{t3({ en: "Period ID", fr: "ID période", pt: "ID do período" })}</th>
+                  <th class="font-700 p-2 text-center">{t3({ en: "Status", fr: "Statut", pt: "Estado" })}</th>
                 </tr>
               </thead>
               <tbody>
@@ -243,7 +245,7 @@ export function Step4_Dhis2(p: Props) {
                           class="text-xs"
                           data-intent={item.success ? "success" : "danger"}
                         >
-                          {item.success ? t3({ en: "Success", fr: "Succès" }) : t3({ en: "Failed", fr: "Échoué" })}
+                          {item.success ? t3({ en: "Success", fr: "Succès", pt: "Sucesso" }) : t3({ en: "Failed", fr: "Échoué", pt: "Falhou" })}
                         </span>
                       </td>
                     </tr>
@@ -263,7 +265,7 @@ export function Step4_Dhis2(p: Props) {
               intent="success"
               iconName="save"
             >
-              {t3({ en: "Integrate and finalize", fr: "Intégrer et finaliser" })}
+              {t3({ en: "Integrate and finalize", fr: "Intégrer et finaliser", pt: "Integrar e finalizar" })}
             </Button>
           </Match>
           <Match when={previewStatus() === "loading"}>
@@ -271,7 +273,7 @@ export function Step4_Dhis2(p: Props) {
                 yet — don't show "no rows to import" until we actually know
                 that; it may turn out there IS work to do (a scoped delete). */}
             <div class="bg-base-100 border-base-300 rounded border p-3 text-sm">
-              {t3({ en: "Checking for existing data to remove...", fr: "Vérification des données existantes à supprimer..." })}
+              {t3({ en: "Checking for existing data to remove...", fr: "Vérification des données existantes à supprimer...", pt: "A verificar se existem dados a remover..." })}
             </div>
           </Match>
           <Match when={previewStatus() === "error"}>
@@ -281,20 +283,20 @@ export function Step4_Dhis2(p: Props) {
                 error handling in attemptIntegrate(). */}
             <div class="ui-spy-sm flex flex-col">
               <div class="bg-warning-50 border-warning-300 rounded border p-3 text-sm">
-                {t3({ en: "Could not check whether there is existing data to remove.", fr: "Impossible de vérifier s'il existe des données existantes à supprimer." })}
+                {t3({ en: "Could not check whether there is existing data to remove.", fr: "Impossible de vérifier s'il existe des données existantes à supprimer.", pt: "Não foi possível verificar se existem dados a remover." })}
               </div>
               <Button
                 onClick={attemptIntegrate}
                 intent="danger"
                 iconName="save"
               >
-                {t3({ en: "Integrate and finalize", fr: "Intégrer et finaliser" })}
+                {t3({ en: "Integrate and finalize", fr: "Intégrer et finaliser", pt: "Integrar e finalizar" })}
               </Button>
             </div>
           </Match>
           <Match when={true}>
             <div class="bg-warning-50 border-warning-300 rounded border p-3 text-sm">
-              {t3({ en: "There are no rows to import. Either go back and edit this upload config, or delete the upload attempt.", fr: "Il n'y a aucune ligne à importer. Retournez modifier la configuration ou supprimez la tentative d'importation." })}
+              {t3({ en: "There are no rows to import. Either go back and edit this upload config, or delete the upload attempt.", fr: "Il n'y a aucune ligne à importer. Retournez modifier la configuration ou supprimez la tentative d'importation.", pt: "Não há linhas para importar. Volte atrás e edite esta configuração de carregamento, ou elimine a tentativa de carregamento." })}
             </div>
           </Match>
         </Switch>

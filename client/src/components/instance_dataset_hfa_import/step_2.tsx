@@ -51,7 +51,7 @@ export function Step2(p: Props) {
     if (!mappings.timePoint) {
       return {
         success: false,
-        err: t3({ en: "Select a time point", fr: "Sélectionnez un point temporel" }),
+        err: t3({ en: "Select a time point", fr: "Sélectionnez un point temporel", pt: "Selecione um ponto temporal" }),
       };
     }
     return serverActions.updateDatasetHfaMappings({ mappings });
@@ -61,10 +61,10 @@ export function Step2(p: Props) {
     <div class="ui-pad ui-spy">
       <div class="max-w-2xl space-y-6">
         <div>
-          <h3 class="font-700 text-lg mb-2">{t3({ en: "Facility ID Column", fr: "Colonne ID établissement" })}</h3>
+          <h3 class="font-700 text-lg mb-2">{t3({ en: "Facility ID Column", fr: "Colonne ID établissement", pt: "Coluna do ID do estabelecimento" })}</h3>
           <div class="w-80">
             <Select
-              label={t3({ en: "Select the column containing facility IDs", fr: "Sélectionnez la colonne contenant les ID des établissements" })}
+              label={t3({ en: "Select the column containing facility IDs", fr: "Sélectionnez la colonne contenant les ID des établissements", pt: "Selecione a coluna que contém os ID dos estabelecimentos" })}
               options={getSelectOptions(csvHeaders())}
               value={tempMappings.facilityIdColumn}
               onChange={(val) => {
@@ -76,10 +76,10 @@ export function Step2(p: Props) {
           </div>
         </div>
         <div>
-          <h3 class="font-700 text-lg mb-2">{t3({ en: "Time Point", fr: "Point temporel" })}</h3>
+          <h3 class="font-700 text-lg mb-2">{t3({ en: "Time Point", fr: "Point temporel", pt: "Ponto temporal" })}</h3>
           <div class="w-96">
             <Select
-              label={t3({ en: "Select the time point this data belongs to", fr: "Sélectionnez le point temporel auquel ces données appartiennent" })}
+              label={t3({ en: "Select the time point this data belongs to", fr: "Sélectionnez le point temporel auquel ces données appartiennent", pt: "Selecione o ponto temporal a que estes dados pertencem" })}
               options={timePointOptions()}
               value={tempMappings.timePoint}
               onChange={(val) => {

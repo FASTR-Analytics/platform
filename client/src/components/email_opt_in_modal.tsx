@@ -27,7 +27,7 @@ export function EmailOptInModal(p: AlertComponentProps<void, undefined>) {
       width="sm"
       topPanel={
         <div class="font-700 text-base-content text-xl">
-          {t3({ en: "Stay in the loop", fr: "Restez informé" })}
+          {t3({ en: "Stay in the loop", fr: "Restez informé", pt: "Mantenha-se informado" })}
         </div>
       }
       leftButtons={
@@ -38,7 +38,7 @@ export function EmailOptInModal(p: AlertComponentProps<void, undefined>) {
             intent="neutral"
             disabled={loading()}
           >
-            {t3({ en: "No thanks", fr: "Non merci" })}
+            {t3({ en: "No thanks", fr: "Non merci", pt: "Não, obrigado" })}
           </Button>,
         ]
       }
@@ -50,7 +50,7 @@ export function EmailOptInModal(p: AlertComponentProps<void, undefined>) {
             intent="primary"
             disabled={loading()}
           >
-            {t3({ en: "Yes, sign me up", fr: "Oui, inscrivez-moi" })}
+            {t3({ en: "Yes, sign me up", fr: "Oui, inscrivez-moi", pt: "Sim, quero inscrever-me" })}
           </Button>,
         ]
       }
@@ -59,6 +59,7 @@ export function EmailOptInModal(p: AlertComponentProps<void, undefined>) {
         {t3({
           en: "Would you like to receive email updates and announcements?",
           fr: "Souhaitez-vous recevoir des mises à jour et des annonces par e-mail ?",
+          pt: "Gostaria de receber atualizações e anúncios por e-mail?",
         })}
       </p>
     </ModalContainer>

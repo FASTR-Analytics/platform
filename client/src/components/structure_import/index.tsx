@@ -56,7 +56,7 @@ export function StructureUploadAttemptForm(p: Props) {
       stepper.setCurrentStep(res.data.step);
     }
     return res;
-  }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation..." }));
+  }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation...", pt: "A carregar as informações de importação..." }));
 
   const [dismissedError, setDismissedError] = createSignal<string | undefined>(
     undefined,
@@ -104,7 +104,7 @@ export function StructureUploadAttemptForm(p: Props) {
   // Actions
   async function attemptDeleteStructureUploadAttempt() {
     const deleteAction = createDeleteAction(
-      t3({ en: "Are you sure you want to delete this import?", fr: "Êtes-vous sûr de vouloir supprimer cette importation ?" }),
+      t3({ en: "Are you sure you want to delete this import?", fr: "Êtes-vous sûr de vouloir supprimer cette importation ?", pt: "Tem a certeza de que pretende eliminar esta importação?" }),
       () => serverActions.deleteStructureUploadAttempt({ family: p.family }),
       () => p.close({ needsReload: true }),
     );
@@ -121,10 +121,12 @@ export function StructureUploadAttemptForm(p: Props) {
               ? t3({
                   en: "Import HMIS facilities",
                   fr: "Importation des établissements SNIS",
+                  pt: "Importação de estabelecimentos SNIS",
                 })
               : t3({
                   en: "Import HFA facilities",
                   fr: "Importation des établissements Enquêtes FOSA",
+                  pt: "Importação de estabelecimentos FOSA",
                 })
           }
           back={() => p.close(undefined)}
@@ -140,7 +142,7 @@ export function StructureUploadAttemptForm(p: Props) {
               intent="danger"
               iconName="trash"
             >
-              {t3({ en: "Discard upload", fr: "Annuler le téléversement" })}
+              {t3({ en: "Discard upload", fr: "Annuler le téléversement", pt: "Descartar o carregamento" })}
             </Button>
           </div>
         </HeaderBarCanGoBack>
@@ -149,7 +151,7 @@ export function StructureUploadAttemptForm(p: Props) {
       <StateHolderWrapper
         state={uploadAttempt.state()}
         onErrorButton={{
-          label: t3({ en: "Back to structure", fr: "Retour à la structure" }),
+          label: t3({ en: "Back to structure", fr: "Retour à la structure", pt: "Voltar à estrutura" }),
           onClick: () => p.close(undefined),
         }}
       >
@@ -169,13 +171,14 @@ export function StructureUploadAttemptForm(p: Props) {
                       <div class="ui-gap flex items-start">
                         <div class="ui-spy-sm flex-1">
                           <div class="text-danger font-700">
-                            {t3({ en: "The last import step failed", fr: "La dernière étape d'importation a échoué" })}
+                            {t3({ en: "The last import step failed", fr: "La dernière étape d'importation a échoué", pt: "A última etapa de importação falhou" })}
                           </div>
                           <div class="text-danger text-sm">{errorMsg}</div>
                           <div class="text-sm">
                             {t3({
                               en: "Fix the configuration in the steps below and re-save, or discard the upload. If the final step was rejected, you can also choose a different import mode and run it again.",
                               fr: "Corrigez la configuration dans les étapes ci-dessous et enregistrez de nouveau, ou annulez le téléversement. Si la dernière étape a été rejetée, vous pouvez aussi choisir un autre mode d'importation et relancer.",
+                              pt: "Corrija a configuração nas etapas abaixo e guarde novamente, ou descarte o carregamento. Se a última etapa foi rejeitada, pode também escolher outro modo de importação e executá-la novamente.",
                             })}
                           </div>
                         </div>
@@ -191,7 +194,7 @@ export function StructureUploadAttemptForm(p: Props) {
               <Switch
                 fallback={
                   <div class="ui-pad text-danger">
-                    {t3({ en: "Something went wrong: Bad step in structure upload attempt", fr: "Une erreur est survenue : étape incorrecte lors de la tentative d'importation de structure" })}
+                    {t3({ en: "Something went wrong: Bad step in structure upload attempt", fr: "Une erreur est survenue : étape incorrecte lors de la tentative d'importation de structure", pt: "Ocorreu um erro: etapa inválida na tentativa de importação de estrutura" })}
                   </div>
                 }
               >
@@ -399,6 +402,7 @@ function ImportInProgress(p: ImportInProgressProps) {
           {t3({
             en: "A structure import is running...",
             fr: "Une importation de structure est en cours...",
+            pt: "Está em curso uma importação de estrutura...",
           })}
         </div>
       </div>
@@ -411,6 +415,7 @@ function ImportInProgress(p: ImportInProgressProps) {
             {t3({
               en: "Organisation units processed",
               fr: "Unités organisationnelles traitées",
+              pt: "Unidades organizacionais processadas",
             })}
             : {msg}
           </div>
@@ -420,6 +425,7 @@ function ImportInProgress(p: ImportInProgressProps) {
         {t3({
           en: "This screen will update automatically when the import finishes. It is safe to leave and come back.",
           fr: "Cet écran se mettra à jour automatiquement à la fin de l'importation. Vous pouvez quitter cette page et revenir plus tard.",
+          pt: "Este ecrã atualiza-se automaticamente quando a importação terminar. Pode sair desta página e voltar mais tarde.",
         })}
       </div>
     </div>

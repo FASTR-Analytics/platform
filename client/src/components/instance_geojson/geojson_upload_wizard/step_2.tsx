@@ -94,7 +94,7 @@ export function Step2(p: Props) {
       }
 
       if (analyzeRes.data.featureCount === 0) {
-        return { success: false, err: t3({ en: "No features with geometry found at this level", fr: "Aucune entité avec géométrie trouvée à ce niveau" }) };
+        return { success: false, err: t3({ en: "No features with geometry found at this level", fr: "Aucune entité avec géométrie trouvée à ce niveau", pt: "Nenhuma entidade com geometria encontrada neste nível" }) };
       }
 
       state.setAnalysisResult({
@@ -142,14 +142,14 @@ export function Step2(p: Props) {
       fallback={
         <div class="ui-spy">
           <div class="ui-spy-sm">
-            <div class="font-600">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer" })}</div>
+            <div class="font-600">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer", pt: "Passo 2: Configurar" })}</div>
             <div class="text-base-500 text-sm">
-              {t3({ en: "Select which admin area level to import and which DHIS2 level to use.", fr: "Sélectionnez le niveau administratif à importer et le niveau DHIS2 à utiliser." })}
+              {t3({ en: "Select which admin area level to import and which DHIS2 level to use.", fr: "Sélectionnez le niveau administratif à importer et le niveau DHIS2 à utiliser.", pt: "Selecione o nível de zona administrativa a importar e o nível DHIS2 a utilizar." })}
             </div>
           </div>
 
           <div class="ui-spy-sm">
-            <label class="font-600 text-sm">{t3({ en: "Admin area level", fr: "Niveau administratif" })}</label>
+            <label class="font-600 text-sm">{t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" })}</label>
             <Select
               options={levelOptions}
               value={String(state.adminAreaLevel())}
@@ -159,12 +159,12 @@ export function Step2(p: Props) {
           </div>
 
           <div class="ui-spy-sm">
-            <label class="font-600 text-sm">{t3({ en: "DHIS2 level", fr: "Niveau DHIS2" })}</label>
+            <label class="font-600 text-sm">{t3({ en: "DHIS2 level", fr: "Niveau DHIS2", pt: "Nível DHIS2" })}</label>
             <Select
               options={dhis2LevelOptions()}
               value={state.selectedDhis2Level() !== null ? String(state.selectedDhis2Level()) : ""}
               onChange={(v) => state.setSelectedDhis2Level(v ? parseInt(v) : null)}
-              placeholder={t3({ en: "Select DHIS2 level...", fr: "Sélectionner le niveau DHIS2..." })}
+              placeholder={t3({ en: "Select DHIS2 level...", fr: "Sélectionner le niveau DHIS2...", pt: "Selecionar o nível DHIS2..." })}
               fullWidth
             />
           </div>
@@ -178,10 +178,10 @@ export function Step2(p: Props) {
               disabled={!canAnalyzeDhis2()}
               intent="primary"
             >
-              {t3({ en: "Fetch & analyze", fr: "Récupérer et analyser" })}
+              {t3({ en: "Fetch & analyze", fr: "Récupérer et analyser", pt: "Obter e analisar" })}
             </Button>
             <Button intent="neutral" onClick={() => state.setStep(1)}>
-              {t3({ en: "Back", fr: "Retour" })}
+              {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
             </Button>
           </div>
         </div>
@@ -189,18 +189,18 @@ export function Step2(p: Props) {
     >
       <div class="ui-spy">
         <div class="ui-spy-sm">
-          <div class="font-600">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer" })}</div>
+          <div class="font-600">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer", pt: "Passo 2: Configurar" })}</div>
           <Show when={state.analysisResult()} keyed>
             {(result) => (
               <div class="text-base-500 text-sm">
-                {result.featureCount} {t3({ en: "features found", fr: "entités trouvées" })}
+                {result.featureCount} {t3({ en: "features found", fr: "entités trouvées", pt: "entidades encontradas" })}
               </div>
             )}
           </Show>
         </div>
 
         <div class="ui-spy-sm">
-          <label class="font-600 text-sm">{t3({ en: "Admin area level", fr: "Niveau administratif" })}</label>
+          <label class="font-600 text-sm">{t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" })}</label>
           <Select
             options={levelOptions}
             value={String(state.adminAreaLevel())}
@@ -210,7 +210,7 @@ export function Step2(p: Props) {
         </div>
 
         <div class="ui-spy-sm">
-          <label class="font-600 text-sm">{t3({ en: "GeoJSON property to match on", fr: "Propriété GeoJSON pour le mappage" })}</label>
+          <label class="font-600 text-sm">{t3({ en: "GeoJSON property to match on", fr: "Propriété GeoJSON pour le mappage", pt: "Propriedade GeoJSON para a associação" })}</label>
           <Select
             options={propertyOptions()}
             value={state.selectedProp()}
@@ -221,14 +221,14 @@ export function Step2(p: Props) {
 
         <Show when={state.selectedProp()}>
           <div class="ui-spy-sm">
-            <label class="font-600 text-sm">{t3({ en: "Values in selected property", fr: "Valeurs de la propriété sélectionnée" })}</label>
+            <label class="font-600 text-sm">{t3({ en: "Values in selected property", fr: "Valeurs de la propriété sélectionnée", pt: "Valores da propriedade selecionada" })}</label>
             <div class="border-base-300 max-h-40 overflow-auto rounded border">
               {geoJsonValues().slice(0, 30).map((val) => (
                 <div class="border-base-200 px-3 py-1 text-sm border-b last:border-b-0">{val}</div>
               ))}
               <Show when={geoJsonValues().length > 30}>
                 <div class="text-base-400 px-3 py-1 text-sm">
-                  ...{t3({ en: "and", fr: "et" })} {geoJsonValues().length - 30} {t3({ en: "more", fr: "de plus" })}
+                  ...{t3({ en: "and", fr: "et", pt: "e" })} {geoJsonValues().length - 30} {t3({ en: "more", fr: "de plus", pt: "mais" })}
                 </div>
               </Show>
             </div>
@@ -242,11 +242,11 @@ export function Step2(p: Props) {
             intent="primary"
           >
             {adminAreasLoading()
-              ? t3({ en: "Loading...", fr: "Chargement..." })
-              : t3({ en: "Next", fr: "Suivant" })}
+              ? t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })
+              : t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
           </Button>
           <Button intent="neutral" onClick={() => state.setStep(1)}>
-            {t3({ en: "Back", fr: "Retour" })}
+            {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
           </Button>
         </div>
       </div>

@@ -32,7 +32,7 @@ export function Step0(p: Props) {
     if (sourceType !== "csv" && sourceType !== "dhis2") {
       return {
         success: false,
-        err: t3({ en: "You must select a source type", fr: "Vous devez sélectionner un type de source" }),
+        err: t3({ en: "You must select a source type", fr: "Vous devez sélectionner un type de source", pt: "Tem de selecionar um tipo de fonte" }),
       };
     }
 
@@ -46,8 +46,8 @@ export function Step0(p: Props) {
       <div class="w-96">
         <RadioGroup
           options={[
-            { value: "csv", label: t3({ en: "Upload CSV file", fr: "Téléverser un fichier CSV" }) },
-            { value: "dhis2", label: t3({ en: "Import directly from DHIS2", fr: "Importer directement depuis DHIS2" }) },
+            { value: "csv", label: t3({ en: "Upload CSV file", fr: "Téléverser un fichier CSV", pt: "Carregar um ficheiro CSV" }) },
+            { value: "dhis2", label: t3({ en: "Import directly from DHIS2", fr: "Importer directement depuis DHIS2", pt: "Importar diretamente do DHIS2" }) },
           ]}
           value={selectedSourceType()}
           onChange={(v) => updateSelectedSourceType(v as "csv" | "dhis2")}

@@ -8,11 +8,11 @@ type Props = {
   onSelect: () => void;
 };
 
-const TYPE_LABELS: Record<PresentationOption, { en: string; fr: string }> = {
-  table: { en: "Table", fr: "Tableau" },
-  timeseries: { en: "Time series", fr: "Série temporelle" },
-  chart: { en: "Bar chart", fr: "Graphique en barres" },
-  map: { en: "Map", fr: "Carte" },
+const TYPE_LABELS: Record<PresentationOption, { en: string; fr: string; pt: string }> = {
+  table: { en: "Table", fr: "Tableau", pt: "Tabela" },
+  timeseries: { en: "Time series", fr: "Série temporelle", pt: "Série temporal" },
+  chart: { en: "Bar chart", fr: "Graphique en barres", pt: "Gráfico de barras" },
+  map: { en: "Map", fr: "Carte", pt: "Mapa" },
 };
 
 export function TypeCard(p: Props) {

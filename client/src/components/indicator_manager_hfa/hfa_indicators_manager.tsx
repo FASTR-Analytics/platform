@@ -58,6 +58,7 @@ export function HfaIndicatorsManager(p: Props) {
       msg: t3({
         en: "Loading HFA indicators...",
         fr: "Chargement des indicateurs HFA...",
+        pt: "A carregar indicadores HFA...",
       }),
     },
   );
@@ -95,15 +96,15 @@ export function HfaIndicatorsManager(p: Props) {
   const tabItems: ListItem<"indicators" | "categories" | "service_categories">[] = [
     {
       id: "indicators",
-      label: t3({ en: "Indicators", fr: "Indicateurs" }),
+      label: t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }),
     },
     {
       id: "categories",
-      label: t3({ en: "Categories", fr: "Catégories" }),
+      label: t3({ en: "Categories", fr: "Catégories", pt: "Categorias" }),
     },
     {
       id: "service_categories",
-      label: t3({ en: "Service categories", fr: "Catégories de service" }),
+      label: t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" }),
     },
   ];
 
@@ -155,6 +156,7 @@ export function HfaIndicatorsManager(p: Props) {
     t3({
       en: "No HFA data has been imported yet. Import HFA data to enable code editing and validation.",
       fr: "Aucune donnée HFA n'a encore été importée. Importez des données HFA pour activer l'édition du code et la validation.",
+      pt: "Ainda não foram importados dados HFA. Importe dados HFA para ativar a edição e a validação do código.",
     });
 
   const surveyVarNames = createMemo(() => {
@@ -463,10 +465,12 @@ export function HfaIndicatorsManager(p: Props) {
         ? t3({
             en: "Are you sure you want to delete this indicator?",
             fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+            pt: "Tem a certeza de que pretende eliminar este indicador?",
           })
         : t3({
             en: "Are you sure you want to delete these indicators?",
             fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
+            pt: "Tem a certeza de que pretende eliminar estes indicadores?",
           });
     const referencing = findReferencingIndicators(varNames);
     if (referencing.length === 0) {
@@ -604,7 +608,7 @@ export function HfaIndicatorsManager(p: Props) {
   const columns: TableColumn<HfaIndicator>[] = [
     {
       key: "categoryId",
-      header: t3({ en: "Category", fr: "Catégorie" }),
+      header: t3({ en: "Category", fr: "Catégorie", pt: "Categoria" }),
       sortable: true,
       render: (ind) => {
         if (!ind.categoryId) return "—";
@@ -616,7 +620,7 @@ export function HfaIndicatorsManager(p: Props) {
     },
     {
       key: "subCategoryId",
-      header: t3({ en: "Sub-category", fr: "Sous-catégorie" }),
+      header: t3({ en: "Sub-category", fr: "Sous-catégorie", pt: "Subcategoria" }),
       sortable: true,
       render: (ind) => {
         if (!ind.subCategoryId) return "—";
@@ -628,7 +632,7 @@ export function HfaIndicatorsManager(p: Props) {
     },
     {
       key: "serviceCategoryIds",
-      header: t3({ en: "Service categories", fr: "Catégories de service" }),
+      header: t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" }),
       sortable: true,
       render: (ind) => {
         if (ind.serviceCategoryIds.length === 0) return "—";
@@ -644,25 +648,25 @@ export function HfaIndicatorsManager(p: Props) {
     },
     {
       key: "varName",
-      header: t3({ en: "Variable Name", fr: "Nom de variable" }),
+      header: t3({ en: "Variable Name", fr: "Nom de variable", pt: "Nome da variável" }),
       sortable: true,
       render: (ind) => <span class="font-mono">{ind.varName}</span>,
     },
     {
       key: "shortLabel",
-      header: t3({ en: "Short label", fr: "Libellé court" }),
+      header: t3({ en: "Short label", fr: "Libellé court", pt: "Etiqueta curta" }),
       sortable: true,
       render: (ind) =>
         ind.shortLabel ? ind.shortLabel : <span class="text-neutral">—</span>,
     },
     {
       key: "definition",
-      header: t3({ en: "Long label", fr: "Libellé long" }),
+      header: t3({ en: "Long label", fr: "Libellé long", pt: "Etiqueta longa" }),
       sortable: true,
     },
     {
       key: "type",
-      header: t3({ en: "Type", fr: "Type" }),
+      header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
       sortable: true,
       render: (ind) => (
         <span>
@@ -673,7 +677,7 @@ export function HfaIndicatorsManager(p: Props) {
     },
     {
       key: "timePoints",
-      header: t3({ en: "Time points", fr: "Points temporels" }),
+      header: t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" }),
       sortable: true,
       sortValue: (ind) => statsByVarName().get(ind.varName)?.withCode ?? -1,
       render: (ind) => {
@@ -684,6 +688,7 @@ export function HfaIndicatorsManager(p: Props) {
             {t3({
               en: `${stats.withCode} of ${stats.total}`,
               fr: `${stats.withCode} sur ${stats.total}`,
+              pt: `${stats.withCode} de ${stats.total}`,
             })}
           </span>
         );
@@ -691,7 +696,7 @@ export function HfaIndicatorsManager(p: Props) {
     },
     {
       key: "status",
-      header: t3({ en: "Status", fr: "Statut" }),
+      header: t3({ en: "Status", fr: "Statut", pt: "Estado" }),
       sortable: true,
       sortValue: (ind) => statsByVarName().get(ind.varName)?.error ?? -1,
       render: (ind) => {
@@ -704,7 +709,11 @@ export function HfaIndicatorsManager(p: Props) {
           <span>
             <Show when={stats.ready > 0}>
               <span class="text-success">
-                {t3({ en: `${stats.ready} ready`, fr: `${stats.ready} prêt` })}
+                {t3({
+                  en: `${stats.ready} ready`,
+                  fr: `${stats.ready} prêt`,
+                  pt: `${stats.ready} pronto`,
+                })}
               </span>
             </Show>
             <Show when={stats.warning > 0}>
@@ -715,6 +724,7 @@ export function HfaIndicatorsManager(p: Props) {
                 {t3({
                   en: `${stats.warning} warning`,
                   fr: `${stats.warning} avertissement`,
+                  pt: `${stats.warning} aviso`,
                 })}
               </span>
             </Show>
@@ -726,6 +736,7 @@ export function HfaIndicatorsManager(p: Props) {
                 {t3({
                   en: `${stats.error} error`,
                   fr: `${stats.error} erreur`,
+                  pt: `${stats.error} erro`,
                 })}
               </span>
             </Show>
@@ -735,7 +746,7 @@ export function HfaIndicatorsManager(p: Props) {
     },
     {
       key: "codeConsistent",
-      header: t3({ en: "Consistent", fr: "Cohérent" }),
+      header: t3({ en: "Consistent", fr: "Cohérent", pt: "Consistente" }),
       sortable: true,
       sortValue: (ind) => {
         const stats = statsByVarName().get(ind.varName);
@@ -750,8 +761,8 @@ export function HfaIndicatorsManager(p: Props) {
         return (
           <span>
             {stats.consistent
-              ? t3({ en: "Yes", fr: "Oui" })
-              : t3({ en: "No", fr: "Non" })}
+              ? t3({ en: "Yes", fr: "Oui", pt: "Sim" })
+              : t3({ en: "No", fr: "Non", pt: "Não" })}
           </span>
         );
       },
@@ -807,7 +818,7 @@ export function HfaIndicatorsManager(p: Props) {
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
             <Button iconName="chevronLeft" onClick={p.backToInstance} />
             <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "HFA INDICATORS", fr: "INDICATEURS HFA" })}
+              {t3({ en: "HFA INDICATORS", fr: "INDICATEURS HFA", pt: "INDICADORES HFA" })}
             </div>
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <Button
@@ -815,7 +826,7 @@ export function HfaIndicatorsManager(p: Props) {
                 outline
                 onClick={() => setShowAi((v) => !v)}
               >
-                {t3({ en: "AI", fr: "IA" })}
+                {t3({ en: "AI", fr: "IA", pt: "IA" })}
               </Button>
             </Show>
           </div>
@@ -833,7 +844,7 @@ export function HfaIndicatorsManager(p: Props) {
                   <div class="flex h-full flex-col">
                     <div class="ui-gap-sm flex flex-none items-center pb-4">
                       <div class="font-700 flex-1 text-xl">
-                        {t3({ en: "Indicators", fr: "Indicateurs" })} (
+                        {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })} (
                         {keyedIndicators.length})
                       </div>
                       <Show when={instanceState.currentUserIsGlobalAdmin}>
@@ -848,7 +859,7 @@ export function HfaIndicatorsManager(p: Props) {
                             disabled={!hfaDataAvailable()}
                             outline
                           >
-                            {t3({ en: "Revalidate all", fr: "Revalider tout" })}
+                            {t3({ en: "Revalidate all", fr: "Revalider tout", pt: "Revalidar tudo" })}
                           </Button>
                           <Button
                             iconName="search"
@@ -859,6 +870,7 @@ export function HfaIndicatorsManager(p: Props) {
                             {t3({
                               en: "Check unused variables",
                               fr: "Vérifier les variables inutilisées",
+                              pt: "Verificar variáveis não utilizadas",
                             })}
                           </Button>
                           <Button
@@ -870,6 +882,7 @@ export function HfaIndicatorsManager(p: Props) {
                             {t3({
                               en: "Download Excel",
                               fr: "Télécharger Excel",
+                              pt: "Transferir Excel",
                             })}
                           </Button>
                           <Button
@@ -878,7 +891,7 @@ export function HfaIndicatorsManager(p: Props) {
                             disabled={!hfaDataAvailable()}
                             outline
                           >
-                            {t3({ en: "Import Excel", fr: "Importer Excel" })}
+                            {t3({ en: "Import Excel", fr: "Importer Excel", pt: "Importar Excel" })}
                           </Button>
                         </div>
                         <Button
@@ -886,7 +899,7 @@ export function HfaIndicatorsManager(p: Props) {
                           intent="primary"
                           onClick={handleCreate}
                         >
-                          {t3({ en: "Add", fr: "Ajouter" })}
+                          {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
                         </Button>
                       </Show>
                     </div>
@@ -903,11 +916,13 @@ export function HfaIndicatorsManager(p: Props) {
                         noRowsMessage={t3({
                           en: "No HFA indicators configured",
                           fr: "Aucun indicateur HFA configuré",
+                          pt: "Nenhum indicador HFA configurado",
                         })}
                         bulkActions={bulkActions}
                         selectionLabel={t3({
                           en: "indicator",
                           fr: "indicateur",
+                          pt: "indicador",
                         })}
                         fitTableToAvailableHeight
                       />

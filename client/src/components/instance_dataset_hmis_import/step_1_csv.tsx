@@ -26,7 +26,7 @@ export function Step1_Csv(p: Props) {
     if (!assetFileName) {
       return {
         success: false,
-        err: t3({ en: "You must select a file", fr: "Vous devez sélectionner un fichier" }),
+        err: t3({ en: "You must select a file", fr: "Vous devez sélectionner un fichier", pt: "Tem de selecionar um ficheiro" }),
       };
     }
 
@@ -38,8 +38,8 @@ export function Step1_Csv(p: Props) {
   return (
     <div class="ui-pad ui-spy">
       <FileUploadSelector
-        buttonLabel={t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser" })}
-        selectLabel={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser" })}
+        buttonLabel={t3({ en: "Upload new csv file to use", fr: "Téléverser un nouveau fichier CSV à utiliser", pt: "Carregar um novo ficheiro CSV a utilizar" })}
+        selectLabel={t3({ en: "Existing csv file to use", fr: "Fichier CSV existant à utiliser", pt: "Ficheiro CSV existente a utilizar" })}
         filter={(a) => a.isCsv}
         value={selectedFileName()}
         onChange={updateSelectedFileName}

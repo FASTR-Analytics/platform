@@ -102,7 +102,7 @@ export function GeoJsonEditModal(p: Props) {
   });
 
   const selectOptions = createMemo(() => [
-    { value: "", label: t3({ en: "— Not mapped —", fr: "— Non mappé —" }) },
+    { value: "", label: t3({ en: "— Not mapped —", fr: "— Non mappé —", pt: "— Não associado —" }) },
     ...adminAreaOptions(),
   ]);
 
@@ -135,7 +135,7 @@ export function GeoJsonEditModal(p: Props) {
     async () => {
       const map = buildRemapping();
       if (Object.keys(map).length === 0) {
-        return { success: false, err: t3({ en: "No changes to save", fr: "Aucune modification à enregistrer" }) };
+        return { success: false, err: t3({ en: "No changes to save", fr: "Aucune modification à enregistrer", pt: "Nenhuma alteração a guardar" }) };
       }
 
       const res = await serverActions.remapGeoJson({
@@ -168,12 +168,12 @@ export function GeoJsonEditModal(p: Props) {
   return (
     <div class="ui-pad-lg ui-spy" style={{ "min-width": "600px", "max-height": "80vh", "overflow-y": "auto" }}>
       <div class="font-700 text-lg">
-        {t3({ en: "Edit GeoJSON Mapping", fr: "Modifier le mappage GeoJSON" })} — AA{p.adminAreaLevel}
+        {t3({ en: "Edit GeoJSON Mapping", fr: "Modifier le mappage GeoJSON", pt: "Editar a associação GeoJSON" })} — AA{p.adminAreaLevel}
       </div>
 
       <Show when={loading()}>
         <div class="text-base-500 py-8 text-center">
-          {t3({ en: "Loading...", fr: "Chargement..." })}
+          {t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}
         </div>
       </Show>
 
@@ -183,9 +183,9 @@ export function GeoJsonEditModal(p: Props) {
 
       <Show when={!loading() && !error()}>
         <div class="text-base-500 text-sm">
-          {matchedCount()} {t3({ en: "mapped", fr: "mappés" })}
+          {matchedCount()} {t3({ en: "mapped", fr: "mappés", pt: "associados" })}
           <Show when={unmatchedCount() > 0}>
-            {" "}<span class="text-warning font-600">· {unmatchedCount()} {t3({ en: "unmatched", fr: "non mappés" })}</span>
+            {" "}<span class="text-warning font-600">· {unmatchedCount()} {t3({ en: "unmatched", fr: "non mappés", pt: "não associados" })}</span>
           </Show>
         </div>
 
@@ -193,10 +193,10 @@ export function GeoJsonEditModal(p: Props) {
           <div class="bg-base-100 border-base-300 flex border-b px-3 py-2 text-sm font-semibold">
             <div class="w-1/2">
               {hasSourceNames()
-                ? t3({ en: "Source Name", fr: "Nom source" })
-                : t3({ en: "Current Mapping", fr: "Mappage actuel" })}
+                ? t3({ en: "Source Name", fr: "Nom source", pt: "Nome de origem" })
+                : t3({ en: "Current Mapping", fr: "Mappage actuel", pt: "Associação atual" })}
             </div>
-            <div class="w-1/2">{t3({ en: "Map to Admin Area", fr: "Mapper vers zone admin" })}</div>
+            <div class="w-1/2">{t3({ en: "Map to Admin Area", fr: "Mapper vers zone admin", pt: "Associar a zona administrativa" })}</div>
           </div>
           <For each={featureGroups()}>
             {(group) => (
@@ -205,17 +205,17 @@ export function GeoJsonEditModal(p: Props) {
                   <div class="text-sm">
                     {group.sourceName ?? group.areaId}
                     <Show when={group.areaId === ""}>
-                      {" "}<span class="text-warning text-xs font-600">{t3({ en: "(unmatched)", fr: "(non mappé)" })}</span>
+                      {" "}<span class="text-warning text-xs font-600">{t3({ en: "(unmatched)", fr: "(non mappé)", pt: "(não associado)" })}</span>
                     </Show>
                   </div>
                   <Show when={group.areaId !== "" && group.sourceName && group.sourceName !== group.areaId}>
                     <div class="text-base-400 text-xs">
-                      {t3({ en: "Currently mapped to", fr: "Actuellement mappé vers" })}: {group.areaId}
+                      {t3({ en: "Currently mapped to", fr: "Actuellement mappé vers", pt: "Atualmente associado a" })}: {group.areaId}
                     </div>
                   </Show>
                   <Show when={group.count > 1}>
                     <div class="text-base-400 text-xs">
-                      ({group.count} {t3({ en: "features", fr: "entités" })})
+                      ({group.count} {t3({ en: "features", fr: "entités", pt: "entidades" })})
                     </div>
                   </Show>
                 </div>
@@ -242,13 +242,13 @@ export function GeoJsonEditModal(p: Props) {
             disabled={!hasChanges()}
             intent="primary"
           >
-            {t3({ en: "Save changes", fr: "Enregistrer" })}
+            {t3({ en: "Save changes", fr: "Enregistrer", pt: "Guardar as alterações" })}
           </Button>
           <Button intent="neutral" onClick={handleDownload} iconName="download">
-            {t3({ en: "Download GeoJSON", fr: "Télécharger GeoJSON" })}
+            {t3({ en: "Download GeoJSON", fr: "Télécharger GeoJSON", pt: "Transferir o GeoJSON" })}
           </Button>
           <Button intent="neutral" onClick={() => p.close(undefined)}>
-            {t3({ en: "Cancel", fr: "Annuler" })}
+            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
           </Button>
         </div>
       </Show>

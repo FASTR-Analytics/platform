@@ -82,7 +82,7 @@ export function SelectProjectUserRole(
         <div class="flex items-center justify-between">
           <div>
             <div class="font-700 text-lg leading-6">
-              {t3({ en: "Update project permissions", fr: "Mettre à jour les droits du projet" })}
+              {t3({ en: "Update project permissions", fr: "Mettre à jour les droits du projet", pt: "Atualizar as permissões do projeto" })}
             </div>
             <div class="font-700 text-sm">
               {p.users.map((u) => u.email).join(", ")}
@@ -116,7 +116,7 @@ export function SelectProjectUserRole(
         fallback={<div>{t3(TC.loading)}</div>}
       >
         <div>
-          <div class="font-600 text-sm">{t3({ en: "Permission presets", fr: "Préréglages de permissions" })}</div>
+          <div class="font-600 text-sm">{t3({ en: "Permission presets", fr: "Préréglages de permissions", pt: "Predefinições de permissões" })}</div>
           <div class="flex gap-2">
           <For each={PERMISSION_PRESETS}>
             {(preset) => (

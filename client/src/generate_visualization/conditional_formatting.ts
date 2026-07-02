@@ -49,10 +49,12 @@ function getPeriodChangeTranslatableStrings(
         increase: {
           en: "Greater than 10% month-to-month increase",
           fr: "Augmentation de plus de 10% d'un mois à l'autre",
+          pt: "Aumento superior a 10% de um mês para o outro",
         },
         decrease: {
           en: "Greater than 10% month-to-month decrease",
           fr: "Diminution de plus de 10% d'un mois à l'autre",
+          pt: "Diminuição superior a 10% de um mês para o outro",
         },
       };
     case "quarter_id":
@@ -60,10 +62,12 @@ function getPeriodChangeTranslatableStrings(
         increase: {
           en: "Greater than 10% quarter-to-quarter increase",
           fr: "Augmentation de plus de 10% d'un trimestre à l'autre",
+          pt: "Aumento superior a 10% de um trimestre para o outro",
         },
         decrease: {
           en: "Greater than 10% quarter-to-quarter decrease",
           fr: "Diminution de plus de 10% d'un trimestre à l'autre",
+          pt: "Diminuição superior a 10% de um trimestre para o outro",
         },
       };
     case "year":
@@ -71,10 +75,12 @@ function getPeriodChangeTranslatableStrings(
         increase: {
           en: "Greater than 10% year-on-year increase",
           fr: "Augmentation de plus de 10% d'une année sur l'autre",
+          pt: "Aumento superior a 10% de um ano para o outro",
         },
         decrease: {
           en: "Greater than 10% year-on-year decrease",
           fr: "Diminution de plus de 10% d'une année sur l'autre",
+          pt: "Diminuição superior a 10% de um ano para o outro",
         },
       };
   }
@@ -88,25 +94,25 @@ export function getLegendFromConfig(
   const { language } = localization;
   if (isSpecialScorecardTableActive(config)) {
     return [
-      { label: pickLang(language, { en: "On track", fr: "En bonne voie" }), color: _CF_LIGHTER_GREEN },
-      { label: pickLang(language, { en: "Progress needed", fr: "Progrès nécessaire" }), color: _CF_LIGHTER_YELLOW },
-      { label: pickLang(language, { en: "Not on track", fr: "Pas en bonne voie" }), color: _CF_LIGHTER_RED },
+      { label: pickLang(language, { en: "On track", fr: "En bonne voie", pt: "No bom caminho" }), color: _CF_LIGHTER_GREEN },
+      { label: pickLang(language, { en: "Progress needed", fr: "Progrès nécessaire", pt: "Progresso necessário" }), color: _CF_LIGHTER_YELLOW },
+      { label: pickLang(language, { en: "Not on track", fr: "Pas en bonne voie", pt: "Fora do bom caminho" }), color: _CF_LIGHTER_RED },
     ];
   }
   if (isSpecialCoverageChartActive(config)) {
     return [
       {
-        label: pickLang(language, { en: "Administrative data", fr: "Données administratives" }),
+        label: pickLang(language, { en: "Administrative data", fr: "Données administratives", pt: "Dados administrativos" }),
         color: "#CED4DB",
         pointStyle: "as-line",
       },
       {
-        label: pickLang(language, { en: "Survey-based estimate", fr: "Estimation basée sur des enquêtes" }),
+        label: pickLang(language, { en: "Survey-based estimate", fr: "Estimation basée sur des enquêtes", pt: "Estimativa baseada em inquéritos" }),
         color: "#000000",
         pointStyle: "as-line",
       },
       {
-        label: pickLang(language, { en: "Projected estimate", fr: "Estimation projetée" }),
+        label: pickLang(language, { en: "Projected estimate", fr: "Estimation projetée", pt: "Estimativa projetada" }),
         color: "#F04D44",
         pointStyle: "as-line",
       },
@@ -133,29 +139,29 @@ export function getLegendFromConfig(
   if (isSpecialDisruptionsChartActive(config)) {
     if (config.s.diffInverted) {
       return [
-        { label: pickLang(language, { en: "Actual", fr: "Réel" }), color: "#000000", pointStyle: "as-line" },
+        { label: pickLang(language, { en: "Actual", fr: "Réel", pt: "Real" }), color: "#000000", pointStyle: "as-line" },
         {
-          label: pickLang(language, { en: "Expected", fr: "Attendu" }),
+          label: pickLang(language, { en: "Expected", fr: "Attendu", pt: "Esperado" }),
           color: "#000000",
           pointStyle: "as-line",
           lineDash: "dashed",
           lineStrokeWidthScaleFactor: 0.5,
         },
-        { label: pickLang(language, { en: "Excess", fr: "Excès" }), color: _CF_RED },
-        { label: pickLang(language, { en: "Reduction", fr: "Réduction" }), color: _CF_GREEN },
+        { label: pickLang(language, { en: "Excess", fr: "Excès", pt: "Excesso" }), color: _CF_RED },
+        { label: pickLang(language, { en: "Reduction", fr: "Réduction", pt: "Redução" }), color: _CF_GREEN },
       ];
     }
     return [
-      { label: pickLang(language, { en: "Actual", fr: "Réel" }), color: "#000000", pointStyle: "as-line" },
+      { label: pickLang(language, { en: "Actual", fr: "Réel", pt: "Real" }), color: "#000000", pointStyle: "as-line" },
       {
-        label: pickLang(language, { en: "Expected", fr: "Attendu" }),
+        label: pickLang(language, { en: "Expected", fr: "Attendu", pt: "Esperado" }),
         color: "#000000",
         pointStyle: "as-line",
         lineDash: "dashed",
         lineStrokeWidthScaleFactor: 0.5,
       },
-      { label: pickLang(language, { en: "Surplus", fr: "Excédent" }), color: _CF_GREEN },
-      { label: pickLang(language, { en: "Disruption", fr: "Perturbation" }), color: _CF_RED },
+      { label: pickLang(language, { en: "Surplus", fr: "Excédent", pt: "Excedente" }), color: _CF_GREEN },
+      { label: pickLang(language, { en: "Disruption", fr: "Perturbation", pt: "Perturbação" }), color: _CF_RED },
     ];
   }
   const cf = selectCf(config.s);
