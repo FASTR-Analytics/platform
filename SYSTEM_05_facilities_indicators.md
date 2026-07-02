@@ -46,8 +46,8 @@ docs_absorbed:
 The instance-wide reference world everything joins against: facilities,
 admin areas, HFA sampling weights, geojson boundaries, the four indicator
 dictionaries, HFA time points, and instance config. Reviewed against code
-2026-07-02 (first review cycle; fixes landed in `599dacc9`, `a9cab9ae`,
-`4a8800fc`). This doc also absorbs the structure-ELT mechanics of the
+2026-07-02 (first review cycle; fixes landed in `ad6bd996`, `67870f28`,
+`ffd83907`). This doc also absorbs the structure-ELT mechanics of the
 retired DOC_IMPORT_PIPELINE.
 
 Boundaries: dataset stage→integrate is **S6** (it validates against S5's

@@ -116,7 +116,7 @@ mergePartitionReplace(db, {stagingTable, targetTable, partitionCol, partitionVal
 ```
 Already-generic, keep: [instantiate_worker_generic.ts](server/worker_routines/instantiate_worker_generic.ts) (READY→postMessage→COMPLETED), the CSV primitives. Bespoke transforms (`select_multiple` fan-out, XLSForm loader) stay plain functions the importer passes in. **Impact:** ~4,750 → ~3,200 LOC (~33%) *if* existing pipelines are migrated; the real value is per *new* importer.
 
-> Also evaluate consuming panther's CSV modules (`_100_csv` / `_232_csv`) instead of wb-fastr's parallel `get_csv_components_streaming_fast.ts` — capacity that already exists upstream (see §8). Note 2026-07-02: the streamer's quote-boundary corruption bug was fixed in place (`cb95ecac`), so this consolidation is a hygiene question, not a bug fix; panther's modules are whole-string/whole-file (no streaming), so adoption would mean adding streaming there first.
+> Also evaluate consuming panther's CSV modules (`_100_csv` / `_232_csv`) instead of wb-fastr's parallel `get_csv_components_streaming_fast.ts` — capacity that already exists upstream (see §8). Note 2026-07-02: the streamer's quote-boundary corruption bug was fixed in place (`c237008e`), so this consolidation is a hygiene question, not a bug fix; panther's modules are whole-string/whole-file (no streaming), so adoption would mean adding streaming there first.
 
 ---
 

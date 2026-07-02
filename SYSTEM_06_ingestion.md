@@ -127,7 +127,7 @@ tables at start; integration drops on success and on error.
   (`get_csv_components_streaming_fast.ts`) — streaming, 2 MB chunks, one
   persistent `TextDecoder` in stream mode, quote-parity-aware chunk
   boundaries (cut only at newlines outside quotes, so quoted fields with
-  embedded newlines survive chunking; fixed `cb95ecac`).
+  embedded newlines survive chunking; fixed `c237008e`).
 - HMIS-DHIS2 semantics: values `parseInt`-truncated, negatives silently
   dropped; a 200 response missing `rows` is a **failed fetch**, not empty
   data; `succeededWorkItems` records every cleanly-fetched
@@ -300,7 +300,7 @@ Deferred findings from the 2026-07-02 review cycle, plus standing reform:
   UI and the `staged` status arm are dead weight); rows skipped for
   unknown strat are counted but never surfaced; step_2/3_result columns
   written but never read. (The unconstrained assets-path join was closed
-  repo-wide by `resolveAssetFilePath`, `599dacc9`.)
+  repo-wide by `resolveAssetFilePath`, `ad6bd996`.)
 - `getCsvDetails` (HFA/HMIS step 1) reads the whole file into memory for
   headers; the streaming variant's header read is one 64 KB `file.read()`
   (wide XLSForm exports / short reads → confusing failure).

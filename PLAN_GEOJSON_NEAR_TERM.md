@@ -140,7 +140,7 @@ Phase 1 reliably fixes **AA3** end-to-end. **AA4** is not solved by WS1 alone �
 
 > **Verified 2026-06-23:** the P1 filename path-traversal fix is **DONE** (since committed, `a36121e2`) — see the bullet below. Every P2 item (size/type caps, parse guard, deeper geojson validation, credential handling, temp-file cleanup) is **NOT STARTED**.
 >
-> **Update 2026-07-02 (S5 review cycle):** adjacent ground shipped separately — read-side asset-path traversal closed repo-wide (`resolveAssetFilePath`, `599dacc9`), DHIS2 passwords redacted from `user_logs` request-body logging, and analyze/save geometry-count parity fixed (`a9cab9ae`). The P2 items listed here (size caps, parse OOM guard, deeper geometry validation, sessionStorage password persistence, 32-bit cache-key hash, temp cleanup) all still stand.
+> **Update 2026-07-02 (S5 review cycle):** adjacent ground shipped separately — read-side asset-path traversal closed repo-wide (`resolveAssetFilePath`, `ad6bd996`), DHIS2 passwords redacted from `user_logs` request-body logging, and analyze/save geometry-count parity fixed (`67870f28`). The P2 items listed here (size caps, parse OOM guard, deeper geometry validation, sessionStorage password persistence, 32-bit cache-key hash, temp cleanup) all still stand.
 
 **Goal:** close the OOM/DoS and path-traversal surface on the authenticated upload path. Today the upload edge is essentially unguarded. **Priority correction after review:** the blanket "P2" undersold the **filename path-traversal** — treat that one-liner as **P1, pull it forward**; the rest (size caps, deeper validation, credential handling, temp cleanup) stays P2.
 
