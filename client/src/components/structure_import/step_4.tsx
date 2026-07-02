@@ -13,7 +13,7 @@ import {
   createFormAction,
   toNum0,
 } from "panther";
-import { createSignal, Match, Show, Switch } from "solid-js";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getStructureColumnLabel } from "./_column_labels";
 
@@ -307,6 +307,59 @@ export function Step4(p: Props) {
                 )}
               </Show>
             </div>
+
+            {/* ODK label resolution summary */}
+            <Show
+              when={
+                p.step3Result.labelResolution &&
+                p.step3Result.labelResolution.length > 0
+                  ? p.step3Result.labelResolution
+                  : undefined
+              }
+              keyed
+            >
+              {(labelResolution) => (
+                <div class="ui-pad bg-base-200 rounded">
+                  <div class="font-700 mb-3">
+                    {t3({
+                      en: "ODK codes replaced with labels",
+                      fr: "Codes ODK remplacés par des libellés",
+                      pt: "Códigos ODK substituídos por rótulos",
+                    })}
+                  </div>
+                  <div class="ui-spy-sm">
+                    <For each={labelResolution}>
+                      {(entry) => (
+                        <div class="text-sm">
+                          <span class="font-700">
+                            {getStructureColumnLabel(
+                              entry.column,
+                              p.facilityColumns,
+                            )}
+                          </span>
+                          {": "}
+                          {t3({
+                            en: `${toNum0(entry.resolvedCount)} values replaced with labels`,
+                            fr: `${toNum0(entry.resolvedCount)} valeurs remplacées par des libellés`,
+                            pt: `${toNum0(entry.resolvedCount)} valores substituídos por rótulos`,
+                          })}
+                          <Show when={entry.unresolvedValues.length > 0}>
+                            {"; "}
+                            <span class="text-danger">
+                              {t3({
+                                en: `${toNum0(entry.unresolvedValues.length)} values not in the questionnaire (kept as-is): ${entry.unresolvedValues.join(", ")}`,
+                                fr: `${toNum0(entry.unresolvedValues.length)} valeurs absentes du questionnaire (conservées telles quelles) : ${entry.unresolvedValues.join(", ")}`,
+                                pt: `${toNum0(entry.unresolvedValues.length)} valores ausentes do questionário (mantidos como estão): ${entry.unresolvedValues.join(", ")}`,
+                              })}
+                            </span>
+                          </Show>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </div>
+              )}
+            </Show>
 
             {/* Integration Strategy Selection */}
             <div class="ui-pad bg-base-200 rounded">

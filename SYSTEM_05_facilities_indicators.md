@@ -101,6 +101,21 @@ reset/delete. `handleStagingSuccess` computes the **facilityMatch preview**
 it and flags `existing === 0` as the Ghana-style ID-system-mismatch tell.
 The preview describes staging time, not finalize time (Open items).
 
+**ODK label resolution (CSV path).** Step 1 optionally accepts an ODK
+questionnaire (XLSForm) alongside the CSV, mirroring HFA ingestion's
+two-file step 1 (`survey`+`choices` sheets validated on save;
+`step_1_result` is `StructureCsvStep1Result` `{csv, xlsForm?}` — legacy
+bare-`CsvDetails` rows are normalized on read by `parseCsvStep1Result`).
+At staging, each mapped column except `facility_id` (admin areas
+included) is matched to a select_one question by the HFA header
+convention (exact name, else the header's post-last-`/` segment), and
+matching cell values are replaced by choice labels — **labels are stored
+in the facility columns, codes are discarded, no dictionary table**.
+Unresolved codes stay raw and are surfaced per column in the staging
+result (`labelResolution`: resolvedCount + up to 10 distinct unresolved
+values), rendered in the step-4 summary. No migration, no cache-shape
+change.
+
 **Column scope contract.** Integration writes exactly the columns
 physically present in the staging table (discovered via
 information_schema), which staging built from the user's step-2 mappings —
@@ -130,7 +145,8 @@ Facilities are split per family: `facilities_hmis` / `facilities_hfa`
 (migration 047), each with `facility_id` PK, `admin_area_1..4`, and the
 optional free-text columns (`facility_name`, `facility_type`,
 `facility_ownership`, `facility_custom_1..5`) — all plain text, no value
-dictionary (see the ODK open item). The 4-level admin-area model is
+dictionary (ODK codes are resolved to labels at staging, see Structure
+ELT). The 4-level admin-area model is
 name-keyed: `admin_areas_1..4` rows are names, and the name is the join
 key everywhere (S9 maps, geojson `area_id`). Duplicate names within a
 level are therefore ambiguous — the wizard warns but cannot fix.
@@ -292,7 +308,8 @@ absent from a push. Consumers read via the deliberately non-reactive
 - `facility_columns` — 8 include-flags + optional display labels; drives
   which facility columns S6 ingests and S9 exposes; part of the
   facility-columns cache hash. Label overrides are column-NAME labels
-  (there is no value-label mechanism — see the ODK open item).
+  (there is no value-label mechanism — values arrive as labels because
+  ODK codes are resolved at staging, see Structure ELT).
 - `country_iso3` — validated `^[A-Z]{3}$` (trim/uppercase; empty = unset):
   it is substituted into R module scripts as `COUNTRY_ISO3` and into
   caption/localization, so a stray quote would break every generated
@@ -358,19 +375,6 @@ Every config mutation re-reads all configs and pushes one consolidated
 
 ## Open items
 
-- **ODK label resolution for structure import (Tim, 2026-07-02 — decided,
-  not yet implemented):** structure columns like `facility_type` typically
-  originate as ODK select_one codes; today they arrive verbatim and raw
-  codes flow into charts, filters, AI context, and exports. Decision:
-  mirror the HFA ingestion pattern — step 1 (CSV path) accepts an optional
-  ODK questionnaire (XLSForm), and select_one codes are resolved to labels
-  once at staging via the existing `parse_xlsform.ts` (group-prefix
-  stripping to match mapped CSV headers). **Store the labels themselves in
-  the facility columns — no value dictionary, codes are discarded.**
-  Unresolved codes stay raw with a warning count in the staging result. No
-  migration, no cache-shape change; ~7 files (step-1 result type gains
-  optional xlsForm, route body, step-1 store, staging substitution, wizard
-  step 1 second file selector + resolution summary in steps 3/4).
 - Post-integration bookkeeping (staging-table drop, stamp bump, attempt
   delete) runs after the integrate transaction commits — a crash in
   between leaves S6's staleness gates unaware and the attempt wedged at

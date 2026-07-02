@@ -223,6 +223,7 @@ defineRoute(
       c.var.mainDb,
       params.family,
       body.assetFileName,
+      body.xlsFormAssetFileName,
     );
     return c.json(res);
   },

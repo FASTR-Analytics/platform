@@ -4,6 +4,7 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   CsvDetails,
+  StructureCsvStep1Result,
   StructureUploadAttemptDetail,
   StructureUploadAttemptStatus,
   StructureDhis2OrgUnitSelection,
@@ -18,6 +19,7 @@ import {
   type StructureIntegrateSummary,
 } from "lib";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
+import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 import { stageStructureFromCsv } from "../../server_only_funcs_importing/stage_structure_from_csv.ts";
 import { stageStructureFromDhis2V2 } from "../../server_only_funcs_importing/stage_structure_from_dhis2.ts";
 import {
@@ -49,6 +51,16 @@ async function getRawUAOrThrow(
     throw new Error("No upload attempt exists");
   }
   return rawUA;
+}
+
+// Attempts created before the optional ODK questionnaire stored bare
+// CsvDetails in step_1_result; normalize to the { csv, xlsForm? } shape.
+function parseCsvStep1Result(raw: string): StructureCsvStep1Result {
+  const parsed = JSON.parse(raw) as StructureCsvStep1Result | CsvDetails;
+  if ("csv" in parsed) {
+    return parsed;
+  }
+  return { csv: parsed };
 }
 
 ////////////////////////////////////////////////////////
@@ -380,9 +392,9 @@ export async function getStructureUploadAttempt(
           ...baseData,
           step: rawUA.step as 1 | 2 | 3 | 4,
           sourceType: "csv",
-          step1Result: parseJsonOrUndefined(rawUA.step_1_result) as
-            | CsvDetails
-            | undefined,
+          step1Result: rawUA.step_1_result
+            ? parseCsvStep1Result(rawUA.step_1_result)
+            : undefined,
           step2Result: parseJsonOrUndefined(rawUA.step_2_result) as
             | StructureColumnMappings
             | undefined,
@@ -546,7 +558,8 @@ export async function structureStep2Dhis2_SetOrgUnitSelection(
 export async function structureStep1Csv_UploadFile(
   mainDb: Sql,
   family: FacilityFamily,
-  assetFileName: string
+  assetFileName: string,
+  xlsFormAssetFileName: string | undefined
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawUA = await getRawUAOrThrow(mainDb, family);
@@ -557,11 +570,26 @@ export async function structureStep1Csv_UploadFile(
     const resCsvDetails = await getCsvDetails(assetFilePath, assetFileName);
     throwIfErrWithData(resCsvDetails);
 
+    const step1Result: StructureCsvStep1Result = { csv: resCsvDetails.data };
+    if (xlsFormAssetFileName) {
+      const xlsFormFilePath = resolveAssetFilePath(xlsFormAssetFileName);
+      const sheetNames = getXlsxSheetNamesRaw(xlsFormFilePath);
+      if (!sheetNames.includes("survey") || !sheetNames.includes("choices")) {
+        throw new Error(
+          "XLSForm file must contain both 'survey' and 'choices' sheets"
+        );
+      }
+      step1Result.xlsForm = {
+        fileName: xlsFormAssetFileName,
+        filePath: xlsFormFilePath,
+      };
+    }
+
     const updated = await mainDb`
       UPDATE structure_upload_attempts
       SET
         step = 2,
-        step_1_result = ${JSON.stringify(resCsvDetails.data)},
+        step_1_result = ${JSON.stringify(step1Result)},
         step_2_result = NULL,
         step_3_result = NULL,
         status = ${JSON.stringify({ status: "configuring" })},
@@ -745,7 +773,7 @@ export async function structureStep3Csv_StageDataStreaming(
     };
   }
   try {
-    const csvDetails = JSON.parse(rawUA.step_1_result) as CsvDetails;
+    const step1Result = parseCsvStep1Result(rawUA.step_1_result);
     const columnMappings = JSON.parse(
       rawUA.step_2_result
     ) as StructureColumnMappings;
@@ -753,8 +781,9 @@ export async function structureStep3Csv_StageDataStreaming(
     const resStaging = await stageStructureFromCsv(
       mainDb,
       family,
-      csvDetails.filePath,
+      step1Result.csv.filePath,
       columnMappings,
+      step1Result.xlsForm?.filePath,
       onProgress
     );
 

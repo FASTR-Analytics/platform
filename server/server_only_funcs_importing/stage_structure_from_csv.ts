@@ -11,16 +11,27 @@ import {
   getCsvColumnIndex,
   getCsvStreamComponents,
 } from "../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
+import { parseXlsForm } from "../server_only_funcs_csvs/parse_xlsform.ts";
 import {
   getFacilityColumnsConfig,
   getMaxAdminAreaConfig,
 } from "../db/instance/config.ts";
+
+type ColumnLabelResolver = {
+  column: string;
+  codeToLabel: Map<string, string>;
+  resolvedCount: number;
+  unresolvedValues: Set<string>;
+};
+
+const MAX_UNRESOLVED_VALUES_REPORTED = 10;
 
 export async function stageStructureFromCsv(
   mainDb: Sql,
   family: FacilityFamily,
   csvFilePath: string,
   columnMappings: StructureColumnMappings,
+  xlsFormFilePath: string | undefined,
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<StructureStagingResult>> {
   // Per-family staging table so HMIS and HFA imports can run concurrently
@@ -69,7 +80,8 @@ export async function stageStructureFromCsv(
     if (!resComponents.success) {
       return { success: false, err: resComponents.err };
     }
-    const { encodedHeaderToIndexMap, processRows } = resComponents.data;
+    const { headers, encodedHeaderToIndexMap, processRows } =
+      resComponents.data;
 
     // Helper to get column index with encodedHeaderToIndexMap and columnMappings in scope
     const getMappedColumnIndex = (
@@ -113,6 +125,60 @@ export async function stageStructureFromCsv(
         optionalIndexes.push({ column, index });
       }
     }
+
+    // ODK label resolution: for each mapped column (never facility_id) whose
+    // CSV header matches a select_one question in the questionnaire, replace
+    // ODK codes with choice labels while streaming. Keyed by CSV column index.
+    const labelResolvers = new Map<number, ColumnLabelResolver>();
+    if (xlsFormFilePath) {
+      const xlsForm = parseXlsForm(xlsFormFilePath);
+      const mappedColumns: { column: string; index: number }[] = [
+        ...adminIndexes.map((ai) => ({
+          column: `admin_area_${ai.level}`,
+          index: ai.index,
+        })),
+        ...optionalIndexes,
+      ];
+      for (const mc of mappedColumns) {
+        const rawHeader = headers[mc.index] ?? "";
+        // Same convention as HFA staging: exact match, or the header's
+        // post-last-"/" segment (ODK group prefix stripped).
+        const localName = rawHeader.includes("/")
+          ? rawHeader.substring(rawHeader.lastIndexOf("/") + 1)
+          : rawHeader;
+        const xlsVar =
+          xlsForm.vars.get(rawHeader) ?? xlsForm.vars.get(localName);
+        if (!xlsVar || xlsVar.type !== "select_one" || !xlsVar.listName) {
+          continue;
+        }
+        const choices = xlsForm.choiceLists.get(xlsVar.listName);
+        if (!choices) {
+          continue;
+        }
+        labelResolvers.set(mc.index, {
+          column: mc.column,
+          codeToLabel: new Map(choices.map((c) => [c.name, c.label])),
+          resolvedCount: 0,
+          unresolvedValues: new Set(),
+        });
+      }
+    }
+
+    const resolveLabel = (index: number, value: string): string => {
+      const resolver = labelResolvers.get(index);
+      if (!resolver || !value) {
+        return value;
+      }
+      const label = resolver.codeToLabel.get(value);
+      if (label === undefined) {
+        if (resolver.unresolvedValues.size < MAX_UNRESOLVED_VALUES_REPORTED) {
+          resolver.unresolvedValues.add(value);
+        }
+        return value;
+      }
+      resolver.resolvedCount++;
+      return label;
+    };
 
     // ==================================================
     // PHASE 2: Stream CSV to Staging Table
@@ -214,7 +280,7 @@ export async function stageStructureFromCsv(
               invalidRows++;
               return;
             }
-            adminValues.push(value);
+            adminValues.push(resolveLabel(ai.index, value));
           }
           for (let i = 1; i <= 4; i++) {
             if (i <= maxAdminArea) {
@@ -229,7 +295,7 @@ export async function stageStructureFromCsv(
         const optionalValues: string[] = [];
         for (const opt of optionalIndexes) {
           const value = row[opt.index]?.trim() ?? "";
-          optionalValues.push(value);
+          optionalValues.push(resolveLabel(opt.index, value));
         }
 
         // Build VALUES tuple
@@ -331,6 +397,16 @@ export async function stageStructureFromCsv(
       stagedOptionalColumns: optionalIndexes.map((opt) => opt.column),
       stagedAdminAreas: hasAdminMapped,
     };
+
+    if (xlsFormFilePath) {
+      stagingResult.labelResolution = [...labelResolvers.values()].map(
+        (resolver) => ({
+          column: resolver.column,
+          resolvedCount: resolver.resolvedCount,
+          unresolvedValues: [...resolver.unresolvedValues],
+        })
+      );
+    }
 
     if (onProgress) await onProgress(1, `Successfully staged ${totalRows.toLocaleString()} rows`);
 

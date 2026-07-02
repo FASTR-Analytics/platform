@@ -113,7 +113,10 @@ export const structureRouteRegistry = {
     path: "/structure/step1_csv_upload_file/:family",
     method: "POST",
     params: z.object({ family: facilityFamilySchema }),
-    body: z.object({ assetFileName: z.string() }),
+    body: z.object({
+      assetFileName: z.string(),
+      xlsFormAssetFileName: z.string().optional(),
+    }),
   }),
   structureStep1Dhis2_SetCredentials: route({
     path: "/structure/step1_dhis2_set_credentials/:family",

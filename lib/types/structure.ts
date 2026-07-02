@@ -43,6 +43,14 @@ export type StructureStagingResult = {
   stagedOptionalColumns?: string[];
   stagedAdminAreas?: boolean;
   facilityMatch?: StructureFacilityMatch;
+  // Only present when an ODK questionnaire was supplied at step 1; one entry
+  // per mapped column that matched a select_one question. unresolvedValues =
+  // distinct codes not found in the choice list, capped at 10.
+  labelResolution?: {
+    column: string;
+    resolvedCount: number;
+    unresolvedValues: string[];
+  }[];
 };
 
 // ============================================================================
@@ -84,6 +92,11 @@ export type StructureUploadAttemptDetailInitial = {
   step3Result: undefined;
 };
 
+export type StructureCsvStep1Result = {
+  csv: CsvDetails;
+  xlsForm?: { fileName: string; filePath: string };
+};
+
 export type StructureUploadAttemptDetailCsv = {
   id: string;
   dateStarted: string;
@@ -91,8 +104,8 @@ export type StructureUploadAttemptDetailCsv = {
   status: StructureUploadAttemptStatus;
   datasetFamily: FacilityFamily;
   sourceType: "csv";
-  // Step 1: CSV upload details
-  step1Result: CsvDetails | undefined;
+  // Step 1: CSV upload details, plus optional ODK questionnaire
+  step1Result: StructureCsvStep1Result | undefined;
   // Step 2: CSV column mappings
   step2Result: StructureColumnMappings | undefined;
   // Step 3: Staging result

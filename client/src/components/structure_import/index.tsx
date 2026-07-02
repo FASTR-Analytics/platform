@@ -17,7 +17,7 @@ import {
 } from "panther";
 import { Match, Show, Switch, createSignal, onCleanup, onMount } from "solid-js";
 import type {
-  CsvDetails,
+  StructureCsvStep1Result,
   StructureUploadAttemptStatus,
   Dhis2CredentialsRedacted,
   StructureColumnMappings,
@@ -260,7 +260,10 @@ export function StructureUploadAttemptForm(p: Props) {
                 <Switch>
                   <Match when={keyedUploadAttempt.sourceType === "csv"}>
                     <Step2_Csv
-                      step1Result={keyedUploadAttempt.step1Result as CsvDetails}
+                      step1Result={
+                        (keyedUploadAttempt.step1Result as StructureCsvStep1Result)
+                          .csv
+                      }
                       step2Result={
                         keyedUploadAttempt.step2Result as
                           | StructureColumnMappings
@@ -294,7 +297,9 @@ export function StructureUploadAttemptForm(p: Props) {
                   <Match when={keyedUploadAttempt.sourceType === "csv"}>
                     <Step1_Csv
                       step1Result={
-                        keyedUploadAttempt.step1Result as CsvDetails | undefined
+                        keyedUploadAttempt.step1Result as
+                          | StructureCsvStep1Result
+                          | undefined
                       }
                       family={p.family}
                       silentFetch={uploadAttempt.silentFetch}
