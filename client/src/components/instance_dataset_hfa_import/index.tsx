@@ -58,8 +58,11 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
   // Stepper state
 
   const stepper = getStepper(() => uploadAttempt.state(), {
-    initialStep: 0,
-    minStep: 0,
+    // HFA attempts start at server step 1 — there is no step 0. A lower
+    // minStep renders a phantom step-0 circle and enables Back into a step
+    // no arm matches (dead-end error screen).
+    initialStep: 1,
+    minStep: 1,
     maxStep: 4,
     getValidation: (currentStep, state) => {
       if (state.status !== "ready") {

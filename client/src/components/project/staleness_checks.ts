@@ -36,11 +36,19 @@ export function checkDataNeedsUpdate(
   const hfa = projectState.projectDatasets.find((d) => d.datasetType === "hfa");
   if (hfa && hfa.datasetType === "hfa") {
     const info = hfa.info;
-    if (!info.hfaCacheHash) return false;
+    // Mirrors the Data page (project_data.tsx): a pre-staleness-tracking
+    // export can't be change-detected, so it always counts as needing
+    // re-export.
+    if (info._legacy) return true;
     if (instanceState.hfaCacheHash !== info.hfaCacheHash) return true;
     if (instanceState.hfaIndicatorsVersion !== info.hfaIndicatorsVersion) return true;
     if (instanceState.structureLastUpdated !== info.structureLastUpdated) return true;
     if (hashFacilityColumnsConfig(instanceState.facilityColumns) !== info.facilityColumnsHash) return true;
+  }
+
+  const iceh = projectState.projectDatasets.find((d) => d.datasetType === "iceh");
+  if (iceh && iceh.datasetType === "iceh") {
+    if (iceh.info.icehCacheHash !== instanceState.icehCacheHash) return true;
   }
 
   return false;

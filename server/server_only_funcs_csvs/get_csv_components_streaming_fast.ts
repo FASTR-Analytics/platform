@@ -184,8 +184,12 @@ export async function getCsvStreamComponents(
           // Start queue processor
           const queuePromise = processQueue();
 
-          // Read and parse file in chunks
+          // Read and parse file in chunks. One persistent decoder in stream
+          // mode: a multibyte UTF-8 sequence split across a chunk boundary
+          // must be held back until its remaining bytes arrive, not emitted
+          // as U+FFFD replacement characters.
           const buffer = new Uint8Array(CHUNK_SIZE);
+          const decoder = new TextDecoder();
 
           try {
             while (true) {
@@ -201,6 +205,9 @@ export async function getCsvStreamComponents(
 
               const bytesRead = await localFile.read(buffer);
               if (!bytesRead || bytesRead === 0) {
+                // Flush the streaming decoder (emits any held-back partial
+                // sequence as U+FFFD — at true EOF that's genuinely bad data)
+                leftoverBuffer += decoder.decode();
                 // Process any remaining data
                 if (leftoverBuffer) {
                   if (!_IS_PRODUCTION) {
@@ -279,9 +286,9 @@ export async function getCsvStreamComponents(
                 );
               }
 
-              const chunk = new TextDecoder().decode(
-                buffer.slice(0, bytesRead)
-              );
+              const chunk = decoder.decode(buffer.slice(0, bytesRead), {
+                stream: true,
+              });
               const dataToProcess = leftoverBuffer + chunk;
 
               // Find the last complete line

@@ -814,13 +814,26 @@ export async function updateDatasetUploadAttempt_Step3Staging(
       );
     }
 
-    // Immediately claim the lock by setting status to staging
-    await mainDb`
+    // Atomically claim the staging slot: the conditional UPDATE + rowcount
+    // check is race-free, unlike the read-then-write guards above (which stay
+    // for friendlier errors). Nulling step_3_result here means a staging run
+    // that dies mid-flight can never leave a previous run's result armed
+    // against a staging table it doesn't describe — integration requires
+    // step_3_result, so it stays blocked until staging succeeds again.
+    const claimed = await mainDb`
       UPDATE dataset_hmis_upload_attempts
-      SET 
+      SET
         status = ${JSON.stringify({ status: "staging", progress: 0 })},
-        status_type = 'staging'
+        status_type = 'staging',
+        step = 3,
+        step_3_result = NULL
+      WHERE status_type NOT IN ('staging', 'integrating')
     `;
+    if (claimed.count === 0) {
+      throw new Error(
+        "This operation is already in progress. Please wait for it to complete."
+      );
+    }
 
     // Route to appropriate worker based on source type
     let worker: Worker;
@@ -998,13 +1011,23 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
       );
     }
 
-    // Immediately claim the lock by setting status to integrating
-    await mainDb`
+    // Atomically claim the integration slot (race-free conditional UPDATE;
+    // the read-then-write guards above stay for friendlier errors). Excluding
+    // 'complete' blocks re-integrating a finished attempt — the staging table
+    // is already dropped, so a second run could only fail and flip a
+    // successful attempt to 'error'.
+    const claimed = await mainDb`
       UPDATE dataset_hmis_upload_attempts
-      SET 
+      SET
         status = ${JSON.stringify({ status: "integrating", progress: 0 })},
         status_type = 'integrating'
+      WHERE status_type NOT IN ('staging', 'integrating', 'complete')
     `;
+    if (claimed.count === 0) {
+      throw new Error(
+        "This operation is already in progress or already complete."
+      );
+    }
 
     const worker = instantiateIntegrateUploadedDataWorker(rawDUA);
 

@@ -176,7 +176,9 @@ export function InstanceDatasetHmis(p: Props) {
                             <Match
                               when={
                                 keyedUploadAttempt.status.status ===
-                                "staging"
+                                  "staging" ||
+                                keyedUploadAttempt.status.status ===
+                                  "staging_dhis2"
                               }
                               keyed
                             >

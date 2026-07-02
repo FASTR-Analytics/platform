@@ -46,7 +46,10 @@ export function DatasetIcehUploadAttemptForm(p: Props) {
         en: "Are you sure you want to delete this import?",
         fr: "Êtes-vous sûr de vouloir supprimer cette importation ?",
       }),
-    navMinStep: 0,
+    // ICEH attempts start at server step 1 — there is no step 0. A lower
+    // minStep renders a phantom step-0 circle and enables Back into a step
+    // no arm matches (dead-end error screen).
+    navMinStep: 1,
     navMaxStep: 2,
     getAttempt: async () => {
       const res = await serverActions.getDatasetIcehUploadAttempt({});

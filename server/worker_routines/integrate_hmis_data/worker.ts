@@ -73,6 +73,28 @@ async function run(std: { rawDUA: DBDatasetHmisUploadAttempt }) {
       );
     }
 
+    // The staging table and step_3_result are separate artifacts that can
+    // desynchronize between phases: the table is UNLOGGED (truncated by a
+    // Postgres crash while the attempt row, WAL-logged, still says 'staged'),
+    // and a killed re-stage can leave a partial table. The DHIS2 scoped
+    // delete would turn either into deletions with nothing re-inserted, so
+    // integration only proceeds when the table holds exactly the rows the
+    // recorded staging result describes. Number() both sides: COUNT(*) comes
+    // back as a string on this connection, and older staging results stored
+    // finalStagingRowCount as a JSON string.
+    const stagingRowCount = await importDb<{ count: string | number }[]>`
+      SELECT COUNT(*) as count FROM ${importDb(aggregatedTableName)}
+    `;
+    const actualRows = Number(stagingRowCount[0].count);
+    const recordedRows = Number(stagingResultRaw.finalStagingRowCount);
+    if (actualRows !== recordedRows) {
+      throw new Error(
+        `Staging table holds ${actualRows} rows but the staging result recorded ${recordedRows}. ` +
+          `The staged data no longer matches what was reviewed (interrupted re-stage or database crash). ` +
+          `Please re-run staging.`
+      );
+    }
+
     console.log("Staging table verified, checking facility validity...");
 
     // Check for any facility_ids in staging that don't exist in facilities
