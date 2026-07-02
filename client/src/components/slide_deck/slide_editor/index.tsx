@@ -9,7 +9,7 @@ import type {
   SlideDeckConfig,
   SlideType,
 } from "lib";
-import { getSlideTitle, materializeSlide, t3, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import { canonicalJson, getSlideTitle, materializeSlide, t3, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import type {
   DividerDragUpdate,
   LayoutItemSwapUpdate,
@@ -244,19 +244,26 @@ export function SlideEditor(p: Props) {
         const docSlide = materializeSlide(s.doc) as Slide;
         if (!collabReady()) {
           setCollabReady(true);
-          // Local edits made before the first sync arrived: merge them into the
-          // doc rather than discarding them by adopting the server state.
-          if (needsSave()) {
+          // Local edits raced the first sync. Push them onto the shared doc
+          // only while the doc still matches the slide this editor loaded —
+          // pushing over a diverged doc would force it to equal our draft and
+          // DELETE other users' edits (syncSlideToDoc/syncText are 2-way
+          // diffs, not merges). If peers got there first, fall through and
+          // adopt their state: the few pre-sync local keystrokes lose to the
+          // shared content, never the other way around.
+          if (
+            needsSave() &&
+            canonicalJson(docSlide) === canonicalJson(normalizedSlide)
+          ) {
             s.pushLocal(unwrap(tempSlide));
             return;
           }
         }
-        // Adopt the doc state only when it actually differs (avoids a needless
-        // reconcile). The push it triggers via the tracking effect is a
-        // harmless no-op (syncSlideToDoc is idempotent), so no echo results.
-        if (JSON.stringify(docSlide) !== JSON.stringify(unwrap(tempSlide))) {
-          setTempSlide(reconcile(docSlide));
-        }
+        // Adopt the doc state. reconcile diffs in place (a no-op when nothing
+        // changed), and the push it triggers via the tracking effect is
+        // idempotent — so no pre-comparison is needed (a full JSON compare
+        // here serialized multi-MB figure bundles twice per remote keystroke).
+        setTempSlide(reconcile(docSlide));
       },
       (errMsg) => console.warn("Slide collab error:", errMsg),
     );
@@ -291,6 +298,18 @@ export function SlideEditor(p: Props) {
     }
     if (p.returnToContext) {
       setAIContext(p.returnToContext);
+    }
+    // Last-chance flush for exits that bypass the back button (route change,
+    // deck switch): if collab isn't persisting and edits are pending, save
+    // best-effort. Fire-and-forget with no conflict modal — at teardown there
+    // is no UI to ask; a conflicting concurrent save simply wins.
+    if (needsSave() && !(session()?.isLive() ?? false)) {
+      void serverActions.updateSlide({
+        projectId: p.projectId,
+        slide_id: p.slideId,
+        slide: unwrap(tempSlide),
+        expectedLastUpdated: lastKnownServerTimestamp(),
+      });
     }
     // Revert presence to deck-level (no slide) when the editor closes.
     setCollabView({ deckId: p.deckId });
@@ -401,10 +420,25 @@ export function SlideEditor(p: Props) {
   }
 
   async function handleCancel() {
-    // Edits autosave via the collab checkpoint; only flush explicitly when
-    // collab isn't the one saving (WS down / before first sync) so closing in
-    // that fallback state doesn't lose work.
-    if (needsSave() && !collabReady()) await saveFunc();
+    // Edits autosave via the collab checkpoint; flush explicitly when collab
+    // isn't actually persisting RIGHT NOW — never synced, or synced but the
+    // socket has since dropped (isLive, not the latched collabReady: edits made
+    // while disconnected sit only in the local doc and die with it on close).
+    if (needsSave() && !(session()?.isLive() ?? false)) {
+      const res = await saveFunc();
+      if (
+        res.success &&
+        res.data.conflictResolutionDecision === "user_chose_cancel"
+      ) {
+        // The user chose to keep editing rather than resolve the conflict —
+        // don't close (closing would discard the draft they chose to keep).
+        return;
+      }
+      // Every other outcome resolved the draft (saved, saved-as-new, or
+      // explicitly discarded in favor of theirs) — clear the dirty flag so the
+      // onCleanup last-chance flush doesn't re-save a resolved/discarded draft.
+      setNeedsSave(false);
+    }
     p.close(false);
   }
 

@@ -51,7 +51,11 @@ let ws: WebSocket | null = null;
 let currentProjectId: string | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let attempts = 0;
-let intentionalClose = false;
+// Close-intent is tracked PER SOCKET, not as a module flag: a project switch
+// closes the old socket and immediately opens a new one, and the old socket's
+// onclose fires only later — a shared flag reset by openSocket would then read
+// "unintentional" and schedule a spurious duplicate reconnect.
+const intentionallyClosed = new WeakSet<WebSocket>();
 
 // Local presence, re-sent on every (re)connect.
 let avatarUrl: string | undefined;
@@ -87,6 +91,14 @@ export type SlideSession = {
   /** Yjs awareness for this slide — carries local + remote cursor/selection. */
   awareness: Awareness;
   isReady: () => boolean;
+  /**
+   * Ready AND the socket is currently open — i.e. collab is actually
+   * persisting edits right now. False while disconnected even though local
+   * edits still accumulate in the session doc (the reconnect catch-up ships
+   * them IF a reconnect happens); closing the editor in that state must flush
+   * explicitly or the un-shipped edits die with the doc.
+   */
+  isLive: () => boolean;
   /** Diff the editor's working slide onto the shared doc (mergeable ops). */
   pushLocal: (slide: Slide) => void;
   close: () => void;
@@ -196,6 +208,7 @@ export function openSlideSession(
     doc,
     awareness,
     isReady: () => s.ready,
+    isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
     pushLocal: (slide: Slide) => {
       if (!s.ready) return;
       doc.transact(() => syncSlideToDoc(doc, slide));
@@ -220,15 +233,27 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
       // Two-way sync: push anything the server is missing — e.g. a local edit
       // whose slide_update was lost before this (re)connect (a switched viz that
       // updated locally but never reached the server). The diff carries just the
-      // missing ops, not the whole doc; skip it when already in sync.
-      const diff = Y.encodeStateAsUpdate(s.doc, base64ToBytes(msg.data.stateVector));
-      // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-      console.log("[VIZSYNC] slide_sync: server-missing diff", { slideId: msg.data.slideId, diffBytes: diff.length });
-      if (diff.length > 2) {
-        sendCollab({
-          type: "slide_update",
-          data: { slideId: msg.data.slideId, update: bytesToBase64(diff) },
-        });
+      // missing ops, not the whole doc; skip it when already in sync. Guarded:
+      // a slide_sync without a (valid) stateVector — e.g. an older server build
+      // during a deploy/rollback — must never break onRemote below.
+      try {
+        if (msg.data.stateVector) {
+          const diff = Y.encodeStateAsUpdate(
+            s.doc,
+            base64ToBytes(msg.data.stateVector),
+          );
+          // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
+          console.log("[VIZSYNC] slide_sync: server-missing diff", { slideId: msg.data.slideId, diffBytes: diff.length });
+          if (diff.length > 2) {
+            sendCollab({
+              type: "slide_update",
+              data: { slideId: msg.data.slideId, update: bytesToBase64(diff) },
+            });
+          }
+        }
+      } catch {
+        // Malformed state vector: skip the catch-up; the next local edit's
+        // full-slide push re-syncs anyway.
       }
       s.onRemote();
     }
@@ -276,7 +301,6 @@ function sendPresence(): void {
 }
 
 function openSocket(projectId: string): void {
-  intentionalClose = false;
   const socket = new WebSocket(collabWsUrl(projectId));
   ws = socket;
 
@@ -310,10 +334,11 @@ function openSocket(projectId: string): void {
   };
 
   socket.onclose = (e) => {
+    const intentional = intentionallyClosed.has(socket);
     // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-    console.log("[VIZSYNC] WS closed", { code: e.code, reason: e.reason, intentional: intentionalClose });
+    console.log("[VIZSYNC] WS closed", { code: e.code, reason: e.reason, intentional });
     if (ws === socket) ws = null;
-    if (!intentionalClose) scheduleReconnect();
+    if (!intentional) scheduleReconnect();
   };
 
   socket.onerror = () => {
@@ -339,7 +364,7 @@ function hardClose(): void {
     reconnectTimer = null;
   }
   if (ws) {
-    intentionalClose = true;
+    intentionallyClosed.add(ws);
     ws.close();
     ws = null;
   }

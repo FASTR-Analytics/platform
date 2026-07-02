@@ -284,7 +284,10 @@ export function findNodeMap(
 
 type SlideItemNode = Extract<SlideNode, { type: "item" }>;
 
-function canonicalJson(v: unknown): string {
+/** Key-order-independent JSON, for content equality checks (materializeSlide
+ * output has different key order than stored configs, so plain JSON.stringify
+ * comparisons produce false differences). */
+export function canonicalJson(v: unknown): string {
   return JSON.stringify(v, (_k, val) =>
     val && typeof val === "object" && !Array.isArray(val)
       ? Object.keys(val as object).sort().reduce(
