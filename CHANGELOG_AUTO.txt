@@ -1,3 +1,5 @@
+[TBD] [user] [added] - Portuguese language support added throughout the platform
+[TBD] [admin] [added] - Portuguese language support across the entire platform
 [TBD] [user] [fixed] - Fixed rare issue where cancelling a data upload could interfere with a new upload
 [TBD] [admin] [fixed] - Resolved rare issue where cancelling a data import could interfere with a newly started one
 [TBD] [admin] [internal] - Background import tasks now use a shared management system
