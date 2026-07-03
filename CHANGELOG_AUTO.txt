@@ -1,3 +1,15 @@
+[TBD] [user] [fixed] - Fixed data upload errors when certain numeric formats were used
+[TBD] [user] [fixed] - Fixed uploads failing for values outside the allowed date range
+[TBD] [user] [fixed] - Prevented uninstalling a module that other modules depend on
+[TBD] [user] [fixed] - Fixed modules occasionally getting stuck in a running state
+[TBD] [user] [fixed] - Fixed rare issue where re-running a module could conflict with a previous run
+[TBD] [admin] [fixed] - Modules can no longer be uninstalled while others depend on them
+[TBD] [admin] [fixed] - Data uploads no longer fail silently from race conditions during staging
+[TBD] [admin] [fixed] - Module runs are now properly stopped when re-triggered or cancelled
+[TBD] [admin] [fixed] - Orphaned containers are cleaned up when module runs are terminated
+[TBD] [admin] [fixed] - Background workers no longer strand on errors, preventing stuck modules
+[TBD] [admin] [fixed] - Period and count validation now catches more edge-case bad data during upload
+[TBD] [admin] [fixed] - Concurrent data upload configuration changes no longer cause staging errors
 [TBD] [user] [added] - Portuguese language support added throughout the platform
 [TBD] [admin] [added] - Portuguese language support across the entire platform
 [TBD] [user] [fixed] - Fixed rare issue where cancelling a data upload could interfere with a new upload
