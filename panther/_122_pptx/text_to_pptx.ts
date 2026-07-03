@@ -6,6 +6,7 @@
 import { Color } from "./deps.ts";
 import type {
   FormattedRunStyle,
+  LetterSpacing,
   MeasuredFormattedText,
   MeasuredMarkdown,
   MeasuredMarkdownItem,
@@ -351,7 +352,7 @@ function getRunStyle(weight: number, italic: boolean): FormattedRunStyle {
 }
 
 function getCharSpacingPts(
-  letterSpacing: string,
+  letterSpacing: LetterSpacing,
   fontSize: number,
 ): number | undefined {
   if (letterSpacing.includes("em")) {

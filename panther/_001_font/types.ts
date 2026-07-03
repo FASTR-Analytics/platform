@@ -39,13 +39,21 @@ export function setBaseText(options: TextInfoOptions): void {
   };
 }
 
+// The sanctioned letter-spacing values — a closed union on purpose. Every
+// renderer must handle every member (browser canvas via ctx.letterSpacing,
+// PDF via Tc, PPTX via charSpacing; Deno/Skia canvas cannot render spacing
+// and warns). Widening this type means teaching ALL of them the new value —
+// it was accidentally widened to `string` once (53a13c5) and each renderer
+// drifted into parsing its own subset.
+export type LetterSpacing = "0px" | "-0.02em";
+
 export type TextInfoUnkeyed = {
   font: FontInfo;
   fontSize: number;
   color: string;
   lineHeight: number;
   lineBreakGap: number | "none";
-  letterSpacing: string;
+  letterSpacing: LetterSpacing;
 };
 
 export type TextInfo = {
@@ -54,7 +62,7 @@ export type TextInfo = {
   color: ColorKeyOrString;
   lineHeight: number;
   lineBreakGap: number | "none";
-  letterSpacing: string;
+  letterSpacing: LetterSpacing;
 };
 
 export type TextInfoOptions = {
@@ -63,7 +71,7 @@ export type TextInfoOptions = {
   color?: ColorKeyOrString;
   lineHeight?: number;
   lineBreakGap?: number | "none";
-  letterSpacing?: string;
+  letterSpacing?: LetterSpacing;
 };
 
 export type CustomStyleTextOptions = {
@@ -72,7 +80,7 @@ export type CustomStyleTextOptions = {
   color?: ColorKeyOrString | "same-as-base";
   lineHeight?: number | "same-as-base";
   lineBreakGap?: number | "none" | "same-as-base";
-  letterSpacing?: string | "same-as-base";
+  letterSpacing?: LetterSpacing | "same-as-base";
 };
 
 export type TextAdjustmentOptions = {
@@ -81,7 +89,7 @@ export type TextAdjustmentOptions = {
   font?: FontInfoOptions;
   lineHeight?: number;
   lineBreakGap?: number | "none";
-  letterSpacing?: string;
+  letterSpacing?: LetterSpacing;
 };
 
 export function getAdjustedText(

@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { Color, getColor } from "../_001_color/mod.ts";
+export type { LetterSpacing } from "../_001_font/mod.ts";
 export { Padding, RectCoordsDims } from "../_001_geometry/mod.ts";
 export type { AlignH, AlignV } from "../_001_geometry/mod.ts";
 export type { MeasuredText, RenderContext } from "../_001_render_system/mod.ts";

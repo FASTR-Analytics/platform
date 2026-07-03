@@ -1,18 +1,18 @@
-import type { FontInfo, FontWeight } from "@timroberton/panther";
+import type { FontInfo, FontWeight, LetterSpacing } from "@timroberton/panther";
 
 type SlideFontConfig = {
   family: string;
   label: string;
   regularWeight: FontWeight;
   boldWeight: FontWeight;
-  letterSpacing: string;
+  letterSpacing: LetterSpacing;
 };
 
 export const SLIDE_FONTS: SlideFontConfig[] = [
   { family: "International Inter", label: "Inter", regularWeight: 400, boldWeight: 800, letterSpacing: "-0.02em" },
-  { family: "Fira Sans", label: "Fira Sans", regularWeight: 400, boldWeight: 800, letterSpacing: "0" },
-  { family: "Merriweather", label: "Merriweather", regularWeight: 400, boldWeight: 700, letterSpacing: "0" },
-  { family: "Poppins", label: "Poppins", regularWeight: 400, boldWeight: 700, letterSpacing: "0" },
+  { family: "Fira Sans", label: "Fira Sans", regularWeight: 400, boldWeight: 800, letterSpacing: "0px" },
+  { family: "Merriweather", label: "Merriweather", regularWeight: 400, boldWeight: 700, letterSpacing: "0px" },
+  { family: "Poppins", label: "Poppins", regularWeight: 400, boldWeight: 700, letterSpacing: "0px" },
 ];
 
 export const SLIDE_FONT_FAMILIES = SLIDE_FONTS.map((f) => f.family) as [string, ...string[]];
@@ -64,6 +64,6 @@ export function getBoldWeight(family: SlideFontFamily): FontWeight {
   return getFontConfig(family).boldWeight;
 }
 
-export function getLetterSpacing(family: SlideFontFamily): string {
+export function getLetterSpacing(family: SlideFontFamily): LetterSpacing {
   return getFontConfig(family).letterSpacing;
 }

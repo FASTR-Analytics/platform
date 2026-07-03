@@ -110,7 +110,12 @@ export function patchJsPdfForKerning(pdf: jsPDF): void {
     const scale = fontSize / kerningData.unitsPerEm;
     const scaleFactor = pdfAny.internal.scaleFactor;
 
-    // Calculate total width with kerning for alignment
+    // Letter-spacing: per-call option first (that's how PdfRenderContext
+    // passes it), else jsPDF's tracked state. In document units (px here).
+    const charSpace: number = options?.charSpace ??
+      pdfAny.getCharSpace?.() ?? 0;
+
+    // Calculate total width with kerning + letter-spacing for alignment
     let totalWidth = 0;
     for (let i = 0; i < text.length; i++) {
       totalWidth += pdfAny.getTextWidth(text[i]);
@@ -118,7 +123,7 @@ export function patchJsPdfForKerning(pdf: jsPDF): void {
         const leftCode = text[i].charCodeAt(0);
         const rightCode = text[i + 1].charCodeAt(0);
         const kernValue = kerningData.pairs[rightCode]?.[leftCode] ?? 0;
-        totalWidth += kernValue * scale;
+        totalWidth += kernValue * scale + charSpace;
       }
     }
 
@@ -212,13 +217,24 @@ export function patchJsPdfForKerning(pdf: jsPDF): void {
     const hexColor = pdfAny.getTextColor?.() ?? "#000000";
     const textColor = hexToPdfColor(hexColor);
 
+    // Tc operand is in text-space units (document units x scaleFactor) —
+    // matches what jsPDF's own text() emits for the same charSpace. Emitted
+    // unconditionally (0 included) so this block never inherits a stale Tc
+    // left in the stream by earlier ops.
+    const charSpaceOp = `${hpf(charSpace * scaleFactor)} Tc`;
+
+    // q/Q so the raw ops (Tc, color) can't leak into subsequent output —
+    // jsPDF tracks its own graphics state and would not know to reset them.
     const content = [
+      "q",
       "BT",
       `/${fontKey} ${hpf(fontSizeTf)} Tf`,
       textColor,
+      charSpaceOp,
       transformMatrix,
       tjArray,
       "ET",
+      "Q",
     ].join("\n");
 
     pdfAny.internal.write(content);

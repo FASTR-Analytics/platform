@@ -31,6 +31,7 @@ export {
   getAdjustedText,
   getBaseText,
   getFontInfoId,
+  type LetterSpacing,
   setBaseText,
   type StyleWithFontRegistration,
   type TextAdjustmentOptions,
