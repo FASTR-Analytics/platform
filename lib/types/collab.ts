@@ -31,6 +31,8 @@ export type PresenceEntry = {
   slideId?: string;
   selectedBlockId?: string;
   selectedTextTarget?: string;
+  /** Set ⇔ the peer has that report open in the report editor. */
+  reportId?: string;
 };
 
 /** The presence fields a client controls about itself. */
@@ -40,6 +42,7 @@ export type PresenceView = {
   slideId?: string;
   selectedBlockId?: string;
   selectedTextTarget?: string;
+  reportId?: string;
 };
 
 /** Client → server messages. */
@@ -52,7 +55,13 @@ export type CollabClientMessage =
   | { type: "slide_update"; data: { slideId: string; update: string } }
   | { type: "slide_unsubscribe"; data: { slideId: string } }
   // Yjs awareness (cursor/selection positions) — ephemeral, relayed not persisted.
-  | { type: "awareness_update"; data: { slideId: string; update: string } };
+  | { type: "awareness_update"; data: { slideId: string; update: string } }
+  // Report CRDT sync — a parallel message family (rather than a generic
+  // doc_* protocol) so the slide messages stay byte-identical across deploys.
+  | { type: "report_subscribe"; data: { reportId: string; stateVector: string } }
+  | { type: "report_update"; data: { reportId: string; update: string } }
+  | { type: "report_unsubscribe"; data: { reportId: string } }
+  | { type: "report_awareness_update"; data: { reportId: string; update: string } };
 
 /** Server → client messages. */
 export type CollabServerMessage =
@@ -69,7 +78,15 @@ export type CollabServerMessage =
   | { type: "slide_update"; data: { slideId: string; update: string } }
   | { type: "slide_error"; data: { slideId: string; message: string } }
   // Yjs awareness relayed from another client in the room.
-  | { type: "awareness"; data: { slideId: string; update: string } };
+  | { type: "awareness"; data: { slideId: string; update: string } }
+  // Report CRDT sync (parallel family — see the client message note).
+  | {
+    type: "report_sync";
+    data: { reportId: string; update: string; stateVector: string };
+  }
+  | { type: "report_update"; data: { reportId: string; update: string } }
+  | { type: "report_error"; data: { reportId: string; message: string } }
+  | { type: "report_awareness"; data: { reportId: string; update: string } };
 
 const PRESENCE_PALETTE = [
   "#ef4444",

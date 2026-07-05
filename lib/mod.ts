@@ -21,4 +21,6 @@ export * from "./translate/mod.ts";
 export * from "./types/mod.ts";
 export * from "./utils.ts";
 export * from "./validate_fetch_config.ts";
+export * from "./collab/crdt_util.ts";
+export * from "./collab/report_crdt.ts";
 export * from "./collab/slide_crdt.ts";
