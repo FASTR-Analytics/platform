@@ -6,7 +6,10 @@ import {
   parseJsonOrThrow,
   type PresenceEntry,
   type PresenceView,
+  type ReportDocContent,
   type Slide,
+  syncReportRegistries,
+  syncReportToDoc,
   syncSlideToDoc,
 } from "lib";
 import * as Y from "yjs";
@@ -16,6 +19,7 @@ import {
   encodeAwarenessUpdate,
   removeAwarenessStates,
 } from "y-protocols/awareness";
+import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { _SERVER_HOST } from "~/server_actions";
 
@@ -42,6 +46,12 @@ export function otherPeers(): PresenceEntry[] {
   const self = collabStore.connectionId;
   return collabStore.peers.filter((p) => p.connectionId !== self);
 }
+
+// Reactive "is the collab socket open right now" — for UI (live/offline save
+// indicators). Session isLive() reads the raw socket for save decisions; this
+// signal exists because ws.readyState isn't reactive.
+const [socketOpen, setSocketOpen] = createSignal(false);
+export const collabSocketOpen = socketOpen;
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RETRY_DELAY = 1000;
@@ -229,6 +239,197 @@ export function closeSlideSession(slideId: string): void {
   destroySlideSession(s);
 }
 
+// ── Report CRDT sessions ─────────────────────────────────────────────────────
+// Mirrors the slide sessions above, over the report_* message family. The body
+// is edited through a yCollab CodeMirror binding on the doc's Y.Text; the
+// figure/image registries are pushed via pushRegistries; pushLocal exists only
+// for the first-sync merge (before the editor binds).
+
+type InternalReportSession = {
+  reportId: string;
+  doc: Y.Doc;
+  awareness: Awareness;
+  ready: boolean;
+  onRemote: () => void;
+  onError?: (message: string) => void;
+};
+
+const reportSessions = new Map<string, InternalReportSession>();
+
+/** Handle to a live report document, returned by openReportSession. */
+export type ReportSession = {
+  doc: Y.Doc;
+  /** Yjs awareness for this report — carries local + remote cursor/selection. */
+  awareness: Awareness;
+  isReady: () => boolean;
+  /** Ready AND the socket is currently open — see SlideSession.isLive. */
+  isLive: () => boolean;
+  /** Diff full content onto the shared doc — first-sync merge only. */
+  pushLocal: (content: ReportDocContent) => void;
+  /** Diff the figure/image registries onto the shared doc. */
+  pushRegistries: (
+    figures: ReportDocContent["figures"],
+    images: ReportDocContent["images"],
+  ) => void;
+  close: () => void;
+};
+
+function subscribeReportOnSocket(s: InternalReportSession): void {
+  sendCollab({
+    type: "report_subscribe",
+    data: {
+      reportId: s.reportId,
+      stateVector: bytesToBase64(Y.encodeStateVector(s.doc)),
+    },
+  });
+}
+
+function destroyReportSession(s: InternalReportSession): void {
+  reportSessions.delete(s.reportId);
+  try {
+    removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
+    s.awareness.destroy();
+  } catch {
+    // ignore
+  }
+  try {
+    s.doc.destroy();
+  } catch {
+    // ignore
+  }
+}
+
+export function openReportSession(
+  reportId: string,
+  onRemote: () => void,
+  onError?: (message: string) => void,
+): ReportSession {
+  const prior = reportSessions.get(reportId);
+  if (prior) destroyReportSession(prior);
+
+  const doc = new Y.Doc();
+  const awareness = new Awareness(doc);
+  applySessionUser(awareness);
+  const s: InternalReportSession = {
+    reportId,
+    doc,
+    awareness,
+    ready: false,
+    onRemote,
+    onError,
+  };
+  reportSessions.set(reportId, s);
+
+  doc.on("update", (update: Uint8Array, origin: unknown) => {
+    // Updates applied from the server must not be shipped back.
+    if (origin === SLIDE_REMOTE_ORIGIN) return;
+    sendCollab({
+      type: "report_update",
+      data: { reportId, update: bytesToBase64(update) },
+    });
+  });
+
+  awareness.on(
+    "update",
+    (
+      changes: { added: number[]; updated: number[]; removed: number[] },
+      origin: unknown,
+    ) => {
+      if (origin === AWARENESS_REMOTE_ORIGIN) return;
+      const changed = [
+        ...changes.added,
+        ...changes.updated,
+        ...changes.removed,
+      ];
+      const update = encodeAwarenessUpdate(awareness, changed);
+      sendCollab({
+        type: "report_awareness_update",
+        data: { reportId, update: bytesToBase64(update) },
+      });
+    },
+  );
+
+  // Subscribe now if connected; otherwise socket.onopen re-subscribes all.
+  subscribeReportOnSocket(s);
+
+  return {
+    doc,
+    awareness,
+    isReady: () => s.ready,
+    isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
+    pushLocal: (content: ReportDocContent) => {
+      if (!s.ready) return;
+      doc.transact(() => syncReportToDoc(doc, content));
+    },
+    pushRegistries: (figures, images) => {
+      if (!s.ready) return;
+      doc.transact(() => syncReportRegistries(doc, figures, images));
+    },
+    close: () => closeReportSession(reportId),
+  };
+}
+
+export function closeReportSession(reportId: string): void {
+  const s = reportSessions.get(reportId);
+  if (!s) return;
+  sendCollab({ type: "report_unsubscribe", data: { reportId } });
+  destroyReportSession(s);
+}
+
+function handleReportServerMessage(msg: CollabServerMessage): boolean {
+  if (msg.type === "report_sync") {
+    const s = reportSessions.get(msg.data.reportId);
+    if (s) {
+      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
+      s.ready = true;
+      // Two-way sync: push anything the server is missing (guarded like the
+      // slide path — a missing/malformed stateVector must not break onRemote).
+      try {
+        if (msg.data.stateVector) {
+          const diff = Y.encodeStateAsUpdate(
+            s.doc,
+            base64ToBytes(msg.data.stateVector),
+          );
+          if (diff.length > 2) {
+            sendCollab({
+              type: "report_update",
+              data: { reportId: msg.data.reportId, update: bytesToBase64(diff) },
+            });
+          }
+        }
+      } catch {
+        // Skip the catch-up; the next local edit's push re-syncs anyway.
+      }
+      s.onRemote();
+    }
+    return true;
+  }
+  if (msg.type === "report_update") {
+    const s = reportSessions.get(msg.data.reportId);
+    if (s) {
+      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
+      s.onRemote();
+    }
+    return true;
+  }
+  if (msg.type === "report_error") {
+    reportSessions.get(msg.data.reportId)?.onError?.(msg.data.message);
+    return true;
+  }
+  if (msg.type === "report_awareness") {
+    const s = reportSessions.get(msg.data.reportId);
+    if (s) {
+      applyAwarenessUpdate(
+        s.awareness,
+        base64ToBytes(msg.data.update),
+        AWARENESS_REMOTE_ORIGIN,
+      );
+    }
+    return true;
+  }
+  return false;
+}
+
 function handleSlideServerMessage(msg: CollabServerMessage): boolean {
   if (msg.type === "slide_sync") {
     const s = slideSessions.get(msg.data.slideId);
@@ -311,12 +512,14 @@ function openSocket(projectId: string): void {
 
   socket.onopen = () => {
     attempts = 0;
+    setSocketOpen(true);
     // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
     console.log("[VIZSYNC] WS open (re)subscribing", { sessions: slideSessions.size });
     sendPresence();
-    // Re-subscribe any open slide sessions (covers first connect + reconnect:
+    // Re-subscribe any open sessions (covers first connect + reconnect:
     // the server sends only what each doc's state vector is missing).
     for (const s of slideSessions.values()) subscribeSlideOnSocket(s);
+    for (const s of reportSessions.values()) subscribeReportOnSocket(s);
   };
 
   socket.onmessage = (event) => {
@@ -333,8 +536,9 @@ function openSocket(projectId: string): void {
       // Our identity (name/color) may have just arrived — stamp it on any open
       // session's awareness so remote peers see a labelled cursor.
       for (const s of slideSessions.values()) applySessionUser(s.awareness);
-    } else {
-      handleSlideServerMessage(msg);
+      for (const s of reportSessions.values()) applySessionUser(s.awareness);
+    } else if (!handleSlideServerMessage(msg)) {
+      handleReportServerMessage(msg);
     }
   };
 
@@ -342,7 +546,10 @@ function openSocket(projectId: string): void {
     const intentional = intentionallyClosed.has(socket);
     // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
     console.log("[VIZSYNC] WS closed", { code: e.code, reason: e.reason, intentional });
-    if (ws === socket) ws = null;
+    if (ws === socket) {
+      ws = null;
+      setSocketOpen(false);
+    }
     if (!intentional) scheduleReconnect();
   };
 
@@ -372,6 +579,7 @@ function hardClose(): void {
     intentionallyClosed.add(ws);
     ws.close();
     ws = null;
+    setSocketOpen(false);
   }
 }
 
@@ -391,6 +599,7 @@ export function connectCollab(projectId: string): void {
 export function disconnectCollab(): void {
   hardClose();
   for (const s of [...slideSessions.values()]) destroySlideSession(s);
+  for (const s of [...reportSessions.values()]) destroyReportSession(s);
   currentProjectId = null;
   attempts = 0;
   avatarUrl = undefined;

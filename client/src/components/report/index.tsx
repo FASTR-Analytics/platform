@@ -1,8 +1,12 @@
 import {
+  canonicalJson,
   type FigureBlock,
+  findReportBodyText,
   type ImageBlock,
+  materializeReport,
   type PresentationObjectConfig,
   type ProjectState,
+  type ReportDocContent,
   type ResultsValue,
   t3,
 } from "lib";
@@ -30,7 +34,13 @@ import {
   Show,
 } from "solid-js";
 import { serverActions, _SERVER_HOST } from "~/server_actions";
-import { setCollabView } from "~/state/project/collab";
+import {
+  collabSocketOpen,
+  openReportSession,
+  type ReportSession,
+  setCollabView,
+} from "~/state/project/collab";
+import { addLastUpdatedListener } from "~/state/project/t1_sse";
 import { projectState } from "~/state/project/t1_store";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import {
@@ -132,6 +142,15 @@ export function ProjectReport(p: Props) {
   // Edit (CodeMirror) vs View (read-only HTML preview). AI is mode-agnostic:
   // the editor stays mounted in both modes (PLAN_REPORT_PREVIEW_TOGGLE.md §2).
   const [mode, setMode] = createSignal<ReportMode>("split");
+  // Live collab (Yjs). collabReady LATCHES at the first report_sync: from then
+  // on the room's checkpoints own persistence and the REST autosave is off for
+  // good — even while disconnected (edits accumulate in the local doc and the
+  // reconnect catch-up ships them; a parallel REST save would double-apply).
+  const [collabReady, setCollabReady] = createSignal(false);
+  const [session, setSession] = createSignal<ReportSession | null>(null);
+  // Content as fetched at mount, for the first-sync merge rule.
+  let loadedSnapshot: ReportDocContent | undefined;
+  let removeLastUpdatedListener: (() => void) | undefined;
 
   // The figure-editor sidebar only exists in Edit, so clear the selection in
   // View/Split. The CM editor is visible in Edit & Split — re-measure it when it
@@ -341,6 +360,24 @@ export function ProjectReport(p: Props) {
   }
 
   const saveIndicator = createMemo(() => {
+    // Live collab supersedes the REST autosave states: edits stream to the
+    // server continuously and the room checkpoints them.
+    if (collabReady() && collabSocketOpen()) {
+      return {
+        text: t3({ en: "Live", fr: "En direct", pt: "Em direto" }),
+        dot: "bg-success",
+      };
+    }
+    if (collabReady()) {
+      return {
+        text: t3({
+          en: "Offline — reconnecting…",
+          fr: "Hors ligne — reconnexion…",
+          pt: "Offline — a reconectar…",
+        }),
+        dot: "bg-warning",
+      };
+    }
     switch (saveStatus()) {
       case "saving":
         return {
@@ -443,6 +480,31 @@ export function ProjectReport(p: Props) {
       ) {
         void persistImages(prunedImages);
       }
+
+      // Snapshot the UNPRUNED fetch for the first-sync merge rule (the room
+      // seeds from the same DB row, so this is what its doc should equal).
+      loadedSnapshot = {
+        body: res.data.body,
+        figures: res.data.figures,
+        images: res.data.images,
+      };
+
+      // Bind this report to a shared CRDT document for live co-editing.
+      const s = openReportSession(
+        p.reportId,
+        onRemoteReport,
+        (errMsg) => console.warn("Report collab error:", errMsg),
+      );
+      setSession(s);
+
+      // Keep the optimistic-save timestamp fresh as server-side checkpoints
+      // bump last_updated, so the offline/fallback flush won't raise a
+      // spurious conflict against collab's own autosaves.
+      removeLastUpdatedListener = addLastUpdatedListener((tableName, ids, ts) => {
+        if (tableName === "reports" && ids.includes(p.reportId)) {
+          bumpLastUpdated(ts);
+        }
+      });
     }
     setIsLoading(false);
 
@@ -492,22 +554,102 @@ export function ProjectReport(p: Props) {
       await persistFigures(next);
     }
     applyingProgrammaticEdit = true;
+    // Minimal-diff replace: under live collab this lands as a small mergeable
+    // Y.Text edit, so a peer typing elsewhere in the doc is untouched.
     editorApi?.setBody(prop.newBody);
     applyingProgrammaticEdit = false;
     if (saveTimer) {
       clearTimeout(saveTimer);
       saveTimer = undefined;
     }
-    await persistBody(prop.newBody);
+    // Live collab persists via the room checkpoint (a REST save here would
+    // double-apply after a reconnect catch-up — same rule as the autosave).
+    if (!collabReady()) {
+      await persistBody(prop.newBody);
+    }
     editorApi?.refresh();
   }
 
   onCleanup(() => {
-    void flushBodySave();
+    const s = session();
+    if (!collabReady()) {
+      // Collab never became ready: the REST autosave owns persistence.
+      void flushBodySave();
+    } else if (s && !s.isLive()) {
+      // Collab has edits the server never received (socket down, no reconnect
+      // before close): best-effort REST flush of the shared doc's state. If
+      // another user's room is still live server-side, the chokepoint merges
+      // this instead of clobbering.
+      const content = materializeReport(s.doc);
+      void serverActions.updateReportBody({
+        projectId,
+        report_id: p.reportId,
+        body: content.body,
+        expectedLastUpdated: lastUpdated(),
+        overwrite: true,
+      });
+      void serverActions.updateReportFigures({
+        projectId,
+        report_id: p.reportId,
+        figures: content.figures,
+      });
+      void serverActions.updateReportImages({
+        projectId,
+        report_id: p.reportId,
+        images: content.images,
+      });
+    }
+    // Live: nothing to flush — the room finalizes/checkpoints server-side.
+    s?.close();
+    setSession(null);
+    removeLastUpdatedListener?.();
+    removeLastUpdatedListener = undefined;
     // Clear the "in this report" presence when the editor closes.
     setCollabView({});
     setAIContext(p.returnToContext ?? { mode: "viewing_reports" });
   });
+
+  // ── live collab ──────────────────────────────────────────────────────────
+
+  // Applies shared-doc state to the local signals. Fired on report_sync (first
+  // sync + reconnects) and on every relayed remote update.
+  function onRemoteReport() {
+    const s = session();
+    if (!s) return;
+    const docContent = materializeReport(s.doc);
+    if (!collabReady()) {
+      // First sync. Push pre-sync local edits onto the shared doc only while
+      // it still equals the content this editor loaded — pushing over a
+      // diverged doc would force it to our draft and delete another user's
+      // edits. If peers got there first, adopt their state.
+      const hasPendingLocal = saveStatus() !== "saved" ||
+        saveTimer !== undefined;
+      if (
+        hasPendingLocal &&
+        loadedSnapshot &&
+        canonicalJson(docContent) === canonicalJson(loadedSnapshot)
+      ) {
+        s.pushLocal({ body: body(), figures: figures(), images: images() });
+      } else {
+        setBody(docContent.body);
+        setFigures(docContent.figures);
+        setImages(docContent.images);
+      }
+      // Collab owns persistence from here: cancel any pending REST autosave.
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = undefined;
+      }
+      setCollabReady(true); // flips the editor's collab prop → yCollab rebind
+      return;
+    }
+    // Ongoing remote updates: the body flows straight into the editor via the
+    // yCollab binding (and back into the body signal via onBodyChange); only
+    // the registries need adopting here. reconcile-free set keeps unchanged
+    // block references intact (registry values come out of the doc by ref).
+    setFigures(docContent.figures);
+    setImages(docContent.images);
+  }
 
   // ── persistence ────────────────────────────────────────────────────────────
 
@@ -541,9 +683,13 @@ export function ProjectReport(p: Props) {
 
   function handleBodyChange(nextBody: string) {
     setBody(nextBody);
-    setSaveStatus("unsaved");
-    // Let the AI know the user touched the body (skip AI-applied edits).
+    // Let the AI know the body changed (skip AI-applied edits; while live,
+    // remote peer edits land here too — they equally invalidate the AI's read).
     if (!applyingProgrammaticEdit) notifyAI({ type: "edited_report_locally" });
+    // Live collab: edits stream into the shared doc via yCollab and the room
+    // checkpoints them — the REST autosave stays off (see collabReady note).
+    if (collabReady()) return;
+    setSaveStatus("unsaved");
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => void persistBody(nextBody), AUTOSAVE_MS);
   }
@@ -551,6 +697,14 @@ export function ProjectReport(p: Props) {
   async function persistFigures(
     next: Record<string, FigureBlock>,
   ): Promise<boolean> {
+    // Live collab: the registry change flows through the shared doc (fresh
+    // object references — the callers' {...prev, [id]: block} spreads) and the
+    // room checkpoint persists it.
+    const s = session();
+    if (collabReady() && s) {
+      s.pushRegistries(next, images());
+      return true;
+    }
     setSaveStatus("saving");
     const res = await serverActions.updateReportFigures({
       projectId,
@@ -568,6 +722,12 @@ export function ProjectReport(p: Props) {
   }
 
   async function persistImages(next: Record<string, ImageBlock>) {
+    // Live collab: see persistFigures.
+    const s = session();
+    if (collabReady() && s) {
+      s.pushRegistries(figures(), next);
+      return;
+    }
     setSaveStatus("saving");
     const res = await serverActions.updateReportImages({
       projectId,
@@ -938,6 +1098,15 @@ export function ProjectReport(p: Props) {
               // preview (where the sidebar is collapsed). Scrollbar stays at the
               // pane edge (padding is inside the scroller).
               centerPadRight={() => SIDEBAR_WIDTH_PX}
+              collab={() => {
+                const s = session();
+                return collabReady() && s
+                  ? { yText: findReportBodyText(s.doc), awareness: s.awareness }
+                  : undefined;
+              }}
+              canEdit={() =>
+                projectState.thisUserPermissions.can_configure_reports &&
+                !projectState.isLocked}
               ref={(api) => (editorApi = api)}
             />
           </div>
