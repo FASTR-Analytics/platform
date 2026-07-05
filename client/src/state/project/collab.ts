@@ -64,6 +64,7 @@ let view: {
   slideId?: string;
   selectedBlockId?: string;
   selectedTextTarget?: string;
+  reportId?: string;
 } = {};
 
 // ── Slide CRDT sessions (Milestone 3) ───────────────────────────────────────
@@ -409,6 +410,7 @@ export function setCollabView(next: {
   slideId?: string;
   selectedBlockId?: string;
   selectedTextTarget?: string;
+  reportId?: string;
 }): void {
   view = next;
   sendPresence();

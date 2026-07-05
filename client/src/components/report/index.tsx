@@ -30,6 +30,7 @@ import {
   Show,
 } from "solid-js";
 import { serverActions, _SERVER_HOST } from "~/server_actions";
+import { setCollabView } from "~/state/project/collab";
 import { projectState } from "~/state/project/t1_store";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import {
@@ -409,6 +410,9 @@ export function ProjectReport(p: Props) {
   );
 
   onMount(async () => {
+    // Advertise which report this user has open so collaborators see it
+    // (report-card avatars, and later the live co-editing session).
+    setCollabView({ reportId: p.reportId });
     const res = await serverActions.getReportDetail({
       projectId,
       report_id: p.reportId,
@@ -500,6 +504,8 @@ export function ProjectReport(p: Props) {
 
   onCleanup(() => {
     void flushBodySave();
+    // Clear the "in this report" presence when the editor closes.
+    setCollabView({});
     setAIContext(p.returnToContext ?? { mode: "viewing_reports" });
   });
 

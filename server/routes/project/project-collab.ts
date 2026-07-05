@@ -36,7 +36,10 @@ type CollabAuth = {
   email: string;
   name: string;
   color: string;
-  canEdit: boolean;
+  canViewSlides: boolean;
+  canEditSlides: boolean;
+  canViewReports: boolean;
+  canEditReports: boolean;
 };
 
 export const routesProjectCollab = new Hono<
@@ -98,9 +101,12 @@ routesProjectCollab.get(
       }
     }
 
-    if (!projectUser.can_view_slide_decks) {
+    // The socket carries slide AND report collaboration; either view
+    // permission admits the connection, and each message family re-checks its
+    // own view/edit permission per operation.
+    if (!projectUser.can_view_slide_decks && !projectUser.can_view_reports) {
       c.status(403);
-      return c.json({ success: false, err: "No slide deck access" });
+      return c.json({ success: false, err: "No slide deck or report access" });
     }
 
     const name = `${globalUser.firstName} ${globalUser.lastName}`.trim() ||
@@ -109,7 +115,10 @@ routesProjectCollab.get(
       email: globalUser.email,
       name,
       color: presenceColorForKey(globalUser.email),
-      canEdit: projectUser.can_configure_slide_decks,
+      canViewSlides: projectUser.can_view_slide_decks,
+      canEditSlides: projectUser.can_configure_slide_decks,
+      canViewReports: projectUser.can_view_reports,
+      canEditReports: projectUser.can_configure_reports,
     });
     await next();
   },
@@ -150,7 +159,7 @@ routesProjectCollab.get(
       onOpen: (_evt, ws) => {
         roomConn = {
           connectionId,
-          canEdit: auth.canEdit,
+          canEdit: auth.canEditSlides,
           send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
         };
         addConnection(projectId, connectionId, auth, ws);
@@ -175,7 +184,7 @@ routesProjectCollab.get(
             broadcastPresence(projectId);
             break;
           case "slide_subscribe":
-            if (roomConn) {
+            if (roomConn && auth.canViewSlides) {
               void subscribeSlide(
                 projectId,
                 msg.data.slideId,
@@ -183,6 +192,11 @@ routesProjectCollab.get(
                 msg.data.stateVector,
                 depsForSlide(msg.data.slideId),
               );
+            } else if (roomConn) {
+              roomConn.send({
+                type: "slide_error",
+                data: { slideId: msg.data.slideId, message: "No slide deck access" },
+              });
             }
             break;
           case "slide_update":
@@ -193,17 +207,17 @@ routesProjectCollab.get(
               hasRoomConn: !!roomConn,
               canEdit: roomConn?.canEdit,
             });
-            if (roomConn) {
+            if (roomConn && auth.canViewSlides) {
               applySlideUpdate(projectId, msg.data.slideId, roomConn, msg.data.update);
             }
             break;
           case "slide_unsubscribe":
-            if (roomConn) {
+            if (roomConn && auth.canViewSlides) {
               unsubscribeSlide(projectId, msg.data.slideId, roomConn);
             }
             break;
           case "awareness_update":
-            if (roomConn) {
+            if (roomConn && auth.canViewSlides) {
               relayAwareness(projectId, msg.data.slideId, roomConn, msg.data.update);
             }
             break;

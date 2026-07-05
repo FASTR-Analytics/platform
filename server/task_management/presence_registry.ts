@@ -52,6 +52,7 @@ export function updateConnectionPresence(
     slideId: view.slideId,
     selectedBlockId: view.selectedBlockId,
     selectedTextTarget: view.selectedTextTarget,
+    reportId: view.reportId,
   };
 }
 

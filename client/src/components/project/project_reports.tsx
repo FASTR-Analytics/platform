@@ -28,6 +28,8 @@ import { EditReportFolderModal } from "./edit_report_folder_modal";
 import { MoveReportToFolderModal } from "./move_report_to_folder_modal";
 import { DuplicateReportModal } from "./duplicate_report_modal";
 import { ProjectReport } from "../report";
+import { PresenceAvatars } from "../slide_deck/presence_avatars";
+import { otherPeers } from "~/state/project/collab";
 import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import {
@@ -484,6 +486,14 @@ export function ProjectReports(p: ExtendedProps) {
                       isSelected={isSelected()}
                       onClick={(e) => selection.handleClick(report.id, e)}
                     />
+                    <div class="pointer-events-none absolute bottom-1 left-1 z-10">
+                      <PresenceAvatars
+                        peers={otherPeers().filter(
+                          (peer) => peer.reportId === report.id,
+                        )}
+                        size="sm"
+                      />
+                    </div>
                     <div
                       class="bg-white overflow-hidden p-4"
                       style={{ "aspect-ratio": "16/9" }}
