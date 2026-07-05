@@ -99,8 +99,11 @@ user-facing behavior.
 
 ## 4. Server rooms — authoritative doc, relay, checkpoint
 
-[server/collab/slide_rooms.ts](server/collab/slide_rooms.ts), one room per
-`(projectId, slideId)`:
+The room mechanics are generic ([server/collab/doc_rooms.ts](server/collab/doc_rooms.ts),
+parameterized by a `DocRoomAdapter` + injected `DocRoomDeps`) and shared by two
+thin bindings: [slide_rooms.ts](server/collab/slide_rooms.ts) and
+[report_rooms.ts](server/collab/report_rooms.ts) (see §13). One room per
+`(projectId, docType, docId)`; described here in slide terms:
 
 - **Open**: first `slide_subscribe` creates the room. It restores the exact
   prior Y.Doc from `slides.crdt_state` when that state is *current*
@@ -251,6 +254,48 @@ must be 1.
 | Non-collab save while a room is live | Routed through the room: merged, relayed live, checkpointed (no clobber in either direction). |
 | Deploy skew (old server / new client) | `slide_sync` without `stateVector` is tolerated (catch-up skipped, sync still completes). |
 | View-only user opens the editor | Sees everything live; editors read-only; server rejects any forged ops per-message. |
+
+## 13. Report collaboration
+
+Reports get the same feature set through the same machinery, with a far
+simpler document model:
+
+- **Doc shape** ([lib/collab/report_crdt.ts](lib/collab/report_crdt.ts)): the
+  whole markdown body is ONE `doc.getText("body")` (the editor binds CodeMirror
+  to it via yCollab — carets/merging come from the same binding as slides),
+  plus `doc.getMap("figures")` / `doc.getMap("images")` holding opaque
+  per-id `FigureBlock`/`ImageBlock` entries (LWW via `setOpaque`; the shared
+  helpers live in [lib/collab/crdt_util.ts](lib/collab/crdt_util.ts)). `label`
+  and `config` stay out of the doc (separate routes/UI).
+- **Protocol**: a parallel `report_*` message family (subscribe/update/
+  unsubscribe/awareness both ways) so the slide messages stay byte-identical
+  across deploys. Presence gains `reportId` (set ⇔ report open in the editor;
+  drives the report-card avatars).
+- **Permissions**: the WS admits `can_view_slide_decks OR can_view_reports`;
+  each message family re-checks its own view permission and carries its own
+  edit permission (`can_configure_reports` for report ops); the editor is
+  read-only client-side without it.
+- **Persistence**: `reports.crdt_state` + `crdt_state_last_updated`
+  (migration 031, same staleness rule); checkpoints write body + figures +
+  images + state atomically (`saveReportCheckpoint`). The list rebroadcast
+  (previews derive from body) is debounced ~5s per project — see
+  DOC_SSE_REALTIME.md.
+- **External writes**: `updateReportBody/Figures/Images` route through a live
+  room first (`applyReportToLiveRoom`, partial-field sync + immediate
+  checkpoint); the pre-collab advisory `conflicted` flag remains for the
+  no-room path only.
+- **Editor bridge** ([report/index.tsx](client/src/components/report/index.tsx),
+  [report_editor.tsx](client/src/components/report/report_editor.tsx)): the
+  CodeMirror view rebuilds once when the session becomes ready, swapping in
+  `yCollab` + per-user undo; the latched `collabReady` turns the 800ms REST
+  autosave off for good (offline edits accumulate in the doc and the reconnect
+  catch-up ships them — a parallel REST save would double-apply); registry
+  edits flow through the doc while live; the AI accept applies as a minimal
+  single-region diff so it merges with concurrent peer typing; close-flush
+  mirrors the slide rules (never-ready → REST flush; ready+offline →
+  best-effort REST flush of the doc state; live → the room finalizes). AI
+  edits need no busy-guard: they apply through the proposing user's own live
+  session and merge via CRDT.
 
 ## Known limits
 

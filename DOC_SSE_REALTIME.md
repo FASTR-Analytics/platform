@@ -114,6 +114,13 @@ if (list.success) notifyProjectReportsUpdated(c.var.ppk.projectId, list.data);
 return c.json(res);
 ```
 
+One deliberate exception: **report collab checkpoints** fire the row-level
+notify on every ~1.5s checkpoint but debounce the list-level rebroadcast
+(~5s per project, `scheduleReportsListRebroadcast` in
+`server/routes/project/project-collab.ts`) — the list rebroadcast loads every
+report's body via `getAllReports`, which is far too heavy per checkpoint while
+someone is typing.
+
 ### The `last_updated → SSE → cache` triangle
 
 This single mechanism spans three docs:

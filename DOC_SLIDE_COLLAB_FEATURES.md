@@ -4,6 +4,13 @@ What users get from the real-time collaboration system in the slide deck
 editor. The companion doc [DOC_SLIDE_COLLAB.md](DOC_SLIDE_COLLAB.md) explains
 how each of these is implemented.
 
+**Reports have the same feature set** (its §13): live character-merged
+co-editing of the report body with remote carets/selections and per-user undo,
+figures/images syncing live, presence avatars on report cards, autosave
+checkpoints with restart survival and reconnect catch-up, read-only mode for
+view-only users, and AI edits that merge through the proposing user's live
+session.
+
 ## Presence — who is where
 
 - **Deck-list presence avatars.** On the project's deck list, each deck
