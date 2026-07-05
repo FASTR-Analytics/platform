@@ -292,6 +292,8 @@ CREATE TABLE reports (
   figures text NOT NULL DEFAULT '{}',
   images text NOT NULL DEFAULT '{}',
   config text,
+  crdt_state text,
+  crdt_state_last_updated text,
   last_updated text NOT NULL,
   folder_id text REFERENCES report_folders(id) ON DELETE SET NULL
 );

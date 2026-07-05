@@ -1,39 +1,55 @@
 // =============================================================================
-// Slide collaboration rooms (server-authoritative Yjs relay) — Milestone 2
+// Slide collaboration rooms — thin binding over the generic doc_rooms core
 // =============================================================================
 //
-// For each slide being co-edited, the server holds the authoritative Y.Doc and
-// a set of connected clients. It:
-//   - seeds the doc from the persisted slide config on first open,
-//   - syncs each joining client (sends what they're missing),
-//   - relays every update to the other clients in the room,
-//   - debounced-checkpoints the materialized slide back to storage so viewers,
-//     exports and thumbnails see the result (and the work survives the room
-//     being torn down when everyone leaves).
-//
-// DB access is injected (SlideRoomDeps) so this module is pure and testable;
-// the WS route supplies real load/save closures (getSlide/updateSlide + SSE
-// notify). CRDT-state persistence that survives a *server restart* with
-// un-checkpointed edits is a later step (M2.2b); a restart currently re-seeds
-// from the last checkpoint.
+// All room mechanics (seed/restore, state-vector sync, relay, debounced
+// checkpoints, teardown, external-write chokepoint) live in doc_rooms.ts and
+// are shared with report_rooms.ts. This module only supplies the slide adapter
+// (Slide <-> Y.Doc bridge + slide_* wire messages) and keeps the original
+// export names so the WS route and updateSlide route are unchanged.
 
-import * as Y from "yjs";
 import {
-  base64ToBytes,
-  bytesToBase64,
-  type CollabServerMessage,
   materializeSlide,
   seedSlideDoc,
   type Slide,
   syncSlideToDoc,
 } from "lib";
+import {
+  applyDocUpdate,
+  applyToLiveRoom,
+  type DocRoomAdapter,
+  type DocRoomDeps,
+  relayDocAwareness,
+  type RoomConn,
+  subscribeDoc,
+  unsubscribeDoc,
+} from "./doc_rooms.ts";
 
-const CHECKPOINT_DEBOUNCE_MS = 1500;
+export { handleConnGone, type RoomConn } from "./doc_rooms.ts";
 
-export type RoomConn = {
-  connectionId: string;
-  canEdit: boolean;
-  send: (msg: CollabServerMessage) => void;
+const DOC_TYPE = "slide";
+
+const slideAdapter: DocRoomAdapter<Slide> = {
+  docType: DOC_TYPE,
+  notFoundMessage: "Slide not found",
+  seed: seedSlideDoc,
+  materialize: materializeSlide,
+  msgSync: (slideId, update, stateVector) => ({
+    type: "slide_sync",
+    data: { slideId, update, stateVector },
+  }),
+  msgUpdate: (slideId, update) => ({
+    type: "slide_update",
+    data: { slideId, update },
+  }),
+  msgError: (slideId, message) => ({
+    type: "slide_error",
+    data: { slideId, message },
+  }),
+  msgAwareness: (slideId, update) => ({
+    type: "awareness",
+    data: { slideId, update },
+  }),
 };
 
 export type SlideRoomDeps = {
@@ -46,135 +62,32 @@ export type SlideRoomDeps = {
   saveSlide: (slide: Slide, crdtState: string) => Promise<string | null>;
 };
 
-type Room = {
-  key: string;
-  slideId: string;
-  doc: Y.Doc;
-  conns: Map<string, RoomConn>;
-  deps: SlideRoomDeps;
-  dirty: boolean;
-  checkpointTimer: ReturnType<typeof setTimeout> | null;
-};
-
-const rooms = new Map<string, Room>();
-const connRooms = new Map<string, Set<string>>(); // connectionId -> room keys
-
-function roomKey(projectId: string, slideId: string): string {
-  return `${projectId}::${slideId}`;
-}
-
-function trackConnRoom(connectionId: string, key: string): void {
-  let set = connRooms.get(connectionId);
-  if (!set) {
-    set = new Set();
-    connRooms.set(connectionId, set);
-  }
-  set.add(key);
-}
-
-function attachDoc(room: Room): void {
-  room.doc.on("update", (update: Uint8Array, origin: unknown) => {
-    const originConn = origin as RoomConn | undefined;
-    const payload = bytesToBase64(update);
-    for (const conn of room.conns.values()) {
-      // Skip the client that produced this update — it already has it locally.
-      if (originConn && conn.connectionId === originConn.connectionId) continue;
-      conn.send({ type: "slide_update", data: { slideId: room.slideId, update: payload } });
-    }
-    room.dirty = true;
-    scheduleCheckpoint(room);
-  });
-}
-
-function scheduleCheckpoint(room: Room): void {
-  if (room.checkpointTimer) return;
-  room.checkpointTimer = setTimeout(() => {
-    room.checkpointTimer = null;
-    void checkpoint(room);
-  }, CHECKPOINT_DEBOUNCE_MS);
-}
-
-async function checkpoint(room: Room): Promise<string | null> {
-  if (!room.dirty) return null;
-  room.dirty = false;
-  const slide = materializeSlide(room.doc);
-  const crdtState = bytesToBase64(Y.encodeStateAsUpdate(room.doc));
-  const lastUpdated = await room.deps.saveSlide(slide, crdtState);
-  // [VIZSYNC-SRV] temporary diagnostic — remove after debugging viz-sync.
-  console.log("[VIZSYNC-SRV] checkpoint", { slideId: room.slideId, saved: lastUpdated !== null });
-  if (lastUpdated === null) {
-    // Save failed — keep dirty so the next change (or finalize) retries.
-    room.dirty = true;
-  }
-  return lastUpdated;
+function toDocDeps(deps: SlideRoomDeps): DocRoomDeps<Slide> {
+  return {
+    load: async () => {
+      const r = await deps.loadSlide();
+      return r ? { content: r.slide, crdtState: r.crdtState } : null;
+    },
+    save: deps.saveSlide,
+  };
 }
 
 /** A client opens a slide for (read-only or editing) collaboration. */
-export async function subscribeSlide(
+export function subscribeSlide(
   projectId: string,
   slideId: string,
   conn: RoomConn,
   clientStateVectorB64: string,
   deps: SlideRoomDeps,
 ): Promise<void> {
-  const key = roomKey(projectId, slideId);
-  let room = rooms.get(key);
-
-  if (!room) {
-    const loaded = await deps.loadSlide();
-    // Another concurrent subscribe may have created the room during the await.
-    room = rooms.get(key);
-    if (!room) {
-      if (!loaded) {
-        conn.send({ type: "slide_error", data: { slideId, message: "Slide not found" } });
-        return;
-      }
-      const doc = new Y.Doc();
-      if (loaded.crdtState) {
-        // Restore the exact prior Yjs doc (survives server restart cleanly).
-        Y.applyUpdate(doc, base64ToBytes(loaded.crdtState));
-      } else {
-        // First-ever open (or stale CRDT state): seed from the slide config.
-        seedSlideDoc(doc, loaded.slide);
-      }
-      room = {
-        key,
-        slideId,
-        doc,
-        conns: new Map(),
-        deps,
-        dirty: false,
-        checkpointTimer: null,
-      };
-      rooms.set(key, room);
-      attachDoc(room);
-    }
-  }
-
-  room.conns.set(conn.connectionId, conn);
-  trackConnRoom(conn.connectionId, key);
-
-  // Send the client whatever it is missing relative to its state vector.
-  let sv: Uint8Array | undefined;
-  if (clientStateVectorB64) {
-    try {
-      sv = base64ToBytes(clientStateVectorB64);
-    } catch {
-      sv = undefined;
-    }
-  }
-  const sync = Y.encodeStateAsUpdate(room.doc, sv);
-  // Also send the room's state vector so the client can push back anything the
-  // server is missing (e.g. a local edit whose update was lost before reconnect).
-  const stateVector = Y.encodeStateVector(room.doc);
-  conn.send({
-    type: "slide_sync",
-    data: {
-      slideId,
-      update: bytesToBase64(sync),
-      stateVector: bytesToBase64(stateVector),
-    },
-  });
+  return subscribeDoc(
+    projectId,
+    slideId,
+    conn,
+    clientStateVectorB64,
+    slideAdapter,
+    toDocDeps(deps),
+  );
 }
 
 /** Apply a client's update to the authoritative doc (which relays + checkpoints). */
@@ -184,100 +97,34 @@ export function applySlideUpdate(
   conn: RoomConn,
   updateB64: string,
 ): void {
-  if (!conn.canEdit) {
-    conn.send({ type: "slide_error", data: { slideId, message: "No edit permission" } });
-    return;
-  }
-  const room = rooms.get(roomKey(projectId, slideId));
-  if (!room) return;
-  let bytes: Uint8Array;
-  try {
-    bytes = base64ToBytes(updateB64);
-  } catch {
-    return;
-  }
-  // origin = conn so the doc's update handler skips echoing back to the sender.
-  Y.applyUpdate(room.doc, bytes, conn);
+  applyDocUpdate(projectId, slideId, conn, updateB64, slideAdapter);
 }
 
-/** Relay a Yjs awareness (cursor/selection) update to the other room members.
- *  Awareness is ephemeral — not applied to the server doc and not persisted. */
+/** Relay a Yjs awareness (cursor/selection) update to the other room members. */
 export function relayAwareness(
   projectId: string,
   slideId: string,
   sender: RoomConn,
   updateB64: string,
 ): void {
-  const room = rooms.get(roomKey(projectId, slideId));
-  if (!room) return;
-  for (const conn of room.conns.values()) {
-    if (conn.connectionId === sender.connectionId) continue;
-    conn.send({ type: "awareness", data: { slideId, update: updateB64 } });
-  }
+  relayDocAwareness(projectId, slideId, sender, updateB64, slideAdapter);
 }
 
-export function unsubscribeSlide(projectId: string, slideId: string, conn: RoomConn): void {
-  const key = roomKey(projectId, slideId);
-  const room = rooms.get(key);
-  connRooms.get(conn.connectionId)?.delete(key);
-  if (!room) return;
-  room.conns.delete(conn.connectionId);
-  if (room.conns.size === 0) void finalizeRoom(room);
+export function unsubscribeSlide(
+  projectId: string,
+  slideId: string,
+  conn: RoomConn,
+): void {
+  unsubscribeDoc(projectId, DOC_TYPE, slideId, conn);
 }
 
-/** A connection (WebSocket) closed — drop it from every room it was in. */
-export function handleConnGone(connectionId: string): void {
-  const keys = connRooms.get(connectionId);
-  if (!keys) return;
-  for (const key of keys) {
-    const room = rooms.get(key);
-    if (!room) continue;
-    room.conns.delete(connectionId);
-    if (room.conns.size === 0) void finalizeRoom(room);
-  }
-  connRooms.delete(connectionId);
-}
-
-async function finalizeRoom(room: Room): Promise<void> {
-  if (room.checkpointTimer) {
-    clearTimeout(room.checkpointTimer);
-    room.checkpointTimer = null;
-  }
-  await checkpoint(room);
-  // A client may have subscribed while the final checkpoint was in flight —
-  // the room is still registered during the await, so it must stay alive for
-  // them (destroying it would silently drop all their future updates).
-  if (room.conns.size > 0) return;
-  if (rooms.get(room.key) === room) rooms.delete(room.key);
-  room.doc.destroy();
-}
-
-/**
- * Route a non-collab slide save (plain updateSlide: AI deck-level edits,
- * conflict-resolution saves) through a live room, if one exists. The external
- * slide is applied onto the authoritative doc — relaying the change live to
- * connected editors — and checkpointed immediately so the caller gets
- * read-your-write semantics. Without this, a direct DB write would be silently
- * clobbered by the room's next checkpoint.
- *
- * Returns the new last_updated when a room handled the save, or null when no
- * room is live (caller should write to the DB directly).
- */
-export async function applySlideToLiveRoom(
+/** Route a non-collab slide save through a live room, if one exists (see
+ *  applyToLiveRoom in doc_rooms.ts). */
+export function applySlideToLiveRoom(
   projectId: string,
   slideId: string,
   slide: Slide,
 ): Promise<string | null> {
-  const room = rooms.get(roomKey(projectId, slideId));
-  if (!room) return null;
-  // No origin conn: the update handler relays this to every connected client.
-  room.doc.transact(() => syncSlideToDoc(room.doc, slide));
-  if (room.checkpointTimer) {
-    clearTimeout(room.checkpointTimer);
-    room.checkpointTimer = null;
-  }
-  // Force the write even when the doc already matched the payload, so the
-  // caller always gets a fresh last_updated for its response.
-  room.dirty = true;
-  return await checkpoint(room);
+  return applyToLiveRoom(projectId, DOC_TYPE, slideId, (doc) =>
+    syncSlideToDoc(doc, slide));
 }

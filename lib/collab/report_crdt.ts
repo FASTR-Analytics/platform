@@ -66,16 +66,17 @@ export function findReportBodyText(doc: Y.Doc): Y.Text {
 }
 
 /** Diff the figure/image registries onto the doc (opaque LWW per id; entries
- *  absent from the target are deleted). Idempotent. Callers must honor the
- *  setOpaque fresh-reference invariant: a changed block must be a NEW object
- *  (the editor's `{...figures(), [id]: block}` spreads guarantee this). */
+ *  absent from the target are deleted; an undefined registry is skipped — used
+ *  by the partial external-write chokepoint). Idempotent. Callers must honor
+ *  the setOpaque fresh-reference invariant: a changed block must be a NEW
+ *  object (the editor's `{...figures(), [id]: block}` spreads guarantee this). */
 export function syncReportRegistries(
   doc: Y.Doc,
-  figures: ReportDocContent["figures"],
-  images: ReportDocContent["images"],
+  figures?: ReportDocContent["figures"],
+  images?: ReportDocContent["images"],
 ): void {
-  syncRegistry(doc.getMap<unknown>(FIGURES_KEY), figures);
-  syncRegistry(doc.getMap<unknown>(IMAGES_KEY), images);
+  if (figures !== undefined) syncRegistry(doc.getMap<unknown>(FIGURES_KEY), figures);
+  if (images !== undefined) syncRegistry(doc.getMap<unknown>(IMAGES_KEY), images);
 }
 
 function syncRegistry(

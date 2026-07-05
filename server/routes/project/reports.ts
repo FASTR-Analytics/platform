@@ -12,6 +12,7 @@ import {
   updateReportImages,
   updateReportLabel,
 } from "../../db/mod.ts";
+import { applyReportToLiveRoom } from "../../collab/report_rooms.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectReportsUpdated } from "../../task_management/notify_project_v2.ts";
@@ -113,6 +114,25 @@ defineRoute(
     "can_configure_reports",
   ),
   async (c, { params, body }) => {
+    // While a collab room is live for this report, the room's doc is
+    // authoritative: a direct DB write would be silently overwritten by the
+    // room's next checkpoint. Route the save through the room instead — the
+    // change merges into the shared doc (relayed live to connected editors)
+    // and the room checkpoints it immediately (which fires its own SSE
+    // notifications). Merging into the live doc IS the conflict resolution,
+    // so the room path reports conflicted: false.
+    const roomLastUpdated = await applyReportToLiveRoom(
+      c.var.ppk.projectId,
+      params.report_id,
+      { body: body.body },
+    );
+    if (roomLastUpdated !== null) {
+      return c.json({
+        success: true as const,
+        data: { lastUpdated: roomLastUpdated, conflicted: false },
+      });
+    }
+
     const res = await updateReportBody(
       c.var.ppk.projectDb,
       params.report_id,
@@ -150,6 +170,19 @@ defineRoute(
     "can_configure_reports",
   ),
   async (c, { params, body }) => {
+    // Live-room chokepoint — see updateReportBody.
+    const roomLastUpdated = await applyReportToLiveRoom(
+      c.var.ppk.projectId,
+      params.report_id,
+      { figures: body.figures as any },
+    );
+    if (roomLastUpdated !== null) {
+      return c.json({
+        success: true as const,
+        data: { lastUpdated: roomLastUpdated },
+      });
+    }
+
     const res = await updateReportFigures(
       c.var.ppk.projectDb,
       params.report_id,
@@ -178,6 +211,19 @@ defineRoute(
     "can_configure_reports",
   ),
   async (c, { params, body }) => {
+    // Live-room chokepoint — see updateReportBody.
+    const roomLastUpdated = await applyReportToLiveRoom(
+      c.var.ppk.projectId,
+      params.report_id,
+      { images: body.images },
+    );
+    if (roomLastUpdated !== null) {
+      return c.json({
+        success: true as const,
+        data: { lastUpdated: roomLastUpdated },
+      });
+    }
+
     const res = await updateReportImages(
       c.var.ppk.projectDb,
       params.report_id,

@@ -10,6 +10,7 @@ import {
   type ReportConfig,
   reportConfigSchema,
   type ReportDetail,
+  type ReportDocContent,
   reportFiguresSchema,
   reportImagesSchema,
   type ReportSummary,
@@ -190,6 +191,69 @@ export async function updateReportImages(
       SET images = ${JSON.stringify(reportImagesSchema.parse(images))}, last_updated = ${lastUpdated}
       WHERE id = ${reportId}
     `;
+    return { success: true, data: { lastUpdated } };
+  });
+}
+
+// Read the persisted Yjs CRDT state for a report (collab rooms). Returns the
+// base64 state only if it is CURRENT — i.e. crdt_state_last_updated matches the
+// report's last_updated; otherwise the report was edited outside collab since
+// the state was saved, so the room must re-seed from body/figures/images.
+export async function getReportCrdtState(
+  projectDb: Sql,
+  reportId: string,
+): Promise<APIResponseWithData<{ state: string | null }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await projectDb<
+        {
+          crdt_state: string | null;
+          crdt_state_last_updated: string | null;
+          last_updated: string;
+        }[]
+      >`
+        SELECT crdt_state, crdt_state_last_updated, last_updated
+        FROM reports WHERE id = ${reportId}
+      `
+    ).at(0);
+
+    if (!row) {
+      throw new Error("No report with this id");
+    }
+
+    const isCurrent = row.crdt_state !== null &&
+      row.crdt_state_last_updated === row.last_updated;
+
+    return { success: true, data: { state: isCurrent ? row.crdt_state : null } };
+  });
+}
+
+// Collab checkpoint: persist the materialized report content AND the Yjs CRDT
+// state atomically (collab is authoritative, so this always overwrites — no
+// conflict check). crdt_state_last_updated is stamped equal to last_updated so
+// the state reads back as current until a non-collab edit bumps last_updated.
+export async function saveReportCheckpoint(
+  projectDb: Sql,
+  reportId: string,
+  content: ReportDocContent,
+  crdtState: string,
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    const rows = await projectDb`
+      UPDATE reports
+      SET body = ${content.body},
+          figures = ${JSON.stringify(reportFiguresSchema.parse(content.figures))},
+          images = ${JSON.stringify(reportImagesSchema.parse(content.images))},
+          crdt_state = ${crdtState},
+          crdt_state_last_updated = ${lastUpdated},
+          last_updated = ${lastUpdated}
+      WHERE id = ${reportId}
+      RETURNING id
+    `;
+    if (rows.length === 0) {
+      throw new Error("Report not found");
+    }
     return { success: true, data: { lastUpdated } };
   });
 }
