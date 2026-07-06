@@ -1,3 +1,6 @@
+[TBD] [user] [fixed] - Data requests no longer hang indefinitely on slow connections
+[TBD] [admin] [fixed] - Requests to DHIS2 no longer hang on slow responses
+[TBD] [admin] [added] - Large DHIS2 responses can now be capped by size
 [TBD] [user] [added] - Save confirmation now shows how many boundaries were saved and matched
 [TBD] [user] [added] - Warning shown when some boundaries could not be matched to admin areas
 [TBD] [user] [changed] - Map upload wizard stays open after saving to show a summary before closing
