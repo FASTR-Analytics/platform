@@ -116,4 +116,16 @@ family is right).
 - Rung 2: implemented (app generator committed; m010 parameter edited + built in
   wb-fastr-modules but left uncommitted there — the working tree has extensive
   unrelated WIP that a commit would sweep in)
-- Rung 3: not started (stop point — needs a go-ahead and sequencing ruling)
+- Rung 3: pull-forwards shipped 2026-07-06 (ruling: pull-forwards first;
+  unanswered select_multiple = missing) — layer 2 (select_multiple
+  expansion: unanswered → missing, DK → -99 on unselected choices) and
+  layer 4 (M10_hfa_response_status.csv results object + don't-know-rate /
+  missing-rate metrics m10-02-01/-02, status classified per indicator ×
+  facility as dont_know / missing / not_applicable / answered from direct
+  question deps). Layers 1 (import-time classification) and 3 (per-class
+  policy, per-variable generator) not started.
+- Layer 4 notes: status is policy-independent of DONT_KNOW_TREATMENT;
+  denominator for both rates = resp_weight (facilities the indicator
+  applies to); indicators whose code references only other indicators
+  classify from no question deps (always answered unless filtered);
+  old-server + new-definition degrades to a header-only status CSV.

@@ -115,6 +115,57 @@ function buildPerTimePointMutateExpression(
   return `case_when(\n${timePointBranches.join(",\n")}\n  )`;
 }
 
+// Response-status companion to the value expression: classifies each
+// facility × time_point as dont_know / missing / not_applicable / answered,
+// independent of the DONT_KNOW_TREATMENT policy. Consumed by the
+// M10_hfa_response_status.csv results object (PLAN_HFA_SENTINEL_VALUES.md
+// rung 3 layer 4).
+function buildPerTimePointStatusExpression(
+  codeSnippets: HfaIndicatorCode[],
+  allIndicatorVarNames: Set<string>,
+  knownDatasetVariables: Set<string>,
+): string {
+  const branches: string[] = [];
+
+  for (const snippet of codeSnippets) {
+    const rCode = snippet.rCode.trim();
+    if (!rCode) continue;
+
+    const timePoint = snippet.timePoint.replace(/"/g, '\\"');
+    const rFilterCode = snippet.rFilterCode?.trim() ?? "";
+    const deps = extractDependenciesFromCode(
+      rCode,
+      snippet.rFilterCode,
+      allIndicatorVarNames,
+      knownDatasetVariables,
+    );
+
+    const dkCheck = deps.qids.length > 0
+      ? deps.qids.map((q) => `${q} %in% c(-99, -999999)`).join(" | ")
+      : "FALSE";
+    const naCheck = deps.qids.length > 0
+      ? deps.qids.map((q) => `is.na(${q})`).join(" | ")
+      : "FALSE";
+
+    branches.push(
+      `    time_point == "${timePoint}" & (${dkCheck}) ~ "dont_know"`,
+    );
+    branches.push(
+      `    time_point == "${timePoint}" & (${naCheck}) ~ "missing"`,
+    );
+    if (rFilterCode) {
+      branches.push(
+        `    time_point == "${timePoint}" & !(${rFilterCode}) ~ "not_applicable"`,
+      );
+    }
+    branches.push(`    time_point == "${timePoint}" ~ "answered"`);
+  }
+
+  branches.push("    TRUE ~ NA_character_");
+
+  return `case_when(\n${branches.join(",\n")}\n  )`;
+}
+
 export function getScriptWithParametersHfa(
   moduleDefinition: ModuleDefinitionInstalled,
   configSelections: ModuleConfigSelections,
@@ -246,6 +297,13 @@ export function getScriptWithParametersHfa(
     .map((w) => `warning("${w.replace(/"/g, '\\"')}")`)
     .join("\n");
 
+  // Only emit response-status columns when the installed definition declares
+  // the status results object — older installed definitions have no status
+  // section in script.R and must not gain stray columns.
+  const supportsResponseStatus = moduleDefinition.resultsObjects.some(
+    (ro) => ro.id === "M10_hfa_response_status.csv",
+  );
+
   const indicatorMutates = ordered
     .map((indicator) => {
       const snippets = codeByIndicator.get(indicator.varName) ?? [];
@@ -264,7 +322,16 @@ export function getScriptWithParametersHfa(
         knownDatasetVariables,
         dontKnowAsNo,
       );
-      return `  mutate(${indicator.varName} = ${expr})`;
+      const valueMutate = `  mutate(${indicator.varName} = ${expr})`;
+      if (!supportsResponseStatus) {
+        return valueMutate;
+      }
+      const statusExpr = buildPerTimePointStatusExpression(
+        activeSnippets,
+        allIndicatorVarNames,
+        knownDatasetVariables,
+      );
+      return `${valueMutate} %>%\n  mutate(${indicator.varName}__status = ${statusExpr})`;
     })
     .join(" %>%\n");
 
