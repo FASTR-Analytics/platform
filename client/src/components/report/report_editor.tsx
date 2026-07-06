@@ -9,7 +9,7 @@ import type * as Y from "yjs";
 import type { FigureBlock, ImageBlock } from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
-import { rebaseProposedEdits } from "./rebase_edits";
+import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits";
 
 const clamp = (n: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, n));
@@ -42,12 +42,13 @@ export type ReportEditorApi = {
   // Apply an accepted AI proposal by REBASING it over whatever changed while
   // it was under review: the proposal's hunks (baseBody -> newBody) are mapped
   // onto the live doc; hunks whose text a collaborator concurrently edited are
-  // skipped (returned in `skipped`) so nobody's typing is overwritten. With no
-  // concurrent edits this degenerates to a plain minimal replace.
+  // skipped (returned with their current-doc line ranges) so nobody's typing
+  // is overwritten. With no concurrent edits this degenerates to a plain
+  // minimal replace.
   applyRebasedBody: (
     baseBody: string,
     newBody: string,
-  ) => { applied: number; skipped: number };
+  ) => { applied: number; skipped: SkippedRange[] };
   // Remove an embed's token line (used when deleting a figure/image).
   removeEmbedToken: (kind: "figure" | "image", id: string) => void;
   // Change an embed's caption (the markdown alt text in its token).
@@ -241,7 +242,7 @@ export function ReportEditor(p: Props) {
   // surviving hunks land in one atomic transaction (positions pre-transaction),
   // which under yCollab becomes small mergeable Y.Text ops.
   function applyRebasedBody(baseBody: string, newBody: string) {
-    if (!view) return { applied: 0, skipped: 0 };
+    if (!view) return { applied: 0, skipped: [] as SkippedRange[] };
     const currentBody = view.state.doc.toString();
     const { changes, skipped } = rebaseProposedEdits(
       baseBody,

@@ -21,18 +21,42 @@ import { presentableDiff } from "@codemirror/merge";
 
 export type RebasedEdit = { from: number; to: number; insert: string };
 
+/** Where a skipped hunk sits, as 1-based line numbers in the CURRENT document
+ *  (the text the user is looking at), so the notice can say which lines were
+ *  left alone. Approximate when concurrent edits straddle the hunk. */
+export type SkippedRange = { fromLine: number; toLine: number };
+
 export function rebaseProposedEdits(
   baseBody: string,
   newBody: string,
   currentBody: string,
-): { changes: RebasedEdit[]; skipped: number } {
+): { changes: RebasedEdit[]; skipped: SkippedRange[] } {
   // presentableDiff (not raw diff): word-aligned hunks can't interleave inside
   // a word, so a partial apply never produces fragments of two spellings.
   const aiHunks = presentableDiff(baseBody, newBody);
   const concurrent = presentableDiff(baseBody, currentBody);
 
+  // Map base coords -> current coords: shift by the net length delta of
+  // every concurrent change entirely at-or-before the position (left bias:
+  // `c.toA <= pos` includes an insertion exactly at the position).
+  function shiftFor(pos: number): number {
+    let shift = 0;
+    for (const c of concurrent) {
+      if (c.toA <= pos) shift += (c.toB - c.fromB) - (c.toA - c.fromA);
+    }
+    return shift;
+  }
+  function lineAt(offset: number): number {
+    const clamped = Math.max(0, Math.min(offset, currentBody.length));
+    let line = 1;
+    for (let i = 0; i < clamped; i++) {
+      if (currentBody.charCodeAt(i) === 10) line++;
+    }
+    return line;
+  }
+
   const changes: RebasedEdit[] = [];
-  let skipped = 0;
+  const skipped: SkippedRange[] = [];
 
   for (const h of aiHunks) {
     // Strict-overlap conflict test (see policy comment). Works uniformly for
@@ -42,16 +66,12 @@ export function rebaseProposedEdits(
       (c) => c.fromA < h.toA && c.toA > h.fromA,
     );
     if (conflicts) {
-      skipped++;
+      const from = h.fromA + shiftFor(h.fromA);
+      const to = Math.max(from, from + (h.toA - h.fromA) - 1);
+      skipped.push({ fromLine: lineAt(from), toLine: lineAt(to) });
       continue;
     }
-    // Map base coords -> current coords: shift by the net length delta of
-    // every concurrent change entirely at-or-before this hunk (left bias:
-    // `c.toA <= h.fromA` includes an insertion exactly at the hunk start).
-    let shift = 0;
-    for (const c of concurrent) {
-      if (c.toA <= h.fromA) shift += (c.toB - c.fromB) - (c.toA - c.fromA);
-    }
+    const shift = shiftFor(h.fromA);
     changes.push({
       from: h.fromA + shift,
       to: h.toA + shift,
@@ -60,6 +80,15 @@ export function rebaseProposedEdits(
   }
 
   return { changes, skipped };
+}
+
+/** "5", "5–8", "5, 12–14" — for embedding in skip notices. */
+export function formatLineRanges(skipped: SkippedRange[]): string {
+  return skipped
+    .map((s) =>
+      s.fromLine === s.toLine ? `${s.fromLine}` : `${s.fromLine}–${s.toLine}`
+    )
+    .join(", ");
 }
 
 /** Apply rebased edits to a string (for tests and non-editor callers). */

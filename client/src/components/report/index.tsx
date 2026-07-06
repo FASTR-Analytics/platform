@@ -49,6 +49,7 @@ import {
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext, ReportEditProposal } from "../project_ai/types";
+import { formatLineRanges, type SkippedRange } from "./rebase_edits";
 import { SelectVisualizationForSlide } from "../slide_deck/select_visualization_for_slide";
 import { resolveFigureAndGeoFromVisualization } from "~/generate_visualization/mod";
 import { VisualizationEditor } from "../visualization";
@@ -558,7 +559,7 @@ export function ProjectReport(p: Props) {
   async function applyProposal(
     prop: ReportEditProposal,
     baseBody: string,
-  ): Promise<number> {
+  ): Promise<SkippedRange[]> {
     if (prop.addFigures) {
       // Added before the body so an inserted token never dangles. If the
       // token's hunk ends up skipped, the figure is orphaned — harmless (the
@@ -569,7 +570,7 @@ export function ProjectReport(p: Props) {
     }
     applyingProgrammaticEdit = true;
     const res = editorApi?.applyRebasedBody(baseBody, prop.newBody) ??
-      { applied: 0, skipped: 0 };
+      { applied: 0, skipped: [] as SkippedRange[] };
     applyingProgrammaticEdit = false;
     if (saveTimer) {
       clearTimeout(saveTimer);
@@ -582,14 +583,18 @@ export function ProjectReport(p: Props) {
     if (!collabReady()) {
       await persistBody(body());
     }
-    if (res.skipped > 0) {
+    if (res.skipped.length > 0) {
+      const lines = formatLineRanges(res.skipped);
+      const one = res.skipped.length === 1;
       void openAlert({
         text: t3({
-          en: `${res.skipped} of the AI's changes ${
-            res.skipped === 1 ? "was" : "were"
-          } skipped because a collaborator edited that text while you were reviewing. Re-run the AI if you still want those changes.`,
-          fr: `${res.skipped} modification(s) de l'IA ont été ignorée(s) car un collaborateur a modifié ce texte pendant votre relecture. Relancez l'IA si vous souhaitez toujours ces modifications.`,
-          pt: `${res.skipped} alteração(ões) da IA foi/foram ignorada(s) porque um colaborador editou esse texto durante a sua revisão. Volte a executar a IA se ainda quiser essas alterações.`,
+          en: `The AI's change${one ? "" : "s"} on line${
+            one && res.skipped[0].fromLine === res.skipped[0].toLine ? "" : "s"
+          } ${lines} ${one ? "was" : "were"} not applied because a collaborator is editing that text. Re-run the AI if you still want ${
+            one ? "it" : "them"
+          }.`,
+          fr: `La ou les modifications de l'IA aux lignes ${lines} n'ont pas été appliquées car un collaborateur modifie ce texte. Relancez l'IA si vous les souhaitez toujours.`,
+          pt: `A(s) alteração(ões) da IA na(s) linha(s) ${lines} não foi/foram aplicada(s) porque um colaborador está a editar esse texto. Volte a executar a IA se ainda a(s) quiser.`,
         }),
       });
     }
