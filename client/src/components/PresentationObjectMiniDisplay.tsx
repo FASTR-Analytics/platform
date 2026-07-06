@@ -23,13 +23,22 @@ export function PresentationObjectMiniDisplay(p: Props) {
     msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
   });
 
+  // Monotonic run id: two effect re-runs (PO last_updated bursts) race their
+  // generator loops, and the older one can commit its stale state last — the
+  // guard sits INSIDE the loop because the generator yields multiple times
+  // (same idiom as visualization_editor_inner's itemsFetchRunId).
+  let fetchRunId = 0;
   async function attemptGetFigureInputs() {
+    const runId = ++fetchRunId;
     const iter = getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
       p.projectId,
       p.presentationObjectId,
       p.repliantOverride,
     );
     for await (const state of iter) {
+      if (runId !== fetchRunId) {
+        return;
+      }
       setFigureInputs(state);
     }
   }
