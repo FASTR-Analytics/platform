@@ -1,6 +1,6 @@
 import { t3 } from "lib";
 import { Button, StateHolderFormError, createFormAction } from "panther";
-import { Show, createMemo } from "solid-js";
+import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import type { WizardState } from "./index";
 
@@ -8,8 +8,19 @@ type Props = {
   state: WizardState;
 };
 
+// Server-side ground truth from the save: per-FEATURE counts over the actual
+// geojson (the wizard's own N/M is per-VALUE and includes units the geojson
+// has no boundary for).
+type SaveCounts = {
+  featureCount: number;
+  matchedCount: number;
+  unmatchedCount: number;
+};
+
 export function Step4(p: Props) {
   const { state } = p;
+
+  const [saveCounts, setSaveCounts] = createSignal<SaveCounts | undefined>(undefined);
 
   const geoJsonValues = createMemo(() => {
     const result = state.analysisResult();
@@ -48,7 +59,7 @@ export function Step4(p: Props) {
         });
 
         if (res.success) {
-          state.close(undefined);
+          setSaveCounts(res.data);
         }
         return res;
       } else {
@@ -67,7 +78,7 @@ export function Step4(p: Props) {
         });
 
         if (res.success) {
-          state.close(undefined);
+          setSaveCounts(res.data);
         }
         return res;
       }
@@ -83,6 +94,36 @@ export function Step4(p: Props) {
   });
 
   return (
+    <Show
+      when={!saveCounts()}
+      fallback={
+        <div class="ui-spy">
+          <div class="font-600">{t3({ en: "Map saved", fr: "Carte enregistrée", pt: "Mapa guardado" })}</div>
+          <Show when={saveCounts()} keyed>
+            {(counts) => (
+              <div class="text-base-500 ui-spy-sm text-sm">
+                <div>
+                  {counts.featureCount} {t3({ en: "boundaries saved", fr: "limites enregistrées", pt: "limites guardados" })}
+                </div>
+                <div>
+                  {counts.matchedCount} {t3({ en: "matched to an admin area", fr: "associées à une zone administrative", pt: "associados a uma zona administrativa" })}
+                </div>
+                <Show when={counts.unmatchedCount > 0}>
+                  <div class="text-warning">
+                    {counts.unmatchedCount} {t3({ en: "unmatched (can be mapped later via Edit mappings)", fr: "non associées (mappables plus tard via Modifier les mappages)", pt: "por associar (podem ser associados mais tarde em Editar associações)" })}
+                  </div>
+                </Show>
+              </div>
+            )}
+          </Show>
+          <div>
+            <Button intent="primary" onClick={() => state.close(undefined)}>
+              {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
+            </Button>
+          </div>
+        </div>
+      }
+    >
     <div class="ui-spy">
       <div class="ui-spy-sm">
         <div class="font-600">{t3({ en: "Step 4: Confirm and save", fr: "Étape 4 : Confirmer et enregistrer", pt: "Passo 4: Confirmar e guardar" })}</div>
@@ -140,5 +181,6 @@ export function Step4(p: Props) {
         </Button>
       </div>
     </div>
+    </Show>
   );
 }
