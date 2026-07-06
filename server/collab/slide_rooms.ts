@@ -13,6 +13,7 @@ import {
   seedSlideDoc,
   type Slide,
   syncSlideToDoc,
+  type VersionEditor,
 } from "lib";
 import {
   applyDocUpdate,
@@ -60,6 +61,9 @@ export type SlideRoomDeps = {
    *  authoritative, so this overwrites) and fire SSE notifications. Returns
    *  the new last_updated, or null when the save failed. */
   saveSlide: (slide: Slide, crdtState: string) => Promise<string | null>;
+  /** Version-history capture (see DocRoomDeps). */
+  onEdit?: (editor: VersionEditor) => void;
+  onEmpty?: () => void;
 };
 
 function toDocDeps(deps: SlideRoomDeps): DocRoomDeps<Slide> {
@@ -69,6 +73,8 @@ function toDocDeps(deps: SlideRoomDeps): DocRoomDeps<Slide> {
       return r ? { content: r.slide, crdtState: r.crdtState } : null;
     },
     save: deps.saveSlide,
+    onEdit: deps.onEdit,
+    onEmpty: deps.onEmpty,
   };
 }
 
@@ -119,12 +125,19 @@ export function unsubscribeSlide(
 }
 
 /** Route a non-collab slide save through a live room, if one exists (see
- *  applyToLiveRoom in doc_rooms.ts). */
+ *  applyToLiveRoom in doc_rooms.ts). `editor` attributes the write to version
+ *  history; omit for restores (they version themselves explicitly). */
 export function applySlideToLiveRoom(
   projectId: string,
   slideId: string,
   slide: Slide,
+  editor?: VersionEditor,
 ): Promise<string | null> {
-  return applyToLiveRoom(projectId, DOC_TYPE, slideId, (doc) =>
-    syncSlideToDoc(doc, slide));
+  return applyToLiveRoom(
+    projectId,
+    DOC_TYPE,
+    slideId,
+    (doc) => syncSlideToDoc(doc, slide),
+    editor,
+  );
 }

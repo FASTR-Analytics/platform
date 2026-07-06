@@ -151,14 +151,15 @@ export async function createSlide(
   });
 }
 
-// Update slide
+// Update slide (also returns the deck id so callers can attribute the edit to
+// the deck's version history without a second lookup)
 export async function updateSlide(
   projectDb: Sql,
   slideId: string,
   slide: Slide,
   expectedLastUpdated: string | undefined,
   overwrite: boolean | undefined
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+): Promise<APIResponseWithData<{ lastUpdated: string; deckId: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     // Get slide_deck_id and last_updated for conflict check
     const existingSlide = (
@@ -197,7 +198,10 @@ export async function updateSlide(
       `,
     ]);
 
-    return { success: true, data: { lastUpdated } };
+    return {
+      success: true,
+      data: { lastUpdated, deckId: existingSlide.slide_deck_id },
+    };
   });
 }
 
@@ -363,7 +367,7 @@ export async function duplicateSlides(
 }
 
 // Helper: resequence sort_order to avoid gaps
-function reSequence(sql: Sql, deckId: string) {
+export function reSequence(sql: Sql, deckId: string) {
   return sql`
     WITH tmp as (
       SELECT id, ROW_NUMBER() OVER (ORDER BY sort_order) as rn FROM slides

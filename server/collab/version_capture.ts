@@ -1,0 +1,208 @@
+// =============================================================================
+// Version capture — live binding of the version tracker (real deps, singleton)
+// =============================================================================
+//
+// See version_tracker.ts for the session model. This module supplies the real
+// dependencies (project DB loads/writes, wall clock), owns the process-wide
+// tracker instance, and exposes the capture entry points the collab rooms and
+// HTTP routes call:
+//   - recordVersionEdit(...)        every successful write, attributed
+//   - noteVersionRoomEmpty(...)     when a collab room finalizes
+//   - startVersionSweeper()         30s interval (main.ts, at startup)
+//   - flushAllVersions()            graceful shutdown (main.ts)
+//
+// Slide-level edits are recorded against their DECK (whole-deck versions, like
+// Google Slides). Report `config` (display prefs) and deck `plan` (AI text)
+// are deliberately NOT part of version content.
+//
+// The version data + hash builders are exported for the restore routes, which
+// write safety/restored versions directly (they bypass the tracker so a
+// restore is versioned immediately, not 10 minutes later).
+
+import { createHash } from "node:crypto";
+import {
+  canonicalJson,
+  type DeckVersionSlide,
+  type FigureBlock,
+  type GlobalUser,
+  type ImageBlock,
+  type SlideDeckConfig,
+  type VersionEditor,
+} from "lib";
+import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
+import { getReportDetail } from "../db/project/reports.ts";
+import { getSlideDeckDetail } from "../db/project/slide_decks.ts";
+import { getSlides } from "../db/project/slides.ts";
+import {
+  insertDeckVersion,
+  insertReportVersion,
+  latestDeckVersionHash,
+  latestReportVersionHash,
+} from "../db/project/versions.ts";
+import {
+  createVersionTracker,
+  type VersionKind,
+  type VersionPayload,
+} from "./version_tracker.ts";
+
+const SWEEP_INTERVAL_MS = 30_000;
+
+export type ReportVersionData = {
+  label: string;
+  body: string;
+  figures: Record<string, FigureBlock>;
+  images: Record<string, ImageBlock>;
+};
+
+export type DeckVersionData = {
+  label: string;
+  deckConfig: SlideDeckConfig;
+  slides: DeckVersionSlide[];
+};
+
+/** Content hash for dedup: canonicalJson kills key-order nondeterminism across
+ *  the different write paths that can produce the same content. */
+export function hashVersionData(data: unknown): string {
+  return createHash("md5").update(canonicalJson(data)).digest("hex");
+}
+
+export async function loadReportVersionData(
+  projectId: string,
+  reportId: string,
+): Promise<ReportVersionData | null> {
+  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
+  const res = await getReportDetail(projectDb, reportId);
+  if (!res.success) return null;
+  return {
+    label: res.data.label,
+    body: res.data.body,
+    figures: res.data.figures,
+    images: res.data.images,
+  };
+}
+
+export async function loadDeckVersionData(
+  projectId: string,
+  deckId: string,
+): Promise<DeckVersionData | null> {
+  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
+  const deckRes = await getSlideDeckDetail(projectDb, deckId);
+  if (!deckRes.success) return null;
+  const slidesRes = await getSlides(projectDb, deckId);
+  if (!slidesRes.success) return null;
+  return {
+    label: deckRes.data.label,
+    deckConfig: deckRes.data.config,
+    slides: slidesRes.data.map((s, i) => ({
+      id: s.id,
+      sortOrder: (i + 1) * 10,
+      config: s.slide,
+    })),
+  };
+}
+
+async function loadPayload(
+  projectId: string,
+  kind: VersionKind,
+  docId: string,
+): Promise<VersionPayload | null> {
+  const data = kind === "report"
+    ? await loadReportVersionData(projectId, docId)
+    : await loadDeckVersionData(projectId, docId);
+  if (data === null) return null;
+  return { contentHash: hashVersionData(data), data };
+}
+
+async function latestHash(
+  projectId: string,
+  kind: VersionKind,
+  docId: string,
+): Promise<string | null> {
+  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
+  const res = kind === "report"
+    ? await latestReportVersionHash(projectDb, docId)
+    : await latestDeckVersionHash(projectDb, docId);
+  return res.success ? res.data.hash : null;
+}
+
+async function writeVersion(
+  projectId: string,
+  kind: VersionKind,
+  docId: string,
+  payload: VersionPayload,
+  editors: VersionEditor[],
+  createdAt: string,
+): Promise<boolean> {
+  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
+  if (kind === "report") {
+    const data = payload.data as ReportVersionData;
+    const res = await insertReportVersion(projectDb, {
+      reportId: docId,
+      createdAt,
+      label: data.label,
+      body: data.body,
+      figures: data.figures,
+      images: data.images,
+      editors,
+      contentHash: payload.contentHash,
+    });
+    return res.success;
+  }
+  const data = payload.data as DeckVersionData;
+  const res = await insertDeckVersion(projectDb, {
+    deckId: docId,
+    createdAt,
+    label: data.label,
+    deckConfig: data.deckConfig,
+    slides: data.slides,
+    editors,
+    contentHash: payload.contentHash,
+  });
+  return res.success;
+}
+
+const tracker = createVersionTracker({
+  now: () => Date.now(),
+  loadPayload,
+  latestHash,
+  writeVersion,
+});
+
+export function editorFromGlobalUser(user: GlobalUser): VersionEditor {
+  return {
+    email: user.email,
+    name: `${user.firstName} ${user.lastName}`.trim() || user.email,
+  };
+}
+
+/** Record one attributed edit. For slides, pass the DECK id, not the slide id. */
+export function recordVersionEdit(
+  projectId: string,
+  kind: VersionKind,
+  docId: string,
+  editor: VersionEditor,
+): void {
+  tracker.recordEdit(projectId, kind, docId, editor);
+}
+
+export function noteVersionRoomEmpty(
+  projectId: string,
+  kind: VersionKind,
+  docId: string,
+): void {
+  tracker.noteRoomEmpty(projectId, kind, docId);
+}
+
+export function flushAllVersions(): Promise<void> {
+  return tracker.flushAll();
+}
+
+let sweeperStarted = false;
+
+export function startVersionSweeper(): void {
+  if (sweeperStarted) return;
+  sweeperStarted = true;
+  setInterval(() => {
+    tracker.sweep().catch((e) => console.error("Version sweep failed:", e));
+  }, SWEEP_INTERVAL_MS);
+}

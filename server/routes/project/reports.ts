@@ -13,6 +13,10 @@ import {
   updateReportLabel,
 } from "../../db/mod.ts";
 import { applyReportToLiveRoom } from "../../collab/report_rooms.ts";
+import {
+  editorFromGlobalUser,
+  recordVersionEdit,
+} from "../../collab/version_capture.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectReportsUpdated } from "../../task_management/notify_project_v2.ts";
@@ -90,6 +94,13 @@ defineRoute(
       return c.json(res);
     }
 
+    recordVersionEdit(
+      c.var.ppk.projectId,
+      "report",
+      params.report_id,
+      editorFromGlobalUser(c.var.globalUser),
+    );
+
     notifyLastUpdated(
       c.var.ppk.projectId,
       "reports",
@@ -121,10 +132,12 @@ defineRoute(
     // and the room checkpoints it immediately (which fires its own SSE
     // notifications). Merging into the live doc IS the conflict resolution,
     // so the room path reports conflicted: false.
+    const editor = editorFromGlobalUser(c.var.globalUser);
     const roomLastUpdated = await applyReportToLiveRoom(
       c.var.ppk.projectId,
       params.report_id,
       { body: body.body },
+      editor,
     );
     if (roomLastUpdated !== null) {
       return c.json({
@@ -143,6 +156,8 @@ defineRoute(
     if (!res.success) {
       return c.json(res);
     }
+
+    recordVersionEdit(c.var.ppk.projectId, "report", params.report_id, editor);
 
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -171,10 +186,12 @@ defineRoute(
   ),
   async (c, { params, body }) => {
     // Live-room chokepoint — see updateReportBody.
+    const editor = editorFromGlobalUser(c.var.globalUser);
     const roomLastUpdated = await applyReportToLiveRoom(
       c.var.ppk.projectId,
       params.report_id,
       { figures: body.figures as any },
+      editor,
     );
     if (roomLastUpdated !== null) {
       return c.json({
@@ -191,6 +208,8 @@ defineRoute(
     if (!res.success) {
       return c.json(res);
     }
+
+    recordVersionEdit(c.var.ppk.projectId, "report", params.report_id, editor);
 
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -212,10 +231,12 @@ defineRoute(
   ),
   async (c, { params, body }) => {
     // Live-room chokepoint — see updateReportBody.
+    const editor = editorFromGlobalUser(c.var.globalUser);
     const roomLastUpdated = await applyReportToLiveRoom(
       c.var.ppk.projectId,
       params.report_id,
       { images: body.images },
+      editor,
     );
     if (roomLastUpdated !== null) {
       return c.json({
@@ -232,6 +253,8 @@ defineRoute(
     if (!res.success) {
       return c.json(res);
     }
+
+    recordVersionEdit(c.var.ppk.projectId, "report", params.report_id, editor);
 
     notifyLastUpdated(
       c.var.ppk.projectId,

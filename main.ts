@@ -5,6 +5,10 @@ import { DeleteOldLogs } from "./server/db/instance/user_logs.ts";
 import { purgeExpiredProjects } from "./server/db/mod.ts";
 import { connectValkey, disconnectValkey } from "./server/valkey/connection.ts";
 import { closeAllConnections } from "./server/db/postgres/connection_manager.ts";
+import {
+  flushAllVersions,
+  startVersionSweeper,
+} from "./server/collab/version_capture.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
 import {
   authMiddleware,
@@ -75,6 +79,9 @@ const runProjectPurge = () => {
 };
 runProjectPurge();
 setInterval(runProjectPurge, 24 * 60 * 60 * 1000);
+
+// Version history: sweep editing-session accumulators into stored versions.
+startVersionSweeper();
 
 await connectValkey();
 
@@ -175,6 +182,11 @@ const shutdown = async () => {
     console.warn("[Shutdown] Timed out — forcing exit");
     Deno.exit(1);
   }, 8000);
+  // Version history: open editing sessions become versions before exit. Must
+  // finish BEFORE closeAllConnections() — the flush writes through the pools.
+  await flushAllVersions().catch((e) =>
+    console.error("Version flush on shutdown failed:", e)
+  );
   await Promise.all([
     server.shutdown(),
     disconnectValkey(),

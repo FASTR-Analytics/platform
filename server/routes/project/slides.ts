@@ -10,6 +10,10 @@ import {
 } from "../../db/mod.ts";
 import type { Slide } from "lib";
 import { applySlideToLiveRoom } from "../../collab/slide_rooms.ts";
+import {
+  editorFromGlobalUser,
+  recordVersionEdit,
+} from "../../collab/version_capture.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -57,6 +61,13 @@ defineRoute(
       return c.json(res);
     }
 
+    recordVersionEdit(
+      c.var.ppk.projectId,
+      "deck",
+      params.deck_id,
+      editorFromGlobalUser(c.var.globalUser),
+    );
+
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slides",
@@ -92,10 +103,12 @@ defineRoute(
     // conflict check doesn't apply on this path: merging into the live doc IS
     // the conflict resolution. (The room's checkpoint fires its own SSE
     // notifications.)
+    const editor = editorFromGlobalUser(c.var.globalUser);
     const roomLastUpdated = await applySlideToLiveRoom(
       c.var.ppk.projectId,
       params.slide_id,
       body.slide as Slide,
+      editor,
     );
     if (roomLastUpdated !== null) {
       return c.json({
@@ -114,6 +127,8 @@ defineRoute(
     if (!res.success) {
       return c.json(res);
     }
+
+    recordVersionEdit(c.var.ppk.projectId, "deck", res.data.deckId, editor);
 
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -145,6 +160,13 @@ defineRoute(
     if (!res.success) {
       return c.json(res);
     }
+
+    recordVersionEdit(
+      c.var.ppk.projectId,
+      "deck",
+      params.deck_id,
+      editorFromGlobalUser(c.var.globalUser),
+    );
 
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -185,6 +207,13 @@ defineRoute(
       return c.json(res);
     }
 
+    recordVersionEdit(
+      c.var.ppk.projectId,
+      "deck",
+      params.deck_id,
+      editorFromGlobalUser(c.var.globalUser),
+    );
+
     for (const slideId of res.data.newSlideIds) {
       notifyLastUpdated(
         c.var.ppk.projectId,
@@ -223,6 +252,13 @@ defineRoute(
     if (!res.success) {
       return c.json(res);
     }
+
+    recordVersionEdit(
+      c.var.ppk.projectId,
+      "deck",
+      params.deck_id,
+      editorFromGlobalUser(c.var.globalUser),
+    );
 
     notifyLastUpdated(
       c.var.ppk.projectId,

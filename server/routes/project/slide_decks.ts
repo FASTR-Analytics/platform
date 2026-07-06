@@ -10,6 +10,10 @@ import {
   duplicateSlideDeck,
   deleteSlideDeck,
 } from "../../db/mod.ts";
+import {
+  editorFromGlobalUser,
+  recordVersionEdit,
+} from "../../collab/version_capture.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectSlideDecksUpdated } from "../../task_management/notify_project_v2.ts";
@@ -88,6 +92,13 @@ defineRoute(
       return c.json(res);
     }
 
+    recordVersionEdit(
+      c.var.ppk.projectId,
+      "deck",
+      params.deck_id,
+      editorFromGlobalUser(c.var.globalUser),
+    );
+
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slide_decks",
@@ -148,6 +159,13 @@ defineRoute(
     if (!res.success) {
       return c.json(res);
     }
+
+    recordVersionEdit(
+      c.var.ppk.projectId,
+      "deck",
+      params.deck_id,
+      editorFromGlobalUser(c.var.globalUser),
+    );
 
     notifyLastUpdated(
       c.var.ppk.projectId,

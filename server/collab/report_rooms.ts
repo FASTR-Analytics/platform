@@ -13,6 +13,7 @@ import {
   seedReportDoc,
   syncReportRegistries,
   syncText,
+  type VersionEditor,
 } from "lib";
 import {
   applyDocUpdate,
@@ -101,18 +102,27 @@ export function unsubscribeReport(
 /** Route a non-collab report save (the body/figures/images HTTP routes)
  *  through a live room, if one exists. Only the provided fields are synced
  *  onto the doc; the checkpoint persists the whole document. Returns the new
- *  last_updated, or null when no room is live (caller writes the DB directly). */
+ *  last_updated, or null when no room is live (caller writes the DB directly).
+ *  `editor` attributes the write to version history; omit for restores (they
+ *  version themselves explicitly). */
 export function applyReportToLiveRoom(
   projectId: string,
   reportId: string,
   partial: Partial<ReportDocContent>,
+  editor?: VersionEditor,
 ): Promise<string | null> {
-  return applyToLiveRoom(projectId, DOC_TYPE, reportId, (doc) => {
-    if (partial.body !== undefined) {
-      syncText(findReportBodyText(doc), partial.body);
-    }
-    if (partial.figures !== undefined || partial.images !== undefined) {
-      syncReportRegistries(doc, partial.figures, partial.images);
-    }
-  });
+  return applyToLiveRoom(
+    projectId,
+    DOC_TYPE,
+    reportId,
+    (doc) => {
+      if (partial.body !== undefined) {
+        syncText(findReportBodyText(doc), partial.body);
+      }
+      if (partial.figures !== undefined || partial.images !== undefined) {
+        syncReportRegistries(doc, partial.figures, partial.images);
+      }
+    },
+    editor,
+  );
 }

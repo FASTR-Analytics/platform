@@ -24,13 +24,20 @@
 // registry after the async load.
 
 import * as Y from "yjs";
-import { base64ToBytes, bytesToBase64, type CollabServerMessage } from "lib";
+import {
+  base64ToBytes,
+  bytesToBase64,
+  type CollabServerMessage,
+  type VersionEditor,
+} from "lib";
 
 const CHECKPOINT_DEBOUNCE_MS = 1500;
 
 export type RoomConn = {
   connectionId: string;
   canEdit: boolean;
+  /** Who this connection is — attributed to version history on every edit. */
+  identity?: VersionEditor;
   send: (msg: CollabServerMessage) => void;
 };
 
@@ -55,6 +62,12 @@ export type DocRoomDeps<T> = {
    *  this overwrites) and fire SSE notifications. Returns the new
    *  last_updated, or null when the save failed. */
   save: (content: T, crdtState: string) => Promise<string | null>;
+  /** Version-history capture: fired for every attributed edit applied to the
+   *  room's doc (collab updates + external writes routed through the room). */
+  onEdit?: (editor: VersionEditor) => void;
+  /** Version-history capture: fired when the room is torn down (last client
+   *  left) — starts the session-end grace timer. */
+  onEmpty?: () => void;
 };
 
 type Room = {
@@ -210,6 +223,7 @@ export function applyDocUpdate<T>(
   }
   // origin = conn so the doc's update handler skips echoing back to the sender.
   Y.applyUpdate(room.doc, bytes, conn);
+  if (conn.identity) room.deps.onEdit?.(conn.identity);
 }
 
 /** Relay a Yjs awareness (cursor/selection) update to the other room members.
@@ -269,6 +283,7 @@ async function finalizeRoom(room: Room): Promise<void> {
   if (room.conns.size > 0) return;
   if (rooms.get(room.key) === room) rooms.delete(room.key);
   room.doc.destroy();
+  room.deps.onEmpty?.();
 }
 
 /**
@@ -281,18 +296,22 @@ async function finalizeRoom(room: Room): Promise<void> {
  *
  * `apply` performs the type-specific (possibly partial) sync onto the doc.
  * Returns the new last_updated when a room handled the save, or null when no
- * room is live (caller should write to the DB directly).
+ * room is live (caller should write to the DB directly). `editor` attributes
+ * the write to version history (the HTTP caller — AI edits, fallback saves);
+ * omit it for writes that must NOT be tracked (restores version explicitly).
  */
 export async function applyToLiveRoom(
   projectId: string,
   docType: string,
   docId: string,
   apply: (doc: Y.Doc) => void,
+  editor?: VersionEditor,
 ): Promise<string | null> {
   const room = rooms.get(roomKey(projectId, docType, docId));
   if (!room) return null;
   // No origin conn: the update handler relays this to every connected client.
   room.doc.transact(() => apply(room.doc));
+  if (editor) room.deps.onEdit?.(editor);
   if (room.checkpointTimer) {
     clearTimeout(room.checkpointTimer);
     room.checkpointTimer = null;

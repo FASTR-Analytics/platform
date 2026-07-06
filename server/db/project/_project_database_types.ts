@@ -98,6 +98,31 @@ export type DBReportFolder = {
   last_updated: string;
 };
 
+export type DBReportVersion = {
+  id: string;
+  report_id: string;
+  created_at: string;
+  label: string;
+  body: string;
+  figures: string;
+  images: string;
+  editors: string;
+  content_hash: string;
+  restored_from_version_id: string | null;
+};
+
+export type DBDeckVersion = {
+  id: string;
+  deck_id: string;
+  created_at: string;
+  label: string;
+  deck_config: string;
+  slides: string;
+  editors: string;
+  content_hash: string;
+  restored_from_version_id: string | null;
+};
+
 export type DBReport = {
   id: string;
   label: string;

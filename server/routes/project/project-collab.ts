@@ -45,6 +45,10 @@ import {
   subscribeReport,
   unsubscribeReport,
 } from "../../collab/report_rooms.ts";
+import {
+  noteVersionRoomEmpty,
+  recordVersionEdit,
+} from "../../collab/version_capture.ts";
 
 type CollabAuth = {
   email: string;
@@ -170,7 +174,9 @@ routesProjectCollab.get(
     let reportRoomConn: RoomConn | null = null;
 
     // DB-backed room dependencies for one slide. deckId is captured on load so
-    // the checkpoint can also notify the deck (refreshes thumbnails / list).
+    // the checkpoint can also notify the deck (refreshes thumbnails / list) and
+    // version capture can record against the DECK (whole-deck versions). The
+    // capture hooks only fire after loadSlide succeeded, so deckId is set.
     function depsForSlide(slideId: string): SlideRoomDeps {
       const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
       let deckId = "";
@@ -192,6 +198,12 @@ routesProjectCollab.get(
             notifyLastUpdated(projectId, "slide_decks", [deckId], res.data.lastUpdated);
           }
           return res.data.lastUpdated;
+        },
+        onEdit: (editor) => {
+          if (deckId) recordVersionEdit(projectId, "deck", deckId, editor);
+        },
+        onEmpty: () => {
+          if (deckId) noteVersionRoomEmpty(projectId, "deck", deckId);
         },
       };
     }
@@ -222,6 +234,8 @@ routesProjectCollab.get(
           scheduleReportsListRebroadcast(projectId);
           return res.data.lastUpdated;
         },
+        onEdit: (editor) => recordVersionEdit(projectId, "report", reportId, editor),
+        onEmpty: () => noteVersionRoomEmpty(projectId, "report", reportId),
       };
     }
 
@@ -230,11 +244,13 @@ routesProjectCollab.get(
         roomConn = {
           connectionId,
           canEdit: auth.canEditSlides,
+          identity: { email: auth.email, name: auth.name },
           send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
         };
         reportRoomConn = {
           connectionId,
           canEdit: auth.canEditReports,
+          identity: { email: auth.email, name: auth.name },
           send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
         };
         addConnection(projectId, connectionId, auth, ws);
