@@ -281,12 +281,12 @@ Prescriptive protocols for how this app is built (distinct from the `panther/pro
 - [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md) — module load + R-script parameterize/execute/ingest
 - [DOC_DHIS2_INTEGRATION.md](DOC_DHIS2_INTEGRATION.md) — DHIS2 API client: base fetcher, retry, goals
 - [DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md](DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md) — Anthropic proxy, token limits, usage logging
-- [DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md](DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md) — config → SQL (CTEManager, roll-up row, post-aggregation)
+- [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) — viz query & cache: config → SQL (CTEManager, roll-up row, post-aggregation), period/disaggregation semantics, PO caches
 - [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) — SQL migrations + JSON data transforms + validation boundaries
 
 ### Data / domain
 
-- [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md), [DOC_period_column_handling.md](DOC_period_column_handling.md), [DOC_DISAGGREGATION_OPTIONS_HANDLING.md](DOC_DISAGGREGATION_OPTIONS_HANDLING.md), [DOC_ROLLUP_ROWS.md](DOC_ROLLUP_ROWS.md), [DOC_POPULATION_CSV.md](DOC_POPULATION_CSV.md), [DOC_AI_TOOL_SCHEMAS.md](DOC_AI_TOOL_SCHEMAS.md)
+- [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md), [DOC_POPULATION_CSV.md](DOC_POPULATION_CSV.md), [DOC_AI_TOOL_SCHEMAS.md](DOC_AI_TOOL_SCHEMAS.md) (period columns, disaggregation options, and roll-up rows are in [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md))
 
 ### Client / UI
 
@@ -354,7 +354,7 @@ So `lib/` *can* and *does* import panther — always through `@timroberton/panth
 - **Keep display-only preferences out of fetch configs and cache hashes.** A
   render knob in the data layer means spurious refetches and gets frozen into
   stored figure snapshots (the roll-up position/two-sentinel lesson —
-  DOC_ROLLUP_ROWS.md).
+  SYSTEM_09_viz_query_cache.md).
 - **Never mutate an unwrapped Solid store object.** No subscribers fire, and
   the setter's equality guard turns the user's next identical write into a
   silent no-op. When fixing such a mutation by switching to a copy, grep

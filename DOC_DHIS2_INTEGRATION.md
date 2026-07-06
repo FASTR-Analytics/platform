@@ -2,7 +2,7 @@
 
 The external-API client layer (`server/dhis2/`): one base fetcher with retry, the `goalN_` subfolder convention, credentials threaded via `FetchOptions`, the two-phase connection validation, and the translatable never-throw boundary for user-facing helpers.
 
-> This doc owns the DHIS2 **API client**. What happens to fetched data — staging org-units/analytics into the DB — is [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md) (datasets) and S5 (structure). Period (`YYYYMM`) formatting for analytics queries is [DOC_period_column_handling.md](DOC_period_column_handling.md). The in-memory geojson session cache here is the "process-local" alternative to the Valkey cache — see [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md) for when to use which.
+> This doc owns the DHIS2 **API client**. What happens to fetched data — staging org-units/analytics into the DB — is [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md) (datasets) and S5 (structure). Period (`YYYYMM`) formatting for analytics queries is [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) (Period semantics). The in-memory geojson session cache here is the "process-local" alternative to the Valkey cache — see [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md) for when to use which.
 
 ---
 

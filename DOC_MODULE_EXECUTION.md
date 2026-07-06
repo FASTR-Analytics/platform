@@ -2,7 +2,7 @@
 
 How a versioned R module is loaded (registry → GitHub/local → Zod → translate), how its R script is parameterized (marker substitution), executed (Docker in prod / bare `Rscript` in dev), streamed, and ingested back as results tables.
 
-> The decision of *when* to reinstall/rerun on a definition change (the `compare_definitions` matrix) is [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md) — not restated here. The dirty/trigger machine that *causes* a run is [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md); the worker lifecycle around it is [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md). `sql.unsafe` safety is owned by [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md); the GitHub-authored definition schema is in [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md); period helper-column handling is [DOC_period_column_handling.md](DOC_period_column_handling.md).
+> The decision of *when* to reinstall/rerun on a definition change (the `compare_definitions` matrix) is [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md) — not restated here. The dirty/trigger machine that *causes* a run is [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md); the worker lifecycle around it is [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md). `sql.unsafe` safety is owned by [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md); the GitHub-authored definition schema is in [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md); period helper-column handling is [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) (Period semantics).
 
 ---
 
@@ -98,7 +98,7 @@ COPY ro_<uuid> FROM '<path-inside-postgres>' ENCODING 'UTF8' CSV HEADER NULL 'NA
 ALTER TABLE ro_<uuid> DROP COLUMN IF EXISTS <period helper + optional facility columns>;
 ```
 
-Helper columns dropped depend on which period column the CSV has (`period_id` present → drop `month/quarter_id/year`; else `quarter_id` present → drop `month/year`; else drop `month/quarter_id`) — see [DOC_period_column_handling.md](DOC_period_column_handling.md). All three statements use `sql.unsafe`.
+Helper columns dropped depend on which period column the CSV has (`period_id` present → drop `month/quarter_id/year`; else `quarter_id` present → drop `month/year`; else drop `month/quarter_id`) — see [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) (Period semantics). All three statements use `sql.unsafe`.
 
 ### The three path namespaces ⚠️
 

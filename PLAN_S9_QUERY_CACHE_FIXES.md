@@ -1,6 +1,16 @@
 # Plan: System 9 (Viz Query & Cache) — Review Findings & Fixes
 
-## Status: REVIEW COMPLETE — two adversarial rounds done; no implementation yet
+## Status: REVIEW COMPLETE — two adversarial rounds done; F3 since FIXED, rest pending go-ahead
+
+> 2026-07-06 (S9 doc cycle re-verification): **F3 is fixed** — all four options
+> callers now pass `excludeReplicantFilter: true` (`resolveDefaultReplicant`,
+> `ReplicateByOptions` ×2, dashboards `resolve_replicant_structure`, AI
+> `assert_replicant_valid`), landed with the effective-config work (1af6b191 +
+> follow-ups); the server no longer self-strips and `PO_CACHE_VERSION` is "3",
+> so this plan's F3 mechanism description reflects the pre-fix code. All other
+> non-dropped findings re-verified still open. Open items now indexed in
+> [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md); this plan stays
+> as the implementation-detail record.
 
 Output of the S9 review cycle (review → triage → fix → document, SYSTEMS.md §5),
 **after two adversarial hardening passes**: round 1 (21 agents — refute-first

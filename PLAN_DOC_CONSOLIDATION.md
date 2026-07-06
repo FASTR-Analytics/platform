@@ -7,8 +7,10 @@
 > against code anyway, so staleness gets fixed in the same motion — then
 > `git rm`s the absorbed `DOC_*` files and fixes that system's §2 staleness items
 > in the same commit. Done so far: S6 (DOC_IMPORT_PIPELINE, 2026-07-02), S5
-> (written fresh, 2026-07-02). This plan deletes itself when the last `DOC_*` is
-> gone.
+> (written fresh, 2026-07-02), S9 (DOC_PRESENTATION_OBJECT_QUERY_PIPELINE +
+> DOC_period_column_handling + DOC_DISAGGREGATION_OPTIONS_HANDLING +
+> DOC_ROLLUP_ROWS, 2026-07-06). This plan deletes itself when the last `DOC_*`
+> is gone.
 
 ## 1. `DOC_*` → target mapping (3-way sort)
 

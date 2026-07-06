@@ -65,7 +65,7 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 
 - [ ] **10. Route all CTE construction through `CTEManager`.**
   `get_possible_values.ts` and `get_period_bounds.ts` hand-write their own `WITH period_data` / `facility_subset` strings (always deriving all three period columns), which breaks on `quarter_id`-only tables and duplicates the CTE shape across three files.
-  **Files:** `server/server_only_funcs_presentation_objects/{get_possible_values,get_period_bounds,cte_manager}.ts`. **Doc:** [DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md](DOC_PRESENTATION_OBJECT_QUERY_PIPELINE.md).
+  **Files:** `server/server_only_funcs_presentation_objects/{get_possible_values,get_period_bounds,cte_manager}.ts`. **Doc:** [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md).
 
 - [ ] **11. Ban raw `Deno.env.get` outside `exposed_env_vars.ts`.**
   The AI proxy and files routes re-read `ANTHROPIC_API_KEY` raw (4 sites) and hardcode the Anthropic URL, despite `_ANTHROPIC_API_KEY` / `_ANTHROPIC_API_URL` being exported and validated at boot.

@@ -16,7 +16,7 @@ import type { ResultsValueForVisualization } from "./types/modules.ts";
 //   - getNextAvailableDisaggregationDisplayOption takes RAW config but is
 //     filter-agnostic by nature (only picks the next free display slot; never
 //     consults the replicant/filter). Leave it for THAT reason.
-// See DOC_DISAGGREGATION_OPTIONS_HANDLING.md.
+// See SYSTEM_09_viz_query_cache.md.
 
 // Single source of truth for the structural (context-free) degeneracy check:
 // "is this disOpt filtered to exactly one value". Lives here beside its only
