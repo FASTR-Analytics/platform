@@ -1,0 +1,169 @@
+# Version history (reports + slide decks)
+
+Google-Docs-style version history: a browsable list of versions at timestamps
+showing which users edited in each window, with preview, compare (reports),
+restore, and restore-as-copy. Versions are **whole documents** — a full report
+(body + figure/image registries) or a full deck (deck config + every slide) —
+one per *editing session*, not per keystroke or per CRDT operation.
+
+Related: [DOC_SLIDE_COLLAB.md](DOC_SLIDE_COLLAB.md) (the live co-editing
+system this feature captures from).
+
+## 1. Storage
+
+Two project-DB tables (migration `032_report_deck_versions.sql`, mirrored in
+`_project_database.sql`): `report_versions` and `deck_versions`. Each row is a
+full content snapshot:
+
+- report: `label, body, figures, images`
+- deck: `label, deck_config, slides` (JSON `[{id, sortOrder, config}]` —
+  original slide ids are kept so restore preserves identity)
+
+plus `editors` (JSON `[{email, name}]` — everyone who edited in the session
+window), `content_hash`, `created_at`, and nullable
+`restored_from_version_id` (set on versions created by a restore).
+
+- **Label is snapshotted explicitly** in both tables: `updateSlideDeckLabel`
+  writes only the label column (not `config.label`), so the deck config alone
+  is not label-authoritative.
+- **Not versioned (v1)**: report `config` (display prefs) and deck `plan`
+  (AI planning text) — they aren't document content.
+- **Dedup**: `content_hash` = md5 of `canonicalJson` of the snapshot data
+  ([lib/collab/crdt_util.ts](lib/collab/crdt_util.ts) `canonicalJson` kills
+  key-order nondeterminism across write paths). A session whose end state
+  hashes equal to the *newest* stored version writes nothing.
+- **Retention**: newest 100 per document, pruned in the writer after each
+  insert ([server/db/project/versions.ts](server/db/project/versions.ts)).
+  `ON DELETE CASCADE` removes versions with their parent document.
+- **Schema drift caveat**: snapshots are stored *verbatim* (no zod re-parse on
+  insert — a schema change must never fail the version write). Migration
+  transform blocks do NOT sweep the version tables; instead, restore/copy
+  parse with the *current* schemas on the way out, normalizing old snapshots
+  the same way old live rows are normalized.
+
+## 2. Capture — editing sessions
+
+[server/collab/version_tracker.ts](server/collab/version_tracker.ts) is a pure
+factory (`createVersionTracker(deps, opts)`) with injected clock and storage —
+harness-testable with a fake clock. It keeps one in-memory accumulator per
+`(projectId, kind, docId)` holding the contributor set and timing. A session
+flushes to ONE version when any of:
+
+| Trigger | Default |
+|---|---|
+| Document idle (no recorded edit) | 10 min |
+| Session length cap (long sessions split) | 45 min |
+| Collab room emptied and stayed quiet | 2 min grace |
+
+A 30s sweeper drives flushes
+([server/collab/version_capture.ts](server/collab/version_capture.ts)
+`startVersionSweeper()`, started in main.ts). Flush = detach accumulator →
+load current content (gone ⇒ drop) → hash-dedup vs newest version → insert +
+prune. A failed insert merges the accumulator back and retries next sweep.
+Graceful shutdown calls `flushAllVersions()` **before** the DB pools close;
+a hard crash loses at most one session window's attribution (accepted).
+
+**Capture points** (all writes are covered — every non-collab write goes
+through the HTTP routes, including client-side AI tools):
+
+- **Collab edits**: `RoomConn.identity` ({email, name}, stamped by the WS
+  route) → `DocRoomDeps.onEdit(editor)` fires in `applyDocUpdate`;
+  `onEmpty()` fires when the room finalizes. Slide rooms record against the
+  **deck** id (whole-deck versions) via the deps closure's captured `deckId`.
+- **Room-routed HTTP writes** (AI accepts, fallback saves):
+  `applySlideToLiveRoom` / `applyReportToLiveRoom` take an optional `editor`
+  param → same `onEdit` hook.
+- **Direct route writes**: `recordVersionEdit(projectId, kind, docId, editor)`
+  after success, identity from `c.var.globalUser`
+  (`editorFromGlobalUser`). Slides: create/delete/duplicate/move + updateSlide
+  fallback (the DB fn returns `deckId` for attribution); decks: config +
+  label; reports: body/figures/images fallbacks + label.
+- **Restore routes do NOT record** — they write versions explicitly (below).
+
+## 3. Read + restore APIs
+
+Registry entries in [lib/api-routes/project/reports.ts](lib/api-routes/project/reports.ts)
+and [slide-decks.ts](lib/api-routes/project/slide-decks.ts); handlers in the
+matching route files. `list*Versions` / `get*Version` need `can_view_*`;
+`restore*Version` / `copy*Version` need `can_configure_*` +
+`preventAccessToLockedProjects`. List summaries compute sizes/counts in SQL
+and never ship snapshot content.
+
+**Restore sequencing** (both kinds): ① write a **safety version** of the
+current state (editors = [restorer]; skipped when it already equals the
+newest version by hash) → ② apply the snapshot → ③ write a **restored-state
+version** with `restored_from_version_id` set. Nothing is ever lost, and the
+restore itself appears in history.
+
+Step ② by kind:
+
+- **Report**: through `applyReportToLiveRoom` when a room is live (co-editors
+  follow the restore live in their open editors); label restored by direct
+  update (not part of the room doc). No room ⇒ `restoreReportContent` — one
+  UPDATE whose `last_updated` bump auto-invalidates stored `crdt_state`.
+- **Deck**: `planDeckRestore(currentIds, snapshotSlides)` (pure) partitions
+  into `toDelete` / `toInsert` / `toUpdate`. Rooms for `toDelete ∪ toInsert`
+  ids are discarded first via `closeRoomsForDoc` (a stale room would fail
+  checkpoints forever on a deleted row, or clobber a re-created one). Then ONE
+  transaction (`restoreDeckStructure`): delete rows, re-insert with original
+  snapshot ids + snapshot order, restore every survivor's sort_order, deck
+  label + config, `reSequence`. Then each `toUpdate` slide's config applies
+  through `applySlideToLiveRoom` (or a direct update when no room). Safe
+  ordering: checkpoints never write `sort_order`, so a straggler checkpoint
+  after the transaction can only rewrite config, and the safety version covers
+  the crash window between transaction and config-apply.
+
+**Restore-as-copy**: `copyReportFromVersion` / `copyDeckFromVersion` create a
+brand-new document from the snapshot (decks get FRESH slide ids — the
+originals may still exist). Zero-risk path; no room interaction.
+
+**Room hygiene fix (pre-existing gap)**: `closeRoomsForDoc`
+([server/collab/doc_rooms.ts](server/collab/doc_rooms.ts)) discards a live
+room *without* checkpointing and errors its clients. It is also wired into
+`deleteSlides`, `deleteSlideDeck` and `deleteReport`, which previously left
+zombie rooms retrying failed checkpoints forever.
+
+## 4. UI
+
+[client/src/components/version_history/](client/src/components/version_history/)
+— `VersionHistoryEditor`, a full-panel editor (the dataset PreviousImports
+pattern): day-grouped version list on the left (pinned "Current version" row,
+contributor chips via `PresenceAvatars` + `presenceColorForKey(email)`, names
+preferring live `projectState.projectUsers` over the stored capture-time name,
+"Restored" badge, slide counts), preview on the right:
+
+- **Report**: snapshot body through `MarkdownPresentationJsx` with embed
+  tokens resolved against the version's OWN figure/image registries; "Compare
+  with current" opens `ReportMarkdownDiff` in its new `mode: "view"`.
+- **Deck**: paged canvas grid — 6 per page (`convertSlideToPageInputs` →
+  `PageHolder`; live canvases are expensive, panther warns ~12-14) with
+  click-to-expand.
+
+Footer (configure permission + unlocked): **Restore** (confirm explains the
+safety version) and **Restore as copy** (name prompt). Entry points: History
+button in the report editor heading bar; "Version history" in the deck
+overflow menu.
+
+## 5. Known tradeoffs (v1)
+
+- Full snapshots × multi-MB figure bundles ⇒ storage growth; contained by
+  hash-dedup + the 100 cap (summaries expose `sizeBytes`). Delta storage is
+  future work.
+- In-flight checkpoint racing `closeRoomsForDoc`: harmless for deletes (save
+  fails on the gone row); microsecond window for re-inserted ids.
+- Contributor attribution on hard crash: at most one open session window lost.
+- Hash false-negatives (schema-normalization drift between write paths) can
+  produce an occasional duplicate version — harmless.
+
+## 6. Verification
+
+- Tracker harness (fake clock, 24 asserts): idle-gap, contributor union +
+  rename dedup, max-session split, empty-grace + cancellation, hash-dedup,
+  deleted-doc drop, failed-write merge-back/retry, flushAll, per-doc
+  independence.
+- `planDeckRestore` harness (14 asserts): partition invariants, original-id
+  preservation, snapshot ordering, empty edge cases.
+- Both are scratch scripts (`deno run --allow-all -c deno.json <file>` with
+  absolute-path imports — the repo's standard harness idiom).
+- Manual two-user matrix: see the feature checklist in the PR/commit series
+  (`feat(version-history): …`).

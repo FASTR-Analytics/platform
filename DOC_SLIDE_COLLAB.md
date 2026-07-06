@@ -297,6 +297,13 @@ simpler document model:
   edits need no busy-guard: they apply through the proposing user's own live
   session and merge via CRDT.
 
+## Version history
+
+Editing sessions on rooms (and every non-collab write path) feed a
+Google-Docs-style version history for both decks and reports — capture points,
+session semantics, restore sequencing and the room-discard rules live in
+[DOC_VERSION_HISTORY.md](DOC_VERSION_HISTORY.md).
+
 ## Known limits
 
 - Carets render only in the side-panel editors, not on the canvas itself
