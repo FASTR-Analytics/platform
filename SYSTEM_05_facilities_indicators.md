@@ -281,14 +281,28 @@ stored JSON; `__source__`-prefixed keys target unmatched features; `""` is
 a legal target meaning unmap).
 
 Upload flows: TUS-upload a file → `analyzeGeoJsonUpload` (property keys +
-distinct values + counts, excluding features without usable geometry) →
+distinct values + counts, excluding features without usable geometry;
+asset reads capped at 100 MB pre-parse) →
 pick level + match property → case-insensitive auto-map values to admin
 names → fix the rest → `saveGeoJsonMap` re-reads the asset server-side and
 rewrites features via the `areaMapping`, whose wire shape is
 `Record<geoJsonValue, adminAreaName>` (many-to-one capable — do not invert
 it; the pre-fix inverted shape silently dropped mappings). The DHIS2 flow
-is the same shape with the FeatureCollection fetched from the org-unit API
-(15-min/10-entry in-memory cache keyed on hash(url|user|pass|level)).
+splits analyze from geometry: `dhis2AnalyzeGeoJson` fetches org-unit
+METADATA only (`id,name,code,parent[id,name]`, ~KBs) plus an exact
+with-geometry count via `filter=geometry:!null` (`featureType` is absent
+on DHIS2 2.40; `level` must be expressed as a filter); the full
+FeatureCollection (~20 MB for a 200-district country) is fetched at
+`dhis2SaveGeoJsonMap` with a 180 s timeout and NO retries. Two in-memory
+session caches, SHA-256-keyed on url|user|pass|level: metadata (10
+entries) and heavy geojson (2 entries — keeps a re-save cheap); 15-min
+TTL. Both save paths refuse to store an empty map (distinct error when
+the match property is absent from the features — the mapping is built
+from `.json` metadata but applied against `.geojson` properties) and
+return featureCount/matched/unmatched, which the wizard shows on
+completion. Note the `.geojson` endpoint OMITS boundary-less units rather
+than returning null geometries, so "units without boundaries" = metadata
+total − geometry count.
 
 Client caching: summaries (level + uploadedAt) live in the T1 SSE store;
 payloads live in a T2 two-layer cache (module Map + IDB `geojson:{level}`)
