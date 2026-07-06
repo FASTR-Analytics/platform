@@ -118,6 +118,12 @@ The diff views split each inserted range by the step's ledger, so hover reads
 "Added by Alice A" (exact) instead of the whole editor set, and split each
 REMOVED range by the step's tombstones, so struck-through spans name the exact
 deleter too — including several spans with different deleters inside one hunk.
+Each change is tinted with its author's presence color
+(`presenceColorForKey(email)` + the editors' translucent `"33"` convention;
+neutral gray when the author is unknown), removals additionally struck
+through, and hovering shows a caret-style name flag — the same label the
+collab editors render above remote carets (y-codemirror's
+`.cm-ySelectionInfo` look), not a browser tooltip.
 Characters the ledger can't attribute — pre-feature text, non-collab edits,
 restores, a stale-crdt_state re-seed, delete-then-retype mismatches, ranges
 chipped across multiple sessions — fall back to the session label, phrased

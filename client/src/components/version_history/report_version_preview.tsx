@@ -245,6 +245,9 @@ function SessionEdits(p: {
             body: p.version.body,
             label: editorDisplayNames(p.version.editors),
             labelExact: p.version.editors.length === 1,
+            labelEmail: p.version.editors.length === 1
+              ? p.version.editors[0].email
+              : undefined,
             authors: p.version.bodyAuthors,
             names: buildAuthorNames(p.version.editors, p.version.bodyAuthors),
           },

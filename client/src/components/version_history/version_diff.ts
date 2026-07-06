@@ -33,6 +33,8 @@ export type VersionStep = {
   label: string;
   /** True when `label` is already precise (single-editor session). */
   labelExact?: boolean;
+  /** The single editor's email when labelExact (colors the fallback spans). */
+  labelEmail?: string;
   /** Per-character authorship of `body` (the server room's ledger snapshot);
    *  null/absent = unknown — insertions fall back to the session label. */
   authors?: AuthorRunLike[] | null;
@@ -49,6 +51,9 @@ export type DiffSegment = {
   /** True when `who` names the exact author(s); false when it is the whole
    *  session's editor set (the actual author is one of them). */
   whoExact?: boolean;
+  /** The exact author's email when known — the UI derives their presence
+   *  color from it. */
+  whoEmail?: string;
 };
 
 type StepDiff = {
@@ -56,13 +61,22 @@ type StepDiff = {
   hunks: readonly { fromA: number; toA: number; fromB: number; toB: number }[];
 };
 
-type InsertInterval = {
-  from: number;
-  to: number;
-  stepIdx: number;
-  who?: string;
-  whoExact: boolean;
-};
+type Attribution = { who?: string; whoExact: boolean; whoEmail?: string };
+
+type InsertInterval = { from: number; to: number; stepIdx: number } & Attribution;
+
+function fallbackAttribution(step: VersionStep): Attribution {
+  return {
+    who: step.label || undefined,
+    whoExact: step.labelExact ?? false,
+    whoEmail: step.labelExact ? step.labelEmail : undefined,
+  };
+}
+
+function sameAttribution(a: Attribution, b: Attribution): boolean {
+  return a.who === b.who && a.whoExact === b.whoExact &&
+    a.whoEmail === b.whoEmail;
+}
 
 /** Split an inserted range of step k (coords of that step's body) by the
  *  step's per-character authorship; null-author chars fall back to the
@@ -71,16 +85,12 @@ function splitByAuthors(
   step: VersionStep,
   from: number,
   to: number,
-): { from: number; to: number; who?: string; whoExact: boolean }[] {
-  const fallback = {
-    who: step.label || undefined,
-    whoExact: step.labelExact ?? false,
-  };
+): ({ from: number; to: number } & Attribution)[] {
+  const fallback = fallbackAttribution(step);
   if (!step.authors || step.authors.length === 0) {
     return [{ from, to, ...fallback }];
   }
-  const parts: { from: number; to: number; who?: string; whoExact: boolean }[] =
-    [];
+  const parts: ({ from: number; to: number } & Attribution)[] = [];
   let pos = 0;
   for (const run of step.authors) {
     if (run.deletedBy !== undefined) continue; // tombstone: not body text
@@ -100,6 +110,7 @@ function splitByAuthors(
         to: t,
         who: step.names?.[run.email] ?? run.email,
         whoExact: true,
+        whoEmail: run.email,
       });
     }
   }
@@ -115,7 +126,7 @@ function splitByAuthors(
   const merged: typeof parts = [];
   for (const part of parts) {
     const prev = merged[merged.length - 1];
-    if (prev && prev.who === part.who && prev.whoExact === part.whoExact) {
+    if (prev && sameAttribution(prev, part)) {
       prev.to = part.to;
     } else {
       merged.push(part);
@@ -178,6 +189,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
             stepIdx: k + 1,
             who: part.who,
             whoExact: part.whoExact,
+            whoEmail: part.whoEmail,
           });
         }
       }
@@ -217,7 +229,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
     return total === h.toA - h.fromA ? tombs : null;
   }
 
-  type RemovedPiece = { off: number; len: number; who?: string; whoExact: boolean };
+  type RemovedPiece = { off: number; len: number } & Attribution;
 
   // Who removed a base-document range [fromA, toA): map it forward and, at
   // each step, check which hunks delete/replace part of it. When the WHOLE
@@ -269,12 +281,16 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
     if (labels.length === 0) {
       return [{ off: 0, len: width, who: undefined, whoExact: false }];
     }
+    const singleExact = touchedSteps.length === 1 &&
+      (steps[touchedSteps[0] + 1].labelExact ?? false);
     return [{
       off: 0,
       len: width,
       who: labels.join(", "),
-      whoExact: touchedSteps.length === 1 &&
-        (steps[touchedSteps[0] + 1].labelExact ?? false),
+      whoExact: singleExact,
+      whoEmail: singleExact
+        ? steps[touchedSteps[0] + 1].labelEmail
+        : undefined,
     }];
   }
 
@@ -299,21 +315,17 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       const f = Math.max(from, tFrom);
       const cut = Math.min(to, tTo);
       const piece: RemovedPiece = t.deletedBy === null
-        ? {
-          off: f - from,
-          len: cut - f,
-          who: step.label || undefined,
-          whoExact: step.labelExact ?? false,
-        }
+        ? { off: f - from, len: cut - f, ...fallbackAttribution(step) }
         : {
           off: f - from,
           len: cut - f,
           who: step.names?.[t.deletedBy] ?? t.deletedBy,
           whoExact: true,
+          whoEmail: t.deletedBy,
         };
       const prev = pieces[pieces.length - 1];
       if (
-        prev && prev.who === piece.who && prev.whoExact === piece.whoExact &&
+        prev && sameAttribution(prev, piece) &&
         prev.off + prev.len === piece.off
       ) {
         prev.len += piece.len;
@@ -322,12 +334,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       }
     }
     if (pieces.length === 0) {
-      return [{
-        off: 0,
-        len: to - from,
-        who: step.label || undefined,
-        whoExact: step.labelExact ?? false,
-      }];
+      return [{ off: 0, len: to - from, ...fallbackAttribution(step) }];
     }
     return pieces;
   }
@@ -349,6 +356,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
           kind: "removed",
           who: piece.who,
           whoExact: piece.whoExact,
+          whoEmail: piece.whoEmail,
         });
       }
     }
@@ -370,11 +378,13 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
         let bestStep = -1;
         let who: string | undefined;
         let whoExact = false;
+        let whoEmail: string | undefined;
         for (const iv of covering) {
           if (iv.from <= from && iv.to >= to && iv.stepIdx > bestStep) {
             bestStep = iv.stepIdx;
             who = iv.who;
             whoExact = iv.whoExact;
+            whoEmail = iv.whoEmail;
           }
         }
         // Merge with the previous segment when author + kind match (keeps the
@@ -382,7 +392,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
         const prev = segments[segments.length - 1];
         if (
           prev && prev.kind === "added" && prev.who === who &&
-          prev.whoExact === whoExact
+          prev.whoExact === whoExact && prev.whoEmail === whoEmail
         ) {
           prev.text += current.slice(from, to);
         } else {
@@ -391,6 +401,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
             kind: "added",
             who,
             whoExact,
+            whoEmail,
           });
         }
       }

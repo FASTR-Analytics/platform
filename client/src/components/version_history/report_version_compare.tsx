@@ -50,6 +50,7 @@ export function ReportVersionCompare(
       body: s.body,
       label: i === 0 ? "" : editorDisplayNames(s.editors),
       labelExact: s.editors.length === 1,
+      labelEmail: s.editors.length === 1 ? s.editors[0].email : undefined,
       authors: s.bodyAuthors,
       names: buildAuthorNames(s.editors, s.bodyAuthors),
     }));
