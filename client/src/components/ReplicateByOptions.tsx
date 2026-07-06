@@ -78,6 +78,13 @@ export function ReplicateByOptionsPresentationObject(
 
   createEffect(() => {
     trackDeep(p.config.d.filterBy);
+    // periodFilter also narrows the server's option list (its bounds become
+    // periodFilterExactBounds), and trackDeep(filterBy) doesn't subscribe to
+    // it — without this read a bounds edit left a stale picker list. Reading
+    // the property itself also covers wholesale replacement.
+    if (p.config.d.periodFilter) {
+      trackDeep(p.config.d.periodFilter);
+    }
     const resFetchConfig = getFetchConfigFromPresentationObjectConfig(
       p.poDetail.resultsValue,
       p.config,
@@ -186,6 +193,13 @@ export function ReplicateByOptionsPresentationObjectSelect(
 
   createEffect(() => {
     trackDeep(p.config.d.filterBy);
+    // periodFilter also narrows the server's option list (its bounds become
+    // periodFilterExactBounds), and trackDeep(filterBy) doesn't subscribe to
+    // it — without this read a bounds edit left a stale picker list. Reading
+    // the property itself also covers wholesale replacement.
+    if (p.config.d.periodFilter) {
+      trackDeep(p.config.d.periodFilter);
+    }
     const resFetchConfig = getFetchConfigFromPresentationObjectConfig(
       p.poDetail.resultsValue,
       p.config,
