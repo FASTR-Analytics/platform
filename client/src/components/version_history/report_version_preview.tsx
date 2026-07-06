@@ -14,7 +14,12 @@ import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { ReportFigureEmbed } from "../report/ReportFigureEmbed";
 import { REPORT_MARKDOWN_STYLE } from "../report/report_markdown_style";
 import { CopyVersionModal } from "./copy_version_modal";
-import { DiffLegend, DiffSegments, editorDisplayNames } from "./diff_segments";
+import {
+  buildAuthorNames,
+  DiffLegend,
+  DiffSegments,
+  editorDisplayNames,
+} from "./diff_segments";
 import { ReportVersionCompare } from "./report_version_compare";
 import { computeAttributedDiff } from "./version_diff";
 
@@ -236,7 +241,13 @@ function SessionEdits(p: {
       {(prevBody) => {
         const segments = computeAttributedDiff([
           { body: prevBody, label: "" },
-          { body: p.version.body, label: editorDisplayNames(p.version.editors) },
+          {
+            body: p.version.body,
+            label: editorDisplayNames(p.version.editors),
+            labelExact: p.version.editors.length === 1,
+            authors: p.version.bodyAuthors,
+            names: buildAuthorNames(p.version.editors, p.version.bodyAuthors),
+          },
         ]);
         const hasChanges = segments.some((s) => s.kind !== "same");
         return (

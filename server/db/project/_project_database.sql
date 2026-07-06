@@ -294,6 +294,7 @@ CREATE TABLE reports (
   config text,
   crdt_state text,
   crdt_state_last_updated text,
+  body_authors text,
   last_updated text NOT NULL,
   folder_id text REFERENCES report_folders(id) ON DELETE SET NULL
 );
@@ -318,7 +319,8 @@ CREATE TABLE report_versions (
   images text NOT NULL DEFAULT '{}',
   editors text NOT NULL DEFAULT '[]',
   content_hash text NOT NULL,
-  restored_from_version_id text
+  restored_from_version_id text,
+  body_authors text
 );
 
 CREATE INDEX idx_report_versions_report ON report_versions(report_id, created_at DESC);

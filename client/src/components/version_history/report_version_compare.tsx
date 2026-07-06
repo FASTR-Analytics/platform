@@ -8,7 +8,12 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { DiffLegend, DiffSegments, editorDisplayNames } from "./diff_segments";
+import {
+  buildAuthorNames,
+  DiffLegend,
+  DiffSegments,
+  editorDisplayNames,
+} from "./diff_segments";
 import {
   computeAttributedDiff,
   type DiffSegment,
@@ -44,6 +49,9 @@ export function ReportVersionCompare(
     const chain: VersionStep[] = steps.map((s, i) => ({
       body: s.body,
       label: i === 0 ? "" : editorDisplayNames(s.editors),
+      labelExact: s.editors.length === 1,
+      authors: s.bodyAuthors,
+      names: buildAuthorNames(s.editors, s.bodyAuthors),
     }));
     // Edits newer than the newest stored version (the open session).
     if (chain.length === 0 || chain[chain.length - 1].body !== p.currentBody) {

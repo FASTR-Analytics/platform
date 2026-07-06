@@ -21,6 +21,7 @@
 
 import { createHash } from "node:crypto";
 import {
+  type AuthorRun,
   canonicalJson,
   type DeckVersionSlide,
   type FigureBlock,
@@ -30,7 +31,10 @@ import {
   type VersionEditor,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
-import { getReportDetail } from "../db/project/reports.ts";
+import {
+  getReportBodyAuthors,
+  getReportDetail,
+} from "../db/project/reports.ts";
 import { getSlideDeckDetail } from "../db/project/slide_decks.ts";
 import { getSlides } from "../db/project/slides.ts";
 import {
@@ -52,7 +56,20 @@ export type ReportVersionData = {
   body: string;
   figures: Record<string, FigureBlock>;
   images: Record<string, ImageBlock>;
+  /** Per-character authorship ledger at snapshot time (null = unavailable).
+   *  NOT part of the content hash — dedup is about content, not attribution. */
+  bodyAuthors: AuthorRun[] | null;
 };
+
+/** The dedup hash covers CONTENT only (label/body/figures/images). */
+export function reportContentHash(data: ReportVersionData): string {
+  return hashVersionData({
+    label: data.label,
+    body: data.body,
+    figures: data.figures,
+    images: data.images,
+  });
+}
 
 export type DeckVersionData = {
   label: string;
@@ -89,11 +106,14 @@ export async function loadReportVersionData(
   const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
   const res = await getReportDetail(projectDb, reportId);
   if (!res.success) return throwUnlessNotFound(res.err);
+  // Authorship is best-effort — a failure here must not block the version.
+  const authorsRes = await getReportBodyAuthors(projectDb, reportId);
   return {
     label: res.data.label,
     body: res.data.body,
     figures: res.data.figures,
     images: res.data.images,
+    bodyAuthors: authorsRes.success ? authorsRes.data.authors : null,
   };
 }
 
@@ -124,9 +144,12 @@ async function loadPayload(
   kind: VersionKind,
   docId: string,
 ): Promise<VersionPayload | null> {
-  const data = kind === "report"
-    ? await loadReportVersionData(projectId, docId)
-    : await loadDeckVersionData(projectId, docId);
+  if (kind === "report") {
+    const data = await loadReportVersionData(projectId, docId);
+    if (data === null) return null;
+    return { contentHash: reportContentHash(data), data };
+  }
+  const data = await loadDeckVersionData(projectId, docId);
   if (data === null) return null;
   return { contentHash: hashVersionData(data), data };
 }
@@ -163,6 +186,7 @@ async function writeVersion(
       images: data.images,
       editors,
       contentHash: payload.contentHash,
+      bodyAuthors: data.bodyAuthors,
     });
     return res.success;
   }

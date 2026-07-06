@@ -109,6 +109,7 @@ export type DBReportVersion = {
   editors: string;
   content_hash: string;
   restored_from_version_id: string | null;
+  body_authors: string | null;
 };
 
 export type DBDeckVersion = {
@@ -130,6 +131,7 @@ export type DBReport = {
   figures: string;
   images: string;
   config: string | null;
+  body_authors: string | null;
   folder_id: string | null;
   last_updated: string;
 };

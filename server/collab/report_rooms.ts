@@ -16,6 +16,12 @@ import {
   type VersionEditor,
 } from "lib";
 import {
+  applyBodyDelta,
+  type BodyDeltaOp,
+  dropLedger,
+  initLedger,
+} from "./authorship.ts";
+import {
   applyDocUpdate,
   applyToLiveRoom,
   closeRoomsForDoc,
@@ -51,6 +57,31 @@ const reportAdapter: DocRoomAdapter<ReportDocContent> = {
     type: "report_awareness",
     data: { reportId, update },
   }),
+  // Per-character authorship: Y.Text deltas are exact retain/insert/delete
+  // ops; the transaction origin tells us WHO (a RoomConn's identity for collab
+  // edits, the versionEditor tag applyToLiveRoom sets for HTTP-routed writes,
+  // nothing for restores).
+  onDocCreated: (projectId, reportId, doc) => {
+    const text = findReportBodyText(doc);
+    initLedger(projectId, reportId, text.length);
+    text.observe((event, transaction) => {
+      const origin = transaction.origin as
+        | { identity?: VersionEditor; versionEditor?: VersionEditor }
+        | null
+        | undefined;
+      const email = origin?.identity?.email ?? origin?.versionEditor?.email ??
+        null;
+      const ops: BodyDeltaOp[] = [];
+      for (const d of event.delta) {
+        if (d.retain !== undefined) ops.push({ retain: d.retain });
+        else if (typeof d.insert === "string") ops.push({ insert: d.insert });
+        else if (d.insert !== undefined) ops.push({ insert: " " }); // embed = length 1
+        else if (d.delete !== undefined) ops.push({ delete: d.delete });
+      }
+      applyBodyDelta(projectId, reportId, ops, email);
+    });
+  },
+  onDocClosed: (projectId, reportId) => dropLedger(projectId, reportId),
 };
 
 export type ReportRoomDeps = DocRoomDeps<ReportDocContent>;

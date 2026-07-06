@@ -1,6 +1,7 @@
 import { Sql } from "postgres";
 import {
   type APIResponseWithData,
+  type AuthorRun,
   type DeckVersionDetail,
   type DeckVersionSlide,
   type DeckVersionSummary,
@@ -58,13 +59,14 @@ export async function insertReportVersion(
     editors: VersionEditor[];
     contentHash: string;
     restoredFromVersionId?: string | null;
+    bodyAuthors?: AuthorRun[] | null;
   },
 ): Promise<APIResponseWithData<{ versionId: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const versionId = crypto.randomUUID();
     await projectDb`
       INSERT INTO report_versions
-        (id, report_id, created_at, label, body, figures, images, editors, content_hash, restored_from_version_id)
+        (id, report_id, created_at, label, body, figures, images, editors, content_hash, restored_from_version_id, body_authors)
       VALUES (
         ${versionId},
         ${args.reportId},
@@ -75,7 +77,8 @@ export async function insertReportVersion(
         ${JSON.stringify(args.images)},
         ${JSON.stringify(args.editors)},
         ${args.contentHash},
-        ${args.restoredFromVersionId ?? null}
+        ${args.restoredFromVersionId ?? null},
+        ${args.bodyAuthors ? JSON.stringify(args.bodyAuthors) : null}
       )
     `;
     await projectDb`
@@ -165,6 +168,9 @@ export async function getReportVersion(
         body: row.body,
         figures: parseJsonOrThrow<Record<string, FigureBlock>>(row.figures),
         images: parseJsonOrThrow<Record<string, ImageBlock>>(row.images),
+        bodyAuthors: row.body_authors
+          ? parseJsonOrThrow<AuthorRun[]>(row.body_authors)
+          : null,
       },
     };
   });
@@ -180,31 +186,34 @@ export async function getReportVersionLineage(
   versionId: string,
 ): Promise<APIResponseWithData<ReportVersionLineageStep[]>> {
   return await tryCatchDatabaseAsync(async () => {
+    type LineageRow = Pick<
+      DBReportVersion,
+      "id" | "created_at" | "editors" | "body" | "body_authors"
+    >;
     const base = (
-      await projectDb<Pick<DBReportVersion, "id" | "created_at" | "editors" | "body">[]>`
-        SELECT id, created_at, editors, body FROM report_versions
+      await projectDb<LineageRow[]>`
+        SELECT id, created_at, editors, body, body_authors FROM report_versions
         WHERE id = ${versionId} AND report_id = ${reportId}
       `
     ).at(0);
     if (!base) {
       throw new Error("Version not found");
     }
-    const newer = await projectDb<
-      Pick<DBReportVersion, "id" | "created_at" | "editors" | "body">[]
-    >`
-      SELECT id, created_at, editors, body FROM report_versions
+    const newer = await projectDb<LineageRow[]>`
+      SELECT id, created_at, editors, body, body_authors FROM report_versions
       WHERE report_id = ${reportId}
         AND created_at >= ${base.created_at}
         AND id != ${versionId}
       ORDER BY created_at ASC, id ASC
     `;
-    const toStep = (
-      r: Pick<DBReportVersion, "id" | "created_at" | "editors" | "body">,
-    ): ReportVersionLineageStep => ({
+    const toStep = (r: LineageRow): ReportVersionLineageStep => ({
       id: r.id,
       createdAt: r.created_at,
       editors: parseJsonOrThrow<VersionEditor[]>(r.editors),
       body: r.body,
+      bodyAuthors: r.body_authors
+        ? parseJsonOrThrow<AuthorRun[]>(r.body_authors)
+        : null,
     });
     return { success: true, data: [toStep(base), ...newer.map(toStep)] };
   });

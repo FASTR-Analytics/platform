@@ -15,6 +15,18 @@ export type VersionEditor = {
   name: string;
 };
 
+/** Run-length-encoded per-character authorship of a report body: `len`
+ *  characters written by `email` (null = unknown — text that predates the
+ *  ledger, was edited outside a live collab room, or came from a restore).
+ *  Maintained by the server room while people type (see
+ *  server/collab/authorship.ts) and snapshotted per version so diff views can
+ *  attribute each inserted span to its actual author instead of the whole
+ *  session's editor set. */
+export type AuthorRun = {
+  len: number;
+  email: string | null;
+};
+
 export type ReportVersionSummary = {
   id: string;
   createdAt: string;
@@ -30,6 +42,9 @@ export type ReportVersionDetail = ReportVersionSummary & {
   body: string;
   figures: Record<string, FigureBlock>;
   images: Record<string, ImageBlock>;
+  /** Per-character authorship of `body` at snapshot time; null when the
+   *  ledger wasn't available (pre-feature version, non-collab edits). */
+  bodyAuthors: AuthorRun[] | null;
 };
 
 /** One step in a version's lineage (body only — no figure payloads): the
@@ -40,6 +55,7 @@ export type ReportVersionLineageStep = {
   createdAt: string;
   editors: VersionEditor[];
   body: string;
+  bodyAuthors: AuthorRun[] | null;
 };
 
 /** A slide as frozen inside a deck version (original id kept for restore). */

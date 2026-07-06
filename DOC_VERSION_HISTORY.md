@@ -88,6 +88,30 @@ through the HTTP routes, including client-side AI tools):
   label; reports: body/figures/images fallbacks + label.
 - **Restore routes do NOT record** — they write versions explicitly (below).
 
+## 2b. Per-character authorship (reports)
+
+Session-level attribution can't say WHO typed a specific word when two people
+share a session. [server/collab/authorship.ts](server/collab/authorship.ts)
+closes that gap for insertions: while a report room is live, a Y.Text observer
+(exact retain/insert/delete deltas — no diffing) maintains a run-length
+author-per-character ledger in lockstep with the body. WHO comes from the
+transaction origin: the RoomConn's identity for collab edits, the
+`versionEditor` origin tag `applyToLiveRoom` sets for HTTP-routed writes,
+nothing for restores (⇒ unknown). Checkpoints persist the ledger in
+`reports.body_authors` under the same validity stamp as `crdt_state`;
+version snapshots freeze it in `report_versions.body_authors` (migration 033;
+NOT part of the content hash — dedup is about content, not attribution).
+
+The diff views split each inserted range by the step's ledger, so hover reads
+"Added by Alice A" (exact) instead of the whole editor set; characters the
+ledger can't attribute — pre-feature text, non-collab edits, restores, a
+stale-crdt_state re-seed — fall back to the session label, phrased honestly as
+"Added by one of: Alice A, Bob B". Deletions stay session-level by design (the
+ledger tracks who wrote the SURVIVING text): exact for single-editor sessions,
+"Removed by one of: …" otherwise. The ledger is best-effort — if it ever falls
+out of alignment with the body it is discarded (poisoned run / length check),
+never persisted wrong.
+
 ## 3. Read + restore APIs
 
 Registry entries in [lib/api-routes/project/reports.ts](lib/api-routes/project/reports.ts)
@@ -213,9 +237,14 @@ overflow menu.
   drainEditors, per-doc independence.
 - `planDeckRestore` harness (14 asserts): partition invariants, original-id
   preservation, snapshot ordering, empty edge cases.
-- `version_diff` harness (21 asserts incl. 200-chain fuzz): current-doc
+- `version_diff` harness (30 asserts incl. 200-chain fuzz): current-doc
   reassembly, base-char coverage, per-session attribution (replacements,
-  later-deletes, edits inside earlier insertions), degenerate inputs.
+  later-deletes, edits inside earlier insertions), author-run splitting
+  (exact per-person spans, null-run fallback, deletion exactness), degenerate
+  inputs.
+- `authorship` harness (11 asserts incl. 300-run delta fuzz): attribution and
+  alignment through interleaved edits, unattributed inserts, misalignment
+  poisoning, persisted-run adoption/rejection.
 - Both are scratch scripts (`deno run --allow-all -c deno.json <file>` with
   absolute-path imports — the repo's standard harness idiom).
 - Manual two-user matrix: see the feature checklist in the PR/commit series

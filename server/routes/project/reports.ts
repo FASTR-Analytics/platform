@@ -30,6 +30,7 @@ import {
   hashVersionData,
   loadReportVersionData,
   recordVersionEdit,
+  reportContentHash,
 } from "../../collab/version_capture.ts";
 import { reportFiguresSchema, reportImagesSchema } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
@@ -493,7 +494,7 @@ defineRoute(
     if (!current) {
       return c.json({ success: false as const, err: "Report not found" });
     }
-    const currentHash = hashVersionData(current);
+    const currentHash = reportContentHash(current);
     const latestRes = await latestReportVersionHash(
       projectDb,
       params.report_id,
@@ -508,6 +509,7 @@ defineRoute(
         images: current.images,
         editors: drained.length > 0 ? drained : [restorer],
         contentHash: currentHash,
+        bodyAuthors: current.bodyAuthors,
       });
       if (!safetyRes.success) {
         reinjectDrained();
@@ -575,6 +577,8 @@ defineRoute(
       editors: [restorer],
       contentHash: hashVersionData(restoredData),
       restoredFromVersionId: version.id,
+      // The restored text keeps the authorship it had in the source version.
+      bodyAuthors: version.bodyAuthors,
     });
     if (!restoredRes.success) {
       console.error("Restored-state version insert failed:", restoredRes.err);

@@ -52,6 +52,11 @@ export type DocRoomAdapter<T> = {
   msgUpdate: (docId: string, update: string) => CollabServerMessage;
   msgError: (docId: string, message: string) => CollabServerMessage;
   msgAwareness: (docId: string, update: string) => CollabServerMessage;
+  /** Fired once per room lifetime, after the doc holds its initial content
+   *  (seed or crdt_state restore) — reports attach their authorship observer
+   *  here. Paired with onDocClosed on every teardown path. */
+  onDocCreated?: (projectId: string, docId: string, doc: Y.Doc) => void;
+  onDocClosed?: (projectId: string, docId: string) => void;
 };
 
 export type DocRoomDeps<T> = {
@@ -72,6 +77,7 @@ export type DocRoomDeps<T> = {
 
 type Room = {
   key: string;
+  projectId: string;
   docId: string;
   // deno-lint-ignore no-explicit-any
   adapter: DocRoomAdapter<any>;
@@ -167,6 +173,7 @@ export async function subscribeDoc<T>(
       }
       room = {
         key,
+        projectId,
         docId,
         adapter,
         doc,
@@ -177,6 +184,7 @@ export async function subscribeDoc<T>(
       };
       rooms.set(key, room);
       attachDoc(room);
+      adapter.onDocCreated?.(projectId, docId, doc);
     }
   }
 
@@ -283,6 +291,7 @@ async function finalizeRoom(room: Room): Promise<void> {
   if (room.conns.size > 0) return;
   if (rooms.get(room.key) === room) rooms.delete(room.key);
   room.doc.destroy();
+  room.adapter.onDocClosed?.(room.projectId, room.docId);
   room.deps.onEmpty?.();
 }
 
@@ -336,6 +345,7 @@ export function closeRoomsForDoc(
   room.conns.clear();
   rooms.delete(key);
   room.doc.destroy();
+  room.adapter.onDocClosed?.(room.projectId, room.docId);
 }
 
 /**
@@ -361,8 +371,13 @@ export async function applyToLiveRoom(
 ): Promise<string | null> {
   const room = rooms.get(roomKey(projectId, docType, docId));
   if (!room) return null;
-  // No origin conn: the update handler relays this to every connected client.
-  room.doc.transact(() => apply(room.doc));
+  // The origin is not a RoomConn, so the update handler relays this to every
+  // connected client; it carries the editor so the authorship observer can
+  // attribute the change (restores pass no editor -> unattributed).
+  room.doc.transact(
+    () => apply(room.doc),
+    editor ? { versionEditor: editor } : undefined,
+  );
   if (editor) room.deps.onEdit?.(editor);
   if (room.checkpointTimer) {
     clearTimeout(room.checkpointTimer);

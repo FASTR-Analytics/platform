@@ -2,6 +2,7 @@ import { Sql } from "postgres";
 import {
   type APIResponseNoData,
   type APIResponseWithData,
+  type AuthorRun,
   buildReportPreview,
   type FigureBlock,
   getStartingConfigForReport,
@@ -232,11 +233,13 @@ export async function getReportCrdtState(
 // state atomically (collab is authoritative, so this always overwrites — no
 // conflict check). crdt_state_last_updated is stamped equal to last_updated so
 // the state reads back as current until a non-collab edit bumps last_updated.
+// body_authors (per-character authorship ledger) rides the same stamp.
 export async function saveReportCheckpoint(
   projectDb: Sql,
   reportId: string,
   content: ReportDocContent,
   crdtState: string,
+  bodyAuthors: AuthorRun[] | null,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
@@ -247,6 +250,7 @@ export async function saveReportCheckpoint(
           images = ${JSON.stringify(reportImagesSchema.parse(content.images))},
           crdt_state = ${crdtState},
           crdt_state_last_updated = ${lastUpdated},
+          body_authors = ${bodyAuthors ? JSON.stringify(bodyAuthors) : null},
           last_updated = ${lastUpdated}
       WHERE id = ${reportId}
       RETURNING id
@@ -255,6 +259,42 @@ export async function saveReportCheckpoint(
       throw new Error("Report not found");
     }
     return { success: true, data: { lastUpdated } };
+  });
+}
+
+// The persisted authorship ledger — like crdt_state, trusted only while
+// crdt_state_last_updated matches last_updated (a non-collab write invalidates
+// the pair, and authorship of text written outside a room is unknown anyway).
+export async function getReportBodyAuthors(
+  projectDb: Sql,
+  reportId: string,
+): Promise<APIResponseWithData<{ authors: AuthorRun[] | null }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await projectDb<
+        {
+          body_authors: string | null;
+          crdt_state_last_updated: string | null;
+          last_updated: string;
+        }[]
+      >`
+        SELECT body_authors, crdt_state_last_updated, last_updated
+        FROM reports WHERE id = ${reportId}
+      `
+    ).at(0);
+    if (!row) {
+      throw new Error("Report not found");
+    }
+    const isCurrent = row.body_authors !== null &&
+      row.crdt_state_last_updated === row.last_updated;
+    return {
+      success: true,
+      data: {
+        authors: isCurrent
+          ? parseJsonOrThrow<AuthorRun[]>(row.body_authors!)
+          : null,
+      },
+    };
   });
 }
 

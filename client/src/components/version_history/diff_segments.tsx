@@ -20,6 +20,25 @@ export function editorDisplayNames(editors: VersionEditor[]): string {
   return editors.map(editorDisplayName).join(", ");
 }
 
+/** email -> display name map for authorship-run lookups: the session's
+ *  editors plus any other emails appearing in the runs (resolved against the
+ *  live project users, falling back to the email itself). */
+export function buildAuthorNames(
+  editors: VersionEditor[],
+  runs: { email: string | null }[] | null | undefined,
+): Record<string, string> {
+  const names: Record<string, string> = {};
+  for (const e of editors) {
+    names[e.email] = editorDisplayName(e);
+  }
+  for (const run of runs ?? []) {
+    if (run.email !== null && !(run.email in names)) {
+      names[run.email] = editorDisplayName({ email: run.email, name: run.email });
+    }
+  }
+  return names;
+}
+
 export function DiffLegend() {
   return (
     <div class="text-neutral flex items-center gap-4 text-xs">
@@ -44,15 +63,24 @@ export function DiffLegend() {
   );
 }
 
-function addedTitle(who?: string): string {
+// Attribution phrasing: an exact author reads "Added by Alice"; a session
+// fallback with several editors reads "Added by one of: Alice, Bob" — the
+// ledger couldn't pin the individual, so don't pretend otherwise.
+function byLabel(who: string, exact: boolean | undefined): string {
+  return !exact && who.includes(",")
+    ? `${t3({ en: "one of:", fr: "l'une de ces personnes :", pt: "uma destas pessoas:" })} ${who}`
+    : who;
+}
+
+function addedTitle(who?: string, exact?: boolean): string {
   return who
-    ? `${t3({ en: "Added by", fr: "Ajouté par", pt: "Adicionado por" })} ${who}`
+    ? `${t3({ en: "Added by", fr: "Ajouté par", pt: "Adicionado por" })} ${byLabel(who, exact)}`
     : t3({ en: "Added", fr: "Ajouté", pt: "Adicionado" });
 }
 
-function removedTitle(who?: string): string {
+function removedTitle(who?: string, exact?: boolean): string {
   return who
-    ? `${t3({ en: "Removed by", fr: "Supprimé par", pt: "Removido por" })} ${who}`
+    ? `${t3({ en: "Removed by", fr: "Supprimé par", pt: "Removido por" })} ${byLabel(who, exact)}`
     : t3({ en: "Removed", fr: "Supprimé", pt: "Removido" });
 }
 
@@ -70,7 +98,7 @@ export function DiffSegments(p: { segments: DiffSegment[] }) {
             <Match when={seg.kind === "added"}>
               <span
                 class="bg-success/20 cursor-help rounded-sm"
-                title={addedTitle(seg.who)}
+                title={addedTitle(seg.who, seg.whoExact)}
               >
                 {seg.text}
               </span>
@@ -78,7 +106,7 @@ export function DiffSegments(p: { segments: DiffSegment[] }) {
             <Match when={seg.kind === "removed"}>
               <span
                 class="bg-danger/10 text-danger decoration-danger/70 cursor-help rounded-sm line-through"
-                title={removedTitle(seg.who)}
+                title={removedTitle(seg.who, seg.whoExact)}
               >
                 {seg.text}
               </span>

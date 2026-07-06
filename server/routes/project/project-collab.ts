@@ -23,10 +23,15 @@ import {
 } from "../../db/project/slides.ts";
 import {
   getAllReports,
+  getReportBodyAuthors,
   getReportCrdtState,
   getReportDetail,
   saveReportCheckpoint,
 } from "../../db/project/reports.ts";
+import {
+  getAuthorRuns,
+  stashPersistedAuthors,
+} from "../../collab/authorship.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectReportsUpdated } from "../../task_management/notify_project_v2.ts";
 import {
@@ -217,6 +222,17 @@ routesProjectCollab.get(
           if (!res.success) return null;
           const crdtRes = await getReportCrdtState(projectDb, reportId);
           const crdtState = crdtRes.success ? crdtRes.data.state : null;
+          // Authorship ledger: hand the persisted runs to the room's observer
+          // (consumed when the doc is created; only valid alongside a current
+          // crdt_state — a re-seeded doc starts with unknown authorship).
+          const authorsRes = await getReportBodyAuthors(projectDb, reportId);
+          stashPersistedAuthors(
+            projectId,
+            reportId,
+            crdtState !== null && authorsRes.success
+              ? authorsRes.data.authors
+              : null,
+          );
           return {
             content: {
               body: res.data.body,
@@ -228,7 +244,13 @@ routesProjectCollab.get(
         },
         save: async (content, crdtState) => {
           // Collab is authoritative → checkpoint overwrites content + CRDT state.
-          const res = await saveReportCheckpoint(projectDb, reportId, content, crdtState);
+          const res = await saveReportCheckpoint(
+            projectDb,
+            reportId,
+            content,
+            crdtState,
+            getAuthorRuns(projectId, reportId, content.body.length),
+          );
           if (!res.success) return null;
           notifyLastUpdated(projectId, "reports", [reportId], res.data.lastUpdated);
           scheduleReportsListRebroadcast(projectId);
