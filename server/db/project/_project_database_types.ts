@@ -122,6 +122,7 @@ export type DBDeckVersion = {
   editors: string;
   content_hash: string;
   restored_from_version_id: string | null;
+  slide_editors: string | null;
 };
 
 export type DBReport = {

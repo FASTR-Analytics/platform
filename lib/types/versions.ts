@@ -85,8 +85,23 @@ export type DeckVersionSummary = {
   restoredFromVersionId: string | null;
 };
 
+/** Per-slide attribution for one deck editing session (emails; names resolve
+ *  client-side): who edited/added/removed each slide, plus deck-level ops.
+ *  Maintained in memory by server/collab/deck_session_ledger.ts and frozen
+ *  per version — null for pre-feature versions or after a server restart
+ *  (the UI falls back to the session's editor set). */
+export type DeckSlideEditors = {
+  slides: Record<
+    string,
+    { edited?: string[]; added?: string[]; removed?: string[] }
+  >;
+  settings?: string[];
+  reordered?: string[];
+};
+
 export type DeckVersionDetail = DeckVersionSummary & {
   label: string;
   deckConfig: SlideDeckConfig;
   slides: DeckVersionSlide[];
+  slideEditors: DeckSlideEditors | null;
 };

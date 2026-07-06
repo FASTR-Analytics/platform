@@ -17,6 +17,12 @@ import {
   editorFromGlobalUser,
   recordVersionEdit,
 } from "../../collab/version_capture.ts";
+import {
+  recordDeckReordered,
+  recordSlideAdded,
+  recordSlideEdited,
+  recordSlideRemoved,
+} from "../../collab/deck_session_ledger.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -64,11 +70,13 @@ defineRoute(
       return c.json(res);
     }
 
-    recordVersionEdit(
+    const editor = editorFromGlobalUser(c.var.globalUser);
+    recordVersionEdit(c.var.ppk.projectId, "deck", params.deck_id, editor);
+    recordSlideAdded(
       c.var.ppk.projectId,
-      "deck",
       params.deck_id,
-      editorFromGlobalUser(c.var.globalUser),
+      res.data.slideId,
+      editor.email,
     );
 
     notifyLastUpdated(
@@ -132,6 +140,12 @@ defineRoute(
     }
 
     recordVersionEdit(c.var.ppk.projectId, "deck", res.data.deckId, editor);
+    recordSlideEdited(
+      c.var.ppk.projectId,
+      res.data.deckId,
+      params.slide_id,
+      editor.email,
+    );
 
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -170,12 +184,16 @@ defineRoute(
       closeSlideRoom(c.var.ppk.projectId, slideId, "This slide was deleted");
     }
 
-    recordVersionEdit(
-      c.var.ppk.projectId,
-      "deck",
-      params.deck_id,
-      editorFromGlobalUser(c.var.globalUser),
-    );
+    const deleteEditor = editorFromGlobalUser(c.var.globalUser);
+    recordVersionEdit(c.var.ppk.projectId, "deck", params.deck_id, deleteEditor);
+    for (const slideId of body.slideIds) {
+      recordSlideRemoved(
+        c.var.ppk.projectId,
+        params.deck_id,
+        slideId,
+        deleteEditor.email,
+      );
+    }
 
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -216,12 +234,21 @@ defineRoute(
       return c.json(res);
     }
 
+    const duplicateEditor = editorFromGlobalUser(c.var.globalUser);
     recordVersionEdit(
       c.var.ppk.projectId,
       "deck",
       params.deck_id,
-      editorFromGlobalUser(c.var.globalUser),
+      duplicateEditor,
     );
+    for (const slideId of res.data.newSlideIds) {
+      recordSlideAdded(
+        c.var.ppk.projectId,
+        params.deck_id,
+        slideId,
+        duplicateEditor.email,
+      );
+    }
 
     for (const slideId of res.data.newSlideIds) {
       notifyLastUpdated(
@@ -262,12 +289,9 @@ defineRoute(
       return c.json(res);
     }
 
-    recordVersionEdit(
-      c.var.ppk.projectId,
-      "deck",
-      params.deck_id,
-      editorFromGlobalUser(c.var.globalUser),
-    );
+    const moveEditor = editorFromGlobalUser(c.var.globalUser);
+    recordVersionEdit(c.var.ppk.projectId, "deck", params.deck_id, moveEditor);
+    recordDeckReordered(c.var.ppk.projectId, params.deck_id, moveEditor.email);
 
     notifyLastUpdated(
       c.var.ppk.projectId,

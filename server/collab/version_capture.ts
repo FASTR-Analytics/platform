@@ -33,6 +33,10 @@ import {
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { compactTombstones } from "./authorship.ts";
 import {
+  drainDeckLedger,
+  restoreDeckLedger,
+} from "./deck_session_ledger.ts";
+import {
   getReportBodyAuthors,
   getReportDetail,
 } from "../db/project/reports.ts";
@@ -198,6 +202,9 @@ async function writeVersion(
     return res.success;
   }
   const data = payload.data as DeckVersionData;
+  // Freeze the per-slide session ledger into this version; a failed insert
+  // merges it back so the attribution retries with the next write.
+  const slideEditors = drainDeckLedger(projectId, docId);
   const res = await insertDeckVersion(projectDb, {
     deckId: docId,
     createdAt,
@@ -206,7 +213,11 @@ async function writeVersion(
     slides: data.slides,
     editors,
     contentHash: payload.contentHash,
+    slideEditors,
   });
+  if (!res.success) {
+    restoreDeckLedger(projectId, docId, slideEditors);
+  }
   return res.success;
 }
 

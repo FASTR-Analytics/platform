@@ -1,8 +1,10 @@
 import {
   canonicalJson,
+  type DeckSlideEditors,
   type DeckVersionDetail,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
+  presenceColorForKey,
   type Slide,
   type SlideDeckConfig,
   t3,
@@ -25,23 +27,44 @@ import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { serverActions } from "~/server_actions";
 import { CopyVersionModal } from "./copy_version_modal";
-import { editorDisplayNames } from "./diff_segments";
-
-type SlideSessionStatus = "new" | "edited" | undefined;
+import { editorDisplayName, editorDisplayNames } from "./diff_segments";
 
 // Live canvases are expensive (panther warns around 12-14 mounted at once, and
 // the deck UI underneath this panel keeps its own) — page the grid at 6.
 const SLIDES_PER_PAGE = 6;
 
+// Changes whose author is unknown get a neutral badge color (matches the
+// report diff views).
+const UNKNOWN_COLOR = "#64748b";
+
+type SlideBadge = {
+  text: string;
+  color: string;
+  title: string;
+};
+
+// One grid cell: a current slide (possibly badged New/Edited) or a ghost of a
+// slide REMOVED in this session, rendered dimmed from the previous version.
+type DisplayEntry = {
+  slideId: string;
+  config: Slide;
+  deckConfig: SlideDeckConfig;
+  ghost: boolean;
+  status?: "new" | "edited" | "removed";
+  badge?: SlideBadge;
+};
+
 // Read-only render of one deck version: each slide's snapshot config renders
-// through the normal deck pipeline (convertSlideToPageInputs -> PageHolder)
-// against the version's snapshot deck config.
+// through the normal deck pipeline (convertSlideToPageInputs -> PageHolder).
+// Session changes are shown Google-style: per-slide badges naming who added/
+// edited each slide (their presence color), ghost thumbnails for slides
+// removed in the session, and a summary line.
 export function DeckVersionPreview(p: {
   projectId: string;
   deckId: string;
   versionId: string;
-  /** The version immediately BEFORE this one — session badges (New/Edited)
-   *  and the summary line diff against it. undefined = oldest version. */
+  /** The version immediately BEFORE this one — session badges and ghosts
+   *  diff against it. undefined = oldest version. */
   previousVersionId?: string;
   canRestore: boolean;
   onRestored: () => void;
@@ -120,49 +143,149 @@ export function DeckVersionPreview(p: {
         const orderedSlides = v.slides
           .slice()
           .sort((a, b) => a.sortOrder - b.sortOrder);
-        const totalPages = Math.max(
-          1,
-          Math.ceil(orderedSlides.length / SLIDES_PER_PAGE),
-        );
-        const pageSlides = () =>
-          orderedSlides.slice(
-            page() * SLIDES_PER_PAGE,
-            (page() + 1) * SLIDES_PER_PAGE,
-          );
-
-        // What this version's editing session changed, vs the previous one.
-        const prevById = new Map(
-          (prev?.slides ?? []).map((s) => [s.id, s] as const),
-        );
+        const prevOrdered = (prev?.slides ?? [])
+          .slice()
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        const prevById = new Map(prevOrdered.map((s) => [s.id, s] as const));
         const currentIds = new Set(orderedSlides.map((s) => s.id));
-        const statusOf = (slideId: string, config: Slide): SlideSessionStatus => {
-          const old = prevById.get(slideId);
-          if (!old) return "new";
-          return canonicalJson(old.config) !== canonicalJson(config)
+
+        // email -> display name (live project users preferred), covering the
+        // session's editors plus anyone in the per-slide ledger.
+        const names: Record<string, string> = {};
+        const addName = (email: string) => {
+          if (!(email in names)) {
+            names[email] = editorDisplayName({ email, name: email });
+          }
+        };
+        for (const e of v.editors) {
+          names[e.email] = editorDisplayName(e);
+        }
+        const se: DeckSlideEditors | null = v.slideEditors;
+        for (const touch of Object.values(se?.slides ?? {})) {
+          for (const email of [
+            ...(touch.edited ?? []),
+            ...(touch.added ?? []),
+            ...(touch.removed ?? []),
+          ]) {
+            addName(email);
+          }
+        }
+        for (const email of [...(se?.settings ?? []), ...(se?.reordered ?? [])]) {
+          addName(email);
+        }
+
+        const sessionEditors = editorDisplayNames(v.editors);
+
+        // Exact per-slide attribution from the ledger, session fallback else.
+        function whoFor(
+          slideId: string,
+          kind: "edited" | "added" | "removed",
+        ): { label: string; exact: boolean; color: string } {
+          const emails = se?.slides[slideId]?.[kind];
+          if (emails && emails.length > 0) {
+            return {
+              label: emails.map((e) => names[e] ?? e).join(", "),
+              exact: true,
+              color: emails.length === 1
+                ? presenceColorForKey(emails[0])
+                : UNKNOWN_COLOR,
+            };
+          }
+          return {
+            label: sessionEditors,
+            exact: v.editors.length === 1,
+            color: v.editors.length === 1
+              ? presenceColorForKey(v.editors[0].email)
+              : UNKNOWN_COLOR,
+          };
+        }
+
+        function badgeFor(
+          slideId: string,
+          kind: "edited" | "added" | "removed",
+        ): SlideBadge {
+          const who = whoFor(slideId, kind);
+          const verb = kind === "added"
+            ? t3({ en: "Added by", fr: "Ajoutée par", pt: "Adicionado por" })
+            : kind === "edited"
+            ? t3({ en: "Edited by", fr: "Modifiée par", pt: "Editado por" })
+            : t3({ en: "Removed by", fr: "Supprimée par", pt: "Removido por" });
+          const oneOf = !who.exact && who.label.includes(",")
+            ? `${t3({ en: "one of:", fr: "l'une de ces personnes :", pt: "uma destas pessoas:" })} `
+            : "";
+          return {
+            text: kind === "added"
+              ? t3({ en: "New", fr: "Nouvelle", pt: "Novo" })
+              : kind === "edited"
+              ? t3({ en: "Edited", fr: "Modifiée", pt: "Editado" })
+              : t3({ en: "Removed", fr: "Supprimée", pt: "Removido" }),
+            color: who.color,
+            title: `${verb} ${oneOf}${who.label}`,
+          };
+        }
+
+        // Grid entries: current slides (badged vs prev) + ghosts of removed
+        // slides inserted near their previous position.
+        const entries: DisplayEntry[] = orderedSlides.map((s) => {
+          const old = prevById.get(s.id);
+          const status: "new" | "edited" | undefined = prev === null
+            ? "new"
+            : !old
+            ? "new"
+            : canonicalJson(old.config) !== canonicalJson(s.config)
             ? "edited"
             : undefined;
-        };
-        const addedCount = orderedSlides.filter((s) => !prevById.has(s.id)).length;
-        const editedCount = orderedSlides.filter(
-          (s) => statusOf(s.id, s.config) === "edited",
-        ).length;
-        const removedCount = (prev?.slides ?? []).filter(
-          (s) => !currentIds.has(s.id),
-        ).length;
+          return {
+            slideId: s.id,
+            config: s.config,
+            deckConfig: v.deckConfig,
+            ghost: false,
+            status,
+            badge: status === "new"
+              ? badgeFor(s.id, "added")
+              : status === "edited"
+              ? badgeFor(s.id, "edited")
+              : undefined,
+          };
+        });
+        if (prev !== null) {
+          prevOrdered.forEach((s, prevIdx) => {
+            if (currentIds.has(s.id)) return;
+            entries.splice(Math.min(prevIdx, entries.length), 0, {
+              slideId: s.id,
+              config: s.config,
+              deckConfig: prev.deckConfig,
+              ghost: true,
+              status: "removed",
+              badge: badgeFor(s.id, "removed"),
+            });
+          });
+        }
+
+        const totalPages = Math.max(1, Math.ceil(entries.length / SLIDES_PER_PAGE));
+        const pageEntries = () =>
+          entries.slice(page() * SLIDES_PER_PAGE, (page() + 1) * SLIDES_PER_PAGE);
+
+        // Summary line.
+        const addedCount = entries.filter((e) => e.status === "new").length;
+        const editedCount = entries.filter((e) => e.status === "edited").length;
+        const removedCount = entries.filter((e) => e.status === "removed").length;
         const survivorOrderChanged = prev !== null &&
           orderedSlides
               .filter((s) => prevById.has(s.id))
               .map((s) => s.id)
               .join(",") !==
-            prev.slides
-              .slice()
-              .sort((a, b) => a.sortOrder - b.sortOrder)
+            prevOrdered
               .filter((s) => currentIds.has(s.id))
               .map((s) => s.id)
               .join(",");
         const settingsChanged = prev !== null &&
           (prev.label !== v.label ||
             canonicalJson(prev.deckConfig) !== canonicalJson(v.deckConfig));
+        const namesOf = (emails: string[] | undefined) =>
+          emails && emails.length > 0
+            ? ` (${emails.map((e) => names[e] ?? e).join(", ")})`
+            : "";
         const summaryParts = prev === null ? [] : [
           addedCount > 0
             ? `${addedCount} ${t3({ en: "added", fr: "ajoutée(s)", pt: "adicionado(s)" })}`
@@ -174,13 +297,12 @@ export function DeckVersionPreview(p: {
             ? `${removedCount} ${t3({ en: "removed", fr: "supprimée(s)", pt: "removido(s)" })}`
             : "",
           survivorOrderChanged
-            ? t3({ en: "slides reordered", fr: "diapositives réordonnées", pt: "diapositivos reordenados" })
+            ? `${t3({ en: "slides reordered", fr: "diapositives réordonnées", pt: "diapositivos reordenados" })}${namesOf(se?.reordered)}`
             : "",
           settingsChanged
-            ? t3({ en: "deck settings changed", fr: "paramètres de la présentation modifiés", pt: "definições da apresentação alteradas" })
+            ? `${t3({ en: "deck settings changed", fr: "paramètres de la présentation modifiés", pt: "definições da apresentação alteradas" })}${namesOf(se?.settings)}`
             : "",
         ].filter(Boolean);
-        const sessionEditors = editorDisplayNames(v.editors);
 
         return (
           <div class="flex h-full min-h-0 flex-col">
@@ -211,11 +333,21 @@ export function DeckVersionPreview(p: {
                       pt: "sem alterações de diapositivos",
                     })}
                 </span>
+                <Show when={removedCount > 0 || addedCount > 0 || editedCount > 0}>
+                  <span>
+                    {" — "}
+                    {t3({
+                      en: "hover a badge to see who made the change.",
+                      fr: "survolez un badge pour voir qui a fait la modification.",
+                      pt: "passe o cursor sobre um selo para ver quem fez a alteração.",
+                    })}
+                  </span>
+                </Show>
               </Show>
             </div>
             <div class="bg-base-200 ui-pad min-h-0 flex-1 overflow-auto">
               <Show
-                when={orderedSlides.length > 0}
+                when={entries.length > 0}
                 fallback={
                   <div class="text-neutral w-full py-16 text-center">
                     {t3({
@@ -227,14 +359,14 @@ export function DeckVersionPreview(p: {
                 }
               >
                 <div class="grid grid-cols-2 gap-4 2xl:grid-cols-3">
-                  <For each={pageSlides()}>
-                    {(s) => (
+                  <For each={pageEntries()}>
+                    {(entry) => (
                       <VersionSlideThumb
                         projectId={p.projectId}
-                        slide={s.config}
-                        deckConfig={v.deckConfig}
-                        status={statusOf(s.id, s.config)}
-                        statusTitle={sessionEditors}
+                        slide={entry.config}
+                        deckConfig={entry.deckConfig}
+                        ghost={entry.ghost}
+                        badge={entry.badge}
                       />
                     )}
                   </For>
@@ -280,10 +412,9 @@ function VersionSlideThumb(p: {
   projectId: string;
   slide: Slide;
   deckConfig: SlideDeckConfig;
-  /** Session badge: what this version's session did to this slide. */
-  status?: SlideSessionStatus;
-  /** Who edited in the session (badge hover). */
-  statusTitle?: string;
+  /** Ghost = a slide removed in this session, rendered dimmed. */
+  ghost?: boolean;
+  badge?: SlideBadge;
 }) {
   const [state, setState] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
@@ -322,27 +453,24 @@ function VersionSlideThumb(p: {
   return (
     <div
       class="border-base-300 bg-base-100 relative cursor-pointer rounded border p-1.5 transition-opacity hover:opacity-80"
+      classList={{ "border-dashed": p.ghost }}
       onClick={openExpandedView}
     >
-      <Show when={p.status}>
-        <div
-          class={`text-base-100 absolute top-2.5 left-2.5 z-10 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-            p.status === "new" ? "bg-success" : "bg-warning"
-          }`}
-          title={p.statusTitle
-            ? `${
-              p.status === "new"
-                ? t3({ en: "Added in this session by", fr: "Ajoutée dans cette session par", pt: "Adicionado nesta sessão por" })
-                : t3({ en: "Edited in this session by", fr: "Modifiée dans cette session par", pt: "Editado nesta sessão por" })
-            } ${p.statusTitle}`
-            : undefined}
-        >
-          {p.status === "new"
-            ? t3({ en: "New", fr: "Nouvelle", pt: "Novo" })
-            : t3({ en: "Edited", fr: "Modifiée", pt: "Editado" })}
-        </div>
+      <Show when={p.badge}>
+        {(badge) => (
+          <div
+            class="text-base-100 absolute top-2.5 left-2.5 z-10 cursor-help rounded px-1.5 py-0.5 text-[10px] font-semibold"
+            style={{ "background-color": badge().color }}
+            title={badge().title}
+          >
+            {badge().text}
+          </div>
+        )}
       </Show>
-      <div class="pointer-events-none">
+      <div
+        class="pointer-events-none"
+        classList={{ "opacity-50 grayscale": p.ghost }}
+      >
         <Switch>
           <Match when={state().status === "loading"}>
             <div class="aspect-video text-xs">

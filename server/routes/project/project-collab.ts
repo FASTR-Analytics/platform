@@ -54,6 +54,7 @@ import {
   noteVersionRoomEmpty,
   recordVersionEdit,
 } from "../../collab/version_capture.ts";
+import { recordSlideEdited } from "../../collab/deck_session_ledger.ts";
 
 type CollabAuth = {
   email: string;
@@ -205,7 +206,10 @@ routesProjectCollab.get(
           return res.data.lastUpdated;
         },
         onEdit: (editor) => {
-          if (deckId) recordVersionEdit(projectId, "deck", deckId, editor);
+          if (deckId) {
+            recordVersionEdit(projectId, "deck", deckId, editor);
+            recordSlideEdited(projectId, deckId, slideId, editor.email);
+          }
         },
         onEmpty: () => {
           if (deckId) noteVersionRoomEmpty(projectId, "deck", deckId);

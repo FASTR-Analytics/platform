@@ -231,10 +231,21 @@ preferring live `projectState.projectUsers` over the stored capture-time name,
 - **Deck**: paged canvas grid — 6 per page (`convertSlideToPageInputs` →
   `PageHolder`; live canvases are expensive, panther warns ~12-14) with
   click-to-expand. Session edits show as thumbnail badges (New/Edited vs the
-  previous version, `canonicalJson` compare) plus a summary line (added /
-  edited / removed / reordered / settings changed, with the session's
-  editors); the previous version loads alongside and badges degrade
-  gracefully if it can't.
+  previous version, `canonicalJson` compare) and slides REMOVED in the
+  session render as dimmed ghost thumbnails (previous version's config, near
+  their old position), plus a summary line. Per-slide attribution comes from
+  [server/collab/deck_session_ledger.ts](server/collab/deck_session_ledger.ts)
+  — the deck analog of the report body ledger: every slide-level write path
+  (room edits via the slide-room deps closure, create/duplicate/delete/move/
+  update routes, deck settings/label) records WHO touched WHICH slide; the map
+  freezes into `deck_versions.slide_editors` (migration 034) when the version
+  is written, and drains into the safety version on restore. Badges are
+  tinted with the author's presence color (single author) and hover names
+  them exactly — "Edited by Bob B" — falling back to the session's editor set
+  ("by one of: …", neutral gray) for pre-feature versions or after a restart
+  (the ledger is in-memory only; there is no deck-level checkpoint row to
+  persist it to — accepted, same class as the tracker's crash window). The
+  previous version loads alongside; badges degrade gracefully if it can't.
 
 Footer (configure permission + unlocked): **Restore** (confirm explains the
 safety version) and **Restore as copy** (name prompt). Entry points: History
@@ -265,6 +276,9 @@ overflow menu.
   drainEditors, per-doc independence.
 - `planDeckRestore` harness (14 asserts): partition invariants, original-id
   preservation, snapshot ordering, empty edge cases.
+- `deck_session_ledger` harness (10 asserts): per-slide kinds + dedup,
+  added+edited coexistence, drain-clears semantics, merge-back after a failed
+  insert, cross-deck isolation, the slide cap.
 - `version_diff` harness (46 asserts incl. 200-chain fuzz): current-doc
   reassembly, base-char coverage, per-session attribution (replacements,
   later-deletes, edits inside earlier insertions), author-run splitting

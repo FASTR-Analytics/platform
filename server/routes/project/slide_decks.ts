@@ -30,6 +30,11 @@ import {
   loadDeckVersionData,
   recordVersionEdit,
 } from "../../collab/version_capture.ts";
+import {
+  drainDeckLedger,
+  recordDeckSettingsEdited,
+  restoreDeckLedger,
+} from "../../collab/deck_session_ledger.ts";
 import { remapCollidingSlideIds } from "../../db/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
@@ -115,12 +120,9 @@ defineRoute(
       return c.json(res);
     }
 
-    recordVersionEdit(
-      c.var.ppk.projectId,
-      "deck",
-      params.deck_id,
-      editorFromGlobalUser(c.var.globalUser),
-    );
+    const editor = editorFromGlobalUser(c.var.globalUser);
+    recordVersionEdit(c.var.ppk.projectId, "deck", params.deck_id, editor);
+    recordDeckSettingsEdited(c.var.ppk.projectId, params.deck_id, editor.email);
 
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -183,12 +185,9 @@ defineRoute(
       return c.json(res);
     }
 
-    recordVersionEdit(
-      c.var.ppk.projectId,
-      "deck",
-      params.deck_id,
-      editorFromGlobalUser(c.var.globalUser),
-    );
+    const editor = editorFromGlobalUser(c.var.globalUser);
+    recordVersionEdit(c.var.ppk.projectId, "deck", params.deck_id, editor);
+    recordDeckSettingsEdited(c.var.ppk.projectId, params.deck_id, editor.email);
 
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -370,12 +369,15 @@ defineRoute(
 
     // Absorb the open editing session's attribution into the safety version;
     // left in the tracker it would hash-dedup against the restored state
-    // later and those editors would never appear in any version.
+    // later and those editors would never appear in any version. The
+    // per-slide ledger travels with it.
     const drained = drainVersionEditors(projectId, "deck", params.deck_id);
+    const drainedSlideEditors = drainDeckLedger(projectId, params.deck_id);
     const reinjectDrained = () => {
       for (const e of drained) {
         recordVersionEdit(projectId, "deck", params.deck_id, e);
       }
+      restoreDeckLedger(projectId, params.deck_id, drainedSlideEditors);
     };
 
     // Safety version: the current state is preserved before anything is
@@ -404,6 +406,7 @@ defineRoute(
         slides: current.slides,
         editors: drained.length > 0 ? drained : [restorer],
         contentHash: currentHash,
+        slideEditors: drainedSlideEditors,
       });
       if (!safetyRes.success) {
         reinjectDrained();

@@ -334,7 +334,8 @@ CREATE TABLE deck_versions (
   slides text NOT NULL,
   editors text NOT NULL DEFAULT '[]',
   content_hash text NOT NULL,
-  restored_from_version_id text
+  restored_from_version_id text,
+  slide_editors text
 );
 
 CREATE INDEX idx_deck_versions_deck ON deck_versions(deck_id, created_at DESC);

@@ -2,6 +2,7 @@ import { Sql } from "postgres";
 import {
   type APIResponseWithData,
   type AuthorRun,
+  type DeckSlideEditors,
   type DeckVersionDetail,
   type DeckVersionSlide,
   type DeckVersionSummary,
@@ -315,13 +316,14 @@ export async function insertDeckVersion(
     editors: VersionEditor[];
     contentHash: string;
     restoredFromVersionId?: string | null;
+    slideEditors?: DeckSlideEditors | null;
   },
 ): Promise<APIResponseWithData<{ versionId: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const versionId = crypto.randomUUID();
     await projectDb`
       INSERT INTO deck_versions
-        (id, deck_id, created_at, label, deck_config, slides, editors, content_hash, restored_from_version_id)
+        (id, deck_id, created_at, label, deck_config, slides, editors, content_hash, restored_from_version_id, slide_editors)
       VALUES (
         ${versionId},
         ${args.deckId},
@@ -331,7 +333,8 @@ export async function insertDeckVersion(
         ${JSON.stringify(args.slides)},
         ${JSON.stringify(args.editors)},
         ${args.contentHash},
-        ${args.restoredFromVersionId ?? null}
+        ${args.restoredFromVersionId ?? null},
+        ${args.slideEditors ? JSON.stringify(args.slideEditors) : null}
       )
     `;
     await projectDb`
@@ -424,6 +427,9 @@ export async function getDeckVersion(
         label: row.label,
         deckConfig: parseJsonOrThrow<SlideDeckConfig>(row.deck_config),
         slides,
+        slideEditors: row.slide_editors
+          ? parseJsonOrThrow<DeckSlideEditors>(row.slide_editors)
+          : null,
       },
     };
   });
