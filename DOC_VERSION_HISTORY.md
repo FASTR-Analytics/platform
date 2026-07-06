@@ -159,9 +159,13 @@ contributor chips via `PresenceAvatars` + `presenceColorForKey(email)`, names
 preferring live `projectState.projectUsers` over the stored capture-time name,
 "Restored" badge, slide counts), preview on the right:
 
-- **Report**: snapshot body through `MarkdownPresentationJsx` with embed
-  tokens resolved against the version's OWN figure/image registries; "Compare
-  with current" opens `ReportVersionCompare` — a unified ONE-page diff
+- **Report**: opens on **"Edits in this session"** — the diff of the selected
+  version against the version immediately before it (the oldest version diffs
+  against an empty document), rendered with the same highlight/strikethrough
+  spans as compare; a toggle switches to **Preview** — the snapshot body
+  through `MarkdownPresentationJsx` with embed tokens resolved against the
+  version's OWN figure/image registries. "Compare with current" opens
+  `ReportVersionCompare` — a unified ONE-page diff
   (additions highlighted, removals struck through) where hovering a change
   names who made it. Attribution is per editing session: the
   `getReportVersionLineage` route returns the compared version plus every
@@ -174,7 +178,11 @@ preferring live `projectState.projectUsers` over the stored capture-time name,
   not-yet-versioned edits.
 - **Deck**: paged canvas grid — 6 per page (`convertSlideToPageInputs` →
   `PageHolder`; live canvases are expensive, panther warns ~12-14) with
-  click-to-expand.
+  click-to-expand. Session edits show as thumbnail badges (New/Edited vs the
+  previous version, `canonicalJson` compare) plus a summary line (added /
+  edited / removed / reordered / settings changed, with the session's
+  editors); the previous version loads alongside and badges degrade
+  gracefully if it can't.
 
 Footer (configure permission + unlocked): **Restore** (confirm explains the
 safety version) and **Restore as copy** (name prompt). Entry points: History

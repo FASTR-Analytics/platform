@@ -18,6 +18,7 @@ import { serverActions } from "~/server_actions";
 import { projectState } from "~/state/project/t1_store";
 import { PresenceAvatars } from "../slide_deck/presence_avatars";
 import { DeckVersionPreview } from "./deck_version_preview";
+import { editorDisplayName } from "./diff_segments";
 import { ReportVersionPreview } from "./report_version_preview";
 
 export type VersionHistoryKind = "report" | "deck";
@@ -79,22 +80,15 @@ export function VersionHistoryEditor(p: Props) {
       ? projectState.thisUserPermissions.can_configure_reports
       : projectState.thisUserPermissions.can_configure_slide_decks);
 
-  // Contributor chips: deterministic color from the email (same recipe as live
-  // presence); names prefer the live project-user record over the name stored
-  // at capture time (people get renamed; emails don't).
+  // Contributor chips: deterministic color from the email (same recipe as
+  // live presence); names via editorDisplayName (live record preferred).
   function chipsFor(editors: VersionEditor[]): PresenceEntry[] {
-    return editors.map((e) => {
-      const known = projectState.projectUsers.find((u) => u.email === e.email);
-      const liveName = known
-        ? `${known.firstName ?? ""} ${known.lastName ?? ""}`.trim()
-        : "";
-      return {
-        connectionId: e.email,
-        email: e.email,
-        name: liveName || e.name,
-        color: presenceColorForKey(e.email),
-      };
-    });
+    return editors.map((e) => ({
+      connectionId: e.email,
+      email: e.email,
+      name: editorDisplayName(e),
+      color: presenceColorForKey(e.email),
+    }));
   }
 
   function groupByDay(rows: VersionRow[]): DayGroup[] {
@@ -119,6 +113,15 @@ export function VersionHistoryEditor(p: Props) {
     `w-full cursor-pointer px-3 py-2 text-left ${
       selected ? "bg-base-300" : "hover:bg-base-200"
     }`;
+
+  // The version right before the given one (list is newest-first) — the
+  // previews diff against it to show what that session changed.
+  function previousVersionId(versionId: string): string | undefined {
+    const st = versions.state();
+    if (st.status !== "ready") return undefined;
+    const i = st.data.findIndex((r) => r.id === versionId);
+    return i >= 0 ? st.data[i + 1]?.id : undefined;
+  }
 
   return (
     <FrameTop
@@ -235,6 +238,7 @@ export function VersionHistoryEditor(p: Props) {
                   projectId={p.projectId}
                   deckId={p.docId}
                   versionId={versionId}
+                  previousVersionId={previousVersionId(versionId)}
                   canRestore={canRestore()}
                   onRestored={() => p.close(undefined)}
                 />
@@ -244,6 +248,7 @@ export function VersionHistoryEditor(p: Props) {
                 projectId={p.projectId}
                 reportId={p.docId}
                 versionId={versionId}
+                previousVersionId={previousVersionId(versionId)}
                 canRestore={canRestore()}
                 getCurrentBody={p.getCurrentBody}
                 onRestored={() => p.close(undefined)}

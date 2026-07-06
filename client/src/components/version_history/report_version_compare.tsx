@@ -1,4 +1,4 @@
-import { t3, type ReportVersionLineageStep, type VersionEditor } from "lib";
+import { t3, type ReportVersionLineageStep } from "lib";
 import {
   type AlertComponentProps,
   Button,
@@ -6,9 +6,9 @@ import {
   ModalContainer,
   StateHolderWrapper,
 } from "panther";
-import { For, Show, Switch, Match } from "solid-js";
+import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { projectState } from "~/state/project/t1_store";
+import { DiffLegend, DiffSegments, editorDisplayNames } from "./diff_segments";
 import {
   computeAttributedDiff,
   type DiffSegment,
@@ -40,23 +40,10 @@ export function ReportVersionCompare(
     t3({ en: "Comparing versions...", fr: "Comparaison des versions...", pt: "A comparar versões..." }),
   );
 
-  // Names prefer the live project-user record over the capture-time name.
-  function editorNames(editors: VersionEditor[]): string {
-    return editors
-      .map((e) => {
-        const known = projectState.projectUsers.find((u) => u.email === e.email);
-        const liveName = known
-          ? `${known.firstName ?? ""} ${known.lastName ?? ""}`.trim()
-          : "";
-        return liveName || e.name;
-      })
-      .join(", ");
-  }
-
   function buildSegments(steps: ReportVersionLineageStep[]): DiffSegment[] {
     const chain: VersionStep[] = steps.map((s, i) => ({
       body: s.body,
-      label: i === 0 ? "" : editorNames(s.editors),
+      label: i === 0 ? "" : editorDisplayNames(s.editors),
     }));
     // Edits newer than the newest stored version (the open session).
     if (chain.length === 0 || chain[chain.length - 1].body !== p.currentBody) {
@@ -70,18 +57,6 @@ export function ReportVersionCompare(
       });
     }
     return computeAttributedDiff(chain);
-  }
-
-  function addedTitle(who?: string): string {
-    return who
-      ? `${t3({ en: "Added by", fr: "Ajouté par", pt: "Adicionado por" })} ${who}`
-      : t3({ en: "Added since this version", fr: "Ajouté depuis cette version", pt: "Adicionado desde esta versão" });
-  }
-
-  function removedTitle(who?: string): string {
-    return who
-      ? `${t3({ en: "Removed by", fr: "Supprimé par", pt: "Removido por" })} ${who}`
-      : t3({ en: "Removed since this version", fr: "Supprimé depuis cette version", pt: "Removido desde esta versão" });
   }
 
   return (
@@ -104,25 +79,7 @@ export function ReportVersionCompare(
           const hasChanges = segments.some((s) => s.kind !== "same");
           return (
             <div class="ui-gap flex flex-col">
-              <div class="text-neutral flex items-center gap-4 text-xs">
-                <span>
-                  <span class="bg-success/20 rounded-sm px-1">
-                    {t3({ en: "added", fr: "ajouté", pt: "adicionado" })}
-                  </span>
-                </span>
-                <span>
-                  <span class="bg-danger/10 text-danger decoration-danger/70 rounded-sm px-1 line-through">
-                    {t3({ en: "removed", fr: "supprimé", pt: "removido" })}
-                  </span>
-                </span>
-                <span>
-                  {t3({
-                    en: "Hover a change to see who made it.",
-                    fr: "Survolez une modification pour voir qui l'a faite.",
-                    pt: "Passe o cursor sobre uma alteração para ver quem a fez.",
-                  })}
-                </span>
-              </div>
+              <DiffLegend />
               <Show
                 when={hasChanges}
                 fallback={
@@ -136,33 +93,7 @@ export function ReportVersionCompare(
                 }
               >
                 <div class="border-base-300 max-h-[65vh] overflow-auto rounded border p-4">
-                  <div class="font-mono text-xs leading-5 whitespace-pre-wrap">
-                    <For each={segments}>
-                      {(seg) => (
-                        <Switch>
-                          <Match when={seg.kind === "same"}>
-                            <span>{seg.text}</span>
-                          </Match>
-                          <Match when={seg.kind === "added"}>
-                            <span
-                              class="bg-success/20 cursor-help rounded-sm"
-                              title={addedTitle(seg.who)}
-                            >
-                              {seg.text}
-                            </span>
-                          </Match>
-                          <Match when={seg.kind === "removed"}>
-                            <span
-                              class="bg-danger/10 text-danger decoration-danger/70 cursor-help rounded-sm line-through"
-                              title={removedTitle(seg.who)}
-                            >
-                              {seg.text}
-                            </span>
-                          </Match>
-                        </Switch>
-                      )}
-                    </For>
-                  </div>
+                  <DiffSegments segments={segments} />
                 </div>
               </Show>
             </div>

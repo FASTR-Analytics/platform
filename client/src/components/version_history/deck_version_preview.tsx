@@ -1,4 +1,5 @@
 import {
+  canonicalJson,
   type DeckVersionDetail,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
@@ -24,6 +25,9 @@ import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { serverActions } from "~/server_actions";
 import { CopyVersionModal } from "./copy_version_modal";
+import { editorDisplayNames } from "./diff_segments";
+
+type SlideSessionStatus = "new" | "edited" | undefined;
 
 // Live canvases are expensive (panther warns around 12-14 mounted at once, and
 // the deck UI underneath this panel keeps its own) — page the grid at 6.
@@ -36,16 +40,35 @@ export function DeckVersionPreview(p: {
   projectId: string;
   deckId: string;
   versionId: string;
+  /** The version immediately BEFORE this one — session badges (New/Edited)
+   *  and the summary line diff against it. undefined = oldest version. */
+  previousVersionId?: string;
   canRestore: boolean;
   onRestored: () => void;
 }) {
   const version = createQuery(
-    () =>
-      serverActions.getDeckVersion({
+    async (): Promise<
+      | { success: true; data: { v: DeckVersionDetail; prev: DeckVersionDetail | null } }
+      | { success: false; err: string }
+    > => {
+      const res = await serverActions.getDeckVersion({
         projectId: p.projectId,
         deck_id: p.deckId,
         version_id: p.versionId,
-      }),
+      });
+      if (!res.success) return res;
+      let prev: DeckVersionDetail | null = null;
+      if (p.previousVersionId) {
+        // Badges degrade gracefully when the previous version can't load.
+        const prevRes = await serverActions.getDeckVersion({
+          projectId: p.projectId,
+          deck_id: p.deckId,
+          version_id: p.previousVersionId,
+        });
+        if (prevRes.success) prev = prevRes.data;
+      }
+      return { success: true, data: { v: res.data, prev } };
+    },
     t3({ en: "Loading version...", fr: "Chargement de la version...", pt: "A carregar a versão..." }),
   );
 
@@ -93,7 +116,7 @@ export function DeckVersionPreview(p: {
 
   return (
     <StateHolderWrapper state={version.state()}>
-      {(v) => {
+      {({ v, prev }) => {
         const orderedSlides = v.slides
           .slice()
           .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -106,8 +129,90 @@ export function DeckVersionPreview(p: {
             page() * SLIDES_PER_PAGE,
             (page() + 1) * SLIDES_PER_PAGE,
           );
+
+        // What this version's editing session changed, vs the previous one.
+        const prevById = new Map(
+          (prev?.slides ?? []).map((s) => [s.id, s] as const),
+        );
+        const currentIds = new Set(orderedSlides.map((s) => s.id));
+        const statusOf = (slideId: string, config: Slide): SlideSessionStatus => {
+          const old = prevById.get(slideId);
+          if (!old) return "new";
+          return canonicalJson(old.config) !== canonicalJson(config)
+            ? "edited"
+            : undefined;
+        };
+        const addedCount = orderedSlides.filter((s) => !prevById.has(s.id)).length;
+        const editedCount = orderedSlides.filter(
+          (s) => statusOf(s.id, s.config) === "edited",
+        ).length;
+        const removedCount = (prev?.slides ?? []).filter(
+          (s) => !currentIds.has(s.id),
+        ).length;
+        const survivorOrderChanged = prev !== null &&
+          orderedSlides
+              .filter((s) => prevById.has(s.id))
+              .map((s) => s.id)
+              .join(",") !==
+            prev.slides
+              .slice()
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .filter((s) => currentIds.has(s.id))
+              .map((s) => s.id)
+              .join(",");
+        const settingsChanged = prev !== null &&
+          (prev.label !== v.label ||
+            canonicalJson(prev.deckConfig) !== canonicalJson(v.deckConfig));
+        const summaryParts = prev === null ? [] : [
+          addedCount > 0
+            ? `${addedCount} ${t3({ en: "added", fr: "ajoutée(s)", pt: "adicionado(s)" })}`
+            : "",
+          editedCount > 0
+            ? `${editedCount} ${t3({ en: "edited", fr: "modifiée(s)", pt: "editado(s)" })}`
+            : "",
+          removedCount > 0
+            ? `${removedCount} ${t3({ en: "removed", fr: "supprimée(s)", pt: "removido(s)" })}`
+            : "",
+          survivorOrderChanged
+            ? t3({ en: "slides reordered", fr: "diapositives réordonnées", pt: "diapositivos reordenados" })
+            : "",
+          settingsChanged
+            ? t3({ en: "deck settings changed", fr: "paramètres de la présentation modifiés", pt: "definições da apresentação alteradas" })
+            : "",
+        ].filter(Boolean);
+        const sessionEditors = editorDisplayNames(v.editors);
+
         return (
           <div class="flex h-full min-h-0 flex-col">
+            <div class="border-base-300 ui-pad text-neutral border-b text-xs">
+              <Show
+                when={prev !== null}
+                fallback={
+                  <span>
+                    {t3({
+                      en: "First version — every slide is new in this session.",
+                      fr: "Première version — chaque diapositive est nouvelle dans cette session.",
+                      pt: "Primeira versão — todos os diapositivos são novos nesta sessão.",
+                    })}
+                  </span>
+                }
+              >
+                <span class="font-semibold">
+                  {t3({ en: "Edits in this session", fr: "Modifications de cette session", pt: "Edições desta sessão" })}
+                  {sessionEditors ? ` (${sessionEditors})` : ""}
+                  {": "}
+                </span>
+                <span>
+                  {summaryParts.length > 0
+                    ? summaryParts.join(" · ")
+                    : t3({
+                      en: "no slide changes",
+                      fr: "aucune modification des diapositives",
+                      pt: "sem alterações de diapositivos",
+                    })}
+                </span>
+              </Show>
+            </div>
             <div class="bg-base-200 ui-pad min-h-0 flex-1 overflow-auto">
               <Show
                 when={orderedSlides.length > 0}
@@ -128,6 +233,8 @@ export function DeckVersionPreview(p: {
                         projectId={p.projectId}
                         slide={s.config}
                         deckConfig={v.deckConfig}
+                        status={statusOf(s.id, s.config)}
+                        statusTitle={sessionEditors}
                       />
                     )}
                   </For>
@@ -173,6 +280,10 @@ function VersionSlideThumb(p: {
   projectId: string;
   slide: Slide;
   deckConfig: SlideDeckConfig;
+  /** Session badge: what this version's session did to this slide. */
+  status?: SlideSessionStatus;
+  /** Who edited in the session (badge hover). */
+  statusTitle?: string;
 }) {
   const [state, setState] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
@@ -210,9 +321,27 @@ function VersionSlideThumb(p: {
 
   return (
     <div
-      class="border-base-300 bg-base-100 cursor-pointer rounded border p-1.5 transition-opacity hover:opacity-80"
+      class="border-base-300 bg-base-100 relative cursor-pointer rounded border p-1.5 transition-opacity hover:opacity-80"
       onClick={openExpandedView}
     >
+      <Show when={p.status}>
+        <div
+          class={`text-base-100 absolute top-2.5 left-2.5 z-10 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+            p.status === "new" ? "bg-success" : "bg-warning"
+          }`}
+          title={p.statusTitle
+            ? `${
+              p.status === "new"
+                ? t3({ en: "Added in this session by", fr: "Ajoutée dans cette session par", pt: "Adicionado nesta sessão por" })
+                : t3({ en: "Edited in this session by", fr: "Modifiée dans cette session par", pt: "Editado nesta sessão por" })
+            } ${p.statusTitle}`
+            : undefined}
+        >
+          {p.status === "new"
+            ? t3({ en: "New", fr: "Nouvelle", pt: "Novo" })
+            : t3({ en: "Edited", fr: "Modifiée", pt: "Editado" })}
+        </div>
+      </Show>
       <div class="pointer-events-none">
         <Switch>
           <Match when={state().status === "loading"}>
