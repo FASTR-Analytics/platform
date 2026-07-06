@@ -244,6 +244,12 @@ function getLastFullQuarterBounds(periodBounds: PeriodBounds): { min: number; ma
   }
 }
 
+// Cache-uniqueness identity for a fetch config, on BOTH tiers (Valkey
+// po_items/replicant_opts and the client IndexedDB twins) — server and client
+// must stay byte-identical. Arrays are sorted so semantically-equal configs
+// hash equally: the values sort key includes func (prop alone left
+// same-prop/different-func pairs order-unstable), and filter values are
+// JSON-encoded (a bare ","-join let ["a,b"] collide with ["a","b"]).
 export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
   return [
     getSortedAlphabeticalByFunc(
@@ -251,7 +257,7 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
       (v: {
         prop: string;
         func: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
-      }) => v.prop,
+      }) => [v.prop, v.func].join("&"),
     )
       .map(
         (v: {
@@ -266,7 +272,7 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
       (v: { disOpt: DisaggregationOption; values: (string | number)[] }) => v.disOpt,
     )
       .map((f: { disOpt: DisaggregationOption; values: (string | number)[] }) =>
-        [f.disOpt, getSortedAlphabetical(f.values.map(String)).join(",")].join("&"),
+        [f.disOpt, JSON.stringify(getSortedAlphabetical(f.values.map(String)))].join("&"),
       )
       .join("$"),
     fc.periodFilter?.filterType ?? "",
