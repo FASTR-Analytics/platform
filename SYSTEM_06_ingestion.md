@@ -142,8 +142,12 @@ worker error, and on cancel; staging also pre-drops stale tables at start.
 - HFA XLSForm: `survey`+`choices` sheets required; only
   `select_one`/`select_multiple`/`integer`/`decimal` vars are staged;
   `select_multiple` expands to one binary var per choice
-  (`{var}_{choice}`); the name `weight` (any case, incl. expanded names)
-  is reserved and aborts staging; duplicate var names are a hard error.
+  (`{var}_{choice}`): selected → `1`, unselected → `0`, unanswered parent →
+  `""` (missing) on every expanded var, and a parent answered `-99`
+  (don't know) marks unselected choices `-99` so downstream sentinel
+  handling sees it (PLAN_HFA_SENTINEL_VALUES.md); the name `weight` (any
+  case, incl. expanded names) is reserved and aborts staging; duplicate
+  var names are a hard error.
 - ICEH stages nothing: the zip is parsed in memory and written row-by-row
   inside one transaction at integration.
 
@@ -265,9 +269,10 @@ Attach concurrency is an in-memory `_datasetLocks` set keyed
 
 Deferred findings from the 2026-07-02 review cycle, plus standing reform:
 
-- **select_multiple missingness**: an unanswered cell expands to explicit
-  `"0"` for every choice — indistinguishable from "none of the above";
-  missing counts for expanded vars are always 0. Needs a semantics ruling.
+- **select_multiple missingness** (RESOLVED 2026-07-06): unanswered now
+  expands to `""` (missing) and don't-know parents mark unselected choices
+  `-99` (see Staging above). Data staged before this change keeps the old
+  explicit-`0` rows until re-imported.
 - **icehCacheHash**: mixes attempt lifecycle (`date_started:status_type`)
   into a data-content hash → removing a completed attempt flips every
   attached project to "stale" with zero data change; attempt create/delete

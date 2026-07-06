@@ -267,17 +267,30 @@ CREATE UNLOGGED TABLE ${tempTableName} (
             mapping.xlsFormVar.type === "select_multiple" &&
             mapping.choices
           ) {
-            // Expand to binary variables
+            // Expand to binary variables. An unanswered parent stays missing
+            // on every expanded var; a "don't know" (-99) answer marks the
+            // unselected choices -99 instead of 0, so downstream sentinel
+            // handling sees it (PLAN_HFA_SENTINEL_VALUES.md rung 3 layer 2)
             const selectedCodes = new Set(
               value ? value.split(" ").filter((s) => s.length > 0) : [],
             );
+            const unselectedValue = selectedCodes.size === 0
+              ? ""
+              : selectedCodes.has("-99")
+              ? "-99"
+              : "0";
             for (const choice of mapping.choices) {
               const expandedVarName = `${mapping.xlsFormVar.name.trim()}_${String(choice.name).trim()}`;
-              const binaryValue = selectedCodes.has(String(choice.name))
+              const expandedValue = selectedCodes.has(String(choice.name))
                 ? "1"
-                : "0";
+                : unselectedValue;
               rowBuffer.push(
-                tup(facilityId, cleanedTimePoint, expandedVarName, binaryValue),
+                tup(
+                  facilityId,
+                  cleanedTimePoint,
+                  expandedVarName,
+                  expandedValue,
+                ),
               );
             }
           } else {
@@ -366,6 +379,9 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
       const varType = mapping.xlsFormVar.type;
 
       if (mapping.xlsFormVar.type === "select_multiple" && mapping.choices) {
+        const dkChoice = mapping.choices.find(
+          (c) => String(c.name).trim() === "-99",
+        );
         for (const choice of mapping.choices) {
           const expandedVarName = `${varName}_${String(choice.name).trim()}`;
           const compositeLabel =
@@ -380,6 +396,16 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
           );
           dictValueRows.push(tup(cleanedTimePoint, expandedVarName, "1", "Yes"));
           dictValueRows.push(tup(cleanedTimePoint, expandedVarName, "0", "No"));
+          if (dkChoice && String(choice.name).trim() !== "-99") {
+            dictValueRows.push(
+              tup(
+                cleanedTimePoint,
+                expandedVarName,
+                "-99",
+                dkChoice.label.trim(),
+              ),
+            );
+          }
         }
       } else if (
         mapping.xlsFormVar.type === "select_one" &&
