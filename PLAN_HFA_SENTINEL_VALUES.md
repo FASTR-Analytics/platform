@@ -6,6 +6,9 @@ throwing away the earlier ones.
 
 ## Verified data facts (Sierra Leone form + export)
 
+The behavior bullets below describe the system **as found before this plan
+shipped** (2026-07-06); see Status for what has changed since.
+
 | Code | Meaning | Where |
 | --- | --- | --- |
 | `-99` | Don't know / Refused | select_one + select_multiple choice lists |
@@ -90,7 +93,7 @@ Layered; each layer builds on the previous.
    (both already parsed at staging). Persist on the variable dictionary;
    surface in the import wizard as a reviewable/correctable step. Makes the
    system country-form-agnostic (positive 98/99, -77/-88 forms etc.).
-2. **Uniform representation.** Fix select_multiple expansion: a DK parent
+2. **Uniform representation — SHIPPED.** Fix select_multiple expansion: a DK parent
    answer emits the DK code on each substantive expanded var instead of hard
    `0`s. Take the pending "unanswered select_multiple expands to explicit
    0s" ruling (SYSTEM_06_ingestion.md open item) at the same time. Requires
@@ -101,10 +104,11 @@ Layered; each layer builds on the previous.
    set. Optional per-indicator override column in the indicator dictionary —
    also the escape hatch that makes DK-rate indicators authorable (today the
    blanket missingness branch fires before any `x == -99` rCode can).
-4. **Report missingness as an output.** Companion results object per
-   indicator × time point: N, % don't-know, % refused, % missing, with viz
-   presets (DK-rate table, missingness heatmap). Makes the missing-vs-no
-   choice's consequences visible; answers the denominator question.
+4. **Report missingness as an output — SHIPPED** (without % refused, which
+   needs layer 1's classification, and with table presets only). Companion
+   results object per indicator × time point: % don't-know, % missing, with
+   viz presets. Makes the missing-vs-no choice's consequences visible;
+   answers the denominator question.
 
 Pull-forward candidates even in a lean world: layer 2 (correctness hole
 under any policy) and layer 4 (cheap relative to value once the sentinel
@@ -113,9 +117,8 @@ family is right).
 ## Status
 
 - Rung 1: implemented
-- Rung 2: implemented (app generator committed; m010 parameter edited + built in
-  wb-fastr-modules but left uncommitted there — the working tree has extensive
-  unrelated WIP that a commit would sweep in)
+- Rung 2: implemented (app generator + m010 parameter, wb-fastr-modules
+  pushed 2026-07-06)
 - Rung 3: pull-forwards shipped 2026-07-06 (ruling: pull-forwards first;
   unanswered select_multiple = missing) — layer 2 (select_multiple
   expansion: unanswered → missing, DK → -99 on unselected choices) and
@@ -129,3 +132,14 @@ family is right).
   applies to); indicators whose code references only other indicators
   classify from no question deps (always answered unless filtered);
   old-server + new-definition degrades to a header-only status CSV.
+
+## Go-live (nothing is deployed yet as of 2026-07-06)
+
+1. Deploy the server (`./deploy`) — activates rungs 1–2 generator behavior,
+   the staging expansion fix, and status-column emission.
+2. Per project: update the M10 module instance — brings the
+   DONT_KNOW_TREATMENT parameter, the status results object, and the two
+   rate metrics (wb-fastr-modules main already has them).
+3. Re-import existing HFA uploads — required for the select_multiple
+   expansion fix; data staged before it keeps hard `0`s (reads as "No",
+   never missing/DK) until re-imported.
