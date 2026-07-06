@@ -43,3 +43,13 @@ _None — written fresh from code in Phase 2._
 
 _Populated during this system's review cycle (review -> triage -> fix ->
 document, SYSTEMS.md §5)._
+
+Seeded from the retired PLAN_GEOJSON_NEAR_TERM WS7-P2 (2026-07-06):
+
+- **Upload size/type caps** — the client Uppy config restricts only
+  `maxNumberOfFiles` (no `allowedFileTypes`/`maxFileSize`), and the server
+  accepts any `Upload-Length` with no MIME/size check. Needs a per-file-type
+  policy ruling first: these primitives also carry large dataset CSVs, so a
+  blanket cap can't be picked from the geojson case alone.
+- **TUS temp-file sweep** — orphan cleanup only walks the in-memory upload
+  Map and only on a new POST; temp files from crashed uploads accumulate.

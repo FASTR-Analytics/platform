@@ -2,11 +2,14 @@
 
 Status: DRAFT for review. No implementation yet. Report-only until per-step go-ahead.
 
-This is the second of **two geojson plans**. The companion **PLAN_GEOJSON_NEAR_TERM.md** covers the immediately-shippable layer-1 work (the import freeze, observability, export resilience, upload hardening). **This** plan covers the bigger architectural move: making geojson a **portable, self-contained part of the project snapshot**, which is also the real cure for the silently-wrong-map bugs.
+This is now the **only** geojson plan. Its former companion (the near-term
+layer-1 plan) shipped and was retired 2026-07-06: the import-freeze fix,
+save-side coverage counts, export resilience, and upload hardening are live
+(commits `805f6b15`, `e3cac93d`, `14790e39`, earlier `a36121e2`/`d3743456`);
+its two remainders were absorbed here (WS-COVERAGE below) and into
+SYSTEM_04/SYSTEM_05 Open items (upload-cap policy items).
 
 It builds on the existing project-snapshot docs — [VISION_PROJECT_SNAPSHOT.md](VISION_PROJECT_SNAPSHOT.md) (the why/end-state) and [PLAN_PROJECT_SNAPSHOT.md](PLAN_PROJECT_SNAPSHOT.md) (the how, where geojson is item **S2**, in **Step B**). This plan restates the principles a reviewer needs and stays scoped to geojson; read those two docs for the broader vision (facility-config S1, countryIso3 S4, structure self-containment, etc., which are out of scope here).
-
-Read order: PLAN_GEOJSON_NEAR_TERM.md first, then this.
 
 ---
 
@@ -46,7 +49,37 @@ This single design choice (bare-name `area_id`) is simultaneously the **correctn
 ## 3. Workstreams
 
 ### WS-DEDUP — collapse the duplicated logic  ·  P1  ·  effort S  ·  PREREQUISITE
-**Goal:** make every later correctness fix land in one place, not four. Today there are 2–4 unsynced copies of the load-bearing logic: `processGeoJson` vs `processGeoJsonFromDhis2` (near-identical), the lowercase auto-matcher twice in `step_2` (file vs DHIS2 branch), and `GeoJsonFeature`/`FeatureCollection` redeclared in 3+ places. **Do this first** — WS-KEY's normalization must live in one shared function.
+**Goal:** make every later correctness fix land in one place, not four. Today there are 2–4 unsynced copies of the load-bearing logic: `processGeoJson` vs `processGeoJsonFromDhis2` (near-identical — both now delegate to a shared `processFeatures`, so this pair is largely collapsed as of `805f6b15`), the lowercase auto-matcher twice in `step_2` (file vs DHIS2 branch), and `GeoJsonFeature`/`FeatureCollection` redeclared in 3+ places. **Do this first** — WS-KEY's normalization must live in one shared function.
+
+### WS-COVERAGE — render-side coverage + typed sentinel  ·  P1  ·  effort M  ·  PREREQUISITE for WS-KEY's backfill
+
+Inherited from the retired near-term plan (its save side shipped 2026-07-06:
+save routes return featureCount/matched/unmatched — `805f6b15` — and the
+wizard shows them — `e3cac93d`). Remaining:
+
+- **Render-side coverage:** surface "N of M data areas have a boundary; K
+  boundaries have no data" wherever a map figure renders. panther's
+  `getMapDataTransformed` builds the value maps but exposes **no** coverage
+  tally — compute the counts app-side after the transform (or add a small
+  count to panther `_010_maps`). This is the measurement WS-KEY's backfill
+  uses to prove no rows were lost.
+- **Policy (as ruled in the near-term review):** error only on 0 matched
+  (nothing would render); warn-but-allow otherwise, showing the number
+  (prominent below ~70%) — mid-rollout partial coverage is legitimate.
+- **Typed sentinel:** replace the `"[INFO] "`-string `Error` control flow
+  with a typed result. Verified consumers: the throw in
+  `build_figure_inputs.ts`, the `startsWith` checks in
+  `t2_presentation_objects.ts` and `PresentationObjectMiniDisplay.tsx`; the
+  dashboard export's `prepareFigures` currently swallows the throw to `null`
+  (any failure becomes a placeholder, masking regressions) — re-key the
+  export degrade off the typed sentinel. Note `t2_presentation_objects` also
+  *produces* `[INFO]` strings (too-many-items / no-data / no-replicant-values),
+  so the type must cover those states, not just missing-geometry.
+- **Half B — `area_id` validity join:** validate each chosen `area_id`
+  resolves to a real admin area by joining `admin_areas_N`. Name-based in the
+  interim (that table is name-keyed); WS-KEY re-points the join to the
+  snapshot-local id — build the interface (matched/unmatched lists) so only
+  the join key changes.
 
 ### WS-SNAPSHOT — project-level snapshot + capture + cache-fold  ·  P1  ·  effort L
 **Goal:** non-dashboard viz/deck/report figures read geometry from a project snapshot, reaching the parity dashboards already have. Implements target-architecture items 1–4: the `geojson_by_level` project table, capture in the integration txn (datasets pattern), force `kind:'data'` capture, fold the stamp into the PO cache key (server+client). Repoint `build_figure_inputs` to the snapshot.
@@ -57,7 +90,7 @@ This single design choice (bare-name `area_id`) is simultaneously the **correctn
 - **Persist the DHIS2 UID/parent the disambiguation UI already collects.** Today `step_3` shows UID/parent to disambiguate duplicate names, but the UID is **never sent on save** — the picker is *illusory*, both duplicates get the same `area_id`. Persist the chosen UID; drop the other duplicate.
 - Add unicode-normalize + trim + diacritic-fold to the auto-matcher, in the **one** shared place WS-DEDUP created, so "Cameroun"/trailing-space/casing variants match.
 - Make the render join key use the same qualified key.
-- Requires a **migration + backfill** of `geojson_maps` rows and a transform of stored `kind:'data'` snapshots. **Depends on PLAN_GEOJSON_NEAR_TERM.md WS2 Half A** (coverage counting) to measure backfill correctness. After backfill, **re-point WS2 Half B's validation join** from the name column to the new snapshot-local id.
+- Requires a **migration + backfill** of `geojson_maps` rows and a transform of stored `kind:'data'` snapshots. **Depends on WS-COVERAGE** (render-side coverage counting) to measure backfill correctness. After backfill, **re-point WS-COVERAGE Half B's validation join** from the name column to the new snapshot-local id.
 
 ### WS-LIFECYCLE — versioning, audit, drift-repair, safe delete  ·  P1  ·  effort L
 **Goal:** make boundary changes recoverable and stop stored figures silently drifting. Today every write is a destructive in-place UPSERT with no history/audit, and delete is a hard `DELETE` with no cascade — a bad remap or accidental delete is unrecoverable.
@@ -73,7 +106,7 @@ This single design choice (bare-name `area_id`) is simultaneously the **correctn
 - **Caching headers / ETag / Valkey** for the served geojson (today `/geojson-maps/level/:level` is *not* under `/api/`, so it gets no `Cache-Control`).
 - **Off-main-thread parse** (worker) for large levels.
 - **Optional polygon simplification** (inline Douglas–Peucker per the no-new-dependency rule; tolerance tunable). **Risk to flag:** naive per-polygon simplification breaks **shared borders** (Region edge ≠ District edge after simplification) — may need a topology-preserving approach, or accept the tolerance trade-off. Lossy; keep the raw upload if fidelity is ever needed.
-- This is also the home for the **AA4 background-worker + SSE progress** path that PLAN_GEOJSON_NEAR_TERM.md WS1 explicitly defers (for facility-level boundaries too large for one request).
+- This is also the home for the **AA4 background-worker + SSE progress** path that the shipped near-term WS1 (`805f6b15`) explicitly defers, plus the `step_3` row **virtualization** AA4 needs (live-measured 2026-07-06: DRC has **10,325** level-4 aires; Cameroon 2,219).
 
 ---
 
@@ -89,7 +122,7 @@ This single design choice (bare-name `area_id`) is simultaneously the **correctn
 
 1. **WS-DEDUP** — prerequisite; makes WS-KEY's normalization land once.
 2. **WS-SNAPSHOT** — stand up the project snapshot + capture + cache-fold (kind:'data' parity for the non-dashboard path). Can proceed in parallel with WS-EFFICIENCY's serving work, which touches a different path.
-3. **WS-KEY** — the snapshot-local-id match key + backfill. **Gated on PLAN_GEOJSON_NEAR_TERM.md WS2** existing (to measure the backfill). The headline correctness + portability fix.
+3. **WS-KEY** — the snapshot-local-id match key + backfill. **Gated on WS-COVERAGE** existing (to measure the backfill). The headline correctness + portability fix.
 4. **WS-LIFECYCLE** — versioning/audit/drift-repair/safe-delete; best once the WS-KEY key model is stable (the audit-log + safe-delete slice can be pulled forward independently).
 5. **WS-EFFICIENCY** — P2; the serving/compression slice is independent and can run in parallel from the start; simplification + the AA4 worker land opportunistically.
 
@@ -101,7 +134,27 @@ This single design choice (bare-name `area_id`) is simultaneously the **correctn
 
 - Existing instance `geojson_maps` → project snapshots (per project, in the capture txn).
 - Re-key `area_id`s to snapshot-local ids; transform stored `kind:'data'` snapshots; re-capture `kind:'level'` bundles.
-- **Verify each step by executing** a small harness against a real stored blob (Cameroon AA3 — the measured 200-feature / 20 MB case), not by reading. Use PLAN_GEOJSON_NEAR_TERM.md WS2's coverage counts to confirm no rows were lost.
+- **Verify each step by executing** a small harness against a real stored blob (Cameroon AA3 — the measured 200-feature / 20 MB case), not by reading. Use WS-COVERAGE's counts to confirm no rows were lost.
+
+### Verified DHIS2 API facts (live Cameroon + DRC, both 2.40.11.1, 2026-07-06)
+
+Established for the shipped near-term WS1; any backfill/re-capture code here
+inherits them:
+
+- `featureType` is **absent** from `.json` fields projections — the
+  geometry-presence signal is `filter=geometry:!null` (exact counts;
+  **`level=` must be a filter** — a bare `level=` param is silently ignored
+  when `filter=` is present).
+- The `.geojson` endpoint **omits** boundary-less units (never returns null
+  geometry): Cameroon L3 = 224 units in `.json`, 200 features in `.geojson`.
+- Per-uid `name` AND `code` are byte-identical between `.json` and `.geojson`
+  (zero mismatches across Cameroon L2/L3 + DRC L3) — name-keyed mappings
+  transfer cleanly. Cameroon L3 has **no codes at all**; `name` is the only
+  match key there.
+- `parent` is an object in `.json` (`parent[id,name]` projection works) and a
+  bare uid string in `.geojson` — normalize at every seam.
+- Payloads/timing: Cameroon L3 geojson 19.5 MB in 13–43 s (variable); DRC L3
+  5.4 MB / ~4 s; the metadata equivalents are 17–51 KB in 1–2 s.
 
 ---
 

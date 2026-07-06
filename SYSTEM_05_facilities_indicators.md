@@ -389,10 +389,14 @@ Every config mutation re-reads all configs and pushes one consolidated
 - Server-produced wizard/staging/integration error strings are
   English-only and rendered verbatim by the client — needs a mechanism
   (error codes or translatable errs), not per-string patching.
-- Geojson: no size cap anywhere on the pipeline (unbounded analyze parse,
-  `sampleValues` returns ALL distinct values, payload served whole and
-  double-encoded) and the 32-bit non-crypto DHIS2 session-cache key —
-  WS7-P2 scope in PLAN_GEOJSON_NEAR_TERM.
+- Geojson hardening remainder (the retired near-term plan's WS7-P2, mostly
+  closed 2026-07-06: 100 MB pre-parse cap `14790e39`, SHA-256 session-cache
+  keys `805f6b15`): `sampleValues` still returns ALL distinct values
+  unbounded; the served payload is whole and double-encoded (also
+  PLAN_GEOJSON_SNAPSHOT WS-EFFICIENCY); the wizard's opt-in `sessionStorage`
+  store persists the DHIS2 password in plaintext (`t4_dhis2_session.ts` —
+  decide keep/drop); no deeper geometry validation (lon/lat range, polygonal
+  types, non-unique match values).
 - `pt` is missing across most of this system's t3 literals (indicator
   managers, structure viewers, wizards) — part of the batch-by-batch PT
   rollout.

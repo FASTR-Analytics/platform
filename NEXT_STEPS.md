@@ -16,13 +16,6 @@ Two of the eight docs are not work to queue:
   *architecture*. It is a pure client state-getter rename (`getX` → `getSnapshotX`).
   Lowest urgency (it is item 5 below, on the cleanup track).
 
-## Status correction (verified against code)
-
-- **S9 F3 already shipped** — `excludeReplicantFilter: true` is live at
-  [t2_presentation_objects.ts:328](client/src/state/project/t2_presentation_objects.ts#L328).
-  The plan's own "no implementation yet" header is stale. The remaining ready S9
-  slice is **F1, F5, F6, F7**.
-
 ## Order at a glance
 
 ```
@@ -68,19 +61,17 @@ mechanism changes:
   see [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) Open items)
   or you re-cement the instance coupling the snapshot work removes.
 
-### 2. PLAN_GEOJSON_NEAR_TERM · mostly DONE 2026-07-06
-[PLAN_GEOJSON_NEAR_TERM.md](PLAN_GEOJSON_NEAR_TERM.md)
+### 2. Geojson near-term fixes — DONE 2026-07-06, plan retired
 
-API gate executed live + WS1 shipped (`805f6b15`: metadata-only analyze, heavy
-fetch at save, guards, verified on live Cameroon/DRC); save-side coverage
-counting shipped (`e3cac93d`); geojson parse cap (`14790e39`). WS3 + WS7-P1
-were already done.
-
-- **REMAINING:** WS2 render-side coverage + typed sentinel + Half B join
-  (item 7's backfill measurement needs the render-side half); WS7 P2 policy
-  items (upload size/type caps, sessionStorage store, temp sweep).
-- Comms to Angelica: AA3 fixed once deployed; AA4 follows in
-  PLAN_GEOJSON_SNAPSHOT (and clarify the import is one level per run).
+Shipped (`805f6b15`, `e3cac93d`, `14790e39`): metadata-only analyze, heavy
+fetch at save with guards, save-side coverage counts, 100 MB parse cap — all
+live-verified against Cameroon/DRC. The plan doc is deleted; its remainders
+moved to their homes: **WS2 render-side coverage + typed sentinel + Half B →
+[PLAN_GEOJSON_SNAPSHOT.md](PLAN_GEOJSON_SNAPSHOT.md) WS-COVERAGE** (item 7's
+backfill gate); **WS7 policy items → SYSTEM_04/SYSTEM_05 Open items**
+(upload caps need a per-file-type ruling; sessionStorage password store;
+temp sweep). Comms to Angelica after deploy: AA3 fixed, AA4 follows in
+item 7, and the import runs one level per run.
 
 ---
 
@@ -157,13 +148,10 @@ WS-LIFECYCLE → WS-EFFICIENCY.
   stay "pinned to last integration"?
 - Confirm `admin_area_labels` (SNAP-3) is actually used on the render path.
 
-**Before item 2 (GEOJSON_NEAR_TERM):**
-- The 5 DHIS2 verification gates against live Cameroon/DRC: featureType↔geometry
-  reliability, `name` present in both `.json`/`.geojson`, `parent[id]` shape.
-- WS2 coverage policy (error at 0%, warn <70%) and the typed-sentinel shape.
-- Confirm AA4 defers to item 7.
-
 **Before item 7 (GEOJSON_SNAPSHOT — the largest cost decision in the set):**
+- The typed-sentinel shape (WS-COVERAGE — the DHIS2 API gates, coverage policy,
+  and AA4 deferral were all settled 2026-07-06; facts recorded in the plan's
+  "Verified DHIS2 API facts" section).
 - Match-key migration appetite: full snapshot-local-id model (migration + backfill +
   transform every stored snapshot) vs cheaper interim parent-qualified name.
 - Geojson storage shape: per-figure embed vs project-level `geojson_by_level` table.
