@@ -1,3 +1,15 @@
+[TBD] [user] [added] - Save confirmation now shows how many boundaries were saved and matched
+[TBD] [user] [added] - Warning shown when some boundaries could not be matched to admin areas
+[TBD] [user] [changed] - Map upload wizard stays open after saving to show a summary before closing
+[TBD] [user] [fixed] - Importing maps from DHIS2 is now much faster during the analysis step
+[TBD] [user] [fixed] - Empty or invalid map uploads are now blocked with a clear error message
+[TBD] [admin] [added] - Save confirmation now shows matched and unmatched boundary counts
+[TBD] [admin] [added] - Empty map saves are now prevented with a clear error message
+[TBD] [admin] [added] - Uploaded GeoJSON files are limited to 100 MB maximum
+[TBD] [admin] [changed] - DHIS2 map analysis step is now much faster and uses less data
+[TBD] [admin] [changed] - DHIS2 geometry is now fetched only when saving, not during analysis
+[TBD] [admin] [changed] - Timeout for large DHIS2 geometry downloads extended to 3 minutes
+[TBD] [admin] [fixed] - Unmatched boundaries can now be mapped later via Edit mappings
 [TBD] [user] [added] - Response status tracking for each facility and time point in health facility assessments
 [TBD] [admin] [added] - HFA indicators now track response status per facility and time point
 [TBD] [user] [fixed] - Replicate-by dropdown now updates when changing time period filters
