@@ -47,9 +47,16 @@ const PAE_ALLOWED_FUNCS: ReadonlySet<string> = new Set([
  *      every other subquery shape.
  *   2. Any identifier directly before "(" must be a whitelisted function — this
  *      blocks arbitrary calls like pg_sleep(...) while allowing ABS/COALESCE.
+ *   3. Exactly one "=". applyPostAggregationExpression splits on "=" and keeps
+ *      only the first and last chunks, so "a = b = c" would silently drop the
+ *      middle term — reject it here (also kills "=="), not mid-assembly where
+ *      a throw surfaces as a generic swallowed DB error.
  */
 export function isSafePostAggregationExpression(expr: string): boolean {
   if (!SAFE_EXPRESSION.test(expr)) {
+    return false;
+  }
+  if ((expr.match(/=/g) ?? []).length !== 1) {
     return false;
   }
   const tokens = expr.match(
