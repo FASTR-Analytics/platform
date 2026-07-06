@@ -5,6 +5,88 @@
 > Vision / end-state: [VISION_PROJECT_SNAPSHOT.md](VISION_PROJECT_SNAPSHOT.md). This plan is
 > Step A toward it.
 
+## Handoff (2026-07-07) — proposed path + lessons from the preceding sessions
+
+Written for the next agent picking this up, from the sessions that closed the
+S9 review cycle and shipped/retired the geojson near-term plan. This plan is
+the agreed next work item.
+
+**Do first, before any of this:** a `./deploy` is pending — the S9 fix batch
+and the geojson import-freeze fix are committed but inert until deployed —
+followed by the comms note to Angelica (AA3 fixed; AA4 follows in
+PLAN_GEOJSON_SNAPSHOT; the import runs one level per run).
+
+**Proposed sequence for this plan:**
+
+1. **Settle the one genuinely unresolved design question (below), with Tim.**
+   Everything else in Step A is analyzed and settled: the four read sites, the
+   cache fold (change-sets 2+3 stand as written), the snapshot home
+   (Q6: recommend the general `project_config` KV), the backfill source (Q6),
+   pinned-not-propagated semantics (Q4).
+2. **Rewrite change-set 1** around the chosen capture shape, then implement —
+   change-sets 2+3 are small once 1 exists. Then SNAP-4 (tiny, independent).
+3. **Then Step B** (geojson) via [PLAN_GEOJSON_SNAPSHOT.md](PLAN_GEOJSON_SNAPSHOT.md) —
+   note its WS-COVERAGE prerequisite (inherited from the retired near-term
+   plan) gates the WS-KEY backfill, and its §6 now records verified live
+   DHIS2 API facts your capture/backfill code inherits.
+
+**The unresolved question (why change-set 1 was reverted, restated
+precisely):** per-dataset capture failed because importing one dataset
+re-snapshots the config governing ALL the project's data. But note the
+tension with Q4's "applies on next integration": even with a single
+project-level config row, a one-family import (say HMIS) would flip the
+config that queries apply to the OTHER family's mirrors (facilities_hfa was
+exported under the OLD flags — [datasets_in_project_hfa.ts:90](server/db/project/datasets_in_project_hfa.ts#L90)
+writes enabled columns at export time), recreating query-vs-data divergence
+within the project. Two coherent shapes to put to Tim:
+(a) **any integration atomically re-captures the whole input set** — config +
+re-export of every attached family's mirrors in one txn (a true
+whole-project snapshot; makes attach heavier, possibly worker-shaped);
+(b) **config captured at project creation, changed only by an explicit
+whole-project refresh action** (per-family attach stays light; config
+changes become a deliberate project-level act). NEXT_STEPS' phrasing
+("capture all inputs… locked and hashed at one point in time") leans (a).
+Do not write storage code before this ruling.
+
+**Transferable lessons from the S9 + geojson sessions (hard-won, all
+verified):**
+
+- **Reverify plans before implementing them.** The geojson plan's central API
+  assumption (`featureType`) was dead on the live DHIS2 2.40 instances; the
+  S9 fixes plan had two fixes that were backwards until adversarial
+  re-verification. Tim's "don't trust it, it was hastily written" applies to
+  every plan here, including this one.
+- **Verify by executing:** `deno run --allow-all --env-file=.env -c deno.json
+  /tmp/harness.ts` runs lib/server functions directly; a throwaway
+  `docker run postgres:16-alpine` settles SQL-semantics questions; live
+  API creds (when provided for testing) settle API questions. Byte/value
+  equivalence harnesses before/after refactors caught real regressions.
+- **Cache discipline (this plan's core mechanism):** version-KEY changes are
+  cheap (one-time miss); payload-SHAPE changes need a key-prefix bump;
+  meaning changes need a `PO_CACHE_VERSION` bump (currently "4");
+  `versionHashFromParams`/`parseData`/client `versionKey` must stay
+  byte-identical; display-only values never go in hashes. See
+  SYSTEM_09_viz_query_cache.md "Caching".
+- **N1 is fixed HERE, not standalone** (the S9 Tier-0 ruling) — a standalone
+  facility-flags cache fold would re-cement the live-read coupling this plan
+  removes.
+- **After changing behavior, grep the SYSTEM_* docs for the files you
+  touched.** The lint only enforces the glob manifests; prose staleness is
+  manual (S5's geojson prose went silently stale within four days of its
+  review cycle).
+- **Working-tree hygiene:** Tim commits in parallel (HFA work interleaved
+  mid-batch twice); check `git status` before staging, expect
+  rebase-then-push (a CI changelog bot commits to origin/main after
+  deploys). Commit per verified unit; never create branches.
+- **Dev traps:** the server has no `--watch` (restart to pick up server/lib
+  changes); client IndexedDB caches flush on deploy only, so dev needs
+  manual site-data clears to see server-side fixes.
+
+Parked items waiting on Tim, tracked elsewhere: F8a (Ethiopian
+fiscal-quarter confirmation) and F8c in SYSTEM_09 Open items; upload-cap
+policy + sessionStorage password store in SYSTEM_04/05 Open items;
+NEXT_STEPS.md is the queue index.
+
 **North star (Tim):** the project becomes a fully self-contained, self-describing,
 transportable unit. *No viz / slide-deck / report / dashboard / AI artifact reads
 instance-level (main-DB) data or client `instanceState` at query/render/export time.*
