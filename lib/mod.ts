@@ -1,6 +1,5 @@
 export * from "./admin_area_rollup.ts";
 export * from "./api-routes/mod.ts";
-export * from "./cache_class_B_in_memory_map.ts";
 export * from "./consts.ts";
 export * from "./convert_period_value.ts";
 export * from "./convert_visualization_type.ts";

@@ -5,7 +5,6 @@ globs:
   - client/src/state/project/t2_presentation_objects.ts
   - client/src/state/project/t2_replicant_options.ts
   - lib/admin_area_rollup.ts
-  - lib/cache_class_B_in_memory_map.ts
   - lib/convert_period_value.ts
   - lib/get_fetch_config_from_po.ts
   - lib/validate_fetch_config.ts
@@ -594,9 +593,7 @@ New from this cycle:
 - **Dead code:** commented-out "backward compatibility" function in
   [get_results_value_info.ts:63-84](server/server_only_funcs_presentation_objects/get_results_value_info.ts#L63);
   the unreachable `quarter_id`+calendar-filter block in
-  `getPeriodFilterExactBounds` (TODO'd in code); `lib/cache_class_B_in_memory_map.ts`
-  (`TimCacheB`, zero instantiations — F7: delete file + `lib/mod.ts:3`
-  re-export + the manifest glob above, in one commit).
+  `getPeriodFilterExactBounds` (TODO'd in code).
 
 Standing decoupling items (from the systems review):
 
