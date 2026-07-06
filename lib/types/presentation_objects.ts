@@ -129,6 +129,10 @@ export type ReplicantOptionsForPresentationObject = {
   | {
       status: "no_values_available";
     }
+  | {
+      status: "error";
+      message: string;
+    }
 );
 
 

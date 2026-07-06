@@ -1,10 +1,18 @@
 import { Hono } from "hono";
 import { Sql } from "postgres";
 import {
+  getPeriodFilterExactBounds,
   isValidDisaggregationOption,
-  periodFilterHasBounds,
   validateFetchConfig,
+  type PeriodBounds,
+  type PeriodOption,
 } from "lib";
+import {
+  detectColumnExists,
+  detectHasPeriodId,
+  getResultsObjectTableName,
+} from "../../db/utils.ts";
+import { getPeriodBounds } from "../../server_only_funcs_presentation_objects/get_period_bounds.ts";
 import {
   addPresentationObject,
   batchUpdatePresentationObjectsPeriodFilter,
@@ -670,6 +678,62 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           moduleId,
         );
 
+        // Resolve the period filter to exact bounds the same way the items
+        // query does, so relative filters ("last N months") narrow the option
+        // list too and from_month re-anchors to the live data — a bounded-only
+        // read here would list values the filtered figure can never show.
+        // Physical time column inferred like the enricher: period_id >
+        // quarter_id > year.
+        let periodFilterExactBounds: PeriodBounds | undefined;
+        if (fetchConfig.periodFilter) {
+          try {
+            const tableName = getResultsObjectTableName(body.resultsObjectId);
+            const hasPeriodId = await detectHasPeriodId(
+              c.var.ppk.projectDb,
+              tableName,
+            );
+            const hasQuarterId =
+              !hasPeriodId &&
+              (await detectColumnExists(c.var.ppk.projectDb, tableName, "quarter_id"));
+            const hasYear =
+              !hasPeriodId &&
+              !hasQuarterId &&
+              (await detectColumnExists(c.var.ppk.projectDb, tableName, "year"));
+            const firstPeriodOption: PeriodOption | undefined = hasPeriodId
+              ? "period_id"
+              : hasQuarterId
+                ? "quarter_id"
+                : hasYear
+                  ? "year"
+                  : undefined;
+            const rawBounds = await getPeriodBounds(
+              c.var.ppk.projectDb,
+              tableName,
+              [],
+              firstPeriodOption,
+              undefined,
+            );
+            periodFilterExactBounds = getPeriodFilterExactBounds(
+              fetchConfig.periodFilter,
+              rawBounds,
+            );
+          } catch (e) {
+            return {
+              success: true as const,
+              data: {
+                projectId: c.var.ppk.projectId,
+                resultsObjectId: body.resultsObjectId,
+                replicateBy: body.replicateBy,
+                fetchConfig: fetchConfig,
+                moduleLastRun,
+                datasetsVersion,
+                status: "error" as const,
+                message: e instanceof Error ? e.message : String(e),
+              },
+            };
+          }
+        }
+
         const resDisPossibleVals = await getPossibleValues(
           c.var.ppk.projectDb,
           body.resultsObjectId,
@@ -678,13 +742,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           c.var.mainDb,
           labelMap,
           fetchConfig.filters,
-          fetchConfig.periodFilter &&
-            periodFilterHasBounds(fetchConfig.periodFilter)
-            ? {
-                min: fetchConfig.periodFilter.min,
-                max: fetchConfig.periodFilter.max,
-              }
-            : undefined,
+          periodFilterExactBounds,
         );
 
         if (resDisPossibleVals.success === false) {
@@ -697,7 +755,10 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               fetchConfig: fetchConfig,
               moduleLastRun,
               datasetsVersion,
-              status: "no_values_available" as const,
+              // Surfaced as its own status (matching the metric-info path)
+              // instead of masquerading as no_values_available.
+              status: "error" as const,
+              message: resDisPossibleVals.err,
             },
           };
         }

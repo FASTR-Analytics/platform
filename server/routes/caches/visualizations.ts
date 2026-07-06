@@ -18,7 +18,10 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // quarters that the new renderer (panther) rejects.
 // "3": replicant-options now honor the self-column subset filter (get_possible_values
 // no longer self-strips), so previously-cached full-value-set payloads are stale.
-const PO_CACHE_VERSION = "3";
+// "4": replicant-options now resolve RELATIVE period filters to exact bounds
+// (and re-anchor from_month) like the items query — previously-cached lists
+// for relative-filtered configs span all time.
+const PO_CACHE_VERSION = "4";
 
 export const _PO_DETAIL_CACHE = new TimCacheC<
   {

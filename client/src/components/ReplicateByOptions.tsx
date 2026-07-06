@@ -149,6 +149,15 @@ export function ReplicateByOptionsPresentationObject(
                   })}
                 </div>
               </Match>
+              <Match when={keyedReplicantOptions.status === "error"}>
+                <div class="text-danger w-36 text-sm">
+                  {t3({
+                    en: "Could not load values.",
+                    fr: "Impossible de charger les valeurs.",
+                    pt: "Não foi possível carregar os valores.",
+                  })}
+                </div>
+              </Match>
               <Match when={keyedReplicantOptions.status === "ok"}>
                 {(() => {
                   const options = cleanedReplicantSelectOptions(
@@ -270,6 +279,15 @@ export function ReplicateByOptionsPresentationObjectSelect(
                   en: "No data available with current filter selection.",
                   fr: "Aucune donnée disponible avec la sélection de filtre actuelle.",
                   pt: "Não há dados disponíveis com a seleção de filtros atual.",
+                })}
+              </div>
+            </Match>
+            <Match when={keyedReplicantOptions.status === "error"}>
+              <div class="text-danger w-36 text-sm">
+                {t3({
+                  en: "Could not load values.",
+                  fr: "Impossible de charger les valeurs.",
+                  pt: "Não foi possível carregar os valores.",
                 })}
               </div>
             </Match>
