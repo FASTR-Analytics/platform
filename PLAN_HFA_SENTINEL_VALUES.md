@@ -113,5 +113,7 @@ family is right).
 ## Status
 
 - Rung 1: implemented
-- Rung 2: not started
+- Rung 2: implemented (app generator committed; m010 parameter edited + built in
+  wb-fastr-modules but left uncommitted there — the working tree has extensive
+  unrelated WIP that a commit would sweep in)
 - Rung 3: not started (stop point — needs a go-ahead and sequencing ruling)

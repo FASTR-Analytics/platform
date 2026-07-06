@@ -11,9 +11,19 @@ import {
   formatCycles,
 } from "./hfa_dependency_analyzer.ts";
 
-function generateMissingnessCheck(qids: string[]): string {
+// -999999 (numeric don't-know) is always missing; -99 (select don't-know) is
+// missing unless the DONT_KNOW_TREATMENT parameter says to treat it as "No"
+// for binary indicators, in which case it falls through to the indicator's
+// positive test and fails it item-by-item (see PLAN_HFA_SENTINEL_VALUES.md).
+function generateMissingnessCheck(
+  qids: string[],
+  includeDontKnow: boolean,
+): string {
+  const sentinelCheck = includeDontKnow
+    ? "%in% c(-99, -999999)"
+    : "== -999999";
   const missingChecks = qids.map(
-    (varName) => `is.na(${varName}) | ${varName} %in% c(-99, -999999)`,
+    (varName) => `is.na(${varName}) | ${varName} ${sentinelCheck}`,
   );
 
   if (missingChecks.length === 0) {
@@ -30,8 +40,10 @@ function buildPerTimePointMutateExpression(
   codeSnippets: HfaIndicatorCode[],
   allIndicatorVarNames: Set<string>,
   knownDatasetVariables: Set<string>,
+  dontKnowAsNo: boolean,
 ): string {
   const timePointBranches: string[] = [];
+  const includeDontKnow = indicator.type === "numeric" || !dontKnowAsNo;
 
   for (const snippet of codeSnippets) {
     const rCode = snippet.rCode.trim();
@@ -46,7 +58,10 @@ function buildPerTimePointMutateExpression(
       allIndicatorVarNames,
       knownDatasetVariables,
     );
-    const missingnessCheck = generateMissingnessCheck(deps.qids);
+    const missingnessCheck = generateMissingnessCheck(
+      deps.qids,
+      includeDontKnow,
+    );
 
     if (indicator.type === "numeric") {
       if (rFilterCode) {
@@ -111,6 +126,10 @@ export function getScriptWithParametersHfa(
   const stopIfIndicatorFails =
     configSelections.parameterSelections["STOP_IF_INDICATOR_FAILS"]?.trim() !==
       "FALSE";
+
+  const dontKnowAsNo =
+    configSelections.parameterSelections["DONT_KNOW_TREATMENT"]?.trim() ===
+      "no";
 
   const allIndicatorVarNames = new Set(indicators.map((ind) => ind.varName));
 
@@ -243,6 +262,7 @@ export function getScriptWithParametersHfa(
         activeSnippets,
         allIndicatorVarNames,
         knownDatasetVariables,
+        dontKnowAsNo,
       );
       return `  mutate(${indicator.varName} = ${expr})`;
     })
