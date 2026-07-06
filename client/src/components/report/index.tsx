@@ -517,19 +517,24 @@ export function ProjectReport(p: Props) {
       getImages: () => images(),
       getSelection: () => editorApi?.getSelection(),
       proposeEdit: async (proposal) => {
+        // The base the proposal was computed from. Every proposing tool builds
+        // newBody from getBody() with only synchronous work before calling
+        // proposeEdit, so body() here IS that base — captured for the rebase
+        // on accept (collaborators may edit while the modal is open).
+        const baseBody = body();
         // Shown as a locking modal (openComponent backdrop) so the user can't do
         // other work without first acting on the proposal. Resolves true/false.
         const accepted = await openComponent({
           element: ReportMarkdownDiff,
           props: {
-            oldText: body(),
+            oldText: baseBody,
             newText: proposal.newBody,
             summary: proposal.summary,
           },
         });
         if (!accepted) return { accepted: false };
-        await applyProposal(proposal);
-        return { accepted: true };
+        const skipped = await applyProposal(proposal, baseBody);
+        return { accepted: true, skipped };
       },
       applyFigureUpdate: (figureId, block) => updateFigure(figureId, block),
     });
@@ -546,17 +551,25 @@ export function ProjectReport(p: Props) {
     return Promise.resolve();
   }
 
-  // Apply an accepted AI proposal to the editor and persist it.
-  async function applyProposal(prop: ReportEditProposal) {
+  // Apply an accepted AI proposal to the editor and persist it. The proposal
+  // is REBASED over anything that changed while it was under review, so a
+  // collaborator's concurrent edits survive; hunks that collide with a
+  // concurrent edit are skipped (returned, surfaced to the user + the AI).
+  async function applyProposal(
+    prop: ReportEditProposal,
+    baseBody: string,
+  ): Promise<number> {
     if (prop.addFigures) {
+      // Added before the body so an inserted token never dangles. If the
+      // token's hunk ends up skipped, the figure is orphaned — harmless (the
+      // load-time prune removes unreferenced registry entries).
       const next = { ...figures(), ...prop.addFigures };
       setFigures(next);
       await persistFigures(next);
     }
     applyingProgrammaticEdit = true;
-    // Minimal-diff replace: under live collab this lands as a small mergeable
-    // Y.Text edit, so a peer typing elsewhere in the doc is untouched.
-    editorApi?.setBody(prop.newBody);
+    const res = editorApi?.applyRebasedBody(baseBody, prop.newBody) ??
+      { applied: 0, skipped: 0 };
     applyingProgrammaticEdit = false;
     if (saveTimer) {
       clearTimeout(saveTimer);
@@ -564,10 +577,24 @@ export function ProjectReport(p: Props) {
     }
     // Live collab persists via the room checkpoint (a REST save here would
     // double-apply after a reconnect catch-up — same rule as the autosave).
+    // Note body(), not prop.newBody: skipped hunks mean the actual text can
+    // differ from the proposal.
     if (!collabReady()) {
-      await persistBody(prop.newBody);
+      await persistBody(body());
+    }
+    if (res.skipped > 0) {
+      void openAlert({
+        text: t3({
+          en: `${res.skipped} of the AI's changes ${
+            res.skipped === 1 ? "was" : "were"
+          } skipped because a collaborator edited that text while you were reviewing. Re-run the AI if you still want those changes.`,
+          fr: `${res.skipped} modification(s) de l'IA ont été ignorée(s) car un collaborateur a modifié ce texte pendant votre relecture. Relancez l'IA si vous souhaitez toujours ces modifications.`,
+          pt: `${res.skipped} alteração(ões) da IA foi/foram ignorada(s) porque um colaborador editou esse texto durante a sua revisão. Volte a executar a IA se ainda quiser essas alterações.`,
+        }),
+      });
     }
     editorApi?.refresh();
+    return res.skipped;
   }
 
   onCleanup(() => {

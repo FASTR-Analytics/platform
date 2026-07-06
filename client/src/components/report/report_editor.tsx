@@ -9,6 +9,7 @@ import type * as Y from "yjs";
 import type { FigureBlock, ImageBlock } from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
+import { rebaseProposedEdits } from "./rebase_edits";
 
 const clamp = (n: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, n));
@@ -38,10 +39,15 @@ function centerTheme(centered: boolean, padRight: number) {
 export type ReportEditorApi = {
   // Insert an embed token on its own line at the current cursor.
   insertEmbedOnNewLine: (token: string) => void;
-  // Replace the document with `body` via a minimal single-region change (used
-  // when accepting a staged AI edit; under live collab the small change merges
-  // with concurrent peer typing instead of clobbering the whole doc).
-  setBody: (body: string) => void;
+  // Apply an accepted AI proposal by REBASING it over whatever changed while
+  // it was under review: the proposal's hunks (baseBody -> newBody) are mapped
+  // onto the live doc; hunks whose text a collaborator concurrently edited are
+  // skipped (returned in `skipped`) so nobody's typing is overwritten. With no
+  // concurrent edits this degenerates to a plain minimal replace.
+  applyRebasedBody: (
+    baseBody: string,
+    newBody: string,
+  ) => { applied: number; skipped: number };
   // Remove an embed's token line (used when deleting a figure/image).
   removeEmbedToken: (kind: "figure" | "image", id: string) => void;
   // Change an embed's caption (the markdown alt text in its token).
@@ -230,30 +236,20 @@ export function ReportEditor(p: Props) {
     view.focus();
   }
 
-  // Minimal single-region replace (prefix/suffix walk, same idea as the CRDT
-  // syncText): under yCollab this becomes a small mergeable Y.Text edit, so an
-  // AI accept doesn't clobber a peer's concurrent typing or move their caret.
-  function setBody(next: string) {
-    if (!view) return;
-    const cur = view.state.doc.toString();
-    if (cur === next) return;
-    const maxPre = Math.min(cur.length, next.length);
-    let pfx = 0;
-    while (pfx < maxPre && cur[pfx] === next[pfx]) pfx++;
-    let sfx = 0;
-    while (
-      sfx < maxPre - pfx &&
-      cur[cur.length - 1 - sfx] === next[next.length - 1 - sfx]
-    ) {
-      sfx++;
-    }
-    view.dispatch({
-      changes: {
-        from: pfx,
-        to: cur.length - sfx,
-        insert: next.slice(pfx, next.length - sfx),
-      },
-    });
+  // See the ReportEditorApi doc comment. Reads the LIVE doc (not the body
+  // signal) so the rebase is correct even if the mirror momentarily lags; all
+  // surviving hunks land in one atomic transaction (positions pre-transaction),
+  // which under yCollab becomes small mergeable Y.Text ops.
+  function applyRebasedBody(baseBody: string, newBody: string) {
+    if (!view) return { applied: 0, skipped: 0 };
+    const currentBody = view.state.doc.toString();
+    const { changes, skipped } = rebaseProposedEdits(
+      baseBody,
+      newBody,
+      currentBody,
+    );
+    if (changes.length > 0) view.dispatch({ changes });
+    return { applied: changes.length, skipped };
   }
 
   function findTokenLine(kind: "figure" | "image", id: string) {
@@ -374,7 +370,7 @@ export function ReportEditor(p: Props) {
 
     p.ref?.({
       insertEmbedOnNewLine,
-      setBody,
+      applyRebasedBody,
       removeEmbedToken,
       setEmbedCaption,
       getSelection,

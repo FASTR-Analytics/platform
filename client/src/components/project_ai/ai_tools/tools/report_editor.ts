@@ -28,6 +28,14 @@ function sanitizeCaption(s: string): string {
   return s.replace(/[[\]\n\r]/g, " ").replace(/\s+/g, " ").trim();
 }
 
+// Appended to a tool's ACCEPTED message when the accept-time rebase skipped
+// hunks that collided with a collaborator's concurrent edits — the AI must
+// know its edit only partially applied.
+function skippedNote(skipped: number | undefined): string {
+  if (!skipped) return "";
+  return ` NOTE: ${skipped} of the proposed change(s) were NOT applied — a collaborator edited that text while the proposal was open. Re-read the report (get_report_editor) before retrying those parts.`;
+}
+
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -357,7 +365,7 @@ export function getToolsForReportEditor(
           ctx.getFigures(),
           ctx.getImages(),
         );
-        const { accepted } = await ctx.proposeEdit({
+        const { accepted, skipped } = await ctx.proposeEdit({
           newBody: input.markdown,
           summary: "Rewrite entire report",
         });
@@ -366,7 +374,8 @@ export function getToolsForReportEditor(
             "The user REJECTED the rewrite; the report is unchanged. Do not retry unless asked.",
           );
         }
-        return "The user ACCEPTED the rewrite; it is now applied to the report.";
+        return "The user ACCEPTED the rewrite; it is now applied to the report." +
+          skippedNote(skipped);
       },
       inProgressLabel: "Proposing rewrite...",
       completionMessage: "Proposed rewrite (awaiting accept/reject)",
@@ -401,7 +410,7 @@ export function getToolsForReportEditor(
           ctx.getFigures(),
           ctx.getImages(),
         );
-        const { accepted } = await ctx.proposeEdit({
+        const { accepted, skipped } = await ctx.proposeEdit({
           newBody: result.newBody,
           summary: `Rewrite section "${input.sectionHeading}"`,
         });
@@ -410,7 +419,8 @@ export function getToolsForReportEditor(
             `The user REJECTED the rewrite of section "${input.sectionHeading}"; the report is unchanged. Do not retry unless asked.`,
           );
         }
-        return `The user ACCEPTED the rewrite of section "${input.sectionHeading}"; it is now applied.`;
+        return `The user ACCEPTED the rewrite of section "${input.sectionHeading}"; it is now applied.` +
+          skippedNote(skipped);
       },
       inProgressLabel: "Proposing section rewrite...",
       completionMessage: "Proposed section rewrite (awaiting accept/reject)",
@@ -445,7 +455,7 @@ export function getToolsForReportEditor(
           ctx.getFigures(),
           ctx.getImages(),
         );
-        const { accepted } = await ctx.proposeEdit({
+        const { accepted, skipped } = await ctx.proposeEdit({
           newBody: result.newBody,
           summary: "Replace text",
         });
@@ -454,7 +464,8 @@ export function getToolsForReportEditor(
             "The user REJECTED the edit; the report is unchanged. Do not retry unless asked.",
           );
         }
-        return "The user ACCEPTED the edit; it is now applied to the report.";
+        return "The user ACCEPTED the edit; it is now applied to the report." +
+          skippedNote(skipped);
       },
       inProgressLabel: "Proposing edit...",
       completionMessage: "Proposed edit (awaiting accept/reject)",
@@ -485,7 +496,7 @@ export function getToolsForReportEditor(
           token,
           input.afterHeading,
         );
-        const { accepted } = await ctx.proposeEdit({
+        const { accepted, skipped } = await ctx.proposeEdit({
           newBody,
           addFigures: { [id]: figureBlock },
           summary: caption ? `Insert figure: ${caption}` : "Insert figure",
@@ -495,7 +506,11 @@ export function getToolsForReportEditor(
             `The user REJECTED the figure insert; the report is unchanged. Do not retry unless asked.`,
           );
         }
-        return `The user ACCEPTED the figure insert (id ${id}); it is now in the report.`;
+        return `The user ACCEPTED the figure insert (id ${id}); it is now in the report.` +
+          skippedNote(skipped) +
+          (skipped
+            ? " If the figure token was in a skipped change, the figure is unreferenced and will be pruned."
+            : "");
       },
       inProgressLabel: "Preparing figure...",
       completionMessage: "Proposed figure insert (awaiting accept/reject)",
@@ -552,7 +567,7 @@ export function getToolsForReportEditor(
           { ...ctx.getFigures(), [newId]: figureBlock },
           ctx.getImages(),
         );
-        const { accepted } = await ctx.proposeEdit({
+        const { accepted, skipped } = await ctx.proposeEdit({
           newBody,
           addFigures: { [newId]: figureBlock },
           summary: "Replace figure",
@@ -562,7 +577,11 @@ export function getToolsForReportEditor(
             `The user REJECTED the figure replacement; the report is unchanged. Do not retry unless asked.`,
           );
         }
-        return `The user ACCEPTED the figure replacement (new id ${newId}); it is now in the report.`;
+        return `The user ACCEPTED the figure replacement (new id ${newId}); it is now in the report.` +
+          skippedNote(skipped) +
+          (skipped
+            ? " If the token swap was in a skipped change, the old figure may still be referenced and the new one unreferenced (it will be pruned)."
+            : "");
       },
       inProgressLabel: "Preparing figure...",
       completionMessage: "Proposed figure replacement (awaiting accept/reject)",
