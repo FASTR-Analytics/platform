@@ -224,6 +224,10 @@ export function SlideEditor(p: Props) {
     }, 100);
   });
 
+  // Collab errors alert at most once per editor instance (reconnect churn
+  // could otherwise repeat the same alert).
+  let collabErrorShown = false;
+
   onMount(() => {
     attemptGetPageInputs(unwrap(tempSlide));
     setAIContext({
@@ -265,7 +269,16 @@ export function SlideEditor(p: Props) {
         // here serialized multi-MB figure bundles twice per remote keystroke).
         setTempSlide(reconcile(docSlide));
       },
-      (errMsg) => console.warn("Slide collab error:", errMsg),
+      (errMsg) => {
+        console.warn("Slide collab error:", errMsg);
+        // The server discards rooms when the slide row is deleted or replaced
+        // (delete, version restore) — further edits here would silently go
+        // nowhere, so tell the user instead of letting them type into a void.
+        if (!collabErrorShown) {
+          collabErrorShown = true;
+          void openAlert({ text: errMsg, intent: "danger" });
+        }
+      },
     );
     setSession(s);
 

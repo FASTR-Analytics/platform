@@ -287,6 +287,27 @@ async function finalizeRoom(room: Room): Promise<void> {
 }
 
 /**
+ * Persist a live room's un-checkpointed edits NOW (no-op when no room is live
+ * or the room is clean). The restore routes call this before snapshotting the
+ * safety version — without it, up to CHECKPOINT_DEBOUNCE_MS of co-editor
+ * typing exists only in the room's doc and would be missed by the snapshot and
+ * then destroyed by the restore.
+ */
+export async function flushRoomForDoc(
+  projectId: string,
+  docType: string,
+  docId: string,
+): Promise<void> {
+  const room = rooms.get(roomKey(projectId, docType, docId));
+  if (!room || !room.dirty) return;
+  if (room.checkpointTimer) {
+    clearTimeout(room.checkpointTimer);
+    room.checkpointTimer = null;
+  }
+  await checkpoint(room);
+}
+
+/**
  * Discard a live room WITHOUT checkpointing — for documents whose row is being
  * deleted or replaced (slide/report delete, deck restore). A room left alive
  * would either fail its checkpoints forever (row gone) or clobber a re-created

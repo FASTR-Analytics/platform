@@ -21,6 +21,7 @@ import {
   closeRoomsForDoc,
   type DocRoomAdapter,
   type DocRoomDeps,
+  flushRoomForDoc,
   relayDocAwareness,
   type RoomConn,
   subscribeDoc,
@@ -123,6 +124,14 @@ export function unsubscribeSlide(
   conn: RoomConn,
 ): void {
   unsubscribeDoc(projectId, DOC_TYPE, slideId, conn);
+}
+
+/** Persist a slide room's un-checkpointed edits now (no-op when none). */
+export function flushSlideRoom(
+  projectId: string,
+  slideId: string,
+): Promise<void> {
+  return flushRoomForDoc(projectId, DOC_TYPE, slideId);
 }
 
 /** Discard a slide's live room without checkpointing — call when the slide

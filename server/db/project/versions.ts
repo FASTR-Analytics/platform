@@ -28,6 +28,12 @@ import { reSequence } from "./slides.ts";
 // Newest N versions kept per document; pruned in the writer after each insert.
 const VERSIONS_KEEP = 100;
 
+// True byte size of stored text — used by the version detail responses so they
+// agree with the SQL octet_length() the list queries use.
+function utf8Bytes(s: string): number {
+  return new TextEncoder().encode(s).length;
+}
+
 // Version snapshots are stored VERBATIM (no schema re-parse on insert): they
 // mirror content that was already validated when it was written to the live
 // tables, and a later schema change must not be able to fail the version
@@ -112,7 +118,7 @@ export async function listReportVersions(
       })[]
     >`
       SELECT id, created_at, editors, restored_from_version_id,
-        (length(body) + length(figures) + length(images)) AS size_bytes
+        (octet_length(body) + octet_length(figures) + octet_length(images)) AS size_bytes
       FROM report_versions
       WHERE report_id = ${reportId}
       ORDER BY created_at DESC
@@ -151,7 +157,8 @@ export async function getReportVersion(
         id: row.id,
         createdAt: row.created_at,
         editors: parseJsonOrThrow<VersionEditor[]>(row.editors),
-        sizeBytes: row.body.length + row.figures.length + row.images.length,
+        sizeBytes: utf8Bytes(row.body) + utf8Bytes(row.figures) +
+          utf8Bytes(row.images),
         restoredFromVersionId: row.restored_from_version_id,
         label: row.label,
         body: row.body,
@@ -319,7 +326,7 @@ export async function listDeckVersions(
       })[]
     >`
       SELECT id, created_at, editors, restored_from_version_id,
-        (length(deck_config) + length(slides)) AS size_bytes,
+        (octet_length(deck_config) + octet_length(slides)) AS size_bytes,
         json_array_length(slides::json) AS slide_count
       FROM deck_versions
       WHERE deck_id = ${deckId}
@@ -362,7 +369,7 @@ export async function getDeckVersion(
         createdAt: row.created_at,
         editors: parseJsonOrThrow<VersionEditor[]>(row.editors),
         slideCount: slides.length,
-        sizeBytes: row.deck_config.length + row.slides.length,
+        sizeBytes: utf8Bytes(row.deck_config) + utf8Bytes(row.slides),
         restoredFromVersionId: row.restored_from_version_id,
         label: row.label,
         deckConfig: parseJsonOrThrow<SlideDeckConfig>(row.deck_config),
@@ -396,6 +403,55 @@ export function planDeckRestore(
     toInsert: snapshotSlides.filter((s) => !current.has(s.id)),
     toUpdate: snapshotSlides.filter((s) => current.has(s.id)),
   };
+}
+
+/** Slide ids are 3-char nanoids whose uniqueness is only checked against LIVE
+ *  rows — a snapshot slide that was deleted may have had its id reused by a
+ *  slide in another deck, so re-inserting it verbatim would violate the PK and
+ *  abort the restore forever. Replace any colliding toInsert id with a fresh
+ *  one (identity only matters for surviving slides; the toInsert rooms were
+ *  discarded anyway). Call BEFORE closing rooms — the colliding id's live room
+ *  belongs to another deck and must not be touched. */
+export async function remapCollidingSlideIds(
+  projectDb: Sql,
+  plan: DeckRestorePlan,
+): Promise<APIResponseWithData<{ plan: DeckRestorePlan; remapped: number }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const ids = plan.toInsert.map((s) => s.id);
+    if (ids.length === 0) {
+      return { success: true, data: { plan, remapped: 0 } };
+    }
+    const colliding = new Set(
+      (
+        await projectDb<{ id: string }[]>`
+          SELECT id FROM slides WHERE id = ANY(${ids})
+        `
+      ).map((r) => r.id),
+    );
+    if (colliding.size === 0) {
+      return { success: true, data: { plan, remapped: 0 } };
+    }
+    // generateUniqueSlideId only checks LIVE rows — also avoid the plan's own
+    // not-yet-inserted ids and fresh ids picked earlier in this loop.
+    const taken = new Set(ids);
+    const toInsert: DeckVersionSlide[] = [];
+    for (const s of plan.toInsert) {
+      if (!colliding.has(s.id)) {
+        toInsert.push(s);
+        continue;
+      }
+      let freshId = await generateUniqueSlideId(projectDb);
+      while (taken.has(freshId)) {
+        freshId = await generateUniqueSlideId(projectDb);
+      }
+      taken.add(freshId);
+      toInsert.push({ ...s, id: freshId });
+    }
+    return {
+      success: true,
+      data: { plan: { ...plan, toInsert }, remapped: colliding.size },
+    };
+  });
 }
 
 /** Deck restore, structural half: one transaction that deletes/re-inserts
@@ -480,33 +536,51 @@ export async function copyDeckFromVersion(
       .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
+    // Validate + prepare EVERYTHING before writing anything, then insert deck
+    // and slides in ONE transaction — a mid-loop failure (e.g. an old snapshot
+    // config the current schema rejects) must not leave a half-copied deck.
+    const parsedDeckConfig = JSON.stringify(slideDeckConfigSchema.parse(config));
+    const parsedSlideConfigs = slides.map((s) =>
+      JSON.stringify(slideConfigSchema.parse(s.config))
+    );
     const newDeckId = await generateUniqueDeckId(projectDb);
+    // generateUniqueSlideId only checks LIVE rows — none of this batch is
+    // inserted yet, so also dedupe within the batch itself.
+    const newSlideIds: string[] = [];
+    const taken = new Set<string>();
+    while (newSlideIds.length < slides.length) {
+      const id = await generateUniqueSlideId(projectDb);
+      if (taken.has(id)) continue;
+      taken.add(id);
+      newSlideIds.push(id);
+    }
     const lastUpdated = new Date().toISOString();
-    await projectDb`
-      INSERT INTO slide_decks (id, label, plan, config, folder_id, last_updated)
-      VALUES (
-        ${newDeckId},
-        ${label.trim()},
-        '',
-        ${JSON.stringify(slideDeckConfigSchema.parse(config))},
-        ${folderId ?? null},
-        ${lastUpdated}
-      )
-    `;
 
-    for (const slide of slides) {
-      const newSlideId = await generateUniqueSlideId(projectDb);
-      await projectDb`
-        INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
+    await projectDb.begin((sql) => [
+      sql`
+        INSERT INTO slide_decks (id, label, plan, config, folder_id, last_updated)
         VALUES (
-          ${newSlideId},
           ${newDeckId},
-          ${slide.sortOrder},
-          ${JSON.stringify(slideConfigSchema.parse(slide.config))},
+          ${label.trim()},
+          '',
+          ${parsedDeckConfig},
+          ${folderId ?? null},
           ${lastUpdated}
         )
-      `;
-    }
+      `,
+      ...slides.map((slide, i) =>
+        sql`
+          INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
+          VALUES (
+            ${newSlideIds[i]},
+            ${newDeckId},
+            ${slide.sortOrder},
+            ${parsedSlideConfigs[i]},
+            ${lastUpdated}
+          )
+        `
+      ),
+    ]);
 
     return { success: true, data: { newDeckId, lastUpdated } };
   });

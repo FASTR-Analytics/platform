@@ -21,13 +21,16 @@ import {
 import {
   applyReportToLiveRoom,
   closeReportRoom,
+  flushReportRoom,
 } from "../../collab/report_rooms.ts";
 import {
+  drainVersionEditors,
   editorFromGlobalUser,
   hashVersionData,
   loadReportVersionData,
   recordVersionEdit,
 } from "../../collab/version_capture.ts";
+import { reportFiguresSchema, reportImagesSchema } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectReportsUpdated } from "../../task_management/notify_project_v2.ts";
@@ -429,9 +432,49 @@ defineRoute(
     }
     const version = versionRes.data;
 
-    // Safety version FIRST: the current state is preserved before anything is
+    // Validate the snapshot against the CURRENT schemas before touching
+    // anything (version snapshots are stored verbatim and are not swept by
+    // migration transforms). Applying unvalidated content to a live room would
+    // poison it: every checkpoint's schema parse would fail forever.
+    let figures: typeof version.figures;
+    let images: typeof version.images;
+    try {
+      figures = reportFiguresSchema.parse(version.figures);
+      images = reportImagesSchema.parse(version.images);
+    } catch {
+      return c.json({
+        success: false as const,
+        err:
+          "This version's content is no longer compatible with the current app version and cannot be restored.",
+      });
+    }
+
+    // Persist any un-checkpointed live-room edits FIRST — the safety snapshot
+    // below reads the DB, and a live room can be up to 1.5s ahead of it.
+    await flushReportRoom(projectId, params.report_id);
+
+    // Absorb the open editing session's attribution into the safety version;
+    // left in the tracker it would hash-dedup against the restored state
+    // later and those editors would never appear in any version.
+    const drained = drainVersionEditors(projectId, "report", params.report_id);
+    const reinjectDrained = () => {
+      for (const e of drained) {
+        recordVersionEdit(projectId, "report", params.report_id, e);
+      }
+    };
+
+    // Safety version: the current state is preserved before anything is
     // overwritten (skipped when it's already the newest stored version).
-    const current = await loadReportVersionData(projectId, params.report_id);
+    let current;
+    try {
+      current = await loadReportVersionData(projectId, params.report_id);
+    } catch (error) {
+      reinjectDrained();
+      return c.json({
+        success: false as const,
+        err: error instanceof Error ? error.message : "Load failed",
+      });
+    }
     if (!current) {
       return c.json({ success: false as const, err: "Report not found" });
     }
@@ -448,10 +491,11 @@ defineRoute(
         body: current.body,
         figures: current.figures,
         images: current.images,
-        editors: [restorer],
+        editors: drained.length > 0 ? drained : [restorer],
         contentHash: currentHash,
       });
       if (!safetyRes.success) {
+        reinjectDrained();
         return c.json(safetyRes);
       }
     }
@@ -461,25 +505,34 @@ defineRoute(
     // below instead of going through the session tracker.
     let lastUpdated = await applyReportToLiveRoom(projectId, params.report_id, {
       body: version.body,
-      figures: version.figures,
-      images: version.images,
+      figures,
+      images,
     });
     if (lastUpdated !== null) {
-      // The label is not part of the room doc — restore it directly.
+      // The label is not part of the room doc — restore it directly. A failed
+      // label write means the restore is PARTIAL: report it as a failure (the
+      // safety version exists; retrying is safe) and record no restored-state
+      // version that would misrepresent the DB.
       const labelRes = await updateReportLabel(
         projectDb,
         params.report_id,
         version.label,
       );
-      if (labelRes.success) {
-        lastUpdated = labelRes.data.lastUpdated;
+      if (!labelRes.success) {
+        notifyLastUpdated(projectId, "reports", [params.report_id], lastUpdated);
+        return c.json({
+          success: false as const,
+          err:
+            `Restored the content but failed to restore the report name: ${labelRes.err}`,
+        });
       }
+      lastUpdated = labelRes.data.lastUpdated;
     } else {
       const res = await restoreReportContent(projectDb, params.report_id, {
         label: version.label,
         body: version.body,
-        figures: version.figures,
-        images: version.images,
+        figures,
+        images,
       });
       if (!res.success) {
         return c.json(res);
@@ -488,20 +541,22 @@ defineRoute(
     }
 
     // The restore itself appears in history (content restored successfully at
-    // this point, so a failed history insert must not fail the request).
+    // this point, so a failed history insert must not fail the request). Uses
+    // the schema-normalized content so the hash matches what a later capture
+    // computes from the DB.
     const restoredData = {
       label: version.label,
       body: version.body,
-      figures: version.figures,
-      images: version.images,
+      figures,
+      images,
     };
     const restoredRes = await insertReportVersion(projectDb, {
       reportId: params.report_id,
       createdAt: new Date().toISOString(),
       label: version.label,
       body: version.body,
-      figures: version.figures,
-      images: version.images,
+      figures,
+      images,
       editors: [restorer],
       contentHash: hashVersionData(restoredData),
       restoredFromVersionId: version.id,

@@ -21,6 +21,7 @@ import {
   closeRoomsForDoc,
   type DocRoomAdapter,
   type DocRoomDeps,
+  flushRoomForDoc,
   relayDocAwareness,
   type RoomConn,
   subscribeDoc,
@@ -98,6 +99,14 @@ export function unsubscribeReport(
   conn: RoomConn,
 ): void {
   unsubscribeDoc(projectId, DOC_TYPE, reportId, conn);
+}
+
+/** Persist a report room's un-checkpointed edits now (no-op when none). */
+export function flushReportRoom(
+  projectId: string,
+  reportId: string,
+): Promise<void> {
+  return flushRoomForDoc(projectId, DOC_TYPE, reportId);
 }
 
 /** Discard a report's live room without checkpointing — call when the report

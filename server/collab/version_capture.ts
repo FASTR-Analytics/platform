@@ -66,13 +66,29 @@ export function hashVersionData(data: unknown): string {
   return createHash("md5").update(canonicalJson(data)).digest("hex");
 }
 
+// The tracker contract: loadPayload null means "document ROW IS GONE — drop
+// the session". Any other failure (connection blip, pool exhaustion, a corrupt
+// row) must THROW so the tracker merges the session back and retries next
+// sweep. tryCatchDatabaseAsync funnels both into {success:false}, so the only
+// discriminator is the not-found messages our own DB functions throw — the
+// classifier's fallback passes them through verbatim.
+const NOT_FOUND_ERRORS = new Set([
+  "Report not found",
+  "Slide deck not found",
+]);
+
+function throwUnlessNotFound(err: string): null {
+  if (NOT_FOUND_ERRORS.has(err)) return null;
+  throw new Error(err);
+}
+
 export async function loadReportVersionData(
   projectId: string,
   reportId: string,
 ): Promise<ReportVersionData | null> {
   const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
   const res = await getReportDetail(projectDb, reportId);
-  if (!res.success) return null;
+  if (!res.success) return throwUnlessNotFound(res.err);
   return {
     label: res.data.label,
     body: res.data.body,
@@ -87,9 +103,11 @@ export async function loadDeckVersionData(
 ): Promise<DeckVersionData | null> {
   const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
   const deckRes = await getSlideDeckDetail(projectDb, deckId);
-  if (!deckRes.success) return null;
+  if (!deckRes.success) return throwUnlessNotFound(deckRes.err);
   const slidesRes = await getSlides(projectDb, deckId);
-  if (!slidesRes.success) return null;
+  // getSlides returns [] for a missing deck (never a not-found error), so any
+  // failure here is transient/corrupt-row — always retry.
+  if (!slidesRes.success) throw new Error(slidesRes.err);
   return {
     label: deckRes.data.label,
     deckConfig: deckRes.data.config,
@@ -191,6 +209,16 @@ export function noteVersionRoomEmpty(
   docId: string,
 ): void {
   tracker.noteRoomEmpty(projectId, kind, docId);
+}
+
+/** Remove the document's open editing session and return its editors — the
+ *  restore routes fold them into the safety version they write. */
+export function drainVersionEditors(
+  projectId: string,
+  kind: VersionKind,
+  docId: string,
+): VersionEditor[] {
+  return tracker.drainEditors(projectId, kind, docId);
 }
 
 export function flushAllVersions(): Promise<void> {

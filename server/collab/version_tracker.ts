@@ -34,7 +34,9 @@ export type VersionPayload = {
 
 export type VersionTrackerDeps = {
   now: () => number;
-  /** Load the document's current content. null = document gone (drop session). */
+  /** Load the document's current content. null MUST mean the document row is
+   *  gone (session dropped); any transient failure must THROW instead so the
+   *  session merges back and retries on the next sweep. */
   loadPayload: (
     projectId: string,
     kind: VersionKind,
@@ -86,6 +88,15 @@ export type VersionTracker = {
   ) => void;
   /** The collab room for this document just emptied — start the grace timer. */
   noteRoomEmpty: (projectId: string, kind: VersionKind, docId: string) => void;
+  /** Remove the document's open session and return its editors. Used by the
+   *  restore routes: the safety version they write absorbs the open session's
+   *  attribution (otherwise those editors would never appear in any version —
+   *  the post-restore flush would hash-dedup against the restored state). */
+  drainEditors: (
+    projectId: string,
+    kind: VersionKind,
+    docId: string,
+  ) => VersionEditor[];
   /** Flush every session whose end condition is met. Run on an interval. */
   sweep: () => Promise<void>;
   /** Flush every open session unconditionally (graceful shutdown). */
@@ -140,6 +151,18 @@ export function createVersionTracker(
   ): void {
     const acc = accumulators.get(accKey(projectId, kind, docId));
     if (acc) acc.roomEmptyAt = deps.now();
+  }
+
+  function drainEditors(
+    projectId: string,
+    kind: VersionKind,
+    docId: string,
+  ): VersionEditor[] {
+    const key = accKey(projectId, kind, docId);
+    const acc = accumulators.get(key);
+    if (!acc) return [];
+    accumulators.delete(key);
+    return [...acc.editors.entries()].map(([email, name]) => ({ email, name }));
   }
 
   function shouldFlush(acc: Accumulator, now: number): boolean {
@@ -223,5 +246,5 @@ export function createVersionTracker(
     }
   }
 
-  return { recordEdit, noteRoomEmpty, sweep, flushAll };
+  return { recordEdit, noteRoomEmpty, drainEditors, sweep, flushAll };
 }

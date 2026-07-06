@@ -38,8 +38,13 @@ window), `content_hash`, `created_at`, and nullable
 - **Schema drift caveat**: snapshots are stored *verbatim* (no zod re-parse on
   insert — a schema change must never fail the version write). Migration
   transform blocks do NOT sweep the version tables; instead, restore/copy
-  parse with the *current* schemas on the way out, normalizing old snapshots
-  the same way old live rows are normalized.
+  validate the whole snapshot with the *current* schemas BEFORE touching
+  anything (normalizing old snapshots the same way old live rows are
+  normalized). A snapshot the current schemas reject fails fast with a clear
+  error and zero side effects — it is never applied to a live room, whose
+  checkpoints would otherwise fail forever.
+- **`sizeBytes`** is true stored bytes: `octet_length()` in the list SQL and a
+  `TextEncoder` count in the detail path, so the two always agree.
 
 ## 2. Capture — editing sessions
 
@@ -58,10 +63,13 @@ flushes to ONE version when any of:
 A 30s sweeper drives flushes
 ([server/collab/version_capture.ts](server/collab/version_capture.ts)
 `startVersionSweeper()`, started in main.ts). Flush = detach accumulator →
-load current content (gone ⇒ drop) → hash-dedup vs newest version → insert +
-prune. A failed insert merges the accumulator back and retries next sweep.
-Graceful shutdown calls `flushAllVersions()` **before** the DB pools close;
-a hard crash loses at most one session window's attribution (accepted).
+load current content → hash-dedup vs newest version → insert + prune. The
+load contract is strict: **null means the document ROW IS GONE** (session
+dropped); the live loaders map only the not-found errors to null and THROW on
+anything else (connection blip, pool exhaustion, corrupt row), which — like a
+failed insert — merges the accumulator back and retries next sweep. Graceful
+shutdown calls `flushAllVersions()` **before** the DB pools close; a hard
+crash loses at most one session window's attribution (accepted).
 
 **Capture points** (all writes are covered — every non-collab write goes
 through the HTTP routes, including client-side AI tools):
@@ -89,39 +97,58 @@ matching route files. `list*Versions` / `get*Version` need `can_view_*`;
 `preventAccessToLockedProjects`. List summaries compute sizes/counts in SQL
 and never ship snapshot content.
 
-**Restore sequencing** (both kinds): ① write a **safety version** of the
-current state (editors = [restorer]; skipped when it already equals the
-newest version by hash) → ② apply the snapshot → ③ write a **restored-state
-version** with `restored_from_version_id` set. Nothing is ever lost, and the
-restore itself appears in history.
+**Restore sequencing** (both kinds): ⓪ validate the snapshot with current
+schemas (fail fast, zero side effects), flush the document's live room(s)
+(`flushRoomForDoc` — the safety snapshot reads the DB, and a room can be up to
+1.5s ahead of it), and drain the document's open tracker session
+(`drainVersionEditors`) → ① write a **safety version** of the current state
+(editors = the drained session's editors, or [restorer] when none; skipped
+when it already equals the newest version by hash — on any early failure the
+drained editors are re-injected into the tracker) → ② apply the snapshot →
+③ write a **restored-state version** with `restored_from_version_id` set.
+Nothing is ever lost, and the restore itself appears in history.
 
 Step ② by kind:
 
 - **Report**: through `applyReportToLiveRoom` when a room is live (co-editors
   follow the restore live in their open editors); label restored by direct
-  update (not part of the room doc). No room ⇒ `restoreReportContent` — one
-  UPDATE whose `last_updated` bump auto-invalidates stored `crdt_state`.
+  update (not part of the room doc) — a failed label write fails the request
+  (partial restore is reported, never masked). No room ⇒
+  `restoreReportContent` — one UPDATE whose `last_updated` bump
+  auto-invalidates stored `crdt_state`.
 - **Deck**: `planDeckRestore(currentIds, snapshotSlides)` (pure) partitions
-  into `toDelete` / `toInsert` / `toUpdate`. Rooms for `toDelete ∪ toInsert`
-  ids are discarded first via `closeRoomsForDoc` (a stale room would fail
-  checkpoints forever on a deleted row, or clobber a re-created one). Then ONE
-  transaction (`restoreDeckStructure`): delete rows, re-insert with original
-  snapshot ids + snapshot order, restore every survivor's sort_order, deck
-  label + config, `reSequence`. Then each `toUpdate` slide's config applies
-  through `applySlideToLiveRoom` (or a direct update when no room). Safe
-  ordering: checkpoints never write `sort_order`, so a straggler checkpoint
-  after the transaction can only rewrite config, and the safety version covers
-  the crash window between transaction and config-apply.
+  into `toDelete` / `toInsert` / `toUpdate`; then `remapCollidingSlideIds`
+  replaces any `toInsert` id that a slide in ANOTHER deck now holds (3-char
+  ids are only unique against live rows — re-inserting verbatim would abort on
+  the PK forever). Rooms for the final `toDelete ∪ toInsert` ids are discarded
+  via `closeRoomsForDoc` (a stale room would fail checkpoints forever on a
+  deleted row, or clobber a re-created one; remapping first means another
+  deck's live room is never touched). Then ONE transaction
+  (`restoreDeckStructure`): delete rows, re-insert with snapshot ids +
+  snapshot order, restore every survivor's sort_order, deck label + config,
+  `reSequence`. Then each `toUpdate` slide's config applies through
+  `applySlideToLiveRoom` (or a direct update when no room); failures are
+  collected — any failure returns an error and skips the restored-state
+  version (history must never claim content the DB doesn't hold; the safety
+  version makes retrying safe). Safe ordering: checkpoints never write
+  `sort_order`, so a straggler checkpoint after the transaction can only
+  rewrite config, and the safety version covers the crash window between
+  transaction and config-apply.
 
 **Restore-as-copy**: `copyReportFromVersion` / `copyDeckFromVersion` create a
 brand-new document from the snapshot (decks get FRESH slide ids — the
-originals may still exist). Zero-risk path; no room interaction.
+originals may still exist). Zero-risk path; no room interaction. Deck copy
+validates every config first and inserts deck + slides in ONE transaction — a
+mid-copy failure must not leave a half-copied deck.
 
 **Room hygiene fix (pre-existing gap)**: `closeRoomsForDoc`
 ([server/collab/doc_rooms.ts](server/collab/doc_rooms.ts)) discards a live
-room *without* checkpointing and errors its clients. It is also wired into
-`deleteSlides`, `deleteSlideDeck` and `deleteReport`, which previously left
-zombie rooms retrying failed checkpoints forever.
+room *without* checkpointing and errors its clients (the slide editor surfaces
+that error as an alert — the user must not keep typing into a discarded room).
+It is also wired into `deleteSlides`, `deleteSlideDeck` and `deleteReport`,
+which previously left zombie rooms retrying failed checkpoints forever;
+`deleteSlideDeck` aborts if the pre-delete slide-id fetch fails, since
+deleting anyway would leave every live room a zombie.
 
 ## 4. UI
 
@@ -150,17 +177,22 @@ overflow menu.
   hash-dedup + the 100 cap (summaries expose `sizeBytes`). Delta storage is
   future work.
 - In-flight checkpoint racing `closeRoomsForDoc`: harmless for deletes (save
-  fails on the gone row); microsecond window for re-inserted ids.
+  fails on the gone row); microsecond window for re-inserted ids. Same class:
+  an id collision appearing between `remapCollidingSlideIds` and the restore
+  transaction.
 - Contributor attribution on hard crash: at most one open session window lost.
 - Hash false-negatives (schema-normalization drift between write paths) can
   produce an occasional duplicate version — harmless.
+- The report editor logs (rather than alerts) collab errors: report rooms are
+  only discarded when the report row is deleted, where the whole editor is
+  already stale.
 
 ## 6. Verification
 
-- Tracker harness (fake clock, 24 asserts): idle-gap, contributor union +
+- Tracker harness (fake clock, 29 asserts): idle-gap, contributor union +
   rename dedup, max-session split, empty-grace + cancellation, hash-dedup,
-  deleted-doc drop, failed-write merge-back/retry, flushAll, per-doc
-  independence.
+  deleted-doc drop, failed-write AND failed-load merge-back/retry, flushAll,
+  drainEditors, per-doc independence.
 - `planDeckRestore` harness (14 asserts): partition invariants, original-id
   preservation, snapshot ordering, empty edge cases.
 - Both are scratch scripts (`deno run --allow-all -c deno.json <file>` with
