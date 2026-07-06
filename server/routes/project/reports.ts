@@ -24,6 +24,7 @@ import {
   closeReportRoom,
   flushReportRoom,
 } from "../../collab/report_rooms.ts";
+import { compactTombstones } from "../../collab/authorship.ts";
 import {
   drainVersionEditors,
   editorFromGlobalUser,
@@ -583,6 +584,11 @@ defineRoute(
     if (!restoredRes.success) {
       console.error("Restored-state version insert failed:", restoredRes.err);
     }
+
+    // A room-path restore floods the live ledger with unknown-deleter
+    // tombstones from the body rewrite — they must not leak into the next
+    // session's version.
+    compactTombstones(projectId, params.report_id);
 
     notifyLastUpdated(projectId, "reports", [params.report_id], lastUpdated);
     const reportsRes = await getAllReports(projectDb);

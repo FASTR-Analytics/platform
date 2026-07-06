@@ -31,6 +31,7 @@ import {
   type VersionEditor,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
+import { compactTombstones } from "./authorship.ts";
 import {
   getReportBodyAuthors,
   getReportDetail,
@@ -188,6 +189,12 @@ async function writeVersion(
       contentHash: payload.contentHash,
       bodyAuthors: data.bodyAuthors,
     });
+    if (res.success) {
+      // This version captured the tombstones; the next version only needs
+      // deletions made after this point. (Live-ledger tombstones from the
+      // last <=1.5s that missed the persisted snapshot fall back — accepted.)
+      compactTombstones(projectId, docId);
+    }
     return res.success;
   }
   const data = payload.data as DeckVersionData;

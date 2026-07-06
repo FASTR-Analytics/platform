@@ -16,8 +16,23 @@
 // stale crdt_state re-seed. Diff views fall back to session-level attribution
 // for those spans. The ledger is best-effort by design — if it ever falls out
 // of alignment with the body it is discarded, never persisted wrong.
+//
+// DELETIONS leave TOMBSTONES: a deleted range's runs are kept in place with
+// `deletedBy` set (the ghost keeps its original writer in `email`). Live runs
+// concatenated still equal the body — tombstones are transparent to body
+// positions — so the alignment invariant counts live characters only. A
+// tombstone's anchor (the live-prefix length before it) is exactly where the
+// text vanished from the current body, which is what the diff views match
+// hunks against; inserts land AFTER tombstones at the same anchor to keep
+// that correspondence. Tombstones live for one version window: after a
+// version snapshots them, compactTombstones drops them.
 
 import type { AuthorRun } from "lib";
+
+// Bounds ledger growth in churn-heavy sessions; dropped tombstones (earliest
+// document positions first — temporal order isn't tracked) simply fall back
+// to session-level attribution.
+const TOMBSTONE_CAP = 2000;
 
 const ledgers = new Map<string, AuthorRun[]>();
 // Persisted runs handed over by the room loader, consumed when the room's doc
@@ -28,8 +43,13 @@ function key(projectId: string, reportId: string): string {
   return `${projectId}::report::${reportId}`;
 }
 
-function totalLen(runs: AuthorRun[]): number {
-  return runs.reduce((n, r) => n + r.len, 0);
+function isTombstone(r: AuthorRun): boolean {
+  return r.deletedBy !== undefined;
+}
+
+/** Live characters only — tombstones are transparent to body positions. */
+function liveLen(runs: AuthorRun[]): number {
+  return runs.reduce((n, r) => (isTombstone(r) ? n : n + r.len), 0);
 }
 
 function mergeAdjacent(runs: AuthorRun[]): AuthorRun[] {
@@ -37,10 +57,27 @@ function mergeAdjacent(runs: AuthorRun[]): AuthorRun[] {
   for (const r of runs) {
     if (r.len <= 0) continue;
     const prev = out[out.length - 1];
-    if (prev && prev.email === r.email) prev.len += r.len;
-    else out.push({ ...r });
+    if (prev && prev.email === r.email && prev.deletedBy === r.deletedBy) {
+      prev.len += r.len;
+    } else {
+      out.push({ ...r });
+    }
   }
   return out;
+}
+
+function capTombstones(runs: AuthorRun[]): AuthorRun[] {
+  let excess = runs.filter(isTombstone).length - TOMBSTONE_CAP;
+  if (excess <= 0) return runs;
+  const out: AuthorRun[] = [];
+  for (const r of runs) {
+    if (isTombstone(r) && excess > 0) {
+      excess--;
+      continue;
+    }
+    out.push(r);
+  }
+  return mergeAdjacent(out);
 }
 
 /** Stash the persisted runs read by the room loader; consumed by initLedger. */
@@ -53,7 +90,8 @@ export function stashPersistedAuthors(
 }
 
 /** Start the ledger for a (re)created room doc. Uses the stashed persisted
- *  runs when they align with the body; otherwise everything starts unknown. */
+ *  runs when they align with the body (tombstones included — they belong to
+ *  the still-open version window); otherwise everything starts unknown. */
 export function initLedger(
   projectId: string,
   reportId: string,
@@ -62,7 +100,7 @@ export function initLedger(
   const k = key(projectId, reportId);
   const persisted = pendingInit.get(k) ?? null;
   pendingInit.delete(k);
-  if (persisted && totalLen(persisted) === bodyLength) {
+  if (persisted && liveLen(persisted) === bodyLength) {
     ledgers.set(k, mergeAdjacent(persisted));
   } else {
     ledgers.set(
@@ -91,14 +129,42 @@ export function applyBodyDelta(
 
   const out: AuthorRun[] = [];
   let idx = 0; // current run in `runs`
-  let offset = 0; // consumed chars of runs[idx]
+  let offset = 0; // consumed chars of runs[idx] (live runs only)
 
-  function take(n: number, keep: boolean, poisonOnOverrun: boolean): void {
+  // Tombstones sitting exactly at the cursor: copy them through so the next
+  // insert lands AFTER them (keeps a tombstone's anchor = the position where
+  // its text vanished) and a delete applies to the live chars beyond them.
+  function copyTombstonesAtCursor(): void {
+    while (idx < runs!.length && isTombstone(runs![idx])) {
+      out.push({ ...runs![idx] });
+      idx++;
+      offset = 0;
+    }
+  }
+
+  // Consume n LIVE characters: "keep" copies them, "delete" converts them to
+  // tombstones (keeping the original writer). Tombstones encountered along
+  // the way are transparent — copied through unchanged.
+  function take(
+    n: number,
+    mode: "keep" | "delete",
+    poisonOnOverrun: boolean,
+  ): void {
     while (n > 0 && idx < runs!.length) {
       const run = runs![idx];
+      if (isTombstone(run)) {
+        out.push({ ...run });
+        idx++;
+        offset = 0;
+        continue;
+      }
       const avail = run.len - offset;
       const used = Math.min(avail, n);
-      if (keep) out.push({ len: used, email: run.email });
+      if (mode === "keep") {
+        out.push({ len: used, email: run.email });
+      } else {
+        out.push({ len: used, email: run.email, deletedBy: email });
+      }
       n -= used;
       offset += used;
       if (offset >= run.len) {
@@ -113,19 +179,25 @@ export function applyBodyDelta(
   }
 
   for (const op of delta) {
-    if ("retain" in op) take(op.retain, true, true);
-    else if ("insert" in op) out.push({ len: op.insert.length, email });
-    else take(op.delete, false, true);
+    if ("retain" in op) {
+      take(op.retain, "keep", true);
+    } else if ("insert" in op) {
+      copyTombstonesAtCursor();
+      out.push({ len: op.insert.length, email });
+    } else {
+      copyTombstonesAtCursor();
+      take(op.delete, "delete", true);
+    }
   }
   // Remainder after the last op is retained implicitly (running out here is
   // normal — deltas don't cover the whole document).
-  take(Number.MAX_SAFE_INTEGER, true, false);
+  take(Number.MAX_SAFE_INTEGER, "keep", false);
 
-  ledgers.set(k, mergeAdjacent(out));
+  ledgers.set(k, capTombstones(mergeAdjacent(out)));
 }
 
-/** Current runs for persistence — null unless they exactly cover the body
- *  (never persist a misaligned ledger). */
+/** Current runs (tombstones included) for persistence — null unless the live
+ *  runs exactly cover the body (never persist a misaligned ledger). */
 export function getAuthorRuns(
   projectId: string,
   reportId: string,
@@ -133,9 +205,19 @@ export function getAuthorRuns(
 ): AuthorRun[] | null {
   const runs = ledgers.get(key(projectId, reportId));
   if (!runs) return null;
-  if (totalLen(runs) !== bodyLength) return null;
+  if (liveLen(runs) !== bodyLength) return null;
   if (runs.some((r) => r.email === "__MISALIGNED__")) return null;
   return runs;
+}
+
+/** Drop all tombstones — called right after a version snapshotted them, so
+ *  the ledger's tombstones always describe "deletions since the last
+ *  version". No-op when no room is live. */
+export function compactTombstones(projectId: string, reportId: string): void {
+  const k = key(projectId, reportId);
+  const runs = ledgers.get(k);
+  if (!runs) return;
+  ledgers.set(k, mergeAdjacent(runs.filter((r) => !isTombstone(r))));
 }
 
 export function dropLedger(projectId: string, reportId: string): void {

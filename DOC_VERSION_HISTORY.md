@@ -102,15 +102,31 @@ nothing for restores (⇒ unknown). Checkpoints persist the ledger in
 version snapshots freeze it in `report_versions.body_authors` (migration 033;
 NOT part of the content hash — dedup is about content, not attribution).
 
+**Deletions leave TOMBSTONES**: a deleted range's runs stay in the ledger with
+`deletedBy` set (keeping the original writer in `email`), anchored exactly
+where the text vanished — live runs concatenated still equal the body, so the
+alignment invariant counts live characters only. Inserts land AFTER tombstones
+at the same anchor, which keeps a tombstone's anchor equal to the diff hunk's
+`fromB` — the positional (not textual) match the client uses. Tombstones live
+for ONE version window: `compactTombstones` drops them right after a version
+snapshots them (called in `writeVersion` and after a restore's version
+inserts), so a version's tombstones are precisely "deletions since the
+previous version". A defensive cap (~2000 tombstone runs) bounds churn-heavy
+sessions.
+
 The diff views split each inserted range by the step's ledger, so hover reads
-"Added by Alice A" (exact) instead of the whole editor set; characters the
-ledger can't attribute — pre-feature text, non-collab edits, restores, a
-stale-crdt_state re-seed — fall back to the session label, phrased honestly as
-"Added by one of: Alice A, Bob B". Deletions stay session-level by design (the
-ledger tracks who wrote the SURVIVING text): exact for single-editor sessions,
-"Removed by one of: …" otherwise. The ledger is best-effort — if it ever falls
-out of alignment with the body it is discarded (poisoned run / length check),
-never persisted wrong.
+"Added by Alice A" (exact) instead of the whole editor set, and split each
+REMOVED range by the step's tombstones, so struck-through spans name the exact
+deleter too — including several spans with different deleters inside one hunk.
+Characters the ledger can't attribute — pre-feature text, non-collab edits,
+restores, a stale-crdt_state re-seed, delete-then-retype mismatches, ranges
+chipped across multiple sessions — fall back to the session label, phrased
+honestly as "Added/Removed by one of: Alice A, Bob B". The ledger is
+best-effort — if it ever falls out of alignment with the body it is discarded
+(poisoned run / live-length check), never persisted wrong. Known 1.5s window:
+a max-session flush snapshots the DB ledger (last checkpoint) but compacts the
+live one, so tombstones from the final ≤1.5s of the window can miss the
+version and fall back.
 
 ## 3. Read + restore APIs
 
@@ -237,14 +253,17 @@ overflow menu.
   drainEditors, per-doc independence.
 - `planDeckRestore` harness (14 asserts): partition invariants, original-id
   preservation, snapshot ordering, empty edge cases.
-- `version_diff` harness (30 asserts incl. 200-chain fuzz): current-doc
+- `version_diff` harness (40 asserts incl. 200-chain fuzz): current-doc
   reassembly, base-char coverage, per-session attribution (replacements,
   later-deletes, edits inside earlier insertions), author-run splitting
-  (exact per-person spans, null-run fallback, deletion exactness), degenerate
-  inputs.
-- `authorship` harness (11 asserts incl. 300-run delta fuzz): attribution and
-  alignment through interleaved edits, unattributed inserts, misalignment
-  poisoning, persisted-run adoption/rejection.
+  (exact per-person spans, null-run fallback), tombstone deletion attribution
+  (exact deleter, multi-deleter splits within one hunk, replacement anchors,
+  length-mismatch and null-deleter fallbacks), degenerate inputs.
+- `authorship` harness (18 asserts incl. 300-run delta fuzz): attribution and
+  alignment through interleaved edits, tombstone creation (writer + deleter
+  kept, ghost order, insert-after-anchor rule, delete-across-tombstone),
+  unknown deleters, compaction, the tombstone cap, unattributed inserts,
+  misalignment poisoning, persisted-run adoption/rejection.
 - Both are scratch scripts (`deno run --allow-all -c deno.json <file>` with
   absolute-path imports — the repo's standard harness idiom).
 - Manual two-user matrix: see the feature checklist in the PR/commit series

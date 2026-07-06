@@ -18,13 +18,18 @@ export type VersionEditor = {
 /** Run-length-encoded per-character authorship of a report body: `len`
  *  characters written by `email` (null = unknown — text that predates the
  *  ledger, was edited outside a live collab room, or came from a restore).
+ *  Runs with `deletedBy` present are TOMBSTONES: characters deleted at this
+ *  position, kept as ghosts so diff views can name the exact deleter
+ *  (deletedBy null = deleter unknown, e.g. a restore's rewrite). Live runs
+ *  concatenated equal the body; tombstones sit where the text used to be.
  *  Maintained by the server room while people type (see
  *  server/collab/authorship.ts) and snapshotted per version so diff views can
- *  attribute each inserted span to its actual author instead of the whole
+ *  attribute each changed span to its actual author instead of the whole
  *  session's editor set. */
 export type AuthorRun = {
   len: number;
   email: string | null;
+  deletedBy?: string | null;
 };
 
 export type ReportVersionSummary = {

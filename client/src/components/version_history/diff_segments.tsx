@@ -21,19 +21,24 @@ export function editorDisplayNames(editors: VersionEditor[]): string {
 }
 
 /** email -> display name map for authorship-run lookups: the session's
- *  editors plus any other emails appearing in the runs (resolved against the
- *  live project users, falling back to the email itself). */
+ *  editors plus any other emails appearing in the runs — writers AND deleters
+ *  (resolved against the live project users, falling back to the email). */
 export function buildAuthorNames(
   editors: VersionEditor[],
-  runs: { email: string | null }[] | null | undefined,
+  runs:
+    | { email: string | null; deletedBy?: string | null }[]
+    | null
+    | undefined,
 ): Record<string, string> {
   const names: Record<string, string> = {};
   for (const e of editors) {
     names[e.email] = editorDisplayName(e);
   }
   for (const run of runs ?? []) {
-    if (run.email !== null && !(run.email in names)) {
-      names[run.email] = editorDisplayName({ email: run.email, name: run.email });
+    for (const email of [run.email, run.deletedBy]) {
+      if (email !== null && email !== undefined && !(email in names)) {
+        names[email] = editorDisplayName({ email, name: email });
+      }
     }
   }
   return names;
