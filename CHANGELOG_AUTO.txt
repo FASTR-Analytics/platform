@@ -1,3 +1,5 @@
+[TBD] [user] [added] - Response status tracking for each facility and time point in health facility assessments
+[TBD] [admin] [added] - HFA indicators now track response status per facility and time point
 [TBD] [user] [fixed] - Replicate-by dropdown now updates when changing time period filters
 [TBD] [user] [fixed] - Replicate-by dropdown shows proper error message when values fail to load
 [TBD] [user] [fixed] - Chart previews no longer briefly show stale data during rapid updates
