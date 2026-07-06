@@ -9,8 +9,10 @@ import {
 } from "../../types/mod.ts";
 import { ADMIN_LEVELS } from "../../admin_area_rollup.ts";
 import {
+  INTEGER_FILTER_COLUMNS,
   SQL_IDENTIFIER,
   isSafePostAggregationExpression,
+  isValidIntegerFilterValue,
 } from "../../validate_fetch_config.ts";
 import type {
   DisaggregationOption,
@@ -45,10 +47,26 @@ const fetchConfigValuesItemSchema = z.object({
 const genericLongFormFetchConfigSchema = z.object({
   values: z.array(fetchConfigValuesItemSchema),
   groupBys: z.array(disaggregationOption),
-  filters: z.array(z.object({
-    disOpt: disaggregationOption,
-    values: z.array(z.union([z.string(), z.number()])),
-  })),
+  filters: z.array(
+    z.object({
+      disOpt: disaggregationOption,
+      values: z.array(z.union([z.string(), z.number()])),
+    }).superRefine((filter, ctx) => {
+      // Mirror of the validateFetchConfig guard: integer-path columns are
+      // Number()-coerced and bare-interpolated, so non-numeric values would
+      // emit `col IN (NaN)` — invalid SQL.
+      if (!INTEGER_FILTER_COLUMNS.has(filter.disOpt)) return;
+      filter.values.forEach((v, i) => {
+        if (!isValidIntegerFilterValue(v)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["values", i],
+            message: `Non-numeric value for integer column '${filter.disOpt}'`,
+          });
+        }
+      });
+    }),
+  ),
   periodFilter: periodFilterSchema,
   periodFilterExactBounds: z.object({ min: z.number(), max: z.number() }).optional(),
   postAggregationExpression: z

@@ -4,6 +4,7 @@ import type {
   PeriodOption,
 } from "lib";
 import {
+  INTEGER_FILTER_COLUMNS,
   inferPeriodFormatFromValuesIfTheSame,
   isAdminLevel,
   ROLLUP_SENTINEL,
@@ -197,19 +198,15 @@ export function buildWhereClause(
 ): string[] {
   const whereStatements: string[] = [];
 
-  // Add filter conditions (case-insensitive for text, direct for integers)
-  const INTEGER_COLUMNS = new Set([
-    "year",
-    "month",
-    "quarter_id",
-    "period_id",
-  ]);
-
+  // Add filter conditions: case-insensitive for text, direct for integers.
+  // The set lives in lib (INTEGER_FILTER_COLUMNS) beside the boundary
+  // validators that guard its values; note `month` is NOT integer — the
+  // derived month column is zero-padded LPAD text ("03").
   for (const filter of fetchConfig.filters) {
     if (filter.values.length === 0) continue;
 
     const columnName = columnPrefixes?.get(filter.disOpt) || filter.disOpt;
-    const isIntegerColumn = INTEGER_COLUMNS.has(filter.disOpt);
+    const isIntegerColumn = INTEGER_FILTER_COLUMNS.has(filter.disOpt);
 
     if (isIntegerColumn) {
       // Direct comparison for integer columns

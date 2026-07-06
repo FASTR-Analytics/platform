@@ -89,6 +89,24 @@ export function isValidDisaggregationOption(disOpt: string): boolean {
   return DISAGGREGATION_OPTION_SET.has(disOpt);
 }
 
+// Filter columns whose values are Number()-coerced and interpolated bare
+// (buildWhereClause emits `col IN (n, …)`). Everything else takes the escaped
+// text path (`UPPER(col) IN ('…')`). NOT in this set: `month` — the derived
+// month column is zero-padded TEXT (`LPAD`, "03"), and Postgres has no
+// text = integer operator; `time_point` — an HFA text label.
+export const INTEGER_FILTER_COLUMNS: ReadonlySet<string> = new Set([
+  "year",
+  "quarter_id",
+  "period_id",
+]);
+
+// Guard for values destined for the bare-interpolated integer path: a
+// non-numeric value would emit `col IN (NaN)` — invalid SQL surfacing as a
+// swallowed generic DB error instead of a clean validation failure.
+export function isValidIntegerFilterValue(v: string | number): boolean {
+  return Number.isFinite(Number(v));
+}
+
 export function validateFetchConfig(
   fetchConfig: GenericLongFormFetchConfig
 ): void {
@@ -144,6 +162,15 @@ export function validateFetchConfig(
           `Invalid filter value for column '${filter.disOpt}' at index ${i}: ` +
           `Expected string or number but got ${typeof val} with value: ${JSON.stringify(val)}. ` +
           `Full filter.values array: ${JSON.stringify(filter.values)}`
+        );
+      }
+      if (
+        INTEGER_FILTER_COLUMNS.has(filter.disOpt) &&
+        !isValidIntegerFilterValue(val)
+      ) {
+        throw new Error(
+          `Invalid filter value for integer column '${filter.disOpt}' at index ${i}: ` +
+          `expected a numeric value but got ${JSON.stringify(val)}`
         );
       }
     }
