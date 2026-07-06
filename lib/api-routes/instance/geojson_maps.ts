@@ -44,6 +44,11 @@ export const geojsonMapRouteRegistry = {
       areaMatchProp: z.string(),
       areaMapping: z.record(z.string(), z.string()),
     }),
+    response: {} as {
+      featureCount: number;
+      matchedCount: number;
+      unmatchedCount: number;
+    },
   }),
   deleteGeoJsonMap: route({
     path: "/geojson-maps/delete",
@@ -102,5 +107,13 @@ export const geojsonMapRouteRegistry = {
       areaMatchProp: z.string(),
       areaMapping: z.record(z.string(), z.string()),
     }),
+    response: {} as {
+      featureCount: number;
+      matchedCount: number;
+      unmatchedCount: number;
+    },
+    // The save step does the heavy DHIS2 geometry fetch (server-side cap
+    // 180 s) plus processing — make the client budget explicit.
+    timeoutMs: 300000,
   }),
 } as const;

@@ -19,13 +19,18 @@ import {
 import { validateDhis2Connection } from "../../dhis2/common/base_fetcher.ts";
 import { getOrgUnitMetadata } from "../../dhis2/goal1_org_units_v2/get_metadata.ts";
 import {
+  fetchGeometryCountForLevel,
   fetchOrgUnitsGeoJsonForLevel,
-  buildDhis2Context,
-  getCacheKey,
-  getFromCache,
-  setInCache,
-  type GeoJsonFeatureCollection,
+  fetchOrgUnitsMetadataForLevel,
+  getCredsCacheKey,
+  heavyGeoJsonSessionCache,
+  metadataSessionCache,
 } from "../../dhis2/goal4_geojson/mod.ts";
+
+// The heavy .geojson pull is ~20 MB / up to ~43 s for a 200-district country.
+// Generous timeout, and NO retries — a transient failure must not re-download
+// the payload up to 5× (the shared fetcher's default).
+const HEAVY_GEOJSON_FETCH = { timeoutMs: 180000, maxAttempts: 1 };
 
 export const routesGeoJsonMaps = new Hono();
 
@@ -89,20 +94,34 @@ defineRoute(
     }
     try {
       const rawGeoJson = await readAssetFile(assetFileName);
-      const processedGeoJson = processGeoJson(
-        rawGeoJson,
-        areaMatchProp,
-        areaMapping,
-      );
+      const result = processGeoJson(rawGeoJson, areaMatchProp, areaMapping);
+      // Never store an empty map: a wrong/renamed match property silently
+      // drops every feature (matchValue == null → skipped).
+      if (result.featureCount === 0) {
+        return c.json({
+          success: false,
+          err: result.droppedNoMatchValueCount > 0
+            ? `The match property "${areaMatchProp}" is not present on the file's features — nothing would be saved`
+            : "No features with geometry to save",
+        });
+      }
       const res = await saveGeoJsonMap(
         c.var.mainDb,
         adminAreaLevel,
-        processedGeoJson,
+        result.geojson,
       );
-      if (res.success) {
-        notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
+      if (res.success === false) {
+        return c.json(res);
       }
-      return c.json(res);
+      notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
+      return c.json({
+        success: true,
+        data: {
+          featureCount: result.featureCount,
+          matchedCount: result.matchedCount,
+          unmatchedCount: result.unmatchedCount,
+        },
+      });
     } catch (e) {
       return c.json({
         success: false,
@@ -266,54 +285,48 @@ defineRoute(
     }
 
     try {
-      const cacheKey = getCacheKey(url, username, password, dhis2Level);
-      let cached = getFromCache(cacheKey);
+      // Metadata-only analyze: the matching UI needs names, never polygons.
+      // The full geometry is fetched at SAVE (dhis2SaveGeoJsonMap below).
+      const cacheKey = await getCredsCacheKey(url, username, password, dhis2Level);
+      let cached = metadataSessionCache.get(cacheKey);
 
       if (!cached) {
-        const featureCollection = await fetchOrgUnitsGeoJsonForLevel(body, dhis2Level);
-        const dhis2Features = await buildDhis2Context(body, featureCollection);
-
-        cached = {
-          fetchedAt: Date.now(),
-          featureCollection,
-          dhis2Features,
-        };
-        setInCache(cacheKey, cached);
+        const [units, withGeometryCount] = await Promise.all([
+          fetchOrgUnitsMetadataForLevel(body, dhis2Level),
+          fetchGeometryCountForLevel(body, dhis2Level),
+        ]);
+        cached = { fetchedAt: Date.now(), units, withGeometryCount };
+        metadataSessionCache.set(cacheKey, cached);
       }
 
-      const { featureCollection, dhis2Features } = cached;
-
-      const propValues: Record<string, Set<string>> = {};
-      let nullGeometryCount = 0;
-
-      for (const feature of featureCollection.features) {
-        if (feature.geometry === null || feature.geometry === undefined) {
-          nullGeometryCount++;
-          continue;
-        }
-        if (!feature.properties) continue;
-        for (const [key, val] of Object.entries(feature.properties)) {
-          if (val == null) continue;
-          if (!propValues[key]) {
-            propValues[key] = new Set();
-          }
-          propValues[key].add(String(val));
-        }
-      }
-
-      const properties = Object.keys(propValues).sort();
-      const sampleValues: Record<string, string[]> = {};
-      for (const prop of properties) {
-        sampleValues[prop] = Array.from(propValues[prop]).sort();
-      }
-
-      const featureCount = featureCollection.features.length - nullGeometryCount;
+      const featureCount = cached.withGeometryCount;
+      // Units with no stored boundary — the .geojson endpoint OMITS them (it
+      // does not return null-geometry features), so this is metadata total
+      // minus the exact with-geometry count.
+      const nullGeometryCount = cached.units.length - cached.withGeometryCount;
 
       if (featureCount === 0) {
         return c.json({
           success: false,
           err: `No features with geometry found at DHIS2 level ${dhis2Level}. This level may not have geographic boundaries stored in DHIS2.`,
         });
+      }
+
+      // Offer only match properties guaranteed present in the .geojson the
+      // save step fetches: name always; code only where units carry one
+      // (verified live: Cameroon L3 has no codes at all).
+      const nameValues = new Set<string>();
+      const codeValues = new Set<string>();
+      for (const unit of cached.units) {
+        if (unit.name !== "") nameValues.add(unit.name);
+        if (unit.code !== null) codeValues.add(unit.code);
+      }
+      const properties = codeValues.size > 0 ? ["code", "name"] : ["name"];
+      const sampleValues: Record<string, string[]> = {
+        name: Array.from(nameValues).sort(),
+      };
+      if (codeValues.size > 0) {
+        sampleValues.code = Array.from(codeValues).sort();
       }
 
       return c.json({
@@ -323,7 +336,7 @@ defineRoute(
           sampleValues,
           featureCount,
           nullGeometryCount,
-          dhis2Features,
+          dhis2Features: cached.units,
         },
       });
     } catch (e) {
@@ -354,8 +367,11 @@ defineRoute(
     }
 
     try {
-      const cacheKey = getCacheKey(url, username, password, dhis2Level);
-      let cached = getFromCache(cacheKey);
+      // The heavy geometry fetch happens HERE, not at analyze. The small
+      // heavy cache exists so a re-save after fixing a mapping isn't another
+      // multi-minute fetch.
+      const cacheKey = await getCredsCacheKey(url, username, password, dhis2Level);
+      let cached = heavyGeoJsonSessionCache.get(cacheKey);
 
       if (!cached) {
         const validation = await validateDhis2Connection({ url, username, password });
@@ -363,30 +379,46 @@ defineRoute(
           return c.json({ success: false, err: validation.message.en });
         }
 
-        const featureCollection = await fetchOrgUnitsGeoJsonForLevel(body, dhis2Level);
-        const dhis2Features = await buildDhis2Context(body, featureCollection);
-
-        cached = {
-          fetchedAt: Date.now(),
-          featureCollection,
-          dhis2Features,
-        };
-        setInCache(cacheKey, cached);
+        const featureCollection = await fetchOrgUnitsGeoJsonForLevel(
+          body,
+          dhis2Level,
+          HEAVY_GEOJSON_FETCH,
+        );
+        cached = { fetchedAt: Date.now(), featureCollection };
+        heavyGeoJsonSessionCache.set(cacheKey, cached);
       }
 
-      const processedGeoJson = processGeoJsonFromDhis2(
-        cached.featureCollection as GeoJsonFeatureCollection,
+      const result = processGeoJsonFromDhis2(
+        cached.featureCollection,
         areaMatchProp,
         areaMapping,
       );
 
-      const res = await saveGeoJsonMap(c.var.mainDb, adminAreaLevel, processedGeoJson);
-
-      if (res.success) {
-        notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
+      // Never store an empty map. The mapping was built against the .json
+      // metadata but is applied against .geojson feature properties — if the
+      // match property is absent there, every feature is silently dropped.
+      if (result.featureCount === 0) {
+        return c.json({
+          success: false,
+          err: result.droppedNoMatchValueCount > 0
+            ? `The match property "${areaMatchProp}" is not present on the DHIS2 geojson features — nothing would be saved`
+            : `No features with geometry found at DHIS2 level ${dhis2Level} — nothing to save`,
+        });
       }
 
-      return c.json(res);
+      const res = await saveGeoJsonMap(c.var.mainDb, adminAreaLevel, result.geojson);
+      if (res.success === false) {
+        return c.json(res);
+      }
+      notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
+      return c.json({
+        success: true,
+        data: {
+          featureCount: result.featureCount,
+          matchedCount: result.matchedCount,
+          unmatchedCount: result.unmatchedCount,
+        },
+      });
     } catch (e) {
       return c.json({
         success: false,

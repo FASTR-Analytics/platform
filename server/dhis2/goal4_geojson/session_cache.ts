@@ -1,81 +1,82 @@
-import type { CachedGeoJsonData } from "./types.ts";
+import type { CachedGeoJsonMetadata, CachedHeavyGeoJson } from "./types.ts";
 
+// Two process-local session caches for the DHIS2 geojson import wizard,
+// deliberately separate namespaces (they cache different payloads for the
+// same credentials+level key):
+// - metadata (analyze): tiny org-unit metadata + geometry count — the user
+//   builds the mapping against this.
+// - heavy (save): the full ~20 MB FeatureCollection — kept only so a re-save
+//   after fixing a mapping isn't another multi-minute DHIS2 fetch.
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
-const MAX_CACHE_ENTRIES = 10;
+const MAX_METADATA_ENTRIES = 10;
+const MAX_HEAVY_ENTRIES = 2;
 
-const cache = new Map<string, CachedGeoJsonData>();
-
-function hashCacheKey(url: string, username: string, password: string, dhis2Level: number): string {
-  const input = `${url}|${username}|${password}|${dhis2Level}`;
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return `geojson_${hash.toString(16)}_${dhis2Level}`;
+// SHA-256 over creds+level (the previous key was a 32-bit string hash over
+// the plaintext-concatenated password — trivially collidable).
+export async function getCredsCacheKey(
+  url: string,
+  username: string,
+  password: string,
+  dhis2Level: number,
+): Promise<string> {
+  const data = new TextEncoder().encode(
+    `${url}|${username}|${password}|${dhis2Level}`,
+  );
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-function evictOldest(): void {
-  if (cache.size === 0) return;
+type SessionCache<T> = {
+  get(key: string): T | null;
+  set(key: string, value: T): void;
+};
 
-  let oldestKey: string | null = null;
-  let oldestTime = Infinity;
+function createSessionCache<T extends { fetchedAt: number }>(
+  maxEntries: number,
+): SessionCache<T> {
+  const cache = new Map<string, T>();
 
-  for (const [key, value] of cache) {
-    if (value.fetchedAt < oldestTime) {
-      oldestTime = value.fetchedAt;
-      oldestKey = key;
+  function evictExpired(): void {
+    const now = Date.now();
+    for (const [key, value] of cache) {
+      if (now - value.fetchedAt > CACHE_TTL_MS) {
+        cache.delete(key);
+      }
     }
   }
 
-  if (oldestKey) {
-    cache.delete(oldestKey);
-  }
-}
-
-function evictExpired(): void {
-  const now = Date.now();
-  for (const [key, value] of cache) {
-    if (now - value.fetchedAt > CACHE_TTL_MS) {
-      cache.delete(key);
+  function evictOldest(): void {
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+    for (const [key, value] of cache) {
+      if (value.fetchedAt < oldestTime) {
+        oldestTime = value.fetchedAt;
+        oldestKey = key;
+      }
+    }
+    if (oldestKey) {
+      cache.delete(oldestKey);
     }
   }
+
+  return {
+    get(key: string): T | null {
+      evictExpired();
+      return cache.get(key) ?? null;
+    },
+    set(key: string, value: T): void {
+      evictExpired();
+      while (cache.size >= maxEntries) {
+        evictOldest();
+      }
+      cache.set(key, value);
+    },
+  };
 }
 
-export function getCacheKey(url: string, username: string, password: string, dhis2Level: number): string {
-  return hashCacheKey(url, username, password, dhis2Level);
-}
-
-export function getFromCache(cacheKey: string): CachedGeoJsonData | null {
-  evictExpired();
-
-  const entry = cache.get(cacheKey);
-  if (!entry) return null;
-
-  const now = Date.now();
-  if (now - entry.fetchedAt > CACHE_TTL_MS) {
-    cache.delete(cacheKey);
-    return null;
-  }
-
-  return entry;
-}
-
-export function setInCache(cacheKey: string, data: CachedGeoJsonData): void {
-  evictExpired();
-
-  while (cache.size >= MAX_CACHE_ENTRIES) {
-    evictOldest();
-  }
-
-  cache.set(cacheKey, data);
-}
-
-export function invalidateCache(cacheKey: string): void {
-  cache.delete(cacheKey);
-}
-
-export function clearAllCache(): void {
-  cache.clear();
-}
+export const metadataSessionCache =
+  createSessionCache<CachedGeoJsonMetadata>(MAX_METADATA_ENTRIES);
+export const heavyGeoJsonSessionCache =
+  createSessionCache<CachedHeavyGeoJson>(MAX_HEAVY_ENTRIES);

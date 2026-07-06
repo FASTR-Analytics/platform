@@ -56,59 +56,63 @@ export function analyzeGeoJson(rawGeoJsonStr: string): GeoJsonAnalysisResult {
   };
 }
 
+export type ProcessedGeoJsonResult = {
+  geojson: string;
+  // Features stored (had geometry AND a readable match value)
+  featureCount: number;
+  // Of those, mapped to an admin area vs kept with area_id "" (mappable later)
+  matchedCount: number;
+  unmatchedCount: number;
+  // Dropped: geometry-less, or the match property was absent/null on the feature
+  droppedNoGeometryCount: number;
+  droppedNoMatchValueCount: number;
+};
+
 export function processGeoJson(
   rawGeoJsonStr: string,
   areaMatchProp: string,
   areaMapping: Record<string, string>,
-): string {
+): ProcessedGeoJsonResult {
   const parsed = JSON.parse(rawGeoJsonStr) as GeoJsonFeatureCollection;
   if (parsed.type !== "FeatureCollection" || !Array.isArray(parsed.features)) {
     throw new Error("Invalid GeoJSON: expected a FeatureCollection");
   }
-
-  const processedFeatures: GeoJsonFeature[] = [];
-  for (const feature of parsed.features) {
-    if (feature.geometry === null || feature.geometry === undefined) {
-      continue;
-    }
-    const matchValue = feature.properties?.[areaMatchProp];
-    if (matchValue == null) continue;
-    const sourceName = String(matchValue);
-    const adminAreaName = areaMapping[sourceName] ?? "";
-
-    processedFeatures.push({
-      type: "Feature",
-      geometry: feature.geometry,
-      properties: {
-        area_id: adminAreaName,
-        source_name: sourceName,
-      },
-    });
-  }
-
-  const result: GeoJsonFeatureCollection = {
-    type: "FeatureCollection",
-    features: processedFeatures,
-  };
-
-  return JSON.stringify(result);
+  return processFeatures(parsed.features, areaMatchProp, areaMapping);
 }
 
 export function processGeoJsonFromDhis2(
   featureCollection: { type: "FeatureCollection"; features: GeoJsonFeature[] },
   areaMatchProp: string,
   areaMapping: Record<string, string>,
-): string {
+): ProcessedGeoJsonResult {
+  return processFeatures(featureCollection.features, areaMatchProp, areaMapping);
+}
+
+function processFeatures(
+  features: GeoJsonFeature[],
+  areaMatchProp: string,
+  areaMapping: Record<string, string>,
+): ProcessedGeoJsonResult {
   const processedFeatures: GeoJsonFeature[] = [];
-  for (const feature of featureCollection.features) {
+  let matchedCount = 0;
+  let droppedNoGeometryCount = 0;
+  let droppedNoMatchValueCount = 0;
+
+  for (const feature of features) {
     if (feature.geometry === null || feature.geometry === undefined) {
+      droppedNoGeometryCount++;
       continue;
     }
-
     const matchValue = feature.properties?.[areaMatchProp];
-    if (matchValue == null) continue;
+    if (matchValue == null) {
+      droppedNoMatchValueCount++;
+      continue;
+    }
     const sourceName = String(matchValue);
     const adminAreaName = areaMapping[sourceName] ?? "";
+    if (adminAreaName !== "") {
+      matchedCount++;
+    }
 
     processedFeatures.push({
       type: "Feature",
@@ -125,5 +129,12 @@ export function processGeoJsonFromDhis2(
     features: processedFeatures,
   };
 
-  return JSON.stringify(result);
+  return {
+    geojson: JSON.stringify(result),
+    featureCount: processedFeatures.length,
+    matchedCount,
+    unmatchedCount: processedFeatures.length - matchedCount,
+    droppedNoGeometryCount,
+    droppedNoMatchValueCount,
+  };
 }

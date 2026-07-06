@@ -20,16 +20,17 @@ export type Dhis2FeatureContext = {
   parentName: string | null;
 };
 
-export type GeoJsonAnalysisWithDhis2Context = {
-  properties: string[];
-  sampleValues: Record<string, string[]>;
-  featureCount: number;
-  nullGeometryCount: number;
-  dhis2Features: Dhis2FeatureContext[];
+// Analyze-side cache payload: org-unit metadata + the exact with-geometry
+// count. The user builds the mapping against this; no coordinates involved.
+export type CachedGeoJsonMetadata = {
+  fetchedAt: number;
+  units: Dhis2FeatureContext[];
+  withGeometryCount: number;
 };
 
-export type CachedGeoJsonData = {
+// Save-side cache payload: the full FeatureCollection (~20 MB for a
+// 200-district country) — kept only so a re-save doesn't re-fetch.
+export type CachedHeavyGeoJson = {
   fetchedAt: number;
   featureCollection: GeoJsonFeatureCollection;
-  dhis2Features: Dhis2FeatureContext[];
 };

@@ -1,16 +1,17 @@
 export { fetchOrgUnitsGeoJsonForLevel } from "./fetch_geojson.ts";
-export { buildDhis2Context } from "./build_dhis2_context.ts";
 export {
-  getCacheKey,
-  getFromCache,
-  setInCache,
-  invalidateCache,
-  clearAllCache,
+  fetchGeometryCountForLevel,
+  fetchOrgUnitsMetadataForLevel,
+} from "./fetch_metadata.ts";
+export {
+  getCredsCacheKey,
+  heavyGeoJsonSessionCache,
+  metadataSessionCache,
 } from "./session_cache.ts";
 export type {
+  CachedGeoJsonMetadata,
+  CachedHeavyGeoJson,
+  Dhis2FeatureContext,
   GeoJsonFeature,
   GeoJsonFeatureCollection,
-  Dhis2FeatureContext,
-  GeoJsonAnalysisWithDhis2Context,
-  CachedGeoJsonData,
 } from "./types.ts";
