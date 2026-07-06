@@ -1,37 +1,57 @@
 import type { Sql } from "postgres";
 import { detectColumnExists, detectHasPeriodId } from "../db/utils.ts";
 import type { PeriodBounds, PeriodOption } from "lib";
-import { PERIOD_COLUMN_EXPRESSIONS, QUARTER_ID_COLUMN_EXPRESSIONS, getQuarterIdExpression } from "./period_helpers.ts";
+import {
+  buildPeriodCTESelectColumns,
+  needsPeriodCTEFor,
+  PERIOD_COLUMN_EXPRESSIONS,
+  QUARTER_ID_COLUMN_EXPRESSIONS,
+  type DynamicPeriodColumn,
+  type PeriodCTEContext,
+} from "./period_helpers.ts";
 
+// periodCtx carries the main query path's context so the CTE gate here uses
+// the SAME rule (needsPeriodCTEFor) — the old hand-written substring sniff was
+// hasPeriodId-only and emitted invalid SQL on quarter_id-only tables with a
+// derived-year filter. Callers with no filters (whereStatements = []) pass
+// undefined: their WHERE can never reference a derived column, so no CTE is
+// ever needed and hasPeriodId/hasQuarterId are detected on demand.
 export async function getPeriodBounds(
   projectDb: Sql,
   tableName: string,
-  whereStatements: string[] = [],
+  whereStatements: string[],
   firstPeriodOption: PeriodOption | undefined,
-  hasPeriodId?: boolean
+  periodCtx: PeriodCTEContext | undefined,
 ): Promise<PeriodBounds | undefined> {
   if (!firstPeriodOption) return undefined;
 
-  // Detect hasPeriodId if not provided
-  if (hasPeriodId === undefined) {
-    hasPeriodId = await detectHasPeriodId(projectDb, tableName);
-  }
+  const hasPeriodId =
+    periodCtx?.hasPeriodId ?? (await detectHasPeriodId(projectDb, tableName));
 
-  // Check if WHERE statements reference dynamic period columns
-  const needsPeriodCTE = hasPeriodId && whereStatements.some(stmt =>
-    stmt.includes("year") || stmt.includes("month") || stmt.includes("quarter_id")
-  );
+  const neededPeriodColumns =
+    periodCtx?.neededPeriodColumns ?? new Set<DynamicPeriodColumn>();
+  const useCTE = needsPeriodCTEFor({
+    hasPeriodId,
+    hasQuarterId: periodCtx?.hasQuarterId ?? false,
+    neededPeriodColumns,
+  });
 
-  // Build source table reference - wrap in CTE if dynamic period columns are referenced
-  let sourceTable = tableName;
   let ctePrefix = "";
-
-  if (needsPeriodCTE) {
+  let sourceTable = tableName;
+  if (useCTE && periodCtx) {
+    // The gate is decided by the filters' needs, but when the year branch
+    // below reads MIN/MAX(year) off the CTE, year must be among its derived
+    // columns even if no filter referenced it.
+    const cteColumns =
+      firstPeriodOption === "year"
+        ? new Set<DynamicPeriodColumn>([...periodCtx.neededPeriodColumns, "year"])
+        : periodCtx.neededPeriodColumns;
+    const selectColumns = buildPeriodCTESelectColumns({
+      ...periodCtx,
+      neededPeriodColumns: cteColumns,
+    });
     ctePrefix = `WITH period_data AS (
-  SELECT *,
-    ${PERIOD_COLUMN_EXPRESSIONS.year} AS year,
-    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,
-    ${getQuarterIdExpression()} AS quarter_id
+  SELECT ${selectColumns.join(",\n    ")}
   FROM ${tableName}
 )
 `;
@@ -63,21 +83,22 @@ ${whereClause}`
   }
 
   if (firstPeriodOption === "year") {
-    // If period_id exists, generate year from it; otherwise use year column directly
     let query: string;
-    if (hasPeriodId && !needsPeriodCTE) {
-      // Direct expression without CTE (no filters on dynamic period columns)
-      query = `SELECT MIN(${PERIOD_COLUMN_EXPRESSIONS.year}) as min_year, MAX(${PERIOD_COLUMN_EXPRESSIONS.year}) as max_year
-FROM ${tableName}
-${whereClause}`;
-    } else if (needsPeriodCTE) {
-      // Use CTE that already has year computed
+    if (useCTE) {
+      // The CTE has year derived (forced above)
       query = `${ctePrefix}SELECT MIN(year) as min_year, MAX(year) as max_year
 FROM ${sourceTable}
 ${whereClause}`;
+    } else if (hasPeriodId) {
+      // Direct expression without CTE (no filters on derived period columns)
+      query = `SELECT MIN(${PERIOD_COLUMN_EXPRESSIONS.year}) as min_year, MAX(${PERIOD_COLUMN_EXPRESSIONS.year}) as max_year
+FROM ${tableName}
+${whereClause}`;
     } else {
       // No period_id — check if year can be derived from quarter_id
-      const hasQuarterIdCol = await detectColumnExists(projectDb, tableName, "quarter_id");
+      const hasQuarterIdCol =
+        periodCtx?.hasQuarterId ??
+        (await detectColumnExists(projectDb, tableName, "quarter_id"));
       if (hasQuarterIdCol) {
         query = `SELECT MIN(${QUARTER_ID_COLUMN_EXPRESSIONS.year}) as min_year, MAX(${QUARTER_ID_COLUMN_EXPRESSIONS.year}) as max_year
 FROM ${tableName}
@@ -104,8 +125,8 @@ ${whereClause}`;
   }
 
   if (firstPeriodOption === "quarter_id") {
-    const query = `SELECT MIN(quarter_id) as min_quarter_id, MAX(quarter_id) as max_quarter_id
-FROM ${tableName}
+    const query = `${ctePrefix}SELECT MIN(quarter_id) as min_quarter_id, MAX(quarter_id) as max_quarter_id
+FROM ${sourceTable}
 ${whereClause}`;
 
     const res = (

@@ -95,7 +95,11 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
       tableName,
       nonFacilityWhereStatements,
       firstPeriodOption,
-      queryContext.hasPeriodId,
+      {
+        hasPeriodId: queryContext.hasPeriodId,
+        hasQuarterId: queryContext.hasQuarterId,
+        neededPeriodColumns: queryContext.neededPeriodColumns,
+      },
     );
 
     ///////////////////////////

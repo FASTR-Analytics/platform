@@ -62,6 +62,45 @@ export const QUARTER_ID_COLUMN_EXPRESSIONS = {
 // Period Column Detection and CTE Building
 // ============================================================================
 
+export type PeriodCTEContext = {
+  hasPeriodId: boolean;
+  hasQuarterId: boolean;
+  neededPeriodColumns: Set<DynamicPeriodColumn>;
+};
+
+// Single source of the "does this query need a period_data CTE" rule: derived
+// columns are only derivable from period_id (all three) or quarter_id (year
+// only — quarter_id itself is physical there).
+export function needsPeriodCTEFor(ctx: PeriodCTEContext): boolean {
+  return (
+    (ctx.hasPeriodId && ctx.neededPeriodColumns.size > 0) ||
+    (ctx.hasQuarterId && ctx.neededPeriodColumns.has("year"))
+  );
+}
+
+// Single source of the period_data CTE body: SELECT * plus the needed derived
+// columns. Both CTEManager (the main query) and getPeriodBounds build from
+// this, so the CTE shape cannot drift between the two paths.
+export function buildPeriodCTESelectColumns(ctx: PeriodCTEContext): string[] {
+  const selectColumns: string[] = ["*"];
+  if (ctx.hasPeriodId) {
+    if (ctx.neededPeriodColumns.has("year")) {
+      selectColumns.push(`${PERIOD_COLUMN_EXPRESSIONS.year} AS year`);
+    }
+    if (ctx.neededPeriodColumns.has("month")) {
+      selectColumns.push(`${PERIOD_COLUMN_EXPRESSIONS.month} AS month`);
+    }
+    if (ctx.neededPeriodColumns.has("quarter_id")) {
+      selectColumns.push(`${getQuarterIdExpression()} AS quarter_id`);
+    }
+  } else if (ctx.hasQuarterId) {
+    if (ctx.neededPeriodColumns.has("year")) {
+      selectColumns.push(`${QUARTER_ID_COLUMN_EXPRESSIONS.year} AS year`);
+    }
+  }
+  return selectColumns;
+}
+
 export function detectNeededPeriodColumns(
   fetchConfig: GenericLongFormFetchConfig
 ): Set<DynamicPeriodColumn> {

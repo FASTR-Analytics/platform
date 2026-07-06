@@ -1,4 +1,4 @@
-import { PERIOD_COLUMN_EXPRESSIONS, QUARTER_ID_COLUMN_EXPRESSIONS, getQuarterIdExpression } from "./period_helpers.ts";
+import { buildPeriodCTESelectColumns } from "./period_helpers.ts";
 import { facilitiesTableForFamily } from "./get_query_context.ts";
 import type { QueryConfig } from "./types.ts";
 
@@ -70,25 +70,7 @@ export class CTEManager {
 
     // 1. Build and register period CTE if needed
     if (queryContext.needsPeriodCTE) {
-      const selectColumns: string[] = ["*"];
-
-      if (queryContext.hasPeriodId) {
-        if (queryContext.neededPeriodColumns.has("year")) {
-          selectColumns.push(`${PERIOD_COLUMN_EXPRESSIONS.year} AS year`);
-        }
-        if (queryContext.neededPeriodColumns.has("month")) {
-          selectColumns.push(`${PERIOD_COLUMN_EXPRESSIONS.month} AS month`);
-        }
-        if (queryContext.neededPeriodColumns.has("quarter_id")) {
-          selectColumns.push(
-            `${getQuarterIdExpression()} AS quarter_id`
-          );
-        }
-      } else if (queryContext.hasQuarterId) {
-        if (queryContext.neededPeriodColumns.has("year")) {
-          selectColumns.push(`${QUARTER_ID_COLUMN_EXPRESSIONS.year} AS year`);
-        }
-      }
+      const selectColumns = buildPeriodCTESelectColumns(queryContext);
 
       const periodDefinition = `SELECT ${selectColumns.join(
         ", "

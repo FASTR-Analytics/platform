@@ -8,7 +8,7 @@ import {
   type DatasetType,
   type OptionalFacilityColumn,
 } from "lib";
-import { detectNeededPeriodColumns } from "./period_helpers.ts";
+import { detectNeededPeriodColumns, needsPeriodCTEFor } from "./period_helpers.ts";
 import type { QueryContext } from "./types.ts";
 
 export function facilitiesTableForFamily(
@@ -61,9 +61,11 @@ export async function buildQueryContext(
   const hasPeriodId = await detectHasPeriodId(projectDb, tableName);
   const hasQuarterId = !hasPeriodId && await detectColumnExists(projectDb, tableName, "quarter_id");
   const neededPeriodColumns = detectNeededPeriodColumns(fetchConfig);
-  const needsPeriodCTE =
-    (hasPeriodId && neededPeriodColumns.size > 0) ||
-    (hasQuarterId && neededPeriodColumns.has("year"));
+  const needsPeriodCTE = needsPeriodCTEFor({
+    hasPeriodId,
+    hasQuarterId,
+    neededPeriodColumns,
+  });
 
   const facilityFilters = fetchConfig.filters.filter((filter) =>
     enabledFacilityColumns.includes(filter.disOpt as OptionalFacilityColumn)

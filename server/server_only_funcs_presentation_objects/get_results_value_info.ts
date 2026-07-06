@@ -111,6 +111,7 @@ async function getResultsObjectVariableInfoCore(
       tableName,
       [], // No where statements for this use case
       firstPeriodOption,
+      undefined, // no filters → no CTE ever needed; columns detected on demand
     );
     const periodBounds = resPeriodBounds || undefined;
 
