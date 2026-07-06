@@ -32,6 +32,16 @@ export type ReportVersionDetail = ReportVersionSummary & {
   images: Record<string, ImageBlock>;
 };
 
+/** One step in a version's lineage (body only — no figure payloads): the
+ *  compare view diffs adjacent steps to attribute each changed section to the
+ *  editing session that introduced it. */
+export type ReportVersionLineageStep = {
+  id: string;
+  createdAt: string;
+  editors: VersionEditor[];
+  body: string;
+};
+
 /** A slide as frozen inside a deck version (original id kept for restore). */
 export type DeckVersionSlide = {
   id: string;

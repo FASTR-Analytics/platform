@@ -11,9 +11,6 @@ type Props = AlertComponentProps<
     oldText: string;
     newText: string;
     summary?: string;
-    /** "review" (default): Accept/Reject buttons resolving true/false.
-     *  "view": read-only comparison (version history) — single Close button. */
-    mode?: "review" | "view";
   },
   boolean
 >;
@@ -74,29 +71,23 @@ export function ReportMarkdownDiff(p: Props) {
         })
       }
       rightButtons={
-        (p.mode ?? "review") === "view" ? (
-          <Button outline onClick={() => p.close(false)}>
-            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+        <>
+          <Button
+            intent="danger"
+            outline
+            iconName="x"
+            onClick={() => p.close(false)}
+          >
+            {t3({ en: "Reject", fr: "Rejeter", pt: "Rejeitar" })}
           </Button>
-        ) : (
-          <>
-            <Button
-              intent="danger"
-              outline
-              iconName="x"
-              onClick={() => p.close(false)}
-            >
-              {t3({ en: "Reject", fr: "Rejeter", pt: "Rejeitar" })}
-            </Button>
-            <Button
-              intent="success"
-              iconName="check"
-              onClick={() => p.close(true)}
-            >
-              {t3({ en: "Accept", fr: "Accepter", pt: "Aceitar" })}
-            </Button>
-          </>
-        )
+          <Button
+            intent="success"
+            iconName="check"
+            onClick={() => p.close(true)}
+          >
+            {t3({ en: "Accept", fr: "Accepter", pt: "Aceitar" })}
+          </Button>
+        </>
       }
     >
       <div ref={parent} />

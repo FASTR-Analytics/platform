@@ -10,6 +10,7 @@ import {
   reportFiguresSchema,
   reportImagesSchema,
   type ReportVersionDetail,
+  type ReportVersionLineageStep,
   type ReportVersionSummary,
   type SlideDeckConfig,
   slideConfigSchema,
@@ -166,6 +167,46 @@ export async function getReportVersion(
         images: parseJsonOrThrow<Record<string, ImageBlock>>(row.images),
       },
     };
+  });
+}
+
+/** The compare view's data: the base version plus every newer version, bodies
+ *  and editors only (never the heavy figure/image payloads), oldest first.
+ *  Diffing adjacent steps attributes each changed section to the editing
+ *  session that introduced it. */
+export async function getReportVersionLineage(
+  projectDb: Sql,
+  reportId: string,
+  versionId: string,
+): Promise<APIResponseWithData<ReportVersionLineageStep[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const base = (
+      await projectDb<Pick<DBReportVersion, "id" | "created_at" | "editors" | "body">[]>`
+        SELECT id, created_at, editors, body FROM report_versions
+        WHERE id = ${versionId} AND report_id = ${reportId}
+      `
+    ).at(0);
+    if (!base) {
+      throw new Error("Version not found");
+    }
+    const newer = await projectDb<
+      Pick<DBReportVersion, "id" | "created_at" | "editors" | "body">[]
+    >`
+      SELECT id, created_at, editors, body FROM report_versions
+      WHERE report_id = ${reportId}
+        AND created_at >= ${base.created_at}
+        AND id != ${versionId}
+      ORDER BY created_at ASC, id ASC
+    `;
+    const toStep = (
+      r: Pick<DBReportVersion, "id" | "created_at" | "editors" | "body">,
+    ): ReportVersionLineageStep => ({
+      id: r.id,
+      createdAt: r.created_at,
+      editors: parseJsonOrThrow<VersionEditor[]>(r.editors),
+      body: r.body,
+    });
+    return { success: true, data: [toStep(base), ...newer.map(toStep)] };
   });
 }
 

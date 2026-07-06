@@ -7,6 +7,7 @@ import {
   getAllReports,
   getReportDetail,
   getReportVersion,
+  getReportVersionLineage,
   insertReportVersion,
   latestReportVersionHash,
   listReportVersions,
@@ -402,6 +403,20 @@ defineRoute(
   requireProjectPermission("can_view_reports"),
   async (c, { params }) => {
     const res = await getReportVersion(
+      c.var.ppk.projectDb,
+      params.report_id,
+      params.version_id,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesReports,
+  "getReportVersionLineage",
+  requireProjectPermission("can_view_reports"),
+  async (c, { params }) => {
+    const res = await getReportVersionLineage(
       c.var.ppk.projectDb,
       params.report_id,
       params.version_id,

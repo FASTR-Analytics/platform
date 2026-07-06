@@ -161,7 +161,17 @@ preferring live `projectState.projectUsers` over the stored capture-time name,
 
 - **Report**: snapshot body through `MarkdownPresentationJsx` with embed
   tokens resolved against the version's OWN figure/image registries; "Compare
-  with current" opens `ReportMarkdownDiff` in its new `mode: "view"`.
+  with current" opens `ReportVersionCompare` — a unified ONE-page diff
+  (additions highlighted, removals struck through) where hovering a change
+  names who made it. Attribution is per editing session: the
+  `getReportVersionLineage` route returns the compared version plus every
+  newer version (bodies + editors only, no figure payloads), and
+  `version_diff.ts` diffs adjacent steps, mapping each step's changes forward
+  through CodeMirror `ChangeSet`s into current-document coordinates —
+  insertions carry the session that wrote them (later sessions editing inside
+  win on overlap), deletions the session(s) whose diff consumed the text.
+  Changes newer than the newest stored version are labeled as recent,
+  not-yet-versioned edits.
 - **Deck**: paged canvas grid — 6 per page (`convertSlideToPageInputs` →
   `PageHolder`; live canvases are expensive, panther warns ~12-14) with
   click-to-expand.
@@ -195,6 +205,9 @@ overflow menu.
   drainEditors, per-doc independence.
 - `planDeckRestore` harness (14 asserts): partition invariants, original-id
   preservation, snapshot ordering, empty edge cases.
+- `version_diff` harness (21 asserts incl. 200-chain fuzz): current-doc
+  reassembly, base-char coverage, per-session attribution (replacements,
+  later-deletes, edits inside earlier insertions), degenerate inputs.
 - Both are scratch scripts (`deno run --allow-all -c deno.json <file>` with
   absolute-path imports — the repo's standard harness idiom).
 - Manual two-user matrix: see the feature checklist in the PR/commit series

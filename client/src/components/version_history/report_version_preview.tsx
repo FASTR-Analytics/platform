@@ -11,9 +11,9 @@ import {
 import { type JSX, Show } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { ReportFigureEmbed } from "../report/ReportFigureEmbed";
-import { ReportMarkdownDiff } from "../report/ReportMarkdownDiff";
 import { REPORT_MARKDOWN_STYLE } from "../report/report_markdown_style";
 import { CopyVersionModal } from "./copy_version_modal";
+import { ReportVersionCompare } from "./report_version_compare";
 
 // Read-only render of one report version — the same markdown funnel as the
 // report View mode, but embed tokens resolve against the version's SNAPSHOT
@@ -79,16 +79,12 @@ export function ReportVersionPreview(p: {
 
   async function compareWithCurrent(v: ReportVersionDetail) {
     await openComponent({
-      element: ReportMarkdownDiff,
+      element: ReportVersionCompare,
       props: {
-        oldText: v.body,
-        newText: p.getCurrentBody?.() ?? "",
-        summary: t3({
-          en: "This version (left) vs current (right)",
-          fr: "Cette version (gauche) vs actuelle (droite)",
-          pt: "Esta versão (esquerda) vs atual (direita)",
-        }),
-        mode: "view" as const,
+        projectId: p.projectId,
+        reportId: p.reportId,
+        versionId: v.id,
+        currentBody: p.getCurrentBody?.() ?? "",
       },
     });
   }

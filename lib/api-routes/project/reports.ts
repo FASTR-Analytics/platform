@@ -7,6 +7,7 @@ import type {
 } from "../../types/reports.ts";
 import type {
   ReportVersionDetail,
+  ReportVersionLineageStep,
   ReportVersionSummary,
 } from "../../types/versions.ts";
 import type { FigureBlock } from "../../types/_figure_bundle.ts";
@@ -136,6 +137,14 @@ export const reportRouteRegistry = {
     method: "GET",
     params: reportVersionParamsSchema,
     response: {} as ReportVersionDetail,
+    requiresProject: true,
+  }),
+
+  getReportVersionLineage: route({
+    path: "/reports/:report_id/versions/:version_id/lineage",
+    method: "GET",
+    params: reportVersionParamsSchema,
+    response: {} as ReportVersionLineageStep[],
     requiresProject: true,
   }),
 
