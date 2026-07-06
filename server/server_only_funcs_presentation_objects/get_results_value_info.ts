@@ -60,30 +60,6 @@ export async function getResultsValueInfoForPresentationObject(
   });
 }
 
-// Original function - kept for backward compatibility
-// export async function getResultsValueInfoForPresentationObject(
-//   mainDb: Sql,
-//   projectDb: Sql,
-//   projectId: string,
-//   resultsObjectId: string,
-//   firstPeriodOption: PeriodOption | undefined,
-//   disaggregationOptions: DisaggregationOption[],
-//   moduleLastRun: string
-// ): Promise<
-//   APIResponseWithData<ResultsValueInfoForPresentationObject>
-// > {
-//   return await getResultsObjectVariableInfoCore(
-//     mainDb,
-//     projectDb,
-//     projectId,
-//     resultsObjectId,
-//     firstPeriodOption,
-//     disaggregationOptions,
-//     moduleLastRun
-//   );
-// }
-
-// Core logic extracted to avoid duplication
 async function getResultsObjectVariableInfoCore(
   mainDb: Sql,
   projectDb: Sql,

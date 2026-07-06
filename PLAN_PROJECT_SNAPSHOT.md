@@ -22,7 +22,7 @@ dashboards — read only (2).
 
 This is **Step A** of that vision. Steps B/C (structure self-containment with
 snapshot-local ids; serialization / attach-detach) are scoped at the end as the path to
-the portable unit. N1 (from PLAN_S9_QUERY_CACHE_FIXES.md) is folded in here.
+the portable unit. N1 (from the S9 review; see SYSTEM_09 Open items) is folded in here.
 
 > Inventory below is from a 5-agent read-only enumeration sweep (server query path,
 > structure/indicators, reports/decks/dashboards/AI, client `instanceState`, DB-schema

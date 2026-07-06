@@ -64,9 +64,9 @@ mechanism changes:
 - SNAP-3 — out of scope (verified not render-path).
 
 - Effort remaining: **S–M** · Risk: **low** · Deps: **none**
-- **N1 lives here** — do NOT fix N1 standalone (per
-  [PLAN_S9_QUERY_CACHE_FIXES.md](PLAN_S9_QUERY_CACHE_FIXES.md) Tier 0) or you
-  re-cement the instance coupling the snapshot work removes.
+- **N1 lives here** — do NOT fix N1 standalone (the S9 review's Tier-0 ruling;
+  see [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) Open items)
+  or you re-cement the instance coupling the snapshot work removes.
 
 ### 2. PLAN_GEOJSON_NEAR_TERM · highest user urgency
 [PLAN_GEOJSON_NEAR_TERM.md](PLAN_GEOJSON_NEAR_TERM.md)
@@ -89,23 +89,14 @@ Closes the reported Cameroon/DRC import freeze (R4D / Angelica) and a security h
 
 ## Track B — shovel-ready cleanups (independent, slot in anytime)
 
-### 3. PLAN_S9_QUERY_CACHE_FIXES — F1, F5, F6, F7
-[PLAN_S9_QUERY_CACHE_FIXES.md](PLAN_S9_QUERY_CACHE_FIXES.md)
+### 3. S9 query/cache fixes — DONE 2026-07-06
 
-Fully analyzed, two adversarial rounds, harness-verified. Remaining ready slice
-(F3 shipped; N1 → item 1; F8a blocked):
-
-- **F5** — `=`-count `!= 1` guard in `isSafePostAggregationExpression`. One line.
-- **F6** — MiniDisplay in-loop version guard (do NOT bundle with the dropped F2).
-- **F7** — delete dead `TimCacheB` (3 deletions + the S9 manifest line).
-- **F1** — `getPeriodBounds` quarter_id CTE via the extracted `buildPeriodCTE`
-  helper. **Not a casual quick win** — it feeds cached `dateRange` baked into stored
-  figure snapshots, so it needs a value-equivalence harness on the working paths.
-  Treat as its own focused commit.
-- **Hold F8a** (Ethiopian fiscal-quarter ternary) until a domain owner confirms the
-  quarter boundaries + month-13/pagume.
-- N2/N3 are contained low-priority follow-ons.
-- Effort: **M** · Risk: **low** (F1 medium) · Deps: **none**
+Landed as focused commits (`ce33e3f7…381f6698`): F1, F5, F6, F7, N2–N5, plus
+the month-filter type fix, replicant relative-period-filter resolution, and
+error-status alignment (PO_CACHE_VERSION → "4"). The plan doc is deleted;
+remaining items live in [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md)
+Open items: **F8a still held** pending Ethiopian fiscal-quarter confirmation;
+N1 → item 1; F8c deferred.
 
 ### 4. PLAN_SLIDE_BODY_SCHEMA · quick win
 [PLAN_SLIDE_BODY_SCHEMA.md](PLAN_SLIDE_BODY_SCHEMA.md)

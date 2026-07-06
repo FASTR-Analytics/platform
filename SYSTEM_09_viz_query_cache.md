@@ -22,10 +22,10 @@ PO config → fetch-config contract → SQL over `ro_*` tables → version-hashe
 cached payloads, on both tiers. Reviewed against code 2026-07-06 (first review
 cycle; absorbed and deleted DOC_PRESENTATION_OBJECT_QUERY_PIPELINE,
 DOC_period_column_handling, DOC_DISAGGREGATION_OPTIONS_HANDLING,
-DOC_ROLLUP_ROWS). A prior deep adversarial review lives in
-[PLAN_S9_QUERY_CACHE_FIXES.md](PLAN_S9_QUERY_CACHE_FIXES.md) — its still-open
-findings are one-liners in Open items below; the plan holds the verified
-mechanics and corrected fix designs.
+DOC_ROLLUP_ROWS). The adversarial review's fix batch landed 2026-07-06
+(commits `ce33e3f7…`: period-CTE unification, PAE `=` guard, month/integer
+filter handling, replicant relative-filter resolution, error statuses, cache
+hash hardening, race guards); what remains is in Open items below.
 
 Boundaries: the Valkey `TimCacheC` class, SSE, and the
 `last_updated → SSE → version-hash` triangle are **S3**; `buildFigureInputs`
@@ -87,8 +87,9 @@ pin-excluded config for the items fetch would merge all replicant panes into
 one figure — keep the two configs split.
 
 `hashFetchConfig` ([get_fetch_config_from_po.ts:247](lib/get_fetch_config_from_po.ts#L247))
-is the cache-uniqueness function on both tiers: values sorted by prop, groupBys
-and filter values sorted alphabetically, periodFilter discriminated by type with
+is the cache-uniqueness function on both tiers: values sorted by prop+func,
+groupBys sorted, filter values sorted and JSON-encoded (a bare `,`-join could
+collide on comma-holding values), periodFilter discriminated by type with
 only its own fields folded (relative filters hash on `nMonths`/`nYears`/
 `nQuarters`, not on fabricated bounds — so their keys are stable across data
 growth), PAE, roll-up flag + level. `periodFilterExactBounds` and display
@@ -142,15 +143,20 @@ through `CTEManager`.
   → `FUNC(prop) AS prop`.
 - **`applyPostAggregationExpression`** splits the PAE on `=` into
   `value = expression`, rewrites `/col` → `/ NULLIF(col, 0)`, and wraps:
-  `SELECT <groupBys>, (<expr>) as <value> FROM (<query>) AS subq`. Known
-  transform gaps (multi-`=`, function-call/decimal denominators) are Open
-  items F5/F4.
+  `SELECT <groupBys>, (<expr>) as <value> FROM (<query>) AS subq`. The
+  validator guarantees exactly one `=` (multi-`=` would silently drop middle
+  terms). The NULLIF rewrite handles bare-identifier denominators — every
+  authored PAE's shape; a hand-crafted function-call (`a/ABS(b)`) or decimal
+  denominator would be mangled into invalid SQL — an error, not wrong data,
+  and deliberately not defended.
 - **`buildWhereClause`** — the value-escaping boundary. Integer columns
-  (`year`, `month`, `quarter_id`, `period_id`) get `Number(v)` coercion and
-  `col IN (n, …)`; everything else — including `time_point`, which is a text
-  label in HFA data — gets `UPPER(col) IN ('VAL', …)` with upper-casing and
-  `''`-doubling. Period bounds (below) append `col >= min AND col <= max`,
-  skipped entirely (warn) when the bounds don't self-identify one format.
+  (`INTEGER_FILTER_COLUMNS` in lib: `year`, `quarter_id`, `period_id`) get
+  `Number(v)` coercion and `col IN (n, …)` — their values are
+  boundary-validated numeric; everything else — including `time_point` (an
+  HFA text label) and the derived `month` column (`LPAD` text, `"03"`) — gets
+  `UPPER(col) IN ('VAL', …)` with upper-casing and `''`-doubling. Period
+  bounds (below) append `col >= min AND col <= max`, skipped entirely (warn)
+  when the bounds don't self-identify one format.
 - **Status envelope** ([get_presentation_object_items.ts](server/server_only_funcs_presentation_objects/get_presentation_object_items.ts)):
   runs inside `tryCatchDatabaseAsync`, fetches `MAX_ITEMS + 1` rows
   (`MAX_ITEMS = 20000`) as an N+1 overflow probe. `> MAX_ITEMS` →
@@ -206,10 +212,13 @@ only the non-facility filters — it queries the bare `ro_*` table).
 **`getPeriodBounds`** ([get_period_bounds.ts](server/server_only_funcs_presentation_objects/get_period_bounds.ts))
 returns `{min, max}` of the metric's physical column (or derived year),
 choosing the SELECT by `firstPeriodOption` =
-`mostGranularTimePeriodColumnInResultsFile`. It hand-writes its own
-`period_data` CTE gated by a substring sniff of the WHERE strings and a
-`hasPeriodId`-only guard — the source of the confirmed quarter-id-only bug (F1
-in Open items).
+`mostGranularTimePeriodColumnInResultsFile`. Its CTE gate and body come from
+the same single-source helpers as the main query (`needsPeriodCTEFor` /
+`buildPeriodCTESelectColumns` in period_helpers.ts); callers pass their query
+context, or `undefined` when they pass no filters (a WHERE-less bounds query
+never needs a CTE). When the year branch reads `MIN/MAX(year)` off the CTE,
+`year` is forced into the CTE's derived columns even if no filter referenced
+it.
 
 **Period filters.** `PeriodFilter = RelativePeriodFilter | BoundedPeriodFilter`
 (strict discriminated union, each type carrying exactly its own fields).
@@ -289,14 +298,15 @@ that subset; the removal of the old self-strip is why `PO_CACHE_VERSION` is
 "3"). Who passes what: the filter-checkbox path (`getResultsValueInfo…`) passes
 **no** filters (full per-column value sets); the replicant-options route passes
 the user's `filterBy` with the auto-pin already excluded, plus
-`periodFilterExactBounds` — but only for **bounded** period filters (relative
-ones are ignored on this path; Open items).
+`periodFilterExactBounds` resolved from the config's period filter exactly like
+the items query (physical column inferred period > quarter > year, live bounds,
+relative filters included, `from_month` re-anchored) — so the option list
+matches the filtered figure's period window.
 
 Per-option statuses (`DisaggregationPossibleValuesStatus`): `ok` (with values),
 `too_many_values` (> 500), `no_values_available` (zero rows), `error` (with
-message — the metric-info path surfaces resolver failures; the
-replicant-options route still masks them as `no_values_available`, an
-inconsistent twin — Open items).
+message — both the metric-info path and the replicant-options route surface
+resolver failures as this status).
 
 **`getIndicatorMetadata`** ([get_indicator_metadata.ts](server/server_only_funcs_presentation_objects/get_indicator_metadata.ts))
 is family-branched on the module definition (`getDatasetFamily`: HFA by
@@ -397,10 +407,11 @@ both so `parseData` can reproduce the version hash byte-identically to
 silently no-ops the cache. Error envelopes are never stored
 (`shouldStore: false`).
 
-Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently "3")
+Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently "4")
 is folded into the version hash — bump it when a code change alters the
 *meaning* of a cached payload without any data change ("2": `YYYYQ` quarter
-cutover; "3": self-strip removal). **The key prefix** (`po_detail` →
+cutover; "3": self-strip removal; "4": replicant options resolve relative
+period filters). **The key prefix** (`po_detail` →
 `po_detail_v2`) — bump it when the payload *shape* changes (the version hash
 only tracks row `last_updated`, so a deploy adding a field would keep serving
 old-shape payloads for unmodified rows; `_v2` added
@@ -440,7 +451,7 @@ deploy, hence the stale-IndexedDB trap). Version keys: `po_detail` =
 `moduleDataVersionKey` = `moduleLastRun[moduleId]|datasetsVersionKey(pds)` —
 the same two dimensions as the server, fed by the T1 SSE store (module re-runs
 UPDATE every dependent PO's `last_updated` and broadcast, so the `po_detail`
-key also moves — the F2 investigation proved this chain sound). Sentinel
+key also moves — a refuted staleness finding proved this chain sound). Sentinel
 versions (`pds_not_ready`, `unknown`) are never cached. In-flight promises
 coalesce identically to the server.
 
@@ -495,12 +506,13 @@ bundle freezes:
 - **CTE/post-aggregation/WITH/LIMIT ordering is load-bearing** — the PAE wrap
   happens before the `WITH` prepend so CTEs stay top-level; reordering breaks
   the SQL.
-- **`getPeriodBounds` and `getPossibleValues` hand-write their CTEs** (shared
-  derivation expressions, but their own `WITH` strings and `needsPeriodCTE`
-  rules) — the CTE shape exists in three places; `getPeriodBounds`' variant is
-  the F1 bug. New CTE construction goes through `CTEManager`.
-- **Derived `month` is text** (`LPAD`, `"03"`), but `buildWhereClause` treats
-  `month` as an integer column — see Open items.
+- **`getPossibleValues` still hand-writes its `WITH` strings** (shared
+  derivation expressions and correct family gating, but its own string
+  assembly — the last CTE-shape duplicate). New CTE construction goes through
+  `CTEManager` or the shared `period_helpers` builders (which
+  `getPeriodBounds` now uses).
+- **Derived `month` is text** (`LPAD`, `"03"`) — it filters through the
+  escaped `UPPER` text path, never numeric coercion.
 - **The sentinel is not a real admin area**: `__NATIONAL` must be
   label-replaced and pin-sorted client-side; label replacements for it are
   added only when the roll-up is active so stored figures never carry dead
@@ -524,75 +536,30 @@ bundle freezes:
 
 ## Open items
 
-Verified findings carried from [PLAN_S9_QUERY_CACHE_FIXES.md](PLAN_S9_QUERY_CACHE_FIXES.md)
-(implementation detail and corrected fix designs live there; F2/F8b refuted,
-F3 since fixed — all four options callers now pass `excludeReplicantFilter`):
+Remaining after the 2026-07-06 fix batch (the adversarial review record was
+PLAN_S9_QUERY_CACHE_FIXES.md, deleted when its fixes landed; refuted findings
+F2/F8b and dropped F4 are stated as facts in the prose where relevant):
 
-- **F1 [HIGH]** — `getPeriodBounds` emits invalid SQL on quarter_id-only
-  tables with a derived-`year` filter (reachable via year-as-replicant):
-  substring-sniff CTE guard is `hasPeriodId`-only. Fix design (shared
-  `buildPeriodCTE` helper, per-branch SELECTs preserved,
-  `dateRange`-value-equivalence proof) in the plan.
 - **N1 [HIGH, deferred]** — facility-columns config absent from all four PO
   cache version keys (server + client): a config toggle serves stale
   figures/option lists until the next module/dataset bump. Decided fix =
   project-local snapshot + project-local version stamp —
   [PLAN_PROJECT_SNAPSHOT.md](PLAN_PROJECT_SNAPSHOT.md).
-- **F5 [MED]** — multi-`=` PAE passes the validator but the transform silently
-  drops middle terms; fix = reject `=`-count ≠ 1 in
-  `isSafePostAggregationExpression` (also kills `==`).
-- **F6 [LOW]** — MiniDisplay stale-response race (two generator loops, older
-  can commit last); fix = monotonic version guard inside the `for await` loop.
-- **N2 [LOW]** — non-numeric values on integer columns become `col IN (NaN)`
-  → swallowed SQL error; fix = `Number.isFinite` guard in
-  `validateFetchConfig` plus a schema `superRefine`.
-- **N3 [LOW]** — `ReplicateByOptions` effect tracks `filterBy` but not
-  `periodFilter` → stale option list after a bounds edit (editor-only).
-- **F8a [LOW]** — Ethiopian last-full-quarter ternary has identical branches
-  ([get_fetch_config_from_po.ts:224](lib/get_fetch_config_from_po.ts#L224));
-  corrected fix is `maxMonth === 1 ? maxYear - 1 : maxYear`, but confirm the
-  Ethiopian fiscal-quarter definition (and Pagume) with a domain owner first.
+- **F8a [LOW, parked]** — Ethiopian last-full-quarter ternary has identical
+  branches ([get_fetch_config_from_po.ts:224](lib/get_fetch_config_from_po.ts#L224));
+  harness-verified fix is `maxMonth === 1 ? maxYear - 1 : maxYear`, but a
+  domain owner must confirm the Ethiopian fiscal-quarter definition (and
+  Pagume/month-13) before patching.
 - **F8c [LOW, deferred]** — `ds_hfa` in-memory `VersionParams.hash` vs
   persisted payload `cacheHash` naming divergence; payload rename is the STOP
   line (three persistence layers).
-- **F4 [LOW, recommend drop]** — NULLIF div-by-zero rewrite mangles
-  function-call (`a/ABS(b)`) and decimal (`a/2.5`) denominators; no authored
-  PAE hits it. If ever fixed, tighten the validator (bare identifier after
-  `/`), don't extend the transform.
-- **N4/N5 [LOW, optional]** — `hashFetchConfig` hardening: values-array sort
-  key ignores `func`; filter-value `,`-join can collide on bare-comma values.
-  Fragmentation/contrived respectively; defensive encoding fix in the plan.
-
-New from this cycle:
-
-- **`month`-filter type mismatch (verify by executing, then fix or fold into
-  N2's family):** `buildWhereClause` integer-coerces `month`
-  (`month IN (3)`) but the CTE derives `month` as zero-padded *text*
-  (`LPAD → "03"`) — Postgres has no `text = integer` operator, so a month
-  filter (reachable via month-as-replicant on a period_id metric, pin values
-  are `"01".."12"`) should throw and surface as a swallowed-error envelope.
-  Even coerced, `3 ≠ '03'`. Likely fix: treat `month` as text (it *is* text)
-  or strip the zero-pad and derive it as int.
-- **Replicant options ignore relative period filters:** the route resolves
-  `periodFilterExactBounds` only for bounded filters
-  ([presentation_objects.ts:681-687](server/routes/project/presentation_objects.ts#L681)),
-  so a "last N months" viz lists replicant values from all time while a
-  "custom range" viz lists only in-range values. Either resolve relative
-  filters here too (needs `getPeriodBounds`) or document the asymmetry as
-  intended.
-- **Error-status twins:** the metric-info path surfaces possible-values
-  failures as `status: "error"` + message, but the replicant-options route
-  maps the same failure to `no_values_available`
-  ([presentation_objects.ts:690-703](server/routes/project/presentation_objects.ts#L690))
-  — same root cause, two different user-facing states. Align on `error`.
 - **Duplicate resolution round-trips:** `resultsObjectId → module_id →
   last_run_at` is queried in the route AND re-queried inside
   `getPresentationObjectItems`; `modules.module_definition` is fetched+parsed
-  separately by `getDatasetFamilyForModule` and `getIndicatorMetadata`. One
-  canonical resolution pass would remove 3–4 queries per cold request.
-- **Dead code:** commented-out "backward compatibility" function in
-  [get_results_value_info.ts:63-84](server/server_only_funcs_presentation_objects/get_results_value_info.ts#L63);
-  the unreachable `quarter_id`+calendar-filter block in
+  separately by `getDatasetFamilyForModule` and `getIndicatorMetadata`; the
+  replicant-options route now adds its own time-column probes. One canonical
+  resolution pass would remove several queries per cold request.
+- **Dead code:** the unreachable `quarter_id`+calendar-filter block in
   `getPeriodFilterExactBounds` (TODO'd in code).
 
 Standing decoupling items (from the systems review):
