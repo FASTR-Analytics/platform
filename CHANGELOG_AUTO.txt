@@ -1,57 +1,57 @@
-[TBD] [user] [fixed] - Fixed data upload errors when certain numeric formats were used
-[TBD] [user] [fixed] - Fixed uploads failing for values outside the allowed date range
-[TBD] [user] [fixed] - Prevented uninstalling a module that other modules depend on
-[TBD] [user] [fixed] - Fixed modules occasionally getting stuck in a running state
-[TBD] [user] [fixed] - Fixed rare issue where re-running a module could conflict with a previous run
-[TBD] [admin] [fixed] - Modules can no longer be uninstalled while others depend on them
-[TBD] [admin] [fixed] - Data uploads no longer fail silently from race conditions during staging
-[TBD] [admin] [fixed] - Module runs are now properly stopped when re-triggered or cancelled
-[TBD] [admin] [fixed] - Orphaned containers are cleaned up when module runs are terminated
-[TBD] [admin] [fixed] - Background workers no longer strand on errors, preventing stuck modules
-[TBD] [admin] [fixed] - Period and count validation now catches more edge-case bad data during upload
-[TBD] [admin] [fixed] - Concurrent data upload configuration changes no longer cause staging errors
-[TBD] [user] [added] - Portuguese language support added throughout the platform
-[TBD] [admin] [added] - Portuguese language support across the entire platform
-[TBD] [user] [fixed] - Fixed rare issue where cancelling a data upload could interfere with a new upload
-[TBD] [admin] [fixed] - Resolved rare issue where cancelling a data import could interfere with a newly started one
-[TBD] [admin] [internal] - Background import tasks now use a shared management system
-[TBD] [user] [added] - DHIS2 connection can now be changed after confirming
-[TBD] [user] [added] - Warning shown when imported data has unrecognized disaggregations
-[TBD] [user] [added] - Alert shown when map boundaries no longer match admin areas after import
-[TBD] [user] [added] - Placeholder text added to CSV file selector dropdown
-[TBD] [user] [added] - Cancel button when editing an existing DHIS2 connection
-[TBD] [user] [added] - Warning message when changing DHIS2 connection will reset later steps
-[TBD] [user] [changed] - Population type labels now appear in French when using French
-[TBD] [user] [changed] - Rate format label "per 10k" now translated to French
-[TBD] [user] [changed] - HFA Excel upload instructions now reference four sheets instead of three
-[TBD] [user] [changed] - AI-assisted indicator updates now save all at once or not at all
-[TBD] [user] [fixed] - Reordering time points now shows an error if saving fails and reverts the list
-[TBD] [user] [fixed] - DHIS2 passwords are no longer sent back to the browser
-[TBD] [user] [fixed] - Duplicate time point names are now prevented when renaming
-[TBD] [user] [fixed] - CSV staging with zero valid rows now shows a clear error message
-[TBD] [admin] [added] - AI-assisted HFA indicator updates are now applied as a single all-or-nothing batch
-[TBD] [admin] [added] - DHIS2 connection step now shows a "Change connection" button after confirming credentials
-[TBD] [admin] [added] - Structure import warns when saved map boundaries no longer match admin areas after import
-[TBD] [admin] [added] - iCEH import now reports rows skipped due to unrecognized disaggregation values
-[TBD] [admin] [added] - HFA data upload instructions updated to reference four sheets instead of three
-[TBD] [admin] [added] - HFA data CSV import now requires a time point and facility ID column mapping
-[TBD] [admin] [added] - Duplicate time point names are now rejected when renaming HFA time points
-[TBD] [admin] [changed] - DHIS2 credentials are no longer sent back to the browser after being saved
-[TBD] [admin] [changed] - Population type labels in calculated indicator editor are now translated into French
-[TBD] [admin] [changed] - "Rate per 10k" label in calculated indicator preview is now translatable
-[TBD] [admin] [changed] - CSV file selector in HMIS batch upload now shows a placeholder prompt
-[TBD] [admin] [changed] - Structure import from DHIS2 now skips root-level org units with no admin hierarchy
-[TBD] [admin] [fixed] - Reordering HFA time points now reverts the list if saving fails
-[TBD] [admin] [fixed] - HMIS indicator list now shows a loading state and handles rapid version changes correctly
-[TBD] [admin] [fixed] - Changing the max admin area level is now protected against concurrent structure imports
-[TBD] [admin] [fixed] - HFA facility weight import is now fully transactional, preventing partial writes
-[TBD] [admin] [fixed] - Deleting an upload attempt now cleans up leftover staging tables from interrupted workers
-[TBD] [admin] [fixed] - HMIS CSV staging with zero valid rows now reports an error instead of silently succeeding
-[TBD] [admin] [fixed] - DHIS2 data import now validates that end period is not beyond the supported maximum
-[TBD] [admin] [fixed] - DHIS2 data import now checks selected indicators still exist before fetching
-[TBD] [admin] [fixed] - GeoJSON upload no longer echoes file contents in error messages for invalid files
-[TBD] [admin] [fixed] - Structure import facility match counts now refresh when revisiting the finalize step
-[TBD] [admin] [internal] - Added server-side logging for all HFA indicator management operations
+[1.56.0] [user] [fixed] - Fixed data upload errors when certain numeric formats were used
+[1.56.0] [user] [fixed] - Fixed uploads failing for values outside the allowed date range
+[1.56.0] [user] [fixed] - Prevented uninstalling a module that other modules depend on
+[1.56.0] [user] [fixed] - Fixed modules occasionally getting stuck in a running state
+[1.56.0] [user] [fixed] - Fixed rare issue where re-running a module could conflict with a previous run
+[1.56.0] [admin] [fixed] - Modules can no longer be uninstalled while others depend on them
+[1.56.0] [admin] [fixed] - Data uploads no longer fail silently from race conditions during staging
+[1.56.0] [admin] [fixed] - Module runs are now properly stopped when re-triggered or cancelled
+[1.56.0] [admin] [fixed] - Orphaned containers are cleaned up when module runs are terminated
+[1.56.0] [admin] [fixed] - Background workers no longer strand on errors, preventing stuck modules
+[1.56.0] [admin] [fixed] - Period and count validation now catches more edge-case bad data during upload
+[1.56.0] [admin] [fixed] - Concurrent data upload configuration changes no longer cause staging errors
+[1.56.0] [user] [added] - Portuguese language support added throughout the platform
+[1.56.0] [admin] [added] - Portuguese language support across the entire platform
+[1.56.0] [user] [fixed] - Fixed rare issue where cancelling a data upload could interfere with a new upload
+[1.56.0] [admin] [fixed] - Resolved rare issue where cancelling a data import could interfere with a newly started one
+[1.56.0] [admin] [internal] - Background import tasks now use a shared management system
+[1.56.0] [user] [added] - DHIS2 connection can now be changed after confirming
+[1.56.0] [user] [added] - Warning shown when imported data has unrecognized disaggregations
+[1.56.0] [user] [added] - Alert shown when map boundaries no longer match admin areas after import
+[1.56.0] [user] [added] - Placeholder text added to CSV file selector dropdown
+[1.56.0] [user] [added] - Cancel button when editing an existing DHIS2 connection
+[1.56.0] [user] [added] - Warning message when changing DHIS2 connection will reset later steps
+[1.56.0] [user] [changed] - Population type labels now appear in French when using French
+[1.56.0] [user] [changed] - Rate format label "per 10k" now translated to French
+[1.56.0] [user] [changed] - HFA Excel upload instructions now reference four sheets instead of three
+[1.56.0] [user] [changed] - AI-assisted indicator updates now save all at once or not at all
+[1.56.0] [user] [fixed] - Reordering time points now shows an error if saving fails and reverts the list
+[1.56.0] [user] [fixed] - DHIS2 passwords are no longer sent back to the browser
+[1.56.0] [user] [fixed] - Duplicate time point names are now prevented when renaming
+[1.56.0] [user] [fixed] - CSV staging with zero valid rows now shows a clear error message
+[1.56.0] [admin] [added] - AI-assisted HFA indicator updates are now applied as a single all-or-nothing batch
+[1.56.0] [admin] [added] - DHIS2 connection step now shows a "Change connection" button after confirming credentials
+[1.56.0] [admin] [added] - Structure import warns when saved map boundaries no longer match admin areas after import
+[1.56.0] [admin] [added] - iCEH import now reports rows skipped due to unrecognized disaggregation values
+[1.56.0] [admin] [added] - HFA data upload instructions updated to reference four sheets instead of three
+[1.56.0] [admin] [added] - HFA data CSV import now requires a time point and facility ID column mapping
+[1.56.0] [admin] [added] - Duplicate time point names are now rejected when renaming HFA time points
+[1.56.0] [admin] [changed] - DHIS2 credentials are no longer sent back to the browser after being saved
+[1.56.0] [admin] [changed] - Population type labels in calculated indicator editor are now translated into French
+[1.56.0] [admin] [changed] - "Rate per 10k" label in calculated indicator preview is now translatable
+[1.56.0] [admin] [changed] - CSV file selector in HMIS batch upload now shows a placeholder prompt
+[1.56.0] [admin] [changed] - Structure import from DHIS2 now skips root-level org units with no admin hierarchy
+[1.56.0] [admin] [fixed] - Reordering HFA time points now reverts the list if saving fails
+[1.56.0] [admin] [fixed] - HMIS indicator list now shows a loading state and handles rapid version changes correctly
+[1.56.0] [admin] [fixed] - Changing the max admin area level is now protected against concurrent structure imports
+[1.56.0] [admin] [fixed] - HFA facility weight import is now fully transactional, preventing partial writes
+[1.56.0] [admin] [fixed] - Deleting an upload attempt now cleans up leftover staging tables from interrupted workers
+[1.56.0] [admin] [fixed] - HMIS CSV staging with zero valid rows now reports an error instead of silently succeeding
+[1.56.0] [admin] [fixed] - DHIS2 data import now validates that end period is not beyond the supported maximum
+[1.56.0] [admin] [fixed] - DHIS2 data import now checks selected indicators still exist before fetching
+[1.56.0] [admin] [fixed] - GeoJSON upload no longer echoes file contents in error messages for invalid files
+[1.56.0] [admin] [fixed] - Structure import facility match counts now refresh when revisiting the finalize step
+[1.56.0] [admin] [internal] - Added server-side logging for all HFA indicator management operations
 [1.55.1] [user] [added] - Upload an ODK questionnaire to auto-replace codes with labels during facility import
 [1.55.1] [user] [added] - Summary of ODK codes replaced with labels shown before finalizing import
 [1.55.1] [user] [fixed] - AI report figures now show a clear error when a heading is not found
