@@ -50,10 +50,10 @@ May emails; both run DHIS2 **2.40.11.1**). Verdicts that CHANGE this plan:
 
 | WS | Scope | Status |
 |----|-------|--------|
-| WS1 | Import-freeze fix (metadata/geometry split + save-time guards) | **NOT STARTED** — `fetch_geojson.ts` still fetches full geometry at analyze; no metadata split; no empty-map guards |
-| WS2 | Match observability (coverage counting + typed sentinel) | **NOT STARTED** server/render-side — no save-time or render coverage; the `[INFO]`-string sentinel is still control flow. (The wizard's client-side "N/M mapped" counting now exists — see Re-verification 2026-07-06) |
-| WS3 | Export-resilience | **DONE** — split across commit `d3743456` (report/slide-deck/dashboard-render degradation, deployed in 1.52.0) **plus** the dashboard model-build gap now closed in the **working tree (uncommitted)**. `deno task typecheck` green both tiers |
-| WS7 | Upload-edge hardening | **PARTIAL** — **P1 filename-sanitization DONE** (committed, `a36121e2`). All P2 items (size/type caps, parse guard, deeper geojson validation, credential handling, temp-file cleanup) **NOT STARTED** (see 2026-07-02 note in §6 for adjacent S5-cycle work) |
+| WS1 | Import-freeze fix (metadata/geometry split + save-time guards) | **DONE 2026-07-06** (commit `805f6b15`) — metadata-only analyze (1–2 s vs 13–43 s), heavy fetch at save (180 s cap, maxAttempts 1), split caches with SHA-256 keys, empty-map + match-prop guards on BOTH save paths, per-uid name/code equality verified live on Cameroon + DRC. AA3 closed; AA4 stays in Plan 2 |
+| WS2 | Match observability (coverage counting + typed sentinel) | **PARTIAL** — save-side counting DONE (`805f6b15` + `e3cac93d`: save routes return featureCount/matched/unmatched, wizard shows a completion panel). REMAINING: render-side coverage ("N of M data areas have a boundary"), Half B `area_id` validity join, the typed sentinel replacing `[INFO]` strings |
+| WS3 | Export-resilience | **DONE** — split across commit `d3743456` (report/slide-deck/dashboard-render degradation, deployed in 1.52.0) **plus** the dashboard model-build gap (committed `a36121e2`). Re-verified 2026-07-06 |
+| WS7 | Upload-edge hardening | **PARTIAL** — P1 filename-sanitization DONE (`a36121e2`); 32-bit plaintext cache-key hash replaced with SHA-256 (`805f6b15`); geojson 100 MB parse guard DONE (`14790e39`). REMAINING (need policy calls): global upload size/type caps (shared Uppy/TUS primitives serve datasets too — a cap needs a per-file-type policy), deeper geometry validation, the opt-in sessionStorage password store, TUS temp-file sweep |
 
 The done work (WS7 P1 in `server/routes/instance/upload.ts`; the WS3 gap in the dashboard export files) has since been committed (`a36121e2`).
 
@@ -102,7 +102,7 @@ Server routes live in [server/routes/instance/geojson_maps.ts](server/routes/ins
 
 ---
 
-## 3. WS1 — Import-freeze fix  ·  priority P0  ·  effort M  ·  STATUS: NOT STARTED
+## 3. WS1 — Import-freeze fix  ·  priority P0  ·  effort M  ·  STATUS: DONE 2026-07-06 (commit `805f6b15`; design below implemented as amended, all hardening items 1–8 in; item 9/AA4 deferred to Plan 2 as decided)
 
 **Goal:** the matching UI is instant at any level/country, and **AA3** import completes instead of freezing.
 
@@ -212,13 +212,13 @@ WS1, WS3, WS7 are otherwise independent of Plan 2.
 
 ## 8. Implementation order (within this plan)
 
-1. ~~**WS7 filename-sanitization one-liner (P1)**~~ — **DONE** (working tree, uncommitted).
-2. **WS1** — fixes the bug for **AA3** (optionally land Phase 0 timeout-bump first as an interim). AA4 explicitly deferred to Plan 2. — **NOT STARTED** (next up)
-3. **WS2** — the trust layer. Half A (coverage counting) ships now and is the measurement Plan 2 needs; Half B's join key tightens after Plan 2's WS-KEY. — **NOT STARTED**
-4. ~~**WS3** — the single build-step guard.~~ — **DONE** (working tree, uncommitted).
-5. **WS7 (rest)** — size caps, deeper validation, credential handling, temp cleanup. — **NOT STARTED**
+1. ~~**WS7 filename-sanitization one-liner (P1)**~~ — **DONE** (`a36121e2`).
+2. ~~**WS1**~~ — **DONE 2026-07-06** (`805f6b15`; no Phase-0 interim needed — went straight to the split). AA4 explicitly deferred to Plan 2.
+3. **WS2** — save-side counting **DONE** (`805f6b15` + `e3cac93d`). **REMAINING:** render-side coverage ("N of M data areas have a boundary" — compute app-side after the panther transform), Half B `area_id`-validity join (name-based interim), the typed sentinel (~4 files incl. the export degrade re-key).
+4. ~~**WS3** — the single build-step guard.~~ — **DONE** (`a36121e2`).
+5. **WS7 (rest)** — geojson parse cap **DONE** (`14790e39`); SHA-256 cache key **DONE** (`805f6b15`). **REMAINING (policy calls needed):** global upload size/type caps (the Uppy/TUS primitives are shared with dataset CSVs — needs a per-type max ruling), deeper geometry validation, opt-in sessionStorage password store, TUS temp-file sweep.
 
-WS1 + WS2 Half A are the P0 pair. WS3 is near-free. The WS7 path-traversal fix is P1; the rest is P2 but shouldn't be deferred indefinitely.
+**Remaining P0-adjacent work = WS2's render-side coverage + typed sentinel.** The WS7 remainder is P2 pending policy decisions.
 
 **Shipping note:** "closing Angelica's email" = WS1 (**AA3**) implemented + **deployed** + a comms note that is **honest that AA4 follows in Plan 2**. Deploy state is currently clean (prod 1.52.0); the earlier logo/export fix is already live in 1.52.0.
 

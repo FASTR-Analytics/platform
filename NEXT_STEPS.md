@@ -68,22 +68,19 @@ mechanism changes:
   see [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) Open items)
   or you re-cement the instance coupling the snapshot work removes.
 
-### 2. PLAN_GEOJSON_NEAR_TERM · highest user urgency
+### 2. PLAN_GEOJSON_NEAR_TERM · mostly DONE 2026-07-06
 [PLAN_GEOJSON_NEAR_TERM.md](PLAN_GEOJSON_NEAR_TERM.md)
 
-Closes the reported Cameroon/DRC import freeze (R4D / Angelica) and a security hole.
+API gate executed live + WS1 shipped (`805f6b15`: metadata-only analyze, heavy
+fetch at save, guards, verified on live Cameroon/DRC); save-side coverage
+counting shipped (`e3cac93d`); geojson parse cap (`14790e39`). WS3 + WS7-P1
+were already done.
 
-- **WS7 path-traversal one-liner first** (P1 security) —
-  [upload.ts:267](server/routes/instance/upload.ts#L267) renames to the unsanitized
-  client filename.
-- **WS1** — metadata/geometry split fixes the AA3 import freeze.
-- **WS2 Half A** — coverage counting; key-model-agnostic; **a hard prerequisite for
-  item 7's backfill measurement**.
-- Then WS2 Half B / WS3.
-- Effort: **L** · Risk: **medium** · Deps: **none** · Unblocks: **item 7**
-- **Hard gate:** verify the 5 DHIS2 API assumptions against the live instances
-  *before* writing WS1 code (see §9 of the plan).
-- Comms to Angelica must say "AA3 fixed now, AA4 follows in PLAN_GEOJSON_SNAPSHOT."
+- **REMAINING:** WS2 render-side coverage + typed sentinel + Half B join
+  (item 7's backfill measurement needs the render-side half); WS7 P2 policy
+  items (upload size/type caps, sessionStorage store, temp sweep).
+- Comms to Angelica: AA3 fixed once deployed; AA4 follows in
+  PLAN_GEOJSON_SNAPSHOT (and clarify the import is one level per run).
 
 ---
 
