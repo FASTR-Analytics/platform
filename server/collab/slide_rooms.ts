@@ -18,6 +18,7 @@ import {
 import {
   applyDocUpdate,
   applyToLiveRoom,
+  closeRoomsForDoc,
   type DocRoomAdapter,
   type DocRoomDeps,
   relayDocAwareness,
@@ -122,6 +123,16 @@ export function unsubscribeSlide(
   conn: RoomConn,
 ): void {
   unsubscribeDoc(projectId, DOC_TYPE, slideId, conn);
+}
+
+/** Discard a slide's live room without checkpointing — call when the slide
+ *  row is deleted or replaced (see closeRoomsForDoc in doc_rooms.ts). */
+export function closeSlideRoom(
+  projectId: string,
+  slideId: string,
+  message: string,
+): void {
+  closeRoomsForDoc(projectId, DOC_TYPE, slideId, message);
 }
 
 /** Route a non-collab slide save through a live room, if one exists (see

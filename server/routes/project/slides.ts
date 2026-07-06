@@ -9,7 +9,10 @@ import {
   updateSlide,
 } from "../../db/mod.ts";
 import type { Slide } from "lib";
-import { applySlideToLiveRoom } from "../../collab/slide_rooms.ts";
+import {
+  applySlideToLiveRoom,
+  closeSlideRoom,
+} from "../../collab/slide_rooms.ts";
 import {
   editorFromGlobalUser,
   recordVersionEdit,
@@ -159,6 +162,12 @@ defineRoute(
     );
     if (!res.success) {
       return c.json(res);
+    }
+
+    // A live room left on a deleted slide would fail its checkpoints forever
+    // (and clobber any future row re-created with the same id) — discard.
+    for (const slideId of body.slideIds) {
+      closeSlideRoom(c.var.ppk.projectId, slideId, "This slide was deleted");
     }
 
     recordVersionEdit(

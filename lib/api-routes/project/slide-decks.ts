@@ -1,10 +1,18 @@
 import { z } from "zod";
 import { slideDeckConfigSchema } from "../../types/mod.ts";
 import type { SlideDeckSummary, SlideDeckDetail, SlideDeckConfig } from "../../types/slides.ts";
+import type {
+  DeckVersionDetail,
+  DeckVersionSummary,
+} from "../../types/versions.ts";
 import { route } from "../route-utils.ts";
 
 // deck_id is a 3-char nanoid (generateUniqueDeckId), not a UUID
 const deckIdParamsSchema = z.object({ deck_id: z.string() });
+const deckVersionParamsSchema = z.object({
+  deck_id: z.string(),
+  version_id: z.uuid(),
+});
 const folderBodyFields = {
   label: z.string(),
   folderId: z.uuid().nullable().optional(),
@@ -84,6 +92,39 @@ export const slideDeckRouteRegistry = {
     method: "DELETE",
     params: deckIdParamsSchema,
     response: {} as never,
+    requiresProject: true,
+  }),
+
+  listDeckVersions: route({
+    path: "/slide-decks/:deck_id/versions",
+    method: "GET",
+    params: deckIdParamsSchema,
+    response: {} as DeckVersionSummary[],
+    requiresProject: true,
+  }),
+
+  getDeckVersion: route({
+    path: "/slide-decks/:deck_id/versions/:version_id",
+    method: "GET",
+    params: deckVersionParamsSchema,
+    response: {} as DeckVersionDetail,
+    requiresProject: true,
+  }),
+
+  restoreDeckVersion: route({
+    path: "/slide-decks/:deck_id/versions/:version_id/restore",
+    method: "POST",
+    params: deckVersionParamsSchema,
+    response: {} as { lastUpdated: string },
+    requiresProject: true,
+  }),
+
+  copyDeckVersion: route({
+    path: "/slide-decks/:deck_id/versions/:version_id/copy",
+    method: "POST",
+    params: deckVersionParamsSchema,
+    body: z.object(folderBodyFields),
+    response: {} as { newDeckId: string; lastUpdated: string },
     requiresProject: true,
   }),
 } as const;

@@ -287,6 +287,37 @@ async function finalizeRoom(room: Room): Promise<void> {
 }
 
 /**
+ * Discard a live room WITHOUT checkpointing — for documents whose row is being
+ * deleted or replaced (slide/report delete, deck restore). A room left alive
+ * would either fail its checkpoints forever (row gone) or clobber a re-created
+ * row with its stale doc. Connected clients get the adapter's error message
+ * (their sessions surface it via onError) and must re-subscribe to whatever
+ * replaces the document.
+ */
+export function closeRoomsForDoc(
+  projectId: string,
+  docType: string,
+  docId: string,
+  message: string,
+): void {
+  const key = roomKey(projectId, docType, docId);
+  const room = rooms.get(key);
+  if (!room) return;
+  if (room.checkpointTimer) {
+    clearTimeout(room.checkpointTimer);
+    room.checkpointTimer = null;
+  }
+  room.dirty = false; // explicit discard — never checkpoint this doc again
+  for (const conn of room.conns.values()) {
+    conn.send(room.adapter.msgError(docId, message));
+    connRooms.get(conn.connectionId)?.delete(key);
+  }
+  room.conns.clear();
+  rooms.delete(key);
+  room.doc.destroy();
+}
+
+/**
  * Route a non-collab document save (plain HTTP updates: AI edits, fallback
  * saves) through a live room, if one exists. The external change is applied
  * onto the authoritative doc — relaying it live to connected editors — and

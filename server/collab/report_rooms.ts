@@ -18,6 +18,7 @@ import {
 import {
   applyDocUpdate,
   applyToLiveRoom,
+  closeRoomsForDoc,
   type DocRoomAdapter,
   type DocRoomDeps,
   relayDocAwareness,
@@ -97,6 +98,16 @@ export function unsubscribeReport(
   conn: RoomConn,
 ): void {
   unsubscribeDoc(projectId, DOC_TYPE, reportId, conn);
+}
+
+/** Discard a report's live room without checkpointing — call when the report
+ *  row is deleted (see closeRoomsForDoc in doc_rooms.ts). */
+export function closeReportRoom(
+  projectId: string,
+  reportId: string,
+  message: string,
+): void {
+  closeRoomsForDoc(projectId, DOC_TYPE, reportId, message);
 }
 
 /** Route a non-collab report save (the body/figures/images HTTP routes)
