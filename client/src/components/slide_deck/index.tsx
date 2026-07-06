@@ -21,6 +21,7 @@ import type { AIContext } from "../project_ai/types";
 import { snapshotForSlideEditor } from "~/components/_editor_snapshot";
 import { setCollabAvatar, setCollabView } from "~/state/project/collab";
 import { clerk } from "~/components/LoggedInWrapper";
+import { VersionHistoryEditor } from "../version_history";
 
 type SlideDeckModalReturn = undefined;
 
@@ -119,6 +120,7 @@ function ProjectAiSlideDeckInner(p: {
 }) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   const { openEditor: openSettingsEditor, EditorWrapper: SettingsEditorWrapper } = getEditorWrapper();
+  const { openEditor: openHistoryEditor, EditorWrapper: HistoryEditorWrapper } = getEditorWrapper();
   const { aiContext } = useAIProjectContext();
 
   // Editor state
@@ -150,6 +152,18 @@ function ProjectAiSlideDeckInner(p: {
       props: {
         projectId: p.projectState.id,
         deckId: p.deckId,
+      },
+    });
+  }
+
+  async function openVersionHistory() {
+    await openHistoryEditor({
+      element: VersionHistoryEditor,
+      props: {
+        projectId: p.projectState.id,
+        kind: "deck" as const,
+        docId: p.deckId,
+        currentLabel: p.deckLabel,
       },
     });
   }
@@ -204,23 +218,26 @@ function ProjectAiSlideDeckInner(p: {
   }
 
   return (
-    <SettingsEditorWrapper>
-      <EditorWrapper>
-        <SlideList
-          projectState={p.projectState}
-          deckId={p.deckId}
-          slideIds={p.slideIds}
-          isLoading={p.isLoading}
-          setSelectedSlideIds={p.setSelectedSlideIds}
-          onEditSlide={handleEditSlide}
-          deckLabel={p.deckLabel}
-          handleClose={p.handleClose}
-          handleOpenSettings={handleOpenSettings}
-          download={download}
-          share={share}
-          deckConfig={p.deckConfig}
-        />
-      </EditorWrapper>
-    </SettingsEditorWrapper>
+    <HistoryEditorWrapper>
+      <SettingsEditorWrapper>
+        <EditorWrapper>
+          <SlideList
+            projectState={p.projectState}
+            deckId={p.deckId}
+            slideIds={p.slideIds}
+            isLoading={p.isLoading}
+            setSelectedSlideIds={p.setSelectedSlideIds}
+            onEditSlide={handleEditSlide}
+            deckLabel={p.deckLabel}
+            handleClose={p.handleClose}
+            handleOpenSettings={handleOpenSettings}
+            download={download}
+            share={share}
+            openVersionHistory={openVersionHistory}
+            deckConfig={p.deckConfig}
+          />
+        </EditorWrapper>
+      </SettingsEditorWrapper>
+    </HistoryEditorWrapper>
   );
 }

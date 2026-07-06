@@ -41,6 +41,7 @@ type Props = {
   handleOpenSettings: () => Promise<void>;
   download: () => Promise<void>;
   share: () => Promise<void>;
+  openVersionHistory: () => Promise<void>;
   deckConfig: SlideDeckConfig;
 };
 
@@ -411,6 +412,11 @@ export function SlideList(p: Props) {
       label: t3({ en: "Share", fr: "Partager", pt: "Partilhar" }),
       icon: "arrowRight",
       onClick: () => p.share(),
+    },
+    {
+      label: t3({ en: "Version history", fr: "Historique des versions", pt: "Histórico de versões" }),
+      icon: "rotate",
+      onClick: () => p.openVersionHistory(),
     },
     // { type: "divider" },
     // {

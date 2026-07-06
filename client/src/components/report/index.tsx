@@ -70,6 +70,7 @@ import { ReportMarkdownDiff } from "./ReportMarkdownDiff";
 import { ReportFigureEmbed } from "./ReportFigureEmbed";
 import { DownloadReport } from "./download_report";
 import { lineToPreviewTop, previewTopToLine } from "./scroll_sync";
+import { VersionHistoryEditor } from "../version_history";
 
 type EmbedKind = "figure" | "image";
 type EmbedSelection = { kind: EmbedKind; id: string };
@@ -1015,6 +1016,19 @@ export function ProjectReport(p: Props) {
     });
   }
 
+  async function openVersionHistory() {
+    await openInnerEditor({
+      element: VersionHistoryEditor,
+      props: {
+        projectId,
+        kind: "report" as const,
+        docId: p.reportId,
+        currentLabel: label(),
+        getCurrentBody: body,
+      },
+    });
+  }
+
   // The HTML preview pane (View & Split). Owns its scroll-sync lifecycle: it
   // registers previewEl, an rAF-throttled scroll listener, a ResizeObserver on
   // the content (figure-settle, §7), and user-gesture latches — all torn down on
@@ -1188,6 +1202,9 @@ export function ProjectReport(p: Props) {
                 />
                 <span>{saveIndicator().text}</span>
               </div>
+              <Button outline iconName="rotate" onClick={openVersionHistory}>
+                {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
+              </Button>
               <Button outline iconName="download" onClick={download}>
                 {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
               </Button>
