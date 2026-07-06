@@ -96,7 +96,11 @@ export async function fetchFromDHIS2<T = any>(
       console.log(`[DHIS2] Request: ${fetchOptions.method || "GET"} ${url}`);
     }
 
-    // Create abort controller for timeout
+    // Abort controller for timeout. The timer must stay alive across the
+    // BODY read, not just time-to-headers: clearing it as soon as fetch()
+    // resolves leaves response.json() unbounded, and a stalled/trickling
+    // body then hangs the caller forever (verified empirically — the signal
+    // aborts an in-flight body read).
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -106,8 +110,6 @@ export async function fetchFromDHIS2<T = any>(
         headers,
         signal: controller.signal,
       });
-
-      clearTimeout(timeoutId);
 
       const duration = Date.now() - startTime;
 
@@ -120,18 +122,20 @@ export async function fetchFromDHIS2<T = any>(
         throw error;
       }
 
-      // Parse JSON response
+      if (maxResponseBytes !== undefined) {
+        return await readJsonBodyWithCap<T>(response, maxResponseBytes, url);
+      }
       const data = await response.json();
       return data as T;
     } catch (error) {
-      clearTimeout(timeoutId);
-
       // Handle abort/timeout
       if (error instanceof Error && error.name === "AbortError") {
         throw new Error(`DHIS2 request timeout after ${timeout}ms: ${url}`);
       }
 
       throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 
