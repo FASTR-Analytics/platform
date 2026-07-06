@@ -63,7 +63,7 @@ const reportAdapter: DocRoomAdapter<ReportDocContent> = {
   // nothing for restores).
   onDocCreated: (projectId, reportId, doc) => {
     const text = findReportBodyText(doc);
-    initLedger(projectId, reportId, text.length);
+    initLedger(projectId, reportId, text.toString());
     text.observe((event, transaction) => {
       const origin = transaction.origin as
         | { identity?: VersionEditor; versionEditor?: VersionEditor }

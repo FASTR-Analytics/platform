@@ -249,7 +249,7 @@ routesProjectCollab.get(
             reportId,
             content,
             crdtState,
-            getAuthorRuns(projectId, reportId, content.body.length),
+            getAuthorRuns(projectId, reportId, content.body),
           );
           if (!res.success) return null;
           notifyLastUpdated(projectId, "reports", [reportId], res.data.lastUpdated);

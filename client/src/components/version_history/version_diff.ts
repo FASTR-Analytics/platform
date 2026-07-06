@@ -24,6 +24,8 @@ export type AuthorRunLike = {
   len: number;
   email: string | null;
   deletedBy?: string | null;
+  /** Tombstones only: the deleted text (len === text.length). */
+  text?: string;
 };
 
 export type VersionStep = {
@@ -196,80 +198,168 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
     }
   }
 
-  // Tombstone index per step: the step's ghost runs place each deleted range
-  // at its anchor (live-prefix length before it) in that step's body — the
-  // same coordinate a replacement hunk's fromB uses, which is what makes the
-  // matching below positional rather than textual.
-  type Tombstone = { anchor: number; len: number; deletedBy: string | null };
-  const tombstonesByStep: Tombstone[][] = steps.map((step) => {
-    if (!step.authors) return [];
-    const tombs: Tombstone[] = [];
+  // GHOST DOCUMENTS: a step's body with every tombstone's text spliced back
+  // in at its anchor. Aligning the previous document against the ghost (a
+  // plain diff) maps each removed character onto the exact tombstone that
+  // swallowed it — robust against word-aligned hunk boundaries, unrelated
+  // typed-then-deleted ghosts, and several deleters inside one hunk. Null
+  // when the step has no usable ledger (no authors, legacy text-less
+  // tombstones, misalignment).
+  type GhostRun = { from: number; to: number; deletedBy?: string | null };
+  type GhostInfo = { ghost: string; runs: GhostRun[] };
+
+  function buildGhost(step: VersionStep): GhostInfo | null {
+    if (!step.authors || step.authors.length === 0) return null;
+    const parts: string[] = [];
+    const runs: GhostRun[] = [];
+    let ghostLen = 0;
     let live = 0;
+    let hasTombstone = false;
     for (const run of step.authors) {
       if (run.deletedBy !== undefined) {
-        tombs.push({ anchor: live, len: run.len, deletedBy: run.deletedBy });
+        if (typeof run.text !== "string" || run.text.length !== run.len) {
+          return null;
+        }
+        hasTombstone = true;
+        runs.push({
+          from: ghostLen,
+          to: ghostLen + run.len,
+          deletedBy: run.deletedBy,
+        });
+        parts.push(run.text);
       } else {
+        runs.push({ from: ghostLen, to: ghostLen + run.len });
+        parts.push(step.body.slice(live, live + run.len));
         live += run.len;
       }
+      ghostLen += run.len;
     }
-    return tombs;
-  });
+    if (live !== step.body.length) return null;
+    if (!hasTombstone) return null;
+    return { ghost: parts.join(""), runs };
+  }
 
-  // The tombstones accounting for step k's hunk, in ghost (= original text)
-  // order — null unless they exactly cover the hunk's deleted length
-  // (delete-then-retype and missing ledgers fail this and fall back).
-  function hunkTombstones(
+  // Lazy per-transition mapping: diff of doc_k against step k+1's ghost.
+  // Complete ledgers make this insert-only; its deletions are ledger gaps.
+  type GhostMapping = {
+    info: GhostInfo;
+    hunks: readonly { fromA: number; toA: number; fromB: number; toB: number }[];
+  };
+  const ghostMappings: (GhostMapping | null | undefined)[] = steps.map(
+    () => undefined,
+  );
+  function ghostMappingFor(k: number): GhostMapping | null {
+    if (ghostMappings[k] !== undefined) return ghostMappings[k] as
+      | GhostMapping
+      | null;
+    const info = buildGhost(steps[k + 1]);
+    const m = info
+      ? { info, hunks: presentableDiff(bodies[k], info.ghost) }
+      : null;
+    ghostMappings[k] = m;
+    return m;
+  }
+
+  type GhostPiece = {
+    off: number;
+    len: number;
+    kind: "deleted" | "survived" | "gap";
+    deletedBy?: string | null;
+  };
+
+  // Cut a ghost range by the ghost's runs, emitting attribution pieces whose
+  // offsets are relative to the queried doc_k range.
+  function emitGhostRuns(
+    info: GhostInfo,
+    gFrom: number,
+    gTo: number,
+    offBase: number,
+    pieces: GhostPiece[],
+  ): void {
+    for (const r of info.runs) {
+      if (r.to <= gFrom) continue;
+      if (r.from >= gTo) break;
+      const f = Math.max(gFrom, r.from);
+      const t = Math.min(gTo, r.to);
+      if (f >= t) continue;
+      pieces.push(
+        r.deletedBy === undefined
+          ? { off: offBase + (f - gFrom), len: t - f, kind: "survived" }
+          : {
+            off: offBase + (f - gFrom),
+            len: t - f,
+            kind: "deleted",
+            deletedBy: r.deletedBy,
+          },
+      );
+    }
+  }
+
+  // Map a doc_k range [a, b) into step k+1's ghost: regions outside the
+  // diff's hunks are identical text (shift by the accumulated delta and read
+  // the ghost runs there); regions inside hunk A-sides don't exist in the
+  // ghost (ledger gaps).
+  function mapRangeThroughGhost(
     k: number,
-    h: { fromA: number; toA: number; fromB: number; toB: number },
-  ): Tombstone[] | null {
-    const tombs = tombstonesByStep[k + 1].filter(
-      (t) => t.anchor >= h.fromB && t.anchor <= h.toB,
-    );
-    const total = tombs.reduce((n, t) => n + t.len, 0);
-    return total === h.toA - h.fromA ? tombs : null;
+    a: number,
+    b: number,
+  ): GhostPiece[] | null {
+    const m = ghostMappingFor(k);
+    if (!m) return null;
+    const pieces: GhostPiece[] = [];
+    let pos = a;
+    let pa = 0;
+    let pb = 0;
+    for (const h of m.hunks) {
+      if (pos < h.fromA && pos < b) {
+        const end = Math.min(h.fromA, b);
+        emitGhostRuns(m.info, pos + (pb - pa), end + (pb - pa), pos - a, pieces);
+        pos = end;
+      }
+      if (pos >= b) break;
+      if (pos < h.toA && pos < b) {
+        const end = Math.min(h.toA, b);
+        pieces.push({ off: pos - a, len: end - pos, kind: "gap" });
+        pos = end;
+      }
+      pa = h.toA;
+      pb = h.toB;
+      if (pos >= b) break;
+    }
+    if (pos < b) {
+      emitGhostRuns(m.info, pos + (pb - pa), b + (pb - pa), pos - a, pieces);
+    }
+    return pieces;
   }
 
   type RemovedPiece = { off: number; len: number } & Attribution;
 
   // Who removed a base-document range [fromA, toA): map it forward and, at
-  // each step, check which hunks delete/replace part of it. When the WHOLE
-  // range is consumed by a single step's single hunk with exact tombstone
-  // data, split it per deleter (exact names). Otherwise — chipped across
-  // sessions, interior churn, no ledger — fall back to the session-label
-  // union, exact only for a single-editor single session.
+  // each step, check which hunks delete/replace part of it. At the FIRST
+  // touching step — while the range is still intact, so offsets correspond
+  // 1:1 — align it against that step's ghost: characters landing on
+  // tombstones get their exact deleter; anything else (ledger gaps, chars
+  // that survive into later steps, null deleters) falls back to the
+  // session-label union computed over the whole walk.
   function removedAttribution(fromA: number, toA: number): RemovedPiece[] {
     const width = toA - fromA;
     let a = fromA;
     let b = toA;
     const touchedSteps: number[] = [];
     const labels: string[] = [];
+    let ghostPieces: GhostPiece[] | null = null;
+    let ghostStepIdx = -1;
     for (let k = 0; k < stepDiffs.length; k++) {
-      const overlapping = stepDiffs[k].hunks.filter(
+      const touched = stepDiffs[k].hunks.some(
         (h) => h.fromA < h.toA && h.fromA < b && h.toA > a,
       );
-      if (overlapping.length > 0) {
+      if (touched) {
         touchedSteps.push(k);
         const label = steps[k + 1].label;
         if (!labels.includes(label)) labels.push(label);
-        // Exact case: first touching step, range intact (same width, so base
-        // offsets still correspond 1:1), fully inside one hunk with matching
-        // tombstones.
-        if (
-          touchedSteps.length === 1 &&
-          b - a === width &&
-          overlapping.length === 1 &&
-          overlapping[0].fromA <= a &&
-          overlapping[0].toA >= b
-        ) {
-          const tombs = hunkTombstones(k, overlapping[0]);
-          if (tombs) {
-            return sliceTombstones(
-              tombs,
-              a - overlapping[0].fromA,
-              b - overlapping[0].fromA,
-              k + 1,
-            );
-          }
+        if (touchedSteps.length === 1 && b - a === width) {
+          ghostPieces = mapRangeThroughGhost(k, a, b);
+          ghostStepIdx = k + 1;
         }
       }
       const na = stepDiffs[k].changes.mapPos(a, 1);
@@ -278,51 +368,37 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       a = na;
       b = nb;
     }
-    if (labels.length === 0) {
-      return [{ off: 0, len: width, who: undefined, whoExact: false }];
-    }
+
     const singleExact = touchedSteps.length === 1 &&
       (steps[touchedSteps[0] + 1].labelExact ?? false);
-    return [{
-      off: 0,
-      len: width,
-      who: labels.join(", "),
-      whoExact: singleExact,
-      whoEmail: singleExact
-        ? steps[touchedSteps[0] + 1].labelEmail
-        : undefined,
-    }];
-  }
+    const fallback: Attribution = labels.length === 0
+      ? { who: undefined, whoExact: false }
+      : {
+        who: labels.join(", "),
+        whoExact: singleExact,
+        whoEmail: singleExact
+          ? steps[touchedSteps[0] + 1].labelEmail
+          : undefined,
+      };
 
-  // Cut the hunk's tombstone sequence to the range's offsets, one piece per
-  // deleter (null deleter = unattributed write, e.g. a restore — session
-  // fallback for that piece).
-  function sliceTombstones(
-    tombs: Tombstone[],
-    from: number,
-    to: number,
-    stepIdx: number,
-  ): RemovedPiece[] {
-    const step = steps[stepIdx];
+    if (!ghostPieces) {
+      return [{ off: 0, len: width, ...fallback }];
+    }
+    const step = steps[ghostStepIdx];
     const pieces: RemovedPiece[] = [];
-    let pos = 0;
-    for (const t of tombs) {
-      const tFrom = pos;
-      const tTo = pos + t.len;
-      pos = tTo;
-      if (tTo <= from) continue;
-      if (tFrom >= to) break;
-      const f = Math.max(from, tFrom);
-      const cut = Math.min(to, tTo);
-      const piece: RemovedPiece = t.deletedBy === null
-        ? { off: f - from, len: cut - f, ...fallbackAttribution(step) }
-        : {
-          off: f - from,
-          len: cut - f,
-          who: step.names?.[t.deletedBy] ?? t.deletedBy,
-          whoExact: true,
-          whoEmail: t.deletedBy,
-        };
+    for (const gp of ghostPieces) {
+      const attribution: Attribution =
+        gp.kind === "deleted" && gp.deletedBy !== null &&
+          gp.deletedBy !== undefined
+          ? {
+            who: step.names?.[gp.deletedBy] ?? gp.deletedBy,
+            whoExact: true,
+            whoEmail: gp.deletedBy,
+          }
+          : gp.kind === "deleted"
+          ? fallbackAttribution(step)
+          : fallback;
+      const piece: RemovedPiece = { off: gp.off, len: gp.len, ...attribution };
       const prev = pieces[pieces.length - 1];
       if (
         prev && sameAttribution(prev, piece) &&
@@ -334,7 +410,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       }
     }
     if (pieces.length === 0) {
-      return [{ off: 0, len: to - from, ...fallbackAttribution(step) }];
+      return [{ off: 0, len: width, ...fallback }];
     }
     return pieces;
   }

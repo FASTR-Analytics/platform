@@ -30,6 +30,12 @@ export type AuthorRun = {
   len: number;
   email: string | null;
   deletedBy?: string | null;
+  /** Tombstones only: the deleted text itself (len === text.length). Lets the
+   *  diff views align the previous version against the "ghost document"
+   *  (body + deletions spliced back in) for per-character deleter attribution
+   *  that survives word-aligned diff boundaries and typed-then-deleted
+   *  ghosts. */
+  text?: string;
 };
 
 export type ReportVersionSummary = {

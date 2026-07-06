@@ -103,16 +103,22 @@ version snapshots freeze it in `report_versions.body_authors` (migration 033;
 NOT part of the content hash — dedup is about content, not attribution).
 
 **Deletions leave TOMBSTONES**: a deleted range's runs stay in the ledger with
-`deletedBy` set (keeping the original writer in `email`), anchored exactly
-where the text vanished — live runs concatenated still equal the body, so the
-alignment invariant counts live characters only. Inserts land AFTER tombstones
-at the same anchor, which keeps a tombstone's anchor equal to the diff hunk's
-`fromB` — the positional (not textual) match the client uses. Tombstones live
-for ONE version window: `compactTombstones` drops them right after a version
-snapshots them (called in `writeVersion` and after a restore's version
-inserts), so a version's tombstones are precisely "deletions since the
-previous version". A defensive cap (~2000 tombstone runs) bounds churn-heavy
-sessions.
+`deletedBy` set (keeping the original writer in `email`) AND the deleted
+`text` itself, anchored exactly where the text vanished — live runs
+concatenated still equal the body, so the alignment invariant counts live
+characters only (the ledger mirrors the body string to slice deletions out of
+and as a hard integrity check at persist time). Inserts land AFTER tombstones
+at the same anchor. The client attributes removals by building the step's
+**ghost document** (body + tombstone texts spliced back in) and diffing the
+previous version against it — each removed character lands on the tombstone
+that swallowed it, which survives word-aligned hunk boundaries, unrelated
+typed-then-deleted ghosts at the same spot, and several deleters inside one
+hunk (a boundary character shared by two adjacent deletions can align to
+either — inherent diff ambiguity, ≤1 char). Tombstones live for ONE version
+window: `compactTombstones` drops them right after a version snapshots them
+(called in `writeVersion` and after a restore's version inserts), so a
+version's tombstones are precisely "deletions since the previous version". A
+defensive cap (~2000 tombstone runs) bounds churn-heavy sessions.
 
 The diff views split each inserted range by the step's ledger, so hover reads
 "Added by Alice A" (exact) instead of the whole editor set, and split each
@@ -259,17 +265,20 @@ overflow menu.
   drainEditors, per-doc independence.
 - `planDeckRestore` harness (14 asserts): partition invariants, original-id
   preservation, snapshot ordering, empty edge cases.
-- `version_diff` harness (40 asserts incl. 200-chain fuzz): current-doc
+- `version_diff` harness (46 asserts incl. 200-chain fuzz): current-doc
   reassembly, base-char coverage, per-session attribution (replacements,
   later-deletes, edits inside earlier insertions), author-run splitting
-  (exact per-person spans, null-run fallback), tombstone deletion attribution
-  (exact deleter, multi-deleter splits within one hunk, replacement anchors,
-  length-mismatch and null-deleter fallbacks), degenerate inputs.
+  (exact per-person spans, null-run fallback), ghost-document deletion
+  attribution (exact deleter, multi-deleter splits within one hunk,
+  replacement anchors, partial-ledger split into exact + fallback,
+  typed-then-deleted ghost interference, mid-word deletions vs word-aligned
+  hunks, null-deleter fallback), degenerate inputs.
 - `authorship` harness (18 asserts incl. 300-run delta fuzz): attribution and
-  alignment through interleaved edits, tombstone creation (writer + deleter
-  kept, ghost order, insert-after-anchor rule, delete-across-tombstone),
-  unknown deleters, compaction, the tombstone cap, unattributed inserts,
-  misalignment poisoning, persisted-run adoption/rejection.
+  alignment through interleaved edits, tombstone creation (writer + deleter +
+  deleted text kept, ghost order, insert-after-anchor rule,
+  delete-across-tombstone), unknown deleters, compaction, the tombstone cap,
+  unattributed inserts, misalignment poisoning (body-mirror equality),
+  persisted-run adoption/rejection.
 - Both are scratch scripts (`deno run --allow-all -c deno.json <file>` with
   absolute-path imports — the repo's standard harness idiom).
 - Manual two-user matrix: see the feature checklist in the PR/commit series
