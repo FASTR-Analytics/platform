@@ -34,8 +34,18 @@ const HEAVY_GEOJSON_FETCH = { timeoutMs: 180000, maxAttempts: 1 };
 
 export const routesGeoJsonMaps = new Hono();
 
+// Guard before the unbounded readTextFile + JSON.parse: any authenticated
+// configure-data user could otherwise OOM the server with one huge upload.
+const MAX_GEOJSON_FILE_BYTES = 100 * 1024 * 1024;
+
 async function readAssetFile(assetFileName: string): Promise<string> {
   const filePath = resolveAssetFilePath(assetFileName);
+  const stat = await Deno.stat(filePath);
+  if (stat.size > MAX_GEOJSON_FILE_BYTES) {
+    throw new Error(
+      `GeoJSON file is too large (${Math.round(stat.size / 1048576)} MB; max 100 MB)`,
+    );
+  }
   return await Deno.readTextFile(filePath);
 }
 
