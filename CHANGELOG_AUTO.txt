@@ -1,3 +1,17 @@
+[TBD] [user] [fixed] - Replicate-by dropdown now updates when changing time period filters
+[TBD] [user] [fixed] - Replicate-by dropdown shows proper error message when values fail to load
+[TBD] [user] [fixed] - Chart previews no longer briefly show stale data during rapid updates
+[TBD] [user] [fixed] - Relative time filters now correctly narrow replicate-by option lists
+[TBD] [user] [added] - "Don't know" responses can now be treated as "No" for health facility indicators
+[TBD] [admin] [fixed] - Replicate-by options now update when period filter changes
+[TBD] [admin] [fixed] - Replicate-by picker shows proper error message on failure
+[TBD] [admin] [fixed] - Relative period filters now correctly narrow replicate-by option lists
+[TBD] [admin] [fixed] - Stale chart previews no longer appear during rapid updates
+[TBD] [admin] [fixed] - Period-based filters work correctly on quarter-only data tables
+[TBD] [admin] [added] - HFA modules support a "Don't Know as No" treatment parameter
+[TBD] [admin] [fixed] - HFA select-multiple "don't know" answers tracked correctly per choice
+[TBD] [admin] [fixed] - Invalid filter values on numeric columns now rejected at input
+[TBD] [admin] [internal] - Presentation object cache version updated to reflect filter fixes
 [1.56.0] [user] [fixed] - Fixed data upload errors when certain numeric formats were used
 [1.56.0] [user] [fixed] - Fixed uploads failing for values outside the allowed date range
 [1.56.0] [user] [fixed] - Prevented uninstalling a module that other modules depend on
