@@ -13,7 +13,7 @@ import {
 
 function generateMissingnessCheck(qids: string[]): string {
   const missingChecks = qids.map(
-    (varName) => `is.na(${varName}) | ${varName} == -99`,
+    (varName) => `is.na(${varName}) | ${varName} %in% c(-99, -999999)`,
   );
 
   if (missingChecks.length === 0) {

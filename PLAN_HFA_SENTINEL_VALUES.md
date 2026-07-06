@@ -112,6 +112,6 @@ family is right).
 
 ## Status
 
-- Rung 1: not started
+- Rung 1: implemented
 - Rung 2: not started
 - Rung 3: not started (stop point — needs a go-ahead and sequencing ruling)
