@@ -1,3 +1,9 @@
+[1.57.1] [user] [added] - AI button now available in indicator editor and Excel import views
+[1.57.1] [user] [changed] - AI panel button uses consistent styling across all screens
+[1.57.1] [user] [fixed] - Indicator table scroll position preserved when data refreshes
+[1.57.1] [admin] [added] - AI assistant button now available in more indicator views
+[1.57.1] [admin] [changed] - AI panel stays visible when editing or importing indicators
+[1.57.1] [admin] [fixed] - Indicator table scroll position preserved after data refreshes
 [1.57.0] [user] [fixed] - AI responses no longer cut off on long outputs like report rewrites
 [1.57.0] [user] [fixed] - Slide previews now show error messages instead of disappearing entirely
 [1.57.0] [user] [fixed] - AI no longer incorrectly rejects normal text containing pipe characters as tables
