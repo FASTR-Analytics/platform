@@ -328,7 +328,11 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
   localization: FigureLocalization,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
-  return getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray);
+  return {
+    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray),
+    membership: { indicator: "unbalanced", lane: "unbalanced" },
+    proportional: { bands: true, panes: true },
+  };
 }
 
 export function getChartOHJsonDataConfigFromPresentationObjectConfig(
@@ -339,5 +343,9 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
   localization: FigureLocalization,
   jsonArray?: any[],
 ): ChartOHJsonDataConfig {
-  return getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray);
+  return {
+    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray),
+    membership: { indicator: "unbalanced", tier: "unbalanced" },
+    proportional: { bands: true, panes: true },
+  };
 }

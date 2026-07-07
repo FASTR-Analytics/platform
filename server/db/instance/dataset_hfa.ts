@@ -36,6 +36,13 @@ import type {
   DBDatasetHfaUploadAttempt,
 } from "./_main_database_types.ts";
 
+export async function getHfaTimePointOrder(mainDb: Sql): Promise<string[]> {
+  const rows = await mainDb<{ label: string }[]>`
+    SELECT label FROM hfa_time_points ORDER BY sort_order
+  `;
+  return rows.map((r) => r.label);
+}
+
 export function computeHfaCacheHash(
   timePointRows: { label: string; sort_order: number; imported_at: string | null }[],
 ): string {

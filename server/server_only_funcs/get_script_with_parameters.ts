@@ -20,6 +20,7 @@ export function getScriptWithParameters(
   hfaIndicatorCode?: HfaIndicatorCode[],
   calculatedIndicators?: CalculatedIndicator[],
   hfaSentinelRows?: HfaSentinelRow[],
+  hfaTimePointOrder?: string[],
 ): string {
   if (moduleDefinition.scriptGenerationType === "calculated_indicators") {
     if (!calculatedIndicators) {
@@ -54,6 +55,7 @@ export function getScriptWithParameters(
       hfaIndicatorCode ?? [],
       knownDatasetVariables,
       hfaSentinelRows ?? [],
+      hfaTimePointOrder ?? [],
     );
   }
 

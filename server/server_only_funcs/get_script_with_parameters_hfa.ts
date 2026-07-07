@@ -284,6 +284,7 @@ export function getScriptWithParametersHfa(
   indicatorCode: HfaIndicatorCode[],
   knownDatasetVariables: Set<string>,
   sentinelRows: HfaSentinelRow[],
+  hfaTimePointOrder: string[],
 ): string {
   const sentinelMap = buildSentinelMap(sentinelRows);
 
@@ -540,6 +541,10 @@ export function getScriptWithParametersHfa(
   str = str.replaceAll("__INDICATOR_MUTATES__", indicatorMutates);
   str = str.replaceAll("__INDICATOR_COLS__", indicatorCols);
   str = str.replaceAll("__INDICATOR_METADATA__", indicatorMetadata);
+  str = str.replaceAll(
+    "__HFA_TIME_POINT_ORDER__",
+    hfaTimePointOrder.map((tp) => `"${tp.replace(/"/g, '\\"')}"`).join(", "),
+  );
 
   return str;
 }

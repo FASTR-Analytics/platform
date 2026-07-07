@@ -11,6 +11,7 @@ import {
   getAllHfaIndicatorCodeFromSnapshot,
   getAllHfaIndicatorsFromSnapshot,
   getHfaSentinelRowsFromSnapshot,
+  getHfaTimePointOrder,
 } from "../../db/mod.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import {
@@ -125,6 +126,7 @@ export async function* runModuleIterator(
     let hfaSentinelRows: Awaited<
       ReturnType<typeof getHfaSentinelRowsFromSnapshot>
     > = [];
+    let hfaTimePointOrder: string[] | undefined;
 
     if (moduleDetail.moduleDefinition.scriptGenerationType === "hfa") {
       const hfaVarRows = await projectDb<{ var_name: string }[]>`
@@ -133,6 +135,7 @@ export async function* runModuleIterator(
       knownDatasetVariables = new Set(hfaVarRows.map((r) => r.var_name));
 
       hfaSentinelRows = await getHfaSentinelRowsFromSnapshot(projectDb);
+      hfaTimePointOrder = await getHfaTimePointOrder(mainDb);
 
       // Read indicators + code from the project-level snapshot written at
       // HFA data export time. This guarantees indicator defs and project data
@@ -173,6 +176,7 @@ export async function* runModuleIterator(
       hfaIndicatorCodeFromSnapshot,
       calculatedIndicatorsFromSnapshot,
       hfaSentinelRows,
+      hfaTimePointOrder,
     );
     const scriptFilePath = join(moduleDirPath, _MODULE_SCRIPT_FILE_NAME);
     await Deno.writeTextFile(scriptFilePath, scriptWithParameters);

@@ -24,7 +24,7 @@ inline per item.
   indicator under the `DONT_KNOW_TREATMENT` policy with **per-variable**
   missingness from the classification (snapshotted to
   `hfa_variable_values_snapshot`), falling back to the hardcoded
-  `c(-99, -999999)` set for unclassified variables. Items 5–6 below are the
+  `c(-99, -999999)` set for unclassified variables. Items 4–5 below are the
   remaining sentinel work.
 - **Three repos move together** where noted: this app, `wb-fastr-modules` (R +
   regenerated `definition.json`), and panther.
@@ -84,42 +84,7 @@ filter UI in `client/`.
 
 ---
 
-## 3. Carry-forward fallback (USE_PREVIOUS / USE_NEXT) · L · app + wb-fastr-modules
-
-**Problem.** When a facility has no value for an indicator in a round, optionally
-carry the same facility's value from the previous (or next) round — at the
-**facility level**, as a **fallback**: keep the real `r_code`, fall back only
-when it yields missing.
-
-**Settled.**
-
-- Fallback, not replacement — real code runs first; carry only fills the gap. Lookup per facility × indicator × round.
-- Runs **inside the R module** (only place facility granularity exists, before weighting).
-- **Design fork (recommended):** a separate per-round fallback-policy column
-  (`none | prev | next`) alongside `r_code__Round N`, not a sentinel-in-`r_code`
-  — a replacement sentinel can't express "compute, then fall back". Grain mirrors
-  `r_code__Round N` / `r_filter_code__Round N`.
-
-**Open.**
-
-- Which module consumes the HFA workbook params ([get_script_with_parameters_hfa.ts](server/server_only_funcs/get_script_with_parameters_hfa.ts)). Note `m004`/`m005`/`m006` already do admin-area × year `zoo::na.locf` carry-forward for projections — *different mechanism*, don't conflate.
-- Chained gaps (round 3 missing → 2 also missing → fall to 1?) and prev/next conflict resolution.
-- Whole-round-absent vs present-but-NA — cover both.
-- **Define fallback against the post-policy value.** Sentinel handling is now
-  live, so "yields missing" depends on `DONT_KNOW_TREATMENT`: a DK-as-No item
-  resolves to 0/No, not NA, and must **not** trigger carry-forward. The
-  post-policy value is what the `case_when` in `get_script_with_parameters_hfa.ts`
-  emits.
-
-**Touches (cross-repo, lockstep).** Workbook schema + parser, `hfa_indicators`
-schema/types/Zod, project snapshot
-([datasets_in_project_hfa.ts](server/db/project/datasets_in_project_hfa.ts)),
-param injection, the R script in `wb-fastr-modules` (+ regenerated
-`definition.json`), editor UI, validation/status.
-
----
-
-## 4. AI indicator-assistant hardening · S–M · app-only
+## 3. AI indicator-assistant hardening · S–M · app-only
 
 First pass is shipped (self-contained assistant in
 [client/src/components/indicator_manager_hfa/ai/](client/src/components/indicator_manager_hfa/ai/),
@@ -144,7 +109,7 @@ all three tiers of tools with a per-write confirm gate). Remaining:
 
 ---
 
-## 5. Sentinel Layer 1 — import review/correction UI · M · app-only
+## 4. Sentinel Layer 1 — import review/correction UI · M · app-only
 
 Auto-classification is shipped; this is the deferred human-correction step. A
 review step in the import wizard, between staging (step 3,
@@ -163,7 +128,7 @@ stepper renumbered from 4 to 5 (`index.tsx` `getValidation` + `<Match>` arms).
 
 ---
 
-## 6. Sentinel Layer 3b — per-indicator override + authoring-rule gate · L · app + wb-fastr-modules
+## 5. Sentinel Layer 3b — per-indicator override + authoring-rule gate · L · app + wb-fastr-modules
 
 Layer 3a (per-variable generator) is shipped; 3b is the additive escape hatch +
 validation:
