@@ -371,6 +371,7 @@ CREATE TABLE hfa_variable_values (
   var_name TEXT NOT NULL,
   value TEXT NOT NULL,
   value_label TEXT NOT NULL,
+  sentinel_class TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (time_point, var_name, value),
   FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE
 );

@@ -77,11 +77,13 @@ and discards the `constraint` column. Layer 1 must add constraint parsing.
 **Storage — one column, `hfa_variable_values.sentinel_class TEXT NULL`
 (the one fork worth a ruling).** The classification is a property of a
 `(question, code)` pair, and `hfa_variable_values` is already keyed exactly
-`(time_point, var_name, value)`. So the natural home is a nullable
-`sentinel_class` column there: `null` = substantive answer (untouched, per
-principle 5), non-null = one of `dont_know | refused | other | not_applicable |
-question_specific`. Layer 3 then reads missingness per-variable straight off
-this column instead of the hardcoded `c(-99, -999999)`.
+`(time_point, var_name, value)`. So the natural home is a
+`sentinel_class TEXT NOT NULL DEFAULT ''` column there (matching migration
+053's `'[]'` idiom — `''` over `null` keeps the all-strings staging path
+unchanged): `''` = substantive answer (untouched, per principle 5), non-empty =
+one of `dont_know | refused | other | not_applicable | question_specific`.
+Layer 3 then reads missingness per-variable straight off this column instead of
+the hardcoded `c(-99, -999999)`.
 
 The wrinkle: **numeric vars have no `hfa_variable_values` rows today** — the
 staging `else` branch (`worker.ts:425-427`) writes only a `hfa_variables` row,
@@ -144,9 +146,12 @@ review step is what makes an imperfect heuristic safe.
    `DICT_VALUES_STAGING_TABLE` + the `tup(...)` calls (L364-371, L397-424); run
    the classifier while building `dictValueRows`; in the numeric `else` branch,
    parse the constraint and push synthesized sentinel value rows.
-4. **Migration (new file, instance)** — `ALTER TABLE hfa_variable_values ADD
-   COLUMN sentinel_class TEXT`. Do **not** edit `023_...sql`. Nullable; existing
-   rows stay null until re-import (same precedent as the select_multiple fix).
+4. **Migration `055_...sql` + base schema** — `ALTER TABLE hfa_variable_values
+   ADD COLUMN IF NOT EXISTS sentinel_class TEXT NOT NULL DEFAULT ''` (do **not**
+   edit `023_...sql`), and add the same column to `_main_database.sql`'s
+   `hfa_variable_values` CREATE (base is kept current; `IF NOT EXISTS` makes the
+   migration a no-op on fresh DBs). Existing rows default to `''` until
+   re-import (same precedent as the select_multiple fix).
 5. **Integrate (`integrate_hfa_data/worker.ts:137-145`)** — carry `sentinel_class`
    through the `INSERT INTO hfa_variable_values ... SELECT ...` promotion.
 6. **Review step (wizard).** Stepper today: step 3 `updateDatasetHfaStaging`

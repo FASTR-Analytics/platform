@@ -19,6 +19,9 @@ import {
   DatasetHfaCsvStagingResult,
   DatasetHfaUploadAttemptStatus,
   HfaCsvMappingParams,
+  classifyChoice,
+  classifyNumericSentinel,
+  parseNumericSentinels,
 } from "lib";
 import {
   getCsvColumnIndex,
@@ -367,6 +370,7 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
   var_name TEXT NOT NULL,
   value TEXT NOT NULL,
   value_label TEXT NOT NULL,
+  sentinel_class TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (time_point, var_name, value)
 )`);
 
@@ -394,15 +398,18 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
               "select_multiple_binary",
             ),
           );
-          dictValueRows.push(tup(cleanedTimePoint, expandedVarName, "1", "Yes"));
-          dictValueRows.push(tup(cleanedTimePoint, expandedVarName, "0", "No"));
+          // "Yes"/"No" are substantive; only the carried "-99" is a sentinel.
+          dictValueRows.push(tup(cleanedTimePoint, expandedVarName, "1", "Yes", ""));
+          dictValueRows.push(tup(cleanedTimePoint, expandedVarName, "0", "No", ""));
           if (dkChoice && String(choice.name).trim() !== "-99") {
+            const dkLabel = dkChoice.label.trim();
             dictValueRows.push(
               tup(
                 cleanedTimePoint,
                 expandedVarName,
                 "-99",
-                dkChoice.label.trim(),
+                dkLabel,
+                classifyChoice("-99", dkLabel) ?? "",
               ),
             );
           }
@@ -413,17 +420,28 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
       ) {
         dictVarRows.push(tup(cleanedTimePoint, varName, varLabel, varType));
         for (const choice of mapping.choices) {
+          const code = String(choice.name).trim();
+          const label = choice.label.trim();
           dictValueRows.push(
             tup(
               cleanedTimePoint,
               varName,
-              String(choice.name).trim(),
-              choice.label.trim(),
+              code,
+              label,
+              classifyChoice(code, label) ?? "",
             ),
           );
         }
       } else {
         dictVarRows.push(tup(cleanedTimePoint, varName, varLabel, varType));
+        // Numeric vars have no choice list; their don't-know sentinel lives in
+        // the XLSForm constraint (e.g. ". = -999999"). Synthesize a dictionary
+        // row so the sentinel and its class are captured like a choice code.
+        for (const sv of parseNumericSentinels(mapping.xlsFormVar.constraint ?? "")) {
+          const cls = classifyNumericSentinel(sv);
+          const label = cls === "dont_know" ? "Don't know" : "Reserved value";
+          dictValueRows.push(tup(cleanedTimePoint, varName, sv, label, cls));
+        }
       }
     }
 
@@ -440,7 +458,7 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
       for (let i = 0; i < dictValueRows.length; i += 1000) {
         const batch = dictValueRows.slice(i, i + 1000);
         await importDb.unsafe(
-          `INSERT INTO ${DICT_VALUES_STAGING_TABLE} (time_point, var_name, value, value_label) VALUES ${batch.join(",")}`,
+          `INSERT INTO ${DICT_VALUES_STAGING_TABLE} (time_point, var_name, value, value_label, sentinel_class) VALUES ${batch.join(",")}`,
         );
       }
     }

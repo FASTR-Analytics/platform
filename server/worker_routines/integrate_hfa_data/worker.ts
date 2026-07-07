@@ -140,8 +140,8 @@ async function run(std: {
 
       // Insert dictionary values from staging
       await sql.unsafe(`
-        INSERT INTO hfa_variable_values (time_point, var_name, value, value_label)
-        SELECT time_point, var_name, value, value_label FROM ${dictValuesStagingTable}
+        INSERT INTO hfa_variable_values (time_point, var_name, value, value_label, sentinel_class)
+        SELECT time_point, var_name, value, value_label, sentinel_class FROM ${dictValuesStagingTable}
       `);
 
       await updateIntegrationProgress(50);
