@@ -6,7 +6,10 @@ import type {
   ModuleDefinitionInstalled,
 } from "lib";
 import { getScriptWithParametersCalculatedIndicators } from "./get_script_with_parameters_calculated_indicators.ts";
-import { getScriptWithParametersHfa } from "./get_script_with_parameters_hfa.ts";
+import {
+  getScriptWithParametersHfa,
+  type HfaSentinelRow,
+} from "./get_script_with_parameters_hfa.ts";
 
 export function getScriptWithParameters(
   moduleDefinition: ModuleDefinitionInstalled,
@@ -16,6 +19,7 @@ export function getScriptWithParameters(
   hfaIndicators?: HfaIndicator[],
   hfaIndicatorCode?: HfaIndicatorCode[],
   calculatedIndicators?: CalculatedIndicator[],
+  hfaSentinelRows?: HfaSentinelRow[],
 ): string {
   if (moduleDefinition.scriptGenerationType === "calculated_indicators") {
     if (!calculatedIndicators) {
@@ -49,6 +53,7 @@ export function getScriptWithParameters(
       hfaIndicators,
       hfaIndicatorCode ?? [],
       knownDatasetVariables,
+      hfaSentinelRows ?? [],
     );
   }
 

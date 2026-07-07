@@ -8,6 +8,7 @@ import {
   getAllCalculatedIndicatorsFromSnapshot,
   getAllHfaIndicatorCodeFromSnapshot,
   getAllHfaIndicatorsFromSnapshot,
+  getHfaSentinelRowsFromSnapshot,
   getAllMetrics,
   getAllModulesForProject,
   getCountryIso3Config,
@@ -329,6 +330,9 @@ defineRoute(
     let hfaIndicators: HfaIndicator[] | undefined;
     let hfaIndicatorCode: HfaIndicatorCode[] | undefined;
     let calculatedIndicators: CalculatedIndicator[] | undefined;
+    let hfaSentinelRows: Awaited<
+      ReturnType<typeof getHfaSentinelRowsFromSnapshot>
+    > = [];
 
     if (res.data.moduleDefinition.scriptGenerationType === "hfa") {
       const hfaVarRows = await c.var.ppk.projectDb<{ var_name: string }[]>`
@@ -344,6 +348,7 @@ defineRoute(
       hfaIndicatorCode = await getAllHfaIndicatorCodeFromSnapshot(
         c.var.ppk.projectDb,
       );
+      hfaSentinelRows = await getHfaSentinelRowsFromSnapshot(c.var.ppk.projectDb);
     }
 
     if (res.data.moduleDefinition.scriptGenerationType === "calculated_indicators") {
@@ -362,6 +367,7 @@ defineRoute(
       hfaIndicators,
       hfaIndicatorCode,
       calculatedIndicators,
+      hfaSentinelRows,
     );
     return c.json({ success: true, data: { script } });
   },

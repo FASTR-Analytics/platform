@@ -2,6 +2,7 @@ import { ensureDir } from "@std/fs";
 import { join } from "@std/path";
 import { assertNotUndefined } from "@timroberton/panther";
 import { Sql } from "postgres";
+import { type HfaSentinelRow } from "../../server_only_funcs/get_script_with_parameters_hfa.ts";
 import {
   _SANDBOX_DIR_PATH,
   _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
@@ -249,6 +250,29 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
     // filters indicator DEFINITIONS + their code only; the available survey
     // variables must stay complete or indicator R code can't resolve them.
 
+    // Per-variable sentinel classification (layer 3): one row per classified
+    // (var_name, value). is_numeric flags a numeric-var don't-know (-999999),
+    // which the generator treats as always-missing regardless of DK policy.
+    // MAX/bool_or collapse the rare case of a code classified differently across
+    // time points to a single deterministic row.
+    const hfaSentinelValuesForSnapshot = (await mainDb.unsafe(`
+      SELECT
+        vv.var_name,
+        vv.value,
+        MAX(vv.sentinel_class) AS sentinel_class,
+        bool_or(v.var_type IN ('integer', 'decimal')) AS is_numeric
+      FROM hfa_variable_values vv
+      JOIN hfa_variables v
+        ON v.time_point = vv.time_point AND v.var_name = vv.var_name
+      WHERE vv.sentinel_class <> ''
+      GROUP BY vv.var_name, vv.value
+    `)) as Array<{
+      var_name: string;
+      value: string;
+      sentinel_class: string;
+      is_numeric: boolean;
+    }>;
+
     // Clear existing data and populate with HFA data. Snapshot-code rows FK
     // into snapshot-indicator rows, so the DELETE order matters (code first).
     await projectDb.begin((sql) => [
@@ -265,6 +289,7 @@ ON CONFLICT (dataset_type) DO UPDATE SET
 `,
       sql`DELETE FROM hfa_indicator_code_snapshot`,
       sql`DELETE FROM hfa_indicators_snapshot`,
+      sql`DELETE FROM hfa_variable_values_snapshot`,
       sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
       sql`DELETE FROM hfa_indicator_categories_snapshot`,
       sql`DELETE FROM hfa_indicator_service_categories_snapshot`,
@@ -287,6 +312,24 @@ ON CONFLICT (dataset_type) DO UPDATE SET
                 `('${escapeSqlString(ind.var_name)}', '${
                   escapeSqlString(ind.sample_values || "")
                 }')`
+              )
+              .join(",\n")
+          }
+      `),
+        ]
+        : []),
+      ...(hfaSentinelValuesForSnapshot.length > 0
+        ? [
+          sql.unsafe(`
+        INSERT INTO hfa_variable_values_snapshot (var_name, value, sentinel_class, is_numeric)
+        VALUES ${
+            hfaSentinelValuesForSnapshot
+              .map((r) =>
+                `('${escapeSqlString(r.var_name)}', '${
+                  escapeSqlString(r.value)
+                }', '${escapeSqlString(r.sentinel_class)}', ${
+                  r.is_numeric ? "TRUE" : "FALSE"
+                })`
               )
               .join(",\n")
           }
@@ -362,6 +405,30 @@ export async function getAllHfaIndicatorServiceCategoriesFromSnapshot(
     SELECT id, label, sort_order FROM hfa_indicator_service_categories_snapshot ORDER BY sort_order, label
   `;
   return rows.map(dbRowToHfaIndicatorServiceCategory);
+}
+
+// Per-variable sentinel classification for the module generator (layer 3),
+// read back from the project snapshot written at HFA-export time. Empty for
+// projects exported before layer 1 shipped → generator falls back to the
+// hardcoded set.
+export async function getHfaSentinelRowsFromSnapshot(
+  projectDb: Sql,
+): Promise<HfaSentinelRow[]> {
+  const rows = await projectDb<{
+    var_name: string;
+    value: string;
+    sentinel_class: string;
+    is_numeric: boolean;
+  }[]>`
+    SELECT var_name, value, sentinel_class, is_numeric
+    FROM hfa_variable_values_snapshot
+  `;
+  return rows.map((r) => ({
+    varName: r.var_name,
+    value: r.value,
+    sentinelClass: r.sentinel_class,
+    isNumeric: r.is_numeric,
+  }));
 }
 
 export async function getAllHfaIndicatorsFromSnapshot(

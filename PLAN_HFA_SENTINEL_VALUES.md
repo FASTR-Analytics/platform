@@ -187,15 +187,28 @@ carry-through (data path end-to-end, verifiable by importing and querying
 `hfa_variable_values`); (3) the wizard review step (UI, last, once the data it
 edits is real).
 
-## Remaining — Layer 3: per-class policy, per-variable generator
+## Layer 3: per-class policy, per-variable generator — 3a ✅ SHIPPED · 3b deferred
 
-Depends on layer 1's classification. One parameter per class with a real
-choice (`dont_know`, `refused`); the generator emits per-variable missingness
-checks from the classified codes instead of the hardcoded `c(-99, -999999)`
-set. Optional per-indicator override column in the indicator dictionary — also
-the escape hatch that makes DK-rate indicators authorable (today the blanket
-missingness branch fires before any `x == -99` rCode could). Natural home for
-the principle-4 authoring-rule validation gate.
+**3a shipped (app-only):** decisions locked as **refused = always missing** (no
+new module param — 3a stayed app-only) and **3a now / 3b deferred**. The
+classification is snapshotted into the project DB
+(`hfa_variable_values_snapshot`, mirroring the other `*_snapshot` tables) at
+HFA-export time and read back by both the runner and the preview endpoint; the
+generator (`get_script_with_parameters_hfa.ts`) now emits **per-variable**
+missingness and response-status checks from the classified codes, falling back
+to the hardcoded `c(-99, -999999)` for any variable absent from the snapshot
+(old projects, sentinel-free vars). Numeric don't-know (`-999999`) is always
+missing even for a binary indicator that references a numeric variable — the
+one regression the empirical R check specifically confirmed (binary `x >= 100`
+on a `-999999` value stays NA under DK-as-No; the fallback path is byte-identical
+to the old hardcoded logic).
+
+**3b deferred (larger surface):** optional per-indicator override column in the
+indicator dictionary — the escape hatch that makes DK-rate indicators authorable
+(today the blanket missingness branch fires before any `x == -99` rCode could),
+and the natural home for the principle-4 authoring-rule validation gate. Touches
+`HfaIndicator`/`HfaIndicatorCode` types, `hfa_indicators` schema, DB access, and
+the indicator-manager editor UI.
 
 ### Implementation approach (layer 3)
 

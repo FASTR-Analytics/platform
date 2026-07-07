@@ -64,6 +64,19 @@ CREATE TABLE hfa_indicator_code_snapshot (
   FOREIGN KEY (var_name) REFERENCES hfa_indicators_snapshot(var_name) ON DELETE CASCADE
 );
 
+-- Per-variable sentinel classification, snapshotted from instance
+-- hfa_variable_values at HFA-export time so the module generator can build
+-- per-variable missingness (PLAN_HFA_SENTINEL_VALUES.md layer 3). Only
+-- classified rows are stored; is_numeric marks numeric-var don't-know
+-- (-999999), which is missing regardless of DK policy.
+CREATE TABLE hfa_variable_values_snapshot (
+  var_name text NOT NULL,
+  value text NOT NULL,
+  sentinel_class text NOT NULL,
+  is_numeric boolean NOT NULL,
+  PRIMARY KEY (var_name, value)
+);
+
 CREATE TABLE iceh_indicators_snapshot (
   iceh_indicator TEXT PRIMARY KEY NOT NULL,
   indicator_name TEXT NOT NULL,
