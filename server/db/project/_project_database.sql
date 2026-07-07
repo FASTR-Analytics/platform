@@ -66,7 +66,7 @@ CREATE TABLE hfa_indicator_code_snapshot (
 
 -- Per-variable sentinel classification, snapshotted from instance
 -- hfa_variable_values at HFA-export time so the module generator can build
--- per-variable missingness (PLAN_HFA_SENTINEL_VALUES.md layer 3). Only
+-- per-variable missingness (PLAN_HFA_FEATURES.md). Only
 -- classified rows are stored; is_numeric marks numeric-var don't-know
 -- (-999999), which is missing regardless of DK policy.
 CREATE TABLE hfa_variable_values_snapshot (

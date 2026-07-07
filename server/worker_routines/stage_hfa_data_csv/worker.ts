@@ -273,7 +273,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
             // Expand to binary variables. An unanswered parent stays missing
             // on every expanded var; a "don't know" (-99) answer marks the
             // unselected choices -99 instead of 0, so downstream sentinel
-            // handling sees it (PLAN_HFA_SENTINEL_VALUES.md rung 3 layer 2)
+            // handling sees it (PLAN_HFA_FEATURES.md)
             const selectedCodes = new Set(
               value ? value.split(" ").filter((s) => s.length > 0) : [],
             );

@@ -12,7 +12,7 @@ import {
 } from "./hfa_dependency_analyzer.ts";
 
 // Per-variable sentinel classification captured at import time
-// (PLAN_HFA_SENTINEL_VALUES.md layer 1), propagated to the project snapshot and
+// (PLAN_HFA_FEATURES.md), propagated to the project snapshot and
 // consumed here. A variable absent from the map falls back to the hardcoded
 // Sierra-Leone set, so un-reclassified snapshots keep working.
 export type HfaSentinelRow = {
@@ -61,7 +61,7 @@ function rMembership(codes: string[]): string | undefined {
 // -999999 (numeric don't-know) is always missing; select don't-know (-99) is
 // missing unless the DONT_KNOW_TREATMENT parameter says to treat it as "No"
 // for binary indicators, in which case it falls through to the indicator's
-// positive test and fails it item-by-item (see PLAN_HFA_SENTINEL_VALUES.md).
+// positive test and fails it item-by-item (see PLAN_HFA_FEATURES.md).
 function generateMissingnessCheck(
   qids: string[],
   includeDontKnow: boolean,
@@ -216,8 +216,7 @@ function buildPerTimePointMutateExpression(
 // Response-status companion to the value expression: classifies each
 // facility × time_point as dont_know / missing / not_applicable / answered,
 // independent of the DONT_KNOW_TREATMENT policy. Consumed by the
-// M10_hfa_response_status.csv results object (PLAN_HFA_SENTINEL_VALUES.md
-// rung 3 layer 4).
+// M10_hfa_response_status.csv results object (PLAN_HFA_FEATURES.md).
 function buildPerTimePointStatusExpression(
   codeSnippets: HfaIndicatorCode[],
   allIndicatorVarNames: Set<string>,

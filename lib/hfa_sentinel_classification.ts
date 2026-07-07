@@ -3,7 +3,7 @@
 // A "sentinel" is a code standing in for a non-substantive response — a
 // don't-know, a refusal, an "other (specify)" — rather than a real answer.
 // Layer 3 of the sentinel ladder turns these classes into missingness policy
-// (see PLAN_HFA_SENTINEL_VALUES.md); this module only *derives* the class from
+// (see PLAN_HFA_FEATURES.md); this module only *derives* the class from
 // what the XLSForm says, as a proposal the import wizard lets a human correct.
 //
 // Pure and dependency-free so the staging worker (server) and the review UI

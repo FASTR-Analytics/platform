@@ -145,7 +145,7 @@ worker error, and on cancel; staging also pre-drops stale tables at start.
   (`{var}_{choice}`): selected → `1`, unselected → `0`, unanswered parent →
   `""` (missing) on every expanded var, and a parent answered `-99`
   (don't know) marks unselected choices `-99` so downstream sentinel
-  handling sees it (PLAN_HFA_SENTINEL_VALUES.md); the name `weight` (any
+  handling sees it (PLAN_HFA_FEATURES.md); the name `weight` (any
   case, incl. expanded names) is reserved and aborts staging; duplicate
   var names are a hard error.
 - ICEH stages nothing: the zip is parsed in memory and written row-by-row
