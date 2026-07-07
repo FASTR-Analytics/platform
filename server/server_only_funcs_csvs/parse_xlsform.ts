@@ -5,6 +5,10 @@ export type XlsFormVarInfo = {
   label: string;
   type: "select_one" | "select_multiple" | "integer" | "decimal" | "other";
   listName?: string;
+  // Raw XLSForm `constraint` expression (e.g. "(. >= 100 and . <= 999999) or
+  // . = -999999"). Carried so numeric don't-know sentinels can be parsed out of
+  // it (see parseNumericSentinels). Absent when the form has no constraint column.
+  constraint?: string;
 };
 
 export type XlsFormChoiceInfo = {
@@ -56,6 +60,8 @@ export function parseXlsForm(filePath: string): ParsedXlsForm {
   const surveyTypeIdx = findRequiredColumn(surveyHeaders, "type", "survey");
   const surveyNameIdx = findRequiredColumn(surveyHeaders, "name", "survey");
   const surveyLabelIdx = findLabelColumn(surveyHeaders, "survey");
+  // Optional: not every form declares constraints, and non-numeric forms have none.
+  const surveyConstraintIdx = surveyHeaders.indexOf("constraint");
 
   const choicesListNameIdx = findRequiredColumn(
     choicesHeaders,
@@ -90,6 +96,9 @@ export function parseXlsForm(filePath: string): ParsedXlsForm {
     const rawType = String(row[surveyTypeIdx] ?? "").trim();
     const name = String(row[surveyNameIdx] ?? "").trim();
     const label = String(row[surveyLabelIdx] ?? "").trim();
+    const constraint = surveyConstraintIdx >= 0
+      ? String(row[surveyConstraintIdx] ?? "").trim()
+      : "";
     if (!rawType || !name) continue;
 
     const typeLower = rawType.toLowerCase();
@@ -124,6 +133,7 @@ export function parseXlsForm(filePath: string): ParsedXlsForm {
       label: label || name,
       type,
       listName,
+      constraint: constraint || undefined,
     });
   }
 
