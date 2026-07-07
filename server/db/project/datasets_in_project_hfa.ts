@@ -12,7 +12,6 @@ import {
   composeHfaIndicatorLabel,
   DatasetHfaInfoInProject,
   getHfaIndicatorMeasure,
-  getEnabledOptionalFacilityColumns,
   hashFacilityColumnsConfig,
   throwIfErrNoData,
   throwIfErrWithData,
@@ -152,18 +151,16 @@ export async function addDatasetHfaToProject(
       adminAreaColumns.push(`admin_area_${i}`);
     }
 
-    // Build optional facility columns array
-    const optionalColumns = getEnabledOptionalFacilityColumns(facilityConfig);
-
-    // Export hfa_data with facility details including optional columns
+    // Export hfa_data with facility details. Optional facility attribute
+    // columns (ownership/type/custom) are intentionally excluded here: the
+    // R script has no computational use for them, and chart disaggregation
+    // by these attributes is served entirely by a query-time join against
+    // facilities_hfa (see metric_enricher.ts / cte_manager.ts), not by
+    // values carried through the module's own dataset export.
     const exportStatement = `
 SELECT
   h.facility_id,
-  ${adminAreaColumns.map((col) => `f.${col}`).join(",\n  ")}${
-      optionalColumns.length > 0
-        ? `,\n  ${optionalColumns.map((col) => `f.${col}`).join(",\n  ")}`
-        : ""
-    },
+  ${adminAreaColumns.map((col) => `f.${col}`).join(",\n  ")},
   h.time_point,
   w.weight,
   h.var_name,
