@@ -397,9 +397,9 @@ S13 relies on, verified this cycle:
   variants + `web-fetch-2025-09-10` beta — which only works because the
   proxy forwards allowlisted client beta headers.
 - **Every continuation round is a separate proxy POST**, so each round is
-  independently limit-gated and logged — the multi-turn design itself has no
-  unlogged turns; the accounting gaps are per-turn parsing issues (Open
-  items).
+  independently limit-gated and logged — the multi-turn design has no
+  unlogged turns; the remaining accounting gap is server-tool request fees
+  (Open items).
 - `one_shot.ts` (`callAI`/`callAIStructured`) exists in the barrel but has
   **zero consumers in this app**.
 
@@ -414,7 +414,10 @@ copilot: no AIContext — every write goes straight to serverActions; every
 write tool shows an `openConfirm` diff dialog first, serialized through
 `confirmChain` because the engine runs a turn's tool calls concurrently; the
 system prompt deliberately embeds no live state (the model reads through
-tools, avoiding staleness with its own edits). Its hand-written schemas
+tools, avoiding staleness with its own edits). Write tools do whole-object
+load → confirm → save, last write wins — the app-wide concurrency model,
+deliberate (a re-read-after-confirm refactor was rejected 2026-07-07 as an
+inconsistent outlier). Its hand-written schemas
 comply with the S13 conventions (storage field names, throw-don't-catch, no
 strictObject / strict:true). S13 convention changes must be checked against
 this directory; its tool semantics are S5's.
@@ -446,12 +449,18 @@ this directory; its tool semantics are S5's.
 
 ## Open items
 
-Triaged findings from the 2026-07-07 review. The first fix batch (same day)
-closed the governance HIGHs (delta-based usage parsing, cancel-hook
-accounting, beta allowlist, NaN boot validation, shared-handler extraction),
-the custom-prompts gate, the truncation brick (panther turn-logic +
-max_tokens raise/expose), and the panther modelConfig/labels/cap-pause
-items. Remaining:
+Triaged findings from the 2026-07-07 review. Two same-day fix batches closed
+the governance HIGHs (delta-based usage parsing, cancel-hook accounting,
+beta allowlist, NaN boot validation, shared-handler extraction), the
+custom-prompts gate, the truncation brick (panther turn-logic + max_tokens
+raise/expose), the panther modelConfig/labels/cap-pause items, and the
+client-copilot findings (filter-schema template, mid-conversation PDF
+attach, file DELETE on remove, `update_viz_config` live-data validation,
+`switch_tab` reports, `get_deck` fetch-on-miss, tools-reactivity memo
+removal, ai_files env/URL cleanup, Anthropic-shaped thrown errors, CORS
+header enumeration, and the LOW hygiene tail). The HFA whole-object
+read-modify-write finding was **rejected** — it matches the app-wide
+last-write-wins model (see the satellite section). Remaining:
 
 **Governance policy (decisions, not bugs)**
 
@@ -485,63 +494,22 @@ items. Remaining:
 
 **Client copilot**
 
-- **[MED] `get_metric_data` teaches the wrong filter schema** — its
-  "Creating Visualizations" template shows `{col, vals}`
-  (format_metric_data_for_ai.ts:334), the exact forbidden-zone shape the
-  real schema (`{disOpt, values}`) rejects; steers the model into ZodErrors
-  on the most-used pre-figure tool.
-- **[MED] Mid-conversation PDF attach silently never reaches the model**
-  (panther attaches document refs only when history has none) while the UI
-  shows it attached. **[MED]** Anthropic file lifecycle: per-browser
-  IndexedDB cache never invalidates on asset replace; DELETE never called —
-  stale content + orphan accumulation.
-- **[MED] `update_viz_config` skips `validateMetricInputs`** — hallucinated
-  filter/replicant values are accepted and render an empty figure with a
-  success message; its two sibling tools validate.
-- **[MED] `switch_tab` can't reach the Reports tab** (enum missing
-  `"reports"`, navigation.ts:12-15).
-- **[MED] `get_deck` prints `[Loading...]` on slide-cache miss** instead of
-  using `getSlideFromCacheOrFetch` — the mandatory first deck call goes
-  blind in fresh sessions.
-- **[MED] The dead tools-reactivity memo** (index.tsx:46-104) — delete it
-  and document the aliasing contract, or actually re-register tools.
-- **[LOW] `z.strictObject({})` on `get_available_metrics`** (metrics.tsx:21)
-  violates the documented gotcha; siblings use `z.object({})`.
-- **[LOW]** `from_metric` date validation weaker than `get_metric_data`'s
-  (no YYYYMM validity/format-consistency check → invalid period ids reach
-  stored configs); startDate/endDate silently dropped for metrics without a
-  time column (viz twin throws). **[LOW]** Deck-mode prompt contradicts
-  `update_figure`'s deck-level support; `getAllToolsList()` missing 6 tools.
-  **[LOW]** `DraftSlidePreview` still hides errored previews (viz twin was
-  deliberately fixed). **[LOW]** AI's own SSE-visible edits echo back as
-  "User actions". **[LOW]** Markdown-table detector false-positives on any
-  triple-pipe line. **[LOW]** `buildConfigFromPreset` mixes
-  `{success:false}` returns with throws — collapse to throws.
-  **[LOW]** Dead code: `validateSlide()` (ai_input.ts:326, zero callers),
-  unused `useConversations`/`createAIChat` imports, `AIDocumentButton`,
-  commented-out `update_plan` block, unwired prompt-category datalist;
-  `as any` casts (modules.ts ×3, slides.tsx:228).
+- **[MED] Documents never invalidate on asset replace** — the per-browser
+  IndexedDB `{assetFilename, anthropicFileId}` pairing keeps serving the old
+  Anthropic file after the underlying instance asset is replaced (removal
+  now cleans up server-side; replace is the remaining stale/orphan path).
+- **[LOW]** AI's own SSE-visible edits echo back as "User actions"
+  (index.tsx:68-99 has no self-edit filtering).
 
 **HFA satellite (fixes are S5's to land; contract is S13's)**
 
-- **[MED] Stale read-modify-write across the confirm gate** — whole-object
-  merges built from a pre-confirm load; concurrent edits (or two write
-  tools in one turn) silently reverted. Re-load and re-merge after confirm.
 - **[MED-LOW] `set_hfa_indicator_code` partial application** — sequential
   per-indicator saves; a mid-loop failure leaves earlier saves applied while
   the error implies none were.
 
 **Hygiene**
 
-- `ai_files.ts` still reads `ANTHROPIC_API_KEY` raw (3 sites) and hardcodes
-  the Files URL — switch to validated exports like the messages proxy; the
-  duplicated 429 fetch wrapper in the HFA sdk_client is the remaining
+- The duplicated 429 fetch wrapper in the HFA sdk_client is the remaining
   client-side duplication.
 - Rename the PascalCase DB log functions; decide the `can_use_ai` permission
   question (any-member remains the deliberate state until then).
-- Route thrown proxy errors to Anthropic-shaped responses instead of the
-  200-envelope `app.onError` fallback.
-- The hand-computed `prompt-caching-2024-07-31` beta is long-GA noise; CORS
-  `allowHeaders: ["*"]` with credentials doesn't actually wildcard per spec
-  (works same-origin in prod; may break cross-origin dev preflight for
-  `anthropic-beta`) — enumerate the SDK headers.
