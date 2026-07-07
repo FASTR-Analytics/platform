@@ -62,11 +62,31 @@ staged before it keeps hard `0`s, read as "No" not missing/DK).
 ## Remaining — Layer 1: capture sentinel semantics at import
 
 Classify each `(question, code)` pair — `dont_know` / `refused` / `other` /
-`not_applicable` / `question_specific` — derived from choice labels + numeric
-constraints (both already parsed at staging). Persist on the variable
-dictionary; surface in the import wizard as a reviewable/correctable step.
-Makes the system country-form-agnostic instead of hardcoding the SL sentinel
-set. Also unlocks the `% refused` breakdown that layer 4 currently omits.
+`not_applicable` / `question_specific` — derived from choice labels and the
+numeric integer constraints. Persist on the variable dictionary; surface in
+the import wizard as a reviewable/correctable step. Makes the system
+country-form-agnostic instead of hardcoding the SL sentinel set. Also unlocks
+the `% refused` breakdown that layer 4 currently omits.
+
+Note: choice labels are parsed today, but the numeric **constraint** strings
+(where `-999999` lives) are **not** — `parseXlsForm` reads only type/name/label
+and discards the `constraint` column. Layer 1 must add constraint parsing.
+
+### Where to start (layer 1)
+
+- **XLSForm parse:** `server/server_only_funcs_csvs/parse_xlsform.ts` →
+  `parseXlsForm` (choice labels: `choices` sheet loop; survey vars: `survey`
+  sheet). Add `constraint`-column reading here.
+- **Variable dictionary (target of the new classification field):** type
+  `HfaVariableRow` in `lib/types/dataset_hfa.ts`; tables `hfa_variables` /
+  `hfa_variable_values` in
+  `server/db/migrations/instance/023_hfa_schema_redesign.sql`; DB access
+  `server/db/instance/dataset_hfa.ts`; populated during staging in
+  `server/worker_routines/stage_hfa_data_csv/worker.ts` (~L356-446).
+- **Import wizard (host the review step):**
+  `client/src/components/instance_dataset_hfa_import/` — `index.tsx`
+  (`DatasetHfaUploadAttemptForm`, 4-step stepper); a review step slots between
+  `step_3.tsx` (staging) and `step_4.tsx` (results).
 
 ## Remaining — Layer 3: per-class policy, per-variable generator
 
@@ -77,3 +97,18 @@ set. Optional per-indicator override column in the indicator dictionary — also
 the escape hatch that makes DK-rate indicators authorable (today the blanket
 missingness branch fires before any `x == -99` rCode could). Natural home for
 the principle-4 authoring-rule validation gate.
+
+### Where to start (layer 3)
+
+- **Generator (per-variable checks replace the hardcoded set):**
+  `server/server_only_funcs/get_script_with_parameters_hfa.ts` →
+  `generateMissingnessCheck` (currently hardcodes `c(-99, -999999)`), consuming
+  layer 1's classification via the variable dictionary.
+- **Policy parameters (add per-class alongside the existing one):**
+  wb-fastr-modules `m010/_parameters.ts` (`DONT_KNOW_TREATMENT`, L16-39);
+  `deno task build` regenerates `m010/definition.json`.
+- **Per-indicator override column (target):** type `HfaIndicator` /
+  `HfaIndicatorCode` in `lib/types/hfa_types.ts`; tables `hfa_indicators` /
+  `hfa_indicator_code` (`023_hfa_schema_redesign.sql`); DB access
+  `server/db/instance/hfa_indicators.ts`; editor UI
+  `client/src/components/indicator_manager_hfa/`.
