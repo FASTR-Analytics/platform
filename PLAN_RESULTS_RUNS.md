@@ -1,6 +1,6 @@
 # Plan: Results Runs — file-based immutable results + DuckDB query layer
 
-## Status: PROPOSED (nothing implemented). Phase 0 feasibility proven at production scale (2026-07-07 — 69 real Nigeria configs over 67M rows via the repo's own SQL builders, ≤214 ms, 69/69 Postgres parity); only the prod-linux-image load of the alpha napi addon is outstanding
+## Status: PROPOSED (nothing implemented). Phase 0 feasibility proven at production scale (2026-07-07 — 69 real Nigeria configs over 67M rows via the repo's own SQL builders, ≤214 ms, 69/69 Postgres parity; the alpha napi addon also verified loading + running offline inside the exact prod linux/amd64 image). The DuckDB question is settled; what remains is implementation
 
 > Vision / end-state: [VISION_RESULTS_RUNS.md](VISION_RESULTS_RUNS.md).
 > This plan supersedes and absorbs PLAN_PROJECT_SNAPSHOT.md (deleted; its Step
@@ -54,6 +54,18 @@ instance-level wizard. Projects become pure authoring spaces (S9–S13).
      (the §2.4 serving model), reading Parquet: **median 116 ms, p90 152 ms,
      max 214 ms**. At the raw 16.8M-row slice: median 35 ms, max 132 ms.
      Zero SQL failures across all 138 runs (both scales).
+   - **DuckDB is ~50–240× faster than the current Postgres path, not merely
+     equivalent.** `EXPLAIN ANALYZE` of the same query shapes against the real
+     66.4M-row prod `ro_m3_service_utilization_csv` (no indexes — every read
+     is a parallel seq scan): a timeseries+SUM+filter took **8.1 s warm /
+     10.4 s cold**; the same query **with the `__NATIONAL` rollup UNION took
+     15.7 s**; a possible-values `DISTINCT` took **5.3 s**. DuckDB ran the
+     equivalents in 116–214 ms and 22 ms. This reframes the switch: it is not
+     "cleaner model, similar speed" but a large cold-read speedup — and it
+     explains *why* the current app is so cache-dependent (a Valkey/IndexedDB
+     miss on a big project is a 8–16 s wait). The gap is structural: columnar
+     Parquet reads only the 3–4 needed columns (78 MB) where Postgres row
+     storage seq-scans all columns of 66M rows (9.4 GB).
    - **Parity: 69/69 configs byte-equal to Postgres** to a max relative error
      of **2.0e-15** — the floating-point floor. Same generated SQL run against
      local Postgres (`NUMERIC`, exact) and DuckDB (`DOUBLE`, float); the
@@ -222,11 +234,13 @@ boundary:
 
 - New `server/run_query/` (claimed in a SYSTEM glob — the lint gate requires
   it): opens the run's parquet files read-only per request via
-  `npm:@duckdb/node-api` (pin the version; Docker image build must fetch the
-  linux-arm64/x64 napi binary), registers views named by the existing
+  `npm:@duckdb/node-api` (pin the version; the `linux-x64` binding bakes into
+  the image via the Dockerfile's existing `deno install` — verified offline-
+  loadable, see Phase 0), registers views named by the existing
   `getResultsObjectTableName` convention plus `facilities_hmis/hfa` views
-  over the inputs parquet, runs `SET integer_division = true`, executes the
-  **same generated SQL strings** S9 builds today.
+  over the inputs parquet, runs `SET integer_division = true` and a
+  per-connection `SET memory_limit`, executes the **same generated SQL
+  strings** S9 builds today.
 - The **data query itself** is engine-agnostic already — strings executed
   via `projectDb.unsafe(sql)`; there the adapter swaps the executor, not the
   builders. But the hot functions also interleave **project mirror-table
@@ -375,10 +389,11 @@ project-copy's `CREATE DATABASE … TEMPLATE` of results + sandbox `cp -r`
    *coherent*; today's sandbox demonstrably isn't (per-module timestamps a
    month apart, leftover files from removed ROs/legacy modules).
 2. **Parquet query store + raw CSVs, not a `.duckdb` database file.**
-   Parquet is language-agnostic, transportable, 12× smaller, immutable-
-   friendly (no single-writer semantics), and equally fast (4 ms). The
-   manifest carries the schema; DuckDB gets per-request in-memory instances
-   with views.
+   Parquet is language-agnostic, transportable, ~23× smaller, immutable-
+   friendly (no single-writer semantics), and fast (≤214 ms at 67M rows).
+   The manifest carries the schema; DuckDB gets per-request in-memory
+   instances with views (set a per-connection `memory_limit` — a 67M-row
+   aggregate streams in 0.12 GB).
 3. **Native-number payloads + one-time `po_items`/`metric_info`/
    `replicant_opts` prefix bump**, not a string-typing shim — for *value*
    columns. Option/filter values normalize to text at the adapter boundary
@@ -475,10 +490,19 @@ cache re-key rides the read-path flip (they are not separable):
   **including value types and option-set membership under the LIMIT cutoff**,
   bounds, and enrichment outputs. This is the gate every later phase re-runs.
   Ship nothing user-facing.
-- **Prod-image gate**: the DuckDB napi addon is an alpha-tagged native
-  binary, proven so far on darwin/arm only — the phase is done only when the
-  pinned version loads and passes the rig inside the production linux Docker
-  image.
+- **Prod-image gate — VERIFIED 2026-07-07.** The DuckDB alpha napi addon
+  loads and runs on the exact prod platform: inside `denoland/deno:ubuntu-2.5.3`
+  built `--platform linux/amd64` (the prod Dockerfile base + arch), the
+  `@duckdb/node-bindings-linux-x64@1.3.2-alpha.25` binding loads, `version()`
+  returns v1.3.2, and the full S9-shaped query (period CTE + rollup UNION +
+  PAE + NULLIF + `integer_division`) plus a parquet round-trip pass. It is
+  **bakeable and offline-safe**: `deno cache` prefetches the binding into
+  `DENO_DIR` (as the Dockerfile's `deno install` does at build time) and a
+  subsequent `deno run --cached-only` (no network) runs DuckDB fully — no
+  runtime npm egress needed. Residual: this ran under qemu amd64 emulation on
+  arm64 (uses the image's real glibc/libstdc++, translates instructions;
+  DuckDB does runtime CPU-feature detection) — a native-amd64 CI smoke is the
+  final belt-and-suspenders but the load path is proven.
 - Deliverable: parity report per instance; the dialect deltas
   (integer_division, ::DOUBLE, nullstr='NA', text-collation ordering — §2.4)
   encoded in the adapter, not in SQL builders.
@@ -721,3 +745,82 @@ copy-on-reuse doesn't know to copy.
 8. **Instance module-defaults store shape** (§3.5): an `instance_config` key
    vs a dedicated table; whether defaults are per-country presets or flat.
    Design lands with Phase 3; flagging now that it is a new config surface.
+
+## 11. Execution strategy — how to staff the agentic work
+
+How to run this plan with coding agents (model tier, effort, orchestration),
+calibrated to its own phases and gates. Analyzed 2026-07-07; the cost ratios
+are for tier selection, not budgeting.
+
+**The routing key is error *catchability*, not task difficulty.** Phase 0
+deliberately built machine gates (the golden-diff parity rig, the pre-deploy
+dry-run, typecheck). Work a gate backstops is *cheap to get wrong even when
+the code is hard* — the gate catches it. Work that is **not** machine-checked
+(cache byte-identity, migration data-loss, Zod strip-mode drops, dual-write
+races) is *expensive to get wrong even when the code is trivial* — it ships
+green and surfaces weeks later as a wrong number in a country report. **Buy
+intelligence against un-gated correctness; buy cheap where a gate verifies.**
+
+### Tier map
+
+| Work | Model · effort | Solo / fleet |
+| --- | --- | --- |
+| Interactive driving (you reviewing each step — you are the gate) | **Opus 4.8 · xhigh** (the coding/agentic sweet spot; `max` isn't offered on Opus) | Solo |
+| Gated mechanical bulk — scaffold a dir, re-point read sites, rig plumbing, doc sweeps, migration boilerplate (typecheck + parity rig catch slips) | **Sonnet 5** | Solo, or **fleet** when it fans out (N read sites, doc sweep, module hermeticity fixes) |
+| Un-gated correctness **design** — cache re-key keying scheme, migration/backfill shape, dual-write window, wide-constraint per-phase architecture | **Fable 5 · max**, one-shot | Solo design → hand impl down |
+| Pre-cutover adversarial review (Phase 1 backfill/read-flip; Phase 4 demolition) | **Fable 5 · max** | **Fleet** (panel) |
+| Per-instance golden-diff verification | Opus/Sonnet | **Fleet** |
+
+Cost picture (output tokens dominate; priced on the output multiplier —
+Fable 50 / Opus 25 / Sonnet 15): **Fable-everything ≈ 2–2.5× the mixed fleet**
+(plus an always-on-thinking token tax — the loser); **Sonnet-everything ≈ 0.6×
+but a false economy** — it puts the irreversible ~40% (cache re-key,
+migration, cutover) on a near-Opus model with no expensive verifier, exactly
+where a silent parity break ships. Inside the mixed fleet, **Fable is ~46% of
+cost from ~22% of tokens** — so the single highest-leverage lever is: **do not
+use Fable as the default verifier; reserve it for the 2–3 irreversible go/no-go
+gates** (Opus-xhigh finder fan-out + one Fable adjudicator per gate). That
+recovers ~a quarter of the cost for negligible quality loss.
+
+**Two traps this corrects:** the `getIndicatorMetadata` SQL→JSON rewrite
+*feels* like a Fable job (gnarly SQL) but is the **most rig-covered work in the
+plan** — spend **down** (Sonnet + rig), Opus xhigh only for the input tail the
+rig can't enumerate (nulls, empty runs, disaggregation corners). Conversely,
+the three-persistence-layer / Zod-strip-mode edits *feel* mechanical but a
+strip drop is silent data loss — route the edits through Sonnet but keep their
+**design and review on Opus xhigh**, never raw Sonnet.
+
+### Per-phase sequencing
+
+- **Phase kickoff** — one Fable · max design pass (solo, or a small
+  judge-panel of approaches) to hold the interacting constraints at once
+  (cache layers × dual-write window × migration ordering × cross-repo
+  lockstep). A missed interaction here compounds for months. Reserve Fable
+  design for Phase 1 and Phase 2's content-addressed memoization scheme;
+  Phases 3–4 design fine on Opus xhigh.
+- **Implementation — solo, not Ultracode.** Linear impl is a dependency chain
+  (backfill → read-flip → dual-write → demolition); it doesn't fan out, so
+  orchestration only adds coordination tokens and each subagent has *less*
+  context than a driver living in the change. Drive Opus xhigh interactively;
+  drop to Sonnet for the gated mechanical stretches.
+- **Fan-out where it is genuinely parallel** — Ultracode/workflows for (a) the
+  parallel mechanical edits (re-point N sites, doc sweep, module hermeticity
+  fixes) as a Sonnet fleet, each gate-verified; (b) per-instance golden-diff
+  verification. Never the reasoning dependency-chain.
+- **Before each irreversible cutover** — a Fable · max adversarial *panel*.
+  The parity rig checks query-equivalence; it does **not** cover migration
+  data-loss or dual-write races — that un-gated correctness is what the panel
+  exists for, and it is the cheapest insurance in the project relative to
+  blast radius.
+
+### Overspend guardrails
+
+- `max` effort only on the handful of Fable one-shots (design + pre-cutover
+  panels) — never standing; Fable over-deliberates on routine work.
+- Opus **fast mode** scoped to interactive debugging, not batch generation
+  (its premium otherwise erases the Opus-vs-Fable saving).
+- **Haiku ≈ 0** here — almost nothing is Haiku-safe in a byte-identity-cache
+  codebase; don't model savings from it.
+- Sonnet's intro output price ($10/M) **expires 2026-08-31** — only ~7 weeks
+  of a 4–6 month project; front-load Sonnet-heavy mechanical work (doc sweeps,
+  rig plumbing) if timing is flexible, but don't bank the budget on it.

@@ -119,6 +119,11 @@ runs (transition) → instance-generated, catalogued, attachable runs
   number came from.
 - **Portability & sharing** — runs move across projects (and eventually
   instances); projects become lightweight authoring spaces.
-- **Storage & operations** — results stored once (Parquet, ~12× smaller than
+- **Storage & operations** — results stored once (Parquet, ~23× smaller than
   CSV); project DBs shrink to authored content; backups and project-copy get
-  cheap.
+  cheap. Nigeria's ~20 projects today each duplicate ~35 GB of the same
+  national data (1.3 TB total) — shared runs collapse that to a handful.
+- **Speed** — columnar Parquet over the run is a large cold-read speedup, not
+  a wash: measured 116–214 ms where the current 66M-row Postgres seq-scan
+  path takes 8–16 s (see the plan's §1). That is *why* the app is so
+  cache-dependent today; runs relieve the pressure at the source.
