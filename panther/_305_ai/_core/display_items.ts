@@ -50,26 +50,28 @@ export function getDisplayItemsFromMessage(
   };
 
   for (const block of content) {
-    if (block.type === "tool_use") {
-      flushText();
+    if (block.type === "text") {
+      // Don't trim here - preserve leading/trailing spaces so consecutive
+      // citation fragments join cleanly.
+      if (block.text) accumulatedText.push(block.text);
       continue;
     }
+
+    // Any non-text block ends the current run of text, so text on either
+    // side of a tool call, a server tool (web search / fetch, which appear
+    // as server_tool_use + *_tool_result blocks), or a thinking block renders
+    // as a separate paragraph instead of being concatenated into the
+    // neighbouring text. Only consecutive text blocks (citations) merge.
+    flushText();
 
     // Thinking summaries (thinking: {type: "adaptive", display:
     // "summarized"}) render as their own collapsed item. With display
     // "omitted" the thinking text is empty and nothing is shown.
     if (block.type === "thinking" && block.thinking.trim()) {
-      flushText();
       displayItems.push({
         type: "thinking_summary",
         text: block.thinking.trim(),
       });
-      continue;
-    }
-
-    if (block.type === "text" && block.text) {
-      // Don't trim here - preserve leading/trailing spaces for proper joining
-      accumulatedText.push(block.text);
     }
   }
 
