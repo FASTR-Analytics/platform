@@ -1,13 +1,11 @@
-# PLAN: HFA sentinel values ("Don't know" / -99 family)
+# PLAN: HFA sentinel values — remaining work
 
-How the HFA pipeline should handle XLSForm sentinel codes. Built as a ladder:
-each rung ships independently and the later rungs replace internals without
-throwing away the earlier ones.
+The HFA sentinel-handling ladder (`-99` don't-know family, `-999999` numeric
+don't-know) is mostly shipped. Two rung-3 layers remain. This doc is now
+scoped to those; the shipped substrate is summarised only as far as the
+remaining work depends on it.
 
-## Verified data facts (Sierra Leone form + export)
-
-The behavior bullets below describe the system **as found before this plan
-shipped** (2026-07-06); see Status for what has changed since.
+## Sentinel reference (Sierra Leone form + export)
 
 | Code | Meaning | Where |
 | --- | --- | --- |
@@ -16,130 +14,66 @@ shipped** (2026-07-06); see Status for what has changed since.
 | `-98` | Question-specific ("no CHWs in catchment") | one choice list |
 | `-999999` | Don't know for numeric questions | integer constraints, e.g. `id_fac_catchsize`: `(. >= 100 and . <= 999999) or . = -999999` |
 
-- Ingestion stores values verbatim (`stage_hfa_data_csv/worker.ts`); no
-  sentinel handling exists in staging, integration, or the client.
-- The script generator hardcodes exactly one sentinel:
-  `generateMissingnessCheck` in
-  `server/server_only_funcs/get_script_with_parameters_hfa.ts` emits
-  `is.na(x) | x == -99 ~ NA_real_` over every dataset variable an indicator
-  depends on. So today `-99` = Missing, globally.
-- The SL indicator dictionary (271 indicators) contains no sentinel-aware
-  R code; all binary code is positive equality (`x == 1`), filters are
-  disjunctions of `== 1`.
-- select_multiple answers are expanded at staging to explicit `0`/`1` per
-  choice, so a DK parent answer becomes `q_-99 = 1` plus hard `0`s on every
-  substantive expanded var — invisible to any `-99` check downstream.
+Sentinel codes are country-form-specific: other forms use positive `98`/`99`,
+`-77`/`-88`, etc. Layer 1 exists to stop hardcoding the SL set.
 
-## Design principles
+## Constraints the remaining work must honour
 
-1. **Sentinels are an analytic policy, not a data property.** `hfa_data` is
-   instance-level and shared across projects; the DK policy belongs on the
-   module instance (parameter), never baked in at ingestion. Ingestion keeps
-   storing verbatim values.
-2. **A "Don't know" can become a "No", but never a number.** Any DK-as-No
-   option applies to binary indicators only; numeric indicators always treat
-   sentinels as missing. `-999999` is always missing everywhere.
-3. **DK-as-No is item-level, not indicator-level.** For composite code
-   (`a==1 | b==1`), a DK on `a` must not force the indicator to 0 when `b`
-   satisfies it. Correct semantics = let the DK value fail the positive test
-   for that item. Therefore DK-as-No is implemented by *removing* `-99` from
-   the missingness family (fall-through), not by emitting a `~ 0` branch.
-4. **Authoring rule (consequence of 3):** indicator R code must test
-   positively for Yes (`x == 1`, `x >= 3`). Negated/inverted tests
-   (`x != 2`, `x <= 3`) misclassify DK when DK is treated as No. The SL
-   dictionary already complies.
+1. **Sentinels are analytic policy, not a data property.** `hfa_data` is
+   instance-level and shared; DK policy lives on the module instance
+   (parameter), never baked in at ingestion. Ingestion stores verbatim values.
+2. **A "Don't know" can become a "No", but never a number.** DK-as-No applies
+   to binary indicators only; numeric indicators always treat sentinels as
+   missing. `-999999` is always missing everywhere.
+3. **DK-as-No is item-level, not indicator-level.** Implemented by *removing*
+   `-99` from the missingness family (fall-through to the positive test), not
+   by emitting a `~ 0` branch — so a DK on item `a` doesn't zero a composite
+   `a==1 | b==1` when `b` satisfies it.
+4. **Authoring rule (consequence of 3):** indicator R code must test positively
+   for Yes (`x == 1`, `x >= 3`). Negated tests (`x != 2`, `x <= 3`) misclassify
+   DK under DK-as-No. Not enforced anywhere in the pipeline today — a
+   mis-authored `!=` indicator silently inverts DK handling with no warning.
+   Layer 3's per-indicator override column is the natural place to also add a
+   validation gate.
 5. `-96` (Other) and `-98` (question-specific) are substantive answers, not
-   missingness — they keep falling through to the R code untouched.
-6. DK in an `r_filter_code` variable means denominator eligibility is
-   unknown → facility excluded (NA). Natural evaluation already does this
-   (`!(x == 1)` with `x = -99` → NA branch), consistent under both modes.
+   missingness — they fall through to the R code untouched.
 
-## Rung 1 — Minimal (bug fix, no semantics change)
+## What is already shipped (substrate for the remaining layers)
 
-Add `-999999` to the always-missing family in `generateMissingnessCheck`:
-`is.na(x) | x %in% c(-99, -999999)`.
+- **Generator** (`server/server_only_funcs/get_script_with_parameters_hfa.ts`):
+  `-999999` always-missing; `DONT_KNOW_TREATMENT` m010 parameter
+  (`missing` default | `no`) that drops `-99` from the missingness family for
+  binary indicators in `no` mode; per-indicator response-status column
+  (`__status`) classifying facility × time_point as
+  dont_know/missing/not_applicable/answered — applicability decided first over
+  filter vars, answer status over the indicator's own question vars
+  (`extractDependenciesFromCode` splits `codeQids`/`filterQids`).
+- **Staging** (`stage_hfa_data_csv/worker.ts`): select_multiple expansion —
+  unanswered parent stays missing, DK parent writes `-99` to unselected
+  substantive choices (was hard `0`s). Requires re-import for pre-existing data.
+- **Module** (wb-fastr-modules m010): `DONT_KNOW_TREATMENT` parameter,
+  `M10_hfa_response_status.csv` results object, don't-know-rate / missing-rate
+  metrics `m10-02-01` / `m10-02-02`.
 
-Without this, numeric `avg` indicators `ind069`–`ind072` (from `serv_08a_a/b`,
-`serv_08_a/b`, whose constraints permit `-999999`) average the raw sentinel
-into "days per week" values. App repo only.
+Go-live for the above (per project): update the M10 module instance;
+re-import existing HFA uploads (required for the select_multiple fix — data
+staged before it keeps hard `0`s, read as "No" not missing/DK).
 
-## Rung 2 — Lean (the module parameter)
+## Remaining — Layer 1: capture sentinel semantics at import
 
-New m010 select parameter `DONT_KNOW_TREATMENT` (`missing` default | `no`),
-read in the TS generator only (same pattern as `STOP_IF_INDICATOR_FAILS`;
-no token in `script.R`).
+Classify each `(question, code)` pair — `dont_know` / `refused` / `other` /
+`not_applicable` / `question_specific` — derived from choice labels + numeric
+constraints (both already parsed at staging). Persist on the variable
+dictionary; surface in the import wizard as a reviewable/correctable step.
+Makes the system country-form-agnostic instead of hardcoding the SL sentinel
+set. Also unlocks the `% refused` breakdown that layer 4 currently omits.
 
-Missingness family per indicator:
+## Remaining — Layer 3: per-class policy, per-variable generator
 
-| | mode `missing` | mode `no` |
-| --- | --- | --- |
-| binary indicator | `is.na \| %in% c(-99, -999999)` | `is.na \| == -999999` (DK falls through to the positive test → item-level No) |
-| numeric indicator | `is.na \| %in% c(-99, -999999)` | same — always missing |
-
-No dependency-splitting needed; `hfa_dependency_analyzer.ts` unchanged.
-Absent selection (existing installs) → `missing` = today's behavior.
-
-Repos in lockstep: app (generator) + wb-fastr-modules (`m010/_parameters.ts`,
-`deno task build` regenerates `definition.json`). The parameter reaches a
-project when its module instance updates to the new definition.
-
-## Rung 3 — Ambitious (sentinels as first-class metadata)
-
-Layered; each layer builds on the previous.
-
-1. **Capture semantics at import.** Classify each (question, code) pair —
-   `dont_know` / `refused` / `other` / `not_applicable` /
-   `question_specific` — derived from choice labels + numeric constraints
-   (both already parsed at staging). Persist on the variable dictionary;
-   surface in the import wizard as a reviewable/correctable step. Makes the
-   system country-form-agnostic (positive 98/99, -77/-88 forms etc.).
-2. **Uniform representation — SHIPPED.** Fix select_multiple expansion: a DK parent
-   answer emits the DK code on each substantive expanded var instead of hard
-   `0`s. Take the pending "unanswered select_multiple expands to explicit
-   0s" ruling (SYSTEM_06_ingestion.md open item) at the same time. Requires
-   re-import (or backfill from the stored XLSForm asset) for existing data.
-3. **Policy per class, per-variable-aware generator.** One parameter per
-   class with a real choice (`dont_know`, `refused`); generator emits
-   per-variable checks from the classified codes instead of the hardcoded
-   set. Optional per-indicator override column in the indicator dictionary —
-   also the escape hatch that makes DK-rate indicators authorable (today the
-   blanket missingness branch fires before any `x == -99` rCode can).
-4. **Report missingness as an output — SHIPPED** (without % refused, which
-   needs layer 1's classification, and with table presets only). Companion
-   results object per indicator × time point: % don't-know, % missing, with
-   viz presets. Makes the missing-vs-no choice's consequences visible;
-   answers the denominator question.
-
-Pull-forward candidates even in a lean world: layer 2 (correctness hole
-under any policy) and layer 4 (cheap relative to value once the sentinel
-family is right).
-
-## Status
-
-- Rung 1: implemented
-- Rung 2: implemented (app generator + m010 parameter, wb-fastr-modules
-  pushed 2026-07-06)
-- Rung 3: pull-forwards shipped 2026-07-06 (ruling: pull-forwards first;
-  unanswered select_multiple = missing) — layer 2 (select_multiple
-  expansion: unanswered → missing, DK → -99 on unselected choices) and
-  layer 4 (M10_hfa_response_status.csv results object + don't-know-rate /
-  missing-rate metrics m10-02-01/-02, status classified per indicator ×
-  facility as dont_know / missing / not_applicable / answered from direct
-  question deps). Layers 1 (import-time classification) and 3 (per-class
-  policy, per-variable generator) not started.
-- Layer 4 notes: status is policy-independent of DONT_KNOW_TREATMENT;
-  denominator for both rates = resp_weight (facilities the indicator
-  applies to); indicators whose code references only other indicators
-  classify from no question deps (always answered unless filtered);
-  old-server + new-definition degrades to a header-only status CSV.
-
-## Go-live (nothing is deployed yet as of 2026-07-06)
-
-1. Deploy the server (`./deploy`) — activates rungs 1–2 generator behavior,
-   the staging expansion fix, and status-column emission.
-2. Per project: update the M10 module instance — brings the
-   DONT_KNOW_TREATMENT parameter, the status results object, and the two
-   rate metrics (wb-fastr-modules main already has them).
-3. Re-import existing HFA uploads — required for the select_multiple
-   expansion fix; data staged before it keeps hard `0`s (reads as "No",
-   never missing/DK) until re-imported.
+Depends on layer 1's classification. One parameter per class with a real
+choice (`dont_know`, `refused`); the generator emits per-variable missingness
+checks from the classified codes instead of the hardcoded `c(-99, -999999)`
+set. Optional per-indicator override column in the indicator dictionary — also
+the escape hatch that makes DK-rate indicators authorable (today the blanket
+missingness branch fires before any `x == -99` rCode could). Natural home for
+the principle-4 authoring-rule validation gate.
