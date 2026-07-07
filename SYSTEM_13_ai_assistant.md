@@ -30,9 +30,10 @@ copilot: ~38 client-executed tools mutating app state only through the
 AIContext contract. Reviewed against code 2026-07-07 (first review cycle;
 absorbed and deleted DOC_AI_PROXY_AND_USAGE_GOVERNANCE and
 DOC_AI_TOOL_SCHEMAS — the authoring recipe from the latter now lives in
-[PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md)). The first fix batch
-(governance + panther turn-logic, same day) is folded into the prose;
-remaining triaged findings are in Open items below.
+[PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md)). Two same-day fix
+batches (governance + panther turn-logic, then the client-copilot findings)
+are folded into the prose; remaining triaged findings are in Open items
+below.
 
 Boundaries: the chat engine — request shaping, turn/continuation logic,
 tool-execution loop, display registry, conversation persistence — is
@@ -80,7 +81,7 @@ route registry), mounted in [main.ts:145-147](main.ts#L145-L147):
 | Route | `POST /ai/v1/messages` ([ai_proxy.ts](server/routes/project/ai_proxy.ts)) | `POST /ai-instance/v1/messages` ([ai_proxy.ts](server/routes/instance/ai_proxy.ts)) |
 | Guard | `requireProjectPermission()` — **no specific permission**; any approved project member can spend tokens | `requireGlobalPermission("can_configure_data")` |
 | Usage log `project_id` | `ppk.projectId` | `null` |
-| Client | project copilot ([defaults.ts:19](client/src/components/project_ai/ai_configs/defaults.ts#L19), sends `Project-Id` header) | HFA indicator-manager assistant ([sdk_client.ts](client/src/components/indicator_manager_hfa/ai/sdk_client.ts)) |
+| Client | project copilot ([defaults.ts:22](client/src/components/project_ai/ai_configs/defaults.ts#L22), sends `Project-Id` header) | HFA indicator-manager assistant ([sdk_client.ts](client/src/components/indicator_manager_hfa/ai/sdk_client.ts)) |
 
 The shared flow:
 
@@ -93,14 +94,13 @@ The shared flow:
 3. **Weekly limit**: same gate shape → `GetInstanceWeeklyTokenUsage >= limit`
    → `LogAiLimitHit("__instance__", "weekly_instance")` (sentinel, not the
    email) + 429 with next-Monday-UTC reset.
-4. **Beta headers**: computed — `prompt-caching-2024-07-31` when streaming or
-   any `system` block has `cache_control`, `files-api-2025-04-14` when any
-   message carries a `document` block — merged with client-supplied
-   `anthropic-beta` values **filtered through the `FORWARDABLE_BETAS`
-   allowlist** (web-fetch, files-api, structured-outputs — the set panther
-   actually sends; SDK ≥0.110 sends betas via the header, not the body).
-   Unknown client betas are dropped so users can't enable cost-changing
-   betas under the same token limits.
+4. **Beta headers**: `files-api-2025-04-14` computed when any message
+   carries a `document` block, merged with client-supplied `anthropic-beta`
+   values **filtered through the `FORWARDABLE_BETAS` allowlist** (web-fetch,
+   files-api, structured-outputs — the set panther actually sends; SDK
+   ≥0.110 sends betas via the header, not the body). Unknown client betas
+   are dropped so users can't enable cost-changing betas under the same
+   token limits.
 5. `fetch(_ANTHROPIC_API_URL)`, `anthropic-version: 2023-06-01`. The SDK's
    `?beta=true` query is ignored by the route matcher.
 6. `!ok` → `{error: "Anthropic API error: <status> - <text>"}` at the
@@ -136,19 +136,20 @@ hit_date)` so `ON CONFLICT DO NOTHING` dedupes to one row per day.
 ([project_auth.ts:204](server/project_auth.ts#L204)). `_DAILY_TOKEN_LIMIT` /
 `_WEEKLY_TOKEN_LIMIT` are `parseInt`-or-`null`, with a boot-time throw on an
 unparseable value
-([exposed_env_vars.ts:138](server/exposed_env_vars.ts#L138)); `null` =
+([exposed_env_vars.ts:142](server/exposed_env_vars.ts#L142)); `null` =
 disabled. All logging and increments are `.catch(() => {})`
 fire-and-forget — accounting is best-effort, not transactional, and the
 limits are check-before / increment-after, so concurrent requests can
 overshoot: a courtesy bound, not a hard one.
 
-**The error contract, as built.** Two deliberate non-envelope shapes: the
-429 rate-limit object and the upstream-status error string. Two more shapes
-exist in practice and are part of the real surface: guard rejections are
-`{success:false, err}` envelopes at 401/403, and anything *thrown* in the
-handler (malformed request JSON, upstream fetch network failure) falls to
-`app.onError` ([main.ts:106-111](main.ts#L106-L111)) — an envelope **at
-HTTP 200**, which the client SDK then fails to parse opaquely (Open items).
+**The error contract, as built.** Three deliberate non-envelope shapes: the
+429 rate-limit object, the upstream-status error string, and anything
+*thrown* in the handler (malformed request JSON, upstream fetch network
+failure), which the shared handler catches and returns as an
+Anthropic-shaped 500 ([anthropic_messages_proxy.ts:51-66](server/routes/anthropic_messages_proxy.ts#L51-L66))
+rather than letting it fall to `app.onError`'s envelope-at-HTTP-200. The one
+envelope shape on the surface: guard rejections are `{success:false, err}`
+at 401/403.
 
 **Health surfacing (S15).** `GET /ai_usage` (full `SELECT *`, optional
 `since`), `/ai_weekly_usage`, `/ai_limit_hits`
@@ -164,19 +165,19 @@ files-api beta header. `POST /ai/files` is **not** a client-upload
 passthrough: the body is `{assetFilename}`, the server reads that file from
 the instance assets dir on disk (traversal-guarded via
 `resolveAssetFilePath`) and multiparts it to Anthropic — hardcoded as
-`application/pdf` regardless of actual type (:40-42). `GET`/`DELETE
+`application/pdf` regardless of actual type (:45). `GET`/`DELETE
 /ai/files/:file_id` pass through by id with no scoping of ids to the
 project. Uploaded files are referenced as `document` blocks in later
 `/v1/messages` calls.
 
 ## The client copilot
 
-[`AIProjectWrapper`](client/src/components/project_ai/index.tsx#L25) wraps
+[`AIProjectWrapper`](client/src/components/project_ai/index.tsx#L24) wraps
 the whole project UI (inside `ProjectSSEBoundary`, remounted per project via
 keyed `?p=` match, so the captured `projectId` is safe). It builds one
-panther `AIChatProvider` config (index.tsx:145-188):
+panther `AIChatProvider` config (index.tsx:102-161):
 
-- **sdkClient** ([defaults.ts:19-46](client/src/components/project_ai/ai_configs/defaults.ts#L19-L46)):
+- **sdkClient** ([defaults.ts:22-46](client/src/components/project_ai/ai_configs/defaults.ts#L22-L46)):
   Anthropic browser SDK, `baseURL {host}/ai`, `apiKey: "not-needed"`,
   `Project-Id` default header, plus a fetch wrapper that rewrites the ISO
   reset timestamp inside 429 bodies to the user's locale.
@@ -189,7 +190,7 @@ panther `AIChatProvider` config (index.tsx:145-188):
   per-instance state, so the shared module-level default is never mutated.
   The settings panel exposes model + max_tokens (`adjustable`;
   `allowedModels`: opus-4-8, opus-4-6, sonnet-4-6, haiku-4-5,
-  [chat_pane.tsx:145](client/src/components/project_ai/chat_pane.tsx#L145));
+  [chat_pane.tsx:148](client/src/components/project_ai/chat_pane.tsx#L148));
   the allowlist is client-side only — the proxy forwards any `model`
   verbatim (Open items).
 - **builtInTools** = `{webSearch: true, webFetch: true}` — Anthropic
@@ -210,7 +211,7 @@ continuation caps arrive as `system_notice` items), and `userText`
 (`SaveableUserTextRenderer` — adds save-to-prompt-library, strips ephemeral
 markers from display).
 
-**Ephemeral context.** `getEphemeralContext` (index.tsx:154-187) runs once
+**Ephemeral context.** `getEphemeralContext` (index.tsx:111-144) runs once
 per user send: a `[Current mode: …]` line (vizId/deckId/slideId/reportId,
 selected slide ids, or the live CodeMirror selection preview) plus a batched
 "User actions since last message" digest from the interactions queue, then
@@ -219,7 +220,7 @@ user text (stripped from all but the last user message) — except on Opus
 4.8, where it travels as a pruned mid-conversation `{role:"system"}`
 message. Interactions come from editors (`edited_*_locally`, selections) and
 from SSE `last_updated` events (slides / presentation_objects / slide_decks
-→ index.tsx:111-139); `reduceInteractions`
+→ index.tsx:68-99); `reduceInteractions`
 ([interactions.ts](client/src/components/project_ai/interactions.ts))
 dedupes and filters by mode. The SSE path also echoes the AI's *own* tool
 edits back as "user actions" (Open items).
@@ -250,23 +251,20 @@ resolves with the outcome so the tool reports honestly;
 `applyFigureUpdate` is the stable-id figure path that persists directly and
 reports save failure.
 
-**Validate-before-commit.** `update_figure` (slide editor, deck level) and
-`update_report_figure` build the patched config and run the full validation
-stack — `applyFigureConfigPatch`, display-slot checks, `validateMetricInputs`
-(live data), replicant assertion — *before* any store write, so a throw
-provably means "nothing changed". `update_viz_config` currently validates
-dimensions/slots but skips the live-data value check its two siblings have
-(Open items).
+**Validate-before-commit.** `update_figure` (slide editor, deck level),
+`update_report_figure`, and `update_viz_config` build the patched config and
+run the full validation stack — `applyFigureConfigPatch`, display-slot
+checks, `validateMetricInputs` (live data), replicant assertion — *before*
+any store write, so a throw provably means "nothing changed".
 
-**Tool freshness rests on store aliasing, not reactivity.** The 55-line
-touch-everything memo in index.tsx:46-104 recomputes the tools array on
-projectState changes, but panther registers `config.tools` into its
-`ToolRegistry` once at pane mount — the rebuilt array never reaches the
-chat. Handlers stay fresh only because they close over Solid store proxies
-that are updated in place via `reconcile`. Anything evaluated at
-tool-*build* time is frozen at mount (e.g. a `completionMessage` template
-literal). The memo is dead machinery and invites cargo-cult "add a touch"
-fixes (Open items).
+**Tool freshness rests on store aliasing, not reactivity.** The tools array
+is built exactly once at wrapper setup (index.tsx:44-61) — panther registers
+`config.tools` into its `ToolRegistry` once at chat construction, so a
+rebuilt array would never reach the chat anyway. Handlers stay fresh only
+because they close over Solid store proxies that are updated in place via
+`reconcile`. Anything evaluated at tool-*build* time is frozen at mount
+(e.g. a `completionMessage` template literal) — keep such reads out of tool
+construction. The invariant is documented at the build site.
 
 ## Tool input schemas
 
@@ -328,8 +326,8 @@ and editor-level tools call the same resolvers, so behavior is identical:
   [extract_blocks_from_layout.ts](client/src/components/slide_deck/slide_ai/extract_blocks_from_layout.ts)
   — `simplifySlideForAI`, the model-facing slide view;
   [get_deck_summary.ts](client/src/components/slide_deck/slide_ai/get_deck_summary.ts)
-  — deck outline for `get_deck` (reads `_SLIDE_CACHE` directly and prints
-  `[Loading...]` on miss instead of fetching — Open items).
+  — deck outline for `get_deck` (slides read through
+  `getSlideFromCacheOrFetch`, so a fresh session's first call sees content).
 
 ## System prompt, documents, prompt library
 
@@ -352,10 +350,11 @@ pairs per project in IndexedDB
 per-browser, no server copy, no invalidation when the underlying asset is
 replaced). The selector modal lists instance PDF assets and uploads new
 selections through `POST /ai/files`; `getDocumentRefs` feeds panther, which
-attaches `document` blocks **only to the first user message that has none in
-history** — a PDF attached mid-conversation is displayed as attached but
-never reaches the model (Open items). The client never calls the DELETE
-route, so Anthropic-side files accumulate.
+attaches each configured document to the next user message the conversation
+hasn't yet sent it in — mid-conversation attach works. Removing a document
+also best-effort DELETEs the Anthropic-side file; the remaining lifecycle
+gap is asset replacement, which the IndexedDB pairing never notices (Open
+items).
 
 **Prompt library.** Shared prompts fetched at open from the GitHub
 `fastr-resource-hub` (`prompts.md`/`prompts_fr.md`, cache-busted; parsed by
@@ -438,7 +437,7 @@ this directory; its tool semantics are S5's.
   freeze. A refactor that *replaces* a projectState array instead of
   reconciling it freezes the AI's world with no error.
 - **`z.strictObject` and `strict: true` are banned in tool schemas** —
-  see PROTOCOL_APP_AI_TOOLS.md (one violation exists today; Open items).
+  see PROTOCOL_APP_AI_TOOLS.md.
 - **Token limits are token-denominated, not dollar-denominated.** Cache
   tokens don't count, model price varies 10× and is client-chosen,
   server-tool fees are flat-rate per invocation — treat the limits as

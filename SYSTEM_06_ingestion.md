@@ -18,6 +18,7 @@ globs:
   - client/src/components/project/settings_for_project_dataset_hmis.tsx
   - client/src/components/project/staleness_checks.ts
   - client/src/state/instance/t2_datasets.ts
+  - lib/hfa_sentinel_classification.ts
   - lib/table_structures/**
   - lib/types/dataset_hfa.ts
   - lib/types/dataset_hfa_import.ts
