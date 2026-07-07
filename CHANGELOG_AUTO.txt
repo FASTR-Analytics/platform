@@ -1,3 +1,6 @@
+[TBD] [user] [added] - "Don't know" and special response codes are now automatically detected and labeled
+[TBD] [admin] [added] - Sentinel values (e.g., "don't know") are now automatically detected and classified during data import
+[TBD] [admin] [added] - Numeric survey variables now capture special codes from form constraints as dictionary entries
 [TBD] [user] [added] - AI assistant can now fetch and read web pages
 [TBD] [user] [added] - Newest Claude Opus model available in AI settings
 [TBD] [user] [changed] - AI model selector shows simplified model names
