@@ -1,3 +1,7 @@
+[1.57.3] [user] [fixed] - Charts now display time periods in the correct order
+[1.57.3] [user] [improved] - Charts with multiple indicators now scale proportionally
+[1.57.3] [admin] [added] - HFA charts now respect configured time point ordering
+[1.57.3] [admin] [added] - Overlapping chart types support proportional and unbalanced layouts
 [1.57.2] [admin] [internal] - Streamlined data export for health facility assessments
 [1.57.1] [user] [added] - AI button now available in indicator editor and Excel import views
 [1.57.1] [user] [changed] - AI panel button uses consistent styling across all screens
