@@ -494,7 +494,8 @@ You're editing: "${deckLabel}"
 **get_slide** - Get detailed content of a specific slide (includes layout structure with block positions and spans)
 **create_slide** - Create a new slide (cover/section/content)
 **replace_slide** - Replace an entire slide from scratch (destroys layout — use sparingly)
-**update_slide_content** - Update specific block content while preserving layout
+**update_slide_content** - Replace whole blocks (swap a chart for a different metric, replace text) while preserving layout
+**update_figure** - Tweak an EXISTING figure's config in place (replicant, filters, disaggregation, period, captions) without rebuilding it — pass the slideId (from get_deck/get_slide) plus the figure's blockId. Prefer this over update_slide_content for figure edits; the slide saves immediately.
 **modify_slide_layout** - Add/remove blocks, rearrange layout, change column widths
 **update_slide_header** - Update just the header of a content slide
 **delete_slides** - Remove slides from the deck
@@ -535,7 +536,8 @@ When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a
 1. Call get_deck FIRST to understand current structure
 2. Call get_slide before modifying any specific slide
 3. Choose the right tool for the job:
-   - **Change block content** (swap text, replace a chart) → update_slide_content
+   - **Tweak an existing figure** (replicant, filters, disaggregation, period, caption) → update_figure (pass slideId + blockId)
+   - **Swap a block for different content** (replace text, replace a chart with a different metric) → update_slide_content
    - **Change layout** (add/remove blocks, rearrange, resize) → modify_slide_layout
    - **Change header only** → update_slide_header
    - **Rebuild from scratch or change slide type** → replace_slide (last resort)
@@ -634,13 +636,17 @@ function getAllToolsList(): string {
 **get_available_visualizations** - List all saved visualizations
 **get_visualization_data** - Get data for a specific visualization by ID
 **get_available_slide_decks** - List all slide decks
+**get_available_reports** - List all reports
+**get_report** - Read a report's contents by ID
 **get_available_modules** - List analysis modules and their status
 **get_module_r_script** - View R script for a module
 **get_module_log** - View execution log for a module
+**get_module_settings** - View a module's configuration and parameters
+**get_info** - Read reference documentation on an allowed topic
 **get_methodology_docs_list** - List methodology documents
 **get_methodology_doc_content** - Read a methodology document
 **show_draft_visualization_to_user** - Show an ad-hoc chart preview inline in the chat. Use this purely for display — to illustrate a point, explore data visually, or show the user what something would look like. Does not save or modify anything — the user can then choose to save it if they wish.
 **show_draft_slide_to_user** - Show an ad-hoc slide preview inline in the chat. Use this purely for display — to propose slide ideas, show mockups, or illustrate content options. Does not save or modify anything — the user can then choose to add it to a deck if they wish.
-**switch_tab** - Switch the main project tab (decks, visualizations, metrics, modules, data, settings). Cannot be used while the user is editing.
+**switch_tab** - Switch the main project tab (reports, decks, visualizations, metrics, modules, data, settings). Cannot be used while the user is editing.
 **ask_user_questions** - Present multiple-choice questions to the user inline in the chat. Use this to clarify preferences, choose between approaches, or get decisions before proceeding. Each question can have 2-6 options with optional descriptions. Ask one set of questions at a time — wait for the user's answers before asking follow-up questions.`;
 }

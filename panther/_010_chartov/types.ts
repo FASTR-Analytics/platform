@@ -53,7 +53,16 @@ export type ChartOVJsonDataConfig = {
     indicator?: AxisMembership;
     lane?: AxisMembership;
   };
-  //
+  // Proportional (ragged-table) layout. bands: each lane band is sized by
+  // its own visible indicator count (per-band visibility implied), uniform
+  // slot thickness within a pane. panes: pane widths are additionally
+  // proportional to their slot totals, uniform slot thickness across the
+  // whole chart (implies bands; engaged only when the pane grid is a single
+  // row). Distinct from membership, which stays per-pane.
+  proportional?: {
+    bands?: boolean;
+    panes?: boolean;
+  };
   labelReplacements?: Record<string, string>;
   sort?: {
     indicator?: HeaderSortConfig;
@@ -94,6 +103,15 @@ export type ChartOVDataTransformed = {
   // unbalanced lane membership. Same masking model as indicators: dropped
   // lanes are whole subchart columns.
   visibleLanesByPane?: number[][];
+  // Per-(pane, lane) visible indicator subsets for proportional band layout,
+  // indexed [pane][GLOBAL lane index][visible global indicator indices]. A
+  // lane with [] in a pane is dropped for that pane. Present only when
+  // proportional layout is enabled.
+  visibleIndicatorsByPaneBand?: number[][][];
+  // Cross-pane proportional sizing requested (proportional.panes). Pane
+  // widths become proportional to their slot totals when the pane grid is a
+  // single row; otherwise falls back to uniform pane sizing.
+  proportionalPanes?: boolean;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////

@@ -18,7 +18,7 @@ export function getToolsForMetrics(
       name: "get_available_metrics",
       description:
         "Get all available metrics from installed modules. Returns metric IDs, labels, summaries, disaggregation options, and visualization presets. Use get_metric_data for detailed information about a specific metric.",
-      inputSchema: z.strictObject({}),
+      inputSchema: z.object({}),
       handler: async () => {
         return formatMetricsListForAI(metrics, icehIndicators, hfaTaxonomy);
       },

@@ -130,7 +130,7 @@ Instance permissions: `can_configure_users`, `can_view_users`, `can_view_logs`, 
 | `H_USERS` | hardcoded `lib/h_users.ts` (14 emails) | access to `is_central_reporting` projects; `unlimitedAi`; full project access |
 | granular permissions | `users` / `project_user_roles` columns | normal least-privilege path |
 
-`unlimitedAi = H_USERS.includes(email) || rawUser.unlimited_ai` (see [DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md](DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md)).
+`unlimitedAi = H_USERS.includes(email) || rawUser.unlimited_ai` (see [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md)).
 
 ---
 

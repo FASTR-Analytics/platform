@@ -56,7 +56,6 @@ wb-fastr/
 │   ├── middleware/            # Auth, CORS, cache, static
 │   ├── task_management/       # Dependency tracking & execution
 │   ├── worker_routines/       # Background job processors
-│   ├── ai/                    # AI interpretation (Anthropic)
 │   ├── dhis2/                 # DHIS2 integration
 │   └── visualization_definitions/
 ├── lib/                       # Shared types & utilities
@@ -280,13 +279,13 @@ Prescriptive protocols for how this app is built (distinct from the `panther/pro
 - [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md) — stage→integrate ingestion (HMIS/HFA/ICEH dataset families)
 - [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md) — module load + R-script parameterize/execute/ingest
 - [DOC_DHIS2_INTEGRATION.md](DOC_DHIS2_INTEGRATION.md) — DHIS2 API client: base fetcher, retry, goals
-- [DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md](DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md) — Anthropic proxy, token limits, usage logging
+- [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) — AI copilot: Anthropic proxies + token-limit governance, browser tools via the AIContext contract, tool schemas ([PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md) is the schema-authoring recipe)
 - [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) — viz query & cache: config → SQL (CTEManager, roll-up row, post-aggregation), period/disaggregation semantics, PO caches
 - [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) — SQL migrations + JSON data transforms + validation boundaries
 
 ### Data / domain
 
-- [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md), [DOC_POPULATION_CSV.md](DOC_POPULATION_CSV.md), [DOC_AI_TOOL_SCHEMAS.md](DOC_AI_TOOL_SCHEMAS.md) (period columns, disaggregation options, and roll-up rows are in [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md))
+- [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md), [DOC_POPULATION_CSV.md](DOC_POPULATION_CSV.md) (period columns, disaggregation options, and roll-up rows are in [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md))
 
 ### Client / UI
 

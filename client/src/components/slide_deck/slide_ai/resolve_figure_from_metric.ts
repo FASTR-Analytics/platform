@@ -13,11 +13,7 @@ export async function resolveFigureFromMetric(
 ): Promise<FigureBlock> {
   const { metricId } = block;
 
-  const buildResult = buildConfigFromPreset(block, metrics);
-  if (!buildResult.success) {
-    throw new Error(buildResult.error);
-  }
-  const { resultsValue, config } = buildResult;
+  const { resultsValue, config } = buildConfigFromPreset(block, metrics);
 
   const filters = config.d.filterBy.length > 0 ? config.d.filterBy : undefined;
   const periodFilter = config.d.periodFilter?.filterType === "custom"

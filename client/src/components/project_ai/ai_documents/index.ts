@@ -1,3 +1,3 @@
 export { AIDocumentSelectorModal } from "./AIDocumentSelectorModal";
-export { AIDocumentButton, AIDocumentList } from "./AIDocumentButton";
+export { AIDocumentList } from "./AIDocumentList";
 export { useAIDocuments } from "./useAIDocuments";

@@ -9,6 +9,7 @@ import {
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   estimateMinYAxisWidth,
+  maxProportionalPanePlotExtent,
   maxVisibleCount,
   type RenderContext,
   resolveDefaultLegend,
@@ -90,7 +91,24 @@ export function getChartOVComponentSizes(
     nIndicators,
   );
   const gridStrokeWidth = ms.grid.gridStrokeWidth;
-  const minSubChartWidth = ms.xTextAxis.tickPosition === "center"
+  // Unbalanced lane membership: reserve width for the fullest pane.
+  const nLanes = maxVisibleCount(
+    data.visibleLanesByPane,
+    data.laneHeaders.length,
+  );
+  // Proportional band layout: the width floor is the fullest pane's TOTAL
+  // (slotT-model: Σ over its bands of visible counts × column width +
+  // strokes), expressed per-lane so the uniform decomposition (× nLanes)
+  // recovers the pane total. Otherwise the shipped per-band × band-count
+  // model.
+  const minSubChartWidth = data.visibleIndicatorsByPaneBand
+    ? maxProportionalPanePlotExtent(
+      data.visibleIndicatorsByPaneBand,
+      perColumnWidth,
+      ms.xTextAxis.tickPosition === "center",
+      gridStrokeWidth,
+    ) / Math.max(1, nLanes)
+    : ms.xTextAxis.tickPosition === "center"
     ? nIndicatorSlots * perColumnWidth
     : nIndicatorSlots * perColumnWidth +
       gridStrokeWidth * (nIndicatorSlots + 1);
@@ -103,8 +121,7 @@ export function getChartOVComponentSizes(
   return {
     customFigureStyle: cs,
     mergedStyle: ms,
-    // Unbalanced lane membership: reserve width for the fullest pane.
-    nLanes: maxVisibleCount(data.visibleLanesByPane, data.laneHeaders.length),
+    nLanes,
     nTiers: data.tierHeaders.length,
     paneHeaders: data.paneHeaders,
     minSubChartWidth,
@@ -119,5 +136,11 @@ export function getChartOVComponentSizes(
       data.seriesHeaders,
     ),
     resolvedLegendLabels,
+    // Proportional layout: per-slot width floor + tick mode for the ragged
+    // width decomposition (proportional OV pane widths sum per-pane totals).
+    minSlotWidth: data.visibleIndicatorsByPaneBand ? perColumnWidth : undefined,
+    slotTicksCentered: data.visibleIndicatorsByPaneBand
+      ? ms.xTextAxis.tickPosition === "center"
+      : undefined,
   };
 }

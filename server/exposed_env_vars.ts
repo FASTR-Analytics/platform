@@ -139,11 +139,17 @@ export const _DAILY_TOKEN_LIMIT: number | null =
   Deno.env.get("DAILY_TOKEN_LIMIT")
     ? parseInt(Deno.env.get("DAILY_TOKEN_LIMIT")!)
     : null;
+if (_DAILY_TOKEN_LIMIT !== null && Number.isNaN(_DAILY_TOKEN_LIMIT)) {
+  throw new Error("DAILY_TOKEN_LIMIT is set but is not a number");
+}
 
 export const _WEEKLY_TOKEN_LIMIT: number | null =
   Deno.env.get("WEEKLY_TOKEN_LIMIT")
     ? parseInt(Deno.env.get("WEEKLY_TOKEN_LIMIT")!)
     : null;
+if (_WEEKLY_TOKEN_LIMIT !== null && Number.isNaN(_WEEKLY_TOKEN_LIMIT)) {
+  throw new Error("WEEKLY_TOKEN_LIMIT is set but is not a number");
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Authentication (Optional)

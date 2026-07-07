@@ -226,6 +226,47 @@ export function validateChartMembership(
   }
 }
 
+// Early-throw validation for a chart's `proportional` config (ragged-table
+// layout). `bands` sizes each band by its visible slot count (per-band
+// visibility implied); `panes` additionally makes pane extents proportional
+// so slot thickness is uniform across the whole chart. `panes` presupposes
+// `bands`, so a bare { panes: true } normalizes to both on (the caller reads
+// the flags via resolveChartProportional) and the explicit contradiction
+// { bands: false, panes: true } throws here.
+export function validateChartProportional(
+  proportional: Record<string, unknown> | undefined,
+  chartName: string,
+): void {
+  if (!proportional) {
+    return;
+  }
+  for (const [key, value] of Object.entries(proportional)) {
+    if (key !== "bands" && key !== "panes") {
+      throw new Error(
+        `Unknown proportional key "${key}" on ${chartName} (allowed: bands, panes)`,
+      );
+    }
+    if (value !== undefined && typeof value !== "boolean") {
+      throw new Error(
+        `Invalid proportional value for "${key}" on ${chartName}: expected a boolean`,
+      );
+    }
+  }
+  if (proportional.bands === false && proportional.panes === true) {
+    throw new Error(
+      `Invalid proportional config on ${chartName}: panes: true requires bands (cross-pane proportional sizing presupposes per-band extents)`,
+    );
+  }
+}
+
+// Effective proportional flags after normalization (panes implies bands).
+export function resolveChartProportional(
+  proportional: { bands?: boolean; panes?: boolean } | undefined,
+): { bands: boolean; panes: boolean } {
+  const panes = proportional?.panes === true;
+  return { bands: proportional?.bands === true || panes, panes };
+}
+
 // Per-pane visible subsets for unbalanced membership, shared by the
 // indicator/tier/lane derivations. An axis member is visible in a pane iff
 // ANY cell for it has a defined value OR a defined uncertainty bound (a
@@ -272,6 +313,51 @@ export function deriveVisibleIndicatorsByPane(
         )
       ),
   );
+}
+
+// Per-(pane, band) visible indicator subsets for proportional band layout.
+// The band axis is the categorical band direction: tiers on ChartOH, lanes
+// on ChartOV. Visibility unions across the scale-direction dim + series
+// (lanes+series per tier on OH; tiers+series per lane on OV), scanning
+// values AND bounds — same rule as the per-pane masks. Returned arrays are
+// indexed [pane][GLOBAL band index][visible global indicator indices]; a
+// band with no data in a pane gets [] and is dropped for that pane by the
+// geometry (never asserted against — it is legitimate data). Call on the
+// FINAL arrays, after any sortIndicatorValues reorder.
+export function deriveVisibleIndicatorsByPaneBand(
+  values: (number | undefined)[][][][][],
+  bounds: ChartBoundsTensors | undefined,
+  nIndicators: number,
+  bandAxis: "tier" | "lane",
+): number[][][] {
+  const tensors = bounds ? [values, bounds.ub, bounds.lb] : [values];
+  return values.map((paneTensor, i_pane) => {
+    const nBands = bandAxis === "tier"
+      ? paneTensor.length
+      : (paneTensor[0]?.length ?? 0);
+    const bands: number[][] = [];
+    for (let i_band = 0; i_band < nBands; i_band++) {
+      const visible: number[] = [];
+      for (let i = 0; i < nIndicators; i++) {
+        const hasDefined = tensors.some((tensor) => {
+          const pt = tensor[i_pane];
+          if (bandAxis === "tier") {
+            return pt[i_band].some((lane) =>
+              lane.some((series) => series[i] !== undefined)
+            );
+          }
+          return pt.some((tier) =>
+            tier[i_band].some((series) => series[i] !== undefined)
+          );
+        });
+        if (hasDefined) {
+          visible.push(i);
+        }
+      }
+      bands.push(visible);
+    }
+    return bands;
+  });
 }
 
 export function deriveVisibleTiersByPane(

@@ -55,6 +55,8 @@ type Props = {
   disabled?: boolean;
   size?: "sm";
   outline?: boolean;
+  // id of a <datalist> to wire native autocomplete to (input `list` attr).
+  list?: string;
 };
 
 export function Input(p: Props) {
@@ -101,6 +103,7 @@ export function Input(p: Props) {
           placeholder={p.placeholder}
           data-left={!!p.searchIcon}
           disabled={p.disabled}
+          list={p.list}
         />
       </div>
       <Show when={p.invalidMsg}>

@@ -54,6 +54,8 @@ export function measureChartOH(
       indicatorHeaders: transformedData.indicatorHeaders,
       visibleIndicatorsByPane: transformedData.visibleIndicatorsByPane,
       visibleTiersByPane: transformedData.visibleTiersByPane,
+      visibleIndicatorsByPaneBand: transformedData.visibleIndicatorsByPaneBand,
+      proportionalPanes: transformedData.proportionalPanes,
     },
     xAxisConfig: {
       type: "scale",

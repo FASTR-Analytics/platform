@@ -18,8 +18,41 @@ import type {
   TextInfoUnkeyed,
 } from "./deps.ts";
 import { Padding, RectCoordsDims, Z_INDEX } from "./deps.ts";
-import type { MeasurePaneConfig, PaneLayout } from "./measure_types.ts";
+import type {
+  MeasurePaneConfig,
+  PaneBandLayout,
+  PaneLayout,
+} from "./measure_types.ts";
 import { generatePaneContentPrimitives } from "./generate_pane_content_primitives.ts";
+
+// Proportional band layout: solve the pane-local slot thickness from the
+// pane's free plot extent (unless a chart-global slotT is threaded in) and
+// size each band as nInd_b × slotT (+ inter-slot strokes in sides mode —
+// mirrors ohPerSubChartPlotH / calculate_mapped_coordinates; omit the stroke
+// term and every slot is ≈stroke/n too short). Σ_b (nInd_b + 1) strokes =
+// totalSlots + nBands.
+function solveBandLayout(
+  bandAxis: "tier" | "lane",
+  bandIndices: number[],
+  bandMasks: number[][],
+  freePlotExtent: number,
+  centered: boolean,
+  gridStrokeWidth: number,
+  slotTOverride: number | undefined,
+): PaneBandLayout {
+  const visibleIndicators = bandIndices.map((b) => bandMasks[b] ?? []);
+  const counts = visibleIndicators.map((v) => v.length);
+  const totalSlots = counts.reduce((a, b) => a + b, 0);
+  const strokeTerms = centered
+    ? 0
+    : gridStrokeWidth * (totalSlots + bandIndices.length);
+  const slotT = slotTOverride ??
+    Math.max(0, (freePlotExtent - strokeTerms) / Math.max(1, totalSlots));
+  const bandExtents = counts.map((n) =>
+    n * slotT + (centered ? 0 : gridStrokeWidth * (n + 1))
+  );
+  return { bandAxis, bandIndices, visibleIndicators, slotT, bandExtents };
+}
 
 // layoutOnly skips content-primitive generation (bars/points/lines/labels) —
 // the expensive part of a measure. Used by getIdealHeight/fitReport probes,
@@ -43,7 +76,29 @@ export function measurePane<TData>(
   // lookup keep the global set/indices.
   const visibleTiers = config.dataProps.visibleTiersByPane?.[i_pane];
   const visibleLanes = config.dataProps.visibleLanesByPane?.[i_pane];
-  const nTierBands = visibleTiers ? Math.max(1, visibleTiers.length) : nTiers;
+
+  // Proportional band layout: this pane's per-(band) visible indicator
+  // masks. The band iteration list drops bands with no visible indicators
+  // in this pane (empty-band policy — legitimate data, never asserted).
+  const bandMasks = config.dataProps.visibleIndicatorsByPaneBand?.[i_pane];
+  const tierBandIndices = bandMasks && config.orientation === "horizontal" &&
+      config.yAxisConfig.type === "text"
+    ? (visibleTiers ?? tierHeaders.map((_, i) => i)).filter((t) =>
+      (bandMasks[t]?.length ?? 0) > 0
+    )
+    : undefined;
+  const laneBandIndices = bandMasks && config.orientation === "vertical" &&
+      config.xAxisConfig.type === "text"
+    ? (visibleLanes ?? config.dataProps.laneHeaders.map((_, i) => i)).filter(
+      (l) => (bandMasks[l]?.length ?? 0) > 0,
+    )
+    : undefined;
+
+  const nTierBands = tierBandIndices
+    ? Math.max(1, tierBandIndices.length)
+    : visibleTiers
+    ? Math.max(1, visibleTiers.length)
+    : nTiers;
 
   const maxTierHeaderWidth = config.geometry.contentRcd.w() *
     baseStyle.tiers.maxHeaderWidthAsPctOfChart;
@@ -88,7 +143,11 @@ export function measurePane<TData>(
   );
 
   const nLanes = laneHeaders.length;
-  const nLaneBands = visibleLanes ? Math.max(1, visibleLanes.length) : nLanes;
+  const nLaneBands = laneBandIndices
+    ? Math.max(1, laneBandIndices.length)
+    : visibleLanes
+    ? Math.max(1, visibleLanes.length)
+    : nLanes;
   const lanes = baseStyle.lanes;
   const xAxisW = config.geometry.contentRcd.w() -
     yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
@@ -96,6 +155,21 @@ export function measurePane<TData>(
     (lanes.paddingLeft + Math.max(0, nLaneBands - 1) * lanes.gapX +
       lanes.paddingRight)) /
     Math.max(1, nLaneBands);
+
+  // Proportional lane bands (OV): solve slotT from the free width — exactly
+  // the equal-split numerator, reconstructed as subChartAreaWidth × nBands.
+  const laneBands =
+    laneBandIndices && bandMasks && config.xAxisConfig.type === "text"
+      ? solveBandLayout(
+        "lane",
+        laneBandIndices,
+        bandMasks,
+        subChartAreaWidth * laneBandIndices.length,
+        config.xAxisConfig.axisStyle.tickPosition === "center",
+        baseStyle.grid.gridStrokeWidth,
+        config.slotT,
+      )
+      : undefined;
 
   // Unbalanced indicator membership: this pane's visible subset (x-text axis
   // only — slot layout goes per-pane, axis extent stays global).
@@ -116,6 +190,7 @@ export function measurePane<TData>(
     i_pane,
     nLanes,
     visibleXTextHeaders,
+    laneBands?.slotT,
   );
 
   const {
@@ -123,6 +198,8 @@ export function measurePane<TData>(
     measuredTexts: measuredLaneHeaders,
   } = baseStyle.lanes.hideHeaders
     ? { value: 0, measuredTexts: [] }
+    : laneBands
+    ? measureLaneHeadersProportional(rc, laneBands, laneHeaders, baseStyle)
     : measureLaneHeaders(
       rc,
       subChartAreaWidth,
@@ -143,6 +220,22 @@ export function measurePane<TData>(
     tierHeaderAndLabelGapHeight,
   );
 
+  // Proportional tier bands (OH): solve slotT from the free height — exactly
+  // the equal-split numerator, reconstructed as subChartAreaHeight × nBands.
+  const tierBands =
+    tierBandIndices && bandMasks && config.yAxisConfig.type === "text"
+      ? solveBandLayout(
+        "tier",
+        tierBandIndices,
+        bandMasks,
+        subChartAreaHeight * tierBandIndices.length,
+        config.yAxisConfig.axisStyle.tickPosition === "center",
+        baseStyle.grid.gridStrokeWidth,
+        config.slotT,
+      )
+      : undefined;
+  const paneBands = laneBands ?? tierBands;
+
   const measured = {
     yAxisWidthInfo,
     xAxisMeasuredInfo,
@@ -151,6 +244,7 @@ export function measurePane<TData>(
     subChartAreaWidth,
     topHeightForLaneHeaders,
     tierHeaderAndLabelGapHeight,
+    paneBands,
   };
 
   const labelPrimitives: Primitive[] = [];
@@ -191,7 +285,7 @@ export function measurePane<TData>(
   labelPrimitives.push(
     ...tierHeaderLabelPrimitives(
       measuredTierHeaders,
-      visibleTiers ?? tierHeaders.map((_, i) => i),
+      tierBands?.bandIndices ?? visibleTiers ?? tierHeaders.map((_, i) => i),
       tierHeaderTopNudge,
       yAxisRcd,
       subChartAreaHeight,
@@ -200,6 +294,7 @@ export function measurePane<TData>(
       baseStyle.tiers,
       config.geometry.contentRcd,
       i_pane,
+      tierBands?.bandExtents,
     ),
   );
 
@@ -212,13 +307,14 @@ export function measurePane<TData>(
   labelPrimitives.push(
     ...laneHeaderLabelPrimitives(
       measuredLaneHeaders,
-      visibleLanes ?? laneHeaders.map((_, i) => i),
+      laneBands?.bandIndices ?? visibleLanes ?? laneHeaders.map((_, i) => i),
       laneHeaderRcd,
       subChartAreaWidth,
       lanes.paddingLeft,
       lanes.gapX,
       lanes.headerAlignH,
       i_pane,
+      laneBands?.bandExtents,
     ),
   );
 
@@ -234,6 +330,12 @@ export function measurePane<TData>(
       tierHeaderAndLabelGapHeight: measured.tierHeaderAndLabelGapHeight,
       yAxisWidth: measured.yAxisWidthInfo.widthIncludingYAxisStrokeWidth,
       paneContentWidth: config.geometry.contentRcd.w(),
+      proportionalSlotTotal: paneBands
+        ? paneBands.visibleIndicators.reduce((a, v) => a + v.length, 0)
+        : undefined,
+      proportionalBandCount: paneBands
+        ? paneBands.bandIndices.length
+        : undefined,
     },
   };
 }
@@ -286,6 +388,40 @@ function measureLaneHeaders(
   return { value: maxHeight, measuredTexts };
 }
 
+// Proportional lane bands (OV): each visible lane's header wraps at its own
+// band extent (bands are unequal, so a single shared wrap width is wrong).
+// measuredTexts stays indexed by GLOBAL lane index; lanes dropped for this
+// pane are measured at slotT only to keep the array dense (they are never
+// placed) and are excluded from the reserved height.
+function measureLaneHeadersProportional(
+  rc: RenderContext,
+  laneBands: PaneBandLayout,
+  laneHeaders: HeaderItem[],
+  s: MergedChartStyleBase,
+): { value: number; measuredTexts: MeasuredText[] } {
+  if (laneHeaders.length < 2) {
+    return { value: 0, measuredTexts: [] };
+  }
+  const measuredTexts: MeasuredText[] = [];
+  let maxHeight = 0;
+  for (let i_lane = 0; i_lane < laneHeaders.length; i_lane++) {
+    const bandOrdinal = laneBands.bandIndices.indexOf(i_lane);
+    const wrapW = bandOrdinal >= 0
+      ? laneBands.bandExtents[bandOrdinal]
+      : laneBands.slotT;
+    const mText = rc.mText(
+      laneHeaders[i_lane].label,
+      s.text.laneHeaders,
+      wrapW,
+    );
+    measuredTexts.push(mText);
+    if (bandOrdinal >= 0) {
+      maxHeight = Math.max(maxHeight, mText.dims.h());
+    }
+  }
+  return { value: maxHeight, measuredTexts };
+}
+
 function tierHeaderLabelPrimitives(
   measuredTexts: MeasuredText[],
   // Global tier indices to place, in band order (the visible subset under
@@ -307,6 +443,9 @@ function tierHeaderLabelPrimitives(
   },
   contentRcd: RectCoordsDims,
   i_pane: number,
+  // Proportional band layout: per-band extents parallel to tierIndices.
+  // Absent = uniform subChartAreaHeight per band.
+  bandExtents?: number[],
 ): ChartLabelPrimitive[] {
   if (measuredTexts.length === 0) return [];
 
@@ -319,7 +458,9 @@ function tierHeaderLabelPrimitives(
     const boundsW = contentRcd.rightX() - boundsX;
     let currentY = yAxisRcd.y() + tiers.paddingTop;
 
-    for (const i_tier of tierIndices) {
+    for (let bandOrdinal = 0; bandOrdinal < tierIndices.length; bandOrdinal++) {
+      const i_tier = tierIndices[bandOrdinal];
+      const bandExtent = bandExtents?.[bandOrdinal] ?? subChartAreaHeight;
       const tierBounds = new RectCoordsDims({
         x: boundsX,
         y: currentY,
@@ -335,12 +476,14 @@ function tierHeaderLabelPrimitives(
         mText: measuredTexts[i_tier],
         alignment: { h: tiers.headerAlignH, v: "top" },
       });
-      currentY += tierHeaderAndLabelGapHeight + subChartAreaHeight + tiers.gapY;
+      currentY += tierHeaderAndLabelGapHeight + bandExtent + tiers.gapY;
     }
   } else {
     let currentY = yAxisRcd.y() + tiers.paddingTop;
 
-    for (const i_tier of tierIndices) {
+    for (let bandOrdinal = 0; bandOrdinal < tierIndices.length; bandOrdinal++) {
+      const i_tier = tierIndices[bandOrdinal];
+      const bandExtent = bandExtents?.[bandOrdinal] ?? subChartAreaHeight;
       const tierY = tiers.headerAlignV === "top"
         ? currentY - tierHeaderTopNudge
         : currentY;
@@ -348,7 +491,7 @@ function tierHeaderLabelPrimitives(
         x: yAxisRcd.x(),
         y: tierY,
         w: tierHeaderAndLabelGapWidth - tiers.headerGap,
-        h: subChartAreaHeight,
+        h: bandExtent,
       });
       primitives.push({
         type: "chart-label",
@@ -359,7 +502,7 @@ function tierHeaderLabelPrimitives(
         mText: measuredTexts[i_tier],
         alignment: { h: tiers.headerAlignH, v: tiers.headerAlignV },
       });
-      currentY += subChartAreaHeight + tiers.gapY;
+      currentY += bandExtent + tiers.gapY;
     }
   }
 
@@ -378,17 +521,22 @@ function laneHeaderLabelPrimitives(
   laneGapX: number,
   headerAlignH: "left" | "center" | "right",
   i_pane: number,
+  // Proportional band layout: per-band extents parallel to laneIndices.
+  // Absent = uniform subChartAreaWidth per band.
+  bandExtents?: number[],
 ): ChartLabelPrimitive[] {
   if (measuredTexts.length === 0) return [];
 
   const primitives: ChartLabelPrimitive[] = [];
   let currentX = laneHeaderRcd.x() + lanePaddingLeft;
 
-  for (const i_lane of laneIndices) {
+  for (let bandOrdinal = 0; bandOrdinal < laneIndices.length; bandOrdinal++) {
+    const i_lane = laneIndices[bandOrdinal];
+    const bandExtent = bandExtents?.[bandOrdinal] ?? subChartAreaWidth;
     const laneBounds = new RectCoordsDims({
       x: currentX,
       y: laneHeaderRcd.y(),
-      w: subChartAreaWidth,
+      w: bandExtent,
       h: laneHeaderRcd.h(),
     });
     primitives.push({
@@ -400,7 +548,7 @@ function laneHeaderLabelPrimitives(
       mText: measuredTexts[i_lane],
       alignment: { h: headerAlignH, v: "bottom" },
     });
-    currentX += subChartAreaWidth + laneGapX;
+    currentX += bandExtent + laneGapX;
   }
 
   return primitives;

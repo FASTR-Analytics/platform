@@ -249,7 +249,7 @@ External input is validated at the point it enters the system:
 
 **Note:** Routes don't need separate validation because all writes to stored schemas go through DB functions that validate before INSERT/UPDATE.
 
-**See also:** [DOC_AI_TOOL_SCHEMAS.md](DOC_AI_TOOL_SCHEMAS.md) for how AI tool inputs are validated before handlers run.
+**See also:** [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md) for how AI tool inputs are validated before handlers run.
 
 ---
 

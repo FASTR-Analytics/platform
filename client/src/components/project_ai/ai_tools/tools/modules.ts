@@ -28,7 +28,7 @@ export function getToolsForModules(
       handler: async (input) => {
         const res = await serverActions.getScript({
           projectId,
-          module_id: input.id as any,
+          module_id: input.id,
         });
         if (!res.success) throw new Error(res.err);
         return res.data.script;
@@ -44,7 +44,7 @@ export function getToolsForModules(
       handler: async (input) => {
         const res = await serverActions.getLogs({
           projectId,
-          module_id: input.id as any,
+          module_id: input.id,
         });
         if (!res.success) throw new Error(res.err);
         return res.data.logs;
@@ -60,7 +60,7 @@ export function getToolsForModules(
       handler: async (input) => {
         const res = await serverActions.getModuleWithConfigSelections({
           projectId,
-          module_id: input.id as any,
+          module_id: input.id,
         });
         if (!res.success) throw new Error(res.err);
         return formatModuleSettingsForAI(res.data);

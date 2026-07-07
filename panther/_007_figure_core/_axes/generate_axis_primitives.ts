@@ -78,6 +78,9 @@ export function generateXTextAxisPrimitive(
   indicatorHeaders: HeaderItem[],
   axisStyle: MergedXTextAxisStyle,
   gridStyle: MergedGridStyle,
+  // Proportional band layout: this band's own width (bands are unequal, so
+  // the shared mx.subChartAreaWidth is wrong for the axis line).
+  bandWidthOverride?: number,
 ): ChartAxisPrimitive {
   const sx = axisStyle;
   const sg = gridStyle;
@@ -157,7 +160,10 @@ export function generateXTextAxisPrimitive(
   const axisLine: { coords: Coordinates[]; style: LineStyle } = {
     coords: [
       new Coordinates([subChartAreaX, axisY]),
-      new Coordinates([subChartAreaX + mx.subChartAreaWidth, axisY]),
+      new Coordinates([
+        subChartAreaX + (bandWidthOverride ?? mx.subChartAreaWidth),
+        axisY,
+      ]),
     ],
     style: {
       strokeColor: sg.axisColor,

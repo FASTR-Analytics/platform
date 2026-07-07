@@ -199,7 +199,7 @@ export function getToolsForSlides(
     createAITool({
       name: "update_slide_content",
       description:
-        "Update specific content blocks within a slide while preserving the layout structure. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. Use block IDs from get_slide to target specific text or figure blocks for replacement. NOTE: this REPLACES a block with new content (rebuilding a figure from scratch); to merely tweak an existing figure's config (replicant, filters, captions), edit it in the slide editor with update_figure instead. To add/remove blocks or change layout arrangement, use modify_slide_layout instead. IMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use a from_metric block with a table-type preset (vizPresetId) instead.",
+        "Update specific content blocks within a slide while preserving the layout structure. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. Use block IDs from get_slide to target specific text or figure blocks for replacement. NOTE: this REPLACES a block with new content (rebuilding a figure from scratch); to merely tweak an existing figure's config (replicant, filters, captions) without rebuilding it, use update_figure (pass this slideId + the figure's blockId). To add/remove blocks or change layout arrangement, use modify_slide_layout instead. IMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use a from_metric block with a table-type preset (vizPresetId) instead.",
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         updates: z.array(z.object({
@@ -225,7 +225,7 @@ export function getToolsForSlides(
         const updatedSlide = await getSlideWithUpdatedBlocks(
           projectId,
           currentRes.data.slide,
-          input.updates as any,
+          input.updates,
           metrics,
         );
 
@@ -571,27 +571,5 @@ export function getToolsForSlides(
       inProgressLabel: (input) => `Moving ${input.slideIds.length} slide(s)...`,
       completionMessage: (input) => `Moved ${input.slideIds.length} slide(s)`,
     }),
-
-    // COMMENTED OUT: Plan feature hidden
-    // createAITool({
-    //   name: "update_plan",
-    //   description:
-    //     "Update the deck's plan and notes section. This is a markdown document that serves as a workspace for ideas, outlines, talking points, and planning notes about the presentation. Use this to maintain context between conversations, track todo items, or store information about the presentation's goals and structure. The plan is NOT displayed in the final presentation - it's purely for planning purposes.",
-    //   inputSchema: z.object({
-    //     plan: z.string().describe("The new plan content in markdown format. This can include headings, bullet points, todo lists, or any other markdown-formatted notes about the presentation."),
-    //   }),
-    //   handler: async (input) => {
-    //     const res = await serverActions.updatePlan({
-    //       projectId,
-    //       deck_id: deckId,
-    //       plan: input.plan,
-    //     });
-    //     if (!res.success) throw new Error(res.err);
-
-    //     return "Plan updated";
-    //   },
-    //   inProgressLabel: "Updating plan...",
-    //   completionMessage: "Updated plan",
-    // }),
   ];
 }

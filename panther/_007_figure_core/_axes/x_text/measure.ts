@@ -28,6 +28,10 @@ export function measureXTextAxis(
   // global measure is a safe upper bound (a subset at a wider slot never
   // wraps taller).
   visibleIndicatorHeaders?: HeaderItem[],
+  // Proportional band layout: the uniform slot width IS slotT for every
+  // band, so both the layout increment and the extent wrap width are exactly
+  // slotT (the equal-split widths no longer exist).
+  proportionalSlotWidth?: number,
 ): XTextAxisMeasuredInfo {
   const sx = axisStyle;
 
@@ -43,8 +47,10 @@ export function measureXTextAxis(
         Math.max(1, n);
 
   const layoutHeaders = visibleIndicatorHeaders ?? indicatorHeaders;
-  const indicatorAreaInnerWidth = innerWidthFor(layoutHeaders.length);
-  const extentInnerWidth = innerWidthFor(indicatorHeaders.length);
+  const indicatorAreaInnerWidth = proportionalSlotWidth ??
+    innerWidthFor(layoutHeaders.length);
+  const extentInnerWidth = proportionalSlotWidth ??
+    innerWidthFor(indicatorHeaders.length);
 
   // Cap the vertical extent of rotated (vertical) tick labels so a long label
   // can't grow the axis without bound. This mirrors yTextAxis.maxTickLabelW,

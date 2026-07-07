@@ -1,7 +1,6 @@
 import { type ProjectState, type Slide, type SlideDeckConfig, getStartingConfigForSlideDeck, t3 } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import {
-  createAIChat,
   EditorComponentProps,
   getEditorWrapper,
   openComponent

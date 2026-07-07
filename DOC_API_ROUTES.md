@@ -181,7 +181,7 @@ These files create a `Hono()` and register handlers directly (`.get`/`.post`) **
 | File | Why it's raw |
 |------|--------------|
 | `routes/instance/instance-sse.ts`, `routes/project/project-sse-v2.ts` | Server-sent events (long-lived stream, not request/response) |
-| `routes/project/ai_proxy.ts`, `routes/project/ai_files.ts` | Anthropic passthrough — deliberately returns Anthropic-shaped bodies, not `APIResponse` (see [DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md](DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md)) |
+| `routes/project/ai_proxy.ts`, `routes/project/ai_files.ts` | Anthropic passthrough — deliberately returns Anthropic-shaped bodies, not `APIResponse` (see [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md)) |
 | `routes/instance/upload.ts` | Hand-rolled TUS resumable-upload protocol (custom headers/handshake) |
 | `routes/public/dashboard.ts` | Public/anonymous routes mounted before `authMiddleware` |
 | `routes/instance/health.ts` | Diagnostics; bare JSON objects |

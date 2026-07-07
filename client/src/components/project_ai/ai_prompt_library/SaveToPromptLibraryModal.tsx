@@ -123,6 +123,7 @@ export function SaveToPromptLibraryModal(
             onChange={setCategory}
             placeholder={t3({ en: "e.g. Analysis, Reporting...", fr: "ex. Analyse, Rapport...", pt: "ex. Análise, Relatórios..." })}
             fullWidth
+            list="prompt-categories"
           />
           <datalist id="prompt-categories">
             <For each={existingCategories()}>

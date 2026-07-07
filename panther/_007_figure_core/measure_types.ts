@@ -27,6 +27,32 @@ export type PaneLayout = {
   tierHeaderAndLabelGapHeight: number;
   yAxisWidth: number; // widthIncludingYAxisStrokeWidth — real value for min-width calc
   paneContentWidth: number; // pane content width — the y-text axis label wrap basis
+  // Proportional band layout (when active): this pane's visible slot total
+  // (Σ over bands of visible indicator counts) and visible band count. The
+  // pane's free plot extent is reconstructible as subChartArea* × bandCount;
+  // the chart-level panes solve reads these from pass-1 probe layouts.
+  proportionalSlotTotal?: number;
+  proportionalBandCount?: number;
+  // Set by measureChart's panes-mode pass 2: pane extents along this axis
+  // are proportional to slot totals at a shared chart-global slotT. The
+  // sizing helpers switch their decomposition on this flag ("height" = OH
+  // pane heights, "width" = OV pane widths).
+  proportionalPanesAxis?: "width" | "height";
+};
+
+// Proportional band layout for one pane (proportional.bands): each band
+// (tier on OH, lane on OV) is sized by its own visible indicator count at a
+// shared slot thickness slotT. bandIndices holds GLOBAL band indices in band
+// order — bands with no visible indicators in this pane are dropped (never
+// asserted against; empty bands are legitimate data). visibleIndicators and
+// bandExtents are parallel to bandIndices; every data lookup keeps global
+// indices, only positions use band-local ordinals.
+export type PaneBandLayout = {
+  bandAxis: "tier" | "lane";
+  bandIndices: number[];
+  visibleIndicators: number[][];
+  slotT: number;
+  bandExtents: number[];
 };
 
 export interface SimplifiedChartConfig<
@@ -49,6 +75,13 @@ export interface SimplifiedChartConfig<
     visibleIndicatorsByPane?: number[][];
     visibleTiersByPane?: number[][];
     visibleLanesByPane?: number[][];
+    // Per-(pane, band) visible indicator subsets for proportional band
+    // layout, indexed [pane][GLOBAL band index][global indicator indices].
+    // Presence enables proportional band extents (band = tier on ChartOH,
+    // lane on ChartOV).
+    visibleIndicatorsByPaneBand?: number[][][];
+    // Cross-pane proportional pane sizing requested (proportional.panes).
+    proportionalPanes?: boolean;
   };
   xAxisConfig: XAxisConfig;
   yAxisConfig: YAxisConfig;
@@ -77,12 +110,19 @@ export interface MeasurePaneConfig<TData> {
     visibleIndicatorsByPane?: number[][];
     visibleTiersByPane?: number[][];
     visibleLanesByPane?: number[][];
+    // Per-(pane, band) visible indicator subsets (proportional band layout).
+    visibleIndicatorsByPaneBand?: number[][][];
+    proportionalPanes?: boolean;
   };
   data: TData;
   baseStyle: MergedChartStyleBase;
   xAxisConfig: XAxisConfig;
   yAxisConfig: YAxisConfig;
   orientation: "vertical" | "horizontal";
+  // Chart-global slot thickness threaded in by measureChart's panes-mode
+  // pass 2. Absent = measurePane solves its own per-pane slotT locally
+  // (bands mode, and every pass-1/layoutOnly probe).
+  slotT?: number;
 }
 
 export interface MeasuredChartBase<TInputs, TData, TStyle> {

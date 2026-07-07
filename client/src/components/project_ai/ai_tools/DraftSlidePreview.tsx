@@ -130,16 +130,19 @@ export function DraftSlidePreview(p: Props) {
 
   return (
     <ErrorBoundary fallback={<></>}>
-      <Show when={slideState().status !== "error"}>
-        <div class="border-base-300 bg-base-100 max-w-[400px] rounded border">
-          <div
-            class="cursor-pointer p-1.5 transition-opacity hover:opacity-80"
-            onClick={openExpandedView}
-          >
-            <div class="pointer-events-none">
-              <SlideStateWrapper state={slideState()} />
-            </div>
+      <div class="border-base-300 bg-base-100 max-w-[400px] rounded border">
+        <div
+          class="cursor-pointer p-1.5 transition-opacity hover:opacity-80"
+          onClick={openExpandedView}
+        >
+          <div class="pointer-events-none">
+            <SlideStateWrapper state={slideState()} />
           </div>
+        </div>
+        {/* Actions are hidden on error — the card still renders so the error
+            message is visible (mirrors DraftVisualizationPreview) instead of
+            the whole preview vanishing under a "slide preview shown" line. */}
+        <Show when={slideState().status !== "error"}>
           <div class="border-base-300 flex gap-1.5 border-t p-1.5">
             <Button
               size="sm"
@@ -153,8 +156,8 @@ export function DraftSlidePreview(p: Props) {
                 : t3({ en: "Add to slide deck", fr: "Ajouter à un deck", pt: "Adicionar a uma apresentação" })}
             </Button>
           </div>
-        </div>
-      </Show>
+        </Show>
+      </div>
     </ErrorBoundary>
   );
 }

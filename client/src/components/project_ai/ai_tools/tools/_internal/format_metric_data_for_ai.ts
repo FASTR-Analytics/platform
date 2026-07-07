@@ -331,7 +331,7 @@ function formatItemsAsMarkdown(
   lines.push(`  "metricId": "${metric.id}",`);
   lines.push('  "vizPresetId": "<preset_id>",');
   lines.push('  "chartTitle": "Your chart title here",');
-  lines.push('  "filters": [{ "col": "<dimension>", "vals": ["<value>"] }],');
+  lines.push('  "filters": [{ "disOpt": "<dimension>", "values": ["<value>"] }],');
   lines.push('  "startDate": 202301,');
   lines.push('  "endDate": 202412');
   lines.push("}");

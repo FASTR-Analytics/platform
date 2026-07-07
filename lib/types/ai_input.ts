@@ -321,17 +321,3 @@ export type AiFigureBlockInput = z.infer<typeof AiFigureBlockInputSchema>;
 export type AiContentBlockInput = z.infer<typeof AiContentBlockInputSchema>;
 export type AiContentSlideInput = z.infer<typeof AiContentSlideSchema>;
 export type AiSlideInput = z.infer<typeof AiSlideInputSchema>;
-
-// Validation function
-export function validateSlide(
-  slide: unknown,
-): { valid: true; data: AiSlideInput } | { valid: false; error: string } {
-  const result = AiSlideInputSchema.safeParse(slide);
-  if (result.success) {
-    return { valid: true, data: result.data };
-  }
-  return {
-    valid: false,
-    error: result.error.issues[0]?.message ?? "Invalid slide",
-  };
-}

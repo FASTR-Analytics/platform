@@ -70,7 +70,7 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 - [ ] **11. Ban raw `Deno.env.get` outside `exposed_env_vars.ts`.**
   The AI proxy and files routes re-read `ANTHROPIC_API_KEY` raw (4 sites) and hardcode the Anthropic URL, despite `_ANTHROPIC_API_KEY` / `_ANTHROPIC_API_URL` being exported and validated at boot.
   **Fix:** use the `_`-prefixed exports; add a lint/grep rule against `Deno.env.get` outside `exposed_env_vars.ts`.
-  **Files:** `server/routes/project/{ai_proxy,ai_files}.ts`. **Docs:** [DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md](DOC_AI_PROXY_AND_USAGE_GOVERNANCE.md).
+  **Files:** `server/routes/project/{ai_proxy,ai_files}.ts`. **Docs:** [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md).
 
 - [ ] **12. Collapse the `notify_last_updated` indirection.**
   `notifyLastUpdated` → `notifyProjectLastUpdatedV2` → `notifyProjectV2` is three layers for one event (the middle layer has no other callers). Pick the layer call sites use; remove the rest. (Bundle with retiring the vestigial `_v2` naming if doing a rename pass.)

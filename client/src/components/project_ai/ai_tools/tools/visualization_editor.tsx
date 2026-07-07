@@ -1,6 +1,7 @@
 import {
   configDStrict,
   getEffectiveRollupLevel,
+  getReplicateByProp,
   presentationObjectConfigTStrict,
   type MetricWithStatus,
 } from "lib";
@@ -10,6 +11,7 @@ import type { AIContext } from "~/components/project_ai/types";
 import { convertPeriodValue } from "lib";
 import { VALID_DIS_DISPLAY, VALID_VALUES_DISPLAY } from "~/generate_visualization/validate_display_slots";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
+import { validateMetricInputs } from "../validators/content_validators";
 import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
 import { formatVizEditorForAI } from "./_internal/format_viz_editor_for_ai";
 
@@ -158,6 +160,34 @@ export function getToolsForVizEditor(
               "includeAdminAreaRollup is not available here: it requires exactly one disaggregated admin level (admin_area_2/3/4) not shown as replicant/map area and not filtered to a single value, not on a map, and a re-aggregatable metric (SUM/COUNT, a post-aggregation expression, or AVG over facility-level data). No changes were applied.",
             );
           }
+        }
+
+        // Data-value validation, same as update_figure/update_report_figure:
+        // filter values and the selected replicant value must exist in the
+        // data, checked before any store write (a throw must mean "nothing
+        // changed"). A hallucinated value would otherwise render an empty
+        // preview under a success message.
+        if (
+          input.filterBy?.length ||
+          typeof input.selectedReplicantValue === "string"
+        ) {
+          const current = ctx.getTempConfig();
+          const valueChecks = [...(input.filterBy ?? [])];
+          if (typeof input.selectedReplicantValue === "string") {
+            const replicateBy = getReplicateByProp({
+              d: {
+                disaggregateBy: input.disaggregateBy ?? current.d.disaggregateBy,
+                filterBy: input.filterBy ?? current.d.filterBy,
+              },
+            });
+            if (replicateBy) {
+              valueChecks.push({
+                disOpt: replicateBy,
+                values: [input.selectedReplicantValue],
+              });
+            }
+          }
+          await validateMetricInputs(projectId, resultsValue.id, valueChecks);
         }
 
         if (input.type) {

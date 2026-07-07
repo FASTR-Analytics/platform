@@ -9,15 +9,14 @@ import type {
 import { DEFAULT_S_CONFIG, DEFAULT_T_CONFIG, convertPeriodValue } from "lib";
 import { validatePresetOverrides } from "~/components/project_ai/ai_tools/validators/content_validators";
 
-type BuildConfigResult =
-  | {
-      success: true;
-      resultsValue: MetricWithStatus;
-      resultsValueForViz: ResultsValueForVisualization;
-      config: PresentationObjectConfig;
-    }
-  | { success: false; error: string };
+type BuildConfigResult = {
+  resultsValue: MetricWithStatus;
+  resultsValueForViz: ResultsValueForVisualization;
+  config: PresentationObjectConfig;
+};
 
+// Throws on every invalid input (the AI tool engine converts throws to
+// is_error results) — no {success:false} returns.
 export function buildConfigFromPreset(
   input: AiFigureFromMetric,
   metrics: MetricWithStatus[],
@@ -26,7 +25,7 @@ export function buildConfigFromPreset(
   const resultsValue = metrics.find((m) => m.id === metricId);
 
   if (!resultsValue) {
-    return { success: false, error: `Metric "${metricId}" not found` };
+    throw new Error(`Metric "${metricId}" not found`);
   }
 
   const preset = resultsValue.vizPresets?.find((p) => p.id === vizPresetId);
@@ -34,10 +33,9 @@ export function buildConfigFromPreset(
   if (!preset) {
     const available =
       resultsValue.vizPresets?.map((p) => p.id).join(", ") || "none";
-    return {
-      success: false,
-      error: `Viz preset "${vizPresetId}" not found for metric "${metricId}". Available presets: ${available}`,
-    };
+    throw new Error(
+      `Viz preset "${vizPresetId}" not found for metric "${metricId}". Available presets: ${available}`,
+    );
   }
 
   // Validate overrides before applying
@@ -87,8 +85,15 @@ export function buildConfigFromPreset(
     config.d.valuesFilter = input.valuesFilter;
   }
 
-  if (input.startDate != null && input.endDate != null && resultsValue.mostGranularTimePeriodColumnInResultsFile) {
+  if (input.startDate != null && input.endDate != null) {
     const targetPeriodOption = resultsValue.mostGranularTimePeriodColumnInResultsFile;
+    if (!targetPeriodOption) {
+      // Same rule as update_viz_config — silently ignoring the requested
+      // range would show all data under a success message.
+      throw new Error(
+        `Cannot apply startDate/endDate: metric "${metricId}" has no time period column`,
+      );
+    }
     config.d.periodFilter = {
       filterType: "custom",
       min: convertPeriodValue(input.startDate, targetPeriodOption, false),
@@ -96,5 +101,5 @@ export function buildConfigFromPreset(
     };
   }
 
-  return { success: true, resultsValue, resultsValueForViz, config };
+  return { resultsValue, resultsValueForViz, config };
 }

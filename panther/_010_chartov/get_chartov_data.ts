@@ -10,14 +10,17 @@ import {
   createArray,
   createHeaderItems,
   deriveVisibleIndicatorsByPane,
+  deriveVisibleIndicatorsByPaneBand,
   deriveVisibleLanesByPane,
   fillValuesWithDuplicateCheck,
   getHeaderIndex,
   isRowBasedUncertainty,
   type JsonArray,
   type ProcessedHeaders,
+  resolveChartProportional,
   sortHeaderItems,
   validateChartMembership,
+  validateChartProportional,
   validateDataInput,
   validateUncertaintyConfig,
 } from "./deps.ts";
@@ -98,12 +101,15 @@ export function getChartOVDataJsonTransformed(
     tierProp,
     uncertainty,
     membership,
+    proportional,
     labelReplacements,
     sort,
     sortIndicatorValues,
   } = jsonDataConfig;
 
   validateChartMembership(membership, ["indicator", "lane"], "tier", "ChartOV");
+  validateChartProportional(proportional, "ChartOV");
+  const proportionalFlags = resolveChartProportional(proportional);
 
   if (uncertainty) {
     validateUncertaintyConfig(uncertainty, valueProps, [
@@ -353,12 +359,23 @@ export function getChartOVDataJsonTransformed(
   }
 
   // Derived from the FINAL arrays (post-sortIndicatorValues reorder) so the
-  // mask's indices match the final indicator order.
-  const visibleIndicatorsByPane = membership?.indicator === "unbalanced"
-    ? deriveVisibleIndicatorsByPane(finalValues, finalBounds, nIndicators)
-    : undefined;
+  // mask's indices match the final indicator order. Proportional band layout
+  // implies per-pane indicator visibility (the per-band masks are its
+  // refinement), so the per-pane union is derived under either flag.
+  const visibleIndicatorsByPane =
+    membership?.indicator === "unbalanced" || proportionalFlags.bands
+      ? deriveVisibleIndicatorsByPane(finalValues, finalBounds, nIndicators)
+      : undefined;
   const visibleLanesByPane = membership?.lane === "unbalanced"
     ? deriveVisibleLanesByPane(finalValues, finalBounds, nLanes)
+    : undefined;
+  const visibleIndicatorsByPaneBand = proportionalFlags.bands
+    ? deriveVisibleIndicatorsByPaneBand(
+      finalValues,
+      finalBounds,
+      nIndicators,
+      "lane",
+    )
     : undefined;
 
   return {
@@ -374,5 +391,7 @@ export function getChartOVDataJsonTransformed(
     yScaleAxisLabel: jsonDataConfig.yScaleAxisLabel?.trim(),
     visibleIndicatorsByPane,
     visibleLanesByPane,
+    visibleIndicatorsByPaneBand,
+    proportionalPanes: proportionalFlags.panes ? true : undefined,
   };
 }

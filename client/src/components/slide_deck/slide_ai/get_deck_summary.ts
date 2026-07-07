@@ -1,5 +1,5 @@
 import { getSlideTitle, type Slide } from "lib";
-import { _SLIDE_CACHE } from "~/state/project/t2_slides";
+import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
 import { extractBlocksFromLayout } from "./extract_blocks_from_layout";
 
 function getContentSummary(slide: Slide): string {
@@ -40,14 +40,14 @@ export async function getDeckSummaryForAI(
   } else {
     for (let i = 0; i < slideIds.length; i++) {
       const slideId = slideIds[i];
-      const cached = await _SLIDE_CACHE.get({ projectId, slideId });
+      const res = await getSlideFromCacheOrFetch(projectId, slideId);
 
-      if (!cached.data) {
-        lines.push(`  ${slideId}: [Loading...]`);
+      if (!res.success) {
+        lines.push(`  ${slideId}: [Failed to load: ${res.err}]`);
       } else {
-        const title = getSlideTitle(cached.data.slide);
-        const contentSummary = getContentSummary(cached.data.slide);
-        lines.push(`  ${slideId} (${cached.data.slide.type}): "${title}"${contentSummary}`);
+        const title = getSlideTitle(res.data.slide);
+        const contentSummary = getContentSummary(res.data.slide);
+        lines.push(`  ${slideId} (${res.data.slide.type}): "${title}"${contentSummary}`);
       }
     }
   }

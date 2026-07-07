@@ -8,10 +8,10 @@ export function getToolsForNavigation(aiContext: () => AIContext) {
     createAITool({
       name: "switch_tab",
       description:
-        "Switch the main project tab. Available tabs: decks, visualizations, metrics, modules, data, settings. Cannot switch tabs while the user is editing a visualization, slide deck, or slide.",
+        "Switch the main project tab. Available tabs: reports, decks, visualizations, metrics, modules, data, settings. Cannot switch tabs while the user is editing a visualization, slide deck, or slide.",
       inputSchema: z.object({
         tab: z
-          .enum(["decks", "visualizations", "metrics", "modules", "data", "settings"])
+          .enum(["reports", "decks", "visualizations", "metrics", "modules", "data", "settings"])
           .describe("The tab to switch to"),
       }),
       handler: async (input) => {

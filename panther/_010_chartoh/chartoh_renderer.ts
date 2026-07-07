@@ -14,9 +14,11 @@ import {
   type ChartComponentSizes,
   getChartHeightConstraintsByMeasure,
   type HeightConstraints,
+  maxProportionalPanePlotExtent,
   maxVisibleCount,
   measureChartWithAutofit,
   type PaneLayout,
+  proportionalTotalSlots,
   RectCoordsDims,
   type RenderContext,
   type Renderer,
@@ -141,12 +143,18 @@ function buildOHResolveTarget(
     const nBarsPerIndicator = shouldConsiderNSeries(ohStyle, data)
       ? nSeries
       : 1;
-    const { nGRows } = calculatePaneGrid(
+    const { nGRows, nGCols } = calculatePaneGrid(
       info.paneHeaders.length,
       info.mergedStyle.panes.nCols,
     );
-    const nTotalBarRows = nGRows * info.nTiers * nIndicators *
-      nBarsPerIndicator;
+    // Proportional band layout: the thickness decay sees the true ragged
+    // bar-row total (per grid column, matching the uniform formula's
+    // one-column semantics); otherwise the uniform product.
+    const nTotalBarRows = data.visibleIndicatorsByPaneBand
+      ? (proportionalTotalSlots(data.visibleIndicatorsByPaneBand) / nGCols) *
+        nBarsPerIndicator
+      : nGRows * info.nTiers * nIndicators *
+        nBarsPerIndicator;
     const rowThickness = info.mergedStyle.idealHeight.idealRowThickness(
       nTotalBarRows,
     );
@@ -160,6 +168,17 @@ function buildOHResolveTarget(
       maxWrappedH,
       nBarsPerIndicator * rowThickness,
     );
+    // Proportional band layout: the target is the fullest pane's TOTAL at
+    // this slot thickness, expressed per-tier so the uniform decomposition
+    // (× nTiers) recovers the pane total.
+    if (data.visibleIndicatorsByPaneBand) {
+      return maxProportionalPanePlotExtent(
+        data.visibleIndicatorsByPaneBand,
+        perIndicatorH,
+        ohStyle.yTextAxis.tickPosition === "center",
+        info.mergedStyle.grid.gridStrokeWidth,
+      ) / Math.max(1, info.nTiers);
+    }
     return ohPerSubChartPlotH(info, nIndicators, perIndicatorH);
   };
 }
@@ -186,8 +205,66 @@ function buildOHResolveFloor(
       data,
       probeLayouts,
     );
+    // Proportional band layout: same per-tier expression as the target (see
+    // buildOHResolveTarget), floor = wrapped label height only.
+    if (data.visibleIndicatorsByPaneBand) {
+      return maxProportionalPanePlotExtent(
+        data.visibleIndicatorsByPaneBand,
+        maxWrappedH,
+        ohStyle.yTextAxis.tickPosition === "center",
+        info.mergedStyle.grid.gridStrokeWidth,
+      ) / Math.max(1, info.nTiers);
+    }
     return ohPerSubChartPlotH(info, nIndicators, maxWrappedH);
   };
+}
+
+// Per-SLOT thickness resolvers (proportional panes contract fork): the
+// natural slot thickness (wrapped label vs bar-comfort) and its wrapped-
+// label floor. Consumed by the ragged decomposition in chart_size_helpers
+// when measureChart engages cross-pane proportional sizing; ignored
+// otherwise.
+function buildOHResolveTargetSlotT(
+  rc: RenderContext,
+  data: ChartOHDataTransformed,
+): ResolveTargetPlotH {
+  return (info, probeLayouts) => {
+    const ohStyle = info.mergedStyle as MergedChartOHStyle;
+    const nBarsPerIndicator = shouldConsiderNSeries(ohStyle, data)
+      ? data.seriesHeaders.length
+      : 1;
+    const { nGCols } = calculatePaneGrid(
+      info.paneHeaders.length,
+      info.mergedStyle.panes.nCols,
+    );
+    const raggedSlots = data.visibleIndicatorsByPaneBand
+      ? proportionalTotalSlots(data.visibleIndicatorsByPaneBand)
+      : data.indicatorHeaders.length * info.nTiers *
+        info.paneHeaders.length;
+    const rowThickness = info.mergedStyle.idealHeight.idealRowThickness(
+      (raggedSlots / Math.max(1, nGCols)) * nBarsPerIndicator,
+    );
+    const maxWrappedH = maxWrappedCategoryLabelH(
+      rc,
+      ohStyle,
+      data,
+      probeLayouts,
+    );
+    return Math.max(maxWrappedH, nBarsPerIndicator * rowThickness);
+  };
+}
+
+function buildOHResolveFloorSlotT(
+  rc: RenderContext,
+  data: ChartOHDataTransformed,
+): ResolveFloorPlotH {
+  return (info, probeLayouts) =>
+    maxWrappedCategoryLabelH(
+      rc,
+      info.mergedStyle as MergedChartOHStyle,
+      data,
+      probeLayouts,
+    );
 }
 
 // Probes run layout-only: they consume the returned geometry, never the
@@ -225,6 +302,8 @@ function measureOH(
     buildOHProbe(rc, w, item, data),
     buildOHResolveTarget(rc, data),
     buildOHResolveFloor(rc, data),
+    buildOHResolveTargetSlotT(rc, data),
+    buildOHResolveFloorSlotT(rc, data),
   );
 }
 
@@ -267,6 +346,8 @@ export const ChartOHRenderer: Renderer<ChartOHInputs, MeasuredChartOH> = {
       buildOHProbe(rc, width, item, data),
       buildOHResolveTarget(rc, data),
       buildOHResolveFloor(rc, data),
+      buildOHResolveTargetSlotT(rc, data),
+      buildOHResolveFloorSlotT(rc, data),
     );
   },
 };

@@ -142,6 +142,9 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       element: AIChatSettingsPanel,
       props: {
         initialValues: current,
+        // max_tokens is exposed so the truncation notice's "increase max
+        // tokens in the AI settings" advice is actionable.
+        adjustable: ["model", "max_tokens"],
         allowedModels: [
           "claude-opus-4-8",
           "claude-opus-4-6",

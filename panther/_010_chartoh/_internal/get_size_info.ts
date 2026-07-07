@@ -10,6 +10,7 @@ import {
   estimateMinSurroundsWidth,
   estimateMinXAxisHeightForScale,
   estimateMinYTextAxisWidth,
+  maxProportionalPanePlotExtent,
   maxVisibleCount,
   type RenderContext,
   resolveDefaultLegend,
@@ -77,7 +78,24 @@ export function getChartOHComponentSizes(
     nIndicators,
   );
   const gridStrokeWidth = ms.grid.gridStrokeWidth;
-  const minSubChartHeight = ms.yTextAxis.tickPosition === "center"
+  // Unbalanced tier membership: reserve height for the fullest pane.
+  const nTiers = maxVisibleCount(
+    data.visibleTiersByPane,
+    data.tierHeaders.length,
+  );
+  // Proportional band layout: the height floor is the fullest pane's TOTAL
+  // (slotT-model: Σ over its bands of visible counts × label height +
+  // strokes), expressed per-tier so the uniform decomposition (× nTiers)
+  // recovers the pane total. Otherwise the shipped per-band × band-count
+  // model.
+  const minSubChartHeight = data.visibleIndicatorsByPaneBand
+    ? maxProportionalPanePlotExtent(
+      data.visibleIndicatorsByPaneBand,
+      maxTickLabelH,
+      ms.yTextAxis.tickPosition === "center",
+      gridStrokeWidth,
+    ) / Math.max(1, nTiers)
+    : ms.yTextAxis.tickPosition === "center"
     ? nIndicatorSlots * maxTickLabelH
     : nIndicatorSlots * maxTickLabelH + gridStrokeWidth * (nIndicatorSlots + 1);
 
@@ -90,8 +108,7 @@ export function getChartOHComponentSizes(
     customFigureStyle: cs,
     mergedStyle: ms,
     nLanes: data.laneHeaders.length,
-    // Unbalanced tier membership: reserve height for the fullest pane.
-    nTiers: maxVisibleCount(data.visibleTiersByPane, data.tierHeaders.length),
+    nTiers,
     paneHeaders: data.paneHeaders,
     minSubChartWidth,
     minSubChartHeight,
@@ -105,5 +122,10 @@ export function getChartOHComponentSizes(
       data.seriesHeaders,
     ),
     resolvedLegendLabels,
+    // Proportional layout: the tick mode drives the inter-slot stroke term
+    // in the ragged decompositions.
+    slotTicksCentered: data.visibleIndicatorsByPaneBand
+      ? ms.yTextAxis.tickPosition === "center"
+      : undefined,
   };
 }

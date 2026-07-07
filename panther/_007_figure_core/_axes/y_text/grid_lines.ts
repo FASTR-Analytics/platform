@@ -14,8 +14,9 @@ export function calculateHorizontalGridLinesForTierYText(
 ): { y: number; tickValue?: number }[] {
   const result: { y: number; tickValue?: number }[] = [];
   const innerH = centeredTicks
-    ? plotAreaRcd.h() / nIndicators
-    : (plotAreaRcd.h() - gridStrokeWidth * (nIndicators + 1)) / nIndicators;
+    ? plotAreaRcd.h() / Math.max(1, nIndicators)
+    : (plotAreaRcd.h() - gridStrokeWidth * (nIndicators + 1)) /
+      Math.max(1, nIndicators);
 
   let currentY = centeredTicks
     ? plotAreaRcd.y()

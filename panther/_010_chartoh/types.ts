@@ -46,6 +46,16 @@ export type ChartOHJsonDataConfig = {
     indicator?: AxisMembership;
     tier?: AxisMembership;
   };
+  // Proportional (ragged-table) layout. bands: each tier band is sized by
+  // its own visible indicator count (per-band visibility implied), uniform
+  // slot thickness within a pane. panes: pane heights are additionally
+  // proportional to their slot totals, uniform slot thickness across the
+  // whole chart (implies bands; engaged only when the pane grid is a single
+  // column). Distinct from membership, which stays per-pane.
+  proportional?: {
+    bands?: boolean;
+    panes?: boolean;
+  };
   labelReplacements?: Record<string, string>;
   sort?: {
     indicator?: HeaderSortConfig;
@@ -80,6 +90,15 @@ export type ChartOHDataTransformed = {
   // unbalanced tier membership. Same masking model as indicators: dropped
   // tiers are whole subchart rows.
   visibleTiersByPane?: number[][];
+  // Per-(pane, tier) visible indicator subsets for proportional band layout,
+  // indexed [pane][GLOBAL tier index][visible global indicator indices]. A
+  // tier with [] in a pane is dropped for that pane. Present only when
+  // proportional layout is enabled.
+  visibleIndicatorsByPaneBand?: number[][][];
+  // Cross-pane proportional sizing requested (proportional.panes). Pane
+  // heights become proportional to their slot totals when the pane grid is a
+  // single column; otherwise falls back to uniform pane sizing.
+  proportionalPanes?: boolean;
 };
 
 export function isChartOHDataJson(d: ChartOHData): d is ChartOHDataJson {

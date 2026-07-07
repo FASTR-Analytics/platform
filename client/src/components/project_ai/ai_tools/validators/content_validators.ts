@@ -16,7 +16,10 @@ const MARKDOWN_TABLE_PATTERNS = [
 ];
 
 function containsMarkdownTable(text: string): boolean {
-  return MARKDOWN_TABLE_PATTERNS.some((pattern) => pattern.test(text));
+  // BOTH a multi-pipe row and a separator line — a lone piped line ("Region
+  // A | Region B | Region C", quoted `a || b || c`) isn't a rendered table
+  // and matching on it alone rejected legitimate prose.
+  return MARKDOWN_TABLE_PATTERNS.every((pattern) => pattern.test(text));
 }
 
 export function validateNoMarkdownTables(markdown: string): void {
@@ -96,50 +99,59 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
   }
 
   validateFilters(query.filters, query.metricId, metric);
+  validateDateRange(query.startDate, query.endDate);
+}
 
-  if (query.startDate != null && query.endDate != null) {
-    if (!Number.isFinite(query.startDate) || !Number.isFinite(query.endDate)) {
+// One date-range validator for every startDate/endDate surface
+// (get_metric_data queries AND from_metric preset overrides) — the two used
+// to diverge, so an invalid period id one path rejected could reach a stored
+// figure config through the other.
+function validateDateRange(
+  startDate: number | undefined,
+  endDate: number | undefined,
+): void {
+  if (startDate != null && endDate != null) {
+    if (!Number.isFinite(startDate) || !Number.isFinite(endDate)) {
       throw new Error(
-        `startDate and endDate must be valid numbers. Got startDate: ${query.startDate}, endDate: ${query.endDate}`
+        `startDate and endDate must be valid numbers. Got startDate: ${startDate}, endDate: ${endDate}`
       );
     }
-    if (query.startDate > query.endDate) {
+    if (startDate > endDate) {
       throw new Error(
-        `startDate (${query.startDate}) cannot be greater than endDate (${query.endDate})`
+        `startDate (${startDate}) cannot be greater than endDate (${endDate})`
       );
     }
-    const startDigits = String(query.startDate).length;
-    const endDigits = String(query.endDate).length;
+    const startDigits = String(startDate).length;
+    const endDigits = String(endDate).length;
     if (startDigits !== endDigits) {
       throw new Error(
-        `startDate and endDate must use the same format. Got startDate: ${query.startDate} (${startDigits} digits), endDate: ${query.endDate} (${endDigits} digits)`
+        `startDate and endDate must use the same format. Got startDate: ${startDate} (${startDigits} digits), endDate: ${endDate} (${endDigits} digits)`
       );
     }
     if (startDigits === 6) {
-      if (!isPeriodIdValid(query.startDate) || !isPeriodIdValid(query.endDate)) {
+      if (!isPeriodIdValid(startDate) || !isPeriodIdValid(endDate)) {
         throw new Error(
-          `Invalid YYYYMM format. Got startDate: ${query.startDate}, endDate: ${query.endDate}`
+          `Invalid YYYYMM format. Got startDate: ${startDate}, endDate: ${endDate}`
         );
       }
     } else if (startDigits === 5) {
-      if (!isQuarterIdValid(query.startDate) || !isQuarterIdValid(query.endDate)) {
+      if (!isQuarterIdValid(startDate) || !isQuarterIdValid(endDate)) {
         throw new Error(
-          `Invalid YYYYQ format. Got startDate: ${query.startDate}, endDate: ${query.endDate}`
+          `Invalid YYYYQ format. Got startDate: ${startDate}, endDate: ${endDate}`
         );
       }
     } else if (startDigits <= 4) {
-      if (query.startDate < 1900 || query.endDate > 2100) {
+      if (startDate < 1900 || endDate > 2100) {
         throw new Error(
-          `Year must be between 1900 and 2100. Got startDate: ${query.startDate}, endDate: ${query.endDate}`
+          `Year must be between 1900 and 2100. Got startDate: ${startDate}, endDate: ${endDate}`
         );
       }
     }
-  } else if (query.startDate != null || query.endDate != null) {
+  } else if (startDate != null || endDate != null) {
     throw new Error(
       "Both startDate and endDate must be provided together, or neither."
     );
   }
-
 }
 
 export function validatePresetOverrides(
@@ -150,24 +162,7 @@ export function validatePresetOverrides(
   metric?: MetricWithStatus,
 ): void {
   validateFilters(filters, metricId, metric);
-
-  if (startDate != null && endDate != null) {
-    if (!Number.isFinite(startDate) || !Number.isFinite(endDate)) {
-      throw new Error(
-        `startDate and endDate must be valid numbers. Got startDate: ${startDate}, endDate: ${endDate}`
-      );
-    }
-
-    if (startDate > endDate) {
-      throw new Error(
-        `startDate (${startDate}) cannot be greater than endDate (${endDate})`
-      );
-    }
-  } else if (startDate != null || endDate != null) {
-    throw new Error(
-      "Both startDate and endDate must be provided together, or neither."
-    );
-  }
+  validateDateRange(startDate, endDate);
 }
 
 export async function validateMetricInputs(

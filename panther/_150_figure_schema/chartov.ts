@@ -16,6 +16,7 @@ import {
   type Conforms,
   zAxisMembership,
   zChartBounds,
+  zChartProportional,
   zChartScaleAxisLimits,
   zHeaderItems,
   zHeaderSortConfig,
@@ -23,6 +24,7 @@ import {
   zUncertaintyConfig,
   zValues5D,
   zVisibleByPane,
+  zVisibleByPaneBand,
 } from "./shared.ts";
 
 export const zChartOVJsonDataConfig = z.object({
@@ -41,6 +43,7 @@ export const zChartOVJsonDataConfig = z.object({
       lane: zAxisMembership.optional(),
     })
     .optional(),
+  proportional: zChartProportional.optional(),
   labelReplacements: z.record(z.string(), z.string()).optional(),
   sort: z
     .object({
@@ -81,6 +84,8 @@ const zChartOVDataTransformedObject = z.object({
   yScaleAxisLabel: z.string().optional(),
   visibleIndicatorsByPane: zVisibleByPane.optional(),
   visibleLanesByPane: zVisibleByPane.optional(),
+  visibleIndicatorsByPaneBand: zVisibleByPaneBand.optional(),
+  proportionalPanes: z.boolean().optional(),
 });
 const _zChartOVDataTransformedConforms: Conforms<
   z.infer<typeof zChartOVDataTransformedObject>,

@@ -162,10 +162,7 @@ export function DraftVisualizationPreview(p: Props) {
         },
       });
     } else {
-      const buildResult = buildConfigFromPreset(p.figure, p.metrics);
-      if (!buildResult.success) return;
-
-      const { resultsValue, config } = buildResult;
+      const { resultsValue, config } = buildConfigFromPreset(p.figure, p.metrics);
       config.t.caption = p.title;
 
       await openComponent({

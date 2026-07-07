@@ -9,8 +9,10 @@
 > in the same commit. Done so far: S6 (DOC_IMPORT_PIPELINE, 2026-07-02), S5
 > (written fresh, 2026-07-02), S9 (DOC_PRESENTATION_OBJECT_QUERY_PIPELINE +
 > DOC_period_column_handling + DOC_DISAGGREGATION_OPTIONS_HANDLING +
-> DOC_ROLLUP_ROWS, 2026-07-06). This plan deletes itself when the last `DOC_*`
-> is gone.
+> DOC_ROLLUP_ROWS, 2026-07-06), S13 (DOC_AI_PROXY_AND_USAGE_GOVERNANCE +
+> DOC_AI_TOOL_SCHEMAS → SYSTEM_13 + new PROTOCOL_APP_AI_TOOLS, 2026-07-07;
+> review-only cycle — findings are S13 Open items, no fix batch yet). This
+> plan deletes itself when the last `DOC_*` is gone.
 
 ## 1. `DOC_*` → target mapping (3-way sort)
 
@@ -54,9 +56,9 @@ No DOC_* to absorb (SYSTEM file written fresh from code in the cycle): **S4**
 Known-stale items from the systems review; each dissolves when the owning
 DOC_* is inlined during its cycle.
 
-- **CLAUDE.md:** `server/ai/` and `server/visualization_definitions/` don't
-  exist (AI proxy lives in `routes/project/ai_*.ts`; viz query code is
-  `server_only_funcs_presentation_objects/`); `client/src/export_report` is now
+- **CLAUDE.md:** `server/visualization_definitions/` doesn't exist (viz query
+  code is `server_only_funcs_presentation_objects/`; the phantom `server/ai/`
+  entry was fixed in the S13 cycle); `client/src/export_report` is now
   `client/src/exports/`; dataset-import progress is POLLED, not SSE; "i18n
   built from XLSX" is wrong per DOC_TRANSLATION; `state/ui.ts` and
   `components/project_runner/provider.tsx` are phantoms (real: `state/t4_ui.ts`,

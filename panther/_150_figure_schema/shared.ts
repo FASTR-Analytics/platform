@@ -108,6 +108,18 @@ const _zAxisMembershipConforms: Conforms<
 // transformed-data types (indicators, tiers, or lanes).
 export const zVisibleByPane = z.array(z.array(z.number()));
 
+// Per-(pane, band) visible indicator subsets for proportional band layout,
+// indexed [pane][global band index][visible global indicator indices].
+export const zVisibleByPaneBand = z.array(zVisibleByPane);
+
+// Proportional (ragged-table) layout config. strict: a stray key must error,
+// not be silently stripped — see validateChartProportional for the rule
+// (panes implies bands; { bands: false, panes: true } is rejected there).
+export const zChartProportional = z.strictObject({
+  bands: z.boolean().optional(),
+  panes: z.boolean().optional(),
+});
+
 export const zPeriodType = z.enum(["year-month", "year-quarter", "year"]);
 const _zPeriodTypeConforms: Conforms<z.infer<typeof zPeriodType>, PeriodType> =
   true;

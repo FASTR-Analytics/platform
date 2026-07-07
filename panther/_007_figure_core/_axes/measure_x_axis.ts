@@ -46,6 +46,8 @@ export function measureXAxis(
   // This pane's visible indicator subset (unbalanced membership); text axis
   // only. See measureXTextAxis for the extent/layout split.
   visibleIndicatorHeaders?: HeaderItem[],
+  // Proportional band layout: the uniform slot width (slotT); text axis only.
+  proportionalSlotWidth?: number,
 ): XAxisMeasuredInfo {
   switch (xAxisConfig.type) {
     case "text":
@@ -58,6 +60,7 @@ export function measureXAxis(
         xAxisConfig.axisStyle,
         gridStyle,
         visibleIndicatorHeaders,
+        proportionalSlotWidth,
       );
     case "period":
       return measureXPeriodAxis(

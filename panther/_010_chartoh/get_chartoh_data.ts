@@ -10,14 +10,17 @@ import {
   createArray,
   createHeaderItems,
   deriveVisibleIndicatorsByPane,
+  deriveVisibleIndicatorsByPaneBand,
   deriveVisibleTiersByPane,
   fillValuesWithDuplicateCheck,
   getHeaderIndex,
   isRowBasedUncertainty,
   type JsonArray,
   type ProcessedHeaders,
+  resolveChartProportional,
   sortHeaderItems,
   validateChartMembership,
+  validateChartProportional,
   validateDataInput,
   validateUncertaintyConfig,
 } from "./deps.ts";
@@ -97,12 +100,15 @@ export function getChartOHDataJsonTransformed(
     tierProp,
     uncertainty,
     membership,
+    proportional,
     labelReplacements,
     sort,
     sortIndicatorValues,
   } = jsonDataConfig;
 
   validateChartMembership(membership, ["indicator", "tier"], "lane", "ChartOH");
+  validateChartProportional(proportional, "ChartOH");
+  const proportionalFlags = resolveChartProportional(proportional);
 
   if (uncertainty) {
     validateUncertaintyConfig(uncertainty, valueProps, [
@@ -352,12 +358,23 @@ export function getChartOHDataJsonTransformed(
   }
 
   // Derived from the FINAL arrays (post-sortIndicatorValues reorder) so the
-  // mask's indices match the final indicator order.
-  const visibleIndicatorsByPane = membership?.indicator === "unbalanced"
-    ? deriveVisibleIndicatorsByPane(finalValues, finalBounds, nIndicators)
-    : undefined;
+  // mask's indices match the final indicator order. Proportional band layout
+  // implies per-pane indicator visibility (the per-band masks are its
+  // refinement), so the per-pane union is derived under either flag.
+  const visibleIndicatorsByPane =
+    membership?.indicator === "unbalanced" || proportionalFlags.bands
+      ? deriveVisibleIndicatorsByPane(finalValues, finalBounds, nIndicators)
+      : undefined;
   const visibleTiersByPane = membership?.tier === "unbalanced"
     ? deriveVisibleTiersByPane(finalValues, finalBounds, nTiers)
+    : undefined;
+  const visibleIndicatorsByPaneBand = proportionalFlags.bands
+    ? deriveVisibleIndicatorsByPaneBand(
+      finalValues,
+      finalBounds,
+      nIndicators,
+      "tier",
+    )
     : undefined;
 
   return {
@@ -373,5 +390,7 @@ export function getChartOHDataJsonTransformed(
     xScaleAxisLabel: jsonDataConfig.xScaleAxisLabel?.trim(),
     visibleIndicatorsByPane,
     visibleTiersByPane,
+    visibleIndicatorsByPaneBand,
+    proportionalPanes: proportionalFlags.panes ? true : undefined,
   };
 }

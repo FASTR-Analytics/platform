@@ -1,30 +1,6 @@
-import { Button, Icon } from "panther";
+import { Icon } from "panther";
 import { Show, For } from "solid-js";
 import type { ProjectDocument } from "~/state/project/t4_ai_documents";
-
-type Props = {
-  documents: ProjectDocument[];
-  onOpenSelector: () => void;
-  onRemoveDocument: (assetFilename: string) => void;
-};
-
-export function AIDocumentButton(p: Props) {
-  // const count = () => p.documents.length;
-
-  return (
-    <Button outline iconName="document" intent="base-100" onClick={p.onOpenSelector} />
-
-    //   // <div class="flex items-center ui-gap-sm">
-    //  <Show when={count() > 0}>
-    //       <div class="flex items-center gap-1 text-xs text-white">
-    //         <FileIcon class="w-3 h-3" />
-    //         <span>{count()} PDF{count() > 1 ? "s" : ""}</span>
-    //       </div>
-    //     </Show> */}
-    // {/* {count() > 0 ? "Manage files" : "Include file"} */ }
-    //   // </div>
-  );
-}
 
 export function AIDocumentList(p: {
   documents: ProjectDocument[];

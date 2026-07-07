@@ -2,7 +2,6 @@ import {
   AIChatProvider,
   type AIChatConfig,
   FrameRightResizable,
-  useConversations,
 } from "panther";
 import { createMemo, onCleanup, onMount, type ParentProps } from "solid-js";
 import {
@@ -43,64 +42,22 @@ function AIProjectWrapperInner(props: ParentProps) {
 
   const aiDocs = useAIDocuments({ projectId });
 
-  const tools = createMemo(() => {
-    // console.log("[WRAPPER] tools memo recomputing, aiContext mode:", aiContext().mode);
-    // Touch all properties used by tools (bespoke reader pattern)
-    projectState.projectModules.forEach((m) => {
-      const _v =
-        m.id +
-        m.label +
-        m.hasParameters +
-        m.presentationDefUpdatedAt +
-        m.lastRunAt +
-        m.dirty;
-    });
-    projectState.metrics.forEach((m) => {
-      const _v =
-        m.status + m.moduleId + m.label + m.variantLabel + m.id + m.formatAs;
-      m.valueProps.forEach((p) => {
-        const _vp = p;
-      });
-      if (m.valueLabelReplacements) {
-        for (const k in m.valueLabelReplacements) {
-          const _vlr = m.valueLabelReplacements[k];
-        }
-      }
-      if (m.aiDescription) {
-        const _aids = m.aiDescription.summary;
-        const _aidm = m.aiDescription.methodology;
-        const _aidi = m.aiDescription.interpretation;
-        const _aidt = m.aiDescription.typicalRange;
-        const _aidc = m.aiDescription.caveats;
-        const _aiddg = m.aiDescription.disaggregationGuidance;
-      }
-      m.disaggregationOptions.forEach((d) => {
-        const _d = d.value + d.isRequired;
-      });
-      const _po = m.mostGranularTimePeriodColumnInResultsFile;
-    });
-
-    // Visualizations
-    projectState.visualizations.forEach((v) => {
-      const _v = v.id + v.label;
-    });
-
-    // Slide decks
-    projectState.slideDecks.forEach((d) => {
-      const _v = d.id + d.label;
-    });
-
-    return buildToolsForContext({
-      projectId,
-      modules: projectState.projectModules,
-      metrics: projectState.metrics,
-      icehIndicators: projectState.icehIndicators,
-      hfaTaxonomy: projectState.hfaTaxonomy,
-      visualizations: projectState.visualizations,
-      slideDecks: projectState.slideDecks,
-      reports: projectState.reports,
-      aiContext: aiContext,
-    });
+  // Tools are registered into panther's ToolRegistry ONCE at chat-pane mount;
+  // this array is not re-read on change. Freshness is intentional aliasing:
+  // every handler closes over the projectState store, which is updated in
+  // place via reconcile, so handlers always read current data. (Anything a
+  // handler needs at BUILD time — e.g. a completionMessage counting metrics —
+  // is frozen at mount; keep such reads out of tool construction.) Build once.
+  const tools = buildToolsForContext({
+    projectId,
+    modules: projectState.projectModules,
+    metrics: projectState.metrics,
+    icehIndicators: projectState.icehIndicators,
+    hfaTaxonomy: projectState.hfaTaxonomy,
+    visualizations: projectState.visualizations,
+    slideDecks: projectState.slideDecks,
+    reports: projectState.reports,
+    aiContext: aiContext,
   });
 
   const systemPrompt = createMemo(() =>
@@ -146,7 +103,7 @@ function AIProjectWrapperInner(props: ParentProps) {
       config={{
         sdkClient,
         modelConfig: DEFAULT_MODEL_CONFIG,
-        tools: tools() as AIChatConfig["tools"],
+        tools: tools as AIChatConfig["tools"],
         builtInTools: DEFAULT_BUILTIN_TOOLS,
         scope: projectId,
         system: systemPrompt,

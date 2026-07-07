@@ -348,5 +348,6 @@ export function getSupportedEffortLevels(model: AnthropicModel): EffortLevel[] {
 
 export const SERVER_TOOL_LABELS: Record<string, string> = {
   web_search: "Searching the web...",
+  web_fetch: "Fetching web page...",
   str_replace_based_edit_tool: "Editing document...",
 };

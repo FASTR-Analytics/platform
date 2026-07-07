@@ -124,6 +124,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     >
     & AIChatConfig;
 
+  // Per-instance copy — consumers typically pass a shared module-level
+  // default object, and mutating it (persisted settings below, updateConfig)
+  // would leak one scope's settings into every other scope in the session.
+  const modelConfig: AnthropicModelConfig = { ...config.modelConfig };
+
   const settingsKey = config.scope
     ? `${SETTINGS_KEY_PREFIX}-${config.scope}`
     : SETTINGS_KEY_PREFIX;
@@ -133,8 +138,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // model IDs, max_tokens above the model's cap, temperature on models
     // that reject it) — sanitize before applying.
     Object.assign(
-      config.modelConfig,
-      sanitizePersistedSettings(persisted, config.modelConfig.model),
+      modelConfig,
+      sanitizePersistedSettings(persisted, modelConfig.model),
     );
   }
 
@@ -190,7 +195,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   const getAllTools = () =>
     [
       ...toolRegistry.getSDKTools(),
-      ...resolveBuiltInTools(config.builtInTools, config.modelConfig.model),
+      ...resolveBuiltInTools(config.builtInTools, modelConfig.model),
     ] as SDKToolUnion[];
 
   const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
@@ -224,12 +229,27 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     });
   };
 
+  const documentFileIdsInMessages = (): Set<string> => {
+    const ids = new Set<string>();
+    for (const msg of messages()) {
+      if (typeof msg.content === "string") continue;
+      for (const block of msg.content) {
+        if (block.type === "document" && block.source.type === "file") {
+          ids.add(block.source.file_id);
+        }
+      }
+    }
+    return ids;
+  };
+
   const createUserMessage = (text: string): MessageParam => {
-    // Include documents if we have them AND they're not already in the message array
-    const shouldIncludeDocuments = !messagesContainDocuments();
-    const documentRefs = shouldIncludeDocuments
-      ? config.getDocumentRefs?.() || []
-      : [];
+    // Attach every configured document the conversation hasn't seen yet.
+    // Gating on "history has no documents at all" meant a document added
+    // mid-conversation was shown as attached but never reached the model.
+    const alreadySent = documentFileIdsInMessages();
+    const documentRefs = (config.getDocumentRefs?.() || []).filter(
+      (ref) => !alreadySent.has(ref.file_id),
+    );
     if (documentRefs.length === 0) {
       return { role: "user", content: text };
     }
@@ -266,7 +286,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // other models get the marker-wrapped fallback spliced into the
       // user text.
       const useSystemMessage = ephemeralContext !== null &&
-        supportsMidConversationSystem(config.modelConfig.model);
+        supportsMidConversationSystem(modelConfig.model);
       const fullMessage = useSystemMessage
         ? userMessage
         : wrapWithEphemeralContext(userMessage, ephemeralContext);
@@ -375,32 +395,32 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     const allTools = getAllTools();
     const betas = getBetasArray(
       hasWebFetchTool(config.builtInTools) &&
-        !supportsDynamicWebTools(config.modelConfig.model),
+        !supportsDynamicWebTools(modelConfig.model),
       messagesContainDocuments(),
     );
     const shaped = shapeCachedPayload(
       config.system(),
       shapeEphemeralSystemMessages(
         stripEphemeralContext(currentMessages),
-        config.modelConfig.model,
+        modelConfig.model,
       ),
     );
     const stream = config.sdkClient.beta.messages.stream({
-      model: config.modelConfig.model,
-      max_tokens: config.modelConfig.max_tokens,
+      model: modelConfig.model,
+      max_tokens: modelConfig.max_tokens,
       // Models from Opus 4.7 onward reject non-default sampling params with
       // a 400 — omit temperature there. Thinking and effort are resolved
       // per model (request_shaping.ts) so unsupported configs are never sent.
-      temperature: supportsSamplingParams(config.modelConfig.model)
-        ? config.modelConfig.temperature
+      temperature: supportsSamplingParams(modelConfig.model)
+        ? modelConfig.temperature
         : undefined,
       thinking: resolveThinkingConfig(
-        config.modelConfig.model,
-        config.modelConfig.thinking,
+        modelConfig.model,
+        modelConfig.thinking,
       ),
       output_config: resolveOutputConfig(
-        config.modelConfig.model,
-        config.modelConfig.output_config,
+        modelConfig.model,
+        modelConfig.output_config,
       ),
       messages: shaped.messages,
       tools: allTools,
@@ -469,6 +489,21 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     );
 
     if (continuation.kind === "halt") {
+      // A truncated (or refused) turn can still contain complete tool_use
+      // blocks that will now never run — resolve them with error results,
+      // exactly like cap-tools, or the persisted conversation ends in an
+      // assistant turn with unresolved tool_use and every subsequent send
+      // 400s (permanently bricking the conversation).
+      const cancelled = buildCancelledToolResults(
+        finalMessage.content as ContentBlock[],
+        `Tool execution stopped: ${continuation.message}`,
+      );
+      if (cancelled.length > 0) {
+        setMessages([
+          ...updatedMessages,
+          { role: "user", content: cancelled },
+        ]);
+      }
       addDisplayItems([
         {
           type: "system_notice",
@@ -498,9 +533,17 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         finalMessage.content as ContentBlock[],
       );
       if (trimmed.length < (finalMessage.content as ContentBlock[]).length) {
+        // The API rejects an assistant message with empty content — if every
+        // block was a dangling server_tool_use, persist a placeholder text
+        // instead (same pattern as the abort "[Stopped]" message).
         setMessages([
           ...currentMessages,
-          { role: "assistant", content: trimmed },
+          {
+            role: "assistant",
+            content: trimmed.length > 0
+              ? trimmed
+              : "[Stopped: too many turn continuations]",
+          },
         ]);
       }
       addDisplayItems([
@@ -577,7 +620,18 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           config.textEditorHandler
         ) {
           setServerToolLabel(SERVER_TOOL_LABELS[block.name]);
-          const result = config.textEditorHandler(block.input);
+          // The handler contract is "return Error: strings, don't throw" —
+          // enforce it here; a throw would propagate after the assistant
+          // tool_use message was persisted but before any tool_result,
+          // stranding the conversation.
+          let result: string;
+          try {
+            result = config.textEditorHandler(block.input);
+          } catch (err) {
+            result = `Error: ${
+              err instanceof Error ? err.message : String(err)
+            }`;
+          }
           setServerToolLabel(undefined);
           const isError = result.startsWith("Error:");
           allResults.push({
@@ -655,14 +709,13 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   function sendMessages(userMessages: string[]): Promise<void> {
     if (userMessages.length === 0) return Promise.resolve();
 
-    // Add all user messages to conversation
-    // Include documents only in the first message of batch if not already in conversation
-    const shouldIncludeDocsOnFirst = !messagesContainDocuments();
+    // Add all user messages to conversation. createUserMessage attaches only
+    // not-yet-sent documents, so the first message of the batch carries any
+    // new ones and the rest stay plain text.
     const messagesToAdd: MessageParam[] = userMessages.map((text, index) => {
-      if (index === 0 && shouldIncludeDocsOnFirst) {
+      if (index === 0) {
         return createUserMessage(text);
       }
-      // For subsequent messages in batch, just create plain text message
       return { role: "user" as const, content: text };
     });
 
@@ -706,8 +759,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   }
 
   function updateConfig(updates: Partial<AnthropicModelConfig>) {
-    Object.assign(config.modelConfig, updates);
-    const mc = config.modelConfig;
+    Object.assign(modelConfig, updates);
+    const mc = modelConfig;
     saveSettings(settingsKey, {
       model: mc.model,
       max_tokens: mc.max_tokens,
@@ -717,7 +770,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   }
 
   function getConfig(): AnthropicModelConfig {
-    return { ...config.modelConfig };
+    return { ...modelConfig };
   }
 
   return {

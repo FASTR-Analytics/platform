@@ -1,18 +1,22 @@
 import { Hono } from "hono";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
+import {
+  _ANTHROPIC_API_KEY,
+  _ANTHROPIC_API_URL,
+} from "../../exposed_env_vars.ts";
 
 export const routesAiFiles = new Hono();
 
-const ANTHROPIC_FILES_URL = "https://api.anthropic.com/v1/files";
+// The Anthropic Files endpoint. _ANTHROPIC_API_URL is the /v1/messages
+// endpoint, so the Files URL is derived from the same origin rather than
+// re-hardcoding a host.
+const ANTHROPIC_FILES_URL = new URL("/v1/files", _ANTHROPIC_API_URL).toString();
 const FILES_API_BETA_HEADER = "files-api-2025-04-14";
 
 // POST /files - Upload a file from assets to Anthropic
 routesAiFiles.post("/files", requireProjectPermission(), async (c) => {
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    return c.json({ error: { message: "API key not configured" } }, 500);
-  }
+  const apiKey = _ANTHROPIC_API_KEY;
 
   const body = await c.req.json();
   const { assetFilename } = body as { assetFilename: string };
@@ -61,10 +65,7 @@ routesAiFiles.post("/files", requireProjectPermission(), async (c) => {
 
 // GET /files/:file_id - Get file metadata from Anthropic
 routesAiFiles.get("/files/:file_id", requireProjectPermission(), async (c) => {
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    return c.json({ error: { message: "API key not configured" } }, 500);
-  }
+  const apiKey = _ANTHROPIC_API_KEY;
 
   const fileId = c.req.param("file_id");
 
@@ -89,10 +90,7 @@ routesAiFiles.delete(
   "/files/:file_id",
   requireProjectPermission(),
   async (c) => {
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!apiKey) {
-      return c.json({ error: { message: "API key not configured" } }, 500);
-    }
+    const apiKey = _ANTHROPIC_API_KEY;
 
     const fileId = c.req.param("file_id");
 

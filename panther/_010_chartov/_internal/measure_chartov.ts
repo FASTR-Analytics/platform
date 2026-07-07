@@ -54,6 +54,8 @@ export function measureChartOV(
       indicatorHeaders: transformedData.indicatorHeaders,
       visibleIndicatorsByPane: transformedData.visibleIndicatorsByPane,
       visibleLanesByPane: transformedData.visibleLanesByPane,
+      visibleIndicatorsByPaneBand: transformedData.visibleIndicatorsByPaneBand,
+      proportionalPanes: transformedData.proportionalPanes,
     },
     xAxisConfig: {
       type: "text",

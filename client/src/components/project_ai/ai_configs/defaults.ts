@@ -4,11 +4,14 @@ import { _SERVER_HOST } from "~/server_actions";
 
 export const DEFAULT_MODEL_CONFIG = {
   model: DEFAULT_ANTHROPIC_MODEL,
-  max_tokens: 4096,
-  // Effort default, not exposed in the settings UI. "high" matches the API's
-  // implicit default for the allowed 4.x models (dropped automatically for
-  // models that don't support effort), so this pins current behaviour rather
-  // than changing it; lower to "medium" to trade some quality for token cost.
+  // 32k fits within every allowed model's output cap (haiku-4-5 = 64k is the
+  // smallest). The old 4096 truncated large single tool inputs — a report
+  // rewrite is one tool_use block that must fit inside max_tokens.
+  max_tokens: 32000,
+  // Effort default. "high" matches the API's implicit default for the
+  // allowed 4.x models (dropped automatically for models that don't support
+  // effort), so this pins current behaviour rather than changing it; lower
+  // to "medium" to trade some quality for token cost.
   output_config: { effort: "high" as const },
 };
 
