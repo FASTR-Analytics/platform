@@ -59,7 +59,14 @@ Go-live for the above (per project): update the M10 module instance;
 re-import existing HFA uploads (required for the select_multiple fix — data
 staged before it keeps hard `0`s, read as "No" not missing/DK).
 
-## Remaining — Layer 1: capture sentinel semantics at import
+## Layer 1: capture sentinel semantics at import — ✅ AUTO-CLASSIFICATION SHIPPED (review UI deferred)
+
+Shipped: constraint parsing + pure classifier (`f3df8546`) and `sentinel_class`
+persisted end-to-end through staging + integrate (`c3775b0f`, migration 055).
+Imports now auto-classify each `(question, code)` pair. **Deferred:** the
+wizard review/correction step (commit 3 below) — auto-classification stands on
+its own and feeds layer 3; correction UI waits until real misclassifications
+surface. The implementation approach below is kept for the deferred review step.
 
 Classify each `(question, code)` pair — `dont_know` / `refused` / `other` /
 `not_applicable` / `question_specific` — derived from choice labels and the
@@ -190,17 +197,78 @@ the escape hatch that makes DK-rate indicators authorable (today the blanket
 missingness branch fires before any `x == -99` rCode could). Natural home for
 the principle-4 authoring-rule validation gate.
 
-### Where to start (layer 3)
+### Implementation approach (layer 3)
 
-- **Generator (per-variable checks replace the hardcoded set):**
-  `server/server_only_funcs/get_script_with_parameters_hfa.ts` →
-  `generateMissingnessCheck` (currently hardcodes `c(-99, -999999)`), consuming
-  layer 1's classification via the variable dictionary.
-- **Policy parameters (add per-class alongside the existing one):**
-  wb-fastr-modules `m010/_parameters.ts` (`DONT_KNOW_TREATMENT`, L16-39);
-  `deno task build` regenerates `m010/definition.json`.
-- **Per-indicator override column (target):** type `HfaIndicator` /
-  `HfaIndicatorCode` in `lib/types/hfa_types.ts`; tables `hfa_indicators` /
-  `hfa_indicator_code` (`023_hfa_schema_redesign.sql`); DB access
-  `server/db/instance/hfa_indicators.ts`; editor UI
-  `client/src/components/indicator_manager_hfa/`.
+**The blocker nobody costed: the generator can't see `sentinel_class`.** Layer 1
+stores classification on the **instance** table `hfa_variable_values`. But the
+module generator runs off **project snapshots**: `run_module_iterator.ts`
+(L125-145) reads `knownDatasetVariables` from `indicators_hfa` — a project table
+that carries only `(var_name, example_values)` — and pulls indicators/code from
+`getAllHfaIndicators/CodeFromSnapshot`. The run is deliberately self-contained
+(snapshot taken at HFA-export time so a run is reproducible), so querying the
+instance table directly from the Docker run is **not** the pattern. Therefore
+layer 3's first job is **propagating the classification into the project
+snapshot**, mirroring the existing `hfa_indicator_categories_snapshot` /
+`_sub_categories_snapshot` / `_service_categories_snapshot` tables.
+
+- **Recommended shape:** new project table `hfa_variable_values_snapshot
+  (var_name TEXT, value TEXT, sentinel_class TEXT, PRIMARY KEY (var_name,
+  value))` (snapshot only the classified rows — `sentinel_class <> ''`).
+  Written in the `datasets_in_project_hfa.ts` snapshot transaction (~L268-300,
+  alongside the `indicators_hfa` insert); its source query selects distinct
+  `(var_name, value, sentinel_class)` from instance `hfa_variable_values` where
+  classified. Read in `run_module_iterator.ts` into a
+  `Map<varName, { dontKnow: string[]; refused: string[]; alwaysMissing: string[] }>`
+  and passed into `getScriptWithParametersHfa`. (The alternative — denormalising
+  per-class code lists onto `indicators_hfa` — is less faithful and breaks the
+  one-`*_snapshot`-table-per-instance-table symmetry.)
+
+**Generalise the two hardcoded `c(-99, -999999)` sites** in
+`get_script_with_parameters_hfa.ts`, both consuming the per-variable map with the
+fallback:
+
+- `generateMissingnessCheck` (L18-36) — replace the shared `%in% c(-99,
+  -999999)` / `== -999999` with a **per-qid** set built from that qid's
+  classified codes: `alwaysMissing` (numeric don't-know, `-999999`) always in;
+  `dontKnow` codes in unless DK-as-No (binary indicator + `DONT_KNOW_TREATMENT ==
+  "no"`); `refused` codes in unless the new `REFUSED_TREATMENT == "no"`. Keep the
+  existing indicator-type keying (`includeDontKnow = numeric || !dontKnowAsNo`)
+  — the per-variable change is only *which codes*, not the policy logic.
+- `buildPerTimePointStatusExpression` (L150-161) — same per-qid sets for the
+  `dont_know` and filter-unknown checks. Response-status categories stay
+  `dont_know/missing/not_applicable/answered` for now; a distinct `refused`
+  status is layer-4 (the "% refused" breakdown), out of scope here.
+
+**Fallback (compatibility contract, restated).** A qid with **no** classified
+codes in the map — old project snapshot, or a genuinely sentinel-free variable —
+falls back to the hardcoded `c(-99, -999999)`. Safe in both cases: a sentinel-free
+var's data contains no `-99`/`-999999`, so the fallback set matches nothing.
+
+**Cross-repo (lockstep).** wb-fastr-modules `m010/_parameters.ts` — add
+`REFUSED_TREATMENT` (select `missing` default | `no`) beside `DONT_KNOW_TREATMENT`
+(L16-39); `deno task build` regenerates `m010/definition.json`; push with the app
+change. `get_script_with_parameters_hfa.ts` reads it from
+`configSelections.parameterSelections["REFUSED_TREATMENT"]`.
+
+**Empirical R check before shipping.** This changes how every HFA indicator
+computes. Build a fixture (one select var with `-99` + a substantive code, one
+numeric var with `-999999`; a binary and a numeric indicator) and run the
+generated `case_when` under each policy combination + the no-classification
+fallback, asserting the missingness outcome. Don't ship on inspection alone.
+
+**Genuine decisions (need a ruling before building):**
+
+1. **Refused treatment** — separate `REFUSED_TREATMENT` param (mirrors
+   DONT_KNOW), or treat refused as always-missing (simpler, one fewer knob)?
+2. **Scope split** — ship **3a** (snapshot propagation + generalised generator +
+   `REFUSED_TREATMENT` + fallback; app + m010) and **defer 3b** (per-indicator
+   override column + principle-4 authoring-rule validation gate, which touch
+   `HfaIndicator`/`HfaIndicatorCode` types, `hfa_indicators` schema, and the
+   editor UI)? 3b is additive and independently useful (authors DK-rate
+   indicators) but is a separate, larger surface.
+
+**Deferred to 3b (per-indicator override + validation gate).** Type
+`HfaIndicator`/`HfaIndicatorCode` (`lib/types/hfa_types.ts`), tables
+`hfa_indicators`/`hfa_indicator_code` (`023_...sql`), DB access
+`server/db/instance/hfa_indicators.ts`, editor UI
+`client/src/components/indicator_manager_hfa/`.
