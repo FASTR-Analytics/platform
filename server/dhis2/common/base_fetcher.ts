@@ -9,6 +9,10 @@ import { type Dhis2Credentials, type TranslatableString } from "lib";
 export interface FetchOptions extends RequestInit {
   retryOptions?: RetryOptions;
   timeout?: number;
+  // Opt-in cap on the response body size, enforced while streaming (a
+  // Content-Length check is not enough — chunked responses have none).
+  // Without it the body is materialized unbounded by response.json().
+  maxResponseBytes?: number;
   logRequest?: boolean;
   logResponse?: boolean;
   dhis2Credentials: Dhis2Credentials;
@@ -66,6 +70,7 @@ export async function fetchFromDHIS2<T = any>(
   const {
     retryOptions,
     timeout = 120000, // 2 minutes default
+    maxResponseBytes,
     logRequest = false,
     logResponse = false,
     dhis2Credentials,
@@ -140,6 +145,38 @@ export async function fetchFromDHIS2<T = any>(
   };
 
   return withRetry(fetchFn, retryOptions);
+}
+
+async function readJsonBodyWithCap<T>(
+  response: Response,
+  maxBytes: number,
+  url: string,
+): Promise<T> {
+  if (response.body === null) {
+    throw new Error(`DHIS2 response has no body: ${url}`);
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.byteLength;
+    if (totalBytes > maxBytes) {
+      await reader.cancel();
+      throw new Error(
+        `DHIS2 response exceeded ${Math.round(maxBytes / 1048576)} MB: ${url}`,
+      );
+    }
+    chunks.push(value);
+  }
+  const combined = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(combined)) as T;
 }
 
 /**

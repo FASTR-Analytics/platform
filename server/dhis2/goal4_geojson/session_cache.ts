@@ -31,6 +31,7 @@ export async function getCredsCacheKey(
 type SessionCache<T> = {
   get(key: string): T | null;
   set(key: string, value: T): void;
+  delete(key: string): void;
 };
 
 function createSessionCache<T extends { fetchedAt: number }>(
@@ -72,6 +73,9 @@ function createSessionCache<T extends { fetchedAt: number }>(
         evictOldest();
       }
       cache.set(key, value);
+    },
+    delete(key: string): void {
+      cache.delete(key);
     },
   };
 }

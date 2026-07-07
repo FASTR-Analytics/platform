@@ -27,16 +27,23 @@ import {
   metadataSessionCache,
 } from "../../dhis2/goal4_geojson/mod.ts";
 
+// Guard before the unbounded readTextFile + JSON.parse: any authenticated
+// configure-data user could otherwise OOM the server with one huge upload.
+// The same cap bounds the DHIS2 .geojson response body below — an arbitrary
+// URL is accepted as a "DHIS2 server" on loose evidence, so the response
+// must not be materialized unbounded either.
+const MAX_GEOJSON_FILE_BYTES = 100 * 1024 * 1024;
+
 // The heavy .geojson pull is ~20 MB / up to ~43 s for a 200-district country.
 // Generous timeout, and NO retries — a transient failure must not re-download
 // the payload up to 5× (the shared fetcher's default).
-const HEAVY_GEOJSON_FETCH = { timeoutMs: 180000, maxAttempts: 1 };
+const HEAVY_GEOJSON_FETCH = {
+  timeoutMs: 180000,
+  maxAttempts: 1,
+  maxResponseBytes: MAX_GEOJSON_FILE_BYTES,
+};
 
 export const routesGeoJsonMaps = new Hono();
-
-// Guard before the unbounded readTextFile + JSON.parse: any authenticated
-// configure-data user could otherwise OOM the server with one huge upload.
-const MAX_GEOJSON_FILE_BYTES = 100 * 1024 * 1024;
 
 async function readAssetFile(assetFileName: string): Promise<string> {
   const filePath = resolveAssetFilePath(assetFileName);
@@ -133,6 +140,10 @@ defineRoute(
         },
       });
     } catch (e) {
+      // JSON.parse SyntaxErrors embed a snippet of the file — never echo them
+      if (e instanceof SyntaxError) {
+        return c.json({ success: false, err: "File is not valid JSON/GeoJSON" });
+      }
       return c.json({
         success: false,
         err: e instanceof Error ? e.message : "Failed to process GeoJSON",
@@ -420,6 +431,13 @@ defineRoute(
       if (res.success === false) {
         return c.json(res);
       }
+      // The save succeeded — drop both cache entries so a follow-up wizard
+      // run (e.g. after adding the missing boundaries in DHIS2 that the
+      // unmatched count points at) fetches fresh data instead of silently
+      // re-saving this payload for up to 15 minutes. The caches only need
+      // to survive the fix-a-mapping-and-re-save loop, which ends here.
+      heavyGeoJsonSessionCache.delete(cacheKey);
+      metadataSessionCache.delete(cacheKey);
       notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
       return c.json({
         success: true,
