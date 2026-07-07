@@ -1,76 +1,76 @@
-[TBD] [user] [fixed] - AI responses no longer cut off on long outputs like report rewrites
-[TBD] [user] [fixed] - Slide previews now show error messages instead of disappearing entirely
-[TBD] [user] [fixed] - AI no longer incorrectly rejects normal text containing pipe characters as tables
-[TBD] [user] [fixed] - AI token usage is now tracked even when you stop a response early
-[TBD] [user] [changed] - You can now adjust the AI max output length in AI settings
-[TBD] [user] [added] - Removing an attached PDF from chat now cleans up the uploaded file
-[TBD] [user] [added] - AI can now navigate to the Reports tab
-[TBD] [user] [changed] - AI can now fine-tune existing chart settings without rebuilding the entire chart
-[TBD] [user] [fixed] - Saving prompts to the prompt library now correctly suggests existing categories
-[TBD] [user] [changed] - Only admins can publish country-wide shared prompts
-[TBD] [admin] [fixed] - AI responses no longer truncated on large outputs
-[TBD] [admin] [added] - Max tokens setting now adjustable in AI chat settings
-[TBD] [admin] [fixed] - Slide previews now show error messages instead of disappearing
-[TBD] [admin] [fixed] - AI token usage now tracked when users cancel mid-response
-[TBD] [admin] [fixed] - Removing an uploaded PDF now deletes it from Anthropic storage
-[TBD] [admin] [changed] - Only admins can publish country-scoped prompt library entries
-[TBD] [admin] [fixed] - Unapproved users can no longer access the prompt library
-[TBD] [admin] [fixed] - AI category suggestions now appear when saving prompts
-[TBD] [admin] [added] - AI assistant can now navigate to the Reports tab
-[TBD] [admin] [fixed] - Markdown table detection no longer rejects legitimate text
-[TBD] [admin] [fixed] - Date range validation now consistent across all AI tools
-[TBD] [admin] [fixed] - AI no longer silently ignores invalid filter or date inputs
-[TBD] [admin] [changed] - Beta feature headers to Anthropic are now restricted to an allowlist
-[TBD] [admin] [internal] - AI proxy logic consolidated to prevent drift between project and instance
-[TBD] [admin] [added] - HFA sentinel value classifications now included in project snapshots
-[TBD] [user] [added] - "Don't know" and special response codes are now automatically detected and labeled
-[TBD] [admin] [added] - Sentinel values (e.g., "don't know") are now automatically detected and classified during data import
-[TBD] [admin] [added] - Numeric survey variables now capture special codes from form constraints as dictionary entries
-[TBD] [user] [added] - AI assistant can now fetch and read web pages
-[TBD] [user] [added] - Newest Claude Opus model available in AI settings
-[TBD] [user] [changed] - AI model selector shows simplified model names
-[TBD] [user] [changed] - AI assistant now shows notices for refusals or limits in chat
-[TBD] [user] [fixed] - Health facility indicators now correctly classify filtered-out facilities as not applicable
-[TBD] [user] [fixed] - Map boundary data refreshes immediately after saving instead of showing stale data
-[TBD] [admin] [added] - AI assistant can now fetch web pages directly
-[TBD] [admin] [added] - Claude Opus 4.8 available as an AI model option
-[TBD] [admin] [changed] - AI model list updated to use latest Claude Haiku 4.5
-[TBD] [admin] [changed] - AI chat now shows system notices like refusals or context limits
-[TBD] [admin] [fixed] - HFA indicator status now correctly classifies facilities as not applicable when filter variables are unknown
-[TBD] [admin] [fixed] - GeoJSON map cache now clears after saving so re-imports fetch fresh data
-[TBD] [admin] [fixed] - Large GeoJSON responses from DHIS2 are now capped at 100 MB to prevent server crashes
-[TBD] [admin] [fixed] - Malformed GeoJSON uploads now return a clear error instead of leaking file contents
-[TBD] [user] [fixed] - Data requests no longer hang indefinitely on slow connections
-[TBD] [admin] [fixed] - Requests to DHIS2 no longer hang on slow responses
-[TBD] [admin] [added] - Large DHIS2 responses can now be capped by size
-[TBD] [user] [added] - Save confirmation now shows how many boundaries were saved and matched
-[TBD] [user] [added] - Warning shown when some boundaries could not be matched to admin areas
-[TBD] [user] [changed] - Map upload wizard stays open after saving to show a summary before closing
-[TBD] [user] [fixed] - Importing maps from DHIS2 is now much faster during the analysis step
-[TBD] [user] [fixed] - Empty or invalid map uploads are now blocked with a clear error message
-[TBD] [admin] [added] - Save confirmation now shows matched and unmatched boundary counts
-[TBD] [admin] [added] - Empty map saves are now prevented with a clear error message
-[TBD] [admin] [added] - Uploaded GeoJSON files are limited to 100 MB maximum
-[TBD] [admin] [changed] - DHIS2 map analysis step is now much faster and uses less data
-[TBD] [admin] [changed] - DHIS2 geometry is now fetched only when saving, not during analysis
-[TBD] [admin] [changed] - Timeout for large DHIS2 geometry downloads extended to 3 minutes
-[TBD] [admin] [fixed] - Unmatched boundaries can now be mapped later via Edit mappings
-[TBD] [user] [added] - Response status tracking for each facility and time point in health facility assessments
-[TBD] [admin] [added] - HFA indicators now track response status per facility and time point
-[TBD] [user] [fixed] - Replicate-by dropdown now updates when changing time period filters
-[TBD] [user] [fixed] - Replicate-by dropdown shows proper error message when values fail to load
-[TBD] [user] [fixed] - Chart previews no longer briefly show stale data during rapid updates
-[TBD] [user] [fixed] - Relative time filters now correctly narrow replicate-by option lists
-[TBD] [user] [added] - "Don't know" responses can now be treated as "No" for health facility indicators
-[TBD] [admin] [fixed] - Replicate-by options now update when period filter changes
-[TBD] [admin] [fixed] - Replicate-by picker shows proper error message on failure
-[TBD] [admin] [fixed] - Relative period filters now correctly narrow replicate-by option lists
-[TBD] [admin] [fixed] - Stale chart previews no longer appear during rapid updates
-[TBD] [admin] [fixed] - Period-based filters work correctly on quarter-only data tables
-[TBD] [admin] [added] - HFA modules support a "Don't Know as No" treatment parameter
-[TBD] [admin] [fixed] - HFA select-multiple "don't know" answers tracked correctly per choice
-[TBD] [admin] [fixed] - Invalid filter values on numeric columns now rejected at input
-[TBD] [admin] [internal] - Presentation object cache version updated to reflect filter fixes
+[1.57.0] [user] [fixed] - AI responses no longer cut off on long outputs like report rewrites
+[1.57.0] [user] [fixed] - Slide previews now show error messages instead of disappearing entirely
+[1.57.0] [user] [fixed] - AI no longer incorrectly rejects normal text containing pipe characters as tables
+[1.57.0] [user] [fixed] - AI token usage is now tracked even when you stop a response early
+[1.57.0] [user] [changed] - You can now adjust the AI max output length in AI settings
+[1.57.0] [user] [added] - Removing an attached PDF from chat now cleans up the uploaded file
+[1.57.0] [user] [added] - AI can now navigate to the Reports tab
+[1.57.0] [user] [changed] - AI can now fine-tune existing chart settings without rebuilding the entire chart
+[1.57.0] [user] [fixed] - Saving prompts to the prompt library now correctly suggests existing categories
+[1.57.0] [user] [changed] - Only admins can publish country-wide shared prompts
+[1.57.0] [admin] [fixed] - AI responses no longer truncated on large outputs
+[1.57.0] [admin] [added] - Max tokens setting now adjustable in AI chat settings
+[1.57.0] [admin] [fixed] - Slide previews now show error messages instead of disappearing
+[1.57.0] [admin] [fixed] - AI token usage now tracked when users cancel mid-response
+[1.57.0] [admin] [fixed] - Removing an uploaded PDF now deletes it from Anthropic storage
+[1.57.0] [admin] [changed] - Only admins can publish country-scoped prompt library entries
+[1.57.0] [admin] [fixed] - Unapproved users can no longer access the prompt library
+[1.57.0] [admin] [fixed] - AI category suggestions now appear when saving prompts
+[1.57.0] [admin] [added] - AI assistant can now navigate to the Reports tab
+[1.57.0] [admin] [fixed] - Markdown table detection no longer rejects legitimate text
+[1.57.0] [admin] [fixed] - Date range validation now consistent across all AI tools
+[1.57.0] [admin] [fixed] - AI no longer silently ignores invalid filter or date inputs
+[1.57.0] [admin] [changed] - Beta feature headers to Anthropic are now restricted to an allowlist
+[1.57.0] [admin] [internal] - AI proxy logic consolidated to prevent drift between project and instance
+[1.57.0] [admin] [added] - HFA sentinel value classifications now included in project snapshots
+[1.57.0] [user] [added] - "Don't know" and special response codes are now automatically detected and labeled
+[1.57.0] [admin] [added] - Sentinel values (e.g., "don't know") are now automatically detected and classified during data import
+[1.57.0] [admin] [added] - Numeric survey variables now capture special codes from form constraints as dictionary entries
+[1.57.0] [user] [added] - AI assistant can now fetch and read web pages
+[1.57.0] [user] [added] - Newest Claude Opus model available in AI settings
+[1.57.0] [user] [changed] - AI model selector shows simplified model names
+[1.57.0] [user] [changed] - AI assistant now shows notices for refusals or limits in chat
+[1.57.0] [user] [fixed] - Health facility indicators now correctly classify filtered-out facilities as not applicable
+[1.57.0] [user] [fixed] - Map boundary data refreshes immediately after saving instead of showing stale data
+[1.57.0] [admin] [added] - AI assistant can now fetch web pages directly
+[1.57.0] [admin] [added] - Claude Opus 4.8 available as an AI model option
+[1.57.0] [admin] [changed] - AI model list updated to use latest Claude Haiku 4.5
+[1.57.0] [admin] [changed] - AI chat now shows system notices like refusals or context limits
+[1.57.0] [admin] [fixed] - HFA indicator status now correctly classifies facilities as not applicable when filter variables are unknown
+[1.57.0] [admin] [fixed] - GeoJSON map cache now clears after saving so re-imports fetch fresh data
+[1.57.0] [admin] [fixed] - Large GeoJSON responses from DHIS2 are now capped at 100 MB to prevent server crashes
+[1.57.0] [admin] [fixed] - Malformed GeoJSON uploads now return a clear error instead of leaking file contents
+[1.57.0] [user] [fixed] - Data requests no longer hang indefinitely on slow connections
+[1.57.0] [admin] [fixed] - Requests to DHIS2 no longer hang on slow responses
+[1.57.0] [admin] [added] - Large DHIS2 responses can now be capped by size
+[1.57.0] [user] [added] - Save confirmation now shows how many boundaries were saved and matched
+[1.57.0] [user] [added] - Warning shown when some boundaries could not be matched to admin areas
+[1.57.0] [user] [changed] - Map upload wizard stays open after saving to show a summary before closing
+[1.57.0] [user] [fixed] - Importing maps from DHIS2 is now much faster during the analysis step
+[1.57.0] [user] [fixed] - Empty or invalid map uploads are now blocked with a clear error message
+[1.57.0] [admin] [added] - Save confirmation now shows matched and unmatched boundary counts
+[1.57.0] [admin] [added] - Empty map saves are now prevented with a clear error message
+[1.57.0] [admin] [added] - Uploaded GeoJSON files are limited to 100 MB maximum
+[1.57.0] [admin] [changed] - DHIS2 map analysis step is now much faster and uses less data
+[1.57.0] [admin] [changed] - DHIS2 geometry is now fetched only when saving, not during analysis
+[1.57.0] [admin] [changed] - Timeout for large DHIS2 geometry downloads extended to 3 minutes
+[1.57.0] [admin] [fixed] - Unmatched boundaries can now be mapped later via Edit mappings
+[1.57.0] [user] [added] - Response status tracking for each facility and time point in health facility assessments
+[1.57.0] [admin] [added] - HFA indicators now track response status per facility and time point
+[1.57.0] [user] [fixed] - Replicate-by dropdown now updates when changing time period filters
+[1.57.0] [user] [fixed] - Replicate-by dropdown shows proper error message when values fail to load
+[1.57.0] [user] [fixed] - Chart previews no longer briefly show stale data during rapid updates
+[1.57.0] [user] [fixed] - Relative time filters now correctly narrow replicate-by option lists
+[1.57.0] [user] [added] - "Don't know" responses can now be treated as "No" for health facility indicators
+[1.57.0] [admin] [fixed] - Replicate-by options now update when period filter changes
+[1.57.0] [admin] [fixed] - Replicate-by picker shows proper error message on failure
+[1.57.0] [admin] [fixed] - Relative period filters now correctly narrow replicate-by option lists
+[1.57.0] [admin] [fixed] - Stale chart previews no longer appear during rapid updates
+[1.57.0] [admin] [fixed] - Period-based filters work correctly on quarter-only data tables
+[1.57.0] [admin] [added] - HFA modules support a "Don't Know as No" treatment parameter
+[1.57.0] [admin] [fixed] - HFA select-multiple "don't know" answers tracked correctly per choice
+[1.57.0] [admin] [fixed] - Invalid filter values on numeric columns now rejected at input
+[1.57.0] [admin] [internal] - Presentation object cache version updated to reflect filter fixes
 [1.56.0] [user] [fixed] - Fixed data upload errors when certain numeric formats were used
 [1.56.0] [user] [fixed] - Fixed uploads failing for values outside the allowed date range
 [1.56.0] [user] [fixed] - Prevented uninstalling a module that other modules depend on
