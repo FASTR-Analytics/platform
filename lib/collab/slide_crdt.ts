@@ -45,12 +45,15 @@ const ROOT_KEY = "slide";
 // Root-level TEXT fields per slide type. These are stored as Y.Text (not scalar
 // strings) so they support character-level co-editing + remote cursors, exactly
 // like a text block's body. Everything else on the slide root (booleans,
-// numbers, enums like showHeaderLogos) stays a scalar.
-const TEXT_FIELDS_BY_TYPE: Record<Slide["type"], readonly string[]> = {
+// numbers, enums like showHeaderLogos) stays a scalar. Exported for the
+// version-history element diff (which compares these fields between configs).
+export const TEXT_FIELDS_BY_TYPE: Record<Slide["type"], readonly string[]> = {
   content: ["header", "subHeader", "date", "footer"],
   cover: ["title", "subtitle", "presenter", "date"],
   section: ["sectionTitle", "sectionSubtitle"],
 };
+
+const ALL_TEXT_FIELDS = new Set(Object.values(TEXT_FIELDS_BY_TYPE).flat());
 
 // Text fields that are required (never omitted, even when empty). Optional text
 // fields are omitted from the materialized config when empty (matching the
@@ -225,6 +228,66 @@ export function findRootTextField(
 ): Y.Text | undefined {
   const v = doc.getMap<unknown>(ROOT_KEY).get(fieldKey);
   return v instanceof Y.Text ? v : undefined;
+}
+
+// ── Element observer (version-history attribution) ──────────────────────────
+//
+// Reports which slide ELEMENTS a transaction touched, as stable keys the
+// version-history element diff also produces:
+//   "field:<name>"  root text field (header, title, ...)
+//   "block:<id>"    a layout block (text / figure / image item)
+//   "layout"        structure only (blocks added/removed/reordered)
+//   "props"         everything else on the slide root (split, logos, ...)
+// The callback receives the transaction origin so the caller can attribute
+// (a RoomConn's identity for collab edits, applyToLiveRoom's versionEditor
+// tag for HTTP-routed writes). Attach AFTER the doc holds its initial content.
+
+export function observeSlideDocElements(
+  doc: Y.Doc,
+  cb: (elementKeys: string[], origin: unknown) => void,
+): void {
+  const root = doc.getMap<unknown>(ROOT_KEY);
+  root.observeDeep((events, transaction) => {
+    const keys = new Set<string>();
+    for (const event of events) {
+      const path = event.path;
+      if (path.length === 0) {
+        for (const k of event.changes.keys.keys()) {
+          if (k === "layout") keys.add("layout");
+          else if (ALL_TEXT_FIELDS.has(k)) keys.add(`field:${k}`);
+          else keys.add("props");
+        }
+      } else if (path[0] !== "layout") {
+        // A Y.Text event on a root text field.
+        keys.add(`field:${path[0]}`);
+      } else {
+        // Layout subtree: the innermost node id is the element after the last
+        // "children" key in the path.
+        let nodeId: string | undefined;
+        for (let i = 0; i < path.length - 1; i++) {
+          if (path[i] === "children" && typeof path[i + 1] === "string") {
+            nodeId = path[i + 1] as string;
+          }
+        }
+        if (path[path.length - 1] === "children") {
+          // The children map itself changed: blocks added/removed.
+          for (const k of event.changes.keys.keys()) keys.add(`block:${k}`);
+          keys.add("layout");
+        } else if (nodeId) {
+          const changed = [...event.changes.keys.keys()];
+          // A fracIndex-only change is a reorder, not a content edit.
+          if (changed.length > 0 && changed.every((k) => k === "fracIndex")) {
+            keys.add("layout");
+          } else {
+            keys.add(`block:${nodeId}`);
+          }
+        } else {
+          keys.add("layout");
+        }
+      }
+    }
+    if (keys.size > 0) cb([...keys], transaction.origin);
+  });
 }
 
 // ── Navigation helper (for the editor / relay) ───────────────────────────────

@@ -27,7 +27,16 @@ import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { serverActions } from "~/server_actions";
 import { CopyVersionModal } from "./copy_version_modal";
-import { editorDisplayName, editorDisplayNames } from "./diff_segments";
+import {
+  DiffSegments,
+  editorDisplayName,
+  editorDisplayNames,
+} from "./diff_segments";
+import {
+  diffSlideElements,
+  type SlideElementChange,
+} from "./slide_element_diff";
+import { computeAttributedDiff } from "./version_diff";
 
 // Live canvases are expensive (panther warns around 12-14 mounted at once, and
 // the deck UI underneath this panel keeps its own) — page the grid at 6.
@@ -43,6 +52,17 @@ type SlideBadge = {
   title: string;
 };
 
+// One row of the expanded modal's "Changes in this session" list.
+type ElementRow = {
+  heading: string;
+  color: string;
+  oldText?: string;
+  newText?: string;
+  authorLabel: string;
+  authorExact: boolean;
+  authorEmail?: string;
+};
+
 // One grid cell: a current slide (possibly badged New/Edited) or a ghost of a
 // slide REMOVED in this session, rendered dimmed from the previous version.
 type DisplayEntry = {
@@ -52,6 +72,8 @@ type DisplayEntry = {
   ghost: boolean;
   status?: "new" | "edited" | "removed";
   badge?: SlideBadge;
+  /** Element-level change list for EDITED slides (shown in the expanded view). */
+  rows?: ElementRow[];
 };
 
 // Read-only render of one deck version: each slide's snapshot config renders
@@ -176,12 +198,11 @@ export function DeckVersionPreview(p: {
 
         const sessionEditors = editorDisplayNames(v.editors);
 
-        // Exact per-slide attribution from the ledger, session fallback else.
-        function whoFor(
-          slideId: string,
-          kind: "edited" | "added" | "removed",
-        ): { label: string; exact: boolean; color: string } {
-          const emails = se?.slides[slideId]?.[kind];
+        // Attribution resolution: exact email list -> names + color, session
+        // fallback otherwise.
+        function whoOf(
+          emails: string[] | undefined,
+        ): { label: string; exact: boolean; color: string; email?: string } {
           if (emails && emails.length > 0) {
             return {
               label: emails.map((e) => names[e] ?? e).join(", "),
@@ -189,6 +210,7 @@ export function DeckVersionPreview(p: {
               color: emails.length === 1
                 ? presenceColorForKey(emails[0])
                 : UNKNOWN_COLOR,
+              email: emails.length === 1 ? emails[0] : undefined,
             };
           }
           return {
@@ -197,7 +219,73 @@ export function DeckVersionPreview(p: {
             color: v.editors.length === 1
               ? presenceColorForKey(v.editors[0].email)
               : UNKNOWN_COLOR,
+            email: v.editors.length === 1 ? v.editors[0].email : undefined,
           };
+        }
+
+        // Exact per-slide attribution from the ledger, session fallback else.
+        function whoFor(
+          slideId: string,
+          kind: "edited" | "added" | "removed",
+        ): { label: string; exact: boolean; color: string; email?: string } {
+          return whoOf(se?.slides[slideId]?.[kind]);
+        }
+
+        // Human labels for element keys (see slide_element_diff.ts).
+        const FIELD_LABELS: Record<string, string> = {
+          header: t3({ en: "Header", fr: "En-tête", pt: "Cabeçalho" }),
+          subHeader: t3({ en: "Subheader", fr: "Sous-en-tête", pt: "Subcabeçalho" }),
+          date: t3({ en: "Date", fr: "Date", pt: "Data" }),
+          footer: t3({ en: "Footer", fr: "Pied de page", pt: "Rodapé" }),
+          title: t3({ en: "Title", fr: "Titre", pt: "Título" }),
+          subtitle: t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
+          presenter: t3({ en: "Presenter", fr: "Présentateur", pt: "Apresentador" }),
+          sectionTitle: t3({ en: "Section title", fr: "Titre de section", pt: "Título da secção" }),
+          sectionSubtitle: t3({ en: "Section subtitle", fr: "Sous-titre de section", pt: "Subtítulo da secção" }),
+        };
+
+        function elementLabel(ch: SlideElementChange): string {
+          if (ch.field) return FIELD_LABELS[ch.field] ?? ch.field;
+          if (ch.key === "props") {
+            return t3({ en: "Slide settings", fr: "Paramètres de la diapositive", pt: "Definições do diapositivo" });
+          }
+          if (ch.key === "layout") {
+            return t3({ en: "Block arrangement", fr: "Disposition des blocs", pt: "Disposição dos blocos" });
+          }
+          return ch.blockType === "figure"
+            ? t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" })
+            : ch.blockType === "image"
+            ? t3({ en: "Image", fr: "Image", pt: "Imagem" })
+            : t3({ en: "Text block", fr: "Bloc de texte", pt: "Bloco de texto" });
+        }
+
+        function elementRows(
+          slideId: string,
+          changes: SlideElementChange[],
+        ): ElementRow[] {
+          return changes.map((ch) => {
+            const who = whoOf(
+              se?.slides[slideId]?.elements?.[ch.key] ??
+                se?.slides[slideId]?.edited,
+            );
+            const verb = ch.kind === "added"
+              ? t3({ en: "added by", fr: "ajouté par", pt: "adicionado por" })
+              : ch.kind === "removed"
+              ? t3({ en: "removed by", fr: "supprimé par", pt: "removido por" })
+              : t3({ en: "edited by", fr: "modifié par", pt: "editado por" });
+            const oneOf = !who.exact && who.label.includes(",")
+              ? `${t3({ en: "one of:", fr: "l'une de ces personnes :", pt: "uma destas pessoas:" })} `
+              : "";
+            return {
+              heading: `${elementLabel(ch)} — ${verb} ${oneOf}${who.label}`,
+              color: who.color,
+              oldText: ch.oldText,
+              newText: ch.newText,
+              authorLabel: who.label,
+              authorExact: who.exact,
+              authorEmail: who.email,
+            };
+          });
         }
 
         function badgeFor(
@@ -245,6 +333,9 @@ export function DeckVersionPreview(p: {
               ? badgeFor(s.id, "added")
               : status === "edited"
               ? badgeFor(s.id, "edited")
+              : undefined,
+            rows: status === "edited" && old
+              ? elementRows(s.id, diffSlideElements(old.config, s.config))
               : undefined,
           };
         });
@@ -367,6 +458,7 @@ export function DeckVersionPreview(p: {
                         deckConfig={entry.deckConfig}
                         ghost={entry.ghost}
                         badge={entry.badge}
+                        rows={entry.rows}
                       />
                     )}
                   </For>
@@ -415,6 +507,8 @@ function VersionSlideThumb(p: {
   /** Ghost = a slide removed in this session, rendered dimmed. */
   ghost?: boolean;
   badge?: SlideBadge;
+  /** Element-level change list, shown in the expanded view. */
+  rows?: ElementRow[];
 }) {
   const [state, setState] = createSignal<StateHolder<PageInputs>>({
     status: "loading",
@@ -444,9 +538,9 @@ function VersionSlideThumb(p: {
   function openExpandedView() {
     const s = state();
     if (s.status !== "ready") return;
-    openComponent<{ pageInputs: PageInputs }, void>({
+    openComponent<{ pageInputs: PageInputs; rows?: ElementRow[] }, void>({
       element: ExpandedVersionSlideModal,
-      props: { pageInputs: s.data },
+      props: { pageInputs: s.data, rows: p.rows },
     });
   }
 
@@ -498,7 +592,7 @@ function VersionSlideThumb(p: {
 }
 
 function ExpandedVersionSlideModal(
-  p: AlertComponentProps<{ pageInputs: PageInputs }, void>,
+  p: AlertComponentProps<{ pageInputs: PageInputs; rows?: ElementRow[] }, void>,
 ) {
   return (
     <ModalContainer
@@ -516,6 +610,41 @@ function ExpandedVersionSlideModal(
           pageHeightDu={PAGE_HEIGHT_DU}
         />
       </div>
+      <Show when={p.rows && p.rows.length > 0}>
+        <div class="mt-3 flex max-h-[30vh] flex-col gap-2 overflow-auto">
+          <div class="text-sm font-semibold">
+            {t3({ en: "Changes in this session", fr: "Modifications de cette session", pt: "Alterações desta sessão" })}
+          </div>
+          <For each={p.rows}>
+            {(row) => (
+              <div class="border-base-300 rounded border p-2 text-xs">
+                <div class="flex items-center gap-1.5">
+                  <span
+                    class="inline-block h-2.5 w-2.5 flex-none rounded-full"
+                    style={{ "background-color": row.color }}
+                  />
+                  <span>{row.heading}</span>
+                </div>
+                <Show when={row.oldText !== undefined || row.newText !== undefined}>
+                  <div class="mt-1.5">
+                    <DiffSegments
+                      segments={computeAttributedDiff([
+                        { body: row.oldText ?? "", label: "" },
+                        {
+                          body: row.newText ?? "",
+                          label: row.authorLabel,
+                          labelExact: row.authorExact,
+                          labelEmail: row.authorEmail,
+                        },
+                      ])}
+                    />
+                  </div>
+                </Show>
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
     </ModalContainer>
   );
 }

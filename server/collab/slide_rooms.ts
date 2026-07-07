@@ -10,11 +10,13 @@
 
 import {
   materializeSlide,
+  observeSlideDocElements,
   seedSlideDoc,
   type Slide,
   syncSlideToDoc,
   type VersionEditor,
 } from "lib";
+import { recordSlideElementTouch } from "./deck_session_ledger.ts";
 import {
   applyDocUpdate,
   applyToLiveRoom,
@@ -53,6 +55,23 @@ const slideAdapter: DocRoomAdapter<Slide> = {
     type: "awareness",
     data: { slideId, update },
   }),
+  // Element-level attribution for version history: which title field / block
+  // each transaction touched, attributed via the transaction origin (RoomConn
+  // identity for collab edits, applyToLiveRoom's versionEditor tag for
+  // HTTP-routed writes; restores carry neither and are not recorded).
+  onDocCreated: (projectId, slideId, doc) => {
+    observeSlideDocElements(doc, (elementKeys, origin) => {
+      const o = origin as
+        | { identity?: VersionEditor; versionEditor?: VersionEditor }
+        | null
+        | undefined;
+      const email = o?.identity?.email ?? o?.versionEditor?.email ?? null;
+      if (email === null) return;
+      for (const elementKey of elementKeys) {
+        recordSlideElementTouch(projectId, slideId, elementKey, email);
+      }
+    });
+  },
 };
 
 export type SlideRoomDeps = {

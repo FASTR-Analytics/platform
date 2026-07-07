@@ -93,7 +93,15 @@ export type DeckVersionSummary = {
 export type DeckSlideEditors = {
   slides: Record<
     string,
-    { edited?: string[]; added?: string[]; removed?: string[] }
+    {
+      edited?: string[];
+      added?: string[];
+      removed?: string[];
+      /** Element-level detail for collab edits: element key (see
+       *  observeSlideDocElements in lib/collab/slide_crdt.ts — "field:<name>",
+       *  "block:<id>", "layout", "props") -> editor emails. */
+      elements?: Record<string, string[]>;
+    }
   >;
   settings?: string[];
   reordered?: string[];

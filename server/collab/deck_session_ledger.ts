@@ -32,12 +32,22 @@ type DeckLedger = {
 
 const ledgers = new Map<string, DeckLedger>();
 
-// Runaway-session backstop: beyond this many touched slides, new slide ids
-// are dropped (those slides fall back to session-level attribution).
+// Element-level touches from the slide-room observer, keyed per SLIDE (the
+// observer doesn't know the deck; slide ids are globally unique). Drained
+// alongside the deck ledger for the slides it recorded.
+const elementTouches = new Map<string, Map<string, Set<string>>>();
+
+// Runaway-session backstops: beyond these, new entries are dropped (they fall
+// back to coarser attribution).
 const SLIDE_CAP = 500;
+const ELEMENTS_PER_SLIDE_CAP = 100;
 
 function key(projectId: string, deckId: string): string {
   return `${projectId}::deck::${deckId}`;
+}
+
+function slideKey(projectId: string, slideId: string): string {
+  return `${projectId}::slide::${slideId}`;
 }
 
 function ledgerFor(projectId: string, deckId: string): DeckLedger {
@@ -99,6 +109,30 @@ export function recordSlideRemoved(
   record(projectId, deckId, slideId, "removed", email);
 }
 
+/** Element-level touch from the slide-room observer ("field:header",
+ *  "block:<id>", "layout", "props"). Keyed per slide — merged into the deck
+ *  ledger's entry for that slide at drain time. */
+export function recordSlideElementTouch(
+  projectId: string,
+  slideId: string,
+  elementKey: string,
+  email: string,
+): void {
+  const k = slideKey(projectId, slideId);
+  let elements = elementTouches.get(k);
+  if (!elements) {
+    elements = new Map();
+    elementTouches.set(k, elements);
+  }
+  let emails = elements.get(elementKey);
+  if (!emails) {
+    if (elements.size >= ELEMENTS_PER_SLIDE_CAP) return;
+    emails = new Set();
+    elements.set(elementKey, emails);
+  }
+  emails.add(email);
+}
+
 export function recordDeckSettingsEdited(
   projectId: string,
   deckId: string,
@@ -127,10 +161,19 @@ export function drainDeckLedger(
   ledgers.delete(k);
   const slides: DeckSlideEditors["slides"] = {};
   for (const [slideId, touch] of ledger.slides) {
+    // Pull (and clear) the slide's element-level touches along with it.
+    const sk = slideKey(projectId, slideId);
+    const elementMap = elementTouches.get(sk);
+    elementTouches.delete(sk);
+    const elements: Record<string, string[]> = {};
+    for (const [elementKey, emails] of elementMap ?? []) {
+      elements[elementKey] = [...emails];
+    }
     slides[slideId] = {
       ...(touch.edited ? { edited: [...touch.edited] } : {}),
       ...(touch.added ? { added: [...touch.added] } : {}),
       ...(touch.removed ? { removed: [...touch.removed] } : {}),
+      ...(elementMap && Object.keys(elements).length > 0 ? { elements } : {}),
     };
   }
   const result: DeckSlideEditors = {
@@ -159,6 +202,11 @@ export function restoreDeckLedger(
     for (const kind of ["edited", "added", "removed"] as const) {
       for (const email of touch[kind] ?? []) {
         record(projectId, deckId, slideId, kind, email);
+      }
+    }
+    for (const [elementKey, emails] of Object.entries(touch.elements ?? {})) {
+      for (const email of emails) {
+        recordSlideElementTouch(projectId, slideId, elementKey, email);
       }
     }
   }

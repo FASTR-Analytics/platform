@@ -246,6 +246,19 @@ preferring live `projectState.projectUsers` over the stored capture-time name,
   (the ledger is in-memory only; there is no deck-level checkpoint row to
   persist it to — accepted, same class as the tracker's crash window). The
   previous version loads alongside; badges degrade gracefully if it can't.
+  **Element level**: clicking an EDITED slide expands it with a "Changes in
+  this session" list — which title field / text block / visualization / image
+  changed, who changed each one, and inline text diffs for text elements
+  (reusing the report DiffSegments). WHAT comes from `diffSlideElements`
+  (client, pure — element-by-element config diff); WHO comes from
+  `observeSlideDocElements` ([lib/collab/slide_crdt.ts](lib/collab/slide_crdt.ts))
+  — a deep observer on the slide room's doc that maps each transaction's Yjs
+  paths to stable element keys (`field:<name>`, `block:<id>`, `layout`,
+  `props`; fracIndex-only changes count as layout, not block edits) and
+  records them per slide in the deck ledger (`elements` in slide_editors).
+  The two key vocabularies match by construction. Element attribution exists
+  only for collab edits (the observer lives on the room doc); REST-path slide
+  saves fall back to the slide-level editors.
 
 Footer (configure permission + unlocked): **Restore** (confirm explains the
 safety version) and **Restore as copy** (name prompt). Entry points: History
@@ -276,9 +289,15 @@ overflow menu.
   drainEditors, per-doc independence.
 - `planDeckRestore` harness (14 asserts): partition invariants, original-id
   preservation, snapshot ordering, empty edge cases.
-- `deck_session_ledger` harness (10 asserts): per-slide kinds + dedup,
+- `deck_session_ledger` harness (13 asserts): per-slide kinds + dedup,
   added+edited coexistence, drain-clears semantics, merge-back after a failed
-  insert, cross-deck isolation, the slide cap.
+  insert, cross-deck isolation, the slide cap, element touches (drain-along,
+  clear, merge-back round-trip).
+- `slide_elements` harness (15 asserts): observer key derivation (root text
+  fields, text/figure block edits, block add via sync, reorder→layout-only,
+  props, origin passthrough) and diffSlideElements (field/block text diffs,
+  figure/image edits, add/remove, reorder, cover props, identical=empty) —
+  the two key vocabularies verified against each other.
 - `version_diff` harness (46 asserts incl. 200-chain fuzz): current-doc
   reassembly, base-char coverage, per-session attribution (replacements,
   later-deletes, edits inside earlier insertions), author-run splitting
