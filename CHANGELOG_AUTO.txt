@@ -1,3 +1,4 @@
+[1.57.2] [admin] [internal] - Streamlined data export for health facility assessments
 [1.57.1] [user] [added] - AI button now available in indicator editor and Excel import views
 [1.57.1] [user] [changed] - AI panel button uses consistent styling across all screens
 [1.57.1] [user] [fixed] - Indicator table scroll position preserved when data refreshes
