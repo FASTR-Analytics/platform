@@ -3,7 +3,15 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  onMount,
+  Show,
+  Switch,
+} from "solid-js";
 import { t3 } from "../../deps.ts";
 import type {
   AnyRow,
@@ -131,6 +139,15 @@ export function Table<
     getPaddingClasses(p.paddingX || "normal", p.paddingY || "normal")
   );
 
+  // Restore needs real layout — under a display:none ancestor scrollHeight is 0
+  // and the write is a silent no-op (hide with visibility:hidden instead).
+  let scrollContainerRef: HTMLDivElement | undefined;
+  onMount(() => {
+    if (p.initialScrollTop && scrollContainerRef) {
+      scrollContainerRef.scrollTop = p.initialScrollTop;
+    }
+  });
+
   return (
     <div
       class={p.fitTableToAvailableHeight
@@ -182,6 +199,8 @@ export function Table<
           : "overflow-hidden"}
       >
         <div
+          ref={scrollContainerRef}
+          onScroll={() => p.onScrollTopChange?.(scrollContainerRef!.scrollTop)}
           class={p.fitTableToAvailableHeight
             ? "border-base-300 h-full overflow-x-auto overflow-y-auto rounded border"
             : "border-base-300 overflow-x-auto rounded border"}

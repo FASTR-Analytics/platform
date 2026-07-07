@@ -63,6 +63,8 @@ export type TableProps<T, K extends keyof T = keyof T> = {
   setSelectedKeys?: (keys: Set<T[K]>) => void; // controlled selection setter
   paddingX?: TablePadding; // horizontal padding (default: "normal")
   paddingY?: TablePadding; // vertical padding (default: "normal")
+  initialScrollTop?: number; // restore the scroll container to this offset on mount
+  onScrollTopChange?: (scrollTop: number) => void; // reports scroll offset; hoist it to survive remounts
 };
 
 export type ProcessedData<T> = {

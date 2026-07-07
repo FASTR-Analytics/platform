@@ -51,6 +51,12 @@ type Props = {
 export function HfaIndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   const [showAi, setShowAi] = createSignal(false);
+  const openAi = () => setShowAi(true);
+
+  // Hoisted like selectedCategoryId below: the table remounts on every SSE
+  // refetch (keyed StateHolderWrapper) and on tab switches; not a signal
+  // because nothing renders from it — Table reads it once on mount.
+  let indicatorsScrollTop = 0;
 
   const [indicators, setIndicators] = createSignal<StateHolder<HfaIndicator[]>>(
     {
@@ -437,6 +443,8 @@ export function HfaIndicatorsManager(p: Props) {
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
+        showAi,
+        openAi,
       },
     });
   }
@@ -554,7 +562,7 @@ export function HfaIndicatorsManager(p: Props) {
     if (timePoints === undefined) return;
     await openEditor({
       element: HfaIndicatorsXlsxUploadForm,
-      props: { timePoints, surveyVarNames: surveyVarNames() },
+      props: { timePoints, surveyVarNames: surveyVarNames(), showAi, openAi },
     });
   }
 
@@ -811,8 +819,8 @@ export function HfaIndicatorsManager(p: Props) {
       : [];
 
   return (
-    <EditorWrapper>
-      <HfaIndicatorAiWrapper show={showAi} onClose={() => setShowAi(false)}>
+    <HfaIndicatorAiWrapper show={showAi} onClose={() => setShowAi(false)}>
+      <EditorWrapper hideMode="visibility-hidden">
       <FrameTop
         panelChildren={
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
@@ -820,12 +828,8 @@ export function HfaIndicatorsManager(p: Props) {
             <div class="font-700 flex-1 truncate text-xl">
               {t3({ en: "HFA INDICATORS", fr: "INDICATEURS HFA", pt: "INDICADORES HFA" })}
             </div>
-            <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <Button
-                iconName="sparkles"
-                outline
-                onClick={() => setShowAi((v) => !v)}
-              >
+            <Show when={instanceState.currentUserIsGlobalAdmin && !showAi()}>
+              <Button iconName="chevronLeft" outline onClick={openAi}>
                 {t3({ en: "AI", fr: "IA", pt: "IA" })}
               </Button>
             </Show>
@@ -925,6 +929,10 @@ export function HfaIndicatorsManager(p: Props) {
                           pt: "indicador",
                         })}
                         fitTableToAvailableHeight
+                        initialScrollTop={indicatorsScrollTop}
+                        onScrollTopChange={(v) => {
+                          indicatorsScrollTop = v;
+                        }}
                       />
                     </div>
                   </div>
@@ -959,7 +967,7 @@ export function HfaIndicatorsManager(p: Props) {
           </div>
         </FrameTop>
       </FrameTop>
-      </HfaIndicatorAiWrapper>
-    </EditorWrapper>
+      </EditorWrapper>
+    </HfaIndicatorAiWrapper>
   );
 }

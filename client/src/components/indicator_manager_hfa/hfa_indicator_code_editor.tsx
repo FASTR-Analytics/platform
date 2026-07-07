@@ -21,7 +21,7 @@ import {
   createButtonAction,
   createQuery,
 } from "panther";
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show, type Accessor } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
@@ -56,6 +56,8 @@ export function HfaIndicatorCodeEditor(
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
       serviceCategories: HfaIndicatorServiceCategory[];
+      showAi: Accessor<boolean>;
+      openAi: () => void;
     },
     undefined
   >,
@@ -116,6 +118,11 @@ export function HfaIndicatorCodeEditor(
             <span class="font-mono">{p.indicator.varName}</span>
             <span class="font-400 ml-4">{p.indicator.definition}</span>
           </div>
+          <Show when={!p.showAi()}>
+            <Button iconName="chevronLeft" outline onClick={p.openAi}>
+              {t3({ en: "AI", fr: "IA", pt: "IA" })}
+            </Button>
+          </Show>
         </div>
       }
     >

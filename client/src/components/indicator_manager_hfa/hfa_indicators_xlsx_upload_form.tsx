@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, type Accessor } from "solid-js";
 import { t3, TC } from "lib";
 import {
   Button,
@@ -24,7 +24,12 @@ import {
 } from "./_xlsx_workbook";
 
 type Props = EditorComponentProps<
-  { timePoints: string[]; surveyVarNames: string[] },
+  {
+    timePoints: string[];
+    surveyVarNames: string[];
+    showAi: Accessor<boolean>;
+    openAi: () => void;
+  },
   undefined
 >;
 
@@ -62,7 +67,13 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
             pt: "Importar indicadores HFA a partir do Excel",
           })}
           back={() => p.close(undefined)}
-        />
+        >
+          <Show when={!p.showAi()}>
+            <Button iconName="chevronLeft" outline onClick={p.openAi}>
+              {t3({ en: "AI", fr: "IA", pt: "IA" })}
+            </Button>
+          </Show>
+        </HeaderBarCanGoBack>
       }
     >
       <div class="ui-pad ui-spy max-w-3xl">

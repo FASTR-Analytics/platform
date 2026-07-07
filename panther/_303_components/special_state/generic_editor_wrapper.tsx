@@ -23,6 +23,10 @@ type EditorState<TProps, TReturn> = {
 
 type EditorWrapperProps = {
   children: JSX.Element;
+  // "visibility-hidden" keeps the hidden children's layout alive (scroll
+  // positions survive, and scrollTop writes on remounted descendants work
+  // while an editor is open). Default is "display-none".
+  hideMode?: "display-none" | "visibility-hidden";
 };
 
 export function getEditorWrapper() {
@@ -45,8 +49,8 @@ export function getEditorWrapper() {
     return (
       <div class="relative z-0 h-full w-full">
         <div
-          class="h-full w-full data-[hidden=true]:hidden"
-          data-hidden={!!editorState()}
+          class="h-full w-full data-[hidden=display-none]:hidden data-[hidden=visibility-hidden]:invisible"
+          data-hidden={editorState() ? (p.hideMode ?? "display-none") : "false"}
         >
           {p.children}
         </div>
