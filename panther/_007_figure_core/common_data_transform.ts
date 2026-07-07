@@ -190,6 +190,122 @@ function updateLimits(
   );
 }
 
+// Early-throw validation for a chart's `membership` config. Raggedness is
+// allowed only along the categorical (text-axis) direction; the scale
+// direction stays balanced (see DOC_FIGURE_ARCHITECTURE / the membership
+// model). The zod path strips unknown keys and the TS types don't declare
+// them, so this transform-level check is the single authoritative gate for
+// JSON-sourced configs.
+export function validateChartMembership(
+  membership: Record<string, unknown> | undefined,
+  allowedAxes: string[],
+  scaleDirectionAxis: string,
+  chartName: string,
+): void {
+  if (!membership) {
+    return;
+  }
+  for (const [key, value] of Object.entries(membership)) {
+    if (!allowedAxes.includes(key)) {
+      if (key === scaleDirectionAxis) {
+        throw new Error(
+          `membership.${key} is not allowed on ${chartName}: "${key}" carries the scale limits, and raggedness applies only along the categorical (text-axis) direction`,
+        );
+      }
+      throw new Error(
+        `Unknown membership axis "${key}" on ${chartName} (allowed: ${
+          allowedAxes.join(", ")
+        })`,
+      );
+    }
+    if (value !== undefined && value !== "balanced" && value !== "unbalanced") {
+      throw new Error(
+        `Invalid membership value for "${key}" on ${chartName}: expected "balanced" or "unbalanced"`,
+      );
+    }
+  }
+}
+
+// Per-pane visible subsets for unbalanced membership, shared by the
+// indicator/tier/lane derivations. An axis member is visible in a pane iff
+// ANY cell for it has a defined value OR a defined uncertainty bound (a
+// member with bounds but no point estimate must still render its bounds).
+// Indices are in global sorted order — call this on the FINAL arrays, after
+// any sortIndicatorValues reorder.
+type PaneTensor = (number | undefined)[][][][]; // [tier][lane][series][indicator]
+type ChartBoundsTensors = {
+  ub: (number | undefined)[][][][][];
+  lb: (number | undefined)[][][][][];
+};
+
+function deriveVisibleByPane(
+  values: (number | undefined)[][][][][],
+  bounds: ChartBoundsTensors | undefined,
+  n: number,
+  memberHasDefined: (paneTensor: PaneTensor, i: number) => boolean,
+): number[][] {
+  const tensors = bounds ? [values, bounds.ub, bounds.lb] : [values];
+  return values.map((_, i_pane) => {
+    const visible: number[] = [];
+    for (let i = 0; i < n; i++) {
+      if (tensors.some((tensor) => memberHasDefined(tensor[i_pane], i))) {
+        visible.push(i);
+      }
+    }
+    return visible;
+  });
+}
+
+export function deriveVisibleIndicatorsByPane(
+  values: (number | undefined)[][][][][],
+  bounds: ChartBoundsTensors | undefined,
+  nIndicators: number,
+): number[][] {
+  return deriveVisibleByPane(
+    values,
+    bounds,
+    nIndicators,
+    (paneTensor, i_indicator) =>
+      paneTensor.some((tier) =>
+        tier.some((lane) =>
+          lane.some((series) => series[i_indicator] !== undefined)
+        )
+      ),
+  );
+}
+
+export function deriveVisibleTiersByPane(
+  values: (number | undefined)[][][][][],
+  bounds: ChartBoundsTensors | undefined,
+  nTiers: number,
+): number[][] {
+  return deriveVisibleByPane(
+    values,
+    bounds,
+    nTiers,
+    (paneTensor, i_tier) =>
+      paneTensor[i_tier].some((lane) =>
+        lane.some((series) => series.some((v) => v !== undefined))
+      ),
+  );
+}
+
+export function deriveVisibleLanesByPane(
+  values: (number | undefined)[][][][][],
+  bounds: ChartBoundsTensors | undefined,
+  nLanes: number,
+): number[][] {
+  return deriveVisibleByPane(
+    values,
+    bounds,
+    nLanes,
+    (paneTensor, i_lane) =>
+      paneTensor.some((tier) =>
+        tier[i_lane].some((series) => series.some((v) => v !== undefined))
+      ),
+  );
+}
+
 export interface ProcessedHeaders {
   series: HeaderItem[];
   lane: HeaderItem[];

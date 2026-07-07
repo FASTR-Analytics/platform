@@ -28,7 +28,7 @@ export type {
 export { createItemNode } from "../_008_layouter/mod.ts";
 export type { ItemLayoutNode, LayoutNode } from "../_008_layouter/mod.ts";
 export { TableRenderer } from "../_010_table/mod.ts";
-export type { TableData, TableInputs } from "../_010_table/mod.ts";
+export type { TableInputs } from "../_010_table/mod.ts";
 export { FigureRenderer } from "../_011_figure_renderer/mod.ts";
 export type { FigureInputs } from "../_011_figure_renderer/mod.ts";
 export { ImageRenderer } from "../_012_image_renderer/mod.ts";

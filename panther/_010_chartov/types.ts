@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AxisMembership,
   ChartScaleAxisLimits,
   ColorKeyOrString,
   CustomFigureStyle,
@@ -45,6 +46,13 @@ export type ChartOVJsonDataConfig = {
   tierProp?: string | "--v";
   paneProp?: string | "--v";
   uncertainty?: UncertaintyConfig;
+  // Raggedness is allowed only along the categorical (x-text) direction:
+  // indicators (slots) and lanes (bands) both stack along x. "tier" carries
+  // the y-scale limits and is never allowed on ChartOV.
+  membership?: {
+    indicator?: AxisMembership;
+    lane?: AxisMembership;
+  };
   //
   labelReplacements?: Record<string, string>;
   sort?: {
@@ -78,6 +86,14 @@ export type ChartOVDataTransformed = {
   };
   scaleAxisLimits: ChartScaleAxisLimits;
   yScaleAxisLabel?: string;
+  // Per-pane visible indicator subsets (global indices, in global sorted
+  // order), present only for unbalanced indicator membership. Absent = every
+  // pane shows the full global set. Storage (values/bounds) stays dense.
+  visibleIndicatorsByPane?: number[][];
+  // Per-pane visible lane subsets (global indices), present only for
+  // unbalanced lane membership. Same masking model as indicators: dropped
+  // lanes are whole subchart columns.
+  visibleLanesByPane?: number[][];
 };
 
 ///////////////////////////////////////////////////////////////////////////////////

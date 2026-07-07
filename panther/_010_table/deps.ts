@@ -10,7 +10,6 @@ export {
   sum,
 } from "../_000_utils/mod.ts";
 export { getAdjustedColor } from "../_001_color/mod.ts";
-export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
   resolveSortFunc,
@@ -27,11 +26,8 @@ export type {
   Primitive,
   RenderContext,
   Renderer,
-  TableBorderPrimitive,
   TableCellInfo,
   TableCellInfoFunc,
-  TableGridPrimitive,
-  TableHeaderAxisPrimitive,
   TableHeaderInfo,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
@@ -57,6 +53,5 @@ export type {
   JsonArray,
   JsonArrayItem,
   LegendInput,
-  LegendItem,
   MeasuredSurrounds,
 } from "../_007_figure_core/mod.ts";

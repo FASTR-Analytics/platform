@@ -10,8 +10,8 @@ import {
   createSignal,
   useContext,
 } from "solid-js";
+import { Anthropic } from "../deps.ts";
 import type {
-  Anthropic,
   AnthropicModelConfig,
   ContentBlock,
   DocumentContentBlock,
@@ -19,10 +19,28 @@ import type {
   Usage,
 } from "../deps.ts";
 import {
+  buildCancelledToolResults,
+  buildToolResultUserMessage,
+  classifyTurnContinuation,
+  getUserFacingAIErrorMessage,
+  lastMessageHasUnresolvedToolUse,
+  resolveOutputConfig,
+  resolveThinkingConfig,
+  sanitizePersistedSettings,
+  shapeCachedPayload,
+  shapeEphemeralSystemMessages,
+  stripEphemeralContext,
+  supportsDynamicWebTools,
+  supportsMidConversationSystem,
+  trimDanglingServerToolUse,
+  wrapWithEphemeralContext,
+} from "../deps.ts";
+import {
   ANTHROPIC_BETA_HEADER,
   getBetaHeaders,
   hasWebFetchTool,
 } from "../_core/beta_headers.ts";
+import { supportsSamplingParams } from "../deps.ts";
 import { resolveBuiltInTools } from "../_core/builtin_tools.ts";
 import {
   clearConversationStore,
@@ -43,33 +61,19 @@ import { ConversationsContext } from "./use_conversations.ts";
 
 const SETTINGS_KEY_PREFIX = "panther-ai-settings";
 
-const EPHEMERAL_OPEN = "<<<[";
-const EPHEMERAL_CLOSE = "]>>>";
-const EPHEMERAL_REGEX = /<<<\[[\s\S]*?\]>>>\n?\n?/g;
+// Safety cap on turn continuations (client tool loops and server-tool
+// pause_turn resumptions) so a pathological loop can't run unbounded.
+const MAX_TURN_CONTINUATIONS = 24;
 
-function stripEphemeralContext(messages: MessageParam[]): MessageParam[] {
-  const lastUserIndex = findLastUserMessageIndex(messages);
-  return messages.map((msg, i) => {
-    if (msg.role !== "user" || i === lastUserIndex) return msg;
-    if (typeof msg.content === "string") {
-      const stripped = msg.content.replace(EPHEMERAL_REGEX, "");
-      return stripped === msg.content ? msg : { ...msg, content: stripped };
-    }
-    const newContent = msg.content.map((block) => {
-      if (block.type !== "text") return block;
-      const stripped = block.text.replace(EPHEMERAL_REGEX, "");
-      return stripped === block.text ? block : { ...block, text: stripped };
-    });
-    return { ...msg, content: newContent };
-  });
-}
+// Turn-flow decision logic (ephemeral-context wrap/strip, stop-reason
+// classification, cancelled-tool-result synthesis, error classification)
+// lives in _110_ai_types/turn_logic.ts as pure functions, covered by
+// tests/ai_turn_logic_test.ts.
 
-function findLastUserMessageIndex(messages: MessageParam[]): number {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "user") return i;
-  }
-  return -1;
-}
+// Prompt-cache breakpoint placement lives in _110_ai_types/request_shaping.ts
+// (shapeCachedPayload) — it strips any breakpoints persisted in history by
+// older library versions and places a bounded set on the outgoing payload
+// only. Covered by tests/ai_request_shaping_test.ts.
 
 function loadSettings(key: string): AIChatSettingsValues | undefined {
   try {
@@ -125,7 +129,13 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     : SETTINGS_KEY_PREFIX;
   const persisted = loadSettings(settingsKey);
   if (persisted) {
-    Object.assign(config.modelConfig, persisted);
+    // Persisted settings can predate the current model catalog (retired
+    // model IDs, max_tokens above the model's cap, temperature on models
+    // that reject it) — sanitize before applying.
+    Object.assign(
+      config.modelConfig,
+      sanitizePersistedSettings(persisted, config.modelConfig.model),
+    );
   }
 
   const conversationsContext = useContext(ConversationsContext);
@@ -172,13 +182,16 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     config.tools.forEach((tool) => toolRegistry.register(tool));
   }
 
-  // Merge custom tools (SDK betaZodTools) with built-in tools (web_search, bash, etc.)
-  // Cast to SDK's ToolUnion type - built-in tools like web_search have different shapes
-  // but are valid for the API
-  const allTools = [
-    ...toolRegistry.getSDKTools(),
-    ...resolveBuiltInTools(config.builtInTools),
-  ] as SDKToolUnion[];
+  // Merge custom tools (SDK betaZodTools) with built-in tools (web_search,
+  // bash, etc.). Computed per request — built-in web tool versions depend on
+  // the current model, which can change via updateConfig. Cast to SDK's
+  // ToolUnion type - built-in tools like web_search have different shapes
+  // but are valid for the API.
+  const getAllTools = () =>
+    [
+      ...toolRegistry.getSDKTools(),
+      ...resolveBuiltInTools(config.builtInTools, config.modelConfig.model),
+    ] as SDKToolUnion[];
 
   const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
 
@@ -221,11 +234,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       return { role: "user", content: text };
     }
 
+    // No cache_control here — stored state never carries breakpoints.
+    // shapeCachedPayload places them on the outgoing payload each request.
     const documentBlocks: DocumentContentBlock[] = documentRefs.map((ref) => ({
       type: "document" as const,
       source: { type: "file" as const, file_id: ref.file_id },
       title: ref.title,
-      cache_control: { type: "ephemeral" as const },
     }));
 
     return {
@@ -247,12 +261,26 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // Only add user message if provided (undefined means messages already in state)
     if (userMessage !== undefined) {
       const ephemeralContext = config.getEphemeralContext?.() ?? null;
-      const fullMessage = ephemeralContext
-        ? `${EPHEMERAL_OPEN}${ephemeralContext}${EPHEMERAL_CLOSE}\n\n${userMessage}`
-        : userMessage;
+      // On Opus 4.8 the context travels as a mid-conversation system
+      // message (survives tool-loop recursion, no wasted cache writes);
+      // other models get the marker-wrapped fallback spliced into the
+      // user text.
+      const useSystemMessage = ephemeralContext !== null &&
+        supportsMidConversationSystem(config.modelConfig.model);
+      const fullMessage = useSystemMessage
+        ? userMessage
+        : wrapWithEphemeralContext(userMessage, ephemeralContext);
       const userMsg = createUserMessage(fullMessage);
       const isFirstMessage = messages().length === 0;
-      setMessages([...messages(), userMsg]);
+      setMessages(
+        useSystemMessage
+          ? [
+            ...messages(),
+            userMsg,
+            { role: "system", content: ephemeralContext },
+          ]
+          : [...messages(), userMsg],
+      );
 
       if (userMessage.trim()) {
         processMessageForDisplay(userMsg);
@@ -308,7 +336,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       if (abortRequested) {
         const msgs = messages();
         const lastMsg = msgs[msgs.length - 1];
-        if (lastMsg?.role === "user") {
+        // A trailing system message (ephemeral context on Opus 4.8) also
+        // needs an assistant turn after it so the persisted history stays
+        // valid when the next user message arrives.
+        if (lastMsg?.role === "user" || lastMsg?.role === "system") {
           setMessages([
             ...msgs,
             { role: "assistant", content: "[Stopped]" },
@@ -337,21 +368,43 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
   async function streamWithToolLoop(
     currentMessages: MessageParam[],
+    depth: number = 0,
   ): Promise<void> {
-    // Use SDK's beta streaming
+    // Use SDK's beta streaming. The web-fetch beta header is only needed
+    // for the basic web_fetch variant used on pre-4.6 models.
+    const allTools = getAllTools();
     const betas = getBetasArray(
-      allTools.length > 0,
-      hasWebFetchTool(config.builtInTools),
+      hasWebFetchTool(config.builtInTools) &&
+        !supportsDynamicWebTools(config.modelConfig.model),
       messagesContainDocuments(),
     );
-    const messagesForAPI = stripEphemeralContext(currentMessages);
+    const shaped = shapeCachedPayload(
+      config.system(),
+      shapeEphemeralSystemMessages(
+        stripEphemeralContext(currentMessages),
+        config.modelConfig.model,
+      ),
+    );
     const stream = config.sdkClient.beta.messages.stream({
       model: config.modelConfig.model,
       max_tokens: config.modelConfig.max_tokens,
-      temperature: config.modelConfig.temperature,
-      messages: messagesForAPI,
+      // Models from Opus 4.7 onward reject non-default sampling params with
+      // a 400 — omit temperature there. Thinking and effort are resolved
+      // per model (request_shaping.ts) so unsupported configs are never sent.
+      temperature: supportsSamplingParams(config.modelConfig.model)
+        ? config.modelConfig.temperature
+        : undefined,
+      thinking: resolveThinkingConfig(
+        config.modelConfig.model,
+        config.modelConfig.thinking,
+      ),
+      output_config: resolveOutputConfig(
+        config.modelConfig.model,
+        config.modelConfig.output_config,
+      ),
+      messages: shaped.messages,
       tools: allTools,
-      system: config.system(),
+      system: shaped.system,
       betas,
     });
     activeStream = stream;
@@ -408,8 +461,91 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     setCurrentStreamingText(undefined);
     setServerToolLabel(undefined);
 
+    // Stop-reason → next-action mapping is pure logic in turn_logic.ts.
+    const continuation = classifyTurnContinuation(
+      finalMessage.stop_reason,
+      depth,
+      MAX_TURN_CONTINUATIONS,
+    );
+
+    if (continuation.kind === "halt") {
+      addDisplayItems([
+        {
+          type: "system_notice",
+          noticeType: continuation.noticeType,
+          message: continuation.message,
+          details: continuation.details,
+        },
+      ]);
+      return;
+    }
+
+    // Server-side tools (web search, web fetch) pause when the server's
+    // iteration limit is reached — re-send with the assistant turn appended
+    // to resume where it left off.
+    if (continuation.kind === "resume-pause-turn") {
+      setIsStreaming(true);
+      setCurrentStreamingText(undefined);
+      await streamWithToolLoop(updatedMessages, depth + 1);
+      return;
+    }
+
+    if (continuation.kind === "cap-pause") {
+      // The assistant message may end with server_tool_use blocks whose
+      // results never arrived — trim them so the persisted conversation
+      // cannot end in a state a later send might reject.
+      const trimmed = trimDanglingServerToolUse(
+        finalMessage.content as ContentBlock[],
+      );
+      if (trimmed.length < (finalMessage.content as ContentBlock[]).length) {
+        setMessages([
+          ...currentMessages,
+          { role: "assistant", content: trimmed },
+        ]);
+      }
+      addDisplayItems([
+        {
+          type: "system_notice",
+          noticeType: continuation.noticeType,
+          message: continuation.message,
+          details: continuation.details,
+        },
+      ]);
+      return;
+    }
+
+    if (continuation.kind === "cap-tools") {
+      // Resolve the pending tool_use blocks with error results before
+      // stopping — a persisted conversation ending in an assistant turn
+      // with unresolved tool_use blocks is rejected by the API on every
+      // subsequent send, permanently breaking the conversation.
+      setMessages([
+        ...updatedMessages,
+        {
+          role: "user",
+          content: buildCancelledToolResults(
+            finalMessage.content as ContentBlock[],
+            "Tool execution stopped: too many tool calls in one turn",
+          ),
+        },
+      ]);
+      addDisplayItems([
+        {
+          type: "system_notice",
+          noticeType: continuation.noticeType,
+          message: continuation.message,
+          details: continuation.details,
+        },
+      ]);
+      return;
+    }
+
     // Handle tool execution manually since streaming doesn't support toolRunner
-    if (finalMessage.stop_reason === "tool_use") {
+    if (continuation.kind === "run-tools") {
+      // Filter tool_use blocks
+      const toolUseBlocks = (finalMessage.content as ContentBlock[]).filter(
+        (block): block is ToolUseBlock => block.type === "tool_use",
+      );
       setIsProcessingTools(true);
 
       // Show in-progress items
@@ -419,11 +555,6 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       );
       addDisplayItems(inProgressItems);
 
-      // Filter tool_use blocks
-      const toolUseBlocks = (finalMessage.content as ContentBlock[]).filter(
-        (block): block is ToolUseBlock => block.type === "tool_use",
-      );
-
       // Process tools - handle text editor tool specially
       const allResults: ToolResult[] = [];
       const allErrorItems: DisplayItem[] = [];
@@ -431,18 +562,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
       for (const block of toolUseBlocks) {
         if (abortRequested) {
-          for (
-            const remaining of toolUseBlocks.slice(
-              toolUseBlocks.indexOf(block),
-            )
-          ) {
-            allResults.push({
-              type: "tool_result",
-              tool_use_id: remaining.id,
-              content: "Tool execution cancelled by user",
-              is_error: true,
-            });
-          }
+          allResults.push(
+            ...buildCancelledToolResults(
+              toolUseBlocks.slice(toolUseBlocks.indexOf(block)),
+              "Tool execution cancelled by user",
+            ),
+          );
           break;
         }
 
@@ -511,21 +636,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       const queuedTexts = queuedMessages();
       if (queuedTexts.length > 0) setQueuedMessages([]);
 
-      const toolResultContent: (ToolResult | { type: "text"; text: string })[] =
-        queuedTexts.length > 0
-          ? [
-            ...allResults,
-            ...queuedTexts.map((text) => ({
-              type: "text" as const,
-              text,
-            })),
-          ]
-          : allResults;
-
-      const toolResultMsg: MessageParam = {
-        role: "user",
-        content: toolResultContent,
-      };
+      const toolResultMsg = buildToolResultUserMessage(allResults, queuedTexts);
 
       const messagesWithToolResults = [...updatedMessages, toolResultMsg];
       setMessages(messagesWithToolResults);
@@ -535,7 +646,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // Continue streaming with tool results (recursive call)
       setIsStreaming(true);
       setCurrentStreamingText(undefined);
-      await streamWithToolLoop(messagesWithToolResults);
+      await streamWithToolLoop(messagesWithToolResults, depth + 1);
     }
   }
 
@@ -601,6 +712,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       model: mc.model,
       max_tokens: mc.max_tokens,
       temperature: mc.temperature,
+      output_config: mc.output_config,
     });
   }
 
@@ -634,45 +746,42 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   };
 }
 
-// One home for "the last message is an assistant turn with tool_use blocks
-// still awaiting results" — used to gate queueing and turn-completion.
-export function lastMessageHasUnresolvedToolUse(msgs: MessageParam[]): boolean {
-  const lastMsg = msgs[msgs.length - 1];
-  return msgs.length > 0 &&
-    lastMsg?.role === "assistant" &&
-    Array.isArray(lastMsg.content) &&
-    lastMsg.content.some((block) => block.type === "tool_use");
-}
-
+// Thin instanceof adapter over the SDK error classes — all classification
+// logic is pure in turn_logic.ts (getUserFacingAIErrorMessage). err.type is
+// the API error body's type field; mid-stream errors (e.g. an
+// overloaded_error SSE event) arrive with status undefined but a populated
+// type. The pure classifier's status checks and string fallback also cover
+// consumer apps bundling a second SDK copy, where instanceof fails.
 function getUserFacingErrorMessage(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  const lower = msg.toLowerCase();
-  if (lower.includes("context") && lower.includes("exceed")) {
-    return "Conversation too long — context window exceeded";
+  if (err instanceof Anthropic.APIConnectionError) {
+    return getUserFacingAIErrorMessage({
+      isConnectionError: true,
+      isApiError: true,
+      message: err.message,
+    });
   }
-  if (lower.includes("overloaded")) {
-    return "Anthropic API is overloaded — try again in a moment";
+  if (err instanceof Anthropic.APIError) {
+    return getUserFacingAIErrorMessage({
+      isConnectionError: false,
+      isApiError: true,
+      type: err.type,
+      status: err.status,
+      message: String(err.message),
+    });
   }
-  if (lower.includes("rate_limit") || lower.includes("rate limit")) {
-    return "Rate limit reached — try again in a moment";
-  }
-  if (lower.includes("authentication") || lower.includes("unauthorized")) {
-    return "Authentication failed — check your API key";
-  }
-  if (lower.includes("insufficient") && lower.includes("credit")) {
-    return "Insufficient credits — check your Anthropic billing";
-  }
-  return "System error";
+  return getUserFacingAIErrorMessage({
+    isConnectionError: false,
+    isApiError: false,
+    message: err instanceof Error ? err.message : String(err),
+  });
 }
 
 function getBetasArray(
-  hasTools: boolean,
-  hasWebFetch: boolean,
+  hasBasicWebFetch: boolean,
   hasDocuments: boolean,
 ): string[] | undefined {
   const headers = getBetaHeaders({
-    hasTools,
-    hasWebFetch,
+    hasBasicWebFetch,
     hasDocuments,
   });
   if (!headers) return undefined;

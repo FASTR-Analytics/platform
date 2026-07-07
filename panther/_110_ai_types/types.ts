@@ -7,7 +7,10 @@
 // MESSAGE TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
-export type MessageRole = "user" | "assistant";
+// "system" is a mid-conversation operator message — accepted only by models
+// where supportsMidConversationSystem is true; payload shaping drops such
+// messages for other models.
+export type MessageRole = "user" | "assistant" | "system";
 
 export type CacheControl = {
   type: "ephemeral";
@@ -19,7 +22,11 @@ export type CacheControl = {
 
 export type ThinkingConfig =
   | { type: "enabled"; budget_tokens: number }
-  | { type: "disabled" };
+  | { type: "disabled" }
+  // Adaptive thinking (Claude 4.6+): the model decides when and how much to
+  // think. display controls whether thinking summaries are returned —
+  // "omitted" (the default on 4.7+) streams thinking blocks with empty text.
+  | { type: "adaptive"; display?: "summarized" | "omitted" };
 
 export type ThinkingBlock = {
   type: "thinking";
@@ -108,40 +115,49 @@ export type ToolDefinition = {
 ////////////////////////////////////////////////////////////////////////////////
 
 export type AnthropicModel =
-  // Claude 4.6 family (latest)
+  // Claude 5 family (latest)
+  | "claude-fable-5"
+  | "claude-sonnet-5"
+  // Claude 4.7 / 4.8
+  | "claude-opus-4-8"
+  | "claude-opus-4-7"
+  // Claude 4.6 family
   | "claude-opus-4-6"
   | "claude-sonnet-4-6"
   // Claude 4.5 family
   | "claude-opus-4-5-20251101"
+  | "claude-haiku-4-5"
   | "claude-haiku-4-5-20251001"
   | "claude-sonnet-4-5-20250929"
-  // Claude 4 family
+  // Claude 4.1 (deprecated, retires 2026-08-05)
   | "claude-opus-4-1-20250805"
-  | "claude-opus-4-20250514"
-  | "claude-sonnet-4-20250514"
-  // Claude 3.7
-  | "claude-3-7-sonnet-20250219"
-  // Claude 3.5 (legacy)
-  | "claude-3-5-haiku-20241022"
-  // Claude 3 (legacy)
-  | "claude-3-haiku-20240307"
   | string;
+
+// Effort (GA, no beta header) controls thinking depth and overall token
+// spend. Per-model support varies — see getSupportedEffortLevels.
+export type EffortLevel = "low" | "medium" | "high" | "xhigh" | "max";
+
+export type OutputConfig = {
+  effort?: EffortLevel;
+};
 
 export type AnthropicModelConfig = {
   model: AnthropicModel;
   max_tokens: number;
   temperature?: number;
-  top_p?: number;
-  top_k?: number;
   stop_sequences?: string[];
   thinking?: ThinkingConfig;
-  context1M?: boolean;
+  output_config?: OutputConfig;
   metadata?: {
     user_id?: string;
     [key: string]: unknown;
   };
 };
 
+// Request-body shape for proxy servers that validate/forward Messages API
+// requests (used by consumer proxy code, e.g. ai-server). Response and
+// stream-event types are NOT hand-rolled here — use the SDK's types for
+// those; hand-rolled copies drift.
 export type MessagePayload = AnthropicModelConfig & {
   messages: MessageParam[];
   system?:
@@ -152,45 +168,3 @@ export type MessagePayload = AnthropicModelConfig & {
   conversationId?: string;
   [key: string]: unknown;
 };
-
-////////////////////////////////////////////////////////////////////////////////
-// RESPONSE TYPES
-////////////////////////////////////////////////////////////////////////////////
-
-export type AnthropicResponse = {
-  content: ContentBlock[];
-  stop_reason: "end_turn" | "max_tokens" | "stop_sequence" | "tool_use";
-  id?: string;
-  model?: string;
-  usage?: Usage;
-};
-
-export type StreamDelta =
-  | { type: "text_delta"; text: string }
-  | { type: "input_json_delta"; partial_json: string }
-  | { type: "thinking_delta"; thinking: string }
-  | { type: "signature_delta"; signature: string };
-
-export type StreamEvent =
-  | {
-    type: "message_start";
-    message: { id: string; model: string; role: "assistant"; usage: Usage };
-  }
-  | { type: "content_block_start"; index: number; content_block: ContentBlock }
-  | {
-    type: "content_block_delta";
-    index: number;
-    delta: StreamDelta;
-  }
-  | { type: "content_block_stop"; index: number }
-  | {
-    type: "message_delta";
-    delta: {
-      stop_reason: AnthropicResponse["stop_reason"];
-      stop_sequence?: string;
-    };
-    usage: Usage;
-  }
-  | { type: "message_stop" }
-  | { type: "ping" }
-  | { type: "error"; error: { type: string; message: string } };

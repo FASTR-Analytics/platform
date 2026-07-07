@@ -15,6 +15,8 @@ import { AssistantCompletedTextRenderer } from "./_renderers/assistant_completed
 import { AssistantStreamingTextRenderer } from "./_renderers/assistant_streaming_text_renderer.tsx";
 import { DefaultRenderer } from "./_renderers/default_renderer.tsx";
 import { SpinningCursor } from "./_renderers/spinning_cursor.tsx";
+import { SystemNoticeRenderer } from "./_renderers/system_notice_renderer.tsx";
+import { ThinkingSummaryRenderer } from "./_renderers/thinking_summary_renderer.tsx";
 import { ToolErrorRenderer } from "./_renderers/tool_error_renderer.tsx";
 import { ToolLoadingRenderer } from "./_renderers/tool_loading_renderer.tsx";
 import { ToolSuccessRenderer } from "./_renderers/tool_success_renderer.tsx";
@@ -77,6 +79,14 @@ export function MessageList(p: Props) {
       }
       case "tool_error": {
         const Renderer = registry.toolError ?? ToolErrorRenderer;
+        return <Renderer item={item} />;
+      }
+      case "system_notice": {
+        const Renderer = registry.systemNotice ?? SystemNoticeRenderer;
+        return <Renderer item={item} />;
+      }
+      case "thinking_summary": {
+        const Renderer = registry.thinkingSummary ?? ThinkingSummaryRenderer;
         return <Renderer item={item} />;
       }
       case "tool_display": {

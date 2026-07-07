@@ -53,6 +53,9 @@ export type ContentPrimitiveGenerationParams = {
   dataLabelsTextStyle: TextInfoUnkeyed;
   boundsUbSeriesVals?: (number | undefined)[][];
   boundsLbSeriesVals?: (number | undefined)[][];
+  // Unbalanced indicator membership: global storage index → position ordinal
+  // within this pane's visible subset. Omitted = balanced (identity).
+  positionOrdinals?: (number | undefined)[];
 };
 
 export function generateContentPrimitives(
@@ -83,6 +86,7 @@ export function generateContentPrimitives(
     valueRange,
     valueClearance,
     orientation,
+    params.positionOrdinals,
   );
 
   const nSeries = mapped.length;
@@ -97,6 +101,7 @@ export function generateContentPrimitives(
       valueRange,
       valueClearance,
       orientation,
+      params.positionOrdinals,
     )
     : undefined;
 
@@ -110,6 +115,7 @@ export function generateContentPrimitives(
       valueRange,
       valueClearance,
       orientation,
+      params.positionOrdinals,
     )
     : undefined;
 

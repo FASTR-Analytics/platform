@@ -7,13 +7,11 @@ import type { Accessor } from "solid-js";
 import type {
   Anthropic,
   AnthropicModelConfig,
-  AnthropicResponse,
   CacheControl,
   Component,
   CustomMarkdownStyleOptions,
   MessageParam,
-  MessagePayload,
-  StreamEvent,
+  SystemNoticeType,
   Usage,
 } from "../deps.ts";
 import type { BuiltInToolsConfig } from "./builtin_tools.ts";
@@ -80,6 +78,21 @@ export type DisplayItem =
     type: "tool_display";
     toolName: string;
     input: unknown;
+  }
+  // Non-error turn outcomes surfaced by the API (refusal, truncation,
+  // context exceeded, continuation caps) — distinct from tool_error, which
+  // is reserved for genuine tool/API failures.
+  | {
+    type: "system_notice";
+    noticeType: SystemNoticeType;
+    message: string;
+    details: string;
+  }
+  // Thinking summary returned when thinking: {type: "adaptive",
+  // display: "summarized"} is configured — rendered collapsed by default.
+  | {
+    type: "thinking_summary";
+    text: string;
   };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -105,18 +118,13 @@ export type DisplayRegistry = {
     Extract<DisplayItem, { type: "tool_success" }>
   >;
   toolError?: DisplayItemRenderer<Extract<DisplayItem, { type: "tool_error" }>>;
+  systemNotice?: DisplayItemRenderer<
+    Extract<DisplayItem, { type: "system_notice" }>
+  >;
+  thinkingSummary?: DisplayItemRenderer<
+    Extract<DisplayItem, { type: "thinking_summary" }>
+  >;
   default?: DisplayItemRenderer<DisplayItem>;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-// API CONFIGURATION TYPES (UI-SPECIFIC)
-////////////////////////////////////////////////////////////////////////////////
-
-export type APIConfig = {
-  endpoint: string | ((conversationId?: string) => string);
-  transformRequest?: (payload: MessagePayload) => Promise<RequestInit>;
-  transformResponse?: (response: Response) => Promise<AnthropicResponse>;
-  transformStreamResponse?: (response: Response) => ReadableStream<StreamEvent>;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -173,8 +181,6 @@ export type AIChatConfig = {
   system: Accessor<
     string | Array<{ type: "text"; text: string; cache_control?: CacheControl }>
   >;
-
-  apiConfig?: APIConfig;
 
   messageStyles?: MessageStyles;
 

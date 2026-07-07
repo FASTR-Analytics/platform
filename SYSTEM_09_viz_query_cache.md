@@ -423,8 +423,8 @@ Known systemic gap: none of the four version hashes folds the instance
 **facility-columns config**, which changes both the option list and the
 generated SQL — a config toggle serves stale figures/options until the next
 module/dataset bump (N1, HIGH; deferred to
-[PLAN_PROJECT_SNAPSHOT.md](PLAN_PROJECT_SNAPSHOT.md) — the decided fix is
-project-local snapshotting, not a cross-DB version fold).
+[PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) — the decided fix is capture
+into the immutable results-run manifest, not a cross-DB version fold).
 
 Concurrency: `RequestQueue`s (items 10, info/replicant 15) bound concurrent DB
 work against the 20-connection pool; the cache check happens *before* queueing;
@@ -543,8 +543,8 @@ F2/F8b and dropped F4 are stated as facts in the prose where relevant):
 - **N1 [HIGH, deferred]** — facility-columns config absent from all four PO
   cache version keys (server + client): a config toggle serves stale
   figures/option lists until the next module/dataset bump. Decided fix =
-  project-local snapshot + project-local version stamp —
-  [PLAN_PROJECT_SNAPSHOT.md](PLAN_PROJECT_SNAPSHOT.md).
+  capture into the results-run manifest, covered by run-ID cache keys —
+  [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) §8.
 - **F8a [LOW, parked]** — Ethiopian last-full-quarter ternary has identical
   branches ([get_fetch_config_from_po.ts:224](lib/get_fetch_config_from_po.ts#L224));
   harness-verified fix is `maxMonth === 1 ? maxYear - 1 : maxYear`, but a

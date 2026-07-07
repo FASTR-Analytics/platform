@@ -10,6 +10,7 @@ export {
   sortHeaderItems,
 } from "../_001_render_system/mod.ts";
 export type {
+  AxisMembership,
   HeaderItem,
   HeaderSortConfig,
   HeightConstraints,
@@ -26,6 +27,8 @@ export {
   calculatePaneGrid,
   checkValuePropsAssignment,
   collectHeaders,
+  deriveVisibleIndicatorsByPane,
+  deriveVisibleTiersByPane,
   estimateMinSurroundsWidth,
   estimateMinXAxisHeightForScale,
   estimateMinYTextAxisWidth,
@@ -33,11 +36,13 @@ export {
   getChartHeightConstraintsByMeasure,
   getHeaderIndex,
   isRowBasedUncertainty,
+  maxVisibleCount,
   measureChart,
   measureChartWithAutofit,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
+  validateChartMembership,
   validateDataInput,
   validateUncertaintyConfig,
 } from "../_007_figure_core/mod.ts";

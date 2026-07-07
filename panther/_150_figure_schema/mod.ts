@@ -51,4 +51,5 @@ export {
   zSimpleVizInputs,
   zTableInputs,
   zTimeseriesInputs,
+  zVizGraphInputs,
 } from "./figure_inputs.ts";

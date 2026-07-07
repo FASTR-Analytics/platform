@@ -847,4 +847,27 @@
     transform: translateX(-50%);
     margin-top: 0.5rem;
   }
+
+  /* VizGraph view (used by _307_vizgraph_view) */
+  .ui-vizgraph-viewport {
+    @apply bg-base-100 relative h-full w-full touch-none overflow-hidden select-none;
+  }
+  .ui-vizgraph-edge {
+    @apply stroke-neutral;
+    fill: none;
+  }
+  .ui-vizgraph-arrowhead {
+    @apply fill-neutral;
+  }
+  .ui-vizgraph-node {
+    @apply absolute;
+  }
+  .ui-vizgraph-node-selected {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+    border-radius: var(--radius);
+  }
+  .ui-vizgraph-node-default {
+    @apply bg-base-100 border-base-300 text-base-content flex h-full w-full items-center justify-center rounded border px-2 text-center text-xs;
+  }
 }

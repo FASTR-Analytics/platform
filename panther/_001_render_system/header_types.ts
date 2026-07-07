@@ -8,6 +8,13 @@ export type HeaderItem = {
   label: string;
 };
 
+// Per-axis membership policy for chart layout dimensions. "balanced" (the
+// default) gives every pane the full global header set on that axis;
+// "unbalanced" lets each pane show only the headers it has data for.
+// Raggedness is allowed only along a chart's categorical (text-axis)
+// direction — the scale direction stays balanced.
+export type AxisMembership = "balanced" | "unbalanced";
+
 export type HeaderSortFunc = (a: HeaderItem, b: HeaderItem) => number;
 
 export type HeaderSortConfig =

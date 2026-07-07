@@ -3,7 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { BUILTIN_TOOL_TYPES } from "../deps.ts";
+import type { AnthropicModel } from "../deps.ts";
+import { BUILTIN_TOOL_TYPES, supportsDynamicWebTools } from "../deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // BUILT-IN TOOLS
@@ -72,7 +73,9 @@ export interface BuiltInToolsConfig {
 ////////////////////////////////////////////////////////////////////////////////
 
 interface WebSearchToolSDK {
-  type: typeof BUILTIN_TOOL_TYPES.WEB_SEARCH;
+  type:
+    | typeof BUILTIN_TOOL_TYPES.WEB_SEARCH
+    | typeof BUILTIN_TOOL_TYPES.WEB_SEARCH_BASIC;
   name: "web_search";
   max_uses?: number;
   allowed_domains?: string[];
@@ -81,7 +84,9 @@ interface WebSearchToolSDK {
 }
 
 interface WebFetchToolSDK {
-  type: typeof BUILTIN_TOOL_TYPES.WEB_FETCH;
+  type:
+    | typeof BUILTIN_TOOL_TYPES.WEB_FETCH
+    | typeof BUILTIN_TOOL_TYPES.WEB_FETCH_BASIC;
   name: "web_fetch";
   max_uses?: number;
   allowed_domains?: string[];
@@ -112,9 +117,11 @@ type BuiltInToolSDK =
 
 export function resolveBuiltInTools(
   config: BuiltInToolsConfig | undefined,
+  model: AnthropicModel,
 ): BuiltInToolSDK[] {
   if (!config) return [];
 
+  const dynamicWebTools = supportsDynamicWebTools(model);
   const tools: BuiltInToolSDK[] = [];
 
   if (config.webSearch) {
@@ -122,7 +129,9 @@ export function resolveBuiltInTools(
       ? config.webSearch
       : {};
     tools.push({
-      type: BUILTIN_TOOL_TYPES.WEB_SEARCH,
+      type: dynamicWebTools
+        ? BUILTIN_TOOL_TYPES.WEB_SEARCH
+        : BUILTIN_TOOL_TYPES.WEB_SEARCH_BASIC,
       name: "web_search",
       ...webSearchConfig,
     });
@@ -133,7 +142,9 @@ export function resolveBuiltInTools(
       ? config.webFetch
       : {};
     tools.push({
-      type: BUILTIN_TOOL_TYPES.WEB_FETCH,
+      type: dynamicWebTools
+        ? BUILTIN_TOOL_TYPES.WEB_FETCH
+        : BUILTIN_TOOL_TYPES.WEB_FETCH_BASIC,
       name: "web_fetch",
       ...webFetchConfig,
     });

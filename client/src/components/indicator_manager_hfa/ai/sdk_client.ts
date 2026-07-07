@@ -5,6 +5,8 @@ import { _SERVER_HOST } from "~/server_actions";
 export const HFA_AI_MODEL_CONFIG = {
   model: DEFAULT_ANTHROPIC_MODEL,
   max_tokens: 4096,
+  // Effort default, not user-adjustable — see project defaults.ts for rationale.
+  output_config: { effort: "high" as const },
 };
 
 const ISO_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;

@@ -28,3 +28,8 @@ export type {
   MeasuredTimeseries,
   TimeseriesInputs,
 } from "../_010_timeseries/mod.ts";
+export { VizGraphRenderer } from "../_010_vizgraph_figure/mod.ts";
+export type {
+  MeasuredVizGraph,
+  VizGraphInputs,
+} from "../_010_vizgraph_figure/mod.ts";

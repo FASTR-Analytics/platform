@@ -18,6 +18,7 @@ import {
   type MeasuredSimpleViz,
   type MeasuredTable,
   type MeasuredTimeseries,
+  type MeasuredVizGraph,
   type RectCoordsDims,
   type RenderContext,
   type Renderer,
@@ -27,6 +28,8 @@ import {
   TableRenderer,
   type TimeseriesInputs,
   TimeseriesRenderer,
+  type VizGraphInputs,
+  VizGraphRenderer,
 } from "./deps.ts";
 
 // ================================================================================
@@ -39,6 +42,7 @@ export type FigureInputs =
   | ChartOHInputs
   | TimeseriesInputs
   | SimpleVizInputs
+  | VizGraphInputs
   | MapInputs;
 
 export type MeasuredFigure =
@@ -47,6 +51,7 @@ export type MeasuredFigure =
   | MeasuredChartOH
   | MeasuredTimeseries
   | MeasuredSimpleViz
+  | MeasuredVizGraph
   | MeasuredMap;
 
 // ================================================================================
@@ -63,6 +68,7 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
         "chartOHData" in item ||
         "timeseriesData" in item ||
         "simpleVizData" in item ||
+        "vizGraphData" in item ||
         "mapData" in item)
     );
   },
@@ -144,6 +150,8 @@ function getRendererForFigureItem(
     ? TimeseriesRenderer
     : SimpleVizRenderer.isType(item)
     ? SimpleVizRenderer
+    : VizGraphRenderer.isType(item)
+    ? VizGraphRenderer
     : MapRenderer.isType(item)
     ? MapRenderer
     : undefined;

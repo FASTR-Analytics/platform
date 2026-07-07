@@ -694,9 +694,9 @@ export function generateYTextAxisPrimitive(
 
   const nIndicators = indicatorHeaders.length;
   const rowInner = centeredTicks
-    ? subChartAreaHeight / nIndicators
+    ? subChartAreaHeight / Math.max(1, nIndicators)
     : (subChartAreaHeight - sg.gridStrokeWidth * (nIndicators + 1)) /
-      nIndicators;
+      Math.max(1, nIndicators);
 
   let currentY = centeredTicks
     ? subChartAreaY

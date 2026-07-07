@@ -10,9 +10,9 @@ import { BETA_HEADERS } from "../deps.ts";
 ////////////////////////////////////////////////////////////////////////////////
 
 export type BetaHeaderConfig = {
-  hasTools?: boolean;
-  hasWebFetch?: boolean;
-  interleavedThinking?: boolean;
+  // True only when the request carries the basic web_fetch_20250910 tool
+  // (pre-4.6 models); the _20260209 web tools are GA and need no beta.
+  hasBasicWebFetch?: boolean;
   hasDocuments?: boolean;
 };
 
@@ -23,16 +23,8 @@ export function getBetaHeaders(
 ): Record<typeof ANTHROPIC_BETA_HEADER, string> | undefined {
   const headers: string[] = [];
 
-  if (config.hasTools) {
-    headers.push(BETA_HEADERS.STRUCTURED_OUTPUTS);
-  }
-
-  if (config.hasWebFetch) {
+  if (config.hasBasicWebFetch) {
     headers.push(BETA_HEADERS.WEB_FETCH);
-  }
-
-  if (config.interleavedThinking) {
-    headers.push(BETA_HEADERS.INTERLEAVED_THINKING);
   }
 
   if (config.hasDocuments) {

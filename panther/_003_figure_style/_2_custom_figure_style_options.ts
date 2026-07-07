@@ -19,6 +19,7 @@ import {
   type TableHeaderInfoFunc,
   type TickLabelFormatterOption,
   type ValuesColorFunc,
+  type VizGraphEdgeInfoFunc,
 } from "./deps.ts";
 import type {
   ArrowheadFitFallback,
@@ -420,6 +421,29 @@ export type CustomFigureStyleOptions = {
       lineDash?: "solid" | "dashed";
       truncateStart?: number;
       truncateEnd?: number;
+    };
+  };
+
+  // VizGraph (node-edge graph figures; layout config lives in the data's
+  // layoutOptions — this is visual style only)
+  vizgraph?: {
+    nodes?: {
+      fillColor?: ColorKeyOrString;
+      strokeColor?: ColorKeyOrString;
+      strokeWidth?: number;
+      rectRadius?: number;
+      padding?: PaddingOptions;
+      maxTextWidth?: number;
+      textGap?: number;
+    };
+    edges?: {
+      strokeColor?: ColorKeyOrString;
+      strokeWidth?: number;
+      lineDash?: "solid" | "dashed";
+      arrowheadSize?: number;
+      // Per-edge overrides; precedence: per-edge data > this callback >
+      // the global values above. thickness also feeds engine clearance.
+      edgeInfo?: VizGraphEdgeInfoFunc;
     };
   };
   /////////////////////////////////////////////////////////////////////////////

@@ -35,6 +35,9 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   // SimpleViz
   "simplevizBoxTextPrimary",
   "simplevizBoxTextSecondary",
+  // VizGraph
+  "vizgraphNodeTextPrimary",
+  "vizgraphNodeTextSecondary",
 ] as const;
 
 // Extract the type from the const array

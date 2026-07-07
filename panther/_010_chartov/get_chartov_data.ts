@@ -9,12 +9,15 @@ import {
   collectHeaders,
   createArray,
   createHeaderItems,
+  deriveVisibleIndicatorsByPane,
+  deriveVisibleLanesByPane,
   fillValuesWithDuplicateCheck,
   getHeaderIndex,
   isRowBasedUncertainty,
   type JsonArray,
   type ProcessedHeaders,
   sortHeaderItems,
+  validateChartMembership,
   validateDataInput,
   validateUncertaintyConfig,
 } from "./deps.ts";
@@ -94,10 +97,13 @@ export function getChartOVDataJsonTransformed(
     paneProp,
     tierProp,
     uncertainty,
+    membership,
     labelReplacements,
     sort,
     sortIndicatorValues,
   } = jsonDataConfig;
+
+  validateChartMembership(membership, ["indicator", "lane"], "tier", "ChartOV");
 
   if (uncertainty) {
     validateUncertaintyConfig(uncertainty, valueProps, [
@@ -346,6 +352,15 @@ export function getChartOVDataJsonTransformed(
     }
   }
 
+  // Derived from the FINAL arrays (post-sortIndicatorValues reorder) so the
+  // mask's indices match the final indicator order.
+  const visibleIndicatorsByPane = membership?.indicator === "unbalanced"
+    ? deriveVisibleIndicatorsByPane(finalValues, finalBounds, nIndicators)
+    : undefined;
+  const visibleLanesByPane = membership?.lane === "unbalanced"
+    ? deriveVisibleLanesByPane(finalValues, finalBounds, nLanes)
+    : undefined;
+
   return {
     isTransformed: true,
     indicatorHeaders: finalIndicatorHeaders,
@@ -357,5 +372,7 @@ export function getChartOVDataJsonTransformed(
     bounds: finalBounds,
     scaleAxisLimits: scaleLimits,
     yScaleAxisLabel: jsonDataConfig.yScaleAxisLabel?.trim(),
+    visibleIndicatorsByPane,
+    visibleLanesByPane,
   };
 }

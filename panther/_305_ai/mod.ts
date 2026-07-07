@@ -27,7 +27,7 @@ export { useConversations } from "./_components/use_conversations.ts";
 export { createAITool } from "./_core/tool_helpers.ts";
 export { createAskUserQuestionsTool } from "./_components/ask_user_questions.tsx";
 export { createSDKClient } from "./_core/sdk_client.ts";
-export { callAI } from "./_core/one_shot.ts";
+export { callAI, callAIStructured } from "./_core/one_shot.ts";
 export { getBetaHeaders } from "./_core/beta_headers.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -49,7 +49,11 @@ export type {
   AskUserQuestionsInput,
   AskUserQuestionsOption,
 } from "./_core/ask_user_questions_types.ts";
-export type { CallAIConfig, CallAIResult } from "./_core/one_shot.ts";
+export type {
+  CallAIConfig,
+  CallAIResult,
+  CallAIStructuredResult,
+} from "./_core/one_shot.ts";
 export type {
   BuiltInToolsConfig,
   WebFetchToolConfig,
@@ -71,8 +75,11 @@ export {
   BETA_HEADERS,
   BUILTIN_TOOL_TYPES,
   DEFAULT_PRICING,
+  getMaxOutputTokens,
   MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
   MODEL_PRICING,
   SERVER_TOOL_LABELS,
+  supportsManualThinking,
+  supportsSamplingParams,
 } from "../_110_ai_types/mod.ts";

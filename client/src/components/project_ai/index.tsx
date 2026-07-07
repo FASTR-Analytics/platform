@@ -6,6 +6,7 @@ import {
 } from "panther";
 import { createMemo, onCleanup, onMount, type ParentProps } from "solid-js";
 import {
+  DEFAULT_BUILTIN_TOOLS,
   DEFAULT_MODEL_CONFIG,
   createProjectSDKClient,
 } from "./ai_configs/defaults";
@@ -146,6 +147,7 @@ function AIProjectWrapperInner(props: ParentProps) {
         sdkClient,
         modelConfig: DEFAULT_MODEL_CONFIG,
         tools: tools() as AIChatConfig["tools"],
+        builtInTools: DEFAULT_BUILTIN_TOOLS,
         scope: projectId,
         system: systemPrompt,
         getDocumentRefs: aiDocs.getDocumentRefs,

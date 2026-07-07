@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit --skipLibCheck"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.71.0",
+    "@anthropic-ai/sdk": "^0.110.0",
     "@clerk/clerk-js": "^5.56.0",
     "@codemirror/lang-markdown": "^6.0.0",
     "@codemirror/merge": "^6.0.0",

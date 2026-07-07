@@ -56,6 +56,9 @@ export const Z_INDEX = {
   // SimpleViz defaults
   SIMPLEVIZ_ARROW: 490, // Behind boxes by default
   SIMPLEVIZ_BOX: 500,
+  // VizGraph defaults
+  VIZGRAPH_EDGE: 490, // Behind nodes by default
+  VIZGRAPH_NODE: 500,
   // Cascade defaults
   CASCADE_ARROW: 550,
   // Map defaults
@@ -392,6 +395,29 @@ export type ArrowPrimitive = BasePrimitive & {
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
+//    VizGraph Primitives                                                     //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+// Orthogonal edge route with rounded corners (cubic segments) and optional
+// arrowheads. Nodes reuse BoxPrimitive (simpleviz-box).
+export type VizGraphEdgePrimitive = BasePrimitive & {
+  type: "vizgraph-edge";
+  meta: {
+    edgeId: string;
+    fromNodeId: string;
+    toNodeId: string;
+  };
+  pathSegments: PathSegment[];
+  pathStyle: PathStyle;
+  arrowheads?: {
+    start?: Arrowhead;
+    end?: Arrowhead;
+  };
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
 //    Sankey Primitives                                                       //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
@@ -659,6 +685,8 @@ export type Primitive =
   // SimpleViz primitives
   | BoxPrimitive
   | ArrowPrimitive
+  // VizGraph primitives
+  | VizGraphEdgePrimitive
   // Sankey primitives
   | SankeyNodePrimitive
   | SankeyLinkPrimitive

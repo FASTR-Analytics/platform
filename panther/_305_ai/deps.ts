@@ -8,23 +8,40 @@ export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
 export { createMarkdownIt } from "../_105_markdown/mod.ts";
 export {
   BETA_HEADERS,
+  buildCancelledToolResults,
+  buildToolResultUserMessage,
   BUILTIN_TOOL_TYPES,
+  classifyTurnContinuation,
   DEFAULT_PRICING,
+  getMaxOutputTokens,
+  getSupportedEffortLevels,
+  getUserFacingAIErrorMessage,
+  lastMessageHasUnresolvedToolUse,
   MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
   MODEL_PRICING,
+  resolveOutputConfig,
+  resolveThinkingConfig,
+  sanitizePersistedSettings,
   SERVER_TOOL_LABELS,
+  shapeCachedPayload,
+  shapeEphemeralSystemMessages,
+  stripEphemeralContext,
+  supportsDynamicWebTools,
+  supportsMidConversationSystem,
+  supportsSamplingParams,
+  trimDanglingServerToolUse,
+  wrapWithEphemeralContext,
 } from "../_110_ai_types/mod.ts";
 export type {
   AnthropicModel,
   AnthropicModelConfig,
-  AnthropicResponse,
   CacheControl,
   ContentBlock,
   DocumentContentBlock,
+  EffortLevel,
   MessageParam,
-  MessagePayload,
-  StreamEvent,
+  SystemNoticeType,
   Usage,
 } from "../_110_ai_types/mod.ts";
 export {
@@ -45,6 +62,7 @@ export type {
 } from "../_303_components/mod.ts";
 export { default as Anthropic } from "@anthropic-ai/sdk";
 export type { default as AnthropicType } from "@anthropic-ai/sdk";
+export { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 export { del, get, set } from "idb-keyval";
 export { default as MarkdownIt } from "markdown-it";
 export {

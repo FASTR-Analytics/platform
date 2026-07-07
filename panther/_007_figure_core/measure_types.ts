@@ -42,6 +42,13 @@ export interface SimplifiedChartConfig<
     laneHeaders: HeaderItem[];
     seriesHeaders: HeaderItem[];
     indicatorHeaders?: HeaderItem[];
+    // Per-pane visible subsets (global indices) for unbalanced membership.
+    // Absent = balanced (every pane shows the full global set). Only the
+    // categorical-direction dims are ever masked: indicators + lanes on
+    // ChartOV, indicators + tiers on ChartOH.
+    visibleIndicatorsByPane?: number[][];
+    visibleTiersByPane?: number[][];
+    visibleLanesByPane?: number[][];
   };
   xAxisConfig: XAxisConfig;
   yAxisConfig: YAxisConfig;
@@ -66,6 +73,10 @@ export interface MeasurePaneConfig<TData> {
     laneHeaders: HeaderItem[];
     seriesHeaders: HeaderItem[];
     indicatorHeaders?: HeaderItem[];
+    // Per-pane visible subsets (global indices). Absent = balanced.
+    visibleIndicatorsByPane?: number[][];
+    visibleTiersByPane?: number[][];
+    visibleLanesByPane?: number[][];
   };
   data: TData;
   baseStyle: MergedChartStyleBase;

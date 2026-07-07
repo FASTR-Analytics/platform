@@ -52,6 +52,8 @@ export function measureChartOV(
       laneHeaders: transformedData.laneHeaders,
       seriesHeaders: transformedData.seriesHeaders,
       indicatorHeaders: transformedData.indicatorHeaders,
+      visibleIndicatorsByPane: transformedData.visibleIndicatorsByPane,
+      visibleLanesByPane: transformedData.visibleLanesByPane,
     },
     xAxisConfig: {
       type: "text",

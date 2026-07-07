@@ -6,17 +6,16 @@
 export type {
   AnthropicModel,
   AnthropicModelConfig,
-  AnthropicResponse,
   CacheControl,
   ContentBlock,
   DocumentContentBlock,
   DocumentSource,
+  EffortLevel,
   MessageParam,
   MessagePayload,
   MessageRole,
+  OutputConfig,
   RedactedThinkingBlock,
-  StreamDelta,
-  StreamEvent,
   ThinkingBlock,
   ThinkingConfig,
   ToolDefinition,
@@ -27,10 +26,49 @@ export {
   BETA_HEADERS,
   BUILTIN_TOOL_TYPES,
   DEFAULT_PRICING,
+  getMaxOutputTokens,
+  getSupportedEffortLevels,
   MAX_OUTPUT_TOKENS,
+  MODEL_MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
   MODEL_PRICING,
+  RETIRED_MODEL_IDS,
   SERVER_TOOL_LABELS,
+  supportsAdaptiveThinking,
+  supportsDisabledThinking,
+  supportsDynamicWebTools,
+  supportsManualThinking,
+  supportsMidConversationSystem,
+  supportsSamplingParams,
 } from "./anthropic_consts.ts";
+
+export {
+  countPayloadBreakpoints,
+  resolveOutputConfig,
+  resolveThinkingConfig,
+  sanitizePersistedSettings,
+  shapeCachedPayload,
+} from "./request_shaping.ts";
+
+export type { PersistedModelSettings, SystemParam } from "./request_shaping.ts";
+
+export {
+  buildCancelledToolResults,
+  buildToolResultUserMessage,
+  classifyTurnContinuation,
+  getUserFacingAIErrorMessage,
+  lastMessageHasUnresolvedToolUse,
+  shapeEphemeralSystemMessages,
+  stripEphemeralContext,
+  trimDanglingServerToolUse,
+  wrapWithEphemeralContext,
+} from "./turn_logic.ts";
+
+export type {
+  AIErrorInfo,
+  SystemNoticeType,
+  ToolResultBlock,
+  TurnContinuation,
+} from "./turn_logic.ts";
 
 export type { ModelPricing } from "./anthropic_consts.ts";

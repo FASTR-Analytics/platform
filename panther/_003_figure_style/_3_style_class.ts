@@ -27,6 +27,7 @@ import type {
   MergedSimpleVizStyle,
   MergedTableStyle,
   MergedTimeseriesStyle,
+  MergedVizGraphStyle,
   MergedXPeriodAxisStyle,
   MergedXScaleAxisStyle,
   MergedXTextAxisStyle,
@@ -1409,6 +1410,118 @@ export class CustomFigureStyle {
           g.simpleviz?.arrows?.truncateEnd,
           d.simpleviz.arrows.truncateEnd,
         ),
+      },
+    };
+  }
+
+  getMergedVizGraphStyle(): MergedVizGraphStyle {
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+    const sf = this._sf;
+    const baseText = this._baseText;
+    return {
+      alreadyScaledValue: sf,
+      text: {
+        primary: getTextInfo(
+          c.text?.vizgraphNodeTextPrimary,
+          g.text?.vizgraphNodeTextPrimary,
+          baseText,
+        ),
+        secondary: getTextInfo(
+          c.text?.vizgraphNodeTextSecondary,
+          g.text?.vizgraphNodeTextSecondary,
+          baseText,
+        ),
+        base: baseText,
+      },
+      nodes: {
+        fillColor: getColor(
+          m(
+            c.vizgraph?.nodes?.fillColor,
+            g.vizgraph?.nodes?.fillColor,
+            d.vizgraph.nodes.fillColor,
+          ),
+        ),
+        strokeColor: getColor(
+          m(
+            c.vizgraph?.nodes?.strokeColor,
+            g.vizgraph?.nodes?.strokeColor,
+            d.vizgraph.nodes.strokeColor,
+          ),
+        ),
+        strokeWidth: ms(
+          sf,
+          c.vizgraph?.nodes?.strokeWidth,
+          g.vizgraph?.nodes?.strokeWidth,
+          d.vizgraph.nodes.strokeWidth,
+        ),
+        rectRadius: ms(
+          sf,
+          c.vizgraph?.nodes?.rectRadius,
+          g.vizgraph?.nodes?.rectRadius,
+          d.vizgraph.nodes.rectRadius,
+        ),
+        padding: msPadding(
+          sf,
+          c.vizgraph?.nodes?.padding,
+          g.vizgraph?.nodes?.padding,
+          d.vizgraph.nodes.padding,
+        ),
+        maxTextWidth: ms(
+          sf,
+          c.vizgraph?.nodes?.maxTextWidth,
+          g.vizgraph?.nodes?.maxTextWidth,
+          d.vizgraph.nodes.maxTextWidth,
+        ),
+        textGap: ms(
+          sf,
+          c.vizgraph?.nodes?.textGap,
+          g.vizgraph?.nodes?.textGap,
+          d.vizgraph.nodes.textGap,
+        ),
+      },
+      edges: {
+        strokeColor: getColor(
+          m(
+            c.vizgraph?.edges?.strokeColor,
+            g.vizgraph?.edges?.strokeColor,
+            d.vizgraph.edges.strokeColor,
+          ),
+        ),
+        strokeWidth: ms(
+          sf,
+          c.vizgraph?.edges?.strokeWidth,
+          g.vizgraph?.edges?.strokeWidth,
+          d.vizgraph.edges.strokeWidth,
+        ),
+        lineDash: m(
+          c.vizgraph?.edges?.lineDash,
+          g.vizgraph?.edges?.lineDash,
+          d.vizgraph.edges.lineDash,
+        ),
+        arrowheadSize: ms(
+          sf,
+          c.vizgraph?.edges?.arrowheadSize,
+          g.vizgraph?.edges?.arrowheadSize,
+          d.vizgraph.edges.arrowheadSize,
+        ),
+        edgeInfo: (info) => {
+          const raw = m(
+            c.vizgraph?.edges?.edgeInfo,
+            g.vizgraph?.edges?.edgeInfo,
+            d.vizgraph.edges.edgeInfo,
+          )(info);
+          return {
+            thickness: raw.thickness === undefined
+              ? undefined
+              : raw.thickness * sf,
+            strokeColor: raw.strokeColor === undefined
+              ? undefined
+              : getColor(raw.strokeColor),
+            lineDash: raw.lineDash,
+          };
+        },
       },
     };
   }

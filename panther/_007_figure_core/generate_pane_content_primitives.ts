@@ -84,6 +84,37 @@ export function generatePaneContentPrimitives<TData>(
     laneHeader: laneHeaders[i_lane],
   });
 
+  // Unbalanced tier/lane membership: this pane's visible band subsets
+  // (global indices). The tier×lane loop iterates the subset — dropped bands
+  // are whole subcharts — while every index used inside stays global.
+  const visibleTiersOfPane = config.dataProps.visibleTiersByPane?.[i_pane];
+  const visibleLanesOfPane = config.dataProps.visibleLanesByPane?.[i_pane];
+  const tierIndices = visibleTiersOfPane ?? tierHeaders.map((_, i) => i);
+  const laneIndices = visibleLanesOfPane ?? laneHeaders.map((_, i) => i);
+
+  // Unbalanced indicator membership: this pane's visible subset of the text
+  // axis. Positions (slots, ticks, grid lines) use the subset; every data
+  // lookup (dense loops, i_val, info callbacks) keeps the GLOBAL index.
+  const visibleIndicators = config.dataProps.visibleIndicatorsByPane?.[i_pane];
+  const textAxisHeaders = xAxisConfig.type === "text"
+    ? xAxisConfig.indicatorHeaders
+    : yAxisConfig.type === "text"
+    ? yAxisConfig.indicatorHeaders
+    : undefined;
+  let positionOrdinals: (number | undefined)[] | undefined;
+  let visibleTextAxisHeaders: typeof textAxisHeaders;
+  if (visibleIndicators !== undefined && textAxisHeaders !== undefined) {
+    const ordinals: (number | undefined)[] = textAxisHeaders.map(() =>
+      undefined
+    );
+    visibleIndicators.forEach((globalIdx, ordinal) => {
+      ordinals[globalIdx] = ordinal;
+    });
+    positionOrdinals = ordinals;
+    visibleTextAxisHeaders = visibleIndicators.map((i) => textAxisHeaders[i]);
+  }
+  const nVisibleTextIndicators = visibleTextAxisHeaders?.length;
+
   // Overhang clearances: inset the scale axis's value range
   // within each plot area so extreme tick labels and edge data labels stay
   // inside the plot rect. start-side overhang can be absorbed by the
@@ -204,11 +235,13 @@ export function generatePaneContentPrimitives<TData>(
   let currentPlotAreaY = measured.yAxisRcd.y() + baseStyle.tiers.paddingTop +
     measured.tierHeaderAndLabelGapHeight;
 
-  for (let i_tier = 0; i_tier < tierHeaders.length; i_tier++) {
+  for (let tierOrdinal = 0; tierOrdinal < tierIndices.length; tierOrdinal++) {
+    const i_tier = tierIndices[tierOrdinal];
     let currentPlotAreaX = measured.yAxisRcd.rightX() +
       baseStyle.lanes.paddingLeft;
 
-    for (let i_lane = 0; i_lane < laneHeaders.length; i_lane++) {
+    for (let laneOrdinal = 0; laneOrdinal < laneIndices.length; laneOrdinal++) {
+      const i_lane = laneIndices[laneOrdinal];
       const rcd = new RectCoordsDims({
         x: currentPlotAreaX,
         y: currentPlotAreaY,
@@ -227,6 +260,7 @@ export function generatePaneContentPrimitives<TData>(
         yAxisConfig,
         measured.yAxisWidthInfo,
         yClearance,
+        nVisibleTextIndicators,
       );
       const verticalGridLines = calculateXAxisGridLines(
         i_lane,
@@ -235,6 +269,7 @@ export function generatePaneContentPrimitives<TData>(
         measured.xAxisMeasuredInfo,
         baseStyle.grid.gridStrokeWidth,
         xClearance,
+        nVisibleTextIndicators,
       );
 
       // Grid primitive
@@ -281,7 +316,8 @@ export function generatePaneContentPrimitives<TData>(
             break;
           }
           case "text":
-            if (i_lane === 0) {
+            // First ITERATED lane (mirror of the tierOrdinal === 0 guard).
+            if (laneOrdinal === 0) {
               allPrimitives.push(
                 generateYTextAxisPrimitive(
                   rc,
@@ -291,7 +327,7 @@ export function generatePaneContentPrimitives<TData>(
                   measured.yAxisRcd,
                   rcd.y(),
                   measured.subChartAreaHeight,
-                  yAxisConfig.indicatorHeaders,
+                  visibleTextAxisHeaders ?? yAxisConfig.indicatorHeaders,
                   yAxisConfig.axisStyle,
                   baseStyle.grid,
                 ),
@@ -305,10 +341,12 @@ export function generatePaneContentPrimitives<TData>(
       }
 
       // X-axis primitive — per (pane, lane).
-      // For text/period: drawn once per lane on tier 0 (at the bottom of the pane).
-      // For scale: drawn once per lane on tier 0 (at the bottom of the pane); range varies per lane.
+      // For text/period: drawn once per lane on the first iterated tier (at
+      // the bottom of the pane). For scale: same; range varies per lane.
+      // First ITERATED tier, not global tier 0 — under unbalanced tier
+      // membership a pane's first visible tier may have a global index > 0.
       const xAxisKey = `${i_pane}-${i_lane}`;
-      if (!generatedXAxes.has(xAxisKey) && i_tier === 0) {
+      if (!generatedXAxes.has(xAxisKey) && tierOrdinal === 0) {
         switch (xAxisConfig.type) {
           case "text": {
             allPrimitives.push(
@@ -318,7 +356,7 @@ export function generatePaneContentPrimitives<TData>(
                 i_lane,
                 rcd.x(),
                 measured.xAxisMeasuredInfo as XTextAxisMeasuredInfo,
-                xAxisConfig.indicatorHeaders,
+                visibleTextAxisHeaders ?? xAxisConfig.indicatorHeaders,
                 xAxisConfig.axisStyle,
                 baseStyle.grid,
               ),
@@ -385,13 +423,17 @@ export function generatePaneContentPrimitives<TData>(
             yAxisConfig,
             measured.yAxisWidthInfo,
           );
+          // nVals stays GLOBAL (dense-array loop bound); only the row-height
+          // divisor uses this pane's visible slot count.
           nVals = yCfg.nVals;
           isCentered = yCfg.isCentered;
+          const nSlots = nVisibleTextIndicators ?? nVals;
           // Per-indicator row height inside the plot area.
           categoryIncrement = isCentered
-            ? measured.subChartAreaHeight / nVals
+            ? measured.subChartAreaHeight / Math.max(1, nSlots)
             : (measured.subChartAreaHeight -
-              baseStyle.grid.gridStrokeWidth * (nVals + 1)) / nVals;
+              baseStyle.grid.gridStrokeWidth * (nSlots + 1)) /
+              Math.max(1, nSlots);
         } else {
           valueRange = getScaleAxisValueRange(measured.yAxisWidthInfo, i_tier);
           const xCfg = getXAxisRenderConfig(
@@ -426,6 +468,7 @@ export function generatePaneContentPrimitives<TData>(
             dataLabelsTextStyle: baseStyle.text.dataLabels,
             boundsUbSeriesVals: chartData.bounds?.ub[i_pane][i_tier][i_lane],
             boundsLbSeriesVals: chartData.bounds?.lb[i_pane][i_tier][i_lane],
+            positionOrdinals,
           }),
         );
       }

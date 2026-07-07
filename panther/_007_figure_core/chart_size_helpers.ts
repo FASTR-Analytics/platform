@@ -25,6 +25,26 @@ import {
 import { measureSurrounds } from "./_surrounds/measure_surrounds.ts";
 import { calculatePaneGrid } from "./dimension_helpers.ts";
 
+// Max per-pane visible member count (indicators, tiers, or lanes) under
+// unbalanced membership; the global count when balanced (mask absent).
+// Intrinsic sizing reserves space for the fullest pane instead of the
+// global union.
+export function maxVisibleCount(
+  visibleByPane: number[][] | undefined,
+  nGlobal: number,
+): number {
+  if (!visibleByPane || visibleByPane.length === 0) {
+    return nGlobal;
+  }
+  let max = 0;
+  for (const visible of visibleByPane) {
+    if (visible.length > max) {
+      max = visible.length;
+    }
+  }
+  return max;
+}
+
 export type ChartComponentSizes = {
   customFigureStyle: CustomFigureStyle;
   mergedStyle: MergedChartStyleBase;

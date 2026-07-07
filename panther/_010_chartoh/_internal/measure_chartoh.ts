@@ -52,6 +52,8 @@ export function measureChartOH(
       laneHeaders: transformedData.laneHeaders,
       seriesHeaders: transformedData.seriesHeaders,
       indicatorHeaders: transformedData.indicatorHeaders,
+      visibleIndicatorsByPane: transformedData.visibleIndicatorsByPane,
+      visibleTiersByPane: transformedData.visibleTiersByPane,
     },
     xAxisConfig: {
       type: "scale",

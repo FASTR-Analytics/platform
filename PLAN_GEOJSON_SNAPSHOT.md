@@ -9,11 +9,11 @@ save-side coverage counts, export resilience, and upload hardening are live
 its two remainders were absorbed here (WS-COVERAGE below) and into
 SYSTEM_04/SYSTEM_05 Open items (upload-cap policy items).
 
-It builds on the existing project-snapshot docs — [VISION_PROJECT_SNAPSHOT.md](VISION_PROJECT_SNAPSHOT.md) (the why/end-state) and [PLAN_PROJECT_SNAPSHOT.md](PLAN_PROJECT_SNAPSHOT.md) (the how, where geojson is item **S2**, in **Step B**). This plan restates the principles a reviewer needs and stays scoped to geojson; read those two docs for the broader vision (facility-config S1, countryIso3 S4, structure self-containment, etc., which are out of scope here).
+It builds on the self-containment docs — now [VISION_RESULTS_RUNS.md](VISION_RESULTS_RUNS.md) (the why/end-state) and [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) (which superseded VISION/PLAN_PROJECT_SNAPSHOT; geojson is carried there as SNAP-2 in §8). **Storage-home note (2026-07-07):** under the results-runs plan the snapshot home becomes the run's `inputs/geojson/` files rather than a project-DB table; this plan's correctness workstreams (WS-DEDUP, WS-COVERAGE, WS-KEY) and settled decisions carry unchanged, and §2's `geojson_by_level` table stands only if this plan executes before runs Phase 1.
 
 ---
 
-## 0. The vision a reviewer needs (condensed from VISION_PROJECT_SNAPSHOT.md)
+## 0. The vision a reviewer needs (condensed from VISION_RESULTS_RUNS.md)
 
 A project should be a **fully self-contained, transportable unit** — a frozen snapshot that can be detached from the instance that produced it and attached elsewhere. **The one hard rule:** artifacts (layer 3 — visualizations, slide-decks, reports, dashboards) read **only** from the project snapshot (layer 2); the snapshot depends on **nothing** in instance data (layer 1) at read time. *No viz / report / deck / dashboard reads instance data, period.*
 
@@ -37,7 +37,7 @@ This single design choice (bare-name `area_id`) is simultaneously the **correctn
 
 ## 2. Target architecture
 
-1. **Project-level geojson snapshot.** A `geojson_by_level` snapshot table in the **project DB** with a project-local `last_updated` stamp. (PLAN_PROJECT_SNAPSHOT.md open-question 1 recommends the project-level table over per-figure `geo.data` embedding — DRY, no heavy duplication.)
+1. **Project-level geojson snapshot.** A `geojson_by_level` snapshot table in the **project DB** with a project-local `last_updated` stamp. (Settled: one shared copy per level beats per-figure `geo.data` embedding — DRY, no heavy duplication. See the storage-home note at the top: under the runs plan this becomes `inputs/geojson/` files.)
 2. **Capture.** Snapshot the resolved geojson into the project in the dataset-add / integration transaction (or a dedicated capture step), reusing the **datasets pattern** (mirror table + `last_updated`). Always capture as **`geo.kind:'data'`** (await preload); never freeze a live `kind:'level'` pointer.
 3. **Read path.** Artifacts resolve geometry from the **project snapshot**, not `instanceState` / main DB. `build_figure_inputs` reads project geo.
 4. **Cache coherence.** Fold the snapshot's `last_updated` into the PO cache version key — **server + client byte-identical** (the vision's hard rule: snapshotting alone doesn't fix caching).
@@ -126,7 +126,7 @@ wizard shows them — `e3cac93d`). Remaining:
 4. **WS-LIFECYCLE** — versioning/audit/drift-repair/safe-delete; best once the WS-KEY key model is stable (the audit-log + safe-delete slice can be pulled forward independently).
 5. **WS-EFFICIENCY** — P2; the serving/compression slice is independent and can run in parallel from the start; simplification + the AA4 worker land opportunistically.
 
-**Relative to the broader snapshot effort:** PLAN_PROJECT_SNAPSHOT.md Step A (facility-config drift, S1/N1) is separate and precedes this; **geojson is Step B**. The portability end-state (serialization, attach/detach — Step C) is meaningful only once geojson and the other stragglers are snapshot-local.
+**Relative to the broader effort:** facility-config drift (S1/N1) is now dissolved by [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) (manifest capture, its §8); geojson remains the headline straggler, carried there as SNAP-2. The portability end-state (transportable runs) is meaningful only once geojson and the other stragglers are snapshot-local.
 
 ---
 
@@ -161,7 +161,7 @@ inherits them:
 ## 7. Open decisions for the reviewer / Tim
 
 1. **Match-key migration appetite (the central fork).** The **full snapshot-local-id model** (WS-KEY: migration + backfill + transform of every stored `kind:'data'` snapshot) vs an **interim "normalize + parent-qualify within the existing name string"** that fixes Haiti/Cameroun cheaply but is *not* snapshot-local → would have to be redone for portability. *Recommendation: do the full model once — it is the entire point of S2 — accepting it is the larger effort.*
-2. **Capture trigger / propagation.** Capture geojson at dataset-add (like other inputs, "pinned to last integration") vs a dedicated geojson-capture action; and how an instance remap propagates to existing projects (live re-export vs pinned). Mirrors PLAN_PROJECT_SNAPSHOT.md's S1 propagation question.
+2. **Capture trigger / propagation.** Capture geojson at dataset-add (like other inputs, "pinned to last integration") vs a dedicated geojson-capture action; and how an instance remap propagates to existing projects (live re-export vs pinned). Under [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) this resolves to: captured at run generation; propagation = generate a new run.
 3. **Efficiency scope.** Compression + double-serialize fix now (cheap, high-ratio) vs deferred; simplification in or out (lossy/topology risk).
 4. **Versioning cost.** Keep N prior multi-MB blobs per level, a single rollback slot, or audit-metadata-only (who/when, no full prior geometry)?
 

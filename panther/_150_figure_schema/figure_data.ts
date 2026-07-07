@@ -11,6 +11,7 @@ import type {
   SimpleVizData,
   TableData,
   TimeseriesData,
+  VizGraphData,
 } from "./deps.ts";
 import { zAnyPresentObject } from "./shared.ts";
 import { zChartOHData } from "./chartoh.ts";
@@ -24,6 +25,7 @@ export type FigureData =
   | { chartOHData: ChartOHData }
   | { timeseriesData: TimeseriesData }
   | { simpleVizData: SimpleVizData }
+  | { vizGraphData: VizGraphData }
   | { mapData: MapData };
 
 // One member per FigureInputs data field (same discriminator set as
@@ -37,6 +39,7 @@ export const zFigureData: z.ZodType<FigureData> = z.union([
   z.object({ chartOHData: zChartOHData }),
   z.object({ timeseriesData: zTimeseriesData }),
   z.object({ simpleVizData: zAnyPresentObject<SimpleVizData>() }),
+  z.object({ vizGraphData: zAnyPresentObject<VizGraphData>() }),
   z.object({ mapData: zAnyPresentObject<MapData>() }),
 ]);
 

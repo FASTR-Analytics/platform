@@ -72,21 +72,108 @@ Note: choice labels are parsed today, but the numeric **constraint** strings
 (where `-999999` lives) are **not** — `parseXlsForm` reads only type/name/label
 and discards the `constraint` column. Layer 1 must add constraint parsing.
 
-### Where to start (layer 1)
+### Implementation approach (layer 1)
 
-- **XLSForm parse:** `server/server_only_funcs_csvs/parse_xlsform.ts` →
-  `parseXlsForm` (choice labels: `choices` sheet loop; survey vars: `survey`
-  sheet). Add `constraint`-column reading here.
-- **Variable dictionary (target of the new classification field):** type
-  `HfaVariableRow` in `lib/types/dataset_hfa.ts`; tables `hfa_variables` /
-  `hfa_variable_values` in
-  `server/db/migrations/instance/023_hfa_schema_redesign.sql`; DB access
-  `server/db/instance/dataset_hfa.ts`; populated during staging in
-  `server/worker_routines/stage_hfa_data_csv/worker.ts` (~L356-446).
-- **Import wizard (host the review step):**
-  `client/src/components/instance_dataset_hfa_import/` — `index.tsx`
-  (`DatasetHfaUploadAttemptForm`, 4-step stepper); a review step slots between
-  `step_3.tsx` (staging) and `step_4.tsx` (results).
+**Storage — one column, `hfa_variable_values.sentinel_class TEXT NULL`
+(the one fork worth a ruling).** The classification is a property of a
+`(question, code)` pair, and `hfa_variable_values` is already keyed exactly
+`(time_point, var_name, value)`. So the natural home is a nullable
+`sentinel_class` column there: `null` = substantive answer (untouched, per
+principle 5), non-null = one of `dont_know | refused | other | not_applicable |
+question_specific`. Layer 3 then reads missingness per-variable straight off
+this column instead of the hardcoded `c(-99, -999999)`.
+
+The wrinkle: **numeric vars have no `hfa_variable_values` rows today** — the
+staging `else` branch (`worker.ts:425-427`) writes only a `hfa_variables` row,
+no value rows, because integer/decimal questions have no choice list. The
+numeric don't-know (`-999999`) lives only in the XLSForm `constraint` string.
+Two ways to store it:
+
+- **(A, recommended) synthesize a value row.** During staging, for each numeric
+  sentinel parsed from the constraint, emit a `hfa_variable_values` row
+  (`value = "-999999"`, `value_label = "Don't know (numeric)"`,
+  `sentinel_class = "dont_know"`). Unifies storage — Layer 3 reads one place —
+  and self-documents the sentinel in the dictionary. Cost: numeric vars gain a
+  value row where they had none, so **verify the two downstream readers** don't
+  choke or mislead: the display builder that fills
+  `HfaVariableRow.questionnaireValues`/`dataValues`, and the AI variable-dictionary
+  tools (`get_hfa_variable_dictionary`, `inspect_hfa_variable`). Showing "-999999
+  → Don't know" on a numeric var is arguably an improvement, but confirm.
+- **(B) separate `numeric_sentinels` column on `hfa_variables`.** Keeps numeric
+  rows untouched; costs Layer 3 a second lookup path and bifurcates the model.
+
+Recommend **(A)** unless the downstream-reader check turns up a real problem.
+This is the single decision I'd want confirmed before building.
+
+**Classification heuristic (the crux — derive, then let a human correct).**
+Two derivation paths feed the same `sentinel_class`:
+
+- *Choice-list path* (select_one + expanded select_multiple binaries). Classify
+  by **choice label first, code second** — codes are form-specific (`-99` here,
+  `98`/`-88` elsewhere) so labels are the reliable signal:
+  - `dont_know` ← `/don'?t know|unknown|not known|\bdk\b/i`
+  - `refused` ← `/refus|declin/i` (refused / refus / recusou)
+  - `other` ← `/^\s*other\b|other \(specify\)|autre|outro/i`
+  - `not_applicable` ← `/not applicable|\bn\/?a\b|não se aplica|sans objet/i`
+  - `question_specific` ← the fallback bucket for a sentinel-*looking* code
+    (negative / out-of-band code, e.g. `-98` "no CHWs in catchment") whose label
+    matched none of the above → flagged for review.
+  - No match and not sentinel-looking ⇒ leave `null` (substantive: Yes/No,
+    service categories, real options). Compute once per `list_name`, apply to
+    every var using that list.
+- *Numeric-constraint path* (integer/decimal). Add `constraint`-column reading
+  to `parseXlsForm` (today it discards it), then extract explicit equality
+  escapes with `/\.\s*==?\s*(-?\d+)/g` — matches `. = -999999`, **not** the
+  `<=`/`>=` range bounds. Each captured value → a synthesized sentinel row;
+  classify `-999999`→`dont_know` via a small known-value map, everything else →
+  `question_specific` for review.
+
+Everything above is a *proposal* the import wizard shows for confirmation — the
+review step is what makes an imperfect heuristic safe.
+
+**End-to-end data-flow changes (in order):**
+
+1. **`parse_xlsform.ts`** — add `constraint?: string` to `XlsFormVarInfo`; read
+   the `constraint` column (optional, via `findLabelColumn`-style lookup) in the
+   survey-sheet loop.
+2. **`lib/hfa_sentinel_classification.ts` (new)** — pure functions
+   `classifyChoice(code, label)` and `parseNumericSentinels(constraint)`
+   returning `SentinelClass | null`. Kept in `lib/` so both staging and any
+   future validation reuse it. Single source for the keyword families above.
+3. **Staging (`stage_hfa_data_csv/worker.ts`)** — add `sentinel_class` to
+   `DICT_VALUES_STAGING_TABLE` + the `tup(...)` calls (L364-371, L397-424); run
+   the classifier while building `dictValueRows`; in the numeric `else` branch,
+   parse the constraint and push synthesized sentinel value rows.
+4. **Migration (new file, instance)** — `ALTER TABLE hfa_variable_values ADD
+   COLUMN sentinel_class TEXT`. Do **not** edit `023_...sql`. Nullable; existing
+   rows stay null until re-import (same precedent as the select_multiple fix).
+5. **Integrate (`integrate_hfa_data/worker.ts:137-145`)** — carry `sentinel_class`
+   through the `INSERT INTO hfa_variable_values ... SELECT ...` promotion.
+6. **Review step (wizard).** Stepper today: step 3 `updateDatasetHfaStaging`
+   (stages), step 4 `finalizeDatasetHfaIntegration` (promotes). The review slots
+   **after staging, before finalize** — it reads the staged classification and
+   persists corrections back onto `DICT_VALUES_STAGING_TABLE`, so the finalize
+   promotion (step 5 above) carries the *corrected* values. New server actions:
+   `getDatasetHfaStagedSentinels` / `updateDatasetHfaStagedSentinels`. UI: a
+   table grouped by var, sentinel-classed rows editable via a class dropdown,
+   substantive rows shown read-only/collapsed. Renumber the stepper to 5 steps
+   (`maxStep: 5`, new `Step4Review`, results → `Step5`) or splice a sub-view into
+   step 4 — pick per how much the stepper renumber ripples (`index.tsx`
+   `getValidation` + the `<Match>` arms).
+
+**Layer 1 ↔ Layer 3 compatibility contract (don't skip).** Existing datasets
+carry `sentinel_class = null` until re-imported. So Layer 3's per-variable
+generator **must fall back to the hardcoded `c(-99, -999999)` set when a var has
+no classified sentinel rows** — otherwise un-reimported data loses all
+missingness detection. Layer 1 ships the classification; Layer 3 consumes it
+*with* the fallback. (A blanket backfill isn't clean — old numeric sentinel rows
+don't exist and the source XLSForm asset may be gone.)
+
+**Suggested commit sequence:** (1) `parseXlsForm` constraint + classifier lib
+(pure, testable in isolation); (2) migration + staging population + integrate
+carry-through (data path end-to-end, verifiable by importing and querying
+`hfa_variable_values`); (3) the wizard review step (UI, last, once the data it
+edits is real).
 
 ## Remaining — Layer 3: per-class policy, per-variable generator
 

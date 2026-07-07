@@ -771,6 +771,14 @@ export class PdfRenderContext implements RenderContext {
         this._jsPdf.setDrawColor(rgba.r, rgba.g, rgba.b);
       }
       this._jsPdf.setLineWidth(style.stroke.width);
+      if (style.stroke.lineDash === "dashed") {
+        this._jsPdf.setLineDashPattern(
+          [style.stroke.width * 5, style.stroke.width * 4],
+          0,
+        );
+      } else {
+        this._jsPdf.setLineDashPattern([], 0);
+      }
     }
 
     if (hasFill && hasStroke) {
@@ -788,6 +796,9 @@ export class PdfRenderContext implements RenderContext {
     } else if (hasStroke) {
       this._jsPdf.stroke();
     }
+
+    // Safety measure
+    this._jsPdf.setLineDashPattern([], 0);
   }
 
   withClip(bounds: RectCoordsDimsOptions, fn: () => void): void {

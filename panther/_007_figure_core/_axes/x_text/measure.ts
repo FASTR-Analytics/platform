@@ -21,6 +21,13 @@ export function measureXTextAxis(
   indicatorHeaders: HeaderItem[],
   axisStyle: MergedXTextAxisStyle,
   gridStyle: MergedGridStyle,
+  // Unbalanced indicator membership: this pane's visible subset drives the
+  // slot/tick LAYOUT, while the axis EXTENT (height) stays measured from the
+  // global set at the global slot width. Per-pane extents would give panes
+  // different plot rects and break cross-pane scale-direction alignment; the
+  // global measure is a safe upper bound (a subset at a wider slot never
+  // wraps taller).
+  visibleIndicatorHeaders?: HeaderItem[],
 ): XTextAxisMeasuredInfo {
   const sx = axisStyle;
 
@@ -29,11 +36,15 @@ export function measureXTextAxis(
 
   const xAxisW = contentRcd.w() - yAxisAreaWidthIncludingStroke;
 
-  const indicatorAreaInnerWidth = sx.tickPosition === "center"
-    ? subChartAreaWidth / indicatorHeaders.length
-    : (subChartAreaWidth -
-      gridStyle.gridStrokeWidth * (indicatorHeaders.length + 1)) /
-      indicatorHeaders.length;
+  const innerWidthFor = (n: number) =>
+    sx.tickPosition === "center"
+      ? subChartAreaWidth / Math.max(1, n)
+      : (subChartAreaWidth - gridStyle.gridStrokeWidth * (n + 1)) /
+        Math.max(1, n);
+
+  const layoutHeaders = visibleIndicatorHeaders ?? indicatorHeaders;
+  const indicatorAreaInnerWidth = innerWidthFor(layoutHeaders.length);
+  const extentInnerWidth = innerWidthFor(indicatorHeaders.length);
 
   // Cap the vertical extent of rotated (vertical) tick labels so a long label
   // can't grow the axis without bound. This mirrors yTextAxis.maxTickLabelW,
@@ -49,9 +60,7 @@ export function measureXTextAxis(
     const mText = rc.mText(
       indicatorHeader.label,
       sx.text.xTextAxisTickLabels,
-      sx.verticalTickLabels
-        ? verticalTickLabelMaxHeight
-        : indicatorAreaInnerWidth,
+      sx.verticalTickLabels ? verticalTickLabelMaxHeight : extentInnerWidth,
       { rotation: sx.verticalTickLabels ? "anticlockwise" : undefined },
     );
     maxIndicatorTickLabelHeight = Math.max(

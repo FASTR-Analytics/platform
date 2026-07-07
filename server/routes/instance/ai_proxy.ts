@@ -70,8 +70,14 @@ routesInstanceAiProxy.post("/v1/messages", requireGlobalPermission("can_configur
     betaFeatures.push("files-api-2025-04-14");
   }
 
-  if (betaFeatures.length > 0) {
-    headers["anthropic-beta"] = betaFeatures.join(",");
+  // Forward any beta flags the panther SDK set (e.g. files-api) alongside the
+  // ones computed here, so SDK-gated features work without a proxy change.
+  // Safe: this endpoint is authenticated and panther is the only client.
+  const clientBetas = (c.req.header("anthropic-beta") ?? "")
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  const allBetas = [...new Set([...betaFeatures, ...clientBetas])];
+  if (allBetas.length > 0) {
+    headers["anthropic-beta"] = allBetas.join(",");
   }
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {

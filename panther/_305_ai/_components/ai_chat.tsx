@@ -11,13 +11,13 @@ import {
   Show,
   useContext,
 } from "solid-js";
-import type { AnthropicModel, CustomMarkdownStyleOptions } from "../deps.ts";
-import { createScrollManager } from "./_scroll_manager.ts";
 import {
-  AIChatConfigContext,
-  createAIChat,
+  type AnthropicModel,
+  type CustomMarkdownStyleOptions,
   lastMessageHasUnresolvedToolUse,
-} from "./_create_ai_chat.ts";
+} from "../deps.ts";
+import { createScrollManager } from "./_scroll_manager.ts";
+import { AIChatConfigContext, createAIChat } from "./_create_ai_chat.ts";
 import type { DisplayRegistry } from "../_core/types.ts";
 import { MessageInput } from "./message_input.tsx";
 import { MessageList } from "./message_list.tsx";

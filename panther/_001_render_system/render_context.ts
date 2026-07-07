@@ -99,6 +99,8 @@ export type PathStyle = {
     color: ColorKeyOrString;
     width: number;
     opacity?: number;
+    lineDash?: "solid" | "dashed"; // dash pattern derives from width
+    //   (×5 on / ×4 off), matching LineStyle's convention
   };
 };
 

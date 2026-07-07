@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AxisMembership,
   ChartScaleAxisLimits,
   CustomFigureStyle,
   FigureInputsBase,
@@ -38,6 +39,13 @@ export type ChartOHJsonDataConfig = {
   tierProp?: string | "--v";
   paneProp?: string | "--v";
   uncertainty?: UncertaintyConfig;
+  // Raggedness is allowed only along the categorical (y-text) direction:
+  // indicators (slots) and tiers (bands) both stack along y. "lane" carries
+  // the x-scale limits and is never allowed on ChartOH.
+  membership?: {
+    indicator?: AxisMembership;
+    tier?: AxisMembership;
+  };
   labelReplacements?: Record<string, string>;
   sort?: {
     indicator?: HeaderSortConfig;
@@ -64,6 +72,14 @@ export type ChartOHDataTransformed = {
   };
   scaleAxisLimits: ChartScaleAxisLimits;
   xScaleAxisLabel?: string;
+  // Per-pane visible indicator subsets (global indices, in global sorted
+  // order), present only for unbalanced indicator membership. Absent = every
+  // pane shows the full global set. Storage (values/bounds) stays dense.
+  visibleIndicatorsByPane?: number[][];
+  // Per-pane visible tier subsets (global indices), present only for
+  // unbalanced tier membership. Same masking model as indicators: dropped
+  // tiers are whole subchart rows.
+  visibleTiersByPane?: number[][];
 };
 
 export function isChartOHDataJson(d: ChartOHData): d is ChartOHDataJson {

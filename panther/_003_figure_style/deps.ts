@@ -59,4 +59,6 @@ export type {
   TableCellInfoFunc,
   TableHeaderInfo,
   TableHeaderInfoFunc,
+  VizGraphEdgeInfo,
+  VizGraphEdgeInfoFunc,
 } from "../_001_render_system/mod.ts";

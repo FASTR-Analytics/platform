@@ -9,6 +9,12 @@ import type { DisplayItem } from "./types.ts";
 export function getDisplayItemsFromMessage(
   message: MessageParam,
 ): DisplayItem[] {
+  // System messages carry ephemeral context for the model, never chat
+  // content — they are not displayed.
+  if (message.role === "system") {
+    return [];
+  }
+
   if (typeof message.content === "string") {
     const trimmed = message.content.trim();
     if (!trimmed) {
@@ -46,6 +52,18 @@ export function getDisplayItemsFromMessage(
   for (const block of content) {
     if (block.type === "tool_use") {
       flushText();
+      continue;
+    }
+
+    // Thinking summaries (thinking: {type: "adaptive", display:
+    // "summarized"}) render as their own collapsed item. With display
+    // "omitted" the thinking text is empty and nothing is shown.
+    if (block.type === "thinking" && block.thinking.trim()) {
+      flushText();
+      displayItems.push({
+        type: "thinking_summary",
+        text: block.thinking.trim(),
+      });
       continue;
     }
 

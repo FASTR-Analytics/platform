@@ -9,21 +9,31 @@ import {
   type AnthropicModelConfig,
   Button,
   createSignal,
+  type EffortLevel,
+  getMaxOutputTokens,
+  getSupportedEffortLevels,
   MAX_OUTPUT_TOKENS,
   ModalContainer,
   MODEL_OPTIONS,
+  resolveOutputConfig,
   Select,
   Show,
   Slider,
+  supportsSamplingParams,
   t3,
 } from "../deps.ts";
 
 export type AIChatSettingsValues = Pick<
   AnthropicModelConfig,
-  "model" | "max_tokens" | "temperature"
+  "model" | "max_tokens" | "temperature" | "output_config"
 >;
 
-export type AIChatSettingsField = keyof AIChatSettingsValues;
+// UI field names — "effort" adjusts output_config.effort.
+export type AIChatSettingsField =
+  | "model"
+  | "max_tokens"
+  | "temperature"
+  | "effort";
 
 export type AIChatSettingsPanelProps = {
   initialValues: AIChatSettingsValues;
@@ -55,6 +65,28 @@ export function AIChatSettingsPanel(p: Props) {
     p.initialValues.temperature ?? 1,
   );
   const [maxTokens, setMaxTokens] = createSignal(p.initialValues.max_tokens);
+  const [effort, setEffort] = createSignal<EffortLevel | "">(
+    p.initialValues.output_config?.effort ?? "",
+  );
+
+  const EFFORT_LABELS: Record<EffortLevel, string> = {
+    low: t3({ en: "Low", fr: "Faible", pt: "Baixo" }),
+    medium: t3({ en: "Medium", fr: "Moyen", pt: "Médio" }),
+    high: t3({ en: "High", fr: "Élevé", pt: "Alto" }),
+    xhigh: t3({ en: "Extra high", fr: "Très élevé", pt: "Muito alto" }),
+    max: t3({ en: "Max", fr: "Max", pt: "Máx" }),
+  };
+
+  const effortOptions = () => [
+    {
+      value: "" as const,
+      label: t3({ en: "Default", fr: "Par défaut", pt: "Padrão" }),
+    },
+    ...getSupportedEffortLevels(model()).map((level) => ({
+      value: level,
+      label: EFFORT_LABELS[level],
+    })),
+  ];
 
   return (
     <ModalContainer
@@ -72,8 +104,19 @@ export function AIChatSettingsPanel(p: Props) {
             onClick={() =>
               p.close({
                 model: model(),
-                temperature: temperature(),
-                max_tokens: maxTokens(),
+                // Models from Opus 4.7 onward reject non-default sampling
+                // params — don't carry a temperature setting onto them.
+                temperature: supportsSamplingParams(model())
+                  ? temperature()
+                  : undefined,
+                max_tokens: Math.min(maxTokens(), getMaxOutputTokens(model())),
+                // Re-resolve in case the model changed after the effort was
+                // picked (unsupported levels are clamped/dropped per model).
+                output_config: effort()
+                  ? resolveOutputConfig(model(), {
+                    effort: effort() as EffortLevel,
+                  })
+                  : undefined,
               })}
           >
             {t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" })}
@@ -93,7 +136,19 @@ export function AIChatSettingsPanel(p: Props) {
           fullWidth
         />
       </Show>
-      <Show when={fields.has("temperature")}>
+      <Show
+        when={fields.has("effort") &&
+          getSupportedEffortLevels(model()).length > 0}
+      >
+        <Select
+          label={t3({ en: "Effort", fr: "Effort", pt: "Esforço" })}
+          value={effort()}
+          options={effortOptions()}
+          onChange={setEffort}
+          fullWidth
+        />
+      </Show>
+      <Show when={fields.has("temperature") && supportsSamplingParams(model())}>
         <Slider
           label={t3({
             en: "Temperature",
@@ -119,7 +174,7 @@ export function AIChatSettingsPanel(p: Props) {
           value={maxTokens()}
           onChange={(v) => setMaxTokens(Math.round(v))}
           min={MAX_OUTPUT_TOKENS.MIN}
-          max={MAX_OUTPUT_TOKENS.MAX}
+          max={getMaxOutputTokens(model())}
           step={MAX_OUTPUT_TOKENS.STEP}
           showValueInLabel
           valueInLabelFormatter={(v) =>

@@ -35,11 +35,12 @@
     "jsr:@std/streams@^1.0.8": "1.0.8",
     "jsr:@std/yaml@1.0.5": "1.0.5",
     "jsr:@zip-js/zip-js@*": "2.8.26",
-    "npm:@anthropic-ai/sdk@0.71": "0.71.2_zod@4.1.13",
+    "npm:@anthropic-ai/sdk@0.110": "0.110.0_zod@4.1.13",
     "npm:@clerk/backend@^1.25.2": "1.34.0",
     "npm:@codemirror/lang-markdown@6": "6.5.0",
     "npm:@codemirror/merge@6": "6.11.2",
     "npm:@codemirror/state@6": "6.5.2",
+    "npm:@duckdb/node-api@1.3.2-alpha.25": "1.3.2-alpha.25",
     "npm:@hono/clerk-auth@2": "2.0.1_@clerk+backend@1.34.0_hono@4.8.10",
     "npm:@solidjs/router@0.15": "0.15.4_solid-js@1.9.3__seroval@1.3.2",
     "npm:@types/node@*": "24.6.2",
@@ -58,6 +59,7 @@
     "npm:papaparse@^5.5.2": "5.5.2",
     "npm:parse-multipart@^1.0.4": "1.0.4",
     "npm:postgres@*": "3.4.5",
+    "npm:postgres@3.4.4": "3.4.4",
     "npm:postgres@^3.4.5": "3.4.5",
     "npm:pptxgenjs@^4.0.1": "4.0.1",
     "npm:redis@^4.7.0": "4.7.1_@redis+client@1.6.1",
@@ -192,10 +194,11 @@
     }
   },
   "npm": {
-    "@anthropic-ai/sdk@0.71.2_zod@4.1.13": {
-      "integrity": "sha512-TGNDEUuEstk/DKu0/TflXAEt+p+p/WhTlFzEnoosvbaDU2LTjm42igSdlL0VijrKpWejtOKxX0b8A7uc+XiSAQ==",
+    "@anthropic-ai/sdk@0.110.0_zod@4.1.13": {
+      "integrity": "sha512-hOP4bNYXDFHDxxiEgzlILXrxZIYCDnhe8sry0RDRKD/QnsEpvZcQpablCdm9X/WuD/YgOiSIkkqsL1mLLlTqJw==",
       "dependencies": [
         "json-schema-to-ts",
+        "standardwebhooks",
         "zod"
       ],
       "optionalPeers": [
@@ -353,6 +356,47 @@
         "w3c-keyname"
       ]
     },
+    "@duckdb/node-api@1.3.2-alpha.25": {
+      "integrity": "sha512-AzDyyjTtnYUxoy/MHDFRwfOggDOkS8RBgGA82OI6nla8B9NDNZeAYJ97T3PvCL8cx7y00EtGVN3g03aoW4fRmw==",
+      "dependencies": [
+        "@duckdb/node-bindings"
+      ]
+    },
+    "@duckdb/node-bindings-darwin-arm64@1.3.2-alpha.25": {
+      "integrity": "sha512-vRjzNgkz2TAYW5c2rzPwcHBctBWr0lxQ4blFASAv0DdeGPOeuCMXJUA3982X7iPNwAppH0VMII6cYzON0GA+RA==",
+      "os": ["darwin"],
+      "cpu": ["arm64"]
+    },
+    "@duckdb/node-bindings-darwin-x64@1.3.2-alpha.25": {
+      "integrity": "sha512-BSg/DZjT25QZe87+pmdMfE1XlHdi2WxtAO+F2PEXN6VnPeLyTdl5bYlnhOGrDKquKDmUEqok5OwF7mR4QfU+Aw==",
+      "os": ["darwin"],
+      "cpu": ["x64"]
+    },
+    "@duckdb/node-bindings-linux-arm64@1.3.2-alpha.25": {
+      "integrity": "sha512-VhjUH/AvolZWDX/URqiIh58JbAB1vYbDgSmQ0wvqhS9jzJ9Sj88urGDw+XWXw49Rr4BhIgDtX70SoARhO2i/Gg==",
+      "os": ["linux"],
+      "cpu": ["arm64"]
+    },
+    "@duckdb/node-bindings-linux-x64@1.3.2-alpha.25": {
+      "integrity": "sha512-raav2ypBiV4TlpnKU9hocsuFDO4ipwIcQQmkMIh20/Qd9vkv35QcQYNqStiZVJh2LAaVoQffNvcKMlclblYqUQ==",
+      "os": ["linux"],
+      "cpu": ["x64"]
+    },
+    "@duckdb/node-bindings-win32-x64@1.3.2-alpha.25": {
+      "integrity": "sha512-/fAKax+xYkdRhkUl3PkL3HfFd1ZsezG1yiOkL0StHBdD3xB80Njm1JGHxx1fO3WWE5XTbE1MTJ5I0xjEzPwsfQ==",
+      "os": ["win32"],
+      "cpu": ["x64"]
+    },
+    "@duckdb/node-bindings@1.3.2-alpha.25": {
+      "integrity": "sha512-FkoSaoeRAi6Em0hs0qzr3SN04ykN99R+Qap5kLwhi6GNPnHzWMU1VrNpK9cE4eBj0n+RWlNK0TiO712dn44QzQ==",
+      "optionalDependencies": [
+        "@duckdb/node-bindings-darwin-arm64",
+        "@duckdb/node-bindings-darwin-x64",
+        "@duckdb/node-bindings-linux-arm64",
+        "@duckdb/node-bindings-linux-x64",
+        "@duckdb/node-bindings-win32-x64"
+      ]
+    },
     "@hono/clerk-auth@2.0.1_@clerk+backend@1.34.0_hono@4.8.10": {
       "integrity": "sha512-tc59vpU022NgM4AHHI+r0FIext6slHEXsZaRcMNfllTnN2gkcNmSNCrAH04lLmGr9Lfb/RmpATefgW+6/cnuNA==",
       "dependencies": [
@@ -452,6 +496,9 @@
       "dependencies": [
         "solid-js"
       ]
+    },
+    "@stablelib/base64@1.0.1": {
+      "integrity": "sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ=="
     },
     "@types/node@22.12.0": {
       "integrity": "sha512-Fll2FZ1riMjNmlmJOdAyY5pUbkftXslB5DgEzlIuNaiWhXd00FhWxVC/r4yV/4wBb9JfImTu+jiSvXTkJ7F/gA==",
@@ -599,6 +646,9 @@
         "iobuffer",
         "pako@2.1.0"
       ]
+    },
+    "fast-sha256@1.3.0": {
+      "integrity": "sha512-n11RGP/lrWEFI/bWdygLxhI+pVeo1ZYIVwvvPkW7azl/rOy+F3HYRZ2K5zeE9mmkhQppyv9sQFx0JM9UabnpPQ=="
     },
     "fflate@0.8.2": {
       "integrity": "sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A=="
@@ -770,6 +820,9 @@
     "performance-now@2.1.0": {
       "integrity": "sha512-7EAHlyLHI56VEIdK57uwHdHKIaAGbnXPiw0yWbarQZOKaKpvUIgW0jWRVLiatnM+XXlSwsanIBH/hzGMJulMow=="
     },
+    "postgres@3.4.4": {
+      "integrity": "sha512-IbyN+9KslkqcXa8AO9fxpk97PA4pzewvpi2B3Dwy9u4zpV32QicaEdgmF3eSQUzdRk7ttDHQejNgAEr4XoeH4A=="
+    },
     "postgres@3.4.5": {},
     "pptxgenjs@4.0.1": {
       "integrity": "sha512-TeJISr8wouAuXw4C1F/mC33xbZs/FuEG6nH9FG1Zj+nuPcGMP5YRHl6X+j3HSUnS1f3at6k75ZZXPMZlA5Lj9A==",
@@ -882,6 +935,13 @@
     },
     "stackblur-canvas@2.7.0": {
       "integrity": "sha512-yf7OENo23AGJhBriGx0QivY5JP6Y1HbrrDI6WLt6C5auYZXlQrheoY8hD4ibekFKz1HOfE48Ww8kMWMnJD/zcQ=="
+    },
+    "standardwebhooks@1.0.0": {
+      "integrity": "sha512-BbHGOQK9olHPMvQNHWul6MYlrRTAOKn03rOe4A8O3CLWhNf4YHBqq2HJKKC+sfqpxiBY52pNeesD6jIiLDz8jg==",
+      "dependencies": [
+        "@stablelib/base64",
+        "fast-sha256"
+      ]
     },
     "std-env@3.9.0": {
       "integrity": "sha512-UGvjygr6F6tpH7o2qyqR6QYpwraIjKSdtzyBdyytFOHmPZY917kwdwLG0RbOjWOnKmnm3PeHjaoLLMie7kPLQw=="
@@ -1396,7 +1456,7 @@
       "jsr:@std/fs@1",
       "jsr:@std/path@1",
       "jsr:@std/streams@^1.0.8",
-      "npm:@anthropic-ai/sdk@0.71",
+      "npm:@anthropic-ai/sdk@0.110",
       "npm:@clerk/backend@^1.25.2",
       "npm:@hono/clerk-auth@2",
       "npm:@types/papaparse@^5.3.15",
@@ -1417,7 +1477,7 @@
           "jsr:@std/fs@0.217.0",
           "jsr:@std/path@0.217.0",
           "jsr:@std/yaml@1.0.5",
-          "npm:@anthropic-ai/sdk@0.71",
+          "npm:@anthropic-ai/sdk@0.110",
           "npm:@codemirror/lang-markdown@6",
           "npm:@codemirror/merge@6",
           "npm:@codemirror/state@6",

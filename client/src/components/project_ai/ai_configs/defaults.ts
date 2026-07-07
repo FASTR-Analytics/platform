@@ -5,9 +5,14 @@ import { _SERVER_HOST } from "~/server_actions";
 export const DEFAULT_MODEL_CONFIG = {
   model: DEFAULT_ANTHROPIC_MODEL,
   max_tokens: 4096,
+  // Effort default, not exposed in the settings UI. "high" matches the API's
+  // implicit default for the allowed 4.x models (dropped automatically for
+  // models that don't support effort), so this pins current behaviour rather
+  // than changing it; lower to "medium" to trade some quality for token cost.
+  output_config: { effort: "high" as const },
 };
 
-export const DEFAULT_BUILTIN_TOOLS = { webSearch: true };
+export const DEFAULT_BUILTIN_TOOLS = { webSearch: true, webFetch: true };
 
 const ISO_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
 

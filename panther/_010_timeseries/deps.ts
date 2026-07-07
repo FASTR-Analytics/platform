@@ -52,10 +52,8 @@ export type {
   FigureInputsBase,
   JsonArray,
   LegendInput,
-  LegendItem,
   MeasuredSurrounds,
   PaneLayout,
   SimplifiedChartConfig,
   UncertaintyConfig,
-  XPeriodAxisMeasuredInfo,
 } from "../_007_figure_core/mod.ts";

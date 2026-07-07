@@ -23,6 +23,8 @@ import type {
   SimpleVizInputs,
   TableInputs,
   TimeseriesInputs,
+  VizGraphData,
+  VizGraphInputs,
 } from "./deps.ts";
 import { type Conforms, zAnyPresentObject } from "./shared.ts";
 import { zChartOHData } from "./chartoh.ts";
@@ -199,6 +201,15 @@ const _zSimpleVizInputsConforms: Conforms<
   SimpleVizInputs
 > = true;
 
+export const zVizGraphInputs = z.object({
+  ...figureInputsBaseFields,
+  vizGraphData: zAnyPresentObject<VizGraphData>(),
+});
+const _zVizGraphInputsConforms: Conforms<
+  z.infer<typeof zVizGraphInputs>,
+  VizGraphInputs
+> = true;
+
 export const zMapInputs = z.object({
   ...figureInputsBaseFields,
   mapData: zAnyPresentObject<MapData>(),
@@ -214,6 +225,7 @@ export const zFigureInputs: z.ZodType<FigureInputs> = z.union([
   zChartOHInputs,
   zTimeseriesInputs,
   zSimpleVizInputs,
+  zVizGraphInputs,
   zMapInputs,
 ]);
 

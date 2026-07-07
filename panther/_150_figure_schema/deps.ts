@@ -6,6 +6,7 @@
 export type { PeriodType } from "../_000_utils/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export type {
+  AxisMembership,
   HeaderItem,
   HeaderSortConfig,
   HeaderSortFunc,
@@ -60,5 +61,9 @@ export type {
   TimeseriesInputs,
   TimeseriesJsonDataConfig,
 } from "../_010_timeseries/mod.ts";
+export type {
+  VizGraphData,
+  VizGraphInputs,
+} from "../_010_vizgraph_figure/mod.ts";
 export type { FigureInputs } from "../_011_figure_renderer/mod.ts";
 export { z } from "zod";

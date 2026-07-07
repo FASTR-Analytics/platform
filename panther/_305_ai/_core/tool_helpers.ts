@@ -30,6 +30,10 @@ export interface SDKTool<TInput = unknown> {
     additionalProperties: false;
   };
   run: (input: TInput) => Promise<string>;
+  // Matches the SDK's BetaRunnableTool contract — the tool runner calls
+  // parse() (when present) before run(). Optional so hand-constructed tools
+  // in consumer apps keep compiling; createAITool always provides it.
+  parse?: (content: unknown) => TInput;
 }
 
 export interface AIToolWithMetadata<TInput = unknown> {
@@ -87,7 +91,10 @@ export function createAITool<TInput, TOutput = string>(
     name: config.name,
     description: config.description,
     input_schema: zodToJsonSchema(config.inputSchema),
+    parse: (content: unknown) => config.inputSchema.parse(content) as TInput,
     run: async (input: TInput) => {
+      // Validate here too — the manual chat loop calls run() directly
+      // without going through parse().
       const validated = config.inputSchema.parse(input) as TInput;
       const result = await Promise.resolve(config.handler(validated));
       return typeof result === "string" ? result : JSON.stringify(result);

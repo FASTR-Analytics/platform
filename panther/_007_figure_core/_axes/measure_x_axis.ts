@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  type HeaderItem,
   type MergedGridStyle,
   RectCoordsDims,
   type RenderContext,
@@ -42,6 +43,9 @@ export function measureXAxis(
   gridStyle: MergedGridStyle,
   i_pane: number,
   laneCount: number,
+  // This pane's visible indicator subset (unbalanced membership); text axis
+  // only. See measureXTextAxis for the extent/layout split.
+  visibleIndicatorHeaders?: HeaderItem[],
 ): XAxisMeasuredInfo {
   switch (xAxisConfig.type) {
     case "text":
@@ -53,6 +57,7 @@ export function measureXAxis(
         xAxisConfig.indicatorHeaders,
         xAxisConfig.axisStyle,
         gridStyle,
+        visibleIndicatorHeaders,
       );
     case "period":
       return measureXPeriodAxis(

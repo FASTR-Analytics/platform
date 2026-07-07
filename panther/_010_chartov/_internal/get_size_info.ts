@@ -9,6 +9,7 @@ import {
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   estimateMinYAxisWidth,
+  maxVisibleCount,
   type RenderContext,
   resolveDefaultLegend,
 } from "../deps.ts";
@@ -81,10 +82,18 @@ export function getChartOVComponentSizes(
     }
   }
 
+  // Unbalanced membership: reserve width for the fullest pane, not the
+  // global union. perColumnWidth stays measured from the global label set
+  // (a safe upper bound for any pane's subset).
+  const nIndicatorSlots = maxVisibleCount(
+    data.visibleIndicatorsByPane,
+    nIndicators,
+  );
   const gridStrokeWidth = ms.grid.gridStrokeWidth;
   const minSubChartWidth = ms.xTextAxis.tickPosition === "center"
-    ? nIndicators * perColumnWidth
-    : nIndicators * perColumnWidth + gridStrokeWidth * (nIndicators + 1);
+    ? nIndicatorSlots * perColumnWidth
+    : nIndicatorSlots * perColumnWidth +
+      gridStrokeWidth * (nIndicatorSlots + 1);
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,
@@ -94,7 +103,8 @@ export function getChartOVComponentSizes(
   return {
     customFigureStyle: cs,
     mergedStyle: ms,
-    nLanes: data.laneHeaders.length,
+    // Unbalanced lane membership: reserve width for the fullest pane.
+    nLanes: maxVisibleCount(data.visibleLanesByPane, data.laneHeaders.length),
     nTiers: data.tierHeaders.length,
     paneHeaders: data.paneHeaders,
     minSubChartWidth,

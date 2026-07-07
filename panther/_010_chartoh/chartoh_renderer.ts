@@ -14,6 +14,7 @@ import {
   type ChartComponentSizes,
   getChartHeightConstraintsByMeasure,
   type HeightConstraints,
+  maxVisibleCount,
   measureChartWithAutofit,
   type PaneLayout,
   RectCoordsDims,
@@ -129,7 +130,11 @@ function buildOHResolveTarget(
   data: ChartOHDataTransformed,
 ): ResolveTargetPlotH {
   return (info, probeLayouts) => {
-    const nIndicators = data.indicatorHeaders.length;
+    // Unbalanced membership: size for the fullest pane, not the global union.
+    const nIndicators = maxVisibleCount(
+      data.visibleIndicatorsByPane,
+      data.indicatorHeaders.length,
+    );
     if (nIndicators === 0) return info.minSubChartHeight;
     const ohStyle = info.mergedStyle as MergedChartOHStyle;
     const nSeries = data.seriesHeaders.length;
@@ -168,7 +173,11 @@ function buildOHResolveFloor(
   data: ChartOHDataTransformed,
 ): ResolveFloorPlotH {
   return (info, probeLayouts) => {
-    const nIndicators = data.indicatorHeaders.length;
+    // Unbalanced membership: size for the fullest pane, not the global union.
+    const nIndicators = maxVisibleCount(
+      data.visibleIndicatorsByPane,
+      data.indicatorHeaders.length,
+    );
     if (nIndicators === 0) return info.minSubChartHeight;
     const ohStyle = info.mergedStyle as MergedChartOHStyle;
     const maxWrappedH = maxWrappedCategoryLabelH(

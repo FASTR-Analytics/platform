@@ -20,6 +20,7 @@ import {
   type TableCellInfoFunc,
   toPct0,
   type ValuesColorFunc,
+  type VizGraphEdgeInfoFunc,
 } from "./deps.ts";
 import type {
   ArrowheadFitFallback,
@@ -418,6 +419,25 @@ const _DS = {
       lineDash: typed<"solid" | "dashed">("solid"),
       truncateStart: 10,
       truncateEnd: 10,
+    },
+  },
+  // VizGraph
+  vizgraph: {
+    nodes: {
+      fillColor: typed<ColorKeyOrString>({ key: "base100" }),
+      strokeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
+      strokeWidth: 1,
+      rectRadius: 6,
+      padding: typed<PaddingOptions>(10),
+      maxTextWidth: 200,
+      textGap: 6,
+    },
+    edges: {
+      strokeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
+      strokeWidth: 1.5,
+      lineDash: typed<"solid" | "dashed">("solid"),
+      arrowheadSize: 7,
+      edgeInfo: typed<VizGraphEdgeInfoFunc>(() => ({})),
     },
   },
   // Sankey

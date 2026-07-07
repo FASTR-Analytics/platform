@@ -37,6 +37,14 @@ export function measurePane<TData>(
   const nTiers = tierHeaders.length;
   const headerPosition = baseStyle.tiers.headerPosition;
 
+  // Unbalanced tier/lane membership: this pane's visible band subsets
+  // (global indices). Space divisions and header-label placement iterate the
+  // subset; extent measures (header column width/row height) and every data
+  // lookup keep the global set/indices.
+  const visibleTiers = config.dataProps.visibleTiersByPane?.[i_pane];
+  const visibleLanes = config.dataProps.visibleLanesByPane?.[i_pane];
+  const nTierBands = visibleTiers ? Math.max(1, visibleTiers.length) : nTiers;
+
   const maxTierHeaderWidth = config.geometry.contentRcd.w() *
     baseStyle.tiers.maxHeaderWidthAsPctOfChart;
 
@@ -80,13 +88,23 @@ export function measurePane<TData>(
   );
 
   const nLanes = laneHeaders.length;
+  const nLaneBands = visibleLanes ? Math.max(1, visibleLanes.length) : nLanes;
   const lanes = baseStyle.lanes;
   const xAxisW = config.geometry.contentRcd.w() -
     yAxisWidthInfo.widthIncludingYAxisStrokeWidth;
   const subChartAreaWidth = (xAxisW -
-    (lanes.paddingLeft + Math.max(0, nLanes - 1) * lanes.gapX +
+    (lanes.paddingLeft + Math.max(0, nLaneBands - 1) * lanes.gapX +
       lanes.paddingRight)) /
-    Math.max(1, nLanes);
+    Math.max(1, nLaneBands);
+
+  // Unbalanced indicator membership: this pane's visible subset (x-text axis
+  // only — slot layout goes per-pane, axis extent stays global).
+  const xAxisConfig = config.xAxisConfig;
+  const visibleIndicators = config.dataProps.visibleIndicatorsByPane?.[i_pane];
+  const visibleXTextHeaders =
+    visibleIndicators !== undefined && xAxisConfig.type === "text"
+      ? visibleIndicators.map((i) => xAxisConfig.indicatorHeaders[i])
+      : undefined;
 
   const xAxisMeasuredInfo = measureXAxis(
     rc,
@@ -97,6 +115,7 @@ export function measurePane<TData>(
     baseStyle.grid,
     i_pane,
     nLanes,
+    visibleXTextHeaders,
   );
 
   const {
@@ -120,7 +139,7 @@ export function measurePane<TData>(
     yAxisWidthInfo,
     baseStyle.tiers,
     config.geometry.contentRcd,
-    nTiers,
+    nTierBands,
     tierHeaderAndLabelGapHeight,
   );
 
@@ -172,6 +191,7 @@ export function measurePane<TData>(
   labelPrimitives.push(
     ...tierHeaderLabelPrimitives(
       measuredTierHeaders,
+      visibleTiers ?? tierHeaders.map((_, i) => i),
       tierHeaderTopNudge,
       yAxisRcd,
       subChartAreaHeight,
@@ -192,6 +212,7 @@ export function measurePane<TData>(
   labelPrimitives.push(
     ...laneHeaderLabelPrimitives(
       measuredLaneHeaders,
+      visibleLanes ?? laneHeaders.map((_, i) => i),
       laneHeaderRcd,
       subChartAreaWidth,
       lanes.paddingLeft,
@@ -267,6 +288,10 @@ function measureLaneHeaders(
 
 function tierHeaderLabelPrimitives(
   measuredTexts: MeasuredText[],
+  // Global tier indices to place, in band order (the visible subset under
+  // unbalanced membership; all tiers when balanced). Positions run by band
+  // ordinal; keys/meta keep the global index.
+  tierIndices: number[],
   tierHeaderTopNudge: number,
   yAxisRcd: RectCoordsDims,
   subChartAreaHeight: number,
@@ -294,7 +319,7 @@ function tierHeaderLabelPrimitives(
     const boundsW = contentRcd.rightX() - boundsX;
     let currentY = yAxisRcd.y() + tiers.paddingTop;
 
-    for (let i_tier = 0; i_tier < measuredTexts.length; i_tier++) {
+    for (const i_tier of tierIndices) {
       const tierBounds = new RectCoordsDims({
         x: boundsX,
         y: currentY,
@@ -315,7 +340,7 @@ function tierHeaderLabelPrimitives(
   } else {
     let currentY = yAxisRcd.y() + tiers.paddingTop;
 
-    for (let i_tier = 0; i_tier < measuredTexts.length; i_tier++) {
+    for (const i_tier of tierIndices) {
       const tierY = tiers.headerAlignV === "top"
         ? currentY - tierHeaderTopNudge
         : currentY;
@@ -343,6 +368,10 @@ function tierHeaderLabelPrimitives(
 
 function laneHeaderLabelPrimitives(
   measuredTexts: MeasuredText[],
+  // Global lane indices to place, in band order (the visible subset under
+  // unbalanced membership; all lanes when balanced). Positions run by band
+  // ordinal; keys/meta keep the global index.
+  laneIndices: number[],
   laneHeaderRcd: RectCoordsDims,
   subChartAreaWidth: number,
   lanePaddingLeft: number,
@@ -355,7 +384,7 @@ function laneHeaderLabelPrimitives(
   const primitives: ChartLabelPrimitive[] = [];
   let currentX = laneHeaderRcd.x() + lanePaddingLeft;
 
-  for (let i_lane = 0; i_lane < measuredTexts.length; i_lane++) {
+  for (const i_lane of laneIndices) {
     const laneBounds = new RectCoordsDims({
       x: currentX,
       y: laneHeaderRcd.y(),

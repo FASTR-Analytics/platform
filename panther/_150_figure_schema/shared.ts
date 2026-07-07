@@ -5,6 +5,7 @@
 
 import { z } from "./deps.ts";
 import type {
+  AxisMembership,
   ChartScaleAxisLimits,
   ChartScaleAxisLimitsEntry,
   ChartScaleAxisPaneLimits,
@@ -96,6 +97,16 @@ export const zUncertaintyConfig: z.ZodType<UncertaintyConfig> = z.union([
     lbValueProps: z.array(z.string()),
   }),
 ]);
+
+export const zAxisMembership = z.enum(["balanced", "unbalanced"]);
+const _zAxisMembershipConforms: Conforms<
+  z.infer<typeof zAxisMembership>,
+  AxisMembership
+> = true;
+
+// Per-pane visible subsets (global indices) for unbalanced membership on the
+// transformed-data types (indicators, tiers, or lanes).
+export const zVisibleByPane = z.array(z.array(z.number()));
 
 export const zPeriodType = z.enum(["year-month", "year-quarter", "year"]);
 const _zPeriodTypeConforms: Conforms<z.infer<typeof zPeriodType>, PeriodType> =

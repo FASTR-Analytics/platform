@@ -54,7 +54,6 @@ export type {
   MapLabelPrimitive,
   MeasuredText,
   PathSegment,
-  PointStyle,
   PointType,
   Primitive,
   RectStyle,
@@ -66,6 +65,7 @@ export type {
   TableBorderPrimitive,
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
+  VizGraphEdgePrimitive,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {

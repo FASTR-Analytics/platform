@@ -14,6 +14,7 @@ import {
   CHART_LIMITS_LENGTH_MESSAGE,
   chartLimitsMatchHeaders,
   type Conforms,
+  zAxisMembership,
   zChartBounds,
   zChartScaleAxisLimits,
   zHeaderItems,
@@ -21,6 +22,7 @@ import {
   zJsonArray,
   zUncertaintyConfig,
   zValues5D,
+  zVisibleByPane,
 } from "./shared.ts";
 
 export const zChartOHJsonDataConfig = z.object({
@@ -31,6 +33,14 @@ export const zChartOHJsonDataConfig = z.object({
   tierProp: z.string().optional(),
   paneProp: z.string().optional(),
   uncertainty: zUncertaintyConfig.optional(),
+  // strict: a stray scale-direction key (lane on OH) must error, not be
+  // silently stripped — see validateChartMembership for the rule.
+  membership: z
+    .strictObject({
+      indicator: zAxisMembership.optional(),
+      tier: zAxisMembership.optional(),
+    })
+    .optional(),
   labelReplacements: z.record(z.string(), z.string()).optional(),
   sort: z
     .object({
@@ -69,6 +79,8 @@ const zChartOHDataTransformedObject = z.object({
   bounds: zChartBounds.optional(),
   scaleAxisLimits: zChartScaleAxisLimits,
   xScaleAxisLabel: z.string().optional(),
+  visibleIndicatorsByPane: zVisibleByPane.optional(),
+  visibleTiersByPane: zVisibleByPane.optional(),
 });
 const _zChartOHDataTransformedConforms: Conforms<
   z.infer<typeof zChartOHDataTransformedObject>,

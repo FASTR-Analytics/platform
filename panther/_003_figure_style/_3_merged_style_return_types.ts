@@ -23,6 +23,7 @@ import type {
   TextInfo,
   TextInfoUnkeyed,
   TickLabelFormatterOption,
+  VizGraphEdgeInfo,
 } from "./deps.ts";
 import type {
   ArrowheadFitFallback,
@@ -545,6 +546,36 @@ export type MergedSimpleVizStyle = {
     lineDash: "solid" | "dashed";
     truncateStart: number;
     truncateEnd: number;
+  };
+};
+
+export type MergedVizGraphStyle = {
+  alreadyScaledValue: number;
+  text: {
+    primary: TextInfoUnkeyed;
+    secondary: TextInfoUnkeyed;
+    base: TextInfo; // Unscaled base for per-node text style overrides
+  };
+  nodes: {
+    fillColor: string;
+    strokeColor: string;
+    strokeWidth: number;
+    rectRadius: number;
+    padding: Padding;
+    maxTextWidth: number;
+    textGap: number;
+  };
+  edges: {
+    strokeColor: string;
+    strokeWidth: number;
+    lineDash: "solid" | "dashed";
+    arrowheadSize: number;
+    // Resolved per-edge overrides: colors to strings, thickness scaled.
+    edgeInfo: (info: VizGraphEdgeInfo) => {
+      thickness?: number;
+      strokeColor?: string;
+      lineDash?: "solid" | "dashed";
+    };
   };
 };
 

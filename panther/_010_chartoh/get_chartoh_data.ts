@@ -9,12 +9,15 @@ import {
   collectHeaders,
   createArray,
   createHeaderItems,
+  deriveVisibleIndicatorsByPane,
+  deriveVisibleTiersByPane,
   fillValuesWithDuplicateCheck,
   getHeaderIndex,
   isRowBasedUncertainty,
   type JsonArray,
   type ProcessedHeaders,
   sortHeaderItems,
+  validateChartMembership,
   validateDataInput,
   validateUncertaintyConfig,
 } from "./deps.ts";
@@ -93,10 +96,13 @@ export function getChartOHDataJsonTransformed(
     paneProp,
     tierProp,
     uncertainty,
+    membership,
     labelReplacements,
     sort,
     sortIndicatorValues,
   } = jsonDataConfig;
+
+  validateChartMembership(membership, ["indicator", "tier"], "lane", "ChartOH");
 
   if (uncertainty) {
     validateUncertaintyConfig(uncertainty, valueProps, [
@@ -345,6 +351,15 @@ export function getChartOHDataJsonTransformed(
     }
   }
 
+  // Derived from the FINAL arrays (post-sortIndicatorValues reorder) so the
+  // mask's indices match the final indicator order.
+  const visibleIndicatorsByPane = membership?.indicator === "unbalanced"
+    ? deriveVisibleIndicatorsByPane(finalValues, finalBounds, nIndicators)
+    : undefined;
+  const visibleTiersByPane = membership?.tier === "unbalanced"
+    ? deriveVisibleTiersByPane(finalValues, finalBounds, nTiers)
+    : undefined;
+
   return {
     isTransformed: true,
     indicatorHeaders: finalIndicatorHeaders,
@@ -356,5 +371,7 @@ export function getChartOHDataJsonTransformed(
     bounds: finalBounds,
     scaleAxisLimits: scaleLimits,
     xScaleAxisLabel: jsonDataConfig.xScaleAxisLabel?.trim(),
+    visibleIndicatorsByPane,
+    visibleTiersByPane,
   };
 }

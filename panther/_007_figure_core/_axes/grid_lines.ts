@@ -28,6 +28,9 @@ export function calculateXAxisGridLines(
   xAxisMeasuredInfo: XAxisMeasuredInfo,
   gridStrokeWidth: number,
   clearance: OverhangClearance,
+  // Unbalanced indicator membership: this pane's visible slot count (text
+  // axis only). Grid lines are positional, so they follow the pane's layout.
+  visibleIndicatorCount?: number,
 ): { x: number; tickValue?: number }[] {
   switch (xAxisConfig.type) {
     case "text":
@@ -35,7 +38,7 @@ export function calculateXAxisGridLines(
         i_lane,
         plotAreaRcd,
         xAxisMeasuredInfo as XTextAxisMeasuredInfo,
-        xAxisConfig.indicatorHeaders.length,
+        visibleIndicatorCount ?? xAxisConfig.indicatorHeaders.length,
         gridStrokeWidth,
         xAxisConfig.axisStyle.tickPosition === "center",
       );
@@ -72,6 +75,9 @@ export function calculateYAxisGridLines(
   yAxisConfig: YAxisConfig,
   yAxisWidthInfo: YAxisWidthInfo,
   clearance: OverhangClearance,
+  // Unbalanced indicator membership: this pane's visible slot count (text
+  // axis only). Grid lines are positional, so they follow the pane's layout.
+  visibleIndicatorCount?: number,
 ): { y: number; tickValue?: number }[] {
   switch (yAxisConfig.type) {
     case "scale":
@@ -86,7 +92,8 @@ export function calculateYAxisGridLines(
       return calculateHorizontalGridLinesForTierYText(
         i_tier,
         plotAreaRcd,
-        (yAxisWidthInfo as YTextAxisWidthInfo).nIndicators,
+        visibleIndicatorCount ??
+          (yAxisWidthInfo as YTextAxisWidthInfo).nIndicators,
         gridStrokeWidth,
         yAxisConfig.axisStyle.tickPosition === "center",
       );

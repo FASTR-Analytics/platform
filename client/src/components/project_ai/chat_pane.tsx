@@ -72,7 +72,29 @@ function ToolErrorRenderer(props: { item: { errorMessage: string; errorDetails: 
   );
 }
 
-const customChatRenderers = { toolError: ToolErrorRenderer, userText: SaveableUserTextRenderer } as Parameters<typeof AIChat>[0]["customRenderers"];
+// Non-error turn outcomes (refusal, truncation, context-window exceeded,
+// continuation caps) arrive as system_notice items. Match the collapsible
+// look of ToolErrorRenderer so they read like the rest of the chat.
+function SystemNoticeRenderer(props: { item: { message: string; details: string } }) {
+  const [expanded, setExpanded] = createSignal(false);
+  return (
+    <div class="my-1">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-left text-xs"
+      >
+        <span class="mt-0.5">{expanded() ? "▾" : "▸"}</span>
+        <span class="font-medium">{props.item.message}</span>
+      </button>
+      <Show when={expanded()}>
+        <div class="ml-4 mt-1 text-xs">{props.item.details}</div>
+      </Show>
+    </div>
+  );
+}
+
+const customChatRenderers = { toolError: ToolErrorRenderer, systemNotice: SystemNoticeRenderer, userText: SaveableUserTextRenderer } as Parameters<typeof AIChat>[0]["customRenderers"];
 
 type ConsolidatedChatPaneProps = {
   aiDocs: ReturnType<typeof useAIDocuments>;
@@ -121,9 +143,10 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       props: {
         initialValues: current,
         allowedModels: [
+          "claude-opus-4-8",
           "claude-opus-4-6",
           "claude-sonnet-4-6",
-          "claude-haiku-4-5-20251001",
+          "claude-haiku-4-5",
         ],
       },
     });

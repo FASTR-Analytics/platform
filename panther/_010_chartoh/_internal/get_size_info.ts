@@ -10,6 +10,7 @@ import {
   estimateMinSurroundsWidth,
   estimateMinXAxisHeightForScale,
   estimateMinYTextAxisWidth,
+  maxVisibleCount,
   type RenderContext,
   resolveDefaultLegend,
 } from "../deps.ts";
@@ -68,10 +69,17 @@ export function getChartOHComponentSizes(
     const mText = rc.mText(header.label, textStyle, contentMaxWidth);
     if (mText.dims.h() > maxTickLabelH) maxTickLabelH = mText.dims.h();
   }
+  // Unbalanced membership: reserve height for the fullest pane, not the
+  // global union. maxTickLabelH stays measured from the global label set
+  // (a safe upper bound for any pane's subset).
+  const nIndicatorSlots = maxVisibleCount(
+    data.visibleIndicatorsByPane,
+    nIndicators,
+  );
   const gridStrokeWidth = ms.grid.gridStrokeWidth;
   const minSubChartHeight = ms.yTextAxis.tickPosition === "center"
-    ? nIndicators * maxTickLabelH
-    : nIndicators * maxTickLabelH + gridStrokeWidth * (nIndicators + 1);
+    ? nIndicatorSlots * maxTickLabelH
+    : nIndicatorSlots * maxTickLabelH + gridStrokeWidth * (nIndicatorSlots + 1);
 
   const resolvedLegendLabels = resolveDefaultLegend(
     inputs.legend,
@@ -82,7 +90,8 @@ export function getChartOHComponentSizes(
     customFigureStyle: cs,
     mergedStyle: ms,
     nLanes: data.laneHeaders.length,
-    nTiers: data.tierHeaders.length,
+    // Unbalanced tier membership: reserve height for the fullest pane.
+    nTiers: maxVisibleCount(data.visibleTiersByPane, data.tierHeaders.length),
     paneHeaders: data.paneHeaders,
     minSubChartWidth,
     minSubChartHeight,

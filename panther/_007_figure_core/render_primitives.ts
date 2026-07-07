@@ -27,6 +27,7 @@ import type {
   TableBorderPrimitive,
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
+  VizGraphEdgePrimitive,
 } from "./deps.ts";
 import { Coordinates, Padding, RectCoordsDims } from "./deps.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
@@ -224,6 +225,9 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
 
     case "simpleviz-arrow":
       renderArrowPrimitive(rc, primitive);
+      break;
+    case "vizgraph-edge":
+      renderVizGraphEdgePrimitive(rc, primitive);
       break;
 
     case "sankey-node":
@@ -609,6 +613,28 @@ function renderArrowPrimitive(
     primitive.lineStyle,
     primitive.arrowheads,
   );
+}
+
+function renderVizGraphEdgePrimitive(
+  rc: RenderContext,
+  primitive: VizGraphEdgePrimitive,
+): void {
+  rc.rPath(primitive.pathSegments, primitive.pathStyle);
+  const stroke = primitive.pathStyle.stroke;
+  if (stroke === undefined) {
+    return;
+  }
+  const lineStyle: LineStyle = {
+    strokeWidth: stroke.width,
+    strokeColor: stroke.color,
+    lineDash: "solid",
+  };
+  if (primitive.arrowheads?.start) {
+    renderArrowhead(rc, primitive.arrowheads.start, lineStyle);
+  }
+  if (primitive.arrowheads?.end) {
+    renderArrowhead(rc, primitive.arrowheads.end, lineStyle);
+  }
 }
 
 function renderConnectorPrimitive(

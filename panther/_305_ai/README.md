@@ -18,7 +18,7 @@ function App() {
       config={{
         sdkClient: anthropic,
         modelConfig: {
-          model: "claude-sonnet-4-5-20250929",
+          model: "claude-sonnet-5",
           max_tokens: 2048,
         },
       }}
@@ -43,7 +43,7 @@ const result = await callAI(
   {
     sdkClient: anthropic,
     modelConfig: {
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-sonnet-5",
       max_tokens: 1024,
     },
   },

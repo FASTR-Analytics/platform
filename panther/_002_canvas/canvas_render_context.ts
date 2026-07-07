@@ -199,7 +199,11 @@ export class CanvasRenderContext implements RenderContext {
         ctx.globalAlpha = style.stroke.opacity ?? 1;
         ctx.strokeStyle = strokeStr;
         ctx.lineWidth = style.stroke.width;
+        if (style.stroke.lineDash === "dashed") {
+          ctx.setLineDash([style.stroke.width * 5, style.stroke.width * 4]);
+        }
         ctx.stroke();
+        ctx.setLineDash([]);
       }
     }
 
