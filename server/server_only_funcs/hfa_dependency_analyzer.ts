@@ -1,7 +1,13 @@
 import { extractRIdentifiers, type HfaIndicator, type HfaIndicatorCode } from "lib";
 
 export type ExtractedDependencies = {
+  // Dataset question variables. `qids` is the union across rCode + rFilterCode
+  // (used by the value/missingness expression); `codeQids` and `filterQids`
+  // split it by source so the response-status expression can decide
+  // applicability (filter vars) separately from answer status (code vars).
   qids: string[];
+  codeQids: string[];
+  filterQids: string[];
   dependencies: string[];
   unknownVariables: string[];
 };
@@ -12,36 +18,49 @@ export function extractDependenciesFromCode(
   allIndicatorVarNames: Set<string>,
   knownDatasetVariables: Set<string>,
 ): ExtractedDependencies {
-  const allVariables = new Set<string>();
+  const codeVars = new Set<string>();
+  const filterVars = new Set<string>();
 
   const rCodeTrimmed = rCode.trim();
   if (rCodeTrimmed) {
-    extractRIdentifiers(rCodeTrimmed).forEach((v) => allVariables.add(v));
+    extractRIdentifiers(rCodeTrimmed).forEach((v) => codeVars.add(v));
   }
 
   const rFilterTrimmed = rFilterCode?.trim() ?? "";
   if (rFilterTrimmed) {
-    extractRIdentifiers(rFilterTrimmed).forEach((v) => allVariables.add(v));
+    extractRIdentifiers(rFilterTrimmed).forEach((v) => filterVars.add(v));
   }
 
-  const qids: string[] = [];
-  const dependencies: string[] = [];
-  const unknownVariables: string[] = [];
+  const qids = new Set<string>();
+  const codeQids: string[] = [];
+  const filterQids: string[] = [];
+  const dependencies = new Set<string>();
+  const unknownVariables = new Set<string>();
 
-  for (const variable of allVariables) {
+  const classify = (variable: string, source: "code" | "filter"): void => {
     if (allIndicatorVarNames.has(variable)) {
-      dependencies.push(variable);
+      dependencies.add(variable);
     } else if (knownDatasetVariables.has(variable)) {
-      qids.push(variable);
+      qids.add(variable);
+      if (source === "code") {
+        codeQids.push(variable);
+      } else {
+        filterQids.push(variable);
+      }
     } else {
-      unknownVariables.push(variable);
+      unknownVariables.add(variable);
     }
-  }
+  };
+
+  codeVars.forEach((v) => classify(v, "code"));
+  filterVars.forEach((v) => classify(v, "filter"));
 
   return {
-    qids: qids.sort(),
-    dependencies: dependencies.sort(),
-    unknownVariables: unknownVariables.sort(),
+    qids: [...qids].sort(),
+    codeQids: codeQids.sort(),
+    filterQids: filterQids.sort(),
+    dependencies: [...dependencies].sort(),
+    unknownVariables: [...unknownVariables].sort(),
   };
 }
 

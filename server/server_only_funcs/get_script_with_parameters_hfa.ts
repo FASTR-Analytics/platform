@@ -140,24 +140,37 @@ function buildPerTimePointStatusExpression(
       knownDatasetVariables,
     );
 
-    const dkCheck = deps.qids.length > 0
-      ? deps.qids.map((q) => `${q} %in% c(-99, -999999)`).join(" | ")
+    // Applicability is decided first, over the filter variables only: a facility
+    // is not_applicable when the filter is false, or when a filter variable is
+    // itself unknown (NA / don't-know) so eligibility can't be confirmed. Only
+    // among applicable facilities do we classify the answer, using the code
+    // variables only — otherwise a filtered-out facility whose (never-asked)
+    // question variable is NA would be mislabelled "missing" before the
+    // not_applicable branch is reached.
+    const dkCheck = deps.codeQids.length > 0
+      ? deps.codeQids.map((q) => `${q} %in% c(-99, -999999)`).join(" | ")
       : "FALSE";
-    const naCheck = deps.qids.length > 0
-      ? deps.qids.map((q) => `is.na(${q})`).join(" | ")
+    const naCheck = deps.codeQids.length > 0
+      ? deps.codeQids.map((q) => `is.na(${q})`).join(" | ")
       : "FALSE";
 
+    if (rFilterCode) {
+      const filterUnknownChecks = deps.filterQids.flatMap((q) => [
+        `is.na(${q})`,
+        `${q} %in% c(-99, -999999)`,
+      ]);
+      const notApplicableCheck = [`!(${rFilterCode})`, ...filterUnknownChecks]
+        .join(" | ");
+      branches.push(
+        `    time_point == "${timePoint}" & (${notApplicableCheck}) ~ "not_applicable"`,
+      );
+    }
     branches.push(
       `    time_point == "${timePoint}" & (${dkCheck}) ~ "dont_know"`,
     );
     branches.push(
       `    time_point == "${timePoint}" & (${naCheck}) ~ "missing"`,
     );
-    if (rFilterCode) {
-      branches.push(
-        `    time_point == "${timePoint}" & !(${rFilterCode}) ~ "not_applicable"`,
-      );
-    }
     branches.push(`    time_point == "${timePoint}" ~ "answered"`);
   }
 
