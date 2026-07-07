@@ -1,3 +1,17 @@
+[TBD] [user] [added] - AI assistant can now fetch and read web pages
+[TBD] [user] [added] - Newest Claude Opus model available in AI settings
+[TBD] [user] [changed] - AI model selector shows simplified model names
+[TBD] [user] [changed] - AI assistant now shows notices for refusals or limits in chat
+[TBD] [user] [fixed] - Health facility indicators now correctly classify filtered-out facilities as not applicable
+[TBD] [user] [fixed] - Map boundary data refreshes immediately after saving instead of showing stale data
+[TBD] [admin] [added] - AI assistant can now fetch web pages directly
+[TBD] [admin] [added] - Claude Opus 4.8 available as an AI model option
+[TBD] [admin] [changed] - AI model list updated to use latest Claude Haiku 4.5
+[TBD] [admin] [changed] - AI chat now shows system notices like refusals or context limits
+[TBD] [admin] [fixed] - HFA indicator status now correctly classifies facilities as not applicable when filter variables are unknown
+[TBD] [admin] [fixed] - GeoJSON map cache now clears after saving so re-imports fetch fresh data
+[TBD] [admin] [fixed] - Large GeoJSON responses from DHIS2 are now capped at 100 MB to prevent server crashes
+[TBD] [admin] [fixed] - Malformed GeoJSON uploads now return a clear error instead of leaking file contents
 [TBD] [user] [fixed] - Data requests no longer hang indefinitely on slow connections
 [TBD] [admin] [fixed] - Requests to DHIS2 no longer hang on slow responses
 [TBD] [admin] [added] - Large DHIS2 responses can now be capped by size
