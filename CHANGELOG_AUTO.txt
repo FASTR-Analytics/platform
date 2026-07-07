@@ -1,3 +1,28 @@
+[TBD] [user] [fixed] - AI responses no longer cut off on long outputs like report rewrites
+[TBD] [user] [fixed] - Slide previews now show error messages instead of disappearing entirely
+[TBD] [user] [fixed] - AI no longer incorrectly rejects normal text containing pipe characters as tables
+[TBD] [user] [fixed] - AI token usage is now tracked even when you stop a response early
+[TBD] [user] [changed] - You can now adjust the AI max output length in AI settings
+[TBD] [user] [added] - Removing an attached PDF from chat now cleans up the uploaded file
+[TBD] [user] [added] - AI can now navigate to the Reports tab
+[TBD] [user] [changed] - AI can now fine-tune existing chart settings without rebuilding the entire chart
+[TBD] [user] [fixed] - Saving prompts to the prompt library now correctly suggests existing categories
+[TBD] [user] [changed] - Only admins can publish country-wide shared prompts
+[TBD] [admin] [fixed] - AI responses no longer truncated on large outputs
+[TBD] [admin] [added] - Max tokens setting now adjustable in AI chat settings
+[TBD] [admin] [fixed] - Slide previews now show error messages instead of disappearing
+[TBD] [admin] [fixed] - AI token usage now tracked when users cancel mid-response
+[TBD] [admin] [fixed] - Removing an uploaded PDF now deletes it from Anthropic storage
+[TBD] [admin] [changed] - Only admins can publish country-scoped prompt library entries
+[TBD] [admin] [fixed] - Unapproved users can no longer access the prompt library
+[TBD] [admin] [fixed] - AI category suggestions now appear when saving prompts
+[TBD] [admin] [added] - AI assistant can now navigate to the Reports tab
+[TBD] [admin] [fixed] - Markdown table detection no longer rejects legitimate text
+[TBD] [admin] [fixed] - Date range validation now consistent across all AI tools
+[TBD] [admin] [fixed] - AI no longer silently ignores invalid filter or date inputs
+[TBD] [admin] [changed] - Beta feature headers to Anthropic are now restricted to an allowlist
+[TBD] [admin] [internal] - AI proxy logic consolidated to prevent drift between project and instance
+[TBD] [admin] [added] - HFA sentinel value classifications now included in project snapshots
 [TBD] [user] [added] - "Don't know" and special response codes are now automatically detected and labeled
 [TBD] [admin] [added] - Sentinel values (e.g., "don't know") are now automatically detected and classified during data import
 [TBD] [admin] [added] - Numeric survey variables now capture special codes from form constraints as dictionary entries
