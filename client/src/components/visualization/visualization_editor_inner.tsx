@@ -18,6 +18,7 @@ import {
   materializeFigureConfig,
   normalizePOConfigForStorage,
   periodFilterHasBounds,
+  type PresenceEntry,
   syncFigureConfigToMap,
   t3,
   TC,
@@ -428,6 +429,74 @@ export function VisualizationEditorInner(p: InnerProps) {
     panelTab();
     cursorBroadcast.resend();
   });
+
+  // ── "Who is on which tab" ────────────────────────────────────────────────────
+  // Each participant stamps its active panel tab into the awareness field
+  // "vizTab" (scope-gated like the cursors); the tab bar shows the matching
+  // peers' avatars per tab. Cleared on unmount — essential in ephemeral mode,
+  // where the HOST session's awareness outlives this modal.
+  createEffect(() => {
+    const aw = collabTarget()?.awareness;
+    const scope = pointerScope();
+    if (!aw) return;
+    aw.setLocalStateField(
+      "vizTab",
+      collabReady() && scope ? { scope, tab: panelTab() } : null,
+    );
+  });
+  onCleanup(() => {
+    // Safe after awareness destroy (no-op); vital for the shared host awareness.
+    collabTarget()?.awareness.setLocalStateField("vizTab", null);
+  });
+
+  // Reactive view of peers' awareness states for the tab map.
+  const [awTick, setAwTick] = createSignal(0);
+  createEffect(() => {
+    const aw = collabTarget()?.awareness;
+    if (!aw) return;
+    const bump = () => setAwTick((t) => t + 1);
+    aw.on("change", bump);
+    onCleanup(() => aw.off("change", bump));
+  });
+
+  /** Peers grouped by their active panel tab (same visualization only). */
+  const tabPeers = (): Record<"data" | "style" | "text", PresenceEntry[]> => {
+    awTick();
+    void collabState.peers; // track: presence enriches avatars below
+    const out: Record<"data" | "style" | "text", PresenceEntry[]> = {
+      data: [],
+      style: [],
+      text: [],
+    };
+    const aw = collabTarget()?.awareness;
+    const scope = pointerScope();
+    if (!aw || !scope) return out;
+    const presencePeers = otherPeers();
+    for (const [clientID, state] of aw.getStates()) {
+      if (clientID === aw.clientID) continue;
+      const user = state.user as { name?: string; color?: string } | undefined;
+      const vizTab = state.vizTab as
+        | { scope: string; tab: "data" | "style" | "text" }
+        | null
+        | undefined;
+      if (!user?.name || !user.color || !vizTab || vizTab.scope !== scope) {
+        continue;
+      }
+      // Enrich with the presence entry's avatar image when we can match one
+      // (awareness carries only name/color); falls back to initials.
+      const match = presencePeers.find(
+        (pe) => pe.name === user.name && pe.color === user.color,
+      );
+      out[vizTab.tab].push({
+        connectionId: String(clientID),
+        email: match?.email ?? "",
+        name: user.name,
+        color: user.color,
+        avatarUrl: match?.avatarUrl,
+      });
+    }
+    return out;
+  };
 
   function acceptsCursor(
     pointer: PointerAwarenessState,
@@ -1289,6 +1358,7 @@ export function VisualizationEditorInner(p: InnerProps) {
               viewResultsObject={viewResultsObject}
               captionCollab={captionCollab()}
               onTabChange={setPanelTab}
+              tabPeers={tabPeers()}
             />
           }
         >

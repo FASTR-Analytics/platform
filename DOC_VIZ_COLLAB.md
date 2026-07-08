@@ -41,6 +41,9 @@ Google Docs.
   colored arrows with name tags over the chart preview and the settings panel
   (and on the slide canvas), moving in real time. Client-only, riding the
   existing ephemeral awareness channel.
+- **Per-tab presence** — the Data / Presentation / Text tabs in the editor's
+  settings panel show the avatars of collaborators currently on each tab, so
+  you can see at a glance who is working where.
 - **Continuous autosave & per-user undo** — no Save button while connected;
   edits save automatically. Ctrl+Z undoes only your own changes, never a
   collaborator's.
