@@ -27,6 +27,10 @@ import {
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { _SERVER_HOST } from "~/server_actions";
+import {
+  notifyPresenceToasts,
+  resetPresenceToasts,
+} from "~/components/_shared/presence_toasts";
 
 // Client manager for the per-project collaboration WebSocket (Milestone 1:
 // presence). Mirrors the SSE manager (t1_sse.tsx): a single module-level
@@ -735,6 +739,8 @@ function openSocket(projectId: string): void {
       for (const s of slideSessions.values()) applySessionUser(s.awareness);
       for (const s of reportSessions.values()) applySessionUser(s.awareness);
       for (const s of poSessions.values()) applySessionUser(s.awareness);
+      // "Alice joined this deck" toasts — scoped to the doc I'm currently in.
+      notifyPresenceToasts(msg.data.peers, collabStore.connectionId, view);
     } else if (
       !handleSlideServerMessage(msg) && !handleReportServerMessage(msg)
     ) {
@@ -799,6 +805,7 @@ export function disconnectCollab(): void {
   for (const s of [...slideSessions.values()]) destroySlideSession(s);
   for (const s of [...reportSessions.values()]) destroyReportSession(s);
   for (const s of [...poSessions.values()]) destroyPoSession(s);
+  resetPresenceToasts();
   currentProjectId = null;
   attempts = 0;
   avatarUrl = undefined;

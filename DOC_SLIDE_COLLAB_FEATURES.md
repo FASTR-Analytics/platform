@@ -21,6 +21,11 @@ session.
   everyone else currently in the same deck.
 - **Per-slide presence.** In the slide list, each slide card shows the avatars
   of users who currently have that slide open in the editor.
+- **Join/leave toasts.** A small notice ("Alice joined this deck") appears
+  bottom-left when someone enters or leaves the deck, report or visualization
+  you are in. Keyed per person (a second tab isn't a "join") with a short grace
+  window so refreshes and reconnects stay silent; switching documents yourself
+  never announces the people already there.
 - **Stable per-user identity color.** Every user gets a deterministic color
   (hashed from their email) used consistently everywhere they appear: avatar
   fallback, editing borders, text carets, and selection highlights. Names and
