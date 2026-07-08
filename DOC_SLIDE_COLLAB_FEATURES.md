@@ -53,6 +53,11 @@ session.
   The name tag fades after a few seconds of stillness; idle cursors disappear;
   a cursor leaves the canvas → it vanishes for everyone. Also works inside the
   visualization editor (chart preview and settings panel).
+- **Cursor chat.** Press `/` while over the slide canvas (or the visualization
+  editor) to type a short message in a bubble attached to your live cursor —
+  collaborators watch it appear letter by letter. Enter keeps it up for a few
+  seconds; Escape discards it. Great for "look at this ↘" moments without
+  leaving the canvas.
 - **"Who is editing what" borders on the canvas.** The slide canvas outlines
   the content block or title field each collaborator is currently editing, in
   their color with a name tag above it. When several people edit the *same*

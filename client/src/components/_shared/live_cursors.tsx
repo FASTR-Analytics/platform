@@ -1,5 +1,14 @@
+import { t3 } from "lib";
 import type { Awareness } from "y-protocols/awareness";
-import { createEffect, createSignal, For, on, onCleanup, onMount } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  For,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 
 // =============================================================================
@@ -25,6 +34,12 @@ import { Portal } from "solid-js/web";
 // own per-client last-move time (bumped only when the pointer CONTENT changes,
 // never trusting wire clocks) to fade the name chip after 4s and hide
 // connected-but-idle cursors after 30s.
+//
+// CURSOR CHAT rides a second awareness field "pointerChat" ({ text } | null):
+// press "/" over a cursor surface to type a short message that streams live in
+// a bubble attached to your cursor (CursorChatInput below is the sender side;
+// the overlay renders peers' bubbles). Cleared on Enter (after a short linger),
+// Escape, disable, and unmount.
 
 export type PointerAwarenessState =
   // x,y in slide DU (PAGE_WIDTH_DU × PAGE_HEIGHT_DU)
@@ -43,6 +58,8 @@ export type PointerAwarenessState =
 const CHIP_FADE_MS = 4_000;
 const IDLE_HIDE_MS = 30_000;
 const DEFAULT_MIN_INTERVAL_MS = 50;
+const CHAT_LINGER_MS = 4_000;
+const CHAT_MAX_LEN = 120;
 
 // Evaluated once — dropping the transform transition makes positions snap
 // instead of glide, which is exactly what reduced-motion asks for.
@@ -227,6 +244,8 @@ type CursorSprite = {
   x: number;
   y: number;
   chipVisible: boolean;
+  /** Live cursor-chat message, when the peer is typing/showing one. */
+  chat?: string;
 };
 
 /**
@@ -301,9 +320,15 @@ export function LiveCursorsOverlay(p: {
       const user = state.user as { name?: string; color?: string } | undefined;
       const pointer = state.pointer as PointerAwarenessState | null | undefined;
       if (!user?.name || !user.color || pointer == null) continue;
+      const chatState = state.pointerChat as { text?: string } | null | undefined;
+      const chat = typeof chatState?.text === "string"
+        ? chatState.text.slice(0, CHAT_MAX_LEN)
+        : undefined;
       const info = moveInfo.get(clientID);
       const idle = info ? now - info.lastMoveAt : 0;
-      if (idle > IDLE_HIDE_MS) continue;
+      // An active chat message keeps the cursor (and its name) fully visible
+      // even when the mouse itself has been still.
+      if (idle > IDLE_HIDE_MS && !chat) continue;
       const pos = p.accepts(pointer);
       if (!pos) continue;
       out.push({
@@ -312,7 +337,8 @@ export function LiveCursorsOverlay(p: {
         color: user.color,
         x: pos.x,
         y: pos.y,
-        chipVisible: idle < CHIP_FADE_MS,
+        chipVisible: idle < CHIP_FADE_MS || !!chat,
+        chat,
       });
     }
     return out;
@@ -353,10 +379,168 @@ export function LiveCursorsOverlay(p: {
               >
                 {c.name}
               </div>
+              <Show when={c.chat}>
+                <div
+                  class="absolute rounded-2xl px-2.5 py-1 text-xs text-white shadow-md"
+                  style={{
+                    left: "12px",
+                    top: "33px",
+                    "background-color": c.color,
+                    "max-width": "240px",
+                    width: "max-content",
+                    "overflow-wrap": "break-word",
+                  }}
+                >
+                  {c.chat}
+                </div>
+              </Show>
             </div>
           )}
         </For>
       </div>
     </Portal>
+  );
+}
+
+// ── Cursor chat (sender side) ─────────────────────────────────────────────────
+
+/**
+ * Figma-style cursor chat: press "/" while over a cursor surface to open a
+ * small input attached to your pointer; what you type streams live into the
+ * "pointerChat" awareness field so peers see it in a bubble on your cursor.
+ * Enter keeps the message up for a few seconds; Escape discards it.
+ */
+export function CursorChatInput(p: {
+  awareness: () => Awareness | undefined | null;
+  /** Same gate as the surface's pointer broadcaster. */
+  enabled: () => boolean;
+  /** True when the given viewport point is over a broadcastable zone (reuse
+   *  the surface's toPointer: `(x, y) => toPointer(x, y) !== null`). */
+  isOverSurface: (clientX: number, clientY: number) => boolean;
+}) {
+  const [open, setOpen] = createSignal(false);
+  const [text, setText] = createSignal("");
+  const [pos, setPos] = createSignal({ x: 0, y: 0 });
+  let inputEl: HTMLInputElement | undefined;
+  let lastX = 0;
+  let lastY = 0;
+  let lingerTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function sendChat(value: string | null) {
+    // Safe after awareness destroy (setLocalStateField no-ops).
+    p.awareness()?.setLocalStateField(
+      "pointerChat",
+      value ? { text: value } : null,
+    );
+  }
+  function clearNow() {
+    if (lingerTimer) clearTimeout(lingerTimer);
+    lingerTimer = undefined;
+    sendChat(null);
+  }
+  function close(commit: boolean) {
+    setOpen(false);
+    const t = text().trim();
+    setText("");
+    if (commit && t) {
+      // Leave the message on the cursor briefly, then clear it for everyone.
+      if (lingerTimer) clearTimeout(lingerTimer);
+      lingerTimer = setTimeout(() => {
+        lingerTimer = undefined;
+        sendChat(null);
+      }, CHAT_LINGER_MS);
+    } else {
+      clearNow();
+    }
+  }
+
+  function onDocKeyDown(e: KeyboardEvent) {
+    if (open() || e.key !== "/" || !p.enabled()) return;
+    const target = e.target as HTMLElement | null;
+    // Never hijack "/" from real text inputs (CodeMirror, forms).
+    if (
+      target &&
+      target.closest("input, textarea, [contenteditable='true'], .cm-editor")
+    ) {
+      return;
+    }
+    if (!p.isOverSurface(lastX, lastY)) return;
+    e.preventDefault();
+    if (lingerTimer) {
+      clearTimeout(lingerTimer);
+      lingerTimer = undefined;
+    }
+    sendChat(null);
+    setPos({ x: lastX, y: lastY });
+    setOpen(true);
+    queueMicrotask(() => inputEl?.focus());
+  }
+  function onMove(e: PointerEvent) {
+    lastX = e.clientX;
+    lastY = e.clientY;
+    if (open()) setPos({ x: lastX, y: lastY }); // the bubble follows the cursor
+  }
+
+  onMount(() => {
+    document.addEventListener("keydown", onDocKeyDown);
+    document.addEventListener("pointermove", onMove, { passive: true });
+  });
+  // Surface covered / collab dropped → discard any open or lingering message.
+  createEffect(on(p.enabled, (en) => {
+    if (!en) {
+      setOpen(false);
+      setText("");
+      clearNow();
+    }
+  }, { defer: true }));
+  onCleanup(() => {
+    document.removeEventListener("keydown", onDocKeyDown);
+    document.removeEventListener("pointermove", onMove);
+    clearNow();
+  });
+
+  const ownColor = () => {
+    const user = p.awareness()?.getLocalState()?.user as
+      | { color?: string }
+      | undefined;
+    return user?.color ?? "#2563eb";
+  };
+
+  return (
+    <Show when={open()}>
+      <Portal mount={document.body}>
+        <div
+          class="fixed z-[95]"
+          style={{ left: `${pos().x + 12}px`, top: `${pos().y + 16}px` }}
+        >
+          <input
+            ref={inputEl}
+            value={text()}
+            maxLength={CHAT_MAX_LEN}
+            placeholder={t3({
+              en: "Say something…",
+              fr: "Dites quelque chose…",
+              pt: "Diga algo…",
+            })}
+            class="rounded-full px-3 py-1 text-sm text-white shadow-md outline-none placeholder:text-white/70"
+            style={{
+              "background-color": ownColor(),
+              "min-width": "150px",
+              "max-width": "260px",
+            }}
+            onInput={(e) => {
+              setText(e.currentTarget.value);
+              sendChat(e.currentTarget.value.trim() || null);
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation(); // keep editor shortcuts (undo, Esc) out
+              if (e.key === "Enter") close(true);
+              else if (e.key === "Escape") close(false);
+            }}
+            onBlur={() => close(true)}
+          />
+        </div>
+      </Portal>
+    </Show>
   );
 }

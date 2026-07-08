@@ -72,6 +72,7 @@ import {
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import {
   createPointerBroadcast,
+  CursorChatInput,
   LiveCursorsOverlay,
   panelClientFromContent,
   panelContentFromClient,
@@ -386,43 +387,45 @@ export function VisualizationEditorInner(p: InnerProps) {
       ?.querySelector("[data-viz-panel-scroll]") ?? null;
   }
 
+  const vizCursorsEnabled = () => !!collabTarget() && collabReady();
+  function vizPointerFor(cx: number, cy: number): PointerAwarenessState | null {
+    const scope = pointerScope();
+    if (!scope) return null;
+    const canvas = document.getElementById("VIZ_PREVIEW_CANVAS");
+    if (canvas) {
+      const r = canvas.getBoundingClientRect();
+      if (
+        r.width > 0 && cx >= r.left && cx <= r.right && cy >= r.top &&
+        cy <= r.bottom
+      ) {
+        return {
+          surface: "viz-preview",
+          scope,
+          x: (cx - r.left) / r.width,
+          y: (cy - r.top) / r.height,
+        };
+      }
+    }
+    const scrollEl = panelScrollEl();
+    if (scrollEl) {
+      const sr = scrollEl.getBoundingClientRect();
+      if (
+        sr.width > 0 && cx >= sr.left && cx <= sr.right && cy >= sr.top &&
+        cy <= sr.bottom
+      ) {
+        const pos = panelContentFromClient(sr, scrollEl.scrollTop, {
+          x: cx,
+          y: cy,
+        });
+        return { surface: "viz-panel", scope, tab: panelTab(), ...pos };
+      }
+    }
+    return null;
+  }
   const cursorBroadcast = createPointerBroadcast({
     awareness: () => collabTarget()?.awareness,
-    enabled: () => !!collabTarget() && collabReady(),
-    toPointer: (cx, cy) => {
-      const scope = pointerScope();
-      if (!scope) return null;
-      const canvas = document.getElementById("VIZ_PREVIEW_CANVAS");
-      if (canvas) {
-        const r = canvas.getBoundingClientRect();
-        if (
-          r.width > 0 && cx >= r.left && cx <= r.right && cy >= r.top &&
-          cy <= r.bottom
-        ) {
-          return {
-            surface: "viz-preview",
-            scope,
-            x: (cx - r.left) / r.width,
-            y: (cy - r.top) / r.height,
-          };
-        }
-      }
-      const scrollEl = panelScrollEl();
-      if (scrollEl) {
-        const sr = scrollEl.getBoundingClientRect();
-        if (
-          sr.width > 0 && cx >= sr.left && cx <= sr.right && cy >= sr.top &&
-          cy <= sr.bottom
-        ) {
-          const pos = panelContentFromClient(sr, scrollEl.scrollTop, {
-            x: cx,
-            y: cy,
-          });
-          return { surface: "viz-panel", scope, tab: panelTab(), ...pos };
-        }
-      }
-      return null;
-    },
+    enabled: vizCursorsEnabled,
+    toPointer: vizPointerFor,
   });
   // A tab click under a stationary pointer must restamp the pointer's tab.
   createEffect(() => {
@@ -1544,6 +1547,13 @@ export function VisualizationEditorInner(p: InnerProps) {
       <LiveCursorsOverlay
         awareness={collabTarget()?.awareness}
         accepts={acceptsCursor}
+      />
+      {/* Cursor chat: "/" over the preview or panel opens a message bubble on
+          your live cursor. */}
+      <CursorChatInput
+        awareness={() => collabTarget()?.awareness}
+        enabled={vizCursorsEnabled}
+        isOverSurface={(x, y) => vizPointerFor(x, y) !== null}
       />
     </EditorWrapperForResultsObject>
   );

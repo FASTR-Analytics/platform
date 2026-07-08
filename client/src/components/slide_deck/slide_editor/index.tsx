@@ -72,8 +72,10 @@ import {
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import {
   createPointerBroadcast,
+  CursorChatInput,
   duToViewport,
   LiveCursorsOverlay,
+  type PointerAwarenessState,
   viewportToDu,
 } from "~/components/_shared/live_cursors";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
@@ -204,22 +206,28 @@ export function SlideEditor(p: Props) {
   // canvas lives inside a keyed <Show> that recreates on edits, so element
   // handlers/refs would go stale. Disabled while a sub-editor modal covers the
   // canvas (the figure modal's own broadcaster takes over the awareness field).
+  const slideCursorsEnabled = () =>
+    !!session() && collabReady() && subEditorOpen() === 0;
+  function slidePointerFor(
+    cx: number,
+    cy: number,
+  ): PointerAwarenessState | null {
+    const canvas = document.getElementById("SLIDE_EDITOR_CANVAS");
+    if (!canvas) return null;
+    const r = canvas.getBoundingClientRect();
+    if (
+      r.width === 0 || cx < r.left || cx > r.right || cy < r.top ||
+      cy > r.bottom
+    ) {
+      return null;
+    }
+    const du = viewportToDu(r, { x: cx, y: cy }, PAGE_WIDTH_DU, PAGE_HEIGHT_DU);
+    return { surface: "slide", scope: p.slideId, x: du.x, y: du.y };
+  }
   createPointerBroadcast({
     awareness: () => session()?.awareness,
-    enabled: () => !!session() && collabReady() && subEditorOpen() === 0,
-    toPointer: (cx, cy) => {
-      const canvas = document.getElementById("SLIDE_EDITOR_CANVAS");
-      if (!canvas) return null;
-      const r = canvas.getBoundingClientRect();
-      if (
-        r.width === 0 || cx < r.left || cx > r.right || cy < r.top ||
-        cy > r.bottom
-      ) {
-        return null;
-      }
-      const du = viewportToDu(r, { x: cx, y: cy }, PAGE_WIDTH_DU, PAGE_HEIGHT_DU);
-      return { surface: "slide", scope: p.slideId, x: du.x, y: du.y };
-    },
+    enabled: slideCursorsEnabled,
+    toPointer: slidePointerFor,
   });
 
   // Render slide preview
@@ -1136,6 +1144,13 @@ export function SlideEditor(p: Props) {
                 }
                 return duToViewport(r, pointer, PAGE_WIDTH_DU, PAGE_HEIGHT_DU);
               }}
+            />
+            {/* Cursor chat: "/" over the canvas opens a message bubble on your
+                live cursor. */}
+            <CursorChatInput
+              awareness={() => session()?.awareness}
+              enabled={slideCursorsEnabled}
+              isOverSurface={(x, y) => slidePointerFor(x, y) !== null}
             />
           </div>
         </FrameLeftResizable>
