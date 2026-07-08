@@ -54,7 +54,7 @@ export const GLOBAL_STYLE_OPTIONS: GlobalStyleOptions = {
     },
     panes: { headerGap: 9, gapX: 30, gapY: 30 },
     lanes: { paddingLeft: 8 },
-    tiers: { paddingBottom: 8 },
+    tiers: { paddingBottom: 8, headerPosition: "above-axis-if-no-lanes" },
     xTextAxis: { tickLabelGap: 5, tickHeight: 7 },
     content: {
       points: {
