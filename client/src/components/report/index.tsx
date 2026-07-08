@@ -39,9 +39,11 @@ import { serverActions, _SERVER_HOST } from "~/server_actions";
 import {
   collabSocketOpen,
   openReportSession,
+  otherPeers,
   type ReportSession,
   setCollabView,
 } from "~/state/project/collab";
+import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
 import { projectState } from "~/state/project/t1_store";
 import { setShowAi, showAi } from "~/state/t4_ui";
@@ -1240,6 +1242,11 @@ export function ProjectReport(p: Props) {
             }
           >
             <div class="ui-gap-sm flex items-center">
+              {/* Who else is currently in THIS report (live presence). */}
+              <PresenceAvatars
+                peers={otherPeers().filter((pe) => pe.reportId === p.reportId)}
+                size="sm"
+              />
               <div class="text-neutral mr-2 flex items-center gap-1.5 text-xs">
                 <div
                   class="h-1.5 w-1.5 flex-none rounded-full"

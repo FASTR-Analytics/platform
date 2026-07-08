@@ -69,6 +69,7 @@ import {
   setCollabView,
   type SlideSession,
 } from "~/state/project/collab";
+import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
@@ -857,6 +858,11 @@ export function SlideEditor(p: Props) {
             }
           >
             <div class="ui-gap-sm flex items-center">
+              {/* Who else is currently editing THIS slide (live presence). */}
+              <PresenceAvatars
+                peers={otherPeers().filter((pe) => pe.slideId === p.slideId)}
+                size="sm"
+              />
               <Select
                 options={[
                   {

@@ -933,11 +933,10 @@ function VisualizationCard(p: VisualizationCardProps) {
 
   return (
     <div class="group bg-base-100 row-span-3 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]">
-      <div class="ui-gap-sm flex items-end justify-between pb-1">
+      <div class="ui-gap-sm flex items-end pb-1">
         <div class="font-400 text-base-content pointer-events-none text-xs italic select-none">
           {p.po.label}
         </div>
-        <PresenceAvatars peers={cardPeers()} size="sm" />
       </div>
       <div
         class="relative cursor-pointer rounded border p-2"
@@ -950,6 +949,11 @@ function VisualizationCard(p: VisualizationCardProps) {
         onContextMenu={handleContextMenu}
       >
         <SelectionCircle isSelected={p.isSelected} onClick={p.onCircleClick} />
+        {/* Live-presence avatars, overlaid bottom-left on the thumbnail — same
+            placement as the deck and report lists. */}
+        <div class="pointer-events-none absolute bottom-1 left-1 z-10">
+          <PresenceAvatars peers={cardPeers()} size="sm" />
+        </div>
         {/* The card stays interactive even when the metric has no results, so it
             can still be selected and deleted (via the context menu). Only the
             inner preview falls back to the "Not available" placeholder. */}
