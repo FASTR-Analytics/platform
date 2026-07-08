@@ -26,9 +26,9 @@ import type {
 import { generatePaneContentPrimitives } from "./generate_pane_content_primitives.ts";
 import { NO_DISAGGREGATION_HEADER_ID } from "./common_data_transform.ts";
 
-// "above-plot-area-if-no-lanes" self-resolves at measure time (this is the
-// only point where both the style choice and the axis data are in scope):
-// above-plot-area when this axis has no real lane disaggregation (a chart
+// The "-if-no-lanes" variants self-resolve at measure time (this is the only
+// point where both the style choice and the axis data are in scope): the
+// named position when this axis has no real lane disaggregation (a chart
 // with tiers but no lanes gains nothing from reserving a left-hand gutter
 // for tier headers), left otherwise so lane headers and tier headers don't
 // compete for the same horizontal band.
@@ -36,12 +36,20 @@ function resolveTierHeaderPosition(
   headerPosition: MergedChartStyleBase["tiers"]["headerPosition"],
   laneHeaders: HeaderItem[],
 ): "left" | "above-axis" | "above-plot-area" {
-  if (headerPosition !== "above-plot-area-if-no-lanes") {
+  if (
+    headerPosition !== "above-axis-if-no-lanes" &&
+    headerPosition !== "above-plot-area-if-no-lanes"
+  ) {
     return headerPosition;
   }
   const hasNoLanes = laneHeaders.length === 1 &&
     laneHeaders[0].id === NO_DISAGGREGATION_HEADER_ID;
-  return hasNoLanes ? "above-plot-area" : "left";
+  if (!hasNoLanes) {
+    return "left";
+  }
+  return headerPosition === "above-axis-if-no-lanes"
+    ? "above-axis"
+    : "above-plot-area";
 }
 
 // Proportional band layout: solve the pane-local slot thickness from the

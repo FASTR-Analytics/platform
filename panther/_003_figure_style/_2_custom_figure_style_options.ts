@@ -168,6 +168,7 @@ export type CustomFigureStyleOptions = {
       | "left"
       | "above-axis"
       | "above-plot-area"
+      | "above-axis-if-no-lanes"
       | "above-plot-area-if-no-lanes";
     headerGap?: number;
   };
