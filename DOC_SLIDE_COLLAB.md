@@ -132,6 +132,11 @@ thin bindings: [slide_rooms.ts](server/collab/slide_rooms.ts) and
   directly. This is what prevents the room's next checkpoint from silently
   reverting AI/manual saves — and why those saves appear live in open
   editors.
+- **Lifecycle hooks** (`onDocCreated`/`onDocClosed` on the adapter): fire once
+  per room open/teardown so a binding can attach per-doc observers. The report
+  binding uses them to init/drop the per-character authorship ledger; the slide
+  binding to attach `observeSlideDocElements` (element-level attribution). Both
+  are version-history machinery — see [DOC_VERSION_HISTORY.md](DOC_VERSION_HISTORY.md).
 
 ## 5. The editor bridge — tempSlide ⇄ session doc
 

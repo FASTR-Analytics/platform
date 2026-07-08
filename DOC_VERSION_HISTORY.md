@@ -312,7 +312,7 @@ overflow menu.
   delete-across-tombstone), unknown deleters, compaction, the tombstone cap,
   unattributed inserts, misalignment poisoning (body-mirror equality),
   persisted-run adoption/rejection.
-- Both are scratch scripts (`deno run --allow-all -c deno.json <file>` with
+- All are scratch scripts (`deno run --allow-all -c deno.json <file>` with
   absolute-path imports — the repo's standard harness idiom).
 - Manual two-user matrix: see the feature checklist in the PR/commit series
   (`feat(version-history): …`).

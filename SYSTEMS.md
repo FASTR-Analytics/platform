@@ -1,6 +1,6 @@
 # Systems map — wb-fastr
 
-> Canonical topology: 15 systems (+ a read-but-don't-own kernel). This is the
+> Canonical topology: 16 systems (+ a read-but-don't-own kernel). This is the
 > canonical index: the map, the per-system scope/contract (System details
 > below), the custody table, the kernel rule, the cross-cutting audits, and the
 > execution model. Each `SYSTEM_NN_*.md` file's `globs:` frontmatter is the
@@ -15,7 +15,7 @@
 ## The map
 
 Platform machinery (1–3), data in (4–7), compute (8), visualization (9–11),
-artifacts (12), assist (13), frame (14–15).
+artifacts (12), assist (13), frame (14–15), realtime collaboration (16).
 
 | #                                        | System                                   | One line                                                                                   |
 |------------------------------------------|------------------------------------------|--------------------------------------------------------------------------------------------|
@@ -34,6 +34,7 @@ artifacts (12), assist (13), frame (14–15).
 | [S13](SYSTEM_13_ai_assistant.md)         | AI Copilot & Usage Governance            | Anthropic proxy + governance + ~40 browser tools via the AIContext contract                |
 | [S14](SYSTEM_14_client_shell.md)         | Client Shell & Session                   | SPA boot, page maps, language/calendar singletons, UI prefs, help chrome                   |
 | [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users/roles, project lifecycle, health, backups, disk autonomics, deploy                   |
+| [S16](SYSTEM_16_collaboration.md)        | Realtime Collaboration & Version History | WS co-editing over server Yjs rooms + version history (capture, attribution, restore)       |
 | [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus — everyone's dependency             |
 
 Cross-cutting docs (conventions, not code ownership):
@@ -321,6 +322,31 @@ custody exceptions are in §4.1.
 - **Size:** ~50 files; small server surface, highest privilege.
   **Docs:** DOC_ACCESS_DBS, DOC_ACCESS_CONTROL.
 
+### S16. Realtime Collaboration & Version History
+
+- **One line:** Google-Docs-style live co-editing for slide decks and reports
+  (WebSocket transport + server-authoritative Yjs rooms + presence), plus the
+  version-history layer built on top (session capture, attribution, restore).
+- **Scope:** `server/collab/**` (generic room core `doc_rooms.ts`, the
+  `report_rooms`/`slide_rooms` adapters, `version_tracker`/`version_capture`,
+  the `authorship` + `deck_session_ledger` attribution ledgers);
+  `server/routes/project/project-collab.ts` (the one WS endpoint per project);
+  `server/task_management/presence_registry.ts`; `server/db/project/versions.ts`;
+  `lib/collab/**` (CRDT util + report/slide CRDT); `lib/types/{collab,versions}.ts`;
+  client `state/project/collab.ts` (one WS manager per project) and
+  `components/version_history/**` (diff/compare/preview/restore UI).
+- **Contract:** the server master-copy Y.Doc is authoritative; browsers sync
+  over WS; a ~1.5s debounced checkpoint persists through **S12**'s document
+  tables (additive `crdt_state`/`body_authors`/`slide_editors` columns) and then
+  rings **S3**'s `notifyLastUpdated` — the WS layer FEEDS the SSE bus, never
+  bypasses it (SYSTEM_16 § "Collab ⇄ SSE boundary"). All programmatic writes go
+  through the room chokepoint (`applyToLiveRoom`). Version capture is
+  session-based, hash-deduped, newest-100-retained; restore writes a safety
+  version first. Exact attribution accrues only for live-collab edits after
+  deploy — else honest session-level fallback.
+- **Size:** ~24 files. **Docs:** DOC_SLIDE_COLLAB, DOC_SLIDE_COLLAB_FEATURES,
+  DOC_VERSION_HISTORY (absorbed into SYSTEM_16; Phase-2 inlines them).
+
 ## §4.1 Shared-custody files
 
 Files where systems genuinely meet inside one file. Rule: ONE owner reviews the
@@ -341,7 +367,7 @@ list.)
 | `client/src/components/LoggedInWrapper.tsx`                             | S1    | S3, S14           | Clerk singleton + version flush + shell               |
 | `server/routes/instance/backups.ts`                                     | S15   | S2                | restore body (DROP/CREATE + re-migrate)               |
 | `lib/translate/t-func.ts`                                               | S14   | S9                | calendar semantics (17 lines, two systems)            |
-| `server/task_management/mod.ts`                                         | S8    | S3                | barrel re-exports the notify hub                      |
+| `server/task_management/mod.ts`                                         | S8    | S3, S16           | barrel re-exports the notify hub (S16 checkpoints call it) |
 | `server/routes/instance/users.ts` · `server/db/instance/users.ts`       | S1    | S15, S13          | guard rows + admin handlers + token governance        |
 | `server/server_only_types/mod.ts`                                       | S8    | S1, S3, S9        | 20 lines, three systems — physical-split candidate    |
 | `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S6    | S15, S5           | config routes + meta/projects/disk + dataset versions |
@@ -351,6 +377,9 @@ list.)
 | `client/src/components/instance/instance_data.tsx`                      | S5    | S6                | data-tab switchboard mounting S6 managers             |
 | `server/db/instance/config.ts`                                          | S6    | S5, S9            | instance config parameterizes ELT + generated SQL     |
 | `lib/types/project_dirty_states.ts`                                     | S3    | S8                | `DirtyOrRunStatus` drives the dirty machine           |
+| `server/db/project/reports.ts`                                          | S12   | S16               | `saveReportCheckpoint`/`getReportBodyAuthors` + crdt_state |
+| `server/db/project/slides.ts` · `slide_decks.ts`                        | S12   | S16               | collab checkpoint writes config + crdt_state + slide_editors |
+| `server/routes/project/{reports,slides,slide_decks}.ts`                 | S12   | S16               | REST routes branch through the live-room chokepoint   |
 
 ## §4.2 Kernel — read but don't own
 
