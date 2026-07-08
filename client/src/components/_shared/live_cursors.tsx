@@ -439,6 +439,10 @@ export function CursorChatInput(p: {
     sendChat(null);
   }
   function close(commit: boolean) {
+    // Re-entry guard: closing unmounts the focused input, which fires its own
+    // blur → close(true) again — by then the text is cleared and the second
+    // pass would take the discard branch and kill the linger immediately.
+    if (!open()) return;
     setOpen(false);
     const t = text().trim();
     setText("");

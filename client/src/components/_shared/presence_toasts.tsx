@@ -53,11 +53,11 @@ function pushToast(text: string, color: string): void {
 
 function PresenceToastHost() {
   return (
-    <div class="pointer-events-none fixed bottom-4 left-4 z-[95] flex flex-col gap-2">
+    <div class="pointer-events-none fixed right-4 top-4 z-[95] flex flex-col items-end gap-2">
       <For each={toasts()}>
         {(t) => (
           <div
-            class="bg-base-100 border-base-300 flex items-center gap-2 rounded border px-3 py-2 text-sm shadow-md"
+            class="flex items-center gap-2 rounded bg-black px-3 py-2 text-sm text-white shadow-lg"
             style={REDUCED_MOTION ? {} : { animation: "presence-toast-in 150ms ease-out" }}
           >
             <span
@@ -70,7 +70,7 @@ function PresenceToastHost() {
       </For>
       <style>
         {`@keyframes presence-toast-in {
-            from { opacity: 0; transform: translateY(6px); }
+            from { opacity: 0; transform: translateY(-6px); }
             to { opacity: 1; transform: translateY(0); }
           }`}
       </style>
@@ -147,6 +147,14 @@ let lastScopeKey: string | null = null;
 let present = new Map<string, { name: string; color: string }>(); // email →
 const pendingLeave = new Map<string, ReturnType<typeof setTimeout>>();
 
+// Seam for harnesses: capture toast events without a DOM. Production uses the
+// real pushToast; a harness swaps it to record (text, color) calls.
+type ToastSink = (text: string, color: string) => void;
+let toastSink: ToastSink = pushToast;
+export function _setPresenceToastSinkForTests(sink: ToastSink | null): void {
+  toastSink = sink ?? pushToast;
+}
+
 function clearPendingLeaves(): void {
   for (const timer of pendingLeave.values()) clearTimeout(timer);
   pendingLeave.clear();
@@ -194,7 +202,7 @@ export function notifyPresenceToasts(
       continue;
     }
     if (!present.has(email)) {
-      pushToast(`${who.name} ${joinedLabel(scope.kind)}`, who.color);
+      toastSink(`${who.name} ${joinedLabel(scope.kind)}`, who.color);
     }
   }
 
@@ -206,8 +214,11 @@ export function notifyPresenceToasts(
       email,
       setTimeout(() => {
         pendingLeave.delete(email);
+        // They are truly gone: drop them from the baseline too, or every later
+        // presence snapshot would re-schedule this leave toast forever.
+        present.delete(email);
         if (lastScopeKey === scopeKeyAtSchedule) {
-          pushToast(`${who.name} ${leftLabel(scope.kind)}`, who.color);
+          toastSink(`${who.name} ${leftLabel(scope.kind)}`, who.color);
         }
       }, LEAVE_GRACE_MS),
     );
