@@ -392,13 +392,23 @@ export function VisualizationEditorInner(p: InnerProps) {
   function redo() {
     undoMgr?.redo();
   }
+  // Document-level so Ctrl+Z works regardless of what's focused (a wrapper's
+  // onKeyDown only fires for keydowns bubbling from a focused descendant — it
+  // misses the common case where focus is on the chart preview / page body,
+  // which is why the button worked but the shortcut didn't). Leaves text-editing
+  // contexts to their own undo: CodeMirror captions have a per-user undo keymap;
+  // native inputs keep native undo.
   function handleEditorKeyDown(e: KeyboardEvent) {
     if (!undoMgr) return;
-    const target = e.target as HTMLElement | null;
-    // CodeMirror (caption editors) owns its own per-user undo keymap.
-    if (target && target.closest(".cm-editor")) return;
     const mod = e.ctrlKey || e.metaKey;
     if (!mod || e.key.toLowerCase() !== "z") return;
+    const target = e.target as HTMLElement | null;
+    if (
+      target &&
+      target.closest(".cm-editor, input, textarea, [contenteditable='true']")
+    ) {
+      return;
+    }
     e.preventDefault();
     if (e.shiftKey) redo();
     else undo();
@@ -407,6 +417,8 @@ export function VisualizationEditorInner(p: InnerProps) {
   onMount(() => {
     const unwrappedTempConfig = unwrap(tempConfig);
     attemptGetPresentationObjectItems(unwrappedTempConfig);
+
+    document.addEventListener("keydown", handleEditorKeyDown);
 
     setAIContext({
       mode: "editing_visualization",
@@ -479,6 +491,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   });
 
   onCleanup(() => {
+    document.removeEventListener("keydown", handleEditorKeyDown);
     setAIContext(p.returnToContext ?? { mode: "viewing_visualizations" });
     const s = poSession();
     if (s) {
@@ -955,9 +968,6 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   return (
     <EditorWrapperForResultsObject>
-      {/* display:contents wrapper — catches bubbling Ctrl+Z/Ctrl+Shift+Z from
-          the form fields for per-user config undo without affecting layout. */}
-      <div class="contents" onKeyDown={handleEditorKeyDown}>
       <FrameTop
         panelChildren={
           <div class="ui-pad ui-gap flex items-center border-b">
@@ -1270,16 +1280,16 @@ export function VisualizationEditorInner(p: InnerProps) {
                               }
                               // ddddddddddddddddddddddddddddd
                               const _type = tempConfig.d.type;
-                              // sssssssssssssssssssssssssssss
-                              for (const k in tempConfig.s) {
-                                //@ts-ignore
-                                const _v = tempConfig.s[k];
-                              }
-                              // ttttttttttttttttttttttttttttt
-                              for (const k in tempConfig.t) {
-                                //@ts-ignore
-                                const _v = tempConfig.t[k];
-                              }
+                              // Deep-track s and t so this render re-runs on ANY
+                              // nested change — including a collaborator's edit
+                              // reconciled IN PLACE into a nested array (e.g. a
+                              // conditional-formatting threshold bucket's color:
+                              // reconcile fires only the leaf `s.cfThresholdBuckets
+                              // [i].color`, which a shallow top-level read misses).
+                              // JSON.stringify recursively reads every nested
+                              // property, subscribing to all of them.
+                              void JSON.stringify(tempConfig.s);
+                              void JSON.stringify(tempConfig.t);
                               if (
                                 _type === "timeseries" &&
                                 keyedItemsHolder.ih.status === "ok" &&
@@ -1342,7 +1352,6 @@ export function VisualizationEditorInner(p: InnerProps) {
           </div>
         </FrameLeftResizable>
       </FrameTop>
-      </div>
     </EditorWrapperForResultsObject>
   );
 }
