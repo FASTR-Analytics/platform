@@ -1,5 +1,6 @@
 import {
   t3,
+  FILTER_ONLY_DISAGGREGATION_OPTIONS,
   get_PRESENTATION_SELECT_OPTIONS,
   type MetricWithStatus,
   type PresentationOption,
@@ -43,8 +44,9 @@ export function Step3Configure(p: Props) {
     if (!type) return [];
     return p.metric.disaggregationOptions.filter(
       (disOpt) =>
-        !disOpt.allowedPresentationOptions ||
-        disOpt.allowedPresentationOptions.includes(type)
+        (!disOpt.allowedPresentationOptions ||
+          disOpt.allowedPresentationOptions.includes(type)) &&
+        !FILTER_ONLY_DISAGGREGATION_OPTIONS.has(disOpt.value)
     );
   };
 

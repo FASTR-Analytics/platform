@@ -133,7 +133,9 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
   lines.push("  hfa_indicator        → indicator IDs (var names)");
   lines.push("  hfa_category         → category IDs");
   lines.push("  hfa_sub_category     → sub-category IDs");
-  lines.push("  hfa_service_category → service-category IDs");
+  lines.push(
+    "  hfa_service_category → service-category IDs (filter-only, cannot disaggregate; filter matches indicators in ANY selected category)",
+  );
   lines.push("  time_point           → time-point IDs (survey rounds)");
   lines.push("");
 

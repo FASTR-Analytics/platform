@@ -1,6 +1,7 @@
 import {
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
+  FILTER_ONLY_DISAGGREGATION_OPTIONS,
   getStartingConfigForPresentationObject,
   t3,
   type CreateModeVisualizationData,
@@ -156,6 +157,7 @@ export function AddVisualization(
             !disOpt.allowedPresentationOptions ||
             disOpt.allowedPresentationOptions.includes(type)
         )
+        .filter((disOpt) => !FILTER_ONLY_DISAGGREGATION_OPTIONS.has(disOpt.value))
         .map((disOpt) => disOpt.value);
 
       const config = getStartingConfigForPresentationObject(metric, type, disaggregations);

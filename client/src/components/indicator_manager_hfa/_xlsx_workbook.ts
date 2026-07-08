@@ -1,6 +1,8 @@
 import { read, utils, write } from "xlsx";
 import {
   HFA_VAR_NAME_REGEX,
+  parseMultiMembershipValues,
+  serialiseMultiMembershipValues,
   type HfaIndicator,
   type HfaIndicatorCategory,
   type HfaIndicatorCode,
@@ -61,7 +63,7 @@ export function buildHfaWorkbookBlob(args: {
   for (const ind of indicators) {
     const row: string[] = [
       ind.varName, ind.categoryId ?? "", ind.subCategoryId ?? "",
-      ind.serviceCategoryIds.join("|"), ind.shortLabel, ind.definition,
+      serialiseMultiMembershipValues(ind.serviceCategoryIds), ind.shortLabel, ind.definition,
       ind.type, ind.aggregation,
     ];
     for (const tp of timePoints) {
@@ -277,10 +279,7 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
     const categoryId = (row.categoryId ?? "").trim() || null;
     const subCategoryId = (row.subCategoryId ?? "").trim() || null;
     // Pipe-delimited: one indicator can belong to multiple service categories.
-    const serviceCategoryIds = (row.serviceCategoryId ?? "")
-      .split("|")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const serviceCategoryIds = parseMultiMembershipValues(row.serviceCategoryId ?? "");
 
     for (const scId of serviceCategoryIds) {
       if (!validServiceCategoryIds.has(scId)) {

@@ -8,6 +8,8 @@ import {
   APIResponseWithData,
   DisaggregationOption,
   GenericLongFormFetchConfig,
+  MULTI_MEMBERSHIP_DELIMITER,
+  MULTI_MEMBERSHIP_FILTER_COLUMNS,
   type DatasetType,
 } from "lib";
 import {
@@ -134,6 +136,14 @@ export async function getPossibleValues(
         columnPrefixes.get(disaggregationOption) || disaggregationOption;
     }
 
+    const isMultiMembership = MULTI_MEMBERSHIP_FILTER_COLUMNS.has(
+      disaggregationOption,
+    );
+    if (isMultiMembership) {
+      columnRef = `unnest(string_to_array(${columnRef}, '${MULTI_MEMBERSHIP_DELIMITER}'))`;
+    }
+    const orderByRef = isMultiMembership ? "disaggregation_value" : columnRef;
+
     // Build the query
     let sqlQuery: string;
 
@@ -192,7 +202,7 @@ facility_subset AS (
 FROM ${sourceTable}
 LEFT JOIN facility_subset f ON ${sourceTable}.facility_id = f.facility_id
 ${whereClause}
-ORDER BY ${columnRef}
+ORDER BY ${orderByRef}
 LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
     } else {
       // Check if the column exists before querying (skip for dynamic period columns)
@@ -225,13 +235,13 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
         sqlQuery = `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${sourceTable}
 ${whereClause}
-ORDER BY ${columnRef}
+ORDER BY ${orderByRef}
 LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
       } else {
         sqlQuery = `SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${tableName}
 ${whereClause}
-ORDER BY ${columnRef}
+ORDER BY ${orderByRef}
 LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
       }
     }

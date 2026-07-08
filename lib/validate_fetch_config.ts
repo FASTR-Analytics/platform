@@ -107,6 +107,41 @@ export function isValidIntegerFilterValue(v: string | number): boolean {
   return Number.isFinite(Number(v));
 }
 
+// Disaggregation options that are FILTER-ONLY: valid in `filters`, never in
+// `groupBys` (nor client `disaggregateBy` slots). Grouping by a many-to-many
+// dimension would double-count or expose raw composite groups.
+// Enforced: validateFetchConfig (server boundary); excluded from the client
+// disaggregation pickers and validate_display_slots.
+export const FILTER_ONLY_DISAGGREGATION_OPTIONS: ReadonlySet<string> =
+  new Set(["hfa_service_category"]);
+
+// Columns whose cell value is a delimiter-joined SET of ids
+// ("rmnch|nutrition"). Filtering is set membership (string_to_array overlap,
+// OR-of-many), and possible values are the unnested single ids.
+// Consumed: buildWhereClause, getPossibleValues.
+export const MULTI_MEMBERSHIP_FILTER_COLUMNS: ReadonlySet<string> =
+  new Set(["hfa_service_category"]);
+
+// THE delimiter for multi-membership set encoding. TS sites use the helpers
+// below; SQL sites (buildWhereClause, getPossibleValues) interpolate this
+// const into string_to_array — SQL cannot call the TS helpers, so the const
+// is the single point of consistency across both worlds.
+export const MULTI_MEMBERSHIP_DELIMITER = "|";
+
+// Encode/decode a multi-membership set for storage cells (RO column via the
+// R generator, xlsx workbook cells). parse mirrors Postgres
+// string_to_array('', '|') = {}: empty/blank cell → [], never [""].
+export function serialiseMultiMembershipValues(ids: string[]): string {
+  return ids.join(MULTI_MEMBERSHIP_DELIMITER);
+}
+
+export function parseMultiMembershipValues(cell: string): string[] {
+  return cell
+    .split(MULTI_MEMBERSHIP_DELIMITER)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export function validateFetchConfig(
   fetchConfig: GenericLongFormFetchConfig
 ): void {
@@ -131,6 +166,9 @@ export function validateFetchConfig(
   for (const groupBy of fetchConfig.groupBys) {
     if (!isValidDisaggregationOption(groupBy)) {
       throw new Error(`Invalid groupBy: ${groupBy}`);
+    }
+    if (FILTER_ONLY_DISAGGREGATION_OPTIONS.has(groupBy)) {
+      throw new Error(`Filter-only disaggregation option in groupBys: ${groupBy}`);
     }
   }
 

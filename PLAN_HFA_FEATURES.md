@@ -53,38 +53,7 @@ invalidation.
 
 ---
 
-## 2. Service-category membership filter · M–L · app-only (new capability)
-
-**Problem.** Service categories are many-to-many but flattened to a pipe-joined
-composite, so the disaggregation system sees `"rmnch|nutrition"` as one opaque
-value — you can't cleanly "filter to indicators in rmnch". Still registered as a
-disaggregator today ([lib/types/disaggregation_options.ts:26](lib/types/disaggregation_options.ts#L26)).
-
-**Settled.**
-
-- **Filter-only, never a disaggregator** — disaggregating a many-to-many
-  dimension double-counts (an indicator in two categories feeds both group sums).
-  Restrict to membership: "include indicators whose `serviceCategoryIds`
-  contains X".
-- Replace the pipe-join workaround for the *filter* path with a real
-  set-membership test.
-
-**Open.**
-
-- Storage/query shape: keep the joined string and match with contains/`ANY`, or carry `serviceCategoryIds` as a proper array/lookup into the query layer.
-- Filter UX: multi-select chips; single vs OR-of-many membership.
-- Whether `hfa_service_category` stays in `ALL_DISAGGREGATION_OPTIONS` or is reclassified filter-only.
-- Cache-key implications (filter participates in the fetch-config hash).
-
-**Files.** [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md),
-`server/server_only_funcs_presentation_objects/cte_manager.ts`,
-`get_combined_query.ts`, `query_helpers.ts`, `get_possible_values.ts`,
-[lib/types/disaggregation_options.ts](lib/types/disaggregation_options.ts),
-filter UI in `client/`.
-
----
-
-## 3. AI indicator-assistant hardening · S–M · app-only
+## 2. AI indicator-assistant hardening · S–M · app-only
 
 First pass is shipped (self-contained assistant in
 [client/src/components/indicator_manager_hfa/ai/](client/src/components/indicator_manager_hfa/ai/),
@@ -109,7 +78,7 @@ all three tiers of tools with a per-write confirm gate). Remaining:
 
 ---
 
-## 4. Sentinel Layer 1 — import review/correction UI · M · app-only
+## 3. Sentinel Layer 1 — import review/correction UI · M · app-only
 
 Auto-classification is shipped; this is the deferred human-correction step. A
 review step in the import wizard, between staging (step 3,
@@ -128,7 +97,7 @@ stepper renumbered from 4 to 5 (`index.tsx` `getValidation` + `<Match>` arms).
 
 ---
 
-## 5. Sentinel Layer 3b — per-indicator override + authoring-rule gate · L · app + wb-fastr-modules
+## 4. Sentinel Layer 3b — per-indicator override + authoring-rule gate · L · app + wb-fastr-modules
 
 Layer 3a (per-variable generator) is shipped; 3b is the additive escape hatch +
 validation:

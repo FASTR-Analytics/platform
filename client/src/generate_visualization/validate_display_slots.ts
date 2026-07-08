@@ -5,6 +5,7 @@ import type {
   PresentationObjectConfig,
 } from "lib";
 import {
+  FILTER_ONLY_DISAGGREGATION_OPTIONS,
   getEffectivePOConfig,
   getEffectiveRollupLevel,
   hasDuplicateDisaggregatorDisplayOptions,
@@ -67,6 +68,11 @@ export function validateDisplaySlots(
       if (!availableDims.includes(d.disOpt)) {
         throw new Error(
           `Invalid disaggregation dimension "${d.disOpt}". Available: ${availableDims.join(", ")}`,
+        );
+      }
+      if (FILTER_ONLY_DISAGGREGATION_OPTIONS.has(d.disOpt)) {
+        throw new Error(
+          `"${d.disOpt}" is filter-only and cannot be used as a disaggregation dimension.`,
         );
       }
       if (validDisplay && !validDisplay.includes(d.disDisplayOpt)) {

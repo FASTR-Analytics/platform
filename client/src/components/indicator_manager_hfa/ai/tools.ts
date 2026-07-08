@@ -4,7 +4,7 @@ import {
   openConfirm,
 } from "panther";
 import { z } from "zod";
-import { extractRIdentifiers, type HfaDictionaryForValidation, type HfaIndicator, type HfaIndicatorCode } from "lib";
+import { extractRIdentifiers, serialiseMultiMembershipValues, type HfaDictionaryForValidation, type HfaIndicator, type HfaIndicatorCode } from "lib";
 import { serverActions } from "~/server_actions";
 import { checkRCodeResultType, hasRCodeErrors, validateRCode } from "../hfa_r_code_validator";
 
@@ -308,7 +308,8 @@ export function buildHfaIndicatorTools() {
           const changed =
             next.categoryId !== cur.categoryId ||
             next.subCategoryId !== cur.subCategoryId ||
-            next.serviceCategoryIds.join("|") !== cur.serviceCategoryIds.join("|");
+            serialiseMultiMembershipValues(next.serviceCategoryIds) !==
+              serialiseMultiMembershipValues(cur.serviceCategoryIds);
           if (changed) {
             lines.push(`${u.varName} → category: ${next.categoryId ?? "—"}, sub: ${next.subCategoryId ?? "—"}, services: [${next.serviceCategoryIds.join(", ") || "—"}]`);
             merged.push(next);

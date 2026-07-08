@@ -7,6 +7,8 @@ import {
   INTEGER_FILTER_COLUMNS,
   inferPeriodFormatFromValuesIfTheSame,
   isAdminLevel,
+  MULTI_MEMBERSHIP_DELIMITER,
+  MULTI_MEMBERSHIP_FILTER_COLUMNS,
   ROLLUP_SENTINEL,
 } from "lib";
 import type { QueryContext } from "./types.ts";
@@ -208,7 +210,16 @@ export function buildWhereClause(
     const columnName = columnPrefixes?.get(filter.disOpt) || filter.disOpt;
     const isIntegerColumn = INTEGER_FILTER_COLUMNS.has(filter.disOpt);
 
-    if (isIntegerColumn) {
+    if (MULTI_MEMBERSHIP_FILTER_COLUMNS.has(filter.disOpt)) {
+      // Delimiter-joined set column: membership (OR-of-many), not exact match —
+      // see MULTI_MEMBERSHIP_FILTER_COLUMNS (lib/validate_fetch_config.ts)
+      const quotedValues = filter.values
+        .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
+        .join(", ");
+      whereStatements.push(
+        `string_to_array(UPPER(${columnName}), '${MULTI_MEMBERSHIP_DELIMITER}') && ARRAY[${quotedValues}]`,
+      );
+    } else if (isIntegerColumn) {
       // Direct comparison for integer columns
       const values = filter.values.map((v) => Number(v)).join(", ");
       whereStatements.push(`${columnName} IN (${values})`);

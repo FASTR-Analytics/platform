@@ -1,4 +1,5 @@
 import {
+  FILTER_ONLY_DISAGGREGATION_OPTIONS,
   IneffectiveDisaggregator,
   PresentationObjectConfig,
   PresentationObjectDetail,
@@ -68,7 +69,9 @@ export function PresentationObjectEditorPanelData(p: Props) {
         poDetail={p.poDetail}
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}
-        allDisaggregationOptions={allowedFilterOptions()}
+        allDisaggregationOptions={allowedFilterOptions().filter(
+          (o) => !FILTER_ONLY_DISAGGREGATION_OPTIONS.has(o.value),
+        )}
         ineffectiveDisaggregators={p.ineffectiveDisaggregators}
         effectiveValueProps={p.effectiveValueProps}
         hasMultipleValueProps={p.hasMultipleValueProps}

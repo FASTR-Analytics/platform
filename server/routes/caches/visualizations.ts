@@ -21,7 +21,10 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "4": replicant-options now resolve RELATIVE period filters to exact bounds
 // (and re-anchor from_month) like the items query — previously-cached lists
 // for relative-filtered configs span all time.
-const PO_CACHE_VERSION = "4";
+// "5": hfa_service_category filtering changed from exact-match to set-membership
+// (string_to_array overlap) — previously-cached payloads for configs filtering
+// on this column used the old (wrong) semantics under an unchanged config hash.
+const PO_CACHE_VERSION = "5";
 
 export const _PO_DETAIL_CACHE = new TimCacheC<
   {

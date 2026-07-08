@@ -157,6 +157,21 @@ through `CTEManager`.
   `UPPER(col) IN ('VAL', …)` with upper-casing and `''`-doubling. Period
   bounds (below) append `col >= min AND col <= max`, skipped entirely (warn)
   when the bounds don't self-identify one format.
+- **Multi-membership filter columns** — two registries in lib beside
+  `INTEGER_FILTER_COLUMNS`: `FILTER_ONLY_DISAGGREGATION_OPTIONS` (valid in
+  `filters`, rejected in `groupBys`/`disaggregateBy` by `validateFetchConfig`
+  and the client disaggregation pickers) and `MULTI_MEMBERSHIP_FILTER_COLUMNS`
+  (currently just `hfa_service_category`: a pipe-joined set column, e.g.
+  `"rmnch|nutrition"`). `buildWhereClause`'s first branch turns a filter on
+  such a column into set-membership overlap —
+  `string_to_array(UPPER(col), '|') && ARRAY['VAL', …]` (OR-of-many) — instead
+  of exact-match; `getPossibleValues` unnests it
+  (`unnest(string_to_array(col, '|'))`, `ORDER BY` the `disaggregation_value`
+  alias since an SRF can't repeat in ORDER BY) so filter chips offer single
+  category ids, not composites. The delimiter and the encode/decode helpers
+  (`serialiseMultiMembershipValues` / `parseMultiMembershipValues`) live once
+  in lib next to the registries. `PO_CACHE_VERSION` bumped "4"→"5" for the
+  filter-semantics change.
 - **Status envelope** ([get_presentation_object_items.ts](server/server_only_funcs_presentation_objects/get_presentation_object_items.ts)):
   runs inside `tryCatchDatabaseAsync`, fetches `MAX_ITEMS + 1` rows
   (`MAX_ITEMS = 20000`) as an N+1 overflow probe. `> MAX_ITEMS` →
@@ -407,11 +422,12 @@ both so `parseData` can reproduce the version hash byte-identically to
 silently no-ops the cache. Error envelopes are never stored
 (`shouldStore: false`).
 
-Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently "4")
+Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently "5")
 is folded into the version hash — bump it when a code change alters the
 *meaning* of a cached payload without any data change ("2": `YYYYQ` quarter
 cutover; "3": self-strip removal; "4": replicant options resolve relative
-period filters). **The key prefix** (`po_detail` →
+period filters; "5": `hfa_service_category` filtering changed exact-match →
+set-membership). **The key prefix** (`po_detail` →
 `po_detail_v2`) — bump it when the payload *shape* changes (the version hash
 only tracks row `last_updated`, so a deploy adding a field would keep serving
 old-shape payloads for unmodified rows; `_v2` added
