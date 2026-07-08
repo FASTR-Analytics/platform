@@ -1,73 +1,98 @@
-import { PresentationObjectConfig, PresentationObjectDetail, t3 } from "lib";
-import { Slider, TextArea } from "panther";
+import {
+  findFigureCaptionText,
+  type CaptionTextKey,
+  PresentationObjectConfig,
+  PresentationObjectDetail,
+  t3,
+} from "lib";
+import { TextArea } from "panther";
+import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
+import type { Awareness } from "y-protocols/awareness";
+import type * as Y from "yjs";
+import { CollabMarkdownEditor } from "~/components/_shared/collab_markdown_editor";
+
+/** Live-collab binding for the caption fields (character co-editing + carets). */
+export type VizCaptionCollab = {
+  configMap: Y.Map<unknown>;
+  awareness: Awareness;
+  canEdit: boolean;
+};
 
 type Props = {
   projectId: string;
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
+  captionCollab?: VizCaptionCollab;
 };
 
 export function PresentationObjectEditorPanelText(p: Props) {
+  // A caption Y.Text when live-collab is bound (else undefined → TextArea).
+  const captionText = (key: CaptionTextKey): Y.Text | undefined =>
+    p.captionCollab
+      ? findFigureCaptionText(p.captionCollab.configMap, key)
+      : undefined;
+
+  // One caption field: CollabMarkdownEditor when bound, plain TextArea otherwise.
+  // The CodeMirror path mirrors edits back into tempConfig (onTextChange) so the
+  // preview re-renders; the config push then syncs the Y.Text (idempotent).
+  const CaptionField = (fp: {
+    label: string;
+    key: CaptionTextKey;
+    height: string;
+  }) => (
+    <Show
+      when={captionText(fp.key)}
+      keyed
+      fallback={
+        <TextArea
+          label={fp.label}
+          value={p.tempConfig.t[fp.key]}
+          onChange={(v) => p.setTempConfig("t", fp.key, v)}
+          fullWidth
+          height={fp.height}
+        />
+      }
+    >
+      {(yText) => (
+        <div>
+          <label class="ui-label">{fp.label}</label>
+          <CollabMarkdownEditor
+            yText={yText}
+            awareness={p.captionCollab!.awareness}
+            canEdit={p.captionCollab!.canEdit}
+            onTextChange={(v) => p.setTempConfig("t", fp.key, v)}
+            height={fp.height}
+            plain
+          />
+        </div>
+      )}
+    </Show>
+  );
+
   return (
     <div class="ui-pad ui-spy h-full w-full overflow-auto">
       <div class="ui-spy-sm">
-        <TextArea
+        <CaptionField
           label={t3({ en: "Caption", fr: "Titre", pt: "Legenda" })}
-          value={p.tempConfig.t.caption}
-          onChange={(v) => p.setTempConfig("t", "caption", v)}
-          fullWidth
+          key="caption"
           height="80px"
         />
-        {/* <Slider
-          label={t3({ en: "Caption font size", fr: "Taille de la police des légendes", pt: "Tamanho do tipo de letra da legenda" })}
-          min={0.5}
-          max={3}
-          step={0.1}
-          value={p.tempConfig.t.captionRelFontSize ?? 2}
-          onChange={(v) => p.setTempConfig("t", "captionRelFontSize", v)}
-          fullWidth
-          showValueInLabel
-        /> */}
       </div>
       <div class="ui-spy-sm">
-        <TextArea
+        <CaptionField
           label={t3({ en: "Sub-caption", fr: "Sous-titre", pt: "Sublegenda" })}
-          value={p.tempConfig.t.subCaption}
-          onChange={(v) => p.setTempConfig("t", "subCaption", v)}
-          fullWidth
+          key="subCaption"
           height="80px"
         />
-        {/* <Slider
-          label={t3({ en: "Sub-caption font size", fr: "Taille de la police des sous-titres", pt: "Tamanho do tipo de letra da sublegenda" })}
-          min={0.5}
-          max={3}
-          step={0.1}
-          value={p.tempConfig.t.subCaptionRelFontSize ?? 1.3}
-          onChange={(v) => p.setTempConfig("t", "subCaptionRelFontSize", v)}
-          fullWidth
-          showValueInLabel
-        /> */}
       </div>
       <div class="ui-spy-sm">
-        <TextArea
+        <CaptionField
           label={t3({ en: "Footnote", fr: "Note de bas de page", pt: "Nota de rodapé" })}
-          value={p.tempConfig.t.footnote}
-          onChange={(v) => p.setTempConfig("t", "footnote", v)}
-          fullWidth
+          key="footnote"
           height="200px"
         />
-        {/* <Slider
-          label={t3({ en: "Footnote font size", fr: "Taille de la police des notes de bas de page", pt: "Tamanho do tipo de letra da nota de rodapé" })}
-          min={0.1}
-          max={3}
-          step={0.1}
-          value={p.tempConfig.t.footnoteRelFontSize ?? 0.9}
-          onChange={(v) => p.setTempConfig("t", "footnoteRelFontSize", v)}
-          fullWidth
-          showValueInLabel
-        /> */}
       </div>
       <div class="ui-spy-sm text-sm">
         <div class="">

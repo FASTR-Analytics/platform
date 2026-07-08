@@ -51,6 +51,20 @@ import {
   unsubscribeReport,
 } from "../../collab/report_rooms.ts";
 import {
+  applyPoUpdate,
+  type PoRoomDeps,
+  relayPoAwareness,
+  subscribePo,
+  unsubscribePo,
+} from "../../collab/po_rooms.ts";
+import {
+  getAllPresentationObjectsForProject,
+  getPresentationObjectConfigRow,
+  getPresentationObjectCrdtState,
+  savePresentationObjectCheckpoint,
+} from "../../db/project/presentation_objects.ts";
+import { notifyProjectVisualizationsUpdated } from "../../task_management/notify_project_v2.ts";
+import {
   noteVersionRoomEmpty,
   recordVersionEdit,
 } from "../../collab/version_capture.ts";
@@ -64,6 +78,8 @@ type CollabAuth = {
   canEditSlides: boolean;
   canViewReports: boolean;
   canEditReports: boolean;
+  canViewViz: boolean;
+  canEditViz: boolean;
 };
 
 export const routesProjectCollab = new Hono<
@@ -91,6 +107,25 @@ function scheduleReportsListRebroadcast(projectId: string): void {
       const res = await getAllReports(projectDb);
       if (res.success) notifyProjectReportsUpdated(projectId, res.data);
     }, REPORTS_REBROADCAST_DEBOUNCE_MS),
+  );
+}
+
+// Same idea for the visualizations list (cards derive from config): trail the
+// full-list rebroadcast on a per-project debounce rather than firing it on every
+// 1.5s config checkpoint.
+const VIZ_REBROADCAST_DEBOUNCE_MS = 5000;
+const vizRebroadcastTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleVizListRebroadcast(projectId: string): void {
+  if (vizRebroadcastTimers.has(projectId)) return;
+  vizRebroadcastTimers.set(
+    projectId,
+    setTimeout(async () => {
+      vizRebroadcastTimers.delete(projectId);
+      const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
+      const res = await getAllPresentationObjectsForProject(projectDb);
+      if (res.success) notifyProjectVisualizationsUpdated(projectId, res.data);
+    }, VIZ_REBROADCAST_DEBOUNCE_MS),
   );
 }
 
@@ -149,12 +184,18 @@ routesProjectCollab.get(
       }
     }
 
-    // The socket carries slide AND report collaboration; either view
-    // permission admits the connection, and each message family re-checks its
-    // own view/edit permission per operation.
-    if (!projectUser.can_view_slide_decks && !projectUser.can_view_reports) {
+    // The socket carries slide, report AND visualization collaboration; any of
+    // those view permissions admits the connection, and each message family
+    // re-checks its own view/edit permission per operation.
+    if (
+      !projectUser.can_view_slide_decks && !projectUser.can_view_reports &&
+      !projectUser.can_view_visualizations
+    ) {
       c.status(403);
-      return c.json({ success: false, err: "No slide deck or report access" });
+      return c.json({
+        success: false,
+        err: "No slide deck, report or visualization access",
+      });
     }
 
     const name = `${globalUser.firstName} ${globalUser.lastName}`.trim() ||
@@ -167,6 +208,8 @@ routesProjectCollab.get(
       canEditSlides: projectUser.can_configure_slide_decks,
       canViewReports: projectUser.can_view_reports,
       canEditReports: projectUser.can_configure_reports,
+      canViewViz: projectUser.can_view_visualizations,
+      canEditViz: projectUser.can_configure_visualizations,
     });
     await next();
   },
@@ -178,6 +221,7 @@ routesProjectCollab.get(
     // connectionId, and each carries its own family's edit permission.
     let roomConn: RoomConn | null = null;
     let reportRoomConn: RoomConn | null = null;
+    let poRoomConn: RoomConn | null = null;
 
     // DB-backed room dependencies for one slide. deckId is captured on load so
     // the checkpoint can also notify the deck (refreshes thumbnails / list) and
@@ -265,6 +309,40 @@ routesProjectCollab.get(
       };
     }
 
+    // DB-backed room dependencies for one visualization. No version/authorship
+    // hooks (POs are not versioned), so onEdit/onEmpty are omitted.
+    function depsForPo(poId: string): PoRoomDeps {
+      const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
+      return {
+        load: async () => {
+          const res = await getPresentationObjectConfigRow(projectDb, poId);
+          // Absent row OR a read-only default visualization → no room.
+          if (!res.success || res.data === null || res.data.isDefault) return null;
+          const crdtRes = await getPresentationObjectCrdtState(projectDb, poId);
+          const crdtState = crdtRes.success ? crdtRes.data.state : null;
+          return { content: res.data.config, crdtState };
+        },
+        save: async (config, crdtState) => {
+          // Collab is authoritative → checkpoint overwrites config + CRDT state.
+          const res = await savePresentationObjectCheckpoint(
+            projectDb,
+            poId,
+            config,
+            crdtState,
+          );
+          if (!res.success) return null;
+          notifyLastUpdated(
+            projectId,
+            "presentation_objects",
+            [poId],
+            res.data.lastUpdated,
+          );
+          scheduleVizListRebroadcast(projectId);
+          return res.data.lastUpdated;
+        },
+      };
+    }
+
     return {
       onOpen: (_evt, ws) => {
         roomConn = {
@@ -276,6 +354,12 @@ routesProjectCollab.get(
         reportRoomConn = {
           connectionId,
           canEdit: auth.canEditReports,
+          identity: { email: auth.email, name: auth.name },
+          send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
+        };
+        poRoomConn = {
+          connectionId,
+          canEdit: auth.canEditViz,
           identity: { email: auth.email, name: auth.name },
           send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
         };
@@ -317,13 +401,6 @@ routesProjectCollab.get(
             }
             break;
           case "slide_update":
-            // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-            console.log("[VIZSYNC-SRV] recv slide_update", {
-              slideId: msg.data.slideId,
-              b64Len: msg.data.update?.length ?? 0,
-              hasRoomConn: !!roomConn,
-              canEdit: roomConn?.canEdit,
-            });
             if (roomConn && auth.canViewSlides) {
               applySlideUpdate(projectId, msg.data.slideId, roomConn, msg.data.update);
             }
@@ -367,6 +444,37 @@ routesProjectCollab.get(
           case "report_awareness_update":
             if (reportRoomConn && auth.canViewReports) {
               relayReportAwareness(projectId, msg.data.reportId, reportRoomConn, msg.data.update);
+            }
+            break;
+          case "po_subscribe":
+            if (poRoomConn && auth.canViewViz) {
+              void subscribePo(
+                projectId,
+                msg.data.poId,
+                poRoomConn,
+                msg.data.stateVector,
+                depsForPo(msg.data.poId),
+              );
+            } else if (poRoomConn) {
+              poRoomConn.send({
+                type: "po_error",
+                data: { poId: msg.data.poId, message: "No visualization access" },
+              });
+            }
+            break;
+          case "po_update":
+            if (poRoomConn && auth.canViewViz) {
+              applyPoUpdate(projectId, msg.data.poId, poRoomConn, msg.data.update);
+            }
+            break;
+          case "po_unsubscribe":
+            if (poRoomConn && auth.canViewViz) {
+              unsubscribePo(projectId, msg.data.poId, poRoomConn);
+            }
+            break;
+          case "po_awareness_update":
+            if (poRoomConn && auth.canViewViz) {
+              relayPoAwareness(projectId, msg.data.poId, poRoomConn, msg.data.update);
             }
             break;
         }

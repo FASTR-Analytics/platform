@@ -1,82 +1,28 @@
-import { minimalSetup } from "codemirror";
-import { EditorState } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
-import { markdown } from "@codemirror/lang-markdown";
-import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
-import { createEffect, onCleanup } from "solid-js";
+import { CollabMarkdownEditor as SharedCollabMarkdownEditor } from "~/components/_shared/collab_markdown_editor";
 import { projectState } from "~/state/project/t1_store";
 
-// A CodeMirror markdown editor bound directly to a slide text block's Y.Text via
-// y-codemirror.next. This is what renders remote collaborators' carets and
-// selections (from Yjs awareness) and preserves the local caret through remote
-// edits — things a plain <textarea> can't do. It replaces panther's TextArea for
-// the text-block body only while live collab is active (see editor_panel_content).
-
-function buildExtensions(
-  yText: Y.Text,
-  awareness: Awareness,
-  height: string,
-  plain: boolean,
-  canEdit: boolean,
-) {
-  return [
-    // yCollab's per-user undo takes precedence over the base keymap.
-    keymap.of([...yUndoManagerKeymap]),
-    minimalSetup,
-    ...(plain ? [] : [markdown()]),
-    // View-only users get a read-only editor: their keystrokes would otherwise
-    // flow into the local doc, be rejected server-side ("No edit permission"),
-    // and silently diverge this client from every peer.
-    ...(canEdit ? [] : [EditorState.readOnly.of(true), EditorView.editable.of(false)]),
-    EditorView.lineWrapping,
-    EditorView.theme({
-      "&": {
-        fontSize: "14px",
-        border: "1px solid rgba(0,0,0,0.15)",
-        borderRadius: "6px",
-        backgroundColor: "#fff",
-      },
-      "&.cm-focused": { outline: "none" },
-      ".cm-scroller": { overflow: "auto", maxHeight: height, fontFamily: "inherit" },
-      ".cm-content": { minHeight: height, padding: "8px" },
-    }),
-    yCollab(yText, awareness),
-  ];
-}
-
+// Slide-editor wrapper around the shared CollabMarkdownEditor: injects the
+// slide-deck configure permission so the two slide call sites (collab_text_field,
+// editor_panel_content) don't each repeat it. `canEdit` is read reactively (Solid
+// getter-wraps the prop), so it still re-runs when permissions arrive after mount.
 export function CollabMarkdownEditor(p: {
   yText: Y.Text;
   awareness: Awareness;
-  /** Mirror the text into tempSlide so the slide canvas re-renders as you type. */
   onTextChange: (markdown: string) => void;
   height?: string;
-  /** Plain text (no markdown highlighting) — used for title/header fields. */
   plain?: boolean;
 }) {
-  let parent!: HTMLDivElement;
-  let view: EditorView | undefined;
-
-  // Recreate the editor when the bound block (Y.Text) or edit permission
-  // changes (permissions can arrive after mount; the reactive read re-runs
-  // this effect when they do).
-  createEffect(() => {
-    const yText = p.yText;
-    const canEdit = projectState.thisUserPermissions.can_configure_slide_decks &&
-      !projectState.isLocked;
-    view?.destroy();
-    view = new EditorView({
-      parent,
-      doc: yText.toString(),
-      extensions: buildExtensions(yText, p.awareness, p.height ?? "300px", !!p.plain, canEdit),
-    });
-    const observer = () => p.onTextChange(yText.toString());
-    yText.observe(observer);
-    onCleanup(() => yText.unobserve(observer));
-  });
-
-  onCleanup(() => view?.destroy());
-
-  return <div ref={parent} class="w-full" />;
+  return (
+    <SharedCollabMarkdownEditor
+      yText={p.yText}
+      awareness={p.awareness}
+      canEdit={projectState.thisUserPermissions.can_configure_slide_decks &&
+        !projectState.isLocked}
+      onTextChange={p.onTextChange}
+      height={p.height}
+      plain={p.plain}
+    />
+  );
 }

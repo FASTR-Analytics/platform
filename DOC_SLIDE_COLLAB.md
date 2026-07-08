@@ -85,13 +85,27 @@ user-facing behavior.
   ([fractional-indexing](https://www.npmjs.com/package/fractional-indexing)) —
   reorders touch only out-of-order siblings, so concurrent moves don't
   clobber each other. Type changes rebuild a node in place.
-- **Opaque values** (figure `bundle`, style objects): stored as plain JSON
-  values via `setOpaque`, which short-circuits on reference equality (a
-  WeakMap cache) before falling back to a `canonicalJson` content compare.
+- **Opaque values** (style objects, and a figure's heavy `figData`): stored as
+  plain JSON values via `setOpaque`, which short-circuits on reference equality
+  (a WeakMap cache) before falling back to a `canonicalJson` content compare.
   **Invariant:** callers must pass structurally-shared values — a changed
   value must be a NEW object reference (the editor's path-set write-backs
   guarantee this; `reconcile()` merges in place and must not be used to write
-  figure bundles).
+  figure bundles). `setOpaqueByValue` is the sibling for small values a caller
+  may mutate in place (config sub-objects): it clones on store and always
+  content-compares (no reference cache).
+- **Figures are decomposed, not one opaque blob.** A figure node splits its
+  `FigureBundle` into `figConfig` (a nested `Y.Map` via the
+  `lib/collab/figure_config_crdt.ts` bridge — so the visualization config
+  co-edits field-by-field, captions per character) + `figData` (the opaque
+  remainder: items, geo, provenance). `materialize` recomposes the bundle;
+  legacy docs that stored the whole bundle under `bundle` are read and
+  converted on the next sync. `syncSlideToDoc(doc, slide, { skipFigureConfig
+  ForBlockIds })` lets a host with an open figure-editor modal exclude that
+  figure's config from its push (the modal owns it live). Report figures use
+  the identical split in `doc.getMap("figures")`. This is why migration 036
+  clears `crdt_state` (the stored CRDT shape changed; rooms re-seed from the
+  unchanged stored config/body+figures).
 - Entry points: `seedSlideDoc(doc, slide)` (build), `materializeSlide(doc)`
   (read back), `syncSlideToDoc(doc, slide)` (idempotent 2-way diff used for
   every local push — a no-op when doc already matches, which is what makes

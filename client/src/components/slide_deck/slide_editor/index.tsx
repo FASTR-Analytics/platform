@@ -9,7 +9,8 @@ import type {
   SlideDeckConfig,
   SlideType,
 } from "lib";
-import { canonicalJson, getSlideTitle, materializeSlide, t3, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import { canonicalJson, findSlideFigureConfigMap, getSlideTitle, materializeSlide, t3, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import type { FigureBundle } from "lib";
 import type {
   DividerDragUpdate,
   LayoutItemSwapUpdate,
@@ -53,6 +54,7 @@ import { AddVisualization } from "~/components/project/add_visualization";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import type { AIContext } from "~/components/project_ai/types";
 import { VisualizationEditor } from "~/components/visualization";
+import type { VizFigureCollabBinding } from "~/components/visualization";
 import {
   makeFigureBundleFromFetchedData,
   resolveFigureBundleFromVisualization,
@@ -174,6 +176,13 @@ export function SlideEditor(p: Props) {
   // over the slide canvas. While > 0 the peer-selection overlay is suppressed so
   // its body-portaled boxes don't float on top of that modal.
   const [subEditorOpen, setSubEditorOpen] = createSignal(0);
+  // The layout-block id whose figure editor modal is currently open (co-editing
+  // its config live in the shared doc). While set, the host's full-slide push
+  // must NOT sync that figure's config (the modal owns it — its tempSlide copy
+  // lags the modal's live edits); presence advertises it to peers.
+  const [editingFigureBlockId, setEditingFigureBlockId] = createSignal<
+    string | undefined
+  >(undefined);
   async function withCanvasCovered<T>(opening: Promise<T>): Promise<T> {
     setSubEditorOpen((n) => n + 1);
     try {
@@ -213,7 +222,11 @@ export function SlideEditor(p: Props) {
     // when a remote reconcile made no tracked change, silently swallowing the
     // NEXT local edit — the cause of visualization edits not saving/syncing.
     setNeedsSave(true);
-    session()?.pushLocal(unwrap(tempSlide));
+    const skipId = editingFigureBlockId();
+    session()?.pushLocal(
+      unwrap(tempSlide),
+      skipId ? { skipFigureConfigForBlockIds: new Set([skipId]) } : undefined,
+    );
 
     // Re-render the preview for both local and remote changes.
     if (renderTimeout) {
@@ -297,11 +310,13 @@ export function SlideEditor(p: Props) {
   // field (they are set mutually exclusively, but guard here too).
   createEffect(() => {
     const block = selectedBlockId();
+    const editingFig = editingFigureBlockId();
     setCollabView({
       deckId: p.deckId,
       slideId: p.slideId,
-      selectedBlockId: block,
+      selectedBlockId: editingFig ?? block,
       selectedTextTarget: block ? undefined : selectedTextTarget(),
+      editingFigureId: editingFig,
     });
   });
 
@@ -602,76 +617,110 @@ export function SlideEditor(p: Props) {
         return;
       }
 
-      const result = await withCanvasCovered(openEditor({
-        element: VisualizationEditor,
-        props: {
-          mode: "ephemeral" as const,
-          label: resultsValue.label,
-          projectId: p.projectId,
-          returnToContext: aiContext(),
-          ...snapshotForVizEditor({
-            projectState: p.projectStateSnapshot,
-            resultsValue,
-            config: bundleConfig,
-          }),
-        },
-      }));
-
-      if (result?.updated) {
-        const newConfig = result.updated.config;
-
-        const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
-          p.projectId,
-          {
-            id: "",
-            projectId: p.projectId,
-            lastUpdated: "",
-            label: "Ephemeral",
-            resultsValue: resultsValue,
-            config: newConfig,
-            isDefault: false,
-            folderId: null,
-          },
-          newConfig,
-        );
-
-        if (
-          newItemsRes.success === false ||
-          newItemsRes.data.ih.status !== "ok"
-        ) {
-          await openAlert({
-            text: "Failed to regenerate visualization",
-            intent: "danger",
-          });
-          return;
-        }
-
-        const newBundle = makeFigureBundleFromFetchedData({
-          resultsValue,
-          ih: newItemsRes.data.ih as Parameters<
-            typeof makeFigureBundleFromFetchedData
-          >[0]["ih"],
-          effectiveConfig: newItemsRes.data.config,
-        });
-
+      // Path set (not reconcile): guarantees a FRESH bundle object reference so
+      // syncSlideToDoc always writes it. reconcile can merge the new bundle into
+      // the old object in place (same ref) for some shapes, which the sync's
+      // reference cache then skips — the edit updates locally but never reaches
+      // the doc (not synced, not saved). See lib/collab/slide_crdt.ts.
+      const applyFigureBundle = (bundle: FigureBundle) => {
         const updatedLayout = updateBlockInLayout(
           tempSlide.layout,
           blockId,
-          (b: ContentBlock) => {
-            if (b.type !== "figure") return b;
-            return { type: "figure" as const, bundle: newBundle };
-          },
+          (b: ContentBlock) =>
+            b.type !== "figure" ? b : { type: "figure" as const, bundle },
         );
-
-        // Path set (not reconcile): guarantees a FRESH bundle object reference so
-        // syncSlideToDoc's setOpaque always writes it. reconcile can merge the new
-        // bundle into the old object in place (same ref) for some shapes, which
-        // setOpaque's reference cache then skips — the edit updates locally but
-        // never reaches the doc (not synced, not saved). See lib/collab/slide_crdt.ts.
         (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
           "layout",
           updatedLayout,
         );
+      };
+
+      // Live co-editing: bind the modal to this figure's config IN the shared
+      // slide doc. Only when the session is live; otherwise the modal keeps its
+      // classic Apply/Cancel flow (graceful degradation — WS down / not ready).
+      const s = session();
+      const figureOrigin = {}; // per-open origin for the modal's undo tracking
+      const collabBinding: VizFigureCollabBinding | undefined =
+        s && s.isLive()
+          ? {
+              getConfigMap: () => {
+                const ss = session();
+                return ss
+                  ? findSlideFigureConfigMap(ss.doc, blockId)
+                  : undefined;
+              },
+              awareness: s.awareness,
+              isLive: () => session()?.isLive() ?? false,
+              canEdit:
+                p.projectStateSnapshot.thisUserPermissions
+                  .can_configure_slide_decks &&
+                !p.projectStateSnapshot.isLocked,
+              localOrigin: figureOrigin,
+              onCoherentBundle: applyFigureBundle,
+            }
+          : undefined;
+
+      setEditingFigureBlockId(blockId);
+      try {
+        const result = await withCanvasCovered(openEditor({
+          element: VisualizationEditor,
+          props: {
+            mode: "ephemeral" as const,
+            label: resultsValue.label,
+            projectId: p.projectId,
+            returnToContext: aiContext(),
+            collabBinding,
+            ...snapshotForVizEditor({
+              projectState: p.projectStateSnapshot,
+              resultsValue,
+              config: bundleConfig,
+            }),
+          },
+        }));
+
+        // On close, rebuild once from the final config (fresh items) — the final
+        // coherent bundle for both the classic path and the live path.
+        if (result?.updated) {
+          const newConfig = result.updated.config;
+
+          const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
+            p.projectId,
+            {
+              id: "",
+              projectId: p.projectId,
+              lastUpdated: "",
+              label: "Ephemeral",
+              resultsValue: resultsValue,
+              config: newConfig,
+              isDefault: false,
+              folderId: null,
+            },
+            newConfig,
+          );
+
+          if (
+            newItemsRes.success === false ||
+            newItemsRes.data.ih.status !== "ok"
+          ) {
+            await openAlert({
+              text: "Failed to regenerate visualization",
+              intent: "danger",
+            });
+            return;
+          }
+
+          applyFigureBundle(
+            makeFigureBundleFromFetchedData({
+              resultsValue,
+              ih: newItemsRes.data.ih as Parameters<
+                typeof makeFigureBundleFromFetchedData
+              >[0]["ih"],
+              effectiveConfig: newItemsRes.data.config,
+            }),
+          );
+        }
+      } finally {
+        setEditingFigureBlockId(undefined);
       }
     } catch (err) {
       await openAlert({
@@ -1153,7 +1202,7 @@ function PeerSelectionOverlay(p: {
       top: number;
       width: number;
       height: number;
-      editors: { name: string; color: string }[];
+      editors: { name: string; color: string; editingFigure: boolean }[];
     }[] = [];
     const byTarget = new Map<string, (typeof out)[number]>();
     for (const peer of peers) {
@@ -1179,7 +1228,12 @@ function PeerSelectionOverlay(p: {
       }
       // Same user in two tabs = two connections; show their name once.
       if (!entry.editors.some((e) => e.name === peer.name)) {
-        entry.editors.push({ name: peer.name, color: peer.color });
+        entry.editors.push({
+          name: peer.name,
+          color: peer.color,
+          editingFigure: peer.editingFigureId === peer.selectedBlockId &&
+            !!peer.editingFigureId,
+        });
       }
     }
     // Stable label order so tags don't swap places between presence updates.
@@ -1225,6 +1279,9 @@ function PeerSelectionOverlay(p: {
                       style={{ "background-color": e.color }}
                     >
                       {e.name}
+                      {e.editingFigure
+                        ? " " + t3({ en: "✎ figure", fr: "✎ figure", pt: "✎ figura" })
+                        : ""}
                     </div>
                   )}
                 </For>

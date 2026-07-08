@@ -3,8 +3,11 @@ import { Sql } from "postgres";
 import {
   isValidDisaggregationOption,
   periodFilterHasBounds,
+  syncFigureConfigField,
+  syncFigureConfigToMap,
   validateFetchConfig,
 } from "lib";
+import { applyPoToLiveRoom, closePoRoom } from "../../collab/po_rooms.ts";
 import {
   addPresentationObject,
   batchUpdatePresentationObjectsPeriodFilter,
@@ -265,10 +268,25 @@ defineRoute(
   ),
   log("updatePresentationObjectConfig"),
   async (c, { params, body }) => {
+    const config = body.config as PresentationObjectConfig;
+    // Chokepoint: if a live collab room holds this visualization, merge the
+    // write into it (collab is authoritative → the field-level merge IS the
+    // conflict resolution, so the optimistic-lock check is skipped). The room's
+    // checkpoint already persisted, fired notifyLastUpdated and scheduled the
+    // viz-list rebroadcast.
+    const roomLastUpdated = await applyPoToLiveRoom(
+      c.var.ppk.projectId,
+      params.po_id,
+      (m) => syncFigureConfigToMap(m, config),
+    );
+    if (roomLastUpdated !== null) {
+      return c.json({ success: true, data: { lastUpdated: roomLastUpdated } });
+    }
+
     const res = await updatePresentationObjectConfig(
       c.var.ppk.projectDb,
       params.po_id,
-      body.config as PresentationObjectConfig,
+      config,
       body.expectedLastUpdated,
       body.overwrite,
     );
@@ -297,27 +315,57 @@ defineRoute(
     "can_configure_visualizations",
   ),
   async (c, { body }) => {
-    const res = await batchUpdatePresentationObjectsPeriodFilter(
-      c.var.ppk.projectDb,
-      body.presentationObjectIds,
-      body.periodFilter,
-    );
+    const projectId = c.var.ppk.projectId;
+    const ids: string[] = body.presentationObjectIds;
+    const periodFilter = body.periodFilter;
 
-    if (res.success) {
-      notifyLastUpdated(
-        c.var.ppk.projectId,
-        "presentation_objects",
-        body.presentationObjectIds,
-        res.data.lastUpdated,
+    // Chokepoint: any of these visualizations with a live collab room gets the
+    // period-filter change merged into the room (avoids clobbering a peer's
+    // in-progress edits); the rest go through the batch DB write.
+    const roomHandled = new Set<string>();
+    let lastUpdated: string | null = null;
+    for (const id of ids) {
+      const ts = await applyPoToLiveRoom(
+        projectId,
+        id,
+        (m) => syncFigureConfigField(m, "d", "periodFilter", periodFilter),
       );
-
-      const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
-      if (vizRes.success) {
-        notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
+      if (ts !== null) {
+        roomHandled.add(id);
+        lastUpdated = ts;
       }
     }
 
-    return c.json(res);
+    const remaining = ids.filter((id) => !roomHandled.has(id));
+    if (remaining.length > 0) {
+      const res = await batchUpdatePresentationObjectsPeriodFilter(
+        c.var.ppk.projectDb,
+        remaining,
+        periodFilter,
+      );
+      if (res.success === false) {
+        return c.json(res);
+      }
+      lastUpdated = res.data.lastUpdated;
+      notifyLastUpdated(
+        projectId,
+        "presentation_objects",
+        remaining,
+        res.data.lastUpdated,
+      );
+      const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+      if (vizRes.success) {
+        notifyProjectVisualizationsUpdated(projectId, vizRes.data);
+      }
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        lastUpdated: lastUpdated ?? new Date().toISOString(),
+        updatedCount: ids.length,
+      },
+    });
   },
 );
 
@@ -337,6 +385,9 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
+    // Discard any live room for the now-deleted PO (its checkpoints would fail
+    // against the gone row); connected editors get a po_error and fall back.
+    closePoRoom(c.var.ppk.projectId, params.po_id, "Visualization deleted");
     const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
     if (vizRes.success) {
       notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);

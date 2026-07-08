@@ -33,6 +33,12 @@ export type PresenceEntry = {
   selectedTextTarget?: string;
   /** Set ⇔ the peer has that report open in the report editor. */
   reportId?: string;
+  /** Set ⇔ the peer has that standalone visualization open in the editor. */
+  poId?: string;
+  /** Set ⇔ the peer has the figure editor open on a figure embedded in the
+   *  slide/report they are in (the slide layout-block id or the report figure
+   *  registry id). Contextualized by `slideId`/`reportId`. */
+  editingFigureId?: string;
 };
 
 /** The presence fields a client controls about itself. */
@@ -43,6 +49,8 @@ export type PresenceView = {
   selectedBlockId?: string;
   selectedTextTarget?: string;
   reportId?: string;
+  poId?: string;
+  editingFigureId?: string;
 };
 
 /** Client → server messages. */
@@ -61,7 +69,13 @@ export type CollabClientMessage =
   | { type: "report_subscribe"; data: { reportId: string; stateVector: string } }
   | { type: "report_update"; data: { reportId: string; update: string } }
   | { type: "report_unsubscribe"; data: { reportId: string } }
-  | { type: "report_awareness_update"; data: { reportId: string; update: string } };
+  | { type: "report_awareness_update"; data: { reportId: string; update: string } }
+  // Presentation-object (standalone visualization) CRDT sync — a third parallel
+  // family, same rationale as report_* (keeps slide/report messages byte-stable).
+  | { type: "po_subscribe"; data: { poId: string; stateVector: string } }
+  | { type: "po_update"; data: { poId: string; update: string } }
+  | { type: "po_unsubscribe"; data: { poId: string } }
+  | { type: "po_awareness_update"; data: { poId: string; update: string } };
 
 /** Server → client messages. */
 export type CollabServerMessage =
@@ -86,7 +100,15 @@ export type CollabServerMessage =
   }
   | { type: "report_update"; data: { reportId: string; update: string } }
   | { type: "report_error"; data: { reportId: string; message: string } }
-  | { type: "report_awareness"; data: { reportId: string; update: string } };
+  | { type: "report_awareness"; data: { reportId: string; update: string } }
+  // Presentation-object CRDT sync (parallel family — see the client message note).
+  | {
+    type: "po_sync";
+    data: { poId: string; update: string; stateVector: string };
+  }
+  | { type: "po_update"; data: { poId: string; update: string } }
+  | { type: "po_error"; data: { poId: string; message: string } }
+  | { type: "po_awareness"; data: { poId: string; update: string } };
 
 const PRESENCE_PALETTE = [
   "#ef4444",

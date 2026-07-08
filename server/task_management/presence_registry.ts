@@ -53,6 +53,8 @@ export function updateConnectionPresence(
     selectedBlockId: view.selectedBlockId,
     selectedTextTarget: view.selectedTextTarget,
     reportId: view.reportId,
+    poId: view.poId,
+    editingFigureId: view.editingFigureId,
   };
 }
 

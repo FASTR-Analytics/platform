@@ -44,6 +44,18 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 entry in
 - **CRDT model** — `lib/collab/{crdt_util,report_crdt,slide_crdt}.ts`,
   `lib/types/collab.ts` (the WS message protocol), client
   `state/project/collab.ts` (one WS manager per project).
+- **Visualization co-editing** — `lib/collab/figure_config_crdt.ts` (the shared
+  `PresentationObjectConfig ⇄ Y.Map` bridge: per-field LWW for the `d`/`s`
+  form config, `Y.Text` for the three captions), `server/collab/po_rooms.ts`
+  (a third room type `"po"` for the standalone visualization editor, with its
+  own `po_*` message family + `crdt_state` columns on `presentation_objects`).
+  Embedded figures inside slides/reports are the SAME bridge applied to a
+  `figConfig` Y.Map nested in the host doc's figure node (the heavy bundle data
+  rides beside it as an opaque `figData`); the figure editor modal binds to it
+  live via a `collabBinding`. Chokepoints in `server/routes/project/
+  presentation_objects.ts` route REST config writes through the live PO room.
+  Shared-custody: the visualization editor UI (S11) and the PO query/routes
+  (S9/S11) host this collab code; S16 owns the CRDT + room + protocol pieces.
 - **Version history** — `server/collab/{version_tracker,version_capture}.ts`,
   the attribution ledgers `authorship.ts` (per-character report bodies, with
   tombstones) + `deck_session_ledger.ts` (per-slide / per-element decks),

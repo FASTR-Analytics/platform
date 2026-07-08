@@ -4,10 +4,15 @@ import {
   type CollabClientMessage,
   type CollabServerMessage,
   parseJsonOrThrow,
+  PO_CONFIG_MAP_KEY,
   type PresenceEntry,
+  type PresentationObjectConfig,
   type PresenceView,
   type ReportDocContent,
   type Slide,
+  type SyncReportOpts,
+  type SyncSlideOpts,
+  syncFigureConfigToMap,
   syncReportRegistries,
   syncReportToDoc,
   syncSlideToDoc,
@@ -75,6 +80,8 @@ let view: {
   selectedBlockId?: string;
   selectedTextTarget?: string;
   reportId?: string;
+  poId?: string;
+  editingFigureId?: string;
 } = {};
 
 // ── Slide CRDT sessions (Milestone 3) ───────────────────────────────────────
@@ -110,8 +117,10 @@ export type SlideSession = {
    * explicitly or the un-shipped edits die with the doc.
    */
   isLive: () => boolean;
-  /** Diff the editor's working slide onto the shared doc (mergeable ops). */
-  pushLocal: (slide: Slide) => void;
+  /** Diff the editor's working slide onto the shared doc (mergeable ops). `opts`
+   *  lets a host with an open figure-editor modal exclude that figure's config
+   *  from the push (the modal owns it live). */
+  pushLocal: (slide: Slide, opts?: SyncSlideOpts) => void;
   close: () => void;
 };
 
@@ -190,9 +199,7 @@ export function openSlideSession(
   doc.on("update", (update: Uint8Array, origin: unknown) => {
     // Updates applied from the server must not be shipped back.
     if (origin === SLIDE_REMOTE_ORIGIN) return;
-    const sent = sendCollab({ type: "slide_update", data: { slideId, update: bytesToBase64(update) } });
-    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-    console.log("[VIZSYNC] send slide_update", { slideId, bytes: update.length, sent, ws: ws?.readyState });
+    sendCollab({ type: "slide_update", data: { slideId, update: bytesToBase64(update) } });
   });
 
   awareness.on(
@@ -224,9 +231,9 @@ export function openSlideSession(
     awareness,
     isReady: () => s.ready,
     isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
-    pushLocal: (slide: Slide) => {
+    pushLocal: (slide: Slide, opts?: SyncSlideOpts) => {
       if (!s.ready) return;
-      doc.transact(() => syncSlideToDoc(doc, slide));
+      doc.transact(() => syncSlideToDoc(doc, slide, opts));
     },
     close: () => closeSlideSession(slideId),
   };
@@ -266,10 +273,13 @@ export type ReportSession = {
   isLive: () => boolean;
   /** Diff full content onto the shared doc — first-sync merge only. */
   pushLocal: (content: ReportDocContent) => void;
-  /** Diff the figure/image registries onto the shared doc. */
+  /** Diff the figure/image registries onto the shared doc. `opts` lets a host
+   *  with an open figure-editor modal exclude that figure's config (modal owns
+   *  it live). */
   pushRegistries: (
     figures: ReportDocContent["figures"],
     images: ReportDocContent["images"],
+    opts?: SyncReportOpts,
   ) => void;
   close: () => void;
 };
@@ -361,9 +371,9 @@ export function openReportSession(
       if (!s.ready) return;
       doc.transact(() => syncReportToDoc(doc, content));
     },
-    pushRegistries: (figures, images) => {
+    pushRegistries: (figures, images, opts) => {
       if (!s.ready) return;
-      doc.transact(() => syncReportRegistries(doc, figures, images));
+      doc.transact(() => syncReportRegistries(doc, figures, images, opts));
     },
     close: () => closeReportSession(reportId),
   };
@@ -374,6 +384,196 @@ export function closeReportSession(reportId: string): void {
   if (!s) return;
   sendCollab({ type: "report_unsubscribe", data: { reportId } });
   destroyReportSession(s);
+}
+
+// ── Visualization (presentation object) CRDT sessions ────────────────────────
+// Mirrors the report sessions over the po_* message family. The editor binds its
+// form to the config Y.Map via the figure-config bridge; caption Y.Texts are
+// bound with yCollab CodeMirrors. Local edits transact with `localOrigin` so a
+// per-editor Y.UndoManager can track only this user's changes.
+
+type InternalPoSession = {
+  poId: string;
+  doc: Y.Doc;
+  awareness: Awareness;
+  localOrigin: object;
+  ready: boolean;
+  onRemote: () => void;
+  onError?: (message: string) => void;
+};
+
+const poSessions = new Map<string, InternalPoSession>();
+
+/** Handle to a live visualization config document, returned by openPoSession. */
+export type PoSession = {
+  doc: Y.Doc;
+  /** The config root Y.Map — bind the editor form + caption CodeMirrors here. */
+  configMap: Y.Map<unknown>;
+  /** Yjs awareness for this visualization — local + remote carets/selection. */
+  awareness: Awareness;
+  /** Transaction origin for this client's local writes — pass to Y.UndoManager
+   *  `trackedOrigins` so undo/redo only affects this user's edits. */
+  localOrigin: object;
+  isReady: () => boolean;
+  /** Ready AND the socket is currently open — see SlideSession.isLive. */
+  isLive: () => boolean;
+  /** Diff the editor's working config onto the shared doc (mergeable ops). */
+  pushLocal: (config: PresentationObjectConfig) => void;
+  close: () => void;
+};
+
+function subscribePoOnSocket(s: InternalPoSession): void {
+  sendCollab({
+    type: "po_subscribe",
+    data: { poId: s.poId, stateVector: bytesToBase64(Y.encodeStateVector(s.doc)) },
+  });
+}
+
+function destroyPoSession(s: InternalPoSession): void {
+  poSessions.delete(s.poId);
+  try {
+    removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
+    s.awareness.destroy();
+  } catch {
+    // ignore
+  }
+  try {
+    s.doc.destroy();
+  } catch {
+    // ignore
+  }
+}
+
+export function openPoSession(
+  poId: string,
+  onRemote: () => void,
+  onError?: (message: string) => void,
+): PoSession {
+  const prior = poSessions.get(poId);
+  if (prior) destroyPoSession(prior);
+
+  const doc = new Y.Doc();
+  const awareness = new Awareness(doc);
+  applySessionUser(awareness);
+  const s: InternalPoSession = {
+    poId,
+    doc,
+    awareness,
+    localOrigin: {},
+    ready: false,
+    onRemote,
+    onError,
+  };
+  poSessions.set(poId, s);
+
+  doc.on("update", (update: Uint8Array, origin: unknown) => {
+    // Updates applied from the server must not be shipped back.
+    if (origin === SLIDE_REMOTE_ORIGIN) return;
+    sendCollab({
+      type: "po_update",
+      data: { poId, update: bytesToBase64(update) },
+    });
+  });
+
+  awareness.on(
+    "update",
+    (
+      changes: { added: number[]; updated: number[]; removed: number[] },
+      origin: unknown,
+    ) => {
+      if (origin === AWARENESS_REMOTE_ORIGIN) return;
+      const changed = [
+        ...changes.added,
+        ...changes.updated,
+        ...changes.removed,
+      ];
+      const update = encodeAwarenessUpdate(awareness, changed);
+      sendCollab({
+        type: "po_awareness_update",
+        data: { poId, update: bytesToBase64(update) },
+      });
+    },
+  );
+
+  subscribePoOnSocket(s);
+
+  return {
+    doc,
+    configMap: doc.getMap<unknown>(PO_CONFIG_MAP_KEY),
+    awareness,
+    localOrigin: s.localOrigin,
+    isReady: () => s.ready,
+    isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
+    pushLocal: (config: PresentationObjectConfig) => {
+      if (!s.ready) return;
+      doc.transact(
+        () => syncFigureConfigToMap(doc.getMap<unknown>(PO_CONFIG_MAP_KEY), config),
+        s.localOrigin,
+      );
+    },
+    close: () => closePoSession(poId),
+  };
+}
+
+export function closePoSession(poId: string): void {
+  const s = poSessions.get(poId);
+  if (!s) return;
+  sendCollab({ type: "po_unsubscribe", data: { poId } });
+  destroyPoSession(s);
+}
+
+function handlePoServerMessage(msg: CollabServerMessage): boolean {
+  if (msg.type === "po_sync") {
+    const s = poSessions.get(msg.data.poId);
+    if (s) {
+      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
+      s.ready = true;
+      // Two-way sync: push anything the server is missing (guarded — a
+      // missing/malformed stateVector must not break onRemote).
+      try {
+        if (msg.data.stateVector) {
+          const diff = Y.encodeStateAsUpdate(
+            s.doc,
+            base64ToBytes(msg.data.stateVector),
+          );
+          if (diff.length > 2) {
+            sendCollab({
+              type: "po_update",
+              data: { poId: msg.data.poId, update: bytesToBase64(diff) },
+            });
+          }
+        }
+      } catch {
+        // Skip the catch-up; the next local edit's push re-syncs anyway.
+      }
+      s.onRemote();
+    }
+    return true;
+  }
+  if (msg.type === "po_update") {
+    const s = poSessions.get(msg.data.poId);
+    if (s) {
+      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
+      s.onRemote();
+    }
+    return true;
+  }
+  if (msg.type === "po_error") {
+    poSessions.get(msg.data.poId)?.onError?.(msg.data.message);
+    return true;
+  }
+  if (msg.type === "po_awareness") {
+    const s = poSessions.get(msg.data.poId);
+    if (s) {
+      applyAwarenessUpdate(
+        s.awareness,
+        base64ToBytes(msg.data.update),
+        AWARENESS_REMOTE_ORIGIN,
+      );
+    }
+    return true;
+  }
+  return false;
 }
 
 function handleReportServerMessage(msg: CollabServerMessage): boolean {
@@ -448,8 +648,6 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
             s.doc,
             base64ToBytes(msg.data.stateVector),
           );
-          // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-          console.log("[VIZSYNC] slide_sync: server-missing diff", { slideId: msg.data.slideId, diffBytes: diff.length });
           if (diff.length > 2) {
             sendCollab({
               type: "slide_update",
@@ -513,13 +711,12 @@ function openSocket(projectId: string): void {
   socket.onopen = () => {
     attempts = 0;
     setSocketOpen(true);
-    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-    console.log("[VIZSYNC] WS open (re)subscribing", { sessions: slideSessions.size });
     sendPresence();
     // Re-subscribe any open sessions (covers first connect + reconnect:
     // the server sends only what each doc's state vector is missing).
     for (const s of slideSessions.values()) subscribeSlideOnSocket(s);
     for (const s of reportSessions.values()) subscribeReportOnSocket(s);
+    for (const s of poSessions.values()) subscribePoOnSocket(s);
   };
 
   socket.onmessage = (event) => {
@@ -537,15 +734,16 @@ function openSocket(projectId: string): void {
       // session's awareness so remote peers see a labelled cursor.
       for (const s of slideSessions.values()) applySessionUser(s.awareness);
       for (const s of reportSessions.values()) applySessionUser(s.awareness);
-    } else if (!handleSlideServerMessage(msg)) {
-      handleReportServerMessage(msg);
+      for (const s of poSessions.values()) applySessionUser(s.awareness);
+    } else if (
+      !handleSlideServerMessage(msg) && !handleReportServerMessage(msg)
+    ) {
+      handlePoServerMessage(msg);
     }
   };
 
-  socket.onclose = (e) => {
+  socket.onclose = () => {
     const intentional = intentionallyClosed.has(socket);
-    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-    console.log("[VIZSYNC] WS closed", { code: e.code, reason: e.reason, intentional });
     if (ws === socket) {
       ws = null;
       setSocketOpen(false);
@@ -600,6 +798,7 @@ export function disconnectCollab(): void {
   hardClose();
   for (const s of [...slideSessions.values()]) destroySlideSession(s);
   for (const s of [...reportSessions.values()]) destroyReportSession(s);
+  for (const s of [...poSessions.values()]) destroyPoSession(s);
   currentProjectId = null;
   attempts = 0;
   avatarUrl = undefined;
@@ -620,6 +819,8 @@ export function setCollabView(next: {
   selectedBlockId?: string;
   selectedTextTarget?: string;
   reportId?: string;
+  poId?: string;
+  editingFigureId?: string;
 }): void {
   view = next;
   sendPresence();

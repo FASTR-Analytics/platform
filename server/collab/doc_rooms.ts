@@ -133,8 +133,6 @@ async function checkpoint(room: Room): Promise<string | null> {
   const content = room.adapter.materialize(room.doc);
   const crdtState = bytesToBase64(Y.encodeStateAsUpdate(room.doc));
   const lastUpdated = await room.deps.save(content, crdtState);
-  // [VIZSYNC-SRV] temporary diagnostic — remove after debugging viz-sync.
-  console.log("[VIZSYNC-SRV] checkpoint", { room: room.key, saved: lastUpdated !== null });
   if (lastUpdated === null) {
     // Save failed — keep dirty so the next change (or finalize) retries.
     room.dirty = true;

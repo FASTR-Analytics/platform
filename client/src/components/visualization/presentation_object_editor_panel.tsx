@@ -11,7 +11,10 @@ import { Match, Switch, createSignal } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { PresentationObjectEditorPanelData } from "./presentation_object_editor_panel_data";
 import { PresentationObjectEditorPanelStyle } from "./presentation_object_editor_panel_style";
-import { PresentationObjectEditorPanelText } from "./presentation_object_editor_panel_text";
+import {
+  PresentationObjectEditorPanelText,
+  type VizCaptionCollab,
+} from "./presentation_object_editor_panel_text";
 
 type Props = {
   projectStateSnapshot: ProjectState;
@@ -20,6 +23,9 @@ type Props = {
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   viewResultsObject: (resultsObjectId: string) => Promise<void>;
+  /** When live-collab is bound, caption fields use CodeMirror (remote carets);
+   *  undefined → plain TextArea fallback. */
+  captionCollab?: VizCaptionCollab;
 };
 
 export function PresentationObjectEditorPanel(p: Props) {
@@ -94,6 +100,7 @@ export function PresentationObjectEditorPanel(p: Props) {
               poDetail={p.poDetail}
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
+              captionCollab={p.captionCollab}
             />
           </Match>
         </Switch>

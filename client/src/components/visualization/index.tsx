@@ -1,4 +1,5 @@
 import {
+  type FigureBundle,
   PresentationObjectConfig,
   PresentationObjectDetail,
   ProjectState,
@@ -9,6 +10,8 @@ import {
 } from "lib";
 import { AlertComponentProps, StateHolderWrapper, createQuery } from "panther";
 import { Match, Switch } from "solid-js";
+import type { Awareness } from "y-protocols/awareness";
+import type * as Y from "yjs";
 import {
   getPODetailFromCacheorFetch,
   getResultsValueInfoForPresentationObjectFromCacheOrFetch,
@@ -23,6 +26,28 @@ export type CreateModeReturn =
 export type EphemeralModeReturn =
   | undefined
   | { updated: { config: PresentationObjectConfig } };
+
+/**
+ * Live-collab binding for the ephemeral (embedded figure) editor. The host
+ * (slide/report editor) passes this so the modal co-edits the figure's config
+ * IN the host's shared doc (the figConfig Y.Map), rather than committing once on
+ * Apply. Absent (or not live) → the modal keeps the classic Apply/Cancel flow.
+ */
+export type VizFigureCollabBinding = {
+  /** The figConfig Y.Map in the host doc (slide node / report figure entry),
+   *  or undefined if the figure isn't decomposed (no live co-editing then). */
+  getConfigMap: () => Y.Map<unknown> | undefined;
+  /** The host session's Yjs awareness (carries caption carets). */
+  awareness: Awareness;
+  isLive: () => boolean;
+  canEdit: boolean;
+  /** Transaction origin for this client's edits (for the scoped undo manager). */
+  localOrigin: object;
+  /** Called when a coherent bundle (edited config + refreshed items) is ready,
+   *  so the host can path-set it into its doc — keeps canvas peers' data in step
+   *  with the config being co-edited. */
+  onCoherentBundle: (bundle: FigureBundle) => void;
+};
 
 type EditModeProps = {
   mode: "edit";
@@ -55,6 +80,8 @@ type EphemeralModeProps = {
 
   projectStateSnapshot: ProjectState;
   returnToContext?: AIContext;
+  /** When present + live, the figure is co-edited in the host doc (see type). */
+  collabBinding?: VizFigureCollabBinding;
   close: (result: EphemeralModeReturn) => void;
 };
 
@@ -237,6 +264,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
             poDetail={syntheticPoDetail}
             resultsValueInfo={keyedResultsValueInfo}
             returnToContext={p.returnToContext}
+            collabBinding={p.collabBinding}
             onClose={p.close}
           />
         );

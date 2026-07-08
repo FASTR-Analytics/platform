@@ -220,7 +220,9 @@ CREATE TABLE presentation_objects (
   last_updated text NOT NULL,
   created_by_ai boolean DEFAULT FALSE,
   folder_id TEXT REFERENCES visualization_folders(id) ON DELETE SET NULL,
-  sort_order INTEGER DEFAULT 0
+  sort_order INTEGER DEFAULT 0,
+  crdt_state text,
+  crdt_state_last_updated text
 );
 
 CREATE INDEX idx_presentation_objects_metric_id ON presentation_objects(metric_id);

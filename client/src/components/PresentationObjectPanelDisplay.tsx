@@ -41,6 +41,8 @@ import {
 } from "~/state/t4_ui";
 import { sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
+import { collabState, otherPeers } from "~/state/project/collab";
+import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { PresentationObjectMiniDisplay } from "./PresentationObjectMiniDisplay";
 import { NotAvailableBox } from "./NotAvailableBox";
 import { EditFolderModal } from "./project/edit_folder_modal";
@@ -923,12 +925,19 @@ function VisualizationCard(p: VisualizationCardProps) {
 
   const isReady = () => p.metricLookup.get(p.po.metricId)?.status === "ready";
 
+  // Editors currently inside this visualization (live presence), for avatars.
+  const cardPeers = () => {
+    void collabState.peers; // track
+    return otherPeers().filter((peer) => peer.poId === p.po.id);
+  };
+
   return (
     <div class="group bg-base-100 row-span-3 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]">
-      <div class="ui-gap-sm flex items-end pb-1">
+      <div class="ui-gap-sm flex items-end justify-between pb-1">
         <div class="font-400 text-base-content pointer-events-none text-xs italic select-none">
           {p.po.label}
         </div>
+        <PresenceAvatars peers={cardPeers()} size="sm" />
       </div>
       <div
         class="relative cursor-pointer rounded border p-2"

@@ -1,7 +1,9 @@
 import {
   canonicalJson,
   type FigureBlock,
+  type FigureBundle,
   findReportBodyText,
+  findReportFigureConfigMap,
   type ImageBlock,
   materializeReport,
   type PresentationObjectConfig,
@@ -53,6 +55,7 @@ import { formatLineRanges, type SkippedRange } from "./rebase_edits";
 import { SelectVisualizationForSlide } from "../slide_deck/select_visualization_for_slide";
 import { resolveFigureAndGeoFromVisualization } from "~/generate_visualization/mod";
 import { VisualizationEditor } from "../visualization";
+import type { VizFigureCollabBinding } from "../visualization";
 import { AddVisualization } from "../project/add_visualization";
 import { snapshotForVizEditor } from "../_editor_snapshot";
 import {
@@ -149,6 +152,12 @@ export function ProjectReport(p: Props) {
   // good — even while disconnected (edits accumulate in the local doc and the
   // reconnect catch-up ships them; a parallel REST save would double-apply).
   const [collabReady, setCollabReady] = createSignal(false);
+  // The figure registry id whose editor modal is open (co-editing its config
+  // live in the shared doc). While set, the figure-registry push skips that
+  // figure's config (the modal owns it); presence advertises it to peers.
+  const [editingFigureId, setEditingFigureId] = createSignal<
+    string | undefined
+  >(undefined);
   const [session, setSession] = createSignal<ReportSession | null>(null);
   // Content as fetched at mount, for the first-sync merge rule.
   let loadedSnapshot: ReportDocContent | undefined;
@@ -735,7 +744,14 @@ export function ProjectReport(p: Props) {
     // room checkpoint persists it.
     const s = session();
     if (collabReady() && s) {
-      s.pushRegistries(next, images());
+      // While a figure's editor modal is open, the modal owns that figure's
+      // config live in the doc — don't let this registry push revert it.
+      const editing = editingFigureId();
+      s.pushRegistries(
+        next,
+        images(),
+        editing ? { skipFigureConfigForFigureIds: new Set([editing]) } : undefined,
+      );
       return true;
     }
     setSaveStatus("saving");
@@ -941,26 +957,58 @@ export function ProjectReport(p: Props) {
       });
       return;
     }
-    const result = await openInnerEditor({
-      element: VisualizationEditor,
-      props: {
-        mode: "ephemeral" as const,
-        label: resultsValue.label,
-        projectId,
-        ...snapshotForVizEditor({
-          projectState,
-          resultsValue,
-          config: bundle.config,
-        }),
-      },
-    });
-    if (!result?.updated) return;
-    const built = await buildFigureBlock(resultsValue, result.updated.config);
-    if (!built.ok) {
-      await openAlert({ text: built.err, intent: "danger" });
-      return;
+    // Live co-editing: bind the modal to this figure's config IN the shared
+    // report doc. Only when the session is live; else the modal keeps its classic
+    // Apply/Cancel flow (graceful degradation).
+    const s0 = session();
+    const figureOrigin = {}; // per-open origin for the modal's undo tracking
+    const collabBinding: VizFigureCollabBinding | undefined =
+      s0 && s0.isLive()
+        ? {
+            getConfigMap: () => {
+              const ss = session();
+              return ss ? findReportFigureConfigMap(ss.doc, sel.id) : undefined;
+            },
+            awareness: s0.awareness,
+            isLive: () => session()?.isLive() ?? false,
+            canEdit:
+              projectState.thisUserPermissions.can_configure_reports &&
+              !projectState.isLocked,
+            localOrigin: figureOrigin,
+            onCoherentBundle: (b: FigureBundle) => {
+              void updateFigure(sel.id, { type: "figure", bundle: b });
+            },
+          }
+        : undefined;
+
+    setEditingFigureId(sel.id);
+    setCollabView({ reportId: p.reportId, editingFigureId: sel.id });
+    try {
+      const result = await openInnerEditor({
+        element: VisualizationEditor,
+        props: {
+          mode: "ephemeral" as const,
+          label: resultsValue.label,
+          projectId,
+          collabBinding,
+          ...snapshotForVizEditor({
+            projectState,
+            resultsValue,
+            config: bundle.config,
+          }),
+        },
+      });
+      if (!result?.updated) return;
+      const built = await buildFigureBlock(resultsValue, result.updated.config);
+      if (!built.ok) {
+        await openAlert({ text: built.err, intent: "danger" });
+        return;
+      }
+      await updateFigure(sel.id, built.figureBlock);
+    } finally {
+      setEditingFigureId(undefined);
+      setCollabView({ reportId: p.reportId });
     }
-    await updateFigure(sel.id, built.figureBlock);
   }
 
   async function handleCreate() {

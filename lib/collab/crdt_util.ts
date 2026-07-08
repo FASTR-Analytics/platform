@@ -81,19 +81,45 @@ export function setOpaque(m: Y.Map<unknown>, key: string, value: unknown): void 
     return;
   }
   if (cache.get(key) === value) {
-    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-    if (key === "bundle") console.log("[VIZSYNC] setOpaque bundle SKIP (same ref)");
     return; // same reference -> unchanged
   }
   if (!m.has(key) || canonicalJson(m.get(key)) !== canonicalJson(value)) {
     m.set(key, value);
-    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-    if (key === "bundle") console.log("[VIZSYNC] setOpaque bundle WRITE");
-  } else if (key === "bundle") {
-    // [VIZSYNC] temporary diagnostic — remove after debugging viz-sync.
-    console.log("[VIZSYNC] setOpaque bundle SKIP (same content)");
   }
   cache.set(key, value);
+}
+
+/**
+ * LWW set of an opaque JSON value, compared BY VALUE (canonicalJson) rather than
+ * by reference. Unlike setOpaque there is no WeakMap fast path, so it is robust
+ * against callers that mutate a value IN PLACE (keeping the same object
+ * reference) — which is exactly what a nested Solid store path-set does
+ * (`setStore("d", "filterBy", 0, "values", ...)` mutates the raw object).
+ *
+ * Use this for small opaque sub-values (a figure config's filter/style arrays,
+ * a period filter) where the reference-fresh discipline of setOpaque cannot be
+ * guaranteed. Do NOT use it for large blobs (figure bundles with embedded items/
+ * GeoJSON) — the unconditional canonicalJson serialization would be too costly;
+ * setOpaque's reference cache exists for those. Deletes on undefined; no-op when
+ * the stored value is already canonically equal.
+ */
+export function setOpaqueByValue(
+  m: Y.Map<unknown>,
+  key: string,
+  value: unknown,
+): void {
+  if (value === undefined) {
+    if (m.has(key)) m.delete(key);
+    return;
+  }
+  if (!m.has(key) || canonicalJson(m.get(key)) !== canonicalJson(value)) {
+    // Store a structural CLONE, never the caller's reference: Yjs holds plain
+    // objects by reference, so aliasing the caller's object would let a later
+    // in-place mutation of it silently change the stored value — making the
+    // NEXT canonicalJson compare a false no-op that drops the edit. The clone
+    // breaks that aliasing. Values here are small, so the clone is cheap.
+    m.set(key, structuredClone(value));
+  }
 }
 
 /** Apply the minimal single-region edit to turn `yText` into `next`. */
