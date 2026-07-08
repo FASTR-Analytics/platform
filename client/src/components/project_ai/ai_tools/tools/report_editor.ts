@@ -328,7 +328,7 @@ export function getToolsForReportEditor(
         await validateMetricInputs(projectId, bundle.metricId, filters, periodFilter);
 
         const newBundle = await resolveBundleFromMetricAndConfig(projectId, metric, newConfig);
-        assertNoSlotCollision(newConfig, metric, newBundle.dateRange);
+        assertNoSlotCollision(newConfig, metric, newBundle.dateRange, newBundle.items);
 
         const saved = await ctx.applyFigureUpdate(input.figureId, { type: "figure", bundle: newBundle });
         if (!saved) {

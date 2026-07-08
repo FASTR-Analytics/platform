@@ -1,5 +1,6 @@
 import type {
   AiFigureConfigPatch,
+  JsonArrayItem,
   MetricWithStatus,
   PeriodBounds,
   PresentationObjectConfig,
@@ -8,6 +9,7 @@ import {
   FILTER_ONLY_DISAGGREGATION_OPTIONS,
   getEffectivePOConfig,
   getEffectiveRollupLevel,
+  getSingleValueDimsFromItems,
   hasDuplicateDisaggregatorDisplayOptions,
 } from "lib";
 
@@ -140,6 +142,7 @@ export function assertNoSlotCollision(
   config: PresentationObjectConfig,
   metric: MetricWithStatus,
   dateRange: PeriodBounds | undefined,
+  items: JsonArrayItem[],
 ): void {
   const resultsValueForViz = {
     formatAs: metric.formatAs,
@@ -149,6 +152,7 @@ export function assertNoSlotCollision(
   const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(config, {
     dateRange,
     valueProps: metric.valueProps,
+    singleValueDims: getSingleValueDimsFromItems(config, items),
   });
   if (hasDuplicateDisaggregatorDisplayOptions(resultsValueForViz, effectiveConfig, effectiveValueProps)) {
     throw new Error(

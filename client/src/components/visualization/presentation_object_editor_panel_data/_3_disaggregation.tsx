@@ -1,5 +1,6 @@
 import {
   DisaggregationDisplayOption,
+  DisaggregationOption as DisaggregationOptionValue,
   IneffectiveDisaggregator,
   IneffectiveReason,
   PresentationObjectConfig,
@@ -23,6 +24,7 @@ type DisaggregationSectionProps = {
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   allDisaggregationOptions: ResultsValue["disaggregationOptions"];
+  singleValueDims: ReadonlySet<DisaggregationOptionValue>;
   ineffectiveDisaggregators: IneffectiveDisaggregator[];
   effectiveValueProps: string[];
   hasMultipleValueProps: boolean;
@@ -71,6 +73,7 @@ export function DisaggregationSection(p: DisaggregationSectionProps) {
             poDetail={p.poDetail}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
+            singleValueDims={p.singleValueDims}
             ineffectiveDisaggregators={p.ineffectiveDisaggregators}
             effectiveValueProps={p.effectiveValueProps}
           />
@@ -134,6 +137,7 @@ type DisaggregationOptionProps = {
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
+  singleValueDims: ReadonlySet<DisaggregationOptionValue>;
   ineffectiveDisaggregators: IneffectiveDisaggregator[];
   effectiveValueProps: string[];
 };
@@ -142,6 +146,8 @@ function getReasonMessage(reason: IneffectiveReason) {
   switch (reason) {
     case "filtered_to_one_value":
       return TC.disaggregation_disabled_filtered_to_one;
+    case "single_value":
+      return TC.disaggregation_disabled_single_value;
     case "single_period":
       return TC.disaggregation_disabled_single_period;
     case "single_year":
@@ -150,8 +156,22 @@ function getReasonMessage(reason: IneffectiveReason) {
 }
 
 function DisaggregationOption(p: DisaggregationOptionProps) {
-  const ineffective = () =>
-    p.ineffectiveDisaggregators.find((d) => d.disOpt === p.disOpt.value);
+  // getEffectivePOConfig only reports dims present in disaggregateBy; an
+  // unchecked single-value dim must show the same disabled state so the user
+  // cannot toggle it into a stripped (no-op) entry.
+  const ineffective = (): IneffectiveDisaggregator | undefined => {
+    const fromEffective = p.ineffectiveDisaggregators.find(
+      (d) => d.disOpt === p.disOpt.value,
+    );
+    if (fromEffective) return fromEffective;
+    const isChecked = p.tempConfig.d.disaggregateBy.some(
+      (d) => d.disOpt === p.disOpt.value,
+    );
+    if (!isChecked && p.singleValueDims.has(p.disOpt.value)) {
+      return { disOpt: p.disOpt.value, reason: "single_value" };
+    }
+    return undefined;
+  };
 
   return (
     <Switch>

@@ -14,6 +14,7 @@ import {
   PresentationObjectConfig,
   ResultsValueForVisualization,
   getEffectivePOConfig,
+  getSingleValueDimsFromItems,
   indicatorMetadataToLabelMap,
   pickLang,
   selectCf,
@@ -63,6 +64,7 @@ export function buildFigureInputs(
   const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(config, {
     dateRange,
     valueProps: resultsValue.valueProps,
+    singleValueDims: getSingleValueDimsFromItems(config, items),
   });
 
   // The disruptions chart compares two data values (actual vs expected) as two

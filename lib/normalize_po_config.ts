@@ -7,6 +7,8 @@ import { hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
 import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import { inferPeriodFormatFromValue } from "./types/_metric_installed.ts";
+import type { JsonArrayItem } from "./types/_figure_bundle.ts";
+import type { DisaggregationPossibleValuesStatus } from "./types/presentation_objects.ts";
 
 export function normalizePOConfigForStorage(
   config: PresentationObjectConfig,
@@ -36,6 +38,7 @@ export function normalizePOConfigForStorage(
 
 export type IneffectiveReason =
   | "filtered_to_one_value"
+  | "single_value"
   | "single_period"
   | "single_year";
 
@@ -58,10 +61,12 @@ export function getEffectivePOConfig(
   context?: {
     dateRange?: { min: number; max: number };
     valueProps?: string[];
+    singleValueDims?: ReadonlySet<DisaggregationOption>;
   }
 ): EffectivePOConfigResult {
   const dateRange = context?.dateRange;
   const valueProps = context?.valueProps;
+  const singleValueDims = context?.singleValueDims;
 
   const singlePeriod = dateRange && dateRange.min === dateRange.max;
   const dateRangeFmt = dateRange
@@ -80,6 +85,16 @@ export function getEffectivePOConfig(
   const effectiveDisaggregateBy = config.d.disaggregateBy.filter((d) => {
     if (hasOnlyOneFilteredValue(config, d.disOpt)) {
       ineffectiveDisaggregators.push({ disOpt: d.disOpt, reason: "filtered_to_one_value" });
+      return false;
+    }
+
+    // Replicant slots are exempt: fetches are pinned to the selected replicant
+    // value, so items-derived counts would see every replicant as single-valued.
+    if (
+      d.disDisplayOpt !== "replicant" &&
+      singleValueDims?.has(d.disOpt)
+    ) {
+      ineffectiveDisaggregators.push({ disOpt: d.disOpt, reason: "single_value" });
       return false;
     }
 
@@ -114,4 +129,38 @@ export function getEffectivePOConfig(
     hasMultipleValueProps: effectiveValueProps.length > 1,
     ineffectiveDisaggregators,
   };
+}
+
+// Post-fetch derivation for getEffectivePOConfig's singleValueDims context:
+// distinct values per disaggregated column in the fetched rows (slice
+// semantics, mirroring how dateRange reflects the fetched slice). Replicant
+// slots skipped — the fetch is pinned to the selected replicant value.
+export function getSingleValueDimsFromItems(
+  config: { d: Pick<PresentationObjectConfig["d"], "disaggregateBy"> },
+  items: JsonArrayItem[],
+): Set<DisaggregationOption> {
+  const out = new Set<DisaggregationOption>();
+  if (items.length === 0) return out;
+  for (const d of config.d.disaggregateBy) {
+    if (d.disDisplayOpt === "replicant") continue;
+    const distinct = new Set(items.map((item) => item[d.disOpt]));
+    if (distinct.size === 1) out.add(d.disOpt);
+  }
+  return out;
+}
+
+// Editor-side derivation (pre-fetch): whole-table distinct counts from the
+// possible-values statuses in ResultsValueInfoForPresentationObject.
+export function getSingleValueDimsFromPossibleValues(
+  disaggregationPossibleValues: {
+    [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
+  },
+): Set<DisaggregationOption> {
+  const out = new Set<DisaggregationOption>();
+  for (const [disOpt, status] of Object.entries(disaggregationPossibleValues)) {
+    if (status.status === "ok" && status.values.length === 1) {
+      out.add(disOpt as DisaggregationOption);
+    }
+  }
+  return out;
 }

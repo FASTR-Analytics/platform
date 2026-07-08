@@ -420,7 +420,7 @@ export function getToolsForSlideEditor(
 
         // Slot-collision check needs the data's real dateRange (degeneracy) so it
         // matches the renderer exactly — run it post-resolve, still before commit.
-        assertNoSlotCollision(newConfig, metric, newBundle.dateRange);
+        assertNoSlotCollision(newConfig, metric, newBundle.dateRange, newBundle.items);
 
         const updatedSlide = replaceFigureBundleInLayout(slide, input.blockId, newBundle);
 

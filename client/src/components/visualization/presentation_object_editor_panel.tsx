@@ -5,6 +5,7 @@ import {
   ResultsValueInfoForPresentationObject,
   getEffectivePOConfig,
   getPeriodFilterExactBounds,
+  getSingleValueDimsFromPossibleValues,
   t3,
 } from "lib";
 import { Match, Switch, createSignal } from "solid-js";
@@ -31,10 +32,16 @@ export function PresentationObjectEditorPanel(p: Props) {
     return getPeriodFilterExactBounds(pf, p.resultsValueInfo.periodBounds);
   };
 
+  const singleValueDims = () =>
+    getSingleValueDimsFromPossibleValues(
+      p.resultsValueInfo.disaggregationPossibleValues,
+    );
+
   const effectivePOConfigResult = () => {
     return getEffectivePOConfig(p.tempConfig, {
       dateRange: resolvedPeriodBounds(),
       valueProps: p.poDetail.resultsValue.valueProps,
+      singleValueDims: singleValueDims(),
     });
   };
 
@@ -73,6 +80,7 @@ export function PresentationObjectEditorPanel(p: Props) {
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
               viewResultsObject={p.viewResultsObject}
+              singleValueDims={singleValueDims()}
               ineffectiveDisaggregators={effectivePOConfigResult().ineffectiveDisaggregators}
               effectiveValueProps={effectivePOConfigResult().effectiveValueProps}
               hasMultipleValueProps={effectivePOConfigResult().hasMultipleValueProps}

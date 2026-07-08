@@ -1,4 +1,5 @@
 import {
+  DisaggregationOption,
   FILTER_ONLY_DISAGGREGATION_OPTIONS,
   IneffectiveDisaggregator,
   PresentationObjectConfig,
@@ -22,6 +23,7 @@ type Props = {
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   viewResultsObject: (resultsObjectId: string) => Promise<void>;
+  singleValueDims: ReadonlySet<DisaggregationOption>;
   ineffectiveDisaggregators: IneffectiveDisaggregator[];
   effectiveValueProps: string[];
   hasMultipleValueProps: boolean;
@@ -62,7 +64,9 @@ export function PresentationObjectEditorPanelData(p: Props) {
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}
         resultsValueInfo={p.resultsValueInfo}
-        allowedFilterOptions={allowedFilterOptions()}
+        allowedFilterOptions={allowedFilterOptions().filter(
+          (o) => !p.singleValueDims.has(o.value),
+        )}
       />
 
       <DisaggregationSection
@@ -72,6 +76,7 @@ export function PresentationObjectEditorPanelData(p: Props) {
         allDisaggregationOptions={allowedFilterOptions().filter(
           (o) => !FILTER_ONLY_DISAGGREGATION_OPTIONS.has(o.value),
         )}
+        singleValueDims={p.singleValueDims}
         ineffectiveDisaggregators={p.ineffectiveDisaggregators}
         effectiveValueProps={p.effectiveValueProps}
         hasMultipleValueProps={p.hasMultipleValueProps}

@@ -13,6 +13,7 @@ import {
   ResultsValueInfoForPresentationObject,
   getEffectivePOConfig,
   getReplicateByProp,
+  getSingleValueDimsFromPossibleValues,
   hasDuplicateDisaggregatorDisplayOptions,
   normalizePOConfigForStorage,
   periodFilterHasBounds,
@@ -889,6 +890,9 @@ export function VisualizationEditorInner(p: InnerProps) {
                   tempConfig,
                   {
                     valueProps: p.poDetail.resultsValue.valueProps,
+                    singleValueDims: getSingleValueDimsFromPossibleValues(
+                      p.resultsValueInfo.disaggregationPossibleValues,
+                    ),
                   },
                 );
                 return !hasDuplicateDisaggregatorDisplayOptions(

@@ -47,6 +47,11 @@ export const TC = {
     fr: "Désactivé (filtré à une seule valeur)",
     pt: "Desativado (filtrado para um único valor)",
   },
+  disaggregation_disabled_single_value: {
+    en: "Disabled (single value in data)",
+    fr: "Désactivé (valeur unique dans les données)",
+    pt: "Desativado (valor único nos dados)",
+  },
   disaggregation_disabled_single_period: {
     en: "Disabled (single period)",
     fr: "Désactivé (période unique)",
