@@ -1,3 +1,10 @@
+[1.57.4] [user] [changed] - Service category filtering now matches indicators belonging to any selected category
+[1.57.4] [user] [fixed] - Service category filter options no longer incorrectly appear as chart disaggregation choices
+[1.57.4] [user] [fixed] - Fixed incorrect results when filtering by service category on indicators with multiple categories
+[1.57.4] [admin] [added] - Service category filtering now matches indicators belonging to any selected category
+[1.57.4] [admin] [changed] - Service category can only be used as a filter, not a disaggregation dimension
+[1.57.4] [admin] [fixed] - Service category filter now correctly handles indicators assigned to multiple categories
+[1.57.4] [admin] [internal] - Visualization cache cleared to apply updated service category filtering logic
 [1.57.3] [user] [fixed] - Charts now display time periods in the correct order
 [1.57.3] [user] [improved] - Charts with multiple indicators now scale proportionally
 [1.57.3] [admin] [added] - HFA charts now respect configured time point ordering
