@@ -279,7 +279,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   let undoMgr: Y.UndoManager | undefined;
   let firstSyncDone = false;
   let pushEffectPrimed = false;
-  let detachEphemeralObserver: (() => void) | undefined;
+  let detachConfigObserver: (() => void) | undefined;
 
   type CollabTarget = {
     configMap: Y.Map<unknown>;
@@ -432,6 +432,17 @@ export function VisualizationEditorInner(p: InnerProps) {
         trackedOrigins: new Set([session.localOrigin]),
         captureTimeout: 500,
       });
+      // Undo/redo mutate the config map DIRECTLY (not via tempConfig), so
+      // reconcile those local changes back into the store — otherwise this
+      // screen wouldn't reflect its own undo (peers would, via the relayed
+      // update). Remote edits are handled by handlePoRemote; local pushes carry
+      // session.localOrigin and need no reconcile (tempConfig is their source).
+      const um = undoMgr;
+      const onLocalUndo = (_events: unknown, txn: Y.Transaction) => {
+        if (txn.origin === um) adoptFromMap(session.configMap);
+      };
+      session.configMap.observeDeep(onLocalUndo);
+      detachConfigObserver = () => session.configMap.unobserveDeep(onLocalUndo);
       setCollabView({ poId: p.poDetail.id });
     } else if (p.mode === "ephemeral" && p.collabBinding?.isLive()) {
       const b = p.collabBinding;
@@ -450,7 +461,7 @@ export function VisualizationEditorInner(p: InnerProps) {
           adoptFromMap(map);
         };
         map.observeDeep(fn);
-        detachEphemeralObserver = () => map.unobserveDeep(fn);
+        detachConfigObserver = () => map.unobserveDeep(fn);
       }
     }
   });
@@ -477,7 +488,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       s.close();
       setCollabView({});
     }
-    detachEphemeralObserver?.();
+    detachConfigObserver?.();
     undoMgr?.destroy();
   });
 
