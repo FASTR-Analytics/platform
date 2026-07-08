@@ -30,11 +30,16 @@ export function validateDataInput(
   }
 }
 
+// The sentinel header id/label collectHeaders emits for an axis with no
+// disaggregation configured (prop undefined) — a single implicit member
+// standing in for "all data, undivided" on that axis.
+export const NO_DISAGGREGATION_HEADER_ID = "default";
+
 export function collectHeaders(
   jsonArray: JsonArray,
   prop: string | undefined,
   valueProps: string[],
-  defaultValue: string = "default",
+  defaultValue: string = NO_DISAGGREGATION_HEADER_ID,
 ): string[] {
   const headers: string[] = prop ? [] : [defaultValue];
 

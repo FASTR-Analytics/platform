@@ -26,10 +26,14 @@ import {
   type LegendInput,
 } from "../_legend/scale_legend_types.ts";
 import type { LegendItem } from "../types.ts";
+import { NO_DISAGGREGATION_HEADER_ID } from "../common_data_transform.ts";
 
-// Legend swatches have no pane/tier/lane context; this matches the "default"
-// sentinel that collectHeaders emits for an absent dimension.
-const DEFAULT_HEADER: HeaderItem = { id: "default", label: "default" };
+// Legend swatches have no pane/tier/lane context; this matches the
+// no-disaggregation sentinel that collectHeaders emits for an absent dimension.
+const DEFAULT_HEADER: HeaderItem = {
+  id: NO_DISAGGREGATION_HEADER_ID,
+  label: NO_DISAGGREGATION_HEADER_ID,
+};
 
 export function estimateMinSurroundsWidth(
   rc: RenderContext,
@@ -60,7 +64,8 @@ export function estimateMinSurroundsWidth(
   if (
     !Array.isArray(legendLabels) ||
     legendLabels.length === 0 ||
-    (legendLabels.length === 1 && legendLabels[0] === "default")
+    (legendLabels.length === 1 &&
+      legendLabels[0] === NO_DISAGGREGATION_HEADER_ID)
   ) {
     return sSurrounds.padding.totalPx();
   }
@@ -258,7 +263,8 @@ export function measureSurrounds(
     } else if (
       Array.isArray(legendLabels) &&
       legendLabels.length > 0 &&
-      !(legendLabels.length === 1 && legendLabels[0] === "default")
+      !(legendLabels.length === 1 &&
+        legendLabels[0] === NO_DISAGGREGATION_HEADER_ID)
     ) {
       const sLegend = sSurrounds.legend;
       const legendItems: LegendItem[] = isArrayOfLegendItems(legendLabels)

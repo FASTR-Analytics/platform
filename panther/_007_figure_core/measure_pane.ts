@@ -24,6 +24,25 @@ import type {
   PaneLayout,
 } from "./measure_types.ts";
 import { generatePaneContentPrimitives } from "./generate_pane_content_primitives.ts";
+import { NO_DISAGGREGATION_HEADER_ID } from "./common_data_transform.ts";
+
+// "above-plot-area-if-no-lanes" self-resolves at measure time (this is the
+// only point where both the style choice and the axis data are in scope):
+// above-plot-area when this axis has no real lane disaggregation (a chart
+// with tiers but no lanes gains nothing from reserving a left-hand gutter
+// for tier headers), left otherwise so lane headers and tier headers don't
+// compete for the same horizontal band.
+function resolveTierHeaderPosition(
+  headerPosition: MergedChartStyleBase["tiers"]["headerPosition"],
+  laneHeaders: HeaderItem[],
+): "left" | "above-axis" | "above-plot-area" {
+  if (headerPosition !== "above-plot-area-if-no-lanes") {
+    return headerPosition;
+  }
+  const hasNoLanes = laneHeaders.length === 1 &&
+    laneHeaders[0].id === NO_DISAGGREGATION_HEADER_ID;
+  return hasNoLanes ? "above-plot-area" : "left";
+}
 
 // Proportional band layout: solve the pane-local slot thickness from the
 // pane's free plot extent (unless a chart-global slotT is threaded in) and
@@ -68,7 +87,10 @@ export function measurePane<TData>(
   const tierHeaders = config.dataProps.tierHeaders;
   const laneHeaders = config.dataProps.laneHeaders;
   const nTiers = tierHeaders.length;
-  const headerPosition = baseStyle.tiers.headerPosition;
+  const headerPosition = resolveTierHeaderPosition(
+    baseStyle.tiers.headerPosition,
+    laneHeaders,
+  );
 
   // Unbalanced tier/lane membership: this pane's visible band subsets
   // (global indices). Space divisions and header-label placement iterate the
@@ -291,7 +313,7 @@ export function measurePane<TData>(
       subChartAreaHeight,
       tierHeaderAndLabelGapWidth,
       tierHeaderAndLabelGapHeight,
-      baseStyle.tiers,
+      { ...baseStyle.tiers, headerPosition },
       config.geometry.contentRcd,
       i_pane,
       tierBands?.bandExtents,

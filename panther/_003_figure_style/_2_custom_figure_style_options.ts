@@ -164,7 +164,11 @@ export type CustomFigureStyleOptions = {
     maxHeaderWidthAsPctOfChart?: number;
     headerAlignH?: "left" | "center" | "right";
     headerAlignV?: "top" | "middle";
-    headerPosition?: "left" | "above-axis" | "above-plot-area";
+    headerPosition?:
+      | "left"
+      | "above-axis"
+      | "above-plot-area"
+      | "above-plot-area-if-no-lanes";
     headerGap?: number;
   };
   lanes?: {
