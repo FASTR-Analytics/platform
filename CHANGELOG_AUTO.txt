@@ -1,3 +1,5 @@
+[TBD] [user] [changed] - Tier headers now appear above the axis when no lanes are present
+[TBD] [admin] [added] - Tier headers can now appear above the axis when no lanes are present
 [1.57.4] [user] [changed] - Service category filtering now matches indicators belonging to any selected category
 [1.57.4] [user] [fixed] - Service category filter options no longer incorrectly appear as chart disaggregation choices
 [1.57.4] [user] [fixed] - Fixed incorrect results when filtering by service category on indicators with multiple categories
