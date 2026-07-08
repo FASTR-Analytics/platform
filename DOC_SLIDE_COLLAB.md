@@ -226,6 +226,14 @@ directions ship only diffs; an in-sync exchange applies as a pure no-op.
   `awareness`; the server relays without applying or persisting
   (ephemeral). The `user` awareness field (name/color) is stamped from the
   client's own server-issued presence entry.
+- **Awareness field registry** (one shared Awareness per session — do not
+  collide): `cursor` = yCollab text caret (nulled on every CM blur); `user` =
+  identity (rewritten wholesale on every presence_state); `pointer` = live
+  mouse cursor (`PointerAwarenessState` in
+  [live_cursors.tsx](client/src/components/_shared/live_cursors.tsx) —
+  Figma-style cursors on the slide canvas and viz editor, coordinates in
+  surface-relative spaces, throttled ~20 msg/s). New machinery must claim a
+  NEW field, never reuse these.
 
 ## 9. Canvas overlays
 

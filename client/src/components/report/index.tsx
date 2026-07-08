@@ -967,6 +967,7 @@ export function ProjectReport(p: Props) {
     const collabBinding: VizFigureCollabBinding | undefined =
       s0 && s0.isLive()
         ? {
+            figureId: sel.id,
             getConfigMap: () => {
               const ss = session();
               return ss ? findReportFigureConfigMap(ss.doc, sel.id) : undefined;

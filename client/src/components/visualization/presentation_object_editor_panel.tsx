@@ -26,10 +26,16 @@ type Props = {
   /** When live-collab is bound, caption fields use CodeMirror (remote carets);
    *  undefined → plain TextArea fallback. */
   captionCollab?: VizCaptionCollab;
+  /** Notifies the host which tab is active (live-cursor tab gating). */
+  onTabChange?: (tab: "data" | "style" | "text") => void;
 };
 
 export function PresentationObjectEditorPanel(p: Props) {
   const [tab, setTab] = createSignal<"data" | "style" | "text">("data");
+  function switchTab(t: "data" | "style" | "text") {
+    setTab(t);
+    p.onTabChange?.(t);
+  }
 
   const resolvedPeriodBounds = () => {
     const pf = p.tempConfig.d.periodFilter;
@@ -45,25 +51,25 @@ export function PresentationObjectEditorPanel(p: Props) {
   };
 
   return (
-    <div class="flex h-full w-full flex-col border-r">
+    <div id="VIZ_PANEL_ROOT" class="flex h-full w-full flex-col border-r">
       <div class="flex w-full flex-none border-b">
         <div
           class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 truncate border-r px-2 py-2 text-center"
-          onClick={() => setTab("data")}
+          onClick={() => switchTab("data")}
           data-selected={tab() === "data"}
         >
           {t3({ en: "Data", fr: "Données", pt: "Dados" })}
         </div>
         <div
           class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 truncate border-r px-2 py-2 text-center"
-          onClick={() => setTab("style")}
+          onClick={() => switchTab("style")}
           data-selected={tab() === "style"}
         >
           {t3({ en: "Presentation", fr: "Présentation", pt: "Apresentação" })}
         </div>
         <div
           class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 truncate px-2 py-2 text-center"
-          onClick={() => setTab("text")}
+          onClick={() => switchTab("text")}
           data-selected={tab() === "text"}
         >
           {t3({ en: "Text", fr: "Texte", pt: "Texto" })}

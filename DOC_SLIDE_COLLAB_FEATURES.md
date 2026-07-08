@@ -43,6 +43,11 @@ session.
   text selections as a translucent highlight in their color. Caret positions
   stay anchored to the right characters through concurrent edits, and your own
   caret never jumps when remote edits land.
+- **Live cursors (Figma-style).** Each collaborator's mouse pointer appears on
+  the slide canvas as a colored arrow with their name tag, moving in real time.
+  The name tag fades after a few seconds of stillness; idle cursors disappear;
+  a cursor leaves the canvas → it vanishes for everyone. Also works inside the
+  visualization editor (chart preview and settings panel).
 - **"Who is editing what" borders on the canvas.** The slide canvas outlines
   the content block or title field each collaborator is currently editing, in
   their color with a name tag above it. When several people edit the *same*

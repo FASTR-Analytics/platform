@@ -37,6 +37,10 @@ Google Docs.
   behaviour as the report body editor).
 - **Presence — see who's here** — profile avatars show who is currently inside
   each visualization, and who is co-editing alongside you.
+- **Live cursors (Figma-style)** — collaborators' mouse pointers render as
+  colored arrows with name tags over the chart preview and the settings panel
+  (and on the slide canvas), moving in real time. Client-only, riding the
+  existing ephemeral awareness channel.
 - **Continuous autosave & per-user undo** — no Save button while connected;
   edits save automatically. Ctrl+Z undoes only your own changes, never a
   collaborator's.

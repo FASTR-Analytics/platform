@@ -69,6 +69,13 @@ import {
   setCollabView,
 } from "~/state/project/collab";
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
+import {
+  createPointerBroadcast,
+  LiveCursorsOverlay,
+  panelClientFromContent,
+  panelContentFromClient,
+  type PointerAwarenessState,
+} from "~/components/_shared/live_cursors";
 import { ReplicateByOptionsPresentationObject } from "~/components/ReplicateByOptions";
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import { DownloadPresentationObject } from "~/components/forms_editors/download_presentation_object";
@@ -355,6 +362,114 @@ export function VisualizationEditorInner(p: InnerProps) {
     if (!t || !collabReady()) return undefined;
     return { configMap: t.configMap, awareness: t.awareness, canEdit: t.canEdit };
   };
+
+  // ── Live cursors ─────────────────────────────────────────────────────────────
+  // Broadcast this user's pointer over the chart preview (normalized to the
+  // preview canvas rect) and the settings panel (x normalized, y in content px
+  // so it stays glued to the same control when the viewer scrolls). Scope keys
+  // isolate visualizations from each other — and from "slide" pointers riding
+  // the same host awareness in ephemeral mode.
+  const [panelTab, setPanelTab] = createSignal<"data" | "style" | "text">(
+    "data", // matches the panel's initial tab
+  );
+  const pointerScope = () =>
+    poSession()
+      ? `po:${p.poDetail.id}`
+      : p.collabBinding
+      ? `fig:${p.collabBinding.figureId}`
+      : undefined;
+
+  function panelScrollEl(): HTMLElement | null {
+    return document
+      .getElementById("VIZ_PANEL_ROOT")
+      ?.querySelector("[data-viz-panel-scroll]") ?? null;
+  }
+
+  const cursorBroadcast = createPointerBroadcast({
+    awareness: () => collabTarget()?.awareness,
+    enabled: () => !!collabTarget() && collabReady(),
+    toPointer: (cx, cy) => {
+      const scope = pointerScope();
+      if (!scope) return null;
+      const canvas = document.getElementById("VIZ_PREVIEW_CANVAS");
+      if (canvas) {
+        const r = canvas.getBoundingClientRect();
+        if (
+          r.width > 0 && cx >= r.left && cx <= r.right && cy >= r.top &&
+          cy <= r.bottom
+        ) {
+          return {
+            surface: "viz-preview",
+            scope,
+            x: (cx - r.left) / r.width,
+            y: (cy - r.top) / r.height,
+          };
+        }
+      }
+      const scrollEl = panelScrollEl();
+      if (scrollEl) {
+        const sr = scrollEl.getBoundingClientRect();
+        if (
+          sr.width > 0 && cx >= sr.left && cx <= sr.right && cy >= sr.top &&
+          cy <= sr.bottom
+        ) {
+          const pos = panelContentFromClient(sr, scrollEl.scrollTop, {
+            x: cx,
+            y: cy,
+          });
+          return { surface: "viz-panel", scope, tab: panelTab(), ...pos };
+        }
+      }
+      return null;
+    },
+  });
+  // A tab click under a stationary pointer must restamp the pointer's tab.
+  createEffect(() => {
+    panelTab();
+    cursorBroadcast.resend();
+  });
+
+  function acceptsCursor(
+    pointer: PointerAwarenessState,
+  ): { x: number; y: number } | null {
+    if (pointer.scope !== pointerScope()) return null;
+    if (pointer.surface === "viz-preview") {
+      const canvas = document.getElementById("VIZ_PREVIEW_CANVAS");
+      if (!canvas) return null;
+      const r = canvas.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return null;
+      // Backstop: hide while another modal covers the preview.
+      const topEl = document.elementFromPoint(
+        r.left + r.width / 2,
+        r.top + r.height / 2,
+      );
+      if (topEl && topEl !== canvas && !topEl.contains(canvas)) return null;
+      return { x: r.left + pointer.x * r.width, y: r.top + pointer.y * r.height };
+    }
+    if (pointer.surface === "viz-panel") {
+      if (pointer.tab !== panelTab()) return null;
+      const scrollEl = panelScrollEl();
+      if (!scrollEl) return null;
+      const sr = scrollEl.getBoundingClientRect();
+      if (sr.width === 0 || sr.height === 0) return null;
+      const pos = panelClientFromContent(sr, scrollEl.scrollTop, pointer);
+      // Clip: a cursor scrolled out of THIS viewer's panel view must not float
+      // over the tab bar or the chart.
+      if (
+        pos.y < sr.top - 4 || pos.y > sr.top + sr.height + 4 ||
+        pos.x < sr.left - 4 || pos.x > sr.left + sr.width + 4
+      ) {
+        return null;
+      }
+      const topEl = document.elementFromPoint(
+        sr.left + sr.width / 2,
+        sr.top + sr.height / 2,
+      );
+      if (topEl && topEl !== scrollEl && !scrollEl.contains(topEl)) return null;
+      return pos;
+    }
+    return null; // "slide" pointers on the shared host awareness
+  }
 
   // Standalone: driven by the PO session's onRemote.
   function handlePoRemote() {
@@ -1173,6 +1288,7 @@ export function VisualizationEditorInner(p: InnerProps) {
               setTempConfig={manuallyUpdateTempConfig}
               viewResultsObject={viewResultsObject}
               captionCollab={captionCollab()}
+              onTabChange={setPanelTab}
             />
           }
         >
@@ -1335,6 +1451,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                                       <ChartHolder
                                         chartInputs={keyedFigureInputs}
                                         height={editorHeight()}
+                                        canvasElementId="VIZ_PREVIEW_CANVAS"
                                       />
                                     );
                                   }}
@@ -1352,6 +1469,12 @@ export function VisualizationEditorInner(p: InnerProps) {
           </div>
         </FrameLeftResizable>
       </FrameTop>
+      {/* Figma-style live cursors over the preview + settings panel. Renders
+          nothing when no collab target / no peers. */}
+      <LiveCursorsOverlay
+        awareness={collabTarget()?.awareness}
+        accepts={acceptsCursor}
+      />
     </EditorWrapperForResultsObject>
   );
 }

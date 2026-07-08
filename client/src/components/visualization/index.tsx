@@ -34,6 +34,10 @@ export type EphemeralModeReturn =
  * Apply. Absent (or not live) → the modal keeps the classic Apply/Cancel flow.
  */
 export type VizFigureCollabBinding = {
+  /** Host-side id of the figure being edited (slide layout blockId / report
+   *  figure registry id) — scopes live-cursor broadcasts to viewers of the
+   *  same figure. */
+  figureId: string;
   /** The figConfig Y.Map in the host doc (slide node / report figure entry),
    *  or undefined if the figure isn't decomposed (no live co-editing then). */
   getConfigMap: () => Y.Map<unknown> | undefined;
