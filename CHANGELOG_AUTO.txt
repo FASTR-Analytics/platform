@@ -1,5 +1,9 @@
-[TBD] [user] [changed] - Tier headers now appear above the axis when no lanes are present
-[TBD] [admin] [added] - Tier headers can now appear above the axis when no lanes are present
+[1.57.5] [user] [fixed] - Charts no longer show breakdowns for dimensions with only one value in the data
+[1.57.5] [user] [added] - Disabled breakdowns now explain when only a single value exists in the data
+[1.57.5] [admin] [fixed] - Disaggregation options with only one value in data are now auto-disabled
+[1.57.5] [admin] [added] - New explanation shown when disaggregation is disabled due to single value in data
+[1.57.5] [user] [changed] - Tier headers now appear above the axis when no lanes are present
+[1.57.5] [admin] [added] - Tier headers can now appear above the axis when no lanes are present
 [1.57.4] [user] [changed] - Service category filtering now matches indicators belonging to any selected category
 [1.57.4] [user] [fixed] - Service category filter options no longer incorrectly appear as chart disaggregation choices
 [1.57.4] [user] [fixed] - Fixed incorrect results when filtering by service category on indicators with multiple categories
