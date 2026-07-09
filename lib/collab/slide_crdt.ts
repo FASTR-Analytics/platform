@@ -212,9 +212,11 @@ function compareChildren(a: Y.Map<unknown>, b: Y.Map<unknown>): number {
   return ia < ib ? -1 : ia > ib ? 1 : 0;
 }
 
-function materializeNode(m: Y.Map<unknown>): SlideNode {
+function materializeNode(m: Y.Map<unknown>, seenIds: Set<string>): SlideNode {
   const type = m.get("type") as "item" | "rows" | "cols";
-  const out: Record<string, unknown> = { id: m.get("id"), type };
+  const id = m.get("id");
+  if (typeof id === "string") seenIds.add(id);
+  const out: Record<string, unknown> = { id, type };
   if (m.get("minH") !== undefined) out.minH = m.get("minH");
   if (m.get("maxH") !== undefined) out.maxH = m.get("maxH");
   if (m.get("span") !== undefined) out.span = m.get("span");
@@ -237,9 +239,22 @@ function materializeNode(m: Y.Map<unknown>): SlideNode {
     if (m.get("alignV") !== undefined) out.alignV = m.get("alignV");
   } else {
     const childrenMap = m.get("children") as Y.Map<unknown>;
-    const children = ([...childrenMap.values()] as Y.Map<unknown>[])
-      .sort(compareChildren)
-      .map(materializeNode);
+    const sorted = ([...childrenMap.values()] as Y.Map<unknown>[])
+      .sort(compareChildren);
+    const children: SlideNode[] = [];
+    for (const cm of sorted) {
+      // Concurrent restructures can leave the same logical node in TWO places
+      // (one client moves a block while another rebuilds its old container —
+      // both copies survive the CRDT merge). Duplicate ids break the editor's
+      // id-based lookups, so keep only the first copy in the deterministic
+      // (fracIndex, id) walk order — identical on every client — and skip the
+      // shadowed one. The next push's syncChildren then deletes the skipped
+      // copy from the doc itself (its id is absent from the materialized
+      // target), so the doc self-heals.
+      const cid = cm.get("id");
+      if (typeof cid === "string" && seenIds.has(cid)) continue;
+      children.push(materializeNode(cm, seenIds));
+    }
     out.children = children;
   }
   return out as unknown as SlideNode;
@@ -265,7 +280,10 @@ export function materializeSlide(doc: Y.Doc): Slide {
       if (root.get(f) !== undefined) out[f] = root.get(f);
     }
     if (root.get("split") !== undefined) out.split = root.get("split");
-    out.layout = materializeNode(root.get("layout") as Y.Map<unknown>);
+    out.layout = materializeNode(
+      root.get("layout") as Y.Map<unknown>,
+      new Set<string>(),
+    );
   } else {
     const textSet = new Set(textFields);
     for (const k of root.keys()) {

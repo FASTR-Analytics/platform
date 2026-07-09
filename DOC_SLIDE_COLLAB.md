@@ -300,6 +300,7 @@ must be 1.
 | Socket drops mid-edit | Edits keep accumulating locally; a banner shows "Connection lost — reconnecting…" while auto-reconnect retries forever (≤30s backoff, instant on network/tab return), then two-way catch-up recovers them; closing before reconnect triggers the explicit-save flush. |
 | Server restarts mid-edit | Room state restored from `crdt_state` on next subscribe — including un-checkpointed edits. |
 | Two users type in the same field | Character-level CRDT merge; both carets visible; per-user undo. |
+| Two users restructure the layout concurrently | Per-key LWW merge can leave the same logical block in TWO places (one user moves it, the other rebuilds its old container) — duplicate ids would break the editor's id-based lookups ("Click a block on the canvas to edit it" on a clickable block). `materializeSlide` DEDUPES: only the first copy in the deterministic (fracIndex, id) walk survives, identically on every client, and the next push's `syncChildren` deletes the shadowed copy from the doc itself — self-healing. Verified by a 200-combo concurrent-restructure fuzzer (converge → invariants → one heal round → silent). |
 | AI edits a slide someone has open | Refused with a named warning (busy guard). |
 | Non-collab save while a room is live | Routed through the room: merged, relayed live, checkpointed (no clobber in either direction). |
 | Deploy skew (old server / new client) | `slide_sync` without `stateVector` is tolerated (catch-up skipped, sync still completes). |

@@ -232,13 +232,24 @@ export function SlideEditor(p: Props) {
 
   // Render slide preview
   async function attemptGetPageInputs(slide: Slide) {
-    const res = await convertSlideToPageInputs(
-      p.projectId,
-      slide,
-      undefined,
-      p.deckConfigSnapshot,
-    );
-    setPageInputs(getQueryStateFromApiResponse(res));
+    try {
+      const res = await convertSlideToPageInputs(
+        p.projectId,
+        slide,
+        undefined,
+        p.deckConfigSnapshot,
+      );
+      setPageInputs(getQueryStateFromApiResponse(res));
+    } catch (err) {
+      // A conversion crash must never FREEZE the canvas at its last good
+      // render: the stale canvas keeps offering blocks whose ids no longer
+      // exist in tempSlide, so clicking them dead-ends in the "Click a block
+      // on the canvas to edit it" panel state. Show the error instead.
+      setPageInputs({
+        status: "error",
+        err: err instanceof Error ? err.message : "Failed to render slide",
+      });
+    }
   }
 
   // Debounced re-render on changes (100ms)
