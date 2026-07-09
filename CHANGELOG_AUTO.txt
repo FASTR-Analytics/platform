@@ -1,3 +1,5 @@
+[TBD] [user] [added] - Slide style editor now available in French and Portuguese
+[TBD] [admin] [added] - Slide style editor now supports French and Portuguese
 [1.57.6] [user] [fixed] - File downloads now work correctly for filenames with special characters
 [1.57.6] [admin] [fixed] - Asset downloads now work for filenames with special characters
 [1.57.5] [user] [fixed] - Charts no longer show breakdowns for dimensions with only one value in the data
