@@ -294,28 +294,59 @@ export function findRootTextField(
 //   "block:<id>"    a layout block (text / figure / image item)
 //   "layout"        structure only (blocks added/removed/reordered)
 //   "props"         everything else on the slide root (split, logos, ...)
+// On top of the plain "touched" set, the transaction's ops are classified so
+// deletions attribute exactly (the deck-side analogue of the report body's
+// tombstones): `added`/`removed` from children-map key actions, `textDeleted`
+// from Y.Text delete deltas. A block MOVE can surface as a children-map
+// delete+add pair, so a `removed` entry alone doesn't prove the element is
+// gone — consumers pair it with the version diff, which only shows "removed"
+// for elements genuinely absent from the newer snapshot.
 // The callback receives the transaction origin so the caller can attribute
 // (a RoomConn's identity for collab edits, applyToLiveRoom's versionEditor
 // tag for HTTP-routed writes). Attach AFTER the doc holds its initial content.
 
+export type SlideElementTouches = {
+  /** Every element the transaction touched, in any way. */
+  touched: string[];
+  /** Elements created by this transaction (children-map key inserts). */
+  added: string[];
+  /** Elements structurally removed by this transaction (key deletes). */
+  removed: string[];
+  /** Elements the transaction deleted TEXT from (Y.Text delete ops, or a
+   *  root text field's key removed). */
+  textDeleted: string[];
+};
+
 export function observeSlideDocElements(
   doc: Y.Doc,
-  cb: (elementKeys: string[], origin: unknown) => void,
+  cb: (touches: SlideElementTouches, origin: unknown) => void,
 ): void {
   const root = doc.getMap<unknown>(ROOT_KEY);
   root.observeDeep((events, transaction) => {
-    const keys = new Set<string>();
+    const touched = new Set<string>();
+    const added = new Set<string>();
+    const removed = new Set<string>();
+    const textDeleted = new Set<string>();
+    // Y.Text events carry delete ops in `delta`; map events leave it empty.
+    const hasTextDelete = (event: Y.YEvent<Y.AbstractType<unknown>>): boolean =>
+      event.changes.delta.some(
+        (d) => typeof (d as { delete?: number }).delete === "number",
+      );
     for (const event of events) {
       const path = event.path;
       if (path.length === 0) {
-        for (const k of event.changes.keys.keys()) {
-          if (k === "layout") keys.add("layout");
-          else if (ALL_TEXT_FIELDS.has(k)) keys.add(`field:${k}`);
-          else keys.add("props");
+        for (const [k, change] of event.changes.keys) {
+          if (k === "layout") touched.add("layout");
+          else if (ALL_TEXT_FIELDS.has(k)) {
+            touched.add(`field:${k}`);
+            // Removing the field's key discards its text content.
+            if (change.action === "delete") textDeleted.add(`field:${k}`);
+          } else touched.add("props");
         }
       } else if (path[0] !== "layout") {
         // A Y.Text event on a root text field.
-        keys.add(`field:${path[0]}`);
+        touched.add(`field:${path[0]}`);
+        if (hasTextDelete(event)) textDeleted.add(`field:${path[0]}`);
       } else {
         // Layout subtree: the innermost node id is the element after the last
         // "children" key in the path.
@@ -327,22 +358,37 @@ export function observeSlideDocElements(
         }
         if (path[path.length - 1] === "children") {
           // The children map itself changed: blocks added/removed.
-          for (const k of event.changes.keys.keys()) keys.add(`block:${k}`);
-          keys.add("layout");
+          for (const [k, change] of event.changes.keys) {
+            touched.add(`block:${k}`);
+            if (change.action === "add") added.add(`block:${k}`);
+            else if (change.action === "delete") removed.add(`block:${k}`);
+          }
+          touched.add("layout");
         } else if (nodeId) {
           const changed = [...event.changes.keys.keys()];
           // A fracIndex-only change is a reorder, not a content edit.
           if (changed.length > 0 && changed.every((k) => k === "fracIndex")) {
-            keys.add("layout");
+            touched.add("layout");
           } else {
-            keys.add(`block:${nodeId}`);
+            touched.add(`block:${nodeId}`);
+            if (hasTextDelete(event)) textDeleted.add(`block:${nodeId}`);
           }
         } else {
-          keys.add("layout");
+          touched.add("layout");
         }
       }
     }
-    if (keys.size > 0) cb([...keys], transaction.origin);
+    if (touched.size > 0) {
+      cb(
+        {
+          touched: [...touched],
+          added: [...added],
+          removed: [...removed],
+          textDeleted: [...textDeleted],
+        },
+        transaction.origin,
+      );
+    }
   });
 }
 

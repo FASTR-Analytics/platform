@@ -99,8 +99,17 @@ export type DeckSlideEditors = {
       removed?: string[];
       /** Element-level detail for collab edits: element key (see
        *  observeSlideDocElements in lib/collab/slide_crdt.ts — "field:<name>",
-       *  "block:<id>", "layout", "props") -> editor emails. */
+       *  "block:<id>", "layout", "props") -> emails of everyone who touched
+       *  the element. */
       elements?: Record<string, string[]>;
+      /** Deck-side deletion "tombstones": exactly who ADDED an element
+       *  (children-map key insert), who structurally REMOVED it (key delete),
+       *  and who DELETED TEXT inside it (Y.Text delete ops) — lets the version
+       *  diff say "removed by Bob" instead of falling back to the whole
+       *  element-editor set. Subsets of `elements`. */
+      elementsAdded?: Record<string, string[]>;
+      elementsRemoved?: Record<string, string[]>;
+      elementsTextDeleted?: Record<string, string[]>;
     }
   >;
   settings?: string[];

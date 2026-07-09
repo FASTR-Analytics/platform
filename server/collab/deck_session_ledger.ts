@@ -34,8 +34,17 @@ const ledgers = new Map<string, DeckLedger>();
 
 // Element-level touches from the slide-room observer, keyed per SLIDE (the
 // observer doesn't know the deck; slide ids are globally unique). Drained
-// alongside the deck ledger for the slides it recorded.
-const elementTouches = new Map<string, Map<string, Set<string>>>();
+// alongside the deck ledger for the slides it recorded. Each element keeps
+// classified buckets so deletions attribute exactly (deck-side tombstones):
+// everyone who touched it, plus who added/removed it and who deleted text
+// inside it.
+type ElementTouch = {
+  touched: Set<string>;
+  added?: Set<string>;
+  removed?: Set<string>;
+  textDeleted?: Set<string>;
+};
+const elementTouches = new Map<string, Map<string, ElementTouch>>();
 
 // Runaway-session backstops: beyond these, new entries are dropped (they fall
 // back to coarser attribution).
@@ -111,12 +120,14 @@ export function recordSlideRemoved(
 
 /** Element-level touch from the slide-room observer ("field:header",
  *  "block:<id>", "layout", "props"). Keyed per slide — merged into the deck
- *  ledger's entry for that slide at drain time. */
+ *  ledger's entry for that slide at drain time. `kind` classifies the op:
+ *  "touched" (any edit), "added"/"removed" (structural), "textDeleted". */
 export function recordSlideElementTouch(
   projectId: string,
   slideId: string,
   elementKey: string,
   email: string,
+  kind: keyof ElementTouch = "touched",
 ): void {
   const k = slideKey(projectId, slideId);
   let elements = elementTouches.get(k);
@@ -124,13 +135,15 @@ export function recordSlideElementTouch(
     elements = new Map();
     elementTouches.set(k, elements);
   }
-  let emails = elements.get(elementKey);
-  if (!emails) {
+  let touch = elements.get(elementKey);
+  if (!touch) {
     if (elements.size >= ELEMENTS_PER_SLIDE_CAP) return;
-    emails = new Set();
-    elements.set(elementKey, emails);
+    touch = { touched: new Set() };
+    elements.set(elementKey, touch);
   }
-  emails.add(email);
+  // Every classified op is also a touch, so `elements` stays the superset.
+  touch.touched.add(email);
+  if (kind !== "touched") (touch[kind] ??= new Set()).add(email);
 }
 
 export function recordDeckSettingsEdited(
@@ -166,14 +179,27 @@ export function drainDeckLedger(
     const elementMap = elementTouches.get(sk);
     elementTouches.delete(sk);
     const elements: Record<string, string[]> = {};
-    for (const [elementKey, emails] of elementMap ?? []) {
-      elements[elementKey] = [...emails];
+    const elementsAdded: Record<string, string[]> = {};
+    const elementsRemoved: Record<string, string[]> = {};
+    const elementsTextDeleted: Record<string, string[]> = {};
+    for (const [elementKey, et] of elementMap ?? []) {
+      elements[elementKey] = [...et.touched];
+      if (et.added) elementsAdded[elementKey] = [...et.added];
+      if (et.removed) elementsRemoved[elementKey] = [...et.removed];
+      if (et.textDeleted) {
+        elementsTextDeleted[elementKey] = [...et.textDeleted];
+      }
     }
+    const nonEmpty = (r: Record<string, string[]>) =>
+      Object.keys(r).length > 0;
     slides[slideId] = {
       ...(touch.edited ? { edited: [...touch.edited] } : {}),
       ...(touch.added ? { added: [...touch.added] } : {}),
       ...(touch.removed ? { removed: [...touch.removed] } : {}),
-      ...(elementMap && Object.keys(elements).length > 0 ? { elements } : {}),
+      ...(nonEmpty(elements) ? { elements } : {}),
+      ...(nonEmpty(elementsAdded) ? { elementsAdded } : {}),
+      ...(nonEmpty(elementsRemoved) ? { elementsRemoved } : {}),
+      ...(nonEmpty(elementsTextDeleted) ? { elementsTextDeleted } : {}),
     };
   }
   const result: DeckSlideEditors = {
@@ -204,9 +230,17 @@ export function restoreDeckLedger(
         record(projectId, deckId, slideId, kind, email);
       }
     }
-    for (const [elementKey, emails] of Object.entries(touch.elements ?? {})) {
-      for (const email of emails) {
-        recordSlideElementTouch(projectId, slideId, elementKey, email);
+    const elementKinds = [
+      ["elements", "touched"],
+      ["elementsAdded", "added"],
+      ["elementsRemoved", "removed"],
+      ["elementsTextDeleted", "textDeleted"],
+    ] as const;
+    for (const [field, kind] of elementKinds) {
+      for (const [elementKey, emails] of Object.entries(touch[field] ?? {})) {
+        for (const email of emails) {
+          recordSlideElementTouch(projectId, slideId, elementKey, email, kind);
+        }
       }
     }
   }

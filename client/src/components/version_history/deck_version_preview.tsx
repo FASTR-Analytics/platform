@@ -61,6 +61,11 @@ type ElementRow = {
   authorLabel: string;
   authorExact: boolean;
   authorEmail?: string;
+  /** Exact attribution for the REMOVED spans of the row's text diff (from the
+   *  ledger's per-element deleter set); absent = fall back to authorLabel. */
+  removedLabel?: string;
+  removedExact?: boolean;
+  removedEmail?: string;
 };
 
 // One grid cell: a current slide (possibly badged New/Edited) or a ghost of a
@@ -263,11 +268,32 @@ export function DeckVersionPreview(p: {
           slideId: string,
           changes: SlideElementChange[],
         ): ElementRow[] {
+          const sl = se?.slides[slideId];
           return changes.map((ch) => {
+            // Deletions/additions attribute from the classified ledger buckets
+            // (exactly who removed/added the element) before falling back to
+            // the element's whole editor set.
             const who = whoOf(
-              se?.slides[slideId]?.elements?.[ch.key] ??
-                se?.slides[slideId]?.edited,
+              (ch.kind === "removed"
+                ? sl?.elementsRemoved?.[ch.key]
+                : ch.kind === "added"
+                ? sl?.elementsAdded?.[ch.key]
+                : undefined) ??
+                sl?.elements?.[ch.key] ??
+                sl?.edited,
             );
+            // Exact deleters of text INSIDE the element — attributes the
+            // removed spans of an edited row's mini diff. Marked exact only
+            // for a single deleter (two deleters can't be told apart per span).
+            const textDeleters = sl?.elementsTextDeleted?.[ch.key];
+            const removedBy = ch.kind === "edited" && textDeleters &&
+                textDeleters.length > 0
+              ? {
+                label: textDeleters.map((e) => names[e] ?? e).join(", "),
+                exact: textDeleters.length === 1,
+                email: textDeleters.length === 1 ? textDeleters[0] : undefined,
+              }
+              : undefined;
             const verb = ch.kind === "added"
               ? t3({ en: "added by", fr: "ajouté par", pt: "adicionado por" })
               : ch.kind === "removed"
@@ -284,6 +310,9 @@ export function DeckVersionPreview(p: {
               authorLabel: who.label,
               authorExact: who.exact,
               authorEmail: who.email,
+              removedLabel: removedBy?.label,
+              removedExact: removedBy?.exact,
+              removedEmail: removedBy?.email,
             };
           });
         }
@@ -635,6 +664,9 @@ function ExpandedVersionSlideModal(
                           label: row.authorLabel,
                           labelExact: row.authorExact,
                           labelEmail: row.authorEmail,
+                          removedLabel: row.removedLabel,
+                          removedLabelExact: row.removedExact,
+                          removedLabelEmail: row.removedEmail,
                         },
                       ])}
                     />

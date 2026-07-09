@@ -58,17 +58,40 @@ const slideAdapter: DocRoomAdapter<Slide> = {
   // Element-level attribution for version history: which title field / block
   // each transaction touched, attributed via the transaction origin (RoomConn
   // identity for collab edits, applyToLiveRoom's versionEditor tag for
-  // HTTP-routed writes; restores carry neither and are not recorded).
+  // HTTP-routed writes; restores carry neither and are not recorded). Ops are
+  // classified (added / structurally removed / text deleted) so the version
+  // diff can attribute deletions exactly instead of to every element editor.
   onDocCreated: (projectId, slideId, doc) => {
-    observeSlideDocElements(doc, (elementKeys, origin) => {
+    observeSlideDocElements(doc, (touches, origin) => {
       const o = origin as
         | { identity?: VersionEditor; versionEditor?: VersionEditor }
         | null
         | undefined;
       const email = o?.identity?.email ?? o?.versionEditor?.email ?? null;
       if (email === null) return;
-      for (const elementKey of elementKeys) {
+      for (const elementKey of touches.touched) {
         recordSlideElementTouch(projectId, slideId, elementKey, email);
+      }
+      for (const elementKey of touches.added) {
+        recordSlideElementTouch(projectId, slideId, elementKey, email, "added");
+      }
+      for (const elementKey of touches.removed) {
+        recordSlideElementTouch(
+          projectId,
+          slideId,
+          elementKey,
+          email,
+          "removed",
+        );
+      }
+      for (const elementKey of touches.textDeleted) {
+        recordSlideElementTouch(
+          projectId,
+          slideId,
+          elementKey,
+          email,
+          "textDeleted",
+        );
       }
     });
   },

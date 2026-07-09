@@ -42,6 +42,14 @@ export type VersionStep = {
   authors?: AuthorRunLike[] | null;
   /** email -> display name for `authors` lookups. */
   names?: Record<string, string>;
+  /** Attribution override for text REMOVED in the transition into this step.
+   *  Deck element diffs set it from the session ledger's per-element deleter
+   *  set (who actually performed delete ops), which is usually narrower than
+   *  `label` (everyone who touched the element). Reports don't need it — their
+   *  per-character tombstones in `authors` attribute removals exactly. */
+  removedLabel?: string;
+  removedLabelExact?: boolean;
+  removedLabelEmail?: string;
 };
 
 export type DiffSegment = {
@@ -355,7 +363,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       );
       if (touched) {
         touchedSteps.push(k);
-        const label = steps[k + 1].label;
+        const label = steps[k + 1].removedLabel ?? steps[k + 1].label;
         if (!labels.includes(label)) labels.push(label);
         if (touchedSteps.length === 1 && b - a === width) {
           ghostPieces = mapRangeThroughGhost(k, a, b);
@@ -369,15 +377,24 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       b = nb;
     }
 
-    const singleExact = touchedSteps.length === 1 &&
-      (steps[touchedSteps[0] + 1].labelExact ?? false);
+    // When the single touching step carries a removal override, exactness and
+    // email come from the override, not the (broader) session label.
+    const s0 = touchedSteps.length === 1
+      ? steps[touchedSteps[0] + 1]
+      : undefined;
+    const singleExact = s0 !== undefined &&
+      (s0.removedLabel !== undefined
+        ? s0.removedLabelExact ?? false
+        : s0.labelExact ?? false);
     const fallback: Attribution = labels.length === 0
       ? { who: undefined, whoExact: false }
       : {
         who: labels.join(", "),
         whoExact: singleExact,
-        whoEmail: singleExact
-          ? steps[touchedSteps[0] + 1].labelEmail
+        whoEmail: singleExact && s0 !== undefined
+          ? (s0.removedLabel !== undefined
+            ? s0.removedLabelEmail
+            : s0.labelEmail)
           : undefined,
       };
 
