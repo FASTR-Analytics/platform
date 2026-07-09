@@ -53,15 +53,17 @@ function pushToast(text: string, color: string): void {
 
 function PresenceToastHost() {
   return (
-    <div class="pointer-events-none fixed right-4 top-4 z-[95] flex flex-col items-end gap-2">
+    // top-20 sits just below the tallest editor header, clear of the AI /
+    // settings / download buttons in the top-right corner.
+    <div class="pointer-events-none fixed right-4 top-20 z-[95] flex flex-col items-end gap-2">
       <For each={toasts()}>
         {(t) => (
           <div
-            class="flex items-center gap-2 rounded bg-black px-3 py-2 text-sm text-white shadow-lg"
+            class="bg-primary text-primary-content flex items-center gap-2 rounded px-3 py-2 text-sm shadow-lg"
             style={REDUCED_MOTION ? {} : { animation: "presence-toast-in 150ms ease-out" }}
           >
             <span
-              class="h-2.5 w-2.5 flex-none rounded-full"
+              class="h-2.5 w-2.5 flex-none rounded-full ring-1 ring-white/60"
               style={{ "background-color": t.color }}
             />
             <span>{t.text}</span>
