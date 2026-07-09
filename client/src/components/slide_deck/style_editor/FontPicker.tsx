@@ -1,4 +1,4 @@
-import { type SlideFontFamily, SLIDE_FONTS } from "lib";
+import { type SlideFontFamily, SLIDE_FONTS, t3 } from "lib";
 import { For } from "solid-js";
 
 type Props = {
@@ -11,7 +11,9 @@ export function FontPicker(p: Props) {
 
   return (
     <div>
-      <div class="ui-label">Font</div>
+      <div class="ui-label">
+        {t3({ en: "Font", fr: "Police", pt: "Tipo de letra" })}
+      </div>
       <div class="flex gap-2">
         <For each={SLIDE_FONTS}>
           {(font) => (

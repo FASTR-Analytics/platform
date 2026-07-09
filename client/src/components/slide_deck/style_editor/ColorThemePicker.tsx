@@ -4,7 +4,7 @@ import {
   validateBrandColor,
   type ColorPreset,
 } from "@timroberton/panther";
-import { BRAND_PRESETS, type BrandPresetId } from "lib";
+import { BRAND_PRESETS, t3, type BrandPresetId } from "lib";
 import type { ColorTheme, AllPresetId } from "lib";
 
 type ColorThemePickerProps = {
@@ -41,7 +41,16 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
 
   const validation = () => {
     const hex = customHex();
-    if (!hex) return { valid: false, reason: "Enter a hex color" } as const;
+    if (!hex) {
+      return {
+        valid: false,
+        reason: t3({
+          en: "Enter a hex color",
+          fr: "Saisissez une couleur hexadécimale",
+          pt: "Introduza uma cor hexadecimal",
+        }),
+      } as const;
+    }
     return validateBrandColor(normalizeHex(hex));
   };
 
@@ -108,10 +117,14 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
 
   return (
     <div>
-      <div class="ui-label">Color theme</div>
+      <div class="ui-label">
+        {t3({ en: "Color theme", fr: "Thème de couleurs", pt: "Tema de cores" })}
+      </div>
       <div class="ui-spy-sm">
         <div>
-          <div class="text-neutral mb-1 text-xs">Standard colors</div>
+          <div class="text-neutral mb-1 text-xs">
+            {t3({ en: "Standard colors", fr: "Couleurs standard", pt: "Cores padrão" })}
+          </div>
           <div class="flex flex-wrap gap-1.5">
             <For each={corePresets}>
               {(preset) => <PresetSwatch preset={preset} id={preset.id} />}
@@ -120,7 +133,9 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
         </div>
         <Show when={BRAND_PRESETS.length > 0}>
           <div>
-            <div class="text-neutral mb-1 text-xs">Special colors</div>
+            <div class="text-neutral mb-1 text-xs">
+              {t3({ en: "Special colors", fr: "Couleurs spéciales", pt: "Cores especiais" })}
+            </div>
             <div class="flex flex-wrap gap-1.5">
               <For each={BRAND_PRESETS}>
                 {(preset) => (
@@ -134,7 +149,9 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
           </div>
         </Show>
         <div>
-          <div class="text-neutral mb-1 text-xs">Custom</div>
+          <div class="text-neutral mb-1 text-xs">
+            {t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" })}
+          </div>
           <div class="flex items-center gap-2">
             <button
               type="button"
@@ -150,7 +167,11 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
                     : "#e5e5e5",
               }}
               onClick={clickCustomSwatch}
-              title="Custom color"
+              title={t3({
+                en: "Custom color",
+                fr: "Couleur personnalisée",
+                pt: "Cor personalizada",
+              })}
             >
               <Show when={isCustomActive()}>
                 <CheckIcon />

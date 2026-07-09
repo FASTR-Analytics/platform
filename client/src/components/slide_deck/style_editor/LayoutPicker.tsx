@@ -1,3 +1,4 @@
+import { t3 } from "lib";
 import { For } from "solid-js";
 import { getLayoutPresets, type LayoutPresetId } from "panther";
 import { PresetCard } from "./PresetCard.tsx";
@@ -56,7 +57,9 @@ export function LayoutPicker(p: LayoutPickerProps) {
 
   return (
     <div>
-      <div class="ui-label">Layout</div>
+      <div class="ui-label">
+        {t3({ en: "Layout", fr: "Mise en page", pt: "Esquema" })}
+      </div>
       <div class="ui-gap-sm flex">
         <For each={presets}>
           {(preset) => (

@@ -1,5 +1,6 @@
 import { For } from "solid-js";
-import type { BackgroundDetailType } from "lib";
+import { t3 } from "lib";
+import type { BackgroundDetailType, TranslatableString } from "lib";
 import { PresetCard } from "./PresetCard.tsx";
 
 type OverlayPickerProps = {
@@ -9,23 +10,23 @@ type OverlayPickerProps = {
 
 type OverlayOption = {
   id: BackgroundDetailType;
-  name: string;
+  name: TranslatableString;
 };
 
 const OVERLAY_OPTIONS: OverlayOption[] = [
-  { id: "none", name: "None" },
-  { id: "pattern-dots", name: "Dots" },
-  { id: "pattern-circles", name: "Circles" },
-  { id: "pattern-ovals", name: "Ovals" },
-  { id: "pattern-lines", name: "Lines" },
-  { id: "pattern-grid", name: "Grid" },
-  { id: "pattern-chevrons", name: "Chevrons" },
-  { id: "pattern-waves", name: "Waves" },
-  { id: "pattern-noise", name: "Noise" },
-  { id: "dots", name: "Dots" },
-  { id: "rivers", name: "Maze" },
-  { id: "waves", name: "Waves" },
-  { id: "world", name: "World" },
+  { id: "none", name: { en: "None", fr: "Aucun", pt: "Nenhum" } },
+  { id: "pattern-dots", name: { en: "Dots", fr: "Points", pt: "Pontos" } },
+  { id: "pattern-circles", name: { en: "Circles", fr: "Cercles", pt: "Círculos" } },
+  { id: "pattern-ovals", name: { en: "Ovals", fr: "Ovales", pt: "Ovais" } },
+  { id: "pattern-lines", name: { en: "Lines", fr: "Lignes", pt: "Linhas" } },
+  { id: "pattern-grid", name: { en: "Grid", fr: "Grille", pt: "Grelha" } },
+  { id: "pattern-chevrons", name: { en: "Chevrons", fr: "Chevrons", pt: "Zigue-zague" } },
+  { id: "pattern-waves", name: { en: "Waves", fr: "Vagues", pt: "Ondas" } },
+  { id: "pattern-noise", name: { en: "Noise", fr: "Bruit", pt: "Ruído" } },
+  { id: "dots", name: { en: "Dots", fr: "Points", pt: "Pontos" } },
+  { id: "rivers", name: { en: "Maze", fr: "Labyrinthe", pt: "Labirinto" } },
+  { id: "waves", name: { en: "Waves", fr: "Vagues", pt: "Ondas" } },
+  { id: "world", name: { en: "World", fr: "Monde", pt: "Mundo" } },
 ];
 
 const BG_COLOR = "#4a5568";
@@ -146,12 +147,14 @@ function OverlayThumbnail(p: { overlayId: BackgroundDetailType }) {
 export function OverlayPicker(p: OverlayPickerProps) {
   return (
     <div>
-      <div class="ui-label">Background detail</div>
+      <div class="ui-label">
+        {t3({ en: "Background detail", fr: "Détail d'arrière-plan", pt: "Detalhe de fundo" })}
+      </div>
       <div class="flex flex-wrap gap-3">
         <For each={OVERLAY_OPTIONS}>
           {(option) => (
             <PresetCard
-              name={option.name}
+              name={t3(option.name)}
               selected={(p.value ?? "none") === option.id}
               onClick={() => p.onChange(option.id)}
             >
