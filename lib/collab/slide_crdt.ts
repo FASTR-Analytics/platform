@@ -296,11 +296,15 @@ export function findRootTextField(
 //   "props"         everything else on the slide root (split, logos, ...)
 // On top of the plain "touched" set, the transaction's ops are classified so
 // deletions attribute exactly (the deck-side analogue of the report body's
-// tombstones): `added`/`removed` from children-map key actions, `textDeleted`
-// from Y.Text delete deltas. A block MOVE can surface as a children-map
-// delete+add pair, so a `removed` entry alone doesn't prove the element is
-// gone — consumers pair it with the version diff, which only shows "removed"
-// for elements genuinely absent from the newer snapshot.
+// tombstones): `textDeleted` from Y.Text delete deltas, and `added`/`removed`
+// by SET-DIFFING the item-block ids present in the layout before vs after
+// each transaction. The set diff is deliberately semantic rather than
+// event-shaped: the structural sync collapses/unwraps containers via
+// rebuildNodeInPlace and wholesale children replacement, so a deleted block
+// often never appears as its own children-key delete (only its ancestor
+// container's does — an id the version diff never displays). Diffing the id
+// inventory catches every encoding, and a block MOVE (delete+add elsewhere
+// in one transaction) correctly classifies as neither added nor removed.
 // The callback receives the transaction origin so the caller can attribute
 // (a RoomConn's identity for collab edits, applyToLiveRoom's versionEditor
 // tag for HTTP-routed writes). Attach AFTER the doc holds its initial content.
@@ -308,9 +312,9 @@ export function findRootTextField(
 export type SlideElementTouches = {
   /** Every element the transaction touched, in any way. */
   touched: string[];
-  /** Elements created by this transaction (children-map key inserts). */
+  /** Item blocks that exist after this transaction but not before. */
   added: string[];
-  /** Elements structurally removed by this transaction (key deletes). */
+  /** Item blocks that existed before this transaction but not after. */
   removed: string[];
   /** Elements the transaction deleted TEXT from (Y.Text delete ops, or a
    *  root text field's key removed). */
@@ -322,6 +326,29 @@ export function observeSlideDocElements(
   cb: (touches: SlideElementTouches, origin: unknown) => void,
 ): void {
   const root = doc.getMap<unknown>(ROOT_KEY);
+
+  // Inventory of item-block ids currently in the layout (containers excluded —
+  // the version diff only reports item blocks). Cheap: reads only id/type/
+  // children keys, never block content.
+  const collectItemIds = (): Set<string> => {
+    const ids = new Set<string>();
+    const walk = (m: unknown): void => {
+      if (!(m instanceof Y.Map)) return;
+      if (m.get("type") === "item") {
+        const id = m.get("id");
+        if (typeof id === "string") ids.add(id);
+        return;
+      }
+      const children = m.get("children");
+      if (children instanceof Y.Map) {
+        for (const child of children.values()) walk(child);
+      }
+    };
+    walk(root.get("layout"));
+    return ids;
+  };
+  let prevItemIds = collectItemIds();
+
   root.observeDeep((events, transaction) => {
     const touched = new Set<string>();
     const added = new Set<string>();
@@ -332,12 +359,18 @@ export function observeSlideDocElements(
       event.changes.delta.some(
         (d) => typeof (d as { delete?: number }).delete === "number",
       );
+    // Did any MAP event touch the layout subtree (or the root "layout" key)?
+    // Only those can change the block inventory — text deltas never do, so
+    // typing doesn't pay for the re-walk.
+    let structural = false;
     for (const event of events) {
       const path = event.path;
       if (path.length === 0) {
         for (const [k, change] of event.changes.keys) {
-          if (k === "layout") touched.add("layout");
-          else if (ALL_TEXT_FIELDS.has(k)) {
+          if (k === "layout") {
+            touched.add("layout");
+            structural = true;
+          } else if (ALL_TEXT_FIELDS.has(k)) {
             touched.add(`field:${k}`);
             // Removing the field's key discards its text content.
             if (change.action === "delete") textDeleted.add(`field:${k}`);
@@ -348,6 +381,7 @@ export function observeSlideDocElements(
         touched.add(`field:${path[0]}`);
         if (hasTextDelete(event)) textDeleted.add(`field:${path[0]}`);
       } else {
+        if (event.changes.keys.size > 0) structural = true;
         // Layout subtree: the innermost node id is the element after the last
         // "children" key in the path.
         let nodeId: string | undefined;
@@ -357,12 +391,8 @@ export function observeSlideDocElements(
           }
         }
         if (path[path.length - 1] === "children") {
-          // The children map itself changed: blocks added/removed.
-          for (const [k, change] of event.changes.keys) {
-            touched.add(`block:${k}`);
-            if (change.action === "add") added.add(`block:${k}`);
-            else if (change.action === "delete") removed.add(`block:${k}`);
-          }
+          // The children map itself changed: blocks added/removed/rebuilt.
+          for (const k of event.changes.keys.keys()) touched.add(`block:${k}`);
           touched.add("layout");
         } else if (nodeId) {
           const changed = [...event.changes.keys.keys()];
@@ -377,6 +407,22 @@ export function observeSlideDocElements(
           touched.add("layout");
         }
       }
+    }
+    if (structural) {
+      const currentItemIds = collectItemIds();
+      for (const id of currentItemIds) {
+        if (!prevItemIds.has(id)) {
+          added.add(`block:${id}`);
+          touched.add(`block:${id}`);
+        }
+      }
+      for (const id of prevItemIds) {
+        if (!currentItemIds.has(id)) {
+          removed.add(`block:${id}`);
+          touched.add(`block:${id}`);
+        }
+      }
+      prevItemIds = currentItemIds;
     }
     if (touched.size > 0) {
       cb(

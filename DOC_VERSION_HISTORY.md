@@ -260,22 +260,28 @@ preferring live `projectState.projectUsers` over the stored capture-time name,
   only for collab edits (the observer lives on the room doc); REST-path slide
   saves fall back to the slide-level editors.
   **Exact deletion attribution (deck-side tombstones)**: on top of the plain
-  touched set, the observer CLASSIFIES each transaction's ops — children-map
-  key inserts/deletes become `elementsAdded`/`elementsRemoved`, Y.Text delete
-  ops (and root-field key removals) become `elementsTextDeleted` — extra
-  buckets in slide_editors alongside `elements` (their superset). The preview
-  resolves a removed/added element row from its exact bucket first, so a
-  block Bob deleted after Alice edited it reads "removed by Bob B", not
-  "removed by one of: Alice, Bob"; and an edited row's inline diff passes the
-  element's deleter set as `removedLabel` into `computeAttributedDiff`, which
-  attributes REMOVED spans to it (exact only for a single deleter — two
-  deleters can't be told apart per span) while ADDED spans keep the
-  element-editor label. Reports don't use `removedLabel` — their
-  per-character tombstones in `authors` are strictly more precise and still
-  take priority in the ghost-alignment path. A block MOVE can emit a
-  children-map delete+add pair, so `elementsRemoved` alone doesn't prove the
-  element is gone — it only ever surfaces paired with the config diff, which
-  shows "removed" strictly for elements absent from the newer snapshot.
+  touched set, the observer CLASSIFIES each transaction's ops into extra
+  slide_editors buckets alongside `elements` (their superset): block
+  add/remove comes from SET-DIFFING the layout's item-id inventory before vs
+  after the transaction (`elementsAdded`/`elementsRemoved`), and Y.Text
+  delete ops (or a root-field key removal) become `elementsTextDeleted`. The
+  set diff is deliberately semantic, NOT event-shaped: syncSlideToDoc
+  collapses/unwraps containers via rebuildNodeInPlace and wholesale children
+  replacement, so a deleted block frequently never appears as its own
+  children-key delete (only an ancestor container's key does — an id the
+  version diff never displays). Diffing the id inventory catches every
+  structural encoding, and a MOVE (same id, new position) correctly
+  classifies as neither added nor removed. Only map events under the layout
+  (or the root layout key) trigger the re-walk — typing never pays for it.
+  The preview resolves a removed/added element row from its exact bucket
+  first, so a block Bob deleted after Alice edited it reads "removed by
+  Bob B", not "removed by one of: Alice, Bob"; and an edited row's inline
+  diff passes the element's deleter set as `removedLabel` into
+  `computeAttributedDiff`, which attributes REMOVED spans to it (exact only
+  for a single deleter — two deleters can't be told apart per span) while
+  ADDED spans keep the element-editor label. Reports don't use
+  `removedLabel` — their per-character tombstones in `authors` are strictly
+  more precise and still take priority in the ghost-alignment path.
   Whole-slide deletion was already exact: the deleteSlides route records the
   deleting user in the slide-level `removed` bucket (the ghost badge reads
   it), independent of who edited the slide beforehand.
@@ -318,11 +324,14 @@ overflow menu.
   props, origin passthrough) and diffSlideElements (field/block text diffs,
   figure/image edits, add/remove, reorder, cover props, identical=empty) —
   the two key vocabularies verified against each other.
-- `deck_deletion_attribution` harness (31 asserts): observer op
+- `deck_deletion_attribution` harness (43 asserts): observer op
   classification (insert vs text-delete, structural block remove/add,
-  fracIndex-only excluded, root-field deletes, mixed transactions) and the
-  ledger's classified buckets (superset invariant, drain/restore round-trip,
-  no false buckets).
+  fracIndex-only excluded, root-field deletes, mixed transactions), the
+  production structural encodings (container COLLAPSE hiding the block's
+  delete, rebuild-at-root, the same collapse arriving as a remote binary
+  update with RoomConn origin, moves classifying as neither added nor
+  removed) and the ledger's classified buckets (superset invariant,
+  drain/restore round-trip, no false buckets).
 - `deck_diff_override` harness (16 asserts): `removedLabel` attribution of
   removed spans (exact single deleter, inexact multi-deleter, email carry),
   added spans keeping the editor label, no-override fallback unchanged, and

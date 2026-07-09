@@ -102,11 +102,13 @@ export type DeckSlideEditors = {
        *  "block:<id>", "layout", "props") -> emails of everyone who touched
        *  the element. */
       elements?: Record<string, string[]>;
-      /** Deck-side deletion "tombstones": exactly who ADDED an element
-       *  (children-map key insert), who structurally REMOVED it (key delete),
-       *  and who DELETED TEXT inside it (Y.Text delete ops) — lets the version
-       *  diff say "removed by Bob" instead of falling back to the whole
-       *  element-editor set. Subsets of `elements`. */
+      /** Deck-side deletion "tombstones": exactly who ADDED an item block,
+       *  who structurally REMOVED it (both from set-diffing the layout's
+       *  block-id inventory across each transaction — robust to container
+       *  collapses/rebuilds and immune to moves), and who DELETED TEXT inside
+       *  an element (Y.Text delete ops) — lets the version diff say "removed
+       *  by Bob" instead of falling back to the whole element-editor set.
+       *  Subsets of `elements`. */
       elementsAdded?: Record<string, string[]>;
       elementsRemoved?: Record<string, string[]>;
       elementsTextDeleted?: Record<string, string[]>;
