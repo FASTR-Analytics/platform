@@ -952,7 +952,7 @@ function VisualizationCard(p: VisualizationCardProps) {
         {/* Live-presence avatars, overlaid bottom-left on the thumbnail — same
             placement as the deck and report lists. */}
         <div class="pointer-events-none absolute bottom-1 left-1 z-10">
-          <PresenceAvatars peers={cardPeers()} size="sm" />
+          <PresenceAvatars peers={cardPeers()} size="sm" showEditingPulse />
         </div>
         {/* The card stays interactive even when the metric has no results, so it
             can still be selected and deleted (via the context menu). Only the

@@ -69,6 +69,22 @@ user-facing behavior.
   `selectedBlockId` (layout node id) and `selectedTextTarget` (panther text
   primitive id, e.g. `coverTitle`/`headerText`) are mutually exclusive and
   say which element they're editing.
+- Activity signals (both ride the presence entry, NOT Yjs awareness — list
+  cards live outside any doc room):
+  - `idle` — client-self-reported. collab.ts tracks local input
+    (pointermove/pointerdown/keydown/wheel, capture-phase) and broadcasts
+    only the two transitions: idle after 3 min without input, active again on
+    the next input. Avatar UIs dim idle peers (`opacity-40 grayscale`),
+    editing state overrides a stale idle flag.
+  - `isEditing` — **server-stamped** in `markConnectionEditing` when a
+    `slide_update`/`report_update`/`po_update` is applied from a connection
+    with the matching edit permission (a viewer's room-rejected update never
+    counts). Broadcasts once on the false→true edge; each update re-arms an
+    8s quiet-period timer whose expiry broadcasts the clear — a typing burst
+    costs two presence broadcasts total. A `presence_update` preserves the
+    flag (it is not client-settable). Rendered as a pulsing green badge on
+    list-card avatars (`showEditingPulse` on presence_avatars.tsx — cards
+    only, where present ≠ editing).
 
 ## 3. The CRDT model — Slide ⇄ Y.Doc
 

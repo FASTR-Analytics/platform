@@ -492,6 +492,7 @@ export function ProjectReports(p: ExtendedProps) {
                           (peer) => peer.reportId === report.id,
                         )}
                         size="sm"
+                        showEditingPulse
                       />
                     </div>
                     <div

@@ -13,6 +13,7 @@ import { getGlobalUser, resolveProjectUserAccess } from "../../project_auth.ts";
 import {
   addConnection,
   broadcastPresence,
+  markConnectionEditing,
   removeConnection,
   updateConnectionPresence,
 } from "../../task_management/presence_registry.ts";
@@ -403,6 +404,9 @@ routesProjectCollab.get(
           case "slide_update":
             if (roomConn && auth.canViewSlides) {
               applySlideUpdate(projectId, msg.data.slideId, roomConn, msg.data.update);
+              // "Editing now" presence pulse. canEdit-gated so a read-only
+              // client's (room-rejected) update never counts as editing.
+              if (auth.canEditSlides) markConnectionEditing(projectId, connectionId);
             }
             break;
           case "slide_unsubscribe":
@@ -434,6 +438,7 @@ routesProjectCollab.get(
           case "report_update":
             if (reportRoomConn && auth.canViewReports) {
               applyReportUpdate(projectId, msg.data.reportId, reportRoomConn, msg.data.update);
+              if (auth.canEditReports) markConnectionEditing(projectId, connectionId);
             }
             break;
           case "report_unsubscribe":
@@ -465,6 +470,7 @@ routesProjectCollab.get(
           case "po_update":
             if (poRoomConn && auth.canViewViz) {
               applyPoUpdate(projectId, msg.data.poId, poRoomConn, msg.data.update);
+              if (auth.canEditViz) markConnectionEditing(projectId, connectionId);
             }
             break;
           case "po_unsubscribe":

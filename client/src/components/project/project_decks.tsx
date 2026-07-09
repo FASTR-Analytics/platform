@@ -490,6 +490,7 @@ export function ProjectDecks(p: ExtendedProps) {
                             (peer) => peer.deckId === deck.id,
                           )}
                           size="sm"
+                          showEditingPulse
                         />
                       </div>
                       <Show

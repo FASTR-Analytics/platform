@@ -26,6 +26,16 @@ session.
   you are in. Keyed per person (a second tab isn't a "join") with a short grace
   window so refreshes and reconnects stay silent; switching documents yourself
   never announces the people already there.
+- **Idle dimming.** Presence tells you who is *actually* there: after a few
+  minutes without any mouse or keyboard input, a user's avatar dims (greyed,
+  faded) everywhere it appears — list cards, headers, slide cards — with an
+  "idle" note in the tooltip. The moment they touch anything it lights back
+  up. Someone actively editing is never shown dimmed.
+- **"Editing now" pulse on list cards.** On the deck, report and visualization
+  lists, a peer who is actively making edits (not just present with the
+  document open) gets a small pulsing green badge on their avatar. It appears
+  with their first edit and fades a few seconds after they pause, so a glance
+  at the list distinguishes "has it open" from "working in it right now".
 - **Stable per-user identity color.** Every user gets a deterministic color
   (hashed from their email) used consistently everywhere they appear: avatar
   fallback, editing borders, text carets, and selection highlights. Names and

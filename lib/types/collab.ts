@@ -39,6 +39,13 @@ export type PresenceEntry = {
    *  slide/report they are in (the slide layout-block id or the report figure
    *  registry id). Contextualized by `slideId`/`reportId`. */
   editingFigureId?: string;
+  /** Self-reported by the client after a few minutes without any input in its
+   *  tab (cleared on the next input). Presence UI dims idle peers. */
+  idle?: boolean;
+  /** Stamped SERVER-side (never client-settable): true while this connection
+   *  is actively applying document edits, cleared after a short quiet period.
+   *  Presence UI pulses "editing now" on list cards. */
+  isEditing?: boolean;
 };
 
 /** The presence fields a client controls about itself. */
@@ -51,6 +58,7 @@ export type PresenceView = {
   reportId?: string;
   poId?: string;
   editingFigureId?: string;
+  idle?: boolean;
 };
 
 /** Client → server messages. */

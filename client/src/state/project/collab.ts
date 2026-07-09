@@ -709,7 +709,13 @@ function sendPresence(): void {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   const message: CollabClientMessage = {
     type: "presence_update",
-    data: { avatarUrl, ...view } satisfies PresenceView,
+    // idle omitted (= active) rather than false: view fields are replaced
+    // wholesale server-side, so absence is the natural "active" encoding.
+    data: {
+      avatarUrl,
+      idle: isIdle || undefined,
+      ...view,
+    } satisfies PresenceView,
   };
   ws.send(JSON.stringify(message));
 }
@@ -803,6 +809,43 @@ window.addEventListener("online", retryNow);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") retryNow();
 });
+
+// ── Idle detection ───────────────────────────────────────────────────────────
+// After IDLE_AFTER_MS without any input in this tab, presence broadcasts
+// idle=true (peers' avatar UIs dim this user); the next input broadcasts
+// idle=false immediately. Input tracking is purely local — nothing goes over
+// the wire per mousemove, only the two transitions call sendPresence(), and
+// sendPresence() itself re-sends the current flag on every (re)connect.
+// Registered once for the module's lifetime, like the retryNow listeners.
+
+const IDLE_AFTER_MS = 3 * 60_000;
+const IDLE_CHECK_MS = 15_000;
+
+let lastInputAt = Date.now();
+let isIdle = false;
+
+function noteInput(): void {
+  lastInputAt = Date.now();
+  if (isIdle) {
+    isIdle = false;
+    sendPresence();
+  }
+}
+// Capture phase so app code calling stopPropagation can't hide activity.
+for (const evt of ["pointermove", "pointerdown", "keydown", "wheel"]) {
+  document.addEventListener(evt, noteInput, { passive: true, capture: true });
+}
+// Returning to the tab is an intentional act even before the first
+// mousemove/keydown lands in it (e.g. an alt-tab reader).
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") noteInput();
+});
+setInterval(() => {
+  if (!isIdle && Date.now() - lastInputAt >= IDLE_AFTER_MS) {
+    isIdle = true;
+    sendPresence();
+  }
+}, IDLE_CHECK_MS);
 
 function hardClose(): void {
   if (reconnectTimer) {
