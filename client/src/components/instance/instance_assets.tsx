@@ -245,7 +245,7 @@ function AssetTable(p: {
             <Button
               intent="base-100"
               iconName="download"
-              href={`${_SERVER_HOST}/assets/${asset.fileName}`}
+              href={`${_SERVER_HOST}/${encodeURIComponent(asset.fileName)}`}
               download={asset.fileName}
             />
             <Show when={canDelete}>

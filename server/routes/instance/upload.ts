@@ -303,7 +303,6 @@ routesUpload.patch(
         c.header("Tus-Resumable", "1.0.0");
         c.header("X-Upload-Complete", "true");
         c.header("X-Upload-Filename", upload.filename);
-        c.header("X-Upload-Final-Path", finalPath);
 
         return c.body(null);
       }

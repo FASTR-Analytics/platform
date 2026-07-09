@@ -29,7 +29,6 @@ export const corsMiddleware = cors({
     "Tus-Extension",
     "Tus-Max-Size",
     "X-Upload-Complete",
-    "X-Upload-Filename",
-    "X-Upload-Final-Path"
+    "X-Upload-Filename"
   ],
 });
