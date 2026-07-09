@@ -31,6 +31,7 @@ import {
   notifyPresenceToasts,
   resetPresenceToasts,
 } from "~/components/_shared/presence_toasts";
+import { notifyCollabConnection } from "~/components/_shared/connection_banner";
 
 // Client manager for the per-project collaboration WebSocket (Milestone 1:
 // presence). Mirrors the SSE manager (t1_sse.tsx): a single module-level
@@ -62,7 +63,12 @@ export function otherPeers(): PresenceEntry[] {
 const [socketOpen, setSocketOpen] = createSignal(false);
 export const collabSocketOpen = socketOpen;
 
-const MAX_RECONNECT_ATTEMPTS = 5;
+// Reconnects never give up: `attempts` only grows the backoff (capped at
+// MAX_RETRY_DELAY, exponent clamped so 2**attempts can't overflow on long
+// outages). The connection banner tells the user while retries run, and the
+// online/visibilitychange listeners below short-circuit the wait as soon as
+// the network or tab plausibly comes back.
+const RETRY_EXPONENT_CAP = 5;
 const BASE_RETRY_DELAY = 1000;
 const MAX_RETRY_DELAY = 30000;
 
@@ -715,6 +721,7 @@ function openSocket(projectId: string): void {
   socket.onopen = () => {
     attempts = 0;
     setSocketOpen(true);
+    notifyCollabConnection("connected");
     sendPresence();
     // Re-subscribe any open sessions (covers first connect + reconnect:
     // the server sends only what each doc's state vector is missing).
@@ -754,7 +761,10 @@ function openSocket(projectId: string): void {
       ws = null;
       setSocketOpen(false);
     }
-    if (!intentional) scheduleReconnect();
+    if (!intentional) {
+      notifyCollabConnection("reconnecting");
+      scheduleReconnect();
+    }
   };
 
   socket.onerror = () => {
@@ -765,14 +775,34 @@ function openSocket(projectId: string): void {
 function scheduleReconnect(): void {
   if (!currentProjectId) return;
   attempts += 1;
-  if (attempts > MAX_RECONNECT_ATTEMPTS) return;
-  const delay = Math.min(BASE_RETRY_DELAY * 2 ** attempts, MAX_RETRY_DELAY);
+  const delay = Math.min(
+    BASE_RETRY_DELAY * 2 ** Math.min(attempts, RETRY_EXPONENT_CAP),
+    MAX_RETRY_DELAY,
+  );
   if (reconnectTimer) clearTimeout(reconnectTimer);
   const projectId = currentProjectId;
   reconnectTimer = setTimeout(() => {
     if (currentProjectId === projectId) openSocket(projectId);
   }, delay);
 }
+
+// Reconnect NOW when the network or the tab plausibly came back — skips the
+// (up to 30s) backoff wait. Registered once for the module's lifetime; no-ops
+// when no project wants a connection or the socket is already up/connecting.
+function retryNow(): void {
+  if (!currentProjectId) return;
+  if (ws && ws.readyState <= WebSocket.OPEN) return; // CONNECTING or OPEN
+  attempts = 0;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  openSocket(currentProjectId);
+}
+window.addEventListener("online", retryNow);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") retryNow();
+});
 
 function hardClose(): void {
   if (reconnectTimer) {
@@ -797,6 +827,9 @@ export function connectCollab(projectId: string): void {
   currentProjectId = projectId;
   attempts = 0;
   setCollabStore({ connectionId: null, peers: [] });
+  // Initial connect (not a drop) — the banner stays hidden in this state; a
+  // failure moves it to "reconnecting" via onclose.
+  notifyCollabConnection("connecting");
   openSocket(projectId);
 }
 
@@ -806,6 +839,7 @@ export function disconnectCollab(): void {
   for (const s of [...reportSessions.values()]) destroyReportSession(s);
   for (const s of [...poSessions.values()]) destroyPoSession(s);
   resetPresenceToasts();
+  notifyCollabConnection("idle");
   currentProjectId = null;
   attempts = 0;
   avatarUrl = undefined;

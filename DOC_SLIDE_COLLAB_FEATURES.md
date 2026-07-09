@@ -87,10 +87,13 @@ session.
 - **Restart survival.** The live document state is persisted alongside the
   slide, so a server restart resumes co-editing exactly where it left off —
   including edits that hadn't been checkpointed yet.
-- **Reconnect resilience.** Connections retry automatically with backoff. On
-  reconnect the sync is two-way: the server sends what the client missed, and
-  the client pushes back anything the server missed — so edits made during a
-  network drop are recovered instead of lost.
+- **Reconnect resilience.** Connections retry automatically with backoff and
+  never give up; a banner shows "Connection lost — reconnecting…" (with a
+  Reload option) so you always know when edits aren't syncing, and flashes
+  "Live again" the moment the connection returns — instantly when your network
+  or tab comes back. On reconnect the sync is two-way: the server sends what
+  the client missed, and the client pushes back anything the server missed —
+  so edits made during a network drop are recovered instead of lost.
 - **External edits merge live.** A slide save that doesn't come from the
   editor (e.g. an AI deck-level edit) is routed through the live editing
   session when one exists: connected editors see it appear in real time, and

@@ -34,7 +34,11 @@ user-facing behavior.
     currently unused).
   - server → client: `hello` (connectionId), `presence_state` (full peer
     list), `slide_sync`, `slide_update`, `slide_error`, `awareness`.
-- Reconnect: exponential backoff (max 5 attempts). Close-intent is tracked
+- Reconnect: exponential backoff capped at 30s, retrying FOREVER (no give-up);
+  `online` / tab-refocus events short-circuit the wait; a top-center banner
+  ([connection_banner.tsx](client/src/components/_shared/connection_banner.tsx))
+  shows "Connection lost — reconnecting…" (+ Reload) and flashes "Live again"
+  on recovery — never on a normal initial connect. Close-intent is tracked
   **per socket** (WeakSet) so a project switch can't mistake its own teardown
   for a failure and open a duplicate connection. `socket.onopen` re-sends
   presence and re-subscribes every open slide session.
@@ -277,7 +281,7 @@ must be 1.
 | Situation | Behavior |
 |---|---|
 | WS can't connect / nginx unpatched | Editors fall back to plain TextAreas; back button saves explicitly with conflict dialog; no presence. |
-| Socket drops mid-edit | Edits keep accumulating locally; auto-reconnect (≤5 tries) then two-way catch-up recovers them; closing before reconnect triggers the explicit-save flush. |
+| Socket drops mid-edit | Edits keep accumulating locally; a banner shows "Connection lost — reconnecting…" while auto-reconnect retries forever (≤30s backoff, instant on network/tab return), then two-way catch-up recovers them; closing before reconnect triggers the explicit-save flush. |
 | Server restarts mid-edit | Room state restored from `crdt_state` on next subscribe — including un-checkpointed edits. |
 | Two users type in the same field | Character-level CRDT merge; both carets visible; per-user undo. |
 | AI edits a slide someone has open | Refused with a named warning (busy guard). |
