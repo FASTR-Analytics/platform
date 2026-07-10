@@ -9,7 +9,11 @@ const _EXTRA_TIME = process.env.NODE_ENV === "development";
 
 export async function tryCatchServer<
   T extends APIResponseNoData | APIResponseWithData<unknown>,
->(input: string | URL | Request, init?: RequestInit | undefined, timeoutMs?: number): Promise<T> {
+>(
+  input: string | URL | Request,
+  init?: RequestInit | undefined,
+  timeoutMs?: number,
+): Promise<T> {
   const maxRetries = 2;
   let retries = 0;
   let lastAuthError = false;
@@ -118,7 +122,11 @@ export async function tryCatchServer<
         const text = await res.text();
         try {
           const parsed = JSON.parse(text);
-          if (parsed && parsed.success === false && typeof parsed.err === "string") {
+          if (
+            parsed &&
+            parsed.success === false &&
+            typeof parsed.err === "string"
+          ) {
             return parsed as T;
           }
         } catch {
