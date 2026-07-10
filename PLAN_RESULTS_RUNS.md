@@ -1,112 +1,212 @@
 # Plan: Results Runs — file-based immutable results + DuckDB query layer
 
-## Status: IN PROGRESS on branch `results-runs` (2026-07-10)
+## Status: IN PROGRESS on branch `results-runs` (updated 2026-07-10)
 
-- **Phase 0 DONE**: `server/run_query/` adapter + golden-diff rig
-  (`validate_results_runs_parity.ts`); ingest shadow-writes normalized
-  `{roId}.parquet` beside each raw CSV (finalize logic landed early); rig green
-  on dev instance in default + `--sandbox-parquet` modes.
-- **Phase 1 server side DONE**: runs table + `projects.run_id` (migration 056),
-  manifest schema (`lib/types/run_manifest.ts`), boot backfill (`server/runs/`),
-  S9 read flip behind `RESULTS_READ_PATH` (items/bounds/possible-values/
-  enrichment/po_detail/raw preview from the run; calendar threaded from the
-  manifest; option lists TS-re-sorted → `PO_CACHE_VERSION` "6"), server cache
-  re-key (runId uniqueness / version per §2.5); rig `--runs` mode drives the
-  real run wrappers — green fleet-wide on the dev instance.
-- **Phase 1 remaining**: client re-key + `attachedRunId` + server-broadcast
-  read-mode (safe to lag — legacy client keys stay valid while dual-write
-  maintains the legacy stamps); generation finalize + dual-write + "generate
-  results" action; run attach at project creation/copy (flag=runs + runless
-  project currently errors loudly); `export_central` flip (reads live `ro_*`,
-  fine until dual-write ends); fleet golden-diff gate before any prod flag flip.
+**This section is the authoritative statement of what is decided and how it
+deploys.** It was re-cut with Tim on 2026-07-10 and SUPERSEDES the original
+phasing wherever they disagree (the original §4 has been rewritten to match;
+§1–§3 and §5–§11 remain the technical grounding and end-state spec).
 
-Feasibility record: Phase 0 proven at production scale 2026-07-07 — 69 real
-Nigeria configs over 67M rows via the repo's own SQL builders, ≤214 ms, 69/69
-Postgres parity; the alpha napi addon verified loading + running offline inside
-the exact prod linux/amd64 image.
+### The decided model
 
-### Continuation notes (for a fresh session; written 2026-07-10)
+1. **The results package.** Every project has ONE results package: a
+   directory holding everything module execution consumed and produced, plus
+   a manifest precomputing every fact the read path needs. Contents:
+   - module output CSVs + normalized query parquet (`{roId}` +
+     `{roId}.parquet`, the four ingest normalizations applied)
+   - dataset extracts (`datasets/<type>.csv`)
+   - `inputs/` — indicator/snapshot mirror JSONs, facilities parquet
+     (later: pinned assets, geojson)
+   - `manifest.json` (schema-versioned, `lib/types/run_manifest.ts`) —
+     module/metric/RO catalog verbatim; per-RO query metadata (columns +
+     declared types, physical time column, bounds, row count, available
+     disaggregation options); per-metric availability stamps with reasons;
+     CAPTURED instance config (facility columns, calendar, countryIso3);
+     dataset version stamps.
 
-**File map of what exists** (branch `results-runs`, commits `c9750cf2` /
-`76d9adc4` / `3db4ef0e`):
+2. **One write rule: only project-level acts write the package.** The
+   triggers are exactly: module-run completion, data-in-project export/
+   attach, module install/uninstall/param change, project create/copy.
+   These acts ARE the proto-wizard; in Deploy 2 they become the wizard. Instance-level changes
+   NEVER write into packages — instance config is captured into the manifest
+   when a project-level act runs. Consequence (deliberate): a
+   facility-columns toggle takes effect per project at that project's next
+   act, replacing today's incoherent immediately-visible-but-never-
+   cache-invalidated behavior (the N1 bug). This is the end-state SNAP-1
+   semantics arriving early.
+
+3. **Eager finalize — one metadata writer.** A single function (finalize =
+   rewrite `manifest.json` + `inputs/` WHOLESALE from current state, atomic
+   tmp+rename) is the only thing that writes package metadata. Deploy 1
+   calls it at every project-level act (idempotent full rewrite; concurrent
+   acts = last writer wins a coherent snapshot). Deploy 2 calls the SAME
+   function once at the end of a wizard generation. There are no partial or
+   per-slice metadata updates, ever.
+
+4. **Reads consult only the package**: manifest for ALL metadata (zero live
+   probes, zero mirror-table SQL), DuckDB over the package parquet for ALL
+   data queries. The generated SQL is shared with the Postgres path via the
+   engine seam (core builders + injected executor). The Postgres read
+   functions stay in-tree ONLY as the parity rig's baseline until
+   demolition — routes never branch.
+
+5. **No runtime cutover flag — clean deploy phases** (decided 2026-07-10,
+   replacing the earlier `RESULTS_READ_PATH` env-flag design). Each deploy
+   has exactly ONE read path. Staging = deploy to a trial prod instance,
+   verify with the rig there, then roll the fleet. Rollback = redeploy the
+   previous image: Deploy 1's migration is additive (Postgres plane still
+   written by unchanged ingest), and Deploy 2's migration copies rather
+   than moves, so the previous image always still functions. Cache
+   correctness across deploys uses the standard knobs (`PO_CACHE_VERSION`,
+   key-prefix bumps), never runtime modes — and with no runtime flip, the
+   client needs no read-mode broadcast (it ships with each deploy; the
+   deploy flush clears IndexedDB).
+
+6. **Identity comes last.** runIds, immutability, attach/swap, run-keyed
+   caches, and the runs catalog arrive ONLY with the wizard (Deploy 2) —
+   never while per-module rerun exists. This dissolves the
+   rerun-vs-immutability conflict by construction: in Deploy 1 a rerun is
+   just another project-level act that refreshes the mutable package; in
+   Deploy 2 reruns no longer exist because the wizard replaced them.
+
+### Deploy phasing
+
+**Phase 0 — engine adapter + parity rig: DONE** (commit `c9750cf2`).
+DuckDB adapter (`server/run_query/`), golden-diff rig
+(`validate_results_runs_parity.ts`), and ingest shadow-writing the
+normalized `{roId}.parquet` beside every raw CSV on every module run.
+
+**Deploy 1 (= Phase 1) — the package plane. No identity. ← NEXT**
+
+- Ships: eager finalize + its project-level hooks (module-run completion,
+  data-in-project export/attach, module install/uninstall/param change,
+  project create/copy); boot migration building the package for every
+  existing project; reads serve from the package — unconditionally, one
+  read path in this build. Cache knobs for the payload-sourcing change:
+  `PO_CACHE_VERSION` bump (items/metric-info/replicant-options) and a
+  `po_detail` prefix bump (its version hash tracks only the PO row's
+  `last_updated`, which doesn't move on deploy).
+- Explicitly NOT in Deploy 1: runIds, the runs catalog, project pointers,
+  cache re-key, any client change, any change to the dirty machine /
+  per-module rerun / dataset-attach UX — all keep working unchanged, and
+  because they are project-level acts they refresh the package, so the two
+  planes cannot diverge.
+- Rollback: redeploy the previous image. The migration is additive and
+  ingest still writes Postgres `ro_*` unchanged, so the old image runs
+  exactly as before; package files are simply ignored.
+- Rollout: deploy to one trial prod instance → boot migration writes
+  packages → run the rig on it (pg vs package, read-only) → green → roll
+  the remaining instances the same way.
+
+**Deploy 2 (= Phase 2) — the wizard + identity.**
+
+- Ships: the wizard (replaces the project Data tab attach + module cards;
+  executes the whole DAG into `runs/.tmp-{runId}`; calls the SAME finalize
+  once; atomic rename), per the original Phase-2 spec below including
+  memoized generation (§3.7); boot migration COPYING each sandbox package →
+  `runs/{runId}` + attaching `projects.run_id` (copy, not move — the
+  sandbox stays intact until Phase 3 so an image rollback still functions);
+  cache re-key to runId (§2.5 — code already exists on this branch); client
+  `attachedRunId`; `export_central` flip. All future generations create new
+  runs.
+- Kills: per-module rerun, the dirty-state cascade, per-project dataset
+  re-export UX — replaced by the wizard, not forbidden by a rule.
+- Rollback: redeploy the previous (Deploy-1) image. The wizard dual-writes
+  the legacy `ro_*` ingest until Deploy 2 is fleet-verified, so Postgres is
+  current; the Deploy-1 image's stamp-mismatch self-heal (manifest stamps vs
+  pg stamps, rebuild on mismatch) then lazily refreshes any sandbox package
+  the wizard era left behind — no triple-writing. After fleet verification:
+  Postgres read path, dual-write, and the sandbox copies are deleted
+  (Phase 3 entry).
+
+**Phase 3 — instance-level factory + catalogue + attach** and **Phase 4 —
+demolition + docs**: unchanged from the original spec (§4 below).
+
+### What is already built
+
+Branch `results-runs` (commits `c9750cf2`, `76d9adc4`, `3db4ef0e`,
+`b22bda9e`):
 
 - `server/run_query/` (S9): `duckdb_executor.ts` (cold instance per call,
   integer_division, BigInt→number), `csv_to_parquet.ts` (declared types,
   `allow_quoted_nulls=false`), `pg_type_map.ts`,
-  `write_results_object_parquet.ts` (the four ingest normalizations — also
-  invoked as a shadow-write from `storeResultsObject` on every module run),
-  `run_read.ts` (the ENTIRE runs serving path: manifest query context,
-  indicator metadata from input files, metric enrichment from stamps,
-  po_detail, raw preview).
-- `server/runs/` (S8): `run_paths.ts` (layout + `.tmp-` sweep), `pg_export.ts`
-  (cursor→CSV→parquet, `__PG_NULL__` sentinel), `synthetic_backfill.ts`,
-  `disaggregation_availability.ts` (pure twin of the enricher probe loop —
-  shares the enricher's exported column lists), `manifest_cache.ts`.
-- `lib/types/run_manifest.ts` (schema v1), migration `056_add_runs.sql`,
-  `RUNS_DIR_PATH` + `RESULTS_READ_PATH` in `exposed_env_vars.ts`.
-- `validate_results_runs_parity.ts` (repo root): the gate. Three modes —
-  default (pg vs hybrid-DuckDB), `--sandbox-parquet` (finalize-route parity),
-  `--runs` (pg vs the REAL run wrappers). Run:
-  `deno run --allow-all --env-file --unstable-broadcast-channel -c deno.json
-  validate_results_runs_parity.ts [--runs]`. Green = 0 diffs.
+  `write_results_object_parquet.ts` (the four ingest normalizations; invoked
+  as the ingest shadow-write), `run_read.ts` (the complete package/run read
+  path: manifest query context, indicator metadata from input files, metric
+  enrichment from stamps, po_detail, raw preview).
+- `server/runs/` (S8): `run_paths.ts`, `pg_export.ts` (cursor→CSV→parquet,
+  `__PG_NULL__` sentinel), `synthetic_backfill.ts`,
+  `disaggregation_availability.ts` (pure twin of the enricher probe loop,
+  sharing the enricher's exported column lists), `manifest_cache.ts`.
+- `lib/types/run_manifest.ts` (schema v1); migration `056_add_runs.sql`;
+  `RUNS_DIR_PATH` + `RESULTS_READ_PATH` in `exposed_env_vars.ts`; route
+  branches + run-keyed cache identities in
+  `routes/project/presentation_objects.ts` / `routes/caches/
+  visualizations.ts` / `routes/project/modules.ts`.
+- The rig: default mode (pg vs hybrid-DuckDB), `--sandbox-parquet`
+  (finalize-route parity), `--runs` (pg vs the real package read path).
+  All three PARITY GREEN on the dev instance (129 checks each, 0 diffs).
 
-**Binding decisions made during implementation** (do not re-derive):
+**Re-fit needed for the re-cut** (was built for the old "synthetic runs
+first" sequencing; nothing is reverted, it re-points):
+
+1. `RunReadContext` resolves from `sandbox/{projectId}` (no runId) in
+   Deploy 1; back to `runs/{runId}` in Deploy 2. Parquet paths: the package
+   uses the shadow-write location (beside each CSV) rather than `query/`.
+2. **Delete `RESULTS_READ_PATH`** and the route branches: routes call the
+   package path unconditionally; the Postgres read wrappers stay in-tree
+   solely as the rig baseline. Drop the runId cache identities until
+   Deploy 2 (legacy uniqueness/version keys; bump `PO_CACHE_VERSION` and
+   the `po_detail` prefix for the payload-sourcing change).
+3. `synthetic_backfill.ts` becomes the Deploy-1 boot package builder
+   (write into the sandbox; outputs metadata from the shadow parquet) and
+   later the Deploy-2 sandbox→run migration; its pg-export route survives
+   only for facilities/mirrors.
+4. Migration 056 + the runs-table insert + `projects.run_id` writes are
+   dormant until Deploy 2 (the dev instance carries rows/pointers from the
+   old cut — harmless; the Deploy-2 migration supersedes them).
+5. New: `refreshSandboxPackage` (eager finalize) + hooks at the
+   project-level choke points (`set_module_clean`, `datasets_in_project_*`
+   export end, module install/uninstall/update, project create/copy); rig
+   `--package` mode; the per-request stamp-mismatch self-heal as the
+   fail-closed backstop (routes already read `moduleLastRun`/
+   `datasetsVersion`; compare against manifest stamps, rebuild on
+   mismatch) — this is also what lazily heals packages after a Deploy-2
+   image rollback.
+
+### Binding implementation decisions (do not re-derive)
 
 1. Engine seam = `SqlRowsExecutor` + core/wrapper split in
-   `server_only_funcs_presentation_objects/`; the pg wrappers preserve legacy
-   behavior byte-for-byte and get DELETED at Phase 2 entry.
-2. Cache coexistence: same Valkey prefixes for both modes — runId-uniqueness
-   vs projectId-uniqueness strings cannot collide; holders/detail carry
-   optional `runId` and `parseData` branches on it. `PO_CACHE_VERSION` "6" =
-   TS re-sort of option lists (`Intl.Collator("en", {numeric: true})`, BOTH
-   engines, in `getPossibleValuesCore`).
-3. The manifest captures live instance config AT generation/backfill time
-   (facility columns, calendar, countryIso3) — capture-time instance reads are
-   architecturally correct; read-time live reads are forbidden.
-4. `RUNS_DIR_PATH` is Deno-namespace-only until Phase 2 (no `_EXTERNAL` /
-   `_POSTGRES_INTERNAL` env vars yet — nothing reads them in Phase 1; Phase-1
-   finalize copies sandbox dataset extracts via Deno, so no Postgres-container
-   mount change is needed until the wizard).
-5. `getAllMetrics`/`getMetricsWithStatus` (module cards) deliberately NOT
-   flipped — that surface dies in Phase 2; `export_central` NOT flipped —
-   reads live `ro_*`, which dual-write keeps current.
-6. Backfill is boot-time, idempotent (skips projects with `run_id`),
-   non-blocking on failure while the flag serves postgres.
+   `server_only_funcs_presentation_objects/`; pg wrappers preserve legacy
+   behavior byte-for-byte and are deleted with the Postgres read path.
+2. `PO_CACHE_VERSION` "6" = TS re-sort of option lists
+   (`Intl.Collator("en", {numeric: true})`, BOTH engines, in
+   `getPossibleValuesCore`) — pins away the Postgres-collation vs
+   DuckDB-binary ordering delta.
+3. Capture-time instance reads are correct (into the manifest at finalize);
+   read-time live reads are forbidden.
+4. `RUNS_DIR_PATH` stays Deno-namespace-only until the wizard needs
+   container mounts (no `_EXTERNAL`/`_POSTGRES_INTERNAL` env vars before
+   Deploy 2; finalize copies dataset extracts via Deno).
+5. `getAllMetrics`/`getMetricsWithStatus` (module cards) deliberately not
+   flipped — that surface dies with the wizard; `export_central` flips at
+   Deploy 2 (reads live `ro_*`, which stays written until then).
 
-**Next work item — generation finalize + dual-write.** Design constraints
-settled: legacy ingest already writes the pg plane AND the per-RO parquet
-shadow; finalize therefore = assemble a run dir (copy module workspaces +
-`datasets/*.csv` from the sandbox via Deno; copy/build `query/*.parquet`;
-derive manifest by reusing `synthetic_backfill.ts`'s metadata pieces with
-provenance `"generation"` + rImageTag), atomic rename, `runs` row, repoint
-`projects.run_id`, SSE notify. There is NO whole-DAG primitive: the sweep
-re-triggers per-module via the `task_ended` loop (`trigger_runnable_tasks.ts`,
-`set_module_clean.ts`), so generation-completion detection must be added (a
-generation record checked when nothing is queued/running). **Open design
-decision to settle with Tim first**: the plan says per-module rerun is
-disabled "once a run is attached", but backfill attaches runs to EVERY
-project — recommended resolution: while the flag window is open, a per-module
-rerun (or dataset re-attach) escalates to a whole-DAG generation + finalize
-(run = whole-DAG closure, per §3.1), rather than being blocked outright.
+### Empirical gotchas (verified; don't rediscover)
 
-**Client work (after generation lands)**: read-mode field in `InstanceMeta`
-(`lib/types/instance.ts` + `routes/instance/instance.ts`, consumed in
-`LoggedInWrapper.tsx`); `attachedRunId` into the T1 project-state payload
-(`build_project_state.ts`) + SSE notify on repoint; T2 `versionKey` branches
-(`t2_presentation_objects.ts`, `t2_replicant_options.ts`,
-`moduleDataVersionKey` in `t1_store.ts:200-216`).
-
-**Empirical gotchas** (verified this session, don't rediscover):
-DuckDB `getRowObjectsJson()` returns BIGINT/DECIMAL as strings — the executor
-uses `getRowObjects()` + explicit conversion (throws outside safe-int range);
-`read_csv` `columns=` is file-column-order sensitive; `nullstr` also nulls
-QUOTED fields unless `allow_quoted_nulls=false`; `information_schema` queries
-need `table_schema='public'`; the lint gate only sees TRACKED files (a new
-file passes until committed, then orphans); `string_to_array`/`&&`/`unnest`
-(the multi-membership SQL) work unchanged on DuckDB — verified. The Ethiopian
-quarter expression is code-identical in shape but has NOT run against real
-Ethiopian data — the pre-flip fleet rig run against the Ethiopia instance is
-the gate for that.
+DuckDB `getRowObjectsJson()` returns BIGINT/DECIMAL as strings — the
+executor uses `getRowObjects()` + explicit conversion (throws outside
+safe-int range); `read_csv` `columns=` is file-column-order sensitive;
+`nullstr` also nulls QUOTED fields unless `allow_quoted_nulls=false`;
+`information_schema` queries need `table_schema='public'`; the lint gate
+only sees TRACKED files (a new file passes until committed, then orphans);
+`string_to_array`/`&&`/`unnest` (the multi-membership SQL) work unchanged
+on DuckDB. The parquet built from a CSV uses the CURRENT facility config
+for drops while the pg table was normalized at its ingest time — a config
+change since a module's last run can make them differ until that module
+reruns (the rig surfaces it). The Ethiopian quarter expression is
+code-identical in shape but has NOT run against real Ethiopian data — the
+pre-flip fleet rig run against the Ethiopia instance is the gate for that.
 
 > Vision / end-state: [VISION_RESULTS_RUNS.md](VISION_RESULTS_RUNS.md).
 > This plan supersedes and absorbs PLAN_PROJECT_SNAPSHOT.md (deleted; its Step
@@ -524,20 +624,21 @@ project-copy's `CREATE DATABASE … TEMPLATE` of results + sandbox `cp -r`
    the project `modules` table. The defaults store's shape (instance_config
    key vs table, per-country presets?) is deliberately unspecified until
    Phase 3 design — open question 8.
-6. **Hard cutover per phase with a bounded rollback window — stated
-   honestly.** The server read path flips behind an env flag
-   (`RESULTS_READ_PATH=runs|postgres`); the client derives its cache-key
-   scheme from a server-broadcast read-mode (one field in instance meta) so
-   a flip reverts both tiers with only harmless cache misses. During the
-   Phase-1 window, the generation act **writes both planes** (finalize the
-   run AND perform the legacy `ro_*` ingest) so the stores stay coherent and
-   a flip back serves current data; per-module rerun and dataset re-attach
-   are disabled once a run is attached (the run is the data plane). The flag
-   is a true rollback **only until Phase 2** deletes the legacy generation
-   surface — from then on it could only serve frozen `ro_*` data, so flag +
-   Postgres path + dual-write are deleted at Phase 2 entry, after fleet
-   verification. Precedent: the FigureBundle boot-time cutover with its
-   36-instance read-only dry-run gate (0 failures) — same discipline here.
+6. **Clean deploy phases; no runtime cutover flag** (re-cut 2026-07-10,
+   replacing the earlier `RESULTS_READ_PATH` env-flag design — an env flip
+   cannot un-migrate anyway, and two serving modes in one build is
+   complexity with no payoff). Each deploy has exactly one read path.
+   Staging = deploy to a trial prod instance, verify with the rig, roll the
+   fleet. Rollback = redeploy the previous image: Deploy 1's migration is
+   additive (unchanged ingest still writes `ro_*`); Deploy 2's migration
+   copies the sandbox package rather than moving it, and its stamp-mismatch
+   self-heal refreshes packages lazily after a rollback. Legacy `ro_*`
+   dual-write continues until Deploy 2 is fleet-verified; then the Postgres
+   read path, dual-write, and sandbox copies are deleted (Phase 3 entry).
+   Cross-deploy cache correctness uses the standard knobs
+   (`PO_CACHE_VERSION`, key-prefix bumps), never runtime modes. Precedent:
+   the FigureBundle boot-time cutover with its 36-instance read-only
+   dry-run gate (0 failures) — same discipline here.
 7. **Memoized generation — content-addressed reuse, landing WITH the wizard
    (Phase 2), not after it.** Regeneration must not cost a full DAG re-run
    when little changed (today a single-module rerun is minutes; a forced
@@ -579,12 +680,26 @@ project-copy's `CREATE DATABASE … TEMPLATE` of results + sandbox `cp -r`
      Prerequisites: the §6 hermeticity fixes (un-hashable GitHub fetches,
      undeclared outputs) must land before or with this.
 
+8. **Eager finalize; only project-level acts write the package** (re-cut
+   2026-07-10). One function rewrites `manifest.json` + `inputs/` wholesale
+   and atomically — no partial metadata updates exist. Its only triggers
+   are project-level: module-run completion, data-in-project export/attach,
+   module install/uninstall/param change, project create/copy. Instance-
+   level changes never fan out into packages; instance config (facility
+   columns, calendar, countryIso3) is captured at the next project-level
+   act — the SNAP-1 capture semantics, applied from Deploy 1 onward. In
+   Deploy 2 the same function becomes the wizard's once-per-generation
+   finalize; the eager hooks are deleted.
+
 ---
 
 ## 4. Phases
 
-Tim's five steps, re-cut so each phase lands something verifiable and the
-cache re-key rides the read-path flip (they are not separable):
+Re-cut 2026-07-10 to the two-deploy structure — the authoritative deploy
+spec lives in the Status section at the top of this doc; the sections below
+carry the technical detail that still applies. Phase 1 = Deploy 1 (package
+plane, no identity); Phase 2 = Deploy 2 (wizard + identity, where the cache
+re-key to runId lands); Phases 3–4 unchanged.
 
 ### Phase 0 — engine adapter + golden-diff parity rig  *(≈ Tim's step 1; feasibility already proven)*
 
@@ -613,38 +728,32 @@ cache re-key rides the read-path flip (they are not separable):
   (integer_division, ::DOUBLE, nullstr='NA', text-collation ordering — §2.4)
   encoded in the adapter, not in SQL builders.
 
-### Phase 1 — runs exist; reads flip; caches re-key  *(≈ steps 2 + 4)*
+### Phase 1 — Deploy 1: the sandbox becomes the results package  *(re-cut 2026-07-10)*
 
-- Finalize step (§2.3) added to the existing per-project execution: after the
-  last module of a generation completes, write manifest + query store. A
-  "generate results" action (project-scoped for now) runs the whole DAG into
-  a fresh run dir; on success sets the project's `run_id`. **During the
-  Phase-1 flag window the generation act writes both planes** (run finalize plus
-  the legacy `ro_*` ingest), and per-module rerun / dataset re-attach are
-  disabled once a run is attached — otherwise the two stores silently
-  diverge and a flag flip serves arbitrary data (§3.6).
-- **Backfill**: boot migration synthesizes one run per existing project from
-  its **project DB** (export `ro_*` → parquet; mirrors → inputs;
-  modules/metrics/results_objects → manifest; provenance marked
-  `synthetic-backfill`). The project DB, not the sandbox, is the source —
-  sandbox state is incoherent (verified) and the DB is what today's queries
-  serve. Frozen project data, never live instance config (carried rule).
-  **Synthetic runs are query-only shells**: no raw CSVs, no dataset
-  extracts, no file-only ROs — they cannot be re-executed or fed to future
-  run-diff features, and the manifest must say so.
-- Flip S9 reads (items, bounds, possible values, enrichment, raw preview,
-  central export) to the run — including the SQL→JSON rewrite surface
-  enumerated in §2.4 (indicator metadata, results_objects/modules lookups);
-  re-key caches per §2.5; client T1 gains `attachedRunId` + the
-  server-broadcast read-mode (§3.6).
-- **Finalize-parity check**: the rig so far compares engines over
-  backfilled parquet; before trusting new-run generation, run the real
-  raw-CSV finalize for sample modules and diff its parquet against the
-  DB-backfill parquet of the same run (the two normalization routes must
-  agree).
-- Gate: golden-diff green fleet-wide on synthetic runs; rollback flag armed.
+Authoritative spec in the Status section ("Deploy 1"). In brief: the
+sandbox gains `manifest.json` + `inputs/` beside the CSVs/parquet/extracts
+already there (§2.1's layout, minus identity); one eager-finalize function
+(§3.8) rewrites all metadata on every project-level act; a boot migration
+builds the package for every existing project; the S9 read surface — items,
+bounds, possible values, enrichment, po_detail, raw preview — serves from
+the package (manifest context, DuckDB over parquet), with the SQL→JSON
+rewrite surface of §2.4 reading input files instead of mirror tables.
+`export_central` stays on `ro_*` until Deploy 2. No runIds, no cache
+re-key (legacy keys; `PO_CACHE_VERSION` + `po_detail` prefix bumps for the
+payload-sourcing change), no client change, no flag. The dirty machine and
+per-module rerun continue unchanged — they are project-level acts and
+refresh the package. Gate: rig green (pg vs package) on the trial instance,
+then per-instance rollout. The read-path/manifest/query-store code for all
+of this exists on the branch (built against run dirs; re-pointed to the
+sandbox package per the Status re-fit list).
 
-### Phase 2 — the wizard replaces data-attach + module cards  *(≈ step 3, still project-entered)*
+Historical note: the original Phase 1 ("synthesize query-only runs from the
+project DB, flip reads to runs behind an env flag, re-key caches") was
+implemented on the branch and then re-cut into this shape — identity and
+re-key moved to Deploy 2; the synthetic-backfill machinery becomes the
+package builder and, later, the Deploy-2 migration.
+
+### Phase 2 — Deploy 2: the wizard + identity  *(≈ step 3, still project-entered)*
 
 - One wizard (reuse `ImportWizardShell`'s descriptor pattern + the
   server-persisted attempt/resume machinery): choose data (families +
@@ -652,15 +761,24 @@ cache re-key rides the read-path flip (they are not separable):
   params) → **reuse plan** (generate all scripts, compute node keys, diff
   against the base run, show per-module "will reuse / will run") → execute
   stale nodes with streamed progress (`r_script` SSE + the shipped
-  worker/docker contracts), copy reused outputs → finalize (always fresh) →
-  repoint project.
+  worker/docker contracts), copy reused outputs → finalize (the same §3.8
+  function, once, always fresh) → atomic rename to `runs/{runId}` → repoint
+  project.
+- **Identity lands here**: boot migration copies each sandbox package →
+  `runs/{runId}` and sets `projects.run_id` (copy, not move — Status
+  "Deploy 2" has the rollback posture); caches re-key to runId (§2.5);
+  client T1 gains `attachedRunId` and the T2 caches re-key;
+  `export_central` flips to run files. Legacy `ro_*` ingest is dual-written
+  until fleet verification, then deleted with the Postgres read path
+  (Phase 3 entry).
 - **Memoized generation ships here** (§3.7) — it is what keeps regeneration
   fast once per-module rerun is deleted; the §6.1/§6.5 hermeticity fixes are
   its prerequisites and land first.
 - Delete: project Data tab attach/staleness UI, module cards'
   install/params/update/rerun surface, `checkDataNeedsUpdate`,
-  dirty-state cascade, `setModulesDirtyForDataset`. Module logs/script/files
-  viewers re-point to the run dir.
+  dirty-state cascade, `setModulesDirtyForDataset`, the Deploy-1
+  eager-finalize hooks. Module logs/script/files viewers re-point to the
+  run dir.
 - Datasets stop being exported *into projects*; `datasets_in_project_*.ts`
   export logic is re-targeted to run-input generation (same COPY TO
   machinery, new destination).
@@ -702,9 +820,10 @@ cache re-key rides the read-path flip (they are not separable):
 
 ## 5. Migration & rollback posture
 
-- Backfill is additive (writes run dirs + pointers; touches no existing
-  tables), so Phase 1 rollback = flip the env flag back. Destructive drops
-  wait for Phase 4, after fleet verification.
+- Both deploy migrations are additive (Deploy 1 writes package files into
+  sandboxes; Deploy 2 copies packages into run dirs + sets pointers), so
+  rollback at either stage = redeploy the previous image (§3.6). Destructive
+  drops wait for Phase 4, after fleet verification.
 - Fleet check discipline: the golden-diff rig runs read-only against every
   instance before each cutover (FigureBundle precedent: 36 instances, 17,142
   figures, 0 fails, then deploy).
