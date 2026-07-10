@@ -1,6 +1,29 @@
 # Plan: Results Runs — file-based immutable results + DuckDB query layer
 
-## Status: PROPOSED (nothing implemented). Phase 0 feasibility proven at production scale (2026-07-07 — 69 real Nigeria configs over 67M rows via the repo's own SQL builders, ≤214 ms, 69/69 Postgres parity; the alpha napi addon also verified loading + running offline inside the exact prod linux/amd64 image). The DuckDB question is settled; what remains is implementation
+## Status: IN PROGRESS on branch `results-runs` (2026-07-10)
+
+- **Phase 0 DONE**: `server/run_query/` adapter + golden-diff rig
+  (`validate_results_runs_parity.ts`); ingest shadow-writes normalized
+  `{roId}.parquet` beside each raw CSV (finalize logic landed early); rig green
+  on dev instance in default + `--sandbox-parquet` modes.
+- **Phase 1 server side DONE**: runs table + `projects.run_id` (migration 056),
+  manifest schema (`lib/types/run_manifest.ts`), boot backfill (`server/runs/`),
+  S9 read flip behind `RESULTS_READ_PATH` (items/bounds/possible-values/
+  enrichment/po_detail/raw preview from the run; calendar threaded from the
+  manifest; option lists TS-re-sorted → `PO_CACHE_VERSION` "6"), server cache
+  re-key (runId uniqueness / version per §2.5); rig `--runs` mode drives the
+  real run wrappers — green fleet-wide on the dev instance.
+- **Phase 1 remaining**: client re-key + `attachedRunId` + server-broadcast
+  read-mode (safe to lag — legacy client keys stay valid while dual-write
+  maintains the legacy stamps); generation finalize + dual-write + "generate
+  results" action; run attach at project creation/copy (flag=runs + runless
+  project currently errors loudly); `export_central` flip (reads live `ro_*`,
+  fine until dual-write ends); fleet golden-diff gate before any prod flag flip.
+
+Feasibility record: Phase 0 proven at production scale 2026-07-07 — 69 real
+Nigeria configs over 67M rows via the repo's own SQL builders, ≤214 ms, 69/69
+Postgres parity; the alpha napi addon verified loading + running offline inside
+the exact prod linux/amd64 image.
 
 > Vision / end-state: [VISION_RESULTS_RUNS.md](VISION_RESULTS_RUNS.md).
 > This plan supersedes and absorbs PLAN_PROJECT_SNAPSHOT.md (deleted; its Step

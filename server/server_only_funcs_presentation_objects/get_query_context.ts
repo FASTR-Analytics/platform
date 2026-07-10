@@ -3,6 +3,7 @@ import { getFacilityColumnsConfig } from "../db/instance/config.ts";
 import { detectColumnExists, detectHasPeriodId } from "../db/mod.ts";
 import {
   GenericLongFormFetchConfig,
+  getCalendar,
   getEnabledOptionalFacilityColumns,
   throwIfErrWithData,
   type DatasetType,
@@ -23,22 +24,20 @@ export function facilitiesTableForFamily(
   );
 }
 
-export async function buildQueryContext(
-  mainDb: Sql,
-  projectDb: Sql,
-  tableName: string,
+// The facility-column slice of the query context, shared by the Postgres
+// builder below and the manifest-based builder in server/run_query/ so the
+// two cannot drift.
+export function computeFacilityContext(
   fetchConfig: GenericLongFormFetchConfig,
-  datasetFamily: DatasetType | undefined,
-): Promise<QueryContext> {
-  // Get facility config first (always, to know what's enabled)
-  const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-  throwIfErrWithData(resFacilityConfig);
-  const facilityConfig = resFacilityConfig.data;
-
-  const enabledFacilityColumns =
-    getEnabledOptionalFacilityColumns(facilityConfig);
-
-  // NOW filter requested columns against enabled columns.
+  enabledFacilityColumns: OptionalFacilityColumn[],
+): Pick<
+  QueryContext,
+  | "requestedOptionalFacilityColumns"
+  | "needsFacilityJoin"
+  | "facilityFilters"
+  | "nonFacilityFilters"
+> {
+  // Filter requested columns against enabled columns.
   // Sources (groupBys, filters[].col) are DisaggregationOption which excludes
   // "facility_name" — so the intersection can only yield disagg-eligible facility columns.
   type DisaggFacilityColumn = Exclude<OptionalFacilityColumn, "facility_name">;
@@ -55,18 +54,6 @@ export async function buildQueryContext(
     ])
   ];
 
-  const needsFacilityJoin = requestedOptionalFacilityColumns.length > 0;
-
-  // Check which time column exists in the table
-  const hasPeriodId = await detectHasPeriodId(projectDb, tableName);
-  const hasQuarterId = !hasPeriodId && await detectColumnExists(projectDb, tableName, "quarter_id");
-  const neededPeriodColumns = detectNeededPeriodColumns(fetchConfig);
-  const needsPeriodCTE = needsPeriodCTEFor({
-    hasPeriodId,
-    hasQuarterId,
-    neededPeriodColumns,
-  });
-
   const facilityFilters = fetchConfig.filters.filter((filter) =>
     enabledFacilityColumns.includes(filter.disOpt as OptionalFacilityColumn)
   );
@@ -77,16 +64,54 @@ export async function buildQueryContext(
   );
 
   return {
+    requestedOptionalFacilityColumns,
+    needsFacilityJoin: requestedOptionalFacilityColumns.length > 0,
+    facilityFilters,
+    nonFacilityFilters,
+  };
+}
+
+export async function buildQueryContext(
+  mainDb: Sql,
+  projectDb: Sql,
+  tableName: string,
+  fetchConfig: GenericLongFormFetchConfig,
+  datasetFamily: DatasetType | undefined,
+): Promise<QueryContext> {
+  // Get facility config first (always, to know what's enabled)
+  const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
+  throwIfErrWithData(resFacilityConfig);
+  const facilityConfig = resFacilityConfig.data;
+
+  const enabledFacilityColumns =
+    getEnabledOptionalFacilityColumns(facilityConfig);
+
+  const facilityContext = computeFacilityContext(
+    fetchConfig,
+    enabledFacilityColumns,
+  );
+
+  // Check which time column exists in the table
+  const hasPeriodId = await detectHasPeriodId(projectDb, tableName);
+  const hasQuarterId = !hasPeriodId && await detectColumnExists(projectDb, tableName, "quarter_id");
+  const calendar = getCalendar();
+  const neededPeriodColumns = detectNeededPeriodColumns(fetchConfig);
+  const needsPeriodCTE = needsPeriodCTEFor({
+    hasPeriodId,
+    hasQuarterId,
+    neededPeriodColumns,
+    calendar,
+  });
+
+  return {
     datasetFamily,
     hasPeriodId,
     hasQuarterId,
+    calendar,
     facilityConfig,
     enabledFacilityColumns,
-    requestedOptionalFacilityColumns,
-    needsFacilityJoin,
-    neededPeriodColumns,
+    ...facilityContext,
     needsPeriodCTE,
-    nonFacilityFilters,
-    facilityFilters,
+    neededPeriodColumns,
   };
 }

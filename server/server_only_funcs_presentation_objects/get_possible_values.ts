@@ -24,9 +24,22 @@ import {
   QUARTER_ID_COLUMN_EXPRESSIONS,
   getPeriodColumnExpression,
 } from "./period_helpers.ts";
+import type { QueryContext, SqlRowsExecutor } from "./types.ts";
 
 const DYNAMIC_PERIOD_COLUMNS = ["year", "month", "quarter_id"] as const;
 
+// Deterministic option ordering, pinned in TS (PLAN_RESULTS_RUNS §2.4 delta
+// 3): Postgres orders text by DB collation, DuckDB by binary — so the SQL
+// ORDER BY (kept for a stable LIMIT cutoff) is re-sorted here with ONE
+// defined comparator, making both engines emit identical lists.
+const OPTION_COLLATOR = new Intl.Collator("en", { numeric: true });
+
+export type PossibleValuesDeps = {
+  execute: SqlRowsExecutor;
+  columnExists: (tableName: string, columnName: string) => Promise<boolean>;
+};
+
+// Postgres wrapper — probes and executes on the project DB.
 export async function getPossibleValues(
   projectDb: Sql,
   resultsObjectId: string,
@@ -42,31 +55,75 @@ export async function getPossibleValues(
 ): Promise<APIResponseWithData<{ id: string; label: string }[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const tableName = getResultsObjectTableName(resultsObjectId);
-
-    // Honor ALL filterBy entries, INCLUDING one on the queried column itself — so
-    // a replicant filtered to a subset returns exactly that subset. (The
-    // filter-value-checkbox path passes no filters, so it is unaffected; the only
-    // caller that passes filters is the replicant-options route, which sends the
-    // user's filterBy with the auto-pin already excluded.)
-    const filteredFilters = filters ?? [];
-
-    // Build minimal fetchConfig to leverage buildQueryContext
-    const fetchConfig = {
-      values: [],
-      groupBys: [disaggregationOption],
-      filters: filteredFilters,
-      periodFilter: undefined,
+    const fetchConfig = buildMinimalFetchConfig(
+      disaggregationOption,
+      filters ?? [],
       periodFilterExactBounds,
-      postAggregationExpression: undefined,
-    };
-
-    // Use buildQueryContext to determine facility joins and filter separation
+    );
     const queryContext = await buildQueryContext(
       mainDb,
       projectDb,
       tableName,
       fetchConfig,
       datasetFamily,
+    );
+    return await getPossibleValuesCore(
+      {
+        execute: (sql) => projectDb.unsafe(sql),
+        columnExists: (table, column) =>
+          detectColumnExists(projectDb, table, column),
+      },
+      queryContext,
+      tableName,
+      disaggregationOption,
+      labelMap,
+      filters ?? [],
+      periodFilterExactBounds,
+    );
+  });
+}
+
+// Build minimal fetchConfig to leverage buildQueryContext / buildWhereClause
+export function buildMinimalFetchConfig(
+  disaggregationOption: DisaggregationOption,
+  filters: GenericLongFormFetchConfig["filters"],
+  periodFilterExactBounds: { min: number; max: number } | undefined,
+): GenericLongFormFetchConfig {
+  return {
+    values: [],
+    groupBys: [disaggregationOption],
+    filters,
+    periodFilter: undefined,
+    periodFilterExactBounds,
+    postAggregationExpression: undefined,
+  };
+}
+
+export async function getPossibleValuesCore(
+  deps: PossibleValuesDeps,
+  queryContext: QueryContext,
+  tableName: string,
+  disaggregationOption: DisaggregationOption,
+  labelMap: Map<string, string>,
+  filters: GenericLongFormFetchConfig["filters"],
+  periodFilterExactBounds?: {
+    min: number;
+    max: number;
+  },
+): Promise<APIResponseWithData<{ id: string; label: string }[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    // Honor ALL filterBy entries, INCLUDING one on the queried column itself — so
+    // a replicant filtered to a subset returns exactly that subset. (The
+    // filter-value-checkbox path passes no filters, so it is unaffected; the only
+    // caller that passes filters is the replicant-options route, which sends the
+    // user's filterBy with the auto-pin already excluded.)
+    const filteredFilters = filters;
+    const calendar = queryContext.calendar;
+
+    const fetchConfig = buildMinimalFetchConfig(
+      disaggregationOption,
+      filteredFilters,
+      periodFilterExactBounds,
     );
 
     // Build column prefixes map for facility columns
@@ -123,6 +180,7 @@ export async function getPossibleValues(
       if (queryContext.hasPeriodId) {
         columnRef = getPeriodColumnExpression(
           disaggregationOption as DynamicPeriodColumn,
+          calendar,
         );
       } else {
         columnRef =
@@ -154,8 +212,7 @@ export async function getPossibleValues(
 
       // Check if the disaggregation option column exists in project facilities table
       if (columnPrefixes.has(disaggregationOption)) {
-        const columnExists = await detectColumnExists(
-          projectDb,
+        const columnExists = await deps.columnExists(
           facilitiesTable,
           disaggregationOption,
         );
@@ -173,7 +230,7 @@ export async function getPossibleValues(
       if (needsPeriodCTE) {
         // Need both period and facility CTEs
         const derivedColumns = queryContext.hasPeriodId
-          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${getPeriodColumnExpression("quarter_id")} AS quarter_id`
+          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${getPeriodColumnExpression("quarter_id", calendar)} AS quarter_id`
           : `${QUARTER_ID_COLUMN_EXPRESSIONS.year} AS year`;
         ctePrefix = `WITH period_data AS (
   SELECT *,
@@ -207,8 +264,7 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
     } else {
       // Check if the column exists before querying (skip for dynamic period columns)
       if (!isDynamicPeriodColumn) {
-        const columnExists = await detectColumnExists(
-          projectDb,
+        const columnExists = await deps.columnExists(
           tableName,
           disaggregationOption,
         );
@@ -223,7 +279,7 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
       if (needsPeriodCTE) {
         // Wrap in period CTE
         const derivedColumns = queryContext.hasPeriodId
-          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${getPeriodColumnExpression("quarter_id")} AS quarter_id`
+          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${getPeriodColumnExpression("quarter_id", calendar)} AS quarter_id`
           : `${QUARTER_ID_COLUMN_EXPRESSIONS.year} AS year`;
         const ctePrefix = `WITH period_data AS (
   SELECT *,
@@ -246,8 +302,9 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
       }
     }
 
-    const results =
-      await projectDb.unsafe<{ disaggregation_value: string }[]>(sqlQuery);
+    const results = (await deps.execute(sqlQuery)) as {
+      disaggregation_value: string;
+    }[];
 
     const rawValues = results
       .map((opt) => opt.disaggregation_value)
@@ -258,6 +315,8 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
       id: String(id),
       label: labelMap.get(String(id)) ?? String(id),
     }));
+
+    possibleValues.sort((a, b) => OPTION_COLLATOR.compare(a.id, b.id));
 
     return { success: true, data: possibleValues };
   });

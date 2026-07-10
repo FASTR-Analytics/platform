@@ -25,11 +25,10 @@
 // (raw R CSV → parquet) against Postgres ingest, the Phase-1 finalize-parity
 // check. Off by default because sandbox files can be stale vs the pg tables.
 //
-// --runs: query the project's ATTACHED RUN (runs/<runId>/query/*.parquet +
-// inputs facilities parquet) — exactly the files the Phase-1 read path will
-// serve. This is the fleet cutover gate over backfilled synthetic runs. No
-// pg-export fallback for results objects: a missing run parquet must surface
-// as a diff, not be papered over.
+// --runs: run the REAL runs serving path (the run wrappers in
+// server/run_query/run_read.ts over the project's attached run — manifest
+// context, no probes) against the legacy Postgres path. This is the fleet
+// cutover gate for RESULTS_READ_PATH=runs.
 //
 // Zero DIFF rows = parity green for this instance.
 // =============================================================================
@@ -64,7 +63,13 @@ import {
   writeParquetFromCsv,
   type ParquetView,
 } from "./server/run_query/mod.ts";
-import { runDirPath, runInputFilePath, runQueryParquetPath } from "./server/runs/mod.ts";
+import {
+  getPossibleValuesFromRun,
+  getPresentationObjectItemsFromRun,
+  getResultsValueInfoFromRun,
+  getRunReadContextForProject,
+  type RunReadContext,
+} from "./server/run_query/mod.ts";
 
 const REL_EPSILON = 1e-9;
 const PG_NULL_SENTINEL = "__PG_NULL__";
@@ -113,7 +118,6 @@ class ProjectShadow {
   constructor(
     private projectDb: Sql,
     private workDir: string,
-    readonly runDir: string | undefined,
   ) {}
 
   async ensureTable(
@@ -418,6 +422,7 @@ async function checkPresentationObject(
   projectDb: Sql,
   hybridDb: Sql,
   shadow: ProjectShadow,
+  runCtx: RunReadContext | undefined,
   projectId: string,
   poId: string,
   poLabel: string,
@@ -453,11 +458,10 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
     return;
   }
 
-  const roCandidate = useRuns
-    ? shadow.runDir
-      ? { path: runQueryParquetPath(shadow.runDir, resultsValue.resultsObjectId), exclusive: true }
-      : undefined
-    : useSandboxParquet
+  // In --runs mode the duck side is the real run wrappers over the attached
+  // run — no shadow parquet needed. Other modes build the hybrid shadow.
+  if (!runCtx) {
+    const roCandidate = useSandboxParquet
       ? {
           path: join(
             _SANDBOX_DIR_PATH,
@@ -468,13 +472,10 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
           exclusive: false,
         }
       : undefined;
-  const facilitiesCandidate = (table: string) =>
-    useRuns && shadow.runDir
-      ? { path: runInputFilePath(shadow.runDir, `${table}.parquet`), exclusive: true }
-      : undefined;
-  await shadow.ensureTable(roTableName, roCandidate);
-  await shadow.ensureTable("facilities_hmis", facilitiesCandidate("facilities_hmis"));
-  await shadow.ensureTable("facilities_hfa", facilitiesCandidate("facilities_hfa"));
+    await shadow.ensureTable(roTableName, roCandidate);
+    await shadow.ensureTable("facilities_hmis", undefined);
+    await shadow.ensureTable("facilities_hfa", undefined);
+  }
 
   // Resolve the default replicant like the client does, so the items query is
   // a real pane, not the degenerate UNSELECTED pin.
@@ -509,10 +510,15 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
       fetchConfig, firstPeriodOption, "parity", "parity",
     );
     const t1 = performance.now();
-    const duckRes = await getPresentationObjectItems(
-      mainDb, projectId, hybridDb, resultsValue.resultsObjectId,
-      fetchConfig, firstPeriodOption, "parity", "parity",
-    );
+    const duckRes = runCtx
+      ? await getPresentationObjectItemsFromRun(
+          runCtx, projectId, resultsValue.resultsObjectId,
+          fetchConfig, firstPeriodOption,
+        )
+      : await getPresentationObjectItems(
+          mainDb, projectId, hybridDb, resultsValue.resultsObjectId,
+          fetchConfig, firstPeriodOption, "parity", "parity",
+        );
     const t2 = performance.now();
     const timing = { pgMs: t1 - t0, duckMs: t2 - t1 };
     if (pgRes.success === false && duckRes.success === false) {
@@ -539,9 +545,11 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
       mainDb, projectDb, projectId, metricId, "parity", "parity",
     );
     const t1 = performance.now();
-    const duckRes = await getResultsValueInfoForPresentationObject(
-      mainDb, hybridDb, projectId, metricId, "parity", "parity",
-    );
+    const duckRes = runCtx
+      ? await getResultsValueInfoFromRun(runCtx, projectId, metricId)
+      : await getResultsValueInfoForPresentationObject(
+          mainDb, hybridDb, projectId, metricId, "parity", "parity",
+        );
     const t2 = performance.now();
     const timing = { pgMs: t1 - t0, duckMs: t2 - t1 };
     if (pgRes.success === false && duckRes.success === false) {
@@ -585,10 +593,15 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
         replicateBy, mainDb, labelMap, resExCfg.data.filters, bounds,
       );
       const t1 = performance.now();
-      const duckRes = await getPossibleValues(
-        hybridDb, resultsValue.resultsObjectId, datasetFamily,
-        replicateBy, mainDb, labelMap, resExCfg.data.filters, bounds,
-      );
+      const duckRes = runCtx
+        ? await getPossibleValuesFromRun(
+            runCtx, resultsValue.resultsObjectId, replicateBy,
+            labelMap, resExCfg.data.filters, bounds,
+          )
+        : await getPossibleValues(
+            hybridDb, resultsValue.resultsObjectId, datasetFamily,
+            replicateBy, mainDb, labelMap, resExCfg.data.filters, bounds,
+          );
       const t2 = performance.now();
       const timing = { pgMs: t1 - t0, duckMs: t2 - t1 };
       if (pgRes.success === false && duckRes.success === false) {
@@ -633,12 +646,11 @@ SELECT id, label, status, run_id FROM projects ORDER BY label
     const projectDb = getPgConnection(project.id, { max: 4 });
     const workDir = join(workDirRoot, project.id);
     await Deno.mkdir(workDir, { recursive: true });
-    const shadow = new ProjectShadow(
-      projectDb,
-      workDir,
-      project.run_id === null ? undefined : runDirPath(project.run_id),
-    );
+    const shadow = new ProjectShadow(projectDb, workDir);
     const hybridDb = makeHybridDb(projectDb, shadow);
+    const runCtx = useRuns
+      ? await getRunReadContextForProject(mainDb, project.id)
+      : undefined;
     const metricInfoDone = new Set<string>();
     try {
       const pos = await projectDb<{ id: string; label: string }[]>`
@@ -648,7 +660,7 @@ SELECT id, label FROM presentation_objects ORDER BY label
       for (const po of pos) {
         try {
           await checkPresentationObject(
-            mainDb, projectDb, hybridDb, shadow, project.id, po.id, po.label, metricInfoDone,
+            mainDb, projectDb, hybridDb, shadow, runCtx, project.id, po.id, po.label, metricInfoDone,
           );
         } catch (e) {
           allResults.push({
@@ -663,9 +675,9 @@ SELECT id, label FROM presentation_objects ORDER BY label
       }
       const projectResults = allResults.filter((r) => r.projectId === project.id);
       summarize(projectResults, "   ");
-      if (useSandboxParquet || useRuns) {
+      if (useSandboxParquet) {
         console.log(
-          `   parquet routes: ${useRuns ? "run" : "finalize"}=${shadow.finalizeRouteTables} pg-export=${shadow.pgExportRouteTables}`,
+          `   parquet routes: finalize=${shadow.finalizeRouteTables} pg-export=${shadow.pgExportRouteTables}`,
         );
       }
     } finally {

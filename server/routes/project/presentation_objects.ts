@@ -47,8 +47,39 @@ import {
   _PO_DETAIL_CACHE,
   _PO_ITEMS_CACHE,
   _REPLICANT_OPTIONS_CACHE,
+  type PoDataVersionParams,
 } from "../caches/visualizations.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { _RESULTS_READ_PATH } from "../../exposed_env_vars.ts";
+import {
+  getIndicatorMetadataFromRun,
+  getModuleIdForResultsObjectFromRun,
+  getPossibleValuesFromRun,
+  getPresentationObjectDetailFromRun,
+  getPresentationObjectItemsFromRun,
+  getRawPeriodBoundsFromRun,
+  getResultsValueInfoFromRun,
+  getRunReadContextForProject,
+  getRunVersionInfo,
+  type RunReadContext,
+} from "../../run_query/mod.ts";
+
+// Resolves the attached-run context when RESULTS_READ_PATH=runs; null means
+// the flag is on but the project has no run attached (loud, not a fallback —
+// the flag is a hard cutover, PLAN_RESULTS_RUNS §3.6).
+async function resolveRunCtx(
+  mainDb: Sql,
+  projectId: string,
+): Promise<RunReadContext | "no_run_attached" | undefined> {
+  if (_RESULTS_READ_PATH !== "runs") return undefined;
+  const ctx = await getRunReadContextForProject(mainDb, projectId);
+  return ctx ?? "no_run_attached";
+}
+
+const NO_RUN_ERR = {
+  success: false as const,
+  err: "No results run is attached to this project",
+};
 
 export const routesPresentationObjects = new Hono();
 
@@ -173,13 +204,19 @@ defineRoute(
       return c.json({ success: false, err: "Presentation object not found" });
     }
 
+    const runCtx = await resolveRunCtx(c.var.mainDb, c.var.ppk.projectId);
+    if (runCtx === "no_run_attached") return c.json(NO_RUN_ERR);
+
     // Check cache
     const existing = await _PO_DETAIL_CACHE.get(
       {
         projectId: c.var.ppk.projectId,
         presentationObjectId: params.po_id,
       },
-      { presentationObjectLastUpdated: poData.last_updated },
+      {
+        presentationObjectLastUpdated: poData.last_updated,
+        runId: runCtx?.runId,
+      },
     );
 
     if (existing) {
@@ -206,12 +243,19 @@ defineRoute(
     }
 
     // Cache miss - fetch and store
-    const newPromise = getPresentationObjectDetail(
-      c.var.ppk.projectId,
-      c.var.ppk.projectDb,
-      params.po_id,
-      c.var.mainDb,
-    );
+    const newPromise = runCtx
+      ? getPresentationObjectDetailFromRun(
+          runCtx,
+          c.var.ppk.projectId,
+          c.var.ppk.projectDb,
+          params.po_id,
+        )
+      : getPresentationObjectDetail(
+          c.var.ppk.projectId,
+          c.var.ppk.projectDb,
+          params.po_id,
+          c.var.mainDb,
+        );
 
     _PO_DETAIL_CACHE.setPromise(
       newPromise,
@@ -219,7 +263,10 @@ defineRoute(
         projectId: c.var.ppk.projectId,
         presentationObjectId: params.po_id,
       },
-      { presentationObjectLastUpdated: poData.last_updated },
+      {
+        presentationObjectLastUpdated: poData.last_updated,
+        runId: runCtx?.runId,
+      },
     );
 
     const res = await newPromise;
@@ -364,29 +411,41 @@ defineRoute(
     );
     validateFetchConfig(body.fetchConfig as GenericLongFormFetchConfig);
 
-    // Derive moduleId from resultsObjectId via DB lookup
-    const roRow = (await c.var.ppk.projectDb<{ module_id: string }[]>`
+    const runCtx = await resolveRunCtx(c.var.mainDb, c.var.ppk.projectId);
+    if (runCtx === "no_run_attached") return c.json(NO_RUN_ERR);
+
+    let legacyVersion: { moduleLastRun: string; datasetsVersion: string } | undefined;
+    if (!runCtx) {
+      // Derive moduleId from resultsObjectId via DB lookup
+      const roRow = (await c.var.ppk.projectDb<{ module_id: string }[]>`
 SELECT module_id FROM results_objects WHERE id = ${body.resultsObjectId}
 `).at(0);
-    if (!roRow) {
-      return c.json({ success: false, err: `Unknown results object: ${body.resultsObjectId}` });
-    }
-    const moduleId = roRow.module_id;
+      if (!roRow) {
+        return c.json({ success: false, err: `Unknown results object: ${body.resultsObjectId}` });
+      }
+      const moduleId = roRow.module_id;
 
-    const moduleLastRun = (
-      await c.var.ppk.projectDb<{ last_run_at: string }[]>`
+      const moduleLastRun = (
+        await c.var.ppk.projectDb<{ last_run_at: string }[]>`
 SELECT last_run_at FROM modules WHERE id = ${moduleId}
 `
-    ).at(0)?.last_run_at;
+      ).at(0)?.last_run_at;
 
-    if (!moduleLastRun) {
-      return c.json({
-        success: false,
-        err: "Module not found or has not run yet",
-      });
+      if (!moduleLastRun) {
+        return c.json({
+          success: false,
+          err: "Module not found or has not run yet",
+        });
+      }
+
+      legacyVersion = {
+        moduleLastRun,
+        datasetsVersion: await getDatasetsVersion(c.var.ppk.projectDb),
+      };
     }
-
-    const datasetsVersion = await getDatasetsVersion(c.var.ppk.projectDb);
+    const versionParams: PoDataVersionParams = runCtx
+      ? { runId: runCtx.runId }
+      : legacyVersion!;
 
     // Check cache BEFORE queueing - prevents duplicates from consuming queue slots
     const existing = await _PO_ITEMS_CACHE.get(
@@ -394,8 +453,9 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         projectId: c.var.ppk.projectId,
         resultsObjectId: body.resultsObjectId,
         fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
+        runId: runCtx?.runId,
       },
-      { moduleLastRun, datasetsVersion },
+      versionParams,
     );
     if (existing && existing.success === true) {
       const t1 = performance.now();
@@ -426,24 +486,33 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           8,
         )}: EXECUTING (waited ${(tQueue - t0).toFixed(0)}ms in queue)`,
       );
-      const newPromise = getPresentationObjectItems(
-        c.var.mainDb,
-        c.var.ppk.projectId,
-        c.var.ppk.projectDb,
-        body.resultsObjectId,
-        body.fetchConfig as GenericLongFormFetchConfig,
-        body.firstPeriodOption,
-        moduleLastRun,
-        datasetsVersion,
-      );
+      const newPromise = runCtx
+        ? getPresentationObjectItemsFromRun(
+            runCtx,
+            c.var.ppk.projectId,
+            body.resultsObjectId,
+            body.fetchConfig as GenericLongFormFetchConfig,
+            body.firstPeriodOption,
+          )
+        : getPresentationObjectItems(
+            c.var.mainDb,
+            c.var.ppk.projectId,
+            c.var.ppk.projectDb,
+            body.resultsObjectId,
+            body.fetchConfig as GenericLongFormFetchConfig,
+            body.firstPeriodOption,
+            legacyVersion!.moduleLastRun,
+            legacyVersion!.datasetsVersion,
+          );
       _PO_ITEMS_CACHE.setPromise(
         newPromise,
         {
           projectId: c.var.ppk.projectId,
           resultsObjectId: body.resultsObjectId,
           fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
+          runId: runCtx?.runId,
         },
-        { moduleLastRun, datasetsVersion },
+        versionParams,
       );
       const res = await newPromise;
       const t1 = performance.now();
@@ -469,44 +538,54 @@ defineRoute(
   async (c, { body }) => {
     const t0 = performance.now();
 
-    // Derive moduleId from metricId via DB lookup
-    const metricRow = (await c.var.ppk.projectDb<{ module_id: string }[]>`
+    const runCtx = await resolveRunCtx(c.var.mainDb, c.var.ppk.projectId);
+    if (runCtx === "no_run_attached") return c.json(NO_RUN_ERR);
+
+    let legacyVersion: { moduleLastRun: string; datasetsVersion: string } | undefined;
+    if (!runCtx) {
+      // Derive moduleId from metricId via DB lookup
+      const metricRow = (await c.var.ppk.projectDb<{ module_id: string }[]>`
 SELECT module_id FROM metrics WHERE id = ${body.metricId}
 `).at(0);
-    if (!metricRow) {
-      return c.json({ success: false, err: `Unknown metric: ${body.metricId}` });
-    }
-    const moduleId = metricRow.module_id;
+      if (!metricRow) {
+        return c.json({ success: false, err: `Unknown metric: ${body.metricId}` });
+      }
+      const moduleId = metricRow.module_id;
 
-    const moduleLastRun = (
-      await c.var.ppk.projectDb<{ last_run_at: string }[]>`
+      const moduleLastRun = (
+        await c.var.ppk.projectDb<{ last_run_at: string }[]>`
 SELECT last_run_at FROM modules WHERE id = ${moduleId}
 `
-    ).at(0)?.last_run_at;
+      ).at(0)?.last_run_at;
 
-    if (!moduleLastRun) {
-      return c.json({
-        success: false,
-        err: "Module not found or has not run yet",
-      });
+      if (!moduleLastRun) {
+        return c.json({
+          success: false,
+          err: "Module not found or has not run yet",
+        });
+      }
+
+      legacyVersion = {
+        moduleLastRun,
+        datasetsVersion: await getDatasetsVersion(c.var.ppk.projectDb),
+      };
     }
+    const versionParams: PoDataVersionParams = runCtx
+      ? { runId: runCtx.runId }
+      : legacyVersion!;
 
     console.log(
-      `[SERVER] Results Value Info ${body.metricId.slice(
-        0,
-        8,
-      )}: REQUEST received (moduleLastRun: ${moduleLastRun})`,
+      `[SERVER] Results Value Info ${body.metricId.slice(0, 8)}: REQUEST received`,
     );
-
-    const datasetsVersion = await getDatasetsVersion(c.var.ppk.projectDb);
 
     // Check cache BEFORE queueing - prevents duplicates from consuming queue slots
     const existing = await _METRIC_INFO_CACHE.get(
       {
         projectId: c.var.ppk.projectId,
         metricId: body.metricId,
+        runId: runCtx?.runId,
       },
-      { moduleLastRun, datasetsVersion },
+      versionParams,
     );
 
     if (existing && existing.success === true) {
@@ -540,22 +619,29 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         )}: EXECUTING (waited ${(tQueue - t0).toFixed(0)}ms in queue)`,
       );
 
-      const newPromise = getResultsValueInfoForPresentationObject(
-        c.var.mainDb,
-        c.var.ppk.projectDb,
-        c.var.ppk.projectId,
-        body.metricId,
-        moduleLastRun,
-        datasetsVersion,
-      );
+      const newPromise = runCtx
+        ? getResultsValueInfoFromRun(
+            runCtx,
+            c.var.ppk.projectId,
+            body.metricId,
+          )
+        : getResultsValueInfoForPresentationObject(
+            c.var.mainDb,
+            c.var.ppk.projectDb,
+            c.var.ppk.projectId,
+            body.metricId,
+            legacyVersion!.moduleLastRun,
+            legacyVersion!.datasetsVersion,
+          );
 
       _METRIC_INFO_CACHE.setPromise(
         newPromise,
         {
           projectId: c.var.ppk.projectId,
           metricId: body.metricId,
+          runId: runCtx?.runId,
         },
-        { moduleLastRun, datasetsVersion },
+        versionParams,
       );
 
       const res = await newPromise;
@@ -595,36 +681,62 @@ defineRoute(
         ? `${fetchConfig.filters.length} filters`
         : "no filters";
 
-    // Derive moduleId from resultsObjectId via DB lookup
-    const roRow2 = (await c.var.ppk.projectDb<{ module_id: string }[]>`
+    const runCtx = await resolveRunCtx(c.var.mainDb, c.var.ppk.projectId);
+    if (runCtx === "no_run_attached") return c.json(NO_RUN_ERR);
+
+    let moduleId: string;
+    let versionInfo: {
+      moduleLastRun: string;
+      datasetsVersion: string;
+      runId?: string;
+    };
+    if (runCtx) {
+      const runModuleId = getModuleIdForResultsObjectFromRun(
+        runCtx,
+        body.resultsObjectId,
+      );
+      if (runModuleId === undefined) {
+        return c.json({ success: false, err: `Unknown results object: ${body.resultsObjectId}` });
+      }
+      moduleId = runModuleId;
+      versionInfo = getRunVersionInfo(runCtx, moduleId);
+    } else {
+      // Derive moduleId from resultsObjectId via DB lookup
+      const roRow2 = (await c.var.ppk.projectDb<{ module_id: string }[]>`
 SELECT module_id FROM results_objects WHERE id = ${body.resultsObjectId}
 `).at(0);
-    if (!roRow2) {
-      return c.json({ success: false, err: `Unknown results object: ${body.resultsObjectId}` });
-    }
-    const moduleId = roRow2.module_id;
+      if (!roRow2) {
+        return c.json({ success: false, err: `Unknown results object: ${body.resultsObjectId}` });
+      }
+      moduleId = roRow2.module_id;
 
-    const moduleLastRun = (
-      await c.var.ppk.projectDb<{ last_run_at: string }[]>`
+      const moduleLastRun = (
+        await c.var.ppk.projectDb<{ last_run_at: string }[]>`
 SELECT last_run_at FROM modules WHERE id = ${moduleId}
 `
-    ).at(0)?.last_run_at;
+      ).at(0)?.last_run_at;
 
-    if (!moduleLastRun) {
-      return c.json({
-        success: false,
-        err: "Module not found or has not run yet",
-      });
+      if (!moduleLastRun) {
+        return c.json({
+          success: false,
+          err: "Module not found or has not run yet",
+        });
+      }
+      versionInfo = {
+        moduleLastRun,
+        datasetsVersion: await getDatasetsVersion(c.var.ppk.projectDb),
+      };
     }
+    const versionParams: PoDataVersionParams = runCtx
+      ? { runId: runCtx.runId }
+      : { moduleLastRun: versionInfo.moduleLastRun, datasetsVersion: versionInfo.datasetsVersion };
 
     console.log(
       `[SERVER] Replicant Options ${body.resultsObjectId.slice(
         0,
         8,
-      )}: REQUEST received (${filterSummary}, replicateBy: ${body.replicateBy}, moduleLastRun: ${moduleLastRun})`,
+      )}: REQUEST received (${filterSummary}, replicateBy: ${body.replicateBy})`,
     );
-
-    const datasetsVersion = await getDatasetsVersion(c.var.ppk.projectDb);
 
     // Check cache BEFORE queueing
     const existing = await _REPLICANT_OPTIONS_CACHE.get(
@@ -633,8 +745,9 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         resultsObjectId: body.resultsObjectId,
         replicateBy: body.replicateBy,
         fetchConfig: fetchConfig,
+        runId: runCtx?.runId,
       },
-      { moduleLastRun, datasetsVersion },
+      versionParams,
     );
 
     if (existing && existing.success === true) {
@@ -670,49 +783,51 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
 
       const newPromise = (async () => {
         // Fetch indicator metadata for label lookup
-        const indicatorMetadata = await getIndicatorMetadata(c.var.mainDb, c.var.ppk.projectDb, moduleId);
+        const indicatorMetadata = runCtx
+          ? await getIndicatorMetadataFromRun(runCtx, moduleId)
+          : await getIndicatorMetadata(c.var.mainDb, c.var.ppk.projectDb, moduleId);
         const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
-
-        const datasetFamily = await getDatasetFamilyForModule(
-          c.var.ppk.projectDb,
-          moduleId,
-        );
 
         // Resolve the period filter to exact bounds the same way the items
         // query does, so relative filters ("last N months") narrow the option
         // list too and from_month re-anchors to the live data — a bounded-only
         // read here would list values the filtered figure can never show.
         // Physical time column inferred like the enricher: period_id >
-        // quarter_id > year.
+        // quarter_id > year. (Runs path: the manifest stamp IS the no-filter
+        // bounds of the physical column.)
         let periodFilterExactBounds: PeriodBounds | undefined;
         if (fetchConfig.periodFilter) {
           try {
-            const tableName = getResultsObjectTableName(body.resultsObjectId);
-            const hasPeriodId = await detectHasPeriodId(
-              c.var.ppk.projectDb,
-              tableName,
-            );
-            const hasQuarterId =
-              !hasPeriodId &&
-              (await detectColumnExists(c.var.ppk.projectDb, tableName, "quarter_id"));
-            const hasYear =
-              !hasPeriodId &&
-              !hasQuarterId &&
-              (await detectColumnExists(c.var.ppk.projectDb, tableName, "year"));
-            const firstPeriodOption: PeriodOption | undefined = hasPeriodId
-              ? "period_id"
-              : hasQuarterId
-                ? "quarter_id"
-                : hasYear
-                  ? "year"
-                  : undefined;
-            const rawBounds = await getPeriodBounds(
-              c.var.ppk.projectDb,
-              tableName,
-              [],
-              firstPeriodOption,
-              undefined,
-            );
+            const rawBounds = runCtx
+              ? getRawPeriodBoundsFromRun(runCtx, body.resultsObjectId)
+              : await (async () => {
+                  const tableName = getResultsObjectTableName(body.resultsObjectId);
+                  const hasPeriodId = await detectHasPeriodId(
+                    c.var.ppk.projectDb,
+                    tableName,
+                  );
+                  const hasQuarterId =
+                    !hasPeriodId &&
+                    (await detectColumnExists(c.var.ppk.projectDb, tableName, "quarter_id"));
+                  const hasYear =
+                    !hasPeriodId &&
+                    !hasQuarterId &&
+                    (await detectColumnExists(c.var.ppk.projectDb, tableName, "year"));
+                  const firstPeriodOption: PeriodOption | undefined = hasPeriodId
+                    ? "period_id"
+                    : hasQuarterId
+                      ? "quarter_id"
+                      : hasYear
+                        ? "year"
+                        : undefined;
+                  return await getPeriodBounds(
+                    c.var.ppk.projectDb,
+                    tableName,
+                    [],
+                    firstPeriodOption,
+                    undefined,
+                  );
+                })();
             periodFilterExactBounds = getPeriodFilterExactBounds(
               fetchConfig.periodFilter,
               rawBounds,
@@ -725,8 +840,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
                 resultsObjectId: body.resultsObjectId,
                 replicateBy: body.replicateBy,
                 fetchConfig: fetchConfig,
-                moduleLastRun,
-                datasetsVersion,
+                ...versionInfo,
                 status: "error" as const,
                 message: e instanceof Error ? e.message : String(e),
               },
@@ -734,16 +848,25 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           }
         }
 
-        const resDisPossibleVals = await getPossibleValues(
-          c.var.ppk.projectDb,
-          body.resultsObjectId,
-          datasetFamily,
-          body.replicateBy,
-          c.var.mainDb,
-          labelMap,
-          fetchConfig.filters,
-          periodFilterExactBounds,
-        );
+        const resDisPossibleVals = runCtx
+          ? await getPossibleValuesFromRun(
+              runCtx,
+              body.resultsObjectId,
+              body.replicateBy,
+              labelMap,
+              fetchConfig.filters,
+              periodFilterExactBounds,
+            )
+          : await getPossibleValues(
+              c.var.ppk.projectDb,
+              body.resultsObjectId,
+              await getDatasetFamilyForModule(c.var.ppk.projectDb, moduleId),
+              body.replicateBy,
+              c.var.mainDb,
+              labelMap,
+              fetchConfig.filters,
+              periodFilterExactBounds,
+            );
 
         if (resDisPossibleVals.success === false) {
           return {
@@ -753,8 +876,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
               fetchConfig: fetchConfig,
-              moduleLastRun,
-              datasetsVersion,
+              ...versionInfo,
               // Surfaced as its own status (matching the metric-info path)
               // instead of masquerading as no_values_available.
               status: "error" as const,
@@ -773,8 +895,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
               fetchConfig: fetchConfig,
-              moduleLastRun,
-              datasetsVersion,
+              ...versionInfo,
               status: "too_many_values" as const,
             },
           };
@@ -788,8 +909,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
               fetchConfig: fetchConfig,
-              moduleLastRun,
-              datasetsVersion,
+              ...versionInfo,
               status: "no_values_available" as const,
             },
           };
@@ -802,8 +922,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
             resultsObjectId: body.resultsObjectId,
             replicateBy: body.replicateBy,
             fetchConfig: fetchConfig,
-            moduleLastRun,
-            datasetsVersion,
+            ...versionInfo,
             status: "ok" as const,
             possibleValues: vals,
           },
@@ -817,8 +936,9 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           resultsObjectId: body.resultsObjectId,
           replicateBy: body.replicateBy,
           fetchConfig: fetchConfig,
+          runId: runCtx?.runId,
         },
-        { moduleLastRun, datasetsVersion },
+        versionParams,
       );
 
       const res = await newPromise;

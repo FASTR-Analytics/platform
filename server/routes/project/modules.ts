@@ -2,8 +2,13 @@ import { join } from "@std/path";
 import { Hono } from "hono";
 import {
   _MODULE_LOG_FILE_NAME,
+  _RESULTS_READ_PATH,
   _SANDBOX_DIR_PATH,
 } from "../../exposed_env_vars.ts";
+import {
+  getResultsObjectItemsFromRun,
+  getRunReadContextForProject,
+} from "../../run_query/mod.ts";
 import {
   getAllCalculatedIndicatorsFromSnapshot,
   getAllHfaIndicatorCodeFromSnapshot,
@@ -299,6 +304,24 @@ defineRoute(
   requireProjectPermission(),
   log("getResultsObjectItems"),
   async (c, { params }) => {
+    if (_RESULTS_READ_PATH === "runs") {
+      const runCtx = await getRunReadContextForProject(
+        c.var.mainDb,
+        c.var.ppk.projectId,
+      );
+      if (!runCtx) {
+        return c.json({
+          success: false,
+          err: "No results run is attached to this project",
+        });
+      }
+      const res = await getResultsObjectItemsFromRun(
+        runCtx,
+        params.results_object_id,
+        _DATASET_LIMIT,
+      );
+      return c.json(res);
+    }
     const res = await getResultsObjectItems(
       c.var.ppk.projectDb,
       params.results_object_id,

@@ -188,7 +188,7 @@ async function buildDisaggregationOptions(
   return out;
 }
 
-function inferMostGranularTimePeriodColumn(
+export function inferMostGranularTimePeriodColumn(
   disaggregationOptions: ResultsValue["disaggregationOptions"],
 ): PeriodOption | undefined {
   const disOpts = disaggregationOptions.map((d) => d.value);

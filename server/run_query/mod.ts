@@ -10,3 +10,21 @@ export {
   duckDbTypeForDeclaredColumnType,
   writeNormalizedResultsObjectParquet,
 } from "./write_results_object_parquet.ts";
+export {
+  datasetsVersionFromManifest,
+  enrichMetricFromManifest,
+  getDatasetFamilyFromRun,
+  getIndicatorMetadataFromRun,
+  getModuleIdForMetricFromRun,
+  getModuleIdForResultsObjectFromRun,
+  getPossibleValuesFromRun,
+  getPresentationObjectDetailFromRun,
+  getPresentationObjectItemsFromRun,
+  getRawPeriodBoundsFromRun,
+  getResultsObjectItemsFromRun,
+  getResultsValueInfoFromRun,
+  getRunReadContextForProject,
+  getRunVersionInfo,
+  resolveMetricFromRun,
+  type RunReadContext,
+} from "./run_read.ts";

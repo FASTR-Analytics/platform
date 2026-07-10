@@ -16,6 +16,7 @@ globs:
   - lib/types/_module_definition_installed.ts
   - lib/types/module_registry.ts
   - lib/types/modules.ts
+  - lib/types/run_manifest.ts
   - server/db/project/modules.ts
   - server/db/project/results_objects.ts
   - server/github/**

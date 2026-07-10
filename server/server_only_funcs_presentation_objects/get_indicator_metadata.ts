@@ -20,7 +20,7 @@ type ModuleDataSource = {
   datasetType?: string;
 };
 
-function getDatasetTypes(moduleDefinition: string): string[] {
+export function getDatasetTypes(moduleDefinition: string): string[] {
   try {
     const parsed = JSON.parse(moduleDefinition);
     const dataSources = (parsed.dataSources ?? []) as ModuleDataSource[];

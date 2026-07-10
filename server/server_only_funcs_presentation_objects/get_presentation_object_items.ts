@@ -8,7 +8,9 @@ import {
   APIResponseWithData,
   GenericLongFormFetchConfig,
   getPeriodFilterExactBounds,
+  IndicatorMetadata,
   ItemsHolderPresentationObject,
+  JsonArrayItem,
   PeriodOption,
 } from "lib";
 import { MAX_ITEMS } from "./consts.ts";
@@ -17,10 +19,24 @@ import {
   getDatasetFamilyForModule,
   getIndicatorMetadata,
 } from "./get_indicator_metadata.ts";
-import { getPeriodBounds } from "./get_period_bounds.ts";
+import { getPeriodBoundsCore } from "./get_period_bounds.ts";
 import { buildQueryContext } from "./get_query_context.ts";
 import { buildWhereClause } from "./query_helpers.ts";
+import type { QueryContext, SqlRowsExecutor } from "./types.ts";
 
+export type ItemsQueryDeps = {
+  execute: SqlRowsExecutor;
+  columnExists: (tableName: string, columnName: string) => Promise<boolean>;
+  getIndicatorMetadata: () => Promise<IndicatorMetadata[]>;
+};
+
+export type ItemsVersionInfo = {
+  moduleLastRun: string;
+  datasetsVersion: string;
+  runId?: string;
+};
+
+// Postgres wrapper — probes and executes on the project DB.
 export async function getPresentationObjectItems(
   mainDb: Sql,
   projectId: string,
@@ -52,6 +68,36 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
       datasetFamily,
     );
 
+    return await getPresentationObjectItemsCore(
+      {
+        execute: (sql) => projectDb.unsafe(sql),
+        columnExists: (table, column) =>
+          detectColumnExists(projectDb, table, column),
+        getIndicatorMetadata: () =>
+          getIndicatorMetadata(mainDb, projectDb, moduleId),
+      },
+      projectId,
+      resultsObjectId,
+      tableName,
+      queryContext,
+      fetchConfig,
+      firstPeriodOption,
+      { moduleLastRun, datasetsVersion },
+    );
+  });
+}
+
+export async function getPresentationObjectItemsCore(
+  deps: ItemsQueryDeps,
+  projectId: string,
+  resultsObjectId: string,
+  tableName: string,
+  queryContext: QueryContext,
+  fetchConfig: GenericLongFormFetchConfig,
+  firstPeriodOption: PeriodOption | undefined,
+  versionInfo: ItemsVersionInfo,
+): Promise<APIResponseWithData<ItemsHolderPresentationObject>> {
+  return await tryCatchDatabaseAsync(async () => {
     // Precise half of the roll-up eligibility rule that validateFetchConfig
     // can't see (it has no table access): AVG without a post-aggregation
     // expression is only re-averageable when rows are raw facility
@@ -61,7 +107,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
       fetchConfig.includeAdminAreaRollup === true &&
       fetchConfig.postAggregationExpression === undefined &&
       fetchConfig.values.some((v) => v.func === "AVG") &&
-      !(await detectColumnExists(projectDb, tableName, "facility_id"))
+      !(await deps.columnExists(tableName, "facility_id"))
     ) {
       throw new Error(
         "Invalid includeAdminAreaRollup: AVG values can only be rolled up when the results table has facility-level rows",
@@ -74,11 +120,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     //                       //
     ///////////////////////////
 
-    const indicatorMetadata = await getIndicatorMetadata(
-      mainDb,
-      projectDb,
-      moduleId,
-    );
+    const indicatorMetadata = await deps.getIndicatorMetadata();
 
     const nonFacilityFetchConfig = {
       ...fetchConfig,
@@ -90,8 +132,8 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
       queryContext.hasPeriodId,
     );
 
-    const rawDateRange = await getPeriodBounds(
-      projectDb,
+    const rawDateRange = await getPeriodBoundsCore(
+      deps.execute,
       tableName,
       nonFacilityWhereStatements,
       firstPeriodOption,
@@ -99,6 +141,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
         hasPeriodId: queryContext.hasPeriodId,
         hasQuarterId: queryContext.hasQuarterId,
         neededPeriodColumns: queryContext.neededPeriodColumns,
+        calendar: queryContext.calendar,
       },
     );
 
@@ -123,8 +166,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
         projectId,
         resultsObjectId,
         fetchConfig,
-        moduleLastRun,
-        datasetsVersion,
+        ...versionInfo,
         dateRange: undefined,
         status: "no_data_available" as const,
       };
@@ -150,7 +192,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     });
 
     // Execute the query
-    const rawItems = await projectDb.unsafe(sqlQuery);
+    const rawItems = await deps.execute(sqlQuery);
 
     // Check for special states
     if (rawItems.length > MAX_ITEMS) {
@@ -158,8 +200,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
         projectId,
         resultsObjectId,
         fetchConfig,
-        moduleLastRun,
-        datasetsVersion,
+        ...versionInfo,
         dateRange,
         status: "too_many_items" as const,
       };
@@ -171,8 +212,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
         projectId,
         resultsObjectId,
         fetchConfig,
-        moduleLastRun,
-        datasetsVersion,
+        ...versionInfo,
         dateRange,
         status: "no_data_available" as const,
       };
@@ -183,11 +223,10 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
       projectId,
       resultsObjectId,
       fetchConfig,
-      moduleLastRun,
-      datasetsVersion,
+      ...versionInfo,
       dateRange,
       status: "ok" as const,
-      items: rawItems,
+      items: rawItems as JsonArrayItem[],
       indicatorMetadata,
     };
 

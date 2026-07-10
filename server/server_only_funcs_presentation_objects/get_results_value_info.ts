@@ -4,7 +4,7 @@ import {
   APIResponseWithData,
   DisaggregationOption,
   DisaggregationPossibleValuesStatus,
-  PeriodOption,
+  PeriodBounds,
   ResultsValueInfoForPresentationObject,
   throwIfErrWithData,
 } from "lib";
@@ -17,7 +17,10 @@ import {
 import { resolveMetricById } from "../db/project/results_value_resolver.ts";
 import { getFacilityColumnsConfig } from "../db/instance/config.ts";
 import { MAX_REPLICANT_OPTIONS } from "./consts.ts";
+import type { ItemsVersionInfo } from "./get_presentation_object_items.ts";
 
+// Postgres wrapper — resolves the metric via live enrichment probes, then
+// runs the shared status loop with Postgres-backed possible-values queries.
 export async function getResultsValueInfoForPresentationObject(
   mainDb: Sql,
   projectDb: Sql,
@@ -44,62 +47,14 @@ export async function getResultsValueInfoForPresentationObject(
       .map((d) => d.value);
     const firstPeriodOption = resultsValue.mostGranularTimePeriodColumnInResultsFile;
 
-    // Call the core logic with all derived values
-    return await getResultsObjectVariableInfoCore(
-      mainDb,
-      projectDb,
-      projectId,
-      resultsObjectId,
-      metricId,
-      firstPeriodOption,
-      disaggregationOptions,
-      moduleLastRun,
-      moduleId,
-      datasetsVersion,
-    );
-  });
-}
-
-async function getResultsObjectVariableInfoCore(
-  mainDb: Sql,
-  projectDb: Sql,
-  projectId: string,
-  resultsObjectId: string,
-  metricId: string,
-  firstPeriodOption: PeriodOption | undefined,
-  disaggregationOptions: DisaggregationOption[],
-  moduleLastRun: string,
-  moduleId: string,
-  datasetsVersion: string,
-): Promise<
-  APIResponseWithData<ResultsValueInfoForPresentationObject>
-> {
-  return await tryCatchDatabaseAsync(async () => {
-    /////////////////////////
-    //                     //
-    //    Period bounds    //
-    //                     //
-    /////////////////////////
-
     const tableName = getResultsObjectTableName(resultsObjectId);
-    const resPeriodBounds = await getPeriodBounds(
+    const periodBounds = await getPeriodBounds(
       projectDb,
       tableName,
       [], // No where statements for this use case
       firstPeriodOption,
       undefined, // no filters → no CTE ever needed; columns detected on demand
     );
-    const periodBounds = resPeriodBounds || undefined;
-
-    ////////////////////////////////
-    //                            //
-    //    Replicate by options    //
-    //                            //
-    ////////////////////////////////
-
-    const disaggregationPossibleValues: {
-      [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
-    } = {};
 
     // Fetch indicator metadata once for label lookup
     const indicatorMetadata = await getIndicatorMetadata(mainDb, projectDb, moduleId);
@@ -107,15 +62,48 @@ async function getResultsObjectVariableInfoCore(
 
     const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleId);
 
+    return await buildResultsValueInfo(
+      projectId,
+      metricId,
+      resultsObjectId,
+      { moduleLastRun, datasetsVersion },
+      periodBounds,
+      disaggregationOptions,
+      (disOpt) =>
+        getPossibleValues(
+          projectDb,
+          resultsObjectId,
+          datasetFamily,
+          disOpt,
+          mainDb,
+          labelMap,
+        ),
+    );
+  });
+}
+
+// Shared status loop — one source for the ok / too_many_values /
+// no_values_available / error thresholds on both engines.
+export async function buildResultsValueInfo(
+  projectId: string,
+  metricId: string,
+  resultsObjectId: string,
+  versionInfo: ItemsVersionInfo,
+  periodBounds: PeriodBounds | undefined,
+  disaggregationOptions: DisaggregationOption[],
+  getValuesForOption: (
+    disOpt: DisaggregationOption,
+  ) => Promise<APIResponseWithData<{ id: string; label: string }[]>>,
+): Promise<
+  APIResponseWithData<ResultsValueInfoForPresentationObject>
+> {
+  return await tryCatchDatabaseAsync(async () => {
+    const disaggregationPossibleValues: {
+      [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
+    } = {};
+
     for (const disOpt of disaggregationOptions) {
-      const resDisPossibleVals = await getPossibleValues(
-        projectDb,
-        resultsObjectId,
-        datasetFamily,
-        disOpt,
-        mainDb,
-        labelMap,
-      );
+      const resDisPossibleVals = await getValuesForOption(disOpt);
       if (resDisPossibleVals.success === false) {
         console.warn(
           `[getPossibleValues] failed for ${disOpt} on ${resultsObjectId}: ${resDisPossibleVals.err}`,
@@ -152,8 +140,7 @@ async function getResultsObjectVariableInfoCore(
         resultsObjectId,
         metricId,
         projectId,
-        moduleLastRun,
-        datasetsVersion,
+        ...versionInfo,
         periodBounds,
         disaggregationPossibleValues,
       },

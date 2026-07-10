@@ -1,5 +1,4 @@
 import {
-  type CalendarType,
   type Language,
   type TranslatableString,
 } from "@timroberton/panther";
@@ -15,7 +14,7 @@ export function setCalendar(cal: InstanceCalendar) {
   _CALENDAR.cal = cal;
 }
 
-export function getCalendar(): CalendarType {
+export function getCalendar(): InstanceCalendar {
   return _CALENDAR.cal;
 }
 
