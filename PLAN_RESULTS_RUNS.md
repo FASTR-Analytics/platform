@@ -25,6 +25,89 @@ Nigeria configs over 67M rows via the repo's own SQL builders, ≤214 ms, 69/69
 Postgres parity; the alpha napi addon verified loading + running offline inside
 the exact prod linux/amd64 image.
 
+### Continuation notes (for a fresh session; written 2026-07-10)
+
+**File map of what exists** (branch `results-runs`, commits `c9750cf2` /
+`76d9adc4` / `3db4ef0e`):
+
+- `server/run_query/` (S9): `duckdb_executor.ts` (cold instance per call,
+  integer_division, BigInt→number), `csv_to_parquet.ts` (declared types,
+  `allow_quoted_nulls=false`), `pg_type_map.ts`,
+  `write_results_object_parquet.ts` (the four ingest normalizations — also
+  invoked as a shadow-write from `storeResultsObject` on every module run),
+  `run_read.ts` (the ENTIRE runs serving path: manifest query context,
+  indicator metadata from input files, metric enrichment from stamps,
+  po_detail, raw preview).
+- `server/runs/` (S8): `run_paths.ts` (layout + `.tmp-` sweep), `pg_export.ts`
+  (cursor→CSV→parquet, `__PG_NULL__` sentinel), `synthetic_backfill.ts`,
+  `disaggregation_availability.ts` (pure twin of the enricher probe loop —
+  shares the enricher's exported column lists), `manifest_cache.ts`.
+- `lib/types/run_manifest.ts` (schema v1), migration `056_add_runs.sql`,
+  `RUNS_DIR_PATH` + `RESULTS_READ_PATH` in `exposed_env_vars.ts`.
+- `validate_results_runs_parity.ts` (repo root): the gate. Three modes —
+  default (pg vs hybrid-DuckDB), `--sandbox-parquet` (finalize-route parity),
+  `--runs` (pg vs the REAL run wrappers). Run:
+  `deno run --allow-all --env-file --unstable-broadcast-channel -c deno.json
+  validate_results_runs_parity.ts [--runs]`. Green = 0 diffs.
+
+**Binding decisions made during implementation** (do not re-derive):
+
+1. Engine seam = `SqlRowsExecutor` + core/wrapper split in
+   `server_only_funcs_presentation_objects/`; the pg wrappers preserve legacy
+   behavior byte-for-byte and get DELETED at Phase 2 entry.
+2. Cache coexistence: same Valkey prefixes for both modes — runId-uniqueness
+   vs projectId-uniqueness strings cannot collide; holders/detail carry
+   optional `runId` and `parseData` branches on it. `PO_CACHE_VERSION` "6" =
+   TS re-sort of option lists (`Intl.Collator("en", {numeric: true})`, BOTH
+   engines, in `getPossibleValuesCore`).
+3. The manifest captures live instance config AT generation/backfill time
+   (facility columns, calendar, countryIso3) — capture-time instance reads are
+   architecturally correct; read-time live reads are forbidden.
+4. `RUNS_DIR_PATH` is Deno-namespace-only until Phase 2 (no `_EXTERNAL` /
+   `_POSTGRES_INTERNAL` env vars yet — nothing reads them in Phase 1; Phase-1
+   finalize copies sandbox dataset extracts via Deno, so no Postgres-container
+   mount change is needed until the wizard).
+5. `getAllMetrics`/`getMetricsWithStatus` (module cards) deliberately NOT
+   flipped — that surface dies in Phase 2; `export_central` NOT flipped —
+   reads live `ro_*`, which dual-write keeps current.
+6. Backfill is boot-time, idempotent (skips projects with `run_id`),
+   non-blocking on failure while the flag serves postgres.
+
+**Next work item — generation finalize + dual-write.** Design constraints
+settled: legacy ingest already writes the pg plane AND the per-RO parquet
+shadow; finalize therefore = assemble a run dir (copy module workspaces +
+`datasets/*.csv` from the sandbox via Deno; copy/build `query/*.parquet`;
+derive manifest by reusing `synthetic_backfill.ts`'s metadata pieces with
+provenance `"generation"` + rImageTag), atomic rename, `runs` row, repoint
+`projects.run_id`, SSE notify. There is NO whole-DAG primitive: the sweep
+re-triggers per-module via the `task_ended` loop (`trigger_runnable_tasks.ts`,
+`set_module_clean.ts`), so generation-completion detection must be added (a
+generation record checked when nothing is queued/running). **Open design
+decision to settle with Tim first**: the plan says per-module rerun is
+disabled "once a run is attached", but backfill attaches runs to EVERY
+project — recommended resolution: while the flag window is open, a per-module
+rerun (or dataset re-attach) escalates to a whole-DAG generation + finalize
+(run = whole-DAG closure, per §3.1), rather than being blocked outright.
+
+**Client work (after generation lands)**: read-mode field in `InstanceMeta`
+(`lib/types/instance.ts` + `routes/instance/instance.ts`, consumed in
+`LoggedInWrapper.tsx`); `attachedRunId` into the T1 project-state payload
+(`build_project_state.ts`) + SSE notify on repoint; T2 `versionKey` branches
+(`t2_presentation_objects.ts`, `t2_replicant_options.ts`,
+`moduleDataVersionKey` in `t1_store.ts:200-216`).
+
+**Empirical gotchas** (verified this session, don't rediscover):
+DuckDB `getRowObjectsJson()` returns BIGINT/DECIMAL as strings — the executor
+uses `getRowObjects()` + explicit conversion (throws outside safe-int range);
+`read_csv` `columns=` is file-column-order sensitive; `nullstr` also nulls
+QUOTED fields unless `allow_quoted_nulls=false`; `information_schema` queries
+need `table_schema='public'`; the lint gate only sees TRACKED files (a new
+file passes until committed, then orphans); `string_to_array`/`&&`/`unnest`
+(the multi-membership SQL) work unchanged on DuckDB — verified. The Ethiopian
+quarter expression is code-identical in shape but has NOT run against real
+Ethiopian data — the pre-flip fleet rig run against the Ethiopia instance is
+the gate for that.
+
 > Vision / end-state: [VISION_RESULTS_RUNS.md](VISION_RESULTS_RUNS.md).
 > This plan supersedes and absorbs PLAN_PROJECT_SNAPSHOT.md (deleted; its Step
 > A/B project-DB capture mechanism is replaced wholesale — its open question

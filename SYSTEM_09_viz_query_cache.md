@@ -19,6 +19,15 @@ globs:
 ---
 # S9 — Visualization Query & Cache Service
 
+> **2026-07-10, branch `results-runs`:** this system is mid-migration to the
+> results-runs read path (PLAN_RESULTS_RUNS — see its Status block for what
+> changed). Known drift in this doc until the Phase-4 rewrite: the S9 hot
+> functions are now core+wrapper with an injected executor
+> (`server/run_query/run_read.ts` is the parallel runs path behind
+> `RESULTS_READ_PATH`); `PO_CACHE_VERSION` is "6" (option lists TS-re-sorted);
+> the caches also accept run-keyed identities; calendar threads via
+> `QueryContext`, not `getCalendar()` at the call sites.
+
 PO config → fetch-config contract → SQL over `ro_*` tables → version-hashed
 cached payloads, on both tiers. Reviewed against code 2026-07-06 (first review
 cycle; absorbed and deleted DOC_PRESENTATION_OBJECT_QUERY_PIPELINE,
