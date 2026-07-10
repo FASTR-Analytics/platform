@@ -14,6 +14,7 @@ import {
   getHfaTimePointOrder,
 } from "../../db/mod.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
+import { writeNormalizedResultsObjectParquet } from "../../run_query/mod.ts";
 import {
   _ASSETS_DIR_PATH,
   _IS_PRODUCTION,
@@ -470,6 +471,27 @@ ENCODING 'UTF8' CSV HEADER NULL 'NA'
           ]
         : []),
     ]);
+
+    // Shadow-write the normalized parquet twin beside the raw CSV
+    // (PLAN_RESULTS_RUNS §2.3 finalize, landed early at the ingest choke
+    // point). Postgres remains the serving plane, so a parquet failure logs
+    // loudly but never fails the module run; the parity rig's
+    // --sandbox-parquet mode diffs this file against the Postgres tables.
+    try {
+      await writeNormalizedResultsObjectParquet({
+        csvPath: roCsvFilePath,
+        parquetPath: `${roCsvFilePath}.parquet`,
+        csvHeaders,
+        declaredColumns: resultsObject.createTableStatementPossibleColumns,
+        columnsToExclude: columnsToExcludeIfInCsv,
+      });
+    } catch (e) {
+      console.error(
+        `[parquet-shadow] FAILED for ${resultsObject.id} in module ${moduleId}: ${
+          e instanceof Error ? e.message : e
+        }`,
+      );
+    }
 
     return { success: true };
   } catch (e) {

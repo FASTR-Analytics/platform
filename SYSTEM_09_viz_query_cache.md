@@ -14,6 +14,7 @@ globs:
   - server/routes/caches/visualizations.ts
   - server/routes/project/cache_status.ts
   - server/routes/project/presentation_objects.ts
+  - server/run_query/**
   - server/server_only_funcs_presentation_objects/**
 ---
 # S9 — Visualization Query & Cache Service
