@@ -1,5 +1,5 @@
 // =============================================================================
-// Per-character authorship ledger for report bodies
+// Per-character authorship ledgers — report bodies and slide text elements
 // =============================================================================
 //
 // Versions attribute WHO edited per session; a session with two editors can't
@@ -10,6 +10,14 @@
 // persist it next to crdt_state (same validity stamp), version snapshots
 // freeze it per version, and the diff views use it to label each inserted
 // span with its actual author.
+//
+// SLIDE TEXT ELEMENTS reuse the same machinery with one ledger per
+// (slide, element text) — see the "Slide text elements" section at the
+// bottom. Unlike report bodies these are session-scoped and in-memory only
+// (never persisted; same accepted restart tradeoff as the deck session
+// ledger): initialized when a slide room's doc is created, fed by the room
+// observer's text deltas, snapshotted into the deck version's slide_editors
+// at write time, tombstone-compacted right after.
 //
 // null-author runs mean "unknown": text that predates the ledger, was written
 // outside a live room (REST fallback, restore), or whose ledger was lost to a
@@ -134,7 +142,14 @@ export function applyBodyDelta(
   delta: BodyDeltaOp[],
   email: string | null,
 ): void {
-  const k = key(projectId, reportId);
+  applyDeltaToLedger(key(projectId, reportId), delta, email);
+}
+
+function applyDeltaToLedger(
+  k: string,
+  delta: BodyDeltaOp[],
+  email: string | null,
+): void {
   const ledger = ledgers.get(k);
   if (!ledger) return;
   const { runs, body } = ledger;
@@ -229,7 +244,11 @@ export function getAuthorRuns(
   reportId: string,
   body: string,
 ): AuthorRun[] | null {
-  const ledger = ledgers.get(key(projectId, reportId));
+  return runsForKey(key(projectId, reportId), body);
+}
+
+function runsForKey(k: string, body: string): AuthorRun[] | null {
+  const ledger = ledgers.get(k);
   if (!ledger) return null;
   if (ledger.body !== body) return null;
   if (liveLen(ledger.runs) !== body.length) return null;
@@ -241,7 +260,10 @@ export function getAuthorRuns(
  *  the ledger's tombstones always describe "deletions since the last
  *  version". No-op when no room is live. */
 export function compactTombstones(projectId: string, reportId: string): void {
-  const k = key(projectId, reportId);
+  compactKey(key(projectId, reportId));
+}
+
+function compactKey(k: string): void {
   const ledger = ledgers.get(k);
   if (!ledger) return;
   ledgers.set(k, {
@@ -254,4 +276,136 @@ export function dropLedger(projectId: string, reportId: string): void {
   const k = key(projectId, reportId);
   ledgers.delete(k);
   pendingInit.delete(k);
+}
+
+// ── Slide text elements ──────────────────────────────────────────────────────
+//
+// One ledger per (slide, element text), keyed by the same element keys the
+// slide-room observer and the version diff use ("field:<name>", "block:<id>").
+// In-memory only; the version window is the deck version (snapshot at drain,
+// compact after the version insert succeeds).
+
+function slideElementLedgerKey(
+  projectId: string,
+  slideId: string,
+  elementKey: string,
+): string {
+  return `${projectId}::slideel::${slideId}::${elementKey}`;
+}
+
+function slideElementPrefix(projectId: string, slideId: string): string {
+  return `${projectId}::slideel::${slideId}::`;
+}
+
+/** Start a text element's ledger at room create — but only when none exists
+ *  or the existing one is misaligned: a room reopening WITHIN the same
+ *  version window (close + reopen before the version write) must keep its
+ *  accumulated tombstones. */
+export function ensureSlideElementLedger(
+  projectId: string,
+  slideId: string,
+  elementKey: string,
+  body: string,
+): void {
+  const k = slideElementLedgerKey(projectId, slideId, elementKey);
+  const existing = ledgers.get(k);
+  if (existing && existing.body === body) return;
+  ledgers.set(k, {
+    runs: body.length > 0 ? [{ len: body.length, email: null }] : [],
+    body,
+  });
+}
+
+/** Apply one element text delta. A missing ledger self-initializes: a pure
+ *  insert (brand-new text, e.g. a block created mid-session) starts from ""
+ *  so the writer is attributed; anything else starts from the post-state as
+ *  unknown (aligned for FUTURE deltas — this transaction's ops are lost,
+ *  never misattributed). */
+export function applySlideElementDelta(
+  projectId: string,
+  slideId: string,
+  elementKey: string,
+  delta: BodyDeltaOp[],
+  email: string | null,
+  postText: string,
+): void {
+  const k = slideElementLedgerKey(projectId, slideId, elementKey);
+  if (!ledgers.has(k)) {
+    const insertOnly = delta.length > 0 && delta.every((op) => "insert" in op);
+    ledgers.set(k, { runs: [], body: "" });
+    if (!insertOnly) {
+      ledgers.set(k, {
+        runs: postText.length > 0 ? [{ len: postText.length, email: null }] : [],
+        body: postText,
+      });
+      return;
+    }
+  }
+  applyDeltaToLedger(k, delta, email);
+}
+
+/** Freeze each element's runs for a deck version — validated against the
+ *  element texts actually being persisted (from the version's slide config),
+ *  so a misaligned ledger is dropped, never stored wrong. Elements whose runs
+ *  carry no information (single unknown-author live run, no tombstones) are
+ *  omitted. */
+export function snapshotSlideElementAuthors(
+  projectId: string,
+  slideId: string,
+  elementTexts: Record<string, string>,
+): Record<string, AuthorRun[]> {
+  const out: Record<string, AuthorRun[]> = {};
+  for (const [elementKey, body] of Object.entries(elementTexts)) {
+    const runs = runsForKey(
+      slideElementLedgerKey(projectId, slideId, elementKey),
+      body,
+    );
+    if (!runs || runs.length === 0) continue;
+    const informative = runs.some((r) => isTombstone(r) || r.email !== null);
+    if (informative) out[elementKey] = runs;
+  }
+  return out;
+}
+
+/** Drop tombstones on every element ledger of a slide — right after a deck
+ *  version snapshotted them (mirrors compactTombstones for reports). */
+export function compactSlideElementTombstones(
+  projectId: string,
+  slideId: string,
+): void {
+  const prefix = slideElementPrefix(projectId, slideId);
+  for (const k of ledgers.keys()) {
+    if (k.startsWith(prefix)) compactKey(k);
+  }
+}
+
+/** Discard all of a slide's element ledgers — the slide row was deleted or
+ *  replaced (nothing left to attribute). */
+export function dropSlideElementLedgers(
+  projectId: string,
+  slideId: string,
+): void {
+  const prefix = slideElementPrefix(projectId, slideId);
+  for (const k of [...ledgers.keys()]) {
+    if (k.startsWith(prefix)) ledgers.delete(k);
+  }
+}
+
+/** Room finalized (everyone left): drop only ledgers carrying NO information
+ *  (every run live with unknown author — view-only opens). Anything with
+ *  tombstones or attributed runs must survive until the deck version writes
+ *  (up to the empty-grace + idle window later); writeVersion compacts and
+ *  drops closed-room ledgers after the snapshot. */
+export function pruneUninformativeSlideElementLedgers(
+  projectId: string,
+  slideId: string,
+): void {
+  const prefix = slideElementPrefix(projectId, slideId);
+  for (const [k, ledger] of [...ledgers.entries()]) {
+    if (!k.startsWith(prefix)) continue;
+    const informative = ledger.runs.some(
+      (r) => isTombstone(r) || r.email !== null,
+    );
+    if (!informative) ledgers.delete(k);
+  }
 }

@@ -112,6 +112,13 @@ export type DeckSlideEditors = {
       elementsAdded?: Record<string, string[]>;
       elementsRemoved?: Record<string, string[]>;
       elementsTextDeleted?: Record<string, string[]>;
+      /** Per-character authorship of each text element at snapshot time
+       *  (element key -> runs incl. tombstones), the slide analogue of the
+       *  report body's `bodyAuthors`. Lets the element diff attribute EVERY
+       *  removed/added span to its exact author even when several people
+       *  deleted text in the same element during one session. Only elements
+       *  whose ledger was live, aligned and informative are included. */
+      elementAuthors?: Record<string, AuthorRun[]>;
     }
   >;
   settings?: string[];

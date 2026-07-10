@@ -105,6 +105,17 @@ function trackConnRoom(connectionId: string, key: string): void {
   set.add(key);
 }
 
+/** Whether a live room currently exists for the doc — lets the version writer
+ *  decide between compacting a still-open doc's ledgers and dropping a closed
+ *  one's. */
+export function isRoomOpen(
+  projectId: string,
+  docType: string,
+  docId: string,
+): boolean {
+  return rooms.has(roomKey(projectId, docType, docId));
+}
+
 function attachDoc(room: Room): void {
   room.doc.on("update", (update: Uint8Array, origin: unknown) => {
     const originConn = origin as RoomConn | undefined;

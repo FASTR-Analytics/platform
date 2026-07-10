@@ -327,6 +327,16 @@ export function findRootTextField(
 // (a RoomConn's identity for collab edits, applyToLiveRoom's versionEditor
 // tag for HTTP-routed writes). Attach AFTER the doc holds its initial content.
 
+/** One Y.Text delta within a transaction, tagged with its element key — the
+ *  raw material for the per-character authorship ledger (exact
+ *  retain/insert/delete ops, no diffing). `postText` is the text AFTER the
+ *  transaction, for ledgers that need to (re)align. */
+export type SlideTextDelta = {
+  elementKey: string;
+  delta: Array<{ retain: number } | { insert: string } | { delete: number }>;
+  postText: string;
+};
+
 export type SlideElementTouches = {
   /** Every element the transaction touched, in any way. */
   touched: string[];
@@ -337,6 +347,9 @@ export type SlideElementTouches = {
   /** Elements the transaction deleted TEXT from (Y.Text delete ops, or a
    *  root text field's key removed). */
   textDeleted: string[];
+  /** Every Y.Text delta in the transaction (inserts AND deletes — the
+   *  authorship ledger must see all of them to stay aligned). */
+  textDeltas: SlideTextDelta[];
 };
 
 export function observeSlideDocElements(
@@ -372,11 +385,32 @@ export function observeSlideDocElements(
     const added = new Set<string>();
     const removed = new Set<string>();
     const textDeleted = new Set<string>();
+    const textDeltas: SlideTextDelta[] = [];
     // Y.Text events carry delete ops in `delta`; map events leave it empty.
     const hasTextDelete = (event: Y.YEvent<Y.AbstractType<unknown>>): boolean =>
       event.changes.delta.some(
         (d) => typeof (d as { delete?: number }).delete === "number",
       );
+    // Collect a text event's ops for the authorship ledger (embeds count as
+    // one character, mirroring the report body observer).
+    const collectTextDelta = (
+      event: Y.YEvent<Y.AbstractType<unknown>>,
+      elementKey: string,
+    ): void => {
+      if (event.changes.delta.length === 0) return;
+      const ops: SlideTextDelta["delta"] = [];
+      for (const d of event.changes.delta as Array<Record<string, unknown>>) {
+        if (typeof d.retain === "number") ops.push({ retain: d.retain });
+        else if (typeof d.insert === "string") ops.push({ insert: d.insert });
+        else if (d.insert !== undefined) ops.push({ insert: " " });
+        else if (typeof d.delete === "number") ops.push({ delete: d.delete });
+      }
+      textDeltas.push({
+        elementKey,
+        delta: ops,
+        postText: (event.target as Y.Text).toString(),
+      });
+    };
     // Did any MAP event touch the layout subtree (or the root "layout" key)?
     // Only those can change the block inventory — text deltas never do, so
     // typing doesn't pay for the re-walk.
@@ -398,6 +432,7 @@ export function observeSlideDocElements(
         // A Y.Text event on a root text field.
         touched.add(`field:${path[0]}`);
         if (hasTextDelete(event)) textDeleted.add(`field:${path[0]}`);
+        collectTextDelta(event, `field:${path[0]}`);
       } else {
         if (event.changes.keys.size > 0) structural = true;
         // Layout subtree: the innermost node id is the element after the last
@@ -420,6 +455,7 @@ export function observeSlideDocElements(
           } else {
             touched.add(`block:${nodeId}`);
             if (hasTextDelete(event)) textDeleted.add(`block:${nodeId}`);
+            collectTextDelta(event, `block:${nodeId}`);
           }
         } else {
           touched.add("layout");
@@ -449,11 +485,75 @@ export function observeSlideDocElements(
           added: [...added],
           removed: [...removed],
           textDeleted: [...textDeleted],
+          textDeltas,
         },
         transaction.origin,
       );
     }
   });
+}
+
+// ── Text-element inventories (authorship ledger init + version snapshot) ────
+
+/** Every text element in a slide room's DOC with its current content —
+ *  element keys match the observer's ("field:<name>", "block:<id>"). */
+export function listSlideDocTextElements(
+  doc: Y.Doc,
+): Array<{ elementKey: string; text: string }> {
+  const root = doc.getMap<unknown>(ROOT_KEY);
+  const out: Array<{ elementKey: string; text: string }> = [];
+  for (const f of ALL_TEXT_FIELDS) {
+    const v = root.get(f);
+    if (v instanceof Y.Text) out.push({ elementKey: `field:${f}`, text: v.toString() });
+  }
+  const walk = (m: unknown): void => {
+    if (!(m instanceof Y.Map)) return;
+    if (m.get("type") === "item") {
+      const t = m.get("markdown");
+      const id = m.get("id");
+      if (t instanceof Y.Text && typeof id === "string") {
+        out.push({ elementKey: `block:${id}`, text: t.toString() });
+      }
+      return;
+    }
+    const children = m.get("children");
+    if (children instanceof Y.Map) {
+      for (const child of children.values()) walk(child);
+    }
+  };
+  walk(root.get("layout"));
+  return out;
+}
+
+/** Every text element in a slide CONFIG with its content — the version-write
+ *  counterpart of listSlideDocTextElements (validates ledger snapshots
+ *  against the texts actually being persisted). */
+export function listSlideConfigTextElements(
+  slide: Slide,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  const rec = slide as unknown as Record<string, unknown>;
+  for (const f of TEXT_FIELDS_BY_TYPE[slide.type] ?? []) {
+    if (typeof rec[f] === "string") out[`field:${f}`] = rec[f] as string;
+  }
+  if (slide.type === "content") {
+    const walk = (node: unknown): void => {
+      if (!node || typeof node !== "object") return;
+      const n = node as Record<string, unknown>;
+      if (n.type === "item") {
+        const data = n.data as Record<string, unknown> | undefined;
+        if (data?.type === "text" && typeof n.id === "string") {
+          out[`block:${n.id}`] = typeof data.markdown === "string"
+            ? data.markdown
+            : "";
+        }
+        return;
+      }
+      if (Array.isArray(n.children)) for (const c of n.children) walk(c);
+    };
+    walk(rec.layout);
+  }
+  return out;
 }
 
 // ── Navigation helper (for the editor / relay) ───────────────────────────────

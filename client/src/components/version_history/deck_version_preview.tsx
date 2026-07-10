@@ -1,4 +1,5 @@
 import {
+  type AuthorRun,
   canonicalJson,
   type DeckSlideEditors,
   type DeckVersionDetail,
@@ -66,6 +67,11 @@ type ElementRow = {
   removedLabel?: string;
   removedExact?: boolean;
   removedEmail?: string;
+  /** Per-character authorship of newText (runs incl. tombstones) — when
+   *  present the diff attributes EVERY span exactly, even with several
+   *  deleters in the same element. */
+  authors?: AuthorRun[];
+  authorNames?: Record<string, string>;
 };
 
 // One grid cell: a current slide (possibly badged New/Edited) or a ghost of a
@@ -193,8 +199,18 @@ export function DeckVersionPreview(p: {
             ...(touch.edited ?? []),
             ...(touch.added ?? []),
             ...(touch.removed ?? []),
+            ...Object.values(touch.elements ?? {}).flat(),
+            ...Object.values(touch.elementsAdded ?? {}).flat(),
+            ...Object.values(touch.elementsRemoved ?? {}).flat(),
+            ...Object.values(touch.elementsTextDeleted ?? {}).flat(),
           ]) {
             addName(email);
+          }
+          for (const runs of Object.values(touch.elementAuthors ?? {})) {
+            for (const r of runs) {
+              if (r.email) addName(r.email);
+              if (r.deletedBy) addName(r.deletedBy);
+            }
           }
         }
         for (const email of [...(se?.settings ?? []), ...(se?.reordered ?? [])]) {
@@ -313,6 +329,8 @@ export function DeckVersionPreview(p: {
               removedLabel: removedBy?.label,
               removedExact: removedBy?.exact,
               removedEmail: removedBy?.email,
+              authors: sl?.elementAuthors?.[ch.key],
+              authorNames: names,
             };
           });
         }
@@ -667,6 +685,11 @@ function ExpandedVersionSlideModal(
                           removedLabel: row.removedLabel,
                           removedLabelExact: row.removedExact,
                           removedLabelEmail: row.removedEmail,
+                          // Per-character runs (when the session ledger was
+                          // live) — exact per-span attribution via the ghost
+                          // path, ahead of the label fallbacks above.
+                          authors: row.authors,
+                          names: row.authorNames,
                         },
                       ])}
                     />

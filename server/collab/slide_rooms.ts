@@ -9,6 +9,7 @@
 // export names so the WS route and updateSlide route are unchanged.
 
 import {
+  listSlideDocTextElements,
   materializeSlide,
   observeSlideDocElements,
   seedSlideDoc,
@@ -16,6 +17,12 @@ import {
   syncSlideToDoc,
   type VersionEditor,
 } from "lib";
+import {
+  applySlideElementDelta,
+  dropSlideElementLedgers,
+  ensureSlideElementLedger,
+  pruneUninformativeSlideElementLedgers,
+} from "./authorship.ts";
 import { recordSlideElementTouch } from "./deck_session_ledger.ts";
 import {
   applyDocUpdate,
@@ -62,12 +69,30 @@ const slideAdapter: DocRoomAdapter<Slide> = {
   // classified (added / structurally removed / text deleted) so the version
   // diff can attribute deletions exactly instead of to every element editor.
   onDocCreated: (projectId, slideId, doc) => {
+    // Per-character authorship: one ledger per text element (the slide
+    // analogue of the report body ledger — exact per-span deletion
+    // attribution even when several people delete in the same textbox).
+    for (const { elementKey, text } of listSlideDocTextElements(doc)) {
+      ensureSlideElementLedger(projectId, slideId, elementKey, text);
+    }
     observeSlideDocElements(doc, (touches, origin) => {
       const o = origin as
         | { identity?: VersionEditor; versionEditor?: VersionEditor }
         | null
         | undefined;
       const email = o?.identity?.email ?? o?.versionEditor?.email ?? null;
+      // The ledger must see EVERY text delta (inserts too) to stay aligned —
+      // unattributed writes (restores) apply with email null.
+      for (const td of touches.textDeltas) {
+        applySlideElementDelta(
+          projectId,
+          slideId,
+          td.elementKey,
+          td.delta,
+          email,
+          td.postText,
+        );
+      }
       if (email === null) return;
       for (const elementKey of touches.touched) {
         recordSlideElementTouch(projectId, slideId, elementKey, email);
@@ -95,6 +120,11 @@ const slideAdapter: DocRoomAdapter<Slide> = {
       }
     });
   },
+  // Room finalized ≠ version written (the empty-grace window runs after):
+  // ledgers with attribution must survive for the snapshot; only view-only
+  // (uninformative) ones drop here. writeVersion compacts/drops the rest.
+  onDocClosed: (projectId, slideId) =>
+    pruneUninformativeSlideElementLedgers(projectId, slideId),
 };
 
 export type SlideRoomDeps = {
@@ -184,6 +214,9 @@ export function closeSlideRoom(
   message: string,
 ): void {
   closeRoomsForDoc(projectId, DOC_TYPE, slideId, message);
+  // The slide row is gone/replaced — its text authorship has nothing left to
+  // attribute (deletion of the whole slide is attributed at slide level).
+  dropSlideElementLedgers(projectId, slideId);
 }
 
 /** Route a non-collab slide save through a live room, if one exists (see

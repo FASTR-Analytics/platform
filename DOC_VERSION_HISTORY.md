@@ -275,13 +275,25 @@ preferring live `projectState.projectUsers` over the stored capture-time name,
   (or the root layout key) trigger the re-walk — typing never pays for it.
   The preview resolves a removed/added element row from its exact bucket
   first, so a block Bob deleted after Alice edited it reads "removed by
-  Bob B", not "removed by one of: Alice, Bob"; and an edited row's inline
-  diff passes the element's deleter set as `removedLabel` into
-  `computeAttributedDiff`, which attributes REMOVED spans to it (exact only
-  for a single deleter — two deleters can't be told apart per span) while
-  ADDED spans keep the element-editor label. Reports don't use
-  `removedLabel` — their per-character tombstones in `authors` are strictly
-  more precise and still take priority in the ghost-alignment path.
+  Bob B", not "removed by one of: Alice, Bob".
+  **Per-character text authorship (slide element ledgers)**: every text
+  element additionally gets a run-length authorship ledger — the report body
+  machinery in [server/collab/authorship.ts](server/collab/authorship.ts)
+  keyed per (slide, element), fed by the observer's `textDeltas` (every
+  insert AND delete, so the mirror stays aligned; misalignment poisons the
+  ledger, which is then dropped, never stored wrong). Deletions become
+  text-carrying tombstones; `snapshotSlideElementAuthors` freezes them into
+  `slide_editors.slides[id].elementAuthors` at version write (validated
+  against the persisted texts), and the element diff hands them to
+  `computeAttributedDiff` as `authors` — the same ghost-alignment path as
+  report diffs — so even TWO people deleting in the SAME textbox each get
+  their own exactly-attributed spans. Fallback layering per removed span:
+  `authors` ghost (per-span exact) → `removedLabel` (element deleter set) →
+  session label. Unlike report bodies these ledgers are in-memory only
+  (accepted restart window): kept alive from room create through the
+  version write (room close only prunes uninformative ones), compacted
+  after the version insert succeeds, dropped when the room is gone
+  (`isRoomOpen`) or the slide row is deleted.
   Whole-slide deletion was already exact: the deleteSlides route records the
   deleting user in the slide-level `removed` bucket (the ghost badge reads
   it), independent of who edited the slide beforehand.
@@ -336,6 +348,13 @@ overflow menu.
   removed spans (exact single deleter, inexact multi-deleter, email carry),
   added spans keeping the editor label, no-override fallback unchanged, and
   the report tombstone path still winning over labels.
+- `same_textbox_deletions` harness (server + client halves, 14 asserts):
+  two users deleting different sentences from the SAME textbox through the
+  real room pipeline → two text-carrying tombstones with distinct deleters,
+  live runs covering exactly the final text, compact starting a fresh
+  window; the captured runs then fed to the real `computeAttributedDiff` →
+  each sentence attributed exactly to its own deleter (name + email/color),
+  beating both label fallbacks.
 - `version_diff` harness (46 asserts incl. 200-chain fuzz): current-doc
   reassembly, base-char coverage, per-session attribution (replacements,
   later-deletes, edits inside earlier insertions), author-run splitting

@@ -27,15 +27,22 @@ import {
   type FigureBlock,
   type GlobalUser,
   type ImageBlock,
+  listSlideConfigTextElements,
   type SlideDeckConfig,
   type VersionEditor,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
-import { compactTombstones } from "./authorship.ts";
+import {
+  compactSlideElementTombstones,
+  compactTombstones,
+  dropSlideElementLedgers,
+  snapshotSlideElementAuthors,
+} from "./authorship.ts";
 import {
   drainDeckLedger,
   restoreDeckLedger,
 } from "./deck_session_ledger.ts";
+import { isRoomOpen } from "./doc_rooms.ts";
 import {
   getReportBodyAuthors,
   getReportDetail,
@@ -205,6 +212,22 @@ async function writeVersion(
   // Freeze the per-slide session ledger into this version; a failed insert
   // merges it back so the attribution retries with the next write.
   const slideEditors = drainDeckLedger(projectId, docId);
+  // Per-character text authorship: freeze each edited slide's element
+  // ledgers alongside, validated against the texts being persisted. On a
+  // failed insert the ledgers are untouched (not compacted), so the retry
+  // re-snapshots them.
+  if (slideEditors) {
+    for (const s of data.slides) {
+      const sl = slideEditors.slides[s.id];
+      if (!sl) continue;
+      const authors = snapshotSlideElementAuthors(
+        projectId,
+        s.id,
+        listSlideConfigTextElements(s.config),
+      );
+      if (Object.keys(authors).length > 0) sl.elementAuthors = authors;
+    }
+  }
   const res = await insertDeckVersion(projectDb, {
     deckId: docId,
     createdAt,
@@ -217,8 +240,17 @@ async function writeVersion(
   });
   if (!res.success) {
     restoreDeckLedger(projectId, docId, slideEditors);
+    return false;
   }
-  return res.success;
+  // This version captured the element tombstones — start the next window.
+  // Closed rooms have no future to attribute; drop their ledgers entirely.
+  for (const s of data.slides) {
+    compactSlideElementTombstones(projectId, s.id);
+    if (!isRoomOpen(projectId, "slide", s.id)) {
+      dropSlideElementLedgers(projectId, s.id);
+    }
+  }
+  return true;
 }
 
 const tracker = createVersionTracker({
