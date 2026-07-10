@@ -22,6 +22,7 @@ globs:
   - server/module_loader/**
   - server/routes/instance/modules.ts
   - server/routes/project/modules.ts
+  - server/runs/**
   - server/server_only_funcs/**
   - server/server_only_types/**
   - server/task_management/get_dependents.ts

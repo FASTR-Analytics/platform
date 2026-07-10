@@ -25,6 +25,12 @@
 // (raw R CSV → parquet) against Postgres ingest, the Phase-1 finalize-parity
 // check. Off by default because sandbox files can be stale vs the pg tables.
 //
+// --runs: query the project's ATTACHED RUN (runs/<runId>/query/*.parquet +
+// inputs facilities parquet) — exactly the files the Phase-1 read path will
+// serve. This is the fleet cutover gate over backfilled synthetic runs. No
+// pg-export fallback for results objects: a missing run parquet must surface
+// as a diff, not be papered over.
+//
 // Zero DIFF rows = parity green for this instance.
 // =============================================================================
 
@@ -58,6 +64,7 @@ import {
   writeParquetFromCsv,
   type ParquetView,
 } from "./server/run_query/mod.ts";
+import { runDirPath, runInputFilePath, runQueryParquetPath } from "./server/runs/mod.ts";
 
 const REL_EPSILON = 1e-9;
 const PG_NULL_SENTINEL = "__PG_NULL__";
@@ -71,6 +78,10 @@ const onlyProjectId = ((): string | undefined => {
 })();
 const keepWorkDir = Deno.args.includes("--keep-work-dir");
 const useSandboxParquet = Deno.args.includes("--sandbox-parquet");
+const useRuns = Deno.args.includes("--runs");
+if (useSandboxParquet && useRuns) {
+  throw new Error("--sandbox-parquet and --runs are mutually exclusive");
+}
 
 // ── Result bookkeeping ────────────────────────────────────────────────────────
 
@@ -102,23 +113,28 @@ class ProjectShadow {
   constructor(
     private projectDb: Sql,
     private workDir: string,
+    readonly runDir: string | undefined,
   ) {}
 
   async ensureTable(
     tableName: string,
-    finalizeParquetCandidate?: string,
+    candidate?: { path: string; exclusive: boolean },
   ): Promise<void> {
     if (this.parquetByTable.has(tableName) || this.missingTables.has(tableName)) {
       return;
     }
-    if (useSandboxParquet && finalizeParquetCandidate) {
-      const exists = await Deno.stat(finalizeParquetCandidate).then(
+    if (candidate) {
+      const exists = await Deno.stat(candidate.path).then(
         (s) => s.isFile,
         () => false,
       );
       if (exists) {
-        this.parquetByTable.set(tableName, finalizeParquetCandidate);
+        this.parquetByTable.set(tableName, candidate.path);
         this.finalizeRouteTables++;
+        return;
+      }
+      if (candidate.exclusive) {
+        this.missingTables.add(tableName);
         return;
       }
     }
@@ -437,12 +453,28 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
     return;
   }
 
-  await shadow.ensureTable(
-    roTableName,
-    join(_SANDBOX_DIR_PATH, projectId, moduleRow!.module_id, `${resultsValue.resultsObjectId}.parquet`),
-  );
-  await shadow.ensureTable("facilities_hmis");
-  await shadow.ensureTable("facilities_hfa");
+  const roCandidate = useRuns
+    ? shadow.runDir
+      ? { path: runQueryParquetPath(shadow.runDir, resultsValue.resultsObjectId), exclusive: true }
+      : undefined
+    : useSandboxParquet
+      ? {
+          path: join(
+            _SANDBOX_DIR_PATH,
+            projectId,
+            moduleRow!.module_id,
+            `${resultsValue.resultsObjectId}.parquet`,
+          ),
+          exclusive: false,
+        }
+      : undefined;
+  const facilitiesCandidate = (table: string) =>
+    useRuns && shadow.runDir
+      ? { path: runInputFilePath(shadow.runDir, `${table}.parquet`), exclusive: true }
+      : undefined;
+  await shadow.ensureTable(roTableName, roCandidate);
+  await shadow.ensureTable("facilities_hmis", facilitiesCandidate("facilities_hmis"));
+  await shadow.ensureTable("facilities_hfa", facilitiesCandidate("facilities_hfa"));
 
   // Resolve the default replicant like the client does, so the items query is
   // a real pane, not the degenerate UNSELECTED pin.
@@ -583,8 +615,10 @@ async function main() {
   console.log(`Parquet work dir: ${workDirRoot}${keepWorkDir ? " (kept)" : ""}`);
 
   const mainDb = getPgConnection("main", { max: 4 });
-  const projects = await mainDb<{ id: string; label: string; status: string }[]>`
-SELECT id, label, status FROM projects ORDER BY label
+  const projects = await mainDb<
+    { id: string; label: string; status: string; run_id: string | null }[]
+  >`
+SELECT id, label, status, run_id FROM projects ORDER BY label
 `;
   const targets = projects.filter(
     (p) => p.status === "ready" && (!onlyProjectId || p.id === onlyProjectId),
@@ -592,10 +626,18 @@ SELECT id, label, status FROM projects ORDER BY label
   console.log(`Projects: ${targets.length} (of ${projects.length})`);
 
   for (const project of targets) {
+    if (useRuns && project.run_id === null) {
+      console.log(`\n── ${project.label} (${project.id.slice(0, 8)}): NO RUN ATTACHED — skipped`);
+      continue;
+    }
     const projectDb = getPgConnection(project.id, { max: 4 });
     const workDir = join(workDirRoot, project.id);
     await Deno.mkdir(workDir, { recursive: true });
-    const shadow = new ProjectShadow(projectDb, workDir);
+    const shadow = new ProjectShadow(
+      projectDb,
+      workDir,
+      project.run_id === null ? undefined : runDirPath(project.run_id),
+    );
     const hybridDb = makeHybridDb(projectDb, shadow);
     const metricInfoDone = new Set<string>();
     try {
@@ -621,9 +663,9 @@ SELECT id, label FROM presentation_objects ORDER BY label
       }
       const projectResults = allResults.filter((r) => r.projectId === project.id);
       summarize(projectResults, "   ");
-      if (useSandboxParquet) {
+      if (useSandboxParquet || useRuns) {
         console.log(
-          `   parquet routes: finalize=${shadow.finalizeRouteTables} pg-export=${shadow.pgExportRouteTables}`,
+          `   parquet routes: ${useRuns ? "run" : "finalize"}=${shadow.finalizeRouteTables} pg-export=${shadow.pgExportRouteTables}`,
         );
       }
     } finally {

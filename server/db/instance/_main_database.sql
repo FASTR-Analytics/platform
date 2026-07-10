@@ -39,6 +39,19 @@ CREATE TABLE users (
   is_contact_person boolean NOT NULL DEFAULT false
 );
 
+-- Results runs catalog (PLAN_RESULTS_RUNS §2.6).
+-- status: generating | ready | failed | retired. A referenced run is
+-- undeletable via the projects.run_id FK (no cascade).
+CREATE TABLE runs (
+  id text PRIMARY KEY NOT NULL,
+  label text NOT NULL,
+  status text NOT NULL DEFAULT 'generating',
+  provenance text NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by text,
+  summary text
+);
+
 CREATE TABLE projects (
   id text PRIMARY KEY NOT NULL,
   label text NOT NULL,
@@ -46,7 +59,9 @@ CREATE TABLE projects (
   is_locked boolean NOT NULL DEFAULT FALSE,
   is_central_reporting boolean NOT NULL DEFAULT FALSE,
   status text NOT NULL DEFAULT 'ready',
-  deletion_scheduled_at TIMESTAMPTZ
+  deletion_scheduled_at TIMESTAMPTZ,
+  run_id text,
+  FOREIGN KEY (run_id) REFERENCES runs(id)
 );
 
 CREATE TABLE user_logs (

@@ -20,6 +20,43 @@ import { DBMetric } from "./_project_database_types.ts";
  * disaggregation options based on what columns are available in the results object table.
  */
 
+// Single source of the probe lists — the run-manifest availability derivation
+// (server/runs/) must gate on exactly the same columns as this live probe path.
+export const PHYSICAL_DISAGGREGATION_COLUMNS: DisaggregationOption[] = [
+  "admin_area_2",
+  "admin_area_3",
+  "admin_area_4",
+  "indicator_common_id",
+  "denominator",
+  "denominator_best_or_survey",
+  "source_indicator",
+  "target_population",
+  "ratio_type",
+  "hfa_indicator",
+  "hfa_category",
+  "hfa_sub_category",
+  "hfa_service_category",
+  "time_point",
+  "iceh_indicator",
+  "strat",
+  "level",
+];
+
+export function getEnabledFacilityDisaggregationOptions(
+  facilityConfig: InstanceConfigFacilityColumns,
+): DisaggregationOption[] {
+  const facilityOptions: { option: DisaggregationOption; enabled: boolean }[] = [
+    { option: "facility_type", enabled: facilityConfig.includeTypes },
+    { option: "facility_ownership", enabled: facilityConfig.includeOwnership },
+    { option: "facility_custom_1", enabled: facilityConfig.includeCustom1 },
+    { option: "facility_custom_2", enabled: facilityConfig.includeCustom2 },
+    { option: "facility_custom_3", enabled: facilityConfig.includeCustom3 },
+    { option: "facility_custom_4", enabled: facilityConfig.includeCustom4 },
+    { option: "facility_custom_5", enabled: facilityConfig.includeCustom5 },
+  ];
+  return facilityOptions.filter((f) => f.enabled).map((f) => f.option);
+}
+
 export async function enrichMetric(
   dbMetric: DBMetric,
   projectDb: Sql,
@@ -87,27 +124,7 @@ async function buildDisaggregationOptions(
   const out: ResultsValue["disaggregationOptions"] = [];
   const tableName = getResultsObjectTableName(resultsObjectId);
 
-  const physicalColumnsToCheck: DisaggregationOption[] = [
-    "admin_area_2",
-    "admin_area_3",
-    "admin_area_4",
-    "indicator_common_id",
-    "denominator",
-    "denominator_best_or_survey",
-    "source_indicator",
-    "target_population",
-    "ratio_type",
-    "hfa_indicator",
-    "hfa_category",
-    "hfa_sub_category",
-    "hfa_service_category",
-    "time_point",
-    "iceh_indicator",
-    "strat",
-    "level",
-  ];
-
-  for (const disOpt of physicalColumnsToCheck) {
+  for (const disOpt of PHYSICAL_DISAGGREGATION_COLUMNS) {
     if (await detectColumnExists(projectDb, tableName, disOpt)) {
       out.push({
         value: disOpt,
@@ -120,28 +137,12 @@ async function buildDisaggregationOptions(
 
   if (facilityConfig) {
     if (hasFacilityId) {
-      const facilityOptions: {
-        option: DisaggregationOption;
-        enabled: boolean;
-      }[] = [
-        { option: "facility_type", enabled: facilityConfig.includeTypes },
-        {
-          option: "facility_ownership",
-          enabled: facilityConfig.includeOwnership,
-        },
-        { option: "facility_custom_1", enabled: facilityConfig.includeCustom1 },
-        { option: "facility_custom_2", enabled: facilityConfig.includeCustom2 },
-        { option: "facility_custom_3", enabled: facilityConfig.includeCustom3 },
-        { option: "facility_custom_4", enabled: facilityConfig.includeCustom4 },
-        { option: "facility_custom_5", enabled: facilityConfig.includeCustom5 },
-      ];
-      for (const f of facilityOptions) {
-        if (!f.enabled) continue;
+      for (const option of getEnabledFacilityDisaggregationOptions(facilityConfig)) {
         out.push({
-          value: f.option,
-          isRequired: requiredOptions.includes(f.option),
+          value: option,
+          isRequired: requiredOptions.includes(option),
           allowedPresentationOptions:
-            getDisaggregationAllowedPresentationOptions(f.option),
+            getDisaggregationAllowedPresentationOptions(option),
         });
       }
     }

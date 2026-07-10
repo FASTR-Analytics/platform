@@ -28,6 +28,7 @@ COPY main.ts main.ts
 
 RUN mkdir /app/databases
 RUN mkdir /app/sandbox
+RUN mkdir /app/runs
 
 # ==============================================================================
 # Environment Variables
@@ -44,6 +45,7 @@ ENV IS_PRODUCTION=true
 ENV SANDBOX_DIR_PATH=/app/sandbox
 ENV SANDBOX_DIR_PATH_POSTGRES_INTERNAL=/app/sandbox
 ENV ASSETS_DIR_PATH=/app/assets
+ENV RUNS_DIR_PATH=/app/runs
 
 # Instance-specific variables passed at runtime (NOT hardcoded here):
 # - PORT
