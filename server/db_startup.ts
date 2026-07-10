@@ -8,7 +8,11 @@ import {
   type InstanceConfigMaxAdminArea,
 } from "lib";
 import { uninstallModule } from "./db/project/modules.ts";
-import { sweepAbandonedTmpRunDirs, synthesizeRunForProject } from "./runs/mod.ts";
+import {
+  packageDirPath,
+  packageManifestPath,
+  refreshSandboxPackage,
+} from "./runs/mod.ts";
 import { getCountryIso3Config } from "./db/instance/config.ts";
 import {
   runInstanceMigrations,
@@ -74,11 +78,9 @@ ${userInserts}
     ? (countryRes.data.countryIso3 ?? "")
     : "";
 
-  await sweepAbandonedTmpRunDirs();
-
   const projects = await sqlMain<
-    { id: string; label: string; run_id: string | null }[]
-  >`SELECT id, label, run_id FROM projects`;
+    { id: string; label: string }[]
+  >`SELECT id, label FROM projects`;
   for (const project of projects) {
     const projectDb = getPgConnectionFromCacheOrNew(
       project.id,
@@ -105,21 +107,24 @@ ${userInserts}
     // =========================================================================
     await cleanupOrphanedPresentationObjects(projectDb);
 
-    // Results-runs backfill (PLAN_RESULTS_RUNS §4 Phase 1): synthesize one
-    // query-only run per project that has none. Additive — a failure logs
-    // loudly but never blocks boot while RESULTS_READ_PATH=postgres serves.
-    if (project.run_id === null) {
+    // Deploy-1 boot migration (PLAN_RESULTS_RUNS Status "Deploy 1"): build
+    // the results package for every project that has no manifest yet.
+    // Staleness is healed lazily per request (stamp mismatch), so packaged
+    // projects are left alone. A failure logs loudly and never blocks boot —
+    // that project's reads fail until a refresh succeeds.
+    const hasManifest = await Deno.stat(
+      packageManifestPath(packageDirPath(project.id)),
+    ).then(
+      (s) => s.isFile,
+      () => false,
+    );
+    if (!hasManifest) {
       try {
-        const { runId } = await synthesizeRunForProject(
-          sqlMain,
-          projectDb,
-          project.id,
-          project.label,
-        );
-        console.log(`[runs] backfilled run ${runId} for project ${project.id}`);
+        await refreshSandboxPackage(sqlMain, projectDb, project.id);
+        console.log(`[package] built package for project ${project.id}`);
       } catch (e) {
         console.error(
-          `[runs] BACKFILL FAILED for project ${project.id}: ${
+          `[package] BOOT BUILD FAILED for project ${project.id}: ${
             e instanceof Error ? e.message : e
           }`,
         );

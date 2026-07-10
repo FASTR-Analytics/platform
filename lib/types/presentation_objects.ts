@@ -60,9 +60,6 @@ export type PresentationObjectDetail = {
   config: PresentationObjectConfig;
   isDefault: boolean;
   folderId: string | null;
-  // Present when resultsValue was resolved from a results run — folded into
-  // the po_detail cache version (PLAN_RESULTS_RUNS §2.5).
-  runId?: string;
 };
 
 export type PeriodBounds = {
@@ -104,8 +101,6 @@ export type ResultsValueInfoForPresentationObject = {
   // datasets.last_updated) independently of moduleLastRun, so the cache versions
   // on it too. Carried here so parseData can reproduce the version hash.
   datasetsVersion: string;
-  // Present when served from a results run — see ItemsHolderPresentationObject.
-  runId?: string;
   periodBounds?: PeriodBounds;
   disaggregationPossibleValues: {
     [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
@@ -123,8 +118,6 @@ export type ReplicantOptionsForPresentationObject = {
   // integration (bumps datasets.last_updated) independently of moduleLastRun, so
   // the cache versions on it too. Carried here so parseData can reproduce it.
   datasetsVersion: string;
-  // Present when served from a results run — see ItemsHolderPresentationObject.
-  runId?: string;
 } & (
   | {
       status: "ok";

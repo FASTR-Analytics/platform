@@ -41,6 +41,7 @@ import {
   getMetricsWithStatus,
   installModule,
 } from "./modules.ts";
+import { refreshSandboxPackageSafe } from "../../runs/mod.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
 import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
@@ -1080,6 +1081,16 @@ export async function copyProjectInBackground(
         throw e;
       }
     }
+
+    // Eager finalize (PLAN_RESULTS_RUNS §3.8): the sandbox copy carried the
+    // SOURCE project's manifest — rewrite it under the new project's identity
+    // before the project goes ready (the self-heal's projectId check is the
+    // backstop if this fails).
+    await refreshSandboxPackageSafe(
+      dedicatedDb,
+      getPgConnectionFromCacheOrNew(newProjectId, "READ_AND_WRITE"),
+      newProjectId,
+    );
 
     await dedicatedDb`UPDATE projects SET status = 'ready' WHERE id = ${newProjectId}`;
     console.log(`Copy project completed: ${newProjectId}`);

@@ -22,13 +22,15 @@
 // --sandbox-parquet: where the ingest-written parquet shadow exists in the
 // sandbox ({roId}.csv.parquet beside the raw CSV), query THAT file instead of
 // a fresh Postgres export — this diffs the finalize normalization route
-// (raw R CSV → parquet) against Postgres ingest, the Phase-1 finalize-parity
-// check. Off by default because sandbox files can be stale vs the pg tables.
+// (raw R CSV → parquet) against Postgres ingest. Off by default because
+// sandbox files can be stale vs the pg tables.
 //
-// --runs: run the REAL runs serving path (the run wrappers in
-// server/run_query/run_read.ts over the project's attached run — manifest
-// context, no probes) against the legacy Postgres path. This is the fleet
-// cutover gate for RESULTS_READ_PATH=runs.
+// --package: run the REAL serving path (the package wrappers in
+// server/run_query/run_read.ts over the project's results package — manifest
+// context, no probes) against the legacy Postgres baseline. READ-ONLY: the
+// manifest is read directly (no self-heal refresh), and projects without a
+// package are skipped — build packages first (server boot, or
+// build_results_packages.ts). This is the Deploy-1 per-instance rollout gate.
 //
 // Zero DIFF rows = parity green for this instance.
 // =============================================================================
@@ -67,9 +69,9 @@ import {
   getPossibleValuesFromRun,
   getPresentationObjectItemsFromRun,
   getResultsValueInfoFromRun,
-  getRunReadContextForProject,
   type RunReadContext,
 } from "./server/run_query/mod.ts";
+import { getPackageManifestCached, packageDirPath } from "./server/runs/mod.ts";
 
 const REL_EPSILON = 1e-9;
 const PG_NULL_SENTINEL = "__PG_NULL__";
@@ -83,9 +85,9 @@ const onlyProjectId = ((): string | undefined => {
 })();
 const keepWorkDir = Deno.args.includes("--keep-work-dir");
 const useSandboxParquet = Deno.args.includes("--sandbox-parquet");
-const useRuns = Deno.args.includes("--runs");
-if (useSandboxParquet && useRuns) {
-  throw new Error("--sandbox-parquet and --runs are mutually exclusive");
+const usePackage = Deno.args.includes("--package");
+if (useSandboxParquet && usePackage) {
+  throw new Error("--sandbox-parquet and --package are mutually exclusive");
 }
 
 // ── Result bookkeeping ────────────────────────────────────────────────────────
@@ -347,7 +349,7 @@ function diffPossibleValueSets(
   }
   if (pgIds.join("") !== duckIds.join("")) {
     warnings.push(
-      `${context}: same membership, different order (text-collation delta — TS re-sort lands with the Phase 1 flip)`,
+      `${context}: same membership, different order (unexpected — the pinned TS re-sort in getPossibleValuesCore should make both engines emit identical order)`,
     );
   }
   return undefined;
@@ -458,8 +460,8 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
     return;
   }
 
-  // In --runs mode the duck side is the real run wrappers over the attached
-  // run — no shadow parquet needed. Other modes build the hybrid shadow.
+  // In --package mode the duck side is the real package wrappers — no shadow
+  // parquet needed. Other modes build the hybrid shadow.
   if (!runCtx) {
     const roCandidate = useSandboxParquet
       ? {
@@ -629,9 +631,9 @@ async function main() {
 
   const mainDb = getPgConnection("main", { max: 4 });
   const projects = await mainDb<
-    { id: string; label: string; status: string; run_id: string | null }[]
+    { id: string; label: string; status: string }[]
   >`
-SELECT id, label, status, run_id FROM projects ORDER BY label
+SELECT id, label, status FROM projects ORDER BY label
 `;
   const targets = projects.filter(
     (p) => p.status === "ready" && (!onlyProjectId || p.id === onlyProjectId),
@@ -639,18 +641,24 @@ SELECT id, label, status, run_id FROM projects ORDER BY label
   console.log(`Projects: ${targets.length} (of ${projects.length})`);
 
   for (const project of targets) {
-    if (useRuns && project.run_id === null) {
-      console.log(`\n── ${project.label} (${project.id.slice(0, 8)}): NO RUN ATTACHED — skipped`);
-      continue;
+    let runCtx: RunReadContext | undefined;
+    if (usePackage) {
+      const manifest = await getPackageManifestCached(project.id);
+      if (manifest === undefined) {
+        console.log(`\n── ${project.label} (${project.id.slice(0, 8)}): NO PACKAGE — skipped`);
+        continue;
+      }
+      runCtx = {
+        projectId: project.id,
+        packageDir: packageDirPath(project.id),
+        manifest,
+      };
     }
     const projectDb = getPgConnection(project.id, { max: 4 });
     const workDir = join(workDirRoot, project.id);
     await Deno.mkdir(workDir, { recursive: true });
     const shadow = new ProjectShadow(projectDb, workDir);
     const hybridDb = makeHybridDb(projectDb, shadow);
-    const runCtx = useRuns
-      ? await getRunReadContextForProject(mainDb, project.id)
-      : undefined;
     const metricInfoDone = new Set<string>();
     try {
       const pos = await projectDb<{ id: string; label: string }[]>`

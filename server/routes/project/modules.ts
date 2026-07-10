@@ -2,13 +2,13 @@ import { join } from "@std/path";
 import { Hono } from "hono";
 import {
   _MODULE_LOG_FILE_NAME,
-  _RESULTS_READ_PATH,
   _SANDBOX_DIR_PATH,
 } from "../../exposed_env_vars.ts";
 import {
+  getPackageReadContext,
   getResultsObjectItemsFromRun,
-  getRunReadContextForProject,
 } from "../../run_query/mod.ts";
+import { refreshSandboxPackageSafe } from "../../runs/mod.ts";
 import {
   getAllCalculatedIndicatorsFromSnapshot,
   getAllHfaIndicatorCodeFromSnapshot,
@@ -23,7 +23,6 @@ import {
   getModuleDetail,
   getModuleWithConfigSelections,
   // getModuleParameters,
-  getResultsObjectItems,
   installModule,
   uninstallModule,
   updateModuleDefinition,
@@ -90,6 +89,13 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
+    // Eager finalize (PLAN_RESULTS_RUNS §3.8) — module install/uninstall/
+    // param/definition changes are project-level acts.
+    await refreshSandboxPackageSafe(
+      c.var.mainDb,
+      c.var.ppk.projectDb,
+      c.var.ppk.projectId,
+    );
     await setModuleDirty(c.var.ppk, params.module_id);
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -159,6 +165,11 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
+    await refreshSandboxPackageSafe(
+      c.var.mainDb,
+      c.var.ppk.projectDb,
+      c.var.ppk.projectId,
+    );
     const [modulesRes, metricsRes] = await Promise.all([
       getAllModulesForProject(c.var.ppk.projectDb),
       getMetricsWithStatus(c.var.mainDb, c.var.ppk.projectDb),
@@ -199,6 +210,11 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
+    await refreshSandboxPackageSafe(
+      c.var.mainDb,
+      c.var.ppk.projectDb,
+      c.var.ppk.projectId,
+    );
 
     // If rerun requested, notify task manager
     if (body.rerun) {
@@ -257,6 +273,11 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
+    await refreshSandboxPackageSafe(
+      c.var.mainDb,
+      c.var.ppk.projectDb,
+      c.var.ppk.projectId,
+    );
     await setModuleDirty(c.var.ppk, params.module_id);
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -304,26 +325,14 @@ defineRoute(
   requireProjectPermission(),
   log("getResultsObjectItems"),
   async (c, { params }) => {
-    if (_RESULTS_READ_PATH === "runs") {
-      const runCtx = await getRunReadContextForProject(
-        c.var.mainDb,
-        c.var.ppk.projectId,
-      );
-      if (!runCtx) {
-        return c.json({
-          success: false,
-          err: "No results run is attached to this project",
-        });
-      }
-      const res = await getResultsObjectItemsFromRun(
-        runCtx,
-        params.results_object_id,
-        _DATASET_LIMIT,
-      );
-      return c.json(res);
-    }
-    const res = await getResultsObjectItems(
+    const ctxRes = await getPackageReadContext(
+      c.var.mainDb,
       c.var.ppk.projectDb,
+      c.var.ppk.projectId,
+    );
+    if (ctxRes.success === false) return c.json(ctxRes);
+    const res = await getResultsObjectItemsFromRun(
+      ctxRes.data,
       params.results_object_id,
       _DATASET_LIMIT,
     );

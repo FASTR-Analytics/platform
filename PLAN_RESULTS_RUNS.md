@@ -76,7 +76,8 @@ DuckDB adapter (`server/run_query/`), golden-diff rig
 (`validate_results_runs_parity.ts`), and ingest shadow-writing the
 normalized `{roId}.parquet` beside every raw CSV on every module run.
 
-**Deploy 1 (= Phase 1) — the package plane. No identity. ← NEXT**
+**Deploy 1 (= Phase 1) — the package plane. No identity. ← CODE-COMPLETE;
+NEXT = rollout**
 
 - Ships: eager finalize + its project-level hooks (module-run completion,
   data-in-project export/attach, module install/uninstall/param change,
@@ -124,55 +125,57 @@ demolition + docs**: unchanged from the original spec (§4 below).
 
 ### What is already built
 
-Branch `results-runs` (commits `c9750cf2`, `76d9adc4`, `3db4ef0e`,
-`b22bda9e`):
+Branch `results-runs`. **Deploy 1 is code-complete (re-fit landed
+2026-07-10); what remains is rollout** (trial prod instance → rig there →
+fleet, per "Rollout" below — the Ethiopia rig run is the Ethiopian-quarter
+gate).
 
 - `server/run_query/` (S9): `duckdb_executor.ts` (cold instance per call,
   integer_division, BigInt→number), `csv_to_parquet.ts` (declared types,
   `allow_quoted_nulls=false`), `pg_type_map.ts`,
-  `write_results_object_parquet.ts` (the four ingest normalizations; invoked
-  as the ingest shadow-write), `run_read.ts` (the complete package/run read
-  path: manifest query context, indicator metadata from input files, metric
-  enrichment from stamps, po_detail, raw preview).
-- `server/runs/` (S8): `run_paths.ts`, `pg_export.ts` (cursor→CSV→parquet,
-  `__PG_NULL__` sentinel), `synthetic_backfill.ts`,
-  `disaggregation_availability.ts` (pure twin of the enricher probe loop,
-  sharing the enricher's exported column lists), `manifest_cache.ts`.
-- `lib/types/run_manifest.ts` (schema v1); migration `056_add_runs.sql`;
-  `RUNS_DIR_PATH` + `RESULTS_READ_PATH` in `exposed_env_vars.ts`; route
-  branches + run-keyed cache identities in
-  `routes/project/presentation_objects.ts` / `routes/caches/
-  visualizations.ts` / `routes/project/modules.ts`.
+  `write_results_object_parquet.ts` (the four ingest normalizations —
+  invoked as the ingest shadow-write — plus the shared
+  `computeResultsObjectColumnsToExclude` drop rule the pg ingest also
+  uses), `run_read.ts` (the complete package read path: `RunReadContext`
+  resolves `sandbox/{projectId}` via `getPackageReadContext`, which is also
+  the per-request stamp-mismatch self-heal — manifest projectId + per-module
+  lastRunAt + dataset stamps vs the live project DB, full finalize on any
+  mismatch/missing/unparseable manifest; fail-closed).
+- `server/runs/` (S8): `run_paths.ts` (package paths; RO parquet at the
+  shadow-write location `{moduleId}/{roId}.parquet`), `pg_export.ts`
+  (cursor→CSV→parquet, `__PG_NULL__` sentinel; used only for
+  facilities/mirrors), `package_builder.ts` (`refreshSandboxPackage` = the
+  §3.8 eager finalize: wholesale manifest+inputs rewrite, per-file
+  tmp+rename, per-project in-flight coalescing; builds missing/stale RO
+  parquet from the raw CSV, mtime-gated; never-run modules get
+  hasParquet=false so uninstall/reinstall leftovers can't resurrect),
+  `disaggregation_availability.ts`, `manifest_cache.ts` (mtime-keyed —
+  packages mutate).
+- Eager-finalize hooks at every project-level act: `set_module_clean`
+  success path (before the notifies), dataset add/remove routes, module
+  install/uninstall/param/definition routes, project create route, project
+  copy (`copyProjectInBackground`, before status→ready — rewrites the
+  copied manifest under the new projectId).
+- Routes serve the package unconditionally — `RESULTS_READ_PATH` and
+  `RUNS_DIR_PATH` are deleted; caches are back on legacy keys
+  (projectId + `PO_CACHE_VERSION|moduleLastRun|datasetsVersion` from the
+  manifest stamps), `PO_CACHE_VERSION` "6" covers the payload-sourcing +
+  TS-re-sort change, `po_detail_v2`→`po_detail_v3`. The `runId` fields are
+  gone from payload types until Deploy 2. Postgres read wrappers stay
+  in-tree solely as the rig baseline.
+- Boot migration in `db_startup.ts`: builds the package for any project
+  without a manifest (staleness heals lazily); root
+  `build_results_packages.ts` force-refreshes an instance (rig prep /
+  post-code-change rebuild).
+- Migration 056 + the `runs` table + `projects.run_id` are dormant (zero
+  readers/writers) until Deploy 2; dev-instance rows from the old cut are
+  harmless.
 - The rig: default mode (pg vs hybrid-DuckDB), `--sandbox-parquet`
-  (finalize-route parity), `--runs` (pg vs the real package read path).
-  All three PARITY GREEN on the dev instance (129 checks each, 0 diffs).
-
-**Re-fit needed for the re-cut** (was built for the old "synthetic runs
-first" sequencing; nothing is reverted, it re-points):
-
-1. `RunReadContext` resolves from `sandbox/{projectId}` (no runId) in
-   Deploy 1; back to `runs/{runId}` in Deploy 2. Parquet paths: the package
-   uses the shadow-write location (beside each CSV) rather than `query/`.
-2. **Delete `RESULTS_READ_PATH`** and the route branches: routes call the
-   package path unconditionally; the Postgres read wrappers stay in-tree
-   solely as the rig baseline. Drop the runId cache identities until
-   Deploy 2 (legacy uniqueness/version keys; bump `PO_CACHE_VERSION` and
-   the `po_detail` prefix for the payload-sourcing change).
-3. `synthetic_backfill.ts` becomes the Deploy-1 boot package builder
-   (write into the sandbox; outputs metadata from the shadow parquet) and
-   later the Deploy-2 sandbox→run migration; its pg-export route survives
-   only for facilities/mirrors.
-4. Migration 056 + the runs-table insert + `projects.run_id` writes are
-   dormant until Deploy 2 (the dev instance carries rows/pointers from the
-   old cut — harmless; the Deploy-2 migration supersedes them).
-5. New: `refreshSandboxPackage` (eager finalize) + hooks at the
-   project-level choke points (`set_module_clean`, `datasets_in_project_*`
-   export end, module install/uninstall/update, project create/copy); rig
-   `--package` mode; the per-request stamp-mismatch self-heal as the
-   fail-closed backstop (routes already read `moduleLastRun`/
-   `datasetsVersion`; compare against manifest stamps, rebuild on
-   mismatch) — this is also what lazily heals packages after a Deploy-2
-   image rollback.
+  (finalize-route parity), `--package` (pg vs the real package read path,
+  read-only, replaces `--runs`). PARITY GREEN on the dev instance
+  (129 checks, 0 diffs) after the re-fit; self-heal behaviorally verified
+  (fresh resolve = no refresh; projectId corruption, manifest delete, stale
+  stamp each trigger rebuild).
 
 ### Binding implementation decisions (do not re-derive)
 
@@ -316,26 +319,47 @@ instance-level wizard. Projects become pure authoring spaces (S9–S13).
 
 Mirrors today's project-sandbox layout (so the R contract — `../datasets/`
 and `../{moduleId}/` relative reads, and the single Docker mount — is
-unchanged), plus a manifest and a normalized query store:
+unchanged), plus a manifest (layout re-cut 2026-07-10: three top-level
+entries, no separate query store):
 
 ```text
 <instance>/runs/<runId>/
   manifest.json            ← see §2.2
-  datasets/<type>.csv      ← windowed dataset extracts (module inputs; same
-                             COPY TO export that builds them today)
-  inputs/
+  inputs/                  ← EVERYTHING the run consumed (datasets live here
+                             too — an input is an input)
+    datasets/<type>.csv    ← windowed dataset extracts (same COPY TO export
+    datasets/<type>.parquet  that builds them today) + their parquet twins,
+                             exact siblings like every parquet in this dir
+                             tree — DECIDED 2026-07-10: run input data is
+                             queryable through the same DuckDB plane, and a
+                             project-UI surface for querying it comes in
+                             Phase 3. Generated-script reads re-point
+                             ../datasets/ → ../../inputs/datasets/ in the
+                             same modules-repo lockstep as the §6 asset fix.
+                             Deploy 1 keeps the sandbox's ./datasets/
+                             unchanged — the move lands with the wizard.
     facilities_hmis.parquet, facilities_hfa.parquet   ← structure subset
     indicators.json, calculated_indicators.json,      ← dictionary/snapshot
     hfa_*.json, iceh_indicators.json                    content (today's 12
                                                         project mirror tables)
     assets/<name>           ← pinned copies of consumed instance assets
     geojson/aa<level>.json  ← boundary geometry (later phase; see §8 SNAP-2)
-  <moduleId>/               ← execution workspace per module: ___script___.R,
-                              ___logs___.txt, raw output CSVs (kept: they are
-                              the inter-module plane + debug/download surface)
-  query/
-    <resultsObjectId>.parquet  ← normalized query store, built at finalize
+  outputs/<moduleId>/       ← execution workspace per module: ___script___.R,
+    <roId>                    ___logs___.txt, raw output CSVs (the
+    <roId>.parquet            inter-module plane + debug/download surface),
+                              and each results object's normalized query
+                              parquet as a PURE SIBLING of its CSV — exactly
+                              the Deploy-1 shadow-write layout. Inter-module
+                              reads (../{upstreamModuleId}/{file}.csv) are
+                              unchanged: module dirs stay siblings.
 ```
+
+Sibling-parquet decision (2026-07-10): there is no `query/` dir. Finalize
+builds any missing/stale `<roId>.parquet` beside its CSV (declared types,
+the four §2.3 normalizations); the accepted trade-off is that app-built
+parquet sits inside the R workspace. End-state: R itself emits the parquet
+in the same folder, and the CSV is eventually dropped — the sibling layout
+is the one that survives that transition without moving anything.
 
 `runId` = UUID. Runs live beside `sandbox/` under the instance dir (new env
 `RUNS_DIR_PATH` following the `SANDBOX_DIR_PATH` pattern with its three path
@@ -393,7 +417,7 @@ Ingest currently does exactly four semantic normalizations
 `NA`→NULL; table = CSV headers ∩ declared columns (undeclared header =
 error); drop redundant period columns and enabled facility columns; normalize
 6-digit `quarter_id` → 5-digit. The **finalize step** reproduces all four
-while writing `query/<roId>.parquet` from each raw CSV: read with
+while writing each RO's sibling `<roId>.parquet` from its raw CSV: read with
 `nullstr='NA'` (raw R output uses `NA`; note a `ro_*` table dumped via
 Postgres `COPY` instead uses empty string, so a pg-sourced backfill reader
 needs `nullstr=['NA','']` — verified 2026-07-07), then **project to header ∩
@@ -401,8 +425,8 @@ declared columns with declared types** — the CSV legitimately carries a
 subset of the declared "possible" columns, so finalize must select-and-cast
 (empty/`NA` → NULL before the numeric cast), not force the full declared
 schema — then apply the drop rules and quarter rewrite, then compute the
-§2.2 query metadata. Raw CSVs stay as-written (R/debug contract); the query
-store is the normalized truth.
+§2.2 query metadata. Raw CSVs stay as-written (R/debug contract); the
+sibling parquet is the normalized truth.
 File-only results objects (`createTableStatementPossibleColumns: false`) stay
 file-only — no parquet, exactly as they are excluded from Postgres today.
 
@@ -594,12 +618,14 @@ project-copy's `CREATE DATABASE … TEMPLATE` of results + sandbox `cp -r`
    updating a subset of an existing run. This is what makes a run
    *coherent*; today's sandbox demonstrably isn't (per-module timestamps a
    month apart, leftover files from removed ROs/legacy modules).
-2. **Parquet query store + raw CSVs, not a `.duckdb` database file.**
+2. **Parquet beside each raw CSV, not a `.duckdb` database file.**
    Parquet is language-agnostic, transportable, ~23× smaller, immutable-
    friendly (no single-writer semantics), and fast (≤214 ms at 67M rows).
    The manifest carries the schema; DuckDB gets per-request in-memory
    instances with views (set a per-connection `memory_limit` — a 67M-row
-   aggregate streams in 0.12 GB).
+   aggregate streams in 0.12 GB). Sibling layout per the §2.1 decision:
+   `<roId>.parquet` next to `<roId>`, no separate query dir — the end-state
+   is R emitting parquet directly and the CSV being dropped.
 3. **Native-number payloads + one-time `po_items`/`metric_info`/
    `replicant_opts` prefix bump**, not a string-typing shim — for *value*
    columns. Option/filter values normalize to text at the adapter boundary
@@ -743,9 +769,8 @@ re-key (legacy keys; `PO_CACHE_VERSION` + `po_detail` prefix bumps for the
 payload-sourcing change), no client change, no flag. The dirty machine and
 per-module rerun continue unchanged — they are project-level acts and
 refresh the package. Gate: rig green (pg vs package) on the trial instance,
-then per-instance rollout. The read-path/manifest/query-store code for all
-of this exists on the branch (built against run dirs; re-pointed to the
-sandbox package per the Status re-fit list).
+then per-instance rollout. All of this is built on the branch (Status
+"What is already built").
 
 Historical note: the original Phase 1 ("synthesize query-only runs from the
 project DB, flip reads to runs behind an env flag, re-key caches") was
@@ -781,7 +806,12 @@ package builder and, later, the Deploy-2 migration.
   run dir.
 - Datasets stop being exported *into projects*; `datasets_in_project_*.ts`
   export logic is re-targeted to run-input generation (same COPY TO
-  machinery, new destination).
+  machinery, new destination: `inputs/datasets/<type>.csv` — the
+  generated-script path change from `../datasets/` rides the same
+  modules-repo lockstep as the §6 asset fix). The export also writes each
+  extract's sibling `datasets/<type>.parquet` (same csv→parquet machinery;
+  pg-COPY `''` nulls) — the queryable-inputs data lands here, its project-UI
+  surface in Phase 3.
 
 ### Phase 3 — instance-level factory + catalogue + attach  *(≈ step 5)*
 
@@ -791,6 +821,12 @@ package builder and, later, the Deploy-2 migration.
   before any repoint.
 - Permissions: generation instance-admin; attach = project editor. Multi-
   project attachment lands here (cache sharing is already run-keyed).
+- **Queryable run inputs UI**: a project surface for querying the attached
+  run's `inputs/datasets/<type>.parquet` (decided 2026-07-10; the parquet
+  itself is written from Deploy 2). Frozen, windowed provenance — "what raw
+  data fed this run" — served by the same DuckDB plane; obsoletes
+  pass-through modules (M9) whose only job is re-materializing input as
+  queryable output.
 - Scheduled generation (the DHIS2 scheduled-import unblock,
   PLAN_TODO_TRACKER #6) becomes possible: an automated import + generate +
   (optional) auto-repoint pipeline. In scope as a stretch goal.

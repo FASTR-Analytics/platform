@@ -84,26 +84,6 @@ if (_ASSETS_DIR_PATH === undefined) {
   throw new Error("Could not get ASSETS_DIR_PATH env variable");
 }
 
-// Results-run directories (PLAN_RESULTS_RUNS §2.1). Only the Deno process
-// writes/reads runs in Phase 1; the _EXTERNAL / _POSTGRES_INTERNAL namespaces
-// arrive with the Phase 2 wizard (R container mounts, COPY TO extracts).
-export const _RUNS_DIR_PATH = Deno.env.get("RUNS_DIR_PATH")!;
-if (_RUNS_DIR_PATH === undefined) {
-  throw new Error("Could not get RUNS_DIR_PATH env variable");
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Results read path (PLAN_RESULTS_RUNS §3.6 rollback flag)
-///////////////////////////////////////////////////////////////////////////////
-
-const rawResultsReadPath = Deno.env.get("RESULTS_READ_PATH") ?? "postgres";
-if (rawResultsReadPath !== "postgres" && rawResultsReadPath !== "runs") {
-  throw new Error(
-    `Invalid RESULTS_READ_PATH: ${rawResultsReadPath} (must be "postgres" or "runs")`,
-  );
-}
-export const _RESULTS_READ_PATH: "postgres" | "runs" = rawResultsReadPath;
-
 ///////////////////////////////////////////////////////////////////////////////
 // Database Configuration
 ///////////////////////////////////////////////////////////////////////////////

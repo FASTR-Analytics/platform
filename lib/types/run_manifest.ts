@@ -2,15 +2,14 @@ import { z } from "zod";
 import { instanceConfigFacilityColumnsSchema } from "./instance.ts";
 import { disaggregationOption } from "./_metric_installed.ts";
 
-// The results-run manifest (PLAN_RESULTS_RUNS §2.2) — written once at
-// finalize, the ONLY thing readers consult at query time. Precomputed, never
-// probed: every fact the read path discovers today via per-request column
-// probes is stamped here by the single writer (finalize / backfill).
+// The results-package manifest (PLAN_RESULTS_RUNS §2.2) — written wholesale by
+// the single finalize function, the ONLY thing readers consult at query time.
+// Precomputed, never probed: every fact the read path discovers today via
+// per-request column probes is stamped here. In Deploy 1 the package lives in
+// the project sandbox and refreshes at every project-level act; Deploy 2 turns
+// packages into immutable run directories keyed by runId.
 
 export const RUN_MANIFEST_SCHEMA_VERSION = 1;
-
-export const runProvenanceSchema = z.enum(["generation", "synthetic-backfill"]);
-export type RunProvenance = z.infer<typeof runProvenanceSchema>;
 
 export const runPhysicalTimeColumnSchema = z.enum([
   "period_id",
@@ -18,10 +17,11 @@ export const runPhysicalTimeColumnSchema = z.enum([
   "year",
 ]);
 
-// Per results object: the post-normalization schema of query/<roId>.parquet
-// plus the query metadata enrichMetric/getQueryContext currently probe for.
-// hasParquet=false marks file-only results objects (no query store, exactly
-// as they are excluded from Postgres today).
+// Per results object: the post-normalization schema of the query parquet
+// ({moduleId}/{roId}.parquet, beside the raw CSV) plus the query metadata
+// enrichMetric/getQueryContext currently probe for. hasParquet=false marks
+// file-only results objects and modules that have not run (no query store,
+// exactly as they are excluded from Postgres today).
 export const runResultsObjectSchema = z.object({
   id: z.string(),
   moduleId: z.string(),
@@ -39,8 +39,7 @@ export type RunResultsObject = z.infer<typeof runResultsObjectSchema>;
 // exactly as the project-DB modules table stores it, so existing parsers
 // apply unchanged). inputKey/outputFileHashes are the §3.7 memoization
 // fields: schema-present from the first manifest, computed only by real
-// generation (Phase 2); synthetic-backfill runs carry null and are never
-// reuse sources.
+// wizard generation (Deploy 2); until then they are null.
 export const runModuleSchema = z.object({
   id: z.string(),
   moduleDefinition: z.string(),
@@ -83,7 +82,7 @@ export const runMetricAvailabilitySchema = z.object({
 export type RunMetricAvailability = z.infer<typeof runMetricAvailabilitySchema>;
 
 // Inputs record per dataset family — the version stamps and windowing the
-// project datasets table holds today (datasets.info), frozen at generation.
+// project datasets table holds today (datasets.info), captured at finalize.
 export const runDatasetSchema = z.object({
   datasetType: z.string(),
   lastUpdated: z.string(),
@@ -93,18 +92,16 @@ export type RunDataset = z.infer<typeof runDatasetSchema>;
 
 export const runManifestSchema = z.object({
   manifestSchemaVersion: z.number().int(),
-  runId: z.string(),
+  // The project whose sandbox this package is. Load-bearing for the
+  // self-heal: project copy duplicates the sandbox wholesale, so the copied
+  // manifest names the SOURCE project until the copy's finalize rewrites it.
+  projectId: z.string(),
   createdAt: z.string(),
-  label: z.string(),
-  provenance: runProvenanceSchema,
   appVersion: z.string(),
-  rImageTag: z.string().nullable(),
-  // Synthetic-backfill runs record which project DB they were exported from.
-  sourceProjectId: z.string().nullable(),
 
-  // Data semantics frozen into the run — the adapter reads calendar from
-  // HERE, never from the env global (§2.4); facility-columns config is the
-  // dissolved N1 gap (§8 SNAP-1).
+  // Data semantics captured into the package at finalize — the adapter reads
+  // calendar from HERE, never from the env global (§2.4); facility-columns
+  // config is the dissolved N1 gap (§8 SNAP-1).
   calendar: z.enum(["gregorian", "ethiopian"]),
   countryIso3: z.string().nullable(),
   facilityColumnsConfig: instanceConfigFacilityColumnsSchema,
@@ -115,19 +112,8 @@ export const runManifestSchema = z.object({
   resultsObjects: z.array(runResultsObjectSchema),
   metricAvailability: z.array(runMetricAvailabilitySchema),
 
-  // Relative paths (from the run dir root) of every input file the run
-  // carries — facilities parquet, dictionary/snapshot JSONs, pinned assets.
+  // Relative paths (from the package dir root) of every input file the
+  // package carries — facilities parquet, dictionary/snapshot JSONs.
   inputFiles: z.array(z.string()),
 });
 export type RunManifest = z.infer<typeof runManifestSchema>;
-
-// The catalog-listing summary stored on the main-DB runs row.
-export const runSummarySchema = z.object({
-  manifestSchemaVersion: z.number().int(),
-  provenance: runProvenanceSchema,
-  sourceProjectId: z.string().nullable(),
-  moduleIds: z.array(z.string()),
-  metricCount: z.number().int(),
-  totalRowCount: z.number().int(),
-});
-export type RunSummary = z.infer<typeof runSummarySchema>;

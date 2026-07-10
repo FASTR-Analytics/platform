@@ -33,7 +33,6 @@ export type ItemsQueryDeps = {
 export type ItemsVersionInfo = {
   moduleLastRun: string;
   datasetsVersion: string;
-  runId?: string;
 };
 
 // Postgres wrapper — probes and executes on the project DB.

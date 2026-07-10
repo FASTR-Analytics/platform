@@ -14,7 +14,10 @@ import {
   getHfaTimePointOrder,
 } from "../../db/mod.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
-import { writeNormalizedResultsObjectParquet } from "../../run_query/mod.ts";
+import {
+  computeResultsObjectColumnsToExclude,
+  writeNormalizedResultsObjectParquet,
+} from "../../run_query/mod.ts";
 import {
   _ASSETS_DIR_PATH,
   _IS_PRODUCTION,
@@ -34,7 +37,6 @@ import {
   type ModuleDetailForRunningScript,
   type RunStreamMsg,
   type InstanceConfigFacilityColumns,
-  getEnabledOptionalFacilityColumns,
 } from "lib";
 
 const _DOCKER_IMAGE_TIDYVERSE_4_0_2 = _IS_PRODUCTION
@@ -434,22 +436,12 @@ COPY ${tableName} FROM '${roCsvFilePathFromWithinPostgres}'
 ENCODING 'UTF8' CSV HEADER NULL 'NA'
 `;
 
-    const hasPeriodId = csvHeaders.includes("period_id");
-    const hasQuarterId = !hasPeriodId && csvHeaders.includes("quarter_id");
-    const baseColumnsToExclude = hasPeriodId
-      ? ["month", "quarter_id", "year"]
-      : hasQuarterId
-        ? ["month", "year"]
-        : ["month", "quarter_id"];
-
-    // Get enabled optional facility columns to exclude if present in CSV
-    const enabledFacilityColumns =
-      getEnabledOptionalFacilityColumns(facilityColumns);
-
-    const columnsToExcludeIfInCsv = [
-      ...baseColumnsToExclude,
-      ...enabledFacilityColumns.filter((col) => csvHeaders.includes(col)),
-    ];
+    const hasQuarterId =
+      !csvHeaders.includes("period_id") && csvHeaders.includes("quarter_id");
+    const columnsToExcludeIfInCsv = computeResultsObjectColumnsToExclude(
+      csvHeaders,
+      facilityColumns,
+    );
 
     // Build the DROP COLUMN clauses
     const dropColumnClauses = columnsToExcludeIfInCsv

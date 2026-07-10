@@ -7,6 +7,7 @@ export {
 export { writeParquetFromCsv, type CsvColumn } from "./csv_to_parquet.ts";
 export { duckDbTypeForPgType } from "./pg_type_map.ts";
 export {
+  computeResultsObjectColumnsToExclude,
   duckDbTypeForDeclaredColumnType,
   writeNormalizedResultsObjectParquet,
 } from "./write_results_object_parquet.ts";
@@ -17,13 +18,13 @@ export {
   getIndicatorMetadataFromRun,
   getModuleIdForMetricFromRun,
   getModuleIdForResultsObjectFromRun,
+  getPackageReadContext,
   getPossibleValuesFromRun,
   getPresentationObjectDetailFromRun,
   getPresentationObjectItemsFromRun,
   getRawPeriodBoundsFromRun,
   getResultsObjectItemsFromRun,
   getResultsValueInfoFromRun,
-  getRunReadContextForProject,
   getRunVersionInfo,
   resolveMetricFromRun,
   type RunReadContext,

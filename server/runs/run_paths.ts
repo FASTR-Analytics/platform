@@ -1,36 +1,39 @@
 import { join } from "@std/path";
-import { _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
+import { _SANDBOX_DIR_PATH } from "../exposed_env_vars.ts";
 
-// Run directory layout (PLAN_RESULTS_RUNS §2.1). Writers build inside the
-// .tmp dir and atomically rename to the final dir — a crashed generation
-// leaves no readable run. Helpers below take the run dir (not the id) so the
-// same code writes into either.
+// Deploy-1 package layout (PLAN_RESULTS_RUNS Status "Deploy 1"): the results
+// package IS the project sandbox — manifest.json + inputs/ beside the module
+// workspaces, and each results object's normalized query parquet beside its
+// raw CSV ({moduleId}/{roId}.parquet, the ingest shadow-write location).
+// Deploy 2 re-points these helpers to immutable runs/{runId} directories.
 
-export function runDirPath(runId: string): string {
-  return join(_RUNS_DIR_PATH, runId);
+export function packageDirPath(projectId: string): string {
+  return join(_SANDBOX_DIR_PATH, projectId);
 }
 
-export function runTmpDirPath(runId: string): string {
-  return join(_RUNS_DIR_PATH, `.tmp-${runId}`);
+export function packageManifestPath(packageDir: string): string {
+  return join(packageDir, "manifest.json");
 }
 
-export function runManifestPath(runDir: string): string {
-  return join(runDir, "manifest.json");
+export function packageInputFilePath(
+  packageDir: string,
+  fileName: string,
+): string {
+  return join(packageDir, "inputs", fileName);
 }
 
-export function runQueryParquetPath(runDir: string, resultsObjectId: string): string {
-  return join(runDir, "query", `${resultsObjectId}.parquet`);
+export function packageResultsObjectCsvPath(
+  packageDir: string,
+  moduleId: string,
+  resultsObjectId: string,
+): string {
+  return join(packageDir, moduleId, resultsObjectId);
 }
 
-export function runInputFilePath(runDir: string, fileName: string): string {
-  return join(runDir, "inputs", fileName);
-}
-
-export async function sweepAbandonedTmpRunDirs(): Promise<void> {
-  for await (const entry of Deno.readDir(_RUNS_DIR_PATH)) {
-    if (entry.isDirectory && entry.name.startsWith(".tmp-")) {
-      console.log(`[runs] sweeping abandoned run dir: ${entry.name}`);
-      await Deno.remove(join(_RUNS_DIR_PATH, entry.name), { recursive: true });
-    }
-  }
+export function packageResultsObjectParquetPath(
+  packageDir: string,
+  moduleId: string,
+  resultsObjectId: string,
+): string {
+  return join(packageDir, moduleId, `${resultsObjectId}.parquet`);
 }

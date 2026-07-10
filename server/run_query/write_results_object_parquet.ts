@@ -1,4 +1,8 @@
 import { DuckDBInstance } from "@duckdb/node-api";
+import {
+  getEnabledOptionalFacilityColumns,
+  type InstanceConfigFacilityColumns,
+} from "lib";
 import { escapeSqlLiteral } from "./duckdb_executor.ts";
 
 // Builds the normalized query-store parquet for one results object from its
@@ -28,6 +32,29 @@ export function duckDbTypeForDeclaredColumnType(declared: string): string {
     default:
       throw new Error(`Unknown declared results-object column type: ${declared}`);
   }
+}
+
+// Normalization 3's drop rule, shared by Postgres ingest and the package
+// builder so the two cannot drift: redundant period columns by granularity,
+// plus enabled optional facility columns present in the CSV (the facilities
+// table/parquet carries them instead).
+export function computeResultsObjectColumnsToExclude(
+  csvHeaders: string[],
+  facilityColumns: InstanceConfigFacilityColumns,
+): string[] {
+  const hasPeriodId = csvHeaders.includes("period_id");
+  const hasQuarterId = !hasPeriodId && csvHeaders.includes("quarter_id");
+  const baseColumnsToExclude = hasPeriodId
+    ? ["month", "quarter_id", "year"]
+    : hasQuarterId
+      ? ["month", "year"]
+      : ["month", "quarter_id"];
+  const enabledFacilityColumns =
+    getEnabledOptionalFacilityColumns(facilityColumns);
+  return [
+    ...baseColumnsToExclude,
+    ...enabledFacilityColumns.filter((col) => csvHeaders.includes(col)),
+  ];
 }
 
 export async function writeNormalizedResultsObjectParquet(opts: {
@@ -69,7 +96,7 @@ export async function writeNormalizedResultsObjectParquet(opts: {
     )
     .join(", ");
 
-  const tmpPath = `${opts.parquetPath}.tmp`;
+  const tmpPath = `${opts.parquetPath}.tmp-${crypto.randomUUID()}`;
   const instance = await DuckDBInstance.create(":memory:");
   const conn = await instance.connect();
   try {
