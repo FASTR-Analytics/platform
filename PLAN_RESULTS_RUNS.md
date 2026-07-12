@@ -235,6 +235,16 @@ package"** ("run" stays the internal/code/DB name); **raw CSVs stay in
 runs until R emits parquet natively**, then drop. No §10 blockers remain
 for this milestone (Q1/Q4/Q8 are Phase 3 design).
 
+**How to work this list**: execute items in order, ONE item per session,
+each gated by `deno task typecheck` + the rig green
+(`validate_results_runs_parity.ts --run`; dev setup: `./pg_run` starts
+Postgres, `backfill_runs.ts` re-synthesizes runs). Everything decided is
+decided — the binding decisions, §10 rulings, and empirical gotchas
+sections are closed; do not re-derive or improve them. Item 1 spans
+wb-fastr-modules (CLAUDE.md three-repo lockstep rule). Item 2 is the one
+item that does NOT start with code: present Tim a wizard design
+(steps/screens/attempt-record shape) and get sign-off before building.
+
 Work items, in order:
 
 1. **§6 hermeticity fixes FIRST** (wb-fastr-modules lockstep; memoization
