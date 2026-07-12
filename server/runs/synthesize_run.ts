@@ -1,9 +1,11 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
+  getAssetToImportName,
   postAggregationExpressionStrict,
   RUN_MANIFEST_SCHEMA_VERSION,
   runManifestSchema,
+  type AssetToImport,
   type DisaggregationOption,
   type InstanceConfigFacilityColumns,
   type RunAsset,
@@ -25,6 +27,7 @@ import {
   getFacilityColumnsConfig,
 } from "../db/instance/config.ts";
 import { resolveAssetFilePath } from "../db/instance/assets.ts";
+import { ensureRepoAssetCached } from "../module_loader/repo_assets.ts";
 import { R_DOCKER_IMAGE_TAG } from "../worker_routines/run_module/r_docker_image.ts";
 import {
   _INSTANCE_CALENDAR,
@@ -216,28 +219,39 @@ FROM metrics
   const inputFiles: string[] = [];
 
   // Pinned assets (§6.2): every asset the installed modules declare, copied
-  // into inputs/assets/ and hashed into the manifest. At synthesis time the
-  // current instance asset is the best available stand-in for what the module
-  // read; a missing asset degrades loudly (the module already ran) rather
-  // than failing the backfill. The wizard finalize inherits this capture with
-  // the same layout.
-  const declaredAssetNames = new Set<string>();
+  // into inputs/assets/ and hashed into the manifest. Instance-uploaded
+  // assets come from the Assets dir (the current file is the best available
+  // stand-in at synthesis time for what the module read); pinned repo assets
+  // come from the content-addressed cache, which is exact. A missing asset
+  // degrades loudly (the module already ran) rather than failing the
+  // backfill. The wizard finalize inherits this capture with the same layout.
+  const declaredAssets = new Map<
+    string,
+    { asset: AssetToImport; moduleId: string }
+  >();
   for (const mod of modules) {
     const def = JSON.parse(mod.module_definition) as {
-      assetsToImport?: string[];
+      assetsToImport?: AssetToImport[];
     };
-    for (const name of def.assetsToImport ?? []) {
-      declaredAssetNames.add(name);
+    for (const asset of def.assetsToImport ?? []) {
+      declaredAssets.set(getAssetToImportName(asset), {
+        asset,
+        moduleId: mod.id,
+      });
     }
   }
   const assets: RunAsset[] = [];
-  if (declaredAssetNames.size > 0) {
+  if (declaredAssets.size > 0) {
     await Deno.mkdir(join(tmpDir, "inputs", "assets"), { recursive: true });
   }
-  for (const fileName of [...declaredAssetNames].sort()) {
+  for (const fileName of [...declaredAssets.keys()].sort()) {
+    const { asset, moduleId } = declaredAssets.get(fileName)!;
     let bytes: Uint8Array<ArrayBuffer>;
     try {
-      bytes = await Deno.readFile(resolveAssetFilePath(fileName));
+      const sourcePath = typeof asset === "string"
+        ? resolveAssetFilePath(asset)
+        : await ensureRepoAssetCached(moduleId, asset);
+      bytes = await Deno.readFile(sourcePath);
     } catch (e) {
       console.error(
         `[runs] asset "${fileName}" not captured for project ${projectId}: ${

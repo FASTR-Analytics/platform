@@ -139,6 +139,16 @@ export type DBStructureUploadAttempt = {
   step_3_result: string | null; // Staging result
 };
 
+export type DBRunGenerationAttempt = {
+  source_project_id: string;
+  date_started: string;
+  step: number;
+  status: string; // JSON: RunGenerationAttemptStatus
+  status_type: string; // only ever 'configuring'
+  step_1_result: string | null; // JSON: RunGenerationStep1Result
+  step_2_result: string | null; // JSON: RunGenerationStep2Result
+};
+
 // Dataset versions in main
 
 export type DBDatasetHmisVersion = {

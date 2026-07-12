@@ -41,7 +41,8 @@ CREATE TABLE users (
 
 -- Results runs catalog (PLAN_RESULTS_RUNS §2.6).
 -- status: generating | ready | failed | retired. A referenced run is
--- undeletable via the projects.run_id FK (no cascade).
+-- undeletable via the projects.run_id FK (no cascade). progress is the run
+-- pipeline's worker-updated JSON (RunProgress), pushed over project SSE.
 CREATE TABLE runs (
   id text PRIMARY KEY NOT NULL,
   label text NOT NULL,
@@ -49,7 +50,8 @@ CREATE TABLE runs (
   provenance text NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by text,
-  summary text
+  summary text,
+  progress text
 );
 
 CREATE TABLE projects (
@@ -299,6 +301,27 @@ CREATE TABLE structure_upload_attempts (
   step_3_result text,  -- Staging result (table name, counts, validation info)
   CONSTRAINT structure_upload_attempts_pkey PRIMARY KEY (dataset_family),
   CONSTRAINT structure_upload_attempts_family_check CHECK (dataset_family IN ('hmis', 'hfa'))
+);
+
+-- ============================================================================
+-- RESULTS-PACKAGE GENERATION (PLAN_RESULTS_RUNS item 2)
+-- ============================================================================
+
+-- The launch wizard's attempt record: one configuring attempt per source
+-- project (structure_upload_attempts pattern). status_type is only ever
+-- 'configuring' — execution state never touches the attempt; the row is
+-- deleted at launch (and by discard).
+CREATE TABLE run_generation_attempts (
+  source_project_id text NOT NULL,
+  date_started text NOT NULL,
+  step integer NOT NULL,
+  status text NOT NULL,  -- JSON: RunGenerationAttemptStatus
+  status_type text NOT NULL,  -- only ever 'configuring'
+  step_1_result text,  -- JSON: RunGenerationStep1Result (data selection)
+  step_2_result text,  -- JSON: RunGenerationStep2Result (module selection)
+  CONSTRAINT run_generation_attempts_pkey PRIMARY KEY (source_project_id),
+  CONSTRAINT run_generation_attempts_project_fkey
+    FOREIGN KEY (source_project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
 -- ============================================================================

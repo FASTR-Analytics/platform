@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   DatasetStagingResult,
   type DatasetUploadAttemptSummary,
@@ -21,30 +22,41 @@ export type DatasetHmisVersion = {
 // HMIS Windowing & Configuration Types
 // ============================================================================
 
-type DatasetHmisWindowingBase = {
-  start: number;
-  end: number;
-  takeAllIndicators: boolean;
-  takeAllAdminArea2s: boolean;
-  adminArea2sToInclude: string[];
-  takeAllAdminArea3s?: boolean;
-  adminArea3sToInclude?: string[];
-  //
-  takeAllFacilityOwnerships?: boolean;
-  takeAllFacilityTypes?: boolean;
-  facilityOwnwershipsToInclude?: string[];
-  facilityTypesToInclude?: string[];
-};
+// Authoritative windowing schemas — route bodies (project attach, instance
+// delete-data, run generation) and stored JSON all validate against these.
+const datasetHmisWindowingBaseSchema = z.object({
+  start: z.number(),
+  end: z.number(),
+  takeAllIndicators: z.boolean(),
+  takeAllAdminArea2s: z.boolean(),
+  adminArea2sToInclude: z.array(z.string()),
+  takeAllAdminArea3s: z.boolean().optional(),
+  adminArea3sToInclude: z.array(z.string()).optional(),
+  takeAllFacilityOwnerships: z.boolean().optional(),
+  takeAllFacilityTypes: z.boolean().optional(),
+  facilityOwnwershipsToInclude: z.array(z.string()).optional(),
+  facilityTypesToInclude: z.array(z.string()).optional(),
+});
 
-export type DatasetHmisWindowingRaw = DatasetHmisWindowingBase & {
-  indicatorType: "raw";
-  rawIndicatorsToInclude: string[];
-};
+export const datasetHmisWindowingRawSchema = datasetHmisWindowingBaseSchema
+  .extend({
+    indicatorType: z.literal("raw"),
+    rawIndicatorsToInclude: z.array(z.string()),
+  });
 
-export type DatasetHmisWindowingCommon = DatasetHmisWindowingBase & {
-  indicatorType: "common";
-  commonIndicatorsToInclude: string[];
-};
+export const datasetHmisWindowingCommonSchema = datasetHmisWindowingBaseSchema
+  .extend({
+    indicatorType: z.literal("common"),
+    commonIndicatorsToInclude: z.array(z.string()),
+  });
+
+export type DatasetHmisWindowingRaw = z.infer<
+  typeof datasetHmisWindowingRawSchema
+>;
+
+export type DatasetHmisWindowingCommon = z.infer<
+  typeof datasetHmisWindowingCommonSchema
+>;
 
 export type DatasetHmisWindowing =
   | DatasetHmisWindowingRaw

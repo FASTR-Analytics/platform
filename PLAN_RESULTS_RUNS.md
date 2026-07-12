@@ -1,6 +1,6 @@
 # Plan: Results Runs — file-based immutable results + DuckDB query layer
 
-## Status: IN PROGRESS on branch `results-runs` (updated 2026-07-12)
+## Status: IN PROGRESS on branch `results-runs` (updated 2026-07-13)
 
 **This section is the authoritative statement of what is decided and how it
 deploys.** Re-cut with Tim on 2026-07-12 after the adversarial pre-deploy
@@ -240,10 +240,14 @@ each gated by `deno task typecheck` + the rig green
 (`validate_results_runs_parity.ts --run`; dev setup: `./pg_run` starts
 Postgres, `backfill_runs.ts` re-synthesizes runs). Everything decided is
 decided — the binding decisions, §10 rulings, and empirical gotchas
-sections are closed; do not re-derive or improve them. Item 1 spans
-wb-fastr-modules (CLAUDE.md three-repo lockstep rule). Item 2 is the one
-item that does NOT start with code: present Tim a wizard design
-(steps/screens/attempt-record shape) and get sign-off before building.
+sections are closed; do not re-derive or improve them. An item too large
+for one session stops at a clean seam with gates green and records the
+stopping point inside the item — nowhere else. Items 1 and 2 span
+wb-fastr-modules (CLAUDE.md three-repo lockstep rule: commit that repo
+locally; the push stays deploy-gated). Item 2's design was presented and
+SIGNED OFF 2026-07-13 (recorded verbatim in the item — implement exactly
+that); read the panther UI protocols linked there before writing client
+code.
 
 Work items, in order:
 
@@ -263,30 +267,129 @@ Work items, in order:
    deploy, and instances must have `survey_data_unified.csv` +
    `population_estimates_only.csv` uploaded as assets BEFORE updating
    m004/m005 (dev seeded already).
-2. **The wizard** (§4 Phase 2 spec + model point 2): project-entered,
-   instance-admin gated; `ImportWizardShell` descriptor pattern +
-   attempt/resume machinery; choose data (windowing UI verbatim) →
-   configure modules → reuse plan → execute (shipped worker/docker
-   contracts, `r_script` SSE) → ONE finalize (§3.8, extending
-   `synthesize_run.ts`'s builder) → atomic rename → repoint + SSE notify.
-   Dual-writes legacy `ro_*` (rollback path, model point 4). Ruled
-   2026-07-13: the design must include **def-declared pinned repo
-   assets** — module definitions gain a repo-asset form (name + modules-repo
-   path + commit SHA), server-fetched at module install/update,
-   hash-verified and cached, so repo data updates (survey/population CSVs)
+2. **The wizard — DESIGN SIGNED OFF 2026-07-13 (Tim); build next.**
+   Two surfaces (Tim's re-cut, replacing the single wizard-owns-execution
+   shape): a LAUNCH wizard that is configuration only, and a run
+   listing/progress view — the run owns its whole lifecycle after launch,
+   so progress is dismissable/returnable by construction.
+   - **Launch wizard**: project-entered from the "Results package"
+     surface, instance-admin gated (`requireGlobalPermission
+     ("can_configure_data")`, the dataset-attempt guard). A fourth
+     `ImportWizardShell` descriptor instance (the ICEH descriptor form,
+     `client/src/components/_import_wizard/import_wizard_shell.tsx`).
+     Steps: (1) choose data — family checkboxes + per-family windowing
+     reusing the per-project settings editors verbatim (`WindowingSelector`
+     etc.) against a temp store, pre-filled from the attached run's
+     manifest `datasets` info; (2) configure modules — definitions resolved
+     from the modules repo at latest commit (git ref recorded; pinned repo
+     assets fetched here), DAG-aware selection (auto-include prerequisites,
+     block deselect while a dependent is selected, disable modules whose
+     data sources aren't in step 1), params inline via the
+     `ModuleConfigSelections` input rendering, pre-filled from the attached
+     run's manifest via `getMergedModuleConfigSelections` else definition
+     defaults; (3) confirm — label (default "Results package {date}") +
+     selection summary → **Launch**. No async work inside the wizard; no
+     pre-launch reuse preview (§3.7 UX bullet amended 2026-07-13).
+   - **Attempt record**: instance-DB `run_generation_attempts` keyed
+     `source_project_id` PRIMARY KEY (the `structure_upload_attempts`
+     pattern — one configuring attempt per project), columns
+     `date_started/step/status/status_type/step_1_result/step_2_result`;
+     `status_type` is only ever `configuring` — execution state never
+     touches the attempt. Deleted at launch (and by discard). Resume =
+     re-fetch the row, server-driven `step`.
+   - **Run pipeline** (post-launch, one worker in
+     `server/worker_routines/generate_run/`, shipped worker/docker
+     teardown/claim contracts verbatim): catalog row `status='generating'`
+     → prepare inputs (mint `runs/.tmp-{runId}`, dataset extracts +
+     parquet twins via the item-4 re-targeted COPY TO, asset copies) →
+     resolve reuse (generate scripts, compute §3.7 inputKeys, diff vs base
+     run = attached run else latest `ready`) → execute stale nodes in
+     dependency order (docker containers named `{runId}-{moduleId}`) /
+     copy reused outputs, with per-module legacy dual-write (ro_* COPY +
+     project-DB catalog upserts — rollback path, model point 4) → ONE
+     finalize (§3.8, extending `synthesize_run.ts`'s builder; provenance
+     `"wizard"`, real inputKey/outputFileHashes) → atomic rename →
+     `ready` plus `projects.run_id` repoint in one transaction → SSE.
+   - **Progress — parity with today, push not poll**: new `runs.progress`
+     JSON column (module order; per-module `pending|reused|running|done|
+     error`; current module; error detail) updated by the worker; new
+     project-SSE messages `run_progress {runId, progress}` on every state
+     change and `run_attached {attachedRunId, projectModules, metrics}` at
+     repoint (also fixes the interim reconnect-only gap); `r_script`
+     stream unchanged (live R line under the running module; full logs
+     from the run dir via the item-5 viewer re-point).
+   - **Run listing**: on the project "Results package" surface — attached
+     package + this project's runs (`sourceProjectId` filter) generating/
+     ready/failed + the generate button; the Phase-3 instance-catalogue
+     precursor.
+   - **Concurrency**: cross-project concurrent generations allowed; ONE
+     generating run per project (auto-repoint + base-run diff race guard —
+     launch blocked with a clear message); one attempt per project.
+   Ruled 2026-07-13: the design must include **def-declared pinned repo
+   assets** — `assetsToImport` entries become a union: plain string
+   (instance-uploaded asset, unchanged) or `{name, repoPath, commit,
+   sha256}` — modules-repo path + full commit SHA pin, `sha256` computed
+   by the modules-repo build from the working-tree file (build fails if
+   `repoPath` missing; authoring = two commits: land the data file, then
+   bump the pin to that SHA). The Deno server (which already fetches
+   `definition.json` from GitHub) fetches the pinned raw file at wizard
+   definition-resolution, verifies sha256, caches content-addressed
+   (`repo_assets/{sha256}`); generation copies both asset kinds into
+   `inputs/assets/` + manifest identically; module containers stay
+   network-free. Repo data updates (survey/population CSVs) thus
    distribute via ordinary module updates instead of per-instance uploads;
-   instance-uploaded assets stay as-is, and a pin bump surfaces as a
-   normal module update via the existing `compare_definitions`
-   assetsToImport diff. Supersedes item 1's interim "upload the two CSVs
+   a pin bump surfaces via the existing `compare_definitions`
+   assetsToImport diff and changes the module's inputKey → correctly
+   forces a re-run. Supersedes item 1's interim "upload the two CSVs
    on every instance before updating m004/m005" prerequisite (dev-seeded
-   copies remain valid meanwhile). Client work (design and build, here
-   and in item 5) follows the panther UI protocols:
+   copies remain valid meanwhile).
+   **Build progress (session 1, 2026-07-13 — gates green: typecheck +
+   PARITY GREEN, 129 checks, 0 diffs/skips; migration + attempt CRUD
+   live-verified on dev):**
+   - DONE — pinned repo assets end-to-end: `assetsToImport` union in both
+     schemas (github + installed; authoring shape `RepoAssetPin`, the
+     modules-repo build injects sha256 and fails on missing repoPath or
+     non-full SHA); m004/m005 pins authored (survey @ `19f1bf7`,
+     population @ `4d5ffa0`, both pushed commits, blob == working tree
+     verified); server resolver `server/module_loader/repo_assets.ts`
+     (content-addressed `{ASSETS_DIR}/repo_assets/{sha256}`, sha-verified,
+     warmed at definition resolution in `fetchModuleFiles`, cache-miss
+     fallback at module run; dev reads the local checkout); `importAsset`
+     and the synthesizer's §6.2 capture handle both kinds. Executed live:
+     m004 resolution cached both files sha-checked. Item 1's per-instance
+     upload prerequisite is now void.
+   - DONE — migration `057_run_generation.sql` (`run_generation_attempts`,
+     PK `source_project_id` FK CASCADE + `runs.progress`), base schema +
+     `DBRunGenerationAttempt`; wire types `lib/types/run_generation.ts`
+     (step-1/step-2 result schemas, attempt detail, `RunProgress`;
+     windowing Zod schemas promoted to `lib/types/dataset_hmis.ts` as the
+     single source — both duplicating registries re-pointed); registry
+     `lib/api-routes/instance/run_generation.ts` + routes + DB layer
+     (attempt CRUD create/get/step1/step2/delete, `can_configure_data`).
+     Full lifecycle exercised over HTTP: create → resume read → step
+     advance/downstream-null → discard, plus family/module validation and
+     Zod 400s.
+   - NEXT (session 2): launch route + `server/worker_routines/
+     generate_run/` pipeline (catalog row `generating`, prepare inputs,
+     resolve stage forcing every node to "run", per-module dual-write,
+     finalize extending `synthesize_run`'s builder, atomic rename +
+     repoint transaction, SSE `run_progress`/`run_attached` + progress
+     column updates); THEN the client wizard + run listing surfaces.
+   **Placement**: client `components/results_package_wizard/`
+   (ICEH-shaped: `index.tsx` descriptor + `step_*.tsx`) + the run
+   listing/progress components on the project surface; server routes
+   `server/routes/instance/run_generation.ts` (route-tracker registered,
+   Zod bodies); worker dir claimed in SYSTEM globs. Client work (design
+   and build, here and in item 5) follows the panther UI protocols:
    [PROTOCOL_UI_COMPONENTS.md](panther/protocols/PROTOCOL_UI_COMPONENTS.md),
    [PROTOCOL_UI_SOLIDJS.md](panther/protocols/PROTOCOL_UI_SOLIDJS.md),
    [PROTOCOL_UI_STATE.md](panther/protocols/PROTOCOL_UI_STATE.md),
    [PROTOCOL_UI_STRUCTURE.md](panther/protocols/PROTOCOL_UI_STRUCTURE.md),
    [PROTOCOL_UI_STYLING.md](panther/protocols/PROTOCOL_UI_STYLING.md).
 3. **Memoized generation** (§3.7) — ships WITH the wizard, never after.
+   Boundary with item 2: item 2 builds the pipeline's resolve-reuse stage
+   computing inputKeys but forcing every node to "run"; item 3 turns
+   reuse on (base-run diff + copy-reused-outputs).
 4. **Dataset export re-target**: `datasets_in_project_*.ts` → run
    `inputs/datasets/<type>.csv` + parquet twins; generated-script path
    `../datasets/` → `../../inputs/datasets/` rides the same modules-repo
@@ -840,8 +943,14 @@ project-copy's `CREATE DATABASE … TEMPLATE` of results + sandbox `cp -r`
      wrong data). Deleting the reuse logic degrades to always-re-run with
      identical results. Nondeterministic R output only costs efficiency
      (downstream re-runs), never correctness.
-   - **UX**: the wizard shows a per-module "will reuse / will run" plan
-     before execution — today's implicit dirty preview, made explicit.
+   - **UX (amended 2026-07-13, Tim — the two-surface re-cut)**: the reuse
+     plan resolves as the FIRST STAGE of the run's execution pipeline
+     (extracts must exist before content keys can be computed) and is shown
+     at the top of the run progress view — per-module "reused / will run",
+     today's implicit dirty preview made explicit. There is no pre-launch
+     preview: a launch is cheap to cancel (repoint happens only on
+     successful finalize), and a guessed preview without extracts could be
+     wrong, which is worse than a resolved plan seconds after launch.
    - Ships WITH the wizard deploy — there is no earlier deploy to defer it
      to, and forced whole-DAG re-runs without it would regress the most
      common operation. Prerequisites: the §6 hermeticity fixes

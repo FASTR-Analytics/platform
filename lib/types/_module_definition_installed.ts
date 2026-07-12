@@ -57,6 +57,24 @@ export const configRequirements = z.object({
   parameters: z.array(moduleParameter),
 });
 
+// Two kinds of asset (PLAN_RESULTS_RUNS item 2 ruling, 2026-07-13): a plain
+// string names an instance-uploaded asset (resolved from the instance Assets
+// dir); an object pins a modules-repo data file by repo path + full commit
+// SHA, fetched by the server, verified against sha256, and cached
+// content-addressed (repo_assets/{sha256}).
+export const repoAssetToImport = z.object({
+  name: z.string(),
+  repoPath: z.string(),
+  commit: z.string(),
+  sha256: z.string(),
+});
+
+export const assetToImport = z.union([z.string(), repoAssetToImport]);
+
+export function getAssetToImportName(asset: AssetToImport): string {
+  return typeof asset === "string" ? asset : asset.name;
+}
+
 // ============================================================================
 // Component schemas
 // ============================================================================
@@ -96,7 +114,7 @@ export const moduleDefinitionInstalledStrict = z.object({
   scriptGenerationType: scriptGenerationType,
   configRequirements: configRequirements,
   script: z.string(),
-  assetsToImport: z.array(z.string()),
+  assetsToImport: z.array(assetToImport),
   resultsObjects: z.array(resultsObjectDefinitionInstalledStrict),
   defaultPresentationObjects: z.array(defaultPresentationObjectInstalledStrict),
 });
@@ -112,6 +130,8 @@ export type DataSource = z.infer<typeof dataSource>;
 export type DataSourceDataset = z.infer<typeof dataSourceDataset>;
 export type DataSourceResultsObject = z.infer<typeof dataSourceResultsObject>;
 export type ModuleParameter = z.infer<typeof moduleParameter>;
+export type RepoAssetToImport = z.infer<typeof repoAssetToImport>;
+export type AssetToImport = z.infer<typeof assetToImport>;
 export type ModuleConfigRequirements = z.infer<typeof configRequirements>;
 export type ResultsObjectDefinition = z.infer<typeof resultsObjectDefinitionInstalledStrict>;
 export type DefaultPresentationObject = z.infer<typeof defaultPresentationObjectInstalledStrict>;

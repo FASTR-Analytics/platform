@@ -10,6 +10,7 @@ import { calculatedIndicatorRouteRegistry } from "./instance/calculated_indicato
 import { indicatorsDhis2RouteRegistry } from "./instance/indicators_dhis2.ts";
 import { instanceRouteRegistry } from "./instance/instance.ts";
 import { instanceModuleRouteRegistry } from "./instance/modules.ts";
+import { runGenerationRouteRegistry } from "./instance/run_generation.ts";
 import { structureRouteRegistry } from "./instance/structure.ts";
 import { userRouteRegistry } from "./instance/users.ts";
 import { aiToolsRouteRegistry } from "./project/ai-tools.ts";
@@ -44,6 +45,7 @@ export const routeRegistryIndividualCount =
   Object.keys(instanceRouteRegistry).length +
   Object.keys(instanceModuleRouteRegistry).length +
   Object.keys(moduleRouteRegistry).length +
+  Object.keys(runGenerationRouteRegistry).length +
   Object.keys(structureRouteRegistry).length +
   Object.keys(userRouteRegistry).length +
   Object.keys(projectRouteRegistry).length +
@@ -75,6 +77,7 @@ export const routeRegistry = {
   ...instanceRouteRegistry,
   ...instanceModuleRouteRegistry,
   ...moduleRouteRegistry,
+  ...runGenerationRouteRegistry,
   ...structureRouteRegistry,
   ...userRouteRegistry,
   ...projectRouteRegistry,

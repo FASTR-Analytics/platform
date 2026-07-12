@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  datasetHmisWindowingCommonSchema,
   PROJECT_PERMISSIONS,
 } from "../../types/mod.ts";
 import type {
@@ -23,25 +24,6 @@ const projectPermissionsRequiredSchema = z.object(
   Object.fromEntries(PROJECT_PERMISSIONS.map((k) => [k, z.boolean()])) as Record<ProjectPermission, z.ZodBoolean>
 );
 const projectPermissionsPartialSchema = projectPermissionsRequiredSchema.partial();
-
-const datasetHmisWindowingBaseSchema = z.object({
-  start: z.number(),
-  end: z.number(),
-  takeAllIndicators: z.boolean(),
-  takeAllAdminArea2s: z.boolean(),
-  adminArea2sToInclude: z.array(z.string()),
-  takeAllAdminArea3s: z.boolean().optional(),
-  adminArea3sToInclude: z.array(z.string()).optional(),
-  takeAllFacilityOwnerships: z.boolean().optional(),
-  takeAllFacilityTypes: z.boolean().optional(),
-  facilityOwnwershipsToInclude: z.array(z.string()).optional(),
-  facilityTypesToInclude: z.array(z.string()).optional(),
-});
-
-const datasetHmisWindowingCommonSchema = datasetHmisWindowingBaseSchema.extend({
-  indicatorType: z.literal("common"),
-  commonIndicatorsToInclude: z.array(z.string()),
-});
 
 export const projectRouteRegistry = {
   createProject: route({

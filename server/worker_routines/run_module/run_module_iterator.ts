@@ -30,8 +30,10 @@ import {
 import { R_DOCKER_IMAGE_TAG } from "./r_docker_image.ts";
 import {
   APIResponseNoData,
+  getAssetToImportName,
   ResultsObjectDefinition,
   throwIfErrNoData,
+  type AssetToImport,
   type CalculatedIndicator,
   type HfaIndicator,
   type HfaIndicatorCode,
@@ -39,6 +41,7 @@ import {
   type RunStreamMsg,
   type InstanceConfigFacilityColumns,
 } from "lib";
+import { ensureRepoAssetCached } from "../../module_loader/repo_assets.ts";
 
 export async function* runModuleIterator(
   projectId: string,
@@ -182,13 +185,13 @@ export async function* runModuleIterator(
     await Deno.writeTextFile(scriptFilePath, scriptWithParameters);
 
     for (const asset of moduleDetail.moduleDefinition.assetsToImport) {
-      const assetMsg = "Getting asset: " + asset;
+      const assetMsg = "Getting asset: " + getAssetToImportName(asset);
       await writeToLog(assetMsg, "download-file");
       yield {
         text: assetMsg,
         type: "download-file",
       };
-      await importAsset(asset, moduleDirPath);
+      await importAsset(asset, moduleDirPath, moduleDetail.id);
     }
 
     await writeToLog("Starting R script", "r-output");
@@ -376,18 +379,26 @@ async function checkFileExists(filePath: string): Promise<boolean> {
 
 // A declared asset the script is about to read MUST be present — a silent
 // skip means the script falls back to nothing or stale data (PLAN_RESULTS_RUNS
-// §6.1). Missing/unreadable assets fail the module run.
+// §6.1). Missing/unreadable assets fail the module run. Pinned repo assets
+// come from the content-addressed cache (warmed at definition resolution;
+// fetched here on a cache miss).
 async function importAsset(
-  assetFileName: string,
+  asset: AssetToImport,
   dirPath: string,
+  moduleId: string,
 ): Promise<void> {
-  const assetFilePathSource = join(_ASSETS_DIR_PATH, assetFileName);
-  const assetFilePathTarget = join(dirPath, assetFileName);
+  if (typeof asset !== "string") {
+    const cachePath = await ensureRepoAssetCached(moduleId, asset);
+    await Deno.copyFile(cachePath, join(dirPath, asset.name));
+    return;
+  }
+  const assetFilePathSource = join(_ASSETS_DIR_PATH, asset);
+  const assetFilePathTarget = join(dirPath, asset);
   try {
     await Deno.copyFile(assetFilePathSource, assetFilePathTarget);
   } catch (e) {
     throw new Error(
-      `Could not import asset "${assetFileName}" — upload it on the instance Assets page. (${
+      `Could not import asset "${asset}" — upload it on the instance Assets page. (${
         e instanceof Error ? e.message : e
       })`,
     );

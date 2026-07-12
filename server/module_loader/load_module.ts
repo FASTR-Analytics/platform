@@ -17,13 +17,9 @@ import {
 } from "lib";
 import { stripFrontmatter } from "../github/fetch_module.ts";
 
-import {
-  _GITHUB_TOKEN,
-  _IS_PRODUCTION,
-  _MODULES_LOCAL_DIR,
-} from "../exposed_env_vars.ts";
-
-const MODULE_SOURCE: "local" | "github" = _IS_PRODUCTION ? "github" : "local";
+import { _GITHUB_TOKEN, _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
+import { MODULE_SOURCE } from "./module_source.ts";
+import { ensureRepoAssetCached } from "./repo_assets.ts";
 
 export function deriveDefaultPresentationObjects(
   metrics: Metric[],
@@ -86,6 +82,7 @@ export async function fetchModuleFiles(
     const rawScript = await Deno.readTextFile(`${basePath}/script.R`);
     const rawDefinition = JSON.parse(definitionText);
     const definition = validateDefinition(rawDefinition, moduleId);
+    await cachePinnedRepoAssets(moduleId, definition);
     const localRef = `loc-${crypto.randomUUID().slice(0, 8)}`;
     return {
       definition,
@@ -141,9 +138,23 @@ export async function fetchModuleFiles(
 
   const rawDefinition = await defRes.json();
   const definition = validateDefinition(rawDefinition, moduleId);
+  await cachePinnedRepoAssets(moduleId, definition);
   const rawScript = await scriptRes.text();
 
   return { definition, script: stripFrontmatter(rawScript), gitRef };
+}
+
+// Definition resolution is where pinned repo assets are fetched, verified,
+// and cached (PLAN_RESULTS_RUNS item 2 ruling) — a bad pin fails install/
+// update/preview in the admin's face, never a module run.
+async function cachePinnedRepoAssets(
+  moduleId: string,
+  definition: ModuleDefinitionGithub,
+): Promise<void> {
+  for (const asset of definition.assetsToImport) {
+    if (typeof asset === "string") continue;
+    await ensureRepoAssetCached(moduleId, asset);
+  }
 }
 
 function validateDefinition(

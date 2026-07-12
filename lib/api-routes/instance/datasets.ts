@@ -8,6 +8,7 @@ import type {
   DatasetHfaUploadStatusResponse,
 } from "../../types/dataset_hfa_import.ts";
 import {
+  datasetHmisWindowingRawSchema,
   instanceConfigFacilityColumnsSchema,
 } from "../../types/mod.ts";
 import type {
@@ -42,24 +43,6 @@ const hfaCsvMappingParamsSchema = z.object({
   timePoint: z.string(),
 });
 
-const datasetHmisWindowingBaseSchema = z.object({
-  start: z.number(),
-  end: z.number(),
-  takeAllIndicators: z.boolean(),
-  takeAllAdminArea2s: z.boolean(),
-  adminArea2sToInclude: z.array(z.string()),
-  takeAllAdminArea3s: z.boolean().optional(),
-  adminArea3sToInclude: z.array(z.string()).optional(),
-  takeAllFacilityOwnerships: z.boolean().optional(),
-  takeAllFacilityTypes: z.boolean().optional(),
-  facilityOwnwershipsToInclude: z.array(z.string()).optional(),
-  facilityTypesToInclude: z.array(z.string()).optional(),
-});
-
-const datasetHmisWindowingRawSchema = datasetHmisWindowingBaseSchema.extend({
-  indicatorType: z.literal("raw"),
-  rawIndicatorsToInclude: z.array(z.string()),
-});
 
 export const datasetRouteRegistry = {
   // Core dataset operations

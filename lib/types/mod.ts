@@ -36,6 +36,7 @@ export * from "./project_dirty_states.ts";
 export * from "./project_sse.ts";
 export * from "./projects.ts";
 export * from "./reports.ts";
+export * from "./run_generation.ts";
 export * from "./run_manifest.ts";
 export * from "./slides.ts";
 export * from "./sort.ts";
