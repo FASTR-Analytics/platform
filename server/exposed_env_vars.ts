@@ -84,6 +84,15 @@ if (_ASSETS_DIR_PATH === undefined) {
   throw new Error("Could not get ASSETS_DIR_PATH env variable");
 }
 
+// Immutable results-run directories (PLAN_RESULTS_RUNS §2.1). Only the Deno
+// process reads/writes runs for now; the _EXTERNAL / _POSTGRES_INTERNAL
+// namespaces (R container mounts, COPY TO dataset extracts) arrive with the
+// wizard deploy alongside the docker-compose volume change.
+export const _RUNS_DIR_PATH = Deno.env.get("RUNS_DIR_PATH")!;
+if (_RUNS_DIR_PATH === undefined) {
+  throw new Error("Could not get RUNS_DIR_PATH env variable");
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Database Configuration
 ///////////////////////////////////////////////////////////////////////////////

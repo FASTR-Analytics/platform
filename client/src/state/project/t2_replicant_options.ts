@@ -5,7 +5,7 @@ import {
   ReplicantOptionsForPresentationObject,
   hashFetchConfig,
 } from "lib";
-import { getModuleIdForResultsObject, moduleDataVersionKey } from "~/state/project/t1_store";
+import { runVersionKey } from "~/state/project/t1_store";
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { resultsValueInfoQueue } from "~/state/_infra/request_queue";
 import { serverActions } from "~/server_actions";
@@ -26,8 +26,7 @@ export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
     params.replicateBy,
     hashFetchConfig(params.fetchConfig),
   ],
-  versionKey: (params, pds) =>
-    moduleDataVersionKey(pds, getModuleIdForResultsObject(params.resultsObjectId)),
+  versionKey: (_params, pds) => runVersionKey(pds),
 });
 
 export async function getReplicantOptionsFromCacheOrFetch(

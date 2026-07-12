@@ -12,6 +12,7 @@ import {
   type RunMetricAvailability,
   type RunModule,
   type RunResultsObject,
+  type RunSummary,
 } from "lib";
 import {
   computeResultsObjectColumnsToExclude,
@@ -22,28 +23,30 @@ import {
   getCountryIso3Config,
   getFacilityColumnsConfig,
 } from "../db/instance/config.ts";
-import { _INSTANCE_CALENDAR, _SERVER_VERSION } from "../exposed_env_vars.ts";
+import {
+  _INSTANCE_CALENDAR,
+  _SANDBOX_DIR_PATH,
+  _SERVER_VERSION,
+} from "../exposed_env_vars.ts";
 import { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 import { exportPgTableToParquet } from "./pg_export.ts";
-import { invalidatePackageCaches } from "./manifest_cache.ts";
 import {
-  packageDirPath,
-  packageInputFilePath,
-  packageManifestPath,
-  packageResultsObjectCsvPath,
-  packageResultsObjectParquetPath,
+  runDirPath,
+  runInputFilePath,
+  runManifestPath,
+  runResultsObjectParquetPath,
+  runTmpDirPath,
 } from "./run_paths.ts";
 
-// The single metadata writer (PLAN_RESULTS_RUNS §3.8, eager finalize):
-// rewrites manifest.json + inputs/ WHOLESALE from current project-DB state and
-// captured instance config. Called eagerly at every project-level act
-// (module-run completion, dataset add/remove, module install/uninstall/param
-// change, project create/copy), by the per-request stamp-mismatch self-heal,
-// and by the boot migration for projects without a manifest. Results-object
-// parquet is written by ingest (the shadow-write beside each raw CSV) — this
-// function only builds one when it is absent or older than its CSV
-// (pre-Deploy-1 sandboxes, image rollbacks). Every file lands via tmp+rename,
-// so concurrent acts leave a coherent last-writer-wins snapshot.
+// The backfill synthesizer (PLAN_RESULTS_RUNS Status, model point 5): mints a
+// runId and builds an immutable runs/{runId} from the project's current
+// sandbox CSVs + project-DB catalog + captured instance config. Copy, not
+// move — sandbox and Postgres are untouched, so the migration is additive and
+// the previous image still functions. Everything is built inside
+// runs/.tmp-{runId} and atomically renamed at the end; the catalog row +
+// projects.run_id repoint land in one transaction after the rename, so a
+// crash mid-synthesis can never be observed by readers. Synthesized runs
+// carry no memoization fields and are never reuse sources.
 
 // getIndicatorMetadata's read surface, exported verbatim as inputs/<table>.json.
 const INPUT_MIRROR_TABLES = [
@@ -58,48 +61,30 @@ const INPUT_MIRROR_TABLES = [
 
 const INPUT_FACILITIES_TABLES = ["facilities_hmis", "facilities_hfa"];
 
-const IN_FLIGHT = new Map<string, Promise<void>>();
-
-export function refreshSandboxPackage(
+export async function synthesizeRunForProject(
   mainDb: Sql,
   projectDb: Sql,
   projectId: string,
-): Promise<void> {
-  const existing = IN_FLIGHT.get(projectId);
-  if (existing) {
-    return existing;
-  }
-  const promise = doRefresh(mainDb, projectDb, projectId).finally(() => {
-    IN_FLIGHT.delete(projectId);
-  });
-  IN_FLIGHT.set(projectId, promise);
-  return promise;
-}
-
-// For the eager hooks: the act itself already succeeded, so a finalize
-// failure logs loudly and leaves the stale package for the per-request
-// self-heal to retry (reads fail loudly until a refresh succeeds).
-export async function refreshSandboxPackageSafe(
-  mainDb: Sql,
-  projectDb: Sql,
-  projectId: string,
-): Promise<void> {
+  projectLabel: string,
+): Promise<{ runId: string }> {
+  const runId = crypto.randomUUID();
+  const tmpDir = runTmpDirPath(runId);
   try {
-    await refreshSandboxPackage(mainDb, projectDb, projectId);
+    return await buildRun(mainDb, projectDb, projectId, projectLabel, runId, tmpDir);
   } catch (e) {
-    console.error(
-      `[package] REFRESH FAILED for project ${projectId}: ${
-        e instanceof Error ? e.message : e
-      }`,
-    );
+    await Deno.remove(tmpDir, { recursive: true }).catch(() => {});
+    throw e;
   }
 }
 
-async function doRefresh(
+async function buildRun(
   mainDb: Sql,
   projectDb: Sql,
   projectId: string,
-): Promise<void> {
+  projectLabel: string,
+  runId: string,
+  tmpDir: string,
+): Promise<{ runId: string }> {
   const t0 = performance.now();
   const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
   if (resFacilityConfig.success === false) {
@@ -111,8 +96,7 @@ async function doRefresh(
     ? resCountry.data.countryIso3 ?? null
     : null;
 
-  const packageDir = packageDirPath(projectId);
-  await Deno.mkdir(join(packageDir, "inputs"), { recursive: true });
+  await Deno.mkdir(join(tmpDir, "inputs"), { recursive: true });
 
   const modules = await projectDb<
     {
@@ -145,10 +129,10 @@ FROM metrics
   const runMetrics: RunMetric[] = [...metrics];
 
   // Results-object catalog from the installed definitions; actual schema and
-  // query metadata from the normalized parquet (the shadow-write, built here
-  // from the raw CSV when missing/stale). A per-RO build failure degrades that
-  // RO to hasParquet=false (metric stamped unavailable) rather than failing
-  // the whole package.
+  // query metadata from the normalized parquet built into the run — copied
+  // from the sandbox's ingest shadow-write when fresh, else rebuilt from the
+  // raw CSV. A per-RO build failure degrades that RO to hasParquet=false
+  // (metric stamped unavailable) rather than failing the whole run.
   const runResultsObjects: RunResultsObject[] = [];
   for (const mod of modules) {
     const def = JSON.parse(mod.module_definition) as {
@@ -157,6 +141,9 @@ FROM metrics
         createTableStatementPossibleColumns: Record<string, string> | false;
       }[];
     };
+    if ((def.resultsObjects ?? []).length > 0) {
+      await Deno.mkdir(join(tmpDir, "outputs", mod.id), { recursive: true });
+    }
     for (const ro of def.resultsObjects ?? []) {
       const noQueryData: RunResultsObject = {
         id: ro.id,
@@ -175,19 +162,15 @@ FROM metrics
       }
       // A never-run module has no query data even when the sandbox holds
       // leftover CSVs from a previous install (uninstall keeps files but
-      // drops the Postgres tables — the package must match, not resurrect).
+      // drops the Postgres tables — the run must match, not resurrect).
       if (mod.last_run_at === null) {
         runResultsObjects.push(noQueryData);
         continue;
       }
-      const parquetPath = packageResultsObjectParquetPath(
-        packageDir,
-        mod.id,
-        ro.id,
-      );
+      const parquetPath = runResultsObjectParquetPath(tmpDir, mod.id, ro.id);
       try {
-        const ready = await ensureResultsObjectParquet(
-          packageResultsObjectCsvPath(packageDir, mod.id, ro.id),
+        const ready = await buildResultsObjectParquet(
+          join(_SANDBOX_DIR_PATH, projectId, mod.id, ro.id),
           parquetPath,
           ro.createTableStatementPossibleColumns,
           facilityConfig,
@@ -213,7 +196,7 @@ FROM metrics
         });
       } catch (e) {
         console.error(
-          `[package] parquet FAILED for ${ro.id} in module ${mod.id} (project ${projectId}): ${
+          `[runs] parquet FAILED for ${ro.id} in module ${mod.id} (project ${projectId}): ${
             e instanceof Error ? e.message : e
           }`,
         );
@@ -238,19 +221,20 @@ WHERE table_schema = 'public' AND table_name = ${tableName}
     if (Number(exists.n) === 0) continue;
     const rows = await projectDb.unsafe(`SELECT * FROM "${tableName}"`);
     const fileName = `${tableName}.json`;
-    await writeFileAtomic(
-      packageInputFilePath(packageDir, fileName),
+    await Deno.writeTextFile(
+      runInputFilePath(tmpDir, fileName),
       JSON.stringify([...rows]),
     );
     inputFiles.push(`inputs/${fileName}`);
   }
   for (const tableName of INPUT_FACILITIES_TABLES) {
     const fileName = `${tableName}.parquet`;
-    const finalPath = packageInputFilePath(packageDir, fileName);
-    const tmpPath = `${finalPath}.tmp-${crypto.randomUUID()}`;
-    const columns = await exportPgTableToParquet(projectDb, tableName, tmpPath);
+    const columns = await exportPgTableToParquet(
+      projectDb,
+      tableName,
+      runInputFilePath(tmpDir, fileName),
+    );
     if (columns !== undefined) {
-      await Deno.rename(tmpPath, finalPath);
       inputFiles.push(`inputs/${fileName}`);
     }
   }
@@ -268,9 +252,12 @@ SELECT dataset_type, info, last_updated FROM datasets
 
   const manifest: RunManifest = {
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
-    projectId,
+    runId,
     createdAt: new Date().toISOString(),
+    label: projectLabel,
+    provenance: "synthetic-backfill",
     appVersion: _SERVER_VERSION,
+    rImageTag: null,
     calendar: _INSTANCE_CALENDAR,
     countryIso3,
     facilityColumnsConfig: facilityConfig,
@@ -282,22 +269,35 @@ SELECT dataset_type, info, last_updated FROM datasets
     inputFiles,
   };
   runManifestSchema.parse(manifest);
-  await writeFileAtomic(
-    packageManifestPath(packageDir),
+  await Deno.writeTextFile(
+    runManifestPath(tmpDir),
     JSON.stringify(manifest, null, 2),
   );
-  invalidatePackageCaches(projectId);
+
+  // Atomic publish: rename, then catalog row + pointer in one transaction.
+  await Deno.rename(tmpDir, runDirPath(runId));
+  const summary: RunSummary = {
+    manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
+    provenance: "synthetic-backfill",
+    sourceProjectId: projectId,
+    moduleIds: runModules.map((m) => m.id),
+    metricCount: runMetrics.length,
+    totalRowCount: runResultsObjects.reduce((sum, ro) => sum + ro.rowCount, 0),
+  };
+  await mainDb.begin(async (sql) => {
+    await sql`
+INSERT INTO runs (id, label, status, provenance, created_by, summary)
+VALUES (${runId}, ${projectLabel}, 'ready', 'synthetic-backfill', NULL, ${JSON.stringify(summary)})
+`;
+    await sql`UPDATE projects SET run_id = ${runId} WHERE id = ${projectId}`;
+  });
+
   console.log(
-    `[package] refreshed project ${projectId} in ${
+    `[runs] synthesized run ${runId} for project ${projectId} in ${
       (performance.now() - t0).toFixed(0)
     }ms`,
   );
-}
-
-async function writeFileAtomic(path: string, content: string): Promise<void> {
-  const tmpPath = `${path}.tmp-${crypto.randomUUID()}`;
-  await Deno.writeTextFile(tmpPath, content);
-  await Deno.rename(tmpPath, path);
+  return { runId };
 }
 
 async function statOrUndefined(path: string): Promise<Deno.FileInfo | undefined> {
@@ -309,28 +309,34 @@ async function statOrUndefined(path: string): Promise<Deno.FileInfo | undefined>
   }
 }
 
-// Returns true when a servable parquet exists after this call. The raw CSV is
-// the source of truth: rebuild when the parquet is absent or older than its
-// CSV; a parquet without a CSV (pruned raw output) still serves.
-async function ensureResultsObjectParquet(
-  csvPath: string,
+// Returns true when a servable parquet exists at parquetPath after this call.
+// The sandbox raw CSV is the source of truth: the sandbox's ingest-written
+// sibling parquet is copied when it is at least as fresh as its CSV, else the
+// parquet is rebuilt from the CSV with the four finalize normalizations. A
+// sandbox parquet without a CSV (pruned raw output) still serves.
+async function buildResultsObjectParquet(
+  sandboxCsvPath: string,
   parquetPath: string,
   declaredColumns: Record<string, string>,
   facilityConfig: InstanceConfigFacilityColumns,
 ): Promise<boolean> {
-  const csvStat = await statOrUndefined(csvPath);
-  const parquetStat = await statOrUndefined(parquetPath);
+  const sandboxParquetPath = `${sandboxCsvPath}.parquet`;
+  const csvStat = await statOrUndefined(sandboxCsvPath);
+  const sandboxParquetStat = await statOrUndefined(sandboxParquetPath);
   if (csvStat === undefined) {
-    return parquetStat !== undefined;
-  }
-  const csvMtime = csvStat.mtime?.getTime() ?? 0;
-  const parquetMtime = parquetStat?.mtime?.getTime() ?? -1;
-  if (parquetStat !== undefined && parquetMtime >= csvMtime) {
+    if (sandboxParquetStat === undefined) return false;
+    await Deno.copyFile(sandboxParquetPath, parquetPath);
     return true;
   }
-  const csvHeaders = await readCsvHeaders(csvPath);
+  const csvMtime = csvStat.mtime?.getTime() ?? 0;
+  const sandboxParquetMtime = sandboxParquetStat?.mtime?.getTime() ?? -1;
+  if (sandboxParquetStat !== undefined && sandboxParquetMtime >= csvMtime) {
+    await Deno.copyFile(sandboxParquetPath, parquetPath);
+    return true;
+  }
+  const csvHeaders = await readCsvHeaders(sandboxCsvPath);
   await writeNormalizedResultsObjectParquet({
-    csvPath,
+    csvPath: sandboxCsvPath,
     parquetPath,
     csvHeaders,
     declaredColumns,

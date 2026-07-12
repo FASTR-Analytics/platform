@@ -33,6 +33,9 @@ export type ItemsQueryDeps = {
 export type ItemsVersionInfo = {
   moduleLastRun: string;
   datasetsVersion: string;
+  // Set by the run read path (the cache identity, PLAN_RESULTS_RUNS §2.5);
+  // absent from the Postgres wrappers (the parity rig's baseline).
+  runId?: string;
 };
 
 // Postgres wrapper — probes and executes on the project DB.

@@ -1,15 +1,16 @@
-// Builds/refreshes the Deploy-1 results package for every ready project — the
-// same finalize the server runs at boot (for projects without a manifest) and
-// at every project-level act. Idempotent full rewrite per project; use it to
-// prepare an instance for the parity rig's --package mode or to force-refresh
-// after a code change to the finalize logic.
+// Operator backfill runner (PLAN_RESULTS_RUNS Status, model point 5):
+// synthesizes an immutable run for every ready project — mint a runId, build
+// runs/{runId} from the project's current sandbox CSVs + project-DB catalog +
+// instance config, repoint projects.run_id. Per-project isolation: one
+// failing project never blocks the others. Re-running repoints projects to
+// fresh runs; superseded runs stay on disk (unreferenced) until run GC lands.
 //
 // Usage:
-//   deno run --allow-all --env-file -c deno.json build_results_packages.ts \
+//   deno run --allow-all --env-file -c deno.json backfill_runs.ts \
 //     [--project <projectId>]
 
 import { getPgConnection } from "./server/db/postgres/connection_manager.ts";
-import { refreshSandboxPackage } from "./server/runs/mod.ts";
+import { synthesizeRunForProject } from "./server/runs/mod.ts";
 
 const onlyProjectId = ((): string | undefined => {
   const i = Deno.args.indexOf("--project");
@@ -26,8 +27,13 @@ for (const project of projects) {
   if (onlyProjectId && project.id !== onlyProjectId) continue;
   const projectDb = getPgConnection(project.id, { max: 2 });
   try {
-    await refreshSandboxPackage(mainDb, projectDb, project.id);
-    console.log(`OK ${project.label} (${project.id})`);
+    const { runId } = await synthesizeRunForProject(
+      mainDb,
+      projectDb,
+      project.id,
+      project.label,
+    );
+    console.log(`OK ${project.label} (${project.id}) -> run ${runId}`);
   } catch (e) {
     failures++;
     console.error(

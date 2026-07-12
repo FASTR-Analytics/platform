@@ -114,10 +114,14 @@ point 4).
 **Phase 3 — instance-level factory + catalogue + attach** and **Phase 4 —
 demolition + docs**: unchanged from the original spec (§4 below).
 
-### What is on the branch — salvage map
+### What is on the branch — salvage map (EXECUTED 2026-07-12)
 
 The old Deploy 1 was built to code-complete (re-fit `d81ac24d`) before the
-collapse decision; the branch is re-fit again, not restarted. Disposition:
+collapse decision; the branch was re-fit again, not restarted. **This map
+was executed by the identity read plane re-fit (see the DONE section
+below) — kept as the record of what moved where.** The one future-facing
+remainder: `synthesize_run.ts`'s finalize also becomes (a) the wizard's
+once-per-generation finalize at the wizard build. Disposition as ruled:
 
 - **Kept as-is**: `server/run_query/` — `duckdb_executor.ts` (cold
   instance per call, integer_division, BigInt→number), `csv_to_parquet.ts`
@@ -177,32 +181,100 @@ must ship with or gate this deploy:
   flag banner; finding 22: `columnExistsFor` must not swallow infra errors
   as "column absent".
 
-### Next milestone: the identity read plane
+### Identity read plane: DONE (2026-07-12)
 
-The first implementation chunk of the collapse re-fit — every dev project
-served from a synthesized immutable `runs/{runId}` resolved via
-`projects.run_id`, runId-keyed caches, rig green against that composition.
-Pure salvage-map work, no new design; the legacy write plane (per-module
-rerun → pg + sandbox CSVs) keeps working throughout, with the backfill
-runner re-synthesizing runs in dev as needed. Work items:
+Every dev project now serves from a synthesized immutable `runs/{runId}`
+resolved via `projects.run_id`; runId-keyed caches; rig green against that
+composition. Exit gates passed: `deno task typecheck` (server + client +
+systems lint) and PARITY GREEN in `--run` mode on the dev instance (8/8
+projects, 129 checks, 0 diffs, 0 skips). What landed:
 
-1. Rework the manifest schema: `runId` required, `projectId` removed
-   (ripples into `package_builder` and `run_read`).
-2. Re-target `package_builder.ts` into the backfill synthesizer: write
-   `runs/{runId}`, mint identity, per-project isolation.
-3. Re-point `run_read.ts`: `projects.run_id` resolution replaces
-   `getPackageReadContext`'s sandbox path; delete the self-heal; manifest
-   cache keyed by runId.
-4. Restore the runId cache re-key + client `attachedRunId` from the
-   branch's pre-re-fit commits and reconcile with the current tree.
-5. Delete the eager-finalize hooks and the boot sandbox-package migration;
-   revive `RUNS_DIR_PATH`.
-6. Re-target the rig's `--package` mode to the run read path.
+1. Manifest schema reworked: `runId`/`label`/`provenance`/`rImageTag`
+   required, `projectId` removed (no instance FKs in run files);
+   `RunSummary` (with `sourceProjectId` — DB-side only) restored for the
+   catalog row.
+2. `package_builder.ts` → `server/runs/synthesize_run.ts`
+   (`synthesizeRunForProject`): builds `runs/.tmp-{runId}` from sandbox
+   CSVs (copying the ingest shadow-write parquet when fresh) → atomic
+   rename → catalog row + `projects.run_id` repoint in one transaction;
+   root runner is `backfill_runs.ts` (per-project isolation).
+3. `run_read.ts`: `getRunReadContext(mainDb, projectId)` resolves
+   `projects.run_id` (null → typed "No results run attached" error);
+   self-heal and stamp-matching deleted; manifest/input caches keyed by
+   runId (immutable, no mtime stats).
+4. Cache re-key: `po_items`/`metric_info`/`replicant_opts` uniqueness =
+   runId (version = `PO_CACHE_VERSION` only); `po_detail` folds runId into
+   its version; holders carry `runId` (absent only in the rig's pg
+   baseline, which is never stored). Client: `ProjectState.attachedRunId`
+   (from `projects.run_id` via ProjectDetail/SSE `starting`),
+   `runVersionKey` replaces `moduleDataVersionKey`/`datasetsVersionKey`;
+   client `po_detail` folds the run key too.
+5. Eager-finalize hooks (module-run completion, dataset add/remove, module
+   install/uninstall/param/definition, project create) and the boot
+   sandbox-package migration deleted; project copy now clones the run
+   POINTER (§2.8); `RUNS_DIR_PATH` revived (Deno namespace only — the
+   `_EXTERNAL`/`_POSTGRES_INTERNAL` namespaces + docker-compose volume
+   ride the wizard deploy); boot ensures the runs dir + sweeps `.tmp-`
+   debris; `migrateMetricsColumns`' metric_info cache clear removed
+   (immutable runs make it meaningless).
+6. Rig `--package` → `--run`: resolves each project's attached run,
+   skips unattached projects.
 
-Exit gate: `deno task typecheck` + PARITY GREEN (pg vs run read path) on
-the dev instance. After this milestone: the wizard build (the long pole —
-settle §10 open questions 1–6 around then), the surface kills, and the
-pre-deploy review work items above.
+Known interim behavior (by design until the wizard deploy): a module rerun
+updates pg + sandbox but NOT the served run — dev re-syncs by re-running
+`backfill_runs.ts` (repoints; superseded run dirs/rows accumulate until
+run GC, a Phase 3 item); clients learn a new `attachedRunId` on SSE
+reconnect (no repoint notify yet — the wizard deploy adds it).
+
+### Next milestone: the wizard deploy (everything below ships in THE deploy)
+
+Rulings landed 2026-07-12 (see §10): generation is **instance-admin
+only**; the choose-data step reuses the **per-project dataset windowing UI
+verbatim** (pre-scoped-runs trade accepted); UI label = **"Results
+package"** ("run" stays the internal/code/DB name); **raw CSVs stay in
+runs until R emits parquet natively**, then drop. No §10 blockers remain
+for this milestone (Q1/Q4/Q8 are Phase 3 design).
+
+Work items, in order:
+
+1. **§6 hermeticity fixes FIRST** (wb-fastr-modules lockstep; memoization
+   prerequisites): m004/m005 read pinned run-input copies instead of
+   GitHub raw CSVs + asset-copy failures become hard errors (§6.1); m001's
+   undeclared output declared or dropped (§6.5); assets copied+hashed into
+   `inputs/assets/` (§6.2); R image tag into the manifest (§6.4). (§6.3
+   instance-config capture is the wizard finalize itself.)
+2. **The wizard** (§4 Phase 2 spec + model point 2): project-entered,
+   instance-admin gated; `ImportWizardShell` descriptor pattern +
+   attempt/resume machinery; choose data (windowing UI verbatim) →
+   configure modules → reuse plan → execute (shipped worker/docker
+   contracts, `r_script` SSE) → ONE finalize (§3.8, extending
+   `synthesize_run.ts`'s builder) → atomic rename → repoint + SSE notify.
+   Dual-writes legacy `ro_*` (rollback path, model point 4).
+3. **Memoized generation** (§3.7) — ships WITH the wizard, never after.
+4. **Dataset export re-target**: `datasets_in_project_*.ts` → run
+   `inputs/datasets/<type>.csv` + parquet twins; generated-script path
+   `../datasets/` → `../../inputs/datasets/` rides the same modules-repo
+   lockstep as item 1.
+5. **Surface kills + client**: per-module rerun, dirty cascade,
+   `setModulesDirtyForDataset`, staleness checkers, project Data tab
+   attach, module-card install/params/update/rerun; module
+   logs/script/files viewers re-point to the run dir; T1 dirty-state
+   slices → run summary + wizard progress; dead AI list functions deleted
+   (§7). UI vocabulary: "Results package" (EN/FR translations).
+6. **`export_central` flips** to run files (binding decision 5).
+7. **Deploy machinery**: serve-before-backfill wiring (finding 3 — the
+   synthesizer becomes the deploy's backfill, serving starts first); ship
+   the rig + backfill runner in the image or document docker-exec
+   (finding 18); `RUNS_DIR_PATH` `_EXTERNAL`/`_POSTGRES_INTERNAL`
+   namespaces + docker-compose runs volume (finding 20, binding
+   decision 4); restores referencing a missing run degrade loudly (§5).
+8. **Pre-deploy review work items** (the subsection above): engine
+   findings 11 (memory_limit + temp_directory) and 12 (pin group-by
+   order); the rig-gate hardening set (5/6, 15/16/26, 27, 25); hygiene
+   19/21/22.
+
+Exit gate: `deno task typecheck` + the HARDENED rig PARITY GREEN in
+`--run` mode → trial-instance rollout per Deploy phasing (Ethiopia early).
 
 ### Binding implementation decisions (do not re-derive)
 
@@ -717,7 +789,10 @@ project-copy's `CREATE DATABASE … TEMPLATE` of results + sandbox `cp -r`
      run stays a self-contained, independently-deletable, zippable
      directory. A shared content-addressed blob store would save disk but
      breaks the transportable-directory property and complicates GC —
-     rejected at these volumes (~67 MB/run).
+     rejected even though raw CSV volumes are real (multi-GB per module on
+     Nigeria-scale runs, NOT small; corrected 2026-07-12). Disk pressure
+     is answered by run retention/GC and the R-emits-parquet end-state
+     (§10 Q3 ruling), not by sharing bytes between runs.
    - **Finalize is never cached**: parquet + manifest + query metadata are
      rebuilt fresh every generation (seconds). Only R execution is
      memoized — so anything that changes the *data* (e.g. a
@@ -1008,26 +1083,25 @@ copy-on-reuse doesn't know to copy.
 
 1. **Retention/GC**: how long do unreferenced runs live? Is catalog "retire"
    hard-delete or archive?
-2. **Who generates**: instance-admin only (recommended, matches today's
-   data-attach gating), or project editors too?
-3. **Raw CSV retention**: keep raw module CSVs in the run forever
-   (recommended — they're small, they're the debug/download surface, AND
-   they're the copy-on-reuse source for the next generation, §3.7), or
-   gzip/prune after finalize (which would exclude that run as a reuse
-   base)?
+2. **Who generates** — **RESOLVED 2026-07-12 (Tim)**: instance-admin
+   only (matches today's data-attach gating).
+3. **Raw CSV retention** — **RESOLVED 2026-07-12 (Tim)**: keep raw CSVs
+   in runs (they're the debug/download surface and the copy-on-reuse
+   source, §3.7) UNTIL the R scripts read/write parquet natively (the
+   §2.1 sibling end-state), then drop the CSVs. Note the corrected size
+   picture: raw CSVs are multi-GB per module on Nigeria-scale runs, not
+   small — the copy-on-reuse argument wins anyway.
 4. **Scheduled auto-runs** (import → generate → auto-repoint): Phase 3 scope
    or later? Auto-repoint in particular changes what "immutable attachment"
    means for a project.
-5. **Vocabulary**: "run" is the working name (note: unrelated to
-   PLAN_SNAPSHOT_NAMING's Solid-snapshot sense; that rename should wait until
-   this re-split settles instance-getter consumers anyway). UI label —
-   "Results run"? "Results set"?
-6. **Scoping consequence + Phase 2 stopgap**: §3.4's pre-scoped runs mean a
-   project can no longer re-scope its data without generating a new run —
-   confirm that trade is acceptable. And while the wizard is still
-   project-entered, do we keep the per-project dataset windowing UI as the
-   wizard's "choose data" step verbatim (recommended), or simplify windowing
-   options at the same time?
+5. **Vocabulary** — **RESOLVED 2026-07-12 (Tim)**: UI label = **"Results
+   package"** (EN; FR at translation build); "run" stays the internal
+   name (code, DB, this plan). (Still unrelated to PLAN_SNAPSHOT_NAMING's
+   Solid-snapshot sense.)
+6. **Scoping consequence + Phase 2 stopgap** — **RESOLVED 2026-07-12
+   (Tim)**: the trade is accepted (re-scope = generate a new run), and
+   the wizard's "choose data" step keeps the per-project dataset
+   windowing UI verbatim — no windowing redesign at this deploy.
 7. **Numeric parity policy** (§3.3) — **RESOLVED 2026-07-07 by the at-scale
    parity run**: DOUBLE aggregates + relative-epsilon diff. 69/69 real
    Nigeria configs matched Postgres to max 2.0e-15 (the float floor), so no

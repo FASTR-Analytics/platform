@@ -11,7 +11,6 @@ import {
 } from "./running_tasks_map.ts";
 import { triggerRunnableModules } from "./trigger_runnable_tasks.ts";
 import { getPresentationObjectsThatDependOnModule } from "./get_dependents.ts";
-import { refreshSandboxPackageSafe } from "../runs/mod.ts";
 import { notifyLastUpdated } from "./notify_last_updated.ts";
 import {
   notifyProjectModuleDirtyState,
@@ -98,15 +97,6 @@ VALUES ('any_module_last_run', ${lastRun})
 ON CONFLICT (id) DO UPDATE SET last_updated = ${lastRun}
 `,
   ]);
-
-  // Eager finalize (PLAN_RESULTS_RUNS §3.8): module-run completion is a
-  // project-level act, so the results package refreshes before clients are
-  // notified to refetch. On failure the per-request self-heal retries.
-  await refreshSandboxPackageSafe(
-    getPgConnectionFromCacheOrNew("main", "READ_ONLY"),
-    projectDb,
-    etd.projectId,
-  );
 
   notifyProjectModuleDirtyState(etd.projectId, [etd.moduleId], "ready", lastRun, computeDefGitRef ?? undefined);
 

@@ -5,10 +5,9 @@ import {
   _SANDBOX_DIR_PATH,
 } from "../../exposed_env_vars.ts";
 import {
-  getPackageReadContext,
   getResultsObjectItemsFromRun,
+  getRunReadContext,
 } from "../../run_query/mod.ts";
-import { refreshSandboxPackageSafe } from "../../runs/mod.ts";
 import {
   getAllCalculatedIndicatorsFromSnapshot,
   getAllHfaIndicatorCodeFromSnapshot,
@@ -89,13 +88,6 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
-    // Eager finalize (PLAN_RESULTS_RUNS §3.8) — module install/uninstall/
-    // param/definition changes are project-level acts.
-    await refreshSandboxPackageSafe(
-      c.var.mainDb,
-      c.var.ppk.projectDb,
-      c.var.ppk.projectId,
-    );
     await setModuleDirty(c.var.ppk, params.module_id);
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -165,11 +157,6 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
-    await refreshSandboxPackageSafe(
-      c.var.mainDb,
-      c.var.ppk.projectDb,
-      c.var.ppk.projectId,
-    );
     const [modulesRes, metricsRes] = await Promise.all([
       getAllModulesForProject(c.var.ppk.projectDb),
       getMetricsWithStatus(c.var.mainDb, c.var.ppk.projectDb),
@@ -210,12 +197,6 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
-    await refreshSandboxPackageSafe(
-      c.var.mainDb,
-      c.var.ppk.projectDb,
-      c.var.ppk.projectId,
-    );
-
     // If rerun requested, notify task manager
     if (body.rerun) {
       await setModuleDirty(c.var.ppk, params.module_id);
@@ -273,11 +254,6 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
-    await refreshSandboxPackageSafe(
-      c.var.mainDb,
-      c.var.ppk.projectDb,
-      c.var.ppk.projectId,
-    );
     await setModuleDirty(c.var.ppk, params.module_id);
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -325,11 +301,7 @@ defineRoute(
   requireProjectPermission(),
   log("getResultsObjectItems"),
   async (c, { params }) => {
-    const ctxRes = await getPackageReadContext(
-      c.var.mainDb,
-      c.var.ppk.projectDb,
-      c.var.ppk.projectId,
-    );
+    const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
     if (ctxRes.success === false) return c.json(ctxRes);
     const res = await getResultsObjectItemsFromRun(
       ctxRes.data,

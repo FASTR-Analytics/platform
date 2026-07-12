@@ -17,9 +17,8 @@ import { LabelHolder } from "panther";
 import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { unwrap } from "solid-js/store";
 import {
-  getModuleIdForResultsObject,
-  moduleDataVersionKey,
   projectState,
+  runVersionKey,
 } from "~/state/project/t1_store";
 import { buildFigureInputs, makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
@@ -48,10 +47,7 @@ export function PresetPreview(p: Props) {
     const preset = p.preset;
     const metric = p.metric;
     // Tracked version-key read — fetchPreview's cache-internal reads are untracked
-    moduleDataVersionKey(
-      projectState,
-      getModuleIdForResultsObject(metric.resultsObjectId),
-    );
+    runVersionKey(projectState);
     const thisVersion = ++version;
     setState({ status: "loading" });
 

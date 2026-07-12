@@ -13,7 +13,7 @@ import {
   hashFetchConfig,
   t3,
 } from "lib";
-import { getModuleIdForMetric, getModuleIdForResultsObject, moduleDataVersionKey } from "~/state/project/t1_store";
+import { runVersionKey } from "~/state/project/t1_store";
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { poItemsQueue, resultsValueInfoQueue } from "~/state/_infra/request_queue";
 import { serverActions } from "~/server_actions";
@@ -35,8 +35,7 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
     params.projectId,
     params.metricId,
   ],
-  versionKey: (params, pds) =>
-    moduleDataVersionKey(pds, getModuleIdForMetric(params.metricId)),
+  versionKey: (_params, pds) => runVersionKey(pds),
 });
 
 export const _PO_DETAIL_CACHE = createReactiveCache<
@@ -48,8 +47,10 @@ export const _PO_DETAIL_CACHE = createReactiveCache<
 >({
   name: "po_detail",
   uniquenessKeys: (params) => [params.projectId, params.presentationObjectId],
+  // Folds the run key: the payload embeds run-derived resultsValue
+  // (PLAN_RESULTS_RUNS §2.5), mirroring the server po_detail version hash.
   versionKey: (params, pds) =>
-    pds.lastUpdated.presentation_objects[params.presentationObjectId] ?? "unknown",
+    `${pds.lastUpdated.presentation_objects[params.presentationObjectId] ?? "unknown"}|${runVersionKey(pds)}`,
 });
 
 export const _PO_ITEMS_CACHE = createReactiveCache<
@@ -66,8 +67,7 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
     params.resultsObjectId,
     hashFetchConfig(params.fetchConfig),
   ],
-  versionKey: (params, pds) =>
-    moduleDataVersionKey(pds, getModuleIdForResultsObject(params.resultsObjectId)),
+  versionKey: (_params, pds) => runVersionKey(pds),
 });
 
 export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(

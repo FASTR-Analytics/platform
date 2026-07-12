@@ -37,20 +37,20 @@ import {
   getIndicatorMetadataFromRun,
   getModuleIdForMetricFromRun,
   getModuleIdForResultsObjectFromRun,
-  getPackageReadContext,
   getPossibleValuesFromRun,
   getPresentationObjectDetailFromRun,
   getPresentationObjectItemsFromRun,
   getRawPeriodBoundsFromRun,
   getResultsValueInfoFromRun,
+  getRunReadContext,
   getRunVersionInfo,
 } from "../../run_query/mod.ts";
 
-// Every data read in this file serves from the project's results package
-// (PLAN_RESULTS_RUNS Deploy 1): manifest for all metadata, DuckDB over the
-// package parquet for all data queries. getPackageReadContext self-heals a
-// stale or missing package (stamp mismatch vs the live project DB) before
-// serving. The Postgres read functions stay in-tree solely as the parity
+// Every data read in this file serves from the project's attached immutable
+// run (PLAN_RESULTS_RUNS): manifest for all metadata, DuckDB over the run's
+// parquet for all data queries, caches keyed on the runId. A project with no
+// run attached errors loudly until its backfill synthesis / first generation
+// completes. The Postgres read functions stay in-tree solely as the parity
 // rig's baseline.
 
 export const routesPresentationObjects = new Hono();
@@ -159,11 +159,7 @@ defineRoute(
       return c.json({ success: false, err: "Presentation object not found" });
     }
 
-    const ctxRes = await getPackageReadContext(
-      c.var.mainDb,
-      c.var.ppk.projectDb,
-      c.var.ppk.projectId,
-    );
+    const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
     if (ctxRes.success === false) return c.json(ctxRes);
     const runCtx = ctxRes.data;
 
@@ -175,6 +171,7 @@ defineRoute(
       },
       {
         presentationObjectLastUpdated: poData.last_updated,
+        runId: runCtx.runId,
       },
     );
 
@@ -217,6 +214,7 @@ defineRoute(
       },
       {
         presentationObjectLastUpdated: poData.last_updated,
+        runId: runCtx.runId,
       },
     );
 
@@ -362,11 +360,7 @@ defineRoute(
     );
     validateFetchConfig(body.fetchConfig as GenericLongFormFetchConfig);
 
-    const ctxRes = await getPackageReadContext(
-      c.var.mainDb,
-      c.var.ppk.projectDb,
-      c.var.ppk.projectId,
-    );
+    const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
     if (ctxRes.success === false) return c.json(ctxRes);
     const runCtx = ctxRes.data;
 
@@ -391,7 +385,7 @@ defineRoute(
     // Check cache BEFORE queueing - prevents duplicates from consuming queue slots
     const existing = await _PO_ITEMS_CACHE.get(
       {
-        projectId: c.var.ppk.projectId,
+        runId: runCtx.runId,
         resultsObjectId: body.resultsObjectId,
         fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
       },
@@ -436,7 +430,7 @@ defineRoute(
       _PO_ITEMS_CACHE.setPromise(
         newPromise,
         {
-          projectId: c.var.ppk.projectId,
+          runId: runCtx.runId,
           resultsObjectId: body.resultsObjectId,
           fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
         },
@@ -466,11 +460,7 @@ defineRoute(
   async (c, { body }) => {
     const t0 = performance.now();
 
-    const ctxRes = await getPackageReadContext(
-      c.var.mainDb,
-      c.var.ppk.projectDb,
-      c.var.ppk.projectId,
-    );
+    const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
     if (ctxRes.success === false) return c.json(ctxRes);
     const runCtx = ctxRes.data;
 
@@ -493,7 +483,7 @@ defineRoute(
     // Check cache BEFORE queueing - prevents duplicates from consuming queue slots
     const existing = await _METRIC_INFO_CACHE.get(
       {
-        projectId: c.var.ppk.projectId,
+        runId: runCtx.runId,
         metricId: body.metricId,
       },
       versionParams,
@@ -539,7 +529,7 @@ defineRoute(
       _METRIC_INFO_CACHE.setPromise(
         newPromise,
         {
-          projectId: c.var.ppk.projectId,
+          runId: runCtx.runId,
           metricId: body.metricId,
         },
         versionParams,
@@ -582,11 +572,7 @@ defineRoute(
         ? `${fetchConfig.filters.length} filters`
         : "no filters";
 
-    const ctxRes = await getPackageReadContext(
-      c.var.mainDb,
-      c.var.ppk.projectDb,
-      c.var.ppk.projectId,
-    );
+    const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
     if (ctxRes.success === false) return c.json(ctxRes);
     const runCtx = ctxRes.data;
 
@@ -618,7 +604,7 @@ defineRoute(
     // Check cache BEFORE queueing
     const existing = await _REPLICANT_OPTIONS_CACHE.get(
       {
-        projectId: c.var.ppk.projectId,
+        runId: runCtx.runId,
         resultsObjectId: body.resultsObjectId,
         replicateBy: body.replicateBy,
         fetchConfig: fetchConfig,
@@ -770,7 +756,7 @@ defineRoute(
       _REPLICANT_OPTIONS_CACHE.setPromise(
         newPromise,
         {
-          projectId: c.var.ppk.projectId,
+          runId: runCtx.runId,
           resultsObjectId: body.resultsObjectId,
           replicateBy: body.replicateBy,
           fetchConfig: fetchConfig,

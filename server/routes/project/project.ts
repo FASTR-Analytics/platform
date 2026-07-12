@@ -47,7 +47,6 @@ import {
   checkSpaceForDataset,
   checkSpaceForNewProject,
 } from "../../utils/disk_space.ts";
-import { refreshSandboxPackageSafe } from "../../runs/mod.ts";
 
 export const routesProject = new Hono();
 
@@ -80,13 +79,6 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
-    // Eager finalize (PLAN_RESULTS_RUNS §3.8): project create is a
-    // project-level act — build the new project's results package.
-    await refreshSandboxPackageSafe(
-      c.var.mainDb,
-      res.data.projectDb,
-      res.data.newProjectId,
-    );
     for (const enabledDataset of res.data.datasetLastUpdateds) {
       await setModulesDirtyForDataset(
         {
@@ -293,15 +285,6 @@ defineRoute(
           return;
         }
 
-        // Eager finalize (PLAN_RESULTS_RUNS §3.8): data-in-project export is
-        // a project-level act — refresh the results package before clients
-        // are notified to refetch.
-        await refreshSandboxPackageSafe(
-          c.var.mainDb,
-          c.var.ppk.projectDb,
-          c.var.ppk.projectId,
-        );
-
         if (!body.skipModuleRerun) {
           await writer.progress(0.9, "Updating module dependencies...");
           await setModulesDirtyForDataset(c.var.ppk, body.datasetType);
@@ -340,11 +323,6 @@ defineRoute(
       params.dataset_type,
     );
     if (res.success === true) {
-      await refreshSandboxPackageSafe(
-        c.var.mainDb,
-        c.var.ppk.projectDb,
-        c.var.ppk.projectId,
-      );
       await setModulesDirtyForDataset(c.var.ppk, params.dataset_type);
       const datasetsRes = await getAllDatasetsForProject(c.var.ppk.projectDb);
       if (datasetsRes.success) {

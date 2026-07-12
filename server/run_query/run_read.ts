@@ -32,14 +32,13 @@ import {
 import { getResultsObjectTableName, tryCatchDatabaseAsync } from "../db/utils.ts";
 import { inferMostGranularTimePeriodColumn } from "../db/project/metric_enricher.ts";
 import {
-  getPackageManifestCached,
-  readPackageInputJsonCached,
+  getRunManifestCached,
+  readRunInputJsonCached,
 } from "../runs/manifest_cache.ts";
-import { refreshSandboxPackage } from "../runs/package_builder.ts";
 import {
-  packageDirPath,
-  packageInputFilePath,
-  packageResultsObjectParquetPath,
+  runDirPath,
+  runInputFilePath,
+  runResultsObjectParquetPath,
 } from "../runs/run_paths.ts";
 import {
   getDatasetFamily,
@@ -62,87 +61,53 @@ import type {
 } from "../server_only_funcs_presentation_objects/types.ts";
 import { executeSqlOverParquet, type ParquetView } from "./duckdb_executor.ts";
 
-// The package read path (PLAN_RESULTS_RUNS Status "Deploy 1"): every function
-// here consults ONLY the project's results package — manifest for metadata (no
+// The run read path (PLAN_RESULTS_RUNS Status, model point 3): every function
+// here consults ONLY the attached immutable run — manifest for metadata (no
 // probes), parquet for data. The SQL builders and status logic are the SAME
 // code the Postgres path uses; only the context source and the executor differ
-// (§2.4). In Deploy 2 the context re-points to the attached immutable run.
+// (§2.4). The Postgres read functions stay in-tree solely as the parity rig's
+// baseline until demolition.
 
 export type RunReadContext = {
-  projectId: string;
-  packageDir: string;
+  runId: string;
+  runDir: string;
   manifest: RunManifest;
 };
 
-// Resolves the project's package for serving, healing first: the manifest must
-// name this project (project copy duplicates the sandbox wholesale, source
-// manifest included) and its module/dataset stamps must match the live project
-// DB. A mismatched, missing, or unparseable manifest triggers a full finalize
-// before serving — fail-closed: reads error rather than serve stale. This is
-// the backstop behind the eager hooks, and what lazily heals packages after a
-// future Deploy-2 image rollback.
-export async function getPackageReadContext(
+// Resolves the project's attached run via projects.run_id — the one and only
+// serving pointer. No run attached is a typed, expected state (projects await
+// their backfill synthesis or first wizard generation); a non-null pointer to
+// an unreadable run is an operational error surfaced loudly.
+export async function getRunReadContext(
   mainDb: Sql,
-  projectDb: Sql,
   projectId: string,
 ): Promise<APIResponseWithData<RunReadContext>> {
   try {
-    const [moduleStamps, datasetStamps] = await Promise.all([
-      projectDb<{ id: string; last_run_at: string | null }[]>`
-SELECT id, last_run_at FROM modules
-`,
-      projectDb<{ dataset_type: string; last_updated: string }[]>`
-SELECT dataset_type, last_updated FROM datasets
-`,
-    ]);
-    let manifest = await getPackageManifestCached(projectId);
-    if (
-      manifest === undefined ||
-      !manifestMatchesLiveStamps(manifest, projectId, moduleStamps, datasetStamps)
-    ) {
-      await refreshSandboxPackage(mainDb, projectDb, projectId);
-      manifest = await getPackageManifestCached(projectId);
-      if (manifest === undefined) {
-        return {
-          success: false,
-          err: "Results package could not be built for this project",
-        };
-      }
+    const row = (
+      await mainDb<{ run_id: string | null }[]>`
+SELECT run_id FROM projects WHERE id = ${projectId}
+`
+    ).at(0);
+    if (row === undefined) {
+      return { success: false, err: "Project not found" };
     }
+    if (row.run_id === null) {
+      return {
+        success: false,
+        err: "No results run attached to this project",
+      };
+    }
+    const manifest = await getRunManifestCached(row.run_id);
     return {
       success: true,
-      data: { projectId, packageDir: packageDirPath(projectId), manifest },
+      data: { runId: row.run_id, runDir: runDirPath(row.run_id), manifest },
     };
   } catch (e) {
     return {
       success: false,
-      err: `Results package unavailable: ${e instanceof Error ? e.message : e}`,
+      err: `Results run unavailable: ${e instanceof Error ? e.message : e}`,
     };
   }
-}
-
-function manifestMatchesLiveStamps(
-  manifest: RunManifest,
-  projectId: string,
-  moduleStamps: { id: string; last_run_at: string | null }[],
-  datasetStamps: { dataset_type: string; last_updated: string }[],
-): boolean {
-  if (manifest.projectId !== projectId) return false;
-  if (manifest.modules.length !== moduleStamps.length) return false;
-  const moduleById = new Map(manifest.modules.map((m) => [m.id, m.lastRunAt]));
-  for (const m of moduleStamps) {
-    if (!moduleById.has(m.id) || moduleById.get(m.id) !== m.last_run_at) {
-      return false;
-    }
-  }
-  if (manifest.datasets.length !== datasetStamps.length) return false;
-  const datasetByType = new Map(
-    manifest.datasets.map((d) => [d.datasetType, d.lastUpdated]),
-  );
-  for (const d of datasetStamps) {
-    if (datasetByType.get(d.dataset_type) !== d.last_updated) return false;
-  }
-  return true;
 }
 
 // Same format as the legacy per-request getDatasetsVersion, but from the
@@ -174,18 +139,14 @@ function viewsFor(ctx: RunReadContext, resultsObjectId: string): ParquetView[] {
   if (ro?.hasParquet) {
     views.push({
       viewName: getResultsObjectTableName(resultsObjectId),
-      parquetPath: packageResultsObjectParquetPath(
-        ctx.packageDir,
-        ro.moduleId,
-        ro.id,
-      ),
+      parquetPath: runResultsObjectParquetPath(ctx.runDir, ro.moduleId, ro.id),
     });
   }
   for (const table of ["facilities_hmis", "facilities_hfa"]) {
     if (ctx.manifest.inputFiles.includes(`inputs/${table}.parquet`)) {
       views.push({
         viewName: table,
-        parquetPath: packageInputFilePath(ctx.packageDir, `${table}.parquet`),
+        parquetPath: runInputFilePath(ctx.runDir, `${table}.parquet`),
       });
     }
   }
@@ -298,11 +259,7 @@ async function readInputRows<T>(
   rowSchema: z.ZodType<T>,
 ): Promise<T[]> {
   if (!ctx.manifest.inputFiles.includes(`inputs/${fileName}`)) return [];
-  const raw = await readPackageInputJsonCached(
-    ctx.projectId,
-    ctx.manifest.createdAt,
-    fileName,
-  );
+  const raw = await readRunInputJsonCached(ctx.runId, fileName);
   return z.array(rowSchema).parse(raw);
 }
 
@@ -529,7 +486,7 @@ export function getModuleIdForMetricFromRun(
 export function getRunVersionInfo(
   ctx: RunReadContext,
   moduleId: string,
-): { moduleLastRun: string; datasetsVersion: string } {
+): { moduleLastRun: string; datasetsVersion: string; runId: string } {
   return versionInfoFor(ctx, moduleId);
 }
 
@@ -571,6 +528,7 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
       config: parsePresentationObjectConfig(rawPresObj.config),
       isDefault: rawPresObj.is_default_visualization,
       folderId: rawPresObj.folder_id,
+      runId: ctx.runId,
     };
     return { success: true, data: presObj };
   });
@@ -581,6 +539,7 @@ function versionInfoFor(ctx: RunReadContext, moduleId: string) {
   return {
     moduleLastRun: mod?.lastRunAt ?? "unknown",
     datasetsVersion: datasetsVersionFromManifest(ctx.manifest),
+    runId: ctx.runId,
   };
 }
 

@@ -30,6 +30,10 @@ export type ProjectState = {
   thisUserRole: "viewer" | "editor" | "admin"; // kept with hardcoding bug intact
   isLocked: boolean;
   isCentralReporting: boolean;
+  // The immutable results run this project serves from — the client-side
+  // cache identity for all run-derived data (PLAN_RESULTS_RUNS §2.5);
+  // null = no run attached (typed replacement for the "unknown" sentinel).
+  attachedRunId: string | null;
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];

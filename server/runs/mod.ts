@@ -1,18 +1,15 @@
-export {
-  refreshSandboxPackage,
-  refreshSandboxPackageSafe,
-} from "./package_builder.ts";
+export { synthesizeRunForProject } from "./synthesize_run.ts";
 export { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 export { exportPgTableToParquet, type ExportedColumn } from "./pg_export.ts";
 export {
-  getPackageManifestCached,
-  invalidatePackageCaches,
-  readPackageInputJsonCached,
+  getRunManifestCached,
+  readRunInputJsonCached,
 } from "./manifest_cache.ts";
 export {
-  packageDirPath,
-  packageInputFilePath,
-  packageManifestPath,
-  packageResultsObjectCsvPath,
-  packageResultsObjectParquetPath,
+  runDirPath,
+  runInputFilePath,
+  runManifestPath,
+  runResultsObjectParquetPath,
+  runTmpDirPath,
+  sweepAbandonedTmpRunDirs,
 } from "./run_paths.ts";

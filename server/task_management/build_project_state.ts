@@ -47,6 +47,7 @@ export async function buildProjectState(
     thisUserRole: detail.thisUserRole,
     isLocked: detail.isLocked,
     isCentralReporting: detail.isCentralReporting,
+    attachedRunId: detail.attachedRunId,
     projectDatasets: detail.projectDatasets,
     projectModules: detail.projectModules,
     metrics: detail.metrics,

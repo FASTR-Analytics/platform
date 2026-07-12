@@ -78,6 +78,7 @@ export type DBProject = {
   is_central_reporting: boolean;
   status: string;
   deletion_scheduled_at: Date | null;
+  run_id: string | null;
 };
 
 export type DBProjectUserRole = {

@@ -15,6 +15,7 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   thisUserRole: "viewer",
   isLocked: false,
   isCentralReporting: false,
+  attachedRunId: null,
   projectDatasets: [],
   projectModules: [],
   metrics: [],
@@ -192,27 +193,15 @@ export function getFormatAsForMetric(metricId: string): "percent" | "number" {
   return metricToFormatAs[metricId] ?? "number";
 }
 
-// Version-key fragment for caches whose value embeds indicator metadata (PO
-// items, metric info, replicant options). indicatorMetadata is rewritten on
-// dataset integration (bumps lastUpdated.datasets) independently of
-// moduleLastRun, so those caches must version on it too. Mirrors the server
-// Valkey version hash (datasets sorted by type, `type:last_updated`).
-export function datasetsVersionKey(pds: ProjectState): string {
-  return Object.keys(pds.lastUpdated.datasets)
-    .sort()
-    .map((dt) => `${dt}:${pds.lastUpdated.datasets[dt]}`)
-    .join(",");
-}
-
-// Composite version for caches keyed on module output (PO items, metric info,
-// replicant options). Consumers inside a createEffect must call this with the
-// live `projectState` proxy before their first await — getProjectStateSnapshot
-// is unwrapped, so cache-internal reads are NOT tracked.
-export function moduleDataVersionKey(
-  pds: ProjectState,
-  moduleId: string,
-): string {
-  return `${pds.moduleLastRun[moduleId] ?? "unknown"}|${datasetsVersionKey(pds)}`;
+// Version for caches keyed on run-derived data (PO items, metric info,
+// replicant options): the project's attached immutable run IS the data
+// version (PLAN_RESULTS_RUNS §2.5); "no_run_attached" is the typed empty
+// state (server reads error until a run is attached). Consumers inside a
+// createEffect must call this with the live `projectState` proxy before
+// their first await — getProjectStateSnapshot is unwrapped, so
+// cache-internal reads are NOT tracked.
+export function runVersionKey(pds: ProjectState): string {
+  return pds.attachedRunId ?? "no_run_attached";
 }
 
 export { projectState };

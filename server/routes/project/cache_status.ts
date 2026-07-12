@@ -29,10 +29,20 @@ defineRoute(
       metricRows.map((r) => [r.id, r.results_object_id]),
     );
 
-    const [poItemsHashes, replicantHashes] = await Promise.all([
-      _PO_ITEMS_CACHE.scanUniquenessHashes(`${projectId}|`),
-      _REPLICANT_OPTIONS_CACHE.scanUniquenessHashes(`${projectId}::`),
-    ]);
+    // Data caches key on the attached run (PLAN_RESULTS_RUNS §2.5); a project
+    // with no run attached has no data-cache entries by construction.
+    const runId = (
+      await c.var.mainDb<{ run_id: string | null }[]>`
+SELECT run_id FROM projects WHERE id = ${projectId}
+`
+    ).at(0)?.run_id ?? null;
+
+    const [poItemsHashes, replicantHashes] = runId
+      ? await Promise.all([
+          _PO_ITEMS_CACHE.scanUniquenessHashes(`${runId}|`),
+          _REPLICANT_OPTIONS_CACHE.scanUniquenessHashes(`${runId}::`),
+        ])
+      : [[], []];
 
     const poItemsCounts = new Map<string, number>();
     for (const h of poItemsHashes) {
@@ -58,10 +68,12 @@ defineRoute(
             projectId,
             presentationObjectId: po.id,
           }),
-          metricInfoCached: await _METRIC_INFO_CACHE.exists({
-            projectId,
-            metricId: po.metricId,
-          }),
+          metricInfoCached: runId
+            ? await _METRIC_INFO_CACHE.exists({
+                runId,
+                metricId: po.metricId,
+              })
+            : false,
           poItemsCount: resultsObjectId
             ? (poItemsCounts.get(resultsObjectId) ?? 0)
             : 0,

@@ -25,12 +25,12 @@
 // (raw R CSV → parquet) against Postgres ingest. Off by default because
 // sandbox files can be stale vs the pg tables.
 //
-// --package: run the REAL serving path (the package wrappers in
-// server/run_query/run_read.ts over the project's results package — manifest
-// context, no probes) against the legacy Postgres baseline. READ-ONLY: the
-// manifest is read directly (no self-heal refresh), and projects without a
-// package are skipped — build packages first (server boot, or
-// build_results_packages.ts). This is the Deploy-1 per-instance rollout gate.
+// --run: run the REAL serving path (the run wrappers in
+// server/run_query/run_read.ts over the project's attached immutable run —
+// manifest context, no probes) against the legacy Postgres baseline.
+// READ-ONLY: projects without an attached run are skipped — synthesize runs
+// first (backfill_runs.ts). This is the per-instance rollout gate for the
+// cutover deploy.
 //
 // Zero DIFF rows = parity green for this instance.
 // =============================================================================
@@ -71,7 +71,7 @@ import {
   getResultsValueInfoFromRun,
   type RunReadContext,
 } from "./server/run_query/mod.ts";
-import { getPackageManifestCached, packageDirPath } from "./server/runs/mod.ts";
+import { getRunManifestCached, runDirPath } from "./server/runs/mod.ts";
 
 const REL_EPSILON = 1e-9;
 const PG_NULL_SENTINEL = "__PG_NULL__";
@@ -85,9 +85,9 @@ const onlyProjectId = ((): string | undefined => {
 })();
 const keepWorkDir = Deno.args.includes("--keep-work-dir");
 const useSandboxParquet = Deno.args.includes("--sandbox-parquet");
-const usePackage = Deno.args.includes("--package");
-if (useSandboxParquet && usePackage) {
-  throw new Error("--sandbox-parquet and --package are mutually exclusive");
+const useRun = Deno.args.includes("--run");
+if (useSandboxParquet && useRun) {
+  throw new Error("--sandbox-parquet and --run are mutually exclusive");
 }
 
 // ── Result bookkeeping ────────────────────────────────────────────────────────
@@ -460,7 +460,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
     return;
   }
 
-  // In --package mode the duck side is the real package wrappers — no shadow
+  // In --run mode the duck side is the real run wrappers — no shadow
   // parquet needed. Other modes build the hybrid shadow.
   if (!runCtx) {
     const roCandidate = useSandboxParquet
@@ -631,9 +631,9 @@ async function main() {
 
   const mainDb = getPgConnection("main", { max: 4 });
   const projects = await mainDb<
-    { id: string; label: string; status: string }[]
+    { id: string; label: string; status: string; run_id: string | null }[]
   >`
-SELECT id, label, status FROM projects ORDER BY label
+SELECT id, label, status, run_id FROM projects ORDER BY label
 `;
   const targets = projects.filter(
     (p) => p.status === "ready" && (!onlyProjectId || p.id === onlyProjectId),
@@ -642,16 +642,15 @@ SELECT id, label, status FROM projects ORDER BY label
 
   for (const project of targets) {
     let runCtx: RunReadContext | undefined;
-    if (usePackage) {
-      const manifest = await getPackageManifestCached(project.id);
-      if (manifest === undefined) {
-        console.log(`\n── ${project.label} (${project.id.slice(0, 8)}): NO PACKAGE — skipped`);
+    if (useRun) {
+      if (project.run_id === null) {
+        console.log(`\n── ${project.label} (${project.id.slice(0, 8)}): NO RUN ATTACHED — skipped`);
         continue;
       }
       runCtx = {
-        projectId: project.id,
-        packageDir: packageDirPath(project.id),
-        manifest,
+        runId: project.run_id,
+        runDir: runDirPath(project.run_id),
+        manifest: await getRunManifestCached(project.run_id),
       };
     }
     const projectDb = getPgConnection(project.id, { max: 4 });

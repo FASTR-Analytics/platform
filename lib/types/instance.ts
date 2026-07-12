@@ -441,6 +441,10 @@ export type ItemsHolderPresentationObject = {
   // datasets.last_updated) independently of moduleLastRun, so the cache must
   // version on this too. Carried in the holder so parseData can reproduce it.
   datasetsVersion: string;
+  // The immutable run this payload was served from — the cache identity
+  // (PLAN_RESULTS_RUNS §2.5). Absent only from the parity rig's Postgres
+  // baseline, which never enters the caches.
+  runId?: string;
   dateRange: PeriodBounds | undefined;
 } & (
   | {

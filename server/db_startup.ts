@@ -8,11 +8,8 @@ import {
   type InstanceConfigMaxAdminArea,
 } from "lib";
 import { uninstallModule } from "./db/project/modules.ts";
-import {
-  packageDirPath,
-  packageManifestPath,
-  refreshSandboxPackage,
-} from "./runs/mod.ts";
+import { sweepAbandonedTmpRunDirs } from "./runs/mod.ts";
+import { _RUNS_DIR_PATH } from "./exposed_env_vars.ts";
 import { getCountryIso3Config } from "./db/instance/config.ts";
 import {
   runInstanceMigrations,
@@ -106,31 +103,14 @@ ${userInserts}
     // Added: 2026-06-10 — see cleanupOrphanedPresentationObjects
     // =========================================================================
     await cleanupOrphanedPresentationObjects(projectDb);
-
-    // Deploy-1 boot migration (PLAN_RESULTS_RUNS Status "Deploy 1"): build
-    // the results package for every project that has no manifest yet.
-    // Staleness is healed lazily per request (stamp mismatch), so packaged
-    // projects are left alone. A failure logs loudly and never blocks boot —
-    // that project's reads fail until a refresh succeeds.
-    const hasManifest = await Deno.stat(
-      packageManifestPath(packageDirPath(project.id)),
-    ).then(
-      (s) => s.isFile,
-      () => false,
-    );
-    if (!hasManifest) {
-      try {
-        await refreshSandboxPackage(sqlMain, projectDb, project.id);
-        console.log(`[package] built package for project ${project.id}`);
-      } catch (e) {
-        console.error(
-          `[package] BOOT BUILD FAILED for project ${project.id}: ${
-            e instanceof Error ? e.message : e
-          }`,
-        );
-      }
-    }
   }
+
+  // Results runs (PLAN_RESULTS_RUNS §2.6): a crashed generation leaves only a
+  // .tmp- dir, never a readable run — sweep the debris at boot. Projects
+  // without a run serve the typed "no run attached" state until the backfill
+  // runner (backfill_runs.ts) or a wizard generation attaches one.
+  await Deno.mkdir(_RUNS_DIR_PATH, { recursive: true });
+  await sweepAbandonedTmpRunDirs();
 }
 
 async function resetWedgedUploadAttempts(mainDb: Sql): Promise<void> {

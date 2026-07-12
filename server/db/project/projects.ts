@@ -41,7 +41,6 @@ import {
   getMetricsWithStatus,
   installModule,
 } from "./modules.ts";
-import { refreshSandboxPackageSafe } from "../../runs/mod.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
 import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
@@ -269,6 +268,7 @@ export async function getProjectDetail(
       thisUserRole: "viewer",
       isLocked: rawProject.is_locked,
       isCentralReporting: rawProject.is_central_reporting,
+      attachedRunId: rawProject.run_id,
       projectDatasets: datasetsInProject,
       projectModules: sortedModules,
       metrics: resMetrics.data,
@@ -1082,15 +1082,15 @@ export async function copyProjectInBackground(
       }
     }
 
-    // Eager finalize (PLAN_RESULTS_RUNS §3.8): the sandbox copy carried the
-    // SOURCE project's manifest — rewrite it under the new project's identity
-    // before the project goes ready (the self-heal's projectId check is the
-    // backstop if this fails).
-    await refreshSandboxPackageSafe(
-      dedicatedDb,
-      getPgConnectionFromCacheOrNew(newProjectId, "READ_AND_WRITE"),
-      newProjectId,
-    );
+    // Project copy = authored-content clone + same run pointer
+    // (PLAN_RESULTS_RUNS §2.8): runs are immutable instance-level artifacts,
+    // so the copy attaches to the source's run (cache sharing is run-keyed
+    // and free).
+    await dedicatedDb`
+      UPDATE projects SET run_id = (
+        SELECT run_id FROM projects WHERE id = ${sourceProjectId}
+      ) WHERE id = ${newProjectId}
+    `;
 
     await dedicatedDb`UPDATE projects SET status = 'ready' WHERE id = ${newProjectId}`;
     console.log(`Copy project completed: ${newProjectId}`);

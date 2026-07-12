@@ -42,7 +42,6 @@
 import { z } from "zod";
 import { metricAIDescriptionInstalled, vizPresetInstalled } from "lib";
 import type { Sql } from "postgres";
-import { _METRIC_INFO_CACHE } from "../../../routes/caches/visualizations.ts";
 import {
   type MigrationStats,
   rawJsonNeedsForcedTransform,
@@ -117,7 +116,7 @@ const vizPresetsArraySchema = z.array(vizPresetInstalled);
 
 export async function migrateMetricsColumns(
   tx: Sql,
-  projectId: string,
+  _projectId: string,
 ): Promise<MigrationStats> {
   const rows = await tx<{
     id: string;
@@ -193,9 +192,9 @@ export async function migrateMetricsColumns(
       `;
     }
 
-    // Clear Valkey cache for this metric
-    _METRIC_INFO_CACHE.clear({ projectId, metricId: row.id });
-
+    // No cache clear: metric_info payloads resolve from the attached run's
+    // immutable manifest and key on its runId (PLAN_RESULTS_RUNS §2.5) — a
+    // metrics-table transform only reaches serving via the next run.
     rowsTransformed++;
   }
 
