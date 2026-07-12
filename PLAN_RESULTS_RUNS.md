@@ -269,7 +269,17 @@ Work items, in order:
    configure modules → reuse plan → execute (shipped worker/docker
    contracts, `r_script` SSE) → ONE finalize (§3.8, extending
    `synthesize_run.ts`'s builder) → atomic rename → repoint + SSE notify.
-   Dual-writes legacy `ro_*` (rollback path, model point 4).
+   Dual-writes legacy `ro_*` (rollback path, model point 4). Ruled
+   2026-07-13: the design must include **def-declared pinned repo
+   assets** — module definitions gain a repo-asset form (name + modules-repo
+   path + commit SHA), server-fetched at module install/update,
+   hash-verified and cached, so repo data updates (survey/population CSVs)
+   distribute via ordinary module updates instead of per-instance uploads;
+   instance-uploaded assets stay as-is, and a pin bump surfaces as a
+   normal module update via the existing `compare_definitions`
+   assetsToImport diff. Supersedes item 1's interim "upload the two CSVs
+   on every instance before updating m004/m005" prerequisite (dev-seeded
+   copies remain valid meanwhile).
 3. **Memoized generation** (§3.7) — ships WITH the wizard, never after.
 4. **Dataset export re-target**: `datasets_in_project_*.ts` → run
    `inputs/datasets/<type>.csv` + parquet twins; generated-script path
