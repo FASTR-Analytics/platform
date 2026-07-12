@@ -279,7 +279,13 @@ Work items, in order:
    normal module update via the existing `compare_definitions`
    assetsToImport diff. Supersedes item 1's interim "upload the two CSVs
    on every instance before updating m004/m005" prerequisite (dev-seeded
-   copies remain valid meanwhile).
+   copies remain valid meanwhile). Client work (design and build, here
+   and in item 5) follows the panther UI protocols:
+   [PROTOCOL_UI_COMPONENTS.md](panther/protocols/PROTOCOL_UI_COMPONENTS.md),
+   [PROTOCOL_UI_SOLIDJS.md](panther/protocols/PROTOCOL_UI_SOLIDJS.md),
+   [PROTOCOL_UI_STATE.md](panther/protocols/PROTOCOL_UI_STATE.md),
+   [PROTOCOL_UI_STRUCTURE.md](panther/protocols/PROTOCOL_UI_STRUCTURE.md),
+   [PROTOCOL_UI_STYLING.md](panther/protocols/PROTOCOL_UI_STYLING.md).
 3. **Memoized generation** (§3.7) — ships WITH the wizard, never after.
 4. **Dataset export re-target**: `datasets_in_project_*.ts` → run
    `inputs/datasets/<type>.csv` + parquet twins; generated-script path
