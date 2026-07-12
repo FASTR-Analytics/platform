@@ -91,6 +91,15 @@ export const runDatasetSchema = z.object({
 });
 export type RunDataset = z.infer<typeof runDatasetSchema>;
 
+// Pinned copy of an instance asset the run's modules declare (stored at
+// inputs/assets/{fileName}), hashed so the run records exactly which asset
+// bytes it consumed (§6.2 — assets are unversioned and mutable in place).
+export const runAssetSchema = z.object({
+  fileName: z.string(),
+  sha256: z.string(),
+});
+export type RunAsset = z.infer<typeof runAssetSchema>;
+
 export const runProvenanceSchema = z.enum(["synthetic-backfill", "wizard"]);
 export type RunProvenance = z.infer<typeof runProvenanceSchema>;
 
@@ -111,6 +120,7 @@ export const runManifestSchema = z.object({
   facilityColumnsConfig: instanceConfigFacilityColumnsSchema,
 
   datasets: z.array(runDatasetSchema),
+  assets: z.array(runAssetSchema),
   modules: z.array(runModuleSchema),
   metrics: z.array(runMetricSchema),
   resultsObjects: z.array(runResultsObjectSchema),

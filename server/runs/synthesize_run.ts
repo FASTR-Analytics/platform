@@ -6,6 +6,7 @@ import {
   runManifestSchema,
   type DisaggregationOption,
   type InstanceConfigFacilityColumns,
+  type RunAsset,
   type RunDataset,
   type RunManifest,
   type RunMetric,
@@ -23,6 +24,8 @@ import {
   getCountryIso3Config,
   getFacilityColumnsConfig,
 } from "../db/instance/config.ts";
+import { resolveAssetFilePath } from "../db/instance/assets.ts";
+import { R_DOCKER_IMAGE_TAG } from "../worker_routines/run_module/r_docker_image.ts";
 import {
   _INSTANCE_CALENDAR,
   _SANDBOX_DIR_PATH,
@@ -211,6 +214,46 @@ FROM metrics
 
   // Input mirrors: dictionary/snapshot tables as JSON, facilities as parquet.
   const inputFiles: string[] = [];
+
+  // Pinned assets (§6.2): every asset the installed modules declare, copied
+  // into inputs/assets/ and hashed into the manifest. At synthesis time the
+  // current instance asset is the best available stand-in for what the module
+  // read; a missing asset degrades loudly (the module already ran) rather
+  // than failing the backfill. The wizard finalize inherits this capture with
+  // the same layout.
+  const declaredAssetNames = new Set<string>();
+  for (const mod of modules) {
+    const def = JSON.parse(mod.module_definition) as {
+      assetsToImport?: string[];
+    };
+    for (const name of def.assetsToImport ?? []) {
+      declaredAssetNames.add(name);
+    }
+  }
+  const assets: RunAsset[] = [];
+  if (declaredAssetNames.size > 0) {
+    await Deno.mkdir(join(tmpDir, "inputs", "assets"), { recursive: true });
+  }
+  for (const fileName of [...declaredAssetNames].sort()) {
+    let bytes: Uint8Array<ArrayBuffer>;
+    try {
+      bytes = await Deno.readFile(resolveAssetFilePath(fileName));
+    } catch (e) {
+      console.error(
+        `[runs] asset "${fileName}" not captured for project ${projectId}: ${
+          e instanceof Error ? e.message : e
+        }`,
+      );
+      continue;
+    }
+    await Deno.writeFile(join(tmpDir, "inputs", "assets", fileName), bytes);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const sha256 = [...new Uint8Array(digest)]
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    assets.push({ fileName, sha256 });
+    inputFiles.push(`inputs/assets/${fileName}`);
+  }
   for (const tableName of INPUT_MIRROR_TABLES) {
     const exists = (
       await projectDb<{ n: string }[]>`
@@ -257,11 +300,12 @@ SELECT dataset_type, info, last_updated FROM datasets
     label: projectLabel,
     provenance: "synthetic-backfill",
     appVersion: _SERVER_VERSION,
-    rImageTag: null,
+    rImageTag: R_DOCKER_IMAGE_TAG,
     calendar: _INSTANCE_CALENDAR,
     countryIso3,
     facilityColumnsConfig: facilityConfig,
     datasets,
+    assets,
     modules: runModules,
     metrics: runMetrics,
     resultsObjects: runResultsObjects,

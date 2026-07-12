@@ -247,12 +247,22 @@ item that does NOT start with code: present Tim a wizard design
 
 Work items, in order:
 
-1. **§6 hermeticity fixes FIRST** (wb-fastr-modules lockstep; memoization
-   prerequisites): m004/m005 read pinned run-input copies instead of
-   GitHub raw CSVs + asset-copy failures become hard errors (§6.1); m001's
-   undeclared output declared or dropped (§6.5); assets copied+hashed into
-   `inputs/assets/` (§6.2); R image tag into the manifest (§6.4). (§6.3
-   instance-config capture is the wizard finalize itself.)
+1. **§6 hermeticity fixes — DONE 2026-07-12** (gates green: typecheck +
+   PARITY GREEN 8/8 projects, 129 checks, 0 diffs/skips). §6.1: m004/m005
+   scripts read the pinned local copies; `assetsToImport` trimmed to the 2
+   files the scripts actually read (the 4 never-read declarations dropped —
+   with hard errors they would fail every run for nothing); `importAsset`
+   now throws (module run fails loudly on a missing asset). §6.5: m001's
+   undeclared `M1_output_consistency_facility.csv` writes removed (no
+   consumer anywhere). §6.2: synthesis captures the union of declared
+   assets into `inputs/assets/` + manifest `assets` (name+sha256; missing
+   asset at synthesis degrades loudly — the module already ran; the wizard
+   finalize inherits the capture). §6.4: `rImageTag` stamped from the
+   shared `R_DOCKER_IMAGE_TAG` (`server/worker_routines/run_module/
+   r_docker_image.ts`). Modules-repo commit is LOCAL — the push rides the
+   deploy, and instances must have `survey_data_unified.csv` +
+   `population_estimates_only.csv` uploaded as assets BEFORE updating
+   m004/m005 (dev seeded already).
 2. **The wizard** (§4 Phase 2 spec + model point 2): project-entered,
    instance-admin gated; `ImportWizardShell` descriptor pattern +
    attempt/resume machinery; choose data (windowing UI verbatim) →

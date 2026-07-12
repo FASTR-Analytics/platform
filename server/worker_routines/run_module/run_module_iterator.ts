@@ -27,6 +27,7 @@ import {
   _SANDBOX_DIR_PATH_EXTERNAL,
   _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
 } from "./../../exposed_env_vars.ts";
+import { R_DOCKER_IMAGE_TAG } from "./r_docker_image.ts";
 import {
   APIResponseNoData,
   ResultsObjectDefinition,
@@ -38,10 +39,6 @@ import {
   type RunStreamMsg,
   type InstanceConfigFacilityColumns,
 } from "lib";
-
-const _DOCKER_IMAGE_TIDYVERSE_4_0_2 = _IS_PRODUCTION
-  ? "timroberton/comb:wb-hmis-r-linux"
-  : "timroberton/comb:wb-hmis-r-local";
 
 export async function* runModuleIterator(
   projectId: string,
@@ -212,7 +209,7 @@ export async function* runModuleIterator(
             `${projectDirPath_EXTERNAL}:/home/docker`,
             "-w",
             `/home/docker/${moduleDetail.id}`,
-            _DOCKER_IMAGE_TIDYVERSE_4_0_2,
+            R_DOCKER_IMAGE_TAG,
             "Rscript",
             _MODULE_SCRIPT_FILE_NAME,
           ],
@@ -377,20 +374,23 @@ async function checkFileExists(filePath: string): Promise<boolean> {
   }
 }
 
+// A declared asset the script is about to read MUST be present — a silent
+// skip means the script falls back to nothing or stale data (PLAN_RESULTS_RUNS
+// §6.1). Missing/unreadable assets fail the module run.
 async function importAsset(
   assetFileName: string,
   dirPath: string,
-): Promise<APIResponseNoData> {
+): Promise<void> {
+  const assetFilePathSource = join(_ASSETS_DIR_PATH, assetFileName);
+  const assetFilePathTarget = join(dirPath, assetFileName);
   try {
-    const assetFilePathSource = join(_ASSETS_DIR_PATH, assetFileName);
-    const assetFilePathTarget = join(dirPath, assetFileName);
     await Deno.copyFile(assetFilePathSource, assetFilePathTarget);
-    return { success: true };
   } catch (e) {
-    return {
-      success: false,
-      err: "Problem importing asset: " + (e instanceof Error ? e.message : ""),
-    };
+    throw new Error(
+      `Could not import asset "${assetFileName}" — upload it on the instance Assets page. (${
+        e instanceof Error ? e.message : e
+      })`,
+    );
   }
 }
 
