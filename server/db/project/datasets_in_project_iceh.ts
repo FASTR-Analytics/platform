@@ -77,7 +77,7 @@ export async function addDatasetIcehToProject(
           standard_error,
           sample_size
         FROM iceh_data
-        ORDER BY iceh_indicator, year, strat, level
+        ORDER BY iceh_indicator, year, strat, level, source
       ) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, HEADER true)
     `);
 

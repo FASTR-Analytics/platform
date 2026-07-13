@@ -21,18 +21,36 @@ import {
   notifyProjectRunAttached,
   notifyProjectRunProgress,
 } from "../../task_management/notify_project_v2.ts";
-import { executeRunModule } from "./execute_module.ts";
+import {
+  executeRunModule,
+  ReuseSourceMissingError,
+  reuseRunModule,
+} from "./execute_module.ts";
 import { prepareRunInputs } from "./prepare_inputs.ts";
 import { resolveRunModules } from "./resolve_modules.ts";
+import {
+  baseEntryForReuse,
+  computeModuleInputs,
+  computeModuleKey,
+  planReuse,
+  resolveBaseRun,
+} from "./resolve_reuse.ts";
 import type { GenerateRunStartData } from "./types.ts";
 
-// The run pipeline (PLAN_RESULTS_RUNS item 2): prepare inputs → resolve →
-// execute in dependency order → ONE finalize → atomic rename → ready +
-// repoint in one transaction → SSE. Whole-DAG with abort-on-any-fail: no
-// mid-run file is ever in a serving location, and a failed generation never
-// replaces the serving run. Item 2 forces every node to execute (the
-// resolve-reuse diff is item 3); inputKeys and output hashes are computed
-// and recorded from the first wizard run so reuse has real baselines.
+// The run pipeline (PLAN_RESULTS_RUNS items 2 + 3): prepare inputs → resolve
+// → reuse plan → execute/reuse in dependency order → ONE finalize → atomic
+// rename → ready + repoint in one transaction → SSE. Whole-DAG with
+// abort-on-any-fail: no mid-run file is ever in a serving location, and a
+// failed generation never replaces the serving run.
+//
+// Memoized generation (§3.7): the reuse plan resolves as the first stage
+// after resolve — per-module reused / will-run pushed to the progress view
+// before anything executes. The plan is a pessimistic prediction; the loop
+// below makes the authoritative per-module decision from ACTUAL upstream
+// hashes, so a prediction can only be upgraded (pending → reused, when a
+// re-executed upstream produced byte-identical outputs), and the one
+// downgrade path — a base output file gone missing — falls back to a real
+// run with the status visibly correcting itself. Fails closed throughout.
 
 export async function runGenerationPipeline(
   mainDb: Sql,
@@ -74,6 +92,20 @@ export async function runGenerationPipeline(
     resCountryIso3.data.countryIso3,
   );
   progress.moduleOrder = resolved.map((m) => m.moduleId);
+
+  const base = await resolveBaseRun(mainDb, std.projectId);
+  const assetHashCache = new Map<string, string>();
+  const planned = await planReuse(
+    resolved,
+    base,
+    prepared.datasetExtractHashes,
+    assetHashCache,
+  );
+  for (const mod of resolved) {
+    progress.moduleStatus[mod.moduleId] = planned.has(mod.moduleId)
+      ? "reused"
+      : "pending";
+  }
   await pushProgress();
 
   const memo = new Map<
@@ -83,21 +115,56 @@ export async function runGenerationPipeline(
   const upstreamOutputHashes = new Map<string, Record<string, string>>();
   for (const mod of resolved) {
     progress.currentModuleId = mod.moduleId;
-    progress.moduleStatus[mod.moduleId] = "running";
-    await pushProgress();
-    const result = await executeRunModule({
-      projectDb,
-      projectId: std.projectId,
-      runId: std.runId,
-      tmpDir,
-      module: mod,
-      facilityColumns: resFacilityColumns.data,
-      datasetExtractHashes: prepared.datasetExtractHashes,
+    const inputs = await computeModuleInputs(
+      mod,
+      prepared.datasetExtractHashes,
       upstreamOutputHashes,
-    });
+      assetHashCache,
+    );
+    const inputKey = computeModuleKey(mod, inputs);
+
+    let result:
+      | { inputKey: string; outputFileHashes: Record<string, string> }
+      | null = null;
+    const baseEntry = base !== null
+      ? baseEntryForReuse(base, mod, inputKey)
+      : null;
+    if (base !== null && baseEntry !== null) {
+      progress.moduleStatus[mod.moduleId] = "reused";
+      await pushProgress();
+      try {
+        result = await reuseRunModule({
+          projectDb,
+          projectId: std.projectId,
+          tmpDir,
+          module: mod,
+          facilityColumns: resFacilityColumns.data,
+          baseRunId: base.runId,
+          baseRunDir: base.runDir,
+          inputKey,
+          outputFileHashes: baseEntry.outputFileHashes,
+        });
+      } catch (e) {
+        if (!(e instanceof ReuseSourceMissingError)) throw e;
+        console.error(`[generate_run] ${e.message} — running instead`);
+      }
+    }
+    if (result === null) {
+      progress.moduleStatus[mod.moduleId] = "running";
+      await pushProgress();
+      result = await executeRunModule({
+        projectDb,
+        projectId: std.projectId,
+        runId: std.runId,
+        tmpDir,
+        module: mod,
+        facilityColumns: resFacilityColumns.data,
+        inputKey,
+      });
+      progress.moduleStatus[mod.moduleId] = "done";
+    }
     memo.set(mod.moduleId, result);
     upstreamOutputHashes.set(mod.moduleId, result.outputFileHashes);
-    progress.moduleStatus[mod.moduleId] = "done";
     await pushProgress();
   }
   progress.currentModuleId = null;

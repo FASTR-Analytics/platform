@@ -167,7 +167,10 @@ SELECT
   h.value
 FROM hfa_data h
 INNER JOIN facilities_hfa f ON h.facility_id = f.facility_id
-LEFT JOIN hfa_facility_weights w ON w.facility_id = h.facility_id AND w.time_point = h.time_point`;
+LEFT JOIN hfa_facility_weights w ON w.facility_id = h.facility_id AND w.time_point = h.time_point
+-- Deterministic row order: the extract's bytes are a module inputKey
+-- ingredient (PLAN_RESULTS_RUNS §3.7); unordered COPY output varies run to run.
+ORDER BY h.facility_id, h.time_point, h.var_name, h.value`;
 
     // Use COPY with optimized settings for better performance
     await mainDb.unsafe(`

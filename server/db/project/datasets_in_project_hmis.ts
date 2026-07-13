@@ -516,6 +516,10 @@ INNER JOIN facilities_hmis f ON aggregated.facility_id = f.facility_id${
 WHERE ${whereConditions.join(" AND ")}`
       : ""
   }
+-- Deterministic row order (the GROUP BY key, so a total order): the extract's
+-- bytes are a module inputKey ingredient (PLAN_RESULTS_RUNS §3.7), and
+-- parallel hash aggregation makes unordered COPY output vary run to run.
+ORDER BY aggregated.facility_id, aggregated.indicator_common_id, aggregated.period_id
 `;
 
   return statement;

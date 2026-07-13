@@ -246,9 +246,9 @@ for one session stops at a clean seam with gates green and records the
 stopping point inside the item — nowhere else. Items 1, 2, and 4 span
 wb-fastr-modules (CLAUDE.md three-repo lockstep rule: commit that repo
 locally; the push stays deploy-gated — its local HEAD is `6ba142e`).
-Items 1 and 2 are DONE (details inside each item); **the next item to
-execute is item 3**. Client work (items 3's progress-view touch if any,
-and item 5) follows the panther UI protocols linked at the end of item 2.
+Items 1, 2, and 3 are DONE (details inside each item); **the next item to
+execute is item 4**. Client work (item 5) follows the panther UI
+protocols linked at the end of item 2.
 After items 3–5 the dev app exercises the full new UX end-to-end
 (generate → progress → repoint → all read surfaces from the run) and is
 reviewable in the browser; items 6–8 are export/deploy/hardening and
@@ -504,21 +504,49 @@ Work items, in order:
    [PROTOCOL_UI_STATE.md](panther/protocols/PROTOCOL_UI_STATE.md),
    [PROTOCOL_UI_STRUCTURE.md](panther/protocols/PROTOCOL_UI_STRUCTURE.md),
    [PROTOCOL_UI_STYLING.md](panther/protocols/PROTOCOL_UI_STYLING.md).
-3. **Memoized generation** (§3.7 = the full spec; read it first) — ships
-   WITH the wizard, never after. Boundary with item 2: item 2 built the
-   pipeline's resolve stage computing §3.7 inputKeys and per-RO output
-   hashes but forcing every node to "run"; item 3 turns reuse on
-   (base-run diff + copy-reused-outputs). Code seams:
-   `server/worker_routines/generate_run/pipeline.ts` (the execute loop +
-   memo map; base run = attached run else latest `ready`, both already
-   resolvable via `getRunReadContext`/`listRunsForProject`) and
-   `execute_module.ts` (inputKey/outputFileHashes computation — compare
-   against the base-run manifest's `modules[].inputKey`/
-   `outputFileHashes`; synthetic-backfill runs carry null and are never
-   reuse sources). Only R execution is memoized (§3.7): finalize is
-   always fresh, and reused modules copy raw output CSVs from the base
-   run's `outputs/{moduleId}`. `RunProgress` already has the `reused`
-   status and the client chip already renders it.
+3. **Memoized generation — DONE 2026-07-13** (§3.7 = the spec; gates
+   green: typecheck + PARITY GREEN 129 checks 0 diffs/skips, re-run
+   after the live test). Reuse is on:
+   - `resolve_reuse.ts` (new): `resolveBaseRun` (attached
+     `projects.run_id` else latest `ready` for the project; unreadable
+     manifest → no reuse, logged); `computeModuleInputs` (asset hashes
+     from SOURCE — repo pins use their declared sha256, instance assets
+     hashed in the Assets dir, memoized per generation — plus dataset
+     extract hashes and ALL upstream output hashes) + `computeModuleKey`;
+     `baseEntryForReuse` (non-null matching inputKey AND a recorded hash
+     for every declared RO); `planReuse` — the §3.7 UX first stage, a
+     pessimistic walk (reused only if all upstreams reused) pushed as
+     per-module `reused`/`pending` progress before execution starts.
+   - `pipeline.ts`: the loop makes the AUTHORITATIVE per-module decision
+     from actual upstream hashes (plan can only upgrade — a re-executed
+     upstream with byte-identical outputs still lets downstream reuse);
+     key computation moved out of `execute_module.ts` (which now takes
+     the precomputed `inputKey`).
+   - `execute_module.ts`: `reuseRunModule` copies the base run's raw RO
+     CSVs (all-or-nothing lstat first; `ReuseSourceMissingError` → the
+     pipeline falls back to a run, and the run path now STARTS from an
+     emptied workspace so a partial copy can never mask a missing R
+     write); finalize stays fresh (parquet rebuilt under current config,
+     never copied from base). The legacy dual-write (sandbox copy +
+     catalog upsert + ro_* COPY) runs for REUSED modules too — pg may
+     have drifted via a legacy rerun, and the rig diffs pg vs the run.
+     Shared `dualWriteModuleToLegacyPlane`/`openModuleLog` extracted;
+     imported assets added to declaredFiles (they were spuriously warned
+     as undeclared outputs).
+   - **Deterministic dataset extracts** (discovered gap, required for
+     §3.7 to ever hit at scale): the HMIS/HFA export `COPY (…) TO` had no
+     ORDER BY — parallel hash aggregation makes row order vary run to
+     run, which would change extract hashes and silently defeat reuse of
+     every DAG root. Total-order ORDER BY added to the HMIS export (its
+     GROUP BY key), the HFA export, and the ICEH export's tie (`source`
+     added). Behavior-compatible (row order was never a contract; R
+     aggregates regardless); one extra sort per generation, admin-gated.
+   - Live-verified on dev (Test project, m001): generation A executed R
+     (~10 min), generation B with identical config completed in **2.3 s**
+     — progress `reused`, identical inputKeys, all 5 output CSVs
+     byte-identical, dual-write freshened (`modules.last_run_at`, ro_*
+     COPY 161k rows), fresh finalize parquet, publish + repoint; project
+     then re-backfilled, rig re-run GREEN. Test runs deleted.
 4. **Dataset export re-target**: `datasets_in_project_*.ts` → run
    `inputs/datasets/<type>.csv` + parquet twins; generated-script path
    `../datasets/` → `../../inputs/datasets/` rides the same modules-repo
