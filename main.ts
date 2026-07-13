@@ -171,6 +171,22 @@ app.get("*", (c) => {
 // Validate that all routes in the registry have been defined
 validateAllRoutesDefined();
 
+// Process-level backstop for the serving phase. A single collaborative-editing
+// frame — or any other un-awaited async path — must never take down this
+// multi-tenant server. The known Yjs crash vectors are guarded at their source
+// (server/collab/doc_rooms.ts); these handlers are defense-in-depth so an
+// unforeseen throw degrades one request instead of every project. Both log
+// loudly so nothing is silently swallowed. Registered AFTER startup so a failed
+// dbStartUp/valkey/route-validation still crashes fast rather than limping on.
+globalThis.addEventListener("unhandledrejection", (e) => {
+  console.error("[unhandledrejection]", e.reason);
+  e.preventDefault();
+});
+globalThis.addEventListener("error", (e) => {
+  console.error("[uncaught error]", e.error ?? e.message);
+  e.preventDefault();
+});
+
 const port = parseInt(Deno.env.get("PORT") || "8000");
 console.log(`Starting server on port ${port}...`);
 

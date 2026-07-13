@@ -173,11 +173,23 @@ export async function subscribeDoc<T>(
         return;
       }
       const doc = new Y.Doc();
+      let restored = false;
       if (loaded.crdtState) {
         // Restore the exact prior Yjs doc (survives server restart cleanly).
-        Y.applyUpdate(doc, base64ToBytes(loaded.crdtState));
-      } else {
-        // First-ever open (or stale CRDT state): seed from the content.
+        // Corrupt/incompatible stored state must never throw here: this runs on
+        // the shared server process, so a bad row would crash every project.
+        try {
+          Y.applyUpdate(doc, base64ToBytes(loaded.crdtState));
+          restored = true;
+        } catch (err) {
+          console.error(
+            `[collab] failed to restore crdt_state for ${key}; seeding from content`,
+            err,
+          );
+        }
+      }
+      if (!restored) {
+        // First-ever open (or stale/corrupt CRDT state): seed from the content.
         adapter.seed(doc, loaded.content);
       }
       room = {
@@ -211,7 +223,17 @@ export async function subscribeDoc<T>(
       sv = undefined;
     }
   }
-  const sync = Y.encodeStateAsUpdate(room.doc, sv);
+  // A malformed client state vector (valid base64, invalid Yjs bytes) makes
+  // encodeStateAsUpdate throw. Since subscribeDoc is called un-awaited (`void
+  // subscribe*`), that throw would become an unhandled rejection and take down
+  // the whole process — reachable with view-only access. Fall back to a full
+  // sync (encode against no state vector, always valid on our own doc).
+  let sync: Uint8Array;
+  try {
+    sync = Y.encodeStateAsUpdate(room.doc, sv);
+  } catch {
+    sync = Y.encodeStateAsUpdate(room.doc);
+  }
   const stateVector = Y.encodeStateVector(room.doc);
   conn.send(
     adapter.msgSync(docId, bytesToBase64(sync), bytesToBase64(stateVector)),
@@ -239,7 +261,17 @@ export function applyDocUpdate<T>(
     return;
   }
   // origin = conn so the doc's update handler skips echoing back to the sender.
-  Y.applyUpdate(room.doc, bytes, conn);
+  // A malformed update (valid base64, invalid Yjs bytes) makes applyUpdate
+  // throw synchronously into the WS onMessage handler, whose try/catch only
+  // covers JSON.parse — that would crash the shared server. Reject it to the
+  // sender and leave the authoritative doc untouched.
+  try {
+    Y.applyUpdate(room.doc, bytes, conn);
+  } catch (err) {
+    console.error(`[collab] rejected malformed update for ${room.key}`, err);
+    conn.send(adapter.msgError(docId, "Malformed document update"));
+    return;
+  }
   if (conn.identity) room.deps.onEdit?.(conn.identity);
 }
 
