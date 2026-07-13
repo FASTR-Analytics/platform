@@ -2,7 +2,7 @@ import type { Sql } from "postgres";
 import { getAssetToImportName, type DatasetType, type RunModule } from "lib";
 import { getRunManifestCached, runDirPath } from "../../runs/mod.ts";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
-import { R_DOCKER_IMAGE_TAG } from "../run_module/r_docker_image.ts";
+import { R_DOCKER_IMAGE_TAG } from "./r_docker_image.ts";
 import { computeModuleInputKey, sha256HexOfFile } from "./input_key.ts";
 import type { ResolvedRunModule } from "./resolve_modules.ts";
 

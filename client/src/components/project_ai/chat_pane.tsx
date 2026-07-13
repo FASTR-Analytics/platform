@@ -275,9 +275,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       case "viewing_visualizations":
       case "viewing_slide_decks":
       case "viewing_reports":
-      case "viewing_data":
       case "viewing_metrics":
-      case "viewing_modules":
       case "viewing_settings":
         return t3({
           en: "Explore your data...",
@@ -308,12 +306,8 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         return t3({ en: "Slide Decks", fr: "Présentations", pt: "Apresentações" });
       case "viewing_reports":
         return t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" });
-      case "viewing_data":
-        return t3({ en: "Data", fr: "Données", pt: "Dados" });
       case "viewing_metrics":
         return t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" });
-      case "viewing_modules":
-        return t3({ en: "Modules", fr: "Modules", pt: "Módulos" });
       case "viewing_settings":
         return t3(TC.settings);
       default: {

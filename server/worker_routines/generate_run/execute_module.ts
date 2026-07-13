@@ -17,15 +17,10 @@ import {
 } from "../../exposed_env_vars.ts";
 import { checkSpaceForModuleRun } from "../../utils/disk_space.ts";
 import { upsertModuleCatalogForGeneratedRun } from "../../db/mod.ts";
-import {
-  importAsset,
-  storeResultsObject,
-} from "../run_module/run_module_iterator.ts";
-import { R_DOCKER_IMAGE_TAG } from "../run_module/r_docker_image.ts";
-import {
-  notifyProjectModuleDirtyState,
-  notifyProjectRScript,
-} from "../../task_management/notify_project_v2.ts";
+import { importAsset } from "./import_asset.ts";
+import { storeResultsObject } from "./legacy_store_results_object.ts";
+import { R_DOCKER_IMAGE_TAG } from "./r_docker_image.ts";
+import { notifyProjectRScript } from "../../task_management/notify_project_v2.ts";
 import { getGenerateRunContainerName } from "./container_name.ts";
 import { sha256HexOfFile } from "./input_key.ts";
 import type { ResolvedRunModule } from "./resolve_modules.ts";
@@ -289,13 +284,6 @@ async function dualWriteModuleToLegacyPlane(args: {
       ),
     );
   }
-  notifyProjectModuleDirtyState(
-    projectId,
-    [moduleId],
-    "ready",
-    lastRunAt,
-    mod.gitRef ?? undefined,
-  );
 }
 
 async function openModuleLog(workspace: string): Promise<{

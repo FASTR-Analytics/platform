@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { serveStatic } from "hono/deno";
-import { _ASSETS_DIR_PATH, _SANDBOX_DIR_PATH } from "../exposed_env_vars.ts";
+import { _ASSETS_DIR_PATH, _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
 import { requireGlobalPermission } from "./userPermission.ts";
 
 // Uploaded IMAGE assets (e.g. logos shown on public dashboards / share links)
@@ -23,11 +23,12 @@ export function setupStaticServing(app: Hono) {
     await next();
   });
 
-  // Protected static files (require global user auth)
+  // Protected static files (require global user auth). Run outputs serve at
+  // /{runId}/outputs/{moduleId}/{file} — the files-viewer download surface.
   app.use(
     "*",
     requireGlobalPermission(),
-    serveStatic({ root: _SANDBOX_DIR_PATH }),
+    serveStatic({ root: _RUNS_DIR_PATH }),
   );
   app.use(
     "*",

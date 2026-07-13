@@ -17,10 +17,10 @@ globs:
   - server/routes/instance/instance-sse.ts
   - server/routes/project/project-sse-v2.ts
   - server/task_management/build_project_state.ts
-  - server/task_management/get_project_dirty_states.ts
   - server/task_management/notify_instance_updated.ts
   - server/task_management/notify_last_updated.ts
   - server/task_management/notify_project_v2.ts
+  - server/task_management/project_last_updated.ts
   - server/utils/request_queue.ts
   - server/valkey/**
 docs_absorbed:
@@ -40,7 +40,7 @@ hub, SSE bridges, Valkey machinery, client store/cache infrastructure.
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
-`server/task_management/{notify_*,build_project_state,get_project_dirty_states}.ts`;
+`server/task_management/{notify_*,build_project_state,project_last_updated}.ts`;
 the two SSE endpoints; `server/valkey/**` (generic machinery);
 `server/utils/request_queue.ts`; client `state/_infra/**` (serves all eight
 t2 caches), `state/*/t1_store.ts` + `t1_sse.tsx`, `clear_caches.ts`, the

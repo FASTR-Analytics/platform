@@ -304,6 +304,30 @@ WHERE status = 'generating' AND summary::jsonb ->> 'sourceProjectId' = ${project
   return rows.at(0)?.id;
 }
 
+// Access check for the per-run outputs surface (script/logs/files viewers):
+// a project may read a READY run it generated (summary sourceProjectId) or
+// the run it currently serves from (projects.run_id).
+export async function runReadableByProject(
+  mainDb: Sql,
+  runId: string,
+  projectId: string,
+): Promise<boolean> {
+  const run = (
+    await mainDb<{ status: string; source_project_id: string | null }[]>`
+SELECT status, summary::jsonb ->> 'sourceProjectId' AS source_project_id
+FROM runs WHERE id = ${runId}
+`
+  ).at(0);
+  if (run === undefined || run.status !== "ready") return false;
+  if (run.source_project_id === projectId) return true;
+  const project = (
+    await mainDb<{ run_id: string | null }[]>`
+SELECT run_id FROM projects WHERE id = ${projectId}
+`
+  ).at(0);
+  return project?.run_id === runId;
+}
+
 export async function updateRunProgress(
   mainDb: Sql,
   runId: string,

@@ -2,8 +2,19 @@ import { serverActions } from "~/server_actions";
 import { createAITool } from "panther";
 import { z } from "zod";
 import type { InstalledModuleSummary, MetricWithStatus } from "lib";
+import { projectState } from "~/state/project/t1_store";
 import { formatModulesListForAI } from "./_internal/format_modules_list_for_ai";
 import { formatModuleSettingsForAI } from "./_internal/format_module_settings_for_ai";
+
+// Script/logs read from the attached results package's run dir — resolved at
+// call time so a mid-conversation repoint reads the new package.
+function requireAttachedRunId(): string {
+  const runId = projectState.attachedRunId;
+  if (runId === null) {
+    throw new Error("No results package is attached to this project yet.");
+  }
+  return runId;
+}
 
 export function getToolsForModules(
   projectId: string,
@@ -13,7 +24,8 @@ export function getToolsForModules(
   return [
     createAITool({
       name: "get_available_modules",
-      description: "Get a list of analysis modules and their status",
+      description:
+        "Get a list of the analysis modules in the project's attached results package",
       inputSchema: z.object({}),
       handler: async () => {
         return formatModulesListForAI(modules, metrics);
@@ -28,6 +40,7 @@ export function getToolsForModules(
       handler: async (input) => {
         const res = await serverActions.getScript({
           projectId,
+          run_id: requireAttachedRunId(),
           module_id: input.id,
         });
         if (!res.success) throw new Error(res.err);
@@ -44,6 +57,7 @@ export function getToolsForModules(
       handler: async (input) => {
         const res = await serverActions.getLogs({
           projectId,
+          run_id: requireAttachedRunId(),
           module_id: input.id,
         });
         if (!res.success) throw new Error(res.err);

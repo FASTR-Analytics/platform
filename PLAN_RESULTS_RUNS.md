@@ -220,12 +220,13 @@ projects, 129 checks, 0 diffs, 0 skips). What landed:
 6. Rig `--package` → `--run`: resolves each project's attached run,
    skips unattached projects.
 
-Known interim behavior (by design until the wizard deploy): a module rerun
-updates pg + sandbox but NOT the served run — dev re-syncs by re-running
-`backfill_runs.ts` (repoints; superseded run dirs/rows accumulate until
-run GC, a Phase 3 item). Wizard publishes push `run_attached` (item 2
-session 3), but backfill-script repoints emit no SSE — after
-`backfill_runs.ts`, clients learn the new `attachedRunId` on reconnect.
+Known interim behavior: superseded run dirs/rows accumulate until run GC
+(a Phase 3 item). Wizard publishes push `run_attached`, but
+backfill-script repoints emit no SSE — after `backfill_runs.ts`, clients
+learn the new `attachedRunId` on reconnect. (The original note about
+module reruns not updating the served run is void since item 5 — the
+per-module rerun surface no longer exists; the wizard and
+`backfill_runs.ts` are the only generation paths.)
 
 ### Next milestone: the wizard deploy (everything below ships in THE deploy)
 
@@ -246,9 +247,8 @@ for one session stops at a clean seam with gates green and records the
 stopping point inside the item — nowhere else. Items 1 and 2 span
 wb-fastr-modules (CLAUDE.md three-repo lockstep rule: commit that repo
 locally; the push stays deploy-gated — its local HEAD is `6ba142e`).
-Items 1–4 are DONE (details inside each item); **the next item to
-execute is item 5**. Client work (item 5) follows the panther UI
-protocols linked at the end of item 2.
+Items 1–5 are DONE (details inside each item); **the next item to
+execute is item 6**.
 After items 3–5 the dev app exercises the full new UX end-to-end
 (generate → progress → repoint → all read surfaces from the run) and is
 reviewable in the browser; items 6–8 are export/deploy/hardening and
@@ -575,12 +575,57 @@ Work items, in order:
      reusing (the expected one-time full re-run on the first post-item-4
      generation; fails closed). Project then re-backfilled, verify run
      deleted, rig re-run GREEN.
-5. **Surface kills + client**: per-module rerun, dirty cascade,
-   `setModulesDirtyForDataset`, staleness checkers, project Data tab
-   attach, module-card install/params/update/rerun; module
-   logs/script/files viewers re-point to the run dir; T1 dirty-state
-   slices → run summary + wizard progress; dead AI list functions deleted
-   (§7). UI vocabulary: "Results package" (EN/FR translations).
+5. **Surface kills + client — DONE 2026-07-13** (gates green: typecheck +
+   lint:systems + PARITY GREEN 129 checks 0 diffs/skips; server boots with
+   the trimmed route registry; T1-from-manifest harness-verified live
+   across all 8 dev projects, availability reasons surfacing).
+   - **Server kills**: per-module rerun + dirty cascade + runToken/claim
+     machine deleted wholesale (`set_module_dirty/clean.ts`,
+     `trigger_runnable_tasks.ts`, `running_tasks_map.ts`,
+     `get_dependents.ts`, the whole `worker_routines/run_module/` worker);
+     shared survivors moved into `generate_run/` (`import_asset.ts`,
+     `legacy_store_results_object.ts` — the dual-write ingest, named for
+     its Phase-3 deletion — and `r_docker_image.ts`). Routes killed +
+     registry entries: install/uninstall/updateDefinition/updateParams/
+     rerun/getAllMetrics/previewModuleUpdate, addDatasetToProject/
+     removeDatasetFromProject/setAllModulesDirty, instance
+     checkModuleUpdates, the uninvoked getVisualizationsListForAI (whole
+     ai-tools registry) + dead db funcs (getAllModulesForProject,
+     getMetricsWithStatus, getModuleDetail, getMetricsForModule, the AI
+     list functions, compare_definitions.ts). Health `hasRunningModules`
+     re-pointed to the runs catalog; the old attach route's
+     `checkSpaceForDataset` guard re-pointed into the generation launch.
+   - **T1 catalog = the manifest** (binding decision 5 executed):
+     `getModuleSummariesFromManifest`, `getMetricsWithStatusFromManifest`,
+     and `getModuleWithConfigSelectionsFromManifest` in `run_read.ts`;
+     `getProjectDetail` and the publish `run_attached` payload read them
+     (no-run → typed empty; unreadable run degrades loudly-logged so
+     authored content stays reachable). `MetricStatus` shrank to
+     `ready | unavailable` + `statusReason` (the stamped reason);
+     `InstalledModuleSummary` shrank to manifest fields (dirty/staleness
+     fields gone). `run_attached` now carries the FULL catalog (modules,
+     metrics, projectDatasets, common/iceh indicators) — the
+     `modules_updated`/`datasets_updated`/`module_dirty_state`/
+     `any_running` messages and their emitters are deleted;
+     `ProjectDirtyStates` → `getProjectLastUpdatedState`
+     (`project_last_updated.ts`, stamps only).
+   - **Viewer re-point**: getScript/getLogs serve the run's captured
+     `___script___.R`/`___logs___.txt` by `(run_id, module_id)` (new
+     `runReadableByProject` guard: ready + sourceProjectId, or the
+     attached run); new `listRunModuleFiles` (readdir) + downloads via the
+     runs static mount (`/{runId}/outputs/{moduleId}/{file}` — replaced
+     the sandbox static mount); viewers hosted per-module on the ready
+     RunCard; synthetic-backfill runs answer script/logs with a typed
+     "not in this package" message (they carry only parquet, by design).
+   - **Client kills**: project_data/project_modules tabs + hosts
+     (settings editors, update modals, DirtyStatus, staleness_checks,
+     project_module_settings) deleted; tab enum shrank with a stored-pref
+     fallback guard; AI viewing_data/viewing_modules modes deleted;
+     AI module tools re-pointed (script/logs via attachedRunId,
+     get_module_settings now manifest-backed); ViewResultsObject download
+     re-pointed to the run URL; PresentationObjectMiniDisplay dirty arms
+     removed. Vocabulary: remaining user-facing strings say "results
+     package" (EN/FR/PT inline t3, per the PT rollout).
 6. **`export_central` flips** to run files (binding decision 5).
 7. **Deploy machinery**: serve-before-backfill wiring (finding 3 — the
    synthesizer becomes the deploy's backfill, serving starts first); ship

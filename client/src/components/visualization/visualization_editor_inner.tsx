@@ -680,6 +680,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       element: ViewResultsObject,
       props: {
         projectId: projectId,
+        runId: p.projectStateSnapshot.attachedRunId,
         moduleId:
           p.projectStateSnapshot.metrics.find(
             (m) => m.id === p.poDetail.resultsValue.id,

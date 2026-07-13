@@ -22,19 +22,7 @@ export function formatModulesListForAI(
     lines.push(`ID: ${module.id}`);
     lines.push(`Name: ${module.label}`);
     lines.push(`Has Parameters: ${module.hasParameters}`);
-    lines.push(`Installed: ${module.presentationDefUpdatedAt}`);
-    lines.push(`Last Run: ${module.lastRunAt}`);
-
-    const statusText = module.dirty === "ready"
-      ? "Up to date"
-      : module.dirty === "queued"
-        ? "Queued"
-        : module.dirty === "running"
-          ? "Running"
-          : module.dirty === "error"
-            ? "Error"
-            : "Needs update";
-    lines.push(`Status: ${statusText}`);
+    lines.push(`Last Run: ${module.lastRunAt ?? "never"}`);
 
     const metricCount = metricCountByModule.get(module.id) ?? 0;
     lines.push(`Metrics: ${metricCount}`);

@@ -1,6 +1,5 @@
 import { createSignal } from "solid-js";
 import type {
-  ModuleLatestCommit,
   ReportGroupingMode,
   SlideDeckGroupingMode,
   SortMode,
@@ -18,13 +17,27 @@ export type TabOption =
   | "dashboards"
   | "visualizations"
   | "metrics"
-  | "modules"
-  | "data"
   | "results_package"
   | "settings"
   | "cache";
 
-const storedTab = localStorage.getItem("projectTab") as TabOption | null;
+const _TAB_OPTIONS: readonly TabOption[] = [
+  "reports",
+  "decks",
+  "dashboards",
+  "visualizations",
+  "metrics",
+  "results_package",
+  "settings",
+  "cache",
+];
+
+// Stored prefs may hold a tab that no longer exists (e.g. the removed
+// "modules"/"data" tabs) — fall back rather than selecting nothing.
+const rawStoredTab = localStorage.getItem("projectTab");
+const storedTab = _TAB_OPTIONS.includes(rawStoredTab as TabOption)
+  ? (rawStoredTab as TabOption)
+  : null;
 
 export const [projectTab, setProjectTabInternal] = createSignal<TabOption>(
   storedTab ?? "visualizations",
@@ -196,7 +209,6 @@ export type ProjectViewStateUpdates = {
   showAi?: boolean;
   headerOrContent?: "slideHeader" | "content";
   policyHeaderOrContent?: "policyHeaderFooter" | "content";
-  showModules?: string | undefined;
 };
 
 export function updateProjectView(updates: ProjectViewStateUpdates) {
@@ -236,9 +248,6 @@ export function updateProjectView(updates: ProjectViewStateUpdates) {
   if (updates.policyHeaderOrContent !== undefined) {
     setPolicyHeaderOrContent(updates.policyHeaderOrContent);
   }
-  if (updates.showModules !== undefined) {
-    setShowModules(updates.showModules);
-  }
 }
 
 // ============================================================================
@@ -267,18 +276,3 @@ export const [policyHeaderOrContent, setPolicyHeaderOrContent] = createSignal<
   "policyHeaderFooter" | "content"
 >("content");
 
-// ============================================================================
-// Module Display
-// ============================================================================
-
-export const [showModules, setShowModules] = createSignal<string | undefined>(
-  "m001",
-);
-
-// ============================================================================
-// Module Update Status
-// ============================================================================
-
-export const [moduleLatestCommits, setModuleLatestCommits] = createSignal<
-  ModuleLatestCommit[] | undefined
->(undefined);

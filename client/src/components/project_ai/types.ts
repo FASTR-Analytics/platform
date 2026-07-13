@@ -33,16 +33,8 @@ export type AIContextViewingReports = {
   mode: "viewing_reports";
 };
 
-export type AIContextViewingData = {
-  mode: "viewing_data";
-};
-
 export type AIContextViewingMetrics = {
   mode: "viewing_metrics";
-};
-
-export type AIContextViewingModules = {
-  mode: "viewing_modules";
 };
 
 export type AIContextViewingSettings = {
@@ -121,9 +113,7 @@ export type AIContext =
   | AIContextViewingSlideDecks
   | AIContextViewingReports
   | AIContextEditingReport
-  | AIContextViewingData
   | AIContextViewingMetrics
-  | AIContextViewingModules
   | AIContextViewingSettings
   | AIContextEditingSlideDeck
   | AIContextEditingSlide

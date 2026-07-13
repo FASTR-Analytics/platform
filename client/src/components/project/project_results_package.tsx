@@ -1,6 +1,7 @@
 import {
   MODULE_REGISTRY,
   t3,
+  getValidatedModuleId,
   type RunGenerationAttemptDetail,
   type RunListingItem,
   type RunModuleProgressStatus,
@@ -27,6 +28,9 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { ResultsPackageWizard } from "~/components/results_package_wizard";
+import { ViewFiles } from "~/components/project/view_files";
+import { ViewLogs } from "~/components/project/view_logs";
+import { ViewScript } from "~/components/project/view_script";
 import { serverActions } from "~/server_actions";
 import {
   addRScriptListener,
@@ -200,6 +204,7 @@ export function ProjectResultsPackage() {
                         run={run}
                         liveProgress={liveProgress()[run.id]}
                         rLogs={rLogs}
+                        openEditor={openEditor}
                       />
                     )}
                   </For>
@@ -222,9 +227,25 @@ function RunCard(p: {
   run: RunListingItem;
   liveProgress: RunProgress | undefined;
   rLogs: Record<string, { latest: string }>;
+  openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
 }) {
   const progress = () => p.liveProgress ?? p.run.progress;
   const isAttached = () => projectState.attachedRunId === p.run.id;
+
+  function openViewer(
+    element: typeof ViewScript | typeof ViewLogs | typeof ViewFiles,
+    moduleId: string,
+  ): void {
+    void p.openEditor({
+      element,
+      props: {
+        projectId: projectState.id,
+        runId: p.run.id,
+        moduleId: getValidatedModuleId(moduleId),
+        moduleLabel: moduleLabel(moduleId),
+      },
+    });
+  }
 
   return (
     <div
@@ -257,11 +278,41 @@ function RunCard(p: {
 
       <Show when={p.run.status === "ready" && p.run.summary} keyed>
         {(summary) => (
-          <div class="text-neutral text-sm">
-            {summary.moduleIds.length}{" "}
-            {t3({ en: "modules", fr: "modules", pt: "módulos" })} ·{" "}
-            {summary.metricCount}{" "}
-            {t3({ en: "metrics", fr: "métriques", pt: "métricas" })}
+          <div class="ui-spy-sm">
+            <div class="text-neutral text-sm">
+              {summary.moduleIds.length}{" "}
+              {t3({ en: "modules", fr: "modules", pt: "módulos" })} ·{" "}
+              {summary.metricCount}{" "}
+              {t3({ en: "metrics", fr: "métriques", pt: "métricas" })}
+            </div>
+            <For each={summary.moduleIds}>
+              {(moduleId) => (
+                <div class="ui-gap-sm flex items-center text-sm">
+                  <div class="w-64 truncate">{moduleLabel(moduleId)}</div>
+                  <Button
+                    size="sm"
+                    outline
+                    onClick={() => openViewer(ViewScript, moduleId)}
+                  >
+                    {t3({ en: "Script", fr: "Script", pt: "Script" })}
+                  </Button>
+                  <Button
+                    size="sm"
+                    outline
+                    onClick={() => openViewer(ViewLogs, moduleId)}
+                  >
+                    {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
+                  </Button>
+                  <Button
+                    size="sm"
+                    outline
+                    onClick={() => openViewer(ViewFiles, moduleId)}
+                  >
+                    {t3({ en: "Files", fr: "Fichiers", pt: "Ficheiros" })}
+                  </Button>
+                </div>
+              )}
+            </For>
           </div>
         )}
       </Show>

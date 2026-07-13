@@ -2,9 +2,6 @@ import { z } from "zod";
 import type {
   InstalledModuleWithConfigSelections,
   ItemsHolderResultsObject,
-  ModuleId,
-  ModuleUpdatePreview,
-  ResultsValue,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -12,52 +9,15 @@ import { route } from "../route-utils.ts";
 // z.string() is used rather than a Zod enum (don't tighten while migrating).
 const moduleIdParamsSchema = z.object({ module_id: z.string() });
 
+// Script/logs/files read from an immutable run's outputs dir
+// (runs/{runId}/outputs/{moduleId}) — the run must have been generated from
+// this project or be its attached run.
+const runModuleParamsSchema = z.object({
+  run_id: z.string(),
+  module_id: z.string(),
+});
+
 export const moduleRouteRegistry = {
-  installModule: route({
-    path: "/install_module/:module_id",
-    method: "GET",
-    params: moduleIdParamsSchema,
-    response: {} as {
-      lastUpdated: string;
-      presObjIdsWithNewLastUpdateds: string[];
-    },
-    requiresProject: true,
-  }),
-  uninstallModule: route({
-    path: "/install_module/:module_id",
-    method: "DELETE",
-    params: moduleIdParamsSchema,
-    requiresProject: true,
-  }),
-  updateModuleDefinition: route({
-    path: "/update_module_definition/:module_id",
-    method: "POST",
-    params: moduleIdParamsSchema,
-    body: z.object({
-      reinstall: z.boolean(),
-      rerun: z.boolean(),
-      preserveSettings: z.boolean(),
-    }),
-    response: {} as {
-      lastUpdated: string;
-      presObjIdsWithNewLastUpdateds: string[];
-    },
-    requiresProject: true,
-  }),
-  updateModuleParameters: route({
-    path: "/module_parameters/:module_id",
-    method: "POST",
-    params: moduleIdParamsSchema,
-    body: z.object({ newParams: z.record(z.string(), z.string()) }),
-    response: {} as { lastUpdated: string },
-    requiresProject: true,
-  }),
-  rerunModule: route({
-    path: "/module/:module_id/rerun",
-    method: "POST",
-    params: moduleIdParamsSchema,
-    requiresProject: true,
-  }),
   getResultsObjectItems: route({
     path: "/results_object_items/:results_object_id",
     method: "GET",
@@ -67,23 +27,24 @@ export const moduleRouteRegistry = {
     requiresProject: true,
   }),
   getScript: route({
-    path: "/module/:module_id/script",
+    path: "/run/:run_id/module/:module_id/script",
     method: "GET",
-    params: moduleIdParamsSchema,
+    params: runModuleParamsSchema,
     response: {} as { script: string },
     requiresProject: true,
   }),
   getLogs: route({
-    path: "/module/:module_id/logs",
+    path: "/run/:run_id/module/:module_id/logs",
     method: "GET",
-    params: moduleIdParamsSchema,
+    params: runModuleParamsSchema,
     response: {} as { logs: string },
     requiresProject: true,
   }),
-  getAllMetrics: route({
-    path: "/metrics",
+  listRunModuleFiles: route({
+    path: "/run/:run_id/module/:module_id/files",
     method: "GET",
-    response: {} as ResultsValue[],
+    params: runModuleParamsSchema,
+    response: {} as { files: { name: string; sizeBytes: number }[] },
     requiresProject: true,
   }),
   getModuleWithConfigSelections: route({
@@ -91,13 +52,6 @@ export const moduleRouteRegistry = {
     method: "GET",
     params: moduleIdParamsSchema,
     response: {} as InstalledModuleWithConfigSelections,
-    requiresProject: true,
-  }),
-  previewModuleUpdate: route({
-    path: "/module/:module_id/preview_update",
-    method: "GET",
-    params: moduleIdParamsSchema,
-    response: {} as ModuleUpdatePreview,
     requiresProject: true,
   }),
 } as const;

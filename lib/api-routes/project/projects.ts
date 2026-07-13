@@ -1,16 +1,11 @@
 import { z } from "zod";
-import {
-  datasetHmisWindowingCommonSchema,
-  PROJECT_PERMISSIONS,
-} from "../../types/mod.ts";
+import { PROJECT_PERMISSIONS } from "../../types/mod.ts";
 import type {
   ProjectPermission,
   ProjectUserRoleType,
   UserLog,
   ProjectDetail,
-  DatasetHmisWindowingCommon,
   DatasetType,
-  ModuleId,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -104,33 +99,6 @@ export const projectRouteRegistry = {
     path: "/project_detail",
     method: "GET",
     response: {} as ProjectDetail,
-    requiresProject: true,
-  }),
-
-  addDatasetToProject: route({
-    path: "/project_datasets",
-    method: "POST",
-    body: z.object({
-      datasetType: datasetTypeSchema,
-      windowing: datasetHmisWindowingCommonSchema.optional(),
-      serviceCategoryScope: z.array(z.string()).optional(),
-      skipModuleRerun: z.boolean().optional(),
-    }),
-    response: {} as { lastUpdated: string },
-    requiresProject: true,
-    isStreaming: true,
-  }),
-
-  removeDatasetFromProject: route({
-    path: "/project_datasets/:dataset_type",
-    method: "DELETE",
-    params: z.object({ dataset_type: datasetTypeSchema }),
-    requiresProject: true,
-  }),
-
-  setAllModulesDirty: route({
-    path: "/project/dirty-all",
-    method: "POST",
     requiresProject: true,
   }),
 

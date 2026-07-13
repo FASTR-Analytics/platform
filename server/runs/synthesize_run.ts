@@ -29,7 +29,7 @@ import {
 } from "../db/instance/config.ts";
 import { resolveAssetFilePath } from "../db/instance/assets.ts";
 import { ensureRepoAssetCached } from "../module_loader/repo_assets.ts";
-import { R_DOCKER_IMAGE_TAG } from "../worker_routines/run_module/r_docker_image.ts";
+import { R_DOCKER_IMAGE_TAG } from "../worker_routines/generate_run/r_docker_image.ts";
 import {
   _INSTANCE_CALENDAR,
   _SANDBOX_DIR_PATH,

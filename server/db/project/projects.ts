@@ -10,6 +10,8 @@ import {
   throwIfErrWithData,
   type DatasetType,
   type GlobalUser,
+  type InstalledModuleSummary,
+  type MetricWithStatus,
   type ModuleId,
   type ProjectPermission,
   type ProjectUser,
@@ -36,11 +38,12 @@ import {
   getHfaTaxonomyForAI,
 } from "./datasets_in_project_hfa.ts";
 import { addDatasetHmisToProject } from "./datasets_in_project_hmis.ts";
+import { installModule } from "./modules.ts";
 import {
-  getAllModulesForProject,
-  getMetricsWithStatus,
-  installModule,
-} from "./modules.ts";
+  getMetricsWithStatusFromManifest,
+  getModuleSummariesFromManifest,
+} from "../../run_query/run_read.ts";
+import { getRunManifestCached } from "../../runs/manifest_cache.ts";
 import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
 import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
@@ -130,23 +133,26 @@ export async function getProjectDetail(
       };
     });
 
-    const resModules = await getAllModulesForProject(projectDb);
-    throwIfErrWithData(resModules);
-
-    const resMetrics = await getMetricsWithStatus(mainDb, projectDb);
-    throwIfErrWithData(resMetrics);
-
-    const sortedModules = resModules.data.toSorted((a, b) => {
-      const a1 = a.id.toLowerCase().trim();
-      const b1 = b.id.toLowerCase().trim();
-      if (a1 < b1) {
-        return -1;
+    // The module/metric catalog IS the attached run's manifest (PLAN_RESULTS_
+    // RUNS item 5 / binding decision 5): no run attached → typed empty lists.
+    // An attached-but-unreadable run degrades to empty here (loudly logged)
+    // so authored content stays reachable; the query routes surface the run
+    // error properly.
+    let projectModules: InstalledModuleSummary[] = [];
+    let metrics: MetricWithStatus[] = [];
+    if (rawProject.run_id !== null) {
+      try {
+        const manifest = await getRunManifestCached(rawProject.run_id);
+        projectModules = getModuleSummariesFromManifest(manifest);
+        metrics = getMetricsWithStatusFromManifest(manifest);
+      } catch (e) {
+        console.error(
+          `[runs] attached run ${rawProject.run_id} unreadable for project ${projectId}: ${
+            e instanceof Error ? e.message : e
+          }`,
+        );
       }
-      if (a1 > b1) {
-        return 1;
-      }
-      return 0;
-    });
+    }
 
     const resSlideDecks = await getAllSlideDecks(projectDb);
     throwIfErrWithData(resSlideDecks);
@@ -270,8 +276,8 @@ export async function getProjectDetail(
       isCentralReporting: rawProject.is_central_reporting,
       attachedRunId: rawProject.run_id,
       projectDatasets: datasetsInProject,
-      projectModules: sortedModules,
-      metrics: resMetrics.data,
+      projectModules,
+      metrics,
       commonIndicators,
       icehIndicators,
       hfaTaxonomy,

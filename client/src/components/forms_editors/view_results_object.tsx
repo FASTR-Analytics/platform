@@ -8,7 +8,7 @@ import {
   TableFromCsv,
   createQuery,
 } from "panther";
-import { createMemo, Match, Switch } from "solid-js";
+import { createMemo, Match, Show, Switch } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions";
 import { serverActions } from "~/server_actions";
 
@@ -16,6 +16,7 @@ export function ViewResultsObject(
   p: EditorComponentProps<
     {
       projectId: string;
+      runId: string | null;
       moduleId: string;
       resultsObjectId: string;
     },
@@ -41,14 +42,18 @@ export function ViewResultsObject(
             <span class="ml-4 font-400">{p.resultsObjectId}</span>
           </div>
           <div class="ui-gap-sm flex items-center">
-            <Button
-              href={`${_SERVER_HOST}/${p.projectId}/${p.moduleId}/${p.resultsObjectId}?t=${Date.now()}`}
-              intent="success"
-              download={p.resultsObjectId}
-              iconName="download"
-            >
-              {t3(TC.download)}
-            </Button>
+            <Show when={p.runId} keyed>
+              {(keyedRunId) => (
+                <Button
+                  href={`${_SERVER_HOST}/${keyedRunId}/outputs/${p.moduleId}/${p.resultsObjectId}?t=${Date.now()}`}
+                  intent="success"
+                  download={p.resultsObjectId}
+                  iconName="download"
+                >
+                  {t3(TC.download)}
+                </Button>
+              )}
+            </Show>
             <Button iconName="refresh" onClick={items.fetch} />
           </div>
         </div>

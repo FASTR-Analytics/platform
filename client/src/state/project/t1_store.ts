@@ -38,10 +38,6 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   projectUsers: [],
   thisUserPermissions: structuredClone(_PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS),
   projectLastUpdated: "",
-  anyRunning: false,
-  moduleDirtyStates: {},
-  moduleLastRun: {},
-  moduleLastRunGitRef: {},
   lastUpdated: {
     dashboards: {},
     dashboard_items: {},
@@ -80,22 +76,6 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       rebuildModuleMaps(msg.data);
       break;
 
-    case "any_running":
-      setProjectState("anyRunning", msg.data.anyRunning);
-      break;
-
-    case "module_dirty_state":
-      for (const id of msg.data.ids) {
-        setProjectState("moduleDirtyStates", id, msg.data.dirtyOrRunStatus);
-        if (msg.data.lastRun) {
-          setProjectState("moduleLastRun", id, msg.data.lastRun);
-        }
-        if (msg.data.lastRunGitRef) {
-          setProjectState("moduleLastRunGitRef", id, msg.data.lastRunGitRef);
-        }
-      }
-      break;
-
     case "project_config_updated":
       setProjectState("label", msg.data.label);
       setProjectState("isLocked", msg.data.isLocked);
@@ -107,25 +87,16 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       }
       break;
 
-    case "modules_updated":
-      setProjectState("projectModules", reconcile(msg.data.projectModules));
-      setProjectState("metrics", reconcile(msg.data.metrics));
-      setProjectState("commonIndicators", reconcile(msg.data.commonIndicators));
-      setProjectState("icehIndicators", reconcile(msg.data.icehIndicators));
-      rebuildModuleMaps(projectState);
-      break;
-
-    case "datasets_updated":
-      setProjectState("projectDatasets", reconcile(msg.data.projectDatasets));
-      break;
-
     // A generated run was published and the project repointed: the run key
-    // flips here (T2 caches re-key off runVersionKey) together with the
-    // module/metric catalog the new run carries.
+    // flips here (T2 caches re-key off runVersionKey) together with the full
+    // run-derived catalog the new run carries.
     case "run_attached":
       setProjectState("attachedRunId", msg.data.attachedRunId);
       setProjectState("projectModules", reconcile(msg.data.projectModules));
       setProjectState("metrics", reconcile(msg.data.metrics));
+      setProjectState("projectDatasets", reconcile(msg.data.projectDatasets));
+      setProjectState("commonIndicators", reconcile(msg.data.commonIndicators));
+      setProjectState("icehIndicators", reconcile(msg.data.icehIndicators));
       rebuildModuleMaps(projectState);
       break;
 

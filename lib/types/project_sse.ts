@@ -4,10 +4,7 @@ import type { ProjectUser } from "./instance.ts";
 import type { InstalledModuleSummary, MetricWithStatus } from "./modules.ts";
 import type { ProjectUserPermissions } from "./permissions.ts";
 import type { PresentationObjectSummary } from "./presentation_objects.ts";
-import type {
-  DirtyOrRunStatus,
-  LastUpdateTableName,
-} from "./project_dirty_states.ts";
+import type { LastUpdateTableName } from "./project_dirty_states.ts";
 import type { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import type { ReportFolder, ReportSummary } from "./reports.ts";
 import type { VisualizationFolder } from "./visualization_folders.ts";
@@ -51,12 +48,8 @@ export type ProjectState = {
   projectUsers: ProjectUser[];
   thisUserPermissions: ProjectUserPermissions;
 
-  // From ProjectDirtyStates
+  // Per-entity last-updated snapshot (project caches use per-entity versioning)
   projectLastUpdated: string;
-  anyRunning: boolean;
-  moduleDirtyStates: Record<string, DirtyOrRunStatus>;
-  moduleLastRun: Record<string, string>;
-  moduleLastRunGitRef: Record<string, string>;
   lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
 };
 
@@ -70,14 +63,14 @@ export type ProjectSseMessage =
   // Initial state on connection
   | { type: "starting"; data: ProjectState }
 
-  // Module execution events (already granular today — kept as-is)
-  | { type: "any_running"; data: { anyRunning: boolean } }
+  // Live R output line for the currently generating module
   | { type: "r_script"; data: { moduleId: string; text: string } }
 
   // Results-package generation (PLAN_RESULTS_RUNS item 2): worker-pushed
   // pipeline progress on every state change, and the repoint event when a
-  // finished run becomes the project's attached package (also closes the
-  // interim reconnect-only gap — clients learn of the new catalog live).
+  // finished run becomes the project's attached package — it carries the
+  // full run-derived catalog (modules, metrics, datasets, indicators) so
+  // clients re-key live without a reconnect.
   | { type: "run_progress"; data: { runId: string; progress: RunProgress } }
   | {
       type: "run_attached";
@@ -85,30 +78,14 @@ export type ProjectSseMessage =
         attachedRunId: string;
         projectModules: InstalledModuleSummary[];
         metrics: MetricWithStatus[];
-      };
-    }
-  | {
-      type: "module_dirty_state";
-      data: {
-        ids: string[];
-        dirtyOrRunStatus: DirtyOrRunStatus;
-        lastRun?: string;
-        lastRunGitRef?: string;
+        projectDatasets: DatasetInProject[];
+        commonIndicators: { id: string; label: string }[];
+        icehIndicators: { id: string; label: string; category: string }[];
       };
     }
 
   // Data updates (replace current "project_updated" catch-all)
   | { type: "project_config_updated"; data: { label: string; isLocked: boolean; aiContext?: string; isCentralReporting?: boolean } }
-  | {
-      type: "modules_updated";
-      data: {
-        projectModules: InstalledModuleSummary[];
-        metrics: MetricWithStatus[];
-        commonIndicators: { id: string; label: string }[];
-        icehIndicators: { id: string; label: string; category: string }[];
-      };
-    }
-  | { type: "datasets_updated"; data: { projectDatasets: DatasetInProject[] } }
   | {
       type: "visualizations_updated";
       data: { visualizations: PresentationObjectSummary[] };

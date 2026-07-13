@@ -1,13 +1,6 @@
-export type ProjectDirtyStates = {
-  isReady: boolean;
-  projectLastUpdated: string;
-  anyRunning: boolean;
-  moduleDirtyStates: Record<string, DirtyOrRunStatus>;
-  moduleLastRun: Record<string, string>;
-  moduleLastRunGitRef: Record<string, string>;
-  lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
-};
-
+// The dirty column vocabulary of the legacy project-DB modules table — kept
+// only for the dual-write plane (upserts write 'ready') and the instance
+// compare-projects surface, until Phase-3 demolition.
 export type DirtyOrRunStatus = "queued" | "ready" | "error" | "running";
 
 export type LastUpdateTableName =

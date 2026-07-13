@@ -11,15 +11,17 @@ import { serverActions } from "~/server_actions";
 
 export function ViewLogs(
   p: EditorComponentProps<
-    { projectId: string; moduleId: ModuleId; moduleLabel: string },
+    { projectId: string; runId: string; moduleId: ModuleId; moduleLabel: string },
     undefined
   >,
 ) {
-  // const rLogs = useRLogs();
-
   const rLogs = createQuery(
     () =>
-      serverActions.getLogs({ module_id: p.moduleId, projectId: p.projectId }),
+      serverActions.getLogs({
+        run_id: p.runId,
+        module_id: p.moduleId,
+        projectId: p.projectId,
+      }),
     t3({ en: "Loading logs...", fr: "Chargement des journaux...", pt: "A carregar registos..." }),
   );
 

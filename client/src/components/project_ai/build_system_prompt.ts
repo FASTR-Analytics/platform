@@ -287,12 +287,8 @@ function getModeInstructions(aiContext: AIContext): string {
       return getViewingReportsInstructions();
     case "editing_report":
       return getEditingReportInstructions(aiContext.reportLabel);
-    case "viewing_data":
-      return getViewingDataInstructions();
     case "viewing_metrics":
       return getViewingMetricsInstructions();
-    case "viewing_modules":
-      return getViewingModulesInstructions();
     case "viewing_settings":
       return getViewingSettingsInstructions();
     case "editing_slide_deck":
@@ -400,27 +396,6 @@ ${getAllToolsList()}
 - Use clean markdown (headings, paragraphs, lists, tables); never raw HTML. For data tables, prefer inserting a figure.`;
 }
 
-function getViewingDataInstructions(): string {
-  return `# Current View: Data Section
-
-The user is viewing their datasets.
-
-## Primary Tools (most relevant here)
-
-**get_available_metrics** - List metrics derived from datasets
-**get_metric_data** - Query metric data
-
-## Other Available Tools
-
-${getAllToolsList()}
-
-## Actions
-
-- Help explore available data
-- Answer questions about data sources and quality
-- Suggest relevant metrics to analyze`;
-}
-
 function getViewingMetricsInstructions(): string {
   return `# Current View: Metrics Section
 
@@ -440,30 +415,6 @@ ${getAllToolsList()}
 - Help explore available metrics
 - Query and analyze metric data
 - Explain methodologies`;
-}
-
-function getViewingModulesInstructions(): string {
-  return `# Current View: Modules Section
-
-The user is viewing analysis modules.
-
-## Primary Tools (most relevant here)
-
-**get_available_modules** - List all modules with status
-**get_module_r_script** - View R script for a module
-**get_module_log** - View execution log for a module
-**get_methodology_docs_list** - List methodology documents
-**get_methodology_doc_content** - Read a methodology document
-
-## Other Available Tools
-
-${getAllToolsList()}
-
-## Actions
-
-- Help explore modules
-- Explain module methodologies
-- Answer questions about module status and results`;
 }
 
 function getViewingSettingsInstructions(): string {

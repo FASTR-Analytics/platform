@@ -10,24 +10,14 @@ import {
   type ListItem,
 } from "panther";
 import { FeedbackForm } from "~/components/instance/feedback_form";
-import {
-  createEffect,
-  createMemo,
-  Match,
-  onMount,
-  Show,
-  Switch,
-} from "solid-js";
-import { ProjectRunStatus } from "~/components/DirtyStatus";
+import { createEffect, Match, Show, Switch } from "solid-js";
 import { ProjectSSEBoundary } from "~/state/project/t1_sse";
 import { projectState } from "~/state/project/t1_store";
 
-import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
 import { ProjectReports } from "./project_reports";
 import { ProjectDashboards } from "./project_dashboards";
 import { ProjectMetrics } from "./project_metrics";
-import { ProjectModules } from "./project_modules";
 import { ProjectResultsPackage } from "./project_results_package";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
@@ -39,17 +29,10 @@ import {
   setShowAi,
   navCollapsed,
   setNavCollapsed,
-  moduleLatestCommits,
-  setModuleLatestCommits,
 } from "~/state/t4_ui";
 import type { TabOption } from "~/state/t4_ui";
 import { AIProjectWrapper, useAIProjectContext } from "../project_ai";
 import { instanceState } from "~/state/instance/t1_store";
-import { serverActions } from "~/server_actions";
-import {
-  checkDataNeedsUpdate,
-  checkModulesNeedUpdate,
-} from "./staleness_checks";
 
 type Props = {
   projectId: string;
@@ -70,14 +53,8 @@ function AIContextSync() {
       case "decks":
         setAIContext({ mode: "viewing_slide_decks" });
         break;
-      case "data":
-        setAIContext({ mode: "viewing_data" });
-        break;
       case "metrics":
         setAIContext({ mode: "viewing_metrics" });
-        break;
-      case "modules":
-        setAIContext({ mode: "viewing_modules" });
         break;
       case "settings":
         setAIContext({ mode: "viewing_settings" });
@@ -101,29 +78,6 @@ function ProjectInner() {
 
   const { openEditor: openProjectEditor, EditorWrapper: ProjectEditorWrapper } =
     getEditorWrapper();
-
-  onMount(async () => {
-    if (moduleLatestCommits() === undefined) {
-      const res = await serverActions.checkModuleUpdates({});
-      if (res.success) {
-        setModuleLatestCommits(res.data);
-      }
-    }
-  });
-
-  const dataNeedsUpdate = createMemo(() =>
-    checkDataNeedsUpdate(projectState, instanceState),
-  );
-
-  const modulesNeedUpdate = createMemo(() =>
-    checkModulesNeedUpdate(projectState.projectModules, moduleLatestCommits()),
-  );
-
-  const modulesHaveError = createMemo(() =>
-    projectState.projectModules.some(
-      (mod) => projectState.moduleDirtyStates[mod.id] === "error",
-    ),
-  );
 
   const tabItems = (): ListItem<TabOption>[] => {
     const perms = projectState.thisUserPermissions;
@@ -152,30 +106,6 @@ function ProjectInner() {
         id: "visualizations",
         label: t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" }),
         iconName: "chart",
-      });
-    }
-    if (
-      perms.can_configure_modules ||
-      perms.can_run_modules ||
-      perms.can_view_script_code
-    ) {
-      items.push({
-        id: "modules",
-        label: t3({ en: "Modules", fr: "Modules", pt: "Módulos" }),
-        iconName: "code",
-        dot: modulesHaveError()
-          ? "danger"
-          : modulesNeedUpdate()
-            ? "warning"
-            : undefined,
-      });
-    }
-    if (perms.can_view_data) {
-      items.push({
-        id: "data",
-        label: t3({ en: "Data", fr: "Données", pt: "Dados" }),
-        iconName: "database",
-        dot: dataNeedsUpdate() ? "warning" : undefined,
       });
     }
     // Instance-admin surface: results-package generation gating
@@ -264,7 +194,6 @@ function ProjectInner() {
                       {t3({ en: "AI", fr: "IA", pt: "IA" })}
                     </Button>
                   </Show>
-                  <ProjectRunStatus />
                 </div>
               </div>
             }
@@ -326,34 +255,6 @@ function ProjectInner() {
                   }
                 >
                   <ProjectMetrics openProjectEditor={openProjectEditor} />
-                </Match>
-                <Match
-                  when={
-                    projectTab() === "modules" &&
-                    (projectState.thisUserPermissions.can_configure_modules ||
-                      projectState.thisUserPermissions.can_run_modules ||
-                      projectState.thisUserPermissions.can_view_script_code)
-                  }
-                >
-                  <ProjectModules
-                    canConfigureModules={
-                      projectState.thisUserPermissions.can_configure_modules
-                    }
-                    canRunModules={
-                      projectState.thisUserPermissions.can_run_modules
-                    }
-                    canViewScriptCode={
-                      projectState.thisUserPermissions.can_view_script_code
-                    }
-                  />
-                </Match>
-                <Match
-                  when={
-                    projectTab() === "data" &&
-                    projectState.thisUserPermissions.can_view_data
-                  }
-                >
-                  <ProjectData />
                 </Match>
                 <Match
                   when={

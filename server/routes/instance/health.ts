@@ -9,7 +9,6 @@ import {
   getPgConnectionFromCacheOrNew,
   UserLog,
 } from "../../db/mod.ts";
-import { getAnyRunningModules } from "../../task_management/mod.ts";
 import {
   _DATABASE_FOLDER,
   _INSTANCE_CALENDAR,
@@ -42,7 +41,16 @@ routesHealth.get("/health_check", async (c) => {
     DBProject[]
   >`SELECT id, label FROM projects ORDER BY LOWER(label)`;
 
-  const hasRunningModules = projects.some((p) => getAnyRunningModules(p.id));
+  // A generation in flight = a 'generating' row in the runs catalog (the
+  // legacy per-module running map died with the dirty machine).
+  const hasRunningModules =
+    Number(
+      (
+        await mainDb<{ n: string }[]>`
+SELECT count(*) AS n FROM runs WHERE status = 'generating'
+`
+      )[0].n,
+    ) > 0;
 
   const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
   const hfaTimePointCount = (

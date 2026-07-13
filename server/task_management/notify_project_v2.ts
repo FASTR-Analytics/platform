@@ -1,10 +1,6 @@
 import type {
   DashboardSummary,
-  DatasetInProject,
-  DirtyOrRunStatus,
-  InstalledModuleSummary,
   LastUpdateTableName,
-  MetricWithStatus,
   PresentationObjectSummary,
   ProjectSseMessage,
   ProjectUser,
@@ -38,29 +34,6 @@ export function notifyProjectConfigUpdated(
   notifyProjectV2(projectId, {
     type: "project_config_updated",
     data: { label, isLocked, aiContext, isCentralReporting },
-  });
-}
-
-export function notifyProjectModulesUpdated(
-  projectId: string,
-  projectModules: InstalledModuleSummary[],
-  metrics: MetricWithStatus[],
-  commonIndicators: { id: string; label: string }[],
-  icehIndicators: { id: string; label: string; category: string }[]
-): void {
-  notifyProjectV2(projectId, {
-    type: "modules_updated",
-    data: { projectModules, metrics, commonIndicators, icehIndicators },
-  });
-}
-
-export function notifyProjectDatasetsUpdated(
-  projectId: string,
-  projectDatasets: DatasetInProject[]
-): void {
-  notifyProjectV2(projectId, {
-    type: "datasets_updated",
-    data: { projectDatasets },
   });
 }
 
@@ -156,29 +129,6 @@ export function notifyProjectLastUpdatedV2(
   });
 }
 
-export function notifyProjectModuleDirtyState(
-  projectId: string,
-  ids: string[],
-  dirtyOrRunStatus: DirtyOrRunStatus,
-  lastRun?: string,
-  lastRunGitRef?: string
-): void {
-  notifyProjectV2(projectId, {
-    type: "module_dirty_state",
-    data: { ids, dirtyOrRunStatus, lastRun, lastRunGitRef },
-  });
-}
-
-export function notifyProjectAnyRunning(
-  projectId: string,
-  anyRunning: boolean
-): void {
-  notifyProjectV2(projectId, {
-    type: "any_running",
-    data: { anyRunning },
-  });
-}
-
 export function notifyProjectRScript(
   projectId: string,
   moduleId: string,
@@ -203,12 +153,7 @@ export function notifyProjectRunProgress(
 
 export function notifyProjectRunAttached(
   projectId: string,
-  attachedRunId: string,
-  projectModules: InstalledModuleSummary[],
-  metrics: MetricWithStatus[],
+  data: Extract<ProjectSseMessage, { type: "run_attached" }>["data"],
 ): void {
-  notifyProjectV2(projectId, {
-    type: "run_attached",
-    data: { attachedRunId, projectModules, metrics },
-  });
+  notifyProjectV2(projectId, { type: "run_attached", data });
 }

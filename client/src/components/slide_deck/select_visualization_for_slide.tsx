@@ -100,7 +100,6 @@ export function SelectVisualizationForSlide(
               <Side
                 projectId={p.projectState.id}
                 presObjId={kP.id}
-                moduleId={p.projectState.metrics.find(m => m.id === kP.metricId)?.moduleId ?? ""}
                 selectedReplicant={selectedReplicant()}
                 setSelectedReplicant={setSelectedReplicant}
               />
@@ -115,7 +114,6 @@ export function SelectVisualizationForSlide(
 type SideProps = {
   projectId: string;
   presObjId: string;
-  moduleId: string;
   selectedReplicant: string;
   setSelectedReplicant: Setter<string>;
 };
@@ -133,7 +131,6 @@ function Side(p: SideProps) {
             <PresentationObjectMiniDisplay
               projectId={p.projectId}
               presentationObjectId={keyedPoDetail.id}
-              moduleId={p.moduleId}
               shapeType={"force-aspect-video"}
               repliantOverride={{ selectedReplicantValue: p.selectedReplicant }}
             />

@@ -951,9 +951,6 @@ function VisualizationCard(p: VisualizationCardProps) {
           <PresentationObjectMiniDisplay
             projectId={p.projectId}
             presentationObjectId={p.po.id}
-            moduleId={
-              p.metrics.find((m) => m.id === p.po.metricId)?.moduleId ?? ""
-            }
             shapeType={"force-aspect-video"}
           />
         </Show>

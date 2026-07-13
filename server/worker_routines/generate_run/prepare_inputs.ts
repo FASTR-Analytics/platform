@@ -3,8 +3,6 @@ import type { Sql } from "postgres";
 import {
   throwIfErrNoData,
   throwIfErrWithData,
-  parseJsonOrThrow,
-  type DatasetInProject,
   type DatasetType,
   type RunGenerationStep1Result,
 } from "lib";
@@ -17,7 +15,6 @@ import {
 } from "../../db/mod.ts";
 import { readCsvHeaders } from "../../runs/mod.ts";
 import { writeParquetFromCsv } from "../../run_query/mod.ts";
-import { notifyProjectDatasetsUpdated } from "../../task_management/notify_project_v2.ts";
 import { sha256HexOfFile } from "./input_key.ts";
 
 // Stage 1 of the run pipeline — prepare inputs (PLAN_RESULTS_RUNS item 2).
@@ -119,36 +116,8 @@ SELECT dataset_type FROM datasets
     );
   }
 
-  // The legacy plane's datasets changed — keep connected clients current.
-  const datasetRows = await projectDb<
-    { dataset_type: string; info: string; last_updated: string }[]
-  >`
-SELECT dataset_type, info, last_updated FROM datasets
-`;
-  notifyProjectDatasetsUpdated(
-    projectId,
-    datasetRows.map<DatasetInProject>((row) => {
-      if (row.dataset_type === "hmis") {
-        return {
-          datasetType: "hmis",
-          info: parseJsonOrThrow(row.info),
-          dateExported: row.last_updated,
-        };
-      }
-      if (row.dataset_type === "iceh") {
-        return {
-          datasetType: "iceh",
-          info: parseJsonOrThrow(row.info),
-          dateExported: row.last_updated,
-        };
-      }
-      return {
-        datasetType: "hfa",
-        info: parseJsonOrThrow(row.info),
-        dateExported: row.last_updated,
-      };
-    }),
-  );
+  // The legacy plane's datasets changed mid-generation; clients learn the
+  // full new catalog (datasets included) from run_attached at publish.
 
   return { selectedFamilies, datasetExtractHashes, extraInputFiles };
 }

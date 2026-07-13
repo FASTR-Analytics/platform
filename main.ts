@@ -43,7 +43,6 @@ import { routesSlides } from "./server/routes/project/slides.ts";
 import { routesAiProxy } from "./server/routes/project/ai_proxy.ts";
 import { routesInstanceAiProxy } from "./server/routes/instance/ai_proxy.ts";
 import { routesAiFiles } from "./server/routes/project/ai_files.ts";
-import { routesAiTools } from "./server/routes/project/ai_tools.ts";
 import { routesVisualizationFolders } from "./server/routes/project/visualization_folders.ts";
 import { routesSlideDeckFolders } from "./server/routes/project/slide_deck_folders.ts";
 import { routesReports } from "./server/routes/project/reports.ts";
@@ -147,7 +146,6 @@ app.route("/", routesCacheStatus);
 app.route("/ai", routesAiProxy);
 app.route("/ai-instance", routesInstanceAiProxy);
 app.route("/ai", routesAiFiles);
-app.route("/", routesAiTools);
 app.route("/", routesCustomPrompts);
 app.route("/", routesExportCentral);
 

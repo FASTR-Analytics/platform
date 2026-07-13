@@ -11,15 +11,14 @@ import { serverActions } from "~/server_actions";
 
 export function ViewScript(
   p: EditorComponentProps<
-    { projectId: string; moduleId: ModuleId; moduleLabel: string },
+    { projectId: string; runId: string; moduleId: ModuleId; moduleLabel: string },
     undefined
   >,
 ) {
-  // const rLogs = useRLogs();
-
-  const rLogs = createQuery(
+  const rScript = createQuery(
     () =>
       serverActions.getScript({
+        run_id: p.runId,
         module_id: p.moduleId,
         projectId: p.projectId,
       }),
@@ -42,11 +41,11 @@ export function ViewScript(
         </HeadingBar>
       }
     >
-      <StateHolderWrapper state={rLogs.state()}>
-        {(keyedLogs) => {
+      <StateHolderWrapper state={rScript.state()}>
+        {(keyedScript) => {
           return (
             <div class="ui-pad whitespace-pre font-mono text-xs">
-              {keyedLogs.script}
+              {keyedScript.script}
             </div>
           );
         }}

@@ -2,10 +2,9 @@ import { join } from "@std/path";
 import type { Sql } from "postgres";
 import { throwIfErrWithData, type RunProgress } from "lib";
 import {
-  getAllModulesForProject,
+  getAllDatasetsForProject,
   getCountryIso3Config,
   getFacilityColumnsConfig,
-  getMetricsWithStatus,
 } from "../../db/mod.ts";
 import {
   publishReadyRun,
@@ -17,7 +16,10 @@ import {
   runTmpDirPath,
 } from "../../runs/mod.ts";
 import {
-  notifyProjectModulesUpdated,
+  getMetricsWithStatusFromManifest,
+  getModuleSummariesFromManifest,
+} from "../../run_query/mod.ts";
+import {
   notifyProjectRunAttached,
   notifyProjectRunProgress,
 } from "../../task_management/notify_project_v2.ts";
@@ -172,7 +174,7 @@ export async function runGenerationPipeline(
   // ONE finalize (§3.8): wholesale manifest + inputs capture via the shared
   // package builder, reading the catalog the dual-write just wrote and the
   // raw CSVs the modules wrote inside this run.
-  const { summary } = await buildRunPackageIntoTmp(
+  const { manifest, summary } = await buildRunPackageIntoTmp(
     mainDb,
     projectDb,
     std.projectId,
@@ -197,48 +199,39 @@ export async function runGenerationPipeline(
   });
   notifyProjectRunProgress(std.projectId, std.runId, progress);
 
-  // Repoint event: the new catalog, live (also serves today's module-card
-  // surfaces until item 5 re-points them to the run summary).
-  const [modulesRes, metricsRes] = await Promise.all([
-    getAllModulesForProject(projectDb),
-    getMetricsWithStatus(mainDb, projectDb),
-  ]);
-  if (modulesRes.success && metricsRes.success) {
-    notifyProjectRunAttached(
-      std.projectId,
-      std.runId,
-      modulesRes.data,
-      metricsRes.data,
-    );
-    const commonIndicators = (
-      await projectDb<
-        { indicator_common_id: string; indicator_common_label: string }[]
-      >`
+  // Repoint event: the full run-derived catalog, live — modules/metrics from
+  // the just-built manifest, datasets/indicators from the dual-write plane
+  // this generation freshened (byte-current by construction).
+  const datasetsRes = await getAllDatasetsForProject(projectDb);
+  const commonIndicators = (
+    await projectDb<
+      { indicator_common_id: string; indicator_common_label: string }[]
+    >`
 SELECT indicator_common_id, indicator_common_label FROM indicators
 ORDER BY indicator_common_label
 `
-    ).map((row) => ({
-      id: row.indicator_common_id,
-      label: row.indicator_common_label,
-    }));
-    const icehIndicators = (
-      await projectDb<
-        { iceh_indicator: string; indicator_name: string; category: string }[]
-      >`
+  ).map((row) => ({
+    id: row.indicator_common_id,
+    label: row.indicator_common_label,
+  }));
+  const icehIndicators = (
+    await projectDb<
+      { iceh_indicator: string; indicator_name: string; category: string }[]
+    >`
 SELECT iceh_indicator, indicator_name, category FROM iceh_indicators_snapshot
 ORDER BY sort_order, iceh_indicator
 `
-    ).map((row) => ({
-      id: row.iceh_indicator,
-      label: row.indicator_name,
-      category: row.category,
-    }));
-    notifyProjectModulesUpdated(
-      std.projectId,
-      modulesRes.data,
-      metricsRes.data,
-      commonIndicators,
-      icehIndicators,
-    );
-  }
+  ).map((row) => ({
+    id: row.iceh_indicator,
+    label: row.indicator_name,
+    category: row.category,
+  }));
+  notifyProjectRunAttached(std.projectId, {
+    attachedRunId: std.runId,
+    projectModules: getModuleSummariesFromManifest(manifest),
+    metrics: getMetricsWithStatusFromManifest(manifest),
+    projectDatasets: datasetsRes.success ? datasetsRes.data : [],
+    commonIndicators,
+    icehIndicators,
+  });
 }

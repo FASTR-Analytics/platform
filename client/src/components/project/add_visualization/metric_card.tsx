@@ -8,17 +8,16 @@ type Props = {
   onSelect: (metricId: string) => void;
 };
 
-function getStatusTooltip(status: MetricWithStatus["status"]): string {
-  switch (status) {
-    case "module_not_installed":
-      return t3({ en: "Module not installed", fr: "Module non installé", pt: "Módulo não instalado" });
-    case "results_not_ready":
-      return t3({ en: "Module not yet run", fr: "Module pas encore exécuté", pt: "Módulo ainda não executado" });
-    case "error":
-      return t3({ en: "Module has errors", fr: "Le module a des erreurs", pt: "O módulo tem erros" });
-    default:
-      return "";
-  }
+function getStatusTooltip(metric: MetricWithStatus): string {
+  if (metric.status === "ready") return "";
+  return (
+    metric.statusReason ??
+    t3({
+      en: "Not available in this results package",
+      fr: "Non disponible dans ce paquet de résultats",
+      pt: "Não disponível neste pacote de resultados",
+    })
+  );
 }
 
 export function MetricCard(p: Props) {
@@ -49,7 +48,7 @@ export function MetricCard(p: Props) {
       onClick={handleGroupClick}
       title={
         !hasVariants() && firstMetric().status !== "ready"
-          ? getStatusTooltip(firstMetric().status)
+          ? getStatusTooltip(firstMetric())
           : undefined
       }
     >

@@ -2,18 +2,13 @@
 system: 8
 name: Module System
 globs:
-  - client/src/components/DirtyStatus.tsx
   - client/src/components/instance/compare_projects.tsx
   - client/src/components/project/metric_details_modal.tsx
-  - client/src/components/project/project_modules.tsx
   - client/src/components/project/project_results_package.tsx
   - client/src/components/results_package_wizard/**
-  - client/src/components/project/update_all_modules.tsx
-  - client/src/components/project/update_module.tsx
   - client/src/components/project/view_files.tsx
   - client/src/components/project/view_logs.tsx
   - client/src/components/project/view_script.tsx
-  - client/src/components/project_module_settings/**
   - lib/types/_module_definition_github.ts
   - lib/types/_module_definition_installed.ts
   - lib/types/module_registry.ts
@@ -31,15 +26,9 @@ globs:
   - server/runs/**
   - server/server_only_funcs/**
   - server/server_only_types/**
-  - server/task_management/get_dependents.ts
   - server/task_management/mod.ts
-  - server/task_management/running_tasks_map.ts
-  - server/task_management/set_module_clean.ts
-  - server/task_management/set_module_dirty.ts
-  - server/task_management/trigger_runnable_tasks.ts
   - server/worker_routines/generate_run/**
   - server/worker_routines/instantiate_worker_generic.ts
-  - server/worker_routines/run_module/**
 docs_absorbed:
   - DOC_TASK_EXECUTION_DIRTY_STATE
   - DOC_WORKER_ROUTINES
@@ -61,21 +50,25 @@ dirty-state propagation → Docker/R execution → `ro_*` ingest.
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
 `server/module_loader/**`; `server/github/**`; ALL of
-`db/project/modules.ts` (install heart *and* the read API) +
-`db/project/results_objects.ts`; `task_management/{mod,set_module_dirty,get_dependents,trigger_runnable_tasks,running_tasks_map,set_module_clean}.ts`;
-`worker_routines/run_module/**` + `instantiate_worker_generic.ts`;
-`server_only_funcs/**` (R-script templating); `server_only_types/mod.ts`;
-`routes/{instance,project}/modules.ts`; lib module types + `module_registry.ts`;
-client: `project_modules.tsx`, `update_module*.tsx`, `view_{files,logs,script}.tsx`,
-`project_module_settings/`, `DirtyStatus.tsx`, `compare_projects.tsx`,
+`db/project/modules.ts` (install heart, now dual-write-only) +
+`db/project/results_objects.ts`; `server/runs/**` +
+`worker_routines/generate_run/**` (the results-package pipeline) +
+`instantiate_worker_generic.ts`; `server_only_funcs/**` (R-script
+templating); `server_only_types/mod.ts`;
+`routes/{instance,project}/modules.ts` + `routes/instance/run_generation.ts`;
+lib module + run types + `module_registry.ts`; client:
+`project_results_package.tsx`, `results_package_wizard/**`,
+`view_{files,logs,script}.tsx`, `compare_projects.tsx`,
 `metric_details_modal.tsx`. External: wb-fastr-modules repo, Docker images.
 
 ## Contract
 
 Definitions zod-validated at every fetch; compute/presentation git-ref split;
-dirty closure recomputed per event (no stored edges); self-draining
-`task_ended` loop with NO boot-time recovery (known gap); outputs `ro_*` +
-`metrics` + `last_run_at` — the data spine S9 queries.
+whole-DAG generation into an immutable run dir (PLAN_RESULTS_RUNS) with
+§3.7 memoized reuse; per-module legacy dual-write (`ro_*` + project-DB
+catalog) as the rollback plane until Phase-3 demolition. The dirty-state
+machine, per-module rerun, and module-card surfaces were deleted at item 5
+— module status is the run manifest's availability stamps.
 
 ## Docs absorbed (Phase 2)
 

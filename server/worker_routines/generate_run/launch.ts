@@ -15,6 +15,7 @@ import {
   markRunGenerationFailed,
 } from "../../db/instance/run_generation.ts";
 import { runTmpDirPath } from "../../runs/mod.ts";
+import { checkSpaceForDataset } from "../../utils/disk_space.ts";
 import { notifyProjectRunProgress } from "../../task_management/notify_project_v2.ts";
 import { getGenerateRunContainerName } from "./container_name.ts";
 import { instantiateGenerateRunWorker } from "./instantiate_worker.ts";
@@ -84,6 +85,25 @@ export async function launchRunGenerationForProject(
       success: false,
       err: "The results-package configuration is not complete",
     };
+  }
+
+  // Disk guard for the dataset extracts the prepare stage is about to export
+  // (re-pointed from the deleted per-project attach route — same threshold).
+  const selectedFamilies: string[] = [
+    ...(attempt.step1Result.hmis !== null ? ["hmis"] : []),
+    ...(attempt.step1Result.hfa !== null ? ["hfa"] : []),
+    ...(attempt.step1Result.iceh ? ["iceh"] : []),
+  ];
+  for (const family of selectedFamilies) {
+    const spaceCheck = await checkSpaceForDataset(mainDb, family);
+    if (!spaceCheck.ok) {
+      return {
+        success: false,
+        err: spaceCheck.resizeTriggered
+          ? `Not enough disk space to generate this results package (requires ~${spaceCheck.requiredGB} GB, ${spaceCheck.availableGB} GB available). A volume resize has been triggered — please try again in a few minutes.`
+          : `Not enough disk space to generate this results package (requires ~${spaceCheck.requiredGB} GB, ${spaceCheck.availableGB} GB available). Please contact your administrator.`,
+      };
+    }
   }
 
   if (GENERATING_BY_PROJECT.has(projectId)) {

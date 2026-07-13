@@ -13,10 +13,6 @@ globs:
   - client/src/components/instance_dataset_hmis_import/**
   - client/src/components/instance_dataset_iceh/**
   - client/src/components/instance_dataset_iceh_import/**
-  - client/src/components/project/project_data.tsx
-  - client/src/components/project/settings_for_project_dataset_hfa.tsx
-  - client/src/components/project/settings_for_project_dataset_hmis.tsx
-  - client/src/components/project/staleness_checks.ts
   - client/src/state/instance/t2_datasets.ts
   - lib/hfa_sentinel_classification.ts
   - lib/table_structures/**
@@ -242,15 +238,12 @@ Attach concurrency is an in-memory `_datasetLocks` set keyed
   (HFA, service-category-scoped), `iceh_indicators_snapshot`. Modules
   read `../datasets/{type}.csv`; PO metadata and module runs read the
   snapshots.
-- **Module dirtying is pull-model**: integration does NOT dirty modules;
-  `setModulesDirtyForDataset` runs when a project attaches/refreshes its
-  dataset (and on explicit remove).
-- Staleness semantics differ by family: HMIS = version `<` + config
-  strict-equality checks; HFA = strict hash/version equality (`_legacy`
-  rows = always stale); ICEH = single hash equality. The project-level
-  indicator (`staleness_checks.ts`) and the Data page (`project_data.tsx`)
-  implement the same rules twice — keep them in sync. All advisory;
-  nothing blocks module runs on stale data.
+- **Project-level attach/staleness UI is gone** (PLAN_RESULTS_RUNS item 5):
+  datasets reach a project only as results-package run inputs — the wizard's
+  choose-data step drives the same attach/export functions
+  (`generate_run/prepare_inputs.ts`), and the run captures dataset version
+  stamps in its manifest. The dirty cascade and the per-dataset staleness
+  indicators died with the Data tab.
 
 ## Traps
 

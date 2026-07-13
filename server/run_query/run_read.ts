@@ -6,19 +6,27 @@ import {
   getDisaggregationAllowedPresentationOptions,
   getEnabledOptionalFacilityColumns,
   getHfaIndicatorMeasure,
+  getStartingModuleConfigSelections,
+  getValidatedModuleId,
   ICEH_STRAT_INFO,
   metricAIDescriptionInstalled,
+  parseInstalledModuleDefinition,
   parsePresentationObjectConfig,
   postAggregationExpressionStrict,
   throwIfErrWithData,
+  vizPresetInstalled,
   type APIResponseWithData,
   type DatasetType,
   type GenericLongFormFetchConfig,
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
   type IndicatorMetadata,
+  type InstalledModuleSummary,
+  type InstalledModuleWithConfigSelections,
   type ItemsHolderPresentationObject,
   type ItemsHolderResultsObject,
+  type MetricWithStatus,
+  type ModuleId,
   type PeriodBounds,
   type PeriodOption,
   type PresentationObjectDetail,
@@ -31,6 +39,7 @@ import {
 } from "lib";
 import { getResultsObjectTableName, tryCatchDatabaseAsync } from "../db/utils.ts";
 import { inferMostGranularTimePeriodColumn } from "../db/project/metric_enricher.ts";
+import { parseModuleConfigSelections } from "../db/project/modules.ts";
 import {
   getRunManifestCached,
   readRunInputJsonCached,
@@ -94,7 +103,7 @@ SELECT run_id FROM projects WHERE id = ${projectId}
     if (row.run_id === null) {
       return {
         success: false,
-        err: "No results run attached to this project",
+        err: "No results package attached to this project",
       };
     }
     const manifest = await getRunManifestCached(row.run_id);
@@ -457,6 +466,81 @@ export function resolveMetricFromRun(
     data: {
       resultsValue: enrichMetricFromManifest(metric, ro),
       moduleId: metric.module_id,
+    },
+  };
+}
+
+// ── The run-derived catalog as the client sees it (T1 store) ─────────────────
+
+// The manifest module catalog → InstalledModuleSummary[], sorted by id — the
+// project's modules ARE the attached run's modules (no live project-DB state).
+export function getModuleSummariesFromManifest(
+  manifest: RunManifest,
+): InstalledModuleSummary[] {
+  return manifest.modules
+    .map<InstalledModuleSummary>((mod) => {
+      const def = parseInstalledModuleDefinition(mod.moduleDefinition);
+      return {
+        id: getValidatedModuleId(mod.id),
+        label: def.label,
+        hasParameters: (def.configRequirements?.parameters?.length ?? 0) > 0,
+        lastRunAt: mod.lastRunAt,
+        lastRunGitRef: mod.lastRunGitRef ?? undefined,
+        moduleDefinitionResultsObjectIds: manifest.resultsObjects
+          .filter((ro) => ro.moduleId === mod.id)
+          .map((ro) => ro.id),
+      };
+    })
+    .toSorted((a, b) => a.id.toLowerCase().localeCompare(b.id.toLowerCase()));
+}
+
+// Metric status = the finalize-computed availability stamp (§2.2); readers
+// never re-derive availability, and unavailable metrics surface the stamped
+// reason.
+export function getMetricsWithStatusFromManifest(
+  manifest: RunManifest,
+): MetricWithStatus[] {
+  const stampById = new Map(
+    manifest.metricAvailability.map((a) => [a.metricId, a]),
+  );
+  return manifest.metrics
+    .filter((metric) => !metric.hide)
+    .map<MetricWithStatus>((metric) => {
+      const ro = findResultsObject(manifest, metric.results_object_id);
+      const stamp = stampById.get(metric.id);
+      const available = stamp?.status === "available";
+      return {
+        ...enrichMetricFromManifest(metric, ro),
+        status: available ? "ready" : "unavailable",
+        statusReason: available
+          ? undefined
+          : (stamp?.reason ?? "No availability stamp in this run"),
+        moduleId: metric.module_id as ModuleId,
+        vizPresets: metric.viz_presets
+          ? z.array(vizPresetInstalled).parse(JSON.parse(metric.viz_presets))
+          : undefined,
+      };
+    })
+    .toSorted((a, b) => a.label.localeCompare(b.label));
+}
+
+export function getModuleWithConfigSelectionsFromManifest(
+  manifest: RunManifest,
+  moduleId: string,
+): APIResponseWithData<InstalledModuleWithConfigSelections> {
+  const mod = findModule(manifest, moduleId);
+  if (!mod) {
+    return { success: false, err: `Module not in this run: ${moduleId}` };
+  }
+  const def = parseInstalledModuleDefinition(mod.moduleDefinition);
+  return {
+    success: true,
+    data: {
+      id: getValidatedModuleId(mod.id),
+      label: def.label,
+      configSelections: mod.configSelections
+        ? parseModuleConfigSelections(mod.configSelections)
+        : getStartingModuleConfigSelections(def.configRequirements),
     },
   };
 }

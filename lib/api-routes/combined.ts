@@ -13,7 +13,6 @@ import { instanceModuleRouteRegistry } from "./instance/modules.ts";
 import { runGenerationRouteRegistry } from "./instance/run_generation.ts";
 import { structureRouteRegistry } from "./instance/structure.ts";
 import { userRouteRegistry } from "./instance/users.ts";
-import { aiToolsRouteRegistry } from "./project/ai-tools.ts";
 import { moduleRouteRegistry } from "./project/modules.ts";
 import { presentationObjectRouteRegistry } from "./project/presentation-objects.ts";
 import { projectRouteRegistry } from "./project/projects.ts";
@@ -49,7 +48,6 @@ export const routeRegistryIndividualCount =
   Object.keys(structureRouteRegistry).length +
   Object.keys(userRouteRegistry).length +
   Object.keys(projectRouteRegistry).length +
-  Object.keys(aiToolsRouteRegistry).length +
   Object.keys(presentationObjectRouteRegistry).length +
   Object.keys(slideDeckRouteRegistry).length +
   Object.keys(slideDeckFolderRouteRegistry).length +
@@ -81,7 +79,6 @@ export const routeRegistry = {
   ...structureRouteRegistry,
   ...userRouteRegistry,
   ...projectRouteRegistry,
-  ...aiToolsRouteRegistry,
   ...presentationObjectRouteRegistry,
   ...slideDeckRouteRegistry,
   ...slideDeckFolderRouteRegistry,
