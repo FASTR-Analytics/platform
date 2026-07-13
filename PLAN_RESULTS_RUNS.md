@@ -248,7 +248,7 @@ stopping point inside the item — nowhere else. Items 1 and 2 span
 wb-fastr-modules (CLAUDE.md three-repo lockstep rule: commit that repo
 locally; the push stays deploy-gated — its local HEAD is `6ba142e`).
 Items 1–5 are DONE (details inside each item); **the next item to
-execute is item 6**.
+execute is item 5b (virtual default visualizations)**, then items 6–8.
 After items 3–5 the dev app exercises the full new UX end-to-end
 (generate → progress → repoint → all read surfaces from the run) and is
 reviewable in the browser; items 6–8 are export/deploy/hardening and
@@ -626,6 +626,77 @@ Work items, in order:
      re-pointed to the run URL; PresentationObjectMiniDisplay dirty arms
      removed. Vocabulary: remaining user-facing strings say "results
      package" (EN/FR/PT inline t3, per the PT rollout).
+5b. **Virtual default visualizations — defaults become manifest
+   projections, not PO rows.** Decided with Tim 2026-07-13 (rulings
+   inline). Context: default visualizations were only ever materialized
+   by the legacy `installModule` path (project creation), which the
+   wizard deliberately does not call — so a module that first enters a
+   project via a results-package generation has metrics but no default
+   visualizations. Rather than adding wizard-time seeding, defaults stop
+   being rows at all.
+   - **The model.** A default visualization is a pure projection of the
+     ATTACHED run's manifest: for each manifest metric preset carrying
+     `createDefaultVisualizationOnInstall`, derive the config exactly as
+     `deriveDefaultPresentationObjects`
+     ([load_module.ts:24](server/module_loader/load_module.ts#L24)) does
+     today (label `resolveTS`, `DEFAULT_S_CONFIG`/`DEFAULT_T_CONFIG`
+     merges, sortOrder by catalog order). Attach a different run → that
+     run's defaults; a preset change reaches every project at its next
+     generation (today it only landed on reinstall);
+     `presentation_objects` becomes user-authored content only.
+   - **Identity is already solved**: `createDefaultVisualizationOnInstall`
+     IS the stable authored poId. Every id-keyed flow (PO detail route,
+     `po_detail` cache, duplicate, create-slides, stored deck/report
+     references to default ids) keeps working via a detail-resolution
+     fallback: no `presentation_objects` row with this id → look up the
+     manifest preset by default-id and derive `PresentationObjectDetail`
+     (`isDefault: true`). Virtual defaults' `po_detail` version = runId +
+     `PO_CACHE_VERSION` only (no `last_updated` row exists — use a
+     constant sentinel; the run is immutable so this is strictly correct).
+   - **Rulings (Tim 2026-07-13)**: defaults ALWAYS show (matches
+     pre-runs behavior — reinstall resurrected them anyway): no delete,
+     no move-to-folder, no tombstones. Not editable in place — "edit" on
+     a default becomes duplicate-to-customize (new user PO id via the
+     existing duplicate flow). Consequence: no row ever shadows a
+     projection, so there is no precedence rule to maintain.
+   - **Migration**: plain SQL project migration (next number: 030,
+     PROTOCOL_APP_MIGRATIONS.md) —
+     `DELETE FROM presentation_objects WHERE is_default_visualization = TRUE`.
+     No JSON shape changes, so no data transform and no skip-gate.
+     In-place edits users made to default rows are discarded
+     (accepted — they are re-creatable as duplicates). Rendering of
+     existing decks/reports/dashboards is unaffected (FigureBundles are
+     self-contained); figure re-query flows resolve default ids via the
+     detail fallback.
+   - **One derivation function**: move the pure preset→config derivation
+     to `lib/` (its deps `resolveTS`/`DEFAULT_S_CONFIG` are already
+     lib-level) and re-point BOTH consumers — the server detail fallback
+     and the client deck-AI path (`buildConfigFromPreset` in
+     `slide_ai/build_config_from_metric.ts`) — so the projection cannot
+     drift from the AI figure path. `installModule`'s default-PO insert
+     block and `defaultPresentationObjects` on `ModuleDefinitionDetail`
+     die with this item.
+   - **Listing seam (the one real trap)**: virtual defaults must appear
+     in EVERY surface that serves the visualizations list — the initial
+     `getProjectDetail`, every `visualizations_updated` emission, and
+     across repoint. Today all of those call
+     `getAllPresentationObjectsForProject` (7 call sites: 3 route files +
+     detail assembly). Route through ONE wrapper that appends
+     manifest-derived `PresentationObjectSummary` entries (id, metricId,
+     label, `isDefault: true`, type/disaggregateBy/filterBy/replicateBy/
+     isFiltered from the derived config, `folderId: null`, sortOrder,
+     `lastUpdated` = a constant — versioning rides runId) — a call site
+     that keeps using the raw row function silently drops defaults.
+     Client `run_attached`/T1 need no change (the list arrives
+     server-built). Check `cache_status.ts`'s PO iteration and decide
+     whether cache warming covers virtual defaults (optional, note the
+     choice).
+   - **Gates**: `deno task typecheck` + rig `--run` GREEN + migration
+     applied on dev (`validate_migrations` passes; default rows gone) +
+     live dev checks: defaults render for a generated package including
+     a wizard-added module, detail opens by preset id, duplicate
+     produces an editable user copy, a deck figure referencing an old
+     default id still resolves.
 6. **`export_central` flips** to run files (binding decision 5).
 7. **Deploy machinery**: serve-before-backfill wiring (finding 3 — the
    synthesizer becomes the deploy's backfill, serving starts first); ship
