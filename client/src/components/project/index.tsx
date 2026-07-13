@@ -28,6 +28,7 @@ import { ProjectReports } from "./project_reports";
 import { ProjectDashboards } from "./project_dashboards";
 import { ProjectMetrics } from "./project_metrics";
 import { ProjectModules } from "./project_modules";
+import { ProjectResultsPackage } from "./project_results_package";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
 import { ProjectCache } from "./project_cache";
@@ -175,6 +176,23 @@ function ProjectInner() {
         label: t3({ en: "Data", fr: "Données", pt: "Dados" }),
         iconName: "database",
         dot: dataNeedsUpdate() ? "warning" : undefined,
+      });
+    }
+    // Instance-admin surface: results-package generation gating
+    // (PLAN_RESULTS_RUNS item 2 — matches the server's can_configure_data
+    // guard, which global admins bypass).
+    if (
+      instanceState.currentUserIsGlobalAdmin ||
+      instanceState.currentUserPermissions.can_configure_data
+    ) {
+      items.push({
+        id: "results_package",
+        label: t3({
+          en: "Results package",
+          fr: "Paquet de résultats",
+          pt: "Pacote de resultados",
+        }),
+        iconName: "package",
       });
     }
     if (perms.can_configure_settings) {
@@ -336,6 +354,15 @@ function ProjectInner() {
                   }
                 >
                   <ProjectData />
+                </Match>
+                <Match
+                  when={
+                    projectTab() === "results_package" &&
+                    (instanceState.currentUserIsGlobalAdmin ||
+                      instanceState.currentUserPermissions.can_configure_data)
+                  }
+                >
+                  <ProjectResultsPackage />
                 </Match>
                 <Match
                   when={

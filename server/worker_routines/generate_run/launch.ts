@@ -72,6 +72,12 @@ export async function launchRunGenerationForProject(
   if (resAttempt.success === false) {
     return resAttempt;
   }
+  if (resAttempt.data === null) {
+    return {
+      success: false,
+      err: "No results-package configuration in progress for this project",
+    };
+  }
   const attempt = resAttempt.data;
   if (attempt.step1Result === null || attempt.step2Result === null) {
     return {

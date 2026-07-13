@@ -28,6 +28,7 @@ import {
   onMount,
 } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
+import { validateAndNormalizeHmisWindowing } from "~/components/_shared/hmis_windowing_validation";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { WindowingSelector } from "../WindowingSelector";
@@ -106,88 +107,19 @@ export function SettingsForProjectDatasetHmis(
 
   const save = createButtonAction(
     async () => {
-      const newWindowing = unwrap(tempWindowing);
-
-      if (
-        !newWindowing.takeAllIndicators &&
-        newWindowing.commonIndicatorsToInclude.length === 0
-      ) {
-        return {
-          success: false,
-          err: t3({ en: "You must select at least one indicator", fr: "Vous devez sélectionner au moins un indicateur", pt: "Tem de selecionar pelo menos um indicador" }),
-        };
+      const validated = validateAndNormalizeHmisWindowing(
+        unwrap(tempWindowing),
+        p.facilityColumns,
+      );
+      if (validated.success === false) {
+        return validated;
       }
-
-      const aa3Active = !(newWindowing.takeAllAdminArea3s ?? true);
-      const aa3Items = newWindowing.adminArea3sToInclude ?? [];
-      if (aa3Active) {
-        if (aa3Items.length === 0) {
-          return {
-            success: false,
-            err: t3({ en: "You must select at least one admin area", fr: "Vous devez sélectionner au moins une zone administrative", pt: "Tem de selecionar pelo menos uma zona administrativa" }),
-          };
-        }
-      } else if (
-        !newWindowing.takeAllAdminArea2s &&
-        newWindowing.adminArea2sToInclude.length === 0
-      ) {
-        return {
-          success: false,
-          err: t3({ en: "You must select at least one admin area", fr: "Vous devez sélectionner au moins une zone administrative", pt: "Tem de selecionar pelo menos uma zona administrativa" }),
-        };
-      }
-
-      if (
-        p.facilityColumns.includeOwnership &&
-        newWindowing.takeAllFacilityOwnerships === false &&
-        (newWindowing.facilityOwnwershipsToInclude === undefined ||
-          newWindowing.facilityOwnwershipsToInclude.length === 0)
-      ) {
-        return {
-          success: false,
-          err: t3({ en: "You must select at least one facility ownership category", fr: "Vous devez sélectionner au moins une catégorie de propriété d'établissement", pt: "Tem de selecionar pelo menos uma categoria de propriedade de estabelecimento de saúde" }),
-        };
-      }
-
-      if (
-        p.facilityColumns.includeTypes &&
-        newWindowing.takeAllFacilityTypes === false &&
-        (newWindowing.facilityTypesToInclude === undefined ||
-          newWindowing.facilityTypesToInclude.length === 0)
-      ) {
-        return {
-          success: false,
-          err: t3({ en: "You must select at least one facility ownership category", fr: "Vous devez sélectionner au moins une catégorie de propriété d'établissement", pt: "Tem de selecionar pelo menos uma categoria de propriedade de estabelecimento de saúde" }),
-        };
-      }
-
-      const takeAllFacilityOwnerships =
-        p.facilityColumns.includeOwnership &&
-        newWindowing.takeAllFacilityOwnerships !== false;
-
-      const facilityOwnwershipsToInclude =
-        newWindowing.facilityOwnwershipsToInclude ?? [];
-
-      const takeAllFacilityTypes =
-        p.facilityColumns.includeTypes &&
-        newWindowing.takeAllFacilityTypes !== false;
-
-      const facilityTypesToInclude = newWindowing.facilityTypesToInclude ?? [];
 
       return await serverActions.addDatasetToProject(
         {
           projectId: p.projectState.id,
           datasetType: "hmis",
-          windowing: {
-            ...newWindowing,
-            ...(aa3Active
-              ? { takeAllAdminArea2s: true, adminArea2sToInclude: [] }
-              : {}),
-            takeAllFacilityOwnerships,
-            facilityOwnwershipsToInclude,
-            takeAllFacilityTypes,
-            facilityTypesToInclude,
-          },
+          windowing: validated.windowing,
           skipModuleRerun: skipModuleRerun(),
         },
         onProgress,

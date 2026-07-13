@@ -119,6 +119,16 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       setProjectState("projectDatasets", reconcile(msg.data.projectDatasets));
       break;
 
+    // A generated run was published and the project repointed: the run key
+    // flips here (T2 caches re-key off runVersionKey) together with the
+    // module/metric catalog the new run carries.
+    case "run_attached":
+      setProjectState("attachedRunId", msg.data.attachedRunId);
+      setProjectState("projectModules", reconcile(msg.data.projectModules));
+      setProjectState("metrics", reconcile(msg.data.metrics));
+      rebuildModuleMaps(projectState);
+      break;
+
     case "visualizations_updated":
       setProjectState("visualizations", reconcile(msg.data.visualizations));
       break;

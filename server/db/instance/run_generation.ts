@@ -6,10 +6,13 @@ import {
   runProgressSchema,
   type APIResponseNoData,
   type APIResponseWithData,
+  type RunCatalogStatus,
   type RunGenerationAttemptDetail,
   type RunGenerationStep1Result,
   type RunGenerationStep2Result,
+  type RunListingItem,
   type RunProgress,
+  type RunProvenance,
   type RunSummary,
 } from "lib";
 import type { DBRunGenerationAttempt } from "./_main_database_types.ts";
@@ -71,14 +74,11 @@ ON CONFLICT (source_project_id) DO UPDATE SET
 export async function getRunGenerationAttempt(
   mainDb: Sql,
   projectId: string,
-): Promise<APIResponseWithData<RunGenerationAttemptDetail>> {
+): Promise<APIResponseWithData<RunGenerationAttemptDetail | null>> {
   try {
     const raw = await getRawAttempt(mainDb, projectId);
     if (raw === undefined) {
-      return {
-        success: false,
-        err: "No results-package configuration in progress for this project",
-      };
+      return { success: true, data: null };
     }
     const step1Result: RunGenerationStep1Result | null =
       raw.step_1_result === null
@@ -204,6 +204,64 @@ DELETE FROM run_generation_attempts WHERE source_project_id = ${projectId}
     return {
       success: false,
       err: "Problem discarding results-package configuration: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+}
+
+// This project's runs, newest first, for the "Results package" listing.
+// summary/progress are stored JSON; a malformed blob degrades that field to
+// null rather than hiding the row.
+export async function listRunsForProject(
+  mainDb: Sql,
+  projectId: string,
+): Promise<APIResponseWithData<RunListingItem[]>> {
+  try {
+    const rows = await mainDb<
+      {
+        id: string;
+        label: string;
+        status: string;
+        provenance: string;
+        created_at: Date;
+        created_by: string | null;
+        summary: string | null;
+        progress: string | null;
+      }[]
+    >`
+SELECT id, label, status, provenance, created_at, created_by, summary, progress
+FROM runs
+WHERE summary::jsonb ->> 'sourceProjectId' = ${projectId}
+ORDER BY created_at DESC
+`;
+    const items: RunListingItem[] = rows.map((row) => {
+      let summary: RunSummary | null = null;
+      try {
+        summary = row.summary === null ? null : JSON.parse(row.summary);
+      } catch {
+        summary = null;
+      }
+      let progress: RunProgress | null = null;
+      if (row.progress !== null) {
+        const parsed = runProgressSchema.safeParse(JSON.parse(row.progress));
+        progress = parsed.success ? parsed.data : null;
+      }
+      return {
+        id: row.id,
+        label: row.label,
+        status: row.status as RunCatalogStatus,
+        provenance: row.provenance as RunProvenance,
+        createdAt: row.created_at.toISOString(),
+        createdBy: row.created_by,
+        summary,
+        progress,
+      };
+    });
+    return { success: true, data: items };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem listing results packages: " +
         (e instanceof Error ? e.message : ""),
     };
   }

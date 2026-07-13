@@ -6,6 +6,8 @@ globs:
   - client/src/components/instance/compare_projects.tsx
   - client/src/components/project/metric_details_modal.tsx
   - client/src/components/project/project_modules.tsx
+  - client/src/components/project/project_results_package.tsx
+  - client/src/components/results_package_wizard/**
   - client/src/components/project/update_all_modules.tsx
   - client/src/components/project/update_module.tsx
   - client/src/components/project/view_files.tsx

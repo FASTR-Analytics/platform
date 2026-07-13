@@ -433,15 +433,60 @@ Work items, in order:
        inputKey/outputFileHashes + availability stamps, publish + repoint
        verified) — then the project re-backfilled to a full-catalog run,
        rig re-run GREEN.
-   - NEXT (session 3): the client — wizard surfaces
-     (`components/results_package_wizard/`, ICEH-shaped descriptor +
-     steps, panther UI protocols), the run listing/progress view on the
-     project "Results package" surface (needs a runs-list-by-project
-     route), and client handling of `run_progress`/`run_attached`; step 2
-     also needs server reads for definitions-at-latest-commit (reuse the
-     module-detail machinery — it already returns `gitRef`) and for
-     attached-run-manifest pre-fill (windowing +
-     `getMergedModuleConfigSelections`).
+   - DONE (session 3, 2026-07-13 — gates green: typecheck +
+     lint:systems + PARITY GREEN 129 checks 0 diffs/skips; the three
+     server reads
+     harness-executed live on dev with all prefill parse paths exercised
+     across the 8 backfilled projects; client typechecked, not yet
+     browser-driven) — the client + the wizard-support server reads.
+     **Item 2 build is complete** (reuse = item 3, script re-point =
+     item 4, surface kills = item 5).
+     - Server reads (`server/runs/generation_wizard_reads.ts`, routes in
+       the run_generation registry, all `can_configure_data`):
+       `getRunGenerationPrefill` (attached-run manifest → step-1 shape +
+       per-module parameterSelections; no-run degrades to typed empty),
+       `getRunGenerationModuleOptions` (definitions at the repo HEAD —
+       ONE gitRef for the whole selection via
+       `fetchCommits(owner, repo, "", "main")`, because per-path
+       last-touch SHAs can predate one another; local source → sentinel
+       `"local"`, pins ignored in dev; per module: prerequisites,
+       dataSources split into datasetTypes/moduleDependencies, translated
+       params), `listRunsForProject` (summary sourceProjectId filter,
+       newest first). `getRunGenerationAttempt` response became `| null`
+       (the ICEH attempt-GET pattern; launch handles null explicitly).
+     - Client SSE: `run_progress` short-circuits to a listener registry
+       (`addRunProgressListener`, the r_script pattern — ephemeral, never
+       touches T1); `run_attached` lands in the T1 store (attachedRunId +
+       projectModules + metrics reconcile + module-map rebuild) so T2
+       caches re-key live at repoint.
+     - Wizard `components/results_package_wizard/` (second
+       ImportWizardShell descriptor; `getStatus: null`, no status arms;
+       shell grew optional `discardLabel`/`errorBackLabel`): step 1 =
+       family checkboxes gated on `instanceState.datasetsWithData` +
+       `WindowingSelector` verbatim + HFA scope + ICEH; step 2 =
+       DAG-aware selection (closure auto-include, deselect blocked while
+       a dependent is checked, modules whose CLOSURE needs unchosen
+       families disabled — m004/m005 have no direct dataset source, their
+       HMIS need arrives via m002→m001), inline params, seeding =
+       resume beats manifest prefill beats defaults via
+       `getMergedModuleConfigSelections`; step 3 = label (default
+       "Results package {date}") + summary + Launch → close. Resume is
+       server-driven step; discard deletes the attempt.
+     - Shared extractions (both existing consumers repointed): module
+       param input grid → `_shared/module_parameter_inputs.tsx`
+       (settings_generic uses it), HMIS windowing validate+normalize →
+       `_shared/hmis_windowing_validation.ts` (per-project HMIS settings
+       editor uses it).
+     - "Results package" surface: new project tab `results_package`
+       (visible to global admin / can_configure_data, matching the
+       server guard), `components/project/project_results_package.tsx` —
+       runs listing (status badges, in-use marker on the attached run,
+       backfill-provenance note), live per-module progress chips +
+       current-module r_script line on generating runs, failed-run
+       errorDetail, generate/resume entry (create-attempt → openEditor,
+       the ICEH host-page pattern); refetches on attachedRunId change,
+       unknown-runId progress, and failure. SYSTEM_08 globs claim the
+       new files.
    **Placement**: client `components/results_package_wizard/`
    (ICEH-shaped: `index.tsx` descriptor + `step_*.tsx`) + the run
    listing/progress components on the project surface; server routes

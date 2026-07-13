@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { datasetHmisWindowingCommonSchema } from "./dataset_hmis.ts";
+import type { DatasetType } from "./datasets.ts";
+import type { ModuleParameter } from "./_module_definition_installed.ts";
+import type { ModuleId } from "./module_registry.ts";
+import type { RunProvenance, RunSummary } from "./run_manifest.ts";
 
 // Results-package generation (PLAN_RESULTS_RUNS item 2). Two surfaces: the
 // LAUNCH wizard (configuration only — its attempt record holds these step
@@ -35,7 +39,51 @@ export type RunGenerationStep2Result = z.infer<
   typeof runGenerationStep2ResultSchema
 >;
 
+// Wizard-support reads (session-3 server reads). Prefill comes from the
+// ATTACHED run's manifest — resume (the attempt's own step results) always
+// beats prefill client-side. Absent run = null step1 / empty module maps.
+export type RunGenerationPrefill = {
+  attachedRunId: string | null;
+  step1: RunGenerationStep1Result | null;
+  moduleIds: string[];
+  parameterSelections: Record<string, Record<string, string>>;
+};
+
+// One module the wizard's step 2 can offer: the definition resolved from the
+// modules repo at the shared gitRef. datasetTypes/moduleDependencies mirror
+// the resolve-stage validation rules (prereq closure + dataSources ⊆
+// selection) so the wizard can gate selection before launch.
+export type RunGenerationModuleOption = {
+  id: ModuleId;
+  label: string;
+  prerequisites: ModuleId[];
+  datasetTypes: DatasetType[];
+  moduleDependencies: ModuleId[];
+  parameters: ModuleParameter[];
+};
+
+// gitRef = the modules-repo commit every definition above was fetched at;
+// step 2 records it so the run pipeline re-fetches identical definitions.
+export type RunGenerationModuleOptions = {
+  gitRef: string;
+  modules: RunGenerationModuleOption[];
+};
+
 export type RunGenerationAttemptStatus = { status: "configuring" };
+
+// Runs-catalog listing row for the project "Results package" surface.
+export type RunCatalogStatus = "generating" | "ready" | "failed" | "retired";
+
+export type RunListingItem = {
+  id: string;
+  label: string;
+  status: RunCatalogStatus;
+  provenance: RunProvenance;
+  createdAt: string;
+  createdBy: string | null;
+  summary: RunSummary | null;
+  progress: RunProgress | null;
+};
 
 export type RunGenerationAttemptDetail = {
   step: number;

@@ -3,11 +3,16 @@ import {
   createRunGenerationAttempt,
   deleteRunGenerationAttempt,
   getRunGenerationAttempt,
+  listRunsForProject,
   updateRunGenerationAttemptStep1,
   updateRunGenerationAttemptStep2,
 } from "../../db/instance/run_generation.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import {
+  getRunGenerationModuleOptions,
+  getRunGenerationPrefill,
+} from "../../runs/mod.ts";
 import { launchRunGenerationForProject } from "../../worker_routines/generate_run/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 
@@ -69,6 +74,39 @@ defineRoute(
       params.project_id,
       body.step2Result,
     );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesRunGeneration,
+  "getRunGenerationPrefill",
+  requireGlobalPermission("can_configure_data"),
+  log("getRunGenerationPrefill"),
+  async (c, { params }) => {
+    const res = await getRunGenerationPrefill(c.var.mainDb, params.project_id);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesRunGeneration,
+  "getRunGenerationModuleOptions",
+  requireGlobalPermission("can_configure_data"),
+  log("getRunGenerationModuleOptions"),
+  async (c) => {
+    const res = await getRunGenerationModuleOptions(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesRunGeneration,
+  "listRunsForProject",
+  requireGlobalPermission("can_configure_data"),
+  log("listRunsForProject"),
+  async (c, { params }) => {
+    const res = await listRunsForProject(c.var.mainDb, params.project_id);
     return c.json(res);
   },
 );

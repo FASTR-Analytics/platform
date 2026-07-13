@@ -1,24 +1,21 @@
 import {
   t3,
   TC,
-  type APIResponseWithData,
   type ModuleConfigSelections,
   type ModuleId,
 } from "lib";
 import {
   Button,
-  Checkbox,
   EditorComponentProps,
   FrameTop,
   HeadingBar,
-  Input,
-  Select,
   StateHolderWrapper,
   createButtonAction,
   createQuery,
 } from "panther";
-import { For, Match, Show, Switch, createSignal } from "solid-js";
+import { Show, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
+import { ModuleParameterInputs } from "~/components/_shared/module_parameter_inputs";
 import { serverActions } from "~/server_actions";
 
 export function SettingsForProjectModuleGeneric(
@@ -108,154 +105,12 @@ export function SettingsForProjectModuleGeneric(
       <StateHolderWrapper state={config.state()}>
         {(keyedConfig) => {
           return (
-            <div class="ui-pad ui-gap grid grid-cols-12">
-              <For
-                each={keyedConfig.parameterDefinitions}
-                fallback={
-                  <div class="text-neutral col-span-12">
-                    {t3({
-                      en: "No parameters for this module",
-                      fr: "Aucun paramètre pour ce module",
-                      pt: "Nenhum parâmetro para este módulo",
-                    })}
-                  </div>
-                }
-              >
-                {(inputParameter) => {
-                  return (
-                    <div class="ui-spy-sm col-span-12 lg:col-span-6 xl:col-span-3">
-                      <div class="text-md font-700">
-                        {inputParameter.description}
-                      </div>
-                      <div class="">
-                        <Switch
-                          fallback={t3({
-                            en: "Bad input type",
-                            fr: "Type de saisie incorrect",
-                            pt: "Tipo de entrada inválido",
-                          })}
-                        >
-                          <Match
-                            when={inputParameter.input.inputType === "number"}
-                          >
-                            <Input
-                              value={
-                                tempParameters[
-                                  inputParameter.replacementString
-                                ] ?? ""
-                              }
-                              onChange={(v) =>
-                                updateTempParameter(
-                                  inputParameter.replacementString,
-                                  v,
-                                )
-                              }
-                              invalidMsg={
-                                isNaN(
-                                  Number(
-                                    tempParameters[
-                                      inputParameter.replacementString
-                                    ],
-                                  ),
-                                )
-                                  ? t3({
-                                      en: "Not a number",
-                                      fr: "Pas un nombre",
-                                      pt: "Não é um número",
-                                    })
-                                  : undefined
-                              }
-                              fullWidth
-                            />
-                          </Match>
-
-                          <Match
-                            when={inputParameter.input.inputType === "text"}
-                          >
-                            <Input
-                              value={
-                                tempParameters[
-                                  inputParameter.replacementString
-                                ] ?? ""
-                              }
-                              onChange={(v) =>
-                                updateTempParameter(
-                                  inputParameter.replacementString,
-                                  v,
-                                )
-                              }
-                              invalidMsg={
-                                !tempParameters[
-                                  inputParameter.replacementString
-                                ]
-                                  ? t3({ en: "No text", fr: "Aucun texte", pt: "Sem texto" })
-                                  : undefined
-                              }
-                              fullWidth
-                            />
-                          </Match>
-                          <Match
-                            when={
-                              inputParameter.input.inputType === "select" &&
-                              inputParameter.input.options
-                            }
-                            keyed
-                          >
-                            {(keyedOptions) => {
-                              return (
-                                <Select
-                                  options={keyedOptions}
-                                  value={
-                                    tempParameters[
-                                      inputParameter.replacementString
-                                    ]
-                                  }
-                                  onChange={(v) =>
-                                    updateTempParameter(
-                                      inputParameter.replacementString,
-                                      v,
-                                    )
-                                  }
-                                  invalidMsg={
-                                    !tempParameters[
-                                      inputParameter.replacementString
-                                    ]
-                                      ? t3({
-                                          en: "Unselected",
-                                          fr: "Non sélectionné",
-                                          pt: "Não selecionado",
-                                        })
-                                      : undefined
-                                  }
-                                  fullWidth
-                                />
-                              );
-                            }}
-                          </Match>
-                          <Match
-                            when={inputParameter.input.inputType === "boolean"}
-                          >
-                            <Checkbox
-                              label={t3({ en: "Yes / No", fr: "Oui / Non", pt: "Sim / Não" })}
-                              checked={
-                                tempParameters[
-                                  inputParameter.replacementString
-                                ] === "TRUE"
-                              }
-                              onChange={(v) =>
-                                updateTempParameter(
-                                  inputParameter.replacementString,
-                                  v ? "TRUE" : "FALSE",
-                                )
-                              }
-                            />
-                          </Match>
-                        </Switch>
-                      </div>
-                    </div>
-                  );
-                }}
-              </For>
+            <div class="ui-pad">
+              <ModuleParameterInputs
+                parameters={keyedConfig.parameterDefinitions}
+                values={tempParameters}
+                onChange={updateTempParameter}
+              />
             </div>
           );
         }}

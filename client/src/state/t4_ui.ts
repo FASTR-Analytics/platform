@@ -20,6 +20,7 @@ export type TabOption =
   | "metrics"
   | "modules"
   | "data"
+  | "results_package"
   | "settings"
   | "cache";
 

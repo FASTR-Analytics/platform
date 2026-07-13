@@ -39,6 +39,10 @@ export type ImportWizardDescriptor<TUA extends { step: number }, TStatusLight> =
   heading: () => JSX.Element;
   loadingLabel: () => string;
   confirmDeleteLabel: () => string;
+  // Optional overrides for the shell's import-flavored button texts (the
+  // results-package wizard is not an import).
+  discardLabel?: () => string;
+  errorBackLabel?: () => string;
   navMinStep: number;
   navMaxStep: number;
   stepLabelFormatter?: (step: number) => string;
@@ -171,7 +175,8 @@ export function ImportWizardShell<TUA extends { step: number }, TStatusLight>(p:
               intent="danger"
               iconName="trash"
             >
-              {t3({ en: "Discard import", fr: "Annuler l'importation", pt: "Descartar a importação" })}
+              {p.descriptor.discardLabel?.() ??
+                t3({ en: "Discard import", fr: "Annuler l'importation", pt: "Descartar a importação" })}
             </Button>
           </div>
         </HeaderBarCanGoBack>
@@ -180,7 +185,8 @@ export function ImportWizardShell<TUA extends { step: number }, TStatusLight>(p:
       <StateHolderWrapper
         state={uploadAttempt.state()}
         onErrorButton={{
-          label: t3({ en: "Back to dataset", fr: "Retour au jeu de données", pt: "Voltar ao conjunto de dados" }),
+          label: p.descriptor.errorBackLabel?.() ??
+            t3({ en: "Back to dataset", fr: "Retour au jeu de données", pt: "Voltar ao conjunto de dados" }),
           onClick: () => p.close(),
         }}
       >

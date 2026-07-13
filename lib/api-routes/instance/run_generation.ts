@@ -3,7 +3,12 @@ import {
   runGenerationStep1ResultSchema,
   runGenerationStep2ResultSchema,
 } from "../../types/mod.ts";
-import type { RunGenerationAttemptDetail } from "../../types/mod.ts";
+import type {
+  RunGenerationAttemptDetail,
+  RunGenerationModuleOptions,
+  RunGenerationPrefill,
+  RunListingItem,
+} from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 // Results-package launch wizard (PLAN_RESULTS_RUNS item 2). Instance-level
@@ -19,11 +24,36 @@ export const runGenerationRouteRegistry = {
     method: "POST",
     params: projectIdParamsSchema,
   }),
+  // null = no configuring attempt for this project (the host page's
+  // resume-vs-new check, the ICEH attempt-GET pattern).
   getRunGenerationAttempt: route({
     path: "/run_generation/:project_id/attempt",
     method: "GET",
     params: projectIdParamsSchema,
-    response: {} as RunGenerationAttemptDetail,
+    response: {} as RunGenerationAttemptDetail | null,
+  }),
+  // Step-1/step-2 prefill from the ATTACHED run's manifest.
+  getRunGenerationPrefill: route({
+    path: "/run_generation/:project_id/prefill",
+    method: "GET",
+    params: projectIdParamsSchema,
+    response: {} as RunGenerationPrefill,
+  }),
+  // Step-2 module definitions resolved from the modules repo at latest
+  // commit; the returned gitRef is recorded into step2Result at save.
+  getRunGenerationModuleOptions: route({
+    path: "/run_generation/:project_id/module_options",
+    method: "GET",
+    params: projectIdParamsSchema,
+    response: {} as RunGenerationModuleOptions,
+  }),
+  // This project's runs (sourceProjectId filter), newest first — the
+  // "Results package" listing/progress surface.
+  listRunsForProject: route({
+    path: "/run_generation/:project_id/runs",
+    method: "GET",
+    params: projectIdParamsSchema,
+    response: {} as RunListingItem[],
   }),
   updateRunGenerationAttemptStep1: route({
     path: "/run_generation/:project_id/attempt/step1",

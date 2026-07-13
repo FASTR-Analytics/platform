@@ -1,4 +1,10 @@
-import { type LastUpdateTableName, type ProjectSseMessage, parseJsonOrThrow, t3 } from "lib";
+import {
+  type LastUpdateTableName,
+  type ProjectSseMessage,
+  type RunProgress,
+  parseJsonOrThrow,
+  t3,
+} from "lib";
 import { Button } from "panther";
 import { type JSX, Show, createSignal, onCleanup, onMount } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions";
@@ -20,8 +26,14 @@ type LastUpdatedListener = (
 
 type RScriptListener = (moduleId: string, text: string) => void;
 
+// Live generation progress (generate_run worker → run_progress SSE) is
+// ephemeral execution state, not T1: like r_script it goes to listeners and
+// never touches the store — the runs listing fetches its own baseline.
+type RunProgressListener = (runId: string, progress: RunProgress) => void;
+
 const lastUpdatedListeners = new Set<LastUpdatedListener>();
 const rScriptListeners = new Set<RScriptListener>();
+const runProgressListeners = new Set<RunProgressListener>();
 
 let evtSource: EventSource | null = null;
 let retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -38,6 +50,13 @@ export function addRScriptListener(listener: RScriptListener): () => void {
   return () => rScriptListeners.delete(listener);
 }
 
+export function addRunProgressListener(
+  listener: RunProgressListener
+): () => void {
+  runProgressListeners.add(listener);
+  return () => runProgressListeners.delete(listener);
+}
+
 function fireLastUpdatedListeners(
   tableName: LastUpdateTableName,
   ids: string[],
@@ -51,6 +70,12 @@ function fireLastUpdatedListeners(
 function fireRScriptListeners(moduleId: string, text: string): void {
   for (const listener of rScriptListeners) {
     listener(moduleId, text);
+  }
+}
+
+function fireRunProgressListeners(runId: string, progress: RunProgress): void {
+  for (const listener of runProgressListeners) {
+    listener(runId, progress);
   }
 }
 
@@ -89,6 +114,11 @@ export function connectProjectSSE(projectId: string): void {
 
     if (msg.type === "r_script") {
       fireRScriptListeners(msg.data.moduleId, msg.data.text);
+      return;
+    }
+
+    if (msg.type === "run_progress") {
+      fireRunProgressListeners(msg.data.runId, msg.data.progress);
       return;
     }
 
@@ -144,6 +174,7 @@ export function disconnectProjectSSE(): void {
   setConnectionAttempts(0);
   lastUpdatedListeners.clear();
   rScriptListeners.clear();
+  runProgressListeners.clear();
   resetProjectState();
 }
 
