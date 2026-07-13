@@ -252,11 +252,14 @@ directions ship only diffs; an in-sync exchange applies as a pure no-op.
   mouse cursor (`PointerAwarenessState` in
   [live_cursors.tsx](client/src/components/_shared/live_cursors.tsx) —
   Figma-style cursors on the slide canvas and viz editor, coordinates in
-  surface-relative spaces, throttled ~20 msg/s); `pointerChat` = cursor-chat
-  message (`{ text } | null`, streamed live while typing, attached to the
-  pointer bubble); `vizTab` = which viz-editor panel tab the peer is on
-  (`{ scope, tab } | null`). New machinery must claim a NEW field, never
-  reuse these.
+  surface-relative spaces, throttled ~20 msg/s; also carries an optional
+  `click` counter — bumped per primary-button press and shipped immediately,
+  bypassing the throttle — whose observed INCREASE makes peers render an
+  expanding click-ripple ring at that spot, baselined at attach so history
+  never pings); `pointerChat` = cursor-chat message (`{ text } | null`,
+  streamed live while typing, attached to the pointer bubble); `vizTab` =
+  which viz-editor panel tab the peer is on (`{ scope, tab } | null`). New
+  machinery must claim a NEW field, never reuse these.
 
 ## 9. Canvas overlays
 

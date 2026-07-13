@@ -42,24 +42,36 @@ import { Portal } from "solid-js/web";
 // Escape, disable, and unmount.
 
 export type PointerAwarenessState =
-  // x,y in slide DU (PAGE_WIDTH_DU × PAGE_HEIGHT_DU)
-  | { surface: "slide"; scope: string; x: number; y: number }
-  // x,y normalized 0..1 of the viz preview canvas rect
-  | { surface: "viz-preview"; scope: string; x: number; y: number }
-  // x normalized 0..1 of the tab scroll-container width; y in content px
-  | {
-    surface: "viz-panel";
-    scope: string;
-    tab: "data" | "style" | "text";
-    x: number;
-    y: number;
-  };
+  & {
+    /** Monotonic per-tab CLICK counter, bumped on every primary-button press
+     *  over the surface. Peers render an expanding ring ("click ripple") at
+     *  the pointer position whenever it increases — the counter (not a flag)
+     *  makes repeat clicks at the same spot animate again. Optional so states
+     *  from pre-feature clients stay valid. */
+    click?: number;
+  }
+  & (
+    // x,y in slide DU (PAGE_WIDTH_DU × PAGE_HEIGHT_DU)
+    | { surface: "slide"; scope: string; x: number; y: number }
+    // x,y normalized 0..1 of the viz preview canvas rect
+    | { surface: "viz-preview"; scope: string; x: number; y: number }
+    // x normalized 0..1 of the tab scroll-container width; y in content px
+    | {
+      surface: "viz-panel";
+      scope: string;
+      tab: "data" | "style" | "text";
+      x: number;
+      y: number;
+    }
+  );
 
 const CHIP_FADE_MS = 4_000;
 const IDLE_HIDE_MS = 30_000;
 const DEFAULT_MIN_INTERVAL_MS = 50;
 const CHAT_LINGER_MS = 4_000;
 const CHAT_MAX_LEN = 120;
+const RIPPLE_MS = 600;
+const RIPPLE_SIZE_PX = 44;
 
 // Evaluated once — dropping the transform transition makes positions snap
 // instead of glide, which is exactly what reduced-motion asks for.
@@ -147,6 +159,9 @@ export function createPointerBroadcast(opts: {
   let trailingTimer: ReturnType<typeof setTimeout> | undefined;
   let lastSendTime = 0;
   let lastSentJson: string | undefined;
+  // Lifetime click counter — rides on every pointer state (see the type) so a
+  // trailing move re-send after a click carries the same value and dedupes.
+  let clickCount = 0;
 
   function send(value: PointerAwarenessState | null) {
     const aw = opts.awareness();
@@ -159,12 +174,18 @@ export function createPointerBroadcast(opts: {
     lastSendTime = performance.now();
   }
 
+  function withClick(
+    p: PointerAwarenessState | null,
+  ): PointerAwarenessState | null {
+    return p && clickCount > 0 ? { ...p, click: clickCount } : p;
+  }
+
   function fire() {
     if (!opts.enabled() || lastClientX === undefined || lastClientY === undefined) {
       send(null);
       return;
     }
-    send(opts.toPointer(lastClientX, lastClientY));
+    send(withClick(opts.toPointer(lastClientX, lastClientY)));
   }
 
   function schedule() {
@@ -191,6 +212,18 @@ export function createPointerBroadcast(opts: {
     lastClientY = e.clientY;
     schedule();
   }
+  // Click ripple: bump the counter and ship IMMEDIATELY (a ping must not wait
+  // for the trailing throttle). Primary button only — context-menu clicks and
+  // middle-drags shouldn't ping peers.
+  function onPointerDown(e: PointerEvent) {
+    if (e.button !== 0 || !opts.enabled()) return;
+    lastClientX = e.clientX;
+    lastClientY = e.clientY;
+    const pointer = opts.toPointer(e.clientX, e.clientY);
+    if (!pointer) return;
+    clickCount++;
+    send(withClick(pointer));
+  }
   // Sender scrolling under a stationary pointer changes what it points AT —
   // recompute from the stored client coords.
   function onScroll() {
@@ -206,6 +239,7 @@ export function createPointerBroadcast(opts: {
 
   onMount(() => {
     document.addEventListener("pointermove", onMove, { passive: true });
+    document.addEventListener("pointerdown", onPointerDown, { passive: true });
     document.addEventListener("scroll", onScroll, true);
     document.documentElement.addEventListener("pointerleave", onLeaveDocument);
     document.addEventListener("visibilitychange", onVisibility);
@@ -220,6 +254,7 @@ export function createPointerBroadcast(opts: {
 
   onCleanup(() => {
     document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerdown", onPointerDown);
     document.removeEventListener("scroll", onScroll, true);
     document.documentElement.removeEventListener("pointerleave", onLeaveDocument);
     document.removeEventListener("visibilitychange", onVisibility);
@@ -270,6 +305,24 @@ export function LiveCursorsOverlay(p: {
   // CONTENT changes, so caret/user-field churn never resets idle timers.
   const moveInfo = new Map<number, { json: string; lastMoveAt: number }>();
 
+  // Click ripples: expanding rings at peers' click points, spawned when a
+  // peer's pointer click-counter increases. Viewport coords are captured at
+  // spawn (a ripple marks WHERE the click landed; it doesn't follow scroll
+  // for its 600ms life). Keyed per (client, counter) so rapid clicks stack.
+  type Ripple = { key: string; x: number; y: number; color: string };
+  const [ripples, setRipples] = createSignal<Ripple[]>([]);
+  const clickSeen = new Map<number, number>();
+  const rippleTimers = new Set<ReturnType<typeof setTimeout>>();
+
+  function spawnRipple(key: string, x: number, y: number, color: string) {
+    setRipples((rs) => [...rs, { key, x, y, color }]);
+    const timer = setTimeout(() => {
+      rippleTimers.delete(timer);
+      setRipples((rs) => rs.filter((r) => r.key !== key));
+    }, RIPPLE_MS + 50);
+    rippleTimers.add(timer);
+  }
+
   onMount(() => {
     window.addEventListener("resize", bump);
     window.addEventListener("scroll", bump, true);
@@ -278,12 +331,20 @@ export function LiveCursorsOverlay(p: {
       window.removeEventListener("resize", bump);
       window.removeEventListener("scroll", bump, true);
       clearInterval(sweep);
+      for (const t of rippleTimers) clearTimeout(t);
     });
   });
 
   createEffect(() => {
     const aw = p.awareness;
     if (!aw) return;
+    // Baseline peers' click counters at attach — only INCREASES observed from
+    // here on ripple (a counter first seen mid-session is history, not a ping).
+    for (const [id, state] of aw.getStates()) {
+      const c = (state.pointer as PointerAwarenessState | null | undefined)
+        ?.click;
+      if (typeof c === "number") clickSeen.set(id, c);
+    }
     const onChange = (changes: {
       added: number[];
       updated: number[];
@@ -292,19 +353,42 @@ export function LiveCursorsOverlay(p: {
       const now = performance.now();
       for (const id of [...changes.added, ...changes.updated]) {
         const state = aw.getStates().get(id);
-        const json = JSON.stringify(state?.pointer ?? null);
+        const pointer = state?.pointer as
+          | PointerAwarenessState
+          | null
+          | undefined;
+        const json = JSON.stringify(pointer ?? null);
         const prev = moveInfo.get(id);
         if (!prev || prev.json !== json) {
           moveInfo.set(id, { json, lastMoveAt: now });
         }
+        // A grown click counter = this peer clicked since we last looked.
+        if (pointer && typeof pointer.click === "number") {
+          const seen = clickSeen.get(id);
+          if (
+            seen !== undefined && pointer.click > seen &&
+            id !== aw.clientID && !p.suppressed
+          ) {
+            const user = state?.user as { color?: string } | undefined;
+            const pos = p.accepts(pointer);
+            if (pos && user?.color) {
+              spawnRipple(`${id}:${pointer.click}`, pos.x, pos.y, user.color);
+            }
+          }
+          clickSeen.set(id, pointer.click);
+        }
       }
-      for (const id of changes.removed) moveInfo.delete(id);
+      for (const id of changes.removed) {
+        moveInfo.delete(id);
+        clickSeen.delete(id);
+      }
       setVersion((v) => v + 1);
     };
     aw.on("change", onChange);
     onCleanup(() => {
       aw.off("change", onChange);
       moveInfo.clear();
+      clickSeen.clear();
     });
   });
 
@@ -347,6 +431,36 @@ export function LiveCursorsOverlay(p: {
   return (
     <Portal mount={document.body}>
       <div class="pointer-events-none fixed inset-0 z-[90]">
+        <style>
+          {`@keyframes collab-click-ripple {
+            from { transform: translate(-50%, -50%) scale(0.25); opacity: 0.9; }
+            to   { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+          }`}
+        </style>
+        <For each={ripples()}>
+          {(r) => (
+            <span
+              class="pointer-events-none absolute rounded-full"
+              style={{
+                left: `${r.x}px`,
+                top: `${r.y}px`,
+                width: `${RIPPLE_SIZE_PX}px`,
+                height: `${RIPPLE_SIZE_PX}px`,
+                border: `2px solid ${r.color}`,
+                ...(REDUCED_MOTION
+                  // Static ring, gone on removal — no expansion motion.
+                  ? {
+                    transform: "translate(-50%, -50%) scale(0.5)",
+                    opacity: 0.6,
+                  }
+                  : {
+                    animation:
+                      `collab-click-ripple ${RIPPLE_MS}ms ease-out forwards`,
+                  }),
+              }}
+            />
+          )}
+        </For>
         <For each={cursors()}>
           {(c) => (
             <div

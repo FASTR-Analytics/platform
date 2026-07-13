@@ -68,6 +68,11 @@ session.
   collaborators watch it appear letter by letter. Enter keeps it up for a few
   seconds; Escape discards it. Great for "look at this ↘" moments without
   leaving the canvas.
+- **Click ripples.** Every click on a shared surface shows collaborators a
+  brief expanding ring in your color at that exact spot — pointing at
+  something becomes a deliberate gesture instead of cursor-waving. Works
+  everywhere live cursors do (slide canvas, visualization preview and
+  settings panel).
 - **"Who is editing what" borders on the canvas.** The slide canvas outlines
   the content block or title field each collaborator is currently editing, in
   their color with a name tag above it. When several people edit the *same*
