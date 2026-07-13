@@ -16,6 +16,7 @@ import {
   runTmpDirPath,
 } from "../../runs/mod.ts";
 import {
+  getAllPresentationObjectsWithVirtualDefaults,
   getMetricsWithStatusFromManifest,
   getModuleSummariesFromManifest,
 } from "../../run_query/mod.ts";
@@ -226,6 +227,11 @@ ORDER BY sort_order, iceh_indicator
     label: row.indicator_name,
     category: row.category,
   }));
+  const visualizationsRes = await getAllPresentationObjectsWithVirtualDefaults(
+    mainDb,
+    std.projectId,
+    projectDb,
+  );
   notifyProjectRunAttached(std.projectId, {
     attachedRunId: std.runId,
     projectModules: getModuleSummariesFromManifest(manifest),
@@ -233,5 +239,6 @@ ORDER BY sort_order, iceh_indicator
     projectDatasets: datasetsRes.success ? datasetsRes.data : [],
     commonIndicators,
     icehIndicators,
+    visualizations: visualizationsRes.success ? visualizationsRes.data : [],
   });
 }

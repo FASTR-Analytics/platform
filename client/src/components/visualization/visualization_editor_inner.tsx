@@ -386,7 +386,6 @@ export function VisualizationEditorInner(p: InnerProps) {
           label: `${p.poDetail.label} (copy)`,
           resultsValue: p.poDetail.resultsValue,
           config: unwrappedTempConfig,
-          makeDefault: false,
           folderId: p.poDetail.folderId,
         });
 

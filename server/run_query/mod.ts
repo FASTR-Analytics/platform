@@ -12,6 +12,13 @@ export {
   writeNormalizedResultsObjectParquet,
 } from "./write_results_object_parquet.ts";
 export {
+  deriveVirtualDefaults,
+  findVirtualDefault,
+  getAllPresentationObjectsWithVirtualDefaults,
+  getAttachedManifestOrNull,
+  VIRTUAL_DEFAULT_LAST_UPDATED,
+} from "./virtual_defaults.ts";
+export {
   datasetsVersionFromManifest,
   enrichMetricFromManifest,
   getDatasetFamilyFromRun,

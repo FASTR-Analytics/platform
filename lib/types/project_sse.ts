@@ -81,6 +81,10 @@ export type ProjectSseMessage =
         projectDatasets: DatasetInProject[];
         commonIndicators: { id: string; label: string }[];
         icehIndicators: { id: string; label: string; category: string }[];
+        // Default visualizations are projections of the attached run (item
+        // 5b), so the visualizations list changes at repoint — server-built,
+        // like every other list emission.
+        visualizations: PresentationObjectSummary[];
       };
     }
 

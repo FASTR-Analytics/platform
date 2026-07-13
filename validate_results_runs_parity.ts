@@ -66,7 +66,9 @@ import {
   type ParquetView,
 } from "./server/run_query/mod.ts";
 import {
+  deriveVirtualDefaults,
   getPossibleValuesFromRun,
+  getPresentationObjectDetailFromRun,
   getPresentationObjectItemsFromRun,
   getResultsValueInfoFromRun,
   type RunReadContext,
@@ -428,13 +430,19 @@ async function checkPresentationObject(
   projectId: string,
   poId: string,
   poLabel: string,
+  isVirtualDefault: boolean,
   metricInfoDone: Set<string>,
 ): Promise<void> {
   const record = (r: Omit<CheckResult, "projectId" | "poId" | "poLabel">) => {
     allResults.push({ projectId, poId, poLabel, ...r });
   };
 
-  const resDetail = await getPresentationObjectDetail(projectId, projectDb, poId, mainDb);
+  // Virtual defaults (item 5b) have no row — in --run mode their detail
+  // resolves from the manifest projection; the fetch config it yields is
+  // identical for both engines, which is what the parity check needs.
+  const resDetail = isVirtualDefault && runCtx
+    ? await getPresentationObjectDetailFromRun(runCtx, projectId, projectDb, poId)
+    : await getPresentationObjectDetail(projectId, projectDb, poId, mainDb);
   if (resDetail.success === false) {
     record({ check: "items", outcome: "skip", detail: `detail failed: ${resDetail.err}` });
     return;
@@ -660,14 +668,30 @@ SELECT id, label, status, run_id FROM projects ORDER BY label
     const hybridDb = makeHybridDb(projectDb, shadow);
     const metricInfoDone = new Set<string>();
     try {
-      const pos = await projectDb<{ id: string; label: string }[]>`
+      const rows = await projectDb<{ id: string; label: string }[]>`
 SELECT id, label FROM presentation_objects ORDER BY label
 `;
-      console.log(`\n── ${project.label} (${project.id.slice(0, 8)}): ${pos.length} POs`);
+      // Virtual defaults (item 5b) are part of the served surface in --run
+      // mode — include them so the corpus keeps its default-viz coverage
+      // after migration 030 deletes the rows. The filter guards the
+      // pre-migration state where the rows still exist.
+      const virtualPos = runCtx
+        ? deriveVirtualDefaults(runCtx.manifest)
+            .filter((d) => !rows.some((po) => po.id === d.id))
+            .map((d) => ({ id: d.id, label: d.label, virtual: true }))
+        : [];
+      const pos = [
+        ...rows.map((po) => ({ ...po, virtual: false })),
+        ...virtualPos,
+      ];
+      console.log(
+        `\n── ${project.label} (${project.id.slice(0, 8)}): ${pos.length} POs` +
+          (virtualPos.length > 0 ? ` (${virtualPos.length} virtual defaults)` : ""),
+      );
       for (const po of pos) {
         try {
           await checkPresentationObject(
-            mainDb, projectDb, hybridDb, shadow, runCtx, project.id, po.id, po.label, metricInfoDone,
+            mainDb, projectDb, hybridDb, shadow, runCtx, project.id, po.id, po.label, po.virtual, metricInfoDone,
           );
         } catch (e) {
           allResults.push({

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getAllPresentationObjectsForProject } from "../../db/mod.ts";
+import { getAllPresentationObjectsWithVirtualDefaults } from "../../run_query/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { getValkeyClient } from "../../valkey/connection.ts";
 import {
@@ -19,7 +19,13 @@ defineRoute(
   async (c) => {
     const { projectId, projectDb } = c.var.ppk;
 
-    const posRes = await getAllPresentationObjectsForProject(projectDb);
+    // Includes virtual defaults (item 5b) so their cache state is visible
+    // here like any other visualization's.
+    const posRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      projectId,
+      projectDb,
+    );
     if (posRes.success === false) return c.json(posRes);
 
     const metricRows: { id: string; results_object_id: string }[] =

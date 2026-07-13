@@ -1,8 +1,5 @@
 import {
   type APIResponseWithData,
-  DEFAULT_S_CONFIG,
-  DEFAULT_T_CONFIG,
-  type DefaultPresentationObject,
   type Language,
   type Metric,
   type MetricDefinitionGithub,
@@ -20,49 +17,6 @@ import { stripFrontmatter } from "../github/fetch_module.ts";
 import { _GITHUB_TOKEN, _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
 import { MODULE_SOURCE } from "./module_source.ts";
 import { ensureRepoAssetCached } from "./repo_assets.ts";
-
-export function deriveDefaultPresentationObjects(
-  metrics: Metric[],
-  moduleId: string,
-  language: Language,
-): DefaultPresentationObject[] {
-  const results: DefaultPresentationObject[] = [];
-  let sortOrder = 0;
-  for (const metric of metrics) {
-    for (const preset of metric.vizPresets ?? []) {
-      if (!preset.createDefaultVisualizationOnInstall) continue;
-      results.push({
-        id: preset.createDefaultVisualizationOnInstall,
-        label: resolveTS(preset.label, language),
-        moduleId,
-        metricId: metric.id,
-        sortOrder: sortOrder++,
-        config: {
-          d: { ...preset.config.d },
-          s: { ...DEFAULT_S_CONFIG, ...preset.config.s },
-          t: {
-            caption: preset.config.t.caption
-              ? resolveTS(preset.config.t.caption, language)
-              : DEFAULT_T_CONFIG.caption,
-            captionRelFontSize: preset.config.t.captionRelFontSize ??
-              DEFAULT_T_CONFIG.captionRelFontSize,
-            subCaption: preset.config.t.subCaption
-              ? resolveTS(preset.config.t.subCaption, language)
-              : DEFAULT_T_CONFIG.subCaption,
-            subCaptionRelFontSize: preset.config.t.subCaptionRelFontSize ??
-              DEFAULT_T_CONFIG.subCaptionRelFontSize,
-            footnote: preset.config.t.footnote
-              ? resolveTS(preset.config.t.footnote, language)
-              : DEFAULT_T_CONFIG.footnote,
-            footnoteRelFontSize: preset.config.t.footnoteRelFontSize ??
-              DEFAULT_T_CONFIG.footnoteRelFontSize,
-          },
-        },
-      });
-    }
-  }
-  return results;
-}
 
 // pinnedGitRef: fetch the module's files at this exact commit instead of
 // HEAD — the run pipeline re-fetches the definitions the wizard's step 2
@@ -245,11 +199,6 @@ export async function getModuleDefinitionDetail(
       script,
       assetsToImport: definition.assetsToImport,
       resultsObjects: resultsObjectsWithModuleId,
-      defaultPresentationObjects: deriveDefaultPresentationObjects(
-        translatedMetrics,
-        id,
-        language,
-      ),
       metrics: translatedMetrics,
     };
 

@@ -85,7 +85,6 @@ export const presentationObjectRouteRegistry = {
       label: z.string(),
       resultsValue: z.unknown(), // ResultsValue is a complex nested type without a boundary schema
       config: presentationObjectConfigSchema,
-      makeDefault: z.boolean(),
       folderId: z.uuid().nullable().optional(),
     }),
     response: {} as {

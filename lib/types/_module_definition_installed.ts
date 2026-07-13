@@ -6,7 +6,6 @@
 // ============================================================================
 
 import { z } from "zod";
-import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
 
 // ============================================================================
 // Module-specific atoms
@@ -91,15 +90,6 @@ export const resultsObjectDefinitionInstalledStrict = z.object({
   ]),
 });
 
-export const defaultPresentationObjectInstalledStrict = z.object({
-  id: z.string(),
-  label: z.string(),
-  moduleId: z.string(),
-  metricId: z.string(),
-  sortOrder: z.number(),
-  config: presentationObjectConfigSchema,
-});
-
 // ============================================================================
 // Main schema
 // ============================================================================
@@ -116,7 +106,9 @@ export const moduleDefinitionInstalledStrict = z.object({
   script: z.string(),
   assetsToImport: z.array(assetToImport),
   resultsObjects: z.array(resultsObjectDefinitionInstalledStrict),
-  defaultPresentationObjects: z.array(defaultPresentationObjectInstalledStrict),
+  // defaultPresentationObjects was removed in PLAN_RESULTS_RUNS item 5b —
+  // defaults are derived from metric viz presets, never stored. Old blobs
+  // still carrying the key parse fine (strip mode).
 });
 
 export const moduleDefinitionInstalledSchema = moduleDefinitionInstalledStrict;
@@ -134,7 +126,6 @@ export type RepoAssetToImport = z.infer<typeof repoAssetToImport>;
 export type AssetToImport = z.infer<typeof assetToImport>;
 export type ModuleConfigRequirements = z.infer<typeof configRequirements>;
 export type ResultsObjectDefinition = z.infer<typeof resultsObjectDefinitionInstalledStrict>;
-export type DefaultPresentationObject = z.infer<typeof defaultPresentationObjectInstalledStrict>;
 export type ModuleDefinitionInstalled = z.infer<typeof moduleDefinitionInstalledStrict>;
 
 // ============================================================================

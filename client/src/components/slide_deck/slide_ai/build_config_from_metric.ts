@@ -6,8 +6,9 @@ import type {
   ResultsValueForVisualization,
 } from "lib";
 
-import { DEFAULT_S_CONFIG, DEFAULT_T_CONFIG, convertPeriodValue } from "lib";
+import { convertPeriodValue, deriveConfigFromVizPreset } from "lib";
 import { validatePresetOverrides } from "~/components/project_ai/ai_tools/validators/content_validators";
+import { getInstanceLocalization } from "~/state/instance/t1_store";
 
 type BuildConfigResult = {
   resultsValue: MetricWithStatus;
@@ -53,11 +54,13 @@ export function buildConfigFromPreset(
     valueLabelReplacements: resultsValue.valueLabelReplacements,
   };
 
-  const config: PresentationObjectConfig = {
-    d: { ...preset.config.d },
-    s: { ...DEFAULT_S_CONFIG, ...preset.config.s },
-    t: { ...DEFAULT_T_CONFIG, caption: input.chartTitle },
-  };
+  // Shared derivation with the server's virtual-default projection (5b) —
+  // the AI figure keeps only its own caption on top of the derived config.
+  const config: PresentationObjectConfig = deriveConfigFromVizPreset(
+    preset,
+    getInstanceLocalization().language,
+  );
+  config.t = { ...config.t, caption: input.chartTitle };
 
   if (input.selectedReplicant) {
     config.d.selectedReplicantValue = input.selectedReplicant;

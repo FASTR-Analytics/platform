@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { Sql } from "postgres";
 import {
   getPeriodFilterExactBounds,
   isValidDisaggregationOption,
@@ -10,7 +11,6 @@ import {
   batchUpdatePresentationObjectsPeriodFilter,
   deletePresentationObject,
   duplicatePresentationObject,
-  getAllPresentationObjectsForProject,
   updatePresentationObjectConfig,
   updatePresentationObjectLabel,
 } from "../../db/mod.ts";
@@ -34,6 +34,9 @@ import {
 } from "../caches/visualizations.ts";
 import { defineRoute } from "../route-helpers.ts";
 import {
+  findVirtualDefault,
+  getAllPresentationObjectsWithVirtualDefaults,
+  getAttachedManifestOrNull,
   getIndicatorMetadataFromRun,
   getModuleIdForMetricFromRun,
   getModuleIdForResultsObjectFromRun,
@@ -44,6 +47,7 @@ import {
   getResultsValueInfoFromRun,
   getRunReadContext,
   getRunVersionInfo,
+  VIRTUAL_DEFAULT_LAST_UPDATED,
 } from "../../run_query/mod.ts";
 
 // Every data read in this file serves from the project's attached immutable
@@ -64,6 +68,19 @@ const poItemsQueue = new RequestQueue(10);
 // These are lighter queries, but still need limiting during burst loads
 const resultsValueInfoQueue = new RequestQueue(15);
 
+// Virtual defaults (PLAN_RESULTS_RUNS item 5b) have no row: writes against
+// them are refused with the same messages the row guards used, and the
+// listing/detail surfaces resolve them from the attached run's manifest.
+async function isVirtualDefaultId(
+  mainDb: Sql,
+  projectId: string,
+  presentationObjectId: string,
+): Promise<boolean> {
+  const manifest = await getAttachedManifestOrNull(mainDb, projectId);
+  return manifest !== null &&
+    findVirtualDefault(manifest, presentationObjectId) !== undefined;
+}
+
 defineRoute(
   routesPresentationObjects,
   "createPresentationObject",
@@ -79,7 +96,6 @@ defineRoute(
       label: body.label,
       resultsValue: body.resultsValue as ResultsValue,
       config: body.config as PresentationObjectConfig,
-      makeDefault: body.makeDefault,
       folderId: body.folderId,
     });
     if (res.success === false) {
@@ -91,7 +107,11 @@ defineRoute(
       [res.data.newPresentationObjectId],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      c.var.ppk.projectDb,
+    );
     if (vizRes.success) {
       notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
     }
@@ -108,11 +128,21 @@ defineRoute(
   ),
   log("duplicatePresentationObject"),
   async (c, { params, body }) => {
+    // Duplicating a virtual default (item 5b) IS the customize path — resolve
+    // the manifest projection so the copy materializes as a user row.
+    const manifest = await getAttachedManifestOrNull(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+    );
+    const virtualSource = manifest
+      ? findVirtualDefault(manifest, params.po_id)
+      : undefined;
     const res = await duplicatePresentationObject(
       c.var.ppk.projectDb,
       params.po_id,
       body.label,
       body.folderId,
+      virtualSource ?? null,
     );
     if (res.success === false) {
       return c.json(res);
@@ -123,7 +153,11 @@ defineRoute(
       [res.data.newPresentationObjectId],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      c.var.ppk.projectDb,
+    );
     if (vizRes.success) {
       notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
     }
@@ -136,7 +170,11 @@ defineRoute(
   "getAllPresentationObjects",
   requireProjectPermission("can_view_visualizations"),
   async (c) => {
-    const res = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    const res = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      c.var.ppk.projectDb,
+    );
     return c.json(res);
   },
 );
@@ -148,20 +186,23 @@ defineRoute(
   async (c, { params }) => {
     const t0 = performance.now();
 
-    // Get last updated to use as version key
+    const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
+    if (ctxRes.success === false) return c.json(ctxRes);
+    const runCtx = ctxRes.data;
+
+    // Version key: the row's last_updated, or the constant sentinel for a
+    // virtual default (item 5b — no row exists; the run is immutable so the
+    // runId in the version is the whole identity).
     const poData = (
       await c.var.ppk.projectDb<{ last_updated: string }[]>`
         SELECT last_updated FROM presentation_objects WHERE id = ${params.po_id}
       `
     ).at(0);
 
-    if (!poData) {
+    if (!poData && findVirtualDefault(runCtx.manifest, params.po_id) === undefined) {
       return c.json({ success: false, err: "Presentation object not found" });
     }
-
-    const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
-    if (ctxRes.success === false) return c.json(ctxRes);
-    const runCtx = ctxRes.data;
+    const poLastUpdated = poData?.last_updated ?? VIRTUAL_DEFAULT_LAST_UPDATED;
 
     // Check cache
     const existing = await _PO_DETAIL_CACHE.get(
@@ -170,7 +211,7 @@ defineRoute(
         presentationObjectId: params.po_id,
       },
       {
-        presentationObjectLastUpdated: poData.last_updated,
+        presentationObjectLastUpdated: poLastUpdated,
         runId: runCtx.runId,
       },
     );
@@ -213,7 +254,7 @@ defineRoute(
         presentationObjectId: params.po_id,
       },
       {
-        presentationObjectLastUpdated: poData.last_updated,
+        presentationObjectLastUpdated: poLastUpdated,
         runId: runCtx.runId,
       },
     );
@@ -238,6 +279,12 @@ defineRoute(
   ),
   log("updatePresentationObjectLabel"),
   async (c, { params, body }) => {
+    if (await isVirtualDefaultId(c.var.mainDb, c.var.ppk.projectId, params.po_id)) {
+      return c.json({
+        success: false,
+        err: "You cannot update a default visualization",
+      });
+    }
     const res = await updatePresentationObjectLabel(
       c.var.ppk.projectDb,
       params.po_id,
@@ -252,7 +299,11 @@ defineRoute(
       [params.po_id],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      c.var.ppk.projectDb,
+    );
     if (vizRes.success) {
       notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
     }
@@ -269,6 +320,12 @@ defineRoute(
   ),
   log("updatePresentationObjectConfig"),
   async (c, { params, body }) => {
+    if (await isVirtualDefaultId(c.var.mainDb, c.var.ppk.projectId, params.po_id)) {
+      return c.json({
+        success: false,
+        err: "You cannot update a default visualization",
+      });
+    }
     const res = await updatePresentationObjectConfig(
       c.var.ppk.projectDb,
       params.po_id,
@@ -285,7 +342,11 @@ defineRoute(
       [params.po_id],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      c.var.ppk.projectDb,
+    );
     if (vizRes.success) {
       notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
     }
@@ -301,6 +362,21 @@ defineRoute(
     "can_configure_visualizations",
   ),
   async (c, { body }) => {
+    const manifest = await getAttachedManifestOrNull(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+    );
+    if (
+      manifest &&
+      body.presentationObjectIds.some(
+        (id) => findVirtualDefault(manifest, id) !== undefined,
+      )
+    ) {
+      return c.json({
+        success: false,
+        err: "You cannot update a default visualization",
+      });
+    }
     const res = await batchUpdatePresentationObjectsPeriodFilter(
       c.var.ppk.projectDb,
       body.presentationObjectIds,
@@ -315,7 +391,11 @@ defineRoute(
         res.data.lastUpdated,
       );
 
-      const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+      const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      c.var.ppk.projectDb,
+    );
       if (vizRes.success) {
         notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
       }
@@ -334,6 +414,12 @@ defineRoute(
   ),
   log("deletePresentationObject"),
   async (c, { params }) => {
+    if (await isVirtualDefaultId(c.var.mainDb, c.var.ppk.projectId, params.po_id)) {
+      return c.json({
+        success: false,
+        err: "You cannot delete a default visualization",
+      });
+    }
     const res = await deletePresentationObject(
       c.var.ppk.projectDb,
       params.po_id,
@@ -341,7 +427,11 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
-    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      c.var.ppk.projectDb,
+    );
     if (vizRes.success) {
       notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
     }

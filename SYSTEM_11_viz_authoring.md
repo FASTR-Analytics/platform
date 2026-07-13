@@ -27,6 +27,7 @@ globs:
   - client/src/components/visualization/**
   - client/src/state/instance/_util_disaggregation_label.ts
   - lib/convert_visualization_type.ts
+  - lib/derive_default_visualizations.ts
   - lib/disaggregation_labels.ts
   - lib/format_nigeria_admin_label.ts
   - lib/get_disaggregator_display_prop.ts

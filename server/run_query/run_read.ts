@@ -69,6 +69,10 @@ import type {
   SqlRowsExecutor,
 } from "../server_only_funcs_presentation_objects/types.ts";
 import { executeSqlOverParquet, type ParquetView } from "./duckdb_executor.ts";
+import {
+  findVirtualDefault,
+  VIRTUAL_DEFAULT_LAST_UPDATED,
+} from "./virtual_defaults.ts";
 
 // The run read path (PLAN_RESULTS_RUNS Status, model point 3): every function
 // here consults ONLY the attached immutable run — manifest for metadata (no
@@ -575,7 +579,9 @@ export function getRunVersionInfo(
 }
 
 // PO row (authored content) stays on the project DB; only the resultsValue
-// resolution comes from the run.
+// resolution comes from the run. No row → the id may be a virtual default
+// (item 5b): a manifest preset projection, derived here with the run as its
+// whole identity.
 export async function getPresentationObjectDetailFromRun(
   ctx: RunReadContext,
   projectId: string,
@@ -599,7 +605,24 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
 `
     ).at(0);
     if (rawPresObj === undefined) {
-      throw new Error("No presentation object with this id");
+      const virtual = findVirtualDefault(ctx.manifest, presentationObjectId);
+      if (virtual === undefined) {
+        throw new Error("No presentation object with this id");
+      }
+      const resVirtualValue = resolveMetricFromRun(ctx, virtual.metricId);
+      throwIfErrWithData(resVirtualValue);
+      const virtualDetail: PresentationObjectDetail = {
+        id: virtual.id,
+        projectId,
+        resultsValue: resVirtualValue.data.resultsValue,
+        lastUpdated: VIRTUAL_DEFAULT_LAST_UPDATED,
+        label: virtual.label,
+        config: virtual.config,
+        isDefault: true,
+        folderId: null,
+        runId: ctx.runId,
+      };
+      return { success: true, data: virtualDetail };
     }
     const resResultsValue = resolveMetricFromRun(ctx, rawPresObj.metric_id);
     throwIfErrWithData(resResultsValue);

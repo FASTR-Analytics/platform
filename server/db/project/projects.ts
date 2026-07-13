@@ -44,7 +44,7 @@ import {
   getModuleSummariesFromManifest,
 } from "../../run_query/run_read.ts";
 import { getRunManifestCached } from "../../runs/manifest_cache.ts";
-import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
+import { getAllPresentationObjectsWithVirtualDefaults } from "../../run_query/virtual_defaults.ts";
 import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
 import { getAllReports } from "./reports.ts";
@@ -169,8 +169,11 @@ export async function getProjectDetail(
     const resDashboards = await getAllDashboards(projectDb, mainDb, projectId);
     throwIfErrWithData(resDashboards);
 
-    const resVisualizations =
-      await getAllPresentationObjectsForProject(projectDb);
+    const resVisualizations = await getAllPresentationObjectsWithVirtualDefaults(
+      mainDb,
+      projectId,
+      projectDb,
+    );
     throwIfErrWithData(resVisualizations);
 
     const resFolders = await getAllVisualizationFolders(projectDb);

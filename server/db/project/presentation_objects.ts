@@ -9,6 +9,7 @@ import {
   presentationObjectConfigSchema,
   throwIfErrWithData,
   type APIResponseWithData,
+  type DerivedDefaultVisualization,
   type PresentationObjectConfig,
   type PresentationObjectDetail,
   type PresentationObjectSummary,
@@ -30,7 +31,6 @@ export type AddPresentationObjectParams = {
   label: string;
   resultsValue: ResultsValue;
   config: PresentationObjectConfig;
-  makeDefault: boolean;
   createdByAI?: boolean;
   folderId?: string | null;
 };
@@ -45,7 +45,6 @@ export async function addPresentationObject(
     label,
     resultsValue,
     config,
-    makeDefault,
     createdByAI = false,
     folderId,
   } = params;
@@ -61,7 +60,7 @@ VALUES
   (
     ${newPresentationObjectId},
     ${resultsValue.id},
-    ${makeDefault},
+    ${false},
     ${createdByAI},
     ${label.trim()},
     ${JSON.stringify(presentationObjectConfigSchema.parse(config))},
@@ -73,11 +72,16 @@ VALUES
   });
 }
 
+// virtualDefaultSource: the manifest-derived projection when
+// presentationObjectId is a virtual default (item 5b) — no row exists, and
+// duplicating IS the customize path, so the copy is materialized from the
+// derivation instead of a source row.
 export async function duplicatePresentationObject(
   projectDb: Sql,
   presentationObjectId: string,
   label: string,
-  folderId?: string | null,
+  folderId: string | null | undefined,
+  virtualDefaultSource: DerivedDefaultVisualization | null,
 ): Promise<
   APIResponseWithData<{ newPresentationObjectId: string; lastUpdated: string }>
 > {
@@ -87,9 +91,15 @@ export async function duplicatePresentationObject(
 SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
 `
     ).at(0);
-    if (rawPresObj === undefined) {
+    if (rawPresObj === undefined && virtualDefaultSource === null) {
       throw new Error("No presentation object with this id");
     }
+    const sourceMetricId = rawPresObj?.metric_id ??
+      virtualDefaultSource!.metricId;
+    const sourceConfig = rawPresObj?.config ??
+      JSON.stringify(
+        presentationObjectConfigSchema.parse(virtualDefaultSource!.config),
+      );
     const newPresentationObjectId =
       await generateUniquePresentationObjectId(projectDb);
     const lastUpdated = new Date().toISOString();
@@ -99,10 +109,10 @@ INSERT INTO presentation_objects
 VALUES
   (
     ${newPresentationObjectId},
-    ${rawPresObj.metric_id},
+    ${sourceMetricId},
     ${false},
     ${label.trim()},
-    ${rawPresObj.config},
+    ${sourceConfig},
     ${lastUpdated},
     ${folderId ?? null}
   )
@@ -127,27 +137,6 @@ function configToSummary(row: DBPresentationObject, config: PresentationObjectCo
     sortOrder: row.sort_order,
     lastUpdated: row.last_updated,
   };
-}
-
-export async function getAllPresentationObjectsForModule(
-  projectDb: Sql,
-  moduleId: string,
-): Promise<APIResponseWithData<PresentationObjectSummary[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Join through metrics to find presentation objects for this module
-    const rows = await projectDb<DBPresentationObject[]>`
-SELECT po.*
-FROM presentation_objects po
-JOIN metrics m ON po.metric_id = m.id
-WHERE m.module_id = ${moduleId}
-ORDER BY po.sort_order, LOWER(po.label)
-`;
-    const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
-      const config = parsePresentationObjectConfig(row.config);
-      return configToSummary(row, config);
-    });
-    return { success: true, data: presentationObjects };
-  });
 }
 
 export async function getAllPresentationObjectsForProject(
@@ -205,23 +194,6 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
       folderId: rawPresObj.folder_id,
     };
     return { success: true, data: presObj };
-  });
-}
-
-export async function getPresentationObjectLastUpdated(
-  projectDb: Sql,
-  presentationObjectId: string,
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawPresObj = (
-      await projectDb<{ last_updated: string }[]>`
-SELECT last_updated FROM presentation_objects WHERE id = ${presentationObjectId}
-`
-    ).at(0);
-    if (rawPresObj === undefined) {
-      throw new Error("No presentation object with this id");
-    }
-    return { success: true, data: { lastUpdated: rawPresObj.last_updated } };
   });
 }
 

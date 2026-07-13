@@ -13,8 +13,6 @@ import {
   throwIfErrWithData,
   moduleDefinitionInstalledSchema,
   metricStrict,
-  presentationObjectConfigSchema,
-  type Metric,
   type ModuleConfigSelections,
   type ModuleId,
 } from "lib";
@@ -36,7 +34,11 @@ export function parseModuleConfigSelections(json: string): ModuleConfigSelection
 function prepareModuleDefinitionForStorage(mod: ModuleDefinitionDetail): string {
   const { metrics: _, ...rest } = mod;
   const validated = moduleDefinitionInstalledSchema.parse(rest);
-  return JSON.stringify(validated);
+  // defaultPresentationObjects is dead (item 5b — defaults derive from viz
+  // presets, never stored), but the PREVIOUS image's schema requires the key,
+  // and this blob is the dual-write rollback plane (model point 4). Keep the
+  // empty key in stored JSON until the legacy plane is demolished (Phase 3).
+  return JSON.stringify({ ...validated, defaultPresentationObjects: [] });
 }
 
 // presentation_objects.metric_id has no FK. Any PO whose metric no longer
@@ -98,8 +100,6 @@ export async function installModule(
     const startingConfigSelections = getStartingModuleConfigSelections(
       modDef.data.configRequirements,
     );
-
-    const defaultPresentationObjects = modDef.data.defaultPresentationObjects;
 
     const metricIds = modDef.data.metrics.map((m) => m.id);
 
@@ -169,35 +169,9 @@ VALUES (
 `;
       }
 
-      // Delete default presentation objects for this module's metrics
-      if (metricIds.length > 0) {
-        await sql`
-DELETE FROM presentation_objects
-WHERE metric_id = ANY(${metricIds}) AND is_default_visualization = TRUE
-`;
-      }
+      // Default visualizations are virtual (PLAN_RESULTS_RUNS item 5b) —
+      // manifest projections of the attached run, never rows.
       await purgeOrphanedPresentationObjects(sql);
-
-      // Insert default presentation objects (validate config before write)
-      for (const presObjectDef of defaultPresentationObjects) {
-        const validatedConfig = presentationObjectConfigSchema.parse(presObjectDef.config);
-        // Delete any existing PO with this ID (in case of reinstall)
-        await sql`DELETE FROM presentation_objects WHERE id = ${presObjectDef.id}`;
-        await sql`
-INSERT INTO presentation_objects
-  (id, metric_id, is_default_visualization, label, config, last_updated, sort_order)
-VALUES
-  (
-    ${presObjectDef.id},
-    ${presObjectDef.metricId},
-    ${true},
-    ${presObjectDef.label},
-    ${JSON.stringify(validatedConfig)},
-    ${lastUpdated},
-    ${presObjectDef.sortOrder}
-  )
-`;
-      }
     });
 
     // Update last_updated for all presentation objects using this module's metrics

@@ -97,6 +97,7 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       setProjectState("projectDatasets", reconcile(msg.data.projectDatasets));
       setProjectState("commonIndicators", reconcile(msg.data.commonIndicators));
       setProjectState("icehIndicators", reconcile(msg.data.icehIndicators));
+      setProjectState("visualizations", reconcile(msg.data.visualizations));
       rebuildModuleMaps(projectState);
       break;
 

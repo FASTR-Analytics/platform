@@ -247,8 +247,8 @@ for one session stops at a clean seam with gates green and records the
 stopping point inside the item — nowhere else. Items 1 and 2 span
 wb-fastr-modules (CLAUDE.md three-repo lockstep rule: commit that repo
 locally; the push stays deploy-gated — its local HEAD is `6ba142e`).
-Items 1–5 are DONE (details inside each item); **the next item to
-execute is item 5b (virtual default visualizations)**, then items 6–8.
+Items 1–5b are DONE (details inside each item); **the next item to
+execute is item 6 (`export_central` flip)**, then items 7–8.
 After items 3–5 the dev app exercises the full new UX end-to-end
 (generate → progress → repoint → all read surfaces from the run) and is
 reviewable in the browser; items 6–8 are export/deploy/hardening and
@@ -626,9 +626,61 @@ Work items, in order:
      re-pointed to the run URL; PresentationObjectMiniDisplay dirty arms
      removed. Vocabulary: remaining user-facing strings say "results
      package" (EN/FR/PT inline t3, per the PT rollout).
-5b. **Virtual default visualizations — defaults become manifest
-   projections, not PO rows.** Decided with Tim 2026-07-13 (rulings
-   inline). Context: default visualizations were only ever materialized
+5b. **Virtual default visualizations — DONE 2026-07-13** (gates green:
+   typecheck + lint:systems + PARITY GREEN `--run`, corpus grew 129 → 214
+   checks with the virtual defaults included, 0 diffs/skips; migration 030
+   applied at dev boot on all 8 registered projects — 131 default rows
+   deleted; 4 orphaned project DBs outside `projects` untouched, as with
+   every project migration; live harness on dev). Build notes:
+   - One derivation in `lib/derive_default_visualizations.ts`
+     (`deriveConfigFromVizPreset` + `deriveDefaultVisualizationsForModule`,
+     per-module sortOrder counter exactly as installModule materialized).
+     Client `buildConfigFromPreset` re-pointed: AI figures now take the
+     derived config (including preset sub-caption/footnote, previously
+     dropped) with only their own caption on top.
+   - `server/run_query/virtual_defaults.ts`: per-runId memoized derivation
+     (immutable runs, capped map like the manifest cache);
+     `getAllPresentationObjectsWithVirtualDefaults(mainDb, projectId,
+     projectDb)` is THE listing seam — all 11 raw call sites re-pointed
+     (7 PO routes, 2 folder routes, cache_status, getProjectDetail);
+     dead `getAllPresentationObjectsForModule` /
+     `getPresentationObjectLastUpdated` deleted.
+   - Detail fallback in `getPresentationObjectDetailFromRun`: no row →
+     manifest preset by default id (`isDefault: true`, `folderId: null`,
+     `lastUpdated = "virtual_default"` sentinel, runId). The detail route
+     resolves run ctx first and versions `po_detail` with the sentinel +
+     runId; the client `po_detail` version already degrades to
+     `"unknown"|runKey` for row-less ids — no client cache change.
+   - Duplicate-to-customize: `duplicatePresentationObject` takes a
+     `virtualDefaultSource` the route resolves from the manifest; write
+     guards (label, config, delete, batch period filter, folder move)
+     refuse virtual ids with the legacy row-guard messages. The client
+     already opened defaults in create-mode ("Copy of …") — unchanged.
+     `createPresentationObject`'s `makeDefault` dropped (registry + both
+     client callers; rows can never claim is_default again).
+   - `run_attached` now carries `visualizations` (server-built via the
+     wrapper) + a one-line t1 reconcile — the across-repoint listing
+     surface.
+   - installModule's default-PO delete/insert blocks gone;
+     `defaultPresentationObjects` removed from the installed schema and
+     `ModuleDefinitionDetail`. **Rollback-window compat**:
+     `prepareModuleDefinitionForStorage` still writes an empty
+     `defaultPresentationObjects: []` key into stored blobs because the
+     PREVIOUS image's schema requires it and the dual-write plane is the
+     rollback path (model point 4) — delete with the legacy plane in
+     Phase 3.
+   - Rig `--run` enumerates virtual defaults (detail via the manifest
+     projection, same fetch config to both engines) so the corpus keeps
+     its default-viz coverage after the rows are gone.
+   - cache_status decision: virtual defaults included via the wrapper —
+     their cache states are visible like any visualization's.
+   - Live-verified (harness, Test project): 32 virtual defaults exactly
+     replace the 32 deleted rows (ids/labels/sortOrders match); detail by
+     an old default row id resolves (the stored deck/report-reference
+     path); unknown id rejects; duplicate → editable user copy (verified,
+     cleaned up). DOC_MODULE_EXECUTION.md's derivation sentence corrected.
+   Original spec (decided with Tim 2026-07-13, rulings inline):
+   Context: default visualizations were only ever materialized
    by the legacy `installModule` path (project creation), which the
    wizard deliberately does not call — so a module that first enters a
    project via a results-package generation has metrics but no default

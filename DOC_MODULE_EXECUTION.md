@@ -51,7 +51,7 @@ How a versioned R module is loaded (registry → GitHub/local → Zod → transl
 - **github (prod):** `GET /repos/<owner>/<repo>/commits?path=<path>&per_page=1` → `gitRef = commits[0].sha`; then fetch `raw.githubusercontent.com/<owner>/<repo>/<ref>/<path>/…` with `ref = gitRef ?? "main"`. Using the SHA, not `main`, bypasses the raw CDN cache.
 - both call `validateDefinition` (`moduleDefinitionGithubSchema.safeParse`, throws listing `path: message` issues) and `stripFrontmatter` on the script.
 
-`getModuleDefinitionDetail(id, language)` translates label/metrics/`configRequirements` via `getTranslateFunc(language)` + `resolveTS`, derives default presentation objects from each metric's `vizPresets` that carry `createDefaultVisualizationOnInstall`, and returns `ModuleDefinitionDetail & { gitRef }`. The gitRef is persisted as `compute_def_git_ref` / `presentation_def_git_ref` and (on a successful run) copied to `last_run_git_ref` — these drive update detection ([DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md)).
+`getModuleDefinitionDetail(id, language)` translates label/metrics/`configRequirements` via `getTranslateFunc(language)` + `resolveTS` and returns `ModuleDefinitionDetail & { gitRef }`. (Default visualizations are no longer derived or stored here — they are virtual projections of the attached run's manifest presets, PLAN_RESULTS_RUNS item 5b, `lib/derive_default_visualizations.ts`.) The gitRef is persisted as `compute_def_git_ref` / `presentation_def_git_ref` and (on a successful run) copied to `last_run_git_ref` — these drive update detection ([DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md)).
 
 ### Parameterization (`server/server_only_funcs/get_script_with_parameters.ts`)
 
