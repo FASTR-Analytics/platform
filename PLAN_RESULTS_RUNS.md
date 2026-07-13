@@ -223,8 +223,9 @@ projects, 129 checks, 0 diffs, 0 skips). What landed:
 Known interim behavior (by design until the wizard deploy): a module rerun
 updates pg + sandbox but NOT the served run — dev re-syncs by re-running
 `backfill_runs.ts` (repoints; superseded run dirs/rows accumulate until
-run GC, a Phase 3 item); clients learn a new `attachedRunId` on SSE
-reconnect (no repoint notify yet — the wizard deploy adds it).
+run GC, a Phase 3 item). Wizard publishes push `run_attached` (item 2
+session 3), but backfill-script repoints emit no SSE — after
+`backfill_runs.ts`, clients learn the new `attachedRunId` on reconnect.
 
 ### Next milestone: the wizard deploy (everything below ships in THE deploy)
 
@@ -242,12 +243,16 @@ Postgres, `backfill_runs.ts` re-synthesizes runs). Everything decided is
 decided — the binding decisions, §10 rulings, and empirical gotchas
 sections are closed; do not re-derive or improve them. An item too large
 for one session stops at a clean seam with gates green and records the
-stopping point inside the item — nowhere else. Items 1 and 2 span
+stopping point inside the item — nowhere else. Items 1, 2, and 4 span
 wb-fastr-modules (CLAUDE.md three-repo lockstep rule: commit that repo
-locally; the push stays deploy-gated). Item 2's design was presented and
-SIGNED OFF 2026-07-13 (recorded verbatim in the item — implement exactly
-that); read the panther UI protocols linked there before writing client
-code.
+locally; the push stays deploy-gated — its local HEAD is `6ba142e`).
+Items 1 and 2 are DONE (details inside each item); **the next item to
+execute is item 3**. Client work (items 3's progress-view touch if any,
+and item 5) follows the panther UI protocols linked at the end of item 2.
+After items 3–5 the dev app exercises the full new UX end-to-end
+(generate → progress → repoint → all read surfaces from the run) and is
+reviewable in the browser; items 6–8 are export/deploy/hardening and
+don't gate dev review.
 
 Work items, in order:
 
@@ -267,7 +272,8 @@ Work items, in order:
    deploy, and instances must have `survey_data_unified.csv` +
    `population_estimates_only.csv` uploaded as assets BEFORE updating
    m004/m005 (dev seeded already).
-2. **The wizard — DESIGN SIGNED OFF 2026-07-13 (Tim); build next.**
+2. **The wizard — DONE 2026-07-13 (design signed off by Tim, built over
+   3 sessions — see Build progress below).**
    Two surfaces (Tim's re-cut, replacing the single wizard-owns-execution
    shape): a LAUNCH wizard that is configuration only, and a run
    listing/progress view — the run owns its whole lifecycle after launch,
@@ -498,10 +504,21 @@ Work items, in order:
    [PROTOCOL_UI_STATE.md](panther/protocols/PROTOCOL_UI_STATE.md),
    [PROTOCOL_UI_STRUCTURE.md](panther/protocols/PROTOCOL_UI_STRUCTURE.md),
    [PROTOCOL_UI_STYLING.md](panther/protocols/PROTOCOL_UI_STYLING.md).
-3. **Memoized generation** (§3.7) — ships WITH the wizard, never after.
-   Boundary with item 2: item 2 builds the pipeline's resolve-reuse stage
-   computing inputKeys but forcing every node to "run"; item 3 turns
-   reuse on (base-run diff + copy-reused-outputs).
+3. **Memoized generation** (§3.7 = the full spec; read it first) — ships
+   WITH the wizard, never after. Boundary with item 2: item 2 built the
+   pipeline's resolve stage computing §3.7 inputKeys and per-RO output
+   hashes but forcing every node to "run"; item 3 turns reuse on
+   (base-run diff + copy-reused-outputs). Code seams:
+   `server/worker_routines/generate_run/pipeline.ts` (the execute loop +
+   memo map; base run = attached run else latest `ready`, both already
+   resolvable via `getRunReadContext`/`listRunsForProject`) and
+   `execute_module.ts` (inputKey/outputFileHashes computation — compare
+   against the base-run manifest's `modules[].inputKey`/
+   `outputFileHashes`; synthetic-backfill runs carry null and are never
+   reuse sources). Only R execution is memoized (§3.7): finalize is
+   always fresh, and reused modules copy raw output CSVs from the base
+   run's `outputs/{moduleId}`. `RunProgress` already has the `reused`
+   status and the client chip already renders it.
 4. **Dataset export re-target**: `datasets_in_project_*.ts` → run
    `inputs/datasets/<type>.csv` + parquet twins; generated-script path
    `../datasets/` → `../../inputs/datasets/` rides the same modules-repo
