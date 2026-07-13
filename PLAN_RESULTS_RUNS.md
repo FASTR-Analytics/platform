@@ -437,7 +437,11 @@ Work items, in order:
      (`components/results_package_wizard/`, ICEH-shaped descriptor +
      steps, panther UI protocols), the run listing/progress view on the
      project "Results package" surface (needs a runs-list-by-project
-     route), and client handling of `run_progress`/`run_attached`.
+     route), and client handling of `run_progress`/`run_attached`; step 2
+     also needs server reads for definitions-at-latest-commit (reuse the
+     module-detail machinery — it already returns `gitRef`) and for
+     attached-run-manifest pre-fill (windowing +
+     `getMergedModuleConfigSelections`).
    **Placement**: client `components/results_package_wizard/`
    (ICEH-shaped: `index.tsx` descriptor + `step_*.tsx`) + the run
    listing/progress components on the project surface; server routes
