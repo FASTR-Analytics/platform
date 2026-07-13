@@ -247,8 +247,8 @@ for one session stops at a clean seam with gates green and records the
 stopping point inside the item — nowhere else. Items 1 and 2 span
 wb-fastr-modules (CLAUDE.md three-repo lockstep rule: commit that repo
 locally; the push stays deploy-gated — its local HEAD is `6ba142e`).
-Items 1–5b are DONE (details inside each item); **the next item to
-execute is item 6 (`export_central` flip)**, then items 7–8.
+Items 1–5b are DONE and item 6 is RETIRED (details inside each item);
+**the next item to execute is item 7**, then item 8.
 After items 3–5 the dev app exercises the full new UX end-to-end
 (generate → progress → repoint → all read surfaces from the run) and is
 reviewable in the browser; items 6–8 are export/deploy/hardening and
@@ -749,7 +749,16 @@ Work items, in order:
      a wizard-added module, detail opens by preset id, duplicate
      produces an editable user copy, a deck figure referencing an old
      default id still resolves.
-6. **`export_central` flips** to run files (binding decision 5).
+6. **`export_central` — RETIRED 2026-07-13 (Tim's ruling), route
+   deleted, gates nothing.** The central reporting hub is a WIP
+   prototype; rather than flip the route to run files or let it gate
+   Phase 3/4 demolition, `server/routes/instance/export_central.ts`
+   (+ its main.ts mount and the unused `CENTRAL_SERVER_SECRET` env
+   var) was deleted outright. The project-settings "central reporting"
+   designation toggle stays (main-DB flag only, no `ro_*` dependency).
+   When the hub matures, rebuild the export against run files: manifest
+   for the catalog endpoints + `inputs/calculated_indicators_snapshot
+   .json`; DuckDB-over-parquet COPY TEXT stream for rows.
 7. **Deploy machinery**: serve-before-backfill wiring (finding 3 — the
    synthesizer becomes the deploy's backfill, serving starts first); ship
    the rig + backfill runner in the image or document docker-exec
@@ -781,9 +790,9 @@ Exit gate: `deno task typecheck` + the HARDENED rig PARITY GREEN in
    ships with the deploy).
 5. `getAllMetrics`/`getMetricsWithStatus` (module cards) are never
    flipped — that surface dies with the wizard in this deploy; metric
-   status reads the manifest availability stamps. `export_central` flips
-   in this deploy (dual-written `ro_*` remains its rollback twin until
-   Phase 3).
+   status reads the manifest availability stamps. `export_central` was
+   RETIRED, not flipped (route deleted — work item 6); nothing gates
+   the legacy plane's demolition.
 
 ### Empirical gotchas (verified; don't rediscover)
 
@@ -1151,9 +1160,9 @@ boundary:
   per-route) → run paths. Runs are instance-level artifacts readable by any
   project member of an attached project; **generating** runs is
   instance-admin gated (matches today: dataset attach is admin-gated in the
-  UI). Central-reporting cross-project reads
-  ([export_central.ts](server/routes/instance/export_central.ts)) get
-  simpler: stream the run's files.
+  UI). Central-reporting cross-project reads were retired with the
+  `export_central.ts` route (work item 6); a future central hub streams
+  the run's files.
 - **PO validity across swaps — module evolution is per-run, informed, never
   silent.** Metric ids are stable authored ids (`m1-01-01`); a PO resolves
   its metric against the *attached run's* catalog, so a module changing its
@@ -1389,10 +1398,10 @@ synthesizer.
   set `projects.run_id` (never a verbatim copy of a sandbox package —
   review finding 24; the manifest carries runId and no projectId; copy,
   not move — the Status model has the rollback posture); caches re-key to
-  runId (§2.5); client T1 gains `attachedRunId` and the T2 caches re-key;
-  `export_central` flips to run files. Legacy `ro_*` ingest is dual-written
-  until fleet verification, then deleted with the Postgres read path
-  (Phase 3 entry).
+  runId (§2.5); client T1 gains `attachedRunId` and the T2 caches re-key
+  (`export_central` was RETIRED, not flipped — work item 6). Legacy `ro_*`
+  ingest is dual-written until fleet verification, then deleted with the
+  Postgres read path (Phase 3 entry).
 - **Memoized generation ships here** (§3.7) — it is what keeps regeneration
   fast once per-module rerun is deleted; the §6.1/§6.5 hermeticity fixes are
   its prerequisites and land first.

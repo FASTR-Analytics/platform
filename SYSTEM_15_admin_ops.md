@@ -27,7 +27,6 @@ globs:
   - server/db/instance/user_logs.ts
   - server/db/project/projects.ts
   - server/routes/instance/backups.ts
-  - server/routes/instance/export_central.ts
   - server/routes/instance/health.ts
   - server/routes/project/project.ts
   - server/utils/disk_space.ts
@@ -54,7 +53,7 @@ Client: `components/instance/**` minus index.tsx and instance_assets.tsx,
 `project_settings.tsx` + `copy_project.tsx` + `create_backup_form.tsx` +
 `restore_from_file_form.tsx`, role/permission forms_editors; server:
 `routes/project/project.ts` (lifecycle + roles),
-`routes/instance/{instance,health,backups,export_central}.ts` (backups
+`routes/instance/{instance,health,backups}.ts` (backups
 *proxy* here, restore *mechanics* S2), `db/project/projects.ts` (registry +
 roles halves), `db/instance/user_logs.ts`, `server/utils/disk_space.ts`,
 `exposed_env_vars.ts`, cron jobs in `main.ts`; repo: `./run`, `./deploy`,

@@ -55,7 +55,6 @@ import { routesCacheStatus } from "./server/routes/project/cache_status.ts";
 import { routesPublicDashboard } from "./server/routes/public/dashboard.ts";
 
 import { routesCustomPrompts } from "./server/routes/instance/custom_prompts.ts";
-import { routesExportCentral } from "./server/routes/instance/export_central.ts";
 
 await dbStartUp();
 
@@ -147,7 +146,6 @@ app.route("/ai", routesAiProxy);
 app.route("/ai-instance", routesInstanceAiProxy);
 app.route("/ai", routesAiFiles);
 app.route("/", routesCustomPrompts);
-app.route("/", routesExportCentral);
 
 // Cache headers middleware
 app.use("*", cacheMiddleware);

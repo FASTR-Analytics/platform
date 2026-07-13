@@ -47,7 +47,7 @@ guards evaluate); client session: `LoggedInWrapper.tsx` (Clerk singleton).
 ~255 registry routes, zero direct client↔server imports; errors as HTTP 200 +
 `{success:false}` (only guards emit real 4xx/5xx); `Project-Id` header mints
 the per-project DB handle. Owns the inventory of ~30 off-registry endpoints
-(health, TUS, SSE, AI proxy, public dashboard, export_central, CSV exports) —
+(health, TUS, SSE, AI proxy, public dashboard, CSV exports) —
 each owned by its home system.
 
 ## Docs absorbed (Phase 2)
