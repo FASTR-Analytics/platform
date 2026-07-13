@@ -1,10 +1,4 @@
-import { ensureDir } from "@std/fs";
-import { join } from "@std/path";
 import { Sql } from "postgres";
-import {
-  _SANDBOX_DIR_PATH,
-  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-} from "../../exposed_env_vars.ts";
 import {
   APIResponseWithData,
   DatasetIcehInfoInProject,
@@ -12,7 +6,11 @@ import {
   type IcehIndicator,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
-import { removeDatasetFromProject } from "./datasets_in_project_hmis.ts";
+import {
+  ensureDatasetCsvTargetDir,
+  removeDatasetFromProject,
+  type DatasetCsvTarget,
+} from "./datasets_in_project_hmis.ts";
 import { getIcehCacheHash } from "../instance/dataset_iceh.ts";
 
 type DBIcehIndicator = {
@@ -28,6 +26,7 @@ export async function addDatasetIcehToProject(
   mainDb: Sql,
   projectDb: Sql,
   projectId: string,
+  csvTarget: DatasetCsvTarget,
   onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
@@ -52,16 +51,7 @@ export async function addDatasetIcehToProject(
     const res = await removeDatasetFromProject(projectDb, projectId, "iceh");
     throwIfErrNoData(res);
 
-    const datasetDirPath = join(_SANDBOX_DIR_PATH, projectId, "datasets");
-    await ensureDir(datasetDirPath);
-    await Deno.chmod(datasetDirPath, 0o777);
-
-    const datasetFilePathForPostgres = join(
-      _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-      projectId,
-      "datasets",
-      "iceh.csv",
-    );
+    await ensureDatasetCsvTargetDir(csvTarget);
 
     if (onProgress) await onProgress(0.5, "Exporting ICEH data to CSV...");
 
@@ -78,7 +68,7 @@ export async function addDatasetIcehToProject(
           sample_size
         FROM iceh_data
         ORDER BY iceh_indicator, year, strat, level, source
-      ) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, HEADER true)
+      ) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true)
     `);
 
     if (onProgress) await onProgress(0.8, "Updating project database...");

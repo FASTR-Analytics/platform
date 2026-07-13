@@ -37,7 +37,10 @@ import {
   addDatasetHfaToProject,
   getHfaTaxonomyForAI,
 } from "./datasets_in_project_hfa.ts";
-import { addDatasetHmisToProject } from "./datasets_in_project_hmis.ts";
+import {
+  addDatasetHmisToProject,
+  sandboxDatasetCsvTarget,
+} from "./datasets_in_project_hmis.ts";
 import { installModule } from "./modules.ts";
 import {
   getMetricsWithStatusFromManifest,
@@ -432,6 +435,7 @@ export async function addProject(
         mainDb,
         projectDb,
         newProjectId,
+        sandboxDatasetCsvTarget(newProjectId, "hmis"),
         undefined,
       );
       throwIfErrWithData(res);
@@ -445,6 +449,7 @@ export async function addProject(
         mainDb,
         projectDb,
         newProjectId,
+        sandboxDatasetCsvTarget(newProjectId, "hfa"),
         undefined,
       );
       throwIfErrWithData(res);

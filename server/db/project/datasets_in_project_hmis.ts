@@ -1,5 +1,5 @@
 import { ensureDir } from "@std/fs";
-import { join } from "@std/path";
+import { dirname, join } from "@std/path";
 import { assertNotUndefined } from "@timroberton/panther";
 import { Sql } from "postgres";
 import {
@@ -32,10 +32,49 @@ import {
 } from "../instance/instance.ts";
 import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
 
+// Where a dataset attach writes its extract CSV, per caller (the item-4
+// per-caller pattern, extended to the COPY TO by work item 7): the Postgres
+// server executes `COPY … TO postgresPath` (a path inside the Postgres
+// container), and denoPath is the SAME file as this process sees it. The
+// two must resolve to one file through the container mounts. createProject
+// passes the sandbox pair (the legacy dual-write plane); the run pipeline
+// passes the run tmp dir pair and mirrors the extract back into the sandbox.
+export type DatasetCsvTarget = {
+  postgresPath: string;
+  denoPath: string;
+};
+
+export function sandboxDatasetCsvTarget(
+  projectId: string,
+  datasetType: DatasetType,
+): DatasetCsvTarget {
+  return {
+    postgresPath: join(
+      _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
+      projectId,
+      "datasets",
+      `${datasetType}.csv`,
+    ),
+    denoPath: getDatasetFilePath(projectId, datasetType),
+  };
+}
+
+// Ensures the target's parent dir exists and is writable by the Postgres
+// container user before `COPY … TO` runs (same 0o777 the sandbox datasets
+// dir has always used).
+export async function ensureDatasetCsvTargetDir(
+  csvTarget: DatasetCsvTarget,
+): Promise<void> {
+  const dir = dirname(csvTarget.denoPath);
+  await ensureDir(dir);
+  await Deno.chmod(dir, 0o777);
+}
+
 export async function addDatasetHmisToProject(
   mainDb: Sql,
   projectDb: Sql,
   projectId: string,
+  csvTarget: DatasetCsvTarget,
   windowing: DatasetHmisWindowingCommon | undefined,
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
@@ -91,14 +130,7 @@ export async function addDatasetHmisToProject(
     const res = await removeDatasetFromProject(projectDb, projectId, "hmis");
     throwIfErrNoData(res);
 
-    const datasetDirPath = getDatasetDirPath(projectId);
-    await ensureDir(datasetDirPath);
-    await Deno.chmod(datasetDirPath, 0o777);
-
-    const datasetFilePathForPostgres = getDatasetFilePathForPostgres(
-      projectId,
-      "hmis"
-    );
+    await ensureDatasetCsvTargetDir(csvTarget);
 
     const startingWindowing: DatasetHmisWindowingCommon = windowing ?? {
       start: minPeriod,
@@ -157,7 +189,7 @@ export async function addDatasetHmisToProject(
     if (onProgress) await onProgress(0.5, "Exporting data to CSV...");
     // Use COPY with optimized settings for better performance
     await mainDb.unsafe(`
-COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, HEADER true, FREEZE false)
+COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true, FREEZE false)
 `);
     const indicators = await mainDb<DBIndicator[]>`
 SELECT i.* FROM indicators i
@@ -372,27 +404,11 @@ export async function removeDatasetFromProject(
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
-function getDatasetDirPath(projectId: string): string {
-  return join(_SANDBOX_DIR_PATH, projectId, "datasets");
-}
-
 export function getDatasetFilePath(
   projectId: string,
   datasetType: DatasetType
 ): string {
   return join(_SANDBOX_DIR_PATH, projectId, "datasets", `${datasetType}.csv`);
-}
-
-function getDatasetFilePathForPostgres(
-  projectId: string,
-  datasetType: DatasetType
-): string {
-  return join(
-    _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-    projectId,
-    "datasets",
-    `${datasetType}.csv`
-  );
 }
 
 async function getDatasetHmisExportStatement(

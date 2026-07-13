@@ -1,12 +1,6 @@
-import { ensureDir } from "@std/fs";
-import { join } from "@std/path";
 import { assertNotUndefined } from "@timroberton/panther";
 import { Sql } from "postgres";
 import { type HfaSentinelRow } from "../../server_only_funcs/get_script_with_parameters_hfa.ts";
-import {
-  _SANDBOX_DIR_PATH,
-  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-} from "../../exposed_env_vars.ts";
 import {
   APIResponseWithData,
   composeHfaIndicatorLabel,
@@ -39,12 +33,17 @@ import {
 } from "../instance/hfa_indicators.ts";
 import { getHfaIndicatorsVersion } from "../instance/instance.ts";
 import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
-import { removeDatasetFromProject } from "./datasets_in_project_hmis.ts";
+import {
+  ensureDatasetCsvTargetDir,
+  removeDatasetFromProject,
+  type DatasetCsvTarget,
+} from "./datasets_in_project_hmis.ts";
 
 export async function addDatasetHfaToProject(
   mainDb: Sql,
   projectDb: Sql,
   projectId: string,
+  csvTarget: DatasetCsvTarget,
   onProgress?: (progress: number, message: string) => Promise<void>,
   // Service-category ids to include. Empty = include all.
   serviceCategoryScope: string[] = [],
@@ -134,14 +133,7 @@ export async function addDatasetHfaToProject(
     const res = await removeDatasetFromProject(projectDb, projectId, "hfa");
     throwIfErrNoData(res);
 
-    const datasetDirPath = getDatasetDirPath(projectId);
-    await ensureDir(datasetDirPath);
-    await Deno.chmod(datasetDirPath, 0o777);
-
-    const datasetFilePathForPostgres = getDatasetFilePathForPostgres(
-      projectId,
-      "hfa",
-    );
+    await ensureDatasetCsvTargetDir(csvTarget);
 
     if (onProgress) await onProgress(0.5, "Exporting HFA data to CSV...");
 
@@ -174,7 +166,7 @@ ORDER BY h.facility_id, h.time_point, h.var_name, h.value`;
 
     // Use COPY with optimized settings for better performance
     await mainDb.unsafe(`
-COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, HEADER true, FREEZE false)
+COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true, FREEZE false)
 `);
 
     if (onProgress) await onProgress(0.8, "Updating project database...");
@@ -516,18 +508,3 @@ export async function getAllHfaIndicatorCodeFromSnapshot(
   }));
 }
 
-function getDatasetDirPath(projectId: string): string {
-  return join(_SANDBOX_DIR_PATH, projectId, "datasets");
-}
-
-function getDatasetFilePathForPostgres(
-  projectId: string,
-  datasetType: string,
-): string {
-  return join(
-    _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-    projectId,
-    "datasets",
-    `${datasetType}.csv`,
-  );
-}

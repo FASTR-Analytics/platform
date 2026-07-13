@@ -81,12 +81,13 @@ if (_ASSETS_DIR_PATH === undefined) {
   throw new Error("Could not get ASSETS_DIR_PATH env variable");
 }
 
-// Immutable results-run directories (PLAN_RESULTS_RUNS §2.1). The Deno
-// process reads/writes runs; the R container mounts a run's tmp dir during
-// wizard generation via the _EXTERNAL namespace (host path, SANDBOX pattern).
-// The _POSTGRES_INTERNAL namespace (direct COPY TO dataset extracts into the
-// run dir) arrives with work item 4 alongside the docker-compose volume
-// change — until then dataset extracts route through the sandbox dual-write.
+// Immutable results-run directories (PLAN_RESULTS_RUNS §2.1), with the same
+// three path namespaces as the sandbox (binding decision 4): the Deno
+// process reads/writes runs at _RUNS_DIR_PATH; the R container mounts a
+// run's tmp dir during wizard generation via _EXTERNAL (host path); the
+// Postgres container writes COPY TO dataset extracts directly into the run
+// tmp dir via _POSTGRES_INTERNAL (requires the runs volume mounted into the
+// Postgres container — pg_run in dev, the instance docker-compose in prod).
 export const _RUNS_DIR_PATH = Deno.env.get("RUNS_DIR_PATH")!;
 if (_RUNS_DIR_PATH === undefined) {
   throw new Error("Could not get RUNS_DIR_PATH env variable");
@@ -95,6 +96,15 @@ if (_RUNS_DIR_PATH === undefined) {
 export const _RUNS_DIR_PATH_EXTERNAL = Deno.env.get("RUNS_DIR_PATH_EXTERNAL")!;
 if (_RUNS_DIR_PATH_EXTERNAL === undefined) {
   throw new Error("Could not get RUNS_DIR_PATH_EXTERNAL env variable");
+}
+
+export const _RUNS_DIR_PATH_POSTGRES_INTERNAL = Deno.env.get(
+  "RUNS_DIR_PATH_POSTGRES_INTERNAL",
+)!;
+if (_RUNS_DIR_PATH_POSTGRES_INTERNAL === undefined) {
+  throw new Error(
+    "Could not get RUNS_DIR_PATH_POSTGRES_INTERNAL env variable",
+  );
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -247,8 +247,8 @@ for one session stops at a clean seam with gates green and records the
 stopping point inside the item — nowhere else. Items 1 and 2 span
 wb-fastr-modules (CLAUDE.md three-repo lockstep rule: commit that repo
 locally; the push stays deploy-gated — its local HEAD is `6ba142e`).
-Items 1–5b are DONE and item 6 is RETIRED (details inside each item);
-**the next item to execute is item 7**, then item 8.
+Items 1–5b and 7 are DONE and item 6 is RETIRED (details inside each
+item); **the next item to execute is item 8**, the last one.
 After items 3–5 the dev app exercises the full new UX end-to-end
 (generate → progress → repoint → all read surfaces from the run) and is
 reviewable in the browser; items 6–8 are export/deploy/hardening and
@@ -759,12 +759,59 @@ Work items, in order:
    When the hub matures, rebuild the export against run files: manifest
    for the catalog endpoints + `inputs/calculated_indicators_snapshot
    .json`; DuckDB-over-parquet COPY TEXT stream for rows.
-7. **Deploy machinery**: serve-before-backfill wiring (finding 3 — the
-   synthesizer becomes the deploy's backfill, serving starts first); ship
-   the rig + backfill runner in the image or document docker-exec
-   (finding 18); `RUNS_DIR_PATH` `_EXTERNAL`/`_POSTGRES_INTERNAL`
-   namespaces + docker-compose runs volume (finding 20, binding
-   decision 4); restores referencing a missing run degrade loudly (§5).
+7. **Deploy machinery — DONE 2026-07-13** (gates green: typecheck +
+   lint:systems + PARITY GREEN `--run`; live-verified on dev, see below).
+   The item as speced: serve-before-backfill wiring (finding 3); ship the
+   rig + backfill runner in the image (finding 18); the
+   `_POSTGRES_INTERNAL` runs namespace + volume (finding 20, binding
+   decision 4) with the item-4-deferred COPY TO re-target; missing-run
+   loud degrade (§5). Build notes:
+   - **COPY TO re-target**: the three attach functions
+     (`addDataset{Hmis,Hfa,Iceh}ToProject`) take a required
+     `DatasetCsvTarget {postgresPath, denoPath}` (the item-4 per-caller
+     pattern; type + `sandboxDatasetCsvTarget` +
+     `ensureDatasetCsvTargetDir` in `datasets_in_project_hmis.ts`).
+     `createProject` passes the sandbox pair (legacy plane, byte-identical
+     behavior); `prepare_inputs.ts` passes the run-tmp pair — Postgres now
+     COPY-writes each extract DIRECTLY into
+     `runs/.tmp-{runId}/inputs/datasets/` through the runs volume — then
+     mirrors the extract back into the sandbox (the mirror IS the data
+     dual-write; direction reversed, bytes identical, rollback R contract
+     `../datasets/` stays current). `prepareRunInputs` takes `runId`
+     (derives the tmp dir), the internal sandbox path helpers are absorbed.
+   - **Env/mounts**: `RUNS_DIR_PATH_POSTGRES_INTERNAL` added
+     (exposed_env_vars + `.env.example` + Dockerfile `ENV /app/runs`);
+     dev `pg_run` mounts `_example_instance_dir/runs:/app/runs`;
+     `.env.example`'s stale sandbox-internal path fixed to `/app/sandbox`.
+     **Fleet compose change (the one manual op per instance)**: the
+     Postgres container must mount the SAME host runs dir at `/app/runs`
+     (noted in the Dockerfile ENV comment).
+   - **Rollout gate shipped (finding 18)**: `backfill_runs.ts` +
+     `validate_results_runs_parity.ts` now COPY into the image.
+     **Deploy runbook (finding 3 — serve starts first by construction:
+     boot only sweeps `.tmp-` debris + marks interrupted runs, never
+     synthesizes)**: deploy image → boot serves, projects without runs
+     show the typed no-run state → `docker exec <server> deno run -A -c
+     deno.json backfill_runs.ts` (per-project isolation; re-runnable,
+     `--project <id>` for one) → `docker exec <server> deno run -A -c
+     deno.json validate_results_runs_parity.ts --run` → green → next
+     instance (Ethiopia early, per Deploy phasing).
+   - **Missing-run loud degrade (§5)**: verified (not newly built —
+     harness on dev, ghost runs row with no dir): `getRunReadContext` →
+     typed "Results run unavailable: Run {id} is not readable";
+     `getProjectDetail` degrades to empty catalog with authored content
+     reachable + loud `[runs] attached run … unreadable` log per touch;
+     PO listing serves user rows, loudly logged; no raw throws.
+   - **Live-verified on dev** (m001 on Test, full launch→worker harness):
+     tmp extract observed mid-run as a direct Postgres COPY product
+     (14.1 MB), sandbox mirror byte-identical, manifest inputFiles carry
+     csv+parquet extract pairs, real R execution (5 ROs, GOOD-CLOSE log),
+     dual-write freshened (ro_* counts + `modules.last_run_at`),
+     published and repointed. Verify run deleted, project re-backfilled,
+     rig re-run GREEN (214 checks; one pre-existing RED first — a
+     browser-driven wizard run had left HFA Test attached to an
+     m010-only package, legitimately narrower than the pg baseline —
+     resolved by re-backfilling that project, the standard dev remedy).
 8. **Pre-deploy review work items** (the subsection above): engine
    findings 11 (memory_limit + temp_directory) and 12 (pin group-by
    order); the rig-gate hardening set (5/6, 15/16/26, 27, 25); hygiene

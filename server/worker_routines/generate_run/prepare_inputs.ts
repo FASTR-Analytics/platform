@@ -10,24 +10,26 @@ import {
   addDatasetHfaToProject,
   addDatasetHmisToProject,
   addDatasetIcehToProject,
-  getDatasetFilePath,
+  ensureDatasetCsvTargetDir,
   removeDatasetFromProject,
+  sandboxDatasetCsvTarget,
+  type DatasetCsvTarget,
 } from "../../db/mod.ts";
-import { readCsvHeaders } from "../../runs/mod.ts";
+import { _RUNS_DIR_PATH_POSTGRES_INTERNAL } from "../../exposed_env_vars.ts";
+import { readCsvHeaders, runTmpDirPath } from "../../runs/mod.ts";
 import { writeParquetFromCsv } from "../../run_query/mod.ts";
 import { sha256HexOfFile } from "./input_key.ts";
 
-// Stage 1 of the run pipeline — prepare inputs (PLAN_RESULTS_RUNS item 2).
-// The dataset extracts are produced by the LEGACY attach functions (today's
-// COPY TO into the sandbox plus the project-DB mirror/snapshot rewrite):
-// that IS the dual-write rollback path for data — the previous image's
-// R contract (../datasets/), mirrors, and datasets rows all stay current —
-// and it refreshes the snapshots that script generation and the finalize
-// capture read. The run then gets its own copies at inputs/datasets/ with
-// explicit-schema parquet twins (§2.1), which the generated scripts read
-// (../../inputs/datasets/). Re-targeting the COPY TO to write into the run
-// directly needs the Postgres runs volume (work item 7, binding decision 4);
-// until then the sandbox is the byte-identical intermediate. A family
+// Stage 1 of the run pipeline — prepare inputs (PLAN_RESULTS_RUNS item 2;
+// COPY TO re-targeted by item 7, binding decision 4). The attach functions
+// COPY each dataset extract DIRECTLY into the run's inputs/datasets/ (the
+// Postgres container writes through the runs volume via the
+// _POSTGRES_INTERNAL namespace) and still perform the project-DB
+// mirror/snapshot rewrite. The extract is then mirrored back into the
+// sandbox — that copy IS the dual-write rollback path for data: the
+// previous image's R contract (../datasets/), mirrors, and datasets rows
+// all stay current. The run's extracts get explicit-schema parquet twins
+// (§2.1), and the generated scripts read ../../inputs/datasets/. A family
 // deselected in step 1 is detached from the project — legacy semantics, and
 // the finalize capture then correctly omits it from manifest.datasets.
 
@@ -44,10 +46,22 @@ export async function prepareRunInputs(
   projectDb: Sql,
   projectId: string,
   step1: RunGenerationStep1Result,
-  tmpDir: string,
+  runId: string,
 ): Promise<PreparedRunInputs> {
+  const tmpDir = runTmpDirPath(runId);
   await Deno.mkdir(join(tmpDir, "inputs", "datasets"), { recursive: true });
   await Deno.mkdir(join(tmpDir, "outputs"), { recursive: true });
+
+  const runCsvTarget = (datasetType: DatasetType): DatasetCsvTarget => ({
+    postgresPath: join(
+      _RUNS_DIR_PATH_POSTGRES_INTERNAL,
+      `.tmp-${runId}`,
+      "inputs",
+      "datasets",
+      `${datasetType}.csv`,
+    ),
+    denoPath: join(tmpDir, "inputs", "datasets", `${datasetType}.csv`),
+  });
 
   const attached = new Set(
     (
@@ -64,6 +78,7 @@ SELECT dataset_type FROM datasets
       mainDb,
       projectDb,
       projectId,
+      runCsvTarget("hmis"),
       step1.hmis.windowing,
     );
     throwIfErrWithData(res);
@@ -76,6 +91,7 @@ SELECT dataset_type FROM datasets
       mainDb,
       projectDb,
       projectId,
+      runCsvTarget("hfa"),
       undefined,
       step1.hfa.serviceCategoryScope,
     );
@@ -85,7 +101,12 @@ SELECT dataset_type FROM datasets
   }
   if (step1.iceh) {
     selectedFamilies.push("iceh");
-    const res = await addDatasetIcehToProject(mainDb, projectDb, projectId);
+    const res = await addDatasetIcehToProject(
+      mainDb,
+      projectDb,
+      projectId,
+      runCsvTarget("iceh"),
+    );
     throwIfErrWithData(res);
   } else if (attached.has("iceh")) {
     throwIfErrNoData(await removeDatasetFromProject(projectDb, projectId, "iceh"));
@@ -94,9 +115,13 @@ SELECT dataset_type FROM datasets
   const datasetExtractHashes = new Map<DatasetType, string>();
   const extraInputFiles: string[] = [];
   for (const datasetType of selectedFamilies) {
-    const sourcePath = getDatasetFilePath(projectId, datasetType);
-    const csvPath = join(tmpDir, "inputs", "datasets", `${datasetType}.csv`);
-    await Deno.copyFile(sourcePath, csvPath);
+    // The COPY TO wrote the extract at the run path; mirror it into the
+    // sandbox (the dual-write rollback path — the previous image's R
+    // contract reads sandbox/{projectId}/datasets/).
+    const csvPath = runCsvTarget(datasetType).denoPath;
+    const sandboxTarget = sandboxDatasetCsvTarget(projectId, datasetType);
+    await ensureDatasetCsvTargetDir(sandboxTarget);
+    await Deno.copyFile(csvPath, sandboxTarget.denoPath);
     const headers = await readCsvHeaders(csvPath);
     await writeParquetFromCsv({
       csvPath,

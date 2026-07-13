@@ -84,7 +84,7 @@ export async function runGenerationPipeline(
     projectDb,
     std.projectId,
     std.step1Result,
-    tmpDir,
+    std.runId,
   );
 
   const resolved = await resolveRunModules(
