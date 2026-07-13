@@ -174,6 +174,7 @@ export async function* runModuleIterator(
       moduleDetail.moduleDefinition,
       moduleDetail.configSelections,
       countryIso3,
+      "../datasets",
       knownDatasetVariables,
       hfaIndicatorsFromSnapshot,
       hfaIndicatorCodeFromSnapshot,

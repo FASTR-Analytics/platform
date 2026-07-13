@@ -27,11 +27,12 @@ import { sha256HexOfFile } from "./input_key.ts";
 // R contract (../datasets/), mirrors, and datasets rows all stay current —
 // and it refreshes the snapshots that script generation and the finalize
 // capture read. The run then gets its own copies at inputs/datasets/ with
-// explicit-schema parquet twins (§2.1). Work item 4 re-targets the COPY TO
-// to write into the run directly (with the Postgres runs volume); until
-// then the sandbox is the byte-identical intermediate. A family deselected
-// in step 1 is detached from the project — legacy semantics, and the
-// finalize capture then correctly omits it from manifest.datasets.
+// explicit-schema parquet twins (§2.1), which the generated scripts read
+// (../../inputs/datasets/). Re-targeting the COPY TO to write into the run
+// directly needs the Postgres runs volume (work item 7, binding decision 4);
+// until then the sandbox is the byte-identical intermediate. A family
+// deselected in step 1 is detached from the project — legacy semantics, and
+// the finalize capture then correctly omits it from manifest.datasets.
 
 export type PreparedRunInputs = {
   selectedFamilies: DatasetType[];

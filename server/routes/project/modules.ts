@@ -370,6 +370,7 @@ defineRoute(
       res.data.moduleDefinition,
       res.data.configSelections,
       resCountryIso3.data.countryIso3,
+      "../datasets",
       knownDatasetVariables,
       hfaIndicators,
       hfaIndicatorCode,

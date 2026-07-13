@@ -186,6 +186,7 @@ function generateScript(
     detail,
     configSelections,
     countryIso3,
+    "../../inputs/datasets",
     inputs.knownDatasetVariables,
     inputs.hfaIndicators,
     inputs.hfaIndicatorCode,

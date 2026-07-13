@@ -281,6 +281,7 @@ export function getScriptWithParametersHfa(
   moduleDefinition: ModuleDefinitionInstalled,
   configSelections: ModuleConfigSelections,
   countryIso3: string | undefined,
+  datasetsDirPath: string,
   indicators: HfaIndicator[],
   indicatorCode: HfaIndicatorCode[],
   knownDatasetVariables: Set<string>,
@@ -488,7 +489,7 @@ export function getScriptWithParametersHfa(
     if (ds.sourceType === "dataset") {
       str = str.replaceAll(
         ds.replacementString,
-        `'../datasets/${ds.datasetType}.csv'`,
+        `'${datasetsDirPath}/${ds.datasetType}.csv'`,
       );
     } else {
       str = str.replaceAll(

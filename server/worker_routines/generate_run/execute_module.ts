@@ -35,8 +35,8 @@ import type { ResolvedRunModule } from "./resolve_modules.ts";
 // outputs/{moduleId} dir (§2.1): the R container mounts the run tmp dir and
 // works there, so raw outputs are born inside the run and are never copied
 // from a serving location. Inter-module reads (../{upstreamId}/) resolve
-// because module dirs stay siblings; dataset reads follow once item 4
-// re-points the generated scripts to ../../inputs/datasets/.
+// because module dirs stay siblings; dataset reads resolve to the run's own
+// ../../inputs/datasets/ (generated scripts are pointed there per-caller).
 //
 // Reuse (§3.7): when the pipeline finds the module's inputKey in the base
 // run, reuseRunModule copies that run's raw output CSVs instead of running R
