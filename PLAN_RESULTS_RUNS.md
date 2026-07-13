@@ -549,8 +549,35 @@ Work items, in order:
      then re-backfilled, rig re-run GREEN. Test runs deleted.
 4. **Dataset export re-target**: `datasets_in_project_*.ts` → run
    `inputs/datasets/<type>.csv` + parquet twins; generated-script path
-   `../datasets/` → `../../inputs/datasets/` rides the same modules-repo
-   lockstep as item 1.
+   `../datasets/` → `../../inputs/datasets/`. Code seams for a fresh
+   session (verified 2026-07-13):
+   - **No modules-repo lockstep after all** (corrects this item's earlier
+     note and §2.1): the dataset path is injected app-side —
+     `get_script_with_parameters.ts:67-71` replaces the dataSource
+     replacementString with `'../datasets/<type>.csv'`; the modules repo
+     has zero `../datasets` references. The re-point is an app-side
+     change — BUT the legacy `run_module` path shares this injector and
+     its sandbox layout still needs `../datasets/` until item 5 kills it,
+     so the destination must be per-caller (legacy sandbox vs run
+     workspace), not a global swap.
+   - The script-text change flips every dataset-reading module's §3.7
+     inputKey once — one full re-run on the first post-item-4 generation,
+     expected and correct (fails closed).
+   - Today's interim (item 2's prepare): the LEGACY attach functions
+     COPY TO into `sandbox/{projectId}/datasets/`, then `prepare_inputs.ts`
+     file-copies the extract into the run's `inputs/datasets/` + builds
+     the parquet twin. Re-targeting the COPY TO itself to write INTO the
+     run tmp dir requires the runs dir volume-mounted into the Postgres
+     container (`RUNS_DIR_PATH_POSTGRES_INTERNAL` namespace, binding
+     decision 4 — dev `pg_run` mounts only the sandbox today; prod
+     docker-compose rides item 7). If that mount is deferred to item 7,
+     the sandbox-staged export + file-copy stays as the intermediate and
+     item 4 is just the script re-point; either way the sandbox extract
+     keeps being written (it is the dataset dual-write, model point 4).
+   - The item-3 live-verify harness symlinked `outputs/datasets →
+     ../inputs/datasets` inside the run to work around the un-re-pointed
+     scripts — item 4 makes that trick obsolete; nothing in the repo
+     depends on it.
 5. **Surface kills + client**: per-module rerun, dirty cascade,
    `setModulesDirtyForDataset`, staleness checkers, project Data tab
    attach, module-card install/params/update/rerun; module
@@ -733,9 +760,9 @@ entries, no separate query store):
                              queryable through the same DuckDB plane, and a
                              project-UI surface for querying it comes in
                              Phase 3. Generated-script reads re-point
-                             ../datasets/ → ../../inputs/datasets/ in the
-                             same modules-repo lockstep as the §6 asset fix
-                             (lands with the wizard deploy).
+                             ../datasets/ → ../../inputs/datasets/ at work
+                             item 4 (app-side injection, no modules-repo
+                             change — see item 4's seams).
     facilities_hmis.parquet, facilities_hfa.parquet   ← structure subset
     indicators.json, calculated_indicators.json,      ← dictionary/snapshot
     hfa_*.json, iceh_indicators.json                    content (today's 12
