@@ -1,12 +1,13 @@
 // =============================================================================
-// Collaborative editing — realtime presence protocol (WebSocket)
+// Collaborative editing — realtime protocol (WebSocket)
 // =============================================================================
 //
 // Transport: a per-project WebSocket at GET /project_collab/:project_id,
-// separate from the one-way server→client SSE channel. Milestone 1 carries
-// low-frequency presence only (who is in the deck, which slide they are on,
-// which block they have selected). Later milestones extend the same channel
-// with CRDT document ops.
+// separate from the one-way server→client SSE channel. It carries
+// low-frequency presence (who is where, idle/editing state) plus three
+// parallel CRDT document-sync families — slide_*, report_*, po_* — kept as
+// separate message sets so each family's wire format stays byte-stable
+// across deploys.
 
 /**
  * One peer's live presence within a project.
@@ -64,8 +65,7 @@ export type PresenceView = {
 /** Client → server messages. */
 export type CollabClientMessage =
   | { type: "presence_update"; data: PresenceView }
-  | { type: "heartbeat" }
-  // CRDT document sync (Milestone 2). `update`/`stateVector` are base64-encoded
+  // CRDT document sync. `update`/`stateVector` are base64-encoded
   // Yjs binary payloads (see bytesToBase64/base64ToBytes in lib/collab).
   | { type: "slide_subscribe"; data: { slideId: string; stateVector: string } }
   | { type: "slide_update"; data: { slideId: string; update: string } }
@@ -89,6 +89,8 @@ export type CollabClientMessage =
 export type CollabServerMessage =
   | { type: "hello"; data: { connectionId: string } }
   | { type: "presence_state"; data: { peers: PresenceEntry[] } }
+  // Connection-level rejection (e.g. over-sized frame) — the client logs it;
+  // per-document failures use the families' own *_error messages instead.
   | { type: "error"; data: { message: string } }
   // CRDT document sync (Milestone 2). `stateVector` is the server room's current
   // state vector, so the client can reply with any updates the server is missing

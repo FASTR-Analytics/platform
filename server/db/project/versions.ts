@@ -511,7 +511,9 @@ export async function remapCollidingSlideIds(
 }
 
 /** Deck restore, structural half: one transaction that deletes/re-inserts
- *  slide rows (original snapshot ids preserved), restores every slide's
+ *  slide rows (ids taken verbatim from the plan — colliding toInsert ids were
+ *  already replaced by remapCollidingSlideIds above, so only surviving
+ *  toUpdate slides are guaranteed their original ids), restores every slide's
  *  snapshot sort_order, and restores the deck's label + config. Configs of
  *  surviving (toUpdate) slides are NOT written here — the route applies them
  *  afterwards through the live-room chokepoint so co-editors follow the

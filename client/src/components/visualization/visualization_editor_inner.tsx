@@ -696,7 +696,6 @@ export function VisualizationEditorInner(p: InnerProps) {
   createEffect(() => {
     // These are the items that could potentially require a re-fetch
     // All other items should be accessed below in the createMemo on the child element
-    // ddddddddddddddddddddddddddddd
     for (const k in tempConfig.d) {
       //@ts-ignore
       const _v = tempConfig.d[k];
@@ -1093,20 +1092,11 @@ export function VisualizationEditorInner(p: InnerProps) {
     }
     const _PX = res.padding ? 100 : 0;
     const _PY = res.padding ? 100 : 0;
-    // const _PY = Math.round((_PX * canvas.height) / canvas.width);
     const newW = canvas.width + 2 * _PX;
     const newH = canvas.height + 2 * _PY;
-    if (replicateBy && res.allReplicants) {
-      // downloadMultiple(
-      //   _PX,
-      //   _PY,
-      //   canvas.width,
-      //   canvas.height,
-      //   res.transparent,
-      //   replicateBy,
-      // );
-      return;
-    }
+    // Multi-replicant export is parked: the download modal hardcodes
+    // allReplicants=false (download_presentation_object.tsx), so no branch
+    // exists here — reinstate both sides together if the feature returns.
     const backCanvas = new OffscreenCanvas(newW, newH);
     const backCanvasCtx = backCanvas.getContext("2d")!;
     if (!res.transparent) {
@@ -1467,7 +1457,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                                   }),
                                 };
                               }
-                              // ddddddddddddddddddddddddddddd
+                              // Reactive dependency read — re-render on type change.
                               const _type = tempConfig.d.type;
                               // Deep-track s and t so this render re-runs on ANY
                               // nested change — including a collaborator's edit

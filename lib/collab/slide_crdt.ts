@@ -1,5 +1,5 @@
 // =============================================================================
-// Slide CRDT model (Yjs) — Milestone 2
+// Slide CRDT model (Yjs)
 // =============================================================================
 //
 // A single slide is modelled as a Y.Doc so multiple users can edit it
@@ -9,12 +9,14 @@
 //
 //   root: Y.Map  ( doc.getMap("slide") )
 //     "type": "cover" | "section" | "content"
-//     cover / section : every scalar field as an LWW map entry
-//     content:
-//       scalar fields (header, subHeader, date, footer, showHeaderLogos,
-//         showFooterLogos) as LWW entries
-//       "split": opaque LWW object (small; never co-edited field-by-field)
-//       "layout": a node Y.Map (see below)
+//     TEXT fields are Y.Text (character-level co-editing, remote carets):
+//       cover  — title, subtitle, presenter, date
+//       section — sectionTitle, sectionSubtitle
+//       content — header, subHeader, date, footer
+//     remaining scalars (showHeaderLogos, showFooterLogos, cover/section
+//       non-text fields) as LWW entries
+//     "split": opaque LWW object (small; never co-edited field-by-field)
+//     "layout": a node Y.Map (content slides only; see below)
 //
 //   Layout node (recursive Y.Map):
 //     "id", "type" ("item" | "rows" | "cols"), optional "minH"/"maxH"/"span"
@@ -29,7 +31,10 @@
 //       text:   "markdown": Y.Text (true character-level co-editing);
 //               "blockStyle"? opaque
 //       image:  "imgFile": string; "blockStyle"? opaque
-//       figure: "bundle"? opaque LWW object (the FigureBundle snapshot)
+//       figure: decomposed — "figConfig" (co-editable Y.Map of the bundle's
+//               config; see the block at FIG_CONFIG_KEY below) + "figData"
+//               (opaque bundle remainder). Legacy docs used an opaque
+//               "bundle" key — honored on read, converted on next sync.
 //       "itemStyle"? opaque (layout-node style record); "alignV"?
 //     container nodes:
 //       "children": Y.Map ( childId -> child node Y.Map )

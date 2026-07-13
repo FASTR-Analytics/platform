@@ -9,6 +9,7 @@ import {
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { _BYPASS_AUTH } from "../../exposed_env_vars.ts";
+import { allowedOrigins } from "../../middleware/cors.ts";
 import { getGlobalUser, resolveProjectUserAccess } from "../../project_auth.ts";
 import {
   addConnection,
@@ -130,19 +131,55 @@ function scheduleVizListRebroadcast(projectId: string): void {
   );
 }
 
+// Reject any frame bigger than this without parsing it (abuse/corruption
+// guard). The largest legitimate client frames are reconnect push-backs of
+// figure-bundle updates — low single-digit MB of base64 — so 32 MiB leaves an
+// order of magnitude of headroom while bounding per-frame memory.
+const MAX_FRAME_CHARS = 32 * 1024 * 1024;
+
+// WS handshakes are not subject to CORS, and the socket authenticates via
+// ambient cookies — without this check any website could open an authenticated
+// collab socket in a visitor's browser. Same allowlist as the HTTP CORS
+// middleware, plus the same-origin case (production serves the SPA itself).
+// Requests WITHOUT an Origin header pass: non-browser clients don't carry
+// ambient browser credentials.
+function isAllowedWsOrigin(
+  origin: string,
+  host: string | undefined,
+): boolean {
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    return host !== undefined && new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Per-project collaboration WebSocket.
  *
- * Milestone 1: presence only. Auth/authorization mirrors the SSE endpoint
- * (project-sse-v2.ts) — we resolve the same project-access gate BEFORE the
- * upgrade so the socket can never become an unauthenticated channel. Presence
- * requires `can_view_slide_decks`; edit-level ops (later milestones) will
- * additionally require `can_configure_slide_decks` and re-authorize per op.
+ * Carries presence plus the three CRDT document families (slide_* /
+ * report_* / po_*). Auth mirrors the SSE endpoint (project-sse-v2.ts) and
+ * resolves BEFORE the upgrade so the socket can never become an
+ * unauthenticated channel: admission requires ANY of can_view_slide_decks /
+ * can_view_reports / can_view_visualizations; each message family re-checks
+ * its own view permission per message; and each family's RoomConn carries
+ * its own edit permission, enforced per update by the rooms. A LOCKED
+ * project admits viewers (presence + live read) but has every edit
+ * permission forced off for the connection's lifetime — re-evaluated on the
+ * next (re)connect, matching preventAccessToLockedProjects on the REST edit
+ * routes.
  */
 routesProjectCollab.get(
   "/project_collab/:project_id",
   async (c, next) => {
     const projectId = c.req.param("project_id");
+
+    const origin = c.req.header("origin");
+    if (origin && !isAllowedWsOrigin(origin, c.req.header("host"))) {
+      c.status(403);
+      return c.json({ success: false, err: "Origin not allowed" });
+    }
 
     const globalUser = await getGlobalUser(c);
     if (globalUser === "NOT_AUTHENTICATED") {
@@ -155,6 +192,7 @@ routesProjectCollab.get(
     }
 
     let projectUser: ProjectUser;
+    let projectLocked = false;
     if (_BYPASS_AUTH) {
       projectUser = createDevProjectUser();
     } else {
@@ -166,6 +204,7 @@ routesProjectCollab.get(
       try {
         const res = await resolveProjectUserAccess(globalUser, projectId, mainDb);
         projectUser = res.projectUser;
+        projectLocked = res.isLocked;
       } catch (error) {
         const message = error instanceof Error ? error.message : "";
         if (message === "SERVICE_UNAVAILABLE") {
@@ -201,16 +240,18 @@ routesProjectCollab.get(
 
     const name = `${globalUser.firstName} ${globalUser.lastName}`.trim() ||
       globalUser.email;
+    // Locked project = read-only over the WS too: presence and live views
+    // stay, every edit permission is off for this connection's lifetime.
     c.set("collabAuth", {
       email: globalUser.email,
       name,
       color: presenceColorForKey(globalUser.email),
       canViewSlides: projectUser.can_view_slide_decks,
-      canEditSlides: projectUser.can_configure_slide_decks,
+      canEditSlides: projectUser.can_configure_slide_decks && !projectLocked,
       canViewReports: projectUser.can_view_reports,
-      canEditReports: projectUser.can_configure_reports,
+      canEditReports: projectUser.can_configure_reports && !projectLocked,
       canViewViz: projectUser.can_view_visualizations,
-      canEditViz: projectUser.can_configure_visualizations,
+      canEditViz: projectUser.can_configure_visualizations && !projectLocked,
     });
     await next();
   },
@@ -218,8 +259,9 @@ routesProjectCollab.get(
     const projectId = c.req.param("project_id");
     const auth = c.get("collabAuth") as CollabAuth;
     const connectionId = crypto.randomUUID();
-    // Two conns sharing one connectionId: the room registry keys by
-    // connectionId, and each carries its own family's edit permission.
+    // Three RoomConns sharing one connectionId (slide / report / viz): the
+    // room registry keys by connectionId, and each conn carries its own
+    // family's edit permission.
     let roomConn: RoomConn | null = null;
     let reportRoomConn: RoomConn | null = null;
     let poRoomConn: RoomConn | null = null;
@@ -372,8 +414,19 @@ routesProjectCollab.get(
         ws.send(JSON.stringify(hello));
         broadcastPresence(projectId);
       },
-      onMessage: (evt) => {
+      onMessage: (evt, ws) => {
         if (typeof evt.data !== "string") return;
+        // Frame-size cap, checked before parsing: bounds per-frame memory
+        // against abuse (MAX_FRAME_CHARS doc above). The client logs the
+        // error message; nothing legitimate comes close to the limit.
+        if (evt.data.length > MAX_FRAME_CHARS) {
+          const err: CollabServerMessage = {
+            type: "error",
+            data: { message: "Frame too large" },
+          };
+          ws.send(JSON.stringify(err));
+          return;
+        }
         let msg: CollabClientMessage;
         try {
           msg = JSON.parse(evt.data);

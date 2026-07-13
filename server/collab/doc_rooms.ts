@@ -2,8 +2,8 @@
 // Collaborative document rooms (server-authoritative Yjs relay) — generic core
 // =============================================================================
 //
-// One room per co-edited document (slides, reports). The server holds the
-// authoritative Y.Doc and a set of connected clients. It:
+// One room per co-edited document (slides, reports, visualizations). The
+// server holds the authoritative Y.Doc and a set of connected clients. It:
 //   - seeds the doc from persisted content on first open (or restores the
 //     exact prior Yjs state so co-editing survives a server restart),
 //   - syncs each joining client (sends what they're missing + our state vector
@@ -16,9 +16,9 @@
 //
 // This module is document-type agnostic: everything type-specific (seed/
 // materialize, wire message shapes) comes in via a DocRoomAdapter, and DB
-// access is injected per subscription (DocRoomDeps) so the module stays pure
-// and testable. Thin wrappers (slide_rooms.ts, report_rooms.ts) bind the
-// adapters. The hardened behaviors here are load-bearing — preserve them when
+// access is injected per room (DocRoomDeps) so the module stays pure and
+// testable. Thin wrappers (slide_rooms.ts, report_rooms.ts, po_rooms.ts)
+// bind the adapters. The hardened behaviors here are load-bearing — preserve them when
 // editing: finalize re-checks for late subscribers, a failed checkpoint keeps
 // the room dirty for retry, and concurrent first-subscribes re-check the
 // registry after the async load.
@@ -151,7 +151,10 @@ async function checkpoint(room: Room): Promise<string | null> {
   return lastUpdated;
 }
 
-/** A client opens a document for (read-only or editing) collaboration. */
+/** A client opens a document for (read-only or editing) collaboration.
+ *  `deps` is used only when this call CREATES the room; for an already-live
+ *  room the argument is ignored — the creating subscriber's deps (and any
+ *  closures inside them) stay bound for the room's whole lifetime. */
 export async function subscribeDoc<T>(
   projectId: string,
   docId: string,
@@ -307,7 +310,7 @@ export function unsubscribeDoc(
 }
 
 /** A connection (WebSocket) closed — drop it from every room it was in
- *  (both document types; the registry is shared). */
+ *  (all document types; the registry is shared). */
 export function handleConnGone(connectionId: string): void {
   const keys = connRooms.get(connectionId);
   if (!keys) return;

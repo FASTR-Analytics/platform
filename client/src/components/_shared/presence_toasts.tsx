@@ -7,10 +7,11 @@ import { render } from "solid-js/web";
 // Presence toasts — "Alice joined this deck"
 // =============================================================================
 //
-// Small, transient, non-interactive pills (bottom-left) announcing when a
-// collaborator joins or leaves the document YOU are currently in (deck, report,
-// or visualization — from your own presence view). Driven by the presence
-// snapshots the collab WebSocket already broadcasts; no server changes.
+// Small, transient, non-interactive pills (top-right, below the header)
+// announcing when a collaborator joins or leaves the document YOU are
+// currently in (deck, report, or visualization — from your own presence
+// view). Driven by the presence snapshots the collab WebSocket already
+// broadcasts; no server changes.
 //
 // Honesty/noise rules:
 //   * People are keyed by EMAIL, not connection — a second tab is not a "join".

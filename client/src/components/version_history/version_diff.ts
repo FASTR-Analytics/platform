@@ -7,12 +7,14 @@ import { ChangeSet } from "@codemirror/state";
 //
 // Versions store WHO edited per session, not per character. To say who made a
 // specific change, we walk the version chain: steps[0] is the compared (base)
-// version, each following step is a newer version snapshot, and the last step
-// is the live document. Diffing each adjacent pair tells us which session
-// introduced which text; mapping those ranges forward through the later
-// steps' changes (CodeMirror ChangeSet position mapping) lands them in
-// current-document coordinates. Deletions are attributed by mapping the
-// deleted base-range forward until the step where it collapses to nothing.
+// version, each following step is a newer state — version snapshots, with the
+// live document last when the caller compares against it. Diffing each
+// adjacent pair tells us which step introduced which text; mapping those
+// ranges forward through the later steps' changes (CodeMirror ChangeSet
+// position mapping) lands them in final coordinates. EXACT deleter
+// attribution comes from aligning each transition against the newer step's
+// tombstone "ghost document" (see GHOST DOCUMENTS below); the forward-mapping
+// walk supplies the session-label fallback for spans the ledgers don't cover.
 //
 // Pure module (no Solid, no network) — harness-testable.
 

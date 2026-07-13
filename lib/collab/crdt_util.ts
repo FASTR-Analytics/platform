@@ -2,9 +2,10 @@
 // Shared CRDT utilities (Yjs) — used by both document bridges
 // =============================================================================
 //
-// Content-agnostic helpers shared by the slide and report Y.Doc bridges
-// (slide_crdt.ts / report_crdt.ts). Nothing in here knows about slides or
-// reports. Runs on both the Deno server and the Vite client.
+// Content-agnostic helpers shared by the CRDT bridges (slide_crdt.ts /
+// report_crdt.ts / figure_config_crdt.ts); the base64 helpers also serve the
+// WS transport on both ends. Nothing in here knows about slides or reports.
+// Runs on both the Deno server and the Vite client.
 
 import * as Y from "yjs";
 

@@ -46,8 +46,12 @@ import { isRoomOpen } from "./doc_rooms.ts";
 import {
   getReportBodyAuthors,
   getReportDetail,
+  REPORT_NOT_FOUND,
 } from "../db/project/reports.ts";
-import { getSlideDeckDetail } from "../db/project/slide_decks.ts";
+import {
+  getSlideDeckDetail,
+  SLIDE_DECK_NOT_FOUND,
+} from "../db/project/slide_decks.ts";
 import { getSlides } from "../db/project/slides.ts";
 import {
   insertDeckVersion,
@@ -102,8 +106,8 @@ export function hashVersionData(data: unknown): string {
 // discriminator is the not-found messages our own DB functions throw — the
 // classifier's fallback passes them through verbatim.
 const NOT_FOUND_ERRORS = new Set([
-  "Report not found",
-  "Slide deck not found",
+  REPORT_NOT_FOUND,
+  SLIDE_DECK_NOT_FOUND,
 ]);
 
 function throwUnlessNotFound(err: string): null {

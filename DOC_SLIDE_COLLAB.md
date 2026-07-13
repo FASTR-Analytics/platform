@@ -21,9 +21,14 @@ user-facing behavior.
 - Endpoint: `GET /project_collab/:project_id`, upgraded in
   [server/routes/project/project-collab.ts](server/routes/project/project-collab.ts)
   (registered in [main.ts](main.ts)). Auth mirrors the SSE endpoint and runs
-  **before** the upgrade: Clerk user → project access; presence requires
-  `can_view_slide_decks`; the connection is stamped `canEdit =
-  can_configure_slide_decks` and every edit op re-checks it.
+  **before** the upgrade: Clerk user → project access, plus an Origin
+  allowlist (shared with the CORS middleware) since WS handshakes bypass
+  CORS. Admission requires ANY of `can_view_slide_decks` /
+  `can_view_reports` / `can_view_visualizations`; each message family
+  re-checks its own view permission per message and carries its own edit
+  permission on its RoomConn. A LOCKED project admits viewers with every
+  edit permission forced off. Frames over 32 MiB are rejected unparsed
+  (`error` message back to the sender).
 - Client manager: [client/src/state/project/collab.ts](client/src/state/project/collab.ts).
   `ProjectSSEBoundary` ([t1_sse.tsx](client/src/state/project/t1_sse.tsx))
   calls `connectCollab(projectId)` on mount / `disconnectCollab()` on cleanup,
@@ -52,10 +57,12 @@ user-facing behavior.
   keeps `projectId → connectionId → PresenceEntry` where the entry is
   server-stamped identity (`email`, `name`, `color` via
   `presenceColorForKey(email)`) plus the client-controlled view fields
-  (`avatarUrl`, `deckId`, `slideId`, `selectedBlockId`, `selectedTextTarget`).
-  View fields are replaced **wholesale** on every `presence_update` so a
-  client clears them by omission; every change broadcasts the full peer list
-  to the whole project.
+  (`deckId`, `slideId`, `selectedBlockId`, `selectedTextTarget`, `reportId`,
+  `poId`, `editingFigureId`, `idle` — see `PresenceView` in
+  [lib/types/collab.ts](lib/types/collab.ts), the single source). View
+  fields are replaced **wholesale** on every `presence_update` so a client
+  clears them by omission; `avatarUrl` is the exception — sticky once
+  provided. Every change broadcasts the full peer list to the whole project.
 - Client: a Solid store mirrors `presence_state`; `otherPeers()` filters out
   self by connectionId. Consumers: deck thumbnails
   ([project_decks.tsx](client/src/components/project/project_decks.tsx)),
@@ -63,6 +70,9 @@ user-facing behavior.
   ([slide_list.tsx](client/src/components/slide_deck/slide_list.tsx),
   [slide_card.tsx](client/src/components/slide_deck/slide_card.tsx)) via
   [presence_avatars.tsx](client/src/components/slide_deck/presence_avatars.tsx),
+  report cards + viz cards (same avatar stack filtered on `reportId`/`poId`),
+  the join/leave toasts
+  ([presence_toasts.tsx](client/src/components/_shared/presence_toasts.tsx)),
   the in-editor peer overlay, and the AI busy-guard.
 - Semantics: `slideId` set ⇔ that user has the slide open in the editor
   (set on editor mount, cleared to deck-level on unmount).
@@ -135,7 +145,8 @@ user-facing behavior.
 
 The room mechanics are generic ([server/collab/doc_rooms.ts](server/collab/doc_rooms.ts),
 parameterized by a `DocRoomAdapter` + injected `DocRoomDeps`) and shared by two
-thin bindings: [slide_rooms.ts](server/collab/slide_rooms.ts) and
+thin bindings: [slide_rooms.ts](server/collab/slide_rooms.ts),
+[po_rooms.ts](server/collab/po_rooms.ts) and
 [report_rooms.ts](server/collab/report_rooms.ts) (see §13). One room per
 `(projectId, docType, docId)`; described here in slide terms:
 
@@ -229,8 +240,11 @@ directions ship only diffs; an in-sync exchange applies as a pure no-op.
 
 ## 8. Text editors — CodeMirror + yCollab
 
-- [collab_markdown_editor.tsx](client/src/components/slide_deck/slide_editor/collab_markdown_editor.tsx):
-  CodeMirror 6 + `yCollab(yText, awareness)` (y-codemirror.next). Renders
+- [_shared/collab_markdown_editor.tsx](client/src/components/_shared/collab_markdown_editor.tsx)
+  (the slide_editor file of the same name is a thin wrapper injecting the
+  slide-deck permission; the viz editor reuses the shared component for
+  caption fields): CodeMirror 6 + `yCollab(yText, awareness)`
+  (y-codemirror.next). Renders
   remote carets (colored bar, hover name tag) and selections (translucent
   `colorLight = color + "33"`); Yjs relative positions keep every caret
   stable through concurrent edits. `yUndoManagerKeymap` scopes undo to local
@@ -324,8 +338,14 @@ simpler document model:
 - **Protocol**: a parallel `report_*` message family (subscribe/update/
   unsubscribe/awareness both ways) so the slide messages stay byte-identical
   across deploys. Presence gains `reportId` (set ⇔ report open in the editor;
-  drives the report-card avatars).
-- **Permissions**: the WS admits `can_view_slide_decks OR can_view_reports`;
+  drives the report-card avatars). VISUALIZATIONS follow the same recipe as a
+  third family (`po_*`, [po_rooms.ts](server/collab/po_rooms.ts)): the doc
+  holds one co-editable config Y.Map (the figure_config_crdt bridge — scalars
+  LWW, captions as Y.Text), persistence in
+  `presentation_objects.crdt_state`, per-user undo via a local origin, no
+  version history; presence gains `poId`/`editingFigureId` and DOC_VIZ_COLLAB
+  covers the editor-side details.
+- **Permissions**: the WS admits any of the three view permissions (see §1);
   each message family re-checks its own view permission and carries its own
   edit permission (`can_configure_reports` for report ops); the editor is
   read-only client-side without it.
@@ -367,5 +387,3 @@ session semantics, restore sequencing and the room-discard rules live in
   show whenever both users are on the same slide.
 - An empty optional title field has no rendered rect, so its peer border
   appears only once text exists.
-- `[VIZSYNC]`-prefixed console logging is temporary diagnostics for the
-  viz-sync investigation and should be stripped once that is confirmed fixed.

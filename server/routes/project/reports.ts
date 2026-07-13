@@ -28,7 +28,6 @@ import { compactTombstones } from "../../collab/authorship.ts";
 import {
   drainVersionEditors,
   editorFromGlobalUser,
-  hashVersionData,
   loadReportVersionData,
   recordVersionEdit,
   reportContentHash,
@@ -560,14 +559,10 @@ defineRoute(
 
     // The restore itself appears in history (content restored successfully at
     // this point, so a failed history insert must not fail the request). Uses
-    // the schema-normalized content so the hash matches what a later capture
-    // computes from the DB.
-    const restoredData = {
-      label: version.label,
-      body: version.body,
-      figures,
-      images,
-    };
+    // the schema-normalized content, hashed through reportContentHash — the
+    // ONE definition of the report hash field set — so it matches what a
+    // later capture computes from the DB (a divergent hash here would break
+    // the dedup chain and duplicate versions).
     const restoredRes = await insertReportVersion(projectDb, {
       reportId: params.report_id,
       createdAt: new Date().toISOString(),
@@ -576,7 +571,13 @@ defineRoute(
       figures,
       images,
       editors: [restorer],
-      contentHash: hashVersionData(restoredData),
+      contentHash: reportContentHash({
+        label: version.label,
+        body: version.body,
+        figures,
+        images,
+        bodyAuthors: version.bodyAuthors,
+      }),
       restoredFromVersionId: version.id,
       // The restored text keeps the authorship it had in the source version.
       bodyAuthors: version.bodyAuthors,

@@ -38,6 +38,13 @@ const ledgers = new Map<string, DeckLedger>();
 // classified buckets so deletions attribute exactly (deck-side tombstones):
 // everyone who touched it, plus who added/removed it and who deleted text
 // inside it.
+//
+// INVARIANT: drainDeckLedger only pulls (and clears) element touches for
+// slides present in the deck ledger's `slides` map. That is safe because
+// every attributed element touch is paired with a recordSlideEdited — the
+// slide-room deps' onEdit (project-collab.ts depsForSlide) fires it for
+// every attributed room edit, the same edits the observer records. An
+// element touch without that pairing would never drain and never clear.
 type ElementTouch = {
   touched: Set<string>;
   added?: Set<string>;

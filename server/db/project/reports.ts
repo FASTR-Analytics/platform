@@ -20,6 +20,12 @@ import { DBReport } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { generateUniqueReportId } from "../../utils/id_generation.ts";
 
+/** LOAD-BEARING message: version capture (NOT_FOUND_ERRORS in
+ *  server/collab/version_capture.ts) matches it EXACTLY to tell "row is gone
+ *  → drop the editing session" from "transient error → retry". Reword only
+ *  in lockstep with that set. */
+export const REPORT_NOT_FOUND = "Report not found";
+
 function parseReportConfig(report: Pick<DBReport, "config">): ReportConfig {
   if (report.config) {
     return parseJsonOrThrow(report.config) as ReportConfig;
@@ -70,7 +76,7 @@ export async function getReportDetail(
     ).at(0);
 
     if (!report) {
-      throw new Error("Report not found");
+      throw new Error(REPORT_NOT_FOUND);
     }
 
     return {
@@ -147,7 +153,7 @@ export async function updateReportBody(
     ).at(0);
 
     if (!existing) {
-      throw new Error("Report not found");
+      throw new Error(REPORT_NOT_FOUND);
     }
 
     const conflicted = !!expectedLastUpdated &&
@@ -256,7 +262,7 @@ export async function saveReportCheckpoint(
       RETURNING id
     `;
     if (rows.length === 0) {
-      throw new Error("Report not found");
+      throw new Error(REPORT_NOT_FOUND);
     }
     return { success: true, data: { lastUpdated } };
   });
@@ -283,7 +289,7 @@ export async function getReportBodyAuthors(
       `
     ).at(0);
     if (!row) {
-      throw new Error("Report not found");
+      throw new Error(REPORT_NOT_FOUND);
     }
     const isCurrent = row.body_authors !== null &&
       row.crdt_state_last_updated === row.last_updated;
@@ -343,7 +349,7 @@ export async function duplicateReport(
       `
     ).at(0);
     if (!report) {
-      throw new Error("Report not found");
+      throw new Error(REPORT_NOT_FOUND);
     }
 
     const newReportId = await generateUniqueReportId(projectDb);

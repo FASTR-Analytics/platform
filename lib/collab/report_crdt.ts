@@ -6,11 +6,14 @@
 // This module is the bridge between the stored report columns and the Yjs
 // document; it is shared by client (editor) and server (relay + persistence),
 // so it lives in `lib/`. Far simpler than the slide model — a report is one
-// flat markdown string plus two flat registries:
+// flat markdown string plus two registries:
 //
 //   doc.getText("body")    — the whole document markdown (character co-editing;
 //                            the editor binds CodeMirror to it via yCollab)
-//   doc.getMap("figures")  — figureId -> FigureBlock (opaque LWW entries)
+//   doc.getMap("figures")  — figureId -> DECOMPOSED entry Y.Map: "figConfig"
+//                            (co-editable Y.Map of the bundle config) +
+//                            "figData" (opaque remainder). Legacy plain-object
+//                            entries are honored on read, converted on sync.
 //   doc.getMap("images")   — imageId  -> ImageBlock  (opaque LWW entries)
 //
 // `label` and `config` are deliberately NOT in the doc: they are edited via

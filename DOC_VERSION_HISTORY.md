@@ -221,7 +221,7 @@ preferring live `projectState.projectUsers` over the stored capture-time name,
   (additions highlighted, removals struck through) where hovering a change
   names who made it. Attribution is per editing session: the
   `getReportVersionLineage` route returns the compared version plus every
-  newer version (bodies + editors only, no figure payloads), and
+  newer version (bodies + editors + per-character `bodyAuthors`; no figure payloads), and
   `version_diff.ts` diffs adjacent steps, mapping each step's changes forward
   through CodeMirror `ChangeSet`s into current-document coordinates —
   insertions carry the session that wrote them (later sessions editing inside

@@ -33,10 +33,12 @@ import {
 } from "~/components/_shared/presence_toasts";
 import { notifyCollabConnection } from "~/components/_shared/connection_banner";
 
-// Client manager for the per-project collaboration WebSocket (Milestone 1:
-// presence). Mirrors the SSE manager (t1_sse.tsx): a single module-level
-// connection, exponential-backoff reconnect, and a reactive store consumers
-// read from. The `peers` list includes self; UI filters by `connectionId`.
+// Client manager for the per-project collaboration WebSocket: presence,
+// idle detection, and the three CRDT session families (slide / report /
+// visualization) with reconnect catch-up. Mirrors the SSE manager
+// (t1_sse.tsx): a single module-level connection, exponential-backoff
+// reconnect that never gives up, and a reactive store consumers read from.
+// The `peers` list includes self; UI filters by `connectionId`.
 
 type CollabState = {
   connectionId: string | null;
@@ -745,6 +747,11 @@ function openSocket(projectId: string): void {
     }
     if (msg.type === "hello") {
       setCollabStore("connectionId", msg.data.connectionId);
+    } else if (msg.type === "error") {
+      // Connection-level rejection (e.g. an over-sized frame). The doc
+      // families carry their own *_error messages; this one is just logged —
+      // the affected update is dropped and normal sync continues.
+      console.warn("Collab server error:", msg.data.message);
     } else if (msg.type === "presence_state") {
       setCollabStore("peers", msg.data.peers);
       // Our identity (name/color) may have just arrived — stamp it on any open

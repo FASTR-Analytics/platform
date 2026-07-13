@@ -146,8 +146,9 @@ export function ProjectReport(p: Props) {
   const [selectedEmbed, setSelectedEmbed] = createSignal<
     EmbedSelection | undefined
   >();
-  // Edit (CodeMirror) vs View (read-only HTML preview). AI is mode-agnostic:
-  // the editor stays mounted in both modes (PLAN_REPORT_PREVIEW_TOGGLE.md §2).
+  // Three modes — edit (CodeMirror only), split (editor + preview, the
+  // default), view (read-only HTML preview only). AI is mode-agnostic: the
+  // editor stays mounted in every mode.
   const [mode, setMode] = createSignal<ReportMode>("split");
   // Live collab (Yjs). collabReady LATCHES at the first report_sync: from then
   // on the room's checkpoints own persistence and the REST autosave is off for
@@ -165,8 +166,8 @@ export function ProjectReport(p: Props) {
   let loadedSnapshot: ReportDocContent | undefined;
   let removeLastUpdatedListener: (() => void) | undefined;
 
-  // The figure-editor sidebar only exists in Edit, so clear the selection in
-  // View/Split. The CM editor is visible in Edit & Split — re-measure it when it
+  // The figure-editor sidebar collapses in View, so clear the embed selection
+  // when entering View. The CM editor is visible in Edit & Split — re-measure it when it
   // (re)appears (e.g. coming back from View where it was hidden). Also align the
   // newly revealed pane to targetLine (§8 scroll-sync): when the editor reappears
   // after View, scroll it to targetLine; when the preview mounts after Edit,

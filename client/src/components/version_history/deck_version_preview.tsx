@@ -67,9 +67,10 @@ type ElementRow = {
   removedLabel?: string;
   removedExact?: boolean;
   removedEmail?: string;
-  /** Per-character authorship of newText (runs incl. tombstones) — when
-   *  present the diff attributes EVERY span exactly, even with several
-   *  deleters in the same element. */
+  /** Per-character authorship of newText (runs incl. tombstones). Where the
+   *  ledger covers a span the diff attributes it exactly (even with several
+   *  deleters in one element); gaps, null-author runs and misaligned ledgers
+   *  fall back to the labels above. */
   authors?: AuthorRun[];
   authorNames?: Record<string, string>;
 };
