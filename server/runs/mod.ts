@@ -1,4 +1,9 @@
-export { synthesizeRunForProject } from "./synthesize_run.ts";
+export {
+  buildRunPackageIntoTmp,
+  readCsvHeaders,
+  synthesizeRunForProject,
+  type RunBuildOptions,
+} from "./synthesize_run.ts";
 export { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 export { exportPgTableToParquet, type ExportedColumn } from "./pg_export.ts";
 export {

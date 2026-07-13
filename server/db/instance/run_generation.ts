@@ -3,11 +3,14 @@ import {
   MODULE_REGISTRY,
   runGenerationStep1ResultSchema,
   runGenerationStep2ResultSchema,
+  runProgressSchema,
   type APIResponseNoData,
   type APIResponseWithData,
   type RunGenerationAttemptDetail,
   type RunGenerationStep1Result,
   type RunGenerationStep2Result,
+  type RunProgress,
+  type RunSummary,
 } from "lib";
 import type { DBRunGenerationAttempt } from "./_main_database_types.ts";
 
@@ -18,6 +21,12 @@ import type { DBRunGenerationAttempt } from "./_main_database_types.ts";
 // catalog row — so there is no claim machinery here; each config-step write
 // advances step and nulls downstream results, and the row is deleted at
 // launch (and by discard).
+//
+// The second half of this file is the runs-catalog execution state the
+// pipeline writes: the 'generating' row minted at launch, worker progress
+// updates, the ready-publish transaction (status flip + projects.run_id
+// repoint), and failure marking. These are worker/host internals, so they
+// throw instead of returning APIResponse envelopes.
 
 const CONFIGURING_STATUS = JSON.stringify({ status: "configuring" });
 
@@ -197,5 +206,133 @@ DELETE FROM run_generation_attempts WHERE source_project_id = ${projectId}
       err: "Problem discarding results-package configuration: " +
         (e instanceof Error ? e.message : ""),
     };
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Runs-catalog execution state (the pipeline's writes)
+///////////////////////////////////////////////////////////////////////////////
+
+export async function createGeneratingRun(
+  mainDb: Sql,
+  args: {
+    runId: string;
+    label: string;
+    createdBy: string;
+    summary: RunSummary;
+    progress: RunProgress;
+  },
+): Promise<void> {
+  await mainDb`
+INSERT INTO runs (id, label, status, provenance, created_by, summary, progress)
+VALUES (
+  ${args.runId}, ${args.label}, 'generating', 'wizard', ${args.createdBy},
+  ${JSON.stringify(args.summary)}, ${JSON.stringify(args.progress)}
+)
+`;
+}
+
+// The one-generating-run-per-project guard's DB half (the in-memory registry
+// is the synchronous half). sourceProjectId lives in the summary JSON — the
+// catalog deliberately has no source_project_id column.
+export async function getGeneratingRunIdForProject(
+  mainDb: Sql,
+  projectId: string,
+): Promise<string | undefined> {
+  const rows = await mainDb<{ id: string }[]>`
+SELECT id FROM runs
+WHERE status = 'generating' AND summary::jsonb ->> 'sourceProjectId' = ${projectId}
+`;
+  return rows.at(0)?.id;
+}
+
+export async function updateRunProgress(
+  mainDb: Sql,
+  runId: string,
+  progress: RunProgress,
+): Promise<void> {
+  await mainDb`
+UPDATE runs SET progress = ${JSON.stringify(progress)} WHERE id = ${runId}
+`;
+}
+
+// Ready-publish: exactly one transaction after the atomic rename — status
+// flip, final summary/progress, and the projects.run_id repoint together, so
+// readers can never observe a ready run without the pointer (or vice versa).
+export async function publishReadyRun(
+  mainDb: Sql,
+  args: {
+    runId: string;
+    projectId: string;
+    summary: RunSummary;
+    progress: RunProgress;
+  },
+): Promise<void> {
+  await mainDb.begin(async (sql) => {
+    await sql`
+UPDATE runs SET
+  status = 'ready',
+  summary = ${JSON.stringify(args.summary)},
+  progress = ${JSON.stringify(args.progress)}
+WHERE id = ${args.runId}
+`;
+    await sql`
+UPDATE projects SET run_id = ${args.runId} WHERE id = ${args.projectId}
+`;
+  });
+}
+
+// Marks a generation failed, stamping errorDetail (and the current module's
+// error status) into the stored progress. Returns the updated progress for
+// the SSE push; null when the run row is gone.
+export async function markRunGenerationFailed(
+  mainDb: Sql,
+  runId: string,
+  errorDetail: string,
+): Promise<RunProgress | null> {
+  const rows = await mainDb<{ progress: string | null }[]>`
+SELECT progress FROM runs WHERE id = ${runId}
+`;
+  const raw = rows.at(0);
+  if (raw === undefined) {
+    return null;
+  }
+  const parsed = raw.progress === null
+    ? undefined
+    : runProgressSchema.safeParse(JSON.parse(raw.progress));
+  const progress: RunProgress = parsed?.success
+    ? parsed.data
+    : {
+      moduleOrder: [],
+      moduleStatus: {},
+      currentModuleId: null,
+      errorDetail: null,
+    };
+  if (progress.currentModuleId !== null) {
+    progress.moduleStatus[progress.currentModuleId] = "error";
+  }
+  progress.errorDetail = errorDetail;
+  await mainDb`
+UPDATE runs SET status = 'failed', progress = ${JSON.stringify(progress)}
+WHERE id = ${runId}
+`;
+  return progress;
+}
+
+// Boot recovery: a 'generating' row at startup belongs to a worker that died
+// with the previous process — no .tmp dir survives the boot sweep, so the
+// row is dead. Mark it failed so the catalog never shows a phantom
+// generation.
+export async function markInterruptedGeneratingRuns(mainDb: Sql): Promise<void> {
+  const rows = await mainDb<{ id: string }[]>`
+SELECT id FROM runs WHERE status = 'generating'
+`;
+  for (const row of rows) {
+    console.log(`[runs] marking interrupted generation as failed: ${row.id}`);
+    await markRunGenerationFailed(
+      mainDb,
+      row.id,
+      "Generation was interrupted by a server restart",
+    );
   }
 }

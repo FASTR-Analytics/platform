@@ -381,8 +381,9 @@ async function checkFileExists(filePath: string): Promise<boolean> {
 // skip means the script falls back to nothing or stale data (PLAN_RESULTS_RUNS
 // §6.1). Missing/unreadable assets fail the module run. Pinned repo assets
 // come from the content-addressed cache (warmed at definition resolution;
-// fetched here on a cache miss).
-async function importAsset(
+// fetched here on a cache miss). Also used by the wizard pipeline
+// (worker_routines/generate_run/) to stage assets into a run workspace.
+export async function importAsset(
   asset: AssetToImport,
   dirPath: string,
   moduleId: string,

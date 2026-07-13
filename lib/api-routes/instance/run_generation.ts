@@ -42,4 +42,15 @@ export const runGenerationRouteRegistry = {
     method: "DELETE",
     params: projectIdParamsSchema,
   }),
+  // Launch: consumes the configuring attempt (deleted here), mints the runs
+  // catalog row (status 'generating') and spawns the generate_run worker.
+  // The run owns its whole lifecycle from this point — progress arrives over
+  // project SSE (run_progress / run_attached), never on the attempt.
+  launchRunGeneration: route({
+    path: "/run_generation/:project_id/launch",
+    method: "POST",
+    params: projectIdParamsSchema,
+    body: z.object({ label: z.string().min(1).max(200) }),
+    response: {} as { runId: string },
+  }),
 } as const;

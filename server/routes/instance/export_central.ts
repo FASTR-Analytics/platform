@@ -105,7 +105,7 @@ routesExportCentral.get(
     const metricLabelMap = new Map<string, { label: string; variantLabel: string | null }>();
     await Promise.all(moduleRows.map(async (m) => {
       try {
-        const defResult = await getModuleDefinitionDetail(m.id as ModuleId, "en");
+        const defResult = await getModuleDefinitionDetail(m.id as ModuleId, "en", undefined);
         if (defResult.success) {
           for (const metric of defResult.data.metrics) {
             metricLabelMap.set(metric.id, { label: metric.label, variantLabel: metric.variantLabel ?? null });

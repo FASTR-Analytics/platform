@@ -10,6 +10,7 @@ import type {
   ProjectUser,
   ReportFolder,
   ReportSummary,
+  RunProgress,
   SlideDeckFolder,
   SlideDeckSummary,
   VisualizationFolder,
@@ -186,5 +187,28 @@ export function notifyProjectRScript(
   notifyProjectV2(projectId, {
     type: "r_script",
     data: { moduleId, text },
+  });
+}
+
+export function notifyProjectRunProgress(
+  projectId: string,
+  runId: string,
+  progress: RunProgress,
+): void {
+  notifyProjectV2(projectId, {
+    type: "run_progress",
+    data: { runId, progress },
+  });
+}
+
+export function notifyProjectRunAttached(
+  projectId: string,
+  attachedRunId: string,
+  projectModules: InstalledModuleSummary[],
+  metrics: MetricWithStatus[],
+): void {
+  notifyProjectV2(projectId, {
+    type: "run_attached",
+    data: { attachedRunId, projectModules, metrics },
   });
 }

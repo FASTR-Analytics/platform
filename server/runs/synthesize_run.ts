@@ -14,6 +14,7 @@ import {
   type RunMetric,
   type RunMetricAvailability,
   type RunModule,
+  type RunProvenance,
   type RunResultsObject,
   type RunSummary,
 } from "lib";
@@ -44,15 +45,20 @@ import {
   runTmpDirPath,
 } from "./run_paths.ts";
 
-// The backfill synthesizer (PLAN_RESULTS_RUNS Status, model point 5): mints a
-// runId and builds an immutable runs/{runId} from the project's current
-// sandbox CSVs + project-DB catalog + captured instance config. Copy, not
-// move — sandbox and Postgres are untouched, so the migration is additive and
-// the previous image still functions. Everything is built inside
-// runs/.tmp-{runId} and atomically renamed at the end; the catalog row +
-// projects.run_id repoint land in one transaction after the rename, so a
-// crash mid-synthesis can never be observed by readers. Synthesized runs
-// carry no memoization fields and are never reuse sources.
+// The run-package builder, shared by its two writers (PLAN_RESULTS_RUNS
+// §3.8): the backfill synthesizer here, and the wizard pipeline's finalize
+// (server/worker_routines/generate_run/), which calls buildRunPackageIntoTmp
+// with the run's own outputs as the CSV source. The builder captures inputs
+// (mirror JSONs, facilities parquet, declared assets), builds each results
+// object's normalized query parquet, stamps metric availability, and writes
+// the manifest — all inside runs/.tmp-{runId}; the caller owns the atomic
+// rename and the catalog-row/pointer transaction.
+//
+// The synthesizer (Status, model point 5) mints a runId and builds from the
+// project's current sandbox CSVs + project-DB catalog + captured instance
+// config. Copy, not move — sandbox and Postgres are untouched, so the
+// migration is additive and the previous image still functions. Synthesized
+// runs carry no memoization fields and are never reuse sources.
 
 // getIndicatorMetadata's read surface, exported verbatim as inputs/<table>.json.
 const INPUT_MIRROR_TABLES = [
@@ -67,6 +73,26 @@ const INPUT_MIRROR_TABLES = [
 
 const INPUT_FACILITIES_TABLES = ["facilities_hmis", "facilities_hfa"];
 
+export type RunBuildOptions = {
+  label: string;
+  provenance: RunProvenance;
+  // Restrict the captured catalog to these modules (the wizard's selection);
+  // null = every module in the project DB (synthesis).
+  moduleIds: string[] | null;
+  // §3.7 memoization fields per module — computed only by real wizard
+  // generation; synthesized runs carry null and are never reuse sources.
+  moduleMemo: Map<
+    string,
+    { inputKey: string; outputFileHashes: Record<string, string> }
+  > | null;
+  // Directory holding a module's raw {roId} CSVs: the project sandbox for
+  // synthesis, the run's own outputs/{moduleId} for the wizard finalize.
+  moduleCsvDir: (moduleId: string) => string;
+  // Relative paths (from the run dir root) of input files the caller already
+  // placed in the tmp dir (the wizard's inputs/datasets extracts + twins).
+  extraInputFiles: string[];
+};
+
 export async function synthesizeRunForProject(
   mainDb: Sql,
   projectDb: Sql,
@@ -75,23 +101,52 @@ export async function synthesizeRunForProject(
 ): Promise<{ runId: string }> {
   const runId = crypto.randomUUID();
   const tmpDir = runTmpDirPath(runId);
+  const t0 = performance.now();
   try {
-    return await buildRun(mainDb, projectDb, projectId, projectLabel, runId, tmpDir);
+    const { summary } = await buildRunPackageIntoTmp(
+      mainDb,
+      projectDb,
+      projectId,
+      runId,
+      tmpDir,
+      {
+        label: projectLabel,
+        provenance: "synthetic-backfill",
+        moduleIds: null,
+        moduleMemo: null,
+        moduleCsvDir: (moduleId) => join(_SANDBOX_DIR_PATH, projectId, moduleId),
+        extraInputFiles: [],
+      },
+    );
+    // Atomic publish: rename, then catalog row + pointer in one transaction.
+    await Deno.rename(tmpDir, runDirPath(runId));
+    await mainDb.begin(async (sql) => {
+      await sql`
+INSERT INTO runs (id, label, status, provenance, created_by, summary)
+VALUES (${runId}, ${projectLabel}, 'ready', 'synthetic-backfill', NULL, ${JSON.stringify(summary)})
+`;
+      await sql`UPDATE projects SET run_id = ${runId} WHERE id = ${projectId}`;
+    });
+    console.log(
+      `[runs] synthesized run ${runId} for project ${projectId} in ${
+        (performance.now() - t0).toFixed(0)
+      }ms`,
+    );
+    return { runId };
   } catch (e) {
     await Deno.remove(tmpDir, { recursive: true }).catch(() => {});
     throw e;
   }
 }
 
-async function buildRun(
+export async function buildRunPackageIntoTmp(
   mainDb: Sql,
   projectDb: Sql,
   projectId: string,
-  projectLabel: string,
   runId: string,
   tmpDir: string,
-): Promise<{ runId: string }> {
-  const t0 = performance.now();
+  opts: RunBuildOptions,
+): Promise<{ manifest: RunManifest; summary: RunSummary }> {
   const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
   if (resFacilityConfig.success === false) {
     throw new Error(`facility config: ${resFacilityConfig.err}`);
@@ -113,17 +168,31 @@ async function buildRun(
       last_run_git_ref: string | null;
     }[]
   >`
-SELECT id, module_definition, config_selections, last_run_at, last_run_git_ref FROM modules
+SELECT id, module_definition, config_selections, last_run_at, last_run_git_ref
+FROM modules
+${opts.moduleIds === null ? projectDb`` : projectDb`WHERE id = ANY(${opts.moduleIds})`}
 `;
-  const runModules: RunModule[] = modules.map((m) => ({
-    id: m.id,
-    moduleDefinition: m.module_definition,
-    configSelections: m.config_selections,
-    lastRunAt: m.last_run_at,
-    lastRunGitRef: m.last_run_git_ref,
-    inputKey: null,
-    outputFileHashes: null,
-  }));
+  if (opts.moduleIds !== null) {
+    const present = new Set(modules.map((m) => m.id));
+    const missing = opts.moduleIds.filter((id) => !present.has(id));
+    if (missing.length > 0) {
+      throw new Error(
+        `run modules missing from project catalog: ${missing.join(", ")}`,
+      );
+    }
+  }
+  const runModules: RunModule[] = modules.map((m) => {
+    const memo = opts.moduleMemo?.get(m.id);
+    return {
+      id: m.id,
+      moduleDefinition: m.module_definition,
+      configSelections: m.config_selections,
+      lastRunAt: m.last_run_at,
+      lastRunGitRef: m.last_run_git_ref,
+      inputKey: memo?.inputKey ?? null,
+      outputFileHashes: memo?.outputFileHashes ?? null,
+    };
+  });
 
   const metrics = await projectDb<RunMetric[]>`
 SELECT id, module_id, label, variant_label, value_func, format_as, value_props,
@@ -131,6 +200,7 @@ SELECT id, module_id, label, variant_label, value_func, format_as, value_props,
   post_aggregation_expression, results_object_id, ai_description, viz_presets,
   hide, important_notes
 FROM metrics
+${opts.moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${opts.moduleIds})`}
 `;
   const runMetrics: RunMetric[] = [...metrics];
 
@@ -176,7 +246,7 @@ FROM metrics
       const parquetPath = runResultsObjectParquetPath(tmpDir, mod.id, ro.id);
       try {
         const ready = await buildResultsObjectParquet(
-          join(_SANDBOX_DIR_PATH, projectId, mod.id, ro.id),
+          join(opts.moduleCsvDir(mod.id), ro.id),
           parquetPath,
           ro.createTableStatementPossibleColumns,
           facilityConfig,
@@ -216,7 +286,8 @@ FROM metrics
   );
 
   // Input mirrors: dictionary/snapshot tables as JSON, facilities as parquet.
-  const inputFiles: string[] = [];
+  // Caller-placed inputs (the wizard's dataset extracts) are recorded first.
+  const inputFiles: string[] = [...opts.extraInputFiles];
 
   // Pinned assets (§6.2): every asset the installed modules declare, copied
   // into inputs/assets/ and hashed into the manifest. Instance-uploaded
@@ -311,8 +382,8 @@ SELECT dataset_type, info, last_updated FROM datasets
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
     runId,
     createdAt: new Date().toISOString(),
-    label: projectLabel,
-    provenance: "synthetic-backfill",
+    label: opts.label,
+    provenance: opts.provenance,
     appVersion: _SERVER_VERSION,
     rImageTag: R_DOCKER_IMAGE_TAG,
     calendar: _INSTANCE_CALENDAR,
@@ -332,30 +403,15 @@ SELECT dataset_type, info, last_updated FROM datasets
     JSON.stringify(manifest, null, 2),
   );
 
-  // Atomic publish: rename, then catalog row + pointer in one transaction.
-  await Deno.rename(tmpDir, runDirPath(runId));
   const summary: RunSummary = {
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
-    provenance: "synthetic-backfill",
+    provenance: opts.provenance,
     sourceProjectId: projectId,
     moduleIds: runModules.map((m) => m.id),
     metricCount: runMetrics.length,
     totalRowCount: runResultsObjects.reduce((sum, ro) => sum + ro.rowCount, 0),
   };
-  await mainDb.begin(async (sql) => {
-    await sql`
-INSERT INTO runs (id, label, status, provenance, created_by, summary)
-VALUES (${runId}, ${projectLabel}, 'ready', 'synthetic-backfill', NULL, ${JSON.stringify(summary)})
-`;
-    await sql`UPDATE projects SET run_id = ${runId} WHERE id = ${projectId}`;
-  });
-
-  console.log(
-    `[runs] synthesized run ${runId} for project ${projectId} in ${
-      (performance.now() - t0).toFixed(0)
-    }ms`,
-  );
-  return { runId };
+  return { manifest, summary };
 }
 
 async function statOrUndefined(path: string): Promise<Deno.FileInfo | undefined> {
@@ -407,8 +463,10 @@ async function buildResultsObjectParquet(
 }
 
 // R-written headers are plain lowercase identifiers (enforced downstream by
-// the SAFE_COLUMN_NAME check), so a first-line split is sufficient.
-async function readCsvHeaders(csvPath: string): Promise<string[]> {
+// the SAFE_COLUMN_NAME check), so a first-line split is sufficient. Also
+// used by the wizard pipeline on Postgres COPY-written dataset extracts,
+// whose headers are plain identifiers too.
+export async function readCsvHeaders(csvPath: string): Promise<string[]> {
   const file = await Deno.open(csvPath, { read: true });
   const buffer = new Uint8Array(16384);
   const bytesRead = await file.read(buffer);

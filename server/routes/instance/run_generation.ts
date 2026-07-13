@@ -8,11 +8,13 @@ import {
 } from "../../db/instance/run_generation.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { launchRunGenerationForProject } from "../../worker_routines/generate_run/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 // Results-package launch wizard (PLAN_RESULTS_RUNS item 2): attempt-record
-// CRUD. Instance-admin gated (can_configure_data — the dataset-attempt
-// guard); the launch route lands with the generate_run worker.
+// CRUD plus launch. Instance-admin gated (can_configure_data — the
+// dataset-attempt guard). Launch consumes the attempt and hands the run to
+// the generate_run worker; all further state arrives over project SSE.
 
 export const routesRunGeneration = new Hono();
 
@@ -66,6 +68,22 @@ defineRoute(
       c.var.mainDb,
       params.project_id,
       body.step2Result,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesRunGeneration,
+  "launchRunGeneration",
+  requireGlobalPermission("can_configure_data"),
+  log("launchRunGeneration"),
+  async (c, { params, body }) => {
+    const res = await launchRunGenerationForProject(
+      c.var.mainDb,
+      params.project_id,
+      body.label,
+      c.var.globalUser.email,
     );
     return c.json(res);
   },

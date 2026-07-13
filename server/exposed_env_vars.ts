@@ -84,13 +84,20 @@ if (_ASSETS_DIR_PATH === undefined) {
   throw new Error("Could not get ASSETS_DIR_PATH env variable");
 }
 
-// Immutable results-run directories (PLAN_RESULTS_RUNS §2.1). Only the Deno
-// process reads/writes runs for now; the _EXTERNAL / _POSTGRES_INTERNAL
-// namespaces (R container mounts, COPY TO dataset extracts) arrive with the
-// wizard deploy alongside the docker-compose volume change.
+// Immutable results-run directories (PLAN_RESULTS_RUNS §2.1). The Deno
+// process reads/writes runs; the R container mounts a run's tmp dir during
+// wizard generation via the _EXTERNAL namespace (host path, SANDBOX pattern).
+// The _POSTGRES_INTERNAL namespace (direct COPY TO dataset extracts into the
+// run dir) arrives with work item 4 alongside the docker-compose volume
+// change — until then dataset extracts route through the sandbox dual-write.
 export const _RUNS_DIR_PATH = Deno.env.get("RUNS_DIR_PATH")!;
 if (_RUNS_DIR_PATH === undefined) {
   throw new Error("Could not get RUNS_DIR_PATH env variable");
+}
+
+export const _RUNS_DIR_PATH_EXTERNAL = Deno.env.get("RUNS_DIR_PATH_EXTERNAL")!;
+if (_RUNS_DIR_PATH_EXTERNAL === undefined) {
+  throw new Error("Could not get RUNS_DIR_PATH_EXTERNAL env variable");
 }
 
 ///////////////////////////////////////////////////////////////////////////////

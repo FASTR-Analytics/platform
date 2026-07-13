@@ -476,7 +476,7 @@ defineRoute(
     // Fetch incoming definition from source (GitHub or local)
     let incomingDef, incomingScript, incomingGitRef;
     try {
-      const fetched = await fetchModuleFiles(params.module_id);
+      const fetched = await fetchModuleFiles(params.module_id, undefined);
       incomingDef = fetched.definition;
       incomingScript = fetched.script;
       incomingGitRef = fetched.gitRef;

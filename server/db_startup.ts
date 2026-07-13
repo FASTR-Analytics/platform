@@ -9,6 +9,7 @@ import {
 } from "lib";
 import { uninstallModule } from "./db/project/modules.ts";
 import { sweepAbandonedTmpRunDirs } from "./runs/mod.ts";
+import { markInterruptedGeneratingRuns } from "./db/instance/run_generation.ts";
 import { _RUNS_DIR_PATH } from "./exposed_env_vars.ts";
 import { getCountryIso3Config } from "./db/instance/config.ts";
 import {
@@ -106,11 +107,14 @@ ${userInserts}
   }
 
   // Results runs (PLAN_RESULTS_RUNS §2.6): a crashed generation leaves only a
-  // .tmp- dir, never a readable run — sweep the debris at boot. Projects
-  // without a run serve the typed "no run attached" state until the backfill
-  // runner (backfill_runs.ts) or a wizard generation attaches one.
+  // .tmp- dir, never a readable run — sweep the debris at boot, and mark any
+  // 'generating' catalog rows failed (their worker died with the previous
+  // process). Projects without a run serve the typed "no run attached" state
+  // until the backfill runner (backfill_runs.ts) or a wizard generation
+  // attaches one.
   await Deno.mkdir(_RUNS_DIR_PATH, { recursive: true });
   await sweepAbandonedTmpRunDirs();
+  await markInterruptedGeneratingRuns(sqlMain);
 }
 
 async function resetWedgedUploadAttempts(mainDb: Sql): Promise<void> {

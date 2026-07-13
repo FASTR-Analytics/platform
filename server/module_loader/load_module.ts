@@ -64,8 +64,14 @@ export function deriveDefaultPresentationObjects(
   return results;
 }
 
+// pinnedGitRef: fetch the module's files at this exact commit instead of
+// HEAD — the run pipeline re-fetches the definitions the wizard's step 2
+// resolved (PLAN_RESULTS_RUNS item 2). undefined = HEAD (install/update).
+// Local source ignores the pin: local refs are per-read placeholders, and
+// dev reads the working tree by design.
 export async function fetchModuleFiles(
   moduleId: string,
+  pinnedGitRef: string | undefined,
 ): Promise<
   { definition: ModuleDefinitionGithub; script: string; gitRef?: string }
 > {
@@ -98,21 +104,23 @@ export async function fetchModuleFiles(
     headers["Authorization"] = `Bearer ${_GITHUB_TOKEN}`;
   }
 
-  // Fetch HEAD commit SHA for this path
-  let gitRef: string | undefined;
-  try {
-    const commitsRes = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&per_page=1`,
-      { headers },
-    );
-    if (commitsRes.ok) {
-      const commits = await commitsRes.json();
-      if (commits.length > 0) {
-        gitRef = commits[0].sha;
+  // Pinned or HEAD commit SHA for this path
+  let gitRef: string | undefined = pinnedGitRef;
+  if (gitRef === undefined) {
+    try {
+      const commitsRes = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&per_page=1`,
+        { headers },
+      );
+      if (commitsRes.ok) {
+        const commits = await commitsRes.json();
+        if (commits.length > 0) {
+          gitRef = commits[0].sha;
+        }
       }
+    } catch {
+      // Non-fatal — we can still install without a git ref
     }
-  } catch {
-    // Non-fatal — we can still install without a git ref
   }
 
   // Use commit SHA if available to avoid GitHub's raw content cache (~5min)
@@ -205,9 +213,13 @@ function translateConfigRequirements(
 export async function getModuleDefinitionDetail(
   id: ModuleId,
   language: Language,
+  pinnedGitRef: string | undefined,
 ): Promise<APIResponseWithData<ModuleDefinitionDetail & { gitRef?: string }>> {
   try {
-    const { definition, script, gitRef } = await fetchModuleFiles(id);
+    const { definition, script, gitRef } = await fetchModuleFiles(
+      id,
+      pinnedGitRef,
+    );
 
     const resultsObjectsWithModuleId: ResultsObjectDefinition[] = definition
       .resultsObjects.map((ro: ResultsObjectDefinitionGithub) => ({

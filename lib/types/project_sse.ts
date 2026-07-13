@@ -12,6 +12,7 @@ import type { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import type { ReportFolder, ReportSummary } from "./reports.ts";
 import type { VisualizationFolder } from "./visualization_folders.ts";
 import type { DashboardSummary } from "./dashboard.ts";
+import type { RunProgress } from "./run_generation.ts";
 
 /**
  * Unified project state pushed via SSE.
@@ -72,6 +73,20 @@ export type ProjectSseMessage =
   // Module execution events (already granular today — kept as-is)
   | { type: "any_running"; data: { anyRunning: boolean } }
   | { type: "r_script"; data: { moduleId: string; text: string } }
+
+  // Results-package generation (PLAN_RESULTS_RUNS item 2): worker-pushed
+  // pipeline progress on every state change, and the repoint event when a
+  // finished run becomes the project's attached package (also closes the
+  // interim reconnect-only gap — clients learn of the new catalog live).
+  | { type: "run_progress"; data: { runId: string; progress: RunProgress } }
+  | {
+      type: "run_attached";
+      data: {
+        attachedRunId: string;
+        projectModules: InstalledModuleSummary[];
+        metrics: MetricWithStatus[];
+      };
+    }
   | {
       type: "module_dirty_state";
       data: {

@@ -35,6 +35,7 @@ globs:
   - server/task_management/set_module_clean.ts
   - server/task_management/set_module_dirty.ts
   - server/task_management/trigger_runnable_tasks.ts
+  - server/worker_routines/generate_run/**
   - server/worker_routines/instantiate_worker_generic.ts
   - server/worker_routines/run_module/**
 docs_absorbed:

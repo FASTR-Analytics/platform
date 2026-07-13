@@ -91,6 +91,7 @@ export async function installModule(
     const modDef = await getModuleDefinitionDetail(
       moduleDefinitionId,
       _INSTANCE_LANGUAGE,
+      undefined,
     );
     throwIfErrWithData(modDef);
     const gitRef = modDef.data.gitRef;
@@ -236,6 +237,86 @@ SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})
   });
 }
 
+// Legacy-plane catalog upsert for one module of a wizard generation
+// (PLAN_RESULTS_RUNS model point 4 — the dual-write rollback path). Mirrors
+// installModule's catalog transaction using the run's resolved definition and
+// frozen selections, folded together with the post-run bookkeeping
+// setModuleClean writes today (dirty='ready', last_run_at, last_run_git_ref),
+// so the previous image serves current data after a rollback. Deliberately
+// NOT done here: default presentation objects (a generation never creates
+// authored content) and the orphaned-PO purge — under the runs model a metric
+// missing from a newer run surfaces as a typed resolution failure against the
+// attached manifest, and deleting the user's visualization would destroy
+// exactly what that contract promises to keep.
+export async function upsertModuleCatalogForGeneratedRun(
+  projectDb: Sql,
+  modDef: ModuleDefinitionDetail,
+  configSelections: ModuleConfigSelections,
+  gitRef: string | null,
+  lastRunAt: string,
+): Promise<void> {
+  await projectDb.begin(async (sql: Sql) => {
+    await sql`DELETE FROM modules WHERE id = ${modDef.id}`;
+    await sql`
+INSERT INTO modules
+  (id, module_definition, config_selections, dirty, compute_def_updated_at, compute_def_git_ref, presentation_def_updated_at, presentation_def_git_ref, config_updated_at, last_run_at, last_run_git_ref)
+VALUES
+  (
+    ${modDef.id},
+    ${prepareModuleDefinitionForStorage(modDef)},
+    ${JSON.stringify(configSelections)},
+    'ready',
+    ${lastRunAt},
+    ${gitRef},
+    ${lastRunAt},
+    ${gitRef},
+    ${lastRunAt},
+    ${lastRunAt},
+    ${gitRef}
+  )
+`;
+    for (const resultsObject of modDef.resultsObjects) {
+      const roTableName = getResultsObjectTableName(resultsObject.id);
+      await sql`DROP TABLE IF EXISTS ${sql(roTableName)}`;
+      await sql`
+INSERT INTO results_objects (id, module_id, column_definitions)
+VALUES (
+  ${resultsObject.id},
+  ${modDef.id},
+  ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null}
+)
+`;
+    }
+    for (const metric of modDef.metrics) {
+      const validatedMetric = metricStrict.parse(metric);
+      await sql`
+INSERT INTO metrics (
+  id, module_id, label, variant_label, value_func, format_as, value_props,
+  required_disaggregation_options, value_label_replacements, post_aggregation_expression,
+  results_object_id, ai_description, viz_presets, hide, important_notes
+)
+VALUES (
+  ${validatedMetric.id},
+  ${modDef.id},
+  ${validatedMetric.label},
+  ${validatedMetric.variantLabel},
+  ${validatedMetric.valueFunc},
+  ${validatedMetric.formatAs},
+  ${JSON.stringify(validatedMetric.valueProps)},
+  ${JSON.stringify(validatedMetric.requiredDisaggregationOptions)},
+  ${validatedMetric.valueLabelReplacements ? JSON.stringify(validatedMetric.valueLabelReplacements) : null},
+  ${validatedMetric.postAggregationExpression ? JSON.stringify(validatedMetric.postAggregationExpression) : null},
+  ${validatedMetric.resultsObjectId},
+  ${validatedMetric.aiDescription ? JSON.stringify(validatedMetric.aiDescription) : null},
+  ${JSON.stringify(validatedMetric.vizPresets)},
+  ${validatedMetric.hide},
+  ${validatedMetric.importantNotes}
+)
+`;
+    }
+  });
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //  __    __            __                        __                __  __  //
 // /  |  /  |          /  |                      /  |              /  |/  | //
@@ -339,6 +420,7 @@ export async function updateModuleDefinition(
     const modDef = await getModuleDefinitionDetail(
       moduleDefinitionId,
       _INSTANCE_LANGUAGE,
+      undefined,
     );
     throwIfErrWithData(modDef);
 

@@ -369,12 +369,75 @@ Work items, in order:
      Full lifecycle exercised over HTTP: create → resume read → step
      advance/downstream-null → discard, plus family/module validation and
      Zod 400s.
-   - NEXT (session 2): launch route + `server/worker_routines/
-     generate_run/` pipeline (catalog row `generating`, prepare inputs,
-     resolve stage forcing every node to "run", per-module dual-write,
-     finalize extending `synthesize_run`'s builder, atomic rename +
-     repoint transaction, SSE `run_progress`/`run_attached` + progress
-     column updates); THEN the client wizard + run listing surfaces.
+   - DONE (session 2, 2026-07-13 — gates green: typecheck + worker-graph
+     check + PARITY GREEN 129 checks 0 diffs; live-verified on dev, see
+     below) — launch route + the whole `server/worker_routines/
+     generate_run/` pipeline:
+     - **Launch** (`launchRunGeneration` route → `generate_run/launch.ts`):
+       consumes the attempt (deleted at launch), mints the `runs` row
+       (`generating`, provenance `wizard`, initial summary carries
+       `sourceProjectId`), spawns the worker. One generating run per
+       project: synchronous in-memory claim + catalog check
+       (`summary::jsonb->>'sourceProjectId'`); host owns teardown (error
+       listener marks run failed, sweeps tmp, `docker rm -f` by the
+       deterministic `fastr-genrun-{runId}-{moduleId}` name); worker
+       broadcasts on `run_generation_ended` and never self-closes. Boot
+       recovery: `markInterruptedGeneratingRuns` in db_startup beside the
+       tmp sweep.
+     - **Prepare** (`prepare_inputs.ts`): the LEGACY attach functions are
+       the dataset dual-write (sandbox CSV via today's COPY TO + mirror/
+       snapshot rewrite + datasets rows; deselected families detached),
+       then the run gets its own `inputs/datasets/{type}.csv` copies +
+       explicit-schema parquet twins (per-family type maps — identifiers
+       VARCHAR, no inference) and extract sha256s. Item 4 re-targets the
+       COPY TO into the run dir; `RUNS_DIR_PATH_EXTERNAL` env added now
+       (R-container mount namespace), `_POSTGRES_INTERNAL` stays item 7.
+     - **Resolve** (`resolve_modules.ts`): re-fetches definitions at the
+       step-2 pinned gitRef (`fetchModuleFiles`/`getModuleDefinitionDetail`
+       grew an explicit `pinnedGitRef` param; local source ignores pins),
+       validates prereq closure + dataSources ⊆ selection, freezes
+       selections via `getMergedModuleConfigSelections`, generates scripts
+       (post-prepare snapshots), Kahn-orders by prerequisites with
+       registry-order tie-break.
+     - **Execute** (`execute_module.ts`): workspace = the run's own
+       `outputs/{moduleId}` (R container mounts the tmp run dir, workdir
+       there; dev = local Rscript), r_script SSE stream + `___logs___.txt`
+       kept; declared-RO existence enforced, undeclared outputs warned +
+       excluded; §3.7 inputKey (script text + dataset extract hashes +
+       ALL upstream output hashes + asset hashes + R image tag, streamed
+       sha256) and per-RO output hashes recorded — every node forced to
+       "run" (item 3 turns on reuse). Dual-write per module: outputs
+       copied to the sandbox, `upsertModuleCatalogForGeneratedRun`
+       (install-shaped modules/results_objects/metrics upsert, dirty
+       'ready', NO default-PO creation and NO orphaned-PO purge — POs must
+       survive for typed not-in-run resolution), then today's
+       `storeResultsObject` COPY unchanged.
+     - **Finalize/publish**: `synthesize_run.ts` refactored into the shared
+       `buildRunPackageIntoTmp` (options: label/provenance/module filter/
+       memo/CSV-source dir/extra input files; synthesizer behavior
+       byte-identical) → atomic rename → `publishReadyRun` (status flip +
+       summary/progress + `projects.run_id` repoint in ONE tx) → SSE.
+     - **SSE**: `run_progress {runId, progress}` on every state change
+       (`runs.progress` updated first) and `run_attached {attachedRunId,
+       projectModules, metrics}` at repoint, plus legacy
+       `datasets_updated`/`module_dirty_state`/`modules_updated` so
+       today's client surfaces stay live until item 5.
+     - **Live-verified on dev** (harnesses, not routes-only): full launch →
+       worker → failure path (R fails at `../datasets/` as expected until
+       item 4's script re-point: run `failed`, errorDetail + module error
+       stamped, tmp swept, guard blocks duplicate launch); prepare stage
+       (extract copies byte-from-sandbox, parquet twins DESCRIBE-verified
+       schemas, dual-write freshened datasets rows); success path with
+       extracts staged at the legacy read location (real m001 run: 5 ROs
+       hashed, ro_* COPY 161k rows, wizard manifest with real
+       inputKey/outputFileHashes + availability stamps, publish + repoint
+       verified) — then the project re-backfilled to a full-catalog run,
+       rig re-run GREEN.
+   - NEXT (session 3): the client — wizard surfaces
+     (`components/results_package_wizard/`, ICEH-shaped descriptor +
+     steps, panther UI protocols), the run listing/progress view on the
+     project "Results package" surface (needs a runs-list-by-project
+     route), and client handling of `run_progress`/`run_attached`.
    **Placement**: client `components/results_package_wizard/`
    (ICEH-shaped: `index.tsx` descriptor + `step_*.tsx`) + the run
    listing/progress components on the project surface; server routes
