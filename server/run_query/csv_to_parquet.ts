@@ -1,5 +1,8 @@
 import { DuckDBInstance } from "@duckdb/node-api";
-import { escapeSqlLiteral } from "./duckdb_executor.ts";
+import {
+  applyDuckDbSessionSettings,
+  escapeSqlLiteral,
+} from "./duckdb_executor.ts";
 
 const SAFE_COLUMN_NAME = /^[a-z_][a-z0-9_]*$/;
 
@@ -38,7 +41,7 @@ export async function writeParquetFromCsv(opts: {
   const instance = await DuckDBInstance.create(":memory:");
   const conn = await instance.connect();
   try {
-    await conn.run(`SET memory_limit = '512MB'`);
+    await applyDuckDbSessionSettings(conn);
     await conn.run(
       `COPY (SELECT * FROM read_csv('${escapeSqlLiteral(opts.csvPath)}',
         header=true,

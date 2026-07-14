@@ -102,14 +102,20 @@ DuckDB adapter (`server/run_query/`), golden-diff rig
 normalized `{roId}.parquet` beside every raw CSV on every module run.
 
 **THE deploy (= old Phase 2, absorbing the old Deploy 1's read path) —
-wizard + identity + backfill.** Full spec: §4 Phase 2 plus the model
-above. Rollout: deploy to one trial prod instance → serve starts, the
-backfill synthesizes runs → run the rig there (pg vs run read path — the
-dual-write keeps pg a live baseline) → green → roll the fleet with
-Ethiopia early (its rig run is the Ethiopian-quarter gate; it cannot run
-pre-flip — accepted, mitigated by the dual-write, trial-first ordering,
-and cheap rollback). Rollback: redeploy the previous image (model
-point 4).
+wizard + identity + backfill. ALL BUILD ITEMS DONE + exit gate passed
+2026-07-14 — this rollout is what remains.** Full spec: §4 Phase 2 plus
+the model above. Pre-deploy checklist (each recorded where cited):
+re-run the prod-image binding smoke for `@duckdb/node-api@1.4.5-r.1`
+(Phase 0 bullet addendum); push wb-fastr-modules (local HEAD `6ba142e` —
+m004/m005 pinned-asset commits); add the runs volume to the POSTGRES
+container in each instance's compose (item 7 notes + Dockerfile
+comment). Rollout: deploy to one trial prod instance → serve starts,
+the backfill synthesizes runs (docker-exec runbook in item 7) → run the
+rig there (pg vs run read path — the dual-write keeps pg a live
+baseline) → green → roll the fleet with Ethiopia early (its rig run is
+the Ethiopian-quarter gate; it cannot run pre-flip — accepted, mitigated
+by the dual-write, trial-first ordering, and cheap rollback). Rollback:
+redeploy the previous image (model point 4).
 
 **Phase 3 — instance-level factory + catalogue + attach** and **Phase 4 —
 demolition + docs**: unchanged from the original spec (§4 below).
@@ -1500,9 +1506,10 @@ backfill + read flip + cache re-key); Phases 3–4 unchanged.
   **including value types and option-set membership under the LIMIT cutoff**,
   bounds, and enrichment outputs. This is the gate every later phase re-runs.
   Ship nothing user-facing.
-- **Prod-image gate — VERIFIED 2026-07-07.** The DuckDB alpha napi addon
-  loads and runs on the exact prod platform: inside `denoland/deno:ubuntu-2.5.3`
-  built `--platform linux/amd64` (the prod Dockerfile base + arch), the
+- **Prod-image gate — VERIFIED 2026-07-07 for the alpha; MUST RE-RUN for
+  1.4.5-r.1 before the deploy.** The DuckDB napi addon loads and runs on the
+  exact prod platform: inside `denoland/deno:ubuntu-2.5.3` built
+  `--platform linux/amd64` (the prod Dockerfile base + arch), the
   `@duckdb/node-bindings-linux-x64@1.3.2-alpha.25` binding loads, `version()`
   returns v1.3.2, and the full S9-shaped query (period CTE + rollup UNION +
   PAE + NULLIF + `integer_division`) plus a parquet round-trip pass. It is
@@ -1512,7 +1519,13 @@ backfill + read flip + cache re-key); Phases 3–4 unchanged.
   runtime npm egress needed. Residual: this ran under qemu amd64 emulation on
   arm64 (uses the image's real glibc/libstdc++, translates instructions;
   DuckDB does runtime CPU-feature detection) — a native-amd64 CI smoke is the
-  final belt-and-suspenders but the load path is proven.
+  final belt-and-suspenders but the load path is proven. **2026-07-14
+  addendum (item 8): the pin moved to `@duckdb/node-api@1.4.5-r.1` (the
+  alpha segfaults on instance churn — item 8 notes), so the
+  version-specific half of this gate is stale; repeat the same
+  containerized smoke against `@duckdb/node-bindings-linux-x64@1.4.5-r.1`
+  as part of the deploy build (recipe above is complete: linux/amd64
+  container → deno cache → --cached-only query + parquet round-trip).**
 - Deliverable: parity report per instance; the dialect deltas
   (integer_division, ::DOUBLE, nullstr='NA', text-collation ordering — §2.4)
   encoded in the adapter, not in SQL builders.
