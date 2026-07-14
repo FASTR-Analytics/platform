@@ -2,11 +2,15 @@
 
 **Status (2026-07-14): Phases 0–3 complete, twice adversarially
 reviewed, everything on main: Phase 3 (`d267c39f`), review round 1
-fixes (`86f87385`), and review round 2 fixes + the single-month-pulls
-ruling (the commit carrying this Status update). Cutover gate 1 (§4.4,
-lab E11) was redesigned for daytime resilience and is RUNNING; it
-gates *deploying* Phase 3 to Nigeria and *enabling* Phase 4's C4
-scheduler for any instance, not the code. E12 settled the
+fixes (`86f87385`), review round 2 fixes + the single-month-pulls
+ruling (`136870c6`). The LAB IS RETIRED (Tim's ruling, 2026-07-14
+evening): trust the evidence already gathered (E9/E10/E12 parity —
+§2.4, §2.8 — plus e11's partials with zero hard mismatches ever
+observed); the e11 gate run was halted INCOMPLETE (checkpoint kept,
+resumable if ever wanted) and no further lab work should be spent.
+The in-app first-run shadow verification + circuit breaker (§4.4
+gate 2) is the remaining cutover protection — it runs on every
+instance's first dispatcher run regardless. E12 settled the
 range-vs-`period=` question (§2.8). Phase 4 (auto-pull) not started.
 Next action = Phase 4 (§5.4 — C3 encrypted credentials + C4 scheduler
 with a per-instance SETTABLE off-peak schedule, §7).**
@@ -170,33 +174,25 @@ with a per-instance SETTABLE off-peak schedule, §7).**
   silently omits records stored at non-monthly period types. Lab E12
   (§2.8) then settled the cost/equality question empirically: records
   identical, no measurable timing difference.
-- **Cutover gate 1 (lab E11): redesigned for daytime resilience,
-  RUNNING since 2026-07-14 ~18:00 AWST** *(Tim's ruling 2026-07-14:
-  don't wait for off-peak — a gate that only works at night is a
-  failing on our side; run it now and let it grind)*. e11 now
-  checkpoints every settled verdict to `results/e11_checkpoint.json`
-  (atomic writes — a killed run loses nothing), rewrites a live rollup
-  to `results/e11_summary_latest.json` after every change, retries
-  unverified subject-months in grind cycles with cooldowns (the
-  harness's 20-consecutive-failure HARD STOP ends the cycle, not the
-  run), re-pulls DVS sums older than 45 min so the nightly analytics
-  rebuild can't manufacture mismatches against a stale snapshot, and
-  resumes from the checkpoint on re-run (`--fresh` discards). Exit 0
-  PASS / 1 FAIL / 2 INCOMPLETE. Default budget 15 h ⇒ the run reaches
-  Nigeria's ~01:15 WAT off-peak window at worst. Early cycle-1 signal
-  matches §2.7 exactly: DVS pulls healthy, analytics comparisons 504.
-  Gate 2 (first-run shadow verification per instance) ships in the
-  worker and needs no separate action — now with the §4.4 circuit
-  breaker.
+- **Cutover gate 1 (lab E11): RETIRED without completing** *(Tim's
+  ruling, 2026-07-14 evening: stop all lab work, trust the evidence
+  gathered — no more effort on the lab)*. History: rebuilt that day
+  for daytime resilience (checkpoint to `results/e11_checkpoint.json`,
+  live rollup to `results/e11_summary_latest.json`, grind cycles with
+  cooldowns, resume on re-run), ran ~18:00–20:25 AWST through Nigeria's
+  afternoon: every DVS pull that completed was healthy, ZERO hard
+  mismatches ever observed across all e11 attempts, but Nigeria's
+  analytics never served a single API comparison all day (evidence in
+  itself — §2.7's finding at full strength), so 0/160 subject-months
+  formally settled when halted. The parity evidence base stands on
+  E9 + E10 (300/300) + E12 (record-exact, §2.8). **Gate 2 — the in-app
+  first-run shadow verification with the §4.4 circuit breaker — is the
+  remaining cutover protection**, and it runs on every instance's
+  first dispatcher run regardless. The checkpoint is kept; `./run e11`
+  resumes it if anyone ever wants the formal verdict.
 
 Outstanding non-code items:
 
-- **Gate 1 verdict**: e11 is running (see above); if it exits
-  INCOMPLETE, re-run `./run e11` — it resumes from the checkpoint.
-  A PASS is required before *deploying* Phase 3 to Nigeria or enabling
-  Phase 4's C4 scheduler for any instance.
-- §2.6 daytime lab runs: E11's 2026-07-14 attempts double as daytime
-  evidence; the E1/E8 daytime samplers remain unrun (cheap, optional).
 - Deploy: Phases 1–3 take effect only after a server restart/deploy
   (migrations 056–057 run at startup; the dev DB already has both from
   the verify harnesses — idempotent no-ops). One-time operational note:
@@ -220,20 +216,18 @@ A fresh agent continuing this work — the task is **Phase 4**:
    specs; §6.1 Phase 4 UI — subscription config + failure banner). Pick
    C3's exact crypto primitive during the build (AES-GCM via WebCrypto,
    key from instance env — §7). C4 must ship DISABLED per instance and
-   stay disabled until that instance's gate 1 has passed.
+   stay disabled until that instance's first dispatcher run has
+   shadow-verified clean (§7 C4 dependency — the lab gate is retired,
+   Status block).
 
 Phase 3's code (§1, §4.4) is built, twice-reviewed, and on `main` —
-build Phase 4 on top of it; don't re-derive it. Gate 1 is a separate,
-parallel item: lab e11 runs with checkpoint/resume (§8); if its last
-exit was INCOMPLETE, re-run `./run e11` (it resumes; off-peak finishes
-fastest). It blocks *deploying* Phase 3 to Nigeria and *enabling* C4 —
-not writing C3/C4's code or UI.
+build Phase 4 on top of it; don't re-derive it. Do NOT start new lab
+work (Tim's ruling — Status block); the lab repo is kept for reference
+and Tim will push it to GitHub himself.
 Everything needed is in this file or linked from it. This plan is the
 status tracker — when a phase completes, update the Status block above
-(commit to main). Delete the plan once Phase 4 lands **and** gate 1 is
-green (don't delete it while either is still open — a fresh reader needs
-the caveat); if work stalls, fold remainders into SYSTEM_06/07 Open
-items.
+(commit to main). Delete the plan once Phase 4 lands; if work stalls,
+fold remainders into SYSTEM_06/07 Open items.
 
 Three goals, one system (S6's HMIS-DHIS2 path + S7 connector):
 
@@ -478,13 +472,12 @@ to a freshness log — keep sampling other hours/days to confirm the
 schedule. §2.7 (2026-07-14 daytime) is now direct evidence for *why*
 this needs to be a real per-instance setting, not an assumption.
 
-### 2.6 Phase 0 loose ends (cheap, fold into Phase 1/3 work)
+### 2.6 Phase 0 loose ends — CLOSED (lab retired, Status block)
 
-- Re-run `./run e1` and `./run e8` during WAT business hours (the
-  daytime tail is the missing distribution; ~40 read-only requests).
-- The full per-element parity gate (§4.4 gate) before Phase 3 cutover
-  — rebuilt for daytime resilience and running; see §2.7 and the
-  Status block.
+The E1/E8 daytime samplers were never run and won't be (Tim's ruling:
+no more lab effort); E11's daytime attempts supplied the daytime
+evidence that mattered. The parity gate's disposition is in the Status
+block.
 
 ### 2.7 Gate 1 attempt, 2026-07-14 daytime — inconclusive (informs Phase 4's scheduler)
 
@@ -523,11 +516,11 @@ did not reach a verdict:
   fetch (gate re-runs, and especially the auto-pull scheduler) needs a
   real, operator-controlled off-peak window, not an assumption baked
   into app code.** See §7 C4.
-- **Action** *(superseded 2026-07-14 by Tim's ruling — see Status)*:
-  e11 was rebuilt to survive daytime load (checkpoint + grind cycles +
-  resume) and is running through the day; it settles what it can and
-  reaches the off-peak window on its own budget. No app-code changes
-  are implicated by this finding.
+- **Action** *(closed 2026-07-14 by Tim's ruling — see Status)*: e11
+  was rebuilt to survive daytime load (checkpoint + grind cycles +
+  resume), ran through the afternoon settling nothing (analytics fully
+  down for API consumers), and was then retired with the rest of the
+  lab. No app-code changes are implicated by this finding.
 
 ### 2.8 E12 — date-range vs `period=` head-to-head (2026-07-14 daytime)
 
@@ -751,10 +744,10 @@ any future stale config loudly per run.
    as the fetch step (single-month pulls), §6.1 Phase 3 UI (run
    launcher/view/history + checklist actions). On main: `d267c39f`,
    `86f87385`, and the round-2/single-month commit (Status
-   header). Gate 1 = lab E11, rebuilt checkpoint/resume, RUNNING — a
-   PASS gates deploying to Nigeria + enabling C4, not the code. Gate 2 =
-   in-app first-run shadow verification, ships in the worker (no
-   separate action needed).
+   header). Gate 1 (lab E11) RETIRED without completing — Tim ruled the
+   E9/E10/E12 evidence sufficient (Status block). Gate 2 = in-app
+   first-run shadow verification + circuit breaker, ships in the worker
+   (no separate action needed) and is the remaining cutover protection.
 4. **Phase 4 — NEXT — auto-pull** (C3 + C4, §7): stored credentials
    (encrypted), weekly scheduler with a **per-instance settable
    schedule window** (day/time/timezone — not hardcoded; §7 C4, ruled
@@ -986,16 +979,22 @@ units.
   **Auto-pull default OFF per instance** *(ruled)*; notification =
   in-app banner + run/ledger visibility first, email later if wanted
   *(ruled: no new external dependency for v1)*.
-  **Dependency**: do not enable C4 for any instance until that
-  instance's gate 1 (§4.4) has passed — an unattended scheduled run
+  **Dependency** *(updated 2026-07-14 — the lab gate is retired, Status
+  block)*: do not enable C4 for any instance until that instance's
+  first dispatcher run has shadow-verified clean (`shadow_passed=true`
+  for its DHIS2 URL, §4.4 gate 2) — an unattended scheduled run
   inherits every risk a manual run does, and §2.7 is direct evidence
-  that timing matters even for the gate itself, let alone unattended
-  production pulls.
+  that timing matters for unattended production pulls.
 - **C5 — downstream freshness** (note only, out of scope): a scheduled
   pull bumps the dataset version; results-runs staleness surfaces it.
   Whether anything re-generates automatically is a separate ruling.
 
-## 8. The lab (kept; extend rather than re-derive)
+## 8. The lab (RETIRED 2026-07-14 — kept for reference, no new work)
+
+Tim's ruling: trust the evidence gathered; spend no further effort on
+the lab. The repo stays (Tim will push it to a GitHub repo himself);
+everything below is reference for reading its results, not an
+invitation to run more experiments.
 
 `~/projects/apps/wb-fastr-dhis2-lab` — sibling repo so national-DHIS2
 credentials and experiment churn never enter this repo. It imports the
@@ -1015,9 +1014,7 @@ DOC_ACCESS_DBS.md). `./run e11` is the full per-element parity gate
 grind cycles (HARD STOP ends a cycle, not the run), DVS sums re-pull
 when >45 min old, and a re-run resumes from the checkpoint
 (`--fresh` discards; `--maxMinutes`/`--cooldownSeconds` tune the
-budget). Exit 0 PASS / 1 FAIL / 2 INCOMPLETE. Off-peak still finishes
-fastest (§2.5), but the gate no longer requires it. Known future lab
-work: the E1/E8 daytime samplers (§2.6, optional);
-DVS backfill sizing if anyone wants deep history (~10 MB per
-dense element-month; 72-month history ≈ 10–20 GB transfer, one pull per
-element-month).
+budget). Exit 0 PASS / 1 FAIL / 2 INCOMPLETE. No future lab work is
+planned (retired — see above). One sizing fact kept for reference: DVS
+deep-history backfill would be ~10 MB per dense element-month
+(72-month history ≈ 10–20 GB transfer, one pull per element-month).
