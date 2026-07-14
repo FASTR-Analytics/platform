@@ -4,7 +4,11 @@
 
 import { pooledMap } from "@std/async/pool";
 import { Sql } from "postgres";
-import { UPLOADED_HMIS_DATA_STAGING_TABLE_NAME } from "../../exposed_env_vars.ts";
+import {
+  _DHIS2_CONCURRENT_REQUESTS,
+  _DHIS2_FACILITY_BATCH_SIZE,
+  UPLOADED_HMIS_DATA_STAGING_TABLE_NAME,
+} from "../../exposed_env_vars.ts";
 import {
   createBulkImportConnection,
   createWorkerReadConnection,
@@ -15,10 +19,16 @@ import {
   parseJsonOrThrow,
   type DatasetDhis2StagingResult,
   type DatasetUploadAttemptStatus,
+  type Dhis2FetchErrorKind,
+  type Dhis2PairFetchStat,
   type Dhis2SelectionParams,
   type PeriodIndicatorRawStat,
 } from "lib";
-import { getAnalyticsFromDHIS2 } from "../../dhis2/goal3_analytics/mod.ts";
+import { buildUrl, type DHIS2FetchError } from "../../dhis2/common/mod.ts";
+import {
+  type DHIS2AnalyticsResponse,
+  getAnalyticsFromDHIS2,
+} from "../../dhis2/goal3_analytics/mod.ts";
 
 (self as unknown as Worker).onmessage = (e) => {
   run(e.data).catch((error) => {
@@ -62,7 +72,14 @@ type CompletedWorkItem = {
 // SECTION 3: MAIN ORCHESTRATION
 // ============================================================================
 
-const FACILITY_BATCH_SIZE = 100;
+const FACILITY_BATCH_SIZE = _DHIS2_FACILITY_BATCH_SIZE;
+const CONCURRENT_REQUESTS = _DHIS2_CONCURRENT_REQUESTS;
+// Nigeria's nginx returns 414 above ~8 KB (lab E3: 5,727-char URL OK, 11,327
+// rejected); ou:400 measured-safe. Margin below the measured cliff.
+const MAX_URL_LENGTH = 7000;
+// The client polls the attempt row every 2 s — writing more often than that
+// is pure waste (~713k single-row UPDATEs on a full Nigeria pull pre-throttle).
+const PROGRESS_WRITE_INTERVAL_MS = 2000;
 let alreadyRunning = false;
 
 async function run(std: {
@@ -191,6 +208,7 @@ async function run(std: {
       indicatorRawId: string;
       periodId: number;
       error: string;
+      errorKind: Dhis2FetchErrorKind;
     }> = [];
 
     let totalRowsStaged = 0;
@@ -199,13 +217,18 @@ async function run(std: {
     const activeWorkItems = new Map<string, WorkItemProgress>();
     const completedWorkItemHistory: CompletedWorkItem[] = [];
     const succeededWorkItems: Array<{ indicatorRawId: string; periodId: number }> = [];
+    const pairFetchStats: Dhis2PairFetchStat[] = [];
     let completedWorkItems = 0;
     let failedWorkItems = 0;
+    let lastProgressWriteMs = 0;
 
-    // Limit concurrent requests to avoid overwhelming DHIS2 server
-    const CONCURRENT_REQUESTS = 5;
+    const updateGranularProgress = async (force: boolean) => {
+      const now = Date.now();
+      if (!force && now - lastProgressWriteMs < PROGRESS_WRITE_INTERVAL_MS) {
+        return;
+      }
+      lastProgressWriteMs = now;
 
-    const updateGranularProgress = async () => {
       let partialProgress = 0;
       for (const workItem of activeWorkItems.values()) {
         const itemProgress =
@@ -255,7 +278,7 @@ async function run(std: {
       });
 
       try {
-        await updateGranularProgress();
+        await updateGranularProgress(false);
       } catch (e) {
         console.error("Failed to update initial progress:", e);
       }
@@ -265,7 +288,7 @@ async function run(std: {
         if (progress) {
           progress.facilityBatchesCompleted = batchIndex + 1;
           try {
-            await updateGranularProgress();
+            await updateGranularProgress(false);
           } catch (e) {
             console.error("Failed to update batch progress:", e);
           }
@@ -292,6 +315,23 @@ async function run(std: {
 
       const durationMs = Date.now() - startMs;
       const completedAt = new Date().toISOString();
+
+      const pairStat: Dhis2PairFetchStat = {
+        indicatorRawId: item.rawIndicatorId,
+        periodId: item.periodId,
+        success: result.success,
+        route: "analytics",
+        requests: result.fetchStat.requests,
+        retries: result.fetchStat.retries,
+        totalFetchMs: result.fetchStat.totalFetchMs,
+        maxRequestMs: result.fetchStat.maxRequestMs,
+        rowsFetched: result.fetchStat.rowsFetched,
+      };
+      if (result.error) {
+        pairStat.errorKind = result.error.errorKind;
+        pairStat.error = result.error.error;
+      }
+      pairFetchStats.push(pairStat);
 
       if (result.success) {
         completedWorkItems++;
@@ -325,7 +365,7 @@ async function run(std: {
         }
       }
 
-      await updateGranularProgress();
+      await updateGranularProgress(true);
 
       return result;
     });
@@ -394,6 +434,7 @@ async function run(std: {
       finalStagingRowCount: totalRowsStaged,
       succeededWorkItems,
       fetchedFacilityIds: facilityIds,
+      pairFetchStats,
       workItemHistory: completedWorkItemHistory,
     };
 
@@ -491,6 +532,14 @@ async function updateImportProgress(
   `;
 }
 
+type PairFetchAccumulator = {
+  requests: number;
+  retries: number;
+  totalFetchMs: number;
+  maxRequestMs: number;
+  rowsFetched: number;
+};
+
 async function fetchIndicatorPeriod(
   item: WorkItem,
   facilityIds: string[],
@@ -501,13 +550,23 @@ async function fetchIndicatorPeriod(
   valueRows?: string[];
   rowCount?: number;
   stats?: Map<string, { nRecords: number; totalCount: number }>;
+  fetchStat: PairFetchAccumulator;
   error?: {
     indicatorRawId: string;
     periodId: number;
     error: string;
+    errorKind: Dhis2FetchErrorKind;
   };
 }> {
   const { rawIndicatorId, period, periodId } = item;
+
+  const fetchStat: PairFetchAccumulator = {
+    requests: 0,
+    retries: 0,
+    totalFetchMs: 0,
+    maxRequestMs: 0,
+    rowsFetched: 0,
+  };
 
   try {
     const valueRows: string[] = [];
@@ -558,43 +617,68 @@ async function fetchIndicatorPeriod(
       urlAnalysis.totalBatches++;
       urlAnalysis.facilitiesRequested += facilityBatch.length;
 
+      // Measure the URL exactly as getAnalyticsFromDHIS2 builds it (three
+      // appended dimension params + base URL) — the old guard used
+      // searchParams.set, which overwrote the dimension key and undercounted.
       const searchParams = new URLSearchParams();
-      searchParams.set("dimension", `dx:${rawIndicatorId}`);
-      searchParams.set("dimension", `pe:${period}`);
-      searchParams.set("dimension", `ou:${facilityBatch.join(";")}`);
+      searchParams.append("dimension", `dx:${rawIndicatorId}`);
+      searchParams.append("dimension", `pe:${period}`);
+      searchParams.append("dimension", `ou:${facilityBatch.join(";")}`);
       searchParams.set("skipMeta", "true");
-      const testUrl = `/api/analytics.json?${searchParams.toString()}`;
-      const urlLength = testUrl.length;
+      const fullUrl = buildUrl(
+        "/api/analytics.json",
+        credentials.url,
+        searchParams
+      );
+      const urlLength = fullUrl.length;
 
       urlAnalysis.totalUrlLength += urlLength;
       urlAnalysis.maxUrlLength = Math.max(urlAnalysis.maxUrlLength, urlLength);
 
-      if (urlLength > 2048) {
+      if (urlLength > MAX_URL_LENGTH) {
         urlAnalysis.longUrls++;
         // Error immediately to prevent potential data loss
         throw new Error(
-          `URL length ${urlLength} exceeds safe limit of 2048 characters for batch with ${facilityBatch.length} facilities. ` +
-          `This may cause incomplete data retrieval from DHIS2. ` +
-          `Reduce FACILITY_BATCH_SIZE from ${FACILITY_BATCH_SIZE} to a smaller value (try 30-40).`
+          `URL length ${urlLength} exceeds safe limit of ${MAX_URL_LENGTH} characters for batch with ${facilityBatch.length} facilities. ` +
+          `Reduce the DHIS2_FACILITY_BATCH_SIZE env variable (currently ${FACILITY_BATCH_SIZE}).`
         );
       }
 
-      const response = await getAnalyticsFromDHIS2<string[]>(
-        {
-          dataElements: [rawIndicatorId],
-          orgUnits: facilityBatch,
-          periods: [period],
-          skipMeta: true,
-        },
-        {
-          retryOptions: {
-            maxAttempts: 10,
-            initialDelayMs: 1000,
-            maxDelayMs: 60000,
+      fetchStat.requests++;
+      const requestStartMs = Date.now();
+      let response: DHIS2AnalyticsResponse<string[]>;
+      try {
+        response = await getAnalyticsFromDHIS2<string[]>(
+          {
+            dataElements: [rawIndicatorId],
+            orgUnits: facilityBatch,
+            periods: [period],
+            skipMeta: true,
           },
-          dhis2Credentials: credentials,
-        }
-      );
+          {
+            retryOptions: {
+              // Retries never rescue a pathological analytics query (lab
+              // E10): fail the pair fast and re-run it later instead of
+              // sleeping up to ~24 min inside one batch.
+              maxAttempts: 3,
+              initialDelayMs: 1000,
+              maxDelayMs: 60000,
+              onRetry: (attempt, error, delayMs) => {
+                fetchStat.retries++;
+                console.log(
+                  `DHIS2 request failed (attempt ${attempt}): ${error.message}. ` +
+                    `Retrying in ${Math.round(delayMs / 1000)}s...`
+                );
+              },
+            },
+            dhis2Credentials: credentials,
+          }
+        );
+      } finally {
+        const requestMs = Date.now() - requestStartMs;
+        fetchStat.totalFetchMs += requestMs;
+        fetchStat.maxRequestMs = Math.max(fetchStat.maxRequestMs, requestMs);
+      }
 
       // Track which facilities returned data for this batch
       const facilitiesWithDataInBatch = new Set<string>();
@@ -605,6 +689,7 @@ async function fetchIndicatorPeriod(
           `missing "rows" — treating as a failed fetch, not empty data.`
         );
       }
+      fetchStat.rowsFetched += response.rows.length;
       if (response.rows.length > 0) {
         const orgUnitIndex = response.headers.findIndex(
           (h) => h.name === "ou" || h.name === "Organisation unit"
@@ -716,6 +801,10 @@ async function fetchIndicatorPeriod(
     console.log(`\n📊 WORK ITEM SUMMARY for ${rawIndicatorId}, period ${period}:`);
     console.log(`  Records processed: ${localRowCount}`);
     console.log(`  💰 TOTAL SUM: ${valueAnalysis.totalSum}`);
+    console.log(
+      `  ⏱ Fetch: ${fetchStat.requests} requests, ${fetchStat.retries} retries, ` +
+        `${fetchStat.totalFetchMs}ms total, slowest batch ${fetchStat.maxRequestMs}ms`
+    );
 
     // Log detailed value analysis if we have data
     if (valueAnalysis.totalValues > 0) {
@@ -757,15 +846,18 @@ async function fetchIndicatorPeriod(
       valueRows,
       rowCount: localRowCount,
       stats: localStats,
+      fetchStat,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const totalBatches = Math.ceil(facilityIds.length / FACILITY_BATCH_SIZE);
+    const errorKind = classifyFetchError(error, errorMessage);
 
     console.error(
       `\n!!! ERROR fetching ${rawIndicatorId} for period ${period} !!!`
     );
     console.error(`Error details: ${errorMessage}`);
+    console.error(`Error kind: ${errorKind}`);
     console.error(`Request context:`);
     console.error(`  - Indicator: ${rawIndicatorId}`);
     console.error(`  - Period: ${period} (periodId: ${periodId})`);
@@ -775,11 +867,36 @@ async function fetchIndicatorPeriod(
 
     return {
       success: false,
+      fetchStat,
       error: {
         indicatorRawId: rawIndicatorId,
         periodId,
         error: errorMessage,
+        errorKind,
       },
     };
   }
+}
+
+// 4xx (except 429) is a deterministic config error — the connector never
+// retries it (see retry_utils shouldRetry) and re-running without a config
+// fix will fail again. Everything else (5xx/timeout/network) is server
+// health and may succeed on a later re-run.
+function classifyFetchError(
+  error: unknown,
+  errorMessage: string
+): Dhis2FetchErrorKind {
+  const status = (error as DHIS2FetchError).status;
+  if (typeof status === "number") {
+    return status >= 400 && status < 500 && status !== 429
+      ? "permanent"
+      : "transient";
+  }
+  if (
+    errorMessage.includes("API Error (4") &&
+    !errorMessage.includes("API Error (429")
+  ) {
+    return "permanent";
+  }
+  return "transient";
 }

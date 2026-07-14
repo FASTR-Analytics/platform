@@ -152,6 +152,38 @@ if (_WEEKLY_TOKEN_LIMIT !== null && Number.isNaN(_WEEKLY_TOKEN_LIMIT)) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// DHIS2 Import Tuning (Optional)
+///////////////////////////////////////////////////////////////////////////////
+
+export const _DHIS2_FACILITY_BATCH_SIZE: number = Deno.env.get(
+  "DHIS2_FACILITY_BATCH_SIZE",
+)
+  ? parseInt(Deno.env.get("DHIS2_FACILITY_BATCH_SIZE")!)
+  : 400;
+if (
+  Number.isNaN(_DHIS2_FACILITY_BATCH_SIZE) ||
+  _DHIS2_FACILITY_BATCH_SIZE < 1
+) {
+  throw new Error(
+    "DHIS2_FACILITY_BATCH_SIZE is set but is not a positive number",
+  );
+}
+
+export const _DHIS2_CONCURRENT_REQUESTS: number = Deno.env.get(
+  "DHIS2_CONCURRENT_REQUESTS",
+)
+  ? parseInt(Deno.env.get("DHIS2_CONCURRENT_REQUESTS")!)
+  : 5;
+if (
+  Number.isNaN(_DHIS2_CONCURRENT_REQUESTS) ||
+  _DHIS2_CONCURRENT_REQUESTS < 1
+) {
+  throw new Error(
+    "DHIS2_CONCURRENT_REQUESTS is set but is not a positive number",
+  );
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Authentication (Optional)
 ///////////////////////////////////////////////////////////////////////////////
 

@@ -210,6 +210,28 @@ export type DatasetCsvStagingResult = {
   };
 };
 
+// Permanent = deterministic config error (4xx, e.g. 409 on a stale dx id) —
+// re-running without fixing the config will fail again. Transient = server
+// health (5xx/timeout) — a later re-run may succeed.
+export type Dhis2FetchErrorKind = "permanent" | "transient";
+
+// Per-(indicator, period) fetch instrumentation, rolled up across facility
+// batches. The production counterpart of the Phase 0 lab timing evidence, so
+// future slowness reports arrive with their own data (PLAN_DHIS2_IMPORTER A1).
+export type Dhis2PairFetchStat = {
+  indicatorRawId: string;
+  periodId: number;
+  success: boolean;
+  route: "analytics";
+  requests: number;
+  retries: number;
+  totalFetchMs: number;
+  maxRequestMs: number;
+  rowsFetched: number;
+  errorKind?: Dhis2FetchErrorKind;
+  error?: string;
+};
+
 export type DatasetDhis2StagingResult = {
   sourceType: "dhis2";
   dateImported: string;
@@ -219,6 +241,7 @@ export type DatasetDhis2StagingResult = {
     indicatorRawId: string;
     periodId: number;
     error: string;
+    errorKind?: Dhis2FetchErrorKind;
   }>;
   periodIndicatorStats: PeriodIndicatorRawStat[];
   finalStagingRowCount: number;
@@ -240,6 +263,8 @@ export type DatasetDhis2StagingResult = {
   // persisted (needed only to drive Phase 4, not to be kept in version
   // history — see Step 4).
   dhis2RowsDeleted?: number;
+  // Absent on results staged by pre-instrumentation code.
+  pairFetchStats?: Dhis2PairFetchStat[];
   workItemHistory: Array<{
     indicatorId: string;
     periodId: number;
