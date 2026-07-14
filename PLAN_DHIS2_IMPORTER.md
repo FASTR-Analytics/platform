@@ -1,41 +1,54 @@
 # Plan — DHIS2 importer: speed, import ledger, auto-pull
 
-**Status (2026-07-14): Phase 0 complete; architecture ruled; Phase 1
-shipped (`da4f6a7d`); Phase 2 shipped (`d191fb3f`: ledger table +
-backfill migration 056, transactional writers on all three mutation
-paths, viewer switched to ledger reads with `ds_hmis_v2` cache prefix,
-`getDatasetHmisImportLedger` route, read-only import-status UI —
-per-indicator checklist sorted failures-first + per-month detail with
-classified errors; all SQL verified empirically against the dev DB:
-backfill parity 360/360, raw vizItems byte-identical, writers exercised
-in rolled-back transactions). Phase 2 notes: ledger counts are
-recomputed from dataset_hmis inside the transaction (more robust than
-staged stats when non-fetched facilities survive a scoped delete);
-common-view `count` is now the summed raw record count (plan §6 ruled
-join+SUM — differs from the old distinct-facility count only where
-several raws map to one common); the per-cell surface lives in the
-ledger view's month detail, not inside the panther figure;
-`failedFetches` is now uncapped (1000-char error cap) so the ledger
-records every failed pair. Next action = Phase 3 (§5). Phase 1/2 loose
-ends: §2.6 daytime lab runs (WAT business hours); Nigeria comms (Tim
-pastes A2 + the 6-stale-id remap ask); server restart/deploy (dev DB
-already has migration 056 applied by the verify harness — idempotent,
-startup will no-op).**
-Phase 0's fetch lab ran E1–E10
-against the real Nigeria DHIS2 with production inputs; all verdicts are in
-§2 (raw data: `~/projects/apps/wb-fastr-dhis2-lab`, its `RESULTS.md` +
-`results/*.json`). Tim has ruled the Phase 3 architecture: the
-**fetch dispatcher** (§4.4) — dataValueSets-primary, analytics only for
-computed indicators. Standing directive from Tim: **where a decision is
-unclear, take the most robust option, even at the cost of more work.**
-Rulings made under that directive are marked *(robustness ruling)*.
+**Status (2026-07-14): Phases 0–2 complete; Phases 3–4 not started.
+Next action = Phase 3 (§5.3 — the fetch dispatcher §4.4 + per-pair
+units C1/C2 §7).**
 
-A fresh agent continuing this work: read §1–§2 for context and evidence,
-then execute the next unfinished phase in §5. Everything needed is in
-this file or linked from it. This plan is the status tracker — when a
-phase completes, update the Status block above (commit to main). Delete
-the plan when Phase 4 lands; if work stalls, fold remainders into
-SYSTEM_06/07 Open items.
+- Phase 0 = the fetch lab; all verdicts in §2.
+- Phase 1 shipped `da4f6a7d` — worker quick wins + per-pair
+  instrumentation; as-built notes in §4.1/§4.3.
+- Phase 2 shipped `d191fb3f` — the import ledger end-to-end; as-built
+  notes in §6/§6.1. Verified empirically against the dev DB (backfill
+  parity, raw-vizItems byte-parity, writers exercised in rolled-back
+  transactions).
+- Adversarial review of Phases 1–2: two independent reviewers run
+  2026-07-14. Core mechanics and the ledger invariant (every
+  `dataset_hmis` mutation path maintains the ledger in-transaction)
+  independently confirmed. 7 findings triaged → 5 confirmed and fixed
+  in the review-fixes commit (error-string cap applied at source;
+  URL-guard errors classified permanent; ledger writers skip indicators
+  deleted between staging and integration instead of FK-aborting the
+  whole integration; non-facility-scoped deletes also sweep zero-count/
+  error ledger rows from the window; "Before import tracking began"
+  label no longer shown for never-imported failing pairs), 1 documented
+  (`pairFetchStats` timing = wall time incl. retry sleeps), 1 deferred
+  by design (per-run instrumentation retention in version rows →
+  C2's runs table, see §4.1). All fixes re-verified empirically
+  (rolled-back-transaction harness) + typecheck green.
+
+Outstanding non-code items:
+
+- §2.6 daytime lab runs (needs WAT business hours; zero app code).
+- Nigeria comms: Tim pastes the A2 attribution paragraph (delivered to
+  Tim 2026-07-14; §4.2) and the 6-stale-id remap ask (§2.2).
+- Deploy: Phases 1–2 take effect only after a server restart/deploy
+  (migration 056 runs at startup; the dev DB already has it from the
+  verify harness — idempotent no-op).
+
+Tim has ruled the Phase 3 architecture: the **fetch dispatcher** (§4.4)
+— dataValueSets-primary, analytics only for computed indicators.
+Standing directive from Tim: **where a decision is unclear, take the
+most robust option, even at the cost of more work.** Rulings made under
+that directive are marked *(robustness ruling)*.
+
+A fresh agent continuing this work: read §1 for the as-built system,
+§2 for the evidence base, §3 for the ruled architecture, then execute
+the next unfinished phase in §5 (specs: §4.4 for the dispatcher, §7 for
+per-pair units/auto-pull, §6.1 for the per-phase UI surfaces).
+Everything needed is in this file or linked from it. This plan is the
+status tracker — when a phase completes, update the Status block above
+(commit to main). Delete the plan when Phase 4 lands; if work stalls,
+fold remainders into SYSTEM_06/07 Open items.
 
 Three goals, one system (S6's HMIS-DHIS2 path + S7 connector):
 
@@ -58,49 +71,79 @@ promises to redeem: a per-indicator "last updated on X" surface and an
 in-app one-indicator-at-a-time checklist replacing Rachel's spreadsheet
 (both = WS-B).
 
-## 1. Anatomy today (verified against `main` 2026-07-14)
+## 1. Anatomy today (as-built after Phases 1–2; verified against `main` 2026-07-14)
 
 **Fetch** (`server/worker_routines/stage_hmis_data_dhis2/worker.ts`):
-work item = (raw indicator × month). `pooledMap` with
-`CONCURRENT_REQUESTS = 5`; within a work item the facility batches run
-sequentially — `FACILITY_BATCH_SIZE = 100` → 495 batches for Nigeria's
-49,473 UID-shaped facilities — each batch a separate
-`getAnalyticsFromDHIS2` call (`dx:1 × pe:1 × ou:100`, `skipMeta`) with
-`maxAttempts: 10, maxDelayMs: 60000` (a consistently-failing batch burns
-~24 min before the pair fails). A 200 response missing `rows` fails the
-work item (deliberate; see §2.1 — Nigeria never actually omits `rows`).
-Values are `parseInt`-truncated, negatives dropped. Successful pairs are
-integrated later via the pair-scoped delete-then-insert (S6); the staged
-result JSON (`step_3_result`, and a copy on `dataset_hmis_versions.
-staging_result`) carries `periodIndicatorStats`, `failedFetches`,
-`succeededWorkItems`, `fetchedFacilityIds`.
+work item = (raw indicator × month). `pooledMap` concurrency from env
+`DHIS2_CONCURRENT_REQUESTS` (default 5); within a work item the facility
+batches run sequentially — batch size from env
+`DHIS2_FACILITY_BATCH_SIZE` (default **400**, measured-safe §2.3) → 124
+batches for Nigeria's 49,473 UID-shaped facilities — each batch a
+separate `getAnalyticsFromDHIS2` call (`dx:1 × pe:1 × ou:N`, `skipMeta`)
+with `maxAttempts: 3`; 4xx (except 429) is never retried (connector
+`shouldRetry`), so a 409 on a stale dx fails the pair instantly. The URL
+guard measures the **real** URL via `buildUrl` against a 7,000-char
+limit (nginx cliff ~8 KB; a 400-facility batch is ~5,740 chars).
+Progress writes to the single-row attempt table are throttled to ≥2 s
+(the client polls at 2 s), force-written on pair completion. A 200
+response missing `rows` still fails the work item (deliberate; §2.1 —
+Nigeria never omits `rows`). Values are `parseInt`-truncated, negatives
+dropped. Per-pair instrumentation (`pairFetchStats`: requests, retries,
+totalFetchMs, maxRequestMs, rowsFetched, route, errorKind) is persisted
+in the staging result — the production counterpart of lab E1.
+`failedFetches` is the **complete** failure list (uncapped; error
+strings capped at 1,000 chars) and every entry carries
+`errorKind: "permanent" | "transient"` (4xx≠429 vs everything else).
+The staged result JSON (`step_3_result`, copied onto
+`dataset_hmis_versions.staging_result`) carries `periodIndicatorStats`,
+`failedFetches`, `succeededWorkItems`, `fetchedFacilityIds`,
+`pairFetchStats`.
 
-**Known warts** (all verified):
+**Integration** (`server/worker_routines/integrate_hmis_data/worker.ts`):
+scoped delete-then-insert for DHIS2 results carrying the delete scope,
+legacy merge for CSV. The same transaction writes the **import ledger**
+(below) — succeeded pairs recomputed from `dataset_hmis`, failed DHIS2
+pairs upserted as `status='error'`.
 
-- The 2048-char URL guard measures a URL built with `searchParams.set`
-  on the same `dimension` key three times — only `ou` survives, so it
-  undercounts. The real limit is nginx's ~8 KB (§2.3); batch 100 was
-  tuned against a broken measurement.
-- `updateGranularProgress` is awaited after **every facility batch** —
-  one UPDATE of the whole status JSON on the single-row
-  `dataset_hmis_upload_attempts` table per batch (~713k single-row
-  UPDATEs for a full pull; the client also polls the row every 2 s).
-- Per-pair `nRecords`/`totalCount` stats are computed by both DHIS2 and
-  CSV staging, then buried in the result JSON — exactly what G2 wants.
-- Work-item history in the status JSON caps at 20 entries; failures
-  surface only as `failedFetches` samples. Nothing durable per pair.
+**Import ledger** (`dataset_hmis_import_ledger`, main DB — the G2
+deliverable, Phase 2): one row per (raw indicator, month) — `n_records`,
+`sum_count`, `source` (`dhis2|csv|backfill`), `status` (`ready|error`),
+`error` (prefixed `[permanent]`/`[transient]`), `imported_at`
+(NULL = pre-ledger backfill), `version_id`. Written **inside every
+transaction that mutates `dataset_hmis`** (both integration branches;
+windowed/full deletes reconcile) so it can never disagree with the
+data. Writers + read fn: `server/db/instance/dataset_hmis_import_ledger.ts`.
+Served raw by `getDatasetHmisImportLedger` (GET, `can_view_data`,
+uncached; ~1,440 rows for Nigeria).
 
-**Viewer** (`getDatasetHmisItemsForDisplay*`): `vizItems` is a full
-`GROUP BY indicator, period` over `dataset_hmis` (tens of millions of
-rows for Nigeria); Valkey-cached on `versionId + indicatorMappingsVersion`
-so every import re-pays the scan.
+**Viewer** (`getDatasetHmisItemsForDisplay*`): `vizItems`, indicator
+lists, and `periodBounds` read the **ledger** (`WHERE n_records > 0`),
+not `dataset_hmis`. Raw view is byte-identical to the old GROUP BY
+(verified on dev DB); common view is a mappings join+SUM — its `count`
+is the summed raw record count, which diverges from the old
+distinct-facility count only where several raws map to one common id
+(ruled, §6). Valkey cache prefix bumped `ds_hmis` → `ds_hmis_v2`;
+keying (`versionId + indicatorMappingsVersion`) unchanged.
 
-**State machine**: one single-row attempt per family; the wizard owns it;
-only one import can exist at a time; progress is the status JSON.
+**Ledger UI** (§6.1 Phase 2, shipped): "Import status by indicator"
+button in the HMIS admin sidebar → read-only checklist (one row per raw
+indicator: months-with-data vs window, last import date+source, failed
+months; failures-first default sort, all columns sortable) → per-month
+detail (status incl. "Checked — no data" / "Never imported", records,
+sum, source, imported_at, classified error). Components:
+`client/src/components/instance_dataset_hmis/_import_ledger.tsx` +
+`_import_ledger_indicator.tsx`. Per-cell import info lives here — the
+main viz grid is a panther figure, not a custom table, so cell metadata
+was not injected there.
 
-**Connector** (S7, `server/dhis2/`): one base fetcher
+**State machine**: unchanged — one single-row attempt per family; the
+wizard owns it; only one import can exist at a time; progress is the
+(now throttled) status JSON. Phase 3's C2 replaces this for DHIS2 runs.
+
+**Connector** (S7, `server/dhis2/`): unchanged — one base fetcher
 (`fetchFromDHIS2`/`getDHIS2`) owning auth/timeout(120 s spanning body
-read)/retry (`withRetry`, classifies by message substring); analytics via
+read)/retry (`withRetry`, classifies by message substring; never
+retries 4xx except 429); analytics via
 `goal3_analytics/getAnalyticsFromDHIS2`. See SYSTEM_07_dhis2.md.
 
 ## 2. Phase 0 verdicts (the evidence base — lab, real Nigeria DHIS2)
@@ -225,14 +268,30 @@ which route fetched. Design details in §4.4.
 
 ## 4. Workstreams
 
-### 4.1 A1 — in-app instrumentation (ships Phase 1)
+### 4.1 A1 — in-app instrumentation (SHIPPED, Phase 1 `da4f6a7d`)
 
 Per-request timing in the staging worker (fetch ms, rows, retry count,
 HTTP status, route taken) rolled up per pair, persisted in the staging
 result + logs — the production counterpart of lab E1, so future slowness
 reports arrive with their own evidence.
 
-### 4.2 A2 — the regression answer (ships Phase 1)
+*As built*: `pairFetchStats: Dhis2PairFetchStat[]` on
+`DatasetDhis2StagingResult` (additive optional field — no migration or
+cache impact); retries counted via the connector's `onRetry` hook; HTTP
+status lives in the error string + `errorKind`; timing is wall time per
+batch call including retry sleeps (bounded by the retry cap); `route` is
+`"analytics"` until the dispatcher adds a second route. Error strings
+are capped at 1,000 chars at the source. Known cost (accepted, review
+2026-07-14): `pairFetchStats` rides into every
+`dataset_hmis_versions.staging_result` copy (~300 KB per clean Nigeria
+run) and the versions-list route ships full staging results to the
+client — same order as the pre-existing
+`succeededWorkItems`/`periodIndicatorStats` payload. C2's runs table
+(Phase 3) is the designed durable home for per-run instrumentation;
+when C2 lands, strip `pairFetchStats` from the version copy like
+`fetchedFacilityIds` is stripped today.
+
+### 4.2 A2 — the regression answer (DELIVERED 2026-07-14)
 
 Write §2.1's attribution verdict into the thread (Rachel/Josh), with the
 advocacy-note material for the Ministry/DHIS2 team: the slow-dx list and
@@ -242,7 +301,10 @@ and the 6 stale indicator ids to remap instance-side (§2.2). Done = a
 paragraph Tim can paste, stored nowhere else (one tracking home: this
 plan's Status block records A2 done/not-done).
 
-### 4.3 A3 — quick wins (ship together as Phase 1; all evidence-backed)
+*Status*: paragraph written and handed to Tim 2026-07-14; pasting it to
+the thread is Tim's outstanding comms item (Status block).
+
+### 4.3 A3 — quick wins (SHIPPED, Phase 1 `da4f6a7d`)
 
 - **Throttle progress writes**: time-based (≥2 s since last write — the
   client polls at 2 s), always write on pair completion. Kills ~99% of
@@ -259,6 +321,13 @@ plan's Status block records A2 done/not-done).
 - These land in today's worker; the dispatcher (Phase 3) supersedes some
   of it, but Phase 1 is cheap, de-risks the current path for all
   instances, and the tunables/instrumentation/409 handling carry over.
+
+*As built*: all four items as specified. Env tunables =
+`DHIS2_FACILITY_BATCH_SIZE` / `DHIS2_CONCURRENT_REQUESTS` (documented in
+`.env.example`). Note the connector's default `shouldRetry` already
+refused to retry 4xx≠429, so "409 permanent" was largely pre-existing —
+the commit adds the explicit permanent/transient classification
+(`classifyFetchError`) that the ledger stores.
 
 ### 4.4 A4 — the fetch dispatcher (Phase 3 core)
 
@@ -346,20 +415,28 @@ scheduled off-peak (§2.5). Plus the Nigeria comms item: remap/remove the
 
 ## 5. Sequencing (each phase ships alone; update Status on completion)
 
-1. **Phase 1 — quick wins + instrumentation + the answer** (A3 + A1 +
-   A2): worker fixes (throttle, guard fix + batch 400, retry cap 3, 409
-   permanent, env tunables), per-pair timing instrumentation, thread
-   attribution paragraph + Nigeria config comms (6 stale ids). Also run
-   the Phase 0 loose ends (§2.6 daytime lab runs) — zero app code.
-2. **Phase 2 — ledger** (WS-B, §6): table + writers + backfill + viewer
-   switch + read-only checklist / "last imported" UI.
-3. **Phase 3 — dispatcher + per-pair units** (§4.4 + C1 + C2, §7):
-   restructure to per-pair fetch+integrate, runs table, dispatcher as
-   the fetch step, cutover gates green.
+1. **Phase 1 — DONE (`da4f6a7d`)** — quick wins + instrumentation + the
+   answer (A3 + A1 + A2): worker fixes (throttle, guard fix + batch 400,
+   retry cap 3, 409 permanent, env tunables), per-pair timing
+   instrumentation, thread attribution paragraph. Still outstanding from
+   this phase: the §2.6 daytime lab runs and the Nigeria comms
+   (Status block).
+2. **Phase 2 — DONE (`d191fb3f`)** — ledger (WS-B, §6): table plus
+   writers, backfill, viewer switch, and the read-only checklist /
+   "last imported" UI.
+3. **Phase 3 — NEXT** — dispatcher + per-pair units (§4.4 + C1 + C2,
+   §7): restructure to per-pair fetch+integrate, runs table, dispatcher
+   as the fetch step, cutover gates green (lab pre-flight parity gate
+   BEFORE shipping, then first-run shadow verification per instance).
+   Also ships the §6.1 Phase 3 UI (checklist actions + run view).
 4. **Phase 4 — auto-pull** (C3 + C4, §7): stored credentials
    (encrypted), weekly scheduler, off-peak window, failure surfacing.
+   Plus the §6.1 Phase 4 UI (subscription config + failure banner).
 
-## 6. WS-B — the import ledger (G2)
+## 6. WS-B — the import ledger (G2) — SHIPPED (Phase 2, `d191fb3f`)
+
+Built as specified below, with the as-built deviations listed after the
+spec (all robustness-driven or ruled; all verified on the dev DB).
 
 New main-DB table, grain = **(indicator_raw_id, period_id)** — raw, not
 common, because the import unit is raw and common is a cheap join through
@@ -403,6 +480,39 @@ CREATE TABLE dataset_hmis_import_ledger (
 HFA/ICEH are out of scope (different identity models); the ledger is
 HMIS-only by design.
 
+**As built** (deviations from the spec above, deliberate):
+
+- **Counts are recomputed from `dataset_hmis` inside the transaction**
+  for BOTH branches — not copied from staged stats. Staged stats miss
+  rows outside the fetch's facility scope that survive a scoped delete
+  (e.g. CSV-imported facilities with non-UID ids), so recompute is
+  strictly more correct; the per-pair LATERAL rides
+  `idx_dataset_hmis_indicator_period` *(robustness ruling)*.
+- Pair lists: scoped DHIS2 = `succeededWorkItems` (including zero-row
+  pairs → `n_records 0`, "checked, empty" — real information); merge
+  branch (CSV, and legacy DHIS2 results lacking the delete scope) =
+  `SELECT DISTINCT … WHERE version_id = new version`.
+- Failed-pair upserts touch only `status` + `error` (counts,
+  `imported_at`, `source`, `version_id` untouched — no data changed);
+  a never-imported failed pair gets a zero-count `error` row with
+  `imported_at NULL`. `error` is prefixed `[permanent]`/`[transient]`
+  (the classification the plan asked the text to carry).
+- **`failedFetches` is uncapped** (was a 100-sample; per-error strings
+  capped at 1,000 chars) so the ledger records every failed pair.
+- Deletion: `deleteAllDatasetHmisData` is windowed (there is no separate
+  truncate path in the app) — affected pairs are captured before the
+  DELETE, then reconciled: emptied pairs lose their ledger row,
+  partially-deleted pairs keep their last-import identity with corrected
+  counts.
+- Viewer reads filter `WHERE n_records > 0` so zero-count/error-only
+  rows are checklist information, not data cells; the Valkey prefix was
+  bumped `ds_hmis` → `ds_hmis_v2` because the common-view `count`
+  semantics changed (summed raw records vs distinct facilities — equal
+  except where several raws map to one common id).
+- Module: `server/db/instance/dataset_hmis_import_ledger.ts` (writers +
+  read fn); migration `056_dataset_hmis_import_ledger.sql`; route
+  `getDatasetHmisImportLedger`.
+
 ### 6.1 UI surfaces (this plan is NOT backend-only — these are the thread promises)
 
 All read from the ledger (+ C2 runs table in Phase 3); the ledger's
@@ -411,7 +521,7 @@ exactly "when was the last successful fetch of this indicator-month".
 Client home: the HMIS dataset components (viewer + wizard) under
 `client/src/components/` — follow PROTOCOL_UI_STRUCTURE for placement.
 
-**Phase 2 (read-only, ships with the ledger):**
+**Phase 2 (read-only) — SHIPPED (`d191fb3f`):**
 
 - **HMIS viewer, per-cell**: each (indicator, month) cell exposes its
   ledger row — imported_at ("last imported 12 Jul 2026"), source
@@ -425,6 +535,16 @@ Client home: the HMIS dataset components (viewer + wizard) under
   date+source, failing months with classified errors (permanent-config
   "not found in DHIS2" vs transient-server), sortable so "what needs
   attention" floats up. Read-only in Phase 2.
+
+*As built*: all three surfaces live in one place — the "Import status
+by indicator" view (HMIS admin sidebar → checklist table, failures
+first → click an indicator → per-month detail with status, counts,
+source, imported_at, and the classified error). Per-cell info was NOT
+injected into the main viz grid: that grid is a panther figure
+(`ChartHolder` table mode), not a custom component, so the month-detail
+table is the per-cell surface. Backfill rows render "Before import
+tracking began". Components: `_import_ledger.tsx` /
+`_import_ledger_indicator.tsx`; strings inline `t3` en/fr/pt.
 
 **Phase 3 (actions + runs, ships with dispatcher/C1/C2):**
 

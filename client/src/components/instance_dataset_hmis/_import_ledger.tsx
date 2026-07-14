@@ -155,16 +155,22 @@ export function ImportLedger(p: EditorComponentProps<{}, undefined>) {
       }),
       sortable: true,
       sortValue: (item) => item.latestImportedAt ?? "",
-      render: (item) =>
-        item.latestImportedAt
-          ? `${new Date(item.latestImportedAt).toLocaleDateString()} (${
+      render: (item) => {
+        if (item.latestImportedAt) {
+          return `${new Date(item.latestImportedAt).toLocaleDateString()} (${
             item.latestSource ? sourceLabel(item.latestSource) : ""
-          })`
+          })`;
+        }
+        // No timestamp anywhere: either pre-ledger backfill data, or an
+        // indicator that has only ever failed (never imported at all).
+        return item.items.some((i) => i.source === "backfill")
+          ? sourceLabel("backfill")
           : t3({
-            en: "Before import tracking began",
-            fr: "Avant le suivi des importations",
-            pt: "Antes do registo das importações",
-          }),
+            en: "Never imported",
+            fr: "Jamais importé",
+            pt: "Nunca importado",
+          });
+      },
     },
     {
       key: "failedMonths",

@@ -225,6 +225,9 @@ export type Dhis2PairFetchStat = {
   route: "analytics";
   requests: number;
   retries: number;
+  // Wall time per batch call including retry sleeps (retries are capped at
+  // 3, so bounded) — not pure server think time. HTTP statuses live in the
+  // error string + errorKind, not as a separate field.
   totalFetchMs: number;
   maxRequestMs: number;
   rowsFetched: number;

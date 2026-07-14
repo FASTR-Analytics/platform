@@ -150,7 +150,10 @@ export function ImportLedgerIndicatorDetail(
           return "";
         }
         if (!row.item.importedAt) {
-          return sourceLabel("backfill");
+          // Backfill rows predate tracking; anything else with no timestamp
+          // has never successfully imported — leave the cell empty rather
+          // than implying a pre-tracking import.
+          return row.item.source === "backfill" ? sourceLabel("backfill") : "";
         }
         return new Date(row.item.importedAt).toLocaleString();
       },

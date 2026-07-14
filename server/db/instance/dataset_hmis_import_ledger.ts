@@ -32,11 +32,17 @@ export async function upsertHmisLedgerPairsFromData(
   }
   const indicatorIds = deduped.map((p) => p.indicatorRawId);
   const periodIds = deduped.map((p) => p.periodId);
+  // The indicators_raw JOIN skips pairs whose indicator was deleted between
+  // staging and integration (possible for pairs with no dataset_hmis rows —
+  // deleteIndicatorRaw only refuses when data exists). Without it the FK
+  // aborts the whole integration; skipping matches what ON DELETE CASCADE
+  // would have produced had the delete come after this write.
   await sql`
     INSERT INTO dataset_hmis_import_ledger
       (indicator_raw_id, period_id, n_records, sum_count, source, status, error, imported_at, version_id)
     SELECT s.indicator_raw_id, s.period_id, agg.n, agg.sum, ${source}, 'ready', NULL, now(), ${versionId}
     FROM UNNEST(${indicatorIds}::text[], ${periodIds}::int[]) AS s(indicator_raw_id, period_id)
+    JOIN indicators_raw ir ON ir.indicator_raw_id = s.indicator_raw_id
     CROSS JOIN LATERAL (
       SELECT COUNT(*)::integer AS n, COALESCE(SUM(dt.count), 0)::bigint AS sum
       FROM dataset_hmis dt
@@ -74,12 +80,15 @@ export async function upsertHmisLedgerErrorPairs(
   const errors = deduped.map((f) =>
     `[${f.errorKind ?? "transient"}] ${f.error}`.slice(0, 1000)
   );
+  // indicators_raw JOIN: same deleted-mid-wizard guard as
+  // upsertHmisLedgerPairsFromData above.
   await sql`
     INSERT INTO dataset_hmis_import_ledger
       (indicator_raw_id, period_id, n_records, sum_count, source, status, error, imported_at, version_id)
     SELECT s.indicator_raw_id, s.period_id, 0, 0, 'dhis2', 'error', s.error, NULL, NULL
     FROM UNNEST(${indicatorIds}::text[], ${periodIds}::int[], ${errors}::text[])
       AS s(indicator_raw_id, period_id, error)
+    JOIN indicators_raw ir ON ir.indicator_raw_id = s.indicator_raw_id
     ON CONFLICT (indicator_raw_id, period_id) DO UPDATE SET
       status = 'error',
       error = EXCLUDED.error

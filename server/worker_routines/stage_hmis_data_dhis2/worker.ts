@@ -430,12 +430,9 @@ async function run(std: {
       totalIndicatorPeriodCombos: totalCombos,
       successfulFetches: totalCombos - failedFetches.length,
       // Full list, not a sample — the import ledger records every failed
-      // pair at integration time. Error strings capped so a pathological run
-      // can't bloat the stored result.
-      failedFetches: failedFetches.map((f) => ({
-        ...f,
-        error: f.error.slice(0, 1000),
-      })),
+      // pair at integration time. Error strings are capped at their source
+      // in fetchIndicatorPeriod.
+      failedFetches,
       periodIndicatorStats,
       finalStagingRowCount: totalRowsStaged,
       succeededWorkItems,
@@ -643,7 +640,9 @@ async function fetchIndicatorPeriod(
 
       if (urlLength > MAX_URL_LENGTH) {
         urlAnalysis.longUrls++;
-        // Error immediately to prevent potential data loss
+        // Error immediately to prevent potential data loss. Marker string is
+        // matched by classifyFetchError — this is a deterministic config
+        // error (batch size), permanent until the env changes.
         throw new Error(
           `URL length ${urlLength} exceeds safe limit of ${MAX_URL_LENGTH} characters for batch with ${facilityBatch.length} facilities. ` +
           `Reduce the DHIS2_FACILITY_BATCH_SIZE env variable (currently ${FACILITY_BATCH_SIZE}).`
@@ -855,14 +854,19 @@ async function fetchIndicatorPeriod(
       fetchStat,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const fullErrorMessage =
+      error instanceof Error ? error.message : String(error);
+    // Capped once here so every stored copy (failedFetches, pairFetchStats,
+    // the ledger) is bounded — timeout messages embed the full request URL
+    // (~5.7 KB at batch 400).
+    const errorMessage = fullErrorMessage.slice(0, 1000);
     const totalBatches = Math.ceil(facilityIds.length / FACILITY_BATCH_SIZE);
-    const errorKind = classifyFetchError(error, errorMessage);
+    const errorKind = classifyFetchError(error, fullErrorMessage);
 
     console.error(
       `\n!!! ERROR fetching ${rawIndicatorId} for period ${period} !!!`
     );
-    console.error(`Error details: ${errorMessage}`);
+    console.error(`Error details: ${fullErrorMessage}`);
     console.error(`Error kind: ${errorKind}`);
     console.error(`Request context:`);
     console.error(`  - Indicator: ${rawIndicatorId}`);
@@ -886,8 +890,9 @@ async function fetchIndicatorPeriod(
 
 // 4xx (except 429) is a deterministic config error — the connector never
 // retries it (see retry_utils shouldRetry) and re-running without a config
-// fix will fail again. Everything else (5xx/timeout/network) is server
-// health and may succeed on a later re-run.
+// fix will fail again. The worker's own URL-length guard is likewise
+// deterministic (batch size × fixed facility list). Everything else
+// (5xx/timeout/network) is server health and may succeed on a later re-run.
 function classifyFetchError(
   error: unknown,
   errorMessage: string
@@ -902,6 +907,9 @@ function classifyFetchError(
     errorMessage.includes("API Error (4") &&
     !errorMessage.includes("API Error (429")
   ) {
+    return "permanent";
+  }
+  if (errorMessage.includes("exceeds safe limit")) {
     return "permanent";
   }
   return "transient";

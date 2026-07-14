@@ -171,7 +171,7 @@ export async function deleteAllDatasetHmisData(
     }
 
     // Build WHERE conditions based on windowing
-    const conditions = [];
+    const conditions: string[] = [];
 
     // Period filtering
     conditions.push(`period_id >= ${windowing.start}`);
@@ -231,13 +231,39 @@ export async function deleteAllDatasetHmisData(
         periodId: r.period_id,
       }));
 
+      // Zero-count ledger rows (DHIS2 "checked, empty" and error-only pairs)
+      // have no dataset_hmis rows, so the scan above can't see them. A
+      // non-facility-scoped deletion wipes the pair's whole window, so those
+      // records go too; a facility-scoped deletion keeps them (partial
+      // deletion doesn't invalidate pair-level state).
+      const ledgerPairs = facilitySubquery
+        ? []
+        : (
+            await sql.unsafe<
+              { indicator_raw_id: string; period_id: number }[]
+            >(`
+              SELECT indicator_raw_id, period_id
+              FROM dataset_hmis_import_ledger
+              WHERE ${conditions.join(" AND ")}
+            `)
+          ).map((r) => ({
+            indicatorRawId: r.indicator_raw_id,
+            periodId: r.period_id,
+          }));
+
       const deleteResult = await sql.unsafe(`
         DELETE FROM dataset_hmis
         WHERE ${whereClause}
       `);
       const deleteCount = deleteResult.count;
 
+      if (deleteCount === 0 && ledgerPairs.length === 0) {
+        return;
+      }
       if (deleteCount === 0) {
+        // Nothing deleted from dataset_hmis (no version record to mint), but
+        // the window still holds zero-count ledger records to clear.
+        await reconcileHmisLedgerPairsAfterDelete(sql, ledgerPairs);
         return;
       }
 
@@ -271,7 +297,10 @@ export async function deleteAllDatasetHmisData(
         )
       `;
 
-      await reconcileHmisLedgerPairsAfterDelete(sql, affectedPairs);
+      await reconcileHmisLedgerPairsAfterDelete(sql, [
+        ...affectedPairs,
+        ...ledgerPairs,
+      ]);
     });
 
     return { success: true };
