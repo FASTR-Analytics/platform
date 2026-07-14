@@ -69,7 +69,7 @@ export function ProjectMetrics(p: Props) {
           ensureHeightAsIfButton></HeadingBar>
       }
     >
-      <div class="ui-pad ui-spy">
+      <div class="ui-pad ui-spy" data-page-cursor-surface>
         <For each={organized()}>
           {(moduleGroup) => (
             <div class="ui-spy">

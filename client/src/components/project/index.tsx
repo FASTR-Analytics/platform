@@ -19,6 +19,7 @@ import {
   Switch,
 } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
+import { ProjectPageCursors } from "~/components/_shared/cursors/page_cursors";
 import { ProjectSSEBoundary } from "~/state/project/t1_sse";
 import { projectState } from "~/state/project/t1_store";
 
@@ -197,6 +198,9 @@ function ProjectInner() {
   return (
     <AIProjectWrapper>
       <AIContextSync />
+      {/* Page-level live cursors (renders into body portals; document-level
+          listeners — placement here is inert). */}
+      <ProjectPageCursors />
       <ProjectEditorWrapper>
         <Show
           when={tabItems().length > 0}

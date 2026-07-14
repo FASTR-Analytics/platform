@@ -448,6 +448,7 @@ export function ProjectReports(p: ExtendedProps) {
       >
         <div
           class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
+          data-page-cursor-surface
           onClick={() => selection.clear()}
         >
           <For

@@ -33,7 +33,7 @@ export function ProjectData(p: Props) {
     <EditorWrapper>
       <FrameTop panelChildren={<HeadingBar heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
         class="border-base-300" ensureHeightAsIfButton></HeadingBar>}>
-        <div class="ui-pad ui-spy">
+        <div class="ui-pad ui-spy" data-page-cursor-surface>
           {/* HMIS Dataset */}
           <Switch>
             <Match

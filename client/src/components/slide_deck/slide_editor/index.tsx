@@ -70,14 +70,7 @@ import {
   type SlideSession,
 } from "~/state/project/collab";
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
-import {
-  createPointerBroadcast,
-  CursorChatInput,
-  duToViewport,
-  LiveCursorsOverlay,
-  type PointerAwarenessState,
-  viewportToDu,
-} from "~/components/_shared/live_cursors";
+import { SlideEditorCursors } from "~/components/_shared/cursors/slide_cursors";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
@@ -201,34 +194,11 @@ export function SlideEditor(p: Props) {
     }
   }
 
-  // Live cursors: broadcast this user's pointer (in DU space) while it is over
-  // the slide canvas. Document-level listener + getElementById per event — the
-  // canvas lives inside a keyed <Show> that recreates on edits, so element
-  // handlers/refs would go stale. Disabled while a sub-editor modal covers the
+  // Live cursors: surface glue lives in _shared/cursors/slide_cursors.tsx
+  // (mounted in the JSX below). Disabled while a sub-editor modal covers the
   // canvas (the figure modal's own broadcaster takes over the awareness field).
   const slideCursorsEnabled = () =>
     !!session() && collabReady() && subEditorOpen() === 0;
-  function slidePointerFor(
-    cx: number,
-    cy: number,
-  ): PointerAwarenessState | null {
-    const canvas = document.getElementById("SLIDE_EDITOR_CANVAS");
-    if (!canvas) return null;
-    const r = canvas.getBoundingClientRect();
-    if (
-      r.width === 0 || cx < r.left || cx > r.right || cy < r.top ||
-      cy > r.bottom
-    ) {
-      return null;
-    }
-    const du = viewportToDu(r, { x: cx, y: cy }, PAGE_WIDTH_DU, PAGE_HEIGHT_DU);
-    return { surface: "slide", scope: p.slideId, x: du.x, y: du.y };
-  }
-  createPointerBroadcast({
-    awareness: () => session()?.awareness,
-    enabled: slideCursorsEnabled,
-    toPointer: slidePointerFor,
-  });
 
   // Render slide preview
   async function attemptGetPageInputs(slide: Slide) {
@@ -1134,34 +1104,11 @@ export function SlideEditor(p: Props) {
             {/* Figma-style live cursors. Outside the keyed <Show> above (which
                 recreates on every edit) so the sprites — and their transform
                 transitions — survive re-renders. */}
-            <LiveCursorsOverlay
-              awareness={session()?.awareness}
-              suppressed={subEditorOpen() > 0}
-              accepts={(pointer) => {
-                if (pointer.surface !== "slide" || pointer.scope !== p.slideId) {
-                  return null;
-                }
-                const canvas = document.getElementById("SLIDE_EDITOR_CANVAS");
-                if (!canvas) return null;
-                const r = canvas.getBoundingClientRect();
-                if (r.width === 0 || r.height === 0) return null;
-                // Backstop for any covering modal (see PeerSelectionOverlay).
-                const topEl = document.elementFromPoint(
-                  r.left + r.width / 2,
-                  r.top + r.height / 2,
-                );
-                if (topEl && topEl !== canvas && !topEl.contains(canvas)) {
-                  return null;
-                }
-                return duToViewport(r, pointer, PAGE_WIDTH_DU, PAGE_HEIGHT_DU);
-              }}
-            />
-            {/* Cursor chat: "/" over the canvas opens a message bubble on your
-                live cursor. */}
-            <CursorChatInput
+            <SlideEditorCursors
+              slideId={p.slideId}
               awareness={() => session()?.awareness}
               enabled={slideCursorsEnabled}
-              isOverSurface={(x, y) => slidePointerFor(x, y) !== null}
+              covered={() => subEditorOpen() > 0}
             />
           </div>
         </FrameLeftResizable>

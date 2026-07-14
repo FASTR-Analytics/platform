@@ -212,6 +212,7 @@ export function ProjectVisualizations(p: Props) {
           projectState={projectState}
           searchText={searchText().trim()}
           onClick={openVisualizationEditor}
+          pageCursorSurface
         />
       </Show>
     </FrameTop>

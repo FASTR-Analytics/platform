@@ -35,10 +35,12 @@ user-facing behavior.
   so presence is live anywhere inside a project, not just in the editor.
 - Message protocol ([lib/types/collab.ts](lib/types/collab.ts)):
   - client → server: `presence_update`, `slide_subscribe`, `slide_update`,
-    `slide_unsubscribe`, `awareness_update` (plus a reserved `heartbeat`,
-    currently unused).
+    `slide_unsubscribe`, `awareness_update`, and the project-scoped
+    `project_awareness_update` (page cursors — §14).
   - server → client: `hello` (connectionId), `presence_state` (full peer
-    list), `slide_sync`, `slide_update`, `slide_error`, `awareness`.
+    list), `slide_sync`, `slide_update`, `slide_error`, `awareness`,
+    `project_awareness`, and a connection-level `error` (e.g. over-sized
+    frame; logged by the client).
 - Reconnect: exponential backoff capped at 30s, retrying FOREVER (no give-up);
   `online` / tab-refocus events short-circuit the wait; a top-center banner
   ([connection_banner.tsx](client/src/components/_shared/connection_banner.tsx))
@@ -273,7 +275,13 @@ directions ship only diffs; an in-sync exchange applies as a pure no-op.
   never pings); `pointerChat` = cursor-chat message (`{ text } | null`,
   streamed live while typing, attached to the pointer bubble); `vizTab` =
   which viz-editor panel tab the peer is on (`{ scope, tab } | null`). New
-  machinery must claim a NEW field, never reuse these.
+  machinery must claim a NEW field, never reuse these. The SAME field names
+  ride two more awareness instances: the report session (report-code /
+  report-preview pointer surfaces) and the PROJECT-level awareness (§14).
+  Per-surface glue (coordinate mapping + scope gate) lives one file per
+  surface in [client/src/components/_shared/cursors/](client/src/components/_shared/cursors/)
+  (slide / viz / report / page); the rendering engine is
+  [live_cursors.tsx](client/src/components/_shared/live_cursors.tsx).
 
 ## 9. Canvas overlays
 
@@ -370,6 +378,33 @@ simpler document model:
   best-effort REST flush of the doc state; live → the room finalizes). AI
   edits need no busy-guard: they apply through the proposing user's own live
   session and merge via CRDT.
+
+## 14. Project-level awareness — page cursors
+
+The project tab pages (deck/report/viz lists, data, modules, …) have no doc
+room, so their live cursors ride a dedicated PROJECT-scoped Awareness:
+
+- Client: one instance per `connectCollab`
+  ([collab.ts](client/src/state/project/collab.ts) `projectAwareness`),
+  destroyed on `disconnectCollab`; local updates ship as
+  `project_awareness_update`, re-announced on every socket (re)open (there is
+  no subscribe to trigger catch-up).
+- Server: [presence_registry.ts](server/task_management/presence_registry.ts)
+  `relayProjectAwareness` — opaque relay to every OTHER admitted connection
+  in the project (presence-class visibility; no doc, no persistence, no
+  per-family permission beyond admission).
+- Surfaces: each tab page tags its app-owned content element with
+  `data-page-cursor-surface`
+  ([page_cursors.tsx](client/src/components/_shared/cursors/page_cursors.tsx)).
+  Coordinates: x normalized to the element width, y in content px against the
+  element's OWN scrollTop — one formula covers self-scrolling card grids and
+  content divs whose panther ancestor scrolls. Scope = tab plus the
+  folder/grouping selection on the list tabs (different folders = different
+  cards; cursors must not cross).
+- Suppression is geometric, not signaled: every editor overlay (including the
+  page-local EditorWrappers in data/modules) hides page content via
+  `display:none` → zero-size rect → both sides bail; z-50 modals are rejected
+  by elementFromPoint containment in the pane helpers.
 
 ## Version history
 

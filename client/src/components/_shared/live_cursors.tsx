@@ -63,6 +63,17 @@ export type PointerAwarenessState =
       x: number;
       y: number;
     }
+    // Project tab pages ([data-page-cursor-surface] element): x normalized
+    // 0..1 of the surface element's width, y in content px (scrollTop-
+    // compensated). scope = tab (+ folder/grouping selection). Rides the
+    // PROJECT-level awareness, not a doc session.
+    | { surface: "page"; scope: string; x: number; y: number }
+    // Report editor preview: anchored to the centered CONTENT div (max-w-4xl,
+    // stable across split/view widths). scope = reportId.
+    | { surface: "report-preview"; scope: string; x: number; y: number }
+    // Report editor CodeMirror pane: anchored to .cm-content (its rect moves
+    // with the scroller's internal scroll). scope = reportId.
+    | { surface: "report-code"; scope: string; x: number; y: number }
   );
 
 const CHIP_FADE_MS = 4_000;
@@ -131,6 +142,75 @@ export function panelClientFromContent(
     x: rect.left + content.x * rect.width,
     y: rect.top + (content.y - scrollTop),
   };
+}
+
+// ── Pane helpers (DOM-side wrappers over the pure mappers) ───────────────────
+//
+// Generic "pane + content element" geometry used by the page and report
+// surfaces. `paneEl` bounds/occludes (a scroll viewport or wrapper); coords
+// are measured against `contentEl` + its OWN scrollTop — one formula covers
+// both a self-scrolling element (pass it as both args; scrollTop varies) and
+// a content div inside an ancestor scroller (scrollTop 0; its rect moves).
+
+/** Sender side: viewport point → content coords, or null when the point is
+ *  outside the pane or the pane is covered (elementFromPoint containment —
+ *  modals, editor overlays, zero-size hidden panes). */
+export function pointerFromPane(
+  paneEl: Element,
+  contentEl: Element,
+  clientX: number,
+  clientY: number,
+): { x: number; y: number } | null {
+  const rect = paneEl.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  if (
+    clientX < rect.left || clientX > rect.right ||
+    clientY < rect.top || clientY > rect.bottom
+  ) {
+    return null;
+  }
+  const top = document.elementFromPoint(clientX, clientY);
+  if (!top || !paneEl.contains(top)) return null;
+  return panelContentFromClient(
+    contentEl.getBoundingClientRect(),
+    contentEl.scrollTop,
+    { x: clientX, y: clientY },
+  );
+}
+
+/** Receiver side: content coords → viewport px, or null when the point falls
+ *  outside the pane/viewport or lands on something covering the pane. The
+ *  containment check is PER POINT (not pane-level): content can extend past
+ *  an ancestor scroller's viewport, where a projected point would otherwise
+ *  float over surrounding chrome. */
+export function viewportFromPane(
+  paneEl: Element,
+  contentEl: Element,
+  content: { x: number; y: number },
+): { x: number; y: number } | null {
+  const rect = paneEl.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  const pos = panelClientFromContent(
+    contentEl.getBoundingClientRect(),
+    contentEl.scrollTop,
+    content,
+  );
+  const SLACK = 4;
+  if (
+    pos.x < rect.left - SLACK || pos.x > rect.right + SLACK ||
+    pos.y < rect.top - SLACK || pos.y > rect.bottom + SLACK
+  ) {
+    return null;
+  }
+  if (
+    pos.x < 0 || pos.x > window.innerWidth ||
+    pos.y < 0 || pos.y > window.innerHeight
+  ) {
+    return null;
+  }
+  const top = document.elementFromPoint(pos.x, pos.y);
+  if (!top || !paneEl.contains(top)) return null;
+  return pos;
 }
 
 // ── Broadcaster ───────────────────────────────────────────────────────────────

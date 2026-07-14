@@ -62,17 +62,21 @@ session.
   the slide canvas as a colored arrow with their name tag, moving in real time.
   The name tag fades after a few seconds of stillness; idle cursors disappear;
   a cursor leaves the canvas → it vanishes for everyone. Also works inside the
-  visualization editor (chart preview and settings panel).
-- **Cursor chat.** Press `/` while over the slide canvas (or the visualization
-  editor) to type a short message in a bubble attached to your live cursor —
+  visualization editor (chart preview and settings panel), the report editor
+  (both the markdown pane and the rendered preview), and on the project tab
+  pages themselves (deck/report/visualization/dashboard lists and the other
+  tabs — shown only to people on the same tab looking at the same folder
+  view).
+- **Cursor chat.** Press `/` over any cursor surface — slide canvas,
+  visualization editor, report editor, or a project tab page — to type a
+  short message in a bubble attached to your live cursor —
   collaborators watch it appear letter by letter. Enter keeps it up for a few
   seconds; Escape discards it. Great for "look at this ↘" moments without
   leaving the canvas.
 - **Click ripples.** Every click on a shared surface shows collaborators a
   brief expanding ring in your color at that exact spot — pointing at
   something becomes a deliberate gesture instead of cursor-waving. Works
-  everywhere live cursors do (slide canvas, visualization preview and
-  settings panel).
+  everywhere live cursors do.
 - **"Who is editing what" borders on the canvas.** The slide canvas outlines
   the content block or title field each collaborator is currently editing, in
   their color with a name tag above it. When several people edit the *same*

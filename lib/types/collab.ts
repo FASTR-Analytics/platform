@@ -83,7 +83,12 @@ export type CollabClientMessage =
   | { type: "po_subscribe"; data: { poId: string; stateVector: string } }
   | { type: "po_update"; data: { poId: string; update: string } }
   | { type: "po_unsubscribe"; data: { poId: string } }
-  | { type: "po_awareness_update"; data: { poId: string; update: string } };
+  | { type: "po_awareness_update"; data: { poId: string; update: string } }
+  // PROJECT-scoped Yjs awareness (no doc id): page-level live cursors on the
+  // project tab pages, which have no doc room. Opaque relay to every other
+  // admitted connection in the project — presence-class visibility, never
+  // persisted, never applied to any server doc.
+  | { type: "project_awareness_update"; data: { update: string } };
 
 /** Server → client messages. */
 export type CollabServerMessage =
@@ -118,7 +123,10 @@ export type CollabServerMessage =
   }
   | { type: "po_update"; data: { poId: string; update: string } }
   | { type: "po_error"; data: { poId: string; message: string } }
-  | { type: "po_awareness"; data: { poId: string; update: string } };
+  | { type: "po_awareness"; data: { poId: string; update: string } }
+  // Project-scoped awareness relayed from another connection (see the client
+  // message counterpart above).
+  | { type: "project_awareness"; data: { update: string } };
 
 const PRESENCE_PALETTE = [
   "#ef4444",

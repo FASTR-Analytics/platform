@@ -15,6 +15,7 @@ import {
   addConnection,
   broadcastPresence,
   markConnectionEditing,
+  relayProjectAwareness,
   removeConnection,
   updateConnectionPresence,
 } from "../../task_management/presence_registry.ts";
@@ -437,6 +438,13 @@ routesProjectCollab.get(
           case "presence_update":
             updateConnectionPresence(projectId, connectionId, msg.data);
             broadcastPresence(projectId);
+            break;
+          case "project_awareness_update":
+            // Page-level cursors. No per-family permission: admission already
+            // required a view permission, and this carries the same
+            // information class as the presence broadcasts every admitted
+            // connection receives.
+            relayProjectAwareness(projectId, connectionId, msg.data.update);
             break;
           case "slide_subscribe":
             if (roomConn && auth.canViewSlides) {

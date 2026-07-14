@@ -106,6 +106,31 @@ export function removeConnection(projectId: string, connectionId: string): void 
   if (conns.size === 0) projects.delete(projectId);
 }
 
+/** Relay a project-scoped Yjs awareness update (page-level live cursors) to
+ *  every OTHER connection in the project. Opaque bytes — never decoded,
+ *  never persisted; same visibility class as presence broadcasts. */
+export function relayProjectAwareness(
+  projectId: string,
+  senderConnectionId: string,
+  update: string,
+): void {
+  const conns = projects.get(projectId);
+  if (!conns) return;
+  const message: CollabServerMessage = {
+    type: "project_awareness",
+    data: { update },
+  };
+  const payload = JSON.stringify(message);
+  for (const [connectionId, conn] of conns) {
+    if (connectionId === senderConnectionId) continue;
+    try {
+      conn.ws.send(payload);
+    } catch {
+      // A dead socket is cleaned up by its own close/error handler.
+    }
+  }
+}
+
 export function broadcastPresence(projectId: string): void {
   const conns = projects.get(projectId);
   if (!conns) return;

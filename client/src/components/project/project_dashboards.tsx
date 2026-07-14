@@ -168,6 +168,7 @@ export function ProjectDashboards(p: Props) {
     >
       <div
         class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] content-start items-start overflow-auto"
+        data-page-cursor-surface
         onClick={() => selection.clear()}
       >
         <For

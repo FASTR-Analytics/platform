@@ -145,7 +145,7 @@ export function ProjectModules(p: Props) {
           </HeadingBar>
         }
       >
-        <div class="ui-pad ui-spy">
+        <div class="ui-pad ui-spy" data-page-cursor-surface>
           <For each={getPossibleModules(getInstanceCountryIso3())}>
             {(possibleModuleDef) => {
               return (

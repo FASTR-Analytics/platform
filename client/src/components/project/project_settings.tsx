@@ -216,7 +216,7 @@ export function ProjectSettings(p: Props) {
         ></HeadingBar>
       }
     >
-      <div class="ui-pad ui-spy">
+      <div class="ui-pad ui-spy" data-page-cursor-surface>
         <SettingsSection
           header={t3({ en: "Project name", fr: "Nom du projet", pt: "Nome do projeto" })}
           rightChildren={

@@ -44,6 +44,7 @@ import {
   setCollabView,
 } from "~/state/project/collab";
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
+import { ReportEditorCursors } from "~/components/_shared/cursors/report_cursors";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
 import { projectState } from "~/state/project/t1_store";
 import { setShowAi, showAi } from "~/state/t4_ui";
@@ -126,6 +127,19 @@ export function ProjectReport(p: Props) {
   const { setAIContext, notifyAI } = useAIProjectContext();
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
     getEditorWrapper();
+  // Count of sub-editors (figure modal, pickers, version history) currently
+  // covering the panes. While > 0 the report cursor broadcaster is off — the
+  // figure modal broadcasts fig:-scoped pointers on this SAME session
+  // awareness, and two broadcasters must not fight over the "pointer" field.
+  const [panesCovered, setPanesCovered] = createSignal(0);
+  async function withPanesCovered<T>(opening: Promise<T>): Promise<T> {
+    setPanesCovered((n) => n + 1);
+    try {
+      return await opening;
+    } finally {
+      setPanesCovered((n) => n - 1);
+    }
+  }
 
   const [isLoading, setIsLoading] = createSignal(true);
   const [label, setLabel] = createSignal(p.reportLabel);
@@ -848,10 +862,10 @@ export function ProjectReport(p: Props) {
   // ── toolbar / embed-editor actions ───────────────────────────────────────────
 
   async function insertFigure() {
-    const sel = await openInnerEditor({
+    const sel = await withPanesCovered(openInnerEditor({
       element: SelectVisualizationForSlide,
       props: { projectState },
-    });
+    }));
     if (!sel) return;
     let figureBlock: FigureBlock;
     try {
@@ -911,10 +925,10 @@ export function ProjectReport(p: Props) {
   async function handleSwitch() {
     const sel = selectedEmbed();
     if (!sel || sel.kind !== "figure") return;
-    const chosen = await openInnerEditor({
+    const chosen = await withPanesCovered(openInnerEditor({
       element: SelectVisualizationForSlide,
       props: { projectState },
-    });
+    }));
     if (!chosen) return;
     try {
       const { figureBlock } = await resolveFigureAndGeoFromVisualization(
@@ -988,7 +1002,7 @@ export function ProjectReport(p: Props) {
     setEditingFigureId(sel.id);
     setCollabView({ reportId: p.reportId, editingFigureId: sel.id });
     try {
-      const result = await openInnerEditor({
+      const result = await withPanesCovered(openInnerEditor({
         element: VisualizationEditor,
         props: {
           mode: "ephemeral" as const,
@@ -1001,7 +1015,7 @@ export function ProjectReport(p: Props) {
             config: bundle.config,
           }),
         },
-      });
+      }));
       if (!result?.updated) return;
       const built = await buildFigureBlock(resultsValue, result.updated.config);
       if (!built.ok) {
@@ -1069,7 +1083,7 @@ export function ProjectReport(p: Props) {
   }
 
   async function openVersionHistory() {
-    await openInnerEditor({
+    await withPanesCovered(openInnerEditor({
       element: VersionHistoryEditor,
       props: {
         projectId,
@@ -1078,7 +1092,7 @@ export function ProjectReport(p: Props) {
         currentLabel: label(),
         getCurrentBody: body,
       },
-    });
+    }));
   }
 
   // The HTML preview pane (View & Split). Owns its scroll-sync lifecycle: it
@@ -1119,10 +1133,12 @@ export function ProjectReport(p: Props) {
       <div
         class="min-h-0 flex-1 overflow-auto px-8 py-10"
         classList={{ "border-base-300 border-l": mode() === "split" }}
+        data-report-cursor="preview-pane"
         ref={(el) => (previewEl = el)}
       >
         <div
           class="bg-base-100 mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-2xl"
+          data-report-cursor="preview-content"
           ref={(el) => (contentEl = el)}
         >
           <MarkdownPresentationJsx
@@ -1177,6 +1193,7 @@ export function ProjectReport(p: Props) {
           <div
             class="min-h-0 flex-1"
             classList={{ hidden: mode() === "view" }}
+            data-report-cursor="code-pane"
             style={mode() === "split"
               ? { "max-width": `${EDITOR_PANE_MAX_REM}rem` }
               : undefined}
@@ -1309,6 +1326,12 @@ export function ProjectReport(p: Props) {
           <MainArea />
         </FrameLeft>
       </FrameTop>
+      <ReportEditorCursors
+        reportId={p.reportId}
+        awareness={() => session()?.awareness}
+        enabled={() => !!session() && collabReady() && panesCovered() === 0}
+        covered={() => panesCovered() > 0}
+      />
     </InnerEditorWrapper>
   );
 }

@@ -82,6 +82,11 @@ type Props = {
   projectState: ProjectState;
   searchText: string;
   onClick: (presentationObject: PresentationObjectSummary) => void;
+  /** Tag the grid as a page-cursor surface (see live_cursors.tsx "page").
+   *  Set ONLY by the project Visualizations tab — this component is also
+   *  rendered by the slide editor's viz picker, which must not emit
+   *  page-scoped cursors. */
+  pageCursorSurface?: boolean;
 };
 
 export function PresentationObjectPanelDisplay(p: Props) {
@@ -467,6 +472,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         subGroupConfig={subGroupConfig()}
         onClick={p.onClick}
         searchText={p.searchText}
+        pageCursorSurface={p.pageCursorSurface}
       />
     </FrameLeftResizable>
   );
@@ -483,6 +489,7 @@ type VisualizationGridProps = {
   subGroupConfig: SubGroupConfig | null;
   onClick: (po: PresentationObjectSummary) => void;
   searchText: string;
+  pageCursorSurface?: boolean;
 };
 
 function VisualizationGrid(p: VisualizationGridProps) {
@@ -733,6 +740,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       fallback={
         <div
           class="ui-pad ui-gap grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
+          {...(p.pageCursorSurface ? { "data-page-cursor-surface": "" } : {})}
           onClick={() => selection.clear()}
         >
           <For each={p.visualizations} fallback={emptyMessage()}>
@@ -774,6 +782,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
         return (
           <div
             class="h-full w-full overflow-auto"
+            {...(p.pageCursorSurface ? { "data-page-cursor-surface": "" } : {})}
             onClick={() => selection.clear()}
           >
             <Show
