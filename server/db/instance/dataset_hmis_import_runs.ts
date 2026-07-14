@@ -412,6 +412,8 @@ export async function launchQueuedDatasetHmisImportRun(
 
 // The §7 C4 unattended gate: nothing fires unattended (one-shot, recurring,
 // or queued) until a run against this DHIS2 URL has shadow-verified clean.
+// Trailing-slash-tolerant: a manual first run entered as "https://x.org/"
+// must unlock stored credentials saved as "https://x.org".
 export async function hasShadowPassedForDhis2Url(
   mainDb: Sql,
   url: string,
@@ -419,7 +421,8 @@ export async function hasShadowPassedForDhis2Url(
   const rows = await mainDb<{ exists: boolean }[]>`
     SELECT EXISTS(
       SELECT 1 FROM dataset_hmis_import_runs
-      WHERE shadow_passed = true AND dhis2_url = ${url}
+      WHERE shadow_passed = true
+        AND rtrim(dhis2_url, '/') = rtrim(${url}, '/')
     ) as exists
   `;
   return rows[0].exists;

@@ -141,19 +141,14 @@ export async function updateDatasetHmisScheduledImport(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const f = validateScheduleFields(fields);
-    const existing = await mainDb<{ kind: string }[]>`
-      SELECT kind FROM dataset_hmis_scheduled_imports WHERE id = ${id}
-    `;
-    if (existing.length === 0) {
-      throw new Error("This schedule no longer exists.");
-    }
-    // Editing re-arms a fired one-shot, and a kind switch must not carry the
-    // old kind's handled-occurrence token (it would anchor the recurring
-    // interval, or block the one-shot's fire). A same-kind recurring edit
-    // keeps the anchor — it still means "last handled occurrence".
-    const clearLastFired =
-      f.kind === "one_shot" || existing[0].kind !== f.kind;
-    await mainDb`
+    // Every edit RE-ARMS the schedule (review findings 1 + 3): armed_at moves
+    // to now (occurrences before it are never due, so clearing the
+    // handled-occurrence anchor is safe — no phantom fire can result), the
+    // last-fire outcome is cleared (the user has addressed it — the
+    // attention banner must not outlive the edit), and a one-shot is
+    // re-enabled (editing a fired/refused/missed one-shot to a new future
+    // time IS the re-arm gesture; the route re-checks the unattended gate).
+    const updated = await mainDb`
       UPDATE dataset_hmis_scheduled_imports
       SET kind = ${f.kind},
         selection = ${JSON.stringify(f.selection)},
@@ -162,9 +157,17 @@ export async function updateDatasetHmisScheduledImport(
         start_time = ${f.startTime ?? null},
         timezone = ${f.timezone ?? null},
         interval_weeks = ${f.intervalWeeks ?? null},
-        last_fired_at = CASE WHEN ${clearLastFired} THEN NULL ELSE last_fired_at END
+        armed_at = now(),
+        last_fired_at = NULL,
+        last_outcome = NULL,
+        last_error = NULL,
+        last_run_id = NULL,
+        enabled = CASE WHEN ${f.kind === "one_shot"} THEN true ELSE enabled END
       WHERE id = ${id}
     `;
+    if (updated.count === 0) {
+      throw new Error("This schedule no longer exists.");
+    }
     return { success: true };
   });
 }
@@ -175,9 +178,36 @@ export async function setDatasetHmisScheduledImportEnabled(
   enabled: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    if (enabled) {
+      // Re-enabling ARMS the schedule (review finding 1): occurrences from
+      // the disabled stretch are never due. A one-shot whose run_at already
+      // passed would arm into nothing — refuse loudly instead of a silent
+      // never-fires row.
+      const rows = await mainDb<{ kind: string; run_at: string | Date | null }[]>`
+        SELECT kind, run_at FROM dataset_hmis_scheduled_imports WHERE id = ${id}
+      `;
+      const row = rows.at(0);
+      if (!row) {
+        throw new Error("This schedule no longer exists.");
+      }
+      if (
+        row.kind === "one_shot" &&
+        (row.run_at === null || new Date(row.run_at).getTime() <= Date.now())
+      ) {
+        throw new Error(
+          "This one-time schedule's run-at time has passed — edit it to a future time instead of enabling it.",
+        );
+      }
+      await mainDb`
+        UPDATE dataset_hmis_scheduled_imports
+        SET enabled = true, armed_at = now()
+        WHERE id = ${id}
+      `;
+      return { success: true };
+    }
     const updated = await mainDb`
       UPDATE dataset_hmis_scheduled_imports
-      SET enabled = ${enabled}
+      SET enabled = false
       WHERE id = ${id}
     `;
     if (updated.count === 0) {
@@ -211,6 +241,8 @@ export type EnabledScheduledImportRow = {
   timezone: string | null;
   intervalWeeks: number | null;
   createdBy: string;
+  // Occurrences before this instant are never due (review finding 1).
+  armedAtMs: number;
   lastFiredAtMs: number | null;
 };
 
@@ -232,6 +264,7 @@ export async function getEnabledScheduledImportRows(
     timezone: row.timezone,
     intervalWeeks: row.interval_weeks,
     createdBy: row.created_by,
+    armedAtMs: new Date(row.armed_at).getTime(),
     lastFiredAtMs: row.last_fired_at
       ? new Date(row.last_fired_at).getTime()
       : null,
@@ -257,9 +290,13 @@ export async function claimScheduledImportOccurrence(
 
 // A launch that failed only because the import slot got claimed concurrently
 // releases the occurrence so the next tick retries it (within grace).
+// Conditional on the row still holding OUR claim: an edit landing between
+// claim and revert re-arms the row (nulls last_fired_at), and restoring a
+// stale value over that would silently dead-end a re-armed one-shot.
 export async function revertScheduledImportClaim(
   mainDb: Sql,
   id: number,
+  claimedOccurrenceMs: number,
   previousLastFiredAtMs: number | null,
 ): Promise<void> {
   await mainDb`
@@ -270,6 +307,7 @@ export async function revertScheduledImportClaim(
         : new Date(previousLastFiredAtMs).toISOString()
     }
     WHERE id = ${id}
+      AND last_fired_at = ${new Date(claimedOccurrenceMs).toISOString()}
   `;
 }
 

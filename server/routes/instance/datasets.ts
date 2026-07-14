@@ -370,6 +370,11 @@ defineRoute(
       body.schedule,
       c.var.globalUser?.email ?? "unknown",
     );
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
     return c.json(res);
   },
 );
@@ -380,11 +385,26 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("updateDatasetHmisDhis2Schedule"),
   async (c, { body }) => {
+    // Editing a one-shot re-enables it (the re-arm gesture), so it goes
+    // through the same unattended gate as create/enable.
+    if (body.schedule.kind === "one_shot") {
+      const blocked = await assertUnattendedReady(c.var.mainDb);
+      if (blocked) {
+        return c.json({ success: false, err: blocked });
+      }
+    }
     const res = await updateDatasetHmisScheduledImport(
       c.var.mainDb,
       body.id,
       body.schedule,
     );
+    if (res.success) {
+      // The edit clears the last-fire outcome — the instance-wide attention
+      // banner must clear with it (review finding 5).
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
     return c.json(res);
   },
 );
@@ -406,6 +426,11 @@ defineRoute(
       body.id,
       body.enabled,
     );
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
     return c.json(res);
   },
 );
@@ -417,6 +442,11 @@ defineRoute(
   log("deleteDatasetHmisDhis2Schedule"),
   async (c, { body }) => {
     const res = await deleteDatasetHmisScheduledImport(c.var.mainDb, body.id);
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
     return c.json(res);
   },
 );

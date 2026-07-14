@@ -73,11 +73,33 @@ Verified: typecheck green + full server boot; the query form itself is
 the E13-live-verified one. Review findings 1 and 3–6 remain open (Tim:
 fix after Ethiopia) — detailed below.**
 
-**Phase 4 review — open findings (2026-07-15, two independent
-reviewers; finding 2 = the Ethiopia gate lockout, FIXED above). A
-fresh agent fixing these: verify each against the code first, fix,
-re-run the Phase 4 due-semantics harness for finding 1, typecheck +
-boot, update this block.**
+**Phase 4 review — findings ALL FIXED (2026-07-15, the commit carrying
+this update; finding 2 = the Ethiopia gate lockout, fixed separately
+in 5c666b1a). As-built fixes: (1) `armed_at` column (migration 059,
+stamped on create/enable/edit) — occurrences before it are never due,
+so no phantom fire/false-missed on create, re-enable, or edit; edits
+also clear `last_fired_at` safely (fixing the same-kind-edit
+skipped-occurrence low); enabling a past-runAt one-shot is refused
+loudly with an edit hint. (3) every edit re-arms: outcome fields
+cleared (attention clears), one-shots re-enabled (update route runs
+the unattended gate for one-shots). (4) fire-time revert also covers
+the CSV-slot race, and the CAS revert is conditional on still holding
+this tick's claim (never clobbers a concurrent edit's re-arm). (5) all
+four schedule routes push the datasets SSE notify. (6) the imports
+surface and the HMIS sidebar wake on the SSE summary fields
+(createEffect + on/defer per PROTOCOL_UI_STATE). Lows also fixed:
+gate URL compare is trailing-slash-tolerant, and a stored-credentials
+run re-stamps its run row's dhis2_url with the URL the worker actually
+resolved (shadow_passed can't be mis-keyed by a mid-launch credential
+swap). Lows left as documented: crash between CAS and outcome (silent
+consumed occurrence, single-server crash timing); rolling-window
+server-clock skew (≤hours at month boundaries, self-correcting);
+stored username visible at `can_view_data` (policy call for Tim).
+Verified: 21/21 fix-harness checks on the dev DB (phantom-occurrence
+matrix incl. re-enable + mid-grace creation, edit re-arm + attention
+clearing, stale one-shot enable refusal, conditional revert both ways,
+slash-tolerant gate) + full typecheck + boot (migration 059 applied,
+257 routes). Original finding detail kept below for the record.**
 
 1. **Phantom first occurrence on new/re-enabled recurring schedules
    (HIGH, both reviewers, verified empirically).**

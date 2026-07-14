@@ -17,11 +17,14 @@ import {
   Match,
   Show,
   Switch,
+  createEffect,
   createSignal,
+  on,
   onCleanup,
   onMount,
 } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import { Dhis2RunHistory } from "./_run_history";
 import { Dhis2RunLauncher } from "./_launcher";
 import { Dhis2RunView } from "./_run_view";
@@ -84,6 +87,25 @@ export function DatasetHmisDhis2Runs(p: Props) {
       clearInterval(pollingIntervalId);
     }
   });
+
+  // The scheduler tick acts server-side (launches a queued run, fires a
+  // schedule, records a refusal) while this page may sit idle showing the
+  // launcher — the SSE-pushed summary fields are the wake-up signal
+  // (review finding 6). defer: the mount fetch is createQuery's.
+  createEffect(
+    on(
+      () => [
+        instanceState.hmisImportRunActive,
+        instanceState.hmisImportRunsQueued,
+        instanceState.hmisScheduledImportAttention,
+      ],
+      async () => {
+        await runs.silentFetch();
+        await scheduling.silentFetch();
+      },
+      { defer: true },
+    ),
+  );
 
   async function refresh() {
     await runs.silentFetch();

@@ -383,6 +383,19 @@ async function run(std: RunWorkerMessage) {
         : await getStoredDhis2CredentialsDecrypted(mainDb);
     const baseFetchOptions: FetchOptions = { dhis2Credentials: credentials };
 
+    // The run row's dhis2_url keys shadow_passed (the unattended gate). For
+    // stored credentials it was read by the launcher moments ago, but an
+    // admin can replace the stored connection in that window — re-stamp the
+    // row with the URL this run will ACTUALLY fetch so the gate can never be
+    // unlocked under a URL that was not verified.
+    if (credentialsSource.kind === "stored") {
+      await mainDb`
+        UPDATE dataset_hmis_import_runs
+        SET dhis2_url = ${credentials.url}
+        WHERE id = ${runId} AND status = 'running'
+      `;
+    }
+
     const facilities = await mainDb<{ facility_id: string }[]>`
       SELECT facility_id FROM facilities_hmis
       WHERE facility_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}$'

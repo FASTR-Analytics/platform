@@ -180,6 +180,7 @@ export type DBDatasetHmisScheduledImport = {
   interval_weeks: number | null;
   created_by: string;
   created_at: string | Date;
+  armed_at: string | Date;
   last_fired_at: string | Date | null;
   last_outcome: "launched" | "refused" | "missed" | null;
   last_error: string | null;

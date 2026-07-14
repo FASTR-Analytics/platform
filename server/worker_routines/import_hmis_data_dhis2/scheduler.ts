@@ -191,12 +191,18 @@ export function decideScheduleFire(
     | "startTime"
     | "timezone"
     | "intervalWeeks"
+    | "armedAtMs"
     | "lastFiredAtMs"
   >,
   nowMs: number,
 ): ScheduleFireDecision {
   if (row.kind === "one_shot") {
     if (row.runAtMs === null || row.lastFiredAtMs !== null) {
+      return { action: "none" };
+    }
+    // Armed after its own fire instant (a stale row enabled somehow —
+    // setEnabled refuses this, so belt-and-braces): never due, never missed.
+    if (row.runAtMs < row.armedAtMs) {
       return { action: "none" };
     }
     if (nowMs < row.runAtMs) {
@@ -225,6 +231,14 @@ export function decideScheduleFire(
     );
   } catch (e) {
     console.error(`Schedule ${row.id}: occurrence computation failed:`, e);
+    return { action: "none" };
+  }
+  // Occurrences from before the row existed / was last armed (create,
+  // enable, edit) are not this schedule's business — neither a fire (an
+  // unattended import launching the moment a schedule is saved) nor a
+  // 'missed' alarm (review finding 1). The first real occurrence is the
+  // next one after arming.
+  if (occurrenceMs < row.armedAtMs) {
     return { action: "none" };
   }
   if (row.lastFiredAtMs !== null && row.lastFiredAtMs >= occurrenceMs) {
@@ -476,11 +490,23 @@ async function fireSchedule(
     await notifyDatasets(mainDb);
     return;
   }
-  // A launch that lost only the import-slot race stays due: release the
-  // occurrence so the next tick retries (within grace). Anything else is a
-  // loud refusal recorded on the row.
-  if (await hasRunningDatasetHmisImportRun(mainDb)) {
-    await revertScheduledImportClaim(mainDb, schedule.id, schedule.lastFiredAtMs);
+  // A launch that lost only the import-slot race — a run OR a CSV attempt
+  // claiming it between the tick's idle check and the launch guards — stays
+  // due: release the occurrence so the next tick retries (within grace; past
+  // grace it becomes a truthful 'missed'). Anything else is deterministic
+  // and records a loud refusal. The revert is conditional on the row still
+  // holding this tick's claim, so it can never clobber a concurrent edit's
+  // re-arm (review finding 4 + CAS-revert low).
+  if (
+    (await hasRunningDatasetHmisImportRun(mainDb)) ||
+    (await countActiveCsvAttempts(mainDb)) > 0
+  ) {
+    await revertScheduledImportClaim(
+      mainDb,
+      schedule.id,
+      occurrenceMs,
+      schedule.lastFiredAtMs,
+    );
     return;
   }
   await recordScheduledImportOutcome(mainDb, schedule.id, {

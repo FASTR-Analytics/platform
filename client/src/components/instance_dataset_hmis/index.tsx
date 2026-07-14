@@ -15,7 +15,9 @@ import {
   Match,
   Show,
   Switch,
+  createEffect,
   createSignal,
+  on,
   onCleanup,
   onMount,
 } from "solid-js";
@@ -75,6 +77,19 @@ export function InstanceDatasetHmis(p: Props) {
       clearInterval(pollingInterval);
     }
   });
+
+  // The sidebar's local poll stops while idle, but the scheduler tick can
+  // start a run server-side at any moment — the SSE-pushed flag wakes the
+  // progress card up (review finding 6).
+  createEffect(
+    on(
+      () => instanceState.hmisImportRunActive,
+      async () => {
+        await fetchUploadAttempt();
+      },
+      { defer: true },
+    ),
+  );
 
   // The wizard is CSV-only (DHIS2 imports are runs): the source type is set
   // at creation so the wizard opens straight at the CSV upload step.

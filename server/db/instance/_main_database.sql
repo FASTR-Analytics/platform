@@ -397,6 +397,9 @@ CREATE TABLE dataset_hmis_scheduled_imports (
   interval_weeks integer CHECK (interval_weeks >= 1),
   created_by text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
+  -- Stamped on create/enable/edit; occurrences before it are never due
+  -- (no phantom first fire, no false 'missed' — review finding 1).
+  armed_at timestamptz NOT NULL DEFAULT now(),
   last_fired_at timestamptz,
   last_outcome text CHECK (last_outcome IN ('launched', 'refused', 'missed')),
   last_error text,
