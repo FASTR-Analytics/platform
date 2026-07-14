@@ -1,14 +1,19 @@
 import { Hono } from "hono";
+import type { Sql } from "postgres";
 import {
   // HFA imports
   addDatasetHfaUploadAttempt,
   addDatasetHmisUploadAttempt,
   cancelDatasetHmisImportRun,
   computeHfaCacheHash,
+  createDatasetHmisScheduledImport,
   deleteDatasetHfaData,
   deleteAllDatasetHmisData,
   deleteDatasetHfaUploadAttempt,
+  deleteDatasetHmisScheduledImport,
   deleteDatasetHmisUploadAttempt,
+  deleteStoredDhis2Credentials,
+  enqueueDatasetHmisImportRun,
   getDatasetHfaDetail,
   getDatasetHfaItemsForDisplay,
   getDatasetHfaUploadAttemptDetail,
@@ -17,11 +22,18 @@ import {
   getDatasetHmisImportLedgerItems,
   getDatasetHmisImportRunSummaries,
   getDatasetHmisItemsForDisplay,
+  getDatasetHmisScheduledImports,
   getDatasetHmisUploadAttemptDetail,
   getDatasetHmisUploadStatus,
+  getStoredDhis2CredentialsInfo,
   getVersionsForDatasetHmis,
   hasRunningDatasetHmisImportRun,
+  hasShadowPassedForDhis2Url,
+  isDhis2CredentialsEncryptionKeyConfigured,
   launchDatasetHmisDhis2ImportRun,
+  saveStoredDhis2Credentials,
+  setDatasetHmisScheduledImportEnabled,
+  updateDatasetHmisScheduledImport,
   updateDatasetHfaUploadAttempt_Step1CsvUpload,
   updateDatasetHfaUploadAttempt_Step2Mappings,
   updateDatasetHfaUploadAttempt_Step3Staging,
@@ -161,13 +173,34 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("launchDatasetHmisDhis2Run"),
   async (c, { body }) => {
-    const validation = await validateDhis2Connection(body.credentials);
-    if (!validation.valid) {
-      return c.json({ success: false, err: t3(validation.message) });
+    // Absent credentials = use the stored instance credentials (Phase 4 C3).
+    // Stored launches skip pre-validation — validating would decrypt the
+    // password in the host, and decryption is worker-only; bad stored
+    // credentials fail the run loudly within seconds.
+    let dhis2Url: string;
+    if (body.credentials) {
+      const validation = await validateDhis2Connection(body.credentials);
+      if (!validation.valid) {
+        return c.json({ success: false, err: t3(validation.message) });
+      }
+      dhis2Url = body.credentials.url;
+    } else {
+      const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
+      if (!stored) {
+        return c.json({
+          success: false,
+          err: "No stored DHIS2 credentials — enter credentials or save them first.",
+        });
+      }
+      dhis2Url = stored.url;
     }
     const res = await launchDatasetHmisDhis2ImportRun(c.var.mainDb, {
-      credentials: body.credentials,
+      credentialsSource: body.credentials
+        ? { kind: "inline", credentials: body.credentials }
+        : { kind: "stored" },
+      dhis2Url,
       selection: body.selection,
+      trigger: "manual",
       triggeredBy: c.var.globalUser?.email ?? "unknown",
       onComplete: async () => {
         notifyInstanceDatasetsUpdated(
@@ -178,6 +211,36 @@ defineRoute(
     if (res.success) {
       // Flip hmisImportRunActive on every connected client now — their
       // display caches must be bypassed for the run's duration.
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+// C6 — explicit queueing while a run is active (the client always asks the
+// user first; queueing is never the silent default). Unattended when it
+// fires, so it requires stored credentials up front.
+defineRoute(
+  routesDatasets,
+  "enqueueDatasetHmisDhis2Run",
+  requireGlobalPermission("can_configure_data"),
+  log("enqueueDatasetHmisDhis2Run"),
+  async (c, { body }) => {
+    const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
+    if (!stored) {
+      return c.json({
+        success: false,
+        err: "Queued imports need stored DHIS2 credentials — save credentials first.",
+      });
+    }
+    const res = await enqueueDatasetHmisImportRun(c.var.mainDb, {
+      dhis2Url: stored.url,
+      selection: body.selection,
+      triggeredBy: c.var.globalUser?.email ?? "unknown",
+    });
+    if (res.success) {
       notifyInstanceDatasetsUpdated(
         await getInstanceDatasetsSummary(c.var.mainDb),
       );
@@ -209,6 +272,151 @@ defineRoute(
         await getInstanceDatasetsSummary(c.var.mainDb),
       );
     }
+    return c.json(res);
+  },
+);
+
+/////////////////////////////////////////
+//                                     //
+//    DHIS2 credentials + schedules    //
+//                                     //
+/////////////////////////////////////////
+
+defineRoute(
+  routesDatasets,
+  "getDatasetHmisDhis2Scheduling",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetHmisDhis2Scheduling"),
+  async (c) => {
+    const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
+    const res = {
+      success: true as const,
+      data: {
+        schedules: await getDatasetHmisScheduledImports(c.var.mainDb),
+        storedCredentials: stored ?? undefined,
+        encryptionKeyConfigured: isDhis2CredentialsEncryptionKeyConfigured(),
+        unattendedReady: stored
+          ? await hasShadowPassedForDhis2Url(c.var.mainDb, stored.url)
+          : false,
+      },
+    };
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "saveDatasetHmisDhis2Credentials",
+  requireGlobalPermission("can_configure_data"),
+  log("saveDatasetHmisDhis2Credentials"),
+  async (c, { body }) => {
+    if (!isDhis2CredentialsEncryptionKeyConfigured()) {
+      return c.json({
+        success: false,
+        err: "DHIS2_CREDENTIALS_ENCRYPTION_KEY is not set on this server — credentials cannot be stored.",
+      });
+    }
+    const validation = await validateDhis2Connection(body.credentials);
+    if (!validation.valid) {
+      return c.json({ success: false, err: t3(validation.message) });
+    }
+    await saveStoredDhis2Credentials(
+      c.var.mainDb,
+      body.credentials,
+      c.var.globalUser?.email ?? "unknown",
+    );
+    return c.json({ success: true });
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "deleteDatasetHmisDhis2Credentials",
+  requireGlobalPermission("can_configure_data"),
+  log("deleteDatasetHmisDhis2Credentials"),
+  async (c) => {
+    await deleteStoredDhis2Credentials(c.var.mainDb);
+    return c.json({ success: true });
+  },
+);
+
+// The §7 C4 unattended-gate enforcement at the editor: schedules cannot be
+// created or re-enabled before the instance has stored credentials and a
+// shadow-verified run against their URL (the tick re-checks at fire time —
+// repointing the DHIS2 URL re-arms shadow and must also re-block fires).
+async function assertUnattendedReady(mainDb: Sql): Promise<string | null> {
+  const stored = await getStoredDhis2CredentialsInfo(mainDb);
+  if (!stored) {
+    return "Scheduled imports need stored DHIS2 credentials — save credentials first.";
+  }
+  if (!(await hasShadowPassedForDhis2Url(mainDb, stored.url))) {
+    return `Scheduled imports are blocked until an import against ${stored.url} has shadow-verified cleanly. Run an import directly first.`;
+  }
+  return null;
+}
+
+defineRoute(
+  routesDatasets,
+  "createDatasetHmisDhis2Schedule",
+  requireGlobalPermission("can_configure_data"),
+  log("createDatasetHmisDhis2Schedule"),
+  async (c, { body }) => {
+    const blocked = await assertUnattendedReady(c.var.mainDb);
+    if (blocked) {
+      return c.json({ success: false, err: blocked });
+    }
+    const res = await createDatasetHmisScheduledImport(
+      c.var.mainDb,
+      body.schedule,
+      c.var.globalUser?.email ?? "unknown",
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "updateDatasetHmisDhis2Schedule",
+  requireGlobalPermission("can_configure_data"),
+  log("updateDatasetHmisDhis2Schedule"),
+  async (c, { body }) => {
+    const res = await updateDatasetHmisScheduledImport(
+      c.var.mainDb,
+      body.id,
+      body.schedule,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "setDatasetHmisDhis2ScheduleEnabled",
+  requireGlobalPermission("can_configure_data"),
+  log("setDatasetHmisDhis2ScheduleEnabled"),
+  async (c, { body }) => {
+    if (body.enabled) {
+      const blocked = await assertUnattendedReady(c.var.mainDb);
+      if (blocked) {
+        return c.json({ success: false, err: blocked });
+      }
+    }
+    const res = await setDatasetHmisScheduledImportEnabled(
+      c.var.mainDb,
+      body.id,
+      body.enabled,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "deleteDatasetHmisDhis2Schedule",
+  requireGlobalPermission("can_configure_data"),
+  log("deleteDatasetHmisDhis2Schedule"),
+  async (c, { body }) => {
+    const res = await deleteDatasetHmisScheduledImport(c.var.mainDb, body.id);
     return c.json(res);
   },
 );

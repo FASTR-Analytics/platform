@@ -11,7 +11,7 @@ import {
   type DatasetDhis2StagingResult,
   type DatasetHmisImportRunProgress,
   type DatasetHmisImportRunSummary,
-  type Dhis2Credentials,
+  type Dhis2RunCredentialsSource,
   type Dhis2RunPair,
   type Dhis2RunSelection,
   type Dhis2RunSelectionSummary,
@@ -102,57 +102,147 @@ export async function assertNoRunningDatasetHmisImportRun(
   }
 }
 
+// Validates a selection + instance state shared by launch and enqueue: the
+// enumerated pairs, the indicators_raw FK pre-check, and the UID-shaped
+// facility requirement.
+async function validateRunSelection(
+  mainDb: Sql,
+  selection: Dhis2RunSelection,
+): Promise<Dhis2RunPair[]> {
+  const pairs = enumerateRunPairs(selection);
+  if (pairs.length === 0) {
+    throw new Error("The selection contains no (indicator, month) pairs.");
+  }
+
+  // Fail fast on indicators that don't exist — per-pair integration inserts
+  // against an indicators_raw FK.
+  const selectedIndicatorIds = Array.from(
+    new Set(pairs.map((p) => p.indicatorRawId)),
+  );
+  const existing = await mainDb<{ indicator_raw_id: string }[]>`
+    SELECT indicator_raw_id FROM indicators_raw
+    WHERE indicator_raw_id = ANY(${selectedIndicatorIds})
+  `;
+  if (existing.length < selectedIndicatorIds.length) {
+    const existingSet = new Set(existing.map((r) => r.indicator_raw_id));
+    const missing = selectedIndicatorIds.filter((id) => !existingSet.has(id));
+    throw new Error(
+      `The following selected raw indicators do not exist: ${missing.join(", ")}.`,
+    );
+  }
+
+  const [{ count: facilityCount }] = await mainDb<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count FROM facilities_hmis
+    WHERE facility_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}$'
+  `;
+  if (facilityCount === 0) {
+    throw new Error(
+      "No DHIS2-shaped HMIS facilities found. Import HMIS facilities from DHIS2 before importing data.",
+    );
+  }
+  return pairs;
+}
+
+export async function countActiveCsvAttempts(mainDb: Sql): Promise<number> {
+  const rows = await mainDb<{ count: string | number }[]>`
+    SELECT COUNT(*) as count FROM dataset_hmis_upload_attempts
+    WHERE status_type IN ('staging', 'integrating')
+  `;
+  return Number(rows[0].count);
+}
+
+// Spawns the run worker for a row already claimed as 'running' and wires the
+// host-side listeners (crash → error + finalize; COMPLETED → teardown). A
+// spawn failure must release the claim: a 'running' row with no worker blocks
+// every import until someone notices and cancels it.
+async function spawnRunWorker(
+  mainDb: Sql,
+  args: {
+    runId: number;
+    credentialsSource: Dhis2RunCredentialsSource;
+    selection: Dhis2RunSelection;
+    onComplete?: () => void;
+  },
+): Promise<void> {
+  const { runId, credentialsSource, selection, onComplete } = args;
+  let worker: Worker;
+  try {
+    worker = instantiateImportHmisDataDhis2Worker({
+      runId,
+      credentialsSource,
+      selection,
+    });
+    setWorker("hmis_dhis2_run", worker);
+  } catch (spawnError) {
+    await mainDb`
+      UPDATE dataset_hmis_import_runs
+      SET status = 'error', ended_at = now(), progress = NULL,
+        error = ${`Failed to start the import worker: ${spawnError instanceof Error ? spawnError.message : String(spawnError)}`}
+      WHERE id = ${runId}
+    `;
+    throw spawnError;
+  }
+
+  worker.addEventListener("error", async (e) => {
+    console.error("DHIS2 import run worker crashed:", e);
+    e.preventDefault();
+    // Terminate before finalizing: finalize recomputes from committed
+    // state, so no writer may still be committing pairs while it reads.
+    clearWorker("hmis_dhis2_run", worker);
+    worker.terminate();
+    try {
+      await mainDb`
+        UPDATE dataset_hmis_import_runs
+        SET status = 'error', ended_at = now(), progress = NULL,
+          error = ${`Worker crashed: ${e.message || "Unknown error"}. Pairs completed before the crash are preserved in the ledger.`}
+        WHERE id = ${runId} AND status = 'running'
+      `;
+      await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
+    } catch (dbError) {
+      console.error("Failed to mark run errored after worker crash:", dbError);
+    }
+    try {
+      await onComplete?.();
+    } catch (err) {
+      console.error("DHIS2 import run onComplete callback failed:", err);
+    }
+  });
+
+  worker.addEventListener("message", async (e) => {
+    if (e.data === "COMPLETED") {
+      clearWorker("hmis_dhis2_run", worker);
+      worker.terminate();
+      try {
+        await onComplete?.();
+      } catch (err) {
+        console.error("DHIS2 import run onComplete callback failed:", err);
+      }
+    }
+  });
+}
+
 export async function launchDatasetHmisDhis2ImportRun(
   mainDb: Sql,
   args: {
-    credentials: Dhis2Credentials;
+    credentialsSource: Dhis2RunCredentialsSource;
+    // The URL recorded on the run row (shadow_passed is keyed to it). For
+    // inline credentials this is credentials.url; for stored, the stored url.
+    dhis2Url: string;
     selection: Dhis2RunSelection;
+    trigger: "manual" | "schedule";
     triggeredBy: string;
     onComplete?: () => void;
   },
 ): Promise<APIResponseWithData<{ runId: number }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const { credentials, selection, triggeredBy, onComplete } = args;
+    const { credentialsSource, dhis2Url, selection, trigger, triggeredBy, onComplete } =
+      args;
 
-    const pairs = enumerateRunPairs(selection);
-    if (pairs.length === 0) {
-      throw new Error("The selection contains no (indicator, month) pairs.");
-    }
-
-    // Fail fast on indicators that don't exist — per-pair integration inserts
-    // against an indicators_raw FK.
-    const selectedIndicatorIds = Array.from(
-      new Set(pairs.map((p) => p.indicatorRawId)),
-    );
-    const existing = await mainDb<{ indicator_raw_id: string }[]>`
-      SELECT indicator_raw_id FROM indicators_raw
-      WHERE indicator_raw_id = ANY(${selectedIndicatorIds})
-    `;
-    if (existing.length < selectedIndicatorIds.length) {
-      const existingSet = new Set(existing.map((r) => r.indicator_raw_id));
-      const missing = selectedIndicatorIds.filter((id) => !existingSet.has(id));
-      throw new Error(
-        `The following selected raw indicators do not exist: ${missing.join(", ")}.`,
-      );
-    }
-
-    const [{ count: facilityCount }] = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*)::int AS count FROM facilities_hmis
-      WHERE facility_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}$'
-    `;
-    if (facilityCount === 0) {
-      throw new Error(
-        "No DHIS2-shaped HMIS facilities found. Import HMIS facilities from DHIS2 before importing data.",
-      );
-    }
+    const pairs = await validateRunSelection(mainDb, selection);
 
     // Read-guards for friendly errors; the atomic claim is the INSERT below
     // (partial unique index: at most one status='running' row).
-    const activeAttempts = await mainDb<{ count: string | number }[]>`
-      SELECT COUNT(*) as count FROM dataset_hmis_upload_attempts
-      WHERE status_type IN ('staging', 'integrating')
-    `;
-    if (Number(activeAttempts[0].count) > 0) {
+    if ((await countActiveCsvAttempts(mainDb)) > 0) {
       throw new Error(
         "A CSV import operation is in progress. Please wait for it to complete.",
       );
@@ -168,7 +258,7 @@ export async function launchDatasetHmisDhis2ImportRun(
       INSERT INTO dataset_hmis_import_runs
         (trigger, triggered_by, dhis2_url, selection, status, total_pairs, progress)
       VALUES
-        ('manual', ${triggeredBy}, ${credentials.url}, ${JSON.stringify(selection)},
+        (${trigger}, ${triggeredBy}, ${dhis2Url}, ${JSON.stringify(selection)},
          'running', ${pairs.length},
          ${JSON.stringify({ phase: "classifying", activePairs: [] })})
       RETURNING id
@@ -177,11 +267,7 @@ export async function launchDatasetHmisDhis2ImportRun(
 
     // Re-check the cross-table guard after the claim: a CSV claim can land
     // between the read-guard above and our INSERT.
-    const attemptsAfterClaim = await mainDb<{ count: string | number }[]>`
-      SELECT COUNT(*) as count FROM dataset_hmis_upload_attempts
-      WHERE status_type IN ('staging', 'integrating')
-    `;
-    if (Number(attemptsAfterClaim[0].count) > 0) {
+    if ((await countActiveCsvAttempts(mainDb)) > 0) {
       await mainDb`
         UPDATE dataset_hmis_import_runs
         SET status = 'error', ended_at = now(), progress = NULL,
@@ -193,68 +279,150 @@ export async function launchDatasetHmisDhis2ImportRun(
       );
     }
 
-    // Credentials travel only in the worker message — never stored on the run
-    // row (C3 adds encrypted stored credentials in Phase 4).
-    // A spawn failure must release the claim: the INSERT above is the
-    // concurrency lock, and a 'running' row with no worker blocks every
-    // import until someone notices and cancels it.
-    let worker: Worker;
-    try {
-      worker = instantiateImportHmisDataDhis2Worker({
-        runId,
-        credentials,
-        selection,
-      });
-      setWorker("hmis_dhis2_run", worker);
-    } catch (spawnError) {
-      await mainDb`
-        UPDATE dataset_hmis_import_runs
-        SET status = 'error', ended_at = now(), progress = NULL,
-          error = ${`Failed to start the import worker: ${spawnError instanceof Error ? spawnError.message : String(spawnError)}`}
-        WHERE id = ${runId}
-      `;
-      throw spawnError;
-    }
-
-    worker.addEventListener("error", async (e) => {
-      console.error("DHIS2 import run worker crashed:", e);
-      e.preventDefault();
-      // Terminate before finalizing: finalize recomputes from committed
-      // state, so no writer may still be committing pairs while it reads.
-      clearWorker("hmis_dhis2_run", worker);
-      worker.terminate();
-      try {
-        await mainDb`
-          UPDATE dataset_hmis_import_runs
-          SET status = 'error', ended_at = now(), progress = NULL,
-            error = ${`Worker crashed: ${e.message || "Unknown error"}. Pairs completed before the crash are preserved in the ledger.`}
-          WHERE id = ${runId} AND status = 'running'
-        `;
-        await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
-      } catch (dbError) {
-        console.error("Failed to mark run errored after worker crash:", dbError);
-      }
-      try {
-        await onComplete?.();
-      } catch (err) {
-        console.error("DHIS2 import run onComplete callback failed:", err);
-      }
-    });
-
-    worker.addEventListener("message", async (e) => {
-      if (e.data === "COMPLETED") {
-        clearWorker("hmis_dhis2_run", worker);
-        worker.terminate();
-        try {
-          await onComplete?.();
-        } catch (err) {
-          console.error("DHIS2 import run onComplete callback failed:", err);
-        }
-      }
-    });
+    // Inline credentials travel only in the worker message — never stored on
+    // the run row; stored credentials are decrypted inside the worker (C3).
+    await spawnRunWorker(mainDb, { runId, credentialsSource, selection, onComplete });
 
     return { success: true, data: { runId } };
   });
+}
+
+// C6 — queue, not concurrent execution: a queued row is inert (no claim, no
+// worker) until the ~60 s scheduler tick drains it FIFO through
+// launchQueuedDatasetHmisImportRun once the import slot is free. Queued fires
+// are unattended, so they require stored credentials (a prompted plaintext
+// credential must never be persisted to survive until the queue drains).
+export async function enqueueDatasetHmisImportRun(
+  mainDb: Sql,
+  args: { dhis2Url: string; selection: Dhis2RunSelection; triggeredBy: string },
+): Promise<APIResponseWithData<{ runId: number }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const pairs = await validateRunSelection(mainDb, args.selection);
+    const inserted = await mainDb<{ id: number }[]>`
+      INSERT INTO dataset_hmis_import_runs
+        (trigger, triggered_by, dhis2_url, selection, status, total_pairs)
+      VALUES
+        ('manual', ${args.triggeredBy}, ${args.dhis2Url},
+         ${JSON.stringify(args.selection)}, 'queued', ${pairs.length})
+      RETURNING id
+    `;
+    return { success: true, data: { runId: inserted[0].id } };
+  });
+}
+
+export async function getOldestQueuedDatasetHmisImportRun(
+  mainDb: Sql,
+): Promise<{ id: number; dhis2Url: string; selection: Dhis2RunSelection } | null> {
+  const rows = await mainDb<{ id: number; dhis2_url: string; selection: string }[]>`
+    SELECT id, dhis2_url, selection FROM dataset_hmis_import_runs
+    WHERE status = 'queued'
+    ORDER BY id
+    LIMIT 1
+  `;
+  const row = rows.at(0);
+  if (!row) {
+    return null;
+  }
+  return {
+    id: row.id,
+    dhis2Url: row.dhis2_url,
+    selection: parseJsonOrThrow<Dhis2RunSelection>(row.selection),
+  };
+}
+
+export async function countQueuedDatasetHmisImportRuns(
+  mainDb: Sql,
+): Promise<number> {
+  const rows = await mainDb<{ count: string | number }[]>`
+    SELECT COUNT(*) as count FROM dataset_hmis_import_runs WHERE status = 'queued'
+  `;
+  return Number(rows[0].count);
+}
+
+// Flips a queued row to an error with a loud reason (fire-time refusals:
+// stored credentials gone, connection re-pointed, unattended gate unpassed).
+export async function refuseQueuedDatasetHmisImportRun(
+  mainDb: Sql,
+  runId: number,
+  reason: string,
+): Promise<void> {
+  await mainDb`
+    UPDATE dataset_hmis_import_runs
+    SET status = 'error', ended_at = now(), error = ${reason}
+    WHERE id = ${runId} AND status = 'queued'
+  `;
+}
+
+// Claims a queued row by conditional UPDATE — the partial unique index on
+// status='running' still arbitrates (a concurrent running row makes the
+// UPDATE throw, and the row simply stays queued for the next tick). Returns
+// false when the claim was not taken (row removed, or slot busy).
+export async function launchQueuedDatasetHmisImportRun(
+  mainDb: Sql,
+  args: {
+    runId: number;
+    selection: Dhis2RunSelection;
+    onComplete?: () => void;
+  },
+): Promise<boolean> {
+  if (getWorker("hmis") || getWorker("hmis_dhis2_run")) {
+    return false;
+  }
+  let claimed: number;
+  try {
+    const updated = await mainDb`
+      UPDATE dataset_hmis_import_runs
+      SET status = 'running', started_at = now(),
+        progress = ${JSON.stringify({ phase: "classifying", activePairs: [] })}
+      WHERE id = ${args.runId} AND status = 'queued'
+    `;
+    claimed = updated.count;
+  } catch (e) {
+    // Unique-violation on the single-running index: another run took the
+    // slot between the tick's idle check and this claim.
+    console.log(
+      `Queued run ${args.runId} lost the launch race — staying queued:`,
+      e instanceof Error ? e.message : e,
+    );
+    return false;
+  }
+  if (claimed === 0) {
+    return false;
+  }
+
+  // Same post-claim CSV re-check as launch; reverting to 'queued' (not error)
+  // lets a later tick retry once the CSV phase ends.
+  if ((await countActiveCsvAttempts(mainDb)) > 0) {
+    await mainDb`
+      UPDATE dataset_hmis_import_runs
+      SET status = 'queued', progress = NULL
+      WHERE id = ${args.runId} AND status = 'running'
+    `;
+    return false;
+  }
+
+  await spawnRunWorker(mainDb, {
+    runId: args.runId,
+    credentialsSource: { kind: "stored" },
+    selection: args.selection,
+    onComplete: args.onComplete,
+  });
+  return true;
+}
+
+// The §7 C4 unattended gate: nothing fires unattended (one-shot, recurring,
+// or queued) until a run against this DHIS2 URL has shadow-verified clean.
+export async function hasShadowPassedForDhis2Url(
+  mainDb: Sql,
+  url: string,
+): Promise<boolean> {
+  const rows = await mainDb<{ exists: boolean }[]>`
+    SELECT EXISTS(
+      SELECT 1 FROM dataset_hmis_import_runs
+      WHERE shadow_passed = true AND dhis2_url = ${url}
+    ) as exists
+  `;
+  return rows[0].exists;
 }
 
 export async function cancelDatasetHmisImportRun(
@@ -262,6 +430,16 @@ export async function cancelDatasetHmisImportRun(
   runId: number,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    // A queued row has no worker and no version — removing it is just a flip.
+    const removedFromQueue = await mainDb`
+      UPDATE dataset_hmis_import_runs
+      SET status = 'cancelled', ended_at = now(),
+        error = 'Removed from the queue before starting.'
+      WHERE id = ${runId} AND status = 'queued'
+    `;
+    if (removedFromQueue.count > 0) {
+      return { success: true };
+    }
     // The status flip comes FIRST and is conditional on the given runId: a
     // cancel aimed at an already-finished run (stale tab, old list) must not
     // touch the worker — it belongs to whatever run is actually running.

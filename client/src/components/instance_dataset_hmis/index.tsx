@@ -161,6 +161,18 @@ export function InstanceDatasetHmis(p: Props) {
                 <div class="font-700 text-lg">
                   {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
+                <Show when={instanceState.hmisScheduledImportAttention}>
+                  <div
+                    class="ui-hoverable ui-pad border-danger bg-danger/10 rounded border text-sm"
+                    onClick={openDhis2Runs}
+                  >
+                    {t3({
+                      en: "A scheduled DHIS2 import needs attention. Click to view.",
+                      fr: "Une importation DHIS2 planifiée nécessite votre attention. Cliquez pour consulter.",
+                      pt: "Uma importação DHIS2 agendada precisa de atenção. Clique para ver.",
+                    })}
+                  </div>
+                </Show>
                 <Switch>
                   <Match when={activeDhis2Run()} keyed>
                     {(keyedRun) => (
@@ -212,6 +224,19 @@ export function InstanceDatasetHmis(p: Props) {
                     </div>
                   </Match>
                 </Switch>
+                <Show when={instanceState.hmisImportRunsQueued > 0}>
+                  <div
+                    class="ui-hoverable ui-pad border-base-300 bg-base-200 rounded border text-sm"
+                    onClick={openDhis2Runs}
+                  >
+                    {instanceState.hmisImportRunsQueued}{" "}
+                    {t3({
+                      en: "DHIS2 import(s) queued. Click to view.",
+                      fr: "importation(s) DHIS2 en file d'attente. Cliquez pour consulter.",
+                      pt: "importação(ões) DHIS2 em fila. Clique para ver.",
+                    })}
+                  </div>
+                </Show>
                 <Switch>
                   <Match when={!uploadAttempt()}>
                     <div class="">

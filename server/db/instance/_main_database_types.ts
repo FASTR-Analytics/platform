@@ -146,7 +146,7 @@ export type DBDatasetHmisImportRun = {
   triggered_by: string | null;
   dhis2_url: string;
   selection: string;
-  status: "running" | "complete" | "error" | "cancelled";
+  status: "queued" | "running" | "complete" | "error" | "cancelled";
   error: string | null;
   total_pairs: number;
   succeeded_pairs: number;
@@ -157,6 +157,33 @@ export type DBDatasetHmisImportRun = {
   shadow_passed: boolean | null;
   progress: string | null;
   run_stats: string | null;
+};
+
+export type DBDatasetHmisDhis2Credentials = {
+  singleton: boolean;
+  url: string;
+  username: string;
+  password_encrypted: string;
+  updated_by: string;
+  updated_at: string | Date;
+};
+
+export type DBDatasetHmisScheduledImport = {
+  id: number;
+  kind: "one_shot" | "recurring";
+  enabled: boolean;
+  selection: string;
+  run_at: string | Date | null;
+  day_of_week: number | null;
+  start_time: string | null;
+  timezone: string | null;
+  interval_weeks: number | null;
+  created_by: string;
+  created_at: string | Date;
+  last_fired_at: string | Date | null;
+  last_outcome: "launched" | "refused" | "missed" | null;
+  last_error: string | null;
+  last_run_id: number | null;
 };
 
 // Dataset versions in main

@@ -24,6 +24,7 @@ import {
   createWorkerReadConnection,
   enumerateRunPairs,
   finalizeInterruptedDatasetHmisRunVersion,
+  getStoredDhis2CredentialsDecrypted,
   HMIS_DHIS2_RUN_SCOPE_TABLE_NAME,
   upsertHmisLedgerErrorPairs,
   upsertHmisLedgerPairsFromData,
@@ -35,6 +36,7 @@ import type {
   Dhis2Credentials,
   Dhis2FetchErrorKind,
   Dhis2PairFetchStat,
+  Dhis2RunCredentialsSource,
   Dhis2RunPair,
   Dhis2RunRoute,
   Dhis2RunSelection,
@@ -104,7 +106,7 @@ const SHADOW_SOFT_MISMATCH_RECORD_CAP = 200;
 
 type RunWorkerMessage = {
   runId: number;
-  credentials: Dhis2Credentials;
+  credentialsSource: Dhis2RunCredentialsSource;
   selection: Dhis2RunSelection;
 };
 
@@ -155,12 +157,10 @@ async function run(std: RunWorkerMessage) {
   }
   alreadyRunning = true;
 
-  const { runId, credentials, selection } = std;
+  const { runId, credentialsSource, selection } = std;
   const importDb = createBulkImportConnection("main");
   const mainDb = createWorkerReadConnection("main");
   const runStartedIso = new Date().toISOString();
-
-  const baseFetchOptions: FetchOptions = { dhis2Credentials: credentials };
 
   // --- Shared run state ------------------------------------------------------
   const pairFetchStats: Dhis2PairFetchStat[] = [];
@@ -374,6 +374,16 @@ async function run(std: RunWorkerMessage) {
     if (runRows.at(0)?.status !== "running") {
       throw new Error(`Run ${runId} is not in 'running' state`);
     }
+
+    // Stored credentials are read + decrypted HERE, in the worker (C3 ruling:
+    // decrypt only at fetch time — the host and the scheduler tick never see
+    // the plaintext password). A missing row or a changed encryption key
+    // throws, and the catch below fails the run loudly.
+    const credentials: Dhis2Credentials =
+      credentialsSource.kind === "inline"
+        ? credentialsSource.credentials
+        : await getStoredDhis2CredentialsDecrypted(mainDb);
+    const baseFetchOptions: FetchOptions = { dhis2Credentials: credentials };
 
     const facilities = await mainDb<{ facility_id: string }[]>`
       SELECT facility_id FROM facilities_hmis

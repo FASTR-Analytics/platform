@@ -240,7 +240,11 @@ export type Dhis2RunSelection =
 // analytics engine (computed DHIS2 indicators + non-monthly re-routes).
 export type Dhis2RunRoute = "dvs" | "analytics";
 
+// "queued" = waiting behind the running run / CSV phase; the ~60 s scheduler
+// tick drains queued rows FIFO once the import slot is free (PLAN_DHIS2_IMPORTER
+// Phase 4, C6 — queue, not concurrent execution).
 export type DatasetHmisImportRunStatus =
+  | "queued"
   | "running"
   | "complete"
   | "error"
@@ -331,6 +335,95 @@ export type Dhis2Credentials = {
   url: string;
   username: string;
   password: string;
+};
+
+// How a run's worker obtains credentials. "inline" = supplied per run in the
+// worker message (never persisted). "stored" = the worker reads the encrypted
+// instance credentials and decrypts them at fetch time (PLAN_DHIS2_IMPORTER
+// Phase 4, C3) — scheduled and queued fires always use "stored".
+export type Dhis2RunCredentialsSource =
+  | { kind: "inline"; credentials: Dhis2Credentials }
+  | { kind: "stored" };
+
+// The safe projection of the stored instance credentials — the password never
+// leaves the server in any form.
+export type Dhis2StoredCredentialsInfo = {
+  url: string;
+  username: string;
+  updatedBy: string;
+  updatedAt: string;
+};
+
+// ============================================================================
+// Scheduled Imports (PLAN_DHIS2_IMPORTER Phase 4 — C4)
+// ============================================================================
+
+// A schedule's selection is a rolling window resolved at fire time: the
+// current instance-calendar month plus the previous monthsBack months, over
+// the listed raw indicators.
+export type Dhis2ScheduleSelection = {
+  rawIndicatorIds: string[];
+  monthsBack: number;
+};
+
+export type DatasetHmisScheduledImportKind = "one_shot" | "recurring";
+
+// "launched" = a run was started (last_run_id points at it). "refused" = the
+// fire was blocked at fire time (no stored credentials / unattended shadow
+// gate) — loud, with the reason in lastError. "missed" = the fire window
+// (occurrence + grace) passed with no fire (server down); skipping loudly
+// beats firing into daytime load (PLAN_DHIS2_IMPORTER §2.7).
+export type DatasetHmisScheduledImportOutcome = "launched" | "refused" | "missed";
+
+export type DatasetHmisScheduledImport = {
+  id: number;
+  kind: DatasetHmisScheduledImportKind;
+  enabled: boolean;
+  selection: Dhis2ScheduleSelection;
+  // one_shot: the fire instant (ISO timestamp).
+  runAt?: string;
+  // recurring: 0 (Sunday) – 6 (Saturday), interpreted in `timezone`.
+  dayOfWeek?: number;
+  // recurring: "HH:MM" wall time in `timezone`.
+  startTime?: string;
+  // recurring: IANA timezone, e.g. "Africa/Lagos".
+  timezone?: string;
+  // recurring: 1 = weekly, 2 = fortnightly, …
+  intervalWeeks?: number;
+  createdBy: string;
+  createdAt: string;
+  lastFiredAt?: string;
+  lastOutcome?: DatasetHmisScheduledImportOutcome;
+  lastError?: string;
+  lastRunId?: number;
+  // Joined from the runs table so the list can show how the launched run
+  // actually ended.
+  lastRunStatus?: DatasetHmisImportRunStatus;
+};
+
+// The editable fields of a schedule (create + update payload). Cross-field
+// requirements per kind are validated server-side.
+export type DatasetHmisScheduledImportFields = {
+  kind: DatasetHmisScheduledImportKind;
+  selection: Dhis2ScheduleSelection;
+  runAt?: string;
+  dayOfWeek?: number;
+  startTime?: string;
+  timezone?: string;
+  intervalWeeks?: number;
+};
+
+// One GET for the whole imports surface: schedules + stored-connection state
+// + whether unattended fires are currently allowed.
+export type Dhis2ImportSchedulingInfo = {
+  schedules: DatasetHmisScheduledImport[];
+  storedCredentials?: Dhis2StoredCredentialsInfo;
+  // false = DHIS2_CREDENTIALS_ENCRYPTION_KEY is not set on the server, so
+  // credentials cannot be stored (and nothing can fire unattended).
+  encryptionKeyConfigured: boolean;
+  // Stored credentials exist AND a run against their URL has
+  // shadow-verified clean (§7 C4 unattended gate).
+  unattendedReady: boolean;
 };
 
 // ============================================================================

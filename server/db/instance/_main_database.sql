@@ -347,7 +347,7 @@ CREATE TABLE dataset_hmis_import_runs (
   triggered_by text,
   dhis2_url text NOT NULL,
   selection text NOT NULL,
-  status text NOT NULL CHECK (status IN ('running', 'complete', 'error', 'cancelled')),
+  status text NOT NULL CHECK (status IN ('queued', 'running', 'complete', 'error', 'cancelled')),
   error text,
   total_pairs integer NOT NULL DEFAULT 0,
   succeeded_pairs integer NOT NULL DEFAULT 0,
@@ -364,6 +364,44 @@ CREATE TABLE dataset_hmis_import_runs (
 -- atomic concurrency claim for launching a run.
 CREATE UNIQUE INDEX idx_dataset_hmis_import_runs_single_running
   ON dataset_hmis_import_runs ((true)) WHERE status = 'running';
+
+-- Stored instance DHIS2 credentials (PLAN_DHIS2_IMPORTER Phase 4, C3):
+-- single row, password encrypted at rest with a key from the
+-- DHIS2_CREDENTIALS_ENCRYPTION_KEY env var (never in the DB); decrypted only
+-- in the run worker at fetch time
+-- (see server/db/instance/dataset_hmis_dhis2_credentials.ts).
+CREATE TABLE dataset_hmis_dhis2_credentials (
+  singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+  url text NOT NULL,
+  username text NOT NULL,
+  password_encrypted text NOT NULL,
+  updated_by text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Scheduled DHIS2 imports (PLAN_DHIS2_IMPORTER Phase 4, C4): one-shot +
+-- recurring rows fired by the ~60 s scheduler tick
+-- (see server/worker_routines/import_hmis_data_dhis2/scheduler.ts).
+-- selection is a rolling window JSON ({ rawIndicatorIds, monthsBack })
+-- resolved at fire time; last_fired_at is the last HANDLED occurrence — the
+-- tick's compare-and-set idempotency token.
+CREATE TABLE dataset_hmis_scheduled_imports (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  kind text NOT NULL CHECK (kind IN ('one_shot', 'recurring')),
+  enabled boolean NOT NULL,
+  selection text NOT NULL,
+  run_at timestamptz,
+  day_of_week integer CHECK (day_of_week BETWEEN 0 AND 6),
+  start_time text,
+  timezone text,
+  interval_weeks integer CHECK (interval_weeks >= 1),
+  created_by text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_fired_at timestamptz,
+  last_outcome text CHECK (last_outcome IN ('launched', 'refused', 'missed')),
+  last_error text,
+  last_run_id integer REFERENCES dataset_hmis_import_runs(id) ON DELETE SET NULL
+);
 
 -- The CSV import wizard's step-config + status state (single row). DHIS2
 -- imports do not use this table — they are runs (dataset_hmis_import_runs).

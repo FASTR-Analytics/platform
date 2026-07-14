@@ -30,8 +30,10 @@ globs:
   - lib/types/datasets_in_project.ts
   - server/db/instance/dataset_hfa.ts
   - server/db/instance/dataset_hmis.ts
+  - server/db/instance/dataset_hmis_dhis2_credentials.ts
   - server/db/instance/dataset_hmis_import_ledger.ts
   - server/db/instance/dataset_hmis_import_runs.ts
+  - server/db/instance/dataset_hmis_scheduled_imports.ts
   - server/db/instance/dataset_iceh.ts
   - server/db/project/calculated_indicators_snapshot.ts
   - server/db/project/datasets_in_project_hfa.ts
@@ -82,12 +84,24 @@ into this doc when that plan retires). Shape:
 
 - `dataset_hmis_import_runs` (main DB): one row per run — trigger/user,
   selection JSON (window or explicit pairs), status
-  (`running|complete|error|cancelled`), pair counters, throttled `progress`
-  JSON, `run_stats` (classification summary, per-pair fetch stats, shadow
-  results), `version_id`, `shadow_passed`. A partial unique index allows at
-  most one `running` row — the INSERT is the launch claim. Credentials
-  travel only in the worker message, never stored (C3 adds encrypted
-  storage).
+  (`queued|running|complete|error|cancelled`), pair counters, throttled
+  `progress` JSON, `run_stats` (classification summary, per-pair fetch
+  stats, shadow results), `version_id`, `shadow_passed`. A partial unique
+  index allows at most one `running` row — the INSERT (or the queued→running
+  UPDATE) is the launch claim. Inline credentials travel only in the worker
+  message; stored credentials (Phase 4 C3,
+  `dataset_hmis_dhis2_credentials`, password AES-GCM-encrypted with the
+  `DHIS2_CREDENTIALS_ENCRYPTION_KEY` env key) are decrypted only inside the
+  worker.
+- **Auto-pull (Phase 4, C4/C6)**: `dataset_hmis_scheduled_imports` (one-shot
+  and recurring rows, rolling-window selection resolved at fire time) is fired
+  by a ~60 s tick in main.ts
+  (`import_hmis_data_dhis2/scheduler.ts`) — queued runs drain FIFO first,
+  then due schedules (occurrence math per IANA timezone, 4 h grace,
+  deterministic per-row jitter, `last_fired_at` CAS idempotency). Nothing
+  fires unattended until a run against the stored DHIS2 URL has
+  `shadow_passed = true`; refusals/misses are loud (`last_outcome` +
+  datasets-summary attention flag).
 - The worker classifies every selected raw indicator per run from DHIS2
   metadata (dispatcher): bare data elements + operands → dataValueSets
   country-pulls (shared per base element, adaptive window halving then

@@ -183,6 +183,13 @@ if (
   );
 }
 
+// Encrypts the stored DHIS2 password at rest (PLAN_DHIS2_IMPORTER Phase 4,
+// C3). Unset = credentials cannot be stored, so nothing can fire unattended;
+// saving/decrypting fails loudly with a clear message. Changing the key
+// orphans the stored password (re-save credentials once).
+export const _DHIS2_CREDENTIALS_ENCRYPTION_KEY: string =
+  Deno.env.get("DHIS2_CREDENTIALS_ENCRYPTION_KEY") ?? "";
+
 ///////////////////////////////////////////////////////////////////////////////
 // Authentication (Optional)
 ///////////////////////////////////////////////////////////////////////////////

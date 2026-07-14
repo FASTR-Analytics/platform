@@ -4,6 +4,7 @@ import { getPgConnectionFromCacheOrNew } from "./server/db/mod.ts";
 import { DeleteOldLogs } from "./server/db/instance/user_logs.ts";
 import { purgeExpiredProjects } from "./server/db/mod.ts";
 import { connectValkey, disconnectValkey } from "./server/valkey/connection.ts";
+import { startDhis2ImportScheduler } from "./server/worker_routines/import_hmis_data_dhis2/scheduler.ts";
 import { closeAllConnections } from "./server/db/postgres/connection_manager.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
 import {
@@ -74,6 +75,12 @@ const runProjectPurge = () => {
 };
 runProjectPurge();
 setInterval(runProjectPurge, 24 * 60 * 60 * 1000);
+
+// DHIS2 auto-pull (PLAN_DHIS2_IMPORTER Phase 4): ~60 s tick draining queued
+// runs FIFO and firing due schedules — a minute-level tick, NOT one of the
+// boot-anchored 24 h jobs above (a daily tick would usually miss a 01:15
+// Lagos window).
+startDhis2ImportScheduler();
 
 await connectValkey();
 

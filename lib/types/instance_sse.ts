@@ -63,6 +63,11 @@ export type InstanceState = {
   // While a per-pair DHIS2 run is integrating, dataset_hmis keeps changing
   // under the settled version token — display caches must be bypassed.
   hmisImportRunActive: boolean;
+  // Queued DHIS2 runs waiting for the import slot (Phase 4 C6).
+  hmisImportRunsQueued: number;
+  // A scheduled DHIS2 import needs attention: its last fire was refused or
+  // missed, or the run it launched ended in error (Phase 4 C4).
+  hmisScheduledImportAttention: boolean;
   hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
   icehCacheHash: string;
@@ -123,6 +128,8 @@ export type InstanceDatasetsSummary = {
   datasetVersions: { hmis?: number; hfa?: number };
   hmisNVersions: number;
   hmisImportRunActive: boolean;
+  hmisImportRunsQueued: number;
+  hmisScheduledImportAttention: boolean;
   hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
   icehCacheHash: string;

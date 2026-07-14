@@ -6,6 +6,9 @@ type Props = {
 };
 
 function statusLabel(status: DatasetHmisImportRunSummary["status"]): string {
+  if (status === "queued") {
+    return t3({ en: "Queued", fr: "En file d'attente", pt: "Em fila" });
+  }
   if (status === "running") {
     return t3({ en: "Running", fr: "En cours", pt: "Em curso" });
   }
@@ -45,7 +48,10 @@ export function Dhis2RunHistory(p: Props) {
       key: "triggeredBy",
       header: t3({ en: "By", fr: "Par", pt: "Por" }),
       sortable: true,
-      render: (run) => run.triggeredBy ?? "",
+      render: (run) =>
+        run.trigger === "schedule"
+          ? `${run.triggeredBy ?? ""} (${t3({ en: "scheduled", fr: "planifiée", pt: "agendada" })})`
+          : (run.triggeredBy ?? ""),
     },
     {
       key: "selection",

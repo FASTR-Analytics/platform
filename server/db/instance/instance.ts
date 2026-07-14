@@ -30,7 +30,11 @@ import {
   getAdminAreaLabelsConfig,
 } from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
-import { hasRunningDatasetHmisImportRun } from "./dataset_hmis_import_runs.ts";
+import {
+  countQueuedDatasetHmisImportRuns,
+  hasRunningDatasetHmisImportRun,
+} from "./dataset_hmis_import_runs.ts";
+import { hasScheduledImportAttention } from "./dataset_hmis_scheduled_imports.ts";
 import { computeHfaCacheHash } from "./dataset_hfa.ts";
 import { getHfaWeightsCoverage } from "./hfa_facility_weights.ts";
 import { getIcehCacheHash } from "./dataset_iceh.ts";
@@ -259,6 +263,8 @@ export async function getInstanceDatasetsSummary(
     },
     hmisNVersions,
     hmisImportRunActive: await hasRunningDatasetHmisImportRun(mainDb),
+    hmisImportRunsQueued: await countQueuedDatasetHmisImportRuns(mainDb),
+    hmisScheduledImportAttention: await hasScheduledImportAttention(mainDb),
     hfaTimePoints: hfaTimePointRows.map((r) => ({
       label: r.label,
       periodId: r.period_id,

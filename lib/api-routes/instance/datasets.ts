@@ -14,10 +14,12 @@ import type {
   DatasetHmisDetail,
   DatasetHmisImportLedgerItem,
   DatasetHmisImportRunSummary,
+  DatasetHmisScheduledImport,
   DatasetHmisVersion,
   DatasetHmisWindowingRaw,
   DatasetUploadAttemptDetail,
   DatasetUploadStatusResponse,
+  Dhis2ImportSchedulingInfo,
   IndicatorType,
   InstanceConfigFacilityColumns,
   ItemsHolderDatasetHmisDisplay,
@@ -49,6 +51,27 @@ const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
       .min(1),
   }),
 ]);
+
+const dhis2ScheduleSelectionSchema = z.object({
+  rawIndicatorIds: z.array(z.string()).min(1),
+  monthsBack: z.number().int().min(0).max(120),
+});
+
+// Cross-field requirements per kind (one_shot needs runAt; recurring needs
+// dayOfWeek/startTime/timezone/intervalWeeks) are validated server-side —
+// the schema stays flat so both kinds share one editor payload.
+const dhis2ScheduleFieldsSchema = z.object({
+  kind: z.enum(["one_shot", "recurring"]),
+  selection: dhis2ScheduleSelectionSchema,
+  runAt: z.string().optional(),
+  dayOfWeek: z.number().int().min(0).max(6).optional(),
+  startTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
+  timezone: z.string().optional(),
+  intervalWeeks: z.number().int().min(1).max(52).optional(),
+});
 
 const hfaCsvMappingParamsSchema = z.object({
   facilityIdColumn: z.string(),
@@ -109,11 +132,12 @@ export const datasetRouteRegistry = {
   }),
 
   // DHIS2 import runs (per-pair fetch+integrate; PLAN_DHIS2_IMPORTER Phase 3)
+  // credentials absent = use the stored instance credentials (Phase 4 C3).
   launchDatasetHmisDhis2Run: route({
     path: "/datasets/hmis/dhis2-runs",
     method: "POST",
     body: z.object({
-      credentials: dhis2CredentialsSchema,
+      credentials: dhis2CredentialsSchema.optional(),
       selection: dhis2RunSelectionSchema,
     }),
     response: {} as { runId: number },
@@ -123,10 +147,57 @@ export const datasetRouteRegistry = {
     method: "GET",
     response: {} as DatasetHmisImportRunSummary[],
   }),
+  // Cancels a running run, or removes a queued one.
   cancelDatasetHmisDhis2Run: route({
     path: "/datasets/hmis/dhis2-runs/cancel",
     method: "POST",
     body: z.object({ runId: z.number().int() }),
+  }),
+
+  // DHIS2 queue + scheduling (PLAN_DHIS2_IMPORTER Phase 4 — C3/C4/C6)
+  enqueueDatasetHmisDhis2Run: route({
+    path: "/datasets/hmis/dhis2-runs/enqueue",
+    method: "POST",
+    body: z.object({ selection: dhis2RunSelectionSchema }),
+    response: {} as { runId: number },
+  }),
+  getDatasetHmisDhis2Scheduling: route({
+    path: "/datasets/hmis/dhis2-scheduling",
+    method: "GET",
+    response: {} as Dhis2ImportSchedulingInfo,
+  }),
+  saveDatasetHmisDhis2Credentials: route({
+    path: "/datasets/hmis/dhis2-credentials",
+    method: "POST",
+    body: z.object({ credentials: dhis2CredentialsSchema }),
+  }),
+  deleteDatasetHmisDhis2Credentials: route({
+    path: "/datasets/hmis/dhis2-credentials",
+    method: "DELETE",
+  }),
+  createDatasetHmisDhis2Schedule: route({
+    path: "/datasets/hmis/dhis2-schedules",
+    method: "POST",
+    body: z.object({ schedule: dhis2ScheduleFieldsSchema }),
+    response: {} as DatasetHmisScheduledImport,
+  }),
+  updateDatasetHmisDhis2Schedule: route({
+    path: "/datasets/hmis/dhis2-schedules/update",
+    method: "POST",
+    body: z.object({
+      id: z.number().int(),
+      schedule: dhis2ScheduleFieldsSchema,
+    }),
+  }),
+  setDatasetHmisDhis2ScheduleEnabled: route({
+    path: "/datasets/hmis/dhis2-schedules/enabled",
+    method: "POST",
+    body: z.object({ id: z.number().int(), enabled: z.boolean() }),
+  }),
+  deleteDatasetHmisDhis2Schedule: route({
+    path: "/datasets/hmis/dhis2-schedules",
+    method: "DELETE",
+    body: z.object({ id: z.number().int() }),
   }),
 
   // Upload workflow (CSV — DHIS2 imports are runs, above)

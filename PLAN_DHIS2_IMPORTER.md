@@ -18,8 +18,87 @@ covering run-later + recurring, queue-not-concurrency (§7 C6), the
 unified imports surface, a 1-minute tick — and a NEW separable Phase 5
 (§9, CSV wizard re-flow with a conditional review gate). Tim confirmed
 DHIS2 stays GATE-LESS given the verified failed-pair contract (§3.1).
-Next action = Phase 4 (§5.4 — C3 encrypted credentials + C4
-scheduler/queue + the imports surface, §7).**
+**Phase 4 BUILT 2026-07-14 (this commit)** — C3 + C4 + C6 + the §6.1
+imports surface, as-built notes below. Verified: full typecheck +
+lint:systems green, ./validate_migrations green (migration 058
+idempotent), 42/42 harness checks (crypto round-trip incl. wrong-key
+subprocess, occurrence math incl. DST spring-forward + Lagos,
+fire/miss/grace/jitter/interval decisions, period arithmetic both
+calendars, queued-claim arbitration against the partial unique index,
+shadow-gate keying, occurrence CAS + revert, attention semantics,
+single-row credentials upsert — all DB checks in rolled-back
+transactions on the dev DB), 5/5 live tick checks on the dev DB
+(skip-while-running, queued drain → loud refusal without stored
+credentials, due one-shot refusal + disable + CAS, handled-stays-
+handled, past-grace missed), and a full server boot (migration 058
+applied by the runner, all 257 registry routes validated).
+Adversarial review NOT yet run (Phases 1–3 each got one — same
+pattern applies). Next = review, then Phase 5 (§9).**
+
+Phase 4 as-built (deviations/decisions, all builder-level unless noted):
+
+- **C3**: single-row `dataset_hmis_dhis2_credentials` (main DB,
+  migration 058) — url + username plaintext (the UI shows what is
+  stored; runs already expose the URL), password
+  base64(IV‖AES-256-GCM), key = SHA-256 of the
+  `DHIS2_CREDENTIALS_ENCRYPTION_KEY` env var (unset ⇒ storing refused
+  loudly and nothing can fire unattended; key change ⇒ decrypt fails
+  with a clear re-save message). Decryption happens ONLY in the run
+  worker (`getStoredDhis2CredentialsDecrypted`) — the worker message
+  now carries `credentialsSource: inline|stored`; routes and the tick
+  handle only the safe projection. Save route validates the connection
+  first; stored-credential launches skip pre-validation (validating
+  would decrypt in the host) and fail loudly in the worker instead.
+  The CSV attempt rows' plaintext-credential retirement was already
+  moot: the runs path never stored them.
+- **C6**: queued runs are `status='queued'` rows in
+  `dataset_hmis_import_runs` (the ruled builder's choice — the runs
+  table is already the listing/cancel surface). The tick drains FIFO
+  by claiming queued→running with a conditional UPDATE (the partial
+  unique index still arbitrates); cancel on a queued row just flips it
+  to cancelled ("removed from queue"). Enqueueing requires stored
+  credentials up front and is EXPLICIT in the UI (openConfirm before
+  enqueue). Queued rows survive restarts (the startup sweep touches
+  only `running`).
+- **C4**: `dataset_hmis_scheduled_imports` per the §7 sketch (text
+  selection column like the runs table, not jsonb). Schedule selection
+  = rolling window `{ rawIndicatorIds, monthsBack }` resolved at fire
+  time to current-instance-calendar month + previous N (both calendars
+  are 12-month in the app's period model; non-Gregorian instances just
+  ride the worker's all-analytics forcing). Tick =
+  `worker_routines/import_hmis_data_dhis2/scheduler.ts`, started from
+  main.ts, 60 s interval, in-flight re-entry guard; skips entirely
+  while any HMIS operation is active; fires at most ONE item per tick
+  (queued first, then schedules by id). Recurring occurrence = most
+  recent day-of-week+HH:MM in the row's IANA timezone (Intl-based
+  iterative offset conversion, DST-safe within the grace); grace 4 h;
+  `last_fired_at` = last HANDLED occurrence (CAS idempotency token +
+  interval anchor; intermediate weeks of an every-N-weeks row are
+  skipped silently — never "missed"). Jitter = deterministic per-row
+  hash, 0–5 min, recurring only. A launch that lost only the
+  import-slot race reverts its CAS and retries next tick (until grace
+  expires → missed); every other failure records `refused` + error.
+  One-shots disable after their occurrence is handled (row kept,
+  linking to its run); editing a one-shot (or switching kind) re-arms
+  by clearing `last_fired_at`. Unattended gate enforced twice as
+  ruled: create/enable routes refuse before stored credentials +
+  `shadow_passed` for their URL, and the tick re-checks at fire time
+  (also for queued rows, incl. a stored-URL-changed-since-enqueue
+  refusal).
+- **Surface (§6.1)**: `dhis2_run/index.tsx` is now the unified imports
+  surface — attention banner (refused/missed/launched-but-run-errored,
+  from a LEFT JOIN of `last_run_id`), Running (+ explicit
+  "Queue another import" launcher in queue mode), Queued (FIFO table,
+  Remove), Stored connection card (save/replace/delete; explains the
+  missing-env-key state), Scheduled (list + editor: one-shot
+  datetime / recurring day+time+IANA-timezone+interval pickers, the
+  Nigeria ~01:15 Africa/Lagos hint as helper text only, rolling-window
+  months input, shared indicator picker extracted from the launcher),
+  History (queued rows excluded; scheduled runs labelled). Sidebar
+  gets an attention banner + queued count via two new
+  `InstanceDatasetsSummary` fields (`hmisImportRunsQueued`,
+  `hmisScheduledImportAttention`) — SSE-pushed, tick notifies on every
+  outcome. All new strings inline t3 en/fr/pt.
 
 - Phase 0 = the fetch lab; all verdicts in §2.
 - Phase 1 shipped `da4f6a7d` — worker quick wins + per-pair
@@ -213,22 +292,18 @@ Standing directive from Tim: **where a decision is unclear, take the
 most robust option, even at the cost of more work.** Rulings made under
 that directive are marked *(robustness ruling)*.
 
-A fresh agent continuing this work — the task is **Phase 4**:
+A fresh agent continuing this work — the next task is the **Phase 4
+adversarial review** (then Phase 5):
 
-1. Read §1 for the as-built system, §2 for the evidence base (§2.7/§2.8
-   for gate/lab state), §3 for the ruled architecture, §3.1 for the
-   gate-less ruling + failed-pair contract.
-2. Build Phase 4 per §5.4: C3 encrypted stored credentials + C4
-   scheduler (scheduled-imports table: one-shot + recurring; 1-minute
-   tick) + C6 queue semantics + the unified imports surface (§7
-   C3/C4/C6 specs; §6.1 Phase 4 UI). Pick C3's exact crypto primitive
-   during the build (AES-GCM via WebCrypto, key from instance env —
-   §7). Nothing unattended may fire for an instance until its first
-   dispatcher run has shadow-verified clean (§7 C4 unattended gate —
-   the lab gate is retired, Status block).
-3. Phase 5 (§9, CSV wizard re-flow) is SEPARABLE and comes after
-   Phase 4, riding on Phase 4's imports surface — do not let it grow
-   Phase 4's scope (ruled).
+1. Read §1 for the as-built Phase 3 system, the Status block's Phase 4
+   as-built notes, §3.1 for the gate-less ruling + failed-pair
+   contract, §7 for the C3/C4/C6 specs.
+2. Run the adversarial review of Phase 4 (two independent reviewers,
+   same pattern as Phases 1–3 — give them system context and the
+   change, no prescriptive checklist). Fix confirmed findings.
+3. Phase 5 (§9, CSV wizard re-flow) is SEPARABLE and comes after —
+   riding on Phase 4's imports surface; do not let it grow Phase 4's
+   scope (ruled).
 
 Phase 3's code (§1, §4.4) is built, twice-reviewed, and on `main` —
 build Phase 4 on top of it; don't re-derive it. Do NOT start new lab
@@ -803,7 +878,8 @@ any future stale config loudly per run.
    E9/E10/E12 evidence sufficient (Status block). Gate 2 = in-app
    first-run shadow verification + circuit breaker, ships in the worker
    (no separate action needed) and is the remaining cutover protection.
-4. **Phase 4 — NEXT — auto-pull + scheduling/queue** (C3 + C4 + C6,
+4. **Phase 4 — BUILT 2026-07-14, review pending — auto-pull +
+   scheduling/queue** (C3 + C4 + C6,
    §7; spec redesigned with Tim 2026-07-14): stored credentials
    (encrypted), the scheduled-imports table (one-shot "run at T" +
    recurring day/time/interval/timezone — per-instance SETTABLE, not
@@ -1138,7 +1214,6 @@ the same units.
   stored credentials — a prompted plaintext credential must never be
   persisted to survive until the queue drains. Queueing is EXPLICIT
   (the §6.1 prompt), never the silent default *(ruled)*.
-
 
 ## 8. The lab (RETIRED 2026-07-14 — kept for reference, no new work)
 
