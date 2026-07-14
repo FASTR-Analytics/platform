@@ -1,9 +1,20 @@
 # Plan — DHIS2 importer: speed, import ledger, auto-pull
 
-**Status: not started.** Next action = Phase 0 (the fetch lab). An
-agent starting cold: read §0–§2, then execute §6 step by step. This
-plan is self-contained — everything needed is in this file or linked
-from it; credentials come from Tim (§6.2).
+**Status: Phase 0 COMPLETE (2026-07-14) — awaiting Tim's review before
+Phase 1.** The lab (`~/projects/apps/wb-fastr-dhis2-lab`, committed) ran
+E1–E9 against the real Nigeria DHIS2 with production inputs
+(`facilities_hmis`, `indicators_raw`, and real failure evidence from
+`dataset_hmis_versions.staging_result` — pulled per DOC_ACCESS_DBS.md).
+Verdicts in the lab's `RESULTS.md`: bottleneck = fixed per-request server
+think time (H1) with a (dx,pe) slow tail dying at nginx's 60s cliff (H3);
+attribution = platform adds nothing, scoped-delete changes not implicated
+(Nigeria returns `rows: []`, never missing-`rows`); E6 = 409 cluster is 4
+stale nonexistent UIDs (config remap, no code) + 504 cluster is
+valid-but-slow dx (retry-budget + shape fix); A4 lever = `ou:400 × pe:12`
+(48× fewer requests, E9 correctness gate PASS); E7 incremental-sync
+primitive confirmed; analytics rebuild 00:17–01:00 WAT nightly. Caveat:
+lab timing is off-peak — repeat `./run e1`/`./run e8` at WAT business
+hours. Next action = Tim reviews RESULTS.md, then Phase 1 (A3+A1).
 
 Three goals, one system (S6's HMIS-DHIS2 path + S7 connector):
 
