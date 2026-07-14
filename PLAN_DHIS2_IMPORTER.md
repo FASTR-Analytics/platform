@@ -12,7 +12,15 @@ attribution = platform adds nothing, scoped-delete changes not implicated
 stale nonexistent UIDs (config remap, no code) + 504 cluster is
 valid-but-slow dx (retry-budget + shape fix); A4 lever = `ou:400 × pe:12`
 (48× fewer requests, E9 correctness gate PASS); E7 incremental-sync
-primitive confirmed; analytics rebuild 00:17–01:00 WAT nightly. Caveat:
+primitive confirmed; analytics rebuild 00:17–01:00 WAT nightly. E10
+(added on Tim's "why analytics at all?"): only 2 of 96 dx are computed
+indicators; `dataValueSets` one-request-per-(element, month) nationwide
+has 1–2s think time even for the analytics-slow dx, parity 300/300 vs
+analytics, operands come free from the base pull — a dataValueSets-primary
+importer is the strictly-better Phase 3 candidate on the evidence
+(bigger change; Tim to rule vs the gated `ou:400 × pe:12` reshape).
+Retry-rescue of slow analytics queries is dead (no cache hit at any
+spacing); 6 stale indicator ids total (4 failing + 2 latent). Caveat:
 lab timing is off-peak — repeat `./run e1`/`./run e8` at WAT business
 hours. Next action = Tim reviews RESULTS.md, then Phase 1 (A3+A1).
 
