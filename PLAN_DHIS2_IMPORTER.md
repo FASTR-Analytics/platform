@@ -1,5 +1,10 @@
 # Plan — DHIS2 importer: speed, import ledger, auto-pull
 
+**Status: not started.** Next action = Phase 0 (the fetch lab). An
+agent starting cold: read §0–§2, then execute §6 step by step. This
+plan is self-contained — everything needed is in this file or linked
+from it; credentials come from Tim (§6.2).
+
 Three goals, one system (S6's HMIS-DHIS2 path + S7 connector):
 
 - **G1 — speed**: hunt down anything making imports slower than the DHIS2
@@ -12,8 +17,9 @@ Three goals, one system (S6's HMIS-DHIS2 path + S7 connector):
 
 Phase 0 is a standalone **fetch lab** (A0) — extensive empirical testing
 against the real Nigeria DHIS2 (Tim has credentials), in its own repo,
-before any app code changes. The lab's job is to nail the request shape
-and the attribution question once and for all. Code anatomy below
+before any app code changes. The lab's job is to find the actual
+bottleneck and answer the attribution question once and for all; any
+request reshaping is conditional on what it finds. Code anatomy below
 verified against `main` 2026-07-14.
 
 ## 0. The driver (Nigeria, July 2026)
@@ -34,8 +40,17 @@ The arithmetic that frames everything: Nigeria has ~49,475 UID-shaped
 facilities → 495 batches of 100 per indicator-month. 20 indicators ×
 72 months ≈ 713,000 DHIS2 analytics requests for a full-history pull.
 At ~1–2 min per indicator-month and 5 concurrent, that is ~24 h — before
-any failure burns retry budget. Request count is the enemy; per-request
-latency is (mostly) DHIS2's.
+any failure burns retry budget.
+
+But note (Tim's framing rule for this whole plan): the total rows
+fetched are identical under any request shape. Whether request COUNT
+matters depends entirely on how per-request time splits between fixed
+cost (connection, auth, query setup, envelope) and per-row cost (the
+analytics work itself). 100 facilities × 495 requests vs 200 × 248
+saves only 247 × fixed-cost — which might be ~half the wall clock or
+might be noise. **Find the actual bottleneck; do not reshape for the
+sake of it.** The lab's first job is the bottleneck model, and every
+reshaping lever below is conditional on what it says.
 
 Thread promises this plan should redeem: a per-indicator "last updated
 on X" surface, and an in-app one-indicator-at-a-time checklist instead
@@ -86,11 +101,30 @@ it; only one import can exist at a time; progress is the status JSON.
 ## 2. WS-A — speed
 
 **A0 — the fetch lab (Phase 0, all of it).** A new sibling repo
-(`~/projects/apps/wb-fastr-dhis2-lab`) whose only purpose is to get the
-fetches into the right shape against the real Nigeria DHIS2. Separate
-repo, not a folder here: national-DHIS2 credentials never enter the
-platform repo (lab `.env`, never committed), and experiment churn stays
-out of the deploy-gated lint/typecheck chain. The lab imports the app's
+(`~/projects/apps/wb-fastr-dhis2-lab`) whose primary output is a
+**bottleneck model** of Nigeria DHIS2 fetching — where each request's
+time actually goes — and only secondarily a request shape, if the model
+says shape matters. The candidate hypotheses the lab must distinguish:
+
+- **H1 fixed-cost dominated** (analytics tables materialized; each
+  request is a fast lookup + small JSON) → batching/multi-pe/LEVEL-n
+  are big levers; pick one in A4.
+- **H2 per-row dominated** (e.g. DHIS2 aggregating on the fly) →
+  reshaping ≈ nothing; the levers are fetching LESS (incremental
+  `lastUpdated`, rolling windows, E7) and DHIS2-side fixes.
+- **H3 server queueing/throttling dominated** → concurrency and shape
+  change nothing; the deliverable is scheduling + the advocacy note.
+- **H4 analytics not materialized for some dimensions** (disaggregated
+  COCs) → explains the failure cluster; fix is on Nigeria's side, with
+  specifics we can hand them.
+
+E2's latency-vs-batch-size curve separates H1/H2 (intercept = fixed
+cost, slope = per-row cost); E1's TTFB-vs-body split plus E5 separates
+H3; E6/E8 test H4.
+
+Separate repo, not a folder here: national-DHIS2 credentials never
+enter the platform repo (lab `.env`, never committed), and experiment
+churn stays out of the deploy-gated lint/typecheck chain. The lab imports the app's
 **real** connector (`fetchFromDHIS2` / `getAnalyticsFromDHIS2` via
 absolute-path imports with the app's `deno.json` — the standard
 verify-by-executing pattern), so measurements attribute the actual code
@@ -104,14 +138,22 @@ back off on 429/5xx, hard stop on repeated errors); every run logs its
 own request count; prefer Nigeria off-peak (WAT = UTC+1; their night is
 late-morning/afternoon AEST).
 
+Measurement trap: DHIS2 caches analytics responses, so repeating the
+identical request measures its cache, not its work. Samples must vary
+indicator/period; deliberate repeats are their own experiment (cache
+hit rate is itself useful — it bounds what a re-import costs).
+
 The experiment matrix:
 
 - **E1 baseline replication + attribution**: the current shape
   (`dx:1 × pe:1 × ou:100`), measured properly — time-to-headers vs
   body-read time per request, distribution across time of day and
-  across indicators. This is the "platform vs Nigeria's DHIS2" verdict:
-  if server think-time dominates, the 48 h is arithmetic and Rachel's
-  advocacy note writes itself.
+  across indicators. (The connector doesn't expose the TTFB boundary:
+  run end-to-end timings through the real connector, plus a raw-`fetch`
+  variant of the same requests for the TTFB/body split — do NOT modify
+  the app connector to get it.) This is the "platform vs Nigeria's
+  DHIS2" verdict: if server think-time dominates, the 48 h is
+  arithmetic and Rachel's advocacy note writes itself.
 - **E2 batch-size sweep**: `ou:` 50/100/200/400/800 — find the real URL
   limit empirically (the in-app 2048 guard measured a broken URL) and
   the latency-vs-batch-size curve (fixed per-request cost vs per-row
@@ -137,10 +179,12 @@ The experiment matrix:
   Speed results without this are void — the importer deletes-then-
   inserts on the strength of these responses.
 
-Phase 0 exit: `RESULTS.md` states the winning request shape (with
-numbers), the attribution verdict for the thread, and the E6 failure
-diagnosis. Everything downstream (A3 tunables, A4 lever choice, C1 unit
-design) consumes those verdicts instead of guesses.
+Phase 0 exit: `RESULTS.md` states the bottleneck model (which of H1–H4,
+with numbers), the attribution verdict for the thread, the E6 failure
+diagnosis, and — only if the model says shape matters — the winning
+request shape. Everything downstream (A3 tunables, whether A4 happens
+at all and which lever, C1 unit design) consumes those verdicts instead
+of guesses.
 
 **A1 — in-app instrumentation** (ships with Phase 1). Add per-batch
 timing to the staging worker (fetch ms, rows, retry count, HTTP status)
@@ -198,9 +242,11 @@ the request shape, so they land cleanest with the WS-C per-pair unit):
 A5 is the in-app fix — handle the classified cause and degrade cleanly
 per pair with a ledger-visible error.
 
-Acceptance for WS-A: a Nigeria indicator-year measurably down (target:
-≤ 5 min with A3 alone, ≤ 1 min with a chosen A4 lever), and a written
-attribution answer for the thread.
+Acceptance for WS-A: a written attribution answer for the thread, and a
+Nigeria indicator-year measurably down against the lab's own bottleneck
+model — i.e. we captured whatever headroom the model says exists (under
+H1 that could be minutes → seconds; under H2/H3 the win comes from
+fetching less, and "no reshape" is a legitimate, evidenced outcome).
 
 ## 3. WS-B — the import ledger (G2)
 
@@ -305,9 +351,10 @@ auto-pull default on/off per instance; notification channel (C4).
 
 1. **Phase 0 — the fetch lab** (A0, all experiments E1–E9): a new
    sibling repo, extensive testing against the real Nigeria DHIS2, zero
-   app changes. Exits with `RESULTS.md`: winning request shape,
-   attribution verdict + advocacy note for the thread (A2), and the E6
-   failure diagnosis.
+   app changes. Exits with `RESULTS.md`: the bottleneck model (H1–H4),
+   attribution verdict + advocacy note for the thread (A2), the E6
+   failure diagnosis, and the request shape only if the model says
+   shape matters. Bootstrap instructions: §6.
 2. **Phase 1 — quick wins** (A3 + A1): throttle, guard fix +
    lab-measured batch-size raise, retry budget, tunables, in-app
    instrumentation.
@@ -316,5 +363,52 @@ auto-pull default on/off per instance; notification channel (C4).
 4. **Phase 3 — request shape + units** (chosen A4 lever + C1 + C2).
 5. **Phase 4 — auto-pull** (C3 + C4).
 
-Each phase ships alone. Delete this plan when Phase 4 lands; if the
-work stalls earlier, fold the remainder into SYSTEM_06/07 Open items.
+Each phase ships alone. **This plan is the status tracker**: when a
+phase completes, record it in a `Status` block at the top of this file
+(commit to main) — no other tracking home. Delete this plan when
+Phase 4 lands; if the work stalls earlier, fold the remainder into
+SYSTEM_06/07 Open items.
+
+## 6. Bootstrap — starting Phase 0 cold
+
+For an agent starting with nothing but this file:
+
+1. **Read first**: §1 above (importer anatomy);
+   [SYSTEM_07_dhis2.md](SYSTEM_07_dhis2.md) (the connector: fetcher,
+   retry, timeouts, `maxResponseBytes`); the fetch loop itself,
+   `server/worker_routines/stage_hmis_data_dhis2/worker.ts`
+   (`fetchIndicatorPeriod` is the shape being replicated in E1).
+2. **Create the lab repo**: `~/projects/apps/wb-fastr-dhis2-lab`,
+   `git init`, private. Layout: `experiments/e1_baseline.ts` … one
+   script per experiment; `results/` for raw timing JSONs (committed);
+   `RESULTS.md` (verdicts, kept current every session); `.env`
+   (gitignored) with `DHIS2_URL`, `DHIS2_USERNAME`, `DHIS2_PASSWORD` —
+   **ask Tim for the Nigeria credentials; never commit them, never
+   print them**.
+3. **Import the real connector** — do not reimplement it. Run lab
+   scripts with the app's config so its import map resolves:
+   `deno run --allow-all -c /Users/timroberton/projects/apps/wb-fastr/deno.json experiments/e1_baseline.ts`,
+   importing via absolute paths, e.g.
+   `import { getAnalyticsFromDHIS2 } from "/Users/timroberton/projects/apps/wb-fastr/server/dhis2/goal3_analytics/mod.ts"`.
+4. **Shared harness before first experiment**: a `runExperiment`
+   helper that owns the load budget (≤ 5 concurrent, backoff on
+   429/5xx, hard stop after ~20 consecutive failures), stamps every
+   request with timings (TTFB, body ms, bytes, rows, HTTP status,
+   retry count), and writes one JSON per run into `results/`.
+5. **Inputs for realistic sampling**: pull the facility-UID list and
+   raw indicator ids the same way the worker does (query the Nigeria
+   instance DB if reachable, else `/api/organisationUnits.json` for
+   UID-shaped facility ids; the maternal/newborn-death UIDs
+   `ss0TObFWNpb`, `PJQ5Qd8OPck`, `zU82h583KJ8` are known-good test
+   indicators, and Josh's priority-indicator CSV from the thread is
+   available from Tim). Sample across indicators AND periods (cache
+   trap above).
+6. **Run E1 → E9 in order**, writing each verdict into `RESULTS.md`
+   as it lands. E9 (correctness vs baseline) gates any shape
+   recommendation. Phase 0 makes **zero changes to the wb-fastr app
+   repo**.
+7. **Exit**: `RESULTS.md` answers — bottleneck model (H1–H4), the
+   attribution paragraph for Rachel's thread, the E6 diagnosis, and
+   the shape recommendation (or explicit "shape doesn't matter, go
+   incremental"). Then update this plan's Status block and stop for
+   Tim's review before Phase 1.
