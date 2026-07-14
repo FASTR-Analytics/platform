@@ -1,13 +1,26 @@
 # Plan — DHIS2 importer: speed, import ledger, auto-pull
 
 **Status (2026-07-14): Phase 0 complete; architecture ruled; Phase 1
-code shipped (`da4f6a7d`: A3 quick wins + A1 per-pair instrumentation;
-worker typechecked, batch-400 URL length verified at 5,739 chars against
-the 7000 guard) and the A2 attribution paragraph delivered to Tim
-(not yet pasted to the thread). Phases 2–4 not started. Next action =
-Phase 2 (§6). Phase 1 loose ends: §2.6 daytime lab runs (needs WAT
-business hours); Nigeria comms (Tim pastes A2 + the 6-stale-id remap
-ask); server restart/deploy to pick up the worker changes.**
+shipped (`da4f6a7d`); Phase 2 shipped (`d191fb3f`: ledger table +
+backfill migration 056, transactional writers on all three mutation
+paths, viewer switched to ledger reads with `ds_hmis_v2` cache prefix,
+`getDatasetHmisImportLedger` route, read-only import-status UI —
+per-indicator checklist sorted failures-first + per-month detail with
+classified errors; all SQL verified empirically against the dev DB:
+backfill parity 360/360, raw vizItems byte-identical, writers exercised
+in rolled-back transactions). Phase 2 notes: ledger counts are
+recomputed from dataset_hmis inside the transaction (more robust than
+staged stats when non-fetched facilities survive a scoped delete);
+common-view `count` is now the summed raw record count (plan §6 ruled
+join+SUM — differs from the old distinct-facility count only where
+several raws map to one common); the per-cell surface lives in the
+ledger view's month detail, not inside the panther figure;
+`failedFetches` is now uncapped (1000-char error cap) so the ledger
+records every failed pair. Next action = Phase 3 (§5). Phase 1/2 loose
+ends: §2.6 daytime lab runs (WAT business hours); Nigeria comms (Tim
+pastes A2 + the 6-stale-id remap ask); server restart/deploy (dev DB
+already has migration 056 applied by the verify harness — idempotent,
+startup will no-op).**
 Phase 0's fetch lab ran E1–E10
 against the real Nigeria DHIS2 with production inputs; all verdicts are in
 §2 (raw data: `~/projects/apps/wb-fastr-dhis2-lab`, its `RESULTS.md` +
