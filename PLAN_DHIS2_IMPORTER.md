@@ -1,278 +1,350 @@
 # Plan — DHIS2 importer: speed, import ledger, auto-pull
 
-**Status: Phase 0 COMPLETE (2026-07-14) — awaiting Tim's review before
-Phase 1.** The lab (`~/projects/apps/wb-fastr-dhis2-lab`, committed) ran
-E1–E9 against the real Nigeria DHIS2 with production inputs
-(`facilities_hmis`, `indicators_raw`, and real failure evidence from
-`dataset_hmis_versions.staging_result` — pulled per DOC_ACCESS_DBS.md).
-Verdicts in the lab's `RESULTS.md`: bottleneck = fixed per-request server
-think time (H1) with a (dx,pe) slow tail dying at nginx's 60s cliff (H3);
-attribution = platform adds nothing, scoped-delete changes not implicated
-(Nigeria returns `rows: []`, never missing-`rows`); E6 = 409 cluster is 4
-stale nonexistent UIDs (config remap, no code) + 504 cluster is
-valid-but-slow dx (retry-budget + shape fix); A4 lever = `ou:400 × pe:12`
-(48× fewer requests, E9 correctness gate PASS); E7 incremental-sync
-primitive confirmed; analytics rebuild 00:17–01:00 WAT nightly. E10
-(added on Tim's "why analytics at all?"): only 2 of 96 dx are computed
-indicators; `dataValueSets` one-request-per-(element, month) nationwide
-has 1–2s think time even for the analytics-slow dx, parity 300/300 vs
-analytics, operands come free from the base pull — a dataValueSets-primary
-importer is the strictly-better Phase 3 candidate on the evidence
-(bigger change; Tim to rule vs the gated `ou:400 × pe:12` reshape).
-Retry-rescue of slow analytics queries is dead (no cache hit at any
-spacing); 6 stale indicator ids total (4 failing + 2 latent). Caveat:
-lab timing is off-peak — repeat `./run e1`/`./run e8` at WAT business
-hours. Next action = Tim reviews RESULTS.md, then Phase 1 (A3+A1).
+**Status (2026-07-14): Phase 0 complete; architecture ruled; Phases 1–4
+not started. Next action = Phase 1 (§5).** Phase 0's fetch lab ran E1–E10
+against the real Nigeria DHIS2 with production inputs; all verdicts are in
+§2 (raw data: `~/projects/apps/wb-fastr-dhis2-lab`, its `RESULTS.md` +
+`results/*.json`). Tim has ruled the Phase 3 architecture: the
+**fetch dispatcher** (§4.4) — dataValueSets-primary, analytics only for
+computed indicators. Standing directive from Tim: **where a decision is
+unclear, take the most robust option, even at the cost of more work.**
+Rulings made under that directive are marked *(robustness ruling)*.
+
+A fresh agent continuing this work: read §1–§2 for context and evidence,
+then execute the next unfinished phase in §5. Everything needed is in
+this file or linked from it. This plan is the status tracker — when a
+phase completes, update the Status block above (commit to main). Delete
+the plan when Phase 4 lands; if work stalls, fold remainders into
+SYSTEM_06/07 Open items.
 
 Three goals, one system (S6's HMIS-DHIS2 path + S7 connector):
 
-- **G1 — speed**: hunt down anything making imports slower than the DHIS2
-  round-trips demand, and shrink the number of round-trips.
-- **G2 — import ledger**: a per indicator-month record of import history
-  (DHIS2 + CSV), which also makes the HMIS viewer instant.
-- **G3 — auto-pull**: converge the architecture toward "the platform pulls
-  everything automatically each weekend" instead of "a user babysits a
-  wizard for 48 hours".
-
-Phase 0 is a standalone **fetch lab** (A0) — extensive empirical testing
-against the real Nigeria DHIS2 (Tim has credentials), in its own repo,
-before any app code changes. The lab's job is to find the actual
-bottleneck and answer the attribution question once and for all; any
-request reshaping is conditional on what it finds. Code anatomy below
-verified against `main` 2026-07-14.
+- **G1 — speed**: imports bounded by what Nigeria's DHIS2 genuinely
+  requires, not by our request arithmetic.
+- **G2 — import ledger**: a per (raw indicator, month) record of import
+  history (DHIS2 + CSV), which also makes the HMIS viewer instant.
+- **G3 — auto-pull**: the platform pulls everything automatically each
+  weekend instead of a user babysitting a wizard for 48 hours.
 
 ## 0. The driver (Nigeria, July 2026)
 
 From the SWAp-training thread (Rachel Neill / Josh Elaigwu, 2026-07-03 →
 2026-07-13): a Q2 (Apr–Jun) all-indicators import took ~48 h over a
-weekend with scattered failures; a disaggregated-indicator run sat at
-~70 % for many hours over a 27 h run; failures cluster on disaggregated
-indicators configured before the new disaggregated-import system. The
-Ministry is frustrated, visibility is very high (all HMIS officers just
-onboarded, evidence-pack training running), and the team needs to know —
-with evidence — whether the slowness is the platform or Nigeria's DHIS2
-before escalating to government as DHIS2-investment advocacy. Rachel has
-twice asked whether our scoped-delete import changes caused a slowdown;
-we owe a definitive answer, not a reassurance.
+weekend with scattered failures; disaggregated-indicator runs sat at ~70%
+for many hours; the Ministry is frustrated and visibility is high. Rachel
+twice asked whether our scoped-delete changes caused the slowdown. Phase 0
+settled that (§2.1: no — and the evidence is written down). Thread
+promises to redeem: a per-indicator "last updated on X" surface and an
+in-app one-indicator-at-a-time checklist replacing Rachel's spreadsheet
+(both = WS-B).
 
-The arithmetic that frames everything: Nigeria has ~49,475 UID-shaped
-facilities → 495 batches of 100 per indicator-month. 20 indicators ×
-72 months ≈ 713,000 DHIS2 analytics requests for a full-history pull.
-At ~1–2 min per indicator-month and 5 concurrent, that is ~24 h — before
-any failure burns retry budget.
+## 1. Anatomy today (verified against `main` 2026-07-14)
 
-But note (Tim's framing rule for this whole plan): the total rows
-fetched are identical under any request shape. Whether request COUNT
-matters depends entirely on how per-request time splits between fixed
-cost (connection, auth, query setup, envelope) and per-row cost (the
-analytics work itself). 100 facilities × 495 requests vs 200 × 248
-saves only 247 × fixed-cost — which might be ~half the wall clock or
-might be noise. **Find the actual bottleneck; do not reshape for the
-sake of it.** The lab's first job is the bottleneck model, and every
-reshaping lever below is conditional on what it says.
-
-Thread promises this plan should redeem: a per-indicator "last updated
-on X" surface, and an in-app one-indicator-at-a-time checklist instead
-of the spreadsheet Rachel keeps by hand.
-
-## 1. Anatomy today (what the code actually does)
-
-**Fetch** (`stage_hmis_data_dhis2/worker.ts`): work item = (raw
-indicator × month). `pooledMap` with `CONCURRENT_REQUESTS = 5`; within a
-work item the 495 facility batches run **sequentially**, each a separate
+**Fetch** (`server/worker_routines/stage_hmis_data_dhis2/worker.ts`):
+work item = (raw indicator × month). `pooledMap` with
+`CONCURRENT_REQUESTS = 5`; within a work item the facility batches run
+sequentially — `FACILITY_BATCH_SIZE = 100` → 495 batches for Nigeria's
+49,473 UID-shaped facilities — each batch a separate
 `getAnalyticsFromDHIS2` call (`dx:1 × pe:1 × ou:100`, `skipMeta`) with
-`maxAttempts: 10, maxDelayMs: 60000` (worst case per stuck batch: ~4 min
-of sleep + 10 × 120 s timeouts ≈ 24 min). A 200 response missing `rows`
-fails the whole work item immediately (deliberate — scoped delete must
-not treat it as empty), discarding that pair's completed batches. Values
-are `parseInt`-truncated, negatives dropped. Successful pairs are
-integrated later via the pair-scoped delete-then-insert (S6).
+`maxAttempts: 10, maxDelayMs: 60000` (a consistently-failing batch burns
+~24 min before the pair fails). A 200 response missing `rows` fails the
+work item (deliberate; see §2.1 — Nigeria never actually omits `rows`).
+Values are `parseInt`-truncated, negatives dropped. Successful pairs are
+integrated later via the pair-scoped delete-then-insert (S6); the staged
+result JSON (`step_3_result`, and a copy on `dataset_hmis_versions.
+staging_result`) carries `periodIndicatorStats`, `failedFetches`,
+`succeededWorkItems`, `fetchedFacilityIds`.
 
-**Known bugs/warts in that path** (verified):
+**Known warts** (all verified):
 
 - The 2048-char URL guard measures a URL built with `searchParams.set`
-  on the same `dimension` key three times — only the last (`ou`)
-  survives, so it undercounts by the `dx`+`pe` dimensions (~40–50
-  chars). It also means `FACILITY_BATCH_SIZE = 100` was tuned against a
-  guess, not a measured limit (real-world servlet default is ~8 KB).
-- `updateGranularProgress` is awaited after **every facility batch of
-  every work item** — one UPDATE of the whole status JSON on the
-  single-row `dataset_hmis_upload_attempts` table per batch. A full
-  Nigeria pull ≈ 713k single-row UPDATEs (dead-tuple churn on a table
-  the client also polls every 2 s; the status column is deliberately
-  unindexed because the JSON exceeds btree limits). Suspect for
-  progressive slowdown; needs measurement, not assumption.
-- Per-pair `nRecords`/`totalCount` stats are already computed (both
-  DHIS2 and CSV staging produce `periodIndicatorStats`) and then buried
-  in the `step_3_result` JSON — exactly the data G2 wants, discarded.
-- Work-item history in the status JSON is capped at 20 entries; failed
-  pairs surface only as `failedFetches` samples. Nothing durable.
+  on the same `dimension` key three times — only `ou` survives, so it
+  undercounts. The real limit is nginx's ~8 KB (§2.3); batch 100 was
+  tuned against a broken measurement.
+- `updateGranularProgress` is awaited after **every facility batch** —
+  one UPDATE of the whole status JSON on the single-row
+  `dataset_hmis_upload_attempts` table per batch (~713k single-row
+  UPDATEs for a full pull; the client also polls the row every 2 s).
+- Per-pair `nRecords`/`totalCount` stats are computed by both DHIS2 and
+  CSV staging, then buried in the result JSON — exactly what G2 wants.
+- Work-item history in the status JSON caps at 20 entries; failures
+  surface only as `failedFetches` samples. Nothing durable per pair.
 
 **Viewer** (`getDatasetHmisItemsForDisplay*`): `vizItems` is a full
 `GROUP BY indicator, period` over `dataset_hmis` (tens of millions of
-rows for Nigeria); the common view first aggregates at facility level
-(heavier). Valkey-cached on `versionId + indicatorMappingsVersion`, so
-every import re-pays the scan.
+rows for Nigeria); Valkey-cached on `versionId + indicatorMappingsVersion`
+so every import re-pays the scan.
 
-**State machine**: one single-row attempt per family; the wizard owns
-it; only one import can exist at a time; progress is the status JSON.
+**State machine**: one single-row attempt per family; the wizard owns it;
+only one import can exist at a time; progress is the status JSON.
 
-## 2. WS-A — speed
+**Connector** (S7, `server/dhis2/`): one base fetcher
+(`fetchFromDHIS2`/`getDHIS2`) owning auth/timeout(120 s spanning body
+read)/retry (`withRetry`, classifies by message substring); analytics via
+`goal3_analytics/getAnalyticsFromDHIS2`. See SYSTEM_07_dhis2.md.
 
-**A0 — the fetch lab (Phase 0, all of it).** A new sibling repo
-(`~/projects/apps/wb-fastr-dhis2-lab`) whose primary output is a
-**bottleneck model** of Nigeria DHIS2 fetching — where each request's
-time actually goes — and only secondarily a request shape, if the model
-says shape matters. The candidate hypotheses the lab must distinguish:
+## 2. Phase 0 verdicts (the evidence base — lab, real Nigeria DHIS2)
 
-- **H1 fixed-cost dominated** (analytics tables materialized; each
-  request is a fast lookup + small JSON) → batching/multi-pe/LEVEL-n
-  are big levers; pick one in A4.
-- **H2 per-row dominated** (e.g. DHIS2 aggregating on the fly) →
-  reshaping ≈ nothing; the levers are fetching LESS (incremental
-  `lastUpdated`, rolling windows, E7) and DHIS2-side fixes.
-- **H3 server queueing/throttling dominated** → concurrency and shape
-  change nothing; the deliverable is scheduling + the advocacy note.
-- **H4 analytics not materialized for some dimensions** (disaggregated
-  COCs) → explains the failure cluster; fix is on Nigeria's side, with
-  specifics we can hand them.
+Lab repo: `~/projects/apps/wb-fastr-dhis2-lab` (commits `9341fe9`,
+`a35b87b`). Ran 2026-07-14 03:20–05:00 WAT (off-peak) against
+`https://dhis2nigeria.org.ng/dhis` (2.40.9) using **production inputs**
+pulled per [DOC_ACCESS_DBS.md](DOC_ACCESS_DBS.md): `facilities_hmis`
+(49,473 UID-shaped ids), `indicators_raw` (96 dx), and real failure
+records from `dataset_hmis_versions.staging_result` v59/v60. Credentials
+live only in the lab's gitignored `.env` (from Tim; never commit, never
+print). **Caveat: all timing is off-peak; production runs face daytime/
+weekend load where the slow tail is fatter.**
 
-E2's latency-vs-batch-size curve separates H1/H2 (intercept = fixed
-cost, slope = per-row cost); E1's TTFB-vs-body split plus E5 separates
-H3; E6/E8 test H4.
+### 2.1 Bottleneck model + attribution (E1/E2/E5)
 
-Separate repo, not a folder here: national-DHIS2 credentials never
-enter the platform repo (lab `.env`, never committed), and experiment
-churn stays out of the deploy-gated lint/typecheck chain. The lab imports the app's
-**real** connector (`fetchFromDHIS2` / `getAnalyticsFromDHIS2` via
-absolute-path imports with the app's `deno.json` — the standard
-verify-by-executing pattern), so measurements attribute the actual code
-path, not a reimplementation. Committed artifacts: the experiment
-runner, raw timing JSONs per run, and a `RESULTS.md` that records the
-verdicts.
+- Every analytics request's time is ~100% server think time: TTFB = total
+  at all percentiles, bodies 0–4 ms / ~1.4 KB. Raw p50 786 ms, mean
+  3.3 s, p90 14.8 s (prod indicator mix, ou:100). Think time has a
+  ~0.4–1 s floor, does **not** scale with `ou` batch size or rows
+  returned, and swings 0.4 s → 160 s driven by (dx, pe) — the national
+  data volume/partition behind the query, not our request shape.
+- Slow queries die at **~60 s as nginx 504** (their `proxy_read_timeout`;
+  observed repeatedly at exactly ~60 s). Real run v59: pair-duration p50
+  4.8 min; one v60 pair took 1.8 h and succeeded.
+- No concurrency throttling: 12 parallel at night → zero 429s, no
+  latency collapse. The server is not rate-limiting us.
+- **Attribution (Rachel's question): the platform is exonerated.** The
+  scoped-delete changes did not slow successful fetches; the
+  missing-`rows`→fail change is not implicated at all (Nigeria 2.40.9
+  always returns `rows: []` for empty results — zero missing-`rows`
+  cases in all lab traffic). The 48 h is arithmetic: ~713k requests ×
+  think time + retry burn. **A2 (Phase 1) = write this into the thread.**
 
-Guardrails (the lab talks to a struggling production national system):
-read-only GETs only; explicit load budget (default ≤ 5 concurrent,
-back off on 429/5xx, hard stop on repeated errors); every run logs its
-own request count; prefer Nigeria off-peak (WAT = UTC+1; their night is
-late-morning/afternoon AEST).
+### 2.2 The failure clusters (E6, from real v59/v60 failures)
 
-Measurement trap: DHIS2 caches analytics responses, so repeating the
-identical request measures its cache, not its work. Samples must vary
-indicator/period; deliberate repeats are their own experiment (cache
-hit rate is itself useful — it bounds what a re-import costs).
+1. **409 "Dimension is present in query without any valid dimension"**
+   (56+38 occurrences): exactly 4 dx ids — `lp4vfvVhXfz`, `tupwLqIxPPo`,
+   `mcLi3dvV3fm`, `nVDvjFIxwqV` — which **404 on every DHIS2 metadata
+   endpoint: they do not exist**. Stale config; correct operand
+   replacements (`p6aVCk9aN6S.zbr2vnRNwAW`/`.YW7OzKBM90D`) already sit in
+   `indicators_raw`. E10 metadata census found **2 more latent stale ids**:
+   `O82o1WlMisO`, `lyVV9bPLlVy` (6 total). Deterministic, instant, fails
+   every run. Fix = config remap in the Nigeria instance (comms item,
+   Phase 1) + dispatcher `unknown` handling (§4.4).
+2. **504 retry-exhaustion** (44): valid dx (`YjZiHDKMWCJ` Live Births +
+   operands, `wGPpop3rz7i` Inpatient Admissions, `w6nOgEFHWMG`,
+   `YWNyZu9wR89`) whose analytics queries take 5–160 s and cross the 60 s
+   cliff under load; 10 retries × up-to-60 s ≈ 24 min per batch burned.
+   All returned correct data off-peak. **Retry-rescue is dead** (E10): an
+   identical repeat 504s again and a 12-min-later retry re-paid 46 s of
+   fresh compute — no completed-computation cache. The escape is the
+   dataValueSets path (§2.4), not retry policy.
+   Anomaly worth handing to Nigeria: `wGPpop3rz7i` has almost no stored
+   facility-month data (6 values nationwide in 202605) yet costs the
+   analytics engine 45–60 s per query.
 
-The experiment matrix:
+### 2.3 Shape facts (E2/E3/E4/E9)
 
-- **E1 baseline replication + attribution**: the current shape
-  (`dx:1 × pe:1 × ou:100`), measured properly — time-to-headers vs
-  body-read time per request, distribution across time of day and
-  across indicators. (The connector doesn't expose the TTFB boundary:
-  run end-to-end timings through the real connector, plus a raw-`fetch`
-  variant of the same requests for the TTFB/body split — do NOT modify
-  the app connector to get it.) This is the "platform vs Nigeria's
-  DHIS2" verdict: if server think-time dominates, the 48 h is
-  arithmetic and Rachel's advocacy note writes itself.
-- **E2 batch-size sweep**: `ou:` 50/100/200/400/800 — find the real URL
-  limit empirically (the in-app 2048 guard measured a broken URL) and
-  the latency-vs-batch-size curve (fixed per-request cost vs per-row
-  cost).
-- **E3 multi-period sweep**: `pe:` 1/3/6/12 months, crossed with E2
-  batch sizes; response-size growth vs round-trip savings.
-- **E4 `ou:LEVEL-n`**: does Nigeria's DHIS2 serve it at all, at what
-  latency/size, and does the returned facility set match the enumerated
-  fetch?
-- **E5 concurrency sweep**: 1/2/5/8/12 parallel — find where Nigeria
-  throttles or degrades (429s, latency collapse).
-- **E6 disaggregated-indicator failures** (= A5): reproduce against the
-  thread's failing indicators, capture raw responses — is it
-  missing-`rows` on empty operands, un-materialized analytics for those
-  category combos, or something else?
-- **E7 `dataValueSets` + `lastUpdated`** feasibility probe for raw data
-  elements (the incremental-sync primitive for G3).
-- **E8 analytics-table freshness**: check when Nigeria's analytics
-  tables are rebuilt (their nightly job) — imports racing a rebuild
-  would explain run-to-run variance and failure clusters.
-- **E9 correctness gate**: any candidate shape must return identical
-  values to E1 on a sample of indicator-months before it can win.
-  Speed results without this are void — the importer deletes-then-
-  inserts on the strength of these responses.
+- Real URL limit: nginx 414 above ~8 KB (measured: 5,727-char URL OK,
+  11,327 rejected). `ou:400` is measured-safe. The in-app 2048 guard +
+  batch 100 is ~4× too conservative.
+- `ou:400 × pe:12` returns values **byte-identical** to the baseline
+  shape (E9 gate PASS, incl. operand dx) — 48× fewer requests per
+  indicator-year. Still rides the analytics engine, so it is now only
+  the fallback lever for the analytics leg of the dispatcher.
+- `ou:LEVEL-5` works (rooted variant returned 17,218 OUs, all ∈ our
+  facility list; 101/101 values matched) but one dense indicator-month
+  took 56 s — cliff-adjacent. Not recommended.
 
-Phase 0 exit: `RESULTS.md` states the bottleneck model (which of H1–H4,
-with numbers), the attribution verdict for the thread, the E6 failure
-diagnosis, and — only if the model says shape matters — the winning
-request shape. Everything downstream (A3 tunables, whether A4 happens
-at all and which lever, C1 unit design) consumes those verdicts instead
-of guesses.
+### 2.4 dataValueSets can replace analytics for everything but 2 dx (E7/E10)
 
-**A1 — in-app instrumentation** (ships with Phase 1). Add per-batch
-timing to the staging worker (fetch ms, rows, retry count, HTTP status)
-rolled up per pair and persisted in the staging result + logs — the
-production-run counterpart of E1, so future slowness reports come with
-their own evidence.
+- Census of all 96 configured dx: **76 bare data elements + 16 operands
+  (`base.coc`) + 2 computed DHIS2 indicators** (`joWyNIq0XtY`
+  "X_Antenatal 1st visit - Total", `sq1t1xsNl1J` "X_Deliveries - Total"),
+  plus 6 nonexistent (§2.2). Only the 2 computed indicators need the
+  analytics engine.
+- One `GET /api/dataValueSets.json?dataElement={base}&orgUnit={root}&
+  children=true&startDate=…&endDate=…` covers the **whole country for a
+  month in one request**: ANC = 37,957 values / 21,353 facilities /
+  11.4 MB / **1.3 s TTFB** (22 s total = transfer); Live Births (a
+  504-cluster dx!) = 31,877 values / 9.6 MB / **1.7 s TTFB**. Per
+  indicator-month that is 22–41 s total vs ~5 min–2 h (or
+  never-completes under load) via analytics — and ~1000× less server
+  compute for Nigeria.
+- `children=true` descends to facility level (verified: returned OUs are
+  facility UIDs in our list). Values carry `period`, `orgUnit`,
+  `categoryOptionCombo`, `attributeOptionCombo`, `value`, `lastUpdated`
+  (the G3 incremental-sync key). All observed periods were monthly.
+- **Parity gate: 300/300 facilities identical** — client-side
+  sum(value) across COC×AOC == the analytics value (ANC 202605, three
+  spread batches). Analytics is derived from the same datavalue table,
+  so it cannot know values dataValueSets lacks.
+- Live fragility contrast: mid-lab (~04:30 WAT) the analytics engine
+  went 100%-504 for `ou:400` shapes and served ANC `ou:100` at 16–18 s,
+  while concurrent dataValueSets pulls held 1–2 s TTFB. Different server
+  path, independent health.
 
-**A2 — the regression answer.** Diff-audit of the fetch path across the
-scoped-delete work (already done in outline: the only behavioral changes
-were missing-`rows` → fail and the URL guard — neither slows a
-*successful* fetch). E1/E6 numbers complete it; write the answer down in
-the thread and here. The missing-`rows` change DID convert some
-previously-"empty" pairs into failures — if E6 shows Nigeria omits
-`rows` on empty analytics results, that is the disaggregated-failure
-cluster and needs a distinct fix (probe, or treat missing-rows-as-empty
-only when a verification re-fetch agrees), not a revert.
+### 2.5 Operational facts (E8)
 
-**A3 — quick wins** (independent, low-risk, ship as a batch):
+Analytics tables rebuild nightly **00:17–01:00 WAT** (43 min runtime).
+Weekend auto-pull should start after ~01:15 WAT. `./run e8` appends to a
+freshness log — keep sampling other hours/days to confirm the schedule.
 
-- Throttle progress writes: time-based (≥2 s since last write — the
-  client polls at 2 s anyway), always write on pair completion. Kills
-  ~99 % of the single-row UPDATE traffic.
-- Fix the URL guard to measure the real URL, then raise
-  `FACILITY_BATCH_SIZE` to a measured-safe value (likely 300–500 →
-  3–5× fewer requests). Make both the batch size and
-  `CONCURRENT_REQUESTS` instance-tunable (env), so Nigeria can be tuned
-  without a redeploy.
-- Cap the retry budget inside staging (e.g. `maxAttempts: 3`): once
-  pairs are cheap to re-run (G2 checklist / WS-C units), failing fast
-  and retrying the pair later beats 24 min inside one batch.
+### 2.6 Phase 0 loose ends (cheap, fold into Phase 1/3 work)
 
-**A4 — structural request-count levers** (measured in the lab —
-E2/E3/E4/E7 — then ONE picked by the `RESULTS.md` verdict; they change
-the request shape, so they land cleanest with the WS-C per-pair unit):
+- Re-run `./run e1` and `./run e8` during WAT business hours (the
+  daytime tail is the missing distribution; ~40 read-only requests).
+- The full per-element parity gate (§4.4 gate) before Phase 3 cutover.
+- `wGPpop3rz7i` anomaly + stale-id list → Nigeria comms/advocacy note.
 
-- **Multi-period requests**: `pe:202401;…;202412` — 12× fewer requests
-  for ~80 extra URL chars; rows already carry the `pe` column. Composes
-  with the batch-size raise (495 batches × 12 months → 495 requests per
-  indicator-**year**). Response is 12× bigger; budget with
-  `maxResponseBytes`.
-- **`ou:LEVEL-n`**: one request per pair (or per indicator-year) with
-  no facility enumeration at all. Needs: facility-level discovery per
-  instance, filtering returned UIDs against `facilities_hmis` (returned
-  set ⊇ ours), and care that the scoped-delete `fetchedFacilityIds`
-  remains exactly the facility list the request *covers*. Biggest win
-  (495× fewer requests) and biggest per-request DHIS2 load — measure
-  whether Nigeria's DHIS2 can serve it at all before betting on it.
-- **`dataValueSets` + `lastUpdated`** for raw data elements: the
-  incremental-sync primitive ("give me what changed since last pull") —
-  analytics only for computed indicators. This is the long-term
-  auto-pull enabler; explore feasibility (operand/COC handling) but
-  don't block G1 on it.
+## 3. Architecture ruling (Tim, 2026-07-14): the fetch dispatcher
 
-**A5 — disaggregated-indicator failures**: E6 produces the diagnosis;
-A5 is the in-app fix — handle the classified cause and degrade cleanly
-per pair with a ledger-visible error.
+Not analytics-reshape *or* dataValueSets — a **dispatcher** inside the
+fetch step that routes each raw indicator by its DHIS2 metadata type.
+DHIS2-side aggregation is arithmetic we can do ourselves (sum across
+COC×AOC); we only need the analytics engine where a formula lives
+(computed indicators). Both routes emit the **same output contract** —
+staged rows `(facility_id, indicator_raw_id, period_id, count)` + pair
+stats — so integration, scoped delete, the ledger, and the UI never know
+which route fetched. Design details in §4.4.
 
-Acceptance for WS-A: a written attribution answer for the thread, and a
-Nigeria indicator-year measurably down against the lab's own bottleneck
-model — i.e. we captured whatever headroom the model says exists (under
-H1 that could be minutes → seconds; under H2/H3 the win comes from
-fetching less, and "no reshape" is a legitimate, evidenced outcome).
+## 4. Workstreams
 
-## 3. WS-B — the import ledger (G2)
+### 4.1 A1 — in-app instrumentation (ships Phase 1)
+
+Per-request timing in the staging worker (fetch ms, rows, retry count,
+HTTP status, route taken) rolled up per pair, persisted in the staging
+result + logs — the production counterpart of lab E1, so future slowness
+reports arrive with their own evidence.
+
+### 4.2 A2 — the regression answer (ships Phase 1)
+
+Write §2.1's attribution verdict into the thread (Rachel/Josh), with the
+advocacy-note material for the Ministry/DHIS2 team: the slow-dx list and
+the `wGPpop3rz7i` anomaly, the 60 s `proxy_read_timeout` (ask: raise for
+`/api/analytics`, or fix the slow queries), the nightly rebuild window,
+and the 6 stale indicator ids to remap instance-side (§2.2). Done = a
+paragraph Tim can paste, stored nowhere else (one tracking home: this
+plan's Status block records A2 done/not-done).
+
+### 4.3 A3 — quick wins (ship together as Phase 1; all evidence-backed)
+
+- **Throttle progress writes**: time-based (≥2 s since last write — the
+  client polls at 2 s), always write on pair completion. Kills ~99% of
+  the single-row UPDATE traffic.
+- **Fix the URL guard** to measure the real URL, then raise
+  `FACILITY_BATCH_SIZE` to **400** (measured-safe, E9-gated). Make batch
+  size and `CONCURRENT_REQUESTS` env-tunable so instances can be tuned
+  without redeploy.
+- **Cap the retry budget** at `maxAttempts: 3` (from 10). §2.2: retries
+  never rescue a pathological query; failing fast + re-running the pair
+  later (ledger, WS-B/C) beats 24 min of sleep inside one batch.
+- **Treat analytics 409 as permanent**: fail the pair immediately with
+  the error recorded, zero retries (it is a deterministic config error).
+- These land in today's worker; the dispatcher (Phase 3) supersedes some
+  of it, but Phase 1 is cheap, de-risks the current path for all
+  instances, and the tunables/instrumentation/409 handling carry over.
+
+### 4.4 A4 — the fetch dispatcher (Phase 3 core)
+
+At the start of a run, classify every selected raw indicator with two
+batched metadata requests (as lab E10 does):
+`/api/dataElements.json?filter=id:in:[…]` and
+`/api/indicators.json?filter=id:in:[…]` over the distinct base ids
+(operands split on `.`). Classification is **dynamic per run** — no
+stored type field to maintain; fleet-generic by construction
+*(robustness ruling: metadata is the source of truth, config can't
+drift)*. Routes:
+
+1. **Bare data element** → dataValueSets route.
+2. **Operand `base.coc`** (base is a data element, coc exists) →
+   dataValueSets route on the base, filtered to that COC. Indicators
+   sharing a base element share one pull.
+3. **Computed DHIS2 indicator** → analytics route (keep the engine for
+   formulas; do NOT hand-reconstruct numerators
+   *(robustness ruling: formulas belong to DHIS2)*).
+4. **Unknown / 404** → no fetch; pair recorded as permanent
+   ledger-visible error ("not found in DHIS2") so stale config is loud
+   instead of a silent per-run failure tax.
+5. **Non-monthly data detected** (see below) → analytics route for that
+   element *(robustness ruling: never silently sum weekly/daily values
+   into months ourselves — DHIS2's period-allocation rules apply and the
+   analytics engine implements them)*.
+
+**dataValueSets route** (per base element × period window):
+
+- `GET /api/dataValueSets.json?dataElement={base}&orgUnit={root}&children=true&startDate={window}&endDate={window}`
+  through the S7 base fetcher (`maxResponseBytes` cap ~100 MB, timeout
+  300 s, streamed read).
+- Root org unit: discovered per instance (level-1 org unit), cached.
+- **Window sizing, adaptive** *(robustness ruling)*: start with a
+  3-month window; if the response exceeds the byte cap or times out,
+  halve the window (min 1 month); if a 1-month response still exceeds
+  the cap, split by level-2 org-unit subtree (state) and merge. Never
+  fail a pair on size without having tried the splits.
+- Client-side reduce: keep rows where `orgUnit` ∈ the instance's
+  UID-shaped `facilities_hmis` set AND `period` matches an expected
+  monthly id (`^\d{6}$` within the selection); skip `deleted: true`
+  values; for bare elements sum `Number(value)` across COC×AOC per
+  (facility, month); for operands restrict to the COC first. Preserve
+  existing integration semantics (parseInt truncation, negatives
+  dropped) so the dispatcher changes *where* numbers come from, not what
+  they mean. **Any non-monthly period id observed → mark the element
+  non-monthly, discard the pull, re-route to analytics (rule 5) and
+  record a ledger warning.**
+- Scoped delete: the pull covers the entire facility list, so
+  `fetchedFacilityIds` = the full UID-shaped list — simpler and more
+  correct than today's batch bookkeeping.
+- Empty result (`dataValues` absent/empty on 200): legitimate empty
+  month — stage zero rows, mark pair succeeded with `nRecords: 0`
+  (unlike analytics missing-`rows`, this endpoint's empty shape is
+  unambiguous; verified in E7/E10).
+
+**Analytics route** (computed indicators + rule-5 elements): today's
+batched fetch with Phase 1's fixes (batch 400, retry cap 3, 409
+permanent). Optionally fold in `pe:12` multi-period (E9-gated) if the
+analytics leg is ever a measurable share of a run — with 2 of 96 dx it
+is not; don't build it speculatively.
+
+**Cutover gate** *(robustness ruling — two layers)*:
+
+1. **Lab pre-flight**: extend lab E9/E10 to run the DVS-vs-analytics
+   parity comparison over **every** classified element (not a sample) on
+   ≥2 months, plus the ⊇-coverage assertion (every analytics value has a
+   DVS-derived counterpart). Minutes of runtime; gate must be green
+   before the dispatcher ships to any instance.
+2. **In-app shadow verification, first run per instance**: the first
+   dispatcher run on an instance cross-checks a random sample of pairs
+   (~5%) against the analytics value and records the comparison in the
+   run result. Mismatch → the pair fails loudly with both numbers.
+   Remove the shadow mode once the fleet has run clean (one-time
+   operational step, not a permanent shim).
+
+### 4.5 A5 — failure handling (merged into dispatcher + Phase 1)
+
+409/404 → permanent per-pair error, ledger-visible, no retry (Phase 1
+gets the retry-cap + 409 handling early; the dispatcher's rule 4
+completes it). 5xx/timeout → transient: fail the pair after the capped
+retries; re-runs happen at pair granularity via WS-B/WS-C, ideally
+scheduled off-peak (§2.5). Plus the Nigeria comms item: remap/remove the
+6 stale ids instance-side.
+
+## 5. Sequencing (each phase ships alone; update Status on completion)
+
+1. **Phase 1 — quick wins + instrumentation + the answer** (A3 + A1 +
+   A2): worker fixes (throttle, guard fix + batch 400, retry cap 3, 409
+   permanent, env tunables), per-pair timing instrumentation, thread
+   attribution paragraph + Nigeria config comms (6 stale ids). Also run
+   the Phase 0 loose ends (§2.6 daytime lab runs) — zero app code.
+2. **Phase 2 — ledger** (WS-B, §6): table + writers + backfill + viewer
+   switch + read-only checklist / "last imported" UI.
+3. **Phase 3 — dispatcher + per-pair units** (§4.4 + C1 + C2, §7):
+   restructure to per-pair fetch+integrate, runs table, dispatcher as
+   the fetch step, cutover gates green.
+4. **Phase 4 — auto-pull** (C3 + C4, §7): stored credentials
+   (encrypted), weekly scheduler, off-peak window, failure surfacing.
+
+## 6. WS-B — the import ledger (G2)
 
 New main-DB table, grain = **(indicator_raw_id, period_id)** — raw, not
-common, because the import unit is raw and common is a cheap join
-through `indicator_mappings` at read time (mirrors the viewer's
-raw/common toggle):
+common, because the import unit is raw and common is a cheap join through
+`indicator_mappings` at read time (mirrors the viewer's raw/common
+toggle):
 
 ```sql
 CREATE TABLE dataset_hmis_import_ledger (
@@ -291,143 +363,127 @@ CREATE TABLE dataset_hmis_import_ledger (
 
 - **Writers** (all inside the existing integration transaction, so the
   ledger can never disagree with the data): DHIS2 branch upserts each
-  succeeded pair from its staged stats (scoped delete makes staged
-  stats = final state); CSV branch recomputes each *affected* pair
-  post-merge (merge keeps unmatched prior rows;
-  `idx_dataset_hmis_indicator_period` makes per-pair recompute cheap);
-  windowed deletes update/delete their pairs; delete-all truncates.
-  Failed DHIS2 pairs upsert `status='error'` + `error` WITHOUT touching
-  `n_records`/`sum_count` (no data changed).
+  succeeded pair from its staged stats (scoped delete makes staged stats
+  = final state); CSV branch recomputes each *affected* pair post-merge
+  (`idx_dataset_hmis_indicator_period` makes that cheap); windowed
+  deletes update/delete their pairs; delete-all truncates. Failed DHIS2
+  pairs upsert `status='error'` + `error` WITHOUT touching
+  `n_records`/`sum_count` (no data changed). Error text should carry the
+  dispatcher's classification (permanent-config vs transient-server).
 - **Backfill migration**: seed from `GROUP BY` over `dataset_hmis`,
-  `imported_at NULL`, `source 'backfill'` — "before history began" is
-  honest and visible.
-- **Decide with Tim**: ledger-only (latest state per pair, above) vs
-  ledger + append-only `_events` audit table. Recommendation: ledger
-  first; an events table is a later additive migration if the audit
-  trail is wanted (writes are identical, just also-append).
+  `imported_at NULL`, `source 'backfill'`.
+- **Ledger-only, no events table** *(ruled)*: latest state per pair; an
+  append-only `_events` audit table is a later additive migration if an
+  audit trail is ever wanted (writes are identical, just also-append).
 - **Viewer switch**: `vizItems`, `periodBounds`, and the indicator list
-  read from the ledger instead of scanning `dataset_hmis` — the raw
-  view is a 1,440-row read for Nigeria, the common view a join+SUM over
+  read from the ledger instead of scanning `dataset_hmis` — the raw view
+  becomes a ~1,440-row read for Nigeria, the common view a join+SUM over
   it. Existing Valkey key (`versionId + mappingsVersion`) still works;
-  the cached computation just becomes trivial.
-- **New UI surfaces** (the thread promises): per-cell/per-indicator
-  "last imported X" in the HMIS viewer; failed pairs marked with their
-  error; an indicator-level checklist view (per indicator: months
-  covered, last import, failures) that replaces Rachel's spreadsheet.
-  Re-import-one-indicator from that view is WS-C's unit made visible —
-  don't build it twice; the checklist ships read-only until C1 lands.
-
+  the cached computation becomes trivial.
 HFA/ICEH are out of scope (different identity models); the ledger is
 HMIS-only by design.
 
-## 4. WS-C — toward weekend auto-pull (G3)
+### 6.1 UI surfaces (this plan is NOT backend-only — these are the thread promises)
 
-Target picture: per-instance subscription config — DHIS2 credentials,
-raw-indicator list, rolling period window (e.g. current + previous 12
-months), weekly schedule — and a runner that executes **per-pair import
-units**, each unit = fetch one (indicator, month) → integrate that pair
-in its own small transaction → write its ledger row. Failures don't
-block other pairs; a re-run retries only `status='error'` or stale
-pairs. The wizard remains for ad-hoc/backfill work and becomes an
-enqueuer over the same units.
+All read from the ledger (+ C2 runs table in Phase 3); the ledger's
+`(indicator_raw_id, period_id) → imported_at, source, status, error` is
+exactly "when was the last successful fetch of this indicator-month".
+Client home: the HMIS dataset components (viewer + wizard) under
+`client/src/components/` — follow PROTOCOL_UI_STRUCTURE for placement.
 
-What that demands of today's system, in dependency order (each step is
-independently valuable *now*):
+**Phase 2 (read-only, ships with the ledger):**
+
+- **HMIS viewer, per-cell**: each (indicator, month) cell exposes its
+  ledger row — imported_at ("last imported 12 Jul 2026"), source
+  (dhis2/csv/backfill), and error state. Failed pairs get a distinct
+  visual state with the stored error on hover/inspect; `backfill` rows
+  ("before history began") show as such rather than pretending a date.
+- **HMIS viewer, per-indicator**: rollup of the row — months covered,
+  latest imported_at, count of failed months.
+- **Indicator checklist view** (replaces Rachel's spreadsheet): one row
+  per raw indicator — months covered vs expected window, last import
+  date+source, failing months with classified errors (permanent-config
+  "not found in DHIS2" vs transient-server), sortable so "what needs
+  attention" floats up. Read-only in Phase 2.
+
+**Phase 3 (actions + runs, ships with dispatcher/C1/C2):**
+
+- **Checklist actions**: "re-import this indicator" and "retry failed
+  pairs" buttons enqueue per-pair units — the checklist is WS-C's unit
+  made visible; don't build a second re-import surface.
+- **Run view**: wizard progress switches from the status-JSON poll to
+  run + ledger reads (live per-pair progress, per-pair errors as they
+  land, partial results visible if a run dies mid-way), plus a run
+  history list (who/what/when, pair counts, per-run outcome) from
+  `dataset_hmis_import_runs`.
+
+**Phase 4 (auto-pull visibility):**
+
+- Subscription config UI (per-instance: on/off, indicator list, rolling
+  window, schedule) and an in-app banner + checklist/run-history
+  surfacing when a scheduled pull fails or partially fails.
+
+All new strings translated (en/fr/pt) per DOC_TRANSLATION.md.
+
+## 7. WS-C — per-pair units and weekend auto-pull (G3)
+
+Target: per-instance subscription config — DHIS2 credentials, raw
+indicator list, rolling period window (e.g. current + previous 12
+months), weekly schedule — and a runner executing **per-pair import
+units**: fetch one (indicator, month) via the dispatcher → integrate that
+pair in its own small transaction → write its ledger row. Failures don't
+block other pairs; re-runs retry only `status='error'` or stale pairs.
+The wizard remains for ad-hoc/backfill work as an enqueuer over the same
+units.
 
 - **C1 — the per-pair import unit.** Restructure the DHIS2 path from
   monolithic stage-all-then-integrate-all to fetch+integrate per pair
-  (the scoped-delete semantics are already pair-scoped; the staging
-  table for the DHIS2 branch becomes per-pair in-memory or a tiny
-  transient table). A 48-hour run that dies at hour 40 keeps 40 hours
-  of work, visible in the ledger. This is where the A4 request-shape
-  levers land cleanest. Version records move to one per *run*, not per
-  pair (decide: minted at run start or end).
-- **C2 — an import-runs table instead of the single-row status blob.**
-  `dataset_hmis_import_runs` (id, trigger user|schedule, selection,
-  started/ended, pair counts) + the ledger as per-pair progress. The
-  wizard's progress view reads run + ledger; the hot single-row JSON
-  rewrite dies entirely (finishes what A3's throttle started). The
-  single-row attempt table remains only for the CSV wizard's
+  (scoped-delete semantics are already pair-scoped; the DHIS2 staging
+  becomes per-pair in-memory or a tiny transient table). Note the
+  dispatcher's DVS route naturally fetches one *element × window* that
+  covers many pairs — the unit boundary is (pair) for integration and
+  ledger writes even when one fetch feeds several units. A 48-hour run
+  that dies at hour 40 keeps 40 hours of work, visible in the ledger.
+  **Version-record grain** *(ruled)*: one `dataset_hmis_versions` row per
+  run, minted at run **end**, skipped entirely if zero pairs succeeded
+  (no empty versions; in-progress visibility belongs to C2's runs table).
+- **C2 — an import-runs table** replacing the single-row status blob for
+  DHIS2 runs: `dataset_hmis_import_runs` (id, trigger user|schedule,
+  selection, started/ended, pair counts) + the ledger as per-pair
+  progress. The wizard's progress view reads run + ledger; the hot
+  single-row JSON rewrite dies (finishing what A3's throttle started).
+  The single-row attempt table remains only for the CSV wizard's
   step-config state.
-- **C3 — instance-level stored DHIS2 credentials.** Forces the at-rest
-  encryption ruling that S5/S6/S7 have each deferred (currently
-  plaintext in attempt rows). A scheduled pull cannot ask a user to
-  retype a password, so this ruling is now on the critical path.
+- **C3 — instance-level stored DHIS2 credentials, encrypted at rest**
+  *(ruled: plaintext is not acceptable)*: encrypt with a key from
+  instance env (e.g. AES-GCM via WebCrypto; key never in the DB), decrypt
+  only in the worker at fetch time. This also retires the plaintext
+  copies in attempt rows (S5/S6/S7 have each deferred this ruling — it is
+  now on the critical path and settled in principle; pick the exact
+  primitive during C3 build).
 - **C4 — the scheduler.** `main.ts` already runs daily `setInterval`
-  jobs (log cleanup, project purge); add a weekly instance-config-gated
-  trigger that enqueues a run from the subscription, with a lock
-  against concurrent manual runs, jittered start, and failure
-  notification (channel TBD: email vs in-app banner vs both).
+  jobs; add a weekly instance-config-gated trigger that enqueues a run
+  from the subscription, with a lock against concurrent manual runs,
+  jittered start inside the off-peak window (after ~01:15 WAT for
+  Nigeria — post-rebuild, §2.5; window per instance TZ), and failure
+  surfacing. **Auto-pull default OFF per instance** *(ruled)*;
+  notification = in-app banner + run/ledger visibility first, email
+  later if wanted *(ruled: no new external dependency for v1)*.
 - **C5 — downstream freshness** (note only, out of scope): a scheduled
   pull bumps the dataset version; results-runs staleness surfaces it.
   Whether anything re-generates automatically is a separate ruling.
 
-Open decisions for Tim before WS-C build: credentials-at-rest
-encryption approach; events table (WS-B); version-record grain (C1);
-auto-pull default on/off per instance; notification channel (C4).
+## 8. The lab (kept; extend rather than re-derive)
 
-## 5. Sequencing
-
-1. **Phase 0 — the fetch lab** (A0, all experiments E1–E9): a new
-   sibling repo, extensive testing against the real Nigeria DHIS2, zero
-   app changes. Exits with `RESULTS.md`: the bottleneck model (H1–H4),
-   attribution verdict + advocacy note for the thread (A2), the E6
-   failure diagnosis, and the request shape only if the model says
-   shape matters. Bootstrap instructions: §6.
-2. **Phase 1 — quick wins** (A3 + A1): throttle, guard fix +
-   lab-measured batch-size raise, retry budget, tunables, in-app
-   instrumentation.
-3. **Phase 2 — ledger** (WS-B): table + writers + backfill + viewer
-   switch + read-only checklist/last-updated UI.
-4. **Phase 3 — request shape + units** (chosen A4 lever + C1 + C2).
-5. **Phase 4 — auto-pull** (C3 + C4).
-
-Each phase ships alone. **This plan is the status tracker**: when a
-phase completes, record it in a `Status` block at the top of this file
-(commit to main) — no other tracking home. Delete this plan when
-Phase 4 lands; if the work stalls earlier, fold the remainder into
-SYSTEM_06/07 Open items.
-
-## 6. Bootstrap — starting Phase 0 cold
-
-For an agent starting with nothing but this file:
-
-1. **Read first**: §1 above (importer anatomy);
-   [SYSTEM_07_dhis2.md](SYSTEM_07_dhis2.md) (the connector: fetcher,
-   retry, timeouts, `maxResponseBytes`); the fetch loop itself,
-   `server/worker_routines/stage_hmis_data_dhis2/worker.ts`
-   (`fetchIndicatorPeriod` is the shape being replicated in E1).
-2. **Create the lab repo**: `~/projects/apps/wb-fastr-dhis2-lab`,
-   `git init`, private. Layout: `experiments/e1_baseline.ts` … one
-   script per experiment; `results/` for raw timing JSONs (committed);
-   `RESULTS.md` (verdicts, kept current every session); `.env`
-   (gitignored) with `DHIS2_URL`, `DHIS2_USERNAME`, `DHIS2_PASSWORD` —
-   **ask Tim for the Nigeria credentials; never commit them, never
-   print them**.
-3. **Import the real connector** — do not reimplement it. Run lab
-   scripts with the app's config so its import map resolves:
-   `deno run --allow-all -c /Users/timroberton/projects/apps/wb-fastr/deno.json experiments/e1_baseline.ts`,
-   importing via absolute paths, e.g.
-   `import { getAnalyticsFromDHIS2 } from "/Users/timroberton/projects/apps/wb-fastr/server/dhis2/goal3_analytics/mod.ts"`.
-4. **Shared harness before first experiment**: a `runExperiment`
-   helper that owns the load budget (≤ 5 concurrent, backoff on
-   429/5xx, hard stop after ~20 consecutive failures), stamps every
-   request with timings (TTFB, body ms, bytes, rows, HTTP status,
-   retry count), and writes one JSON per run into `results/`.
-5. **Inputs for realistic sampling**: pull the facility-UID list and
-   raw indicator ids the same way the worker does (query the Nigeria
-   instance DB if reachable, else `/api/organisationUnits.json` for
-   UID-shaped facility ids; the maternal/newborn-death UIDs
-   `ss0TObFWNpb`, `PJQ5Qd8OPck`, `zU82h583KJ8` are known-good test
-   indicators, and Josh's priority-indicator CSV from the thread is
-   available from Tim). Sample across indicators AND periods (cache
-   trap above).
-6. **Run E1 → E9 in order**, writing each verdict into `RESULTS.md`
-   as it lands. E9 (correctness vs baseline) gates any shape
-   recommendation. Phase 0 makes **zero changes to the wb-fastr app
-   repo**.
-7. **Exit**: `RESULTS.md` answers — bottleneck model (H1–H4), the
-   attribution paragraph for Rachel's thread, the E6 diagnosis, and
-   the shape recommendation (or explicit "shape doesn't matter, go
-   incremental"). Then update this plan's Status block and stop for
-   Tim's review before Phase 1.
+`~/projects/apps/wb-fastr-dhis2-lab` — sibling repo so national-DHIS2
+credentials and experiment churn never enter this repo. It imports the
+app's **real** connector via absolute paths and runs under this repo's
+`deno.json` (`./run e1 … e10`, see its README). Guardrails: read-only
+GETs, ≤5 concurrent default, backoff on 429/5xx, hard stop after 20
+consecutive server-stress failures, every run logs request count; DHIS2
+caches analytics responses, so never time a repeated identical request.
+Inputs are prod-DB-first (README documents the pull commands per
+DOC_ACCESS_DBS.md). Known future lab work: §2.6 daytime runs; the full
+per-element parity gate (§4.4); DVS backfill window sizing if Phase 3
+wants data (~10 MB per dense element-month; 72-month history ≈ 10–20 GB
+transfer, chunked by the adaptive window).
