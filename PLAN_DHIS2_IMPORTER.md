@@ -1,7 +1,14 @@
 # Plan — DHIS2 importer: speed, import ledger, auto-pull
 
-**Status (2026-07-14): Phase 0 complete; architecture ruled; Phases 1–4
-not started. Next action = Phase 1 (§5).** Phase 0's fetch lab ran E1–E10
+**Status (2026-07-14): Phase 0 complete; architecture ruled; Phase 1
+code shipped (`da4f6a7d`: A3 quick wins + A1 per-pair instrumentation;
+worker typechecked, batch-400 URL length verified at 5,739 chars against
+the 7000 guard) and the A2 attribution paragraph delivered to Tim
+(not yet pasted to the thread). Phases 2–4 not started. Next action =
+Phase 2 (§6). Phase 1 loose ends: §2.6 daytime lab runs (needs WAT
+business hours); Nigeria comms (Tim pastes A2 + the 6-stale-id remap
+ask); server restart/deploy to pick up the worker changes.**
+Phase 0's fetch lab ran E1–E10
 against the real Nigeria DHIS2 with production inputs; all verdicts are in
 §2 (raw data: `~/projects/apps/wb-fastr-dhis2-lab`, its `RESULTS.md` +
 `results/*.json`). Tim has ruled the Phase 3 architecture: the
