@@ -188,8 +188,16 @@ function columnExistsFor(
     try {
       await execute(`SELECT ${columnName} FROM ${tableName} LIMIT 1`);
       return true;
-    } catch (_e) {
-      return false;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (
+        message.includes(
+          `Binder Error: Referenced column "${columnName}" not found`,
+        )
+      ) {
+        return false;
+      }
+      throw e;
     }
   };
 }

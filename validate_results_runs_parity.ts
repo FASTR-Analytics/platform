@@ -10,9 +10,16 @@
 //   - items payloads (order-insensitive; aggregates at relative epsilon 1e-9,
 //     keys/counts/statuses/dateRange exact)
 //   - metric info (period bounds exact; per-option status + value-set
-//     membership; option order differences reported as warnings — text
-//     ORDER BY collation is a known dialect delta handled at the adapter)
+//     membership AND order — both engines TS-re-sort option lists, so any
+//     order divergence is a real regression)
 //   - replicant option lists for POs with an active replicant
+//   - synthetic items variants per metric (in-rig only, never stored):
+//     admin-area rollup, facility-column disaggregations, each periodFilter
+//     type the metric's granularity supports, non-default replicant panes
+//   - in --run mode additionally: the raw-rows preview
+//     (getResultsObjectItemsFromRun vs the pg baseline, full multiset up to
+//     a row cap) and per-metric availability (manifest stamps vs the same
+//     rules recomputed from live pg facts)
 //
 // READ-ONLY. Usage:
 //   deno run --allow-all --env-file --unstable-broadcast-channel -c deno.json \
@@ -28,29 +35,40 @@
 // --run: run the REAL serving path (the run wrappers in
 // server/run_query/run_read.ts over the project's attached immutable run —
 // manifest context, no probes) against the legacy Postgres baseline.
-// READ-ONLY: projects without an attached run are skipped — synthesize runs
-// first (backfill_runs.ts). This is the per-instance rollout gate for the
-// cutover deploy.
+// READ-ONLY: a project without an attached run FAILS the gate — synthesize
+// runs first (backfill_runs.ts). This is the per-instance rollout gate for
+// the cutover deploy.
 //
-// Zero DIFF rows = parity green for this instance.
+// THE GATE: every check must be "ok". Diffs, one-engine errors, BOTH-engine
+// errors (a pg-side error can mask a duck-side regression), and skips of any
+// kind (unattached project, detail/fetch-config failure, rig exception) all
+// turn the verdict RED. Nothing is advisory.
 // =============================================================================
 
 import { join } from "@std/path";
 import { _SANDBOX_DIR_PATH } from "./server/exposed_env_vars.ts";
 import {
+  getEffectiveRollupLevel,
   getPeriodFilterExactBounds,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
+  postAggregationExpressionStrict,
+  type DisaggregationOption,
   type GenericLongFormFetchConfig,
+  type InstanceConfigFacilityColumns,
   type ItemsHolderPresentationObject,
   type PeriodBounds,
+  type PresentationObjectConfig,
   type PresentationObjectDetail,
+  type ResultsValue,
   type ResultsValueInfoForPresentationObject,
 } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnection } from "./server/db/postgres/connection_manager.ts";
 import { getResultsObjectTableName } from "./server/db/utils.ts";
 import { getPresentationObjectDetail } from "./server/db/project/presentation_objects.ts";
+import { getResultsObjectItems } from "./server/db/project/results_objects.ts";
+import { getFacilityColumnsConfig } from "./server/db/instance/config.ts";
 import {
   getDatasetFamilyForModule,
   getIndicatorMetadata,
@@ -67,17 +85,26 @@ import {
 } from "./server/run_query/mod.ts";
 import {
   deriveVirtualDefaults,
+  getMetricsWithStatusFromManifest,
   getPossibleValuesFromRun,
   getPresentationObjectDetailFromRun,
   getPresentationObjectItemsFromRun,
+  getResultsObjectItemsFromRun,
   getResultsValueInfoFromRun,
   type RunReadContext,
 } from "./server/run_query/mod.ts";
-import { getRunManifestCached, runDirPath } from "./server/runs/mod.ts";
+import {
+  deriveAvailableDisaggregationOptions,
+  getRunManifestCached,
+  runDirPath,
+} from "./server/runs/mod.ts";
 
 const REL_EPSILON = 1e-9;
 const PG_NULL_SENTINEL = "__PG_NULL__";
 const CSV_EXPORT_BATCH = 20000;
+// Raw-preview content is multiset-diffed in full up to this many rows; above
+// it, only totalCount + column schema are compared (logged, never silent).
+const RAW_PREVIEW_FULL_DIFF_MAX_ROWS = 300_000;
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
@@ -94,7 +121,13 @@ if (useSandboxParquet && useRun) {
 
 // ── Result bookkeeping ────────────────────────────────────────────────────────
 
-type CheckName = "items" | "metric_info" | "replicant_options";
+type CheckName =
+  | "items"
+  | "items_synthetic"
+  | "metric_info"
+  | "replicant_options"
+  | "raw_preview"
+  | "metric_availability";
 type Outcome = "ok" | "diff" | "both_error" | "skip";
 
 type CheckResult = {
@@ -109,7 +142,7 @@ type CheckResult = {
 };
 
 const allResults: CheckResult[] = [];
-const warnings: string[] = [];
+let syntheticDropCount = 0;
 
 // ── DuckDB shadow of one project DB ──────────────────────────────────────────
 
@@ -350,9 +383,10 @@ function diffPossibleValueSets(
     return `${context} membership: only-pg=[${onlyPg.slice(0, 5)}] only-duck=[${onlyDuck.slice(0, 5)}]`;
   }
   if (pgIds.join("") !== duckIds.join("")) {
-    warnings.push(
-      `${context}: same membership, different order (unexpected — the pinned TS re-sort in getPossibleValuesCore should make both engines emit identical order)`,
-    );
+    // Both engines run the same TS re-sort in getPossibleValuesCore, so any
+    // order divergence is a real regression, not a collation delta.
+    const firstMismatch = pgIds.findIndex((id, i) => id !== duckIds[i]);
+    return `${context} order: first mismatch at index ${firstMismatch} (pg=${pgIds[firstMismatch]} duck=${duckIds[firstMismatch]})`;
   }
   return undefined;
 }
@@ -384,24 +418,24 @@ function diffMetricInfo(
 
 // ── Per-PO checks ─────────────────────────────────────────────────────────────
 
-async function resolveReplicantValue(
+async function resolveReplicantOptions(
   mainDb: Sql,
   projectDb: Sql,
   detail: PresentationObjectDetail,
   replicateBy: string,
-): Promise<string | undefined> {
+): Promise<{ id: string; label: string }[]> {
   const resExCfg = getFetchConfigFromPresentationObjectConfig(
     detail.resultsValue,
     detail.config,
     { excludeReplicantFilter: true },
   );
-  if (resExCfg.success === false) return undefined;
+  if (resExCfg.success === false) return [];
   const moduleRow = (
     await projectDb<{ module_id: string }[]>`
 SELECT module_id FROM results_objects WHERE id = ${detail.resultsValue.resultsObjectId}
 `
   ).at(0);
-  if (!moduleRow) return undefined;
+  if (!moduleRow) return [];
   const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleRow.module_id);
   const indicatorMetadata = await getIndicatorMetadata(mainDb, projectDb, moduleRow.module_id);
   const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
@@ -415,10 +449,7 @@ SELECT module_id FROM results_objects WHERE id = ${detail.resultsValue.resultsOb
     resExCfg.data.filters,
     undefined,
   );
-  if (res.success === false || res.data.length === 0) return undefined;
-  const stored = detail.config.d.selectedReplicantValue;
-  if (stored !== undefined && res.data.some((v) => v.id === stored)) return stored;
-  return res.data[0].id;
+  return res.success === true ? res.data : [];
 }
 
 async function checkPresentationObject(
@@ -432,6 +463,7 @@ async function checkPresentationObject(
   poLabel: string,
   isVirtualDefault: boolean,
   metricInfoDone: Set<string>,
+  syntheticsDone: Set<string>,
 ): Promise<void> {
   const record = (r: Omit<CheckResult, "projectId" | "poId" | "poLabel">) => {
     allResults.push({ projectId, poId, poLabel, ...r });
@@ -491,8 +523,13 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
   // a real pane, not the degenerate UNSELECTED pin.
   let config = detail.config;
   const replicateBy = getReplicateByProp(config);
+  let replicantOptions: { id: string; label: string }[] = [];
   if (replicateBy) {
-    const value = await resolveReplicantValue(mainDb, projectDb, detail, replicateBy);
+    replicantOptions = await resolveReplicantOptions(mainDb, projectDb, detail, replicateBy);
+    const stored = detail.config.d.selectedReplicantValue;
+    const value = stored !== undefined && replicantOptions.some((v) => v.id === stored)
+      ? stored
+      : replicantOptions.at(0)?.id;
     if (value !== undefined) {
       config = { ...config, d: { ...config.d, selectedReplicantValue: value } };
     }
@@ -512,39 +549,46 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
   }
   const firstPeriodOption = resultsValue.mostGranularTimePeriodColumnInResultsFile;
 
-  // ---- items ----
-  {
+  const runItemsPair = async (
+    fc: GenericLongFormFetchConfig,
+  ): Promise<Omit<CheckResult, "projectId" | "poId" | "poLabel" | "check">> => {
     const t0 = performance.now();
     const pgRes = await getPresentationObjectItems(
       mainDb, projectId, projectDb, resultsValue.resultsObjectId,
-      fetchConfig, firstPeriodOption, "parity", "parity",
+      fc, firstPeriodOption, "parity", "parity",
     );
     const t1 = performance.now();
     const duckRes = runCtx
       ? await getPresentationObjectItemsFromRun(
           runCtx, projectId, resultsValue.resultsObjectId,
-          fetchConfig, firstPeriodOption,
+          fc, firstPeriodOption,
         )
       : await getPresentationObjectItems(
           mainDb, projectId, hybridDb, resultsValue.resultsObjectId,
-          fetchConfig, firstPeriodOption, "parity", "parity",
+          fc, firstPeriodOption, "parity", "parity",
         );
     const t2 = performance.now();
     const timing = { pgMs: t1 - t0, duckMs: t2 - t1 };
     if (pgRes.success === false && duckRes.success === false) {
-      record({ check: "items", outcome: "both_error", detail: pgRes.err, ...timing });
-    } else if (pgRes.success === false || duckRes.success === false) {
-      record({
-        check: "items",
+      return {
+        outcome: "both_error",
+        detail: `pg=${pgRes.err} duck=${duckRes.err}`,
+        ...timing,
+      };
+    }
+    if (pgRes.success === false || duckRes.success === false) {
+      return {
         outcome: "diff",
         detail: `one engine errored: pg=${pgRes.success ? "ok" : pgRes.err} duck=${duckRes.success ? "ok" : duckRes.err}`,
         ...timing,
-      });
-    } else {
-      const diff = diffItemsHolders(pgRes.data, duckRes.data, fetchConfig);
-      record({ check: "items", outcome: diff ? "diff" : "ok", detail: diff, ...timing });
+      };
     }
-  }
+    const diff = diffItemsHolders(pgRes.data, duckRes.data, fc);
+    return { outcome: diff ? "diff" : "ok", detail: diff, ...timing };
+  };
+
+  // ---- items ----
+  record({ check: "items", ...(await runItemsPair(fetchConfig)) });
 
   // ---- metric info (dedupe per metric) ----
   if (!metricInfoDone.has(detail.resultsValue.id)) {
@@ -563,7 +607,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
     const t2 = performance.now();
     const timing = { pgMs: t1 - t0, duckMs: t2 - t1 };
     if (pgRes.success === false && duckRes.success === false) {
-      record({ check: "metric_info", outcome: "both_error", detail: pgRes.err, ...timing });
+      record({ check: "metric_info", outcome: "both_error", detail: `pg=${pgRes.err} duck=${duckRes.err}`, ...timing });
     } else if (pgRes.success === false || duckRes.success === false) {
       record({
         check: "metric_info",
@@ -615,7 +659,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
       const t2 = performance.now();
       const timing = { pgMs: t1 - t0, duckMs: t2 - t1 };
       if (pgRes.success === false && duckRes.success === false) {
-        record({ check: "replicant_options", outcome: "both_error", detail: pgRes.err, ...timing });
+        record({ check: "replicant_options", outcome: "both_error", detail: `pg=${pgRes.err} duck=${duckRes.err}`, ...timing });
       } else if (pgRes.success === false || duckRes.success === false) {
         record({
           check: "replicant_options",
@@ -628,6 +672,392 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
         record({ check: "replicant_options", outcome: diff ? "diff" : "ok", detail: diff, ...timing });
       }
     }
+  }
+
+  // ---- synthetic variants (finding 16: corpus breadth, in-rig only) ----
+  // The stored-PO corpus underexercises rollup, facility-column groupBys,
+  // several periodFilter types, and non-default replicant panes. Per metric,
+  // mutate this PO's config into those shapes and diff items across engines.
+  // A variant whose fetch config fails to build is an invalid combo for this
+  // metric, not corpus material — dropped, with the drop count logged from
+  // main(). NEVER stored: these exist only inside this process.
+  if (!syntheticsDone.has(resultsValue.id)) {
+    syntheticsDone.add(resultsValue.id);
+    const variants = buildSyntheticVariants(
+      resultsValue, config, runCtx, replicateBy, replicantOptions,
+    );
+    for (const variant of variants) {
+      const variantConfig = { ...config, d: variant.d };
+      let variantFetchConfig: GenericLongFormFetchConfig;
+      try {
+        const res = getFetchConfigFromPresentationObjectConfig(resultsValue, variantConfig);
+        if (res.success === false) {
+          syntheticDropCount++;
+          continue;
+        }
+        variantFetchConfig = res.data;
+      } catch (_e) {
+        syntheticDropCount++;
+        continue;
+      }
+      allResults.push({
+        projectId,
+        poId,
+        poLabel: `${poLabel} [${variant.name}]`,
+        check: "items_synthetic",
+        ...(await runItemsPair(variantFetchConfig)),
+      });
+    }
+  }
+}
+
+// One mutation set per gap category. Options come from the metric's own
+// enriched disaggregationOptions, so every variant targets a column the
+// results object actually has.
+function buildSyntheticVariants(
+  resultsValue: ResultsValue,
+  config: PresentationObjectConfig,
+  runCtx: RunReadContext | undefined,
+  replicateBy: string | undefined,
+  replicantOptions: { id: string; label: string }[],
+): { name: string; d: PresentationObjectConfig["d"] }[] {
+  const available = resultsValue.disaggregationOptions.map((d) => d.value);
+  const baseD = config.d;
+  const variants: { name: string; d: PresentationObjectConfig["d"] }[] = [];
+
+  const adminOpt = (["admin_area_2", "admin_area_3", "admin_area_4"] as const)
+    .find((opt) => available.includes(opt));
+  if (adminOpt) {
+    const dRollup: PresentationObjectConfig["d"] = {
+      ...baseD,
+      disaggregateBy: [{ disOpt: adminOpt, disDisplayOpt: "series" }],
+      selectedReplicantValue: undefined,
+      includeAdminAreaRollup: true,
+      adminAreaRollupPosition: "bottom",
+    };
+    if (getEffectiveRollupLevel(resultsValue, { ...config, d: dRollup }) !== undefined) {
+      variants.push({ name: `syn:rollup:${adminOpt}`, d: dRollup });
+    }
+  }
+
+  for (const facilityOpt of available.filter((opt) => opt.startsWith("facility_")).slice(0, 2)) {
+    variants.push({
+      name: `syn:facility:${facilityOpt}`,
+      d: {
+        ...baseD,
+        disaggregateBy: [{ disOpt: facilityOpt, disDisplayOpt: "series" }],
+        selectedReplicantValue: undefined,
+      },
+    });
+  }
+
+  const granularity = resultsValue.mostGranularTimePeriodColumnInResultsFile;
+  const periodFilters: { name: string; pf: NonNullable<PresentationObjectConfig["d"]["periodFilter"]> }[] = [];
+  if (granularity === "period_id") {
+    periodFilters.push({ name: "syn:pf:last_n_months", pf: { filterType: "last_n_months", nMonths: 6 } });
+  }
+  if (granularity === "period_id" || granularity === "quarter_id") {
+    periodFilters.push({ name: "syn:pf:last_calendar_quarter", pf: { filterType: "last_calendar_quarter" } });
+    periodFilters.push({
+      name: "syn:pf:last_n_calendar_quarters",
+      pf: { filterType: "last_n_calendar_quarters", nQuarters: 2 },
+    });
+  }
+  if (granularity !== undefined) {
+    periodFilters.push({ name: "syn:pf:last_calendar_year", pf: { filterType: "last_calendar_year" } });
+    periodFilters.push({
+      name: "syn:pf:last_n_calendar_years",
+      pf: { filterType: "last_n_calendar_years", nYears: 2 },
+    });
+  }
+  if (runCtx) {
+    const ro = runCtx.manifest.resultsObjects.find(
+      (r) => r.id === resultsValue.resultsObjectId,
+    );
+    const bounds = ro?.periodBounds;
+    if (bounds) {
+      periodFilters.push({
+        name: "syn:pf:custom",
+        pf: { filterType: "custom", min: bounds.min, max: bounds.max },
+      });
+      if (granularity === "period_id") {
+        periodFilters.push({
+          name: "syn:pf:from_month",
+          pf: { filterType: "from_month", min: bounds.min, max: bounds.max },
+        });
+      }
+    }
+  }
+  for (const { name, pf } of periodFilters) {
+    variants.push({ name, d: { ...baseD, periodFilter: pf } });
+  }
+
+  if (replicateBy && replicantOptions.length >= 2) {
+    variants.push({
+      name: "syn:replicant:non-default",
+      d: { ...baseD, selectedReplicantValue: replicantOptions[1].id },
+    });
+  }
+
+  return variants;
+}
+
+// ── Run-mode project-level checks ────────────────────────────────────────────
+
+// Finding 15: the raw-rows preview (S8 read surface) — the run wrappers'
+// getResultsObjectItemsFromRun vs the legacy pg baseline, for every results
+// object in the manifest. Content is multiset-diffed in full up to
+// RAW_PREVIEW_FULL_DIFF_MAX_ROWS; larger objects compare totalCount + column
+// schema only (logged).
+async function checkRawPreviews(
+  projectDb: Sql,
+  runCtx: RunReadContext,
+  projectId: string,
+): Promise<void> {
+  for (const ro of runCtx.manifest.resultsObjects) {
+    const record = (r: Pick<CheckResult, "outcome" | "detail">) => {
+      allResults.push({
+        projectId,
+        poId: ro.id,
+        poLabel: `raw preview ${ro.moduleId}/${ro.id}`,
+        check: "raw_preview",
+        ...r,
+      });
+    };
+    if (!ro.hasParquet) {
+      // The run serves "no query data" for this RO — the pg baseline must
+      // agree there is nothing to serve.
+      const pgRes = await getResultsObjectItems(projectDb, ro.id, 1);
+      const pgHasRows = pgRes.success === true && pgRes.data.status === "ok";
+      record(
+        pgHasRows
+          ? {
+              outcome: "diff",
+              detail: "manifest hasParquet=false but the pg table has rows",
+            }
+          : { outcome: "ok", detail: "no query data on either side" },
+      );
+      continue;
+    }
+    const capped = ro.rowCount > RAW_PREVIEW_FULL_DIFF_MAX_ROWS;
+    const limit = capped ? 1 : undefined;
+    const pgRes = await getResultsObjectItems(projectDb, ro.id, limit);
+    const duckRes = await getResultsObjectItemsFromRun(runCtx, ro.id, limit);
+    if (pgRes.success === false && duckRes.success === false) {
+      record({ outcome: "both_error", detail: `pg=${pgRes.err} duck=${duckRes.err}` });
+      continue;
+    }
+    if (pgRes.success === false || duckRes.success === false) {
+      record({
+        outcome: "diff",
+        detail: `one engine errored: pg=${pgRes.success ? "ok" : pgRes.err} duck=${duckRes.success ? "ok" : duckRes.err}`,
+      });
+      continue;
+    }
+    const pg = pgRes.data;
+    const duck = duckRes.data;
+    if (pg.status !== duck.status) {
+      record({ outcome: "diff", detail: `status: pg=${pg.status} duck=${duck.status}` });
+      continue;
+    }
+    if (pg.status !== "ok" || duck.status !== "ok") {
+      record({ outcome: "ok" });
+      continue;
+    }
+    // pg count(*) arrives as a bigint-string via postgres.js; duck's is the
+    // manifest rowCount number — compare numerically.
+    if (Number(pg.totalCount) !== Number(duck.totalCount)) {
+      record({ outcome: "diff", detail: `totalCount: pg=${pg.totalCount} duck=${duck.totalCount}` });
+      continue;
+    }
+    const contentDiff = diffRawRowMultisets(
+      pg.items as Record<string, unknown>[],
+      duck.items as Record<string, unknown>[],
+    );
+    if (contentDiff) {
+      record({ outcome: "diff", detail: contentDiff });
+      continue;
+    }
+    if (capped) {
+      console.log(
+        `   raw_preview ${ro.id}: content diff capped (${ro.rowCount} rows > ${RAW_PREVIEW_FULL_DIFF_MAX_ROWS}) — totalCount + schema only`,
+      );
+      record({ outcome: "ok", detail: `content capped at ${ro.rowCount} rows: count+schema only` });
+    } else {
+      record({ outcome: "ok" });
+    }
+  }
+}
+
+// Raw rows are UNAGGREGATED — both engines read literals that came from the
+// same CSV, so numeric values must match exactly after canonicalization
+// (pg NUMERIC arrives as text, duck DOUBLE as number; Number() of the same
+// decimal literal yields the same double on both paths).
+function canonicalizeRawCell(v: unknown): string {
+  if (v === null || v === undefined) return " NULL";
+  if (typeof v === "number") return String(v);
+  const s = String(v);
+  const trimmed = s.trim();
+  if (trimmed !== "" && !Number.isNaN(Number(trimmed))) return String(Number(s));
+  return s;
+}
+
+function diffRawRowMultisets(
+  pgItems: Record<string, unknown>[],
+  duckItems: Record<string, unknown>[],
+): string | undefined {
+  if (pgItems.length !== duckItems.length) {
+    return `row count: pg=${pgItems.length} duck=${duckItems.length}`;
+  }
+  if (pgItems.length === 0) return undefined;
+  const pgCols = Object.keys(pgItems[0]).sort();
+  const duckCols = Object.keys(duckItems[0]).sort();
+  if (pgCols.join(",") !== duckCols.join(",")) {
+    return `columns: pg=[${pgCols}] duck=[${duckCols}]`;
+  }
+  const rowKey = (row: Record<string, unknown>) =>
+    pgCols.map((c) => canonicalizeRawCell(row[c])).join("");
+  const counts = new Map<string, number>();
+  for (const row of pgItems) {
+    const key = rowKey(row);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  for (const row of duckItems) {
+    const key = rowKey(row);
+    const n = counts.get(key);
+    if (n === undefined) {
+      return `row in duck not in pg: ${key.replaceAll("", " | ").slice(0, 200)}`;
+    }
+    if (n === 1) counts.delete(key);
+    else counts.set(key, n - 1);
+  }
+  if (counts.size > 0) {
+    const [key] = counts.keys();
+    return `row in pg not in duck: ${key.replaceAll("", " | ").slice(0, 200)}`;
+  }
+  return undefined;
+}
+
+// Finding 25: the manifest availability stamps became authoritative (item 5)
+// — recompute availability from live pg facts with the SAME rules as
+// computeMetricAvailability (synthesize_run.ts) and diff per metric. A
+// mismatch is either a wrong stamp or config drift since the module last ran
+// (the known facility-config gotcha) — both are exactly what this gate is for.
+async function checkMetricAvailability(
+  mainDb: Sql,
+  projectDb: Sql,
+  runCtx: RunReadContext,
+  projectId: string,
+): Promise<void> {
+  const facilityConfigRes = await getFacilityColumnsConfig(mainDb);
+  if (facilityConfigRes.success === false) {
+    throw new Error(`Could not read facility columns config: ${facilityConfigRes.err}`);
+  }
+  const manifestMetrics = getMetricsWithStatusFromManifest(runCtx.manifest);
+  const pgMetrics = await projectDb<
+    {
+      id: string;
+      label: string;
+      hide: boolean;
+      results_object_id: string;
+      value_props: string;
+      post_aggregation_expression: string | null;
+      required_disaggregation_options: string;
+    }[]
+  >`
+SELECT id, label, hide, results_object_id, value_props, post_aggregation_expression, required_disaggregation_options
+FROM metrics
+`;
+  const pgStatusById = new Map<string, { status: string; reason: string }>();
+  const roFacts = new Map<string, { columns: Set<string> | null; hasRows: boolean }>();
+  const factsFor = async (resultsObjectId: string) => {
+    const cached = roFacts.get(resultsObjectId);
+    if (cached) return cached;
+    const tableName = getResultsObjectTableName(resultsObjectId);
+    const cols = await projectDb<{ column_name: string }[]>`
+SELECT column_name FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = ${tableName}
+`;
+    let facts: { columns: Set<string> | null; hasRows: boolean };
+    if (cols.length === 0) {
+      facts = { columns: null, hasRows: false };
+    } else {
+      const probe = await projectDb.unsafe(`SELECT 1 FROM "${tableName}" LIMIT 1`);
+      facts = { columns: new Set(cols.map((c) => c.column_name)), hasRows: probe.length > 0 };
+    }
+    roFacts.set(resultsObjectId, facts);
+    return facts;
+  };
+  for (const metric of pgMetrics) {
+    if (metric.hide) continue;
+    const facts = await factsFor(metric.results_object_id);
+    let status = "ready";
+    let reason = "";
+    if (facts.columns === null) {
+      status = "unavailable";
+      reason = "no ro table in pg";
+    } else if (!facts.hasRows) {
+      status = "unavailable";
+      reason = "ro table has no rows";
+    } else {
+      const pae = metric.post_aggregation_expression
+        ? postAggregationExpressionStrict.parse(JSON.parse(metric.post_aggregation_expression))
+        : undefined;
+      const neededProps = pae
+        ? pae.ingredientValues.map((v) => v.prop)
+        : (JSON.parse(metric.value_props) as string[]);
+      const missingProps = neededProps.filter((p) => !facts.columns!.has(p));
+      const availableDisOpts = deriveAvailableDisaggregationOptions(
+        facts.columns,
+        facilityConfigRes.data,
+      );
+      const required = JSON.parse(metric.required_disaggregation_options) as DisaggregationOption[];
+      const missingDisOpts = required.filter((d) => !availableDisOpts.includes(d));
+      if (missingProps.length > 0) {
+        status = "unavailable";
+        reason = `value props missing in pg: ${missingProps.join(", ")}`;
+      } else if (missingDisOpts.length > 0) {
+        status = "unavailable";
+        reason = `required disaggregation options missing in pg: ${missingDisOpts.join(", ")}`;
+      }
+    }
+    pgStatusById.set(metric.id, { status, reason });
+  }
+  for (const mm of manifestMetrics) {
+    const record = (r: Pick<CheckResult, "outcome" | "detail">) => {
+      allResults.push({
+        projectId,
+        poId: mm.id,
+        poLabel: `metric availability "${mm.label}"`,
+        check: "metric_availability",
+        ...r,
+      });
+    };
+    const pgStatus = pgStatusById.get(mm.id);
+    pgStatusById.delete(mm.id);
+    if (!pgStatus) {
+      record({ outcome: "diff", detail: "metric in manifest but not in pg metrics table" });
+      continue;
+    }
+    const manifestStatus = mm.status === "ready" ? "ready" : "unavailable";
+    if (manifestStatus !== pgStatus.status) {
+      record({
+        outcome: "diff",
+        detail: `manifest=${manifestStatus}(${mm.statusReason ?? ""}) pg=${pgStatus.status}(${pgStatus.reason})`,
+      });
+    } else {
+      record({ outcome: "ok" });
+    }
+  }
+  for (const [metricId] of pgStatusById) {
+    allResults.push({
+      projectId,
+      poId: metricId,
+      poLabel: `metric availability ${metricId}`,
+      check: "metric_availability",
+      outcome: "diff",
+      detail: "metric in pg metrics table but not in manifest",
+    });
   }
 }
 
@@ -652,7 +1082,15 @@ SELECT id, label, status, run_id FROM projects ORDER BY label
     let runCtx: RunReadContext | undefined;
     if (useRun) {
       if (project.run_id === null) {
-        console.log(`\n── ${project.label} (${project.id.slice(0, 8)}): NO RUN ATTACHED — skipped`);
+        console.log(`\n── ${project.label} (${project.id.slice(0, 8)}): NO RUN ATTACHED — GATING`);
+        allResults.push({
+          projectId: project.id,
+          poId: "-",
+          poLabel: project.label,
+          check: "items",
+          outcome: "skip",
+          detail: "NO RUN ATTACHED — synthesize a run first (backfill_runs.ts)",
+        });
         continue;
       }
       runCtx = {
@@ -667,6 +1105,7 @@ SELECT id, label, status, run_id FROM projects ORDER BY label
     const shadow = new ProjectShadow(projectDb, workDir);
     const hybridDb = makeHybridDb(projectDb, shadow);
     const metricInfoDone = new Set<string>();
+    const syntheticsDone = new Set<string>();
     try {
       const rows = await projectDb<{ id: string; label: string }[]>`
 SELECT id, label FROM presentation_objects ORDER BY label
@@ -691,7 +1130,7 @@ SELECT id, label FROM presentation_objects ORDER BY label
       for (const po of pos) {
         try {
           await checkPresentationObject(
-            mainDb, projectDb, hybridDb, shadow, runCtx, project.id, po.id, po.label, po.virtual, metricInfoDone,
+            mainDb, projectDb, hybridDb, shadow, runCtx, project.id, po.id, po.label, po.virtual, metricInfoDone, syntheticsDone,
           );
         } catch (e) {
           allResults.push({
@@ -703,6 +1142,10 @@ SELECT id, label FROM presentation_objects ORDER BY label
             detail: `rig error: ${(e as Error).message}`,
           });
         }
+      }
+      if (runCtx) {
+        await checkRawPreviews(projectDb, runCtx, project.id);
+        await checkMetricAvailability(mainDb, projectDb, runCtx, project.id);
       }
       const projectResults = allResults.filter((r) => r.projectId === project.id);
       summarize(projectResults, "   ");
@@ -718,6 +1161,24 @@ SELECT id, label FROM presentation_objects ORDER BY label
 
   console.log("\n════════ TOTALS ════════");
   summarize(allResults, "");
+  const synKinds = new Map<string, number>();
+  for (const r of allResults) {
+    if (r.check !== "items_synthetic") continue;
+    const match = r.poLabel.match(/\[syn:([a-z_]+):?([a-z_0-9-]*)\]/);
+    if (!match) continue;
+    const kind = match[1] === "pf" ? `pf:${match[2]}` : match[1];
+    synKinds.set(kind, (synKinds.get(kind) ?? 0) + 1);
+  }
+  if (synKinds.size > 0) {
+    console.log(
+      `synthetic corpus: ${[...synKinds.entries()].map(([k, n]) => `${k}=${n}`).join(" ")}`,
+    );
+  }
+  if (syntheticDropCount > 0) {
+    console.log(
+      `synthetic variants dropped (fetch config not buildable for that metric): ${syntheticDropCount}`,
+    );
+  }
 
   const diffs = allResults.filter((r) => r.outcome === "diff");
   if (diffs.length > 0) {
@@ -726,28 +1187,45 @@ SELECT id, label FROM presentation_objects ORDER BY label
       console.log(`  [${d.projectId.slice(0, 8)}] ${d.check} "${d.poLabel}" (${d.poId}): ${d.detail}`);
     }
   }
+  const bothErrors = allResults.filter((r) => r.outcome === "both_error");
+  if (bothErrors.length > 0) {
+    console.log("\nBOTH-ENGINE ERRORS (gating — a pg error can mask a duck regression):");
+    for (const b of bothErrors) {
+      console.log(`  [${b.projectId.slice(0, 8)}] ${b.check} "${b.poLabel}" (${b.poId}): ${b.detail}`);
+    }
+  }
   const skips = allResults.filter((r) => r.outcome === "skip");
   if (skips.length > 0) {
-    console.log("\nSKIPS:");
+    console.log("\nSKIPS (gating — fix the corpus or the read path, don't ignore):");
     for (const s of skips) {
       console.log(`  [${s.projectId.slice(0, 8)}] "${s.poLabel}" (${s.poId}): ${s.detail}`);
     }
-  }
-  if (warnings.length > 0) {
-    console.log(`\nWARNINGS (${warnings.length}):`);
-    for (const w of [...new Set(warnings)].slice(0, 20)) console.log(`  ${w}`);
   }
 
   if (!keepWorkDir && !Deno.env.get("PARITY_WORK_DIR")) {
     await Deno.remove(workDirRoot, { recursive: true });
   }
   await mainDb.end();
-  console.log(diffs.length === 0 ? "\nPARITY GREEN" : `\nPARITY RED: ${diffs.length} diffs`);
-  Deno.exit(diffs.length === 0 ? 0 : 1);
+  const gatingCount = diffs.length + bothErrors.length + skips.length;
+  console.log(
+    gatingCount === 0
+      ? "\nPARITY GREEN"
+      : `\nPARITY RED: ${diffs.length} diffs, ${bothErrors.length} both_error, ${skips.length} skips`,
+  );
+  Deno.exit(gatingCount === 0 ? 0 : 1);
 }
 
 function summarize(results: CheckResult[], indent: string) {
-  for (const check of ["items", "metric_info", "replicant_options"] as CheckName[]) {
+  for (
+    const check of [
+      "items",
+      "items_synthetic",
+      "metric_info",
+      "replicant_options",
+      "raw_preview",
+      "metric_availability",
+    ] as CheckName[]
+  ) {
     const rs = results.filter((r) => r.check === check);
     if (rs.length === 0) continue;
     const count = (o: Outcome) => rs.filter((r) => r.outcome === o).length;

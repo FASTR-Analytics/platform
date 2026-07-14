@@ -23,9 +23,9 @@ globs:
 > results-package read path (PLAN_RESULTS_RUNS — its Status block is the
 > authoritative model + deploy phasing). Known drift in this doc until the
 > Phase-4 rewrite: the S9 hot functions are now core+wrapper with an injected
-> executor (`server/run_query/run_read.ts` is the package/run read path;
-> currently behind a `RESULTS_READ_PATH` flag that the re-cut plan deletes —
-> one read path per deploy); `PO_CACHE_VERSION` is "6" (option lists
+> executor (`server/run_query/run_read.ts` is the ONLY serving read path —
+> there is no runtime flag; the pg wrappers survive solely as the parity
+> rig's baseline until demolition); `PO_CACHE_VERSION` is "6" (option lists
 > TS-re-sorted); calendar threads via `QueryContext`, not `getCalendar()` at
 > the call sites.
 

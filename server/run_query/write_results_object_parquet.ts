@@ -3,12 +3,16 @@ import {
   getEnabledOptionalFacilityColumns,
   type InstanceConfigFacilityColumns,
 } from "lib";
-import { escapeSqlLiteral } from "./duckdb_executor.ts";
+import {
+  applyDuckDbSessionSettings,
+  escapeSqlLiteral,
+} from "./duckdb_executor.ts";
 
 // Builds the normalized query-store parquet for one results object from its
 // raw R output CSV — the finalize step of PLAN_RESULTS_RUNS §2.3, reproducing
 // exactly the four semantic normalizations Postgres ingest applies
-// (storeResultsObject in run_module_iterator.ts — the two must not drift):
+// (storeResultsObject in worker_routines/generate_run/legacy_store_results_object.ts
+// — the two must not drift):
 //   1. 'NA' → NULL (unquoted only, matching Postgres COPY)
 //   2. schema = CSV headers ∩ declared columns, with DECLARED types (an
 //      undeclared header is a hard error; types are never inferred)
@@ -100,8 +104,7 @@ export async function writeNormalizedResultsObjectParquet(opts: {
   const instance = await DuckDBInstance.create(":memory:");
   const conn = await instance.connect();
   try {
-    await conn.run("SET integer_division = true");
-    await conn.run(`SET memory_limit = '512MB'`);
+    await applyDuckDbSessionSettings(conn);
     await conn.run(
       `COPY (SELECT ${selectList} FROM read_csv('${escapeSqlLiteral(opts.csvPath)}',
         header=true,

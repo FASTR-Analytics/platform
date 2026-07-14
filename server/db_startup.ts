@@ -9,6 +9,7 @@ import {
 } from "lib";
 import { uninstallModule } from "./db/project/modules.ts";
 import { sweepAbandonedTmpRunDirs } from "./runs/mod.ts";
+import { resetDuckDbSpillDir } from "./run_query/duckdb_executor.ts";
 import { markInterruptedGeneratingRuns } from "./db/instance/run_generation.ts";
 import { _RUNS_DIR_PATH } from "./exposed_env_vars.ts";
 import { getCountryIso3Config } from "./db/instance/config.ts";
@@ -114,6 +115,7 @@ ${userInserts}
   // attaches one.
   await Deno.mkdir(_RUNS_DIR_PATH, { recursive: true });
   await sweepAbandonedTmpRunDirs();
+  await resetDuckDbSpillDir();
   await markInterruptedGeneratingRuns(sqlMain);
 }
 

@@ -40,7 +40,7 @@
     "npm:@codemirror/lang-markdown@6": "6.5.0",
     "npm:@codemirror/merge@6": "6.11.2",
     "npm:@codemirror/state@6": "6.5.2",
-    "npm:@duckdb/node-api@1.3.2-alpha.25": "1.3.2-alpha.25",
+    "npm:@duckdb/node-api@1.4.5-r.1": "1.4.5-r.1",
     "npm:@hono/clerk-auth@2": "2.0.1_@clerk+backend@1.34.0_hono@4.8.10",
     "npm:@solidjs/router@0.15": "0.15.4_solid-js@1.9.3__seroval@1.3.2",
     "npm:@types/node@*": "24.6.2",
@@ -356,44 +356,50 @@
         "w3c-keyname"
       ]
     },
-    "@duckdb/node-api@1.3.2-alpha.25": {
-      "integrity": "sha512-AzDyyjTtnYUxoy/MHDFRwfOggDOkS8RBgGA82OI6nla8B9NDNZeAYJ97T3PvCL8cx7y00EtGVN3g03aoW4fRmw==",
+    "@duckdb/node-api@1.4.5-r.1": {
+      "integrity": "sha512-lXPfeJclmhTGhBBnfVXy4siuGNpa8QaUIQGAWlDirC92Dq5fELdITI/LihiFDh5Gz7aM8AN9stCGIH891uv1oQ==",
       "dependencies": [
         "@duckdb/node-bindings"
       ]
     },
-    "@duckdb/node-bindings-darwin-arm64@1.3.2-alpha.25": {
-      "integrity": "sha512-vRjzNgkz2TAYW5c2rzPwcHBctBWr0lxQ4blFASAv0DdeGPOeuCMXJUA3982X7iPNwAppH0VMII6cYzON0GA+RA==",
+    "@duckdb/node-bindings-darwin-arm64@1.4.5-r.1": {
+      "integrity": "sha512-daWqehxIQX5Fnlbkp+yTX2A7rrlXWzfMYNLqil+kZXI7zKG7D/EmT+gWcgSL8N9Jo0fR9RBo8CtzUlR/AaRL5Q==",
       "os": ["darwin"],
       "cpu": ["arm64"]
     },
-    "@duckdb/node-bindings-darwin-x64@1.3.2-alpha.25": {
-      "integrity": "sha512-BSg/DZjT25QZe87+pmdMfE1XlHdi2WxtAO+F2PEXN6VnPeLyTdl5bYlnhOGrDKquKDmUEqok5OwF7mR4QfU+Aw==",
+    "@duckdb/node-bindings-darwin-x64@1.4.5-r.1": {
+      "integrity": "sha512-iTtnNyVXF8zbdlxOe+Rgjcbbv+4WCkWYGfK3ejCwhaqBc8DH07fWPP5ZGtSbUDs/LDOvV/4k3IGD9hXaNTBmPw==",
       "os": ["darwin"],
       "cpu": ["x64"]
     },
-    "@duckdb/node-bindings-linux-arm64@1.3.2-alpha.25": {
-      "integrity": "sha512-VhjUH/AvolZWDX/URqiIh58JbAB1vYbDgSmQ0wvqhS9jzJ9Sj88urGDw+XWXw49Rr4BhIgDtX70SoARhO2i/Gg==",
+    "@duckdb/node-bindings-linux-arm64@1.4.5-r.1": {
+      "integrity": "sha512-hDGBZDU5fum/4VDa/PFXUReZKb6ijOx63n10CZUKyY7tnZUV3K3/VpGdCpFyv+jwGuB2M27HpTwMtFYulRmGPQ==",
       "os": ["linux"],
       "cpu": ["arm64"]
     },
-    "@duckdb/node-bindings-linux-x64@1.3.2-alpha.25": {
-      "integrity": "sha512-raav2ypBiV4TlpnKU9hocsuFDO4ipwIcQQmkMIh20/Qd9vkv35QcQYNqStiZVJh2LAaVoQffNvcKMlclblYqUQ==",
+    "@duckdb/node-bindings-linux-x64@1.4.5-r.1": {
+      "integrity": "sha512-/0lEDmIx3crdopnz9snXnJGm1tvf6pqowX/LvycMnKYMAfpeXiQDLjAqgCJ4+95O4Y6An+Fgy6e4m7WW7ZYxVg==",
       "os": ["linux"],
       "cpu": ["x64"]
     },
-    "@duckdb/node-bindings-win32-x64@1.3.2-alpha.25": {
-      "integrity": "sha512-/fAKax+xYkdRhkUl3PkL3HfFd1ZsezG1yiOkL0StHBdD3xB80Njm1JGHxx1fO3WWE5XTbE1MTJ5I0xjEzPwsfQ==",
+    "@duckdb/node-bindings-win32-arm64@1.4.5-r.1": {
+      "integrity": "sha512-j+2s9yYlQW1lkGydObiZCPfmW6GzvqgYF42IPY0b9laENFvGz6tD5dwfZ8E41L5vwFSaK1AhjOZ6NFcCMQEPtg==",
+      "os": ["win32"],
+      "cpu": ["arm64"]
+    },
+    "@duckdb/node-bindings-win32-x64@1.4.5-r.1": {
+      "integrity": "sha512-4a1FmopqCbJgtUwDswEAzozCbSOR+waiJyAl4K9LHfACV897e72w/XZQT9kHEw36GJE03uWJIyqHlcV+WA+tXA==",
       "os": ["win32"],
       "cpu": ["x64"]
     },
-    "@duckdb/node-bindings@1.3.2-alpha.25": {
-      "integrity": "sha512-FkoSaoeRAi6Em0hs0qzr3SN04ykN99R+Qap5kLwhi6GNPnHzWMU1VrNpK9cE4eBj0n+RWlNK0TiO712dn44QzQ==",
+    "@duckdb/node-bindings@1.4.5-r.1": {
+      "integrity": "sha512-yIXjn8PcB/twK5qzlGyAYflWS7SOc+Pw2GSDzXOszL2uDWthozMj44c3kCWFVLx8P1lfjXw7N9Fjca+uBQpn6Q==",
       "optionalDependencies": [
         "@duckdb/node-bindings-darwin-arm64",
         "@duckdb/node-bindings-darwin-x64",
         "@duckdb/node-bindings-linux-arm64",
         "@duckdb/node-bindings-linux-x64",
+        "@duckdb/node-bindings-win32-arm64",
         "@duckdb/node-bindings-win32-x64"
       ]
     },
@@ -1458,7 +1464,7 @@
       "jsr:@std/streams@^1.0.8",
       "npm:@anthropic-ai/sdk@0.110",
       "npm:@clerk/backend@^1.25.2",
-      "npm:@duckdb/node-api@1.3.2-alpha.25",
+      "npm:@duckdb/node-api@1.4.5-r.1",
       "npm:@hono/clerk-auth@2",
       "npm:@types/papaparse@^5.3.15",
       "npm:nanoid@5",

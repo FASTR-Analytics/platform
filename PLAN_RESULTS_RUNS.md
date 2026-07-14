@@ -1,6 +1,6 @@
 # Plan: Results Runs — file-based immutable results + DuckDB query layer
 
-## Status: IN PROGRESS on branch `results-runs` (updated 2026-07-13)
+## Status: IN PROGRESS on branch `results-runs` (updated 2026-07-14)
 
 **This section is the authoritative statement of what is decided and how it
 deploys.** Re-cut with Tim on 2026-07-12 after the adversarial pre-deploy
@@ -152,7 +152,7 @@ once-per-generation finalize at the wizard build. Disposition as ruled:
   resolution); the mtime-keyed `manifest_cache.ts` (immutable runs key by
   runId); the boot sandbox-package migration in `db_startup.ts`.
 
-### Pre-deploy work items from the review (= work item 8's spec)
+### Pre-deploy work items from the review (= work item 8's spec — EXECUTED 2026-07-14, see item 8's build notes)
 
 The review findings that survive the collapse (report buckets 2–3) and
 must ship with or gate this deploy. **Ops findings 3/18/20 are DONE
@@ -291,9 +291,10 @@ at a clean seam with gates green and records the stopping point inside
 the item — nowhere else. Items 1 and 2 span wb-fastr-modules (CLAUDE.md
 three-repo lockstep rule: commit that repo locally; the push stays
 deploy-gated — its local HEAD is `6ba142e`).
-Items 1–5b and 7 are DONE and item 6 is RETIRED (details inside each
-item); **the next item to execute is item 8**, the last one; after it,
-the exit gate below, then the Deploy phasing rollout.
+ALL items are DONE (1–5b, 7, 8; item 6 RETIRED — details inside each
+item) and the exit gate below has PASSED (2026-07-14); **next is the
+Deploy phasing rollout** (trial instance → rig there → fleet with
+Ethiopia early).
 After items 3–5 the dev app exercises the full new UX end-to-end
 (generate → progress → repoint → all read surfaces from the run) and is
 reviewable in the browser; items 6–8 are export/deploy/hardening and
@@ -857,29 +858,73 @@ Work items, in order:
      browser-driven wizard run had left HFA Test attached to an
      m010-only package, legitimately narrower than the pg baseline —
      resolved by re-backfilling that project, the standard dev remedy).
-8. **Pre-deploy review work items — the last item.** The spec is the
-   "Pre-deploy work items from the review" subsection above, re-verified
-   against the current branch 2026-07-14 with exact file:line seams (the
-   review doc's own citations are STALE — items 2–7 moved or deleted
-   their targets; trust the subsection). Scope: engine findings 11
-   (memory_limit sizing + temp_directory) and 12 (pin items row order at
-   the executor); the rig-gate hardening set (5/6 skips-fail-GREEN, 27
-   both_error + option-order gating, 15 raw-rows preview diff, 25
-   metricAvailability diff, 16 corpus breadth — 26 is partially
-   dissolved, see subsection); hygiene 19 (re-point one stale comment),
-   21 (fix the SYSTEM_09 banner), 22 (columnExistsFor must not swallow
-   infra errors). Suggested order: hygiene first (small, independent),
-   then engine, then the rig hardening — the hardened rig is the exit
-   gate, so it runs last against everything else. Note the engine
-   changes (11/12) alter serving behavior: after them, re-run the rig
-   AND expect finding-12's order pin to change no diff outcomes (the
-   items diff is order-insensitive) — if it does, that is a real bug.
-   Finding 16's synthetic configs must not be stored as project POs —
-   build them in-rig only (the corpus must stay READ-ONLY against
-   instance data).
+8. **Pre-deploy review work items — DONE 2026-07-14** (gates green:
+   typecheck + HARDENED rig PARITY GREEN 8/8 projects, 668 checks —
+   items 103, items_synthetic 319, metric_info 50, replicant_options 61,
+   raw_preview 65, metric_availability 70 — 0 diffs/both_error/skips).
+   The spec was the "Pre-deploy work items from the review" subsection
+   above. What landed:
+   - **Hygiene 19/21/22**: parquet-writer comment re-pointed to
+     `legacy_store_results_object.ts`; SYSTEM_09 banner corrected (one
+     read path, no flag); `columnExistsFor` now rethrows every duck
+     error except the exact missing-column signature (`Binder Error:
+     Referenced column "X" not found` — verified against live DuckDB
+     error strings; Catalog/IO/Parser errors throw).
+   - **Engine 11**: `DUCKDB_MEMORY_LIMIT` 512MB→4GB, sized empirically —
+     the review's repro shape (59.5M rows, facility_name × period ≈
+     1.92M groups) OOMs at 512MB AND at 2GB (grouped aggregates do not
+     spill), completes at 4GB in-memory in ~2s. Shared
+     `applyDuckDbSessionSettings` now configures BOTH the serving
+     executor and the parquet writer: memory_limit + `temp_directory` at
+     `{RUNS_DIR_PATH}/.duckdb-spill` (DuckDB does NOT create a missing
+     temp dir — the helper mkdirs it; boot wipes stale spill via
+     `resetDuckDbSpillDir`, db_startup).
+   - **Engine 12**: `executeSqlOverParquet` pins a deterministic total
+     order (all columns, code-unit compare, post-LIMIT) on every result
+     set; meaningful ordering stays the caller's job. Verified identical
+     order across repeated runs; rig diff outcomes unchanged (green).
+   - **DuckDB version bump 1.3.2-alpha.25 → 1.4.5-r.1 (LTS), forced by a
+     REAL crash**: the hardened rig segfaulted (SIGSEGV) mid-fleet.
+     Isolated with a bare harness: pure `DuckDBInstance.create`/close
+     churn crashes the alpha after ~750–1250 cycles — no app code, no
+     parquet, even `SELECT 1` — so the long-lived server was a ticking
+     landmine under the cold-instance-per-call serving model. 1.4.5-r.1
+     survives 3000-cycle churn in all modes; all engine behaviors
+     re-verified on it (512MB still OOMs, 4GB green, order pin, full
+     parity).
+   - **Rig gates (5/6/27)**: the verdict is now `every check ok` —
+     diffs, one-engine errors, both_error (detail carries BOTH errors),
+     and skips of any kind (incl. NO RUN ATTACHED projects, which now
+     record a gating result instead of a silent skip) all turn RED;
+     option-ORDER divergence is a diff, not a warning (both engines run
+     the same TS re-sort — divergence is a regression). The warnings
+     channel is gone.
+   - **Rig 15 (raw_preview)**: per manifest RO in --run mode, the real
+     `getResultsObjectItemsFromRun` vs the pg baseline — status,
+     totalCount (Number() both sides: pg count(*) arrives as a bigint
+     string), column sets, and full row-multiset content up to 300k rows
+     (numeric-literal canonicalization; raw rows are unaggregated so
+     values match exactly); larger ROs compare count+schema with the cap
+     logged. `hasParquet=false` ROs assert the pg side is also empty.
+   - **Rig 25 (metric_availability)**: manifest stamps vs the same
+     availability rules recomputed from live pg facts (information_schema
+     columns, row probe, value_props/PAE ingredients,
+     deriveAvailableDisaggregationOptions with live facility config),
+     per metric, set-diffed both directions.
+   - **Rig 16 (synthetic corpus, in-rig only, never stored)**: per
+     metric, mutations of a real PO config — admin-area rollup
+     (eligibility-gated), up to 2 facility-column disaggregations,
+     every periodFilter type the metric's granularity supports (custom/
+     from_month minted from manifest periodBounds), and a non-default
+     replicant pane. Unbuildable fetch configs drop the variant
+     (counted + logged). Composition is printed in TOTALS; this run:
+     rollup=30 facility=17 replicant=12 + all 7 periodFilter kinds
+     (custom=38, from_month=25, last_n_months=33, quarter×2=66,
+     year×2=98).
 
-Exit gate: `deno task typecheck` + the HARDENED rig PARITY GREEN in
-`--run` mode → trial-instance rollout per Deploy phasing (Ethiopia early).
+Exit gate — PASSED 2026-07-14: `deno task typecheck` + the HARDENED rig
+PARITY GREEN in `--run` mode (668 checks, 0 diffs/both_error/skips) →
+trial-instance rollout per Deploy phasing (Ethiopia early).
 
 ### Binding implementation decisions (do not re-derive)
 
