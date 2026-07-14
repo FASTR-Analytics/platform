@@ -966,11 +966,17 @@ export function connectCollab(projectId: string): void {
 }
 
 export function disconnectCollab(): void {
-  hardClose();
+  // Destroy sessions and the project awareness BEFORE closing the socket:
+  // their teardown broadcasts awareness REMOVALS (removeAwarenessStates →
+  // update handler → send), which must ship on the still-open socket so
+  // peers clear our cursors instantly instead of waiting for the ~30s
+  // liveness sweep. (A hard tab close still leaves that sweep as the
+  // fallback — nothing can be sent then.)
   for (const s of [...slideSessions.values()]) destroySlideSession(s);
   for (const s of [...reportSessions.values()]) destroyReportSession(s);
   for (const s of [...poSessions.values()]) destroyPoSession(s);
   destroyProjectAwareness();
+  hardClose();
   resetPresenceToasts();
   notifyCollabConnection("idle");
   currentProjectId = null;
