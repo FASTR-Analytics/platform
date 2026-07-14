@@ -1,3 +1,4 @@
+[TBD] [admin] [fixed] - Module data migration now correctly handles alternate asset formats
 [TBD] [user] [changed] - Data tables now update live during DHIS2 imports instead of showing stale results
 [TBD] [user] [fixed] - Fixed rare issue where cached data could show incorrect values during an active DHIS2 import
 [TBD] [user] [fixed] - Fixed issue where cancelling or interrupting a DHIS2 import could block future imports
