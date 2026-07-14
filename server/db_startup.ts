@@ -13,7 +13,10 @@ import {
   runInstanceMigrations,
   runProjectMigrations,
 } from "./db/migrations/runner.ts";
-import { getPgConnectionFromCacheOrNew } from "./db/mod.ts";
+import {
+  getPgConnectionFromCacheOrNew,
+  markStaleRunningDatasetHmisImportRuns,
+} from "./db/mod.ts";
 import type { Sql } from "postgres";
 import {
   migratePOConfigs,
@@ -60,6 +63,12 @@ ${userInserts}
   // A restart mid-import leaves status_type stuck at an in-flight value with no
   // live worker, and the concurrency guards then block all future imports.
   await resetWedgedUploadAttempts(sqlMain);
+  const staleRuns = await markStaleRunningDatasetHmisImportRuns(sqlMain);
+  if (staleRuns > 0) {
+    console.log(
+      `[startup] Marked ${staleRuns} DHIS2 import run(s) wedged mid-run by a previous shutdown`,
+    );
+  }
 
   // Instance data transforms — on main database
   await runInstanceDataTransforms(sqlMain);

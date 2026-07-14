@@ -1,13 +1,20 @@
-import { getCalendar, t3, type DatasetHmisImportLedgerItem } from "lib";
+import {
+  getCalendar,
+  t3,
+  type DatasetHmisImportLedgerItem,
+  type Dhis2RunPair,
+} from "lib";
 import {
   Button,
   EditorComponentProps,
   FrameTop,
   Table,
   formatPeriod,
+  getEditorWrapper,
   toNum0,
   type TableColumn,
 } from "panther";
+import { DatasetHmisDhis2Runs } from "./dhis2_run";
 import { sourceLabel, type LedgerPeriodWindow } from "./_import_ledger";
 
 type MonthRow = {
@@ -54,10 +61,13 @@ export function ImportLedgerIndicatorDetail(
       indicatorRawId: string;
       items: DatasetHmisImportLedgerItem[];
       window: LedgerPeriodWindow;
+      silentFetch: () => Promise<void>;
     },
     undefined
   >,
 ) {
+  const { openEditor, EditorWrapper } = getEditorWrapper();
+
   const itemsByPeriod = new Map<number, DatasetHmisImportLedgerItem>();
   for (const item of p.items) {
     itemsByPeriod.set(item.periodId, item);
@@ -65,6 +75,26 @@ export function ImportLedgerIndicatorDetail(
   const rows = enumerateMonthsDescending(p.window).map<MonthRow>(
     (periodId) => ({ periodId, item: itemsByPeriod.get(periodId) }),
   );
+
+  // Checklist action: re-import every month in the window for this indicator
+  // as per-pair units.
+  async function reimportIndicator() {
+    const pairs: Dhis2RunPair[] = enumerateMonthsDescending(p.window).map(
+      (periodId) => ({ indicatorRawId: p.indicatorRawId, periodId }),
+    );
+    await openEditor({
+      element: DatasetHmisDhis2Runs,
+      props: {
+        silentFetch: p.silentFetch,
+        presetPairs: pairs,
+        presetLabel: `${t3({
+          en: "Re-importing",
+          fr: "Réimportation de",
+          pt: "A reimportar",
+        })} ${p.indicatorRawId}:`,
+      },
+    });
+  }
 
   const columns: TableColumn<MonthRow>[] = [
     {
@@ -173,34 +203,45 @@ export function ImportLedgerIndicatorDetail(
   ];
 
   return (
-    <FrameTop
-      panelChildren={
-        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-          <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
-          <div class="font-700 flex-1 truncate text-xl">
-            {t3({
-              en: "Import status",
-              fr: "État des importations",
-              pt: "Estado das importações",
-            })}
-            <span class="font-400 ml-4">{p.indicatorRawId}</span>
+    <EditorWrapper>
+      <FrameTop
+        panelChildren={
+          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
+            <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
+            <div class="font-700 flex-1 truncate text-xl">
+              {t3({
+                en: "Import status",
+                fr: "État des importations",
+                pt: "Estado das importações",
+              })}
+              <span class="font-400 ml-4">{p.indicatorRawId}</span>
+            </div>
+            <div class="ui-gap-sm flex items-center">
+              <Button iconName="databaseImport" onClick={reimportIndicator}>
+                {t3({
+                  en: "Re-import this indicator",
+                  fr: "Réimporter cet indicateur",
+                  pt: "Reimportar este indicador",
+                })}
+              </Button>
+            </div>
           </div>
+        }
+      >
+        <div class="ui-pad h-full w-full">
+          <Table
+            data={rows}
+            columns={columns}
+            keyField="periodId"
+            noRowsMessage={t3({
+              en: "No months in window",
+              fr: "Aucun mois dans la fenêtre",
+              pt: "Nenhum mês na janela",
+            })}
+            fitTableToAvailableHeight
+          />
         </div>
-      }
-    >
-      <div class="ui-pad h-full w-full">
-        <Table
-          data={rows}
-          columns={columns}
-          keyField="periodId"
-          noRowsMessage={t3({
-            en: "No months in window",
-            fr: "Aucun mois dans la fenêtre",
-            pt: "Nenhum mês na janela",
-          })}
-          fitTableToAvailableHeight
-        />
-      </div>
-    </FrameTop>
+      </FrameTop>
+    </EditorWrapper>
   );
 }

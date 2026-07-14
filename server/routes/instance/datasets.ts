@@ -3,6 +3,7 @@ import {
   // HFA imports
   addDatasetHfaUploadAttempt,
   addDatasetHmisUploadAttempt,
+  cancelDatasetHmisImportRun,
   computeHfaCacheHash,
   deleteDatasetHfaData,
   deleteAllDatasetHmisData,
@@ -14,19 +15,18 @@ import {
   getDatasetHfaUploadStatus,
   getDatasetHmisDetail,
   getDatasetHmisImportLedgerItems,
+  getDatasetHmisImportRunSummaries,
   getDatasetHmisItemsForDisplay,
   getDatasetHmisUploadAttemptDetail,
   getDatasetHmisUploadStatus,
-  getDhis2ScopedDeletionPreview,
   getVersionsForDatasetHmis,
+  launchDatasetHmisDhis2ImportRun,
   updateDatasetHfaUploadAttempt_Step1CsvUpload,
   updateDatasetHfaUploadAttempt_Step2Mappings,
   updateDatasetHfaUploadAttempt_Step3Staging,
   updateDatasetHfaUploadAttempt_Step4Integrate,
   updateDatasetUploadAttempt_Step0SourceType,
   updateDatasetUploadAttempt_Step1CsvUpload,
-  updateDatasetUploadAttempt_Step1Dhis2Confirm,
-  updateDatasetUploadAttempt_Step2Dhis2Selection,
   updateDatasetUploadAttempt_Step2Mappings,
   updateDatasetUploadAttempt_Step3Staging,
   updateDatasetUploadAttempt_Step4Integrate,
@@ -132,6 +132,63 @@ defineRoute(
     );
 
     const res = await newPromise;
+    return c.json(res);
+  },
+);
+
+/////////////////////////////////
+//                             //
+//    DHIS2 import runs        //
+//                             //
+/////////////////////////////////
+
+defineRoute(
+  routesDatasets,
+  "launchDatasetHmisDhis2Run",
+  requireGlobalPermission("can_configure_data"),
+  log("launchDatasetHmisDhis2Run"),
+  async (c, { body }) => {
+    const validation = await validateDhis2Connection(body.credentials);
+    if (!validation.valid) {
+      return c.json({ success: false, err: t3(validation.message) });
+    }
+    const res = await launchDatasetHmisDhis2ImportRun(c.var.mainDb, {
+      credentials: body.credentials,
+      selection: body.selection,
+      triggeredBy: c.var.globalUser?.email ?? "unknown",
+      onComplete: async () => {
+        notifyInstanceDatasetsUpdated(
+          await getInstanceDatasetsSummary(c.var.mainDb),
+        );
+      },
+    });
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "getDatasetHmisImportRuns",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetHmisImportRuns"),
+  async (c) => {
+    const res = await getDatasetHmisImportRunSummaries(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "cancelDatasetHmisDhis2Run",
+  requireGlobalPermission("can_configure_data"),
+  log("cancelDatasetHmisDhis2Run"),
+  async (c, { body }) => {
+    const res = await cancelDatasetHmisImportRun(c.var.mainDb, body.runId);
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
     return c.json(res);
   },
 );
@@ -259,11 +316,8 @@ defineRoute(
   "updateDatasetStaging",
   requireGlobalPermission("can_configure_data"),
   log("updateDatasetStaging"),
-  async (c, { body }) => {
-    const res = await updateDatasetUploadAttempt_Step3Staging(
-      c.var.mainDb,
-      body.failFastMode,
-    );
+  async (c) => {
+    const res = await updateDatasetUploadAttempt_Step3Staging(c.var.mainDb);
     return c.json(res);
   },
 );
@@ -280,52 +334,6 @@ defineRoute(
         notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
       },
     );
-    return c.json(res);
-  },
-);
-
-// DHIS2-specific endpoints
-defineRoute(
-  routesDatasets,
-  "dhis2ConfirmCredentials",
-  requireGlobalPermission("can_configure_data"),
-  log("dhis2ConfirmCredentials"),
-  async (c, { body }) => {
-    console.log("[dhis2ConfirmCredentials] Validating URL:", body.url);
-    const validation = await validateDhis2Connection(body);
-    console.log("[dhis2ConfirmCredentials] Result:", JSON.stringify(validation));
-    if (!validation.valid) {
-      return c.json({ success: false, err: t3(validation.message) });
-    }
-    const res = await updateDatasetUploadAttempt_Step1Dhis2Confirm(
-      c.var.mainDb,
-      body,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "dhis2SetSelection",
-  requireGlobalPermission("can_configure_data"),
-  log("dhis2SetSelection"),
-  async (c, { body }) => {
-    const res = await updateDatasetUploadAttempt_Step2Dhis2Selection(
-      c.var.mainDb,
-      body,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "getDhis2ScopedDeletionPreview",
-  requireGlobalPermission("can_configure_data"),
-  log("getDhis2ScopedDeletionPreview"),
-  async (c) => {
-    const res = await getDhis2ScopedDeletionPreview(c.var.mainDb);
     return c.json(res);
   },
 );

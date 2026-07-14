@@ -4,6 +4,7 @@ export * from "./assets.ts";
 export * from "./config.ts";
 export * from "./dataset_hmis.ts";
 export * from "./dataset_hmis_import_ledger.ts";
+export * from "./dataset_hmis_import_runs.ts";
 export * from "./dataset_hfa.ts";
 export * from "./indicators.ts";
 export * from "./instance.ts";

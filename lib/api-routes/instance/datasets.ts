@@ -13,13 +13,11 @@ import {
 import type {
   DatasetHmisDetail,
   DatasetHmisImportLedgerItem,
+  DatasetHmisImportRunSummary,
   DatasetHmisVersion,
   DatasetHmisWindowingRaw,
   DatasetUploadAttemptDetail,
   DatasetUploadStatusResponse,
-  Dhis2Credentials,
-  Dhis2ScopedDeletionPreviewItem,
-  Dhis2SelectionParams,
   IndicatorType,
   InstanceConfigFacilityColumns,
   ItemsHolderDatasetHmisDisplay,
@@ -32,11 +30,25 @@ const dhis2CredentialsSchema = z.object({
   password: z.string(),
 });
 
-const dhis2SelectionParamsSchema = z.object({
-  rawIndicatorIds: z.array(z.string()),
-  startPeriod: z.number(),
-  endPeriod: z.number(),
-});
+const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("window"),
+    rawIndicatorIds: z.array(z.string()).min(1),
+    startPeriod: z.number().int(),
+    endPeriod: z.number().int(),
+  }),
+  z.object({
+    kind: z.literal("pairs"),
+    pairs: z
+      .array(
+        z.object({
+          indicatorRawId: z.string(),
+          periodId: z.number().int(),
+        }),
+      )
+      .min(1),
+  }),
+]);
 
 const hfaCsvMappingParamsSchema = z.object({
   facilityIdColumn: z.string(),
@@ -96,7 +108,28 @@ export const datasetRouteRegistry = {
     body: z.object({ windowing: datasetHmisWindowingRawSchema }),
   }),
 
-  // Upload workflow
+  // DHIS2 import runs (per-pair fetch+integrate; PLAN_DHIS2_IMPORTER Phase 3)
+  launchDatasetHmisDhis2Run: route({
+    path: "/datasets/hmis/dhis2-runs",
+    method: "POST",
+    body: z.object({
+      credentials: dhis2CredentialsSchema,
+      selection: dhis2RunSelectionSchema,
+    }),
+    response: {} as { runId: number },
+  }),
+  getDatasetHmisImportRuns: route({
+    path: "/datasets/hmis/dhis2-runs",
+    method: "GET",
+    response: {} as DatasetHmisImportRunSummary[],
+  }),
+  cancelDatasetHmisDhis2Run: route({
+    path: "/datasets/hmis/dhis2-runs/cancel",
+    method: "POST",
+    body: z.object({ runId: z.number().int() }),
+  }),
+
+  // Upload workflow (CSV — DHIS2 imports are runs, above)
   createDatasetUploadAttempt: route({
     path: "/datasets/hmis/uploads",
     method: "POST",
@@ -104,7 +137,7 @@ export const datasetRouteRegistry = {
   setDatasetUploadSourceType: route({
     path: "/dataset-uploads/hmis/source-type",
     method: "POST",
-    body: z.object({ sourceType: z.enum(["csv", "dhis2"]) }),
+    body: z.object({ sourceType: z.enum(["csv"]) }),
   }),
   getDatasetUpload: route({
     path: "/dataset-uploads/hmis",
@@ -133,30 +166,10 @@ export const datasetRouteRegistry = {
   updateDatasetStaging: route({
     path: "/dataset-uploads/hmis/staging",
     method: "POST",
-    body: z.object({
-      failFastMode: z.enum(["fail-fast", "continue-on-error"]).optional(),
-    }),
   }),
   finalizeDatasetIntegration: route({
     path: "/dataset-uploads/hmis/integrate",
     method: "POST",
-  }),
-
-  // DHIS2-specific endpoints
-  dhis2ConfirmCredentials: route({
-    path: "/dataset-uploads/hmis/dhis2-confirm",
-    method: "POST",
-    body: dhis2CredentialsSchema,
-  }),
-  dhis2SetSelection: route({
-    path: "/dataset-uploads/hmis/dhis2-selection",
-    method: "POST",
-    body: dhis2SelectionParamsSchema,
-  }),
-  getDhis2ScopedDeletionPreview: route({
-    path: "/dataset-uploads/hmis/dhis2-deletion-preview",
-    method: "GET",
-    response: {} as Dhis2ScopedDeletionPreviewItem[],
   }),
 
   // HFA Dataset Endpoints

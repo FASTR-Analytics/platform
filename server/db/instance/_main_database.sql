@@ -338,15 +338,44 @@ CREATE TABLE dataset_hmis_import_ledger (
   PRIMARY KEY (indicator_raw_id, period_id)
 );
 
+-- DHIS2 import runs: one row per run of the per-pair fetch+integrate worker
+-- (see server/db/instance/dataset_hmis_import_runs.ts). Per-pair outcomes live
+-- in dataset_hmis_import_ledger; run_stats holds per-run instrumentation.
+CREATE TABLE dataset_hmis_import_runs (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  trigger text NOT NULL CHECK (trigger IN ('manual', 'schedule')),
+  triggered_by text,
+  dhis2_url text NOT NULL,
+  selection text NOT NULL,
+  status text NOT NULL CHECK (status IN ('running', 'complete', 'error', 'cancelled')),
+  error text,
+  total_pairs integer NOT NULL DEFAULT 0,
+  succeeded_pairs integer NOT NULL DEFAULT 0,
+  failed_pairs integer NOT NULL DEFAULT 0,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz,
+  version_id integer REFERENCES dataset_hmis_versions(id),
+  shadow_passed boolean,
+  progress text,
+  run_stats text
+);
+
+-- At most one run can be in flight: the INSERT of a 'running' row is the
+-- atomic concurrency claim for launching a run.
+CREATE UNIQUE INDEX idx_dataset_hmis_import_runs_single_running
+  ON dataset_hmis_import_runs ((true)) WHERE status = 'running';
+
+-- The CSV import wizard's step-config + status state (single row). DHIS2
+-- imports do not use this table — they are runs (dataset_hmis_import_runs).
 CREATE TABLE dataset_hmis_upload_attempts (
   id text PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
   date_started text NOT NULL,
   step integer NOT NULL,
   status text NOT NULL,
   status_type text NOT NULL,  -- Simple status: configuring, staging, staged, integrating, error
-  source_type text,  -- csv or dhis2 (nullable until step 0 is completed)
-  step_1_result text,  -- CSV upload OR DHIS2 confirmation
-  step_2_result text,  -- Mappings OR DHIS2 selection
+  source_type text,  -- csv (nullable until step 0 is completed)
+  step_1_result text,  -- CSV upload details
+  step_2_result text,  -- Column mappings
   step_3_result text   -- Staging result
 );
 

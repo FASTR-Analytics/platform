@@ -1,8 +1,11 @@
 # Plan — DHIS2 importer: speed, import ledger, auto-pull
 
-**Status (2026-07-14): Phases 0–2 complete; Phases 3–4 not started.
-Next action = Phase 3 (§5.3 — the fetch dispatcher §4.4 + per-pair
-units C1/C2 §7).**
+**Status (2026-07-14): Phases 0–3 on main. Phase 3's cutover gate 1
+(§4.4, lab E11) attempted but NOT yet satisfied — see below; this gates
+*deploying* Phase 3 to Nigeria and *enabling* Phase 4's C4 scheduler for
+any instance, not the commit itself. Phase 4 (auto-pull) not started.
+Next action = Phase 4 (§5.4 — C3 encrypted credentials + C4 scheduler
+with a per-instance SETTABLE off-peak schedule, §7).**
 
 - Phase 0 = the fetch lab; all verdicts in §2.
 - Phase 1 shipped `da4f6a7d` — worker quick wins + per-pair
@@ -25,15 +28,56 @@ units C1/C2 §7).**
   by design (per-run instrumentation retention in version rows →
   C2's runs table, see §4.1). All fixes re-verified empirically
   (rolled-back-transaction harness) + typecheck green.
+- Phase 3 built 2026-07-14 — the fetch dispatcher (§4.4) + per-pair
+  units C1/C2 (§7) + Phase 3 UI (§6.1); as-built notes in §1 (rewritten
+  to the new anatomy), §4.4, §6.1, §7. Verified empirically the same
+  day: DB layer 14/14 checks (migration 057, single-running claim,
+  startup sweep, summary round-trip, enumeration/chunking/date helpers),
+  per-pair integration SQL 7/7 (rolled-back transaction — scoped delete
+  respects the snapshot, ledger recompute includes out-of-scope
+  survivors), a REAL run end-to-end against Nigeria's DHIS2 on the
+  dev DB 13/13 (launch claim, worker lifecycle, metadata
+  classification, rule-4 permanent ledger errors, zero-success ⇒ no
+  version minted, scope-table cleanup), and a full server boot with
+  all 249 registry routes validated live. **Not yet adversarially
+  reviewed** (unlike Phases 1–2, which got a formal review pass) —
+  outstanding before Nigeria deployment.
+- **Cutover gate 1 attempted 2026-07-14, NOT satisfied** (§4.4, §2.7):
+  lab E11 (full per-element DVS-vs-analytics parity) was run against
+  Nigeria during their business hours and could not complete — 19 base
+  elements' dataValueSets pulls succeeded cleanly (0 hard mismatches
+  seen), but every analytics-side comparison call failed with repeated
+  429/5xx under load. A follow-up single-request probe (no retries)
+  confirmed this is genuine server-side unavailability, not a code bug:
+  dataValueSets succeeded in 30.6 s, analytics failed outright with a
+  literal `504 Gateway Timeout` from Nigeria's own nginx after 60 s.
+  Full evidence in §2.7. **Gate 1 must be re-run to completion
+  (`./run e11`) during Nigeria's off-peak window before Phase 3 is
+  deployed to Nigeria.** Gate 2 (first-run shadow verification per
+  instance) ships in the worker and needs no separate action.
 
 Outstanding non-code items:
 
-- §2.6 daytime lab runs (needs WAT business hours; zero app code).
+- **Re-run gate 1 off-peak**: `./run e11` during Nigeria's off-peak
+  window (their night; see §2.5/§2.7). Exits nonzero on FAIL. Required
+  before *deploying* Phase 3 to Nigeria or enabling Phase 4's C4
+  scheduler for any instance.
+- §2.6 daytime lab runs: E11's 2026-07-14 attempt (~08:20–09:40 WAT)
+  doubles as daytime evidence, and the single-request follow-up probe
+  (§2.7) is itself a useful daytime data point even though the full
+  gate didn't complete; the E1/E8 daytime samplers remain unrun (cheap,
+  optional, lower priority than the gate re-run).
+- Phase 3 adversarial review (has not happened yet — Phases 1–2 got
+  one, Phase 3 has not).
 - Nigeria comms: Tim pastes the A2 attribution paragraph (delivered to
   Tim 2026-07-14; §4.2) and the 6-stale-id remap ask (§2.2).
-- Deploy: Phases 1–2 take effect only after a server restart/deploy
-  (migration 056 runs at startup; the dev DB already has it from the
-  verify harness — idempotent no-op).
+- Deploy: Phases 1–3 take effect only after a server restart/deploy
+  (migrations 056–057 run at startup; the dev DB already has both from
+  the verify harnesses — idempotent no-ops). One-time operational note:
+  any attempt mid-DHIS2-wizard at deploy time is orphaned (the wizard
+  is CSV-only now) — delete the attempt and re-import via the new
+  DHIS2 import; a leftover *staged* DHIS2 attempt is refused loudly by
+  the integrate worker.
 
 Tim has ruled the Phase 3 architecture: the **fetch dispatcher** (§4.4)
 — dataValueSets-primary, analytics only for computed indicators.
@@ -42,13 +86,20 @@ most robust option, even at the cost of more work.** Rulings made under
 that directive are marked *(robustness ruling)*.
 
 A fresh agent continuing this work: read §1 for the as-built system,
-§2 for the evidence base, §3 for the ruled architecture, then execute
-the next unfinished phase in §5 (specs: §4.4 for the dispatcher, §7 for
-per-pair units/auto-pull, §6.1 for the per-phase UI surfaces).
+§2 for the evidence base (§2.7 for gate 1's current state), §3 for the
+ruled architecture, then build Phase 4 per §5.4 (specs: §7 C3/C4 for
+auto-pull, §6.1 for the Phase 4 UI surfaces). Phase 3's code (§1, §4.4)
+is already built and on `main` — build Phase 4 on top of it; don't
+re-derive it. Gate 1 (§4.4, §2.7) is a separate, parallel action item
+(re-run `./run e11` off-peak) — it blocks *deploying* Phase 3 to
+Nigeria and *enabling* Phase 4's C4 scheduler for any instance, but
+does not block writing C3/C4's code or the Phase 4 UI.
 Everything needed is in this file or linked from it. This plan is the
 status tracker — when a phase completes, update the Status block above
-(commit to main). Delete the plan when Phase 4 lands; if work stalls,
-fold remainders into SYSTEM_06/07 Open items.
+(commit to main). Delete the plan once Phase 4 lands **and** gate 1 is
+green (don't delete it while either is still open — a fresh reader needs
+the caveat); if work stalls, fold remainders into SYSTEM_06/07 Open
+items.
 
 Three goals, one system (S6's HMIS-DHIS2 path + S7 connector):
 
@@ -71,39 +122,61 @@ promises to redeem: a per-indicator "last updated on X" surface and an
 in-app one-indicator-at-a-time checklist replacing Rachel's spreadsheet
 (both = WS-B).
 
-## 1. Anatomy today (as-built after Phases 1–2; verified against `main` 2026-07-14)
+## 1. Anatomy today (as-built after Phase 3; verified against `main` 2026-07-14)
 
-**Fetch** (`server/worker_routines/stage_hmis_data_dhis2/worker.ts`):
-work item = (raw indicator × month). `pooledMap` concurrency from env
-`DHIS2_CONCURRENT_REQUESTS` (default 5); within a work item the facility
-batches run sequentially — batch size from env
-`DHIS2_FACILITY_BATCH_SIZE` (default **400**, measured-safe §2.3) → 124
-batches for Nigeria's 49,473 UID-shaped facilities — each batch a
-separate `getAnalyticsFromDHIS2` call (`dx:1 × pe:1 × ou:N`, `skipMeta`)
-with `maxAttempts: 3`; 4xx (except 429) is never retried (connector
-`shouldRetry`), so a 409 on a stale dx fails the pair instantly. The URL
-guard measures the **real** URL via `buildUrl` against a 7,000-char
-limit (nginx cliff ~8 KB; a 400-facility batch is ~5,740 chars).
-Progress writes to the single-row attempt table are throttled to ≥2 s
-(the client polls at 2 s), force-written on pair completion. A 200
-response missing `rows` still fails the work item (deliberate; §2.1 —
-Nigeria never omits `rows`). Values are `parseInt`-truncated, negatives
-dropped. Per-pair instrumentation (`pairFetchStats`: requests, retries,
-totalFetchMs, maxRequestMs, rowsFetched, route, errorKind) is persisted
-in the staging result — the production counterpart of lab E1.
-`failedFetches` is the **complete** failure list (uncapped; error
-strings capped at 1,000 chars) and every entry carries
-`errorKind: "permanent" | "transient"` (4xx≠429 vs everything else).
-The staged result JSON (`step_3_result`, copied onto
-`dataset_hmis_versions.staging_result`) carries `periodIndicatorStats`,
-`failedFetches`, `succeededWorkItems`, `fetchedFacilityIds`,
-`pairFetchStats`.
+**DHIS2 imports are runs** (`dataset_hmis_import_runs`, main DB;
+migration 057): launched by `launchDatasetHmisDhis2Run` (validates the
+connection, expands the selection — window or explicit pairs — checks
+indicators exist, refuses while a CSV attempt or another run is active;
+the INSERT of the single allowed `status='running'` row is the atomic
+claim via a partial unique index). Credentials travel only in the worker
+message — never stored (C3 adds encrypted storage). Runs are listed by
+`getDatasetHmisImportRuns` (top 50), cancelled by
+`cancelDatasetHmisDhis2Run` (terminates the worker; completed pairs are
+kept — the point of per-pair units). db_startup sweeps stale `running`
+rows to `error` after a restart.
 
-**Integration** (`server/worker_routines/integrate_hmis_data/worker.ts`):
-scoped delete-then-insert for DHIS2 results carrying the delete scope,
-legacy merge for CSV. The same transaction writes the **import ledger**
-(below) — succeeded pairs recomputed from `dataset_hmis`, failed DHIS2
-pairs upserted as `status='error'`.
+**The run worker**
+(`server/worker_routines/import_hmis_data_dhis2/worker.ts`; pure logic
+in `dispatch.ts`): snapshots the UID-shaped `facilities_hmis` list into
+an UNLOGGED scope table (`hmis_dhis2_run_facility_scope`), classifies
+every selected raw indicator per run from DHIS2 metadata (dispatcher
+§4.4), builds fetch tasks — dataValueSets pulls per base element ×
+≤3-contiguous-month chunk (indicators sharing a base share one pull),
+analytics tasks per pair for computed indicators — and runs them under
+`pooledMap` (`DHIS2_CONCURRENT_REQUESTS`, default 5). Each pair then
+integrates in its own small transaction: scoped DELETE (join the scope
+table) → UNNEST INSERT → ledger upsert → run counters. The version row
+is minted lazily at the first successful pair (NOT NULL FK; no empty
+versions) and finalized at run end with a slim
+`DatasetDhis2StagingResult` (periodIndicatorStats read back from the
+ledger; no succeededWorkItems/fetchedFacilityIds/pairFetchStats — §4.1's
+strip). Per-pair instrumentation (`pairFetchStats`, route `"dvs" |
+"analytics"`), the classification summary, and shadow results live in
+`run_stats` on the run row. Progress (`phase` + ≤20 active pairs) is
+throttled to ≥2 s and status-guarded so a cancelled run is never
+resurrected. Analytics leg unchanged from Phase 1: batch 400 (env
+tunable), real-URL 7,000-char guard, `maxAttempts: 3`, 4xx≠429 never
+retried, missing-`rows` = failed fetch, `parseInt` + negatives dropped.
+DVS leg: 100 MB streamed cap, 300 s timeout, size/timeout trigger
+window-halving then level-2 subtree split (never retried at the same
+shape), values summed per facility across COC×AOC (operands filtered to
+their COC), SUM truncated, negative totals dropped, `deleted: true`
+skipped, any non-monthly period id re-routes the element to analytics.
+Unknown ids fail all their pairs as `[permanent] Not found in DHIS2`
+without any fetch. First run per instance shadow-verifies ~5% of DVS
+pairs (≤40; ≤400 sampled facilities per pair, both directions,
+zero-vs-absent soft) against analytics BEFORE integrating; a hard
+mismatch fails the pair loudly with both numbers; `shadow_passed=true`
+(all sampled pairs verified, zero hard mismatches) skips shadow on
+later runs.
+
+**CSV imports** keep the attempt wizard (now CSV-only: the client sets
+`source_type='csv'` at creation; the DHIS2 steps/routes are deleted) and
+the merge-only integrate worker, which refuses leftover DHIS2-staged
+results loudly. CSV staging/integration and windowed deletes refuse
+while a run is active, and vice versa. The same transaction writes the
+**import ledger** (below).
 
 **Import ledger** (`dataset_hmis_import_ledger`, main DB — the G2
 deliverable, Phase 2): one row per (raw indicator, month) — `n_records`,
@@ -136,15 +209,18 @@ sum, source, imported_at, classified error). Components:
 main viz grid is a panther figure, not a custom table, so cell metadata
 was not injected there.
 
-**State machine**: unchanged — one single-row attempt per family; the
-wizard owns it; only one import can exist at a time; progress is the
-(now throttled) status JSON. Phase 3's C2 replaces this for DHIS2 runs.
+**State machine**: the single-row attempt table remains only for the
+CSV wizard (C2 delivered); DHIS2 progress is the run row + ledger. Only
+one HMIS import operation (run OR CSV phase) can exist at a time.
 
-**Connector** (S7, `server/dhis2/`): unchanged — one base fetcher
+**Connector** (S7, `server/dhis2/`): one base fetcher
 (`fetchFromDHIS2`/`getDHIS2`) owning auth/timeout(120 s spanning body
 read)/retry (`withRetry`, classifies by message substring; never
 retries 4xx except 429); analytics via
-`goal3_analytics/getAnalyticsFromDHIS2`. See SYSTEM_07_dhis2.md.
+`goal3_analytics/getAnalyticsFromDHIS2`; Phase 3 added
+`goal5_data_value_sets/` (`getDataValueSetsFromDHIS2` with streamed
+byte cap, `getExistingMetadataIds` chunked id:in existence checks,
+`getOrgUnitIdsAtLevel`). See SYSTEM_07_dhis2.md.
 
 ## 2. Phase 0 verdicts (the evidence base — lab, real Nigeria DHIS2)
 
@@ -248,15 +324,62 @@ weekend load where the slow tail is fatter.**
 ### 2.5 Operational facts (E8)
 
 Analytics tables rebuild nightly **00:17–01:00 WAT** (43 min runtime).
-Weekend auto-pull should start after ~01:15 WAT. `./run e8` appends to a
-freshness log — keep sampling other hours/days to confirm the schedule.
+For Nigeria specifically, a pull starting after ~01:15 WAT (post-rebuild)
+is a good default — this is the value the Phase 4 UI should suggest as
+Nigeria's default schedule (§7 C4), not a value baked into the scheduler
+itself; other instances will have their own windows. `./run e8` appends
+to a freshness log — keep sampling other hours/days to confirm the
+schedule. §2.7 (2026-07-14 daytime) is now direct evidence for *why*
+this needs to be a real per-instance setting, not an assumption.
 
 ### 2.6 Phase 0 loose ends (cheap, fold into Phase 1/3 work)
 
 - Re-run `./run e1` and `./run e8` during WAT business hours (the
   daytime tail is the missing distribution; ~40 read-only requests).
-- The full per-element parity gate (§4.4 gate) before Phase 3 cutover.
+- The full per-element parity gate (§4.4 gate) before Phase 3 cutover
+  — attempted 2026-07-14, not yet satisfied; see §2.7.
 - `wGPpop3rz7i` anomaly + stale-id list → Nigeria comms/advocacy note.
+
+### 2.7 Gate 1 attempt, 2026-07-14 daytime — inconclusive (informs Phase 4's scheduler)
+
+Ran `./run e11` (the full per-element DVS-vs-analytics parity gate,
+§4.4) against Nigeria starting ~08:20 WAT — daytime, not off-peak. It
+did not reach a verdict:
+
+- **19 of ~76 dataValueSets base elements processed cleanly** — each
+  pull succeeded fast (6k–122k values per element, no errors), and
+  every value seen was consistent (0 hard mismatches recorded).
+- **Every analytics-side comparison call failed.** The log shows
+  repeated `server-stress failure #1…#6, backing off up to 60000ms`
+  for the `parity_analytics` requests specifically — 429/5xx/timeout,
+  the harness's own guardrail backoff. "Verified so far" stayed at 0
+  through all 19 bases; the run was killed (not a code hang — see
+  below) before reaching a natural finish or fail.
+- **Follow-up single-request probe** (one dataValueSets call, one
+  analytics call, same element/month, no retries, run standalone
+  outside the full gate): dataValueSets succeeded in 30.6 s (6,244
+  values); analytics **failed outright with a literal
+  `504 Gateway Timeout` from Nigeria's own nginx after 60 s** — not a
+  connector timeout, not a retry exhaustion message, an actual HTTP 504
+  returned by their reverse proxy. A second probe attempt (single
+  lightweight metadata `id:in` classification call, no analytics
+  involved) also failed to return within 90 s.
+- **Reading**: this is consistent with §2.1/§2.4's existing evidence
+  (*"mid-lab the analytics engine went 100%-504 for ou:400 shapes while
+  concurrent dataValueSets pulls held 1–2s TTFB — different server
+  path, independent health"*), but stronger — today even a lightweight
+  metadata endpoint was slow to answer, suggesting the whole instance,
+  not just `/api/analytics`, was under real production load at that
+  time of day. This is external evidence, not a defect in the
+  dispatcher or the gate's design: dataValueSets remained healthy
+  throughout: this is exactly the failure mode Phase 3 exists to route
+  around, and it directly informs Phase 4 — **any unattended DHIS2
+  fetch (gate re-runs, and especially the auto-pull scheduler) needs a
+  real, operator-controlled off-peak window, not an assumption baked
+  into app code.** See §7 C4.
+- **Action**: re-run `./run e11` to completion during Nigeria's actual
+  off-peak window (their night — see §2.5) before committing Phase 3.
+  No app-code changes are implicated by this finding.
 
 ## 3. Architecture ruling (Tim, 2026-07-14): the fetch dispatcher
 
@@ -289,10 +412,10 @@ are capped at 1,000 chars at the source. Known cost (accepted, review
 `dataset_hmis_versions.staging_result` copy (~300 KB per clean Nigeria
 run) and the versions-list route ships full staging results to the
 client — same order as the pre-existing
-`succeededWorkItems`/`periodIndicatorStats` payload. C2's runs table
-(Phase 3) is the designed durable home for per-run instrumentation;
-when C2 lands, strip `pairFetchStats` from the version copy like
-`fetchedFacilityIds` is stripped today.
+`succeededWorkItems`/`periodIndicatorStats` payload. *Resolved in
+Phase 3*: `pairFetchStats` now lives in `dataset_hmis_import_runs.
+run_stats`; run-minted version rows carry only the slim staging result
+(no pairFetchStats/succeededWorkItems/fetchedFacilityIds).
 
 ### 4.2 A2 — the regression answer (DELIVERED 2026-07-14)
 
@@ -332,7 +455,7 @@ refused to retry 4xx≠429, so "409 permanent" was largely pre-existing —
 the commit adds the explicit permanent/transient classification
 (`classifyFetchError`) that the ledger stores.
 
-### 4.4 A4 — the fetch dispatcher (Phase 3 core)
+### 4.4 A4 — the fetch dispatcher (SHIPPED, Phase 3)
 
 At the start of a run, classify every selected raw indicator with two
 batched metadata requests (as lab E10 does):
@@ -407,14 +530,31 @@ is not; don't build it speculatively.
    Remove the shadow mode once the fleet has run clean (one-time
    operational step, not a permanent shim).
 
-### 4.5 A5 — failure handling (Phase 1+2 part SHIPPED; dispatcher rule 4 remains)
+*As built* (deviations, robustness-driven): classification also checks
+operand COCs exist (`categoryOptionCombos` id:in) — a missing COC would
+otherwise silently reduce to zero rows; non-UID-shaped ids classify
+`unknown` without a metadata call; size/timeout DVS errors are never
+retried at the same shape (`shouldRetry` excludes them; the split IS
+the retry); rule-4 pairs get no `pairFetchStats` entry (fetch
+instrumentation covers pairs that reached a fetch route). Shadow: ≤40
+sampled pairs, per pair one analytics call over ≤400 facilities (≤300
+with DVS data + ≤100 without, both coverage directions);
+zero-vs-absent is recorded as soft, not a failure (endpoint ambiguity);
+`shadow_passed=true` requires every sampled pair verified (no
+analytics-unavailable) and zero hard mismatches. The lab pre-flight is
+E11 (`e11_full_parity_gate.ts`), which imports the app's real
+`dispatch.ts` classification/date helpers.
 
-409/404 → permanent per-pair error, ledger-visible, no retry (shipped:
-retry cap + permanent/transient classification in Phase 1, ledger
-visibility in Phase 2; the dispatcher's rule 4 completes it). 5xx/timeout → transient: fail the pair after the capped
-retries; re-runs happen at pair granularity via WS-B/WS-C, ideally
-scheduled off-peak (§2.5). Plus the Nigeria comms item: remap/remove the
-6 stale ids instance-side.
+### 4.5 A5 — failure handling (SHIPPED through Phase 3)
+
+409/404 → permanent per-pair error, ledger-visible, no retry (retry
+cap plus permanent/transient classification in Phase 1, ledger
+visibility in Phase 2, dispatcher rule 4 in Phase 3). 5xx/timeout →
+transient: fail
+the pair after the capped retries; re-runs happen at pair granularity
+via the checklist actions (§6.1), ideally scheduled off-peak (§2.5).
+Remaining: the Nigeria comms item — remap/remove the 6 stale ids
+instance-side (rule 4 now surfaces them loudly per run).
 
 ## 5. Sequencing (each phase ships alone; update Status on completion)
 
@@ -427,14 +567,21 @@ scheduled off-peak (§2.5). Plus the Nigeria comms item: remap/remove the
 2. **Phase 2 — DONE (`d191fb3f`)** — ledger (WS-B, §6): table plus
    writers, backfill, viewer switch, and the read-only checklist /
    "last imported" UI.
-3. **Phase 3 — NEXT** — dispatcher + per-pair units (§4.4 + C1 + C2,
-   §7): restructure to per-pair fetch+integrate, runs table, dispatcher
-   as the fetch step, cutover gates green (lab pre-flight parity gate
-   BEFORE shipping, then first-run shadow verification per instance).
-   Also ships the §6.1 Phase 3 UI (checklist actions + run view).
-4. **Phase 4 — auto-pull** (C3 + C4, §7): stored credentials
-   (encrypted), weekly scheduler, off-peak window, failure surfacing.
-   Plus the §6.1 Phase 4 UI (subscription config + failure banner).
+3. **Phase 3 — CODE DONE, on main; gate 1 pending** (built +
+   locally verified 2026-07-14) — dispatcher + per-pair units
+   (§4.4 + C1 + C2, §7): per-pair fetch+integrate run worker, runs
+   table (migration 057), dispatcher as the fetch step, §6.1 Phase 3 UI
+   (run launcher/view/history + checklist actions). Gate 1 = lab E11,
+   attempted 2026-07-14 daytime, NOT satisfied — see §2.7; re-run
+   off-peak before committing. Gate 2 = in-app first-run shadow
+   verification, ships in the worker (no separate action needed).
+4. **Phase 4 — NEXT — auto-pull** (C3 + C4, §7): stored credentials
+   (encrypted), weekly scheduler with a **per-instance settable
+   schedule window** (day/time/timezone — not hardcoded; §7 C4, ruled
+   2026-07-14 off the §2.7 finding), failure surfacing. Plus the §6.1
+   Phase 4 UI (subscription config incl. the schedule fields + failure
+   banner). C4's scheduler must stay disabled per-instance until that
+   instance's gate 1 has passed.
 
 ## 6. WS-B — the import ledger (G2) — SHIPPED (Phase 2, `d191fb3f`)
 
@@ -558,7 +705,7 @@ import tracking began" — never-imported failing pairs show "Never
 imported" (review fix `49d36776`). Components: `_import_ledger.tsx` /
 `_import_ledger_indicator.tsx`; strings inline `t3` en/fr/pt.
 
-**Phase 3 (actions + runs, ships with dispatcher/C1/C2):**
+**Phase 3 (actions + runs) — SHIPPED:**
 
 - **Checklist actions**: "re-import this indicator" and "retry failed
   pairs" buttons enqueue per-pair units — the checklist is WS-C's unit
@@ -569,10 +716,25 @@ imported" (review fix `49d36776`). Components: `_import_ledger.tsx` /
   history list (who/what/when, pair counts, per-run outcome) from
   `dataset_hmis_import_runs`.
 
+*As built*: new client home
+`instance_dataset_hmis/dhis2_run/` (`index` = editor with 2 s poll
+while running, `_launcher` = credentials + indicator/period pickers or
+a preset-pairs summary, `_run_view` = progress bar/phase/active
+pairs/cancel, `_run_history` = table). The HMIS sidebar gets "Import
+from DHIS2" plus a live progress card; "Upload CSV file" keeps the
+attempt wizard (now CSV-only — Step0/DHIS2 steps deleted, source set at
+creation). Checklist: header "Retry failed pairs (N)" launches a
+pairs-preset run over every `status='error'` pair; the per-indicator
+detail header gets "Re-import this indicator" (all window months).
+Both open the same launcher — credentials prompted per run until C3;
+URL prefilled from the last run. All new strings inline t3 en/fr/pt.
+
 **Phase 4 (auto-pull visibility):**
 
 - Subscription config UI (per-instance: on/off, indicator list, rolling
-  window, schedule) and an in-app banner + checklist/run-history
+  window, and the **settable schedule** — day of week, start time, IANA
+  timezone; see §7 C4 for the stored shape and the Nigeria-specific
+  default-value hint) and an in-app banner + checklist/run-history
   surfacing when a scheduled pull fails or partially fails.
 
 All new strings translated (en/fr/pt) per DOC_TRANSLATION.md.
@@ -588,24 +750,29 @@ block other pairs; re-runs retry only `status='error'` or stale pairs.
 The wizard remains for ad-hoc/backfill work as an enqueuer over the same
 units.
 
-- **C1 — the per-pair import unit.** Restructure the DHIS2 path from
-  monolithic stage-all-then-integrate-all to fetch+integrate per pair
-  (scoped-delete semantics are already pair-scoped; the DHIS2 staging
-  becomes per-pair in-memory or a tiny transient table). Note the
-  dispatcher's DVS route naturally fetches one *element × window* that
-  covers many pairs — the unit boundary is (pair) for integration and
-  ledger writes even when one fetch feeds several units. A 48-hour run
+- **C1 — the per-pair import unit (SHIPPED, Phase 3).** Restructure the
+  DHIS2 path from monolithic stage-all-then-integrate-all to
+  fetch+integrate per pair (staging is per-pull in worker memory; the
+  only table is the run-scoped facility snapshot). The dispatcher's DVS
+  route fetches one *element × window* covering many pairs — the unit
+  boundary is (pair) for integration and ledger writes. A 48-hour run
   that dies at hour 40 keeps 40 hours of work, visible in the ledger.
-  **Version-record grain** *(ruled)*: one `dataset_hmis_versions` row per
-  run, minted at run **end**, skipped entirely if zero pairs succeeded
-  (no empty versions; in-progress visibility belongs to C2's runs table).
-- **C2 — an import-runs table** replacing the single-row status blob for
-  DHIS2 runs: `dataset_hmis_import_runs` (id, trigger user|schedule,
-  selection, started/ended, pair counts) + the ledger as per-pair
-  progress. The wizard's progress view reads run + ledger; the hot
-  single-row JSON rewrite dies (finishing what A3's throttle started).
-  The single-row attempt table remains only for the CSV wizard's
-  step-config state.
+  **Version-record grain** *(ruled; as-built deviation)*: one
+  `dataset_hmis_versions` row per run, minted **lazily at the first
+  successful pair** — not at run end, because `dataset_hmis.version_id`
+  is a NOT NULL FK and rows insert mid-run. The ruling's substance
+  holds: zero successful pairs ⇒ no version row (verified live);
+  counts/staging_result finalized at run end.
+- **C2 — an import-runs table (SHIPPED, Phase 3)**:
+  `dataset_hmis_import_runs` (trigger user|schedule, selection JSON,
+  status, pair counters, started/ended, version_id, shadow_passed,
+  throttled progress JSON, run_stats instrumentation blob) + the ledger
+  as per-pair progress. Partial unique index = at most one running row
+  (the launch claim). The run view reads run + ledger; the hot
+  single-row JSON rewrite is gone. The single-row attempt table remains
+  only for the CSV wizard's step-config state. Also shipped: run
+  cancel (worker terminated, completed pairs kept) and a db_startup
+  sweep for runs wedged by a restart.
 - **C3 — instance-level stored DHIS2 credentials, encrypted at rest**
   *(ruled: plaintext is not acceptable)*: encrypt with a key from
   instance env (e.g. AES-GCM via WebCrypto; key never in the DB), decrypt
@@ -615,12 +782,34 @@ units.
   primitive during C3 build).
 - **C4 — the scheduler.** `main.ts` already runs daily `setInterval`
   jobs; add a weekly instance-config-gated trigger that enqueues a run
-  from the subscription, with a lock against concurrent manual runs,
-  jittered start inside the off-peak window (after ~01:15 WAT for
-  Nigeria — post-rebuild, §2.5; window per instance TZ), and failure
-  surfacing. **Auto-pull default OFF per instance** *(ruled)*;
-  notification = in-app banner + run/ledger visibility first, email
-  later if wanted *(ruled: no new external dependency for v1)*.
+  from the subscription, with a lock against concurrent manual runs
+  and failure surfacing.
+  **The schedule window is a per-instance SETTABLE config, not a
+  hardcoded time** *(ruled 2026-07-14, driven by §2.7: Nigeria's
+  daytime load made an unattended gate run fail outright with a 504 —
+  the same risk applies to any unattended auto-pull, and different
+  DHIS2 instances will have different low-traffic windows)*. Shape:
+  `{ enabled: boolean, dayOfWeek: number (0-6), startTime: "HH:MM",
+  timezone: string (IANA, e.g. "Africa/Lagos") }`, stored per instance
+  (mirrors the existing `instance_config` config_key/config_json_value
+  pattern — see `db_startup.ts`'s default-config inserts for the
+  convention). The daily scheduler tick computes "is it currently
+  within this instance's configured window" against that stored
+  timezone/day/time — not against an app-wide constant. §2.5's Nigeria
+  finding (~01:15 WAT, post analytics-rebuild) becomes the **UI's
+  suggested default value** for Nigeria specifically (surfaced as
+  placeholder/hint text in the Phase 4 subscription config UI, §6.1),
+  not logic baked into the scheduler. Still jitter the actual start a
+  few minutes inside the window to avoid a thundering-herd instant if
+  several instances share a schedule.
+  **Auto-pull default OFF per instance** *(ruled)*; notification =
+  in-app banner + run/ledger visibility first, email later if wanted
+  *(ruled: no new external dependency for v1)*.
+  **Dependency**: do not enable C4 for any instance until that
+  instance's gate 1 (§4.4) has passed — an unattended scheduled run
+  inherits every risk a manual run does, and §2.7 is direct evidence
+  that timing matters even for the gate itself, let alone unattended
+  production pulls.
 - **C5 — downstream freshness** (note only, out of scope): a scheduled
   pull bumps the dataset version; results-runs staleness surfaces it.
   Whether anything re-generates automatically is a separate ruling.
@@ -630,12 +819,20 @@ units.
 `~/projects/apps/wb-fastr-dhis2-lab` — sibling repo so national-DHIS2
 credentials and experiment churn never enter this repo. It imports the
 app's **real** connector via absolute paths and runs under this repo's
-`deno.json` (`./run e1 … e10`, see its README). Guardrails: read-only
+`deno.json` (`./run e1 … e11`, see its README, which documents e11).
+Guardrails: read-only
 GETs, ≤5 concurrent default, backoff on 429/5xx, hard stop after 20
 consecutive server-stress failures, every run logs request count; DHIS2
 caches analytics responses, so never time a repeated identical request.
 Inputs are prod-DB-first (README documents the pull commands per
-DOC_ACCESS_DBS.md). Known future lab work: §2.6 daytime runs; the full
-per-element parity gate (§4.4); DVS backfill window sizing if Phase 3
-wants data (~10 MB per dense element-month; 72-month history ≈ 10–20 GB
-transfer, chunked by the adaptive window).
+DOC_ACCESS_DBS.md). `./run e11` is the full per-element parity gate
+(§4.4 gate 1) — it imports the app's real dispatcher code and exits
+nonzero on FAIL. **Run it off-peak** (§2.5/§2.7): a 2026-07-14 daytime
+attempt could not complete — dataValueSets stayed healthy but analytics
+returned a live `504 Gateway Timeout` even on a single retry-free
+request, so the gate's own reference values weren't obtainable, not a
+gate-design or app-code problem. Known future lab work: the E1/E8
+daytime samplers (§2.6, optional, lower priority than re-running e11);
+DVS backfill window sizing if anyone wants deep history (~10 MB per
+dense element-month; 72-month history ≈ 10–20 GB transfer, chunked by
+the adaptive window).

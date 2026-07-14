@@ -4,14 +4,12 @@ import {
   createBulkImportConnection,
   createWorkerReadConnection,
   getCurrentDatasetHmisMaxVersionId,
-  upsertHmisLedgerErrorPairs,
   upsertHmisLedgerPairsFromData,
 } from "../../db/mod.ts";
 import {
   parseJsonOrThrow,
   type DatasetUploadAttemptStatus,
   type DatasetStagingResult,
-  type DatasetDhis2StagingResult,
 } from "lib";
 import { UPLOADED_HMIS_DATA_STAGING_TABLE_NAME } from "../../exposed_env_vars.ts";
 
@@ -52,10 +50,19 @@ async function run(std: { rawDUA: DBDatasetHmisUploadAttempt }) {
     // PHASE 1: Load Staging Results
     // ==================================================
 
-    // Parse staging result - could be CSV or DHIS2 format
     const stagingResultRaw = parseJsonOrThrow<DatasetStagingResult>(
       rawDUA.step_3_result
     );
+
+    // DHIS2 imports are runs (per-pair fetch+integrate in the run worker) —
+    // this worker integrates CSV attempts only. A DHIS2-staged attempt can
+    // only be a leftover from before the Phase 3 deploy.
+    if (stagingResultRaw.sourceType === "dhis2") {
+      throw new Error(
+        "This staged DHIS2 attempt predates the per-pair import runs. " +
+          "Delete this upload attempt and re-import via the DHIS2 import."
+      );
+    }
 
     const datasetTableName = "dataset_hmis";
 
@@ -177,227 +184,103 @@ async function run(std: { rawDUA: DBDatasetHmisUploadAttempt }) {
       // Update progress: 40% - Version record created
       await updateIntegrationProgress(mainDb, 40);
 
-      // Track row counts separately
-      let rowsUpdated = 0;
-      let rowsInserted = 0;
-      let rowsDeleted = 0;
-
-      // Single source of truth for the Phase 4 / Phase 5 branch decision: a
-      // DHIS2 attempt staged by post-fix code carries the delete scope; when
-      // absent (old staged attempt across a deploy) or CSV, fall back to the
-      // legacy merge — degrades safely, no deletes.
-      const scopedDelete =
-        stagingResultRaw.sourceType === "dhis2" &&
-        Array.isArray(stagingResultRaw.succeededWorkItems) &&
-        Array.isArray(stagingResultRaw.fetchedFacilityIds)
-          ? {
-              stagingResult: stagingResultRaw,
-              succeededWorkItems: stagingResultRaw.succeededWorkItems,
-              fetchedFacilityIds: stagingResultRaw.fetchedFacilityIds,
-            }
-          : null;
-
       // ==================================================
-      // PHASE 4: Integration into Main Dataset Table
+      // PHASE 4: Integration into Main Dataset Table (CSV merge —
+      // "absent = keep prior value" semantics are intended and must not change)
       // ==================================================
 
-      if (scopedDelete) {
-        // DHIS2 branch: scoped delete-then-insert. DHIS2 analytics omits
-        // zeroed/deleted/never-reported cells, so a merge can never remove
-        // them — DHIS2 is authoritative over every (indicator, period) pair
-        // that fetched successfully, for exactly the facilities queried.
-        const succeeded = scopedDelete.succeededWorkItems;
-        const fetchedFacilityIds = scopedDelete.fetchedFacilityIds;
+      // First, update existing rows (much faster than ON CONFLICT)
+      const updateResult = await sql`
+        UPDATE ${sql(datasetTableName)} dt
+        SET
+          count = agg.count,
+          version_id = ${newVersionId}::INTEGER
+        FROM ${sql(aggregatedTableName)} agg
+        WHERE
+          dt.facility_id = agg.facility_id
+          AND dt.indicator_raw_id = agg.indicator_raw_id
+          AND dt.period_id = agg.period_id
+      `;
 
-        // Two parallel arrays, same order, for a set-based UNNEST join. Always
-        // equal-length by construction — both built from one .map() over `succeeded`.
-        const scopeIndicatorIds = succeeded.map((w) => w.indicatorRawId);
-        const scopePeriodIds = succeeded.map((w) => w.periodId);
+      const rowsUpdated = updateResult.count;
+      console.log(
+        `Updated ${rowsUpdated} existing rows in ${datasetTableName}`
+      );
 
-        // 1) Remove existing rows in the successfully-fetched scope, for exactly
-        //    the facilities that were queried at staging time (a snapshot, not
-        //    re-derived — a facility never queried is never touched, whatever
-        //    its id looks like). Pair-wise (indicator, period) match — NOT a
-        //    cross product — so a pair that failed to fetch is never deleted.
-        const deleteResult = await sql`
-          DELETE FROM ${sql(datasetTableName)} dt
-          USING UNNEST(
-            ${scopeIndicatorIds}::text[],
-            ${scopePeriodIds}::int[]
-          ) AS s(indicator_raw_id, period_id)
-          WHERE dt.indicator_raw_id = s.indicator_raw_id
-            AND dt.period_id = s.period_id
-            AND dt.facility_id = ANY(${fetchedFacilityIds}::text[])
-        `;
-        rowsDeleted = deleteResult.count;
-        console.log(
-          `Deleted ${rowsDeleted} stale rows in ${datasetTableName} (DHIS2 scoped delete)`
-        );
+      // Update progress: 40% - Updates complete
+      await updateIntegrationProgress(mainDb, 40);
 
-        // Update progress: 40% - Delete complete
-        await updateIntegrationProgress(mainDb, 40);
+      // Delete the rows we just updated from the staging table
+      // This leaves only new rows that need to be inserted
+      console.log("Removing updated rows from staging table...");
 
-        // 2) Insert exactly what DHIS2 returned. DISTINCT ON guards against
-        //    DHIS2 returning the same org unit twice across facility batches —
-        //    without it, a duplicate (facility_id, indicator_raw_id, period_id)
-        //    in the source aborts the whole INSERT ("ON CONFLICT DO UPDATE
-        //    command cannot affect row a second time" — Postgres only dedupes
-        //    against the TARGET table, never within the inserted batch). After
-        //    dedup, the delete just cleared this exact scope, so ON CONFLICT
-        //    should never fire in practice; it's a defensive backstop, not the
-        //    primary duplicate-handling mechanism.
-        const insertResult = await sql`
-          INSERT INTO ${sql(datasetTableName)}
-            (facility_id, indicator_raw_id, period_id, count, version_id)
-          SELECT DISTINCT ON (facility_id, indicator_raw_id, period_id)
-            facility_id, indicator_raw_id, period_id, count, ${newVersionId}::INTEGER
-          FROM ${sql(aggregatedTableName)}
-          ORDER BY facility_id, indicator_raw_id, period_id
-          ON CONFLICT (facility_id, indicator_raw_id, period_id)
-          DO UPDATE SET count = EXCLUDED.count, version_id = EXCLUDED.version_id
-        `;
-        rowsInserted = insertResult.count;
-
-        console.log(
-          `Integration complete (DHIS2 scoped delete): ${rowsDeleted} deleted, ${rowsInserted} inserted for version ${newVersionId}`
-        );
-
-        // Update progress: 60% - Delete/insert complete
-        await updateIntegrationProgress(mainDb, 60);
-      } else {
-        // CSV branch (and DHIS2 staged by pre-fix code, missing the new scope
-        // fields): existing merge, unchanged. CSV semantics ("absent = keep
-        // prior value") are intended and must not change.
-
-        // First, update existing rows (much faster than ON CONFLICT)
-        const updateResult = await sql`
-          UPDATE ${sql(datasetTableName)} dt
-          SET
-            count = agg.count,
-            version_id = ${newVersionId}::INTEGER
-          FROM ${sql(aggregatedTableName)} agg
-          WHERE
-            dt.facility_id = agg.facility_id
+      await sql`
+        DELETE FROM ${sql(aggregatedTableName)} agg
+        WHERE EXISTS (
+          SELECT 1
+          FROM ${sql(datasetTableName)} dt
+          WHERE dt.facility_id = agg.facility_id
             AND dt.indicator_raw_id = agg.indicator_raw_id
             AND dt.period_id = agg.period_id
-        `;
+            AND dt.version_id = ${newVersionId}
+        )
+      `;
 
-        rowsUpdated = updateResult.count;
-        console.log(
-          `Updated ${rowsUpdated} existing rows in ${datasetTableName}`
-        );
+      console.log("Staging table now contains only new rows to insert");
 
-        // Update progress: 40% - Updates complete
-        await updateIntegrationProgress(mainDb, 40);
+      // Update progress: 60% - Staging table cleaned
+      await updateIntegrationProgress(mainDb, 60);
 
-        // Delete the rows we just updated from the staging table
-        // This leaves only new rows that need to be inserted
-        console.log("Removing updated rows from staging table...");
+      // Insert all remaining rows from staging (they're all new)
+      const insertResult = await sql`
+        INSERT INTO ${sql(datasetTableName)}
+        (facility_id, indicator_raw_id, period_id, count, version_id)
+        SELECT
+          facility_id,
+          indicator_raw_id,
+          period_id,
+          count,
+          ${newVersionId}::INTEGER as version_id
+        FROM ${sql(aggregatedTableName)}
+      `;
 
-        await sql`
-          DELETE FROM ${sql(aggregatedTableName)} agg
-          WHERE EXISTS (
-            SELECT 1
-            FROM ${sql(datasetTableName)} dt
-            WHERE dt.facility_id = agg.facility_id
-              AND dt.indicator_raw_id = agg.indicator_raw_id
-              AND dt.period_id = agg.period_id
-              AND dt.version_id = ${newVersionId}
-          )
-        `;
+      const rowsInserted = insertResult.count;
 
-        console.log("Staging table now contains only new rows to insert");
-
-        // Update progress: 60% - Staging table cleaned
-        await updateIntegrationProgress(mainDb, 60);
-
-        // Insert all remaining rows from staging (they're all new)
-        const insertResult = await sql`
-          INSERT INTO ${sql(datasetTableName)}
-          (facility_id, indicator_raw_id, period_id, count, version_id)
-          SELECT
-            facility_id,
-            indicator_raw_id,
-            period_id,
-            count,
-            ${newVersionId}::INTEGER as version_id
-          FROM ${sql(aggregatedTableName)}
-        `;
-
-        rowsInserted = insertResult.count;
-
-        console.log(
-          `Integration complete: ${rowsUpdated + rowsInserted} rows affected (${rowsUpdated} updated, ${rowsInserted} inserted) for version ${newVersionId}`
-        );
-
-        // Update progress: 60% - Inserts complete
-        await updateIntegrationProgress(mainDb, 60);
-      }
+      console.log(
+        `Integration complete: ${rowsUpdated + rowsInserted} rows affected (${rowsUpdated} updated, ${rowsInserted} inserted) for version ${newVersionId}`
+      );
 
       // ==================================================
       // PHASE 5: Update Version Record with Actual Counts
       // ==================================================
 
-      if (scopedDelete) {
-        // DHIS2 branch: no in-place updates happen under scoped delete, so
-        // n_rows_updated is honestly 0; n_rows_total_imported means "rows now
-        // present because of this import" — deleted rows aren't imported, so
-        // they don't belong in this total (rowsInserted, not
-        // rowsDeleted + rowsInserted). The real deletion count is real,
-        // useful information — it goes into the JSON blob (no migration
-        // needed), which also drops fetchedFacilityIds since it's only needed
-        // to drive the delete above, not to be kept in version history.
-        const versionStagingResult: DatasetDhis2StagingResult = {
-          ...scopedDelete.stagingResult,
-          fetchedFacilityIds: undefined,
-          dhis2RowsDeleted: rowsDeleted,
-        };
-        await sql`
-          UPDATE dataset_hmis_versions
-          SET
-            n_rows_total_imported = ${rowsInserted},
-            n_rows_inserted = ${rowsInserted},
-            n_rows_updated = 0,
-            staging_result = ${JSON.stringify(versionStagingResult)}
-          WHERE id = ${newVersionId}
-        `;
-      } else {
-        const totalRowsAffected = rowsUpdated + rowsInserted;
-        await sql`
-          UPDATE dataset_hmis_versions
-          SET
-            n_rows_total_imported = ${totalRowsAffected},
-            n_rows_inserted = ${rowsInserted},
-            n_rows_updated = ${rowsUpdated}
-          WHERE id = ${newVersionId}
-        `;
-      }
+      const totalRowsAffected = rowsUpdated + rowsInserted;
+      await sql`
+        UPDATE dataset_hmis_versions
+        SET
+          n_rows_total_imported = ${totalRowsAffected},
+          n_rows_inserted = ${rowsInserted},
+          n_rows_updated = ${rowsUpdated}
+        WHERE id = ${newVersionId}
+      `;
 
       console.log(`Version record ${newVersionId} updated with actual counts`);
 
       // ==================================================
       // PHASE 5.5: Import Ledger (same transaction — the ledger can never
-      // disagree with the data)
+      // disagree with the data): every pair this version touched.
       // ==================================================
 
-      // The authoritative pair list: for scoped DHIS2, every succeeded work
-      // item (including zero-row pairs — "checked, empty" is real
-      // information); for the merge branch, every pair this version touched.
-      const touchedPairs = scopedDelete
-        ? scopedDelete.succeededWorkItems.map((w) => ({
-            indicatorRawId: w.indicatorRawId,
-            periodId: w.periodId,
-          }))
-        : (
-            await sql<{ indicator_raw_id: string; period_id: number }[]>`
-              SELECT DISTINCT indicator_raw_id, period_id
-              FROM ${sql(datasetTableName)}
-              WHERE version_id = ${newVersionId}
-            `
-          ).map((r) => ({
-            indicatorRawId: r.indicator_raw_id,
-            periodId: r.period_id,
-          }));
+      const touchedPairs = (
+        await sql<{ indicator_raw_id: string; period_id: number }[]>`
+          SELECT DISTINCT indicator_raw_id, period_id
+          FROM ${sql(datasetTableName)}
+          WHERE version_id = ${newVersionId}
+        `
+      ).map((r) => ({
+        indicatorRawId: r.indicator_raw_id,
+        periodId: r.period_id,
+      }));
 
       await upsertHmisLedgerPairsFromData(
         sql,
@@ -406,15 +289,8 @@ async function run(std: { rawDUA: DBDatasetHmisUploadAttempt }) {
         newVersionId
       );
 
-      if (stagingResultRaw.sourceType === "dhis2") {
-        await upsertHmisLedgerErrorPairs(sql, stagingResultRaw.failedFetches);
-      }
-
       console.log(
-        `Import ledger updated: ${touchedPairs.length} pairs upserted` +
-          (stagingResultRaw.sourceType === "dhis2"
-            ? `, ${stagingResultRaw.failedFetches.length} failed pairs recorded`
-            : "")
+        `Import ledger updated: ${touchedPairs.length} pairs upserted`
       );
 
       // Update progress: 70% - Version record updated

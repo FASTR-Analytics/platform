@@ -138,6 +138,27 @@ export type DBStructureUploadAttempt = {
   step_3_result: string | null; // Staging result
 };
 
+// DHIS2 import runs in main
+
+export type DBDatasetHmisImportRun = {
+  id: number;
+  trigger: "manual" | "schedule";
+  triggered_by: string | null;
+  dhis2_url: string;
+  selection: string;
+  status: "running" | "complete" | "error" | "cancelled";
+  error: string | null;
+  total_pairs: number;
+  succeeded_pairs: number;
+  failed_pairs: number;
+  started_at: string | Date;
+  ended_at: string | Date | null;
+  version_id: number | null;
+  shadow_passed: boolean | null;
+  progress: string | null;
+  run_stats: string | null;
+};
+
 // Dataset versions in main
 
 export type DBDatasetHmisVersion = {

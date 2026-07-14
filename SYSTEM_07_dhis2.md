@@ -11,8 +11,9 @@ docs_absorbed:
 # S7 — DHIS2 Connector
 
 The self-contained typed HTTP adapter for external DHIS2 instances: one
-base fetcher owning auth/timeout/retry, four `goalN_` endpoint groups
-(org units, indicators, analytics, geojson), two-phase connection
+base fetcher owning auth/timeout/retry, five `goalN_` endpoint groups
+(org units, indicators, analytics, geojson, data value sets + metadata
+id-existence for the S6 import dispatcher), two-phase connection
 validation with a never-throw user boundary, and the client credentials
 UX. No DB access anywhere in the system — it fetches and shapes; callers
 persist. Reviewed against code 2026-07-14 (first review cycle,
@@ -55,7 +56,8 @@ plain `Error` naming the timeout and URL.
 
 `maxResponseBytes` is an opt-in streaming cap enforced while reading the
 body (a Content-Length check is not enough — chunked responses have
-none). Only the heavy geojson fetch passes it today (100 MB).
+none). The heavy geojson fetch and S6's dataValueSets pulls pass it
+(100 MB each).
 
 Logging happens **only** behind explicit `logRequest`/`logResponse`
 flags, and logs only method/URL/status — never credentials.
@@ -165,12 +167,12 @@ public helpers (validateDhis2Connection, test fns)  → return { valid } / { suc
 routes                                              → catch → APIResponse envelope
 ```
 
-Validation runs on the user-triggered test/confirm routes (structure
-test-connection, S6's `dhis2ConfirmCredentials`, geojson analyze +
-cache-miss save, indicator test), so bad credentials fail once with one
-localized message. The bulk paths themselves (HMIS analytics worker, S5
-structure stager) do NOT re-validate — a credential revoked between
-confirm and run surfaces as retry exhaustion inside the job.
+Validation runs on the user-triggered test/confirm/launch routes
+(structure test-connection, S6's `launchDatasetHmisDhis2Run`, geojson
+analyze + cache-miss save, indicator test), so bad credentials fail once
+with one localized message. The bulk paths themselves (HMIS import run
+worker, S5 structure stager) do NOT re-validate — a credential revoked
+between launch and run surfaces as retry exhaustion inside the job.
 
 ## The route file and client credentials UX
 
@@ -203,11 +205,13 @@ user-facing strings in this system carry en/fr/pt.
 - **S5 geojson wizard**: validation, `getOrgUnitMetadata` (level list),
   the metadata/count/heavy fetchers and both session caches.
 - **S5 HMIS indicator manager**: the four `indicators_dhis2` routes.
-- **S6 HMIS dataset import**: `dhis2ConfirmCredentials` (validate +
-  persist step 1), then the staging worker's per-batch
-  `getAnalyticsFromDHIS2` calls (maxAttempts 10). The worker's staging
-  semantics — batching, URL-length guard, missing-`rows` handling, the
-  scoped-delete contract — are S6's documentation.
+- **S6 HMIS dataset import**: `launchDatasetHmisDhis2Run` validates the
+  connection, then the import run worker's dispatcher uses goal 5
+  (`getDataValueSetsFromDHIS2`, `getExistingMetadataIds`,
+  `getOrgUnitIdsAtLevel`) for classification + country pulls and goal 3
+  (`getAnalyticsFromDHIS2`, maxAttempts 3) for computed indicators. The
+  worker's semantics — dispatcher routing, per-pair integration,
+  URL-length guard, missing-`rows` handling — are S6's documentation.
 
 ## Traps
 
@@ -248,11 +252,6 @@ user-facing strings in this system carry en/fr/pt.
 - The structure stager's inline org-unit paging (S5 file,
   `stage_structure_from_dhis2.ts`) belongs behind a goal-1 paging
   fetcher that doesn't exist yet.
-- `dhis2ConfirmCredentials` (S6 route) console-logs the DHIS2 URL and
-  the full validation result unconditionally — the library layer is
-  deliberately silent; gate or drop. (The old HMIS-worker DEBUG
-  credential logging that DOC_DHIS2_INTEGRATION flagged is already
-  gone, and the worker now routes through `getAnalyticsFromDHIS2`.)
 - `t4_dhis2_session.ts` persists the DHIS2 password as plaintext JSON in
   `sessionStorage` (opt-in, post-connection-test) — decide keep/drop;
   same family as the S5/S6 at-rest credential rulings.

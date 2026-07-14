@@ -1,5 +1,6 @@
 import {
   t3,
+  type DatasetHmisImportRunSummary,
   type DatasetUploadAttemptSummary,
 } from "lib";
 import {
@@ -19,6 +20,7 @@ import {
   onMount,
 } from "solid-js";
 import { DatasetHmisUploadAttemptForm } from "~/components/instance_dataset_hmis_import";
+import { DatasetHmisDhis2Runs } from "./dhis2_run";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
@@ -36,12 +38,21 @@ export function InstanceDatasetHmis(p: Props) {
   const [uploadAttempt, setUploadAttempt] = createSignal<
     DatasetUploadAttemptSummary | undefined
   >(undefined);
+  const [activeDhis2Run, setActiveDhis2Run] = createSignal<
+    DatasetHmisImportRunSummary | undefined
+  >(undefined);
 
   async function fetchUploadAttempt() {
     try {
       const result = await serverActions.getDatasetHmisDetail({});
       if (result.success) {
         setUploadAttempt(result.data.uploadAttempt);
+      }
+      const runsResult = await serverActions.getDatasetHmisImportRuns({});
+      if (runsResult.success) {
+        setActiveDhis2Run(
+          runsResult.data.find((r) => r.status === "running"),
+        );
       }
     } catch {
       // Silent fail
@@ -53,7 +64,7 @@ export function InstanceDatasetHmis(p: Props) {
   onMount(() => {
     fetchUploadAttempt();
     pollingInterval = setInterval(async () => {
-      if (uploadAttempt() !== undefined) {
+      if (uploadAttempt() !== undefined || activeDhis2Run() !== undefined) {
         await fetchUploadAttempt();
       }
     }, 5000);
@@ -65,8 +76,18 @@ export function InstanceDatasetHmis(p: Props) {
     }
   });
 
+  // The wizard is CSV-only (DHIS2 imports are runs): the source type is set
+  // at creation so the wizard opens straight at the CSV upload step.
   const newUploadAttempt = createButtonAction(
-    () => serverActions.createDatasetUploadAttempt({}),
+    async () => {
+      const res = await serverActions.createDatasetUploadAttempt({});
+      if (!res.success) {
+        return res;
+      }
+      return await serverActions.setDatasetUploadSourceType({
+        sourceType: "csv",
+      });
+    },
     fetchUploadAttempt,
     openUploadAttempt,
   );
@@ -74,6 +95,15 @@ export function InstanceDatasetHmis(p: Props) {
   async function openUploadAttempt() {
     await openEditor({
       element: DatasetHmisUploadAttemptForm,
+      props: {
+        silentFetch: fetchUploadAttempt,
+      },
+    });
+  }
+
+  async function openDhis2Runs() {
+    await openEditor({
+      element: DatasetHmisDhis2Runs,
       props: {
         silentFetch: fetchUploadAttempt,
       },
@@ -132,6 +162,57 @@ export function InstanceDatasetHmis(p: Props) {
                   {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
                 <Switch>
+                  <Match when={activeDhis2Run()} keyed>
+                    {(keyedRun) => (
+                      <div
+                        class="ui-hoverable ui-pad border-base-300 bg-base-200 rounded border"
+                        onClick={openDhis2Runs}
+                      >
+                        <div class="ui-spy-sm text-center">
+                          <div class="">
+                            {t3({
+                              en: "DHIS2 import underway",
+                              fr: "Importation DHIS2 en cours",
+                              pt: "Importação DHIS2 em curso",
+                            })}
+                          </div>
+                          <div class="font-700 text-lg">
+                            {toPct0(
+                              keyedRun.totalPairs > 0
+                                ? (keyedRun.succeededPairs +
+                                    keyedRun.failedPairs) /
+                                    keyedRun.totalPairs
+                                : 0,
+                            )}
+                          </div>
+                          <div class="text-xs">
+                            {t3({
+                              en: "Click to view progress.",
+                              fr: "Cliquez pour voir la progression.",
+                              pt: "Clique para ver o progresso.",
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </Match>
+                  <Match when={!activeDhis2Run()}>
+                    <div class="">
+                      <Button
+                        onClick={openDhis2Runs}
+                        iconName="databaseImport"
+                        fullWidth
+                      >
+                        {t3({
+                          en: "Import from DHIS2",
+                          fr: "Importer depuis DHIS2",
+                          pt: "Importar do DHIS2",
+                        })}
+                      </Button>
+                    </div>
+                  </Match>
+                </Switch>
+                <Switch>
                   <Match when={!uploadAttempt()}>
                     <div class="">
                       <Button
@@ -141,9 +222,9 @@ export function InstanceDatasetHmis(p: Props) {
                         fullWidth
                       >
                         {t3({
-                          en: "Start new import",
-                          fr: "Nouvelle importation",
-                          pt: "Iniciar nova importação",
+                          en: "Upload CSV file",
+                          fr: "Téléverser un fichier CSV",
+                          pt: "Carregar um ficheiro CSV",
                         })}
                       </Button>
                     </div>
@@ -186,10 +267,7 @@ export function InstanceDatasetHmis(p: Props) {
                             </Match>
                             <Match
                               when={
-                                keyedUploadAttempt.status.status ===
-                                  "staging" ||
-                                keyedUploadAttempt.status.status ===
-                                  "staging_dhis2"
+                                keyedUploadAttempt.status.status === "staging"
                               }
                               keyed
                             >

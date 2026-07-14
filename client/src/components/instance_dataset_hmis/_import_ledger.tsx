@@ -1,4 +1,8 @@
-import { t3, type DatasetHmisImportLedgerItem } from "lib";
+import {
+  t3,
+  type DatasetHmisImportLedgerItem,
+  type Dhis2RunPair,
+} from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -10,7 +14,9 @@ import {
   toNum0,
   type TableColumn,
 } from "panther";
+import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { DatasetHmisDhis2Runs } from "./dhis2_run";
 import { ImportLedgerIndicatorDetail } from "./_import_ledger_indicator";
 
 export type LedgerPeriodWindow = { min: number; max: number };
@@ -197,6 +203,30 @@ export function ImportLedger(p: EditorComponentProps<{}, undefined>) {
         indicatorRawId: rollup.indicatorRawId,
         items: rollup.items,
         window,
+        silentFetch: ledger.silentFetch,
+      },
+    });
+  }
+
+  // Checklist action: retry every failed (indicator, month) pair — enqueues a
+  // per-pair run over exactly those pairs (WS-C's unit made visible).
+  async function retryFailedPairs(items: DatasetHmisImportLedgerItem[]) {
+    const failedPairs: Dhis2RunPair[] = items
+      .filter((item) => item.status === "error")
+      .map((item) => ({
+        indicatorRawId: item.indicatorRawId,
+        periodId: item.periodId,
+      }));
+    await openEditor({
+      element: DatasetHmisDhis2Runs,
+      props: {
+        silentFetch: ledger.silentFetch,
+        presetPairs: failedPairs,
+        presetLabel: t3({
+          en: "Retrying all failed pairs:",
+          fr: "Nouvelle tentative pour toutes les paires en échec :",
+          pt: "Nova tentativa para todos os pares falhados:",
+        }),
       },
     });
   }
@@ -223,9 +253,30 @@ export function ImportLedger(p: EditorComponentProps<{}, undefined>) {
         <StateHolderWrapper state={ledger.state()}>
           {(keyedItems) => {
             const { rollups, window } = buildRollups(keyedItems);
+            const failedCount = keyedItems.filter(
+              (item) => item.status === "error",
+            ).length;
             return (
-              <div class="ui-pad h-full w-full">
-                <Table
+              <div class="ui-pad ui-spy-sm flex h-full w-full flex-col">
+                <Show when={failedCount > 0}>
+                  <div class="flex-none">
+                    <Button
+                      onClick={() => retryFailedPairs(keyedItems)}
+                      intent="danger"
+                      outline
+                      iconName="refresh"
+                    >
+                      {t3({
+                        en: "Retry failed pairs",
+                        fr: "Réessayer les paires en échec",
+                        pt: "Repetir os pares falhados",
+                      })}{" "}
+                      ({toNum0(failedCount)})
+                    </Button>
+                  </div>
+                </Show>
+                <div class="min-h-0 flex-1">
+                  <Table
                   data={rollups}
                   columns={columns}
                   keyField="indicatorRawId"
@@ -234,13 +285,14 @@ export function ImportLedger(p: EditorComponentProps<{}, undefined>) {
                     fr: "Aucune importation enregistrée pour le moment",
                     pt: "Ainda não há importações registadas",
                   })}
-                  onRowClick={(rollup) => {
-                    if (window) {
-                      viewIndicator(rollup, window);
-                    }
-                  }}
-                  fitTableToAvailableHeight
-                />
+                    onRowClick={(rollup) => {
+                      if (window) {
+                        viewIndicator(rollup, window);
+                      }
+                    }}
+                    fitTableToAvailableHeight
+                  />
+                </div>
               </div>
             );
           }}

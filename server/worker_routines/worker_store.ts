@@ -1,4 +1,8 @@
-export type WorkerKey = "hmis" | "hfa";
+// "hmis" = the CSV wizard's staging/integration workers; "hmis_dhis2_run" =
+// the DHIS2 per-pair import run worker (separate key so deleting a CSV
+// attempt can never terminate a DHIS2 run — cross-type mutual exclusion is
+// enforced by the DB guards, not by this store).
+export type WorkerKey = "hmis" | "hfa" | "hmis_dhis2_run";
 
 // Active worker per import family (one concurrent import each): stored at
 // spawn, cleared on completion, crash, or cancel. clearWorker is

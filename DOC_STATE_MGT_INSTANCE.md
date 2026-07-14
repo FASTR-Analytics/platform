@@ -201,6 +201,7 @@ Transient or audit data fetched fresh from the server every time. Not reactive â
 |----------------------------------|-----------------------------------------------|----------------------------------------------------------------------------|
 | Structure upload attempt         | `structure/index.tsx`                         | Transient per-user workflow; component-local signal + polling              |
 | HMIS upload attempt              | `instance_dataset_hmis/index.tsx`             | Transient per-user workflow; component-local signal + polling              |
+| HMIS DHIS2 import runs + ledger  | `instance_dataset_hmis/dhis2_run/`            | Transient per-user workflow; run row + ledger polled while a run is live   |
 | HFA upload attempt               | `instance_dataset_hfa/index.tsx`              | Transient per-user workflow; component-local signal + polling              |
 | User logs                        | `instance/instance_users.tsx`                 | Audit data; should be fresh; table renders instantly without it            |
 | HMIS version history             | `instance_dataset_hmis/_previous_imports.tsx` | On-demand modal; user explicitly requests it                               |

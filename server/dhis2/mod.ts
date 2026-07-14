@@ -31,3 +31,7 @@ export * from "./goal3_analytics/mod.ts";
 
 // GOAL 4: GeoJSON (org unit boundaries for maps)
 export * from "./goal4_geojson/mod.ts";
+
+// GOAL 5: Data Value Sets (raw stored values — the HMIS import dispatcher's
+// primary route) + metadata classification helpers
+export * from "./goal5_data_value_sets/mod.ts";

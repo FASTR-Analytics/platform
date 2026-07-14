@@ -1,5 +1,4 @@
 import { CsvDetails, TableColumn } from "./instance.ts";
-import { Dhis2CredentialsRedacted } from "./structure.ts";
 
 // ============================================================================
 // Upload Attempt Status Types
@@ -14,29 +13,6 @@ export type DatasetUploadAttemptStatus =
       progress: number;
     }
   | {
-      status: "staging_dhis2";
-      progress: number;
-      totalWorkItems: number;
-      completedWorkItems: number;
-      failedWorkItems: number;
-      activeWorkItems: Array<{
-        indicatorId: string;
-        periodId: number;
-        facilityBatchesCompleted: number;
-        totalFacilityBatches: number;
-        startTime: string;
-      }>;
-      completedWorkItemHistory: Array<{
-        indicatorId: string;
-        periodId: number;
-        success: boolean;
-        rowsStaged: number;
-        facilityBatchesProcessed: number;
-        completedAt: string;
-        durationMs: number;
-      }>;
-    }
-  | {
       status: "staged";
     }
   | {
@@ -51,43 +27,7 @@ export type DatasetUploadAttemptStatus =
       err: string;
     };
 
-export type DatasetUploadAttemptStatusLight =
-  | {
-      status: "configuring";
-    }
-  | {
-      status: "staging";
-      progress: number;
-    }
-  | {
-      status: "staging_dhis2";
-      progress: number;
-      totalWorkItems: number;
-      completedWorkItems: number;
-      failedWorkItems: number;
-      activeWorkItems: Array<{
-        indicatorId: string;
-        periodId: number;
-        facilityBatchesCompleted: number;
-        totalFacilityBatches: number;
-        startTime: string;
-      }>;
-      // No completedWorkItemHistory - just summary counts
-    }
-  | {
-      status: "staged";
-    }
-  | {
-      status: "integrating";
-      progress: number;
-    }
-  | {
-      status: "complete";
-    }
-  | {
-      status: "error";
-      err: string;
-    };
+export type DatasetUploadAttemptStatusLight = DatasetUploadAttemptStatus;
 
 // ============================================================================
 // Upload Attempt Detail Types
@@ -131,25 +71,9 @@ export type HmisCsvMappingParams = {
   count: string;
 };
 
-export type DatasetUploadAttemptDetailDhis2 = {
-  id: string;
-  dateStarted: string;
-  step: 1 | 2 | 3 | 4;
-  status: DatasetUploadAttemptStatus;
-  sourceType: "dhis2";
-  // Step 1: DHIS2 confirmation. Redacted — the password never leaves the
-  // server; the full credentials stay in the DB row for the staging worker.
-  step1Result: Dhis2CredentialsRedacted | undefined;
-  // Step 2: DHIS2 selection parameters
-  step2Result: Dhis2SelectionParams | undefined;
-  // Step 3: DHIS2 staging result
-  step3Result: DatasetDhis2StagingResult | undefined;
-};
-
 export type DatasetUploadAttemptDetail =
   | DatasetUploadAttemptDetailInitial
-  | DatasetUploadAttemptDetailCsv
-  | DatasetUploadAttemptDetailDhis2;
+  | DatasetUploadAttemptDetailCsv;
 
 // ============================================================================
 // Staging Result Types
@@ -160,14 +84,6 @@ export type PeriodIndicatorRawStat = {
   indicatorRawId: string;
   nRecords: number;
   totalCount: number;
-};
-
-// Per-(indicator, period) row count that a DHIS2 scoped delete-then-insert
-// integration would remove, computed read-only before integration runs.
-export type Dhis2ScopedDeletionPreviewItem = {
-  indicatorRawId: string;
-  periodId: number;
-  rowsToRemove: number;
 };
 
 export type DatasetCsvStagingResult = {
@@ -215,19 +131,23 @@ export type DatasetCsvStagingResult = {
 // health (5xx/timeout) — a later re-run may succeed.
 export type Dhis2FetchErrorKind = "permanent" | "transient";
 
-// Per-(indicator, period) fetch instrumentation, rolled up across facility
-// batches. The production counterpart of the Phase 0 lab timing evidence, so
-// future slowness reports arrive with their own data (PLAN_DHIS2_IMPORTER A1).
+// Per-(indicator, period) fetch instrumentation. The production counterpart
+// of the Phase 0 lab timing evidence, so future slowness reports arrive with
+// their own data (PLAN_DHIS2_IMPORTER A1). Lives in the run's run_stats blob.
+// One entry per pair that REACHED a fetch route — unknown-id pairs (rule 4)
+// never fetch and appear only in classification.unknownIds + the ledger.
+// For the "dvs" route one pull covers many pairs — each covered pair carries
+// the covering pull's request count and wall time (duplicated, not divided).
 export type Dhis2PairFetchStat = {
   indicatorRawId: string;
   periodId: number;
   success: boolean;
-  route: "analytics";
+  route: "analytics" | "dvs";
   requests: number;
   retries: number;
-  // Wall time per batch call including retry sleeps (retries are capped at
-  // 3, so bounded) — not pure server think time. HTTP statuses live in the
-  // error string + errorKind, not as a separate field.
+  // Wall time including retry sleeps (retries are capped at 3, so bounded) —
+  // not pure server think time. HTTP statuses live in the error string +
+  // errorKind, not as a separate field.
   totalFetchMs: number;
   maxRequestMs: number;
   rowsFetched: number;
@@ -235,6 +155,12 @@ export type Dhis2PairFetchStat = {
   error?: string;
 };
 
+// The staging_result stored on a DHIS2 run's version row, written once at run
+// end (slim: the version history UI needs only sourceType, dateImported,
+// failedFetches, dhis2RowsDeleted, and counts). Per-run instrumentation lives
+// in dataset_hmis_import_runs.run_stats, not here. The optional fields exist
+// only so version rows written by the pre-run (stage-then-integrate) code
+// still parse; the run worker never writes them.
 export type DatasetDhis2StagingResult = {
   sourceType: "dhis2";
   dateImported: string;
@@ -248,27 +174,15 @@ export type DatasetDhis2StagingResult = {
   }>;
   periodIndicatorStats: PeriodIndicatorRawStat[];
   finalStagingRowCount: number;
-  // NEW: every (indicator, period) work item that fetched cleanly — including
-  // those that returned zero rows. Paired with fetchedFacilityIds below, this
-  // is the authoritative delete scope for integration. Absent (undefined) ⇒
-  // staged by pre-fix code ⇒ fall back to the legacy merge (no scoped delete).
-  succeededWorkItems?: Array<{ indicatorRawId: string; periodId: number }>;
-  // NEW: the exact facility_id set queried against DHIS2 at staging time (one
-  // list, reused for every work item — see Step 2). Integration deletes against
-  // this literal snapshot rather than re-deriving "which facilities count" from
-  // a regex at a later point in time, so delete-scope == fetch-scope by
-  // construction — no separate correctness argument needed.
-  fetchedFacilityIds?: string[];
-  // NEW: populated only at INTEGRATION time (Step 4), never by the staging
-  // worker — undefined here, always. Integration rewrites this field's stored
-  // copy after Phase 4 to (a) record how many rows the scoped delete removed,
-  // for accurate UI reporting, and (b) drop fetchedFacilityIds from what's
-  // persisted (needed only to drive Phase 4, not to be kept in version
-  // history — see Step 4).
+  // Rows removed by the per-pair scoped deletes across the whole run.
   dhis2RowsDeleted?: number;
-  // Absent on results staged by pre-instrumentation code.
+  // The run that minted this version.
+  runId?: number;
+  // Legacy fields (pre-run version rows only).
+  succeededWorkItems?: Array<{ indicatorRawId: string; periodId: number }>;
+  fetchedFacilityIds?: string[];
   pairFetchStats?: Dhis2PairFetchStat[];
-  workItemHistory: Array<{
+  workItemHistory?: Array<{
     indicatorId: string;
     periodId: number;
     success: boolean;
@@ -307,6 +221,106 @@ export type DatasetHmisImportLedgerItem = {
 };
 
 // ============================================================================
+// DHIS2 Import Run Types (PLAN_DHIS2_IMPORTER Phase 3 — C1/C2 + dispatcher)
+// ============================================================================
+
+export type Dhis2RunPair = { indicatorRawId: string; periodId: number };
+
+export type Dhis2RunSelection =
+  | {
+      kind: "window";
+      rawIndicatorIds: string[];
+      startPeriod: number;
+      endPeriod: number;
+    }
+  | { kind: "pairs"; pairs: Dhis2RunPair[] };
+
+// Dispatcher route per raw indicator (PLAN_DHIS2_IMPORTER §4.4): "dvs" =
+// dataValueSets (bare data elements and operands), "analytics" = the
+// analytics engine (computed DHIS2 indicators + non-monthly re-routes).
+export type Dhis2RunRoute = "dvs" | "analytics";
+
+export type DatasetHmisImportRunStatus =
+  | "running"
+  | "complete"
+  | "error"
+  | "cancelled";
+
+// Small JSON on the run row, rewritten at most every 2 s while fetching —
+// per-pair outcomes live in the ledger, this is only "what is in flight now".
+export type DatasetHmisImportRunProgress = {
+  phase: "classifying" | "fetching" | "finalizing";
+  activePairs: Array<{
+    indicatorRawId: string;
+    periodId: number;
+    route: Dhis2RunRoute;
+  }>;
+};
+
+// The summary projection of a run's selection: explicit pair lists collapse
+// to a count (a retry-failed selection can carry ~1,440 pairs — the runs
+// list is polled every 2 s and must stay small).
+export type Dhis2RunSelectionSummary =
+  | {
+      kind: "window";
+      rawIndicatorIds: string[];
+      startPeriod: number;
+      endPeriod: number;
+    }
+  | { kind: "pairs"; nPairs: number };
+
+export type DatasetHmisImportRunSummary = {
+  id: number;
+  trigger: "manual" | "schedule";
+  triggeredBy?: string;
+  dhis2Url: string;
+  selection: Dhis2RunSelectionSummary;
+  status: DatasetHmisImportRunStatus;
+  // Fatal run-level error (classification failed, credentials died, crash).
+  // Per-pair failures are ledger rows + failedPairs, not this.
+  error?: string;
+  totalPairs: number;
+  succeededPairs: number;
+  failedPairs: number;
+  startedAt: string;
+  endedAt?: string;
+  versionId?: number;
+  // true = this run's shadow verification passed (first dispatcher run per
+  // instance); undefined = shadow did not run (already passed previously).
+  shadowPassed?: boolean;
+  progress?: DatasetHmisImportRunProgress;
+};
+
+// The run_stats blob (durable per-run instrumentation — the home that
+// PLAN_DHIS2_IMPORTER §4.1 designated for pairFetchStats). Not shipped in the
+// runs list; server-side/debugging surface for now.
+export type DatasetHmisImportRunStats = {
+  classification: {
+    dvsBareElements: number;
+    dvsOperands: number;
+    computedIndicators: number;
+    // Raw indicator ids that exist in no DHIS2 metadata endpoint — recorded
+    // as permanent ledger errors without any fetch (dispatcher rule 4).
+    unknownIds: string[];
+    // Elements re-routed to analytics after a non-monthly period id was
+    // observed in their dataValueSets response (dispatcher rule 5).
+    nonMonthlyElements: string[];
+  };
+  pairFetchStats: Dhis2PairFetchStat[];
+  shadow?: {
+    pairsChecked: number;
+    facilitiesCompared: number;
+    mismatches: Array<{
+      indicatorRawId: string;
+      periodId: number;
+      facilityId: string;
+      dvsValue: number | undefined;
+      analyticsValue: number | undefined;
+    }>;
+  };
+};
+
+// ============================================================================
 // DHIS2 Import Types
 // ============================================================================
 
@@ -314,12 +328,6 @@ export type Dhis2Credentials = {
   url: string;
   username: string;
   password: string;
-};
-
-export type Dhis2SelectionParams = {
-  rawIndicatorIds: string[];
-  startPeriod: number;
-  endPeriod: number;
 };
 
 // ============================================================================

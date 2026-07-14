@@ -1,6 +1,5 @@
 import { DatasetUploadAttemptDetail,
   DatasetUploadAttemptDetailCsv,
-  DatasetUploadAttemptDetailDhis2,
   DatasetUploadAttemptStatus,
   DatasetUploadAttemptStatusLight,
   t3 } from "lib";
@@ -21,15 +20,10 @@ import { serverActions } from "~/server_actions";
 import { ProgressComplete } from "./progress_complete";
 import { ProgressIntegrating } from "./progress_integrating";
 import { ProgressStaging_Csv } from "./progress_staging_csv";
-import { ProgressStaging_Dhis2 } from "./progress_staging_dhis2";
-import { Step0 } from "./step_0";
 import { Step1_Csv } from "./step_1_csv";
-import { Step1_Dhis2 } from "./step_1_dhis2";
 import { Step2_Csv } from "./step_2_csv";
-import { Step2_Dhis2 } from "./step_2_dhis2";
 import { Step3 } from "./step_3";
 import { Step4_Csv } from "./step_4_csv";
-import { Step4_Dhis2 } from "./step_4_dhis2";
 
 type Props = EditorComponentProps<
   {
@@ -42,7 +36,13 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
   // Query state
 
   const uploadAttempt = createQuery(async () => {
-    const res = await serverActions.getDatasetUpload({});
+    let res = await serverActions.getDatasetUpload({});
+    // The wizard is CSV-only (DHIS2 imports are runs): a fresh attempt at
+    // step 0 gets its source set immediately so the wizard starts at step 1.
+    if (res.success === true && res.data.step === 0) {
+      await serverActions.setDatasetUploadSourceType({ sourceType: "csv" });
+      res = await serverActions.getDatasetUpload({});
+    }
     if (res.success === true) {
       stepper.setCurrentStep(res.data.step);
     }
@@ -244,18 +244,6 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
                   }
                 />
               </Match>
-              <Match
-                when={keyedUploadAttempt.status.status === "staging_dhis2"}
-              >
-                <ProgressStaging_Dhis2
-                  status={
-                    (pollingStatus() || keyedUploadAttempt.status) as Extract<
-                      DatasetUploadAttemptStatus,
-                      { status: "staging_dhis2" }
-                    >
-                  }
-                />
-              </Match>
               <Match when={keyedUploadAttempt.status.status === "integrating"}>
                 <ProgressIntegrating
                   status={
@@ -275,26 +263,13 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
                   keyedUploadAttempt.step1Result
                 }
               >
-                <Switch>
-                  <Match when={keyedUploadAttempt.sourceType === "csv"}>
-                    <Step4_Csv
-                      silentFetch={uploadAttempt.silentFetch}
-                      step3Result={
-                        (keyedUploadAttempt as DatasetUploadAttemptDetailCsv)
-                          .step3Result!
-                      }
-                    />
-                  </Match>
-                  <Match when={true}>
-                    <Step4_Dhis2
-                      silentFetch={uploadAttempt.silentFetch}
-                      step3Result={
-                        (keyedUploadAttempt as DatasetUploadAttemptDetailDhis2)
-                          .step3Result!
-                      }
-                    />
-                  </Match>
-                </Switch>
+                <Step4_Csv
+                  silentFetch={uploadAttempt.silentFetch}
+                  step3Result={
+                    (keyedUploadAttempt as DatasetUploadAttemptDetailCsv)
+                      .step3Result!
+                  }
+                />
               </Match>
               <Match
                 when={
@@ -307,7 +282,6 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
                 <Step3
                   silentFetch={uploadAttempt.silentFetch}
                   step3Result={keyedUploadAttempt.step3Result}
-                  sourceType={keyedUploadAttempt.sourceType!}
                 />
               </Match>
               <Match
@@ -317,61 +291,29 @@ export function DatasetHmisUploadAttemptForm(p: Props) {
                   keyedUploadAttempt.step1Result
                 }
               >
-                <Switch>
-                  <Match when={keyedUploadAttempt.sourceType === "csv"}>
-                    <Step2_Csv
-                      step1Result={
-                        (keyedUploadAttempt as DatasetUploadAttemptDetailCsv)
-                          .step1Result!
-                      }
-                      step2Result={
-                        (keyedUploadAttempt as DatasetUploadAttemptDetailCsv)
-                          .step2Result
-                      }
-                      silentFetch={uploadAttempt.silentFetch}
-                    />
-                  </Match>
-                  <Match when={true}>
-                    <Step2_Dhis2
-                      step2Result={
-                        (keyedUploadAttempt as DatasetUploadAttemptDetailDhis2)
-                          .step2Result
-                      }
-                      silentFetch={uploadAttempt.silentFetch}
-                    />
-                  </Match>
-                </Switch>
+                <Step2_Csv
+                  step1Result={
+                    (keyedUploadAttempt as DatasetUploadAttemptDetailCsv)
+                      .step1Result!
+                  }
+                  step2Result={
+                    (keyedUploadAttempt as DatasetUploadAttemptDetailCsv)
+                      .step2Result
+                  }
+                  silentFetch={uploadAttempt.silentFetch}
+                />
               </Match>
               <Match
                 when={
                   stepper.currentStep() >= 1 && keyedUploadAttempt.sourceType
                 }
               >
-                <Switch>
-                  <Match when={keyedUploadAttempt.sourceType === "csv"}>
-                    <Step1_Csv
-                      step1Result={
-                        (keyedUploadAttempt as DatasetUploadAttemptDetailCsv)
-                          .step1Result
-                      }
-                      silentFetch={uploadAttempt.silentFetch}
-                    />
-                  </Match>
-                  <Match when={true}>
-                    <Step1_Dhis2
-                      step1Result={
-                        (keyedUploadAttempt as DatasetUploadAttemptDetailDhis2)
-                          .step1Result
-                      }
-                      silentFetch={uploadAttempt.silentFetch}
-                    />
-                  </Match>
-                </Switch>
-              </Match>
-              <Match when={stepper.currentStep() === 0}>
-                <Step0
+                <Step1_Csv
+                  step1Result={
+                    (keyedUploadAttempt as DatasetUploadAttemptDetailCsv)
+                      .step1Result
+                  }
                   silentFetch={uploadAttempt.silentFetch}
-                  sourceType={keyedUploadAttempt.sourceType}
                 />
               </Match>
             </Switch>
