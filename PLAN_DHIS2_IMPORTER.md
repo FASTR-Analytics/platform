@@ -15,7 +15,7 @@ units C1/C2 §7).**
   2026-07-14. Core mechanics and the ledger invariant (every
   `dataset_hmis` mutation path maintains the ledger in-transaction)
   independently confirmed. 7 findings triaged → 5 confirmed and fixed
-  in the review-fixes commit (error-string cap applied at source;
+  in `49d36776` (error-string cap applied at source;
   URL-guard errors classified permanent; ledger writers skip indicators
   deleted between staging and integration instead of FK-aborting the
   whole integration; non-facility-scoped deletes also sweep zero-count/
@@ -176,7 +176,8 @@ weekend load where the slow tail is fatter.**
   missing-`rows`→fail change is not implicated at all (Nigeria 2.40.9
   always returns `rows: []` for empty results — zero missing-`rows`
   cases in all lab traffic). The 48 h is arithmetic: ~713k requests ×
-  think time + retry burn. **A2 (Phase 1) = write this into the thread.**
+  think time + retry burn. A2 = write this into the thread
+  (paragraph delivered — §4.2; Tim's paste is the outstanding item).
 
 ### 2.2 The failure clusters (E6, from real v59/v60 failures)
 
@@ -192,7 +193,8 @@ weekend load where the slow tail is fatter.**
 2. **504 retry-exhaustion** (44): valid dx (`YjZiHDKMWCJ` Live Births +
    operands, `wGPpop3rz7i` Inpatient Admissions, `w6nOgEFHWMG`,
    `YWNyZu9wR89`) whose analytics queries take 5–160 s and cross the 60 s
-   cliff under load; 10 retries × up-to-60 s ≈ 24 min per batch burned.
+   cliff under load; at the time, 10 retries × up-to-60 s ≈ 24 min per
+   batch burned (Phase 1 capped retries at 3).
    All returned correct data off-peak. **Retry-rescue is dead** (E10): an
    identical repeat 504s again and a 12-min-later retry re-paid 46 s of
    fresh compute — no completed-computation cache. The escape is the
@@ -204,8 +206,9 @@ weekend load where the slow tail is fatter.**
 ### 2.3 Shape facts (E2/E3/E4/E9)
 
 - Real URL limit: nginx 414 above ~8 KB (measured: 5,727-char URL OK,
-  11,327 rejected). `ou:400` is measured-safe. The in-app 2048 guard +
-  batch 100 is ~4× too conservative.
+  11,327 rejected). `ou:400` is measured-safe. The then-current in-app
+  2048 guard + batch 100 was ~4× too conservative (fixed in Phase 1:
+  real-URL guard at 7,000 chars, batch 400).
 - `ou:400 × pe:12` returns values **byte-identical** to the baseline
   shape (E9 gate PASS, incl. operand dx) — 48× fewer requests per
   indicator-year. Still rides the analytics engine, so it is now only
@@ -404,11 +407,11 @@ is not; don't build it speculatively.
    Remove the shadow mode once the fleet has run clean (one-time
    operational step, not a permanent shim).
 
-### 4.5 A5 — failure handling (merged into dispatcher + Phase 1)
+### 4.5 A5 — failure handling (Phase 1+2 part SHIPPED; dispatcher rule 4 remains)
 
-409/404 → permanent per-pair error, ledger-visible, no retry (Phase 1
-gets the retry-cap + 409 handling early; the dispatcher's rule 4
-completes it). 5xx/timeout → transient: fail the pair after the capped
+409/404 → permanent per-pair error, ledger-visible, no retry (shipped:
+retry cap + permanent/transient classification in Phase 1, ledger
+visibility in Phase 2; the dispatcher's rule 4 completes it). 5xx/timeout → transient: fail the pair after the capped
 retries; re-runs happen at pair granularity via WS-B/WS-C, ideally
 scheduled off-peak (§2.5). Plus the Nigeria comms item: remap/remove the
 6 stale ids instance-side.
@@ -497,13 +500,21 @@ HMIS-only by design.
   a never-imported failed pair gets a zero-count `error` row with
   `imported_at NULL`. `error` is prefixed `[permanent]`/`[transient]`
   (the classification the plan asked the text to carry).
+- Both writer INSERTs JOIN `indicators_raw` and skip pairs whose
+  indicator was deleted between staging and integration — without this
+  the FK aborts the whole integration and the fetch is lost (review fix
+  `49d36776`; skipping matches the CASCADE end-state).
 - **`failedFetches` is uncapped** (was a 100-sample; per-error strings
-  capped at 1,000 chars) so the ledger records every failed pair.
+  capped at 1,000 chars at source) so the ledger records every failed
+  pair.
 - Deletion: `deleteAllDatasetHmisData` is windowed (there is no separate
   truncate path in the app) — affected pairs are captured before the
   DELETE, then reconciled: emptied pairs lose their ledger row,
   partially-deleted pairs keep their last-import identity with corrected
-  counts.
+  counts. Non-facility-scoped deletes ALSO sweep the window's
+  zero-count/error ledger rows (which have no `dataset_hmis` rows and
+  are invisible to the data scan); facility-scoped deletes leave them
+  (review fix `49d36776`).
 - Viewer reads filter `WHERE n_records > 0` so zero-count/error-only
   rows are checklist information, not data cells; the Valkey prefix was
   bumped `ds_hmis` → `ds_hmis_v2` because the common-view `count`
@@ -542,8 +553,9 @@ first → click an indicator → per-month detail with status, counts,
 source, imported_at, and the classified error). Per-cell info was NOT
 injected into the main viz grid: that grid is a panther figure
 (`ChartHolder` table mode), not a custom component, so the month-detail
-table is the per-cell surface. Backfill rows render "Before import
-tracking began". Components: `_import_ledger.tsx` /
+table is the per-cell surface. Only true backfill rows render "Before
+import tracking began" — never-imported failing pairs show "Never
+imported" (review fix `49d36776`). Components: `_import_ledger.tsx` /
 `_import_ledger_indicator.tsx`; strings inline `t3` en/fr/pt.
 
 **Phase 3 (actions + runs, ships with dispatcher/C1/C2):**
