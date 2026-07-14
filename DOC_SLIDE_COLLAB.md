@@ -400,7 +400,9 @@ room, so their live cursors ride a dedicated PROJECT-scoped Awareness:
   element's OWN scrollTop — one formula covers self-scrolling card grids and
   content divs whose panther ancestor scrolls. Scope = tab plus the
   folder/grouping selection on the list tabs (different folders = different
-  cards; cursors must not cross).
+  cards; cursors must not cross); a surface can override the scope via the
+  attribute VALUE — the deck overview (all-slides view, an editor overlay
+  above the tab pages) tags itself `deck:<id>` this way.
 - Suppression is geometric, not signaled: every editor overlay (including the
   page-local EditorWrappers in data/modules) hides page content via
   `display:none` → zero-size rect → both sides bail; z-50 modals are rejected

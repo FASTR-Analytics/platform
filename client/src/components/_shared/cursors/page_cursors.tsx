@@ -59,11 +59,16 @@ function pageScope(): string | null {
   }
 }
 
-/** First VISIBLE tagged surface — hidden-but-mounted elements under a local
- *  EditorWrapper stay in the DOM at zero size. */
-function findPageSurfaceEl(): Element | null {
+/** First VISIBLE tagged surface — hidden-but-mounted elements under an
+ *  editor overlay stay in the DOM at zero size. A surface may carry its own
+ *  scope as the attribute VALUE (e.g. `deck:<id>` on the deck overview,
+ *  which renders as an editor overlay ABOVE the tab pages and must not share
+ *  their scope); an empty value means the tab-derived scope. */
+function currentSurface(): { el: Element; scope: string } | null {
   for (const el of document.querySelectorAll("[data-page-cursor-surface]")) {
-    if (el.getBoundingClientRect().width > 0) return el;
+    if (el.getBoundingClientRect().width <= 0) continue;
+    const scope = el.getAttribute("data-page-cursor-surface") || pageScope();
+    return scope ? { el, scope } : null;
   }
   return null;
 }
@@ -72,13 +77,11 @@ function toPagePointer(
   clientX: number,
   clientY: number,
 ): PointerAwarenessState | null {
-  const scope = pageScope();
-  if (!scope) return null;
-  const el = findPageSurfaceEl();
-  if (!el) return null;
-  const pos = pointerFromPane(el, el, clientX, clientY);
+  const surface = currentSurface();
+  if (!surface) return null;
+  const pos = pointerFromPane(surface.el, surface.el, clientX, clientY);
   if (!pos) return null;
-  return { surface: "page", scope, x: pos.x, y: pos.y };
+  return { surface: "page", scope: surface.scope, x: pos.x, y: pos.y };
 }
 
 export function ProjectPageCursors() {
@@ -99,10 +102,12 @@ export function ProjectPageCursors() {
     pointer: PointerAwarenessState,
   ): { x: number; y: number } | null {
     if (pointer.surface !== "page") return null;
-    if (pointer.scope !== pageScope()) return null;
-    const el = findPageSurfaceEl();
-    if (!el) return null;
-    return viewportFromPane(el, el, { x: pointer.x, y: pointer.y });
+    const surface = currentSurface();
+    if (!surface || pointer.scope !== surface.scope) return null;
+    return viewportFromPane(surface.el, surface.el, {
+      x: pointer.x,
+      y: pointer.y,
+    });
   }
 
   return (

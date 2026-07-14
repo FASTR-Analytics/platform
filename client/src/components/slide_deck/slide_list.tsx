@@ -487,6 +487,7 @@ export function SlideList(p: Props) {
     >
       <div
         class="ui-pad bg-base-200 h-full w-full overflow-auto"
+        data-page-cursor-surface={`deck:${p.deckId}`}
         onClick={(e) => {
           // Clear selection when clicking outside slide cards
           const target = e.target as HTMLElement;
