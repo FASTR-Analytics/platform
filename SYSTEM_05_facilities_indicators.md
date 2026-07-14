@@ -407,10 +407,10 @@ Every config mutation re-reads all configs and pushes one consolidated
   closed 2026-07-06: 100 MB pre-parse cap `14790e39`, SHA-256 session-cache
   keys `805f6b15`): `sampleValues` still returns ALL distinct values
   unbounded; the served payload is whole and double-encoded (also
-  PLAN_GEOJSON_SNAPSHOT WS-EFFICIENCY); the wizard's opt-in `sessionStorage`
-  store persists the DHIS2 password in plaintext (`t4_dhis2_session.ts` —
-  decide keep/drop); no deeper geometry validation (lon/lat range, polygonal
-  types, non-unique match values).
+  PLAN_GEOJSON_SNAPSHOT WS-EFFICIENCY); no deeper geometry validation
+  (lon/lat range, polygonal types, non-unique match values). The
+  plaintext-sessionStorage password item moved to S7 (which owns
+  `t4_dhis2_session.ts`).
 - `pt` is missing across most of this system's t3 literals (indicator
   managers, structure viewers, wizards) — part of the batch-by-batch PT
   rollout.

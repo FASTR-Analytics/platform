@@ -11,8 +11,9 @@
 > DOC_period_column_handling + DOC_DISAGGREGATION_OPTIONS_HANDLING +
 > DOC_ROLLUP_ROWS, 2026-07-06), S13 (DOC_AI_PROXY_AND_USAGE_GOVERNANCE +
 > DOC_AI_TOOL_SCHEMAS → SYSTEM_13 + new PROTOCOL_APP_AI_TOOLS, 2026-07-07;
-> review-only cycle — findings are S13 Open items, no fix batch yet). This
-> plan deletes itself when the last `DOC_*` is gone.
+> review-only cycle — findings are S13 Open items, no fix batch yet), S7
+> (DOC_DHIS2_INTEGRATION, 2026-07-14; review-only cycle — findings are S7
+> Open items). This plan deletes itself when the last `DOC_*` is gone.
 
 ## 1. `DOC_*` → target mapping (3-way sort)
 

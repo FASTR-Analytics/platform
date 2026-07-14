@@ -105,8 +105,8 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 
 ## Smaller / lower-priority
 
-- [ ] **13. DHIS2 retry off `error.status`, not `error.message` substring** (`retry_utils.ts` — works today, brittle). **Doc:** [DOC_DHIS2_INTEGRATION.md](DOC_DHIS2_INTEGRATION.md).
-- [ ] **14. Gate DHIS2 worker credential/URL logging** behind `logRequest` (the HMIS DHIS2 staging worker logs URL + credential structure unconditionally). **Doc:** DOC_DHIS2_INTEGRATION.
+- [ ] **13. DHIS2 retry off `error.status`, not `error.message` substring** (`retry_utils.ts` — works today, brittle). **Doc:** [SYSTEM_07_dhis2.md](SYSTEM_07_dhis2.md).
+- [x] **14. Gate DHIS2 worker credential/URL logging** — RESOLVED: the HMIS DHIS2 staging worker no longer logs credentials and routes analytics through `getAnalyticsFromDHIS2` (verified 2026-07-14); the remaining unconditional URL log is `dhis2ConfirmCredentials` (S7 Open items).
 - [ ] **15. Decide the `READ_ONLY` connection flag** — make it real (`default_transaction_read_only`) or rename it to "cache-namespacing only" (today it doesn't prevent writes). **Doc:** [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md).
 - [ ] **16. Consolidate `generateUnique*Id`** (6 near-identical copies) into `generateUniqueId(db, tableName)`. **Doc:** DOC_DB_ACCESS_LAYER.
 

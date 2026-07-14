@@ -278,7 +278,7 @@ Prescriptive protocols for how this app is built (distinct from the `panther/pro
 - [SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md) — facilities/admin structure ELT, indicator dictionaries, geojson, time points, instance config
 - [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md) — stage→integrate ingestion (HMIS/HFA/ICEH dataset families)
 - [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md) — module load + R-script parameterize/execute/ingest
-- [DOC_DHIS2_INTEGRATION.md](DOC_DHIS2_INTEGRATION.md) — DHIS2 API client: base fetcher, retry, goals
+- [SYSTEM_07_dhis2.md](SYSTEM_07_dhis2.md) — DHIS2 API client: base fetcher, retry, goals, connection validation, session caches
 - [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) — AI copilot: Anthropic proxies + token-limit governance, browser tools via the AIContext contract, tool schemas ([PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md) is the schema-authoring recipe)
 - [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) — viz query & cache: config → SQL (CTEManager, roll-up row, post-aggregation), period/disaggregation semantics, PO caches
 - [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) — SQL migrations + JSON data transforms + validation boundaries

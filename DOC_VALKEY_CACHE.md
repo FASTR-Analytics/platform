@@ -101,7 +101,7 @@ Six caches, all `_UPPER_SNAKE` module-level singletons grouped by domain file:
 ## What NOT to do
 
 - **Don't add a cache keyed on a column some writer forgets to bump.** That's the silent-stale failure mode this whole design exists to prevent.
-- **Don't invent a fourth caching mechanism.** Use `TimCacheC` for cross-process, versioned read models. Use a process-local in-memory singleton (as the structure cache and the DHIS2 geojson session cache do — see [DOC_DHIS2_INTEGRATION.md](DOC_DHIS2_INTEGRATION.md)) only for per-process ephemeral data. Document which you chose and why.
+- **Don't invent a fourth caching mechanism.** Use `TimCacheC` for cross-process, versioned read models. Use a process-local in-memory singleton (as the structure cache and the DHIS2 geojson session cache do — see [SYSTEM_07_dhis2.md](SYSTEM_07_dhis2.md)) only for per-process ephemeral data. Document which you chose and why.
 - **Don't introduce a new key separator.** Three already exist (`|`, `::`, `_`); reuse one reserved separator via a shared key-builder.
 - **Don't rely on cross-deploy payload shape.** A cache hit can return data serialized by a previous deploy. `_PO_DETAIL_CACHE` consumers re-run `presentationObjectConfigSchema.parse` on read to adapt — but that burden is per-cache and undocumented (see enforcement).
 
