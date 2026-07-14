@@ -429,6 +429,7 @@ export function SlideList(p: Props) {
   return (
     <FrameTop
       panelChildren={
+        <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar
           heading={p.deckLabel}
           leftChildren={
@@ -483,6 +484,7 @@ export function SlideList(p: Props) {
             </Show>
           </div>
         </HeadingBar>
+        </div>
       }
     >
       <div

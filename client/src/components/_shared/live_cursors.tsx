@@ -68,6 +68,15 @@ export type PointerAwarenessState =
     // compensated). scope = tab (+ folder/grouping selection). Rides the
     // PROJECT-level awareness, not a doc session.
     | { surface: "page"; scope: string; x: number; y: number }
+    // A named CHROME region of any surface family ([data-cursor-zone]
+    // element: header bars, side panels, the area around a canvas). Zones
+    // are per-user resizable/collapsible, so each is its own coordinate
+    // space (x normalized to the element width, y content-px) mapped against
+    // the RECEIVER's copy of the same-named element. `scope` is whatever the
+    // owning wrapper's scope is (page scope, slideId, po:/fig:, reportId) —
+    // it keeps zones from crossing between views that happen to share zone
+    // names.
+    | { surface: "zone"; scope: string; zone: string; x: number; y: number }
     // Report editor preview: anchored to the centered CONTENT div (max-w-4xl,
     // stable across split/view widths). scope = reportId.
     | { surface: "report-preview"; scope: string; x: number; y: number }
@@ -79,6 +88,12 @@ export type PointerAwarenessState =
 const CHIP_FADE_MS = 4_000;
 const IDLE_HIDE_MS = 30_000;
 const DEFAULT_MIN_INTERVAL_MS = 50;
+// The world can change UNDER a stationary pointer (an editor overlay opens
+// over the surface after a click, or closes back to it) — nothing fires a
+// pointer event, so the last broadcast state would linger on peers' screens.
+// A low-frequency revalidation recomputes at the last known position; the
+// JSON dedupe in send() makes the no-change case free.
+const REVALIDATE_MS = 500;
 const CHAT_LINGER_MS = 4_000;
 const CHAT_MAX_LEN = 120;
 const RIPPLE_MS = 600;
@@ -213,6 +228,52 @@ export function viewportFromPane(
   return pos;
 }
 
+// ── Chrome zones (shared by every surface wrapper) ──────────────────────────
+//
+// Tag any chrome element with data-cursor-zone="<name>" and the surface
+// wrapper's toPointer/accepts fall back to these helpers: the pointer keeps
+// broadcasting while the mouse crosses headers, side panels and other
+// non-content regions instead of vanishing.
+
+const ZONE_ATTR = "data-cursor-zone";
+
+/** Sender fallback: the first visible zone containing the point. */
+export function zonePointerAt(
+  scope: string,
+  clientX: number,
+  clientY: number,
+): PointerAwarenessState | null {
+  for (const el of document.querySelectorAll(`[${ZONE_ATTR}]`)) {
+    const pos = pointerFromPane(el, el, clientX, clientY);
+    if (pos) {
+      return {
+        surface: "zone",
+        scope,
+        zone: el.getAttribute(ZONE_ATTR)!,
+        x: pos.x,
+        y: pos.y,
+      };
+    }
+  }
+  return null;
+}
+
+/** Receiver counterpart: map a zone pointer against OUR copy of that zone
+ *  element (first visible match — hidden surfaces report zero rects). */
+export function acceptZonePointer(
+  pointer: PointerAwarenessState,
+  scope: string | undefined,
+): { x: number; y: number } | null {
+  if (pointer.surface !== "zone") return null;
+  if (scope === undefined || pointer.scope !== scope) return null;
+  for (const el of document.querySelectorAll(`[${ZONE_ATTR}]`)) {
+    if (el.getAttribute(ZONE_ATTR) !== pointer.zone) continue;
+    const pos = viewportFromPane(el, el, { x: pointer.x, y: pointer.y });
+    if (pos) return pos;
+  }
+  return null;
+}
+
 // ── Broadcaster ───────────────────────────────────────────────────────────────
 
 /**
@@ -323,6 +384,13 @@ export function createPointerBroadcast(opts: {
     document.addEventListener("scroll", onScroll, true);
     document.documentElement.addEventListener("pointerleave", onLeaveDocument);
     document.addEventListener("visibilitychange", onVisibility);
+    // Revalidate under a stationary pointer (see REVALIDATE_MS): clears the
+    // cursor within ~500ms when an overlay covers the surface, and restores
+    // it when the overlay closes — no mouse movement required.
+    const revalidate = setInterval(() => {
+      if (lastClientX !== undefined) fire();
+    }, REVALIDATE_MS);
+    onCleanup(() => clearInterval(revalidate));
   });
 
   // Disabled (modal over the surface, collab dropped) → clear immediately;

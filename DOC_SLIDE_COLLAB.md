@@ -407,6 +407,13 @@ room, so their live cursors ride a dedicated PROJECT-scoped Awareness:
   page-local EditorWrappers in data/modules) hides page content via
   `display:none` → zero-size rect → both sides bail; z-50 modals are rejected
   by elementFromPoint containment in the pane helpers.
+- CHROME ZONES (`data-cursor-zone`, shared by every surface family): header
+  bars, side panels, tab navs and canvas surroundings are per-user
+  resizable/collapsible, so each is its own coordinate space — a generic
+  `zone` pointer variant maps against the RECEIVER's copy of the same-named
+  element, stamped with the owning surface's scope. Wrappers fall back to
+  `zonePointerAt`/`acceptZonePointer` (live_cursors.tsx) after their content
+  surfaces miss, so cursors survive crossing the chrome instead of vanishing.
 
 ## Version history
 

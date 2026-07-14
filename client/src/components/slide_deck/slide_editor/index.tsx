@@ -866,6 +866,7 @@ export function SlideEditor(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
+          <div class="h-full w-full" data-cursor-zone="header">
           <HeadingBar
             heading={t3({
               en: "Edit Slide",
@@ -913,6 +914,7 @@ export function SlideEditor(p: Props) {
               </Show>
             </div>
           </HeadingBar>
+          </div>
         }
       >
         <FrameLeftResizable
@@ -921,6 +923,7 @@ export function SlideEditor(p: Props) {
           maxWidth={600}
           hoverOffset="offset-for-border-1-on-left"
           panelChildren={
+            <div class="h-full w-full" data-cursor-zone="panel">
             <SlideEditorPanel
               projectId={p.projectId}
               tempSlide={tempSlide}
@@ -950,9 +953,13 @@ export function SlideEditor(p: Props) {
                 p.deckConfigSnapshot.globalFooterText !== undefined
               }
             />
+            </div>
           }
         >
-          <div class="bg-base-200 h-full w-full overflow-auto">
+          <div
+            class="bg-base-200 h-full w-full overflow-auto"
+            data-cursor-zone="canvas-area"
+          >
             <Show when={pageInputs().status === "loading"}>
               <div class="flex h-full items-center justify-center">
                 <div class="text-base-content/70">

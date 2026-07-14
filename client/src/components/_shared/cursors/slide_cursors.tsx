@@ -1,12 +1,14 @@
 import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import type { Awareness } from "y-protocols/awareness";
 import {
+  acceptZonePointer,
   createPointerBroadcast,
   CursorChatInput,
   duToViewport,
   LiveCursorsOverlay,
   type PointerAwarenessState,
   viewportToDu,
+  zonePointerAt,
 } from "../live_cursors";
 
 // =============================================================================
@@ -44,16 +46,24 @@ export function SlideEditorCursors(p: {
     const du = viewportToDu(r, { x: cx, y: cy }, PAGE_WIDTH_DU, PAGE_HEIGHT_DU);
     return { surface: "slide", scope: p.slideId, x: du.x, y: du.y };
   }
+  function toPointerOrZone(cx: number, cy: number): PointerAwarenessState | null {
+    // Canvas first (DU space); chrome (header, settings panel, the area
+    // around the canvas) via the shared zone fallback.
+    return toPointer(cx, cy) ?? zonePointerAt(p.slideId, cx, cy);
+  }
 
   createPointerBroadcast({
     awareness: p.awareness,
     enabled: p.enabled,
-    toPointer,
+    toPointer: toPointerOrZone,
   });
 
   function accepts(
     pointer: PointerAwarenessState,
   ): { x: number; y: number } | null {
+    if (pointer.surface === "zone") {
+      return acceptZonePointer(pointer, p.slideId);
+    }
     if (pointer.surface !== "slide" || pointer.scope !== p.slideId) {
       return null;
     }
@@ -84,7 +94,7 @@ export function SlideEditorCursors(p: {
       <CursorChatInput
         awareness={p.awareness}
         enabled={p.enabled}
-        isOverSurface={(x, y) => toPointer(x, y) !== null}
+        isOverSurface={(x, y) => toPointerOrZone(x, y) !== null}
       />
     </>
   );

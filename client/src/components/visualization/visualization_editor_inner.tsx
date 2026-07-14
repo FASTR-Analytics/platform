@@ -1050,7 +1050,10 @@ export function VisualizationEditorInner(p: InnerProps) {
     <EditorWrapperForResultsObject>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap flex items-center border-b">
+          <div
+            class="ui-pad ui-gap flex items-center border-b"
+            data-cursor-zone="header"
+          >
             <div class="ui-gap-sm flex items-center">
               <Switch>
                 <Match when={p.mode === "ephemeral"}>
@@ -1410,7 +1413,10 @@ export function VisualizationEditorInner(p: InnerProps) {
                             });
 
                             return (
-                              <div class="ui-pad h-full w-full overflow-auto">
+                              <div
+                                class="ui-pad h-full w-full overflow-auto"
+                                data-cursor-zone="preview-area"
+                              >
                                 <StateHolderWrapper state={figureInputs()}>
                                   {(keyedFigureInputs) => {
                                     return (

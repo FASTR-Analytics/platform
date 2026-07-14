@@ -1,11 +1,13 @@
 import { createEffect } from "solid-js";
 import {
+  acceptZonePointer,
   createPointerBroadcast,
   CursorChatInput,
   LiveCursorsOverlay,
   type PointerAwarenessState,
   pointerFromPane,
   viewportFromPane,
+  zonePointerAt,
 } from "../live_cursors";
 import { projectAwareness } from "~/state/project/collab";
 import {
@@ -80,8 +82,12 @@ function toPagePointer(
   const surface = currentSurface();
   if (!surface) return null;
   const pos = pointerFromPane(surface.el, surface.el, clientX, clientY);
-  if (!pos) return null;
-  return { surface: "page", scope: surface.scope, x: pos.x, y: pos.y };
+  if (pos) {
+    return { surface: "page", scope: surface.scope, x: pos.x, y: pos.y };
+  }
+  // Chrome (tabs nav / folder panel / top bar) — shared zone fallback, same
+  // scope so only same-view peers see the cursor cross it.
+  return zonePointerAt(surface.scope, clientX, clientY);
 }
 
 export function ProjectPageCursors() {
@@ -101,9 +107,13 @@ export function ProjectPageCursors() {
   function acceptsPagePointer(
     pointer: PointerAwarenessState,
   ): { x: number; y: number } | null {
-    if (pointer.surface !== "page") return null;
     const surface = currentSurface();
-    if (!surface || pointer.scope !== surface.scope) return null;
+    if (!surface) return null;
+    if (pointer.surface === "zone") {
+      return acceptZonePointer(pointer, surface.scope);
+    }
+    if (pointer.surface !== "page") return null;
+    if (pointer.scope !== surface.scope) return null;
     return viewportFromPane(surface.el, surface.el, {
       x: pointer.x,
       y: pointer.y,

@@ -1,12 +1,14 @@
 import { createEffect } from "solid-js";
 import type { Awareness } from "y-protocols/awareness";
 import {
+  acceptZonePointer,
   createPointerBroadcast,
   CursorChatInput,
   LiveCursorsOverlay,
   panelClientFromContent,
   panelContentFromClient,
   type PointerAwarenessState,
+  zonePointerAt,
 } from "../live_cursors";
 
 // =============================================================================
@@ -69,7 +71,8 @@ export function VizEditorCursors(p: {
         return { surface: "viz-panel", scope, tab: p.panelTab(), ...pos };
       }
     }
-    return null;
+    // Chrome (header, tab row, the area around the preview) — shared zones.
+    return zonePointerAt(scope, cx, cy);
   }
 
   const broadcast = createPointerBroadcast({
@@ -86,6 +89,9 @@ export function VizEditorCursors(p: {
   function accepts(
     pointer: PointerAwarenessState,
   ): { x: number; y: number } | null {
+    if (pointer.surface === "zone") {
+      return acceptZonePointer(pointer, p.scope());
+    }
     if (pointer.scope !== p.scope()) return null;
     if (pointer.surface === "viz-preview") {
       const canvas = document.getElementById(PREVIEW_ID);

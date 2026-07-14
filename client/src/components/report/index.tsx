@@ -1239,6 +1239,7 @@ export function ProjectReport(p: Props) {
     <InnerEditorWrapper>
       <FrameTop
         panelChildren={
+          <div class="h-full w-full" data-cursor-zone="header">
           <HeadingBar
             heading={label()}
             class="border-base-300"
@@ -1293,6 +1294,7 @@ export function ProjectReport(p: Props) {
               </Show>
             </div>
           </HeadingBar>
+          </div>
         }
       >
         {/* One always-mounted frame: the sidebar collapses (isShown=false) in

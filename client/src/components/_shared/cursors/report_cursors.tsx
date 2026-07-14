@@ -1,11 +1,13 @@
 import type { Awareness } from "y-protocols/awareness";
 import {
+  acceptZonePointer,
   createPointerBroadcast,
   CursorChatInput,
   LiveCursorsOverlay,
   type PointerAwarenessState,
   pointerFromPane,
   viewportFromPane,
+  zonePointerAt,
 } from "../live_cursors";
 
 // =============================================================================
@@ -68,7 +70,8 @@ export function ReportEditorCursors(p: {
         };
       }
     }
-    return null;
+    // Chrome (header bar) — shared zone fallback.
+    return zonePointerAt(p.reportId, cx, cy);
   }
 
   createPointerBroadcast({
@@ -80,6 +83,9 @@ export function ReportEditorCursors(p: {
   function accepts(
     pointer: PointerAwarenessState,
   ): { x: number; y: number } | null {
+    if (pointer.surface === "zone") {
+      return acceptZonePointer(pointer, p.reportId);
+    }
     if (pointer.scope !== p.reportId) return null;
     if (pointer.surface === "report-code") {
       const code = codePane();
