@@ -21,13 +21,20 @@ export type DHIS2DataValueSetsResponse = {
 // units to facility level. A month with no data legitimately returns a body
 // with no dataValues key — that is an unambiguous empty, not a failure
 // (unlike analytics' missing "rows").
+//
+// Selection is period= — an opaque token the DHIS2 server interprets in ITS
+// OWN calendar, the same contract as analytics `pe:`. This is the only form
+// that works fleet-wide: a calendar-configured server (Ethiopia, 2.40.1,
+// calendar=ethiopian) does not read startDate/endDate as Gregorian dates, so
+// even a correctly-converted date range returns nothing there (lab E13,
+// 2026-07-15 — range 0 records on 12/12 data-bearing elements while period=
+// returned thousands, matching analytics per-facility 1,199/1,200 exact).
 export async function getDataValueSetsFromDHIS2(
   params: {
     dataElement: string;
     orgUnits: string[];
-    // YYYY-MM-DD, inclusive: values whose period falls inside the range.
-    startDate: string;
-    endDate: string;
+    // The instance-calendar period id (YYYYMM), passed through untranslated.
+    period: string;
   },
   options: FetchOptions,
 ): Promise<DHIS2DataValueSetsResponse> {
@@ -37,8 +44,7 @@ export async function getDataValueSetsFromDHIS2(
     searchParams.append("orgUnit", orgUnit);
   }
   searchParams.set("children", "true");
-  searchParams.set("startDate", params.startDate);
-  searchParams.set("endDate", params.endDate);
+  searchParams.set("period", params.period);
   return await getDHIS2<DHIS2DataValueSetsResponse>(
     "/api/dataValueSets.json",
     options,

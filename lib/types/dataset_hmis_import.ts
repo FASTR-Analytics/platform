@@ -237,7 +237,7 @@ export type Dhis2RunSelection =
 
 // Dispatcher route per raw indicator (PLAN_DHIS2_IMPORTER §4.4): "dvs" =
 // dataValueSets (bare data elements and operands), "analytics" = the
-// analytics engine (computed DHIS2 indicators + non-monthly re-routes).
+// analytics engine (computed DHIS2 indicators).
 export type Dhis2RunRoute = "dvs" | "analytics";
 
 // "queued" = waiting behind the running run / CSV phase; the ~60 s scheduler
@@ -306,9 +306,8 @@ export type DatasetHmisImportRunStats = {
     // Raw indicator ids that exist in no DHIS2 metadata endpoint — recorded
     // as permanent ledger errors without any fetch (dispatcher rule 4).
     unknownIds: string[];
-    // Elements re-routed to analytics after a non-monthly period id was
-    // observed in their dataValueSets response (dispatcher rule 5).
-    nonMonthlyElements: string[];
+    // Removed 2026-07-15 (period= selection cannot return other periods):
+    // older stored run_stats blobs may carry a nonMonthlyElements key.
   };
   pairFetchStats: Dhis2PairFetchStat[];
   shadow?: {

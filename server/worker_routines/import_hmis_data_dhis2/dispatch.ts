@@ -9,7 +9,6 @@ import { getExistingMetadataIds } from "../../dhis2/goal5_data_value_sets/mod.ts
 
 const UID_RE = /^[a-zA-Z][a-zA-Z0-9]{10}$/;
 const OPERAND_RE = /^([a-zA-Z][a-zA-Z0-9]{10})\.([a-zA-Z][a-zA-Z0-9]{10})$/;
-const MONTHLY_PERIOD_RE = /^\d{6}$/;
 
 // Dispatcher classification per raw indicator (PLAN_DHIS2_IMPORTER §4.4
 // rules 1-4).
@@ -99,29 +98,8 @@ export function pairKey(p: { indicatorRawId: string; periodId: number }): string
   return `${p.indicatorRawId}|${p.periodId}`;
 }
 
-export function isValidMonthlyPeriod(period: string): boolean {
-  if (!MONTHLY_PERIOD_RE.test(period)) {
-    return false;
-  }
-  const month = parseInt(period.slice(4, 6));
-  return month >= 1 && month <= 12;
-}
-
-export function monthStartDate(periodId: number): string {
-  const year = Math.floor(periodId / 100);
-  const month = periodId % 100;
-  return `${year}-${String(month).padStart(2, "0")}-01`;
-}
-
-export function monthEndDate(periodId: number): string {
-  const year = Math.floor(periodId / 100);
-  const month = periodId % 100;
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-}
-
-// Size/timeout never shrink on an identical retry — the caller splits the
-// window instead.
+// Size/timeout never shrink on an identical retry — the caller splits by
+// org-unit subtree instead.
 export function isSplittableDvsError(message: string): boolean {
   return (
     message.includes("response exceeded") || message.includes("timeout after")

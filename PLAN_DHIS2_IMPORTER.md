@@ -35,6 +35,44 @@ applied by the runner, all 257 registry routes validated).
 Adversarial review NOT yet run (Phases 1–3 each got one — same
 pattern applies). Next = review, then Phase 5 (§9).**
 
+**2026-07-15 — Ethiopia fix (review finding 2) + DVS leg switched to
+`period=` (Tim's ruling, evidence-backed by lab E13).** Finding 2 of the
+Phase 4 review (Ethiopian instances could never open the unattended
+gate: the non-Gregorian all-analytics forcing meant no DVS pairs, so
+`shadow_passed` stayed NULL forever) exposed that the forcing itself
+was a patch over a broken assumption. Tim challenged the range design;
+lab E13 (three arms — DVS date-range vs DVS `period=` vs analytics —
+across Ethiopia/Somalia/Nigeria; Kenya unreachable, TCP timeout)
+settled it: **Ethiopia's calendar-configured DHIS2 (2.40.1,
+calendar=ethiopian) does not interpret startDate/endDate as Gregorian
+at all** — an exactly-correct Ethiopian→Gregorian conversion (verified
+against the real calendar) still returned 0 records on 12/12
+data-bearing elements, while `period=201809` returned 3.7k–93k records
+per element (echoing Ethiopian period ids) and matched analytics
+per-facility 1,199/1,200 exact (1 hard diff consistent with
+analytics-table staleness). Somalia (2.40.11.1): range ≡ `period=` 6/6
+exact, analytics parity 93/93. Nigeria (partial): ANC 37,974 records
+identical both arms, reconfirming E12. Zero non-monthly records
+anywhere a range could see them. **Change (this commit): the DVS pull
+selects by `period=<instance period id>` — an opaque token the server
+interprets in its own calendar, same contract as analytics `pe:` — for
+ALL instances. Deleted: the non-Gregorian all-analytics forcing (the
+carve-out), `monthStartDate`/`monthEndDate` (the app no longer converts
+calendars or dates anywhere in the import path), and rule 5's
+non-monthly re-route machinery (structurally unreachable under
+`period=`; replaced by a loud permanent-failure guard if a response
+ever contains a period other than the one requested — supersedes the
+E12 keep-range-for-rule-5 verdict, see lab RESULTS.md E13).
+`run_stats.classification.nonMonthlyElements` no longer written (old
+blobs may carry the key; run_stats is an unvalidated debug blob).
+Ethiopia now runs the identical path to every other instance — first
+dispatcher run shadow-verifies its DVS pairs and opens the unattended
+gate normally. Kenya untested (server unreachable from here — likely
+IP restriction; same code path, gated by shadow like everyone).
+Verified: typecheck green + full server boot; the query form itself is
+the E13-live-verified one. Review findings 1 and 3–6 remain open (Tim:
+fix after Ethiopia).**
+
 Phase 4 as-built (deviations/decisions, all builder-level unless noted):
 
 - **C3**: single-row `dataset_hmis_dhis2_credentials` (main DB,
@@ -775,15 +813,17 @@ drift)*. Routes:
 
 **dataValueSets route** (per base element × single month):
 
-- `GET /api/dataValueSets.json?dataElement={base}&orgUnit={root}&children=true&startDate={month start}&endDate={month end}`
+- `GET /api/dataValueSets.json?dataElement={base}&orgUnit={root}&children=true&period={instance period id}`
   through the S7 base fetcher (`maxResponseBytes` cap ~100 MB, timeout
-  300 s, streamed read).
+  300 s, streamed read). *(2026-07-15: was startDate/endDate; lab E13
+  proved a calendar-configured server does not read those as Gregorian
+  — `period=` is the only fleet-safe selection and needs no date
+  conversion anywhere. Supersedes the "range required for rule 5"
+  reasoning below — see the Status block.)*
 - Root org unit: discovered per instance (level-1 org unit), cached.
 - **One month per pull** *(Tim's explicit ruling 2026-07-14, superseding
   the original adaptive ≤3-month window)*: the fetch unit matches the
-  import unit. A date RANGE (not `period=` exact selection) is still
-  required — exact-period selection silently omits records stored at
-  non-monthly period types, which is what rule 5's detection depends on.
+  import unit.
   If the response exceeds the byte cap or times out, split by level-2
   org-unit subtree (state) and merge; never fail a pair on size without
   having tried the split.

@@ -7,17 +7,20 @@
 // visible in the ledger. The FETCH DISPATCHER classifies every selected raw
 // indicator per run from DHIS2 metadata and routes it:
 //   dataValueSets (bare elements + operands, ~1000× less server compute) or
-//   analytics (computed DHIS2 indicators + non-monthly re-routes).
+//   analytics (computed DHIS2 indicators).
 // Both routes emit the same output contract — (facility, indicator, period,
 // count) rows — so integration, the ledger, and the UI never know which
-// route fetched.
+// route fetched. Both routes select data by the instance-calendar PERIOD ID,
+// an opaque token the DHIS2 server interprets in its own calendar — the app
+// never converts calendars or dates anywhere in this path (lab E13: a
+// calendar-configured server does not read startDate/endDate as Gregorian,
+// so period tokens are the only fleet-safe selection).
 // ============================================================================
 
 import { pooledMap } from "@std/async/pool";
 import {
   _DHIS2_CONCURRENT_REQUESTS,
   _DHIS2_FACILITY_BATCH_SIZE,
-  _INSTANCE_CALENDAR,
 } from "../../exposed_env_vars.ts";
 import {
   createBulkImportConnection,
@@ -56,9 +59,6 @@ import {
   defaultShouldRetry,
   describeFetchError,
   isSplittableDvsError,
-  isValidMonthlyPeriod,
-  monthEndDate,
-  monthStartDate,
   pairKey,
   type RawRoute,
 } from "./dispatch.ts";
@@ -170,7 +170,6 @@ async function run(std: RunWorkerMessage) {
     error: string;
     errorKind: Dhis2FetchErrorKind;
   }> = [];
-  const nonMonthlyElements = new Set<string>();
   let succeededPairsCount = 0;
   let failedPairsCount = 0;
   let totalRowsInserted = 0;
@@ -208,7 +207,6 @@ async function run(std: RunWorkerMessage) {
           (r) => r.kind === "analytics",
         ),
         unknownIds: statsInputs.unknownIds,
-        nonMonthlyElements: Array.from(nonMonthlyElements),
       },
       pairFetchStats,
       shadow: statsInputs.shadowMode ? shadowStats : undefined,
@@ -436,22 +434,6 @@ async function run(std: RunWorkerMessage) {
       distinctRawIds,
       metadataFetchOptions,
     );
-
-    // The DVS route's startDate/endDate are Gregorian ISO dates derived from
-    // the period id by plain arithmetic; on a non-Gregorian instance the
-    // period ids live in the instance calendar (e.g. Ethiopian 201810), so
-    // the fetch window would be years off and the "successful empty" pulls
-    // would scoped-delete real data. Analytics passes the period id through
-    // untranslated (calendar-consistent), so on such instances every pair
-    // rides analytics — the pre-Phase-3 behavior. Rule-4 unknown detection
-    // from the classification above still applies.
-    if (_INSTANCE_CALENDAR !== "gregorian") {
-      for (const [id, route] of routes) {
-        if (route.kind === "dvs") {
-          routes.set(id, { kind: "analytics" });
-        }
-      }
-    }
 
     const unknownIds = distinctRawIds.filter(
       (id) => routes.get(id)?.kind === "unknown",
@@ -719,9 +701,10 @@ async function run(std: RunWorkerMessage) {
       }
     };
 
-    // dataValueSets pull, one element × one month (§4.4). On size/timeout,
-    // split by level-2 subtree — never fail a pair on size without having
-    // tried the split.
+    // dataValueSets pull, one element × one month (§4.4), selected by the
+    // instance-calendar period token — no date conversion anywhere. On
+    // size/timeout, split by level-2 subtree — never fail a pair on size
+    // without having tried the split.
     const fetchDvsValues = async (
       baseElementId: string,
       periodId: number,
@@ -737,8 +720,7 @@ async function run(std: RunWorkerMessage) {
             {
               dataElement: baseElementId,
               orgUnits,
-              startDate: monthStartDate(periodId),
-              endDate: monthEndDate(periodId),
+              period: String(periodId),
             },
             {
               ...baseFetchOptions,
@@ -802,18 +784,6 @@ async function run(std: RunWorkerMessage) {
       if (shadowAborted) {
         return;
       }
-      // Element already flagged non-monthly by an earlier month's pull →
-      // straight to analytics (rule 5).
-      if (nonMonthlyElements.has(task.baseElementId)) {
-        for (const covered of task.coveredPairs) {
-          await runAnalyticsPair({
-            indicatorRawId: covered.indicatorRawId,
-            periodId: covered.periodId,
-          });
-        }
-        return;
-      }
-
       for (const covered of task.coveredPairs) {
         activePairs.set(pairKey(covered), {
           indicatorRawId: covered.indicatorRawId,
@@ -856,32 +826,42 @@ async function run(std: RunWorkerMessage) {
         return;
       }
 
-      // Rule 5: any non-monthly period id → never sum sub-monthly values into
-      // months ourselves; discard the pull and re-route this element to the
-      // analytics engine (which owns DHIS2's period-allocation rules).
-      const hasNonMonthly = values.some(
-        (v) => !v.deleted && !isValidMonthlyPeriod(v.period),
+      // period= selection means the response can only contain the requested
+      // period — anything else is the server misbehaving, and silently
+      // summing or silently dropping such values could integrate a wrong (or
+      // wrongfully empty) pair that scope-deletes real data. Fail the pull
+      // loudly instead (deterministic server property → permanent).
+      const unexpectedPeriod = values.find(
+        (v) => !v.deleted && v.period !== String(task.periodId),
       );
-      if (hasNonMonthly) {
-        console.warn(
-          `Non-monthly period ids observed for element ${task.baseElementId} — re-routing to analytics`,
-        );
-        nonMonthlyElements.add(task.baseElementId);
+      if (unexpectedPeriod !== undefined) {
+        const message =
+          `dataValueSets response for element ${task.baseElementId}, period=${task.periodId} ` +
+          `contained values at period "${unexpectedPeriod.period}" — treating as a failed fetch.`;
         for (const covered of task.coveredPairs) {
-          activePairs.delete(pairKey(covered));
-        }
-        for (const covered of task.coveredPairs) {
-          await runAnalyticsPair({
+          const pair = {
             indicatorRawId: covered.indicatorRawId,
             periodId: covered.periodId,
+          };
+          pairFetchStats.push({
+            ...pair,
+            success: false,
+            route: "dvs",
+            ...accToStat(acc),
+            rowsFetched: values.length,
+            errorKind: "permanent",
+            error: message,
           });
+          await failPair(pair, message, "permanent");
+          activePairs.delete(pairKey(pair));
         }
+        await updateProgress(true);
         return;
       }
 
-      // Client-side reduce: keep rows whose orgUnit is in the facility scope
-      // and whose period is the pulled month; skip deleted values; for bare
-      // elements sum across COC×AOC, for operands restrict to the COC first.
+      // Client-side reduce: keep rows whose orgUnit is in the facility scope;
+      // skip deleted values; for bare elements sum across COC×AOC, for
+      // operands restrict to the COC first.
       const perPair = new Map<string, Map<string, number>>();
       for (const covered of task.coveredPairs) {
         perPair.set(pairKey(covered), new Map());
@@ -889,7 +869,6 @@ async function run(std: RunWorkerMessage) {
       for (const v of values) {
         if (v.deleted) continue;
         if (!facilitySet.has(v.orgUnit)) continue;
-        if (parseInt(v.period) !== task.periodId) continue;
         const value = Number(v.value);
         if (isNaN(value)) continue;
         for (const covered of task.coveredPairs) {

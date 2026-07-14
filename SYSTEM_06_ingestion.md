@@ -104,10 +104,15 @@ into this doc when that plan retires). Shape:
   datasets-summary attention flag).
 - The worker classifies every selected raw indicator per run from DHIS2
   metadata (dispatcher): bare data elements + operands → dataValueSets
-  country-pulls (shared per base element, adaptive window halving then
-  level-2 subtree split); computed DHIS2 indicators → analytics; unknown
-  ids → permanent ledger errors with no fetch; elements with non-monthly
-  data → re-routed to analytics.
+  country-pulls, one per base element × month selected by
+  `period=<instance period id>` (an opaque token the DHIS2 server
+  interprets in its own calendar, same contract as analytics `pe:` — the
+  app never converts calendars/dates; lab E13 2026-07-15: a
+  calendar-configured server like Ethiopia's does not read
+  startDate/endDate as Gregorian), level-2 subtree split on size/timeout;
+  computed DHIS2 indicators → analytics; unknown ids → permanent ledger
+  errors with no fetch; a response containing any period other than the
+  requested one fails the pull loudly (permanent).
 - Each pair integrates in its own small transaction: scoped delete (against
   an UNLOGGED facility-scope snapshot table captured at run start) →
   insert → ledger upsert → run counters. A run that dies keeps every
