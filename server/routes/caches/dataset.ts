@@ -14,8 +14,11 @@ export const _FETCH_CACHE_DATASET_HMIS_ITEMS = new TimCacheC<
     facilityColumns: InstanceConfigFacilityColumns;
   },
   { versionId: number; indicatorMappingsVersion: string },
+  // Prefix bumped ds_hmis → ds_hmis_v2 when the source of vizItems switched
+  // to the import ledger (common-view count semantics changed) — old-shape
+  // cached payloads for unmodified versions must not survive the deploy.
   APIResponseWithData<ItemsHolderDatasetHmisDisplay>
->("ds_hmis", {
+>("ds_hmis_v2", {
   uniquenessHashFromParams: (params) => {
     const fcHash = hashFacilityColumnsConfig(params.facilityColumns);
     return `${params.rawOrCommonIndicators}_${fcHash}`;

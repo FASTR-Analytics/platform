@@ -13,6 +13,7 @@ import {
   getDatasetHfaUploadAttemptDetail,
   getDatasetHfaUploadStatus,
   getDatasetHmisDetail,
+  getDatasetHmisImportLedgerItems,
   getDatasetHmisItemsForDisplay,
   getDatasetHmisUploadAttemptDetail,
   getDatasetHmisUploadStatus,
@@ -77,6 +78,17 @@ defineRoute(
 //    Dataset items    //
 //                     //
 /////////////////////////
+
+defineRoute(
+  routesDatasets,
+  "getDatasetHmisImportLedger",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetHmisImportLedger"),
+  async (c) => {
+    const res = await getDatasetHmisImportLedgerItems(c.var.mainDb);
+    return c.json(res);
+  },
+);
 
 defineRoute(
   routesDatasets,

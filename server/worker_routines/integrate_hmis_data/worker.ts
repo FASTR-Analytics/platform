@@ -4,6 +4,8 @@ import {
   createBulkImportConnection,
   createWorkerReadConnection,
   getCurrentDatasetHmisMaxVersionId,
+  upsertHmisLedgerErrorPairs,
+  upsertHmisLedgerPairsFromData,
 } from "../../db/mod.ts";
 import {
   parseJsonOrThrow,
@@ -372,6 +374,48 @@ async function run(std: { rawDUA: DBDatasetHmisUploadAttempt }) {
       }
 
       console.log(`Version record ${newVersionId} updated with actual counts`);
+
+      // ==================================================
+      // PHASE 5.5: Import Ledger (same transaction — the ledger can never
+      // disagree with the data)
+      // ==================================================
+
+      // The authoritative pair list: for scoped DHIS2, every succeeded work
+      // item (including zero-row pairs — "checked, empty" is real
+      // information); for the merge branch, every pair this version touched.
+      const touchedPairs = scopedDelete
+        ? scopedDelete.succeededWorkItems.map((w) => ({
+            indicatorRawId: w.indicatorRawId,
+            periodId: w.periodId,
+          }))
+        : (
+            await sql<{ indicator_raw_id: string; period_id: number }[]>`
+              SELECT DISTINCT indicator_raw_id, period_id
+              FROM ${sql(datasetTableName)}
+              WHERE version_id = ${newVersionId}
+            `
+          ).map((r) => ({
+            indicatorRawId: r.indicator_raw_id,
+            periodId: r.period_id,
+          }));
+
+      await upsertHmisLedgerPairsFromData(
+        sql,
+        touchedPairs,
+        stagingResultRaw.sourceType,
+        newVersionId
+      );
+
+      if (stagingResultRaw.sourceType === "dhis2") {
+        await upsertHmisLedgerErrorPairs(sql, stagingResultRaw.failedFetches);
+      }
+
+      console.log(
+        `Import ledger updated: ${touchedPairs.length} pairs upserted` +
+          (stagingResultRaw.sourceType === "dhis2"
+            ? `, ${stagingResultRaw.failedFetches.length} failed pairs recorded`
+            : "")
+      );
 
       // Update progress: 70% - Version record updated
       await updateIntegrationProgress(mainDb, 70);

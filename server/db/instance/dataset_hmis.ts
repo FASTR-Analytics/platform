@@ -42,6 +42,7 @@ import {
   setWorker,
 } from "../../worker_routines/worker_store.ts";
 import { escapeSqlString, tryCatchDatabaseAsync } from "../utils.ts";
+import { reconcileHmisLedgerPairsAfterDelete } from "./dataset_hmis_import_ledger.ts";
 import type {
   DBDatasetHmisUploadAttempt,
   DBDatasetHmisVersion,
@@ -216,6 +217,20 @@ export async function deleteAllDatasetHmisData(
       : conditions.join(" AND ");
 
     await mainDb.begin(async (sql) => {
+      // Captured before the DELETE so the ledger reconcile below knows which
+      // (indicator, period) pairs to re-count — a facility-scoped deletion
+      // can leave a pair partially populated.
+      const affectedPairs = (
+        await sql.unsafe<{ indicator_raw_id: string; period_id: number }[]>(`
+          SELECT DISTINCT indicator_raw_id, period_id
+          FROM dataset_hmis
+          WHERE ${whereClause}
+        `)
+      ).map((r) => ({
+        indicatorRawId: r.indicator_raw_id,
+        periodId: r.period_id,
+      }));
+
       const deleteResult = await sql.unsafe(`
         DELETE FROM dataset_hmis
         WHERE ${whereClause}
@@ -255,6 +270,8 @@ export async function deleteAllDatasetHmisData(
           })}
         )
       `;
+
+      await reconcileHmisLedgerPairsAfterDelete(sql, affectedPairs);
     });
 
     return { success: true };
@@ -373,21 +390,27 @@ async function getDatasetHmisItemsForDisplayRaw(
   sharedData: SharedDataForDisplay
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
+    // Ledger reads (~1,440 rows for Nigeria) instead of a GROUP BY scan over
+    // dataset_hmis (tens of millions of rows) — the ledger is maintained
+    // inside every integration/deletion transaction, so it always agrees.
+    // n_records > 0 keeps display behavior identical: zero-count "checked,
+    // empty" and error-only pairs are checklist information, not data cells.
     const vizItems = await mainDb<Record<string, string>[]>`
-  SELECT COUNT(*) AS count, SUM(count) AS sum, indicator_raw_id AS indicator_id, period_id 
-  FROM dataset_hmis
-  GROUP BY indicator_raw_id, period_id
+  SELECT n_records::bigint AS count, sum_count AS sum, indicator_raw_id AS indicator_id, period_id
+  FROM dataset_hmis_import_ledger
+  WHERE n_records > 0
 `;
 
     const indicators = await mainDb<
       { indicator_raw_id: string; common_ids: string | null }[]
     >`
-  SELECT 
+  SELECT
     dh.indicator_raw_id,
     STRING_AGG(im.indicator_common_id, ', ' ORDER BY im.indicator_common_id) as common_ids
   FROM (
-    SELECT DISTINCT indicator_raw_id 
-    FROM dataset_hmis
+    SELECT DISTINCT indicator_raw_id
+    FROM dataset_hmis_import_ledger
+    WHERE n_records > 0
   ) dh
   LEFT JOIN indicator_mappings im ON dh.indicator_raw_id = im.indicator_raw_id
   GROUP BY dh.indicator_raw_id
@@ -409,10 +432,11 @@ async function getDatasetHmisItemsForDisplayRaw(
     // Get period bounds
     const periodBoundsResult = await mainDb<
       { min_period: number; max_period: number }[]
-    >`SELECT 
+    >`SELECT
         MIN(period_id) as min_period,
         MAX(period_id) as max_period
-      FROM dataset_hmis`;
+      FROM dataset_hmis_import_ledger
+      WHERE n_records > 0`;
 
     const periodBounds: PeriodBounds = {
       min:
@@ -449,32 +473,27 @@ async function getDatasetHmisItemsForDisplayCommon(
   sharedData: SharedDataForDisplay
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
+    // Ledger + mappings join instead of scanning dataset_hmis (see the raw
+    // variant above). `count` is the summed raw record count per (common,
+    // period) — a facility reporting two raw indicators mapped to the same
+    // common id counts twice, where the old per-facility aggregation counted
+    // it once (PLAN_DHIS2_IMPORTER §6 ruled the join+SUM read).
     const vizItems = await mainDb<Record<string, string>[]>`
-      WITH aggregated AS (
-        SELECT 
-          dh.facility_id,
-          im.indicator_common_id,
-          dh.period_id,
-          SUM(dh.count) as count
-        FROM dataset_hmis dh
-        INNER JOIN indicator_mappings im ON dh.indicator_raw_id = im.indicator_raw_id
-        GROUP BY 
-          dh.facility_id,
-          im.indicator_common_id,
-          dh.period_id
-      )
-      SELECT COUNT(*) AS count, SUM(count) AS sum, indicator_common_id AS indicator_id, period_id 
-      FROM aggregated
-      GROUP BY indicator_common_id, period_id
+      SELECT SUM(l.n_records) AS count, SUM(l.sum_count) AS sum, im.indicator_common_id AS indicator_id, l.period_id
+      FROM dataset_hmis_import_ledger l
+      INNER JOIN indicator_mappings im ON l.indicator_raw_id = im.indicator_raw_id
+      WHERE l.n_records > 0
+      GROUP BY im.indicator_common_id, l.period_id
     `;
 
     const indicators = await mainDb<
       { indicator_common_id: string; indicator_common_label: string }[]
     >`
       SELECT DISTINCT im.indicator_common_id, i.indicator_common_label
-      FROM dataset_hmis dh
-      INNER JOIN indicator_mappings im ON dh.indicator_raw_id = im.indicator_raw_id
+      FROM dataset_hmis_import_ledger l
+      INNER JOIN indicator_mappings im ON l.indicator_raw_id = im.indicator_raw_id
       INNER JOIN indicators i ON im.indicator_common_id = i.indicator_common_id
+      WHERE l.n_records > 0
       ORDER BY im.indicator_common_id
     `.then((results) =>
       results.map<{ value: string; label: string }>((row) => ({
@@ -491,14 +510,15 @@ async function getDatasetHmisItemsForDisplayCommon(
     // Get period bounds
     const periodBoundsResult = await mainDb<
       { min_period: number; max_period: number }[]
-    >`SELECT 
+    >`SELECT
         MIN(period_id) as min_period,
         MAX(period_id) as max_period
-      FROM dataset_hmis dh
-      WHERE EXISTS (
-        SELECT 1 FROM indicator_mappings im 
-        WHERE dh.indicator_raw_id = im.indicator_raw_id
-      )`;
+      FROM dataset_hmis_import_ledger l
+      WHERE l.n_records > 0
+        AND EXISTS (
+          SELECT 1 FROM indicator_mappings im
+          WHERE l.indicator_raw_id = im.indicator_raw_id
+        )`;
 
     const periodBounds: PeriodBounds = {
       min:

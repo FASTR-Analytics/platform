@@ -12,6 +12,7 @@ import {
 } from "../../types/mod.ts";
 import type {
   DatasetHmisDetail,
+  DatasetHmisImportLedgerItem,
   DatasetHmisVersion,
   DatasetHmisWindowingRaw,
   DatasetUploadAttemptDetail,
@@ -72,6 +73,11 @@ export const datasetRouteRegistry = {
     path: "/datasets/hmis/versions",
     method: "GET",
     response: {} as DatasetHmisVersion[],
+  }),
+  getDatasetHmisImportLedger: route({
+    path: "/datasets/hmis/import-ledger",
+    method: "GET",
+    response: {} as DatasetHmisImportLedgerItem[],
   }),
   getDatasetHmisDisplayInfo: route({
     path: "/datasets/hmis/data",

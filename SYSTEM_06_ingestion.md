@@ -30,6 +30,7 @@ globs:
   - lib/types/datasets_in_project.ts
   - server/db/instance/dataset_hfa.ts
   - server/db/instance/dataset_hmis.ts
+  - server/db/instance/dataset_hmis_import_ledger.ts
   - server/db/instance/dataset_iceh.ts
   - server/db/project/calculated_indicators_snapshot.ts
   - server/db/project/datasets_in_project_hfa.ts

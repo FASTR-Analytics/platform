@@ -429,7 +429,13 @@ async function run(std: {
       dateImported,
       totalIndicatorPeriodCombos: totalCombos,
       successfulFetches: totalCombos - failedFetches.length,
-      failedFetches: failedFetches.slice(0, 100),
+      // Full list, not a sample — the import ledger records every failed
+      // pair at integration time. Error strings capped so a pathological run
+      // can't bloat the stored result.
+      failedFetches: failedFetches.map((f) => ({
+        ...f,
+        error: f.error.slice(0, 1000),
+      })),
       periodIndicatorStats,
       finalStagingRowCount: totalRowsStaged,
       succeededWorkItems,

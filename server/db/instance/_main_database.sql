@@ -322,6 +322,22 @@ CREATE INDEX idx_dataset_hmis_facility_period ON dataset_hmis(facility_id, perio
 CREATE INDEX idx_dataset_hmis_indicator_id ON dataset_hmis(indicator_raw_id);
 CREATE INDEX idx_dataset_hmis_period_id ON dataset_hmis(period_id);
 
+-- Import ledger: latest import state per (raw indicator, month). Written
+-- inside every integration and deletion transaction, so it can never disagree
+-- with dataset_hmis (see server/db/instance/dataset_hmis_import_ledger.ts).
+CREATE TABLE dataset_hmis_import_ledger (
+  indicator_raw_id text NOT NULL REFERENCES indicators_raw(indicator_raw_id) ON DELETE CASCADE,
+  period_id integer NOT NULL,
+  n_records integer NOT NULL,
+  sum_count bigint NOT NULL,
+  source text NOT NULL CHECK (source IN ('dhis2', 'csv', 'backfill')),
+  status text NOT NULL CHECK (status IN ('ready', 'error')),
+  error text,
+  imported_at timestamptz,
+  version_id integer REFERENCES dataset_hmis_versions(id),
+  PRIMARY KEY (indicator_raw_id, period_id)
+);
+
 CREATE TABLE dataset_hmis_upload_attempts (
   id text PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
   date_started text NOT NULL,

@@ -22,6 +22,7 @@ import { DatasetHmisUploadAttemptForm } from "~/components/instance_dataset_hmis
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
+import { ImportLedger } from "./_import_ledger";
 import { PreviousImports } from "./_previous_imports";
 import { DatasetItemsHolder } from "./dataset_items_holder";
 
@@ -84,6 +85,13 @@ export function InstanceDatasetHmis(p: Props) {
       element: PreviousImports,
       props: {
       },
+    });
+  }
+
+  async function viewImportLedger() {
+    await openEditor({
+      element: ImportLedger,
+      props: {},
     });
   }
 
@@ -258,6 +266,20 @@ export function InstanceDatasetHmis(p: Props) {
                 </Switch>
                 <Show when={instanceState.hmisNVersions > 0}>
                   <div class="ui-spy text-sm">
+                    <div class="">
+                      <Button
+                        onClick={viewImportLedger}
+                        outline
+                        fullWidth
+                        iconName="databaseImport"
+                      >
+                        {t3({
+                          en: "Import status by indicator",
+                          fr: "État des importations par indicateur",
+                          pt: "Estado das importações por indicador",
+                        })}
+                      </Button>
+                    </div>
                     <div class="">
                       <Button
                         onClick={viewPreviousImports}

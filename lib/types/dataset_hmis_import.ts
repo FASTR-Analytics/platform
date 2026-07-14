@@ -281,6 +281,29 @@ export type DatasetStagingResult =
   | DatasetDhis2StagingResult;
 
 // ============================================================================
+// Import Ledger Types
+// ============================================================================
+
+// One row per (raw indicator, month): the latest import state of that pair
+// (PLAN_DHIS2_IMPORTER WS-B). status 'error' keeps the last data-bearing
+// counts untouched — the error describes the most recent failed attempt.
+export type DatasetHmisImportLedgerItem = {
+  indicatorRawId: string;
+  periodId: number;
+  nRecords: number;
+  sumCount: number;
+  source: "dhis2" | "csv" | "backfill";
+  status: "ready" | "error";
+  // Prefixed with the failure classification: "[permanent] …" (config error,
+  // will fail again until fixed) or "[transient] …" (server health).
+  error?: string;
+  // ISO timestamp of the last successful import of this pair; undefined =
+  // pre-ledger backfill (or an error-only pair that never imported).
+  importedAt?: string;
+  versionId?: number;
+};
+
+// ============================================================================
 // DHIS2 Import Types
 // ============================================================================
 
