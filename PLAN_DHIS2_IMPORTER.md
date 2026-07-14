@@ -10,8 +10,11 @@ Three goals, one system (S6's HMIS-DHIS2 path + S7 connector):
   everything automatically each weekend" instead of "a user babysits a
   wizard for 48 hours".
 
-The first work item is exploration/instrumentation, not code changes.
-Code anatomy below verified against `main` 2026-07-14.
+Phase 0 is a standalone **fetch lab** (A0) — extensive empirical testing
+against the real Nigeria DHIS2 (Tim has credentials), in its own repo,
+before any app code changes. The lab's job is to nail the request shape
+and the attribution question once and for all. Code anatomy below
+verified against `main` 2026-07-14.
 
 ## 0. The driver (Nigeria, July 2026)
 
@@ -82,25 +85,78 @@ it; only one import can exist at a time; progress is the status JSON.
 
 ## 2. WS-A — speed
 
-**A1 — instrument first.** Add per-batch timing to the staging worker
-(fetch ms, rows returned, retry count, HTTP status) rolled up per pair
-(min/median/max batch ms, retries, failures) and persisted in the
-staging result + logs. This is cheap, ships alone, and produces the
-attribution evidence: if median batch time is 1–2 s of DHIS2 server
-time, the 48 h is arithmetic, not platform overhead — that's the
-advocacy note Rachel needs. If DB-write or scheduling gaps between
-batches are material, we found a platform bug.
+**A0 — the fetch lab (Phase 0, all of it).** A new sibling repo
+(`~/projects/apps/wb-fastr-dhis2-lab`) whose only purpose is to get the
+fetches into the right shape against the real Nigeria DHIS2. Separate
+repo, not a folder here: national-DHIS2 credentials never enter the
+platform repo (lab `.env`, never committed), and experiment churn stays
+out of the deploy-gated lint/typecheck chain. The lab imports the app's
+**real** connector (`fetchFromDHIS2` / `getAnalyticsFromDHIS2` via
+absolute-path imports with the app's `deno.json` — the standard
+verify-by-executing pattern), so measurements attribute the actual code
+path, not a reimplementation. Committed artifacts: the experiment
+runner, raw timing JSONs per run, and a `RESULTS.md` that records the
+verdicts.
 
-**A2 — answer the regression question definitively.** Diff-audit of the
-fetch path across the scoped-delete work (already done in outline: the
-only behavioral changes were missing-`rows` → fail and the URL guard —
-neither slows a *successful* fetch). Pair with A1 numbers from the next
-Nigeria run and write the answer down (in the thread and here). The
-missing-`rows` change DID convert some previously-"empty" pairs into
-failures — investigate whether Nigeria's DHIS2 omits `rows` on empty
-analytics results; if so that is the disaggregated-failure cluster
-(A5) and it needs a distinct fix (probe, or treat missing-rows-as-empty
-ONLY when a verification re-fetch agrees), not a revert.
+Guardrails (the lab talks to a struggling production national system):
+read-only GETs only; explicit load budget (default ≤ 5 concurrent,
+back off on 429/5xx, hard stop on repeated errors); every run logs its
+own request count; prefer Nigeria off-peak (WAT = UTC+1; their night is
+late-morning/afternoon AEST).
+
+The experiment matrix:
+
+- **E1 baseline replication + attribution**: the current shape
+  (`dx:1 × pe:1 × ou:100`), measured properly — time-to-headers vs
+  body-read time per request, distribution across time of day and
+  across indicators. This is the "platform vs Nigeria's DHIS2" verdict:
+  if server think-time dominates, the 48 h is arithmetic and Rachel's
+  advocacy note writes itself.
+- **E2 batch-size sweep**: `ou:` 50/100/200/400/800 — find the real URL
+  limit empirically (the in-app 2048 guard measured a broken URL) and
+  the latency-vs-batch-size curve (fixed per-request cost vs per-row
+  cost).
+- **E3 multi-period sweep**: `pe:` 1/3/6/12 months, crossed with E2
+  batch sizes; response-size growth vs round-trip savings.
+- **E4 `ou:LEVEL-n`**: does Nigeria's DHIS2 serve it at all, at what
+  latency/size, and does the returned facility set match the enumerated
+  fetch?
+- **E5 concurrency sweep**: 1/2/5/8/12 parallel — find where Nigeria
+  throttles or degrades (429s, latency collapse).
+- **E6 disaggregated-indicator failures** (= A5): reproduce against the
+  thread's failing indicators, capture raw responses — is it
+  missing-`rows` on empty operands, un-materialized analytics for those
+  category combos, or something else?
+- **E7 `dataValueSets` + `lastUpdated`** feasibility probe for raw data
+  elements (the incremental-sync primitive for G3).
+- **E8 analytics-table freshness**: check when Nigeria's analytics
+  tables are rebuilt (their nightly job) — imports racing a rebuild
+  would explain run-to-run variance and failure clusters.
+- **E9 correctness gate**: any candidate shape must return identical
+  values to E1 on a sample of indicator-months before it can win.
+  Speed results without this are void — the importer deletes-then-
+  inserts on the strength of these responses.
+
+Phase 0 exit: `RESULTS.md` states the winning request shape (with
+numbers), the attribution verdict for the thread, and the E6 failure
+diagnosis. Everything downstream (A3 tunables, A4 lever choice, C1 unit
+design) consumes those verdicts instead of guesses.
+
+**A1 — in-app instrumentation** (ships with Phase 1). Add per-batch
+timing to the staging worker (fetch ms, rows, retry count, HTTP status)
+rolled up per pair and persisted in the staging result + logs — the
+production-run counterpart of E1, so future slowness reports come with
+their own evidence.
+
+**A2 — the regression answer.** Diff-audit of the fetch path across the
+scoped-delete work (already done in outline: the only behavioral changes
+were missing-`rows` → fail and the URL guard — neither slows a
+*successful* fetch). E1/E6 numbers complete it; write the answer down in
+the thread and here. The missing-`rows` change DID convert some
+previously-"empty" pairs into failures — if E6 shows Nigeria omits
+`rows` on empty analytics results, that is the disaggregated-failure
+cluster and needs a distinct fix (probe, or treat missing-rows-as-empty
+only when a verification re-fetch agrees), not a revert.
 
 **A3 — quick wins** (independent, low-risk, ship as a batch):
 
@@ -116,9 +172,9 @@ ONLY when a verification re-fetch agrees), not a revert.
   pairs are cheap to re-run (G2 checklist / WS-C units), failing fast
   and retrying the pair later beats 24 min inside one batch.
 
-**A4 — structural request-count levers** (explore on a real DHIS2, then
-pick; these change the request shape, so they land cleanest with the
-WS-C per-pair unit):
+**A4 — structural request-count levers** (measured in the lab —
+E2/E3/E4/E7 — then ONE picked by the `RESULTS.md` verdict; they change
+the request shape, so they land cleanest with the WS-C per-pair unit):
 
 - **Multi-period requests**: `pe:202401;…;202412` — 12× fewer requests
   for ~80 extra URL chars; rows already carry the `pe` column. Composes
@@ -138,10 +194,9 @@ WS-C per-pair unit):
   auto-pull enabler; explore feasibility (operand/COC handling) but
   don't block G1 on it.
 
-**A5 — disaggregated-indicator failures**: reproduce against the
-pre-new-system indicators from the thread, classify (missing-`rows` on
-empty operands? analytics tables not materialized for those COCs?), fix
-or degrade cleanly per pair with a ledger-visible error.
+**A5 — disaggregated-indicator failures**: E6 produces the diagnosis;
+A5 is the in-app fix — handle the classified cause and degrade cleanly
+per pair with a ledger-visible error.
 
 Acceptance for WS-A: a Nigeria indicator-year measurably down (target:
 ≤ 5 min with A3 alone, ≤ 1 min with a chosen A4 lever), and a written
@@ -248,11 +303,14 @@ auto-pull default on/off per instance; notification channel (C4).
 
 ## 5. Sequencing
 
-1. **Phase 0 — explore & attribute** (A1, A2, A5 repro): instrument,
-   run against Nigeria, write the attribution answer + advocacy note.
-   No behavior changes beyond logging/persisted timings.
-2. **Phase 1 — quick wins** (A3): throttle, guard fix + batch-size
-   raise, retry budget, tunables.
+1. **Phase 0 — the fetch lab** (A0, all experiments E1–E9): a new
+   sibling repo, extensive testing against the real Nigeria DHIS2, zero
+   app changes. Exits with `RESULTS.md`: winning request shape,
+   attribution verdict + advocacy note for the thread (A2), and the E6
+   failure diagnosis.
+2. **Phase 1 — quick wins** (A3 + A1): throttle, guard fix +
+   lab-measured batch-size raise, retry budget, tunables, in-app
+   instrumentation.
 3. **Phase 2 — ledger** (WS-B): table + writers + backfill + viewer
    switch + read-only checklist/last-updated UI.
 4. **Phase 3 — request shape + units** (chosen A4 lever + C1 + C2).
