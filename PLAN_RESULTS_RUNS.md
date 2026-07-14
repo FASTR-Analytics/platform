@@ -152,34 +152,66 @@ once-per-generation finalize at the wizard build. Disposition as ruled:
   resolution); the mtime-keyed `manifest_cache.ts` (immutable runs key by
   runId); the boot sandbox-package migration in `db_startup.ts`.
 
-### Pre-deploy work items from the review
+### Pre-deploy work items from the review (= work item 8's spec)
 
 The review findings that survive the collapse (report buckets 2–3) and
-must ship with or gate this deploy:
+must ship with or gate this deploy. **Ops findings 3/18/20 are DONE
+(work item 7).** Everything below was RE-VERIFIED against the current
+branch on 2026-07-14 — the review's file:line citations predate items
+2–7, so use THESE locations, not the review's. Full evidence per
+finding: [REVIEW_RESULTS_RUNS_DEPLOY1.md](REVIEW_RESULTS_RUNS_DEPLOY1.md).
 
-- **Engine** — finding 11: the 512 MB `memory_limit` OOMs on ordinary
-  Nigeria-scale disaggregations (60M rows × `facility_name`); size it
-  deliberately AND set an explicit `temp_directory` (the default spills to
-  the process CWD). Finding 12: DuckDB group-by output order is
-  nondeterministic and charts with `sortIndicatorValues: "none"` (a
-  shipped default) render raw order — pin a deterministic order at the
-  executor boundary.
-- **Rig gates** — findings 5/6: PARITY GREEN must fail on skipped
-  projects/POs and on duck-side exceptions (currently recorded as "skip");
-  findings 15/16/26: diff the raw-rows preview and manifest-side metric
-  resolution, broaden the corpus (rollup, facility-column groupBys, all
-  periodFilter types, non-default replicant panes), and exercise the real
-  read-path composition; finding 27: gate option-order divergence and
-  surface duck-side errors in `both_error`; finding 25: the rig must diff
-  the manifest's `metricAvailability` stamps against the live availability
-  surface — this deploy makes them authoritative.
-- **Ops** — finding 3: serve-before-backfill (model point 5); finding 18:
-  ship the rig + backfill runner in the image or document the docker-exec
-  procedure; finding 20 inverts: `RUNS_DIR_PATH` revives, now with its
-  container-mount namespaces (binding decision 4).
-- **Hygiene** — findings 19/21: stale shadow-write comment + SYSTEM_09
-  flag banner; finding 22: `columnExistsFor` must not swallow infra errors
-  as "column absent".
+- **Engine** — finding 11: `DUCKDB_MEMORY_LIMIT = "512MB"`
+  ([duckdb_executor.ts:14](server/run_query/duckdb_executor.ts#L14),
+  applied :37) OOMs on ordinary Nigeria-scale disaggregations (60M rows
+  × `facility_name`); size it deliberately AND set an explicit
+  `temp_directory` (nothing sets one today — the default spills to the
+  process CWD). Finding 12: `executeSqlOverParquet` pins no result
+  order; DuckDB group-by output order is nondeterministic and charts
+  with `sortIndicatorValues: "none"` (a shipped default) render raw
+  order — pin a deterministic order at the executor boundary (the
+  option-LIST ordering is already handled separately by the
+  `getPossibleValuesCore` TS re-sort, binding decision 2 — this finding
+  is about ITEMS row order).
+- **Rig gates** (all in
+  [validate_results_runs_parity.ts](validate_results_runs_parity.ts);
+  its gate today is `diffs.length === 0` at :745-746 — nothing else
+  fails it). Findings 5/6: GREEN must fail on skips and duck-side
+  exceptions. Current skip sinks that must become gating: NO RUN
+  ATTACHED project skip (:655), per-PO skips (:447 detail-failed, :467
+  module-not-run, :505/:510 fetch-config, :702), and `both_error`
+  outcomes (:535/:566/:618) which can hide a duck-side regression
+  behind any pg-side error (finding 27's half — the other half, gating
+  option-ORDER divergence currently reported as warnings, also lands
+  here). Finding 15: the rig never diffs the raw-rows preview —
+  `getResultsObjectItemsFromRun`
+  ([run_read.ts:771](server/run_query/run_read.ts#L771)) vs the pg
+  baseline. Finding 25: the rig never reads `metricAvailability` — diff
+  the manifest stamps (via `getMetricsWithStatusFromManifest`,
+  [run_read.ts:504](server/run_query/run_read.ts#L504)) against the pg
+  baseline's metric statuses; this deploy made the stamps authoritative
+  (item 5), so a wrong stamp is now user-visible. Finding 16: corpus
+  breadth — the stored-PO corpus underexercises rollup, facility-column
+  groupBys, some periodFilter types, and non-default replicant panes;
+  add synthetic configs for the gaps (the virtual-defaults enumeration
+  from item 5b already widened the corpus 129→214). Finding 26 is
+  PARTIALLY DISSOLVED: `--run` mode now resolves each project's
+  attached run through `getRunReadContext` (the real composition); what
+  remains of it is covered by findings 15/25 above (the two flipped
+  surfaces the rig still doesn't touch).
+- **Hygiene** — finding 19 MORPHED: the ingest shadow-write (and its
+  stale comment) died with item 5's worker deletion, but
+  [write_results_object_parquet.ts:11](server/run_query/write_results_object_parquet.ts#L11)
+  now cites `storeResultsObject in run_module_iterator.ts` — a DELETED
+  file; re-point it to `generate_run/legacy_store_results_object.ts`.
+  Finding 21: the SYSTEM_09 header banner still describes a
+  `RESULTS_READ_PATH` flag that never shipped
+  ([SYSTEM_09_viz_query_cache.md:24-27](SYSTEM_09_viz_query_cache.md))
+  — correct the banner text only (the full S9 rewrite is Phase 4).
+  Finding 22: `columnExistsFor`
+  ([run_read.ts:178](server/run_query/run_read.ts#L178)) still swallows
+  EVERY duck error as "column absent" in its catch — only a
+  missing-column error may mean false; infra errors must throw.
 
 ### Identity read plane: DONE (2026-07-12)
 
@@ -238,17 +270,30 @@ runs until R emits parquet natively**, then drop. No §10 blockers remain
 for this milestone (Q1/Q4/Q8 are Phase 3 design).
 
 **How to work this list**: execute items in order, ONE item per session,
-each gated by `deno task typecheck` + the rig green
-(`validate_results_runs_parity.ts --run`; dev setup: `./pg_run` starts
-Postgres, `backfill_runs.ts` re-synthesizes runs). Everything decided is
-decided — the binding decisions, §10 rulings, and empirical gotchas
-sections are closed; do not re-derive or improve them. An item too large
-for one session stops at a clean seam with gates green and records the
-stopping point inside the item — nowhere else. Items 1 and 2 span
-wb-fastr-modules (CLAUDE.md three-repo lockstep rule: commit that repo
-locally; the push stays deploy-gated — its local HEAD is `6ba142e`).
+each gated by `deno task typecheck` + the rig green. Rig invocation:
+`deno run --allow-all --unstable-broadcast-channel --env-file -c
+deno.json validate_results_runs_parity.ts --run` (same flags for
+`backfill_runs.ts`). Dev setup: `./pg_run` starts Postgres (mounts
+sandbox AND runs volumes — since item 7, dataset extracts COPY straight
+into run tmp dirs), `backfill_runs.ts [--project <id>]` re-synthesizes
+runs; server/lib code has no --watch, harness-execute functions directly
+(`deno run --allow-all --env-file -c deno.json <harness>.ts` with
+absolute-path imports). Known rig trap (hit 2026-07-13): a browser-
+driven wizard generation that selected a SUBSET of modules leaves that
+project attached to a legitimately narrower package than the pg
+baseline — the rig reports diffs like "duck=Unknown results object" /
+"Metric not found" on ONE project while pg is ok. That is not a code
+bug; remedy = re-backfill that project (synthesizes a full-catalog run)
+and re-run the rig. Everything decided is decided — the binding
+decisions, §10 rulings, and empirical gotchas sections are closed; do
+not re-derive or improve them. An item too large for one session stops
+at a clean seam with gates green and records the stopping point inside
+the item — nowhere else. Items 1 and 2 span wb-fastr-modules (CLAUDE.md
+three-repo lockstep rule: commit that repo locally; the push stays
+deploy-gated — its local HEAD is `6ba142e`).
 Items 1–5b and 7 are DONE and item 6 is RETIRED (details inside each
-item); **the next item to execute is item 8**, the last one.
+item); **the next item to execute is item 8**, the last one; after it,
+the exit gate below, then the Deploy phasing rollout.
 After items 3–5 the dev app exercises the full new UX end-to-end
 (generate → progress → repoint → all read surfaces from the run) and is
 reviewable in the browser; items 6–8 are export/deploy/hardening and
@@ -812,10 +857,26 @@ Work items, in order:
      browser-driven wizard run had left HFA Test attached to an
      m010-only package, legitimately narrower than the pg baseline —
      resolved by re-backfilling that project, the standard dev remedy).
-8. **Pre-deploy review work items** (the subsection above): engine
-   findings 11 (memory_limit + temp_directory) and 12 (pin group-by
-   order); the rig-gate hardening set (5/6, 15/16/26, 27, 25); hygiene
-   19/21/22.
+8. **Pre-deploy review work items — the last item.** The spec is the
+   "Pre-deploy work items from the review" subsection above, re-verified
+   against the current branch 2026-07-14 with exact file:line seams (the
+   review doc's own citations are STALE — items 2–7 moved or deleted
+   their targets; trust the subsection). Scope: engine findings 11
+   (memory_limit sizing + temp_directory) and 12 (pin items row order at
+   the executor); the rig-gate hardening set (5/6 skips-fail-GREEN, 27
+   both_error + option-order gating, 15 raw-rows preview diff, 25
+   metricAvailability diff, 16 corpus breadth — 26 is partially
+   dissolved, see subsection); hygiene 19 (re-point one stale comment),
+   21 (fix the SYSTEM_09 banner), 22 (columnExistsFor must not swallow
+   infra errors). Suggested order: hygiene first (small, independent),
+   then engine, then the rig hardening — the hardened rig is the exit
+   gate, so it runs last against everything else. Note the engine
+   changes (11/12) alter serving behavior: after them, re-run the rig
+   AND expect finding-12's order pin to change no diff outcomes (the
+   items diff is order-insensitive) — if it does, that is a real bug.
+   Finding 16's synthetic configs must not be stored as project POs —
+   build them in-rig only (the corpus must stay READ-ONLY against
+   instance data).
 
 Exit gate: `deno task typecheck` + the HARDENED rig PARITY GREEN in
 `--run` mode → trial-instance rollout per Deploy phasing (Ethiopia early).
