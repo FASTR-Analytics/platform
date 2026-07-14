@@ -1,3 +1,28 @@
+[TBD] [user] [added] - Schedule recurring or one-time automatic DHIS2 imports
+[TBD] [user] [added] - Queue additional DHIS2 imports while one is already running
+[TBD] [user] [added] - Store DHIS2 connection credentials securely for unattended imports
+[TBD] [user] [added] - View and manage queued imports with option to remove them
+[TBD] [user] [added] - Alert banner when a scheduled import needs attention
+[TBD] [user] [added] - Sidebar shows count of queued DHIS2 imports
+[TBD] [user] [added] - Option to use stored credentials instead of entering them each time
+[TBD] [user] [added] - Import history now labels scheduled imports distinctly
+[TBD] [user] [changed] - DHIS2 imports page now shows running, queued, scheduled, and history in one view
+[TBD] [user] [changed] - Queuing an import requires explicit confirmation before proceeding
+[TBD] [admin] [added] - Scheduled DHIS2 imports with recurring or one-time options
+[TBD] [admin] [added] - Queue additional DHIS2 imports while one is already running
+[TBD] [admin] [added] - Stored DHIS2 credentials for unattended imports with encrypted passwords
+[TBD] [admin] [added] - Sidebar alerts when a scheduled import needs attention
+[TBD] [admin] [added] - Queued import count shown on the imports overview
+[TBD] [admin] [added] - Option to use stored credentials instead of entering them each time
+[TBD] [admin] [added] - Confirmation dialog before queueing an import
+[TBD] [admin] [added] - Queued imports table with ability to remove individual items
+[TBD] [admin] [added] - Schedule editor with day, time, timezone, and interval controls
+[TBD] [admin] [added] - Enable and disable individual import schedules
+[TBD] [admin] [changed] - Imports page now shows running, queued, scheduled, and history in one view
+[TBD] [admin] [changed] - Import history now labels scheduled versus manual imports
+[TBD] [admin] [changed] - Server requires DHIS2_CREDENTIALS_ENCRYPTION_KEY to store credentials
+[TBD] [admin] [changed] - Scheduling unlocks only after a successful shadow-verified import
+[TBD] [admin] [fixed] - DHIS2 data fetching now works correctly on Ethiopian-calendar servers
 [TBD] [admin] [fixed] - Module data migration now correctly handles alternate asset formats
 [TBD] [user] [changed] - Data tables now update live during DHIS2 imports instead of showing stale results
 [TBD] [user] [fixed] - Fixed rare issue where cached data could show incorrect values during an active DHIS2 import
