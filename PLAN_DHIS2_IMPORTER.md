@@ -71,7 +71,73 @@ gate normally. Kenya untested (server unreachable from here — likely
 IP restriction; same code path, gated by shadow like everyone).
 Verified: typecheck green + full server boot; the query form itself is
 the E13-live-verified one. Review findings 1 and 3–6 remain open (Tim:
-fix after Ethiopia).**
+fix after Ethiopia) — detailed below.**
+
+**Phase 4 review — open findings (2026-07-15, two independent
+reviewers; finding 2 = the Ethiopia gate lockout, FIXED above). A
+fresh agent fixing these: verify each against the code first, fix,
+re-run the Phase 4 due-semantics harness for finding 1, typecheck +
+boot, update this block.**
+
+1. **Phantom first occurrence on new/re-enabled recurring schedules
+   (HIGH, both reviewers, verified empirically).**
+   `decideScheduleFire` (scheduler.ts) never consults creation/enable
+   time, so a schedule created Wednesday for "Monday 01:15" claims
+   LAST Monday's occurrence within 60 s: outside grace → false
+   `missed` + red banners; inside grace (~3% of the week) → an
+   unattended import fires immediately on save. Same on re-enable
+   after a pause (stale `last_fired_at` passes the interval check) and
+   after kind-switch edits (which null the anchor). Suggested shape:
+   an `armed_at` timestamp set on create, on enable, and on update —
+   occurrences before it are never due (`none`, not `missed`);
+   interval anchoring stays on `last_fired_at`. Keep the
+   "skipped-interval weeks are silent" behavior.
+2. *(fixed — `period=` switch, see above.)*
+3. **One-shot "re-arm by edit" leaves the row disabled + attention
+   sticky (MEDIUM).** A handled one-shot is disabled; the update route
+   clears `last_fired_at` and demands a future runAt (clearly re-arm
+   intent) but never re-enables, and keeps
+   `last_outcome/last_error/last_run_id` — so the red banner persists
+   and nothing ever fires. Fix: update clears the outcome fields and
+   (for one-shots, or all kinds) re-enables through the same
+   unattended-gate check as setEnabled; make the editor state say so.
+4. **Non-slot-race launch failures permanently kill one-shots
+   (MEDIUM).** `fireSchedule` reverts its CAS only when a RUN holds
+   the slot; a CSV attempt claiming the slot in the same second (or a
+   transient DB error) records terminal `refused` + disables the
+   one-shot despite hours of grace left. Fix: also revert (retry next
+   tick) when `countActiveCsvAttempts > 0`; keep `refused` for
+   deterministic errors.
+5. **Schedule/credentials mutation routes never push the datasets SSE
+   notify (MEDIUM).** Deleting a schedule is the only way to clear a
+   fired one-shot's attention, but none of the 6 new routes call
+   `notifyInstanceDatasetsUpdated` — the sidebar banner/queue count
+   stays stale instance-wide until an unrelated datasets event. Fix:
+   notify from create/update/setEnabled/delete schedule +
+   save/delete credentials.
+6. **Imports surface goes stale exactly when the tick acts (MEDIUM).**
+   `dhis2_run/index.tsx` polls only while its LAST fetch already
+   showed a running/queued row, and the scheduling query is never
+   refetched; neither component reacts to the SSE fields Phase 4
+   added. A user on the idle page keeps seeing the launcher after a
+   schedule fires ("already in progress" on submit). Fix per
+   PROTOCOL_UI_STATE: createEffect watching
+   `instanceState.hmisImportRunActive/hmisImportRunsQueued/
+   hmisScheduledImportAttention` → silentFetch runs + scheduling.
+
+   Low findings (fix opportunistically, several may ride along):
+   same-kind recurring edits keep the old anchor (first occurrence at
+   the new day/time silently skipped); CAS revert can restore a stale
+   `last_fired_at` over a concurrent kind-switch edit (silent dead
+   one-shot); credentials swapped between launch and the worker's
+   read can key `shadow_passed` to the old URL; the gate's URL match
+   is exact-string (trailing slash blocks the inline-first unlock
+   path); a crash between CAS claim and outcome write consumes an
+   occurrence silently; rolling-window "current month" resolves from
+   the server clock, not the schedule's timezone (≤hours at month
+   boundaries, self-correcting); the scheduling GET exposes the
+   stored DHIS2 username at `can_view_data` (one notch beyond the
+   accepted runs-list posture — surface to Tim if tightening).
 
 Phase 4 as-built (deviations/decisions, all builder-level unless noted):
 
