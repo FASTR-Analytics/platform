@@ -1,3 +1,19 @@
+[TBD] [user] [changed] - Data tables now update live during DHIS2 imports instead of showing stale results
+[TBD] [user] [fixed] - Fixed rare issue where cached data could show incorrect values during an active DHIS2 import
+[TBD] [user] [fixed] - Fixed issue where cancelling or interrupting a DHIS2 import could block future imports
+[TBD] [user] [added] - DHIS2 imports are now blocked during data export to prevent incomplete project data
+[TBD] [user] [fixed] - Fixed issue where starting a DHIS2 import could fail silently and block all future imports
+[TBD] [admin] [added] - DHIS2 import progress is now visible in real time during active runs
+[TBD] [admin] [added] - Shadow verification aborts the run if too many data mismatches are detected
+[TBD] [admin] [fixed] - Cached data no longer shows stale results while a DHIS2 import is in progress
+[TBD] [admin] [fixed] - Cancelling or crashing a DHIS2 import now properly cleans up version records
+[TBD] [admin] [fixed] - Concurrent CSV upload and DHIS2 import can no longer conflict silently
+[TBD] [admin] [fixed] - Server restart during an import no longer permanently blocks future imports
+[TBD] [admin] [fixed] - Worker startup failure no longer leaves imports stuck in a "running" state
+[TBD] [admin] [fixed] - Exporting HMIS data to a project is now blocked while an import is running
+[TBD] [admin] [fixed] - Non-Gregorian calendar instances no longer fetch incorrect date ranges from DHIS2
+[TBD] [admin] [changed] - Shadow verification is now scoped per DHIS2 server URL
+[TBD] [admin] [changed] - DHIS2 data pulls now fetch one month at a time instead of multi-month windows
 [TBD] [user] [added] - Import health data directly from DHIS2 with a dedicated import button
 [TBD] [user] [added] - View real-time progress of DHIS2 imports with percentage and pair counts
 [TBD] [user] [added] - Import status dashboard showing each indicator's import history by month
