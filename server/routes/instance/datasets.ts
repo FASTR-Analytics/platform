@@ -20,6 +20,7 @@ import {
   getDatasetHmisUploadAttemptDetail,
   getDatasetHmisUploadStatus,
   getVersionsForDatasetHmis,
+  hasRunningDatasetHmisImportRun,
   launchDatasetHmisDhis2ImportRun,
   updateDatasetHfaUploadAttempt_Step1CsvUpload,
   updateDatasetHfaUploadAttempt_Step2Mappings,
@@ -96,19 +97,29 @@ defineRoute(
   requireGlobalPermission("can_view_data"),
   log("getDatasetHmisDisplayInfo"),
   async (c, { body }) => {
-    const existing = await _FETCH_CACHE_DATASET_HMIS_ITEMS.get(
-      {
-        rawOrCommonIndicators: body.rawOrCommonIndicators,
-        facilityColumns: body.facilityColumns,
-      },
-      {
-        versionId: body.versionId,
-        indicatorMappingsVersion: body.indicatorMappingsVersion,
-      },
-    );
+    // While a run is integrating per-pair, the data keeps changing under the
+    // client's version token, so nothing may be cached under it — mid-run
+    // reads compute live ("partial results visible"). The token itself only
+    // flips at run end (running-run versions are hidden from readers — see
+    // getVersionsForDatasetHmis), which is what keeps the settled cache
+    // entries honest.
+    const runActive = await hasRunningDatasetHmisImportRun(c.var.mainDb);
 
-    if (existing) {
-      return c.json(existing);
+    if (!runActive) {
+      const existing = await _FETCH_CACHE_DATASET_HMIS_ITEMS.get(
+        {
+          rawOrCommonIndicators: body.rawOrCommonIndicators,
+          facilityColumns: body.facilityColumns,
+        },
+        {
+          versionId: body.versionId,
+          indicatorMappingsVersion: body.indicatorMappingsVersion,
+        },
+      );
+
+      if (existing) {
+        return c.json(existing);
+      }
     }
 
     const newPromise = getDatasetHmisItemsForDisplay(
@@ -119,17 +130,19 @@ defineRoute(
       body.facilityColumns,
     );
 
-    _FETCH_CACHE_DATASET_HMIS_ITEMS.setPromise(
-      newPromise,
-      {
-        rawOrCommonIndicators: body.rawOrCommonIndicators,
-        facilityColumns: body.facilityColumns,
-      },
-      {
-        versionId: body.versionId,
-        indicatorMappingsVersion: body.indicatorMappingsVersion,
-      },
-    );
+    if (!runActive) {
+      _FETCH_CACHE_DATASET_HMIS_ITEMS.setPromise(
+        newPromise,
+        {
+          rawOrCommonIndicators: body.rawOrCommonIndicators,
+          facilityColumns: body.facilityColumns,
+        },
+        {
+          versionId: body.versionId,
+          indicatorMappingsVersion: body.indicatorMappingsVersion,
+        },
+      );
+    }
 
     const res = await newPromise;
     return c.json(res);

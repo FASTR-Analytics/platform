@@ -45,13 +45,13 @@ Each routine is a folder under `server/worker_routines/` with **two files**:
 - `instantiate_worker.ts` — exports `instantiate<Name>Worker(payload): Worker`, a thin wrapper over the generic factory.
 - `worker.ts` — the worker entry point (`self.onmessage` + `run`).
 
-`run_module` additionally has `mod.ts` (barrel) and `run_module_iterator.ts` (the R streaming generator — see [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md)). The six routines:
+`run_module` additionally has `mod.ts` (barrel) and `run_module_iterator.ts` (the R streaming generator — see [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md)). `import_hmis_data_dhis2` additionally has `dispatch.ts` (pure dispatcher logic, importable outside a worker context). The six routines:
 
 | Folder | Payload | Report-back | Tracker |
 |--------|---------|-------------|---------|
 | `run_module` | `{ projectId, moduleId, runToken }` | `task_ended` broadcast (success) / `reportError` (crash) | running-tasks map |
 | `stage_hmis_data_csv` | `{ rawDUA }` | `postMessage("COMPLETED")` + status row | `worker_store` (HMIS) |
-| `stage_hmis_data_dhis2` | `{ rawDUA, failFastMode }` | `postMessage("COMPLETED")` + status row | `worker_store` (HMIS) |
+| `import_hmis_data_dhis2` | `{ runId, credentials, selection }` | `postMessage("COMPLETED")` + run row + ledger | `worker_store` (`hmis_dhis2_run`) |
 | `stage_hfa_data_csv` | `{ rawDUA }` | `postMessage("COMPLETED")` + status row | `worker_store` (HFA) |
 | `integrate_hmis_data` | `{ rawDUA }` | `postMessage("COMPLETED")` + status row | `worker_store` (HMIS) |
 | `integrate_hfa_data` | `{ rawDUA }` | `postMessage("COMPLETED")` + status row | `worker_store` (HFA) |

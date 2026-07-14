@@ -17,11 +17,13 @@ import { pooledMap } from "@std/async/pool";
 import {
   _DHIS2_CONCURRENT_REQUESTS,
   _DHIS2_FACILITY_BATCH_SIZE,
+  _INSTANCE_CALENDAR,
 } from "../../exposed_env_vars.ts";
 import {
   createBulkImportConnection,
   createWorkerReadConnection,
   enumerateRunPairs,
+  finalizeInterruptedDatasetHmisRunVersion,
   HMIS_DHIS2_RUN_SCOPE_TABLE_NAME,
   upsertHmisLedgerErrorPairs,
   upsertHmisLedgerPairsFromData,
@@ -93,6 +95,11 @@ const SHADOW_SAMPLE_RATE = 0.05;
 const SHADOW_MAX_PAIRS = 40;
 const SHADOW_MAX_FACILITIES_WITH_DATA = 300;
 const SHADOW_MAX_FACILITIES_WITHOUT_DATA = 100;
+// Circuit breaker: one hard mismatch can be a data-entry race; this many
+// distinct pairs mismatching means the DVS route is systematically wrong for
+// this server, and the ~95% of unsampled pairs must not integrate (and
+// scope-delete) on top of it.
+const SHADOW_HARD_MISMATCH_ABORT_PAIRS = 3;
 
 type RunWorkerMessage = {
   runId: number;
@@ -205,26 +212,34 @@ async function run(std: RunWorkerMessage) {
   const ensureVersion = (): Promise<number> => {
     if (!versionPromise) {
       versionPromise = (async () => {
-        const id = await importDb.begin(async (sql) => {
-          const maxRows = await sql<{ max: number | string | null }[]>`
-            SELECT MAX(id) as max FROM dataset_hmis_versions
-          `;
-          const newId = Number(maxRows[0].max ?? 0) + 1;
-          const placeholder = buildRunStagingResult(0);
-          await sql`
-            INSERT INTO dataset_hmis_versions
-              (id, n_rows_total_imported, n_rows_inserted, n_rows_updated, staging_result)
-            VALUES (${newId}, 0, 0, 0, ${JSON.stringify(placeholder)})
-          `;
-          await sql`
-            UPDATE dataset_hmis_import_runs
-            SET version_id = ${newId}
-            WHERE id = ${runId}
-          `;
-          return newId;
-        });
-        mintedVersionId = Number(id);
-        return mintedVersionId;
+        try {
+          const id = await importDb.begin(async (sql) => {
+            const maxRows = await sql<{ max: number | string | null }[]>`
+              SELECT MAX(id) as max FROM dataset_hmis_versions
+            `;
+            const newId = Number(maxRows[0].max ?? 0) + 1;
+            const placeholder = buildRunStagingResult(0);
+            await sql`
+              INSERT INTO dataset_hmis_versions
+                (id, n_rows_total_imported, n_rows_inserted, n_rows_updated, staging_result)
+              VALUES (${newId}, 0, 0, 0, ${JSON.stringify(placeholder)})
+            `;
+            await sql`
+              UPDATE dataset_hmis_import_runs
+              SET version_id = ${newId}
+              WHERE id = ${runId}
+            `;
+            return newId;
+          });
+          mintedVersionId = Number(id);
+          return mintedVersionId;
+        } catch (e) {
+          // A failed mint must not stay cached: every later pair would await
+          // this same rejected promise and fail with the long-dead mint error
+          // while the fetch workload burns on. Reset so the next pair retries.
+          versionPromise = null;
+          throw e;
+        }
       })();
     }
     return versionPromise;
@@ -372,6 +387,22 @@ async function run(std: RunWorkerMessage) {
       metadataFetchOptions,
     );
 
+    // The DVS route's startDate/endDate are Gregorian ISO dates derived from
+    // the period id by plain arithmetic; on a non-Gregorian instance the
+    // period ids live in the instance calendar (e.g. Ethiopian 201810), so
+    // the fetch window would be years off and the "successful empty" pulls
+    // would scoped-delete real data. Analytics passes the period id through
+    // untranslated (calendar-consistent), so on such instances every pair
+    // rides analytics — the pre-Phase-3 behavior. Rule-4 unknown detection
+    // from the classification above still applies.
+    if (_INSTANCE_CALENDAR !== "gregorian") {
+      for (const [id, route] of routes) {
+        if (route.kind === "dvs") {
+          routes.set(id, { kind: "analytics" });
+        }
+      }
+    }
+
     const unknownIds = distinctRawIds.filter(
       (id) => routes.get(id)?.kind === "unknown",
     );
@@ -419,9 +450,12 @@ async function run(std: RunWorkerMessage) {
     // │ PHASE 3: SHADOW-VERIFICATION DECISION (first dispatcher run only)   │
     // └─────────────────────────────────────────────────────────────────────┘
 
+    // Keyed to the DHIS2 URL: a pass against one server says nothing about
+    // DVS-vs-analytics parity on a different one (test→prod migration).
     const priorShadowPass = await mainDb<{ exists: boolean }[]>`
       SELECT EXISTS(
-        SELECT 1 FROM dataset_hmis_import_runs WHERE shadow_passed = true
+        SELECT 1 FROM dataset_hmis_import_runs
+        WHERE shadow_passed = true AND dhis2_url = ${credentials.url}
       ) as exists
     `;
     const shadowMode = !priorShadowPass[0].exists;
@@ -453,6 +487,7 @@ async function run(std: RunWorkerMessage) {
     // block shadow_passed without failing pairs.
     let shadowUnavailableCount = 0;
     let shadowHardMismatchPairs = 0;
+    let shadowAborted = false;
 
     // ┌─────────────────────────────────────────────────────────────────────┐
     // │ PHASE 4: BUILD FETCH TASKS                                          │
@@ -581,13 +616,19 @@ async function run(std: RunWorkerMessage) {
           const valueIndex = response.headers.findIndex(
             (h) => h.name === "value" || h.name === "Value",
           );
-          if (orgUnitIndex >= 0 && valueIndex >= 0) {
-            for (const row of response.rows) {
-              const facilityId = row[orgUnitIndex];
-              const value = parseInt(row[valueIndex]);
-              if (facilityId && !isNaN(value) && value >= 0) {
-                perFacility.set(facilityId, value);
-              }
+          if (orgUnitIndex < 0 || valueIndex < 0) {
+            // Silently dropping rows here would integrate an empty pair and
+            // scope-delete its existing data — a failed fetch, not empty data.
+            throw new Error(
+              `DHIS2 analytics response for ${pair.indicatorRawId}, period ${period} has rows but ` +
+                `unrecognized headers (${response.headers.map((h) => h.name).join(", ")}) — treating as a failed fetch.`,
+            );
+          }
+          for (const row of response.rows) {
+            const facilityId = row[orgUnitIndex];
+            const value = parseInt(row[valueIndex]);
+            if (facilityId && !isNaN(value) && value >= 0) {
+              perFacility.set(facilityId, value);
             }
           }
         }
@@ -600,6 +641,9 @@ async function run(std: RunWorkerMessage) {
     };
 
     const runAnalyticsPair = async (pair: Dhis2RunPair): Promise<void> => {
+      if (shadowAborted) {
+        return;
+      }
       const key = pairKey(pair);
       activePairs.set(key, { ...pair, route: "analytics" });
       await updateProgress(false);
@@ -731,6 +775,9 @@ async function run(std: RunWorkerMessage) {
     };
 
     const runDvsTask = async (task: DvsTask): Promise<void> => {
+      if (shadowAborted) {
+        return;
+      }
       // Element already flagged non-monthly by an earlier chunk → straight to
       // analytics (rule 5).
       if (nonMonthlyElements.has(task.baseElementId)) {
@@ -842,6 +889,10 @@ async function run(std: RunWorkerMessage) {
       }
 
       for (const covered of task.coveredPairs) {
+        if (shadowAborted) {
+          activePairs.delete(pairKey(covered));
+          continue;
+        }
         const pair = {
           indicatorRawId: covered.indicatorRawId,
           periodId: covered.periodId,
@@ -871,6 +922,9 @@ async function run(std: RunWorkerMessage) {
               shadowStats.mismatches.push(...verdict.softMismatches);
               if (verdict.hardMismatches.length > 0) {
                 shadowHardMismatchPairs++;
+                if (shadowHardMismatchPairs >= SHADOW_HARD_MISMATCH_ABORT_PAIRS) {
+                  shadowAborted = true;
+                }
                 const first = verdict.hardMismatches[0];
                 await failPair(
                   pair,
@@ -996,13 +1050,16 @@ async function run(std: RunWorkerMessage) {
       const valueIndex = response.headers.findIndex(
         (h) => h.name === "value" || h.name === "Value",
       );
-      if (orgUnitIndex >= 0 && valueIndex >= 0) {
-        for (const row of response.rows) {
-          const facilityId = row[orgUnitIndex];
-          const value = parseInt(row[valueIndex]);
-          if (facilityId && !isNaN(value) && value >= 0) {
-            analyticsMap.set(facilityId, value);
-          }
+      if (response.rows.length > 0 && (orgUnitIndex < 0 || valueIndex < 0)) {
+        // An empty analyticsMap here would read as a wall of hard mismatches;
+        // this is a comparison we could not make, not a parity failure.
+        return "analytics-unavailable";
+      }
+      for (const row of response.rows) {
+        const facilityId = row[orgUnitIndex];
+        const value = parseInt(row[valueIndex]);
+        if (facilityId && !isNaN(value) && value >= 0) {
+          analyticsMap.set(facilityId, value);
         }
       }
       const hardMismatches: NonNullable<
@@ -1015,16 +1072,27 @@ async function run(std: RunWorkerMessage) {
         const dvsValue = stagedMap.get(facilityId);
         const analyticsValue = analyticsMap.get(facilityId);
         if (dvsValue === analyticsValue) continue;
-        const record = { ...pair, facilityId, dvsValue, analyticsValue };
         // Zero-vs-absent is ambiguous between the two endpoints (a stored 0
         // may or may not produce an analytics row) — recorded, not fatal.
         if (
           (dvsValue === undefined && analyticsValue === 0) ||
           (analyticsValue === undefined && dvsValue === 0)
         ) {
-          softMismatches.push(record);
+          softMismatches.push({
+            kind: "soft",
+            ...pair,
+            facilityId,
+            dvsValue,
+            analyticsValue,
+          });
         } else {
-          hardMismatches.push(record);
+          hardMismatches.push({
+            kind: "hard",
+            ...pair,
+            facilityId,
+            dvsValue,
+            analyticsValue,
+          });
         }
       }
       return { comparisons: allSampled.length, hardMismatches, softMismatches };
@@ -1062,12 +1130,38 @@ async function run(std: RunWorkerMessage) {
       // Drain — all handling happens inside the tasks.
     }
 
+    if (shadowAborted) {
+      throw new Error(
+        `Shadow verification found hard DVS-vs-analytics mismatches on ${shadowHardMismatchPairs} sampled pairs — ` +
+          `run aborted before integrating the unsampled remainder. Mismatch detail is in run_stats.shadow; ` +
+          `pairs integrated before the abort are preserved in the ledger.`,
+      );
+    }
+
     // ┌─────────────────────────────────────────────────────────────────────┐
     // │ PHASE 6: FINALIZE RUN                                               │
     // └─────────────────────────────────────────────────────────────────────┘
 
     progressPhase = "finalizing";
     await updateProgress(true);
+
+    // Edge of the "zero successful pairs ⇒ no version" ruling: the mint
+    // commits before the first pair's own transaction, so that pair failing
+    // (and every other pair after it) leaves an empty version row. Nothing
+    // references it — succeeded_pairs increments inside each pair's
+    // transaction — so delete it.
+    if (mintedVersionId !== null && succeededPairsCount === 0) {
+      await importDb.begin(async (sql) => {
+        await sql`
+          UPDATE dataset_hmis_import_runs SET version_id = NULL
+          WHERE id = ${runId}
+        `;
+        await sql`
+          DELETE FROM dataset_hmis_versions WHERE id = ${mintedVersionId}
+        `;
+      });
+      mintedVersionId = null;
+    }
 
     if (mintedVersionId !== null) {
       const ledgerRows = await mainDb<
@@ -1105,7 +1199,9 @@ async function run(std: RunWorkerMessage) {
       `;
     }
 
-    const shadowPassed = shadowMode
+    // null (not false) when there was nothing to shadow — an all-analytics
+    // run (e.g. non-Gregorian calendar) must not record a shadow verdict.
+    const shadowPassed = shadowMode && dvsPairs.length > 0
       ? shadowStats.pairsChecked > 0 &&
         shadowHardMismatchPairs === 0 &&
         shadowUnavailableCount === 0
@@ -1164,6 +1260,9 @@ async function run(std: RunWorkerMessage) {
           error = ${`${errorMessage} — pairs completed before the failure are preserved in the ledger.`}
         WHERE id = ${runId} AND status = 'running'
       `;
+      // Reconcile the minted version row with what actually landed (or
+      // delete it if nothing did) — same as the host does on cancel/sweep.
+      await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
     } catch {
       // Ignore status update errors
     }

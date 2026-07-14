@@ -38,7 +38,10 @@ import {
 } from "../../worker_routines/worker_store.ts";
 import { escapeSqlString, tryCatchDatabaseAsync } from "../utils.ts";
 import { reconcileHmisLedgerPairsAfterDelete } from "./dataset_hmis_import_ledger.ts";
-import { assertNoRunningDatasetHmisImportRun } from "./dataset_hmis_import_runs.ts";
+import {
+  assertNoRunningDatasetHmisImportRun,
+  hasRunningDatasetHmisImportRun,
+} from "./dataset_hmis_import_runs.ts";
 import type {
   DBDatasetHmisUploadAttempt,
   DBDatasetHmisVersion,
@@ -120,6 +123,15 @@ export async function getDatasetHmisDetail(
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+// A running DHIS2 run's version row is INVISIBLE to every reader until the
+// run ends: per-pair integration keeps mutating dataset_hmis under that id
+// for the run's whole duration, and every version-keyed cache (Valkey
+// ds_hmis_v2, the client IndexedDB twin, viz-query staleness hashes) assumes
+// a visible version id names a settled data state. Hiding the row until the
+// run ends makes the cache token flip exactly once, at run end. All version
+// READERS carry this exclusion; version-MINTING paths must not use them —
+// they compute MAX(id) inline in their own transaction (run worker, CSV
+// integrate worker, windowed delete).
 export async function getVersionsForDatasetHmis(
   mainDb: Sql
 ): Promise<APIResponseWithData<DatasetHmisVersion[]>> {
@@ -127,7 +139,12 @@ export async function getVersionsForDatasetHmis(
     const csvVersions = (
       await mainDb<
         DBDatasetHmisVersion[]
-      >`SELECT * FROM dataset_hmis_versions ORDER BY id DESC`
+      >`SELECT * FROM dataset_hmis_versions
+        WHERE id NOT IN (
+          SELECT version_id FROM dataset_hmis_import_runs
+          WHERE status = 'running' AND version_id IS NOT NULL
+        )
+        ORDER BY id DESC`
     ).map<DatasetHmisVersion>((rawDatatableVersion) => {
       return {
         id: rawDatatableVersion.id,
@@ -155,6 +172,10 @@ export async function deleteAllDatasetHmisData(
     // A delete minting a version id while an integration is mid-transaction
     // can collide with the integration's MAX(id)+1 and roll back the whole
     // merge at the end — refuse while an import operation is running.
+    // The reverse direction (a run LAUNCHING mid-delete) is deliberately not
+    // claimed against: a mint collision aborts exactly one side's transaction
+    // loudly, and the ledger reconcile/recompute reads dataset_hmis in-txn,
+    // so both outcomes stay consistent.
     const activeOperations = await mainDb<{ count: string | number }[]>`
       SELECT COUNT(*) as count
       FROM dataset_hmis_upload_attempts
@@ -849,6 +870,24 @@ export async function updateDatasetUploadAttempt_Step3Staging(
       );
     }
 
+    // Re-check the run guard AFTER the claim: a run's INSERT claim can land
+    // between the assert above and our UPDATE. The run launcher re-checks
+    // attempts after its claim — both directions must, or both sides pass
+    // their pre-claim reads and proceed concurrently.
+    if (await hasRunningDatasetHmisImportRun(mainDb)) {
+      await mainDb`
+        UPDATE dataset_hmis_upload_attempts
+        SET status = ${JSON.stringify({
+          status: "error",
+          err: "A DHIS2 import run claimed the import slot concurrently. Try again once it completes.",
+        })},
+          status_type = 'error'
+      `;
+      throw new Error(
+        "A DHIS2 import run is in progress. Please wait for it to complete or cancel it."
+      );
+    }
+
     // Re-read after the claim: a concurrent step-2 config write can land
     // between the initial read and the claim, and the worker must stage from
     // the row the claim actually locked in — not the pre-claim snapshot.
@@ -947,6 +986,21 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
       );
     }
 
+    // Re-check the run guard AFTER the claim — see the staging claim above.
+    if (await hasRunningDatasetHmisImportRun(mainDb)) {
+      await mainDb`
+        UPDATE dataset_hmis_upload_attempts
+        SET status = ${JSON.stringify({
+          status: "error",
+          err: "A DHIS2 import run claimed the import slot concurrently. Try again once it completes.",
+        })},
+          status_type = 'error'
+      `;
+      throw new Error(
+        "A DHIS2 import run is in progress. Please wait for it to complete or cancel it."
+      );
+    }
+
     // Re-read after the claim: a concurrent config write can land between the
     // initial read and the claim; the worker must run from the claimed row.
     const claimedDUA = await getRawUAOrThrow(mainDb);
@@ -1009,23 +1063,34 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
+// Reader — running-run versions excluded; see getVersionsForDatasetHmis.
+// Never use for minting a version id.
 export async function getCurrentDatasetHmisMaxVersionId(
   mainDb: Sql
 ): Promise<number | undefined> {
   const maxId = (
     await mainDb<{ max_id: number }[]>`
 SELECT MAX(id) AS max_id FROM dataset_hmis_versions
+WHERE id NOT IN (
+  SELECT version_id FROM dataset_hmis_import_runs
+  WHERE status = 'running' AND version_id IS NOT NULL
+)
 `
   ).at(0)?.max_id;
   return typeof maxId === "number" ? maxId : undefined;
 }
 
+// Reader — running-run versions excluded; see getVersionsForDatasetHmis.
 export async function getCurrentDatasetHmisVersion(
   mainDb: Sql
 ): Promise<DatasetHmisVersion | undefined> {
   const rawDatasetVersion = (
     await mainDb<DBDatasetHmisVersion[]>`
 SELECT * FROM dataset_hmis_versions
+WHERE id NOT IN (
+  SELECT version_id FROM dataset_hmis_import_runs
+  WHERE status = 'running' AND version_id IS NOT NULL
+)
 ORDER BY id DESC
 LIMIT 1
 `

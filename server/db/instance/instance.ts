@@ -226,11 +226,17 @@ export async function getInstanceDatasetsSummary(
     datasetsWithData.push("iceh");
   }
   const hmis = await getCurrentDatasetHmisMaxVersionId(mainDb);
+  // Running-run versions excluded, same as every version reader — see
+  // getVersionsForDatasetHmis.
   const hmisNVersions =
     (
       await mainDb<
         { count: number }[]
-      >`SELECT COUNT(*) as count FROM dataset_hmis_versions`
+      >`SELECT COUNT(*) as count FROM dataset_hmis_versions
+        WHERE id NOT IN (
+          SELECT version_id FROM dataset_hmis_import_runs
+          WHERE status = 'running' AND version_id IS NOT NULL
+        )`
     )[0]?.count ?? 0;
   const hfaTimePointRows = await mainDb<
     {

@@ -8,6 +8,7 @@ import {
   APIResponseWithData,
   parseJsonOrThrow,
   parseJsonOrUndefined,
+  type DatasetDhis2StagingResult,
   type DatasetHmisImportRunProgress,
   type DatasetHmisImportRunSummary,
   type Dhis2Credentials,
@@ -77,17 +78,24 @@ export async function getDatasetHmisImportRunSummaries(
   });
 }
 
+export async function hasRunningDatasetHmisImportRun(
+  mainDb: Sql,
+): Promise<boolean> {
+  const running = await mainDb<{ exists: boolean }[]>`
+    SELECT EXISTS(
+      SELECT 1 FROM dataset_hmis_import_runs WHERE status = 'running'
+    ) as exists
+  `;
+  return running[0].exists;
+}
+
 // CSV staging/integration and windowed deletion call this before claiming:
 // a run integrates per-pair transactions that mint version ids, so any
 // concurrent version-id writer risks the MAX(id)+1 collision.
 export async function assertNoRunningDatasetHmisImportRun(
   mainDb: Sql,
 ): Promise<void> {
-  const running = await mainDb<{ count: string | number }[]>`
-    SELECT COUNT(*) as count FROM dataset_hmis_import_runs
-    WHERE status = 'running'
-  `;
-  if (Number(running[0].count) > 0) {
+  if (await hasRunningDatasetHmisImportRun(mainDb)) {
     throw new Error(
       "A DHIS2 import run is in progress. Please wait for it to complete or cancel it.",
     );
@@ -187,12 +195,26 @@ export async function launchDatasetHmisDhis2ImportRun(
 
     // Credentials travel only in the worker message — never stored on the run
     // row (C3 adds encrypted stored credentials in Phase 4).
-    const worker = instantiateImportHmisDataDhis2Worker({
-      runId,
-      credentials,
-      selection,
-    });
-    setWorker("hmis_dhis2_run", worker);
+    // A spawn failure must release the claim: the INSERT above is the
+    // concurrency lock, and a 'running' row with no worker blocks every
+    // import until someone notices and cancels it.
+    let worker: Worker;
+    try {
+      worker = instantiateImportHmisDataDhis2Worker({
+        runId,
+        credentials,
+        selection,
+      });
+      setWorker("hmis_dhis2_run", worker);
+    } catch (spawnError) {
+      await mainDb`
+        UPDATE dataset_hmis_import_runs
+        SET status = 'error', ended_at = now(), progress = NULL,
+          error = ${`Failed to start the import worker: ${spawnError instanceof Error ? spawnError.message : String(spawnError)}`}
+        WHERE id = ${runId}
+      `;
+      throw spawnError;
+    }
 
     worker.addEventListener("error", async (e) => {
       console.error("DHIS2 import run worker crashed:", e);
@@ -204,11 +226,17 @@ export async function launchDatasetHmisDhis2ImportRun(
             error = ${`Worker crashed: ${e.message || "Unknown error"}. Pairs completed before the crash are preserved in the ledger.`}
           WHERE id = ${runId} AND status = 'running'
         `;
+        await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
       } catch (dbError) {
         console.error("Failed to mark run errored after worker crash:", dbError);
       }
       clearWorker("hmis_dhis2_run", worker);
       worker.terminate();
+      try {
+        await onComplete?.();
+      } catch (err) {
+        console.error("DHIS2 import run onComplete callback failed:", err);
+      }
     });
 
     worker.addEventListener("message", async (e) => {
@@ -232,14 +260,9 @@ export async function cancelDatasetHmisImportRun(
   runId: number,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const worker = getWorker("hmis_dhis2_run");
-    if (worker) {
-      worker.terminate();
-      clearWorker("hmis_dhis2_run", worker);
-    }
-    // Terminating the worker aborts its in-flight pair transaction; completed
-    // pairs are already committed with their ledger rows — that is the point
-    // of per-pair units.
+    // The status flip comes FIRST and is conditional on the given runId: a
+    // cancel aimed at an already-finished run (stale tab, old list) must not
+    // touch the worker — it belongs to whatever run is actually running.
     const updated = await mainDb`
       UPDATE dataset_hmis_import_runs
       SET status = 'cancelled', ended_at = now(), progress = NULL,
@@ -249,6 +272,16 @@ export async function cancelDatasetHmisImportRun(
     if (updated.count === 0) {
       throw new Error("This run is not running.");
     }
+    // Terminating the worker aborts its in-flight pair transaction; completed
+    // pairs are already committed with their ledger rows — that is the point
+    // of per-pair units. Progress/completion writes are status-guarded, so
+    // anything the worker does between the flip and the terminate is benign.
+    const worker = getWorker("hmis_dhis2_run");
+    if (worker) {
+      worker.terminate();
+      clearWorker("hmis_dhis2_run", worker);
+    }
+    await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
     await mainDb.unsafe(
       `DROP TABLE IF EXISTS ${HMIS_DHIS2_RUN_SCOPE_TABLE_NAME}`,
     );
@@ -256,18 +289,110 @@ export async function cancelDatasetHmisImportRun(
   });
 }
 
+// A run that ends without its natural finalize (cancel, worker crash,
+// restart sweep) leaves its version row holding the mint-time placeholder
+// (0 rows, empty stats) while real dataset_hmis rows reference it. Reconcile
+// from what is actually on disk: the exact row count from dataset_hmis, the
+// per-pair stats from the ledger (per-pair failure detail also lives there —
+// failedFetches stays empty here). A version with zero succeeded pairs is
+// deleted outright — succeeded_pairs increments inside each pair's
+// transaction, so zero means no dataset_hmis row and no ledger row
+// references the version — keeping the "no empty versions" ruling true on
+// every exit path. Idempotent: recomputing a finalized version writes the
+// same values.
+export async function finalizeInterruptedDatasetHmisRunVersion(
+  mainDb: Sql,
+  runId: number,
+): Promise<void> {
+  const run = (
+    await mainDb<
+      {
+        version_id: number | null;
+        succeeded_pairs: number;
+        total_pairs: number;
+        started_at: string;
+      }[]
+    >`
+      SELECT version_id, succeeded_pairs, total_pairs, started_at
+      FROM dataset_hmis_import_runs WHERE id = ${runId}
+    `
+  ).at(0);
+  if (!run || run.version_id === null) {
+    return;
+  }
+  const versionId = run.version_id;
+  if (run.succeeded_pairs === 0) {
+    await mainDb.begin(async (sql) => {
+      await sql`
+        UPDATE dataset_hmis_import_runs SET version_id = NULL
+        WHERE id = ${runId}
+      `;
+      await sql`DELETE FROM dataset_hmis_versions WHERE id = ${versionId}`;
+    });
+    return;
+  }
+  const rowCount = Number(
+    (
+      await mainDb<{ count: string | number }[]>`
+        SELECT COUNT(*) as count FROM dataset_hmis
+        WHERE version_id = ${versionId}
+      `
+    )[0].count,
+  );
+  const ledgerRows = await mainDb<
+    {
+      indicator_raw_id: string;
+      period_id: number;
+      n_records: number;
+      sum_count: string | number;
+    }[]
+  >`
+    SELECT indicator_raw_id, period_id, n_records, sum_count
+    FROM dataset_hmis_import_ledger
+    WHERE version_id = ${versionId}
+  `;
+  const stagingResult: DatasetDhis2StagingResult = {
+    sourceType: "dhis2",
+    dateImported: new Date(run.started_at).toISOString(),
+    totalIndicatorPeriodCombos: run.total_pairs,
+    successfulFetches: run.succeeded_pairs,
+    failedFetches: [],
+    periodIndicatorStats: ledgerRows.map((r) => ({
+      periodId: r.period_id,
+      indicatorRawId: r.indicator_raw_id,
+      nRecords: r.n_records,
+      totalCount: Number(r.sum_count),
+    })),
+    finalStagingRowCount: rowCount,
+    runId,
+  };
+  await mainDb`
+    UPDATE dataset_hmis_versions
+    SET
+      n_rows_total_imported = ${rowCount},
+      n_rows_inserted = ${rowCount},
+      n_rows_updated = 0,
+      staging_result = ${JSON.stringify(stagingResult)}
+    WHERE id = ${versionId}
+  `;
+}
+
 // Startup sweep: a restart mid-run leaves a 'running' row with no live worker,
 // and the concurrency guards would then block all future imports.
 export async function markStaleRunningDatasetHmisImportRuns(
   mainDb: Sql,
 ): Promise<number> {
-  const updated = await mainDb`
+  const swept = await mainDb<{ id: number }[]>`
     UPDATE dataset_hmis_import_runs
     SET status = 'error', ended_at = now(), progress = NULL,
       error = 'Import run interrupted by a server restart. Pairs completed before the restart are preserved in the ledger.'
     WHERE status = 'running'
+    RETURNING id
   `;
-  return updated.count;
+  for (const row of swept) {
+    await finalizeInterruptedDatasetHmisRunVersion(mainDb, row.id);
+  }
+  return swept.length;
 }
 
 // Expands a run selection to its (indicator, month) pairs. Window enumeration
@@ -287,6 +412,19 @@ export function enumerateRunPairs(
       }
     }
     return pairs;
+  }
+  // Both bounds must be real period ids BEFORE the loop runs: the loop
+  // visits every integer in the range, so an unbounded endPeriod (the Zod
+  // schema only checks int) would spin the event loop for the whole server —
+  // the deleted DHIS2 wizard step carried this exact guard.
+  if (
+    !isValidPeriodId(selection.startPeriod) ||
+    !isValidPeriodId(selection.endPeriod) ||
+    selection.startPeriod > selection.endPeriod
+  ) {
+    throw new Error(
+      `Invalid period window ${selection.startPeriod}–${selection.endPeriod}: both bounds must be valid YYYYMM period ids with start ≤ end.`,
+    );
   }
   const pairs: Dhis2RunPair[] = [];
   for (const indicatorRawId of selection.rawIndicatorIds) {

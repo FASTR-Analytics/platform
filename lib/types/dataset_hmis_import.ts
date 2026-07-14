@@ -310,7 +310,10 @@ export type DatasetHmisImportRunStats = {
   shadow?: {
     pairsChecked: number;
     facilitiesCompared: number;
+    // "hard" fails the pair (and ≥3 hard-mismatch pairs abort the run);
+    // "soft" = zero-vs-absent endpoint ambiguity, recorded only.
     mismatches: Array<{
+      kind: "hard" | "soft";
       indicatorRawId: string;
       periodId: number;
       facilityId: string;

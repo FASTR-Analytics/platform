@@ -3,7 +3,6 @@ import {
   DBDatasetHmisUploadAttempt,
   createBulkImportConnection,
   createWorkerReadConnection,
-  getCurrentDatasetHmisMaxVersionId,
   upsertHmisLedgerPairsFromData,
 } from "../../db/mod.ts";
 import {
@@ -156,8 +155,12 @@ async function run(std: { rawDUA: DBDatasetHmisUploadAttempt }) {
       // Version id minted inside the transaction, right before its INSERT —
       // minimizes the window against the other version-id writer (windowed
       // delete, itself guarded against running during an active import).
-      const currentMaxVersionId = await getCurrentDatasetHmisMaxVersionId(sql);
-      const newVersionId = (currentMaxVersionId ?? 0) + 1;
+      // True MAX(id) inline: getCurrentDatasetHmisMaxVersionId is a reader
+      // that hides running-run versions and must never mint.
+      const maxRows = await sql<{ max_id: number | null }[]>`
+        SELECT MAX(id) AS max_id FROM dataset_hmis_versions
+      `;
+      const newVersionId = (maxRows[0].max_id ?? 0) + 1;
       console.log(`Creating new version ${newVersionId} for dataset hmis`);
 
       await sql`

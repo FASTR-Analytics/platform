@@ -1,11 +1,13 @@
 # Plan — DHIS2 importer: speed, import ledger, auto-pull
 
-**Status (2026-07-14): Phases 0–3 on main. Phase 3's cutover gate 1
-(§4.4, lab E11) attempted but NOT yet satisfied — see below; this gates
-*deploying* Phase 3 to Nigeria and *enabling* Phase 4's C4 scheduler for
-any instance, not the commit itself. Phase 4 (auto-pull) not started.
-Next action = Phase 4 (§5.4 — C3 encrypted credentials + C4 scheduler
-with a per-instance SETTABLE off-peak schedule, §7).**
+**Status (2026-07-14): Phases 0–3 on main; Phase 3 adversarially
+reviewed and all findings fixed (see below — fixes in the working tree
+alongside this Status update). Cutover gate 1 (§4.4, lab E11) was
+redesigned for daytime resilience and is RUNNING; it gates *deploying*
+Phase 3 to Nigeria and *enabling* Phase 4's C4 scheduler for any
+instance, not the code. Phase 4 (auto-pull) not started. Next action =
+Phase 4 (§5.4 — C3 encrypted credentials + C4 scheduler with a
+per-instance SETTABLE off-peak schedule, §7).**
 
 - Phase 0 = the fetch lab; all verdicts in §2.
 - Phase 1 shipped `da4f6a7d` — worker quick wins + per-pair
@@ -39,36 +41,109 @@ with a per-instance SETTABLE off-peak schedule, §7).**
   dev DB 13/13 (launch claim, worker lifecycle, metadata
   classification, rule-4 permanent ledger errors, zero-success ⇒ no
   version minted, scope-table cleanup), and a full server boot with
-  all 249 registry routes validated live. **Not yet adversarially
-  reviewed** (unlike Phases 1–2, which got a formal review pass) —
-  outstanding before Nigeria deployment.
-- **Cutover gate 1 attempted 2026-07-14, NOT satisfied** (§4.4, §2.7):
-  lab E11 (full per-element DVS-vs-analytics parity) was run against
-  Nigeria during their business hours and could not complete — 19 base
-  elements' dataValueSets pulls succeeded cleanly (0 hard mismatches
-  seen), but every analytics-side comparison call failed with repeated
-  429/5xx under load. A follow-up single-request probe (no retries)
-  confirmed this is genuine server-side unavailability, not a code bug:
-  dataValueSets succeeded in 30.6 s, analytics failed outright with a
-  literal `504 Gateway Timeout` from Nigeria's own nginx after 60 s.
-  Full evidence in §2.7. **Gate 1 must be re-run to completion
-  (`./run e11`) during Nigeria's off-peak window before Phase 3 is
-  deployed to Nigeria.** Gate 2 (first-run shadow verification per
-  instance) ships in the worker and needs no separate action.
+  all 249 registry routes validated live.
+- **Phase 3 adversarial review run 2026-07-14** (two independent
+  reviewers, same pattern as Phases 1–2). Core invariants independently
+  confirmed: launch-claim atomicity, ledger-vs-data on every path,
+  cancel non-resurrection, DVS/analytics number-parity mechanics,
+  credential handling, CSV worker's loud refusal of DHIS2 staging.
+  All substantive findings verified against the code and fixed
+  (in the working tree with this Status update):
+  1. **Version-keyed cache poisoning** — the lazily-minted version id
+     was visible to readers mid-run while per-pair integration kept
+     changing data under it, so a mid-run viewer visit froze partial
+     vizItems in Valkey (`ds_hmis_v2`) + client IndexedDB under a key
+     that never changed at run end. Fix: running-run versions are now
+     hidden from ALL version readers (`getVersionsForDatasetHmis`,
+     `getCurrentDatasetHmisMaxVersionId/Version`, datasets summary) so
+     the cache token flips exactly once, at run end — and the display
+     route neither reads nor writes its cache while a run is active
+     (mid-run reads compute live; "partial results visible" preserved).
+     Minting paths compute MAX(id) inline (CSV integrate switched off
+     the now-excluding reader).
+  2. **Unbounded window enumeration** — launch iterated every integer
+     from startPeriod to endPeriod on the request thread (Zod only
+     checked int; the deleted wizard step's guard was not reproduced);
+     a huge endPeriod would freeze the whole server. Fix: bounds
+     validated in `enumerateRunPairs` (valid period ids, start ≤ end).
+  3. **Cancel killed the wrong run** — the route terminated the current
+     worker before checking the given runId was the running run; a
+     stale tab cancelling a finished run silently killed the live one.
+     Fix: conditional status flip first, terminate only on a match.
+  4. **Ethiopian-calendar data wipe** — DVS `startDate`/`endDate` are
+     Gregorian arithmetic on instance-calendar period ids, so on an
+     Ethiopian instance the window is ~7.5 y off and "successful empty"
+     pulls would scoped-delete real data. Fix: non-Gregorian instances
+     force every pair to the analytics route (pre-Phase-3 semantics,
+     calendar-consistent `pe:` passthrough); rule-4 loudness kept.
+  5. **Run↔CSV exclusion race** — only the run side re-checked after
+     its claim. Fix: CSV staging/integrate now re-check the run guard
+     post-claim too (claim reverted to error + loud throw). The
+     run-launch-mid-windowed-delete direction stays unclaimed by
+     design: a mint collision aborts exactly one side loudly and the
+     ledger recompute self-heals (documented at the delete).
+  6. **Interrupted runs lied in version history** — cancel/crash/sweep
+     left the mint-time placeholder (0 rows) on the version row. Fix:
+     shared `finalizeInterruptedDatasetHmisRunVersion` recomputes
+     counts from `dataset_hmis` + stats from the ledger on every exit
+     path (cancel route, worker catch, host crash listener, db_startup
+     sweep), and zero-success versions are deleted outright — the "no
+     empty versions" ruling now holds even on the
+     mint-committed-then-first-pair-failed edge and at natural
+     completion.
+  7. **Shadow verification hardened** — ≥3 hard-mismatch pairs now
+     abort the run before the unsampled ~95% integrates (was
+     canary-only: a systematic DVS≠analytics divergence would have
+     integrated and scope-deleted everything unsampled);
+     `shadow_passed` is keyed to the DHIS2 URL (repointing the instance
+     re-arms shadow); mismatch records carry a hard/soft discriminator;
+     analytics responses with rows but unrecognized headers are a
+     failed fetch (both legs), and in shadow "analytics-unavailable"
+     rather than a wall of false mismatches; `shadow_passed` stays NULL
+     when a run had no DVS pairs.
+  8. Smaller: `versionPromise` resets on mint failure (a transient mint
+     error no longer poisons every later pair while the fetch burns
+     on); worker-spawn failure releases the launch claim; the
+     worker-crash path now fires the datasets SSE notify (via
+     onComplete); DOC_WORKER_ROUTINES routines table updated
+     (import_hmis_data_dhis2 replaces the deleted stage_hmis_data_dhis2);
+     `dataset_hmis_import_runs.ts` claimed in SYSTEM_06 (Phase 3 had
+     landed with the lint:systems gate red — typecheck chains it).
+  Verified: full typecheck + lint:systems green; 14/14 empirical
+  harness checks on the dev DB (enumeration guard incl. instant-throw
+  timing, reader exclusion live-toggled, both finalize paths,
+  idempotency). Reviewed-and-left-as-is (deliberate):
+  `getDatasetHmisImportRuns` exposes triggeredBy email + DHIS2 URL at
+  `can_view_data` (surface if Tim wants it `can_configure_data`);
+  `failPair`'s ledger write stays best-effort; DVS
+  missing-`dataValues`-on-200 = legitimate empty (plan-ruled, E7/E10).
+- **Cutover gate 1 (lab E11): redesigned for daytime resilience,
+  RUNNING since 2026-07-14 ~18:00 AWST** *(Tim's ruling 2026-07-14:
+  don't wait for off-peak — a gate that only works at night is a
+  failing on our side; run it now and let it grind)*. e11 now
+  checkpoints every settled verdict to `results/e11_checkpoint.json`
+  (atomic writes — a killed run loses nothing), rewrites a live rollup
+  to `results/e11_summary_latest.json` after every change, retries
+  unverified subject-months in grind cycles with cooldowns (the
+  harness's 20-consecutive-failure HARD STOP ends the cycle, not the
+  run), re-pulls DVS sums older than 45 min so the nightly analytics
+  rebuild can't manufacture mismatches against a stale snapshot, and
+  resumes from the checkpoint on re-run (`--fresh` discards). Exit 0
+  PASS / 1 FAIL / 2 INCOMPLETE. Default budget 15 h ⇒ the run reaches
+  Nigeria's ~01:15 WAT off-peak window at worst. Early cycle-1 signal
+  matches §2.7 exactly: DVS pulls healthy, analytics comparisons 504.
+  Gate 2 (first-run shadow verification per instance) ships in the
+  worker and needs no separate action — now with the §4.4 circuit
+  breaker.
 
 Outstanding non-code items:
 
-- **Re-run gate 1 off-peak**: `./run e11` during Nigeria's off-peak
-  window (their night; see §2.5/§2.7). Exits nonzero on FAIL. Required
-  before *deploying* Phase 3 to Nigeria or enabling Phase 4's C4
-  scheduler for any instance.
-- §2.6 daytime lab runs: E11's 2026-07-14 attempt (~08:20–09:40 WAT)
-  doubles as daytime evidence, and the single-request follow-up probe
-  (§2.7) is itself a useful daytime data point even though the full
-  gate didn't complete; the E1/E8 daytime samplers remain unrun (cheap,
-  optional, lower priority than the gate re-run).
-- Phase 3 adversarial review (has not happened yet — Phases 1–2 got
-  one, Phase 3 has not).
+- **Gate 1 verdict**: e11 is running (see above); if it exits
+  INCOMPLETE, re-run `./run e11` — it resumes from the checkpoint.
+  A PASS is required before *deploying* Phase 3 to Nigeria or enabling
+  Phase 4's C4 scheduler for any instance.
+- §2.6 daytime lab runs: E11's 2026-07-14 attempts double as daytime
+  evidence; the E1/E8 daytime samplers remain unrun (cheap, optional).
 - Nigeria comms: Tim pastes the A2 attribution paragraph (delivered to
   Tim 2026-07-14; §4.2) and the 6-stale-id remap ask (§2.2).
 - Deploy: Phases 1–3 take effect only after a server restart/deploy
@@ -148,10 +223,16 @@ analytics tasks per pair for computed indicators — and runs them under
 integrates in its own small transaction: scoped DELETE (join the scope
 table) → UNNEST INSERT → ledger upsert → run counters. The version row
 is minted lazily at the first successful pair (NOT NULL FK; no empty
-versions) and finalized at run end with a slim
-`DatasetDhis2StagingResult` (periodIndicatorStats read back from the
-ledger; no succeededWorkItems/fetchedFacilityIds/pairFetchStats — §4.1's
-strip). Per-pair instrumentation (`pairFetchStats`, route `"dvs" |
+versions) but stays INVISIBLE to every version reader until the run
+ends (version-keyed caches assume a visible id names settled data —
+authoritative comment on `getVersionsForDatasetHmis`; the display route
+also bypasses its cache while a run is active), and is finalized at run
+end with a slim `DatasetDhis2StagingResult` (periodIndicatorStats read
+back from the ledger; no
+succeededWorkItems/fetchedFacilityIds/pairFetchStats — §4.1's strip).
+Interrupted exits (cancel/crash/restart sweep) reconcile the version
+row from dataset_hmis + ledger, deleting it if zero pairs succeeded
+(`finalizeInterruptedDatasetHmisRunVersion`). Per-pair instrumentation (`pairFetchStats`, route `"dvs" |
 "analytics"`), the classification summary, and shadow results live in
 `run_stats` on the run row. Progress (`phase` + ≤20 active pairs) is
 throttled to ≥2 s and status-guarded so a cancelled run is never
@@ -377,9 +458,11 @@ did not reach a verdict:
   fetch (gate re-runs, and especially the auto-pull scheduler) needs a
   real, operator-controlled off-peak window, not an assumption baked
   into app code.** See §7 C4.
-- **Action**: re-run `./run e11` to completion during Nigeria's actual
-  off-peak window (their night — see §2.5) before committing Phase 3.
-  No app-code changes are implicated by this finding.
+- **Action** *(superseded 2026-07-14 by Tim's ruling — see Status)*:
+  e11 was rebuilt to survive daytime load (checkpoint + grind cycles +
+  resume) and is running through the day; it settles what it can and
+  reaches the off-peak window on its own budget. No app-code changes
+  are implicated by this finding.
 
 ## 3. Architecture ruling (Tim, 2026-07-14): the fetch dispatcher
 
@@ -536,14 +619,20 @@ otherwise silently reduce to zero rows; non-UID-shaped ids classify
 `unknown` without a metadata call; size/timeout DVS errors are never
 retried at the same shape (`shouldRetry` excludes them; the split IS
 the retry); rule-4 pairs get no `pairFetchStats` entry (fetch
-instrumentation covers pairs that reached a fetch route). Shadow: ≤40
+instrumentation covers pairs that reached a fetch route). On a
+non-Gregorian instance calendar every pair routes to analytics — the
+DVS date window is Gregorian arithmetic on instance-calendar period
+ids and would be years off (review fix 2026-07-14). Shadow: ≤40
 sampled pairs, per pair one analytics call over ≤400 facilities (≤300
 with DVS data + ≤100 without, both coverage directions);
 zero-vs-absent is recorded as soft, not a failure (endpoint ambiguity);
 `shadow_passed=true` requires every sampled pair verified (no
-analytics-unavailable) and zero hard mismatches. The lab pre-flight is
-E11 (`e11_full_parity_gate.ts`), which imports the app's real
-`dispatch.ts` classification/date helpers.
+analytics-unavailable) and zero hard mismatches, is keyed to the DHIS2
+URL, and ≥3 hard-mismatch pairs abort the whole run before the
+unsampled remainder integrates (circuit breaker, review fix
+2026-07-14). The lab pre-flight is E11 (`e11_full_parity_gate.ts`),
+which imports the app's real `dispatch.ts` classification/date helpers
+(checkpoint/resume design in §8).
 
 ### 4.5 A5 — failure handling (SHIPPED through Phase 3)
 
@@ -826,13 +915,16 @@ consecutive server-stress failures, every run logs request count; DHIS2
 caches analytics responses, so never time a repeated identical request.
 Inputs are prod-DB-first (README documents the pull commands per
 DOC_ACCESS_DBS.md). `./run e11` is the full per-element parity gate
-(§4.4 gate 1) — it imports the app's real dispatcher code and exits
-nonzero on FAIL. **Run it off-peak** (§2.5/§2.7): a 2026-07-14 daytime
-attempt could not complete — dataValueSets stayed healthy but analytics
-returned a live `504 Gateway Timeout` even on a single retry-free
-request, so the gate's own reference values weren't obtainable, not a
-gate-design or app-code problem. Known future lab work: the E1/E8
-daytime samplers (§2.6, optional, lower priority than re-running e11);
+(§4.4 gate 1) — it imports the app's real dispatcher code. Rebuilt
+2026-07-14 for daytime resilience: settled verdicts checkpoint to
+`results/e11_checkpoint.json`, a live rollup rewrites to
+`results/e11_summary_latest.json`, unverified subject-months retry in
+grind cycles (HARD STOP ends a cycle, not the run), DVS sums re-pull
+when >45 min old, and a re-run resumes from the checkpoint
+(`--fresh` discards; `--maxMinutes`/`--cooldownSeconds` tune the
+budget). Exit 0 PASS / 1 FAIL / 2 INCOMPLETE. Off-peak still finishes
+fastest (§2.5), but the gate no longer requires it. Known future lab
+work: the E1/E8 daytime samplers (§2.6, optional);
 DVS backfill window sizing if anyone wants deep history (~10 MB per
 dense element-month; 72-month history ≈ 10–20 GB transfer, chunked by
 the adaptive window).
