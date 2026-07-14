@@ -60,6 +60,7 @@ export function DatasetItemsHolder(p: Props) {
       indicatorMappingsVersion,
       p.facilityColumns,
       instanceState.maxAdminArea,
+      instanceState.hmisImportRunActive,
     );
     if (res.success === false) {
       setItemsHolder({ status: "error", err: res.err });

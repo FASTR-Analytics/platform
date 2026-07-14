@@ -26,6 +26,7 @@ import {
   getMaxAdminAreaConfig,
 } from "../instance/config.ts";
 import { getCurrentDatasetHmisVersion } from "../instance/dataset_hmis.ts";
+import { assertNoRunningDatasetHmisImportRun } from "../instance/dataset_hmis_import_runs.ts";
 import {
   getCalculatedIndicatorsVersion,
   getIndicatorMappingsVersion,
@@ -40,6 +41,15 @@ export async function addDatasetHmisToProject(
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
+    // A per-pair DHIS2 run mutates dataset_hmis for hours; exporting during
+    // one would copy torn mid-run data into the project stamped with the
+    // settled version id. Refuse up front (this also gives the clear error
+    // on a first-ever import, when the only version row is still hidden).
+    // A run *launching* mid-export remains possible — that window existed
+    // pre-Phase-3 too (a CSV integrate commit could land mid-export) and
+    // self-signals via the staleness marker at run end.
+    await assertNoRunningDatasetHmisImportRun(mainDb);
+
     // Validate BEFORE removing the existing attachment — a validation
     // failure after the remove would leave the project detached with
     // modules still clean and clients unnotified. The version is also the

@@ -52,6 +52,7 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   datasetsWithData: [],
   datasetVersions: {},
   hmisNVersions: 0,
+  hmisImportRunActive: false,
   hfaTimePoints: [],
   hfaCacheHash: "",
   icehCacheHash: "",
@@ -184,6 +185,7 @@ export function updateInstanceDatasets(data: InstanceDatasetsSummary): void {
   setInstanceState("datasetsWithData", reconcile(data.datasetsWithData));
   setInstanceState("datasetVersions", reconcile(data.datasetVersions));
   setInstanceState("hmisNVersions", data.hmisNVersions);
+  setInstanceState("hmisImportRunActive", data.hmisImportRunActive);
   setInstanceState("hfaTimePoints", reconcile(data.hfaTimePoints));
   setInstanceState("hfaCacheHash", data.hfaCacheHash);
   setInstanceState("icehCacheHash", data.icehCacheHash);

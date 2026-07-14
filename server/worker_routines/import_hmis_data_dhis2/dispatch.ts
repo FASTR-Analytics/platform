@@ -107,39 +107,6 @@ export function isValidMonthlyPeriod(period: string): boolean {
   return month >= 1 && month <= 12;
 }
 
-// Ascending distinct monthly periodIds → contiguous chunks of ≤ maxMonths.
-// A gap (missing month) always starts a new chunk so a pull's date range
-// never covers months outside the selection.
-export function chunkContiguousMonths(
-  sortedPeriodIds: number[],
-  maxMonths: number,
-): number[][] {
-  const chunks: number[][] = [];
-  let current: number[] = [];
-  for (const periodId of sortedPeriodIds) {
-    const prev = current[current.length - 1];
-    if (
-      current.length === 0 ||
-      (current.length < maxMonths && periodId === nextMonth(prev))
-    ) {
-      current.push(periodId);
-    } else {
-      chunks.push(current);
-      current = [periodId];
-    }
-  }
-  if (current.length > 0) {
-    chunks.push(current);
-  }
-  return chunks;
-}
-
-export function nextMonth(periodId: number): number {
-  const year = Math.floor(periodId / 100);
-  const month = periodId % 100;
-  return month === 12 ? (year + 1) * 100 + 1 : periodId + 1;
-}
-
 export function monthStartDate(periodId: number): string {
   const year = Math.floor(periodId / 100);
   const month = periodId % 100;
@@ -227,6 +194,11 @@ export function describeFetchError(error: unknown): {
     return { message, kind: "permanent" };
   }
   if (message.includes("exceeds safe limit")) {
+    return { message, kind: "permanent" };
+  }
+  if (message.includes("unrecognized headers")) {
+    // Header shape is a deterministic property of the DHIS2 server/version —
+    // the pair fails identically on every retry until the config changes.
     return { message, kind: "permanent" };
   }
   return { message, kind: "transient" };

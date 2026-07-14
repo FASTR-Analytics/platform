@@ -175,6 +175,13 @@ defineRoute(
         );
       },
     });
+    if (res.success) {
+      // Flip hmisImportRunActive on every connected client now — their
+      // display caches must be bypassed for the run's duration.
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
     return c.json(res);
   },
 );

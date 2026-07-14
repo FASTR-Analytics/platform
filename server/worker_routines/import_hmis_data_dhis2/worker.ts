@@ -50,7 +50,6 @@ import {
 import type { DHIS2DataValue } from "../../dhis2/goal5_data_value_sets/mod.ts";
 import {
   assertUrlWithinLimit,
-  chunkContiguousMonths,
   classifyRawIndicators,
   defaultShouldRetry,
   describeFetchError,
@@ -84,11 +83,10 @@ const MAX_URL_LENGTH = 7000;
 const PROGRESS_WRITE_INTERVAL_MS = 2000;
 // dataValueSets pulls: a dense Nigeria element-month is ~10-12 MB; the cap
 // exists so a pathological response can't balloon worker memory. On cap or
-// timeout the window halves (min 1 month), then splits by level-2 subtree —
-// never fail a pair on size without having tried the splits (§4.4).
+// timeout the pull splits by level-2 subtree (state) — never fail a pair on
+// size without having tried the split (§4.4).
 const DVS_MAX_RESPONSE_BYTES = 100 * 1024 * 1024;
 const DVS_TIMEOUT_MS = 300_000;
-const DVS_WINDOW_MONTHS = 3;
 // Shadow verification (first dispatcher run per instance): cross-check a
 // sample of DVS-routed pairs against the analytics value before integrating.
 const SHADOW_SAMPLE_RATE = 0.05;
@@ -100,6 +98,9 @@ const SHADOW_MAX_FACILITIES_WITHOUT_DATA = 100;
 // this server, and the ~95% of unsampled pairs must not integrate (and
 // scope-delete) on top of it.
 const SHADOW_HARD_MISMATCH_ABORT_PAIRS = 3;
+// Soft (zero-vs-absent) records are diagnostics only and can reach ~400 per
+// sampled pair — cap what run_stats stores; hard records are never capped.
+const SHADOW_SOFT_MISMATCH_RECORD_CAP = 200;
 
 type RunWorkerMessage = {
   runId: number;
@@ -110,10 +111,11 @@ type RunWorkerMessage = {
 type DvsTask = {
   kind: "dvs";
   baseElementId: string;
-  // Contiguous ascending chunk, ≤ DVS_WINDOW_MONTHS.
-  periodIds: number[];
-  // Every selected (raw indicator, month) this pull covers. Indicators
-  // sharing a base element share one pull.
+  // One pull = one month (ruled 2026-07-14): the fetch unit matches the
+  // import unit.
+  periodId: number;
+  // Every selected raw indicator this pull covers for that month —
+  // indicators sharing a base element share one pull.
   coveredPairs: Array<{
     indicatorRawId: string;
     coc: string | undefined;
@@ -175,6 +177,44 @@ async function run(std: RunWorkerMessage) {
   let totalRowsDeleted = 0;
   let mintedVersionId: number | null = null;
   let versionPromise: Promise<number> | null = null;
+
+  // run_stats must survive EVERY exit (the shadow-abort error message points
+  // operators at run_stats.shadow) — inputs live at run scope so the catch
+  // path can persist whatever was known when the run died.
+  const shadowStats: NonNullable<DatasetHmisImportRunStats["shadow"]> = {
+    pairsChecked: 0,
+    facilitiesCompared: 0,
+    mismatches: [],
+  };
+  let statsInputs:
+    | { routes: Map<string, RawRoute>; unknownIds: string[]; shadowMode: boolean }
+    | null = null;
+  const buildRunStatsJson = (): string | null => {
+    if (!statsInputs) {
+      return null;
+    }
+    const runStats: DatasetHmisImportRunStats = {
+      classification: {
+        dvsBareElements: countRoutes(
+          statsInputs.routes,
+          (r) => r.kind === "dvs" && r.coc === undefined,
+        ),
+        dvsOperands: countRoutes(
+          statsInputs.routes,
+          (r) => r.kind === "dvs" && r.coc !== undefined,
+        ),
+        computedIndicators: countRoutes(
+          statsInputs.routes,
+          (r) => r.kind === "analytics",
+        ),
+        unknownIds: statsInputs.unknownIds,
+        nonMonthlyElements: Array.from(nonMonthlyElements),
+      },
+      pairFetchStats,
+      shadow: statsInputs.shadowMode ? shadowStats : undefined,
+    };
+    return JSON.stringify(runStats);
+  };
 
   const activePairs = new Map<
     string,
@@ -477,17 +517,14 @@ async function run(std: RunWorkerMessage) {
         `Run ${runId}: shadow verification ON — ${shadowSample.size} of ${dvsPairs.length} dvs pairs sampled`,
       );
     }
-    const shadowStats: NonNullable<DatasetHmisImportRunStats["shadow"]> = {
-      pairsChecked: 0,
-      facilitiesCompared: 0,
-      mismatches: [],
-    };
     // Soft zero-ambiguity comparisons (one side absent, other side 0) are
     // recorded but do not fail the pair; analytics-unavailable comparisons
     // block shadow_passed without failing pairs.
     let shadowUnavailableCount = 0;
     let shadowHardMismatchPairs = 0;
+    let shadowSoftRecordsTotal = 0;
     let shadowAborted = false;
+    statsInputs = { routes, unknownIds, shadowMode };
 
     // ┌─────────────────────────────────────────────────────────────────────┐
     // │ PHASE 4: BUILD FETCH TASKS                                          │
@@ -520,18 +557,15 @@ async function run(std: RunWorkerMessage) {
           Array.from(group.periodsByRaw.values()).flatMap((s) => Array.from(s)),
         ),
       ).sort((a, b) => a - b);
-      for (const chunk of chunkContiguousMonths(allPeriods, DVS_WINDOW_MONTHS)) {
+      for (const periodId of allPeriods) {
         const coveredPairs: DvsTask["coveredPairs"] = [];
         for (const raw of group.raws) {
-          const rawPeriods = group.periodsByRaw.get(raw.indicatorRawId)!;
-          for (const periodId of chunk) {
-            if (rawPeriods.has(periodId)) {
-              coveredPairs.push({ ...raw, periodId });
-            }
+          if (group.periodsByRaw.get(raw.indicatorRawId)!.has(periodId)) {
+            coveredPairs.push({ ...raw, periodId });
           }
         }
         if (coveredPairs.length > 0) {
-          tasks.push({ kind: "dvs", baseElementId, periodIds: chunk, coveredPairs });
+          tasks.push({ kind: "dvs", baseElementId, periodId, coveredPairs });
         }
       }
     }
@@ -675,11 +709,12 @@ async function run(std: RunWorkerMessage) {
       }
     };
 
-    // Adaptive dataValueSets pull (§4.4): full window → halve months → split
-    // by level-2 subtree. Never fails on size without having tried the splits.
+    // dataValueSets pull, one element × one month (§4.4). On size/timeout,
+    // split by level-2 subtree — never fail a pair on size without having
+    // tried the split.
     const fetchDvsValues = async (
       baseElementId: string,
-      periodIds: number[],
+      periodId: number,
       orgUnits: string[],
       allowOrgSplit: boolean,
       acc: FetchAccumulator,
@@ -692,8 +727,8 @@ async function run(std: RunWorkerMessage) {
             {
               dataElement: baseElementId,
               orgUnits,
-              startDate: monthStartDate(periodIds[0]),
-              endDate: monthEndDate(periodIds[periodIds.length - 1]),
+              startDate: monthStartDate(periodId),
+              endDate: monthEndDate(periodId),
             },
             {
               ...baseFetchOptions,
@@ -703,8 +738,8 @@ async function run(std: RunWorkerMessage) {
                 maxAttempts: 3,
                 initialDelayMs: 1000,
                 maxDelayMs: 30000,
-                // Size/timeout never shrink on an identical retry — split the
-                // window instead (handled by the catch below).
+                // Size/timeout never shrink on an identical retry — split by
+                // subtree instead (handled by the catch below).
                 shouldRetry: (error) =>
                   !isSplittableDvsError(error.message) &&
                   defaultShouldRetry(error.message),
@@ -729,38 +764,17 @@ async function run(std: RunWorkerMessage) {
         if (!isSplittableDvsError(message)) {
           throw error;
         }
-        if (periodIds.length > 1) {
-          const mid = Math.ceil(periodIds.length / 2);
-          console.log(
-            `DVS pull ${baseElementId} too large for ${periodIds.length} months — halving window`,
-          );
-          const left = await fetchDvsValues(
-            baseElementId,
-            periodIds.slice(0, mid),
-            orgUnits,
-            allowOrgSplit,
-            acc,
-          );
-          const right = await fetchDvsValues(
-            baseElementId,
-            periodIds.slice(mid),
-            orgUnits,
-            allowOrgSplit,
-            acc,
-          );
-          return left.concat(right);
-        }
         if (allowOrgSplit) {
           const level2 = await getLevel2OrgUnitIds();
           if (level2.length > 0) {
             console.log(
-              `DVS pull ${baseElementId} too large for 1 month country-wide — splitting across ${level2.length} level-2 subtrees`,
+              `DVS pull ${baseElementId}/${periodId} too large country-wide — splitting across ${level2.length} level-2 subtrees`,
             );
             const all: DHIS2DataValue[] = [];
             for (const orgUnit of level2) {
               const part = await fetchDvsValues(
                 baseElementId,
-                periodIds,
+                periodId,
                 [orgUnit],
                 false,
                 acc,
@@ -778,8 +792,8 @@ async function run(std: RunWorkerMessage) {
       if (shadowAborted) {
         return;
       }
-      // Element already flagged non-monthly by an earlier chunk → straight to
-      // analytics (rule 5).
+      // Element already flagged non-monthly by an earlier month's pull →
+      // straight to analytics (rule 5).
       if (nonMonthlyElements.has(task.baseElementId)) {
         for (const covered of task.coveredPairs) {
           await runAnalyticsPair({
@@ -804,7 +818,7 @@ async function run(std: RunWorkerMessage) {
       try {
         values = await fetchDvsValues(
           task.baseElementId,
-          task.periodIds,
+          task.periodId,
           rootOrgUnitIds,
           true,
           acc,
@@ -856,27 +870,19 @@ async function run(std: RunWorkerMessage) {
       }
 
       // Client-side reduce: keep rows whose orgUnit is in the facility scope
-      // and whose period is a selected month; skip deleted values; for bare
+      // and whose period is the pulled month; skip deleted values; for bare
       // elements sum across COC×AOC, for operands restrict to the COC first.
       const perPair = new Map<string, Map<string, number>>();
       for (const covered of task.coveredPairs) {
         perPair.set(pairKey(covered), new Map());
       }
-      const coveredByPeriod = new Map<number, DvsTask["coveredPairs"]>();
-      for (const covered of task.coveredPairs) {
-        const list = coveredByPeriod.get(covered.periodId) ?? [];
-        list.push(covered);
-        coveredByPeriod.set(covered.periodId, list);
-      }
       for (const v of values) {
         if (v.deleted) continue;
         if (!facilitySet.has(v.orgUnit)) continue;
-        const periodId = parseInt(v.period);
-        const coveredList = coveredByPeriod.get(periodId);
-        if (!coveredList) continue;
+        if (parseInt(v.period) !== task.periodId) continue;
         const value = Number(v.value);
         if (isNaN(value)) continue;
-        for (const covered of coveredList) {
+        for (const covered of task.coveredPairs) {
           if (covered.coc !== undefined && v.categoryOptionCombo !== covered.coc) {
             continue;
           }
@@ -919,7 +925,14 @@ async function run(std: RunWorkerMessage) {
               shadowStats.pairsChecked++;
               shadowStats.facilitiesCompared += verdict.comparisons;
               shadowStats.mismatches.push(...verdict.hardMismatches);
-              shadowStats.mismatches.push(...verdict.softMismatches);
+              const softRoom =
+                SHADOW_SOFT_MISMATCH_RECORD_CAP - shadowSoftRecordsTotal;
+              if (softRoom > 0) {
+                shadowStats.mismatches.push(
+                  ...verdict.softMismatches.slice(0, softRoom),
+                );
+              }
+              shadowSoftRecordsTotal += verdict.softMismatches.length;
               if (verdict.hardMismatches.length > 0) {
                 shadowHardMismatchPairs++;
                 if (shadowHardMismatchPairs >= SHADOW_HARD_MISMATCH_ABORT_PAIRS) {
@@ -1206,21 +1219,13 @@ async function run(std: RunWorkerMessage) {
         shadowHardMismatchPairs === 0 &&
         shadowUnavailableCount === 0
       : null;
-    const runStats: DatasetHmisImportRunStats = {
-      classification: {
-        dvsBareElements: countRoutes(routes, (r) =>
-          r.kind === "dvs" && r.coc === undefined
-        ),
-        dvsOperands: countRoutes(routes, (r) =>
-          r.kind === "dvs" && r.coc !== undefined
-        ),
-        computedIndicators: countRoutes(routes, (r) => r.kind === "analytics"),
-        unknownIds,
-        nonMonthlyElements: Array.from(nonMonthlyElements),
-      },
-      pairFetchStats,
-      shadow: shadowMode ? shadowStats : undefined,
-    };
+
+    // Drop the scope table BEFORE the status flip: the flip releases the
+    // single-running claim, and a successor run may create its own
+    // fixed-name scope table the moment the claim is free.
+    await importDb.unsafe(
+      `DROP TABLE IF EXISTS ${HMIS_DHIS2_RUN_SCOPE_TABLE_NAME}`,
+    );
 
     await mainDb`
       UPDATE dataset_hmis_import_runs
@@ -1229,13 +1234,9 @@ async function run(std: RunWorkerMessage) {
         ended_at = now(),
         progress = NULL,
         shadow_passed = ${shadowPassed},
-        run_stats = ${JSON.stringify(runStats)}
+        run_stats = ${buildRunStatsJson()}
       WHERE id = ${runId} AND status = 'running'
     `;
-
-    await importDb.unsafe(
-      `DROP TABLE IF EXISTS ${HMIS_DHIS2_RUN_SCOPE_TABLE_NAME}`,
-    );
 
     console.log(
       `DHIS2 import run ${runId} complete: ${succeededPairsCount} pairs succeeded, ` +
@@ -1253,10 +1254,20 @@ async function run(std: RunWorkerMessage) {
       0,
       1000,
     );
+    // Drop the scope table BEFORE the status flip releases the claim (a
+    // successor run creates the same fixed-name table).
+    try {
+      await importDb.unsafe(
+        `DROP TABLE IF EXISTS ${HMIS_DHIS2_RUN_SCOPE_TABLE_NAME}`,
+      );
+    } catch {
+      // Ignore cleanup errors
+    }
     try {
       await mainDb`
         UPDATE dataset_hmis_import_runs
         SET status = 'error', ended_at = now(), progress = NULL,
+          run_stats = ${buildRunStatsJson()},
           error = ${`${errorMessage} — pairs completed before the failure are preserved in the ledger.`}
         WHERE id = ${runId} AND status = 'running'
       `;
@@ -1265,13 +1276,6 @@ async function run(std: RunWorkerMessage) {
       await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
     } catch {
       // Ignore status update errors
-    }
-    try {
-      await importDb.unsafe(
-        `DROP TABLE IF EXISTS ${HMIS_DHIS2_RUN_SCOPE_TABLE_NAME}`,
-      );
-    } catch {
-      // Ignore cleanup errors
     }
     try {
       await importDb.end();

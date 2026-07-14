@@ -73,6 +73,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
         p.indicatorMappingsVersion,
         p.facilityColumns,
         instanceState.maxAdminArea,
+        instanceState.hmisImportRunActive,
       ),
     t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
   );

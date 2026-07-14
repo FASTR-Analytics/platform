@@ -219,6 +219,10 @@ export async function launchDatasetHmisDhis2ImportRun(
     worker.addEventListener("error", async (e) => {
       console.error("DHIS2 import run worker crashed:", e);
       e.preventDefault();
+      // Terminate before finalizing: finalize recomputes from committed
+      // state, so no writer may still be committing pairs while it reads.
+      clearWorker("hmis_dhis2_run", worker);
+      worker.terminate();
       try {
         await mainDb`
           UPDATE dataset_hmis_import_runs
@@ -230,8 +234,6 @@ export async function launchDatasetHmisDhis2ImportRun(
       } catch (dbError) {
         console.error("Failed to mark run errored after worker crash:", dbError);
       }
-      clearWorker("hmis_dhis2_run", worker);
-      worker.terminate();
       try {
         await onComplete?.();
       } catch (err) {
@@ -274,17 +276,20 @@ export async function cancelDatasetHmisImportRun(
     }
     // Terminating the worker aborts its in-flight pair transaction; completed
     // pairs are already committed with their ledger rows — that is the point
-    // of per-pair units. Progress/completion writes are status-guarded, so
-    // anything the worker does between the flip and the terminate is benign.
+    // of per-pair units. Between the flip and the terminate the worker may
+    // still commit a pair (counter increments are deliberately unguarded —
+    // finalize recomputes from them) but can never resurrect the run:
+    // progress and completion writes are status-guarded.
     const worker = getWorker("hmis_dhis2_run");
     if (worker) {
       worker.terminate();
       clearWorker("hmis_dhis2_run", worker);
     }
     await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
-    await mainDb.unsafe(
-      `DROP TABLE IF EXISTS ${HMIS_DHIS2_RUN_SCOPE_TABLE_NAME}`,
-    );
+    // No scope-table drop here: the flip above already released the claim, so
+    // a successor run may have created its own scope table by now — dropping
+    // the fixed-name table here could destroy the successor's snapshot. Every
+    // run drops-and-recreates it at start, so a leftover is harmless.
     return { success: true };
   });
 }
@@ -304,33 +309,65 @@ export async function finalizeInterruptedDatasetHmisRunVersion(
   mainDb: Sql,
   runId: number,
 ): Promise<void> {
-  const run = (
-    await mainDb<
-      {
-        version_id: number | null;
-        succeeded_pairs: number;
-        total_pairs: number;
-        started_at: string;
-      }[]
-    >`
-      SELECT version_id, succeeded_pairs, total_pairs, started_at
-      FROM dataset_hmis_import_runs WHERE id = ${runId}
-    `
-  ).at(0);
-  if (!run || run.version_id === null) {
+  // Bounded retry: a cancel can race the first successful pair's in-flight
+  // COMMIT — we read succeeded_pairs = 0, take the delete branch, and the
+  // DELETE FK-aborts against the just-committed child rows. Re-reading then
+  // sees the committed increment and takes the recompute branch instead.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const run = (
+      await mainDb<
+        {
+          version_id: number | null;
+          succeeded_pairs: number;
+          total_pairs: number;
+          started_at: string;
+        }[]
+      >`
+        SELECT version_id, succeeded_pairs, total_pairs, started_at
+        FROM dataset_hmis_import_runs WHERE id = ${runId}
+      `
+    ).at(0);
+    if (!run || run.version_id === null) {
+      return;
+    }
+    const versionId = run.version_id;
+    if (run.succeeded_pairs === 0) {
+      try {
+        await mainDb.begin(async (sql) => {
+          await sql`
+            UPDATE dataset_hmis_import_runs SET version_id = NULL
+            WHERE id = ${runId}
+          `;
+          await sql`DELETE FROM dataset_hmis_versions WHERE id = ${versionId}`;
+        });
+        return;
+      } catch (e) {
+        console.error(
+          `Zero-success version delete failed for run ${runId} (attempt ${attempt + 1}) — re-reading:`,
+          e,
+        );
+        if (attempt < 2) {
+          continue;
+        }
+        // Still referenced with a zero counter — a state normal paths cannot
+        // produce (references and the counter commit in the same
+        // transaction). Keep the version and reconcile it rather than
+        // failing the caller (cancel/crash/sweep must always converge).
+        await reconcileRunVersionRow(mainDb, runId, run, versionId);
+        return;
+      }
+    }
+    await reconcileRunVersionRow(mainDb, runId, run, versionId);
     return;
   }
-  const versionId = run.version_id;
-  if (run.succeeded_pairs === 0) {
-    await mainDb.begin(async (sql) => {
-      await sql`
-        UPDATE dataset_hmis_import_runs SET version_id = NULL
-        WHERE id = ${runId}
-      `;
-      await sql`DELETE FROM dataset_hmis_versions WHERE id = ${versionId}`;
-    });
-    return;
-  }
+}
+
+async function reconcileRunVersionRow(
+  mainDb: Sql,
+  runId: number,
+  run: { succeeded_pairs: number; total_pairs: number; started_at: string },
+  versionId: number,
+): Promise<void> {
   const rowCount = Number(
     (
       await mainDb<{ count: string | number }[]>`

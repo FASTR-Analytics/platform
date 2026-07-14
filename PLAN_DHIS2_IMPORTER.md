@@ -1,13 +1,15 @@
 # Plan — DHIS2 importer: speed, import ledger, auto-pull
 
-**Status (2026-07-14): Phases 0–3 on main; Phase 3 adversarially
-reviewed and all findings fixed (see below — fixes in the working tree
-alongside this Status update). Cutover gate 1 (§4.4, lab E11) was
-redesigned for daytime resilience and is RUNNING; it gates *deploying*
-Phase 3 to Nigeria and *enabling* Phase 4's C4 scheduler for any
-instance, not the code. Phase 4 (auto-pull) not started. Next action =
-Phase 4 (§5.4 — C3 encrypted credentials + C4 scheduler with a
-per-instance SETTABLE off-peak schedule, §7).**
+**Status (2026-07-14): Phases 0–3 complete, twice adversarially
+reviewed, everything on main: Phase 3 (`d267c39f`), review round 1
+fixes (`86f87385`), and review round 2 fixes + the single-month-pulls
+ruling (the commit carrying this Status update). Cutover gate 1 (§4.4,
+lab E11) was redesigned for daytime resilience and is RUNNING; it
+gates *deploying* Phase 3 to Nigeria and *enabling* Phase 4's C4
+scheduler for any instance, not the code. E12 settled the
+range-vs-`period=` question (§2.8). Phase 4 (auto-pull) not started.
+Next action = Phase 4 (§5.4 — C3 encrypted credentials + C4 scheduler
+with a per-instance SETTABLE off-peak schedule, §7).**
 
 - Phase 0 = the fetch lab; all verdicts in §2.
 - Phase 1 shipped `da4f6a7d` — worker quick wins + per-pair
@@ -47,8 +49,8 @@ per-instance SETTABLE off-peak schedule, §7).**
   confirmed: launch-claim atomicity, ledger-vs-data on every path,
   cancel non-resurrection, DVS/analytics number-parity mechanics,
   credential handling, CSV worker's loud refusal of DHIS2 staging.
-  All substantive findings verified against the code and fixed
-  (in the working tree with this Status update):
+  All substantive findings verified against the code and fixed in
+  `86f87385`:
   1. **Version-keyed cache poisoning** — the lazily-minted version id
      was visible to readers mid-run while per-pair integration kept
      changing data under it, so a mid-run viewer visit froze partial
@@ -117,6 +119,57 @@ per-instance SETTABLE off-peak schedule, §7).**
   `can_view_data` (surface if Tim wants it `can_configure_data`);
   `failPair`'s ledger write stays best-effort; DVS
   missing-`dataValues`-on-200 = legitimate empty (plan-ruled, E7/E10).
+- **Round-2 adversarial review of the fix batch (86f87385) run
+  2026-07-14** — two fresh independent reviewers; all round-1 fixes
+  independently confirmed sound (reader-exclusion coverage, minting
+  sites, run↔CSV Dekker pattern, cancel fix, calendar force, zero-success
+  FK ordering, shadow abort mechanics). Round-2 findings all fixed in a
+  second batch (the commit carrying this Status update), each verified
+  on the dev DB (6/6 new harness checks + round-1 14/14 rerun):
+  1. `addDatasetHmisToProject` had no run guard — attaching HMIS to a
+     project mid-run exported torn per-pair-mutating data stamped with
+     the settled version id. Now refuses while a run is active (also
+     turns the confusing first-ever-import "Cannot get hmis version"
+     into the clear message).
+  2. Cancel racing the first pair's in-flight COMMIT could FK-abort the
+     zero-success version delete and leave a placeholder version visible
+     forever — `finalizeInterruptedDatasetHmisRunVersion` now re-reads
+     and falls through to the recompute branch (bounded retry;
+     converges on every reachable and unreachable state). Host crash
+     listener reordered terminate-before-finalize.
+  3. Shadow-abort (and every worker error exit) now persists
+     `run_stats` — the abort message's "detail in run_stats.shadow" is
+     true; soft mismatch records capped at 200 (hard never capped).
+  4. Scope-table drops re-sequenced: the worker drops before the status
+     flip releases the claim; cancel no longer drops at all (a successor
+     run's create-time drop handles leftovers) — a trailing drop could
+     destroy a successor's snapshot.
+  5. Client IndexedDB twin closed: `hmisImportRunActive` on
+     `InstanceDatasetsSummary`/`InstanceState` (SSE starting + updates;
+     launch route notifies immediately), and
+     `getDatasetHmisDisplayInfoFromCacheOrFetch` bypasses the client
+     cache while true — mirrors the server's Valkey bypass.
+  6. Unrecognized-analytics-headers errors classify `[permanent]`
+     (deterministic server property, not retryable server health).
+  Reviewed-and-accepted (documented, no code): ms-scale
+  visible-placeholder window between an interrupted run's status flip
+  and finalize; display-route runActive TOCTOU (refuted as practically
+  inert — a fresh run spends minutes classifying before its first
+  commit); both-abort livelock on simultaneous run+CSV claims (safe:
+  at most one proceeds, both may fail loudly).
+- **Single-month DVS pulls (Tim's explicit ruling, 2026-07-14)**: the
+  original ≤3-contiguous-month adaptive window (a delegated robustness
+  ruling, not Tim's) is gone — one pull = one element × one month, the
+  fetch unit matching the import unit. Window-halving code deleted
+  (`chunkContiguousMonths`/`nextMonth` removed from dispatch.ts);
+  size/timeout now escalates straight to the level-2 subtree split. The
+  batching had saved only ~15 min of per-request TTFB on a full Nigeria
+  year (total bytes identical) at the cost of 3× failure blast radius
+  and worker memory. Date-RANGE fetching (vs `period=` exact selection)
+  stays — it is load-bearing for rule 5 (§4.4): exact-period selection
+  silently omits records stored at non-monthly period types. Lab E12
+  (§2.8) then settled the cost/equality question empirically: records
+  identical, no measurable timing difference.
 - **Cutover gate 1 (lab E11): redesigned for daytime resilience,
   RUNNING since 2026-07-14 ~18:00 AWST** *(Tim's ruling 2026-07-14:
   don't wait for off-peak — a gate that only works at night is a
@@ -144,8 +197,6 @@ Outstanding non-code items:
   Phase 4's C4 scheduler for any instance.
 - §2.6 daytime lab runs: E11's 2026-07-14 attempts double as daytime
   evidence; the E1/E8 daytime samplers remain unrun (cheap, optional).
-- Nigeria comms: Tim pastes the A2 attribution paragraph (delivered to
-  Tim 2026-07-14; §4.2) and the 6-stale-id remap ask (§2.2).
 - Deploy: Phases 1–3 take effect only after a server restart/deploy
   (migrations 056–057 run at startup; the dev DB already has both from
   the verify harnesses — idempotent no-ops). One-time operational note:
@@ -160,15 +211,23 @@ Standing directive from Tim: **where a decision is unclear, take the
 most robust option, even at the cost of more work.** Rulings made under
 that directive are marked *(robustness ruling)*.
 
-A fresh agent continuing this work: read §1 for the as-built system,
-§2 for the evidence base (§2.7 for gate 1's current state), §3 for the
-ruled architecture, then build Phase 4 per §5.4 (specs: §7 C3/C4 for
-auto-pull, §6.1 for the Phase 4 UI surfaces). Phase 3's code (§1, §4.4)
-is already built and on `main` — build Phase 4 on top of it; don't
-re-derive it. Gate 1 (§4.4, §2.7) is a separate, parallel action item
-(re-run `./run e11` off-peak) — it blocks *deploying* Phase 3 to
-Nigeria and *enabling* Phase 4's C4 scheduler for any instance, but
-does not block writing C3/C4's code or the Phase 4 UI.
+A fresh agent continuing this work — the task is **Phase 4**:
+
+1. Read §1 for the as-built system, §2 for the evidence base (§2.7/§2.8
+   for gate/lab state), §3 for the ruled architecture.
+2. Build Phase 4 per §5.4: C3 encrypted stored credentials + C4 weekly
+   scheduler with the per-instance SETTABLE schedule window (§7 C3/C4
+   specs; §6.1 Phase 4 UI — subscription config + failure banner). Pick
+   C3's exact crypto primitive during the build (AES-GCM via WebCrypto,
+   key from instance env — §7). C4 must ship DISABLED per instance and
+   stay disabled until that instance's gate 1 has passed.
+
+Phase 3's code (§1, §4.4) is built, twice-reviewed, and on `main` —
+build Phase 4 on top of it; don't re-derive it. Gate 1 is a separate,
+parallel item: lab e11 runs with checkpoint/resume (§8); if its last
+exit was INCOMPLETE, re-run `./run e11` (it resumes; off-peak finishes
+fastest). It blocks *deploying* Phase 3 to Nigeria and *enabling* C4 —
+not writing C3/C4's code or UI.
 Everything needed is in this file or linked from it. This plan is the
 status tracker — when a phase completes, update the Status block above
 (commit to main). Delete the plan once Phase 4 lands **and** gate 1 is
@@ -217,7 +276,8 @@ in `dispatch.ts`): snapshots the UID-shaped `facilities_hmis` list into
 an UNLOGGED scope table (`hmis_dhis2_run_facility_scope`), classifies
 every selected raw indicator per run from DHIS2 metadata (dispatcher
 §4.4), builds fetch tasks — dataValueSets pulls per base element ×
-≤3-contiguous-month chunk (indicators sharing a base share one pull),
+single month (ruled 2026-07-14: the fetch unit matches the import unit;
+indicators sharing a base share one pull),
 analytics tasks per pair for computed indicators — and runs them under
 `pooledMap` (`DHIS2_CONCURRENT_REQUESTS`, default 5). Each pair then
 integrates in its own small transaction: scoped DELETE (join the scope
@@ -239,8 +299,9 @@ throttled to ≥2 s and status-guarded so a cancelled run is never
 resurrected. Analytics leg unchanged from Phase 1: batch 400 (env
 tunable), real-URL 7,000-char guard, `maxAttempts: 3`, 4xx≠429 never
 retried, missing-`rows` = failed fetch, `parseInt` + negatives dropped.
-DVS leg: 100 MB streamed cap, 300 s timeout, size/timeout trigger
-window-halving then level-2 subtree split (never retried at the same
+DVS leg: one pull = one element × one month, 100 MB streamed cap,
+300 s timeout, size/timeout triggers the level-2 subtree split (never
+retried at the same
 shape), values summed per facility across COC×AOC (operands filtered to
 their COC), SUM truncated, negative totals dropped, `deleted: true`
 skipped, any non-monthly period id re-routes the element to analytics.
@@ -277,7 +338,11 @@ not `dataset_hmis`. Raw view is byte-identical to the old GROUP BY
 is the summed raw record count, which diverges from the old
 distinct-facility count only where several raws map to one common id
 (ruled, §6). Valkey cache prefix bumped `ds_hmis` → `ds_hmis_v2`;
-keying (`versionId + indicatorMappingsVersion`) unchanged.
+keying (`versionId + indicatorMappingsVersion`) unchanged. While a run
+is active BOTH cache layers are bypassed and reads compute live: the
+display route skips Valkey, and the client skips its IndexedDB twin
+via `hmisImportRunActive` on the datasets summary (SSE starting +
+updates; the launch route notifies immediately).
 
 **Ledger UI** (§6.1 Phase 2, shipped): "Import status by indicator"
 button in the HMIS admin sidebar → read-only checklist (one row per raw
@@ -333,8 +398,8 @@ weekend load where the slow tail is fatter.**
   missing-`rows`→fail change is not implicated at all (Nigeria 2.40.9
   always returns `rows: []` for empty results — zero missing-`rows`
   cases in all lab traffic). The 48 h is arithmetic: ~713k requests ×
-  think time + retry burn. A2 = write this into the thread
-  (paragraph delivered — §4.2; Tim's paste is the outstanding item).
+  think time + retry burn. A2 = write this into the thread (done —
+  §4.2, closed).
 
 ### 2.2 The failure clusters (E6, from real v59/v60 failures)
 
@@ -345,8 +410,8 @@ weekend load where the slow tail is fatter.**
    replacements (`p6aVCk9aN6S.zbr2vnRNwAW`/`.YW7OzKBM90D`) already sit in
    `indicators_raw`. E10 metadata census found **2 more latent stale ids**:
    `O82o1WlMisO`, `lyVV9bPLlVy` (6 total). Deterministic, instant, fails
-   every run. Fix = config remap in the Nigeria instance (comms item,
-   Phase 1) + dispatcher `unknown` handling (§4.4).
+   every run. Fix = config remap in the Nigeria instance (handled) +
+   dispatcher `unknown` handling (§4.4).
 2. **504 retry-exhaustion** (44): valid dx (`YjZiHDKMWCJ` Live Births +
    operands, `wGPpop3rz7i` Inpatient Admissions, `w6nOgEFHWMG`,
    `YWNyZu9wR89`) whose analytics queries take 5–160 s and cross the 60 s
@@ -418,8 +483,8 @@ this needs to be a real per-instance setting, not an assumption.
 - Re-run `./run e1` and `./run e8` during WAT business hours (the
   daytime tail is the missing distribution; ~40 read-only requests).
 - The full per-element parity gate (§4.4 gate) before Phase 3 cutover
-  — attempted 2026-07-14, not yet satisfied; see §2.7.
-- `wGPpop3rz7i` anomaly + stale-id list → Nigeria comms/advocacy note.
+  — rebuilt for daytime resilience and running; see §2.7 and the
+  Status block.
 
 ### 2.7 Gate 1 attempt, 2026-07-14 daytime — inconclusive (informs Phase 4's scheduler)
 
@@ -464,6 +529,30 @@ did not reach a verdict:
   reaches the off-peak window on its own budget. No app-code changes
   are implicated by this finding.
 
+### 2.8 E12 — date-range vs `period=` head-to-head (2026-07-14 daytime)
+
+Ran after Tim challenged the range approach (why convert period ids to
+dates at all?). 6 dvs base elements × month 202605, interleaved A/B
+request pairs (order alternating to cancel warm-cache bias), against
+live daytime load:
+
+- **Records: EXACT EQUAL on all 5 comparable elements** — canonical
+  multiset over (dataElement, period, orgUnit, COC, AOC, value,
+  deleted), including ANC's 37,961 values. The 6th element got no
+  verdict (both selectors 5xx'd repeatedly in a load spike — says
+  nothing about the comparison). `period=` + `dataElement=` is
+  confirmed working on Nigeria's 2.40.9. Zero non-monthly records
+  observed in any range response (consistent with §2.4).
+- **Timings: no systematic winner.** Per-element wins split both
+  directions (range lost 18s/47s-vs-2s on one element, won 2s-vs-23s
+  on another); daytime load noise dwarfs any selector difference. No
+  evidence of marginal query-time cost for the range approach.
+- **Verdict**: keep the date range — equality proven, cost nil, and
+  only a range surfaces non-monthly-stored records (rule 5's detection
+  depends on that visibility; `period=` omits them silently, and
+  dataValueSets is a raw export with no aggregation engine to
+  compensate). Run: `e12_range_vs_period_2026-07-14T11-47-46`.
+
 ## 3. Architecture ruling (Tim, 2026-07-14): the fetch dispatcher
 
 Not analytics-reshape *or* dataValueSets — a **dispatcher** inside the
@@ -500,18 +589,15 @@ Phase 3*: `pairFetchStats` now lives in `dataset_hmis_import_runs.
 run_stats`; run-minted version rows carry only the slim staging result
 (no pairFetchStats/succeededWorkItems/fetchedFacilityIds).
 
-### 4.2 A2 — the regression answer (DELIVERED 2026-07-14)
+### 4.2 A2 — the regression answer (DONE, closed 2026-07-14)
 
-Write §2.1's attribution verdict into the thread (Rachel/Josh), with the
-advocacy-note material for the Ministry/DHIS2 team: the slow-dx list and
-the `wGPpop3rz7i` anomaly, the 60 s `proxy_read_timeout` (ask: raise for
-`/api/analytics`, or fix the slow queries), the nightly rebuild window,
-and the 6 stale indicator ids to remap instance-side (§2.2). Done = a
-paragraph Tim can paste, stored nowhere else (one tracking home: this
-plan's Status block records A2 done/not-done).
-
-*Status*: paragraph written and handed to Tim 2026-07-14; pasting it to
-the thread is Tim's outstanding comms item (Status block).
+§2.1's attribution verdict was written into the thread (Rachel/Josh),
+with the advocacy-note material for the Ministry/DHIS2 team: the
+slow-dx list and the `wGPpop3rz7i` anomaly, the 60 s
+`proxy_read_timeout` (ask: raise for `/api/analytics`, or fix the slow
+queries), the nightly rebuild window, and the 6 stale indicator ids to
+remap instance-side (§2.2). Comms and the instance-side remap are
+handled — nothing outstanding.
 
 ### 4.3 A3 — quick wins (SHIPPED, Phase 1 `da4f6a7d`)
 
@@ -564,17 +650,20 @@ drift)*. Routes:
    into months ourselves — DHIS2's period-allocation rules apply and the
    analytics engine implements them)*.
 
-**dataValueSets route** (per base element × period window):
+**dataValueSets route** (per base element × single month):
 
-- `GET /api/dataValueSets.json?dataElement={base}&orgUnit={root}&children=true&startDate={window}&endDate={window}`
+- `GET /api/dataValueSets.json?dataElement={base}&orgUnit={root}&children=true&startDate={month start}&endDate={month end}`
   through the S7 base fetcher (`maxResponseBytes` cap ~100 MB, timeout
   300 s, streamed read).
 - Root org unit: discovered per instance (level-1 org unit), cached.
-- **Window sizing, adaptive** *(robustness ruling)*: start with a
-  3-month window; if the response exceeds the byte cap or times out,
-  halve the window (min 1 month); if a 1-month response still exceeds
-  the cap, split by level-2 org-unit subtree (state) and merge. Never
-  fail a pair on size without having tried the splits.
+- **One month per pull** *(Tim's explicit ruling 2026-07-14, superseding
+  the original adaptive ≤3-month window)*: the fetch unit matches the
+  import unit. A date RANGE (not `period=` exact selection) is still
+  required — exact-period selection silently omits records stored at
+  non-monthly period types, which is what rule 5's detection depends on.
+  If the response exceeds the byte cap or times out, split by level-2
+  org-unit subtree (state) and merge; never fail a pair on size without
+  having tried the split.
 - Client-side reduce: keep rows where `orgUnit` ∈ the instance's
   UID-shaped `facilities_hmis` set AND `period` matches an expected
   monthly id (`^\d{6}$` within the selection); skip `deleted: true`
@@ -642,8 +731,8 @@ visibility in Phase 2, dispatcher rule 4 in Phase 3). 5xx/timeout →
 transient: fail
 the pair after the capped retries; re-runs happen at pair granularity
 via the checklist actions (§6.1), ideally scheduled off-peak (§2.5).
-Remaining: the Nigeria comms item — remap/remove the 6 stale ids
-instance-side (rule 4 now surfaces them loudly per run).
+The 6 stale ids were remapped instance-side (handled); rule 4 surfaces
+any future stale config loudly per run.
 
 ## 5. Sequencing (each phase ships alone; update Status on completion)
 
@@ -651,19 +740,21 @@ instance-side (rule 4 now surfaces them loudly per run).
    answer (A3 + A1 + A2): worker fixes (throttle, guard fix + batch 400,
    retry cap 3, 409 permanent, env tunables), per-pair timing
    instrumentation, thread attribution paragraph. Still outstanding from
-   this phase: the §2.6 daytime lab runs and the Nigeria comms
-   (Status block).
+   this phase: the §2.6 daytime lab runs (optional).
 2. **Phase 2 — DONE (`d191fb3f`)** — ledger (WS-B, §6): table plus
    writers, backfill, viewer switch, and the read-only checklist /
    "last imported" UI.
-3. **Phase 3 — CODE DONE, on main; gate 1 pending** (built +
-   locally verified 2026-07-14) — dispatcher + per-pair units
-   (§4.4 + C1 + C2, §7): per-pair fetch+integrate run worker, runs
-   table (migration 057), dispatcher as the fetch step, §6.1 Phase 3 UI
-   (run launcher/view/history + checklist actions). Gate 1 = lab E11,
-   attempted 2026-07-14 daytime, NOT satisfied — see §2.7; re-run
-   off-peak before committing. Gate 2 = in-app first-run shadow
-   verification, ships in the worker (no separate action needed).
+3. **Phase 3 — DONE + twice reviewed; gate 1 running** (built, verified,
+   and adversarially reviewed twice 2026-07-14 — see Status) —
+   dispatcher + per-pair units (§4.4 + C1 + C2, §7): per-pair
+   fetch+integrate run worker, runs table (migration 057), dispatcher
+   as the fetch step (single-month pulls), §6.1 Phase 3 UI (run
+   launcher/view/history + checklist actions). On main: `d267c39f`,
+   `86f87385`, and the round-2/single-month commit (Status
+   header). Gate 1 = lab E11, rebuilt checkpoint/resume, RUNNING — a
+   PASS gates deploying to Nigeria + enabling C4, not the code. Gate 2 =
+   in-app first-run shadow verification, ships in the worker (no
+   separate action needed).
 4. **Phase 4 — NEXT — auto-pull** (C3 + C4, §7): stored credentials
    (encrypted), weekly scheduler with a **per-instance settable
    schedule window** (day/time/timezone — not hardcoded; §7 C4, ruled
@@ -843,8 +934,9 @@ units.
   DHIS2 path from monolithic stage-all-then-integrate-all to
   fetch+integrate per pair (staging is per-pull in worker memory; the
   only table is the run-scoped facility snapshot). The dispatcher's DVS
-  route fetches one *element × window* covering many pairs — the unit
-  boundary is (pair) for integration and ledger writes. A 48-hour run
+  route fetches one *element × month* which can cover several pairs
+  (indicators sharing a base element) — the unit boundary is (pair) for
+  integration and ledger writes. A 48-hour run
   that dies at hour 40 keeps 40 hours of work, visible in the ledger.
   **Version-record grain** *(ruled; as-built deviation)*: one
   `dataset_hmis_versions` row per run, minted **lazily at the first
@@ -908,7 +1000,8 @@ units.
 `~/projects/apps/wb-fastr-dhis2-lab` — sibling repo so national-DHIS2
 credentials and experiment churn never enter this repo. It imports the
 app's **real** connector via absolute paths and runs under this repo's
-`deno.json` (`./run e1 … e11`, see its README, which documents e11).
+`deno.json` (`./run e1 … e12`, see its README; verdicts in its
+RESULTS.md, E12 = range-vs-`period=` — §2.8).
 Guardrails: read-only
 GETs, ≤5 concurrent default, backoff on 429/5xx, hard stop after 20
 consecutive server-stress failures, every run logs request count; DHIS2
@@ -925,6 +1018,6 @@ when >45 min old, and a re-run resumes from the checkpoint
 budget). Exit 0 PASS / 1 FAIL / 2 INCOMPLETE. Off-peak still finishes
 fastest (§2.5), but the gate no longer requires it. Known future lab
 work: the E1/E8 daytime samplers (§2.6, optional);
-DVS backfill window sizing if anyone wants deep history (~10 MB per
-dense element-month; 72-month history ≈ 10–20 GB transfer, chunked by
-the adaptive window).
+DVS backfill sizing if anyone wants deep history (~10 MB per
+dense element-month; 72-month history ≈ 10–20 GB transfer, one pull per
+element-month).

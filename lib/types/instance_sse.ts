@@ -60,6 +60,9 @@ export type InstanceState = {
   datasetsWithData: DatasetType[];
   datasetVersions: { hmis?: number; hfa?: number };
   hmisNVersions: number;
+  // While a per-pair DHIS2 run is integrating, dataset_hmis keeps changing
+  // under the settled version token — display caches must be bypassed.
+  hmisImportRunActive: boolean;
   hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
   icehCacheHash: string;
@@ -119,6 +122,7 @@ export type InstanceDatasetsSummary = {
   datasetsWithData: DatasetType[];
   datasetVersions: { hmis?: number; hfa?: number };
   hmisNVersions: number;
+  hmisImportRunActive: boolean;
   hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
   icehCacheHash: string;
