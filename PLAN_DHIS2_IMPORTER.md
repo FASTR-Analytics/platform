@@ -12,8 +12,14 @@ The in-app first-run shadow verification + circuit breaker (§4.4
 gate 2) is the remaining cutover protection — it runs on every
 instance's first dispatcher run regardless. E12 settled the
 range-vs-`period=` question (§2.8). Phase 4 (auto-pull) not started.
-Next action = Phase 4 (§5.4 — C3 encrypted credentials + C4 scheduler
-with a per-instance SETTABLE off-peak schedule, §7).**
+**Phase 4 spec REDESIGNED in a design session with Tim (2026-07-14,
+after Phase 3 shipped)**: C4 rewritten — a scheduled-imports table
+covering run-later + recurring, queue-not-concurrency (§7 C6), the
+unified imports surface, a 1-minute tick — and a NEW separable Phase 5
+(§9, CSV wizard re-flow with a conditional review gate). Tim confirmed
+DHIS2 stays GATE-LESS given the verified failed-pair contract (§3.1).
+Next action = Phase 4 (§5.4 — C3 encrypted credentials + C4
+scheduler/queue + the imports surface, §7).**
 
 - Phase 0 = the fetch lab; all verdicts in §2.
 - Phase 1 shipped `da4f6a7d` — worker quick wins + per-pair
@@ -210,15 +216,19 @@ that directive are marked *(robustness ruling)*.
 A fresh agent continuing this work — the task is **Phase 4**:
 
 1. Read §1 for the as-built system, §2 for the evidence base (§2.7/§2.8
-   for gate/lab state), §3 for the ruled architecture.
-2. Build Phase 4 per §5.4: C3 encrypted stored credentials + C4 weekly
-   scheduler with the per-instance SETTABLE schedule window (§7 C3/C4
-   specs; §6.1 Phase 4 UI — subscription config + failure banner). Pick
-   C3's exact crypto primitive during the build (AES-GCM via WebCrypto,
-   key from instance env — §7). C4 must ship DISABLED per instance and
-   stay disabled until that instance's first dispatcher run has
-   shadow-verified clean (§7 C4 dependency — the lab gate is retired,
-   Status block).
+   for gate/lab state), §3 for the ruled architecture, §3.1 for the
+   gate-less ruling + failed-pair contract.
+2. Build Phase 4 per §5.4: C3 encrypted stored credentials + C4
+   scheduler (scheduled-imports table: one-shot + recurring; 1-minute
+   tick) + C6 queue semantics + the unified imports surface (§7
+   C3/C4/C6 specs; §6.1 Phase 4 UI). Pick C3's exact crypto primitive
+   during the build (AES-GCM via WebCrypto, key from instance env —
+   §7). Nothing unattended may fire for an instance until its first
+   dispatcher run has shadow-verified clean (§7 C4 unattended gate —
+   the lab gate is retired, Status block).
+3. Phase 5 (§9, CSV wizard re-flow) is SEPARABLE and comes after
+   Phase 4, riding on Phase 4's imports surface — do not let it grow
+   Phase 4's scope (ruled).
 
 Phase 3's code (§1, §4.4) is built, twice-reviewed, and on `main` —
 build Phase 4 on top of it; don't re-derive it. Do NOT start new lab
@@ -226,8 +236,9 @@ work (Tim's ruling — Status block); the lab repo is kept for reference
 and Tim will push it to GitHub himself.
 Everything needed is in this file or linked from it. This plan is the
 status tracker — when a phase completes, update the Status block above
-(commit to main). Delete the plan once Phase 4 lands; if work stalls,
-fold remainders into SYSTEM_06/07 Open items.
+(commit to main). Delete the plan once Phases 4–5 land; if Phase 5 is
+deferred indefinitely, fold §9 into SYSTEM_06 Open items and delete;
+if work stalls, fold remainders into SYSTEM_06/07 Open items.
 
 Three goals, one system (S6's HMIS-DHIS2 path + S7 connector):
 
@@ -235,8 +246,9 @@ Three goals, one system (S6's HMIS-DHIS2 path + S7 connector):
   requires, not by our request arithmetic.
 - **G2 — import ledger**: a per (raw indicator, month) record of import
   history (DHIS2 + CSV), which also makes the HMIS viewer instant.
-- **G3 — auto-pull**: the platform pulls everything automatically each
-  weekend instead of a user babysitting a wizard for 48 hours.
+- **G3 — auto-pull**: the platform pulls everything automatically on
+  its configured schedule instead of a user babysitting a wizard for
+  48 hours.
 
 ## 0. The driver (Nigeria, July 2026)
 
@@ -557,6 +569,49 @@ staged rows `(facility_id, indicator_raw_id, period_id, count)` + pair
 stats — so integration, scoped delete, the ledger, and the UI never know
 which route fetched. Design details in §4.4.
 
+### 3.1 Gate-less integration ruling (Tim, 2026-07-14, post-Phase-3)
+
+Phase 3 removed the human stage→review→integrate gate from the DHIS2
+path: pairs fetch AND integrate immediately, per-pair, in small
+transactions; staging exists only in worker memory; there is no
+persisted staged state and no human confirmation between pull and
+merge. In the Phase 4 design session Tim confirmed this stands,
+**conditional on the failed-pair contract**, which was verified against
+the code the same day
+(`server/worker_routines/import_hmis_data_dhis2/worker.ts`):
+
+- **A failed pair never touches data.** `failPair` writes only a
+  ledger error row + the failed-pairs counter — no scoped delete, no
+  insert. The pair's existing data stays exactly as it was.
+- **The scoped delete lives only inside the success path.**
+  `integratePair` (scoped delete → insert → ledger → counter, one
+  transaction) is reached only after a fully successful fetch; a crash
+  or cancel mid-pair aborts the transaction atomically — the pair
+  reverts to untouched.
+- One DVS pull can serve several pairs (indicators sharing a base
+  element); a failed pull fails ALL its pairs through `failPair` — all
+  untouched.
+- **Contract boundary (conscious, ruled in Phase 0)**: a fetch that
+  SUCCEEDS with zero rows is NOT a failure — it is DHIS2
+  authoritatively reporting an empty month (the DVS empty shape is
+  unambiguous — E7/E10) and it DOES integrate: the scoped delete runs,
+  nothing inserts, existing data for the pair is replaced with empty.
+  Wrongful successful-empties are therefore the dangerous case, and
+  each known cause has a defense: the Ethiopian-calendar window
+  (non-Gregorian instances force analytics, §4.4) and endpoint
+  misbehavior (first-run shadow verification + circuit breaker, §4.4
+  gate 2).
+
+The machine gates that replace the human gate: shadow verification +
+circuit breaker on first run, permanent/transient classification,
+ledger visibility of every failure, per-pair atomicity. Post-hoc review
+is the offer: run view + ledger + run history, and a bad run's window
+can be deleted. Reintroducing a human gate was considered and
+**rejected** — it would require persistent staging for up to a
+country-year of rows and would give up crash-survivability (a 48 h run
+dying at hour 40 keeping 40 h of work), the very property Phase 3 was
+built for.
+
 ## 4. Workstreams
 
 ### 4.1 A1 — in-app instrumentation (SHIPPED, Phase 1 `da4f6a7d`)
@@ -748,13 +803,21 @@ any future stale config loudly per run.
    E9/E10/E12 evidence sufficient (Status block). Gate 2 = in-app
    first-run shadow verification + circuit breaker, ships in the worker
    (no separate action needed) and is the remaining cutover protection.
-4. **Phase 4 — NEXT — auto-pull** (C3 + C4, §7): stored credentials
-   (encrypted), weekly scheduler with a **per-instance settable
-   schedule window** (day/time/timezone — not hardcoded; §7 C4, ruled
-   2026-07-14 off the §2.7 finding), failure surfacing. Plus the §6.1
-   Phase 4 UI (subscription config incl. the schedule fields + failure
-   banner). C4's scheduler must stay disabled per-instance until that
-   instance's gate 1 has passed.
+4. **Phase 4 — NEXT — auto-pull + scheduling/queue** (C3 + C4 + C6,
+   §7; spec redesigned with Tim 2026-07-14): stored credentials
+   (encrypted), the scheduled-imports table (one-shot "run at T" +
+   recurring day/time/interval/timezone — per-instance SETTABLE, not
+   hardcoded; ruled off the §2.7 finding), the ~1-minute scheduler
+   tick, queue-behind-the-running-run semantics, and the unified
+   imports surface (running / queued / scheduled / history — §6.1
+   Phase 4 UI) with failure surfacing. Nothing unattended fires for an
+   instance until its first dispatcher run has shadow-verified clean
+   (`shadow_passed=true` for its DHIS2 URL — §7 C4 unattended gate).
+5. **Phase 5 — CSV wizard re-flow (§9) — SEPARABLE**:
+   launch-and-observe CSV imports with a conditional review gate.
+   Rides on Phase 4's imports surface; deliberately kept OUT of
+   Phase 4's scope (ruled: sequence explicitly, don't let Phase 4
+   grow).
 
 ## 6. WS-B — the import ledger (G2) — SHIPPED (Phase 2, `d191fb3f`)
 
@@ -902,26 +965,48 @@ detail header gets "Re-import this indicator" (all window months).
 Both open the same launcher — credentials prompted per run until C3;
 URL prefilled from the last run. All new strings inline t3 en/fr/pt.
 
-**Phase 4 (auto-pull visibility):**
+**Phase 4 (imports surface + scheduling):**
 
-- Subscription config UI (per-instance: on/off, indicator list, rolling
-  window, and the **settable schedule** — day of week, start time, IANA
-  timezone; see §7 C4 for the stored shape and the Nigeria-specific
-  default-value hint) and an in-app banner + checklist/run-history
-  surfacing when a scheduled pull fails or partially fails.
+- **Unified imports surface** (grow the existing
+  `instance_dataset_hmis/dhis2_run/` home): four sections — **Running**
+  (existing progress view + cancel), **Queued** (FIFO list of pending
+  runs; remove), **Scheduled** (schedule rows: one-shot + recurring;
+  edit / enable / disable / delete; last-fired outcome linking to its
+  run), **History** (existing top-50 run table). This one surface is
+  the listing Tim asked for (2026-07-14): all *currently running* and
+  all *future scheduled* imports, reviewable and stoppable/cancellable
+  in one place.
+- **Schedule editor**: per row — selection (indicator list + rolling
+  period window), then EITHER a one-shot datetime OR recurring
+  day-of-week + start time + IANA timezone + interval. §2.5's Nigeria
+  finding (~01:15 WAT, post-analytics-rebuild) is the UI's suggested
+  default **hint** for Nigeria specifically (placeholder text), never
+  scheduler logic.
+- **Queue prompt**: hitting "import" while a run is active offers
+  explicitly — "An import is running — queue this one to start after
+  it?" *(ruled: explicit queueing, never the silent default — "run
+  now" must not silently mean "run in 40 hours")*.
+- **Failure banner**: in-app banner + run-history/checklist surfacing
+  when a scheduled fire fails, is refused (missing credentials /
+  unattended gate), or misses its window (§7 C4 `last_outcome`).
+
+**Phase 5 (CSV re-flow, §9):** the held "Needs review" CSV attempt
+appears in this same imports surface — today's step-4 diagnostics
+relocated there, plus "Integrate anyway" / "Discard" actions.
 
 All new strings translated (en/fr/pt) per DOC_TRANSLATION.md.
 
 ## 7. WS-C — per-pair units and weekend auto-pull (G3)
 
-Target: per-instance subscription config — DHIS2 credentials, raw
-indicator list, rolling period window (e.g. current + previous 12
-months), weekly schedule — and a runner executing **per-pair import
-units**: fetch one (indicator, month) via the dispatcher → integrate that
-pair in its own small transaction → write its ledger row. Failures don't
+Target: per-instance stored credentials (C3) + scheduled imports
+(C4 — one-shot and recurring rows, each with a selection: raw
+indicator list, rolling period window e.g. current + previous 12
+months) + queue semantics (C6), executing **per-pair import units**:
+fetch one (indicator, month) via the dispatcher → integrate that pair
+in its own small transaction → write its ledger row. Failures don't
 block other pairs; re-runs retry only `status='error'` or stale pairs.
-The wizard remains for ad-hoc/backfill work as an enqueuer over the same
-units.
+The run launcher remains for ad-hoc/backfill work as an enqueuer over
+the same units.
 
 - **C1 — the per-pair import unit (SHIPPED, Phase 3).** Restructure the
   DHIS2 path from monolithic stage-all-then-integrate-all to
@@ -954,40 +1039,106 @@ units.
   copies in attempt rows (S5/S6/S7 have each deferred this ruling — it is
   now on the critical path and settled in principle; pick the exact
   primitive during C3 build).
-- **C4 — the scheduler.** `main.ts` already runs daily `setInterval`
-  jobs; add a weekly instance-config-gated trigger that enqueues a run
-  from the subscription, with a lock against concurrent manual runs
-  and failure surfacing.
-  **The schedule window is a per-instance SETTABLE config, not a
-  hardcoded time** *(ruled 2026-07-14, driven by §2.7: Nigeria's
-  daytime load made an unattended gate run fail outright with a 504 —
-  the same risk applies to any unattended auto-pull, and different
-  DHIS2 instances will have different low-traffic windows)*. Shape:
-  `{ enabled: boolean, dayOfWeek: number (0-6), startTime: "HH:MM",
-  timezone: string (IANA, e.g. "Africa/Lagos") }`, stored per instance
-  (mirrors the existing `instance_config` config_key/config_json_value
-  pattern — see `db_startup.ts`'s default-config inserts for the
-  convention). The daily scheduler tick computes "is it currently
-  within this instance's configured window" against that stored
-  timezone/day/time — not against an app-wide constant. §2.5's Nigeria
-  finding (~01:15 WAT, post analytics-rebuild) becomes the **UI's
-  suggested default value** for Nigeria specifically (surfaced as
-  placeholder/hint text in the Phase 4 subscription config UI, §6.1),
-  not logic baked into the scheduler. Still jitter the actual start a
-  few minutes inside the window to avoid a thundering-herd instant if
-  several instances share a schedule.
-  **Auto-pull default OFF per instance** *(ruled)*; notification =
-  in-app banner + run/ledger visibility first, email later if wanted
-  *(ruled: no new external dependency for v1)*.
-  **Dependency** *(updated 2026-07-14 — the lab gate is retired, Status
-  block)*: do not enable C4 for any instance until that instance's
-  first dispatcher run has shadow-verified clean (`shadow_passed=true`
-  for its DHIS2 URL, §4.4 gate 2) — an unattended scheduled run
-  inherits every risk a manual run does, and §2.7 is direct evidence
-  that timing matters for unattended production pulls.
+- **C4 — the scheduler** *(spec REDESIGNED with Tim 2026-07-14;
+  supersedes the original single-subscription weekly blob)*. Tim's
+  three scenarios: (1) **run now** — already exists (the launch
+  route); (2) **run once at a set future time**; (3) **recurring at a
+  set time with a given interval**. A single config blob cannot hold
+  (2) or multiple schedules, so the shape is a **scheduled-imports
+  table** (main DB, next migration; sketch — builder may adjust
+  columns, not semantics):
+
+  ```sql
+  CREATE TABLE dataset_hmis_scheduled_imports (
+    id serial PRIMARY KEY,
+    kind text NOT NULL,              -- 'one_shot' | 'recurring'
+    enabled boolean NOT NULL,
+    selection jsonb NOT NULL,        -- Dhis2RunSelection
+    run_at timestamptz,              -- one_shot: the fire instant
+    day_of_week integer,             -- recurring: 0-6
+    start_time text,                 -- recurring: 'HH:MM'
+    timezone text,                   -- recurring: IANA e.g. Africa/Lagos
+    interval_weeks integer,          -- recurring: 1=weekly, 2, 4…
+    created_by text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    last_fired_at timestamptz,
+    last_outcome text,               -- 'launched'|'refused'|'missed'
+    last_error text,
+    last_run_id integer REFERENCES dataset_hmis_import_runs(id)
+  );
+  ```
+
+  - **The schedule window is per-instance SETTABLE, never hardcoded**
+    *(ruled 2026-07-14, driven by §2.7: Nigeria's daytime load made an
+    unattended gate run fail outright with a 504 — the same risk
+    applies to any unattended auto-pull, and different DHIS2 instances
+    have different low-traffic windows)*.
+  - **Tick**: a ~60 s `setInterval` in `main.ts` — explicitly NOT the
+    existing boot-anchored 24 h jobs and NOT the original plan text's
+    "daily tick", which would usually miss a 01:15 Lagos window
+    (found reviewing `main.ts` 2026-07-14; this corrects the earlier
+    spec). Each tick: skip entirely if a run or CSV phase is active;
+    otherwise fire at most ONE due item — queued runs FIFO first, then
+    due schedules. Idempotency = compare-and-set on `last_fired_at`.
+    Serialization needs nothing new: the tick launches through
+    `launchDatasetHmisDhis2ImportRun`, so the existing partial-unique
+    launch claim still arbitrates; a lost race leaves the item due for
+    the next tick.
+  - **Due semantics**: one-shot → `now ∈ [run_at, run_at + grace]`;
+    after firing set `enabled=false`, keep the row (the listing shows
+    it fired, linking to its run). Recurring → compute the current
+    occurrence in the row's timezone; due when
+    `now ∈ [occurrence, occurrence + grace]` AND
+    `last_fired_at < occurrence`. **Grace default 4 h** — a fire
+    missed by more than that (server down) would land in daytime load,
+    and §2.7 says skipping loudly beats firing late; record
+    `last_outcome='missed'` + banner. (Grace value = builder-level
+    default, not a Tim ruling.) Jitter the actual start a few minutes
+    inside the window (thundering-herd if several instances share a
+    schedule — kept from the original spec).
+  - **Unattended gate** *(extends the original recurring-only ruling;
+    reasoning: a one-shot future run is exactly as unattended as a
+    recurring one)*: NOTHING fires unattended — one-shot, recurring,
+    or queued — until the instance's first dispatcher run has
+    shadow-verified clean (`shadow_passed=true` for its DHIS2 URL,
+    §4.4 gate 2). Enforce twice: the schedule editor refuses to
+    create/enable rows before then, AND the tick re-checks at fire
+    time (repointing the DHIS2 URL re-arms shadow, so it must also
+    re-block the scheduler) — refusal is loud
+    (`last_outcome='refused'` + banner).
+  - **Credentials**: scheduled and queued fires use C3's stored
+    instance credentials, decrypted only in the worker; a fire with no
+    stored credentials is refused loudly. "Run now" accepts stored or
+    per-run prompted credentials.
+  - **Auto-pull default OFF per instance** *(ruled)*; notification =
+    in-app banner + run/ledger visibility first, email later if wanted
+    *(ruled: no new external dependency for v1)*.
 - **C5 — downstream freshness** (note only, out of scope): a scheduled
   pull bumps the dataset version; results-runs staleness surfaces it.
   Whether anything re-generates automatically is a separate ruling.
+- **C6 — queue, not concurrent execution** *(ruled with Tim
+  2026-07-14)*: "one import operation at a time" is relaxed at the
+  QUEUE level only; execution stays strictly serialized. Reasoning —
+  true concurrent runs would break twice-reviewed Phase 3 machinery:
+  the partial-unique-index launch claim, the run↔CSV post-claim
+  re-checks (version-id `MAX(id)+1` mint collisions), the fixed-name
+  UNLOGGED scope table, the `worker_store` singleton key — and two
+  runs with overlapping pairs would corrupt each other (run A's scoped
+  delete removes rows run B just committed for the same pair; ledger
+  upserts fight). The gain would be ~nil anyway: the DHIS2 server is
+  the bottleneck, and two runs just split the same
+  `DHIS2_CONCURRENT_REQUESTS` budget. A queue delivers everything
+  actually asked for: multiple pending imports coexist (queued manual
+  and scheduled), one runner drains them in order, and the imports
+  surface lists/cancels them (§6.1). Implementation: queued manual
+  runs are rows the tick drains — either `status='queued'` rows in
+  `dataset_hmis_import_runs` or one-shot schedule rows with
+  `run_at = now` (builder's choice; weigh that the runs table is
+  already the listing/cancel surface). Either way they require C3
+  stored credentials — a prompted plaintext credential must never be
+  persisted to survive until the queue drains. Queueing is EXPLICIT
+  (the §6.1 prompt), never the silent default *(ruled)*.
+
 
 ## 8. The lab (RETIRED 2026-07-14 — kept for reference, no new work)
 
@@ -1018,3 +1169,56 @@ budget). Exit 0 PASS / 1 FAIL / 2 INCOMPLETE. No future lab work is
 planned (retired — see above). One sizing fact kept for reference: DVS
 deep-history backfill would be ~10 MB per dense element-month
 (72-month history ≈ 10–20 GB transfer, one pull per element-month).
+
+## 9. WS-D — CSV wizard re-flow (Phase 5, SEPARABLE; designed with Tim 2026-07-14)
+
+Tim's idea, refined in the Phase 4 design session: the CSV wizard
+stops babysitting. Today it forces two attended waits (staging, then
+integrating) with a manual click between; the re-flow makes CSV
+**launch-and-observe**, converging on the pattern Phase 3 established
+for DHIS2 runs (configure → launch → close → watch the imports
+surface). One mental model for all imports.
+
+- **The wizard shrinks to config**: upload (step 1) + mappings
+  (step 2) + a confirm screen → "Launch import" → the wizard CLOSES.
+  Staging runs unattended in the existing background worker.
+- **On staging completion, three outcomes**:
+  - **Clean** — every `validation.*.rowsDropped` is 0 (the exact
+    condition today's step 4 uses to decide whether to show its
+    Validation Issues box — see `step_4_csv.tsx`) AND
+    `finalStagingRowCount > 0` → **auto-integrate**, no human. The
+    common case for routine monthly files.
+  - **Issues** — any rows dropped → HOLD at staged. The imports
+    surface (§6.1) shows the attempt as "Needs review" with today's
+    step-4 diagnostics relocated there (dropped-row counts by cause —
+    missing fields / invalid values / invalid periods / invalid
+    facilities / unmapped indicators — with the samples), plus
+    "Integrate anyway" and "Discard" actions.
+  - **Zero staged rows** → fail the attempt loudly; nothing to review
+    or integrate.
+- **Why the gate stays conditional instead of removed** *(pushback
+  accepted by Tim — his first framing was an "automatically integrate
+  if there are no issues" checkbox; this is that, with "no issues"
+  made concrete)*: CSVs are user-authored. A wrong facility-id column
+  or mapping choice silently drops 90% of rows, and unconditional
+  auto-integrate would merge the surviving 10% before anyone looked —
+  CSV integrate is a merge, so recovery is a windowed delete *if
+  someone notices*. DHIS2 runs need no gate because the source is
+  authoritative and machine-gated (§3.1); a CSV is not.
+- **Verified facts (2026-07-14)** making the hold cheap: staged data +
+  the staging result already persist across sessions in the attempt
+  row (that is how step 3 → step 4 survives a closed tab today), and a
+  staged-but-not-integrating attempt does NOT block DHIS2 runs — the
+  run-side guards only block on
+  `status_type IN ('staging','integrating')`
+  (`dataset_hmis_import_runs.ts` launch guards). A held attempt
+  occupies the single CSV slot until resolved — no worse than an
+  abandoned wizard today.
+- **The only genuinely new mechanism** is the chain: staging worker
+  succeeds → evaluate the clean condition server-side → launch the
+  integrate worker. Everything else is relocation of existing UI (the
+  step-4 diagnostics render, the progress views) into the imports
+  surface.
+- **Sequencing** *(ruled)*: separable from Phase 4 — build after it,
+  on Phase 4's imports surface. If deferred indefinitely, fold this
+  section into SYSTEM_06 Open items and delete it with the plan.
