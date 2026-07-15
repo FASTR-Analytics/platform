@@ -1354,13 +1354,17 @@ export function ProjectReport(p: Props) {
 }
 
 
-// Presence borders around report embeds — the report-preview counterpart of
-// the slide editor's PeerSelectionOverlay: a colored border + name tags
-// around the figure/image each peer currently has selected (their embed
-// selection, broadcast via presence `selectedBlockId`). DOM-anchored: embeds
-// are located by [data-embed-id] inside the preview pane and clipped to its
-// visible viewport, so borders scroll with the content, and Edit mode (no
-// preview mounted) renders nothing for free.
+// Presence borders around report embeds — the report counterpart of the
+// slide editor's PeerSelectionOverlay: a colored border + name tags around
+// the figure/image each peer currently has selected (their embed selection,
+// broadcast via presence `selectedBlockId`). DOM-anchored in BOTH panes:
+// embeds are located by [data-embed-id] on the CM figure widgets (code pane)
+// and on the preview's rendered embeds, each clipped to its own pane's
+// visible viewport. The code pane is the primary anchor — it is what users
+// see and click in Edit/Split, and it renders a widget for every token line,
+// whereas the markdown preview drops embeds that aren't blank-line-separated
+// (so a preview-only anchor silently misses them). A pane that is hidden
+// (Edit's preview, View's editor) has a zero rect and contributes nothing.
 function ReportPeerSelectionOverlay(p: {
   reportId: string;
   suppressed: boolean;
@@ -1385,10 +1389,15 @@ function ReportPeerSelectionOverlay(p: {
       (peer) => peer.reportId === p.reportId && peer.selectedBlockId,
     );
     if (peers.length === 0) return [];
-    const pane = document.querySelector('[data-report-cursor="preview-pane"]');
-    if (!pane) return [];
-    const paneRect = pane.getBoundingClientRect();
-    if (paneRect.width === 0 || paneRect.height === 0) return [];
+    const panes = [
+      document.querySelector('[data-report-cursor="code-pane"]'),
+      document.querySelector('[data-report-cursor="preview-pane"]'),
+    ].filter((el): el is Element => {
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    });
+    if (panes.length === 0) return [];
     const out: {
       key: string;
       left: number;
@@ -1397,40 +1406,45 @@ function ReportPeerSelectionOverlay(p: {
       height: number;
       editors: { name: string; color: string; editingFigure: boolean }[];
     }[] = [];
-    // One box per embed (not per peer): co-selectors share the box, their
-    // name tags sit side by side (mirrors the slide editor's overlay).
+    // One box per embed per pane (not per peer): co-selectors share the box,
+    // their name tags sit side by side (mirrors the slide editor's overlay).
+    // In Split an embed can anchor in both panes — one box in each.
     const byTarget = new Map<string, (typeof out)[number]>();
-    for (const peer of peers) {
-      const id = peer.selectedBlockId!;
-      let entry = byTarget.get(id);
-      if (!entry) {
-        const el = pane.querySelector(`[data-embed-id="${id}"]`);
-        if (!el) continue;
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 || r.height === 0) continue;
-        // Clip to the preview viewport so a scrolled-away embed's border
-        // doesn't float over the header or the editor pane.
-        const top = Math.max(r.top, paneRect.top);
-        const bottom = Math.min(r.bottom, paneRect.bottom);
-        if (bottom - top < 8) continue;
-        entry = {
-          key: id,
-          left: r.left,
-          top,
-          width: r.width,
-          height: bottom - top,
-          editors: [],
-        };
-        byTarget.set(id, entry);
-        out.push(entry);
-      }
-      // Same user in two tabs = two connections; show their name once.
-      if (!entry.editors.some((e) => e.name === peer.name)) {
-        entry.editors.push({
-          name: peer.name,
-          color: peer.color,
-          editingFigure: peer.editingFigureId === id,
-        });
+    for (const [paneIdx, pane] of panes.entries()) {
+      const paneRect = pane.getBoundingClientRect();
+      for (const peer of peers) {
+        const id = peer.selectedBlockId!;
+        const key = `${paneIdx}:${id}`;
+        let entry = byTarget.get(key);
+        if (!entry) {
+          const el = pane.querySelector(`[data-embed-id="${id}"]`);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          // Clip to the pane's viewport so a scrolled-away embed's border
+          // doesn't float over the header or the neighbouring pane.
+          const top = Math.max(r.top, paneRect.top);
+          const bottom = Math.min(r.bottom, paneRect.bottom);
+          if (bottom - top < 8) continue;
+          entry = {
+            key,
+            left: r.left,
+            top,
+            width: r.width,
+            height: bottom - top,
+            editors: [],
+          };
+          byTarget.set(key, entry);
+          out.push(entry);
+        }
+        // Same user in two tabs = two connections; show their name once.
+        if (!entry.editors.some((e) => e.name === peer.name)) {
+          entry.editors.push({
+            name: peer.name,
+            color: peer.color,
+            editingFigure: peer.editingFigureId === id,
+          });
+        }
       }
     }
     // Stable label order so tags don't swap places between presence updates.

@@ -81,9 +81,11 @@ session.
   everywhere live cursors do.
 - **"Who is editing what" borders on the canvas.** The slide canvas outlines
   the content block or title field each collaborator is currently editing, in
-  their color with a name tag above it. The report preview does the same for
+  their color with a name tag above it. The report editor does the same for
   figures and images: selecting an embed outlines it on every collaborator's
-  preview (with a "\u270e figure" tag while its editor modal is open). When several people edit the *same*
+  screen \u2014 around the embed widget in the markdown pane and around the
+  rendered embed in the preview, whichever is visible (with a "\u270e figure"
+  tag while its editor modal is open). When several people edit the *same*
   element, their name tags sit side by side and each editor gets a visible
   concentric border. The overlay hides itself while a modal (e.g. the
   visualization editor) covers the canvas.
