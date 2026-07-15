@@ -1,3 +1,20 @@
+[TBD] [user] [changed] - DHIS2 import setup now uses a step-by-step wizard
+[TBD] [user] [added] - Review summary screen before launching or scheduling an import
+[TBD] [user] [changed] - Import screen reorganized into Current, Future, and History tabs
+[TBD] [user] [added] - "Manage connection" button to update DHIS2 credentials without starting an import
+[TBD] [user] [added] - Tab badges show count of active/queued imports and enabled schedules
+[TBD] [user] [changed] - Collapsible progress view for the currently running import
+[TBD] [user] [added] - "New import" button always visible in the top toolbar
+[TBD] [user] [changed] - Scheduling and one-time future imports now configured within the same wizard
+[TBD] [user] [added] - Next scheduled import shown when no import is running
+[TBD] [admin] [changed] - DHIS2 import setup now uses a step-by-step wizard
+[TBD] [admin] [added] - New "Manage connection" button to update stored DHIS2 credentials without starting an import
+[TBD] [admin] [changed] - DHIS2 imports page reorganized into Current, Future, and History tabs
+[TBD] [admin] [added] - Current tab shows next scheduled import when no import is running
+[TBD] [admin] [changed] - Scheduling and one-time future imports are now configured through the same wizard
+[TBD] [admin] [added] - Review step summarizes connection, indicators, timing, and pair count before launching
+[TBD] [admin] [changed] - Wizard automatically detects if an import is running and offers to queue instead
+[TBD] [admin] [added] - Tab badges show counts of active/queued imports and enabled schedules
 [TBD] [user] [added] - Schedule recurring or one-time automatic DHIS2 imports
 [TBD] [user] [added] - Queue additional DHIS2 imports while one is already running
 [TBD] [user] [added] - Store DHIS2 connection credentials securely for unattended imports
