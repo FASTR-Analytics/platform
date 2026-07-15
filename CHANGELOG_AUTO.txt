@@ -1,89 +1,112 @@
-[TBD] [user] [changed] - DHIS2 import setup now uses a step-by-step wizard
-[TBD] [user] [added] - Review summary screen before launching or scheduling an import
-[TBD] [user] [changed] - Import screen reorganized into Current, Future, and History tabs
-[TBD] [user] [added] - "Manage connection" button to update DHIS2 credentials without starting an import
-[TBD] [user] [added] - Tab badges show count of active/queued imports and enabled schedules
-[TBD] [user] [changed] - Collapsible progress view for the currently running import
-[TBD] [user] [added] - "New import" button always visible in the top toolbar
-[TBD] [user] [changed] - Scheduling and one-time future imports now configured within the same wizard
-[TBD] [user] [added] - Next scheduled import shown when no import is running
-[TBD] [admin] [changed] - DHIS2 import setup now uses a step-by-step wizard
-[TBD] [admin] [added] - New "Manage connection" button to update stored DHIS2 credentials without starting an import
-[TBD] [admin] [changed] - DHIS2 imports page reorganized into Current, Future, and History tabs
-[TBD] [admin] [added] - Current tab shows next scheduled import when no import is running
-[TBD] [admin] [changed] - Scheduling and one-time future imports are now configured through the same wizard
-[TBD] [admin] [added] - Review step summarizes connection, indicators, timing, and pair count before launching
-[TBD] [admin] [changed] - Wizard automatically detects if an import is running and offers to queue instead
-[TBD] [admin] [added] - Tab badges show counts of active/queued imports and enabled schedules
-[TBD] [user] [added] - Schedule recurring or one-time automatic DHIS2 imports
-[TBD] [user] [added] - Queue additional DHIS2 imports while one is already running
-[TBD] [user] [added] - Store DHIS2 connection credentials securely for unattended imports
-[TBD] [user] [added] - View and manage queued imports with option to remove them
-[TBD] [user] [added] - Alert banner when a scheduled import needs attention
-[TBD] [user] [added] - Sidebar shows count of queued DHIS2 imports
-[TBD] [user] [added] - Option to use stored credentials instead of entering them each time
-[TBD] [user] [added] - Import history now labels scheduled imports distinctly
-[TBD] [user] [changed] - DHIS2 imports page now shows running, queued, scheduled, and history in one view
-[TBD] [user] [changed] - Queuing an import requires explicit confirmation before proceeding
-[TBD] [admin] [added] - Scheduled DHIS2 imports with recurring or one-time options
-[TBD] [admin] [added] - Queue additional DHIS2 imports while one is already running
-[TBD] [admin] [added] - Stored DHIS2 credentials for unattended imports with encrypted passwords
-[TBD] [admin] [added] - Sidebar alerts when a scheduled import needs attention
-[TBD] [admin] [added] - Queued import count shown on the imports overview
-[TBD] [admin] [added] - Option to use stored credentials instead of entering them each time
-[TBD] [admin] [added] - Confirmation dialog before queueing an import
-[TBD] [admin] [added] - Queued imports table with ability to remove individual items
-[TBD] [admin] [added] - Schedule editor with day, time, timezone, and interval controls
-[TBD] [admin] [added] - Enable and disable individual import schedules
-[TBD] [admin] [changed] - Imports page now shows running, queued, scheduled, and history in one view
-[TBD] [admin] [changed] - Import history now labels scheduled versus manual imports
-[TBD] [admin] [changed] - Server requires DHIS2_CREDENTIALS_ENCRYPTION_KEY to store credentials
-[TBD] [admin] [changed] - Scheduling unlocks only after a successful shadow-verified import
-[TBD] [admin] [fixed] - DHIS2 data fetching now works correctly on Ethiopian-calendar servers
-[TBD] [admin] [fixed] - Module data migration now correctly handles alternate asset formats
-[TBD] [user] [changed] - Data tables now update live during DHIS2 imports instead of showing stale results
-[TBD] [user] [fixed] - Fixed rare issue where cached data could show incorrect values during an active DHIS2 import
-[TBD] [user] [fixed] - Fixed issue where cancelling or interrupting a DHIS2 import could block future imports
-[TBD] [user] [added] - DHIS2 imports are now blocked during data export to prevent incomplete project data
-[TBD] [user] [fixed] - Fixed issue where starting a DHIS2 import could fail silently and block all future imports
-[TBD] [admin] [added] - DHIS2 import progress is now visible in real time during active runs
-[TBD] [admin] [added] - Shadow verification aborts the run if too many data mismatches are detected
-[TBD] [admin] [fixed] - Cached data no longer shows stale results while a DHIS2 import is in progress
-[TBD] [admin] [fixed] - Cancelling or crashing a DHIS2 import now properly cleans up version records
-[TBD] [admin] [fixed] - Concurrent CSV upload and DHIS2 import can no longer conflict silently
-[TBD] [admin] [fixed] - Server restart during an import no longer permanently blocks future imports
-[TBD] [admin] [fixed] - Worker startup failure no longer leaves imports stuck in a "running" state
-[TBD] [admin] [fixed] - Exporting HMIS data to a project is now blocked while an import is running
-[TBD] [admin] [fixed] - Non-Gregorian calendar instances no longer fetch incorrect date ranges from DHIS2
-[TBD] [admin] [changed] - Shadow verification is now scoped per DHIS2 server URL
-[TBD] [admin] [changed] - DHIS2 data pulls now fetch one month at a time instead of multi-month windows
-[TBD] [user] [added] - Import health data directly from DHIS2 with a dedicated import button
-[TBD] [user] [added] - View real-time progress of DHIS2 imports with percentage and pair counts
-[TBD] [user] [added] - Import status dashboard showing each indicator's import history by month
-[TBD] [user] [added] - Retry all failed DHIS2 imports with one click
-[TBD] [user] [added] - Re-import all months for a specific indicator from its detail view
-[TBD] [user] [added] - See error details classified as configuration or server issues per indicator-month
-[TBD] [user] [added] - View history of previous DHIS2 import runs with success and failure counts
-[TBD] [user] [added] - Cancel a running DHIS2 import while keeping already-completed data
-[TBD] [user] [changed] - CSV upload button now labeled "Upload CSV file" instead of "Start new import"
-[TBD] [user] [changed] - CSV import starts immediately without choosing between CSV and DHIS2 first
-[TBD] [user] [changed] - Data overview loads faster by reading from a pre-computed summary instead of scanning all records
-[TBD] [admin] [added] - DHIS2 imports now run as standalone background jobs with live progress tracking
-[TBD] [admin] [added] - New "Import from DHIS2" button on the HMIS dataset page
-[TBD] [admin] [added] - Import status view shows per-indicator, per-month import health at a glance
-[TBD] [admin] [added] - Retry all failed indicator-month pairs in one click from the import status view
-[TBD] [admin] [added] - Re-import all months for a single indicator from its detail view
-[TBD] [admin] [added] - DHIS2 import progress bar with real-time pair-level completion and failure counts
-[TBD] [admin] [added] - Ability to cancel a running DHIS2 import while keeping already-imported pairs
-[TBD] [admin] [added] - DHIS2 import history table showing past runs, who triggered them, and outcomes
-[TBD] [admin] [added] - Failed imports now classify errors as configuration or server issues
-[TBD] [admin] [changed] - CSV upload button now starts directly at file upload instead of asking for source type
-[TBD] [admin] [changed] - DHIS2 imports are separate from the CSV upload wizard and no longer share its steps
-[TBD] [admin] [changed] - Dataset summary grid now loads faster using a pre-computed import ledger
-[TBD] [admin] [changed] - Each DHIS2 indicator-month pair is saved independently so partial failures no longer lose successful data
-[TBD] [admin] [changed] - "Start new import" button renamed to "Upload CSV file" for clarity
-[TBD] [user] [added] - Slide style editor now available in French and Portuguese
-[TBD] [admin] [added] - Slide style editor now supports French and Portuguese
+[1.58.0] [user] [added] - Indicator labels now shown in the import status table
+[1.58.0] [user] [changed] - Scheduled imports split into Recurring and One-time sections
+[1.58.0] [user] [changed] - One-time scheduled imports now use an exact date range instead of a rolling window
+[1.58.0] [user] [changed] - Recurring import month selector replaced with a visual slider
+[1.58.0] [user] [changed] - Import progress view layout improved with collapsible panel
+[1.58.0] [user] [changed] - Common IDs column in indicator picker is now sortable
+[1.58.0] [user] [changed] - Schedule enable/disable toggle removed; use Edit or Delete instead
+[1.58.0] [user] [changed] - Clearer status labels for scheduled imports (e.g., "Skipped", "Didn't run")
+[1.58.0] [user] [changed] - Completed one-time imports are automatically cleaned up from the schedule list
+[1.58.0] [user] [fixed] - "Last N months" now counts consistently with the visualization editor's filter
+[1.58.0] [admin] [added] - Import status table now shows indicator labels alongside IDs
+[1.58.0] [admin] [added] - One-time scheduled imports now use explicit date ranges instead of rolling windows
+[1.58.0] [admin] [added] - Scheduled imports list separates recurring and one-time imports into distinct sections
+[1.58.0] [admin] [changed] - Removed the Enabled/Disabled toggle for scheduled imports; use Edit or Delete instead
+[1.58.0] [admin] [changed] - "Last N months" for recurring imports now uses a slider instead of a text field
+[1.58.0] [admin] [changed] - "Last N months" counting now matches the visualization editor convention (N months total, not current plus N)
+[1.58.0] [admin] [changed] - Import progress view layout redesigned with collapsible panel and sidebar cancel button
+[1.58.0] [admin] [changed] - Sidebar no longer shows inline DHIS2 import progress card; open the import screen instead
+[1.58.0] [admin] [changed] - Completed one-time scheduled imports are automatically cleaned up from the list
+[1.58.0] [admin] [changed] - Clearer status labels for scheduled imports (e.g., "Skipped" instead of "Refused")
+[1.58.0] [admin] [changed] - Stored DHIS2 connection display no longer shows the username
+[1.58.0] [admin] [fixed] - Common IDs column in the indicator picker is now sortable
+[1.58.0] [admin] [internal] - Removed server-side HMIS display cache; reads are now fast enough without it
+[1.58.0] [user] [changed] - DHIS2 import setup now uses a step-by-step wizard
+[1.58.0] [user] [added] - Review summary screen before launching or scheduling an import
+[1.58.0] [user] [changed] - Import screen reorganized into Current, Future, and History tabs
+[1.58.0] [user] [added] - "Manage connection" button to update DHIS2 credentials without starting an import
+[1.58.0] [user] [added] - Tab badges show count of active/queued imports and enabled schedules
+[1.58.0] [user] [changed] - Collapsible progress view for the currently running import
+[1.58.0] [user] [added] - "New import" button always visible in the top toolbar
+[1.58.0] [user] [changed] - Scheduling and one-time future imports now configured within the same wizard
+[1.58.0] [user] [added] - Next scheduled import shown when no import is running
+[1.58.0] [admin] [changed] - DHIS2 import setup now uses a step-by-step wizard
+[1.58.0] [admin] [added] - New "Manage connection" button to update stored DHIS2 credentials without starting an import
+[1.58.0] [admin] [changed] - DHIS2 imports page reorganized into Current, Future, and History tabs
+[1.58.0] [admin] [added] - Current tab shows next scheduled import when no import is running
+[1.58.0] [admin] [changed] - Scheduling and one-time future imports are now configured through the same wizard
+[1.58.0] [admin] [added] - Review step summarizes connection, indicators, timing, and pair count before launching
+[1.58.0] [admin] [changed] - Wizard automatically detects if an import is running and offers to queue instead
+[1.58.0] [admin] [added] - Tab badges show counts of active/queued imports and enabled schedules
+[1.58.0] [user] [added] - Schedule recurring or one-time automatic DHIS2 imports
+[1.58.0] [user] [added] - Queue additional DHIS2 imports while one is already running
+[1.58.0] [user] [added] - Store DHIS2 connection credentials securely for unattended imports
+[1.58.0] [user] [added] - View and manage queued imports with option to remove them
+[1.58.0] [user] [added] - Alert banner when a scheduled import needs attention
+[1.58.0] [user] [added] - Sidebar shows count of queued DHIS2 imports
+[1.58.0] [user] [added] - Option to use stored credentials instead of entering them each time
+[1.58.0] [user] [added] - Import history now labels scheduled imports distinctly
+[1.58.0] [user] [changed] - DHIS2 imports page now shows running, queued, scheduled, and history in one view
+[1.58.0] [user] [changed] - Queuing an import requires explicit confirmation before proceeding
+[1.58.0] [admin] [added] - Scheduled DHIS2 imports with recurring or one-time options
+[1.58.0] [admin] [added] - Queue additional DHIS2 imports while one is already running
+[1.58.0] [admin] [added] - Stored DHIS2 credentials for unattended imports with encrypted passwords
+[1.58.0] [admin] [added] - Sidebar alerts when a scheduled import needs attention
+[1.58.0] [admin] [added] - Queued import count shown on the imports overview
+[1.58.0] [admin] [added] - Option to use stored credentials instead of entering them each time
+[1.58.0] [admin] [added] - Confirmation dialog before queueing an import
+[1.58.0] [admin] [added] - Queued imports table with ability to remove individual items
+[1.58.0] [admin] [added] - Schedule editor with day, time, timezone, and interval controls
+[1.58.0] [admin] [added] - Enable and disable individual import schedules
+[1.58.0] [admin] [changed] - Imports page now shows running, queued, scheduled, and history in one view
+[1.58.0] [admin] [changed] - Import history now labels scheduled versus manual imports
+[1.58.0] [admin] [changed] - Server requires DHIS2_CREDENTIALS_ENCRYPTION_KEY to store credentials
+[1.58.0] [admin] [changed] - Scheduling unlocks only after a successful shadow-verified import
+[1.58.0] [admin] [fixed] - DHIS2 data fetching now works correctly on Ethiopian-calendar servers
+[1.58.0] [admin] [fixed] - Module data migration now correctly handles alternate asset formats
+[1.58.0] [user] [changed] - Data tables now update live during DHIS2 imports instead of showing stale results
+[1.58.0] [user] [fixed] - Fixed rare issue where cached data could show incorrect values during an active DHIS2 import
+[1.58.0] [user] [fixed] - Fixed issue where cancelling or interrupting a DHIS2 import could block future imports
+[1.58.0] [user] [added] - DHIS2 imports are now blocked during data export to prevent incomplete project data
+[1.58.0] [user] [fixed] - Fixed issue where starting a DHIS2 import could fail silently and block all future imports
+[1.58.0] [admin] [added] - DHIS2 import progress is now visible in real time during active runs
+[1.58.0] [admin] [added] - Shadow verification aborts the run if too many data mismatches are detected
+[1.58.0] [admin] [fixed] - Cached data no longer shows stale results while a DHIS2 import is in progress
+[1.58.0] [admin] [fixed] - Cancelling or crashing a DHIS2 import now properly cleans up version records
+[1.58.0] [admin] [fixed] - Concurrent CSV upload and DHIS2 import can no longer conflict silently
+[1.58.0] [admin] [fixed] - Server restart during an import no longer permanently blocks future imports
+[1.58.0] [admin] [fixed] - Worker startup failure no longer leaves imports stuck in a "running" state
+[1.58.0] [admin] [fixed] - Exporting HMIS data to a project is now blocked while an import is running
+[1.58.0] [admin] [fixed] - Non-Gregorian calendar instances no longer fetch incorrect date ranges from DHIS2
+[1.58.0] [admin] [changed] - Shadow verification is now scoped per DHIS2 server URL
+[1.58.0] [admin] [changed] - DHIS2 data pulls now fetch one month at a time instead of multi-month windows
+[1.58.0] [user] [added] - Import health data directly from DHIS2 with a dedicated import button
+[1.58.0] [user] [added] - View real-time progress of DHIS2 imports with percentage and pair counts
+[1.58.0] [user] [added] - Import status dashboard showing each indicator's import history by month
+[1.58.0] [user] [added] - Retry all failed DHIS2 imports with one click
+[1.58.0] [user] [added] - Re-import all months for a specific indicator from its detail view
+[1.58.0] [user] [added] - See error details classified as configuration or server issues per indicator-month
+[1.58.0] [user] [added] - View history of previous DHIS2 import runs with success and failure counts
+[1.58.0] [user] [added] - Cancel a running DHIS2 import while keeping already-completed data
+[1.58.0] [user] [changed] - CSV upload button now labeled "Upload CSV file" instead of "Start new import"
+[1.58.0] [user] [changed] - CSV import starts immediately without choosing between CSV and DHIS2 first
+[1.58.0] [user] [changed] - Data overview loads faster by reading from a pre-computed summary instead of scanning all records
+[1.58.0] [admin] [added] - DHIS2 imports now run as standalone background jobs with live progress tracking
+[1.58.0] [admin] [added] - New "Import from DHIS2" button on the HMIS dataset page
+[1.58.0] [admin] [added] - Import status view shows per-indicator, per-month import health at a glance
+[1.58.0] [admin] [added] - Retry all failed indicator-month pairs in one click from the import status view
+[1.58.0] [admin] [added] - Re-import all months for a single indicator from its detail view
+[1.58.0] [admin] [added] - DHIS2 import progress bar with real-time pair-level completion and failure counts
+[1.58.0] [admin] [added] - Ability to cancel a running DHIS2 import while keeping already-imported pairs
+[1.58.0] [admin] [added] - DHIS2 import history table showing past runs, who triggered them, and outcomes
+[1.58.0] [admin] [added] - Failed imports now classify errors as configuration or server issues
+[1.58.0] [admin] [changed] - CSV upload button now starts directly at file upload instead of asking for source type
+[1.58.0] [admin] [changed] - DHIS2 imports are separate from the CSV upload wizard and no longer share its steps
+[1.58.0] [admin] [changed] - Dataset summary grid now loads faster using a pre-computed import ledger
+[1.58.0] [admin] [changed] - Each DHIS2 indicator-month pair is saved independently so partial failures no longer lose successful data
+[1.58.0] [admin] [changed] - "Start new import" button renamed to "Upload CSV file" for clarity
+[1.58.0] [user] [added] - Slide style editor now available in French and Portuguese
+[1.58.0] [admin] [added] - Slide style editor now supports French and Portuguese
 [1.57.6] [user] [fixed] - File downloads now work correctly for filenames with special characters
 [1.57.6] [admin] [fixed] - Asset downloads now work for filenames with special characters
 [1.57.5] [user] [fixed] - Charts no longer show breakdowns for dimensions with only one value in the data
