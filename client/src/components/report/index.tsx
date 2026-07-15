@@ -29,12 +29,14 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  For,
   type JSX,
   on,
   onCleanup,
   onMount,
   Show,
 } from "solid-js";
+import { Portal } from "solid-js/web";
 import { serverActions, _SERVER_HOST } from "~/server_actions";
 import {
   collabSocketOpen,
@@ -230,6 +232,7 @@ export function ProjectReport(p: Props) {
         <div
           class="border-base-300 ui-pad my-4 rounded border"
           data-line={line}
+          data-embed-id={fig[1]}
         >
           <ReportFigureEmbed figure={fb} onMeasured={() => armFigureSettle()} />
         </div>
@@ -253,6 +256,7 @@ export function ProjectReport(p: Props) {
           src={assetUrl(ib.imgFile)}
           alt={alt}
           data-line={line}
+          data-embed-id={img[1]}
         />
       ) : (
         <div class="text-danger text-xs" data-line={line}>
@@ -474,10 +478,19 @@ export function ProjectReport(p: Props) {
     },
   );
 
+  // Advertise which report this user has open, which embed they have
+  // selected (peers draw a presence border around it in their preview), and
+  // which figure modal they are inside. One reactive effect — imperative
+  // setCollabView calls elsewhere would fight it.
+  createEffect(() => {
+    setCollabView({
+      reportId: p.reportId,
+      selectedBlockId: selectedEmbed()?.id,
+      editingFigureId: editingFigureId(),
+    });
+  });
+
   onMount(async () => {
-    // Advertise which report this user has open so collaborators see it
-    // (report-card avatars, and later the live co-editing session).
-    setCollabView({ reportId: p.reportId });
     const res = await serverActions.getReportDetail({
       projectId,
       report_id: p.reportId,
@@ -1000,7 +1013,6 @@ export function ProjectReport(p: Props) {
         : undefined;
 
     setEditingFigureId(sel.id);
-    setCollabView({ reportId: p.reportId, editingFigureId: sel.id });
     try {
       const result = await withPanesCovered(openInnerEditor({
         element: VisualizationEditor,
@@ -1025,7 +1037,6 @@ export function ProjectReport(p: Props) {
       await updateFigure(sel.id, built.figureBlock);
     } finally {
       setEditingFigureId(undefined);
-      setCollabView({ reportId: p.reportId });
     }
   }
 
@@ -1334,6 +1345,149 @@ export function ProjectReport(p: Props) {
         enabled={() => !!session() && collabReady() && panesCovered() === 0}
         covered={() => panesCovered() > 0}
       />
+      <ReportPeerSelectionOverlay
+        reportId={p.reportId}
+        suppressed={panesCovered() > 0}
+      />
     </InnerEditorWrapper>
+  );
+}
+
+
+// Presence borders around report embeds — the report-preview counterpart of
+// the slide editor's PeerSelectionOverlay: a colored border + name tags
+// around the figure/image each peer currently has selected (their embed
+// selection, broadcast via presence `selectedBlockId`). DOM-anchored: embeds
+// are located by [data-embed-id] inside the preview pane and clipped to its
+// visible viewport, so borders scroll with the content, and Edit mode (no
+// preview mounted) renders nothing for free.
+function ReportPeerSelectionOverlay(p: {
+  reportId: string;
+  suppressed: boolean;
+}) {
+  const [tick, setTick] = createSignal(0);
+  const bump = () => setTick((t) => t + 1);
+  onMount(() => {
+    window.addEventListener("resize", bump);
+    window.addEventListener("scroll", bump, true);
+    const sweep = setInterval(bump, 1000);
+    onCleanup(() => {
+      window.removeEventListener("resize", bump);
+      window.removeEventListener("scroll", bump, true);
+      clearInterval(sweep);
+    });
+  });
+
+  const boxes = () => {
+    tick();
+    if (p.suppressed) return [];
+    const peers = otherPeers().filter(
+      (peer) => peer.reportId === p.reportId && peer.selectedBlockId,
+    );
+    if (peers.length === 0) return [];
+    const pane = document.querySelector('[data-report-cursor="preview-pane"]');
+    if (!pane) return [];
+    const paneRect = pane.getBoundingClientRect();
+    if (paneRect.width === 0 || paneRect.height === 0) return [];
+    const out: {
+      key: string;
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+      editors: { name: string; color: string; editingFigure: boolean }[];
+    }[] = [];
+    // One box per embed (not per peer): co-selectors share the box, their
+    // name tags sit side by side (mirrors the slide editor's overlay).
+    const byTarget = new Map<string, (typeof out)[number]>();
+    for (const peer of peers) {
+      const id = peer.selectedBlockId!;
+      let entry = byTarget.get(id);
+      if (!entry) {
+        const el = pane.querySelector(`[data-embed-id="${id}"]`);
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        // Clip to the preview viewport so a scrolled-away embed's border
+        // doesn't float over the header or the editor pane.
+        const top = Math.max(r.top, paneRect.top);
+        const bottom = Math.min(r.bottom, paneRect.bottom);
+        if (bottom - top < 8) continue;
+        entry = {
+          key: id,
+          left: r.left,
+          top,
+          width: r.width,
+          height: bottom - top,
+          editors: [],
+        };
+        byTarget.set(id, entry);
+        out.push(entry);
+      }
+      // Same user in two tabs = two connections; show their name once.
+      if (!entry.editors.some((e) => e.name === peer.name)) {
+        entry.editors.push({
+          name: peer.name,
+          color: peer.color,
+          editingFigure: peer.editingFigureId === id,
+        });
+      }
+    }
+    // Stable label order so tags don't swap places between presence updates.
+    for (const entry of out) {
+      entry.editors.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return out;
+  };
+
+  return (
+    <Portal mount={document.body}>
+      <div class="pointer-events-none fixed inset-0 z-[80]">
+        <For each={boxes()}>
+          {(b) => (
+            <div
+              class="pointer-events-none absolute rounded-sm"
+              style={{
+                left: `${b.left}px`,
+                top: `${b.top}px`,
+                width: `${b.width}px`,
+                height: `${b.height}px`,
+                border: `2px solid ${b.editors[0].color}`,
+              }}
+            >
+              {/* Additional co-selectors get concentric inset borders so every
+                  editor's color stays visible on the shared embed. */}
+              <For each={b.editors.slice(1)}>
+                {(e, i) => (
+                  <div
+                    class="pointer-events-none absolute rounded-sm"
+                    style={{
+                      inset: `${(i() + 1) * 2}px`,
+                      border: `2px solid ${e.color}`,
+                    }}
+                  />
+                )}
+              </For>
+              <div class="absolute -top-[18px] left-0 flex gap-1">
+                <For each={b.editors}>
+                  {(e) => (
+                    <div
+                      class="whitespace-nowrap rounded px-1 text-[10px] font-semibold text-white"
+                      style={{ "background-color": e.color }}
+                    >
+                      {e.name}
+                      {e.editingFigure
+                        ? " " +
+                          t3({ en: "\u270e figure", fr: "\u270e figure", pt: "\u270e figura" })
+                        : ""}
+                    </div>
+                  )}
+                </For>
+              </div>
+            </div>
+          )}
+        </For>
+      </div>
+    </Portal>
   );
 }

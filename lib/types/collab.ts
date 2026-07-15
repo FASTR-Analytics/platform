@@ -17,10 +17,12 @@
  * client (the server has no avatar URL) and is therefore advisory only.
  * `deckId`/`slideId`/`selectedBlockId`/`selectedTextTarget` describe what the
  * peer is currently looking at; they are replaced wholesale on every presence
- * update so a peer can clear them by omitting them. `selectedBlockId` is a
- * layout-block node id; `selectedTextTarget` is a panther text-primitive id
- * (e.g. "coverTitle", "headerText") for the root title/header fields — the two
- * are mutually exclusive (a peer is editing a block OR a title field).
+ * update so a peer can clear them by omitting them. `selectedBlockId` is the
+ * SELECTED ELEMENT id, contextualized by the doc fields: a slide layout-block
+ * node id (with `slideId`), or a report figure/image embed id (with
+ * `reportId`) — peers draw presence borders around it. `selectedTextTarget`
+ * is a panther text-primitive id (e.g. "coverTitle", "headerText") for the
+ * root title/header fields — mutually exclusive with `selectedBlockId`.
  */
 export type PresenceEntry = {
   connectionId: string;
