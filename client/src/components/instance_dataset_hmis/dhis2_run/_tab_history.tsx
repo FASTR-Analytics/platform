@@ -29,14 +29,10 @@ function selectionLabel(run: DatasetHmisImportRunSummary): string {
       pt: "indicadores",
     })} · ${run.selection.startPeriod}–${run.selection.endPeriod}`;
   }
-  return `${toNum0(run.selection.nPairs)} ${t3({
-    en: "pairs",
-    fr: "paires",
-    pt: "pares",
-  })}`;
+  return `${toNum0(run.selection.nPairs)} ${t3({ en: "pairs", fr: "paires", pt: "pares" })}`;
 }
 
-export function Dhis2RunHistory(p: Props) {
+export function Dhis2TabHistory(p: Props) {
   const columns: TableColumn<DatasetHmisImportRunSummary>[] = [
     {
       key: "startedAt",
@@ -62,8 +58,7 @@ export function Dhis2RunHistory(p: Props) {
       key: "succeededPairs",
       header: t3({ en: "Pairs (ok / failed / total)", fr: "Paires (ok / échec / total)", pt: "Pares (ok / falha / total)" }),
       alignH: "right",
-      render: (run) =>
-        `${toNum0(run.succeededPairs)} / ${toNum0(run.failedPairs)} / ${toNum0(run.totalPairs)}`,
+      render: (run) => `${toNum0(run.succeededPairs)} / ${toNum0(run.failedPairs)} / ${toNum0(run.totalPairs)}`,
     },
     {
       key: "status",
@@ -93,24 +88,11 @@ export function Dhis2RunHistory(p: Props) {
   ];
 
   return (
-    <div class="ui-spy-sm">
-      <div class="font-700 text-lg">
-        {t3({
-          en: "Previous DHIS2 imports",
-          fr: "Importations DHIS2 précédentes",
-          pt: "Importações DHIS2 anteriores",
-        })}
-      </div>
-      <Table
-        data={p.runs}
-        columns={columns}
-        keyField="id"
-        noRowsMessage={t3({
-          en: "No DHIS2 imports yet",
-          fr: "Aucune importation DHIS2 pour le moment",
-          pt: "Ainda não há importações DHIS2",
-        })}
-      />
-    </div>
+    <Table
+      data={p.runs}
+      columns={columns}
+      keyField="id"
+      noRowsMessage={t3({ en: "No DHIS2 imports yet", fr: "Aucune importation DHIS2 pour le moment", pt: "Ainda não há importações DHIS2" })}
+    />
   );
 }
