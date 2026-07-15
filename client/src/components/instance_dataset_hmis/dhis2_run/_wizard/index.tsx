@@ -170,11 +170,19 @@ export function Dhis2Wizard(
 
   // Step 4 — config.
   const [startPeriod, setStartPeriod] = createSignal<number>(
-    periods.defaultStart,
+    scheduleDefaults?.selection.kind === "explicit_range"
+      ? scheduleDefaults.selection.startPeriod
+      : periods.defaultStart,
   );
-  const [endPeriod, setEndPeriod] = createSignal<number>(periods.defaultEnd);
-  const [monthsBack, setMonthsBack] = createSignal<string>(
-    String(scheduleDefaults?.selection.monthsBack ?? 12),
+  const [endPeriod, setEndPeriod] = createSignal<number>(
+    scheduleDefaults?.selection.kind === "explicit_range"
+      ? scheduleDefaults.selection.endPeriod
+      : periods.defaultEnd,
+  );
+  const [monthsBack, setMonthsBack] = createSignal<number>(
+    scheduleDefaults?.selection.kind === "last_n_months"
+      ? scheduleDefaults.selection.monthsBack
+      : 12,
   );
 
   const unattendedReady = () => schedulingData()?.unattendedReady ?? false;
@@ -196,9 +204,8 @@ export function Dhis2Wizard(
   }
 
   function computeConfigValid(): boolean {
-    if (timeChoice() === "now") return startPeriod() <= endPeriod();
-    const n = parseInt(monthsBack());
-    return !isNaN(n) && n >= 0;
+    if (timeChoice() === "recurring") return monthsBack() >= 1;
+    return startPeriod() <= endPeriod();
   }
 
   const stepperData = createMemo(() => ({
@@ -274,7 +281,7 @@ export function Dhis2Wizard(
     }
     const stored = schedulingData()?.storedCredentials;
     return stored
-      ? `${t3({ en: "Stored:", fr: "Enregistrée :", pt: "Guardada:" })} ${stored.url} — ${stored.username}`
+      ? `${t3({ en: "Stored:", fr: "Enregistrée :", pt: "Guardada:" })} ${stored.url}`
       : t3({ en: "Not set", fr: "Non défini", pt: "Não definido" });
   };
 
@@ -305,16 +312,16 @@ export function Dhis2Wizard(
 
   const windowSummary = () => {
     if (isPreset) return p.entry.kind === "presetPairs" ? p.entry.label : "";
-    if (timeChoice() === "now") {
+    if (timeChoice() !== "recurring") {
       return `${getNMonths(startPeriod(), endPeriod())} ${t3({ en: "months", fr: "mois", pt: "meses" })} (${startPeriod()}–${endPeriod()})`;
     }
-    return `${t3({ en: "current + previous", fr: "mois courant + précédents", pt: "mês atual + anteriores" })} ${monthsBack()} ${t3({ en: "months", fr: "mois", pt: "meses" })}`;
+    return `${t3({ en: "Last", fr: "Derniers", pt: "Últimos" })} ${monthsBack()} ${t3({ en: "months", fr: "mois", pt: "meses" })}`;
   };
 
   const nPairs = createMemo(() => {
     if (isPreset)
       return p.entry.kind === "presetPairs" ? p.entry.pairs.length : 0;
-    if (timeChoice() !== "now") return undefined;
+    if (timeChoice() === "recurring") return undefined;
     return selectedIndicators().length * getNMonths(startPeriod(), endPeriod());
   });
 
@@ -407,13 +414,21 @@ export function Dhis2Wizard(
         });
       }
 
-      const months = parseInt(monthsBack());
       const fields: DatasetHmisScheduledImportFields = {
         kind: timeChoice() === "later" ? "one_shot" : "recurring",
-        selection: {
-          rawIndicatorIds: selectedIndicators(),
-          monthsBack: months,
-        },
+        selection:
+          timeChoice() === "later"
+            ? {
+                kind: "explicit_range",
+                rawIndicatorIds: selectedIndicators(),
+                startPeriod: startPeriod(),
+                endPeriod: endPeriod(),
+              }
+            : {
+                kind: "last_n_months",
+                rawIndicatorIds: selectedIndicators(),
+                monthsBack: monthsBack(),
+              },
       };
       if (timeChoice() === "later") {
         fields.runAt = new Date(runAtLocal()).toISOString();
@@ -502,6 +517,11 @@ export function Dhis2Wizard(
             onSaved={async () => {
               await p.schedulingQuery.silentFetch();
             }}
+            unsavedEditorHint={t3({
+              en: "You can also continue without saving — these credentials will only be used for this run.",
+              fr: "Vous pouvez aussi continuer sans enregistrer — ces identifiants ne seront utilisés que pour cette importation.",
+              pt: "Também pode continuar sem guardar — estas credenciais serão utilizadas apenas para esta importação.",
+            })}
           />
         </Show>
         <Show when={currentStepKind() === "indicators"}>

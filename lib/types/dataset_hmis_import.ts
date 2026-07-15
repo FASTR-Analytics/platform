@@ -357,13 +357,22 @@ export type Dhis2StoredCredentialsInfo = {
 // Scheduled Imports (PLAN_DHIS2_IMPORTER Phase 4 — C4)
 // ============================================================================
 
-// A schedule's selection is a rolling window resolved at fire time: the
-// current instance-calendar month plus the previous monthsBack months, over
-// the listed raw indicators.
-export type Dhis2ScheduleSelection = {
-  rawIndicatorIds: string[];
-  monthsBack: number;
-};
+// A schedule's selection: "last_n_months" is a rolling window resolved at
+// fire time (current instance-calendar month plus the previous monthsBack
+// months); "explicit_range" is a fixed start–end period range (one-shot
+// schedules only).
+export type Dhis2ScheduleSelection =
+  | {
+      kind: "last_n_months";
+      rawIndicatorIds: string[];
+      monthsBack: number;
+    }
+  | {
+      kind: "explicit_range";
+      rawIndicatorIds: string[];
+      startPeriod: number;
+      endPeriod: number;
+    };
 
 export type DatasetHmisScheduledImportKind = "one_shot" | "recurring";
 

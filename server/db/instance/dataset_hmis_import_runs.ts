@@ -659,7 +659,7 @@ export function enumerateRunPairs(
   return pairs;
 }
 
-function isValidPeriodId(periodId: number): boolean {
+export function isValidPeriodId(periodId: number): boolean {
   const year = Math.floor(periodId / 100);
   const month = periodId % 100;
   return (

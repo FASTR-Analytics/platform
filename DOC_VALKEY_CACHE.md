@@ -69,7 +69,7 @@ TTLs (all generous; the cache is version-gated, not time-gated):
 
 ### The cache catalog
 
-Six caches, all `_UPPER_SNAKE` module-level singletons grouped by domain file:
+Five caches, all `_UPPER_SNAKE` module-level singletons grouped by domain file:
 
 | Singleton | prefix | Version source (`versionHash`) | Key separator |
 |-----------|--------|-------------------------------|---------------|
@@ -77,10 +77,17 @@ Six caches, all `_UPPER_SNAKE` module-level singletons grouped by domain file:
 | `_PO_ITEMS_CACHE` | `po_items` | `moduleLastRun` | `\|` |
 | `_METRIC_INFO_CACHE` | `metric_info` | `moduleLastRun` | `::` |
 | `_REPLICANT_OPTIONS_CACHE` | `replicant_opts` | `moduleLastRun` | `::` |
-| `_FETCH_CACHE_DATASET_HMIS_ITEMS` | `ds_hmis` | `versionId` + `indicatorMappingsVersion` | `_` |
 | `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa` | dataset `hash` | `_` |
 
-(First four in `server/routes/caches/visualizations.ts`; last two in `server/routes/caches/dataset.ts`.) The version source is always a column or value that the corresponding write path bumps: a PO edit bumps `presentation_objects.last_updated`; a module run bumps `last_run_at` (which cascades to dependent POs — see [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md)); a dataset import bumps `versionId`.
+(First four in `server/routes/caches/visualizations.ts`; the last in `server/routes/caches/dataset.ts`.) The version source is always a column or value that the corresponding write path bumps: a PO edit bumps `presentation_objects.last_updated`; a module run bumps `last_run_at` (which cascades to dependent POs — see [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md)).
+
+A sixth cache, `_FETCH_CACHE_DATASET_HMIS_ITEMS` (`ds_hmis` → `ds_hmis_v2`),
+was deleted 2026-07-15: once the HMIS display route's vizItems moved to the
+import ledger (Phase 2 of PLAN_DHIS2_IMPORTER) the underlying read shrank to
+~1.4k ledger rows plus small filter-option queries, and the cache's remaining
+value no longer paid for its liabilities (the mid-run bypass dance and the
+prefix-bump obligation on every payload-shape change). The route computes
+live; client-side T2 IndexedDB caching keyed on the version token remains.
 
 ### Introspection
 
@@ -145,6 +152,6 @@ Six caches, all `_UPPER_SNAKE` module-level singletons grouped by domain file:
 | `server/valkey/cache_class_C.ts` | `TimCacheC` — keying, get/setPromise, dedup, self-verify, scan/clear |
 | `server/valkey/connection.ts` | connection singleton, `getValkeyClient` degrade-gracefully |
 | `server/routes/caches/visualizations.ts` | `_PO_DETAIL`/`_PO_ITEMS`/`_METRIC_INFO`/`_REPLICANT_OPTIONS` caches |
-| `server/routes/caches/dataset.ts` | `_FETCH_CACHE_DATASET_HMIS_ITEMS` / `_HFA_ITEMS` |
+| `server/routes/caches/dataset.ts` | `_FETCH_CACHE_DATASET_HFA_ITEMS` |
 | `server/routes/project/cache_status.ts` | `/cache_status` introspection via `scanUniquenessHashes` |
 | `server/middleware/cache.ts` | **unrelated** — HTTP `Cache-Control` for static assets |

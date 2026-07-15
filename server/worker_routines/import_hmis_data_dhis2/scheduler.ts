@@ -32,9 +32,14 @@ import {
   recordScheduledImportOutcome,
   refuseQueuedDatasetHmisImportRun,
   revertScheduledImportClaim,
+  sweepSpentOneShotScheduledImports,
   type EnabledScheduledImportRow,
 } from "../../db/mod.ts";
-import type { Dhis2RunSelection, InstanceCalendar } from "lib";
+import type {
+  Dhis2RunSelection,
+  Dhis2ScheduleSelection,
+  InstanceCalendar,
+} from "lib";
 import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { getWorker } from "../worker_store.ts";
 
@@ -295,9 +300,26 @@ export function resolveRollingSelection(selection: {
   return {
     kind: "window",
     rawIndicatorIds: selection.rawIndicatorIds,
-    startPeriod: minusMonthsPeriodId(endPeriod, selection.monthsBack),
+    // monthsBack is inclusive of the current month (matches the viz editor's
+    // last_n_months filter: min = max - (nMonths - 1)) — monthsBack=12 means
+    // 12 months total, not the current month plus 12 more.
+    startPeriod: minusMonthsPeriodId(endPeriod, selection.monthsBack - 1),
     endPeriod,
   };
+}
+
+export function resolveScheduleSelection(
+  selection: Dhis2ScheduleSelection,
+): Dhis2RunSelection {
+  if (selection.kind === "explicit_range") {
+    return {
+      kind: "window",
+      rawIndicatorIds: selection.rawIndicatorIds,
+      startPeriod: selection.startPeriod,
+      endPeriod: selection.endPeriod,
+    };
+  }
+  return resolveRollingSelection(selection);
 }
 
 // ============================================================================
@@ -321,6 +343,13 @@ export async function tickDhis2ImportScheduler(): Promise<void> {
   tickInFlight = true;
   try {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+
+    // Spent-one-shot sweep (§0 lifecycle table): runs every tick, even when
+    // the import slot is busy — it only deletes rows whose story has ended.
+    const swept = await sweepSpentOneShotScheduledImports(mainDb);
+    if (swept > 0) {
+      await notifyDatasets(mainDb);
+    }
 
     // Skip entirely while any HMIS import operation is active — queued items
     // and due schedules wait their turn (C6: queue, not concurrency).
@@ -467,7 +496,7 @@ async function fireSchedule(
     return;
   }
 
-  const selection = resolveRollingSelection(schedule.selection);
+  const selection = resolveScheduleSelection(schedule.selection);
   const res = await launchDatasetHmisDhis2ImportRun(mainDb, {
     credentialsSource: { kind: "stored" },
     dhis2Url: stored.url,

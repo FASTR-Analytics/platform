@@ -101,6 +101,21 @@ clearing, stale one-shot enable refusal, conditional revert both ways,
 slash-tolerant gate) + full typecheck + boot (migration 059 applied,
 257 routes). Original finding detail kept below for the record.**
 
+**2026-07-15 — Future listing revamp: no Enabled column, recurring vs
+one-time sections, spent one-shots swept (`PLAN_DHIS2_IMPORTER_UI_FUTURE_LISTING.md`).**
+The pause concept (the Enabled toggle) is removed — set-and-forget
+scheduling has one place to configure (the wizard, via Edit) and one
+off-switch (Delete). `enabled` stays in the DB as the one-shot spent
+latch only. A launched one-shot whose run has finished ok/cancelled is
+swept from the table by the scheduler tick
+(`sweepSpentOneShotScheduledImports`, run every tick ahead of the
+busy-skip checks); refused/missed/run-errored one-shots stay for the
+attention flow until edited (re-armed) or deleted. Migration 060 is a
+data-only cleanup of rows the old toggle could have produced. The
+lines below describing "row kept" / "edit / enable / disable / delete"
+are historical (updated in place) — this paragraph is the current
+policy.
+
 1. **Phantom first occurrence on new/re-enabled recurring schedules
    (HIGH, both reviewers, verified empirically).**
    `decideScheduleFire` (scheduler.ts) never consults creation/enable
@@ -204,8 +219,9 @@ Phase 4 as-built (deviations/decisions, all builder-level unless noted):
   hash, 0–5 min, recurring only. A launch that lost only the
   import-slot race reverts its CAS and retries next tick (until grace
   expires → missed); every other failure records `refused` + error.
-  One-shots disable after their occurrence is handled (row kept,
-  linking to its run); editing a one-shot (or switching kind) re-arms
+  One-shots disable after their occurrence is handled (row swept once
+  its launched run completes; refused/missed kept for attention);
+  editing a one-shot (or switching kind) re-arms
   by clearing `last_fired_at`. Unattended gate enforced twice as
   ruled: create/enable routes refuse before stored credentials +
   `shadow_passed` for their URL, and the tick re-checks at fire time
@@ -1175,8 +1191,8 @@ URL prefilled from the last run. All new strings inline t3 en/fr/pt.
   `instance_dataset_hmis/dhis2_run/` home): four sections — **Running**
   (existing progress view + cancel), **Queued** (FIFO list of pending
   runs; remove), **Scheduled** (schedule rows: one-shot + recurring;
-  edit / enable / disable / delete; last-fired outcome linking to its
-  run), **History** (existing top-50 run table). This one surface is
+  edit / delete; last-fired outcome linking to its run), **History**
+  (existing top-50 run table). This one surface is
   the listing Tim asked for (2026-07-14): all *currently running* and
   all *future scheduled* imports, reviewable and stoppable/cancellable
   in one place.
@@ -1289,9 +1305,10 @@ the same units.
     launch claim still arbitrates; a lost race leaves the item due for
     the next tick.
   - **Due semantics**: one-shot → `now ∈ [run_at, run_at + grace]`;
-    after firing set `enabled=false`, keep the row (the listing shows
-    it fired, linking to its run). Recurring → compute the current
-    occurrence in the row's timezone; due when
+    after firing set `enabled=false` (the spent latch); the row is
+    swept from the listing once its launched run completes (refused/
+    missed/run-errored rows stay for attention). Recurring → compute
+    the current occurrence in the row's timezone; due when
     `now ∈ [occurrence, occurrence + grace]` AND
     `last_fired_at < occurrence`. **Grace default 4 h** — a fire
     missed by more than that (server down) would land in daytime load,

@@ -10,6 +10,7 @@ import {
   type Dhis2ScheduleSelection,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
+import { isValidPeriodId } from "./dataset_hmis_import_runs.ts";
 import type { DBDatasetHmisScheduledImport } from "./_main_database_types.ts";
 
 // Scheduled DHIS2 imports (PLAN_DHIS2_IMPORTER Phase 4, C4): CRUD for the
@@ -28,6 +29,18 @@ export function isValidIanaTimeZone(timeZone: string): boolean {
   }
 }
 
+// Legacy rows (pre period-selection revamp) have no "kind" tag on their
+// stored selection — they're all rolling windows. Read boundary only; no
+// DB migration (this table is write-time validated, not sweep-validated —
+// see PROTOCOL_APP_MIGRATIONS.md).
+function parseScheduleSelectionOrThrow(str: string): Dhis2ScheduleSelection {
+  const parsed = parseJsonOrThrow<Record<string, unknown>>(str);
+  if (!("kind" in parsed)) {
+    parsed.kind = "last_n_months";
+  }
+  return parsed as unknown as Dhis2ScheduleSelection;
+}
+
 // Normalizes + cross-validates the editable fields per kind. Returns the
 // fields with inapplicable columns cleared so a kind switch can never leave
 // stale recurrence fields behind.
@@ -40,6 +53,18 @@ function validateScheduleFields(
     }
     if (new Date(fields.runAt).getTime() <= Date.now()) {
       throw new Error("The run-at datetime must be in the future.");
+    }
+    if (fields.selection.kind !== "explicit_range") {
+      throw new Error("A one-time schedule needs an explicit period range.");
+    }
+    if (
+      !isValidPeriodId(fields.selection.startPeriod) ||
+      !isValidPeriodId(fields.selection.endPeriod) ||
+      fields.selection.startPeriod > fields.selection.endPeriod
+    ) {
+      throw new Error(
+        `Invalid period range ${fields.selection.startPeriod}–${fields.selection.endPeriod}: both bounds must be valid YYYYMM period ids with start ≤ end.`,
+      );
     }
     return {
       kind: "one_shot",
@@ -60,6 +85,9 @@ function validateScheduleFields(
   if (!isValidIanaTimeZone(fields.timezone)) {
     throw new Error(`Unknown timezone: "${fields.timezone}".`);
   }
+  if (fields.selection.kind !== "last_n_months") {
+    throw new Error("A recurring schedule needs a rolling last-N-months window.");
+  }
   return {
     kind: "recurring",
     selection: fields.selection,
@@ -79,7 +107,7 @@ function toScheduledImport(
     id: row.id,
     kind: row.kind,
     enabled: row.enabled,
-    selection: parseJsonOrThrow<Dhis2ScheduleSelection>(row.selection),
+    selection: parseScheduleSelectionOrThrow(row.selection),
     runAt: row.run_at ? new Date(row.run_at).toISOString() : undefined,
     dayOfWeek: row.day_of_week ?? undefined,
     startTime: row.start_time ?? undefined,
@@ -172,51 +200,6 @@ export async function updateDatasetHmisScheduledImport(
   });
 }
 
-export async function setDatasetHmisScheduledImportEnabled(
-  mainDb: Sql,
-  id: number,
-  enabled: boolean,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    if (enabled) {
-      // Re-enabling ARMS the schedule (review finding 1): occurrences from
-      // the disabled stretch are never due. A one-shot whose run_at already
-      // passed would arm into nothing — refuse loudly instead of a silent
-      // never-fires row.
-      const rows = await mainDb<{ kind: string; run_at: string | Date | null }[]>`
-        SELECT kind, run_at FROM dataset_hmis_scheduled_imports WHERE id = ${id}
-      `;
-      const row = rows.at(0);
-      if (!row) {
-        throw new Error("This schedule no longer exists.");
-      }
-      if (
-        row.kind === "one_shot" &&
-        (row.run_at === null || new Date(row.run_at).getTime() <= Date.now())
-      ) {
-        throw new Error(
-          "This one-time schedule's run-at time has passed — edit it to a future time instead of enabling it.",
-        );
-      }
-      await mainDb`
-        UPDATE dataset_hmis_scheduled_imports
-        SET enabled = true, armed_at = now()
-        WHERE id = ${id}
-      `;
-      return { success: true };
-    }
-    const updated = await mainDb`
-      UPDATE dataset_hmis_scheduled_imports
-      SET enabled = false
-      WHERE id = ${id}
-    `;
-    if (updated.count === 0) {
-      throw new Error("This schedule no longer exists.");
-    }
-    return { success: true };
-  });
-}
-
 export async function deleteDatasetHmisScheduledImport(
   mainDb: Sql,
   id: number,
@@ -257,7 +240,7 @@ export async function getEnabledScheduledImportRows(
   return rows.map((row) => ({
     id: row.id,
     kind: row.kind,
-    selection: parseJsonOrThrow<Dhis2ScheduleSelection>(row.selection),
+    selection: parseScheduleSelectionOrThrow(row.selection),
     runAtMs: row.run_at ? new Date(row.run_at).getTime() : null,
     dayOfWeek: row.day_of_week,
     startTime: row.start_time,
@@ -318,8 +301,10 @@ export async function recordScheduledImportOutcome(
     outcome: DatasetHmisScheduledImportOutcome;
     error?: string;
     runId?: number;
-    // One-shots disable after their occurrence is handled (the row is kept —
-    // the listing shows it fired, linking to its run).
+    // One-shots disable after their occurrence is handled — the spent latch
+    // that stops refires. Launched-and-completed rows are swept from the
+    // table by the tick (sweepSpentOneShotScheduledImports); refused/missed/
+    // run-errored rows stay until the user edits (re-arms) or deletes them.
     disable?: boolean;
   },
 ): Promise<void> {
@@ -331,6 +316,31 @@ export async function recordScheduledImportOutcome(
       enabled = CASE WHEN ${args.disable ?? false} THEN false ELSE enabled END
     WHERE id = ${id}
   `;
+}
+
+// Spent one-shots leave the listing once they have nothing left to say: the
+// occurrence was handled (enabled=false latch), the outcome was 'launched',
+// and the launched run is no longer running or errored (complete, cancelled,
+// or deleted). Refused/missed one-shots and launched-but-errored ones are
+// deliberately NOT swept — they carry the attention state until the user
+// edits (re-arms) or deletes them. Every condition lives in the one atomic
+// DELETE, so a concurrent edit (which re-enables and clears the outcome)
+// can never lose a just-re-armed row.
+export async function sweepSpentOneShotScheduledImports(
+  mainDb: Sql,
+): Promise<number> {
+  const deleted = await mainDb`
+    DELETE FROM dataset_hmis_scheduled_imports s
+    WHERE s.kind = 'one_shot'
+      AND s.enabled = false
+      AND s.last_outcome = 'launched'
+      AND NOT EXISTS (
+        SELECT 1 FROM dataset_hmis_import_runs r
+        WHERE r.id = s.last_run_id
+          AND r.status IN ('running', 'error')
+      )
+  `;
+  return deleted.count;
 }
 
 // The failure-banner condition (surfaced on the datasets summary): the most

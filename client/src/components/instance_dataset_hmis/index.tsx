@@ -1,6 +1,5 @@
 import {
   t3,
-  type DatasetHmisImportRunSummary,
   type DatasetUploadAttemptSummary,
 } from "lib";
 import {
@@ -15,9 +14,7 @@ import {
   Match,
   Show,
   Switch,
-  createEffect,
   createSignal,
-  on,
   onCleanup,
   onMount,
 } from "solid-js";
@@ -40,21 +37,12 @@ export function InstanceDatasetHmis(p: Props) {
   const [uploadAttempt, setUploadAttempt] = createSignal<
     DatasetUploadAttemptSummary | undefined
   >(undefined);
-  const [activeDhis2Run, setActiveDhis2Run] = createSignal<
-    DatasetHmisImportRunSummary | undefined
-  >(undefined);
 
   async function fetchUploadAttempt() {
     try {
       const result = await serverActions.getDatasetHmisDetail({});
       if (result.success) {
         setUploadAttempt(result.data.uploadAttempt);
-      }
-      const runsResult = await serverActions.getDatasetHmisImportRuns({});
-      if (runsResult.success) {
-        setActiveDhis2Run(
-          runsResult.data.find((r) => r.status === "running"),
-        );
       }
     } catch {
       // Silent fail
@@ -66,7 +54,7 @@ export function InstanceDatasetHmis(p: Props) {
   onMount(() => {
     fetchUploadAttempt();
     pollingInterval = setInterval(async () => {
-      if (uploadAttempt() !== undefined || activeDhis2Run() !== undefined) {
+      if (uploadAttempt() !== undefined) {
         await fetchUploadAttempt();
       }
     }, 5000);
@@ -77,19 +65,6 @@ export function InstanceDatasetHmis(p: Props) {
       clearInterval(pollingInterval);
     }
   });
-
-  // The sidebar's local poll stops while idle, but the scheduler tick can
-  // start a run server-side at any moment — the SSE-pushed flag wakes the
-  // progress card up (review finding 6).
-  createEffect(
-    on(
-      () => instanceState.hmisImportRunActive,
-      async () => {
-        await fetchUploadAttempt();
-      },
-      { defer: true },
-    ),
-  );
 
   // The wizard is CSV-only (DHIS2 imports are runs): the source type is set
   // at creation so the wizard opens straight at the CSV upload step.
@@ -188,57 +163,19 @@ export function InstanceDatasetHmis(p: Props) {
                     })}
                   </div>
                 </Show>
-                <Switch>
-                  <Match when={activeDhis2Run()} keyed>
-                    {(keyedRun) => (
-                      <div
-                        class="ui-hoverable ui-pad border-base-300 bg-base-200 rounded border"
-                        onClick={openDhis2Runs}
-                      >
-                        <div class="ui-spy-sm text-center">
-                          <div class="">
-                            {t3({
-                              en: "DHIS2 import underway",
-                              fr: "Importation DHIS2 en cours",
-                              pt: "Importação DHIS2 em curso",
-                            })}
-                          </div>
-                          <div class="font-700 text-lg">
-                            {toPct0(
-                              keyedRun.totalPairs > 0
-                                ? (keyedRun.succeededPairs +
-                                    keyedRun.failedPairs) /
-                                    keyedRun.totalPairs
-                                : 0,
-                            )}
-                          </div>
-                          <div class="text-xs">
-                            {t3({
-                              en: "Click to view progress.",
-                              fr: "Cliquez pour voir la progression.",
-                              pt: "Clique para ver o progresso.",
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </Match>
-                  <Match when={!activeDhis2Run()}>
-                    <div class="">
-                      <Button
-                        onClick={openDhis2Runs}
-                        iconName="databaseImport"
-                        fullWidth
-                      >
-                        {t3({
-                          en: "Import from DHIS2",
-                          fr: "Importer depuis DHIS2",
-                          pt: "Importar do DHIS2",
-                        })}
-                      </Button>
-                    </div>
-                  </Match>
-                </Switch>
+                <div class="">
+                  <Button
+                    onClick={openDhis2Runs}
+                    iconName="databaseImport"
+                    fullWidth
+                  >
+                    {t3({
+                      en: "Import from DHIS2",
+                      fr: "Importer depuis DHIS2",
+                      pt: "Importar do DHIS2",
+                    })}
+                  </Button>
+                </div>
                 <Show when={instanceState.hmisImportRunsQueued > 0}>
                   <div
                     class="ui-hoverable ui-pad border-base-300 bg-base-200 rounded border text-sm"

@@ -1,6 +1,13 @@
 import { t3, type DatasetHmisImportRunSummary, type DatasetHmisScheduledImport } from "lib";
-import { Button, Table, createDeleteAction, toNum0, type TableColumn } from "panther";
-import { Show, createSignal } from "solid-js";
+import {
+  Button,
+  CollapsibleSection,
+  Table,
+  createDeleteAction,
+  toNum0,
+  type TableColumn,
+} from "panther";
+import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { Dhis2RunView } from "./_run_view";
 
@@ -24,8 +31,6 @@ function selectionLabel(run: DatasetHmisImportRunSummary): string {
 }
 
 export function Dhis2TabCurrent(p: Props) {
-  const [expanded, setExpanded] = createSignal<boolean>(true);
-
   const queuedColumns: TableColumn<DatasetHmisImportRunSummary>[] = [
     {
       key: "id",
@@ -103,33 +108,21 @@ export function Dhis2TabCurrent(p: Props) {
         }
       >
         {(run) => (
-          <div class="border-base-300 rounded border">
-            <button
-              type="button"
-              class="ui-hoverable ui-pad flex w-full items-center justify-between text-left"
-              onClick={() => setExpanded((v) => !v)}
-            >
-              <div>
-                <span class="font-700">
-                  {t3({ en: "Import in progress", fr: "Importation en cours", pt: "Importação em curso" })}
-                </span>{" "}
-                <span class="text-sm">
+          <CollapsibleSection
+            defaultOpen
+            boldHeader
+            title={
+              <>
+                {t3({ en: "Import in progress", fr: "Importation en cours", pt: "Importação em curso" })}{" "}
+                <span class="text-sm font-400">
                   — {toNum0(run().succeededPairs + run().failedPairs)} / {toNum0(run().totalPairs)}{" "}
                   {t3({ en: "pairs done", fr: "paires traitées", pt: "pares concluídos" })}
                 </span>
-              </div>
-              <span class="text-xs">
-                {expanded()
-                  ? t3({ en: "Hide", fr: "Masquer", pt: "Ocultar" })
-                  : t3({ en: "Show progress", fr: "Afficher la progression", pt: "Mostrar progresso" })}
-              </span>
-            </button>
-            <Show when={expanded()}>
-              <div class="ui-pad pt-0">
-                <Dhis2RunView run={run()} onChanged={p.onChanged} />
-              </div>
-            </Show>
-          </div>
+              </>
+            }
+          >
+            <Dhis2RunView run={run()} onChanged={p.onChanged} />
+          </CollapsibleSection>
         )}
       </Show>
 

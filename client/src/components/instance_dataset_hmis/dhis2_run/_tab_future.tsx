@@ -1,13 +1,6 @@
 import { t3, type DatasetHmisScheduledImport } from "lib";
-import {
-  Button,
-  Table,
-  createDeleteAction,
-  openAlert,
-  toNum0,
-  type TableColumn,
-} from "panther";
-import { Match, Switch } from "solid-js";
+import { Button, Table, createDeleteAction, toNum0, type TableColumn } from "panther";
+import { Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 type Props = {
@@ -15,6 +8,21 @@ type Props = {
   onEdit: (schedule: DatasetHmisScheduledImport) => Promise<void>;
   onChanged: () => Promise<void>;
 };
+
+// One-time rows the Future tab shows: pending, or terminally attention-
+// worthy. Launched rows whose run is running/complete/cancelled are hidden
+// (Current tab shows the running run; the tick sweeps the row after) —
+// keep this filter in lockstep with sweepSpentOneShotScheduledImports.
+export function visibleFutureSchedules(
+  schedules: DatasetHmisScheduledImport[],
+): DatasetHmisScheduledImport[] {
+  return schedules.filter((s) => {
+    if (s.kind === "recurring") return true;
+    if (!s.lastOutcome) return true;
+    if (s.lastOutcome === "refused" || s.lastOutcome === "missed") return true;
+    return s.lastOutcome === "launched" && s.lastRunStatus === "error";
+  });
+}
 
 function dayOfWeekLabel(day: number): string {
   const labels = [
@@ -40,54 +48,94 @@ function whenLabel(s: DatasetHmisScheduledImport): string {
   return `${dayOfWeekLabel(s.dayOfWeek ?? 0)} ${s.startTime} (${s.timezone}), ${every}`;
 }
 
-function outcomeLabel(s: DatasetHmisScheduledImport): { text: string; danger: boolean } {
+function selectionLabel(s: DatasetHmisScheduledImport): string {
+  return `${toNum0(s.selection.rawIndicatorIds.length)} ${t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" })} × ${
+    s.selection.kind === "explicit_range"
+      ? `${s.selection.startPeriod}–${s.selection.endPeriod}`
+      : `${t3({ en: "last", fr: "derniers", pt: "últimos" })} ${toNum0(s.selection.monthsBack)} ${t3({ en: "months", fr: "mois", pt: "meses" })}`
+  }`;
+}
+
+function recurringOutcomeLabel(s: DatasetHmisScheduledImport): { text: string; danger: boolean } {
   if (!s.lastOutcome) {
     return {
-      text: t3({ en: "Not fired yet", fr: "Pas encore déclenchée", pt: "Ainda não disparada" }),
+      text: t3({ en: "Not run yet", fr: "Pas encore exécutée", pt: "Ainda não executada" }),
       danger: false,
     };
   }
   if (s.lastOutcome === "refused") {
-    return { text: t3({ en: "Refused", fr: "Refusée", pt: "Recusada" }), danger: true };
+    return { text: t3({ en: "Skipped", fr: "Ignorée", pt: "Ignorada" }), danger: true };
   }
   if (s.lastOutcome === "missed") {
     return { text: t3({ en: "Missed", fr: "Manquée", pt: "Falhada" }), danger: true };
   }
   if (s.lastRunStatus === "error") {
     return {
-      text: t3({ en: "Launched — run failed", fr: "Lancée — importation en échec", pt: "Iniciada — importação falhou" }),
+      text: t3({
+        en: "Run failed — see History",
+        fr: "Échec de l'importation — voir l'historique",
+        pt: "Importação falhou — ver o histórico",
+      }),
       danger: true,
     };
   }
-  return { text: t3({ en: "Launched", fr: "Lancée", pt: "Iniciada" }), danger: false };
+  return { text: t3({ en: "Ran", fr: "Exécutée", pt: "Executada" }), danger: false };
+}
+
+function oneTimeStatusLabel(s: DatasetHmisScheduledImport): { text: string; danger: boolean } {
+  if (!s.lastOutcome) {
+    return {
+      text: t3({ en: "Scheduled", fr: "Planifiée", pt: "Agendada" }),
+      danger: false,
+    };
+  }
+  if (s.lastOutcome === "refused" || s.lastOutcome === "missed") {
+    return {
+      text: t3({ en: "Didn't run", fr: "Non exécutée", pt: "Não executada" }),
+      danger: true,
+    };
+  }
+  return {
+    text: t3({
+      en: "Run failed — see History",
+      fr: "Échec de l'importation — voir l'historique",
+      pt: "Importação falhou — ver o histórico",
+    }),
+    danger: true,
+  };
+}
+
+function EditDeleteActions(p: { schedule: DatasetHmisScheduledImport; onEdit: (s: DatasetHmisScheduledImport) => Promise<void>; onChanged: () => Promise<void> }) {
+  const deleteSchedule = createDeleteAction(
+    t3({ en: "Delete this schedule?", fr: "Supprimer cette planification ?", pt: "Eliminar este agendamento?" }),
+    () => serverActions.deleteDatasetHmisDhis2Schedule({ id: p.schedule.id }),
+    p.onChanged,
+  );
+  return (
+    <div class="ui-gap-sm flex justify-end">
+      <Button onClick={() => p.onEdit(p.schedule)} size="sm" outline iconName="pencil">
+        {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
+      </Button>
+      <Button onClick={deleteSchedule.click} size="sm" outline intent="danger" iconName="trash" />
+    </div>
+  );
 }
 
 // Future tab: the schedule listing, minus the inline editor (moved into the
-// wizard — PLAN_DHIS2_IMPORTER_UI_REVISION §4). Enable/disable and delete
-// stay as direct row actions (single-click state flips, not configuration).
+// wizard — PLAN_DHIS2_IMPORTER_UI_REVISION §4) and minus the Enabled toggle
+// (removed — PLAN_DHIS2_IMPORTER_UI_FUTURE_LISTING §0: set-and-forget
+// scheduling has one place to configure — the wizard via Edit — and one
+// off-switch — Delete). Recurring and one-time schedules get separate
+// sections since their columns genuinely differ.
 export function Dhis2TabFuture(p: Props) {
-  const columns: TableColumn<DatasetHmisScheduledImport>[] = [
-    {
-      key: "enabled",
-      header: t3({ en: "Enabled", fr: "Activée", pt: "Ativada" }),
-      render: (s) => {
-        const toggle = async () => {
-          const res = await serverActions.setDatasetHmisDhis2ScheduleEnabled({
-            id: s.id,
-            enabled: !s.enabled,
-          });
-          if (!res.success) {
-            await openAlert({ text: res.err, intent: "danger" });
-          }
-          await p.onChanged();
-        };
-        return (
-          <Button onClick={toggle} size="sm" outline={!s.enabled}>
-            {s.enabled ? t3({ en: "On", fr: "Oui", pt: "Sim" }) : t3({ en: "Off", fr: "Non", pt: "Não" })}
-          </Button>
-        );
-      },
-    },
+  const visible = () => visibleFutureSchedules(p.schedules);
+  const recurring = () => visible().filter((s) => s.kind === "recurring");
+  const oneTime = () =>
+    visible()
+      .filter((s) => s.kind === "one_shot")
+      .sort((a, b) => (a.runAt ?? "").localeCompare(b.runAt ?? ""));
+
+  const recurringColumns: TableColumn<DatasetHmisScheduledImport>[] = [
     {
       key: "kind",
       header: t3({ en: "When", fr: "Quand", pt: "Quando" }),
@@ -96,18 +144,13 @@ export function Dhis2TabFuture(p: Props) {
     {
       key: "selection",
       header: t3({ en: "Selection", fr: "Sélection", pt: "Seleção" }),
-      render: (s) =>
-        `${toNum0(s.selection.rawIndicatorIds.length)} ${t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" })} × ${t3({
-          en: "current + previous",
-          fr: "mois courant + précédents",
-          pt: "mês atual + anteriores",
-        })} ${toNum0(s.selection.monthsBack)} ${t3({ en: "months", fr: "mois", pt: "meses" })}`,
+      render: selectionLabel,
     },
     {
       key: "lastOutcome",
-      header: t3({ en: "Last fire", fr: "Dernier déclenchement", pt: "Último disparo" }),
+      header: t3({ en: "Last run", fr: "Dernière exécution", pt: "Última execução" }),
       render: (s) => {
-        const o = outcomeLabel(s);
+        const o = recurringOutcomeLabel(s);
         return (
           <span class={o.danger ? "text-danger font-700" : ""} title={s.lastError}>
             {o.text}
@@ -124,35 +167,70 @@ export function Dhis2TabFuture(p: Props) {
     {
       key: "id",
       header: "",
+      render: (s) => <EditDeleteActions schedule={s} onEdit={p.onEdit} onChanged={p.onChanged} />,
+    },
+  ];
+
+  const oneTimeColumns: TableColumn<DatasetHmisScheduledImport>[] = [
+    {
+      key: "runAt",
+      header: t3({ en: "Runs at", fr: "Exécution le", pt: "Execução em" }),
+      render: (s) => (s.runAt ? new Date(s.runAt).toLocaleString() : ""),
+      sortable: true,
+      sortValue: (s) => s.runAt ?? "",
+    },
+    {
+      key: "selection",
+      header: t3({ en: "Selection", fr: "Sélection", pt: "Seleção" }),
+      render: selectionLabel,
+    },
+    {
+      key: "lastOutcome",
+      header: t3({ en: "Status", fr: "Statut", pt: "Estado" }),
       render: (s) => {
-        const deleteSchedule = createDeleteAction(
-          t3({ en: "Delete this schedule?", fr: "Supprimer cette planification ?", pt: "Eliminar este agendamento?" }),
-          () => serverActions.deleteDatasetHmisDhis2Schedule({ id: s.id }),
-          p.onChanged,
-        );
+        const o = oneTimeStatusLabel(s);
         return (
-          <div class="ui-gap-sm flex justify-end">
-            <Button onClick={() => p.onEdit(s)} size="sm" outline iconName="pencil">
-              {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
-            </Button>
-            <Button onClick={deleteSchedule.click} size="sm" outline intent="danger" iconName="trash" />
-          </div>
+          <span class={o.danger ? "text-danger font-700" : ""} title={s.lastError}>
+            {o.text}
+          </span>
         );
       },
+    },
+    {
+      key: "createdBy",
+      header: t3({ en: "By", fr: "Par", pt: "Por" }),
+      render: (s) => s.createdBy,
+    },
+    {
+      key: "id",
+      header: "",
+      render: (s) => <EditDeleteActions schedule={s} onEdit={p.onEdit} onChanged={p.onChanged} />,
     },
   ];
 
   return (
     <Switch>
-      <Match when={p.schedules.length > 0}>
-        <Table
-          data={p.schedules}
-          columns={columns}
-          keyField="id"
-          noRowsMessage={t3({ en: "No schedules yet", fr: "Aucune planification pour le moment", pt: "Ainda não há agendamentos" })}
-        />
+      <Match when={visible().length > 0}>
+        <div class="ui-spy">
+          <Show when={recurring().length > 0}>
+            <div class="ui-spy-sm">
+              <div class="font-700">
+                {t3({ en: "Recurring imports", fr: "Importations récurrentes", pt: "Importações recorrentes" })}
+              </div>
+              <Table data={recurring()} columns={recurringColumns} keyField="id" />
+            </div>
+          </Show>
+          <Show when={oneTime().length > 0}>
+            <div class="ui-spy-sm">
+              <div class="font-700">
+                {t3({ en: "One-time imports", fr: "Importations ponctuelles", pt: "Importações pontuais" })}
+              </div>
+              <Table data={oneTime()} columns={oneTimeColumns} keyField="id" />
+            </div>
+          </Show>
+        </div>
       </Match>
-      <Match when={p.schedules.length === 0}>
+      <Match when={visible().length === 0}>
         <div class="text-sm">
           {t3({
             en: "No scheduled imports yet — create one from the wizard's Time step (Later or Recurring).",

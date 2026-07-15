@@ -52,10 +52,19 @@ const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-const dhis2ScheduleSelectionSchema = z.object({
-  rawIndicatorIds: z.array(z.string()).min(1),
-  monthsBack: z.number().int().min(0).max(120),
-});
+const dhis2ScheduleSelectionSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("last_n_months"),
+    rawIndicatorIds: z.array(z.string()).min(1),
+    monthsBack: z.number().int().min(1).max(120),
+  }),
+  z.object({
+    kind: z.literal("explicit_range"),
+    rawIndicatorIds: z.array(z.string()).min(1),
+    startPeriod: z.number().int(),
+    endPeriod: z.number().int(),
+  }),
+]);
 
 // Cross-field requirements per kind (one_shot needs runAt; recurring needs
 // dayOfWeek/startTime/timezone/intervalWeeks) are validated server-side —
@@ -188,11 +197,6 @@ export const datasetRouteRegistry = {
       id: z.number().int(),
       schedule: dhis2ScheduleFieldsSchema,
     }),
-  }),
-  setDatasetHmisDhis2ScheduleEnabled: route({
-    path: "/datasets/hmis/dhis2-schedules/enabled",
-    method: "POST",
-    body: z.object({ id: z.number().int(), enabled: z.boolean() }),
   }),
   deleteDatasetHmisDhis2Schedule: route({
     path: "/datasets/hmis/dhis2-schedules",

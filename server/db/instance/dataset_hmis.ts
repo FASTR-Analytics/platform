@@ -125,10 +125,10 @@ export async function getDatasetHmisDetail(
 
 // A running DHIS2 run's version row is INVISIBLE to every reader until the
 // run ends: per-pair integration keeps mutating dataset_hmis under that id
-// for the run's whole duration, and every version-keyed cache (Valkey
-// ds_hmis_v2, the client IndexedDB twin, viz-query staleness hashes) assumes
-// a visible version id names a settled data state. Hiding the row until the
-// run ends makes the cache token flip exactly once, at run end. All version
+// for the run's whole duration, and every version-keyed cache (the client
+// IndexedDB display cache, viz-query staleness hashes) assumes a visible
+// version id names a settled data state. Hiding the row until the run ends
+// makes the cache token flip exactly once, at run end. All version
 // READERS carry this exclusion; version-MINTING paths must not use them —
 // they compute MAX(id) inline in their own transaction (run worker, CSV
 // integrate worker, windowed delete).

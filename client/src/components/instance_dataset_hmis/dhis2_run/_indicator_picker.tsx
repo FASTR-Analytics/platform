@@ -27,7 +27,11 @@ export function Dhis2IndicatorPicker(p: Props) {
   const tableColumns: TableColumn<RawIndicatorWithMappings>[] = [
     {
       key: "raw_indicator_id",
-      header: t3({ en: "Indicator ID", fr: "ID indicateur", pt: "ID do indicador" }),
+      header: t3({
+        en: "Indicator ID",
+        fr: "ID indicateur",
+        pt: "ID do indicador",
+      }),
       sortable: true,
     },
     {
@@ -39,6 +43,7 @@ export function Dhis2IndicatorPicker(p: Props) {
       key: "indicator_common_ids",
       header: t3({ en: "Common IDs", fr: "ID communs", pt: "ID comuns" }),
       render: (item) => item.indicator_common_ids.join(", "),
+      sortable: true,
     },
   ];
 
@@ -55,7 +60,11 @@ export function Dhis2IndicatorPicker(p: Props) {
           setSelectedKeys={(keys) =>
             p.setSelectedIds(Array.from(keys) as string[])
           }
-          selectionLabel={t3({ en: "indicator", fr: "indicateur", pt: "indicador" })}
+          selectionLabel={t3({
+            en: "indicator",
+            fr: "indicateur",
+            pt: "indicador",
+          })}
           tableContentMaxHeight="500px"
           noRowsMessage={t3({
             en: "No indicators available",

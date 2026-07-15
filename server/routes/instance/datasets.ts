@@ -27,12 +27,10 @@ import {
   getDatasetHmisUploadStatus,
   getStoredDhis2CredentialsInfo,
   getVersionsForDatasetHmis,
-  hasRunningDatasetHmisImportRun,
   hasShadowPassedForDhis2Url,
   isDhis2CredentialsEncryptionKeyConfigured,
   launchDatasetHmisDhis2ImportRun,
   saveStoredDhis2Credentials,
-  setDatasetHmisScheduledImportEnabled,
   updateDatasetHmisScheduledImport,
   updateDatasetHfaUploadAttempt_Step1CsvUpload,
   updateDatasetHfaUploadAttempt_Step2Mappings,
@@ -48,10 +46,7 @@ import {
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
-import {
-  _FETCH_CACHE_DATASET_HFA_ITEMS,
-  _FETCH_CACHE_DATASET_HMIS_ITEMS,
-} from "../caches/dataset.ts";
+import { _FETCH_CACHE_DATASET_HFA_ITEMS } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { validateDhis2Connection } from "../../dhis2/mod.ts";
 import { t3 } from "lib";
@@ -109,54 +104,22 @@ defineRoute(
   requireGlobalPermission("can_view_data"),
   log("getDatasetHmisDisplayInfo"),
   async (c, { body }) => {
-    // While a run is integrating per-pair, the data keeps changing under the
-    // client's version token, so nothing may be cached under it — mid-run
-    // reads compute live ("partial results visible"). The token itself only
-    // flips at run end (running-run versions are hidden from readers — see
-    // getVersionsForDatasetHmis), which is what keeps the settled cache
-    // entries honest.
-    const runActive = await hasRunningDatasetHmisImportRun(c.var.mainDb);
-
-    if (!runActive) {
-      const existing = await _FETCH_CACHE_DATASET_HMIS_ITEMS.get(
-        {
-          rawOrCommonIndicators: body.rawOrCommonIndicators,
-          facilityColumns: body.facilityColumns,
-        },
-        {
-          versionId: body.versionId,
-          indicatorMappingsVersion: body.indicatorMappingsVersion,
-        },
-      );
-
-      if (existing) {
-        return c.json(existing);
-      }
-    }
-
-    const newPromise = getDatasetHmisItemsForDisplay(
+    // Computed live on every call. Since vizItems moved to the import ledger
+    // (~1.4k rows, not a dataset_hmis scan) the read costs a few ms, so the
+    // Valkey layer that used to shield it (ds_hmis_v2) was deleted along with
+    // its liabilities: the mid-run cache-bypass dance and the prefix-bump
+    // obligation on every payload-shape change. Client-side caching remains —
+    // the T2 IndexedDB cache keys on versionId + indicatorMappingsVersion,
+    // which only flip at run end (running-run versions are hidden from
+    // readers — see getVersionsForDatasetHmis), and the client bypasses it
+    // while a run is active, so mid-run reads stay live end to end.
+    const res = await getDatasetHmisItemsForDisplay(
       c.var.mainDb,
       body.versionId,
       body.indicatorMappingsVersion,
       body.rawOrCommonIndicators,
       body.facilityColumns,
     );
-
-    if (!runActive) {
-      _FETCH_CACHE_DATASET_HMIS_ITEMS.setPromise(
-        newPromise,
-        {
-          rawOrCommonIndicators: body.rawOrCommonIndicators,
-          facilityColumns: body.facilityColumns,
-        },
-        {
-          versionId: body.versionId,
-          indicatorMappingsVersion: body.indicatorMappingsVersion,
-        },
-      );
-    }
-
-    const res = await newPromise;
     return c.json(res);
   },
 );
@@ -401,32 +364,6 @@ defineRoute(
     if (res.success) {
       // The edit clears the last-fire outcome — the instance-wide attention
       // banner must clear with it (review finding 5).
-      notifyInstanceDatasetsUpdated(
-        await getInstanceDatasetsSummary(c.var.mainDb),
-      );
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "setDatasetHmisDhis2ScheduleEnabled",
-  requireGlobalPermission("can_configure_data"),
-  log("setDatasetHmisDhis2ScheduleEnabled"),
-  async (c, { body }) => {
-    if (body.enabled) {
-      const blocked = await assertUnattendedReady(c.var.mainDb);
-      if (blocked) {
-        return c.json({ success: false, err: blocked });
-      }
-    }
-    const res = await setDatasetHmisScheduledImportEnabled(
-      c.var.mainDb,
-      body.id,
-      body.enabled,
-    );
-    if (res.success) {
       notifyInstanceDatasetsUpdated(
         await getInstanceDatasetsSummary(c.var.mainDb),
       );

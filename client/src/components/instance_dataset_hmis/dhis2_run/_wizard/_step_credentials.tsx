@@ -1,10 +1,18 @@
-import { t3, type Dhis2Credentials, type Dhis2StoredCredentialsInfo } from "lib";
 import {
-  Button,
-  StateHolderFormError,
-  createFormAction,
-} from "panther";
-import { Match, Show, Switch, createSignal, type Accessor, type Setter } from "solid-js";
+  t3,
+  type Dhis2Credentials,
+  type Dhis2StoredCredentialsInfo,
+} from "lib";
+import { Button, StateHolderFormError, createFormAction } from "panther";
+import {
+  Match,
+  Show,
+  Switch,
+  createSignal,
+  type Accessor,
+  type JSX,
+  type Setter,
+} from "solid-js";
 import { serverActions } from "~/server_actions";
 import { Dhis2CredentialsEditor } from "../../../Dhis2CredentialsEditor";
 
@@ -16,6 +24,11 @@ type Props = {
   credentials: Accessor<Dhis2Credentials>;
   setCredentials: Setter<Dhis2Credentials>;
   onSaved: () => Promise<void>;
+  // Caller-supplied, not hardcoded here: "continue without saving" only
+  // means something when there's a Next step to continue to (the wizard).
+  // The standalone Manage Connection modal has no Next — not saving just
+  // discards what was typed — so it passes nothing.
+  unsavedEditorHint?: JSX.Element;
 };
 
 // Step 1 body, shared by the wizard and the standalone "Manage connection"
@@ -27,32 +40,38 @@ type Props = {
 export function Dhis2StepCredentials(p: Props) {
   const [confirmingDelete, setConfirmingDelete] = createSignal<boolean>(false);
 
-  const save = createFormAction(async () => {
-    const creds = p.credentials();
-    if (!creds.url || !creds.username || !creds.password) {
-      return {
-        success: false,
-        err: t3({
-          en: "All DHIS2 connection fields are required",
-          fr: "Tous les champs de connexion DHIS2 sont requis",
-          pt: "Todos os campos de ligação DHIS2 são obrigatórios",
-        }),
-      };
-    }
-    return await serverActions.saveDatasetHmisDhis2Credentials({
-      credentials: creds,
-    });
-  }, async () => {
-    p.setEditing(false);
-    await p.onSaved();
-  });
+  const save = createFormAction(
+    async () => {
+      const creds = p.credentials();
+      if (!creds.url || !creds.username || !creds.password) {
+        return {
+          success: false,
+          err: t3({
+            en: "All DHIS2 connection fields are required",
+            fr: "Tous les champs de connexion DHIS2 sont requis",
+            pt: "Todos os campos de ligação DHIS2 são obrigatórios",
+          }),
+        };
+      }
+      return await serverActions.saveDatasetHmisDhis2Credentials({
+        credentials: creds,
+      });
+    },
+    async () => {
+      p.setEditing(false);
+      await p.onSaved();
+    },
+  );
 
-  const deleteStored = createFormAction(async () => {
-    return await serverActions.deleteDatasetHmisDhis2Credentials({});
-  }, async () => {
-    setConfirmingDelete(false);
-    await p.onSaved();
-  });
+  const deleteStored = createFormAction(
+    async () => {
+      return await serverActions.deleteDatasetHmisDhis2Credentials({});
+    },
+    async () => {
+      setConfirmingDelete(false);
+      await p.onSaved();
+    },
+  );
 
   return (
     <div class="ui-spy">
@@ -75,14 +94,24 @@ export function Dhis2StepCredentials(p: Props) {
                   fr: "Utiliser la connexion enregistrée :",
                   pt: "Utilizar a ligação guardada:",
                 })}{" "}
-                <span class="font-700">{stored.url}</span> — {stored.username}
+                <span class="font-700">{stored.url}</span>
               </div>
               <div class="text-xs">
-                {t3({ en: "Saved by", fr: "Enregistré par", pt: "Guardado por" })}{" "}
-                {stored.updatedBy}, {new Date(stored.updatedAt).toLocaleString()}
+                {t3({
+                  en: "Saved by",
+                  fr: "Enregistré par",
+                  pt: "Guardado por",
+                })}{" "}
+                {stored.updatedBy},{" "}
+                {new Date(stored.updatedAt).toLocaleString()}
               </div>
               <div class="ui-gap-sm flex items-center">
-                <Button onClick={() => p.setEditing(true)} outline size="sm" iconName="pencil">
+                <Button
+                  onClick={() => p.setEditing(true)}
+                  outline
+                  size="sm"
+                  iconName="pencil"
+                >
                   {t3({ en: "Replace", fr: "Remplacer", pt: "Substituir" })}
                 </Button>
                 <Switch>
@@ -111,9 +140,17 @@ export function Dhis2StepCredentials(p: Props) {
                       intent="danger"
                       size="sm"
                     >
-                      {t3({ en: "Confirm delete", fr: "Confirmer la suppression", pt: "Confirmar eliminação" })}
+                      {t3({
+                        en: "Confirm delete",
+                        fr: "Confirmer la suppression",
+                        pt: "Confirmar eliminação",
+                      })}
                     </Button>
-                    <Button onClick={() => setConfirmingDelete(false)} outline size="sm">
+                    <Button
+                      onClick={() => setConfirmingDelete(false)}
+                      outline
+                      size="sm"
+                    >
                       {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
                     </Button>
                   </Match>
@@ -144,13 +181,9 @@ export function Dhis2StepCredentials(p: Props) {
               </Button>
             </Show>
           </div>
-          <div class="text-xs">
-            {t3({
-              en: "You can also continue without saving — these credentials will only be used for this run.",
-              fr: "Vous pouvez aussi continuer sans enregistrer — ces identifiants ne seront utilisés que pour cette importation.",
-              pt: "Também pode continuar sem guardar — estas credenciais serão utilizadas apenas para esta importação.",
-            })}
-          </div>
+          <Show when={p.unsavedEditorHint}>
+            <div class="text-xs">{p.unsavedEditorHint}</div>
+          </Show>
         </Match>
       </Switch>
     </div>

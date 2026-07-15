@@ -30,7 +30,7 @@ import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { Dhis2ManageConnection } from "./_manage_connection";
 import { Dhis2TabCurrent } from "./_tab_current";
-import { Dhis2TabFuture } from "./_tab_future";
+import { Dhis2TabFuture, visibleFutureSchedules } from "./_tab_future";
 import { Dhis2TabHistory } from "./_tab_history";
 import { Dhis2Wizard, type Dhis2WizardEntry } from "./_wizard";
 
@@ -175,7 +175,7 @@ export function DatasetHmisDhis2Runs(p: Props) {
         : 0;
     const futureCount =
       schedulingState.status === "ready"
-        ? schedulingState.data.schedules.filter((s) => s.enabled).length
+        ? visibleFutureSchedules(schedulingState.data.schedules).length
         : 0;
     return [
       {

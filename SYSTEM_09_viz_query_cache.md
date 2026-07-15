@@ -447,14 +447,15 @@ work against the 20-connection pool; the cache check happens *before* queueing;
 `setPromise` registers the in-flight promise so concurrent identical requests
 coalesce.
 
-**HMIS/HFA dataset display caches**
-([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hmis` keys
-on indicator type + `hashFacilityColumnsConfig` (note: the *dataset* caches do
-fold facility config — the PO caches are the outlier), versions on
-`versionId_indicatorMappingsVersion`; `ds_hfa` is a singleton versioned on the
-server-computed HFA `cacheHash` (the in-memory `VersionParams.hash` vs payload
-`cacheHash` naming divergence is F8c — the payload field is persisted, do not
-rename it).
+**HFA dataset display cache**
+([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a
+singleton versioned on the server-computed HFA `cacheHash` (the in-memory
+`VersionParams.hash` vs payload `cacheHash` naming divergence is F8c — the
+payload field is persisted, do not rename it). The HMIS counterpart
+(`ds_hmis`/`ds_hmis_v2`) was deleted 2026-07-15 — once vizItems moved to the
+import ledger the read became a few ms, so `getDatasetHmisDisplayInfo`
+computes live and only the client T2 IndexedDB cache remains (see
+[DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md)).
 
 **Client (IndexedDB, `createReactiveCache`).** Mirrors of the same four caches
 in [t2_presentation_objects.ts](client/src/state/project/t2_presentation_objects.ts) /

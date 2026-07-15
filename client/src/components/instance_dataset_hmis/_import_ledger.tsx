@@ -14,7 +14,7 @@ import {
   toNum0,
   type TableColumn,
 } from "panther";
-import { Show } from "solid-js";
+import { Show, createMemo } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { DatasetHmisDhis2Runs } from "./dhis2_run";
 import { ImportLedgerIndicatorDetail } from "./_import_ledger_indicator";
@@ -132,12 +132,29 @@ export function ImportLedger(p: EditorComponentProps<{}, undefined>) {
       pt: "A carregar o estado das importações...",
     }),
   );
+  // Labels are a display-only enrichment — don't gate the ledger table
+  // behind a second StateHolderWrapper for it; degrade to blank until ready.
+  const indicators = createQuery(() => serverActions.getIndicators({}));
+  const indicatorLabels = createMemo((): Map<string, string> => {
+    const s = indicators.state();
+    if (s.status !== "ready") return new Map();
+    return new Map(
+      s.data.rawIndicators.map((r) => [r.raw_indicator_id, r.raw_indicator_label]),
+    );
+  });
 
   const columns: TableColumn<IndicatorRollup>[] = [
     {
       key: "indicatorRawId",
-      header: t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" }),
+      header: t3({ en: "Indicator ID", fr: "ID indicateur", pt: "ID do indicador" }),
       sortable: true,
+    },
+    {
+      key: "indicatorLabel",
+      header: t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" }),
+      sortable: true,
+      sortValue: (item) => indicatorLabels().get(item.indicatorRawId) ?? "",
+      render: (item) => indicatorLabels().get(item.indicatorRawId) ?? "",
     },
     {
       key: "monthsWithData",
