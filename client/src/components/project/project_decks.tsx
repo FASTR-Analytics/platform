@@ -365,6 +365,7 @@ export function ProjectDecks(p: ExtendedProps) {
   return (
     <FrameTop
       panelChildren={
+        <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar
           heading={t3({ en: "Slide decks", fr: "Présentations", pt: "Apresentações" })}
           searchText={searchText()}
@@ -385,6 +386,7 @@ export function ProjectDecks(p: ExtendedProps) {
             </Button>
           </Show>
         </HeadingBar>
+        </div>
       }
     >
       <Show

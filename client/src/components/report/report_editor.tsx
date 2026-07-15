@@ -4,6 +4,7 @@ import { Compartment, EditorState } from "@codemirror/state";
 import { basicSetup } from "codemirror";
 import { markdown } from "@codemirror/lang-markdown";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
+import { attachSelectionNameHover } from "~/components/_shared/collab_markdown_editor";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import type { FigureBlock, ImageBlock } from "lib";
@@ -102,6 +103,7 @@ type Props = {
 export function ReportEditor(p: Props) {
   let parent!: HTMLDivElement;
   let view: EditorView | undefined;
+  let detachSelectionHover: (() => void) | undefined;
   let scrollRAF = 0;
   let lastCenterKey = "";
   let ro: ResizeObserver | undefined;
@@ -157,6 +159,8 @@ export function ReportEditor(p: Props) {
   function buildView(collab: { yText: Y.Text; awareness: Awareness } | undefined) {
     const prevScroll = view?.scrollDOM.scrollTop;
     const prevSel = view?.state.selection.main;
+    detachSelectionHover?.();
+    detachSelectionHover = undefined;
     view?.destroy();
     view = new EditorView({
       doc: collab ? collab.yText.toString() : p.body,
@@ -205,6 +209,10 @@ export function ReportEditor(p: Props) {
     });
     lastCenterKey = "";
     applyCenterTheme();
+    // Hovering a peer's selection highlight names them (caret-flag style).
+    if (collab) {
+      detachSelectionHover = attachSelectionNameHover(view.dom, collab.awareness);
+    }
     view.scrollDOM.addEventListener("scroll", onScroll, { passive: true });
     ro?.observe(view.scrollDOM);
     if (prevScroll !== undefined) view.scrollDOM.scrollTop = prevScroll;
@@ -403,6 +411,7 @@ export function ReportEditor(p: Props) {
   });
 
   onCleanup(() => {
+    detachSelectionHover?.();
     if (scrollRAF) cancelAnimationFrame(scrollRAF);
     ro?.disconnect();
     view?.destroy(); // removes scrollDOM (and its listener) with it

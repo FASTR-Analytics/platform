@@ -209,11 +209,13 @@ export function ProjectSettings(p: Props) {
   return (
     <FrameTop
       panelChildren={
+        <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar
           heading={t3(TC.settings)}
           class="border-base-300"
           ensureHeightAsIfButton
         ></HeadingBar>
+        </div>
       }
     >
       <div class="ui-pad ui-spy" data-page-cursor-surface>

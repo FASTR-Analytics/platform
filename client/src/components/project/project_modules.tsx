@@ -97,6 +97,7 @@ export function ProjectModules(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
+          <div class="h-full w-full" data-cursor-zone="header">
           <HeadingBar
             heading={t3({ en: "Modules", fr: "Modules", pt: "Módulos" })}
             class="border-base-300"
@@ -143,6 +144,7 @@ export function ProjectModules(p: Props) {
               </Show>
             </div>
           </HeadingBar>
+          </div>
         }
       >
         <div class="ui-pad ui-spy" data-page-cursor-surface>

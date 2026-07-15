@@ -33,7 +33,9 @@ import { Portal } from "solid-js/web";
 // 30s (fires "change" with removed ids). The overlay additionally tracks its
 // own per-client last-move time (bumped only when the pointer CONTENT changes,
 // never trusting wire clocks) to fade the name chip after 4s and hide
-// connected-but-idle cursors after 30s.
+// connected-but-idle cursors after 30s. Moving your own mouse close to a
+// peer's cursor re-reveals its faded chip (HOVER_REVEAL_PX proximity — the
+// overlay is pointer-events-none, so never DOM hover).
 //
 // CURSOR CHAT rides a second awareness field "pointerChat" ({ text } | null):
 // press "/" over a cursor surface to type a short message that streams live in
@@ -86,6 +88,10 @@ export type PointerAwarenessState =
   );
 
 const CHIP_FADE_MS = 4_000;
+// Hovering your own mouse within this radius of a peer's cursor re-reveals
+// its faded name chip (the overlay is pointer-events-none, so "hover" is
+// proximity math against the projected cursor position, never DOM hover).
+const HOVER_REVEAL_PX = 28;
 const IDLE_HIDE_MS = 30_000;
 const DEFAULT_MIN_INTERVAL_MS = 50;
 // The world can change UNDER a stationary pointer (an editor overlay opens
@@ -445,6 +451,11 @@ export function LiveCursorsOverlay(p: {
   // drives the chip fade and idle hide without any awareness traffic.
   const [tick, setTick] = createSignal(0);
   const bump = () => setTick((t) => t + 1);
+  // Local mouse position (rAF-throttled) — drives the hover-reveal of faded
+  // name chips. One signal write per frame at most; nothing while still.
+  const [mouse, setMouse] = createSignal<{ x: number; y: number } | null>(
+    null,
+  );
   // Bumped on awareness "change" (content changes + joins/leaves; keepalives
   // with deep-equal state deliberately don't fire it).
   const [version, setVersion] = createSignal(0);
@@ -475,9 +486,22 @@ export function LiveCursorsOverlay(p: {
     window.addEventListener("resize", bump);
     window.addEventListener("scroll", bump, true);
     const sweep = setInterval(bump, 1000);
+    let mouseRaf: number | undefined;
+    const onMouseMove = (e: PointerEvent) => {
+      const x = e.clientX;
+      const y = e.clientY;
+      if (mouseRaf !== undefined) return;
+      mouseRaf = requestAnimationFrame(() => {
+        mouseRaf = undefined;
+        setMouse({ x, y });
+      });
+    };
+    document.addEventListener("pointermove", onMouseMove, { passive: true });
     onCleanup(() => {
       window.removeEventListener("resize", bump);
       window.removeEventListener("scroll", bump, true);
+      document.removeEventListener("pointermove", onMouseMove);
+      if (mouseRaf !== undefined) cancelAnimationFrame(mouseRaf);
       clearInterval(sweep);
       for (const t of rippleTimers) clearTimeout(t);
     });
@@ -563,13 +587,17 @@ export function LiveCursorsOverlay(p: {
       if (idle > IDLE_HIDE_MS && !chat) continue;
       const pos = p.accepts(pointer);
       if (!pos) continue;
+      // Hover-reveal: your own mouse near the cursor brings a faded chip back.
+      const m = mouse();
+      const hovered = m !== null &&
+        Math.hypot(m.x - pos.x, m.y - pos.y) < HOVER_REVEAL_PX;
       out.push({
         clientID,
         name: user.name,
         color: user.color,
         x: pos.x,
         y: pos.y,
-        chipVisible: idle < CHIP_FADE_MS || !!chat,
+        chipVisible: idle < CHIP_FADE_MS || !!chat || hovered,
         chat,
       });
     }

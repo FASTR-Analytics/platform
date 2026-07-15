@@ -146,6 +146,7 @@ export function ProjectDashboards(p: Props) {
   return (
     <FrameTop
       panelChildren={
+        <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar
           heading={t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" })}
           searchText={searchText()}
@@ -164,6 +165,7 @@ export function ProjectDashboards(p: Props) {
             </Button>
           </Show>
         </HeadingBar>
+        </div>
       }
     >
       <div

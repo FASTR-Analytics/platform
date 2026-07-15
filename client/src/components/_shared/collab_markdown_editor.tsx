@@ -15,6 +15,93 @@ import { createEffect, onCleanup } from "solid-js";
 // the caller supplies `canEdit` (each surface has its own configure permission),
 // so this component is decoupled from any one project-state permission.
 
+// ── Selection hover name flag ────────────────────────────────────────────────
+// yCollab names a peer when you hover their CARET (its own CSS hover on
+// .cm-ySelectionCaret), but a selection HIGHLIGHT is a separate mark
+// decoration with no name element — hovering it named nobody. This helper
+// watches mousemoves over an editor, resolves a hovered .cm-ySelection span
+// back to its owner by matching the span's background color to the awareness
+// users (the highlight is the user's translucent colorLight — same RGB as
+// their identity color, alpha aside), and floats a caret-style name flag
+// above it. One shared flag element serves every editor (there is one mouse).
+
+let hoverFlagEl: HTMLDivElement | null = null;
+function hoverFlag(): HTMLDivElement {
+  if (!hoverFlagEl) {
+    hoverFlagEl = document.createElement("div");
+    hoverFlagEl.style.cssText =
+      "position:fixed;z-index:95;padding:1px 6px;border-radius:4px;" +
+      "font-size:11px;font-weight:600;color:#fff;pointer-events:none;" +
+      "white-space:nowrap;display:none;";
+    document.body.appendChild(hoverFlagEl);
+  }
+  return hoverFlagEl;
+}
+function hideHoverFlag(): void {
+  if (hoverFlagEl) hoverFlagEl.style.display = "none";
+}
+
+function rgbOfHex(hex: string): [number, number, number] | null {
+  const m = /^#?([0-9a-f]{6})/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** Attach the selection-hover name flag to a CodeMirror editor DOM. Returns
+ *  the detach function. */
+export function attachSelectionNameHover(
+  dom: HTMLElement,
+  awareness: Awareness,
+): () => void {
+  function onMove(e: MouseEvent) {
+    const target = e.target as HTMLElement | null;
+    const span = target?.closest?.(".cm-ySelection") as HTMLElement | null;
+    if (!span) return hideHoverFlag();
+    const bg = getComputedStyle(span).backgroundColor;
+    const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(bg);
+    if (!m) return hideHoverFlag();
+    const r = Number(m[1]);
+    const g = Number(m[2]);
+    const b = Number(m[3]);
+    const names: string[] = [];
+    let flagColor = "";
+    for (const [clientID, state] of awareness.getStates()) {
+      if (clientID === awareness.clientID) continue;
+      const user = state.user as { name?: string; color?: string } | undefined;
+      if (!user?.name || !user.color) continue;
+      const rgb = rgbOfHex(user.color);
+      if (
+        rgb && rgb[0] === r && rgb[1] === g && rgb[2] === b &&
+        !names.includes(user.name)
+      ) {
+        names.push(user.name);
+        if (!flagColor) flagColor = user.color;
+      }
+    }
+    if (names.length === 0) return hideHoverFlag();
+    const el = hoverFlag();
+    el.textContent = names.join(", ");
+    el.style.backgroundColor = flagColor;
+    const rect = span.getBoundingClientRect();
+    el.style.left = `${Math.round(e.clientX)}px`;
+    el.style.top = `${Math.round(rect.top - 22)}px`;
+    el.style.display = "block";
+  }
+  // A selection can vanish UNDER a stationary mouse (the peer moved on) —
+  // clear on any awareness change; the next mousemove re-shows if warranted.
+  const onAwarenessChange = () => hideHoverFlag();
+  dom.addEventListener("mousemove", onMove, { passive: true });
+  dom.addEventListener("mouseleave", hideHoverFlag);
+  awareness.on("change", onAwarenessChange);
+  return () => {
+    dom.removeEventListener("mousemove", onMove);
+    dom.removeEventListener("mouseleave", hideHoverFlag);
+    awareness.off("change", onAwarenessChange);
+    hideHoverFlag();
+  };
+}
+
 function buildExtensions(
   yText: Y.Text,
   awareness: Awareness,
@@ -74,7 +161,11 @@ export function CollabMarkdownEditor(p: {
     });
     const observer = () => p.onTextChange(yText.toString());
     yText.observe(observer);
-    onCleanup(() => yText.unobserve(observer));
+    const detachHover = attachSelectionNameHover(view.dom, p.awareness);
+    onCleanup(() => {
+      yText.unobserve(observer);
+      detachHover();
+    });
   });
 
   onCleanup(() => view?.destroy());

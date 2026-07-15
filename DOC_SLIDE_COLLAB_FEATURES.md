@@ -55,12 +55,14 @@ session.
   editor and all title/header fields (cover title/subtitle/presenter/date,
   section title/subtitle, content header/sub-header/date/footer) — you see
   each collaborator's caret as a colored bar with a hover name tag, and their
-  text selections as a translucent highlight in their color. Caret positions
+  text selections as a translucent highlight in their color — hover either
+  the caret or the highlighted text itself to see who it is. Caret positions
   stay anchored to the right characters through concurrent edits, and your own
   caret never jumps when remote edits land.
 - **Live cursors (Figma-style).** Each collaborator's mouse pointer appears on
   the slide canvas as a colored arrow with their name tag, moving in real time.
-  The name tag fades after a few seconds of stillness; idle cursors disappear;
+  The name tag fades after a few seconds of stillness (move your own mouse
+  over a cursor to reveal its name again); idle cursors disappear;
   a cursor leaves the canvas → it vanishes for everyone. Also works inside the
   visualization editor (chart preview and settings panel), the report editor
   (both the markdown pane and the rendered preview), and on the project tab

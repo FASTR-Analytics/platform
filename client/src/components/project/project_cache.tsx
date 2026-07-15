@@ -13,7 +13,9 @@ export function ProjectCache() {
 
   return (
     <div class="flex h-full flex-col overflow-hidden">
-      <HeadingBar heading={t3({ en: "Cache Status", fr: "Statut du cache", pt: "Estado da cache" })} />
+      <div class="w-full flex-none" data-cursor-zone="header">
+        <HeadingBar heading={t3({ en: "Cache Status", fr: "Statut du cache", pt: "Estado da cache" })} />
+      </div>
       <div class="flex-1 overflow-y-auto" data-page-cursor-surface>
         <StateHolderWrapper state={cacheQuery.state()}>
           {(data) => {

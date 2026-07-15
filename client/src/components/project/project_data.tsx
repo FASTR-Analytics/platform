@@ -31,8 +31,12 @@ export function ProjectData(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   return (
     <EditorWrapper>
-      <FrameTop panelChildren={<HeadingBar heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
-        class="border-base-300" ensureHeightAsIfButton></HeadingBar>}>
+      <FrameTop panelChildren={
+        <div class="h-full w-full" data-cursor-zone="header">
+          <HeadingBar heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
+            class="border-base-300" ensureHeightAsIfButton></HeadingBar>
+        </div>
+      }>
         <div class="ui-pad ui-spy" data-page-cursor-surface>
           {/* HMIS Dataset */}
           <Switch>

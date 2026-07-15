@@ -382,6 +382,7 @@ export function ProjectReports(p: ExtendedProps) {
   return (
     <FrameTop
       panelChildren={
+        <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar
           heading={t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" })}
           searchText={searchText()}
@@ -397,6 +398,7 @@ export function ProjectReports(p: ExtendedProps) {
             </Button>
           </Show>
         </HeadingBar>
+        </div>
       }
     >
       <FrameLeftResizable
