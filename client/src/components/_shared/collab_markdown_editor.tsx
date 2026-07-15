@@ -48,17 +48,45 @@ function rgbOfHex(hex: string): [number, number, number] | null {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+// Forgiveness around each highlight rect — hovering NEAR the highlight (line
+// padding, the gap between wrapped segments) still counts.
+const HOVER_SLACK_PX = 6;
+
 /** Attach the selection-hover name flag to a CodeMirror editor DOM. Returns
- *  the detach function. */
+ *  the detach function.
+ *
+ *  Detection is GEOMETRIC, not DOM hit-testing: a selection renders as many
+ *  thin inline spans (one or more client rects each — wrapped lines split),
+ *  and the pointer target between lines or in padding is the line element,
+ *  not the span. Checking the mouse against every span's client rects (with
+ *  slack) makes the whole highlighted region — every line of a multi-line
+ *  selection — a reliable hover target. rAF-throttled; selections on screen
+ *  are few. */
 export function attachSelectionNameHover(
   dom: HTMLElement,
   awareness: Awareness,
 ): () => void {
-  function onMove(e: MouseEvent) {
-    const target = e.target as HTMLElement | null;
-    const span = target?.closest?.(".cm-ySelection") as HTMLElement | null;
-    if (!span) return hideHoverFlag();
-    const bg = getComputedStyle(span).backgroundColor;
+  let raf: number | undefined;
+
+  function resolve(x: number, y: number) {
+    let hitSpan: HTMLElement | null = null;
+    let hitRect: DOMRect | null = null;
+    for (const span of dom.querySelectorAll<HTMLElement>(".cm-ySelection")) {
+      for (const r of span.getClientRects()) {
+        if (
+          x >= r.left - HOVER_SLACK_PX && x <= r.right + HOVER_SLACK_PX &&
+          y >= r.top - HOVER_SLACK_PX && y <= r.bottom + HOVER_SLACK_PX
+        ) {
+          hitSpan = span;
+          hitRect = r;
+          break;
+        }
+      }
+      if (hitSpan) break;
+    }
+    if (!hitSpan || !hitRect) return hideHoverFlag();
+
+    const bg = getComputedStyle(hitSpan).backgroundColor;
     const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(bg);
     if (!m) return hideHoverFlag();
     const r = Number(m[1]);
@@ -83,10 +111,19 @@ export function attachSelectionNameHover(
     const el = hoverFlag();
     el.textContent = names.join(", ");
     el.style.backgroundColor = flagColor;
-    const rect = span.getBoundingClientRect();
-    el.style.left = `${Math.round(e.clientX)}px`;
-    el.style.top = `${Math.round(rect.top - 22)}px`;
+    el.style.left = `${Math.round(x)}px`;
+    el.style.top = `${Math.round(hitRect.top - 22)}px`;
     el.style.display = "block";
+  }
+
+  function onMove(e: MouseEvent) {
+    const x = e.clientX;
+    const y = e.clientY;
+    if (raf !== undefined) return;
+    raf = requestAnimationFrame(() => {
+      raf = undefined;
+      resolve(x, y);
+    });
   }
   // A selection can vanish UNDER a stationary mouse (the peer moved on) —
   // clear on any awareness change; the next mousemove re-shows if warranted.
@@ -98,6 +135,7 @@ export function attachSelectionNameHover(
     dom.removeEventListener("mousemove", onMove);
     dom.removeEventListener("mouseleave", hideHoverFlag);
     awareness.off("change", onAwarenessChange);
+    if (raf !== undefined) cancelAnimationFrame(raf);
     hideHoverFlag();
   };
 }
