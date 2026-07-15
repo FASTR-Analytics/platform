@@ -122,24 +122,39 @@ export function attachSelectionNameHover(
   // showing nothing).
   let lastX = 0;
   let lastY = 0;
-  function onMove(e: MouseEvent) {
-    lastX = e.clientX;
-    lastY = e.clientY;
+  let hasPos = false;
+  function schedule() {
     if (raf !== undefined) return;
     raf = requestAnimationFrame(() => {
       raf = undefined;
       resolve(lastX, lastY);
     });
   }
-  // A selection can vanish UNDER a stationary mouse (the peer moved on) —
-  // clear on any awareness change; the next mousemove re-shows if warranted.
-  const onAwarenessChange = () => hideHoverFlag();
+  function onMove(e: MouseEvent) {
+    lastX = e.clientX;
+    lastY = e.clientY;
+    hasPos = true;
+    schedule();
+  }
+  function onLeave() {
+    hasPos = false;
+    hideHoverFlag();
+  }
+  // Awareness changes constantly while peers are active (their live cursor
+  // rides this same instance at up to ~20 msg/s) — NEVER blind-hide on it,
+  // or the flag flickers and a stationary mouse loses it for good. Instead
+  // RE-EVALUATE at the last known position: still over a highlight → flag
+  // stays rock steady; the selection actually vanished → it hides.
+  const onAwarenessChange = () => {
+    if (hasPos) schedule();
+    else hideHoverFlag();
+  };
   dom.addEventListener("mousemove", onMove, { passive: true });
-  dom.addEventListener("mouseleave", hideHoverFlag);
+  dom.addEventListener("mouseleave", onLeave);
   awareness.on("change", onAwarenessChange);
   return () => {
     dom.removeEventListener("mousemove", onMove);
-    dom.removeEventListener("mouseleave", hideHoverFlag);
+    dom.removeEventListener("mouseleave", onLeave);
     awareness.off("change", onAwarenessChange);
     if (raf !== undefined) cancelAnimationFrame(raf);
     hideHoverFlag();
