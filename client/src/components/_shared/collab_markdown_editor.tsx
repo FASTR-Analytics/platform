@@ -50,7 +50,7 @@ function rgbOfHex(hex: string): [number, number, number] | null {
 
 // Forgiveness around each highlight rect — hovering NEAR the highlight (line
 // padding, the gap between wrapped segments) still counts.
-const HOVER_SLACK_PX = 6;
+const HOVER_SLACK_PX = 8;
 
 /** Attach the selection-hover name flag to a CodeMirror editor DOM. Returns
  *  the detach function.
@@ -116,13 +116,19 @@ export function attachSelectionNameHover(
     el.style.display = "block";
   }
 
+  // TRAILING throttle: always evaluate the LATEST coords. A guard that drops
+  // newer events would evaluate stale positions (flicker while moving) and
+  // could miss the final resting position entirely (stopping on a highlight
+  // showing nothing).
+  let lastX = 0;
+  let lastY = 0;
   function onMove(e: MouseEvent) {
-    const x = e.clientX;
-    const y = e.clientY;
+    lastX = e.clientX;
+    lastY = e.clientY;
     if (raf !== undefined) return;
     raf = requestAnimationFrame(() => {
       raf = undefined;
-      resolve(x, y);
+      resolve(lastX, lastY);
     });
   }
   // A selection can vanish UNDER a stationary mouse (the peer moved on) —
