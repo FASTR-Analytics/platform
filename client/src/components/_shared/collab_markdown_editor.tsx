@@ -71,7 +71,15 @@ export function attachSelectionNameHover(
   function resolve(x: number, y: number) {
     let hitSpan: HTMLElement | null = null;
     let hitRect: DOMRect | null = null;
-    for (const span of dom.querySelectorAll<HTMLElement>(".cm-ySelection")) {
+    // Two decoration kinds per multi-line selection: .cm-ySelection text
+    // marks on the (partial) first/last lines, .cm-yLineSelection LINE
+    // decorations on fully-covered middle lines — both carry the owner's
+    // colorLight background.
+    for (
+      const span of dom.querySelectorAll<HTMLElement>(
+        ".cm-ySelection, .cm-yLineSelection",
+      )
+    ) {
       for (const r of span.getClientRects()) {
         if (
           x >= r.left - HOVER_SLACK_PX && x <= r.right + HOVER_SLACK_PX &&
