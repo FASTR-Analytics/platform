@@ -100,6 +100,24 @@ export function attachSelectionNameHover(
     const r = Number(m[1]);
     const g = Number(m[2]);
     const b = Number(m[3]);
+    // yCollab's caret already names its owner while hovered (its own CSS shows
+    // .cm-ySelectionInfo on .cm-ySelectionCaret:hover). The caret sits at one
+    // end of the selection, so hovering there would show BOTH flags — suppress
+    // ours when the hovered caret is the same user's (caret background = their
+    // full-opacity identity color; the highlight is the same RGB, alpha aside).
+    for (
+      const caret of dom.querySelectorAll<HTMLElement>(".cm-ySelectionCaret")
+    ) {
+      if (!caret.matches(":hover")) continue;
+      const cm = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(
+        getComputedStyle(caret).backgroundColor,
+      );
+      if (
+        cm && Number(cm[1]) === r && Number(cm[2]) === g && Number(cm[3]) === b
+      ) {
+        return hideHoverFlag();
+      }
+    }
     const names: string[] = [];
     let flagColor = "";
     for (const [clientID, state] of awareness.getStates()) {
