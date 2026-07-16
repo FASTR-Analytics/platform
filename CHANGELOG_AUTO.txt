@@ -1,3 +1,8 @@
+[TBD] [user] [fixed] - Improved visual consistency of checkbox borders in permissions settings
+[TBD] [user] [fixed] - Error messages now display in a consistent red color throughout the app
+[TBD] [user] [changed] - Backup list styling now adapts correctly to light and dark themes
+[TBD] [user] [changed] - Style preset cards have a cleaner, simpler border appearance
+[TBD] [admin] [fixed] - Improved visual consistency of UI colors across the platform
 [1.59.1] [user] [changed] - Expand/collapse arrows now use consistent chevron icons
 [1.59.1] [user] [fixed] - Improved error messages when AI assistant encounters issues
 [1.59.1] [admin] [fixed] - AI chat errors now display more accurate error details
