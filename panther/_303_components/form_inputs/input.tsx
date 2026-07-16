@@ -6,39 +6,8 @@
 import { Match, Show, Switch } from "solid-js";
 import type { Intent } from "../types.ts";
 import { Icon } from "../icons/mod.ts";
+import { getInputClasses } from "./_internal/input_classes.ts";
 import { useAutoFocus } from "./utils.ts";
-
-// Input classes composed from utility classes and component classes
-function getInputClasses(size: "sm" | undefined, outline: boolean) {
-  return [
-    // Component classes (defined in CSS)
-    "ui-focusable",
-
-    // Form utilities
-    size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
-    size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
-    "font-400",
-
-    // Appearance: Button-identical intent outline, or neutral box
-    ...(outline
-      ? ["ui-intent-fill", "ui-intent-outline"]
-      : ["text-base-content", "border-base-300", "bg-base-100"]),
-    "rounded",
-    "border",
-
-    // Width
-    "w-full",
-
-    // Left variant for search icon
-    "data-[left=true]:rounded-l-[0px]",
-
-    // Mono variant
-    "data-[mono=true]:font-mono",
-
-    // Disabled state
-    "disabled:opacity-50",
-  ].join(" ");
-}
 
 type Props = {
   value: string;

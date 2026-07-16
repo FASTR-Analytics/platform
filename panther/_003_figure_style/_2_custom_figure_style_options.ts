@@ -20,6 +20,7 @@ import {
   type TickLabelFormatterOption,
   type ValuesColorFunc,
   type VizGraphEdgeInfoFunc,
+  type VizGraphNodeInfoFunc,
 } from "./deps.ts";
 import type {
   ArrowheadFitFallback,
@@ -440,6 +441,10 @@ export type CustomFigureStyleOptions = {
       padding?: PaddingOptions;
       maxTextWidth?: number;
       textGap?: number;
+      // Per-node overrides; precedence: this callback > the global values
+      // above. Resolved BEFORE layout: strokeWidth folds into the measured
+      // size. info.isGroup marks folded reps / group boxes.
+      nodeInfo?: VizGraphNodeInfoFunc;
     };
     edges?: {
       strokeColor?: ColorKeyOrString;
@@ -449,6 +454,15 @@ export type CustomFigureStyleOptions = {
       // Per-edge overrides; precedence: per-edge data > this callback >
       // the global values above. thickness also feeds engine clearance.
       edgeInfo?: VizGraphEdgeInfoFunc;
+    };
+    // Unfolded group boxes; per-group overrides go through nodes.nodeInfo
+    // (info.isGroup). Label text via text.vizgraphGroupLabel.
+    groups?: {
+      fillColor?: ColorKeyOrString;
+      strokeColor?: ColorKeyOrString;
+      strokeWidth?: number;
+      rectRadius?: number;
+      labelInset?: number;
     };
   };
   /////////////////////////////////////////////////////////////////////////////

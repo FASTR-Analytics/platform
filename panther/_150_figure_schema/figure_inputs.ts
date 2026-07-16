@@ -23,6 +23,7 @@ import type {
   SimpleVizInputs,
   TableInputs,
   TimeseriesInputs,
+  VizGraphCustomNode,
   VizGraphData,
   VizGraphInputs,
 } from "./deps.ts";
@@ -201,9 +202,20 @@ const _zSimpleVizInputsConforms: Conforms<
   SimpleVizInputs
 > = true;
 
+// Function-pair leaf (cf. zLabelFormatter): accepted for in-memory inputs,
+// never survives JSON storage.
+const zVizGraphCustomNode = z.custom<VizGraphCustomNode>(
+  (v) =>
+    typeof v === "object" &&
+    v !== null &&
+    typeof (v as Record<string, unknown>).measure === "function" &&
+    typeof (v as Record<string, unknown>).generate === "function",
+);
+
 export const zVizGraphInputs = z.object({
   ...figureInputsBaseFields,
   vizGraphData: zAnyPresentObject<VizGraphData>(),
+  customNode: zVizGraphCustomNode.optional(),
 });
 const _zVizGraphInputsConforms: Conforms<
   z.infer<typeof zVizGraphInputs>,
@@ -218,7 +230,8 @@ const _zMapInputsConforms: Conforms<z.infer<typeof zMapInputs>, MapInputs> =
   true;
 
 // The full FigureInputs union: surrounds and data validated, style opaque.
-// simpleVizData/mapData remain deliberately unvalidated data members.
+// simpleVizData/mapData/vizGraphData remain deliberately unvalidated data
+// members (see figure_data.ts for the vizgraph decision record).
 export const zFigureInputs: z.ZodType<FigureInputs> = z.union([
   zTableInputs,
   zChartOVInputs,

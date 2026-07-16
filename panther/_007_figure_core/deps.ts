@@ -66,6 +66,8 @@ export type {
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
   VizGraphEdgePrimitive,
+  VizGraphNodePrimitive,
+  VizGraphUnfoldedGroupPrimitive,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {

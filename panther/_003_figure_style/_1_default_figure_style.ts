@@ -21,6 +21,7 @@ import {
   toPct0,
   type ValuesColorFunc,
   type VizGraphEdgeInfoFunc,
+  type VizGraphNodeInfoFunc,
 } from "./deps.ts";
 import type {
   ArrowheadFitFallback,
@@ -431,6 +432,7 @@ const _DS = {
       padding: typed<PaddingOptions>(10),
       maxTextWidth: 200,
       textGap: 6,
+      nodeInfo: typed<VizGraphNodeInfoFunc>(() => ({})),
     },
     edges: {
       strokeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
@@ -438,6 +440,16 @@ const _DS = {
       lineDash: typed<"solid" | "dashed">("solid"),
       arrowheadSize: 7,
       edgeInfo: typed<VizGraphEdgeInfoFunc>(() => ({})),
+    },
+    // Defaults for UNFOLDED group boxes (drawn behind member nodes); folded
+    // reps default to node chrome. Per-group overrides flow through
+    // nodes.nodeInfo with info.isGroup.
+    groups: {
+      fillColor: typed<ColorKeyOrString>("transparent"),
+      strokeColor: typed<ColorKeyOrString>({ key: "base300" }),
+      strokeWidth: 1,
+      rectRadius: 6,
+      labelInset: 8,
     },
   },
   // Sankey

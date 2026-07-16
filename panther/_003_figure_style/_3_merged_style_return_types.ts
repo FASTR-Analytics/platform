@@ -24,6 +24,7 @@ import type {
   TextInfoUnkeyed,
   TickLabelFormatterOption,
   VizGraphEdgeInfo,
+  VizGraphNodeInfo,
 } from "./deps.ts";
 import type {
   ArrowheadFitFallback,
@@ -559,6 +560,7 @@ export type MergedVizGraphStyle = {
   text: {
     primary: TextInfoUnkeyed;
     secondary: TextInfoUnkeyed;
+    groupLabel: TextInfoUnkeyed;
     base: TextInfo; // Unscaled base for per-node text style overrides
   };
   nodes: {
@@ -569,6 +571,14 @@ export type MergedVizGraphStyle = {
     padding: Padding;
     maxTextWidth: number;
     textGap: number;
+    // Resolved per-node overrides: colors to strings, widths/radii scaled.
+    nodeInfo: (info: VizGraphNodeInfo) => {
+      fillColor?: string;
+      strokeColor?: string;
+      strokeWidth?: number;
+      rectRadius?: number;
+      textColor?: string;
+    };
   };
   edges: {
     strokeColor: string;
@@ -581,6 +591,13 @@ export type MergedVizGraphStyle = {
       strokeColor?: string;
       lineDash?: "solid" | "dashed";
     };
+  };
+  groups: {
+    fillColor: string;
+    strokeColor: string;
+    strokeWidth: number;
+    rectRadius: number;
+    labelInset: number;
   };
 };
 

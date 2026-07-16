@@ -57,6 +57,7 @@ export const Z_INDEX = {
   SIMPLEVIZ_ARROW: 490, // Behind boxes by default
   SIMPLEVIZ_BOX: 500,
   // VizGraph defaults
+  VIZGRAPH_UNFOLDED_GROUP: 480, // Group boxes behind edges and nodes
   VIZGRAPH_EDGE: 490, // Behind nodes by default
   VIZGRAPH_NODE: 500,
   // Cascade defaults
@@ -399,8 +400,51 @@ export type ArrowPrimitive = BasePrimitive & {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+// VizGraph owns its primitive types (Tim, 2026-07-13: never reuse
+// simpleviz-box — SimpleViz will be retired). Three primitives:
+// vizgraph-node (real nodes AND folded-group reps), vizgraph-edge, and
+// vizgraph-unfolded-group (a folded group renders as a node, never as this).
+
+export type VizGraphNodePrimitive = BasePrimitive & {
+  type: "vizgraph-node";
+  meta: {
+    // A folded rep's nodeId is its group id.
+    nodeId: string;
+  };
+  // Visual
+  rcd: RectCoordsDims;
+  rectStyle: RectStyle;
+  // Text (if present)
+  text?: {
+    mText: MeasuredText;
+    position: Coordinates;
+  };
+  secondaryText?: {
+    mText: MeasuredText;
+    position: Coordinates;
+  };
+};
+
+// The decorative box behind an unfolded group's members, label in the header
+// row. Rect-shaped today; grows a rectilinear `outline` when the engine's
+// hug-polygon item lands (PLAN_VIZGRAPH).
+export type VizGraphUnfoldedGroupPrimitive = BasePrimitive & {
+  type: "vizgraph-unfolded-group";
+  meta: {
+    groupId: string;
+  };
+  // Visual
+  rcd: RectCoordsDims;
+  rectStyle: RectStyle;
+  // Label (if present)
+  text?: {
+    mText: MeasuredText;
+    position: Coordinates;
+  };
+};
+
 // Orthogonal edge route with rounded corners (cubic segments) and optional
-// arrowheads. Nodes reuse BoxPrimitive (simpleviz-box).
+// arrowheads.
 export type VizGraphEdgePrimitive = BasePrimitive & {
   type: "vizgraph-edge";
   meta: {
@@ -686,6 +730,8 @@ export type Primitive =
   | BoxPrimitive
   | ArrowPrimitive
   // VizGraph primitives
+  | VizGraphNodePrimitive
+  | VizGraphUnfoldedGroupPrimitive
   | VizGraphEdgePrimitive
   // Sankey primitives
   | SankeyNodePrimitive

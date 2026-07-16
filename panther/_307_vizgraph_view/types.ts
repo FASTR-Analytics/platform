@@ -17,7 +17,7 @@ export type VizGraphViewNodeInfo = {
   selected: boolean;
 };
 
-// Imperative surface for actions-map runners (PLAN_VIZGRAPH.md §6 M4): the
+// Imperative surface for actions-map runners (DOC_VIZGRAPH_ARCHITECTURE.md): the
 // same operations a human triggers by clicking are callable from code, so an
 // app's AI can drive the graph like a human. Handed to the parent via
 // onReady; selection stays controlled through selected/onSelect.

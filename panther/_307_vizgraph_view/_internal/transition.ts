@@ -6,7 +6,7 @@
 import { tween } from "../deps.ts";
 import type { Geometry } from "../deps.ts";
 
-// lv4-style two-phase transition (PLAN_VIZGRAPH.md §6 M4): survivors move
+// lv4-style two-phase transition (DOC_VIZGRAPH_ARCHITECTURE.md): survivors move
 // (and removed elements fade out) during the first portion of the timeline;
 // newcomers fade in at their destination during the rest. Matched edges are
 // tweened pairwise by the engine.

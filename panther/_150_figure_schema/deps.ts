@@ -62,6 +62,7 @@ export type {
   TimeseriesJsonDataConfig,
 } from "../_010_timeseries/mod.ts";
 export type {
+  VizGraphCustomNode,
   VizGraphData,
   VizGraphInputs,
 } from "../_010_vizgraph_figure/mod.ts";

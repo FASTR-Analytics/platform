@@ -37,10 +37,12 @@ export type {
 } from "./types_options.ts";
 
 export { layout } from "./layout.ts";
+export { collapseFolded } from "./transform/collapse.ts";
 export { computePlacementMetrics } from "./placement/metrics.ts";
 export type { PlacementMetrics } from "./placement/metrics.ts";
 export { tween } from "./path/normalize.ts";
-export { toSvgPath } from "./path/svg.ts";
+export { pathRenderCommands, toSvgPath } from "./path/svg.ts";
+export type { PathCommand } from "./path/svg.ts";
 export { validate } from "./validate.ts";
 export type {
   ValidationIssue,

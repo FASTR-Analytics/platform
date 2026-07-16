@@ -152,6 +152,19 @@ export function BoxIcon(p: { class?: string }) {
   );
 }
 
+export function CalendarIcon(p: { class?: string }) {
+  return (
+    <TablerWrapper class={p.class}>
+      <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
+      <path d="M16 3v4" />
+      <path d="M8 3v4" />
+      <path d="M4 11h16" />
+      <path d="M11 15h1" />
+      <path d="M12 15v3" />
+    </TablerWrapper>
+  );
+}
+
 export function ChartIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
@@ -216,6 +229,15 @@ export function ClearAllIcon(p: { class?: string }) {
       <path d="M8 6h12" />
       <path d="M6 12h12" />
       <path d="M4 18h12" />
+    </TablerWrapper>
+  );
+}
+
+export function ClockIcon(p: { class?: string }) {
+  return (
+    <TablerWrapper class={p.class}>
+      <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+      <path d="M12 7v5l3 3" />
     </TablerWrapper>
   );
 }
@@ -874,6 +896,7 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   backspace: BackspaceIcon,
   badge: BadgeIcon,
   box: BoxIcon,
+  calendar: CalendarIcon,
   chart: ChartIcon,
   check: CheckIcon,
   chevronDown: ChevronDownIcon,
@@ -882,6 +905,7 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   chevronUp: ChevronUpIcon,
   circleX: CircleXIcon,
   clearAll: ClearAllIcon,
+  clock: ClockIcon,
   code: CodeIcon,
   copy: CopyIcon,
   dashboard: DashboardIcon,

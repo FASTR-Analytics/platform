@@ -591,6 +591,11 @@
     margin: 0;
   }
 
+  /* Hide native date/time picker glyph (panther overlays its own icon) */
+  input.ui-native-picker::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+
   /* ============================================= */
   /* Scrollbar Utilities                          */
   /* ============================================= */

@@ -61,4 +61,6 @@ export type {
   TableHeaderInfoFunc,
   VizGraphEdgeInfo,
   VizGraphEdgeInfoFunc,
+  VizGraphNodeInfo,
+  VizGraphNodeInfoFunc,
 } from "../_001_render_system/mod.ts";

@@ -11,7 +11,9 @@ const MAX_TRANSPOSE_PASSES = 4;
 // Stage 3: crossing reduction — iterative down/up barycenter sweeps plus
 // adjacent-pair transposition, keeping the best ordering seen. Seeding comes
 // from stage 2's initial order (prior-layout position → given seq → input
-// order).
+// order). The ordering contract + policy catalog live in
+// DOC_VIZGRAPH_ORDERING.md — behavioral ordering changes land as cataloged
+// policies (PLAN_VIZGRAPH architecture toll).
 export function orderStage(proper: ProperGraph): void {
   const layers = proper.layers;
   if (layers.length === 0) {
@@ -44,9 +46,25 @@ export function orderStage(proper: ProperGraph): void {
   restore(layers, best);
 }
 
+// The isolate-hold policy (DOC_VIZGRAPH_ORDERING.md). Nodes with no segments
+// at all (fully edge-less, or same-layer-edges-only after properize's
+// extraction) carry no crossing signal; sorting them by
+// their absolute order against neighbor-derived fractional barycenters lets
+// them WANDER relative to their siblings whenever the rest of the layer
+// re-sorts (the hrh education_systems bug: mid-group unfolded, last-in-group
+// folded). Hold them at their layer index instead and sort only the rest.
 function barycenterSort(layer: PNode[], side: "left" | "right"): void {
+  const heldAt = new Map<number, PNode>();
+  const active: PNode[] = [];
+  layer.forEach((pnode, i) => {
+    if (pnode.leftNeighbors.length + pnode.rightNeighbors.length === 0) {
+      heldAt.set(i, pnode);
+    } else {
+      active.push(pnode);
+    }
+  });
   const barycenters = new Map<PNode, number>();
-  for (const pnode of layer) {
+  for (const pnode of active) {
     const neighbors = side === "left"
       ? pnode.leftNeighbors
       : pnode.rightNeighbors;
@@ -57,7 +75,11 @@ function barycenterSort(layer: PNode[], side: "left" | "right"): void {
       barycenters.set(pnode, sum / neighbors.length);
     }
   }
-  layer.sort((a, b) => barycenters.get(a)! - barycenters.get(b)!);
+  active.sort((a, b) => barycenters.get(a)! - barycenters.get(b)!);
+  let next = 0;
+  for (let i = 0; i < layer.length; i++) {
+    layer[i] = heldAt.get(i) ?? active[next++];
+  }
   layer.forEach((pnode, i) => {
     pnode.order = i;
   });
@@ -112,7 +134,7 @@ function totalCrossings(layers: PNode[][]): number {
 
 // Crossings between a layer and the next, counting inversions among the
 // (left order, right order) segment pairs. O(m²) — fine at target scale
-// (PLAN_VIZGRAPH.md §1 right-sizing).
+// (DOC_VIZGRAPH_ARCHITECTURE.md right-sizing).
 function crossingsBetween(leftLayer: PNode[]): number {
   const segments: [number, number][] = [];
   for (const pnode of leftLayer) {

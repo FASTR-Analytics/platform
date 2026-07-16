@@ -28,6 +28,8 @@ import type {
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
   VizGraphEdgePrimitive,
+  VizGraphNodePrimitive,
+  VizGraphUnfoldedGroupPrimitive,
 } from "./deps.ts";
 import { Coordinates, Padding, RectCoordsDims } from "./deps.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
@@ -225,6 +227,12 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
 
     case "simpleviz-arrow":
       renderArrowPrimitive(rc, primitive);
+      break;
+    case "vizgraph-node":
+      renderVizGraphNodePrimitive(rc, primitive);
+      break;
+    case "vizgraph-unfolded-group":
+      renderVizGraphUnfoldedGroupPrimitive(rc, primitive);
       break;
     case "vizgraph-edge":
       renderVizGraphEdgePrimitive(rc, primitive);
@@ -615,6 +623,34 @@ function renderArrowPrimitive(
   );
 }
 
+function renderVizGraphNodePrimitive(
+  rc: RenderContext,
+  primitive: VizGraphNodePrimitive,
+): void {
+  rc.rRect(primitive.rcd, primitive.rectStyle);
+  if (primitive.text) {
+    rc.rText(primitive.text.mText, primitive.text.position, "center", "middle");
+  }
+  if (primitive.secondaryText) {
+    rc.rText(
+      primitive.secondaryText.mText,
+      primitive.secondaryText.position,
+      "center",
+      "middle",
+    );
+  }
+}
+
+function renderVizGraphUnfoldedGroupPrimitive(
+  rc: RenderContext,
+  primitive: VizGraphUnfoldedGroupPrimitive,
+): void {
+  rc.rRect(primitive.rcd, primitive.rectStyle);
+  if (primitive.text) {
+    rc.rText(primitive.text.mText, primitive.text.position, "center", "middle");
+  }
+}
+
 function renderVizGraphEdgePrimitive(
   rc: RenderContext,
   primitive: VizGraphEdgePrimitive,
@@ -627,6 +663,8 @@ function renderVizGraphEdgePrimitive(
   const lineStyle: LineStyle = {
     strokeWidth: stroke.width,
     strokeColor: stroke.color,
+    // Deliberately solid even when the shaft is dashed — a dashed arrowhead
+    // reads as broken.
     lineDash: "solid",
   };
   if (primitive.arrowheads?.start) {

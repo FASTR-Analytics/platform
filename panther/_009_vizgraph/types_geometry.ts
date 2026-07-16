@@ -44,7 +44,7 @@ export type HitArea = {
 };
 
 // Variable length, exactly the route's bends — never padded to a fixed count.
-// Morphing is pairwise tween-time normalization (PLAN_VIZGRAPH.md §4).
+// Morphing is pairwise tween-time normalization (DOC_VIZGRAPH_ARCHITECTURE.md geometry contract).
 export type PathSpec = {
   points: Pt[];
   corners: number[];

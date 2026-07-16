@@ -7,7 +7,7 @@ import type { PathSpec, Pt } from "../types_geometry.ts";
 
 const PARAM_EPS = 1e-6;
 
-// Pairwise tween-time normalization (PLAN_VIZGRAPH.md §4): any two PathSpecs
+// Pairwise tween-time normalization (DOC_VIZGRAPH_ARCHITECTURE.md geometry contract): any two PathSpecs
 // for the same edge are tweenable. Both paths are parametrized by normalized
 // arc length; the union of their breakpoint parameters becomes the shared
 // structure (coincident points inserted for this pair only — output paths

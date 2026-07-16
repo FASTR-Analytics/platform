@@ -5,4 +5,4 @@
 
 // This module has no external dependencies. The engine imports nothing — not
 // even other panther modules — so it stays extraction-ready as a standalone
-// package (PLAN_VIZGRAPH.md §2).
+// package (DOC_VIZGRAPH_ARCHITECTURE.md).

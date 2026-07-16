@@ -5,8 +5,10 @@
 
 export type {
   MeasuredVizGraph,
+  VizGraphCustomNode,
   VizGraphData,
   VizGraphDataEdge,
+  VizGraphDataGroup,
   VizGraphDataNode,
   VizGraphInputs,
 } from "./types.ts";

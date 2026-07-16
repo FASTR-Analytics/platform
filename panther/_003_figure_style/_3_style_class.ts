@@ -1433,6 +1433,11 @@ export class CustomFigureStyle {
           g.text?.vizgraphNodeTextSecondary,
           baseText,
         ),
+        groupLabel: getTextInfo(
+          c.text?.vizgraphGroupLabel,
+          g.text?.vizgraphGroupLabel,
+          baseText,
+        ),
         base: baseText,
       },
       nodes: {
@@ -1480,6 +1485,30 @@ export class CustomFigureStyle {
           g.vizgraph?.nodes?.textGap,
           d.vizgraph.nodes.textGap,
         ),
+        nodeInfo: (info) => {
+          const raw = m(
+            c.vizgraph?.nodes?.nodeInfo,
+            g.vizgraph?.nodes?.nodeInfo,
+            d.vizgraph.nodes.nodeInfo,
+          )(info);
+          return {
+            fillColor: raw.fillColor === undefined
+              ? undefined
+              : getColor(raw.fillColor),
+            strokeColor: raw.strokeColor === undefined
+              ? undefined
+              : getColor(raw.strokeColor),
+            strokeWidth: raw.strokeWidth === undefined
+              ? undefined
+              : raw.strokeWidth * sf,
+            rectRadius: raw.rectRadius === undefined
+              ? undefined
+              : raw.rectRadius * sf,
+            textColor: raw.textColor === undefined
+              ? undefined
+              : getColor(raw.textColor),
+          };
+        },
       },
       edges: {
         strokeColor: getColor(
@@ -1522,6 +1551,40 @@ export class CustomFigureStyle {
             lineDash: raw.lineDash,
           };
         },
+      },
+      groups: {
+        fillColor: getColor(
+          m(
+            c.vizgraph?.groups?.fillColor,
+            g.vizgraph?.groups?.fillColor,
+            d.vizgraph.groups.fillColor,
+          ),
+        ),
+        strokeColor: getColor(
+          m(
+            c.vizgraph?.groups?.strokeColor,
+            g.vizgraph?.groups?.strokeColor,
+            d.vizgraph.groups.strokeColor,
+          ),
+        ),
+        strokeWidth: ms(
+          sf,
+          c.vizgraph?.groups?.strokeWidth,
+          g.vizgraph?.groups?.strokeWidth,
+          d.vizgraph.groups.strokeWidth,
+        ),
+        rectRadius: ms(
+          sf,
+          c.vizgraph?.groups?.rectRadius,
+          g.vizgraph?.groups?.rectRadius,
+          d.vizgraph.groups.rectRadius,
+        ),
+        labelInset: ms(
+          sf,
+          c.vizgraph?.groups?.labelInset,
+          g.vizgraph?.groups?.labelInset,
+          d.vizgraph.groups.labelInset,
+        ),
       },
     };
   }

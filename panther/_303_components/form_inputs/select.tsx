@@ -40,6 +40,9 @@ function getSelectClasses(size: "sm" | undefined, outline: boolean) {
 
     // Placeholder state (grey text when no value selected)
     "data-[placeholder=true]:text-neutral",
+
+    // Disabled state
+    "disabled:opacity-50",
   ].join(" ");
 }
 
@@ -54,6 +57,7 @@ type Props<T extends string> = {
   autoFocus?: boolean;
   invalidMsg?: string;
   mono?: boolean;
+  disabled?: boolean;
   size?: "sm";
   outline?: boolean;
 };
@@ -79,6 +83,7 @@ export function Select<T extends string>(p: Props<T>) {
           data-mono={p.mono}
           data-placeholder={p.placeholder && !p.value}
           autofocus={p.autoFocus}
+          disabled={p.disabled}
         >
           <Show when={p.placeholder && !p.value}>
             <option value="" disabled>
