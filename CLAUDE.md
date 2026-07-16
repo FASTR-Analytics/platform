@@ -162,12 +162,7 @@ wb-fastr/
 
 ## State Management
 
-See the `DOC_STATE_*` protocol docs for the full architecture:
-
-- `DOC_STATE_MGT_TIERS.md` — 5-tier classification (T1 SSE store → T5 component-local)
-- `DOC_STATE_MGT_INSTANCE.md` — instance-level tiers and cache inventory
-- `DOC_STATE_MGT_PROJECT.md` — project-level tiers and cache inventory
-- `DOC_STATE_RULES.md` — short hit-list of rules that have each caused production bugs
+- [CROSS_CLIENT_STATE.md](CROSS_CLIENT_STATE.md) — the T1–T5 tier model, app-specific read/write rules, and state/cache inventories (base construction rules: `panther/protocols/PROTOCOL_UI_STATE.md` + `PROTOCOL_UI_SOLIDJS.md`)
 - `DOC_SSE_REALTIME.md` — server-side push system, notify catalog, connection lifecycle
 
 ## API Routes
@@ -289,7 +284,7 @@ Prescriptive protocols for how this app is built (distinct from the `panther/pro
 
 ### Client / UI
 
-- [DOC_BUILD_INSTRUCTIONS.md](DOC_BUILD_INSTRUCTIONS.md), [DOC_DESIGN_SYSTEM.md](DOC_DESIGN_SYSTEM.md), [DOC_SPECIAL_CHART_MODES.md](DOC_SPECIAL_CHART_MODES.md), [DOC_TRANSLATION.md](DOC_TRANSLATION.md), [DOC_STATE_RULES.md](DOC_STATE_RULES.md) (+ `DOC_STATE_MGT_*`)
+- [DOC_BUILD_INSTRUCTIONS.md](DOC_BUILD_INSTRUCTIONS.md), [DOC_DESIGN_SYSTEM.md](DOC_DESIGN_SYSTEM.md), [DOC_SPECIAL_CHART_MODES.md](DOC_SPECIAL_CHART_MODES.md), [DOC_TRANSLATION.md](DOC_TRANSLATION.md), [CROSS_CLIENT_STATE.md](CROSS_CLIENT_STATE.md)
 
 ### Cross-project base (`panther/protocols/`)
 

@@ -2,7 +2,7 @@
 
 Server-side authentication and authorization end to end: Clerk session population, the two permission-guard factories, the `Project-Id`-header scoping pipeline, the permission-key source of truth, and the special-mode precedence (`_BYPASS_AUTH` / `_OPEN_ACCESS` / `is_admin` / `H_USERS`).
 
-> This doc owns authn/authz. It assumes the registry/`defineRoute` mechanics from [DOC_API_ROUTES.md](DOC_API_ROUTES.md) (guards are the middleware passed to `defineRoute`). The DB-outage→503 mapping ties into the error funnel in [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md). The client state docs ([DOC_STATE_MGT_*](DOC_STATE_RULES.md)) are about the *client*; this is the server gate.
+> This doc owns authn/authz. It assumes the registry/`defineRoute` mechanics from [DOC_API_ROUTES.md](DOC_API_ROUTES.md) (guards are the middleware passed to `defineRoute`). The DB-outage→503 mapping ties into the error funnel in [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md). The client state doc ([CROSS_CLIENT_STATE.md](CROSS_CLIENT_STATE.md)) is about the *client*; this is the server gate.
 
 ---
 

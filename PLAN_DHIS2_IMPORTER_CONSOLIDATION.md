@@ -27,7 +27,7 @@ keep working untouched on their old machinery.
   DOC_DB_ACCESS_LAYER.md (SQL-safety rule — no parameterized table names),
   PROTOCOL_APP_MIGRATIONS.md, DOC_WORKER_ROUTINES.md (READY handshake,
   teardown contract), DOC_TASK_EXECUTION_DIRTY_STATE.md,
-  DOC_STATE_RULES.md + DOC_STATE_MGT_INSTANCE.md (wizard state is
+  CROSS_CLIENT_STATE.md (wizard state is
   component-local), PROTOCOL_UI_STRUCTURE. SYSTEM_06_ingestion.md describes
   the machinery being replaced (its "HMIS DHIS2 import runs" section is the
   authority on the runs plane this plan extends).

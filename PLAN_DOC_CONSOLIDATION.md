@@ -13,7 +13,10 @@
 > DOC_AI_TOOL_SCHEMAS → SYSTEM_13 + new PROTOCOL_APP_AI_TOOLS, 2026-07-07;
 > review-only cycle — findings are S13 Open items, no fix batch yet), S7
 > (DOC_DHIS2_INTEGRATION, 2026-07-14; review-only cycle — findings are S7
-> Open items). This plan deletes itself when the last `DOC_*` is gone.
+> Open items), CROSS_CLIENT_STATE (DOC_STATE_RULES + 3× DOC_STATE_MGT_*,
+> 2026-07-16; claims verified against code, generic rules deferred to panther
+> PROTOCOL_UI_STATE/_SOLIDJS; review-only — code findings are its Open items).
+> This plan deletes itself when the last `DOC_*` is gone.
 
 ## 1. `DOC_*` → target mapping (3-way sort)
 
@@ -66,8 +69,7 @@ DOC_* is inlined during its cycle.
   `components/project/index.tsx` area).
 - **DOC_VALKEY_CACHE:** prefix `po_detail` → code is `po_detail_v2`.
 - **DOC_API_ROUTES:** raw-route exception list cites the deleted share.ts routes.
-- Minor: DOC_STATE_MGT_PROJECT cites `notify_project_updated.ts` (real:
-  `notify_project_v2.ts`); DOC_BUILD_INSTRUCTIONS/DOC_DESIGN_SYSTEM cite
+- Minor: DOC_BUILD_INSTRUCTIONS/DOC_DESIGN_SYSTEM cite
   `panther/FRONTEND_STYLE_GUIDE.md` (real: `client/src/FRONTEND_STYLE_GUIDE.md`);
   DOC_MODULE_UPDATES uses spec-style `:projectId` paths; DOC_ACCESS_DBS cites a
   deleted diagnostic script.
@@ -79,11 +81,10 @@ hold real prose that readers aren't sent to stubs.
 
 ## 4. Open decisions for Tim
 
-1. **`CROSS_*` set** — the 2 proposed (CROSS_UI_CONVENTIONS ← DOC_DESIGN_SYSTEM +
-   DOC_BUILD_INSTRUCTIONS; CROSS_CLIENT_STATE ← DOC_STATE_RULES + 3×
-   DOC_STATE_MGT_*), or fold into S14/S3 and accept wider cross-links?
-   (Recommend the 2 CROSS files — both are conventions every client system
-   follows.)
+1. **`CROSS_*` set** — RULED for state (CROSS_CLIENT_STATE shipped
+   2026-07-16). Remaining half of the decision: CROSS_UI_CONVENTIONS ←
+   DOC_DESIGN_SYSTEM + DOC_BUILD_INSTRUCTIONS, or fold into S14?
+   (Recommend the CROSS file — conventions every client system follows.)
 2. **`PROTOCOL_APP_*` naming/scope** — confirm the token and repo-root location
    (vs a `protocols_app/` dir, or `GUIDE_*`). PROTOCOL_APP_MIGRATIONS already
    exists as the precedent.
