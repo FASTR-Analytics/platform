@@ -229,10 +229,16 @@ function NativePickerInput(p: NativePickerInputProps) {
 
   return (
     <div>
+      {
+        /* [contain:inline-size] keeps label/message out of the w-fit intrinsic
+          width — they wrap at the input's width instead of widening it */
+      }
       <Show when={p.label}>
-        <label class="ui-label" data-intent={p.intent}>
-          {p.label}
-        </label>
+        <div class="[contain:inline-size]">
+          <label class="ui-label" data-intent={p.intent}>
+            {p.label}
+          </label>
+        </div>
       </Show>
       <div class="ui-form-text relative w-full">
         <input
@@ -254,8 +260,10 @@ function NativePickerInput(p: NativePickerInputProps) {
         </div>
       </div>
       <Show when={p.invalidMsg}>
-        <div class="ui-text-small text-danger inline-block pt-1">
-          {p.invalidMsg}
+        <div class="[contain:inline-size]">
+          <div class="ui-text-small text-danger inline-block pt-1">
+            {p.invalidMsg}
+          </div>
         </div>
       </Show>
     </div>
