@@ -39,10 +39,12 @@ envelope and route contract are **S1**
 ([SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md)); the generic
 envelope/boundary-validation rules both build on are panther's
 `protocols/PROTOCOL_DENO_API.md`, deferred there. The worker lifecycle around
-worker connections is **S8** (DOC_WORKER_ROUTINES); what the bulk-import SQL
-does is **S6** ([SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md)). Operator
-access to the databases from outside the app (DOC_ACCESS_DBS) is S15's cycle.
-Sub-file custody exceptions are in SYSTEMS.md §4.1: `db/project/projects.ts` and
+worker connections is
+[PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md) (S8); what
+the bulk-import SQL does is **S6**
+([SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md)). Operator access to the
+databases from outside the app (DOC_ACCESS_DBS) is S15's cycle. Sub-file custody
+exceptions are in SYSTEMS.md §4.1: `db/project/projects.ts` and
 `routes/instance/backups.ts` are owned by S15 with S2 a mandatory reader — the
 slices reviewed here are project-DB create/drop and the restore body; `main.ts`
 is owned by S1 (S2 reader — the boot call order).
@@ -124,7 +126,8 @@ with no access to the request cache:
 
 `prepare: false` is required for the buffered bulk-`INSERT` style used by
 importers. **These are not cached — every worker exit path must `.end()` them**
-(teardown contract: DOC_WORKER_ROUTINES).
+(teardown contract:
+[PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md)).
 
 ### The `READ_ONLY` flag is cosmetic ⚠️
 

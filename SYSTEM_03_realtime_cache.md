@@ -40,14 +40,15 @@ DOC_SSE_REALTIME + DOC_VALKEY_CACHE).
 Boundaries: the client _consumer_ rules (tiers, live/snapshot reads,
 never-refetch-after-mutation) are [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md)
 — this system owns the machinery those rules run on. The write side that bumps
-version columns is **S2** ([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). SSE is server _push_; it is not
-the request-scoped NDJSON `StreamWriter` in **S1**
-(SYSTEM_01_api_contract.md). The third
-BroadcastChannel, `"task_ended"`, is **S8**'s internal worker plumbing
-(DOC_TASK_EXECUTION_DIRTY_STATE) — it feeds no SSE endpoint and is exempt from
-the notify-catalog rule. `server/middleware/cache.ts` (`cacheMiddleware`) sets
-HTTP `Cache-Control` headers on static assets — a completely different "cache",
-owned elsewhere. Sub-file custody exceptions are in SYSTEMS.md §4.1
+version columns is **S2**
+([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). SSE is server _push_; it
+is not the request-scoped NDJSON `StreamWriter` in **S1**
+(SYSTEM_01_api_contract.md). The third BroadcastChannel, `"task_ended"`, is
+**S8**'s internal worker plumbing (SYSTEM_08_module_system.md) — it feeds no SSE
+endpoint and is exempt from the notify-catalog rule.
+`server/middleware/cache.ts` (`cacheMiddleware`) sets HTTP `Cache-Control`
+headers on static assets — a completely different "cache", owned elsewhere.
+Sub-file custody exceptions are in SYSTEMS.md §4.1
 (`lib/types/project_dirty_states.ts` is owned here, S8 mandatory reader;
 `t2_presentation_objects.ts` is owned by S9, this system a mandatory reader;
 `task_management/mod.ts` is S8's barrel and re-exports the notify hub).
@@ -90,7 +91,8 @@ Exactly **two SSE-feeding** broadcast channels, each with one endpoint:
 
 `BroadcastChannel` in Deno is in-process: it fans out across the main thread and
 all Web Workers in the same process — which is how a background worker's
-progress reaches the main-thread SSE connection (DOC_WORKER_ROUTINES).
+progress reaches the main-thread SSE connection
+(PROTOCOL_APP_WORKER_ROUTINES.md).
 
 **Message contract.** `InstanceSseMessage` (`lib/types/instance_sse.ts`) and
 `ProjectSseMessage` (`lib/types/project_sse.ts`) are discriminated unions keyed
