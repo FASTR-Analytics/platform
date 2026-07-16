@@ -167,7 +167,7 @@ export function NestedMultiSelect<T extends string>(
                   >
                     <button
                       type="button"
-                      class="flex h-5 w-5 flex-none items-center justify-center"
+                      class="flex h-5 w-5 flex-none cursor-pointer items-center justify-center"
                       onClick={() => toggleExpand(bn.key)}
                       aria-expanded={isOpen(bn.key)}
                       aria-label={isOpen(bn.key) ? "Collapse" : "Expand"}

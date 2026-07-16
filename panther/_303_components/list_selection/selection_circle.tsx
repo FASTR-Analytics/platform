@@ -13,7 +13,7 @@ export type SelectionCircleProps = {
 export function SelectionCircle(p: SelectionCircleProps): JSX.Element {
   return (
     <div
-      class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
+      class="absolute right-2 top-2 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
       classList={{
         "bg-primary text-primary-content opacity-100": p.isSelected,
         "border border-border bg-transparent hover:bg-base-300 hover:text-white [&:not(:hover)]:text-transparent":

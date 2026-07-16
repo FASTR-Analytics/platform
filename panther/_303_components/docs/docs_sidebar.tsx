@@ -205,7 +205,7 @@ function NavItemComponent(p: {
         <Show when={hasChildren()} keyed>
           <button
             type="button"
-            class="flex h-[1.25em] w-[1.25em] items-center justify-center"
+            class="flex h-[1.25em] w-[1.25em] cursor-pointer items-center justify-center"
             onClick={handleChevronClick}
             aria-label={p.isExpanded ? "Collapse" : "Expand"}
             aria-expanded={p.isExpanded}
