@@ -263,8 +263,7 @@ Prescriptive protocols for how this app is built (distinct from the `panther/pro
 
 ### Server / architecture
 
-- [DOC_API_ROUTES.md](DOC_API_ROUTES.md) — registry-as-contract, `defineRoute`, `APIResponse` envelope, streaming sub-protocol
-- [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md) — Clerk, the two permission guards, `Project-Id` scoping, special modes
+- [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md) — registry-as-contract, `defineRoute`, `APIResponse` envelope, streaming sub-protocol, Clerk, the two permission guards, `Project-Id` scoping, special modes ([PROTOCOL_APP_ROUTES.md](PROTOCOL_APP_ROUTES.md) is the add-a-route recipe)
 - [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md) — connections, DB-function shape, error funnel, **SQL-safety rule** (authoritative for the multi-DB naming/connection model)
 - [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) — BroadcastChannel→SSE, notify catalog, the `last_updated → SSE → cache` triangle, `TimCacheC` version-hash keying + implicit invalidation
 - [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md) — dirty state machine, dependency propagation, `task_ended` loop

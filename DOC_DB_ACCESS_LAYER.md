@@ -2,7 +2,7 @@
 
 The runtime (non-migration) database layer: the multi-database model and connection strategies, the canonical `Sql`-first `APIResponse` function shape, the error funnel, JSON round-tripping, and the **SQL-safety boundary** (this doc is the normative owner of that rule).
 
-> Schema migrations, JSON data-transforms, and the write-time/read-time *validation* boundary live in [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) — this doc cross-links rather than restates them. This is the authoritative source for the runtime DB **naming and connection model**. DB functions return `APIResponse` envelopes consumed by routes ([DOC_API_ROUTES.md](DOC_API_ROUTES.md)).
+> Schema migrations, JSON data-transforms, and the write-time/read-time *validation* boundary live in [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) — this doc cross-links rather than restates them. This is the authoritative source for the runtime DB **naming and connection model**. DB functions return `APIResponse` envelopes consumed by routes ([SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md)).
 
 ---
 

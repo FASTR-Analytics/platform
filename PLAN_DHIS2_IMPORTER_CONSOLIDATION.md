@@ -23,7 +23,8 @@ keep working untouched on their old machinery.
 - **Scope:** this repo only — no panther or wb-fastr-modules changes. Commit
   to the current branch (one commit per phase is a good shape). Nothing
   deploys until Tim runs the deploy.
-- **Read first:** DOC_API_ROUTES.md (registry-as-contract),
+- **Read first:** SYSTEM_01_api_contract.md + PROTOCOL_APP_ROUTES.md
+  (registry-as-contract),
   DOC_DB_ACCESS_LAYER.md (SQL-safety rule — no parameterized table names),
   PROTOCOL_APP_MIGRATIONS.md, DOC_WORKER_ROUTINES.md (READY handshake,
   teardown contract), DOC_TASK_EXECUTION_DIRTY_STATE.md,
@@ -270,7 +271,7 @@ existing `"hmis"` worker key:
   worker-contract helpers consumed by both workers (and by B/C's workers
   later). Extraction with two concrete consumers, no speculation.
 
-### A5. Routes (registry-first, per DOC_API_ROUTES)
+### A5. Routes (registry-first, per PROTOCOL_APP_ROUTES)
 
 Deleted (registry + handlers + client callers — the "Upload workflow"
 block in `lib/api-routes/instance/datasets.ts`, names verified

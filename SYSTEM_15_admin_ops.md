@@ -33,7 +33,6 @@ globs:
   - server/utils/disk_space.ts
 docs_absorbed:
   - DOC_ACCESS_DBS
-  - DOC_ACCESS_CONTROL
 ---
 # S15 — Instance Administration & Ops
 
@@ -63,15 +62,16 @@ topology.
 
 ## Contract
 
-Writes the permission rows S1 evaluates; sole creator/destroyer of project
-DBs; health is deliberately unauthenticated (exposure inventory must stay
-deliberate — PLAN_HARDEN_SECURITY); out-of-band side effects invisible to
-the route registry.
+Writes the permission rows S1 evaluates (guard semantics, permission keys,
+and special modes live in
+[SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md)); sole
+creator/destroyer of project DBs; health is deliberately unauthenticated
+(exposure inventory must stay deliberate — PLAN_HARDEN_SECURITY);
+out-of-band side effects invisible to the route registry.
 
 ## Docs absorbed (Phase 2)
 
 - [DOC_ACCESS_DBS](DOC_ACCESS_DBS.md)
-- [DOC_ACCESS_CONTROL](DOC_ACCESS_CONTROL.md)
 
 ## Open items
 

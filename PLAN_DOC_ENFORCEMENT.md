@@ -15,7 +15,7 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 - [ ] **1. `health.ts` routes have no permission guard.**
   ~12 routes (`/user_logs`, `/ai_usage`, `/project_activity`, `/pg_stat_statements`, …) plus a **mutating** `POST /pg_stat_statements_reset` are registered raw and sit behind `clerkMiddleware` (which populates, doesn't reject) with no `requireGlobalPermission`. Any logged-in user — any role — can read logs / AI usage / pg stats and reset stats.
   **Fix:** add `requireGlobalPermission("can_view_logs")` (or `{ requireAdmin: true }` for the reset/pg-stats endpoints) to each route, or move them behind a guarded router.
-  **File:** `server/routes/instance/health.ts`, mounting in `main.ts`. **Doc:** [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md).
+  **File:** `server/routes/instance/health.ts`, mounting in `main.ts`. **Doc:** [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md).
 
 - [ ] **2. Module-run liveness: leaked connection + stuck "running" + no crash recovery.** Three compounding issues:
   - `run_module/worker.ts` `run()` creates `projectDb` then, on the early `getModuleDetail`-failure return, `.end()`s `mainDb` but **not** `projectDb` — a leaked dedicated-pool connection on every failed run.
@@ -31,11 +31,11 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 ## Tier 2 — Turn a doc into an enforced protocol (each also kills a bug class)
 
 - [x] **3. `validateAllRoutesDefined` should fail, not warn.**
-  **DONE 2026-06-12** (via the API-routes hardening pass, plan deleted): boot now `Deno.exit(1)`s on missing/extra routes and additionally checks registry key collisions and duplicate `method+path` pairs. See DOC_API_ROUTES.md §Startup validation.
+  **DONE 2026-06-12** (via the API-routes hardening pass, plan deleted): boot now `Deno.exit(1)`s on missing/extra routes and additionally checks registry key collisions and duplicate `method+path` pairs. See SYSTEM_01_api_contract.md §Startup validation.
 
 - [ ] **4. Startup guard-audit: every registered route is guarded or explicitly public.**
   Classify each route registered via `defineRoute` as having a permission guard or an explicit `/* PUBLIC */` marker; fail boot on an unclassified route. Permanently closes the `health.ts`-style class (item 1) and any future omission.
-  **Files:** `server/routes/route-tracker.ts` (extend the tracker), `main.ts` (run after mounting). **Doc:** [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md).
+  **Files:** `server/routes/route-tracker.ts` (extend the tracker), `main.ts` (run after mounting). **Doc:** [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md).
 
 - [ ] **5. `CHECK` constraint on `modules.dirty`.**
   Constrain to `('queued','ready','error')`. `getModuleDirtyOrRunning` already throws on any other value, so today a stray write silently breaks a project's dirty-state read. Add an idempotent migration (see [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) for the `DO $$ … pg_constraint` pattern).
