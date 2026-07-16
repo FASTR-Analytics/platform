@@ -8,12 +8,10 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  createUniqueId,
   For,
   layout,
   onCleanup,
   onMount,
-  toSvgPath,
   untrack,
 } from "./deps.ts";
 import type { Geometry, LayoutOptions } from "./deps.ts";
@@ -30,6 +28,7 @@ import {
   nodeOpacityKey,
 } from "./_internal/transition.ts";
 import type { TransitionFrame } from "./_internal/transition.ts";
+import { arrowheadPath, shaftPath } from "./_internal/edge_paint.ts";
 
 const DEFAULT_TRANSITION_MS = 500;
 const CAMERA_ANIMATION_MS = 300;
@@ -39,7 +38,6 @@ const ZOOM_INTENSITY = 0.0015;
 const FIT_PADDING_PX = 40;
 const CLICK_DRAG_THRESHOLD_PX = 4;
 const DEFAULT_EDGE_THICKNESS = 1.5;
-const ARROW_SIZE = 7;
 const RESIZE_RELAYOUT_DEBOUNCE_MS = 100;
 
 const EMPTY_GEOMETRY: Geometry = {
@@ -54,7 +52,6 @@ const EMPTY_GEOMETRY: Geometry = {
 
 export function VizGraphView(p: VizGraphViewProps) {
   let viewportEl!: HTMLDivElement;
-  const markerId = `vizgraph-arrow-${createUniqueId()}`;
 
   const [camera, setCamera] = createSignal({ x: 0, y: 0, scale: 1 });
   const [internalSelected, setInternalSelected] = createSignal<string[]>([]);
@@ -412,29 +409,27 @@ export function VizGraphView(p: VizGraphViewProps) {
             "pointer-events": "none",
           }}
         >
-          <defs>
-            <marker
-              id={markerId}
-              viewBox="0 0 10 10"
-              refX="10"
-              refY="5"
-              markerWidth={ARROW_SIZE}
-              markerHeight={ARROW_SIZE}
-              orient="auto-start-reverse"
-            >
-              <path d="M 0 0 L 10 5 L 0 10 z" class="ui-vizgraph-arrowhead" />
-            </marker>
-          </defs>
           <For each={edgeIds()}>
-            {(id) => (
-              <path
-                class="ui-vizgraph-edge"
-                d={toSvgPath(frame().geometry.edges[id].path)}
-                stroke-width={thicknessByEdge()[id] ?? DEFAULT_EDGE_THICKNESS}
-                marker-end={`url(#${markerId})`}
-                opacity={frame().opacities?.[edgeOpacityKey(id)] ?? 1}
-              />
-            )}
+            {(id) => {
+              const thickness = () =>
+                thicknessByEdge()[id] ?? DEFAULT_EDGE_THICKNESS;
+              return (
+                <g opacity={frame().opacities?.[edgeOpacityKey(id)] ?? 1}>
+                  <path
+                    class="ui-vizgraph-edge"
+                    d={shaftPath(frame().geometry.edges[id].path, thickness())}
+                    stroke-width={thickness()}
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    class="ui-vizgraph-arrowhead"
+                    d={arrowheadPath(frame().geometry.edges[id].path)}
+                    stroke-width={thickness()}
+                    stroke-linejoin="round"
+                  />
+                </g>
+              );
+            }}
           </For>
         </svg>
         <For each={nodeIds()}>

@@ -11,6 +11,7 @@ export type {
   GraphModel,
   LayoutOptions,
   NodeGeom,
+  PathSpec,
 } from "../_009_vizgraph/mod.ts";
 export {
   batch,
