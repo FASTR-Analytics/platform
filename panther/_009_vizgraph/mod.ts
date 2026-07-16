@@ -41,7 +41,12 @@ export { collapseFolded } from "./transform/collapse.ts";
 export { computePlacementMetrics } from "./placement/metrics.ts";
 export type { PlacementMetrics } from "./placement/metrics.ts";
 export { tween } from "./path/normalize.ts";
-export { pathRenderCommands, toSvgPath } from "./path/svg.ts";
+export {
+  pathRenderCommands,
+  pathRenderCommandsClosedRing,
+  toSvgPath,
+  toSvgPathClosedRing,
+} from "./path/svg.ts";
 export type { PathCommand } from "./path/svg.ts";
 export { validate } from "./validate.ts";
 export type {

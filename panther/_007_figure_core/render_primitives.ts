@@ -645,7 +645,18 @@ function renderVizGraphUnfoldedGroupPrimitive(
   rc: RenderContext,
   primitive: VizGraphUnfoldedGroupPrimitive,
 ): void {
-  rc.rRect(primitive.rcd, primitive.rectStyle);
+  if (primitive.outline !== undefined && primitive.outline.length > 0) {
+    const { fillColor, strokeColor, strokeWidth } = primitive.rectStyle;
+    rc.rPath(primitive.outline, {
+      fill: { color: fillColor },
+      stroke: strokeColor !== undefined && strokeWidth !== undefined &&
+          strokeWidth > 0
+        ? { color: strokeColor, width: strokeWidth }
+        : undefined,
+    });
+  } else {
+    rc.rRect(primitive.rcd, primitive.rectStyle);
+  }
   if (primitive.text) {
     rc.rText(primitive.text.mText, primitive.text.position, "center", "middle");
   }

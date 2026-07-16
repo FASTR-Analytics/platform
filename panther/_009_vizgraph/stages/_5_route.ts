@@ -20,7 +20,7 @@ import type { LayoutOptions, ResolvedSpacing } from "../types_options.ts";
 // port fans space by portGap + the side's max thickness. The old caps (≤2
 // immediate edges per side) are lifted by design.
 
-const DEFAULT_CORNER_RADIUS = 12;
+export const DEFAULT_CORNER_RADIUS = 12;
 // Min vertical clearance between two intervals sharing a track.
 const TRACK_PACK_PAD = 6;
 // A gutter hop with less vertical travel than this runs straight through.

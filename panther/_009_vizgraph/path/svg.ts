@@ -148,10 +148,82 @@ function isShallowMiddle(
     Math.min(radius[k], radius[k + 1]) >= halfM;
 }
 
+// Closed-ring variant for group hug outlines (PLAN item: the primitive
+// type's anticipated rectilinear `outline`): every vertex is a corner —
+// corners[i] belongs to points[i], the last→first segment is implied. Same
+// per-corner geometry as pathRenderCommands (radius clamped to half of each
+// adjacent segment, quadratic curve through the vertex; the turn direction
+// picks convex vs concave automatically), WITHOUT the shallow-jog smoothing
+// (rings are rectilinear hugs, not edge jogs). Commands start and end at the
+// first vertex's exit point, so the path closes exactly.
+export function pathRenderCommandsClosedRing(ring: PathSpec): PathCommand[] {
+  const pts = ring.points;
+  const n = pts.length;
+  if (n === 0) {
+    return [];
+  }
+  if (n < 3) {
+    const commands: PathCommand[] = [
+      { type: "move", x: pts[0].x, y: pts[0].y },
+    ];
+    for (let i = 1; i < n; i++) {
+      commands.push({ type: "line", x: pts[i].x, y: pts[i].y });
+    }
+    return commands;
+  }
+  const segLen: number[] = [];
+  for (let i = 0; i < n; i++) {
+    segLen.push(dist(pts[i], pts[(i + 1) % n]));
+  }
+  const clamp: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const inLen = segLen[(i + n - 1) % n];
+    const outLen = segLen[i];
+    clamp.push(Math.min(ring.corners[i] ?? 0, inLen / 2, outLen / 2));
+  }
+  const rounds = (i: number): boolean =>
+    clamp[i] >= CORNER_EPS && segLen[i] >= CORNER_EPS &&
+    segLen[(i + n - 1) % n] >= CORNER_EPS;
+  const entryOf = (i: number): Pt =>
+    towards(pts[i], pts[(i + n - 1) % n], clamp[i] / segLen[(i + n - 1) % n]);
+  const exitOf = (i: number): Pt =>
+    towards(pts[i], pts[(i + 1) % n], clamp[i] / segLen[i]);
+  const start = rounds(0) ? exitOf(0) : pts[0];
+  const commands: PathCommand[] = [{ type: "move", x: start.x, y: start.y }];
+  for (let k = 1; k <= n; k++) {
+    const i = k % n;
+    if (!rounds(i)) {
+      commands.push({ type: "line", x: pts[i].x, y: pts[i].y });
+      continue;
+    }
+    const entry = entryOf(i);
+    const exit = exitOf(i);
+    commands.push({ type: "line", x: entry.x, y: entry.y });
+    commands.push({
+      type: "quad",
+      cpx: pts[i].x,
+      cpy: pts[i].y,
+      x: exit.x,
+      y: exit.y,
+    });
+  }
+  return commands;
+}
+
 // PathSpec → SVG `d`, via pathRenderCommands.
 export function toSvgPath(path: PathSpec): string {
+  return commandsToSvg(pathRenderCommands(path));
+}
+
+// Closed ring → SVG `d` (explicit Z), via pathRenderCommandsClosedRing.
+export function toSvgPathClosedRing(ring: PathSpec): string {
+  const d = commandsToSvg(pathRenderCommandsClosedRing(ring));
+  return d.length === 0 ? d : `${d} Z`;
+}
+
+function commandsToSvg(commands: PathCommand[]): string {
   const parts: string[] = [];
-  for (const command of pathRenderCommands(path)) {
+  for (const command of commands) {
     if (command.type === "move") {
       parts.push(`M ${fmt(command)}`);
     } else if (command.type === "line") {

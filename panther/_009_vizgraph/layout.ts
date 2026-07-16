@@ -28,7 +28,11 @@ import { properizeStage } from "./stages/_2_properize.ts";
 import { orderStage } from "./stages/_3_order.ts";
 import { sizeStage } from "./stages/_3_5_size.ts";
 import { coordsStage, resolvePlan } from "./stages/_4_coords.ts";
-import { applyPortGapFloor, routeStage } from "./stages/_5_route.ts";
+import {
+  applyPortGapFloor,
+  DEFAULT_CORNER_RADIUS,
+  routeStage,
+} from "./stages/_5_route.ts";
 
 // The staged pipeline (DOC_VIZGRAPH_ARCHITECTURE.md stage pipeline). M1 spine: rank → properize
 // (dummy chains) → iterative ordering → budged coords → polyline routing.
@@ -116,9 +120,12 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
   const groups = deriveGroupGeoms(
     groupIndex,
     nodes,
+    edges,
+    collapsed.edges,
     new Set(foldedGroupById.keys()),
     foldedGroupById,
     spacing,
+    options?.cornerRadius ?? DEFAULT_CORNER_RADIUS,
   );
 
   return {

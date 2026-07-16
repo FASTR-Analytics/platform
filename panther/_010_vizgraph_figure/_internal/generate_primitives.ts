@@ -8,6 +8,7 @@ import {
   DEFAULT_SPACING,
   layout,
   pathRenderCommands,
+  pathRenderCommandsClosedRing,
   RectCoordsDims,
   Z_INDEX,
 } from "../deps.ts";
@@ -19,6 +20,7 @@ import type {
   MeasuredText,
   MergedVizGraphStyle,
   NodeMeasurer,
+  PathCommand,
   PathSegment,
   PathSpec,
   Primitive,
@@ -74,8 +76,75 @@ type VizGraphBundle = {
   nodeInfoById: Map<string, VizGraphNodeInfo>;
   groupById: Map<string, VizGraphDataGroup>;
   groupStyleById: Map<string, ResolvedNodeStyle>;
+  // §5a: one wrap width per labeled unfolded group, used by BOTH the
+  // pre-layout header measurement and the render-time re-wrap.
+  labelWrapWidthById: Map<string, number>;
   runLayout: (fitWidth: number) => Geometry;
 };
+
+// The header label's wrap width is the group's own first-layer column width:
+// the widest single member in the group's minimum layer (members of a layer
+// stack vertically in this LR engine — max, never a sum). Membership is
+// chain-based (nested members count toward every ancestor). Fixed-size
+// members are known outright; dynamic ones report their natural size through
+// the measurer (maxWidth ∞ — the engine's own ideal-width probe). Members
+// without an explicit layer can't be pinned to the first layer pre-layout, so
+// the widest member overall stands in; a memberless group falls back to the
+// global cap. The width choice only shapes the header — reserved and rendered
+// heights agree because both wraps share it.
+function computeGroupLabelWrapWidths(
+  data: VizGraphData,
+  s: MergedVizGraphStyle,
+  measureNode: NodeMeasurer,
+): Map<string, number> {
+  const wrapWidths = new Map<string, number>();
+  const groups = data.groups ?? [];
+  if (groups.length === 0) {
+    return wrapWidths;
+  }
+  const groupIds = new Set(groups.map((g) => g.id));
+  const parentById = new Map(groups.map((g) => [g.id, g.parentId]));
+  const chainOf = (groupId: string | undefined): string[] => {
+    const chain: string[] = [];
+    const seen = new Set<string>();
+    let current = groupId;
+    while (
+      current !== undefined && groupIds.has(current) && !seen.has(current)
+    ) {
+      seen.add(current);
+      chain.push(current);
+      current = parentById.get(current);
+    }
+    return chain;
+  };
+  const membersByGroupId = new Map<string, VizGraphDataNode[]>();
+  for (const node of data.nodes) {
+    for (const groupId of chainOf(node.groupId)) {
+      const list = membersByGroupId.get(groupId) ?? [];
+      list.push(node);
+      membersByGroupId.set(groupId, list);
+    }
+  }
+  for (const group of groups) {
+    if (group.folded === true || group.label === undefined) {
+      continue;
+    }
+    let members = membersByGroupId.get(group.id) ?? [];
+    if (members.length > 0 && members.every((m) => m.layer !== undefined)) {
+      const firstLayer = Math.min(...members.map((m) => m.layer!));
+      members = members.filter((m) => m.layer === firstLayer);
+    }
+    if (members.length === 0) {
+      wrapWidths.set(group.id, s.nodes.maxTextWidth);
+      continue;
+    }
+    const colW = Math.max(
+      ...members.map((m) => m.size?.w ?? measureNode(m.id, Infinity).w),
+    );
+    wrapWidths.set(group.id, colW);
+  }
+  return wrapWidths;
+}
 
 // Build the engine model + measurer from figure data. Nodes with an explicit
 // size are fixed (the size is the full outer box, border included); all
@@ -115,6 +184,42 @@ function buildVizGraphBundle(
     });
   }
 
+  const measureNode: NodeMeasurer = (nodeId, maxWidth) => {
+    // A claiming customNode.measure IS the node's measurer: the engine's
+    // probe/adopt contract rides on it verbatim (0/Infinity probes included).
+    if (customNode !== undefined) {
+      const customSize = customNode.measure(
+        rc,
+        nodeInfoById.get(nodeId)!,
+        maxWidth,
+        s.alreadyScaledValue,
+      );
+      if (customSize !== undefined) {
+        return customSize;
+      }
+    }
+    const node = nodeById.get(nodeId)!;
+    const border = nodeStyleById.get(nodeId)!.strokeWidth;
+    const budget = Math.max(
+      0,
+      Math.min(maxWidth - padX - border, s.nodes.maxTextWidth),
+    );
+    const label = node.label ?? node.id;
+    const primary = rc.mText(label, s.text.primary, budget + TEXT_WIDTH_EPS);
+    let textW = primary.dims.w();
+    let textH = primary.dims.h();
+    if (node.secondaryLabel !== undefined) {
+      const secondary = rc.mText(
+        node.secondaryLabel,
+        s.text.secondary,
+        budget + TEXT_WIDTH_EPS,
+      );
+      textW = Math.max(textW, secondary.dims.w());
+      textH += s.nodes.textGap + secondary.dims.h();
+    }
+    return { w: textW + padX + border, h: textH + padY + border };
+  };
+
   // Groups (M6): style resolution BEFORE layout, like nodes — a folded rep's
   // border folds into its label block (which becomes the rep's outer box).
   // Folded reps default to NODE chrome (they participate as nodes); unfolded
@@ -122,6 +227,11 @@ function buildVizGraphBundle(
   // labels cross as measured {w, h} blocks.
   const groupById = new Map(
     (data.groups ?? []).map((group) => [group.id, group]),
+  );
+  const labelWrapWidthById = computeGroupLabelWrapWidths(
+    data,
+    s,
+    measureNode,
   );
   const groupStyleById = new Map<string, ResolvedNodeStyle>();
   const modelGroups = (data.groups ?? []).map((group) => {
@@ -168,56 +278,24 @@ function buildVizGraphBundle(
         };
       }
     } else if (group.label !== undefined) {
-      // Header block: the engine reserves this row above the first member;
-      // labelInset breathes around the text inside it.
+      // Header block: the engine reserves this row above the group's first
+      // layer; labelInset breathes around the text inside it (both axes).
+      // Wrapped against the group's own first-layer column width — the SAME
+      // width the render-time re-wrap uses, so the reserved height always
+      // matches the rendered height (§5a of the hug ruling; the lane-header
+      // pattern — a global cap has no relationship to this group's content).
       const mt = rc.mText(
         group.label,
         s.text.groupLabel,
-        s.nodes.maxTextWidth + TEXT_WIDTH_EPS,
+        labelWrapWidthById.get(group.id)! + TEXT_WIDTH_EPS,
       );
       label = {
         w: mt.dims.w() + 2 * s.groups.labelInset,
-        h: mt.dims.h() + s.groups.labelInset,
+        h: mt.dims.h() + 2 * s.groups.labelInset,
       };
     }
     return { id: group.id, parentId: group.parentId, label, folded };
   });
-
-  const measureNode: NodeMeasurer = (nodeId, maxWidth) => {
-    // A claiming customNode.measure IS the node's measurer: the engine's
-    // probe/adopt contract rides on it verbatim (0/Infinity probes included).
-    if (customNode !== undefined) {
-      const customSize = customNode.measure(
-        rc,
-        nodeInfoById.get(nodeId)!,
-        maxWidth,
-        s.alreadyScaledValue,
-      );
-      if (customSize !== undefined) {
-        return customSize;
-      }
-    }
-    const node = nodeById.get(nodeId)!;
-    const border = nodeStyleById.get(nodeId)!.strokeWidth;
-    const budget = Math.max(
-      0,
-      Math.min(maxWidth - padX - border, s.nodes.maxTextWidth),
-    );
-    const label = node.label ?? node.id;
-    const primary = rc.mText(label, s.text.primary, budget + TEXT_WIDTH_EPS);
-    let textW = primary.dims.w();
-    let textH = primary.dims.h();
-    if (node.secondaryLabel !== undefined) {
-      const secondary = rc.mText(
-        node.secondaryLabel,
-        s.text.secondary,
-        budget + TEXT_WIDTH_EPS,
-      );
-      textW = Math.max(textW, secondary.dims.w());
-      textH += s.nodes.textGap + secondary.dims.h();
-    }
-    return { w: textW + padX + border, h: textH + padY + border };
-  };
 
   // Ids must be unique or the engine's keyed output drops edges: suffix
   // collisions (multi-edges without explicit ids, or duplicate ids) instead
@@ -280,6 +358,7 @@ function buildVizGraphBundle(
     nodeInfoById,
     groupById,
     groupStyleById,
+    labelWrapWidthById,
     runLayout,
   };
 }
@@ -498,6 +577,7 @@ export function generateVizGraphPrimitives(
         dy,
         bundle.groupById.get(groupId)!,
         bundle.groupStyleById.get(groupId)!,
+        bundle.labelWrapWidthById.get(groupId),
         s,
       ),
     );
@@ -514,6 +594,7 @@ function generateGroupBoxPrimitive(
   dy: number,
   group: VizGraphDataGroup,
   style: ResolvedNodeStyle,
+  labelWrapWidth: number | undefined,
   s: MergedVizGraphStyle,
 ): VizGraphUnfoldedGroupPrimitive {
   const rcd = new RectCoordsDims({
@@ -522,7 +603,7 @@ function generateGroupBoxPrimitive(
     w: groupGeom.w,
     h: groupGeom.h,
   });
-  // Stroke straddles the drawn rect — inset by half the border, like nodes.
+  // Stroke straddles the drawn path — inset by half the border, like nodes.
   const border = style.strokeWidth;
   const drawRcd = new RectCoordsDims({
     x: rcd.x() + border / 2,
@@ -530,6 +611,17 @@ function generateGroupBoxPrimitive(
     w: Math.max(0, rcd.w() - border),
     h: Math.max(0, rcd.h() - border),
   });
+  // The hug ring(s), shifted into figure space, inset by half the border,
+  // rounded through the engine's shared closed-ring corner geometry.
+  const outline = groupGeom.outline.flatMap((ring) =>
+    commandsToSegments(pathRenderCommandsClosedRing({
+      points: insetRectilinearRing(
+        ring.points.map((p) => ({ x: p.x + dx, y: p.y + dy })),
+        border / 2,
+      ),
+      corners: ring.corners,
+    }))
+  );
   const primitive: VizGraphUnfoldedGroupPrimitive = {
     type: "vizgraph-unfolded-group",
     key: `vizgraph-unfolded-group-${groupId}`,
@@ -543,10 +635,13 @@ function generateGroupBoxPrimitive(
       strokeWidth: style.strokeWidth,
       rectRadius: style.rectRadius,
     },
+    outline,
   };
   if (group.label !== undefined) {
-    // Left-aligned in the header row the engine reserved (the label block was
-    // measured with labelInset breathing: 2× horizontally, 1× vertically).
+    // Left-aligned in the header row the engine reserved. Re-wrapped at the
+    // SAME width the pre-layout measurement used (§5a) — never at a
+    // geometry-derived width, so the reserved height always matches the
+    // rendered height.
     const inset = s.groups.labelInset;
     const labelInfo = style.textColor === undefined
       ? s.text.groupLabel
@@ -554,7 +649,7 @@ function generateGroupBoxPrimitive(
     const mText = rc.mText(
       group.label,
       labelInfo,
-      Math.max(0, groupGeom.header.w - 2 * inset) + TEXT_WIDTH_EPS,
+      (labelWrapWidth ?? s.nodes.maxTextWidth) + TEXT_WIDTH_EPS,
     );
     primitive.text = {
       mText,
@@ -565,6 +660,44 @@ function generateGroupBoxPrimitive(
     };
   }
   return primitive;
+}
+
+// Uniform inward offset of a closed rectilinear ring: each axis-aligned edge
+// shifts half-border toward the interior (side from the ring's signed area),
+// adjacent shifted edges re-intersect (H fixes y, V fixes x).
+function insetRectilinearRing(pts: Pt[], inset: number): Pt[] {
+  const n = pts.length;
+  if (inset <= 0 || n < 3) {
+    return pts;
+  }
+  let area2 = 0;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i];
+    const q = pts[(i + 1) % n];
+    area2 += p.x * q.y - q.x * p.y;
+  }
+  const sign = area2 >= 0 ? 1 : -1;
+  const shifted = pts.map((p, i) => {
+    const q = pts[(i + 1) % n];
+    const len = Math.hypot(q.x - p.x, q.y - p.y);
+    if (len < CORNER_EPS) {
+      return { x: p.x, y: p.y, horizontal: true };
+    }
+    const nx = (-(q.y - p.y) / len) * sign * inset;
+    const ny = ((q.x - p.x) / len) * sign * inset;
+    return {
+      x: p.x + nx,
+      y: p.y + ny,
+      horizontal: Math.abs(q.x - p.x) >= Math.abs(q.y - p.y),
+    };
+  });
+  return pts.map((_, i) => {
+    const inEdge = shifted[(i + n - 1) % n];
+    const outEdge = shifted[i];
+    return inEdge.horizontal
+      ? { x: outEdge.x, y: inEdge.y }
+      : { x: inEdge.x, y: outEdge.y };
+  });
 }
 
 // Texts for rendering, wrapped at the CHOSEN outer width (the engine's
@@ -687,12 +820,17 @@ function generateEdgePrimitive(
 
 // PathSpec → PathSegments via the engine's shared corner geometry
 // (pathRenderCommands: radius clamps + shallow-jog smoothing — one source of
-// truth with toSvgPath). Quadratic corners are emitted as their exact cubic
-// equivalent because PathSegment has no quadratic form.
+// truth with toSvgPath).
 function toRoundedSegments(pts: Pt[], corners: number[]): PathSegment[] {
+  return commandsToSegments(pathRenderCommands({ points: pts, corners }));
+}
+
+// Quadratic corners are emitted as their exact cubic equivalent because
+// PathSegment has no quadratic form.
+function commandsToSegments(commands: PathCommand[]): PathSegment[] {
   const segments: PathSegment[] = [];
   let cursor: Pt = { x: 0, y: 0 };
-  for (const command of pathRenderCommands({ points: pts, corners })) {
+  for (const command of commands) {
     if (command.type === "move") {
       segments.push({ type: "moveTo", x: command.x, y: command.y });
     } else if (command.type === "line") {

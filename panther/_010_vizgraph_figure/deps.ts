@@ -41,6 +41,7 @@ export {
   DEFAULT_SPACING,
   layout,
   pathRenderCommands,
+  pathRenderCommandsClosedRing,
 } from "../_009_vizgraph/mod.ts";
 export type {
   Constraints,
@@ -50,6 +51,7 @@ export type {
   GroupIn,
   LayoutOptions,
   NodeMeasurer,
+  PathCommand,
   PathSpec,
   Pt,
   Spacing,

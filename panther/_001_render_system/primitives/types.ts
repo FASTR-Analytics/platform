@@ -426,8 +426,10 @@ export type VizGraphNodePrimitive = BasePrimitive & {
 };
 
 // The decorative box behind an unfolded group's members, label in the header
-// row. Rect-shaped today; grows a rectilinear `outline` when the engine's
-// hug-polygon item lands (PLAN_VIZGRAPH).
+// row. `outline` is the engine's edge-hug ring(s) — pre-rounded closed
+// path(s), possibly several disjoint rings — painted with the rectStyle's
+// fill/stroke when present; rcd stays the bounding-box fallback and hit-test
+// rect.
 export type VizGraphUnfoldedGroupPrimitive = BasePrimitive & {
   type: "vizgraph-unfolded-group";
   meta: {
@@ -436,6 +438,7 @@ export type VizGraphUnfoldedGroupPrimitive = BasePrimitive & {
   // Visual
   rcd: RectCoordsDims;
   rectStyle: RectStyle;
+  outline?: PathSegment[];
   // Label (if present)
   text?: {
     mText: MeasuredText;

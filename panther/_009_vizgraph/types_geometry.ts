@@ -34,7 +34,19 @@ export type Port = {
 
 export type LaneGeom = Rect & { header: Rect };
 
-export type GroupGeom = Rect & { header: Rect; folded: boolean };
+// outline: the unfolded box as edge-hug ring(s) — one closed rectilinear
+// polygon per connected component of the group's real content (member-node
+// layer strips + internal-edge horizontal segments), padded by the group's
+// hug pad. Each ring is a PathSpec whose points are UNROUNDED and whose
+// corners hold the per-VERTEX radius (corners[i] belongs to points[i]; the
+// last→first segment is implied — closed-ring semantics, unlike open edge
+// paths). The Rect fields stay the bounding box over all rings; a
+// single-layer connected group degenerates to exactly that rectangle.
+export type GroupGeom = Rect & {
+  header: Rect;
+  folded: boolean;
+  outline: PathSpec[];
+};
 
 export type HitArea = {
   rect: Rect;
