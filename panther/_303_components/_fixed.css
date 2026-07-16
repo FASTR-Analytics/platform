@@ -69,6 +69,7 @@
      on top of it. `base-*` is the app surface; `base-content` is the
      default foreground on that surface. */
 
+  --color-*: initial;
   --color-transparent: transparent;
   --color-black: #000716;
   --color-white: #ffffff;

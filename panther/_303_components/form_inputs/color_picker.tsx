@@ -437,7 +437,7 @@ export function ColorPicker(p: ColorPickerProps) {
             <input
               type="text"
               class="border-base-300 w-full rounded border px-2 py-1 font-mono text-xs"
-              classList={{ "border-red-500": !hexIsValid() }}
+              classList={{ "border-danger": !hexIsValid() }}
               placeholder="#hex"
               value={displayHex()}
               onInput={(e) => handleHexInput(e.currentTarget.value)}
