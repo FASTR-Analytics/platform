@@ -1,15 +1,35 @@
-[TBD] [user] [added] - View detailed error information for each DHIS2 import run by clicking on it
-[TBD] [user] [added] - Retry failed indicator-month pairs directly from the import run detail view
-[TBD] [user] [added] - See which indicators were not found in DHIS2 during an import
-[TBD] [user] [added] - View verification mismatches between DHIS2 data sources for an import run
-[TBD] [user] [changed] - Failed pair counts are now highlighted in red in the import history table
-[TBD] [user] [changed] - Scheduled and one-time import error messages are now shown directly in the table instead of only on hover
-[TBD] [admin] [added] - Click any DHIS2 import run to view full error details
-[TBD] [admin] [added] - Retry failed indicator-month pairs directly from run detail view
-[TBD] [admin] [added] - Unknown DHIS2 indicator IDs are now clearly listed per run
-[TBD] [admin] [added] - Verification mismatches between DHIS2 data sources shown in run detail
-[TBD] [admin] [changed] - Failed pair counts in import history are now highlighted in red
-[TBD] [admin] [changed] - Scheduled and one-time import errors now display inline instead of tooltip-only
+[1.59.0] [user] [added] - DHIS2 credentials button added to the Data page
+[1.59.0] [user] [added] - Manage DHIS2 connection from a single shared location
+[1.59.0] [user] [changed] - DHIS2 credentials are now stored once for the whole instance
+[1.59.0] [user] [changed] - No longer need to re-enter DHIS2 credentials for each workflow
+[1.59.0] [user] [changed] - GeoJSON DHIS2 import defaults to stored connection automatically
+[1.59.0] [user] [changed] - Structure import uses stored connection instead of manual entry
+[1.59.0] [user] [changed] - Indicator search uses stored connection by default
+[1.59.0] [user] [added] - "Change connection" button when searching DHIS2 indicators
+[1.59.0] [user] [changed] - Scheduling an import uses timezone-aware date and time inputs
+[1.59.0] [user] [changed] - Recurring import time picker now includes searchable timezone selector
+[1.59.0] [user] [removed] - "Save credentials for this session" checkbox no longer needed
+[1.59.0] [admin] [added] - DHIS2 credentials button on the Data page for managing the instance connection
+[1.59.0] [admin] [changed] - DHIS2 credentials are now stored once per instance and shared across all DHIS2 features
+[1.59.0] [admin] [changed] - Structure import uses the instance's stored DHIS2 connection instead of per-attempt credentials
+[1.59.0] [admin] [changed] - GeoJSON import from DHIS2 defaults to the stored connection with an option to override
+[1.59.0] [admin] [changed] - DHIS2 indicator search defaults to the stored connection with an option to change
+[1.59.0] [admin] [changed] - Session-based credential storage in the browser has been removed
+[1.59.0] [admin] [changed] - Stored DHIS2 credentials no longer expose the username to the browser
+[1.59.0] [admin] [changed] - Scheduling time inputs now include explicit timezone selection
+[1.59.0] [admin] [fixed] - Structure import detects if the stored DHIS2 connection changed mid-wizard and asks you to re-confirm
+[1.59.0] [user] [added] - View detailed error information for each DHIS2 import run by clicking on it
+[1.59.0] [user] [added] - Retry failed indicator-month pairs directly from the import run detail view
+[1.59.0] [user] [added] - See which indicators were not found in DHIS2 during an import
+[1.59.0] [user] [added] - View verification mismatches between DHIS2 data sources for an import run
+[1.59.0] [user] [changed] - Failed pair counts are now highlighted in red in the import history table
+[1.59.0] [user] [changed] - Scheduled and one-time import error messages are now shown directly in the table instead of only on hover
+[1.59.0] [admin] [added] - Click any DHIS2 import run to view full error details
+[1.59.0] [admin] [added] - Retry failed indicator-month pairs directly from run detail view
+[1.59.0] [admin] [added] - Unknown DHIS2 indicator IDs are now clearly listed per run
+[1.59.0] [admin] [added] - Verification mismatches between DHIS2 data sources shown in run detail
+[1.59.0] [admin] [changed] - Failed pair counts in import history are now highlighted in red
+[1.59.0] [admin] [changed] - Scheduled and one-time import errors now display inline instead of tooltip-only
 [1.58.0] [user] [added] - Indicator labels now shown in the import status table
 [1.58.0] [user] [changed] - Scheduled imports split into Recurring and One-time sections
 [1.58.0] [user] [changed] - One-time scheduled imports now use an exact date range instead of a rolling window
