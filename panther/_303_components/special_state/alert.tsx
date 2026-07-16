@@ -145,9 +145,46 @@ const [alertState, setAlertState] = createSignal<
   | undefined
 >(undefined);
 
+// A dialog's promise must always settle. There is one global slot, so
+// opening a dialog while another is live displaces it — resolve the
+// displaced one as cancelled instead of dropping its resolver (which would
+// leave the displaced caller awaiting forever).
+function resolveAsCancelled(
+  state:
+    | AlertStateType
+    | ConfirmStateType
+    | PromptStateType
+    | AnyComponentStateType
+    | undefined,
+): void {
+  if (isAlertState(state)) {
+    state.alertResolver();
+  }
+  if (isConfirmState(state)) {
+    state.confirmResolver(false);
+  }
+  if (isPromptState(state)) {
+    state.promptResolver(undefined);
+  }
+  if (isComponentState(state)) {
+    state.componentResolver(undefined);
+  }
+}
+
+function replaceAlertState(
+  next:
+    | AlertStateType
+    | ConfirmStateType
+    | PromptStateType
+    | AnyComponentStateType,
+): void {
+  resolveAsCancelled(alertState());
+  setAlertState(next);
+}
+
 export function openAlert(v: OpenAlertInput): Promise<void> {
   return new Promise((resolve: () => void) => {
-    setAlertState({
+    replaceAlertState({
       ...v,
       stateType: "alert",
       alertResolver: resolve,
@@ -157,7 +194,7 @@ export function openAlert(v: OpenAlertInput): Promise<void> {
 
 export function openConfirm(v: OpenConfirmInput): Promise<boolean> {
   return new Promise<boolean>((resolve: (p: boolean) => void) => {
-    setAlertState({
+    replaceAlertState({
       ...v,
       stateType: "confirm",
       confirmResolver: resolve,
@@ -170,7 +207,7 @@ export function openPrompt(
 ): Promise<string | undefined> {
   return new Promise<string | undefined>(
     (resolve: (p: string | undefined) => void) => {
-      setAlertState({
+      replaceAlertState({
         ...v,
         stateType: "prompt",
         promptResolver: resolve,
@@ -184,7 +221,7 @@ export function openComponent<TProps, TReturn>(
 ): Promise<TReturn | undefined> {
   return new Promise<TReturn | undefined>(
     (resolve: (p: TReturn | undefined) => void) => {
-      setAlertState({
+      replaceAlertState({
         ...v,
         stateType: "component",
         componentResolver: resolve,
@@ -196,19 +233,7 @@ export function openComponent<TProps, TReturn>(
 export default function AlertProvider() {
   // deno-lint-ignore no-unused-vars -- staged for F1 modal a11y (Escape-to-dismiss); see PLAN_303_HTML_A11Y.md
   function cancelAny() {
-    const ass = alertState();
-    if (isAlertState(ass)) {
-      ass.alertResolver();
-    }
-    if (isConfirmState(ass)) {
-      ass.confirmResolver(false);
-    }
-    if (isPromptState(ass)) {
-      ass.promptResolver(undefined);
-    }
-    if (isComponentState(ass)) {
-      ass.componentResolver(undefined);
-    }
+    resolveAsCancelled(alertState());
     setAlertState(undefined);
   }
 

@@ -151,6 +151,18 @@
   --ui-icon-only-correction-sm: -0.125rem; /* -mx-0.5 */
 }
 
+@layer base {
+  /* Tailwind v4's preflight defaults bare borders to currentColor, so an
+     uncolored `border-b` renders in the text color — a dark border nobody
+     chose. Default uncolored borders to base-300; sites that want a dark
+     border must say `border-base-content` explicitly. */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-base-300);
+  }
+}
+
 /* =============================================================
    Public utility classes.
 

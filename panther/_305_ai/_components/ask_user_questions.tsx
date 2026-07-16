@@ -37,15 +37,21 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
           "ask_user_questions can only be called once per response. Wait for the user to answer before asking another question.",
         );
       }
-      const answer = await new Promise<AskUserQuestionsAnswer>(
-        (resolve, reject) => {
-          resolveAnswer = resolve;
-          rejectAnswer = reject;
-        },
-      );
-      resolveAnswer = null;
-      rejectAnswer = null;
-      return formatAnswerForAI(input, answer);
+      // Reset in finally — a rejection (cancel button, stop, unmount) must
+      // not leave stale resolvers behind, or the once-per-response guard
+      // above rejects every later call for the life of the tool instance.
+      try {
+        const answer = await new Promise<AskUserQuestionsAnswer>(
+          (resolve, reject) => {
+            resolveAnswer = resolve;
+            rejectAnswer = reject;
+          },
+        );
+        return formatAnswerForAI(input, answer);
+      } finally {
+        resolveAnswer = null;
+        rejectAnswer = null;
+      }
     },
     inProgressComponent: (p: { input: AskUserQuestionsInput }) => (
       <AskUserQuestionsRenderer
