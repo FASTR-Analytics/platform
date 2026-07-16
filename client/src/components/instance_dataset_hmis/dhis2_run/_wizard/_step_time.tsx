@@ -1,5 +1,14 @@
 import { t3 } from "lib";
-import { Button, Input, RadioGroup, Select, type SelectOption } from "panther";
+import {
+  Button,
+  RadioGroup,
+  Select,
+  TimeInput,
+  TimezoneSelect,
+  ZonedDateTimeInput,
+  type SelectOption,
+  type ZonedDateTime,
+} from "panther";
 import { Match, Show, Switch } from "solid-js";
 
 export type Dhis2WizardTimeChoice = "now" | "later" | "recurring";
@@ -11,8 +20,8 @@ type Props = {
   presetMode: boolean;
   timeChoice: () => Dhis2WizardTimeChoice;
   setTimeChoice: (v: Dhis2WizardTimeChoice) => void;
-  runAtLocal: () => string;
-  setRunAtLocal: (v: string) => void;
+  runAtZoned: () => ZonedDateTime;
+  setRunAtZoned: (v: ZonedDateTime) => void;
   dayOfWeek: () => string;
   setDayOfWeek: (v: string) => void;
   startTime: () => string;
@@ -72,10 +81,6 @@ export function Dhis2StepTime(p: Props) {
         : `${t3({ en: "Every", fr: "Toutes les", pt: "A cada" })} ${w} ${t3({ en: "weeks", fr: "semaines", pt: "semanas" })}`,
   }));
 
-  const timezoneOptions: SelectOption<string>[] = Intl.supportedValuesOf(
-    "timeZone",
-  ).map((tz) => ({ value: tz, label: tz }));
-
   const needsUnattendedGate = () =>
     (p.timeChoice() === "later" || p.timeChoice() === "recurring") && p.gateApplies;
 
@@ -101,11 +106,11 @@ export function Dhis2StepTime(p: Props) {
 
         <Switch>
           <Match when={p.timeChoice() === "later"}>
-            <Input
-              label={t3({ en: "Run at", fr: "Exécuter le", pt: "Executar em" })}
-              type="datetime-local"
-              value={p.runAtLocal()}
-              onChange={p.setRunAtLocal}
+            <ZonedDateTimeInput
+              value={p.runAtZoned()}
+              onChange={p.setRunAtZoned}
+              dateTimeLabel={t3({ en: "Run at", fr: "Exécuter le", pt: "Executar em" })}
+              timezoneLabel={t3({ en: "Timezone", fr: "Fuseau horaire", pt: "Fuso horário" })}
             />
           </Match>
           <Match when={p.timeChoice() === "recurring"}>
@@ -116,16 +121,14 @@ export function Dhis2StepTime(p: Props) {
                 options={dayOptions}
                 onChange={p.setDayOfWeek}
               />
-              <Input
+              <TimeInput
                 label={t3({ en: "Start time", fr: "Heure de début", pt: "Hora de início" })}
-                type="time"
                 value={p.startTime()}
                 onChange={p.setStartTime}
               />
-              <Select
+              <TimezoneSelect
                 label={t3({ en: "Timezone", fr: "Fuseau horaire", pt: "Fuso horário" })}
                 value={p.timezone()}
-                options={timezoneOptions}
                 onChange={p.setTimezone}
               />
               <Select

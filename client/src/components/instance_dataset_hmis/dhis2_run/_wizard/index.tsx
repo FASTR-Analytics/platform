@@ -17,8 +17,13 @@ import {
   StateHolderFormError,
   StepperChipsWithTitles,
   createFormAction,
+  getLocalTimezone,
   getStepper,
+  utcMsToZonedDateTime,
+  zonedDateTimeToUtcIso,
+  zonedDateTimeToUtcMs,
   type CalendarType,
+  type ZonedDateTime,
 } from "panther";
 import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -98,12 +103,6 @@ function getMinMaxPeriods(calendar: CalendarType): {
   return { min, max: current, defaultStart, defaultEnd: current };
 }
 
-function toDatetimeLocalValue(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 // The one wizard for every way a DHIS2 import gets configured — ad hoc run,
 // queue, one-shot future run, recurring schedule (PLAN_DHIS2_IMPORTER_UI_REVISION
 // §3). A modal (Add-visualization pattern), not a full-screen editor: short,
@@ -151,8 +150,13 @@ export function Dhis2Wizard(
           ? "recurring"
           : "now",
   );
-  const [runAtLocal, setRunAtLocal] = createSignal<string>(
-    scheduleDefaults?.runAt ? toDatetimeLocalValue(scheduleDefaults.runAt) : "",
+  const [runAtZoned, setRunAtZoned] = createSignal<ZonedDateTime>(
+    scheduleDefaults?.runAt
+      ? utcMsToZonedDateTime(
+          new Date(scheduleDefaults.runAt).getTime(),
+          getLocalTimezone(),
+        )
+      : { dateTime: "", timezone: getLocalTimezone() },
   );
   const [dayOfWeek, setDayOfWeek] = createSignal<string>(
     String(scheduleDefaults?.dayOfWeek ?? 1),
@@ -199,7 +203,7 @@ export function Dhis2Wizard(
   function computeTimeValid(): boolean {
     if (timeChoice() === "now") return true;
     if (gateApplies() && !unattendedReady()) return false;
-    if (timeChoice() === "later") return runAtLocal() !== "";
+    if (timeChoice() === "later") return runAtZoned().dateTime !== "";
     return true;
   }
 
@@ -290,8 +294,8 @@ export function Dhis2Wizard(
       return t3({ en: "Now", fr: "Maintenant", pt: "Agora" });
     }
     if (timeChoice() === "later") {
-      return runAtLocal()
-        ? new Date(runAtLocal()).toLocaleString()
+      return runAtZoned().dateTime
+        ? new Date(zonedDateTimeToUtcMs(runAtZoned())).toLocaleString()
         : t3({ en: "Not set", fr: "Non défini", pt: "Não definido" });
     }
     const every =
@@ -431,7 +435,7 @@ export function Dhis2Wizard(
               },
       };
       if (timeChoice() === "later") {
-        fields.runAt = new Date(runAtLocal()).toISOString();
+        fields.runAt = zonedDateTimeToUtcIso(runAtZoned());
       } else {
         fields.dayOfWeek = parseInt(dayOfWeek());
         fields.startTime = startTime();
@@ -535,8 +539,8 @@ export function Dhis2Wizard(
             presetMode={isPreset}
             timeChoice={timeChoice}
             setTimeChoice={setTimeChoice}
-            runAtLocal={runAtLocal}
-            setRunAtLocal={setRunAtLocal}
+            runAtZoned={runAtZoned}
+            setRunAtZoned={setRunAtZoned}
             dayOfWeek={dayOfWeek}
             setDayOfWeek={setDayOfWeek}
             startTime={startTime}
