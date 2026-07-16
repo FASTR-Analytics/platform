@@ -455,7 +455,7 @@ payload field is persisted, do not rename it). The HMIS counterpart
 (`ds_hmis`/`ds_hmis_v2`) was deleted 2026-07-15 — once vizItems moved to the
 import ledger the read became a few ms, so `getDatasetHmisDisplayInfo`
 computes live and only the client T2 IndexedDB cache remains (see
-[DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md)).
+[SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)).
 
 **Client (IndexedDB, `createReactiveCache`).** Mirrors of the same four caches
 in [t2_presentation_objects.ts](client/src/state/project/t2_presentation_objects.ts) /

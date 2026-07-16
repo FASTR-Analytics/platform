@@ -163,7 +163,7 @@ wb-fastr/
 ## State Management
 
 - [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md) — the T1–T5 tier model, app-specific read/write rules, and state/cache inventories (base construction rules: `panther/protocols/PROTOCOL_UI_STATE.md` + `PROTOCOL_UI_SOLIDJS.md`)
-- `DOC_SSE_REALTIME.md` — server-side push system, notify catalog, connection lifecycle
+- [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) — server-side push system, notify catalog, connection lifecycle, Valkey + client cache machinery
 
 ## API Routes
 
@@ -266,8 +266,7 @@ Prescriptive protocols for how this app is built (distinct from the `panther/pro
 - [DOC_API_ROUTES.md](DOC_API_ROUTES.md) — registry-as-contract, `defineRoute`, `APIResponse` envelope, streaming sub-protocol
 - [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md) — Clerk, the two permission guards, `Project-Id` scoping, special modes
 - [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md) — connections, DB-function shape, error funnel, **SQL-safety rule** (authoritative for the multi-DB naming/connection model)
-- [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md) — BroadcastChannel→SSE, notify catalog, the `last_updated → SSE → cache` triangle
-- [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md) — `TimCacheC`, version-hash keying, implicit invalidation
+- [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) — BroadcastChannel→SSE, notify catalog, the `last_updated → SSE → cache` triangle, `TimCacheC` version-hash keying + implicit invalidation
 - [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md) — dirty state machine, dependency propagation, `task_ended` loop
 - [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md) — Web Worker pattern, READY handshake, report-back mechanisms
 - [SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md) — facilities/admin structure ELT, indicator dictionaries, geojson, time points, instance config

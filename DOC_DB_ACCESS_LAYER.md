@@ -125,7 +125,7 @@ The validation boundary (which schema, where) is owned by [PROTOCOL_APP_MIGRATIO
 ### Transactions & optimistic concurrency
 
 - **Multi-statement atomic writes use `db.begin(async (tx) => …)`** (`presentation_objects.ts`, `modules.ts`, `slides.ts`, `projects.ts`, `move_slides.ts`, …).
-- **Optimistic concurrency** uses a `last_updated` round-trip: the caller passes `expectedLastUpdated`; if it differs from the stored value, the function reports `conflicted: true` (e.g. `updateReportBody`) rather than clobbering. The bumped `last_updated` is also the SSE/cache version key — see [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md) and [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md).
+- **Optimistic concurrency** uses a `last_updated` round-trip: the caller passes `expectedLastUpdated`; if it differs from the stored value, the function reports `conflicted: true` (e.g. `updateReportBody`) rather than clobbering. The bumped `last_updated` is also the SSE/cache version key — see [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md).
 
 ---
 

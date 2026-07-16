@@ -6,7 +6,7 @@
 > client state. The state _machinery_ (stores, `_infra/`, SSE bridges) is
 > owned by S3; the server-side producer (BroadcastChannel → SSE, notify
 > catalog, `last_updated` coupling) is
-> [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md).
+> [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md).
 >
 > **Base layer — read first, never restated here:** the generic construction
 > rules live in panther: `panther/protocols/PROTOCOL_UI_STATE.md` (createQuery /

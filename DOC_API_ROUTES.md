@@ -2,7 +2,7 @@
 
 How the HTTP layer works: a single route registry, declared once in `lib/api-routes/`, that the server implements and the client auto-consumes. Covers the registry-as-contract pattern, the `APIResponse` envelope, the thin-handler shape, the request-scoped streaming sub-protocol, and the enumerated exceptions that bypass all of it.
 
-> This doc owns the HTTP request/response boundary. It does **not** cover server-side push — see [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md) for the SSE/BroadcastChannel system (the streaming here is request-scoped NDJSON, a different thing). It does not cover authn/authz — see [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md) for the guard factories this doc only references. It does not cover the DB functions handlers call — see [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md).
+> This doc owns the HTTP request/response boundary. It does **not** cover server-side push — see [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) for the SSE/BroadcastChannel system (the streaming here is request-scoped NDJSON, a different thing). It does not cover authn/authz — see [DOC_ACCESS_CONTROL.md](DOC_ACCESS_CONTROL.md) for the guard factories this doc only references. It does not cover the DB functions handlers call — see [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md).
 
 ---
 
@@ -103,7 +103,7 @@ defineRoute(
 4. Calls `handler(c, { params, body })`.
 5. Registers it on the Hono router with the lowercased method and calls `markRouteDefined(routeName)`.
 
-The thin-handler shape is invariant: **call DB fn → `if (!res.success) return c.json(res)` → `notify*()` on success → `c.json(res)`.** Routes do not build the envelope when the DB function already returns one. See `server/routes/project/reports.ts` for the canonical, fully-consistent example. Side-effects (`notifyLastUpdated`, `notifyProject*Updated`) push state to clients over SSE — see [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md).
+The thin-handler shape is invariant: **call DB fn → `if (!res.success) return c.json(res)` → `notify*()` on success → `c.json(res)`.** Routes do not build the envelope when the DB function already returns one. See `server/routes/project/reports.ts` for the canonical, fully-consistent example. Side-effects (`notifyLastUpdated`, `notifyProject*Updated`) push state to clients over SSE — see [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md).
 
 **Handler returns are type-enforced against the registry.** Non-streaming handlers must return `Response & TypedResponse<JSONParsed<Envelope>>` — i.e. exactly what `c.json(res)` produces when `res` matches the declared response envelope. The comparison is in **wire-space**: `JSONParsed` maps `Date` → `string` the way JSON serialization does, so DB-layer types carrying `Date` fields pass without casts, while shape drift (wrong/missing fields, data on a no-data route's success arm, a bare payload without the envelope) is a compile error at the `defineRoute` call. `isStreaming` routes are exempt (they return a plain `Response` from `streamResponse`). Do not cast a handler return to `any` to silence this — the error means the registry and the implementation disagree, and one of them is wrong. (Sole sanctioned exception: `downloadBackupFile`'s binary `Response`, commented in place.)
 

@@ -15,7 +15,9 @@
 > (DOC_DHIS2_INTEGRATION, 2026-07-14; review-only cycle — findings are S7
 > Open items), PROTOCOL_APP_STATE (DOC_STATE_RULES + 3× DOC_STATE_MGT_*,
 > 2026-07-16; claims verified against code, generic rules deferred to panther
-> PROTOCOL_UI_STATE/_SOLIDJS; review-only — code findings are its Open items).
+> PROTOCOL_UI_STATE/_SOLIDJS; review-only — code findings are its Open items),
+> S3 (DOC_SSE_REALTIME + DOC_VALKEY_CACHE, 2026-07-16; review-only — findings
+> are S3 Open items).
 > This plan deletes itself when the last `DOC_*` is gone.
 
 ## 1. `DOC_*` → target mapping (3-way sort)
@@ -67,7 +69,6 @@ DOC_* is inlined during its cycle.
   built from XLSX" is wrong per DOC_TRANSLATION; `state/ui.ts` and
   `components/project_runner/provider.tsx` are phantoms (real: `state/t4_ui.ts`,
   `components/project/index.tsx` area).
-- **DOC_VALKEY_CACHE:** prefix `po_detail` → code is `po_detail_v2`.
 - **DOC_API_ROUTES:** raw-route exception list cites the deleted share.ts routes.
 - Minor: DOC_BUILD_INSTRUCTIONS/DOC_DESIGN_SYSTEM cite
   `panther/FRONTEND_STYLE_GUIDE.md` (real: `client/src/FRONTEND_STYLE_GUIDE.md`);

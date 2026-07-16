@@ -61,7 +61,7 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 - [ ] **9. Single cache key-builder + one separator.**
   The six `TimCacheC` caches use three separators (`|`, `::`, `_`) and compute the key twice (in `*FromParams` and `parseData`); a one-char drift silently drops every write, and `cache_status` reverse-parses by a hard-coded separator.
   **Fix:** one shared key-builder per cache used by both paths, one reserved separator.
-  **Files:** `server/routes/caches/{visualizations,dataset}.ts`, `server/valkey/cache_class_C.ts`. **Doc:** [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md).
+  **Files:** `server/routes/caches/{visualizations,dataset}.ts`, `server/valkey/cache_class_C.ts`. **Doc:** [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md).
 
 - [ ] **10. Route all CTE construction through `CTEManager`.**
   `get_possible_values.ts` and `get_period_bounds.ts` hand-write their own `WITH period_data` / `facility_subset` strings (always deriving all three period columns), which breaks on `quarter_id`-only tables and duplicates the CTE shape across three files.
@@ -74,7 +74,7 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 
 - [ ] **12. Collapse the `notify_last_updated` indirection.**
   `notifyLastUpdated` → `notifyProjectLastUpdatedV2` → `notifyProjectV2` is three layers for one event (the middle layer has no other callers). Pick the layer call sites use; remove the rest. (Bundle with retiring the vestigial `_v2` naming if doing a rename pass.)
-  **Files:** `server/task_management/notify_{last_updated,project_v2}.ts`. **Doc:** [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md).
+  **Files:** `server/task_management/notify_{last_updated,project_v2}.ts`. **Doc:** [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md).
 
 ---
 

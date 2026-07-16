@@ -23,7 +23,7 @@ structure/facility staging and geojson storage are **S5**, HMIS dataset
 staging is **S6**. Period (`YYYYMM`) formatting for analytics is **S9**
 (Period semantics). The in-memory geojson session cache here is the
 sanctioned process-local alternative to Valkey — see
-[DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md) for when to use which. The
+[SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) for when to use which. The
 instance-wide stored DHIS2 credentials (encrypted at rest, one row for
 every DHIS2 flow — structure, indicators, geojson, HMIS data) live in
 **S6** (`server/db/instance/instance_dhis2_credentials.ts` — see

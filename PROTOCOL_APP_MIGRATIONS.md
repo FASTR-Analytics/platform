@@ -173,7 +173,7 @@ helpers whenever a rename/delete block is added.
 
 ### Cache Invalidation
 
-Valkey caches use `last_updated` timestamps as version hashes (the full mechanics live in [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md)). When a migration updates a row's `last_updated`:
+Valkey caches use `last_updated` timestamps as version hashes (the full mechanics live in [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)). When a migration updates a row's `last_updated`:
 
 1. Cache entry has old timestamp in version hash
 2. Next request: DB returns new timestamp, cache has old

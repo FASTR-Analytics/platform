@@ -2,7 +2,7 @@
 
 How module execution is orchestrated: a DB-persisted dirty state machine with an in-memory "running" overlay, recursive dependency propagation, runnable gating, and the `task_ended` cleanup/re-trigger loop.
 
-> This doc owns the **dirty/dependency/trigger machine** and the in-memory **running-tasks map invariant**. The worker *lifecycle* (spawn, READY handshake, connection teardown) is [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md) — it cites this doc for the map-cleanup rule. The R-script *load + execute + ingest* mechanics are [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md). What happens when a module *definition* changes is [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md) (a caller of `setModuleDirty`). Notifications go through [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md); the `last_run`→cache coupling is [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md).
+> This doc owns the **dirty/dependency/trigger machine** and the in-memory **running-tasks map invariant**. The worker *lifecycle* (spawn, READY handshake, connection teardown) is [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md) — it cites this doc for the map-cleanup rule. The R-script *load + execute + ingest* mechanics are [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md). What happens when a module *definition* changes is [DOC_MODULE_UPDATES.md](DOC_MODULE_UPDATES.md) (a caller of `setModuleDirty`). Notifications and the `last_run`→cache coupling are [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md).
 
 ---
 
@@ -119,7 +119,7 @@ export async function handleModuleTaskEnded(etd: EndingTaskData) {
 
 The ordering is load-bearing twice over: the `runToken` check stops a stale completion from clobbering (or killing) a successor run, and writing the DB row *before* removing the map entry means there is no window where the module is `queued`-and-unmapped — the exact state a concurrent trigger would re-spawn.
 
-`setModuleClean` on success: `dirty='ready'`, `last_run_at=now`, copies `compute_def_git_ref → last_run_git_ref`, bumps `global_last_updated('any_module_last_run')`, then **bumps `last_updated` on every dependent presentation object** (this is what invalidates their Valkey cache entries — [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md)), then refetches modules+metrics and broadcasts. On error: `dirty='error'` + notify. The `ProjectPk { projectDb, projectId }` handle is reconstructed in the listener via `getPgConnectionFromCacheOrNew` because the message crosses a thread boundary.
+`setModuleClean` on success: `dirty='ready'`, `last_run_at=now`, copies `compute_def_git_ref → last_run_git_ref`, bumps `global_last_updated('any_module_last_run')`, then **bumps `last_updated` on every dependent presentation object** (this is what invalidates their Valkey cache entries — [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)), then refetches modules+metrics and broadcasts. On error: `dirty='error'` + notify. The `ProjectPk { projectDb, projectId }` handle is reconstructed in the listener via `getPgConnectionFromCacheOrNew` because the message crosses a thread boundary.
 
 ---
 
