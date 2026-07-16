@@ -16,6 +16,10 @@
   --font-weight-700: 700;
   --font-weight-800: 800;
 
+  /* App-side scale extension (hero title on the landing screen); the kit
+     wipes non-declared text sizes. */
+  --text-5xl: 3rem;
+
   --color-transparent: transparent;
   --color-black: #000716;
   --color-white: #ffffff;

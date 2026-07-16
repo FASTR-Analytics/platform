@@ -788,7 +788,7 @@ export function SlideEditor(p: Props) {
             </Show>
             <Show when={pageInputs().status === "error"}>
               <div class="flex h-full items-center justify-center">
-                <div class="text-error">Error: {(pageInputs() as any).err}</div>
+                <div class="text-danger">Error: {(pageInputs() as any).err}</div>
               </div>
             </Show>
             <Show

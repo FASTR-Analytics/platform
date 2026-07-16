@@ -111,7 +111,7 @@ function TriStateCheckbox(p: {
       return `${base} bg-primary border-primary text-primary-content`;
     if (p.value === false)
       return `${base} border-danger text-danger bg-danger/10 font-700`;
-    return `${base} bg-base-200 border-base-400 text-base-content`;
+    return `${base} bg-base-200 border-base-300 text-base-content`;
   };
 
   const labelClass = () => {

@@ -81,7 +81,7 @@ export function BatchUploadUsersForm(p: Props) {
           <span class="font-700 ml-3 font-mono">email, is_global_admin</span>
         </div>
 
-        <div class="text-sm text-gray-600">
+        <div class="text-neutral text-sm">
           {t3({ en: "Example:", fr: "Exemple :", pt: "Exemplo:" })} <span class="font-mono">user@example.com,false</span>
         </div>
 

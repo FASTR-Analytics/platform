@@ -195,7 +195,7 @@ export function FeedbackForm(
                   </span>
                   <button
                     type="button"
-                    class="text-error hover:text-error cursor-pointer opacity-60 hover:opacity-100"
+                    class="text-danger cursor-pointer opacity-60 hover:opacity-100"
                     onClick={() =>
                       setImages((prev) => prev.filter((_, j) => j !== i()))
                     }

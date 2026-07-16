@@ -47,7 +47,7 @@ function ForceDeleteModal(p: AlertComponentProps<{ projectId: string; projectLab
             pt: `Tem a certeza de que pretende eliminar permanentemente "${p.projectLabel}"? Esta ação não pode ser anulada.`,
           })}
         </p>
-        <p class="text-error text-sm font-semibold">
+        <p class="text-danger text-sm font-semibold">
           {t3({
             en: "All project data, visualizations, and reports will be lost forever.",
             fr: "Toutes les données, visualisations et rapports du projet seront perdus pour toujours.",

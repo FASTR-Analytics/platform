@@ -14,7 +14,7 @@ export function PresetCard(p: PresetCardProps) {
       class="flex w-24 cursor-pointer flex-col rounded-lg border p-2 text-left"
       classList={{
         "border-primary border-2": p.selected,
-        "border-base-300 hover:border-base-400": !p.selected,
+        "border-base-300": !p.selected,
       }}
       onClick={p.onClick}
     >

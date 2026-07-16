@@ -178,7 +178,7 @@ export function GeoJsonEditModal(p: Props) {
       </Show>
 
       <Show when={error()}>
-        <div class="text-error py-8 text-center">{error()}</div>
+        <div class="text-danger py-8 text-center">{error()}</div>
       </Show>
 
       <Show when={!loading() && !error()}>

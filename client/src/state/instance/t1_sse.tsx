@@ -163,7 +163,7 @@ export function InstanceSSEBoundary(props: { children: JSX.Element }) {
           }
         >
           <div class="flex h-full w-full items-center justify-center">
-            <div class="text-error">
+            <div class="text-danger">
               {t3({
                 en: "Failed to connect to server. Please refresh the page.",
                 fr: "Échec de la connexion au serveur. Veuillez actualiser la page.",

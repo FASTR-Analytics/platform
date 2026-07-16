@@ -74,7 +74,7 @@ export function ProjectCache() {
                 </div>
                 <div class="flex items-center ui-gap-sm text-sm">
                   <span class="font-500">{t3({ en: "Valkey", fr: "Valkey", pt: "Valkey" })}:</span>
-                  <span class={data.valkeyConnected ? "text-success" : "text-error"}>
+                  <span class={data.valkeyConnected ? "text-success" : "text-danger"}>
                     {data.valkeyConnected
                       ? t3({ en: "Connected", fr: "Connecté", pt: "Ligado" })
                       : t3({ en: "Not connected", fr: "Non connecté", pt: "Não ligado" })}

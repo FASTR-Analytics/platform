@@ -354,7 +354,7 @@ export function EditCalculatedIndicatorForm(
             disabled={mode === "update"}
           />
           <Show when={idValidationError()}>
-            <div class="text-error -mt-1 text-xs">{idValidationError()}</div>
+            <div class="text-danger -mt-1 text-xs">{idValidationError()}</div>
           </Show>
           <Input
             label={t3(TC.label)}
@@ -376,7 +376,7 @@ export function EditCalculatedIndicatorForm(
             fullWidth
           />
           <Show when={numIdError()}>
-            <div class="text-error -mt-1 text-xs">{numIdError()}</div>
+            <div class="text-danger -mt-1 text-xs">{numIdError()}</div>
           </Show>
         </div>
 
@@ -428,7 +428,7 @@ export function EditCalculatedIndicatorForm(
               fullWidth
             />
             <Show when={denomIdError()}>
-              <div class="text-error -mt-1 text-xs">{denomIdError()}</div>
+              <div class="text-danger -mt-1 text-xs">{denomIdError()}</div>
             </Show>
           </Show>
           <Show when={denomKind() === "population"}>
