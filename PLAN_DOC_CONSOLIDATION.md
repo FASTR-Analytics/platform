@@ -13,7 +13,7 @@
 > DOC_AI_TOOL_SCHEMAS → SYSTEM_13 + new PROTOCOL_APP_AI_TOOLS, 2026-07-07;
 > review-only cycle — findings are S13 Open items, no fix batch yet), S7
 > (DOC_DHIS2_INTEGRATION, 2026-07-14; review-only cycle — findings are S7
-> Open items), CROSS_CLIENT_STATE (DOC_STATE_RULES + 3× DOC_STATE_MGT_*,
+> Open items), PROTOCOL_APP_STATE (DOC_STATE_RULES + 3× DOC_STATE_MGT_*,
 > 2026-07-16; claims verified against code, generic rules deferred to panther
 > PROTOCOL_UI_STATE/_SOLIDJS; review-only — code findings are its Open items).
 > This plan deletes itself when the last `DOC_*` is gone.
@@ -31,7 +31,7 @@ construction rule → defer to the panther `PROTOCOL_*`, do NOT restate it.
 | DOC_DB_ACCESS_LAYER | S2 | (SQL-safety rule may join PROTOCOL_APP_MIGRATIONS or a DB protocol) | — |
 | DOC_SSE_REALTIME | S3 (also §4.3.1 audit) | — | — |
 | DOC_VALKEY_CACHE | S3 (informs S9) | — | — |
-| DOC_STATE_RULES + 3× DOC_STATE_MGT_* | CROSS_CLIENT_STATE (app field inventory) | — | **PROTOCOL_UI_STATE** (the T1–T5 rules) |
+| DOC_STATE_RULES + 3× DOC_STATE_MGT_* | — | PROTOCOL_APP_STATE (tiers + rules + inventory; DONE 2026-07-16) | **PROTOCOL_UI_STATE / _SOLIDJS** (generic rules) |
 | DOC_TASK_EXECUTION_DIRTY_STATE | S8 | — | — |
 | DOC_WORKER_ROUTINES | S8 (informs S6) | PROTOCOL_APP_WORKER_ROUTINES (write-a-worker recipe) | — |
 | DOC_MODULE_EXECUTION | S8 | — | — |
@@ -45,8 +45,8 @@ construction rule → defer to the panther `PROTOCOL_*`, do NOT restate it.
 | DOC_DISAGGREGATION_OPTIONS_HANDLING | S9 (informs S5) | — | — |
 | DOC_ROLLUP_ROWS | S9 | — | — |
 | DOC_SPECIAL_CHART_MODES | S10 | — | — |
-| DOC_DESIGN_SYSTEM | CROSS_UI_CONVENTIONS (app tokens/patterns) | — | **PROTOCOL_UI_STYLING / _COMPONENTS** |
-| DOC_BUILD_INSTRUCTIONS | CROSS_UI_CONVENTIONS | — | **PROTOCOL_UI_STRUCTURE** |
+| DOC_DESIGN_SYSTEM | — | PROTOCOL_APP_UI_CONVENTIONS (app tokens/patterns) — or fold into S14 | **PROTOCOL_UI_STYLING / _COMPONENTS** |
+| DOC_BUILD_INSTRUCTIONS | — | PROTOCOL_APP_UI_CONVENTIONS — or fold into S14 | **PROTOCOL_UI_STRUCTURE** |
 | DOC_TRANSLATION | S14 (also §4.3.6 audit) | — | **PROTOCOL_ALL_TRANSLATION** |
 | DOC_HELP_BUTTONS | S14 | PROTOCOL_APP_HELP_BUTTONS (add-a-help-button recipe) | — |
 | DOC_ACCESS_DBS | S15 (informs S2) | — | — |
@@ -81,10 +81,10 @@ hold real prose that readers aren't sent to stubs.
 
 ## 4. Open decisions for Tim
 
-1. **`CROSS_*` set** — RULED for state (CROSS_CLIENT_STATE shipped
-   2026-07-16). Remaining half of the decision: CROSS_UI_CONVENTIONS ←
-   DOC_DESIGN_SYSTEM + DOC_BUILD_INSTRUCTIONS, or fold into S14?
-   (Recommend the CROSS file — conventions every client system follows.)
+1. **`CROSS_*` set** — RULED 2026-07-16: no CROSS category; the doc set is
+   `PROTOCOL_*` / `PLAN_*` / `SYSTEM_*` only. State docs shipped as
+   PROTOCOL_APP_STATE. Remaining sub-decision: DOC_DESIGN_SYSTEM +
+   DOC_BUILD_INSTRUCTIONS → a PROTOCOL_APP_UI_CONVENTIONS, or fold into S14?
 2. **`PROTOCOL_APP_*` naming/scope** — confirm the token and repo-root location
    (vs a `protocols_app/` dir, or `GUIDE_*`). PROTOCOL_APP_MIGRATIONS already
    exists as the precedent.

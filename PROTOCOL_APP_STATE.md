@@ -1,11 +1,12 @@
-# CROSS — Client State Tiers
+# PROTOCOL — App: Client State Tiers
 
-> A cross-cutting doc, not a system: the T1–T5 client-state tier model, the
-> app-specific read/write rules, and the state inventory. The state _machinery_
-> (stores, `_infra/`, SSE bridges) is owned by S3; the server-side producer
-> (BroadcastChannel → SSE, notify catalog, `last_updated` coupling) is
-> [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md). Owns no files in the manifest —
-> convention, not code ownership.
+> **App-specific protocol** (not panther's cross-project `PROTOCOL_*`): the
+> T1–T5 client-state tier model, the app-specific read/write rules, and the
+> state inventory — read it when building anything that holds or fetches
+> client state. The state _machinery_ (stores, `_infra/`, SSE bridges) is
+> owned by S3; the server-side producer (BroadcastChannel → SSE, notify
+> catalog, `last_updated` coupling) is
+> [DOC_SSE_REALTIME.md](DOC_SSE_REALTIME.md).
 >
 > **Base layer — read first, never restated here:** the generic construction
 > rules live in panther: `panther/protocols/PROTOCOL_UI_STATE.md` (createQuery /
@@ -33,7 +34,7 @@ State files carry their tier prefix so files sort by tier; T3 and T5 have no
 files by definition. T4 vs T5: T4 state must survive component unmount
 (localStorage/sessionStorage/IndexedDB/module-level signals); T5 dies with it.
 
-```
+```text
 client/src/state/
   instance/                ← instance-scoped T1 + T2
   project/                 ← project-scoped T1 + T2 + T4

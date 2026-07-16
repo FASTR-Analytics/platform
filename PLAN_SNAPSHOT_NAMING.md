@@ -5,9 +5,9 @@
 Make the **read mode** of every state getter visible at the call site. After this change:
 
 - A call like `getInstanceUsers()` becomes `getSnapshotInstanceUsers()` (or similar) — the name carries the warning that this is a non-reactive read.
-- A reader scanning code immediately sees which calls subscribe to changes and which don't, without having to mentally cross-reference `CROSS_CLIENT_STATE.md`.
+- A reader scanning code immediately sees which calls subscribe to changes and which don't, without having to mentally cross-reference `PROTOCOL_APP_STATE.md`.
 
-This is a follow-on to the live-read / snapshot-read framework in `CROSS_CLIENT_STATE.md` (base semantics: panther `PROTOCOL_UI_STATE.md` "Read Modes").
+This is a follow-on to the live-read / snapshot-read framework in `PROTOCOL_APP_STATE.md` (base semantics: panther `PROTOCOL_UI_STATE.md` "Read Modes").
 
 ## Why now? Why later?
 
@@ -81,7 +81,7 @@ The prefix form puts the **read mode immediately visible** when scanning the fir
 1. **Update the getter definitions** in `client/src/state/instance/t1_store.ts` and `client/src/state/project/t1_store.ts`. Rename each function; the body stays unchanged.
 2. **Find and replace all call sites.** Use the IDE's symbol-aware rename refactor — NOT plain text find/replace, since some names overlap with other identifiers (e.g. `getInstanceProjects` could conflict with `instanceState.projects` shape).
 3. **Update imports** wherever the renamed functions are imported.
-4. **Update `CROSS_CLIENT_STATE.md`** ("T1 read mechanics" + getter mentions) with one sentence — *"Snapshot-read getters are named `getSnapshot*`."* — and the new names.
+4. **Update `PROTOCOL_APP_STATE.md`** ("T1 read mechanics" + getter mentions) with one sentence — *"Snapshot-read getters are named `getSnapshot*`."* — and the new names.
 5. **Typecheck** (`deno task typecheck`) to catch any missed call sites.
 6. **Smoke test** the app — these getters are called from caches, side effects, and event handlers. A rename oversight would surface as a runtime "function not defined" error, not a typecheck error in some cases (e.g., if any caller uses dynamic property access or string-based references).
 

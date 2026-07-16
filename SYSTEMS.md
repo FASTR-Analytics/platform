@@ -33,9 +33,9 @@ artifacts (12), assist (13), frame (14–15).
 | [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users/roles, project lifecycle, health, backups, disk autonomics, deploy                   |
 | [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus — everyone's dependency             |
 
-Cross-cutting docs (conventions, not code ownership):
-[CROSS_UI_CONVENTIONS.md](CROSS_UI_CONVENTIONS.md),
-[CROSS_CLIENT_STATE.md](CROSS_CLIENT_STATE.md).
+App-wide conventions that span systems live as `PROTOCOL_APP_*` files (§6),
+e.g. [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md) — they own no files in
+the manifest.
 
 ## §4.1 Shared-custody files
 

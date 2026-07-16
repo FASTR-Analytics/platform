@@ -2,7 +2,7 @@
 
 The server-side push system: in-process `BroadcastChannel` fan-out to two Server-Sent-Events streams (instance + project), the subscribe-before-build connection lifecycle, the typed `notify*` wrapper catalog (this doc owns it), and the `last_updated → notify → cache versionKey` triangle.
 
-> This is **server push**. It is not the request-scoped NDJSON `StreamWriter` in [DOC_API_ROUTES.md](DOC_API_ROUTES.md) (that is one request, one response, streamed). The client *consumers* (`client/src/state/{instance,project}/t1_sse.tsx`) are governed by the client state doc ([CROSS_CLIENT_STATE.md](CROSS_CLIENT_STATE.md)); this doc is the producer + transport side. The `last_updated` write side is [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md); the cache version side is [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md).
+> This is **server push**. It is not the request-scoped NDJSON `StreamWriter` in [DOC_API_ROUTES.md](DOC_API_ROUTES.md) (that is one request, one response, streamed). The client *consumers* (`client/src/state/{instance,project}/t1_sse.tsx`) are governed by the client state doc ([PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md)); this doc is the producer + transport side. The `last_updated` write side is [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md); the cache version side is [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md).
 
 ---
 
