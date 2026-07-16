@@ -1,3 +1,15 @@
+[TBD] [user] [added] - View detailed error information for each DHIS2 import run by clicking on it
+[TBD] [user] [added] - Retry failed indicator-month pairs directly from the import run detail view
+[TBD] [user] [added] - See which indicators were not found in DHIS2 during an import
+[TBD] [user] [added] - View verification mismatches between DHIS2 data sources for an import run
+[TBD] [user] [changed] - Failed pair counts are now highlighted in red in the import history table
+[TBD] [user] [changed] - Scheduled and one-time import error messages are now shown directly in the table instead of only on hover
+[TBD] [admin] [added] - Click any DHIS2 import run to view full error details
+[TBD] [admin] [added] - Retry failed indicator-month pairs directly from run detail view
+[TBD] [admin] [added] - Unknown DHIS2 indicator IDs are now clearly listed per run
+[TBD] [admin] [added] - Verification mismatches between DHIS2 data sources shown in run detail
+[TBD] [admin] [changed] - Failed pair counts in import history are now highlighted in red
+[TBD] [admin] [changed] - Scheduled and one-time import errors now display inline instead of tooltip-only
 [1.58.0] [user] [added] - Indicator labels now shown in the import status table
 [1.58.0] [user] [changed] - Scheduled imports split into Recurring and One-time sections
 [1.58.0] [user] [changed] - One-time scheduled imports now use an exact date range instead of a rolling window
