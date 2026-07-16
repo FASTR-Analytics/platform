@@ -79,8 +79,9 @@ progress).
 
 ## HMIS DHIS2 import runs (per-pair fetch+integrate)
 
-Authoritative spec + as-built notes: PLAN_DHIS2_IMPORTER §4.4/§6/§7 (folds
-into this doc when that plan retires). Shape:
+This section is the authority (PLAN_DHIS2_IMPORTER retired + deleted
+2026-07-16 with Phases 0–4 built; its full as-built record and the lab
+evidence summaries live in git history). Shape:
 
 - `dataset_hmis_import_runs` (main DB): one row per run — trigger/user,
   selection JSON (window or explicit pairs), status
@@ -101,7 +102,12 @@ into this doc when that plan retires). Shape:
   deterministic per-row jitter, `last_fired_at` CAS idempotency). Nothing
   fires unattended until a run against the stored DHIS2 URL has
   `shadow_passed = true`; refusals/misses are loud (`last_outcome` +
-  datasets-summary attention flag).
+  datasets-summary attention flag). Two accepted limitations (reviewed
+  2026-07-15, deliberately not fixed): a crash between the CAS claim and
+  the outcome write silently consumes that occurrence (single-server
+  crash-timing window), and rolling-window "current month" resolves from
+  the server clock, not the schedule's timezone (≤hours of skew at month
+  boundaries, self-correcting).
 - The worker classifies every selected raw indicator per run from DHIS2
   metadata (dispatcher): bare data elements + operands → dataValueSets
   country-pulls, one per base element × month selected by
@@ -109,7 +115,15 @@ into this doc when that plan retires). Shape:
   interprets in its own calendar, same contract as analytics `pe:` — the
   app never converts calendars/dates; lab E13 2026-07-15: a
   calendar-configured server like Ethiopia's does not read
-  startDate/endDate as Gregorian), level-2 subtree split on size/timeout;
+  startDate/endDate as Gregorian), level-2 subtree split on size/timeout.
+  The empirical evidence base behind the dispatcher (verdicts E1–E13:
+  bottleneck attribution, DVS↔analytics parity, failure clusters, the
+  E13 calendar finding) lives in the retired sibling lab repo
+  `~/projects/apps/wb-fastr-dhis2-lab` (RESULTS.md; read-only GETs
+  against national servers; note DHIS2 caches analytics responses, so
+  never time a repeated identical request). One sizing fact worth
+  keeping: DVS deep-history backfill ≈ 10 MB per dense element-month
+  (a 72-month history ≈ 10–20 GB transfer, one pull per element-month).
   computed DHIS2 indicators → analytics; unknown ids → permanent ledger
   errors with no fetch; a response containing any period other than the
   requested one fails the pull loudly (permanent).
@@ -356,8 +370,11 @@ Deferred findings from the 2026-07-02 review cycle, plus standing reform:
   (fixing it = stored-JSON migration).
 - **Decoupling — heal the db→worker inversion.** The dataset orchestrators
   in `server/db/instance/` spawn and manage Web Workers (the biggest
-  directory lie). [PLAN_IMPORTER_CONSOLIDATION.md](PLAN_IMPORTER_CONSOLIDATION.md)
-  is the natural vehicle, along with the single fixed staging-table names.
+  directory lie).
+  [PLAN_DHIS2_IMPORTER_CONSOLIDATION.md](PLAN_DHIS2_IMPORTER_CONSOLIDATION.md)
+  is the vehicle (its per-family run workers also retire the single
+  fixed staging-table names).
 - **Decoupling — dual CSV parsers.** papaparse vs panther `parseCSV`;
-  evaluate consuming panther's `_100_csv`/`_232_csv`
-  (PLAN_IMPORTER_CONSOLIDATION §8).
+  evaluate consuming panther's `_100_csv`/`_232_csv` (panther's modules
+  are whole-string today — adoption would mean adding streaming there
+  first).

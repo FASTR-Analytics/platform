@@ -42,7 +42,7 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
   **Files:** `server/db/migrations/project/`, `_project_database.sql`. **Doc:** [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md).
 
 - [ ] **6. One bulk-escape helper; ban hand-built `VALUES`.**
-  Bulk `VALUES` escaping is uniform `''`-doubling, but implemented twice: HFA via the shared `escapeSqlString` (`server/db/utils.ts`), HMIS/structure inline. One shared helper + a lint/grep ban on manual tuple escaping keeps the implementations from drifting; the parameterized/COPY version of this is PLAN_IMPORTER_CONSOLIDATION Layer 3's `withBufferedInsert`.
+  Bulk `VALUES` escaping is uniform `''`-doubling, but implemented twice: HFA via the shared `escapeSqlString` (`server/db/utils.ts`), HMIS/structure inline. One shared helper + a lint/grep ban on manual tuple escaping keeps the implementations from drifting. (A parameterized/COPY bulk-insert helper was sketched in the now-deleted PLAN_IMPORTER_CONSOLIDATION toolkit plan — superseded by PLAN_DHIS2_IMPORTER_CONSOLIDATION.md, which wraps rather than rewrites the insert paths; the escaping-dedup idea here stands on its own.)
   **Files:** `server/server_only_funcs_importing/stage_structure_from_csv.ts`, `server/worker_routines/stage_hmis_data_csv/worker.ts`. **Docs:** [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md), [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md) (owns the SQL-safety rule).
 
 - [ ] **7. Harden R-source interpolation.**
