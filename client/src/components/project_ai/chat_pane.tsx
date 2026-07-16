@@ -8,6 +8,7 @@ import {
   type AIChatSystemPromptPanelProps,
   Button,
   createAIChat,
+  Icon,
   MenuTriggerWrapper,
   openComponent,
   openConfirm,
@@ -59,7 +60,11 @@ function ToolErrorRenderer(props: { item: { errorMessage: string; errorDetails: 
           onClick={() => setExpanded((v) => !v)}
           class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-left text-xs"
         >
-          <span class="mt-0.5">{expanded() ? "▾" : "▸"}</span>
+          <div class="mt-0.5">
+            {expanded()
+              ? <Icon iconName="chevronDown" class="h-3 w-3" />
+              : <Icon iconName="chevronRight" class="h-3 w-3" />}
+          </div>
           <span class="font-medium">{props.item.errorMessage}</span>
         </button>
         <Show when={expanded()}>
@@ -84,7 +89,11 @@ function SystemNoticeRenderer(props: { item: { message: string; details: string 
         onClick={() => setExpanded((v) => !v)}
         class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-left text-xs"
       >
-        <span class="mt-0.5">{expanded() ? "▾" : "▸"}</span>
+        <div class="mt-0.5">
+          {expanded()
+            ? <Icon iconName="chevronDown" class="h-3 w-3" />
+            : <Icon iconName="chevronRight" class="h-3 w-3" />}
+        </div>
         <span class="font-medium">{props.item.message}</span>
       </button>
       <Show when={expanded()}>

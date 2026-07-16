@@ -28,6 +28,7 @@ globs:
   - lib/types/dataset_iceh_import.ts
   - lib/types/datasets.ts
   - lib/types/datasets_in_project.ts
+  - lib/types/dhis2.ts
   - server/db/instance/dataset_hfa.ts
   - server/db/instance/dataset_hmis.ts
   - server/db/instance/instance_dhis2_credentials.ts
@@ -40,6 +41,7 @@ globs:
   - server/db/project/datasets_in_project_hmis.ts
   - server/db/project/datasets_in_project_iceh.ts
   - server/routes/instance/datasets.ts
+  - server/routes/instance/dhis2_credentials.ts
   - server/routes/instance/iceh.ts
   - server/server_only_funcs_csvs/**
   - server/worker_routines/integrate_hfa_data/**

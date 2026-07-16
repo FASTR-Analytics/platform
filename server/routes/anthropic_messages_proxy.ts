@@ -133,15 +133,21 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    return new Response(
-      JSON.stringify({
-        error: `Anthropic API error: ${response.status} - ${error}`,
-      }),
-      {
-        status: response.status,
-        headers: { "Content-Type": "application/json" },
-      },
+    const errorText = await response.text();
+    const parsed = (() => {
+      try {
+        return JSON.parse(errorText);
+      } catch {
+        return null;
+      }
+    })();
+    // Forward Anthropic's error body unchanged (type + message intact) so
+    // the client SDK's err.type classification works; only synthesize an
+    // Anthropic-shaped envelope if the upstream body wasn't JSON at all.
+    return Response.json(
+      parsed ??
+        { type: "error", error: { type: "api_error", message: errorText } },
+      { status: response.status },
     );
   }
 
