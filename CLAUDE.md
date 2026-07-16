@@ -155,8 +155,8 @@ wb-fastr/
 
 **Internationalization**
 
-- English/French UI
-- Built from XLSX translation files
+- English/French UI (Portuguese in rollout)
+- Inline `{ en, fr, pt? }` literals resolved via `t3()` — no translation build step
 - Calendar support (Gregorian/Ethiopian)
 
 **Real-time Updates**
@@ -242,10 +242,9 @@ Server: `http://localhost:8000` Client: `http://localhost:3000`
 ### Build Tasks
 
 ```bash
-deno task build:modules       # Generate module definitions
-deno task build:translations  # Build i18n strings from XLSX
+deno task build:help-buttons  # Regenerate help-button lookup table
 deno task build:client        # Build client SPA
-deno task typecheck           # Check both server + client
+deno task typecheck           # Check both server + client (+ lint:systems)
 ```
 
 ## Deployment
@@ -256,9 +255,9 @@ deno task typecheck           # Check both server + client
 
 Workflow:
 
-1. Version bump (major/minor/patch)
-2. Client build (optional)
-3. Module definitions + translations build
+1. Typecheck gate (`deno task typecheck`, includes `lint:systems`)
+2. Version bump (major/minor/patch)
+3. Client build (optional)
 4. Docker image build and push
 5. Git commit and push
 
@@ -317,7 +316,8 @@ that area.
 - [DOC_BUILD_INSTRUCTIONS.md](DOC_BUILD_INSTRUCTIONS.md),
   [DOC_DESIGN_SYSTEM.md](DOC_DESIGN_SYSTEM.md),
   [DOC_SPECIAL_CHART_MODES.md](DOC_SPECIAL_CHART_MODES.md),
-  [DOC_TRANSLATION.md](DOC_TRANSLATION.md),
+  [SYSTEM_14_client_shell.md](SYSTEM_14_client_shell.md) (shell, translation, help buttons),
+  [PROTOCOL_APP_HELP_BUTTONS.md](PROTOCOL_APP_HELP_BUTTONS.md),
   [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md)
 
 ### Cross-project base (`panther/protocols/`)

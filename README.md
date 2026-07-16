@@ -101,9 +101,8 @@ The script performs the following steps:
    - Optionally builds the client (`npm run build` in client/)
    - Output goes to `./client_dist/` which the server serves in production
 
-3. **Server Build**
-   - Generates module definitions (`deno task build:modules`)
-   - Builds translation files (`deno task build:translations`)
+3. **Typecheck Gate**
+   - Runs `deno task typecheck` (server + client + `lint:systems`)
 
 4. **Docker Image**
    - Builds Docker image tagged with version: `timroberton/comb:wb-fastr-server-v{version}`

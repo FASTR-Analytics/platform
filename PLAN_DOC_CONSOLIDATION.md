@@ -34,8 +34,16 @@
 > translation is `resolveTS`-direct (no getTranslateFunc), quarter_id
 > normalization is a 4th ingest statement, population.csv extrapolation capped
 > at ±1 year; PLAN_DOC_ENFORCEMENT item 2 trimmed to its surviving
-> crash-recovery bullet). This plan deletes itself when the last `DOC_*` is
-> gone.
+> crash-recovery bullet), S14 (DOC_TRANSLATION + DOC_HELP_BUTTONS → SYSTEM_14 +
+> new PROTOCOL_APP_HELP_BUTTONS, 2026-07-17; review-only — findings are S14
+> Open items; generic translation rules deferred to panther
+> PROTOCOL_ALL_TRANSLATION, app conventions stated in S14; corrections folded
+> in: `isFrench()` and the help "summary override" don't exist, language/
+> calendar resolve mid-render not pre-render, `build:translations` +
+> `build:modules` are phantom tasks (no XLSX i18n path), t3 surface = 252
+> files, stub's two dead-code items already deleted; help system is EN/FR-only
+> with 1 of 41 targets adopted). This plan deletes itself when the last
+> `DOC_*` is gone.
 
 ## 1. `DOC_*` → target mapping (3-way sort)
 
@@ -81,11 +89,9 @@ is inlined during its cycle.
 
 - **CLAUDE.md:** `server/visualization_definitions/` doesn't exist (viz query
   code is `server_only_funcs_presentation_objects/`; the phantom `server/ai/`
-  entry was fixed in the S13 cycle); `client/src/export_report` is now
-  `client/src/exports/`; dataset-import progress is POLLED, not SSE; "i18n built
-  from XLSX" is wrong per DOC_TRANSLATION; `state/ui.ts` and
-  `components/project_runner/provider.tsx` are phantoms (real: `state/t4_ui.ts`,
-  `components/project/index.tsx` area).
+  entry was fixed in the S13 cycle, the XLSX-translation and phantom-task
+  claims in the S14 cycle); `client/src/export_report` is now
+  `client/src/exports/`; dataset-import progress is POLLED, not SSE.
 - Minor: DOC_BUILD_INSTRUCTIONS/DOC_DESIGN_SYSTEM cite
   `panther/FRONTEND_STYLE_GUIDE.md` (real:
   `client/src/FRONTEND_STYLE_GUIDE.md`); DOC_ACCESS_DBS cites a deleted
