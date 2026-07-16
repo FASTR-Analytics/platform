@@ -22,6 +22,7 @@ export {
   on,
   onCleanup,
   onMount,
+  untrack,
 } from "solid-js";
 export type { JSX } from "solid-js";
 export { render } from "solid-js/web";

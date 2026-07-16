@@ -13,5 +13,6 @@ export { createDomMeasurer } from "./dom_measurer.ts";
 export type {
   DomMeasurer,
   DomMeasurerOptions,
+  DomTextStyle,
   MeasuredSize,
 } from "./dom_measurer.ts";

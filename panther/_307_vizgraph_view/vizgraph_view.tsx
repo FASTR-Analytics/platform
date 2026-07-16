@@ -11,17 +11,19 @@ import {
   createUniqueId,
   For,
   layout,
-  on,
   onCleanup,
   onMount,
   toSvgPath,
+  untrack,
 } from "./deps.ts";
-import type { Geometry } from "./deps.ts";
+import type { Geometry, LayoutOptions } from "./deps.ts";
 import type {
   VizGraphViewApi,
   VizGraphViewNodeInfo,
   VizGraphViewProps,
 } from "./types.ts";
+import { createDomMeasurer } from "./dom_measurer.ts";
+import type { DomMeasurer } from "./dom_measurer.ts";
 import {
   buildTransitionFrame,
   edgeOpacityKey,
@@ -36,8 +38,19 @@ const MAX_SCALE = 4;
 const ZOOM_INTENSITY = 0.0015;
 const FIT_PADDING_PX = 40;
 const CLICK_DRAG_THRESHOLD_PX = 4;
-const EDGE_STROKE_WIDTH = 1.5;
+const DEFAULT_EDGE_THICKNESS = 1.5;
 const ARROW_SIZE = 7;
+const RESIZE_RELAYOUT_DEBOUNCE_MS = 100;
+
+const EMPTY_GEOMETRY: Geometry = {
+  bounds: { x: 0, y: 0, w: 0, h: 0 },
+  nodes: {},
+  edges: {},
+  lanes: {},
+  groups: {},
+  hitAreas: [],
+  warnings: [],
+};
 
 export function VizGraphView(p: VizGraphViewProps) {
   let viewportEl!: HTMLDivElement;
@@ -47,29 +60,82 @@ export function VizGraphView(p: VizGraphViewProps) {
   const [internalSelected, setInternalSelected] = createSignal<string[]>([]);
   const selectedIds = createMemo(() => p.selected ?? internalSelected());
   const [frame, setFrame] = createSignal<TransitionFrame>({
-    geometry: layout(p.model, p.layoutOptions),
+    geometry: EMPTY_GEOMETRY,
     opacities: undefined,
   });
+  // undefined until the font gate resolves (only used with measureNodeContent)
+  const [measurer, setMeasurer] = createSignal<DomMeasurer | undefined>();
+  // undefined until the viewport reports a size (only used with fitToWidth)
+  const [fitWidth, setFitWidth] = createSignal<number | undefined>();
 
   const nodeIds = createMemo(() => Object.keys(frame().geometry.nodes));
   const edgeIds = createMemo(() => Object.keys(frame().geometry.edges));
+
+  // Renderer style stays out of the engine: thickness is model data the view
+  // paints; color/dash stay CSS-themed.
+  const thicknessByEdge = createMemo(() => {
+    const map: Record<string, number> = {};
+    for (const e of p.model.edges) {
+      if (e.thickness !== undefined) {
+        map[e.id] = e.thickness;
+      }
+    }
+    return map;
+  });
 
   let transitionVersion = 0;
   let transitionRaf = 0;
   let cameraVersion = 0;
   let cameraRaf = 0;
+  let laidOut = false;
+  let hasFitted = false;
+  let userMovedCamera = false;
+  let resizeTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // Relayout on model/options change: prior = what is currently displayed, so
-  // survivors barely move; then run the two-phase transition to the new state.
-  createEffect(on(
-    [() => p.model, () => p.layoutOptions],
-    ([model, options]) => {
-      const current = frame().geometry;
-      const next = layout(model, { ...options, prior: current });
-      runTransition(current, next);
-    },
-    { defer: true },
-  ));
+  // undefined = a required async input (font gate, viewport width) is not
+  // available yet; the layout effect waits for it.
+  function resolvedOptions(): LayoutOptions | undefined {
+    const options: LayoutOptions = { ...p.layoutOptions };
+    if (p.measureNodeContent !== undefined) {
+      const m = measurer();
+      if (m === undefined) {
+        return undefined;
+      }
+      options.measureNode = (id, maxWidth) =>
+        m.measureElement(() => p.measureNodeContent!(id), maxWidth);
+    }
+    if (p.fitToWidth) {
+      const w = fitWidth();
+      if (w === undefined || w <= 0) {
+        return undefined;
+      }
+      options.fit = { width: w - FIT_PADDING_PX * 2 };
+    }
+    return options;
+  }
+
+  // ONE layout effect: first resolvable input set lays out without prior and
+  // fits the camera; later changes relayout with prior = what is currently
+  // displayed (survivors barely move) and run the two-phase transition.
+  createEffect(() => {
+    const model = p.model;
+    const options = resolvedOptions();
+    if (options === undefined) {
+      return;
+    }
+    const current = untrack(frame).geometry;
+    if (!laidOut) {
+      laidOut = true;
+      setFrame({ geometry: layout(model, options), opacities: undefined });
+      fitInitialIfPossible();
+      return;
+    }
+    const next = layout(model, { ...options, prior: current });
+    runTransition(current, next);
+    if (p.fitToWidth && !userMovedCamera) {
+      setCameraForFit(true, next.bounds);
+    }
+  });
 
   function runTransition(from: Geometry, to: Geometry): void {
     const version = ++transitionVersion;
@@ -99,8 +165,11 @@ export function VizGraphView(p: VizGraphViewProps) {
     p.onSelect?.(ids);
   }
 
-  function setCameraForFit(animate: boolean): void {
-    const bounds = frame().geometry.bounds;
+  function setCameraForFit(
+    animate: boolean,
+    boundsOverride?: Geometry["bounds"],
+  ): void {
+    const bounds = boundsOverride ?? untrack(frame).geometry.bounds;
     const vw = viewportEl.clientWidth;
     const vh = viewportEl.clientHeight;
     if (vw === 0 || vh === 0 || bounds.w === 0 || bounds.h === 0) {
@@ -125,6 +194,22 @@ export function VizGraphView(p: VizGraphViewProps) {
       animateCameraTo(target);
     } else {
       setCamera(target);
+    }
+  }
+
+  // Mounting hidden (0×0 viewport) or laying out before mount both skip the
+  // fit; every later source of "now it is possible" re-tries until it lands.
+  function fitInitialIfPossible(): void {
+    if (hasFitted) {
+      return;
+    }
+    const bounds = untrack(frame).geometry.bounds;
+    if (
+      viewportEl.clientWidth > 0 && viewportEl.clientHeight > 0 &&
+      bounds.w > 0 && bounds.h > 0
+    ) {
+      setCameraForFit(false);
+      hasFitted = true;
     }
   }
 
@@ -190,6 +275,7 @@ export function VizGraphView(p: VizGraphViewProps) {
     const dy = e.clientY - panStart.y;
     if (Math.hypot(dx, dy) > CLICK_DRAG_THRESHOLD_PX) {
       panMoved = true;
+      userMovedCamera = true;
     }
     if (panMoved) {
       cameraVersion++;
@@ -214,6 +300,7 @@ export function VizGraphView(p: VizGraphViewProps) {
 
   function handleWheel(e: WheelEvent): void {
     e.preventDefault();
+    userMovedCamera = true;
     const rect = viewportEl.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
@@ -237,7 +324,35 @@ export function VizGraphView(p: VizGraphViewProps) {
   }
 
   onMount(() => {
-    setCameraForFit(false);
+    if (p.measureNodeContent !== undefined) {
+      // Container = the viewport, so measured content inherits the same CSS
+      // context the node divs render in (the strut rule — decision log).
+      const m = createDomMeasurer({
+        fonts: p.measureFonts,
+        container: viewportEl,
+      });
+      m.ready.then(() => setMeasurer(m));
+      onCleanup(() => m.dispose());
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      fitInitialIfPossible();
+      if (p.fitToWidth) {
+        const width = entries[0]?.contentRect.width;
+        if (width !== undefined && width > 0) {
+          if (resizeTimer !== undefined) {
+            clearTimeout(resizeTimer);
+          }
+          resizeTimer = setTimeout(
+            () => setFitWidth(width),
+            fitWidth() === undefined ? 0 : RESIZE_RELAYOUT_DEBOUNCE_MS,
+          );
+        }
+      }
+    });
+    observer.observe(viewportEl);
+
+    fitInitialIfPossible();
     viewportEl.addEventListener("wheel", handleWheel, { passive: false });
     const api: VizGraphViewApi = {
       select: (ids) => emitSelect(ids),
@@ -247,6 +362,10 @@ export function VizGraphView(p: VizGraphViewProps) {
     };
     p.onReady?.(api);
     onCleanup(() => {
+      observer.disconnect();
+      if (resizeTimer !== undefined) {
+        clearTimeout(resizeTimer);
+      }
       viewportEl.removeEventListener("wheel", handleWheel);
       transitionVersion++;
       cameraVersion++;
@@ -297,7 +416,7 @@ export function VizGraphView(p: VizGraphViewProps) {
             <marker
               id={markerId}
               viewBox="0 0 10 10"
-              refX="9"
+              refX="10"
               refY="5"
               markerWidth={ARROW_SIZE}
               markerHeight={ARROW_SIZE}
@@ -311,7 +430,7 @@ export function VizGraphView(p: VizGraphViewProps) {
               <path
                 class="ui-vizgraph-edge"
                 d={toSvgPath(frame().geometry.edges[id].path)}
-                stroke-width={EDGE_STROKE_WIDTH}
+                stroke-width={thicknessByEdge()[id] ?? DEFAULT_EDGE_THICKNESS}
                 marker-end={`url(#${markerId})`}
                 opacity={frame().opacities?.[edgeOpacityKey(id)] ?? 1}
               />
