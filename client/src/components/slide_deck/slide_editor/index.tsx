@@ -301,12 +301,14 @@ export function SlideEditor(p: Props) {
         // here serialized multi-MB figure bundles twice per remote keystroke).
         setTempSlide(reconcile(docSlide));
       },
-      (errMsg) => {
+      (errMsg, fatal) => {
         console.warn("Slide collab error:", errMsg);
         // The server discards rooms when the slide row is deleted or replaced
         // (delete, version restore) — further edits here would silently go
         // nowhere, so tell the user instead of letting them type into a void.
-        if (!collabErrorShown) {
+        // Only FATAL errors (room gone) warrant the alert; per-operation
+        // rejections ("No edit permission", a malformed update) don't.
+        if (fatal && !collabErrorShown) {
           collabErrorShown = true;
           void openAlert({ text: errMsg, intent: "danger" });
         }

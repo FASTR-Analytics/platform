@@ -28,7 +28,11 @@ user-facing behavior.
   re-checks its own view permission per message and carries its own edit
   permission on its RoomConn. A LOCKED project admits viewers with every
   edit permission forced off. Frames over 32 MiB are rejected unparsed
-  (`error` message back to the sender).
+  (`error` message back to the sender), and every parsed frame is
+  schema-validated (`collabClientMessageSchema` in
+  [lib/types/collab.ts](lib/types/collab.ts)) before any handler touches it —
+  bounding presence/awareness payload sizes and restricting `avatarUrl` to
+  bounded https URLs; an invalid frame gets the same `error` reply.
 - Client manager: [client/src/state/project/collab.ts](client/src/state/project/collab.ts).
   `ProjectSSEBoundary` ([t1_sse.tsx](client/src/state/project/t1_sse.tsx))
   calls `connectCollab(projectId)` on mount / `disconnectCollab()` on cleanup,
@@ -39,8 +43,11 @@ user-facing behavior.
     `project_awareness_update` (page cursors — §14).
   - server → client: `hello` (connectionId), `presence_state` (full peer
     list), `slide_sync`, `slide_update`, `slide_error`, `awareness`,
-    `project_awareness`, and a connection-level `error` (e.g. over-sized
-    frame; logged by the client).
+    `project_awareness`, `doc_save_state` (room checkpoint health — §4), and
+    a connection-level `error` (e.g. over-sized/invalid frame; logged by the
+    client). The `*_error` messages carry an optional `fatal` flag: fatal ⇔
+    the document/room is gone (deleted, replaced, not found) and the session
+    must stop editing; non-fatal = per-operation rejection.
 - Reconnect: exponential backoff capped at 30s, retrying FOREVER (no give-up);
   `online` / tab-refocus events short-circuit the wait; a top-center banner
   ([connection_banner.tsx](client/src/components/_shared/connection_banner.tsx))
@@ -167,11 +174,24 @@ thin bindings: [slide_rooms.ts](server/collab/slide_rooms.ts),
   writes `config`, `crdt_state` (full encoded doc), and both timestamps
   atomically, then fires SSE `notifyLastUpdated` for the slide and its deck
   (thumbnails/list refresh). Collab is authoritative: the checkpoint
-  intentionally has no conflict check.
+  intentionally has no conflict check. Checkpoints are SERIALIZED per room
+  (each chains behind the previous save) so two saves can never commit out of
+  order — and `flushRoomForDoc` awaits the chain even when the room looks
+  clean, because "clean" may mean a save is in flight (the restore routes
+  snapshot the DB right after flushing). A failed save keeps the room dirty,
+  retries on a 10s timer, and broadcasts `doc_save_state failing` to the room
+  (recovery broadcasts the clear) so editors show "Not saving — retrying"
+  instead of a false "Live".
 - **Close**: when the last connection unsubscribes (or its socket dies),
   `finalizeRoom` flushes a final checkpoint and destroys the room — unless a
   new subscriber arrived during the async flush, in which case the room stays
-  alive for them.
+  alive for them. A FAILED final checkpoint never discards the room (its doc
+  is the sole copy of the session tail): finalize retries with backoff, then
+  keeps the room registered and re-runs on a 30s cycle until the save lands.
+  A subscribe whose async load outlives its connection (socket died, or an
+  unsubscribe raced it) is NOT registered — the room finalizes instead of
+  leaking with a phantom member. On shutdown, `flushAllRooms()` (main.ts)
+  checkpoints every dirty room before the version flush and pool close.
 - **External writes** (`applySlideToLiveRoom`): the plain `updateSlide` route
   first offers the save to a live room. If one exists, the payload is synced
   *into* the authoritative doc (relayed live to all editors) and checkpointed

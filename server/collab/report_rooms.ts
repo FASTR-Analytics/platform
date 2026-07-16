@@ -49,9 +49,9 @@ const reportAdapter: DocRoomAdapter<ReportDocContent> = {
     type: "report_update",
     data: { reportId, update },
   }),
-  msgError: (reportId, message) => ({
+  msgError: (reportId, message, fatal) => ({
     type: "report_error",
-    data: { reportId, message },
+    data: { reportId, message, fatal },
   }),
   msgAwareness: (reportId, update) => ({
     type: "report_awareness",

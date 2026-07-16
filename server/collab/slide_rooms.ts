@@ -54,9 +54,9 @@ const slideAdapter: DocRoomAdapter<Slide> = {
     type: "slide_update",
     data: { slideId, update },
   }),
-  msgError: (slideId, message) => ({
+  msgError: (slideId, message, fatal) => ({
     type: "slide_error",
-    data: { slideId, message },
+    data: { slideId, message, fatal },
   }),
   msgAwareness: (slideId, update) => ({
     type: "awareness",

@@ -40,6 +40,7 @@ import { Portal } from "solid-js/web";
 import { serverActions, _SERVER_HOST } from "~/server_actions";
 import {
   collabSocketOpen,
+  docSaveFailing,
   openReportSession,
   otherPeers,
   type ReportSession,
@@ -171,6 +172,9 @@ export function ProjectReport(p: Props) {
   // good — even while disconnected (edits accumulate in the local doc and the
   // reconnect catch-up ships them; a parallel REST save would double-apply).
   const [collabReady, setCollabReady] = createSignal(false);
+  // A FATAL collab error (report deleted / room gone): further edits would be
+  // silently dropped by the server, so the editor locks read-only and says so.
+  const [collabFatal, setCollabFatal] = createSignal<string | undefined>();
   // The figure registry id whose editor modal is open (co-editing its config
   // live in the shared doc). While set, the figure-registry push skips that
   // figure's config (the modal owns it); presence advertises it to peers.
@@ -392,9 +396,32 @@ export function ProjectReport(p: Props) {
   }
 
   const saveIndicator = createMemo(() => {
+    // The report/room is gone (deleted, not found) — nothing persists anymore.
+    if (collabFatal()) {
+      return {
+        text: t3({
+          en: "No longer available",
+          fr: "N'est plus disponible",
+          pt: "Já não está disponível",
+        }),
+        dot: "bg-danger",
+      };
+    }
     // Live collab supersedes the REST autosave states: edits stream to the
     // server continuously and the room checkpoints them.
     if (collabReady() && collabSocketOpen()) {
+      // Edits relay live, but the room's checkpoint saves are erroring — say
+      // so rather than claiming "Live" while nothing persists.
+      if (docSaveFailing("report", p.reportId)) {
+        return {
+          text: t3({
+            en: "Not saving — retrying…",
+            fr: "Non enregistré — nouvel essai…",
+            pt: "Não está a guardar — a tentar novamente…",
+          }),
+          dot: "bg-danger",
+        };
+      }
       return {
         text: t3({ en: "Live", fr: "En direct", pt: "Em direto" }),
         dot: "bg-success",
@@ -534,7 +561,13 @@ export function ProjectReport(p: Props) {
       const s = openReportSession(
         p.reportId,
         onRemoteReport,
-        (errMsg) => console.warn("Report collab error:", errMsg),
+        (errMsg, fatal) => {
+          console.warn("Report collab error:", errMsg);
+          // Fatal ⇔ the report/room is gone (deleted, not found): the server
+          // silently drops every further update, so lock the editor instead of
+          // letting the user type into a void that still says "Live".
+          if (fatal) setCollabFatal(errMsg);
+        },
       );
       setSession(s);
 
@@ -644,7 +677,9 @@ export function ProjectReport(p: Props) {
 
   onCleanup(() => {
     const s = session();
-    if (!collabReady()) {
+    if (collabFatal()) {
+      // The report/room is gone — nothing to flush to.
+    } else if (!collabReady()) {
       // Collab never became ready: the REST autosave owns persistence.
       void flushBodySave();
     } else if (s && !s.isLive()) {
@@ -1004,7 +1039,8 @@ export function ProjectReport(p: Props) {
             isLive: () => session()?.isLive() ?? false,
             canEdit:
               projectState.thisUserPermissions.can_configure_reports &&
-              !projectState.isLocked,
+              !projectState.isLocked &&
+              !collabFatal(),
             localOrigin: figureOrigin,
             onCoherentBundle: (b: FigureBundle) => {
               void updateFigure(sel.id, { type: "figure", bundle: b });
@@ -1171,6 +1207,19 @@ export function ProjectReport(p: Props) {
       class="bg-base-200 flex h-full w-full flex-col"
       onClick={() => setSelectedEmbed(undefined)}
     >
+      <Show when={collabFatal()}>
+        <div class="bg-danger/10 text-danger ui-pad flex items-center gap-2 text-xs">
+          <span class="flex-1">
+            {collabFatal()}
+            {" — "}
+            {t3({
+              en: "editing is disabled. Close this editor.",
+              fr: "l'édition est désactivée. Fermez cet éditeur.",
+              pt: "a edição está desativada. Feche este editor.",
+            })}
+          </span>
+        </div>
+      </Show>
       <Show when={showConflictBanner()}>
         <div class="bg-base-200 text-base-content ui-pad flex items-center gap-2 text-xs">
           <span class="flex-1">
@@ -1232,7 +1281,8 @@ export function ProjectReport(p: Props) {
               }}
               canEdit={() =>
                 projectState.thisUserPermissions.can_configure_reports &&
-                !projectState.isLocked}
+                !projectState.isLocked &&
+                !collabFatal()}
               ref={(api) => (editorApi = api)}
             />
           </div>

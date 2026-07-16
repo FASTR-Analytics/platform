@@ -9,6 +9,8 @@
 // separate message sets so each family's wire format stays byte-stable
 // across deploys.
 
+import { z } from "zod";
+
 /**
  * One peer's live presence within a project.
  *
@@ -92,12 +94,126 @@ export type CollabClientMessage =
   // persisted, never applied to any server doc.
   | { type: "project_awareness_update"; data: { update: string } };
 
-/** Server → client messages. */
+// ── Server-side frame validation ─────────────────────────────────────────────
+// Every frame arriving on the collab socket is schema-checked before any
+// handler touches it (project-collab.ts). Handlers dereference msg.data
+// directly, so without this a malformed frame threw into the process-level
+// error backstop; the length bounds also cap the amplification surface —
+// presence fields are re-serialized to every project connection on every
+// presence change, and awareness frames relay to whole rooms.
+
+/** Document ids: slides are 3 chars, reports/POs are UUIDs (36). */
+const collabIdSchema = z.string().min(1).max(64);
+/** Yjs state vectors are a few bytes per client that ever wrote to the doc. */
+const stateVectorSchema = z.string().max(128 * 1024);
+/** Doc updates legitimately carry multi-MB figure bundles — the 32 MiB frame
+ *  cap (project-collab.ts) is the real bound; this mirrors it. */
+const docUpdateSchema = z.string().max(32 * 1024 * 1024);
+/** Awareness = cursor/selection state: legitimately tiny. */
+const awarenessUpdateSchema = z.string().max(64 * 1024);
+/** Block/text-target ids (layout-node ids, panther text-primitive ids). */
+const elementIdSchema = z.string().max(256);
+
+/** avatarUrl renders as <img src> on every peer, so it must be a bounded https
+ *  URL — and an invalid value degrades to "no avatar" (catch → undefined)
+ *  rather than rejecting the whole presence frame. */
+const avatarUrlSchema = z
+  .string()
+  .max(2048)
+  .refine((u) => {
+    try {
+      return new URL(u).protocol === "https:";
+    } catch {
+      return false;
+    }
+  })
+  .optional()
+  .catch(undefined);
+
+const presenceViewSchema = z.object({
+  avatarUrl: avatarUrlSchema,
+  deckId: collabIdSchema.optional(),
+  slideId: collabIdSchema.optional(),
+  selectedBlockId: elementIdSchema.optional(),
+  selectedTextTarget: elementIdSchema.optional(),
+  reportId: collabIdSchema.optional(),
+  poId: collabIdSchema.optional(),
+  editingFigureId: elementIdSchema.optional(),
+  idle: z.boolean().optional(),
+});
+
+/** Validates (and bounds) every client→server frame. Unknown keys are
+ *  stripped; a frame that fails outright is rejected with a connection-level
+ *  `error` message and dropped. */
+export const collabClientMessageSchema: z.ZodType<CollabClientMessage> = z
+  .discriminatedUnion("type", [
+    z.object({ type: z.literal("presence_update"), data: presenceViewSchema }),
+    z.object({
+      type: z.literal("slide_subscribe"),
+      data: z.object({ slideId: collabIdSchema, stateVector: stateVectorSchema }),
+    }),
+    z.object({
+      type: z.literal("slide_update"),
+      data: z.object({ slideId: collabIdSchema, update: docUpdateSchema }),
+    }),
+    z.object({
+      type: z.literal("slide_unsubscribe"),
+      data: z.object({ slideId: collabIdSchema }),
+    }),
+    z.object({
+      type: z.literal("awareness_update"),
+      data: z.object({ slideId: collabIdSchema, update: awarenessUpdateSchema }),
+    }),
+    z.object({
+      type: z.literal("report_subscribe"),
+      data: z.object({ reportId: collabIdSchema, stateVector: stateVectorSchema }),
+    }),
+    z.object({
+      type: z.literal("report_update"),
+      data: z.object({ reportId: collabIdSchema, update: docUpdateSchema }),
+    }),
+    z.object({
+      type: z.literal("report_unsubscribe"),
+      data: z.object({ reportId: collabIdSchema }),
+    }),
+    z.object({
+      type: z.literal("report_awareness_update"),
+      data: z.object({ reportId: collabIdSchema, update: awarenessUpdateSchema }),
+    }),
+    z.object({
+      type: z.literal("po_subscribe"),
+      data: z.object({ poId: collabIdSchema, stateVector: stateVectorSchema }),
+    }),
+    z.object({
+      type: z.literal("po_update"),
+      data: z.object({ poId: collabIdSchema, update: docUpdateSchema }),
+    }),
+    z.object({
+      type: z.literal("po_unsubscribe"),
+      data: z.object({ poId: collabIdSchema }),
+    }),
+    z.object({
+      type: z.literal("po_awareness_update"),
+      data: z.object({ poId: collabIdSchema, update: awarenessUpdateSchema }),
+    }),
+    z.object({
+      type: z.literal("project_awareness_update"),
+      data: z.object({ update: awarenessUpdateSchema }),
+    }),
+  ]);
+
+/** Server → client messages.
+ *
+ *  The `*_error` families carry an optional `fatal` flag: fatal ⇔ the document
+ *  (or its room) is GONE — deleted, replaced by a restore, or never existed —
+ *  so the session must stop editing (further updates would be silently
+ *  dropped). Non-fatal errors are per-operation rejections (no edit
+ *  permission, malformed update) and the session stays usable. */
 export type CollabServerMessage =
   | { type: "hello"; data: { connectionId: string } }
   | { type: "presence_state"; data: { peers: PresenceEntry[] } }
-  // Connection-level rejection (e.g. over-sized frame) — the client logs it;
-  // per-document failures use the families' own *_error messages instead.
+  // Connection-level rejection (e.g. over-sized or invalid frame) — the client
+  // logs it; per-document failures use the families' own *_error messages.
   | { type: "error"; data: { message: string } }
   // CRDT document sync (Milestone 2). `stateVector` is the server room's current
   // state vector, so the client can reply with any updates the server is missing
@@ -107,7 +223,10 @@ export type CollabServerMessage =
     data: { slideId: string; update: string; stateVector: string };
   }
   | { type: "slide_update"; data: { slideId: string; update: string } }
-  | { type: "slide_error"; data: { slideId: string; message: string } }
+  | {
+    type: "slide_error";
+    data: { slideId: string; message: string; fatal?: boolean };
+  }
   // Yjs awareness relayed from another client in the room.
   | { type: "awareness"; data: { slideId: string; update: string } }
   // Report CRDT sync (parallel family — see the client message note).
@@ -116,7 +235,10 @@ export type CollabServerMessage =
     data: { reportId: string; update: string; stateVector: string };
   }
   | { type: "report_update"; data: { reportId: string; update: string } }
-  | { type: "report_error"; data: { reportId: string; message: string } }
+  | {
+    type: "report_error";
+    data: { reportId: string; message: string; fatal?: boolean };
+  }
   | { type: "report_awareness"; data: { reportId: string; update: string } }
   // Presentation-object CRDT sync (parallel family — see the client message note).
   | {
@@ -124,8 +246,18 @@ export type CollabServerMessage =
     data: { poId: string; update: string; stateVector: string };
   }
   | { type: "po_update"; data: { poId: string; update: string } }
-  | { type: "po_error"; data: { poId: string; message: string } }
+  | { type: "po_error"; data: { poId: string; message: string; fatal?: boolean } }
   | { type: "po_awareness"; data: { poId: string; update: string } }
+  // Checkpoint health for a live room: `failing: true` when the room's
+  // persistence saves are erroring (edits live only in the room doc until it
+  // recovers), `failing: false` on recovery. Sent to every room member on each
+  // transition, and to late joiners of a currently-failing room after their
+  // sync. Generic across the three families — docType is the room's family
+  // ("slide" | "report" | "po").
+  | {
+    type: "doc_save_state";
+    data: { docType: string; docId: string; failing: boolean };
+  }
   // Project-scoped awareness relayed from another connection (see the client
   // message counterpart above).
   | { type: "project_awareness"; data: { update: string } };

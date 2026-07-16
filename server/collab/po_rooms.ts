@@ -46,9 +46,9 @@ const poAdapter: DocRoomAdapter<PresentationObjectConfig> = {
     type: "po_update",
     data: { poId, update },
   }),
-  msgError: (poId, message) => ({
+  msgError: (poId, message, fatal) => ({
     type: "po_error",
-    data: { poId, message },
+    data: { poId, message, fatal },
   }),
   msgAwareness: (poId, update) => ({
     type: "po_awareness",

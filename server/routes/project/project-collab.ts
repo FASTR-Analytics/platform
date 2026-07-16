@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/deno";
 import {
   type CollabClientMessage,
+  collabClientMessageSchema,
   type CollabServerMessage,
   createDevProjectUser,
   presenceColorForKey,
@@ -266,6 +267,10 @@ routesProjectCollab.get(
     let roomConn: RoomConn | null = null;
     let reportRoomConn: RoomConn | null = null;
     let poRoomConn: RoomConn | null = null;
+    // Liveness for the rooms' post-load re-check (see RoomConn.isLive): a
+    // socket that dies while a first-subscribe load is in flight must not be
+    // registered as a room member afterwards.
+    let socketGone = false;
 
     // DB-backed room dependencies for one slide. deckId is captured on load so
     // the checkpoint can also notify the deck (refreshes thumbnails / list) and
@@ -394,18 +399,21 @@ routesProjectCollab.get(
           canEdit: auth.canEditSlides,
           identity: { email: auth.email, name: auth.name },
           send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
+          isLive: () => !socketGone,
         };
         reportRoomConn = {
           connectionId,
           canEdit: auth.canEditReports,
           identity: { email: auth.email, name: auth.name },
           send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
+          isLive: () => !socketGone,
         };
         poRoomConn = {
           connectionId,
           canEdit: auth.canEditViz,
           identity: { email: auth.email, name: auth.name },
           send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
+          isLive: () => !socketGone,
         };
         addConnection(projectId, connectionId, auth, ws);
         const hello: CollabServerMessage = {
@@ -428,9 +436,23 @@ routesProjectCollab.get(
           ws.send(JSON.stringify(err));
           return;
         }
+        // Schema-validate every frame before any handler touches it: the
+        // handlers below dereference msg.data fields directly, and the schema
+        // also bounds presence/awareness payload sizes (see lib/types/collab.ts).
         let msg: CollabClientMessage;
         try {
-          msg = JSON.parse(evt.data);
+          const parsed = collabClientMessageSchema.safeParse(
+            JSON.parse(evt.data),
+          );
+          if (!parsed.success) {
+            const err: CollabServerMessage = {
+              type: "error",
+              data: { message: "Invalid message" },
+            };
+            ws.send(JSON.stringify(err));
+            return;
+          }
+          msg = parsed.data;
         } catch {
           return;
         }
@@ -547,11 +569,13 @@ routesProjectCollab.get(
         }
       },
       onClose: () => {
+        socketGone = true;
         removeConnection(projectId, connectionId);
         broadcastPresence(projectId);
         handleConnGone(connectionId);
       },
       onError: () => {
+        socketGone = true;
         removeConnection(projectId, connectionId);
         broadcastPresence(projectId);
         handleConnGone(connectionId);

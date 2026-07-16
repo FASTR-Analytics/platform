@@ -65,6 +65,39 @@ export function otherPeers(): PresenceEntry[] {
 const [socketOpen, setSocketOpen] = createSignal(false);
 export const collabSocketOpen = socketOpen;
 
+// Rooms whose server-side persistence is currently failing, keyed
+// `${docType}::${docId}` (doc_save_state messages). Editors read this so their
+// save indicator stops claiming "Live" while nothing is actually persisting.
+// Reset per doc on every sync (the server re-sends failing state right after
+// the sync when it still applies) and when the session closes.
+const [saveFailingKeys, setSaveFailingKeys] = createSignal<ReadonlySet<string>>(
+  new Set(),
+);
+
+function setDocSaveFailing(
+  docType: string,
+  docId: string,
+  failing: boolean,
+): void {
+  setSaveFailingKeys((prev) => {
+    const key = `${docType}::${docId}`;
+    if (prev.has(key) === failing) return prev;
+    const next = new Set(prev);
+    if (failing) next.add(key);
+    else next.delete(key);
+    return next;
+  });
+}
+
+/** Reactive: true while the server room for this document reports failing
+ *  checkpoint saves (edits relay live but nothing persists until recovery). */
+export function docSaveFailing(
+  docType: "slide" | "report" | "po",
+  docId: string,
+): boolean {
+  return saveFailingKeys().has(`${docType}::${docId}`);
+}
+
 // Reconnects never give up: `attempts` only grows the backoff (capped at
 // MAX_RETRY_DELAY, exponent clamped so 2**attempts can't overflow on long
 // outages). The connection banner tells the user while retries run, and the
@@ -110,7 +143,9 @@ type InternalSlideSession = {
   awareness: Awareness;
   ready: boolean;
   onRemote: () => void;
-  onError?: (message: string) => void;
+  /** `fatal` ⇔ the document/room is gone (deleted/replaced/not found) — the
+   *  editor must stop editing. See CollabServerMessage. */
+  onError?: (message: string, fatal?: boolean) => void;
 };
 
 const slideSessions = new Map<string, InternalSlideSession>();
@@ -174,6 +209,7 @@ function subscribeSlideOnSocket(s: InternalSlideSession): void {
 
 function destroySlideSession(s: InternalSlideSession): void {
   slideSessions.delete(s.slideId);
+  setDocSaveFailing("slide", s.slideId, false);
   try {
     removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
     s.awareness.destroy();
@@ -190,7 +226,7 @@ function destroySlideSession(s: InternalSlideSession): void {
 export function openSlideSession(
   slideId: string,
   onRemote: () => void,
-  onError?: (message: string) => void,
+  onError?: (message: string, fatal?: boolean) => void,
 ): SlideSession {
   const prior = slideSessions.get(slideId);
   if (prior) destroySlideSession(prior);
@@ -270,7 +306,8 @@ type InternalReportSession = {
   awareness: Awareness;
   ready: boolean;
   onRemote: () => void;
-  onError?: (message: string) => void;
+  /** See InternalSlideSession.onError. */
+  onError?: (message: string, fatal?: boolean) => void;
 };
 
 const reportSessions = new Map<string, InternalReportSession>();
@@ -308,6 +345,7 @@ function subscribeReportOnSocket(s: InternalReportSession): void {
 
 function destroyReportSession(s: InternalReportSession): void {
   reportSessions.delete(s.reportId);
+  setDocSaveFailing("report", s.reportId, false);
   try {
     removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
     s.awareness.destroy();
@@ -324,7 +362,7 @@ function destroyReportSession(s: InternalReportSession): void {
 export function openReportSession(
   reportId: string,
   onRemote: () => void,
-  onError?: (message: string) => void,
+  onError?: (message: string, fatal?: boolean) => void,
 ): ReportSession {
   const prior = reportSessions.get(reportId);
   if (prior) destroyReportSession(prior);
@@ -411,7 +449,8 @@ type InternalPoSession = {
   localOrigin: object;
   ready: boolean;
   onRemote: () => void;
-  onError?: (message: string) => void;
+  /** See InternalSlideSession.onError. */
+  onError?: (message: string, fatal?: boolean) => void;
 };
 
 const poSessions = new Map<string, InternalPoSession>();
@@ -443,6 +482,7 @@ function subscribePoOnSocket(s: InternalPoSession): void {
 
 function destroyPoSession(s: InternalPoSession): void {
   poSessions.delete(s.poId);
+  setDocSaveFailing("po", s.poId, false);
   try {
     removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
     s.awareness.destroy();
@@ -459,7 +499,7 @@ function destroyPoSession(s: InternalPoSession): void {
 export function openPoSession(
   poId: string,
   onRemote: () => void,
-  onError?: (message: string) => void,
+  onError?: (message: string, fatal?: boolean) => void,
 ): PoSession {
   const prior = poSessions.get(poId);
   if (prior) destroyPoSession(prior);
@@ -538,6 +578,9 @@ function handlePoServerMessage(msg: CollabServerMessage): boolean {
   if (msg.type === "po_sync") {
     const s = poSessions.get(msg.data.poId);
     if (s) {
+      // Sync resets save health; the server re-sends failing state right after
+      // when the room is still failing.
+      setDocSaveFailing("po", msg.data.poId, false);
       Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
       s.ready = true;
       // Two-way sync: push anything the server is missing (guarded — a
@@ -571,7 +614,7 @@ function handlePoServerMessage(msg: CollabServerMessage): boolean {
     return true;
   }
   if (msg.type === "po_error") {
-    poSessions.get(msg.data.poId)?.onError?.(msg.data.message);
+    poSessions.get(msg.data.poId)?.onError?.(msg.data.message, msg.data.fatal);
     return true;
   }
   if (msg.type === "po_awareness") {
@@ -592,6 +635,9 @@ function handleReportServerMessage(msg: CollabServerMessage): boolean {
   if (msg.type === "report_sync") {
     const s = reportSessions.get(msg.data.reportId);
     if (s) {
+      // Sync resets save health; the server re-sends failing state right after
+      // when the room is still failing.
+      setDocSaveFailing("report", msg.data.reportId, false);
       Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
       s.ready = true;
       // Two-way sync: push anything the server is missing (guarded like the
@@ -625,7 +671,9 @@ function handleReportServerMessage(msg: CollabServerMessage): boolean {
     return true;
   }
   if (msg.type === "report_error") {
-    reportSessions.get(msg.data.reportId)?.onError?.(msg.data.message);
+    reportSessions
+      .get(msg.data.reportId)
+      ?.onError?.(msg.data.message, msg.data.fatal);
     return true;
   }
   if (msg.type === "report_awareness") {
@@ -646,6 +694,9 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
   if (msg.type === "slide_sync") {
     const s = slideSessions.get(msg.data.slideId);
     if (s) {
+      // Sync resets save health; the server re-sends failing state right after
+      // when the room is still failing.
+      setDocSaveFailing("slide", msg.data.slideId, false);
       Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
       s.ready = true;
       // Two-way sync: push anything the server is missing — e.g. a local edit
@@ -684,7 +735,9 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
     return true;
   }
   if (msg.type === "slide_error") {
-    slideSessions.get(msg.data.slideId)?.onError?.(msg.data.message);
+    slideSessions
+      .get(msg.data.slideId)
+      ?.onError?.(msg.data.message, msg.data.fatal);
     return true;
   }
   if (msg.type === "awareness") {
@@ -785,6 +838,10 @@ function openSocket(projectId: string): void {
           AWARENESS_REMOTE_ORIGIN,
         );
       }
+    } else if (msg.type === "doc_save_state") {
+      // Room checkpoint health — editors surface "not saving" instead of
+      // claiming "Live" while the server can't persist.
+      setDocSaveFailing(msg.data.docType, msg.data.docId, msg.data.failing);
     } else if (
       !handleSlideServerMessage(msg) && !handleReportServerMessage(msg)
     ) {
@@ -958,6 +1015,7 @@ export function connectCollab(projectId: string): void {
   currentProjectId = projectId;
   attempts = 0;
   setCollabStore({ connectionId: null, peers: [] });
+  setSaveFailingKeys(new Set<string>());
   createProjectAwareness();
   // Initial connect (not a drop) — the banner stays hidden in this state; a
   // failure moves it to "reconnecting" via onclose.
@@ -984,6 +1042,7 @@ export function disconnectCollab(): void {
   avatarUrl = undefined;
   view = {};
   setCollabStore({ connectionId: null, peers: [] });
+  setSaveFailingKeys(new Set<string>());
 }
 
 /** Set this client's avatar once (it persists across reconnects). */

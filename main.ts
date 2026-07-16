@@ -9,6 +9,7 @@ import {
   flushAllVersions,
   startVersionSweeper,
 } from "./server/collab/version_capture.ts";
+import { flushAllRooms } from "./server/collab/doc_rooms.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
 import {
   authMiddleware,
@@ -198,8 +199,14 @@ const shutdown = async () => {
     console.warn("[Shutdown] Timed out — forcing exit");
     Deno.exit(1);
   }, 8000);
-  // Version history: open editing sessions become versions before exit. Must
-  // finish BEFORE closeAllConnections() — the flush writes through the pools.
+  // Collab rooms first: dirty rooms hold up to CHECKPOINT_DEBOUNCE_MS of
+  // typing that exists nowhere else, and the version flush below reads
+  // document content from the DB — so the rooms' checkpoints must land first.
+  // Both must finish BEFORE closeAllConnections() — they write through the pools.
+  await flushAllRooms().catch((e) =>
+    console.error("Room flush on shutdown failed:", e)
+  );
+  // Version history: open editing sessions become versions before exit.
   await flushAllVersions().catch((e) =>
     console.error("Version flush on shutdown failed:", e)
   );

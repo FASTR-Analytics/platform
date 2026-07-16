@@ -19,9 +19,13 @@
 // access is injected per room (DocRoomDeps) so the module stays pure and
 // testable. Thin wrappers (slide_rooms.ts, report_rooms.ts, po_rooms.ts)
 // bind the adapters. The hardened behaviors here are load-bearing — preserve them when
-// editing: finalize re-checks for late subscribers, a failed checkpoint keeps
-// the room dirty for retry, and concurrent first-subscribes re-check the
-// registry after the async load.
+// editing: finalize re-checks for late subscribers and retries a failed final
+// checkpoint (the doc is the sole copy of the session tail), a failed
+// checkpoint keeps the room dirty and schedules a retry, checkpoints are
+// SERIALIZED per room (a straggler save must never commit over a newer one —
+// flushRoomForDoc's callers snapshot the DB right after it resolves), and
+// first-subscribes re-check the registry, the connection's liveness and the
+// cancellation tombstones after the async load.
 
 import * as Y from "yjs";
 import {
@@ -32,6 +36,14 @@ import {
 } from "lib";
 
 const CHECKPOINT_DEBOUNCE_MS = 1500;
+// A failed save retries on this cadence (not just on the next edit) so an
+// idle-but-dirty room still converges once the DB recovers.
+const CHECKPOINT_RETRY_MS = 10_000;
+// Final-checkpoint retry backoff inside finalizeRoom, then the whole finalize
+// re-runs on a slow cycle for as long as the room stays dirty — the room is
+// intentionally kept registered rather than destroying unsaved edits.
+const FINALIZE_RETRY_DELAYS_MS = [1_000, 5_000];
+const FINALIZE_RETRY_CYCLE_MS = 30_000;
 
 export type RoomConn = {
   connectionId: string;
@@ -39,6 +51,11 @@ export type RoomConn = {
   /** Who this connection is — attributed to version history on every edit. */
   identity?: VersionEditor;
   send: (msg: CollabServerMessage) => void;
+  /** Whether the underlying socket is still open. subscribeDoc re-checks this
+   *  after its async load — a connection that died during the load must not be
+   *  registered (its close handler already ran and found nothing to clean, so
+   *  a late registration would hold the room open forever). */
+  isLive?: () => boolean;
 };
 
 /** Everything document-type-specific about a room. */
@@ -50,7 +67,9 @@ export type DocRoomAdapter<T> = {
   materialize: (doc: Y.Doc) => T;
   msgSync: (docId: string, update: string, stateVector: string) => CollabServerMessage;
   msgUpdate: (docId: string, update: string) => CollabServerMessage;
-  msgError: (docId: string, message: string) => CollabServerMessage;
+  /** `fatal` ⇔ the document/room is gone (deleted, replaced, not found) — the
+   *  client session must stop editing. See CollabServerMessage. */
+  msgError: (docId: string, message: string, fatal?: boolean) => CollabServerMessage;
   msgAwareness: (docId: string, update: string) => CollabServerMessage;
   /** Fired once per room lifetime, after the doc holds its initial content
    *  (seed or crdt_state restore) — reports attach their authorship observer
@@ -87,13 +106,42 @@ type Room = {
   deps: DocRoomDeps<any>;
   dirty: boolean;
   checkpointTimer: ReturnType<typeof setTimeout> | null;
+  /** Serializes checkpoint saves: every checkpoint chains behind the previous
+   *  one, so two saves can never race in the pool and commit out of order
+   *  (which would leave the DB row OLDER than the room doc, silently reverting
+   *  e.g. a just-completed version restore). flushRoomForDoc awaits the chain
+   *  even when the room is clean, so its callers always observe a settled row. */
+  saveChain: Promise<unknown>;
+  /** True while deps.save is erroring — drives the doc_save_state messages so
+   *  clients can stop showing "Live" while nothing persists. */
+  saveFailing: boolean;
+  /** last_updated of the most recent successful save. A chained checkpoint
+   *  that finds the room clean returns this: an earlier run in the chain
+   *  already persisted the caller's change (coalescing), and returning null
+   *  would make applyToLiveRoom callers mistake that for "no room live" and
+   *  double-write the DB directly. */
+  lastSavedStamp: string | null;
+  /** Re-entrancy guard for finalizeRoom (unsubscribe + conn-gone + the retry
+   *  cycle can all trigger it). */
+  finalizing: boolean;
+  finalizeRetryTimer: ReturnType<typeof setTimeout> | null;
 };
 
 const rooms = new Map<string, Room>();
 const connRooms = new Map<string, Set<string>>(); // connectionId -> room keys
+// Unsubscribes that raced an in-flight first-subscribe load (`${connectionId}
+// ::${roomKey}`): the room didn't exist yet so there was nothing to remove —
+// subscribeDoc consumes the tombstone after its load instead of registering a
+// member that already left. Entries are consumed there or dropped with the
+// connection in handleConnGone.
+const cancelledSubscribes = new Set<string>();
 
 function roomKey(projectId: string, docType: string, docId: string): string {
   return `${projectId}::${docType}::${docId}`;
+}
+
+function subscribeCancelKey(connectionId: string, key: string): string {
+  return `${connectionId}::${key}`;
 }
 
 function trackConnRoom(connectionId: string, key: string): void {
@@ -130,25 +178,81 @@ function attachDoc(room: Room): void {
   });
 }
 
-function scheduleCheckpoint(room: Room): void {
+function scheduleCheckpoint(
+  room: Room,
+  delayMs = CHECKPOINT_DEBOUNCE_MS,
+): void {
   if (room.checkpointTimer) return;
   room.checkpointTimer = setTimeout(() => {
     room.checkpointTimer = null;
     void checkpoint(room);
-  }, CHECKPOINT_DEBOUNCE_MS);
+  }, delayMs);
 }
 
-async function checkpoint(room: Room): Promise<string | null> {
-  if (!room.dirty) return null;
+function broadcastSaveState(room: Room, failing: boolean): void {
+  const msg: CollabServerMessage = {
+    type: "doc_save_state",
+    data: { docType: room.adapter.docType, docId: room.docId, failing },
+  };
+  for (const conn of room.conns.values()) conn.send(msg);
+}
+
+function noteSaveFailure(room: Room): void {
+  if (!room.saveFailing) {
+    room.saveFailing = true;
+    broadcastSaveState(room, true);
+  }
+  // Retry on a timer, not just on the next edit — an idle-but-dirty room would
+  // otherwise never converge. finalizeRoom runs its own retry loop.
+  if (!room.finalizing) scheduleCheckpoint(room, CHECKPOINT_RETRY_MS);
+}
+
+function noteSaveRecovered(room: Room): void {
+  if (!room.saveFailing) return;
+  room.saveFailing = false;
+  broadcastSaveState(room, false);
+}
+
+/** Persist the room's content. Never call directly — checkpoint() serializes
+ *  it behind the room's saveChain. Never throws: a materialize/save failure
+ *  re-marks the room dirty and schedules a retry (see noteSaveFailure). */
+async function doCheckpoint(room: Room): Promise<string | null> {
+  // Clean ⇒ the chain's previous run already persisted the current doc state
+  // (possibly coalescing this caller's change) — report that save's stamp.
+  if (!room.dirty) return room.lastSavedStamp;
   room.dirty = false;
-  const content = room.adapter.materialize(room.doc);
-  const crdtState = bytesToBase64(Y.encodeStateAsUpdate(room.doc));
-  const lastUpdated = await room.deps.save(content, crdtState);
+  let lastUpdated: string | null = null;
+  try {
+    const content = room.adapter.materialize(room.doc);
+    const crdtState = bytesToBase64(Y.encodeStateAsUpdate(room.doc));
+    lastUpdated = await room.deps.save(content, crdtState);
+  } catch (err) {
+    // materialize() can throw on a doc corrupted into an un-materializable
+    // shape; treat it exactly like a failed save (dirty + retry) rather than
+    // letting the rejection escape into `void checkpoint(...)` call sites.
+    console.error(`[collab] checkpoint threw for ${room.key}`, err);
+    lastUpdated = null;
+  }
   if (lastUpdated === null) {
-    // Save failed — keep dirty so the next change (or finalize) retries.
+    console.error(`[collab] checkpoint save failed for ${room.key} — retrying`);
     room.dirty = true;
+    noteSaveFailure(room);
+  } else {
+    room.lastSavedStamp = lastUpdated;
+    noteSaveRecovered(room);
   }
   return lastUpdated;
+}
+
+/** Checkpoint the room, serialized behind any in-flight save. Awaiting this
+ *  guarantees every save that was in flight OR requested at call time has
+ *  settled — the property flushRoomForDoc's restore-safety contract needs. */
+function checkpoint(room: Room): Promise<string | null> {
+  const run = room.saveChain.then(() => doCheckpoint(room));
+  // Keep the chain alive whatever happens (doCheckpoint shouldn't throw, but
+  // a rejected chain would deadlock every future checkpoint).
+  room.saveChain = run.catch(() => null);
+  return run;
 }
 
 /** A client opens a document for (read-only or editing) collaboration.
@@ -164,6 +268,8 @@ export async function subscribeDoc<T>(
   deps: DocRoomDeps<T>,
 ): Promise<void> {
   const key = roomKey(projectId, adapter.docType, docId);
+  // A fresh subscribe supersedes any tombstone an earlier unsubscribe left.
+  cancelledSubscribes.delete(subscribeCancelKey(conn.connectionId, key));
   let room = rooms.get(key);
 
   if (!room) {
@@ -172,7 +278,7 @@ export async function subscribeDoc<T>(
     room = rooms.get(key);
     if (!room) {
       if (!loaded) {
-        conn.send(adapter.msgError(docId, adapter.notFoundMessage));
+        conn.send(adapter.msgError(docId, adapter.notFoundMessage, true));
         return;
       }
       const doc = new Y.Doc();
@@ -205,11 +311,29 @@ export async function subscribeDoc<T>(
         deps,
         dirty: false,
         checkpointTimer: null,
+        saveChain: Promise.resolve(),
+        saveFailing: false,
+        lastSavedStamp: null,
+        finalizing: false,
+        finalizeRetryTimer: null,
       };
       rooms.set(key, room);
       attachDoc(room);
       adapter.onDocCreated?.(projectId, docId, doc);
     }
+  }
+
+  // The load was async: the connection may have unsubscribed (tombstone) or
+  // its socket may have died (handleConnGone already ran and found nothing)
+  // while we were away. Registering it anyway would park a phantom member in
+  // the room — conns.size never reaches 0, so the room never finalizes and the
+  // doc leaks for the life of the process.
+  const cancelled = cancelledSubscribes.delete(
+    subscribeCancelKey(conn.connectionId, key),
+  );
+  if (cancelled || (conn.isLive && !conn.isLive())) {
+    if (room.conns.size === 0) void finalizeRoom(room);
+    return;
   }
 
   room.conns.set(conn.connectionId, conn);
@@ -241,6 +365,14 @@ export async function subscribeDoc<T>(
   conn.send(
     adapter.msgSync(docId, bytesToBase64(sync), bytesToBase64(stateVector)),
   );
+  // Clients reset their save-state on every sync, so a joiner of a room whose
+  // saves are currently failing must be told immediately.
+  if (room.saveFailing) {
+    conn.send({
+      type: "doc_save_state",
+      data: { docType: room.adapter.docType, docId: room.docId, failing: true },
+    });
+  }
 }
 
 /** Apply a client's update to the authoritative doc (which relays + checkpoints). */
@@ -304,7 +436,13 @@ export function unsubscribeDoc(
   const key = roomKey(projectId, docType, docId);
   const room = rooms.get(key);
   connRooms.get(conn.connectionId)?.delete(key);
-  if (!room) return;
+  if (!room || !room.conns.has(conn.connectionId)) {
+    // The matching subscribe may still be awaiting its load (room not yet
+    // registered, or registered by someone else without this member) — leave
+    // a tombstone it consumes instead of registering a member that left.
+    cancelledSubscribes.add(subscribeCancelKey(conn.connectionId, key));
+    return;
+  }
   room.conns.delete(conn.connectionId);
   if (room.conns.size === 0) void finalizeRoom(room);
 }
@@ -312,6 +450,12 @@ export function unsubscribeDoc(
 /** A connection (WebSocket) closed — drop it from every room it was in
  *  (all document types; the registry is shared). */
 export function handleConnGone(connectionId: string): void {
+  // Drop any pending-subscribe tombstones with the connection (in-flight
+  // subscribes are additionally covered by conn.isLive).
+  const prefix = `${connectionId}::`;
+  for (const k of cancelledSubscribes) {
+    if (k.startsWith(prefix)) cancelledSubscribes.delete(k);
+  }
   const keys = connRooms.get(connectionId);
   if (!keys) return;
   for (const key of keys) {
@@ -324,27 +468,64 @@ export function handleConnGone(connectionId: string): void {
 }
 
 async function finalizeRoom(room: Room): Promise<void> {
-  if (room.checkpointTimer) {
-    clearTimeout(room.checkpointTimer);
-    room.checkpointTimer = null;
+  // Unsubscribe, conn-gone and the retry cycle can all trigger finalize; only
+  // one run at a time, and later triggers are subsumed by the running one's
+  // own re-checks.
+  if (room.finalizing) return;
+  room.finalizing = true;
+  if (room.finalizeRetryTimer) {
+    clearTimeout(room.finalizeRetryTimer);
+    room.finalizeRetryTimer = null;
   }
-  await checkpoint(room);
-  // A client may have subscribed while the final checkpoint was in flight —
-  // the room is still registered during the await, so it must stay alive for
-  // them (destroying it would silently drop all their future updates).
-  if (room.conns.size > 0) return;
-  if (rooms.get(room.key) === room) rooms.delete(room.key);
-  room.doc.destroy();
-  room.adapter.onDocClosed?.(room.projectId, room.docId);
-  room.deps.onEmpty?.();
+  try {
+    if (room.checkpointTimer) {
+      clearTimeout(room.checkpointTimer);
+      room.checkpointTimer = null;
+    }
+    await checkpoint(room);
+    // A failed FINAL checkpoint means the room doc is the only copy of the
+    // session tail — destroying the room here (the old behavior) silently
+    // discarded it. Retry with backoff while the room stays empty.
+    for (const delayMs of FINALIZE_RETRY_DELAYS_MS) {
+      if (!room.dirty) break;
+      if (room.conns.size > 0) return;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      if (room.conns.size > 0) return;
+      await checkpoint(room);
+    }
+    if (room.dirty) {
+      // Still failing — keep the room registered (preserving the edits) and
+      // re-run the whole finalize later rather than dropping the data.
+      console.error(
+        `[collab] final checkpoint still failing for ${room.key} — keeping room, retrying in ${FINALIZE_RETRY_CYCLE_MS}ms`,
+      );
+      room.finalizeRetryTimer = setTimeout(() => {
+        room.finalizeRetryTimer = null;
+        if (room.conns.size === 0) void finalizeRoom(room);
+      }, FINALIZE_RETRY_CYCLE_MS);
+      return;
+    }
+    // A client may have subscribed while the final checkpoint was in flight —
+    // the room is still registered during the await, so it must stay alive for
+    // them (destroying it would silently drop all their future updates).
+    if (room.conns.size > 0) return;
+    if (rooms.get(room.key) === room) rooms.delete(room.key);
+    room.doc.destroy();
+    room.adapter.onDocClosed?.(room.projectId, room.docId);
+    room.deps.onEmpty?.();
+  } finally {
+    room.finalizing = false;
+  }
 }
 
 /**
- * Persist a live room's un-checkpointed edits NOW (no-op when no room is live
- * or the room is clean). The restore routes call this before snapshotting the
- * safety version — without it, up to CHECKPOINT_DEBOUNCE_MS of co-editor
- * typing exists only in the room's doc and would be missed by the snapshot and
- * then destroyed by the restore.
+ * Persist a live room's un-checkpointed edits NOW (no-op when no room is
+ * live). The restore routes call this before snapshotting the safety version —
+ * without it, up to CHECKPOINT_DEBOUNCE_MS of co-editor typing exists only in
+ * the room's doc and would be missed by the snapshot and then destroyed by the
+ * restore. Always awaits the room's save chain, even when the room is clean:
+ * "clean" may mean a save is IN FLIGHT (dirty clears at save start), and the
+ * caller is about to read the DB expecting this room's latest state.
  */
 export async function flushRoomForDoc(
   projectId: string,
@@ -352,12 +533,31 @@ export async function flushRoomForDoc(
   docId: string,
 ): Promise<void> {
   const room = rooms.get(roomKey(projectId, docType, docId));
-  if (!room || !room.dirty) return;
+  if (!room) return;
   if (room.checkpointTimer) {
     clearTimeout(room.checkpointTimer);
     room.checkpointTimer = null;
   }
   await checkpoint(room);
+}
+
+/**
+ * Shutdown path: persist EVERY dirty room (and settle every in-flight save)
+ * before the DB pools close. Runs before flushAllVersions in main.ts — the
+ * version flush reads document content from the DB, so the rooms' checkpoints
+ * must land first or the captured versions (and the rows themselves) miss the
+ * last CHECKPOINT_DEBOUNCE_MS of typing on every deploy.
+ */
+export async function flushAllRooms(): Promise<void> {
+  await Promise.all(
+    [...rooms.values()].map(async (room) => {
+      if (room.checkpointTimer) {
+        clearTimeout(room.checkpointTimer);
+        room.checkpointTimer = null;
+      }
+      await checkpoint(room);
+    }),
+  );
 }
 
 /**
@@ -381,9 +581,13 @@ export function closeRoomsForDoc(
     clearTimeout(room.checkpointTimer);
     room.checkpointTimer = null;
   }
+  if (room.finalizeRetryTimer) {
+    clearTimeout(room.finalizeRetryTimer);
+    room.finalizeRetryTimer = null;
+  }
   room.dirty = false; // explicit discard — never checkpoint this doc again
   for (const conn of room.conns.values()) {
-    conn.send(room.adapter.msgError(docId, message));
+    conn.send(room.adapter.msgError(docId, message, true));
     connRooms.get(conn.connectionId)?.delete(key);
   }
   room.conns.clear();
