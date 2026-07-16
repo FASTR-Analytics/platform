@@ -498,6 +498,10 @@
      along their intent's shade scale; outlined components fill with the
      intent's -subtle wash. */
   .ui-intent-states {
+    /* The affordance bundle rides with the states — ui-hoverable carried
+       cursor-pointer, and its replacements must too. Disabled components
+       pair this with pointer-events-none, which makes the cursor moot. */
+    @apply cursor-pointer;
     @apply data-[outline=false]:hover:bg-primary-hover data-[outline=false]:active:bg-primary-active data-[outline=true]:hover:bg-primary-subtle;
     @apply data-[intent=neutral]:data-[outline=false]:hover:bg-neutral-hover data-[intent=neutral]:data-[outline=false]:active:bg-neutral-active data-[intent=neutral]:data-[outline=true]:hover:bg-neutral-subtle;
     @apply data-[intent=success]:data-[outline=false]:hover:bg-success-hover data-[intent=success]:data-[outline=false]:active:bg-success-active data-[intent=success]:data-[outline=true]:hover:bg-success-subtle;
