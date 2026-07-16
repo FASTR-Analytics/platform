@@ -1,3 +1,7 @@
+[1.59.1] [user] [changed] - Expand/collapse arrows now use consistent chevron icons
+[1.59.1] [user] [fixed] - Improved error messages when AI assistant encounters issues
+[1.59.1] [admin] [fixed] - AI chat errors now display more accurate error details
+[1.59.1] [admin] [internal] - Replaced text arrows with proper icons in AI chat expandable sections
 [1.59.0] [user] [added] - DHIS2 credentials button added to the Data page
 [1.59.0] [user] [added] - Manage DHIS2 connection from a single shared location
 [1.59.0] [user] [changed] - DHIS2 credentials are now stored once for the whole instance
