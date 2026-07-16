@@ -104,6 +104,17 @@ const CHAT_LINGER_MS = 4_000;
 const CHAT_MAX_LEN = 120;
 const RIPPLE_MS = 600;
 const RIPPLE_SIZE_PX = 44;
+// Keys that are never "typing" on their own — a bare modifier press while
+// mousing around must not hide the pointer (hideWhileTyping option).
+const MODIFIER_KEYS = new Set([
+  "Shift",
+  "Control",
+  "Alt",
+  "Meta",
+  "CapsLock",
+  "NumLock",
+  "ScrollLock",
+]);
 
 // Evaluated once — dropping the transform transition makes positions snap
 // instead of glide, which is exactly what reduced-motion asks for.
@@ -298,6 +309,13 @@ export function createPointerBroadcast(opts: {
    *  outside every broadcastable zone. */
   toPointer: (clientX: number, clientY: number) => PointerAwarenessState | null;
   minIntervalMs?: number;
+  /** Hide the local pointer from peers while the user is typing, until the
+   *  mouse moves or clicks again. A stale arrow sitting wherever the mouse
+   *  happens to rest reads as attention, but a typing user's attention is at
+   *  their text caret (which peers already see via yCollab) — so any real
+   *  keystroke clears the pointer. Bare modifiers don't count, and neither
+   *  does typing into the cursor-chat bubble (the bubble RIDES the pointer). */
+  hideWhileTyping?: boolean;
 }): { resend: () => void } {
   const minInterval = opts.minIntervalMs ?? DEFAULT_MIN_INTERVAL_MS;
   let lastClientX: number | undefined;
@@ -309,6 +327,9 @@ export function createPointerBroadcast(opts: {
   // Lifetime click counter — rides on every pointer state (see the type) so a
   // trailing move re-send after a click carries the same value and dedupes.
   let clickCount = 0;
+  // hideWhileTyping state: set on a qualifying keystroke, cleared by any
+  // pointer move/click. While set, fire() broadcasts null.
+  let typingHidden = false;
 
   function send(value: PointerAwarenessState | null) {
     const aw = opts.awareness();
@@ -328,7 +349,10 @@ export function createPointerBroadcast(opts: {
   }
 
   function fire() {
-    if (!opts.enabled() || lastClientX === undefined || lastClientY === undefined) {
+    if (
+      !opts.enabled() || typingHidden ||
+      lastClientX === undefined || lastClientY === undefined
+    ) {
       send(null);
       return;
     }
@@ -355,6 +379,7 @@ export function createPointerBroadcast(opts: {
   }
 
   function onMove(e: PointerEvent) {
+    typingHidden = false; // mouse activity ends the typing-hide
     lastClientX = e.clientX;
     lastClientY = e.clientY;
     schedule();
@@ -363,6 +388,7 @@ export function createPointerBroadcast(opts: {
   // for the trailing throttle). Primary button only — context-menu clicks and
   // middle-drags shouldn't ping peers.
   function onPointerDown(e: PointerEvent) {
+    typingHidden = false;
     if (e.button !== 0 || !opts.enabled()) return;
     lastClientX = e.clientX;
     lastClientY = e.clientY;
@@ -370,6 +396,27 @@ export function createPointerBroadcast(opts: {
     if (!pointer) return;
     clickCount++;
     send(withClick(pointer));
+  }
+  // hideWhileTyping (see the option doc). Capture phase so editor components
+  // that stopPropagation can't mask keystrokes (same rationale as the idle
+  // detector in state/project/collab.ts) — hence the explicit exclusions:
+  // the cursor-chat input, and the "/" that may be about to OPEN the chat
+  // (mirrors CursorChatInput.onDocKeyDown's hijack condition; hiding the
+  // pointer there would hide the very bubble the user is opening).
+  function onKeyDown(e: KeyboardEvent) {
+    if (typingHidden || MODIFIER_KEYS.has(e.key)) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest?.("[data-cursor-chat-input]")) return;
+    if (
+      e.key === "/" &&
+      !target?.closest?.(
+        "input, textarea, [contenteditable='true'], .cm-editor",
+      )
+    ) {
+      return;
+    }
+    typingHidden = true;
+    send(null);
   }
   // Sender scrolling under a stationary pointer changes what it points AT —
   // recompute from the stored client coords.
@@ -390,6 +437,9 @@ export function createPointerBroadcast(opts: {
     document.addEventListener("scroll", onScroll, true);
     document.documentElement.addEventListener("pointerleave", onLeaveDocument);
     document.addEventListener("visibilitychange", onVisibility);
+    if (opts.hideWhileTyping) {
+      document.addEventListener("keydown", onKeyDown, true);
+    }
     // Revalidate under a stationary pointer (see REVALIDATE_MS): clears the
     // cursor within ~500ms when an overlay covers the surface, and restores
     // it when the overlay closes — no mouse movement required.
@@ -412,6 +462,9 @@ export function createPointerBroadcast(opts: {
     document.removeEventListener("scroll", onScroll, true);
     document.documentElement.removeEventListener("pointerleave", onLeaveDocument);
     document.removeEventListener("visibilitychange", onVisibility);
+    if (opts.hideWhileTyping) {
+      document.removeEventListener("keydown", onKeyDown, true);
+    }
     if (rafId !== undefined) cancelAnimationFrame(rafId);
     if (trailingTimer) clearTimeout(trailingTimer);
     send(null);
@@ -809,6 +862,7 @@ export function CursorChatInput(p: {
         >
           <input
             ref={inputEl}
+            data-cursor-chat-input
             value={text()}
             maxLength={CHAT_MAX_LEN}
             placeholder={t3({

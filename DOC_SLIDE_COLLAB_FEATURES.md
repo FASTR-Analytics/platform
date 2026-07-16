@@ -68,7 +68,9 @@ session.
   (both the markdown pane and the rendered preview), and on the project tab
   pages themselves (deck/report/visualization/dashboard lists and the other
   tabs — shown only to people on the same tab looking at the same folder
-  view).
+  view). In the report editor, typing hides your pointer for everyone until
+  you move the mouse again — while you type, your attention is at your text
+  caret (which peers already see), not wherever the mouse happens to rest.
 - **Cursor chat.** Press `/` over any cursor surface — slide canvas,
   visualization editor, report editor, or a project tab page — to type a
   short message in a bubble attached to your live cursor —

@@ -78,6 +78,10 @@ export function ReportEditorCursors(p: {
     awareness: p.awareness,
     enabled: p.enabled,
     toPointer,
+    // Typing in the report (CodeMirror body, caption inputs) hides this
+    // user's pointer for peers until the mouse moves again — their attention
+    // is at the text caret, which peers already see via yCollab.
+    hideWhileTyping: true,
   });
 
   function accepts(
