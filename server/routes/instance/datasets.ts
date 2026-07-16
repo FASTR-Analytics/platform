@@ -20,6 +20,7 @@ import {
   getDatasetHfaUploadStatus,
   getDatasetHmisDetail,
   getDatasetHmisImportLedgerItems,
+  getDatasetHmisImportRunDetail,
   getDatasetHmisImportRunSummaries,
   getDatasetHmisItemsForDisplay,
   getDatasetHmisScheduledImports,
@@ -219,6 +220,17 @@ defineRoute(
   log("getDatasetHmisImportRuns"),
   async (c) => {
     const res = await getDatasetHmisImportRunSummaries(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "getDatasetHmisImportRunDetail",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetHmisImportRunDetail"),
+  async (c, { params }) => {
+    const res = await getDatasetHmisImportRunDetail(c.var.mainDb, params.run_id);
     return c.json(res);
   },
 );

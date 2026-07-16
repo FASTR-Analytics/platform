@@ -13,6 +13,7 @@ import {
 import type {
   DatasetHmisDetail,
   DatasetHmisImportLedgerItem,
+  DatasetHmisImportRunDetail,
   DatasetHmisImportRunSummary,
   DatasetHmisScheduledImport,
   DatasetHmisVersion,
@@ -155,6 +156,14 @@ export const datasetRouteRegistry = {
     path: "/datasets/hmis/dhis2-runs",
     method: "GET",
     response: {} as DatasetHmisImportRunSummary[],
+  }),
+  // Summary + the run_stats blob (per-pair failures, unknown ids, shadow) —
+  // fetched on demand from the History row click, never in the polled list.
+  getDatasetHmisImportRunDetail: route({
+    path: "/datasets/hmis/dhis2-runs/:run_id",
+    method: "GET",
+    params: z.object({ run_id: z.coerce.number().int() }),
+    response: {} as DatasetHmisImportRunDetail,
   }),
   // Cancels a running run, or removes a queued one.
   cancelDatasetHmisDhis2Run: route({

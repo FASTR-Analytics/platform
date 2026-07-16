@@ -152,10 +152,15 @@ export function Dhis2TabFuture(p: Props) {
       render: (s) => {
         const o = recurringOutcomeLabel(s);
         return (
-          <span class={o.danger ? "text-danger font-700" : ""} title={s.lastError}>
-            {o.text}
-            {s.lastFiredAt ? ` — ${new Date(s.lastFiredAt).toLocaleString()}` : ""}
-          </span>
+          <div>
+            <span class={o.danger ? "text-danger font-700" : ""}>
+              {o.text}
+              {s.lastFiredAt ? ` — ${new Date(s.lastFiredAt).toLocaleString()}` : ""}
+            </span>
+            <Show when={o.danger && s.lastError}>
+              <div class="text-danger text-xs">{s.lastError}</div>
+            </Show>
+          </div>
         );
       },
     },
@@ -190,9 +195,12 @@ export function Dhis2TabFuture(p: Props) {
       render: (s) => {
         const o = oneTimeStatusLabel(s);
         return (
-          <span class={o.danger ? "text-danger font-700" : ""} title={s.lastError}>
-            {o.text}
-          </span>
+          <div>
+            <span class={o.danger ? "text-danger font-700" : ""}>{o.text}</span>
+            <Show when={o.danger && s.lastError}>
+              <div class="text-danger text-xs">{s.lastError}</div>
+            </Show>
+          </div>
         );
       },
     },

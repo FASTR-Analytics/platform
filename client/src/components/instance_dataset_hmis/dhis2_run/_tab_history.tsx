@@ -3,9 +3,10 @@ import { Table, toNum0, type TableColumn } from "panther";
 
 type Props = {
   runs: DatasetHmisImportRunSummary[];
+  onOpenRun: (run: DatasetHmisImportRunSummary) => Promise<void>;
 };
 
-function statusLabel(status: DatasetHmisImportRunSummary["status"]): string {
+export function statusLabel(status: DatasetHmisImportRunSummary["status"]): string {
   if (status === "queued") {
     return t3({ en: "Queued", fr: "En file d'attente", pt: "Em fila" });
   }
@@ -21,7 +22,7 @@ function statusLabel(status: DatasetHmisImportRunSummary["status"]): string {
   return t3({ en: "Error", fr: "Erreur", pt: "Erro" });
 }
 
-function selectionLabel(run: DatasetHmisImportRunSummary): string {
+export function selectionLabel(run: DatasetHmisImportRunSummary): string {
   if (run.selection.kind === "window") {
     return `${toNum0(run.selection.rawIndicatorIds.length)} ${t3({
       en: "indicators",
@@ -58,7 +59,15 @@ export function Dhis2TabHistory(p: Props) {
       key: "succeededPairs",
       header: t3({ en: "Pairs (ok / failed / total)", fr: "Paires (ok / échec / total)", pt: "Pares (ok / falha / total)" }),
       alignH: "right",
-      render: (run) => `${toNum0(run.succeededPairs)} / ${toNum0(run.failedPairs)} / ${toNum0(run.totalPairs)}`,
+      render: (run) => (
+        <span>
+          {toNum0(run.succeededPairs)} /{" "}
+          <span class={run.failedPairs > 0 ? "text-danger font-700" : ""}>
+            {toNum0(run.failedPairs)}
+          </span>{" "}
+          / {toNum0(run.totalPairs)}
+        </span>
+      ),
     },
     {
       key: "status",
@@ -73,7 +82,6 @@ export function Dhis2TabHistory(p: Props) {
                 ? "font-700"
                 : ""
           }
-          title={run.error}
         >
           {statusLabel(run.status)}
         </span>
@@ -92,6 +100,7 @@ export function Dhis2TabHistory(p: Props) {
       data={p.runs}
       columns={columns}
       keyField="id"
+      onRowClick={(run) => void p.onOpenRun(run)}
       noRowsMessage={t3({ en: "No DHIS2 imports yet", fr: "Aucune importation DHIS2 pour le moment", pt: "Ainda não há importações DHIS2" })}
     />
   );

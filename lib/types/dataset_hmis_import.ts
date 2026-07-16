@@ -297,7 +297,15 @@ export type DatasetHmisImportRunSummary = {
 
 // The run_stats blob (durable per-run instrumentation — the home that
 // PLAN_DHIS2_IMPORTER §4.1 designated for pairFetchStats). Not shipped in the
-// runs list; server-side/debugging surface for now.
+// runs list (polled at 2 s, must stay small); served per-run by
+// getDatasetHmisImportRunDetail.
+export type DatasetHmisImportRunDetail = DatasetHmisImportRunSummary & {
+  // Absent when the run was interrupted from outside the worker (cancel /
+  // host-detected crash / restart sweep) — stats live in worker memory and
+  // die with it. run.error explains those cases.
+  runStats?: DatasetHmisImportRunStats;
+};
+
 export type DatasetHmisImportRunStats = {
   classification: {
     dvsBareElements: number;

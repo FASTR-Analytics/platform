@@ -29,6 +29,7 @@ import {
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { Dhis2ManageConnection } from "./_manage_connection";
+import { Dhis2RunDetail } from "./_run_detail";
 import { Dhis2TabCurrent } from "./_tab_current";
 import { Dhis2TabFuture, visibleFutureSchedules } from "./_tab_future";
 import { Dhis2TabHistory } from "./_tab_history";
@@ -139,6 +140,24 @@ export function DatasetHmisDhis2Runs(p: Props) {
     if (res) {
       setTab(res.landedTab);
       await refresh();
+    }
+  }
+
+  async function openRunDetail(run: DatasetHmisImportRunSummary) {
+    const retryPairs = await openComponent({
+      element: Dhis2RunDetail,
+      props: { run },
+    });
+    if (retryPairs && retryPairs.length > 0) {
+      await openWizard({
+        kind: "presetPairs",
+        pairs: retryPairs,
+        label: t3({
+          en: "Retrying this run's failed pairs:",
+          fr: "Nouvelle tentative pour les paires en échec de cette importation :",
+          pt: "Nova tentativa para os pares falhados desta importação:",
+        }),
+      });
     }
   }
 
@@ -284,7 +303,10 @@ export function DatasetHmisDhis2Runs(p: Props) {
                     />
                   </Match>
                   <Match when={tab() === "history"}>
-                    <Dhis2TabHistory runs={keyedRuns.filter((r) => r.status !== "queued")} />
+                    <Dhis2TabHistory
+                      runs={keyedRuns.filter((r) => r.status !== "queued")}
+                      onOpenRun={openRunDetail}
+                    />
                   </Match>
                 </Switch>
               </div>

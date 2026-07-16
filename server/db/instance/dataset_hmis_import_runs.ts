@@ -9,7 +9,9 @@ import {
   parseJsonOrThrow,
   parseJsonOrUndefined,
   type DatasetDhis2StagingResult,
+  type DatasetHmisImportRunDetail,
   type DatasetHmisImportRunProgress,
+  type DatasetHmisImportRunStats,
   type DatasetHmisImportRunSummary,
   type Dhis2RunCredentialsSource,
   type Dhis2RunPair,
@@ -75,6 +77,34 @@ export async function getDatasetHmisImportRunSummaries(
       LIMIT 50
     `;
     return { success: true, data: rows.map(toRunSummary) };
+  });
+}
+
+export async function getDatasetHmisImportRunDetail(
+  mainDb: Sql,
+  runId: number,
+): Promise<APIResponseWithData<DatasetHmisImportRunDetail>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rows = await mainDb<DBDatasetHmisImportRun[]>`
+      SELECT id, trigger, triggered_by, dhis2_url, selection, status, error,
+        total_pairs, succeeded_pairs, failed_pairs, started_at, ended_at,
+        version_id, shadow_passed, progress, run_stats
+      FROM dataset_hmis_import_runs
+      WHERE id = ${runId}
+    `;
+    const row = rows.at(0);
+    if (!row) {
+      throw new Error(`Import run ${runId} not found.`);
+    }
+    return {
+      success: true,
+      data: {
+        ...toRunSummary(row),
+        runStats: row.run_stats
+          ? parseJsonOrUndefined<DatasetHmisImportRunStats>(row.run_stats)
+          : undefined,
+      },
+    };
   });
 }
 
