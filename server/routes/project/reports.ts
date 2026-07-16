@@ -34,6 +34,7 @@ import {
 } from "../../collab/version_capture.ts";
 import { reportFiguresSchema, reportImagesSchema } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
+import { log } from "../../middleware/logging.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectReportsUpdated } from "../../task_management/notify_project_v2.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -67,6 +68,7 @@ defineRoute(
     { preventAccessToLockedProjects: true },
     "can_configure_reports",
   ),
+  log("createReport"),
   async (c, { body }) => {
     const res = await createReport(
       c.var.ppk.projectDb,

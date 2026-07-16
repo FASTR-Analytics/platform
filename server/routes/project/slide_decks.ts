@@ -37,6 +37,7 @@ import {
 } from "../../collab/deck_session_ledger.ts";
 import { remapCollidingSlideIds } from "../../db/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
+import { log } from "../../middleware/logging.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectSlideDecksUpdated } from "../../task_management/notify_project_v2.ts";
 import {
@@ -77,6 +78,7 @@ defineRoute(
     { preventAccessToLockedProjects: true },
     "can_configure_slide_decks",
   ),
+  log("createSlideDeck"),
   async (c, { body }) => {
     const res = await createSlideDeck(
       c.var.ppk.projectDb,
