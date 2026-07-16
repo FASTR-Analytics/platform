@@ -309,6 +309,7 @@ END $$;
 - Update live schema files too (`_main_database.sql`, `_project_database.sql`)
 - Don't rewrite old migrations — fix forward
 - **Always run `./validate_migrations` after adding or modifying SQL migrations**
+- SQL-safety (parameterize values, whitelist identifiers, `.unsafe()` on trusted-internal input only) is owned by [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md) — migration files are repo-authored SQL run via `.unsafe()`, so never build them from runtime input
 
 **Use SQL migrations for:** Adding columns, creating tables, adding indexes, constraints.
 

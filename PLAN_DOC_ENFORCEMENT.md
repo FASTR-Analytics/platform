@@ -43,7 +43,7 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 
 - [ ] **6. One bulk-escape helper; ban hand-built `VALUES`.**
   Bulk `VALUES` escaping is uniform `''`-doubling, but implemented twice: HFA via the shared `escapeSqlString` (`server/db/utils.ts`), HMIS/structure inline. One shared helper + a lint/grep ban on manual tuple escaping keeps the implementations from drifting. (A parameterized/COPY bulk-insert helper was sketched in the now-deleted PLAN_IMPORTER_CONSOLIDATION toolkit plan — superseded by PLAN_DHIS2_IMPORTER_CONSOLIDATION.md, which wraps rather than rewrites the insert paths; the escaping-dedup idea here stands on its own.)
-  **Files:** `server/server_only_funcs_importing/stage_structure_from_csv.ts`, `server/worker_routines/stage_hmis_data_csv/worker.ts`. **Docs:** [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md), [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md) (owns the SQL-safety rule).
+  **Files:** `server/server_only_funcs_importing/stage_structure_from_csv.ts`, `server/worker_routines/stage_hmis_data_csv/worker.ts`. **Docs:** [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md), [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md) (owns the SQL-safety rule).
 
 - [ ] **7. Harden R-source interpolation.**
   The default and HFA script generators interpolate config `text`/`select`/`number` values with bare `'…'` wrapping and no escaping; only the calculated-indicators generator validates identifiers, and `COUNTRY_ISO3` is now format-validated at the write boundary. These strings execute as real R in a container.
@@ -107,8 +107,8 @@ Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each it
 
 - [ ] **13. DHIS2 retry off `error.status`, not `error.message` substring** (`retry_utils.ts` — works today, brittle). **Doc:** [SYSTEM_07_dhis2.md](SYSTEM_07_dhis2.md).
 - [x] **14. Gate DHIS2 worker credential/URL logging** — RESOLVED: the HMIS DHIS2 staging worker no longer logs credentials and routes analytics through `getAnalyticsFromDHIS2` (verified 2026-07-14); the remaining unconditional URL log is `dhis2ConfirmCredentials` (S7 Open items).
-- [ ] **15. Decide the `READ_ONLY` connection flag** — make it real (`default_transaction_read_only`) or rename it to "cache-namespacing only" (today it doesn't prevent writes). **Doc:** [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md).
-- [ ] **16. Consolidate `generateUnique*Id`** (6 near-identical copies) into `generateUniqueId(db, tableName)`. **Doc:** DOC_DB_ACCESS_LAYER.
+- [ ] **15. Decide the `READ_ONLY` connection flag** — make it real (`default_transaction_read_only`) or rename it to "cache-namespacing only" (today it doesn't prevent writes). **Doc:** [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md).
+- [ ] **16. Consolidate `generateUnique*Id`** (7 near-identical copies) into `generateUniqueId(db, tableName)`. **Doc:** SYSTEM_02_persistence.md.
 
 ---
 

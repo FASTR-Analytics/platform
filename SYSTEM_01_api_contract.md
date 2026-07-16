@@ -41,7 +41,7 @@ in handlers_, which this app centralizes in `defineRoute` + guards; follow the
 rules, not the examples). Server-side **push** (SSE/ BroadcastChannel) is **S3**
 — the streaming here is request-scoped NDJSON, a different thing. The DB
 functions handlers call, and the error funnel that produces their envelopes, are
-**S2** (DOC_DB_ACCESS_LAYER). The Anthropic proxy internals are **S13**; TUS
+**S2** ([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). The Anthropic proxy internals are **S13**; TUS
 upload is **S4**; the public dashboard route is **S12**; health + export_central
 are **S15**, which also _writes_ the `users` / `project_user_roles` rows the
 guards here evaluate — S1 owns the gate, S15 owns the admin surface behind it.

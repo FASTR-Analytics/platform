@@ -40,7 +40,7 @@ DOC_SSE_REALTIME + DOC_VALKEY_CACHE).
 Boundaries: the client _consumer_ rules (tiers, live/snapshot reads,
 never-refetch-after-mutation) are [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md)
 — this system owns the machinery those rules run on. The write side that bumps
-version columns is **S2** (DOC_DB_ACCESS_LAYER). SSE is server _push_; it is not
+version columns is **S2** ([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). SSE is server _push_; it is not
 the request-scoped NDJSON `StreamWriter` in **S1**
 (SYSTEM_01_api_contract.md). The third
 BroadcastChannel, `"task_ended"`, is **S8**'s internal worker plumbing

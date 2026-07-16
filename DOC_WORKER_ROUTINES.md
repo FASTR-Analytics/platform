@@ -2,7 +2,7 @@
 
 The Deno Web Worker background-job pattern: the `instantiate_worker` / `worker` folder pairing, the `"READY"` handshake, the mandatory worker-entry preamble, dedicated DB connections, and the two report-back mechanisms (`task_ended` broadcast vs `postMessage("COMPLETED")` + status row).
 
-> This doc owns the **worker lifecycle** (spawn → handshake → run → teardown). The dirty-state semantics and the running-tasks-map cleanup *invariant* are owned by [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md) (this doc cites it). Worker DB connections are [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md). What the dataset workers actually *do* (stage→integrate, bulk insert) is [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md); what the module worker does is [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md). Workers reach the main thread's SSE via [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md).
+> This doc owns the **worker lifecycle** (spawn → handshake → run → teardown). The dirty-state semantics and the running-tasks-map cleanup *invariant* are owned by [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md) (this doc cites it). Worker DB connections are [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md). What the dataset workers actually *do* (stage→integrate, bulk insert) is [SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md); what the module worker does is [DOC_MODULE_EXECUTION.md](DOC_MODULE_EXECUTION.md). Workers reach the main thread's SSE via [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md).
 
 ---
 
@@ -97,7 +97,7 @@ No `self.close()` after `reportError` — the host terminates the worker from it
 
 ### Dedicated connections
 
-Workers **must not** use the request connection cache (it's not shared across worker contexts). They create dedicated pools via the worker factories ([DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md)):
+Workers **must not** use the request connection cache (it's not shared across worker contexts). They create dedicated pools via the worker factories ([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)):
 - `createWorkerReadConnection(id)` — read-only work (module worker reads module/config).
 - `createBulkImportConnection("main")` — bulk staging/integration inserts.
 

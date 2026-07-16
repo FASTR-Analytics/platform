@@ -25,7 +25,7 @@ keep working untouched on their old machinery.
   deploys until Tim runs the deploy.
 - **Read first:** SYSTEM_01_api_contract.md + PROTOCOL_APP_ROUTES.md
   (registry-as-contract),
-  DOC_DB_ACCESS_LAYER.md (SQL-safety rule — no parameterized table names),
+  SYSTEM_02_persistence.md (SQL-safety rule — no parameterized table names),
   PROTOCOL_APP_MIGRATIONS.md, DOC_WORKER_ROUTINES.md (READY handshake,
   teardown contract), DOC_TASK_EXECUTION_DIRTY_STATE.md,
   PROTOCOL_APP_STATE.md (wizard state is
@@ -114,7 +114,7 @@ SYSTEM_06 ingestion doc is SHORTER than today's, or we've failed the brief.
   registration, teardown rules) and client components (modal wizard
   shell pattern, upload step, review-step frame, run-row/status
   rendering, history table). NOT shared: SQL (per-family DB functions
-  stay thin and family-owned — also keeps the DOC_DB_ACCESS_LAYER
+  stay thin and family-owned — also keeps the SYSTEM_02_persistence.md
   SQL-safety rule intact: no parameterized table names), and NO
   config-driven wizard engine — three plain wizards sharing parts beat
   one clever abstraction (variants are bounded at four, forever).

@@ -20,7 +20,12 @@
 > are S3 Open items), S1 (DOC_API_ROUTES + DOC_ACCESS_CONTROL → SYSTEM_01 +
 > new PROTOCOL_APP_ROUTES, 2026-07-16; review-only — findings are S1 Open
 > items; corrections folded in: raw-route inventory completed, authError is
-> 401-only, 7 instance permission keys, H_USERS = 9).
+> 401-only, 7 instance permission keys, H_USERS = 9), S2 (DOC_DB_ACCESS_LAYER,
+> 2026-07-16; review-only — findings are S2 Open items; SQL-safety rule ruled
+> to live in SYSTEM_02 itself, no new protocol file (one-line pointer added to
+> PROTOCOL_APP_MIGRATIONS); corrections folded in: generateUnique*Id = 7
+> copies, `.unsafe()` surface is ~20 sites led by the bulk ingest paths,
+> closePgConnection also does per-project teardown).
 > This plan deletes itself when the last `DOC_*` is gone.
 
 ## 1. `DOC_*` → target mapping (3-way sort)

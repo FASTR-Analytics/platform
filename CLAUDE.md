@@ -81,7 +81,7 @@ wb-fastr/
 - Shared structural data (indicators, facilities, admin areas)
 - Dataset upload attempts and versions
 
-**Project Databases** (per-project, named by the bare project UUID, e.g. `f47ac10b-...` — **not** `project_{uuid}`; see [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md))
+**Project Databases** (per-project, named by the bare project UUID, e.g. `f47ac10b-...` — **not** `project_{uuid}`; see [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md))
 
 - Project-specific data isolation
 - Module instances and configurations
@@ -264,7 +264,7 @@ Prescriptive protocols for how this app is built (distinct from the `panther/pro
 ### Server / architecture
 
 - [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md) — registry-as-contract, `defineRoute`, `APIResponse` envelope, streaming sub-protocol, Clerk, the two permission guards, `Project-Id` scoping, special modes ([PROTOCOL_APP_ROUTES.md](PROTOCOL_APP_ROUTES.md) is the add-a-route recipe)
-- [DOC_DB_ACCESS_LAYER.md](DOC_DB_ACCESS_LAYER.md) — connections, DB-function shape, error funnel, **SQL-safety rule** (authoritative for the multi-DB naming/connection model)
+- [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md) — connections, DB-function shape, error funnel, **SQL-safety rule** (authoritative for the multi-DB naming/connection model), migration machinery + fail-stop boot, backup/restore mechanics
 - [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) — BroadcastChannel→SSE, notify catalog, the `last_updated → SSE → cache` triangle, `TimCacheC` version-hash keying + implicit invalidation
 - [DOC_TASK_EXECUTION_DIRTY_STATE.md](DOC_TASK_EXECUTION_DIRTY_STATE.md) — dirty state machine, dependency propagation, `task_ended` loop
 - [DOC_WORKER_ROUTINES.md](DOC_WORKER_ROUTINES.md) — Web Worker pattern, READY handshake, report-back mechanisms
