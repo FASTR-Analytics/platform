@@ -144,7 +144,7 @@ export function AIChatConversationSelector(
           <span
             class={`truncate ${
               conv.id === conversations.activeConversationId()
-                ? "text-primary font-semibold"
+                ? "text-primary font-700"
                 : ""
             }`}
           >
@@ -162,7 +162,7 @@ export function AIChatConversationSelector(
       }),
       sortable: true,
       render: (conv) => (
-        <span class="text-neutral text-sm">
+        <span class="text-base-content-muted text-sm">
           {formatDate(conv.lastMessageAt)}
         </span>
       ),
@@ -209,7 +209,7 @@ export function AIChatConversationSelector(
       <Show
         when={conversations.conversations().length > 0}
         fallback={
-          <div class="text-neutral py-8 text-center">
+          <div class="text-base-content-muted py-8 text-center">
             {t3({
               en: "No conversations yet",
               fr: "Aucune conversation pour le moment",

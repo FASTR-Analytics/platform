@@ -37,7 +37,7 @@ export function SortableList<T extends { id: string }>(p: {
           }}
         >
           <Show when={showHandle() && handlePos() === "left"}>
-            <div class="sl-handle text-neutral flex h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing">
+            <div class="sl-handle text-base-content-muted flex h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing">
               <Icon iconName="gripVertical" />
             </div>
           </Show>
@@ -45,7 +45,7 @@ export function SortableList<T extends { id: string }>(p: {
           <div class="flex-1">{p.children(item, index)}</div>
 
           <Show when={showHandle() && handlePos() === "right"}>
-            <div class="sl-handle text-neutral flex h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing">
+            <div class="sl-handle text-base-content-muted flex h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing">
               <Icon iconName="gripVertical" />
             </div>
           </Show>

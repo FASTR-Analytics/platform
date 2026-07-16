@@ -254,7 +254,7 @@ export function NestedMultiSelect<T extends string>(
                   onChange={toggleSelectAll}
                   intentWhenChecked={p.intentWhenChecked}
                 />
-                <div class="border-base-300 my-1 border-b" />
+                <div class="border-border my-1 border-b" />
               </>
             );
           }}

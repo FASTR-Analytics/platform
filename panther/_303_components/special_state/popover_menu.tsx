@@ -259,7 +259,7 @@ export function PopoverMenuProvider() {
       >
         <Show when={menuState()} keyed>
           {(state) => (
-            <div class="bg-base-100 min-w-[160px] overflow-hidden rounded-md border shadow-lg">
+            <div class="bg-base-100 border-border min-w-[160px] overflow-hidden rounded border shadow-floating">
               <For each={state.items}>
                 {(item, index) => (
                   <Show
@@ -273,7 +273,7 @@ export function PopoverMenuProvider() {
                         <button
                           ref={buttonRef}
                           type="button"
-                          class="ui-hoverable flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-50"
+                          class="ui-quiet flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
                           classList={{
                             "text-danger":
                               (item as MenuItemClickable).intent ===
@@ -338,7 +338,7 @@ export function PopoverMenuProvider() {
       >
         <Show when={subMenuState()} keyed>
           {(state) => (
-            <div class="bg-base-100 min-w-[160px] overflow-hidden rounded-md border shadow-lg">
+            <div class="bg-base-100 border-border min-w-[160px] overflow-hidden rounded border shadow-floating">
               <For each={state.items}>
                 {(item) => (
                   <Show
@@ -347,7 +347,7 @@ export function PopoverMenuProvider() {
                   >
                     <button
                       type="button"
-                      class="ui-hoverable flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-50"
+                      class="ui-quiet flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
                       classList={{
                         "text-danger": (item as MenuItemClickable).intent ===
                           "danger",

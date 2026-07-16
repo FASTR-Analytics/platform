@@ -29,17 +29,17 @@ export function StepperNavigationVisual(p: StepperNavigationVisualProps) {
   const getStepClasses = (step: number) => {
     const status = p.stepper.getStepStatus(step);
     const baseClasses =
-      "relative flex h-8 w-8 items-center justify-center rounded-full border-2 font-semibold";
+      "relative flex h-8 w-8 items-center justify-center rounded-full border-2 font-700";
 
     switch (status) {
       case "current":
         return `${baseClasses} border-primary bg-primary text-primary-content`;
       case "completed":
-        return `${baseClasses} border-success bg-success text-success-content cursor-pointer hover:opacity-80`;
+        return `${baseClasses} border-success bg-success text-success-content cursor-pointer hover:bg-success-hover active:bg-success-active`;
       case "available":
-        return `${baseClasses} border-primary bg-base-100 text-primary cursor-pointer hover:bg-primary hover:text-primary-content`;
+        return `${baseClasses} border-primary bg-base-100 text-primary cursor-pointer hover:bg-primary hover:text-primary-content active:bg-primary-active`;
       case "locked":
-        return `${baseClasses} border-base-300 bg-base-100 text-base-300`;
+        return `${baseClasses} border-border bg-base-100 text-base-300`;
       default:
         return baseClasses;
     }

@@ -16,35 +16,35 @@ export function ToolErrorRenderer(p: {
       <button
         type="button"
         onClick={() => setExpanded(!expanded())}
-        class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-left text-xs"
+        class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
       >
         <div class="mt-0.5">
           {expanded()
             ? <Icon iconName="chevronDown" class="h-3 w-3" />
             : <Icon iconName="chevronRight" class="h-3 w-3" />}
         </div>
-        <span class="font-medium">{p.item.errorMessage}</span>
+        <span>{p.item.errorMessage}</span>
       </button>
 
       <Show when={expanded()}>
         <div class="ml-5 mt-1 space-y-2">
           <div>
-            <div class="mb-1 text-xs font-medium">
+            <div class="mb-1 text-xs font-700">
               {t3({ en: "Error:", fr: "Erreur :", pt: "Erro:" })}
             </div>
             <div class="text-xs">{p.item.errorDetails}</div>
           </div>
 
           <Show when={p.item.errorStack}>
-            <div class="border-danger/20 border-t pt-2">
-              <div class="text-danger/60 mb-1 text-xs font-medium">
+            <div class="border-danger border-t pt-2">
+              <div class="text-danger-subtle-content mb-1 text-xs font-700">
                 {t3({
                   en: "Stack trace:",
                   fr: "Trace de la pile :",
                   pt: "Rastreio da pilha:",
                 })}
               </div>
-              <pre class="text-danger/80 bg-danger/5 overflow-x-auto whitespace-pre-wrap rounded p-2 font-mono text-[10px]">
+              <pre class="text-danger-subtle-content bg-danger-subtle overflow-x-auto whitespace-pre-wrap rounded p-2 font-mono text-[10px]">
                 {p.item.errorStack}
               </pre>
             </div>

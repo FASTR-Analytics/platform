@@ -242,7 +242,7 @@ export default function AlertProvider() {
       {(keyedAlertState) => {
         return (
           <>
-            <div class="fixed inset-0 z-50 bg-black/30" />
+            <div class="bg-scrim fixed inset-0 z-50" />
             <div class="fixed inset-0 z-50 overflow-y-auto py-12">
               <div class="flex min-h-full items-center justify-center">
                 <Switch>
@@ -252,7 +252,7 @@ export default function AlertProvider() {
                   >
                     {(keyedComponentState) => {
                       return (
-                        <div class="ui-never-focusable bg-base-100 z-50 mx-12 rounded shadow-lg outline-none">
+                        <div class="ui-never-focusable bg-base-100 border-border z-50 mx-12 rounded border shadow-floating outline-none">
                           <Dynamic
                             component={keyedComponentState.element}
                             close={(p: unknown) => {
@@ -271,7 +271,7 @@ export default function AlertProvider() {
                   >
                     {(keyedACPState) => {
                       return (
-                        <div class="ui-never-focusable bg-base-100 z-50 mx-12 rounded shadow-lg outline-none">
+                        <div class="ui-never-focusable bg-base-100 border-border z-50 mx-12 rounded border shadow-floating outline-none">
                           <ModalContainer
                             width="sm"
                             topPanel={keyedACPState.title

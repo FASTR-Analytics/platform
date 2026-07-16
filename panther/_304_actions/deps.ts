@@ -6,8 +6,8 @@
 export type {
   APIResponseNoData,
   APIResponseWithData,
-  ButtonActionState,
-} from "../_302_query/mod.ts";
+} from "../_111_api_contract/mod.ts";
+export type { ButtonActionState } from "../_302_query/mod.ts";
 export {
   ConfirmDeleteForm,
   openAlert,

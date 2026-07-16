@@ -66,7 +66,7 @@ export function StepperVerticalSidebar(p: StepperVerticalSidebarProps) {
       `relative flex w-full ${justify} gap-3 ${paddingX} py-3 text-left text-sm transition-colors`;
     switch (status) {
       case "current":
-        return `${base} bg-primary/5 shadow-[inset_3px_0_0_0_var(--color-primary)] cursor-default`;
+        return `${base} bg-primary-subtle shadow-[inset_3px_0_0_0_var(--color-primary)] cursor-default`;
       case "completed":
         return `${base} hover:bg-base-200 cursor-pointer`;
       case "available":
@@ -84,11 +84,11 @@ export function StepperVerticalSidebar(p: StepperVerticalSidebarProps) {
       case "current":
         return `${base} border-primary bg-primary text-primary-content`;
       case "completed":
-        return `${base} border-base-300 bg-base-200 text-base-content`;
+        return `${base} border-border bg-base-200 text-base-content`;
       case "available":
         return `${base} border-primary bg-base-100 text-primary`;
       case "locked":
-        return `${base} border-base-300 bg-base-100 text-neutral/60`;
+        return `${base} border-border bg-base-100 text-base-content-muted`;
     }
   };
 
@@ -101,11 +101,11 @@ export function StepperVerticalSidebar(p: StepperVerticalSidebarProps) {
       case "available":
         return "text-base-content";
       case "locked":
-        return "text-neutral/60";
+        return "text-base-content-muted";
     }
   };
 
-  const descriptionClasses = "text-neutral text-xs mt-0.5";
+  const descriptionClasses = "ui-text-caption mt-0.5";
 
   return (
     <nav class="w-full" aria-label="Progress">

@@ -54,11 +54,11 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
       case "current":
         return `${base} border-primary bg-primary text-primary-content`;
       case "completed":
-        return `${base} border-base-300 bg-base-200 text-base-content`;
+        return `${base} border-border bg-base-200 text-base-content`;
       case "available":
         return `${base} border-primary bg-base-100 text-primary`;
       case "locked":
-        return `${base} border-base-300 bg-base-100 text-neutral/60`;
+        return `${base} border-border bg-base-100 text-base-content-muted`;
     }
   };
 
@@ -71,7 +71,7 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
       case "available":
         return "text-base-content text-sm";
       case "locked":
-        return "text-neutral/60 text-sm";
+        return "text-base-content-muted text-sm";
     }
   };
 
@@ -79,7 +79,7 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
     const status = p.stepper.getStepStatus(step);
     const base = "flex items-center gap-2";
     if (status === "completed" || status === "available") {
-      return `${base} cursor-pointer hover:opacity-80`;
+      return `${base} ui-quiet rounded`;
     }
     if (status === "locked") return base;
     return base;

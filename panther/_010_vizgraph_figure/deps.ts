@@ -24,6 +24,7 @@ export type { MergedVizGraphStyle } from "../_003_figure_style/mod.ts";
 export {
   buildFitReport,
   computeFloorScale,
+  findFitScaleWithFloor,
   generateSurroundsPrimitives,
   measureSurrounds,
   memoizeByScale,
@@ -34,9 +35,7 @@ export {
 export type {
   FigureInputsBase,
   MeasuredSurrounds,
-  ResolvedFigureAutofitOptions,
 } from "../_007_figure_core/mod.ts";
-export { findFitScaleWithFloor } from "../_007_figure_core/mod.ts";
 export {
   DEFAULT_SPACING,
   layout,
@@ -48,7 +47,6 @@ export type {
   GapRange,
   Geometry,
   GraphModel,
-  GroupIn,
   LayoutOptions,
   NodeMeasurer,
   PathCommand,

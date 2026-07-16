@@ -9,7 +9,7 @@ export {
 } from "../_000_consts/mod.ts";
 export { clamp } from "../_000_utils/mod.ts";
 export { setKeyColors } from "../_001_color/mod.ts";
-export { getFontInfoId } from "../_001_font/mod.ts";
+export { getFontInfoId, loadFontsWithTimeout } from "../_001_font/mod.ts";
 export type { FontInfo } from "../_001_font/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export { CanvasRenderContext } from "../_002_canvas/mod.ts";

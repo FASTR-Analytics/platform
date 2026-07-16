@@ -16,7 +16,7 @@ export function AssistantCompletedTextRenderer(p: {
   markdownStyle?: CustomMarkdownStyleOptions;
   messageStyle?: MessageStyle;
 }) {
-  const bg = p.messageStyle?.background ?? "bg-primary/10";
+  const bg = p.messageStyle?.background ?? "bg-primary-subtle";
   const text = p.messageStyle?.text ?? "text-primary";
 
   return (

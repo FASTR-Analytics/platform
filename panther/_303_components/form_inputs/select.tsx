@@ -24,7 +24,7 @@ function getSelectClasses(size: "sm" | undefined, outline: boolean) {
     // Appearance: Button-identical intent outline, or neutral box
     ...(outline
       ? ["ui-intent-fill", "ui-intent-outline"]
-      : ["text-base-content", "border-base-300", "bg-base-100"]),
+      : ["text-base-content", "border-border", "bg-base-100"]),
     "rounded",
     "border",
 
@@ -39,10 +39,10 @@ function getSelectClasses(size: "sm" | undefined, outline: boolean) {
     "data-[mono=true]:font-mono",
 
     // Placeholder state (grey text when no value selected)
-    "data-[placeholder=true]:text-neutral",
+    "data-[placeholder=true]:text-base-content-muted",
 
     // Disabled state
-    "disabled:opacity-50",
+    "disabled:opacity-40",
   ].join(" ");
 }
 

@@ -45,11 +45,11 @@ export function Input(p: Props) {
             </Match>
             <Match when>
               <label
-                class="ui-form-text ui-form-pad bg-base-200 border-base-300 flex items-center rounded-l border-y border-l"
+                class="ui-form-text ui-form-pad bg-base-200 border-border flex items-center rounded-l border-y border-l"
                 data-intent={p.intent}
                 data-left={!!p.searchIcon}
               >
-                <span class="text-neutral h-[1.25em] w-[1.25em] flex-none">
+                <span class="text-base-content-muted h-[1.25em] w-[1.25em] flex-none">
                   <Icon iconName="search" />
                 </span>
                 {/* <span class="ml-2">{p.label}</span> */}

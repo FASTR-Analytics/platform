@@ -79,7 +79,7 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
   };
 
   const containerClasses = () => {
-    const classes = ["border-base-300", "overflow-x-hidden"];
+    const classes = ["border-border", "overflow-x-hidden"];
 
     if (local.borderStyle === "full") {
       classes.push("border");
@@ -105,12 +105,14 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
   return (
     <div class={containerClasses()} {...others}>
       <div
-        class={`${headerPadding()} ui-hoverable flex items-center`}
+        class={`${headerPadding()} flex items-center`}
         classList={{
+          "ui-quiet": !local.shadedHeader,
+          "ui-quiet-200": !!local.shadedHeader,
           "bg-base-200": !!local.shadedHeader,
           "font-700": local.boldHeader,
           "text-primary": local.activeHeader,
-          "bg-primary/10": local.activeHeader,
+          "bg-primary-subtle": local.activeHeader,
         }}
         onClick={handleToggle}
       >
@@ -133,7 +135,7 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
       <Show when={isOpen() && local.children} keyed>
         <div
           classList={{
-            "border-base-300": local.contentBorder,
+            "border-border": local.contentBorder,
             "border-t": local.contentBorder,
           }}
         >

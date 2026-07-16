@@ -276,7 +276,7 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
             {p.panelChildren}
           </div>
           <div
-            class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+            class="hover:bg-primary-subtle active:bg-primary-subtle absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
             onMouseDown={handleMouseDown}
             style={{
               display: p.isShown === false ? "none" : "block",
@@ -306,7 +306,7 @@ export function FrameRightResizable(p: ResizableFrameProps) {
           style={{ width: `${displayWidth()}px` }}
         >
           <div
-            class="hover:bg-primary/20 active:bg-primary/20 absolute -left-1 top-0 z-50 h-full w-2 cursor-col-resize"
+            class="hover:bg-primary-subtle active:bg-primary-subtle absolute -left-1 top-0 z-50 h-full w-2 cursor-col-resize"
             onMouseDown={handleMouseDown}
             style={{
               display: p.isShown === false ? "none" : "block",
@@ -513,7 +513,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           >
             <div class="h-full overflow-auto">{p.leftChild}</div>
             <div
-              class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+              class="hover:bg-primary-subtle active:bg-primary-subtle absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
               style={hoverOffsetStyle(p.leftHandleHoverOffset)}
               onMouseDown={handleMouseDown("left")}
             />
@@ -524,7 +524,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           <div class="h-full overflow-auto">{p.centerChild}</div>
           <Show when={hasRight()}>
             <div
-              class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+              class="hover:bg-primary-subtle active:bg-primary-subtle absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
               style={hoverOffsetStyle(p.rightHandleHoverOffset)}
               onMouseDown={handleMouseDown("right")}
             />
@@ -546,8 +546,8 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           <For each={collapsedPanes()}>
             {(pane) => (
               <div
-                class={`ui-hoverable border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0 ${
-                  p.hiddenTabColor ?? "bg-primary/20"
+                class={`ui-quiet border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0 ${
+                  p.hiddenTabColor ?? "bg-primary-subtle"
                 }`}
                 onClick={pane.onClick}
               >

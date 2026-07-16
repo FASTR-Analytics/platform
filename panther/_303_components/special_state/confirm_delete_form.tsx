@@ -4,12 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, type JSX, Show } from "solid-js";
-import { t3 } from "../deps.ts";
-import { createFormAction } from "../../_302_query/mod.ts";
-import type {
-  APIResponseNoData,
-  APIResponseWithData,
-} from "../../_302_query/mod.ts";
+import { createFormAction, t3 } from "../deps.ts";
+import type { APIResponseNoData, APIResponseWithData } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
 import type { AlertComponentProps } from "./alert.tsx";
 import { ModalContainer } from "./modal_container.tsx";

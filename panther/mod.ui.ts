@@ -43,6 +43,7 @@ export * from "./_101_csv_query/mod.ts";
 export * from "./_105_markdown/mod.ts";
 export * from "./_106_markdown_to_word/mod.ts";
 export * from "./_110_ai_types/mod.ts";
+export * from "./_111_api_contract/mod.ts";
 export * from "./_121_page/mod.ts";
 export * from "./_122_pdf/mod.ts";
 export * from "./_122_pptx/mod.ts";

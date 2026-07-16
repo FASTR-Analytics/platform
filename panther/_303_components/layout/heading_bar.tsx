@@ -32,7 +32,7 @@ export function HeadingBar(p: Props) {
             return <div class="flex-none">{keyedLeftChildren}</div>;
           }}
         </Show>
-        <div class="font-700 truncate text-xl">{p.heading}</div>
+        <div class="ui-text-title truncate">{p.heading}</div>
       </div>
       <div class="ui-gap-sm flex flex-1 items-center justify-center">
         <Show when={p.setSearchText}>
@@ -84,7 +84,7 @@ export function HeadingBarMainRibbon(p: Props) {
           return <div class="flex-none">{keyedLeftChildren}</div>;
         }}
       </Show>
-      <div class="font-700 flex-1 py-1.5 text-lg">{p.heading}</div>
+      <div class="ui-text-heading text-base-100 flex-1 py-1.5">{p.heading}</div>
       <Show when={p.children} keyed>
         {(keyedRightChildren) => {
           return <div class="flex-none">{keyedRightChildren}</div>;
@@ -106,7 +106,7 @@ export function HeaderBarCanGoBack(p: HeaderBarCanGoBackProps) {
       <Show when={p.back !== undefined}>
         <Button iconName="chevronLeft" onClick={p.back} />
       </Show>
-      <div class="font-700 flex-1 truncate text-xl">{p.heading}</div>
+      <div class="ui-text-title flex-1 truncate">{p.heading}</div>
       <div class="flex flex-none items-center">{p.children}</div>
     </div>
   );

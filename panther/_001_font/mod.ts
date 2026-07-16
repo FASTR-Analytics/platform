@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { collectFontsFromStyles } from "./collect_fonts.ts";
+export { loadFont, loadFontsWithTimeout } from "./fonts_ready.ts";
 export {
   cleanFontFamilyForJsPdf,
   quotedFontFamilyForCanvas,

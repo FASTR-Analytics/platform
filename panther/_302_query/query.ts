@@ -7,10 +7,10 @@ import { type Accessor, createSignal } from "solid-js";
 import {
   type APIResponseNoData,
   type APIResponseWithData,
-  type FormActionState,
   getQueryStateFromApiResponse,
   type QueryState,
-} from "./types.ts";
+} from "./deps.ts";
+import type { FormActionState } from "./types.ts";
 
 export type Query<T> = {
   state: Accessor<QueryState<T>>;

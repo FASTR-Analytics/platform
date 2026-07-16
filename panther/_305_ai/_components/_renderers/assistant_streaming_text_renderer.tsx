@@ -18,7 +18,7 @@ type Props = {
 };
 
 export function AssistantStreamingTextRenderer(p: Props) {
-  const bg = p.messageStyle?.background ?? "bg-primary/10";
+  const bg = p.messageStyle?.background ?? "bg-primary-subtle";
   const text = p.messageStyle?.text ?? "text-primary";
   const messageClass = `${bg} ${text}`;
 

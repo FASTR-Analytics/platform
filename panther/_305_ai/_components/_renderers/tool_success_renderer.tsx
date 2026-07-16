@@ -16,7 +16,7 @@ export function ToolSuccessRenderer(p: {
       <button
         type="button"
         onClick={() => setExpanded(!expanded())}
-        class="text-success/80 hover:text-success flex w-full cursor-pointer items-start gap-1 text-left text-sm transition-colors"
+        class="text-success-subtle-content hover:text-success flex w-full cursor-pointer items-start gap-1 text-left text-sm transition-colors"
       >
         <div class="mt-0.5">
           {expanded()
@@ -28,10 +28,10 @@ export function ToolSuccessRenderer(p: {
 
       <Show when={expanded()}>
         <div class="ml-5 mt-1">
-          <div class="text-success/60 mb-1 text-xs font-medium">
+          <div class="text-success-subtle-content mb-1 text-xs font-700">
             {t3({ en: "Result:", fr: "Résultat :", pt: "Resultado:" })}
           </div>
-          <div class="text-success/80 bg-success/5 whitespace-pre-wrap rounded p-2 font-mono text-xs">
+          <div class="text-success-subtle-content bg-success-subtle whitespace-pre-wrap rounded p-2 font-mono text-xs">
             {p.item.result}
           </div>
         </div>

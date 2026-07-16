@@ -53,7 +53,7 @@ export function RadioGroup<T extends string>(p: RadioGroupProps<T>) {
                         checked={opt.value === p.value}
                         type="radio"
                         onChange={() => p.onChange(opt.value)}
-                        class="ui-focusable border-base-300 bg-base-100 text-base-content peer h-5 w-5 cursor-pointer appearance-none rounded-full border"
+                        class="ui-focusable border-border bg-base-100 text-base-content peer h-5 w-5 cursor-pointer appearance-none rounded-full border"
                       />
                       <div class="bg-base-content pointer-events-none absolute inset-1 hidden h-3 w-3 rounded-full peer-checked:block" />
                     </div>

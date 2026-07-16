@@ -40,7 +40,7 @@ export function StepperProgressBar(p: StepperProgressBarProps) {
 
   const label = (
     <div class="text-sm whitespace-nowrap">
-      <span class="text-neutral">
+      <span class="text-base-content-muted">
         Step {currentIndex() + 1} of {total()}
       </span>
       <Show when={currentLabel()}>

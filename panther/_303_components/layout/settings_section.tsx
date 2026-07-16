@@ -13,7 +13,7 @@ type Props = {
 
 export function SettingsSection(p: Props) {
   return (
-    <div class="ui-pad border-base-300 flex rounded border">
+    <div class="ui-pad border-border flex rounded border">
       <div class="ui-spy-sm flex-1">
         <div class="ui-text-heading">{p.header}</div>
         {p.children}

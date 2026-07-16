@@ -44,13 +44,13 @@ export function TableFromCsv(p: Props) {
         <thead class="bg-base-100 sticky top-0 z-50">
           <tr class="">
             <Show when={rowHeaders}>
-              <th class="border-base-300 bg-base-100 sticky left-0 top-0 z-10 border-b border-r px-3 py-2">
+              <th class="border-border bg-base-100 sticky left-0 top-0 z-10 border-b border-r px-3 py-2">
               </th>
             </Show>
             <For each={colHeaders}>
               {(colHeader) => {
                 return (
-                  <th class="border-base-300 border-b border-r px-3 py-2 align-bottom">
+                  <th class="border-border border-b border-r px-3 py-2 align-bottom">
                     {colHeader}
                   </th>
                 );
@@ -70,7 +70,7 @@ export function TableFromCsv(p: Props) {
                 <tr class="">
                   <Show when={rowHeaders}>
                     <th
-                      class="border-base-300 bg-base-100 sticky left-0 whitespace-nowrap border-r px-3 py-0.5 text-left data-[lastrow=true]:border-b data-[firstrow=true]:pt-2 data-[lastrow=true]:pb-2"
+                      class="border-border bg-base-100 sticky left-0 whitespace-nowrap border-r px-3 py-0.5 text-left data-[lastrow=true]:border-b data-[firstrow=true]:pt-2 data-[lastrow=true]:pb-2"
                       data-firstrow={i_row() === 0}
                       data-lastrow={i_row() === lastRowIndex}
                     >
@@ -81,7 +81,7 @@ export function TableFromCsv(p: Props) {
                     {(cell) => {
                       return (
                         <td
-                          class="border-base-300 col-span-1 whitespace-nowrap border-r px-3 py-0.5 data-[lastrow=true]:border-b data-[firstrow=true]:pt-2 data-[lastrow=true]:pb-2"
+                          class="border-border col-span-1 whitespace-nowrap border-r px-3 py-0.5 data-[lastrow=true]:border-b data-[firstrow=true]:pt-2 data-[lastrow=true]:pb-2"
                           data-firstrow={i_row() === 0}
                           data-lastrow={i_row() === lastRowIndex}
                         >

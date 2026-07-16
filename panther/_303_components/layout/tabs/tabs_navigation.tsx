@@ -44,7 +44,7 @@ export function TabsNavigation<T extends string = string, M = never>(
       // tab is transparent so the container line shows through — producing a
       // single clean rail across the whole tab strip.
       const baseClasses =
-        "ui-hoverable ui-focusable relative flex items-center justify-center ui-gap-sm ui-pad font-700 cursor-pointer border-b-2";
+        "ui-quiet ui-focusable relative flex items-center justify-center ui-gap-sm ui-pad font-700 cursor-pointer border-b-2";
 
       if (isActive(id)) {
         return `${baseClasses} border-primary text-primary bg-base-100`;
@@ -55,7 +55,7 @@ export function TabsNavigation<T extends string = string, M = never>(
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";
       const paddingClass = isCollapsed() ? "pr-4 pl-5 py-4" : "py-4 pr-4 pl-5";
       const baseClasses =
-        `ui-hoverable ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${paddingClass} w-full font-700 text-sm leading-tight cursor-pointer`;
+        `ui-quiet ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${paddingClass} w-full font-700 text-sm leading-tight cursor-pointer`;
 
       if (isActive(id)) {
         return `${baseClasses} shadow-[inset_4px_0_0_0_var(--color-primary)] text-primary bg-base-200`;
@@ -71,7 +71,7 @@ export function TabsNavigation<T extends string = string, M = never>(
   const formatter = p.tabLabelFormatter ?? labelString;
 
   const containerClasses = !isVertical
-    ? "bg-base-100 w-full border-b border-base-300"
+    ? "bg-base-100 w-full border-b border-border"
     : "bg-base-100 flex w-full flex-col h-full";
 
   // Horizontal: -mb-px pulls the tab row up 1px so each tab's border-b-2

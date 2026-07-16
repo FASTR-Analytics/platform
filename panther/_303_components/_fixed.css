@@ -53,6 +53,7 @@
      `text-*` utilities from; redefining any of them changes every
      `text-xs`, `text-sm`, etc. usage across the app. */
 
+  --text-*: initial;
   --text-xs: 0.75rem; /* text-xs */
   --text-sm: 0.875rem; /* text-sm */
   --text-base: 1rem; /* text-base */
@@ -95,11 +96,91 @@
   --color-danger-content: #ffffff;
 
   /* ============================================= */
+  /* Derived state tokens (the designed core)      */
+  /* ============================================= */
+  /* Every visible state is a named, overridable decision. Defaults are
+     color-mix() derivations of the base tokens above, so a single-point
+     override (e.g. --color-primary) flows through every state and dark
+     themes get the correct direction automatically — but each token can
+     be pinned independently per app. */
+
+  /* Intent state scales. Solid fills are a shade scale, not a layer:
+     they darken on hover/press regardless of theme direction (literal
+     black is deliberate — the scale must not re-derive if an app
+     overrides --color-black). Content color on -hover/-active surfaces
+     remains --color-{i}-content. `-subtle` is an opaque wash for
+     selected surfaces, outline-hover fills, and badge-like chips;
+     `-subtle-content` is the text/icon color on it. `-subtle` is a
+     surface token — never use it as a border color. */
+  --color-primary-hover: color-mix(in oklab, var(--color-primary), black 8%);
+  --color-primary-active: color-mix(in oklab, var(--color-primary), black 14%);
+  --color-primary-subtle: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100));
+  --color-primary-subtle-content: color-mix(in oklab, var(--color-primary) 70%, var(--color-base-content));
+
+  --color-neutral-hover: color-mix(in oklab, var(--color-neutral), black 8%);
+  --color-neutral-active: color-mix(in oklab, var(--color-neutral), black 14%);
+  --color-neutral-subtle: color-mix(in oklab, var(--color-neutral) 10%, var(--color-base-100));
+  --color-neutral-subtle-content: color-mix(in oklab, var(--color-neutral) 70%, var(--color-base-content));
+
+  --color-success-hover: color-mix(in oklab, var(--color-success), black 8%);
+  --color-success-active: color-mix(in oklab, var(--color-success), black 14%);
+  --color-success-subtle: color-mix(in oklab, var(--color-success) 10%, var(--color-base-100));
+  --color-success-subtle-content: color-mix(in oklab, var(--color-success) 70%, var(--color-base-content));
+
+  --color-warning-hover: color-mix(in oklab, var(--color-warning), black 8%);
+  --color-warning-active: color-mix(in oklab, var(--color-warning), black 14%);
+  --color-warning-subtle: color-mix(in oklab, var(--color-warning) 10%, var(--color-base-100));
+  --color-warning-subtle-content: color-mix(in oklab, var(--color-warning) 70%, var(--color-base-content));
+
+  --color-danger-hover: color-mix(in oklab, var(--color-danger), black 8%);
+  --color-danger-active: color-mix(in oklab, var(--color-danger), black 14%);
+  --color-danger-subtle: color-mix(in oklab, var(--color-danger) 10%, var(--color-base-100));
+  --color-danger-subtle-content: color-mix(in oklab, var(--color-danger) 70%, var(--color-base-content));
+
+  /* Foreground ramp — deliberately two steps. Secondary text:
+     sublabels, captions, placeholders, empty states, metadata.
+     There is no -faint tier; disabled is opacity-40, not a color. */
+  --color-base-content-muted: color-mix(in oklab, var(--color-base-content) 70%, var(--color-base-100));
+
+  /* Quiet-surface state pairs — hover/pressed surfaces of quiet
+     interactives, per surface level. Mixing toward base-content makes
+     the defaults lighten on dark themes. */
+  --color-base-100-hover: color-mix(in oklab, var(--color-base-100), var(--color-base-content) 6%);
+  --color-base-100-active: color-mix(in oklab, var(--color-base-100), var(--color-base-content) 10%);
+  --color-base-200-hover: color-mix(in oklab, var(--color-base-200), var(--color-base-content) 6%);
+  --color-base-200-active: color-mix(in oklab, var(--color-base-200), var(--color-base-content) 10%);
+
+  /* Focus, border, scrim */
+  --color-focus: var(--color-primary); /* the one focus-ring color */
+  --color-border: var(--color-base-300); /* the one border color; base-300 as a fill (dividers, tracks) stays base-300 */
+  --color-scrim: rgb(0 0 0 / 0.3); /* modal backdrop — the one sanctioned alpha veil */
+
+  /* ============================================= */
   /* Rect radius */
   /* ============================================= */
+  /* The scale is wiped so off-token classes (rounded-md, rounded-lg…)
+     are visible no-ops instead of silently dodging --radius. */
 
+  --radius-*: initial;
   --radius: 4px; /* rounded */
   --radius-full: 9999px; /* rounded-full */
+
+  /* ============================================= */
+  /* Elevation */
+  /* ============================================= */
+  /* Floating surfaces only (popover, tooltip, modal, picker panels).
+     In-flow containers are border-only, never shadowed. */
+
+  --shadow-*: initial;
+  --shadow-floating: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); /* was shadow-lg; the default shadow scale is wiped — floating surfaces are the only sanctioned elevation */
+
+  /* ============================================= */
+  /* Motion */
+  /* ============================================= */
+
+  --ui-dur-fast: 100ms; /* state feedback */
+  --ui-dur-base: 200ms; /* reveals */
+  --ui-ease: cubic-bezier(0.2, 0, 0, 1); /* the one easing */
 
   /* ============================================= */
   /* Spacing density — pad / gap / spy × sm / default / lg */
@@ -155,12 +236,18 @@
 @layer base {
   /* Tailwind v4's preflight defaults bare borders to currentColor, so an
      uncolored `border-b` renders in the text color — a dark border nobody
-     chose. Default uncolored borders to base-300; sites that want a dark
-     border must say `border-base-content` explicitly. */
+     chose. Default uncolored borders to the border token; sites that want
+     a dark border must say `border-base-content` explicitly. */
   *,
   ::before,
   ::after {
-    border-color: var(--color-base-300);
+    border-color: var(--color-border);
+  }
+
+  /* Native placeholders otherwise render UA-default gray — an unchosen
+     color, and wrong on dark themes. */
+  ::placeholder {
+    color: var(--color-base-content-muted);
   }
 }
 
@@ -315,6 +402,29 @@
     @apply relative;
   }
 
+  /* ---- Quiet — public. Quiet interactive: no chrome at rest, a named
+     surface appears on hover/press. `ui-quiet` for elements sitting on
+     base-100, `ui-quiet-200` for elements sitting on base-200. ---- */
+  .ui-quiet,
+  .ui-quiet-200 {
+    @apply cursor-pointer select-none;
+    transition: background-color var(--ui-dur-fast) var(--ui-ease);
+  }
+
+  .ui-quiet:hover {
+    background-color: var(--color-base-100-hover);
+  }
+  .ui-quiet:active {
+    background-color: var(--color-base-100-active);
+  }
+
+  .ui-quiet-200:hover {
+    background-color: var(--color-base-200-hover);
+  }
+  .ui-quiet-200:active {
+    background-color: var(--color-base-200-active);
+  }
+
   /* =============================================================
      Internal utilities — used by panther components only. Not part
      of the public API.
@@ -325,9 +435,13 @@
     @apply pointer-events-none opacity-40;
   }
 
-  /* Focus States */
+  /* Focus States — one focus signal, everywhere: 2px outline in
+     --color-focus with a genuinely transparent 2px gap (outlines don't
+     paint the offset, so there is no offset color to name — the old
+     ring-offset-base-100 painted an unchosen rectangle on non-base-100
+     surfaces). Outlines track border-radius in modern browsers. */
   .ui-focusable {
-    @apply ring-primary ring-offset-base-100 data-[intent=neutral]:focus-visible:ring-neutral data-[intent=success]:focus-visible:ring-success data-[intent=danger]:focus-visible:ring-danger outline-none ring-0 ring-offset-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+    @apply outline-none focus:outline-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2;
   }
 
   .ui-never-focusable {
@@ -343,6 +457,7 @@
     @apply data-[outline=false]:bg-primary data-[outline=false]:text-primary-content data-[outline=false]:border-primary;
     @apply data-[intent=neutral]:data-[outline=false]:bg-neutral data-[intent=neutral]:data-[outline=false]:text-neutral-content data-[intent=neutral]:data-[outline=false]:border-neutral;
     @apply data-[intent=success]:data-[outline=false]:bg-success data-[intent=success]:data-[outline=false]:text-success-content data-[intent=success]:data-[outline=false]:border-success;
+    @apply data-[intent=warning]:data-[outline=false]:bg-warning data-[intent=warning]:data-[outline=false]:text-warning-content data-[intent=warning]:data-[outline=false]:border-warning;
     @apply data-[intent=danger]:data-[outline=false]:bg-danger data-[intent=danger]:data-[outline=false]:text-danger-content data-[intent=danger]:data-[outline=false]:border-danger;
     @apply data-[intent=base-content]:data-[outline=false]:bg-base-content data-[intent=base-content]:data-[outline=false]:text-base-100 data-[intent=base-content]:data-[outline=false]:border-base-content;
     @apply data-[intent=base-100]:data-[outline=false]:bg-base-100 data-[intent=base-100]:data-[outline=false]:text-base-content data-[intent=base-100]:data-[outline=false]:border-base-100;
@@ -353,11 +468,51 @@
     @apply data-[outline=true]:text-primary;
     @apply data-[intent=neutral]:data-[outline=true]:text-neutral;
     @apply data-[intent=success]:data-[outline=true]:text-success;
+    @apply data-[intent=warning]:data-[outline=true]:text-warning;
     @apply data-[intent=danger]:data-[outline=true]:text-danger;
     @apply data-[intent=base-content]:data-[outline=true]:text-base-content;
     @apply data-[intent=base-100]:data-[outline=true]:text-base-100;
     @apply data-[outline=true]:border-[currentColor] data-[outline=true]:bg-transparent;
     @apply data-[fill-base-100=true]:data-[outline=true]:bg-base-100;
+  }
+
+  /* Intent hover/press states for interactive intent components (Button,
+     ButtonGroup, SelectList-with-intent). Kept separate from
+     ui-intent-fill so non-interactive fills (checkbox glyph, Input
+     outline skin) never inherit hover shades. Filled components move
+     along their intent's shade scale; outlined components fill with the
+     intent's -subtle wash. */
+  .ui-intent-states {
+    @apply data-[outline=false]:hover:bg-primary-hover data-[outline=false]:active:bg-primary-active data-[outline=true]:hover:bg-primary-subtle;
+    @apply data-[intent=neutral]:data-[outline=false]:hover:bg-neutral-hover data-[intent=neutral]:data-[outline=false]:active:bg-neutral-active data-[intent=neutral]:data-[outline=true]:hover:bg-neutral-subtle;
+    @apply data-[intent=success]:data-[outline=false]:hover:bg-success-hover data-[intent=success]:data-[outline=false]:active:bg-success-active data-[intent=success]:data-[outline=true]:hover:bg-success-subtle;
+    @apply data-[intent=warning]:data-[outline=false]:hover:bg-warning-hover data-[intent=warning]:data-[outline=false]:active:bg-warning-active data-[intent=warning]:data-[outline=true]:hover:bg-warning-subtle;
+    @apply data-[intent=danger]:data-[outline=false]:hover:bg-danger-hover data-[intent=danger]:data-[outline=false]:active:bg-danger-active data-[intent=danger]:data-[outline=true]:hover:bg-danger-subtle;
+  }
+
+  /* The two non-chromatic intents get no token scales —
+     --color-base-content-hover would misread as a text-ramp token. Their
+     states are written once here as a deliberate in-rule exception:
+     base-content fills lighten toward base-100 (darkening a near-black
+     fill is invisible); base-100 fills reuse the quiet-surface pair,
+     which is exactly that state. */
+  .ui-intent-states[data-intent="base-content"][data-outline="false"]:hover {
+    background-color: color-mix(in oklab, var(--color-base-content), var(--color-base-100) 8%);
+  }
+  .ui-intent-states[data-intent="base-content"][data-outline="false"]:active {
+    background-color: color-mix(in oklab, var(--color-base-content), var(--color-base-100) 14%);
+  }
+  .ui-intent-states[data-intent="base-content"][data-outline="true"]:hover {
+    background-color: color-mix(in oklab, var(--color-base-content) 10%, var(--color-base-100));
+  }
+  .ui-intent-states[data-intent="base-100"][data-outline="false"]:hover {
+    background-color: var(--color-base-100-hover);
+  }
+  .ui-intent-states[data-intent="base-100"][data-outline="false"]:active {
+    background-color: var(--color-base-100-active);
+  }
+  .ui-intent-states[data-intent="base-100"][data-outline="true"]:hover {
+    background-color: var(--color-base-100-hover);
   }
 
   /* ============================================= */
@@ -390,10 +545,10 @@
     @apply outline-none;
   }
   .ui-slider:focus-visible::-webkit-slider-thumb {
-    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+    @apply outline-focus outline-2 outline-offset-2;
   }
   .ui-slider:focus-visible::-moz-range-thumb {
-    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+    @apply outline-focus outline-2 outline-offset-2;
   }
 
   /* Slider Disabled */
@@ -489,11 +644,11 @@
   }
   .ui-doubleslider-low:focus-visible::-webkit-slider-thumb,
   .ui-doubleslider-high:focus-visible::-webkit-slider-thumb {
-    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+    @apply outline-focus outline-2 outline-offset-2;
   }
   .ui-doubleslider-low:focus-visible::-moz-range-thumb,
   .ui-doubleslider-high:focus-visible::-moz-range-thumb {
-    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+    @apply outline-focus outline-2 outline-offset-2;
   }
 
   /* Comparison Slider - extends Double Slider */
@@ -541,7 +696,7 @@
 
   /* Checkbox with intent - unchecked state */
   .ui-checkbox-intent {
-    @apply border-base-300 bg-base-100;
+    @apply border-border bg-base-100;
   }
 
   /* Checkbox intent colors when checked (follows ui-intent-fill pattern) */
@@ -553,6 +708,9 @@
   }
   .ui-checkbox-intent:checked[data-intent="success"] {
     @apply bg-success border-success;
+  }
+  .ui-checkbox-intent:checked[data-intent="warning"] {
+    @apply bg-warning border-warning;
   }
   .ui-checkbox-intent:checked[data-intent="danger"] {
     @apply bg-danger border-danger;
@@ -573,6 +731,9 @@
   }
   .ui-checkbox-intent:checked[data-intent="success"] ~ svg {
     color: var(--color-success-content) !important;
+  }
+  .ui-checkbox-intent:checked[data-intent="warning"] ~ svg {
+    color: var(--color-warning-content) !important;
   }
   .ui-checkbox-intent:checked[data-intent="danger"] ~ svg {
     color: var(--color-danger-content) !important;
@@ -636,13 +797,34 @@
   /* Typography Utilities                          */
   /* ============================================= */
 
-  /* Text Styles */
+  /* Text Styles — the named type scale. Weights stay 400/700 in the
+     kit; app-added weights are per-app theme extensions. */
   .ui-form-text {
     @apply text-base-content font-400 text-sm leading-tight;
   }
 
+  /* Hero/page-level display text */
+  .ui-text-display {
+    @apply font-700 text-2xl tracking-tight;
+  }
+
+  /* Page/section title (HeadingBar-level) */
+  .ui-text-title {
+    @apply font-700 text-xl;
+  }
+
   .ui-text-heading {
     @apply font-700 text-base-content text-lg;
+  }
+
+  /* Small-caps section label; color stays the caller's */
+  .ui-text-overline {
+    @apply font-700 text-xs uppercase tracking-wide;
+  }
+
+  /* Secondary small text: sublabels, captions, metadata */
+  .ui-text-caption {
+    @apply text-base-content-muted text-xs leading-tight;
   }
 
   .ui-text-small {
@@ -819,14 +1001,14 @@
     background-color: var(--color-base-content);
     color: var(--color-base-100);
     white-space: nowrap;
-    border-radius: 4px;
+    border-radius: var(--radius);
     padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     line-height: 1.25rem;
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    box-shadow: var(--shadow-floating);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.15s ease-in-out;
+    transition: opacity var(--ui-dur-fast) var(--ui-ease);
   }
 
   .ui-tooltip-wrapper[data-tooltip]:hover::after {
@@ -886,6 +1068,6 @@
     border-radius: var(--radius);
   }
   .ui-vizgraph-node-default {
-    @apply bg-base-100 border-base-300 text-base-content flex h-full w-full items-center justify-center rounded border px-2 text-center text-xs;
+    @apply bg-base-100 border-border text-base-content flex h-full w-full items-center justify-center rounded border px-2 text-center text-xs;
   }
 }

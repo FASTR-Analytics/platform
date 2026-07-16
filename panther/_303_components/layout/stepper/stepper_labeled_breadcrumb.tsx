@@ -58,13 +58,13 @@ export function StepperLabeledBreadcrumb(p: StepperLabeledBreadcrumbProps) {
       case "available":
         return `${base} text-base-content hover:text-primary border-transparent hover:border-primary/40 cursor-pointer`;
       case "locked":
-        return `${base} text-neutral/60 border-transparent`;
+        return `${base} text-base-content-muted border-transparent`;
     }
   };
 
   return (
     <nav
-      class="w-full border-b border-base-300"
+      class="w-full border-b border-border"
       aria-label="Progress"
     >
       <div class="-mb-px flex flex-wrap">

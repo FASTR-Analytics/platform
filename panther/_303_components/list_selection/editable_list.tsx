@@ -107,7 +107,7 @@ export function EditableList<T extends string, M = never>(
           </Show>
         </div>
         <Show when={item.sublabel}>
-          <div class="text-neutral truncate text-xs">{item.sublabel}</div>
+          <div class="ui-text-caption truncate">{item.sublabel}</div>
         </Show>
       </div>
     );
@@ -118,12 +118,12 @@ export function EditableList<T extends string, M = never>(
       <div
         class="flex items-center gap-1 rounded p-1 text-sm"
         classList={{
-          "ui-hoverable": true,
+          "ui-quiet": true,
           "bg-base-200": selectable() && controller.isSelected(item.id),
         }}
       >
         <Show when={withHandle}>
-          <div class="el-drag text-neutral flex h-6 w-6 flex-none cursor-grab items-center justify-center active:cursor-grabbing">
+          <div class="el-drag text-base-content-muted flex h-6 w-6 flex-none cursor-grab items-center justify-center active:cursor-grabbing">
             <Icon iconName="gripVertical" />
           </div>
         </Show>
@@ -208,7 +208,7 @@ export function EditableList<T extends string, M = never>(
       <Show
         when={p.items.length > 0}
         fallback={
-          <div class="text-neutral text-sm">
+          <div class="text-base-content-muted text-sm">
             {p.emptyMessage ??
               t3({
                 en: "Nothing here yet",

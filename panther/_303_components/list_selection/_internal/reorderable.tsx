@@ -58,7 +58,7 @@ export function Reorderable<T extends { id: string }>(p: ReorderableProps<T>) {
       setItems={handleSetItems}
       animation={150}
       ghostClass="opacity-50"
-      chosenClass="shadow-2xl"
+      chosenClass="shadow-floating"
       dragClass="cursor-grabbing"
       fallbackTolerance={3}
       handle={p.handle}

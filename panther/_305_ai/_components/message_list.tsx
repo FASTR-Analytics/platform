@@ -134,7 +134,7 @@ export function MessageList(p: Props) {
             })()}
           </Match>
           <Match when={p.serverToolLabel}>
-            <div class="text-sm text-neutral italic">
+            <div class="text-base-content-muted text-sm italic">
               <SpinningCursor class="mr-1 inline-block" />
               {p.serverToolLabel}
             </div>
@@ -143,7 +143,7 @@ export function MessageList(p: Props) {
             when={(p.isStreaming || p.isLoading) &&
               toolInProgressItems().length === 0}
           >
-            <div class="text-sm text-neutral italic">
+            <div class="text-base-content-muted text-sm italic">
               <SpinningCursor class="mr-1 inline-block" />
               Thinking...
             </div>

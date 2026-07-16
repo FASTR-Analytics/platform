@@ -9,3 +9,9 @@ export type {
   VizGraphViewProps,
 } from "./types.ts";
 export { VizGraphView } from "./vizgraph_view.tsx";
+export { createDomMeasurer } from "./dom_measurer.ts";
+export type {
+  DomMeasurer,
+  DomMeasurerOptions,
+  MeasuredSize,
+} from "./dom_measurer.ts";

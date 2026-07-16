@@ -16,14 +16,14 @@ export function ThinkingSummaryRenderer(p: {
       <button
         type="button"
         onClick={() => setExpanded(!expanded())}
-        class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-left text-xs"
+        class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
       >
         <div class="mt-0.5">
           {expanded()
             ? <Icon iconName="chevronDown" class="h-3 w-3" />
             : <Icon iconName="chevronRight" class="h-3 w-3" />}
         </div>
-        <span class="font-medium italic">
+        <span class="italic">
           {t3({ en: "Thinking", fr: "Réflexion", pt: "Raciocínio" })}
         </span>
       </button>

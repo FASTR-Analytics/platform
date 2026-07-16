@@ -11,7 +11,7 @@ import type {
   ButtonActionState,
   FormActionState,
   QueryState,
-} from "../../_302_query/mod.ts";
+} from "../deps.ts";
 
 export type StateHolderButtonAction = ButtonActionState;
 export type StateHolderFormAction = FormActionState;

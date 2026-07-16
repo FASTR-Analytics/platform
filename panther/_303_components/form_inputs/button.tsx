@@ -17,10 +17,10 @@ import { IconRenderer } from "./icon_renderer.tsx";
 function getButtonClasses(size?: "sm") {
   return [
     // Component classes (defined in CSS)
-    "ui-hoverable",
     "ui-focusable",
     "ui-intent-fill",
     "ui-intent-outline",
+    "ui-intent-states",
 
     // Form utilities
     size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",

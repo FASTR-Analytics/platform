@@ -18,7 +18,7 @@ export function DocsBreadcrumbs(p: DocsBreadcrumbsProps) {
 
   return (
     <Show when={breadcrumbs().length > 0} keyed>
-      <div class="border-base-300 ui-pad border-b">
+      <div class="border-border ui-pad border-b">
         <nav aria-label="Breadcrumb">
           <ol class="flex items-center gap-2 text-sm">
             <For each={breadcrumbs()}>
@@ -34,11 +34,11 @@ export function DocsBreadcrumbs(p: DocsBreadcrumbsProps) {
                       }
                       keyed
                     >
-                      <span class="text-base-content/60">{crumb.label}</span>
+                      <span class="text-base-content-muted">{crumb.label}</span>
                     </Show>
                   </li>
                   <Show when={index() < breadcrumbs().length - 1} keyed>
-                    <li class="text-base-content/40">/</li>
+                    <li class="text-base-content-muted">/</li>
                   </Show>
                 </>
               )}

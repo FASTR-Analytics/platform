@@ -131,17 +131,17 @@ export function SliderWithInput(p: SliderWithInputProps) {
 
     if (p.reverseColors) {
       if (isAbove) {
-        return "text-danger border-danger bg-danger/20";
+        return "text-danger-subtle-content border-danger bg-danger-subtle";
       }
       if (isBelow) {
-        return "text-success border-success bg-success/20";
+        return "text-success-subtle-content border-success bg-success-subtle";
       }
     } else {
       if (isAbove) {
-        return "text-success border-success bg-success/20";
+        return "text-success-subtle-content border-success bg-success-subtle";
       }
       if (isBelow) {
-        return "text-danger border-danger bg-danger/20";
+        return "text-danger-subtle-content border-danger bg-danger-subtle";
       }
     }
     return "";
@@ -190,7 +190,7 @@ export function SliderWithInput(p: SliderWithInputProps) {
         <input
           type="text"
           inputmode="numeric"
-          class={`ui-focusable font-700 border-base-300 rounded border px-2 py-1 text-center text-lg ${comparisonColorClass()}`}
+          class={`ui-focusable font-700 border-border rounded border px-2 py-1 text-center text-lg ${comparisonColorClass()}`}
           classList={{
             "!border-danger !text-base-content focus:!border-danger focus:!ring-danger":
               isInvalid(),

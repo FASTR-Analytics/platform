@@ -11,9 +11,9 @@ import { IconRenderer } from "./icon_renderer.tsx";
 function getButtonGroupItemClasses(size?: "sm") {
   return [
     // Component classes (defined in CSS)
-    "ui-hoverable",
     "ui-focusable",
     "ui-intent-fill",
+    "ui-intent-states",
 
     // Form utilities
     size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
@@ -36,8 +36,8 @@ function getButtonGroupItemClasses(size?: "sm") {
     "data-[last=true]:rounded-r",
     "data-[first=true]:border-l",
     "data-[selected=true]:border",
-    "data-[selected=false]:text-neutral",
-    "data-[selected=false]:border-base-300",
+    "data-[selected=false]:text-base-content-muted",
+    "data-[selected=false]:border-border",
     "data-[selected=false]:bg-base-100",
     "data-[selected=false]:focus-visible:border",
     "data-[LeftOfSelected=true]:border-r-0",

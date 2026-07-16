@@ -42,7 +42,7 @@ export function DocsSidebar(p: DocsSidebarProps) {
   };
 
   return (
-    <div class="bg-base-100 border-base-300 h-full overflow-auto border-r">
+    <div class="bg-base-100 border-border h-full overflow-auto border-r">
       <For each={p.rootItems}>
         {(item) => (
           <CollapsibleSection
@@ -190,12 +190,12 @@ function NavItemComponent(p: {
         type="button"
         class={`ui-pad-sm flex w-full cursor-pointer items-center justify-between border-l-4 text-left text-sm ${paddingLeft()}`}
         classList={{
-          "bg-primary/10": isActive(),
+          "bg-primary-subtle": isActive(),
           "text-primary": isActive(),
           "border-primary": isActive(),
           "text-base-content": !isActive(),
           "border-transparent": !isActive(),
-          "hover:bg-base-200": !isActive(),
+          "ui-quiet": !isActive(),
         }}
         onClick={handleLabelClick}
         role="link"

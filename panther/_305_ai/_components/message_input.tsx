@@ -27,7 +27,7 @@ export function MessageInput(p: Props) {
   };
 
   return (
-    <div class="ui-pad ui-gap bg-primary/10 flex w-full flex-none">
+    <div class="ui-pad ui-gap bg-primary-subtle flex w-full flex-none">
       <div class="w-0 flex-1" data-ai-input-wrapper>
         <TextArea
           value={p.value}

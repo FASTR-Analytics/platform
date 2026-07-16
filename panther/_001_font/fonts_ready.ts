@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { FontInfo } from "./deps.ts";
+import type { FontInfo } from "./types.ts";
 
 export function loadFont(font: FontInfo): Promise<void> {
   if (typeof document === "undefined" || !document.fonts) {

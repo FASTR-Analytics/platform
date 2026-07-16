@@ -102,7 +102,7 @@ export function Tooltip(p: TooltipProps): JSX.Element {
       {p.children}
       <Show when={isVisible()}>
         <div
-          class="bg-base-content text-base-100 fixed z-50 whitespace-nowrap rounded px-2 py-1 text-sm shadow-lg"
+          class="bg-base-content text-base-100 fixed z-50 whitespace-nowrap rounded px-2 py-1 text-sm shadow-floating"
           style={{
             left: `${position().x}px`,
             top: `${position().y}px`,

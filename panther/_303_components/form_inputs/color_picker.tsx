@@ -273,7 +273,7 @@ function ColorSwatch(p: {
   return (
     <button
       type="button"
-      class="ui-hoverable relative h-6 w-6 rounded-sm border border-black/10"
+      class="ui-quiet hover:border-base-content relative h-6 w-6 rounded border border-black/10"
       style={{ "background-color": p.color }}
       onClick={() => p.onClick(p.color)}
       title={p.color}
@@ -337,7 +337,7 @@ export function ColorPicker(p: ColorPickerProps) {
       </Show>
       <button
         type="button"
-        class={`ui-hoverable border-base-300 rounded border ${padClass()}`}
+        class={`ui-quiet hover:border-base-content border-border rounded border ${padClass()}`}
         classList={{ "w-full": p.fullWidth, block: !!p.label }}
         style={{
           "anchor-name": anchorName,
@@ -366,7 +366,7 @@ export function ColorPicker(p: ColorPickerProps) {
         data-position={position()}
         style={{ "position-anchor": anchorName } as JSX.CSSProperties}
       >
-        <div class="bg-base-100 overflow-hidden rounded-md border p-2 shadow-lg">
+        <div class="bg-base-100 border-border overflow-hidden rounded border p-2 shadow-floating">
           <Show
             when={isTailwind() || isSlideBackgrounds()}
             fallback={
@@ -418,7 +418,7 @@ export function ColorPicker(p: ColorPickerProps) {
             </div>
           </Show>
           <Show when={p.extraColors && p.extraColors.length > 0}>
-            <div class="border-base-300 my-1.5 border-t" />
+            <div class="border-border my-1.5 border-t" />
             <div class="flex gap-1">
               <For each={p.extraColors}>
                 {(color) => (
@@ -433,10 +433,10 @@ export function ColorPicker(p: ColorPickerProps) {
             </div>
           </Show>
           <Show when={p.allowCustomHex}>
-            <div class="border-base-300 my-1.5 border-t" />
+            <div class="border-border my-1.5 border-t" />
             <input
               type="text"
-              class="border-base-300 w-full rounded border px-2 py-1 font-mono text-xs"
+              class="border-border w-full rounded border px-2 py-1 font-mono text-xs"
               classList={{ "border-danger": !hexIsValid() }}
               placeholder="#hex"
               value={displayHex()}

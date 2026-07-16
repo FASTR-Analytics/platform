@@ -65,10 +65,10 @@ export function SelectList<T extends string = string, M = never>(
           {(item) => {
             if (!isListItem(item)) {
               if ("divider" in item) {
-                return <div class="border-base-300 my-1 border-b" />;
+                return <div class="border-border my-1 border-b" />;
               }
               return (
-                <div class="text-neutral px-2 py-1 text-xs font-700">
+                <div class="text-base-content-muted px-2 py-1 text-xs font-700">
                   {item.header}
                 </div>
               );
@@ -77,8 +77,9 @@ export function SelectList<T extends string = string, M = never>(
               <div
                 class="cursor-pointer rounded px-2 py-1 text-sm"
                 classList={{
-                  "ui-hoverable": true,
+                  "ui-quiet": !p.intent,
                   "ui-intent-fill": !!p.intent,
+                  "ui-intent-states": !!p.intent,
                   "bg-base-200": !p.intent && item.id === p.value,
                 }}
                 data-intent={p.intent}
