@@ -85,7 +85,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
           } as JSX.CSSProperties
         }
       >
-        <div class="bg-base-100 w-64 rounded-md border p-3 shadow-lg select-none">
+        <div class="bg-base-100 w-64 rounded border p-3 shadow-floating select-none">
           <Slider
             label={t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}
             min={sizeMin()}

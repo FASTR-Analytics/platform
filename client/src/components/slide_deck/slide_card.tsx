@@ -86,7 +86,7 @@ export function SlideCard(p: Props) {
         {p.index + 1}
       </div>
       <div
-        class="slide-card-wrapper group relative overflow-clip rounded-lg border bg-white cursor-pointer"
+        class="slide-card-wrapper group relative overflow-clip rounded border bg-white cursor-pointer"
         classList={{
           "border-base-300": !p.isSelected,
           "border-primary": p.isSelected,

@@ -95,7 +95,7 @@ export function DashboardItemGrid(p: Props) {
             class={GRID_CLASS}
             animation={150}
             ghostClass="opacity-50"
-            chosenClass="shadow-2xl"
+            chosenClass="shadow-floating"
             dragClass="cursor-grabbing"
             fallbackTolerance={3}
           >

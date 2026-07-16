@@ -50,7 +50,7 @@ function CoverThumbnail(p: { treatmentId: CoverTreatmentId }) {
       class="absolute inset-0 flex items-center justify-center"
       style={{ background: bgStyle() }}
     >
-      <div class="h-1.5 w-8 rounded-sm" style={{ background: titleStyle() }} />
+      <div class="h-1.5 w-8 rounded" style={{ background: titleStyle() }} />
     </div>
   );
 }

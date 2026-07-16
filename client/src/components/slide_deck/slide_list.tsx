@@ -522,7 +522,7 @@ export function SlideList(p: Props) {
             selectedClass="sortable-selected"
             animation={150}
             ghostClass="opacity-50"
-            chosenClass="shadow-2xl"
+            chosenClass="shadow-floating"
             dragClass="cursor-grabbing"
             fallbackTolerance={3}
           >

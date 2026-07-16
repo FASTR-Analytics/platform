@@ -11,7 +11,7 @@ export function PresetCard(p: PresetCardProps) {
   return (
     <button
       type="button"
-      class="flex w-24 cursor-pointer flex-col rounded-lg border p-2 text-left"
+      class="flex w-24 cursor-pointer flex-col rounded border p-2 text-left"
       classList={{
         "border-primary border-2": p.selected,
         "border-base-300": !p.selected,

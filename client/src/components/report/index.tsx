@@ -888,7 +888,7 @@ export function ProjectReport(p: Props) {
         ref={(el) => (previewEl = el)}
       >
         <div
-          class="bg-base-100 mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-2xl"
+          class="bg-base-100 mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-floating"
           ref={(el) => (contentEl = el)}
         >
           <MarkdownPresentationJsx

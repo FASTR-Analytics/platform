@@ -192,7 +192,7 @@ export function ProjectDashboards(p: Props) {
             const isSelected = () => selection.isSelected(dashboard.id);
             return (
               <div
-                class="group relative cursor-pointer rounded-md border p-3"
+                class="group relative cursor-pointer rounded border p-3"
                 classList={{
                   "border-base-300 hover:border-primary": !isSelected(),
                   "border-primary": isSelected(),
