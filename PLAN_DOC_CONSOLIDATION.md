@@ -43,8 +43,11 @@
 > i18n path), t3 surface = 252 files, stub's two dead-code items already
 > deleted; help system is EN/FR-only with 1 of 41 targets adopted), S00 (written
 > fresh, 2026-07-17; review-only — findings are S00 Open items, incl. the
-> presence-based boolean env-var footgun). This plan deletes itself when the
-> last `DOC_*` is gone.
+> presence-based boolean env-var footgun), S4 (written fresh, 2026-07-17;
+> review-only — findings are S4 Open items, incl. the upload-overwrites-
+> any-asset gap; correction: S13's AI documents don't use TUS — the stub's
+> consumer list was wrong). This plan deletes itself when the last `DOC_*` is
+> gone.
 
 ## 1. `DOC_*` → target mapping (3-way sort)
 
