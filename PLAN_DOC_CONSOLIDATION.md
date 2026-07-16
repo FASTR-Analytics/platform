@@ -46,7 +46,20 @@
 > presence-based boolean env-var footgun), S4 (written fresh, 2026-07-17;
 > review-only — findings are S4 Open items, incl. the upload-overwrites-
 > any-asset gap; correction: S13's AI documents don't use TUS — the stub's
-> consumer list was wrong). This plan deletes itself when the last `DOC_*` is
+> consumer list was wrong), UI conventions (DOC_DESIGN_SYSTEM +
+> DOC_BUILD_INSTRUCTIONS → new PROTOCOL_APP_UI_CONVENTIONS, 2026-07-17,
+> resolving §4.1's sub-decision — recipes don't belong in a SYSTEM file;
+> heavily deduplicated: token-value tables dropped (authoritative home =
+> panther `_fixed.css` + `app.css` overrides), panther-protocol restatements
+> deferred; corrections folded in: app.css overrides only 5 tokens + ui-running
+> (colors/radius live in panther, not app.css as claimed), muted text is
+> `text-base-content-muted` not `text-neutral`, selection = panther
+> `createSelectionController`/`SelectionCircle`, `showMenu` takes an anchor
+> rect, status badges use `ui-intent-*` + `data-[running=true]`, Pattern E's
+> named examples were wrong, modal `3xl` exists, icon map updated
+> (decks=`presentation`, `save` was missing); follow-up: absorb
+> `client/src/FRONTEND_STYLE_GUIDE.md` into the same protocol so app UI
+> recipes have one home). This plan deletes itself when the last `DOC_*` is
 > gone.
 
 ## 1. `DOC_*` → target mapping (3-way sort)
@@ -96,10 +109,7 @@ is inlined during its cycle.
   entry was fixed in the S13 cycle, the XLSX-translation and phantom-task claims
   in the S14 cycle); `client/src/export_report` is now `client/src/exports/`;
   dataset-import progress is POLLED, not SSE.
-- Minor: DOC_BUILD_INSTRUCTIONS/DOC_DESIGN_SYSTEM cite
-  `panther/FRONTEND_STYLE_GUIDE.md` (real:
-  `client/src/FRONTEND_STYLE_GUIDE.md`); DOC_ACCESS_DBS cites a deleted
-  diagnostic script.
+- Minor: DOC_ACCESS_DBS cites a deleted diagnostic script.
 
 ## 3. Deferred Phase-1 step
 
@@ -110,8 +120,11 @@ hold real prose that readers aren't sent to stubs.
 
 1. **`CROSS_*` set** — RULED 2026-07-16: no CROSS category; the doc set is
    `PROTOCOL_*` / `PLAN_*` / `SYSTEM_*` only. State docs shipped as
-   PROTOCOL_APP_STATE. Remaining sub-decision: DOC_DESIGN_SYSTEM +
-   DOC_BUILD_INSTRUCTIONS → a PROTOCOL_APP_UI_CONVENTIONS, or fold into S14?
+   PROTOCOL_APP_STATE. Sub-decision RESOLVED 2026-07-17: DOC_DESIGN_SYSTEM +
+   DOC_BUILD_INSTRUCTIONS shipped as PROTOCOL_APP_UI_CONVENTIONS (not folded
+   into S14 — recipes are the wrong axis for a SYSTEM file). Follow-up:
+   absorb `client/src/FRONTEND_STYLE_GUIDE.md` into that protocol so app UI
+   recipes have one home.
 2. **`PROTOCOL_APP_*` naming/scope** — confirm the token and repo-root location
    (vs a `protocols_app/` dir, or `GUIDE_*`). PROTOCOL_APP_MIGRATIONS already
    exists as the precedent.
