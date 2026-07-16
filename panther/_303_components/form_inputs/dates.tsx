@@ -262,8 +262,9 @@ function NativePickerInput(p: NativePickerInputProps) {
   );
 }
 
-// Default widths must absorb the native picker's locale-dependent intrinsic
-// width (12-hour locales append " AM"/" PM") plus the 2.5em icon padding.
+// Native pickers have locale-dependent intrinsic widths (12-hour locales
+// append " AM"/" PM"), so the default width is w-fit: the input's own
+// pr-[2.5em] makes the intrinsic width include the icon allowance exactly.
 type DateInputProps = {
   value: string;
   onChange: (v: string) => void;
@@ -277,7 +278,7 @@ type DateInputProps = {
 
 export function DateInput(p: DateInputProps) {
   return (
-    <div class="w-44 data-[width=true]:w-full" data-width={p.fullWidth}>
+    <div class="w-fit data-[width=true]:w-full" data-width={p.fullWidth}>
       <NativePickerInput
         type="date"
         iconName="calendar"
@@ -306,7 +307,7 @@ type TimeInputProps = {
 
 export function TimeInput(p: TimeInputProps) {
   return (
-    <div class="w-40 data-[width=true]:w-full" data-width={p.fullWidth}>
+    <div class="w-fit data-[width=true]:w-full" data-width={p.fullWidth}>
       <NativePickerInput
         type="time"
         iconName="clock"
@@ -335,7 +336,7 @@ type DateTimeInputProps = {
 
 export function DateTimeInput(p: DateTimeInputProps) {
   return (
-    <div class="w-72 data-[width=true]:w-full" data-width={p.fullWidth}>
+    <div class="w-fit data-[width=true]:w-full" data-width={p.fullWidth}>
       <NativePickerInput
         type="datetime-local"
         iconName="calendar"
