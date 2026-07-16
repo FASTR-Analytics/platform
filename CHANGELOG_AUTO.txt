@@ -1,3 +1,5 @@
+[TBD] [user] [changed] - Refined border rounding for a more consistent visual style
+[TBD] [user] [changed] - Improved shadow styling on floating elements like popovers and notifications
 [TBD] [user] [fixed] - Improved visual consistency of checkbox borders in permissions settings
 [TBD] [user] [fixed] - Error messages now display in a consistent red color throughout the app
 [TBD] [user] [changed] - Backup list styling now adapts correctly to light and dark themes
