@@ -99,6 +99,25 @@ a color, update the `--color-*` variable there. Never use arbitrary color values
 - **Status mapping**: "ready" → `success`, "error" → `danger`, "running"/"queued"/"pending" → `neutral`.
 - **Dark header**: The project page header uses `bg-base-content` (dark) with white text.
 
+### Dark Mode
+
+Dark mode is a per-device preference toggled in the profile modal
+(`client/src/components/instance/profile.tsx`), stored in localStorage as
+`darkMode`, and owned by `client/src/state/t4_ui.ts`. When enabled, t4_ui sets
+`data-theme="dark"` on `<html>` (at module scope, so it applies before first
+paint) and an **unlayered** `:root[data-theme="dark"]` block in
+`client/src/app.css` overrides the `--color-*` variables — unlayered so it
+beats Tailwind's layered `@theme` defaults.
+
+The dark values are panther's `KEY_COLOR_THEMES["neutral-dark"]` bases with
+`primary` swapped to `#14b8a6` (the GFF teal lightened to keep ≥4.5:1 contrast
+on dark backgrounds; `primary-content` `#052e2b`). Canvas-rendered figures are
+unaffected: `setKeyColors` in `client/src/index.tsx` is static, so charts,
+slides, and exports keep their light document styling.
+
+When adding a new `--color-*` token to the `@theme` block, add its dark
+counterpart to the `:root[data-theme="dark"]` block too.
+
 ---
 
 ## Typography

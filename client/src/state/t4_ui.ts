@@ -241,6 +241,32 @@ export function updateProjectView(updates: ProjectViewStateUpdates) {
 }
 
 // ============================================================================
+// Appearance
+// ============================================================================
+
+// Applied at module scope so the stored theme is on <html> before first paint
+const storedDarkMode = localStorage.getItem("darkMode") === "true";
+
+export const [darkMode, setDarkModeInternal] =
+  createSignal<boolean>(storedDarkMode);
+
+export function setDarkMode(value: boolean) {
+  localStorage.setItem("darkMode", String(value));
+  setDarkModeInternal(value);
+  applyThemeToDocument(value);
+}
+
+function applyThemeToDocument(dark: boolean) {
+  if (dark) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+}
+
+applyThemeToDocument(storedDarkMode);
+
+// ============================================================================
 // Chart/Viz Display Settings
 // ============================================================================
 

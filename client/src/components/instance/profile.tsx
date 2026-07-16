@@ -1,4 +1,5 @@
 import { clearDataCache, clearAiChatCache } from "~/state/clear_caches";
+import { darkMode, setDarkMode } from "~/state/t4_ui";
 import { clerk } from "~/components/LoggedInWrapper";
 import { t3, TC } from "lib";
 import {
@@ -174,6 +175,21 @@ export function ProfileForm(
                     </Button>
                   </div>
                 </Show>
+              </SettingsSection>
+
+              {/* Appearance */}
+              <SettingsSection
+                header={t3({ en: "Appearance", fr: "Apparence", pt: "Aparência" })}
+              >
+                <Checkbox
+                  checked={darkMode()}
+                  onChange={setDarkMode}
+                  label={t3({
+                    en: "Dark mode",
+                    fr: "Mode sombre",
+                    pt: "Modo escuro",
+                  })}
+                />
               </SettingsSection>
 
               {/* AI usage */}

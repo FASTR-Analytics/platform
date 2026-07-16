@@ -44,6 +44,34 @@
   --radius-full: 9999px;
 }
 
+/* Dark mode — active when state/t4_ui.ts sets data-theme="dark" on <html>.
+   Bases from panther's "neutral-dark" key color theme; primary is the GFF
+   teal lightened to #14b8a6 so it keeps ≥4.5:1 contrast on dark bases.
+   Must stay unlayered so it wins over Tailwind's layered @theme defaults. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-base-100: #18181b;
+  --color-base-200: #27272a;
+  --color-base-300: #3f3f46;
+  --color-base-content: #fafafa;
+
+  --color-primary: #14b8a6;
+  --color-primary-content: #052e2b;
+
+  --color-neutral: #a1a1aa;
+  --color-neutral-content: #18181b;
+
+  --color-success: #4ade80;
+  --color-success-content: #052e16;
+
+  --color-warning: #facc15;
+  --color-warning-content: #422006;
+
+  --color-danger: #f87171;
+  --color-danger-content: #450a0a;
+}
+
 @layer base {
   /* Fira Sans */
   @font-face {
