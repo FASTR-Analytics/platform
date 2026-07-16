@@ -354,14 +354,18 @@ Every config mutation re-reads all configs and pushes one consolidated
   any step resets status to configuring; step 4 stays reachable to retry
   with a different strategy). In-flight imports render a progress view
   polling `getStructureUploadStatus` every 2 s — covering resumed and
-  second-tab sessions. The DHIS2 attempt payload is **redacted**
-  (`Dhis2CredentialsRedacted` — url/username/hasPassword); full
-  credentials stay server-side (`getStructureDhis2Credentials`), the
-  client persists them to sessionStorage only after a successful
-  connection test, and the connection can be changed in place ("Change
-  connection" re-opens the editor; saving resets steps 2–3). A successful
-  integrate also reports geojson `area_id`s orphaned by the import in the
-  step-4 summary.
+  second-tab sessions. DHIS2 structure import is **saved-only**
+  (PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION Phase 2): step 1 confirms
+  the instance's stored connection (`structureStep1Dhis2_ConfirmConnection`
+  — no credentials in the request body) and writes only a `{ url }`
+  snapshot to `step_1_result`; staging and the org-unit browse
+  route resolve the password from the encrypted store at fetch time
+  (`getStructureDhis2ResolvedCredentials`), refusing loudly if the stored
+  connection's URL has changed since step 1 was confirmed. The client
+  panel shows the stored connection and links to the shared manage-
+  connection modal to replace it — there is no per-attempt credential
+  editor. A successful integrate also reports geojson `area_id`s orphaned
+  by the import in the step-4 summary.
 - Permissions: reads are `can_view_data` (incl. the CSV exports);
   mutations `can_configure_data`; config mutations
   `can_configure_settings`. Several manager UIs still gate their write
@@ -397,9 +401,6 @@ Every config mutation re-reads all configs and pushes one consolidated
   the server gates on `can_configure_data` in four slices (HMIS manager,
   HFA manager, geojson manager, weights import) — decide which contract
   wins and align.
-- **Decision needed:** instance-level DHIS2 credentials remain plaintext
-  at rest in the attempt rows (structure and datasets; both API
-  projections are redacted) — at-rest encryption is a separate decision.
 - Server-produced wizard/staging/integration error strings are
   English-only and rendered verbatim by the client — needs a mechanism
   (error codes or translatable errs), not per-string patching.
@@ -408,9 +409,11 @@ Every config mutation re-reads all configs and pushes one consolidated
   keys `805f6b15`): `sampleValues` still returns ALL distinct values
   unbounded; the served payload is whole and double-encoded (also
   PLAN_GEOJSON_SNAPSHOT WS-EFFICIENCY); no deeper geometry validation
-  (lon/lat range, polygonal types, non-unique match values). The
-  plaintext-sessionStorage password item moved to S7 (which owns
-  `t4_dhis2_session.ts`).
+  (lon/lat range, polygonal types, non-unique match values). (The
+  plaintext-sessionStorage credentials item is resolved — the
+  sessionStorage cache was deleted by PLAN_DHIS2_CREDENTIAL_STORE_
+  CONSOLIDATION; geojson now defaults to the encrypted stored connection
+  with an inline one-off override.)
 - `pt` is missing across most of this system's t3 literals (indicator
   managers, structure viewers, wizards) — part of the batch-by-batch PT
   rollout.

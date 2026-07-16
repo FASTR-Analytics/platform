@@ -1,10 +1,12 @@
 import { Hono } from "hono";
+import type { Dhis2Credentials } from "lib";
 import {
   getGeoJsonMapSummaries,
   getGeoJsonForLevel,
   getAdminAreaOptionsForLevel,
   saveGeoJsonMap,
   deleteGeoJsonMap,
+  resolveDhis2Credentials,
 } from "../../db/mod.ts";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { log } from "../../middleware/logging.ts";
@@ -259,18 +261,23 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("dhis2GetOrgUnitLevels"),
   async (c, { body }) => {
-    const { url, username, password } = body;
-    if (!url || !username || !password) {
-      return c.json({ success: false, err: "DHIS2 credentials are required" });
+    let credentials: Dhis2Credentials;
+    try {
+      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsSource);
+    } catch (error) {
+      return c.json({
+        success: false,
+        err: error instanceof Error ? error.message : "No stored DHIS2 credentials.",
+      });
     }
 
-    const validation = await validateDhis2Connection({ url, username, password });
+    const validation = await validateDhis2Connection(credentials);
     if (!validation.valid) {
       return c.json({ success: false, err: validation.message.en });
     }
 
     try {
-      const metadata = await getOrgUnitMetadata({ dhis2Credentials: body });
+      const metadata = await getOrgUnitMetadata({ dhis2Credentials: credentials });
       const levels = metadata.levels.map((l) => ({
         level: l.level,
         name: l.displayName || l.name,
@@ -292,15 +299,21 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("dhis2AnalyzeGeoJson"),
   async (c, { body }) => {
-    const { url, username, password, dhis2Level } = body;
-    if (!url || !username || !password) {
-      return c.json({ success: false, err: "DHIS2 credentials are required" });
-    }
+    const { dhis2Level } = body;
     if (typeof dhis2Level !== "number" || dhis2Level < 1) {
       return c.json({ success: false, err: "Invalid DHIS2 level" });
     }
+    let credentials: Dhis2Credentials;
+    try {
+      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsSource);
+    } catch (error) {
+      return c.json({
+        success: false,
+        err: error instanceof Error ? error.message : "No stored DHIS2 credentials.",
+      });
+    }
 
-    const validation = await validateDhis2Connection({ url, username, password });
+    const validation = await validateDhis2Connection(credentials);
     if (!validation.valid) {
       return c.json({ success: false, err: validation.message.en });
     }
@@ -308,13 +321,18 @@ defineRoute(
     try {
       // Metadata-only analyze: the matching UI needs names, never polygons.
       // The full geometry is fetched at SAVE (dhis2SaveGeoJsonMap below).
-      const cacheKey = await getCredsCacheKey(url, username, password, dhis2Level);
+      const cacheKey = await getCredsCacheKey(
+        credentials.url,
+        credentials.username,
+        credentials.password,
+        dhis2Level,
+      );
       let cached = metadataSessionCache.get(cacheKey);
 
       if (!cached) {
         const [units, withGeometryCount] = await Promise.all([
-          fetchOrgUnitsMetadataForLevel(body, dhis2Level),
-          fetchGeometryCountForLevel(body, dhis2Level),
+          fetchOrgUnitsMetadataForLevel(credentials, dhis2Level),
+          fetchGeometryCountForLevel(credentials, dhis2Level),
         ]);
         cached = { fetchedAt: Date.now(), units, withGeometryCount };
         metadataSessionCache.set(cacheKey, cached);
@@ -375,33 +393,44 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("dhis2SaveGeoJsonMap"),
   async (c, { body }) => {
-    const { url, username, password, dhis2Level, adminAreaLevel, areaMatchProp, areaMapping } = body;
+    const { dhis2Level, adminAreaLevel, areaMatchProp, areaMapping } = body;
 
-    if (!url || !username || !password) {
-      return c.json({ success: false, err: "DHIS2 credentials are required" });
-    }
     if (![2, 3, 4].includes(adminAreaLevel)) {
       return c.json({ success: false, err: "Admin area level must be 2, 3, or 4" });
     }
     if (typeof dhis2Level !== "number" || dhis2Level < 1) {
       return c.json({ success: false, err: "Invalid DHIS2 level" });
     }
+    let credentials: Dhis2Credentials;
+    try {
+      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsSource);
+    } catch (error) {
+      return c.json({
+        success: false,
+        err: error instanceof Error ? error.message : "No stored DHIS2 credentials.",
+      });
+    }
 
     try {
       // The heavy geometry fetch happens HERE, not at analyze. The small
       // heavy cache exists so a re-save after fixing a mapping isn't another
       // multi-minute fetch.
-      const cacheKey = await getCredsCacheKey(url, username, password, dhis2Level);
+      const cacheKey = await getCredsCacheKey(
+        credentials.url,
+        credentials.username,
+        credentials.password,
+        dhis2Level,
+      );
       let cached = heavyGeoJsonSessionCache.get(cacheKey);
 
       if (!cached) {
-        const validation = await validateDhis2Connection({ url, username, password });
+        const validation = await validateDhis2Connection(credentials);
         if (!validation.valid) {
           return c.json({ success: false, err: validation.message.en });
         }
 
         const featureCollection = await fetchOrgUnitsGeoJsonForLevel(
-          body,
+          credentials,
           dhis2Level,
           HEAVY_GEOJSON_FETCH,
         );

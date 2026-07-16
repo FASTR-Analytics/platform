@@ -365,12 +365,13 @@ CREATE TABLE dataset_hmis_import_runs (
 CREATE UNIQUE INDEX idx_dataset_hmis_import_runs_single_running
   ON dataset_hmis_import_runs ((true)) WHERE status = 'running';
 
--- Stored instance DHIS2 credentials (PLAN_DHIS2_IMPORTER Phase 4, C3):
--- single row, password encrypted at rest with a key from the
--- DHIS2_CREDENTIALS_ENCRYPTION_KEY env var (never in the DB); decrypted only
--- in the run worker at fetch time
--- (see server/db/instance/dataset_hmis_dhis2_credentials.ts).
-CREATE TABLE dataset_hmis_dhis2_credentials (
+-- Stored instance DHIS2 credentials (PLAN_DHIS2_CREDENTIAL_STORE_
+-- CONSOLIDATION Phase 1): single row, shared by every DHIS2 flow (structure,
+-- indicators, geojson, HMIS data). Password encrypted at rest with a key
+-- from the DHIS2_CREDENTIALS_ENCRYPTION_KEY env var (never in the DB);
+-- decrypted server-side only at fetch time
+-- (see server/db/instance/instance_dhis2_credentials.ts).
+CREATE TABLE instance_dhis2_credentials (
   singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
   url text NOT NULL,
   username text NOT NULL,

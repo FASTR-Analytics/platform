@@ -1,39 +1,76 @@
-import { t3, type Dhis2Credentials } from "lib";
-import { Button, StateHolderFormError, createFormAction } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { t3, type Dhis2Credentials, type Dhis2RunCredentialsSource } from "lib";
+import {
+  Button,
+  StateHolderFormError,
+  StateHolderWrapper,
+  createFormAction,
+  createQuery,
+} from "panther";
+import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { Dhis2CredentialsEditor } from "~/components/Dhis2CredentialsEditor";
-import { getDhis2SessionCredentials, setDhis2SessionCredentials } from "~/state/instance/t4_dhis2_session";
 import type { WizardState } from "./index";
 
 type Props = {
   state: WizardState;
 };
 
+// Defaults to the instance's stored DHIS2 connection when one exists
+// (PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION Phase 3); the inline editor is a
+// one-off override, never persisted.
 export function Step1Dhis2(p: Props) {
   const { state } = p;
 
-  const sessionCreds = getDhis2SessionCredentials();
-  const [credentials, setCredentials] = createSignal<Dhis2Credentials>(
-    sessionCreds ?? { url: "", username: "", password: "" }
+  const infoQuery = createQuery(
+    () => serverActions.getInstanceDhis2CredentialsInfo({}),
+    t3({
+      en: "Loading DHIS2 connection...",
+      fr: "Chargement de la connexion DHIS2...",
+      pt: "A carregar a ligação DHIS2...",
+    }),
   );
-  const [saveCredentialsToSession, setSaveCredentialsToSession] = createSignal(false);
-  const [connected, setConnected] = createSignal(false);
+
+  const [useInline, setUseInline] = createSignal<boolean>(false);
+  const [inlineCredentials, setInlineCredentials] = createSignal<Dhis2Credentials>({
+    url: "",
+    username: "",
+    password: "",
+  });
+  const [connected, setConnected] = createSignal<boolean>(false);
+
+  function hasStored(): boolean {
+    const s = infoQuery.state();
+    return s.status === "ready" && !!s.data.storedCredentials;
+  }
 
   const connectAction = createFormAction(
     async () => {
-      const creds = credentials();
-      if (!creds.url || !creds.username || !creds.password) {
-        return { success: false, err: t3({ en: "All credential fields are required", fr: "Tous les champs sont requis", pt: "Todos os campos de credenciais são obrigatórios" }) };
+      let credentialsSource: Dhis2RunCredentialsSource;
+      let connectionUrl: string;
+      if (useInline() || !hasStored()) {
+        const creds = inlineCredentials();
+        if (!creds.url || !creds.username || !creds.password) {
+          return {
+            success: false,
+            err: t3({
+              en: "All credential fields are required",
+              fr: "Tous les champs sont requis",
+              pt: "Todos os campos de credenciais são obrigatórios",
+            }),
+          };
+        }
+        credentialsSource = { kind: "inline", credentials: creds };
+        connectionUrl = creds.url;
+      } else {
+        credentialsSource = { kind: "stored" };
+        const s = infoQuery.state();
+        connectionUrl = (s.status === "ready" && s.data.storedCredentials?.url) || "";
       }
 
-      if (saveCredentialsToSession()) {
-        setDhis2SessionCredentials(creds);
-      }
-
-      const res = await serverActions.dhis2GetOrgUnitLevels(creds);
+      const res = await serverActions.dhis2GetOrgUnitLevels({ credentialsSource });
       if (res.success) {
-        state.setDhis2Credentials(creds);
+        state.setDhis2CredentialsSource(credentialsSource);
+        state.setDhis2ConnectionUrl(connectionUrl);
         state.setDhis2Levels(res.data.levels);
         setConnected(true);
       }
@@ -51,19 +88,54 @@ export function Step1Dhis2(p: Props) {
       <div class="font-600">{t3({ en: "Step 1: Connect to DHIS2", fr: "Étape 1 : Se connecter à DHIS2", pt: "Passo 1: Ligar ao DHIS2" })}</div>
 
       <Show when={!connected()}>
-        <Dhis2CredentialsEditor
-          credentials={credentials}
-          setCredentials={setCredentials}
-          saveToSession={saveCredentialsToSession}
-          setSaveToSession={setSaveCredentialsToSession}
-        />
+        <StateHolderWrapper state={infoQuery.state()} noPad>
+          {(info) => (
+            <Switch>
+              <Match when={!useInline() && info.storedCredentials} keyed>
+                {(stored) => (
+                  <div class="border-base-300 ui-pad ui-spy-sm rounded border">
+                    <div class="text-sm">
+                      {t3({
+                        en: "Use stored connection:",
+                        fr: "Utiliser la connexion enregistrée :",
+                        pt: "Utilizar a ligação guardada:",
+                      })}{" "}
+                      <span class="font-700">{stored.url}</span>
+                    </div>
+                    <Button onClick={() => setUseInline(true)} outline size="sm" iconName="pencil">
+                      {t3({
+                        en: "Use a different connection",
+                        fr: "Utiliser une autre connexion",
+                        pt: "Utilizar uma ligação diferente",
+                      })}
+                    </Button>
+                  </div>
+                )}
+              </Match>
+              <Match when={useInline() || !info.storedCredentials}>
+                <Dhis2CredentialsEditor
+                  credentials={inlineCredentials}
+                  setCredentials={setInlineCredentials}
+                />
+                <Show when={info.storedCredentials}>
+                  <Button onClick={() => setUseInline(false)} outline size="sm">
+                    {t3({
+                      en: "Use stored connection instead",
+                      fr: "Utiliser la connexion enregistrée à la place",
+                      pt: "Utilizar a ligação guardada em vez disso",
+                    })}
+                  </Button>
+                </Show>
+              </Match>
+            </Switch>
+          )}
+        </StateHolderWrapper>
 
         <StateHolderFormError state={connectAction.state()} />
         <div class="ui-gap-sm flex">
           <Button
             onClick={connectAction.click}
             state={connectAction.state()}
-            disabled={!credentials().url || !credentials().username || !credentials().password}
             intent="primary"
           >
             {t3({ en: "Connect", fr: "Se connecter", pt: "Ligar" })}
@@ -78,7 +150,7 @@ export function Step1Dhis2(p: Props) {
         <div class="ui-spy-sm">
           <div class="font-600 text-sm">{t3({ en: "Available DHIS2 levels", fr: "Niveaux DHIS2 disponibles", pt: "Níveis DHIS2 disponíveis" })}</div>
           <div class="text-base-500 text-sm">
-            {t3({ en: "Connected to", fr: "Connecté à", pt: "Ligado a" })} {state.dhis2Credentials()?.url}
+            {t3({ en: "Connected to", fr: "Connecté à", pt: "Ligado a" })} {state.dhis2ConnectionUrl()}
           </div>
         </div>
 
@@ -104,7 +176,7 @@ export function Step1Dhis2(p: Props) {
             {t3({ en: "Continue", fr: "Continuer", pt: "Continuar" })}
           </Button>
           <Button intent="neutral" onClick={() => { setConnected(false); }}>
-            {t3({ en: "Change credentials", fr: "Modifier les identifiants", pt: "Alterar as credenciais" })}
+            {t3({ en: "Change connection", fr: "Modifier la connexion", pt: "Alterar a ligação" })}
           </Button>
           <Button intent="neutral" onClick={() => state.setStep(0)}>
             {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}

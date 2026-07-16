@@ -159,7 +159,7 @@ export type DBDatasetHmisImportRun = {
   run_stats: string | null;
 };
 
-export type DBDatasetHmisDhis2Credentials = {
+export type DBInstanceDhis2Credentials = {
   singleton: boolean;
   url: string;
   username: string;

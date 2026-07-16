@@ -12,6 +12,7 @@ export * from "./iceh_strats.ts";
 export * from "./dataset_hmis.ts";
 export * from "./dataset_hmis_import.ts";
 export * from "./datasets.ts";
+export * from "./dhis2.ts";
 export * from "./datasets_in_project.ts";
 export * from "./disaggregation_options.ts";
 export * from "./hfa_types.ts";

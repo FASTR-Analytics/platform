@@ -19,7 +19,7 @@ import { Match, Show, Switch, createSignal, onCleanup, onMount } from "solid-js"
 import type {
   StructureCsvStep1Result,
   StructureUploadAttemptStatus,
-  Dhis2CredentialsRedacted,
+  StructureDhis2ConnectionSnapshot,
   StructureColumnMappings,
   StructureDhis2OrgUnitSelection,
   StructureStagingResult,
@@ -312,7 +312,7 @@ export function StructureUploadAttemptForm(p: Props) {
                     <Step1_Dhis2
                       step1Result={
                         keyedUploadAttempt.step1Result as
-                          | Dhis2CredentialsRedacted
+                          | StructureDhis2ConnectionSnapshot
                           | undefined
                       }
                       family={p.family}

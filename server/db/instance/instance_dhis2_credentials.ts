@@ -1,16 +1,23 @@
 import { Sql } from "postgres";
-import type { Dhis2Credentials, Dhis2StoredCredentialsInfo } from "lib";
+import type {
+  Dhis2Credentials,
+  Dhis2RunCredentialsSource,
+  Dhis2StoredCredentialsInfo,
+} from "lib";
 import { _DHIS2_CREDENTIALS_ENCRYPTION_KEY } from "../../exposed_env_vars.ts";
-import type { DBDatasetHmisDhis2Credentials } from "./_main_database_types.ts";
+import type { DBInstanceDhis2Credentials } from "./_main_database_types.ts";
 
-// Stored instance DHIS2 credentials (PLAN_DHIS2_IMPORTER Phase 4, C3).
-// Single row; url + username are plaintext (the runs table already exposes
-// the URL, and the UI shows both so an admin can see what is stored), the
-// password is AES-256-GCM encrypted with a key derived from the
-// DHIS2_CREDENTIALS_ENCRYPTION_KEY env var. The key never enters the DB, and
-// decryption happens ONLY in the run worker at fetch time
-// (getStoredDhis2CredentialsDecrypted) — the host process and every route
-// handle only the safe projection.
+// Single instance-wide stored DHIS2 credentials row, shared by every DHIS2
+// flow (structure import, indicators, geojson, HMIS data — PLAN_DHIS2_
+// CREDENTIAL_STORE_CONSOLIDATION). url + username are plaintext in the DB
+// row, but only the URL ever leaves the server (the UI shows it so an admin
+// can see what is stored; the username stays server-side). The password is
+// AES-256-GCM encrypted with a key derived from the
+// DHIS2_CREDENTIALS_ENCRYPTION_KEY env var. The key never enters the DB.
+// The password is decrypted server-side at fetch time only — in a worker or
+// a route handler immediately before calling DHIS2 — and is never included
+// in a route response. Everything user-facing gets the safe projection
+// (Dhis2StoredCredentialsInfo).
 
 const GCM_IV_BYTES = 12;
 
@@ -82,9 +89,9 @@ export async function decryptDhis2Password(encrypted: string): Promise<string> {
 export async function getStoredDhis2CredentialsInfo(
   mainDb: Sql,
 ): Promise<Dhis2StoredCredentialsInfo | null> {
-  const rows = await mainDb<DBDatasetHmisDhis2Credentials[]>`
+  const rows = await mainDb<DBInstanceDhis2Credentials[]>`
     SELECT singleton, url, username, password_encrypted, updated_by, updated_at
-    FROM dataset_hmis_dhis2_credentials
+    FROM instance_dhis2_credentials
   `;
   const row = rows.at(0);
   if (!row) {
@@ -92,7 +99,6 @@ export async function getStoredDhis2CredentialsInfo(
   }
   return {
     url: row.url,
-    username: row.username,
     updatedBy: row.updated_by,
     updatedAt: new Date(row.updated_at).toISOString(),
   };
@@ -105,7 +111,7 @@ export async function saveStoredDhis2Credentials(
 ): Promise<void> {
   const passwordEncrypted = await encryptDhis2Password(credentials.password);
   await mainDb`
-    INSERT INTO dataset_hmis_dhis2_credentials
+    INSERT INTO instance_dhis2_credentials
       (singleton, url, username, password_encrypted, updated_by, updated_at)
     VALUES (true, ${credentials.url}, ${credentials.username},
       ${passwordEncrypted}, ${updatedBy}, now())
@@ -119,22 +125,23 @@ export async function saveStoredDhis2Credentials(
 }
 
 export async function deleteStoredDhis2Credentials(mainDb: Sql): Promise<void> {
-  await mainDb`DELETE FROM dataset_hmis_dhis2_credentials`;
+  await mainDb`DELETE FROM instance_dhis2_credentials`;
 }
 
-// The ONLY reader of the plaintext password. Called from the run worker at
-// fetch time (never from a route or the scheduler tick).
+// The ONLY reader of the plaintext password. Called from the run worker or a
+// route handler at fetch time (never from the host process or the scheduler
+// tick).
 export async function getStoredDhis2CredentialsDecrypted(
   mainDb: Sql,
 ): Promise<Dhis2Credentials> {
-  const rows = await mainDb<DBDatasetHmisDhis2Credentials[]>`
+  const rows = await mainDb<DBInstanceDhis2Credentials[]>`
     SELECT singleton, url, username, password_encrypted, updated_by, updated_at
-    FROM dataset_hmis_dhis2_credentials
+    FROM instance_dhis2_credentials
   `;
   const row = rows.at(0);
   if (!row) {
     throw new Error(
-      "No stored DHIS2 credentials — save credentials in the DHIS2 imports view first.",
+      "No stored DHIS2 credentials — save credentials in the DHIS2 credentials editor first.",
     );
   }
   return {
@@ -142,4 +149,16 @@ export async function getStoredDhis2CredentialsDecrypted(
     username: row.username,
     password: await decryptDhis2Password(row.password_encrypted),
   };
+}
+
+// Shared by every DHIS2 flow's fetch-time credential resolution: inline
+// (per-request/per-run, never persisted) passes through, stored decrypts
+// from the instance-wide row.
+export async function resolveDhis2Credentials(
+  mainDb: Sql,
+  source: Dhis2RunCredentialsSource,
+): Promise<Dhis2Credentials> {
+  return source.kind === "inline"
+    ? source.credentials
+    : await getStoredDhis2CredentialsDecrypted(mainDb);
 }

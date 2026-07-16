@@ -28,7 +28,7 @@ import {
 import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { Dhis2StepConfig } from "./_step_config";
-import { Dhis2StepCredentials } from "./_step_credentials";
+import { Dhis2StepCredentials } from "~/components/_shared/dhis2_credentials/step_credentials";
 import { Dhis2StepIndicators } from "./_step_indicators";
 import { Dhis2StepReview } from "./_step_review";
 import { Dhis2StepTime, type Dhis2WizardTimeChoice } from "./_step_time";

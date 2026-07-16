@@ -1,4 +1,5 @@
 import { CsvDetails, TableColumn } from "./instance.ts";
+import type { Dhis2StoredCredentialsInfo } from "./dhis2.ts";
 
 // ============================================================================
 // Upload Attempt Status Types
@@ -332,33 +333,6 @@ export type DatasetHmisImportRunStats = {
       analyticsValue: number | undefined;
     }>;
   };
-};
-
-// ============================================================================
-// DHIS2 Import Types
-// ============================================================================
-
-export type Dhis2Credentials = {
-  url: string;
-  username: string;
-  password: string;
-};
-
-// How a run's worker obtains credentials. "inline" = supplied per run in the
-// worker message (never persisted). "stored" = the worker reads the encrypted
-// instance credentials and decrypts them at fetch time (PLAN_DHIS2_IMPORTER
-// Phase 4, C3) — scheduled and queued fires always use "stored".
-export type Dhis2RunCredentialsSource =
-  | { kind: "inline"; credentials: Dhis2Credentials }
-  | { kind: "stored" };
-
-// The safe projection of the stored instance credentials — the password never
-// leaves the server in any form.
-export type Dhis2StoredCredentialsInfo = {
-  url: string;
-  username: string;
-  updatedBy: string;
-  updatedAt: string;
 };
 
 // ============================================================================

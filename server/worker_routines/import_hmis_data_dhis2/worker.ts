@@ -27,7 +27,7 @@ import {
   createWorkerReadConnection,
   enumerateRunPairs,
   finalizeInterruptedDatasetHmisRunVersion,
-  getStoredDhis2CredentialsDecrypted,
+  resolveDhis2Credentials,
   HMIS_DHIS2_RUN_SCOPE_TABLE_NAME,
   upsertHmisLedgerErrorPairs,
   upsertHmisLedgerPairsFromData,
@@ -377,10 +377,10 @@ async function run(std: RunWorkerMessage) {
     // decrypt only at fetch time — the host and the scheduler tick never see
     // the plaintext password). A missing row or a changed encryption key
     // throws, and the catch below fails the run loudly.
-    const credentials: Dhis2Credentials =
-      credentialsSource.kind === "inline"
-        ? credentialsSource.credentials
-        : await getStoredDhis2CredentialsDecrypted(mainDb);
+    const credentials: Dhis2Credentials = await resolveDhis2Credentials(
+      mainDb,
+      credentialsSource,
+    );
     const baseFetchOptions: FetchOptions = { dhis2Credentials: credentials };
 
     // The run row's dhis2_url keys shadow_passed (the unattended gate). For

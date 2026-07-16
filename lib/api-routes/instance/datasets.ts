@@ -184,15 +184,6 @@ export const datasetRouteRegistry = {
     method: "GET",
     response: {} as Dhis2ImportSchedulingInfo,
   }),
-  saveDatasetHmisDhis2Credentials: route({
-    path: "/datasets/hmis/dhis2-credentials",
-    method: "POST",
-    body: z.object({ credentials: dhis2CredentialsSchema }),
-  }),
-  deleteDatasetHmisDhis2Credentials: route({
-    path: "/datasets/hmis/dhis2-credentials",
-    method: "DELETE",
-  }),
   createDatasetHmisDhis2Schedule: route({
     path: "/datasets/hmis/dhis2-schedules",
     method: "POST",

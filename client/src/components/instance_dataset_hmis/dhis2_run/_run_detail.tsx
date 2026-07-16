@@ -10,6 +10,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
+  HeaderBarCanGoBack,
   StateHolderWrapper,
   Table,
   createQuery,
@@ -114,15 +115,17 @@ export function Dhis2RunDetail(
   return (
     <FrameTop
       panelChildren={
-        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-          <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
-          <div class="font-700 flex-1 truncate text-xl">
-            {t3({ en: "Import run", fr: "Importation", pt: "Importação" })}
-            <span class="font-400 ml-4">
-              {new Date(p.run.startedAt).toLocaleString()}
-            </span>
-          </div>
-        </div>
+        <HeaderBarCanGoBack
+          back={() => p.close(undefined)}
+          heading={
+            <>
+              {t3({ en: "Import run", fr: "Importation", pt: "Importação" })}
+              <span class="font-400 ml-4">
+                {new Date(p.run.startedAt).toLocaleString()}
+              </span>
+            </>
+          }
+        />
       }
     >
       <div class="ui-pad ui-spy h-full w-full overflow-auto">

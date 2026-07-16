@@ -30,7 +30,7 @@ globs:
   - lib/types/datasets_in_project.ts
   - server/db/instance/dataset_hfa.ts
   - server/db/instance/dataset_hmis.ts
-  - server/db/instance/dataset_hmis_dhis2_credentials.ts
+  - server/db/instance/instance_dhis2_credentials.ts
   - server/db/instance/dataset_hmis_import_ledger.ts
   - server/db/instance/dataset_hmis_import_runs.ts
   - server/db/instance/dataset_hmis_scheduled_imports.ts
@@ -89,10 +89,10 @@ into this doc when that plan retires). Shape:
   stats, shadow results), `version_id`, `shadow_passed`. A partial unique
   index allows at most one `running` row — the INSERT (or the queued→running
   UPDATE) is the launch claim. Inline credentials travel only in the worker
-  message; stored credentials (Phase 4 C3,
-  `dataset_hmis_dhis2_credentials`, password AES-GCM-encrypted with the
-  `DHIS2_CREDENTIALS_ENCRYPTION_KEY` env key) are decrypted only inside the
-  worker.
+  message; stored credentials (`instance_dhis2_credentials` — instance-wide,
+  shared by every DHIS2 flow since PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION,
+  password AES-GCM-encrypted with the `DHIS2_CREDENTIALS_ENCRYPTION_KEY` env
+  key) are decrypted only inside the worker via `resolveDhis2Credentials`.
 - **Auto-pull (Phase 4, C4/C6)**: `dataset_hmis_scheduled_imports` (one-shot
   and recurring rows, rolling-window selection resolved at fire time) is fired
   by a ~60 s tick in main.ts

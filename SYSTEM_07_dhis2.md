@@ -3,7 +3,6 @@ system: 7
 name: DHIS2 Connector
 globs:
   - client/src/components/Dhis2CredentialsEditor.tsx
-  - client/src/state/instance/t4_dhis2_session.ts
   - server/dhis2/**
   - server/routes/instance/indicators_dhis2.ts
 docs_absorbed:
@@ -25,10 +24,13 @@ staging is **S6**. Period (`YYYYMM`) formatting for analytics is **S9**
 (Period semantics). The in-memory geojson session cache here is the
 sanctioned process-local alternative to Valkey — see
 [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md) for when to use which. The
-persisted credential copies (attempt rows, redacted API projections) are
-S5/S6 concerns; this system owns only the in-flight and
-sessionStorage-side handling. Sub-file custody exceptions are in
-SYSTEMS.md §4.1 (none currently touch this system).
+instance-wide stored DHIS2 credentials (encrypted at rest, one row for
+every DHIS2 flow — structure, indicators, geojson, HMIS data) live in
+**S6** (`server/db/instance/instance_dhis2_credentials.ts` — see
+PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION); this system only ever
+receives an already-resolved `Dhis2Credentials` and never touches
+storage. Sub-file custody exceptions are in SYSTEMS.md §4.1 (none
+currently touch this system).
 
 ## The base fetcher (`server/dhis2/common/base_fetcher.ts`)
 
@@ -178,21 +180,25 @@ between launch and run surfaces as retry exhaustion inside the job.
 
 `routes/instance/indicators_dhis2.ts` is the system's only route file:
 four POST routes (search indicators / search data elements / combined
-search / test connection), all guarded `can_configure_data`, all pure
-proxies over goal 2 with credentials taken from the request body — no
-persistence. They serve the HMIS indicator manager's add-from-DHIS2
-flow (S5 UI).
+search / test connection), all guarded `can_configure_data`. Bodies
+carry a `credentialsSource: Dhis2RunCredentialsSource` (`{ kind:
+"stored" }` or `{ kind: "inline", credentials }`), resolved via
+S6's `resolveDhis2Credentials` at the top of each handler — this system
+never stores or reads the credentials table itself, only the resolved
+`Dhis2Credentials`. The geojson routes (`routes/instance/geojson_maps.ts`,
+owned by S5) follow the same `credentialsSource` shape; the session
+caches there hash the *resolved* credentials, so stored and inline runs
+against the same DHIS2 key identically.
 
-`Dhis2CredentialsEditor.tsx` is the shared credentials widget (S5's
-`dhis2_credentials_form.tsx` modal wraps it; used by the structure,
-HMIS-dataset, and geojson wizard step 1s plus the indicator manager).
-Username/password render as `type="password"` with a show/hide toggle.
-`t4_dhis2_session.ts` is the opt-in `sessionStorage` persistence: the
-editor loads stored credentials on mount when its fields are empty, and
-the "save for this session" checkbox appears once the user edits.
-Callers persist only after a successful connection test. The stored
-value is plaintext JSON including the password (Open items). All
-user-facing strings in this system carry en/fr/pt.
+`Dhis2CredentialsEditor.tsx` is the shared credentials widget: plain
+url/username/password inputs with a show/hide toggle, no persistence of
+its own. Callers default to `{ kind: "stored" }` when the instance has a
+saved connection (fetched via `getInstanceDhis2CredentialsInfo`) and
+fall back to the editor — wrapped by `dhis2_credentials_form.tsx` or the
+shared `_shared/dhis2_credentials/` components — only as a one-off,
+never-persisted override. Callers test the connection before treating
+inline credentials as usable. All user-facing strings in this system
+carry en/fr/pt.
 
 ## Consumers
 
@@ -243,18 +249,15 @@ user-facing strings in this system carry en/fr/pt.
 - **Decoupling — split-brained DHIS2 wire types.** `DHIS2PagedResponse`
   is defined twice with different shapes (generic
   `goal1_org_units_v2/types.ts` vs pager-only `lib/types/indicators.ts`,
-  which goal 2 uses); `Dhis2Credentials` — the connector's core type —
-  lives in `lib/types/dataset_hmis_import.ts` (an S6 file). One home,
-  per-goal types extend it.
+  which goal 2 uses). (`Dhis2Credentials`/`Dhis2RunCredentialsSource` now
+  have one home, `lib/types/dhis2.ts` — resolved by PLAN_DHIS2_
+  CREDENTIAL_STORE_CONSOLIDATION.)
 - Classify retries off `DHIS2FetchError.status` instead of message
   substrings, and decide whether the exhaustion error should preserve
   the structured fields (also PLAN_DOC_ENFORCEMENT item 13).
 - The structure stager's inline org-unit paging (S5 file,
   `stage_structure_from_dhis2.ts`) belongs behind a goal-1 paging
   fetcher that doesn't exist yet.
-- `t4_dhis2_session.ts` persists the DHIS2 password as plaintext JSON in
-  `sessionStorage` (opt-in, post-connection-test) — decide keep/drop;
-  same family as the S5/S6 at-rest credential rulings.
 - Cruft: retire the `goal1_..._v2` suffix (no v1 exists); dead types in
   `goal1_org_units_v2/types.ts` (`OrgUnitHierarchy`, `ProgressCallback`,
   `BatchProcessor`, `DHIS2ErrorResponse` have no consumers).

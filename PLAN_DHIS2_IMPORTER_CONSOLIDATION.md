@@ -8,6 +8,41 @@ multi-session; each phase independently shippable and severable. Phase A is
 specced mechanically; B/C/D are sketched and get their mechanical detail
 when their turn comes (after A's design survives contact with reality).
 
+**Hand-off rule: "implement this" means implement Phase A, then stop.**
+Phases B/C/D are deliberately not specced yet — after Phase A lands and
+survives Tim's live verification, the next session writes B's mechanical
+spec as a diff-of-a-diff against A.
+
+## 0. For the implementing agent
+
+- **Scope:** this repo only — no panther or wb-fastr-modules changes. Commit
+  to the current branch. Nothing deploys until Tim runs the deploy.
+- **Read first:** DOC_API_ROUTES.md (registry-as-contract),
+  DOC_DB_ACCESS_LAYER.md (SQL-safety rule — no parameterized table names),
+  PROTOCOL_APP_MIGRATIONS.md, DOC_WORKER_ROUTINES.md (READY handshake,
+  teardown contract), DOC_TASK_EXECUTION_DIRTY_STATE.md,
+  DOC_STATE_RULES.md + DOC_STATE_MGT_INSTANCE.md (wizard state is T3/T5
+  client-local), PROTOCOL_UI_STRUCTURE. SYSTEM_06_ingestion.md describes the
+  machinery being replaced; PLAN_DHIS2_IMPORTER.md §9 holds the review-gate
+  rationale.
+- **Orientation (today's HMIS import machinery):** runs plane =
+  `server/db/instance/dataset_hmis_import_runs.ts` +
+  `server/worker_routines/import_hmis_data_dhis2/` (worker, scheduler,
+  dispatch); attempts plane (dies in Phase A) = the CSV upload-attempt
+  routes in `lib/api-routes/instance/datasets.ts` ("Upload workflow"
+  block) + `server/routes/instance/datasets.ts` handlers + client
+  `instance_dataset_hmis_import/`; imports surface =
+  `client/src/components/instance_dataset_hmis/dhis2_run/`; CSV
+  staging/integration internals (wrap, never rewrite) =
+  `server/server_only_funcs_importing/stage_hmis_data_csv.ts` +
+  `server/worker_routines/integrate_hmis_data/`.
+- **Line anchors in this plan drift** (the file is under active parallel
+  work) — treat every `file:line` as a hint; re-grep the symbol before
+  editing.
+- **Verify per A8.** Live click-throughs need a dev instance with HMIS
+  facilities imported; the harness checks run against the dev DB
+  (rolled-back transactions where possible).
+
 **Tim's values ruling the design (2026-07-16):** simplicity, maintainability,
 robustness — explicitly NOT more code/features. The end state must be
 net-negative lines. Phase D's definition of done includes: the rewritten
@@ -107,7 +142,10 @@ table. The HMIS attempt machinery is deleted. This is where the shared
 contract helpers and shared wizard components get extracted — against a
 second concrete consumer, not speculatively.
 
-### A1. Migration 061 + base schema (`_main_database.sql`)
+### A1. Migration 063 + base schema (`_main_database.sql`)
+
+(061/062 were consumed by the credential-store consolidation on
+2026-07-16 — use the next free number at build time.)
 
 `dataset_hmis_import_runs` (057/058 shape, verified 2026-07-16):
 
@@ -126,7 +164,7 @@ second concrete consumer, not speculatively.
 - `DROP TABLE dataset_hmis_upload_attempts` + remove from base schema.
   Build-time check per the base-schema-vs-drop rule: verify no older
   migration references it before dropping from base (it appears to be
-  base-schema-born, `_main_database.sql:411` — confirm, then delete
+  base-schema-born, `_main_database.sql:412` — confirm, then delete
   cleanly).
 - Run `./validate_migrations`.
 
@@ -192,14 +230,17 @@ Wraps — does not rewrite — the internals of `stage_hmis_data_csv` and
 
 ### A5. Routes (registry-first, per DOC_API_ROUTES)
 
-Deleted (registry + handlers + client callers):
-`createDatasetUploadAttempt`, `setDatasetUploadSourceType`,
-`updateDatasetUploadAttempt_Step1CsvUpload` / `_Step2Mappings` /
-`_Step3Staging` / `_Step4Integrate`, `getDatasetHmisUploadStatus`,
-`getDatasetHmisUploadAttemptDetail`, `deleteDatasetUploadAttempt`.
-`getDatasetHmisDetail` loses its `uploadAttempt` field.
+Deleted (registry + handlers + client callers — the "Upload workflow"
+block in `lib/api-routes/instance/datasets.ts`, names verified
+2026-07-16): `createDatasetUploadAttempt`, `setDatasetUploadSourceType`,
+`getDatasetUpload`, `getDatasetUploadStatus`, `deleteDatasetUploadAttempt`,
+`uploadDatasetCsv`, `updateDatasetMappings`, `updateDatasetStaging`,
+`finalizeDatasetIntegration`.
+`getDatasetHmisDetail` loses its `uploadAttempt` field
+(`lib/types/dataset_hmis.ts`).
 
 Added:
+
 - `launchDatasetHmisCsvRun` — validates config at the boundary
   (mappings shape, uploadToken exists), then the same
   launch-or-enqueue fork as DHIS2 (C6: explicit queue, never silent;
@@ -216,13 +257,21 @@ Added:
 
 ### A6. Cross-guard deletion
 
-- `countActiveCsvAttempts` (`dataset_hmis_import_runs.ts:146`) and both
-  scheduler call sites (`scheduler.ts:362`, `:531`) — deleted; the
-  single-running claim now covers CSV because CSV IS a run.
-- The attempt-side guards in `dataset_hmis_import_runs.ts` (~line 92:
-  "CSV staging/integration and windowed deletion call this before
-  claiming") — the CSV halves die; **windowed deletes keep a guard**,
-  now a single runs-table check instead of runs + attempts.
+- `countActiveCsvAttempts` (`dataset_hmis_import_runs.ts:176`) and ALL
+  five call sites — deleted: the two scheduler gates (`scheduler.ts:362`,
+  `:531`), the launch read-guard (`dataset_hmis_import_runs.ts:275`),
+  and the two **post-claim re-checks** (launch `:300`, queued-fire
+  `:425`). The re-checks deserve emphasis: they exist solely to defend
+  against the cross-table race (a CSV attempt claiming between the
+  read-guard and the runs-table INSERT). Once CSV imports live inside
+  the same partial-unique-index claim, that race is structurally
+  impossible — the whole two-phase guard ceremony deletes, not just the
+  guard calls. (Zombie states stop being possible rather than being
+  handled — invariant 3's argument, applied to concurrency.)
+- The attempt-side guards in `dataset_hmis_import_runs.ts` (the "CSV
+  staging/integration and windowed deletion call this before claiming"
+  comment block) — the CSV halves die; **windowed deletes keep a
+  guard**, now a single runs-table check instead of runs + attempts.
 - `db_startup`'s attempt sweep → deleted (run sweep already exists;
   temp-upload sweep added per A3).
 
@@ -266,8 +315,8 @@ Added:
    hold exists → runs); discard drops the per-run staging table;
    orphan sweep deletes an unreferenced temp upload and spares a
    referenced one.
-3. Live click-throughs: clean CSV → auto-integrates unattended, version
-   + ledger rows land, History row links the version; dirty CSV (bad
+3. Live click-throughs: clean CSV → auto-integrates unattended, the
+   version and ledger rows land, History row links the version; dirty CSV (bad
    mapping) → needs_review card with correct dropped-row diagnostics →
    Integrate anyway completes; zero-row CSV → loud error; cancel
    mid-staging keeps nothing.

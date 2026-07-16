@@ -1,6 +1,6 @@
 import { stringifyCsvWithHeaders } from "@timroberton/panther";
 import { Hono } from "hono";
-import { _DATASET_LIMIT, t3, type FacilityFamily } from "lib";
+import { _DATASET_LIMIT, t3, type Dhis2Credentials, type FacilityFamily } from "lib";
 import {
   addStructureUploadAttempt,
   deleteAllHfaFacilityWeights,
@@ -10,13 +10,14 @@ import {
   getInstanceStructureSummary,
   importHfaFacilityWeights,
   deleteStructureUploadAttempt,
-  getStructureDhis2Credentials,
+  getStructureDhis2ResolvedCredentials,
   getStructureItems,
   getStructureUploadAttempt,
   getStructureUploadStatus,
+  resolveDhis2Credentials,
   structureStep0_SetSourceType,
   structureStep1Csv_UploadFile,
-  structureStep1Dhis2_SetCredentials,
+  structureStep1Dhis2_ConfirmConnection,
   structureStep2Csv_SetColumnMappings,
   structureStep2Dhis2_SetOrgUnitSelection,
   structureStep3Csv_StageDataStreaming,
@@ -352,26 +353,31 @@ defineRoute(
 
 defineRoute(
   routesStructure,
-  "structureStep1Dhis2_SetCredentials",
+  "structureStep1Dhis2_ConfirmConnection",
   requireGlobalPermission("can_configure_data"),
-  log("structureStep1Dhis2_SetCredentials"),
-  async (c, { params, body }) => {
-    // Validate credentials with DHIS2 first
-    const fetchOptions = { dhis2Credentials: body };
-    const connectionTest = await testDHIS2Connection(fetchOptions);
+  log("structureStep1Dhis2_ConfirmConnection"),
+  async (c, { params }) => {
+    let credentials: Dhis2Credentials;
+    try {
+      credentials = await resolveDhis2Credentials(c.var.mainDb, { kind: "stored" });
+    } catch (error) {
+      return c.json({
+        success: false,
+        err: error instanceof Error ? error.message : "No stored DHIS2 credentials.",
+      });
+    }
 
+    // Validate the stored connection against DHIS2 before confirming it.
+    const connectionTest = await testDHIS2Connection({ dhis2Credentials: credentials });
     if (!connectionTest.success) {
       return c.json({ success: false, err: t3(connectionTest.message) });
     }
 
-    // Update database with credentials
-    const res = await structureStep1Dhis2_SetCredentials(
+    const res = await structureStep1Dhis2_ConfirmConnection(
       c.var.mainDb,
       params.family,
-      body,
+      { url: credentials.url },
     );
-
-    // No caching needed in v2 - metadata will be fetched on demand
 
     return c.json(res);
   },
@@ -409,7 +415,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("structureStep2Dhis2_GetOrgUnitsMetadata"),
   async (c, { params }) => {
-    const credentialsRes = await getStructureDhis2Credentials(
+    const credentialsRes = await getStructureDhis2ResolvedCredentials(
       c.var.mainDb,
       params.family,
     );

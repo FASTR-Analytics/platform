@@ -1,6 +1,6 @@
 import {
   t3,
-  type Dhis2Credentials,
+  type Dhis2RunCredentialsSource,
   type DHIS2Indicator,
   type DHIS2DataElement,
   type DHIS2CategoryOptionCombo,
@@ -14,13 +14,15 @@ import {
   createFormAction,
   type EditorComponentProps,
   createButtonAction,
+  openComponent,
 } from "panther";
 import { createSignal, Show, For } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 
 type Props = EditorComponentProps<
   {
-    credentials: Dhis2Credentials;
+    credentialsSource: Dhis2RunCredentialsSource;
   },
   undefined
 >;
@@ -37,6 +39,9 @@ type SearchResults = {
 };
 
 export function Dhis2IndicatorSelectForm(p: Props) {
+  const [credentialsSource, setCredentialsSource] = createSignal<Dhis2RunCredentialsSource>(
+    p.credentialsSource,
+  );
   const [tempSearchQuery, setTempSearchQuery] = createSignal<string>("");
   const [searchResults, setSearchResults] = createSignal<SearchResults>({
     indicators: [],
@@ -64,7 +69,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     }
 
     const response = await serverActions.searchDhis2All({
-      dhis2Credentials: p.credentials,
+      credentialsSource: credentialsSource(),
       query,
       includeDataElements: true,
       includeIndicators: true,
@@ -164,6 +169,12 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     );
   }
 
+  async function changeConnection() {
+    const result = await openComponent({ element: Dhis2CredentialsForm, props: {} });
+    if (!result) return;
+    setCredentialsSource({ kind: "inline", credentials: result.credentials });
+  }
+
   return (
     <FrameTop
       panelChildren={
@@ -175,6 +186,9 @@ export function Dhis2IndicatorSelectForm(p: Props) {
           })}
           back={() => p.close(undefined)}
         >
+          <Button onClick={changeConnection} outline iconName="settings">
+            {t3({ en: "Change connection", fr: "Modifier la connexion", pt: "Alterar a ligação" })}
+          </Button>
           <Button
             onClick={save.click}
             state={save.state()}

@@ -17,6 +17,7 @@ import {
 // Instance routes
 import { routesAssets } from "./server/routes/instance/assets.ts";
 import { routesDatasets } from "./server/routes/instance/datasets.ts";
+import { routesDhis2Credentials } from "./server/routes/instance/dhis2_credentials.ts";
 import { routesHealth } from "./server/routes/instance/health.ts";
 import { routesHfaIndicators } from "./server/routes/instance/hfa_indicators.ts";
 import { routesHfaTimePoints } from "./server/routes/instance/hfa_time_points.ts";
@@ -131,6 +132,7 @@ app.route("/", routesAssets);
 app.route("/", routesGeoJsonMaps);
 app.route("/", routesUpload);
 app.route("/", routesDatasets);
+app.route("/", routesDhis2Credentials);
 app.route("/", routesHfaIndicators);
 app.route("/", routesHfaTimePoints);
 app.route("/", routesIceh);

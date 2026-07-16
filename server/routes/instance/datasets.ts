@@ -12,7 +12,6 @@ import {
   deleteDatasetHfaUploadAttempt,
   deleteDatasetHmisScheduledImport,
   deleteDatasetHmisUploadAttempt,
-  deleteStoredDhis2Credentials,
   enqueueDatasetHmisImportRun,
   getDatasetHfaDetail,
   getDatasetHfaItemsForDisplay,
@@ -31,7 +30,6 @@ import {
   hasShadowPassedForDhis2Url,
   isDhis2CredentialsEncryptionKeyConfigured,
   launchDatasetHmisDhis2ImportRun,
-  saveStoredDhis2Credentials,
   updateDatasetHmisScheduledImport,
   updateDatasetHfaUploadAttempt_Step1CsvUpload,
   updateDatasetHfaUploadAttempt_Step2Mappings,
@@ -276,42 +274,6 @@ defineRoute(
       },
     };
     return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "saveDatasetHmisDhis2Credentials",
-  requireGlobalPermission("can_configure_data"),
-  log("saveDatasetHmisDhis2Credentials"),
-  async (c, { body }) => {
-    if (!isDhis2CredentialsEncryptionKeyConfigured()) {
-      return c.json({
-        success: false,
-        err: "DHIS2_CREDENTIALS_ENCRYPTION_KEY is not set on this server — credentials cannot be stored.",
-      });
-    }
-    const validation = await validateDhis2Connection(body.credentials);
-    if (!validation.valid) {
-      return c.json({ success: false, err: t3(validation.message) });
-    }
-    await saveStoredDhis2Credentials(
-      c.var.mainDb,
-      body.credentials,
-      c.var.globalUser?.email ?? "unknown",
-    );
-    return c.json({ success: true });
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "deleteDatasetHmisDhis2Credentials",
-  requireGlobalPermission("can_configure_data"),
-  log("deleteDatasetHmisDhis2Credentials"),
-  async (c) => {
-    await deleteStoredDhis2Credentials(c.var.mainDb);
-    return c.json({ success: true });
   },
 );
 

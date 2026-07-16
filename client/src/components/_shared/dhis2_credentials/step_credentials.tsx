@@ -14,7 +14,7 @@ import {
   type Setter,
 } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { Dhis2CredentialsEditor } from "../../../Dhis2CredentialsEditor";
+import { Dhis2CredentialsEditor } from "../../Dhis2CredentialsEditor";
 
 type Props = {
   storedCredentials: Dhis2StoredCredentialsInfo | undefined;
@@ -31,12 +31,13 @@ type Props = {
   unsavedEditorHint?: JSX.Element;
 };
 
-// Step 1 body, shared by the wizard and the standalone "Manage connection"
-// modal (dhis2_run/_manage_connection.tsx). Overlay rule: this component
-// must never call openConfirm/openAlert/openComponent (both hosts can be
-// modals themselves) — the delete action below uses createFormAction with
-// an inline confirm toggle, never createDeleteAction/createButtonAction
-// (both of which call openAlert on error internally).
+// Step 1 body, shared by the HMIS import wizard and the standalone "Manage
+// connection" modal (manage_connection.tsx) — and, per PLAN_DHIS2_CREDENTIAL_
+// STORE_CONSOLIDATION, every other DHIS2 flow's credential editor. Overlay
+// rule: this component must never call openConfirm/openAlert/openComponent
+// (both hosts can be modals themselves) — the delete action below uses
+// createFormAction with an inline confirm toggle, never createDeleteAction/
+// createButtonAction (both of which call openAlert on error internally).
 export function Dhis2StepCredentials(p: Props) {
   const [confirmingDelete, setConfirmingDelete] = createSignal<boolean>(false);
 
@@ -53,7 +54,7 @@ export function Dhis2StepCredentials(p: Props) {
           }),
         };
       }
-      return await serverActions.saveDatasetHmisDhis2Credentials({
+      return await serverActions.saveInstanceDhis2Credentials({
         credentials: creds,
       });
     },
@@ -65,7 +66,7 @@ export function Dhis2StepCredentials(p: Props) {
 
   const deleteStored = createFormAction(
     async () => {
-      return await serverActions.deleteDatasetHmisDhis2Credentials({});
+      return await serverActions.deleteInstanceDhis2Credentials({});
     },
     async () => {
       setConfirmingDelete(false);

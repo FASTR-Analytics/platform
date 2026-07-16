@@ -1,68 +1,52 @@
+import { t3, type FacilityFamily, type StructureDhis2ConnectionSnapshot } from "lib";
 import {
-  t3,
-  type Dhis2Credentials,
-  type Dhis2CredentialsRedacted,
-  type FacilityFamily,
-} from "lib";
-import { Button, StateHolderFormError, createFormAction } from "panther";
-import { Match, Show, Switch, batch, createSignal } from "solid-js";
+  Button,
+  StateHolderFormError,
+  StateHolderWrapper,
+  createFormAction,
+  createQuery,
+  openComponent,
+} from "panther";
+import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { setDhis2SessionCredentials } from "~/state/instance/t4_dhis2_session";
-import { Dhis2CredentialsEditor } from "../Dhis2CredentialsEditor";
+import { Dhis2ManageConnection } from "../_shared/dhis2_credentials/manage_connection";
 
 type Props = {
-  step1Result: Dhis2CredentialsRedacted | undefined;
+  step1Result: StructureDhis2ConnectionSnapshot | undefined;
   family: FacilityFamily;
   silentFetch: () => Promise<void>;
 };
 
+// Structure import is saved-only for DHIS2 (PLAN_DHIS2_CREDENTIAL_STORE_
+// CONSOLIDATION Phase 2): no credential editor here — the instance-wide
+// stored connection is confirmed in place, or replaced via the shared
+// manage-connection modal.
 export function Step1_Dhis2(p: Props) {
-  const [credentials, setCredentials] = createSignal<Dhis2Credentials>({
-    url: "",
-    username: "",
-    password: "",
-  });
-  const [saveCredentialsToSession, setSaveCredentialsToSession] =
-    createSignal<boolean>(false);
-  const [editingConnection, setEditingConnection] =
-    createSignal<boolean>(false);
+  const infoQuery = createQuery(
+    () => serverActions.getInstanceDhis2CredentialsInfo({}),
+    t3({
+      en: "Loading DHIS2 connection...",
+      fr: "Chargement de la connexion DHIS2...",
+      pt: "A carregar a ligação DHIS2...",
+    }),
+  );
 
-  const editorVisible = () => !p.step1Result || editingConnection();
-
-  function startEditingConnection() {
-    const existing = p.step1Result;
-    batch(() => {
-      setCredentials({
-        url: existing?.url ?? "",
-        username: existing?.username ?? "",
-        password: "",
-      });
-      setEditingConnection(true);
-    });
+  async function openManageConnection() {
+    await openComponent({ element: Dhis2ManageConnection, props: {} });
+    await infoQuery.silentFetch();
   }
 
-  const save = createFormAction(
-    async () => {
-      const creds = credentials();
-      if (!creds.url || !creds.username || !creds.password) {
-        return { success: false, err: t3({ en: "All fields are required", fr: "Tous les champs sont requis", pt: "Todos os campos são obrigatórios" }) };
-      }
+  function hasStoredCredentials(): boolean {
+    const s = infoQuery.state();
+    return s.status === "ready" && !!s.data.storedCredentials;
+  }
 
-      const res = await serverActions.structureStep1Dhis2_SetCredentials({
+  const confirm = createFormAction(
+    async () =>
+      await serverActions.structureStep1Dhis2_ConfirmConnection({
         family: p.family,
-        url: creds.url,
-        username: creds.username,
-        password: creds.password,
-      });
-
-      if (res.success && saveCredentialsToSession()) {
-        setDhis2SessionCredentials(creds);
-      }
-
-      return res;
-    },
+      }),
     async () => {
-      setEditingConnection(false);
       await p.silentFetch();
     },
   );
@@ -70,68 +54,77 @@ export function Step1_Dhis2(p: Props) {
   return (
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
-        <div class="font-700 text-lg">{t3({ en: "DHIS2 Connection Details", fr: "Détails de connexion DHIS2", pt: "Dados de ligação DHIS2" })}</div>
-        <div class="border-base-300 rounded border p-4">
-          <div class="ui-spy">
-            <div class="">
-              {t3({ en: "Enter your DHIS2 connection details to import organization structure.", fr: "Saisissez vos informations de connexion DHIS2 pour importer la structure organisationnelle.", pt: "Introduza os seus dados de ligação DHIS2 para importar a estrutura organizacional." })}
-            </div>
-            <Switch>
-              <Match when={editorVisible()}>
-                <Dhis2CredentialsEditor
-                  credentials={credentials}
-                  setCredentials={setCredentials}
-                  saveToSession={saveCredentialsToSession}
-                  setSaveToSession={setSaveCredentialsToSession}
-                />
-                <Show when={p.step1Result}>
-                  <div class="text-base-content/70 text-sm">
-                    {t3({
-                      en: "Saving a new connection will reset the org unit selection and staging steps.",
-                      fr: "L'enregistrement d'une nouvelle connexion réinitialisera la sélection des unités organisationnelles et les étapes de préparation.",
-                      pt: "Guardar uma nova ligação irá repor a seleção de unidades organizacionais e as etapas de preparação.",
-                    })}
-                  </div>
+        <div class="font-700 text-lg">
+          {t3({ en: "DHIS2 Connection", fr: "Connexion DHIS2", pt: "Ligação DHIS2" })}
+        </div>
+        <div class="border-base-300 ui-spy rounded border p-4">
+          <StateHolderWrapper state={infoQuery.state()} noPad>
+            {(info) => (
+              <div class="ui-spy-sm">
+                <Show
+                  when={info.storedCredentials}
+                  fallback={
+                    <div class="text-danger">
+                      {t3({
+                        en: "No DHIS2 connection stored for this instance.",
+                        fr: "Aucune connexion DHIS2 enregistrée pour cette instance.",
+                        pt: "Nenhuma ligação DHIS2 guardada para esta instância.",
+                      })}
+                    </div>
+                  }
+                  keyed
+                >
+                  {(stored) => (
+                    <div class="text-sm">
+                      {t3({
+                        en: "Use stored connection:",
+                        fr: "Utiliser la connexion enregistrée :",
+                        pt: "Utilizar a ligação guardada:",
+                      })}{" "}
+                      <span class="font-700">{stored.url}</span>
+                    </div>
+                  )}
                 </Show>
-              </Match>
-              <Match when={p.step1Result} keyed>
-                {(step1Result) => (
-                  <>
-                    <div class="text-success flex items-center gap-2">
-                      <span>✓</span>
-                      <span>{t3({ en: "DHIS2 connection confirmed", fr: "Connexion DHIS2 confirmée", pt: "Ligação DHIS2 confirmada" })}</span>
-                    </div>
-                    <div class="text-base-content/70 mt-2 text-sm">
-                      {t3({ en: "Connected to", fr: "Connecté à", pt: "Ligado a" })}: {step1Result.url}
-                    </div>
-                    <div>
-                      <Button onClick={startEditingConnection} iconName="pencil">
-                        {t3({ en: "Change connection", fr: "Modifier la connexion", pt: "Alterar ligação" })}
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </Match>
-            </Switch>
-          </div>
+                <div>
+                  <Button onClick={openManageConnection} outline iconName="settings">
+                    {t3({
+                      en: "Manage DHIS2 connection",
+                      fr: "Gérer la connexion DHIS2",
+                      pt: "Gerir a ligação DHIS2",
+                    })}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </StateHolderWrapper>
+          <Show when={p.step1Result} keyed>
+            {(step1Result) => (
+              <div class="text-success flex items-center gap-2">
+                <span>✓</span>
+                <span>
+                  {t3({
+                    en: "DHIS2 connection confirmed:",
+                    fr: "Connexion DHIS2 confirmée :",
+                    pt: "Ligação DHIS2 confirmada:",
+                  })}{" "}
+                  {step1Result.url}
+                </span>
+              </div>
+            )}
+          </Show>
         </div>
       </div>
-      <StateHolderFormError state={save.state()} />
+      <StateHolderFormError state={confirm.state()} />
       <div class="ui-gap-sm flex">
         <Button
-          onClick={save.click}
+          onClick={confirm.click}
           intent="success"
-          state={save.state()}
-          disabled={!editorVisible()}
+          state={confirm.state()}
+          disabled={!hasStoredCredentials()}
           iconName="save"
         >
           {t3({ en: "Confirm and continue", fr: "Confirmer et continuer", pt: "Confirmar e continuar" })}
         </Button>
-        <Show when={p.step1Result && editingConnection()}>
-          <Button onClick={() => setEditingConnection(false)} iconName="x">
-            {t3({ en: "Cancel", fr: "Annuler" })}
-          </Button>
-        </Show>
       </div>
     </div>
   );

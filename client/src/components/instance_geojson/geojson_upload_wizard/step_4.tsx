@@ -63,14 +63,14 @@ export function Step4(p: Props) {
         }
         return res;
       } else {
-        const creds = state.dhis2Credentials();
+        const credentialsSource = state.dhis2CredentialsSource();
         const dhis2Level = state.selectedDhis2Level();
-        if (!creds || dhis2Level === null) {
+        if (!credentialsSource || dhis2Level === null) {
           return { success: false, err: "DHIS2 credentials or level not found" };
         }
 
         const res = await serverActions.dhis2SaveGeoJsonMap({
-          ...creds,
+          credentialsSource,
           dhis2Level,
           adminAreaLevel,
           areaMatchProp: state.selectedProp(),
@@ -134,7 +134,7 @@ export function Step4(p: Props) {
           <div>{t3({ en: "Source", fr: "Source", pt: "Fonte" })}: {state.selectedFileName()}</div>
         </Show>
         <Show when={state.source() === "dhis2"}>
-          <div>{t3({ en: "Source", fr: "Source", pt: "Fonte" })}: DHIS2 ({state.dhis2Credentials()?.url})</div>
+          <div>{t3({ en: "Source", fr: "Source", pt: "Fonte" })}: DHIS2 ({state.dhis2ConnectionUrl()})</div>
           <div>{t3({ en: "DHIS2 level", fr: "Niveau DHIS2", pt: "Nível DHIS2" })}: {dhis2LevelName()}</div>
         </Show>
         <div>{t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" })}: AA{state.adminAreaLevel()}</div>

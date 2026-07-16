@@ -5,6 +5,7 @@ import {
   type InstanceIndicatorDetails,
   type RawIndicatorWithMappings,
   type CalculatedIndicator,
+  type Dhis2RunCredentialsSource,
 } from "lib";
 import {
   Button,
@@ -36,10 +37,6 @@ import { EditIndicatorRawForm } from "./_edit_indicator_raw";
 import { BatchUploadForm } from "./batch_upload_form";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { CalculatedIndicatorsTable } from "./calculated_indicators_table";
-import {
-  getDhis2SessionCredentials,
-  setDhis2SessionCredentials,
-} from "~/state/instance/t4_dhis2_session";
 
 type Props = {
   backToInstance: () => void;
@@ -177,27 +174,24 @@ export function IndicatorsManager(p: Props) {
   }
 
   async function handleDhis2IndicatorSelect() {
-    const result = await openComponent({
-      element: Dhis2CredentialsForm,
-      props: {
-        existingCredentials: getDhis2SessionCredentials() ?? undefined,
-        showSaveCheckbox: true,
-      },
-    });
-
-    if (!result || result.shouldClear || !result.credentials) {
-      return;
-    }
-
-    if (result.shouldSave) {
-      setDhis2SessionCredentials(result.credentials);
+    const infoRes = await serverActions.getInstanceDhis2CredentialsInfo({});
+    let credentialsSource: Dhis2RunCredentialsSource;
+    if (infoRes.success && infoRes.data.storedCredentials) {
+      credentialsSource = { kind: "stored" };
+    } else {
+      const result = await openComponent({
+        element: Dhis2CredentialsForm,
+        props: {},
+      });
+      if (!result) {
+        return;
+      }
+      credentialsSource = { kind: "inline", credentials: result.credentials };
     }
 
     await openEditor({
       element: Dhis2IndicatorSelectForm,
-      props: {
-        credentials: result.credentials,
-      },
+      props: { credentialsSource },
     });
   }
 

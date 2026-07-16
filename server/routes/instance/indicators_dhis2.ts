@@ -1,14 +1,30 @@
 import { Hono } from "hono";
+import type { Sql } from "postgres";
 import {
   searchAllIndicatorsAndDataElements,
   searchDataElementsFromDHIS2,
   searchIndicatorsFromDHIS2,
   testIndicatorsConnection,
 } from "../../dhis2/mod.ts";
-import { t3 } from "lib";
+import { t3, type Dhis2Credentials, type Dhis2RunCredentialsSource } from "lib";
+import { resolveDhis2Credentials } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
+
+async function resolveOrErr(
+  mainDb: Sql,
+  credentialsSource: Dhis2RunCredentialsSource,
+): Promise<{ ok: true; credentials: Dhis2Credentials } | { ok: false; err: string }> {
+  try {
+    return { ok: true, credentials: await resolveDhis2Credentials(mainDb, credentialsSource) };
+  } catch (error) {
+    return {
+      ok: false,
+      err: error instanceof Error ? error.message : "No stored DHIS2 credentials.",
+    };
+  }
+}
 
 export const routesIndicatorsDhis2 = new Hono();
 
@@ -20,20 +36,12 @@ defineRoute(
   log("searchDhis2Indicators"),
   async (c, { body }) => {
     try {
-      // Validate required fields
-      if (!body.dhis2Credentials || !body.query) {
-        return c.json({
-          success: false,
-          err: "Missing required fields: dhis2Credentials and query are required",
-        });
+      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsSource);
+      if (!resolved.ok) {
+        return c.json({ success: false, err: resolved.err });
       }
-
-      const options = {
-        dhis2Credentials: body.dhis2Credentials,
-      };
-
       const indicators = await searchIndicatorsFromDHIS2(
-        options,
+        { dhis2Credentials: resolved.credentials },
         body.query,
       );
 
@@ -59,20 +67,12 @@ defineRoute(
   log("searchDhis2DataElements"),
   async (c, { body }) => {
     try {
-      // Validate required fields
-      if (!body.dhis2Credentials || !body.query) {
-        return c.json({
-          success: false,
-          err: "Missing required fields: dhis2Credentials and query are required",
-        });
+      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsSource);
+      if (!resolved.ok) {
+        return c.json({ success: false, err: resolved.err });
       }
-
-      const options = {
-        dhis2Credentials: body.dhis2Credentials,
-      };
-
       const dataElements = await searchDataElementsFromDHIS2(
-        options,
+        { dhis2Credentials: resolved.credentials },
         body.query,
         {
           filter: body.additionalFilters,
@@ -101,20 +101,12 @@ defineRoute(
   log("searchDhis2All"),
   async (c, { body }) => {
     try {
-      // Validate required fields
-      if (!body.dhis2Credentials || !body.query) {
-        return c.json({
-          success: false,
-          err: "Missing required fields: dhis2Credentials and query are required",
-        });
+      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsSource);
+      if (!resolved.ok) {
+        return c.json({ success: false, err: resolved.err });
       }
-
-      const options = {
-        dhis2Credentials: body.dhis2Credentials,
-      };
-
       const results = await searchAllIndicatorsAndDataElements(
-        options,
+        { dhis2Credentials: resolved.credentials },
         body.query,
         body.includeDataElements ?? true,
         body.includeIndicators ?? true,
@@ -142,19 +134,11 @@ defineRoute(
   log("testDhis2IndicatorsConnection"),
   async (c, { body }) => {
     try {
-      // Validate required fields
-      if (!body.dhis2Credentials) {
-        return c.json({
-          success: false,
-          err: "Missing required field: dhis2Credentials",
-        });
+      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsSource);
+      if (!resolved.ok) {
+        return c.json({ success: false, err: resolved.err });
       }
-
-      const options = {
-        dhis2Credentials: body.dhis2Credentials,
-      };
-
-      const result = await testIndicatorsConnection(options);
+      const result = await testIndicatorsConnection({ dhis2Credentials: resolved.credentials });
 
       if (!result.success) {
         return c.json({ success: false, err: t3(result.message) });

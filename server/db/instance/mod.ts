@@ -3,7 +3,7 @@ export * from "./ai_usage_logs.ts";
 export * from "./assets.ts";
 export * from "./config.ts";
 export * from "./dataset_hmis.ts";
-export * from "./dataset_hmis_dhis2_credentials.ts";
+export * from "./instance_dhis2_credentials.ts";
 export * from "./dataset_hmis_import_ledger.ts";
 export * from "./dataset_hmis_import_runs.ts";
 export * from "./dataset_hmis_scheduled_imports.ts";

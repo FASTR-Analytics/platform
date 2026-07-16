@@ -16,6 +16,11 @@ const dhis2CredentialsSchema = z.object({
   password: z.string(),
 });
 
+const dhis2RunCredentialsSourceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("inline"), credentials: dhis2CredentialsSchema }),
+  z.object({ kind: z.literal("stored") }),
+]);
+
 const levelParamsSchema = z.object({ level: z.coerce.number() });
 const adminAreaLevelSchema = z.union([z.literal(2), z.literal(3), z.literal(4)]);
 
@@ -81,7 +86,7 @@ export const geojsonMapRouteRegistry = {
   dhis2GetOrgUnitLevels: route({
     path: "/geojson-maps/dhis2/levels",
     method: "POST",
-    body: dhis2CredentialsSchema,
+    body: z.object({ credentialsSource: dhis2RunCredentialsSourceSchema }),
     response: {} as {
       levels: Array<{ level: number; name: string; orgUnitCount: number }>;
     },
@@ -89,7 +94,10 @@ export const geojsonMapRouteRegistry = {
   dhis2AnalyzeGeoJson: route({
     path: "/geojson-maps/dhis2/analyze",
     method: "POST",
-    body: dhis2CredentialsSchema.extend({ dhis2Level: z.number() }),
+    body: z.object({
+      credentialsSource: dhis2RunCredentialsSourceSchema,
+      dhis2Level: z.number(),
+    }),
     response: {} as {
       properties: string[];
       sampleValues: Record<string, string[]>;
@@ -101,7 +109,8 @@ export const geojsonMapRouteRegistry = {
   dhis2SaveGeoJsonMap: route({
     path: "/geojson-maps/dhis2/save",
     method: "POST",
-    body: dhis2CredentialsSchema.extend({
+    body: z.object({
+      credentialsSource: dhis2RunCredentialsSourceSchema,
       dhis2Level: z.number(),
       adminAreaLevel: adminAreaLevelSchema,
       areaMatchProp: z.string(),

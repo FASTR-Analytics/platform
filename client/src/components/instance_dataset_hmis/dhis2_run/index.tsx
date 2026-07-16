@@ -12,6 +12,7 @@ import {
   StateHolderWrapper,
   TabsNavigation,
   createQuery,
+  getEditorWrapper,
   openComponent,
   type ListItem,
 } from "panther";
@@ -28,7 +29,7 @@ import {
 } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { Dhis2ManageConnection } from "./_manage_connection";
+import { Dhis2ManageConnection } from "~/components/_shared/dhis2_credentials/manage_connection";
 import { Dhis2RunDetail } from "./_run_detail";
 import { Dhis2TabCurrent } from "./_tab_current";
 import { Dhis2TabFuture, visibleFutureSchedules } from "./_tab_future";
@@ -80,6 +81,8 @@ function nextScheduleOf(schedules: DatasetHmisScheduledImport[]): DatasetHmisSch
 // the poll loop, the SSE wake-up effect) so a run keeps progressing even
 // while the user sits on a different tab.
 export function DatasetHmisDhis2Runs(p: Props) {
+  const { openEditor, EditorWrapper } = getEditorWrapper();
+
   const runs = createQuery(
     () => serverActions.getDatasetHmisImportRuns({}),
     t3({ en: "Loading DHIS2 imports...", fr: "Chargement des importations DHIS2...", pt: "A carregar as importações DHIS2..." }),
@@ -144,7 +147,7 @@ export function DatasetHmisDhis2Runs(p: Props) {
   }
 
   async function openRunDetail(run: DatasetHmisImportRunSummary) {
-    const retryPairs = await openComponent({
+    const retryPairs = await openEditor({
       element: Dhis2RunDetail,
       props: { run },
     });
@@ -164,7 +167,7 @@ export function DatasetHmisDhis2Runs(p: Props) {
   async function openManageConnection() {
     await openComponent({
       element: Dhis2ManageConnection,
-      props: { schedulingQuery: scheduling },
+      props: {},
     });
     await refresh();
   }
@@ -212,108 +215,110 @@ export function DatasetHmisDhis2Runs(p: Props) {
   }
 
   return (
-    <FrameTop
-      panelChildren={
-        <HeaderBarCanGoBack
-          back={() => p.close(undefined)}
-          heading={t3({ en: "Import from DHIS2", fr: "Importation depuis DHIS2", pt: "Importação a partir do DHIS2" })}
-        >
-          <div class="ui-gap-sm flex flex-none items-center">
-            <Button
-              onClick={() => openWizard({ kind: "new" })}
-              iconName="databaseImport"
-              disabled={!schedulingReady()}
-            >
-              {t3({ en: "New import", fr: "Nouvelle importation", pt: "Nova importação" })}
-            </Button>
-            <Button
-              onClick={openManageConnection}
-              outline
-              iconName="settings"
-              disabled={!schedulingReady()}
-            >
-              {t3({ en: "Manage connection", fr: "Gérer la connexion", pt: "Gerir ligação" })}
-            </Button>
-            <Button
-              iconName="refresh"
-              onClick={async () => {
-                await runs.fetch();
-                await scheduling.silentFetch();
-              }}
-            />
-          </div>
-        </HeaderBarCanGoBack>
-      }
-    >
-      <StateHolderWrapper state={runs.state()}>
-        {(keyedRuns) => (
-          <StateHolderWrapper state={scheduling.state()} noPad>
-            {(schedulingInfo) => (
-              <div class="ui-pad ui-spy h-full w-full overflow-auto">
-                <Show when={attentionSchedulesOf(schedulingInfo.schedules).length > 0}>
-                  <div class="border-danger bg-danger/10 ui-pad ui-spy-sm rounded border">
-                    <div class="font-700">
-                      {t3({
-                        en: "Scheduled import needs attention",
-                        fr: "Une importation planifiée nécessite votre attention",
-                        pt: "Uma importação agendada precisa de atenção",
-                      })}
+    <EditorWrapper>
+      <FrameTop
+        panelChildren={
+          <HeaderBarCanGoBack
+            back={() => p.close(undefined)}
+            heading={t3({ en: "Import from DHIS2", fr: "Importation depuis DHIS2", pt: "Importação a partir do DHIS2" })}
+          >
+            <div class="ui-gap-sm flex flex-none items-center">
+              <Button
+                onClick={() => openWizard({ kind: "new" })}
+                iconName="databaseImport"
+                disabled={!schedulingReady()}
+              >
+                {t3({ en: "New import", fr: "Nouvelle importation", pt: "Nova importação" })}
+              </Button>
+              <Button
+                onClick={openManageConnection}
+                outline
+                iconName="settings"
+                disabled={!schedulingReady()}
+              >
+                {t3({ en: "Manage connection", fr: "Gérer la connexion", pt: "Gerir ligação" })}
+              </Button>
+              <Button
+                iconName="refresh"
+                onClick={async () => {
+                  await runs.fetch();
+                  await scheduling.silentFetch();
+                }}
+              />
+            </div>
+          </HeaderBarCanGoBack>
+        }
+      >
+        <StateHolderWrapper state={runs.state()}>
+          {(keyedRuns) => (
+            <StateHolderWrapper state={scheduling.state()} noPad>
+              {(schedulingInfo) => (
+                <div class="ui-pad ui-spy h-full w-full overflow-auto">
+                  <Show when={attentionSchedulesOf(schedulingInfo.schedules).length > 0}>
+                    <div class="border-danger bg-danger/10 ui-pad ui-spy-sm rounded border">
+                      <div class="font-700">
+                        {t3({
+                          en: "Scheduled import needs attention",
+                          fr: "Une importation planifiée nécessite votre attention",
+                          pt: "Uma importação agendada precisa de atenção",
+                        })}
+                      </div>
+                      <For each={attentionSchedulesOf(schedulingInfo.schedules)}>
+                        {(s) => (
+                          <div class="text-sm">
+                            <span class="font-700">
+                              <Switch>
+                                <Match when={s.lastOutcome === "missed"}>
+                                  {t3({ en: "Missed", fr: "Manquée", pt: "Falhada" })}
+                                </Match>
+                                <Match when={s.lastOutcome === "refused"}>
+                                  {t3({ en: "Refused", fr: "Refusée", pt: "Recusada" })}
+                                </Match>
+                                <Match when={true}>
+                                  {t3({ en: "Run failed", fr: "Importation en échec", pt: "Importação falhou" })}
+                                </Match>
+                              </Switch>
+                            </span>
+                            {s.lastFiredAt ? ` (${new Date(s.lastFiredAt).toLocaleString()})` : ""}
+                            {s.lastError ? ` — ${s.lastError}` : ""}
+                          </div>
+                        )}
+                      </For>
                     </div>
-                    <For each={attentionSchedulesOf(schedulingInfo.schedules)}>
-                      {(s) => (
-                        <div class="text-sm">
-                          <span class="font-700">
-                            <Switch>
-                              <Match when={s.lastOutcome === "missed"}>
-                                {t3({ en: "Missed", fr: "Manquée", pt: "Falhada" })}
-                              </Match>
-                              <Match when={s.lastOutcome === "refused"}>
-                                {t3({ en: "Refused", fr: "Refusée", pt: "Recusada" })}
-                              </Match>
-                              <Match when={true}>
-                                {t3({ en: "Run failed", fr: "Importation en échec", pt: "Importação falhou" })}
-                              </Match>
-                            </Switch>
-                          </span>
-                          {s.lastFiredAt ? ` (${new Date(s.lastFiredAt).toLocaleString()})` : ""}
-                          {s.lastError ? ` — ${s.lastError}` : ""}
-                        </div>
-                      )}
-                    </For>
-                  </div>
-                </Show>
+                  </Show>
 
-                <TabsNavigation items={tabItems()} value={tab()} onChange={setTab} />
+                  <TabsNavigation items={tabItems()} value={tab()} onChange={setTab} />
 
-                <Switch>
-                  <Match when={tab() === "current"}>
-                    <Dhis2TabCurrent
-                      runningRun={runningRunOf(keyedRuns)}
-                      queuedRuns={queuedRunsOf(keyedRuns)}
-                      nextSchedule={nextScheduleOf(schedulingInfo.schedules)}
-                      onNewImport={() => openWizard({ kind: "new" })}
-                      onChanged={refresh}
-                    />
-                  </Match>
-                  <Match when={tab() === "future"}>
-                    <Dhis2TabFuture
-                      schedules={schedulingInfo.schedules}
-                      onEdit={(schedule) => openWizard({ kind: "editSchedule", schedule })}
-                      onChanged={refresh}
-                    />
-                  </Match>
-                  <Match when={tab() === "history"}>
-                    <Dhis2TabHistory
-                      runs={keyedRuns.filter((r) => r.status !== "queued")}
-                      onOpenRun={openRunDetail}
-                    />
-                  </Match>
-                </Switch>
-              </div>
-            )}
-          </StateHolderWrapper>
-        )}
-      </StateHolderWrapper>
-    </FrameTop>
+                  <Switch>
+                    <Match when={tab() === "current"}>
+                      <Dhis2TabCurrent
+                        runningRun={runningRunOf(keyedRuns)}
+                        queuedRuns={queuedRunsOf(keyedRuns)}
+                        nextSchedule={nextScheduleOf(schedulingInfo.schedules)}
+                        onNewImport={() => openWizard({ kind: "new" })}
+                        onChanged={refresh}
+                      />
+                    </Match>
+                    <Match when={tab() === "future"}>
+                      <Dhis2TabFuture
+                        schedules={schedulingInfo.schedules}
+                        onEdit={(schedule) => openWizard({ kind: "editSchedule", schedule })}
+                        onChanged={refresh}
+                      />
+                    </Match>
+                    <Match when={tab() === "history"}>
+                      <Dhis2TabHistory
+                        runs={keyedRuns.filter((r) => r.status !== "queued")}
+                        onOpenRun={openRunDetail}
+                      />
+                    </Match>
+                  </Switch>
+                </div>
+              )}
+            </StateHolderWrapper>
+          )}
+        </StateHolderWrapper>
+      </FrameTop>
+    </EditorWrapper>
   );
 }

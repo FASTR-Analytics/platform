@@ -4,12 +4,12 @@ import { CsvDetails } from "./instance.ts";
 // family has its own facilities table and its own import flow.
 export type FacilityFamily = "hmis" | "hfa";
 
-// What the client sees of stored DHIS2 credentials: the password never leaves
-// the server. The full credentials stay in the DB row for staging.
-export type Dhis2CredentialsRedacted = {
+// The safe snapshot written to step_1_result once a structure import
+// confirms the connection: which stored instance DHIS2 connection (by URL)
+// was confirmed at step 1 (PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION Phase 2
+// — structure import is saved-only, no credentials are stored per-attempt).
+export type StructureDhis2ConnectionSnapshot = {
   url: string;
-  username: string;
-  hasPassword: true;
 };
 
 // ============================================================================
@@ -119,8 +119,8 @@ export type StructureUploadAttemptDetailDhis2 = {
   status: StructureUploadAttemptStatus;
   datasetFamily: FacilityFamily;
   sourceType: "dhis2";
-  // Step 1: DHIS2 credentials, password redacted
-  step1Result: Dhis2CredentialsRedacted | undefined;
+  // Step 1: confirmed DHIS2 connection snapshot (no password)
+  step1Result: StructureDhis2ConnectionSnapshot | undefined;
   // Step 2: DHIS2 org unit selection
   step2Result: StructureDhis2OrgUnitSelection | undefined;
   // Step 3: Staging result

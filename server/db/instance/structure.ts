@@ -7,6 +7,7 @@ import {
   StructureCsvStep1Result,
   StructureUploadAttemptDetail,
   StructureUploadAttemptStatus,
+  StructureDhis2ConnectionSnapshot,
   StructureDhis2OrgUnitSelection,
   StructureColumnMappings,
   StructureStagingResult,
@@ -30,6 +31,7 @@ import {
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { DBStructureUploadAttempt } from "./_main_database_types.ts";
 import { getMaxAdminAreaConfig, getFacilityColumnsConfig } from "./config.ts";
+import { resolveDhis2Credentials } from "./instance_dhis2_credentials.ts";
 import { toNum0 } from "@timroberton/panther";
 
 async function getRawUA(
@@ -363,22 +365,15 @@ export async function getStructureUploadAttempt(
     const step3Result = await getStep3ResultWithFreshMatch(mainDb, rawUA);
 
     if (rawUA.source_type === "dhis2") {
-      const rawCredentials = parseJsonOrUndefined(rawUA.step_1_result) as
-        | Dhis2Credentials
-        | undefined;
       return {
         success: true,
         data: {
           ...baseData,
           step: rawUA.step as 1 | 2 | 3 | 4,
           sourceType: "dhis2",
-          step1Result: rawCredentials
-            ? {
-                url: rawCredentials.url,
-                username: rawCredentials.username,
-                hasPassword: true as const,
-              }
-            : undefined,
+          step1Result: parseJsonOrUndefined(rawUA.step_1_result) as
+            | StructureDhis2ConnectionSnapshot
+            | undefined,
           step2Result: parseJsonOrUndefined(rawUA.step_2_result) as
             | StructureDhis2OrgUnitSelection
             | undefined,
@@ -406,9 +401,11 @@ export async function getStructureUploadAttempt(
   });
 }
 
-// Server-side only: the unredacted credentials for talking to DHIS2. Never
-// return these through a route response.
-export async function getStructureDhis2Credentials(
+// Resolves the stored instance DHIS2 credentials for a structure import in
+// progress, guarding against the stored connection being replaced mid-wizard:
+// the step-1 snapshot pins the URL that was confirmed, so a later repoint
+// fails loudly here rather than silently fetching from a different server.
+export async function getStructureDhis2ResolvedCredentials(
   mainDb: Sql,
   family: FacilityFamily
 ): Promise<APIResponseWithData<Dhis2Credentials>> {
@@ -417,13 +414,20 @@ export async function getStructureDhis2Credentials(
     if (rawUA.source_type !== "dhis2" || !rawUA.step_1_result) {
       return {
         success: false,
-        err: "No DHIS2 credentials found. Please confirm credentials first.",
+        err: "No DHIS2 connection confirmed. Please confirm the connection first.",
       };
     }
-    return {
-      success: true,
-      data: JSON.parse(rawUA.step_1_result) as Dhis2Credentials,
-    };
+    const snapshot = JSON.parse(
+      rawUA.step_1_result
+    ) as StructureDhis2ConnectionSnapshot;
+    const credentials = await resolveDhis2Credentials(mainDb, { kind: "stored" });
+    if (credentials.url !== snapshot.url) {
+      return {
+        success: false,
+        err: "The stored DHIS2 connection changed since this step was confirmed — redo step 1.",
+      };
+    }
+    return { success: true, data: credentials };
   });
 }
 
@@ -495,10 +499,10 @@ export async function structureStep0_SetSourceType(
   });
 }
 
-export async function structureStep1Dhis2_SetCredentials(
+export async function structureStep1Dhis2_ConfirmConnection(
   mainDb: Sql,
   family: FacilityFamily,
-  credentials: Dhis2Credentials
+  snapshot: StructureDhis2ConnectionSnapshot
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawUA = await getRawUAOrThrow(mainDb, family);
@@ -509,7 +513,7 @@ export async function structureStep1Dhis2_SetCredentials(
       UPDATE structure_upload_attempts
       SET
         step = 2,
-        step_1_result = ${JSON.stringify(credentials)},
+        step_1_result = ${JSON.stringify(snapshot)},
         step_2_result = NULL,
         step_3_result = NULL,
         status = ${JSON.stringify({ status: "configuring" })},
@@ -862,8 +866,12 @@ export async function structureStep3Dhis2_StageData(
   ) {
     return {
       success: false,
-      err: "DHIS2 credentials and selection steps not completed",
+      err: "DHIS2 connection and selection steps not completed",
     };
+  }
+  const resCredentials = await getStructureDhis2ResolvedCredentials(mainDb, family);
+  if (!resCredentials.success) {
+    return resCredentials;
   }
   if (!(await claimImportSlot(mainDb, family, "importing_dhis2"))) {
     return {
@@ -874,7 +882,6 @@ export async function structureStep3Dhis2_StageData(
   try {
     if (onProgress) await onProgress(0.05, "Connecting to DHIS2 server...");
 
-    const credentials = JSON.parse(rawUA.step_1_result) as Dhis2Credentials;
     const selection = JSON.parse(
       rawUA.step_2_result
     ) as StructureDhis2OrgUnitSelection;
@@ -882,7 +889,7 @@ export async function structureStep3Dhis2_StageData(
     const resStaging = await stageStructureFromDhis2V2(
       mainDb,
       family,
-      credentials,
+      resCredentials.data,
       selection,
       onProgress
     );
