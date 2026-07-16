@@ -374,38 +374,6 @@
   margin-inline: var(--ui-icon-only-correction-sm);
 }
 
-/* ---- Quiet — public. Quiet interactive: a named surface appears on
-   hover/press. `ui-quiet` pairs with the base-100 level, `ui-quiet-200`
-   with base-200 — whether the element is transparent on that surface or
-   carries it as its own rest `bg-*`. Defined as @utility (not @layer
-   components) so `:hover`/`:active` (specificity 0,2,0) win over a
-   retained rest `bg-*` utility (0,1,0): `bg-base-200 ui-quiet-200`
-   composes. Carries the full affordance bundle — cursor, select-none,
-   transition — so call sites never assemble state classes by hand. ---- */
-@utility ui-quiet {
-  cursor: pointer;
-  user-select: none;
-  transition: background-color var(--ui-dur-fast) var(--ui-ease);
-  &:hover {
-    background-color: var(--color-base-100-hover);
-  }
-  &:active {
-    background-color: var(--color-base-100-active);
-  }
-}
-
-@utility ui-quiet-200 {
-  cursor: pointer;
-  user-select: none;
-  transition: background-color var(--ui-dur-fast) var(--ui-ease);
-  &:hover {
-    background-color: var(--color-base-200-hover);
-  }
-  &:active {
-    background-color: var(--color-base-200-active);
-  }
-}
-
 @layer components {
   /* =============================================================
      Component-layer classes.

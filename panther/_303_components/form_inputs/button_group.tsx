@@ -41,6 +41,15 @@ function getButtonGroupItemClasses(size?: "sm") {
     "data-[selected=false]:bg-base-100",
     "data-[selected=false]:focus-visible:border",
     "data-[LeftOfSelected=true]:border-r-0",
+
+    // Unselected hover — the outline-style intent-subtle tint. Written as
+    // utilities (not via ui-intent-states) because the rest bg above is a
+    // utility, and component-layer hovers lose to it.
+    "data-[selected=false]:hover:bg-primary-subtle",
+    "data-[selected=false]:data-[intent=neutral]:hover:bg-neutral-subtle",
+    "data-[selected=false]:data-[intent=success]:hover:bg-success-subtle",
+    "data-[selected=false]:data-[intent=warning]:hover:bg-warning-subtle",
+    "data-[selected=false]:data-[intent=danger]:hover:bg-danger-subtle",
   ].join(" ");
 }
 

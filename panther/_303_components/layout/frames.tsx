@@ -546,7 +546,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           <For each={collapsedPanes()}>
             {(pane) => (
               <div
-                class={`ui-quiet border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0 ${
+                class={`cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0 ${
                   p.hiddenTabColor ?? "bg-primary-subtle"
                 }`}
                 onClick={pane.onClick}

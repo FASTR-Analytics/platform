@@ -107,8 +107,10 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
       <div
         class={`${headerPadding()} flex items-center`}
         classList={{
-          "ui-quiet": !local.shadedHeader,
-          "ui-quiet-200": !!local.shadedHeader,
+          "cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active":
+            !local.shadedHeader,
+          "cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active":
+            !!local.shadedHeader,
           "bg-base-200": !!local.shadedHeader,
           "font-700": local.boldHeader,
           "text-primary": local.activeHeader,

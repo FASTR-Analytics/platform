@@ -273,7 +273,7 @@ export function PopoverMenuProvider() {
                         <button
                           ref={buttonRef}
                           type="button"
-                          class="ui-quiet flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
+                          class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
                           classList={{
                             "text-danger":
                               (item as MenuItemClickable).intent ===
@@ -347,7 +347,7 @@ export function PopoverMenuProvider() {
                   >
                     <button
                       type="button"
-                      class="ui-quiet flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
+                      class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active flex w-full items-center gap-2 px-3 py-2 text-left text-sm disabled:opacity-40"
                       classList={{
                         "text-danger": (item as MenuItemClickable).intent ===
                           "danger",

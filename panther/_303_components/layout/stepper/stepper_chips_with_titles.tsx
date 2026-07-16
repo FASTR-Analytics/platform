@@ -79,7 +79,7 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
     const status = p.stepper.getStepStatus(step);
     const base = "flex items-center gap-2";
     if (status === "completed" || status === "available") {
-      return `${base} ui-quiet rounded`;
+      return `${base} cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active rounded`;
     }
     if (status === "locked") return base;
     return base;

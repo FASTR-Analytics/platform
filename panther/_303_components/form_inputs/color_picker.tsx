@@ -273,7 +273,7 @@ function ColorSwatch(p: {
   return (
     <button
       type="button"
-      class="ui-quiet hover:border-base-content relative h-6 w-6 rounded border border-black/10"
+      class="cursor-pointer select-none hover:border-base-content relative h-6 w-6 rounded border border-black/10"
       style={{ "background-color": p.color }}
       onClick={() => p.onClick(p.color)}
       title={p.color}
@@ -337,7 +337,7 @@ export function ColorPicker(p: ColorPickerProps) {
       </Show>
       <button
         type="button"
-        class={`ui-quiet hover:border-base-content border-border rounded border ${padClass()}`}
+        class={`cursor-pointer select-none hover:border-base-content border-border rounded border ${padClass()}`}
         classList={{ "w-full": p.fullWidth, block: !!p.label }}
         style={{
           "anchor-name": anchorName,
